@@ -312,6 +312,7 @@ func TestResponseNegotiationPolicy(t *testing.T) {
 		{name: "missing", wantStatus: http.StatusNoContent, wantCalled: true},
 		{name: "exact", accept: "application/json", wantStatus: http.StatusNoContent, wantCalled: true},
 		{name: "parameters", accept: "application/json; charset=utf-8", wantStatus: http.StatusNoContent, wantCalled: true},
+		{name: "quoted comma parameter", accept: `application/json; profile="a,b"`, wantStatus: http.StatusNoContent, wantCalled: true},
 		{name: "type wildcard", accept: "application/*", wantStatus: http.StatusNoContent, wantCalled: true},
 		{name: "any wildcard", accept: "*/*", wantStatus: http.StatusNoContent, wantCalled: true},
 		{name: "weighted match", accept: "text/html, application/json;q=0.5", wantStatus: http.StatusNoContent, wantCalled: true},
@@ -343,6 +344,26 @@ func TestResponseNegotiationPolicy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResponseNegotiationPolicyCombinesAcceptFieldLines(t *testing.T) {
+	policy, err := NewResponseNegotiationPolicy("application/json")
+	require.NoError(t, err)
+
+	called := false
+	handler := policy.Handler(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		called = true
+		response.WriteHeader(http.StatusNoContent)
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Add("Accept", "text/plain")
+	request.Header.Add("Accept", "application/json")
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code)
+	require.True(t, called)
 }
 
 func TestNewResponseNegotiationPolicyRejectsInvalidMediaTypes(t *testing.T) {
@@ -399,6 +420,49 @@ func TestDerivedHeadHandler(t *testing.T) {
 	require.Equal(t, []string{"one=1", "two=2"}, recorder.Header().Values("Set-Cookie"))
 }
 
+func TestDerivedHeadHandlerPreservesGETCommitBoundary(t *testing.T) {
+	getHandler := http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("X-Before", "committed")
+		response.WriteHeader(http.StatusOK)
+		response.Header().Set("X-After", "must-not-leak")
+		response.Header().Add("Set-Cookie", "late=must-not-leak")
+		_, err := response.Write([]byte("body"))
+		require.NoError(t, err)
+	})
+
+	getRecorder := httptest.NewRecorder()
+	getHandler.ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	getHeaders := getRecorder.Result().Header
+
+	headRecorder := httptest.NewRecorder()
+	DerivedHeadHandler(getHandler).ServeHTTP(headRecorder, httptest.NewRequest(http.MethodHead, "/", nil))
+	headHeaders := headRecorder.Result().Header
+	headHeaders.Del("Content-Length")
+
+	require.Equal(t, getHeaders, headHeaders)
+	require.Empty(t, headHeaders.Get("X-After"))
+	require.Empty(t, headHeaders.Values("Set-Cookie"))
+}
+
+func TestDerivedHeadHandlerSniffsImplicitContentTypeLikeGET(t *testing.T) {
+	getHandler := http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		_, err := response.Write([]byte("plain body"))
+		require.NoError(t, err)
+	})
+
+	getRecorder := httptest.NewRecorder()
+	getHandler.ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	getHeaders := getRecorder.Result().Header
+
+	headRecorder := httptest.NewRecorder()
+	DerivedHeadHandler(getHandler).ServeHTTP(headRecorder, httptest.NewRequest(http.MethodHead, "/", nil))
+	headHeaders := headRecorder.Result().Header
+	headHeaders.Del("Content-Length")
+
+	require.Equal(t, getHeaders, headHeaders)
+	require.Equal(t, "text/plain; charset=utf-8", headHeaders.Get("Content-Type"))
+}
+
 func TestDerivedHeadHandlerOmitsLengthForBodylessStatuses(t *testing.T) {
 	for _, status := range []int{http.StatusNoContent, http.StatusResetContent, http.StatusNotModified} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
@@ -430,6 +494,7 @@ func TestDerivedHeadHandlerCountsReaderFromWrites(t *testing.T) {
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Empty(t, recorder.Body.String())
 	require.Equal(t, "7", recorder.Header().Get("Content-Length"))
+	require.Equal(t, "text/plain; charset=utf-8", recorder.Header().Get("Content-Type"))
 }
 
 func TestMountDerivedHead(t *testing.T) {

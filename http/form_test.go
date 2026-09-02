@@ -2,11 +2,15 @@ package http
 
 import (
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (
@@ -154,6 +158,35 @@ func TestSetFormRequest(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(buf), "type=refresh_token")
 	require.Contains(t, string(buf), "value=rt-1")
+}
+
+func TestParseFormWithLimit(t *testing.T) {
+	t.Run("exact limit", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("value=ok"))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		err := ParseFormWithLimit(request, int64(len("value=ok")))
+
+		require.NoError(t, err)
+		require.Equal(t, "ok", request.PostForm.Get("value"))
+	})
+
+	t.Run("above limit", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("value=too-long"))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		err := ParseFormWithLimit(request, int64(len("value=ok")))
+
+		var serviceErr *loom.ServiceError
+		require.ErrorAs(t, err, &serviceErr)
+		require.Equal(t, loom.RequestBodyTooLarge, serviceErr.Name)
+	})
+
+	t.Run("invalid arguments", func(t *testing.T) {
+		require.Error(t, ParseFormWithLimit(nil, 1))
+		request := httptest.NewRequest(http.MethodPost, "/", nil)
+		require.Error(t, ParseFormWithLimit(request, 0))
+	})
 }
 
 func TestParseFormChildKey(t *testing.T) {

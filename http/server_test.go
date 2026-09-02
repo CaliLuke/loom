@@ -118,6 +118,98 @@ func TestUnaryHandlerLifecycle(t *testing.T) {
 	}
 }
 
+func TestUnaryHandlerRestoresHeadersBeforeEncodingPreCommitFailure(t *testing.T) {
+	errEncode := errors.New("encode")
+	handler := NewUnaryHandler(UnaryHandlerSpec[struct{}, struct{}]{
+		Service: "sessions",
+		Method:  "renew",
+		Invoke: func(context.Context, struct{}) (struct{}, error) {
+			return struct{}{}, nil
+		},
+		EncodeResponse: func(_ context.Context, w http.ResponseWriter, _ struct{}) error {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Add("Set-Cookie", "first=success")
+			return errEncode
+		},
+		EncodeError: func(_ context.Context, w http.ResponseWriter, err error) error {
+			require.ErrorIs(t, err, errEncode)
+			w.Header().Set("Content-Type", ProblemJSONContentType)
+			w.WriteHeader(http.StatusInternalServerError)
+			return nil
+		},
+	})
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/session", nil))
+
+	require.Equal(t, http.StatusInternalServerError, response.Code)
+	require.Equal(t, ProblemJSONContentType, response.Header().Get("Content-Type"))
+	require.Empty(t, response.Header().Values("Set-Cookie"))
+}
+
+func TestUnaryHandlerFallsBackWhenErrorEncodingFailsBeforeCommit(t *testing.T) {
+	errEndpoint := errors.New("denied")
+	errPolicy := errors.New("invalid error response cookie policy")
+	encodeCalls := 0
+	handler := NewUnaryHandler(UnaryHandlerSpec[struct{}, struct{}]{
+		Service: "sessions",
+		Method:  "renew",
+		Invoke: func(context.Context, struct{}) (struct{}, error) {
+			return struct{}{}, errEndpoint
+		},
+		EncodeResponse: func(context.Context, http.ResponseWriter, struct{}) error {
+			return nil
+		},
+		EncodeError: func(_ context.Context, w http.ResponseWriter, err error) error {
+			encodeCalls++
+			if encodeCalls == 1 {
+				require.ErrorIs(t, err, errEndpoint)
+				w.Header().Add("Set-Cookie", "partial=must-not-leak")
+				return errPolicy
+			}
+			require.ErrorIs(t, err, errPolicy)
+			w.Header().Set("Content-Type", ProblemJSONContentType)
+			w.WriteHeader(http.StatusInternalServerError)
+			return nil
+		},
+	})
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/session", nil))
+
+	require.Equal(t, http.StatusInternalServerError, response.Code)
+	require.Equal(t, 2, encodeCalls)
+	require.Empty(t, response.Header().Values("Set-Cookie"))
+	require.Equal(t, ProblemJSONContentType, response.Header().Get("Content-Type"))
+}
+
+func TestHandlerLifecycleEncodesPreCommitResponseFailure(t *testing.T) {
+	errPolicy := errors.New("invalid success response cookie policy")
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/download", nil)
+	lifecycle := NewHandlerLifecycle(response, request, "files", "download")
+
+	succeeded := lifecycle.EncodeResponse(
+		func(_ context.Context, w http.ResponseWriter) error {
+			w.Header().Add("Set-Cookie", "partial=must-not-leak")
+			return errPolicy
+		},
+		func(_ context.Context, w http.ResponseWriter, err error) error {
+			require.ErrorIs(t, err, errPolicy)
+			w.Header().Set("Content-Type", ProblemJSONContentType)
+			w.WriteHeader(http.StatusInternalServerError)
+			return nil
+		},
+		nil,
+	)
+	lifecycle.End()
+
+	require.False(t, succeeded)
+	require.Equal(t, http.StatusInternalServerError, response.Code)
+	require.Empty(t, response.Header().Values("Set-Cookie"))
+	require.Equal(t, ProblemJSONContentType, response.Header().Get("Content-Type"))
+}
+
 func TestHandlerLifecycleRoutesEndpointErrorsByCommitState(t *testing.T) {
 	errEndpoint := errors.New("endpoint")
 	tests := []struct {

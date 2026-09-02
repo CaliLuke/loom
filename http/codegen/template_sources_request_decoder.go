@@ -80,8 +80,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			}
 		}
 	{{- else if .Payload.Request.FormEncoded }}
-		if err = r.ParseForm(); err != nil {
-			err = loomhttp.NormalizeRequestBodyDecodeError(err)
+		if err = loomhttp.ParseFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context())); err != nil {
 			var gerr *loom.ServiceError
 			if errors.As(err, &gerr) {
 				return payload, gerr

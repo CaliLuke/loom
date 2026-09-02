@@ -103,7 +103,7 @@ func NewCreateHandler(
 		w = lifecycle.Writer()
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
-		acceptHeader := r.Header.Get("Accept")
+		acceptHeader := strings.Join(r.Header.Values("Accept"), ",")
 		if strings.Contains(acceptHeader, "text/event-stream") {
 			// Handle SSE request
 			payload, err := decodeRequest(r)
@@ -141,9 +141,9 @@ func NewCreateHandler(
 				lifecycle.HandlerFailed(err, false, encodeError, errhandler)
 				return
 			}
-			if err := encodeResponse(ctx, w, res); err != nil {
-				lifecycle.ResponseFailed(err, errhandler)
-			}
+			lifecycle.EncodeResponse(func(ctx context.Context, w http.ResponseWriter) error {
+				return encodeResponse(ctx, w, res)
+			}, encodeError, errhandler)
 		}
 	})
 }

@@ -97,6 +97,22 @@ func SetFormRequest(req *http.Request, body any) error {
 	return nil
 }
 
+// ParseFormWithLimit parses req's query and URL-encoded form values while
+// enforcing maxBytes for the request body. Unlike [http.Request.ParseForm], it
+// does not impose net/http's separate implicit 10 MiB form limit.
+func ParseFormWithLimit(req *http.Request, maxBytes int64) error {
+	if req == nil {
+		return fmt.Errorf("form request cannot be nil")
+	}
+	if maxBytes <= 0 {
+		return fmt.Errorf("form request body limit must be positive")
+	}
+	if req.Body != nil {
+		req.Body = http.MaxBytesReader(nil, req.Body, maxBytes)
+	}
+	return NormalizeRequestBodyDecodeError(req.ParseForm())
+}
+
 func encodeFormValue(values url.Values, prefix string, v reflect.Value) (bool, error) {
 	normalized, handled, err := normalizeFormEncodeValue(values, prefix, v)
 	if err != nil {

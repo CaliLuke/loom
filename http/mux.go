@@ -126,7 +126,7 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 			m.Router.Use(middleware)
 		}
 		m.NotFound(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			ctx := context.WithValue(req.Context(), AcceptTypeKey, req.Header.Get("Accept"))
+			ctx := context.WithValue(req.Context(), AcceptTypeKey, requestAcceptHeader(req))
 			enc := ResponseEncoder(ctx, w)
 			w.WriteHeader(http.StatusNotFound)
 			enc.Encode(NewErrorResponse(ctx, fmt.Errorf("404 page not found"))) // nolint:errcheck

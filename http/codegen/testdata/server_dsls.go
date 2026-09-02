@@ -355,7 +355,7 @@ var ResponseEncoderSkipResponseBodyEncodeDecodeDSL = func() {
 			HTTP(func() {
 				GET("/")
 				SkipResponseBodyEncodeDecode()
-				Response(StatusOK)
+				Response(StatusCreated)
 			})
 		})
 	})

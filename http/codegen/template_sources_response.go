@@ -46,7 +46,7 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 		{{- end }}
 	{{- else }}
 		{{- with (index .Result.Responses 0) }}
-			{{- if not (or $.Method.SkipResponseBodyEncodeDecode $.Method.FileResponse) }}
+			{{- if and (not $.Method.FileResponse) (or (not $.Method.SkipResponseBodyEncodeDecode) (ne .StatusCode "http.StatusOK")) }}
 				w.WriteHeader({{ .StatusCode }})
 			{{- end }}
 			return nil

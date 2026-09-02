@@ -94,7 +94,7 @@ func {{ .HandlerInit }}(
 	{{- if .HasMixedResults }}
 
 		// Content negotiation for mixed results (standard HTTP vs SSE)
-		acceptHeader := r.Header.Get("Accept")
+		acceptHeader := strings.Join(r.Header.Values("Accept"), ",")
 		if strings.Contains(acceptHeader, "text/event-stream") {
 			// Handle SSE request
 		{{- if mustDecodeRequest . }}
@@ -170,9 +170,9 @@ func {{ .HandlerInit }}(
 				return encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }})
 			}, encodeError, errhandler)
 		{{- else }}
-			if err := encodeResponse(ctx, w, res); err != nil {
-				lifecycle.ResponseFailed(err, errhandler)
-			}
+			lifecycle.EncodeResponse(func(ctx context.Context, w http.ResponseWriter) error {
+				return encodeResponse(ctx, w, res)
+			}, encodeError, errhandler)
 		{{- end }}
 		}
 	{{- else }}
@@ -269,9 +269,9 @@ func {{ .HandlerInit }}(
 		return
 	{{- end }}
 	{{- if not (or .Redirect (isWebSocketEndpoint .) (isSSEEndpoint .) .Method.SkipResponseBodyEncodeDecode .Method.FileResponse) }}
-		if err := encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }}); err != nil {
-			lifecycle.ResponseFailed(err, errhandler)
-		}
+		lifecycle.EncodeResponse(func(ctx context.Context, w http.ResponseWriter) error {
+			return encodeResponse(ctx, w, {{ if and .Method.SkipResponseBodyEncodeDecode .Result.Ref }}o.Result{{ else }}res{{ end }})
+		}, encodeError, errhandler)
 	{{- end }}
 	{{- end }}
 	})

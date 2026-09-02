@@ -87,7 +87,7 @@ func MountHandler(mux Muxer, method, pattern string, handler http.Handler) {
 // owns the request context, observation, and failure sequence.
 func NewUnaryHandler[Payload, Result any](spec UnaryHandlerSpec[Payload, Result]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), AcceptTypeKey, r.Header.Get("Accept"))
+		ctx := context.WithValue(r.Context(), AcceptTypeKey, requestAcceptHeader(r))
 		ctx = context.WithValue(ctx, loom.MethodKey, spec.Method)
 		ctx = context.WithValue(ctx, loom.ServiceKey, spec.Service)
 		observer, observedWriter := loomtransport.BeginHTTPRequest(ctx, w, spec.Service, spec.Method, r)
@@ -109,6 +109,7 @@ func NewUnaryHandler[Payload, Result any](spec UnaryHandlerSpec[Payload, Result]
 			encodeUnaryError(ctx, observedWriter, err, spec.EncodeError, spec.HandleFailure)
 			return
 		}
+		initialHeaders := observedWriter.Header().Clone()
 		if err := spec.EncodeResponse(ctx, observedWriter, result); err != nil {
 			observer.Fail(loomtransport.ReasonResponseWriteFailed)
 			if responseWriterCommitted(observedWriter) {
@@ -117,6 +118,7 @@ func NewUnaryHandler[Payload, Result any](spec UnaryHandlerSpec[Payload, Result]
 				}
 				return
 			}
+			replaceHeaders(observedWriter.Header(), initialHeaders)
 			encodeUnaryError(ctx, observedWriter, err, spec.EncodeError, spec.HandleFailure)
 		}
 	})
@@ -134,7 +136,36 @@ func encodeUnaryError(
 	encode func(context.Context, http.ResponseWriter, error) error,
 	handleFailure func(context.Context, http.ResponseWriter, error),
 ) {
-	if encodeErr := encode(ctx, w, err); encodeErr != nil && handleFailure != nil {
-		handleFailure(ctx, w, encodeErr)
+	encodeErrorWithFallback(ctx, w, err, encode, handleFailure)
+}
+
+func encodeErrorWithFallback(
+	ctx context.Context,
+	w http.ResponseWriter,
+	err error,
+	encode func(context.Context, http.ResponseWriter, error) error,
+	handleFailure func(context.Context, http.ResponseWriter, error),
+) {
+	initialHeaders := w.Header().Clone()
+	encodeErr := encode(ctx, w, err)
+	if encodeErr == nil {
+		return
+	}
+	if responseWriterCommitted(w) {
+		if handleFailure != nil {
+			handleFailure(ctx, w, encodeErr)
+		}
+		return
+	}
+	replaceHeaders(w.Header(), initialHeaders)
+	fallbackErr := encode(ctx, w, encodeErr)
+	if fallbackErr == nil {
+		return
+	}
+	if !responseWriterCommitted(w) {
+		replaceHeaders(w.Header(), initialHeaders)
+	}
+	if handleFailure != nil {
+		handleFailure(ctx, w, fallbackErr)
 	}
 }

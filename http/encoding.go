@@ -143,6 +143,13 @@ func stringContextValue(ctx context.Context, key any) string {
 	return ""
 }
 
+func requestAcceptHeader(req *http.Request) string {
+	if req == nil {
+		return ""
+	}
+	return strings.Join(req.Header.Values("Accept"), ",")
+}
+
 func responseEncoderFromContentType(w http.ResponseWriter, ct string) Encoder {
 	mt, _, err := mime.ParseMediaType(ct)
 	if err != nil {

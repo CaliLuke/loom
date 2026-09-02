@@ -90,6 +90,30 @@ func TestHandlerLifecycleWritesAndClosesRawBody(t *testing.T) {
 	require.Equal(t, loomtransport.ReasonOK, recorder.events[1].Reason)
 }
 
+func TestHandlerLifecyclePreservesImplicitRawContentTypeDetection(t *testing.T) {
+	body := &trackedReadCloser{Reader: strings.NewReader("plain body")}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/raw", nil)
+	lifecycle := NewHandlerLifecycle(response, request, "raw", "download")
+
+	lifecycle.WriteRawBody(
+		body,
+		func(context.Context, http.ResponseWriter) error {
+			return nil
+		},
+		func(context.Context, http.ResponseWriter, error) error {
+			t.Error("unexpected error encoder call")
+			return nil
+		},
+		nil,
+	)
+	lifecycle.End()
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Equal(t, "text/plain; charset=utf-8", response.Header().Get("Content-Type"))
+	require.Equal(t, "plain body", response.Body.String())
+}
+
 func TestHandlerLifecycleRoutesRawBodyFailures(t *testing.T) {
 	errWrite := errors.New("write")
 	body := &failingWriterToBody{err: errWrite}
@@ -102,7 +126,9 @@ func TestHandlerLifecycleRoutesRawBodyFailures(t *testing.T) {
 
 	lifecycle.WriteRawBody(
 		body,
-		func(context.Context, http.ResponseWriter) error {
+		func(_ context.Context, w http.ResponseWriter) error {
+			w.Header().Set("X-Success", "must-not-leak")
+			w.Header().Add("Set-Cookie", "session=must-not-leak")
 			return nil
 		},
 		func(_ context.Context, w http.ResponseWriter, err error) error {
@@ -120,11 +146,13 @@ func TestHandlerLifecycleRoutesRawBodyFailures(t *testing.T) {
 	require.ErrorIs(t, encodedErr, errWrite)
 	require.NoError(t, handledErr)
 	require.Equal(t, http.StatusBadGateway, response.Code)
+	require.Empty(t, response.Header().Get("X-Success"))
+	require.Empty(t, response.Header().Values("Set-Cookie"))
 	require.Len(t, recorder.events, 2)
 	require.Equal(t, loomtransport.ReasonResponseWriteFailed, recorder.events[1].Reason)
 }
 
-func TestHandlerLifecycleDoesNotEncodeCommittedZeroByteRawFailure(t *testing.T) {
+func TestHandlerLifecycleEncodesZeroByteRawFailureBeforeStagedStatusCommits(t *testing.T) {
 	errWrite := errors.New("write")
 	body := &failingWriterToBody{err: errWrite}
 	recorder := &unaryEventRecorder{}
@@ -133,28 +161,28 @@ func TestHandlerLifecycleDoesNotEncodeCommittedZeroByteRawFailure(t *testing.T) 
 	request = request.WithContext(loomtransport.WithObserver(request.Context(), recorder))
 	var encoded bool
 
-	require.PanicsWithValue(t, http.ErrAbortHandler, func() {
-		lifecycle := NewHandlerLifecycle(response, request, "raw", "download")
-		defer lifecycle.End()
-		lifecycle.WriteRawBody(
-			body,
-			func(_ context.Context, w http.ResponseWriter) error {
-				w.WriteHeader(http.StatusCreated)
-				return nil
-			},
-			func(context.Context, http.ResponseWriter, error) error {
-				encoded = true
-				return nil
-			},
-			nil,
-		)
-	})
+	lifecycle := NewHandlerLifecycle(response, request, "raw", "download")
+	lifecycle.WriteRawBody(
+		body,
+		func(_ context.Context, w http.ResponseWriter) error {
+			w.WriteHeader(http.StatusCreated)
+			return nil
+		},
+		func(_ context.Context, w http.ResponseWriter, err error) error {
+			encoded = true
+			require.ErrorIs(t, err, errWrite)
+			w.WriteHeader(http.StatusBadGateway)
+			return nil
+		},
+		nil,
+	)
+	lifecycle.End()
 
 	require.True(t, body.closed)
-	require.False(t, encoded)
-	require.Equal(t, http.StatusCreated, response.Code)
+	require.True(t, encoded)
+	require.Equal(t, http.StatusBadGateway, response.Code)
 	require.Len(t, recorder.events, 2)
-	require.Equal(t, loomtransport.ReasonPanic, recorder.events[1].Reason)
+	require.Equal(t, loomtransport.ReasonResponseWriteFailed, recorder.events[1].Reason)
 }
 
 func TestHandlerLifecycleAbortsLateRawBodyFailure(t *testing.T) {

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 )
 
 // PopulateRequestContext returns a middleware which populates a number of standard HTTP header
@@ -27,7 +28,7 @@ func PopulateRequestContext() func(http.Handler) http.Handler {
 				RequestUserAgentKey:       r.Header.Get("User-Agent"),
 				RequestXRequestIDKey:      r.Header.Get("X-Request-Id"),
 				RequestXCSRFTokenKey:      r.Header.Get("X-Csrf-Token"),
-				RequestAcceptKey:          r.Header.Get("Accept"),
+				RequestAcceptKey:          strings.Join(r.Header.Values("Accept"), ","),
 			} {
 				ctx = context.WithValue(ctx, k, v)
 			}

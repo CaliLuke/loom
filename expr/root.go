@@ -59,6 +59,11 @@ func (r *RootExpr) WalkSets(walk eval.SetWalker) {
 		name := "API"
 		if len(r.Services) > 0 {
 			name = r.Services[0].Name
+			for _, service := range r.Services[1:] {
+				if service.Name < name {
+					name = service.Name
+				}
+			}
 		}
 		r.API = NewAPIExpr(name, func() {})
 	}
@@ -340,9 +345,7 @@ func (r *RootExpr) Finalize() {
 	if r.API == nil {
 		r.API = &APIExpr{}
 	}
-	sort.SliceStable(r.Services, func(i, j int) bool {
-		return r.Services[i].Name < r.Services[j].Name
-	})
+	sortServices(r.Services)
 	if r.API.HTTP != nil {
 		sortHTTPServices(r.API.HTTP.Services)
 	}
@@ -391,6 +394,12 @@ func (r *RootExpr) walkHTTPServices(root eval.Expression, svcs []*HTTPServiceExp
 func sortHTTPServices(services []*HTTPServiceExpr) {
 	sort.SliceStable(services, func(i, j int) bool {
 		return services[i].Name() < services[j].Name()
+	})
+}
+
+func sortServices(services []*ServiceExpr) {
+	sort.SliceStable(services, func(i, j int) bool {
+		return services[i].Name < services[j].Name
 	})
 }
 

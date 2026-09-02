@@ -33,7 +33,9 @@ func fileResponseIntegrationDSL() {
 			Result(func() {
 				Attribute("etag", String)
 				Attribute("disposition", String)
-				Required("etag", "disposition")
+				Attribute("session", String)
+				Attribute("refresh", String)
+				Required("etag", "disposition", "session", "refresh")
 			})
 			Error("not_found")
 			HTTP(func() {
@@ -45,6 +47,8 @@ func fileResponseIntegrationDSL() {
 					ContentType("application/octet-stream")
 					Header("etag:ETag")
 					Header("disposition:Content-Disposition")
+					Cookie("session")
+					Cookie("refresh")
 				})
 				Response("not_found", StatusNotFound)
 			})
@@ -99,6 +103,8 @@ func (s *fileService) Download(_ context.Context, payload *files.DownloadPayload
 	result := &files.DownloadResult{
 		Etag:        fileETag,
 		Disposition: ` + "`attachment; filename=\"sample.bin\"`" + `,
+		Session:     "session-value",
+		Refresh:     "refresh-value",
 	}
 	if mode == "nil" {
 		return result, nil, nil
@@ -260,6 +266,41 @@ func TestGeneratedFileResponseErrorsCommitBeforeFileMetadata(t *testing.T) {
 	}
 }
 
+func TestGeneratedFileResponseCookiePolicyFailureUsesProblemResponse(t *testing.T) {
+	policy := loomhttp.ResponseCookiePolicy(func(_ context.Context, cookie *http.Cookie) error {
+		if cookie.Name == "refresh" {
+			return errors.New("invalid refresh deployment policy")
+		}
+		return nil
+	})
+	service, server := newFileServerWithPolicy(t, policy)
+
+	response, err := server.Client().Get(server.URL + "/download")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	body, readErr := io.ReadAll(response.Body)
+	closeErr := response.Body.Close()
+	if readErr != nil || closeErr != nil {
+		t.Fatalf("consume response: read=%v close=%v", readErr, closeErr)
+	}
+	if response.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body=%q", response.StatusCode, body)
+	}
+	if got := response.Header.Get("Content-Type"); got != loomhttp.ProblemJSONContentType {
+		t.Errorf("Content-Type = %q, want %q", got, loomhttp.ProblemJSONContentType)
+	}
+	if got := response.Header.Values("Set-Cookie"); len(got) != 0 {
+		t.Errorf("failed file response leaked cookies: %v", got)
+	}
+	if strings.Contains(string(body), fileBody) {
+		t.Errorf("failed file response leaked file body: %q", body)
+	}
+	if got := service.closeCount(); got != 1 {
+		t.Errorf("content Close calls = %d, want 1", got)
+	}
+}
+
 func TestGeneratedFileResponseClientOwnershipAndStatuses(t *testing.T) {
 	_, server := newFileServer(t)
 	tests := []struct {
@@ -371,11 +412,21 @@ func TestGeneratedFileResponseClientPreconditionAndRangeErrors(t *testing.T) {
 }
 
 func newFileServer(t *testing.T) (*fileService, *httptest.Server) {
+	return newFileServerWithPolicy(t, nil)
+}
+
+func newFileServerWithPolicy(
+	t *testing.T,
+	policy loomhttp.ResponseCookiePolicy,
+) (*fileService, *httptest.Server) {
 	t.Helper()
 	service := &fileService{}
 	endpoints := files.NewEndpoints(service)
 	mux := loomhttp.NewMuxer()
 	transport := filesserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	if policy != nil {
+		transport.Download = policy.Handler(transport.Download)
+	}
 	filesserver.Mount(mux, transport)
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

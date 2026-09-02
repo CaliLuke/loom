@@ -2,6 +2,7 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -21,6 +22,18 @@ type (
 		service  string
 		method   string
 	}
+
+	stagedResponseWriter struct {
+		header http.Header
+		body   bytes.Buffer
+		status int
+	}
+
+	deferredStatusWriter struct {
+		writer    http.ResponseWriter
+		status    int
+		committed bool
+	}
 )
 
 // NewHandlerLifecycle starts the shared runtime lifecycle for a generated HTTP
@@ -31,7 +44,7 @@ func NewHandlerLifecycle(
 	service string,
 	method string,
 ) *HandlerLifecycle {
-	ctx := context.WithValue(r.Context(), AcceptTypeKey, r.Header.Get("Accept"))
+	ctx := context.WithValue(r.Context(), AcceptTypeKey, requestAcceptHeader(r))
 	ctx = context.WithValue(ctx, loom.MethodKey, method)
 	ctx = context.WithValue(ctx, loom.ServiceKey, service)
 	observer, writer := loomtransport.BeginHTTPRequest(ctx, w, service, method, r)
@@ -99,6 +112,29 @@ func (l *HandlerLifecycle) ResponseFailed(
 	l.handleFailure(err, handleFailure)
 }
 
+// EncodeResponse writes response metadata or a buffered response body. When
+// encoding fails before commit, it restores the original headers and encodes
+// the failure through the generated error formatter. It reports whether the
+// response encoding succeeded.
+func (l *HandlerLifecycle) EncodeResponse(
+	encodeResponse func(context.Context, http.ResponseWriter) error,
+	encodeError func(context.Context, http.ResponseWriter, error) error,
+	handleFailure func(context.Context, http.ResponseWriter, error),
+) bool {
+	initialHeaders := l.writer.Header().Clone()
+	if err := encodeResponse(l.ctx, l.writer); err != nil {
+		l.observer.Fail(loomtransport.ReasonResponseWriteFailed)
+		if l.responseCommitted() {
+			l.handleFailure(err, handleFailure)
+			return false
+		}
+		replaceHeaders(l.writer.Header(), initialHeaders)
+		l.encodeError(err, encodeError, handleFailure)
+		return false
+	}
+	return true
+}
+
 // WriteRawBody encodes response metadata, streams body, closes it, and applies
 // the generated HTTP late-error policy.
 func (l *HandlerLifecycle) WriteRawBody(
@@ -113,37 +149,47 @@ func (l *HandlerLifecycle) WriteRawBody(
 		}
 	}()
 
+	var writeBody func(io.Writer) (int64, error)
 	if writerTo, ok := body.(io.WriterTo); ok {
-		if err := encodeResponse(l.ctx, l.writer); err != nil {
-			l.ResponseFailed(err, handleFailure)
+		writeBody = writerTo.WriteTo
+	} else {
+		buffered := bufio.NewReader(body)
+		if _, err := buffered.Peek(1); err != nil && err != io.EOF {
+			l.HandlerFailed(err, false, encodeError, handleFailure)
 			return
 		}
-		_, err := writerTo.WriteTo(l.writer)
-		if err == nil {
+		writeBody = func(writer io.Writer) (int64, error) {
+			return io.Copy(writer, buffered)
+		}
+	}
+
+	initialHeaders := l.writer.Header().Clone()
+	staged := &stagedResponseWriter{header: initialHeaders.Clone()}
+	if err := encodeResponse(l.ctx, staged); err != nil {
+		l.observer.Fail(loomtransport.ReasonResponseWriteFailed)
+		l.encodeError(err, encodeError, handleFailure)
+		return
+	}
+	replaceHeaders(l.writer.Header(), staged.header)
+	writer := &deferredStatusWriter{writer: l.writer, status: staged.status}
+	if staged.body.Len() > 0 {
+		if _, err := writer.Write(staged.body.Bytes()); err != nil {
+			l.observer.Fail(loomtransport.ReasonResponseWriteFailed)
+			l.abortLateWrite(handleFailure)
 			return
 		}
+	}
+	if _, err := writeBody(writer); err != nil {
 		l.observer.Fail(loomtransport.ReasonResponseWriteFailed)
 		if !l.responseCommitted() {
+			replaceHeaders(l.writer.Header(), initialHeaders)
 			l.encodeError(err, encodeError, handleFailure)
 			return
 		}
 		l.abortLateWrite(handleFailure)
 		return
 	}
-
-	buffered := bufio.NewReader(body)
-	if _, err := buffered.Peek(1); err != nil && err != io.EOF {
-		l.HandlerFailed(err, false, encodeError, handleFailure)
-		return
-	}
-	if err := encodeResponse(l.ctx, l.writer); err != nil {
-		l.ResponseFailed(err, handleFailure)
-		return
-	}
-	if _, err := io.Copy(l.writer, buffered); err != nil {
-		l.observer.Fail(loomtransport.ReasonResponseWriteFailed)
-		l.abortLateWrite(handleFailure)
-	}
+	writer.commit()
 }
 
 // ServeFile encodes response metadata, applies the designed content type,
@@ -169,8 +215,7 @@ func (l *HandlerLifecycle) ServeFile(
 			}
 		}()
 	}
-	if err := encodeResponse(l.ctx, l.writer); err != nil {
-		l.ResponseFailed(err, handleFailure)
+	if !l.EncodeResponse(encodeResponse, encodeError, handleFailure) {
 		return
 	}
 	if contentType != "" {
@@ -184,9 +229,7 @@ func (l *HandlerLifecycle) encodeError(
 	encode func(context.Context, http.ResponseWriter, error) error,
 	handleFailure func(context.Context, http.ResponseWriter, error),
 ) {
-	if encodeErr := encode(l.ctx, l.writer, err); encodeErr != nil {
-		l.handleFailure(encodeErr, handleFailure)
-	}
+	encodeErrorWithFallback(l.ctx, l.writer, err, encode, handleFailure)
 }
 
 func (l *HandlerLifecycle) handleFailure(
@@ -210,4 +253,43 @@ func (l *HandlerLifecycle) abortLateWrite(
 func (l *HandlerLifecycle) responseCommitted() bool {
 	capture, ok := l.writer.(interface{ StatusCode() int })
 	return ok && capture.StatusCode() != 0
+}
+
+func (w *stagedResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *stagedResponseWriter) WriteHeader(status int) {
+	if status < http.StatusOK || w.status != 0 {
+		return
+	}
+	w.status = status
+}
+
+func (w *stagedResponseWriter) Write(data []byte) (int, error) {
+	return w.body.Write(data)
+}
+
+func (w *deferredStatusWriter) Write(data []byte) (int, error) {
+	if len(data) == 0 {
+		return 0, nil
+	}
+	if w.status != 0 {
+		w.commit()
+	}
+	written, err := w.writer.Write(data)
+	w.committed = true
+	return written, err
+}
+
+func (w *deferredStatusWriter) commit() {
+	if w.committed {
+		return
+	}
+	w.committed = true
+	status := w.status
+	if status == 0 {
+		status = http.StatusOK
+	}
+	w.writer.WriteHeader(status)
 }

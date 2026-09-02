@@ -63,11 +63,12 @@ func (p ResponseNegotiationPolicy) Handler(next http.Handler) http.Handler {
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeVary(w.Header(), "Accept")
-		if acceptsAnyMediaType(r.Header.Get("Accept"), p.mediaTypes) {
+		accept := requestAcceptHeader(r)
+		if acceptsAnyMediaType(accept, p.mediaTypes) {
 			next.ServeHTTP(w, r)
 			return
 		}
-		writeNegotiationProblem(w, r, loom.NotAcceptableError(r.Header.Get("Accept")))
+		writeNegotiationProblem(w, r, loom.NotAcceptableError(accept))
 	})
 }
 
@@ -101,7 +102,7 @@ func acceptsAnyMediaType(accept string, supported []string) bool {
 }
 
 func parseMediaRanges(accept string) []mediaRange {
-	values := strings.Split(accept, ",")
+	values := splitHTTPList(accept)
 	ranges := make([]mediaRange, 0, len(values))
 	for _, value := range values {
 		mediaType, params, err := mime.ParseMediaType(strings.TrimSpace(value))
@@ -134,6 +135,33 @@ func parseMediaRanges(accept string) []mediaRange {
 		})
 	}
 	return ranges
+}
+
+func splitHTTPList(value string) []string {
+	values := make([]string, 0, strings.Count(value, ",")+1)
+	start := 0
+	quoted := false
+	escaped := false
+	for i := 0; i < len(value); i++ {
+		switch value[i] {
+		case '\\':
+			if quoted && !escaped {
+				escaped = true
+				continue
+			}
+		case '"':
+			if !escaped {
+				quoted = !quoted
+			}
+		case ',':
+			if !quoted {
+				values = append(values, value[start:i])
+				start = i + 1
+			}
+		}
+		escaped = false
+	}
+	return append(values, value[start:])
 }
 
 func writeNegotiationProblem(w http.ResponseWriter, r *http.Request, err error) {
