@@ -160,6 +160,9 @@ func inferProblemStatus(err *loom.ServiceError) int {
 	if err.Name == loom.UnsupportedMediaType {
 		return http.StatusUnsupportedMediaType
 	}
+	if err.Name == loom.NotAcceptable {
+		return http.StatusNotAcceptable
+	}
 	if err.Fault {
 		return http.StatusInternalServerError
 	}
@@ -193,6 +196,8 @@ func isGenericHTTPProblem(code string, status int) bool {
 		return code == loom.RequestBodyTooLarge
 	case http.StatusUnsupportedMediaType:
 		return code == loom.UnsupportedMediaType
+	case http.StatusNotAcceptable:
+		return code == loom.NotAcceptable
 	case http.StatusUnprocessableEntity:
 		return code == "unprocessable_entity"
 	case http.StatusTooManyRequests:

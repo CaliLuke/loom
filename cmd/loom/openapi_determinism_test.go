@@ -55,6 +55,14 @@ func TestLoomGenOpenAPIIsByteStableAcrossIndependentModules(t *testing.T) {
 			require.NotEqual(t, -1, alpha)
 			require.NotEqual(t, -1, zulu)
 			require.Less(t, alpha, zulu, "nested authored maps must use deterministic key ordering")
+			alphaTag := strings.Index(string(first), `"name": "Alpha"`)
+			catalogTag := strings.Index(string(first), `"name": "Catalog"`)
+			zebraTag := strings.Index(string(first), `"name": "Zebra"`)
+			require.NotEqual(t, -1, alphaTag)
+			require.NotEqual(t, -1, catalogTag)
+			require.NotEqual(t, -1, zebraTag)
+			require.Less(t, alphaTag, catalogTag, "implicit service tags must use stable name ordering")
+			require.Less(t, catalogTag, zebraTag, "implicit service tags must use stable name ordering")
 		})
 	}
 }
@@ -117,6 +125,24 @@ var _ = Service("Catalog", func() {
 		HTTP(func() {
 			GET("/catalog")
 			Response(StatusOK)
+		})
+	})
+})
+
+var _ = Service("Zebra", func() {
+	Method("Show", func() {
+		HTTP(func() {
+			GET("/zebra")
+			Response(StatusNoContent)
+		})
+	})
+})
+
+var _ = Service("Alpha", func() {
+	Method("Show", func() {
+		HTTP(func() {
+			GET("/alpha")
+			Response(StatusNoContent)
 		})
 	})
 })

@@ -68,6 +68,73 @@ func TestRootExprValidate(t *testing.T) {
 	}
 }
 
+func TestRootExprFinalizeStabilizesImplicitServiceOrder(t *testing.T) {
+	alpha := &ServiceExpr{Name: "alpha"}
+	zebra := &ServiceExpr{Name: "zebra"}
+	root := &RootExpr{
+		API: NewAPIExpr("catalog", nil),
+		Services: []*ServiceExpr{
+			zebra,
+			alpha,
+		},
+	}
+	root.API.HTTP.Services = []*HTTPServiceExpr{
+		{ServiceExpr: zebra},
+		{ServiceExpr: alpha},
+	}
+	previousRoot := Root
+	Root = root
+	defer func() {
+		Root = previousRoot
+	}()
+
+	root.Finalize()
+
+	if root.Services[0].Name != "alpha" || root.Services[1].Name != "zebra" {
+		t.Errorf("unexpected service order: %q, %q", root.Services[0].Name, root.Services[1].Name)
+	}
+	if root.API.HTTP.Services[0].Name() != "alpha" || root.API.HTTP.Services[1].Name() != "zebra" {
+		t.Errorf(
+			"unexpected HTTP service order: %q, %q",
+			root.API.HTTP.Services[0].Name(),
+			root.API.HTTP.Services[1].Name(),
+		)
+	}
+	if root.API.Servers[0].Services[0] != "alpha" || root.API.Servers[0].Services[1] != "zebra" {
+		t.Errorf(
+			"unexpected implicit server service order: %q, %q",
+			root.API.Servers[0].Services[0],
+			root.API.Servers[0].Services[1],
+		)
+	}
+}
+
+func TestRootExprFinalizePreservesExplicitServerServiceOrder(t *testing.T) {
+	root := &RootExpr{
+		API: NewAPIExpr("catalog", nil),
+		Services: []*ServiceExpr{
+			{Name: "zebra"},
+			{Name: "alpha"},
+		},
+	}
+	root.API.Servers = []*ServerExpr{{Services: []string{"zebra", "alpha"}}}
+	previousRoot := Root
+	Root = root
+	defer func() {
+		Root = previousRoot
+	}()
+
+	root.Finalize()
+
+	if root.API.Servers[0].Services[0] != "zebra" || root.API.Servers[0].Services[1] != "alpha" {
+		t.Errorf(
+			"unexpected explicit server service order: %q, %q",
+			root.API.Servers[0].Services[0],
+			root.API.Servers[0].Services[1],
+		)
+	}
+}
+
 func TestMetaExpr_Last(t *testing.T) {
 	tt := map[string]struct {
 		meta  MetaExpr

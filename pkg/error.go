@@ -95,6 +95,9 @@ const (
 	// RequestBodyTooLarge is the error name returned by the Loom decoder when
 	// the HTTP request body exceeds the framework limit.
 	RequestBodyTooLarge = "request_too_large"
+	// NotAcceptable is the error name returned by strict HTTP response
+	// negotiation when the request excludes every supported media type.
+	NotAcceptable = "not_acceptable"
 	// MissingPayload is the error name for missing payload errors.
 	MissingPayload = "missing_payload"
 )
@@ -161,6 +164,12 @@ func DecodePayloadError(msg string) error {
 // HTTP request body exceeds the framework limit.
 func RequestBodyTooLargeError() error {
 	return PermanentError(RequestBodyTooLarge, "request body too large")
+}
+
+// NotAcceptableError is the error produced by strict HTTP response negotiation
+// when the Accept header excludes every supported response media type.
+func NotAcceptableError(accept string) error {
+	return PermanentError(NotAcceptable, "no supported response media type satisfies Accept %q", accept)
 }
 
 // UnsupportedMediaTypeError is the error produced by the Loom decoder when the

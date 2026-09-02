@@ -524,3 +524,20 @@ func TestNewAppliesMethodBodyOperationTags(t *testing.T) {
 		t.Errorf("unexpected list tags: %#v", got)
 	}
 }
+
+func TestBuildTagsSortsImplicitServiceTags(t *testing.T) {
+	api := &expr.APIExpr{
+		HTTP: &expr.HTTPExpr{
+			Services: []*expr.HTTPServiceExpr{
+				{ServiceExpr: &expr.ServiceExpr{Name: "zebra", Description: "Zebra service."}},
+				{ServiceExpr: &expr.ServiceExpr{Name: "alpha", Description: "Alpha service."}},
+			},
+		},
+	}
+
+	tags := buildTags(api)
+
+	require.Len(t, tags, 2)
+	require.Equal(t, "alpha", tags[0].Name)
+	require.Equal(t, "zebra", tags[1].Name)
+}

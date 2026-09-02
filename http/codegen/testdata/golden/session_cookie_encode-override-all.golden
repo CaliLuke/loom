@@ -8,7 +8,7 @@ func EncodeCreateResponse(encoder func(context.Context, http.ResponseWriter) loo
 		}
 		if res.Session != nil {
 			session := *res.Session
-			http.SetCookie(w, &http.Cookie{
+			if err := loomhttp.SetResponseCookie(ctx, w, &http.Cookie{
 				Name:     "__Host-ak_session",
 				Value:    session,
 				MaxAge:   7200,
@@ -17,7 +17,9 @@ func EncodeCreateResponse(encoder func(context.Context, http.ResponseWriter) loo
 				Secure:   true,
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
-			})
+			}); err != nil {
+				return err
+			}
 		}
 		w.WriteHeader(http.StatusCreated)
 		return nil

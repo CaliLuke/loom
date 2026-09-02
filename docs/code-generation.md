@@ -36,6 +36,13 @@ This records the command's complete dependency graph in the application's
 record command-only dependencies such as the code generator's source-emission
 packages.
 
+`loom gen` intentionally regenerates the complete `gen/` tree. Repeating it
+with the same design and output path is byte-stable. Loom orders implicit
+service collections by service name, so Go's dependency-driven package
+initialization order cannot move unrelated services through aggregate clients,
+CLIs, or transport contracts. An explicit `Server(... Services(...))` list
+keeps the order authored by the application.
+
 For an existing `//go:generate` or script that intentionally uses `go run`, add
 the command package—not only the root module—before invoking it:
 

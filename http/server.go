@@ -111,11 +111,20 @@ func NewUnaryHandler[Payload, Result any](spec UnaryHandlerSpec[Payload, Result]
 		}
 		if err := spec.EncodeResponse(ctx, observedWriter, result); err != nil {
 			observer.Fail(loomtransport.ReasonResponseWriteFailed)
-			if spec.HandleFailure != nil {
-				spec.HandleFailure(ctx, observedWriter, err)
+			if responseWriterCommitted(observedWriter) {
+				if spec.HandleFailure != nil {
+					spec.HandleFailure(ctx, observedWriter, err)
+				}
+				return
 			}
+			encodeUnaryError(ctx, observedWriter, err, spec.EncodeError, spec.HandleFailure)
 		}
 	})
+}
+
+func responseWriterCommitted(w http.ResponseWriter) bool {
+	capture, ok := w.(interface{ StatusCode() int })
+	return ok && capture.StatusCode() != 0
 }
 
 func encodeUnaryError(

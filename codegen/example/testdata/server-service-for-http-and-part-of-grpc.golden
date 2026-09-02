@@ -26,23 +26,23 @@ func main() {
 
 	// Initialize the services.
 	var (
-		serviceSvc        service.Service
 		anotherServiceSvc anotherservice.Service
+		serviceSvc        service.Service
 	)
 	{
-		serviceSvc = testapi.NewService()
 		anotherServiceSvc = testapi.NewAnotherService()
+		serviceSvc = testapi.NewService()
 	}
 
 	// Wrap the services in endpoints that can be invoked from other services
 	// potentially running in different processes.
 	var (
-		serviceEndpoints        *service.Endpoints
 		anotherServiceEndpoints *anotherservice.Endpoints
+		serviceEndpoints        *service.Endpoints
 	)
 	{
-		serviceEndpoints = service.NewEndpoints(serviceSvc)
 		anotherServiceEndpoints = anotherservice.NewEndpoints(anotherServiceSvc)
+		serviceEndpoints = service.NewEndpoints(serviceSvc)
 	}
 
 	// Create channel used by both the signal handler and server goroutines
@@ -84,7 +84,7 @@ func main() {
 			} else if u.Port() == "" {
 				u.Host = net.JoinHostPort(u.Host, "80")
 			}
-			handleHTTPServer(ctx, u, serviceEndpoints, anotherServiceEndpoints, &wg, errc, *dbgF)
+			handleHTTPServer(ctx, u, anotherServiceEndpoints, serviceEndpoints, &wg, errc, *dbgF)
 		}
 		{
 			addr := "grpc://localhost:8080"

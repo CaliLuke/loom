@@ -332,10 +332,27 @@ func (r *RootExpr) walkAttributeUserTypes(att *AttributeExpr, seen map[string]st
 	}
 }
 
-// Finalize finalizes the server expressions.
+// Finalize establishes stable service ordering and finalizes the server
+// expressions. Go may initialize independent package variables in a
+// dependency-derived order, so declaration registration order is not a
+// durable code-generation contract.
 func (r *RootExpr) Finalize() {
 	if r.API == nil {
 		r.API = &APIExpr{}
+	}
+	sort.SliceStable(r.Services, func(i, j int) bool {
+		return r.Services[i].Name < r.Services[j].Name
+	})
+	if r.API.HTTP != nil {
+		sortHTTPServices(r.API.HTTP.Services)
+	}
+	if r.API.JSONRPC != nil {
+		sortHTTPServices(r.API.JSONRPC.Services)
+	}
+	if r.API.GRPC != nil {
+		sort.SliceStable(r.API.GRPC.Services, func(i, j int) bool {
+			return r.API.GRPC.Services[i].Name() < r.API.GRPC.Services[j].Name()
+		})
 	}
 	if len(r.API.Servers) == 0 {
 		r.API.Servers = []*ServerExpr{r.API.DefaultServer()}
@@ -369,6 +386,12 @@ func (r *RootExpr) walkHTTPServices(root eval.Expression, svcs []*HTTPServiceExp
 	walk(httpsvcs)
 	walk(httpepts)
 	walk(httpsvrs)
+}
+
+func sortHTTPServices(services []*HTTPServiceExpr) {
+	sort.SliceStable(services, func(i, j int) bool {
+		return services[i].Name() < services[j].Name()
+	})
 }
 
 // Dup creates a new map from the given expression.

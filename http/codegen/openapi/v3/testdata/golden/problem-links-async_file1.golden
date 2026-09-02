@@ -428,7 +428,7 @@ components:
                     schema:
                         $ref: '#/components/schemas/Problem'
 tags:
-    - name: threadOps
-      description: Thread creation and retrieval operations.
     - name: opsSocket
       description: Bidirectional operator control channel.
+    - name: threadOps
+      description: Thread creation and retrieval operations.

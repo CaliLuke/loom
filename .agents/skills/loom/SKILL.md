@@ -40,7 +40,9 @@ client CLI by default. For an HTTP server-only application, set API metadata
 packages and removes stale `gen/http/*/client/` and `gen/http/cli/` directories.
 Synthesized service and HTTP CLI examples are scoped by stable service and
 method identity, so unrelated service edits or declaration reordering do not
-churn their values.
+churn their values. Implicit server service lists use stable service-name
+ordering; an explicit `Server(... Services(...))` list preserves its authored
+order.
 
 ## Design Rules
 
@@ -351,6 +353,21 @@ completion shapes are explicit generation limitations.
 - Let generated clients and routers handle path escaping exactly once; do not
   add app-local `url.PathEscape` or `url.PathUnescape` layers.
 - Prefer modeled response cookies over raw `Set-Cookie` header bags.
+- When deployment configuration owns modeled response-cookie attributes, wrap
+  the generated method with `loomhttp.ResponseCookiePolicy.Handler`. The policy
+  may set `Domain`, `Secure`, and `Expires` but may not change the designed
+  name, result-derived value, path, lifetime, or browser security attributes.
+- For a deployment-specific request limit, construct
+  `loomhttp.NewRequestBodyPolicy` at startup and apply its `Handler` to the
+  generated method field. Generated JSON, text, form, and multipart decoders
+  preserve the standard `request_too_large` 413; raw-body services receive the
+  same service error while reading.
+- Use `loomhttp.NewResponseNegotiationPolicy` on a generated method when an
+  incompatible `Accept` header must produce a 406 instead of the default JSON
+  fallback.
+- Mount an ordinary unary GET companion with `loomhttp.MountDerivedHead`.
+  Keep explicit designed `HEAD` routes for `FileResponse`, and do not derive
+  HEAD for streaming methods.
 - Use `FileResponse()` for seekable HTTP downloads that need range and
   conditional request handling. Implement the generated service method with a
   `*loomhttp.FileResponse`, set `Name`, `ModTime`, and `Content`, and declare

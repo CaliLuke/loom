@@ -40,6 +40,16 @@ func requestBodyLimitDSL() {
 				POST("/text")
 			})
 		})
+		Method("Form", func() {
+			Payload(func() {
+				Attribute("value", String)
+				Required("value")
+			})
+			HTTP(func() {
+				POST("/form")
+				FormRequest()
+			})
+		})
 		Method("Multipart", func() {
 			Payload(func() {
 				Attribute("data", Bytes)
@@ -76,12 +86,13 @@ import (
 type dispatchCounts struct {
 	json      atomic.Int32
 	text      atomic.Int32
+	form      atomic.Int32
 	multipart atomic.Int32
 }
 
 func TestGeneratedRoutesEnforceRequestBodyLimit(t *testing.T) {
 	counts := new(dispatchCounts)
-	server := newBodyLimitServer(t, counts)
+	server := newBodyLimitServer(t, counts, false)
 
 	exactJSON := exactLimitJSON(t)
 	response := sendRequest(t, server, "/json", "application/json", bytes.NewReader(exactJSON), false)
@@ -151,7 +162,43 @@ func TestGeneratedRoutesEnforceRequestBodyLimit(t *testing.T) {
 	}
 }
 
-func newBodyLimitServer(t *testing.T, counts *dispatchCounts) *httptest.Server {
+func TestGeneratedRoutesHonorConfiguredRequestBodyLimits(t *testing.T) {
+	counts := new(dispatchCounts)
+	server := newBodyLimitServer(t, counts, true)
+
+	tests := []struct {
+		name        string
+		path        string
+		contentType string
+		body        io.Reader
+		wantSuccess bool
+	}{
+		{name: "exact JSON", path: "/json", contentType: "application/json", body: strings.NewReader(` + "`" + `{"value":"ok"}` + "`" + `), wantSuccess: true},
+		{name: "oversized JSON", path: "/json", contentType: "application/json", body: strings.NewReader(` + "`" + `{"value":"ok"} ` + "`" + `)},
+		{name: "exact form", path: "/form", contentType: "application/x-www-form-urlencoded", body: strings.NewReader("value=ok"), wantSuccess: true},
+		{name: "oversized form", path: "/form", contentType: "application/x-www-form-urlencoded", body: strings.NewReader("value=too-long")},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := sendRequest(t, server, test.path, test.contentType, test.body, false)
+			if test.wantSuccess {
+				requireSuccess(t, response)
+				return
+			}
+			requireRequestTooLarge(t, response)
+		})
+	}
+
+	if got := counts.json.Load(); got != 1 {
+		t.Errorf("configured JSON dispatch count = %d, want 1", got)
+	}
+	if got := counts.form.Load(); got != 1 {
+		t.Errorf("configured form dispatch count = %d, want 1", got)
+	}
+}
+
+func newBodyLimitServer(t *testing.T, counts *dispatchCounts, configured bool) *httptest.Server {
 	t.Helper()
 	endpoints := &limits.Endpoints{
 		JSON: func(context.Context, any) (any, error) {
@@ -162,6 +209,10 @@ func newBodyLimitServer(t *testing.T, counts *dispatchCounts) *httptest.Server {
 			counts.text.Add(1)
 			return nil, nil
 		},
+		Form: func(context.Context, any) (any, error) {
+			counts.form.Add(1)
+			return nil, nil
+		},
 		Multipart: func(context.Context, any) (any, error) {
 			counts.multipart.Add(1)
 			return nil, nil
@@ -169,6 +220,18 @@ func newBodyLimitServer(t *testing.T, counts *dispatchCounts) *httptest.Server {
 	}
 	mux := loomhttp.NewMuxer()
 	generated := limitsserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	if configured {
+		jsonPolicy, err := loomhttp.NewRequestBodyPolicy(14)
+		if err != nil {
+			t.Fatalf("create JSON request body policy: %v", err)
+		}
+		formPolicy, err := loomhttp.NewRequestBodyPolicy(8)
+		if err != nil {
+			t.Fatalf("create form request body policy: %v", err)
+		}
+		generated.JSON = jsonPolicy.Handler(generated.JSON)
+		generated.Form = formPolicy.Handler(generated.Form)
+	}
 	limitsserver.Mount(mux, generated)
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

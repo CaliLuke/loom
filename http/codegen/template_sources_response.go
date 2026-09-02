@@ -185,7 +185,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
 		{{ .VarName }} := "{{ printValue .Type .DefaultValue }}"
 		{{- end }}
-		http.SetCookie(w, &http.Cookie{
+		if err := loomhttp.SetResponseCookie(ctx, w, &http.Cookie{
 			Name: {{ printf "%q" .HTTPName }},
 			Value: {{ .VarName }},
 			{{- if .MaxAge }}
@@ -206,7 +206,9 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 			{{- if .SameSite }}
 			SameSite: {{ .SameSite }},
 			{{- end }}
-		})
+		}); err != nil {
+			return err
+		}
 		{{- if or $checkNil $initDef }}
 	}
 		{{- end }}

@@ -52,6 +52,7 @@ func TestUnaryHandlerLifecycle(t *testing.T) {
 		decodeErr   error
 		invokeErr   error
 		encodeErr   error
+		commitFirst bool
 		wantError   error
 		wantInvoked bool
 		wantEncoded bool
@@ -62,7 +63,8 @@ func TestUnaryHandlerLifecycle(t *testing.T) {
 		{name: "success", wantInvoked: true, wantEncoded: true, wantStatus: http.StatusCreated, wantReason: loomtransport.ReasonOK},
 		{name: "decode failure", decodeErr: errDecode, wantError: errDecode, wantStatus: http.StatusBadRequest, wantReason: loomtransport.ReasonRequestDecodeFailed},
 		{name: "invoke failure", invokeErr: errInvoke, wantError: errInvoke, wantInvoked: true, wantStatus: http.StatusBadRequest, wantReason: loomtransport.ReasonHandlerError},
-		{name: "encode failure", encodeErr: errEncode, wantError: errEncode, wantInvoked: true, wantEncoded: true, wantFailure: true, wantStatus: http.StatusOK, wantReason: loomtransport.ReasonResponseWriteFailed},
+		{name: "pre-commit encode failure", encodeErr: errEncode, wantError: errEncode, wantInvoked: true, wantEncoded: true, wantStatus: http.StatusBadRequest, wantReason: loomtransport.ReasonResponseWriteFailed},
+		{name: "post-commit encode failure", encodeErr: errEncode, commitFirst: true, wantError: errEncode, wantInvoked: true, wantEncoded: true, wantFailure: true, wantStatus: http.StatusCreated, wantReason: loomtransport.ReasonResponseWriteFailed},
 	}
 
 	for _, test := range tests {
@@ -85,7 +87,7 @@ func TestUnaryHandlerLifecycle(t *testing.T) {
 				EncodeResponse: func(_ context.Context, w http.ResponseWriter, result int) error {
 					encoded = true
 					require.Equal(t, 42, result)
-					if test.encodeErr == nil {
+					if test.encodeErr == nil || test.commitFirst {
 						w.WriteHeader(http.StatusCreated)
 					}
 					return test.encodeErr

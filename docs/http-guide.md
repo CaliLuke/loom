@@ -400,6 +400,20 @@ Generated response-contract manifests cover declared application response
 branches, not FileResponse's transport-owned 206, 304, 412, and 416 outcomes
 or decoder and mux failures such as 400 and 413.
 
+For an ordinary unary GET endpoint, mount an opt-in derived companion after
+mounting the generated server:
+
+```go
+catalogsvr.Mount(mux, server)
+loomhttp.MountDerivedHead(mux, "/catalog/{id}", server.Show)
+```
+
+The companion executes the GET handler so authentication, cookies, headers,
+and application effects stay aligned, counts the encoded representation to set
+`Content-Length`, and suppresses the body. Use an explicitly designed `HEAD`
+route with `FileResponse` for downloads. Do not use derived HEAD for streaming
+handlers.
+
 ---
 
 ## Debug Client Capture
@@ -435,7 +449,23 @@ request. Otherwise the default response encoder selects a single supported
 media type from `Accept`, ignoring media-type parameters such as `charset`.
 Missing or unsupported values fall back to JSON. The built-in negotiator does
 not rank comma-separated alternatives, quality values, or wildcards; install a
-custom encoder when the API needs full RFC-style preference negotiation.
+custom encoder when the API needs to select among several representations.
+
+When an endpoint produces one known set of media types and must reject an
+incompatible `Accept` header, apply a strict policy to its generated handler:
+
+```go
+negotiation, err := loomhttp.NewResponseNegotiationPolicy("application/json")
+if err != nil {
+    return err
+}
+server.Show = negotiation.Handler(server.Show)
+```
+
+The policy understands comma-separated alternatives, quality values, and
+wildcards. It adds `Vary: Accept` and returns Loom's standard RFC 9457 `406`
+problem with code `not_acceptable` when every supported representation is
+excluded. The default encoder remains permissive when no policy is installed.
 
 Request decoding uses the request `Content-Type`, not `Accept`. A missing
 request content type defaults to JSON. Unsupported request media types produce
@@ -476,9 +506,53 @@ Unexpected response bodies included in generated client errors are capped at
 The debug capture limit described above is a separate 64 KiB cap and does not
 truncate the body delivered to the transport caller.
 
-`SkipRequestBodyEncodeDecode` and `SkipResponseBodyEncodeDecode` deliberately
-bypass these buffering limits because the application owns the raw stream. Add
-an application or proxy limit when using those escape hatches.
+Use a validated policy when an endpoint needs a deployment-specific limit:
+
+```go
+bodyPolicy, err := loomhttp.NewRequestBodyPolicy(2 << 20)
+if err != nil {
+    return err
+}
+server.Upload = bodyPolicy.Handler(server.Upload)
+```
+
+The policy applies before JSON, text, form, multipart, custom, or raw-body code
+reads the request. Generated decoders retain the standard `413` response. A raw
+body service receives the same `request_too_large` service error from `Body`
+and should return it normally. A larger configured limit also replaces the
+default for generated buffered decoders.
+
+`SkipResponseBodyEncodeDecode` deliberately bypasses response buffering because
+the application owns the raw response stream.
+
+### Runtime Response Cookie Policy
+
+Keep cookie values and portable security defaults in the design. When the
+deployment supplies domain, Secure mode, or expiry, wrap
+the generated method with a response-cookie policy:
+
+```go
+cookiePolicy := loomhttp.ResponseCookiePolicy(func(_ context.Context, cookie *http.Cookie) error {
+    if cookie.Name != "session" {
+        return nil
+    }
+    cookie.Domain = config.CookieDomain
+    cookie.Secure = config.CookieSecure
+    cookie.Expires = time.Now().Add(config.CookieLifetime)
+    return nil
+})
+server.SignIn = cookiePolicy.Handler(server.SignIn)
+```
+
+Generated response encoders still own the cookie name, value, path, `Max-Age`,
+`HttpOnly`, `SameSite`, and partitioning policy. Runtime policy cannot change
+them. Loom validates the resulting cookie and preserves secure prefix and
+`SameSite=None` requirements. A policy failure occurs before the response is
+committed and follows the generated error formatter.
+
+Generated server fields are intentionally public. Assign middleware to one
+field, as above, when policy applies to one method; use `server.Use` only when
+the policy applies to every method in the service.
 
 ### Custom Encoders
 

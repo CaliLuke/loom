@@ -1236,6 +1236,13 @@ A negative max age instructs browsers to delete the cookie immediately. Zero
 omits the `Max-Age` attribute, while a positive value is its lifetime in
 seconds.
 
+When deployment configuration supplies response-cookie attributes, keep the
+cookie mapping in the design and apply a `loomhttp.ResponseCookiePolicy` to the
+generated method handler.
+Runtime policy can set `Domain`, `Secure`, and `Expires`. It cannot change the
+designed name, result-derived value, path, lifetime, or browser security
+attributes. See the HTTP guide for complete wiring.
+
 > **Since: `v1.8.0`.**
 
 For plain-HTTP local development, call `CookieInsecure()` immediately

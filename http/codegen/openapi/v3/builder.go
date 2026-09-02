@@ -637,7 +637,11 @@ func buildTags(api *expr.APIExpr) []*openapi.Tag {
 	if len(tags) == 0 {
 		// add service name and description to the tags since we tag every
 		// operation with service name when no custom tag is defined
-		for _, s := range api.HTTP.Services {
+		services := append([]*expr.HTTPServiceExpr(nil), api.HTTP.Services...)
+		sort.Slice(services, func(i, j int) bool {
+			return services[i].Name() < services[j].Name()
+		})
+		for _, s := range services {
 			if !openapi.MustGenerate(s.Meta) || !openapi.MustGenerate(s.ServiceExpr.Meta) {
 				continue
 			}

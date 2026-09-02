@@ -105,10 +105,10 @@
   ],
   "tags": [
     {
-      "name": "testService"
+      "name": "anotherTestService"
     },
     {
-      "name": "anotherTestService"
+      "name": "testService"
     }
   ]
 }

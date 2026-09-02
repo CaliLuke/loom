@@ -32,14 +32,24 @@ type (
 // ReadMultipartForm reads all multipart parts from mr into an in-memory form
 // representation suitable for generated request decoding.
 func ReadMultipartForm(mr *multipart.Reader) (*MultipartForm, error) {
+	return ReadMultipartFormWithLimit(mr, DefaultMaxRequestBodyBytes)
+}
+
+// ReadMultipartFormWithLimit reads all multipart parts from mr up to maxBytes
+// into an in-memory form representation suitable for generated request
+// decoding.
+func ReadMultipartFormWithLimit(mr *multipart.Reader, maxBytes int64) (*MultipartForm, error) {
 	if mr == nil {
 		return nil, fmt.Errorf("multipart reader cannot be nil")
+	}
+	if maxBytes <= 0 {
+		return nil, fmt.Errorf("multipart request body limit must be positive")
 	}
 	form := &MultipartForm{
 		Values: url.Values{},
 		Files:  make(map[string][]MultipartFile),
 	}
-	remaining := int64(DefaultMaxRequestBodyBytes)
+	remaining := maxBytes
 	for {
 		part, err := mr.NextPart()
 		if err != nil {

@@ -86,6 +86,7 @@ const (
 // header does not match any of the supported mime type or is missing
 // altogether.
 func RequestDecoder(r *http.Request) Decoder {
+	limit := RequestBodyLimit(r.Context())
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" {
 		// default to JSON
@@ -98,13 +99,13 @@ func RequestDecoder(r *http.Request) Decoder {
 	}
 	switch contentType {
 	case "application/json":
-		return newLimitedDecoder(r.Body, decodeJSON, decodeRequest)
+		return newLimitedDecoder(r.Body, decodeJSON, decodeRequest, limit)
 	case "application/gob":
-		return newLimitedDecoder(r.Body, decodeGOB, decodeRequest)
+		return newLimitedDecoder(r.Body, decodeGOB, decodeRequest, limit)
 	case "application/xml":
-		return newLimitedDecoder(r.Body, decodeXML, decodeRequest)
+		return newLimitedDecoder(r.Body, decodeXML, decodeRequest, limit)
 	case "text/html", "text/plain":
-		return newTextDecoder(r.Body, contentType, decodeRequest)
+		return newTextDecoder(r.Body, contentType, decodeRequest, limit)
 	default:
 		return newUnsupportedDecoder(contentType)
 	}
@@ -274,23 +275,23 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 func ResponseDecoder(resp *http.Response) Decoder {
 	ct := resp.Header.Get("Content-Type")
 	if ct == "" {
-		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse)
+		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse, DefaultMaxRequestBodyBytes)
 	}
 	if mediaType, _, err := mime.ParseMediaType(ct); err == nil {
 		ct = mediaType
 	}
 	switch {
 	case ct == "application/json" || strings.HasSuffix(ct, "+json"):
-		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse)
+		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse, DefaultMaxRequestBodyBytes)
 	case ct == "application/xml" || strings.HasSuffix(ct, "+xml"):
-		return newLimitedDecoder(resp.Body, decodeXML, decodeResponse)
+		return newLimitedDecoder(resp.Body, decodeXML, decodeResponse, DefaultMaxRequestBodyBytes)
 	case ct == "application/gob" || strings.HasSuffix(ct, "+gob"):
-		return newLimitedDecoder(resp.Body, decodeGOB, decodeResponse)
+		return newLimitedDecoder(resp.Body, decodeGOB, decodeResponse, DefaultMaxRequestBodyBytes)
 	case ct == "text/html" || ct == "text/plain" ||
 		strings.HasSuffix(ct, "+html") || strings.HasSuffix(ct, "+txt"):
-		return newTextDecoder(resp.Body, ct, decodeResponse)
+		return newTextDecoder(resp.Body, ct, decodeResponse, DefaultMaxRequestBodyBytes)
 	default:
-		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse)
+		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse, DefaultMaxRequestBodyBytes)
 	}
 }
 
@@ -400,28 +401,30 @@ func (e *textEncoder) Encode(v any) (err error) {
 	return
 }
 
-func newTextDecoder(r io.Reader, ct string, mode decodeMode) Decoder {
-	return &textDecoder{r: r, ct: ct, mode: mode}
+func newTextDecoder(r io.Reader, ct string, mode decodeMode, limit int64) Decoder {
+	return &textDecoder{r: r, ct: ct, mode: mode, limit: limit}
 }
 
-func newLimitedDecoder(r io.Reader, decode func([]byte, any) error, mode decodeMode) Decoder {
-	return &limitedDecoder{r: r, decode: decode, mode: mode}
+func newLimitedDecoder(r io.Reader, decode func([]byte, any) error, mode decodeMode, limit int64) Decoder {
+	return &limitedDecoder{r: r, decode: decode, mode: mode, limit: limit}
 }
 
 type textDecoder struct {
-	r    io.Reader
-	ct   string
-	mode decodeMode
+	r     io.Reader
+	ct    string
+	mode  decodeMode
+	limit int64
 }
 
 type limitedDecoder struct {
 	r      io.Reader
 	decode func([]byte, any) error
 	mode   decodeMode
+	limit  int64
 }
 
 func (d *limitedDecoder) Decode(v any) error {
-	b, err := readAllLimited(d.r, DefaultMaxRequestBodyBytes)
+	b, err := readAllLimited(d.r, d.limit)
 	if err != nil {
 		return requestBodyDecodeError(err, d.mode)
 	}
@@ -429,7 +432,7 @@ func (d *limitedDecoder) Decode(v any) error {
 }
 
 func (e *textDecoder) Decode(v any) error {
-	b, err := readAllLimited(e.r, DefaultMaxRequestBodyBytes)
+	b, err := readAllLimited(e.r, e.limit)
 	if err != nil {
 		return requestBodyDecodeError(err, e.mode)
 	}
@@ -483,8 +486,8 @@ func readAllLimited(r io.Reader, limit int64) ([]byte, error) {
 }
 
 func requestBodyDecodeError(err error, mode decodeMode) error {
-	if mode == decodeRequest && errors.Is(err, errRequestBodyTooLarge) {
-		return loom.RequestBodyTooLargeError()
+	if mode == decodeRequest {
+		return NormalizeRequestBodyDecodeError(err)
 	}
 	return err
 }

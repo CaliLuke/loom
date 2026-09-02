@@ -49,6 +49,15 @@ func TestRequestBodyTooLargeError(t *testing.T) {
 	require.Equal(t, "request body too large", serviceErr.Message)
 }
 
+func TestNotAcceptableError(t *testing.T) {
+	err := NotAcceptableError("text/html")
+
+	var serviceErr *ServiceError
+	require.ErrorAs(t, err, &serviceErr)
+	require.Equal(t, NotAcceptable, serviceErr.Name)
+	require.Equal(t, `no supported response media type satisfies Accept "text/html"`, serviceErr.Message)
+}
+
 func TestServiceErrorUnwrap(t *testing.T) {
 	var (
 		errFoo          = errors.New("foo")

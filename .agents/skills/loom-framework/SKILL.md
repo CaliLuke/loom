@@ -294,6 +294,9 @@ filter, and serialization rules belong here.
   eagerly so clients can observe readiness.
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
+  A response encoder failure that occurs before commit is encoded through the
+  generated error contract; a post-commit failure goes only to the application
+  failure handler.
   Other generated HTTP handlers use `HandlerLifecycle` for context,
   observation, and commit-aware failure routing. File and raw-body branches
   also delegate writes and cleanup. Generated code retains typed result and
@@ -321,6 +324,15 @@ filter, and serialization rules belong here.
   emit bodies, params, tool arguments, credentials, or result payloads.
 - Keep HTTP, gRPC, and JSON-RPC semantics distinct unless a deliberately shared
   transport core owns the behavior.
+- Keep deployment-owned HTTP policies composable at generated method fields.
+  Request body policy must cover built-in JSON, text, form, and multipart
+  decoding while exposing the same bounded reader to raw-body services.
+  Response-cookie policy may alter only deployment-owned `Domain`, `Secure`,
+  and `Expires`; designed cookie attributes remain immutable. Strict response
+  negotiation and derived HEAD remain opt-in.
+- Canonicalize implicit service collections after validation and before
+  generation. Preserve explicit `Server.Services` order; do not let Go package
+  initialization order churn aggregate clients, CLIs, or transport contracts.
 - Keep requiredness and nullability orthogonal. `expr` owns semantic
   nullability; shared service models use `loom.Nullable[T]` for null-admitting
   object fields; JSON decoding boundaries alone use `loom.Optional[T]` for
