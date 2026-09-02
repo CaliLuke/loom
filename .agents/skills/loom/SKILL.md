@@ -452,6 +452,8 @@ JSON-RPC is a first-class transport, not an HTTP behavior alias.
 - Use `RuntimeCORS()` when origins come from deployment configuration, then
   pass a validated `loomhttp.RuntimeCORSPolicy` snapshot to the generated
   constructor.
+- An authored HTTP `OPTIONS` endpoint may share a path with CORS preflight.
+  Generated dispatch uses the presence of `Access-Control-Request-Method`.
 - Apply `loomhttp.RequestMetadataMiddleware` through the generated server's
   `Use` method and read `loomhttp.RequestMetadataFromContext`.
 - Configure retained headers and trusted proxies with

@@ -1275,6 +1275,10 @@ API("tasks", func() {
 Generated HTTP servers mount preflight `OPTIONS` handlers and write actual
 request CORS headers. `Origin("*")` is valid only without `Credentials()`.
 OpenAPI path items include the effective policy as `x-loom-cors`.
+When a design also defines an `OPTIONS` endpoint on the same path, the
+generated route sends requests that contain `Access-Control-Request-Method`
+to preflight handling and sends ordinary `OPTIONS` requests to the authored
+endpoint.
 
 When allowed origins come from startup or deployment configuration, declare
 runtime mode instead of embedding those values in generated code:

@@ -96,7 +96,7 @@ func TestByFormatUUID(t *testing.T) {
 	}
 }
 
-func TestExampleDoesNotPanicForFractionalIntegerBounds(t *testing.T) {
+func TestExampleOmitsUnsatisfiableFractionalIntegerBounds(t *testing.T) {
 	minimum := 0.2
 	maximum := 0.7
 	attribute := expr.AttributeExpr{
@@ -107,9 +107,8 @@ func TestExampleDoesNotPanicForFractionalIntegerBounds(t *testing.T) {
 		},
 	}
 
-	example := attribute.Example(expr.NewRandom("test"))
-	if _, ok := example.(int); !ok {
-		t.Fatalf("expected integer example, got %T", example)
+	if example := attribute.Example(expr.NewRandom("test")); example != nil {
+		t.Errorf("expected an omitted example, got %#v", example)
 	}
 }
 
@@ -166,6 +165,148 @@ func TestExampleWithOnlySmallMaxLengthDoesNotPanic(t *testing.T) {
 	}
 }
 
+func TestExamplesHonorLengthConstraintsAboveDefaultCap(t *testing.T) {
+	minimum := 8
+	exactStringLength := 64
+	exactBytesLength := 32
+	tests := map[string]struct {
+		attribute  *expr.AttributeExpr
+		wantLength int
+	}{
+		"minimum-only string": {
+			attribute: &expr.AttributeExpr{
+				Type:       expr.String,
+				Validation: &expr.ValidationExpr{MinLength: &minimum},
+			},
+			wantLength: minimum,
+		},
+		"exact-length string": {
+			attribute: &expr.AttributeExpr{
+				Type: expr.String,
+				Validation: &expr.ValidationExpr{
+					MinLength: &exactStringLength,
+					MaxLength: &exactStringLength,
+				},
+			},
+			wantLength: exactStringLength,
+		},
+		"exact-length bytes": {
+			attribute: &expr.AttributeExpr{
+				Type: expr.Bytes,
+				Validation: &expr.ValidationExpr{
+					MinLength: &exactBytesLength,
+					MaxLength: &exactBytesLength,
+				},
+			},
+			wantLength: exactBytesLength,
+		},
+		"minimum-only array": {
+			attribute: &expr.AttributeExpr{
+				Type:       &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+				Validation: &expr.ValidationExpr{MinLength: &minimum},
+			},
+			wantLength: minimum,
+		},
+		"minimum-only map": {
+			attribute: &expr.AttributeExpr{
+				Type: &expr.Map{
+					KeyType:  &expr.AttributeExpr{Type: expr.Int},
+					ElemType: &expr.AttributeExpr{Type: expr.String},
+				},
+				Validation: &expr.ValidationExpr{MinLength: &minimum},
+			},
+			wantLength: minimum,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			example := test.attribute.Example(expr.NewRandom(name))
+			if example == nil {
+				t.Error("expected a synthesized example")
+				return
+			}
+			length := reflect.ValueOf(example).Len()
+			if length != test.wantLength {
+				t.Errorf("example length = %d, want %d", length, test.wantLength)
+			}
+		})
+	}
+}
+
+func TestConstrainedMapOmitsUnderfilledExample(t *testing.T) {
+	minimum := 8
+	attribute := &expr.AttributeExpr{
+		Type: &expr.Map{
+			KeyType:  &expr.AttributeExpr{Type: expr.Int},
+			ElemType: &expr.AttributeExpr{Type: expr.String},
+		},
+		Validation: &expr.ValidationExpr{MinLength: &minimum},
+	}
+	random := &expr.ExampleGenerator{Randomizer: intRandomizer{Value: 1}}
+
+	if example := attribute.Example(random); example != nil {
+		t.Errorf("expected an omitted example, got %#v", example)
+	}
+}
+
+func TestLengthConstrainedEnumExampleUsesValidEnumValue(t *testing.T) {
+	exactLength := 5
+	attribute := &expr.AttributeExpr{
+		Type: expr.String,
+		Validation: &expr.ValidationExpr{
+			Values:    []any{"abcde"},
+			MinLength: &exactLength,
+			MaxLength: &exactLength,
+		},
+	}
+
+	if example := attribute.Example(expr.NewRandom("enum")); example != "abcde" {
+		t.Errorf("example = %#v, want enum value %q", example, "abcde")
+	}
+}
+
+func TestLengthConstrainedPatternExampleSatisfiesBothConstraints(t *testing.T) {
+	exactLength := 5
+	attribute := &expr.AttributeExpr{
+		Type: expr.String,
+		Validation: &expr.ValidationExpr{
+			Pattern:   `^[A-Z]{5}$`,
+			MinLength: &exactLength,
+			MaxLength: &exactLength,
+		},
+	}
+
+	example, ok := attribute.Example(expr.NewRandom("pattern-and-length")).(string)
+	if !ok {
+		t.Errorf("expected a string example")
+		return
+	}
+	if len(example) != exactLength || !regexp.MustCompile(attribute.Validation.Pattern).MatchString(example) {
+		t.Errorf("example %q does not satisfy exact length %d and pattern", example, exactLength)
+	}
+}
+
+func TestUnsafeConstrainedLengthOmitsSynthesizedExample(t *testing.T) {
+	tests := map[string]int{
+		"large":   1 << 30,
+		"max int": int(^uint(0) >> 1),
+	}
+	for name, minimum := range tests {
+		t.Run(name, func(t *testing.T) {
+			attribute := &expr.AttributeExpr{
+				Type:       expr.String,
+				Validation: &expr.ValidationExpr{MinLength: &minimum},
+			}
+			random := &expr.ExampleGenerator{Randomizer: panicCharactersRandomizer{}}
+
+			if example := attribute.Example(random); example != nil {
+				t.Errorf("expected an omitted example, got %#v", example)
+			}
+		})
+	}
+}
+
 func TestExample(t *testing.T) {
 	cases := []struct {
 		Name     string
@@ -209,12 +350,20 @@ type intRandomizer struct {
 	Value int
 }
 
+type panicCharactersRandomizer struct {
+	expr.DeterministicRandomizer
+}
+
 func (r intRandomizer) Int() int {
 	return r.Value
 }
 
 func (r intRandomizer) Characters(n int) string {
 	return strings.Repeat("a", n)
+}
+
+func (panicCharactersRandomizer) Characters(int) string {
+	panic("Characters must not be called for an unsafe example length")
 }
 
 // TestByLengthWithAliasType tests that alias types with length validations

@@ -315,7 +315,10 @@ func (a *Array) IsCompatible(val any) bool {
 // Example generates a pseudo-random array value using the given random
 // generator.
 func (a *Array) Example(r *ExampleGenerator) any {
-	count := NewLength(a.ElemType, r)
+	count, ok := safeExampleLength(a.ElemType, r)
+	if !ok {
+		return nil
+	}
 	res := make([]any, count)
 	for i := range count {
 		res[i] = a.ElemType.Example(r)

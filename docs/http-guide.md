@@ -1004,6 +1004,9 @@ Use `CORS` in API or service HTTP scope to make browser access part of the
 design. Service-level CORS overrides the API-level policy for that service.
 Generated servers mount `OPTIONS` preflight handlers for designed routes and
 write actual-request CORS headers through the shared `loomhttp` runtime helper.
+An authored `OPTIONS` endpoint can share the same path: requests with an
+`Access-Control-Request-Method` header use preflight handling, while ordinary
+`OPTIONS` requests invoke the authored endpoint.
 
 ```go
 var _ = API("tasks", func() {

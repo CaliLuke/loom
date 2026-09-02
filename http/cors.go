@@ -82,6 +82,12 @@ func (p RuntimeCORSPolicy) HandlePreflight(w http.ResponseWriter, r *http.Reques
 	HandleCORSPreflight(w, r, p.policy, allowedMethods)
 }
 
+// OptionsHandler dispatches browser preflight requests to the runtime CORS
+// policy and ordinary OPTIONS requests to next.
+func (p RuntimeCORSPolicy) OptionsHandler(next http.HandlerFunc, allowedMethods []string) http.HandlerFunc {
+	return CORSOptionsHandler(p.policy, next, allowedMethods)
+}
+
 // CORSHandler wraps next and writes CORS response headers for matching actual
 // browser requests. Non-CORS requests and disallowed origins pass through
 // unchanged.
@@ -89,6 +95,20 @@ func CORSHandler(policy CORSPolicy, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		WriteCORSActualHeaders(w, r, policy)
 		next(w, r)
+	}
+}
+
+// CORSOptionsHandler dispatches requests with an Access-Control-Request-Method
+// field to CORS preflight handling and ordinary OPTIONS requests to next.
+func CORSOptionsHandler(policy CORSPolicy, next http.HandlerFunc, allowedMethods []string) http.HandlerFunc {
+	actual := CORSHandler(policy, next)
+	methods := append([]string(nil), allowedMethods...)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if len(r.Header.Values("Access-Control-Request-Method")) > 0 {
+			HandleCORSPreflight(w, r, policy, methods)
+			return
+		}
+		actual(w, r)
 	}
 }
 

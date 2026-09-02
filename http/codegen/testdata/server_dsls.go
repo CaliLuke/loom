@@ -42,6 +42,30 @@ var ServerCORSPolicyDSL = func() {
 	})
 }
 
+// ServerCORSOptionsPolicyDSL defines static CORS generation alongside an
+// authored OPTIONS endpoint on the same path.
+var ServerCORSOptionsPolicyDSL = func() {
+	API("cors-options", func() {
+		HTTP(func() {
+			CORS(func() {
+				Origin("https://app.example.com")
+			})
+		})
+	})
+	Service("cors-options-service", func() {
+		Method("list", func() {
+			HTTP(func() {
+				GET("/items")
+			})
+		})
+		Method("options", func() {
+			HTTP(func() {
+				OPTIONS("/items")
+			})
+		})
+	})
+}
+
 // ServerRuntimeCORSPolicyDSL defines runtime-provided CORS policy generation.
 var ServerRuntimeCORSPolicyDSL = func() {
 	API("runtime-cors", func() {
@@ -54,6 +78,13 @@ var ServerRuntimeCORSPolicyDSL = func() {
 			Result(String)
 			HTTP(func() {
 				GET("/items")
+			})
+		})
+		Method("options", func() {
+			Result(String)
+			HTTP(func() {
+				OPTIONS("/items")
+				Response(StatusOK)
 			})
 		})
 		Method("stream", func() {

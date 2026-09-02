@@ -232,48 +232,90 @@ func serverMountSection(data *ServiceData) codegen.Section {
 
 func renderServerMountBody(data *ServiceData, standalone bool) string {
 	var b sourceBuilder
-	if standalone {
-		if data.CORS != nil {
-			for _, route := range corsPreflightRoutes(data) {
-				b.Addf("\tmux.Handle(%q, %q, func(w http.ResponseWriter, r *http.Request) {\n", "OPTIONS", route.Path)
-				if data.CORS.Runtime {
-					b.Addf("\t\th.corsPolicy.HandlePreflight(w, r, []string{%s})\n", quotedStringList(route.Methods))
-				} else {
-					b.Addf("\t\tloomhttp.HandleCORSPreflight(w, r, %s, []string{%s})\n", renderCORSPolicy(data.CORS), quotedStringList(route.Methods))
-				}
-				b.Add("\t})\n")
-			}
-		}
-		for _, endpoint := range data.Endpoints {
-			if data.CORS != nil && data.CORS.Runtime {
-				b.Addf("\t%s(mux, h.%s, h.corsPolicy)\n", endpoint.MountHandler, endpoint.Method.VarName)
-			} else {
-				b.Addf("\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
-			}
-		}
-		for _, fs := range data.FileServers {
-			if fs.Redirect != nil {
-				b.Addf("\t%s(mux, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n", fs.MountHandler)
-				b.Addf("\t\thttp.Redirect(w, r, %q, %s)\n", fs.Redirect.URL, fs.Redirect.StatusCode)
-				b.Add("\t}))\n")
-				continue
-			}
-			for _, requestPath := range fs.RequestPaths {
-				stripped := addLeadingSlash(requestPath)
-				if !fs.IsDir {
-					stripped = path.Dir(stripped)
-				}
-				if stripped == "/" {
-					b.Addf("\t%s(mux, h.%s)\n", fs.MountHandler, fs.VarName)
-				} else {
-					b.Addf("\t%s(mux, http.StripPrefix(%q, h.%s))\n", fs.MountHandler, stripped, fs.VarName)
-				}
-			}
-		}
+	if !standalone {
+		b.Addf("\t%s(mux, s)\n", data.MountServer)
 		return b.String()
 	}
-	b.Addf("\t%s(mux, s)\n", data.MountServer)
+	renderCORSPreflightMounts(&b, data)
+	renderEndpointMounts(&b, data)
+	renderFileServerMounts(&b, data)
 	return b.String()
+}
+
+func renderCORSPreflightMounts(b *sourceBuilder, data *ServiceData) {
+	if data.CORS == nil {
+		return
+	}
+	for _, route := range corsPreflightRoutes(data) {
+		if route.OptionsEndpoint != nil {
+			renderCORSOptionsMount(b, data, route)
+			continue
+		}
+		b.Addf("\tmux.Handle(%q, %q, func(w http.ResponseWriter, r *http.Request) {\n", "OPTIONS", route.Path)
+		if data.CORS.Runtime {
+			b.Addf("\t\th.corsPolicy.HandlePreflight(w, r, []string{%s})\n", quotedStringList(route.Methods))
+		} else {
+			b.Addf("\t\tloomhttp.HandleCORSPreflight(w, r, %s, []string{%s})\n", renderCORSPolicy(data.CORS), quotedStringList(route.Methods))
+		}
+		b.Add("\t})\n")
+	}
+}
+
+func renderCORSOptionsMount(b *sourceBuilder, data *ServiceData, route corsPreflightRoute) {
+	if data.CORS.Runtime {
+		b.Addf("\tmux.Handle(%q, %q, h.corsPolicy.OptionsHandler(loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, route.OptionsEndpoint.Method.VarName, quotedStringList(route.Methods))
+		return
+	}
+	b.Addf("\tmux.Handle(%q, %q, loomhttp.CORSOptionsHandler(%s, loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, renderCORSPolicy(data.CORS), route.OptionsEndpoint.Method.VarName, quotedStringList(route.Methods))
+}
+
+func renderEndpointMounts(b *sourceBuilder, data *ServiceData) {
+	for _, endpoint := range data.Endpoints {
+		if data.CORS != nil && endpointHasOptionsRoute(endpoint) {
+			renderNonOptionsEndpointMounts(b, data, endpoint)
+			continue
+		}
+		if data.CORS != nil && data.CORS.Runtime {
+			b.Addf("\t%s(mux, h.%s, h.corsPolicy)\n", endpoint.MountHandler, endpoint.Method.VarName)
+		} else {
+			b.Addf("\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
+		}
+	}
+}
+
+func renderNonOptionsEndpointMounts(b *sourceBuilder, data *ServiceData, endpoint *EndpointData) {
+	for _, route := range endpoint.Routes {
+		if route.Verb == "OPTIONS" {
+			continue
+		}
+		if data.CORS.Runtime {
+			b.Addf("\tloomhttp.MountHandler(mux, %q, %q, h.corsPolicy.Handler(loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, endpoint.Method.VarName)
+		} else {
+			b.Addf("\tloomhttp.MountHandler(mux, %q, %q, loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, renderCORSPolicy(data.CORS), endpoint.Method.VarName)
+		}
+	}
+}
+
+func renderFileServerMounts(b *sourceBuilder, data *ServiceData) {
+	for _, fs := range data.FileServers {
+		if fs.Redirect != nil {
+			b.Addf("\t%s(mux, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n", fs.MountHandler)
+			b.Addf("\t\thttp.Redirect(w, r, %q, %s)\n", fs.Redirect.URL, fs.Redirect.StatusCode)
+			b.Add("\t}))\n")
+			continue
+		}
+		for _, requestPath := range fs.RequestPaths {
+			stripped := addLeadingSlash(requestPath)
+			if !fs.IsDir {
+				stripped = path.Dir(stripped)
+			}
+			if stripped == "/" {
+				b.Addf("\t%s(mux, h.%s)\n", fs.MountHandler, fs.VarName)
+			} else {
+				b.Addf("\t%s(mux, http.StripPrefix(%q, h.%s))\n", fs.MountHandler, stripped, fs.VarName)
+			}
+		}
+	}
 }
 
 func serverHandlerSection(data *EndpointData) codegen.Section {
@@ -309,12 +351,14 @@ func renderServerHandlerBody(data *EndpointData) string {
 }
 
 type corsPreflightRoute struct {
-	Path    string
-	Methods []string
+	Path            string
+	Methods         []string
+	OptionsEndpoint *EndpointData
 }
 
 func corsPreflightRoutes(data *ServiceData) []corsPreflightRoute {
 	byPath := make(map[string]map[string]struct{})
+	optionsByPath := make(map[string]*EndpointData)
 	for _, endpoint := range data.Endpoints {
 		for _, route := range endpoint.Routes {
 			methods := byPath[route.Path]
@@ -323,6 +367,9 @@ func corsPreflightRoutes(data *ServiceData) []corsPreflightRoute {
 				byPath[route.Path] = methods
 			}
 			methods[route.Verb] = struct{}{}
+			if route.Verb == "OPTIONS" {
+				optionsByPath[route.Path] = endpoint
+			}
 		}
 	}
 	paths := make([]string, 0, len(byPath))
@@ -337,9 +384,22 @@ func corsPreflightRoutes(data *ServiceData) []corsPreflightRoute {
 			methods = append(methods, method)
 		}
 		sort.Strings(methods)
-		routes = append(routes, corsPreflightRoute{Path: path, Methods: methods})
+		routes = append(routes, corsPreflightRoute{
+			Path:            path,
+			Methods:         methods,
+			OptionsEndpoint: optionsByPath[path],
+		})
 	}
 	return routes
+}
+
+func endpointHasOptionsRoute(endpoint *EndpointData) bool {
+	for _, route := range endpoint.Routes {
+		if route.Verb == "OPTIONS" {
+			return true
+		}
+	}
+	return false
 }
 
 func renderCORSPolicy(cors *CORSData) string {

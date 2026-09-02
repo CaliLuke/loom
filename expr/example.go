@@ -10,10 +10,7 @@ import (
 	"unicode"
 )
 
-const (
-	maxAttempts = 500 // Max number of retries to generate valid example.
-	maxLength   = 3   // Max length for array and map examples.
-)
+const maxAttempts = 500 // Max number of retries to generate valid example.
 
 var printablePatternTables = []*unicode.RangeTable{
 	unicode.L,
@@ -48,92 +45,60 @@ func (a *AttributeExpr) Example(r *ExampleGenerator) any {
 		return nil
 	}
 
-	// randomize array length first, since that's from higher level
-	if hasLengthValidation(a) {
-		return byLength(a, r)
-	}
 	// enum should dominate, because the potential "examples" are fixed
 	if hasEnumValidation(a) {
 		return byEnum(a, r)
 	}
+	return a.generatedExample(r)
+}
+
+func (a *AttributeExpr) generatedExample(r *ExampleGenerator) any {
 	// loop until a satisfying example is generated
 	var (
 		hasFormat  = hasFormatValidation(a)
 		hasPattern = hasPatternValidation(a)
 		hasMinMax  = hasMinMaxValidation(a)
+		hasLength  = hasLengthValidation(a)
 		attempts   = 0
 	)
+	if hasLength && !hasFormat && !hasPattern {
+		return byLength(a, r)
+	}
 	for attempts < maxAttempts {
 		attempts++
-		var example any
-		// Format comes first, since it initiates the example
-		if hasFormat {
-			example = byFormat(a, r)
-		}
-		// now validate with rest of matchers; redo if not satisified
-		if hasPattern {
-			if example == nil {
-				example = byPattern(a, r)
-			} else if !checkPattern(a, example) {
-				continue
-			}
-		}
-		if hasMinMax {
-			if example == nil {
-				example = byMinMax(a, r)
-			} else if !checkMinMaxValue(a, example) {
-				continue
-			}
-		}
+		example := a.generatedCandidate(r, hasFormat, hasPattern, hasMinMax, hasLength)
 		if example == nil {
-			example = a.Type.Example(r)
+			return nil
+		}
+		if !checkLength(a, example) || !checkPattern(a, example) || !checkMinMaxValue(a, example) {
+			continue
 		}
 		return example
 	}
+	return nil
+}
+
+func (a *AttributeExpr) generatedCandidate(
+	r *ExampleGenerator,
+	hasFormat, hasPattern, hasMinMax, hasLength bool,
+) any {
+	var example any
+	if hasFormat {
+		example = byFormat(a, r)
+	}
+	if hasPattern && example == nil {
+		example = byPattern(a, r)
+	}
+	if hasMinMax && example == nil {
+		example = byMinMax(a, r)
+	}
+	if example != nil {
+		return example
+	}
+	if hasLength {
+		return byLength(a, r)
+	}
 	return a.Type.Example(r)
-}
-
-// NewLength returns an int that validates the generator attribute length
-// validations if any.
-func NewLength(a *AttributeExpr, r *ExampleGenerator) int {
-	if hasLengthValidation(a) {
-		minlength, maxlength := math.Inf(1), math.Inf(-1)
-		if a.Validation.MinLength != nil {
-			minlength = float64(*a.Validation.MinLength)
-		}
-		if a.Validation.MaxLength != nil {
-			maxlength = float64(*a.Validation.MaxLength)
-		}
-		count := 0
-		switch {
-		case math.IsInf(minlength, 1):
-			count = int(maxlength) - (r.Int() % 3)
-		case math.IsInf(maxlength, -1):
-			count = int(minlength) + (r.Int() % 3)
-		case minlength < maxlength:
-			diff := min(int(maxlength-minlength), maxLength)
-			count = int(minlength) + (r.Int() % diff)
-		case minlength == maxlength:
-			count = int(minlength)
-		default:
-			panic("unreachable: MinLength > MaxLength should have been caught by ValidationExpr.Validate")
-		}
-		if count > maxLength {
-			count = maxLength
-		}
-		if count < 0 {
-			count = 0
-		}
-		return count
-	}
-	return r.ArrayLength()
-}
-
-func hasLengthValidation(a *AttributeExpr) bool {
-	if a.Validation == nil {
-		return false
-	}
-	return a.Validation.MinLength != nil || a.Validation.MaxLength != nil
 }
 
 func hasEnumValidation(a *AttributeExpr) bool {
@@ -156,46 +121,6 @@ func hasMinMaxValidation(a *AttributeExpr) bool {
 		a.Validation.Minimum != nil ||
 		a.Validation.ExclusiveMaximum != nil ||
 		a.Validation.Maximum != nil
-}
-
-// byLength generates a random size array of examples based on what's given.
-func byLength(a *AttributeExpr, r *ExampleGenerator) any {
-	count := NewLength(a, r)
-	// Use unaliased type to handle alias types (e.g., Type("Alias", String))
-	dt := unalias(a.Type)
-	switch dt.Kind() {
-	case StringKind:
-		return r.Characters(count)
-	case BytesKind:
-		return []byte(r.Characters(count))
-	case MapKind:
-		raw := make(map[any]any)
-		m := dt.(*Map)
-		for range count {
-			raw[m.KeyType.Example(r)] = m.ElemType.Example(r)
-		}
-		return m.MakeMap(raw)
-	case ArrayKind:
-		raw := make([]any, count)
-		ar := dt.(*Array)
-		for i := range count {
-			raw[i] = ar.ElemType.Example(r)
-		}
-		return ar.MakeSlice(raw)
-	default:
-		panic("invalid type for length validation: " + a.Type.Name())
-	}
-}
-
-// byEnum returns a random selected enum value.
-func byEnum(a *AttributeExpr, r *ExampleGenerator) any {
-	if !hasEnumValidation(a) {
-		return nil
-	}
-	values := a.Validation.Values
-	count := len(values)
-	i := r.Int() % count
-	return values[i]
 }
 
 // byFormat returns a random example based on the format the user asks.

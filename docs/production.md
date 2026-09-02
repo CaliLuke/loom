@@ -199,6 +199,9 @@ or `RuntimeCORS()` rather than wrapping generated handlers in
 application-local middleware.
 Generated servers mount route-local `OPTIONS` preflight handlers and write
 `Access-Control-Allow-*` headers from the shared `loom/http` runtime helper.
+If a route also has an authored `OPTIONS` endpoint, the generated server uses
+the presence of `Access-Control-Request-Method` to distinguish browser
+preflight from the ordinary endpoint.
 Service-level CORS overrides API-level CORS, and OpenAPI publishes the
 effective HTTP route policy under `x-loom-cors`. JSON-RPC keeps Go's
 `CrossOriginProtection` secure default when no CORS policy is designed;

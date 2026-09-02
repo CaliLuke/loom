@@ -111,6 +111,42 @@ func TestRuntimeCORSPolicyRequestBehavior(t *testing.T) {
 	})
 }
 
+func TestRuntimeCORSPolicyOptionsHandlerDispatchesByPreflightHeader(t *testing.T) {
+	policy, err := NewRuntimeCORSPolicy(CORSPolicy{Origins: []CORSOrigin{{
+		Pattern: "https://app.example.com",
+	}}})
+	require.NoError(t, err)
+	endpointCalls := 0
+	handler := policy.OptionsHandler(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+		endpointCalls++
+		w.WriteHeader(stdhttp.StatusOK)
+	}, []string{"GET", "OPTIONS"})
+
+	ordinary := httptest.NewRequest(stdhttp.MethodOptions, "/items", nil)
+	ordinary.Header.Set("Origin", "https://app.example.com")
+	ordinaryResponse := httptest.NewRecorder()
+	handler(ordinaryResponse, ordinary)
+	require.Equal(t, stdhttp.StatusOK, ordinaryResponse.Code)
+	require.Equal(t, 1, endpointCalls)
+	require.Equal(t, "https://app.example.com", ordinaryResponse.Header().Get("Access-Control-Allow-Origin"))
+
+	preflight := httptest.NewRequest(stdhttp.MethodOptions, "/items", nil)
+	preflight.Header.Set("Origin", "https://app.example.com")
+	preflight.Header.Set("Access-Control-Request-Method", "GET")
+	preflightResponse := httptest.NewRecorder()
+	handler(preflightResponse, preflight)
+	require.Equal(t, stdhttp.StatusNoContent, preflightResponse.Code)
+	require.Equal(t, 1, endpointCalls)
+	require.Equal(t, "GET, OPTIONS", preflightResponse.Header().Get("Access-Control-Allow-Methods"))
+
+	emptyPreflight := httptest.NewRequest(stdhttp.MethodOptions, "/items", nil)
+	emptyPreflight.Header["Access-Control-Request-Method"] = []string{""}
+	emptyPreflightResponse := httptest.NewRecorder()
+	handler(emptyPreflightResponse, emptyPreflight)
+	require.Equal(t, stdhttp.StatusNoContent, emptyPreflightResponse.Code)
+	require.Equal(t, 1, endpointCalls)
+}
+
 func TestCORSActualHeaders(t *testing.T) {
 	policy := CORSPolicy{Origins: []CORSOrigin{{
 		Pattern:     "https://app.example.com",

@@ -276,6 +276,7 @@ func synthesizedExampleStabilityDSL(addMutableField, omitSynthesized bool) func(
 		})
 		Service("Examples", func() {
 			Method("Mutable", func() {
+				NoSecurity()
 				Result(func() {
 					Attribute("value", String)
 					if addMutableField {
@@ -288,6 +289,7 @@ func synthesizedExampleStabilityDSL(addMutableField, omitSynthesized bool) func(
 				})
 			})
 			Method("Stable", func() {
+				NoSecurity()
 				Payload(func() {
 					Attribute("authored_header", String, func() {
 						Example("authored-header")
@@ -299,15 +301,23 @@ func synthesizedExampleStabilityDSL(addMutableField, omitSynthesized bool) func(
 				Result(func() {
 					Attribute("message", String)
 					Attribute("detail", String)
+					Attribute("response_cookie", String, func() {
+						MinLength(32)
+						MaxLength(32)
+					})
+					Required("response_cookie")
 				})
 				HTTP(func() {
 					Header("authored_header:X-Authored")
 					Cookie("authored_cookie:authored_cookie")
 					GET("/stable")
-					Response(StatusOK)
+					Response(StatusOK, func() {
+						Cookie("response_cookie:csrftoken")
+					})
 				})
 			})
 			Method("Authored", func() {
+				NoSecurity()
 				Result(String, func() {
 					Example("authored-example")
 				})

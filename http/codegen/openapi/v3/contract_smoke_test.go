@@ -47,6 +47,22 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			dsl:  testdata.MealPlannerDSL,
 		},
 		{
+			name: "constrained-response-cookie",
+			dsl:  synthesizedExampleStabilityDSL(false, false),
+			extra: func(t *testing.T, spec map[string]any) {
+				operation := requireOperation(t, spec, "/stable", "get")
+				responses := requireMap(t, operation["responses"], "stable responses")
+				response := requireMap(t, responses["200"], "stable response")
+				headers := requireMap(t, response["headers"], "stable response headers")
+				cookie := requireMap(t, headers["Set-Cookie"], "Set-Cookie header")
+				example := requireString(t, cookie["example"], "Set-Cookie example")
+				pair := strings.SplitN(example, ";", 2)[0]
+				value, ok := strings.CutPrefix(pair, "csrftoken=")
+				require.True(t, ok)
+				require.Len(t, value, 32)
+			},
+		},
+		{
 			name: "file-response",
 			dsl:  fileResponseOpenAPIDSL,
 		},
@@ -170,6 +186,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		unsupportedOAS32Diagnostic string
 	}{
 		{name: "meal-planner", dsl: testdata.MealPlannerDSL},
+		{name: "constrained-response-cookie", dsl: synthesizedExampleStabilityDSL(false, false)},
 		{
 			name:                       "openapi-3.2-features",
 			dsl:                        testdata.OpenAPI32FeaturesDSL,

@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -45,4 +46,26 @@ func TestResponseCookieHeaderOmitsOnlySynthesizedExamples(t *testing.T) {
 		"authored=authored-value",
 		header.Examples[authored.HTTPName].Value.Value,
 	)
+}
+
+func TestResponseCookieHeaderExampleHonorsValueLength(t *testing.T) {
+	exactLength := 32
+	cookie := &transportir.Cookie{
+		HTTPName: "csrftoken",
+		Attribute: &expr.AttributeExpr{
+			Type: expr.String,
+			Validation: &expr.ValidationExpr{
+				MinLength: &exactLength,
+				MaxLength: &exactLength,
+			},
+		},
+	}
+
+	header := responseCookieHeader([]*transportir.Cookie{cookie}, expr.NewRandom("cookies"), false)
+	example, ok := header.Example.(string)
+	require.True(t, ok)
+	pair := strings.SplitN(example, ";", 2)[0]
+	value, ok := strings.CutPrefix(pair, "csrftoken=")
+	require.True(t, ok)
+	require.Len(t, value, exactLength)
 }
