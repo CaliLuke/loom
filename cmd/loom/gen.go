@@ -21,6 +21,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+const temporaryGeneratorPrefix = ".loom-generator-"
+
 var getwd = os.Getwd
 
 // Generator is the code generation management data structure.
@@ -125,7 +127,7 @@ func (g *Generator) Write(_ bool) error {
 		} else if cwd, err := getwd(); err == nil {
 			wd = cwd
 		}
-		tmp, err := os.MkdirTemp(wd, "loom")
+		tmp, err := os.MkdirTemp(wd, temporaryGeneratorPrefix)
 		if err != nil {
 			return err
 		}

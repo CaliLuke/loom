@@ -70,6 +70,6 @@ This checked-in fixture has an explicit local `replace` directive. The shared
 `make loom-local` / `make loom-remote` mode controls dynamically generated
 HTTP and JSON-RPC temp modules, not direct regeneration inside this fixture.
 
-`server-*.log`, `loom*` temp directories, and similar byproducts in this
-directory are NOT part of the fixture contract; they can be cleaned up at
-any time.
+`server-*.log`, `.loom-generator-*` temporary directories, and similar
+byproducts in this directory are NOT part of the fixture contract; they can be
+cleaned up at any time.

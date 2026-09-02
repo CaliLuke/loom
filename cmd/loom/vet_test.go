@@ -116,6 +116,32 @@ func TestVetGeneratorUsesDesignModuleDirectory(t *testing.T) {
 	require.True(t, strings.Contains(string(source), `loomvet.Analyze(expr.Root, "`+moduleDir+`")`))
 }
 
+func TestVetGeneratorTemporaryPackageIsExcludedFromModuleScan(t *testing.T) {
+	moduleDir := writeTidyVetConsumer(t, `package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("service", func() {})
+	`)
+	generator := &Generator{
+		Command:       "vet",
+		DesignPath:    "example.com/service/design",
+		Output:        ".",
+		DesignVersion: 3,
+		moduleDir:     moduleDir,
+		bin:           "loom",
+	}
+	require.NoError(t, generator.Write(false))
+	t.Cleanup(func() { require.NoError(t, generator.Remove()) })
+
+	list := exec.Command("go", "list", "-mod=mod", "./...")
+	list.Dir = moduleDir
+	list.Env = append(os.Environ(), "GOWORK=off")
+	output, err := list.CombinedOutput()
+	require.NoError(t, err, string(output))
+	require.NotContains(t, string(output), filepath.Base(generator.tmpDir))
+}
+
 func TestVetDesignBuildsFromTidyConsumerWithoutChangingModuleFiles(t *testing.T) {
 	moduleDir := writeTidyVetConsumer(t, `package design
 
@@ -139,7 +165,7 @@ var _ = API("service", func() {})
 	require.NoError(t, err)
 	require.Equal(t, goModBefore, goModAfter)
 	require.Equal(t, goSumBefore, goSumAfter)
-	temporaryHelpers, err := filepath.Glob(filepath.Join(moduleDir, "loom*"))
+	temporaryHelpers, err := filepath.Glob(filepath.Join(moduleDir, temporaryGeneratorPrefix+"*"))
 	require.NoError(t, err)
 	require.Empty(t, temporaryHelpers)
 }
@@ -156,7 +182,7 @@ var _ = missingIdentifier
 
 	_, err := vetDesign("example.com/service/design", true)
 	require.Error(t, err)
-	temporaryHelpers, globErr := filepath.Glob(filepath.Join(moduleDir, "loom*"))
+	temporaryHelpers, globErr := filepath.Glob(filepath.Join(moduleDir, temporaryGeneratorPrefix+"*"))
 	require.NoError(t, globErr)
 	require.Empty(t, temporaryHelpers)
 }
