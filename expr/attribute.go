@@ -143,8 +143,11 @@ const (
 	// FormatIP describes RFC2373 IPv4 or IPv6 address values.
 	FormatIP = "ip"
 
-	// FormatURI describes RFC3986 URI values.
+	// FormatURI describes absolute RFC3986 URI values with a scheme.
 	FormatURI = "uri"
+
+	// FormatURIReference describes RFC3986 URI-reference values.
+	FormatURIReference = "uri-reference"
 
 	// FormatMAC describes IEEE 802 MAC-48, EUI-48 or EUI-64 MAC address values.
 	FormatMAC = "mac"

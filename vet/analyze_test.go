@@ -117,6 +117,62 @@ func TestAnalyzeAttributeSemantics(t *testing.T) {
 		RuleStringFormat + ":api.error.callback_failed.callback_url",
 	}, diagnosticKeys(report.Diagnostics))
 }
+func TestAnalyzeRecommendsURIReferenceForRelativeURL(t *testing.T) {
+	uriType := &expr.UserTypeExpr{
+		TypeName: "URI",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:       expr.String,
+			Validation: &expr.ValidationExpr{Format: expr.FormatURI},
+		},
+	}
+	object := expr.Object{
+		&expr.NamedAttributeExpr{Name: "download_url", Attribute: &expr.AttributeExpr{
+			Type:        expr.String,
+			Description: "Relative local download URL.",
+		}},
+		&expr.NamedAttributeExpr{Name: "preview_uri", Attribute: &expr.AttributeExpr{
+			Type:        expr.String,
+			Description: "Relative URI.",
+			Validation:  &expr.ValidationExpr{Format: expr.FormatURI},
+		}},
+		&expr.NamedAttributeExpr{Name: "asset_url", Attribute: &expr.AttributeExpr{
+			Type:        uriType,
+			Description: "Relative asset URL.",
+			Validation:  &expr.ValidationExpr{Pattern: "^/"},
+		}},
+		&expr.NamedAttributeExpr{Name: "pattern_url", Attribute: &expr.AttributeExpr{
+			Type:        expr.String,
+			Description: "Relative URL.",
+			Validation:  &expr.ValidationExpr{Pattern: "^/"},
+		}},
+		&expr.NamedAttributeExpr{Name: "reference_url", Attribute: &expr.AttributeExpr{
+			Type:        expr.String,
+			Description: "Relative URL.",
+			Validation:  &expr.ValidationExpr{Format: expr.FormatURIReference},
+		}},
+	}
+	root := &expr.RootExpr{Types: []expr.UserType{
+		uriType,
+		&expr.UserTypeExpr{TypeName: "Download", AttributeExpr: &expr.AttributeExpr{Type: &object}},
+	}}
+
+	var report Report
+	analyzeAttributeSemantics(root, &report)
+
+	diagnostics := diagnosticsForRule(report.Diagnostics, RuleStringFormat)
+	require.Len(t, diagnostics, 3)
+	messages := make(map[string]string, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		messages[diagnostic.Location.Path] = diagnostic.Message
+	}
+	require.Equal(t, "relative URL string has no validation; use Format(FormatURIReference) or a Pattern", messages["type.Download.download_url"])
+	require.Equal(t, "relative URI string uses Format(FormatURI); use Format(FormatURIReference) for relative references", messages["type.Download.preview_uri"])
+	require.Equal(t, "relative URL string uses Format(FormatURI); use Format(FormatURIReference) for relative references", messages["type.Download.asset_url"])
+
+	recommendation, ok := untypedScalarRecommendation("download_url", "relative local download url")
+	require.True(t, ok)
+	require.Equal(t, scalarRecommendation{"URI reference", "String with Format(FormatURIReference)"}, recommendation)
+}
 
 func TestAnalyzeModuleFindsTypedMuxRoutes(t *testing.T) {
 	root := t.TempDir()

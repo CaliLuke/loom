@@ -59,6 +59,39 @@ func TestFilesEmitCanonicalOpenAPI32(t *testing.T) {
 	require.Equal(t, "string", requireString(t, requireMap(t, properties["id"], "SSE id schema")["type"], "SSE id type"))
 }
 
+func TestFilesEmitURIReferenceFormat(t *testing.T) {
+	root := httpgen.RunHTTPDSL(t, func() {
+		result := dsl.Type("Download", func() {
+			dsl.Attribute("download_url", dsl.String, func() {
+				dsl.Format(dsl.FormatURIReference)
+			})
+		})
+		_ = dsl.API("downloads", func() {
+			dsl.Server("downloads", func() {
+				dsl.Host("localhost", func() {
+					dsl.URI("https://loom.design")
+				})
+			})
+		})
+		dsl.Service("downloads", func() {
+			dsl.Method("show", func() {
+				dsl.Result(result)
+				dsl.HTTP(func() {
+					dsl.GET("/download")
+				})
+			})
+		})
+	})
+
+	files, err := openapiv3.Files(root)
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+	buffer := renderSection(t, files[0].AllSections()[0])
+	jsonSpec := buffer.Bytes()
+	validateOpenAPIVersion(t, jsonSpec, openapiv3.OpenAPIVersion)
+	require.Contains(t, string(jsonSpec), "\"format\": \"uri-reference\"")
+}
+
 func TestFilesUseNormativeJSONSchemaDialectForAllTargets(t *testing.T) {
 	const wantDialect = "https://spec.openapis.org/oas/3.1/dialect/base"
 

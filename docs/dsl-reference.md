@@ -361,7 +361,8 @@ Loom includes predefined formats for common data patterns:
 | `FormatIPv4` | RFC2373 IPv4 address values |
 | `FormatIPv6` | RFC2373 IPv6 address values |
 | `FormatIP` | RFC2373 IPv4 or IPv6 address values |
-| `FormatURI` | RFC3986 URI values |
+| `FormatURI` | Absolute RFC3986 URI values with a scheme |
+| `FormatURIReference` | RFC3986 URI-reference values, including relative paths |
 | `FormatMAC` | IEEE 802 MAC-48/EUI-48/EUI-64 addresses |
 | `FormatCIDR` | RFC4632/RFC4291 CIDR notation |
 | `FormatRegexp` | RE2 regular expression syntax |

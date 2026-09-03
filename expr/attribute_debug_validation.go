@@ -475,6 +475,8 @@ func (*AttributeExpr) IsSupportedValidationFormat(vf ValidationFormat) bool {
 		return true
 	case FormatURI:
 		return true
+	case FormatURIReference:
+		return true
 	case FormatMAC:
 		return true
 	case FormatCIDR:

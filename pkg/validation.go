@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/mail"
-	"net/url"
 	"regexp"
 	"time"
 	"uuid"
@@ -39,8 +38,11 @@ const (
 	// FormatIP describes RFC2373 IPv4 or IPv6 address values.
 	FormatIP = "ip"
 
-	// FormatURI describes RFC3986 URI values.
+	// FormatURI describes absolute RFC3986 URI values with a scheme.
 	FormatURI = "uri"
+
+	// FormatURIReference describes RFC3986 URI-reference values.
+	FormatURIReference = "uri-reference"
 
 	// FormatMAC describes IEEE 802 MAC-48, EUI-48 or EUI-64 MAC address values.
 	FormatMAC = "mac"
@@ -75,7 +77,8 @@ var (
 //   - "email": RFC5322 email address
 //   - "hostname": RFC1035 Internet host name
 //   - "ipv4", "ipv6", "ip": RFC2673 and RFC2373 IP address values
-//   - "uri": RFC3986 URI value
+//   - "uri": absolute RFC3986 URI value with a scheme
+//   - "uri-reference": RFC3986 URI-reference value
 //   - "mac": IEEE 802 MAC-48, EUI-48 or EUI-64 MAC address value
 //   - "cidr": RFC4632 and RFC4291 CIDR notation IP address value
 //   - "regexp": Regular expression syntax accepted by RE2
@@ -112,7 +115,9 @@ func ValidateFormat(name string, val string, f Format) error {
 			}
 		}
 	case FormatURI:
-		_, err = url.ParseRequestURI(val)
+		err = validateRFC3986URI(val, false)
+	case FormatURIReference:
+		err = validateRFC3986URI(val, true)
 	case FormatMAC:
 		_, err = net.ParseMAC(val)
 	case FormatCIDR:

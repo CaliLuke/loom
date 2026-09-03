@@ -8,6 +8,18 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+func TestAnalyzerEmitsURIReferenceFormat(t *testing.T) {
+	t.Parallel()
+
+	schema := NewAnalyzer(expr.NewRandom("uri-reference"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{Format: expr.FormatURIReference},
+	})
+
+	require.Equal(t, "string", schema.Type)
+	require.Equal(t, "uri-reference", schema.Format)
+}
+
 func TestAnalyzerKeepsExplicitTypenamesDistinct(t *testing.T) {
 	t.Parallel()
 

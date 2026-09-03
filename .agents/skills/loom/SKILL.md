@@ -49,6 +49,8 @@ order.
 - Prefer concrete types over `Any`, especially when gRPC generation matters.
 - Put lengths, enums, formats, requiredness, and other validation in the DSL;
   do not duplicate it in service implementations.
+- Use `FormatURI` for absolute URI contracts that include a scheme. Use
+  `FormatURIReference` for relative paths and other URI references.
 - Do not rely on nil versus empty slices or maps to encode presence. Generated
   JSON uses `omitempty`, so both serialize as missing.
 - For each non-`Extend` type, payload, or result, start literal field tags at

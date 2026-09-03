@@ -15,16 +15,17 @@ type scalarRecommendation struct {
 }
 
 var (
-	describedRangePattern = regexp.MustCompile(`(?i)\bfrom\s+(-?\d+(?:\.\d+)?)\s+to\s+(-?\d+(?:\.\d+)?)\b`)
-	normalizedWordPattern = regexp.MustCompile(`(?i)\bnormalized\b`)
-	booleanAnyPattern     = regexp.MustCompile(`\b(boolean|true/false|true or false|whether)\b`)
-	integerAnyPattern     = regexp.MustCompile(`\b(integer|whole number|number of)\b`)
-	numberAnyPattern      = regexp.MustCompile(`\b(numeric value|decimal number|decimal value|floating-point|floating point|number value)\b`)
-	timestampAnyPattern   = regexp.MustCompile(`\b(timestamp|date-time|datetime|rfc3339|rfc 3339)\b`)
-	uuidAnyPattern        = regexp.MustCompile(`\b(uuid|universally unique identifier)\b`)
-	uriAnyPattern         = regexp.MustCompile(`\b(uri|url)\b`)
-	emailAnyPattern       = regexp.MustCompile(`\bemail (address|string|value)\b`)
-	ipAnyPattern          = regexp.MustCompile(`\b(ip|ipv4|ipv6) address\b`)
+	describedRangePattern       = regexp.MustCompile(`(?i)\bfrom\s+(-?\d+(?:\.\d+)?)\s+to\s+(-?\d+(?:\.\d+)?)\b`)
+	normalizedWordPattern       = regexp.MustCompile(`(?i)\bnormalized\b`)
+	booleanAnyPattern           = regexp.MustCompile(`\b(boolean|true/false|true or false|whether)\b`)
+	integerAnyPattern           = regexp.MustCompile(`\b(integer|whole number|number of)\b`)
+	numberAnyPattern            = regexp.MustCompile(`\b(numeric value|decimal number|decimal value|floating-point|floating point|number value)\b`)
+	timestampAnyPattern         = regexp.MustCompile(`\b(timestamp|date-time|datetime|rfc3339|rfc 3339)\b`)
+	uuidAnyPattern              = regexp.MustCompile(`\b(uuid|universally unique identifier)\b`)
+	uriAnyPattern               = regexp.MustCompile(`\b(uri|url)\b`)
+	relativeURIReferencePattern = regexp.MustCompile(`\brelative(?:\s+[[:alnum:]_-]+){0,4}\s+(uri|url)\b`)
+	emailAnyPattern             = regexp.MustCompile(`\bemail (address|string|value)\b`)
+	ipAnyPattern                = regexp.MustCompile(`\b(ip|ipv4|ipv6) address\b`)
 )
 
 // Analyze inspects an evaluated design and the Go module rooted at moduleDir.
@@ -312,8 +313,18 @@ func analyzeAttributeDescription(path, name string, attribute *expr.AttributeExp
 			}
 		}
 	}
-	if kind := semanticStringKind(name, description); isString(attribute.Type) && kind != "" && !hasStringValidation(attribute) && !attributeSuppressed(attribute, RuleStringFormat) {
-		appendWarning(report, RuleStringFormat, path, fmt.Sprintf("%s string has no Format or Pattern validation", kind))
+	if kind := semanticStringKind(name, description); isString(attribute.Type) && kind != "" && !attributeSuppressed(attribute, RuleStringFormat) {
+		relativeKind := relativeURIReferenceKind(description)
+		switch {
+		case relativeKind != "" && effectiveStringFormat(attribute) == expr.FormatURI:
+			appendWarning(report, RuleStringFormat, path, fmt.Sprintf("%s string uses Format(FormatURI); use Format(FormatURIReference) for relative references", relativeKind))
+		case !hasStringValidation(attribute):
+			message := fmt.Sprintf("%s string has no Format or Pattern validation", kind)
+			if relativeKind != "" {
+				message = fmt.Sprintf("%s string has no validation; use Format(FormatURIReference) or a Pattern", relativeKind)
+			}
+			appendWarning(report, RuleStringFormat, path, message)
+		}
 	}
 	if normalizedMissing {
 		appendWarning(report, RuleNormalizedRange, path, "normalized number does not enforce the range from 0 to 1")
@@ -398,6 +409,17 @@ func hasStringValidation(attribute *expr.AttributeExpr) bool {
 		return validation != nil && (validation.Format != "" || validation.Pattern != "")
 	})
 }
+func effectiveStringFormat(attribute *expr.AttributeExpr) expr.ValidationFormat {
+	var format expr.ValidationFormat
+	anyAttributeLayer(attribute, func(layer *expr.AttributeExpr) bool {
+		if layer.Validation == nil || layer.Validation.Format == "" {
+			return false
+		}
+		format = layer.Validation.Format
+		return true
+	})
+	return format
+}
 
 func anyAttributeLayer(attribute *expr.AttributeExpr, predicate func(*expr.AttributeExpr) bool) bool {
 	seen := make(map[*expr.AttributeExpr]struct{})
@@ -442,6 +464,14 @@ func mentionsUUIDContract(description string) bool {
 		strings.Contains(description, "must be a uuid")
 }
 
+func relativeURIReferenceKind(description string) string {
+	match := relativeURIReferencePattern.FindStringSubmatch(description)
+	if len(match) != 2 {
+		return ""
+	}
+	return "relative " + strings.ToUpper(match[1])
+}
+
 func untypedScalarRecommendation(name, description string) (scalarRecommendation, bool) {
 	description = strings.TrimSpace(description)
 	if strings.Contains(description, " or ") && !strings.Contains(description, "true or false") {
@@ -461,6 +491,8 @@ func untypedScalarRecommendation(name, description string) (scalarRecommendation
 		return scalarRecommendation{"integer", "Int"}, true
 	case numberAnyPattern.MatchString(description):
 		return scalarRecommendation{"number", "Float64"}, true
+	case relativeURIReferencePattern.MatchString(description):
+		return scalarRecommendation{"URI reference", "String with Format(FormatURIReference)"}, true
 	case uriAnyPattern.MatchString(description):
 		return scalarRecommendation{"URI", "String with Format(FormatURI)"}, true
 	case emailAnyPattern.MatchString(description):

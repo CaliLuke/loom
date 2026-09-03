@@ -4,11 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/url"
 	"regexp"
 	"regexp/syntax"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateFormat(t *testing.T) {
@@ -28,24 +29,27 @@ func TestValidateFormat(t *testing.T) {
 		// Re-enable once CircleCI uses Go 1.13
 		// invalidEmail    = "foo"
 
-		validHostname   = "loom.design"
-		invalidHostname = "_hi_"
-		validIPv4       = "192.168.0.1"
-		invalidIPv4     = "192-168.0.1"
-		validIPv6       = "::1"
-		invalidIPv6     = "foo"
-		validURI        = "hhp://loom.design/contact"
-		invalidURI      = "foo_"
-		validMAC        = "06-00-00-00-00-00"
-		invalidMAC      = "bar"
-		validCIDR       = "10.0.0.0/8"
-		invalidCIDR     = "foo"
-		validRegexp     = "^loom$"
-		invalidRegexp   = "foo["
-		validJSON       = `{"a":"b","c":2}`
-		invalidJSON     = "{"
-		validRFC1123    = "Mon, 04 Jun 2017 23:52:05 MST"
-		invalidRFC1123  = "Mon 04 Jun 2017 23:52:05 MST"
+		validHostname             = "loom.design"
+		invalidHostname           = "_hi_"
+		validIPv4                 = "192.168.0.1"
+		invalidIPv4               = "192-168.0.1"
+		validIPv6                 = "::1"
+		invalidIPv6               = "foo"
+		validURI                  = "hhp://loom.design/contact"
+		invalidURI                = "foo_"
+		validRelativeURIReference = "/download/token"
+		validFragmentURIReference = "#result"
+		invalidURIReference       = "%zz"
+		validMAC                  = "06-00-00-00-00-00"
+		invalidMAC                = "bar"
+		validCIDR                 = "10.0.0.0/8"
+		invalidCIDR               = "foo"
+		validRegexp               = "^loom$"
+		invalidRegexp             = "foo["
+		validJSON                 = `{"a":"b","c":2}`
+		invalidJSON               = "{"
+		validRFC1123              = "Mon, 04 Jun 2017 23:52:05 MST"
+		invalidRFC1123            = "Mon 04 Jun 2017 23:52:05 MST"
 	)
 	cases := map[string]struct {
 		name     string
@@ -69,30 +73,33 @@ func TestValidateFormat(t *testing.T) {
 		// Re-enable once CircleCI uses Go 1.13
 		// "invalid email":      {"invalidEmail", invalidEmail, FormatEmail, InvalidFormatError("invalidEmail", invalidEmail, FormatEmail, errors.New("mail: missing '@' or angle-addr"))},
 
-		"valid hostname":     {"validHostname", validHostname, FormatHostname, nil},
-		"invalid hostname":   {"invalidHostname", invalidHostname, FormatHostname, InvalidFormatError("invalidHostname", invalidHostname, FormatHostname, fmt.Errorf("hostname value '%s' does not match %s", invalidHostname, `^[[:alnum:]][[:alnum:]\-]{0,61}[[:alnum:]]|[[:alpha:]]$`))},
-		"valid ipv4":         {"validIPv4", validIPv4, FormatIPv4, nil},
-		"valid ipv6 as ipv4": {"validIPv6", validIPv6, FormatIPv4, InvalidFormatError("validIPv6", validIPv6, FormatIPv4, fmt.Errorf("\"%s\" is an invalid %s value", validIPv6, FormatIPv4))},
-		"invalid ipv4":       {"invalidIPv4", invalidIPv4, FormatIPv4, InvalidFormatError("invalidIPv4", invalidIPv4, FormatIPv4, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv4, FormatIPv4))},
-		"valid ipv6":         {"validIPv6", validIPv6, FormatIPv6, nil},
-		"valid ipv4 as ipv6": {"validIPv4", validIPv4, FormatIPv6, InvalidFormatError("validIPv4", validIPv4, FormatIPv6, fmt.Errorf("\"%s\" is an invalid %s value", validIPv4, FormatIPv6))},
-		"invalid ipv6":       {"invalidIPv6", invalidIPv6, FormatIPv6, InvalidFormatError("invalidIPv6", invalidIPv6, FormatIPv6, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv6, FormatIPv6))},
-		"valid ipv4 as ip":   {"validIPv4", validIPv4, FormatIP, nil},
-		"valid ipv6 as ip":   {"validIPv6", validIPv6, FormatIP, nil},
-		"invalid ipv4 as ip": {"invalidIPv4", invalidIPv4, FormatIP, InvalidFormatError("invalidIPv4", invalidIPv4, FormatIP, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv4, FormatIP))},
-		"invalid ipv6 as ip": {"invalidIPv6", invalidIPv6, FormatIP, InvalidFormatError("invalidIPv6", invalidIPv6, FormatIP, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv6, FormatIP))},
-		"valid uri":          {"validURI", validURI, FormatURI, nil},
-		"invalid uri":        {"invalidURI", invalidURI, FormatURI, InvalidFormatError("invalidURI", invalidURI, FormatURI, &url.Error{Op: "parse", URL: invalidURI, Err: errors.New("invalid URI for request")})},
-		"valid mac":          {"validMAC", validMAC, FormatMAC, nil},
-		"invalid mac":        {"invalidMAC", invalidMAC, FormatMAC, InvalidFormatError("invalidMAC", invalidMAC, FormatMAC, &net.AddrError{Err: "invalid MAC address", Addr: invalidMAC})},
-		"valid cidr":         {"validCIDR", validCIDR, FormatCIDR, nil},
-		"invalid cidr":       {"invalidCIDR", invalidCIDR, FormatCIDR, InvalidFormatError("invalidCIDR", invalidCIDR, FormatCIDR, &net.ParseError{Type: "CIDR address", Text: invalidCIDR})},
-		"valid regexp":       {"validRegexp", validRegexp, FormatRegexp, nil},
-		"invalid regexp":     {"invalidRegexp", invalidRegexp, FormatRegexp, InvalidFormatError("invalidRegexp", invalidRegexp, FormatRegexp, &syntax.Error{Code: syntax.ErrMissingBracket, Expr: invalidRegexp[3:4]})},
-		"valid json":         {"validJSON", validJSON, FormatJSON, nil},
-		"invalid json":       {"invalidJSON", invalidJSON, FormatJSON, InvalidFormatError("invalidJSON", invalidJSON, FormatJSON, fmt.Errorf("invalid JSON"))},
-		"valid rfc1123":      {"validRFC1123", validRFC1123, FormatRFC1123, nil},
-		"invalid rfc1123":    {"invalidRFC1123", invalidRFC1123, FormatRFC1123, InvalidFormatError("invalidRFC1123", invalidRFC1123, FormatRFC1123, &time.ParseError{Layout: time.RFC1123, Value: invalidRFC1123, LayoutElem: ", ", ValueElem: invalidRFC1123[3:]})},
+		"valid hostname":               {"validHostname", validHostname, FormatHostname, nil},
+		"invalid hostname":             {"invalidHostname", invalidHostname, FormatHostname, InvalidFormatError("invalidHostname", invalidHostname, FormatHostname, fmt.Errorf("hostname value '%s' does not match %s", invalidHostname, `^[[:alnum:]][[:alnum:]\-]{0,61}[[:alnum:]]|[[:alpha:]]$`))},
+		"valid ipv4":                   {"validIPv4", validIPv4, FormatIPv4, nil},
+		"valid ipv6 as ipv4":           {"validIPv6", validIPv6, FormatIPv4, InvalidFormatError("validIPv6", validIPv6, FormatIPv4, fmt.Errorf("\"%s\" is an invalid %s value", validIPv6, FormatIPv4))},
+		"invalid ipv4":                 {"invalidIPv4", invalidIPv4, FormatIPv4, InvalidFormatError("invalidIPv4", invalidIPv4, FormatIPv4, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv4, FormatIPv4))},
+		"valid ipv6":                   {"validIPv6", validIPv6, FormatIPv6, nil},
+		"valid ipv4 as ipv6":           {"validIPv4", validIPv4, FormatIPv6, InvalidFormatError("validIPv4", validIPv4, FormatIPv6, fmt.Errorf("\"%s\" is an invalid %s value", validIPv4, FormatIPv6))},
+		"invalid ipv6":                 {"invalidIPv6", invalidIPv6, FormatIPv6, InvalidFormatError("invalidIPv6", invalidIPv6, FormatIPv6, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv6, FormatIPv6))},
+		"valid ipv4 as ip":             {"validIPv4", validIPv4, FormatIP, nil},
+		"valid ipv6 as ip":             {"validIPv6", validIPv6, FormatIP, nil},
+		"invalid ipv4 as ip":           {"invalidIPv4", invalidIPv4, FormatIP, InvalidFormatError("invalidIPv4", invalidIPv4, FormatIP, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv4, FormatIP))},
+		"invalid ipv6 as ip":           {"invalidIPv6", invalidIPv6, FormatIP, InvalidFormatError("invalidIPv6", invalidIPv6, FormatIP, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv6, FormatIP))},
+		"valid uri":                    {"validURI", validURI, FormatURI, nil},
+		"invalid uri":                  {"invalidURI", invalidURI, FormatURI, InvalidFormatError("invalidURI", invalidURI, FormatURI, fmt.Errorf("%q is not a valid RFC 3986 URI", invalidURI))},
+		"valid relative uri-reference": {"validRelativeURIReference", validRelativeURIReference, FormatURIReference, nil},
+		"valid fragment uri-reference": {"validFragmentURIReference", validFragmentURIReference, FormatURIReference, nil},
+		"invalid uri-reference":        {"invalidURIReference", invalidURIReference, FormatURIReference, InvalidFormatError("invalidURIReference", invalidURIReference, FormatURIReference, fmt.Errorf("%q is not a valid RFC 3986 URI-reference", invalidURIReference))},
+		"valid mac":                    {"validMAC", validMAC, FormatMAC, nil},
+		"invalid mac":                  {"invalidMAC", invalidMAC, FormatMAC, InvalidFormatError("invalidMAC", invalidMAC, FormatMAC, &net.AddrError{Err: "invalid MAC address", Addr: invalidMAC})},
+		"valid cidr":                   {"validCIDR", validCIDR, FormatCIDR, nil},
+		"invalid cidr":                 {"invalidCIDR", invalidCIDR, FormatCIDR, InvalidFormatError("invalidCIDR", invalidCIDR, FormatCIDR, &net.ParseError{Type: "CIDR address", Text: invalidCIDR})},
+		"valid regexp":                 {"validRegexp", validRegexp, FormatRegexp, nil},
+		"invalid regexp":               {"invalidRegexp", invalidRegexp, FormatRegexp, InvalidFormatError("invalidRegexp", invalidRegexp, FormatRegexp, &syntax.Error{Code: syntax.ErrMissingBracket, Expr: invalidRegexp[3:4]})},
+		"valid json":                   {"validJSON", validJSON, FormatJSON, nil},
+		"invalid json":                 {"invalidJSON", invalidJSON, FormatJSON, InvalidFormatError("invalidJSON", invalidJSON, FormatJSON, fmt.Errorf("invalid JSON"))},
+		"valid rfc1123":                {"validRFC1123", validRFC1123, FormatRFC1123, nil},
+		"invalid rfc1123":              {"invalidRFC1123", invalidRFC1123, FormatRFC1123, InvalidFormatError("invalidRFC1123", invalidRFC1123, FormatRFC1123, &time.ParseError{Layout: time.RFC1123, Value: invalidRFC1123, LayoutElem: ", ", ValueElem: invalidRFC1123[3:]})},
 	}
 
 	for k, tc := range cases {
@@ -103,6 +110,52 @@ func TestValidateFormat(t *testing.T) {
 				t.Errorf("%s: got %#v, expected %#v", k, actual, tc.expected)
 			}
 		}
+	}
+}
+
+func TestValidateURIFormatsRFC3986(t *testing.T) {
+	tests := []struct {
+		name   string
+		value  string
+		format Format
+		valid  bool
+	}{
+		{name: "URI with authority", value: "https://example.com/download?q=one#part", format: FormatURI, valid: true},
+		{name: "opaque URI", value: "urn:example:animal:ferret:nose", format: FormatURI, valid: true},
+		{name: "URI with IPvFuture", value: "https://[v1.fe80::a]/", format: FormatURI, valid: true},
+		{name: "absolute URI-reference", value: "https://example.com/download", format: FormatURIReference, valid: true},
+		{name: "network URI-reference", value: "//example.com/download", format: FormatURIReference, valid: true},
+		{name: "absolute-path URI-reference", value: "/download/token", format: FormatURIReference, valid: true},
+		{name: "relative-path URI-reference", value: "download/token", format: FormatURIReference, valid: true},
+		{name: "query URI-reference", value: "?token=%2F", format: FormatURIReference, valid: true},
+		{name: "fragment URI-reference", value: "#result", format: FormatURIReference, valid: true},
+		{name: "empty URI-reference", value: "", format: FormatURIReference, valid: true},
+		{name: "percent-encoded URI-reference", value: "/download/%2Ftoken", format: FormatURIReference, valid: true},
+		{name: "IPvFuture URI-reference", value: "//[vF.Foo:bar]/resource", format: FormatURIReference, valid: true},
+		{name: "URI without scheme", value: "/download/token", format: FormatURI},
+		{name: "URI with invalid scheme", value: "1http://example.com", format: FormatURI},
+		{name: "empty URI", value: "", format: FormatURI},
+		{name: "raw space", value: "/download/a b", format: FormatURIReference},
+		{name: "raw Unicode", value: "/download/café", format: FormatURIReference},
+		{name: "control character", value: "/download/\n", format: FormatURIReference},
+		{name: "malformed percent encoding", value: "/download/%zz", format: FormatURIReference},
+		{name: "misplaced path delimiter", value: "/download/[token]", format: FormatURIReference},
+		{name: "duplicate fragment delimiter", value: "/download#one#two", format: FormatURIReference},
+		{name: "malformed IPv6 authority", value: "//[::1/resource", format: FormatURIReference},
+		{name: "malformed IPvFuture authority", value: "//[v1.]/resource", format: FormatURIReference},
+		{name: "nonnumeric authority port", value: "//example.com:bad/resource", format: FormatURIReference},
+		{name: "duplicate userinfo delimiter", value: "https://user@@example.com/resource", format: FormatURI},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := ValidateFormat("location", test.value, test.format)
+			if test.valid {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
 	}
 }
 

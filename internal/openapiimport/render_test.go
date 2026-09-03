@@ -74,6 +74,32 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 	require.NotContains(t, string(yamlSource), "Payload(func() {\n\t\t\tMeta(\"openapi:description:requestBody\"")
 }
 
+func TestRenderURIReferenceFormat(t *testing.T) {
+	source := []byte(`openapi: 3.1.1
+info: {title: Downloads, version: "1"}
+paths:
+  /download:
+    get:
+      operationId: download
+      responses:
+        "200":
+          description: Download location.
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uri-reference
+`)
+
+	document, diagnostics, err := Analyze(source)
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	rendered, err := Render(document, Options{PackageName: "design"})
+	require.NoError(t, err)
+	require.Contains(t, string(rendered), "Format(FormatURIReference)")
+	requireRenderedDesignEvaluates(t, rendered, 1)
+}
+
 func TestRenderSuppressesGeneratedOperationMetadataWhenAbsent(t *testing.T) {
 	document, diagnostics, err := Analyze(readFixture(t, "supported.yaml"))
 	require.NoError(t, err)

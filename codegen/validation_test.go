@@ -95,6 +95,18 @@ func TestRecursiveValidationCode(t *testing.T) {
 	})
 }
 
+func TestValidationCodeUsesURIReferenceFormat(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{Format: expr.FormatURIReference},
+	}
+	context := NewAttributeContext(false, false, false, "", NewNameScope())
+
+	code := validationCode(attribute, context, true, false, "target", "downloadURL")
+
+	require.Contains(t, code, "loom.FormatURIReference")
+}
+
 func TestMergedValidationWalksFullUserTypeChain(t *testing.T) {
 	root := RunDSL(t, func() {
 		base := dsl.Type("Base", dsl.String, func() {

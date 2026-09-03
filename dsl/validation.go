@@ -34,8 +34,11 @@ const (
 	// FormatIP describes RFC2373 IPv4 or IPv6 address values.
 	FormatIP = expr.FormatIP
 
-	// FormatURI describes RFC3986 URI values.
+	// FormatURI describes absolute RFC3986 URI values with a scheme.
 	FormatURI = expr.FormatURI
+
+	// FormatURIReference describes RFC3986 URI-reference values.
+	FormatURIReference = expr.FormatURIReference
 
 	// FormatMAC describes IEEE 802 MAC-48, EUI-48 or EUI-64 MAC address values.
 	FormatMAC = expr.FormatMAC
@@ -133,7 +136,9 @@ func Enum(vals ...any) {
 //
 // FormatIPv4, FormatIPv6, FormatIP: RFC2373 IPv4, IPv6 address or either
 //
-// FormatURI: RFC3986 URI
+// FormatURI: absolute RFC3986 URI with a scheme
+//
+// FormatURIReference: RFC3986 URI-reference
 //
 // FormatMAC: IEEE 802 MAC-48, EUI-48 or EUI-64 MAC address
 //

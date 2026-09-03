@@ -163,6 +163,8 @@ func constant(formatName string, att *expr.AttributeExpr) string {
 		return "loom.FormatIP"
 	case "uri":
 		return "loom.FormatURI"
+	case "uri-reference":
+		return "loom.FormatURIReference"
 	case "mac":
 		return "loom.FormatMAC"
 	case "cidr":

@@ -601,7 +601,7 @@ func stringFormatDSL(format string) (string, bool) {
 	formats := map[string]string{
 		"date": "FormatDate", "date-time": "FormatDateTime", "uuid": "FormatUUID",
 		"email": "FormatEmail", "hostname": "FormatHostname", "ipv4": "FormatIPv4",
-		"ipv6": "FormatIPv6", "uri": "FormatURI",
+		"ipv6": "FormatIPv6", "uri": "FormatURI", "uri-reference": "FormatURIReference",
 	}
 	name, ok := formats[format]
 	return name, ok

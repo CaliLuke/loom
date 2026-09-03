@@ -130,14 +130,15 @@ func byFormat(a *AttributeExpr, r *ExampleGenerator) any {
 	}
 	format := a.Validation.Format
 	if res, ok := map[ValidationFormat]any{
-		FormatEmail:    r.Email(),
-		FormatHostname: r.Hostname(),
-		FormatDate:     time.Unix(int64(r.Int())%1454957045, 0).UTC().Format(time.DateOnly), // to obtain a "fixed" rand
-		FormatDateTime: time.Unix(int64(r.Int())%1454957045, 0).UTC().Format(time.RFC3339),  // to obtain a "fixed" rand
-		FormatIPv4:     r.IPv4Address().String(),
-		FormatIPv6:     r.IPv6Address().String(),
-		FormatIP:       r.IPv4Address().String(),
-		FormatURI:      r.URL(),
+		FormatEmail:        r.Email(),
+		FormatHostname:     r.Hostname(),
+		FormatDate:         time.Unix(int64(r.Int())%1454957045, 0).UTC().Format(time.DateOnly), // to obtain a "fixed" rand
+		FormatDateTime:     time.Unix(int64(r.Int())%1454957045, 0).UTC().Format(time.RFC3339),  // to obtain a "fixed" rand
+		FormatIPv4:         r.IPv4Address().String(),
+		FormatIPv6:         r.IPv6Address().String(),
+		FormatIP:           r.IPv4Address().String(),
+		FormatURI:          r.URL(),
+		FormatURIReference: "/example",
 		FormatMAC: func() string {
 			res, err := syntax.Parse(`([0-9A-F]{2}-){5}[0-9A-F]{2}`, 0)
 			if err != nil {
