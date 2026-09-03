@@ -5,6 +5,7 @@ import (
 
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPErrorResponseValidation(t *testing.T) {
@@ -45,6 +46,91 @@ HTTP response of service "EmptyErrorResponseWithCookies" HTTP endpoint "Method":
 				}
 			}
 		})
+	}
+}
+
+func TestUndeclaredHTTPErrorResponseValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		dsl  func()
+		want []string
+	}{
+		{
+			name: "one method response",
+			dsl:  undeclaredMethodHTTPErrorResponses("example", "unauthenticated"),
+			want: []string{
+				`HTTP response of service "example" HTTP endpoint "list"`,
+				`Error "unauthenticated" does not match an error defined in the method`,
+			},
+		},
+		{
+			name: "multiple method responses",
+			dsl: undeclaredMethodHTTPErrorResponses(
+				"example",
+				"unauthenticated",
+				"forbidden",
+				"internal_error",
+			),
+			want: []string{
+				`Error "unauthenticated" does not match an error defined in the method`,
+				`Error "forbidden" does not match an error defined in the method`,
+				`Error "internal_error" does not match an error defined in the method`,
+			},
+		},
+		{
+			name: "service helper responses",
+			dsl: func() {
+				Service("example-helper", func() {
+					HTTP(func() {
+						addUndeclaredHTTPErrorResponses("unauthenticated", "forbidden")
+					})
+					Method("list", func() {
+						Result(ArrayOf(String))
+						HTTP(func() {
+							GET("/examples")
+							Response(StatusOK)
+						})
+					})
+				})
+			},
+			want: []string{
+				`HTTP response of service "example-helper"`,
+				`Error "unauthenticated" does not match an error defined in the service`,
+				`Error "forbidden" does not match an error defined in the service`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, test.dsl)
+			diagnostic := err.Error()
+			require.NotContains(t, diagnostic, "PANIC")
+			for _, want := range test.want {
+				require.Contains(t, diagnostic, want)
+			}
+		})
+	}
+}
+
+func undeclaredMethodHTTPErrorResponses(service string, names ...string) func() {
+	return func() {
+		Service(service, func() {
+			Method("list", func() {
+				Result(ArrayOf(String))
+				HTTP(func() {
+					GET("/examples")
+					Response(StatusOK)
+					addUndeclaredHTTPErrorResponses(names...)
+				})
+			})
+		})
+	}
+}
+
+func addUndeclaredHTTPErrorResponses(names ...string) {
+	for _, name := range names {
+		Response(name, StatusBadRequest)
 	}
 }
 

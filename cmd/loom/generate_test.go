@@ -73,6 +73,56 @@ func (f *fakeGenerator) Remove() error {
 	return nil
 }
 
+func TestGenerateReportsUndeclaredHTTPErrorResponses(t *testing.T) {
+	repositoryRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err)
+	moduleDir := t.TempDir()
+	designDir := filepath.Join(moduleDir, "design")
+	require.NoError(t, os.MkdirAll(designDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(
+		"module example.com/undeclared-errors\n\n"+
+			"go 1.27\n\n"+
+			"require github.com/CaliLuke/loom v0.0.0\n\n"+
+			"replace github.com/CaliLuke/loom => "+repositoryRoot+"\n",
+	), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(designDir, "design.go"), []byte(`package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = Service("example", func() {
+	Method("list", func() {
+		Result(ArrayOf(String))
+		HTTP(func() {
+			GET("/examples")
+			Response(StatusOK)
+			Response("unauthenticated", StatusUnauthorized)
+			Response("forbidden", StatusForbidden)
+			Response("internal_error", StatusInternalServerError)
+		})
+	})
+})
+`), 0o644))
+
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = moduleDir
+	tidy.Env = append(os.Environ(), "GOWORK=off")
+	output, err := tidy.CombinedOutput()
+	require.NoError(t, err, string(output))
+	t.Chdir(moduleDir)
+
+	_, stderr, err := captureOutput(t, func() error {
+		return generate("gen", "example.com/undeclared-errors/design", moduleDir, false)
+	})
+	require.Error(t, err)
+	diagnostic := err.Error() + "\n" + stderr
+	require.Contains(t, diagnostic, "stage eval.RunDSL")
+	require.NotContains(t, diagnostic, "PANIC")
+	require.Contains(t, diagnostic, `HTTP response of service "example" HTTP endpoint "list"`)
+	for _, name := range []string{"unauthenticated", "forbidden", "internal_error"} {
+		require.Contains(t, diagnostic, `Error "`+name+`" does not match an error defined in the method`)
+	}
+}
+
 func TestGenerateRemovesTempDirOnSuccessWithoutDebug(t *testing.T) {
 	t.Chdir(t.TempDir())
 	fake := &fakeGenerator{runFiles: []string{"gen/service.go"}}

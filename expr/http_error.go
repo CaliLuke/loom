@@ -27,30 +27,30 @@ func (e *HTTPErrorExpr) EvalName() string {
 // expression.
 func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	switch p := e.Response.Parent.(type) {
-	case *HTTPEndpointExpr:
-		if p.MethodExpr.Error(e.Name) == nil {
-			verr.Add(e, "Error %#v does not match an error defined in the method", e.Name)
-		}
-	case *HTTPServiceExpr:
-		if p.Error(e.Name) == nil {
-			verr.Add(e, "Error %#v does not match an error defined in the service", e.Name)
-		}
-	case *RootExpr:
-		if Root.Error(e.Name) == nil {
-			verr.Add(e, "Error %#v does not match an error defined in the API", e.Name)
-		}
-	}
-
 	var ee *ErrorExpr
 	switch p := e.Response.Parent.(type) {
 	case *HTTPEndpointExpr:
 		ee = p.MethodExpr.Error(e.Name)
+		if ee == nil {
+			verr.Add(e.Response, "Error %#v does not match an error defined in the method", e.Name)
+			return verr
+		}
 	case *HTTPServiceExpr:
 		ee = p.Error(e.Name)
+		if ee == nil {
+			verr.Add(e.Response, "Error %#v does not match an error defined in the service", e.Name)
+			return verr
+		}
 	case *RootExpr:
 		ee = Root.Error(e.Name)
+		if ee == nil {
+			verr.Add(e.Response, "Error %#v does not match an error defined in the API", e.Name)
+			return verr
+		}
+	default:
+		return verr
 	}
+
 	if len(e.Response.Cookies) > 0 {
 		e.Response.validateCookieSecurity(verr)
 		e.Response.validateCookies(
