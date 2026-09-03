@@ -607,6 +607,9 @@ schema field deprecated.
 manual or raw response paths, including `SkipResponseBodyEncodeDecode()`. It
 uses the same shape arguments as `Body(...)`, but it only affects the OpenAPI
 contract and does not add runtime response encoding.
+The generated raw response handler applies a declared `ContentType(...)`
+before it streams the body. `OpenAPIBody(...)` does not select or change the
+runtime content type.
 
 `OpenAPIRequestBody(schema, contentType, required, fn...)` is the request-side
 counterpart for endpoints using `SkipRequestBodyEncodeDecode()`. It publishes

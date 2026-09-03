@@ -25,7 +25,11 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 		{{- end }}
 		{{- range .Result.Responses }}
 			{{- if .ContentType }}
-				ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "{{ .ContentType }}")
+				{{- if $.Method.SkipResponseBodyEncodeDecode }}
+					w.Header().Set("Content-Type", "{{ .ContentType }}")
+				{{- else }}
+					ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "{{ .ContentType }}")
+				{{- end }}
 			{{- end }}
 			{{- if .TagName }}
 				{{- if .TagPointer }}
@@ -46,6 +50,9 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 		{{- end }}
 	{{- else }}
 		{{- with (index .Result.Responses 0) }}
+			{{- if and $.Method.SkipResponseBodyEncodeDecode .ContentType }}
+				w.Header().Set("Content-Type", "{{ .ContentType }}")
+			{{- end }}
 			{{- if and (not $.Method.FileResponse) (or (not $.Method.SkipResponseBodyEncodeDecode) (ne .StatusCode "http.StatusOK")) }}
 				w.WriteHeader({{ .StatusCode }})
 			{{- end }}

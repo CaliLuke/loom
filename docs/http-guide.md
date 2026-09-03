@@ -378,8 +378,11 @@ require `SkipRequestBodyEncodeDecode` and cannot be combined with `Body`,
 `FormRequest`, `MultipartRequest`, or `OptionalRequestBody`.
 
 Use `SkipResponseBodyEncodeDecode` when the service returns a raw response body
-reader. These raw body modes are HTTP-only and cannot be combined with gRPC or
-streaming payload/result methods.
+reader. Set `ContentType` in the response to declare the media type. The
+generated handler sets this static header before it streams the body.
+`OpenAPIBody` describes the response schema but does not enable response
+encoding. Raw body modes are HTTP-only. You cannot combine them with gRPC or
+streaming payload or result methods.
 
 Use `FileResponse` for seekable downloads that need standard range and
 conditional request behavior. It is HTTP-only and accepts explicit `GET` and

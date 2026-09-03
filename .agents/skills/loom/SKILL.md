@@ -353,6 +353,10 @@ completion shapes are explicit generation limitations.
 - Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts
   multiple media types. Inspect the content type and decode the stream in the
   service.
+- Use `SkipResponseBodyEncodeDecode()` when the service returns a raw response
+  stream. Declare `ContentType(...)` on the response. The generated server
+  applies that static media type before it streams the body. Use
+  `OpenAPIBody(...)` only to document the schema.
 - String-backed path, query, header, and cookie fields with
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
 - Let generated clients and routers handle path escaping exactly once; do not

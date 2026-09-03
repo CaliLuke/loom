@@ -386,7 +386,10 @@ var ResponseEncoderSkipResponseBodyEncodeDecodeDSL = func() {
 			HTTP(func() {
 				GET("/")
 				SkipResponseBodyEncodeDecode()
-				Response(StatusCreated)
+				Response(StatusCreated, func() {
+					ContentType("application/json")
+					OpenAPIBody(Any)
+				})
 			})
 		})
 	})

@@ -139,6 +139,12 @@ func TestResponseEncoderRejectsWrongResultType(t *testing.T) {
 	require.NotContains(t, code, "res, _ := v.(*servicebodyuser.ResultType)")
 }
 
+func TestRawResponseEncoderSetsDesignedContentType(t *testing.T) {
+	code := serverEncodeSectionCode(t, testdata.ResponseEncoderSkipResponseBodyEncodeDecodeDSL)
+
+	require.Contains(t, code, `w.Header().Set("Content-Type", "application/json")`)
+}
+
 func serverEncodeSectionCode(t *testing.T, dsl func()) string {
 	t.Helper()
 	root := RunHTTPDSL(t, dsl)

@@ -69,7 +69,10 @@ func transportPolicyIntegrationDSL() {
 			HTTP(func() {
 				GET("/raw-created")
 				SkipResponseBodyEncodeDecode()
-				Response(StatusCreated)
+				Response(StatusCreated, func() {
+					ContentType("application/json")
+					OpenAPIBody(Any)
+				})
 			})
 		})
 		Method("raw_created_empty", func() {
@@ -94,6 +97,24 @@ func transportPolicyIntegrationDSL() {
 			})
 		})
 	})
+	Service("raw_content_type", func() {
+		Method("raw_media", func() {
+			HTTP(func() {
+				GET("/raw-media")
+				SkipResponseBodyEncodeDecode()
+				Response(StatusOK, func() {
+					ContentType("application/json")
+					OpenAPIBody(Any)
+				})
+			})
+		})
+		Method("raw_media_options", func() {
+			HTTP(func() {
+				OPTIONS("/raw-media")
+				Response(StatusNoContent)
+			})
+		})
+	})
 }
 
 const transportPolicyHarness = `package transportpolicyit_test
@@ -111,6 +132,8 @@ import (
 
 	transportpolicy "example.com/transportpolicyit/gen/transport_policy"
 	transportpolicyserver "example.com/transportpolicyit/gen/http/transport_policy/server"
+	rawcontenttype "example.com/transportpolicyit/gen/raw_content_type"
+	rawcontenttypeserver "example.com/transportpolicyit/gen/http/raw_content_type/server"
 	loomhttp "github.com/CaliLuke/loom/http"
 )
 
@@ -273,9 +296,57 @@ func TestRawSuccessPreservesImplicitHeadersAndAuthoredStatus(t *testing.T) {
 			response.Body.Close()
 			t.Fatalf("GET %s status = %d, want 201; body: %s", path, response.StatusCode, body)
 		}
+		if path == "/raw-created" {
+			if got := response.Header.Get("Content-Type"); got != "application/json" {
+				t.Errorf("GET %s Content-Type = %q, want application/json", path, got)
+			}
+		}
 		if err := response.Body.Close(); err != nil {
 			t.Errorf("close GET %s response: %v", path, err)
 		}
+	}
+}
+
+func TestRawResponseUsesDesignedContentType(t *testing.T) {
+	server := newRawSuccessServer(t)
+
+	get := requestMethodPath(t, server, http.MethodGet, "/raw-media")
+	defer get.Body.Close()
+	if get.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(get.Body)
+		t.Fatalf("GET status = %d, want 200; body: %s", get.StatusCode, body)
+	}
+	if got := get.Header.Get("Content-Type"); got != "application/json" {
+		t.Errorf("GET Content-Type = %q, want application/json", got)
+	}
+	body, err := io.ReadAll(get.Body)
+	if err != nil {
+		t.Fatalf("read GET body: %v", err)
+	}
+	if got := string(body); got != "{\"message\":\"ok\"}" {
+		t.Errorf("GET body = %q, want raw JSON", got)
+	}
+
+	head := requestMethodPath(t, server, http.MethodHead, "/raw-media")
+	defer head.Body.Close()
+	if head.StatusCode != http.StatusOK {
+		t.Fatalf("HEAD status = %d, want 200", head.StatusCode)
+	}
+	if got := head.Header.Get("Content-Type"); got != "application/json" {
+		t.Errorf("HEAD Content-Type = %q, want application/json", got)
+	}
+	if head.Header.Get("Content-Length") == "" {
+		t.Error("HEAD response omitted raw representation Content-Length")
+	}
+	if body, err := io.ReadAll(head.Body); err != nil || len(body) != 0 {
+		t.Errorf("HEAD body = %q, %v; want empty", body, err)
+	}
+
+	options := requestMethodPath(t, server, http.MethodOptions, "/raw-media")
+	defer options.Body.Close()
+	if options.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(options.Body)
+		t.Fatalf("OPTIONS status = %d, want 204; body: %s", options.StatusCode, body)
 	}
 }
 
@@ -403,9 +474,22 @@ func newRawSuccessServer(t *testing.T) *httptest.Server {
 			}, nil
 		},
 	}
+	rawEndpoints := &rawcontenttype.Endpoints{
+		RawMedia: func(context.Context, any) (any, error) {
+			return &rawcontenttype.RawMediaResponseData{
+				Body: io.NopCloser(strings.NewReader("{\"message\":\"ok\"}")),
+			}, nil
+		},
+		RawMediaOptions: func(context.Context, any) (any, error) {
+			return nil, nil
+		},
+	}
 	mux := loomhttp.NewMuxer()
 	generated := transportpolicyserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
+	rawGenerated := rawcontenttypeserver.New(rawEndpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
 	transportpolicyserver.Mount(mux, generated)
+	rawcontenttypeserver.Mount(mux, rawGenerated)
+	loomhttp.MountDerivedHead(mux, "/raw-media", rawGenerated.RawMedia)
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return server
@@ -438,9 +522,18 @@ func requestWithAcceptValues(
 
 func requestPath(t *testing.T, server *httptest.Server, path string) *http.Response {
 	t.Helper()
-	response, err := server.Client().Get(server.URL + path)
+	return requestMethodPath(t, server, http.MethodGet, path)
+}
+
+func requestMethodPath(t *testing.T, server *httptest.Server, method, path string) *http.Response {
+	t.Helper()
+	request, err := http.NewRequestWithContext(t.Context(), method, server.URL+path, nil)
 	if err != nil {
-		t.Fatalf("GET %s: %v", path, err)
+		t.Fatalf("create %s %s request: %v", method, path, err)
+	}
+	response, err := server.Client().Do(request)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, path, err)
 	}
 	return response
 }
