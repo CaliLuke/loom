@@ -26,9 +26,15 @@ func DecodeMethodBodyQueryPathObjectRequest(mux loomhttp.Muxer, decoder func(*ht
 			params = mux.Vars(r)
 		)
 		c2 = params["c"]
-		bRaw := r.URL.Query().Get("b")
-		if bRaw != "" {
-			b = &bRaw
+		{
+			rawValues, present := r.URL.Query()["b"]
+			if present {
+				raw := ""
+				if len(rawValues) > 0 {
+					raw = rawValues[0]
+				}
+				b = &raw
+			}
 		}
 		if err != nil {
 			return payload, err

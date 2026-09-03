@@ -292,6 +292,10 @@ filter, and serialization rules belong here.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.
+- Generated HTTP decoders check key membership for optional string query
+  parameters. They use nil for an omitted key. They use a nonnil pointer for
+  an empty or nonempty value. Generated clients emit the key for every nonnil
+  pointer.
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
   A response encoder failure that occurs before commit is encoded through the

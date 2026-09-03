@@ -337,6 +337,11 @@ completion shapes are explicit generation limitations.
 
 ## HTTP Bodies and Parameters
 
+- Generated service payloads use `*string` for optional string query fields.
+  A nil pointer means omitted. A nonnil pointer preserves an empty or nonempty
+  value. Map the field with `Param(...)`. No additional DSL is necessary.
+  Generated clients emit the key for each nonnil pointer. Defaults apply only
+  when the key is absent.
 - Use `FormRequest()` for typed object, map, or constructor-union
   `application/x-www-form-urlencoded` payloads. Put a map in an object payload
   and select it with `Body(...)` when other transport fields must coexist.

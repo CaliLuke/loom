@@ -22,9 +22,15 @@ func DecodeMethodBodyQueryObjectRequest(mux loomhttp.Muxer, decoder func(*http.R
 		var (
 			b *string
 		)
-		bRaw := r.URL.Query().Get("b")
-		if bRaw != "" {
-			b = &bRaw
+		{
+			rawValues, present := r.URL.Query()["b"]
+			if present {
+				raw := ""
+				if len(rawValues) > 0 {
+					raw = rawValues[0]
+				}
+				b = &raw
+			}
 		}
 		payload = NewMethodBodyQueryObjectPayload(&body, b)
 

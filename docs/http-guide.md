@@ -105,6 +105,33 @@ Method("list_users", func() {
 })
 ```
 
+Optional string query parameters use pointers in generated service payloads.
+The pointer states have these meanings:
+
+| Generated value | HTTP query | Meaning |
+|---|---|---|
+| `nil` | key omitted | The parameter is absent. |
+| `ptr("")` | `track_visit=` | The parameter is present and empty. |
+| `ptr("yes")` | `track_visit=yes` | The parameter is present and nonempty. |
+
+Omit `Required("track_visit")` to get this generated representation. Map the
+attribute with the normal `Param` function. No additional transport DSL is
+necessary:
+
+```go
+Payload(func() {
+    Attribute("track_visit", String)
+})
+HTTP(func() {
+    GET("/resource")
+    Param("track_visit")
+})
+```
+
+Generated clients omit a nil pointer. They emit the query key for every nonnil
+pointer, including a pointer to an empty string. A default applies only when
+the query key is absent.
+
 ### Wildcards
 
 Capture all remaining path segments:

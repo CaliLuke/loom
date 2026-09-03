@@ -88,15 +88,20 @@ qp := r.URL.Query()
 		}
 
 	{{- else if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
-		{{ .VarName }}Raw := {{$qpVar}}.Get("{{ .HTTPName }}")
-		if {{ .VarName }}Raw != "" {
-			{{ .VarName }} = {{ if and (eq .Type.Name "string") .Pointer }}&{{ end }}{{ .VarName }}Raw
+	{
+		rawValues, present := {{$qpVar}}["{{ .HTTPName }}"]
+		if present {
+			raw := ""
+			if len(rawValues) > 0 {
+				raw = rawValues[0]
+			}
+			{{ .VarName }} = {{ if and (eq .Type.Name "string") .Pointer }}&{{ end }}raw
 		}
 		{{- if .DefaultValue }} else {
 			{{ .VarName }} = {{ if eq .Type.Name "string" }}{{ printf "%q" .DefaultValue }}{{ else }}{{ printf "%#v" .DefaultValue }}{{ end }}
 		}
 		{{- end }}
-
+	}
 	{{- else if .StringSlice }}
 		{{ .VarName }} = {{$qpVar}}["{{ .HTTPName }}"]
 		{{- if .Required }}

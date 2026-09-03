@@ -6,9 +6,15 @@ func DecodeMethodQueryStringRequest(mux loomhttp.Muxer, _ func(*http.Request) lo
 		var (
 			q *string
 		)
-		qRaw := r.URL.Query().Get("q")
-		if qRaw != "" {
-			q = &qRaw
+		{
+			rawValues, present := r.URL.Query()["q"]
+			if present {
+				raw := ""
+				if len(rawValues) > 0 {
+					raw = rawValues[0]
+				}
+				q = &raw
+			}
 		}
 		payload = NewMethodQueryStringPayload(q)
 

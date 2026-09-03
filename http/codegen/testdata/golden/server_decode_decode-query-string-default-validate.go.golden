@@ -8,11 +8,17 @@ func DecodeMethodQueryStringDefaultValidateRequest(mux loomhttp.Muxer, _ func(*h
 			q   string
 			err error
 		)
-		qRaw := r.URL.Query().Get("q")
-		if qRaw != "" {
-			q = qRaw
-		} else {
-			q = "def"
+		{
+			rawValues, present := r.URL.Query()["q"]
+			if present {
+				raw := ""
+				if len(rawValues) > 0 {
+					raw = rawValues[0]
+				}
+				q = raw
+			} else {
+				q = "def"
+			}
 		}
 		if !(q == "def") {
 			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"def"}))

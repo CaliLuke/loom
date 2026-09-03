@@ -8,9 +8,15 @@ func DecodeMethodQueryStringNotRequiredValidateRequest(mux loomhttp.Muxer, _ fun
 			q   *string
 			err error
 		)
-		qRaw := r.URL.Query().Get("q")
-		if qRaw != "" {
-			q = &qRaw
+		{
+			rawValues, present := r.URL.Query()["q"]
+			if present {
+				raw := ""
+				if len(rawValues) > 0 {
+					raw = rawValues[0]
+				}
+				q = &raw
+			}
 		}
 		if q != nil {
 			if !(*q == "val") {
