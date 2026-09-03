@@ -1,13 +1,10 @@
 package loom
 
 import (
-	"bytes"
-	stdjson "encoding/json"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
-	"errors"
-	"io"
 	"math/big"
+	"strings"
 )
 
 // JSONValue contains one unparsed JSON value. Generated Any fields use
@@ -56,75 +53,47 @@ func JSONValueString(value JSONValue) string {
 // JSONValueEqual reports whether value and expected are semantically equal JSON.
 func JSONValueEqual(value JSONValue, expected any) bool {
 	encoded, err := json.Marshal(expected)
-	if err != nil {
-		return false
-	}
-	actualValue, err := decodeJSONValue(value)
-	if err != nil {
-		return false
-	}
-	expectedValue, err := decodeJSONValue(encoded)
-	return err == nil && equalJSONValue(actualValue, expectedValue)
+	return err == nil && equalEncodedJSON(value, encoded)
 }
 
-func decodeJSONValue(encoded []byte) (any, error) {
-	if !JSONValue(encoded).IsValid() {
-		return nil, errors.New("invalid JSON value")
+func equalEncodedJSON(left, right jsontext.Value) bool {
+	if !left.IsValid() || !right.IsValid() || left.Kind() != right.Kind() {
+		return false
 	}
-	decoder := stdjson.NewDecoder(bytes.NewReader(encoded))
-	decoder.UseNumber()
-	var value any
-	if err := decoder.Decode(&value); err != nil {
-		return nil, err
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		return nil, err
-	}
-	return value, nil
-}
-
-func equalJSONValue(left, right any) bool {
-	switch left := left.(type) {
-	case nil:
-		return right == nil
-	case bool:
-		right, ok := right.(bool)
-		return ok && left == right
-	case string:
-		right, ok := right.(string)
-		return ok && left == right
-	case stdjson.Number:
-		right, ok := right.(stdjson.Number)
-		if !ok {
+	switch left.Kind() {
+	case 'n':
+		return true
+	case 't', 'f':
+		return strings.TrimSpace(string(left)) == strings.TrimSpace(string(right))
+	case '"':
+		var leftString, rightString string
+		return json.Unmarshal(left, &leftString) == nil && json.Unmarshal(right, &rightString) == nil && leftString == rightString
+	case '[':
+		var leftValues, rightValues []jsontext.Value
+		if json.Unmarshal(left, &leftValues) != nil || json.Unmarshal(right, &rightValues) != nil || len(leftValues) != len(rightValues) {
 			return false
 		}
-		leftNumber, leftOK := new(big.Rat).SetString(string(left))
-		rightNumber, rightOK := new(big.Rat).SetString(string(right))
-		return leftOK && rightOK && leftNumber.Cmp(rightNumber) == 0
-	case []any:
-		right, ok := right.([]any)
-		if !ok || len(left) != len(right) {
-			return false
-		}
-		for i := range left {
-			if !equalJSONValue(left[i], right[i]) {
+		for index := range leftValues {
+			if !equalEncodedJSON(leftValues[index], rightValues[index]) {
 				return false
 			}
 		}
 		return true
-	case map[string]any:
-		right, ok := right.(map[string]any)
-		if !ok || len(left) != len(right) {
+	case '{':
+		var leftValues, rightValues map[string]jsontext.Value
+		if json.Unmarshal(left, &leftValues) != nil || json.Unmarshal(right, &rightValues) != nil || len(leftValues) != len(rightValues) {
 			return false
 		}
-		for key, leftValue := range left {
-			rightValue, ok := right[key]
-			if !ok || !equalJSONValue(leftValue, rightValue) {
+		for key, leftValue := range leftValues {
+			rightValue, ok := rightValues[key]
+			if !ok || !equalEncodedJSON(leftValue, rightValue) {
 				return false
 			}
 		}
 		return true
 	default:
-		return false
+		leftNumber, leftOK := new(big.Rat).SetString(strings.TrimSpace(string(left)))
+		rightNumber, rightOK := new(big.Rat).SetString(strings.TrimSpace(string(right)))
+		return leftOK && rightOK && leftNumber.Cmp(rightNumber) == 0
 	}
 }

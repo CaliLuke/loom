@@ -52,7 +52,7 @@ components:
 	for _, serviceFile := range serviceFiles {
 		serviceSource, readErr := os.ReadFile(serviceFile)
 		require.NoError(t, readErr)
-		if strings.Contains(string(serviceSource), "type OpaqueRawOcrResults map[string]any") {
+		if strings.Contains(string(serviceSource), "type OpaqueRawOcrResults map[string]loom.JSONValue") {
 			foundType = true
 			break
 		}

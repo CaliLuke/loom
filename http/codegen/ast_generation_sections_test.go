@@ -44,3 +44,15 @@ func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {
 		Path("union_type_section_selection.golden").
 		CompareContent()
 }
+
+func TestHTTPUnionSectionAliasesAnyAsRawJSONValue(t *testing.T) {
+	code := codegen.SectionCode(t, unionTypeSection("server-union-type", &servicecodegen.UnionTypeData{
+		Name: "Selection", KindName: "SelectionKind", TypeKey: "type", ValueKey: "value",
+		Fields: []*servicecodegen.UnionFieldData{{
+			Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", FieldType: "SelectionRaw",
+			EmitPrimitiveAlias: true, PrimitiveAliasType: "loom.JSONValue", TypeTag: "raw",
+		}},
+	}))
+
+	require.Contains(t, code, "type SelectionRaw = loom.JSONValue")
+}

@@ -550,6 +550,9 @@ func (g *Generator) filesImpl(impl *ImplementationData) []*codegen.File {
 			{Name: "loom", Path: "github.com/CaliLuke/loom/pkg"},
 			{Name: service.ServicePackage, Path: fmt.Sprintf("testservice/gen/%s", service.ServicePackage)},
 		}
+		if serviceNeedsJSONDecoder(service) {
+			imports = append(imports, &codegen.ImportSpec{Name: "json", Path: "encoding/json/v2"})
+		}
 		sections := []codegen.Section{
 			codegen.Header(fmt.Sprintf("%s service implementation", service.Title), "testservice", imports),
 			codegen.NewRawSection("service-impl", renderImplementationSource(service)),
@@ -557,4 +560,14 @@ func (g *Generator) filesImpl(impl *ImplementationData) []*codegen.File {
 		files = append(files, &codegen.File{Path: fmt.Sprintf("%s.go", service.Name), Sections: sections})
 	}
 	return files
+}
+
+func serviceNeedsJSONDecoder(service *ServiceImplData) bool {
+	for _, method := range service.Methods {
+		if method.Transport == "ws" && method.Info.Type == TypeMap &&
+			(method.Info.Action == ActionTransform || method.Info.Action == ActionStream) {
+			return true
+		}
+	}
+	return false
 }

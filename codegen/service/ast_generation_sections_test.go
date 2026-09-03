@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestTypeInitSectionStructuredDeclaration(t *testing.T) {
@@ -327,4 +328,20 @@ func TestUnionSectionStructuredDeclarations(t *testing.T) {
 	require.Contains(t, code, "type SelectionText string")
 	require.Contains(t, code, "type SelectionCount int")
 	testutil.AssertGo(t, "testdata/golden/sections_union_type.go.golden", code)
+}
+
+func TestUnionSectionAliasesAnyAsRawJSONValue(t *testing.T) {
+	aliasType, ok := primitiveAliasGoType(expr.Any)
+	require.True(t, ok)
+	require.Equal(t, "loom.JSONValue", aliasType)
+
+	code := codegen.SectionCode(t, unionTypeSection("service-union-type", &UnionTypeData{
+		Name: "Selection", KindName: "SelectionKind", TypeKey: "type", ValueKey: "value",
+		Fields: []*UnionFieldData{{
+			Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", FieldType: "SelectionRaw",
+			EmitPrimitiveAlias: true, PrimitiveAliasType: "loom.JSONValue", TypeTag: "raw",
+		}},
+	}))
+
+	require.Contains(t, code, "type SelectionRaw = loom.JSONValue")
 }

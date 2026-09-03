@@ -184,6 +184,7 @@ components:
                     type: string
                     description: Type identifies the problem category using a URI reference.
                     example: https://github.com/CaliLuke/loom/problems/bad-request
+            description: Problem response result type
             example:
                 code: bad_request
                 detail: parameter 'p' must be an integer

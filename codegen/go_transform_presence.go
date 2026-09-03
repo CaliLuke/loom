@@ -17,18 +17,21 @@ func transformObjectPresenceField(
 ) (*jen.Statement, bool, error) {
 	sourcePresence := ta.SourceCtx.FieldPresence(sourceParent, name, source)
 	targetPresence := ta.TargetCtx.FieldPresence(targetParent, name, target)
-	if sourcePresence == targetPresence {
-		if sourcePresence == NativePresence {
+	samePresence := sourcePresence == targetPresence
+	if samePresence {
+		switch sourcePresence {
+		case NativePresence:
 			return nil, false, nil
-		}
-		if sourcePresence == NullablePresence {
+		case NullablePresence:
 			code, err := transformNullablePresence(source, target, sourceVar, targetVar, false, targetParent.GetDefault(name), ta)
 			return code, true, err
 		}
-	} else if isAnyPresenceAttribute(source) && isAnyPresenceAttribute(target) {
+	}
+	if !samePresence && isAnyPresenceAttribute(source) && isAnyPresenceAttribute(target) {
 		code, err := transformRawAnyPresence(source, target, sourceVar, targetVar, false, targetPresence == NullablePresence, ta)
 		return code, true, err
-	} else if sourcePresence == NullablePresence || targetPresence == NullablePresence {
+	}
+	if sourcePresence == NullablePresence || targetPresence == NullablePresence {
 		return nil, true, fmt.Errorf("cannot transform nullable field %s to a non-nullable representation", name)
 	}
 	if sourcePresence == OptionalPresence {

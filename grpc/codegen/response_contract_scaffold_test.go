@@ -76,11 +76,36 @@ func TestResponseContractTestFilesPassRealGeneratedGRPCScenario(t *testing.T) {
 func TestGeneratedAnyTransformsCompile(t *testing.T) {
 	const modulePath = "example.com/grpcany"
 	root := RunGRPCDSL(t, testdata.AnyErrorDSL)
+	if root.API.Meta == nil {
+		root.API.Meta = make(expr.MetaExpr)
+	}
+	root.API.Meta["protoc:include"] = []string{wellKnownProtosInclude(t)}
 	dir := t.TempDir()
 	renderGRPCResponseContractModule(t, dir, modulePath, root)
 
 	runGRPCGoCommand(t, dir, "mod", "tidy")
 	runGRPCGoCommand(t, dir, "test", "./gen/...")
+}
+
+func wellKnownProtosInclude(t *testing.T) string {
+	t.Helper()
+	candidates := []string{
+		os.Getenv("PROTOC_INCLUDE"),
+		filepath.Join(os.Getenv("HOMEBREW_PREFIX"), "include"),
+		"/opt/homebrew/include",
+		"/usr/local/include",
+		"/usr/include",
+	}
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(candidate, "google", "protobuf", "struct.proto")); err == nil {
+			return candidate
+		}
+	}
+	t.Fatal("protoc installation does not expose google/protobuf/struct.proto; set PROTOC_INCLUDE")
+	return ""
 }
 
 func renderGRPCResponseContractModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {

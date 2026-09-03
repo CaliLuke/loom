@@ -317,11 +317,12 @@ func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat
 		for i, arg := range args {
 			typ := (*pathParams)[i].Attribute.Type
 			b.Add(", ")
-			if typ.Name() == "array" {
+			switch {
+			case typ.Name() == "array":
 				b.Add("strings.Join(" + arg.VarName + "Slice, \",\")")
-			} else if expr.IsAny(typ) {
+			case expr.IsAny(typ):
 				b.Add("loom.JSONValueString(" + arg.VarName + ")")
-			} else {
+			default:
 				b.Add(arg.VarName)
 			}
 		}

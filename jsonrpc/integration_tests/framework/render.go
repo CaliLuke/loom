@@ -283,7 +283,7 @@ func renderNonStreamingTransform(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\t// Transform: uppercase field1, double field2, negate field3\n\treturn &%s.%sResult{\n\t\tField1: strings.ToUpper(p.Field1),\n\t\tField2: p.Field2 * 2,\n\t\tField3: !p.Field3,\n\t}, nil", m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\t// Transform: prefix all keys with \"transformed_\"\n\tresult := make(map[string]any)\n\tfor k, v := range p.Data {\n\t\tresult[\"transformed_\"+k] = v\n\t}\n\treturn &%s.%sResult{\n\t\tData: result,\n\t}, nil", m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\t// Transform: prefix all keys with \"transformed_\"\n\tresult := make(map[string]loom.JSONValue)\n\tfor k, v := range p.Data {\n\t\tresult[\"transformed_\"+k] = v\n\t}\n\treturn &%s.%sResult{\n\t\tData: result,\n\t}, nil", m.ServicePackage, m.GoName)
 	default:
 		return "\t// Default transform: return as-is\n\treturn p, nil"
 	}
@@ -302,7 +302,7 @@ func renderNonStreamingGenerate(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\treturn &%s.%sResult{\n\t\tField1: \"generated-value1\",\n\t\tField2: 42,\n\t\tField3: true,\n\t}, nil", m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\treturn &%s.%sResult{\n\t\tData: map[string]any{\n\t\t\t\"generated\": true,\n\t\t\t\"count\": 3,\n\t\t\t\"status\": \"ok\",\n\t\t},\n\t}, nil", m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\treturn &%s.%sResult{\n\t\tData: map[string]loom.JSONValue{\n\t\t\t\"generated\": loom.MustJSONValueFrom(true),\n\t\t\t\"count\": loom.MustJSONValueFrom(3),\n\t\t\t\"status\": loom.JSONValueFromString(\"ok\"),\n\t\t},\n\t}, nil", m.ServicePackage, m.GoName)
 	default:
 		return "\treturn nil, nil"
 	}
@@ -334,7 +334,7 @@ func renderSSEFinalize(m *MethodImplData) string {
 		case TypeObject:
 			return fmt.Sprintf("\tfinalResult := &%s.%sResult{\n\t\tField1: \"completed\",\n\t\tField2: 100,\n\t\tField3: true,\n\t}\n\treturn stream.SendAndClose(ctx, finalResult)", m.ServicePackage, m.GoName)
 		case TypeMap:
-			return fmt.Sprintf("\tfinalResult := &%s.%sResult{\n\t\tData: map[string]any{\"status\": \"completed\", \"final\": true},\n\t}\n\treturn stream.SendAndClose(ctx, finalResult)", m.ServicePackage, m.GoName)
+			return fmt.Sprintf("\tfinalResult := &%s.%sResult{\n\t\tData: map[string]loom.JSONValue{\"status\": loom.JSONValueFromString(\"completed\"), \"final\": loom.MustJSONValueFrom(true)},\n\t}\n\treturn stream.SendAndClose(ctx, finalResult)", m.ServicePackage, m.GoName)
 		}
 	case ModifierError:
 		return "\treturn &loom.ServiceError{Message: \"Streaming error occurred\"}"
@@ -366,7 +366,7 @@ func renderSSETransform(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tresult := &%s.%sResult{\n\t\tField1: strings.ToUpper(p.Field1),\n\t\tField2: p.Field2 * 2,\n\t\tField3: !p.Field3,\n\t}\n\tif err := stream.Send(ctx, result); err != nil {\n\t\treturn err\n\t}\n%s", m.ServicePackage, m.GoName, renderSSEFinalize(m))
 	case TypeMap:
-		return fmt.Sprintf("\ttransformed := make(map[string]any)\n\tfor k, v := range p.Data {\n\t\ttransformed[\"transformed_\"+k] = v\n\t}\n\tresult := &%s.%sResult{\n\t\tData: transformed,\n\t}\n\tif err := stream.Send(ctx, result); err != nil {\n\t\treturn err\n\t}\n%s", m.ServicePackage, m.GoName, renderSSEFinalize(m))
+		return fmt.Sprintf("\ttransformed := make(map[string]loom.JSONValue)\n\tfor k, v := range p.Data {\n\t\ttransformed[\"transformed_\"+k] = v\n\t}\n\tresult := &%s.%sResult{\n\t\tData: transformed,\n\t}\n\tif err := stream.Send(ctx, result); err != nil {\n\t\treturn err\n\t}\n%s", m.ServicePackage, m.GoName, renderSSEFinalize(m))
 	default:
 		return renderSSEFinalize(m)
 	}
@@ -381,7 +381,7 @@ func renderSSEGenerate(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tfor i := 1; i <= 3; i++ {\n\t\tresult := &%s.%sResult{\n\t\t\tField1: fmt.Sprintf(\"generated-%%d\", i),\n\t\t\tField2: i * 10,\n\t\t\tField3: i%%2 == 0,\n\t\t}\n\t\tif err := stream.Send(ctx, result); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n%s", m.ServicePackage, m.GoName, renderSSEFinalize(m))
 	case TypeMap:
-		return fmt.Sprintf("\tfor i := 1; i <= 3; i++ {\n\t\tresult := &%s.%sResult{\n\t\t\tData: map[string]any{\n\t\t\t\t\"iteration\": i,\n\t\t\t\t\"status\": fmt.Sprintf(\"step-%%d\", i),\n\t\t\t},\n\t\t}\n\t\tif err := stream.Send(ctx, result); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n%s", m.ServicePackage, m.GoName, renderSSEFinalize(m))
+		return fmt.Sprintf("\tfor i := 1; i <= 3; i++ {\n\t\tresult := &%s.%sResult{\n\t\t\tData: map[string]loom.JSONValue{\n\t\t\t\t\"iteration\": loom.MustJSONValueFrom(i),\n\t\t\t\t\"status\": loom.JSONValueFromString(fmt.Sprintf(\"step-%%d\", i)),\n\t\t\t},\n\t\t}\n\t\tif err := stream.Send(ctx, result); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n%s", m.ServicePackage, m.GoName, renderSSEFinalize(m))
 	default:
 		return renderSSEFinalize(m)
 	}
@@ -396,7 +396,7 @@ func renderSSEStream(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tcount := p.Field2\n\tif count <= 0 { count = 3 }\n\tif count > 10 { count = 10 }\n\tfor i := 1; i <= count; i++ {\n\t\tresult := &%s.%sResult{\n\t\t\tField1: fmt.Sprintf(\"%%s-%%d\", p.Field1, i),\n\t\t\tField2: i,\n\t\t\tField3: i == count,\n\t\t}\n\t\tif err := stream.Send(ctx, result); err != nil {\n\t\t\treturn err\n\t\t}\n\t\ttime.Sleep(10 * time.Millisecond)\n\t}\n%s", m.ServicePackage, m.GoName, renderSSEFinalize(m))
 	case TypeMap:
-		return fmt.Sprintf("\tif len(p.Data) == 0 {\n\t\tresult := &%s.%sResult{Data: map[string]any{\"status\": \"empty\"}}\n\t\tif err := stream.Send(ctx, result); err != nil { return err }\n\t} else {\n\t\tkeys := make([]string, 0, len(p.Data))\n\t\tfor k := range p.Data { keys = append(keys, k) }\n\t\tsort.Strings(keys)\n\t\tfor _, k := range keys {\n\t\t\tv := p.Data[k]\n\t\t\tresult := &%s.%sResult{Data: map[string]any{\"key\": k, \"value\": v}}\n\t\t\tif err := stream.Send(ctx, result); err != nil { return err }\n\t\t\ttime.Sleep(10 * time.Millisecond)\n\t\t}\n\t}\n%s", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName, renderSSEFinalize(m))
+		return fmt.Sprintf("\tif len(p.Data) == 0 {\n\t\tresult := &%s.%sResult{Data: map[string]loom.JSONValue{\"status\": loom.JSONValueFromString(\"empty\")}}\n\t\tif err := stream.Send(ctx, result); err != nil { return err }\n\t} else {\n\t\tkeys := make([]string, 0, len(p.Data))\n\t\tfor k := range p.Data { keys = append(keys, k) }\n\t\tsort.Strings(keys)\n\t\tfor _, k := range keys {\n\t\t\tv := p.Data[k]\n\t\t\tresult := &%s.%sResult{Data: map[string]loom.JSONValue{\"key\": loom.JSONValueFromString(k), \"value\": v}}\n\t\t\tif err := stream.Send(ctx, result); err != nil { return err }\n\t\t\ttime.Sleep(10 * time.Millisecond)\n\t\t}\n\t}\n%s", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName, renderSSEFinalize(m))
 	default:
 		return renderSSEFinalize(m)
 	}
@@ -465,7 +465,7 @@ func renderWebSocketTransform(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tif p != nil {\n\t\tresult := &%s.%sResult{Field1: strings.ToUpper(p.Field1), Field2: p.Field2 * 2, Field3: !p.Field3}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\tif p != nil {\n\t\traw, present := p.Data.Value()\n\t\tif !present { return nil }\n\t\tdata, ok := raw.(map[string]any)\n\t\tif !ok { return nil }\n\t\ttransformed := make(map[string]any)\n\t\tfor k, v := range data { transformed[\"transformed_\"+k] = v }\n\t\tresult := &%s.%sResult{Data: loom.NullableValue[any](transformed)}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tif p != nil {\n\t\tdata := make(map[string]loom.JSONValue)\n\t\tif err := json.Unmarshal(p.Data, &data); err != nil { return err }\n\t\ttransformed := make(map[string]loom.JSONValue)\n\t\tfor k, v := range data { transformed[\"transformed_\"+k] = v }\n\t\tencoded, err := loom.JSONValueFrom(transformed)\n\t\tif err != nil { return err }\n\t\tresult := &%s.%sResult{Data: encoded}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	default:
 		return "\treturn nil"
 	}
@@ -480,7 +480,7 @@ func renderWebSocketGenerate(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tif p != nil {\n\t\tresult := &%s.%sResult{Field1: \"generated-value1\", Field2: 42, Field3: true}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\tif p != nil {\n\t\tresult := &%s.%sResult{ID: p.ID, Data: loom.NullableValue[any](map[string]any{\"generated\": true, \"count\": 3, \"status\": \"ok\"})}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tif p != nil {\n\t\tresult := &%s.%sResult{ID: p.ID, Data: loom.MustJSONValueFrom(map[string]any{\"generated\": true, \"count\": 3, \"status\": \"ok\"})}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	default:
 		return fmt.Sprintf("\tresult := &%s.%sResult{}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName)
 	}
@@ -495,7 +495,7 @@ func renderWebSocketStream(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\tcount := p.Field2\n\tif count <= 0 { count = 3 }\n\tif count > 10 { count = 10 }\n\tfor i := 1; i <= count; i++ {\n\t\tnotification := &%s.%sResult{\n\t\t\tField1: fmt.Sprintf(\"%%s-%%d\", p.Field1, i),\n\t\t\tField2: i,\n\t\t\tField3: i == count,\n\t\t}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t}\n\tresult := &%s.%sResult{Field1: \"completed\", Field2: 100, Field3: true}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\traw, _ := p.Data.Value()\n\tdata, _ := raw.(map[string]any)\n\tif len(data) == 0 {\n\t\tnotification := &%s.%sResult{Data: loom.NullableValue[any](map[string]any{\"status\": \"empty\"})}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t} else {\n\t\tkeys := make([]string, 0, len(data))\n\t\tfor k := range data { keys = append(keys, k) }\n\t\tsort.Strings(keys)\n\t\tfor _, k := range keys {\n\t\t\tnotification := &%s.%sResult{Data: loom.NullableValue[any](map[string]any{\"key\": k, \"value\": data[k]})}\n\t\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t\t}\n\t}\n\tresult := &%s.%sResult{Data: loom.NullableValue[any](map[string]any{\"status\": \"completed\", \"final\": true})}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tif p == nil {\n\t\treturn nil\n\t}\n\tdata := make(map[string]loom.JSONValue)\n\tif err := json.Unmarshal(p.Data, &data); err != nil { return err }\n\tif len(data) == 0 {\n\t\tnotification := &%s.%sResult{Data: loom.MustJSONValueFrom(map[string]any{\"status\": \"empty\"})}\n\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t} else {\n\t\tkeys := make([]string, 0, len(data))\n\t\tfor k := range data { keys = append(keys, k) }\n\t\tsort.Strings(keys)\n\t\tfor _, k := range keys {\n\t\t\tnotification := &%s.%sResult{Data: loom.MustJSONValueFrom(map[string]any{\"key\": k, \"value\": data[k]})}\n\t\t\tif err := stream.SendNotification(ctx, notification); err != nil { return err }\n\t\t}\n\t}\n\tresult := &%s.%sResult{Data: loom.MustJSONValueFrom(map[string]any{\"status\": \"completed\"})}\n\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\treturn nil", m.ServicePackage, m.GoName, m.ServicePackage, m.GoName, m.ServicePackage, m.GoName)
 	default:
 		return "\treturn nil"
 	}
@@ -510,7 +510,7 @@ func renderWebSocketBroadcast(m *MethodImplData) string {
 	case TypeObject:
 		return fmt.Sprintf("\tfor i := 1; i <= 2; i++ {\n\t\tresult := &%s.%sResult{Field1: fmt.Sprintf(\"broadcast-%%d\", i), Field2: i, Field3: i%%2 == 0}\n\t\tif err := stream.SendNotification(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	case TypeMap:
-		return fmt.Sprintf("\tfor i := 1; i <= 2; i++ {\n\t\tresult := &%s.%sResult{Data: loom.NullableValue[any](map[string]any{\"broadcast\": i, \"timestamp\": time.Now().Unix()})}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
+		return fmt.Sprintf("\tfor i := 1; i <= 2; i++ {\n\t\tresult := &%s.%sResult{Data: loom.MustJSONValueFrom(map[string]any{\"broadcast\": i, \"timestamp\": time.Now().Unix()})}\n\t\tif err := stream.SendResponse(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	default:
 		return fmt.Sprintf("\tfor i := 1; i <= 2; i++ {\n\t\tresult := &%s.%sResult{}\n\t\tif err := stream.SendNotification(ctx, result); err != nil { return err }\n\t}\n\treturn nil", m.ServicePackage, m.GoName)
 	}

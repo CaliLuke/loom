@@ -203,7 +203,11 @@ func addUnionAliasTypes(stmt *jen.Statement, data *UnionTypeData) {
 		if !field.EmitPrimitiveAlias {
 			continue
 		}
-		stmt.Type().Id(field.FieldType).Add(codegen.Expr(field.PrimitiveAliasType))
+		decl := stmt.Type().Id(field.FieldType)
+		if field.PrimitiveAliasType == "loom.JSONValue" {
+			decl.Op("=")
+		}
+		decl.Add(codegen.Expr(field.PrimitiveAliasType))
 		stmt.Line()
 	}
 }
