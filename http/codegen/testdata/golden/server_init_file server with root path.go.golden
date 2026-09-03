@@ -4,7 +4,7 @@
 // errhandler is called whenever a response fails to be encoded. formatter is
 // used to format errors returned by the service methods prior to encoding.
 // Both errhandler and formatter are optional and can be nil.
-func New(e *servicefileserver.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.Statuser, fileSystemFile1JSON http.FileSystem, fileSystemFile1JSON2 http.FileSystem, fileSystemFile1JSON3 http.FileSystem, fileSystemFile1JSON4 http.FileSystem) *Server {
+func New(e *servicefileserver.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.StatusCoder, fileSystemFile1JSON http.FileSystem, fileSystemFile1JSON2 http.FileSystem, fileSystemFile1JSON3 http.FileSystem, fileSystemFile1JSON4 http.FileSystem) *Server {
 	if fileSystemFile1JSON == nil {
 		fileSystemFile1JSON = http.Dir(".")
 	}

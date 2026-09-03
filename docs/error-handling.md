@@ -497,7 +497,7 @@ func (r *CustomErrorResponse) StatusCode() int {
     }
 }
 
-func customErrorFormatter(ctx context.Context, err error) loomhttp.Statuser {
+func customErrorFormatter(ctx context.Context, err error) loomhttp.StatusCoder {
     if serr, ok := err.(*loom.ServiceError); ok {
         switch serr.Name {
         case loom.MissingField:
@@ -620,7 +620,7 @@ func TestDivideByZero(t *testing.T) {
 - Log detailed errors internally but return safe messages to clients
 
 ```go
-func secureErrorFormatter(ctx context.Context, err error) loomhttp.Statuser {
+func secureErrorFormatter(ctx context.Context, err error) loomhttp.StatusCoder {
     log.Printf("Error: %+v", err)  // Log full details
     
     if serr, ok := err.(*loom.ServiceError); ok && serr.Fault {

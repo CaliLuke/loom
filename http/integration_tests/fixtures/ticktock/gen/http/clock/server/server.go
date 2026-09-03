@@ -43,7 +43,7 @@ type MountPoint struct {
 // formatter are optional and can be nil. An optional streamWritePolicy bounds
 // each server-stream network write and flush. Construct policies with
 // loomhttp.NewStreamWritePolicy.
-func New(e *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.Statuser, streamWritePolicy ...loomhttp.StreamWritePolicy) *Server {
+func New(e *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.StatusCoder, streamWritePolicy ...loomhttp.StreamWritePolicy) *Server {
 	return &Server{
 		Mounts: []*MountPoint{
 			{"Tick", "GET", "/tick"},
@@ -99,7 +99,7 @@ func NewTickHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
 	var writePolicy loomhttp.StreamWritePolicy
@@ -162,7 +162,7 @@ func NewTockHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
 	var writePolicy loomhttp.StreamWritePolicy
@@ -225,7 +225,7 @@ func NewGuardedHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
 	var writePolicy loomhttp.StreamWritePolicy

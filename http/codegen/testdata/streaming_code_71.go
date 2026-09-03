@@ -10,7 +10,7 @@ func NewBidirectionalStreamingNoPayloadMethodHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	upgrader loomhttp.Upgrader,
 	configurer loomhttp.ConnConfigureFunc,
 	streamWritePolicy ...loomhttp.StreamWritePolicy,

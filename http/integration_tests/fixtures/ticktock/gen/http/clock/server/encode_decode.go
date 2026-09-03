@@ -82,7 +82,7 @@ func DecodeGuardedRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 
 // EncodeGuardedError returns an encoder for errors returned by the Guarded
 // clock endpoint.
-func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en loom.LoomErrorNamer

@@ -1,7 +1,7 @@
 // EncodeMethodPrimitiveErrorInResponseHeaderError returns an encoder for
 // errors returned by the MethodPrimitiveErrorInResponseHeader
 // ServicePrimitiveErrorInResponseHeader endpoint.
-func EncodeMethodPrimitiveErrorInResponseHeaderError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+func EncodeMethodPrimitiveErrorInResponseHeaderError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en loom.LoomErrorNamer

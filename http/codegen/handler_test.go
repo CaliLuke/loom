@@ -42,8 +42,7 @@ func TestHandlerInit(t *testing.T) {
 }
 
 // TestHandlerInitConstructorSignature pins the generated handler-constructor
-// parameter list so observer wiring stays source-compatible: callers of
-// `New...Handler` from prior Loom releases must continue to compile.
+// parameter list so generated servers use the current public runtime contracts.
 func TestHandlerInitConstructorSignature(t *testing.T) {
 	const genpkg = "gen"
 	cases := []struct {
@@ -61,7 +60,7 @@ func TestHandlerInitConstructorSignature(t *testing.T) {
 				"decoder func(*http.Request) loomhttp.Decoder",
 				"encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder",
 				"errhandler func(context.Context, http.ResponseWriter, error)",
-				"formatter func(ctx context.Context, err error) loomhttp.Statuser",
+				"formatter func(ctx context.Context, err error) loomhttp.StatusCoder",
 			},
 			WantImports: []string{
 				"github.com/CaliLuke/loom/observability/transport",
@@ -80,6 +79,7 @@ func TestHandlerInitConstructorSignature(t *testing.T) {
 			for _, p := range c.WantParams {
 				require.Contains(t, code, p, "generated handler init must keep %q in its parameter list", p)
 			}
+			require.NotContains(t, code, "Statuser", "generated signatures must pass misspell checks")
 			require.Contains(t, code, "loomhttp.NewUnaryHandler", "generated handler must delegate unary execution")
 			require.NotContains(t, code, "loomtransport.BeginHTTPRequest", "runtime must own unary observation")
 		})

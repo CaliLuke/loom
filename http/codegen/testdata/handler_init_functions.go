@@ -9,7 +9,7 @@ func NewMethodNoPayloadNoResultHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) http.Handler {
 	var (
 		encodeResponse = EncodeMethodNoPayloadNoResultResponse(encoder)
@@ -45,7 +45,7 @@ func NewMethodNoPayloadNoResultHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), loomhttp.AcceptTypeKey, r.Header.Get("Accept"))
@@ -65,7 +65,7 @@ func NewMethodPayloadNoResultHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) http.Handler {
 	var (
 		decodeRequest  = DecodeMethodPayloadNoResultRequest(mux, decoder)
@@ -108,7 +108,7 @@ func NewMethodPayloadNoResultHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) http.Handler {
 	var (
 		decodeRequest = DecodeMethodPayloadNoResultRequest(mux, decoder)
@@ -139,7 +139,7 @@ func NewMethodNoPayloadResultHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) http.Handler {
 	var (
 		encodeResponse = EncodeMethodNoPayloadResultResponse(encoder)
@@ -175,7 +175,7 @@ func NewMethodPayloadResultHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) http.Handler {
 	var (
 		decodeRequest  = DecodeMethodPayloadResultRequest(mux, decoder)
@@ -218,7 +218,7 @@ func NewMethodPayloadResultErrorHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) http.Handler {
 	var (
 		decodeRequest  = DecodeMethodPayloadResultErrorRequest(mux, decoder)
@@ -261,7 +261,7 @@ func NewMethodSkipResponseBodyEncodeDecodeHandler(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) http.Handler {
 	var (
 		encodeResponse = EncodeMethodSkipResponseBodyEncodeDecodeResponse(encoder)

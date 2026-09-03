@@ -12,7 +12,7 @@ func New(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) *Server {
 	return &Server{
 		Mounts: []*MountPoint{
@@ -37,7 +37,7 @@ func New(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 ) *Server {
 	return &Server{
 		Mounts: []*MountPoint{
@@ -61,7 +61,7 @@ func New(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	fileSystemFile1JSON http.FileSystem,
 	fileSystemFile1JSON2 http.FileSystem,
 	fileSystemFile1JSON3 http.FileSystem,
@@ -110,7 +110,7 @@ func New(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	fileSystemPathToFile1JSON http.FileSystem,
 	fileSystemPathToFile2JSON http.FileSystem,
 	fileSystemPathToFile3JSON http.FileSystem,
@@ -152,7 +152,7 @@ func New(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	fileSystemPathToFile1JSON http.FileSystem,
 	fileSystemPathToFile2JSON http.FileSystem,
 ) *Server {
@@ -191,7 +191,7 @@ func New(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	serviceMultipartMethodMultiBasesDecoderFn ServiceMultipartMethodMultiBasesDecoderFunc,
 ) *Server {
 	return &Server{
@@ -215,7 +215,7 @@ func New(
 	decoder func(*http.Request) loomhttp.Decoder,
 	encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) loomhttp.Statuser,
+	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	upgrader loomhttp.Upgrader,
 	configurer *ConnConfigurer,
 ) *Server {

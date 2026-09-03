@@ -309,7 +309,7 @@ func ResponseDecoder(resp *http.Response) Decoder {
 // provided encoder. If the error is not a Loom ServiceError struct then it is
 // encoded as a permanent internal server error. This behavior as well as the
 // shape of the response can be overridden by providing a non-nil formatter.
-func ErrorEncoder(encoder func(context.Context, http.ResponseWriter) Encoder, formatter func(ctx context.Context, err error) Statuser) func(context.Context, http.ResponseWriter, error) error {
+func ErrorEncoder(encoder func(context.Context, http.ResponseWriter) Encoder, formatter func(ctx context.Context, err error) StatusCoder) func(context.Context, http.ResponseWriter, error) error {
 	defaultFormatter := formatter == nil
 	if formatter == nil {
 		formatter = NewErrorResponse

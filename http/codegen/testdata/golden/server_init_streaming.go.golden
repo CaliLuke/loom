@@ -6,7 +6,7 @@
 // Both errhandler and formatter are optional and can be nil. An optional
 // streamWritePolicy bounds each server-stream network write and flush.
 // Construct policies with loomhttp.NewStreamWritePolicy.
-func New(e *streamingresultservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.Statuser, upgrader loomhttp.Upgrader, configurer *ConnConfigurer, streamWritePolicy ...loomhttp.StreamWritePolicy) *Server {
+func New(e *streamingresultservice.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.StatusCoder, upgrader loomhttp.Upgrader, configurer *ConnConfigurer, streamWritePolicy ...loomhttp.StreamWritePolicy) *Server {
 	if configurer == nil {
 		configurer = &ConnConfigurer{}
 	}

@@ -67,7 +67,7 @@ func serverInitSection(data *ServiceData) codegen.Section {
 					jen.Id("w").Qual("net/http", "ResponseWriter"),
 					jen.Id("err").Error(),
 				)
-				group.Id("formatter").Func().Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("err").Error()).Add(codegen.TypeRef("loomhttp.Statuser"))
+				group.Id("formatter").Func().Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("err").Error()).Add(codegen.TypeRef("loomhttp.StatusCoder"))
 				if data.CORS != nil && data.CORS.Runtime {
 					group.Id("corsPolicy").Add(codegen.TypeRef("loomhttp.RuntimeCORSPolicy"))
 				}

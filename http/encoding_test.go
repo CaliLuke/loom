@@ -22,7 +22,8 @@ import (
 )
 
 var (
-	testString = "test string"
+	testString             = "test string"
+	_          StatusCoder = (*ProblemResponse)(nil)
 )
 
 func TestRequestEncoder(t *testing.T) {

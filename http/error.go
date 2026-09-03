@@ -35,17 +35,17 @@ type (
 	// ErrorResponse is kept as an alias for compatibility with older Loom code.
 	ErrorResponse = ProblemResponse
 
-	// Statuser is implemented by error response object to provide the response
-	// HTTP status code.
-	Statuser interface {
-		// StatusCode return the HTTP status code used to encode the response
+	// StatusCoder is implemented by an error response object to provide the
+	// response HTTP status code.
+	StatusCoder interface {
+		// StatusCode returns the HTTP status code used to encode the response
 		// when not defined in the design.
 		StatusCode() int
 	}
 )
 
 // NewErrorResponse creates the default RFC 9457 problem document for err.
-func NewErrorResponse(ctx context.Context, err error) Statuser {
+func NewErrorResponse(ctx context.Context, err error) StatusCoder {
 	return NewProblemResponse(ctx, err, 0, "", "")
 }
 
