@@ -47,7 +47,7 @@ func mountPointStructSection(data *ServiceData) codegen.Section {
 
 func serverInitSection(data *ServiceData) codegen.Section {
 	return codegen.NewJenniferSection("server-init", func(stmt *jen.Statement) {
-		comment := fmt.Sprintf("%s instantiates HTTP handlers for all the %s service endpoints using the provided encoder and decoder. The handlers are mounted on the given mux using the HTTP verb and path defined in the design. errhandler is called whenever a response fails to be encoded. formatter is used to format errors returned by the service methods prior to encoding. Both errhandler and formatter are optional and can be nil.", data.ServerInit, data.Service.Name)
+		comment := fmt.Sprintf("%s instantiates HTTP handlers for all the %s service endpoints using the provided encoder and decoder. It does not register the handlers with the mux. Call %s or %s.%s explicitly to mount them using the HTTP verb and path defined in the design. errhandler is called whenever a response fails to be encoded. formatter is used to format errors returned by the service methods prior to encoding. Both errhandler and formatter are optional and can be nil.", data.ServerInit, data.Service.Name, data.MountServer, data.ServerStruct, data.MountServer)
 		if hasServerStreamPolicy(data) {
 			comment += " An optional streamWritePolicy bounds each server-stream network write and flush. Construct policies with loomhttp.NewStreamWritePolicy."
 		}

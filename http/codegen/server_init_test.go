@@ -1,12 +1,13 @@
 package codegen
 
 import (
-	"github.com/CaliLuke/loom/codegen/testutil"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -40,6 +41,19 @@ func TestServerInit(t *testing.T) {
 			testutil.AssertGo(t, "testdata/golden/server_init_"+c.Name+".go.golden", code)
 		})
 	}
+}
+
+func TestServerInitCommentRequiresExplicitMount(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.ServerMultiEndpointsDSL)
+	services := CreateHTTPServices(root)
+	files := ServerFiles("gen", services)
+	require.NotEmpty(t, files)
+
+	code := codegen.SectionCode(t, files[0].Section("server-init")[0])
+	comment := strings.ReplaceAll(code, "\n// ", " ")
+	require.Contains(t, comment, "It does not register the handlers with the mux.")
+	require.Contains(t, comment, "Call Mount or Server.Mount explicitly")
+	require.NotContains(t, comment, "handlers are mounted")
 }
 
 func TestServerInitUsesRuntimeStaticFileServerForWildcardTargets(t *testing.T) {

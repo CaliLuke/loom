@@ -36,12 +36,13 @@ type MountPoint struct {
 }
 
 // New instantiates HTTP handlers for all the clock service endpoints using the
-// provided encoder and decoder. The handlers are mounted on the given mux
-// using the HTTP verb and path defined in the design. errhandler is called
-// whenever a response fails to be encoded. formatter is used to format errors
-// returned by the service methods prior to encoding. Both errhandler and
-// formatter are optional and can be nil. An optional streamWritePolicy bounds
-// each server-stream network write and flush. Construct policies with
+// provided encoder and decoder. It does not register the handlers with the
+// mux. Call Mount or Server.Mount explicitly to mount them using the HTTP verb
+// and path defined in the design. errhandler is called whenever a response
+// fails to be encoded. formatter is used to format errors returned by the
+// service methods prior to encoding. Both errhandler and formatter are
+// optional and can be nil. An optional streamWritePolicy bounds each
+// server-stream network write and flush. Construct policies with
 // loomhttp.NewStreamWritePolicy.
 func New(e *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder, errhandler func(ctx context.Context, w http.ResponseWriter, err error), formatter func(ctx context.Context, err error) loomhttp.StatusCoder, streamWritePolicy ...loomhttp.StreamWritePolicy) *Server {
 	return &Server{
