@@ -8,7 +8,7 @@ func EncodeMethodQueryArrayAnyRequest(encoder func(*http.Request) loomhttp.Encod
 		}
 		values := req.URL.Query()
 		for _, value := range p.Q {
-			valueStr := fmt.Sprintf("%v", value)
+			valueStr := loom.JSONValueString(value)
 			values.Add("q", valueStr)
 		}
 		req.URL.RawQuery = values.Encode()

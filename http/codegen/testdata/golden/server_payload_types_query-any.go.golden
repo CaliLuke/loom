@@ -1,6 +1,6 @@
 // NewMethodQueryAnyPayload builds a ServiceQueryAny service MethodQueryAny
 // endpoint payload.
-func NewMethodQueryAnyPayload(q any) *servicequeryany.MethodQueryAnyPayload {
+func NewMethodQueryAnyPayload(q loom.JSONValue) *servicequeryany.MethodQueryAnyPayload {
 	v := &servicequeryany.MethodQueryAnyPayload{}
 	v.Q = q
 

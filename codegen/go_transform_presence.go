@@ -17,15 +17,19 @@ func transformObjectPresenceField(
 ) (*jen.Statement, bool, error) {
 	sourcePresence := ta.SourceCtx.FieldPresence(sourceParent, name, source)
 	targetPresence := ta.TargetCtx.FieldPresence(targetParent, name, target)
-	if sourcePresence == NativePresence && targetPresence == NativePresence {
-		return nil, false, nil
-	}
-	if sourcePresence == NullablePresence || targetPresence == NullablePresence {
-		if sourcePresence != NullablePresence || targetPresence != NullablePresence {
-			return nil, true, fmt.Errorf("cannot transform nullable field %s to a non-nullable representation", name)
+	if sourcePresence == targetPresence {
+		if sourcePresence == NativePresence {
+			return nil, false, nil
 		}
-		code, err := transformNullablePresence(source, target, sourceVar, targetVar, false, targetParent.GetDefault(name), ta)
+		if sourcePresence == NullablePresence {
+			code, err := transformNullablePresence(source, target, sourceVar, targetVar, false, targetParent.GetDefault(name), ta)
+			return code, true, err
+		}
+	} else if isAnyPresenceAttribute(source) && isAnyPresenceAttribute(target) {
+		code, err := transformRawAnyPresence(source, target, sourceVar, targetVar, false, targetPresence == NullablePresence, ta)
 		return code, true, err
+	} else if sourcePresence == NullablePresence || targetPresence == NullablePresence {
+		return nil, true, fmt.Errorf("cannot transform nullable field %s to a non-nullable representation", name)
 	}
 	if sourcePresence == OptionalPresence {
 		code, err := transformOptionalToNative(targetParent, source, target, sourceVar, targetVar, name, ta)
@@ -67,7 +71,7 @@ func transformOptionalToNative(
 		group.Add(assignment)
 	})
 	if defaultValue := targetParent.GetDefault(name); defaultValue != nil {
-		stmt.Else().Block(Expr(targetVar + " = " + formatAttributeGoLiteral(targetValue, defaultValue)))
+		stmt.Else().Block(Expr(targetVar + " = " + defaultValueLiteral(targetValue, defaultValue, ta)))
 	}
 	return stmt, nil
 }
@@ -191,14 +195,14 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		}
 	})
 	if defaultValue != nil {
-		stmt.Else().Block(Expr(targetVar + " = loom.NullableValue(" + formatAttributeGoLiteral(targetValue, defaultValue) + ")"))
+		stmt.Else().Block(Expr(targetVar + " = loom.NullableValue(" + defaultValueLiteral(targetValue, defaultValue, ta) + ")"))
 	}
 	return stmt, nil
 }
 
-func transformRawAnyPresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
+func transformRawAnyPresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar, targetNullable bool, ta *TransformAttrs) (*jen.Statement, error) {
 	stmt := &jen.Statement{}
-	if expr.IsNullable(target) {
+	if targetNullable {
 		sourceValue := concretePresenceAttribute(source)
 		targetValue := concretePresenceAttribute(target)
 		temp := presenceTempName(targetVar)
@@ -293,7 +297,5 @@ func presenceUserObjectPair(source, target *expr.AttributeExpr) bool {
 }
 
 func isAnyPresenceAttribute(attribute *expr.AttributeExpr) bool {
-	concrete := concretePresenceAttribute(attribute)
-	concrete.Nullable = false
-	return expr.AllowsNull(concrete)
+	return attribute != nil && expr.IsAny(attribute.Type)
 }

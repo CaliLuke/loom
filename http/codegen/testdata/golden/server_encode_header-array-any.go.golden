@@ -10,7 +10,7 @@ func EncodeMethodHeaderArrayAnyResponse(encoder func(context.Context, http.Respo
 			val := res.H
 			hsSlice := make([]string, len(val))
 			for i, e := range val {
-				es := fmt.Sprintf("%v", e)
+				es := loom.JSONValueString(e)
 				hsSlice[i] = es
 			}
 			hs := strings.Join(hsSlice, ", ")

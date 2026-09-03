@@ -123,7 +123,8 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		if p.{{ .FieldName }} != nil {
 			{{- end }}
 		values.Add("{{ .HTTPName }}",
-			{{- if or (eq .Type.Name "bytes") (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }} string(
+			{{- if eq .Type.Name "any" }} loom.JSONValueString(
+			{{- else if or (eq .Type.Name "bytes") (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }} string(
 			{{- else if not (eq .Type.Name "string") }} fmt.Sprintf("%v",
 			{{- end }}
 			{{- if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
@@ -243,7 +244,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
   {{- else if eq .Type.Name "bytes" -}}
     {{ .VarName }} := string({{ .Target }})
   {{- else if eq .Type.Name "any" -}}
-    {{ .VarName }} := fmt.Sprintf("%v", {{ .Target }})
+    {{ .VarName }} := loom.JSONValueString({{ .Target }})
   {{- else }}
     // unsupported type {{ .Type.Name }} for field {{ .FieldName }}
   {{- end }}`},

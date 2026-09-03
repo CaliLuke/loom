@@ -73,6 +73,16 @@ func TestResponseContractTestFilesPassRealGeneratedGRPCScenario(t *testing.T) {
 	runGRPCGoCommand(t, dir, "test", "./internal/contracttest")
 }
 
+func TestGeneratedAnyTransformsCompile(t *testing.T) {
+	const modulePath = "example.com/grpcany"
+	root := RunGRPCDSL(t, testdata.AnyErrorDSL)
+	dir := t.TempDir()
+	renderGRPCResponseContractModule(t, dir, modulePath, root)
+
+	runGRPCGoCommand(t, dir, "mod", "tidy")
+	runGRPCGoCommand(t, dir, "test", "./gen/...")
+}
+
 func renderGRPCResponseContractModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {
 	t.Helper()
 	genpkg := modulePath + "/gen"

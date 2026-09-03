@@ -26,7 +26,11 @@ func typeDefinitionSection(name, description, typeName, def string) codegen.Sect
 		} else {
 			stmt.Line()
 		}
-		stmt.Type().Id(typeName).Add(codegen.Expr(def))
+		decl := stmt.Type().Id(typeName)
+		if def == "loom.JSONValue" {
+			decl.Op("=")
+		}
+		decl.Add(codegen.Expr(def))
 		stmt.Line()
 	})
 }

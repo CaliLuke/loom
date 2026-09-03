@@ -1,6 +1,10 @@
 package codegen
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"go/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -99,6 +103,21 @@ func TestGoTypeDef(t *testing.T) {
 	}
 }
 
+func TestGoTypeDefKeepsAnyMapKeysComparable(t *testing.T) {
+	attribute := &expr.AttributeExpr{Type: &expr.Map{
+		KeyType:  &expr.AttributeExpr{Type: expr.Any},
+		ElemType: &expr.AttributeExpr{Type: expr.String},
+	}}
+	definition := goTypeDef(codegen.NewNameScope(), attribute, false, false, false)
+	require.Equal(t, "map[any]string", definition)
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "generated.go", "package generated\ntype Values "+definition, 0)
+	require.NoError(t, err)
+	_, err = (&types.Config{}).Check("generated", fset, []*ast.File{file}, nil)
+	require.NoError(t, err)
+}
+
 func TestGoTypeDefUsesExplicitTypeForStructuredFields(t *testing.T) {
 	scope := codegen.NewNameScope()
 	field := &expr.AttributeExpr{
@@ -136,7 +155,7 @@ func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
 	require.Contains(t, got, "Optional loom.Optional[string]")
 	require.Contains(t, got, "Empty loom.Optional[[]loom.Nullable[string]]")
 	require.Contains(t, got, "Nullable loom.Nullable[int]")
-	require.Contains(t, got, "Anything loom.Nullable[any]")
+	require.Contains(t, got, "Anything loom.JSONValue")
 	require.Contains(t, got, `json:"optional,omitzero"`)
 	require.Contains(t, got, `json:"empty,omitzero"`)
 	require.Contains(t, got, `json:"nullable,omitzero"`)
@@ -144,7 +163,7 @@ func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
 	require.Contains(t, got, `xml:"legacy"`)
 }
 
-func TestGoTypeDefPreservesNullableResponseFields(t *testing.T) {
+func TestGoTypeDefUsesJSONValueForAnyResponseFields(t *testing.T) {
 	attribute := &expr.AttributeExpr{
 		Type: &expr.Object{
 			{Name: "component", Attribute: &expr.AttributeExpr{Type: expr.Any}},
@@ -152,7 +171,7 @@ func TestGoTypeDefPreservesNullableResponseFields(t *testing.T) {
 	}
 
 	got := goTypeDef(codegen.NewNameScope(), attribute, false, true, false)
-	require.Contains(t, got, "Component loom.Nullable[any]")
+	require.Contains(t, got, "Component loom.JSONValue")
 	require.Contains(t, got, `json:"component,omitzero"`)
 }
 
@@ -168,7 +187,7 @@ func TestGoTypeDefUsesJSONPresenceForArrayElements(t *testing.T) {
 	require.Equal(t, "[]string", goTypeDef(scope, nonNullable, true, false, false))
 	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nonNullable, true, false, true))
 	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nullable, true, false, true))
-	require.Equal(t, "[]loom.Nullable[any]", goTypeDef(scope, requiredAny, true, false, true))
+	require.Equal(t, "[]loom.Nullable[loom.JSONValue]", goTypeDef(scope, requiredAny, true, false, true))
 }
 
 func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
@@ -246,11 +265,11 @@ var (
 	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitempty" xml:"default,omitempty"` + "`" + `
 	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
 	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
-	Any loom.Nullable[any] ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
+	Any loom.JSONValue ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
 	RequiredBytes []byte ` + "`" + `form:"required_bytes" json:"required_bytes" xml:"required_bytes"` + "`" + `
-	RequiredAny loom.Nullable[any] ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
+	RequiredAny loom.JSONValue ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
 	DefaultBytes []byte ` + "`" + `form:"default_bytes,omitempty" json:"default_bytes,omitempty" xml:"default_bytes,omitempty"` + "`" + `
-	DefaultAny loom.Nullable[any] ` + "`" + `form:"default_any,omitempty" json:"default_any,omitzero" xml:"default_any,omitempty"` + "`" + `
+	DefaultAny loom.JSONValue ` + "`" + `form:"default_any,omitempty" json:"default_any,omitzero" xml:"default_any,omitempty"` + "`" + `
 	CustomType *pkg.String ` + "`" + `form:"custom_type,omitempty" json:"custom_type,omitempty" xml:"custom_type,omitempty"` + "`" + `
 	CustomTag *string ` + "`" + `foo:"bar"` + "`" + `
 }`
@@ -260,11 +279,11 @@ var (
 	Default int ` + "`" + `form:"default" json:"default" xml:"default"` + "`" + `
 	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
 	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
-	Any loom.Nullable[any] ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
+	Any loom.JSONValue ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
 	RequiredBytes []byte ` + "`" + `form:"required_bytes" json:"required_bytes" xml:"required_bytes"` + "`" + `
-	RequiredAny loom.Nullable[any] ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
+	RequiredAny loom.JSONValue ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
 	DefaultBytes []byte ` + "`" + `form:"default_bytes" json:"default_bytes" xml:"default_bytes"` + "`" + `
-	DefaultAny loom.Nullable[any] ` + "`" + `form:"default_any" json:"default_any,omitzero" xml:"default_any"` + "`" + `
+	DefaultAny loom.JSONValue ` + "`" + `form:"default_any" json:"default_any,omitzero" xml:"default_any"` + "`" + `
 	CustomType *pkg.String ` + "`" + `form:"custom_type,omitempty" json:"custom_type,omitempty" xml:"custom_type,omitempty"` + "`" + `
 	CustomTag *string ` + "`" + `foo:"bar"` + "`" + `
 }`
@@ -274,11 +293,11 @@ var (
 	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitempty" xml:"default,omitempty"` + "`" + `
 	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
 	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
-	Any loom.Nullable[any] ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
+	Any loom.JSONValue ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
 	RequiredBytes []byte ` + "`" + `form:"required_bytes,omitempty" json:"required_bytes,omitempty" xml:"required_bytes,omitempty"` + "`" + `
-	RequiredAny loom.Nullable[any] ` + "`" + `form:"required_any,omitempty" json:"required_any,omitempty" xml:"required_any,omitempty"` + "`" + `
+	RequiredAny loom.JSONValue ` + "`" + `form:"required_any,omitempty" json:"required_any,omitempty" xml:"required_any,omitempty"` + "`" + `
 	DefaultBytes []byte ` + "`" + `form:"default_bytes,omitempty" json:"default_bytes,omitempty" xml:"default_bytes,omitempty"` + "`" + `
-	DefaultAny loom.Nullable[any] ` + "`" + `form:"default_any,omitempty" json:"default_any,omitzero" xml:"default_any,omitempty"` + "`" + `
+	DefaultAny loom.JSONValue ` + "`" + `form:"default_any,omitempty" json:"default_any,omitzero" xml:"default_any,omitempty"` + "`" + `
 	CustomType *pkg.String ` + "`" + `form:"custom_type,omitempty" json:"custom_type,omitempty" xml:"custom_type,omitempty"` + "`" + `
 	CustomTag *string ` + "`" + `foo:"bar"` + "`" + `
 }`

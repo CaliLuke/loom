@@ -42,6 +42,7 @@ func DecodeMethodBodyQueryPathObjectValidateRequest(mux loomhttp.Muxer, decoder 
 		if b == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("b", "query string"))
 		}
+
 		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("b", b, loomPatternTest1))
 		if err != nil {
 			return payload, err

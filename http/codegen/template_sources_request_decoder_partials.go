@@ -62,7 +62,7 @@ var httpDecoderConversionPartials = []templateSource{
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "any" }}
-			{{ .VarName }}[i] = rv
+			{{ .VarName }}[i] = loom.JSONValueFromString(rv)
 		{{- else }}
 			// unsupported slice type {{ .Type.ElemType.Type.Name }} for var {{ .VarName }}
 		{{- end }}`},

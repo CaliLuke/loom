@@ -66,6 +66,7 @@ func DecodeMethodARequest(mux loomhttp.Muxer, decoder func(*http.Request) loomht
 		if required == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("required", "header"))
 		}
+
 		{
 			optionalButRequiredHeaderRaw := r.Header.Get("optional_but_required_header")
 			if optionalButRequiredHeaderRaw == "" {

@@ -1,19 +1,19 @@
 package testdata
 
-var StreamingPayloadResultCollectionWithViewsServerStreamRecvCode = `// Recv reads instances of "any" from the
+var StreamingPayloadResultCollectionWithViewsServerStreamRecvCode = `// Recv reads instances of "loom.JSONValue" from the
 // "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
 // connection.
-func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) Recv() (any, error) {
+func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) Recv() (loom.JSONValue, error) {
 	return s.RecvWithContext(s.r.Context())
 }
 
-// RecvWithContext reads instances of "any" from the
+// RecvWithContext reads instances of "loom.JSONValue" from the
 // "StreamingPayloadResultCollectionWithViewsMethod" endpoint websocket
 // connection with context.
-func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) RecvWithContext(ctx context.Context) (any, error) {
+func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) RecvWithContext(ctx context.Context) (loom.JSONValue, error) {
 	var (
-		rv  any
-		msg *any
+		rv  loom.JSONValue
+		msg *loom.JSONValue
 		err error
 	)
 	if err := ctx.Err(); err != nil {

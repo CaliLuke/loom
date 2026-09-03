@@ -1,8 +1,8 @@
 // MethodPathInterfaceSliceParamServicePathInterfaceSliceParamPath returns the URL path to the ServicePathInterfaceSliceParam service MethodPathInterfaceSliceParam HTTP endpoint.
-func MethodPathInterfaceSliceParamServicePathInterfaceSliceParamPath(a []any) string {
+func MethodPathInterfaceSliceParamServicePathInterfaceSliceParamPath(a []loom.JSONValue) string {
 	aSlice := make([]string, len(a))
 	for i, v := range a {
-		aSlice[i] = fmt.Sprintf("%v", v)
+		aSlice[i] = loom.JSONValueString(v)
 	}
 	return fmt.Sprintf("/one/%v/two", strings.Join(aSlice, ","))
 }

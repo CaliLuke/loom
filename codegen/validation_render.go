@@ -210,7 +210,11 @@ func renderEnumValidation(data validationRenderData) string {
 	if data.IsPointer {
 		b.Add("if " + data.Target + " != nil {\n")
 	}
-	b.Add("if !(" + oneof(data.TargetValue, data.Values) + ") {\n")
+	predicate := oneof(data.TargetValue, data.Values)
+	if unalias(data.Attribute.Type).Kind() == expr.AnyKind {
+		predicate = jsonValueOneof(data.TargetValue, data.Values)
+	}
+	b.Add("if !(" + predicate + ") {\n")
 	b.Add("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + toSlice(data.Values) + "))\n")
 	b.Add("}")
 	if data.IsPointer {

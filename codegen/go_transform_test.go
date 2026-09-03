@@ -1,6 +1,9 @@
 package codegen
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,6 +11,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 func TestGoTransform(t *testing.T) {
@@ -291,6 +295,51 @@ func TestGoTransformRendersTypedMapDefaultFromMapVal(t *testing.T) {
 	require.NotContains(t, code, "map[interface {}]interface {}")
 }
 
+func TestGoTransformAnyDefaultsCompileAndEncodeStrings(t *testing.T) {
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, true, "", scope)
+	ta := &TransformAttrs{SourceCtx: ctx, TargetCtx: ctx}
+	anyAttribute := &expr.AttributeExpr{Type: expr.Any}
+	arrayAttribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: anyAttribute}}
+	mapAttribute := &expr.AttributeExpr{Type: &expr.Map{
+		KeyType:  &expr.AttributeExpr{Type: expr.String},
+		ElemType: anyAttribute,
+	}}
+
+	direct := defaultValueLiteral(anyAttribute, "direct", ta)
+	array := defaultValueLiteral(arrayAttribute, []any{"array"}, ta)
+	mapped := defaultValueLiteral(mapAttribute, map[string]any{"key": "map"}, ta)
+	require.Equal(t, `loom.MustJSONValueFrom("direct")`, direct)
+	require.Equal(t, `[]loom.JSONValue{loom.MustJSONValueFrom("array")}`, array)
+	require.Equal(t, `map[string]loom.JSONValue{"key": loom.MustJSONValueFrom("map")}`, mapped)
+
+	dir := t.TempDir()
+	module := fmt.Sprintf("module example.com/defaults\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", testingx.RepoRoot())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(module), 0o600))
+	source := fmt.Sprintf(`package defaults
+
+import (
+	"testing"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+var direct loom.JSONValue = %s
+var array []loom.JSONValue = %s
+var mapped map[string]loom.JSONValue = %s
+
+func TestEncodedDefaults(t *testing.T) {
+	if string(direct) != %q || string(array[0]) != %q || string(mapped["key"]) != %q {
+		t.Fatalf("defaults are not JSON strings: %%q %%q %%q", direct, array[0], mapped["key"])
+	}
+}
+`, direct, array, mapped, `"direct"`, `"array"`, `"map"`)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "defaults_test.go"), []byte(source), 0o600))
+	_, err := testingx.RunCmd(dir, "go", "mod", "tidy")
+	require.NoError(t, err)
+	output, err := testingx.RunCmd(dir, "go", "test", "./...")
+	require.NoError(t, err, output)
+}
+
 func TestGoTransformTreatsMatchingExplicitTypesAsAtomic(t *testing.T) {
 	meta := expr.MetaExpr{
 		"openapi:nullable":  []string{"true"},
@@ -469,14 +518,14 @@ func TestTransformRawAnyAndNullablePresence(t *testing.T) {
 
 	decoded, _, err := GoTransform(raw, nullable, "body", "value", ctx, ctx, "unmarshal", true)
 	require.NoError(t, err)
-	require.Contains(t, decoded, "var value loom.Nullable[any]")
+	require.Contains(t, decoded, "var value loom.Nullable[loom.JSONValue]")
 	require.Contains(t, decoded, "if valueValue == nil")
-	require.Contains(t, decoded, "value = loom.NullValue[any]()")
+	require.Contains(t, decoded, "value = loom.NullValue[loom.JSONValue]()")
 	require.Contains(t, decoded, "value = loom.NullableValue(valueValue)")
 
 	encoded, _, err := GoTransform(nullable, raw, "value", "body", ctx, ctx, "marshal", true)
 	require.NoError(t, err)
-	require.Contains(t, encoded, "var body any")
+	require.Contains(t, encoded, "var body loom.JSONValue")
 	require.Contains(t, encoded, "if value.IsNull()")
 	require.Contains(t, encoded, "actual, ok := value.Value()")
 }

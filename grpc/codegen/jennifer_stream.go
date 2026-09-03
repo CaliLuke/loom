@@ -120,7 +120,15 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 				for _, arg := range stream.RecvConvert.Init.Args {
 					initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
 				}
-				g.Return(jen.Id(stream.RecvConvert.Init.Name).Call(initArgs...), jen.Nil())
+				if stream.RecvConvert.Init.ErrorAware {
+					g.List(jen.Id("converted"), jen.Err()).Op(":=").Id(stream.RecvConvert.Init.Name).Call(initArgs...)
+					g.If(jen.Err().Op("!=").Nil()).Block(
+						jen.Return(jen.Id("res"), grpcStreamDecodeError(stream, jen.Err())),
+					)
+					g.Return(jen.Id("converted"), jen.Nil())
+				} else {
+					g.Return(jen.Id(stream.RecvConvert.Init.Name).Call(initArgs...), jen.Nil())
+				}
 			})
 		stmt.Line()
 		codegenpkg.Doc(stmt, stream.RecvWithContextDesc)
@@ -202,9 +210,20 @@ func grpcStreamRecvErrorCase(errData *ErrorData) []jen.Code {
 			),
 		)
 	}
-	caseBody = append(caseBody,
-		jen.Return(jen.Id("res"), jen.Id(errData.Response.ClientConvert.Init.Name).Call(grpcStreamRecvInitArgs(errData.Response.ClientConvert.Init)...)),
-	)
+	init := errData.Response.ClientConvert.Init
+	if init.ErrorAware {
+		caseBody = append(caseBody,
+			jen.List(jen.Id("converted"), jen.Id("conversionErr")).Op(":=").Id(init.Name).Call(grpcStreamRecvInitArgs(init)...),
+			jen.If(jen.Id("conversionErr").Op("!=").Nil()).Block(
+				jen.Return(jen.Id("res"), jen.Id("conversionErr")),
+			),
+			jen.Return(jen.Id("res"), jen.Id("converted")),
+		)
+	} else {
+		caseBody = append(caseBody,
+			jen.Return(jen.Id("res"), jen.Id(init.Name).Call(grpcStreamRecvInitArgs(init)...)),
+		)
+	}
 	return caseBody
 }
 
@@ -216,7 +235,14 @@ func appendGRPCStreamRecvViewedResult(g *jen.Group, stream *StreamData) bool {
 	if stream.Endpoint.Method.ViewedResult.ViewName == "" {
 		viewArg = "s.view"
 	}
-	g.Id("proj").Op(":=").Id(stream.RecvConvert.Init.Name).Call(grpcStreamRecvInitArgs(stream.RecvConvert.Init)...)
+	if stream.RecvConvert.Init.ErrorAware {
+		g.List(jen.Id("proj"), jen.Err()).Op(":=").Id(stream.RecvConvert.Init.Name).Call(grpcStreamRecvInitArgs(stream.RecvConvert.Init)...)
+		g.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Return(jen.Nil(), jen.Err()),
+		)
+	} else {
+		g.Id("proj").Op(":=").Id(stream.RecvConvert.Init.Name).Call(grpcStreamRecvInitArgs(stream.RecvConvert.Init)...)
+	}
 	if !stream.Endpoint.Method.ViewedResult.IsCollection {
 		g.Add(codegenpkg.Expr("vres := &" + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
 	} else {

@@ -12,15 +12,13 @@ func transform() {
 		uint_ := uint64(*source.Uint)
 		target.Uint = &uint_
 	}
-	if source.Any.IsNull() {
-		target.Any = structpb.NewNullValue()
-	} else if actual, ok := source.Any.Value(); ok {
+	if source.Any != nil {
 		target.Any = func() *structpb.Value {
 			// Convert Go any to protobuf Value directly
-			if actual == nil {
+			if source.Any == nil {
 				return structpb.NewNullValue()
 			}
-			value, err := loomgrpc.NewProtoValue(actual)
+			value, err := loomgrpc.NewProtoValue(source.Any)
 			if err != nil {
 				*transformErr = err
 				return nil

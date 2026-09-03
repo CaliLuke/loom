@@ -66,6 +66,17 @@ func TestNameScope_GoFullTypeName_UsesScopedNameWhenQualified(t *testing.T) {
 	}
 }
 
+func TestNameScopeGoFullTypeNameKeepsAnyMapKeysComparable(t *testing.T) {
+	attribute := &expr.AttributeExpr{Type: &expr.Map{
+		KeyType:  &expr.AttributeExpr{Type: expr.Any},
+		ElemType: &expr.AttributeExpr{Type: expr.String},
+	}}
+
+	if got, want := NewNameScope().GoFullTypeName(attribute, "service"), "map[any]string"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
 func TestNameScope_PeekUnique_MatchesUniqueWithoutMutation(t *testing.T) {
 	seed := func(scope *NameScope) {
 		scope.Unique("a")

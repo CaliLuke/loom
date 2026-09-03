@@ -100,16 +100,17 @@ Go fields remain idiomatic. An operation uses its single 2xx response as the
 primary success, or a single 3xx when no 2xx exists, so redirect-only contracts
 do not need a synthetic 2xx.
 
-An unconstrained OpenAPI schema `{}` imports as `Any` wherever a schema can
-appear, including a named component. Regeneration preserves the empty schema,
-and generated HTTP code accepts any JSON value. Generated fields use
-`loom.Nullable[any]` so application code can distinguish absence from explicit
-JSON `null`; direct named results keep their imported type and can return
-`nil`. Do not replace a typeless schema that has constraints with `Any`; the
-importer rejects that contract because `Any` would discard its assertions.
-The equivalent `anyOf: [{}, {type: "null"}]` form also imports as `Any`: `{}`
-already accepts null, so the explicit null branch does not narrow or widen the
-contract.
+An unconstrained OpenAPI schema `{}` imports as `Any` in each schema
+location, including a named component. Regeneration preserves the empty schema.
+Generated HTTP code accepts all JSON values. A direct `Any` uses
+`loom.JSONValue`; arrays and maps use `[]loom.JSONValue` and
+`map[string]loom.JSONValue`. This type preserves source JSON numbers without a
+`float64` conversion. Decode stored JSON directly into a generated result.
+To construct a field, use
+`loom.NullableValue(loom.JSONValue(rawValue))`. Do not replace a typeless
+schema that has constraints with `Any`. The importer rejects this contract
+because `Any` discards its assertions. The equivalent
+`anyOf: [{}, {type: "null"}]` form also imports as `Any`.
 
 A two-member `oneOf` with a bare `null` branch and a local `$ref` to a schema
 that explicitly excludes null imports as a nullable named type. Regeneration
@@ -129,7 +130,8 @@ that combine `const` with `enum` remain blocked.
 
 An OpenAPI free-form object with `type: object` and
 `additionalProperties: true` imports as `MapOf(String, Any)`. Generated Go
-uses `map[string]any`, and regenerated OpenAPI preserves the object boundary.
+uses `map[string]loom.JSONValue`, and regenerated OpenAPI preserves the object
+boundary.
 The importer rejects a schema that also declares object members because the
 Loom DSL cannot preserve both shapes.
 
@@ -142,7 +144,7 @@ multipart maps remain raw request streams so the application owns codec and
 content-negotiation policy. Optional form objects with required members also
 remain raw so omission does not trigger nested required-field validation. Form
 schemas with unconstrained values, including free-form maps, also remain raw
-because typed form decoding cannot reconstruct interface-valued data.
+because typed form decoding cannot reconstruct JSON-valued data.
 
 A one-member `allOf` containing a local schema reference imports losslessly,
 including numeric bounds and compatible scalar defaults on the wrapper.
@@ -302,9 +304,9 @@ completion shapes are explicit generation limitations.
 ## JSON Presence and Nullability
 
 - Loom and generated transports use Go 1.27's `encoding/json/v2`. Decoding is
-  case-sensitive and rejects duplicate object names and invalid UTF-8. Use
-  `encoding/json/jsontext.Value` when application code needs to retain an
-  unparsed JSON value; do not use the legacy raw-message type.
+  case-sensitive and rejects duplicate object names and invalid UTF-8.
+  Generated `Any` fields use `loom.JSONValue`, an alias for
+  `encoding/json/jsontext.Value`. Do not use the legacy raw-message type.
 - Treat requiredness and nullability as independent. `Required("field")`
   requires presence; `Nullable()` allows a present field to contain JSON null.
 - Generated nullable fields use `loom.Nullable[T]`. Its zero value is absent;

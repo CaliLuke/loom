@@ -130,7 +130,7 @@ func arrayElementCanBeNil(attribute *expr.AttributeExpr) bool {
 		return false
 	}
 	return expr.IsObject(attribute.Type) || expr.IsArray(attribute.Type) || expr.IsMap(attribute.Type) ||
-		attribute.Type.Kind() == expr.BytesKind || attribute.Type.Kind() == expr.AnyKind
+		attribute.Type.Kind() == expr.BytesKind || expr.IsAny(attribute.Type)
 }
 
 func codegenPresenceType(attribute *expr.AttributeExpr) bool {

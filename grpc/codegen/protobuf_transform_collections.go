@@ -379,12 +379,13 @@ const convertGoAnyToProtobufValueFunc = `func() *structpb.Value {
 	return value
 }()`
 
-const convertProtobufValueToGoAnyFunc = `func() any {
-	// Convert protobuf Value to Go any directly
-	if %SRC% != nil {
-		return %SRC%.AsInterface()
+const convertProtobufValueToGoAnyFunc = `func() loom.JSONValue {
+	value, err := loomgrpc.NewJSONValue(%SRC%)
+	if err != nil {
+		*transformErr = err
+		return nil
 	}
-	return nil
+	return value
 }()`
 
 // convertPrimitive returns the code to convert a primitive type from one

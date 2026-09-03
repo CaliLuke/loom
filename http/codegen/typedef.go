@@ -55,6 +55,9 @@ func goPrimitiveTypeDef(att *expr.AttributeExpr, actual expr.Primitive) string {
 	if t, _ := codegen.GetMetaType(att); t != "" {
 		return t
 	}
+	if actual.Kind() == expr.AnyKind {
+		return "loom.JSONValue"
+	}
 	return codegen.GoNativeTypeName(actual)
 }
 
@@ -63,12 +66,21 @@ func goArrayTypeDef(scope *codegen.NameScope, actual *expr.Array, ptr, useDefaul
 }
 
 func goMapTypeDef(scope *codegen.NameScope, actual *expr.Map, ptr, useDefault, jsonPresence bool) string {
-	keyDef := goCollectionElemTypeDef(scope, actual.KeyType, ptr, useDefault, jsonPresence)
+	keyDef := goMapKeyTypeDef(scope, actual.KeyType, ptr, useDefault, jsonPresence)
 	elemDef := goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault, jsonPresence)
 	if jsonPresence && !expr.MapValuesAllowNull(actual) {
 		elemDef = "loom.Nullable[" + elemDef + "]"
 	}
 	return fmt.Sprintf("map[%s]%s", keyDef, elemDef)
+}
+
+func goMapKeyTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
+	if expr.IsAny(att.Type) {
+		if metaType, _ := codegen.GetMetaType(att); metaType == "" {
+			return "any"
+		}
+	}
+	return goCollectionElemTypeDef(scope, att, ptr, useDefault, jsonPresence)
 }
 
 func goCollectionElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
@@ -113,7 +125,7 @@ func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, pa
 	fieldName := codegen.GoifyAtt(att, name, true)
 	typeDef := goTypeDef(scope, att, ptr, useDefault, jsonPresence)
 	wireOptional := !ma.IsRequiredNoDefault(name)
-	if expr.AllowsNull(att) && !expr.IsNullable(att) {
+	if expr.AllowsNull(att) && !expr.IsNullable(att) && !expr.IsAny(att.Type) {
 		typeDef = "loom.Nullable[" + goValueTypeDef(scope, att, ptr, useDefault, jsonPresence) + "]"
 	} else if jsonPresence && wireOptional && !expr.AllowsNull(att) {
 		typeDef = "loom.Optional[" + typeDef + "]"
@@ -122,7 +134,7 @@ func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, pa
 	case codegen.IsExplicitPresenceType(att), jsonPresence && wireOptional:
 		// Explicit field types define their own presence semantics.
 	case expr.IsPrimitive(att.Type):
-		if (ptr || parent.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && att.Type != expr.Any {
+		if (ptr || parent.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && !expr.IsAny(att.Type) {
 			typeDef = "*" + typeDef
 		}
 	case expr.IsObject(att.Type) || (expr.IsUnion(att.Type) && !parent.IsRequired(name)):

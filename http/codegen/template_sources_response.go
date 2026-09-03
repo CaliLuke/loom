@@ -14,14 +14,10 @@ func {{ .ResponseEncoder }}(encoder func(context.Context, http.ResponseWriter) l
 				w.Header().Set("loom-view", res.View)
 			{{- end }}
 		{{- else }}
-			{{- if .Result.IsAny }}
-			res := v
-			{{- else }}
 			res, ok := v.({{ .Result.Ref }})
 			if !ok {
 				return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "{{ .Result.Ref }}", v)
 			}
-			{{- end }}
 		{{- end }}
 		{{- range .Result.Responses }}
 			{{- if .ContentType }}
@@ -251,7 +247,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- else if eq .Type.Name "bytes" -}}
 		{{ .VarName }} := string({{ .Target }})
 	{{- else if eq .Type.Name "any" -}}
-		{{ .VarName }} := fmt.Sprintf("%v", {{ .Target }})
+		{{ .VarName }} := loom.JSONValueString({{ .Target }})
 	{{- else if eq .Type.Name "array" -}}
 		{{- if eq .Type.ElemType.Type.Name "string" -}}
 		{{ .VarName }} := strings.Join({{ .Target }}, ", ")

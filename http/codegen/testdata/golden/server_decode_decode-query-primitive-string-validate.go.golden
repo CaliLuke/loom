@@ -16,6 +16,7 @@ func DecodeMethodQueryPrimitiveStringValidateRequest(mux loomhttp.Muxer, _ func(
 		if q == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 		}
+
 		if !(q == "val") {
 			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"val"}))
 		}

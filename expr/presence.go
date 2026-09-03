@@ -7,6 +7,11 @@ func AllowsNull(attribute *AttributeExpr) bool {
 	return IsNullable(attribute) || attribute != nil && resolvesToAny(attribute.Type, make(map[string]struct{}))
 }
 
+// IsAny reports whether a data type resolves to Any through named types.
+func IsAny(dataType DataType) bool {
+	return resolvesToAny(dataType, make(map[string]struct{}))
+}
+
 // ArrayElementsAllowNull reports whether an array accepts explicit null
 // elements. ArrayOfRequired overrides the element type's intrinsic nullability.
 func ArrayElementsAllowNull(array *Array) bool {

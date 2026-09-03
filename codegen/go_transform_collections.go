@@ -412,12 +412,53 @@ func formatAttributeGoLiteral(att *expr.AttributeExpr, value any) string {
 }
 
 func typedDefaultLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
-	switch actual := att.Type.(type) {
-	case *expr.Map:
-		return typedMapDefaultLiteral(actual, value, ta)
-	default:
-		return formatAttributeGoLiteral(att, value), true
+	return typedDefaultValueLiteral(att, value, ta)
+}
+
+func defaultValueLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) string {
+	literal, ok := typedDefaultLiteral(att, value, ta)
+	if !ok {
+		return formatAttributeGoLiteral(att, value)
 	}
+	return literal
+}
+
+func isRawJSONValue(att *expr.AttributeExpr) bool {
+	if metaType, _ := GetMetaType(att); metaType != "" {
+		return false
+	}
+	return unalias(att.Type).Kind() == expr.AnyKind
+}
+
+func containsRawJSONValue(att *expr.AttributeExpr) bool {
+	if isRawJSONValue(att) {
+		return true
+	}
+	switch actual := unalias(att.Type).(type) {
+	case *expr.Array:
+		return containsRawJSONValue(actual.ElemType)
+	case *expr.Map:
+		return containsRawJSONValue(actual.KeyType) || containsRawJSONValue(actual.ElemType)
+	default:
+		return false
+	}
+}
+
+func typedArrayDefaultLiteral(a *expr.Array, value any, ta *TransformAttrs) (string, bool) {
+	actual := reflect.ValueOf(value)
+	if !actual.IsValid() || (actual.Kind() != reflect.Array && actual.Kind() != reflect.Slice) {
+		return "", false
+	}
+	items := make([]string, 0, actual.Len())
+	for index := 0; index < actual.Len(); index++ {
+		literal, ok := typedDefaultValueLiteral(a.ElemType, actual.Index(index).Interface(), ta)
+		if !ok {
+			return "", false
+		}
+		items = append(items, literal)
+	}
+	elemRef := ta.TargetCtx.Scope.Ref(a.ElemType, ta.TargetCtx.Pkg(a.ElemType))
+	return "[]" + elemRef + "{" + strings.Join(items, ", ") + "}", true
 }
 
 func typedMapDefaultLiteral(m *expr.Map, value any, ta *TransformAttrs) (string, bool) {
@@ -426,6 +467,9 @@ func typedMapDefaultLiteral(m *expr.Map, value any, ta *TransformAttrs) (string,
 		return "", false
 	}
 	keyRef := ta.TargetCtx.Scope.Ref(m.KeyType, ta.TargetCtx.Pkg(m.KeyType))
+	if isRawJSONValue(m.KeyType) {
+		keyRef = "any"
+	}
 	elemRef := ta.TargetCtx.Scope.Ref(m.ElemType, ta.TargetCtx.Pkg(m.ElemType))
 	return "map[" + keyRef + "]" + elemRef + "{" + strings.Join(items, ", ") + "}", true
 }
@@ -441,7 +485,7 @@ func mapDefaultLiteralItems(m *expr.Map, value any, ta *TransformAttrs) ([]strin
 	})
 	items := make([]string, 0, len(keys))
 	for _, key := range keys {
-		keyLiteral, ok := typedDefaultValueLiteral(m.KeyType, key.Interface(), ta)
+		keyLiteral, ok := typedDefaultMapKeyLiteral(m.KeyType, key.Interface(), ta)
 		if !ok {
 			return nil, false
 		}
@@ -454,9 +498,24 @@ func mapDefaultLiteralItems(m *expr.Map, value any, ta *TransformAttrs) ([]strin
 	return items, true
 }
 
+func typedDefaultMapKeyLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
+	if isRawJSONValue(att) {
+		return formatAttributeGoLiteral(att, value), true
+	}
+	return typedDefaultValueLiteral(att, value, ta)
+}
+
 func typedDefaultValueLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
-	if expr.IsMap(att.Type) {
-		return typedMapDefaultLiteral(expr.AsMap(att.Type), value, ta)
+	if isRawJSONValue(att) {
+		return "loom.MustJSONValueFrom(" + formatAttributeGoLiteral(att, value) + ")", true
+	}
+	switch actual := unalias(att.Type).(type) {
+	case *expr.Array:
+		if containsRawJSONValue(att) {
+			return typedArrayDefaultLiteral(actual, value, ta)
+		}
+	case *expr.Map:
+		return typedMapDefaultLiteral(actual, value, ta)
 	}
 	return formatAttributeGoLiteral(att, value), true
 }

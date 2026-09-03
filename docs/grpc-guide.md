@@ -61,13 +61,13 @@ protoc-gen-go-grpc --version
 | ArrayOf   | repeated           |
 | MapOf     | map                |
 
-`Any` maps to `google.protobuf.Value`, so its runtime values must be
-representable by protobuf's JSON-like value model. Scalars, lists, maps with
-string keys, and nil are appropriate. Channels, functions, and arbitrary Go
-structs are not representable. Generated request and response constructors
-propagate a descriptive conversion error before writing the gRPC message;
-they do not silently replace an invalid value with nil. Prefer a concrete Loom
-type whenever the value has a stable contract.
+`Any` maps to `google.protobuf.Value`. Generated Go uses `loom.JSONValue`
+for direct values and uses the same type for array and map elements. Generated
+transforms parse the raw JSON before writing protobuf messages and encode
+received protobuf values back to JSON. Conversion errors propagate before Loom
+writes a gRPC message. Protobuf represents JSON numbers as `double`, so gRPC
+cannot retain number spellings or integer precision beyond that wire type. Prefer
+a concrete Loom type whenever the value has a stable contract.
 
 ---
 

@@ -4,7 +4,7 @@ func DecodeMethodQueryArrayAnyRequest(mux loomhttp.Muxer, _ func(*http.Request) 
 	return func(r *http.Request) (*servicequeryarrayany.MethodQueryArrayAnyPayload, error) {
 		var payload *servicequeryarrayany.MethodQueryArrayAnyPayload
 		var (
-			q []any
+			q []loom.JSONValue
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {
@@ -13,9 +13,9 @@ func DecodeMethodQueryArrayAnyRequest(mux loomhttp.Muxer, _ func(*http.Request) 
 		{
 			qRaw := qp["q"]
 			if qRaw != nil {
-				q = make([]any, len(qRaw))
+				q = make([]loom.JSONValue, len(qRaw))
 				for i, rv := range qRaw {
-					q[i] = rv
+					q[i] = loom.JSONValueFromString(rv)
 				}
 			}
 		}

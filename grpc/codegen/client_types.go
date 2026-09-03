@@ -65,7 +65,10 @@ func grpcTypeImports(genpkg string, svc *expr.GRPCServiceExpr, sd *ServiceData) 
 		{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName},
 	}
 	if grpcServiceNeedsAnyTypeImports(svc) {
-		imports = append(imports, &codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"})
+		imports = append(imports,
+			codegen.LoomNamedImport("grpc", "loomgrpc"),
+			&codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"},
+		)
 	}
 	imports = append(imports, sd.ProtoGoImports...)
 	return imports

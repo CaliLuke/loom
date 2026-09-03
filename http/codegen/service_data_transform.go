@@ -70,7 +70,7 @@ func marshal(source, target *expr.AttributeExpr, sourceVar, targetVar string, so
 }
 
 func serviceFieldTransformAttribute(parent *expr.AttributeExpr, name string, attribute *expr.AttributeExpr) *expr.AttributeExpr {
-	if parent == nil || name == "" || attribute == nil || expr.IsNullable(attribute) || !expr.AllowsNull(attribute) {
+	if parent == nil || name == "" || attribute == nil || expr.IsNullable(attribute) || expr.IsAny(attribute.Type) || !expr.AllowsNull(attribute) {
 		return attribute
 	}
 	clone := expr.DupAtt(attribute)

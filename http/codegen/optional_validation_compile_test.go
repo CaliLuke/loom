@@ -236,7 +236,7 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 	require.Contains(t, serverTypes.String(), "[]loom.Nullable[*ServerDetailsRequestBodyRequestBody]")
 	require.Contains(t, serverTypes.String(), "[]loom.Nullable[ServerDetailsRequestBodyRequestBody]")
 	require.Contains(t, serverTypes.String(), "AnyItems")
-	require.Contains(t, serverTypes.String(), "loom.Optional[[]loom.Nullable[any]]")
+	require.Contains(t, serverTypes.String(), "loom.Optional[[]loom.Nullable[loom.JSONValue]]")
 	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.string_items", i)`)
 	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.object_items", i)`)
 	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.any_items", i)`)

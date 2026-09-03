@@ -12,6 +12,7 @@ func DecodeMethodHeaderPrimitiveStringDefaultRequest(mux loomhttp.Muxer, _ func(
 		if h == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
 		}
+
 		if err != nil {
 			return payload, err
 		}

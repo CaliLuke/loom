@@ -231,7 +231,9 @@ func TestProtoBufTransformAnyType(t *testing.T) {
 				require.Contains(t, code, "*transformErr = err")
 				require.NotContains(t, code, "panic(", "To proto conversion should not panic on values unsupported by structpb")
 			} else {
-				require.Contains(t, code, "func() any", "From proto conversion should generate any type conversion function")
+				require.Contains(t, code, "func() loom.JSONValue", "From proto conversion should generate JSON value conversion function")
+				require.Contains(t, code, "loomgrpc.NewJSONValue(source)")
+				require.Contains(t, code, "*transformErr = err")
 			}
 
 			// Check the assignment operator used based on newVar parameter
@@ -256,17 +258,16 @@ func TestProtoBufTransformAnyObjectPreservesPresence(t *testing.T) {
 
 	toProto, _, err := protoBufTransform(object, object, "source", "target", svcCtx, pbCtx, true, true)
 	require.NoError(t, err)
-	require.Contains(t, toProto, "source.Data.IsNull()")
-	require.Contains(t, toProto, "source.Data.Value()")
-	require.Contains(t, toProto, "structpb.NewNullValue()")
-	require.Contains(t, toProto, "loomgrpc.NewProtoValue(actual)")
-	require.NotContains(t, toProto, "loomgrpc.NewProtoValue(source.Data)")
+	require.Contains(t, toProto, "source.Data != nil")
+	require.Contains(t, toProto, "loomgrpc.NewProtoValue(source.Data)")
+	require.NotContains(t, toProto, "source.Data.IsNull()")
 
 	fromProto, _, err := protoBufTransform(object, object, "source", "target", pbCtx, svcCtx, false, true)
 	require.NoError(t, err)
-	require.Contains(t, fromProto, "source.Data.GetKind().(*structpb.Value_NullValue)")
-	require.Contains(t, fromProto, "target.Data.SetNull()")
-	require.Contains(t, fromProto, "target.Data.SetValue(source.Data.AsInterface())")
+	require.Contains(t, fromProto, "source.Data != nil")
+	require.Contains(t, fromProto, "target.Data =")
+	require.Contains(t, fromProto, "loomgrpc.NewJSONValue(source.Data)")
+	require.NotContains(t, fromProto, "target.Data.SetNull()")
 }
 
 func TestProtoBufTransformNamedAnyObjectPreservesPresence(t *testing.T) {
@@ -284,14 +285,35 @@ func TestProtoBufTransformNamedAnyObjectPreservesPresence(t *testing.T) {
 
 	toProto, _, err := protoBufTransform(object, object, "source", "target", svcCtx, pbCtx, true, true)
 	require.NoError(t, err)
+	require.Contains(t, toProto, "source.Data != nil")
+	require.Contains(t, toProto, "loomgrpc.NewProtoValue(source.Data)")
+
+	fromProto, _, err := protoBufTransform(object, object, "source", "target", pbCtx, svcCtx, false, true)
+	require.NoError(t, err)
+	require.Contains(t, fromProto, "target.Data =")
+	require.Contains(t, fromProto, "loomgrpc.NewJSONValue(source.Data)")
+}
+
+func TestProtoBufTransformNullableAnyObjectPreservesPresence(t *testing.T) {
+	object := &expr.AttributeExpr{
+		Type: &expr.Object{{Name: "data", Attribute: &expr.AttributeExpr{Type: expr.Any, Nullable: true}}},
+	}
+	scope := codegen.NewNameScope()
+	svcCtx := codegen.NewAttributeContext(false, false, true, "", scope)
+	pbCtx := protoBufTypeContext("", scope, false)
+
+	toProto, _, err := protoBufTransform(object, object, "source", "target", svcCtx, pbCtx, true, true)
+	require.NoError(t, err)
 	require.Contains(t, toProto, "source.Data.IsNull()")
 	require.Contains(t, toProto, "source.Data.Value()")
+	require.Contains(t, toProto, "structpb.NewNullValue()")
 	require.Contains(t, toProto, "loomgrpc.NewProtoValue(actual)")
 
 	fromProto, _, err := protoBufTransform(object, object, "source", "target", pbCtx, svcCtx, false, true)
 	require.NoError(t, err)
 	require.Contains(t, fromProto, "target.Data.SetNull()")
-	require.Contains(t, fromProto, "target.Data.SetValue(Anything(source.Data.AsInterface()))")
+	require.Contains(t, fromProto, "target.Data.SetValue(")
+	require.Contains(t, fromProto, "loomgrpc.NewJSONValue(source.Data)")
 }
 
 func TestProtoBufTransformSeams(t *testing.T) {

@@ -13,7 +13,11 @@ import (
 func typeDeclSection(name string, data *TypeData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		addHTTPDocOrBlank(stmt, data.Description)
-		stmt.Type().Id(data.VarName).Add(codegen.Expr(data.Def))
+		decl := stmt.Type().Id(data.VarName)
+		if data.Def == "loom.JSONValue" {
+			decl.Op("=")
+		}
+		decl.Add(codegen.Expr(data.Def))
 		if data.FlatFormUnionField == "" {
 			stmt.Line()
 			return
@@ -96,7 +100,11 @@ func addHTTPUnionAliasTypes(stmt *jen.Statement, data *servicecodegen.UnionTypeD
 		if !field.EmitPrimitiveAlias {
 			continue
 		}
-		stmt.Type().Id(field.FieldType).Add(codegen.Expr(field.PrimitiveAliasType))
+		decl := stmt.Type().Id(field.FieldType)
+		if field.PrimitiveAliasType == "loom.JSONValue" {
+			decl.Op("=")
+		}
+		decl.Add(codegen.Expr(field.PrimitiveAliasType))
 		stmt.Line()
 	}
 }

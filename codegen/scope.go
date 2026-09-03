@@ -176,7 +176,7 @@ func (s *NameScope) goValueTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, 
 		return "[]" + s.collectionElemTypeDef(actual.ElemType, ptr, useDefault, pkg, targetPkg)
 	case *expr.Map:
 		return fmt.Sprintf("map[%s]%s",
-			s.collectionElemTypeDef(actual.KeyType, ptr, useDefault, pkg, targetPkg),
+			s.mapKeyTypeDef(actual.KeyType, ptr, useDefault, pkg, targetPkg),
 			s.collectionElemTypeDef(actual.ElemType, ptr, useDefault, pkg, targetPkg),
 		)
 	case *expr.Union:
@@ -196,7 +196,19 @@ func primitiveTypeDef(att *expr.AttributeExpr, actual expr.Primitive) string {
 	if t, _ := GetMetaType(att); t != "" {
 		return t
 	}
+	if actual.Kind() == expr.AnyKind {
+		return "loom.JSONValue"
+	}
 	return GoNativeTypeName(actual)
+}
+
+func (s *NameScope) mapKeyTypeDef(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
+	if expr.IsAny(att.Type) {
+		if metaType, _ := GetMetaType(att); metaType == "" {
+			return "any"
+		}
+	}
+	return s.collectionElemTypeDef(att, ptr, useDefault, pkg, targetPkg)
 }
 
 func (s *NameScope) collectionElemTypeDef(att *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
@@ -220,13 +232,13 @@ func (s *NameScope) objectTypeDefWithPkgOverride(att *expr.AttributeExpr, actual
 func (s *NameScope) objectFieldTypeDef(parent *expr.AttributeExpr, name string, at *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
 	fn := GoifyAtt(at, name, true)
 	tdef := s.goTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg)
-	if expr.AllowsNull(at) && !expr.IsNullable(at) {
+	if expr.AllowsNull(at) && !expr.IsNullable(at) && !expr.IsAny(at.Type) {
 		tdef = "loom.Nullable[" + s.goValueTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg) + "]"
 	}
 	if !IsExplicitPresenceType(at) && (expr.IsObject(at.Type) ||
 		(expr.IsUnion(at.Type) && !parent.IsRequired(name)) ||
 		parent.IsPrimitivePointer(name, useDefault) ||
-		(ptr && expr.IsPrimitive(at.Type) && at.Type.Kind() != expr.AnyKind && at.Type.Kind() != expr.BytesKind)) {
+		(ptr && expr.IsPrimitive(at.Type) && !expr.IsAny(at.Type) && at.Type.Kind() != expr.BytesKind)) {
 		tdef = "*" + tdef
 	}
 	desc := ""
@@ -361,12 +373,12 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string) str
 		if t, _ := GetMetaType(att); t != "" {
 			return t
 		}
-		return GoNativeTypeName(actual)
+		return primitiveTypeDef(att, actual)
 	case *expr.Array:
 		return "[]" + s.GoFullTypeRef(actual.ElemType, pkgWithDefault(actual.ElemType.Type, pkg))
 	case *expr.Map:
 		return fmt.Sprintf("map[%s]%s",
-			s.GoFullTypeRef(actual.KeyType, pkgWithDefault(actual.KeyType.Type, pkg)),
+			s.goFullMapKeyTypeName(actual.KeyType, pkgWithDefault(actual.KeyType.Type, pkg)),
 			s.GoFullTypeRef(actual.ElemType, pkgWithDefault(actual.ElemType.Type, pkg)))
 	case *expr.Object:
 		return s.GoTypeDef(att, false, false)
@@ -402,6 +414,15 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string) str
 	default:
 		panic(NewError(nil, att, fmt.Errorf("unknown collection element data type %T", actual)))
 	}
+}
+
+func (s *NameScope) goFullMapKeyTypeName(att *expr.AttributeExpr, pkg string) string {
+	if expr.IsAny(att.Type) {
+		if metaType, _ := GetMetaType(att); metaType == "" {
+			return "any"
+		}
+	}
+	return s.GoFullTypeRef(att, pkg)
 }
 
 // IsExplicitPresenceType reports whether att uses explicit presence semantics

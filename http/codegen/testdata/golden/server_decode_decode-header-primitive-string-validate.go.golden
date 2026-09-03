@@ -12,6 +12,7 @@ func DecodeMethodHeaderPrimitiveStringValidateRequest(mux loomhttp.Muxer, _ func
 		if h == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
 		}
+
 		if !(h == "val") {
 			err = loom.MergeErrors(err, loom.InvalidEnumValueError("h", h, []any{"val"}))
 		}

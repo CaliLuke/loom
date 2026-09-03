@@ -242,7 +242,7 @@ func mapDepth(dt expr.DataType, depth int, seen ...map[string]struct{}) int {
 // IsPrimitivePointer returns true if the attribute with the given name is a
 // primitive pointer in the given parent attribute.
 func (a *AttributeContext) IsPrimitivePointer(name string, att *expr.AttributeExpr) bool {
-	if at := att.Find(name); at != nil && (at.Type == expr.Any || at.Type == expr.Bytes) {
+	if at := att.Find(name); at != nil && (expr.IsAny(at.Type) || at.Type == expr.Bytes) {
 		return false
 	}
 	if a.Pointer {
@@ -254,6 +254,9 @@ func (a *AttributeContext) IsPrimitivePointer(name string, att *expr.AttributeEx
 // FieldPresence returns the physical presence representation for an object
 // field in this context.
 func (a *AttributeContext) FieldPresence(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr) PresenceKind {
+	if isAnyPresenceAttribute(attribute) && !expr.IsNullable(attribute) {
+		return NativePresence
+	}
 	if expr.AllowsNull(attribute) {
 		return NullablePresence
 	}

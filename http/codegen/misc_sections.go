@@ -319,6 +319,8 @@ func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat
 			b.Add(", ")
 			if typ.Name() == "array" {
 				b.Add("strings.Join(" + arg.VarName + "Slice, \",\")")
+			} else if expr.IsAny(typ) {
+				b.Add("loom.JSONValueString(" + arg.VarName + ")")
 			} else {
 				b.Add(arg.VarName)
 			}
@@ -364,6 +366,8 @@ func renderQuerySliceConversion(dt expr.DataType) string {
 		return "strconv.FormatBool(v)"
 	case "bytes":
 		return "url.QueryEscape(string(v))"
+	case "any":
+		return "url.QueryEscape(loom.JSONValueString(v))"
 	default:
 		return "url.QueryEscape(" + renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), jen.Id("v"))) + ")"
 	}

@@ -112,8 +112,8 @@ The following constructs are conditional:
   Generated decoding validates exact JSON member names, presence, nullability,
   closed-object membership, and nested Loom value constraints for every branch,
   then accepts exactly one match.
-- `additionalProperties: true` maps to `map[string]any` only when the object
-  has no declared properties.
+- `additionalProperties: true` maps to
+  `map[string]loom.JSONValue` only when the object has no declared properties.
 - A form request whose object has only schema-valued `additionalProperties`
   maps to a typed root map. A body-only optional form also emits
   `OptionalRequestBody()`.
@@ -122,7 +122,7 @@ The following constructs are conditional:
   the documented raw-body contract instead of inventing codec policy.
 - A form schema containing an unconstrained value, including a free-form
   `additionalProperties: true` map, stays raw because typed form decoding
-  cannot reconstruct interface-valued data.
+  cannot reconstruct JSON-valued data.
 - An optional form object with required members also stays raw so an absent
   body does not spuriously fail nested required-field validation.
 

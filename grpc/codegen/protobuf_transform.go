@@ -65,7 +65,7 @@ func protoBufTransform(source, target *expr.AttributeExpr, sourceVar, targetVar 
 		SourceCtx: sourceCtx,
 		TargetCtx: targetCtx,
 	}}
-	ta.errorAware = proto && containsAny(source)
+	ta.errorAware = containsAny(source) || containsAny(target)
 	if proto {
 		target = expr.DupAtt(target)
 		removeMeta(target)
@@ -271,16 +271,20 @@ func transformAnyPresenceObjectField(srcField, tgtField string, source, target *
 		return "", false
 	}
 	if ta.proto {
-		converted := convertPrimitiveToProto(sourceBase, targetBase, false, false, "actual", ta)
-		return "if " + srcField + ".IsNull() {\n\t" + tgtField + " = structpb.NewNullValue()\n" +
-			"} else if actual, ok := " + srcField + ".Value(); ok {\n\t" + tgtField + " = " + converted + "\n}\n", true
+		if expr.IsNullable(source) {
+			converted := convertPrimitiveToProto(sourceBase, targetBase, false, false, "actual", ta)
+			return "if " + srcField + ".IsNull() {\n\t" + tgtField + " = structpb.NewNullValue()\n" +
+				"} else if actual, ok := " + srcField + ".Value(); ok {\n\t" + tgtField + " = " + converted + "\n}\n", true
+		}
+		converted := convertPrimitiveToProto(sourceBase, targetBase, false, false, srcField, ta)
+		return "if " + srcField + " != nil {\n\t" + tgtField + " = " + converted + "\n}\n", true
 	}
-	converted := srcField + ".AsInterface()"
-	if target.Type.Kind() != expr.AnyKind {
-		converted = ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)) + "(" + converted + ")"
+	converted := convertPrimitiveFromProto(sourceBase, targetBase, false, false, srcField, ta)
+	if expr.IsNullable(target) {
+		return "if " + srcField + " != nil {\n\tif _, isNull := " + srcField + ".GetKind().(*structpb.Value_NullValue); isNull {\n\t\t" +
+			tgtField + ".SetNull()\n\t} else {\n\t\t" + tgtField + ".SetValue(" + converted + ")\n\t}\n}\n", true
 	}
-	return "if " + srcField + " != nil {\n\tif _, isNull := " + srcField + ".GetKind().(*structpb.Value_NullValue); isNull {\n\t\t" +
-		tgtField + ".SetNull()\n\t} else {\n\t\t" + tgtField + ".SetValue(" + converted + ")\n\t}\n}\n", true
+	return "if " + srcField + " != nil {\n\t" + tgtField + " = " + converted + "\n}\n", true
 }
 
 func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {

@@ -8,7 +8,7 @@ func EncodeMethodHeaderAnyResponse(encoder func(context.Context, http.ResponseWr
 		}
 		if res.H != nil {
 			val := res.H
-			hs := fmt.Sprintf("%v", val)
+			hs := loom.JSONValueString(val)
 			w.Header().Set("H", hs)
 		}
 		w.WriteHeader(http.StatusOK)

@@ -29,19 +29,20 @@ type StreamingPayloadNoPayloadMethodServerStream interface {
 	// SendAndCloseWithContext streams instances of "string" and closes the stream
 	// with context.
 	SendAndCloseWithContext(context.Context, string) error
-	// Recv reads instances of "any" from the stream.
-	Recv() (any, error)
-	// RecvWithContext reads instances of "any" from the stream with context.
-	RecvWithContext(context.Context) (any, error)
+	// Recv reads instances of "loom.JSONValue" from the stream.
+	Recv() (loom.JSONValue, error)
+	// RecvWithContext reads instances of "loom.JSONValue" from the stream with
+	// context.
+	RecvWithContext(context.Context) (loom.JSONValue, error)
 }
 
 // StreamingPayloadNoPayloadMethodClientStream allows streaming instances of
-// any to the client.
+// loom.JSONValue to the client.
 type StreamingPayloadNoPayloadMethodClientStream interface {
-	// Send streams instances of "any".
-	Send(any) error
-	// SendWithContext streams instances of "any" with context.
-	SendWithContext(context.Context, any) error
+	// Send streams instances of "loom.JSONValue".
+	Send(loom.JSONValue) error
+	// SendWithContext streams instances of "loom.JSONValue" with context.
+	SendWithContext(context.Context, loom.JSONValue) error
 	// CloseAndRecv stops sending messages to the stream and reads instances of
 	// "string" from the stream.
 	CloseAndRecv() (string, error)

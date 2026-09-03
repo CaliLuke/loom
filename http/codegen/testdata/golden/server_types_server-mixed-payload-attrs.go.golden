@@ -1,11 +1,11 @@
 // MethodARequestBody is the type of the "ServiceMixedPayloadInBody" service
 // "MethodA" endpoint HTTP request body.
 type MethodARequestBody struct {
-	Any    loom.Nullable[any]                 `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"`
-	Array  []loom.Nullable[float32]           `form:"array,omitempty" json:"array,omitempty" xml:"array,omitempty"`
-	Map    loom.Optional[map[uint]any]        `form:"map,omitempty" json:"map,omitzero" xml:"map,omitempty"`
-	Object *BPayloadRequestBody               `form:"object,omitempty" json:"object,omitempty" xml:"object,omitempty"`
-	DupObj loom.Optional[BPayloadRequestBody] `form:"dup_obj,omitempty" json:"dup_obj,omitzero" xml:"dup_obj,omitempty"`
+	Any    loom.JSONValue                         `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"`
+	Array  []loom.Nullable[float32]               `form:"array,omitempty" json:"array,omitempty" xml:"array,omitempty"`
+	Map    loom.Optional[map[uint]loom.JSONValue] `form:"map,omitempty" json:"map,omitzero" xml:"map,omitempty"`
+	Object *BPayloadRequestBody                   `form:"object,omitempty" json:"object,omitempty" xml:"object,omitempty"`
+	DupObj loom.Optional[BPayloadRequestBody]     `form:"dup_obj,omitempty" json:"dup_obj,omitzero" xml:"dup_obj,omitempty"`
 }
 
 // BPayloadRequestBody is used to define fields on request body types.
@@ -17,8 +17,9 @@ type BPayloadRequestBody struct {
 // NewMethodAAPayload builds a ServiceMixedPayloadInBody service MethodA
 // endpoint payload.
 func NewMethodAAPayload(body *MethodARequestBody) *servicemixedpayloadinbody.APayload {
-	v := &servicemixedpayloadinbody.APayload{}
-	v.Any = body.Any
+	v := &servicemixedpayloadinbody.APayload{
+		Any: body.Any,
+	}
 	v.Array = make([]float32, len(body.Array))
 	for i, val := range body.Array {
 		actual, ok := val.Value()
@@ -28,7 +29,7 @@ func NewMethodAAPayload(body *MethodARequestBody) *servicemixedpayloadinbody.APa
 		v.Array[i] = actual
 	}
 	if actual, ok := body.Map.Value(); ok {
-		vMapValue := make(map[uint]any, len(actual))
+		vMapValue := make(map[uint]loom.JSONValue, len(actual))
 		for key, val := range actual {
 			tk := key
 			tv := val

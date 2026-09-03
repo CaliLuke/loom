@@ -179,21 +179,47 @@ A scalar JSON Schema `const` without a sibling `enum` imports as an equivalent
 one-member enum. Regenerated OpenAPI emits `enum`. Structured constants and
 schemas that combine `const` with `enum` remain strict import errors.
 
-An unconstrained schema `{}` imports as Loom `Any`. This applies to component
-schemas, object properties, array items, request bodies, and responses. The
-regenerated OpenAPI preserves `{}`, including named component identity, and the
-generated HTTP code accepts every JSON value: scalar, object, array, boolean,
-or null. Generated payload and object fields for `{}` use `loom.Nullable[any]`
-to distinguish an absent field from an explicit JSON `null`; use its presence
-methods as described above. Direct named results retain their imported result
-type and may return `nil`. A schema that omits `type` but declares constraints
-is not treated as unconstrained and remains a strict import error.
+An unconstrained schema `{}` imports as Loom `Any`. This rule applies to
+components, object properties, array items, request bodies, and responses. The
+generated OpenAPI preserves `{}`, including a named component identity.
+Generated Go uses `loom.JSONValue` for a direct `Any`,
+`map[string]loom.JSONValue` for `MapOf(String, Any)`. An explicitly nullable
+field uses `loom.Nullable[loom.JSONValue]` to preserve absence separately from
+JSON `null`.
+`loom.JSONValue` is an alias for `jsontext.Value`. It keeps the source
+bytes and does not convert JSON numbers to `float64`.
+
+Decode a stored JSON document directly into the generated result type. This
+operation forwards each `Any` value without a response-writer interceptor:
+
+```go
+var result widgets.ShowResult
+if err := json.Unmarshal(stored, &result); err != nil {
+    return nil, err
+}
+return &result, nil
+```
+
+To construct a direct generated field from raw JSON, convert one complete,
+valid JSON value to `loom.JSONValue`:
+
+```go
+result.ViewProps = loom.JSONValue(rawValue)
+```
+
+Use `loom.JSONValueFromString(value)` to encode a Go string as a JSON
+string. Use `loom.JSONValueFrom(value)` to encode another Go value. If the
+design explicitly declares the field nullable, wrap the JSON value with
+`loom.NullableValue(...)`.
+
+A schema that has constraints but no `type` remains a strict import error.
 The equivalent `anyOf: [{}, {type: "null"}]` form normalizes to `Any` because
 the empty schema already accepts null.
 
 A free-form object with `type: object` and `additionalProperties: true` imports
-as `MapOf(String, Any)`. Generated Go uses `map[string]any`. Regenerated
-OpenAPI preserves the object type and `additionalProperties: true`.
+as `MapOf(String, Any)`. Generated Go uses
+`map[string]loom.JSONValue`. Regenerated OpenAPI preserves the object type and
+`additionalProperties: true`.
 
 A form body with only schema-valued `additionalProperties` imports as a typed
 map. Body-only methods keep the map as the service payload; optional bodies add
@@ -204,7 +230,7 @@ the map in a collision-free attribute, and selects it with `Body(...)` plus
 the same map stays a raw request stream so the service owns content negotiation.
 Optional multipart maps use the same raw contract.
 Form schemas that contain unconstrained values also stay raw because typed form
-decoding cannot reconstruct interface-valued fields or map entries.
+decoding cannot reconstruct JSON-valued fields or map entries.
 An optional form object with required members also remains raw; this preserves
 the distinction between an absent body and a present body that must satisfy its
 required fields.

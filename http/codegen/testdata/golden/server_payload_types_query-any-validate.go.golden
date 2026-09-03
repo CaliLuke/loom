@@ -1,6 +1,6 @@
 // NewMethodQueryAnyValidatePayload builds a ServiceQueryAnyValidate service
 // MethodQueryAnyValidate endpoint payload.
-func NewMethodQueryAnyValidatePayload(q any) *servicequeryanyvalidate.MethodQueryAnyValidatePayload {
+func NewMethodQueryAnyValidatePayload(q loom.JSONValue) *servicequeryanyvalidate.MethodQueryAnyValidatePayload {
 	v := &servicequeryanyvalidate.MethodQueryAnyValidatePayload{}
 	v.Q = q
 

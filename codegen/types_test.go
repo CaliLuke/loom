@@ -103,7 +103,7 @@ func TestGoTypeDef(t *testing.T) {
 		"Float64Kind": {&expr.AttributeExpr{Type: expr.Float64}, false, true, "float64"},
 		"StringKind":  {&expr.AttributeExpr{Type: expr.String}, false, true, "string"},
 		"BytesKind":   {&expr.AttributeExpr{Type: expr.Bytes}, false, true, "[]byte"},
-		"AnyKind":     {&expr.AttributeExpr{Type: expr.Any}, false, true, "any"},
+		"AnyKind":     {&expr.AttributeExpr{Type: expr.Any}, false, true, "loom.JSONValue"},
 
 		"Array":               {simpleArray, false, true, "[]bool"},
 		"Map":                 {simpleMap, false, true, "map[int]string"},
@@ -125,7 +125,7 @@ func TestGoTypeDef(t *testing.T) {
 				{Name: "anything", Attribute: &expr.AttributeExpr{Type: expr.Any}},
 			},
 			Validation: &expr.ValidationExpr{Required: []string{"required"}},
-		}, false, true, "struct {\n\tRequired loom.Nullable[string] `json:\"required\"`\n\tOptional loom.Nullable[[]int] `json:\"optional,omitzero\"`\n\tAnything loom.Nullable[any] `json:\"anything,omitzero\"`\n}"},
+		}, false, true, "struct {\n\tRequired loom.Nullable[string] `json:\"required\"`\n\tOptional loom.Nullable[[]int] `json:\"optional,omitzero\"`\n\tAnything loom.JSONValue `json:\"anything,omitzero\"`\n}"},
 		"ObjMixed":                               {mixedObj, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField UserType `json:\"UserTypeField\"`\n\tMetaTypeField jsontext.Value `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField jtext.Value `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *types.UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
 		"ObjMixedPointer":                        {mixedObj, true, true, "struct {\n\tIntField *int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField *UserType `json:\"UserTypeField\"`\n\tMetaTypeField *jsontext.Value `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField *jtext.Value `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *types.UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},
 		"ObjMixedWithStructPkgPath":              {mixedObjWithStructPkgPath, false, true, "struct {\n\tIntField int `json:\"IntField\"`\n\tArrayField []bool `json:\"ArrayField\"`\n\tMapField map[int]string `json:\"MapField\"`\n\tUserTypeField UserType `json:\"UserTypeField\"`\n\tMetaTypeField jsontext.Value `json:\"MetaTypeField\"`\n\tQualifiedMetaTypeField jtext.Value `json:\"QualifiedMetaTypeField\"`\n\tStructPkgPath *UserType `json:\"StructPkgPath,omitempty\"`\n\tNestedStructPkgPath *pkg.NestedUserType `json:\"NestedStructPkgPath,omitempty\"`\n}"},

@@ -145,7 +145,7 @@ func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targe
 	if sourceNullable || targetNullable {
 		if sourceNullable != targetNullable {
 			if isAnyPresenceAttribute(source) && isAnyPresenceAttribute(target) {
-				return transformRawAnyPresence(source, target, sourceVar, targetVar, newVar, ta)
+				return transformRawAnyPresence(source, target, sourceVar, targetVar, newVar, targetNullable, ta)
 			}
 			return nil, fmt.Errorf("cannot transform nullable attribute to a non-nullable representation")
 		}
@@ -273,6 +273,10 @@ func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 }
 
 func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, sourceVar, targetVar, name string, ta *TransformAttrs) (*jen.Statement, *jen.Statement) {
+	if isAnyPresenceAttribute(srcc) && isAnyPresenceAttribute(tgtc) &&
+		ta.SourceCtx.FieldPresence(srcMatt, name, srcc) != ta.TargetCtx.FieldPresence(tgtMatt, name, tgtc) {
+		return nil, nil
+	}
 	srcPtr := ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr)
 	tgtPtr := ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr)
 	srcField := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)
@@ -420,20 +424,22 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 		return nil
 	}
 
+	defaultLiteral := defaultValueLiteral(tgtc, tdef, ta)
+
 	switch {
 	case ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type):
 		stmt := &jen.Statement{}
 		stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
 			switch {
 			case ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type):
-				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + formatAttributeGoLiteral(tgtc, tdef)))
+				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + defaultLiteral))
 				group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
 			case expr.IsArray(tgtc.Type):
 				group.Add(transformObjectArrayDefaultValueCode(tgtc, tgtVar, tdef, ta))
 			case expr.IsMap(tgtc.Type):
 				group.Add(transformObjectMapDefaultValueCode(tgtc, tgtVar, tdef, ta))
 			default:
-				group.Add(Expr(tgtVar)).Op("=").Add(Expr(formatAttributeGoLiteral(tgtc, tdef)))
+				group.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
 			}
 		})
 		return stmt
@@ -441,26 +447,28 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 		stmt := &jen.Statement{}
 		stmt.BlockFunc(func(group *jen.Group) {
 			zeroType := ""
-			nilable := false
-			if typeName, _ := GetMetaType(tgtc); typeName != "" {
-				nilable = typeStringIsNilable(typeName)
-				if !nilable {
-					zeroType = typeName
+			nilable := expr.IsAny(tgtc.Type)
+			if !nilable {
+				if typeName, _ := GetMetaType(tgtc); typeName != "" {
+					nilable = typeStringIsNilable(typeName)
+					if !nilable {
+						zeroType = typeName
+					}
+				} else if _, ok := tgtc.Type.(expr.UserType); ok {
+					zeroType = ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc))
+				} else {
+					zeroType = GoNativeTypeName(tgtc.Type)
 				}
-			} else if _, ok := tgtc.Type.(expr.UserType); ok {
-				zeroType = ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc))
-			} else {
-				zeroType = GoNativeTypeName(tgtc.Type)
 			}
 			if zeroType != "" {
 				group.Var().Id("zero").Id(zeroType)
 			}
 			condition := tgtVar + " == zero"
-			if typeName, _ := GetMetaType(tgtc); typeName != "" && typeStringIsNilable(typeName) {
+			if nilable {
 				condition = tgtVar + " == nil"
 			}
 			group.If(Expr(condition)).BlockFunc(func(ifGroup *jen.Group) {
-				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(formatAttributeGoLiteral(tgtc, tdef)))
+				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
 			})
 		})
 		return stmt
@@ -472,6 +480,10 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar string, tdef any, ta *TransformAttrs) *jen.Statement {
 	arr := expr.AsArray(tgtc.Type)
 	stmt := &jen.Statement{}
+	if containsRawJSONValue(tgtc) {
+		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultValueLiteral(tgtc, tdef, ta)))
+		return stmt
+	}
 	if !expr.IsAlias(arr.ElemType.Type) {
 		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
 		return stmt

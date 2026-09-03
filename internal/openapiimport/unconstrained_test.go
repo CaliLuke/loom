@@ -269,6 +269,7 @@ func runUnconstrainedRuntimeTests(t *testing.T, moduleDir string) {
 	t.Helper()
 	serviceSource, err := os.ReadFile(filepath.Join(moduleDir, "gen", "echo", "service.go"))
 	require.NoError(t, err)
+	require.Contains(t, string(serviceSource), "type Anything = loom.JSONValue")
 	require.NoError(t, os.WriteFile(
 		filepath.Join(moduleDir, "unconstrained_test.go"),
 		[]byte(unconstrainedRuntimeTest),
@@ -291,6 +292,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	loom "github.com/CaliLuke/loom/pkg"
 
 	echo "example.com/imported/gen/echo"
 	echoserver "example.com/imported/gen/http/echo/server"
@@ -299,7 +301,7 @@ import (
 
 type echoService struct{}
 
-func (echoService) Echo(_ context.Context, payload *echo.EchoPayload) (any, error) {
+func (echoService) Echo(_ context.Context, payload *echo.EchoPayload) (loom.JSONValue, error) {
 	return payload.Body, nil
 }
 
@@ -308,14 +310,14 @@ func (echoService) EchoContainer(_ context.Context, payload *echo.EchoContainerP
 }
 
 func (echoService) Direct(_ context.Context, payload *echo.DirectPayload) (echo.Anything, error) {
-	return echo.Anything(payload.Body), nil
+	return payload.Body, nil
 }
 
 func (echoService) Failure(context.Context) (string, error) {
 	return "ok", nil
 }
 
-func (echoService) NilResult(context.Context) (any, error) {
+func (echoService) NilResult(context.Context) (loom.JSONValue, error) {
 	return nil, nil
 }
 
@@ -333,6 +335,9 @@ func TestUnconstrainedJSONValuesRoundTrip(t *testing.T) {
 	}{
 		{name: "string", json: ` + "`\"value\"`" + `},
 		{name: "number", json: "42.5"},
+		{name: "large positive integer", json: "9007199254740993"},
+		{name: "large negative integer", json: "-9007199254740993"},
+		{name: "precise decimal", json: "1.234567890123456789"},
 		{name: "object", json: ` + "`{\"key\":\"value\"}`" + `},
 		{name: "array", json: ` + "`[1,\"two\",false,null]`" + `},
 		{name: "boolean", json: "true"},
@@ -354,10 +359,12 @@ func TestUnconstrainedJSONValuesRoundTrip(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, response.Body.Close())
 			require.Equal(t, http.StatusOK, response.StatusCode, string(body))
-			require.JSONEq(t, test.json, string(body))
+			require.Equal(t, test.json+"\n", string(body))
 		})
 	}
 }
+const containerValue = "{\"component\":null,\"value\":9007199254740993,\"values\":[-9007199254740993,1.234567890123456789,null,{\"nested\":true}]}"
+
 
 func TestRequiredUnconstrainedPropertyAcceptsNull(t *testing.T) {
 	endpoints := echo.NewEndpoints(echoService{})
@@ -371,7 +378,7 @@ func TestRequiredUnconstrainedPropertyAcceptsNull(t *testing.T) {
 		t.Context(),
 		http.MethodPost,
 		httpServer.URL+"/container",
-		bytes.NewBufferString(` + "`{\"component\":null,\"value\":null,\"values\":[null,{\"nested\":true}]}`" + `),
+		bytes.NewBufferString(containerValue),
 	)
 	require.NoError(t, err)
 	request.Header.Set("Content-Type", "application/json")
@@ -381,10 +388,10 @@ func TestRequiredUnconstrainedPropertyAcceptsNull(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, string(body))
-	require.JSONEq(t, ` + "`{\"component\":null,\"value\":null,\"values\":[null,{\"nested\":true}]}`" + `, string(body))
+	require.Equal(t, containerValue+"\n", string(body))
 }
 
-func TestNamedUnconstrainedComponentAcceptsNull(t *testing.T) {
+func TestNamedUnconstrainedComponentPreservesValues(t *testing.T) {
 	endpoints := echo.NewEndpoints(echoService{})
 	mux := loomhttp.NewMuxer()
 	server := echoserver.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil)
@@ -392,21 +399,23 @@ func TestNamedUnconstrainedComponentAcceptsNull(t *testing.T) {
 	httpServer := httptest.NewServer(mux)
 	t.Cleanup(httpServer.Close)
 
-	request, err := http.NewRequestWithContext(
-		t.Context(),
-		http.MethodPost,
-		httpServer.URL+"/direct",
-		bytes.NewBufferString("null"),
-	)
-	require.NoError(t, err)
-	request.Header.Set("Content-Type", "application/json")
-	response, err := httpServer.Client().Do(request)
-	require.NoError(t, err)
-	body, err := io.ReadAll(response.Body)
-	require.NoError(t, err)
-	require.NoError(t, response.Body.Close())
-	require.Equal(t, http.StatusOK, response.StatusCode, string(body))
-	require.JSONEq(t, "null", string(body))
+	for _, value := range []string{"null", "9007199254740993", "-9007199254740993", "1.234567890123456789"} {
+		request, err := http.NewRequestWithContext(
+			t.Context(),
+			http.MethodPost,
+			httpServer.URL+"/direct",
+			bytes.NewBufferString(value),
+		)
+		require.NoError(t, err)
+		request.Header.Set("Content-Type", "application/json")
+		response, err := httpServer.Client().Do(request)
+		require.NoError(t, err)
+		body, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		require.NoError(t, response.Body.Close())
+		require.Equal(t, http.StatusOK, response.StatusCode, string(body))
+		require.Equal(t, value+"\n", string(body))
+	}
 }
 
 func TestNilUnconstrainedResultEncodesNull(t *testing.T) {

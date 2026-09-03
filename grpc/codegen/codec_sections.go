@@ -88,7 +88,12 @@ func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 	fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Response.ClientConvert.SrcRef)
 	b.Add("\t}\n")
 	addGRPCClientResponseValidation(&b, endpoint)
-	fmt.Fprintf(&b, "\tres := %s(%s)\n", endpoint.Response.ClientConvert.Init.Name, renderInitArgList(endpoint.Response.ClientConvert.Init.Args))
+	if endpoint.Response.ClientConvert.Init.ErrorAware {
+		fmt.Fprintf(&b, "\tres, err := %s(%s)\n", endpoint.Response.ClientConvert.Init.Name, renderInitArgList(endpoint.Response.ClientConvert.Init.Args))
+		b.Add("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+	} else {
+		fmt.Fprintf(&b, "\tres := %s(%s)\n", endpoint.Response.ClientConvert.Init.Name, renderInitArgList(endpoint.Response.ClientConvert.Init.Args))
+	}
 	if endpoint.ViewedResultRef != "" {
 		addGRPCViewedResponseReturn(&b, endpoint)
 	} else {
@@ -257,7 +262,13 @@ func addGRPCRequestMessageDecode(b *sourceBuilder, endpoint *EndpointData) {
 
 func addGRPCPayloadInit(b *sourceBuilder, endpoint *EndpointData) {
 	if endpoint.Request.ServerConvert != nil {
-		fmt.Fprintf(b, "\t\tpayload = %s(%s)\n", endpoint.Request.ServerConvert.Init.Name, renderInitArgList(endpoint.Request.ServerConvert.Init.Args))
+		if endpoint.Request.ServerConvert.Init.ErrorAware {
+			fmt.Fprintf(b, "\t\tconverted, err := %s(%s)\n", endpoint.Request.ServerConvert.Init.Name, renderInitArgList(endpoint.Request.ServerConvert.Init.Args))
+			b.Add("\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n")
+			b.Add("\t\tpayload = converted\n")
+		} else {
+			fmt.Fprintf(b, "\t\tpayload = %s(%s)\n", endpoint.Request.ServerConvert.Init.Name, renderInitArgList(endpoint.Request.ServerConvert.Init.Args))
+		}
 		return
 	}
 	if len(endpoint.Request.Metadata) > 0 {

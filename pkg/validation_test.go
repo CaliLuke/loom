@@ -207,3 +207,46 @@ func TestValidatePatternCompiled(t *testing.T) {
 		}
 	}
 }
+
+func TestJSONValueHelpers(t *testing.T) {
+	const precise = "9007199254740993"
+	value := JSONValueFromString(precise)
+	if got := string(value); got != `"9007199254740993"` {
+		t.Fatalf("JSONValueFromString() = %s", got)
+	}
+	if got := JSONValueString(value); got != precise {
+		t.Fatalf("JSONValueString() = %q", got)
+	}
+	encoded, err := JSONValueFrom(int64(9007199254740993))
+	if err != nil {
+		t.Fatalf("JSONValueFrom() error = %v", err)
+	}
+	if got := string(encoded); got != precise {
+		t.Fatalf("JSONValueFrom() = %s", got)
+	}
+	if _, err := JSONValueFrom(make(chan struct{})); err == nil {
+		t.Fatal("JSONValueFrom accepted an unsupported value")
+	}
+
+	if !JSONValueEqual(JSONValue(`true`), true) {
+		t.Fatal("JSONValueEqual rejected an equal boolean")
+	}
+	if !JSONValueEqual(JSONValue("1.0"), 1) {
+		t.Fatal("JSONValueEqual rejected equivalent number spellings")
+	}
+	if JSONValueEqual(JSONValue("9007199254740993"), int64(9007199254740992)) {
+		t.Fatal("JSONValueEqual rounded distinct large integers")
+	}
+	if JSONValueEqual(JSONValue("0.123456789012345678901"), 0.12345678901234568) {
+		t.Fatal("JSONValueEqual rounded a precise decimal")
+	}
+	if !JSONValueEqual(JSONValue("12345678901234567890.0"), JSONValue("12345678901234567890")) {
+		t.Fatal("JSONValueEqual rejected exact equivalent decimals")
+	}
+	if !JSONValueEqual(JSONValue("{ \"right\": 2, \"left\": 1 }"), map[string]int{"left": 1, "right": 2}) {
+		t.Fatal("JSONValueEqual rejected equivalent object formatting")
+	}
+	if JSONValueEqual(JSONValue(`"true"`), true) {
+		t.Fatal("JSONValueEqual accepted a JSON string as a boolean")
+	}
+}

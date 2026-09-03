@@ -7,7 +7,7 @@ func EncodeMethodQueryAnyValidateRequest(encoder func(*http.Request) loomhttp.En
 			return loomhttp.ErrInvalidType("ServiceQueryAnyValidate", "MethodQueryAnyValidate", "*servicequeryanyvalidate.MethodQueryAnyValidatePayload", v)
 		}
 		values := req.URL.Query()
-		values.Add("q", fmt.Sprintf("%v", p.Q))
+		values.Add("q", loom.JSONValueString(p.Q))
 		req.URL.RawQuery = values.Encode()
 		return nil
 	}

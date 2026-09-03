@@ -122,7 +122,7 @@ func writeGRPCClientEndpointTypedErrors(eg *jen.Group, endpoint *EndpointData) {
 }
 
 func grpcClientEndpointErrorCaseBody(errData *ErrorData) []jen.Code {
-	caseBody := make([]jen.Code, 0, 2)
+	caseBody := make([]jen.Code, 0, 4)
 	if errData.Response.ClientConvert.Validation != nil {
 		caseBody = append(caseBody,
 			jen.If(
@@ -133,15 +133,22 @@ func grpcClientEndpointErrorCaseBody(errData *ErrorData) []jen.Code {
 			),
 		)
 	}
-	caseBody = append(caseBody,
-		jen.Return(
-			jen.Nil(),
-			jen.Id(errData.Response.ClientConvert.Init.Name).Call(grpcClientEndpointInitArgs(errData)...),
-		),
-	)
+	init := errData.Response.ClientConvert.Init
+	if init.ErrorAware {
+		caseBody = append(caseBody,
+			jen.List(jen.Id("converted"), jen.Id("conversionErr")).Op(":=").Id(init.Name).Call(grpcClientEndpointInitArgs(errData)...),
+			jen.If(jen.Id("conversionErr").Op("!=").Nil()).Block(
+				jen.Return(jen.Nil(), jen.Id("conversionErr")),
+			),
+			jen.Return(jen.Nil(), jen.Id("converted")),
+		)
+	} else {
+		caseBody = append(caseBody,
+			jen.Return(jen.Nil(), jen.Id(init.Name).Call(grpcClientEndpointInitArgs(errData)...)),
+		)
+	}
 	return caseBody
 }
-
 func grpcClientEndpointInitArgs(errData *ErrorData) []jen.Code {
 	initArgs := make([]jen.Code, 0, len(errData.Response.ClientConvert.Init.Args))
 	for _, arg := range errData.Response.ClientConvert.Init.Args {

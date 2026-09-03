@@ -4,18 +4,19 @@ func DecodeMethodQueryAnyValidateRequest(mux loomhttp.Muxer, _ func(*http.Reques
 	return func(r *http.Request) (*servicequeryanyvalidate.MethodQueryAnyValidatePayload, error) {
 		var payload *servicequeryanyvalidate.MethodQueryAnyValidatePayload
 		var (
-			q   any
+			q   loom.JSONValue
 			err error
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
-		q = qp.Get("q")
-		if q == "" {
+		qRaw := qp.Get("q")
+		if qRaw == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 		}
-		if !(q == "val" || q == 1) {
+		q = loom.JSONValueFromString(qRaw)
+		if !(loom.JSONValueEqual(q, "val") || loom.JSONValueEqual(q, 1)) {
 			err = loom.MergeErrors(err, loom.InvalidEnumValueError("q", q, []any{"val", 1}))
 		}
 		if err != nil {

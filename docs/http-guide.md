@@ -217,11 +217,11 @@ attributes that are not mapped to path parameters, query parameters, headers,
 or cookies. HTTP endpoints can opt into other request body contracts when the
 wire format is part of the API design.
 
-Loom's JSON runtime and generated transports use Go 1.27's
-`encoding/json/v2`. Object member names match Go fields case-sensitively, and
-decoding rejects duplicate names and invalid UTF-8. Custom JSON integrations
-should use the same package. Use `encoding/json/jsontext.Value` for unparsed
-JSON values instead of the legacy raw-message representation.
+Loom and generated transports use Go 1.27's `encoding/json/v2`. Decoding is
+case-sensitive and rejects duplicate object names and invalid UTF-8. Generated
+`Any` fields use `loom.JSONValue`, which aliases `jsontext.Value`. This
+type retains unparsed JSON and preserves each number spelling. Use the same
+type for custom JSON integrations. Do not use the legacy raw-message type.
 
 ### Form Requests
 

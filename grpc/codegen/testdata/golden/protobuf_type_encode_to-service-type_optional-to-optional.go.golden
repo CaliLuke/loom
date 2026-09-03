@@ -13,11 +13,14 @@ func transform() {
 		target.Uint = &uint_
 	}
 	if source.Any != nil {
-		if _, isNull := source.Any.GetKind().(*structpb.Value_NullValue); isNull {
-			target.Any.SetNull()
-		} else {
-			target.Any.SetValue(source.Any.AsInterface())
-		}
+		target.Any = func() loom.JSONValue {
+			value, err := loomgrpc.NewJSONValue(source.Any)
+			if err != nil {
+				*transformErr = err
+				return nil
+			}
+			return value
+		}()
 	}
 	if source.Array != nil {
 		target.Array = make([]string, len(source.Array))
@@ -31,6 +34,6 @@ func transform() {
 		}
 	}
 	if source.UserType != nil {
-		target.UserType = protobufProtoOptionalToProtoOptional(source.UserType)
+		target.UserType = protobufProtoOptionalToProtoOptional(source.UserType, transformErr)
 	}
 }

@@ -102,7 +102,7 @@ func generatedRequiredValidationFrom(att *expr.AttributeExpr, validation *expr.V
 		}
 		if !attCtx.Pointer && expr.IsPrimitive(reqAtt.Type) &&
 			reqAtt.Type.Kind() != expr.BytesKind &&
-			reqAtt.Type.Kind() != expr.AnyKind {
+			!expr.IsAny(reqAtt.Type) {
 			continue
 		}
 		if attCtx.IgnoreRequired && expr.IsPrimitive(reqAtt.Type) {
@@ -128,6 +128,14 @@ func oneof(target string, vals []any) string {
 	elems := make([]string, len(vals))
 	for i, v := range vals {
 		elems[i] = target + " == " + validationGoLiteral(v)
+	}
+	return strings.Join(elems, " || ")
+}
+
+func jsonValueOneof(target string, vals []any) string {
+	elems := make([]string, len(vals))
+	for i, value := range vals {
+		elems[i] = "loom.JSONValueEqual(" + target + ", " + validationGoLiteral(value) + ")"
 	}
 	return strings.Join(elems, " || ")
 }

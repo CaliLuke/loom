@@ -1,11 +1,11 @@
 // MethodARequestBody is the type of the "ServiceMixedPayloadInBody" service
 // "MethodA" endpoint HTTP request body.
 type MethodARequestBody struct {
-	Any    loom.Nullable[any]   `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"`
-	Array  []float32            `form:"array" json:"array" xml:"array"`
-	Map    map[uint]any         `form:"map,omitempty" json:"map,omitempty" xml:"map,omitempty"`
-	Object *BPayloadRequestBody `form:"object" json:"object" xml:"object"`
-	DupObj *BPayloadRequestBody `form:"dup_obj,omitempty" json:"dup_obj,omitempty" xml:"dup_obj,omitempty"`
+	Any    loom.JSONValue          `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"`
+	Array  []float32               `form:"array" json:"array" xml:"array"`
+	Map    map[uint]loom.JSONValue `form:"map,omitempty" json:"map,omitempty" xml:"map,omitempty"`
+	Object *BPayloadRequestBody    `form:"object" json:"object" xml:"object"`
+	DupObj *BPayloadRequestBody    `form:"dup_obj,omitempty" json:"dup_obj,omitempty" xml:"dup_obj,omitempty"`
 }
 
 // BPayloadRequestBody is used to define fields on request body types.
@@ -17,8 +17,9 @@ type BPayloadRequestBody struct {
 // NewMethodARequestBody builds the HTTP request body from the payload of the
 // "MethodA" endpoint of the "ServiceMixedPayloadInBody" service.
 func NewMethodARequestBody(p *servicemixedpayloadinbody.APayload) *MethodARequestBody {
-	body := &MethodARequestBody{}
-	body.Any = p.Any
+	body := &MethodARequestBody{
+		Any: p.Any,
+	}
 	if p.Array != nil {
 		body.Array = make([]float32, len(p.Array))
 		for i, val := range p.Array {
@@ -28,7 +29,7 @@ func NewMethodARequestBody(p *servicemixedpayloadinbody.APayload) *MethodAReques
 		body.Array = []float32{}
 	}
 	if p.Map != nil {
-		body.Map = make(map[uint]any, len(p.Map))
+		body.Map = make(map[uint]loom.JSONValue, len(p.Map))
 		for key, val := range p.Map {
 			tk := key
 			tv := val

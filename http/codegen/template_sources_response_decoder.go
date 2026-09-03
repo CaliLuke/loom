@@ -176,13 +176,13 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 				if {{ .VarName }}Raw == "" {
 					err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 				}
-				{{ .VarName }} = {{ if and (eq .Type.Name "string") .Pointer }}&{{ end }}{{ .VarName }}Raw
+				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
 			{{- else }}
 				if {{ .VarName }}Raw != "" {
-					{{ .VarName }} = {{ if and (eq .Type.Name "string") .Pointer }}&{{ end }}{{ .VarName }}Raw
+					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
 				}
 				{{- if .DefaultValue }} else {
-					{{ .VarName }} = {{ if eq .Type.Name "string" }}{{ printf "%q" .DefaultValue }}{{ else }}{{ printf "%#v" .DefaultValue }}{{ end }}
+					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }}){{ else }}{{ printf "%q" .DefaultValue }}{{ end }}
 				}
 				{{- end }}
 			{{- end }}
@@ -281,13 +281,13 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 				if {{ .VarName }}Raw == "" {
 					err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
 				}
-				{{ .VarName }} = {{ if and (eq .Type.Name "string") .Pointer }}&{{ end }}{{ .VarName }}Raw
+				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
 			{{- else }}
 				if {{ .VarName }}Raw != "" {
-					{{ .VarName }} = {{ if and (eq .Type.Name "string") .Pointer }}&{{ end }}{{ .VarName }}Raw
+					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
 				}
 				{{- if .DefaultValue }} else {
-					{{ .VarName }} = {{ if eq .Type.Name "string" }}{{ printf "%q" .DefaultValue }}{{ else }}{{ printf "%#v" .DefaultValue }}{{ end }}
+					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }}){{ else }}{{ printf "%q" .DefaultValue }}{{ end }}
 				}
 				{{- end }}
 			{{- end }}
