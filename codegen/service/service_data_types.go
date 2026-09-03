@@ -46,6 +46,102 @@ func collectServiceUnions(service *expr.ServiceExpr, types, errTypes []*UserType
 	return unions
 }
 
+func promoteSharedTypeLocations(root *expr.RootExpr) {
+	if root == nil {
+		return
+	}
+
+	type visit struct {
+		attribute *expr.AttributeExpr
+		path      string
+	}
+	locations := make(map[string]*codegen.Location)
+	userTypes := make(map[string][]expr.UserType)
+	for _, userType := range root.Types {
+		userTypes[userType.ID()] = append(userTypes[userType.ID()], userType)
+	}
+	seen := make(map[visit]struct{})
+	var walk func(*expr.AttributeExpr, *codegen.Location)
+	walk = func(att *expr.AttributeExpr, inherited *codegen.Location) {
+		if att == nil || att.Type == expr.Empty {
+			return
+		}
+		switch dt := att.Type.(type) {
+		case expr.UserType:
+			typeAttribute := dt.Attribute()
+			userTypes[dt.ID()] = append(userTypes[dt.ID()], dt)
+			loc := codegen.UserTypeLocation(dt)
+			if loc == nil {
+				loc = inherited
+			}
+			path := ""
+			if loc != nil {
+				path = loc.RelImportPath
+				if existing := locations[dt.ID()]; existing != nil && existing.RelImportPath != path {
+					paths := []string{existing.RelImportPath, path}
+					sort.Strings(paths)
+					panic(fmt.Sprintf(
+						"user type %q is transitively required by shared packages %q and %q; set struct:pkg:path metadata on the type to select its package",
+						dt.Name(), paths[0], paths[1],
+					))
+				}
+				locations[dt.ID()] = loc
+			}
+			key := visit{attribute: typeAttribute, path: path}
+			if _, ok := seen[key]; ok {
+				return
+			}
+			seen[key] = struct{}{}
+			walk(typeAttribute, loc)
+		case *expr.Object:
+			for _, nat := range *dt {
+				walk(nat.Attribute, inherited)
+			}
+		case *expr.Array:
+			walk(dt.ElemType, inherited)
+		case *expr.Map:
+			walk(dt.KeyType, inherited)
+			walk(dt.ElemType, inherited)
+		case *expr.Union:
+			for _, nat := range dt.Values {
+				walk(nat.Attribute, inherited)
+			}
+		}
+	}
+
+	for _, service := range root.Services {
+		for _, serviceError := range service.Errors {
+			walk(serviceError.AttributeExpr, nil)
+		}
+		for _, method := range service.Methods {
+			walk(method.Payload, nil)
+			walk(method.StreamingPayload, nil)
+			walk(method.Result, nil)
+			walk(method.StreamingResult, nil)
+			for _, methodError := range method.Errors {
+				walk(methodError.AttributeExpr, nil)
+			}
+		}
+	}
+	for _, userType := range root.Types {
+		if _, force := userType.Attribute().Meta["type:generate:force"]; force {
+			walk(&expr.AttributeExpr{Type: userType}, nil)
+		}
+	}
+
+	for id, loc := range locations {
+		for _, userType := range userTypes[id] {
+			if codegen.UserTypeLocation(userType) != nil {
+				continue
+			}
+			if userType.Attribute().Meta == nil {
+				userType.Attribute().Meta = make(expr.MetaExpr)
+			}
+			userType.Attribute().Meta["struct:pkg:path"] = []string{loc.RelImportPath}
+		}
+	}
+}
+
 // collectTypes recurses through the attribute to gather all user types and
 // records them in userTypes.
 func collectTypes(at *expr.AttributeExpr, scope *codegen.NameScope, seen map[string]struct{}, loc *codegen.Location) (data []*UserTypeData) {
