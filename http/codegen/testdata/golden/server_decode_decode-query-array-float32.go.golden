@@ -7,8 +7,12 @@ func DecodeMethodQueryArrayFloat32Request(mux loomhttp.Muxer, _ func(*http.Reque
 			q   []float32
 			err error
 		)
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
-			qRaw := r.URL.Query()["q"]
+			qRaw := qp["q"]
 			if qRaw != nil {
 				q = make([]float32, len(qRaw))
 				for i, rv := range qRaw {

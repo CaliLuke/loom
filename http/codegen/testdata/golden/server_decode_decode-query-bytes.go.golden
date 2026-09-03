@@ -6,8 +6,12 @@ func DecodeMethodQueryBytesRequest(mux loomhttp.Muxer, _ func(*http.Request) loo
 		var (
 			q []byte
 		)
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
-			qRaw := r.URL.Query().Get("q")
+			qRaw := qp.Get("q")
 			if qRaw != "" {
 				q = []byte(qRaw)
 			}

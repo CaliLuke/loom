@@ -22,8 +22,12 @@ func DecodeMethodBodyQueryUserRequest(mux loomhttp.Muxer, decoder func(*http.Req
 		var (
 			b *string
 		)
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
-			rawValues, present := r.URL.Query()["b"]
+			rawValues, present := qp["b"]
 			if present {
 				raw := ""
 				if len(rawValues) > 0 {

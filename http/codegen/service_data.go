@@ -450,6 +450,10 @@ type (
 		HasHeaders bool
 		// HasCookies is true when the request binds cookies.
 		HasCookies bool
+		// QueryValuesVar is the local variable containing parsed query values.
+		QueryValuesVar string
+		// QueryErrorVar is the local variable containing a query parse error.
+		QueryErrorVar string
 		// MustValidate is true when decoded request elements may accumulate
 		// validation errors.
 		MustValidate bool

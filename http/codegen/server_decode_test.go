@@ -290,11 +290,20 @@ func TestRequestDecoderSanitizesBodyDecodeErrors(t *testing.T) {
 	require.NotContains(t, code, "loom.DecodePayloadError(err.Error())")
 }
 
+func TestRequestDecoderReportsQueryParseErrors(t *testing.T) {
+	code := decodeSectionCode(t, testdata.PayloadQueryStringDSL)
+
+	require.Contains(t, code, "qp, queryErr := url.ParseQuery(r.URL.RawQuery)")
+	require.Contains(t, code, "return payload, loom.DecodePayloadError(\"invalid query string\")")
+	require.NotContains(t, code, "r.URL.Query()")
+	require.Contains(t, multipartRequestDecoderSource, "return loom.DecodePayloadError(\"invalid query string\")")
+}
+
 func TestRequestDecoderMapQueryPresenceIsScopedToMapParam(t *testing.T) {
 	code := decodeSectionCode(t, testdata.PayloadMapQueryPrimitivePrimitiveDSL)
 
 	require.Contains(t, code, "queryHasValues := false")
-	require.Contains(t, code, `if strings.HasPrefix(keyRaw, "query[") {`)
+	require.Contains(t, code, "if strings.HasPrefix(keyRaw, \"query[\") {")
 	require.Contains(t, code, "if !queryHasValues {")
 	require.NotContains(t, code, "if len(queryRaw) == 0 {")
 }

@@ -9,7 +9,10 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 			int64_ *int64
 			err    error
 		)
-		qp := r.URL.Query()
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
 			int_Raw := qp.Get("int")
 			if int_Raw != "" {

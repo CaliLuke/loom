@@ -361,8 +361,12 @@ completion shapes are explicit generation limitations.
   `OpenAPIBody(...)` only to document the schema.
 - String-backed path, query, header, and cookie fields with
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
-- Let generated clients and routers handle path escaping exactly once; do not
+- Let generated clients and routers handle path escaping exactly once. Do not
   add app-local `url.PathEscape` or `url.PathUnescape` layers.
+- Percent-encode reserved query delimiters, such as `;`, in manually built
+  URLs. Generated clients encode them. Generated servers return a
+  `decode_payload` response with status 400 for malformed query strings.
+  Repeated query keys retain their order.
 - Prefer modeled response cookies over raw `Set-Cookie` header bags.
 - When deployment configuration owns modeled response-cookie attributes, wrap
   the generated method with `loomhttp.ResponseCookiePolicy.Handler`. The policy

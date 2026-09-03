@@ -132,8 +132,12 @@ Generated clients omit a nil pointer. They emit the query key for every nonnil
 pointer, including a pointer to an empty string. A default applies only when
 the query key is absent.
 
-### Wildcards
+Generated servers parse query strings strictly. A malformed query string returns
+a `decode_payload` response with status 400. Percent-encode reserved delimiters,
+such as `;`, in query values. Generated clients apply this encoding. Repeated
+query keys retain their order.
 
+### Wildcards
 Capture all remaining path segments:
 
 ```go

@@ -7,8 +7,12 @@ func DecodeMethodQueryStringExtendedPayloadRequest(mux loomhttp.Muxer, _ func(*h
 		var (
 			q *string
 		)
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
-			rawValues, present := r.URL.Query()["q"]
+			rawValues, present := qp["q"]
 			if present {
 				raw := ""
 				if len(rawValues) > 0 {

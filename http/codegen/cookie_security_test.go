@@ -240,7 +240,7 @@ func TestStreamingSessionSecurityWebSocketHandshakeContracts(t *testing.T) {
 			serverDecode := renderAllGeneratedFileCode(t, serverFiles)
 			require.NotContains(t, serverDecode, `r.Cookie("__Host-ak_session")`)
 			if tc.ExpectQueryEncoding {
-				require.Contains(t, serverDecode, `r.URL.Query()`)
+				require.Contains(t, serverDecode, "url.ParseQuery(r.URL.RawQuery)")
 			} else {
 				require.Contains(t, serverDecode, `params["project_id"]`)
 			}

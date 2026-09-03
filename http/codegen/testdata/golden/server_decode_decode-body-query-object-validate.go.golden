@@ -29,7 +29,11 @@ func DecodeMethodBodyQueryObjectValidateRequest(mux loomhttp.Muxer, decoder func
 		var (
 			b string
 		)
-		b = r.URL.Query().Get("b")
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
+		b = qp.Get("b")
 		if b == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("b", "query string"))
 		}

@@ -36,7 +36,10 @@ func DecodeMethodARequest(mux loomhttp.Muxer, decoder func(*http.Request) loomht
 			}
 			path = uint(v)
 		}
-		qp := r.URL.Query()
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
 			optionalRaw := qp.Get("optional")
 			if optionalRaw != "" {

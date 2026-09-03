@@ -6,7 +6,11 @@ func DecodeMethodQueryArrayStringRequest(mux loomhttp.Muxer, _ func(*http.Reques
 		var (
 			q []string
 		)
-		q = r.URL.Query()["q"]
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
+		q = qp["q"]
 		payload = NewMethodQueryArrayStringPayload(q)
 
 		return payload, nil

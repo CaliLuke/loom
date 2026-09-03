@@ -199,7 +199,7 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}
-	if serviceHasPathArrayParams(data) {
+	if serviceUsesURLPackage(data) {
 		imports = append(imports, &codegen.ImportSpec{Path: "net/url"})
 	}
 	if hasCustomMultipartDecoder(data) {
@@ -208,10 +208,13 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 	return imports
 }
 
-func serviceHasPathArrayParams(data *ServiceData) bool {
+func serviceUsesURLPackage(data *ServiceData) bool {
 	for _, endpoint := range data.Endpoints {
 		if endpoint.Payload == nil || endpoint.Payload.Request == nil {
 			continue
+		}
+		if len(endpoint.Payload.Request.QueryParams) > 0 {
+			return true
 		}
 		for _, param := range endpoint.Payload.Request.PathParams {
 			if param.Type.Name() == "array" {

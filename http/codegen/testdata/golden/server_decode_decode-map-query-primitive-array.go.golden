@@ -7,8 +7,12 @@ func DecodeMapQueryPrimitiveArrayRequest(mux loomhttp.Muxer, _ func(*http.Reques
 			query map[string][]uint
 			err   error
 		)
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
-			queryRaw := r.URL.Query()
+			queryRaw := qp
 			queryHasValues := false
 			for keyRaw := range queryRaw {
 				if strings.HasPrefix(keyRaw, "query[") {

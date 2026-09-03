@@ -8,7 +8,11 @@ func DecodeMethodQueryArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*htt
 			q   []string
 			err error
 		)
-		q = r.URL.Query()["q"]
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
+		q = qp["q"]
 		if q == nil {
 			err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 		}

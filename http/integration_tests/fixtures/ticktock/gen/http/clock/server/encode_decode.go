@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 
 	clock "example.com/http-ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
@@ -70,7 +71,11 @@ func DecodeGuardedRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 		var (
 			token *string
 		)
-		tokenRaw := r.URL.Query().Get("token")
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
+		tokenRaw := qp.Get("token")
 		if tokenRaw != "" {
 			token = &tokenRaw
 		}

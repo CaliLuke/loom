@@ -7,7 +7,11 @@ func DecodeMethodQueryStringSliceDefaultRequest(mux loomhttp.Muxer, _ func(*http
 		var (
 			q []string
 		)
-		q = r.URL.Query()["q"]
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
+		q = qp["q"]
 		if q == nil {
 			q = []string{"hello", "goodbye"}
 		}

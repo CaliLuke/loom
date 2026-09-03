@@ -8,8 +8,12 @@ func DecodeMethodQueryMapStringArrayStringRequest(mux loomhttp.Muxer, _ func(*ht
 			q   map[string][]string
 			err error
 		)
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
-			qRaw := r.URL.Query()
+			qRaw := qp
 			qHasValues := false
 			for keyRaw := range qRaw {
 				if strings.HasPrefix(keyRaw, "q[") {

@@ -8,7 +8,11 @@ func DecodeMethodQueryPrimitiveStringDefaultRequest(mux loomhttp.Muxer, _ func(*
 			q   string
 			err error
 		)
-		q = r.URL.Query().Get("q")
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
+		q = qp.Get("q")
 		if q == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
 		}

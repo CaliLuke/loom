@@ -54,11 +54,13 @@ var requestDecoderElementPartials = []templateSource{
 			{{- end }}
 	{{- end }}
 
-{{- $qpVar := "r.URL.Query()" }}
-{{- if gt (len .QueryParams) 1 }}
-{{- $qpVar = "qp" }}
-qp := r.URL.Query()
+{{- if .QueryParams }}
+{{ .DecodePlan.QueryValuesVar }}, {{ .DecodePlan.QueryErrorVar }} := url.ParseQuery(r.URL.RawQuery)
+if {{ .DecodePlan.QueryErrorVar }} != nil {
+	return payload, loom.DecodePayloadError("invalid query string")
+}
 {{- end }}
+{{- $qpVar := .DecodePlan.QueryValuesVar }}
 {{- range .QueryParams }}
 	{{- if .IsTextUnmarshaler }}
 		{{ .VarName }}Raw := {{$qpVar}}.Get("{{ .HTTPName }}")

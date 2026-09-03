@@ -75,11 +75,13 @@ func {{ .InitName }}(mux loomhttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r 
 		{{- end }}
 {{- end }}
 
-{{- $qpVar := "r.URL.Query()" }}
-{{- if gt (len .QueryParams) 1 }}
-{{- $qpVar = "qp" }}
-qp := r.URL.Query()
+{{- if .QueryParams }}
+{{ .DecodePlan.QueryValuesVar }}, {{ .DecodePlan.QueryErrorVar }} := url.ParseQuery(r.URL.RawQuery)
+if {{ .DecodePlan.QueryErrorVar }} != nil {
+	return loom.DecodePayloadError("invalid query string")
+}
 {{- end }}
+{{- $qpVar := .DecodePlan.QueryValuesVar }}
 {{- range .QueryParams }}
 	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
 		{{ .VarName }} = {{$qpVar}}.Get("{{ .HTTPName }}")

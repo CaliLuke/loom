@@ -164,7 +164,7 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 	hasQueryParams := len(request.QueryParams) > 0
 	hasHeaders := len(request.Headers) > 0
 	hasCookies := len(request.Cookies) > 0
-	return &RequestDecodePlan{
+	plan := &RequestDecodePlan{
 		HasElements:    hasPathParams || hasQueryParams || hasHeaders || hasCookies,
 		HasPathParams:  hasPathParams,
 		HasQueryParams: hasQueryParams,
@@ -172,6 +172,26 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 		HasCookies:     hasCookies,
 		MustValidate:   request.MustValidate,
 	}
+	if !hasQueryParams {
+		return plan
+	}
+
+	scope := codegen.NewNameScope()
+	for _, param := range request.PathParams {
+		scope.Unique(param.VarName)
+	}
+	for _, param := range request.QueryParams {
+		scope.Unique(param.VarName)
+	}
+	for _, header := range request.Headers {
+		scope.Unique(header.VarName)
+	}
+	for _, cookie := range request.Cookies {
+		scope.Unique(cookie.VarName)
+	}
+	plan.QueryValuesVar = scope.Unique("qp")
+	plan.QueryErrorVar = scope.Unique("queryErr")
+	return plan
 }
 
 func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {

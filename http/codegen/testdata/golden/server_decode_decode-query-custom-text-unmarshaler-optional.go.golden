@@ -8,7 +8,11 @@ func DecodeMethodQueryCustomTextUnmarshalerOptionalRequest(mux loomhttp.Muxer, _
 			id  *uuid.UUID
 			err error
 		)
-		idRaw := r.URL.Query().Get("id")
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
+		idRaw := qp.Get("id")
 		if idRaw != "" {
 			var idVal uuid.UUID
 			if err2 := idVal.UnmarshalText([]byte(idRaw)); err2 != nil {

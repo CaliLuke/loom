@@ -33,8 +33,12 @@ func DecodeMethodMapQueryObjectRequest(mux loomhttp.Muxer, decoder func(*http.Re
 		)
 		a = params["a"]
 		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("a", a, loomPatternTest0))
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
 		{
-			cRaw := r.URL.Query()
+			cRaw := qp
 			if len(cRaw) == 0 {
 				err = loom.MergeErrors(err, loom.MissingFieldError("c", "query string"))
 			}
