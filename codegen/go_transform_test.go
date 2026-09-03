@@ -209,6 +209,64 @@ func TestGoTransformPropagatesNestedCollectionErrors(t *testing.T) {
 	require.NotContains(t, code, "unreachable transform render error")
 }
 
+func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
+	scope := NewNameScope()
+	union := &expr.Union{
+		TypeName: "AOrB",
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "A", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			{Name: "B", Attribute: &expr.AttributeExpr{Type: expr.Int}},
+		},
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: union}}}
+	sourceCtx := NewAttributeContext(false, false, true, "transport", scope)
+	targetCtx := NewAttributeContext(false, false, true, "service", scope)
+
+	code, _, err := GoTransform(attribute, attribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+
+	require.NoError(t, err)
+	require.Contains(t, code, "target := make([]service.AOrB, len(source))")
+	require.NotContains(t, code, "[]*service.AOrB")
+	require.Contains(t, code, "target[i] = u")
+	require.NotContains(t, code, "target[i] = &u")
+
+	nestedAttribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: attribute}}
+	nestedCode, _, err := GoTransform(nestedAttribute, nestedAttribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+
+	require.NoError(t, err)
+	require.Contains(t, nestedCode, "target := make([][]service.AOrB, len(source))")
+	require.NotContains(t, nestedCode, "[][]*service.AOrB")
+
+	mapAttribute := &expr.AttributeExpr{Type: &expr.Map{
+		KeyType:  &expr.AttributeExpr{Type: expr.String},
+		ElemType: &expr.AttributeExpr{Type: union},
+	}}
+	nestedMapAttribute := &expr.AttributeExpr{Type: &expr.Array{ElemType: mapAttribute}}
+	nestedMapCode, _, err := GoTransform(nestedMapAttribute, nestedMapAttribute, "source", "target", sourceCtx, targetCtx, "convert", true)
+
+	require.NoError(t, err)
+	require.Contains(t, nestedMapCode, "target := make([]map[string]service.AOrB, len(source))")
+	require.Contains(t, nestedMapCode, "target[i] = make(map[string]service.AOrB, len(val))")
+	require.NotContains(t, nestedMapCode, "*service.AOrB")
+
+	samePackageCtx := NewAttributeContextForConversion(false, false, true, "service", scope)
+	samePackageCode, _, err := GoTransform(nestedAttribute, nestedAttribute, "source", "target", sourceCtx, samePackageCtx, "convert", true)
+
+	require.NoError(t, err)
+	require.Contains(t, samePackageCode, "target := make([][]AOrB, len(source))")
+	require.NotContains(t, samePackageCode, "service.AOrB")
+
+	locatedLocal := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: &expr.UserTypeExpr{
+		TypeName: "LocalAlias",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: expr.String,
+			Meta: expr.MetaExpr{"struct:pkg:path": {"example.com/service"}},
+		},
+	}}}}
+	require.Contains(t, collectionElemTypeRef(locatedLocal, samePackageCtx), "LocalAlias")
+	require.NotContains(t, collectionElemTypeRef(locatedLocal, samePackageCtx), "service.LocalAlias")
+}
+
 func TestGoTransformRendersTypedMapDefaultFromMapVal(t *testing.T) {
 	scope := NewNameScope()
 	sourceCtx := NewAttributeContext(true, false, false, "", scope)

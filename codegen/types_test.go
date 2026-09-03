@@ -42,6 +42,7 @@ func TestGoTypeDef(t *testing.T) {
 		requiredUnionObj            = &expr.AttributeExpr{Type: &expr.Object{{Name: "choice", Attribute: &expr.AttributeExpr{Type: unionType}}}, Validation: &expr.ValidationExpr{Required: []string{"choice"}}}
 		nullableObject              = &expr.AttributeExpr{Type: &expr.Object{{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}}}, Nullable: true}
 		nullableObjectArray         = &expr.AttributeExpr{Type: &expr.Array{ElemType: nullableObject}}
+		nullableUnionArray          = &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: unionType, Nullable: true}}}
 		nullableObjectMap           = &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: nullableObject}}
 
 		mixedObj = &expr.AttributeExpr{
@@ -107,6 +108,7 @@ func TestGoTypeDef(t *testing.T) {
 		"Array":               {simpleArray, false, true, "[]bool"},
 		"Map":                 {simpleMap, false, true, "map[int]string"},
 		"NullableObjectArray": {nullableObjectArray, false, true, "[]loom.Nullable[struct {\n\tValue *string `json:\"value,omitempty\"`\n}]"},
+		"NullableUnionArray":  {nullableUnionArray, false, true, "[]loom.Nullable[StringOrInt]"},
 		"NullableObjectMap":   {nullableObjectMap, false, true, "map[string]loom.Nullable[struct {\n\tValue *string `json:\"value,omitempty\"`\n}]"},
 		"UserTypeExpr":        {userType, false, true, "UserType"},
 		"ResultTypeExpr":      {resultType, false, true, "ResultType"},

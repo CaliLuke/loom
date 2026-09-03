@@ -18,7 +18,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		return nil, err
 	}
 	data := transformArrayRenderData{
-		ElemTypeRef:    ta.TargetCtx.Scope.Ref(target.ElemType, ta.TargetCtx.Pkg(target.ElemType)),
+		ElemTypeRef:    collectionElemTypeRef(target.ElemType, ta.TargetCtx),
 		SourceElem:     source.ElemType,
 		TargetElem:     target.ElemType,
 		SourceVar:      sourceVar,
@@ -32,6 +32,30 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 	return renderTransformGoArray(data)
 }
 
+func collectionElemTypeRef(attribute *expr.AttributeExpr, context *AttributeContext) string {
+	pkg := ""
+	targetPkg := context.Pkg(attribute)
+	if context.SamePackageConversion {
+		pkg = context.DefaultPkg
+		targetPkg = ""
+	}
+	return context.Scope.Scope().collectionElemTypeDef(
+		attribute,
+		context.Pointer,
+		context.UseDefault,
+		pkg,
+		targetPkg,
+	)
+}
+
+func transformCollectionElem(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
+	if !expr.IsNullable(source) && !expr.IsNullable(target) && expr.IsUnion(source.Type) {
+		targetPointer := false
+		return transformUnion(source, target, sourceVar, targetVar, newVar, &targetPointer, ta)
+	}
+	return transformAttributeStmt(source, target, sourceVar, targetVar, newVar, ta)
+}
+
 // transformMap generates Go code to transform source map to target map.
 func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
 	if err := IsCompatible(source.KeyType.Type, target.KeyType.Type, sourceVar+"[key]", targetVar+"[key]"); err != nil {
@@ -41,8 +65,8 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		return nil, err
 	}
 	data := transformMapRenderData{
-		KeyTypeRef:     ta.TargetCtx.Scope.Ref(target.KeyType, ta.TargetCtx.Pkg(target.KeyType)),
-		ElemTypeRef:    ta.TargetCtx.Scope.Ref(target.ElemType, ta.TargetCtx.Pkg(target.ElemType)),
+		KeyTypeRef:     collectionElemTypeRef(target.KeyType, ta.TargetCtx),
+		ElemTypeRef:    collectionElemTypeRef(target.ElemType, ta.TargetCtx),
 		SourceKey:      source.KeyType,
 		TargetKey:      target.KeyType,
 		SourceElem:     source.ElemType,
@@ -90,6 +114,10 @@ func transformUnion(
 	targetIsPointer := strings.HasPrefix(typeRef, "*")
 	if targetPointerOverride != nil {
 		targetIsPointer = *targetPointerOverride
+		typeRef = strings.TrimPrefix(typeRef, "*")
+		if targetIsPointer {
+			typeRef = "*" + typeRef
+		}
 	}
 	data := transformUnionRenderData{
 		SourceVar:       sourceVar,
@@ -211,7 +239,7 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 	}
 	if !data.IsStruct {
 		var err error
-		elemCode, err = transformAttributeStmt(data.SourceElem, data.TargetElem, sourceElement, data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
+		elemCode, err = transformCollectionElem(data.SourceElem, data.TargetElem, sourceElement, data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
 		if err != nil {
 			return nil, err
 		}
@@ -267,7 +295,7 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 	if !data.IsElemStruct {
 		var err error
 		temp := "tv" + data.LoopVar
-		elemCode, err = transformAttributeStmt(data.SourceElem, data.TargetElem, sourceElement, temp, true, data.TransformAttrs)
+		elemCode, err = transformCollectionElem(data.SourceElem, data.TargetElem, sourceElement, temp, true, data.TransformAttrs)
 		if err != nil {
 			return nil, err
 		}

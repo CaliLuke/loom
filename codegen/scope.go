@@ -180,13 +180,9 @@ func (s *NameScope) goValueTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, 
 			s.collectionElemTypeDef(actual.ElemType, ptr, useDefault, pkg, targetPkg),
 		)
 	case *expr.Union:
-		// Unions are generated as named sum-type structs. Refer to the named type
-		// here; the concrete definition is emitted separately by the service
-		// code generator.
-		if targetPkg != "" {
-			return s.GoFullTypeName(att, targetPkg)
-		}
-		return s.GoFullTypeName(att, "")
+		// Unions are generated as named sum-type structs. Refer to the concrete
+		// value here; the nullable wrapper, when present, is added by the caller.
+		return s.goFullValueTypeName(att, targetPkg)
 	case *expr.Object:
 		return s.objectTypeDefWithPkgOverride(att, actual, ptr, useDefault, pkg, targetPkg)
 	case expr.UserType:
