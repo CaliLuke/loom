@@ -23,6 +23,7 @@
         "type": "object"
       },
       "Problem": {
+        "description": "Problem response result type",
         "example": {
           "code": "bad_request",
           "detail": "parameter 'p' must be an integer",

@@ -361,6 +361,9 @@ func primitiveHTTPResponseBody(attr *AttributeExpr, resp *HTTPResponseExpr, name
 
 func copyHTTPResponseBodyMeta(userType *UserTypeExpr, attr *AttributeExpr) {
 	if t, ok := attr.Type.(UserType); ok {
+		if t.Attribute().Description != "" {
+			userType.Description = t.Attribute().Description
+		}
 		userType.AddMeta("name:original", t.Name())
 		if m, ok := t.Attribute().Meta["openapi:typename"]; ok {
 			userType.AddMeta("openapi:typename", m...)

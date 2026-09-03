@@ -15,6 +15,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/dsl"
 	httpgen "github.com/CaliLuke/loom/http/codegen"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -87,6 +88,69 @@ func TestFilesUseNormativeJSONSchemaDialectForAllTargets(t *testing.T) {
 			validateOpenAPIVersion(t, source, test.wantVersion)
 			spec := decodeOpenAPIJSON(t, source)
 			require.Equal(t, wantDialect, spec["jsonSchemaDialect"])
+		})
+	}
+}
+
+func TestFilesPreserveBuiltInProblemDescriptionForAllTargets(t *testing.T) {
+	tests := []struct {
+		name        string
+		target      string
+		wantVersion string
+	}{
+		{name: "OpenAPI 3.1", target: "3.1", wantVersion: openapiv3.OpenAPICompatibilityVersion},
+		{name: "OpenAPI 3.2", wantVersion: openapiv3.OpenAPIVersion},
+	}
+	design := func(reverse bool) func() {
+		return func() {
+			dsl.Service("problems", func() {
+				dsl.Method("show", func() {
+					dsl.Result(dsl.String)
+					if reverse {
+						dsl.Error("internal_error", dsl.ErrorResult, "Internal server error.")
+						dsl.Error("invalid_request", dsl.ErrorResult, "Invalid request.")
+					} else {
+						dsl.Error("invalid_request", dsl.ErrorResult, "Invalid request.")
+						dsl.Error("internal_error", dsl.ErrorResult, "Internal server error.")
+					}
+					dsl.HTTP(func() {
+						dsl.GET("/problems")
+						dsl.Response(dsl.StatusOK)
+						dsl.Response("invalid_request", dsl.StatusBadRequest, func() {
+							dsl.Meta("openapi:component:response", "InvalidRequestError")
+						})
+						dsl.Response("internal_error", dsl.StatusInternalServerError, func() {
+							dsl.Meta("openapi:component:response", "InternalError")
+						})
+					})
+				})
+			})
+		}
+	}
+
+	orders := []struct {
+		name    string
+		reverse bool
+	}{
+		{name: "declaration order"},
+		{name: "reverse declaration order", reverse: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for _, order := range orders {
+				t.Run(order.name, func(t *testing.T) {
+					artifacts := renderOpenAPIArtifactsForVersion(t, design(order.reverse), test.target, test.wantVersion)
+					spec := decodeOpenAPIJSON(t, artifacts.JSON)
+					components := requireMap(t, spec["components"], "components")
+					schemas := requireMap(t, components["schemas"], "component schemas")
+					problem := requireMap(t, schemas["Problem"], "Problem schema")
+					require.Equal(t, "Problem response result type", problem["description"])
+
+					responses := requireMap(t, components["responses"], "component responses")
+					require.Equal(t, "invalid_request: Bad Request response.", requireMap(t, responses["InvalidRequestError"], "invalid request response")["description"])
+					require.Equal(t, "internal_error: Internal Server Error response.", requireMap(t, responses["InternalError"], "internal error response")["description"])
+				})
+			}
 		})
 	}
 }

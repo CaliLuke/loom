@@ -185,6 +185,7 @@
       },
       "Problem": {
         "additionalProperties": false,
+        "description": "Problem response result type",
         "example": {
           "code": "bad_request",
           "detail": "parameter 'p' must be an integer",
