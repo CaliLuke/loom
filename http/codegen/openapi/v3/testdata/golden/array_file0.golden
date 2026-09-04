@@ -25,15 +25,13 @@
               "string": ""
             }
           ],
-          "foo": []
+          "foo": [
+            "Earum est explicabo minima adipisci."
+          ]
         },
         "properties": {
           "bar": {
-            "example": [
-              {
-                "string": ""
-              }
-            ],
+            "example": [],
             "items": {
               "$ref": "#/components/schemas/Bar"
             },
@@ -43,11 +41,10 @@
           },
           "foo": {
             "example": [
-              "Reprehenderit odio suscipit debitis alias.",
-              "Ipsam dolorem vel vero aut alias asperiores."
+              "Molestiae hic inventore consectetur consequatur quia."
             ],
             "items": {
-              "example": "Quia enim quis itaque et.",
+              "example": "Itaque illo temporibus consequatur voluptate minus.",
               "type": "string"
             },
             "maxItems": 42,
@@ -77,37 +74,57 @@
                   "bar": [
                     {
                       "string": ""
-                    },
-                    {
-                      "string": ""
                     }
                   ],
-                  "foo": []
+                  "foo": [
+                    "Asperiores ad id et officiis accusamus repudiandae.",
+                    "Autem debitis temporibus adipisci expedita odit aut."
+                  ]
                 },
                 {
                   "bar": [
                     {
                       "string": ""
-                    },
-                    {
-                      "string": ""
                     }
                   ],
-                  "foo": []
+                  "foo": [
+                    "Asperiores ad id et officiis accusamus repudiandae.",
+                    "Autem debitis temporibus adipisci expedita odit aut."
+                  ]
                 }
               ],
               "schema": {
                 "example": [
                   {
-                    "bar": [],
+                    "bar": [
+                      {
+                        "string": ""
+                      }
+                    ],
                     "foo": []
                   },
                   {
-                    "bar": [],
+                    "bar": [
+                      {
+                        "string": ""
+                      }
+                    ],
                     "foo": []
                   },
                   {
-                    "bar": [],
+                    "bar": [
+                      {
+                        "string": ""
+                      }
+                    ],
+                    "foo": []
+                  },
+                  {
+                    "bar": [
+                      {
+                        "string": ""
+                      }
+                    ],
                     "foo": []
                   }
                 ],

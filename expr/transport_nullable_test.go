@@ -229,31 +229,25 @@ func TestPresenceValidationRejectsConflictingMetadata(t *testing.T) {
 	}
 }
 
-func TestHTTPTransportRejectsStringOptionOnOptionalJSONBodyField(t *testing.T) {
+func TestAttributeRejectsJSONStringOption(t *testing.T) {
 	field := &AttributeExpr{
 		Type: Int,
 		Meta: MetaExpr{"struct:tag:json": []string{"value,string"}},
 	}
-	body := &AttributeExpr{Type: &Object{{Name: "value", Attribute: field}}}
-	endpoint := &HTTPEndpointExpr{
-		MethodExpr: &MethodExpr{Payload: body},
-		Body:       body,
-	}
 
-	verr := newValidationErrors()
-	endpoint.validateJSONBodyPresenceTags(verr)
+	verr := field.validatePresence("", field)
 	require.ErrorContains(t, verr, "JSON ,string is not supported")
 }
 
-func TestServiceOnlyOptionalStringTagRemainsValid(t *testing.T) {
-	field := &AttributeExpr{
-		Type: Int,
-		Meta: MetaExpr{"struct:tag:json": []string{"value,string"}},
+func TestObjectValidationRejectsDesignWireNameCollisions(t *testing.T) {
+	object := &Object{
+		{Name: "foo", Attribute: &AttributeExpr{Type: String, Meta: MetaExpr{"struct:tag:json": []string{"bar"}}}},
+		{Name: "bar", Attribute: &AttributeExpr{Type: String, Meta: MetaExpr{"struct:tag:json": []string{"baz"}}}},
 	}
-	parent := &AttributeExpr{Type: &Object{{Name: "value", Attribute: field}}}
+	attribute := &AttributeExpr{Type: object}
 
-	verr := parent.validateObjectChildren("", parent, AsObject(parent.Type))
-	require.Empty(t, verr.Errors)
+	verr := attribute.validateObjectChildren("", attribute, object)
+	require.ErrorContains(t, verr, "conflicts with another design field name")
 }
 
 func TestExamplesAllowNullInNullableCollections(t *testing.T) {

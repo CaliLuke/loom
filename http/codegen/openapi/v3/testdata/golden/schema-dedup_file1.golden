@@ -21,7 +21,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/FirstRequestBody'
                         example:
-                            name: Molestias sunt ut qui.
+                            name: Natus omnis minus eligendi.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -38,7 +38,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/FirstRequestBody'
                         example:
-                            name: Ut repellendus saepe.
+                            name: Iste at.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -71,9 +71,9 @@ components:
             properties:
                 alpha:
                     type: string
-                    example: Est et non et ea.
+                    example: Ducimus voluptatem et quia.
             example:
-                alpha: Beatae qui totam temporibus quis qui accusantium.
+                alpha: Voluptates cumque tempore voluptas accusantium.
             required:
                 - alpha
         AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope:
@@ -84,6 +84,8 @@ components:
                     enum:
                         - AlphaSchemaDedup
                 value:
+                    example:
+                        alpha: Amet eum id ipsum fugit.
                     $ref: '#/components/schemas/AlphaSchemaDedup'
             description: Synthetic wrapper for union variant "AlphaSchemaDedup".
             required:
@@ -97,6 +99,8 @@ components:
                     enum:
                         - BetaSchemaDedup
                 value:
+                    example:
+                        beta: Sed suscipit.
                     $ref: '#/components/schemas/BetaSchemaDedup'
             description: Synthetic wrapper for union variant "BetaSchemaDedup".
             required:
@@ -107,9 +111,9 @@ components:
             properties:
                 beta:
                     type: string
-                    example: Porro nihil natus exercitationem eaque nisi veritatis.
+                    example: Esse quam ut velit quia dolores iure.
             example:
-                beta: Magni odio reiciendis aperiam sunt dignissimos quo.
+                beta: Atque adipisci.
             required:
                 - beta
         FirstRequestBody:
@@ -117,9 +121,9 @@ components:
             properties:
                 name:
                     type: string
-                    example: Voluptas velit eaque sit praesentium ipsum.
+                    example: Esse minima ipsa commodi recusandae.
             example:
-                name: Occaecati dolores.
+                name: Dignissimos ut sint in quisquam expedita voluptas.
             required:
                 - name
     requestBodies:
@@ -130,9 +134,9 @@ components:
                     schema:
                         type: object
                         example:
-                            type: BetaSchemaDedup
+                            type: AlphaSchemaDedup
                             value:
-                                beta: Harum quos et aut repellat exercitationem.
+                                alpha: Quod molestias corporis.
                         oneOf:
                             - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
                             - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
@@ -144,7 +148,7 @@ components:
                     example:
                         type: BetaSchemaDedup
                         value:
-                            beta: Dolores animi.
+                            beta: Ducimus molestiae labore tenetur.
     responses:
         NoContentResponse:
             description: No Content response.

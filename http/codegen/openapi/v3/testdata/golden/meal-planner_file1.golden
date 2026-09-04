@@ -21,20 +21,20 @@ paths:
             operationId: meal_planner.watch_planner_events
             responses:
                 "200":
+                    description: OK response.
                     content:
                         text/event-stream:
                             itemSchema:
-                                additionalProperties: false
+                                type: object
                                 properties:
                                     data:
+                                        type: string
                                         contentMediaType: application/json
                                         contentSchema:
                                             $ref: '#/components/schemas/WatchPlannerEventsResponseBody'
-                                        type: string
                                 required:
                                     - data
-                                type: object
-                    description: OK response.
+                                additionalProperties: false
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
             security: []
@@ -116,6 +116,20 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                meals:
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
                             $ref: '#/components/schemas/MealPlanPatch'
                         example:
                             meals:
@@ -134,6 +148,9 @@ paths:
                                 $ref: '#/components/schemas/MealPlan'
                             example:
                                 meals:
+                                    - day: monday
+                                      recipe_id: recipe_42
+                                      slot: dinner
                                     - day: monday
                                       recipe_id: recipe_42
                                       slot: dinner
@@ -200,9 +217,9 @@ paths:
                         schema:
                             $ref: '#/components/schemas/ImportPantryRequestBody'
                         example:
-                            content_type: A veniam voluptatem.
-                            file: Autem voluptates impedit veritatis reiciendis ducimus odit.
-                            filename: Autem quo quidem error.
+                            content_type: Totam consequatur voluptas.
+                            file: Non aut doloribus.
+                            filename: Dolorum nihil accusamus at distinctio quidem.
                             label: scan-weekly
             responses:
                 "202":
@@ -392,22 +409,22 @@ components:
             properties:
                 content_type:
                     type: string
-                    example: Sequi sunt rerum omnis.
+                    example: Repellat natus libero expedita facilis voluptatibus sed.
                 file:
                     type: string
-                    example: Sit et aliquid maiores distinctio quis quisquam.
+                    example: Tempore fugit exercitationem iusto.
                     format: binary
                 filename:
                     type: string
-                    example: Possimus dignissimos libero ex.
+                    example: Reprehenderit voluptatibus vitae odio non eos.
                 label:
                     type: string
                     example: scan-weekly
                     pattern: ^scan-[a-z]+$
             example:
-                content_type: Ex et.
-                file: Officiis aliquid doloribus.
-                filename: Et in nam quas atque.
+                content_type: Quasi rerum.
+                file: Consequatur debitis et est maxime eum non.
+                filename: Est rerum eum aperiam qui porro.
                 label: scan-weekly
             required:
                 - file
@@ -427,12 +444,6 @@ components:
                         - day: monday
                           recipe_id: recipe_42
                           slot: dinner
-                        - day: monday
-                          recipe_id: recipe_42
-                          slot: dinner
-                        - day: monday
-                          recipe_id: recipe_42
-                          slot: dinner
                 week_start:
                     type: string
                     example: "2026-03-16"
@@ -440,9 +451,6 @@ components:
             description: A meal plan covering one planning week.
             example:
                 meals:
-                    - day: monday
-                      recipe_id: recipe_42
-                      slot: dinner
                     - day: monday
                       recipe_id: recipe_42
                       slot: dinner
@@ -506,15 +514,9 @@ components:
                         - day: monday
                           recipe_id: recipe_42
                           slot: dinner
-                        - day: monday
-                          recipe_id: recipe_42
-                          slot: dinner
             description: A partial meal plan update.
             example:
                 meals:
-                    - day: monday
-                      recipe_id: recipe_42
-                      slot: dinner
                     - day: monday
                       recipe_id: recipe_42
                       slot: dinner
@@ -539,7 +541,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Ut vel eos.
+                        example: Aut deserunt molestiae quisquam.
                     example:
                         - gnocchi
                         - tomatoes
@@ -553,7 +555,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Rerum maxime.
+                        example: Ullam vel.
                     example:
                         - weeknight
                         - vegetarian
@@ -708,10 +710,6 @@ components:
                 $ref: '#/components/schemas/RecipeResponseSummary'
             description: ListRecipesResponseBody is the result type for an array of RecipeResponse (summary view)
             example:
-                - difficulty: easy
-                  id: recipe_42
-                  minutes: 30
-                  title: Sheet Pan Gnocchi
                 - difficulty: easy
                   id: recipe_42
                   minutes: 30

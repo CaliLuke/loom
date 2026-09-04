@@ -59,7 +59,7 @@ components:
                 application/json:
                     schema:
                         type: string
-                        example: Est minima minima illum voluptas vitae.
-                    example: Dolor inventore.
+                        example: Autem rem beatae non.
+                    example: Repellat ducimus.
 tags:
     - name: componentService

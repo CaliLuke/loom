@@ -1,9 +1,11 @@
 package codegen
 
 import (
+	json "encoding/json/v2"
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -15,6 +17,13 @@ func formatGoLiteral(v any) string {
 	return b.String()
 }
 
+func formatRawJSONLiteral(value any) string {
+	encoded, err := json.Marshal(value, json.Deterministic(true))
+	if err != nil {
+		panic(fmt.Sprintf("encode validated arbitrary JSON default: %v", err))
+	}
+	return "loom.JSONValue(" + strconv.Quote(string(encoded)) + ")"
+}
 func formatAttributeGoLiteral(att *expr.AttributeExpr, value any) string {
 	if typeName, _ := GetMetaType(att); typeName == "jsontext.Value" {
 		actual := reflect.ValueOf(value)
@@ -122,7 +131,7 @@ func typedDefaultMapKeyLiteral(att *expr.AttributeExpr, value any, ta *Transform
 
 func typedDefaultValueLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
 	if isRawJSONValue(att) {
-		return "loom.MustJSONValueFrom(" + formatAttributeGoLiteral(att, value) + ")", true
+		return formatRawJSONLiteral(value), true
 	}
 	switch actual := unalias(att.Type).(type) {
 	case *expr.Array:

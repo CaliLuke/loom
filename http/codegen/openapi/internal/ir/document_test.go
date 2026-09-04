@@ -1,10 +1,13 @@
 package ir
 
 import (
+	"encoding/json/jsontext"
+	jsonv2 "encoding/json/v2"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
@@ -110,6 +113,150 @@ func TestOpenAPIExampleValueMatchesUntaggedUnionValidation(t *testing.T) {
 	require.Equal(t, map[string]any{"kind": "start"}, value)
 }
 
+func TestOpenAPIExampleValueMatchesExactUnsignedUnionEnums(t *testing.T) {
+	t.Parallel()
+
+	maximum := ^uint64(0)
+	branch := func(value uint64) *expr.AttributeExpr {
+		return &expr.AttributeExpr{
+			Type: &expr.Object{{
+				Name: "kind",
+				Attribute: &expr.AttributeExpr{
+					Type:       expr.UInt64,
+					Validation: &expr.ValidationExpr{Values: []any{value}},
+				},
+			}},
+			Validation: &expr.ValidationExpr{Required: []string{"kind"}},
+		}
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Union{
+		Untagged: true,
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "lower", Attribute: branch(maximum - 1)},
+			{Name: "upper", Attribute: branch(maximum)},
+		},
+	}}
+	example := map[string]any{"kind": maximum}
+
+	value, ok := OpenAPIExampleValue(attribute, example)
+	require.True(t, ok)
+	require.Equal(t, example, value)
+}
+
+func TestOpenAPIExampleValueMaterializesArbitraryJSONForAllFormats(t *testing.T) {
+	t.Parallel()
+
+	attribute := &expr.AttributeExpr{Type: expr.Any}
+	raw := jsontext.Value(`{"flag":true,"nested":[false,9007199254740993]}`)
+
+	rawValue, ok := OpenAPIExampleValue(attribute, raw)
+	require.True(t, ok)
+	require.Equal(t, map[string]any{
+		"flag": true,
+		"nested": []any{
+			false,
+			openAPIJSONNumber("9007199254740993"),
+		},
+	}, rawValue)
+	jsonValue, err := jsonv2.Marshal(rawValue, jsonv2.Deterministic(true))
+	require.NoError(t, err)
+	require.Equal(t, `{"flag":true,"nested":[false,9007199254740993]}`, string(jsonValue))
+	yamlValue, err := yaml.Marshal(rawValue)
+	require.NoError(t, err)
+	require.Equal(t, "flag: true\nnested:\n    - false\n    - 9007199254740993\n", string(yamlValue))
+
+	bytesValue, ok := OpenAPIExampleValue(attribute, []byte{1, 2})
+	require.True(t, ok)
+	require.Equal(t, "AQI=", bytesValue)
+}
+
+func TestOpenAPIExampleValueRejectsTypedNilContainers(t *testing.T) {
+	t.Parallel()
+
+	array := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}}
+	_, ok := OpenAPIExampleValue(array, []string(nil))
+	require.False(t, ok)
+
+	objectMap := &expr.AttributeExpr{Type: &expr.Map{ElemType: &expr.AttributeExpr{Type: expr.String}}}
+	_, ok = OpenAPIExampleValue(objectMap, map[string]string(nil))
+	require.False(t, ok)
+}
+
+func TestOpenAPIExampleValuePreservesRawJSONNull(t *testing.T) {
+	t.Parallel()
+
+	value, ok := OpenAPIExampleValue(&expr.AttributeExpr{Type: expr.Any}, jsontext.Value(`null`))
+	require.True(t, ok)
+	require.IsType(t, NullExample{}, value)
+	jsonValue, err := jsonv2.Marshal(value)
+	require.NoError(t, err)
+	require.Equal(t, "null", string(jsonValue))
+	yamlValue, err := yaml.Marshal(value)
+	require.NoError(t, err)
+	require.Equal(t, "null\n", string(yamlValue))
+}
+
+func TestOpenAPIExampleValuePreservesNestedAnySemantics(t *testing.T) {
+	t.Parallel()
+
+	attribute := &expr.AttributeExpr{Type: &expr.Object{
+		{Name: "raw", Attribute: &expr.AttributeExpr{Type: expr.Any}},
+		{Name: "binary", Attribute: &expr.AttributeExpr{Type: expr.Any}},
+	}}
+	value, ok := OpenAPIExampleValue(attribute, map[string]any{
+		"raw":    jsontext.Value(`9007199254740993`),
+		"binary": []byte("abc"),
+	})
+	require.True(t, ok)
+	object := value.(map[string]any)
+	require.Equal(t, "YWJj", object["binary"])
+	raw, err := jsonv2.Marshal(object["raw"])
+	require.NoError(t, err)
+	require.Equal(t, `9007199254740993`, string(raw))
+
+	schema := NewAnalyzer(expr.NewRandom("raw-enum"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type:       expr.Any,
+		Validation: &expr.ValidationExpr{Values: []any{jsontext.Value(`9007199254740993`)}},
+	})
+	require.Len(t, schema.Enum, 1)
+	raw, err = jsonv2.Marshal(schema.Enum[0])
+	require.NoError(t, err)
+	require.Equal(t, `9007199254740993`, string(raw))
+}
+
+func TestOpenAPIExampleValueProjectsOnlyMatchingUntaggedBranch(t *testing.T) {
+	t.Parallel()
+
+	branch := func(kind string, suppressPayload bool) *expr.AttributeExpr {
+		payloadMeta := expr.MetaExpr(nil)
+		if suppressPayload {
+			payloadMeta = expr.MetaExpr{"openapi:generate": []string{"false"}}
+		}
+		return &expr.AttributeExpr{
+			Type: &expr.Object{
+				{Name: "kind", Attribute: &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Values: []any{kind}}}},
+				{Name: "payload", Attribute: &expr.AttributeExpr{Type: expr.String, Meta: payloadMeta}},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"kind", "payload"}},
+		}
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Union{
+		Untagged: true,
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "start", Attribute: branch("start", true)},
+			{Name: "stop", Attribute: branch("stop", false)},
+		},
+	}}
+
+	value, ok := OpenAPIExampleValue(attribute, map[string]any{"kind": "stop", "payload": "keep"})
+	require.True(t, ok)
+	require.Equal(t, map[string]any{"kind": "stop", "payload": "keep"}, value)
+
+	value, ok = OpenAPIExampleValue(attribute, map[string]any{"kind": "start", "payload": "remove"})
+	require.True(t, ok)
+	require.Equal(t, map[string]any{"kind": "start"}, value)
+}
+
 func TestBuildDocumentComposesRepeatedHTTPBlocks(t *testing.T) {
 	root := codegen.RunDSL(t, func() {
 		dsl.Service("svc", func() {
@@ -133,6 +280,130 @@ func TestBuildDocumentComposesRepeatedHTTPBlocks(t *testing.T) {
 	operation := doc.Paths["/base/thing"].Operations["GET"]
 	require.NotNil(t, operation)
 	require.Contains(t, operation.Responses, "409")
+}
+
+func TestOpenAPIExampleValueAcceptsNestedStructuredUnionFields(t *testing.T) {
+	t.Parallel()
+
+	branch := func(kind string) *expr.AttributeExpr {
+		details := &expr.UserTypeExpr{
+			TypeName: "Details" + kind,
+			UID:      "Details" + kind,
+			AttributeExpr: &expr.AttributeExpr{
+				Type: &expr.Object{{
+					Name: "kind",
+					Attribute: &expr.AttributeExpr{
+						Type:       expr.String,
+						Validation: &expr.ValidationExpr{Values: []any{kind}},
+					},
+				}},
+				Validation: &expr.ValidationExpr{Required: []string{"kind"}},
+			},
+		}
+		return &expr.AttributeExpr{
+			Type:       &expr.Object{{Name: "details", Attribute: &expr.AttributeExpr{Type: details}}},
+			Validation: &expr.ValidationExpr{Required: []string{"details"}},
+		}
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Union{
+		Untagged: true,
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "start", Attribute: branch("start")},
+			{Name: "stop", Attribute: branch("stop")},
+		},
+	}}
+	example := map[string]any{"details": map[string]any{"kind": "start"}}
+
+	value, ok := OpenAPIExampleValue(attribute, example)
+	require.True(t, ok)
+	require.Equal(t, example, value)
+}
+func TestOpenAPIExampleValueAcceptsNestedOpenObjectUnionFields(t *testing.T) {
+	t.Parallel()
+
+	details := &expr.AttributeExpr{
+		Type: &expr.Object{{
+			Name:      "kind",
+			Attribute: &expr.AttributeExpr{Type: expr.String},
+		}},
+		Validation: &expr.ValidationExpr{Required: []string{"kind"}},
+		Meta:       expr.MetaExpr{"openapi:additionalProperties": []string{"true"}},
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Union{
+		TypeKey:  "type",
+		ValueKey: "value",
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "structured", Attribute: &expr.AttributeExpr{
+				Type:       &expr.Object{{Name: "details", Attribute: details}},
+				Validation: &expr.ValidationExpr{Required: []string{"details"}},
+			}},
+			{Name: "text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		},
+	}}
+	example := map[string]any{"details": map[string]any{"kind": "event", "extra": true}}
+
+	value, ok := OpenAPIExampleValue(attribute, example)
+	require.True(t, ok)
+	require.Equal(t, map[string]any{
+		"type":  "structured",
+		"value": example,
+	}, value)
+}
+
+func TestOpenAPIExampleValueAcceptsNullableComplexUnionFields(t *testing.T) {
+	t.Parallel()
+
+	branch := func(kind string, payload *expr.AttributeExpr) *expr.AttributeExpr {
+		return &expr.AttributeExpr{
+			Type: &expr.Object{
+				{Name: "kind", Attribute: &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Values: []any{kind}}}},
+				{Name: "payload", Attribute: payload},
+			},
+			Validation: &expr.ValidationExpr{Required: []string{"kind", "payload"}},
+		}
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Union{
+		Untagged: true,
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "nullable", Attribute: branch("nullable", &expr.AttributeExpr{
+				Type:     &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+				Nullable: true,
+			})},
+			{Name: "text", Attribute: branch("text", &expr.AttributeExpr{Type: expr.String})},
+		},
+	}}
+	example := map[string]any{"kind": "nullable", "payload": nil}
+
+	value, ok := OpenAPIExampleValue(attribute, example)
+	require.True(t, ok)
+	require.Equal(t, example, value)
+}
+
+func TestOpenAPIExampleValueMatchesRecursiveNumericEnums(t *testing.T) {
+	t.Parallel()
+
+	branch := func(payload *expr.AttributeExpr) *expr.AttributeExpr {
+		return &expr.AttributeExpr{
+			Type:       &expr.Object{{Name: "payload", Attribute: payload}},
+			Validation: &expr.ValidationExpr{Required: []string{"payload"}},
+		}
+	}
+	attribute := &expr.AttributeExpr{Type: &expr.Union{
+		Untagged: true,
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "structured", Attribute: branch(&expr.AttributeExpr{
+				Type:       expr.Any,
+				Validation: &expr.ValidationExpr{Values: []any{map[string]any{"n": int(1)}}},
+			})},
+			{Name: "text", Attribute: branch(&expr.AttributeExpr{Type: expr.String})},
+		},
+	}}
+	example := map[string]any{"payload": map[string]any{"n": uint64(1)}}
+
+	value, ok := OpenAPIExampleValue(attribute, example)
+	require.True(t, ok)
+	require.Equal(t, example, value)
+	require.True(t, exampleValuesEqual(openAPIJSONNumber("18446744073709551615"), ^uint64(0)))
 }
 
 func TestBuildDocumentUsesExplicitRequestBodyDescriptionMeta(t *testing.T) {

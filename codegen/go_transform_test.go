@@ -306,12 +306,15 @@ func TestGoTransformAnyDefaultsCompileAndEncodeStrings(t *testing.T) {
 		ElemType: anyAttribute,
 	}}
 
+	type namedJSONMap map[string]any
 	direct := defaultValueLiteral(anyAttribute, "direct", ta)
 	array := defaultValueLiteral(arrayAttribute, []any{"array"}, ta)
 	mapped := defaultValueLiteral(mapAttribute, map[string]any{"key": "map"}, ta)
-	require.Equal(t, `loom.MustJSONValueFrom("direct")`, direct)
-	require.Equal(t, `[]loom.JSONValue{loom.MustJSONValueFrom("array")}`, array)
-	require.Equal(t, `map[string]loom.JSONValue{"key": loom.MustJSONValueFrom("map")}`, mapped)
+	named := defaultValueLiteral(anyAttribute, namedJSONMap{"exact": uint64(9007199254740993)}, ta)
+	require.Equal(t, `loom.JSONValue("\"direct\"")`, direct)
+	require.Equal(t, `[]loom.JSONValue{loom.JSONValue("\"array\"")}`, array)
+	require.Equal(t, `map[string]loom.JSONValue{"key": loom.JSONValue("\"map\"")}`, mapped)
+	require.Equal(t, `loom.JSONValue("{\"exact\":9007199254740993}")`, named)
 
 	dir := t.TempDir()
 	module := fmt.Sprintf("module example.com/defaults\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", testingx.RepoRoot())
@@ -326,13 +329,14 @@ import (
 var direct loom.JSONValue = %s
 var array []loom.JSONValue = %s
 var mapped map[string]loom.JSONValue = %s
+var named loom.JSONValue = %s
 
 func TestEncodedDefaults(t *testing.T) {
-	if string(direct) != %q || string(array[0]) != %q || string(mapped["key"]) != %q {
-		t.Fatalf("defaults are not JSON strings: %%q %%q %%q", direct, array[0], mapped["key"])
+	if string(direct) != %q || string(array[0]) != %q || string(mapped["key"]) != %q || string(named) != %q {
+		t.Fatalf("defaults are not valid JSON: %%q %%q %%q %%q", direct, array[0], mapped["key"], named)
 	}
 }
-`, direct, array, mapped, `"direct"`, `"array"`, `"map"`)
+`, direct, array, mapped, named, `"direct"`, `"array"`, `"map"`, `{"exact":9007199254740993}`)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "defaults_test.go"), []byte(source), 0o600))
 	_, err := testingx.RunCmd(dir, "go", "mod", "tidy")
 	require.NoError(t, err)

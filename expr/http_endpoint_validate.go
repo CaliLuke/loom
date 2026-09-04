@@ -23,7 +23,6 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateResponses(verr)
 	e.validateBodyAndPayload(verr)
 	e.validateNullableTransportLocations(verr)
-	e.validateJSONBodyPresenceTags(verr)
 	for _, er := range e.HTTPErrors {
 		verr.Merge(er.Validate())
 	}
@@ -38,23 +37,6 @@ func (e *HTTPEndpointExpr) Validate() error {
 
 	return verr
 }
-
-func (e *HTTPEndpointExpr) validateJSONBodyPresenceTags(verr *eval.ValidationErrors) {
-	if e == nil || e.FormRequest || e.MultipartRequest || e.SkipRequestBodyEncodeDecode {
-		return
-	}
-	body := e.Body
-	if body == nil && len(e.Routes) > 0 {
-		body = httpRequestBody(e)
-	}
-	if body == nil && e.MethodExpr != nil {
-		body = e.MethodExpr.Payload
-	}
-	if containsOptionalJSONStringTag(body) {
-		verr.Add(e, "JSON ,string is not supported on optional attributes in HTTP JSON request bodies")
-	}
-}
-
 func (e *HTTPEndpointExpr) validateNullableTransportLocations(verr *eval.ValidationErrors) {
 	if e == nil {
 		return

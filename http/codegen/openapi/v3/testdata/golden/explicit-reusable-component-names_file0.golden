@@ -19,7 +19,10 @@
               "query": "soup"
             },
             "schema": {
-              "$ref": "#/components/schemas/SearchFilters"
+              "$ref": "#/components/schemas/SearchFilters",
+              "example": {
+                "query": "soup"
+              }
             }
           }
         },
@@ -30,9 +33,9 @@
       "ComponentNamesSearchGadgetsStatus200Response": {
         "content": {
           "application/json": {
-            "example": "Dolor inventore.",
+            "example": "Repellat ducimus.",
             "schema": {
-              "example": "Est minima minima illum voluptas vitae.",
+              "example": "Autem rem beatae non.",
               "type": "string"
             }
           }

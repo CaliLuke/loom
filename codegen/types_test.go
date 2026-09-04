@@ -245,6 +245,12 @@ func TestJSONFieldNameUsesGeneratedTagPrecedence(t *testing.T) {
 			}},
 			want: "exact",
 		},
+		"split complete tag": {
+			attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{
+				"struct:tag:json": {"wire_name", "omitempty"},
+			}},
+			want: "wire_name",
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {

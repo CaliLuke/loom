@@ -13,30 +13,30 @@ paths:
             operationId: async_session_security.events
             parameters:
                 - $ref: '#/components/parameters/PathProjectID'
-                - allowEmptyValue: true
-                  example: evt_8
+                - name: last_event_id
                   in: query
-                  name: last_event_id
+                  allowEmptyValue: true
                   schema:
                     type: string
+                  example: evt_8
             responses:
                 "200":
+                    description: OK response.
                     content:
                         text/event-stream:
                             itemSchema:
-                                additionalProperties: false
+                                type: object
                                 properties:
                                     data:
+                                        type: string
                                         contentMediaType: application/json
                                         contentSchema:
                                             $ref: '#/components/schemas/AsyncSessionRealtimeSSEEvent'
-                                        type: string
                                     id:
                                         type: string
                                 required:
                                     - data
-                                type: object
-                    description: OK response.
+                                additionalProperties: false
             security:
                 - browser_session_cookie: []
             summary: events asyncSessionSecurity
@@ -109,7 +109,7 @@ paths:
                         contentType: application/json
                         schema:
                             type: string
-                            example: Quis aliquam atque et a vel.
+                            example: Odio dignissimos qui ut.
                     outbound:
                         contentType: application/json
                         schema:

@@ -80,30 +80,30 @@ paths:
             operationId: thread_ops.watch_thread
             parameters:
                 - $ref: '#/components/parameters/PathThreadID'
-                - allowEmptyValue: true
-                  example: evt_7
+                - name: last_event_id
                   in: query
-                  name: last_event_id
+                  allowEmptyValue: true
                   schema:
                     type: string
+                  example: evt_7
             responses:
                 "200":
+                    description: OK response.
                     content:
                         text/event-stream:
                             itemSchema:
-                                additionalProperties: false
+                                type: object
                                 properties:
                                     data:
+                                        type: string
                                         contentMediaType: application/json
                                         contentSchema:
                                             $ref: '#/components/schemas/OpenAPIThreadEvent'
-                                        type: string
                                     id:
                                         type: string
                                 required:
                                     - data
-                                type: object
-                    description: OK response.
+                                additionalProperties: false
                 "404":
                     $ref: '#/components/responses/NotFoundError'
                 "409":
@@ -191,12 +191,12 @@ paths:
         get:
             operationId: ops_socket.stream_commands
             parameters:
-                - example: deployments
+                - name: channel
                   in: path
-                  name: channel
                   required: true
                   schema:
                     type: string
+                  example: deployments
             responses:
                 "101":
                     description: Switching Protocols response.

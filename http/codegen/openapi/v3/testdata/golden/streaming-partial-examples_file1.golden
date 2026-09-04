@@ -16,20 +16,20 @@ paths:
             operationId: streaming_partial_examples.events
             responses:
                 "200":
+                    description: OK response.
                     content:
                         text/event-stream:
                             itemSchema:
-                                additionalProperties: false
+                                type: object
                                 properties:
                                     data:
+                                        type: string
                                         contentMediaType: application/json
                                         contentSchema:
                                             $ref: '#/components/schemas/RealtimeSSEEvent'
-                                        type: string
                                 required:
                                     - data
-                                type: object
-                    description: OK response.
+                                additionalProperties: false
             security: []
             summary: events streamingPartialExamples
             tags:
@@ -54,9 +54,9 @@ paths:
                                     properties:
                                         message:
                                             type: string
-                                            example: Suscipit voluptatem odio magnam.
+                                            example: Reprehenderit alias.
                                     example:
-                                        message: Tenetur a quas distinctio.
+                                        message: Non non et autem neque ipsam.
                                     required:
                                         - message
                                 event:
@@ -64,7 +64,7 @@ paths:
                                     example: abc123
                             example:
                                 data:
-                                    message: Maiores laudantium.
+                                    message: Ipsa in nemo nihil quis nihil est.
                                 event: abc123
                             required:
                                 - event
@@ -80,12 +80,12 @@ paths:
         get:
             operationId: streaming_partial_examples.project_socket
             parameters:
-                - example: proj_1
+                - name: projectID
                   in: path
-                  name: projectID
                   required: true
                   schema:
                     type: string
+                  example: proj_1
             responses:
                 "101":
                     description: Switching Protocols response.
@@ -110,13 +110,13 @@ paths:
                             properties:
                                 event:
                                     type: string
-                                    example: Officiis earum libero perspiciatis dolorum id ea.
+                                    example: Recusandae error sint.
                                 ts:
                                     type: integer
                                     example: 1
                                     format: int64
                             example:
-                                event: Suscipit veritatis deserunt molestiae.
+                                event: Qui dolorum similique beatae.
                                 ts: 1
                             required:
                                 - ts
@@ -132,9 +132,9 @@ components:
                     properties:
                         message:
                             type: string
-                            example: Omnis rerum officia dolorem neque ut.
+                            example: Quis quae voluptatum.
                     example:
-                        message: Distinctio veniam ipsa.
+                        message: Ut voluptate quis voluptas commodi suscipit et.
                     required:
                         - message
                 event:
@@ -142,7 +142,7 @@ components:
                     example: abc123
             example:
                 data:
-                    message: Repellat quod.
+                    message: Qui tenetur.
                 event: abc123
             required:
                 - event

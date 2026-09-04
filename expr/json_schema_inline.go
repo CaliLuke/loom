@@ -20,13 +20,16 @@ type (
 		Properties           map[string]*InlineSchema `json:"properties,omitempty"`
 		OneOf                []*InlineSchema          `json:"oneOf,omitempty"`
 		AnyOf                []*InlineSchema          `json:"anyOf,omitempty"`
+		AllOf                []*InlineSchema          `json:"allOf,omitempty"`
 		Discriminator        *InlineDiscriminator     `json:"discriminator,omitempty"`
 		Items                *InlineSchema            `json:"items,omitempty"`
 		AdditionalProperties any                      `json:"additionalProperties,omitempty"`
 		Enum                 []any                    `json:"enum,omitempty"`
 		Default              any                      `json:"default,omitempty"`
-		Minimum              *float64                 `json:"minimum,omitempty"`
-		Maximum              *float64                 `json:"maximum,omitempty"`
+		Minimum              any                      `json:"minimum,omitempty"`
+		Maximum              any                      `json:"maximum,omitempty"`
+		ExclusiveMinimum     any                      `json:"exclusiveMinimum,omitempty"`
+		ExclusiveMaximum     any                      `json:"exclusiveMaximum,omitempty"`
 		MinLength            *int                     `json:"minLength,omitempty"`
 		MaxLength            *int                     `json:"maxLength,omitempty"`
 		Pattern              string                   `json:"pattern,omitempty"`
@@ -50,6 +53,7 @@ const (
 	jsonTypeInteger = "integer"
 	jsonTypeNumber  = "number"
 	jsonTypeBoolean = "boolean"
+	jsonTypeNull    = "null"
 )
 
 // InlineJSONSchema returns a compact JSON Schema for the given Loom attribute.
@@ -85,6 +89,7 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}) (*Inli
 	switch dt := attr.Type.(type) {
 	case Primitive:
 		schema.Type = primitiveToInlineJSONType(dt)
+		applyInlinePrimitiveBounds(schema, dt)
 	case *Array:
 		if err := populateInlineArraySchema(schema, attr, dt, visited); err != nil {
 			return nil, err
@@ -102,13 +107,27 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}) (*Inli
 			return nil, err
 		}
 	case UserType:
-		return inlineWrappedJSONSchema(attr, dt.Attribute(), visited, dt, dt.Name())
+		schema, err := inlineWrappedJSONSchema(attr, dt.Attribute(), visited, dt, dt.Name())
+		if err != nil {
+			return nil, err
+		}
+		if attr.Nullable && !IsNullable(dt.Attribute()) {
+			return nullableInlineJSONSchema(schema), nil
+		}
+		return schema, nil
 	default:
 		schema.Type = jsonTypeObject
 		schema.AdditionalProperties = false
 	}
 
+	if attr.Nullable {
+		return nullableInlineJSONSchema(schema), nil
+	}
 	return schema, nil
+}
+
+func nullableInlineJSONSchema(schema *InlineSchema) *InlineSchema {
+	return &InlineSchema{AnyOf: []*InlineSchema{schema, {Type: jsonTypeNull}}}
 }
 
 func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr) {
@@ -126,13 +145,19 @@ func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr) {
 	}
 	if v := attr.Validation; v != nil {
 		if len(v.Values) > 0 {
-			schema.Enum = v.Values
+			schema.Enum = canonicalizeInlineValues(attr, v.Values)
 		}
 		if v.Minimum != nil {
 			schema.Minimum = v.Minimum
 		}
 		if v.Maximum != nil {
 			schema.Maximum = v.Maximum
+		}
+		if v.ExclusiveMinimum != nil {
+			schema.ExclusiveMinimum = v.ExclusiveMinimum
+		}
+		if v.ExclusiveMaximum != nil {
+			schema.ExclusiveMaximum = v.ExclusiveMaximum
 		}
 		if v.MinLength != nil {
 			schema.MinLength = v.MinLength
@@ -226,17 +251,34 @@ func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]
 func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *Object, visited map[any]struct{}) error {
 	schema.Type = jsonTypeObject
 	schema.Properties = make(map[string]*InlineSchema, len(*dt))
+	designNames := make(map[string]struct{}, len(*dt))
 	for _, nat := range *dt {
+		designNames[nat.Name] = struct{}{}
+	}
+	for _, nat := range *dt {
+		name := JSONFieldName(nat.Name, nat.Attribute)
+		if name == "-" {
+			continue
+		}
+		if name == "" {
+			return fmt.Errorf("object field %q cannot use an empty JSON tag name", nat.Name)
+		}
+		if _, conflicts := designNames[name]; conflicts && name != nat.Name {
+			return fmt.Errorf("object field %q JSON name %q conflicts with another design field name", nat.Name, name)
+		}
+		if _, exists := schema.Properties[name]; exists {
+			return fmt.Errorf("object has duplicate JSON field name %q", name)
+		}
 		property, err := buildInlineJSONSchema(nat.Attribute, visited)
 		if err != nil {
 			return err
 		}
-		schema.Properties[nat.Name] = property
+		schema.Properties[name] = property
+		if attr.IsRequired(nat.Name) {
+			schema.Required = append(schema.Required, name)
+		}
 	}
 	schema.AdditionalProperties = false
-	if attr.Validation != nil && len(attr.Validation.Required) > 0 {
-		schema.Required = attr.Validation.Required
-	}
 	return nil
 }
 
@@ -250,6 +292,9 @@ func inlineWrappedJSONSchema(wrapper *AttributeExpr, inner *AttributeExpr, visit
 	schema, err := buildInlineJSONSchema(inner, visited)
 	if err != nil {
 		return nil, err
+	}
+	if wrapper.Validation != nil {
+		schema = &InlineSchema{Type: schema.Type, AllOf: []*InlineSchema{schema}}
 	}
 	applyInlineWrapperMetadata(schema, wrapper)
 	return schema, nil
@@ -265,15 +310,27 @@ func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) {
 	if attr.Title != "" {
 		schema.Title = attr.Title
 	}
+	if examples := attr.ExtractUserExamples(); len(examples) > 0 {
+		schema.Examples = make([]any, 0, len(examples))
+		for _, example := range examples {
+			if example != nil {
+				schema.Examples = append(schema.Examples, CanonicalizeExample(attr, example.Value))
+			}
+		}
+	}
 	if attr.DefaultValue != nil {
 		schema.Default = CanonicalizeExample(attr, attr.DefaultValue)
 	}
+	applyInlineValidation(schema, attr)
+}
+
+func applyInlineValidation(schema *InlineSchema, attr *AttributeExpr) {
 	if attr.Validation == nil {
 		return
 	}
 	v := attr.Validation
 	if len(v.Values) > 0 {
-		schema.Enum = v.Values
+		schema.Enum = canonicalizeInlineValues(attr, v.Values)
 	}
 	if v.Minimum != nil {
 		schema.Minimum = v.Minimum
@@ -281,20 +338,11 @@ func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) {
 	if v.Maximum != nil {
 		schema.Maximum = v.Maximum
 	}
-	if v.MinLength != nil {
-		schema.MinLength = v.MinLength
+	if v.ExclusiveMinimum != nil {
+		schema.ExclusiveMinimum = v.ExclusiveMinimum
 	}
-	if v.MaxLength != nil {
-		schema.MaxLength = v.MaxLength
-	}
-	if v.Pattern != "" {
-		schema.Pattern = v.Pattern
-	}
-	if v.Format != "" {
-		schema.Format = string(v.Format)
-	}
-	if len(v.Required) > 0 {
-		schema.Required = v.Required
+	if v.ExclusiveMaximum != nil {
+		schema.ExclusiveMaximum = v.ExclusiveMaximum
 	}
 	if schema.Type == jsonTypeArray {
 		if v.MinLength != nil {
@@ -305,6 +353,89 @@ func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) {
 			schema.MaxItems = v.MaxLength
 			schema.MaxLength = nil
 		}
+	} else {
+		if v.MinLength != nil {
+			schema.MinLength = v.MinLength
+		}
+		if v.MaxLength != nil {
+			schema.MaxLength = v.MaxLength
+		}
+	}
+	if v.Pattern != "" {
+		schema.Pattern = v.Pattern
+	}
+	if v.Format != "" {
+		schema.Format = string(v.Format)
+	}
+	if len(v.Required) > 0 {
+		schema.Required = inlineRequiredNames(attr, v.Required)
+	}
+}
+
+func applyInlinePrimitiveBounds(schema *InlineSchema, primitive Primitive) {
+	var minimum, maximum any
+	switch primitive {
+	case Int, Int64:
+		minimum = int64(-9223372036854775808)
+		maximum = int64(9223372036854775807)
+	case Int32:
+		minimum = int32(-2147483648)
+		maximum = int32(2147483647)
+	case UInt, UInt64:
+		minimum = uint64(0)
+		maximum = uint64(18446744073709551615)
+	case UInt32:
+		minimum = uint32(0)
+		maximum = uint32(4294967295)
+	}
+	if minimum != nil && inlineBoundOutsideMinimum(schema.Minimum, minimum) {
+		schema.Minimum = minimum
+	}
+	if maximum != nil && inlineBoundOutsideMaximum(schema.Maximum, maximum) {
+		schema.Maximum = maximum
+	}
+}
+
+func inlineBoundOutsideMinimum(current, domain any) bool {
+	if current == nil {
+		return true
+	}
+	currentNumber, currentOK := inlineBoundFloat64(current)
+	domainNumber, domainOK := inlineBoundFloat64(domain)
+	return !currentOK || !domainOK || currentNumber <= domainNumber
+}
+
+func inlineBoundOutsideMaximum(current, domain any) bool {
+	if current == nil {
+		return true
+	}
+	currentNumber, currentOK := inlineBoundFloat64(current)
+	domainNumber, domainOK := inlineBoundFloat64(domain)
+	return !currentOK || !domainOK || currentNumber >= domainNumber
+}
+
+func inlineBoundFloat64(value any) (float64, bool) {
+	switch actual := value.(type) {
+	case *float64:
+		return *actual, true
+	case float64:
+		return actual, true
+	case float32:
+		return float64(actual), true
+	case int:
+		return float64(actual), true
+	case int32:
+		return float64(actual), true
+	case int64:
+		return float64(actual), true
+	case uint:
+		return float64(actual), true
+	case uint32:
+		return float64(actual), true
+	case uint64:
+		return float64(actual), true
+	default:
+		return 0, false
 	}
 }
 
@@ -319,8 +450,41 @@ func primitiveToInlineJSONType(p Primitive) string {
 	case String, Bytes:
 		return jsonTypeString
 	case Any:
-		return jsonTypeObject
+		return ""
 	default:
 		return jsonTypeString
 	}
+}
+
+func inlineRequiredNames(attribute *AttributeExpr, required []string) []string {
+	resolved := unwrapUserTypeAttr(attribute)
+	if resolved == nil {
+		return required
+	}
+	object, ok := resolved.Type.(*Object)
+	if !ok {
+		return required
+	}
+	names := make([]string, 0, len(required))
+	for _, requiredName := range required {
+		wireName := requiredName
+		for _, field := range *object {
+			if field != nil && field.Name == requiredName {
+				wireName = JSONFieldName(field.Name, field.Attribute)
+				break
+			}
+		}
+		if wireName != "-" {
+			names = append(names, wireName)
+		}
+	}
+	return names
+}
+
+func canonicalizeInlineValues(attribute *AttributeExpr, values []any) []any {
+	canonical := make([]any, len(values))
+	for index, value := range values {
+		canonical[index] = CanonicalizeExample(attribute, value)
+	}
+	return canonical
 }

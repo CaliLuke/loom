@@ -24,7 +24,7 @@ type canonicalSchemaEncoder struct {
 // The encoding uses length-prefixed fields, sorted object keys, set semantics
 // for enum and required values, and last-write-wins object member semantics.
 const (
-	schemaFingerprintVersion = "loom-openapi-schema-v1"
+	schemaFingerprintVersion = "loom-openapi-schema-v3"
 	exampleContextVersion    = "loom-openapi-example-context-v1"
 )
 
@@ -107,8 +107,7 @@ func (e *canonicalSchemaEncoder) writeAttribute(att *expr.AttributeExpr, closeOb
 		e.writeString("nil-attribute")
 		return
 	}
-	if att.Type != nil && att.Type.Kind() == expr.UserTypeKind {
-		e.writeTitle(att.Title)
+	if _, ok := att.Type.(expr.UserType); ok {
 		e.writeType(att, closeObjects)
 		return
 	}
@@ -119,6 +118,20 @@ func (e *canonicalSchemaEncoder) writeAttribute(att *expr.AttributeExpr, closeOb
 		return
 	}
 	e.writeValidation(att)
+	if att.Nullable {
+		e.writeString("nullable")
+	}
+}
+
+func hasUserTypeValidationOverlay(attr, base *expr.AttributeExpr) bool {
+	if attr.Validation == nil {
+		return false
+	}
+	left := newCanonicalSchemaEncoder()
+	left.writeValidation(attr)
+	right := newCanonicalSchemaEncoder()
+	right.writeValidation(base)
+	return !bytes.Equal(left.Bytes(), right.Bytes())
 }
 
 func (e *canonicalSchemaEncoder) writeTitle(title string) {
@@ -172,7 +185,17 @@ func (e *canonicalSchemaEncoder) writeTypeShape(att *expr.AttributeExpr, t expr.
 	case expr.ObjectKind:
 		e.writeObject(att, expr.AsObject(t), closeObjects)
 	case expr.UserTypeKind:
-		e.writeAttribute(t.(expr.UserType).Attribute(), closeObjects)
+		base := *t.(expr.UserType).Attribute()
+		if att.Nullable && !expr.IsNullable(&base) {
+			base.Nullable = true
+		}
+		if att.Title != "" && att.Title != base.Title {
+			base.Title = att.Title
+		}
+		if hasUserTypeValidationOverlay(att, &base) {
+			base.Validation = att.Validation
+		}
+		e.writeAttribute(&base, closeObjects)
 	case expr.ResultTypeKind:
 		e.writeString("result-type")
 		resultType := t.(*expr.ResultTypeExpr)
@@ -221,8 +244,9 @@ func (e *canonicalSchemaEncoder) writeObject(att *expr.AttributeExpr, object *ex
 	e.writeString("object")
 	members := make(map[string]*expr.AttributeExpr, len(*object))
 	for _, member := range *object {
-		if openapi.MustGenerate(member.Attribute.Meta) {
-			members[member.Name] = member.Attribute
+		name := expr.JSONFieldName(member.Name, member.Attribute)
+		if name != "-" && openapi.MustGenerate(member.Attribute.Meta) {
+			members[name] = member.Attribute
 		}
 	}
 	names := make([]string, 0, len(members))
@@ -248,6 +272,7 @@ func (e *canonicalSchemaEncoder) writeObject(att *expr.AttributeExpr, object *ex
 func (e *canonicalSchemaEncoder) writeUnion(union *expr.Union, closeObjects bool) {
 	e.writeString("union")
 	e.writeString(union.GetTypeKey())
+	e.writeBool(union.Untagged)
 	e.writeString(union.GetValueKey())
 	values := append([]*expr.NamedAttributeExpr(nil), union.Values...)
 	sort.SliceStable(values, func(i, j int) bool {
@@ -272,7 +297,7 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr) {
 		return
 	}
 	e.writeString("validation")
-	e.writeValueSet(validation.Values)
+	e.writeValueSet(projectOpenAPIValues(att, validation.Values))
 	e.writeString(string(validation.Format))
 	e.writeString(validation.Pattern)
 	e.writeOptionalFloat(validation.ExclusiveMinimum)
@@ -284,8 +309,14 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr) {
 
 	required := make([]string, 0, len(validation.Required))
 	for _, name := range validation.Required {
-		if child := att.Find(name); child != nil && !openapi.MustGenerate(child.Meta) {
-			continue
+		if child := att.Find(name); child != nil {
+			if !openapi.MustGenerate(child.Meta) {
+				continue
+			}
+			name = expr.JSONFieldName(name, child)
+			if name == "-" {
+				continue
+			}
 		}
 		required = append(required, name)
 	}

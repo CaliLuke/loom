@@ -15,12 +15,12 @@ paths:
         get:
             operationId: ops_socket.stream_commands
             parameters:
-                - example: deployments
+                - name: channel
                   in: path
-                  name: channel
                   required: true
                   schema:
                     type: string
+                  example: deployments
             responses:
                 "101":
                     description: Switching Protocols response.

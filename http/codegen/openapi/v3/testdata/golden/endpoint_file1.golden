@@ -12,22 +12,22 @@ paths:
         post:
             operationId: test_service.test_endpoint
             requestBody:
+                required: true
                 content:
                     application/json:
-                        example:
-                            string: ""
                         schema:
                             $ref: '#/components/schemas/Payload'
-                required: true
+                        example:
+                            string: ""
             responses:
                 "200":
+                    description: OK response.
                     content:
                         application/json:
-                            example:
-                                string: ""
                             schema:
                                 $ref: '#/components/schemas/Result'
-                    description: OK response.
+                            example:
+                                string: ""
             summary: testEndpoint testService
             tags:
                 - testService

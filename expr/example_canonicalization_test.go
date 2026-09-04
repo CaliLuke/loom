@@ -32,6 +32,7 @@ func TestCanonicalizeExample(t *testing.T) {
 			},
 		},
 	}
+	zero := 0.0
 
 	cases := []struct {
 		name     string
@@ -119,6 +120,95 @@ func TestCanonicalizeExample(t *testing.T) {
 			},
 		},
 		{
+			name: "untagged union uses enum constraints before wire projection",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				Untagged: true,
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "A", Attribute: constrainedWirePayload("a")},
+					{Name: "B", Attribute: constrainedWirePayload("b")},
+				},
+			}},
+			example:  map[string]any{"kind": "b", "payload": "value"},
+			expected: map[string]any{"kind": "b", "data": "value"},
+		},
+		{
+			name: "primitive union uses enum constraints",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				TypeKey:  "kind",
+				ValueKey: "value",
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "A", Attribute: &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Values: []any{"a"}}}},
+					{Name: "B", Attribute: &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Values: []any{"b"}}}},
+				},
+			}},
+			example:  "b",
+			expected: map[string]any{"kind": "B", "value": "b"},
+		},
+		{
+			name: "tagged union matches an empty object branch",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				TypeKey:  "kind",
+				ValueKey: "value",
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "Empty", Attribute: &expr.AttributeExpr{Type: &expr.Object{}}},
+					{Name: "Text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				},
+			}},
+			example:  map[string]any{},
+			expected: map[string]any{"kind": "Empty", "value": map[string]any{}},
+		},
+		{
+			name: "tagged union matches extra fields in its sole open object branch",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "Object", Attribute: &expr.AttributeExpr{Type: &expr.Object{
+						{Name: "known", Attribute: &expr.AttributeExpr{Type: expr.String}},
+					}}},
+					{Name: "Text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				},
+			}},
+			example:  map[string]any{"extra": "accepted"},
+			expected: map[string]any{"type": "Object", "value": map[string]any{"extra": "accepted"}},
+		},
+		{
+			name: "tagged union matches equivalent numeric enum types",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				TypeKey:  "kind",
+				ValueKey: "value",
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "One", Attribute: &expr.AttributeExpr{Type: expr.Int64, Validation: &expr.ValidationExpr{Values: []any{int64(1)}}}},
+					{Name: "Text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				},
+			}},
+			example:  int(1),
+			expected: map[string]any{"kind": "One", "value": int(1)},
+		},
+		{
+			name: "tagged union honors exclusive bounds for typed integers",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				TypeKey:  "kind",
+				ValueKey: "value",
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "NonPositive", Attribute: &expr.AttributeExpr{Type: expr.Int64, Validation: &expr.ValidationExpr{Maximum: &zero}}},
+					{Name: "Positive", Attribute: &expr.AttributeExpr{Type: expr.Int64, Validation: &expr.ValidationExpr{ExclusiveMinimum: &zero}}},
+				},
+			}},
+			example:  int64(2),
+			expected: map[string]any{"kind": "Positive", "value": int64(2)},
+		},
+		{
+			name:     "nil slices preserve JSON null semantics",
+			attr:     &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			example:  []string(nil),
+			expected: nil,
+		},
+		{
+			name:     "nil maps preserve JSON null semantics",
+			attr:     &expr.AttributeExpr{Type: &expr.Map{ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			example:  map[string]string(nil),
+			expected: nil,
+		},
+		{
 			name:     "non-union examples are unchanged",
 			attr:     &expr.AttributeExpr{Type: expr.String},
 			example:  "plain",
@@ -133,5 +223,15 @@ func TestCanonicalizeExample(t *testing.T) {
 				t.Errorf("got %#v, expected %#v", actual, tc.expected)
 			}
 		})
+	}
+}
+
+func constrainedWirePayload(kind string) *expr.AttributeExpr {
+	return &expr.AttributeExpr{
+		Type: &expr.Object{
+			{Name: "kind", Attribute: &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Values: []any{kind}}}},
+			{Name: "payload", Attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:tag:json:name": []string{"data"}}}},
+		},
+		Validation: &expr.ValidationExpr{Required: []string{"kind", "payload"}},
 	}
 }

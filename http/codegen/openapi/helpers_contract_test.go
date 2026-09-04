@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestDocumentationAndExtensionHelperContracts(t *testing.T) {
 	require.Equal(t, &ExternalDocs{
 		Description: "Reference",
 		URL:         "https://example.com/docs",
-		Extensions:  map[string]any{"x-owner": "platform"},
+		Extensions:  map[string]any{"x-owner": jsontext.Value(`"platform"`)},
 	}, docs)
 
 	require.Nil(t, MergeExtensions(nil, nil))
@@ -75,7 +76,7 @@ func TestTagContract(t *testing.T) {
 		Description: "Billing guide",
 		URL:         "https://example.com/billing",
 	}, tag.ExternalDocs)
-	require.Equal(t, map[string]any{"x-visibility": "public"}, tag.Extensions)
+	require.Equal(t, map[string]any{"x-visibility": jsontext.Value(`"public"`)}, tag.Extensions)
 	require.Equal(t, []string{"billing"}, TagNamesFromExpr(meta))
 
 	encodedJSON, err := json.Marshal(tag)

@@ -5,7 +5,6 @@ package testutil
 import (
 	"bytes"
 	"encoding/json/jsontext"
-	"encoding/json/v2"
 	"flag"
 	"go/format"
 	"os"
@@ -127,14 +126,9 @@ func (g *GoldenFile) CompareContent() {
 func (g *GoldenFile) prepareContent() []byte {
 	content := g.content
 
-	// Format JSON
+	// Format JSON.
 	if strings.HasSuffix(g.path, ".json") || strings.HasSuffix(g.path, ".json.golden") {
-		var v any
-		if err := json.Unmarshal(content, &v); err == nil {
-			if formatted, err := json.Marshal(v, json.Deterministic(true), jsontext.WithIndent("  ")); err == nil {
-				content = formatted
-			}
-		}
+		content = formatJSON(content)
 	}
 
 	// Try to treat content as Go source regardless of extension
@@ -247,13 +241,16 @@ func AssertString(t testing.TB, goldenPath string, got string) {
 func AssertJSON(t testing.TB, goldenPath string, got []byte) {
 	t.Helper()
 	gf := &GoldenFile{t: t, basePath: ""}
-	var v any
-	if err := json.Unmarshal(got, &v); err == nil {
-		if formatted, err := json.Marshal(v, json.Deterministic(true), jsontext.WithIndent("  ")); err == nil {
-			got = formatted
-		}
-	}
+	got = formatJSON(got)
 	gf.Content(got).Path(goldenPath).CompareContent()
+}
+
+func formatJSON(content []byte) []byte {
+	value := jsontext.Value(content).Clone()
+	if err := value.Format(jsontext.ReorderRawObjects(true), jsontext.WithIndent("  ")); err != nil {
+		return content
+	}
+	return value
 }
 
 // AssertGo compares Go source code with proper formatting

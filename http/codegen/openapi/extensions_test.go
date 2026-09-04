@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"encoding/json/jsontext"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,11 +17,14 @@ func TestScopedExtensionsFromExprKeepsScopesDistinct(t *testing.T) {
 		"openapi:response:extension:x-response":        {`{"kind":"response"}`},
 		"openapi:schema:extension:x-schema":            {`{"kind":"schema"}`},
 		"openapi:parameter:extension:not-an-extension": {`true`},
+		"openapi:extension:x-exact":                    {`{"z":9007199254740993,"a":1}`},
 	}
 
-	require.Equal(t, map[string]any{"x-generic": map[string]any{"kind": "generic"}}, ExtensionsFromExpr(meta))
-	require.Equal(t, map[string]any{"x-parameter": map[string]any{"kind": "parameter"}}, ScopedExtensionsFromExpr(meta, "parameter"))
-	require.Equal(t, map[string]any{"x-request": map[string]any{"kind": "request"}}, ScopedExtensionsFromExpr(meta, "requestBody"))
-	require.Equal(t, map[string]any{"x-response": map[string]any{"kind": "response"}}, ScopedExtensionsFromExpr(meta, "response"))
-	require.Equal(t, map[string]any{"x-schema": map[string]any{"kind": "schema"}}, ScopedExtensionsFromExpr(meta, "schema"))
+	extensions := ExtensionsFromExpr(meta)
+	require.Equal(t, jsontext.Value(`{"kind":"generic"}`), extensions["x-generic"])
+	require.Equal(t, jsontext.Value(`{"a":1,"z":9007199254740993}`), extensions["x-exact"])
+	require.Equal(t, jsontext.Value(`{"kind":"parameter"}`), ScopedExtensionsFromExpr(meta, "parameter")["x-parameter"])
+	require.Equal(t, jsontext.Value(`{"kind":"request"}`), ScopedExtensionsFromExpr(meta, "requestBody")["x-request"])
+	require.Equal(t, jsontext.Value(`{"kind":"response"}`), ScopedExtensionsFromExpr(meta, "response")["x-response"])
+	require.Equal(t, jsontext.Value(`{"kind":"schema"}`), ScopedExtensionsFromExpr(meta, "schema")["x-schema"])
 }

@@ -53,8 +53,8 @@ paths:
                         text/html:
                             schema:
                                 type: string
-                                example: Est minima minima illum voluptas vitae.
-                            example: Eligendi voluptatem inventore expedita minima quia.
+                                example: Autem rem beatae non.
+                            example: Eum quod est explicabo.
 components: {}
 tags:
     - name: testService

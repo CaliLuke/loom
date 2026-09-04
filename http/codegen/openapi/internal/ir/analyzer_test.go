@@ -73,6 +73,42 @@ func TestAnalyzerPreservesCanonicalAnyAliasAsComponent(t *testing.T) {
 	require.Empty(t, component.Type)
 }
 
+func TestAnalyzerUsesJSONWireNamesForObjectContracts(t *testing.T) {
+	t.Parallel()
+
+	renamed := &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:tag:json": {"wire_name", "omitempty"}}}
+	ignored := &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:tag:json": {"-"}}}
+	suppressed := &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"openapi:generate": {"false"}}}
+	attribute := &expr.AttributeExpr{
+		Type: &expr.Object{
+			{Name: "design_name", Attribute: renamed},
+			{Name: "ignored", Attribute: ignored},
+			{Name: "suppressed", Attribute: suppressed},
+		},
+		DefaultValue: map[string]any{"design_name": "default", "ignored": "secret", "suppressed": "secret"},
+		UserExamples: []*expr.ExampleExpr{{Value: map[string]any{
+			"design_name": "example", "ignored": "secret", "suppressed": "secret",
+		}}},
+		Validation: &expr.ValidationExpr{
+			Required: []string{"design_name", "ignored", "suppressed"},
+			Values: []any{map[string]any{
+				"design_name": "enum", "ignored": "secret", "suppressed": "secret",
+			}},
+		},
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("wire-names"), false, WithExampleValue(openAPIExampleValueForTest))
+	schema := analyzer.AnalyzeSchema(attribute)
+
+	require.Contains(t, schema.Properties, "wire_name")
+	require.NotContains(t, schema.Properties, "design_name")
+	require.NotContains(t, schema.Properties, "ignored")
+	require.NotContains(t, schema.Properties, "suppressed")
+	require.Equal(t, []string{"wire_name"}, schema.Required)
+	require.Equal(t, map[string]any{"wire_name": "default"}, schema.DefaultValue)
+	require.Equal(t, map[string]any{"wire_name": "example"}, schema.Example)
+	require.Equal(t, []any{map[string]any{"wire_name": "enum"}}, schema.Enum)
+}
+
 func TestAnalyzerNullableCanonicalAliasReferencesUnderlyingComponent(t *testing.T) {
 	t.Parallel()
 
@@ -101,6 +137,66 @@ func TestAnalyzerNullableCanonicalAliasReferencesUnderlyingComponent(t *testing.
 	require.Len(t, component.AnyOf, 2)
 	require.Equal(t, "#/components/schemas/Widget", component.AnyOf[0].Ref)
 	require.Equal(t, "null", component.AnyOf[1].Type)
+}
+
+func TestAnalyzerPreservesCanonicalNestedAliasConstraints(t *testing.T) {
+	t.Parallel()
+
+	inner := &expr.UserTypeExpr{
+		TypeName:      "Inner",
+		UID:           "inner",
+		AttributeExpr: &expr.AttributeExpr{Type: expr.String},
+	}
+	maximum := 5
+	outer := &expr.UserTypeExpr{
+		TypeName: "Outer",
+		UID:      "outer",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:       inner,
+			Meta:       expr.MetaExpr{"openapi:typename:canonical": {"true"}},
+			Validation: &expr.ValidationExpr{MaxLength: &maximum},
+		},
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("canonical-nested-alias"), false)
+
+	schema := analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: outer})
+
+	require.Equal(t, "#/components/schemas/Outer", schema.Ref)
+	component := analyzer.Components()["Outer"]
+	require.NotNil(t, component)
+	require.Equal(t, &maximum, component.MaxLength)
+	require.Len(t, component.AllOf, 1)
+	require.Equal(t, "string", component.AllOf[0].Type)
+}
+
+func TestAnalyzerRejectsCanonicalNestedAliasConstraintCollision(t *testing.T) {
+	t.Parallel()
+
+	inner := &expr.UserTypeExpr{
+		TypeName:      "Inner",
+		UID:           "inner",
+		AttributeExpr: &expr.AttributeExpr{Type: expr.String},
+	}
+	alias := func(uid string, maximum int) *expr.UserTypeExpr {
+		return &expr.UserTypeExpr{
+			TypeName: "Outer",
+			UID:      uid,
+			AttributeExpr: &expr.AttributeExpr{
+				Type:       inner,
+				Meta:       expr.MetaExpr{"openapi:typename:canonical": {"true"}},
+				Validation: &expr.ValidationExpr{MaxLength: &maximum},
+			},
+		}
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("canonical-nested-alias-collision"), false)
+	analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: alias("first", 5)})
+
+	require.PanicsWithValue(t,
+		"openapi: explicit component name \"Outer\" is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values",
+		func() {
+			analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: alias("second", 6)})
+		},
+	)
 }
 
 func TestAnalyzerPreservesNamedAliasConstraintOverlay(t *testing.T) {
@@ -138,6 +234,30 @@ func TestAnalyzerPreservesNamedAliasConstraintOverlay(t *testing.T) {
 	require.Equal(t, []any{0, 1}, analyzer.Components()["Status"].Enum)
 }
 
+func TestAnalyzerKeepsUserTypeOccurrenceMetadataOutsideSharedComponent(t *testing.T) {
+	t.Parallel()
+
+	userType := &expr.UserTypeExpr{
+		TypeName: "Shared",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{
+			{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		}},
+	}
+	first := &expr.AttributeExpr{Type: userType, Description: "first", DefaultValue: map[string]any{"value": "one"}}
+	second := &expr.AttributeExpr{Type: userType, Description: "second", DefaultValue: map[string]any{"value": "two"}}
+	analyzer := NewAnalyzer(expr.NewRandom("occurrence-overlays"), false)
+
+	firstSchema := analyzer.AnalyzeSchema(first)
+	secondSchema := analyzer.AnalyzeSchema(second)
+
+	require.NotEmpty(t, firstSchema.Ref)
+	require.Equal(t, firstSchema.Ref, secondSchema.Ref)
+	require.Equal(t, "first", firstSchema.Description)
+	require.Equal(t, "second", secondSchema.Description)
+	require.Equal(t, map[string]any{"value": "one"}, firstSchema.DefaultValue)
+	require.Equal(t, map[string]any{"value": "two"}, secondSchema.DefaultValue)
+}
+
 func TestAnalyzerKeepsNamedAnyNullExampleOnOccurrence(t *testing.T) {
 	t.Parallel()
 
@@ -161,6 +281,119 @@ func TestAnalyzerKeepsNamedAnyNullExampleOnOccurrence(t *testing.T) {
 	require.IsType(t, NullExample{}, schema.Example)
 	_, componentHasNullExample := analyzer.Components()["Anything"].Example.(NullExample)
 	require.False(t, componentHasNullExample)
+}
+
+func TestAnalyzerRejectsCanonicalNameCollisionWithMatchingTypeID(t *testing.T) {
+	t.Parallel()
+
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+	first := &expr.UserTypeExpr{
+		TypeName: "Bar",
+		UID:      "Bar",
+		AttributeExpr: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{
+			"openapi:typename":           []string{"Foo"},
+			"openapi:typename:canonical": []string{"true"},
+		}},
+	}
+	second := &expr.UserTypeExpr{
+		TypeName: "Foo",
+		UID:      "Foo",
+		AttributeExpr: &expr.AttributeExpr{Type: expr.Int, Meta: expr.MetaExpr{
+			"openapi:typename:canonical": []string{"true"},
+		}},
+	}
+	analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: first})
+	require.PanicsWithValue(t,
+		`openapi: explicit component name "Foo" is claimed by multiple different schemas; use distinct Meta("openapi:typename", ...) values`,
+		func() { analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: second}) },
+	)
+}
+
+func TestAnalyzerUsesArrayLengthKeywordsForNamedArrayOccurrence(t *testing.T) {
+	t.Parallel()
+
+	minimum := 2
+	names := &expr.UserTypeExpr{
+		TypeName: "Names",
+		UID:      "Names",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+		},
+	}
+	schema := NewAnalyzer(expr.NewRandom("ir"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type: names,
+		Validation: &expr.ValidationExpr{
+			MinLength: &minimum,
+		},
+	})
+
+	require.NotEmpty(t, schema.Ref)
+	require.Equal(t, &minimum, schema.MinItems)
+	require.Nil(t, schema.MinLength)
+}
+
+func TestAnalyzerOccurrenceOverlayPreservesCanonicalName(t *testing.T) {
+	t.Parallel()
+
+	base := &expr.UserTypeExpr{
+		TypeName: "Base",
+		UID:      "Base",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+		},
+	}
+	schema := NewAnalyzer(expr.NewRandom("ir"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type:        base,
+		Description: "Occurrence",
+		Meta: expr.MetaExpr{
+			"openapi:typename":           []string{"Renamed"},
+			"openapi:typename:canonical": []string{"true"},
+		},
+	})
+
+	require.Equal(t, "#/components/schemas/Renamed", schema.Ref)
+	require.Equal(t, "Occurrence", schema.Description)
+}
+
+func TestAnalyzerOccurrenceOverlayRetainsInlineAliasSchema(t *testing.T) {
+	t.Parallel()
+
+	maximum := 4
+	label := &expr.UserTypeExpr{
+		TypeName:      "Label",
+		UID:           "Label",
+		AttributeExpr: &expr.AttributeExpr{Type: expr.String},
+	}
+	schema := NewAnalyzer(expr.NewRandom("ir"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type:       label,
+		Validation: &expr.ValidationExpr{MaxLength: &maximum},
+	})
+	require.Len(t, schema.AllOf, 1)
+	require.Equal(t, "string", schema.AllOf[0].Type)
+	require.Equal(t, &maximum, schema.MaxLength)
+}
+
+func TestAnalyzerOccurrenceOverlayComposesInlineAliasConstraints(t *testing.T) {
+	t.Parallel()
+
+	baseMinimum := float64(10)
+	occurrenceMinimum := float64(5)
+	bounded := &expr.UserTypeExpr{
+		TypeName: "Bounded",
+		UID:      "Bounded",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:       expr.Int,
+			Validation: &expr.ValidationExpr{Minimum: &baseMinimum},
+		},
+	}
+	schema := NewAnalyzer(expr.NewRandom("ir"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type:       bounded,
+		Validation: &expr.ValidationExpr{Minimum: &occurrenceMinimum},
+	})
+
+	require.Len(t, schema.AllOf, 1)
+	require.Equal(t, &baseMinimum, schema.AllOf[0].Minimum)
+	require.Equal(t, &occurrenceMinimum, schema.Minimum)
 }
 
 func TestAnalyzerPreservesCanonicalNamesThatShareAGoIdentifier(t *testing.T) {
@@ -334,6 +567,101 @@ func TestAnalyzerClaimExplicitNamePanicsOnConflict(t *testing.T) {
 	)
 }
 
+func TestAnalyzerSeparatesNullableNamedSchemas(t *testing.T) {
+	t.Parallel()
+
+	shape := func() *expr.Object {
+		return &expr.Object{
+			{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		}
+	}
+	plain := &expr.UserTypeExpr{
+		TypeName:      "Plain",
+		UID:           "plain",
+		AttributeExpr: &expr.AttributeExpr{Type: shape()},
+	}
+	nullable := &expr.UserTypeExpr{
+		TypeName:      "Nullable",
+		UID:           "nullable",
+		AttributeExpr: &expr.AttributeExpr{Type: shape(), Nullable: true},
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+
+	plainSchema := analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: plain})
+	nullableSchema := analyzer.AnalyzeSchema(&expr.AttributeExpr{Type: nullable})
+
+	require.NotEqual(t, plainSchema.Ref, nullableSchema.Ref)
+	require.Len(t, analyzer.Components(), 2)
+}
+
+func TestAnalyzerReusesNamedComponentAcrossNullableOccurrences(t *testing.T) {
+	t.Parallel()
+
+	for _, nullableFirst := range []bool{false, true} {
+		analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+		shared := &expr.UserTypeExpr{
+			TypeName: "Shared",
+			UID:      "shared",
+			AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{
+				{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			}},
+		}
+		plainAttribute := &expr.AttributeExpr{Type: shared}
+		nullableAttribute := &expr.AttributeExpr{Type: shared, Nullable: true}
+		var plainSchema, nullableSchema *Schema
+		if nullableFirst {
+			nullableSchema = analyzer.AnalyzeSchema(nullableAttribute)
+			plainSchema = analyzer.AnalyzeSchema(plainAttribute)
+		} else {
+			plainSchema = analyzer.AnalyzeSchema(plainAttribute)
+			nullableSchema = analyzer.AnalyzeSchema(nullableAttribute)
+		}
+
+		require.Len(t, analyzer.Components(), 1)
+		require.Len(t, nullableSchema.AnyOf, 2)
+		require.Equal(t, plainSchema.Ref, nullableSchema.AnyOf[0].Ref)
+	}
+}
+func TestAnalyzerRejectsProjectedCanonicalNameCollision(t *testing.T) {
+	t.Parallel()
+
+	field := func(name string) *expr.NamedAttributeExpr {
+		return &expr.NamedAttributeExpr{Name: name, Attribute: &expr.AttributeExpr{Type: expr.String}}
+	}
+	result := &expr.ResultTypeExpr{
+		Identifier: "application/vnd.record",
+		UserTypeExpr: &expr.UserTypeExpr{
+			TypeName:      "Record",
+			UID:           "record",
+			AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{field("a"), field("b")}},
+		},
+		Views: []*expr.ViewExpr{
+			{Name: "only-a", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{field("a")}}},
+			{Name: "only-b", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{field("b")}}},
+		},
+	}
+	for _, view := range result.Views {
+		view.Parent = result
+	}
+	analyzer := NewAnalyzer(expr.NewRandom("ir"), false)
+	viewAttribute := func(view string) *expr.AttributeExpr {
+		return &expr.AttributeExpr{
+			Type: result,
+			Meta: expr.MetaExpr{
+				expr.ViewMetaKey:             []string{view},
+				"openapi:typename":           []string{"SharedView"},
+				"openapi:typename:canonical": []string{"true"},
+			},
+		}
+	}
+
+	first := analyzer.AnalyzeSchema(viewAttribute("only-a"))
+	require.Equal(t, "#/components/schemas/SharedView", first.Ref)
+	require.PanicsWithValue(t,
+		"openapi: explicit component name \"SharedView\" is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values",
+		func() { analyzer.AnalyzeSchema(viewAttribute("only-b")) },
+	)
+}
 func TestAnalyzerAppliesSchemaOpenAPIMetadata(t *testing.T) {
 	t.Parallel()
 

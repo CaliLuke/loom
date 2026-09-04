@@ -11,7 +11,7 @@
         "operationId": "test_service.test_endpoint",
         "parameters": [
           {
-            "example": 9212883845036105000,
+            "example": 4476268195445622072,
             "in": "header",
             "name": "foo",
             "schema": {
@@ -20,7 +20,7 @@
             }
           },
           {
-            "example": 6607410459381866000,
+            "example": 1038581769608676139,
             "in": "header",
             "name": "bar",
             "schema": {

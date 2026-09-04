@@ -47,6 +47,15 @@ func TestGoldenFile(t *testing.T) {
 		assert.Equal(t, newContent+"\n", string(actual))
 	})
 
+	t.Run("UpdateJSONPreservesExactNumbers", func(t *testing.T) {
+		gf := testutil.NewGoldenFile(t, tmpDir)
+		gf.SetUpdateMode(true)
+		gf.Content([]byte(`{"z":9007199254740993,"a":1}`)).Path("exact.json.golden").CompareContent()
+
+		actual, err := os.ReadFile(filepath.Join(tmpDir, "exact.json.golden"))
+		require.NoError(t, err)
+		require.Equal(t, "{\n  \"a\": 1,\n  \"z\": 9007199254740993\n}\n", string(actual))
+	})
 	t.Run("CompareOrCreate", func(t *testing.T) {
 		gf := testutil.NewGoldenFile(t, tmpDir)
 		// Test creating new file (using update override)

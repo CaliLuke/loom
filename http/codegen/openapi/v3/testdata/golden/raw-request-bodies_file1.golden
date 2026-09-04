@@ -39,10 +39,14 @@ paths:
                 content:
                     application/vnd.loom.manifest+json:
                         schema:
+                            description: Named manifest schema carried as an unparsed stream.
+                            example:
+                                name: Incidunt accusamus.
+                                size: 18422362374783688
                             $ref: '#/components/schemas/RawUploadManifest'
                         example:
-                            name: Explicabo voluptas veritatis ea ullam dolor laborum.
-                            size: 7434481764654081621
+                            name: Ipsa est in blanditiis ratione quae facere.
+                            size: 8005292687563674849
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -59,24 +63,24 @@ paths:
                   required: true
                   schema:
                     type: string
-                  example: Dolor neque fuga.
+                  example: Eligendi iste sed voluptatibus suscipit voluptas.
                 - name: filter
                   in: query
                   allowEmptyValue: true
                   schema:
                     type: string
-                  example: Saepe at illum est aliquid debitis et.
+                  example: Harum laudantium vitae distinctio.
                 - name: X-Checksum
                   in: header
                   required: true
                   schema:
                     type: string
-                  example: Est laborum et sapiente et hic.
+                  example: Vero dicta consequatur voluptatem eos repudiandae.
                 - name: upload_session
                   in: cookie
                   schema:
                     type: string
-                  example: Unde nostrum aliquam tenetur animi.
+                  example: Et pariatur in.
             requestBody:
                 description: Binary archive streamed directly to the service.
                 required: true
@@ -100,14 +104,14 @@ components:
             properties:
                 name:
                     type: string
-                    example: Sequi velit sapiente.
+                    example: Et iste aperiam blanditiis harum asperiores.
                 size:
                     type: integer
-                    example: 1718341104888283996
+                    example: 5663474586627500487
                     format: int64
             example:
-                name: Omnis quis voluptatem.
-                size: 1556568609638228194
+                name: Qui culpa unde quia.
+                size: 5667425858078415856
             required:
                 - name
                 - size

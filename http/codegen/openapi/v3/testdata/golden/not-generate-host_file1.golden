@@ -17,8 +17,8 @@ paths:
                         application/json:
                             schema:
                                 type: string
-                                example: Facere at consequatur dolorum molestias ut voluptate.
-                            example: Excepturi animi id sint nihil.
+                                example: Aliquid iste aut dolor repellendus consequatur ut.
+                            example: Iure quo velit voluptate culpa.
 components: {}
 tags:
     - name: testService

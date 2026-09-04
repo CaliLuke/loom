@@ -7,7 +7,7 @@
             "example": {
               "type": "BetaSchemaDedup",
               "value": {
-                "beta": "Dolores animi."
+                "beta": "Ducimus molestiae labore tenetur."
               }
             },
             "schema": {
@@ -19,9 +19,9 @@
                 "propertyName": "type"
               },
               "example": {
-                "type": "BetaSchemaDedup",
+                "type": "AlphaSchemaDedup",
                 "value": {
-                  "beta": "Harum quos et aut repellat exercitationem."
+                  "alpha": "Quod molestias corporis."
                 }
               },
               "oneOf": [
@@ -47,11 +47,11 @@
     "schemas": {
       "AlphaSchemaDedup": {
         "example": {
-          "alpha": "Beatae qui totam temporibus quis qui accusantium."
+          "alpha": "Voluptates cumque tempore voluptas accusantium."
         },
         "properties": {
           "alpha": {
-            "example": "Est et non et ea.",
+            "example": "Ducimus voluptatem et quia.",
             "type": "string"
           }
         },
@@ -70,7 +70,10 @@
             "type": "string"
           },
           "value": {
-            "$ref": "#/components/schemas/AlphaSchemaDedup"
+            "$ref": "#/components/schemas/AlphaSchemaDedup",
+            "example": {
+              "alpha": "Amet eum id ipsum fugit."
+            }
           }
         },
         "required": [
@@ -89,7 +92,10 @@
             "type": "string"
           },
           "value": {
-            "$ref": "#/components/schemas/BetaSchemaDedup"
+            "$ref": "#/components/schemas/BetaSchemaDedup",
+            "example": {
+              "beta": "Sed suscipit."
+            }
           }
         },
         "required": [
@@ -100,11 +106,11 @@
       },
       "BetaSchemaDedup": {
         "example": {
-          "beta": "Magni odio reiciendis aperiam sunt dignissimos quo."
+          "beta": "Atque adipisci."
         },
         "properties": {
           "beta": {
-            "example": "Porro nihil natus exercitationem eaque nisi veritatis.",
+            "example": "Esse quam ut velit quia dolores iure.",
             "type": "string"
           }
         },
@@ -115,11 +121,11 @@
       },
       "FirstRequestBody": {
         "example": {
-          "name": "Occaecati dolores."
+          "name": "Dignissimos ut sint in quisquam expedita voluptas."
         },
         "properties": {
           "name": {
-            "example": "Voluptas velit eaque sit praesentium ipsum.",
+            "example": "Esse minima ipsa commodi recusandae.",
             "type": "string"
           }
         },
@@ -144,7 +150,7 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Molestias sunt ut qui."
+                "name": "Natus omnis minus eligendi."
               },
               "schema": {
                 "$ref": "#/components/schemas/FirstRequestBody"
@@ -171,7 +177,7 @@
           "content": {
             "application/json": {
               "example": {
-                "name": "Ut repellendus saepe."
+                "name": "Iste at."
               },
               "schema": {
                 "$ref": "#/components/schemas/FirstRequestBody"

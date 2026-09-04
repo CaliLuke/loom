@@ -22,21 +22,29 @@ paths:
                             items:
                                 $ref: '#/components/schemas/Foobar'
                             example:
-                                - bar: []
+                                - bar:
+                                    - string: ""
                                   foo: []
-                                - bar: []
+                                - bar:
+                                    - string: ""
                                   foo: []
-                                - bar: []
+                                - bar:
+                                    - string: ""
+                                  foo: []
+                                - bar:
+                                    - string: ""
                                   foo: []
                         example:
                             - bar:
                                 - string: ""
-                                - string: ""
-                              foo: []
+                              foo:
+                                - Asperiores ad id et officiis accusamus repudiandae.
+                                - Autem debitis temporibus adipisci expedita odit aut.
                             - bar:
                                 - string: ""
-                                - string: ""
-                              foo: []
+                              foo:
+                                - Asperiores ad id et officiis accusamus repudiandae.
+                                - Autem debitis temporibus adipisci expedita odit aut.
             responses:
                 "200":
                     description: OK response.
@@ -67,24 +75,23 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/Bar'
-                    example:
-                        - string: ""
+                    example: []
                     minItems: 0
                     maxItems: 42
                 foo:
                     type: array
                     items:
                         type: string
-                        example: Quia enim quis itaque et.
+                        example: Itaque illo temporibus consequatur voluptate minus.
                     example:
-                        - Reprehenderit odio suscipit debitis alias.
-                        - Ipsam dolorem vel vero aut alias asperiores.
+                        - Molestiae hic inventore consectetur consequatur quia.
                     minItems: 0
                     maxItems: 42
             example:
                 bar:
                     - string: ""
                     - string: ""
-                foo: []
+                foo:
+                    - Earum est explicabo minima adipisci.
 tags:
     - name: testService

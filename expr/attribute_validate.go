@@ -44,17 +44,16 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 
 func (a *AttributeExpr) validatePresence(ctx string, parent eval.Expression) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	jsonTag, hasJSONTag := attributeJSONTag(a)
+	if hasJSONTag && jsonTagHasOption(jsonTag, "string") {
+		verr.Add(parent, "%sJSON ,string is not supported", ctx)
+	}
 	if AllowsNull(a) {
 		if _, hasType := a.Meta["struct:field:type"]; hasType && !legacyNullableWrapper(a) {
 			verr.Add(parent, "%snull-admitting attributes conflict with custom field type metadata", ctx)
 		}
-		if tag, ok := a.Meta.Last("struct:tag:json"); ok {
-			if strings.Split(tag, ",")[0] == "-" {
-				verr.Add(parent, "%snull-admitting attributes conflict with a JSON tag that omits the field", ctx)
-			}
-			if jsonTagHasOption(tag, "string") {
-				verr.Add(parent, "%sJSON ,string is not supported on presence-aware attributes", ctx)
-			}
+		if hasJSONTag && strings.Split(jsonTag, ",")[0] == "-" {
+			verr.Add(parent, "%snull-admitting attributes conflict with a JSON tag that omits the field", ctx)
 		}
 	}
 	if value, ok := a.Meta.Last("openapi:nullable"); ok && value == "false" && legacyNullableWrapper(a) {
@@ -295,7 +294,7 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 					if !isUntaggedBranchFieldType(field.Attribute.Type) {
 						verr.Add(parent, "%suntagged OneOf branch %q field %q must be primitive, a concrete named object type, or an array of either", ctx, branch.Name, field.Name)
 					}
-					wireName := untaggedJSONFieldName(field.Name, field.Attribute)
+					wireName := JSONFieldName(field.Name, field.Attribute)
 					if wireName == "" {
 						verr.Add(parent, "%suntagged OneOf branch %q field %q cannot use an empty JSON tag name", ctx, branch.Name, field.Name)
 						continue
@@ -329,28 +328,61 @@ func isUntaggedBranchFieldType(dataType DataType) bool {
 	return array != nil && isUntaggedBranchFieldType(array.ElemType.Type)
 }
 
-func untaggedJSONFieldName(name string, attribute *AttributeExpr) string {
-	if tag, ok := attribute.Meta.Last("struct:tag:json"); ok {
+// JSONFieldName returns the effective JSON member name for an object field.
+func JSONFieldName(name string, attribute *AttributeExpr) string {
+	if attribute == nil {
+		return name
+	}
+	if tag, ok := attributeJSONTag(attribute); ok {
 		return strings.Split(tag, ",")[0]
 	}
-	if tag, ok := attribute.Meta.Last("struct:tag:json:name"); ok && tag != "" {
-		return strings.Split(tag, ",")[0]
+	if tag, ok := attribute.Meta["struct:tag:json:name"]; ok && len(tag) > 0 {
+		return strings.Split(strings.Join(tag, ","), ",")[0]
 	}
 	return name
 }
 
+func attributeJSONTag(attribute *AttributeExpr) (string, bool) {
+	if attribute == nil {
+		return "", false
+	}
+	values, ok := attribute.Meta["struct:tag:json"]
+	return strings.Join(values, ","), ok
+}
 func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expression, obj *Object) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	for _, n := range a.AllRequired() {
-		if a.Find(n) == nil {
-			verr.Add(parent, `%srequired field %q does not exist in type %s`, ctx, n, a.Type.Name())
+	for _, name := range a.AllRequired() {
+		if a.Find(name) == nil {
+			verr.Add(parent, `%srequired field %q does not exist in type %s`, ctx, name, a.Type.Name())
 		}
 	}
 	pkgPath := a.pkgPath()
+	wireNames := make(map[string]string, len(*obj))
+	designNames := make(map[string]struct{}, len(*obj))
+	for _, nat := range *obj {
+		designNames[nat.Name] = struct{}{}
+	}
 	for _, nat := range *obj {
 		verr.Merge(a.validatePkgPath(pkgPath, nat.Attribute.Type))
 		fieldCtx := fmt.Sprintf("field %s", nat.Name)
 		verr.Merge(nat.Attribute.Validate(fieldCtx, parent))
+		wireName := JSONFieldName(nat.Name, nat.Attribute)
+		if wireName == "-" {
+			continue
+		}
+		if wireName == "" {
+			verr.Add(parent, "%s cannot use an empty JSON tag name", fieldCtx)
+			continue
+		}
+		if _, conflicts := designNames[wireName]; conflicts && wireName != nat.Name {
+			verr.Add(parent, "%s JSON field name %q conflicts with another design field name", fieldCtx, wireName)
+			continue
+		}
+		if first, exists := wireNames[wireName]; exists {
+			verr.Add(parent, "%s duplicates JSON field name %q from field %s", fieldCtx, wireName, first)
+			continue
+		}
+		wireNames[wireName] = nat.Name
 	}
 	return verr
 }

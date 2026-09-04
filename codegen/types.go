@@ -92,13 +92,7 @@ func JSONFieldName(fieldName string, att *expr.AttributeExpr) string {
 	if att == nil {
 		return fieldName
 	}
-	if tag, ok := att.Meta.Last("struct:tag:json"); ok {
-		return strings.Split(tag, ",")[0]
-	}
-	if name, ok := att.Meta.Last("struct:tag:json:name"); ok && name != "" {
-		return strings.Split(name, ",")[0]
-	}
-	return fieldName
+	return expr.JSONFieldName(fieldName, att)
 }
 
 func attributeTagValues(att *expr.AttributeExpr) (map[string]string, string) {

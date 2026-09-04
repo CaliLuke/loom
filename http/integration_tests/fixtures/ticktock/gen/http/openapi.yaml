@@ -12,21 +12,21 @@ paths:
         get:
             operationId: clock.guarded
             parameters:
-                - allowEmptyValue: true
-                  example: Ut accusantium.
+                - name: token
                   in: query
-                  name: token
+                  allowEmptyValue: true
                   schema:
                     type: string
+                  example: Veritatis excepturi deleniti laudantium.
             responses:
                 "200":
                     $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
                 "401":
+                    description: 'unauthorized: Unauthorized response.'
                     content:
                         application/problem+json:
                             schema:
                                 $ref: '#/components/schemas/Problem'
-                    description: 'unauthorized: Unauthorized response.'
             summary: Guarded clock
             tags:
                 - clock
@@ -47,13 +47,13 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Fuga distinctio.
+                                    example: Hic ut in.
                                 event:
                                     type: string
-                                    example: Optio est qui libero quod.
+                                    example: Eaque occaecati vitae ut illo qui sint.
                             example:
-                                data: Laborum enim laudantium soluta ut.
-                                event: Sed sint quis.
+                                data: Ut minima et aut corrupti.
+                                event: Enim veniam iste.
                             required:
                                 - event
                                 - data
@@ -90,13 +90,13 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Ut nihil officia eum deleniti quos.
+                                    example: Minus quos qui.
                                 event:
                                     type: string
-                                    example: Et hic vitae.
+                                    example: Veritatis sint aut iste repellendus.
                             example:
-                                data: Laudantium est.
-                                event: Rerum voluptate non voluptas.
+                                data: Quis illum aliquam.
+                                event: Provident autem quibusdam.
                             required:
                                 - event
                                 - data
@@ -133,13 +133,13 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Animi ad enim.
+                                    example: Ea incidunt eveniet.
                                 event:
                                     type: string
-                                    example: Et error quia dolorem.
+                                    example: Magnam facere perferendis laboriosam doloribus.
                             example:
-                                data: Aut vel recusandae aliquid sed necessitatibus qui.
-                                event: Molestiae qui quae inventore sed repellendus.
+                                data: Sint accusamus et.
+                                event: Sit eos et perferendis maiores dolor.
                             required:
                                 - event
                                 - data
@@ -205,13 +205,13 @@ components:
             properties:
                 data:
                     type: string
-                    example: Blanditiis et fuga.
+                    example: Deserunt laudantium consectetur.
                 event:
                     type: string
-                    example: Modi voluptatem veniam illo sapiente dicta in.
+                    example: Dignissimos rerum quod illum.
             example:
-                data: Deleniti cum et culpa.
-                event: Molestiae voluptas assumenda iusto eum.
+                data: Quidem laborum recusandae officia eaque nulla rerum.
+                event: Nisi provident accusamus rerum neque et quo.
             required:
                 - event
                 - data

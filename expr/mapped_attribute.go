@@ -43,6 +43,7 @@ func NewMappedAttributeExpr(att *AttributeExpr) *MappedAttributeExpr {
 		validation = inheritedAttributeValidation(att, make(map[string]struct{}))
 	)
 	attr := DupAtt(att)
+	attr.Nullable = IsNullable(att)
 	attr.Validation = validation
 	ma := &MappedAttributeExpr{
 		AttributeExpr: attr,

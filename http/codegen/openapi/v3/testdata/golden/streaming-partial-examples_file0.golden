@@ -4,18 +4,18 @@
       "RealtimeSSEEvent": {
         "example": {
           "data": {
-            "message": "Repellat quod."
+            "message": "Qui tenetur."
           },
           "event": "abc123"
         },
         "properties": {
           "data": {
             "example": {
-              "message": "Distinctio veniam ipsa."
+              "message": "Ut voluptate quis voluptas commodi suscipit et."
             },
             "properties": {
               "message": {
-                "example": "Omnis rerum officia dolorem neque ut.",
+                "example": "Quis quae voluptatum.",
                 "type": "string"
               }
             },
@@ -100,18 +100,18 @@
               "schema": {
                 "example": {
                   "data": {
-                    "message": "Maiores laudantium."
+                    "message": "Ipsa in nemo nihil quis nihil est."
                   },
                   "event": "abc123"
                 },
                 "properties": {
                   "data": {
                     "example": {
-                      "message": "Tenetur a quas distinctio."
+                      "message": "Non non et autem neque ipsam."
                     },
                     "properties": {
                       "message": {
-                        "example": "Suscipit voluptatem odio magnam.",
+                        "example": "Reprehenderit alias.",
                         "type": "string"
                       }
                     },
@@ -185,12 +185,12 @@
               "contentType": "application/json",
               "schema": {
                 "example": {
-                  "event": "Suscipit veritatis deserunt molestiae.",
+                  "event": "Qui dolorum similique beatae.",
                   "ts": 1
                 },
                 "properties": {
                   "event": {
-                    "example": "Officiis earum libero perspiciatis dolorum id ea.",
+                    "example": "Recusandae error sint.",
                     "type": "string"
                   },
                   "ts": {

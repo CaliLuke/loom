@@ -13,9 +13,9 @@
           "200": {
             "content": {
               "application/json": {
-                "example": "Excepturi animi id sint nihil.",
+                "example": "Iure quo velit voluptate culpa.",
                 "schema": {
-                  "example": "Facere at consequatur dolorum molestias ut voluptate.",
+                  "example": "Aliquid iste aut dolor repellendus consequatur ut.",
                   "type": "string"
                 }
               }

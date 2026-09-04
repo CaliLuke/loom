@@ -123,6 +123,10 @@ components:
                     enum:
                         - comment_added
                 value:
+                    example:
+                        author: alice
+                        comment_id: cmt_17
+                        thread_id: thr_42
                     $ref: '#/components/schemas/CommentAddedActivity'
             description: Synthetic wrapper for union variant "comment_added".
             required:
@@ -136,6 +140,9 @@ components:
                     enum:
                         - task_closed
                 value:
+                    example:
+                        closed_by: bob
+                        task_id: TASK-9
                     $ref: '#/components/schemas/TaskClosedActivity'
             description: Synthetic wrapper for union variant "task_closed".
             required:

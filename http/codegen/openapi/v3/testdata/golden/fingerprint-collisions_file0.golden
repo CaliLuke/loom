@@ -9,20 +9,27 @@
               "username": "alice"
             },
             "schema": {
-              "$ref": "#/components/schemas/Credentials"
+              "$ref": "#/components/schemas/Credentials",
+              "example": {
+                "accountID": "account-123",
+                "username": "alice"
+              }
             }
           }
         },
         "required": true
       },
-      "CollisionRequestBody_3129ca6d": {
+      "CollisionRequestBody_5b92cad8": {
         "content": {
           "application/json": {
             "example": {
               "email": "person@example.com"
             },
             "schema": {
-              "$ref": "#/components/schemas/AlternateCredentials"
+              "$ref": "#/components/schemas/AlternateCredentials",
+              "example": {
+                "email": "person@example.com"
+              }
             }
           }
         },
@@ -127,7 +134,7 @@
       "post": {
         "operationId": "collision.alternate",
         "requestBody": {
-          "$ref": "#/components/requestBodies/CollisionRequestBody_3129ca6d"
+          "$ref": "#/components/requestBodies/CollisionRequestBody_5b92cad8"
         },
         "responses": {
           "201": {

@@ -427,7 +427,7 @@ func OpenAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 		}
 		return nil, false
 	}
-	val := normalizeOpenAPIExample(expr.CanonicalizeExample(attr, raw))
+	val := normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, expr.CanonicalizeExample(attr, raw)))
 	if !isCompleteOpenAPIExample(attr, val) {
 		return nil, false
 	}

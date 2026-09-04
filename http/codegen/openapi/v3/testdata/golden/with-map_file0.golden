@@ -136,6 +136,12 @@
                   },
                   {
                     "string": ""
+                  },
+                  {
+                    "string": ""
+                  },
+                  {
+                    "string": ""
                   }
                 ],
                 "foo": ""
@@ -211,6 +217,12 @@
                   "resulttype_map": {
                     "": {
                       "bar": [
+                        {
+                          "string": ""
+                        },
+                        {
+                          "string": ""
+                        },
                         {
                           "string": ""
                         },

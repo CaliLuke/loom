@@ -2,7 +2,6 @@ package ir
 
 import (
 	"fmt"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,12 +21,14 @@ type (
 	Analyzer struct {
 		schemas              map[string]*Schema
 		schemaFingerprints   map[string]string
+		schemaTypeIDs        map[string]string
 		schemasByFingerprint map[string][]schemaRef
 		unionBranchSchemas   map[string]string
 		closeObjects         bool
 		rand                 *expr.ExampleGenerator
-		exampleValue         func(*expr.AttributeExpr, any) (any, bool)
-		suppressExamples     func(*expr.AttributeExpr, bool) bool
+
+		exampleValue     func(*expr.AttributeExpr, any) (any, bool)
+		suppressExamples func(*expr.AttributeExpr, bool) bool
 	}
 
 	schemaRef struct {
@@ -41,6 +42,8 @@ const (
 	schemaUsageRequest
 	schemaUsageResponse
 )
+
+const projectedResultMetaKey = "loom:openapi:projected-result"
 
 // WithExampleValue projects raw expr examples into OpenAPI-safe values.
 func WithExampleValue(fn func(*expr.AttributeExpr, any) (any, bool)) AnalyzerOption {
@@ -68,10 +71,12 @@ func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...Anal
 	a := &Analyzer{
 		schemas:              make(map[string]*Schema),
 		schemaFingerprints:   make(map[string]string),
+		schemaTypeIDs:        make(map[string]string),
 		schemasByFingerprint: make(map[string][]schemaRef),
 		unionBranchSchemas:   make(map[string]string),
 		closeObjects:         closeObjects,
-		rand:                 rand,
+
+		rand: rand,
 	}
 	for _, opt := range options {
 		opt(a)
@@ -157,7 +162,7 @@ func (a *Analyzer) Uniquify(name, fingerprint string) string {
 // ClaimExplicitName reserves an explicit component name or panics if it conflicts.
 func (a *Analyzer) ClaimExplicitName(name, fingerprint string) string {
 	if existingFingerprint, ok := a.schemaFingerprints[name]; ok && existingFingerprint != fingerprint {
-		panic(fmt.Sprintf("openapi: explicit component name %q is claimed by multiple different schemas; use distinct Meta(\"openapi:typename\", ...) values", name))
+		panic(fmt.Sprintf("openapi: explicit component name %q is claimed by multiple different schemas; use distinct Meta(%q, ...) values", name, "openapi:typename"))
 	}
 	return name
 }
@@ -190,40 +195,6 @@ func mergeStreamingBodyNote(req, streaming *Schema) *Schema {
 	}
 	req.Description += fmt.Sprintf("Streaming body: %s", note)
 	return req
-}
-
-func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.AttributeExpr {
-	componentAttr := expr.DupAtt(t.Attribute())
-	if attr == nil {
-		return componentAttr
-	}
-	if componentAttr.Meta == nil {
-		componentAttr.Meta = make(expr.MetaExpr)
-	}
-	_, aliasesUserType := componentAttr.Type.(expr.UserType)
-	if aliasesUserType {
-		delete(componentAttr.Meta, "openapi:typename")
-		delete(componentAttr.Meta, "openapi:typename:canonical")
-	}
-	for key, values := range attr.Meta {
-		if aliasesUserType && (key == "openapi:typename" || key == "openapi:typename:canonical") {
-			continue
-		}
-		componentAttr.Meta[key] = append([]string(nil), values...)
-	}
-	if attr.Description != "" {
-		componentAttr.Description = attr.Description
-	}
-	if attr.Validation != nil {
-		componentAttr.Validation = attr.Validation
-	}
-	if attr.DefaultValue != nil {
-		componentAttr.DefaultValue = attr.DefaultValue
-	}
-	if len(attr.UserExamples) > 0 && !expr.AllowsNull(attr) {
-		componentAttr.UserExamples = attr.UserExamples
-	}
-	return componentAttr
 }
 
 func (a *Analyzer) analyzeInlineType(attr *expr.AttributeExpr, context string) (*Schema, string) {
@@ -296,10 +267,11 @@ func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj 
 		s.Properties = make(map[string]*Schema)
 	}
 	for _, nat := range *obj {
-		if openapi.MustGenerate(nat.Attribute.Meta) {
-			s.Properties[nat.Name] = a.analyzeSchema(
+		name := expr.JSONFieldName(nat.Name, nat.Attribute)
+		if name != "-" && openapi.MustGenerate(nat.Attribute.Meta) {
+			s.Properties[name] = a.analyzeSchema(
 				nat.Attribute,
-				childExampleContext(context, "property", nat.Name),
+				childExampleContext(context, "property", name),
 			)
 		}
 	}
@@ -346,27 +318,10 @@ func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union, context stri
 }
 
 func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool) *Schema {
-	if resultType, ok := t.(*expr.ResultTypeExpr); ok {
-		view, hasView := attr.Meta.Last(expr.ViewMetaKey)
-		if !hasView {
-			view, hasView = resultType.Meta.Last(expr.ViewMetaKey)
-		}
-		if hasView {
-			projected, err := expr.Project(resultType, view)
-			if err != nil {
-				panic(codegen.NewError(nil, resultType, fmt.Errorf("project OpenAPI result view %q: %w", view, err)))
-			}
-			projectedAttr := expr.DupAtt(attr)
-			projectedAttr.Type = projected
-			projectedAttr.Validation = projected.Validation
-			delete(projectedAttr.Meta, expr.ViewMetaKey)
-			return a.analyzeSchema(projectedAttr, context, noRef)
-		}
+	if schema, projected := a.analyzeProjectedResult(attr, t, context, noRef); projected {
+		return schema
 	}
-	if !noRef && hasUserTypeConstraintOverlay(attr) {
-		base := a.analyzeUserType(&expr.AttributeExpr{Type: t}, t, context, false)
-		schema := &Schema{AllOf: []*Schema{{Ref: base.Ref}}}
-		a.applySchemaAttributeDetails(schema, attr, "", context)
+	if schema, overlaid := a.analyzeUserTypeOverlay(attr, t, context, noRef); overlaid {
 		return schema
 	}
 	metaName, canonical := schemaTypeNaming(attr, t)
@@ -375,7 +330,7 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 	}
 
 	s := &Schema{}
-	fingerprint := a.FingerprintAttribute(attr)
+	fingerprint := a.FingerprintAttribute(componentAttribute(attr, t))
 
 	refs, ok := a.schemasByFingerprint[fingerprint]
 	if !noRef && ok {
@@ -390,6 +345,14 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 		if metaName != "" {
 			typeName = metaName
 		}
+		_, schemaExists := a.schemas[typeName]
+		existingTypeID, hasTypeID := a.schemaTypeIDs[typeName]
+		if schemaExists && hasTypeID && existingTypeID == t.ID() {
+			a.schemaTypeIDs[typeName] = t.ID()
+			s.Ref = toRef(typeName)
+			return s
+		}
+
 		if a.reuseEquivalentCanonicalSchema(s, attr, t, typeName, fingerprint, metaName) {
 			return s
 		}
@@ -403,32 +366,10 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 		a.schemaFingerprints[typeName] = fingerprint
 		componentAttr := componentAttribute(attr, t)
 		componentContext := exampleContext("component", typeName)
+		a.schemaTypeIDs[typeName] = t.ID()
 		a.schemas[typeName] = a.analyzeSchema(componentAttr, componentContext, true)
 	}
 	return s
-}
-
-func (a *Analyzer) reuseEquivalentCanonicalSchema(s *Schema, attr *expr.AttributeExpr, t expr.UserType, typeName, fingerprint, metaName string) bool {
-	existingFingerprint, ok := a.schemaFingerprints[typeName]
-	if !ok || existingFingerprint == fingerprint {
-		return false
-	}
-	componentContext := exampleContext("component", typeName)
-	candidate := a.analyzeSchema(componentAttribute(attr, t), componentContext, true)
-	if !reflect.DeepEqual(a.schemas[typeName], candidate) {
-		return false
-	}
-	s.Ref = toRef(typeName)
-	a.registerSchemaRef(fingerprint, s.Ref, metaName)
-	return true
-}
-
-func hasUserTypeConstraintOverlay(attr *expr.AttributeExpr) bool {
-	if attr == nil {
-		return false
-	}
-	value, ok := attr.Meta.Last("openapi:allOf:reference")
-	return ok && value == "true"
 }
 
 func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeExpr, note, context string) {
@@ -437,7 +378,7 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 	if note != "" {
 		s.Description += "\n" + note
 	}
-	s.DefaultValue = toStringMap(attr.DefaultValue)
+	s.DefaultValue = toStringMap(normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, expr.CanonicalizeExample(attr, attr.DefaultValue))))
 
 	a.applySchemaExample(s, attr, context)
 	s.Extensions = openapi.ExtensionsFromExpr(attr.Meta)
@@ -452,7 +393,7 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 	if val == nil {
 		return
 	}
-	s.Enum = val.Values
+	s.Enum = projectOpenAPIValues(attr, val.Values)
 	if val.Format != "" {
 		s.Format = string(val.Format)
 	}
@@ -462,22 +403,29 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 	s.ExclusiveMaximum = val.ExclusiveMaximum
 	s.Maximum = val.Maximum
 	if val.MinLength != nil {
-		if _, ok := attr.Type.(*expr.Array); ok {
+		if expr.AsArray(attr.Type) != nil {
 			s.MinItems = val.MinLength
 		} else {
 			s.MinLength = val.MinLength
 		}
 	}
 	if val.MaxLength != nil {
-		if _, ok := attr.Type.(*expr.Array); ok {
+		if expr.AsArray(attr.Type) != nil {
 			s.MaxItems = val.MaxLength
 		} else {
 			s.MaxLength = val.MaxLength
 		}
 	}
 	for _, required := range val.Required {
-		if child := attr.Find(required); child != nil && !openapi.MustGenerate(child.Meta) {
-			continue
+		child := attr.Find(required)
+		if child != nil {
+			if !openapi.MustGenerate(child.Meta) {
+				continue
+			}
+			required = expr.JSONFieldName(required, child)
+			if required == "-" {
+				continue
+			}
 		}
 		s.Required = append(s.Required, required)
 	}

@@ -693,8 +693,8 @@ func TestRenderedSpecReusesRequestBodiesResponsesHeadersExamplesAndServiceTags(t
 	requirePattern(`(?s)post:\n\s+tags:\n\s+- Auth`)
 	requirePattern(`(?m)^\s+\$ref: '#/components/requestBodies/CredentialsRequestBody'$`)
 	requirePattern(`(?m)^\s+CredentialsRequestBody:$`)
-	requirePattern(`(?m)^\s+Session_f01e4e234bbb10ecStatus200Response:$`)
-	requirePattern(`(?s)responses:\n\s+"200":\n\s+\$ref: '#/components/responses/Session_f01e4e234bbb10ecStatus200Response'`)
+	requirePattern(`(?m)^\s+Session_cf64610497754895Status200Response:$`)
+	requirePattern(`(?s)responses:\n\s+"200":\n\s+\$ref: '#/components/responses/Session_cf64610497754895Status200Response'`)
 	requirePattern(`(?m)^\s+NoContentResponse:$`)
 	requirePattern(`(?s)responses:\n\s+"204":\n\s+\$ref: '#/components/responses/NoContentResponse'`)
 	requirePattern(`(?m)^\s+X-Trace-ID:\n\s+\$ref: '#/components/headers/XTraceIDHeader'$`)
@@ -712,7 +712,7 @@ func TestRenderedSpecReusesRequestBodiesResponsesHeadersExamplesAndServiceTags(t
 	if count := len(regexp.MustCompile(`(?m)^\s+\$ref: '#/components/requestBodies/CredentialsRequestBody'$`).FindAllString(spec, -1)); count != 2 {
 		t.Fatalf("expected CredentialsRequestBody to be reused exactly twice, got %d\nspec:\n%s", count, spec)
 	}
-	if count := len(regexp.MustCompile(`(?m)^\s+\$ref: '#/components/responses/Session_f01e4e234bbb10ecStatus200Response'$`).FindAllString(spec, -1)); count != 2 {
+	if count := len(regexp.MustCompile(`(?m)^\s+\$ref: '#/components/responses/Session_cf64610497754895Status200Response'$`).FindAllString(spec, -1)); count != 2 {
 		t.Fatalf("expected shared session response component to be reused exactly twice, got %d\nspec:\n%s", count, spec)
 	}
 }
@@ -839,7 +839,7 @@ func TestRenderedSpecPublishesSecuredAsyncSessionContracts(t *testing.T) {
 	requirePattern(`(?m)^    /events/\{project_id\}:$`)
 	requirePattern(`(?m)^\s+PathProjectID:$`)
 	requirePattern(`(?m)^\s+name: project_id$`)
-	requirePattern(`(?m)^\s+name: last_event_id$`)
+	requirePattern(`(?m)^\s+- name: last_event_id$`)
 	requirePattern(`(?m)^\s+security:$`)
 	requirePattern(`(?m)^\s+- browser_session_cookie: \[\]$`)
 	requirePattern(`(?m)^\s+x-loom-async:$`)

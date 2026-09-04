@@ -36,7 +36,7 @@ func transform() {
 	}
 	{
 		if target.Any == nil {
-			target.Any = loom.MustJSONValueFrom("something")
+			target.Any = loom.JSONValue("\"something\"")
 		}
 	}
 	if source.Array != nil {

@@ -45,6 +45,35 @@ func TestAttributeFingerprintDefinesDuplicateObjectMemberBehavior(t *testing.T) 
 	require.Equal(t, fingerprintAttribute(lastMember, false), fingerprintAttribute(withDuplicate, false))
 }
 
+func TestAttributeFingerprintUsesProjectedJSONNames(t *testing.T) {
+	t.Parallel()
+
+	first := fingerprintObject(&expr.NamedAttributeExpr{
+		Name: "value",
+		Attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{
+			"struct:tag:json": {"first"},
+		}},
+	})
+	second := fingerprintObject(&expr.NamedAttributeExpr{
+		Name: "value",
+		Attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{
+			"struct:tag:json": {"second"},
+		}},
+	})
+
+	require.NotEqual(t, fingerprintAttribute(first, false), fingerprintAttribute(second, false))
+}
+
+func TestAttributeFingerprintSeparatesTaggedAndUntaggedUnions(t *testing.T) {
+	t.Parallel()
+
+	values := []*expr.NamedAttributeExpr{{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String}}}
+	tagged := &expr.AttributeExpr{Type: &expr.Union{Values: values}}
+	untagged := &expr.AttributeExpr{Type: &expr.Union{Values: values, Untagged: true}}
+
+	require.NotEqual(t, fingerprintAttribute(tagged, false), fingerprintAttribute(untagged, false))
+}
+
 func TestAttributeFingerprintCanonicalizesMapValues(t *testing.T) {
 	t.Parallel()
 
@@ -138,7 +167,7 @@ func TestAttributeFingerprintHasExactVersionedValues(t *testing.T) {
 		{
 			name: "string",
 			attr: &expr.AttributeExpr{Type: expr.String},
-			want: "116abbf0a2f187124e44c4094105d64aa41f78d5d467a2df6b070b414d9b5dea",
+			want: "aa96cb3cb12860b2d4833d8b18d7a9898144c39dc283852d9ab7abbf64782091",
 		},
 		{
 			name: "constrained object",
@@ -151,7 +180,7 @@ func TestAttributeFingerprintHasExactVersionedValues(t *testing.T) {
 				},
 				Validation: &expr.ValidationExpr{Required: []string{"id"}},
 			},
-			want: "8afc24034e477566e9aef8cd678c2b6e399053cbcb0c9f15aef6f89b69a5fd35",
+			want: "3fc1e878dbd5798d586cc312955a7e63b645b6963fe6c8b87c60ea626063a9be",
 		},
 	}
 
@@ -162,6 +191,63 @@ func TestAttributeFingerprintHasExactVersionedValues(t *testing.T) {
 	}
 }
 
+func TestAttributeFingerprintDoesNotDuplicateInheritedUserTypeNullability(t *testing.T) {
+	t.Parallel()
+
+	base := &expr.UserTypeExpr{
+		TypeName: "NullableText",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:     expr.String,
+			Nullable: true,
+		},
+	}
+	wrapper := &expr.AttributeExpr{Type: base, Nullable: true}
+
+	require.Equal(t, fingerprintAttribute(base.Attribute(), false), fingerprintAttribute(wrapper, false))
+}
+
+func TestAttributeFingerprintMatchesMaterializedNullableUserType(t *testing.T) {
+	t.Parallel()
+
+	widget := &expr.UserTypeExpr{
+		TypeName: "Widget",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{
+				Name:      "name",
+				Attribute: &expr.AttributeExpr{Type: expr.String},
+			}},
+			Validation: &expr.ValidationExpr{Required: []string{"name"}},
+		},
+	}
+	occurrence := &expr.AttributeExpr{Type: widget, Nullable: true}
+	materialized := expr.DupAtt(widget.Attribute())
+	materialized.Nullable = true
+
+	require.Equal(t, fingerprintAttribute(materialized, false), fingerprintAttribute(occurrence, false))
+}
+func TestAttributeFingerprintCanonicalizesEquivalentUserTypeValidation(t *testing.T) {
+	t.Parallel()
+
+	base := &expr.UserTypeExpr{
+		TypeName: "Role",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:       expr.String,
+			Validation: &expr.ValidationExpr{Values: []any{"admin", "member"}},
+		},
+	}
+	first := &expr.AttributeExpr{
+		Type:       base,
+		Validation: &expr.ValidationExpr{Values: []any{"admin", "member"}},
+	}
+	second := &expr.AttributeExpr{
+		Type:       base,
+		Validation: &expr.ValidationExpr{Values: []any{"member", "admin"}},
+	}
+
+	require.False(t, hasUserTypeValidationOverlay(first, base.Attribute()))
+	require.False(t, hasUserTypeValidationOverlay(second, base.Attribute()))
+	require.Equal(t, fingerprintAttribute(first, false), fingerprintAttribute(second, false))
+}
 func TestExplicitComponentNameDoesNotChangeAttributeFingerprint(t *testing.T) {
 	t.Parallel()
 

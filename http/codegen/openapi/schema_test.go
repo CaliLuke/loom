@@ -6,8 +6,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
+type exactNumber string
+
+func (number exactNumber) MarshalJSON() ([]byte, error) {
+	return []byte(number), nil
+}
+
+func (number exactNumber) MarshalYAML() (any, error) {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: string(number)}, nil
+}
 func TestSchemaSerializationContract(t *testing.T) {
 	schema := NewSchema()
 	schema.Type = Object
@@ -33,6 +44,24 @@ func TestSchemaSerializationContract(t *testing.T) {
 		},
 		"x-origin": "contract",
 	}, decodedYAML)
+}
+
+func TestSchemaExtensionsPreserveExactJSONNumbers(t *testing.T) {
+	schema := NewSchema()
+	schema.Example = exactNumber("9007199254740993")
+	schema.Extensions = ExtensionsFromExpr(expr.MetaExpr{
+		"openapi:extension:x-origin": {"true"},
+		"openapi:extension:x-limit":  {"123456789012345678901234567890"},
+	})
+
+	encodedJSON, err := json.Marshal(schema, json.Deterministic(true))
+	require.NoError(t, err)
+	require.Equal(t, `{"example":9007199254740993,"x-limit":123456789012345678901234567890,"x-origin":true}`, string(encodedJSON))
+
+	encodedYAML, err := yaml.Marshal(schema)
+	require.NoError(t, err)
+	require.Contains(t, string(encodedYAML), "example: 9007199254740993")
+	require.Contains(t, string(encodedYAML), "x-limit: 123456789012345678901234567890")
 }
 
 func TestNewSchemaOwnsMutableMaps(t *testing.T) {

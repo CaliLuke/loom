@@ -3,6 +3,7 @@ package expr
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"regexp"
 	"regexp/syntax"
 	"strings"
@@ -516,31 +517,29 @@ func checkMinMaxValue(a *AttributeExpr, example any) bool {
 	if !hasMinMaxValidation(a) {
 		return true
 	}
-	var minimum *float64
-	if a.Validation.ExclusiveMinimum != nil {
-		minimum = a.Validation.ExclusiveMinimum
+	value, ok := numericExampleRat(example)
+	if !ok {
+		return true
 	}
-	if a.Validation.Minimum != nil {
-		minimum = a.Validation.Minimum
-	}
-	if minimum != nil {
-		if v, ok := example.(int); ok && float64(v) < *minimum {
+	if minimum := a.Validation.ExclusiveMinimum; minimum != nil {
+		bound := new(big.Rat).SetFloat64(*minimum)
+		if bound != nil && value.Cmp(bound) <= 0 {
 			return false
-		} else if v, ok := example.(float64); ok && v < *minimum {
+		}
+	} else if minimum := a.Validation.Minimum; minimum != nil {
+		bound := new(big.Rat).SetFloat64(*minimum)
+		if bound != nil && value.Cmp(bound) < 0 {
 			return false
 		}
 	}
-	var maximum *float64
-	if a.Validation.ExclusiveMaximum != nil {
-		maximum = a.Validation.ExclusiveMaximum
-	}
-	if a.Validation.Maximum != nil {
-		maximum = a.Validation.Maximum
-	}
-	if maximum != nil {
-		if v, ok := example.(int); ok && float64(v) > *maximum {
+	if maximum := a.Validation.ExclusiveMaximum; maximum != nil {
+		bound := new(big.Rat).SetFloat64(*maximum)
+		if bound != nil && value.Cmp(bound) >= 0 {
 			return false
-		} else if v, ok := example.(float64); ok && v > *maximum {
+		}
+	} else if maximum := a.Validation.Maximum; maximum != nil {
+		bound := new(big.Rat).SetFloat64(*maximum)
+		if bound != nil && value.Cmp(bound) > 0 {
 			return false
 		}
 	}

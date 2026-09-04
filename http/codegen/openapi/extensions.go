@@ -1,7 +1,7 @@
 package openapi
 
 import (
-	"encoding/json/v2"
+	"encoding/json/jsontext"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -51,13 +51,12 @@ func extensionsFromExprWithPrefix(mdata expr.MetaExpr, prefix string) map[string
 		if !strings.HasPrefix(name, "x-") {
 			continue
 		}
-		val := value[0]
-		var ival any
-		if err := json.Unmarshal([]byte(val), &ival); err != nil {
-			extensions[name] = val
+		raw := jsontext.Value(value[0]).Clone()
+		if err := raw.Format(jsontext.ReorderRawObjects(true)); err != nil {
+			extensions[name] = value[0]
 			continue
 		}
-		extensions[name] = ival
+		extensions[name] = raw
 	}
 	if len(extensions) == 0 {
 		return nil

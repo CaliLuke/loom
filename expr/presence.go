@@ -180,50 +180,6 @@ func containsUnsupportedGRPCPresenceRecursive(attribute *AttributeExpr, objectFi
 	return false
 }
 
-func containsOptionalJSONStringTag(attribute *AttributeExpr) bool {
-	return containsOptionalJSONStringTagRecursive(attribute, make(map[string]struct{}))
-}
-
-func containsOptionalJSONStringTagRecursive(attribute *AttributeExpr, seen map[string]struct{}) bool {
-	if attribute == nil || attribute.Type == nil || attribute.Type == Empty {
-		return false
-	}
-	if userType, ok := attribute.Type.(UserType); ok {
-		if _, ok := seen[userType.ID()]; ok {
-			return false
-		}
-		seen[userType.ID()] = struct{}{}
-		defer delete(seen, userType.ID())
-		return containsOptionalJSONStringTagRecursive(userType.Attribute(), seen)
-	}
-	if object := AsObject(attribute.Type); object != nil {
-		for _, named := range *object {
-			if !attribute.IsRequiredNoDefault(named.Name) {
-				if tag, ok := named.Attribute.Meta.Last("struct:tag:json"); ok && jsonTagHasOption(tag, "string") {
-					return true
-				}
-			}
-			if containsOptionalJSONStringTagRecursive(named.Attribute, seen) {
-				return true
-			}
-		}
-	}
-	if array := AsArray(attribute.Type); array != nil {
-		return containsOptionalJSONStringTagRecursive(array.ElemType, seen)
-	}
-	if mapping := AsMap(attribute.Type); mapping != nil {
-		return containsOptionalJSONStringTagRecursive(mapping.ElemType, seen)
-	}
-	if union := AsUnion(attribute.Type); union != nil {
-		for _, named := range union.Values {
-			if containsOptionalJSONStringTagRecursive(named.Attribute, seen) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func containsNullableRecursive(attribute *AttributeExpr, seen map[string]struct{}) bool {
 	if attribute == nil || attribute.Type == nil || attribute.Type == Empty {
 		return false

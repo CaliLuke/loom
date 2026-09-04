@@ -99,23 +99,23 @@
       "ImportPantryRequestBody": {
         "additionalProperties": false,
         "example": {
-          "content_type": "Ex et.",
-          "file": "Officiis aliquid doloribus.",
-          "filename": "Et in nam quas atque.",
+          "content_type": "Quasi rerum.",
+          "file": "Consequatur debitis et est maxime eum non.",
+          "filename": "Est rerum eum aperiam qui porro.",
           "label": "scan-weekly"
         },
         "properties": {
           "content_type": {
-            "example": "Sequi sunt rerum omnis.",
+            "example": "Repellat natus libero expedita facilis voluptatibus sed.",
             "type": "string"
           },
           "file": {
-            "example": "Sit et aliquid maiores distinctio quis quisquam.",
+            "example": "Tempore fugit exercitationem iusto.",
             "format": "binary",
             "type": "string"
           },
           "filename": {
-            "example": "Possimus dignissimos libero ex.",
+            "example": "Reprehenderit voluptatibus vitae odio non eos.",
             "type": "string"
           },
           "label": {
@@ -149,11 +149,6 @@
               "day": "monday",
               "recipe_id": "recipe_42",
               "slot": "dinner"
-            },
-            {
-              "day": "monday",
-              "recipe_id": "recipe_42",
-              "slot": "dinner"
             }
           ],
           "week_start": "2026-03-16"
@@ -161,16 +156,6 @@
         "properties": {
           "meals": {
             "example": [
-              {
-                "day": "monday",
-                "recipe_id": "recipe_42",
-                "slot": "dinner"
-              },
-              {
-                "day": "monday",
-                "recipe_id": "recipe_42",
-                "slot": "dinner"
-              },
               {
                 "day": "monday",
                 "recipe_id": "recipe_42",
@@ -254,22 +239,12 @@
               "day": "monday",
               "recipe_id": "recipe_42",
               "slot": "dinner"
-            },
-            {
-              "day": "monday",
-              "recipe_id": "recipe_42",
-              "slot": "dinner"
             }
           ]
         },
         "properties": {
           "meals": {
             "example": [
-              {
-                "day": "monday",
-                "recipe_id": "recipe_42",
-                "slot": "dinner"
-              },
               {
                 "day": "monday",
                 "recipe_id": "recipe_42",
@@ -333,7 +308,7 @@
               "spinach"
             ],
             "items": {
-              "example": "Ut vel eos.",
+              "example": "Aut deserunt molestiae quisquam.",
               "type": "string"
             },
             "type": "array"
@@ -350,7 +325,7 @@
               "vegetarian"
             ],
             "items": {
-              "example": "Rerum maxime.",
+              "example": "Ullam vel.",
               "type": "string"
             },
             "type": "array"
@@ -530,12 +505,6 @@
       "RecipeResponseSummaryCollection": {
         "description": "ListRecipesResponseBody is the result type for an array of RecipeResponse (summary view)",
         "example": [
-          {
-            "difficulty": "easy",
-            "id": "recipe_42",
-            "minutes": 30,
-            "title": "Sheet Pan Gnocchi"
-          },
           {
             "difficulty": "easy",
             "id": "recipe_42",
@@ -891,7 +860,31 @@
                 ]
               },
               "schema": {
-                "$ref": "#/components/schemas/MealPlanPatch"
+                "$ref": "#/components/schemas/MealPlanPatch",
+                "example": {
+                  "meals": [
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    },
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    },
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    },
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    }
+                  ]
+                }
               }
             }
           }
@@ -902,6 +895,11 @@
               "application/json": {
                 "example": {
                   "meals": [
+                    {
+                      "day": "monday",
+                      "recipe_id": "recipe_42",
+                      "slot": "dinner"
+                    },
                     {
                       "day": "monday",
                       "recipe_id": "recipe_42",
@@ -1015,9 +1013,9 @@
           "content": {
             "multipart/form-data": {
               "example": {
-                "content_type": "A veniam voluptatem.",
-                "file": "Autem voluptates impedit veritatis reiciendis ducimus odit.",
-                "filename": "Autem quo quidem error.",
+                "content_type": "Totam consequatur voluptas.",
+                "file": "Non aut doloribus.",
+                "filename": "Dolorum nihil accusamus at distinctio quidem.",
                 "label": "scan-weekly"
               },
               "schema": {
