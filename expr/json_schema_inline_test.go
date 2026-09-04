@@ -400,7 +400,22 @@ func TestInlineJSONSchema(t *testing.T) {
 		base := data["allOf"].([]any)[0].(map[string]any)
 		require.Equal(t, float64(10), base["minimum"])
 	})
+	t.Run("does not wrap equivalent alias validation", func(t *testing.T) {
+		baseValidation := &ValidationExpr{Required: []string{"value"}}
+		alias := &UserTypeExpr{TypeName: "Record", AttributeExpr: &AttributeExpr{
+			Type: &Object{
+				&NamedAttributeExpr{Name: "value", Attribute: &AttributeExpr{Type: String}},
+			},
+			Validation: baseValidation,
+		}}
+		data := mustInlineJSONSchema(t, &AttributeExpr{
+			Type:       alias,
+			Validation: &ValidationExpr{Required: []string{"value"}},
+		})
 
+		require.NotContains(t, data, "allOf")
+		require.Contains(t, data, "properties")
+	})
 	t.Run("leaves arbitrary JSON unconstrained", func(t *testing.T) {
 		schema, err := InlineJSONSchema(&AttributeExpr{Type: Any})
 

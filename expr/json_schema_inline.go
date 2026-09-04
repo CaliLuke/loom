@@ -3,6 +3,7 @@ package expr
 import (
 	"encoding/json/v2"
 	"fmt"
+	"reflect"
 )
 
 type (
@@ -293,7 +294,7 @@ func inlineWrappedJSONSchema(wrapper *AttributeExpr, inner *AttributeExpr, visit
 	if err != nil {
 		return nil, err
 	}
-	if wrapper.Validation != nil {
+	if wrapper.Validation != nil && !reflect.DeepEqual(wrapper.Validation, inner.Validation) {
 		schema = &InlineSchema{Type: schema.Type, AllOf: []*InlineSchema{schema}}
 	}
 	applyInlineWrapperMetadata(schema, wrapper)
