@@ -89,6 +89,23 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 	})
 }
 
+func TestHeaderAPIKeyPreservesExactCredential(t *testing.T) {
+	root := RunHTTPDSL(t, headerAPIKeySecurityDSL)
+	services := CreateHTTPServices(root)
+
+	serverFiles := ServerFiles("", services)
+	require.Len(t, serverFiles, 2)
+	serverDecode := codegen.SectionCode(t, serverFiles[1].AllSections()[2])
+	require.Contains(t, serverDecode, `r.Header.Get("X-Api-Key")`)
+	require.NotContains(t, serverDecode, `strings.SplitN(payload.Key, " ", 2)`)
+
+	clientFiles := ClientFiles("", services)
+	require.Len(t, clientFiles, 2)
+	clientEncode := codegen.SectionCode(t, clientFiles[1].AllSections()[2])
+	require.Contains(t, clientEncode, `req.Header.Set("X-Api-Key", head)`)
+	require.NotContains(t, clientEncode, `"Bearer "+head`)
+}
+
 func TestSessionSecurityInfersCookieBinding(t *testing.T) {
 	t.Run("endpoint requirements infer bearer header and cookie transport", func(t *testing.T) {
 		root := RunHTTPDSL(t, sessionCookieSecurityDSL)
@@ -358,6 +375,27 @@ var cookieAPIKeySecurityDSL = func() {
 	})
 }
 
+var headerAPIKeySecurityDSL = func() {
+	apiKey := dsl.APIKeySecurity("api_key", func() {
+		dsl.Description("Opaque API key")
+	})
+
+	dsl.Service("headerAPIKeySecurity", func() {
+		dsl.Method("show", func() {
+			dsl.Security(apiKey)
+			dsl.Payload(func() {
+				dsl.APIKey("api_key", "key", dsl.String)
+				dsl.Required("key")
+			})
+			dsl.Result(dsl.Empty)
+			dsl.HTTP(func() {
+				dsl.GET("/keys/current")
+				dsl.Header("key:X-Api-Key")
+				dsl.Response(dsl.StatusOK)
+			})
+		})
+	})
+}
 var sessionCookieSecurityDSL = func() {
 	var bearer = dsl.JWTSecurity("session_bearer", func() {
 		dsl.Description("Application bearer")

@@ -3,6 +3,7 @@ package openapiv3_test
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"fmt"
 	"os"
@@ -35,6 +36,35 @@ func TestFilesSynthesizedExamplesAreStableAcrossRepeatedGeneration(t *testing.T)
 	second := renderOpenAPIExampleArtifacts(t, httpgen.RunHTTPDSL(t, synthesizedExampleStabilityDSL(false, false)))
 
 	require.Equal(t, first, second)
+}
+
+func TestPathItemPreservesExactJSONNumbers(t *testing.T) {
+	description := "Successful response"
+	pathItem := openapiv3.PathItem{
+		Get: &openapiv3.Operation{
+			Responses: map[string]*openapiv3.ResponseRef{
+				"200": {Value: &openapiv3.Response{
+					Description: &description,
+					Content: map[string]*openapiv3.MediaType{
+						"application/json": {Example: int64(9007199254740993)},
+					},
+				}},
+			},
+		},
+		Extensions: map[string]any{
+			"x-loom-cors": jsontext.Value(`{"enabled":true}`),
+		},
+	}
+
+	encodedJSON, err := json.Marshal(pathItem)
+	require.NoError(t, err)
+	require.Contains(t, string(encodedJSON), `"example":9007199254740993`)
+	require.Contains(t, string(encodedJSON), `"x-loom-cors":{"enabled":true}`)
+
+	encodedYAML, err := yaml.Marshal(pathItem)
+	require.NoError(t, err)
+	require.Contains(t, string(encodedYAML), "example: 9007199254740993")
+	require.Contains(t, string(encodedYAML), "x-loom-cors:\n    enabled: true")
 }
 
 func TestFilesAreByteStableAcrossIndependentProcesses(t *testing.T) {

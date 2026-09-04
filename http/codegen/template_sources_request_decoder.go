@@ -170,11 +170,13 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	{{- if not .CredRequired }}
 	if payload.{{ .CredField }} != nil {
 	{{- end }}
+	{{- if ne .Type "APIKey" }}
 	if strings.Contains({{ if .CredPointer }}*{{ end }}payload.{{ .CredField }}, " ") {
 		// Remove authorization scheme prefix (e.g. "Bearer")
 		cred := strings.SplitN({{ if .CredPointer }}*{{ end }}payload.{{ .CredField }}, " ", 2)[1]
 		payload.{{ .CredField }} = {{ if .CredPointer }}&{{ end }}cred
 	}
+	{{- end }}
 	{{- if not .CredRequired }}
 	}
 	{{- end }}
