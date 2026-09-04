@@ -8,6 +8,8 @@
 - **Read before editing**: Always read files before modifying. Search over guessing.
 - **Fix root causes**: Do not produce local workarounds—fix the real issue.
 - **Be concise**: Give short status updates during multi-step work. Present a short summary when done.
+- **Atomic tickets**: Implement each ticket as exactly one atomic commit. Never split one ticket across multiple commits or combine multiple tickets in one commit.
+- **Review before every commit**: Before each commit, run a fresh agent review of that commit's exact final diff. The reviewer must not have implemented the change. Resolve every verified finding, rerun affected verification gates, and obtain another fresh review of the revised exact diff. Repeat until the reviewer reports no findings. Make no changes between the final clean review and the commit. This applies to every commit, including trivial, single-file, documentation, policy, and release commits; a batch-level review never authorizes later commits.
 - **Loom naming only**: Do not introduce or keep legacy upstream-named aliases, env vars, scripts, targets, or compatibility shims in Loom-owned workflows. Use `loom` naming exclusively.
 
 ### Skill Routing
