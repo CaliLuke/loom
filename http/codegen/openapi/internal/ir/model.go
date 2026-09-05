@@ -165,7 +165,6 @@ type (
 	ExternalDocs struct {
 		Description string
 		URL         string
-		Extensions  map[string]any
 	}
 
 	// BodyTypes groups endpoint bodies and component schemas.

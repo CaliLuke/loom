@@ -31,6 +31,7 @@ var lossyDiagnosticCodes = map[string]struct{}{
 	"schema-allof-flattened":            {},
 	"schema-format":                     {},
 	"schema-inline-array-item-promoted": {},
+	"vendor-extension":                  {},
 }
 
 // Error formats all diagnostics as a single error-style message.

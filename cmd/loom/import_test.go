@@ -152,6 +152,18 @@ info:
 servers: [{url: https://api.example.com}]
 paths: {}
 `
+	const unsupportedExtensionScope = `openapi: 3.1.1
+info:
+  title: Metadata
+  version: 1.0.0
+paths:
+  /items:
+    x-path-note: gated
+    get:
+      operationId: listItems
+      responses:
+        "204": {description: done}
+`
 
 	cases := map[string]struct {
 		source       string
@@ -174,6 +186,19 @@ paths: {}
 			source:     metadataAndContract,
 			allowLossy: true,
 			wantError:  "OpenAPI import cannot preserve the input contract",
+		},
+		"strict unsupported extension scope does not write": {
+			source:    unsupportedExtensionScope,
+			wantError: "OpenAPI import cannot preserve the input contract",
+		},
+		"lossy unsupported extension scope warns": {
+			source:     unsupportedExtensionScope,
+			allowLossy: true,
+			wantWarnings: openapiimport.Diagnostics{{
+				Code:    "vendor-extension",
+				Path:    "#/paths/~1items",
+				Message: "vendor extensions at this location are not in the strict import subset",
+			}},
 		},
 	}
 

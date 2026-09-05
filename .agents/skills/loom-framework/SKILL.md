@@ -161,6 +161,14 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   examples in both JSON and YAML without mutating the evaluated design.
 - Treat stable schema names, canonical `operationId`, reusable component
   identity, and extension output as public framework contracts.
+- An `Extensions map[string]any` field is tagged `json:"-" yaml:"-"`, so the type
+  that declares it must also implement `MarshalJSON` and `MarshalYAML` through
+  `openapi.MarshalJSON` and `openapi.MarshalYAML` with a `_Type` alias. A type
+  without that pair accepts extensions and drops them at serialization.
+- A scoped extension metadata key such as `openapi:<scope>:extension:<x-name>`
+  needs a reader at the scope that emits it. Adding the writer alone leaves the
+  metadata dead. Cover every scope in the semantic import round trip rather than
+  in renderer unit tests alone.
 
 The public feature inventory and metadata usage belong in
 `docs/dsl-reference.md` and the consumer `loom` skill. Internal constructor,

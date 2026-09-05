@@ -3,6 +3,8 @@ info:
   title: Pet API
   description: A small import fixture.
   version: 1.2.3
+x-migration-review:
+  status: reviewed
 paths:
   /pets/{pet_id}:
     parameters:
@@ -18,6 +20,7 @@ paths:
       summary: Get a pet
       description: Returns one pet.
       tags: [pets]
+      x-operation-note: gated
       parameters:
         - name: limit
           in: query
@@ -27,9 +30,11 @@ paths:
             format: int32
         - name: X-Request-ID
           in: header
+          x-param-note: identifier
           schema:
             type: string
             format: uuid
+            x-param-schema-note: trace-id
       responses:
         "200":
           description: Found pet.
@@ -56,6 +61,7 @@ paths:
       requestBody:
         required: true
         description: Pet to create.
+        x-request-note: body-gated
         content:
           application/json:
             schema:
@@ -63,6 +69,8 @@ paths:
       responses:
         "201":
           description: Created pet.
+          x-response-note:
+            state: created
           content:
             application/json:
               schema:
@@ -96,6 +104,8 @@ components:
       additionalProperties: false
     Pet:
       type: object
+      x-schema-note:
+        audience: public
       properties:
         id:
           type: integer

@@ -32,15 +32,11 @@ func TestMetadataHelperContracts(t *testing.T) {
 }
 
 func TestDocumentationAndExtensionHelperContracts(t *testing.T) {
-	require.Nil(t, DocsFromExpr(nil, nil))
-	docs := DocsFromExpr(
-		&expr.DocsExpr{Description: "Reference", URL: "https://example.com/docs"},
-		expr.MetaExpr{"openapi:extension:x-owner": {`"platform"`}},
-	)
+	require.Nil(t, DocsFromExpr(nil))
+	docs := DocsFromExpr(&expr.DocsExpr{Description: "Reference", URL: "https://example.com/docs"})
 	require.Equal(t, &ExternalDocs{
 		Description: "Reference",
 		URL:         "https://example.com/docs",
-		Extensions:  map[string]any{"x-owner": jsontext.Value(`"platform"`)},
 	}, docs)
 
 	require.Nil(t, MergeExtensions(nil, nil))

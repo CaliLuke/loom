@@ -5,6 +5,7 @@
     "description": "A small import fixture.",
     "version": "1.2.3"
   },
+  "x-migration-review": {"status": "reviewed"},
   "paths": {
     "/pets/{pet_id}": {
       "parameters": [
@@ -23,6 +24,7 @@
         "summary": "Get a pet",
         "description": "Returns one pet.",
         "tags": ["pets"],
+        "x-operation-note": "gated",
         "parameters": [
           {
             "name": "limit",
@@ -33,7 +35,8 @@
           {
             "name": "X-Request-ID",
             "in": "header",
-            "schema": {"type": "string", "format": "uuid"}
+            "x-param-note": "identifier",
+            "schema": {"type": "string", "format": "uuid", "x-param-schema-note": "trace-id"}
           }
         ],
         "responses": {
@@ -72,6 +75,7 @@
         "requestBody": {
           "required": true,
           "description": "Pet to create.",
+          "x-request-note": "body-gated",
           "content": {
             "application/json": {
               "schema": {"$ref": "#/components/schemas/NewPet"}
@@ -81,6 +85,7 @@
         "responses": {
           "201": {
             "description": "Created pet.",
+            "x-response-note": {"state": "created"},
             "content": {
               "application/json": {
                 "schema": {"$ref": "#/components/schemas/Pet"}
@@ -115,6 +120,7 @@
       },
       "Pet": {
         "type": "object",
+        "x-schema-note": {"audience": "public"},
         "properties": {
           "id": {"type": "integer", "format": "int64", "readOnly": true},
           "name": {"type": "string"},

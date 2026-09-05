@@ -303,12 +303,24 @@ type (
 	}
 
 	// These types are used in openapi.MarshalJSON() to avoid recursive call of json.Marshal().
+	_OpenAPI        OpenAPI
 	_Info           Info
+	_Contact        Contact
+	_License        License
 	_PathItem       PathItem
 	_Operation      Operation
 	_Parameter      Parameter
+	_RequestBody    RequestBody
+	_MediaType      MediaType
+	_Encoding       Encoding
 	_Response       Response
+	_Header         Header
+	_Link           Link
+	_Example        Example
+	_Components     Components
 	_SecurityScheme SecurityScheme
+	_OAuthFlows     OAuthFlows
+	_OAuthFlow      OAuthFlow
 )
 
 type operationWithSecurity struct {
@@ -338,9 +350,24 @@ func (h *Header) setExamples(val map[string]*ExampleRef) { h.Examples = val }
 func (p *Parameter) setExample(val any)                     { p.Example = val }
 func (p *Parameter) setExamples(val map[string]*ExampleRef) { p.Examples = val }
 
+// MarshalJSON returns the JSON encoding of o.
+func (o OpenAPI) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_OpenAPI(o), o.Extensions)
+}
+
 // MarshalJSON returns the JSON encoding of i.
 func (i Info) MarshalJSON() ([]byte, error) {
 	return openapi.MarshalJSON(_Info(i), i.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of c.
+func (c Contact) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_Contact(c), c.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of l.
+func (l License) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_License(l), l.Extensions)
 }
 
 // MarshalJSON returns the JSON encoding of p.
@@ -362,8 +389,43 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalJSON returns the JSON encoding of r.
+func (r RequestBody) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_RequestBody(r), r.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of m.
+func (m MediaType) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_MediaType(m), m.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of e.
+func (e Encoding) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_Encoding(e), e.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of r.
 func (r Response) MarshalJSON() ([]byte, error) {
 	return openapi.MarshalJSON(_Response(r), r.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of h.
+func (h Header) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_Header(h), h.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of l.
+func (l Link) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_Link(l), l.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of e.
+func (e Example) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_Example(e), e.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of c.
+func (c Components) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_Components(c), c.Extensions)
 }
 
 // MarshalJSON returns the JSON encoding of s.
@@ -371,9 +433,34 @@ func (s SecurityScheme) MarshalJSON() ([]byte, error) {
 	return openapi.MarshalJSON(_SecurityScheme(s), s.Extensions)
 }
 
+// MarshalJSON returns the JSON encoding of f.
+func (f OAuthFlows) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_OAuthFlows(f), f.Extensions)
+}
+
+// MarshalJSON returns the JSON encoding of f.
+func (f OAuthFlow) MarshalJSON() ([]byte, error) {
+	return openapi.MarshalJSON(_OAuthFlow(f), f.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (o OpenAPI) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_OpenAPI(o), o.Extensions)
+}
+
 // MarshalYAML returns value which marshaled in place of the original value
 func (i Info) MarshalYAML() (any, error) {
 	return openapi.MarshalYAML(_Info(i), i.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (c Contact) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_Contact(c), c.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (l License) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_License(l), l.Extensions)
 }
 
 // MarshalYAML returns value which marshaled in place of the original value
@@ -395,13 +482,58 @@ func (p *Parameter) MarshalYAML() (any, error) {
 }
 
 // MarshalYAML returns value which marshaled in place of the original value
+func (r RequestBody) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_RequestBody(r), r.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (m MediaType) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_MediaType(m), m.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (e Encoding) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_Encoding(e), e.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
 func (r Response) MarshalYAML() (any, error) {
 	return openapi.MarshalYAML(_Response(r), r.Extensions)
 }
 
 // MarshalYAML returns value which marshaled in place of the original value
+func (h Header) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_Header(h), h.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (l Link) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_Link(l), l.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (e Example) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_Example(e), e.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (c Components) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_Components(c), c.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
 func (s SecurityScheme) MarshalYAML() (any, error) {
 	return openapi.MarshalYAML(_SecurityScheme(s), s.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (f OAuthFlows) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_OAuthFlows(f), f.Extensions)
+}
+
+// MarshalYAML returns value which marshaled in place of the original value
+func (f OAuthFlow) MarshalYAML() (any, error) {
+	return openapi.MarshalYAML(_OAuthFlow(f), f.Extensions)
 }
 
 func (o Operation) securityView() operationWithSecurity {

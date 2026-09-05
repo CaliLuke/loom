@@ -78,7 +78,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 		Responses:    responses,
 		Deprecated:   deprecated,
 		Security:     buildOperationSecurity(endpointIR),
-		ExternalDocs: externalDocs(endpointIR.MethodDocs, endpointIR.MethodMeta),
+		ExternalDocs: externalDocs(endpointIR.MethodDocs),
 		Extensions:   extensions,
 	}
 }
@@ -187,15 +187,14 @@ func wrapRequestBody(body *RequestBody) *RequestBodyRef {
 	return &RequestBodyRef{Value: body}
 }
 
-func externalDocs(docs *expr.DocsExpr, meta expr.MetaExpr) *ExternalDocs {
-	od := openapi.DocsFromExpr(docs, meta)
+func externalDocs(docs *expr.DocsExpr) *ExternalDocs {
+	od := openapi.DocsFromExpr(docs)
 	if od == nil {
 		return nil
 	}
 	return &ExternalDocs{
 		Description: od.Description,
 		URL:         od.URL,
-		Extensions:  cloneMap(od.Extensions),
 	}
 }
 

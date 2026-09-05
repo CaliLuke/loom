@@ -460,7 +460,14 @@ The most commonly used metadata keys are:
 | `openapi:operationId` | API, service, method | Customize generated operation IDs |
 | `openapi:summary` | Method | Set operation summary |
 | `openapi:tag:<name>` | HTTP service or method | Define or assign OpenAPI tags |
-| `openapi:extension:<x-name>` | API, service, method, route, param, response, security | Add OpenAPI extension JSON |
+| `openapi:extension:<x-name>` | API, service, method, route, param, response, security | Add OpenAPI extension JSON. At API scope it lands on the `info` object |
+| `openapi:document:extension:<x-name>` | API | Add OpenAPI extension JSON to the document root |
+| `openapi:schema:extension:<x-name>` | Type, attribute | Add OpenAPI extension JSON to that schema |
+| `openapi:parameter:extension:<x-name>` | Attribute | Add OpenAPI extension JSON to that parameter |
+| `openapi:requestBody:extension:<x-name>` | Payload/body attribute | Add OpenAPI extension JSON to that request body |
+| `openapi:mediaType:extension:<x-name>` | Body attribute, response | Add OpenAPI extension JSON to that media type |
+| `openapi:response:extension:<x-name>` | Response | Add OpenAPI extension JSON to that response |
+| `openapi:header:extension:<x-name>` | Response header attribute | Add OpenAPI extension JSON to that header |
 | `openapi:closed-objects` | API | Close object schemas by default |
 | `openapi:readOnly` / `openapi:writeOnly` | Attribute | Mark request/response-only fields |
 | `openapi:deprecated` | Attribute | Mark a schema field deprecated |

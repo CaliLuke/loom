@@ -381,7 +381,10 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 	s.DefaultValue = toStringMap(normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, expr.CanonicalizeExample(attr, attr.DefaultValue))))
 
 	a.applySchemaExample(s, attr, context)
-	s.Extensions = openapi.ExtensionsFromExpr(attr.Meta)
+	s.Extensions = openapi.MergeExtensions(
+		openapi.ExtensionsFromExpr(attr.Meta),
+		openapi.ScopedExtensionsFromExpr(attr.Meta, "schema"),
+	)
 	applySchemaOpenAPIMetadata(s, attr.Meta)
 	if ap := openapi.AdditionalPropertiesFromExpr(attr.Meta); ap != nil {
 		if explicit, ok := ap.(bool); ok {

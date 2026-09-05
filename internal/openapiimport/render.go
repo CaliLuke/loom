@@ -139,7 +139,7 @@ func (r *renderer) api() error {
 		r.line("Version(%q)", r.document.APIVersion)
 	}
 	r.line("Meta(%q, %q)", "openapi:example", "false")
-	if err := r.emitExtensions("", r.document.Extensions); err != nil {
+	if err := r.emitExtensions("document", r.document.Extensions); err != nil {
 		return err
 	}
 	if strings.HasPrefix(r.document.OpenAPIVersion, "3.0.") || strings.HasPrefix(r.document.OpenAPIVersion, "3.1.") {

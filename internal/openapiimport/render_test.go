@@ -70,7 +70,8 @@ func TestRenderSupportedFixtureDeterministically(t *testing.T) {
 		require.Contains(t, string(yamlSource), want)
 	}
 	require.Contains(t, string(yamlSource), "HTTP(func() {\n\t\t\tMeta(\"openapi:tag:pets\")")
-	require.Contains(t, string(yamlSource), "Attribute(\"body\", ImportedNewPet, func() {\n\t\t\t\tMeta(\"openapi:description:requestBody\"")
+	require.Contains(t, string(yamlSource), "Attribute(\"body\", ImportedNewPet, func() {\n\t\t\t\tMeta(\"openapi:requestBody:extension:x-request-note\"")
+	require.Contains(t, string(yamlSource), "\t\t\t\tMeta(\"openapi:description:requestBody\", \"Pet to create.\")\n\t\t\t})")
 	require.NotContains(t, string(yamlSource), "Payload(func() {\n\t\t\tMeta(\"openapi:description:requestBody\"")
 }
 
@@ -529,7 +530,7 @@ components:
 	requireRenderedDesignEvaluates(t, rendered, 1)
 	design := string(rendered)
 	for _, expected := range []string{
-		`Meta("openapi:extension:x-document", "{\"reviewed\":true}")`,
+		`Meta("openapi:document:extension:x-document", "{\"reviewed\":true}")`,
 		`Meta("openapi:extension:x-operation", "[\"one\",\"two\"]")`,
 		`Meta("openapi:parameter:extension:x-parameter", "7")`,
 		`Meta("openapi:schema:extension:x-parameter-schema", "{\"kind\":\"trace\"}")`,

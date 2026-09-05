@@ -67,7 +67,12 @@ reads. Specification extensions are patterns, not fixed fields.
 
 Path and operation extensions use a documented allowlist. Unknown extensions
 at those supported scopes produce diagnostics. Document, schema, parameter,
-request-body, and response extensions preserve JSON-compatible `x-*` values.
+request-body, and response extensions preserve JSON-compatible `x-*` values,
+and regenerated OpenAPI emits each value at the scope it came from.
+
+An extension at an unsupported scope is a `vendor-extension` diagnostic. Strict
+import fails before it writes output. With `--allow-lossy`, the importer omits
+the extension and reports it as a warning.
 
 ## Schema coverage
 

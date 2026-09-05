@@ -245,6 +245,13 @@ Other important OpenAPI usage rules:
   correctly when one domain type serves both directions.
 - Use API metadata `Meta("openapi:closed-objects", "true")` when consumers need
   strict object contracts.
+- Add vendor extensions with `Meta("openapi:extension:x-name", "<json>")`. At API
+  scope that key lands on the `info` object; use
+  `Meta("openapi:document:extension:x-name", "<json>")` for the document root.
+  When one Loom attribute feeds two OpenAPI objects, name the target scope:
+  `openapi:schema:extension:`, `openapi:parameter:extension:`,
+  `openapi:requestBody:extension:`, `openapi:mediaType:extension:`,
+  `openapi:response:extension:`, and `openapi:header:extension:`.
 - Unreferenced component schemas are intentionally omitted.
 
 ## Errors and Remediation

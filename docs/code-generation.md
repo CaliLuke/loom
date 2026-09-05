@@ -244,8 +244,17 @@ An object cannot combine declared members with `additionalProperties: true`.
 The Loom DSL cannot preserve both parts of that contract, so import fails.
 
 JSON-compatible `x-*` extensions are preserved at document, operation, schema,
-parameter, request-body, and response scopes. Extensions at unsupported scopes
-remain explicit import diagnostics and are never discarded silently.
+parameter, request-body, and response scopes, and regenerated OpenAPI emits each
+one at the scope it was imported from. A scope that shares one Loom attribute
+with another scope carries a scoped metadata key, such as
+`openapi:parameter:extension:<x-name>` beside `openapi:schema:extension:<x-name>`
+on the same payload attribute. Generation also accepts
+`openapi:mediaType:extension:<x-name>` and `openapi:header:extension:<x-name>`
+for the media type and response header objects.
+
+Extensions at unsupported scopes are never discarded silently. Strict import
+fails before writing output and names each one. With `--allow-lossy`, the
+importer omits them and reports one deterministic warning per extension.
 
 A single-member `allOf` containing a local schema reference imports losslessly
 as that reference. Numeric bounds and compatible scalar defaults remain

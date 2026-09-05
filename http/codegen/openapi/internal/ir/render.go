@@ -18,7 +18,6 @@ func RenderExternalDocs(docs *ExternalDocs) *openapi.ExternalDocs {
 	return &openapi.ExternalDocs{
 		Description: docs.Description,
 		URL:         docs.URL,
-		Extensions:  cloneMap(docs.Extensions),
 	}
 }
 

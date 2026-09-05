@@ -40,6 +40,7 @@ func buildDocument(root *expr.RootExpr) *OpenAPI {
 		Servers:           buildServers(root.API.Servers),
 		Security:          securityreq.OpenAPI(securityreq.Effective(root.API.Requirements, root.API.SessionAuths)),
 		Tags:              buildTags(root.API),
-		ExternalDocs:      openapi.DocsFromExpr(root.API.Docs, nil),
+		ExternalDocs:      openapi.DocsFromExpr(root.API.Docs),
+		Extensions:        openapi.ScopedExtensionsFromExpr(root.API.Meta, "document"),
 	}
 }

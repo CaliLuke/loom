@@ -190,7 +190,7 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 		Tags:         operationTagNames(fs.Meta, svc.Meta, svc.Name()),
 		Security:     securityreq.OpenAPI(securityreq.Effective(api.Requirements, api.SessionAuths)),
 		Deprecated:   false,
-		ExternalDocs: openapi.DocsFromExpr(fs.Docs, fs.Meta),
+		ExternalDocs: openapi.DocsFromExpr(fs.Docs),
 		Extensions:   openapi.ExtensionsFromExpr(fs.Meta),
 	}
 }
@@ -618,7 +618,7 @@ func buildTags(api *expr.APIExpr) []*openapi.Tag {
 				}
 				m[tag.Name] = tag
 			}
-			tag.ExternalDocs = openapi.DocsFromExpr(s.ServiceExpr.Docs, nil)
+			tag.ExternalDocs = openapi.DocsFromExpr(s.ServiceExpr.Docs)
 		}
 	}
 

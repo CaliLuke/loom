@@ -109,6 +109,17 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			},
 		},
 		{
+			name: "vendor-extension-scopes",
+			dsl:  testdata.OpenAPIVendorExtensionScopeDSL,
+			extra: func(t *testing.T, spec map[string]any) {
+				require.Equal(t, map[string]any{"status": "reviewed"}, spec["x-migration-review"])
+				schema := requireComponentSchema(t, spec, "Item")
+				require.Equal(t, map[string]any{"audience": "public"}, schema["x-schema-note"])
+				body := requireMap(t, requireOperation(t, spec, "/items", "post")["requestBody"], "request body")
+				require.Equal(t, "body-gated", body["x-request-note"])
+			},
+		},
+		{
 			name: "shared-error-responses",
 			dsl:  testdata.OpenAPISharedErrorHeaderDSL,
 			extra: func(t *testing.T, spec map[string]any) {
@@ -196,6 +207,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "raw-request-bodies", dsl: testdata.RawRequestBodyOpenAPIDSL},
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
 		{name: "shared-error-responses", dsl: testdata.OpenAPISharedErrorHeaderDSL},
+		{name: "vendor-extension-scopes", dsl: testdata.OpenAPIVendorExtensionScopeDSL},
 		{name: "nullable-presence", dsl: presenceOpenAPIDSL},
 	}
 	for _, tc := range lintCases {

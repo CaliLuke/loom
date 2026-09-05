@@ -233,7 +233,7 @@ func buildResponseContent(
 					Type:   "string",
 					Format: "binary",
 				},
-				Extensions: openapi.ExtensionsFromExpr(resp.Meta),
+				Extensions: openapi.ScopedExtensionsFromExpr(resp.Meta, "mediaType"),
 			}
 		}
 	}
@@ -272,7 +272,7 @@ func buildMediaType(
 		Schema:        schema,
 		ComponentName: componentMetaValue(attr, "openapi:component:mediaType"),
 		Metadata:      cloneMeta(attr.Meta),
-		Extensions:    openapi.ExtensionsFromExpr(attr.Meta),
+		Extensions:    openapi.ScopedExtensionsFromExpr(attr.Meta, "mediaType"),
 	}
 	initExamples(mediaType, attr, rand, closeObjects, context)
 	return mediaType
@@ -310,7 +310,7 @@ func headersFromIR(
 			Required:      child.IsRequiredNoDefault(headerIR.Name),
 			AllowReserved: metaBool(child.Meta, "openapi:allowReserved"),
 			Schema:        analyzer.AnalyzeSchemaWithContext(child, headerContext),
-			Extensions:    openapi.ExtensionsFromExpr(child.Meta),
+			Extensions:    openapi.ScopedExtensionsFromExpr(child.Meta, "header"),
 		}
 		initExamples(header, child, rand, closeObjects, headerContext)
 		headers[headerIR.HTTPName] = &HeaderRef{Value: header}
