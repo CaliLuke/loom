@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	sse "github.com/tmaxmax/go-sse"
 
+	"github.com/CaliLuke/loom/internal/testingx"
 	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
@@ -22,8 +23,11 @@ func TestJSONRPCSSEInteroperatesWithExternalClient(t *testing.T) {
 	serverCtx, cancelServer := context.WithCancel(context.Background())
 	defer cancelServer()
 
-	fixtureDir := filepath.Join("..", "fixtures", "ticktock")
-	server, err := harness.StartServer(serverCtx, fixtureDir, 0)
+	srcDir := filepath.Join("..", "fixtures", "ticktock")
+	workDir := filepath.Join(t.TempDir(), "ticktock")
+	require.NoError(t, testingx.CopyTree(srcDir, workDir))
+	require.NoError(t, testingx.PinLocalReplace(workDir, testingx.RepoRoot()))
+	server, err := harness.StartServer(serverCtx, workDir, 0)
 	require.NoError(t, err)
 	defer server.Stop() //nolint:errcheck
 

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/testingx"
 	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/stretchr/testify/require"
 )
@@ -507,15 +508,7 @@ func TestGenerateTransactionRejectsInvalidManifest(t *testing.T) {
 }
 
 func TestGenerateRealBinaryDebugContract(t *testing.T) {
-	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
-	require.NoError(t, err)
-
-	origWD, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(fixtureDir))
-	defer func() {
-		require.NoError(t, os.Chdir(origWD))
-	}()
+	enterTicktockFixtureCopy(t)
 
 	outputDir := t.TempDir()
 	stdout, stderr, err := captureOutput(t, func() error {
@@ -558,15 +551,7 @@ func TestGenerateRealBinaryDebugContract(t *testing.T) {
 }
 
 func TestGenerateRealBinaryPreservesModuleQualifiedGenPackage(t *testing.T) {
-	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
-	require.NoError(t, err)
-
-	origWD, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(fixtureDir))
-	defer func() {
-		require.NoError(t, os.Chdir(origWD))
-	}()
+	fixtureDir := enterTicktockFixtureCopy(t)
 
 	outputDir, err := os.MkdirTemp(fixtureDir, "transactional-gen-")
 	require.NoError(t, err)
@@ -593,15 +578,7 @@ func TestGenerateRealBinaryPreservesModuleQualifiedGenPackage(t *testing.T) {
 }
 
 func TestGenerateRealBinaryExampleStubsFailClosedAndCompile(t *testing.T) {
-	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
-	require.NoError(t, err)
-
-	origWD, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(fixtureDir))
-	defer func() {
-		require.NoError(t, os.Chdir(origWD))
-	}()
+	fixtureDir := enterTicktockFixtureCopy(t)
 
 	outputDir, err := os.MkdirTemp(fixtureDir, "transactional-example-")
 	require.NoError(t, err)
@@ -633,15 +610,7 @@ func TestGenerateRealBinaryExampleStubsFailClosedAndCompile(t *testing.T) {
 }
 
 func TestGenerateRealBinaryCommitFailureCleansStage(t *testing.T) {
-	fixtureDir, err := filepath.Abs(filepath.Join("..", "..", "jsonrpc", "integration_tests", "fixtures", "ticktock"))
-	require.NoError(t, err)
-
-	origWD, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(fixtureDir))
-	defer func() {
-		require.NoError(t, os.Chdir(origWD))
-	}()
+	enterTicktockFixtureCopy(t)
 
 	outputRoot := t.TempDir()
 	outputPath := filepath.Join(outputRoot, "not-a-dir")
@@ -755,4 +724,26 @@ func writeStagedManifest(stage string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(stage, "gen", "loom.json"), contents, 0o644)
+}
+
+// enterTicktockFixtureCopy copies the checked-in ticktock fixture into a
+// temporary module, pins its Loom replace directive to this repository and
+// makes it the working directory for the test. Generation resolves module
+// dependencies in the working directory, so running it inside the checked-in
+// fixture would rewrite that fixture's go.mod and go.sum. It returns the
+// copy's absolute path and restores the original working directory on cleanup.
+func enterTicktockFixtureCopy(t *testing.T) string {
+	t.Helper()
+	srcDir := filepath.Join(testingx.RepoRoot(), "jsonrpc", "integration_tests", "fixtures", "ticktock")
+	workDir := filepath.Join(t.TempDir(), "ticktock")
+	require.NoError(t, testingx.CopyTree(srcDir, workDir))
+	require.NoError(t, testingx.PinLocalReplace(workDir, testingx.RepoRoot()))
+
+	origWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(workDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(origWD))
+	})
+	return workDir
 }
