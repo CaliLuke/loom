@@ -22,6 +22,8 @@ type (
 		Services []*ServiceExpr
 		// Interceptors contains the list of interceptors.
 		Interceptors []*InterceptorExpr
+		// Authorizations contains named application access requirements.
+		Authorizations []*AuthorizationExpr
 		// Errors contains the list of errors returned by all the API
 		// methods.
 		Errors []*ErrorExpr
@@ -183,6 +185,9 @@ func (r *RootExpr) Validate() error {
 	var verr eval.ValidationErrors
 	if r.API == nil {
 		verr.Add(r, "Missing API declaration")
+	}
+	for _, authorization := range r.Authorizations {
+		verr.Merge(authorization.validate())
 	}
 	// Ensure user type Go type names are unique across the design. Duplicate
 	// user type names (e.g., via TypeName) can lead to conflicting generated

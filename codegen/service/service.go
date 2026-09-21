@@ -56,6 +56,8 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	if validationUTF8Paths[svcPath] {
 		imports = append(imports, codegen.SimpleImport("unicode/utf8"))
 	}
+	imports = append(imports, userTypeImports(genpkg, svc)...)
+	imports = append(imports, svc.metaTypeImports...)
 	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
 	def := serviceDefinitionSection(svc)
 
@@ -63,6 +65,7 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	files = append(files, &codegen.File{Path: svcPath, Sections: buildServiceFileSections(typeDefSections[svcPath], header, def, svcSections)})
 
 	files = append(files, InterceptorsFiles(genpkg, service, services)...)
+	files = append(files, authorizationFiles(genpkg, svc)...)
 	return appendUserTypeFiles(files, svcPath, typeDefSections, typesByPath, userTypePkgs, validationUTF8Paths)
 }
 

@@ -34,6 +34,8 @@ type (
 		ClientInterceptors []*InterceptorExpr
 		// ServerInterceptors is the list of server interceptors.
 		ServerInterceptors []*InterceptorExpr
+		// StrictAuthorization requires every method to declare access or an exemption.
+		StrictAuthorization bool
 		// Meta is a set of key/value pairs with semantic that is
 		// specific to each generator.
 		Meta MetaExpr

@@ -38,6 +38,9 @@ type (
 		// primitive types are non-pointers if they are required, otherwise they
 		// are pointers.
 		UseDefault bool
+		// ValidationPrefix overrides the default "Validate" prefix of named
+		// validation helpers. It does not affect type references.
+		ValidationPrefix string
 		// Scope is the attribute scope.
 		Scope Attributor
 		// DefaultPkg is the default package name where the attribute
@@ -296,6 +299,7 @@ func (a *AttributeContext) Dup() *AttributeContext {
 		IgnoreRequired:            a.IgnoreRequired,
 		UseDefault:                a.UseDefault,
 		Scope:                     a.Scope,
+		ValidationPrefix:          a.ValidationPrefix,
 		DefaultPkg:                a.DefaultPkg,
 		SamePackageConversion:     a.SamePackageConversion,
 		JSONPresence:              a.JSONPresence,

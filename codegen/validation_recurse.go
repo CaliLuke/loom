@@ -298,7 +298,11 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	// protocol buffer-reserved names that include a trailing underscore
 	// (e.g., Message_). Applying Goify here would drop underscores and
 	// cause mismatches between function declarations and call sites.
-	fmt.Fprint(&buf, renderUserValidation(name, target))
+	prefix := ctx.ValidationPrefix
+	if prefix == "" {
+		prefix = "Validate"
+	}
+	fmt.Fprint(&buf, renderUserValidation(prefix+name, target))
 	return "if " + target + " != nil {\n\t" + buf.String() + "\n}"
 }
 

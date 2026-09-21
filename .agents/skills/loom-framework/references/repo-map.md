@@ -25,6 +25,9 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   WebSocket lifecycle; typed transport generation; and integrations
 - `observability/`: framework-owned tracing, metrics, logging, and transport
   event contracts
+- `security/authorization.go`: mandatory endpoint checks and cancellation;
+  `expr/authorization.go` owns access contracts and `codegen/service/authorization*.go`
+  owns their typed adapters and static manifest
 - `vet/`: evaluated-design and consuming-module adoption diagnostics
 - `internal/`: repository-private support packages and release/source tooling
 - `scripts/`, `Makefile`, `check.sh`: canonical verification and contributor

@@ -39,6 +39,8 @@ type (
 		ClientInterceptors []*InterceptorExpr
 		// ServerInterceptors is the list of server interceptors.
 		ServerInterceptors []*InterceptorExpr
+		// Authorization classifies access independently of credential security.
+		Authorization *MethodAuthorizationExpr
 		// Service that owns method.
 		Service *ServiceExpr
 		// Meta is an arbitrary set of key/value pairs, see dsl.Meta
@@ -144,6 +146,7 @@ func (m *MethodExpr) Validate() error {
 	}
 	verr.Merge(m.validateErrors())
 	verr.Merge(m.validateInterceptors())
+	verr.Merge(m.validateAuthorization())
 	return verr
 }
 

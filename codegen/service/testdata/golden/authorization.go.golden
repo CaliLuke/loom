@@ -1,0 +1,42 @@
+// AccessAuthorizer evaluates application access requirements. Implementations must be read-only
+// and safe to repeat. Nil errors allow execution; all errors prevent it.
+type AccessAuthorizer interface {
+	// AuthorizeDocumentEdit evaluates document.edit using current application access facts.
+	AuthorizeDocumentEdit(context.Context, *DocumentRef) error
+}
+
+func newUpdateAccessCheck(access AccessAuthorizer) security.EndpointCheck {
+	security.RequireAuthorizer(access)
+	return func(ctx context.Context, req any) (context.Context, error) {
+		ctx = context.WithValue(ctx, loom.ServiceKey, "documents")
+		ctx = context.WithValue(ctx, loom.MethodKey, "update")
+		p, ok := req.(*UpdatePayload)
+		if !ok {
+			return nil, loom.InvalidFieldTypeError("payload", req, "*UpdatePayload")
+		}
+		if p == nil {
+			return nil, loom.MissingFieldError("payload", "authorization")
+		}
+		{
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			input := &DocumentRef{}
+			if p == nil {
+				return nil, loom.MissingFieldError("document_id", "authorization")
+			}
+			input.ID = p.DocumentID
+			if err := access.AuthorizeDocumentEdit(ctx, input); err != nil {
+				return nil, err
+			}
+		}
+		return ctx, nil
+	}
+}
+func newHealthAccessCheck() security.EndpointCheck {
+	return func(ctx context.Context, req any) (context.Context, error) {
+		ctx = context.WithValue(ctx, loom.ServiceKey, "documents")
+		ctx = context.WithValue(ctx, loom.MethodKey, "health")
+		return ctx, nil
+	}
+}

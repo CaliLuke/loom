@@ -33,6 +33,8 @@ type (
 		// HasServerInterceptors indicates that the service has server-side
 		// interceptors.
 		HasServerInterceptors bool
+		// Authorization contains the service access evaluator contract.
+		Authorization *authorizationServiceData
 		// HasClientInterceptors indicates that the service has client-side
 		// interceptors.
 		HasClientInterceptors bool
@@ -41,6 +43,8 @@ type (
 	// EndpointMethodData describes a single endpoint method.
 	EndpointMethodData struct {
 		*MethodData
+		// Authorization describes the protected invocation boundary.
+		Authorization *authorizationMethodData
 		// ArgName is the name of the argument used to initialize the client
 		// struct method field.
 		ArgName string
@@ -135,6 +139,7 @@ func endpointData(svc *Data) *EndpointsData {
 		}
 		methods[i] = &EndpointMethodData{
 			MethodData:     m,
+			Authorization:  methodAuthorizationData(svc, m.Name),
 			ArgName:        argName,
 			StreamArgName:  streamArgName,
 			ServiceName:    svc.Name,
@@ -145,6 +150,7 @@ func endpointData(svc *Data) *EndpointsData {
 	desc := fmt.Sprintf("%s wraps the %q service endpoints.", endpointsStructName, svc.Name)
 	return &EndpointsData{
 		Name:                  svc.Name,
+		Authorization:         svc.Authorization,
 		Description:           desc,
 		VarName:               endpointsStructName,
 		ClientVarName:         clientStructName,

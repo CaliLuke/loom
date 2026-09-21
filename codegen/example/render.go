@@ -435,6 +435,9 @@ func writeServerEndpointsInit(b *bytes.Buffer, services []*service.Data) {
 			continue
 		}
 		fmt.Fprintf(b, "\t\t%sEndpoints = %s.NewEndpoints(%sSvc", svc.VarName, svc.PkgName, svc.VarName)
+		if svc.HasAccessAuthorizer() {
+			fmt.Fprintf(b, ", nil /* supply an access authorizer before starting */")
+		}
 		if len(svc.ServerInterceptors) > 0 {
 			fmt.Fprintf(b, ", %sInterceptors", svc.VarName)
 		}

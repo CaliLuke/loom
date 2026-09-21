@@ -44,6 +44,8 @@ type (
 		ClientInterceptors []*InterceptorExpr
 		// ServerInterceptors is the list of API server interceptors.
 		ServerInterceptors []*InterceptorExpr
+		// StrictAuthorization requires every method to declare access or an exemption.
+		StrictAuthorization bool
 		// HTTP contains the HTTP specific API level expressions.
 		HTTP *HTTPExpr
 		// GRPC contains the gRPC specific API level expressions.

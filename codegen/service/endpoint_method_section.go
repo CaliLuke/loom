@@ -9,6 +9,9 @@ import (
 )
 
 func endpointMethodSection(method *EndpointMethodData) codegen.Section {
+	if method.Authorization != nil {
+		return authorizedEndpointMethodSection(method)
+	}
 	return codegen.NewJenniferSection("endpoint-method", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("New%sEndpoint returns an endpoint function that calls the method %q of service %q.", method.VarName, method.Name, method.ServiceName))
@@ -44,25 +47,29 @@ func endpointMethodSection(method *EndpointMethodData) codegen.Section {
 						buildEndpointAuth(group, method, payload)
 					}
 
-					switch {
-					case method.ServerStream != nil:
-						buildStreamingEndpointInvocation(group, method, payload)
-					case method.SkipRequestBodyEncodeDecode:
-						buildSkipRequestEndpointInvocation(group, method)
-					case method.ViewedResult != nil:
-						buildViewedResultEndpointInvocation(group, method, payload)
-					case method.FileResponse:
-						buildRawResponseEndpointInvocation(group, method, payload, "file", method.FileResponseStruct, "File")
-					case method.SkipResponseBodyEncodeDecode:
-						buildRawResponseEndpointInvocation(group, method, payload, "body", method.ResponseStruct, "Body")
-					default:
-						buildDefaultEndpointInvocation(group, method, payload)
-					}
+					buildEndpointInvocation(group, method, payload)
 				}),
 			),
 		)
 		stmt.Line()
 	})
+}
+
+func buildEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {
+	switch {
+	case method.ServerStream != nil:
+		buildStreamingEndpointInvocation(group, method, payload)
+	case method.SkipRequestBodyEncodeDecode:
+		buildSkipRequestEndpointInvocation(group, method)
+	case method.ViewedResult != nil:
+		buildViewedResultEndpointInvocation(group, method, payload)
+	case method.FileResponse:
+		buildRawResponseEndpointInvocation(group, method, payload, "file", method.FileResponseStruct, "File")
+	case method.SkipResponseBodyEncodeDecode:
+		buildRawResponseEndpointInvocation(group, method, payload, "body", method.ResponseStruct, "Body")
+	default:
+		buildDefaultEndpointInvocation(group, method, payload)
+	}
 }
 
 func buildEndpointAuth(group *jen.Group, method *EndpointMethodData, payload string) {

@@ -427,6 +427,34 @@ Alternative security requirements are isolated. Context returned by a failed
 alternative does not leak into the next one; schemes within one successful
 requirement retain AND semantics.
 
+## Application Authorization
+
+- Declare stable typed requirements with `Authorization("document.edit", DocumentRef)`;
+  input is a named object or `Empty` for context-only decisions.
+- Apply with `Authorize(requirement, func() { Bind("id", "document_id") })`.
+  Bind every input field to a typed payload path. Named types retain identity;
+  nullable access paths and nullable or unconstrained input fields are rejected.
+- Enable `StrictAuthorization()` on an API or service to reject unclassified
+  methods. `NoAccessCheck("reason")` preserves authentication; pair it with
+  `NoSecurity()` only for intentionally anonymous methods.
+- Use `AuthorizeBy("value", ...)` and exhaustive `AuthorizationCase` declarations
+  for unions or string enums. Union bindings traverse the selected branch.
+- Supply the generated `AccessAuthorizer` to `NewEndpoints(service, access, ...)`.
+  Missing implementations panic at construction. Every evaluator error denies
+  execution; map declared errors using each transport's existing DSL.
+- Evaluators and authentication hooks must be read-only and repeatable. Protected
+  middleware runs after checks, and checks repeat before service execution to
+  catch changed targets. Use `Endpoints.Use` or the protected method constructor's
+  middleware arguments to preserve this boundary.
+- Route in-process, MCP, and agent-tool adapters through protected generated
+  endpoints. Direct raw-service calls are not automatically protected.
+- Applications own current policy facts, authorized queries, transaction checks,
+  and per-message stream authorization. Initial invocation access does not imply
+  continuing stream access.
+- Inspect `gen/<service>/authorization.json` for static requirements and explicit
+  exemptions. It does not describe per-user capabilities.
+- Read `docs/authorization.md` for the complete contract.
+
 ## Streaming
 
 - SSE endpoints use normal HTTP success responses with

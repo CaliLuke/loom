@@ -19,6 +19,8 @@ type (
 	// Data contains the data used to render the code related to a single
 	// service.
 	Data struct {
+		// Authorization contains evaluated access contracts for protected methods.
+		Authorization *authorizationServiceData
 		// Name is the service name.
 		Name string
 		// Description is the service description.

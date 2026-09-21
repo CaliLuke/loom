@@ -22,6 +22,9 @@ func endpointsStructSection(data *EndpointsData) codegen.Section {
 		stmt.Type().Id(data.VarName).StructFunc(func(group *jen.Group) {
 			for _, method := range data.Methods {
 				group.Id(method.VarName).Add(codegen.Expr("loom.Endpoint"))
+				if method.Authorization != nil {
+					group.Id(method.Authorization.fieldName).Add(codegen.TypeRef("security.EndpointCheck"))
+				}
 			}
 		})
 		stmt.Line()
@@ -97,10 +100,17 @@ func endpointsInitSection(data *EndpointsData) codegen.Section {
 		codegen.Doc(stmt, fmt.Sprintf("New%s wraps the methods of the %q service with endpoints.", data.VarName, data.Name))
 		stmt.Func().Id("New" + data.VarName).ParamsFunc(func(group *jen.Group) {
 			group.Id("s").Id(data.ServiceVarName)
+			if data.Authorization != nil && len(data.Authorization.requirements) > 0 {
+				group.Id("access").Id(data.Authorization.interfaceName)
+			}
 			if data.HasServerInterceptors {
 				group.Id("si").Id("ServerInterceptors")
 			}
 		}).Op("*").Id(data.VarName).BlockFunc(func(group *jen.Group) {
+			if data.Authorization != nil {
+				authorizationEndpointInit(group, data)
+				return
+			}
 			if len(data.Schemes) > 0 {
 				group.Comment("Casting service to Authorizer interface")
 				group.Id("a").Op(":=").Id("s").Assert(jen.Id("Authorizer"))
@@ -133,7 +143,7 @@ func endpointsUseSection(data *EndpointsData) codegen.Section {
 			jen.Id("m").Func().Params(codegen.Expr("loom.Endpoint")).Add(codegen.Expr("loom.Endpoint")),
 		).BlockFunc(func(group *jen.Group) {
 			for _, method := range data.Methods {
-				group.Id("e").Dot(method.VarName).Op("=").Id("m").Call(jen.Id("e").Dot(method.VarName))
+				authorizationEndpointUse(group, method)
 			}
 		})
 		stmt.Line()
@@ -153,6 +163,9 @@ func multilineEndpointsLiteral(data *EndpointsData, pointer bool) *jen.Statement
 }
 
 func newEndpointCall(method *EndpointMethodData) *jen.Statement {
+	if method.Authorization != nil {
+		return authorizationEndpointCall(method)
+	}
 	return jen.Id("New" + method.VarName + "Endpoint").CallFunc(func(group *jen.Group) {
 		group.Id("s")
 		for _, scheme := range method.Schemes.DedupeByType() {

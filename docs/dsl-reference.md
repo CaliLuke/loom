@@ -1162,6 +1162,17 @@ Method("transfer", func() {
 })
 ```
 
+### Application Authorization
+
+Use `Authorization(name, InputType)` to declare a typed application access
+requirement, `Authorize(requirement, func() { Bind("input", "payload.path") })`
+to apply it, and `StrictAuthorization()` at API or service scope to require
+complete classification. `NoAccessCheck("reason")` records an exemption while
+preserving authentication. `AuthorizeBy` and `AuthorizationCase` classify every
+string enum value or union branch. See [Application Authorization](authorization.md)
+for evaluator wiring, mandatory execution, static manifests, and supported
+binding shapes.
+
 ### Session Security
 
 Use `SessionAuth` to model one logical authenticated session that can arrive

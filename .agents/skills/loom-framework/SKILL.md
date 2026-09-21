@@ -120,6 +120,26 @@ consumer validation.
   aggregate CLI files while retaining service and server packages. Stale client
   directories are removed only in the safe generator post-write phase.
 
+## Authorization Ownership
+
+- `expr/authorization.go` owns strict coverage, typed bindings, and exhaustive
+  enum/union classification. Authentication requirements remain independent.
+- `codegen/service/authorization*.go` projects these expressions into typed
+  evaluators, shared endpoint checks, and a deterministic static manifest.
+- `security.Protect` owns execution and cancellation. Constructors and
+  `Endpoints.Use` retain an outer check before short circuits and an inner check
+  before service invocation. Runtime-owned middleware composition retains the
+  original cancellation context and rejects continuations that drop the supplied
+  context. Do not reduce this to optional interceptor wiring.
+- Application checks must be read-only and repeatable. The framework guarantees
+  the generated endpoint boundary, not raw service calls or externally replaced
+  endpoint functions. MCP and agent adapters must explicitly enter that boundary.
+- Keep policy engines, roles, relationship lookup, authorized query planning,
+  per-message stream checks, and transaction-time authorization application-owned.
+- Cover broken bindings and cases directly, compile generated code, exercise
+  denial and middleware mutation through transports, and compare manifest bytes
+  across isolated generation processes.
+
 ## OpenAPI Version Architecture
 
 Loom emits OpenAPI 3.2.0 by default and supports a 3.1.1 compatibility target.

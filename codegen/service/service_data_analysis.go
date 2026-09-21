@@ -35,11 +35,13 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	state := d.collectServiceAnalysisData(service, scope, viewScope, viewspkg)
 	seen := analysisSeenTypes(state.types, state.errTypes)
 	wrapRawObjectMethods(service, scope, seen)
+	state.types = append(state.types, collectAuthorizationTypes(service, scope, seen)...)
 	state.types = append(state.types, d.collectForcedServiceTypes(service, scope, seen)...)
 	methods, schemes, viewedRTs := d.buildServiceMethods(service, scope, viewScope, viewspkg, state.seenProj, state.seenViewed, state.viewedRTs)
 	assignEndpointFields(methods, scope)
 	unions := collectServiceUnions(service, state.types, state.errTypes, scope)
 	data = newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions)
+	data.Authorization = buildAuthorizationData(service, data)
 	d.Services[service.Name] = data
 	svcCtx.Debug("analyzed service",
 		"user_types", len(state.types),

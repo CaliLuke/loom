@@ -356,9 +356,6 @@ func renderMapValidation(target, keyValidation, valueValidation string, jsonPres
 	valueVar := "_"
 	if valueValidation != "" || jsonPresence {
 		valueVar = "v"
-		if target == "v" {
-			valueVar = "mv"
-		}
 	}
 	var b sourceBuilder
 	fmt.Fprintf(&b, "for %s, %s := range %s {\n", keyVar, valueVar, target)
@@ -415,5 +412,5 @@ func renderUnionSumValidation(target string, cases []unionValidationCase) string
 }
 
 func renderUserValidation(name, target string) string {
-	return "if err2 := Validate" + name + "(" + target + "); err2 != nil {\n\terr = loom.MergeErrors(err, err2)\n}"
+	return "if err2 := " + name + "(" + target + "); err2 != nil {\n\terr = loom.MergeErrors(err, err2)\n}"
 }
