@@ -143,9 +143,9 @@ boundaries through the dependency-free
 context-based, so generated constructor signatures stay unchanged — turning
 observability on or off is purely a wiring choice at the application
 boundary. Generated code never emits raw bodies, JSON-RPC params, MCP tool
-arguments, credentials, or result payloads; events carry only
-low-cardinality classification fields safe for metric labels and log
-enrichment.
+arguments, credentials, or result payloads. Events carry redacted fields for
+structured logs; stable classifications such as transport kind and reason are
+safe for metric labels.
 
 ```go
 import (
@@ -169,6 +169,15 @@ func main() {
 context; span/trace setup, propagation, and metric recording remain in
 `observability/otel`. The two are composable — stack them in any order;
 neither package depends on the other.
+
+For SDK-backed MCP JSON-RPC batches, `Event.BatchCount` records the number of decoded
+messages and `Event.JSONRPCMethods` holds their sorted, unique request methods.
+The singular `JSONRPCMethod` and `JSONRPCID` fields remain empty for a batch.
+`Notification` is true only when every batch member is a notification.
+Methods come from client input and may have unbounded cardinality: include them
+in structured logs when useful, but never use them as metric labels. For example,
+an observer can add `log.Printf("jsonrpc_batch_count=%d jsonrpc_methods=%q", e.BatchCount, e.JSONRPCMethods)`
+to its request-complete logging branch.
 
 `Event.Reason` is a stable enumeration suitable for metric labels:
 `ok`, `request_decode_failed`, `invalid_jsonrpc_envelope`,

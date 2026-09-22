@@ -553,6 +553,10 @@ metrics and routing. Handle these values rather than parsing error messages:
 - `mcp_session_principal_mismatch`
 - `mcp_events_stream_write_failed`
 
+For decoded SDK-backed MCP JSON-RPC batches, `Event.BatchCount` and sorted, unique
+`Event.JSONRPCMethods` describe the batch. The singular method and ID stay
+empty. These methods are untrusted input and belong in logs, not metric labels.
+
 Use `loomhttp.NewDebugDoer` only for bounded, redacted development diagnostics.
 Set `DEBUG_LOOM=1` while generating when you need DSL/codegen decision traces.
 

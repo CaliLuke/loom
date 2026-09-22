@@ -25,16 +25,19 @@
 //
 // Generated code never emits raw bodies, JSON-RPC params, MCP tool
 // arguments, credentials, or result payloads. [Event] only carries
-// classified, low-cardinality fields safe for metric labeling and
-// structured-log enrichment:
+// classified fields for structured-log enrichment. Only stable classifications
+// such as Transport, Kind, and Reason are safe as metric labels:
 //
 //   - Transport (http/jsonrpc/mcp), Kind (start/finish/failure/stream*),
 //     and Reason are stable enumerations and may be used as metric labels.
 //   - Service, Method, Route, HTTPMethod identify the operation.
 //   - StatusCode, BytesWritten, Duration measure the response.
-//   - JSONRPCMethod, JSONRPCID, BatchCount, Notification are populated only
+//   - JSONRPCMethod, JSONRPCID, JSONRPCMethods, BatchCount, Notification are populated only
 //     after the JSON-RPC envelope has been decoded; pre-decode rejection
 //     events leave them empty by design.
+//     SDK-backed MCP servers use JSONRPCMethods for sorted unique request
+//     methods in a batch. Treat decoded method strings as untrusted log values,
+//     not metric labels.
 //   - SafeMessage carries operator-redacted text, never raw user input.
 //
 // Observer implementations that need to extract more detail (request id,

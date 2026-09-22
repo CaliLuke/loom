@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 )
@@ -38,6 +39,7 @@ type RequestObserver struct {
 	emitWithMessage string
 	jsonrpcMethod   string
 	jsonrpcID       string
+	jsonrpcMethods  []string
 	batchCount      int
 	notification    bool
 	sessionID       string
@@ -153,11 +155,34 @@ func (o *RequestObserver) SetJSONRPC(method, id string, batchCount int, notifica
 	}
 	o.jsonrpcMethod = method
 	o.jsonrpcID = id
+	o.jsonrpcMethods = nil
 	o.batchCount = batchCount
 	o.notification = notification
 	if o.method == "" {
 		o.method = method
 	}
+}
+
+// SetJSONRPCBatch records a decoded JSON-RPC batch. It sorts and deduplicates
+// methods and copies them so later caller mutations cannot change an event.
+// A batch has no singular method or request ID.
+func (o *RequestObserver) SetJSONRPCBatch(methods []string, count int, notification bool) {
+	if o == nil {
+		return
+	}
+	orderedMethods := slices.Clone(methods)
+	slices.Sort(orderedMethods)
+	orderedMethods = slices.Compact(orderedMethods)
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.finished {
+		return
+	}
+	o.jsonrpcMethod = ""
+	o.jsonrpcID = ""
+	o.jsonrpcMethods = orderedMethods
+	o.batchCount = count
+	o.notification = notification
 }
 
 // SetSession records the transport session identifier carried by the
@@ -251,19 +276,20 @@ func (o *RequestObserver) emit(kind EventKind, reason Reason) {
 
 func (o *RequestObserver) eventLocked(kind EventKind, reason Reason) Event {
 	event := Event{
-		Kind:          kind,
-		Reason:        reason,
-		Transport:     o.transport,
-		Service:       o.service,
-		Method:        o.method,
-		Route:         o.route,
-		HTTPMethod:    o.httpVerb,
-		Duration:      time.Since(o.start),
-		JSONRPCMethod: o.jsonrpcMethod,
-		JSONRPCID:     o.jsonrpcID,
-		BatchCount:    o.batchCount,
-		Notification:  o.notification,
-		SessionID:     o.sessionID,
+		Kind:           kind,
+		Reason:         reason,
+		Transport:      o.transport,
+		Service:        o.service,
+		Method:         o.method,
+		Route:          o.route,
+		HTTPMethod:     o.httpVerb,
+		Duration:       time.Since(o.start),
+		JSONRPCMethod:  o.jsonrpcMethod,
+		JSONRPCID:      o.jsonrpcID,
+		JSONRPCMethods: slices.Clone(o.jsonrpcMethods),
+		BatchCount:     o.batchCount,
+		Notification:   o.notification,
+		SessionID:      o.sessionID,
 	}
 	if kind == EventKindRequestFailure {
 		event.SafeMessage = o.emitWithMessage

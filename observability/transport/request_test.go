@@ -124,3 +124,27 @@ func TestRequestObserverSetsJSONRPCAndSessionFields(t *testing.T) {
 	require.Equal(t, 3, finish.BatchCount)
 	require.Equal(t, "session-x", finish.SessionID)
 }
+
+func TestRequestObserverSetsSortedBatchMethodsWithoutAliasing(t *testing.T) {
+	t.Parallel()
+	rec := &recordingObserver{}
+	ctx := transport.WithObserver(context.Background(), rec)
+	obs := transport.BeginRequest(ctx, transport.TransportHTTP, "mcp", http.MethodPost)
+	methods := []string{"tools/list", "ping", "tools/list", "notifications/initialized"}
+	obs.SetJSONRPCBatch(methods, 4, false)
+	methods[0] = "mutated"
+	obs.EmitStreamOpen()
+
+	events := rec.snapshot()
+	require.Empty(t, events[0].JSONRPCMethods)
+	require.Equal(t, []string{"notifications/initialized", "ping", "tools/list"}, events[1].JSONRPCMethods)
+	events[1].JSONRPCMethods[0] = "mutated event"
+	obs.End()
+
+	finish := rec.snapshot()[2]
+	require.Equal(t, []string{"notifications/initialized", "ping", "tools/list"}, finish.JSONRPCMethods)
+	require.Empty(t, finish.JSONRPCMethod)
+	require.Empty(t, finish.JSONRPCID)
+	require.Equal(t, 4, finish.BatchCount)
+	require.False(t, finish.Notification)
+}

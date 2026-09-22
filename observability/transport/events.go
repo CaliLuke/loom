@@ -49,11 +49,15 @@ type (
 		JSONRPCMethod string
 		// JSONRPCID is the decoded JSON-RPC request id rendered as a string.
 		JSONRPCID string
+		// JSONRPCMethods contains sorted unique decoded request methods when a
+		// transport sets a batch summary. It is empty for a single message.
+		// Method strings are untrusted input and should not be metric labels.
+		JSONRPCMethods []string
 		// BatchCount is the number of envelopes in a JSON-RPC batch request,
 		// zero for non-batch requests.
 		BatchCount int
-		// Notification reports whether the JSON-RPC request had no id and is a
-		// notification.
+		// Notification reports whether a single request is a notification. For
+		// a batch summary, it is true only when every member is a notification.
 		Notification bool
 
 		// SessionID is the transport session identifier when known. For MCP
