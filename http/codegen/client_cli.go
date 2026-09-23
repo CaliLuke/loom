@@ -95,6 +95,9 @@ func ClientCLIFilesForTransport(
 	}
 	files := make([]*codegen.File, 0, len(data.Root.API.Servers)*2) // preallocate for CLI files
 	for _, svr := range data.Root.API.Servers {
+		if !hostsTransportService(svr, data.Expressions) {
+			continue
+		}
 		var svrData []*commandData
 		for _, name := range svr.Services {
 			for i, svc := range svcs {
@@ -358,6 +361,19 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*
 // that use SkipRequestBodyEncodeDecode.
 func streamFlag(svcn, en string) *cli.FlagData {
 	return cli.NewFlagData(svcn, en, "stream", "string", "path to file containing the streamed request body", true, "loom.bin", nil)
+}
+
+// hostsTransportService reports whether svr hosts at least one of the
+// services exposed by the transport expression transport. Client CLI files
+// are generated only for such servers: the example client main does not call
+// into the CLI package of a transport the server does not host.
+func hostsTransportService(svr *expr.ServerExpr, transport *expr.HTTPExpr) bool {
+	for _, name := range svr.Services {
+		if transport.Service(name) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // streamingCmdExists returns true if at least one command in the list of commands

@@ -46,7 +46,10 @@ func TestJSONRPCExampleCLIFilesSkipServicesWithoutTransportData(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcTransportAbsentServiceDSL)
 	files := ExampleCLIFiles("", CreateJSONRPCServices(root))
 
+	// The server hosting only the transport-absent service gets no JSON-RPC
+	// example client.
 	require.Len(t, files, 1)
+	assert.Equal(t, filepath.Join("cmd", "single_host-cli", "jsonrpc.go"), files[0].Path)
 	code := renderCodegenFile(t, files[0])
 	assert.Contains(t, code, "doJSONRPC")
 	assert.NotContains(t, code, "prompts")
@@ -167,12 +170,31 @@ var jsonrpcClientCLITransportDSL = func() {
 var jsonrpcTransportAbsentServiceDSL = func() {
 	dsl.API("jsonrpc-transport-absent-service", func() {
 		dsl.Server("SingleHost", func() {
-			dsl.Services("prompts")
+			dsl.Services("prompts", "calc")
 			dsl.Host("dev", func() {
 				dsl.URI("http://example:8080")
 			})
 		})
+		dsl.Server("PromptsOnly", func() {
+			dsl.Services("prompts")
+			dsl.Host("dev", func() {
+				dsl.URI("http://example:8081")
+			})
+		})
 		dsl.JSONRPC(func() {})
+	})
+
+	dsl.Service("calc", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		dsl.Method("add", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("a", dsl.Int)
+			})
+			dsl.Result(dsl.Int)
+			dsl.JSONRPC(func() {})
+		})
 	})
 
 	dsl.Service("prompts", func() {

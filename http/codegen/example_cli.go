@@ -29,11 +29,14 @@ type ExampleCLITransport struct {
 }
 
 // ExampleCLIFiles returns an example client tool HTTP implementation for each
-// server expression.
+// server expression that hosts an HTTP service.
 func ExampleCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 	var files []*codegen.File
 	servers := example.NewServersData()
 	for _, svr := range services.Root.API.Servers {
+		if !hostsTransportService(svr, services.Expressions) {
+			continue
+		}
 		if f := exampleCLIWithCache(genpkg, svr, services, servers, httpExampleCLITransport()); f != nil {
 			files = append(files, f)
 		}
@@ -42,19 +45,26 @@ func ExampleCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 }
 
 // ExampleCLI returns an example client tool HTTP implementation for the given
-// server expression.
+// server expression. It returns nil when the server hosts no HTTP service.
 func ExampleCLI(genpkg string, svr *expr.ServerExpr, services *ServicesData) *codegen.File {
+	if !hostsTransportService(svr, services.Expressions) {
+		return nil
+	}
 	return exampleCLIWithCache(genpkg, svr, services, example.NewServersData(), httpExampleCLITransport())
 }
 
 // ExampleCLIForTransport returns an example client configured for transport.
-// It is used by transports that share the HTTP client runtime.
+// It is used by transports that share the HTTP client runtime. It returns nil
+// when the server hosts no service of services.
 func ExampleCLIForTransport(
 	genpkg string,
 	svr *expr.ServerExpr,
 	services *ServicesData,
 	transport ExampleCLITransport,
 ) *codegen.File {
+	if !hostsTransportService(svr, services.Expressions) {
+		return nil
+	}
 	return exampleCLIWithCache(genpkg, svr, services, example.NewServersData(), transport)
 }
 
