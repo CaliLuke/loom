@@ -49,7 +49,7 @@ func (sds *ServicesData) buildTransportAttributeData(
 	scope *codegen.NameScope,
 	examples *expr.ExampleGenerator,
 ) *AttributeData {
-	varName := scope.Name(codegen.Goify(name, false))
+	varName := scope.PeekUnique(codegen.Goify(name, false))
 	typeRef := scope.GoTypeRef(attr)
 	if pointer {
 		typeRef = "*" + typeRef

@@ -235,7 +235,7 @@ func prepareEndpointProtoMessages(endpoint *transportir.Endpoint, sd *ServiceDat
 }
 
 func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *service.Data, sd *ServiceData, collector *messageCollector) *RequestData {
-	reqMD := extractMetadata(endpoint.Request.Metadata, endpoint.Request.Payload, svc.Scope, *d)
+	reqMD := extractMetadata(endpoint.Request.Metadata, endpoint.Request.Payload, svc.Scope, codegen.NewNameScope(), *d)
 	request := &RequestData{
 		Description:   endpoint.Request.ProtoMessage.Description,
 		Metadata:      reqMD,
@@ -286,8 +286,9 @@ func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *ser
 
 func (d *ServicesData) buildResponseData(endpoint *transportir.Endpoint, svc *service.Data, sd *ServiceData, collector *messageCollector) *ResponseData {
 	result, svcCtx := resultContext(endpoint, sd)
-	hdrs := extractMetadata(endpoint.Response.Headers, result, svc.Scope, *d)
-	trlrs := extractMetadata(endpoint.Response.Trailers, result, svc.Scope, *d)
+	vars := codegen.NewNameScope()
+	hdrs := extractMetadata(endpoint.Response.Headers, result, svc.Scope, vars, *d)
+	trlrs := extractMetadata(endpoint.Response.Trailers, result, svc.Scope, vars, *d)
 	response := &ResponseData{
 		StatusCode:    statusCodeToGRPCConst(endpoint.Response.StatusCode),
 		Description:   endpoint.Response.Description,

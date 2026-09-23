@@ -3,6 +3,8 @@ package codegen
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -105,5 +107,31 @@ func TestNameScope_PeekUnique_MatchesUniqueWithoutMutation(t *testing.T) {
 	// PeekUnique must not mutate the scope.
 	if got, want := peek.Unique("a"), "a3"; got != want {
 		t.Fatalf("expected scope unchanged, got %q", got)
+	}
+}
+
+func TestNameScope_PeekUniqueNeverReturnsReservedName(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Reserved []string
+		Input    string
+		Expected string
+	}{
+		{Name: "free", Input: "Foo", Expected: "Foo"},
+		{Name: "base reserved", Reserved: []string{"Foo"}, Input: "Foo", Expected: "Foo2"},
+		{Name: "base reserved twice", Reserved: []string{"Foo", "Foo"}, Input: "Foo", Expected: "Foo3"},
+		{Name: "suffixed name reserved directly", Reserved: []string{"Foo", "Foo2"}, Input: "Foo", Expected: "Foo3"},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			scope := NewNameScope()
+			for _, r := range c.Reserved {
+				scope.Unique(r)
+			}
+			got := scope.PeekUnique(c.Input)
+			require.Equal(t, c.Expected, got)
+			require.Equal(t, got, scope.PeekUnique(c.Input), "PeekUnique must be idempotent")
+			require.Equal(t, c.Expected, scope.Unique(c.Input), "PeekUnique must not reserve")
+		})
 	}
 }

@@ -8,8 +8,10 @@ import (
 )
 
 // extractMetadata collects the request/response metadata from the given
-// metadata attribute and service type (payload/result).
-func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, scope *codegen.NameScope, services ServicesData) []*MetadataData {
+// metadata attribute and service type (payload/result). Variable names avoid
+// names reserved in scope and are reserved in vars, which must be shared by
+// all metadata declared in the same generated function.
+func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, scope, vars *codegen.NameScope, services ServicesData) []*MetadataData {
 	var metadata []*MetadataData
 	ctx := serviceTypeContext("", scope)
 	codegen.WalkMappedAttr(a, func(name, elem string, required bool, c *expr.AttributeExpr) error { // nolint: errcheck
@@ -17,7 +19,7 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 		mp := expr.AsMap(c.Type)
 		typeRef := scope.GoTypeRef(unalias(c))
 		ft := service.Type
-		varn := scope.Name(codegen.Goify(name, false))
+		varn := vars.Unique(scope.PeekUnique(codegen.Goify(name, false)))
 		fieldName := codegen.Goify(name, true)
 		var pointer bool
 		if !expr.IsObject(service.Type) {

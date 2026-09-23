@@ -77,7 +77,11 @@ func (s *NameScope) Unique(name string, suffix ...string) string {
 }
 
 // PeekUnique returns the name that Unique would return for the same inputs,
-// without mutating the scope.
+// without mutating the scope. The result is never a name already reserved in
+// the scope, and repeated calls return the same value until the scope changes.
+// PeekUnique does not reserve the result, so distinct inputs may yield the
+// same name; callers that need names distinct from each other must reserve
+// them with Unique in a scope of their own.
 //
 // This is useful when synthesizing type names or identifiers that are later
 // reserved via Hash-based naming (e.g., GoTypeName/HashedUnique) and therefore
@@ -100,18 +104,6 @@ func (s *NameScope) PeekUnique(name string, suffix ...string) string {
 			return ret
 		}
 	}
-}
-
-// Name returns a unique name for the given name by adding a counter value to
-// the name until unique. It returns the same value when called multiple times
-// for the same given name.
-func (s *NameScope) Name(name string) string {
-	i, ok := s.counts[name]
-	if !ok {
-		return name
-	}
-	name += strconv.Itoa(i + 1)
-	return name
 }
 
 // GoTypeDef returns the Go code that defines a Go type which matches the data

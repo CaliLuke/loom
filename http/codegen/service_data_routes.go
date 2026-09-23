@@ -38,7 +38,7 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 		if payloadPointer := payloadPrimitivePointerByName(endpointIR.Request.Payload, arg); payloadPointer {
 			pointer = true
 		}
-		varName := sd.Scope.Name(codegen.Goify(arg, false))
+		varName := sd.Scope.PeekUnique(codegen.Goify(arg, false))
 		validate := ""
 		if att.Validation != nil {
 			ctx := httpContext(sd.Scope, true, false)
