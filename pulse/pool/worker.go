@@ -269,10 +269,16 @@ func (w *Worker) stop(ctx context.Context) {
 	w.wg.Wait()
 }
 
-// startJob starts a job.
+// startJob starts a job. A start for a key the worker already runs is a
+// duplicate delivery (sink redelivery, dispatch retry, requeue or rebalance)
+// and succeeds without calling the handler again.
 func (w *Worker) startJob(ctx context.Context, job *Job) error {
 	if w.IsStopped() {
 		return fmt.Errorf("worker %q stopped", w.ID)
+	}
+	if _, ok := w.jobs.Load(job.Key); ok {
+		w.logger.Debug("start job: already running, ignoring duplicate start", "job", job.Key)
+		return nil
 	}
 	if _, err := w.jobsMap.AppendUniqueValues(ctx, w.ID, job.Key); err != nil {
 		w.logger.Error(fmt.Errorf("failed to add job %q to jobs map: %w, requeueing", job.Key, err))

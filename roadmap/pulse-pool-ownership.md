@@ -1,7 +1,7 @@
 # Pulse Pool Job Ownership
 
-Status: active. Design accepted (owner-record redesign). Ticket 1 is done.
-Tickets 2 to 8 are open.
+Status: active. Design accepted (owner-record redesign). Tickets 1 and 2
+are done. Tickets 3 to 8 are open.
 
 Code references are to `main` at `967f4fbe`. The model lives in
 [`pulse/pool/tla`](../pulse/pool/tla/README.md).
@@ -30,7 +30,7 @@ worker, breadth-first). Configurations are under `pulse/pool/tla/cfg/`.
 
 | Id | Defect | Code | Trace | Status |
 | --- | --- | --- | ---: | --- |
-| B1 | The sink redelivers an unacked start event (XAUTOCLAIM after `ackGracePeriod`). `startJob` never checks `w.jobs`, so the job starts twice on one worker, or on two workers if the second router's view differs. | `worker.go:248-273`, `streaming/sink_consumers.go:308-316` | 6 (`double_asis`), 7 (`runner_asis`) | open |
+| B1 | The sink redelivers an unacked start event (XAUTOCLAIM after `ackGracePeriod`). `startJob` never checks `w.jobs`, so the job starts twice on one worker, or on two workers if the second router's view differs. | `worker.go:248-273`, `streaming/sink_consumers.go:308-316` | 6 (`double_asis`), 7 (`runner_asis`) | same worker fixed by ticket 2; across workers open until ticket 5 |
 | B2 | `dispatchJob` releases the pending guard on timeout while the start event is still queued. A retry is admitted and adds a second start. | `node_jobs.go:112-123`, `scripts.go:41-51` | 8 (`double_noredeliver`), 9 (`runner_dispatch_retry`) | open |
 | B3 | `Close` and `cleanupWorker` delete the worker's `jobMap` entry but keep the payload. The orphan sweep takes no lock and requeues a job whose requeue is still in flight. | `node_cleanup.go:59`, `node_recovery.go:80-134` | 12 (`double_orphan`) | open |
 | B4 | `rebalance` requeues without checking whether cleanup already moved the key, and without removing `jobMap[w]`. Rebalance and cleanup both requeue the same job. | `worker.go:370-388`, `node_recovery.go:145,161` | 15 (`double_rebalance`) | open |
@@ -449,9 +449,13 @@ useful even before the owner record lands.
      that eviction, `close`, or `RemoveWorker` then removes, is never deleted.
      The worker is gone, so the entry has no effect beyond its size. The model
      keeps the lock in the same case.
-2. **Idempotent `startJob` (B1, and B2 to B4 on one worker).** Test: the same
-   start event delivered twice calls `handler.Start` once, and both deliveries
-   are acked.
+2. **Idempotent `startJob` (B1, and B2 to B4 on one worker).** Done.
+   `startJob` returns nil without calling the handler when `w.jobs` holds the
+   key, so the duplicate is acked as a success with no effect, as
+   `FIX_DEDUP` models. Test: `TestRedeliveredStartEventStartsJobOnce` blocks
+   the first `handler.Start` past `ackGracePeriod`, so the sink redelivers
+   the event to the same worker (the `double_asis` trace). `handler.Start`
+   runs once, and both deliveries are acked.
 3. **Stop handlers on eviction (B6 zombie).** Test: remove a local worker
    from `workerMap`, run `handleWorkerMapUpdate`, and assert `handler.Stop`
    was called for each job.
