@@ -133,6 +133,7 @@ func TestStreamEventsStopsWhenDoneClosesOnBackpressure(t *testing.T) {
 	close(done)
 
 	streamEvents(
+		t.Context(),
 		"events",
 		streamKeyPrefix+"events",
 		"",
@@ -170,7 +171,7 @@ func TestStreamEventsDoesNotHoldReaderLockWhileSubscriberIsBackpressured(t *test
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		reader.fanOut(streamKeyPrefix+"events", []redis.XMessage{message})
+		reader.fanOut(t.Context(), streamKeyPrefix+"events", []redis.XMessage{message})
 	}()
 
 	require.Eventually(t, func() bool {
@@ -209,7 +210,7 @@ func TestReaderUnsubscribeDuringBackpressuredFanOutDoesNotPanic(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		reader.fanOut(streamKeyPrefix+"events", []redis.XMessage{message})
+		reader.fanOut(t.Context(), streamKeyPrefix+"events", []redis.XMessage{message})
 	}()
 
 	reader.Unsubscribe(reader.subscribers[0].ch)
@@ -242,7 +243,7 @@ func TestSinkUnsubscribeDuringBackpressuredFanOutDoesNotPanic(t *testing.T) {
 	go func() {
 		defer close(done)
 		subscribers, filter := sink.snapshotFanOut()
-		streamEvents("events", streamKeyPrefix+"events", "sink", []redis.XMessage{message}, filter, subscribers, nil, pulse.NoopLogger(), sink.donechan)
+		streamEvents(t.Context(), "events", streamKeyPrefix+"events", "sink", []redis.XMessage{message}, filter, subscribers, nil, pulse.NoopLogger(), sink.donechan)
 	}()
 
 	sink.Unsubscribe(sink.subscribers[0].ch)

@@ -155,7 +155,7 @@ func (s *Sink) read(ctx context.Context) {
 		for _, events := range streams {
 			streamName := events.Stream[len(streamKeyPrefix):]
 			subscribers, filter := s.snapshotFanOut()
-			streamEvents(streamName, events.Stream, s.Name, events.Messages, filter, subscribers, s.rdb, s.logger, s.donechan)
+			streamEvents(ctx, streamName, events.Stream, s.Name, events.Messages, filter, subscribers, s.rdb, s.logger, s.donechan)
 		}
 	}
 }
@@ -336,7 +336,7 @@ func (s *Sink) claim(ctx context.Context, streamName string, args redis.XAutoCla
 	if len(messages) > 0 {
 		s.logger.Info("claimed", "stream", streamName, "messages", len(messages))
 		subscribers, filter := s.snapshotFanOut()
-		streamEvents(streamName, args.Stream, s.Name, messages, filter, subscribers, s.rdb, s.logger, s.donechan)
+		streamEvents(ctx, streamName, args.Stream, s.Name, messages, filter, subscribers, s.rdb, s.logger, s.donechan)
 	}
 	return start, err
 }

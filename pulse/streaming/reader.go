@@ -274,23 +274,23 @@ func (r *Reader) read(ctx context.Context) {
 			continue
 		}
 
-		r.fanOutStreams(streamsEvents)
+		r.fanOutStreams(ctx, streamsEvents)
 	}
 }
 
-func (r *Reader) fanOutStreams(streamsEvents []redis.XStream) {
+func (r *Reader) fanOutStreams(ctx context.Context, streamsEvents []redis.XStream) {
 	for _, events := range streamsEvents {
-		r.fanOut(events.Stream, events.Messages)
+		r.fanOut(ctx, events.Stream, events.Messages)
 	}
 }
 
-func (r *Reader) fanOut(streamKey string, messages []redis.XMessage) {
+func (r *Reader) fanOut(ctx context.Context, streamKey string, messages []redis.XMessage) {
 	if len(messages) == 0 {
 		return
 	}
 	streamName := streamKey[len(streamKeyPrefix):]
 	subscribers, filter := r.snapshotFanOut()
-	streamEvents(streamName, streamKey, "", messages, filter, subscribers, r.rdb, r.logger, r.donechan)
+	streamEvents(ctx, streamName, streamKey, "", messages, filter, subscribers, r.rdb, r.logger, r.donechan)
 
 	lastID := messages[len(messages)-1].ID
 	r.lock.Lock()
@@ -380,17 +380,25 @@ func (r *Reader) isClosing() bool {
 	return r.closing
 }
 
-// CreatedAt returns the event creation time (millisecond precision).
+// CreatedAt returns the event creation time (millisecond precision) encoded in
+// the millisecond part of a Redis stream ID. It returns the Unix epoch when the
+// ID does not start with a decimal millisecond timestamp.
 func (e *Event) CreatedAt() time.Time {
-	tss := e.ID[:strings.IndexByte(e.ID, '-')]
-	ts, _ := strconv.ParseInt(tss, 10, 64)
+	tss, _, _ := strings.Cut(e.ID, "-")
+	ts, err := strconv.ParseInt(tss, 10, 64)
+	if err != nil {
+		ts = 0
+	}
 	seconds := ts / 1000
 	nanos := (ts % 1000) * 1_000_000
 	return time.Unix(seconds, nanos).UTC()
 }
 
 // streamEvents filters Redis messages and sends them to each subscriber.
+// Malformed entries are skipped; when read through a sink consumer group they
+// are acknowledged so they do not stay pending and get reclaimed forever.
 func streamEvents(
+	ctx context.Context,
 	streamName string,
 	streamKey string,
 	sinkName string,
@@ -405,19 +413,15 @@ func streamEvents(
 		return
 	}
 	for _, event := range msgs {
-		var topic string
-		if t, ok := event.Values[topicKey]; ok {
-			topic = t.(string)
-		}
-		ev := &Event{
-			ID:         event.ID,
-			StreamName: streamName,
-			SinkName:   sinkName,
-			EventName:  event.Values[nameKey].(string),
-			Topic:      topic,
-			Payload:    []byte(event.Values[payloadKey].(string)),
-			streamKey:  streamKey,
-			Acker:      rdb,
+		ev, err := eventFromMessage(streamName, streamKey, sinkName, event, rdb)
+		if err != nil {
+			logger.Error(err, "id", event.ID, "stream", streamName)
+			if sinkName != "" && rdb != nil {
+				if ackErr := rdb.XAck(ctx, streamKey, sinkName, event.ID).Err(); ackErr != nil {
+					logger.Error(fmt.Errorf("ack malformed stream %q entry %q: %w", streamName, event.ID, ackErr))
+				}
+			}
+			continue
 		}
 		if eventFilter != nil && !eventFilter(ev) {
 			logger.Debug("event filtered", "event", ev.EventName, "id", ev.ID, "stream", streamName)
@@ -430,6 +434,36 @@ func streamEvents(
 			}
 		}
 	}
+}
+
+// eventFromMessage decodes one Redis stream entry written by Stream.Add. It
+// returns an error instead of panicking when another writer added an entry
+// without string name and payload fields or with a non-string topic.
+func eventFromMessage(streamName, streamKey, sinkName string, msg redis.XMessage, acker Acker) (*Event, error) {
+	name, ok := msg.Values[nameKey].(string)
+	if !ok {
+		return nil, fmt.Errorf("stream %q entry %q: event name field %q is %T, want string", streamName, msg.ID, nameKey, msg.Values[nameKey])
+	}
+	payload, ok := msg.Values[payloadKey].(string)
+	if !ok {
+		return nil, fmt.Errorf("stream %q entry %q: event payload field %q is %T, want string", streamName, msg.ID, payloadKey, msg.Values[payloadKey])
+	}
+	var topic string
+	if value, present := msg.Values[topicKey]; present {
+		if topic, ok = value.(string); !ok {
+			return nil, fmt.Errorf("stream %q entry %q: event topic field %q is %T, want string", streamName, msg.ID, topicKey, value)
+		}
+	}
+	return &Event{
+		ID:         msg.ID,
+		StreamName: streamName,
+		SinkName:   sinkName,
+		EventName:  name,
+		Topic:      topic,
+		Payload:    []byte(payload),
+		streamKey:  streamKey,
+		Acker:      acker,
+	}, nil
 }
 
 func newEventSubscriber(bufferSize int) *eventSubscriber {
