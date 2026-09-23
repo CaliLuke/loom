@@ -467,7 +467,9 @@ requirement retain AND semantics.
 - Do not recover or write the raw response writer to work around streaming
   behavior.
 - Generated WebSocket streams use `loomhttp.WebSocketStream`; use the generated
-  interface rather than adding parallel socket lifecycle code.
+  interface rather than adding parallel socket lifecycle code. `Close` is
+  terminal, even before the lazy server upgrade: later `Send`/`Recv` return
+  `loomhttp.ErrWebSocketStreamClosed`. Call `Recv` from one goroutine only.
 
 Loom also emits the framework-owned `x-loom-async` OpenAPI extension for richer
 SSE and WebSocket handshake/message contracts.

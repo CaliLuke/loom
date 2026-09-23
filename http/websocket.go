@@ -30,14 +30,18 @@ type (
 
 	// WebSocketStream owns the lifecycle for a WebSocket connection used by
 	// generated HTTP streaming clients and servers.
+	//
+	// Close is terminal: once it has been called, the stream never becomes
+	// usable again, even when the connection is attached later with SetConn.
 	WebSocketStream struct {
-		conn     *websocket.Conn
+		// connLock guards conn, closed, and closeErr.
 		connLock sync.RWMutex
+		conn     *websocket.Conn
+		closed   bool
+		closeErr error
 		policy   StreamWritePolicy
 
 		writeLock sync.Mutex
-		closeOnce sync.Once
-		closeErr  error
 	}
 )
 
@@ -67,33 +71,49 @@ func (s *WebSocketStream) Conn() *websocket.Conn {
 	return s.conn
 }
 
-// SetConn replaces the wrapped Gorilla WebSocket connection.
+// SetConn replaces the wrapped Gorilla WebSocket connection. Generated servers
+// call it once the lazy upgrade succeeds.
+//
+// If the stream has already been closed, SetConn still records conn so Conn
+// reports that the HTTP connection was upgraded, but it closes conn
+// immediately. Later reads and writes return ErrWebSocketStreamClosed, and any
+// error from closing conn is reported by subsequent Close calls.
 func (s *WebSocketStream) SetConn(conn *websocket.Conn) {
 	s.connLock.Lock()
 	defer s.connLock.Unlock()
+	if s.closed && conn != nil && conn != s.conn {
+		if err := conn.Close(); err != nil {
+			s.closeErr = errors.Join(s.closeErr, err)
+		}
+	}
 	s.conn = conn
 }
 
-// ReadJSON reads one JSON WebSocket frame while honoring ctx cancellation.
+// ReadJSON reads one JSON WebSocket frame while honoring ctx cancellation. It
+// returns ErrWebSocketStreamClosed when no connection is attached or the
+// stream has been closed. As with Gorilla connections, at most one goroutine
+// may call ReadJSON at a time.
 func (s *WebSocketStream) ReadJSON(ctx context.Context, v any) error {
 	return s.withContext(ctx, func() error {
-		conn := s.Conn()
-		if conn == nil {
-			return ErrWebSocketStreamClosed
+		conn, err := s.activeConn()
+		if err != nil {
+			return err
 		}
 		return conn.ReadJSON(v)
 	})
 }
 
 // WriteJSON writes one JSON WebSocket frame while honoring ctx cancellation.
+// Concurrent calls are serialized. It returns ErrWebSocketStreamClosed when no
+// connection is attached or the stream has been closed.
 func (s *WebSocketStream) WriteJSON(ctx context.Context, v any) error {
 	s.writeLock.Lock()
 	defer s.writeLock.Unlock()
 
 	return s.withContext(ctx, func() error {
-		conn := s.Conn()
-		if conn == nil {
-			return ErrWebSocketStreamClosed
+		conn, err := s.activeConn()
+		if err != nil {
+			return err
 		}
 		return s.writeJSONWithDeadline(ctx, conn, v)
 	})
@@ -147,19 +167,34 @@ func (s *WebSocketStream) WriteClose(message string) error {
 	)
 }
 
-// Close closes the WebSocket connection at most once.
+// Close marks the stream closed and closes the attached WebSocket connection,
+// if any. The first call is terminal whether or not a connection is attached:
+// a connection attached later with SetConn is closed on arrival. Repeated
+// calls do not close the connection again and return the recorded close
+// error.
 func (s *WebSocketStream) Close() error {
 	if s == nil {
 		return nil
 	}
-	conn := s.Conn()
-	if conn == nil {
-		return nil
+	s.connLock.Lock()
+	defer s.connLock.Unlock()
+	if s.closed {
+		return s.closeErr
 	}
-	s.closeOnce.Do(func() {
-		s.closeErr = conn.Close()
-	})
+	s.closed = true
+	if s.conn != nil {
+		s.closeErr = s.conn.Close()
+	}
 	return s.closeErr
+}
+
+func (s *WebSocketStream) activeConn() (*websocket.Conn, error) {
+	s.connLock.RLock()
+	defer s.connLock.RUnlock()
+	if s.closed || s.conn == nil {
+		return nil, ErrWebSocketStreamClosed
+	}
+	return s.conn, nil
 }
 
 func (s *WebSocketStream) withContext(ctx context.Context, fn func() error) error {

@@ -77,24 +77,34 @@ func TestWebSocketStreamNilConnection(t *testing.T) {
 	require.True(t, errors.Is(err, loomhttp.ErrWebSocketStreamClosed))
 }
 
-func TestWebSocketStreamPreUpgradeCloseDoesNotConsumeClose(t *testing.T) {
-	stream := loomhttp.NewWebSocketStream(nil)
-	require.NoError(t, stream.Close())
+func TestWebSocketStreamCloseIsTerminal(t *testing.T) {
+	cases := []struct {
+		name        string
+		attachFirst bool
+	}{
+		{name: "close before upgrade", attachFirst: false},
+		{name: "close after upgrade", attachFirst: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			stream := loomhttp.NewWebSocketStream(nil)
+			if tc.attachFirst {
+				first, cleanup := newIdleWebSocketConn(t)
+				defer cleanup()
+				stream.SetConn(first)
+			}
+			require.NoError(t, stream.Close())
 
-	live, cleanup := newIdleWebSocketStream(t)
-	defer cleanup()
-	stream.SetConn(live.Conn())
-	require.NoError(t, stream.Close())
+			late, cleanup := newIdleWebSocketConn(t)
+			defer cleanup()
+			stream.SetConn(late)
 
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- stream.ReadJSON(context.Background(), new(map[string]string))
-	}()
-	select {
-	case err := <-errCh:
-		require.Error(t, err)
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("attached connection was not closed")
+			require.Same(t, late, stream.Conn(), "SetConn after Close must still expose the upgraded connection")
+			require.ErrorIs(t, late.ReadJSON(new(map[string]string)), net.ErrClosed, "SetConn after Close must close the incoming connection")
+			require.ErrorIs(t, stream.ReadJSON(context.Background(), new(map[string]string)), loomhttp.ErrWebSocketStreamClosed)
+			require.ErrorIs(t, stream.WriteJSON(context.Background(), map[string]string{"k": "v"}), loomhttp.ErrWebSocketStreamClosed)
+			require.NoError(t, stream.Close())
+		})
 	}
 }
 
@@ -146,6 +156,13 @@ func TestWebSocketStreamBoundsBlockedWrite(t *testing.T) {
 func newIdleWebSocketStream(t *testing.T) (*loomhttp.WebSocketStream, func()) {
 	t.Helper()
 
+	conn, cleanup := newIdleWebSocketConn(t)
+	return loomhttp.NewWebSocketStream(conn), cleanup
+}
+
+func newIdleWebSocketConn(t *testing.T) (*websocket.Conn, func()) {
+	t.Helper()
+
 	upgrader := websocket.Upgrader{}
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -164,5 +181,5 @@ func newIdleWebSocketStream(t *testing.T) (*loomhttp.WebSocketStream, func()) {
 	if resp != nil && resp.Body != nil {
 		require.NoError(t, resp.Body.Close())
 	}
-	return loomhttp.NewWebSocketStream(conn), server.Close
+	return conn, server.Close
 }

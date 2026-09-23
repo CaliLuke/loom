@@ -759,6 +759,11 @@ and `*WithContext` methods, while the socket lifecycle is owned by
 context-cancel unblocking, close-control frames, and JSON frame read/write
 coordination so generated endpoint wrappers stay thin.
 
+`Close` is terminal. After a stream is closed, including a server stream
+closed before its lazy upgrade, later `Send` and `Recv` calls return
+`loomhttp.ErrWebSocketStreamClosed`, and a connection upgraded after the
+close is closed immediately. Only one goroutine may call `Recv` at a time.
+
 Generated HTTP and JSON-RPC server constructors accept an optional final
 `loomhttp.StreamWritePolicy`. Constructing the policy validates the timeout;
 each WebSocket write installs a fresh deadline and clears it afterward.
