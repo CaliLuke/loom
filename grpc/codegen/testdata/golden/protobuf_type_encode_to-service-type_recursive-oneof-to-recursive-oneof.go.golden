@@ -6,13 +6,13 @@ func transform() {
 		switch val := source.RecursiveOneOf.(type) {
 		case *proto.RecursiveOneOf_Integer:
 			{
-				u := target.RecursiveOneOf
+				u := &proto.RecursiveOneOf{}
 				u.SetInteger(proto.RecursiveOneOfInteger(val.Integer))
 				target.RecursiveOneOf = u
 			}
 		case *proto.RecursiveOneOf_Recurse:
 			{
-				u := target.RecursiveOneOf
+				u := &proto.RecursiveOneOf{}
 				u.SetRecurse(protobufProtoRecursiveOneOfToProtoRecursiveOneOf(val.Recurse))
 				target.RecursiveOneOf = u
 			}

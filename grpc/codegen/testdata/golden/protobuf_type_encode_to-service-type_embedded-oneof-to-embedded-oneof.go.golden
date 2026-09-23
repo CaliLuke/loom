@@ -6,43 +6,43 @@ func transform() {
 		switch val := source.EmbeddedOneOf.(type) {
 		case *proto.EmbeddedOneOf_String_:
 			{
-				u := target.EmbeddedOneOf
+				u := &proto.EmbeddedOneOf{}
 				u.SetString(proto.EmbeddedOneOfString(val.String_))
 				target.EmbeddedOneOf = u
 			}
 		case *proto.EmbeddedOneOf_Integer:
 			{
-				u := target.EmbeddedOneOf
+				u := &proto.EmbeddedOneOf{}
 				u.SetInteger(proto.EmbeddedOneOfInteger(val.Integer))
 				target.EmbeddedOneOf = u
 			}
 		case *proto.EmbeddedOneOf_Boolean:
 			{
-				u := target.EmbeddedOneOf
+				u := &proto.EmbeddedOneOf{}
 				u.SetBoolean(proto.EmbeddedOneOfBoolean(val.Boolean))
 				target.EmbeddedOneOf = u
 			}
 		case *proto.EmbeddedOneOf_Number:
 			{
-				u := target.EmbeddedOneOf
+				u := &proto.EmbeddedOneOf{}
 				u.SetNumber(proto.EmbeddedOneOfNumber(val.Number))
 				target.EmbeddedOneOf = u
 			}
 		case *proto.EmbeddedOneOf_Array:
 			{
-				u := target.EmbeddedOneOf
+				u := &proto.EmbeddedOneOf{}
 				u.SetArray(protobufProtoEmbeddedOneOfArrayToProtoEmbeddedOneOfArray(val.Array))
 				target.EmbeddedOneOf = u
 			}
 		case *proto.EmbeddedOneOf_Map_:
 			{
-				u := target.EmbeddedOneOf
+				u := &proto.EmbeddedOneOf{}
 				u.SetMap(protobufProtoEmbeddedOneOfMapToProtoEmbeddedOneOfMap(val.Map_))
 				target.EmbeddedOneOf = u
 			}
 		case *proto.EmbeddedOneOf_UserType:
 			{
-				u := target.EmbeddedOneOf
+				u := &proto.EmbeddedOneOf{}
 				u.SetUserType(protobufProtoSimpleOneOfToProtoSimpleOneOf(val.UserType))
 				target.EmbeddedOneOf = u
 			}

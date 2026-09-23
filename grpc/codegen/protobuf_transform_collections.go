@@ -291,9 +291,10 @@ func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, target
 }
 
 // transformUnionFromProto returns the code to transform an attribute of type
-// union from protobuf to Loom. It returns an error if source and target are not
-// compatible for transformation.
-func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *transformAttrs) (string, error) {
+// union from protobuf to Loom. targetPtr reports whether the target is an
+// optional union pointer, which is allocated before the branch setter runs. It
+// returns an error if source and target are not compatible for transformation.
+func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targetVar string, targetPtr bool, ta *transformAttrs) (string, error) {
 	if err := codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
 		return "", err
 	}
@@ -311,6 +312,10 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 			"targetFieldName":    targetFieldName,
 		})
 	}
+	init := targetVar
+	if targetPtr {
+		init = renderJen(jen.Op("&").Add(exprCode(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), false, false))).Values())
+	}
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "switch val := %s.(type) {\n", sourceVar)
 	for _, c := range cases {
@@ -318,7 +323,7 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 		field := "val." + c["sourceFieldName"].(string)
 		tmp := convertType(c["sourceAttr"].(*expr.AttributeExpr), c["targetAttr"].(*expr.AttributeExpr), false, false, field, ta)
 		fmt.Fprint(&buf, "\t{\n")
-		fmt.Fprintf(&buf, "\t\tu := %s\n", targetVar)
+		fmt.Fprintf(&buf, "\t\tu := %s\n", init)
 		fmt.Fprintf(&buf, "\t\tu.Set%s(%s)\n", c["targetFieldName"], tmp)
 		fmt.Fprintf(&buf, "\t\t%s = u\n", targetVar)
 		fmt.Fprint(&buf, "\t}\n")

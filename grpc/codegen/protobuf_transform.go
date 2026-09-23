@@ -178,7 +178,7 @@ func transformAttributeByKind(source, target *expr.AttributeExpr, sourceVar, tar
 			// At top-level we do not expect pointer-to-interface unions.
 			return transformUnionToProto(source, target, sourceVar, targetVar, false, ta)
 		}
-		return transformUnionFromProto(source, target, sourceVar, targetVar, ta)
+		return transformUnionFromProto(source, target, sourceVar, targetVar, false, ta)
 	case source.Type.Kind() == expr.AnyKind || target.Type.Kind() == expr.AnyKind:
 		return transformScalarAssignment(source, target, sourceVar, targetVar, newVar, ta), nil
 	default:
@@ -296,7 +296,7 @@ func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *ex
 	if err != nil {
 		return "", err
 	}
-	code, err := objectFieldAssignment(srcValue, tgtValue, compatibleSource, compatibleTarget, ta)
+	code, err := objectFieldAssignment(srcValue, tgtValue, compatibleSource, compatibleTarget, !tgtMatt.IsRequired(n), ta)
 	if err != nil {
 		return "", err
 	}
@@ -321,7 +321,10 @@ func compatibleTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs
 	return srcc, tgtc, nil
 }
 
-func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr, ta *transformAttrs) (string, error) {
+// objectFieldAssignment returns the code that assigns the object field held by
+// srcVar to tgtVar. targetPtr reports whether a service union target is an
+// optional field and therefore a pointer that must be allocated.
+func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr, targetPtr bool, ta *transformAttrs) (string, error) {
 	_, isUserType := srcc.Type.(expr.UserType)
 	switch {
 	case expr.IsArray(srcc.Type):
@@ -339,7 +342,7 @@ func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr
 		if ta.proto {
 			return transformUnionToProto(srcc, tgtc, srcVar, tgtVar, false, ta)
 		}
-		return transformUnionFromProto(srcc, tgtc, srcVar, tgtVar, ta)
+		return transformUnionFromProto(srcc, tgtc, srcVar, tgtVar, targetPtr, ta)
 	default:
 		return "", nil
 	}
@@ -355,7 +358,7 @@ func wrapObjectFieldNilCheck(code, srcVar string, srcMatt *expr.MappedAttributeE
 		return code
 	}
 	cond := "if " + srcVar + " != nil {\n"
-	if expr.IsUnion(srcc.Type) && ta.proto {
+	if expr.IsUnion(srcc.Type) && ta.proto && srcMatt.IsRequired(n) {
 		cond = "if " + srcVar + `.Kind() != "" {` + "\n"
 	}
 	return cond + "\t" + code + "}\n"

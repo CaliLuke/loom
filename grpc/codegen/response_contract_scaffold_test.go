@@ -110,6 +110,13 @@ func wellKnownProtosInclude(t *testing.T) string {
 
 func renderGRPCResponseContractModule(t *testing.T, dir, modulePath string, root *expr.RootExpr) {
 	t.Helper()
+	repoRoot, err := loomsource.RepositoryRoot(".")
+	require.NoError(t, err)
+	renderGRPCModule(t, dir, modulePath, root, repoRoot)
+}
+
+func renderGRPCModule(t *testing.T, dir, modulePath string, root *expr.RootExpr, loomSource string) {
+	t.Helper()
 	genpkg := modulePath + "/gen"
 	serviceData := servicecodegen.NewServicesData(root)
 	grpcData := NewServicesData(serviceData)
@@ -133,9 +140,7 @@ func renderGRPCResponseContractModule(t *testing.T, dir, modulePath string, root
 		require.NoError(t, err, file.Path)
 	}
 
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	goMod := fmt.Sprintf("module %s\n\ngo 1.27.0\n\nrequire github.com/CaliLuke/loom v1.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, repoRoot)
+	goMod := fmt.Sprintf("module %s\n\ngo 1.27.0\n\nrequire github.com/CaliLuke/loom v1.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, loomSource)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 }
 

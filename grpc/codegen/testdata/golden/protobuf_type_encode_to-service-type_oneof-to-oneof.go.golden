@@ -4,13 +4,13 @@ func transform() {
 		switch val := source.SimpleOneOf.(type) {
 		case *proto.SimpleOneOf_String_:
 			{
-				u := target.SimpleOneOf
+				u := &proto.SimpleOneOf{}
 				u.SetString(proto.SimpleOneOfString(val.String_))
 				target.SimpleOneOf = u
 			}
 		case *proto.SimpleOneOf_Integer:
 			{
-				u := target.SimpleOneOf
+				u := &proto.SimpleOneOf{}
 				u.SetInteger(proto.SimpleOneOfInteger(val.Integer))
 				target.SimpleOneOf = u
 			}
