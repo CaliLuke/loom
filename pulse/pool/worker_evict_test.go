@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,11 +23,17 @@ import (
 //
 // Eviction used to call worker.stop only, so w1's handlers kept running next
 // to w2's until the process exited. It must stop every job handler of w1.
+//
+// Step 4 is not guaranteed before step 5: nodeA can route a requeued start
+// on its stale view to w1, which still runs the key and acks the start as a
+// duplicate. The key then reaches w2 only after the eviction, through the
+// orphan sweep. The test accepts both orders but requires that w2 ends up
+// running every key. Tickets 5 to 7 of the roadmap close this window.
 func TestEvictionStopsJobHandlers(t *testing.T) {
 	rdb := startTestRedis(t)
 	ctx := t.Context()
 	const pool = "evict-stop"
-	nodeA := addTestNode(t, rdb, pool)
+	nodeA := addTestNode(t, rdb, pool, loadTolerantNodeOptions()...)
 	handlerA := newRecordingHandler()
 	w1, err := nodeA.AddWorker(ctx, handlerA)
 	require.NoError(t, err)
@@ -39,7 +46,7 @@ func TestEvictionStopsJobHandlers(t *testing.T) {
 	}
 	require.Len(t, w1.Jobs(), 2)
 
-	nodeB := addTestNode(t, rdb, pool)
+	nodeB := addTestNode(t, rdb, pool, loadTolerantNodeOptions()...)
 	handlerB := newRecordingHandler()
 	_, err = nodeB.AddWorker(ctx, handlerB)
 	require.NoError(t, err)
@@ -49,14 +56,14 @@ func TestEvictionStopsJobHandlers(t *testing.T) {
 		values, ok := nodeB.jobMap.GetValues(w1.ID)
 		return ok && len(values) == 2 && len(nodeB.JobKeys()) == 2
 	}, 10*time.Second, 5*time.Millisecond)
+	poolStreamKey := "pulse:stream:" + poolStreamName(pool)
+	before := countStartEvents(t, rdb.XRange(ctx, poolStreamKey, "-", "+").Val())
 	nodeB.cleanupWorker(ctx, w1.ID)
-
-	// Step 4: w2 starts the requeued jobs.
+	// The cleanup requeued every key; the orphan sweep must not hide a
+	// missing requeue below.
+	after := countStartEvents(t, rdb.XRange(ctx, poolStreamKey, "-", "+").Val())
 	for _, key := range keys {
-		require.Eventually(t, func() bool {
-			_, ok := handlerB.startedPayload(key)
-			return ok
-		}, 10*time.Second, 5*time.Millisecond, "w2 did not start %s", key)
+		require.Greater(t, after[key], before[key], "cleanup did not requeue %s", key)
 	}
 
 	// Step 5: nodeA sees w1 gone from the worker map and evicts it.
@@ -75,6 +82,45 @@ func TestEvictionStopsJobHandlers(t *testing.T) {
 	}
 	require.Empty(t, w1.Jobs())
 	require.True(t, w1.IsStopped())
+
+	// Step 4: w2 runs every key, directly or after the orphan sweep.
+	for _, key := range keys {
+		require.Eventually(t, func() bool {
+			_, ok := handlerB.startedPayload(key)
+			return ok
+		}, 60*time.Second, 5*time.Millisecond, "w2 did not start %s", key)
+	}
+}
+
+// countStartEvents counts the start events per job key in pool stream
+// messages.
+func countStartEvents(t *testing.T, messages []redis.XMessage) map[string]int {
+	t.Helper()
+	counts := make(map[string]int)
+	for _, msg := range messages {
+		if msg.Values["n"] != evStartJob {
+			continue
+		}
+		payload, ok := msg.Values["p"].(string)
+		require.True(t, ok)
+		key, err := unmarshalJobKey([]byte(payload))
+		require.NoError(t, err)
+		counts[key]++
+	}
+	return counts
+}
+
+// loadTolerantNodeOptions returns node options for tests that do not depend
+// on keep-alive or ack expiry. A 2s worker TTL keeps a loaded test host from
+// making a live worker look dead, and a 10s ack grace period gives
+// DispatchJob a 20s timeout. Node close waits up to workerTTL/2 for the
+// worker reader, and the orphan sweep grace is max(2*workerTTL,
+// ackGracePeriod), so neither is larger.
+func loadTolerantNodeOptions() []NodeOption {
+	return []NodeOption{
+		WithWorkerTTL(2 * time.Second),
+		WithAckGracePeriod(10 * time.Second),
+	}
 }
 
 // keysHashedTo returns count job keys that the node's hash assigns to bucket
@@ -178,7 +224,7 @@ func (h *stopRaceHandler) Stop(string) error {
 func TestStartDuringShutdownStopWaitsForStop(t *testing.T) {
 	rdb := startTestRedis(t)
 	ctx := t.Context()
-	node := addTestNode(t, rdb, "stop-start-race")
+	node := addTestNode(t, rdb, "stop-start-race", loadTolerantNodeOptions()...)
 	handler := &stopRaceHandler{stopEntered: make(chan struct{}), releaseStop: make(chan struct{})}
 	worker, err := node.AddWorker(ctx, handler)
 	require.NoError(t, err)
@@ -266,7 +312,7 @@ func startBlockingStopWorker(t *testing.T, pool, key string, handler *failingSto
 	t.Helper()
 	rdb := startTestRedis(t)
 	ctx := t.Context()
-	node := addTestNode(t, rdb, pool)
+	node := addTestNode(t, rdb, pool, loadTolerantNodeOptions()...)
 	worker, err := node.AddWorker(ctx, handler)
 	require.NoError(t, err)
 	require.NoError(t, node.DispatchJob(ctx, key, []byte("p")))

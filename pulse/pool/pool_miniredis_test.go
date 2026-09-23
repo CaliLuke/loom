@@ -198,11 +198,17 @@ func TestDispatchJobLifecycle(t *testing.T) {
 		return ok && string(payload) == "payload-1"
 	}, 10*time.Second, 5*time.Millisecond)
 
-	require.Equal(t, []string{"job-1"}, node.JobKeys())
-	payload, ok := node.JobPayload("job-1")
-	require.True(t, ok)
-	require.Equal(t, []byte("payload-1"), payload)
-	_, ok = node.JobPayload("missing")
+	// startJob writes the job map and payload without waiting for the local
+	// replicas, so they can lag behind the dispatch return.
+	require.Eventually(t, func() bool {
+		keys := node.JobKeys()
+		return len(keys) == 1 && keys[0] == "job-1"
+	}, 10*time.Second, 5*time.Millisecond)
+	require.Eventually(t, func() bool {
+		payload, ok := node.JobPayload("job-1")
+		return ok && string(payload) == "payload-1"
+	}, 10*time.Second, 5*time.Millisecond)
+	_, ok := node.JobPayload("missing")
 	require.False(t, ok)
 
 	// A second dispatch of the same key is rejected.
