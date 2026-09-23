@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"cmp"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -323,7 +324,13 @@ func (v *ValidationExpr) Validate(ctx string, parent eval.Expression) *eval.Vali
 	return verr
 }
 
-// Merge merges other into v.
+// Merge merges other into v so that v enforces the constraints of both: the
+// result accepts a value only if both v and other accept it. Numeric and length
+// bounds keep the tighter value (the larger lower bound and the smaller upper
+// bound), inclusive and exclusive bounds are kept independently, and required
+// fields are unioned. Enum values, format, and pattern are not intersected: v
+// keeps its own value and only adopts other's when v has none. Merge never
+// mutates other.
 func (v *ValidationExpr) Merge(other *ValidationExpr) {
 	if v.Values == nil {
 		v.Values = other.Values
@@ -334,24 +341,12 @@ func (v *ValidationExpr) Merge(other *ValidationExpr) {
 	if v.Pattern == "" {
 		v.Pattern = other.Pattern
 	}
-	if v.ExclusiveMinimum == nil || (other.ExclusiveMinimum != nil && *v.ExclusiveMinimum > *other.ExclusiveMinimum) {
-		v.ExclusiveMinimum = other.ExclusiveMinimum
-	}
-	if v.Minimum == nil || (other.Minimum != nil && *v.Minimum > *other.Minimum) {
-		v.Minimum = other.Minimum
-	}
-	if v.ExclusiveMaximum == nil || (other.ExclusiveMaximum != nil && *v.ExclusiveMaximum > *other.ExclusiveMaximum) {
-		v.ExclusiveMaximum = other.ExclusiveMaximum
-	}
-	if v.Maximum == nil || (other.Maximum != nil && *v.Maximum < *other.Maximum) {
-		v.Maximum = other.Maximum
-	}
-	if v.MinLength == nil || (other.MinLength != nil && *v.MinLength > *other.MinLength) {
-		v.MinLength = other.MinLength
-	}
-	if v.MaxLength == nil || (other.MaxLength != nil && *v.MaxLength < *other.MaxLength) {
-		v.MaxLength = other.MaxLength
-	}
+	v.ExclusiveMinimum = tighterBound(v.ExclusiveMinimum, other.ExclusiveMinimum, true)
+	v.Minimum = tighterBound(v.Minimum, other.Minimum, true)
+	v.ExclusiveMaximum = tighterBound(v.ExclusiveMaximum, other.ExclusiveMaximum, false)
+	v.Maximum = tighterBound(v.Maximum, other.Maximum, false)
+	v.MinLength = tighterBound(v.MinLength, other.MinLength, true)
+	v.MaxLength = tighterBound(v.MaxLength, other.MaxLength, false)
 	v.AddRequired(other.Required...)
 }
 
@@ -489,4 +484,21 @@ func (*AttributeExpr) IsSupportedValidationFormat(vf ValidationFormat) bool {
 		return true
 	}
 	return false
+}
+
+// tighterBound returns whichever of a and b is the more restrictive bound. A
+// nil bound is unconstrained, so the other bound wins. When lower is true the
+// bounds are lower bounds and the larger value is tighter; otherwise they are
+// upper bounds and the smaller value is tighter.
+func tighterBound[T cmp.Ordered](a, b *T, lower bool) *T {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if (lower && *b > *a) || (!lower && *b < *a) {
+		return b
+	}
+	return a
 }

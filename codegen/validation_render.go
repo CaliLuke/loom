@@ -118,8 +118,10 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 
 // mergedValidation returns the validation that applies to att, accumulating the
 // validations declared at every level of the user-type chain rooted at att's
-// type. Outer levels take precedence over inner ones (outer values win and
-// tighter numeric bounds are kept), matching Merge semantics. Shared expr
+// type. Levels are combined with ValidationExpr.Merge, so numeric and length
+// bounds from every level are intersected (the tighter bound is kept) and
+// required fields are unioned, while for enum values, format, and pattern the
+// outermost level that declares one wins. Shared expr
 // validation state is never mutated: each level is merged into a fresh copy
 // (dup-before-merge), so the returned value is always safe to discard.
 func mergedValidation(att *expr.AttributeExpr) *expr.ValidationExpr {
