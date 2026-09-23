@@ -423,7 +423,7 @@ func validateMessage(msgAtt, serviceAtt *AttributeExpr, e *GRPCEndpointExpr, req
 		for _, nat := range *AsObject(msgAtt.Type) {
 			if a := serviceAtt.Find(nat.Name); a != nil {
 				msgFields.Set(nat.Name, a)
-				break
+				continue
 			}
 			verr.Add(e, "%s message attribute %q is not found in %s", msgKind, nat.Name, serviceKind)
 		}

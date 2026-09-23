@@ -62,6 +62,50 @@ service "Service" gRPC endpoint "Method": union branch "Other" of attribute "pic
 service "Service" gRPC endpoint "Method": union branch "fast" of attribute "mode" does not have "rpc:tag" defined in the meta, use "Field" to define each branch of a OneOf block or pass the OneOf to "Field" to number its branches`,
 			},
 		},
+		"request-message-missing-second-attribute": {
+			DSL: testdata.GRPCRequestMessageWithMissingSecondAttribute,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": Request message attribute "missing" is not found in Payload`,
+			},
+		},
+		"request-message-untagged-second-attribute": {
+			DSL: testdata.GRPCRequestMessageWithUntaggedSecondAttribute,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": attribute "second" does not have "rpc:tag" defined in the meta, use "Field" to define the attribute of a type used in a gRPC method`,
+			},
+		},
+		"request-message-duplicate-second-tag": {
+			DSL: testdata.GRPCRequestMessageWithDuplicateSecondTag,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": field number 1 in attribute "second" already exists for attribute "first"`,
+			},
+		},
+		"request-message-multiple-attributes": {
+			DSL:    testdata.GRPCRequestMessageWithMultipleAttributes,
+			Errors: []string{},
+		},
+		"response-message-missing-second-attribute": {
+			DSL: testdata.GRPCResponseMessageWithMissingSecondAttribute,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": Response message attribute "missing" is not found in Result`,
+			},
+		},
+		"response-message-untagged-second-attribute": {
+			DSL: testdata.GRPCResponseMessageWithUntaggedSecondAttribute,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": attribute "second" does not have "rpc:tag" defined in the meta, use "Field" to define the attribute of a type used in a gRPC method`,
+			},
+		},
+		"response-message-duplicate-second-tag": {
+			DSL: testdata.GRPCResponseMessageWithDuplicateSecondTag,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": field number 1 in attribute "second" already exists for attribute "first"`,
+			},
+		},
+		"response-message-multiple-attributes": {
+			DSL:    testdata.GRPCResponseMessageWithMultipleAttributes,
+			Errors: []string{},
+		},
 		"endpoint-union-containing-any": {
 			DSL: testdata.GRPCEndpointWithUnionContainingAny,
 			Errors: []string{
