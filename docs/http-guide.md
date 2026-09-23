@@ -959,7 +959,15 @@ headers once, while a typed send or comment also opens the stream when needed.
 Comments reject carriage returns and line feeds, share the typed-event write
 lock, and are ignored as domain events by generated clients. Operations after
 closure return `loomhttp.ErrSSEStreamClosed`; canceled requests return their
-context error.
+context error. A send also closes the stream when it fails after writing part
+of a frame, when the response write itself fails, or when a flush fails,
+including the flush in `Open`. Later `Open`, `SendComment`, and event sends then
+return `loomhttp.ErrSSEStreamClosed` wrapping the original failure, and both
+match with `errors.Is`. A send that fails before writing any bytes, such as an
+event encoding error, returns that error and leaves the stream open, so the
+handler can still send an error event. A send whose context is canceled after
+the event was serialized returns the context error, but the buffered event may
+still reach the client, so do not re-send it.
 
 SSE uses the same optional `StreamWritePolicy` shown above. A positive timeout
 bounds every frame write and flush using `http.ResponseController`; zero keeps

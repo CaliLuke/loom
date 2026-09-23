@@ -33,6 +33,14 @@ type (
 		started bool
 		closed  bool
 		openErr error
+		failErr error
+	}
+
+	// sseFrameWriter tracks whether an event callback touched the response
+	// body, so a callback error that emitted nothing leaves the stream usable.
+	sseFrameWriter struct {
+		w       io.Writer
+		touched bool
 	}
 )
 
@@ -72,8 +80,8 @@ func (s *SSEStreamWriter) Open(ctx context.Context) error {
 	if err := s.checkContext(ctx); err != nil {
 		return err
 	}
-	if s.closed {
-		return ErrSSEStreamClosed
+	if err := s.closedErr(); err != nil {
+		return err
 	}
 	if s.started {
 		return s.openErr
@@ -94,21 +102,38 @@ func (s *SSEStreamWriter) SendComment(ctx context.Context, text string) error {
 	})
 }
 
-// WriteEvent serializes and flushes one generated SSE event.
+// WriteEvent serializes and flushes one generated SSE event. The stream becomes
+// terminal when the callback fails after writing any bytes, when a write to the
+// response itself fails, or when the flush fails: later calls return
+// ErrSSEStreamClosed wrapping the original failure and write nothing, so a
+// partially written frame is never followed by another event. A callback error
+// returned before any byte was written, such as an encoding failure, is
+// returned as is and leaves the stream usable. Cancellation observed before an
+// operation starts does not end the stream. If ctx is canceled after the frame
+// was serialized, WriteEvent returns ctx.Err() without flushing; the frame
+// stays buffered and may still reach the client, so callers must not re-send
+// it.
 func (s *SSEStreamWriter) WriteEvent(ctx context.Context, write func(io.Writer) error) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if err := s.checkContext(ctx); err != nil {
 		return err
 	}
-	if s.closed {
-		return ErrSSEStreamClosed
+	if err := s.closedErr(); err != nil {
+		return err
 	}
 	s.initHeaders()
+	frame := &sseFrameWriter{w: s.w}
 	if err := s.runOperation(ctx, func(http.ResponseWriter) error {
-		return write(s.w)
+		return write(frame)
 	}); err != nil {
+		if frame.touched {
+			s.fail(err)
+		}
 		s.observeFailure(ctx, loomtransport.ReasonStreamWriteFailed, loomtransport.ReasonStreamWriteTimeout, err)
+		return err
+	}
+	if err := s.checkContext(ctx); err != nil {
 		return err
 	}
 	return s.flush(ctx)
@@ -127,6 +152,34 @@ func (s *SSEStreamWriter) Close() error {
 	defer s.lock.Unlock()
 	s.closed = true
 	return nil
+}
+
+// Write forwards p to the response and records that the frame touched the
+// body. A failed response write also counts, because the underlying writer may
+// have buffered part of p or become unusable.
+func (w *sseFrameWriter) Write(p []byte) (int, error) {
+	n, err := w.w.Write(p)
+	if n > 0 || err != nil {
+		w.touched = true
+	}
+	return n, err
+}
+
+func (s *SSEStreamWriter) closedErr() error {
+	if s.failErr != nil {
+		return fmt.Errorf("%w: %w", ErrSSEStreamClosed, s.failErr)
+	}
+	if s.closed {
+		return ErrSSEStreamClosed
+	}
+	return nil
+}
+
+func (s *SSEStreamWriter) fail(err error) {
+	s.closed = true
+	if s.failErr == nil {
+		s.failErr = err
+	}
 }
 
 func (s *SSEStreamWriter) checkContext(ctx context.Context) error {
@@ -157,6 +210,7 @@ func (s *SSEStreamWriter) flush(ctx context.Context) error {
 		return http.NewResponseController(s.w).Flush()
 	})
 	if err != nil {
+		s.fail(err)
 		s.observeFailure(ctx, loomtransport.ReasonStreamFlushFailed, loomtransport.ReasonStreamFlushTimeout, err)
 	}
 	return err
@@ -175,12 +229,19 @@ func (s *SSEStreamWriter) runOperation(ctx context.Context, operation func(http.
 		cancelDeadline <- controller.SetWriteDeadline(time.Now())
 	})
 	err := operation(s.w)
+	// The per-call context may cancel at any point, including after the
+	// operation returned but before stop. When the cancellation hook ran and
+	// expired the connection deadline, restore the policy's idle state (no
+	// deadline) so later operations with a fresh context are not poisoned.
+	restore := bounded
 	if !stop() {
-		if deadlineErr := <-cancelDeadline; deadlineErr != nil && err == nil {
+		deadlineErr := <-cancelDeadline
+		if deadlineErr != nil && err == nil {
 			err = deadlineErr
 		}
+		restore = restore || deadlineErr == nil
 	}
-	if bounded {
+	if restore {
 		if clearErr := controller.SetWriteDeadline(time.Time{}); clearErr != nil && err == nil {
 			return clearErr
 		}

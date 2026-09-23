@@ -151,6 +151,7 @@ func TestSSEStreamWriterDoesNotRecommitAfterFailure(t *testing.T) {
 		require.NoError(t, stream.SendComment(context.Background(), "heartbeat"))
 		require.Equal(t, 1, w.writeHeaderCalls)
 		require.Equal(t, 1, w.flushes)
+		require.Equal(t, ": heartbeat\n\n", w.body.String())
 	})
 
 	t.Run("flush failure", func(t *testing.T) {
@@ -160,9 +161,11 @@ func TestSSEStreamWriterDoesNotRecommitAfterFailure(t *testing.T) {
 
 		require.ErrorIs(t, stream.Open(context.Background()), flushErr)
 		require.ErrorIs(t, stream.Open(context.Background()), flushErr)
-		require.ErrorIs(t, stream.SendComment(context.Background(), "heartbeat"), flushErr)
+		err := stream.SendComment(context.Background(), "heartbeat")
+		require.ErrorIs(t, err, flushErr)
+		require.ErrorIs(t, err, ErrSSEStreamClosed)
 		require.Equal(t, 1, w.writeHeaderCalls)
-		require.Equal(t, 2, w.flushes)
+		require.Equal(t, 1, w.flushes)
 	})
 }
 
