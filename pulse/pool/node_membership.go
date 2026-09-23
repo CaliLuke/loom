@@ -47,36 +47,48 @@ func (node *Node) cleanupStalePendingJobs(ctx context.Context) {
 
 // acquireCleanupLock tries to acquire the cleanup lock for a worker.
 // It returns true if the lock was acquired, false if another node holds the lock.
-// It will clear any stale or invalid locks it finds.
+// Stale or malformed locks are taken over atomically so that at most one node
+// acquires the lock even when several nodes observe the same stale value.
 func (node *Node) acquireCleanupLock(ctx context.Context, workerID string) bool {
-	// Check for existing lock
-	if existingTS, exists := node.workerCleanupMap.Get(workerID); exists {
-		if !node.isWithinTTL(existingTS, node.workerTTL) {
-			// Invalid or stale lock, delete it
-			if _, err := node.workerCleanupMap.Delete(ctx, workerID); err != nil {
-				node.logger.Error(fmt.Errorf("cleanupWorkerJobs: failed to delete stale cleanup timestamp: %w", err), "worker", workerID)
-				return false
-			}
-			node.logger.Info("cleanupWorkerJobs: cleared stale cleanup lock", "worker", workerID, "ts", existingTS, "ttl", node.workerTTL)
-		} else {
-			// Lock is still valid
+	existingTS, exists := node.workerCleanupMap.Get(workerID)
+	return node.claimCleanupLock(ctx, workerID, existingTS, exists)
+}
+
+// claimCleanupLock acquires the cleanup lock for a worker given the lock value
+// observed in the local replica. A missing lock is created with
+// SetIfNotExists; a stale or malformed lock is replaced with a compare-and-swap
+// on the observed value, so a node acting on an outdated replica cannot
+// overwrite a lock another node has just acquired.
+func (node *Node) claimCleanupLock(ctx context.Context, workerID, existingTS string, exists bool) bool {
+	now := strconv.FormatInt(time.Now().UnixNano(), 10)
+	if !exists {
+		ok, err := node.workerCleanupMap.SetIfNotExists(ctx, workerID, now)
+		if err != nil {
+			node.logger.Error(fmt.Errorf("cleanupWorkerJobs: failed to set cleanup timestamp: %w", err), "worker", workerID)
+			return false
+		}
+		if !ok {
 			node.logger.Debug("cleanupWorkerJobs: cleanup already in progress", "worker", workerID)
 			return false
 		}
+		return true
 	}
 
-	// Try to acquire lock
-	now := strconv.FormatInt(time.Now().UnixNano(), 10)
-	ok, err := node.workerCleanupMap.SetIfNotExists(ctx, workerID, now)
-	if err != nil {
-		node.logger.Error(fmt.Errorf("cleanupWorkerJobs: failed to set cleanup timestamp: %w", err), "worker", workerID)
-		return false
-	}
-	if !ok {
+	// isWithinTTL reports false for malformed values, so they are replaced too.
+	if node.isWithinTTL(existingTS, node.workerTTL) {
 		node.logger.Debug("cleanupWorkerJobs: cleanup already in progress", "worker", workerID)
 		return false
 	}
-
+	_, _, updated, err := node.workerCleanupMap.TestAndSetEx(ctx, workerID, existingTS, now)
+	if err != nil {
+		node.logger.Error(fmt.Errorf("cleanupWorkerJobs: failed to replace stale cleanup timestamp: %w", err), "worker", workerID)
+		return false
+	}
+	if !updated {
+		node.logger.Debug("cleanupWorkerJobs: stale cleanup lock changed concurrently", "worker", workerID)
+		return false
+	}
+	node.logger.Info("cleanupWorkerJobs: took over stale cleanup lock", "worker", workerID, "ts", existingTS, "ttl", node.workerTTL)
 	return true
 }
 
