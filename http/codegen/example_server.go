@@ -27,10 +27,8 @@ func ExampleServerFiles(genpkg string, data *ServicesData) []*codegen.File {
 			fw = append(fw, m)
 		}
 	}
-	for _, svc := range data.Expressions.Services {
-		if f := dummyMultipartFile(genpkg, data.Root, svc, data); f != nil {
-			fw = append(fw, f)
-		}
+	if f := dummyMultipartFile(genpkg, data.Root, data); f != nil {
+		fw = append(fw, f)
 	}
 	return fw
 }
@@ -139,57 +137,59 @@ func reserveExampleImportNames(scope *codegen.NameScope, specs []*codegen.Import
 }
 
 // dummyMultipartFile returns a dummy implementation of the multipart decoders
-// and encoders.
-func dummyMultipartFile(genpkg string, root *expr.RootExpr, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
+// and encoders of every HTTP service. The file belongs to the same root
+// package as the example service implementations.
+func dummyMultipartFile(genpkg string, root *expr.RootExpr, services *ServicesData) *codegen.File {
 	mpath := "multipart.go"
 	if _, err := os.Stat(mpath); !os.IsNotExist(err) {
 		return nil // file already exists, skip it.
 	}
-	var (
-		sections []codegen.Section
-		mustGen  bool
-
-		scope = codegen.NewNameScope()
-	)
 	// determine the unique API package name different from the service names
-	for _, httpSvc := range root.API.HTTP.Services {
-		s := services.Get(httpSvc.Name())
+	scope := codegen.NewNameScope()
+	for _, svc := range root.Services {
+		s := services.ServicesData.Get(svc.Name)
 		if s == nil {
+			panic(codegen.NewError(nil, svc, fmt.Errorf("unknown service %q", svc.Name)))
+		}
+		scope.Unique(s.PkgName)
+	}
+	apiPkg := scope.Unique(strings.ToLower(codegen.Goify(root.API.Name, false)), "api")
+	specs := []*codegen.ImportSpec{{Path: "mime/multipart"}}
+	var sections []codegen.Section
+	for _, httpSvc := range services.Expressions.Services {
+		data := services.Get(httpSvc.Name())
+		if data == nil {
 			panic(codegen.NewError(nil, httpSvc.ServiceExpr, fmt.Errorf("unknown HTTP service %q", httpSvc.Name())))
 		}
-		if s.Service == nil {
-			panic(codegen.NewError(nil, httpSvc.ServiceExpr, fmt.Errorf("unknown service %q", httpSvc.Name())))
-		}
-		scope.Unique(s.Service.PkgName)
-	}
-	{
-		specs := make([]*codegen.ImportSpec, 0, 2)
-		specs = append(specs, &codegen.ImportSpec{Path: "mime/multipart"})
-		data := services.Get(svc.Name())
-		specs = append(specs, &codegen.ImportSpec{
-			Path: path.Join(genpkg, data.Service.PathName),
-			Name: scope.Unique(data.Service.PkgName, "svc"),
-		})
-
-		apiPkg := scope.Unique(strings.ToLower(codegen.Goify(root.API.Name, false)), "api")
-		sections = []codegen.Section{codegen.Header("", apiPkg, specs)}
+		var mustImport bool
 		for _, e := range data.Endpoints {
+			if e.MultipartRequestDecoder == nil && e.MultipartRequestEncoder == nil {
+				continue
+			}
+			mustImport = true
 			if e.MultipartRequestDecoder != nil {
-				mustGen = true
 				sections = append(sections, dummyMultipartRequestDecoderSection(e.MultipartRequestDecoder))
 			}
 			if e.MultipartRequestEncoder != nil {
-				mustGen = true
 				sections = append(sections, dummyMultipartRequestEncoderSection(e.MultipartRequestEncoder))
 			}
 		}
+		if mustImport {
+			// Payload references qualify service types with the HTTP service
+			// import alias (data.Service.PkgName), so import the service
+			// under that name.
+			specs = append(specs, &codegen.ImportSpec{
+				Path: path.Join(genpkg, data.Service.PathName),
+				Name: data.Service.PkgName,
+			})
+		}
 	}
-	if !mustGen {
+	if len(sections) == 0 {
 		return nil
 	}
 	return &codegen.File{
 		Path:      mpath,
-		Sections:  sections,
+		Sections:  append([]codegen.Section{codegen.Header("", apiPkg, specs)}, sections...),
 		SkipExist: true,
 	}
 }

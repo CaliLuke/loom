@@ -78,7 +78,7 @@ func renderExampleCLIEnd(services []exampleCLIServiceData, apiPkg string) string
 	}
 	for _, svc := range services {
 		for _, endpoint := range svc.Data.Endpoints {
-			if endpoint.MultipartRequestDecoder != nil {
+			if endpoint.MultipartRequestEncoder != nil {
 				b.Addf("\t\t%s.%s,\n", apiPkg, endpoint.MultipartRequestEncoder.FuncName)
 			}
 		}
