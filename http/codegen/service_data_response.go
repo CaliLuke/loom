@@ -135,8 +135,9 @@ func (sds *ServicesData) buildSingleResponseData(
 	svcctx *codegen.AttributeContext,
 	sd *ServiceData,
 ) *ResponseData {
-	headersData := sds.extractHeaders(resp.Headers, result, svcctx, scope, sds.examplesFor(sd))
-	cookiesData := sds.extractResponseCookies(resp.Cookies, result, svcctx, scope, sds.examplesFor(sd))
+	vars := newResponseVarScope(sd)
+	headersData := sds.extractHeaders(resp.Headers, result, svcctx, scope, vars, sds.examplesFor(sd))
+	cookiesData := sds.extractResponseCookies(resp.Cookies, result, svcctx, scope, vars, sds.examplesFor(sd))
 	origin, resAttr := responseOriginAttribute(resp, result)
 	serverBodyData, clientBodyData := sds.buildResponseBodyData(resp, result, origin, viewed, md, endpointIR, sd)
 	init := sds.buildResponseResultInit(resp, result, resAttr, origin, viewed, md, pkg, httpclictx, scope, svcctx, headersData, cookiesData, endpointIR, sd)

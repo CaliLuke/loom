@@ -171,15 +171,15 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 		{{- range .Headers }}
 
 		{{- if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
-			{{ .VarName }}Raw := resp.Header.Get("{{ .CanonicalName }}")
+			{{ .Locals.Raw }} := resp.Header.Get("{{ .CanonicalName }}")
 			{{- if .Required }}
-				if {{ .VarName }}Raw == "" {
+				if {{ .Locals.Raw }} == "" {
 					err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 				}
-				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
+				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
 			{{- else }}
-				if {{ .VarName }}Raw != "" {
-					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
+				if {{ .Locals.Raw }} != "" {
+					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
 				}
 				{{- if .DefaultValue }} else {
 					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }}){{ else }}{{ printf "%q" .DefaultValue }}{{ end }}
@@ -201,19 +201,19 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 
 		{{- else if .Slice }}
 		{
-			{{ .VarName }}Raw := resp.Header["{{ .CanonicalName }}"]
-				{{ if .Required }} if {{ .VarName }}Raw == nil {
+			{{ .Locals.Raw }} := resp.Header["{{ .CanonicalName }}"]
+				{{ if .Required }} if {{ .Locals.Raw }} == nil {
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", loom.MissingFieldError("{{ .Name }}", "header"))
 			}
 			{{- else if .DefaultValue }}
-			if {{ .VarName }}Raw == nil {
+			if {{ .Locals.Raw }} == nil {
 				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 			}
 			{{- end }}
 
 			{{- if .DefaultValue }}else {
 			{{- else if not .Required }}
-			if {{ .VarName }}Raw != nil {
+			if {{ .Locals.Raw }} != nil {
 			{{- end }}
 				{{- template "partial_element_slice_conversion" . }}
 			{{- if or .DefaultValue (not .Required) }}
@@ -223,20 +223,20 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 
 		{{- else }}{{/* not string, not any and not slice */}}
 		{
-			{{ .VarName }}Raw := resp.Header.Get("{{ .CanonicalName }}")
+			{{ .Locals.Raw }} := resp.Header.Get("{{ .CanonicalName }}")
 			{{- if .Required }}
-			if {{ .VarName }}Raw == "" {
+			if {{ .Locals.Raw }} == "" {
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", loom.MissingFieldError("{{ .Name }}", "header"))
 			}
 			{{- else if .DefaultValue }}
-			if {{ .VarName }}Raw == "" {
+			if {{ .Locals.Raw }} == "" {
 				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 			}
 			{{- end }}
 
 			{{- if .DefaultValue }}else {
 				{{- else if not .Required }}
-			if {{ .VarName }}Raw != "" {
+			if {{ .Locals.Raw }} != "" {
 			{{- end }}
 				{{- template "partial_query_type_conversion" . }}
 			{{- if or .DefaultValue (not .Required) }}
@@ -254,7 +254,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			var (
 		{{- range .Cookies }}
 				{{ .VarName }}    {{ .TypeRef }}
-				{{ .VarName }}Raw string
+				{{ .Locals.Raw }} string
 		{{- end }}
 
 				cookies = resp.Cookies()
@@ -270,7 +270,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			switch c.Name {
 		{{- range .Cookies }}
 			case {{ printf "%q" .HTTPName }}:
-				{{ .VarName }}Raw = c.Value
+				{{ .Locals.Raw }} = c.Value
 		{{- end }}
 			}
 		}
@@ -278,13 +278,13 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 
 		{{- if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
 			{{- if .Required }}
-				if {{ .VarName }}Raw == "" {
+				if {{ .Locals.Raw }} == "" {
 					err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
 				}
-				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
+				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
 			{{- else }}
-				if {{ .VarName }}Raw != "" {
-					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
+				if {{ .Locals.Raw }} != "" {
+					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
 				}
 				{{- if .DefaultValue }} else {
 					{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }}){{ else }}{{ printf "%q" .DefaultValue }}{{ end }}
@@ -295,18 +295,18 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 		{{- else }}{{/* not string and not any */}}
 		{
 			{{- if .Required }}
-			if {{ .VarName }}Raw == "" {
+			if {{ .Locals.Raw }} == "" {
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", loom.MissingFieldError("{{ .Name }}", "cookie"))
 			}
 			{{- else if .DefaultValue }}
-			if {{ .VarName }}Raw == "" {
+			if {{ .Locals.Raw }} == "" {
 				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 			}
 			{{- end }}
 
 			{{- if .DefaultValue }}else {
 				{{- else if not .Required }}
-			if {{ .VarName }}Raw != "" {
+			if {{ .Locals.Raw }} != "" {
 			{{- end }}
 				{{- template "partial_query_type_conversion" . }}
 			{{- if or .DefaultValue (not .Required) }}

@@ -23,6 +23,7 @@ type payloadBuilder struct {
 	httpsvrctx *codegen.AttributeContext
 	httpclictx *codegen.AttributeContext
 	svcctx     *codegen.AttributeContext
+	vars       *transportVarScope
 	pkg        string
 }
 
@@ -52,6 +53,7 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 		httpsvrctx: httpContext(sd.Scope, true, true),
 		httpclictx: httpContext(sd.Scope, true, false),
 		svcctx:     serviceContext(pkg, sd.Service.Scope),
+		vars:       newRequestVarScope(sd),
 		pkg:        pkg,
 	}
 	builder.httpsvrctx.JSONPresence = bodyAttr != nil && !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
@@ -63,7 +65,7 @@ func (b *payloadBuilder) build() *PayloadData {
 	init := b.buildInit(request)
 	request.PayloadInit = init
 	payloadDesc := service.BuildPayloadDescriptor(b.svc, b.ep, b.payload)
-	returnValue := buildPayloadDecoderReturnValue(b.endpointIR.Request, init, mapQueryParam)
+	returnValue := buildPayloadDecoderReturnValue(b.endpointIR.Request, request, init, mapQueryParam)
 	data := &PayloadData{
 		Name:               payloadDesc.Name,
 		Ref:                payloadDesc.Ref,
@@ -74,26 +76,26 @@ func (b *payloadBuilder) build() *PayloadData {
 	return data
 }
 
-func buildPayloadDecoderReturnValue(request *transportir.Request, init *InitData, mapQueryParam *ParamData) string {
+func buildPayloadDecoderReturnValue(ir *transportir.Request, request *RequestData, init *InitData, mapQueryParam *ParamData) string {
 	if init != nil {
 		return ""
 	}
 	if len(request.PathParams) > 0 {
-		return codegen.Goify(request.PathParams[0].Name, false)
+		return request.PathParams[0].VarName
 	}
 	for _, query := range request.QueryParams {
 		if query.MapQueryParams != nil {
 			continue
 		}
-		return codegen.Goify(query.Name, false)
+		return query.VarName
 	}
 	if len(request.Headers) > 0 {
-		return codegen.Goify(request.Headers[0].Name, false)
+		return request.Headers[0].VarName
 	}
 	if len(request.Cookies) > 0 {
-		return codegen.Goify(request.Cookies[0].Name, false)
+		return request.Cookies[0].VarName
 	}
-	if request.MapQueryParams != nil && *request.MapQueryParams == "" && mapQueryParam != nil {
+	if ir.MapQueryParams != nil && *ir.MapQueryParams == "" && mapQueryParam != nil {
 		return mapQueryParam.VarName
 	}
 	return ""
@@ -203,12 +205,12 @@ func (b *payloadBuilder) buildRequestElements() ([]*ParamData, []*ParamData, []*
 	request := b.endpointIR.Request
 	paramsData := b.buildPathParams(request.PathParams)
 	queryData := b.buildQueryParams(request.QueryParams)
-	headersData := b.buildHeaders(request.Headers)
-	cookiesData := b.buildCookies(request.Cookies)
 	mapQueryParam := b.buildMapQueryParam()
 	if mapQueryParam != nil {
 		queryData = append(queryData, mapQueryParam)
 	}
+	headersData := b.buildHeaders(request.Headers)
+	cookiesData := b.buildCookies(request.Cookies)
 	return paramsData, queryData, headersData, cookiesData, mapQueryParam
 }
 
@@ -242,7 +244,7 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 				}
 			}
 		}
-		varName := codegen.Goify(param.Name, false)
+		varName, locals := b.vars.allocate(codegen.Goify(param.Name, false), isMapQueryLocal)
 		return &ParamData{
 			MapQueryParams: param.MapQueryParams,
 			Map:            expr.AsMap(b.payload.Type) != nil,
@@ -260,6 +262,7 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 					Validate:     codegen.AttributeValidationCode(attr, nil, b.httpsvrctx, param.Required, expr.IsAlias(attr.Type), varName, param.Name),
 					DefaultValue: attr.DefaultValue,
 					Example:      attr.Example(b.sds.examplesFor(b.sd)),
+					Locals:       locals,
 				},
 			},
 		}
@@ -277,7 +280,7 @@ func (b *payloadBuilder) buildPathParams(params []*transportir.Parameter) []*Par
 		data = append(data, &ParamData{
 			Map:            false,
 			MapStringSlice: false,
-			Element:        b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.sds.examplesFor(b.sd)),
+			Element:        b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, true, false, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
 	}
 	return data
@@ -300,7 +303,7 @@ func (b *payloadBuilder) buildQueryParams(params []*transportir.Parameter) []*Pa
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
-			Element: b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.sds.examplesFor(b.sd)),
+			Element: b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
 	}
 	return data
@@ -327,7 +330,7 @@ func (b *payloadBuilder) buildHeaders(params []*transportir.Parameter) []*Header
 		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, b.svcctx)
 		headers = append(headers, &HeaderData{
 			CanonicalName: http.CanonicalHeaderKey(param.HTTPName),
-			Element:       b.sds.buildTransportElement(param.Name, param.HTTPName, hattr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, b.svcctx, b.sd.Scope, b.sds.examplesFor(b.sd)),
+			Element:       b.sds.buildTransportElement(param.Name, param.HTTPName, hattr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, b.svcctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
 	}
 	return headers
@@ -335,11 +338,12 @@ func (b *payloadBuilder) buildHeaders(params []*transportir.Parameter) []*Header
 
 func (b *payloadBuilder) buildCookies(params []*transportir.Parameter) []*CookieData {
 	cookies := make([]*CookieData, 0, len(params))
+	b.vars.reserve(cookieLocalNames...)
 	for _, param := range params {
 		if _, ok := param.Attribute.Meta["loom:transport-only-session-cookie"]; ok {
 			continue
 		}
-		cookies = append(cookies, b.sds.cookieData(param.Name, param.HTTPName, param.Required, param.PrimitivePointer, param.Attribute, b.payload, b.svcctx, b.sd.Scope, b.sds.examplesFor(b.sd)))
+		cookies = append(cookies, b.sds.cookieData(param.Name, param.HTTPName, param.Required, param.PrimitivePointer, param.Attribute, b.payload, b.svcctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)))
 	}
 	return cookies
 }
@@ -381,7 +385,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 	args := buildPayloadFieldArgs(request)
 	serverArgs = append(serverArgs, args...)
 	clientArgs = append(clientArgs, args...)
-	serverCode, clientCode, origin, pointer, unionValue := b.buildTransformCode()
+	serverCode, clientCode, origin, pointer, unionValue := b.buildTransformCode(request)
 	return &InitData{
 		Name:                     name,
 		Description:              fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, b.svc.Name, b.endpointIR.Name),
@@ -443,7 +447,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 	return serverArgs, clientArgs
 }
 
-func (b *payloadBuilder) buildTransformCode() (string, string, string, bool, bool) {
+func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, string, string, bool, bool) {
 	serverCode := ""
 	clientCode := ""
 	origin := ""
@@ -478,7 +482,7 @@ func (b *payloadBuilder) buildTransformCode() (string, string, string, bool, boo
 			var helpers []*codegen.TransformFunctionData
 			var err error
 			sourceParam := request.PathParams[0]
-			source := codegen.Goify(sourceParam.Name, false)
+			source := requestData.PathParams[0].VarName
 			serverCode, helpers, err = unmarshal(sourceParam.Attribute, b.payload, source, b.httpsvrctx, b.svcctx)
 			if err != nil {
 				panic(codegen.NewError(b.sds.Ctx, sourceParam.Attribute, fmt.Errorf("build HTTP server path payload transform for %s: %w", b.endpointIR.MethodName, err)))

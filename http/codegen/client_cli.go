@@ -230,7 +230,22 @@ func payloadBuilders(
 	sd := services.Get(svc.Name())
 	path := filepath.Join(codegen.Gendir, transport.PathName, sd.Service.PathName, "client", "cli.go")
 	title := fmt.Sprintf("%s %s client CLI support package", svc.Name(), transport.DisplayName)
-	specs := []*codegen.ImportSpec{
+	sections := []codegen.Section{
+		codegen.Header(title, "client", clientCLIImports(genpkg, sd)),
+	}
+	for _, sub := range data.Subcommands {
+		if sub.BuildFunction != nil {
+			sections = append(sections, cli.PayloadBuilderSection(sub.BuildFunction))
+		}
+	}
+
+	return &codegen.File{Path: path, Sections: sections}
+}
+
+// clientCLIImports returns the imports of the client CLI support file of the
+// service.
+func clientCLIImports(genpkg string, sd *ServiceData) []*codegen.ImportSpec {
+	return []*codegen.ImportSpec{
 		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "fmt"},
 		{Path: "net/http"},
@@ -241,16 +256,6 @@ func payloadBuilders(
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + sd.Service.PathName, Name: sd.Service.PkgName},
 	}
-	sections := []codegen.Section{
-		codegen.Header(title, "client", specs),
-	}
-	for _, sub := range data.Subcommands {
-		if sub.BuildFunction != nil {
-			sections = append(sections, cli.PayloadBuilderSection(sub.BuildFunction))
-		}
-	}
-
-	return &codegen.File{Path: path, Sections: sections}
 }
 
 // buildFlags builds the flag data and build function for an endpoint.

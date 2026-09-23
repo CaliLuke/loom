@@ -3,7 +3,7 @@
 // endpoint
 func (c *Client) BuildMethodPathStringRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		p string
+		p2 string
 	)
 	{
 		p, ok := v.(*servicepathstring.MethodPathStringPayload)
@@ -11,10 +11,10 @@ func (c *Client) BuildMethodPathStringRequest(ctx context.Context, v any) (*http
 			return nil, loomhttp.ErrInvalidType("ServicePathString", "MethodPathString", "*servicepathstring.MethodPathStringPayload", v)
 		}
 		if p.P != nil {
-			p = *p.P
+			p2 = *p.P
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringServicePathStringPath(p)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringServicePathStringPath(p2)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, loomhttp.ErrInvalidURL("ServicePathString", "MethodPathString", u.String(), err)

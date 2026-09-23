@@ -31,7 +31,9 @@ func TestHTTPPayloadDecoderReturnValueFallback(t *testing.T) {
 		{
 			name: "cookies",
 			dsl:  testdata.PayloadCookiePrimitiveStringValidateDSL,
-			want: "c",
+			// The decoder names the cookie variable c2 because the cookie
+			// decoding block declares its own local c.
+			want: "c2",
 		},
 		{
 			name: "whole map query payload",

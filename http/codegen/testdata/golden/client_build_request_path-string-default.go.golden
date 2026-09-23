@@ -3,16 +3,16 @@
 // "MethodPathStringDefault" endpoint
 func (c *Client) BuildMethodPathStringDefaultRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		p string
+		p2 string
 	)
 	{
 		p, ok := v.(*servicepathstringdefault.MethodPathStringDefaultPayload)
 		if !ok {
 			return nil, loomhttp.ErrInvalidType("ServicePathStringDefault", "MethodPathStringDefault", "*servicepathstringdefault.MethodPathStringDefaultPayload", v)
 		}
-		p = p.P
+		p2 = p.P
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringDefaultServicePathStringDefaultPath(p)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringDefaultServicePathStringDefaultPath(p2)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, loomhttp.ErrInvalidURL("ServicePathStringDefault", "MethodPathStringDefault", u.String(), err)

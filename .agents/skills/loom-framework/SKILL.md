@@ -339,6 +339,14 @@ filter, and serialization rules belong here.
   route. Generators must not infer target kind from a path extension.
 - Protocol errors must use event types compatible with the relevant client
   contract.
+- Generated HTTP variables named after path params, query params, headers,
+  and cookies come from one variable scope per request, path builder, and
+  response or error response (`http/codegen/transport_var_scope.go`). Each
+  scope reserves the identifiers that its generated functions declare or
+  import. It also allocates the locals derived from each variable, such as
+  the raw string form of a header, into `AttributeData.Locals`. Templates use
+  those fields and never append a suffix to `VarName`. When a template gains
+  a local in one of those functions, add it to the matching list.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
   endpoints should not grow independent read/write/close loops.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,

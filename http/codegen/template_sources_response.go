@@ -143,12 +143,12 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 {{- end }}
 			{{- if isAliased .FieldType }}
 	val := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
-	{{ template "partial_header_conversion" (headerConversionData .Type (printf "%ss" .VarName) true "val") }}
+	{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice true "val") }}
 			{{- else }}
 	val := {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
-	{{ template "partial_header_conversion" (headerConversionData .Type (printf "%ss" .VarName) (not .FieldPointer) "val") }}
+	{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice (not .FieldPointer) "val") }}
 			{{- end }}
-	w.Header().Set("{{ .CanonicalName }}", {{ .VarName }}s)
+	w.Header().Set("{{ .CanonicalName }}", {{ .Locals.Encoded }})
 {{- if not $checkNil }}
 }
 {{- end }}
@@ -176,11 +176,11 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{ .VarName }} := {{ if or .FieldPointer $.ViewedResult }}*{{ end }}{{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
 		{{- else }}
 			{{- if isAliased .FieldType }}
-	{{ .VarName }}raw := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
-	{{ template "partial_header_conversion" (headerConversionData .Type (printf "%sraw" .VarName) true .VarName) }}
+	{{ .Locals.EncodedRaw }} := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
+	{{ template "partial_header_conversion" (headerConversionData .Type .VarName .Locals.Slice true .Locals.EncodedRaw) }}
 			{{- else }}
-	{{ .VarName }}raw := {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
-	{{ template "partial_header_conversion" (headerConversionData .Type (printf "%sraw" .VarName) (not .FieldPointer) .VarName) }}
+	{{ .Locals.EncodedRaw }} := {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
+	{{ template "partial_header_conversion" (headerConversionData .Type .VarName .Locals.Slice (not .FieldPointer) .Locals.EncodedRaw) }}
 			{{- end }}
 		{{- end }}
 
@@ -252,12 +252,12 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- if eq .Type.ElemType.Type.Name "string" -}}
 		{{ .VarName }} := strings.Join({{ .Target }}, ", ")
 		{{- else -}}
-		{{ .VarName }}Slice := make([]string, len({{ .Target }}))
+		{{ .SliceVarName }} := make([]string, len({{ .Target }}))
 		for i, e := range {{ .Target }}  {
-			{{ template "partial_header_conversion" (headerConversionData .Type.ElemType.Type "es" true "e") }}
-			{{ .VarName }}Slice[i] = es
+			{{ template "partial_header_conversion" (headerConversionData .Type.ElemType.Type "es" "esSlice" true "e") }}
+			{{ .SliceVarName }}[i] = es
 		}
-		{{ .VarName }} := strings.Join({{ .VarName }}Slice, ", ")
+		{{ .VarName }} := strings.Join({{ .SliceVarName }}, ", ")
 		{{- end }}
 	{{- else }}
 		// unsupported type {{ .Type.Name }} for header field {{ .FieldName }}

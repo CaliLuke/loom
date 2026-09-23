@@ -12,6 +12,35 @@ type (
 		PathInit *InitData
 	}
 
+	// DerivedVarNames lists the local variables that generated transport
+	// code declares for one attribute variable, such as the raw string form
+	// of a decoded header. A field is empty when the generated functions that
+	// use the attribute variable never declare that local.
+	DerivedVarNames struct {
+		// Raw holds the raw string or string slice read from the request or
+		// response before conversion.
+		Raw string
+		// RawSlice holds the comma separated elements of a raw path param.
+		RawSlice string
+		// HasValues records whether the query string holds any key of a map
+		// query param.
+		HasValues string
+		// Val holds the value decoded by a TextUnmarshaler before its address
+		// is assigned to the attribute variable.
+		Val string
+		// Slice holds the string forms of the elements of an array value that
+		// are joined into a single path segment or cookie value.
+		Slice string
+		// Encoded holds the string form of a response header value.
+		Encoded string
+		// EncodedSlice holds the string forms of the elements of an array
+		// response header value.
+		EncodedSlice string
+		// EncodedRaw holds a response cookie value before its conversion to a
+		// string.
+		EncodedRaw string
+	}
+
 	// Element defines the common fields needed to generate HTTP request and
 	// response elements including headers, parameters and cookies.
 	Element struct {

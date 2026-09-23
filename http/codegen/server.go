@@ -281,23 +281,28 @@ func mustDecodeRequest(e *EndpointData) bool {
 }
 
 // conversionData creates a template context suitable for executing the
-// "type_conversion" template.
-func conversionData(varName, name string, dt expr.DataType) map[string]any {
+// conversion partials on a value of a map query param. varName and rawVarName
+// name the fixed locals that the map query decoding template declares for
+// the decoded value and for its raw string form.
+func conversionData(varName, rawVarName, name string, dt expr.DataType) map[string]any {
 	return map[string]any{
 		"VarName": varName,
+		"Locals":  DerivedVarNames{Raw: rawVarName},
 		"Name":    name,
 		"Type":    dt,
 	}
 }
 
 // headerConversionData produces the template data suitable for executing the
-// "header_conversion" template.
-func headerConversionData(dt expr.DataType, varName string, required bool, target string) map[string]any {
+// "header_conversion" template. sliceVarName names the local that holds the
+// string forms of the elements of an array value.
+func headerConversionData(dt expr.DataType, varName, sliceVarName string, required bool, target string) map[string]any {
 	return map[string]any{
-		"Type":     dt,
-		"VarName":  varName,
-		"Required": required,
-		"Target":   target,
+		"Type":         dt,
+		"VarName":      varName,
+		"SliceVarName": sliceVarName,
+		"Required":     required,
+		"Target":       target,
 	}
 }
 

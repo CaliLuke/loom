@@ -657,6 +657,9 @@ type (
 		IsAliased bool
 		// ServiceTypeRef is the service-aware type reference for cross-service resolution.
 		ServiceTypeRef string
+		// Locals lists the local variables that generated transport code
+		// derives from VarName.
+		Locals DerivedVarNames
 	}
 
 	// InitArgData represents a single constructor argument.

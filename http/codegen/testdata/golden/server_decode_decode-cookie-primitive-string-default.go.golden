@@ -24,7 +24,7 @@ func DecodeMethodCookiePrimitiveStringDefaultRequest(mux loomhttp.Muxer, _ func(
 		if err != nil {
 			return payload, err
 		}
-		payload = c
+		payload = c2
 
 		return payload, nil
 	}

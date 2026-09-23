@@ -65,7 +65,7 @@ func {{ .InitName }}(mux loomhttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r 
 
 	{{- else }}
 		{
-			{{ .VarName }}Raw := params["{{ .HTTPName }}"]
+			{{ .Locals.Raw }} := params["{{ .HTTPName }}"]
 			{{- template "partial_path_conversion" . }}
 		}
 
@@ -84,11 +84,11 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 {{- $qpVar := .DecodePlan.QueryValuesVar }}
 {{- range .QueryParams }}
 	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
-		{{ if eq .Type.Name "any" }}{{ .VarName }}Raw :={{ else }}{{ .VarName }} ={{ end }} {{$qpVar}}.Get("{{ .HTTPName }}")
-		if {{ if eq .Type.Name "any" }}{{ .VarName }}Raw{{ else }}{{ .VarName }}{{ end }} == "" {
+		{{ if eq .Type.Name "any" }}{{ .Locals.Raw }} :={{ else }}{{ .VarName }} ={{ end }} {{$qpVar}}.Get("{{ .HTTPName }}")
+		if {{ if eq .Type.Name "any" }}{{ .Locals.Raw }}{{ else }}{{ .VarName }}{{ end }} == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
-		{{ if eq .Type.Name "any" }}{{ .VarName }} = loom.JSONValueFromString({{ .VarName }}Raw){{ end }}
+		{{ if eq .Type.Name "any" }}{{ .VarName }} = loom.JSONValueFromString({{ .Locals.Raw }}){{ end }}
 
 	{{- else if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
 	{
@@ -123,20 +123,20 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 	{{- else if .Slice }}
 	{
-		{{ .VarName }}Raw := {{$qpVar}}["{{ .HTTPName }}"]
+		{{ .Locals.Raw }} := {{$qpVar}}["{{ .HTTPName }}"]
 		{{- if .Required }}
-		if {{ .VarName }}Raw == nil {
+		if {{ .Locals.Raw }} == nil {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
-		if {{ .VarName }}Raw == nil {
+		if {{ .Locals.Raw }} == nil {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
 		{{- if .DefaultValue }}else {
 		{{- else if not .Required }}
-		if {{ .VarName }}Raw != nil {
+		if {{ .Locals.Raw }} != nil {
 		{{- end }}
 		{{- template "partial_element_slice_conversion" . }}
 		{{- if or .DefaultValue (not .Required) }}
@@ -146,29 +146,29 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 	{{- else if .Map }}
 	{
-		{{ .VarName }}Raw := {{$qpVar}}
-		{{ .VarName }}HasValues := false
-		for keyRaw := range {{ .VarName }}Raw {
+		{{ .Locals.Raw }} := {{$qpVar}}
+		{{ .Locals.HasValues }} := false
+		for keyRaw := range {{ .Locals.Raw }} {
 			if strings.HasPrefix(keyRaw, "{{ .HTTPName }}[") {
-				{{ .VarName }}HasValues = true
+				{{ .Locals.HasValues }} = true
 				break
 			}
 		}
 		{{- if .Required }}
-		if !{{ .VarName }}HasValues {
+		if !{{ .Locals.HasValues }} {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
-		if !{{ .VarName }}HasValues {
+		if !{{ .Locals.HasValues }} {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
 		{{- if .DefaultValue }}else {
 		{{- else if not .Required }}
-		if {{ .VarName }}HasValues {
+		if {{ .Locals.HasValues }} {
 		{{- end }}
-		for keyRaw, valRaw := range {{ .VarName }}Raw {
+		for keyRaw, valRaw := range {{ .Locals.Raw }} {
 			if strings.HasPrefix(keyRaw, "{{ .HTTPName }}[") {
 				{{- template "partial_query_map_conversion" (mapQueryDecodeData .Type .VarName 0) }}
 			}
@@ -180,25 +180,25 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 	{{- else if .MapQueryParams }}
 	{
-		{{ .VarName }}Raw := {{$qpVar}}
+		{{ .Locals.Raw }} := {{$qpVar}}
 		{{- if .Required }}
-		if len({{ .VarName }}Raw) == 0 {
+		if len({{ .Locals.Raw }}) == 0 {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
-		if len({{ .VarName }}Raw) == 0 {
+		if len({{ .Locals.Raw }}) == 0 {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
 		{{- if .DefaultValue }}else {
 		{{- else if not .Required }}
-		if len({{ .VarName }}Raw) != 0 {
+		if len({{ .Locals.Raw }}) != 0 {
 		{{- end }}
 		if {{ .VarName }} == nil {
 			{{ .VarName }} = make({{ goTypeRef .Type }})
 		}
-		for keyRaw, valRaw := range {{ .VarName }}Raw {
+		for keyRaw, valRaw := range {{ .Locals.Raw }} {
 			var key {{ goTypeRef .Type.KeyType.Type }}
 			var keyErr error
 			{{- if eq .Type.KeyType.Type.Name "string" }}
@@ -283,7 +283,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 				{{- else }}
 					var val {{ goTypeRef .Type.ElemType.Type }}
 					{
-						{{- template "partial_element_slice_conversion" (conversionData "val" "query" .Type.ElemType.Type) }}
+						{{- template "partial_element_slice_conversion" (conversionData "val" "valRaw" "query" .Type.ElemType.Type) }}
 					}
 					{{ .VarName }}[key] = val
 				{{- end }}
@@ -293,7 +293,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 				var val{{ .Loop }} {{ goTypeRef .Type.ElemType.Type }}
 				{
 					val{{ .Loop }}Raw := valRaw[0]
-					{{- template "partial_query_type_conversion" (conversionData (printf "val%s" .Loop) "query" .Type.ElemType.Type) }}
+					{{- template "partial_query_type_conversion" (conversionData (printf "val%s" .Loop) (printf "val%sRaw" .Loop) "query" .Type.ElemType.Type) }}
 				}
 				{{ .VarName }}[key] = val{{ .Loop }}
 			{{- end }}
@@ -305,20 +305,20 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 	{{- else }}
 	{
-		{{ .VarName }}Raw := {{$qpVar}}.Get("{{ .HTTPName }}")
+		{{ .Locals.Raw }} := {{$qpVar}}.Get("{{ .HTTPName }}")
 		{{- if .Required }}
-		if {{ .VarName }}Raw == "" {
+		if {{ .Locals.Raw }} == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
-		if {{ .VarName }}Raw == "" {
+		if {{ .Locals.Raw }} == "" {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
 		{{- if .DefaultValue }}else {
 		{{- else if not .Required }}
-		if {{ .VarName }}Raw != "" {
+		if {{ .Locals.Raw }} != "" {
 		{{- end }}
 		{{- template "partial_query_type_conversion" . }}
 		{{- if or .DefaultValue (not .Required) }}
@@ -334,16 +334,16 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 {{- range .Headers }}
 	{{- if and (or (eq .Type.Name "string") (eq .Type.Name "any")) .Required }}
-		{{ if eq .Type.Name "any" }}{{ .VarName }}Raw :={{ else }}{{ .VarName }} ={{ end }} r.Header.Get("{{ .HTTPName }}")
-		if {{ if eq .Type.Name "any" }}{{ .VarName }}Raw{{ else }}{{ .VarName }}{{ end }} == "" {
+		{{ if eq .Type.Name "any" }}{{ .Locals.Raw }} :={{ else }}{{ .VarName }} ={{ end }} r.Header.Get("{{ .HTTPName }}")
+		if {{ if eq .Type.Name "any" }}{{ .Locals.Raw }}{{ else }}{{ .VarName }}{{ end }} == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
-		{{ if eq .Type.Name "any" }}{{ .VarName }} = loom.JSONValueFromString({{ .VarName }}Raw){{ end }}
+		{{ if eq .Type.Name "any" }}{{ .VarName }} = loom.JSONValueFromString({{ .Locals.Raw }}){{ end }}
 
 	{{- else if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
-		{{ .VarName }}Raw := r.Header.Get("{{ .HTTPName }}")
-		if {{ .VarName }}Raw != "" {
-			{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
+		{{ .Locals.Raw }} := r.Header.Get("{{ .HTTPName }}")
+		if {{ .Locals.Raw }} != "" {
+			{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
 		}
 		{{- if .DefaultValue }} else {
 			{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }}){{ else }}{{ printf "%q" .DefaultValue }}{{ end }}
@@ -364,19 +364,19 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 	{{- else if .Slice }}
 	{
-		{{ .VarName }}Raw := r.Header["{{ .CanonicalName }}"]
-		{{ if .Required }}if {{ .VarName }}Raw == nil {
+		{{ .Locals.Raw }} := r.Header["{{ .CanonicalName }}"]
+		{{ if .Required }}if {{ .Locals.Raw }} == nil {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
 		{{- else if .DefaultValue }}
-		if {{ .VarName }}Raw == nil {
+		if {{ .Locals.Raw }} == nil {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
 		{{- if .DefaultValue }}else {
 		{{- else if not .Required }}
-		if {{ .VarName }}Raw != nil {
+		if {{ .Locals.Raw }} != nil {
 		{{- end }}
 		{{- template "partial_element_slice_conversion" . }}
 		{{- if or .DefaultValue (not .Required) }}
@@ -386,20 +386,20 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 	{{- else }}
 	{
-		{{ .VarName }}Raw := r.Header.Get("{{ .HTTPName }}")
+		{{ .Locals.Raw }} := r.Header.Get("{{ .HTTPName }}")
 		{{- if .Required }}
-		if {{ .VarName }}Raw == "" {
+		if {{ .Locals.Raw }} == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
 		{{- else if .DefaultValue }}
-		if {{ .VarName }}Raw == "" {
+		if {{ .Locals.Raw }} == "" {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
 		{{- if .DefaultValue }}else {
 		{{- else if not .Required }}
-		if {{ .VarName }}Raw != "" {
+		if {{ .Locals.Raw }} != "" {
 		{{- end }}
 		{{- template "partial_query_type_conversion" . }}
 		{{- if or .DefaultValue (not .Required) }}
@@ -430,12 +430,12 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 			}
 
 		{{- else if (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
-			var {{ .VarName }}Raw string
+			var {{ .Locals.Raw }} string
 			if c != nil {
-				{{ .VarName }}Raw = c.Value
+				{{ .Locals.Raw }} = c.Value
 			}
-			if {{ .VarName }}Raw != "" {
-				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .VarName }}Raw){{ else }}{{ if .Pointer }}&{{ end }}{{ .VarName }}Raw{{ end }}
+			if {{ .Locals.Raw }} != "" {
+				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ .Locals.Raw }}){{ else }}{{ if .Pointer }}&{{ end }}{{ .Locals.Raw }}{{ end }}
 			}
 			{{- if .DefaultValue }} else {
 				{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.MustJSONValueFrom({{ printf "%#v" .DefaultValue }}){{ else }}{{ printf "%q" .DefaultValue }}{{ end }}
@@ -443,23 +443,23 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 			{{- end }}
 
 		{{- else }}
-			var {{ .VarName }}Raw string
+			var {{ .Locals.Raw }} string
 			if c != nil {
-				{{ .VarName }}Raw = c.Value
+				{{ .Locals.Raw }} = c.Value
 		}
 		{{- if .Required }}
-		if {{ .VarName }}Raw == "" {
+		if {{ .Locals.Raw }} == "" {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
 		}
 		{{- else if .DefaultValue }}
-		if {{ .VarName }}Raw == "" {
+		if {{ .Locals.Raw }} == "" {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
 		{{- if .DefaultValue }}else {
 		{{- else if not .Required }}
-		if {{ .VarName }}Raw != "" {
+		if {{ .Locals.Raw }} != "" {
 		{{- end }}
 		{{- template "partial_query_type_conversion" . }}
 			{{- if or .DefaultValue (not .Required) }}

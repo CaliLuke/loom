@@ -10,55 +10,55 @@ var httpDecoderConversionPartials = []templateSource{
 		{{- else if eq .Type.ElemType.Type.Name "int" }}
 			v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of integers"))
 			}
 			{{ .VarName }}[i] = int(v)
 		{{- else if eq .Type.ElemType.Type.Name "int32" }}
 			v, err2 := strconv.ParseInt(rv, 10, 32)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of integers"))
 			}
 			{{ .VarName }}[i] = int32(v)
 		{{- else if eq .Type.ElemType.Type.Name "int64" }}
 			v, err2 := strconv.ParseInt(rv, 10, 64)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of integers"))
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "uint" }}
 			v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of unsigned integers"))
 			}
 			{{ .VarName }}[i] = uint(v)
 		{{- else if eq .Type.ElemType.Type.Name "uint32" }}
 			v, err2 := strconv.ParseUint(rv, 10, 32)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of unsigned integers"))
 			}
 			{{ .VarName }}[i] = uint32(v)
 		{{- else if eq .Type.ElemType.Type.Name "uint64" }}
 			v, err2 := strconv.ParseUint(rv, 10, 64)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of unsigned integers"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of unsigned integers"))
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "float32" }}
 			v, err2 := strconv.ParseFloat(rv, 32)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of floats"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of floats"))
 			}
 			{{ .VarName }}[i] = float32(v)
 		{{- else if eq .Type.ElemType.Type.Name "float64" }}
 			v, err2 := strconv.ParseFloat(rv, 64)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of floats"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of floats"))
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "boolean" }}
 			v, err2 := strconv.ParseBool(rv)
 			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "array of booleans"))
+				err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "array of booleans"))
 			}
 			{{ .VarName }}[i] = v
 		{{- else if eq .Type.ElemType.Type.Name "any" }}
@@ -66,29 +66,29 @@ var httpDecoderConversionPartials = []templateSource{
 		{{- else }}
 			// unsupported slice type {{ .Type.ElemType.Type.Name }} for var {{ .VarName }}
 		{{- end }}`},
-	{name: "element_slice_conversion", source: `	{{ .VarName }} = make({{ goTypeRef .Type }}, len({{ .VarName }}Raw))
-	for i, rv := range {{ .VarName }}Raw {
+	{name: "element_slice_conversion", source: `	{{ .VarName }} = make({{ goTypeRef .Type }}, len({{ .Locals.Raw }}))
+	for i, rv := range {{ .Locals.Raw }} {
 		{{- template "partial_slice_item_conversion" . }}
 	}`},
 	{name: "query_type_conversion", source: `	{{- if .IsTextUnmarshaler }}
 		{{- if .Pointer }}
-		var {{ .VarName }}Val {{ .TypeName }}
-		if err2 := {{ .VarName }}Val.UnmarshalText([]byte({{ .VarName }}Raw)); err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName }}Raw, {{ printf "%q" .TypeName }}))
+		var {{ .Locals.Val }} {{ .TypeName }}
+		if err2 := {{ .Locals.Val }}.UnmarshalText([]byte({{ .Locals.Raw }})); err2 != nil {
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, {{ printf "%q" .TypeName }}))
 		} else {
-			{{ .VarName }} = &{{ .VarName }}Val
+			{{ .VarName }} = &{{ .Locals.Val }}
 		}
 		{{- else }}
-		if err2 := {{ .VarName }}.UnmarshalText([]byte({{ .VarName }}Raw)); err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName }}Raw, {{ printf "%q" .TypeName }}))
+		if err2 := {{ .VarName }}.UnmarshalText([]byte({{ .Locals.Raw }})); err2 != nil {
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, {{ printf "%q" .TypeName }}))
 		}
 		{{- end }}
 	{{- else if eq .Type.Name "bytes" }}
-		{{ .VarName }} = []byte({{.VarName}}Raw)
+		{{ .VarName }} = []byte({{ .Locals.Raw }})
 	{{- else if eq .Type.Name "int" }}
-		v, err2 := strconv.ParseInt({{ .VarName }}Raw, 10, strconv.IntSize)
+		v, err2 := strconv.ParseInt({{ .Locals.Raw }}, 10, strconv.IntSize)
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "integer"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{slice .TypeRef 1 (len .TypeRef)}}{{ else }}int{{ end }}(v)
@@ -97,9 +97,9 @@ var httpDecoderConversionPartials = []templateSource{
 		{{ .VarName }} = {{ if .TypeRef }}{{ .TypeRef }}{{ else }}int{{ end }}(v)
 		{{- end }}
 	{{- else if eq .Type.Name "int32" }}
-		v, err2 := strconv.ParseInt({{ .VarName }}Raw, 10, 32)
+		v, err2 := strconv.ParseInt({{ .Locals.Raw }}, 10, 32)
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "integer"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}int32{{ end }}(v)
@@ -108,15 +108,15 @@ var httpDecoderConversionPartials = []templateSource{
 		{{ .VarName }} = {{ if .TypeRef }}{{ .TypeRef }}{{ else }}int32{{ end }}(v)
 		{{- end }}
 	{{- else if eq .Type.Name "int64" }}
-		v, err2 := strconv.ParseInt({{ .VarName }}Raw, 10, 64)
+		v, err2 := strconv.ParseInt({{ .Locals.Raw }}, 10, 64)
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "integer"))
 		}
 		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "int64") (ne .TypeRef "*int64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
 	{{- else if eq .Type.Name "uint" }}
-		v, err2 := strconv.ParseUint({{ .VarName }}Raw, 10, strconv.IntSize)
+		v, err2 := strconv.ParseUint({{ .Locals.Raw }}, 10, strconv.IntSize)
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "unsigned integer"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}uint{{ end }}(v)
@@ -125,9 +125,9 @@ var httpDecoderConversionPartials = []templateSource{
 		{{ .VarName }} = {{ if .TypeRef }}{{ .TypeRef }}{{ else }}uint{{ end }}(v)
 		{{- end }}
 	{{- else if eq .Type.Name "uint32" }}
-		v, err2 := strconv.ParseUint({{ .VarName }}Raw, 10, 32)
+		v, err2 := strconv.ParseUint({{ .Locals.Raw }}, 10, 32)
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "unsigned integer"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}uint32{{ end }}(v)
@@ -136,15 +136,15 @@ var httpDecoderConversionPartials = []templateSource{
 		{{ .VarName }} = {{ if .TypeRef }}{{ .TypeRef }}{{ else }}uint32{{ end }}(v)
 		{{- end }}
 	{{- else if eq .Type.Name "uint64" }}
-		v, err2 := strconv.ParseUint({{ .VarName }}Raw, 10, 64)
+		v, err2 := strconv.ParseUint({{ .Locals.Raw }}, 10, 64)
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "unsigned integer"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "unsigned integer"))
 		}
 		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "uint64") (ne .TypeRef "*uint64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
 	{{- else if eq .Type.Name "float32" }}
-		v, err2 := strconv.ParseFloat({{ .VarName }}Raw, 32)
+		v, err2 := strconv.ParseFloat({{ .Locals.Raw }}, 32)
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "float"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "float"))
 		}
 		{{- if .Pointer }}
 		pv := {{ if .TypeRef }}{{ slice .TypeRef 1 (len .TypeRef) }}{{ else }}float32{{ end }}(v)
@@ -153,15 +153,15 @@ var httpDecoderConversionPartials = []templateSource{
 		{{ .VarName }} = {{ if .TypeRef }}{{ .TypeRef }}{{ else }}float32{{ end }}(v)
 		{{- end }}
 	{{- else if eq .Type.Name "float64" }}
-		v, err2 := strconv.ParseFloat({{ .VarName }}Raw, 64)
+		v, err2 := strconv.ParseFloat({{ .Locals.Raw }}, 64)
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "float"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "float"))
 		}
 		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "float64") (ne .TypeRef "*float64")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
 	{{- else if eq .Type.Name "boolean" }}
-		v, err2 := strconv.ParseBool({{ .VarName }}Raw)
+		v, err2 := strconv.ParseBool({{ .Locals.Raw }})
 		if err2 != nil {
-			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .VarName}}Raw, "boolean"))
+			err = loom.MergeErrors(err, loom.InvalidFieldTypeError({{ printf "%q" .Name }}, {{ .Locals.Raw }}, "boolean"))
 		}
 		{{ if and (ne .TypeRef nil) (and (ne .TypeRef "bool") (ne .TypeRef "*bool")) }}{{ .VarName }} = ({{.TypeRef}})({{ if .Pointer }}&{{ end }}v){{ else }}{{ .VarName }} = {{ if .Pointer }}&{{ end }}v{{ end }}
 	{{- else }}
@@ -267,7 +267,7 @@ var httpDecoderConversionPartials = []templateSource{
 		{{- else }}
 			var val {{ goTypeRef .Type.ElemType.Type }}
 			{
-				{{- template "partial_element_slice_conversion" (conversionData "val" "query" .Type.ElemType.Type) }}
+				{{- template "partial_element_slice_conversion" (conversionData "val" "valRaw" "query" .Type.ElemType.Type) }}
 			}
 			{{ .VarName }}[key{{ .Loop }}] = val
 		{{- end }}
@@ -277,14 +277,14 @@ var httpDecoderConversionPartials = []templateSource{
 		var val{{ .Loop }} {{ goTypeRef .Type.ElemType.Type }}
 		{
 			val{{ .Loop }}Raw := valRaw[0]
-			{{- template "partial_query_type_conversion" (conversionData (printf "val%s" .Loop) "query" .Type.ElemType.Type) }}
+			{{- template "partial_query_type_conversion" (conversionData (printf "val%s" .Loop) (printf "val%sRaw" .Loop) "query" .Type.ElemType.Type) }}
 		}
 		{{ .VarName }}[key{{ .Loop }}] = val{{ .Loop }}
 	{{- end }}`},
 	{name: "path_conversion", source: `	{{- if eq .Type.Name "array" }}
-		{{ .VarName }}RawSlice := strings.Split({{ .VarName }}Raw, ",")
-		{{ .VarName }} = make({{ goTypeRef .Type }}, len({{ .VarName }}RawSlice))
-		for i, rv := range {{ .VarName }}RawSlice {
+		{{ .Locals.RawSlice }} := strings.Split({{ .Locals.Raw }}, ",")
+		{{ .VarName }} = make({{ goTypeRef .Type }}, len({{ .Locals.RawSlice }}))
+		for i, rv := range {{ .Locals.RawSlice }} {
 			{{- template "partial_slice_item_conversion" . }}
 		}
 	{{- else }}

@@ -307,9 +307,9 @@ func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat
 		for i, arg := range args {
 			typ := (*pathParams)[i].Attribute.Type
 			if typ.Name() == "array" {
-				b.Addf("\t%sSlice := make([]string, len(%s))\n", arg.VarName, arg.VarName)
+				b.Addf("\t%s := make([]string, len(%s))\n", arg.Locals.Slice, arg.VarName)
 				b.Addf("\tfor i, v := range %s {\n", arg.VarName)
-				b.Addf("\t\t%sSlice[i] = %s\n", arg.VarName, renderPathSliceConversion(expr.AsArray(typ).ElemType.Type))
+				b.Addf("\t\t%s[i] = %s\n", arg.Locals.Slice, renderPathSliceConversion(expr.AsArray(typ).ElemType.Type))
 				b.Add("\t}\n")
 			}
 		}
@@ -319,7 +319,7 @@ func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat
 			b.Add(", ")
 			switch {
 			case typ.Name() == "array":
-				b.Add("strings.Join(" + arg.VarName + "Slice, \",\")")
+				b.Add("strings.Join(" + arg.Locals.Slice + ", \",\")")
 			case expr.IsAny(typ):
 				b.Add("loom.JSONValueString(" + arg.VarName + ")")
 			default:

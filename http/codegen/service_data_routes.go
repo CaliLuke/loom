@@ -31,6 +31,7 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 		suffix = strconv.Itoa(pathCount + 1)
 	}
 	name := fmt.Sprintf("%s%sPath%s", method.VarName, svc.StructName, suffix)
+	vars := newPathVarScope(sd)
 	for j, arg := range params {
 		patt := parameterAttributeByName(endpointIR.Request.PathParams, arg)
 		att := makeHTTPType(patt)
@@ -38,7 +39,7 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 		if payloadPointer := payloadPrimitivePointerByName(endpointIR.Request.Payload, arg); payloadPointer {
 			pointer = true
 		}
-		varName := sd.Scope.PeekUnique(codegen.Goify(arg, false))
+		varName, locals := vars.allocate(sd.Scope.PeekUnique(codegen.Goify(arg, false)), nil)
 		validate := ""
 		if att.Validation != nil {
 			ctx := httpContext(sd.Scope, true, false)
@@ -59,6 +60,7 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 				Required:    true,
 				Example:     att.Example(sds.examplesFor(sd)),
 				Validate:    validate,
+				Locals:      locals,
 			},
 		}
 	}
@@ -96,15 +98,11 @@ func endpointRequestEncoderName(method *service.MethodData, payload *PayloadData
 
 func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, routes []*RouteData) *InitData {
 	name := fmt.Sprintf("Build%sRequest", method.VarName)
-	scope := codegen.NewNameScope()
-	scope.Unique("c")
 	args := make([]*InitArgData, 0, len(routes[0].PathInit.ClientArgs))
 	for _, arg := range routes[0].PathInit.ClientArgs {
 		if arg.FieldName == "" {
 			continue
 		}
-		arg.VarName = scope.Unique(arg.VarName)
-		arg.Ref = arg.VarName
 		_, arg.IsAliased = arg.FieldType.(expr.UserType)
 		if arg.IsAliased {
 			if svcData := sds.ServicesData.Get(svc.Name); svcData != nil {
