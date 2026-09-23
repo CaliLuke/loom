@@ -273,29 +273,6 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
-// dedupeByResult returns a slice of methods where only a single representative
-// per unique ResultRef is kept (first occurrence wins). Methods without a
-// ResultRef are ignored.
-func dedupeByResult(ms []*MethodData) []*MethodData {
-	seen := make(map[string]struct{})
-	out := make([]*MethodData, 0, len(ms))
-	for _, m := range ms {
-		key := m.Result
-		if key == "" {
-			key = m.StreamingResult
-		}
-		if key == "" {
-			continue
-		}
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, m)
-	}
-	return out
-}
-
 // SetUserTypeImports sets the import paths for user types declared in custom
 // packages with the Meta key "struct:pkg:path".
 func SetUserTypeImports(genpkg string, d *Data) {

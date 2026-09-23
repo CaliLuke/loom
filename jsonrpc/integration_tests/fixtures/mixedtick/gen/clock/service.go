@@ -76,7 +76,7 @@ type Stream interface {
 	// Send sends an event (notification or response) to the client.
 	// For notifications, the result should not have an ID field.
 	// For responses, the result must have an ID field.
-	// Accepted types: *InitializeResult, *TickResult
+	// Accepted types: *TickResult
 	Send(context.Context, Event) error
 }
 
@@ -85,9 +85,6 @@ type Stream interface {
 type Event interface {
 	isclockEvent()
 }
-
-// isclockEvent implements the Event interface.
-func (*InitializeResult) isclockEvent() {}
 
 // isclockEvent implements the Event interface.
 func (*TickResult) isclockEvent() {}

@@ -10,6 +10,27 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+// JSONRPCSSEEventMethods returns the JSON-RPC SSE server-streaming methods
+// whose streamed types make up the service-level Event, keeping the first
+// method for each distinct Go type in method order. The service Event
+// declaration and the transport Send type switch both derive from this list
+// so that every accepted type has exactly one case.
+func JSONRPCSSEEventMethods(methods []*MethodData) []*MethodData {
+	seen := make(map[string]bool)
+	out := make([]*MethodData, 0, len(methods))
+	for _, method := range methods {
+		if !method.IsJSONRPCSSE || method.Result == "" || method.ServerStream == nil || method.ServerStream.SendTypeRef == "" {
+			continue
+		}
+		if seen[method.ServerStream.SendTypeIdentity] {
+			continue
+		}
+		seen[method.ServerStream.SendTypeIdentity] = true
+		out = append(out, method)
+	}
+	return out
+}
+
 func serviceDefinitionSection(data *Data) codegen.Section {
 	return codegen.NewJenniferSection("service", func(stmt *jen.Statement) {
 		stmt.Line()
@@ -232,6 +253,9 @@ type serviceStreamInterfaceData struct {
 	IsJSONRPCSSE       bool
 	IsJSONRPCWebSocket bool
 	IsViewedResult     bool
+	// EventIsAlias reports whether the JSON-RPC SSE event type aliases a
+	// result type that cannot declare the event marker method.
+	EventIsAlias bool
 }
 
 func streamInterfaceData(typ string, method *MethodData, stream *StreamData) *serviceStreamInterfaceData {
@@ -243,6 +267,7 @@ func streamInterfaceData(typ string, method *MethodData, stream *StreamData) *se
 		IsJSONRPCSSE:       method.IsJSONRPCSSE && typ == "server",
 		IsJSONRPCWebSocket: method.IsJSONRPCWebSocket,
 		IsViewedResult:     method.ViewedResult != nil && method.ViewedResult.ViewName == "",
+		EventIsAlias:       !stream.SendTypeAcceptsMethods,
 	}
 }
 
@@ -270,14 +295,20 @@ func buildStreamInterface(stmt *jen.Statement, data *serviceStreamInterfaceData)
 }
 
 func buildJSONRPCSSEMethodStream(stmt *jen.Statement, data *serviceStreamInterfaceData, stream *StreamData) {
-	codegen.Doc(stmt, fmt.Sprintf("%sEvent is the interface implemented by the result type for the %s method.", data.MethodVarName, data.Endpoint))
-	stmt.Type().Id(data.MethodVarName + "Event").Interface(
-		jen.Id("is" + data.MethodVarName + "Event").Params(),
-	)
-	stmt.Line()
-	codegen.Doc(stmt, fmt.Sprintf("is%sEvent implements the %sEvent interface.", data.MethodVarName, data.MethodVarName))
-	stmt.Func().Params(codegen.TypeRef(stream.SendTypeRef)).Id("is" + data.MethodVarName + "Event").Params().Block()
-	stmt.Line()
+	if data.EventIsAlias {
+		codegen.Doc(stmt, fmt.Sprintf("%sEvent is the result type for the %s method.", data.MethodVarName, data.Endpoint))
+		stmt.Type().Id(data.MethodVarName + "Event").Op("=").Add(codegen.TypeRef(stream.SendTypeRef))
+		stmt.Line()
+	} else {
+		codegen.Doc(stmt, fmt.Sprintf("%sEvent is the interface implemented by the result type for the %s method.", data.MethodVarName, data.Endpoint))
+		stmt.Type().Id(data.MethodVarName + "Event").Interface(
+			jen.Id("is" + data.MethodVarName + "Event").Params(),
+		)
+		stmt.Line()
+		codegen.Doc(stmt, fmt.Sprintf("is%sEvent implements the %sEvent interface.", data.MethodVarName, data.MethodVarName))
+		stmt.Func().Params(codegen.TypeRef(stream.SendTypeRef)).Id("is" + data.MethodVarName + "Event").Params().Block()
+		stmt.Line()
+	}
 	codegen.Doc(stmt, fmt.Sprintf("%s allows streaming instances of %s over SSE.", stream.Interface, stream.SendTypeRef))
 	stmt.Type().Id(stream.Interface).InterfaceFunc(func(group *jen.Group) {
 		if stream.SendTypeRef != "" {
@@ -402,13 +433,8 @@ func buildJSONRPCWebSocketStream(stmt *jen.Statement, data *Data) {
 }
 
 func buildJSONRPCSSEStream(stmt *jen.Statement, data *Data) {
-	var resultTypes []string
+	resultTypes, acceptsMarkers := jsonrpcSSEEventTypes(data)
 	hasErrors := false
-	for _, method := range dedupeByResult(data.Methods) {
-		if method.Result != "" {
-			resultTypes = append(resultTypes, method.ResultRef)
-		}
-	}
 	for _, method := range data.Methods {
 		if len(method.Errors) > 0 {
 			hasErrors = true
@@ -440,19 +466,36 @@ func buildJSONRPCSSEStream(stmt *jen.Statement, data *Data) {
 	if len(resultTypes) == 0 {
 		return
 	}
+	if !acceptsMarkers {
+		codegen.Doc(stmt, fmt.Sprintf("Event is a result value sent via the %s Stream. It accepts any value because a result type cannot declare the event marker method. Send rejects values of other types.", data.Name))
+		stmt.Type().Id("Event").Op("=").Any()
+		stmt.Line()
+		return
+	}
 	codegen.Doc(stmt, fmt.Sprintf("Event is the interface implemented by all result types that can be sent via the %s Stream.", data.Name))
 	stmt.Type().Id("Event").Interface(
 		jen.Id("is" + data.VarName + "Event").Params(),
 	)
 	stmt.Line()
-	for _, method := range dedupeByResult(data.Methods) {
-		if method.Result == "" {
-			continue
-		}
+	for _, ref := range resultTypes {
 		codegen.Doc(stmt, fmt.Sprintf("is%sEvent implements the Event interface.", data.VarName))
-		stmt.Func().Params(codegen.TypeRef(method.ResultRef)).Id("is" + data.VarName + "Event").Params().Block()
+		stmt.Func().Params(codegen.TypeRef(ref)).Id("is" + data.VarName + "Event").Params().Block()
 		stmt.Line()
 	}
+}
+
+// jsonrpcSSEEventTypes returns the distinct type references accepted by the
+// service-level Event, one per JSONRPCSSEEventMethods entry, and whether the
+// service package can declare the Event marker method on all of them.
+func jsonrpcSSEEventTypes(data *Data) ([]string, bool) {
+	methods := JSONRPCSSEEventMethods(data.Methods)
+	refs := make([]string, 0, len(methods))
+	acceptsMarkers := true
+	for _, method := range methods {
+		refs = append(refs, method.ServerStream.SendTypeRef)
+		acceptsMarkers = acceptsMarkers && method.ServerStream.SendTypeAcceptsMethods
+	}
+	return refs, acceptsMarkers
 }
 
 func hasJSONRPCStreamingData(data *Data) bool {

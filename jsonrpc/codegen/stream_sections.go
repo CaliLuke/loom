@@ -79,7 +79,7 @@ func (s *%s) SendComment(ctx context.Context, text string) error {
 }
 
 func renderSSEEndpointStreamSendSource(ed *httpcodegen.EndpointData) string {
-	bodyInit := streamResultBodyInit("result", ed)
+	bodyInit := sseEventBodyInit("result", ed)
 	bodyComment := ""
 	if bodyInit != "body := result" {
 		bodyComment = "\t// Convert to response body type for proper JSON encoding\n"
@@ -88,12 +88,7 @@ func renderSSEEndpointStreamSendSource(ed *httpcodegen.EndpointData) string {
 	return fmt.Sprintf(`%s
 %s
 func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
-	// Type assert to the specific result type
-	result, ok := event.(%s)
-	if !ok {
-		return fmt.Errorf("unexpected event type: %%T", event)
-	}
-
+%s
 %s	%s
 	// Send as notification (no ID)
 	message := map[string]any{
@@ -114,10 +109,36 @@ func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
 		ed.SSE.StructName,
 		ed.ServicePkgName,
 		ed.Method.VarName,
-		ed.SSE.EventTypeRef,
+		sseEventResult(ed),
 		bodyComment,
 		bodyInit,
 		notificationMethod)
+}
+
+// sseEventBodyInit renders the statement that converts the event value in
+// resultVar to the JSON-RPC params or result body. It uses the SSE response
+// body constructor when the event has one, which excludes primitive,
+// collection, and mixed-result events, and the event value otherwise.
+func sseEventBodyInit(resultVar string, ed *httpcodegen.EndpointData) string {
+	if body := ed.SSE.ResponseBody; body != nil && body.Init != nil {
+		return fmt.Sprintf("body := %s(%s)", body.Init.Name, resultVar)
+	}
+	return fmt.Sprintf("body := %s", resultVar)
+}
+
+// sseEventResult renders the statements that bind the method event to
+// result. An event that aliases its result type is the result itself;
+// otherwise the event interface is asserted to the result type.
+func sseEventResult(ed *httpcodegen.EndpointData) string {
+	if !ed.Method.ServerStream.SendTypeAcceptsMethods {
+		return "\tresult := event\n"
+	}
+	return fmt.Sprintf(`	// Type assert to the specific result type
+	result, ok := event.(%s)
+	if !ok {
+		return fmt.Errorf("unexpected event type: %%T", event)
+	}
+`, ed.SSE.EventTypeRef)
 }
 
 func sseNotificationMethod(ed *httpcodegen.EndpointData) string {
@@ -128,7 +149,7 @@ func sseNotificationMethod(ed *httpcodegen.EndpointData) string {
 }
 
 func renderSSEEndpointStreamSendAndCloseSource(ed *httpcodegen.EndpointData) string {
-	bodyInit := streamResultBodyInit("result", ed)
+	bodyInit := sseEventBodyInit("result", ed)
 	bodyComment := ""
 	if bodyInit != "body := result" {
 		bodyComment = "\t// Convert to response body type for proper JSON encoding\n"
@@ -137,12 +158,7 @@ func renderSSEEndpointStreamSendAndCloseSource(ed *httpcodegen.EndpointData) str
 %s
 %s
 func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
-	// Type assert to the specific result type
-	result, ok := event.(%s)
-	if !ok {
-		return fmt.Errorf("unexpected event type: %%T", event)
-	}
-
+%s
 %s	%s
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
 		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)
@@ -154,7 +170,7 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 		ed.SSE.StructName,
 		ed.ServicePkgName,
 		ed.Method.VarName,
-		ed.SSE.EventTypeRef,
+		sseEventResult(ed),
 		bodyComment,
 		bodyInit)
 }

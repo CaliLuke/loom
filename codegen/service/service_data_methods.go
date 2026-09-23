@@ -74,6 +74,18 @@ func buildMethodResultData(resultData methodAttributeProjection) MethodResultDat
 	}
 }
 
+// acceptsMethods reports whether the service package can declare methods on
+// the Go type of att whose type definition is def. att must be a user type
+// generated in the service package as a defined type. Built-in types,
+// struct:pkg:path types, and user types generated as aliases do not qualify.
+func acceptsMethods(att *expr.AttributeExpr, def string) bool {
+	if att == nil || isAliasTypeDef(def) {
+		return false
+	}
+	_, isUserType := att.Type.(expr.UserType)
+	return isUserType && codegen.UserTypeLocation(att.Type) == nil
+}
+
 func buildMethodSecurityData(m *expr.MethodExpr, errors []*ErrorInitData, errorLocs map[string]*codegen.Location) MethodSecurityData {
 	reqs, schemes := BuildRequirementsData(m.EffectiveRequirements(), m)
 	return MethodSecurityData{
@@ -199,6 +211,15 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, vnam
 	svrStream, cliStream := buildBaseStreamData(m, vname, sresult.Name, sresult.Ref, scope, data.IsJSONRPC, data.IsJSONRPCSSE)
 	applyJSONRPCStreamAdjustments(svrStream, m, resultRef, sresult.Name, data.IsJSONRPCSSE)
 	applyStreamDirectionData(streamKind, svrStream, cliStream, sresult, spayload)
+	sent, sentDef := m.Result, data.ResultDef
+	if m.HasMixedResults() && m.StreamingResult != nil && m.StreamingResult.Type != expr.Empty {
+		sent, sentDef = m.StreamingResult, sresult.Def
+	}
+	svrStream.SendTypeAcceptsMethods = svrStream.SendTypeRef != "" && acceptsMethods(sent, sentDef)
+	svrStream.SendTypeIdentity = svrStream.SendTypeRef
+	if isAliasTypeDef(sentDef) {
+		svrStream.SendTypeIdentity = sentDef
+	}
 	data.ClientStream = cliStream
 	data.ServerStream = svrStream
 	data.StreamingPayload = spayload.Name

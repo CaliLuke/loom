@@ -139,12 +139,12 @@ func writeJSONRPCSSERecv(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
 		Id(ed.Method.ClientStream.RecvName).
 		Params(jen.Id("ctx").Qual("context", "Context")).
-		Params(codegen.TypeRef(ed.Result.Ref), jen.Error()).
+		Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()).
 		BlockFunc(func(g *jen.Group) {
 			g.Id("s").Dot("readLock").Dot("Lock").Call()
 			g.Defer().Id("s").Dot("readLock").Dot("Unlock").Call()
 			g.Line()
-			g.Var().Id("zero").Add(codegen.TypeRef(ed.Result.Ref))
+			g.Var().Id("zero").Add(codegen.TypeRef(ed.SSE.EventTypeRef))
 			g.Line()
 			g.Id("s").Dot("lock").Dot("Lock").Call()
 			g.If(jen.Id("s").Dot("closed")).Block(
@@ -302,14 +302,14 @@ func writeJSONRPCSSEDecodeResult(stmt *jen.Statement, ed *httpcodegen.EndpointDa
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
 		Id("decodeResult").
 		Params(jen.Id("data").Qual("encoding/json/jsontext", "Value")).
-		Params(codegen.TypeRef(ed.Result.Ref), jen.Error()).
+		Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()).
 		Block(
 			jen.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{
 				jen.Id("StatusCode"): jen.Qual("net/http", "StatusOK"),
 				jen.Id("Body"):       jen.Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("data"))),
 			}),
 			jen.Id("decoder").Op(":=").Id("s").Dot("decoder").Call(jen.Id("resp")),
-			jen.Var().Id("result").Add(codegen.TypeRef(ed.Result.Ref)),
+			jen.Var().Id("result").Add(codegen.TypeRef(ed.SSE.EventTypeRef)),
 			jen.If(
 				jen.Err().Op(":=").Id("decoder").Dot("Decode").Call(jen.Op("&").Id("result")),
 				jen.Err().Op("!=").Nil(),

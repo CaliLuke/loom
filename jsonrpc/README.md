@@ -525,6 +525,16 @@ for {
   - Each write checks the `ctx` passed to the call and the request context
     before it starts. While the write runs, cancellation of the call `ctx` and
     the configured stream write policy bound it.
+- Event types: `Send` and `SendAndClose` take the generated `<Method>Event`
+  type. When the result is a user type declared in the service package,
+  `<Method>Event` is an interface that the result type implements. For
+  primitive, collection, `Any`, and `struct:pkg:path` results, Go cannot add
+  methods to the result type, so `<Method>Event` is an alias of the result
+  type and the service sends plain values such as a `string` or `[]byte`. The
+  service-level `Event` type becomes `any` in that case, and its `Send`
+  rejects values of other types at run time. Every value is JSON encoded in
+  the envelope. Strings stay JSON strings, so CR and LF characters cannot
+  break SSE framing. `Bytes` values are base64 strings.
 - Notifications vs responses:
   - Notifications omit `id`; their `method` is the designed
     `SSENotificationMethod`, or `<service>/stream.event` by default, and their

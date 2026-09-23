@@ -316,13 +316,6 @@ func jsonrpcWebSocketServerCloseSection(data *httpcodegen.ServiceData) codegen.S
 	})
 }
 
-func streamResultBodyInit(resultVar string, ed *httpcodegen.EndpointData) string {
-	if ed.Result != nil && len(ed.Result.Responses) > 0 && len(ed.Result.Responses[0].ServerBody) > 0 && ed.Result.Responses[0].ServerBody[0].Init != nil {
-		return fmt.Sprintf("body := %s(%s)", ed.Result.Responses[0].ServerBody[0].Init.Name, resultVar)
-	}
-	return fmt.Sprintf("body := %s", resultVar)
-}
-
 func streamErrorSwitch(prefix string, groups []*httpcodegen.ErrorGroupData) string {
 	parts := make([]string, 0, len(groups)+8)
 	if len(groups) > 0 {
@@ -502,12 +495,13 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 		Error().
 		BlockFunc(func(g *jen.Group) {
 			g.Switch(jen.Id("v").Op(":=").Id("event").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
-				for _, ed := range dedupeSSEEndpoints(data.Endpoints) {
-					if ed.Method.ServerStream == nil || ed.Method.Result == "" {
+				for _, method := range service.JSONRPCSSEEventMethods(data.Service.Methods) {
+					ed := data.Endpoint(method.Name)
+					if ed == nil || ed.SSE == nil {
 						continue
 					}
 					sg.Case(codegen.Expr(ed.SSE.EventTypeRef)).BlockFunc(func(cg *jen.Group) {
-						writeStreamResultBodyInit(cg, "v", ed)
+						cg.Add(codegen.Expr(sseEventBodyInit("v", ed)))
 						cg.Var().Id("message").Map(jen.String()).Any()
 						if sseEventCanBeResponse(ed) {
 							cg.Var().Id("id").String()
@@ -597,20 +591,4 @@ func hasAnyStreamingResults(endpoints []*httpcodegen.EndpointData) bool {
 		}
 	}
 	return false
-}
-
-func dedupeSSEEndpoints(endpoints []*httpcodegen.EndpointData) []*httpcodegen.EndpointData {
-	seen := make(map[string]struct{})
-	out := make([]*httpcodegen.EndpointData, 0, len(endpoints))
-	for _, e := range endpoints {
-		if e == nil || e.SSE == nil || e.SSE.EventTypeRef == "" {
-			continue
-		}
-		if _, ok := seen[e.SSE.EventTypeRef]; ok {
-			continue
-		}
-		seen[e.SSE.EventTypeRef] = struct{}{}
-		out = append(out, e)
-	}
-	return out
 }

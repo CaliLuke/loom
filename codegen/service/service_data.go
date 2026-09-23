@@ -255,6 +255,16 @@ type (
 		SendTypeName string
 		// SendTypeRef is the reference to the type sent through the stream.
 		SendTypeRef string
+		// SendTypeAcceptsMethods reports whether the service package can
+		// declare methods on the type sent through the stream. It is true
+		// only for user types generated in the service package as defined
+		// types, not as aliases.
+		SendTypeAcceptsMethods bool
+		// SendTypeIdentity identifies the Go type sent through the stream.
+		// It is SendTypeRef, or the aliased type reference when the sent
+		// type is a user type generated as an alias, so that two
+		// references to the same Go type share one identity.
+		SendTypeIdentity string
 		// SendAndCloseName is the name of the send and close function (SSE only).
 		SendAndCloseName string
 		// SendAndCloseDesc is the description for the send and close function.

@@ -45,11 +45,7 @@ func (s *StreamServerStream) SendComment(ctx context.Context, text string) error
 // Notifications do not expect a response from the client. Send returns
 // loomhttp.ErrSSEStreamClosed after the terminal response.
 func (s *StreamServerStream) Send(ctx context.Context, event jsonrpcssestringservice.StreamEvent) error {
-	// Type assert to the specific result type
-	result, ok := event.(string)
-	if !ok {
-		return fmt.Errorf("unexpected event type: %T", event)
-	}
+	result := event
 
 	body := result
 	// Send as notification (no ID)
@@ -77,11 +73,7 @@ func (s *StreamServerStream) Send(ctx context.Context, event jsonrpcssestringser
 // After calling this method, every later stream operation returns
 // loomhttp.ErrSSEStreamClosed.
 func (s *StreamServerStream) SendAndClose(ctx context.Context, event jsonrpcssestringservice.StreamEvent) error {
-	// Type assert to the specific result type
-	result, ok := event.(string)
-	if !ok {
-		return fmt.Errorf("unexpected event type: %T", event)
-	}
+	result := event
 
 	body := result
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {

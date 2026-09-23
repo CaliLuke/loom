@@ -27,12 +27,18 @@ func typeDefinitionSection(name, description, typeName, def string) codegen.Sect
 			stmt.Line()
 		}
 		decl := stmt.Type().Id(typeName)
-		if def == "loom.JSONValue" {
+		if isAliasTypeDef(def) {
 			decl.Op("=")
 		}
 		decl.Add(codegen.Expr(def))
 		stmt.Line()
 	})
+}
+
+// isAliasTypeDef reports whether a user type with the Go type definition def
+// is generated as an alias of def rather than as a defined type.
+func isAliasTypeDef(def string) bool {
+	return def == "loom.JSONValue"
 }
 
 func payloadSection(method *MethodData) codegen.Section {
