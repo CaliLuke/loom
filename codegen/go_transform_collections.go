@@ -25,6 +25,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		TransformAttrs: ta,
 		LoopVar:        string(rune(105 + strings.Count(targetVar, "["))),
 		IsStruct:       expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
+		ElemHelper:     transformUsesHelper(source.ElemType, target.ElemType),
 		SourcePresence: ta.SourceCtx.CollectionElementPresence && !expr.ArrayElementsAllowNull(source),
 	}
 	return renderTransformGoArray(data)
@@ -37,6 +38,9 @@ func collectionElemTypeRef(attribute *expr.AttributeExpr, context *AttributeCont
 		pkg = context.DefaultPkg
 		targetPkg = ""
 	}
+	if pkg == "" && containsInlineObject(attribute) {
+		return attributorCollectionElemTypeRef(attribute, context, targetPkg)
+	}
 	return context.Scope.Scope().collectionElemTypeDef(
 		attribute,
 		context.Pointer,
@@ -44,6 +48,75 @@ func collectionElemTypeRef(attribute *expr.AttributeExpr, context *AttributeCont
 		pkg,
 		targetPkg,
 	)
+}
+
+// attributorCollectionElemTypeRef renders the type of a collection element
+// that holds an inline object at any depth of arrays, maps and nullability.
+// The inline struct comes from the context Attributor so that it matches the
+// declaring type, which a transport may render differently from the shared
+// scope. It returns the same rendering as NameScope.collectionElemTypeDef when
+// the Attributor is AttributeScope.
+func attributorCollectionElemTypeRef(attribute *expr.AttributeExpr, context *AttributeContext, targetPkg string) string {
+	scope := context.Scope.Scope()
+	fallback := func() string {
+		return scope.collectionElemTypeDef(attribute, context.Pointer, context.UseDefault, "", targetPkg)
+	}
+	if metaType, _ := GetMetaType(attribute); metaType != "" {
+		return fallback()
+	}
+	var value string
+	switch actual := attribute.Type.(type) {
+	case *expr.Object:
+		name := context.Scope.Name(attribute, targetPkg, context.Pointer, context.UseDefault)
+		if IsExplicitPresenceType(attribute) {
+			// A presence type such as loom.Nullable[T] holds the struct value.
+			return name
+		}
+		return "*" + name
+	case *expr.Array:
+		value = "[]" + attributorCollectionElemTypeRef(actual.ElemType, context, targetPkg)
+	case *expr.Map:
+		key := scope.mapKeyTypeDef(actual.KeyType, context.Pointer, context.UseDefault, "", targetPkg)
+		value = "map[" + key + "]" + attributorCollectionElemTypeRef(actual.ElemType, context, targetPkg)
+	default:
+		return fallback()
+	}
+	switch {
+	case expr.IsNullable(attribute):
+		return "loom.Nullable[" + value + "]"
+	case IsExplicitPresenceType(attribute):
+		return fallback()
+	default:
+		return value
+	}
+}
+
+// containsInlineObject reports whether att is an inline object or a
+// collection whose elements hold one at any depth, without looking inside user
+// types.
+func containsInlineObject(att *expr.AttributeExpr) bool {
+	switch actual := att.Type.(type) {
+	case *expr.Object:
+		return true
+	case *expr.Array:
+		return containsInlineObject(actual.ElemType)
+	case *expr.Map:
+		return containsInlineObject(actual.ElemType)
+	default:
+		return false
+	}
+}
+
+// transformUsesHelper reports whether source converts to target through a
+// generated helper function. collectHelpers generates helpers exactly for
+// these pairs, and every call site uses this predicate, so that each call has
+// a helper. Helpers need named types on both sides: a helper signature that
+// names an inline object would not match the transport rendering of that
+// object, so a pair with an inline object side is converted in place.
+func transformUsesHelper(source, target *expr.AttributeExpr) bool {
+	_, sourceUser := source.Type.(expr.UserType)
+	_, targetUser := target.Type.(expr.UserType)
+	return sourceUser && targetUser && expr.IsObject(source.Type) && expr.IsObject(target.Type)
 }
 
 func transformCollectionElem(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
@@ -75,6 +148,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		TransformAttrs: ta,
 		IsKeyStruct:    expr.IsObject(target.KeyType.Type) && !expr.AllowsNull(target.KeyType),
 		IsElemStruct:   expr.IsObject(target.ElemType.Type) && !expr.AllowsNull(target.ElemType),
+		ElemHelper:     transformUsesHelper(source.ElemType, target.ElemType),
 		SourcePresence: ta.SourceCtx.CollectionElementPresence && !expr.MapValuesAllowNull(source),
 	}
 	if depth := MapDepth(target); depth > 0 {
@@ -193,7 +267,7 @@ func transformUnionCaseData(srcValue, targetValue *expr.NamedAttributeExpr, unio
 		SourceAttr:      srcValue.Attribute,
 		TargetAttr:      targetValue.Attribute,
 		TargetCastType:  ta.TargetCtx.Scope.Ref(targetValue.Attribute, transformUnionCastPkg(targetValue.Attribute, unionPkg, ta)),
-		UseHelper:       transformUnionUsesHelper(srcValue.Attribute, targetValue.Attribute),
+		UseHelper:       transformUsesHelper(srcValue.Attribute, targetValue.Attribute),
 		HelperName:      transformHelperName(srcValue.Attribute, targetValue.Attribute, ta),
 	}
 	if c.UseHelper {
@@ -215,12 +289,6 @@ func transformUnionCastPkg(targetAttr *expr.AttributeExpr, unionPkg string, ta *
 	return castPkg
 }
 
-func transformUnionUsesHelper(sourceAttr, targetAttr *expr.AttributeExpr) bool {
-	_, srcIsUserType := sourceAttr.Type.(expr.UserType)
-	_, tgtIsUserType := targetAttr.Type.(expr.UserType)
-	return srcIsUserType && expr.IsObject(sourceAttr.Type) && tgtIsUserType && expr.IsObject(targetAttr.Type)
-}
-
 func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, error) {
 	assign := "="
 	if data.NewVar {
@@ -235,7 +303,7 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 	if data.SourcePresence {
 		sourceElement = "actual"
 	}
-	if !data.IsStruct {
+	if !data.IsStruct || !data.ElemHelper {
 		var err error
 		elemCode, err = transformCollectionElem(data.SourceElem, data.TargetElem, sourceElement, data.TargetVar+"["+data.LoopVar+"]", false, data.TransformAttrs)
 		if err != nil {
@@ -256,6 +324,8 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 				ifGroup.Add(Expr(data.TargetVar)).Index(Expr(data.LoopVar)).Op("=").Nil()
 				ifGroup.Continue()
 			})
+		}
+		if data.IsStruct && data.ElemHelper {
 			group.Add(Expr(data.TargetVar)).
 				Index(Expr(data.LoopVar)).
 				Op("=").
@@ -290,7 +360,7 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 	if data.SourcePresence {
 		sourceElement = "actual"
 	}
-	if !data.IsElemStruct {
+	if !data.IsElemStruct || !data.ElemHelper {
 		var err error
 		temp := "tv" + data.LoopVar
 		elemCode, err = transformCollectionElem(data.SourceElem, data.TargetElem, sourceElement, temp, true, data.TransformAttrs)
@@ -317,6 +387,8 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 				ifGroup.Add(Expr(data.TargetVar)).Index(Expr("tk")).Op("=").Nil()
 				ifGroup.Continue()
 			})
+		}
+		if data.IsElemStruct && data.ElemHelper {
 			group.Add(Expr(data.TargetVar)).
 				Index(Expr("tk")).
 				Op("=").
@@ -409,7 +481,7 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *Transform
 		concreteSource := concretePresenceAttribute(source)
 		concreteTarget := concretePresenceAttribute(target)
 		if nullablePhysicalTypeRef(source, ta.SourceCtx) != nullablePhysicalTypeRef(target, ta.TargetCtx) &&
-			presenceUserObjectPair(concreteSource, concreteTarget) {
+			transformUsesHelper(concreteSource, concreteTarget) {
 			helper, helperErr := generateHelper(concreteSource, concreteTarget, true, ta, seen)
 			if helperErr != nil {
 				return nil, helperErr
@@ -440,7 +512,7 @@ func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *TransformA
 	if _, ok := seen[name]; ok {
 		return helpers, err
 	}
-	if _, ok := source.Type.(expr.UserType); ok && expr.IsObject(source.Type) {
+	if transformUsesHelper(source, target) {
 		var h *TransformFunctionData
 		h, err = generateHelper(source, target, req, ta, seen)
 		if err != nil {

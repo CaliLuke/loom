@@ -308,7 +308,7 @@ func renderRequiredValidation(data validationRenderData) string {
 		return "if !" + data.Target + "." + field + ".Present() {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
 	}
 	if expr.IsUnion(data.RequiredAttr.Type) {
-		if _, ok := data.AttributeCtx.Scope.(*AttributeScope); ok {
+		if _, ok := data.AttributeCtx.Scope.(sumTypeUnionScope); ok {
 			return "if " + data.Target + "." + field + ".Kind() == \"\" {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
 		}
 	}

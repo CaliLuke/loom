@@ -158,7 +158,7 @@ func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put ex
 }
 
 func renderUnionValidationCode(buf *bytes.Buffer, first *bool, u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
-	if _, ok := attCtx.Scope.(*AttributeScope); ok {
+	if _, ok := attCtx.Scope.(sumTypeUnionScope); ok {
 		cases := renderUnionSumValidationCases(u, put, attCtx, view, context, seen)
 		if len(cases) > 0 {
 			appendValidationBlock(buf, first, renderUnionSumValidation(target, cases))

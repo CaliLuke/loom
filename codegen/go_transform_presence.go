@@ -53,7 +53,7 @@ func transformOptionalToNative(
 	temp := presenceTempName(targetVar)
 	var conversion *jen.Statement
 	var err error
-	if presenceUserObjectPair(sourceValue, targetValue) {
+	if transformUsesHelper(sourceValue, targetValue) {
 		conversion = new(jen.Statement).
 			Add(Expr(temp)).Op(":=").
 			Id(transformHelperName(sourceValue, targetValue, ta)).
@@ -97,7 +97,7 @@ func transformNativeToOptional(
 		guard = sourceVar + " != nil"
 	}
 	objectTarget := expr.IsObject(targetValue.Type)
-	userObject := presenceUserObjectPair(sourceValue, targetValue)
+	userObject := transformUsesHelper(sourceValue, targetValue)
 	var conversion *jen.Statement
 	var err error
 	if userObject {
@@ -150,7 +150,7 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 	targetValue := concretePresenceAttribute(target)
 	temp := presenceTempName(targetVar)
 	objectTarget := expr.IsObject(targetValue.Type)
-	userObject := presenceUserObjectPair(sourceValue, targetValue)
+	userObject := transformUsesHelper(sourceValue, targetValue)
 	var conversion *jen.Statement
 	var err error
 	if userObject {
@@ -270,6 +270,11 @@ func nullablePhysicalTypeRef(attribute *expr.AttributeExpr, context *AttributeCo
 
 func presenceValueTypeRef(attribute *expr.AttributeExpr, context *AttributeContext) string {
 	concrete := concretePresenceAttribute(attribute)
+	if (expr.IsArray(concrete.Type) || expr.IsMap(concrete.Type)) && containsInlineObject(concrete) {
+		// Render the collection as its declaring type does so that element
+		// pointers, defaults and inline struct tags match.
+		return collectionElemTypeRef(concrete, context)
+	}
 	return context.Scope.Name(concrete, context.Pkg(concrete), false, context.UseDefault)
 }
 
@@ -291,12 +296,6 @@ func nativeObjectFieldPointer(parent *expr.MappedAttributeExpr, name string, att
 		return parent != nil && !parent.IsRequired(name)
 	}
 	return expr.IsPrimitive(attribute.Type) && parent != nil && context.IsPrimitivePointer(name, parent.AttributeExpr)
-}
-
-func presenceUserObjectPair(source, target *expr.AttributeExpr) bool {
-	_, sourceUser := source.Type.(expr.UserType)
-	_, targetUser := target.Type.(expr.UserType)
-	return sourceUser && targetUser && expr.IsObject(source.Type) && expr.IsObject(target.Type)
 }
 
 func isAnyPresenceAttribute(attribute *expr.AttributeExpr) bool {

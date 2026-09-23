@@ -47,7 +47,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		httpctx.PresenceUseDefaultTypes = sd.ClientPresenceUseDefaultTypes
 	}
 	applyUserTypeLayout(httpctx, sd, body, svr)
-	addMarshalTags(body, make(map[string]struct{}))
+	addMarshalTags(body)
 	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, sd, httpctx)
 	ref := sd.Scope.GoTypeRef(body)
 	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, details.validateDefinition, svr, svcctx, httpctx, sd)
@@ -180,7 +180,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	}
 	applyUserTypeLayout(httpctx, sd, body, svr)
 	data := initResponseBodyTypeData(body, att, sd)
-	addMarshalTags(body, make(map[string]struct{}))
+	addMarshalTags(body)
 
 	switch ut := body.Type.(type) {
 	case expr.UserType:

@@ -78,6 +78,13 @@ type (
 		scope *NameScope
 	}
 
+	// sumTypeUnionScope is implemented by AttributeScope and by transport
+	// scopes that embed it. Such scopes generate unions as Go sum types
+	// rather than protocol buffer oneof interfaces.
+	sumTypeUnionScope interface {
+		sumTypeUnions()
+	}
+
 	// TransformAttrs are the attributes that help in the transformation.
 	TransformAttrs struct {
 		// SourceCtx and TargetCtx are the source and target attribute context.
@@ -348,3 +355,6 @@ func (*AttributeScope) Field(att *expr.AttributeExpr, name string, firstUpper bo
 func (a *AttributeScope) Scope() *NameScope {
 	return a.scope
 }
+
+// sumTypeUnions marks the scope as generating unions as Go sum types.
+func (*AttributeScope) sumTypeUnions() {}

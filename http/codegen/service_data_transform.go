@@ -7,6 +7,14 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+// httpAttributeScope is the attribute scope of HTTP body types. Transforms
+// that build an HTTP body declare its inline object fields again as composite
+// literals, so it renders inline object types with the same definition as the
+// body type declaration. Other types use the shared attribute scope.
+type httpAttributeScope struct {
+	*codegen.AttributeScope
+}
+
 // httpContext returns a context for attributes of types used to marshal and
 // unmarshal HTTP requests and responses.
 //
@@ -20,7 +28,9 @@ import (
 // svr if true indicates that the type is a server type, else client type
 func httpContext(scope *codegen.NameScope, request, svr bool) *codegen.AttributeContext {
 	marshal := !request && svr || request && !svr
-	return codegen.NewAttributeContext(!marshal, false, marshal, "", scope)
+	ctx := codegen.NewAttributeContext(!marshal, false, marshal, "", scope)
+	ctx.Scope = &httpAttributeScope{AttributeScope: codegen.NewAttributeScope(scope)}
+	return ctx
 }
 
 func responseHTTPContext(scope *codegen.NameScope) *codegen.AttributeContext {
@@ -101,27 +111,37 @@ func needConversion(dt expr.DataType) bool {
 	}
 }
 
-// addMarshalTags adds JSON, XML and Form tags to all inline object attributes recursively.
-func addMarshalTags(att *expr.AttributeExpr, seen map[string]struct{}) {
+// addMarshalTags adds JSON, XML and Form tags to the fields of the inline
+// objects that belong to the body attribute att: its own fields and the
+// elements of its arrays and maps. It does not tag inside nested user types.
+// A nested user type is declared once per side from whichever copy of the
+// body reaches the type registry first, so tagging only some copies would
+// make its declaration and the transforms that build it disagree.
+func addMarshalTags(att *expr.AttributeExpr) {
 	if ut, ok := att.Type.(expr.UserType); ok {
-		if _, ok := seen[ut.Hash()]; ok {
-			return // avoid infinite recursions
-		}
-		seen[ut.Hash()] = struct{}{}
 		if expr.IsObject(ut.Attribute().Type) {
 			for _, att := range *(expr.AsObject(att.Type)) {
-				addMarshalTags(att.Attribute, seen)
+				addInlineMarshalTags(att.Attribute)
 			}
 		}
 		return
 	}
+	addInlineMarshalTags(att)
+}
+
+// addInlineMarshalTags tags the fields of att when it is an inline object, or
+// of the inline objects held by att when it is an array or a map.
+func addInlineMarshalTags(att *expr.AttributeExpr) {
+	if _, ok := att.Type.(expr.UserType); ok {
+		return
+	}
 	if expr.IsArray(att.Type) {
-		addMarshalTags(expr.AsArray(att.Type).ElemType, seen)
+		addInlineMarshalTags(expr.AsArray(att.Type).ElemType)
 		return
 	}
 	if expr.IsMap(att.Type) {
-		addMarshalTags(expr.AsMap(att.Type).KeyType, seen)
-		addMarshalTags(expr.AsMap(att.Type).ElemType, seen)
+		addInlineMarshalTags(expr.AsMap(att.Type).KeyType)
+		addInlineMarshalTags(expr.AsMap(att.Type).ElemType)
 		return
 	}
 	if !expr.IsObject(att.Type) {
@@ -204,4 +224,13 @@ func needInitType(root *expr.AttributeExpr, dt expr.DataType) bool {
 	default:
 		panic(codegen.NewError(nil, root, fmt.Errorf("unknown transform initialization data type %T", actual)))
 	}
+}
+
+// Name returns the HTTP body type definition of an inline object attribute and
+// the shared attribute type name otherwise.
+func (s *httpAttributeScope) Name(att *expr.AttributeExpr, pkg string, ptr, useDefault bool) string {
+	if _, ok := att.Type.(expr.UserType); !ok && expr.IsObject(att.Type) {
+		return goTypeDef(s.Scope(), att, ptr, useDefault, false)
+	}
+	return s.AttributeScope.Name(att, pkg, ptr, useDefault)
 }

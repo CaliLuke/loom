@@ -26,6 +26,7 @@ type (
 		TransformAttrs *TransformAttrs
 		LoopVar        string
 		IsStruct       bool
+		ElemHelper     bool
 		SourcePresence bool
 		TypeAliasName  string
 	}
@@ -44,6 +45,7 @@ type (
 		LoopVar        string
 		IsKeyStruct    bool
 		IsElemStruct   bool
+		ElemHelper     bool
 		SourcePresence bool
 		TypeAliasName  string
 	}
@@ -373,10 +375,9 @@ func transformObjectFieldAssignment(srcc, tgtc *expr.AttributeExpr, srcVar, tgtV
 		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, ta)
 	case expr.IsUnion(srcc.Type):
 		return transformUnion(srcc, tgtc, srcVar, tgtVar, false, nil, ta)
-	case isUserType:
-		if expr.IsPrimitive(srcc.Type) {
-			return nil, nil
-		}
+	case isUserType && expr.IsPrimitive(srcc.Type):
+		return nil, nil
+	case transformUsesHelper(srcc, tgtc):
 		stmt := &jen.Statement{}
 		stmt.Add(Expr(tgtVar)).Op("=").Id(transformHelperName(srcc, tgtc, ta)).Call(Expr(srcVar))
 		return stmt, nil
