@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/CaliLuke/loom/expr"
 
@@ -398,9 +399,12 @@ func protoBufGoFullTypeRef(att *expr.AttributeExpr, pkg string, s *codegen.NameS
 var digits = regexp.MustCompile("[0-9]+")
 
 // protoBufify makes a valid protocol buffer identifier out of any string.
-// It does that by removing any non letter and non digit character and by
-// making sure the first character is a letter or "_". protoBufify produces a
-// "CamelCase" version of the string.
+// Protocol buffer identifiers consist of ASCII letters, digits and
+// underscores and start with a letter. protoBufify treats any other
+// character, including any non-ASCII rune, as a word separator and removes
+// it. It produces a "CamelCase" version of the string. Following Goify,
+// identifiers that would start with a digit receive the Val or val prefix,
+// and a string without any ASCII letter or digit produces Val or val.
 //
 // If firstUpper is true the first character of the identifier is uppercase
 // otherwise it's lowercase.
@@ -416,6 +420,10 @@ func protoBufify(str string, firstUpper, acronym bool) string {
 	if idx > 0 {
 		str = str[:idx]
 	}
+
+	// Protocol buffer identifiers are ASCII only. Turn any other rune into
+	// a word separator so that CamelCase never keeps it.
+	str = strings.Map(asciiIdentifierRune, str)
 
 	// The CamelCase implementation of protoc-gen-go considers digits as words
 	// but our CamelCase implementation considers them as lower case characters,
@@ -436,6 +444,13 @@ func protoBufify(str string, firstUpper, acronym bool) string {
 		}
 		return "val"
 	}
+	if '0' <= str[0] && str[0] <= '9' {
+		if firstUpper {
+			str = "Val" + str
+		} else {
+			str = "val" + str
+		}
+	}
 
 	return fixReservedProtoBuf(str)
 }
@@ -450,6 +465,16 @@ func protoBufifyAtt(att *expr.AttributeExpr, name string, upper bool) string {
 		}
 	}
 	return protoBufify(name, upper, false)
+}
+
+// asciiIdentifierRune returns r when it is an ASCII rune and an underscore
+// otherwise. It maps every non-ASCII rune, including the replacement rune of
+// invalid UTF-8, to a word separator for protoBufify.
+func asciiIdentifierRune(r rune) rune {
+	if r > unicode.MaxASCII {
+		return '_'
+	}
+	return r
 }
 
 // protoNativeType returns the protocol buffer built-in type

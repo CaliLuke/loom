@@ -34,7 +34,9 @@ func TestProtobufify(t *testing.T) {
 	}, {
 		"ContainsUnderscore", "foo_bar", false, false, "fooBar",
 	}, {
-		"StartsWithDigits", "123foo", false, false, "123Foo",
+		"StartsWithDigits", "123foo", false, false, "val123Foo",
+	}, {
+		"StartsWithDigitsFirstUpper", "123foo", true, true, "Val123Foo",
 	}, {
 		"EndsWithDigits", "foo123", false, false, "foo123",
 	}, {
@@ -49,6 +51,51 @@ func TestProtobufify(t *testing.T) {
 			got := protoBufify(c.String, c.FirstUpper, c.Acronym)
 			if got != c.Expected {
 				t.Errorf("got %q, expected %q", got, c.Expected)
+			}
+		})
+	}
+}
+
+func TestProtobufifyInvalidFirstCharacter(t *testing.T) {
+	cases := []struct {
+		Name       string
+		String     string
+		FirstUpper bool
+		Expected   string
+		Field      string
+	}{
+		{"Digit", "1", false, "val1", "val1"},
+		{"DigitFirstUpper", "1", true, "Val1", "val1"},
+		{"DigitsOnly", "2024", true, "Val2024", "val2024"},
+		{"DigitThenUpper", "9Lives", true, "Val9Lives", "val9_lives"},
+		{"UnderscoreThenDigit", "_1foo", false, "val1Foo", "val1_foo"},
+		{"DashThenDigit", "-1foo", true, "Val1Foo", "val1_foo"},
+		{"UnderscoreOnly", "_", false, "val", "val"},
+		{"UnderscoresOnlyFirstUpper", "___", true, "Val", "val"},
+		{"PunctuationOnly", "-.", true, "Val", "val"},
+		{"NonASCIIOnly", "日本", true, "Val", "val"},
+		{"NonASCIILetterFirst", "élan", false, "lan", "lan"},
+		{"NonASCIIThenDigit", "é1", true, "Val1", "val1"},
+		{"NonASCIISeparatesWords", "foo日bar", false, "fooBar", "foo_bar"},
+		{"CaselessScriptThenASCII", "日foo", true, "Foo", "foo"},
+		{"InvalidUTF8", "\xff", true, "Val", "val"},
+		{"InvalidUTF8ThenDigit", "\xff7up", false, "val7Up", "val7_up"},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			got := protoBufify(c.String, c.FirstUpper, false)
+			if got != c.Expected {
+				t.Errorf("protoBufify(%q, %v) = %q, expected %q", c.String, c.FirstUpper, got, c.Expected)
+			}
+			if !protoIdentifier.MatchString(got) {
+				t.Errorf("protoBufify(%q, %v) = %q is not a protobuf identifier", c.String, c.FirstUpper, got)
+			}
+			field := codegen.SnakeCase(protoBufify(c.String, false, false))
+			if field != c.Field {
+				t.Errorf("field name for %q = %q, expected %q", c.String, field, c.Field)
+			}
+			if !protoIdentifier.MatchString(field) {
+				t.Errorf("field name for %q = %q is not a protobuf identifier", c.String, field)
 			}
 		})
 	}

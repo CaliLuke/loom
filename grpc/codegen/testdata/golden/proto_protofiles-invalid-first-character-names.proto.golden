@@ -1,0 +1,38 @@
+
+syntax = "proto3";
+
+package invalid_first_character;
+
+option go_package = "/invalid_first_characterpb";
+
+// Service is the InvalidFirstCharacter service interface.
+service InvalidFirstCharacter {
+	// Unary implements Unary.
+	rpc Unary (UnaryRequest) returns (UnaryResponse);
+}
+
+message UnaryRequest {
+	optional sint64 val2_x = 1;
+	optional string val9_lives = 2;
+	optional string name = 3;
+	optional bool lan = 4;
+	oneof val9_value {
+		string val1_st = 5;
+		sint64 val2_nd = 6;
+	}
+}
+
+message UnaryResponse {
+	repeated Val3DPoint field = 1;
+}
+
+message Val3DPoint {
+	optional sint64 val2_x = 1;
+	optional string val9_lives = 2;
+	optional string name = 3;
+	optional bool lan = 4;
+	oneof val9_value {
+		string val1_st = 5;
+		sint64 val2_nd = 6;
+	}
+}

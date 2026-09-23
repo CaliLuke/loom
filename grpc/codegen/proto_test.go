@@ -35,6 +35,7 @@ func TestProtoFiles(t *testing.T) {
 		{"protofiles-struct-meta-type", testdata.StructMetaTypeDSL},
 		{"protofiles-default-fields", testdata.DefaultFieldsDSL},
 		{"protofiles-custom-message-name", testdata.CustomMessageNameDSL},
+		{"protofiles-invalid-first-character-names", testdata.InvalidFirstCharacterNamesDSL},
 	}
 	// DSL evaluation mutates package-global state, so generate every proto
 	// source serially first, then compile them in parallel subtests.
