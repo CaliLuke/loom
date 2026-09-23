@@ -294,16 +294,26 @@ func protoBufMessageDef(att *expr.AttributeExpr, sd *ServiceData) string {
 }
 
 func protoBufUnionMessageDef(actual *expr.Union, sd *ServiceData) string {
-	oneofName, fieldNames := protoBufUnionNames(actual)
+	return protoBufOneofDef(actual.Name(), &expr.AttributeExpr{Type: actual}, sd)
+}
+
+// protoBufOneofDef returns the definition of the oneof name that holds the
+// branches of the union attribute att. The branches take the field numbers
+// that UnionFieldTags returns, so a union passed to Field numbers its
+// branches from the field number.
+func protoBufOneofDef(name string, att *expr.AttributeExpr, sd *ServiceData) string {
+	union := expr.AsUnion(att.Type)
+	oneofName, fieldNames := protoBufUnionNames(name, union)
+	tags := att.UnionFieldTags()
 	def := "\toneof " + oneofName + " {"
-	for i, nat := range actual.Values {
-		def += fmt.Sprintf("\n\t\t%s", protoBufUnionFieldDef(nat, fieldNames[i], sd))
+	for i, nat := range union.Values {
+		def += fmt.Sprintf("\n\t\t%s", protoBufUnionFieldDef(nat, fieldNames[i], parseRPCTag(tags[i], nat.Attribute), sd))
 	}
 	return def + "\n\t}"
 }
 
-func protoBufUnionNames(actual *expr.Union) (string, []string) {
-	oneofName := codegen.SnakeCase(protoBufify(actual.Name(), false, false))
+func protoBufUnionNames(name string, actual *expr.Union) (string, []string) {
+	oneofName := codegen.SnakeCase(protoBufify(name, false, false))
 	fieldNames := make([]string, 0, len(actual.Values))
 	for _, nat := range actual.Values {
 		fieldNames = append(fieldNames, codegen.SnakeCase(protoBufify(nat.Name, false, false)))
@@ -314,8 +324,7 @@ func protoBufUnionNames(actual *expr.Union) (string, []string) {
 	return oneofName, fieldNames
 }
 
-func protoBufUnionFieldDef(nat *expr.NamedAttributeExpr, fieldName string, sd *ServiceData) string {
-	fnum := rpcTag(nat.Attribute)
+func protoBufUnionFieldDef(nat *expr.NamedAttributeExpr, fieldName string, fnum uint64, sd *ServiceData) string {
 	typ := protoTypeForAttribute(nat.Attribute, sd)
 	desc := protoCommentPrefix(nat.Attribute.Description)
 	opt := protoJSONOption(nat.Attribute)
@@ -333,6 +342,9 @@ func protoBufObjectMessageDef(att *expr.AttributeExpr, actual *expr.Object, sd *
 }
 
 func protoBufObjectFieldLine(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr, sd *ServiceData) string {
+	if _, ok := nat.Attribute.Type.(*expr.Union); ok {
+		return protoBufOneofDef(nat.Name, nat.Attribute, sd)
+	}
 	if expr.IsUnion(nat.Attribute.Type) {
 		return protoBufMessageDef(nat.Attribute, sd)
 	}
@@ -561,15 +573,21 @@ func protoBufNativeGoTypeName(t expr.DataType) string {
 
 // rpcTag returns the unique numbered RPC tag from the given attribute.
 func rpcTag(a *expr.AttributeExpr) uint64 {
-	var tag uint64
-	if t, ok := a.FieldTag(); ok {
-		tn, err := strconv.ParseUint(t, 10, 64)
-		if err != nil {
-			panic(codegen.NewError(nil, a, fmt.Errorf("invalid protocol buffer field tag %q: %w", t, err)))
-		}
-		tag = tn
+	t, _ := a.FieldTag()
+	return parseRPCTag(t, a)
+}
+
+// parseRPCTag returns the field number tag of attribute a. It returns 0 when
+// tag is empty.
+func parseRPCTag(tag string, a *expr.AttributeExpr) uint64 {
+	if tag == "" {
+		return 0
 	}
-	return tag
+	tn, err := strconv.ParseUint(tag, 10, 64)
+	if err != nil {
+		panic(codegen.NewError(nil, a, fmt.Errorf("invalid protocol buffer field tag %q: %w", tag, err)))
+	}
+	return tn
 }
 
 // fixReservedProtoBuf appends an underscore on to protocol buffer reserved

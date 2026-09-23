@@ -470,6 +470,15 @@ type (
 		method string
 		hash   string
 	}
+
+	// protoFieldOwner is the attribute or union branch that uses a field
+	// number of a generated protocol buffer message. derived reports whether
+	// the number is the one that a union passed to Field gives a branch
+	// without a field tag.
+	protoFieldOwner struct {
+		name    string
+		derived bool
+	}
 )
 
 // NewServicesData creates a new ServicesData instance for the given service data.

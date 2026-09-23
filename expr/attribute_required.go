@@ -2,6 +2,7 @@ package expr
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -122,6 +123,38 @@ func (a *AttributeExpr) FieldTag() (tag string, found bool) {
 		return
 	}
 	return a.Meta.Last("rpc:tag")
+}
+
+// UnionFieldTags returns the field tags of the branches of the union
+// attribute a in declaration order, or nil if a is not a union. A branch
+// keeps the tag set with Field in a OneOf block. A branch without a tag takes
+// the field tag of a plus its position when a has a numeric one, so that
+// Field(n, "name", OneOf(A, B)) numbers the branches n and n+1. The tag of a
+// branch that has neither is empty.
+func (a *AttributeExpr) UnionFieldTags() []string {
+	if a == nil {
+		return nil
+	}
+	union := AsUnion(a.Type)
+	if union == nil {
+		return nil
+	}
+	var base uint64
+	baseTag, hasBase := a.FieldTag()
+	if hasBase {
+		n, err := strconv.ParseUint(baseTag, 10, 64)
+		hasBase = err == nil
+		base = n
+	}
+	tags := make([]string, len(union.Values))
+	for i, branch := range union.Values {
+		if tag, ok := branch.Attribute.FieldTag(); ok {
+			tags[i] = tag
+		} else if hasBase {
+			tags[i] = strconv.FormatUint(base+uint64(i), 10)
+		}
+	}
+	return tags
 }
 
 // HasDefaultValue returns true if the attribute with the given name has a

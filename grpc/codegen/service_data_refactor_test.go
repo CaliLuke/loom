@@ -158,7 +158,7 @@ func countMessageByName(messages []*service.UserTypeData, name string) int {
 
 func grpcProtoImportDedupDSL() {
 	var externalPayload = dsl.Type("ExternalPayload", func() {
-		dsl.Attribute("wrapped", dsl.String, func() {
+		dsl.Field(1, "wrapped", dsl.String, func() {
 			dsl.Meta("struct:field:proto", "wrapped", "example/common.proto", "ExternalPayload", "example/pb")
 		})
 	})

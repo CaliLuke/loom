@@ -24,3 +24,71 @@ var GRPCEndpointWithUnionContainingAny = func() {
 		})
 	})
 }
+
+// GRPCEndpointWithConstructorUnionField declares a constructor OneOf passed
+// to Field. Its branches take the numbers 2 and 3 after the field number, so
+// the next field uses number 4.
+var GRPCEndpointWithConstructorUnionField = func() {
+	var Leaf = Type("Leaf", func() {
+		Field(1, "name", String)
+	})
+	var Other = Type("Other", func() {
+		Field(1, "count", Int)
+	})
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Field(1, "id", String)
+				Field(2, "pick", OneOf(Leaf, Other))
+				Field(4, "next", String)
+			})
+			GRPC(func() {})
+		})
+	})
+}
+
+// GRPCEndpointWithConstructorUnionFieldCollision declares a field whose
+// number is also the number of the second branch of a constructor OneOf
+// passed to Field.
+var GRPCEndpointWithConstructorUnionFieldCollision = func() {
+	var Leaf = Type("Leaf", func() {
+		Field(1, "name", String)
+	})
+	var Other = Type("Other", func() {
+		Field(1, "count", Int)
+	})
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Field(2, "pick", OneOf(Leaf, Other))
+				Field(3, "next", String)
+			})
+			GRPC(func() {})
+		})
+	})
+}
+
+// GRPCEndpointWithUntaggedUnionBranches declares a constructor OneOf passed
+// to Attribute and a OneOf block whose branches are defined with Attribute,
+// so no union branch has a field number.
+var GRPCEndpointWithUntaggedUnionBranches = func() {
+	var Leaf = Type("Leaf", func() {
+		Field(1, "name", String)
+	})
+	var Other = Type("Other", func() {
+		Field(1, "count", Int)
+	})
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Field(1, "id", String)
+				Attribute("pick", OneOf(Leaf, Other))
+				OneOf("mode", func() {
+					Attribute("fast", String)
+					Field(3, "slow", Int)
+				})
+			})
+			GRPC(func() {})
+		})
+	})
+}

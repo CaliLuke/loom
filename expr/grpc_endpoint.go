@@ -33,6 +33,14 @@ type (
 		// specific to each generator, see dsl.Meta.
 		Meta MetaExpr
 	}
+
+	// rpcTagOwner is the attribute or union branch that uses a field tag
+	// of a message. derived reports whether the tag is the number that a
+	// union passed to Field gives a branch without a tag.
+	rpcTagOwner struct {
+		name    string
+		derived bool
+	}
 )
 
 // Name of gRPC endpoint
@@ -425,34 +433,44 @@ func validateMessage(msgAtt, serviceAtt *AttributeExpr, e *GRPCEndpointExpr, req
 	return verr
 }
 
-// validateRPCTags verifies whether every attribute in the object type has
-// "rpc:tag" set in the meta and the tag numbers are unique.
+// validateRPCTags verifies whether every attribute in the object type and
+// every branch of its union attributes has a field tag and the tag numbers
+// are unique. Branches of a union passed to Field take the tags that
+// UnionFieldTags derives from the field tag.
 func validateRPCTags(fields *Object, e *GRPCEndpointExpr) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	foundRPC := make(map[string]string)
+	owners := make(map[string]rpcTagOwner)
+	claim := func(tag, name string, derived bool) {
+		owner, ok := owners[tag]
+		if !ok {
+			owners[tag] = rpcTagOwner{name: name, derived: derived}
+			return
+		}
+		hint := ""
+		if derived || owner.derived {
+			hint = "; a OneOf passed to Field numbers its branches consecutively from the field number"
+		}
+		verr.Add(e, "field number %s in attribute %q already exists for attribute %q%s", tag, name, owner.name, hint)
+	}
 	for _, nat := range *fields {
 		if union := AsUnion(nat.Attribute.Type); union != nil {
-			for _, branch := range union.Values {
-				tag, ok := branch.Attribute.FieldTag()
-				if !ok {
+			for i, tag := range nat.Attribute.UnionFieldTags() {
+				branch := union.Values[i]
+				if tag == "" {
+					verr.Add(e, "union branch %q of attribute %q does not have \"rpc:tag\" defined in the meta, use \"Field\" to define each branch of a OneOf block or pass the OneOf to \"Field\" to number its branches", branch.Name, nat.Name)
 					continue
 				}
-				name := nat.Name + "." + branch.Name
-				if a, ok := foundRPC[tag]; ok {
-					verr.Add(e, "field number %s in attribute %q already exists for attribute %q", tag, name, a)
-				} else {
-					foundRPC[tag] = name
-				}
+				_, explicit := branch.Attribute.FieldTag()
+				claim(tag, nat.Name+"."+branch.Name, !explicit)
 			}
 			continue
 		}
-		if tag, ok := nat.Attribute.FieldTag(); !ok {
+		tag, ok := nat.Attribute.FieldTag()
+		if !ok {
 			verr.Add(e, "attribute %q does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method", nat.Name)
-		} else if a, ok := foundRPC[tag]; ok {
-			verr.Add(e, "field number %s in attribute %q already exists for attribute %q", tag, nat.Name, a)
-		} else {
-			foundRPC[tag] = nat.Name
+			continue
 		}
+		claim(tag, nat.Name, false)
 	}
 	return verr
 }

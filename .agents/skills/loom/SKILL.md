@@ -332,6 +332,9 @@ completion shapes are explicit generation limitations.
 ## Unions, Views, and Projections
 
 - `OneOf(...)` works as both a named union declaration and a type constructor.
+- For gRPC, `Field(n, "name", OneOf(A, B))` gives the branches the numbers n
+  and n+1, so leave those numbers free. Use the block form with a `Field` for
+  each branch when the branches can be reordered or removed.
 - Add `Untagged()` in the union attribute, payload, or result block only when
   JSON must encode the selected concrete named object branch directly. Decoding
   tests every branch and requires exactly one match.

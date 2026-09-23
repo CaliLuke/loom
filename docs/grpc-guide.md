@@ -159,6 +159,32 @@ The message is named after the enclosing message and the field, for example
 `CreateUserRequestPreferences`. Inline object array elements and map values are
 handled the same way.
 
+#### Union Fields
+
+A union is a `oneof` named after the attribute. Each branch of a `OneOf` block
+takes the number set with `Field`. When you pass a constructor `OneOf` to
+`Field`, the branches take consecutive numbers from the field number, in
+declaration order. Leave these numbers free for the branches:
+
+```go
+var Envelope = Type("Envelope", func() {
+    Field(1, "id", String)
+    Field(2, "pick", OneOf(Leaf, Other)) // oneof pick { Leaf leaf = 2; Other other = 3; }
+    Field(4, "next", String)
+})
+```
+
+This gives the same message as the block form
+`OneOf("pick", func() { Field(2, "Leaf", Leaf); Field(3, "Other", Other) })`.
+Adding a branch at the end of a constructor `OneOf` takes the next number.
+Reordering or removing its branches changes the numbers of the other branches,
+so use the block form when branches can change. Generation fails when a field
+or union branch of a message has no number, when two of them have the same
+number, or when two of them have the same protocol buffer name. This applies to
+every generated message, including nested user types and inline objects. For
+example, two constructor unions of the same types in one message both have the
+branches `leaf` and `other`.
+
 #### Metadata Handling
 
 Send fields as gRPC metadata instead of message body:

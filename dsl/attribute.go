@@ -241,11 +241,17 @@ func currentAttribute() *expr.AttributeExpr {
 // Field takes the same arguments as Attribute with the addition of the tag
 // value as first argument.
 //
+// When the type is a constructor OneOf, the union branches take consecutive
+// tags from the tag value in declaration order, so the next field must use a
+// tag after the last branch.
+//
 // Example:
 //
 //	Field(1, "ID", String, func() {
 //	    Pattern("[0-9]+")
 //	})
+//
+//	Field(2, "pick", OneOf(Leaf, Other)) // branch tags 2 and 3
 func Field(tag any, name string, args ...any) {
 	parent := currentAttribute()
 	Attribute(name, args...)

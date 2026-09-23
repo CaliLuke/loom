@@ -73,9 +73,17 @@ func TestTransportRecursiveTypes(t *testing.T) {
 // TestRecursiveTypesGeneratedCodeCompiles compiles the service and transport
 // packages generated for the recursive design exposed on every transport.
 func TestRecursiveTypesGeneratedCodeCompiles(t *testing.T) {
-	root := codegen.RunDSL(t, mutuallyRecursiveAllTransportsDSL)
+	buildGeneratedModule(t, "example.com/recursive", mutuallyRecursiveAllTransportsDSL)
+}
+
+// buildGeneratedModule generates the service and transport packages of dsl
+// in a module named modulePath that uses the Loom source selected by LOOM_DIR
+// or the persisted source mode, builds them and returns the module directory.
+func buildGeneratedModule(t *testing.T, modulePath string, dsl func()) string {
+	t.Helper()
+	root := codegen.RunDSL(t, dsl)
 	roots := []eval.Root{root}
-	genpkg := "example.com/recursive/gen"
+	genpkg := modulePath + "/gen"
 
 	serviceFiles, err := Service(genpkg, roots)
 	require.NoError(t, err)
@@ -91,12 +99,13 @@ func TestRecursiveTypesGeneratedCodeCompiles(t *testing.T) {
 	require.NoError(t, err)
 	source, err := loomsource.Resolve(repoRoot, filepath.Join(t.TempDir(), "loom-pinned"))
 	require.NoError(t, err)
-	goMod := fmt.Sprintf("module example.com/recursive\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", source)
+	goMod := fmt.Sprintf("module %s\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, source)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 	_, err = testingx.RunCmd(dir, "go", "mod", "tidy")
 	require.NoError(t, err)
 	output, err := testingx.RunCmd(dir, "go", "build", "./...")
 	require.NoError(t, err, output)
+	return dir
 }
 
 func mutuallyRecursiveAllTransportsDSL() {

@@ -44,6 +44,24 @@ service "Service" gRPC endpoint "Method": field number 2 in attribute "key_dup_i
 			DSL:    testdata.GRPCEndpointWithInheritErrorDSL,
 			Errors: []string{},
 		},
+		"endpoint-with-constructor-union-field": {
+			DSL:    testdata.GRPCEndpointWithConstructorUnionField,
+			Errors: []string{},
+		},
+		"endpoint-with-constructor-union-field-collision": {
+			DSL: testdata.GRPCEndpointWithConstructorUnionFieldCollision,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": field number 3 in attribute "next" already exists for attribute "pick.Other"; a OneOf passed to Field numbers its branches consecutively from the field number`,
+			},
+		},
+		"endpoint-with-untagged-union-branches": {
+			DSL: testdata.GRPCEndpointWithUntaggedUnionBranches,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": union branch "Leaf" of attribute "pick" does not have "rpc:tag" defined in the meta, use "Field" to define each branch of a OneOf block or pass the OneOf to "Field" to number its branches
+service "Service" gRPC endpoint "Method": union branch "Other" of attribute "pick" does not have "rpc:tag" defined in the meta, use "Field" to define each branch of a OneOf block or pass the OneOf to "Field" to number its branches
+service "Service" gRPC endpoint "Method": union branch "fast" of attribute "mode" does not have "rpc:tag" defined in the meta, use "Field" to define each branch of a OneOf block or pass the OneOf to "Field" to number its branches`,
+			},
+		},
 		"endpoint-union-containing-any": {
 			DSL: testdata.GRPCEndpointWithUnionContainingAny,
 			Errors: []string{

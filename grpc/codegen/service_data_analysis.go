@@ -362,12 +362,14 @@ func checkProtoNames(svc *service.Data, irService *transportir.Service) error {
 // generated for method. Generated messages are identified by name, so it
 // panics when a message of another method has the same name but different
 // fields: one of the two shapes would be silently lost. Messages with the
-// same name and fields are shared.
+// same name and fields are shared. It also panics when checkProtoFields
+// finds an invalid message reachable from att.
 func registerProtoMessage(sd *ServiceData, att *expr.AttributeExpr, method string) {
 	ut, ok := att.Type.(expr.UserType)
 	if !ok {
 		return
 	}
+	checkProtoFields(att, "", make(map[expr.UserType]struct{}))
 	if sd.protoMessages == nil {
 		sd.protoMessages = make(map[string]protoMessageShape)
 	}
@@ -416,9 +418,97 @@ func writeProtoFieldShapes(b *strings.Builder, att *expr.AttributeExpr, seen map
 		writeProtoFieldShapes(b, dt.KeyType, seen)
 		writeProtoFieldShapes(b, dt.ElemType, seen)
 	case *expr.Union:
-		for _, nat := range dt.Values {
-			fmt.Fprintf(b, "|%q=%d", nat.Name, rpcTag(nat.Attribute))
+		tags := att.UnionFieldTags()
+		for i, nat := range dt.Values {
+			fmt.Fprintf(b, "|%q=%d", nat.Name, parseRPCTag(tags[i], nat.Attribute))
 			writeProtoFieldShapes(b, nat.Attribute, seen)
+		}
+	}
+}
+
+// checkProtoFields panics when a protocol buffer message reachable from att
+// has a field or oneof branch without a field number, two fields with the same
+// number or two fields with the same name. message is the name of the message
+// that holds att. The fields of a message include the branches of its oneofs,
+// whose names the constructor form of OneOf derives from the branch types and
+// whose numbers it derives from the field number. Attributes mapped to a custom
+// protocol buffer type generate no message and are skipped.
+func checkProtoFields(att *expr.AttributeExpr, message string, seen map[expr.UserType]struct{}) {
+	if len(att.Meta["struct:field:proto"]) > 0 {
+		return
+	}
+	switch dt := att.Type.(type) {
+	case expr.UserType:
+		if _, ok := seen[dt]; ok {
+			return
+		}
+		seen[dt] = struct{}{}
+		checkProtoFields(dt.Attribute(), protoBufify(dt.Name(), true, true), seen)
+	case *expr.Object:
+		checkMessageFields(message, att)
+		for _, nat := range *dt {
+			checkProtoFields(nat.Attribute, message+protoBufify(nat.Name, true, true), seen)
+		}
+	case *expr.Array:
+		checkProtoFields(dt.ElemType, message, seen)
+	case *expr.Map:
+		checkProtoFields(dt.KeyType, message, seen)
+		checkProtoFields(dt.ElemType, message, seen)
+	case *expr.Union:
+		for _, nat := range dt.Values {
+			checkProtoFields(nat.Attribute, message, seen)
+		}
+	}
+}
+
+// checkMessageFields panics when a field or oneof branch of the protocol
+// buffer message named message with the object attribute att has no field
+// number, or when two of them have the same number or name. Branches of a
+// union passed to Field take the numbers that UnionFieldTags derives from the
+// field number.
+func checkMessageFields(message string, att *expr.AttributeExpr) {
+	obj := expr.AsObject(att.Type)
+	names := make(map[string]string, len(*obj))
+	numbers := make(map[uint64]protoFieldOwner, len(*obj))
+	addName := func(name, owner string) {
+		if other, ok := names[name]; ok {
+			panic(fmt.Errorf("protocol buffer message %q has two fields named %q: %s and %s", message, name, other, owner))
+		}
+		names[name] = owner
+	}
+	addNumber := func(tag string, owner protoFieldOwner, a *expr.AttributeExpr) {
+		number := parseRPCTag(tag, a)
+		other, ok := numbers[number]
+		if !ok {
+			numbers[number] = owner
+			return
+		}
+		hint := ""
+		if owner.derived || other.derived {
+			hint = "; a OneOf passed to Field numbers its branches consecutively from the field number"
+		}
+		panic(fmt.Errorf("field number %d in attribute %q of protocol buffer message %q already exists for attribute %q%s", number, owner.name, message, other.name, hint))
+	}
+	for _, nat := range *obj {
+		union, ok := nat.Attribute.Type.(*expr.Union)
+		if !ok {
+			addName(codegen.SnakeCase(protoBufify(nat.Name, false, false)), fmt.Sprintf("attribute %q", nat.Name))
+			tag, _ := nat.Attribute.FieldTag()
+			if parseRPCTag(tag, nat.Attribute) == 0 {
+				panic(fmt.Errorf("attribute %q of protocol buffer message %q has no field number, use \"Field\" to define it", nat.Name, message))
+			}
+			addNumber(tag, protoFieldOwner{name: nat.Name}, nat.Attribute)
+			continue
+		}
+		_, fieldNames := protoBufUnionNames(nat.Name, union)
+		for i, tag := range nat.Attribute.UnionFieldTags() {
+			branch := union.Values[i]
+			addName(fieldNames[i], fmt.Sprintf("branch %q of attribute %q", branch.Name, nat.Name))
+			if parseRPCTag(tag, branch.Attribute) == 0 {
+				panic(fmt.Errorf("union branch %q of attribute %q of protocol buffer message %q has no field number, use \"Field\" to define each branch of a OneOf block or pass the OneOf to \"Field\" to number its branches", branch.Name, nat.Name, message))
+			}
+			_, explicit := branch.Attribute.FieldTag()
+			addNumber(tag, protoFieldOwner{name: nat.Name + "." + branch.Name, derived: !explicit}, branch.Attribute)
 		}
 	}
 }
