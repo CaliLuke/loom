@@ -254,11 +254,11 @@ func grpcHandlerInitSection(endpoint *EndpointData) codegenpkg.Section {
 
 func grpcServerInterfaceSection(endpoint *EndpointData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("server-grpc-interface", func(stmt *jen.Statement) {
-		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %q method in %s.%s interface.", endpoint.Method.VarName, endpoint.Method.VarName, endpoint.PkgName, endpoint.ServerInterface))
+		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %q method in %s.%s interface.", endpoint.RPCGoName, endpoint.RPCGoName, endpoint.PkgName, endpoint.ServerInterface))
 		params := grpcServerInterfaceParams(endpoint)
 		results := grpcServerInterfaceResults(endpoint)
 		stmt.Func().Params(jen.Id("s").Op("*").Id(endpoint.ServerStruct)).
-			Id(endpoint.Method.VarName).
+			Id(endpoint.RPCGoName).
 			Params(params...).
 			Params(results...).
 			BlockFunc(func(g *jen.Group) {
@@ -524,7 +524,7 @@ func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {
 								jen.Id("opts").Op("=").Append(jen.Id("opts"), jen.Id("opt")),
 							)
 							if endpoint.Request.StreamEnvelope != nil {
-								g.List(jen.Id("stream"), jen.Err()).Op(":=").Id("grpccli").Dot(endpoint.ClientMethodName).Call(jen.Id("ctx"), jen.Id("opts").Op("..."))
+								g.List(jen.Id("stream"), jen.Err()).Op(":=").Id("grpccli").Dot(endpoint.RPCGoName).Call(jen.Id("ctx"), jen.Id("opts").Op("..."))
 								g.If(jen.Err().Op("!=").Nil()).Block(
 									jen.Return(jen.Nil(), jen.Err()),
 								)
@@ -545,14 +545,14 @@ func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {
 							}
 							callArgs = append(callArgs, jen.Id("opts").Op("..."))
 							g.If(jen.Id("reqpb").Op("!=").Nil()).Block(
-								jen.Return(jen.Id("grpccli").Dot(endpoint.ClientMethodName).Call(callArgs...)),
+								jen.Return(jen.Id("grpccli").Dot(endpoint.RPCGoName).Call(callArgs...)),
 							)
 							nilArgs := []jen.Code{jen.Id("ctx")}
 							if endpoint.Method.StreamingPayload == "" {
 								nilArgs = append(nilArgs, jen.Op("&").Id(endpoint.Request.ClientConvert.TgtName).Values())
 							}
 							nilArgs = append(nilArgs, jen.Id("opts").Op("..."))
-							g.Return(jen.Id("grpccli").Dot(endpoint.ClientMethodName).Call(nilArgs...))
+							g.Return(jen.Id("grpccli").Dot(endpoint.RPCGoName).Call(nilArgs...))
 						}),
 				),
 			)

@@ -404,17 +404,25 @@ func protoBufGoFullTypeRef(att *expr.AttributeExpr, pkg string, s *codegen.NameS
 
 var digits = regexp.MustCompile("[0-9]+")
 
-// protoBufify makes a valid protocol buffer identifier out of any string.
-// Protocol buffer identifiers consist of ASCII letters, digits and
-// underscores and start with a letter. protoBufify treats any other
+// protoBufify makes a valid protocol buffer identifier out of any string. It
+// returns the result of protoBufIdentifier with an underscore appended to
+// protocol buffer keywords, which cannot name fields.
+func protoBufify(str string, firstUpper, acronym bool) string {
+	return fixReservedProtoBuf(protoBufIdentifier(str, firstUpper, acronym))
+}
+
+// protoBufIdentifier makes a valid protocol buffer identifier out of any
+// string. Protocol buffer identifiers consist of ASCII letters, digits and
+// underscores and start with a letter. protoBufIdentifier treats any other
 // character, including any non-ASCII rune, as a word separator and removes
-// it. It produces a "CamelCase" version of the string. Following Goify,
+// it. It produces a "CamelCase" version of the string that protoc-gen-go
+// uses unchanged as the Go name of the element. Following Goify,
 // identifiers that would start with a digit receive the Val or val prefix,
 // and a string without any ASCII letter or digit produces Val or val.
 //
 // If firstUpper is true the first character of the identifier is uppercase
 // otherwise it's lowercase.
-func protoBufify(str string, firstUpper, acronym bool) string {
+func protoBufIdentifier(str string, firstUpper, acronym bool) string {
 	// Optimize trivial case
 	if str == "" {
 		return ""
@@ -458,7 +466,7 @@ func protoBufify(str string, firstUpper, acronym bool) string {
 		}
 	}
 
-	return fixReservedProtoBuf(str)
+	return str
 }
 
 // protoBufifyAtt honors any struct:field:name meta set on the attribute and

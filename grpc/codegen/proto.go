@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -94,27 +93,7 @@ func pkgName(svc *expr.GRPCServiceExpr, svcName string) string {
 	if svc.ProtoPkg != "" {
 		return svc.ProtoPkg
 	}
-	return protoASCIIIdent(codegen.SnakeCase(svcName))
-}
-
-// protoASCIIIdent escapes every non-ASCII rune of name because protoc only
-// accepts ASCII identifiers. A rune in the Basic Multilingual Plane becomes
-// "u" and four lower case hex digits; any other rune becomes "U" and eight.
-// The fixed widths keep distinct names distinct, and ASCII names are returned
-// unchanged.
-func protoASCIIIdent(name string) string {
-	var b strings.Builder
-	for _, r := range name {
-		switch {
-		case r < utf8.RuneSelf:
-			b.WriteRune(r)
-		case r <= 0xFFFF:
-			fmt.Fprintf(&b, "u%04x", r)
-		default:
-			fmt.Fprintf(&b, "U%08x", r)
-		}
-	}
-	return b.String()
+	return codegen.EscapeNonASCII(codegen.SnakeCase(svcName))
 }
 
 var defaultProtocCmd = []string{expr.DefaultProtoc}

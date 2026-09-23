@@ -107,7 +107,7 @@ func appendGRPCExampleServerSetup(g *jen.Group, services []*ServiceData, needStr
 	g.Line()
 	g.Comment(codegenpkg.Comment("Register the servers."))
 	for _, service := range services {
-		g.Id(service.PkgName).Dot("Register"+codegenpkg.Goify(service.Service.VarName, true)+"Server").Call(
+		g.Id(service.PkgName).Dot("Register"+service.ServerInterface).Call(
 			jen.Id("srv"),
 			jen.Id(service.Service.VarName+"Server"),
 		)

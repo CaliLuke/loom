@@ -1,0 +1,40 @@
+
+syntax = "proto3";
+
+package calc2go;
+
+option go_package = "/calc2gopb";
+
+// Service is the calc2go service interface.
+service Calc2go {
+	// Get3d implements get3d.
+	rpc Get3d (Get3DRequest) returns (Get3DResponse);
+	// V2betaList implements v2beta_list.
+	rpc V2betaList (V2BetaListRequest) returns (V2BetaListResponse);
+	// Sync2way implements sync2way.
+	rpc Sync2way (stream Sync2WayStreamingRequest) returns (stream Sync2WayResponse);
+}
+
+message Get3DRequest {
+	string field = 1;
+}
+
+message Get3DResponse {
+	string field = 1;
+}
+
+message V2BetaListRequest {
+	string field = 1;
+}
+
+message V2BetaListResponse {
+	string field = 1;
+}
+
+message Sync2WayStreamingRequest {
+	string field = 1;
+}
+
+message Sync2WayResponse {
+	string field = 1;
+}

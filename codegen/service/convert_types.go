@@ -152,7 +152,7 @@ func convertFilePath(user expr.UserType, serviceName string) string {
 	if loc := codegen.UserTypeLocation(user); loc != nil {
 		return filepath.Join(codegen.Gendir, filepath.Dir(loc.FilePath), "convert.go")
 	}
-	return filepath.Join(codegen.Gendir, codegen.SnakeCase(serviceName), "convert.go")
+	return filepath.Join(codegen.Gendir, servicePathName(serviceName), "convert.go")
 }
 
 func convertPackageName(conversions, creations []*expr.TypeMap, fallback string) string {

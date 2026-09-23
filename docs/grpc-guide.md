@@ -576,6 +576,16 @@ message AddResponse {
 }
 ```
 
+Protocol buffer identifiers are ASCII only. Loom derives service, rpc, message,
+field, and `oneof` names from design names by treating every non-ASCII rune as a
+word separator: an `añadir` method becomes the `AAdir` rpc. ASCII service and
+rpc names keep their Goify form, so a `get3d` method is the `Get3d` rpc, whose
+Go method protoc-gen-go names `Get3D`. Generation fails when two methods of a
+service map to the same rpc name, such as `añadir` and `a_adir`, or to the same
+generated message name with different fields. Generated Go package directories
+and names escape non-ASCII runes instead, because Go import paths are ASCII
+only: the packages of a `Café` service are under `gen/cafu00e9`.
+
 ### Protoc Configuration
 
 The versions above are the supported defaults. Use metadata overrides only

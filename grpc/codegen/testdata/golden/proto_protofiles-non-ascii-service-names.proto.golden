@@ -1,0 +1,50 @@
+
+syntax = "proto3";
+
+package cafu00e9;
+
+option go_package = "/cafu00e9pb";
+
+// Service is the Café service interface.
+service Caf {
+	// Añadir implements añadir.
+	rpc AAdir (AAdirRequest) returns (AAdirResponse);
+	// Flüss implements flüss.
+	rpc FlSs (stream FlSsStreamingRequest) returns (stream FlSsResponse);
+	// Get3d implements get3d.
+	rpc Get3d (Get3DRequest) returns (Get3DResponse);
+	// Message implements message.
+	rpc Message (MessageRequest) returns (MessageResponse);
+}
+
+message AAdirRequest {
+	optional string nombre = 1;
+}
+
+message AAdirResponse {
+	optional sint64 total = 1;
+}
+
+message FlSsStreamingRequest {
+	optional string wert = 1;
+}
+
+message FlSsResponse {
+	optional string echo = 1;
+}
+
+message Get3DRequest {
+	string field = 1;
+}
+
+message Get3DResponse {
+	string field = 1;
+}
+
+message MessageRequest {
+	string field = 1;
+}
+
+message MessageResponse {
+	string field = 1;
+}

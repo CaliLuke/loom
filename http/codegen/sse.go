@@ -228,7 +228,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 		return nil
 	}
 
-	path := filepath.Join(codegen.Gendir, "http", codegen.SnakeCase(svc.Name()), "server", "sse.go")
+	path := filepath.Join(codegen.Gendir, "http", data.Service.PathName, "server", "sse.go")
 	sseSections := serverSSESections(data)
 	sections := make([]codegen.Section, 0, 1+len(sseSections))
 	sections = append(sections,
@@ -246,8 +246,8 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
 				codegen.LoomNamedImport("observability/transport", "loomtransport"),
 				codegen.LoomImport(""),
-				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
-				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
+				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
+				{Path: genpkg + "/" + data.Service.PathName + "/views", Name: data.Service.ViewsPkg},
 			},
 		),
 	)

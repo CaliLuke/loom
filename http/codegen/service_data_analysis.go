@@ -186,7 +186,7 @@ func httpServicePackageName(svc *expr.ServiceExpr) string {
 	scope := codegen.NewNameScope()
 	scope.Unique("Use")
 	scope.Unique("websocket")
-	return scope.HashedUnique(svc, strings.ToLower(codegen.Goify(svc.Name, false)), "svc")
+	return scope.HashedUnique(svc, service.PackageBaseName(svc.Name), "svc")
 }
 
 func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceData {

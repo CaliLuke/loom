@@ -22,12 +22,17 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 		}
 	}()
 	irService := transportir.BuildService(gs)
+	if err := checkProtoNames(svc, irService); err != nil {
+		panic(err)
+	}
 	scope := codegen.NewNameScope()
-	pkg := codegen.SnakeCase(codegen.Goify(svc.Name, false)) + pbPkgName
-	svcVarN := scope.HashedUnique(gs.ServiceExpr, codegen.Goify(svc.Name, true))
+	pkg := svc.PathName + pbPkgName
+	svcVarN := scope.HashedUnique(gs.ServiceExpr, protoServiceName(svc.StructName))
+	goName := protoBufIdentifier(svcVarN, true, true)
 	sd = &ServiceData{
 		Service:             svc,
 		Name:                svcVarN,
+		GoName:              goName,
 		Description:         svc.Description,
 		PkgName:             pkg,
 		ProtoPkg:            pkgName(gs, svc.PathName),
@@ -35,9 +40,9 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 		ClientStruct:        "Client",
 		ServerInit:          "New",
 		ClientInit:          "NewClient",
-		ServerInterface:     svcVarN + "Server",
-		ClientInterface:     svcVarN + "Client",
-		ClientInterfaceInit: fmt.Sprintf("%s.New%sClient", pkg, svcVarN),
+		ServerInterface:     goName + "Server",
+		ClientInterface:     goName + "Client",
+		ClientInterfaceInit: fmt.Sprintf("%s.New%sClient", pkg, goName),
 		Scope:               scope,
 	}
 	collector := newMessageCollector(sd)
@@ -72,6 +77,8 @@ func (d *ServicesData) buildEndpointDataWithContext(
 	msgSch, metSch := partitionSecuritySchemes(endpointIR, md)
 	ed := &EndpointData{
 		ServiceName:               svc.Name,
+		RPCName:                   protoServiceName(md.VarName),
+		RPCGoName:                 protoBufIdentifier(protoServiceName(md.VarName), true, true),
 		PkgName:                   sd.PkgName,
 		ServicePkgName:            svc.PkgName,
 		Method:                    md,
@@ -89,7 +96,6 @@ func (d *ServicesData) buildEndpointDataWithContext(
 		ResponseContractWarnings:  responseContractWarnings,
 		ServerStruct:              sd.ServerStruct,
 		ServerInterface:           sd.ServerInterface,
-		ClientMethodName:          protoBufify(md.VarName, true, true),
 		ClientStruct:              sd.ClientStruct,
 		ClientInterface:           sd.ClientInterface,
 	}
@@ -231,6 +237,17 @@ func prepareEndpointProtoMessages(endpoint *transportir.Endpoint, sd *ServiceDat
 			continue
 		}
 		grpcErr.Response.ProtoMessage = makeProtoBufMessage(grpcErr.Response.Message, protoBufify(endpoint.Name+"_"+grpcErr.Name+"_error", true, true), sd)
+		registerProtoMessage(sd, grpcErr.Response.ProtoMessage, endpoint.Name)
+	}
+	for _, message := range []*expr.AttributeExpr{
+		endpoint.Request.ProtoMessage,
+		endpoint.Request.ProtoStreamingInput,
+		endpoint.Request.ProtoStreamEnvelope,
+		endpoint.Response.ProtoMessage,
+	} {
+		if message != nil {
+			registerProtoMessage(sd, message, endpoint.Name)
+		}
 	}
 }
 
@@ -310,4 +327,98 @@ func partitionSecuritySchemes(endpoint *transportir.Endpoint, md *service.Method
 	metSch := append(service.SchemesData(nil), fallback...)
 	metSch = append(metSch, grouped["metadata"]...)
 	return msgSch, metSch
+}
+
+// protoServiceName returns the protocol buffer name of a service or rpc
+// whose Go name is goName. ASCII names are used unchanged so that the wire
+// path of existing services is stable. Protocol buffer identifiers are ASCII
+// only, so any other rune becomes a word separator, as in protoBufify.
+func protoServiceName(goName string) string {
+	ascii := strings.Map(asciiIdentifierRune, goName)
+	if ascii == goName {
+		return goName
+	}
+	if name := codegen.Goify(ascii, true); name != "" {
+		return name
+	}
+	return "Val"
+}
+
+// checkProtoNames returns an error when two methods of the service map to the
+// same protocol buffer rpc name.
+func checkProtoNames(svc *service.Data, irService *transportir.Service) error {
+	rpcs := make(map[string]string, len(irService.Endpoints))
+	for _, endpoint := range irService.Endpoints {
+		rpc := protoServiceName(svc.Method(endpoint.Name).VarName)
+		if other, ok := rpcs[rpc]; ok {
+			return fmt.Errorf("methods %q and %q of service %q both map to protocol buffer rpc %q", other, endpoint.Name, svc.Name, rpc)
+		}
+		rpcs[rpc] = endpoint.Name
+	}
+	return nil
+}
+
+// registerProtoMessage records the top-level protocol buffer message att
+// generated for method. Generated messages are identified by name, so it
+// panics when a message of another method has the same name but different
+// fields: one of the two shapes would be silently lost. Messages with the
+// same name and fields are shared.
+func registerProtoMessage(sd *ServiceData, att *expr.AttributeExpr, method string) {
+	ut, ok := att.Type.(expr.UserType)
+	if !ok {
+		return
+	}
+	if sd.protoMessages == nil {
+		sd.protoMessages = make(map[string]protoMessageShape)
+	}
+	shape := protoMessageShape{method: method, hash: protoMessageHash(ut)}
+	other, ok := sd.protoMessages[ut.Name()]
+	if !ok {
+		sd.protoMessages[ut.Name()] = shape
+		return
+	}
+	if other.hash != shape.hash {
+		panic(fmt.Errorf("methods %q and %q of service %q both map to protocol buffer message %q with different fields",
+			other.method, method, sd.Service.Name, protoBufify(ut.Name(), true, true)))
+	}
+}
+
+// protoMessageHash returns a hash of the fields of the message ut and of every
+// message reachable from it, including the numbers and requiredness of the
+// fields at every depth.
+func protoMessageHash(ut expr.UserType) string {
+	var b strings.Builder
+	b.WriteString(expr.Hash(ut, false, false, false))
+	writeProtoFieldShapes(&b, &expr.AttributeExpr{Type: ut}, make(map[expr.UserType]struct{}))
+	return b.String()
+}
+
+// writeProtoFieldShapes writes the name, number and requiredness of the
+// fields of every object reachable from att to b.
+func writeProtoFieldShapes(b *strings.Builder, att *expr.AttributeExpr, seen map[expr.UserType]struct{}) {
+	switch dt := att.Type.(type) {
+	case expr.UserType:
+		if _, ok := seen[dt]; ok {
+			return
+		}
+		seen[dt] = struct{}{}
+		fmt.Fprintf(b, "|%s{", dt.Name())
+		writeProtoFieldShapes(b, dt.Attribute(), seen)
+		b.WriteString("}")
+	case *expr.Object:
+		for _, nat := range *dt {
+			fmt.Fprintf(b, "|%q=%d,%t", nat.Name, rpcTag(nat.Attribute), att.IsRequired(nat.Name))
+			writeProtoFieldShapes(b, nat.Attribute, seen)
+		}
+	case *expr.Array:
+		writeProtoFieldShapes(b, dt.ElemType, seen)
+	case *expr.Map:
+		writeProtoFieldShapes(b, dt.KeyType, seen)
+		writeProtoFieldShapes(b, dt.ElemType, seen)
+	case *expr.Union:
+		for _, nat := range dt.Values {
+			fmt.Fprintf(b, "|%q=%d", nat.Name, rpcTag(nat.Attribute))
+			writeProtoFieldShapes(b, nat.Attribute, seen)
+		}
+	}
 }

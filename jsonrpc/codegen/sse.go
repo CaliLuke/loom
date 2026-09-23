@@ -42,7 +42,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 		return nil
 	}
 
-	path := filepath.Join(codegen.Gendir, "jsonrpc", codegen.SnakeCase(svc.Name()), "server", "stream.go")
+	path := filepath.Join(codegen.Gendir, "jsonrpc", data.Service.PathName, "server", "stream.go")
 	streamSections := sseServerStreamSections(data)
 	sections := make([]codegen.Section, 0, 1+len(streamSections))
 	sections = append(sections,
@@ -60,7 +60,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 				codegen.LoomImport("jsonrpc"),
 				codegen.LoomNamedImport("http", "loomhttp"),
 				codegen.LoomNamedImport("observability/transport", "loomtransport"),
-				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
+				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
 			},
 		),
 	)
@@ -89,7 +89,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 		return nil
 	}
 
-	path := filepath.Join(codegen.Gendir, "jsonrpc", codegen.SnakeCase(svc.Name()), "client", "stream.go")
+	path := filepath.Join(codegen.Gendir, "jsonrpc", data.Service.PathName, "client", "stream.go")
 	tmplSections := sseClientStreamSections(data)
 	sections := make([]codegen.Section, 0, 1+len(tmplSections))
 	sections = append(sections,
@@ -110,7 +110,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 				codegen.LoomImport(""),
 				codegen.LoomImport("jsonrpc"),
 				codegen.LoomNamedImport("http", "loomhttp"),
-				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
+				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
 			},
 		),
 	)

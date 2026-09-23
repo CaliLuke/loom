@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -58,7 +57,7 @@ func newServiceScopes(service *expr.ServiceExpr) (*codegen.NameScope, *codegen.N
 	scope.Unique("Use")
 	scope.Unique("websocket")
 	viewScope := codegen.NewNameScope()
-	pkgName := scope.HashedUnique(service, strings.ToLower(codegen.Goify(service.Name, false)), "svc")
+	pkgName := scope.HashedUnique(service, PackageBaseName(service.Name), "svc")
 	return scope, viewScope, pkgName, pkgName + "views"
 }
 
@@ -154,7 +153,7 @@ func newServiceData(
 		APIName:            d.Root.API.Name,
 		APIVersion:         d.Root.API.Version,
 		VarName:            varName,
-		PathName:           codegen.SnakeCase(varName),
+		PathName:           servicePathName(service.Name),
 		StructName:         codegen.Goify(service.Name, true),
 		PkgName:            pkgName,
 		ViewsPkg:           viewspkg,

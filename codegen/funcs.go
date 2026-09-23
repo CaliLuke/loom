@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/CaliLuke/loom/expr"
 )
@@ -202,6 +203,26 @@ func normalizeCamelInitialism(runes []rune, word string, start int, firstUpper, 
 	}
 	copy(runes[start:], []rune(upper))
 	return true
+}
+
+// EscapeNonASCII escapes every non-ASCII rune of name so that the result can
+// serve where only ASCII is valid, such as protocol buffer package names and
+// Go import paths. A rune in the Basic Multilingual Plane becomes "u" and four
+// lower case hex digits; any other rune becomes "U" and eight. The fixed
+// widths keep distinct names distinct, and ASCII names are returned unchanged.
+func EscapeNonASCII(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r < utf8.RuneSelf:
+			b.WriteRune(r)
+		case r <= 0xFFFF:
+			fmt.Fprintf(&b, "u%04x", r)
+		default:
+			fmt.Fprintf(&b, "U%08x", r)
+		}
+	}
+	return b.String()
 }
 
 // SnakeCase produces the snake_case version of the given CamelCase string.
