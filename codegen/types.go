@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -43,29 +44,13 @@ func GoNativeTypeName(t expr.DataType) string {
 
 // AttributeTags computes the struct field tags from its metadata if any.
 func AttributeTags(_, att *expr.AttributeExpr) string {
-	var elems []string
-	keys := make([]string, len(att.Meta))
-	i := 0
-	for k := range att.Meta {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		val := att.Meta[key]
-		if strings.HasPrefix(key, "struct:tag:") {
-			if key == "struct:tag:json:name" {
-				continue
-			}
-			name := key[11:]
-			value := strings.Join(val, ",")
-			elems = append(elems, fmt.Sprintf("%s:\"%s\"", name, value))
+	tags := make(map[string]string)
+	for key, val := range att.Meta {
+		if strings.HasPrefix(key, "struct:tag:") && key != "struct:tag:json:name" {
+			tags[key[11:]] = strings.Join(val, ",")
 		}
 	}
-	if len(elems) > 0 {
-		return " `" + strings.Join(elems, " ") + "`"
-	}
-	return ""
+	return StructTag(tags)
 }
 
 // AttributeTagsWithName computes the struct field tags from its metadata,
@@ -82,7 +67,7 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 	}
 	tags, jsonName := attributeTagValues(att)
 	normalizeAttributeJSONTag(tags, jsonName, parent, fieldName, att)
-	return renderAttributeTags(tags)
+	return StructTag(tags)
 }
 
 // JSONFieldName returns the effective JSON member name for an object field.
@@ -93,6 +78,33 @@ func JSONFieldName(fieldName string, att *expr.AttributeExpr) string {
 		return fieldName
 	}
 	return expr.JSONFieldName(fieldName, att)
+}
+
+// StructTag renders tags as a Go struct field tag preceded by a space, or
+// returns "" when tags is empty. Keys are emitted in sorted order and must be
+// valid struct tag keys; design validation rejects any other struct:tag key.
+// Each value is quoted with strconv.Quote so reflect.StructTag.Get returns it
+// unchanged whatever it contains. The tag is a raw string literal unless it
+// contains a character a raw string cannot hold, such as a backtick, in which
+// case it is an interpreted string literal.
+func StructTag(tags map[string]string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(tags))
+	for key := range tags {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	elems := make([]string, 0, len(keys))
+	for _, key := range keys {
+		elems = append(elems, key+":"+strconv.Quote(tags[key]))
+	}
+	tag := strings.Join(elems, " ")
+	if strconv.CanBackquote(tag) {
+		return " `" + tag + "`"
+	}
+	return " " + strconv.Quote(tag)
 }
 
 func attributeTagValues(att *expr.AttributeExpr) (map[string]string, string) {
@@ -143,22 +155,6 @@ func normalizeAttributeJSONTag(tags map[string]string, jsonName string, parent *
 		(IsExplicitPresenceType(att) || expr.AllowsNull(att)) {
 		tags["json"] = appendJSONOmitOption(jsonTag, att)
 	}
-}
-
-func renderAttributeTags(tags map[string]string) string {
-	if len(tags) == 0 {
-		return ""
-	}
-	names := make([]string, 0, len(tags))
-	for n := range tags {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	elems := make([]string, 0, len(names))
-	for _, n := range names {
-		elems = append(elems, fmt.Sprintf("%s:\"%s\"", n, tags[n]))
-	}
-	return " `" + strings.Join(elems, " ") + "`"
 }
 
 func appendJSONOmitOption(tag string, att *expr.AttributeExpr) string {

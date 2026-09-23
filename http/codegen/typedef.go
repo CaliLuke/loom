@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -193,7 +192,11 @@ func attributeTags(att *expr.AttributeExpr, t string, optional, omitZero bool) s
 	if custom := mergedAttributeTags(att, jsonName, omitZero || explicitJSON || hasJSONTagName(att)); custom != "" {
 		return custom
 	}
-	return fmt.Sprintf(" `form:\"%s%s\" json:\"%s\" xml:\"%s%s\"`", t, omitEmpty, jsonName, t, omitEmpty)
+	return codegen.StructTag(map[string]string{
+		"form": t + omitEmpty,
+		"json": jsonName,
+		"xml":  t + omitEmpty,
+	})
 }
 
 func mergedAttributeTags(att *expr.AttributeExpr, jsonTag string, includeJSON bool) string {
@@ -213,16 +216,7 @@ func mergedAttributeTags(att *expr.AttributeExpr, jsonTag string, includeJSON bo
 	if includeJSON {
 		tags["json"] = jsonTag
 	}
-	keys := make([]string, 0, len(tags))
-	for key := range tags {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, key := range keys {
-		parts = append(parts, fmt.Sprintf("%s:\"%s\"", key, tags[key]))
-	}
-	return " `" + strings.Join(parts, " ") + "`"
+	return codegen.StructTag(tags)
 }
 
 func hasJSONTagName(att *expr.AttributeExpr) bool {

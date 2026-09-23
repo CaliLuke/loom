@@ -407,7 +407,7 @@ func renderUnionMarshalJSONBody(data *UnionTypeData) string {
 		fmt.Fprintf(&b, "\tcase %s:\n\t\tvalue = u.%s\n", field.KindConst, field.FieldName)
 	}
 	fmt.Fprintf(&b, "\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
-	fmt.Fprintf(&b, "return json.Marshal(struct {\n\tType  string `json:\"%s\"`\n\tValue any    `json:\"%s\"`\n}{\n", data.TypeKey, data.ValueKey)
+	fmt.Fprintf(&b, "return json.Marshal(struct {\n\tType  string%s\n\tValue any   %s\n}{\n", codegen.StructTag(map[string]string{"json": data.TypeKey}), codegen.StructTag(map[string]string{"json": data.ValueKey}))
 	b.Add("\tType:  string(u.kind),\n\tValue: value,\n}, json.Deterministic(true))")
 	return b.String()
 }
@@ -487,7 +487,7 @@ func renderUnionUnmarshalJSONBody(data *UnionTypeData) string {
 		return renderUntaggedUnionUnmarshalJSONBody(data)
 	}
 	var b sourceBuilder
-	fmt.Fprintf(&b, "var raw struct {\n\tType  string         `json:\"%s\"`\n\tValue jsontext.Value `json:\"%s\"`\n}\n", data.TypeKey, data.ValueKey)
+	fmt.Fprintf(&b, "var raw struct {\n\tType  string        %s\n\tValue jsontext.Value%s\n}\n", codegen.StructTag(map[string]string{"json": data.TypeKey}), codegen.StructTag(map[string]string{"json": data.ValueKey}))
 	b.Add("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
 	b.Add("switch raw.Type {\n")
 	for _, field := range data.Fields {

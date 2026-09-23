@@ -3,7 +3,9 @@ package expr
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/CaliLuke/loom/eval"
 )
@@ -36,6 +38,7 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 	}
 	verr.Merge(a.validateExamples(ctx, parent))
 	verr.Merge(a.validatePresence(ctx, parent))
+	verr.Merge(a.validateStructTagKeys(ctx, parent))
 	verr.Merge(a.validateChildTypes(ctx, parent))
 	verr.Merge(a.validateViewReference(ctx, parent))
 
@@ -69,6 +72,27 @@ func (a *AttributeExpr) validatePresence(ctx string, parent eval.Expression) *ev
 	}
 	if mapping := AsMap(a.Type); mapping != nil && IsNullable(mapping.KeyType) {
 		verr.Add(parent, "%smap keys cannot be nullable", ctx)
+	}
+	return verr
+}
+
+// validateStructTagKeys rejects struct:tag metadata whose key cannot appear in
+// a Go struct tag. reflect.StructTag keys are non-empty runs of characters
+// other than control characters, space, quote, and colon; any other key would
+// corrupt the whole generated tag.
+func (a *AttributeExpr) validateStructTagKeys(ctx string, parent eval.Expression) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	keys := make([]string, 0, len(a.Meta))
+	for key := range a.Meta {
+		if strings.HasPrefix(key, "struct:tag:") && key != "struct:tag:json:name" {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		if tagKey := strings.TrimPrefix(key, "struct:tag:"); !validStructTagKey(tagKey) {
+			verr.Add(parent, "%sstruct tag key %q in metadata %q must be a non-empty run of characters other than control characters, space, quote, and colon", ctx, tagKey, key)
+		}
 	}
 	return verr
 }
@@ -309,6 +333,8 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 					wireNames[wireName] = struct{}{}
 				}
 			}
+		} else {
+			verr.Merge(validateUnionWireKeys(ctx, parent, u))
 		}
 		for _, ut := range u.Values {
 			verr.Merge(ut.Attribute.Validate(ctx, parent))
@@ -374,6 +400,10 @@ func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expressio
 			verr.Add(parent, "%s cannot use an empty JSON tag name", fieldCtx)
 			continue
 		}
+		if !validJSONWireName(wireName) {
+			verr.Add(parent, "%s %s", fieldCtx, invalidJSONWireNameMessage(wireName))
+			continue
+		}
 		if _, conflicts := designNames[wireName]; conflicts && wireName != nat.Name {
 			verr.Add(parent, "%s JSON field name %q conflicts with another design field name", fieldCtx, wireName)
 			continue
@@ -394,6 +424,49 @@ func jsonTagHasOption(tag, option string) bool {
 		}
 	}
 	return false
+}
+
+// validateUnionWireKeys rejects discriminator and value keys of a tagged
+// union that cannot name a JSON member: "-" would omit the member, and the
+// characters validJSONWireName rejects cannot appear in the generated tag.
+func validateUnionWireKeys(ctx string, parent eval.Expression, u *Union) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	for _, key := range []string{u.GetTypeKey(), u.GetValueKey()} {
+		switch {
+		case key == "-":
+			verr.Add(parent, "%sOneOf discriminator JSON name \"-\" would omit the member from JSON, so the union could not be encoded or decoded", ctx)
+		case !validJSONWireName(key):
+			verr.Add(parent, "%sOneOf discriminator %s", ctx, invalidJSONWireNameMessage(key))
+		}
+	}
+	return verr
+}
+
+// validJSONWireName reports whether name can appear as the member name of a
+// generated json struct tag. encoding/json/v2 reserves the comma, backslash,
+// single quote, double quote, and backtick in an unquoted tag name and does
+// not accept a quoted name form, so a tag holding any of them fails every
+// Marshal and Unmarshal call at runtime. It also rejects invalid UTF-8.
+func validJSONWireName(name string) bool {
+	return utf8.ValidString(name) && !strings.ContainsAny(name, ",\\'\"`")
+}
+
+func invalidJSONWireNameMessage(name string) string {
+	return fmt.Sprintf("JSON name %q cannot contain a comma, backslash, quote, backtick, or invalid UTF-8: encoding/json/v2 cannot represent it in a struct tag", name)
+}
+
+// validStructTagKey reports whether key follows the reflect.StructTag key
+// convention.
+func validStructTagKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i := 0; i < len(key); i++ {
+		if c := key[i]; c <= ' ' || c == ':' || c == '"' || c == 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *AttributeExpr) pkgPath() string {
