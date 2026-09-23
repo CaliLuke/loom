@@ -232,7 +232,7 @@ func addUnionKindType(stmt *jen.Statement, data *UnionTypeData) {
 func addUnionKindConsts(stmt *jen.Statement, data *UnionTypeData) {
 	stmt.Const().DefsFunc(func(group *jen.Group) {
 		for _, field := range data.Fields {
-			group.Comment(fmt.Sprintf("%s identifies the %s branch of the union.", field.KindConst, field.Name))
+			group.Comment(codegen.LineComment(fmt.Sprintf("%s identifies the %s branch of the union.", field.KindConst, field.Name)))
 			group.Id(field.KindConst).Id(data.KindName).Op("=").Lit(field.TypeTag)
 		}
 	})

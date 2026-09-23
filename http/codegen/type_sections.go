@@ -129,7 +129,7 @@ func addHTTPUnionKindType(stmt *jen.Statement, data *servicecodegen.UnionTypeDat
 func addHTTPUnionKindConsts(stmt *jen.Statement, data *servicecodegen.UnionTypeData) {
 	stmt.Const().DefsFunc(func(group *jen.Group) {
 		for _, field := range data.Fields {
-			group.Comment(fmt.Sprintf("%s identifies the %s branch of the union.", field.KindConst, field.Name))
+			group.Comment(codegen.LineComment(fmt.Sprintf("%s identifies the %s branch of the union.", field.KindConst, field.Name)))
 			group.Id(field.KindConst).Id(data.KindName).Op("=").Lit(field.TypeTag)
 		}
 	})

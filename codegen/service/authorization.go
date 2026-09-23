@@ -17,18 +17,7 @@ func authorizationFiles(genpkg string, svc *Data) []*codegen.File {
 		return nil
 	}
 	var b strings.Builder
-	a := svc.Authorization
-	if len(a.requirements) > 0 {
-		fmt.Fprintf(&b, "// %s evaluates application access requirements. Implementations must be read-only\n// and safe to repeat. Nil errors allow execution; all errors prevent it.\ntype %s interface {\n", a.interfaceName, a.interfaceName)
-		for _, r := range a.requirements {
-			fmt.Fprintf(&b, "// %s evaluates %s using current application access facts.\n%s(context.Context", r.methodName, r.expr.Name, r.methodName)
-			if r.inputRef != "" {
-				fmt.Fprintf(&b, ", %s", r.inputRef)
-			}
-			b.WriteString(") error\n")
-		}
-		b.WriteString("}\n")
-	}
+	writeAuthorizerInterface(&b, svc.Authorization)
 	for _, m := range endpointData(svc).Methods {
 		if m.Authorization != nil {
 			writeAuthorizationCheck(&b, m)
@@ -47,6 +36,25 @@ func authorizationFiles(genpkg string, svc *Data) []*codegen.File {
 		Path:     filepath.Join(codegen.Gendir, svc.PathName, "authorization.go"),
 		Sections: []codegen.Section{codegen.Header(svc.Name+" authorization", svc.PkgName, imports), codegen.NewRawSection("authorization", b.String())},
 	}, authorizationManifest(svc)}
+}
+
+// writeAuthorizerInterface writes the interface the application implements
+// to evaluate the service access requirements. Requirement names are design
+// text, so their comments go through codegen.LineComment.
+func writeAuthorizerInterface(b *strings.Builder, a *authorizationServiceData) {
+	if len(a.requirements) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "// %s evaluates application access requirements. Implementations must be read-only\n// and safe to repeat. Nil errors allow execution; all errors prevent it.\ntype %s interface {\n", a.interfaceName, a.interfaceName)
+	for _, r := range a.requirements {
+		b.WriteString(codegen.LineComment(fmt.Sprintf("%s evaluates %s using current application access facts.", r.methodName, r.expr.Name)))
+		fmt.Fprintf(b, "\n%s(context.Context", r.methodName)
+		if r.inputRef != "" {
+			fmt.Fprintf(b, ", %s", r.inputRef)
+		}
+		b.WriteString(") error\n")
+	}
+	b.WriteString("}\n")
 }
 
 func writeAuthorizationCheck(b *strings.Builder, m *EndpointMethodData) {

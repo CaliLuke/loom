@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -150,7 +149,7 @@ func websocketStructTypeSection(ws *WebSocketData) codegen.Section {
 }
 
 func addWrappedGroupComment(group *jen.Group, text string) {
-	for _, line := range strings.Split(codegen.Comment(text), "\n") {
-		group.Comment(strings.TrimPrefix(line, "// "))
+	for _, line := range codegen.CommentLines(text) {
+		group.Comment(line)
 	}
 }

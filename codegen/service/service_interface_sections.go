@@ -130,7 +130,16 @@ func addViewedResultComment(group *jen.Group, method *MethodData) {
 		if view.Description != "" {
 			line += ": " + view.Description
 		}
-		group.Comment("  " + line)
+		for i, comment := range codegen.CommentLines(line) {
+			indent := "//   "
+			if i > 0 {
+				indent = "//     "
+			}
+			if rest, ok := strings.CutPrefix(comment, "// "); ok {
+				comment = indent + rest
+			}
+			group.Comment(comment)
+		}
 	}
 }
 

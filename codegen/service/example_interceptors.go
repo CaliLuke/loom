@@ -96,10 +96,10 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 		}
 		receiverType := structName + codegen.Goify(mode, true) + "Interceptors"
 
-		stmt.Comment(fmt.Sprintf("%s implements the %s for the %s service.", receiverType, implements, serviceName)).Line()
+		stmt.Comment(codegen.LineComment(fmt.Sprintf("%s implements the %s for the %s service.", receiverType, implements, serviceName))).Line()
 		stmt.Type().Id(receiverType).StructFunc(func(*jen.Group) {})
 		stmt.Line()
-		stmt.Comment(fmt.Sprintf("New%s creates a new %s interceptor for the %s service.", receiverType, mode, serviceName)).Line()
+		stmt.Comment(codegen.LineComment(fmt.Sprintf("New%s creates a new %s interceptor for the %s service.", receiverType, mode, serviceName))).Line()
 		stmt.Func().Id("New" + receiverType).Params().Op("*").Id(receiverType).Block(
 			jen.Return(jen.Op("&").Id(receiverType).Values()),
 		)

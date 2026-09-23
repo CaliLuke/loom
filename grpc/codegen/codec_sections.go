@@ -359,7 +359,7 @@ func renderGRPCStringConversion(dt expr.DataType, varName, target string) string
 	case "any":
 		stmt.Id(varName).Op(":=").Qual("fmt", "Sprintf").Call(jen.Lit("%v"), exprCode(target))
 	default:
-		return renderJenLine(jen.Commentf("unsupported type %s for field %s", dt.Name(), varName))
+		return renderJenLine(jen.Comment(codegen.LineComment(fmt.Sprintf("unsupported type %s for field %s", dt.Name(), varName))))
 	}
 	return renderJenLine(stmt)
 }
@@ -393,7 +393,7 @@ func renderGRPCStringParse(md *MetadataData, rawVar string) string {
 		).Line()
 		stmt.Add(exprCode(renderDirectOrValueAssign(md)))
 	default:
-		return renderJenLine(jen.Commentf("unsupported type %s for var %s", md.Type.Name(), md.VarName))
+		return renderJenLine(jen.Comment(codegen.LineComment(fmt.Sprintf("unsupported type %s for var %s", md.Type.Name(), md.VarName))))
 	}
 	return renderJenLine(stmt)
 }
@@ -462,7 +462,7 @@ func renderGRPCSliceItemConversion(md *MetadataData) string {
 	case "any":
 		stmt.Add(exprCode(md.VarName)).Index(jen.Id("i")).Op("=").Id("rv")
 	default:
-		return renderJenLine(jen.Commentf("unsupported slice type %s for var %s", elemName, md.VarName))
+		return renderJenLine(jen.Comment(codegen.LineComment(fmt.Sprintf("unsupported slice type %s for var %s", elemName, md.VarName))))
 	}
 	return renderJenLine(stmt)
 }

@@ -52,14 +52,18 @@ func CommandLine() string {
 }
 
 // Comment produces line comments by concatenating the given strings and
-// producing 80 characters long lines starting with "//".
+// producing 80 characters long lines starting with "//". Carriage returns
+// break lines, and invalid UTF-8, NUL bytes, and byte order marks, which Go
+// source cannot contain, are replaced by U+FFFD.
 func Comment(elems ...string) string {
+	sanitized := make([]string, len(elems))
 	lineCount := 0
-	for _, e := range elems {
-		lineCount += strings.Count(e, "\n") + 1
+	for i, e := range elems {
+		sanitized[i] = sanitizeCommentText(e)
+		lineCount += strings.Count(sanitized[i], "\n") + 1
 	}
 	lines := make([]string, 0, lineCount)
-	for _, e := range elems {
+	for _, e := range sanitized {
 		lines = append(lines, strings.Split(e, "\n")...)
 	}
 	var trimmed = make([]string, len(lines))

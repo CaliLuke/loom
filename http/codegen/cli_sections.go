@@ -292,7 +292,7 @@ func pathSection(data *EndpointData) codegen.Section {
 			if route.PathInit == nil {
 				continue
 			}
-			stmt.Comment(route.PathInit.Description).Line()
+			stmt.Comment(codegen.LineComment(route.PathInit.Description)).Line()
 			stmt.Func().
 				Id(route.PathInit.Name).
 				ParamsFunc(func(group *jen.Group) {

@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -175,7 +174,7 @@ func newEndpointCall(method *EndpointMethodData) *jen.Statement {
 }
 
 func groupDoc(group *jen.Group, text string) {
-	for _, line := range strings.Split(codegen.Comment(text), "\n") {
-		group.Comment(strings.TrimPrefix(line, "// "))
+	for _, line := range codegen.CommentLines(text) {
+		group.Comment(line)
 	}
 }

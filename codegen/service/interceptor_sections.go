@@ -98,8 +98,8 @@ func addInterceptorsInterfaceComment(stmt *jen.Statement, server bool) {
 
 func addInterceptorInterfaceMethod(group *jen.Group, interceptor *InterceptorData) {
 	if interceptor.Description != "" {
-		for _, line := range strings.Split(codegen.Comment(interceptor.Description), "\n") {
-			group.Comment(strings.TrimPrefix(line, "// "))
+		for _, line := range codegen.CommentLines(interceptor.Description) {
+			group.Comment(line)
 		}
 	}
 	group.Id(interceptor.Name).Params(
@@ -186,8 +186,8 @@ func addInterceptorMethodStructs(group *jen.Group, interceptors []*InterceptorDa
 }
 
 func addIndentedGroupComment(group *jen.Group, text string) {
-	for _, line := range strings.Split(codegen.Comment(text), "\n") {
-		group.Comment(strings.TrimPrefix(line, "// "))
+	for _, line := range codegen.CommentLines(text) {
+		group.Comment(line)
 	}
 }
 
