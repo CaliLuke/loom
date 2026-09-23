@@ -28,7 +28,7 @@ func UsageCommands() []string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " clock initialize --body '{\n      \"id\": \"Eos quibusdam non eligendi.\"\n   }'\\n"
+	return os.Args[0] + " clock initialize --body '{\n      \"id\": \"Eos quibusdam non eligendi.\"\n   }'\n"
 }
 
 type commandLine struct {

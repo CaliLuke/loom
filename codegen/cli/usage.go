@@ -59,7 +59,7 @@ func UsageExamples(data []*CommandData) codegen.Section {
 			}
 			var expr *jen.Statement
 			for i, example := range examples {
-				part := jen.Id("os").Dot("Args").Index(jen.Lit(0)).Op("+").Lit(" " + example + "\\n")
+				part := jen.Id("os").Dot("Args").Index(jen.Lit(0)).Op("+").Lit(" " + example + "\n")
 				if i == 0 {
 					expr = part
 					continue
@@ -115,8 +115,9 @@ func CommandUsage(data *CommandData) codegen.Section {
 	})
 }
 
+// printDescription indents the continuation lines of a usage description.
+// Callers emit the result through jen.Lit, which quotes it, so the text needs
+// no Go escaping here.
 func printDescription(desc string) string {
-	res := strings.ReplaceAll(desc, "`", "`+\"`\"+`")
-	res = strings.ReplaceAll(res, "\n", "\n\t")
-	return res
+	return strings.ReplaceAll(desc, "\n", "\n\t")
 }

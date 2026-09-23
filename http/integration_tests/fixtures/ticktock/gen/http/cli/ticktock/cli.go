@@ -28,7 +28,7 @@ func UsageCommands() []string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " clock tick\\n"
+	return os.Args[0] + " clock tick\n"
 }
 
 type commandLine struct {

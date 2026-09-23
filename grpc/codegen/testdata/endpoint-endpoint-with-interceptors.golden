@@ -25,7 +25,7 @@ func UsageCommands() []string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " service-with-interceptors method-a --message '{\n      \"field\": \"Deleniti ut suscipit laboriosam.\"\n   }'\\n"
+	return os.Args[0] + " service-with-interceptors method-a --message '{\n      \"field\": \"Deleniti ut suscipit laboriosam.\"\n   }'\n"
 }
 
 // ParseEndpoint returns the endpoint and payload as specified on the command
