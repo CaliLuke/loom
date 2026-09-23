@@ -159,7 +159,7 @@ func collectUnionHelpers(source, target *expr.AttributeExpr, ta *transformAttrs,
 
 func collectObjectHelpers(source, target *expr.AttributeExpr, req bool, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
 	var data []*codegen.TransformFunctionData
-	if ut, ok := source.Type.(expr.UserType); ok {
+	if ut, ok := source.Type.(expr.UserType); ok && !isAnonymousObject(target.Type) {
 		tfd, stop, err := buildObjectHelper(source, target, req, ut, ta, seen)
 		if err != nil {
 			return nil, err

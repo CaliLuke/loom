@@ -84,12 +84,14 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 		}
 	}
 	n := ""
-	makeProtoBufMessageR(att, &n, sd, make(map[string]struct{}))
+	makeProtoBufMessageR(att, &n, sd, make(map[string]struct{}), messageScope{})
 	return att
 }
 
 // makeProtoBufMessageR is the recursive implementation of makeProtoBufMessage.
-func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceData, seen map[string]struct{}) {
+// scope identifies the position of att in the enclosing message and names the
+// messages generated for anonymous objects nested in att.
+func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceData, seen map[string]struct{}, scope messageScope) {
 	ut, isut := att.Type.(expr.UserType)
 
 	// handle infinite recursions
@@ -120,22 +122,26 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 		if expr.IsArray(ut) {
 			wrapAttr(ut.Attribute(), ut.Name(), false, sd)
 		}
-		makeProtoBufMessageR(ut.Attribute(), tname, sd, seen)
+		makeProtoBufMessageR(ut.Attribute(), tname, sd, seen, messageScope{name: ut.Name(), path: strconv.Quote(ut.Name())})
 	case expr.IsArray(att.Type):
 		ar := expr.AsArray(att.Type)
-		makeProtoBufMessageR(ar.ElemType, tname, sd, seen)
+		scope.path += "/[]"
+		nameAnonymousMessage(ar.ElemType, scope, sd)
+		makeProtoBufMessageR(ar.ElemType, tname, sd, seen, scope)
 		wrap(ar.ElemType, *tname)
 	case expr.IsMap(att.Type):
 		m := expr.AsMap(att.Type)
-		makeProtoBufMessageR(m.ElemType, tname, sd, seen)
+		scope.path += "/{}"
+		nameAnonymousMessage(m.ElemType, scope, sd)
+		makeProtoBufMessageR(m.ElemType, tname, sd, seen, scope)
 		wrap(m.ElemType, *tname)
 	case expr.IsUnion(att.Type):
 		for _, nat := range expr.AsUnion(att.Type).Values {
-			makeProtoBufMessageR(nat.Attribute, tname, sd, seen)
+			makeProtoBufMessageField(nat, tname, sd, seen, scope)
 		}
 	case expr.IsObject(att.Type):
 		for _, nat := range *(expr.AsObject(att.Type)) {
-			makeProtoBufMessageR(nat.Attribute, tname, sd, seen)
+			makeProtoBufMessageField(nat, tname, sd, seen, scope)
 		}
 	}
 }

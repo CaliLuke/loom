@@ -43,11 +43,12 @@ func isInlineRecursive(att *expr.AttributeExpr) bool {
 
 // reachesInline reports whether att reaches the user type with the given ID
 // through inlined transform code. element reports whether att is an array
-// element or a map key or value.
+// element or a map key or value. The message generated for an anonymous
+// object is always inlined.
 func reachesInline(att *expr.AttributeExpr, id string, element bool, seen map[string]struct{}) bool {
 	switch dt := att.Type.(type) {
 	case expr.UserType:
-		if !element || !expr.IsObject(dt) {
+		if !(element || isAnonymousMessage(dt)) || !expr.IsObject(dt) {
 			return false
 		}
 		if dt.ID() == id {

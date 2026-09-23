@@ -1,0 +1,153 @@
+
+syntax = "proto3";
+
+package inline_object_fields;
+
+option go_package = "/inline_object_fieldspb";
+
+// Service is the InlineObjectFields service interface.
+service InlineObjectFields {
+	// Unary implements Unary.
+	rpc Unary (UnaryRequest) returns (UnaryResponse);
+}
+
+message UnaryRequest {
+	optional string id = 1;
+	UnaryRequestName name = 5;
+	UnaryRequestOuter outer = 6;
+	repeated UnaryRequestItems items = 7;
+	map<string, UnaryRequestIndex> index = 8;
+	UnaryRequestOuterInner3 outer_inner = 9;
+	UnaryRequestOuterInner named = 10;
+	repeated ArrayOfUnaryRequestGrid grid = 11;
+	map<string, ArrayOfUnaryRequestGroups> groups = 12;
+	repeated UnaryRequestRows rows = 13;
+}
+
+message UnaryRequestName {
+	oneof choice {
+		string text = 1;
+		sint64 num = 2;
+		ChoicePair pair = 3;
+	}
+}
+
+message ChoicePair {
+	optional string key = 1;
+	optional string value = 2;
+}
+
+message UnaryRequestOuter {
+	optional string label = 1;
+	UnaryRequestOuterInner2 inner = 2;
+}
+
+message UnaryRequestOuterInner2 {
+	sint64 depth = 1;
+}
+
+message UnaryRequestItems {
+	optional string key = 1;
+}
+
+message UnaryRequestIndex {
+	optional sint64 count = 1;
+}
+
+message UnaryRequestOuterInner3 {
+	optional string q = 1;
+}
+
+message UnaryRequestOuterInner {
+	optional string y = 1;
+}
+
+message ArrayOfUnaryRequestGrid {
+	repeated UnaryRequestGrid field = 1;
+}
+
+message UnaryRequestGrid {
+	optional string cell = 1;
+}
+
+message ArrayOfUnaryRequestGroups {
+	repeated UnaryRequestGroups field = 1;
+}
+
+message UnaryRequestGroups {
+	optional string member = 1;
+}
+
+message UnaryRequestRows {
+	UnaryRequestRowsM m = 1;
+}
+
+message UnaryRequestRowsM {
+	optional sint64 z = 1;
+}
+
+message UnaryResponse {
+	optional string id = 1;
+	UnaryResponseName name = 5;
+	UnaryResponseOuter outer = 6;
+	repeated UnaryResponseItems items = 7;
+	map<string, UnaryResponseIndex> index = 8;
+	UnaryResponseOuterInner2 outer_inner = 9;
+	UnaryRequestOuterInner named = 10;
+	repeated ArrayOfUnaryResponseGrid grid = 11;
+	map<string, ArrayOfUnaryResponseGroups> groups = 12;
+	repeated UnaryResponseRows rows = 13;
+}
+
+message UnaryResponseName {
+	oneof choice {
+		string text = 1;
+		sint64 num = 2;
+		ChoicePair pair = 3;
+	}
+}
+
+message UnaryResponseOuter {
+	optional string label = 1;
+	UnaryResponseOuterInner inner = 2;
+}
+
+message UnaryResponseOuterInner {
+	sint64 depth = 1;
+}
+
+message UnaryResponseItems {
+	optional string key = 1;
+}
+
+message UnaryResponseIndex {
+	optional sint64 count = 1;
+}
+
+message UnaryResponseOuterInner2 {
+	optional string q = 1;
+}
+
+message ArrayOfUnaryResponseGrid {
+	repeated UnaryResponseGrid field = 1;
+}
+
+message UnaryResponseGrid {
+	optional string cell = 1;
+}
+
+message ArrayOfUnaryResponseGroups {
+	repeated UnaryResponseGroups field = 1;
+}
+
+message UnaryResponseGroups {
+	optional string member = 1;
+}
+
+message UnaryResponseRows {
+	UnaryResponseRowsM m = 1;
+}
+
+message UnaryResponseRowsM {
+	optional sint64 z = 1;
+}

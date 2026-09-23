@@ -202,17 +202,12 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	initCode, postInitCode := buildPrimitiveObjectInit(source, target, sourceVar, targetVar, ta)
 
 	buffer := &bytes.Buffer{}
-	deref := "&"
-	// if the target is a raw struct no need to return a pointer
-	if _, ok := target.Type.(*expr.Object); ok {
-		deref = ""
-	}
 	assign := "="
 	if newVar {
 		assign = ":="
 	}
 	tname := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
-	fmt.Fprintf(buffer, "%s %s %s%s{%s}\n", targetVar, assign, deref, tname, initCode)
+	fmt.Fprintf(buffer, "%s %s &%s{%s}\n", targetVar, assign, tname, initCode)
 	fmt.Fprint(buffer, postInitCode)
 
 	var err error
@@ -331,6 +326,10 @@ func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr
 		return transformArray(expr.AsArray(srcc.Type), expr.AsArray(tgtc.Type), srcVar, tgtVar, false, false, false, ta)
 	case expr.IsMap(srcc.Type):
 		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, false, ta)
+	case isUserType && isAnonymousObject(tgtc.Type):
+		// The service type of an anonymous object is an unnamed struct,
+		// which a helper function cannot name, so convert it inline.
+		return transformAttribute(srcc, tgtc, srcVar, tgtVar, false, ta)
 	case isUserType:
 		if !expr.IsPrimitive(srcc.Type) {
 			return renderJenLine(exprCode(tgtVar).Op("=").Add(exprCode(renderTransformHelperCall(srcc, tgtc, srcVar, ta)))), nil

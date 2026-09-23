@@ -17,7 +17,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 	if ta.proto {
 		elem = unAlias(elem)
 	}
-	targetRef := ta.TargetCtx.Scope.Ref(elem, ta.TargetCtx.Pkg(elem))
+	targetRef := collectionElemTypeRef(elem, ta)
 	code, sourceVar, targetVar, newVar := transformArraySetup(sourceVar, targetVar, newVar, ta)
 	src, tgt, err := transformArrayElementAttrs(source.ElemType, elem, ta)
 	if err != nil {
@@ -178,7 +178,41 @@ func transformMapTypeRefs(target *expr.Map, ta *transformAttrs) (string, string)
 		kt = unAlias(kt)
 		et = unAlias(et)
 	}
-	return ta.TargetCtx.Scope.Ref(kt, ta.TargetCtx.Pkg(kt)), ta.TargetCtx.Scope.Ref(et, ta.TargetCtx.Pkg(et))
+	return ta.TargetCtx.Scope.Ref(kt, ta.TargetCtx.Pkg(kt)), collectionElemTypeRef(et, ta)
+}
+
+// collectionElemTypeRef returns the Go type reference of the target array
+// element or map value att. Service types refer to anonymous struct elements
+// by pointer at every collection depth and define their fields with default
+// values as service codegen does, which the scope reference of a raw struct
+// does not.
+func collectionElemTypeRef(att *expr.AttributeExpr, ta *transformAttrs) string {
+	if ta.proto || !hasAnonymousObjectElem(att.Type) {
+		return ta.TargetCtx.Scope.Ref(att, ta.TargetCtx.Pkg(att))
+	}
+	switch actual := att.Type.(type) {
+	case *expr.Array:
+		return "[]" + collectionElemTypeRef(actual.ElemType, ta)
+	case *expr.Map:
+		return "map[" + ta.TargetCtx.Scope.Ref(actual.KeyType, ta.TargetCtx.Pkg(actual.KeyType)) + "]" + collectionElemTypeRef(actual.ElemType, ta)
+	default:
+		return "*" + ta.TargetCtx.Scope.Name(att, ta.TargetCtx.Pkg(att), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+	}
+}
+
+// hasAnonymousObjectElem reports whether dt is an anonymous object or a
+// collection whose elements, at any depth, are anonymous objects.
+func hasAnonymousObjectElem(dt expr.DataType) bool {
+	switch actual := dt.(type) {
+	case *expr.Object:
+		return true
+	case *expr.Array:
+		return hasAnonymousObjectElem(actual.ElemType.Type)
+	case *expr.Map:
+		return hasAnonymousObjectElem(actual.ElemType.Type)
+	default:
+		return false
+	}
 }
 
 func transformMapTargetSetup(sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, string, string, bool) {

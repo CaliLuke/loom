@@ -153,6 +153,12 @@ Method("createUser", func() {
 })
 ```
 
+Protocol buffer fields cannot have anonymous message types, so Loom generates a
+message for each inline object field, including one that only holds a `OneOf`.
+The message is named after the enclosing message and the field, for example
+`CreateUserRequestPreferences`. Inline object array elements and map values are
+handled the same way.
+
 #### Metadata Handling
 
 Send fields as gRPC metadata instead of message body:

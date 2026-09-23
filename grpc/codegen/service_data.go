@@ -67,6 +67,9 @@ type (
 		// validations contain the data to generate the validation functions to
 		// validate the initialized type.
 		validations []*ValidationData
+		// anonymousMessages maps the names of the messages generated for
+		// anonymous objects to the paths of the objects.
+		anonymousMessages map[string]string
 	}
 
 	// EndpointData contains the data used to render the code related to
