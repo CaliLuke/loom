@@ -1,0 +1,58 @@
+{
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/": {
+      "post": {
+        "operationId": "service_body_object.method_body_object",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "b": "A accusamus praesentium suscipit est voluptas."
+              },
+              "schema": {
+                "example": {
+                  "b": "Mollitia molestiae voluptas qui."
+                },
+                "properties": {
+                  "b": {
+                    "example": "Eius iure non.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content response."
+          }
+        },
+        "summary": "MethodBodyObject ServiceBodyObject",
+        "tags": [
+          "ServiceBodyObject"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "name": "test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "ServiceBodyObject"
+    }
+  ]
+}

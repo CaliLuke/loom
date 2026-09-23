@@ -8,6 +8,10 @@ import (
 	"unicode"
 )
 
+// inlineHTTPBodyMetaKey marks the attribute of the user type that wraps an
+// inline object request body defined with the Body DSL.
+const inlineHTTPBodyMetaKey = "loom:http:body:inline"
+
 // UnionToObject returns an object adequate to serialize the given union type in
 // HTTP requests and responses. The object has two fields for the discriminator
 // and value, with names determined by the union's Meta tags (defaulting to
@@ -61,6 +65,27 @@ func UnionToObject(att *AttributeExpr) *AttributeExpr {
 		Description: att.Description,
 		Validation:  &ValidationExpr{Required: []string{typeKey, valueKey}},
 	}
+}
+
+// UnwrapInlineHTTPBody returns the inline object request body defined with the
+// Body DSL when att is the user type that wraps it for Go code generation, and
+// att otherwise. The result is a shallow copy of att that keeps its meta,
+// validation and examples. Generators that document the HTTP contract, such as
+// OpenAPI, use it so that the wrapper never becomes a named schema.
+func UnwrapInlineHTTPBody(att *AttributeExpr) *AttributeExpr {
+	if att == nil {
+		return nil
+	}
+	ut, ok := att.Type.(*UserTypeExpr)
+	if !ok {
+		return att
+	}
+	if _, ok := ut.Attribute().Meta[inlineHTTPBodyMetaKey]; !ok {
+		return att
+	}
+	unwrapped := *att
+	unwrapped.Type = ut.Attribute().Type
+	return &unwrapped
 }
 
 // defaultRequestHeaderAttributes returns a map keyed by the names of the
@@ -130,7 +155,7 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 	const suffix = "RequestBody"
 	name := concat(a.Name(), "Request", "Body")
 	if a.Body != nil {
-		a.Body = cloneExplicitHTTPBody(a.Body, name, suffix, a.Service.Name()+"#"+name)
+		a.Body = explicitHTTPRequestBody(a.Body, name, suffix, a.Service.Name()+"#"+name)
 		return a.Body
 	}
 	payload := a.MethodExpr.Payload
@@ -458,6 +483,30 @@ func cloneExplicitHTTPBody(body *AttributeExpr, name, suffix, uid string) *Attri
 	preserveCanonicalOpenAPITypeName(cloned)
 	renameType(cloned, name, suffix)
 	setTypeUID(cloned.Type, uid)
+	return cloned
+}
+
+// explicitHTTPRequestBody returns the request body defined with the Body DSL.
+// It wraps an inline object body in a user type named name, like an implicit
+// request body and an explicit inline response body. Generated code declares
+// every request body object as a named type, and the transforms that build and
+// read it rely on that. The wrapper is a Go code generation device only: it
+// carries no OpenAPI type name, and UnwrapInlineHTTPBody recovers the inline
+// object for documentation.
+func explicitHTTPRequestBody(body *AttributeExpr, name, suffix, uid string) *AttributeExpr {
+	cloned := cloneExplicitHTTPBody(body, name, suffix, uid)
+	if _, ok := cloned.Type.(*Object); !ok {
+		return cloned
+	}
+	wrapped := DupAtt(cloned)
+	delete(wrapped.Meta, "openapi:typename")
+	delete(wrapped.Meta, "openapi:typename:canonical")
+	wrapped.AddMeta(inlineHTTPBodyMetaKey)
+	cloned.Type = &UserTypeExpr{
+		AttributeExpr: wrapped,
+		TypeName:      name,
+		UID:           uid,
+	}
 	return cloned
 }
 

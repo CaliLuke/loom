@@ -1,0 +1,38 @@
+openapi: 3.2.0
+info:
+    title: Loom API
+    version: 0.0.1
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+servers:
+    - name: test api
+      url: http://localhost:80
+      description: Default server for test api
+paths:
+    /:
+        post:
+            tags:
+                - ServiceBodyObjectRequired
+            summary: MethodBodyObjectRequired ServiceBodyObjectRequired
+            operationId: service_body_object_required.method_body_object_required
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                b:
+                                    type: string
+                                    example: Hic qui doloribus aliquam.
+                            example:
+                                b: Et dolorum repellat exercitationem.
+                            required:
+                                - b
+                        example:
+                            b: Quasi suscipit explicabo aspernatur.
+            responses:
+                "204":
+                    description: No Content response.
+components: {}
+tags:
+    - name: ServiceBodyObjectRequired

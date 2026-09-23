@@ -1,0 +1,316 @@
+openapi: 3.2.0
+info:
+    title: Loom API
+    version: 0.0.1
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+servers:
+    - name: test api
+      url: http://localhost:80
+      description: Default server for test api
+paths:
+    /inline_attribute:
+        post:
+            tags:
+                - InlineBody
+            summary: inline_attribute InlineBody
+            operationId: inline_body.inline_attribute
+            parameters:
+                - $ref: '#/components/parameters/QueryQ'
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                "y":
+                                    type: string
+                                    example: Voluptatem rem aperiam similique ipsa deleniti.
+                            example:
+                                "y": Assumenda ad et.
+                        example:
+                            "y": Voluptatibus aut dolorem accusamus molestiae.
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        h:
+                            $ref: '#/components/headers/HHeader'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InlineBodyinlineAttributeResponseBody'
+                            example:
+                                "y": Dicta ad corrupti sed qui at ut.
+    /primitive:
+        post:
+            tags:
+                - InlineBody
+            summary: primitive InlineBody
+            operationId: inline_body.primitive
+            parameters:
+                - $ref: '#/components/parameters/QueryQ'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                    example: Fuga voluptatem dolorem reiciendis vero id.
+                            example:
+                                name: Est quia eius quas aliquid itaque.
+                            required:
+                                - name
+                        example:
+                            name: Velit occaecati error.
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        h:
+                            $ref: '#/components/headers/HHeader'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InlineBodyprimitiveResponseBody'
+                            example:
+                                name: Optio qui sit.
+    /required:
+        post:
+            tags:
+                - InlineBody
+            summary: required InlineBody
+            operationId: inline_body.required
+            parameters:
+                - name: q
+                  in: query
+                  allowEmptyValue: true
+                  required: true
+                  schema:
+                    type: string
+                  example: Corrupti omnis ad.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                item:
+                                    $ref: '#/components/schemas/Item'
+                            example:
+                                item:
+                                    x: Doloremque ipsam id.
+                            required:
+                                - item
+                        example:
+                            item:
+                                x: Repudiandae omnis cumque distinctio quis.
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        h:
+                            $ref: '#/components/headers/HHeader'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InlineBodyrequiredResponseBody'
+                            example:
+                                item:
+                                    x: Eos cum ut.
+    /several:
+        post:
+            tags:
+                - InlineBody
+            summary: several InlineBody
+            operationId: inline_body.several
+            parameters:
+                - $ref: '#/components/parameters/QueryQ'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                count:
+                                    type: integer
+                                    example: 1029847291887334396
+                                    format: int64
+                                item:
+                                    $ref: '#/components/schemas/Item'
+                                items:
+                                    type: array
+                                    items:
+                                        $ref: '#/components/schemas/Item'
+                                    example:
+                                        - x: Et non ea in laboriosam ut.
+                                        - x: Et non ea in laboriosam ut.
+                                        - x: Et non ea in laboriosam ut.
+                                name:
+                                    type: string
+                                    example: Labore iste similique.
+                            example:
+                                count: 804061765839840858
+                                item:
+                                    x: Dolores voluptatibus sed quia dolor ea.
+                                items:
+                                    - x: Dolores voluptatibus sed quia dolor ea.
+                                    - x: Dolores voluptatibus sed quia dolor ea.
+                                    - x: Dolores voluptatibus sed quia dolor ea.
+                                name: Quia vel velit error repellendus est.
+                            required:
+                                - name
+                        example:
+                            count: 8264074377063532431
+                            item:
+                                x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
+                            items:
+                                - x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
+                                - x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
+                                - x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
+                                - x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
+                            name: Et voluptas non laudantium.
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        h:
+                            $ref: '#/components/headers/HHeader'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InlineBodyseveralResponseBody'
+                            example:
+                                item:
+                                    x: Corporis voluptas provident perspiciatis.
+                                items:
+                                    - x: Corporis voluptas provident perspiciatis.
+                                    - x: Corporis voluptas provident perspiciatis.
+                                    - x: Corporis voluptas provident perspiciatis.
+                                    - x: Corporis voluptas provident perspiciatis.
+                                name: Voluptas doloremque maiores impedit ut sint.
+    /single:
+        post:
+            tags:
+                - InlineBody
+            summary: single InlineBody
+            operationId: inline_body.single
+            parameters:
+                - $ref: '#/components/parameters/QueryQ'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                item:
+                                    $ref: '#/components/schemas/Item'
+                            example:
+                                item:
+                                    x: Sit saepe dolore.
+                        example:
+                            item:
+                                x: Ipsa quos quidem quaerat molestias.
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        h:
+                            $ref: '#/components/headers/HHeader'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InlineBodysingleResponseBody'
+                            example:
+                                item:
+                                    x: Nesciunt ipsam autem.
+components:
+    schemas:
+        InlineBodyinlineAttributeResponseBody:
+            type: object
+            properties:
+                "y":
+                    type: string
+                    example: Ut error est omnis praesentium.
+            example:
+                "y": Omnis quia est.
+        InlineBodyprimitiveResponseBody:
+            type: object
+            properties:
+                name:
+                    type: string
+                    example: Consectetur doloribus.
+            example:
+                name: Rerum iusto inventore sequi saepe sint.
+        InlineBodyrequiredResponseBody:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/Item'
+            example:
+                item:
+                    x: Ea est expedita natus recusandae.
+            required:
+                - item
+        InlineBodyseveralResponseBody:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/Item'
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Item'
+                    example:
+                        - x: Tenetur ipsam sunt.
+                        - x: Tenetur ipsam sunt.
+                        - x: Tenetur ipsam sunt.
+                name:
+                    type: string
+                    example: Modi eligendi molestias temporibus.
+            example:
+                item:
+                    x: Voluptas ipsam hic magni eum.
+                items:
+                    - x: Voluptas ipsam hic magni eum.
+                    - x: Voluptas ipsam hic magni eum.
+                name: Qui eaque consequatur perspiciatis dolorem.
+            required:
+                - name
+        InlineBodysingleResponseBody:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/Item'
+            example:
+                item:
+                    x: Eos ut est est facere vel.
+        Item:
+            type: object
+            properties:
+                x:
+                    type: string
+                    example: Qui architecto aut dolorum.
+            example:
+                x: Ab neque doloribus architecto dolorem aut.
+    parameters:
+        QueryQ:
+            name: q
+            in: query
+            allowEmptyValue: true
+            schema:
+                type: string
+            example: Corrupti omnis ad.
+    headers:
+        HHeader:
+            schema:
+                type: string
+                example: Facilis quasi non.
+            example: Facilis quasi non.
+tags:
+    - name: InlineBody

@@ -517,6 +517,13 @@ func TestFiles(t *testing.T) {
 		{"array", testdata.ArrayValidationDSL},
 		// Error examples
 		{"error-examples", testdata.ErrorExamplesDSL},
+		// Inline request bodies
+		{"body-inline-object", testdata.PayloadBodyInlineObjectDSL},
+		{"body-object", testdata.PayloadBodyObjectDSL},
+		{"body-object-required", testdata.PayloadBodyObjectRequiredDSL},
+		{"body-object-validate", testdata.PayloadBodyObjectValidateDSL},
+		{"inline-body-selection", testdata.InlineBodySelectionDSL},
+		{"inline-body-shared-method-name", testdata.InlineBodySharedMethodNameDSL},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {

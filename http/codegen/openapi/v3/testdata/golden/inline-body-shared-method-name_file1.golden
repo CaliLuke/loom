@@ -1,0 +1,66 @@
+openapi: 3.2.0
+info:
+    title: Loom API
+    version: 0.0.1
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+servers:
+    - name: test api
+      url: http://localhost:80
+      description: Default server for test api
+paths:
+    /First/do:
+        post:
+            tags:
+                - First
+            summary: do First
+            operationId: first.do
+            parameters:
+                - $ref: '#/components/parameters/QueryQ'
+            requestBody:
+                $ref: '#/components/requestBodies/FirstDoRequestBody'
+            responses:
+                "204":
+                    $ref: '#/components/responses/NoContentResponse'
+    /Second/do:
+        post:
+            tags:
+                - Second
+            summary: do Second
+            operationId: second.do
+            parameters:
+                - $ref: '#/components/parameters/QueryQ'
+            requestBody:
+                $ref: '#/components/requestBodies/FirstDoRequestBody'
+            responses:
+                "204":
+                    $ref: '#/components/responses/NoContentResponse'
+components:
+    parameters:
+        QueryQ:
+            name: q
+            in: query
+            allowEmptyValue: true
+            schema:
+                type: string
+            example: Corrupti omnis ad.
+    requestBodies:
+        FirstDoRequestBody:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            name:
+                                type: string
+                                example: Fugit praesentium expedita illum unde.
+                        example:
+                            name: Incidunt exercitationem deleniti quo.
+                    example:
+                        name: Cupiditate et et ut ipsa laboriosam et.
+    responses:
+        NoContentResponse:
+            description: No Content response.
+tags:
+    - name: First
+    - name: Second

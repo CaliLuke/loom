@@ -4,10 +4,8 @@ func DecodeMethodBodyObjectRequiredRequest(mux loomhttp.Muxer, decoder func(*htt
 	return func(r *http.Request) (*servicebodyobjectrequired.MethodBodyObjectRequiredPayload, error) {
 		var payload *servicebodyobjectrequired.MethodBodyObjectRequiredPayload
 		var (
-			body struct {
-				B *string `form:"b" json:"b" xml:"b"`
-			}
-			err error
+			body MethodBodyObjectRequiredRequestBody
+			err  error
 		)
 		err = decoder(r).Decode(&body)
 		if err != nil {
@@ -20,13 +18,11 @@ func DecodeMethodBodyObjectRequiredRequest(mux loomhttp.Muxer, decoder func(*htt
 			}
 			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
-		if body.B == nil {
-			err = loom.MergeErrors(err, loom.MissingFieldError("b", "body"))
-		}
+		err = ValidateMethodBodyObjectRequiredRequestBody(&body)
 		if err != nil {
 			return payload, err
 		}
-		payload = NewMethodBodyObjectRequiredPayload(body)
+		payload = NewMethodBodyObjectRequiredPayload(&body)
 
 		return payload, nil
 	}

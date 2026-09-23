@@ -1,0 +1,111 @@
+{
+  "components": {
+    "parameters": {
+      "QueryQ": {
+        "allowEmptyValue": true,
+        "example": "Corrupti omnis ad.",
+        "in": "query",
+        "name": "q",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "requestBodies": {
+      "FirstDoRequestBody": {
+        "content": {
+          "application/json": {
+            "example": {
+              "name": "Cupiditate et et ut ipsa laboriosam et."
+            },
+            "schema": {
+              "example": {
+                "name": "Incidunt exercitationem deleniti quo."
+              },
+              "properties": {
+                "name": {
+                  "example": "Fugit praesentium expedita illum unde.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "responses": {
+      "NoContentResponse": {
+        "description": "No Content response."
+      }
+    }
+  },
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/First/do": {
+      "post": {
+        "operationId": "first.do",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/QueryQ"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FirstDoRequestBody"
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "do First",
+        "tags": [
+          "First"
+        ]
+      }
+    },
+    "/Second/do": {
+      "post": {
+        "operationId": "second.do",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/QueryQ"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FirstDoRequestBody"
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "summary": "do Second",
+        "tags": [
+          "Second"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "name": "test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "First"
+    },
+    {
+      "name": "Second"
+    }
+  ]
+}

@@ -70,7 +70,7 @@ func analyzeEndpointBodies(a *Analyzer, endpoint *transportir.Endpoint) *Endpoin
 }
 
 func analyzeRequestBody(a *Analyzer, endpoint *transportir.Endpoint) *Schema {
-	body := endpoint.Request.Body
+	body := expr.UnwrapInlineHTTPBody(endpoint.Request.Body)
 	if endpoint.Request.DocumentBody != nil {
 		body = endpoint.Request.DocumentBody
 	}
