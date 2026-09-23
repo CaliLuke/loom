@@ -127,14 +127,13 @@ func TestProtoFilesExposeStableServiceAndMessageShape(t *testing.T) {
 func TestProtoc(t *testing.T) {
 	const code = testdata.UnaryRPCsProtoCode
 
-	fakeBin := filepath.Join(os.TempDir(), t.Name()+"-fakeprotoc")
+	fakeBin := filepath.Join(t.TempDir(), "fakeprotoc")
 	if runtime.GOOS == "windows" {
 		fakeBin += ".exe"
 	}
 	out, err := exec.Command("go", "build", "-o", fakeBin, "./testdata/protoc").CombinedOutput()
 	t.Log("go build output: ", string(out))
 	require.NoError(t, err, "compile a fake protoc that requires a prefix")
-	t.Cleanup(func() { assert.NoError(t, os.Remove(fakeBin)) })
 
 	cases := []struct {
 		Name string
