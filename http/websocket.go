@@ -2,7 +2,9 @@ package http
 
 import (
 	"context"
+	"encoding/json/v2"
 	"errors"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -33,12 +35,14 @@ type (
 	//
 	// Close is terminal: once it has been called, the stream never becomes
 	// usable again, even when the connection is attached later with SetConn.
+	// A failed ReadMessage is also terminal for reads.
 	WebSocketStream struct {
-		// connLock guards conn, closed, and closeErr.
+		// connLock guards conn, closed, closeErr, and readErr.
 		connLock sync.RWMutex
 		conn     *websocket.Conn
 		closed   bool
 		closeErr error
+		readErr  error
 		policy   StreamWritePolicy
 
 		writeLock sync.Mutex
@@ -89,18 +93,53 @@ func (s *WebSocketStream) SetConn(conn *websocket.Conn) {
 	s.conn = conn
 }
 
-// ReadJSON reads one JSON WebSocket frame while honoring ctx cancellation. It
+// ReadJSON reads one JSON WebSocket message into v while honoring ctx
+// cancellation. The message is decoded with encoding/json/v2, the same
+// decoder used for HTTP request bodies. An empty or whitespace-only message
+// returns io.ErrUnexpectedEOF. A decode error leaves the stream readable, but
+// a failed connection read is terminal, as described for ReadMessage. It
 // returns ErrWebSocketStreamClosed when no connection is attached or the
-// stream has been closed. As with Gorilla connections, at most one goroutine
-// may call ReadJSON at a time.
+// stream has been closed. At most one goroutine may read from the stream at a
+// time.
 func (s *WebSocketStream) ReadJSON(ctx context.Context, v any) error {
-	return s.withContext(ctx, func() error {
-		conn, err := s.activeConn()
+	data, err := s.ReadMessage(ctx)
+	if err != nil {
+		return err
+	}
+	if jsonWhitespaceOnly(data) {
+		return io.ErrUnexpectedEOF
+	}
+	return json.Unmarshal(data, v)
+}
+
+// ReadMessage reads the payload of one text or binary WebSocket message while
+// honoring ctx cancellation. Every error it returns is a connection, close,
+// or context failure, never a payload decoding failure. A failed connection
+// read is terminal because a Gorilla connection cannot recover from one: the
+// stream records the failure and returns it from every later ReadMessage and
+// ReadJSON call without reading the connection again. A context that is
+// already done returns its error without reading or recording anything. A
+// context canceled during a read returns its error and closes the stream, so
+// later calls return ErrWebSocketStreamClosed, which is also returned when no
+// connection is attached or the stream has been closed. At most one goroutine
+// may read from the stream at a time.
+func (s *WebSocketStream) ReadMessage(ctx context.Context) ([]byte, error) {
+	var data []byte
+	err := s.withContext(ctx, func() error {
+		conn, err := s.readableConn()
 		if err != nil {
 			return err
 		}
-		return conn.ReadJSON(v)
+		_, data, err = conn.ReadMessage()
+		if err != nil {
+			s.recordReadErr(err)
+		}
+		return err
 	})
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // WriteJSON writes one JSON WebSocket frame while honoring ctx cancellation.
@@ -195,6 +234,26 @@ func (s *WebSocketStream) activeConn() (*websocket.Conn, error) {
 		return nil, ErrWebSocketStreamClosed
 	}
 	return s.conn, nil
+}
+
+func (s *WebSocketStream) readableConn() (*websocket.Conn, error) {
+	s.connLock.RLock()
+	defer s.connLock.RUnlock()
+	if s.closed || s.conn == nil {
+		return nil, ErrWebSocketStreamClosed
+	}
+	if s.readErr != nil {
+		return nil, s.readErr
+	}
+	return s.conn, nil
+}
+
+func (s *WebSocketStream) recordReadErr(err error) {
+	s.connLock.Lock()
+	defer s.connLock.Unlock()
+	if s.readErr == nil {
+		s.readErr = err
+	}
 }
 
 func (s *WebSocketStream) withContext(ctx context.Context, fn func() error) error {

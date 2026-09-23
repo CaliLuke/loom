@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"bufio"
 	"context"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -183,6 +184,15 @@ func ServeWebSocket(w http.ResponseWriter, r *http.Request, spec WebSocketHandle
 
 // ReceiveWebSocketRequest reads, validates, and dispatches one JSON-RPC
 // WebSocket request frame.
+//
+// It returns io.EOF when the peer closed the connection with a normal closure
+// (1000). It returns every other connection, close, or context failure
+// unchanged and writes no frame. A failed connection read is terminal: later
+// calls return the same failure without reading the connection again. A
+// context canceled during a read closes the stream, so later calls return
+// loomhttp.ErrWebSocketStreamClosed; a context that is already done returns
+// its error without reading. A received message that is not valid JSON gets a
+// Parse error (-32700) frame and a nil return, so the caller can keep reading.
 func ReceiveWebSocketRequest(
 	ctx context.Context,
 	stream *loomhttp.WebSocketStream,
@@ -190,11 +200,15 @@ func ReceiveWebSocketRequest(
 	dispatch WebSocketDispatch,
 	sendError WebSocketErrorSender,
 ) error {
-	var request RawRequest
-	if err := stream.ReadJSON(ctx, &request); err != nil {
-		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-			return err
+	data, err := stream.ReadMessage(ctx)
+	if err != nil {
+		if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+			return io.EOF
 		}
+		return err
+	}
+	var request RawRequest
+	if err := json.Unmarshal(data, &request); err != nil {
 		if sendErr := sendError(ctx, nil, ParseError, "Parse error", nil); sendErr != nil {
 			return fmt.Errorf("failed to send parse error: %w", sendErr)
 		}

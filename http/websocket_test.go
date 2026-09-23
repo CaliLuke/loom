@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	stdhttp "net/http"
 	"net/http/httptest"
@@ -105,6 +106,179 @@ func TestWebSocketStreamCloseIsTerminal(t *testing.T) {
 			require.ErrorIs(t, stream.WriteJSON(context.Background(), map[string]string{"k": "v"}), loomhttp.ErrWebSocketStreamClosed)
 			require.NoError(t, stream.Close())
 		})
+	}
+}
+
+func TestWebSocketStreamReadMessage(t *testing.T) {
+	upgrader := websocket.Upgrader{}
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer func() {
+			if closeErr := conn.Close(); closeErr != nil {
+				t.Errorf("close: %v", closeErr)
+			}
+		}()
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"k":"v"}`)); err != nil {
+			t.Errorf("write: %v", err)
+			return
+		}
+		closeMessage := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		if err := conn.WriteControl(websocket.CloseMessage, closeMessage, time.Now().Add(time.Second)); err != nil {
+			t.Errorf("write close: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	conn, resp, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
+	require.NoError(t, err)
+	if resp != nil && resp.Body != nil {
+		require.NoError(t, resp.Body.Close())
+	}
+	stream := loomhttp.NewWebSocketStream(conn)
+	defer func() {
+		require.NoError(t, stream.Close())
+	}()
+
+	data, err := stream.ReadMessage(context.Background())
+	require.NoError(t, err)
+	require.JSONEq(t, `{"k":"v"}`, string(data))
+
+	for range 3 {
+		_, err = stream.ReadMessage(context.Background())
+		require.True(t, websocket.IsCloseError(err, websocket.CloseNormalClosure), "err = %v", err)
+	}
+}
+
+func TestWebSocketStreamFailedReadIsTerminal(t *testing.T) {
+	conn, cleanup := newIdleWebSocketConn(t)
+	defer cleanup()
+	stream := loomhttp.NewWebSocketStream(conn)
+	defer func() {
+		require.NoError(t, stream.Close())
+	}()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
+
+	// gorilla/websocket panics after 1000 reads of a failed connection, so
+	// the stream must stop reading the connection after the first failure.
+	for range 1100 {
+		_, err := stream.ReadMessage(context.Background())
+		var timeout interface{ Timeout() bool }
+		require.ErrorAs(t, err, &timeout)
+		require.True(t, timeout.Timeout())
+	}
+	var timeout interface{ Timeout() bool }
+	require.ErrorAs(t, stream.ReadJSON(context.Background(), new(map[string]string)), &timeout)
+	require.True(t, timeout.Timeout())
+}
+
+func TestWebSocketStreamFailedReadJSONIsTerminal(t *testing.T) {
+	conn, cleanup := newIdleWebSocketConn(t)
+	defer cleanup()
+	stream := loomhttp.NewWebSocketStream(conn)
+	defer func() {
+		require.NoError(t, stream.Close())
+	}()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
+
+	// gorilla/websocket panics after 1000 reads of a failed connection, so
+	// ReadJSON must stop reading the connection after the first failure.
+	for range 1100 {
+		err := stream.ReadJSON(context.Background(), new(map[string]string))
+		var timeout interface{ Timeout() bool }
+		require.ErrorAs(t, err, &timeout)
+		require.True(t, timeout.Timeout())
+	}
+}
+
+type webSocketDecodeTarget struct {
+	K string `json:"k"`
+}
+
+func TestWebSocketStreamReadJSONDecodeErrorIsNotTerminal(t *testing.T) {
+	// Every case reads one frame from the same stream, in order, so the
+	// valid and close cases also prove earlier decode errors are not terminal.
+	tests := []struct {
+		name  string
+		frame string
+		check func(t *testing.T, err error, got webSocketDecodeTarget)
+	}{
+		{name: "malformed", frame: `{"k":x}`, check: requireDecodeError(false)},
+		{name: "truncated", frame: `{"k":`, check: requireDecodeError(true)},
+		{name: "empty", frame: "", check: requireDecodeError(true)},
+		{name: "whitespace only", frame: " \n\t ", check: requireDecodeError(true)},
+		{name: "trailing data", frame: `{"k":"v"} x`, check: requireDecodeError(false)},
+		{name: "duplicate key", frame: `{"k":"a","k":"b"}`, check: requireDecodeError(false)},
+		{name: "invalid UTF-8", frame: "{\"k\":\"\xff\"}", check: requireDecodeError(false)},
+		{name: "wrong-case field is not matched", frame: `{"K":"v"}`, check: func(t *testing.T, err error, got webSocketDecodeTarget) {
+			require.NoError(t, err)
+			require.Empty(t, got.K)
+		}},
+		{name: "valid", frame: `{"k":"v"}`, check: func(t *testing.T, err error, got webSocketDecodeTarget) {
+			require.NoError(t, err)
+			require.Equal(t, "v", got.K)
+		}},
+	}
+	upgrader := websocket.Upgrader{}
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer func() {
+			if closeErr := conn.Close(); closeErr != nil {
+				t.Errorf("close: %v", closeErr)
+			}
+		}()
+		for _, test := range tests {
+			if err := conn.WriteMessage(websocket.TextMessage, []byte(test.frame)); err != nil {
+				t.Errorf("write: %v", err)
+				return
+			}
+		}
+		closeMessage := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		if err := conn.WriteControl(websocket.CloseMessage, closeMessage, time.Now().Add(time.Second)); err != nil {
+			t.Errorf("write close: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	conn, resp, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
+	require.NoError(t, err)
+	if resp != nil && resp.Body != nil {
+		require.NoError(t, resp.Body.Close())
+	}
+	stream := loomhttp.NewWebSocketStream(conn)
+	defer func() {
+		require.NoError(t, stream.Close())
+	}()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var got webSocketDecodeTarget
+			err := stream.ReadJSON(context.Background(), &got)
+			test.check(t, err, got)
+		})
+	}
+	t.Run("normal closure", func(t *testing.T) {
+		err := stream.ReadJSON(context.Background(), new(webSocketDecodeTarget))
+		require.True(t, websocket.IsCloseError(err, websocket.CloseNormalClosure), "err = %v", err)
+	})
+}
+
+// requireDecodeError asserts a non-close decode error and whether it wraps
+// io.ErrUnexpectedEOF.
+func requireDecodeError(unexpectedEOF bool) func(*testing.T, error, webSocketDecodeTarget) {
+	return func(t *testing.T, err error, _ webSocketDecodeTarget) {
+		t.Helper()
+		require.Error(t, err)
+		var closeErr *websocket.CloseError
+		require.False(t, errors.As(err, &closeErr), "decode error must not be a close error: %v", err)
+		require.Equal(t, unexpectedEOF, errors.Is(err, io.ErrUnexpectedEOF), "err = %v", err)
 	}
 }
 

@@ -629,8 +629,10 @@ func (s *chatSvc) HandleStream(ctx context.Context, stream chat.Stream) error {
     
     // Handle incoming messages
     for {
-        _, err := stream.Recv(ctx)
-        if err != nil {
+        if err := stream.Recv(ctx); err != nil {
+            if errors.Is(err, io.EOF) {
+                return nil // client closed normally
+            }
             return err
         }
         // Messages are automatically dispatched to method handlers
@@ -694,10 +696,18 @@ func (s *chatSvc) Echo(ctx context.Context, p *chat.EchoPayload,
   - When replying to a client request that had an `id`, use `SendResponse` to
     correlate via that `id` automatically.
 - Error handling:
-  - Invalid messages (parse errors, missing method) trigger JSON-RPC error
-    responses when an `id` is present; otherwise they are ignored to keep the
-    connection alive.
-  - Unexpected WebSocket close codes abort the loop and close the connection.
+  - A received message that is not valid JSON gets a Parse error (`-32700`)
+    frame, and `Recv` returns nil so the loop keeps reading. Invalid requests
+    and unknown methods get error responses when an `id` is present;
+    otherwise they are ignored to keep the connection alive.
+  - A normal closure (`1000`) from the client makes `Recv` return `io.EOF`.
+    Every other close code (including `1001` and `1006`), network or
+    deadline failure, and context error is returned unchanged, with no
+    frame written. A failed connection read is terminal: later `Recv` calls
+    return the same error without reading the connection again. A context
+    canceled during a read closes the stream, so later calls return
+    `loomhttp.ErrWebSocketStreamClosed`. Return from `HandleStream` on any
+    error.
 
 ### Mixed Transports: Content Negotiation
 

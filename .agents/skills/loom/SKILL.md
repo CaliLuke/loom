@@ -470,6 +470,15 @@ requirement retain AND semantics.
   interface rather than adding parallel socket lifecycle code. `Close` is
   terminal, even before the lazy server upgrade: later `Send`/`Recv` return
   `loomhttp.ErrWebSocketStreamClosed`. Call `Recv` from one goroutine only.
+- A failed WebSocket connection read is terminal: later `Recv` calls return
+  the same error, so return from the receive loop. A context canceled during a
+  read closes the stream, so later calls return
+  `loomhttp.ErrWebSocketStreamClosed`; an already-done context returns its
+  error without reading. A decode error (including
+  `io.ErrUnexpectedEOF` for an empty message) leaves the stream readable.
+  Messages decode with strict `encoding/json/v2`. JSON-RPC WebSocket `Recv`
+  returns `io.EOF` on a normal closure and answers invalid JSON with a Parse
+  error frame itself.
 
 Loom also emits the framework-owned `x-loom-async` OpenAPI extension for richer
 SSE and WebSocket handshake/message contracts.

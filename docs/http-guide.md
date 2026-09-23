@@ -764,6 +764,32 @@ closed before its lazy upgrade, later `Send` and `Recv` calls return
 `loomhttp.ErrWebSocketStreamClosed`, and a connection upgraded after the
 close is closed immediately. Only one goroutine may call `Recv` at a time.
 
+`Recv` separates connection failures from decode failures:
+
+- A failed connection read (a close frame, an abrupt disconnect, or a read
+  deadline expiry) is terminal. Later `Recv` calls return the same error
+  without reading the socket again, so return from your receive loop on
+  such an error.
+- A context canceled during a read returns the context error and closes the
+  stream, so later calls return `loomhttp.ErrWebSocketStreamClosed`. A
+  context that is already done returns its error without reading, and a
+  later call with a live context reads normally.
+- A message that fails to decode returns the decode error, but the stream
+  stays readable and the next `Recv` reads the next message.
+- An empty or whitespace-only message returns `io.ErrUnexpectedEOF`.
+- A client `Recv` returns `io.EOF` when the server closes with a normal
+  closure (`1000`). A server `Recv` returns `io.EOF` when the client sends a
+  JSON `null` message.
+
+Messages are decoded with `encoding/json/v2`, as HTTP request bodies are.
+Decoding is strict: data after the JSON value, duplicate object keys, and
+invalid UTF-8 are rejected, and field names are matched case-sensitively.
+
+Code that owns a raw `loomhttp.WebSocketStream` can call
+`ReadMessage(ctx)` to read one message payload without decoding it. Every
+error it returns is a connection, close, or context failure, and it follows
+the same terminal-read rule.
+
 Generated HTTP and JSON-RPC server constructors accept an optional final
 `loomhttp.StreamWritePolicy`. Constructing the policy validates the timeout;
 each WebSocket write installs a fresh deadline and clears it afterward.
