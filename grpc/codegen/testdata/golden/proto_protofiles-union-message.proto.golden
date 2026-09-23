@@ -1,0 +1,91 @@
+
+syntax = "proto3";
+
+package pickunion;
+
+option go_package = "/pickunionpb";
+
+// Service is the pickunion service interface.
+service Pickunion {
+	// Echo implements echo.
+	rpc Echo (EchoRequest) returns (EchoResponse);
+	// Named implements named.
+	rpc Named (Choice) returns (Choice);
+	// Watch implements watch.
+	rpc Watch (WatchRequest) returns (stream WatchResponse);
+	// Upload implements upload.
+	rpc Upload (stream UploadStreamingRequest) returns (UploadResponse);
+	// Relay implements relay.
+	rpc Relay (stream RelayStreamingRequest) returns (stream RelayResponse);
+}
+
+message EchoRequest {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message Leaf {
+	optional string name = 1;
+}
+
+message Other {
+	optional sint64 count = 1;
+}
+
+message EchoResponse {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message Choice {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message WatchRequest {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message WatchResponse {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message UploadStreamingRequest {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message UploadResponse {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message RelayStreamingRequest {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message RelayResponse {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}

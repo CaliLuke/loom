@@ -31,7 +31,7 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *transform
 }
 
 func compatibleTransformAttributes(source, target *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
-	if err := codegen.IsCompatible(source.Type, target.Type, "", ""); err == nil {
+	if err := protoMessageCompatible(source.Type, target.Type, "", ""); err == nil {
 		return source, target, nil
 	}
 	if ta.proto {
@@ -307,6 +307,18 @@ func unAlias(at *expr.AttributeExpr) *expr.AttributeExpr {
 		return prim
 	}
 	return at
+}
+
+// protoMessageCompatible returns an error if a and b cannot be transformed
+// into one another without unwrapping. Unlike codegen.IsCompatible, it
+// rejects a union and an object, so that a union and the protocol buffer
+// message that wraps it in a "field" attribute are unwrapped before the
+// transform.
+func protoMessageCompatible(a, b expr.DataType, actx, bctx string) error {
+	if expr.IsUnion(a) != expr.IsUnion(b) {
+		return fmt.Errorf("%s is a %s but %s type is %s", actx, a.Name(), bctx, b.Name())
+	}
+	return codegen.IsCompatible(a, b, actx, bctx)
 }
 
 // isUnionMessage returns true if the given attribute is a union message.

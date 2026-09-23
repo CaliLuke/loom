@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/transformassign"
@@ -125,22 +127,9 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 		err      error
 	)
 
-	if err := codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
-		if ta.proto {
-			name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
-			initCode += renderJenLine(exprCode(targetVar).Op(":=").Op("&").Id(name).Values())
-			targetVar += ".Field"
-			newVar = false
-			target = unwrapAttr(expr.DupAtt(target))
-		} else {
-			source = unwrapAttr(expr.DupAtt(source))
-			sourceVar += ".Field"
-		}
-		if err = codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
-			return "", err
-		}
-	}
-
+	// The message that holds a union names the Go wrapper types of its oneof
+	// branches. It is the wrapper message itself when a union is unwrapped
+	// below.
 	if ta.proto {
 		if isUnionMessage(target) {
 			ta = dupTransformAttrs(ta)
@@ -150,6 +139,22 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 		if isUnionMessage(source) {
 			ta = dupTransformAttrs(ta)
 			ta.message = ta.SourceCtx.Scope.Ref(source, ta.SourceCtx.Pkg(source))
+		}
+	}
+
+	if err := protoMessageCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
+		if ta.proto {
+			name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
+			initCode += renderJenLine(exprCode(targetVar).Op(":=").Op("&").Id(name).Values())
+			targetVar += "." + wrapperGoFieldName(target, ta.TargetCtx)
+			newVar = false
+			target = unwrapAttr(expr.DupAtt(target))
+		} else {
+			sourceVar += "." + wrapperGoFieldName(source, ta.SourceCtx)
+			source = unwrapAttr(expr.DupAtt(source))
+		}
+		if err = codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
+			return "", err
 		}
 	}
 
@@ -177,6 +182,13 @@ func transformAttributeByKind(source, target *expr.AttributeExpr, sourceVar, tar
 		if ta.proto {
 			// At top-level we do not expect pointer-to-interface unions.
 			return transformUnionToProto(source, target, sourceVar, targetVar, false, ta)
+		}
+		if newVar {
+			// A top-level union is the payload or result of a method whose
+			// message wraps its oneof, and the service refers to it by pointer.
+			decl := renderJenLine(jen.Var().Id(targetVar).Add(exprCode(ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)))))
+			code, err := transformUnionFromProto(source, target, sourceVar, targetVar, true, ta)
+			return decl + code, err
 		}
 		return transformUnionFromProto(source, target, sourceVar, targetVar, false, ta)
 	case source.Type.Kind() == expr.AnyKind || target.Type.Kind() == expr.AnyKind:

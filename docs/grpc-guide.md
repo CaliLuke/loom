@@ -185,6 +185,25 @@ every generated message, including nested user types and inline objects. For
 example, two constructor unions of the same types in one message both have the
 branches `leaf` and `other`.
 
+A method payload or result that is a union, such as `Payload(OneOf(Leaf, Other))`
+or a `Type` defined as a `OneOf`, is a message that holds one `oneof` named
+`field`. When a branch has that name, Loom adds `_oneof` to the oneof name
+until it differs from every branch name, for example `field_oneof`. The
+branches take the numbers 1, 2 and so on, in declaration order.
+This applies to unary and streaming payloads and results:
+
+```proto
+message EchoRequest {
+    oneof field {
+        Leaf leaf = 1;
+        Other other = 2;
+    }
+}
+```
+
+The generated server rejects a request message with no branch set with
+`InvalidArgument`.
+
 #### Metadata Handling
 
 Send fields as gRPC metadata instead of message body:

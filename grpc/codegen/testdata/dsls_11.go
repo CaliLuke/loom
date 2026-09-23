@@ -79,3 +79,77 @@ var BlockOneOfFieldDSL = func() {
 		})
 	})
 }
+
+// UnionMessageDSL uses constructor OneOf unions directly as the payload and
+// result of methods, anonymous and named with Type, in every unary and
+// streaming position. Each request and response message wraps the union in
+// a oneof whose branches are numbered consecutively from 1.
+var UnionMessageDSL = func() {
+	var Leaf = Type("Leaf", func() {
+		Field(1, "name", String)
+	})
+	var Other = Type("Other", func() {
+		Field(1, "count", Int)
+	})
+	var Choice = Type("Choice", OneOf(Leaf, Other))
+	Service("pickunion", func() {
+		Method("echo", func() {
+			Payload(OneOf(Leaf, Other))
+			Result(OneOf(Leaf, Other))
+			GRPC(func() {})
+		})
+		Method("named", func() {
+			Payload(Choice)
+			Result(Choice)
+			GRPC(func() {})
+		})
+		Method("watch", func() {
+			Payload(OneOf(Leaf, Other))
+			StreamingResult(OneOf(Leaf, Other))
+			GRPC(func() {})
+		})
+		Method("upload", func() {
+			StreamingPayload(OneOf(Leaf, Other))
+			Result(OneOf(Leaf, Other))
+			GRPC(func() {})
+		})
+		Method("relay", func() {
+			StreamingPayload(OneOf(Leaf, Other))
+			StreamingResult(OneOf(Leaf, Other))
+			GRPC(func() {})
+		})
+	})
+}
+
+// UnionMessageBranchNameDSL uses unions directly as payloads and results
+// whose branch names collide with the name of the oneof of the message that
+// wraps them: a branch named "field", and branches named "field" and
+// "field_oneof".
+var UnionMessageBranchNameDSL = func() {
+	var FieldType = Type("Field", func() {
+		Field(1, "name", String)
+	})
+	var FieldOneofType = Type("FieldOneof", func() {
+		Field(1, "count", Int)
+	})
+	var Other = Type("Other", func() {
+		Field(1, "flag", Boolean)
+	})
+	Service("branchname", func() {
+		Method("echo", func() {
+			Payload(OneOf(FieldType, Other))
+			Result(OneOf(FieldType, Other))
+			GRPC(func() {})
+		})
+		Method("clash", func() {
+			Payload(OneOf(FieldType, FieldOneofType))
+			Result(OneOf(FieldType, FieldOneofType))
+			GRPC(func() {})
+		})
+		Method("relay", func() {
+			StreamingPayload(OneOf(FieldType, Other))
+			StreamingResult(OneOf(FieldType, Other))
+			GRPC(func() {})
+		})
+	})
+}
