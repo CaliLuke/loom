@@ -46,17 +46,17 @@ func compatibleTransformAttributes(source, target *expr.AttributeExpr, ta *trans
 }
 
 func transformArrayAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
-	return transformAttributeHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, ta, seen)
+	return transformElementHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, ta, seen)
 }
 
 func transformMapAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
 	sm := expr.AsMap(source.Type)
 	tm := expr.AsMap(target.Type)
-	helpers, err := transformAttributeHelpers(sm.ElemType, tm.ElemType, ta, seen)
+	helpers, err := transformElementHelpers(sm.ElemType, tm.ElemType, ta, seen)
 	if err != nil {
 		return nil, err
 	}
-	other, err := transformAttributeHelpers(sm.KeyType, tm.KeyType, ta, seen)
+	other, err := transformElementHelpers(sm.KeyType, tm.KeyType, ta, seen)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func transformObjectAttributeHelpers(source, target *expr.AttributeExpr, ta *tra
 func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
 	switch {
 	case expr.IsArray(source.Type):
-		return transformAttributeHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, ta, seen)
+		return transformElementHelpers(expr.AsArray(source.Type).ElemType, expr.AsArray(target.Type).ElemType, ta, seen)
 	case expr.IsMap(source.Type):
 		return collectMapHelpers(source, target, ta, seen)
 	case expr.IsUnion(source.Type):
@@ -122,11 +122,11 @@ func collectHelpers(source, target *expr.AttributeExpr, req bool, ta *transformA
 }
 
 func collectMapHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
-	data, err := transformAttributeHelpers(expr.AsMap(source.Type).KeyType, expr.AsMap(target.Type).KeyType, ta, seen)
+	data, err := transformElementHelpers(expr.AsMap(source.Type).KeyType, expr.AsMap(target.Type).KeyType, ta, seen)
 	if err != nil {
 		return nil, err
 	}
-	helpers, err := transformAttributeHelpers(expr.AsMap(source.Type).ElemType, expr.AsMap(target.Type).ElemType, ta, seen)
+	helpers, err := transformElementHelpers(expr.AsMap(source.Type).ElemType, expr.AsMap(target.Type).ElemType, ta, seen)
 	if err != nil {
 		return nil, err
 	}

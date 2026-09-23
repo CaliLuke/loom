@@ -24,7 +24,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		return "", err
 	}
 	buf, targetElemVar, loopVar, rangeOn := transformArrayInitBuffer(targetVar, sourceVar, targetRef, targetPtr, sourcePtr, newVar)
-	elemCode, err := transformAttribute(src, tgt, "val", targetElemVar, false, ta)
+	elemCode, err := transformElement(src, tgt, "val", targetElemVar, false, ta)
 	if err != nil {
 		return "", err
 	}
@@ -148,7 +148,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	keyVar := "key"
 	if !canDirectAssignPrimitive(source.KeyType, target.KeyType, ta) {
 		keyVar = "tk"
-		keyCode, err := transformAttribute(source.KeyType, target.KeyType, "key", keyVar, true, ta)
+		keyCode, err := transformElement(source.KeyType, target.KeyType, "key", keyVar, true, ta)
 		if err != nil {
 			return "", err
 		}
@@ -157,7 +157,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	elemVar := "val"
 	if !canDirectAssignPrimitive(src, tgt, ta) {
 		elemVar = "tv" + suffix
-		elemCode, err := transformAttribute(src, tgt, "val", elemVar, true, ta)
+		elemCode, err := transformElement(src, tgt, "val", elemVar, true, ta)
 		if err != nil {
 			return "", err
 		}

@@ -112,6 +112,12 @@ func isEmpty(dt expr.DataType) bool {
 
 // hasAnyType recursively checks if the given attribute uses the Any type.
 func hasAnyType(att *expr.AttributeExpr) bool {
+	return hasAnyTypeSeen(att, make(map[string]struct{}))
+}
+
+// hasAnyTypeSeen implements hasAnyType. seen records the IDs of the user types
+// already visited so that recursive types terminate.
+func hasAnyTypeSeen(att *expr.AttributeExpr, seen map[string]struct{}) bool {
 	if att == nil {
 		return false
 	}
@@ -120,20 +126,24 @@ func hasAnyType(att *expr.AttributeExpr) bool {
 	}
 	switch dt := att.Type.(type) {
 	case expr.UserType:
-		return hasAnyType(dt.Attribute())
+		if _, ok := seen[dt.ID()]; ok {
+			return false
+		}
+		seen[dt.ID()] = struct{}{}
+		return hasAnyTypeSeen(dt.Attribute(), seen)
 	case *expr.Object:
 		for _, nat := range *dt {
-			if hasAnyType(nat.Attribute) {
+			if hasAnyTypeSeen(nat.Attribute, seen) {
 				return true
 			}
 		}
 	case *expr.Array:
-		return hasAnyType(dt.ElemType)
+		return hasAnyTypeSeen(dt.ElemType, seen)
 	case *expr.Map:
-		return hasAnyType(dt.KeyType) || hasAnyType(dt.ElemType)
+		return hasAnyTypeSeen(dt.KeyType, seen) || hasAnyTypeSeen(dt.ElemType, seen)
 	case *expr.Union:
 		for _, nat := range dt.Values {
-			if hasAnyType(nat.Attribute) {
+			if hasAnyTypeSeen(nat.Attribute, seen) {
 				return true
 			}
 		}

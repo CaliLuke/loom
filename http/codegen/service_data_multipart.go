@@ -57,26 +57,30 @@ func supportsGeneratedMultipartObject(body *expr.AttributeExpr) bool {
 	if obj == nil {
 		return false
 	}
+	visiting := make(map[string]struct{})
 	for _, nat := range *obj {
 		if nat.Attribute.Type == expr.Bytes {
 			continue
 		}
-		if !supportsGeneratedMultipartNested(nat.Attribute) {
+		if !supportsGeneratedMultipartNested(nat.Attribute, visiting) {
 			return false
 		}
 	}
 	return true
 }
 
-func supportsGeneratedMultipartNested(att *expr.AttributeExpr) bool {
+// supportsGeneratedMultipartNested reports whether generated multipart code
+// can encode the nested attribute att. visiting holds the IDs of the user
+// types on the current path. A recursive user type is not supported.
+func supportsGeneratedMultipartNested(att *expr.AttributeExpr, visiting map[string]struct{}) bool {
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		return actual != expr.Any && actual != expr.Bytes
 	case expr.UserType:
-		return supportsGeneratedMultipartNested(actual.Attribute())
+		return supportsGeneratedMultipartUserType(actual, visiting, supportsGeneratedMultipartNested)
 	case *expr.Object:
 		for _, nat := range *actual {
-			if !supportsGeneratedMultipartNested(nat.Attribute) {
+			if !supportsGeneratedMultipartNested(nat.Attribute, visiting) {
 				return false
 			}
 		}
@@ -85,9 +89,9 @@ func supportsGeneratedMultipartNested(att *expr.AttributeExpr) bool {
 		if !isSupportedMultipartScalar(actual.KeyType.Type) {
 			return false
 		}
-		return supportsGeneratedMultipartNested(actual.ElemType)
+		return supportsGeneratedMultipartNested(actual.ElemType, visiting)
 	case *expr.Array:
-		return supportsGeneratedMultipartCollectionElem(actual.ElemType)
+		return supportsGeneratedMultipartCollectionElem(actual.ElemType, visiting)
 	case *expr.Union:
 		return false
 	default:
@@ -95,15 +99,18 @@ func supportsGeneratedMultipartNested(att *expr.AttributeExpr) bool {
 	}
 }
 
-func supportsGeneratedMultipartCollectionElem(att *expr.AttributeExpr) bool {
+// supportsGeneratedMultipartCollectionElem reports whether generated multipart
+// code can encode the collection element att. visiting holds the IDs of the
+// user types on the current path. A recursive user type is not supported.
+func supportsGeneratedMultipartCollectionElem(att *expr.AttributeExpr, visiting map[string]struct{}) bool {
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		return actual != expr.Any && actual != expr.Bytes
 	case expr.UserType:
-		return supportsGeneratedMultipartCollectionElem(actual.Attribute())
+		return supportsGeneratedMultipartUserType(actual, visiting, supportsGeneratedMultipartCollectionElem)
 	case *expr.Object:
 		for _, nat := range *actual {
-			if !supportsGeneratedMultipartNested(nat.Attribute) {
+			if !supportsGeneratedMultipartNested(nat.Attribute, visiting) {
 				return false
 			}
 		}
@@ -112,12 +119,23 @@ func supportsGeneratedMultipartCollectionElem(att *expr.AttributeExpr) bool {
 		if !isSupportedMultipartScalar(actual.KeyType.Type) {
 			return false
 		}
-		return supportsGeneratedMultipartCollectionElem(actual.ElemType)
+		return supportsGeneratedMultipartCollectionElem(actual.ElemType, visiting)
 	case *expr.Array:
-		return supportsGeneratedMultipartCollectionElem(actual.ElemType)
+		return supportsGeneratedMultipartCollectionElem(actual.ElemType, visiting)
 	default:
 		return false
 	}
+}
+
+// supportsGeneratedMultipartUserType applies supports to the attribute of ut.
+// It reports false when ut is already on the current path.
+func supportsGeneratedMultipartUserType(ut expr.UserType, visiting map[string]struct{}, supports func(*expr.AttributeExpr, map[string]struct{}) bool) bool {
+	if _, ok := visiting[ut.ID()]; ok {
+		return false
+	}
+	visiting[ut.ID()] = struct{}{}
+	defer delete(visiting, ut.ID())
+	return supports(ut.Attribute(), visiting)
 }
 
 func isSupportedMultipartScalar(dt expr.DataType) bool {
