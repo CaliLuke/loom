@@ -134,6 +134,45 @@ func TestFormValuesRoundTripMapOfObject(t *testing.T) {
 	require.Equal(t, in, out)
 }
 
+func TestFormValuesRoundTripEmptyNestedMapKey(t *testing.T) {
+	type nestedMaps struct {
+		Groups map[string]map[string]string `form:"groups"`
+	}
+	cases := []struct {
+		name string
+		in   any
+		out  func() any
+	}{
+		{
+			name: "map of object",
+			in:   &testFormMapPayload{Items: map[string]testFormItem{"": {Sub: "hello"}, "k": {Sub: "world"}}},
+			out:  func() any { return &testFormMapPayload{} },
+		},
+		{
+			name: "map of object with empty field value",
+			in:   &testFormMapPayload{Items: map[string]testFormItem{"": {}}},
+			out:  func() any { return &testFormMapPayload{} },
+		},
+		{
+			name: "map of map",
+			in:   &nestedMaps{Groups: map[string]map[string]string{"": {"": "a", "x": "b"}, "g": {"": "c"}}},
+			out:  func() any { return &nestedMaps{} },
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			values, err := EncodeFormValues(tc.in)
+			require.NoError(t, err)
+			parsed, err := url.ParseQuery(values.Encode())
+			require.NoError(t, err)
+			out := tc.out()
+			require.NoError(t, DecodeFormValues(parsed, out), "encoded as %q", values.Encode())
+			require.Equal(t, tc.in, out)
+		})
+	}
+}
+
 func TestFormValuesRoundTripRootMap(t *testing.T) {
 	in := map[string]string{"region": "west", "tier": "gold"}
 	values, err := EncodeFormValues(in)

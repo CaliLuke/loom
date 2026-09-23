@@ -343,21 +343,19 @@ func decodeFormMap(values url.Values, prefix string, target reflect.Value) (bool
 	if !target.CanSet() {
 		return false, fmt.Errorf("cannot set form map target %s", target.Type())
 	}
+	// Group values by map key, keeping their full keys so each entry decodes
+	// under its own prefix. Re-rooting entries under the bare map key would
+	// make an empty key collide with the empty top-level prefix.
 	entries := make(map[string]url.Values)
 	for key, vals := range values {
-		child, nested, ok := parseFormChildKey(prefix, key)
+		child, _, ok := parseFormChildKey(prefix, key)
 		if !ok {
 			continue
 		}
 		if entries[child] == nil {
 			entries[child] = url.Values{}
 		}
-		if nested != "" {
-			key := child + nested
-			entries[child][key] = append(entries[child][key], vals...)
-		} else {
-			entries[child][child] = append(entries[child][child], vals...)
-		}
+		entries[child][key] = append(entries[child][key], vals...)
 	}
 	if len(entries) == 0 {
 		return false, nil
@@ -368,13 +366,14 @@ func decodeFormMap(values url.Values, prefix string, target reflect.Value) (bool
 		if err := setScalarValue(key, child); err != nil {
 			return false, err
 		}
+		childPrefix := FormChildKey(prefix, child)
 		elem := reflect.New(target.Type().Elem()).Elem()
 		if isScalarType(target.Type().Elem()) {
-			if err := setScalarValue(elem, firstFormValue(childValues, child)); err != nil {
+			if err := setScalarValue(elem, firstFormValue(childValues, childPrefix)); err != nil {
 				return false, err
 			}
 		} else {
-			seen, err := decodeIntoField(childValues, child, elem)
+			seen, err := decodeIntoField(childValues, childPrefix, elem)
 			if err != nil {
 				return false, err
 			}
