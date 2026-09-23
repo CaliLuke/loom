@@ -68,7 +68,15 @@ func (node *Node) routeWorkerEvent(ctx context.Context, ev *streaming.Event) err
 	}
 
 	// Compute the worker ID that will handle the job.
-	key := unmarshalJobKey(ev.Payload)
+	key, err := unmarshalJobKey(ev.Payload)
+	if err != nil {
+		// A malformed event can never be routed. Ack it so the sink does not
+		// redeliver it, and keep routing later events.
+		if ackErr := node.poolSink.Ack(ctx, ev); ackErr != nil {
+			node.logger.Error(fmt.Errorf("routeWorkerEvent: failed to ack malformed event: %w", ackErr), "event", ev.EventName, "id", ev.ID)
+		}
+		return fmt.Errorf("routeWorkerEvent: dropped malformed event %s: %w", ev.ID, err)
+	}
 	activeWorkers := node.activeWorkers()
 	if len(activeWorkers) == 0 {
 		return fmt.Errorf("routeWorkerEvent: no active worker in pool %q", node.PoolName)
@@ -132,8 +140,16 @@ func (node *Node) processNodeEvent(ctx context.Context, ev *streaming.Event) {
 // the event was a dispatched job then it sends a dispatch return event to the
 // node that dispatched the job.
 func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
-	workerID, payload := unmarshalEnvelope(ev.Payload)
-	ack := unmarshalAck(payload)
+	workerID, payload, err := unmarshalEnvelope(ev.Payload)
+	if err != nil {
+		node.logger.Error(fmt.Errorf("ackWorkerEvent: dropping malformed ack envelope: %w", err), "id", ev.ID)
+		return
+	}
+	ack, err := unmarshalAck(payload)
+	if err != nil {
+		node.logger.Error(fmt.Errorf("ackWorkerEvent: dropping malformed ack from worker %s: %w", workerID, err), "id", ev.ID)
+		return
+	}
 	key := pendingEventKey(workerID, ack.EventID)
 	val, ok := node.pendingEvents.Load(key)
 	if !ok {
@@ -144,15 +160,8 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 	// If a dispatched job then send a return event to the node that
 	// dispatched the job.
 	if pending.EventName == evStartJob {
-		_, nodeID := unmarshalJobKeyAndNodeID(pending.Payload)
-		stream, err := node.getNodeStream(nodeID)
-		if err != nil {
-			node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to create node event stream %q: %w", nodeStreamName(node.PoolName, nodeID), err))
+		if !node.returnDispatch(ctx, pending, ack) {
 			return
-		}
-		ack.EventID = pending.ID
-		if _, err := stream.Add(ctx, evDispatchReturn, marshalAck(ack), options.WithOnlyIfStreamExists()); err != nil {
-			node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to dispatch return to stream %q: %w", nodeStreamName(node.PoolName, nodeID), err))
 		}
 	}
 
@@ -177,9 +186,36 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 	}
 }
 
+// returnDispatch sends the worker ack of the dispatched start event pending
+// to the node that dispatched it. It returns false when the dispatching node
+// stream cannot be created, in which case the pending event stays unacked so
+// the sink redelivers it. A pending payload without a readable node ID has no
+// dispatcher to return to and still returns true so the event is acked.
+func (node *Node) returnDispatch(ctx context.Context, pending *streaming.Event, ack *ack) bool {
+	_, nodeID, err := unmarshalJobKeyAndNodeID(pending.Payload)
+	if err != nil {
+		node.logger.Error(fmt.Errorf("ackWorkerEvent: no dispatch return for malformed job: %w", err), "id", pending.ID)
+		return true
+	}
+	stream, err := node.getNodeStream(nodeID)
+	if err != nil {
+		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to create node event stream %q: %w", nodeStreamName(node.PoolName, nodeID), err))
+		return false
+	}
+	ack.EventID = pending.ID
+	if _, err := stream.Add(ctx, evDispatchReturn, marshalAck(ack), options.WithOnlyIfStreamExists()); err != nil {
+		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to dispatch return to stream %q: %w", nodeStreamName(node.PoolName, nodeID), err))
+	}
+	return true
+}
+
 // returnDispatchStatus returns the start job result to the caller.
 func (node *Node) returnDispatchStatus(ev *streaming.Event) {
-	ack := unmarshalAck(ev.Payload)
+	ack, err := unmarshalAck(ev.Payload)
+	if err != nil {
+		node.logger.Error(fmt.Errorf("returnDispatchStatus: dropping malformed dispatch return: %w", err), "id", ev.ID)
+		return
+	}
 	val, ok := node.pendingJobChannels.LoadAndDelete(ack.EventID)
 	if !ok {
 		node.logger.Error(fmt.Errorf("returnDispatchStatus: received dispatch return for unknown event"), "id", ack.EventID)
@@ -189,9 +225,9 @@ func (node *Node) returnDispatchStatus(ev *streaming.Event) {
 	if val == nil {
 		return
 	}
-	var err error
+	var startErr error
 	if ack.Error != "" {
-		err = errors.New(ack.Error)
+		startErr = errors.New(ack.Error)
 	}
 	cherr := val.(chan error)
 	defer func() {
@@ -199,7 +235,7 @@ func (node *Node) returnDispatchStatus(ev *streaming.Event) {
 			node.logger.Error(fmt.Errorf("returnDispatchStatus: dispatch return channel for event %s is closed: %v", ack.EventID, r))
 		}
 	}()
-	cherr <- err
+	cherr <- startErr
 }
 
 // watches monitors the workers replicated map and triggers job rebalancing

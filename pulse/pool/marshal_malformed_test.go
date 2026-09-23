@@ -1,8 +1,6 @@
 package pool
 
 import (
-	"errors"
-	"fmt"
 	"runtime"
 	"testing"
 	"time"
@@ -10,19 +8,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUnmarshalMalformedPoolMessagesPanicsWithBoundedError(t *testing.T) {
+func TestUnmarshalMalformedPoolMessagesReturnsBoundedError(t *testing.T) {
 	type decoder struct {
 		name   string
-		decode func([]byte)
+		decode func([]byte) error
 		fields int
 	}
 	decoders := []decoder{
-		{name: "job", decode: func(data []byte) { unmarshalJob(data) }, fields: 4},
-		{name: "job key", decode: func(data []byte) { unmarshalJobKey(data) }, fields: 1},
-		{name: "job key and node", decode: func(data []byte) { unmarshalJobKeyAndNodeID(data) }, fields: 2},
-		{name: "notification", decode: func(data []byte) { unmarshalNotification(data) }, fields: 2},
-		{name: "envelope", decode: func(data []byte) { unmarshalEnvelope(data) }, fields: 2},
-		{name: "ack", decode: func(data []byte) { unmarshalAck(data) }, fields: 2},
+		{name: "job", decode: decodeJob, fields: 4},
+		{name: "job key", decode: decodeJobKey, fields: 1},
+		{name: "job key and node", decode: decodeJobKeyAndNodeID, fields: 2},
+		{name: "notification", decode: decodeNotification, fields: 2},
+		{name: "envelope", decode: decodeEnvelope, fields: 2},
+		{name: "ack", decode: decodeAck, fields: 2},
 	}
 	inputs := []struct {
 		name      string
@@ -50,7 +48,7 @@ func TestUnmarshalMalformedPoolMessagesPanicsWithBoundedError(t *testing.T) {
 			t.Run(decoder.name+"/"+input.name, func(t *testing.T) {
 				var before, after runtime.MemStats
 				runtime.ReadMemStats(&before)
-				err := recoverMalformedPanic(func() { decoder.decode(input.data) })
+				err := decoder.decode(input.data)
 				runtime.ReadMemStats(&after)
 				require.ErrorIs(t, err, errMalformedMessage)
 				if input.bounded {
@@ -61,19 +59,32 @@ func TestUnmarshalMalformedPoolMessagesPanicsWithBoundedError(t *testing.T) {
 	}
 }
 
-func recoverMalformedPanic(decode func()) (err error) {
-	defer func() {
-		recovered := recover()
-		if recovered == nil {
-			return
-		}
-		recoveredErr, ok := recovered.(error)
-		if !ok {
-			err = fmt.Errorf("non-error panic: %v", recovered)
-			return
-		}
-		err = recoveredErr
-	}()
-	decode()
-	return errors.New("decode did not panic")
+func decodeJob(data []byte) error {
+	_, err := unmarshalJob(data)
+	return err
+}
+
+func decodeJobKey(data []byte) error {
+	_, err := unmarshalJobKey(data)
+	return err
+}
+
+func decodeJobKeyAndNodeID(data []byte) error {
+	_, _, err := unmarshalJobKeyAndNodeID(data)
+	return err
+}
+
+func decodeNotification(data []byte) error {
+	_, _, err := unmarshalNotification(data)
+	return err
+}
+
+func decodeEnvelope(data []byte) error {
+	_, _, err := unmarshalEnvelope(data)
+	return err
+}
+
+func decodeAck(data []byte) error {
+	_, err := unmarshalAck(data)
+	return err
 }

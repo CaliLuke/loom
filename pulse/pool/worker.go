@@ -192,23 +192,18 @@ func (w *Worker) handleEvents(ctx context.Context, c <-chan *streaming.Event) {
 			if !ok {
 				return
 			}
-			nodeID, payload := unmarshalEnvelope(ev.Payload)
-			var err error
-			switch ev.EventName {
-			case evInit:
+			if ev.EventName == evInit {
 				w.logger.Debug("handleEvents: received init", "event", ev.EventName, "id", ev.ID)
 				continue
-			case evStartJob:
-				w.logger.Debug("handleEvents: received start job", "event", ev.EventName, "id", ev.ID)
-				err = w.startJob(ctx, unmarshalJob(payload))
-			case evStopJob:
-				w.logger.Debug("handleEvents: received stop job", "event", ev.EventName, "id", ev.ID)
-				err = w.stopJob(ctx, unmarshalJobKey(payload))
-			case evNotify:
-				w.logger.Debug("handleEvents: received notify", "event", ev.EventName, "id", ev.ID)
-				key, payload := unmarshalNotification(payload)
-				err = w.notify(ctx, key, payload)
 			}
+			nodeID, payload, err := unmarshalEnvelope(ev.Payload)
+			if err != nil {
+				// Without a sender there is no node to ack; skip the event so
+				// the loop keeps serving later events.
+				w.logger.Error(fmt.Errorf("handleEvents: dropping malformed event: %w", err), "event", ev.EventName, "id", ev.ID)
+				continue
+			}
+			err = w.handleEvent(ctx, ev, payload)
 			if err != nil {
 				if errors.Is(err, ErrRequeue) {
 					w.logger.Info("requeue", "event", ev.EventName, "id", ev.ID, "after", w.pendingJobTTL)
@@ -224,6 +219,36 @@ func (w *Worker) handleEvents(ctx context.Context, c <-chan *streaming.Event) {
 			return
 		}
 	}
+}
+
+// handleEvent decodes and handles one worker event. A payload that does not
+// decode returns an error wrapping errMalformedMessage, which the caller acks
+// as a failure.
+func (w *Worker) handleEvent(ctx context.Context, ev *streaming.Event, payload []byte) error {
+	switch ev.EventName {
+	case evStartJob:
+		w.logger.Debug("handleEvents: received start job", "event", ev.EventName, "id", ev.ID)
+		job, err := unmarshalJob(payload)
+		if err != nil {
+			return fmt.Errorf("start job: %w", err)
+		}
+		return w.startJob(ctx, job)
+	case evStopJob:
+		w.logger.Debug("handleEvents: received stop job", "event", ev.EventName, "id", ev.ID)
+		key, err := unmarshalJobKey(payload)
+		if err != nil {
+			return fmt.Errorf("stop job: %w", err)
+		}
+		return w.stopJob(ctx, key)
+	case evNotify:
+		w.logger.Debug("handleEvents: received notify", "event", ev.EventName, "id", ev.ID)
+		key, notification, err := unmarshalNotification(payload)
+		if err != nil {
+			return fmt.Errorf("notify: %w", err)
+		}
+		return w.notify(ctx, key, notification)
+	}
+	return nil
 }
 
 // stop stops the reader, destroys the stream and closes the worker.

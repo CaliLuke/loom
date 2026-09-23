@@ -29,7 +29,8 @@ func TestJobMarshalRoundTrip(t *testing.T) {
 
 	encoded := marshalJob(job)
 	require.Equal(t, mustDecodeHex(t, jobWireHex), encoded)
-	decoded := unmarshalJob(encoded)
+	decoded, err := unmarshalJob(encoded)
+	require.NoError(t, err)
 
 	require.Equal(t, job.Key, decoded.Key)
 	require.Equal(t, job.Payload, decoded.Payload)
@@ -45,7 +46,8 @@ func TestJobMarshalRoundTripWithEmptyPayload(t *testing.T) {
 		NodeID:    "node-1",
 	}
 
-	decoded := unmarshalJob(marshalJob(job))
+	decoded, err := unmarshalJob(marshalJob(job))
+	require.NoError(t, err)
 
 	require.Equal(t, job.Key, decoded.Key)
 	require.Nil(t, decoded.Payload)
@@ -56,13 +58,16 @@ func TestJobMarshalRoundTripWithEmptyPayload(t *testing.T) {
 func TestJobKeyMarshalHelpers(t *testing.T) {
 	encoded := marshalJobKey("job-1")
 	require.Equal(t, mustDecodeHex(t, jobKeyWireHex), encoded)
-	require.Equal(t, "job-1", unmarshalJobKey(encoded))
+	key, err := unmarshalJobKey(encoded)
+	require.NoError(t, err)
+	require.Equal(t, "job-1", key)
 
-	key, nodeID := unmarshalJobKeyAndNodeID(marshalJob(&Job{
+	key, nodeID, err := unmarshalJobKeyAndNodeID(marshalJob(&Job{
 		Key:       "job-2",
 		NodeID:    "node-2",
 		CreatedAt: time.Unix(0, 2).UTC(),
 	}))
+	require.NoError(t, err)
 	require.Equal(t, "job-2", key)
 	require.Equal(t, "node-2", nodeID)
 }
@@ -70,11 +75,13 @@ func TestJobKeyMarshalHelpers(t *testing.T) {
 func TestNotificationMarshalRoundTrip(t *testing.T) {
 	encoded := marshalNotification("job-1", []byte("payload"))
 	require.Equal(t, mustDecodeHex(t, notificationWireHex), encoded)
-	key, payload := unmarshalNotification(encoded)
+	key, payload, err := unmarshalNotification(encoded)
+	require.NoError(t, err)
 	require.Equal(t, "job-1", key)
 	require.Equal(t, []byte("payload"), payload)
 
-	key, payload = unmarshalNotification(marshalNotification("job-1", nil))
+	key, payload, err = unmarshalNotification(marshalNotification("job-1", nil))
+	require.NoError(t, err)
 	require.Equal(t, "job-1", key)
 	require.Empty(t, payload)
 }
@@ -82,11 +89,13 @@ func TestNotificationMarshalRoundTrip(t *testing.T) {
 func TestEnvelopeMarshalRoundTrip(t *testing.T) {
 	encoded := marshalEnvelope("worker-1", []byte("payload"))
 	require.Equal(t, mustDecodeHex(t, envelopeWireHex), encoded)
-	sender, payload := unmarshalEnvelope(encoded)
+	sender, payload, err := unmarshalEnvelope(encoded)
+	require.NoError(t, err)
 	require.Equal(t, "worker-1", sender)
 	require.Equal(t, []byte("payload"), payload)
 
-	sender, payload = unmarshalEnvelope(marshalEnvelope("worker-1", nil))
+	sender, payload, err = unmarshalEnvelope(marshalEnvelope("worker-1", nil))
+	require.NoError(t, err)
 	require.Equal(t, "worker-1", sender)
 	require.Nil(t, payload)
 }
@@ -97,7 +106,8 @@ func TestAckMarshalRoundTrip(t *testing.T) {
 		Error:   "failed",
 	})
 	require.Equal(t, mustDecodeHex(t, ackWireHex), encoded)
-	decoded := unmarshalAck(encoded)
+	decoded, err := unmarshalAck(encoded)
+	require.NoError(t, err)
 
 	require.Equal(t, "1-0", decoded.EventID)
 	require.Equal(t, "failed", decoded.Error)
