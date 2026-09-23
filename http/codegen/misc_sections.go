@@ -154,8 +154,8 @@ func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
 		b.Add("\t}\n")
 		return
 	}
-	if ed.SSE.HasResponseBody {
-		b.Addf("\tbody := New%sResponseBody(res)\n", codegen.Goify(ed.Method.Name, true))
+	if ed.SSE.ResponseBody != nil {
+		writeServerBodyInitCall(b, ed.SSE.ResponseBody, "\tbody := ")
 		if ed.SSE.DataField != "" {
 			b.Addf("\tpayload = body.%s\n", ed.SSE.DataField)
 			return
@@ -179,7 +179,16 @@ func sseProjectionResponse(ed *EndpointData) *ResponseData {
 	panic("SSE projections require a generated response body")
 }
 
-func writeSSEPayloadEncoding(b *sourceBuilder) {
+// writeSSEPayloadEncoding encodes the event data. Whole-event primitive and
+// collection results are always JSON so that strings and bytes survive SSE
+// framing exactly; struct results already encode as JSON, and field-level data
+// mappings keep their raw-text encoding.
+func writeSSEPayloadEncoding(b *sourceBuilder, ed *EndpointData) {
+	if ed.SSE.DataField == "" && !ed.SSE.EventIsStruct {
+		b.Add("\tdata, err := loomhttp.EncodeSSEJSONData(payload)\n")
+		b.Add("\tif err != nil {\n\t\treturn err\n\t}\n\n")
+		return
+	}
 	b.Add("\tdata, err := loomhttp.EncodeSSEData(payload)\n")
 	b.Add("\tif err != nil {\n\t\treturn err\n\t}\n\n")
 }
@@ -295,7 +304,7 @@ func renderServerSSESendWithContextBody(ed *EndpointData) string {
 	b.Add("if err := ctx.Err(); err != nil {\n\treturn err\n}\n")
 	writeSSEResultSetup(&b, ed)
 	writeSSEPayloadSetup(&b, ed)
-	writeSSEPayloadEncoding(&b)
+	writeSSEPayloadEncoding(&b, ed)
 	writeSSEMessageSetup(&b, ed)
 	b.Add("return s.writer.WriteEvent(ctx, func(w io.Writer) error {\n\treturn loomhttp.WriteSSEEvent(w, msg)\n})")
 	return b.String()

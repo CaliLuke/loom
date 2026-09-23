@@ -67,8 +67,10 @@ type (
 		NotificationMethod string
 		// RequestIDPointer indicates whether the RequestIDField is a pointer (i.e., optional primitive).
 		RequestIDPointer bool
-		// HasResponseBody indicates whether an HTTP response body converter exists for this endpoint.
-		HasResponseBody bool
+		// ResponseBody is the server response body whose constructor converts
+		// each event before encoding. It is nil when the event value is encoded
+		// directly, for example for primitive, collection, or mixed results.
+		ResponseBody *TypeData
 		// Projections map SSE event discriminator values to result views.
 		Projections []*SSEProjectionData
 		// ProjectedTypeRef is the generated view projection type reference.
@@ -133,18 +135,29 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 	// HTTP response body type. Disable HTTP response body conversion in the SSE
 	// stream implementation and marshal the event value directly.
 	if caps.HasMixedResults {
-		ed.SSE.HasResponseBody = false
 		return
 	}
+	ed.SSE.ResponseBody = sseResponseBody(ed)
+}
 
-	if ed.Result != nil {
-		for _, resp := range ed.Result.Responses {
-			if len(resp.ServerBody) > 0 {
-				ed.SSE.HasResponseBody = true
-				break
-			}
-		}
+// sseResponseBody returns the server response body used to convert each event,
+// or nil when the event value must be encoded directly. Primitive and
+// collection results share the service type and have no body constructor.
+func sseResponseBody(ed *EndpointData) *TypeData {
+	if ed.Result == nil {
+		return nil
 	}
+	for _, resp := range ed.Result.Responses {
+		if len(resp.ServerBody) == 0 {
+			continue
+		}
+		body := resp.ServerBody[0]
+		if body.Init == nil {
+			return nil
+		}
+		return body
+	}
+	return nil
 }
 
 func sseEventType(ed *EndpointData, endpointIR *transportir.Endpoint, sd *ServiceData, caps service.MethodCapabilityDescriptor) (*expr.AttributeExpr, *ResultData) {
@@ -232,6 +245,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: "fmt"},
 				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
 				codegen.LoomNamedImport("observability/transport", "loomtransport"),
+				codegen.LoomImport(""),
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
 			},

@@ -72,3 +72,40 @@ var JSONRPCSSEEventsStreamDSL = func() {
 		})
 	})
 }
+
+// JSONRPCSSEResultTypesDSL declares one JSON-RPC SSE method per primitive,
+// collection, and user-type streaming result so generated server and client
+// code can be compiled and exercised for each event shape.
+var JSONRPCSSEResultTypesDSL = func() {
+	API("jsonrpc-sse-result-types", func() {
+		JSONRPC(func() {})
+	})
+	var Note = Type("Note", func() {
+		Attribute("text", String)
+		Required("text")
+	})
+	Service("JSONRPCSSEResultTypes", func() {
+		JSONRPC(func() {
+			POST("/rpc")
+		})
+		streamMethod := func(name string, result any) {
+			Method(name, func() {
+				Payload(func() {
+					ID("id", String, "Request ID")
+				})
+				StreamingResult(result)
+				JSONRPC(func() {
+					ServerSentEvents()
+				})
+			})
+		}
+		streamMethod("StreamString", String)
+		streamMethod("StreamInt", Int)
+		streamMethod("StreamBool", Boolean)
+		streamMethod("StreamBytes", Bytes)
+		streamMethod("StreamAny", Any)
+		streamMethod("StreamArray", ArrayOf(String))
+		streamMethod("StreamMap", MapOf(String, Int))
+		streamMethod("StreamNote", Note)
+	})
+}

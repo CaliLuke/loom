@@ -12,7 +12,8 @@ func sseClientNeedsDecoder(ed *EndpointData) bool {
 	if ed.SSE.DataField != "" {
 		return sseParseAssignmentNeedsDecoder(ed.SSE.DataFieldTypeRef)
 	}
-	return ed.SSE.EventIsStruct || sseParseAssignmentNeedsDecoder(ed.SSE.EventTypeRef)
+	// Whole-event data is always JSON and decodes through the decoder.
+	return true
 }
 
 func sseParseAssignmentNeedsDecoder(typeRef string) bool {
@@ -61,7 +62,12 @@ func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
 		b.Add("\t\treturn\n")
 		b.Add("\t}\n")
 	default:
-		b.Add(renderSSEParseAssignment("event", ed.SSE.EventTypeRef))
+		// Whole-event primitive and collection data is JSON: strings are JSON
+		// strings and bytes are base64 JSON strings.
+		b.Add("\trespBody := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(dataContent))}\n")
+		b.Add("\tif err = s.decoder(respBody).Decode(&event); err != nil {\n")
+		b.Add("\t\treturn\n")
+		b.Add("\t}\n")
 	}
 	b.Add("\treturn\n")
 	b.Add("}\n")

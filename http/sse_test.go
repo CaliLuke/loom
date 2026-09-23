@@ -85,6 +85,35 @@ func TestEncodeSSEData(t *testing.T) {
 	}
 }
 
+func TestEncodeSSEJSONData(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload any
+		want    string
+	}{
+		{"nil", nil, "null"},
+		{"empty string", "", `""`},
+		{"line breaks", "a\r\nb\rc\n", `"a\r\nb\rc\n"`},
+		{"json special", "\"\\<>&", `"\"\\<>&"`},
+		{"bytes", []byte{0x00, '\r', 0xff}, `"AA3/"`},
+		{"empty bytes", []byte{}, `""`},
+		{"bool", false, "false"},
+		{"int", -3, "-3"},
+		{"float", 1e-7, "1e-7"},
+		{"array", []string{"", "\n"}, `["","\n"]`},
+		{"map", map[string]int{"b": 2, "a": 1}, `{"a":1,"b":2}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := EncodeSSEJSONData(tc.payload)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+	_, err := EncodeSSEJSONData(make(chan int))
+	require.Error(t, err)
+}
+
 func TestSSEStreamReader(t *testing.T) {
 	reader := NewSSEStreamReader(io.NopCloser(strings.NewReader(strings.Join([]string{
 		"event: one",

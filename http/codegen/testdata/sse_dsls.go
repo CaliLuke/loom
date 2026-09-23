@@ -140,3 +140,71 @@ var SSEAllFieldsDSL = func() {
 		})
 	})
 }
+
+// SSEResultTypesDSL declares one SSE method per primitive, collection, and
+// user-type streaming result so generated server and client code can be
+// compiled and exercised for each event shape.
+var SSEResultTypesDSL = func() {
+	var Note = Type("Note", func() {
+		Attribute("text", String)
+		Required("text")
+	})
+	Service("SSEResultTypes", func() {
+		Method("StreamString", func() {
+			StreamingResult(String)
+			HTTP(func() {
+				GET("/string")
+				ServerSentEvents()
+			})
+		})
+		Method("StreamInt", func() {
+			StreamingResult(Int)
+			HTTP(func() {
+				GET("/int")
+				ServerSentEvents()
+			})
+		})
+		Method("StreamBool", func() {
+			StreamingResult(Boolean)
+			HTTP(func() {
+				GET("/bool")
+				ServerSentEvents()
+			})
+		})
+		Method("StreamBytes", func() {
+			StreamingResult(Bytes)
+			HTTP(func() {
+				GET("/bytes")
+				ServerSentEvents()
+			})
+		})
+		Method("StreamAny", func() {
+			StreamingResult(Any)
+			HTTP(func() {
+				GET("/any")
+				ServerSentEvents()
+			})
+		})
+		Method("StreamArray", func() {
+			StreamingResult(ArrayOf(String))
+			HTTP(func() {
+				GET("/array")
+				ServerSentEvents()
+			})
+		})
+		Method("StreamMap", func() {
+			StreamingResult(MapOf(String, Int))
+			HTTP(func() {
+				GET("/map")
+				ServerSentEvents()
+			})
+		})
+		Method("StreamNote", func() {
+			StreamingResult(Note)
+			HTTP(func() {
+				GET("/note")
+				ServerSentEvents()
+			})
+		})
+	})
+}

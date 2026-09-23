@@ -34,9 +34,8 @@ func (s *SSEBoolMethodServerStream) SendWithContext(ctx context.Context, v bool)
 	res := v
 
 	var payload any
-	body := NewSSEBoolMethodResponseBody(res)
-	payload = body
-	data, err := loomhttp.EncodeSSEData(payload)
+	payload = res
+	data, err := loomhttp.EncodeSSEJSONData(payload)
 	if err != nil {
 		return err
 	}

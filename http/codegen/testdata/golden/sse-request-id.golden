@@ -35,9 +35,8 @@ func (s *SSERequestIDMethodServerStream) SendWithContext(ctx context.Context, v 
 	res := v
 
 	var payload any
-	body := NewSSERequestIDMethodResponseBody(res)
-	payload = body
-	data, err := loomhttp.EncodeSSEData(payload)
+	payload = res
+	data, err := loomhttp.EncodeSSEJSONData(payload)
 	if err != nil {
 		return err
 	}

@@ -418,6 +418,19 @@ func EncodeSSEData(payload any) (string, error) {
 	}
 }
 
+// EncodeSSEJSONData encodes payload as the JSON data of a whole-event SSE
+// frame. Unlike EncodeSSEData, strings become JSON strings and byte slices
+// become base64 JSON strings, so every value, including empty strings,
+// carriage returns, trailing newlines, and binary bytes, survives SSE framing
+// and decodes to the value that was sent.
+func EncodeSSEJSONData(payload any) (string, error) {
+	byts, err := json.Marshal(payload, json.Deterministic(true))
+	if err != nil {
+		return "", err
+	}
+	return string(byts), nil
+}
+
 // WriteSSEEvent writes a single SSE event frame.
 func WriteSSEEvent(w io.Writer, msg SSEMessage) error {
 	event := sse.Message{}

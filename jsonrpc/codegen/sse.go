@@ -107,6 +107,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 				{Path: "net/http"},
 				{Path: "strings"},
 				{Path: "sync"},
+				codegen.LoomImport(""),
 				codegen.LoomImport("jsonrpc"),
 				codegen.LoomNamedImport("http", "loomhttp"),
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},

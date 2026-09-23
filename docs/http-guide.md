@@ -900,6 +900,25 @@ Method("stream", func() {
 })
 ```
 
+### Event Data Encoding
+
+The `data:` field of each event is encoded according to how the design maps it:
+
+- **Whole-event results** (no `SSEEventData`): the data is always the JSON
+  encoding of the streamed value, for every result type. Objects are JSON
+  objects, `String` is a JSON string, `Bytes` is a base64 JSON string, and
+  `Int`, `Boolean`, `Any`, arrays, and maps are their JSON values. Generated
+  clients decode the data through the configured JSON decoder, so every value
+  round-trips exactly, including empty strings, carriage returns, trailing
+  newlines, and binary bytes. Browser clients should `JSON.parse(event.data)`.
+- **Field-level data** (`SSEEventData("field")`): `String` and `Bytes` fields
+  are written as raw text, and numbers and booleans as their literal text.
+  Object and collection fields are JSON. Raw text is subject to SSE framing: CR
+  and CRLF become LF, a trailing line break is lost, an empty value can produce
+  an event that clients do not dispatch, and bytes must be valid UTF-8 text. Map
+  the data to a structured field, or use a whole-event result, when values can
+  contain these characters.
+
 ### Per-Event JSON Projections
 
 Typed SSE streams may opt into multiple result-view projections. Map each SSE

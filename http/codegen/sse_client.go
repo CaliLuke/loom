@@ -45,6 +45,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()), Name: data.Service.PkgName},
 				{Path: genpkg + "/" + codegen.SnakeCase(svc.Name()) + "/views", Name: data.Service.ViewsPkg},
 				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
+				codegen.LoomImport(""),
 			},
 		),
 	)
