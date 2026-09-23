@@ -239,7 +239,8 @@ Two readings of these results:
 
 - `lock_pre_release_only` fails and `lock_fixed` holds. The only difference
   is the `ba2af97c` CAS, so that commit closes L2.
-- `lock_asis` still fails, because L1 is open on main.
+- `lock_asis` fails on `967f4fbe`, because L1 is open there. Ticket 1 of the
+  roadmap implements `FIX_LOCK_RELEASE` in Go, which `lock_fixed` checks.
 
 ### Owner-record redesign
 

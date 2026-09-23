@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,8 +61,8 @@ func TestClaimCleanupLockSingleWinnerAcrossNodes(t *testing.T) {
 			tsA, okA := nodeA.workerCleanupMap.Get(workerID)
 			tsB, okB := nodeB.workerCleanupMap.Get(workerID)
 
-			gotA := nodeA.claimCleanupLock(ctx, workerID, tsA, okA)
-			gotB := nodeB.claimCleanupLock(ctx, workerID, tsB, okB)
+			_, gotA := nodeA.claimCleanupLock(ctx, workerID, tsA, okA)
+			_, gotB := nodeB.claimCleanupLock(ctx, workerID, tsB, okB)
 
 			winners := 0
 			for _, got := range []bool{gotA, gotB} {
@@ -70,6 +71,82 @@ func TestClaimCleanupLockSingleWinnerAcrossNodes(t *testing.T) {
 				}
 			}
 			require.Equal(t, tc.wantWinners, winners, "nodeA=%v nodeB=%v", gotA, gotB)
+		})
+	}
+}
+
+// TestEvictionKeepsCleanupLockOfAnotherHolder replays the lock_asis TLC trace
+// (pulse/pool/tla/cfg/lock_asis.cfg, 11 states, violates
+// CleanupLockMutualExclusion on main at 967f4fbe). Eviction deleted the
+// cleanup lock without checking its holder, so a node that had observed no
+// lock could acquire it while another node still held it. Only the holder's
+// token now releases the lock.
+func TestEvictionKeepsCleanupLockOfAnotherHolder(t *testing.T) {
+	rdb := startTestRedis(t)
+	ctx := t.Context()
+	nodeA := addTestNode(t, rdb, "cleanup-lock-evict")
+	nodeB := addTestNode(t, rdb, "cleanup-lock-evict")
+	const workerID = "w1"
+
+	// States 3-4: both nodes begin cleanup of w1 and observe no lock.
+	_, seenA := nodeA.workerCleanupMap.Get(workerID)
+	tsB, seenB := nodeB.workerCleanupMap.Get(workerID)
+	require.False(t, seenA)
+	require.False(t, seenB)
+
+	// States 5-6: nodeA acquires the lock, finishes cleanup and deletes w1,
+	// which releases its own lock.
+	token, ok := nodeA.claimCleanupLock(ctx, workerID, "", false)
+	require.True(t, ok)
+	require.NoError(t, nodeA.deleteWorker(ctx, workerID, token))
+
+	// States 7-9: a stale replica shows w1 again; nodeA observes no lock and
+	// acquires it a second time.
+	held, ok := nodeA.claimCleanupLock(ctx, workerID, "", false)
+	require.True(t, ok)
+
+	// State 10: nodeA's eviction path deletes w1 without holding the lock.
+	require.NoError(t, nodeA.deleteWorker(ctx, workerID, ""))
+
+	// State 11: nodeB acts on the lock value it observed in state 4. The lock
+	// nodeA still holds must refuse it.
+	_, ok = nodeB.claimCleanupLock(ctx, workerID, tsB, seenB)
+	require.False(t, ok, "two nodes hold the cleanup lock")
+	got, err := rdb.HGet(ctx, rmapContentKey(workerCleanupMapName("cleanup-lock-evict")), workerID).Result()
+	require.NoError(t, err)
+	require.Equal(t, held, got)
+}
+
+// TestCleanupLockReleaseRequiresHolderToken checks that deleteWorker releases
+// the cleanup lock only for the token that currently holds it.
+func TestCleanupLockReleaseRequiresHolderToken(t *testing.T) {
+	cases := []struct {
+		name     string
+		token    func(held string) string
+		released bool
+	}{
+		{name: "holder token", token: func(held string) string { return held }, released: true},
+		{name: "other token", token: func(string) string { return "1" }, released: false},
+		{name: "no token", token: func(string) string { return "" }, released: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rdb := startTestRedis(t)
+			ctx := t.Context()
+			node := addTestNode(t, rdb, "cleanup-lock-release")
+			const workerID = "w1"
+			held, ok := node.claimCleanupLock(ctx, workerID, "", false)
+			require.True(t, ok)
+
+			require.NoError(t, node.deleteWorker(ctx, workerID, tc.token(held)))
+
+			got, err := rdb.HGet(ctx, rmapContentKey(workerCleanupMapName("cleanup-lock-release")), workerID).Result()
+			if tc.released {
+				require.ErrorIs(t, err, redis.Nil)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, held, got)
 		})
 	}
 }

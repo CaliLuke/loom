@@ -137,7 +137,8 @@ func (node *Node) requeueOrphanedPayloads(ctx context.Context) {
 // the pool.
 func (node *Node) cleanupWorker(ctx context.Context, workerID string) {
 	// Try to acquire or clear stale cleanup lock
-	if !node.acquireCleanupLock(ctx, workerID) {
+	lockToken, ok := node.acquireCleanupLock(ctx, workerID)
+	if !ok {
 		return
 	}
 
@@ -145,7 +146,7 @@ func (node *Node) cleanupWorker(ctx context.Context, workerID string) {
 	keys, ok := node.jobMap.GetValues(workerID)
 	if !ok || len(keys) == 0 {
 		// Worker has no jobs, just delete it
-		if err := node.deleteWorker(ctx, workerID); err != nil {
+		if err := node.deleteWorker(ctx, workerID, lockToken); err != nil {
 			node.logger.Error(fmt.Errorf("cleanupWorkerJobs: failed to delete worker: %w", err), "worker", workerID)
 		}
 		node.logger.Info("cleaned up worker with no jobs", "worker", workerID)
@@ -190,7 +191,7 @@ func (node *Node) cleanupWorker(ctx context.Context, workerID string) {
 
 	// Delete worker
 	node.logger.Info("cleaned up worker", "worker", workerID, "requeued", requeued)
-	if err := node.deleteWorker(ctx, workerID); err != nil {
+	if err := node.deleteWorker(ctx, workerID, lockToken); err != nil {
 		node.logger.Error(fmt.Errorf("cleanupWorkerJobs: failed to delete worker: %w", err), "worker", workerID)
 	}
 }

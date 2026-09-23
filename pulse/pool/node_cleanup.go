@@ -10,12 +10,13 @@ import (
 	"github.com/CaliLuke/loom/pulse/streaming/options"
 )
 
-// deleteWorker removes a remote worker from the pool deleting the worker stream.
-func (node *Node) deleteWorker(ctx context.Context, id string) error {
+// deleteWorker removes a remote worker from the pool deleting the worker
+// stream. lockToken is the cleanup lock value the caller acquired for the
+// worker, or empty when the caller holds no cleanup lock.
+func (node *Node) deleteWorker(ctx context.Context, id, lockToken string) error {
 	node.logger.Debug("deleteWorker: deleting worker", "worker", id)
 
-	// Remove from all maps including cleanup map
-	node.removeWorkerFromMaps(ctx, id)
+	node.removeWorkerFromMaps(ctx, id, lockToken)
 
 	// Destroy the worker's stream
 	stream, err := node.getWorkerStream(id)
@@ -31,21 +32,25 @@ func (node *Node) deleteWorker(ctx context.Context, id string) error {
 // removeWorker removes a worker that was created by this node.
 // This is used during graceful shutdown or explicit worker removal.
 func (node *Node) removeWorker(ctx context.Context, id string) {
-	node.removeWorkerFromMaps(ctx, id)
+	node.removeWorkerFromMaps(ctx, id, "")
 	node.workerStreams.Delete(id)
 }
 
 // removeWorkerFromMaps removes the worker from all tracking maps.
 // This is the common cleanup needed for both local and remote worker removal.
-func (node *Node) removeWorkerFromMaps(ctx context.Context, id string) {
+// The cleanup lock is deleted only when lockToken is the value currently
+// held, so a caller never releases a lock that another node acquired.
+func (node *Node) removeWorkerFromMaps(ctx context.Context, id, lockToken string) {
 	if _, err := node.workerMap.Delete(ctx, id); err != nil {
 		node.logger.Error(fmt.Errorf("removeWorkerFromMaps: failed to remove worker %s from worker map: %w", id, err))
 	}
 	if _, err := node.workerKeepAliveMap.Delete(ctx, id); err != nil {
 		node.logger.Error(fmt.Errorf("removeWorkerFromMaps: failed to remove worker %s from keep-alive map: %w", id, err))
 	}
-	if _, err := node.workerCleanupMap.Delete(ctx, id); err != nil {
-		node.logger.Error(fmt.Errorf("removeWorkerFromMaps: failed to remove cleanup timestamp: %w", err), "worker", id)
+	if lockToken != "" {
+		if _, err := node.workerCleanupMap.TestAndDelete(ctx, id, lockToken); err != nil {
+			node.logger.Error(fmt.Errorf("removeWorkerFromMaps: failed to release cleanup lock: %w", err), "worker", id)
+		}
 	}
 	// NOTE: Do not delete job payloads here.
 	//

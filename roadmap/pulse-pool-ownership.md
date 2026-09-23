@@ -1,7 +1,7 @@
 # Pulse Pool Job Ownership
 
-Status: active. Design accepted (owner-record redesign). Implementation has
-not started.
+Status: active. Design accepted (owner-record redesign). Ticket 1 is done.
+Tickets 2 to 8 are open.
 
 Code references are to `main` at `967f4fbe`. The model lives in
 [`pulse/pool/tla`](../pulse/pool/tla/README.md).
@@ -36,12 +36,12 @@ worker, breadth-first). Configurations are under `pulse/pool/tla/cfg/`.
 | B4 | `rebalance` requeues without checking whether cleanup already moved the key, and without removing `jobMap[w]`. Rebalance and cleanup both requeue the same job. | `worker.go:370-388`, `node_recovery.go:145,161` | 15 (`double_rebalance`) | open |
 | B5 | `startJob` writes `jobMap` then the payload. These are separate `rmap`s with separate subscriptions. A node that sees the payload without the `jobMap` entry for longer than the grace period requeues a running job. | `worker.go:252,256`, `node_recovery.go:104-126` | 10 (`runner_orphan_lag`) | open, needs lag longer than `2*workerTTL` |
 | B6 | Cleanup trusts a stale keep-alive snapshot and never re-checks it after taking the lock. Eviction calls `worker.stop`, which never calls `handler.Stop`, so a worker that only looked dead keeps running its jobs until the process exits. | `node_recovery.go:37-69`, `node_events.go:231-245`, `worker.go:230-245` | 12 (`runner_false_death`) | open |
-| L1 | `removeWorkerFromMaps` deletes the cleanup lock without checking the holder. An eviction on one goroutine deletes the lock another node just acquired, and both nodes hold it. | `node_cleanup.go:47` | 11 (`lock_asis`) | open |
+| L1 | `removeWorkerFromMaps` deletes the cleanup lock without checking the holder. An eviction on one goroutine deletes the lock another node just acquired, and both nodes hold it. | `node_cleanup.go:47` | 11 (`lock_asis`) | fixed by ticket 1 |
 | L2 | `acquireCleanupLock` deleted a stale lock unconditionally, then called `SetIfNotExists`. Two nodes that saw the same stale value could both acquire. | `node_membership.go` before `ba2af97c` | 17 (`lock_pre_release_only`) | fixed on main by `ba2af97c` |
 
 `ba2af97c` replaces the stale-lock delete with `TestAndSetEx` on the observed
-value (`node_membership.go:62-93`). TLC confirms that this closes L2. L1 still
-breaks mutual exclusion on main in 11 states.
+value (`node_membership.go:62-93`). TLC confirms that this closes L2. Ticket 1
+closes L1; `lock_fixed` checks the combination.
 
 Each trace, translated into Go calls:
 
@@ -371,7 +371,8 @@ return {2, requeued}
     the start-error retry is covered only by the Go test in ticket 4.
 - **The orphan sweep** requeues only keys with no owner record.
 - **Lock release** (`removeWorkerFromMaps`) runs a test-and-delete with the
-  caller's token. Eviction and close pass no token and leave the lock alone.
+  caller's token. Eviction, `close`, and `RemoveWorker` pass no token and leave
+  the lock alone.
 - **Resume after self-fencing** calls `claimJob`-style validation. Owner and
   epoch must match. It is read-only and restarts the handler with the same
   epoch.
@@ -437,10 +438,17 @@ Each ticket is one atomic commit. Each starts with a failing test that
 reproduces the cited TLC trace. Tickets 1 to 4 are independent and are
 useful even before the owner record lands.
 
-1. **Holder-only cleanup-lock release (L1).** `removeWorkerFromMaps` takes
-   the caller's token and uses `TestAndDelete`. Test: the 11-step `lock_asis`
-   interleaving, driven through `claimCleanupLock` and `deleteWorker`, ends
-   with exactly one holder.
+1. **Holder-only cleanup-lock release (L1).** Done.
+   `claimCleanupLock` returns the lock token. `cleanupWorker` passes it to
+   `deleteWorker`, and `removeWorkerFromMaps` releases the lock with
+   `TestAndDelete` on that token. Eviction, `close`, and `RemoveWorker` pass no
+   token and leave the lock alone, as `FIX_LOCK_RELEASE` models. Test:
+   `TestEvictionKeepsCleanupLockOfAnotherHolder` replays the 11-step
+   `lock_asis` interleaving and ends with exactly one holder.
+   - Known limit: a lock whose holder crashes before it finishes, on a worker
+     that eviction, `close`, or `RemoveWorker` then removes, is never deleted.
+     The worker is gone, so the entry has no effect beyond its size. The model
+     keeps the lock in the same case.
 2. **Idempotent `startJob` (B1, and B2 to B4 on one worker).** Test: the same
    start event delivered twice calls `handler.Start` once, and both deliveries
    are acked.
