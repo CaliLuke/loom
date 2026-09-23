@@ -121,6 +121,80 @@ func TestMuxUseAfterHandlePanicsWithLoomDiagnostic(t *testing.T) {
 	assert.False(t, m.patternBeforeMiddleware)
 }
 
+func TestMuxHandleValidatesCatchAllWildcards(t *testing.T) {
+	cases := []struct {
+		Name    string
+		Pattern string
+		URL     string
+		Vars    map[string]string
+		Panic   string
+	}{
+		{
+			Name:    "no wildcard",
+			Pattern: "/users",
+			URL:     "/users",
+		},
+		{
+			Name:    "segment wildcards",
+			Pattern: "/users/{id}/posts/{post_id}",
+			URL:     "/users/1/posts/2",
+			Vars:    map[string]string{"id": "1", "post_id": "2"},
+		},
+		{
+			Name:    "trailing catch-all",
+			Pattern: "/files/{*path}",
+			URL:     "/files/a/b.txt",
+			Vars:    map[string]string{"path": "a/b.txt"},
+		},
+		{
+			Name:    "segment wildcard and trailing catch-all",
+			Pattern: "/users/{id}/files/{*path}",
+			URL:     "/users/1/files/a/b.txt",
+			Vars:    map[string]string{"id": "1", "path": "a/b.txt"},
+		},
+		{
+			Name:    "two catch-alls",
+			Pattern: "/files/{*dir}/{*path}",
+			Panic:   `loom: route pattern "/files/{*dir}/{*path}" has 2 catch-all wildcards; use at most one trailing "/{*name}"`,
+		},
+		{
+			Name:    "non-trailing catch-all",
+			Pattern: "/files/{*path}/meta",
+			Panic:   `loom: catch-all wildcard "path" must terminate route pattern "/files/{*path}/meta"`,
+		},
+		{
+			Name:    "bare star",
+			Pattern: "/files/*",
+			Panic:   `loom: route pattern "/files/*" uses a bare "*"; use a trailing "/{*name}" catch-all wildcard instead`,
+		},
+		{
+			Name:    "bare star after catch-all",
+			Pattern: "/files/{*path}*",
+			Panic:   `loom: catch-all wildcard "path" must terminate route pattern "/files/{*path}*"`,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			m := NewMuxer()
+			var vars map[string]string
+			register := func() {
+				m.Handle(http.MethodGet, c.Pattern, func(_ http.ResponseWriter, r *http.Request) {
+					vars = m.Vars(r)
+				})
+			}
+			if c.Panic != "" {
+				assert.PanicsWithValue(t, c.Panic, register)
+				return
+			}
+			require.NotPanics(t, register)
+			w := httptest.NewRecorder()
+			m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, c.URL, nil))
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Equal(t, c.Vars, vars)
+		})
+	}
+}
+
 func TestVars(t *testing.T) {
 	cases := []struct {
 		Name     string

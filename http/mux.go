@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"sync"
 
 	chi "github.com/go-chi/chi/v5"
@@ -36,7 +37,9 @@ type (
 	//     Vars.
 	//
 	// The names of wildcards must match the regular expression
-	// "[a-zA-Z0-9_]+".
+	// "[a-zA-Z0-9_]+". A pattern has at most one catch-all, and "*" may
+	// appear only inside a trailing "/{*name}"; regular expression
+	// parameters are not supported.
 	Muxer interface {
 		// Handle registers the handler function for the given method
 		// and pattern.
@@ -117,7 +120,9 @@ var (
 
 // Handle registers the handler function for the given method and pattern.
 // It sets r.Pattern on every matched request to "METHOD /path" (matching the Go
-// 1.22+ convention used by http.ServeMux).
+// 1.22+ convention used by http.ServeMux). It panics if the pattern has more
+// than one "{*name}" catch-all wildcard, a catch-all that does not terminate
+// the pattern, or a bare "*" outside the "{*name}" syntax.
 func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -136,12 +141,9 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 	// Capture the registered pattern before wildcard rewriting so we can
 	// populate r.Pattern for downstream consumers.
 	reqPattern := method + " " + pattern
-	if wildcards := wildPath.FindStringSubmatch(pattern); len(wildcards) > 0 {
-		if len(wildcards) > 2 {
-			panic("too many wildcards")
-		}
-		pattern = wildPath.ReplaceAllString(pattern, "/*")
-		m.wildcards[method+"::"+pattern] = wildcards[1]
+	if start, name := catchAllWildcard(pattern); name != "" {
+		pattern = pattern[:start] + "/*"
+		m.wildcards[method+"::"+pattern] = name
 	}
 	methodRegistrationMu.Lock()
 	defer methodRegistrationMu.Unlock()
@@ -188,6 +190,30 @@ func (m *mux) Vars(r *http.Request) map[string]string {
 		vars[k] = value
 	}
 	return vars
+}
+
+// catchAllWildcard returns the start offset and name of the "{*name}"
+// catch-all wildcard that terminates pattern, or an empty name when pattern
+// has none. It panics when pattern breaks the catch-all rules documented on
+// Muxer, which the design validates for generated routes, so that direct
+// callers get a Loom diagnostic instead of a chi registration panic.
+func catchAllWildcard(pattern string) (int, string) {
+	matches := wildPath.FindAllStringSubmatchIndex(pattern, -1)
+	if len(matches) > 1 {
+		panic(fmt.Sprintf("loom: route pattern %q has %d catch-all wildcards; use at most one trailing \"/{*name}\"", pattern, len(matches)))
+	}
+	start, name := 0, ""
+	if len(matches) == 1 {
+		match := matches[0]
+		start, name = match[0], pattern[match[2]:match[3]]
+		if match[1] != len(pattern) {
+			panic(fmt.Sprintf("loom: catch-all wildcard %q must terminate route pattern %q", name, pattern))
+		}
+	}
+	if strings.Contains(wildPath.ReplaceAllString(pattern, ""), "*") {
+		panic(fmt.Sprintf("loom: route pattern %q uses a bare \"*\"; use a trailing \"/{*name}\" catch-all wildcard instead", pattern))
+	}
+	return start, name
 }
 
 func unescapePathParam(value string) string {
