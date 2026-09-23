@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/example"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
 
@@ -36,24 +37,22 @@ func renderSectionSource(section codegen.Section) string {
 	return b.String()
 }
 
-func jsonrpcExampleServerStartSource(httpServices, jsonrpcServices []jsonrpcExampleServiceData) string {
+// jsonrpcExampleServerStartSource renders the handleHTTPServer signature from
+// the same handler arguments the example main passes to it. serviceImports
+// maps service design names to their service package import names.
+func jsonrpcExampleServerStartSource(args []example.HandlerArg, serviceImports map[string]string) string {
 	var b exampleSourceBuilder
 	b.Add("\n")
 	b.Add(codegen.Comment("handleHTTPServer starts configures and starts a HTTP server on the given URL. It shuts down the server if any error is received in the error channel."))
 	b.Add("\n")
 	b.Add("func handleHTTPServer(ctx context.Context, u *url.URL")
-	for _, svc := range httpServices {
-		if len(svc.Data.Service.Methods) > 0 {
-			b.Addf(", %sEndpoints *%s.Endpoints", svc.Data.Service.VarName, svc.ServiceImport)
+	for _, arg := range args {
+		if arg.Endpoint != "" {
+			b.Addf(", %s *%s.Endpoints", arg.Endpoint, serviceImports[arg.ServiceName])
 		}
-	}
-	for _, svc := range jsonrpcServices {
-		if !hasJSONRPCExampleServiceName(httpServices, svc.Data.Service.Name) {
-			b.Addf(", %sEndpoints *%s.Endpoints", svc.Data.Service.VarName, svc.ServiceImport)
+		if arg.Service != "" {
+			b.Addf(", %s %s.Service", arg.Service, serviceImports[arg.ServiceName])
 		}
-	}
-	for _, svc := range jsonrpcServices {
-		b.Addf(", %sSvc %s.Service", svc.Data.Service.VarName, svc.ServiceImport)
 	}
 	b.Add(", wg *sync.WaitGroup, errc chan error, dbg bool) {\n")
 	return b.String()
@@ -169,15 +168,6 @@ func jsonrpcExampleServerEndSource(httpServices, jsonrpcServices []jsonrpcExampl
 	b.Add("\t\t}\n")
 	b.Add("\t}()\n}\n")
 	return b.String()
-}
-
-func hasJSONRPCExampleServiceName(services []jsonrpcExampleServiceData, name string) bool {
-	for _, svc := range services {
-		if svc.Data.Service.Name == name {
-			return true
-		}
-	}
-	return false
 }
 
 func httpcodegenServerConstructorCall(svc jsonrpcExampleServiceData, apiPkg string) string {

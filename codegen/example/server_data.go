@@ -2,6 +2,7 @@ package example
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -32,6 +33,11 @@ type (
 		Transports []*TransportData
 		// Dir is the directory name for the generated client and server examples.
 		Dir string
+		// HTTPHandlerArgs are the ordered arguments that follow the context and
+		// URL in the example handleHTTPServer function. Every HTTP URI passes
+		// these arguments, so generators that declare the function use them to
+		// keep its signature in step with the call in the example main.
+		HTTPHandlerArgs []HandlerArg
 	}
 
 	// HostData contains the data about a single host in a server.
@@ -89,8 +95,13 @@ type (
 	// HandlerArg represents one argument slot to the handler call in the example
 	// server. Only one of Endpoint or Service may be set for each entry.
 	HandlerArg struct {
+		// ServiceName is the design name of the service the argument belongs to.
+		ServiceName string
+		// Endpoint is the name of the variable that holds the service endpoints.
 		Endpoint string
-		Service  string
+		// Service is the name of the variable that holds the service
+		// implementation.
+		Service string
 	}
 
 	// TransportData contains the data about a transport (http or grpc).
@@ -285,9 +296,14 @@ func assignTransportServices(transports []*TransportData, httpServices, grpcServ
 }
 
 func populateHandlerArgs(sd *Data, root *expr.RootExpr) {
+	sd.HTTPHandlerArgs = computeHandlerArgs(TransportHTTP, sd, root)
+	grpcArgs := computeHandlerArgs(TransportGRPC, sd, root)
 	for _, h := range sd.Hosts {
 		for _, u := range h.URIs {
-			u.HandlerArgs = computeHandlerArgsForURI(u, sd, root)
+			u.HandlerArgs = sd.HTTPHandlerArgs
+			if u.Transport.Type == TransportGRPC {
+				u.HandlerArgs = grpcArgs
+			}
 		}
 	}
 }
@@ -408,17 +424,19 @@ func newGRPCTransport() *TransportData {
 	return &TransportData{Type: TransportGRPC, Name: "gRPC"}
 }
 
-// computeHandlerArgsForURI returns the ordered handler arguments for the given URI.
-// For HTTP URIs that serve both HTTP and JSON-RPC services, the order is:
+// computeHandlerArgs returns the ordered handler arguments for URIs of the
+// given transport. For HTTP URIs that serve both HTTP and JSON-RPC services,
+// the order is:
 //   - HTTP service endpoints (for services in the HTTP transport list)
-//   - JSON-RPC service interfaces (in JSONRPC.Services order)
-//   - JSON-RPC service endpoints (for services not already added as HTTP endpoints)
-func computeHandlerArgsForURI(uri *URIData, server *Data, root *expr.RootExpr) []HandlerArg {
-	grpcSvcNames := transportServiceNames(server.Transports, TransportGRPC)
-	if uri.Transport.Type == TransportGRPC {
+//   - for each JSON-RPC service hosted by the server (in JSONRPC.Services
+//     order), its interface followed by its endpoints unless already added as
+//     HTTP endpoints
+func computeHandlerArgs(transport Transport, server *Data, root *expr.RootExpr) []HandlerArg {
+	if transport == TransportGRPC {
+		grpcSvcNames := transportServiceNames(server.Transports, TransportGRPC)
 		out := make([]HandlerArg, 0, len(grpcSvcNames))
 		for _, name := range grpcSvcNames {
-			out = append(out, HandlerArg{Endpoint: codegen.Goify(name, false) + "Endpoints"})
+			out = append(out, endpointHandlerArg(name))
 		}
 		return out
 	}
@@ -445,7 +463,7 @@ func computeHandlerArgsForURI(uri *URIData, server *Data, root *expr.RootExpr) [
 	// where $.Services includes both HTTP and JSON-RPC services.
 	for _, svcName := range server.Services {
 		if _, inTemplate := servicesInTemplate[svcName]; inTemplate && serviceHasHandlers(svcName) {
-			out = append(out, HandlerArg{Endpoint: codegen.Goify(svcName, false) + "Endpoints"})
+			out = append(out, endpointHandlerArg(svcName))
 			addedEndpoints[svcName] = true
 		}
 	}
@@ -454,19 +472,27 @@ func computeHandlerArgsForURI(uri *URIData, server *Data, root *expr.RootExpr) [
 	// This matches the template's second loop: {{ range $.JSONRPCServices }}
 	// where each iteration adds the service, checks if it's in $.Services, and conditionally
 	// adds the endpoint - all in the same iteration (not separate loops).
+	// Services the server does not host have no variables in the example main.
 	for _, jsvc := range jsonrpcServices {
 		name := jsvc.ServiceExpr.Name
+		if !slices.Contains(server.Services, name) {
+			continue
+		}
 		// Add service interface
-		out = append(out, HandlerArg{Service: codegen.Goify(name, false) + "Svc"})
+		out = append(out, HandlerArg{ServiceName: name, Service: codegen.Goify(name, false) + "Svc"})
 		// Add endpoint if this service doesn't have HTTP transport
 		// (i.e., wasn't added in Step 1)
 		if !addedEndpoints[name] && serviceHasHandlers(name) {
-			out = append(out, HandlerArg{Endpoint: codegen.Goify(name, false) + "Endpoints"})
+			out = append(out, endpointHandlerArg(name))
 			addedEndpoints[name] = true
 		}
 	}
 
 	return out
+}
+
+func endpointHandlerArg(name string) HandlerArg {
+	return HandlerArg{ServiceName: name, Endpoint: codegen.Goify(name, false) + "Endpoints"}
 }
 
 func transportServiceNames(transports []*TransportData, transportType Transport) []string {

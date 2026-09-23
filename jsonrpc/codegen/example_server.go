@@ -18,19 +18,22 @@ type jsonrpcExampleServiceData struct {
 	JSONRPCServerImport string
 }
 
-// ExampleServerFiles returns example JSON-RPC server implementation.
+// ExampleServerFiles returns example JSON-RPC server implementation. The
+// generated handleHTTPServer function also serves the plain HTTP services the
+// server hosts, so files may contain the HTTP example server to extend.
 func ExampleServerFiles(genpkg string, data *httpcodegen.ServicesData, files []*codegen.File) []*codegen.File {
 	var fw []*codegen.File
 	servers := example.NewServersData()
+	httpData := httpcodegen.NewServicesData(data.ServicesData, data.Root.API.HTTP)
 	for _, svr := range data.Root.API.Servers {
-		if m := exampleServer(genpkg, data, svr, files, servers); m != nil {
+		if m := exampleServer(genpkg, data, httpData, svr, files, servers); m != nil {
 			fw = append(fw, m)
 		}
 	}
 	return fw
 }
 
-func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, servers example.ServersData) *codegen.File {
+func exampleServer(genpkg string, data, httpData *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, servers example.ServersData) *codegen.File {
 	svrdata := servers.Get(svr, data.Root)
 	httppath := filepath.Join("cmd", svrdata.Dir, "http.go")
 	file, _ := findOrBuildExampleHTTPServer(genpkg, data, svr, files, httppath)
@@ -45,13 +48,14 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 
 	svcdata := buildJSONRPCExampleServiceData(svr, data, header, genpkg)
 	updatedSections := make([]codegen.Section, 0, len(sections)+2)
-	httpServices := jsonrpcHTTPExampleServiceData(svcdata, data)
+	httpServices := buildJSONRPCExampleServiceData(svr, httpData, header, genpkg)
+	serviceImports := jsonrpcExampleServiceImports(httpServices, svcdata)
 	apiPkg := jsonrpcExampleAPIPkg(genpkg, header, data)
 	for _, section := range sections {
 		switch section.SectionName() {
 		case "server-http-start":
 			updatedSections = append(updatedSections, codegen.NewRenderSection("server-http-start", func() string {
-				return jsonrpcExampleServerStartSource(httpServices, svcdata)
+				return jsonrpcExampleServerStartSource(svrdata.HTTPHandlerArgs, serviceImports)
 			}))
 			continue
 		case "server-http-end":
@@ -71,18 +75,16 @@ func exampleServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.Serv
 	return file
 }
 
-func jsonrpcHTTPExampleServiceData(services []jsonrpcExampleServiceData, data *httpcodegen.ServicesData) []jsonrpcExampleServiceData {
-	httpServiceNames := make(map[string]struct{}, len(data.Root.API.HTTP.Services))
-	for _, service := range data.Root.API.HTTP.Services {
-		httpServiceNames[service.Name()] = struct{}{}
-	}
-	httpServices := make([]jsonrpcExampleServiceData, 0, len(services))
-	for _, service := range services {
-		if _, ok := httpServiceNames[service.Data.Service.Name]; ok {
-			httpServices = append(httpServices, service)
+// jsonrpcExampleServiceImports indexes the service package import names of
+// the given services by service design name.
+func jsonrpcExampleServiceImports(serviceGroups ...[]jsonrpcExampleServiceData) map[string]string {
+	imports := make(map[string]string)
+	for _, services := range serviceGroups {
+		for _, svc := range services {
+			imports[svc.Data.Service.Name] = svc.ServiceImport
 		}
 	}
-	return httpServices
+	return imports
 }
 
 func findOrBuildExampleHTTPServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, httpPath string) (*codegen.File, bool) {
