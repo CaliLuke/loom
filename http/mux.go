@@ -157,8 +157,7 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 // middleware can read r.Pattern before the matched handler runs.
 func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if m.patternBeforeMiddleware {
-		rctx := chi.NewRouteContext()
-		if m.Match(rctx, r.Method, r.URL.Path) {
+		if rctx := m.matchRoute(r); rctx != nil {
 			r.Pattern = r.Method + " " + m.resolveWildcard(r.Method, rctx.RoutePattern())
 		}
 	}
@@ -231,8 +230,12 @@ func (m *mux) resolveWildcard(method, pattern string) string {
 	return pattern
 }
 
-// ensureContext makes sure chi has initialized the request context if it
-// handles it, otherwise it returns nil.
+// ensureContext returns the chi routing context for a request handled by
+// chi. Before chi has routed the request, as in mux middleware, it matches the
+// route into a separate context: matching into the live context would record
+// the route a second time when chi dispatches and corrupt the pattern and
+// parameters seen by the handler. It returns nil when chi does not handle the
+// request or no route matches.
 func (m *mux) ensureContext(r *http.Request) *chi.Context {
 	ctx := chi.RouteContext(r.Context())
 	if ctx == nil {
@@ -241,8 +244,23 @@ func (m *mux) ensureContext(r *http.Request) *chi.Context {
 	if ctx.RoutePattern() != "" {
 		return ctx // already initialized
 	}
-	if !m.Match(ctx, r.Method, r.URL.Path) {
-		return nil // route not handled by chi
+	return m.matchRoute(r)
+}
+
+// matchRoute matches r into a new routing context using the same path chi
+// routes on: URL.RawPath when set, so an encoded slash stays inside one
+// segment, otherwise URL.Path. It returns nil when no route matches.
+func (m *mux) matchRoute(r *http.Request) *chi.Context {
+	routePath := r.URL.Path
+	if r.URL.RawPath != "" {
+		routePath = r.URL.RawPath
 	}
-	return ctx
+	if routePath == "" {
+		routePath = "/"
+	}
+	rctx := chi.NewRouteContext()
+	if !m.Match(rctx, r.Method, routePath) {
+		return nil
+	}
+	return rctx
 }

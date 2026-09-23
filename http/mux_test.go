@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMuxRegexp(t *testing.T) {
@@ -415,6 +416,135 @@ func TestResolvePattern(t *testing.T) {
 			w := httptest.NewRecorder()
 			mux.ServeHTTP(w, req)
 			assert.True(t, called)
+		})
+	}
+}
+
+func TestMuxMiddlewareResolutionKeepsRouteContext(t *testing.T) {
+	cases := []struct {
+		name     string
+		patterns []string
+		url      string
+		pattern  string
+		vars     map[string]string
+	}{
+		{
+			name:     "wildcard",
+			patterns: []string{"/{p0}/{*w}"},
+			url:      "/a/b/c",
+			pattern:  "/{p0}/{*w}",
+			vars:     map[string]string{"p0": "a", "w": "b/c"},
+		},
+		{
+			name:     "segment",
+			patterns: []string{"/users/{id}"},
+			url:      "/users/123",
+			pattern:  "/users/{id}",
+			vars:     map[string]string{"id": "123"},
+		},
+		{
+			name:     "static",
+			patterns: []string{"/users"},
+			url:      "/users",
+			pattern:  "/users",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				middlewarePattern string
+				middlewareVars    map[string]string
+				handlerPattern    string
+				handlerVars       map[string]string
+				called            bool
+			)
+			mux := NewMuxer()
+			mux.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					middlewarePattern = mux.ResolvePattern(r)
+					middlewareVars = mux.Vars(r)
+					next.ServeHTTP(w, r)
+				})
+			})
+			for _, pattern := range tc.patterns {
+				mux.Handle(http.MethodGet, pattern, func(_ http.ResponseWriter, r *http.Request) {
+					handlerPattern = mux.ResolvePattern(r)
+					handlerVars = mux.Vars(r)
+					called = true
+				})
+			}
+			mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, tc.url, nil))
+			require.True(t, called)
+			require.Equal(t, tc.pattern, middlewarePattern, "middleware ResolvePattern")
+			require.Equal(t, tc.vars, middlewareVars, "middleware Vars")
+			require.Equal(t, tc.pattern, handlerPattern, "handler ResolvePattern")
+			require.Equal(t, tc.vars, handlerVars, "handler Vars")
+		})
+	}
+}
+
+func TestMuxMiddlewareMatchesEscapedPathLikeChi(t *testing.T) {
+	cases := []struct {
+		name     string
+		patterns []string
+		url      string
+		pattern  string
+		vars     map[string]string
+	}{
+		{
+			name:     "encoded slash stays in one segment",
+			patterns: []string{"/users/{id}"},
+			url:      "/users/a%2Fb",
+			pattern:  "/users/{id}",
+			vars:     map[string]string{"id": "a/b"},
+		},
+		{
+			name:     "encoded slash does not add a segment",
+			patterns: []string{"/{*w}", "/{p0}/{*w}"},
+			url:      "/%2F",
+			pattern:  "/{*w}",
+			vars:     map[string]string{"w": "/"},
+		},
+		{
+			name:     "encoded slash in wildcard",
+			patterns: []string{"/files/{*path}", "/files/{dir}/{name}"},
+			url:      "/files/a%2Fb/c",
+			pattern:  "/files/{dir}/{name}",
+			vars:     map[string]string{"dir": "a/b", "name": "c"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				middlewareRequestPattern string
+				middlewarePattern        string
+				middlewareVars           map[string]string
+				handlerPattern           string
+				called                   bool
+			)
+			mux := NewMuxer()
+			mux.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					middlewareRequestPattern = r.Pattern
+					middlewarePattern = mux.ResolvePattern(r)
+					middlewareVars = mux.Vars(r)
+					next.ServeHTTP(w, r)
+				})
+			})
+			for _, pattern := range tc.patterns {
+				mux.Handle(http.MethodGet, pattern, func(_ http.ResponseWriter, r *http.Request) {
+					handlerPattern = mux.ResolvePattern(r)
+					called = true
+				})
+			}
+			mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, tc.url, nil))
+			require.True(t, called)
+			require.Equal(t, tc.pattern, handlerPattern, "handler ResolvePattern")
+			require.Equal(t, http.MethodGet+" "+tc.pattern, middlewareRequestPattern, "middleware r.Pattern")
+			require.Equal(t, tc.pattern, middlewarePattern, "middleware ResolvePattern")
+			require.Equal(t, tc.vars, middlewareVars, "middleware Vars")
 		})
 	}
 }
