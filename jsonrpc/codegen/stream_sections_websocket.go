@@ -534,7 +534,7 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 								jen.Lit("params"):  jen.Id("body"),
 							})
 						}
-						cg.Return(jen.Id("s").Dot("sendSSEEvent").Call(jen.Lit("message"), jen.Id("message")))
+						cg.Return(jen.Id("s").Dot("sendSSEEvent").Call(jen.Id("ctx"), jen.Lit("message"), jen.Id("message")))
 					})
 				}
 				sg.Default().Block(

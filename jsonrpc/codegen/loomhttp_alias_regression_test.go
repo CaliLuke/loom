@@ -40,7 +40,8 @@ func TestJSONRPCRenderedFilesUseLoomHTTPAlias(t *testing.T) {
 	ssePath := filepath.Join(dir, "gen/jsonrpc/jsonrpc_mixed_initialize_events_stream_service/server/stream.go")
 	sseCode, err := os.ReadFile(ssePath)
 	require.NoError(t, err)
-	require.Contains(t, string(sseCode), "loomhttp.WriteJSONSSEEvent")
+	require.Contains(t, string(sseCode), "loomhttp.EncodeSSEData(")
+	require.Contains(t, string(sseCode), "loomhttp.WriteSSEEvent(")
 	require.NotContains(t, string(sseCode), "http1.")
 }
 

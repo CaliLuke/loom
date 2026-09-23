@@ -165,9 +165,15 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				if errors.As(err, &en) {
 					switch en.LoomErrorName() {
 					case "invalid_params":
-						return strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						if sendErr := strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
+							return fmt.Errorf("%w: %w", sendErr, err)
+						}
+						return nil
 					case "method_not_found":
-						return strm.sendError(ctx, req.ID, jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						if sendErr := strm.sendError(ctx, req.ID, jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
+							return fmt.Errorf("%w: %w", sendErr, err)
+						}
+						return nil
 					}
 				}
 				code := jsonrpc.InternalError
@@ -175,7 +181,10 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				if errors.As(err, &serviceError) {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
-				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+				if sendErr := strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
+					return fmt.Errorf("%w: %w", sendErr, err)
+				}
+				return nil
 			}
 			return nil
 		}
@@ -225,9 +234,15 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				if errors.As(err, &en) {
 					switch en.LoomErrorName() {
 					case "invalid_params":
-						return strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						if sendErr := strm.sendError(ctx, req.ID, jsonrpc.InvalidParams, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
+							return fmt.Errorf("%w: %w", sendErr, err)
+						}
+						return nil
 					case "method_not_found":
-						return strm.sendError(ctx, req.ID, jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+						if sendErr := strm.sendError(ctx, req.ID, jsonrpc.MethodNotFound, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
+							return fmt.Errorf("%w: %w", sendErr, err)
+						}
+						return nil
 					}
 				}
 				code := jsonrpc.InternalError
@@ -235,7 +250,10 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				if errors.As(err, &serviceError) {
 					code = jsonrpc.CodeForServiceError(serviceError)
 				}
-				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
+				if sendErr := strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
+					return fmt.Errorf("%w: %w", sendErr, err)
+				}
+				return nil
 			}
 			return nil
 		}

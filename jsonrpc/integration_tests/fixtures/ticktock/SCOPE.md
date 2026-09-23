@@ -21,6 +21,11 @@ Covered:
 - `SendAndCloseWithContext` + `SendAndClose` interface on the server stream
   (see http/codegen's WebSocket/SSE stream emit — the wrapper is a thin
   forwarder to the with-context variant).
+- Generated server terminal-response semantics (`sse_server_terminal_test.go`,
+  run under `-race` by `tests/sse_server_terminal_test.go`): no event,
+  comment, open, or error response follows `SendAndClose` or `SendError`, even
+  with concurrent `Send` calls queued behind a blocked write, and stream writes
+  honor the call context.
 - Temp-copy regeneration rewrites the fixture's Loom replacement to the current
   repository root and proves the regenerated app compiles against the change
   under test.

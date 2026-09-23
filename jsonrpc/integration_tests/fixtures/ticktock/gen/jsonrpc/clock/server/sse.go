@@ -41,14 +41,14 @@ func (s *clockSSEStream) Open(ctx context.Context) error {
 func (s *clockSSEStream) SendComment(ctx context.Context, text string) error {
 	return s.writer.SendComment(ctx, text)
 }
-func (s *clockSSEStream) sendSSEEvent(eventType string, v any) error {
-	return s.writer.WriteEvent(s.r.Context(), func(w io.Writer) error {
+func (s *clockSSEStream) sendSSEEvent(ctx context.Context, eventType string, v any) error {
+	return s.writer.WriteEvent(ctx, func(w io.Writer) error {
 		return loomhttp.WriteJSONSSEEvent(w, loomhttp.SSEMessage{Type: eventType}, v)
 	})
 }
 func (s *clockSSEStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
 	response := jsonrpc.MakeErrorResponse(id, code, message, data)
-	return s.sendSSEEvent("message", response)
+	return s.sendSSEEvent(ctx, "message", response)
 }
 
 // Send sends an event (notification or response) to the client.
@@ -64,7 +64,7 @@ func (s *clockSSEStream) Send(ctx context.Context, event clock.Event) error {
 			"method":  "Tick",
 			"params":  body,
 		}
-		return s.sendSSEEvent("message", message)
+		return s.sendSSEEvent(ctx, "message", message)
 	case *clock.TockResult:
 		body := NewTockResponseBody(v)
 		var message map[string]any
@@ -73,7 +73,7 @@ func (s *clockSSEStream) Send(ctx context.Context, event clock.Event) error {
 			"method":  "Tock",
 			"params":  body,
 		}
-		return s.sendSSEEvent("message", message)
+		return s.sendSSEEvent(ctx, "message", message)
 	default:
 		return fmt.Errorf("unknown event type: %T", event)
 	}

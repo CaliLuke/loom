@@ -217,22 +217,10 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).Block(
 				jen.Switch(jen.Id("en").Dot("LoomErrorName").Call()).Block(
 					jen.Case(jen.Lit("invalid_params")).Block(
-						jen.Return(jen.Id("strm").Dot("sendError").Call(
-							jen.Id("ctx"),
-							jen.Id("req").Dot("ID"),
-							jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams"),
-							codegen.Expr("loom.ErrorSafeMessage(err)"),
-							codegen.Expr("jsonrpc.NewErrorData(err)"),
-						)),
+						sseEndpointErrorResponse(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams")),
 					),
 					jen.Case(jen.Lit("method_not_found")).Block(
-						jen.Return(jen.Id("strm").Dot("sendError").Call(
-							jen.Id("ctx"),
-							jen.Id("req").Dot("ID"),
-							jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound"),
-							codegen.Expr("loom.ErrorSafeMessage(err)"),
-							codegen.Expr("jsonrpc.NewErrorData(err)"),
-						)),
+						sseEndpointErrorResponse(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound")),
 					),
 				),
 			)
@@ -241,17 +229,30 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
 				jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
 			)
-			idg.Return(jen.Id("strm").Dot("sendError").Call(
-				jen.Id("ctx"),
-				jen.Id("req").Dot("ID"),
-				jen.Id("code"),
-				codegen.Expr("loom.ErrorSafeMessage(err)"),
-				codegen.Expr("jsonrpc.NewErrorData(err)"),
-			))
+			idg.Add(sseEndpointErrorResponse(jen.Id("code")))
 		})
 		eg.Return(jen.Nil())
 	})
 	g.Return(jen.Nil())
+}
+
+// sseEndpointErrorResponse writes the terminal error response for an endpoint
+// error. When the write fails, including because the stream already issued its
+// terminal response, the returned error wraps both the write failure and the
+// endpoint error so the error handler keeps the original cause.
+func sseEndpointErrorResponse(code jen.Code) jen.Code {
+	return jen.If(
+		jen.Id("sendErr").Op(":=").Id("strm").Dot("sendError").Call(
+			jen.Id("ctx"),
+			jen.Id("req").Dot("ID"),
+			code,
+			codegen.Expr("loom.ErrorSafeMessage(err)"),
+			codegen.Expr("jsonrpc.NewErrorData(err)"),
+		),
+		jen.Id("sendErr").Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("%w: %w"), jen.Id("sendErr"), jen.Id("err"))),
+	).Line().Return(jen.Nil())
 }
 
 func writeJSONRPCStandardHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {

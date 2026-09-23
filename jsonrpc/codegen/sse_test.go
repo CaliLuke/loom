@@ -60,7 +60,7 @@ func TestJSONRPCSSE(t *testing.T) {
 			code := codegen.SectionCode(t, streamSection)
 			require.NotContains(t, code, `sendSSEEvent("notification",`)
 			require.NotContains(t, code, `sendSSEEvent("response", message)`)
-			require.Equal(t, 1, strings.Count(code, `sendSSEEvent("message", message)`))
+			require.Equal(t, 1, strings.Count(code, `sendSSEEvent(ctx, "message", message)`))
 			require.Contains(t, code, `jsonrpc.CompleteStream(`)
 			golden := filepath.Join("testdata", "golden", "jsonrpc-sse-"+c.Name+".golden")
 			testutil.AssertGo(t, golden, code)
@@ -99,8 +99,9 @@ func TestJSONRPCSSEServiceStreamUsesTypedResponseEvents(t *testing.T) {
 
 	require.NotContains(t, serviceStreamCode, `eventType = "response"`)
 	require.NotContains(t, serviceStreamCode, `var eventType string`)
-	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent("message", message)`)
-	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent("message", response)`)
+	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent(ctx, "message", message)`)
+	require.Contains(t, serviceStreamCode, `return s.sendSSEEvent(ctx, "message", response)`)
+	require.NotContains(t, serviceStreamCode, `s.r.Context()`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-stream-impl-object.golden"), serviceStreamCode)
 }
 
@@ -118,6 +119,7 @@ func TestJSONRPCSSEEndpointStreamsRemainLazyByDefault(t *testing.T) {
 			return err
 		}
 		decodeParams :=`)
+	require.Contains(t, handlerInitCode, "sendErr != nil {\n\t\t\t\t\treturn fmt.Errorf(\"%w: %w\", sendErr, err)")
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-handler-init-object.golden"), handlerInitCode)
 }
 
@@ -129,6 +131,39 @@ func TestJSONRPCSSEStreamSuppressedFinalResponseIsRuntimeOwned(t *testing.T) {
 
 	require.Contains(t, code, "jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body")
 	require.NotContains(t, code, "ReasonStreamFinalResponseSuppressed")
+}
+
+// TestJSONRPCSSEEndpointStreamTerminalResponseIsSerialized asserts that the
+// generated endpoint stream serializes every write with the terminal
+// transition, encodes the terminal response before committing to it, closes
+// the writer after the terminal response, treats SendError and handler errors
+// as terminal, and bounds writes with the call context.
+func TestJSONRPCSSEEndpointStreamTerminalResponseIsSerialized(t *testing.T) {
+	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
+	code := fileSectionCode(t, SSEServerFiles("", CreateJSONRPCServices(root)), "stream.go", "jsonrpc-sse-server-stream")
+
+	guardedWrite := "\ts.mu.Lock()\n\tdefer s.mu.Unlock()\n\tif s.closed {\n\t\treturn loomhttp.ErrSSEStreamClosed\n\t}\n"
+	cases := []struct {
+		name string
+		want string
+	}{
+		{name: "Send holds the lock across the write", want: guardedWrite + "\treturn s.sendSSEEvent(ctx, \"message\", message)\n"},
+		{name: "SendComment is guarded", want: guardedWrite + "\treturn s.writer.SendComment(ctx, text)\n"},
+		{name: "Open is guarded", want: guardedWrite + "\treturn s.writer.Open(ctx)\n"},
+		{name: "terminal response is encoded before the stream becomes terminal", want: "\t\tdata, err := loomhttp.EncodeSSEData(response)\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\t\tcommitted = true\n\t\treturn s.writeSSEData(ctx, \"message\", data)\n"},
+		{name: "encoding failure leaves the stream open", want: "\tif err != nil && !committed {\n\t\treturn err\n\t}\n\ts.closed = true\n\tif closeErr := s.writer.Close(); closeErr != nil && err == nil {\n"},
+		{name: "SendAndClose is terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)\n"},
+		{name: "SendError is terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {\n\t\t\treturn commit(s.mappedErrorResponse(id, err))\n"},
+		{name: "handler errors are terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn commit(jsonrpc.MakeErrorResponse(id, code, message, data))\n"},
+		{name: "writes honor the call context", want: "\treturn s.writer.WriteEvent(ctx, func(w io.Writer) error {\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Contains(t, code, tc.want)
+		})
+	}
+	require.NotContains(t, code, "s.r.Context()")
+	require.NotContains(t, code, "s.mu.Unlock()\n\n")
 }
 
 func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {

@@ -512,7 +512,19 @@ for {
     request, sends the final JSON-RPC response using the original request ID.
     For an ID-less notification or raw `GET` listener, it discards the value
     and emits the `stream_final_response_suppressed` transport event.
-  - `SendError(ctx, id, err)`: writes a JSON-RPC error response.
+  - `SendError(ctx, id, err)`: writes the final JSON-RPC error response and
+    closes the stream. For an ID-less request it closes without a frame.
+  - `SendAndClose` and `SendError` are terminal. The stream serializes every
+    write with the terminal response, so no notification, comment, or second
+    response can follow it, even from concurrent goroutines. Every later
+    `Send`, `SendAndClose`, `SendError`, `SendComment`, or `Open` returns
+    `loomhttp.ErrSSEStreamClosed`. If the service method returns an error after
+    a terminal response, Loom does not write a second response. It reports an
+    error that wraps both `loomhttp.ErrSSEStreamClosed` and the original
+    service error to the error handler.
+  - Each write checks the `ctx` passed to the call and the request context
+    before it starts. While the write runs, cancellation of the call `ctx` and
+    the configured stream write policy bound it.
 - Notifications vs responses:
   - Notifications omit `id`; their `method` is the designed
     `SSENotificationMethod`, or `<service>/stream.event` by default, and their
