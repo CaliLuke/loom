@@ -8,8 +8,10 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming/options"
 )
 
@@ -94,13 +96,21 @@ func shimStructScript(cmd redis.Cmder) {
 // whose Lua scripts are rewritten to work around the missing struct library.
 func startTestRedis(t *testing.T) *redis.Client {
 	t.Helper()
+	_, rdb := startTestRedisServer(t)
+	return rdb
+}
+
+// startTestRedisServer is startTestRedis but also returns the miniredis server
+// so tests can control its clock.
+func startTestRedisServer(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
+	t.Helper()
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	rdb.AddHook(structShimHook{})
 	t.Cleanup(func() {
 		require.NoError(t, rdb.Close())
 	})
-	return rdb
+	return mr, rdb
 }
 
 // newTestStream creates a stream backed by the test Redis server.
@@ -362,49 +372,189 @@ func TestSinkAddAndRemoveStream(t *testing.T) {
 }
 
 func TestSinkClaimsPendingEventsOfClosedSink(t *testing.T) {
-	rdb := startTestRedis(t)
+	mr, rdb := startTestRedisServer(t)
 	ctx := t.Context()
-
 	stream := newTestStream(t, rdb, "sink-claim")
-	first := newTestSink(t, stream, "claimer",
-		options.WithSinkStartAtOldest(),
-		options.WithSinkAckGracePeriod(150*time.Millisecond))
-	firstCh := first.Subscribe()
-
-	id, err := stream.Add(ctx, "created", []byte("payload"))
-	require.NoError(t, err)
-
-	// Receive the event but never ack it, then close the sink instance so its
-	// pending entry can be claimed by the next instance.
-	ev := receiveEvent(t, firstCh)
-	require.Equal(t, id, ev.ID)
-	first.Close(ctx)
+	id, _ := closeSinkWithPendingEvent(t, stream, "claimer")
 
 	idleChecks := make(chan time.Time)
 	second := newTestSinkWithRuntime(t, stream, "claimer", sinkRuntime{
 		idleCheckPeriod: 25 * time.Millisecond,
 		idleChecks:      idleChecks,
 	},
-		options.WithSinkAckGracePeriod(150*time.Millisecond))
+		options.WithSinkAckGracePeriod(claimTestAckGracePeriod))
 	secondCh := second.Subscribe()
-	var claimed *Event
-	deadline := time.NewTimer(2 * time.Second)
-	defer deadline.Stop()
-	for claimed == nil {
-		select {
-		case claimed = <-secondCh:
-		case idleChecks <- time.Now():
-		case <-deadline.C:
-			t.Fatal("timed out waiting for pending event claim")
-		}
-	}
+
+	// Age the pending entry past the ack grace period on the Redis clock
+	// instead of waiting on the wall clock.
+	mr.SetTime(time.Now().Add(time.Hour))
+	claimed := awaitIdleClaim(t, mr, "claimer", idleChecks, secondCh)
 	require.Equal(t, id, claimed.ID)
 	require.Equal(t, "created", claimed.EventName)
 	require.NoError(t, second.Ack(ctx, claimed))
 
-	require.Eventually(t, func() bool {
-		pending, err := rdb.XPending(ctx, streamKeyPrefix+"sink-claim", "claimer").Result()
-		return err == nil && pending.Count == 0
+	pending, err := rdb.XPending(ctx, stream.key, "claimer").Result()
+	require.NoError(t, err)
+	require.Zero(t, pending.Count)
+	second.Close(ctx)
+}
+
+func TestSinkKeepsStaleConsumerWithPendingEventsUntilClaimed(t *testing.T) {
+	mr, rdb := startTestRedisServer(t)
+	ctx := t.Context()
+	stream := newTestStream(t, rdb, "sink-stale-pending")
+	id, firstConsumer := closeSinkWithPendingEvent(t, stream, "claimer")
+
+	// Expire the closed consumer keep-alive so every cleanup pass sees it as
+	// stale while its pending entry is still younger than the ack grace period.
+	keepAlives, err := rmap.Join(ctx, sinkKeepAliveMapName("claimer"), rdb)
+	require.NoError(t, err)
+	_, err = keepAlives.Set(ctx, firstConsumer, "1")
+	require.NoError(t, err)
+	keepAlives.Close()
+
+	// Creating a sink runs the stale consumer cleanup before any claim.
+	idleChecks := make(chan time.Time)
+	second := newTestSinkWithRuntime(t, stream, "claimer", sinkRuntime{
+		idleCheckPeriod: 25 * time.Millisecond,
+		idleChecks:      idleChecks,
+	},
+		options.WithSinkAckGracePeriod(claimTestAckGracePeriod))
+	secondCh := second.Subscribe()
+	requireConsumerPending(t, rdb, stream.key, "claimer", firstConsumer, 1)
+
+	// A periodic cleanup pass must also keep the consumer.
+	second.lock.Lock()
+	second.deleteStaleConsumers(ctx)
+	second.lock.Unlock()
+	requireConsumerPending(t, rdb, stream.key, "claimer", firstConsumer, 1)
+
+	mr.SetTime(time.Now().Add(time.Hour))
+	claimed := awaitIdleClaim(t, mr, "claimer", idleChecks, secondCh)
+	require.Equal(t, id, claimed.ID)
+	require.NoError(t, second.Ack(ctx, claimed))
+
+	// Once its pending entry moved, the stale consumer is deleted.
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		mr.Del(staleLockName("claimer"))
+		select {
+		case idleChecks <- time.Now():
+		default:
+		}
+		pending, err := consumerPending(ctx, rdb, stream.key, "claimer", firstConsumer)
+		assert.NoError(c, err)
+		assert.Equal(c, int64(-1), pending)
 	}, 10*time.Second, 5*time.Millisecond)
 	second.Close(ctx)
+}
+
+func TestSinkDeleteIdleConsumerKeepsPendingEntries(t *testing.T) {
+	_, rdb := startTestRedisServer(t)
+	ctx := t.Context()
+	stream := newTestStream(t, rdb, "sink-delete-idle")
+	id, owner := closeSinkWithPendingEvent(t, stream, "claimer")
+	sink := newTestSinkWithRuntime(t, stream, "claimer", sinkRuntime{
+		idleCheckPeriod: 25 * time.Millisecond,
+		idleChecks:      make(chan time.Time),
+	},
+		options.WithSinkAckGracePeriod(claimTestAckGracePeriod))
+	require.NoError(t, rdb.XGroupCreateConsumer(ctx, stream.key, "claimer", "idle").Err())
+
+	cases := []struct {
+		name        string
+		consumer    string
+		prepare     func(t *testing.T)
+		wantDeleted bool
+		wantPending int64
+	}{
+		{name: "owner of pending entry", consumer: owner, prepare: func(*testing.T) {}, wantDeleted: false, wantPending: 1},
+		{name: "consumer without pending entries", consumer: "idle", prepare: func(*testing.T) {}, wantDeleted: true, wantPending: -1},
+		{
+			name:     "owner after ack",
+			consumer: owner,
+			prepare: func(t *testing.T) {
+				require.NoError(t, rdb.XAck(ctx, stream.key, "claimer", id).Err())
+			},
+			wantDeleted: true,
+			wantPending: -1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.prepare(t)
+			deleted, err := sink.deleteIdleConsumer(ctx, stream.key, tc.consumer)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantDeleted, deleted)
+			requireConsumerPending(t, rdb, stream.key, "claimer", tc.consumer, tc.wantPending)
+		})
+	}
+}
+
+// claimTestAckGracePeriod is the ack grace period of sinks in claim tests.
+const claimTestAckGracePeriod = 150 * time.Millisecond
+
+// closeSinkWithPendingEvent adds an event to stream, receives it with a new
+// sink instance named name without acking it, and closes that instance. It
+// returns the event ID and the consumer that still owns the pending entry.
+func closeSinkWithPendingEvent(t *testing.T, stream *Stream, name string) (string, string) {
+	t.Helper()
+	ctx := t.Context()
+	first := newTestSinkWithRuntime(t, stream, name, sinkRuntime{
+		idleCheckPeriod: 25 * time.Millisecond,
+		idleChecks:      make(chan time.Time),
+	},
+		options.WithSinkStartAtOldest(),
+		options.WithSinkAckGracePeriod(claimTestAckGracePeriod))
+	firstCh := first.Subscribe()
+	id, err := stream.Add(ctx, "created", []byte("payload"))
+	require.NoError(t, err)
+	ev := receiveEvent(t, firstCh)
+	require.Equal(t, id, ev.ID)
+	first.Close(ctx)
+	requireConsumerPending(t, stream.rdb, stream.key, name, first.consumer, 1)
+	return id, first.consumer
+}
+
+// awaitIdleClaim triggers idle message checks of the sink named name until it
+// claims a pending event and delivers it on events. It clears the check lease
+// before each trigger so every check claims regardless of wall-clock time.
+func awaitIdleClaim(t *testing.T, mr *miniredis.Miniredis, name string, checks chan<- time.Time, events <-chan *Event) *Event {
+	t.Helper()
+	claimed := make(chan *Event, 1)
+	require.Eventually(t, func() bool {
+		mr.Del(staleLockName(name))
+		select {
+		case ev := <-events:
+			claimed <- ev
+			return true
+		case checks <- time.Now():
+		default:
+		}
+		return false
+	}, 10*time.Second, 5*time.Millisecond)
+	return <-claimed
+}
+
+// consumerPending returns the pending entry count of consumer in group, or -1
+// if the consumer does not exist.
+func consumerPending(ctx context.Context, rdb *redis.Client, key, group, consumer string) (int64, error) {
+	consumers, err := rdb.XInfoConsumers(ctx, key, group).Result()
+	if err != nil {
+		return 0, err
+	}
+	for _, c := range consumers {
+		if c.Name == consumer {
+			return c.Pending, nil
+		}
+	}
+	return -1, nil
+}
+
+// requireConsumerPending asserts the pending entry count of consumer in group;
+// want -1 asserts that the consumer does not exist.
+func requireConsumerPending(t *testing.T, rdb *redis.Client, key, group, consumer string, want int64) {
+	t.Helper()
+	got, err := consumerPending(t.Context(), rdb, key, group, consumer)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }

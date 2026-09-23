@@ -22,6 +22,8 @@ type sinkClaimStream struct {
 }
 
 // deleteStreamStaleConsumers deletes stale consumers for a specific stream.
+// Consumers that still own pending entries are kept because deleting a Redis
+// consumer drops its pending entries; the idle message check claims them first.
 // s.lock must be held.
 func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) error {
 	// Get all consumers for this group
@@ -33,11 +35,16 @@ func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) e
 	// Check keep-alive map
 	keepAlives := s.consumersKeepAliveMap.Map()
 	for _, consumer := range consumers {
+		if consumer.Pending > 0 {
+			continue
+		}
 		ts, hasKeepAlive := keepAlives[consumer.Name]
 		if !hasKeepAlive {
-			s.logger.Info("cleaning up consumer with no keep-alive", "consumer", consumer.Name)
-			if err := s.rdb.XGroupDelConsumer(ctx, stream.key, s.Name, consumer.Name).Err(); err != nil {
+			deleted, err := s.deleteIdleConsumer(ctx, stream.key, consumer.Name)
+			if err != nil {
 				s.logger.Error(fmt.Errorf("failed to delete consumer with no keep-alive: %w", err), "consumer", consumer.Name)
+			} else if deleted {
+				s.logger.Info("cleaned up consumer with no keep-alive", "consumer", consumer.Name)
 			}
 			continue
 		}
@@ -50,10 +57,16 @@ func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) e
 		}
 
 		if time.Since(time.Unix(0, keepAliveTs)) > 2*s.ackGracePeriod {
-			s.logger.Info("cleaning up stale consumer", "consumer", consumer.Name)
-			if err := s.rdb.XGroupDelConsumer(ctx, stream.key, s.Name, consumer.Name).Err(); err != nil {
+			deleted, err := s.deleteIdleConsumer(ctx, stream.key, consumer.Name)
+			if err != nil {
 				s.logger.Error(fmt.Errorf("failed to delete stale consumer: %w", err), "consumer", consumer.Name)
+				continue
 			}
+			if !deleted {
+				// The consumer received events since XINFO CONSUMERS ran.
+				continue
+			}
+			s.logger.Info("cleaned up stale consumer", "consumer", consumer.Name)
 			if _, err := s.consumersKeepAliveMap.Delete(ctx, consumer.Name); err != nil {
 				s.logger.Error(fmt.Errorf("failed to delete keep-alive for stale consumer: %w", err), "consumer", consumer.Name)
 			}
@@ -65,6 +78,18 @@ func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) e
 		}
 	}
 	return nil
+}
+
+// deleteIdleConsumer deletes consumer from the sink consumer group of the
+// stream stored at key unless it owns pending entries. The check and the
+// deletion run atomically so entries delivered to the consumer concurrently
+// are never dropped. It returns true if the consumer was deleted.
+func (s *Sink) deleteIdleConsumer(ctx context.Context, key, consumer string) (bool, error) {
+	deleted, err := deleteIdleConsumerScript.Run(ctx, s.rdb, []string{key}, s.Name, consumer).Int64()
+	if err != nil {
+		return false, fmt.Errorf("failed to delete idle consumer %s: %w", consumer, err)
+	}
+	return deleted == 1, nil
 }
 
 // deleteStaleConsumers deletes stale consumers.

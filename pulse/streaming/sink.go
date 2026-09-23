@@ -38,6 +38,18 @@ var acquireLeaseScript = redis.NewScript(`
     return 0
 `)
 
+// deleteIdleConsumerScript deletes a consumer from a consumer group only if it
+// owns no pending entries. KEYS[1] is the stream key, ARGV[1] the group and
+// ARGV[2] the consumer. It returns 1 if the consumer was deleted, 0 otherwise.
+var deleteIdleConsumerScript = redis.NewScript(`
+    local pending = redis.call("XPENDING", KEYS[1], ARGV[1], "-", "+", 1, ARGV[2])
+    if #pending > 0 then
+        return 0
+    end
+    redis.call("XGROUP", "DELCONSUMER", KEYS[1], ARGV[1], ARGV[2])
+    return 1
+`)
+
 type (
 	sinkRuntime struct {
 		idleCheckPeriod time.Duration
