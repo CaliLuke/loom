@@ -18,3 +18,5 @@ surface without a current consumer.
 
 - [Generated transport runtime boundary](codegen-runtime-boundary.md) tracks
   the staged work from issue #267.
+- [Pulse pool job ownership](pulse-pool-ownership.md) tracks the owner-record
+  redesign that makes `pulse/pool` run each job key on one worker at a time.
