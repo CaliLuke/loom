@@ -51,6 +51,13 @@ type (
 		jobs        sync.Map // jobs being handled by the worker indexed by job key
 		nodeStreams sync.Map
 
+		// jobLock serializes every transition of w.jobs (start, stop,
+		// rebalance, requeue, eviction), so a start or stop of a key never
+		// runs while another transition of that key is in progress. Handler
+		// callbacks run while it is held. No code waits on another goroutine
+		// while holding it.
+		jobLock sync.Mutex
+
 		lock    sync.RWMutex
 		stopped bool
 	}
@@ -69,15 +76,26 @@ type (
 		NodeID string
 	}
 
-	// JobHandler starts and stops jobs.
+	// JobHandler starts and stops jobs. Its methods run on pool goroutines
+	// that Node.RemoveWorker, Node.Close and Node.Shutdown wait for, so they
+	// must not call those methods for their own worker or node: the call
+	// never returns. Start and Stop run while the worker's job lock is held,
+	// so a blocking call delays event handling, rebalance, eviction, Close
+	// and Shutdown for that worker until it returns.
 	JobHandler interface {
 		// Start starts a job.
 		Start(job *Job) error
-		// Stop stops a job with a given key.
+		// Stop stops a job with a given key. The pool also calls Stop when
+		// it evicts a local worker that it considers dead; the job may
+		// then already run on another worker. Errors returned on that path
+		// are only logged.
 		Stop(key string) error
 	}
 
-	// NotificationHandler handle job notifications.
+	// NotificationHandler handle job notifications. HandleNotification has
+	// the same restriction as the JobHandler methods: it must not call
+	// Node.RemoveWorker, Node.Close or Node.Shutdown for its own worker or
+	// node.
 	NotificationHandler interface {
 		// HandleNotification handles a notification.
 		HandleNotification(key string, payload []byte) error
@@ -251,11 +269,15 @@ func (w *Worker) handleEvent(ctx context.Context, ev *streaming.Event, payload [
 	return nil
 }
 
-// stop stops the reader, destroys the stream and closes the worker.
+// stop stops the reader, destroys the stream and closes the worker. Every
+// caller returns only after the event loop and keep-alive goroutines have
+// exited, so no event is handled after stop returns. It must not be called
+// from those goroutines.
 func (w *Worker) stop(ctx context.Context) {
 	w.lock.Lock()
 	if w.stopped {
 		w.lock.Unlock()
+		w.wg.Wait()
 		return
 	}
 	w.stopped = true
@@ -269,10 +291,36 @@ func (w *Worker) stop(ctx context.Context) {
 	w.wg.Wait()
 }
 
+// stopHandlers stops the handler of every job the worker runs and forgets the
+// jobs locally. It leaves the replicated job and payload maps alone: it is
+// used on eviction, after cleanup has already requeued the jobs. Call it after
+// stop.
+//
+// It holds jobLock for the whole pass, so any transition in progress
+// (a stopJob that stores its job back after a failed Stop) completes first.
+// Every transition that adds a job checks IsStopped under jobLock, so after
+// stopHandlers returns no handler of the worker is left running or tracked,
+// barring handler.Stop errors, which are logged.
+func (w *Worker) stopHandlers() {
+	w.jobLock.Lock()
+	defer w.jobLock.Unlock()
+	w.jobs.Range(func(key, _ any) bool {
+		w.jobs.Delete(key)
+		if err := w.handler.Stop(key.(string)); err != nil {
+			w.logger.Error(fmt.Errorf("stop handlers: failed to stop job: %w", err), "job", key)
+			return true
+		}
+		w.logger.Info("stopped job of evicted worker", "job", key)
+		return true
+	})
+}
+
 // startJob starts a job. A start for a key the worker already runs is a
 // duplicate delivery (sink redelivery, dispatch retry, requeue or rebalance)
 // and succeeds without calling the handler again.
 func (w *Worker) startJob(ctx context.Context, job *Job) error {
+	w.jobLock.Lock()
+	defer w.jobLock.Unlock()
 	if w.IsStopped() {
 		return fmt.Errorf("worker %q stopped", w.ID)
 	}
@@ -306,14 +354,20 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 
 // stopJob stops a job.
 func (w *Worker) stopJob(ctx context.Context, key string) error {
-	if _, ok := w.jobs.Load(key); !ok {
+	w.jobLock.Lock()
+	defer w.jobLock.Unlock()
+	// Take the job before stopping it so a concurrent stopHandlers (eviction
+	// during shutdown) cannot stop the same key a second time.
+	job, ok := w.jobs.LoadAndDelete(key)
+	if !ok {
 		return fmt.Errorf("job %s not found in local worker", key)
 	}
 	if err := w.handler.Stop(key); err != nil {
+		// The job keeps running, so keep tracking it.
+		w.jobs.Store(key, job)
 		return fmt.Errorf("failed to stop job %q: %w", key, err)
 	}
 	w.logger.Debug("stopped job", "job", key)
-	w.jobs.Delete(key)
 	if _, _, err := w.jobsMap.RemoveValues(ctx, w.ID, key); err != nil {
 		w.logger.Error(fmt.Errorf("stop job: failed to remove job %q from jobs map: %w", key, err))
 	}
@@ -321,6 +375,40 @@ func (w *Worker) stopJob(ctx context.Context, key string) error {
 		w.logger.Error(fmt.Errorf("stop job: failed to remove job payload %q from job payloads map: %w", key, err))
 	}
 	w.logger.Info("stopped job", "job", key)
+	return nil
+}
+
+// stopTrackedJob stops the handler of a tracked job and forgets it locally.
+// It returns false with no error if the worker no longer tracks the key.
+// When Stop fails the job stays tracked.
+func (w *Worker) stopTrackedJob(key string) (bool, error) {
+	w.jobLock.Lock()
+	defer w.jobLock.Unlock()
+	if _, ok := w.jobs.Load(key); !ok {
+		return false, nil
+	}
+	if err := w.handler.Stop(key); err != nil {
+		return false, err
+	}
+	w.jobs.Delete(key)
+	return true, nil
+}
+
+// restartJob restarts a job locally after its requeue failed. It does
+// nothing if the worker is stopped or already tracks the key again.
+func (w *Worker) restartJob(job *Job) error {
+	w.jobLock.Lock()
+	defer w.jobLock.Unlock()
+	if w.IsStopped() {
+		return fmt.Errorf("worker %q stopped", w.ID)
+	}
+	if _, ok := w.jobs.Load(job.Key); ok {
+		return nil
+	}
+	if err := w.handler.Start(job); err != nil {
+		return err
+	}
+	w.jobs.Store(job.Key, job)
 	return nil
 }
 
@@ -399,24 +487,24 @@ func (w *Worker) rebalance(ctx context.Context, activeWorkers []string) {
 		return
 	}
 	for key, job := range rebalanced {
-		if err := w.handler.Stop(key); err != nil {
+		stopped, err := w.stopTrackedJob(key)
+		if err != nil {
 			w.logger.Error(fmt.Errorf("rebalance: failed to stop job: %w", err), "job", key)
 			continue
 		}
-		w.logger.Debug("stopped job", "job", key)
-		w.jobs.Delete(key)
-		if _, err := w.node.poolStream.Add(ctx, evStartJob, marshalJob(job)); err != nil {
-			w.logger.Error(fmt.Errorf("rebalance: failed to requeue job: %w", err), "job", key)
-			if err := w.handler.Start(job); err != nil {
-				w.logger.Error(fmt.Errorf("rebalance: failed to restart job: %w", err), "job", key)
-				continue
-			}
-			// Requeue failed but we restarted the job locally; restore local
-			// tracking so future close/shutdown can still requeue it.
-			w.jobs.Store(key, job)
+		if !stopped {
+			// Another transition (stop, eviction) already took the key.
 			continue
 		}
-		delete(rebalanced, key)
+		w.logger.Debug("stopped job", "job", key)
+		if _, err := w.node.poolStream.Add(ctx, evStartJob, marshalJob(job)); err != nil {
+			w.logger.Error(fmt.Errorf("rebalance: failed to requeue job: %w", err), "job", key)
+			// Restart the job locally and track it again so future
+			// close/shutdown can still requeue it.
+			if err := w.restartJob(job); err != nil {
+				w.logger.Error(fmt.Errorf("rebalance: failed to restart job: %w", err), "job", key)
+			}
+		}
 	}
 }
 
@@ -540,11 +628,8 @@ func (w *Worker) requeueJob(ctx context.Context, job *Job) error {
 	// Stop locally, but do not touch the replicated job/payload maps: we want the
 	// payload to remain available for distributed recovery until the job is
 	// confirmed running elsewhere.
-	if _, ok := w.jobs.Load(job.Key); ok {
-		if err := w.handler.Stop(job.Key); err != nil {
-			return fmt.Errorf("requeueJob: failed to stop job %q: %w", job.Key, err)
-		}
-		w.jobs.Delete(job.Key)
+	if _, err := w.stopTrackedJob(job.Key); err != nil {
+		return fmt.Errorf("requeueJob: failed to stop job %q: %w", job.Key, err)
 	}
 	return nil
 }

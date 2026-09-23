@@ -268,13 +268,15 @@ func (node *Node) handleWorkerMapUpdate(ctx context.Context) {
 		worker := value.(*Worker)
 		if _, ok := node.workerMap.Get(worker.ID); !ok {
 			// If it's not in the worker map, then it's not active and its jobs
-			// have already been requeued.
+			// have already been requeued. Stop its handlers so they do not
+			// keep running next to the workers that took the jobs over.
 			node.logger.Info("handleWorkerMapUpdate: removing inactive local worker", "worker", worker.ID)
 			// Eviction holds no cleanup lock, so it must not release one.
 			if err := node.deleteWorker(ctx, worker.ID, ""); err != nil {
 				node.logger.Error(fmt.Errorf("handleWorkerMapUpdate: failed to delete inactive worker %q: %w", worker.ID, err), "worker", worker.ID)
 			}
 			worker.stop(ctx)
+			worker.stopHandlers()
 			node.localWorkers.Delete(key)
 			return true
 		}

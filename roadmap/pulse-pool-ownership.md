@@ -1,7 +1,7 @@
 # Pulse Pool Job Ownership
 
-Status: active. Design accepted (owner-record redesign). Tickets 1 and 2
-are done. Tickets 3 to 8 are open.
+Status: active. Design accepted (owner-record redesign). Tickets 1 to 3
+are done. Tickets 4 to 8 are open.
 
 Code references are to `main` at `967f4fbe`. The model lives in
 [`pulse/pool/tla`](../pulse/pool/tla/README.md).
@@ -35,7 +35,7 @@ worker, breadth-first). Configurations are under `pulse/pool/tla/cfg/`.
 | B3 | `Close` and `cleanupWorker` delete the worker's `jobMap` entry but keep the payload. The orphan sweep takes no lock and requeues a job whose requeue is still in flight. | `node_cleanup.go:59`, `node_recovery.go:80-134` | 12 (`double_orphan`) | open |
 | B4 | `rebalance` requeues without checking whether cleanup already moved the key, and without removing `jobMap[w]`. Rebalance and cleanup both requeue the same job. | `worker.go:370-388`, `node_recovery.go:145,161` | 15 (`double_rebalance`) | open |
 | B5 | `startJob` writes `jobMap` then the payload. These are separate `rmap`s with separate subscriptions. A node that sees the payload without the `jobMap` entry for longer than the grace period requeues a running job. | `worker.go:252,256`, `node_recovery.go:104-126` | 10 (`runner_orphan_lag`) | open, needs lag longer than `2*workerTTL` |
-| B6 | Cleanup trusts a stale keep-alive snapshot and never re-checks it after taking the lock. Eviction calls `worker.stop`, which never calls `handler.Stop`, so a worker that only looked dead keeps running its jobs until the process exits. | `node_recovery.go:37-69`, `node_events.go:231-245`, `worker.go:230-245` | 12 (`runner_false_death`) | open |
+| B6 | Cleanup trusts a stale keep-alive snapshot and never re-checks it after taking the lock. Eviction calls `worker.stop`, which never calls `handler.Stop`, so a worker that only looked dead keeps running its jobs until the process exits. | `node_recovery.go:37-69`, `node_events.go:231-245`, `worker.go:230-245` | 12 (`runner_false_death`) | zombie after eviction fixed by ticket 3; false-death cleanup open until tickets 5 and 7 |
 | L1 | `removeWorkerFromMaps` deletes the cleanup lock without checking the holder. An eviction on one goroutine deletes the lock another node just acquired, and both nodes hold it. | `node_cleanup.go:47` | 11 (`lock_asis`) | fixed by ticket 1 |
 | L2 | `acquireCleanupLock` deleted a stale lock unconditionally, then called `SetIfNotExists`. Two nodes that saw the same stale value could both acquire. | `node_membership.go` before `ba2af97c` | 17 (`lock_pre_release_only`) | fixed on main by `ba2af97c` |
 
@@ -456,9 +456,17 @@ useful even before the owner record lands.
    the first `handler.Start` past `ackGracePeriod`, so the sink redelivers
    the event to the same worker (the `double_asis` trace). `handler.Start`
    runs once, and both deliveries are acked.
-3. **Stop handlers on eviction (B6 zombie).** Test: remove a local worker
-   from `workerMap`, run `handleWorkerMapUpdate`, and assert `handler.Stop`
-   was called for each job.
+3. **Stop handlers on eviction (B6 zombie).** Done. After `worker.stop`,
+   `handleWorkerMapUpdate` calls `Worker.stopHandlers`, which runs
+   `handler.Stop` for every job in `w.jobs` and forgets it locally, as
+   `FIX_EVICT_STOP` models. It leaves `jobMap` and payloads alone, because
+   cleanup has already requeued the jobs. `Worker.jobLock` serializes every
+   change to `w.jobs` (start, stop, rebalance, requeue, eviction), so no
+   stop or start of a key overlaps another. Test:
+   `TestEvictionStopsJobHandlers` replays `runner_false_death` (cleanup on
+   another node requeues `w1`'s jobs and `w2` starts them), then evicts `w1`
+   and asserts `handler.Stop` for each job. Two handlers still run between
+   the cleanup and the eviction; tickets 5 and 7 close that window.
 4. **Keep the pending guard until ack (B2).** Replace `luaClaimDispatch` and
    the separate `poolStream.Add` with the `claimDispatch` script, which adds
    the event and writes `untilNanos:eventID` in one step. Make every release
