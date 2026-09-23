@@ -3,8 +3,15 @@ package pool
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"fmt"
+	"io"
 	"time"
 )
+
+// errMalformedMessage is the panic value cause for pool stream payloads that do
+// not match the length-prefixed wire format.
+var errMalformedMessage = errors.New("malformed pool message")
 
 // marshalJob marshals a job into a byte slice.
 func marshalJob(job *Job) []byte {
@@ -36,43 +43,21 @@ func marshalJob(job *Job) []byte {
 // unmarshalJob unmarshals a job from a byte slice created by marshalJob.
 func unmarshalJob(data []byte) *Job {
 	reader := bytes.NewReader(data)
-	var keyLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &keyLength); err != nil {
-		panic(err)
-	}
-	keyBytes := make([]byte, keyLength)
-	if err := binary.Read(reader, binary.LittleEndian, &keyBytes); err != nil {
-		panic(err)
-	}
-	var nodeIDLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &nodeIDLength); err != nil {
-		panic(err)
-	}
-	nodeIDBytes := make([]byte, nodeIDLength)
-	if err := binary.Read(reader, binary.LittleEndian, &nodeIDBytes); err != nil {
-		panic(err)
-	}
-	nodeID := string(nodeIDBytes)
-	var payloadLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &payloadLength); err != nil {
-		panic(err)
-	}
-	var payload []byte
-	if payloadLength > 0 {
-		payload = make([]byte, payloadLength)
-		if err := binary.Read(reader, binary.LittleEndian, &payload); err != nil {
-			panic(err)
-		}
+	key := readField(reader, "job key")
+	nodeID := readField(reader, "job node ID")
+	payload := readField(reader, "job payload")
+	if len(payload) == 0 {
+		payload = nil
 	}
 	var createdAtTimestamp int64
 	if err := binary.Read(reader, binary.LittleEndian, &createdAtTimestamp); err != nil {
-		panic(err)
+		panic(fmt.Errorf("%w: read job creation time: %w", errMalformedMessage, err))
 	}
 	return &Job{
-		Key:       string(keyBytes),
+		Key:       string(key),
 		Payload:   payload,
 		CreatedAt: time.Unix(0, createdAtTimestamp).UTC(),
-		NodeID:    nodeID,
+		NodeID:    string(nodeID),
 	}
 }
 
@@ -88,38 +73,19 @@ func marshalJobKey(key string) []byte {
 	return buf.Bytes()
 }
 
+// unmarshalJobKey reads the leading job key of a job, job key, or
+// notification payload.
 func unmarshalJobKey(data []byte) string {
-	reader := bytes.NewReader(data)
-	var keyLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &keyLength); err != nil {
-		panic(err)
-	}
-	keyBytes := make([]byte, keyLength)
-	if err := binary.Read(reader, binary.LittleEndian, &keyBytes); err != nil {
-		panic(err)
-	}
-	return string(keyBytes)
+	return string(readField(bytes.NewReader(data), "job key"))
 }
 
+// unmarshalJobKeyAndNodeID reads the leading job key and node ID of a job
+// payload.
 func unmarshalJobKeyAndNodeID(data []byte) (string, string) {
 	reader := bytes.NewReader(data)
-	var keyLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &keyLength); err != nil {
-		panic(err)
-	}
-	keyBytes := make([]byte, keyLength)
-	if err := binary.Read(reader, binary.LittleEndian, &keyBytes); err != nil {
-		panic(err)
-	}
-	var nodeIDLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &nodeIDLength); err != nil {
-		panic(err)
-	}
-	nodeIDBytes := make([]byte, nodeIDLength)
-	if err := binary.Read(reader, binary.LittleEndian, &nodeIDBytes); err != nil {
-		panic(err)
-	}
-	return string(keyBytes), string(nodeIDBytes)
+	key := readField(reader, "job key")
+	nodeID := readField(reader, "job node ID")
+	return string(key), string(nodeID)
 }
 
 func marshalNotification(key string, payload []byte) []byte {
@@ -139,26 +105,13 @@ func marshalNotification(key string, payload []byte) []byte {
 	return buf.Bytes()
 }
 
+// unmarshalNotification unmarshals a notification created by
+// marshalNotification.
 func unmarshalNotification(data []byte) (string, []byte) {
 	reader := bytes.NewReader(data)
-	var keyLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &keyLength); err != nil {
-		panic(err)
-	}
-	keyBytes := make([]byte, keyLength)
-	if err := binary.Read(reader, binary.LittleEndian, &keyBytes); err != nil {
-		panic(err)
-	}
-	// read payload
-	var payloadLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &payloadLength); err != nil {
-		panic(err)
-	}
-	payload := make([]byte, payloadLength)
-	if err := binary.Read(reader, binary.LittleEndian, &payload); err != nil {
-		panic(err)
-	}
-	return string(keyBytes), payload
+	key := readField(reader, "notification key")
+	payload := readField(reader, "notification payload")
+	return string(key), payload
 }
 
 // Envelope used to identify event sender.
@@ -182,26 +135,12 @@ func marshalEnvelope(sender string, payload []byte) []byte {
 // unmarshalEnvelope unmarshals an envelope from a byte slice created by marshalEnvelope.
 func unmarshalEnvelope(data []byte) (string, []byte) {
 	reader := bytes.NewReader(data)
-	var senderLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &senderLength); err != nil {
-		panic(err)
+	sender := readField(reader, "envelope sender")
+	payload := readField(reader, "envelope payload")
+	if len(payload) == 0 {
+		payload = nil
 	}
-	senderBytes := make([]byte, senderLength)
-	if err := binary.Read(reader, binary.LittleEndian, &senderBytes); err != nil {
-		panic(err)
-	}
-	var payloadLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &payloadLength); err != nil {
-		panic(err)
-	}
-	var payload []byte
-	if payloadLength > 0 {
-		payload = make([]byte, payloadLength)
-		if err := binary.Read(reader, binary.LittleEndian, &payload); err != nil {
-			panic(err)
-		}
-	}
-	return string(senderBytes), payload
+	return string(sender), payload
 }
 
 // marshalAck marshals an ack into a byte slice.
@@ -225,24 +164,29 @@ func marshalAck(ak *ack) []byte {
 // unmarshalAck unmarshals an ack from a byte slice created by marshalAck.
 func unmarshalAck(data []byte) *ack {
 	reader := bytes.NewReader(data)
-	var eventIDLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &eventIDLength); err != nil {
-		panic(err)
-	}
-	eventIDBytes := make([]byte, eventIDLength)
-	if err := binary.Read(reader, binary.LittleEndian, &eventIDBytes); err != nil {
-		panic(err)
-	}
-	var errorLength int32
-	if err := binary.Read(reader, binary.LittleEndian, &errorLength); err != nil {
-		panic(err)
-	}
-	errorBytes := make([]byte, errorLength)
-	if err := binary.Read(reader, binary.LittleEndian, &errorBytes); err != nil {
-		panic(err)
-	}
+	eventID := readField(reader, "ack event ID")
+	errorText := readField(reader, "ack error")
 	return &ack{
-		EventID: string(eventIDBytes),
-		Error:   string(errorBytes),
+		EventID: string(eventID),
+		Error:   string(errorText),
 	}
+}
+
+// readField reads one little-endian int32 length-prefixed field. It panics
+// with an error wrapping errMalformedMessage when the prefix is truncated,
+// negative, or larger than the remaining input, so a corrupt stream entry can
+// never trigger an allocation beyond the message size.
+func readField(reader *bytes.Reader, field string) []byte {
+	var length int32
+	if err := binary.Read(reader, binary.LittleEndian, &length); err != nil {
+		panic(fmt.Errorf("%w: read %s length: %w", errMalformedMessage, field, err))
+	}
+	if length < 0 || int64(length) > int64(reader.Len()) {
+		panic(fmt.Errorf("%w: %s length %d exceeds %d remaining bytes", errMalformedMessage, field, length, reader.Len()))
+	}
+	value := make([]byte, length)
+	if _, err := io.ReadFull(reader, value); err != nil {
+		panic(fmt.Errorf("%w: read %s: %w", errMalformedMessage, field, err))
+	}
+	return value
 }
