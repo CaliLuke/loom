@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -48,10 +49,18 @@ type (
 		io.Closer
 	}
 
+	// batchWriter frames complete JSON-RPC response objects as one JSON array.
 	batchWriter struct {
 		writer  io.Writer
-		header  http.Header
 		written bool
+		err     error
+	}
+
+	// batchItemWriter buffers everything written for one batch request so
+	// batch framing never depends on how adapters split their writes.
+	batchItemWriter struct {
+		header http.Header
+		body   bytes.Buffer
 	}
 
 	notificationWriter struct {
@@ -194,7 +203,9 @@ func handleBatch(
 	w.Header().Set("Content-Type", "application/json")
 	writer := &batchWriter{writer: w}
 	for i := range requests {
-		processRequest(ctx, writer, r, &requests[i], len(requests), observer, spec)
+		item := &batchItemWriter{}
+		processRequest(ctx, item, r, &requests[i], len(requests), observer, spec)
+		writer.writeItem(&requests[i], item.body.Bytes(), observer)
 	}
 	if err := writer.Close(); err != nil {
 		observer.Fail(loomtransport.ReasonResponseWriteFailed)
@@ -324,36 +335,71 @@ func handleHTTPFailure(
 	}
 }
 
-func (w *batchWriter) Header() http.Header {
+// writeItem appends the response buffered for request to the batch. A request
+// that requires a response but whose adapter produced anything other than one
+// JSON object is answered with an internal error, so the batch always holds
+// exactly one well-formed entry per non-notification request.
+func (w *batchWriter) writeItem(request *RawRequest, data []byte, observer *loomtransport.RequestObserver) {
+	if reason, _ := invalidRequest(request); !request.HasID && reason == loomtransport.ReasonOK {
+		return
+	}
+	data = bytes.Trim(data, " \t\r\n")
+	if len(data) == 0 || data[0] != '{' || !jsontext.Value(data).IsValid() {
+		observer.Fail(loomtransport.ReasonResponseWriteFailed)
+		id := request.ID
+		if !request.HasID {
+			id = nil
+		}
+		fallback, err := json.Marshal(MakeErrorResponse(id, InternalError, "", nil))
+		if err != nil {
+			w.fail(fmt.Errorf("encode JSON-RPC batch fallback response: %w", err))
+			return
+		}
+		data = fallback
+	}
+	delimiter := byte(',')
+	if !w.written {
+		delimiter = '['
+	}
+	w.write([]byte{delimiter}, "write JSON-RPC batch delimiter")
+	w.written = true
+	w.write(data, "write JSON-RPC batch entry")
+}
+
+func (w *batchWriter) write(data []byte, operation string) {
+	if w.err != nil {
+		return
+	}
+	if _, err := w.writer.Write(data); err != nil {
+		w.fail(fmt.Errorf("%s: %w", operation, err))
+	}
+}
+
+func (w *batchWriter) fail(err error) {
+	if w.err == nil {
+		w.err = err
+	}
+}
+
+func (w *batchWriter) Close() error {
+	if w.written {
+		w.write([]byte{']'}, "failed to close JSON-RPC batch response")
+	}
+	return w.err
+}
+
+func (w *batchItemWriter) Header() http.Header {
 	if w.header == nil {
 		w.header = make(http.Header)
 	}
 	return w.header
 }
 
-func (w *batchWriter) WriteHeader(int) {
+func (w *batchItemWriter) WriteHeader(int) {
 }
 
-func (w *batchWriter) Write(data []byte) (int, error) {
-	delimiter := byte(',')
-	if !w.written {
-		delimiter = '['
-	}
-	if _, err := w.writer.Write([]byte{delimiter}); err != nil {
-		return 0, fmt.Errorf("write JSON-RPC batch delimiter: %w", err)
-	}
-	w.written = true
-	return w.writer.Write(data)
-}
-
-func (w *batchWriter) Close() error {
-	if !w.written {
-		return nil
-	}
-	if _, err := w.writer.Write([]byte{']'}); err != nil {
-		return fmt.Errorf("failed to close JSON-RPC batch response: %w", err)
-	}
-	return nil
+func (w *batchItemWriter) Write(data []byte) (int, error) {
+	return w.body.Write(data)
 }
 
 func (w *notificationWriter) Header() http.Header {
