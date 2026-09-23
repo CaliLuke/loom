@@ -113,7 +113,7 @@ func serverImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportS
 	if hasCustomMultipartDecoder(data) {
 		imports = append(imports, &codegen.ImportSpec{Path: "mime/multipart"})
 	}
-	return imports
+	return append(imports, data.Service.UserTypeImports...)
 }
 
 func serverBaseSections(data *ServiceData) []codegen.Section {
@@ -205,7 +205,7 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 	if hasCustomMultipartDecoder(data) {
 		imports = append(imports, &codegen.ImportSpec{Path: "mime/multipart"})
 	}
-	return imports
+	return append(imports, data.Service.UserTypeImports...)
 }
 
 func serviceUsesURLPackage(data *ServiceData) bool {

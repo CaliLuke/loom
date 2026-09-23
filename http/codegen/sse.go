@@ -271,7 +271,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 		codegen.Header(
 			"sse",
 			"server",
-			[]*codegen.ImportSpec{
+			append([]*codegen.ImportSpec{
 				{Path: "context"},
 				{Path: "io"},
 				{Path: "net/http"},
@@ -284,7 +284,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				codegen.LoomImport(""),
 				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
 				{Path: genpkg + "/" + data.Service.PathName + "/views", Name: data.Service.ViewsPkg},
-			},
+			}, data.Service.UserTypeImports...),
 		),
 	)
 	for _, section := range sseSections {

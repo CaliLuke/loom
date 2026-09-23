@@ -83,7 +83,7 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 }
 
 func serverTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {
-	return []*codegen.ImportSpec{
+	return append([]*codegen.ImportSpec{
 		{Path: "encoding/json/jsontext"},
 		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "fmt"},
@@ -93,7 +93,7 @@ func serverTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.Imp
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
-	}
+	}, data.Service.UserTypeImports...)
 }
 
 func newServerTypeSections(header codegen.Section) *serverTypeSections {

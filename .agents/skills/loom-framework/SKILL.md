@@ -353,6 +353,14 @@ filter, and serialization rules belong here.
   the raw string form of a header, into `AttributeData.Locals`. Templates use
   those fields and never append a suffix to `VarName`. When a template gains
   a local in one of those functions, add it to the matching list.
+- Every per-service HTTP, gRPC, and JSON-RPC file that can reference service
+  types imports the `struct:pkg:path` packages itself, as do the service,
+  endpoint, and client files through `userTypeImports`. Transport files append
+  `Service.UserTypeImports`,
+  which `service.SetUserTypeImports` sets before any transport data is built.
+  `codegen.File` prunes the unused imports. The transport generator adds only
+  `struct:field:type` imports afterward. Do not reintroduce a blanket pass that
+  hides a missing import in a direct file builder.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
   endpoints should not grow independent read/write/close loops.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,

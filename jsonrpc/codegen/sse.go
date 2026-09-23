@@ -49,7 +49,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 		codegen.Header(
 			"stream",
 			"server",
-			[]*codegen.ImportSpec{
+			append([]*codegen.ImportSpec{
 				{Path: "context"},
 				{Path: "errors"},
 				{Path: "fmt"},
@@ -61,7 +61,7 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 				codegen.LoomNamedImport("http", "loomhttp"),
 				codegen.LoomNamedImport("observability/transport", "loomtransport"),
 				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
-			},
+			}, data.Service.UserTypeImports...),
 		),
 	)
 	for _, section := range streamSections {
@@ -96,7 +96,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 		codegen.Header(
 			"stream",
 			"client",
-			[]*codegen.ImportSpec{
+			append([]*codegen.ImportSpec{
 				{Path: "bufio"},
 				{Path: "bytes"},
 				{Path: "context"},
@@ -111,7 +111,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 				codegen.LoomImport("jsonrpc"),
 				codegen.LoomNamedImport("http", "loomhttp"),
 				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
-			},
+			}, data.Service.UserTypeImports...),
 		),
 	)
 	for _, section := range tmplSections {

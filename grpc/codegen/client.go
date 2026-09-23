@@ -34,7 +34,7 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 	{
 		svcName := data.Service.PathName
 		fpath = filepath.Join(codegen.Gendir, "grpc", svcName, "client", "client.go")
-		imports := []*codegen.ImportSpec{
+		imports := append([]*codegen.ImportSpec{
 			{Path: "context"},
 			{Path: "google.golang.org/grpc"},
 			codegen.LoomImport(""),
@@ -43,7 +43,7 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			{Path: path.Join(genpkg, svcName), Name: data.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
-		}
+		}, data.Service.UserTypeImports...)
 		sections = []codegen.Section{
 			codegen.Header(svc.Name()+" gRPC client", "client", imports),
 			grpcClientStructSection(data),
@@ -89,7 +89,7 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 	{
 		svcName := data.Service.PathName
 		fpath = filepath.Join(codegen.Gendir, "grpc", svcName, "client", "encode_decode.go")
-		imports := []*codegen.ImportSpec{
+		imports := append([]*codegen.ImportSpec{
 			{Path: "fmt"},
 			{Path: "context"},
 			{Path: "strconv"},
@@ -101,7 +101,7 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: path.Join(genpkg, svcName), Name: data.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
-		}
+		}, data.Service.UserTypeImports...)
 		sections = []codegen.Section{codegen.Header(svc.Name()+" gRPC client encoders and decoders", "client", imports)}
 		for _, e := range data.Endpoints {
 			sections = append(sections, grpcRemoteMethodBuilderSection(e))

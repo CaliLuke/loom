@@ -119,6 +119,9 @@ func renderGRPCModule(t *testing.T, dir, modulePath string, root *expr.RootExpr,
 	t.Helper()
 	genpkg := modulePath + "/gen"
 	serviceData := servicecodegen.NewServicesData(root)
+	for _, service := range root.Services {
+		servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(service.Name))
+	}
 	grpcData := NewServicesData(serviceData)
 	var files []*codegen.File
 	userTypePkgs := make(map[string][]string)

@@ -71,7 +71,7 @@ func grpcTypeImports(genpkg string, svc *expr.GRPCServiceExpr, sd *ServiceData) 
 		)
 	}
 	imports = append(imports, sd.ProtoGoImports...)
-	return imports
+	return append(imports, sd.Service.UserTypeImports...)
 }
 
 func grpcServiceNeedsAnyTypeImports(svc *expr.GRPCServiceExpr) bool {

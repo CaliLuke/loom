@@ -52,7 +52,10 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 
 	genpkg := modulePath + "/gen"
 	serviceData := servicecodegen.NewServicesData(root)
-	httpData := CreateHTTPServices(root)
+	for _, service := range root.Services {
+		servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(service.Name))
+	}
+	httpData := NewServicesData(serviceData, root.API.HTTP)
 
 	files := make([]*cg.File, 0, len(root.Services)*2+5)
 	userTypePkgs := make(map[string][]string)

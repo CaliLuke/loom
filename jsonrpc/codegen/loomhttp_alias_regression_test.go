@@ -116,7 +116,10 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 
 	genpkg := modulePath + "/gen"
 	serviceData := servicecodegen.NewServicesData(root)
-	jsonrpcData := CreateJSONRPCServices(root)
+	for _, svc := range root.Services {
+		servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(svc.Name))
+	}
+	jsonrpcData := httpcodegen.NewServicesData(serviceData, &root.API.JSONRPC.HTTPExpr)
 
 	files := make([]*cg.File, 0, len(root.Services)*2+5)
 	userTypePkgs := make(map[string][]string)

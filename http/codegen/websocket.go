@@ -280,7 +280,7 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 	}
 	svcName := data.Service.PathName
 	title := fmt.Sprintf("%s WebSocket server streaming", svc.Name())
-	imports := []*codegen.ImportSpec{
+	imports := append([]*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "io"},
 		{Path: "net/http"},
@@ -289,7 +289,7 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
-	}
+	}, data.Service.UserTypeImports...)
 	structSections := websocketStructSections(data, false)
 	wsSections := websocketCodeSections(data, false)
 	sections := make([]codegen.Section, 0, 1+len(structSections)+len(wsSections))
@@ -316,7 +316,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 	}
 	svcName := data.Service.PathName
 	title := fmt.Sprintf("%s WebSocket client streaming", svc.Name())
-	imports := []*codegen.ImportSpec{
+	imports := append([]*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "io"},
 		{Path: "net/http"},
@@ -326,7 +326,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
-	}
+	}, data.Service.UserTypeImports...)
 	structSections := websocketStructSections(data, true)
 	wsSections := websocketCodeSections(data, true)
 	sections := make([]codegen.Section, 0, 1+len(structSections)+len(wsSections))

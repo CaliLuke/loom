@@ -36,7 +36,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 	{
 		svcName := data.Service.PathName
 		fpath = filepath.Join(codegen.Gendir, "grpc", svcName, "server", "server.go")
-		imports := []*codegen.ImportSpec{
+		imports := append([]*codegen.ImportSpec{
 			{Path: "context"},
 			{Path: "errors"},
 			codegen.LoomImport(""),
@@ -45,7 +45,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			{Path: path.Join(genpkg, svcName), Name: data.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
-		}
+		}, data.Service.UserTypeImports...)
 		sections = []codegen.Section{
 			codegen.Header(svc.Name()+" gRPC server", "server", imports),
 			grpcServerStructSection(data),
@@ -106,7 +106,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 		svcName := data.Service.PathName
 		fpath = filepath.Join(codegen.Gendir, "grpc", svcName, "server", "encode_decode.go")
 		title := fmt.Sprintf("%s gRPC server encoders and decoders", svc.Name())
-		imports := []*codegen.ImportSpec{
+		imports := append([]*codegen.ImportSpec{
 			{Path: "context"},
 			{Path: "fmt"},
 			{Path: "strings"},
@@ -119,7 +119,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: path.Join(genpkg, svcName), Name: data.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
-		}
+		}, data.Service.UserTypeImports...)
 		sections = []codegen.Section{codegen.Header(title, "server", imports)}
 
 		for _, e := range data.Endpoints {

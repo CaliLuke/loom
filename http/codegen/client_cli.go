@@ -245,7 +245,7 @@ func payloadBuilders(
 // clientCLIImports returns the imports of the client CLI support file of the
 // service.
 func clientCLIImports(genpkg string, sd *ServiceData) []*codegen.ImportSpec {
-	return []*codegen.ImportSpec{
+	return append([]*codegen.ImportSpec{
 		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "fmt"},
 		{Path: "net/http"},
@@ -255,7 +255,7 @@ func clientCLIImports(genpkg string, sd *ServiceData) []*codegen.ImportSpec {
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + sd.Service.PathName, Name: sd.Service.PkgName},
-	}
+	}, sd.Service.UserTypeImports...)
 }
 
 // buildFlags builds the flag data and build function for an endpoint.

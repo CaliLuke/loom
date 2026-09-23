@@ -88,7 +88,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	path := filepath.Join(codegen.Gendir, "jsonrpc", svcName, "client", "client.go")
 	title := fmt.Sprintf("%s client JSON-RPC transport", svc.Name())
 	sections := []codegen.Section{
-		codegen.Header(title, "client", []*codegen.ImportSpec{
+		codegen.Header(title, "client", append([]*codegen.ImportSpec{
 			{Path: "bufio"},
 			{Path: "bytes"},
 			{Path: "context"},
@@ -106,7 +106,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 			codegen.LoomNamedImport("http", "loomhttp"),
 			{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 			{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
-		}),
+		}, data.Service.UserTypeImports...)),
 	}
 	sections = append(sections, jsonrpcClientStructSection(data))
 	sections = append(sections, jsonrpcClientInitSection(data))

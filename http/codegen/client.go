@@ -49,7 +49,7 @@ func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 }
 
 func clientEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {
-	return []*codegen.ImportSpec{
+	return append([]*codegen.ImportSpec{
 		{Path: "bytes"},
 		{Path: "context"},
 		{Path: "encoding/json/v2", Name: "json"},
@@ -66,7 +66,7 @@ func clientEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
-	}
+	}, data.Service.UserTypeImports...)
 }
 
 func clientEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesData, e *EndpointData) []codegen.Section {
@@ -136,23 +136,22 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "http", svcName, "client", "client.go")
 	title := fmt.Sprintf("%s client HTTP transport", svc.Name())
-	sections := []codegen.Section{
-		codegen.Header(title, "client", []*codegen.ImportSpec{
-			{Path: "context"},
-			{Path: "fmt"},
-			{Path: "io"},
-			{Path: "mime/multipart"},
-			{Path: "net/http"},
-			{Path: "strconv"},
-			{Path: "strings"},
-			{Path: "time"},
-			{Path: "github.com/gorilla/websocket"},
-			codegen.LoomImport(""),
-			codegen.LoomNamedImport("http", "loomhttp"),
-			{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
-			{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
-		}),
-	}
+	imports := append([]*codegen.ImportSpec{
+		{Path: "context"},
+		{Path: "fmt"},
+		{Path: "io"},
+		{Path: "mime/multipart"},
+		{Path: "net/http"},
+		{Path: "strconv"},
+		{Path: "strings"},
+		{Path: "time"},
+		{Path: "github.com/gorilla/websocket"},
+		codegen.LoomImport(""),
+		codegen.LoomNamedImport("http", "loomhttp"),
+		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
+		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
+	}, data.Service.UserTypeImports...)
+	sections := []codegen.Section{codegen.Header(title, "client", imports)}
 	sections = append(sections, clientStructSection(data))
 	if len(clientOperationGroups(data)) > 0 {
 		sections = append(sections, clientOperationGroupSection(data))

@@ -61,12 +61,6 @@ func addServiceImports(files []*codegen.File, d *service.Data) {
 	}
 }
 
-func addServicesImports(files []*codegen.File, services *service.ServicesData, svcs []*expr.ServiceExpr) {
-	for _, s := range svcs {
-		addServiceImports(files, services.Get(s.Name))
-	}
-}
-
 func addMetaTypeImports(files []*codegen.File, d *service.Data) {
 	for _, f := range files {
 		if header := f.HeaderTemplate(); header != nil {

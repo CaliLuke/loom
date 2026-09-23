@@ -32,7 +32,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 		codegen.Header(
 			"sse-client",
 			"client",
-			[]*codegen.ImportSpec{
+			append([]*codegen.ImportSpec{
 				{Path: "bytes"},
 				{Path: "context"},
 				{Path: "errors"},
@@ -46,7 +46,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 				{Path: genpkg + "/" + data.Service.PathName + "/views", Name: data.Service.ViewsPkg},
 				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
 				codegen.LoomImport(""),
-			},
+			}, data.Service.UserTypeImports...),
 		),
 	)
 	for _, section := range streamSections {

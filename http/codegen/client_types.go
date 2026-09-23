@@ -81,7 +81,7 @@ func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct
 }
 
 func clientTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {
-	return []*codegen.ImportSpec{
+	return append([]*codegen.ImportSpec{
 		{Path: "encoding/json/jsontext"},
 		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "fmt"},
@@ -91,7 +91,7 @@ func clientTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.Imp
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
-	}
+	}, data.Service.UserTypeImports...)
 }
 
 func newClientTypeSections(header codegen.Section) *clientTypeSections {

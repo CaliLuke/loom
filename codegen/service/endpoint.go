@@ -92,6 +92,7 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 		if hasFileResponse(svc.Methods) {
 			imports = append(imports, codegen.LoomNamedImport("http", "loomhttp"))
 		}
+		imports = append(imports, userTypeImports(genpkg, svc)...)
 		header := codegen.Header(service.Name+" endpoints", svc.PkgName, imports)
 		def := endpointsStructSection(data)
 		sections = []codegen.Section{header, def}

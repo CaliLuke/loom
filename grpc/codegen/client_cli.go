@@ -129,6 +129,7 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 		{Path: path.Join(genpkg, svcName), Name: sd.Service.PkgName},
 		{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName},
 	}
+	specs = append(specs, sd.Service.UserTypeImports...)
 	// Add structpb import if Any type is used
 	needsAnyPb := false
 	for _, e := range svc.GRPCEndpoints {

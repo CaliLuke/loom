@@ -68,8 +68,9 @@ func Transport(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		rootFiles = append(rootFiles, jsonrpccodegen.ClientCLIFiles(genpkg, jsonrpcServices)...)
 		rootFiles = append(rootFiles, jsonrpccodegen.SSEServerFiles(genpkg, jsonrpcServices)...)
 
-		// Add service data meta type imports
-		addServicesImports(rootFiles, services, r.Services)
+		// Add the imports of struct:field:type metadata. The transport
+		// generators import the struct:pkg:path user type packages themselves.
+		addServicesMetaTypeImports(rootFiles, services, r.Services)
 		files = append(files, rootFiles...)
 	}
 	return files, nil
