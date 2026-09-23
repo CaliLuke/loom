@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path"
 	"strings"
+
+	"github.com/CaliLuke/loom/eval"
 )
 
 type (
@@ -37,11 +39,37 @@ func (f *HTTPFileServerExpr) EvalName() string {
 	return prefix + suffix
 }
 
+// Validate makes sure every full request path is one the muxer can register:
+// a "{*name}" catch-all must terminate it, no wildcard may repeat, and no bare
+// "*" may appear outside the "{*name}" syntax.
+func (f *HTTPFileServerExpr) Validate() error {
+	verr := new(eval.ValidationErrors)
+	for _, p := range f.fullRequestPaths() {
+		validateHTTPPathWildcards(verr, f, p)
+	}
+	if len(verr.Errors) == 0 {
+		return nil
+	}
+	return verr
+}
+
 // Finalize normalizes the request path.
 func (f *HTTPFileServerExpr) Finalize() {
+	f.RequestPaths = f.fullRequestPaths()
+}
+
+// IsDir reports whether the request path uses a wildcard and therefore needs
+// directory-style route mounting. The configured target may resolve to either
+// a directory or a single file at runtime.
+func (f *HTTPFileServerExpr) IsDir() bool {
+	return HTTPWildcardRegex.MatchString(f.RequestPaths[0])
+}
+
+// fullRequestPaths joins the declared request path with the API and service
+// base paths. A declared path that starts with "//" is absolute: it ignores
+// the API and service prefixes and mounts at the server root.
+func (f *HTTPFileServerExpr) fullRequestPaths() []string {
 	current := f.RequestPaths[0]
-	// Support absolute mount semantics when path starts with "//".
-	// In that case, ignore API and service prefixes and mount at server root.
 	isAbs := strings.HasPrefix(current, "//")
 	if isAbs {
 		current = "/" + strings.TrimPrefix(current, "//")
@@ -51,7 +79,7 @@ func (f *HTTPFileServerExpr) Finalize() {
 	if len(paths) == 0 {
 		paths = []string{"/"}
 	}
-	f.RequestPaths = make([]string, len(paths))
+	res := make([]string, len(paths))
 	for i, sp := range paths {
 		var p string
 		if isAbs {
@@ -63,13 +91,7 @@ func (f *HTTPFileServerExpr) Finalize() {
 		if !strings.HasPrefix(p, "/") {
 			p = "/" + p
 		}
-		f.RequestPaths[i] = p
+		res[i] = p
 	}
-}
-
-// IsDir reports whether the request path uses a wildcard and therefore needs
-// directory-style route mounting. The configured target may resolve to either
-// a directory or a single file at runtime.
-func (f *HTTPFileServerExpr) IsDir() bool {
-	return HTTPWildcardRegex.MatchString(f.RequestPaths[0])
+	return res
 }

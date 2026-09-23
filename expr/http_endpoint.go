@@ -215,17 +215,8 @@ func (r *RouteExpr) Validate() *eval.ValidationErrors {
 		}
 	}
 
-	// Make sure there's no duplicate params in absolute route
-	paths := r.FullPaths()
-	for _, path := range paths {
-		matches := HTTPWildcardRegex.FindAllStringSubmatch(path, -1)
-		wcs := make(map[string]struct{}, len(matches))
-		for _, match := range matches {
-			if _, ok := wcs[match[1]]; ok {
-				verr.Add(r, "Wildcard %q appears multiple times in full path %q", match[1], path)
-			}
-			wcs[match[1]] = struct{}{}
-		}
+	for _, path := range r.FullPaths() {
+		validateHTTPPathWildcards(verr, r, path)
 	}
 
 	// For WebSocket streaming endpoints, only GET is supported

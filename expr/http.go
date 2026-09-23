@@ -2,6 +2,7 @@ package expr
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/CaliLuke/loom/eval"
 )
@@ -99,5 +100,32 @@ func (h *HTTPExpr) Finalize() {
 	}
 	if len(h.Produces) == 0 {
 		h.Produces = []string{"application/json", "application/xml", "application/gob"}
+	}
+}
+
+// validateHTTPPathWildcards reports the wildcard mistakes in the full request
+// path that the muxer would reject at route registration: a wildcard that
+// appears twice, a "{*name}" catch-all that does not terminate the path, and
+// a bare "*" outside the "{*name}" syntax.
+func validateHTTPPathWildcards(verr *eval.ValidationErrors, e eval.Expression, path string) {
+	matches := HTTPWildcardRegex.FindAllStringSubmatchIndex(path, -1)
+	wcs := make(map[string]struct{}, len(matches))
+	var rest strings.Builder
+	last := 0
+	for _, match := range matches {
+		name := path[match[2]:match[3]]
+		if _, ok := wcs[name]; ok {
+			verr.Add(e, "Wildcard %q appears multiple times in full path %q", name, path)
+		}
+		wcs[name] = struct{}{}
+		if strings.HasPrefix(path[match[0]:], "/{*") && match[1] != len(path) {
+			verr.Add(e, "Catch-all wildcard %q must terminate full path %q", name, path)
+		}
+		rest.WriteString(path[last:match[0]])
+		last = match[1]
+	}
+	rest.WriteString(path[last:])
+	if strings.Contains(rest.String(), "*") {
+		verr.Add(e, "Path %q uses a bare \"*\"; use a trailing \"/{*name}\" catch-all wildcard instead", path)
 	}
 }

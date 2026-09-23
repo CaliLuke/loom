@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/expr/testdata"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPRouteValidation(t *testing.T) {
@@ -71,6 +72,61 @@ func TestHTTPRouteMethodTokenValidation(t *testing.T) {
 			if !strings.Contains(got, want) {
 				t.Errorf("got error %q\nexpected it to contain %q", got, want)
 			}
+		})
+	}
+}
+
+func TestHTTPRouteCatchAllWildcardValidation(t *testing.T) {
+	cases := map[string]struct {
+		basePath string
+		route    string
+		errors   []string
+	}{
+		"trailing catch-all":   {route: "/files/{*path}"},
+		"segment then catch":   {route: "/{id}/{*path}"},
+		"base path segment":    {basePath: "/{id}", route: "/{*path}"},
+		"trailing slash after": {route: "/files/{*path}/", errors: []string{`Catch-all wildcard "path" must terminate full path "/files/{*path}/"`}},
+		"non trailing":         {route: "/{*path}/tail", errors: []string{`Catch-all wildcard "path" must terminate full path "/{*path}/tail"`}},
+		"two catch-alls":       {route: "/{*a}/{*b}", errors: []string{`Catch-all wildcard "a" must terminate full path "/{*a}/{*b}"`}},
+		"catch-all in base":    {basePath: "/{*path}", route: "/tail", errors: []string{`Catch-all wildcard "path" must terminate full path "/{*path}/tail"`}},
+		"suffix in segment":    {route: "/{*path}.json", errors: []string{`Catch-all wildcard "path" must terminate full path "/{*path}.json"`}},
+		"bare star wildcard":   {route: "/files/*path", errors: []string{`Path "/files/*path" uses a bare "*"; use a trailing "/{*name}" catch-all wildcard instead`}},
+		"bare star in base":    {basePath: "/*", route: "/{id}", errors: []string{`Path "/*/{id}" uses a bare "*"; use a trailing "/{*name}" catch-all wildcard instead`}},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			dsl := catchAllRouteDSL(tc.basePath, tc.route)
+			if len(tc.errors) == 0 {
+				expr.RunDSL(t, dsl)
+				return
+			}
+			got := stripValidationLocations(expr.RunInvalidDSL(t, dsl).Error())
+			for _, want := range tc.errors {
+				require.Contains(t, got, want)
+			}
+		})
+	}
+}
+
+func catchAllRouteDSL(basePath, route string) func() {
+	return func() {
+		Service("CatchAll", func() {
+			if basePath != "" {
+				HTTP(func() {
+					Path(basePath)
+				})
+			}
+			Method("Call", func() {
+				Payload(func() {
+					Attribute("id", String)
+					Attribute("path", String)
+					Attribute("a", String)
+					Attribute("b", String)
+				})
+				HTTP(func() {
+					GET(route)
+				})
+			})
 		})
 	}
 }

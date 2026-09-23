@@ -146,7 +146,7 @@ Method("serve_files", func() {
         Field(1, "path", String, "Path to file")
     })
     HTTP(func() {
-        GET("/files/*path")  // Matches /files/docs/image.png
+        GET("/files/{*path}")  // Matches /files/docs/image.png
     })
 })
 ```
