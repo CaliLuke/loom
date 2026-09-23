@@ -3,6 +3,8 @@ package expr
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestEqual(t *testing.T) {
@@ -16,6 +18,25 @@ func TestEqual(t *testing.T) {
 	)
 	nat := &NamedAttributeExpr{Name: "recursive", Attribute: &AttributeExpr{Type: rut}}
 	*rut.Type.(*Object) = append(*rut.Type.(*Object), nat)
+	var (
+		selfRef  = selfReferencingType("SelfRef", "a")
+		selfRef2 = selfReferencingType("SelfRef2", "a")
+		empty    = userType("Empty", &Object{})
+		wrapper  = userType("Wrapper", &Object{{Name: "a", Attribute: &AttributeExpr{Type: empty}}})
+		shared   = userType("Shared", object(String))
+		diamond  = userType("Diamond", &Object{
+			{Name: "left", Attribute: &AttributeExpr{Type: shared}},
+			{Name: "right", Attribute: &AttributeExpr{Type: shared}},
+		})
+		mutualA  = userType("MutualA", &Object{})
+		mutualB  = userType("MutualB", &Object{{Name: "a", Attribute: &AttributeExpr{Type: mutualA}}})
+		chain    = userType("Chain", &Object{{Name: "b", Attribute: &AttributeExpr{Type: wrapper}}})
+		diamond2 = userType("Diamond2", &Object{
+			{Name: "left", Attribute: &AttributeExpr{Type: shared}},
+			{Name: "right", Attribute: &AttributeExpr{Type: userType("Other", object(String))}},
+		})
+	)
+	*mutualA.Type.(*Object) = Object{{Name: "b", Attribute: &AttributeExpr{Type: mutualB}}}
 	cases := []struct {
 		Name     string
 		dt, dt2  DataType
@@ -45,6 +66,12 @@ func TestEqual(t *testing.T) {
 		{"array-user-recursive-true", arut, arut, true},
 		{"array-user-recursive-false", arut, aut2, false},
 		{"array-user-recursive-false-2", aut1, arut, false},
+		{"user-self-reference-vs-empty-false", selfRef, wrapper, false},
+		{"user-empty-vs-self-reference-false", wrapper, selfRef, false},
+		{"user-self-reference-isomorphic-true", selfRef, selfRef2, true},
+		{"user-shared-reference-true", diamond, diamond2, true},
+		{"user-mutual-recursion-vs-empty-false", mutualA, chain, false},
+		{"user-mutual-recursion-true", mutualA, mutualA, true},
 	}
 	for _, k := range cases {
 		t.Run(k.Name, func(t *testing.T) {
@@ -75,6 +102,64 @@ func object(dts ...DataType) *Object {
 		}
 	}
 	return &obj
+}
+
+func TestEqualCliqueComparesEachPairOnce(t *testing.T) {
+	cases := []struct {
+		Name     string
+		N        int
+		Differ   bool
+		Expected bool
+	}{
+		{"clique-10-equal", 10, false, true},
+		{"clique-12-equal", 12, false, true},
+		{"clique-12-different", 12, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			left := cliqueTypes("Left", tc.N)
+			right := cliqueTypes("Right", tc.N)
+			if tc.Differ {
+				last := right[tc.N-1].Type.(*Object)
+				*last = append(*last, &NamedAttributeExpr{Name: "extra", Attribute: &AttributeExpr{Type: String}})
+			}
+			c := &typeComparer{seen: make(map[[2]DataType]struct{})}
+			require.Equal(t, tc.Expected, c.equal(left[0], right[0]))
+			// Each pair of user types and each pair of objects is expanded
+			// once; later references to a pair only hit the seen set.
+			require.LessOrEqual(t, c.visits, 2*tc.N*tc.N)
+			if tc.Expected {
+				// One root lookup, one object lookup per matched type and
+				// one lookup per field reference.
+				require.Equal(t, tc.N*tc.N+1, c.visits)
+			}
+		})
+	}
+}
+
+// cliqueTypes returns n user types where each type has a field referencing
+// every other type.
+func cliqueTypes(prefix string, n int) []*UserTypeExpr {
+	types := make([]*UserTypeExpr, n)
+	for i := range types {
+		types[i] = userType(fmt.Sprintf("%s%d", prefix, i), &Object{})
+	}
+	for i, ut := range types {
+		obj := ut.Type.(*Object)
+		for j, other := range types {
+			if i != j {
+				*obj = append(*obj, &NamedAttributeExpr{Name: fmt.Sprintf("f%d", j), Attribute: &AttributeExpr{Type: other}})
+			}
+		}
+	}
+	return types
+}
+
+// selfReferencingType returns a user type T{field: T}.
+func selfReferencingType(name, field string) *UserTypeExpr {
+	ut := userType(name, &Object{})
+	*ut.Type.(*Object) = Object{{Name: field, Attribute: &AttributeExpr{Type: ut}}}
+	return ut
 }
 
 func userType(name string, dt DataType) *UserTypeExpr {

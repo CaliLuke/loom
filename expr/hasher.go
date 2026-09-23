@@ -38,10 +38,11 @@ func hash(dt DataType, ignoreFields, ignoreNames, ignoreTags bool, seen map[*Obj
 	if seen == nil {
 		seen = make(map[*Object]*string)
 	}
-	switch dt.Kind() {
-	case BooleanKind, IntKind, Int32Kind, Int64Kind, UIntKind, UInt32Kind, UInt64Kind, Float32Kind, Float64Kind, StringKind, BytesKind, AnyKind:
+	if isPrimitiveKind(dt.Kind()) {
 		n := dt.Name()
 		return &n
+	}
+	switch dt.Kind() {
 	case ArrayKind:
 		return hashArray(dt.(*Array), ignoreFields, ignoreNames, ignoreTags, seen)
 	case MapKind:

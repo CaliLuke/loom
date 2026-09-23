@@ -91,19 +91,4 @@ func IsAlias(dt DataType) bool {
 	return isut && IsPrimitive(dt)
 }
 
-// Equal compares the types recursively and returns true if they are equal. Two
-// types are equal if:
-//
-//   - both types have the same kind
-//   - array types have elements whose types are equal
-//   - map types have keys and elements whose types are equal
-//   - objects have the same attribute names and the attribute types are equal
-//
-// Note: calling Equal is not equivalent to evaluating dt.Hash() == dt2.Hash()
-// as the former may return true for two user types with different names and
-// thus with different hash values.
-func Equal(dt, dt2 DataType) bool {
-	return Hash(dt, false, true, true) == Hash(dt2, false, true, true)
-}
-
 // DataType implementation
