@@ -39,6 +39,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 		imports := append([]*codegen.ImportSpec{
 			{Path: "context"},
 			{Path: "errors"},
+			{Path: "io"},
 			codegen.LoomImport(""),
 			codegen.LoomNamedImport("grpc", "loomgrpc"),
 			{Path: "google.golang.org/grpc/codes"},
