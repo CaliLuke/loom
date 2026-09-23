@@ -1,0 +1,11 @@
+go test fuzz v1
+string("")
+int64(0)
+string("")
+string("")
+string("")
+string("")
+string("")
+int(0)
+byte('Y')
+string("")

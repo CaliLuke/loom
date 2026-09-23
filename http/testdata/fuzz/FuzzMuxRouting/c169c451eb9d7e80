@@ -1,0 +1,4 @@
+go test fuzz v1
+[]byte("21c2c7")
+[]byte("7")
+byte('\x01')
