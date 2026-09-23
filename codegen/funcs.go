@@ -1,7 +1,6 @@
 package codegen
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -209,6 +208,13 @@ func normalizeCamelInitialism(runes []rune, word string, start int, firstUpper, 
 // News    => news
 // OldNews => old_news
 // CNNNews => cnn_news
+// ÉtéFoo  => été_foo
+//
+// SnakeCase processes runes, not bytes. Letters without case, such as CJK
+// ideographs, continue the current word like lower case letters do. Upper and
+// title case letters that have a lower case form start a new word. Combining marks stay attached to the
+// rune they follow. Invalid UTF-8 bytes become the Unicode replacement
+// character, so the result is always valid UTF-8.
 func SnakeCase(name string) string {
 	// Special handling for single "words" starting with multiple upper case letters
 	for u, l := range toLower {
@@ -223,26 +229,28 @@ func SnakeCase(name string) string {
 	name = strings.ReplaceAll(name, "-", "_")
 	name = strings.ReplaceAll(name, "/", "_")
 
-	var b bytes.Buffer
-	ln := len(name)
+	runes := []rune(name)
+	ln := len(runes)
 	if ln == 0 {
 		return ""
 	}
-	n := rune(name[0])
-	b.WriteRune(unicode.ToLower(n))
-	var lastLower, isLower, lastUnder, isUnder bool
+	var b strings.Builder
+	b.Grow(len(name) + ln/2)
+	b.WriteRune(unicode.ToLower(runes[0]))
+	var lastLower, lastUnder bool
 	for i := 1; i < ln; i++ {
-		r := rune(name[i])
-		isLower = unicode.IsLower(r) && unicode.IsLetter(r) || unicode.IsDigit(r)
-		isUnder = r == '_'
+		r := runes[i]
+		if unicode.IsMark(r) {
+			b.WriteRune(r)
+			continue
+		}
+		isLower := snakeContinuesWord(r)
+		isUnder := r == '_'
 		if !isLower && !isUnder {
 			if lastLower && !lastUnder {
 				b.WriteRune('_')
-			} else if ln > i+1 {
-				rn := rune(name[i+1])
-				if unicode.IsLower(rn) && rn != '_' && !lastUnder {
-					b.WriteRune('_')
-				}
+			} else if rn, ok := nextNonMark(runes, i+1); ok && unicode.IsLower(rn) && !lastUnder {
+				b.WriteRune('_')
 			}
 		}
 		b.WriteRune(unicode.ToLower(r))
@@ -411,6 +419,27 @@ func removeInvalidAtIndex(i int, runes []rune) []rune {
 	}
 
 	return append(runes[:i], runes[valid:]...)
+}
+
+// snakeContinuesWord reports whether r continues the current SnakeCase word:
+// a digit, or a letter that lower casing leaves unchanged. Only upper and
+// title case letters that have a lower case form start a new word, so upper
+// case letters without one, such as U+03D2, behave like caseless letters and
+// SnakeCase stays idempotent. For ASCII this is exactly the lower case
+// letters and digits.
+func snakeContinuesWord(r rune) bool {
+	return unicode.IsDigit(r) || unicode.IsLetter(r) && unicode.ToLower(r) == r
+}
+
+// nextNonMark returns the first rune of runes at or after index i that is not
+// a combining mark, so marks do not hide the case of the next letter.
+func nextNonMark(runes []rune, i int) (rune, bool) {
+	for ; i < len(runes); i++ {
+		if !unicode.IsMark(runes[i]) {
+			return runes[i], true
+		}
+	}
+	return 0, false
 }
 
 var (

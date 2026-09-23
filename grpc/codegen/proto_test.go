@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
@@ -163,6 +164,35 @@ func TestProtoc(t *testing.T) {
 			}
 
 			assert.Equal(t, firstOutput, string(fcontents))
+		})
+	}
+}
+
+func TestPkgNameIsASCIIProtoIdentifier(t *testing.T) {
+	cases := []struct {
+		Name     string
+		ProtoPkg string
+		Service  string
+		Expected string
+	}{
+		{"ascii", "", "calc service", "calc_service"},
+		{"ascii acronym", "", "MyAPIService", "my_api_service"},
+		{"explicit package wins", "custom.pkg", "été service", "custom.pkg"},
+		{"latin accents", "", "été service", "u00e9tu00e9_service"},
+		{"cjk", "", "日本語", "u65e5u672cu8a9e"},
+		{"combining mark dropped by Goify", "", "cafe\u0301 bar", "cafe_bar"},
+		{"astral letter", "", "𝒜lpha", "U0001d49clpha"},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			svc := &expr.GRPCServiceExpr{ProtoPkg: c.ProtoPkg}
+			// Service data derives the proto package from the service path
+			// name, SnakeCase(Goify(name, false)).
+			got := pkgName(svc, codegen.SnakeCase(codegen.Goify(c.Service, false)))
+			assert.Equal(t, c.Expected, got)
+			for _, r := range got {
+				assert.True(t, r < 0x80, "proto package %q contains non-ASCII rune %q", got, r)
+			}
 		})
 	}
 }

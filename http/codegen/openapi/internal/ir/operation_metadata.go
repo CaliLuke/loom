@@ -64,7 +64,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 		responses[status] = &ResponseRef{Value: response}
 	}
 
-	operationID := parseOperationIDTemplate(operationIDFormat, service.Name, endpointIR.Name, routeIR.Index)
+	operationID := ParseOperationIDTemplate(operationIDFormat, service.Name, endpointIR.Name, routeIR.Index)
 	extensions := mergeExtensions(openapi.ExtensionsFromExpr(endpointIR.MethodMeta), buildAsyncOperationExtension(endpointIR, path, rand, closeObjects))
 
 	_, deprecated := endpointIR.Meta.Last("openapi:deprecated")
@@ -240,7 +240,13 @@ func operationTagNames(endpointMeta, methodMeta, serviceMeta expr.MetaExpr, serv
 	return []string{serviceName}
 }
 
-func parseOperationIDTemplate(template, service, method string, routeIndex int) string {
+// ParseOperationIDTemplate renders an OpenAPI operationId template. It
+// replaces {service} and {method} with canonical snake_case components and
+// expands or removes the optional (...{routeIndex}) group. A route index
+// greater than zero is appended as "#<index>" when the template has no such
+// group. A template without placeholders and route index zero is returned
+// unchanged.
+func ParseOperationIDTemplate(template, service, method string, routeIndex int) string {
 	if !strings.Contains(template, "{") && routeIndex == 0 {
 		return template
 	}
@@ -264,7 +270,7 @@ func canonicalOperationIDComponent(name string) string {
 	builder.Grow(len(component))
 	for _, r := range component {
 		switch {
-		case unicode.IsLower(r), unicode.IsDigit(r):
+		case unicode.IsDigit(r), unicode.IsMark(r), unicode.IsLetter(r) && unicode.ToLower(r) == r:
 			builder.WriteRune(r)
 		default:
 			builder.WriteRune('_')

@@ -3,12 +3,8 @@ package openapiv3
 import (
 	"fmt"
 	"maps"
-	"regexp"
 	"sort"
-	"strings"
-	"unicode"
 
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
@@ -23,11 +19,6 @@ const (
 	// The specification also declares its prose authoritative over conflicting
 	// informational JSON Schema artifacts.
 	JSONSchemaDialect = "https://spec.openapis.org/oas/3.1/dialect/base"
-)
-
-var (
-	routeIndexReplacementRegExp = regexp.MustCompile(`\((.*){routeIndex}\)`)
-	operationIDSeparatorRegExp  = regexp.MustCompile(`_+`)
 )
 
 const (
@@ -182,7 +173,7 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 	svc := fs.Service
 
 	return &Operation{
-		OperationID:  parseOperationIDTemplate(fileServerOperationIDFormat(api, svc, fs), svc.Name(), key, 0),
+		OperationID:  openapiir.ParseOperationIDTemplate(fileServerOperationIDFormat(api, svc, fs), svc.Name(), key, 0),
 		Description:  fs.Description,
 		Summary:      fileServerSummary(fs),
 		Parameters:   fileServerParameters(wildcards),
@@ -395,53 +386,6 @@ func cloneOperationSecurity(requirements []map[string][]string) []map[string][]s
 		cloned[i] = current
 	}
 	return cloned
-}
-
-func parseOperationIDTemplate(template, service, method string, routeIndex int) string {
-	// Early return if no replacement is needed for the template.
-	if !strings.Contains(template, "{") && routeIndex == 0 {
-		return template
-	}
-
-	// The template replacer
-	repl := strings.NewReplacer(
-		"{service}", canonicalOperationIDComponent(service),
-		"{method}", canonicalOperationIDComponent(method),
-	)
-
-	operationID := repl.Replace(template)
-
-	if routeIndex == 0 {
-		return routeIndexReplacementRegExp.ReplaceAllString(operationID, "")
-	}
-
-	// If the routeIndex is greater than 0, we need to add the routeIndex to the operationId.
-	if sep := routeIndexReplacementRegExp.FindStringSubmatch(template); sep != nil {
-		return routeIndexReplacementRegExp.ReplaceAllString(operationID, fmt.Sprintf("%s%d", sep[1], routeIndex))
-	}
-
-	// Fallback in the event that the operationId doesn't contain the routeIndex placeholder.
-	return fmt.Sprintf("%s#%d", operationID, routeIndex)
-}
-
-func canonicalOperationIDComponent(name string) string {
-	component := codegen.SnakeCase(name)
-	var b strings.Builder
-	b.Grow(len(component))
-	for _, r := range component {
-		switch {
-		case unicode.IsLower(r), unicode.IsDigit(r):
-			b.WriteRune(r)
-		default:
-			b.WriteRune('_')
-		}
-	}
-	component = operationIDSeparatorRegExp.ReplaceAllString(b.String(), "_")
-	component = strings.Trim(component, "_")
-	if component == "" {
-		return "operation"
-	}
-	return component
 }
 
 // buildServers builds the OpenAPI Server objects from the given server

@@ -78,3 +78,35 @@ func TestParamForKeepsPresentationMetadataOffSchema(t *testing.T) {
 	require.Empty(t, parameter.Value.Schema.Description)
 	require.Nil(t, parameter.Value.Schema.Example)
 }
+
+func TestCanonicalOperationIDComponent(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "service name", input: "test service", expected: "test_service"},
+		{name: "camel case", input: "OAuth2UserInfo", expected: "oauth2_user_info"},
+		{name: "path-like", input: "/assets/{*filepath}", expected: "assets_filepath"},
+		{name: "punctuation-only", input: "{}/*-", expected: "operation"},
+		{name: "latin accents", input: "ÉtéFoo", expected: "été_foo"},
+		{name: "cjk", input: "日本", expected: "日本"},
+		{name: "other cjk", input: "中国", expected: "中国"},
+		{name: "cjk between words", input: "Foo日本Bar", expected: "foo日本_bar"},
+		{name: "upper without lower", input: "ϒϒA", expected: "ϒϒ_a"},
+		{name: "title case", input: "ǅemal", expected: "ǆemal"},
+		{name: "combining mark", input: "CaféBar", expected: "café_bar"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, canonicalOperationIDComponent(tc.input))
+		})
+	}
+}
+
+func TestParseOperationIDTemplateKeepsCaselessNamesDistinct(t *testing.T) {
+	first := ParseOperationIDTemplate("{service}/{method}", "服务", "日本", 0)
+	second := ParseOperationIDTemplate("{service}/{method}", "服务", "中国", 0)
+	require.Equal(t, "服务/日本", first)
+	require.Equal(t, "服务/中国", second)
+}

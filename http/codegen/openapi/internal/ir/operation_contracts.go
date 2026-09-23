@@ -88,7 +88,7 @@ func resolveLinkedOperationID(target string, currentService string) string {
 				operationIDFormat = value
 			}
 		}
-		return parseOperationIDTemplate(operationIDFormat, svc.Name(), endpoint.Name(), 0)
+		return ParseOperationIDTemplate(operationIDFormat, svc.Name(), endpoint.Name(), 0)
 	}
 	return target
 }

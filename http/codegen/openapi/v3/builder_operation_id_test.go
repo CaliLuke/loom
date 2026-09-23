@@ -110,28 +110,6 @@ func TestBuildOperationID(t *testing.T) {
 	}
 }
 
-func TestCanonicalOperationIDComponent(t *testing.T) {
-	cases := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{name: "service name", input: "test service", expected: "test_service"},
-		{name: "camel case", input: "OAuth2UserInfo", expected: "oauth2_user_info"},
-		{name: "path-like", input: "/assets/{*filepath}", expected: "assets_filepath"},
-		{name: "punctuation-only", input: "{}/*-", expected: "operation"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual := canonicalOperationIDComponent(tc.input)
-			if actual != tc.expected {
-				t.Errorf("got canonical operation ID component %q, expected %q", actual, tc.expected)
-			}
-		})
-	}
-}
-
 func TestBuildOperationErrorRemedyDescription(t *testing.T) {
 	const (
 		svcName = "test service"
