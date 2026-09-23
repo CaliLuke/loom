@@ -29,6 +29,7 @@ func TestSSEProjectionCodegen(t *testing.T) {
 	require.Contains(t, serverCode, `invalid SSE projection discriminator`)
 	require.Contains(t, serverCode, `payload = NewWatchResponseBodyLegacy(res.Projected)`)
 	require.Contains(t, serverCode, `payload = NewWatchResponseBodyUpdated(res.Projected)`)
+	require.Contains(t, serverCode, "if id := v.Cursor; id != nil && *id != \"\" {\n\t\tmsg.ID = *id\n\t}")
 
 	clientCode := renderSection(t, sseClientSection(endpoint))
 	require.Contains(t, clientCode, `switch parsed.Type`)
@@ -36,6 +37,7 @@ func TestSSEProjectionCodegen(t *testing.T) {
 	require.Contains(t, clientCode, `projected := new(sseprojectionviews.ProjectionEventView)`)
 	require.Contains(t, clientCode, `ValidateProjectionEvent(vres)`)
 	require.Contains(t, clientCode, `event, err = sseprojection.NewProjectionEvent(vres)`)
+	require.Contains(t, clientCode, "if id := parsed.ID; id != \"\" {\n\t\tevent.Cursor = &id\n\t}")
 }
 
 func TestSSEProjectionResponseBodiesMatchViews(t *testing.T) {
@@ -80,7 +82,7 @@ import (
 )
 
 func TestProjectionClientDecodesMixedStream(t *testing.T) {
-	frames := "event: legacy\ndata: {\"event_type\":\"legacy\",\"sequence\":1,\"type\":\"legacy\",\"payload\":{\"id\":\"a\"}}\n\n" +
+	frames := "event: legacy\nid: c1\ndata: {\"event_type\":\"legacy\",\"sequence\":1,\"type\":\"legacy\",\"payload\":{\"id\":\"a\"}}\n\n" +
 		"event: updated\ndata: {\"event_type\":\"updated\",\"sequence\":2,\"event\":{\"type\":\"updated\",\"value\":{\"id\":\"b\"}}}\n\n"
 	stream := client.NewWatchStream(
 		&http.Response{Body: io.NopCloser(strings.NewReader(frames))},
@@ -97,6 +99,9 @@ func TestProjectionClientDecodesMixedStream(t *testing.T) {
 	if legacy.Payload == nil || legacy.Payload.ID != "a" || legacy.Event != nil {
 		t.Fatalf("unexpected legacy projection fields: %#v", legacy)
 	}
+	if legacy.Cursor == nil || *legacy.Cursor != "c1" {
+		t.Fatalf("expected legacy SSE id cursor c1, got %v", legacy.Cursor)
+	}
 
 	updated, err := stream.Recv(context.Background())
 	if err != nil {
@@ -107,6 +112,9 @@ func TestProjectionClientDecodesMixedStream(t *testing.T) {
 	}
 	if string(updated.Event.Kind()) != "updated" || updated.Payload != nil {
 		t.Fatalf("unexpected updated projection fields: %#v", updated)
+	}
+	if updated.Cursor != nil {
+		t.Fatalf("expected nil cursor for an event without an SSE id, got %q", *updated.Cursor)
 	}
 }
 

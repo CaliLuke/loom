@@ -13,6 +13,7 @@ var SSEVariantProjectionDSL = func() {
 		TypeName("ProjectionEvent")
 		Attributes(func() {
 			Attribute("event_type", String)
+			Attribute("cursor", String)
 			Attribute("sequence", Int)
 			Attribute("type", String)
 			Attribute("payload", Payload)
@@ -43,6 +44,7 @@ var SSEVariantProjectionDSL = func() {
 				GET("/events")
 				ServerSentEvents(func() {
 					SSEEventType("event_type")
+					SSEEventID("cursor")
 					SSEProjection("legacy", "legacy")
 					SSEProjection("updated", "updated")
 				})

@@ -337,6 +337,12 @@ filter, and serialization rules belong here.
   `http.NewStaticFileServer`. Directory targets map the captured request suffix
   below the target, while file targets serve the same file for every matching
   route. Generators must not infer target kind from a path extension.
+- HTTP SSE `id`, `event`, and `retry` mappings follow the service type pointer
+  semantics recorded in `SSEData` (`IDPointer`, `EventPointer`,
+  `RetryPointer`, `IDDefault`, `EventDefault`). Servers nil-check and
+  dereference optional fields; clients leave them nil when the frame omits the
+  field and assign defaults to defaulted ones. JSON-RPC SSE does not map these
+  fields onto SSE frames.
 - Protocol errors must use event types compatible with the relevant client
   contract.
 - Generated HTTP variables named after path params, query params, headers,

@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
@@ -54,12 +55,29 @@ type (
 		// IDField is the name of the result type event ID attribute if any.
 		// If empty, no id field is included in the event.
 		IDField string
+		// IDPointer indicates whether IDField is a pointer, that is an
+		// optional attribute without a default value.
+		IDPointer bool
+		// IDDefault is the Go literal of the default value of an optional
+		// IDField. The client assigns it when an event omits its id. It is
+		// empty when IDField is required or has no default value.
+		IDDefault string
 		// EventField is the name of the result type event field if any.
 		// If empty, no event field is included in the event.
 		EventField string
+		// EventPointer indicates whether EventField is a pointer, that is an
+		// optional attribute without a default value.
+		EventPointer bool
+		// EventDefault is the Go literal of the default value of an optional
+		// EventField. The client assigns it when an event omits its type. It
+		// is empty when EventField is required or has no default value.
+		EventDefault string
 		// RetryField is the name of the result type event retry field if any.
 		// If empty, no retry field is included in the event.
 		RetryField string
+		// RetryPointer indicates whether RetryField is a pointer, that is an
+		// optional attribute without a default value.
+		RetryPointer bool
 		// RequestIDField is the name of the payload field that maps to the Last-Event-ID header if any.
 		// If empty, no last event id is included in the request.
 		RequestIDField string
@@ -94,7 +112,6 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 	caps := service.DescribeMethodCapabilities(md)
 
 	eventAttr, eventType := sseEventType(ed, endpointIR, sd, caps)
-	dataFieldVar, dataFieldTypeRef, idFieldVar, eventFieldVar, retryFieldVar := sseEventFieldData(endpointIR, sd, svc, eventAttr)
 
 	ed.SSE = &SSEData{
 		StructName:          md.ServerStream.VarName,
@@ -108,15 +125,11 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 		EventTypeRef:        eventType.Ref,
 		EventTypeName:       eventType.Name,
 		EventIsStruct:       eventType.IsStruct,
-		DataFieldTypeRef:    dataFieldTypeRef,
-		DataField:           dataFieldVar,
-		IDField:             idFieldVar,
-		EventField:          eventFieldVar,
-		RetryField:          retryFieldVar,
 		RequestIDField:      endpointIR.Stream.SSE.RequestIDField,
 		NotificationMethod:  endpointIR.Stream.SSE.NotificationMethod,
 		RequestIDPointer:    endpointIR.Stream.SSE.RequestIDPointer,
 	}
+	setSSEEventFields(ed.SSE, endpointIR.Stream.SSE, sd, eventAttr)
 	for _, projection := range endpointIR.Stream.SSE.Projections {
 		ed.SSE.Projections = append(ed.SSE.Projections, &SSEProjectionData{
 			EventType: projection.EventType,
@@ -176,24 +189,47 @@ func sseEventType(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Servic
 	}
 }
 
-func sseEventFieldData(endpointIR *transportir.Endpoint, sd *ServiceData, svc *service.Data, eventAttr *expr.AttributeExpr) (string, string, string, string, string) {
-	var dataFieldVar, dataFieldTypeRef, idFieldVar, eventFieldVar, retryFieldVar string
-	if obj := expr.AsObject(eventAttr.Type); obj != nil {
-		for _, nat := range *obj {
-			switch nat.Name {
-			case endpointIR.Stream.SSE.IDField:
-				idFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case endpointIR.Stream.SSE.EventField:
-				eventFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case endpointIR.Stream.SSE.RetryField:
-				retryFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-			case endpointIR.Stream.SSE.DataField:
-				dataFieldVar = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
-				dataFieldTypeRef = sd.Service.Scope.GoFullTypeRef(nat.Attribute, svc.PkgName)
-			}
+// setSSEEventFields records the result attributes mapped to the SSE data, id,
+// event, and retry fields. The pointer and default flags follow the service
+// type field semantics so that generated code dereferences optional fields and
+// applies defaults to omitted ones.
+func setSSEEventFields(data *SSEData, mapping *transportir.SSE, sd *ServiceData, eventAttr *expr.AttributeExpr) {
+	obj := expr.AsObject(eventAttr.Type)
+	if obj == nil {
+		return
+	}
+	for _, nat := range *obj {
+		switch nat.Name {
+		case mapping.IDField:
+			data.IDField = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
+			data.IDPointer = eventAttr.IsPrimitivePointer(nat.Name, true)
+			data.IDDefault = sseStringDefault(eventAttr, nat.Name)
+		case mapping.EventField:
+			data.EventField = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
+			data.EventPointer = eventAttr.IsPrimitivePointer(nat.Name, true)
+			data.EventDefault = sseStringDefault(eventAttr, nat.Name)
+		case mapping.RetryField:
+			data.RetryField = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
+			data.RetryPointer = eventAttr.IsPrimitivePointer(nat.Name, true)
+		case mapping.DataField:
+			data.DataField = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
+			data.DataFieldTypeRef = sd.Service.Scope.GoFullTypeRef(nat.Attribute, sd.Service.PkgName)
 		}
 	}
-	return dataFieldVar, dataFieldTypeRef, idFieldVar, eventFieldVar, retryFieldVar
+}
+
+// sseStringDefault returns the Go literal of the default value of the optional
+// String attribute name of eventAttr, or "" when the attribute is required or
+// has no default value.
+func sseStringDefault(eventAttr *expr.AttributeExpr, name string) string {
+	if eventAttr.IsRequired(name) {
+		return ""
+	}
+	def, ok := eventAttr.GetDefault(name).(string)
+	if !ok {
+		return ""
+	}
+	return strconv.Quote(def)
 }
 
 func sseSendDescription(sendName, eventTypeName, methodName string) string {

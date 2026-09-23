@@ -200,15 +200,31 @@ func writeSSEMessageSetup(b *sourceBuilder, ed *EndpointData) {
 		resultVar = "v"
 	}
 	if ed.SSE.IDField != "" {
-		b.Addf("\n\tif id := %s.%s; id != \"\" {\n\t\tmsg.ID = id\n\t}\n", resultVar, ed.SSE.IDField)
+		b.Add("\n")
+		writeSSEMessageField(b, "id", resultVar+"."+ed.SSE.IDField, ed.SSE.IDPointer, `%s != ""`, "msg.ID = %s")
 	}
 	if ed.SSE.EventField != "" {
-		b.Addf("\tif event := %s.%s; event != \"\" {\n\t\tmsg.Type = event\n\t}\n", resultVar, ed.SSE.EventField)
+		writeSSEMessageField(b, "event", resultVar+"."+ed.SSE.EventField, ed.SSE.EventPointer, `%s != ""`, "msg.Type = %s")
 	}
 	if ed.SSE.RetryField != "" {
-		b.Addf("\tif retry := %s.%s; retry > 0 {\n\t\tmsg.RetryMillis = int64(retry)\n\t}\n", resultVar, ed.SSE.RetryField)
+		writeSSEMessageField(b, "retry", resultVar+"."+ed.SSE.RetryField, ed.SSE.RetryPointer, "%s > 0", "msg.RetryMillis = int64(%s)")
 	}
 	b.Add("\n")
+}
+
+// writeSSEMessageField copies the result field source into the SSE message
+// when it holds a value that the SSE wire format can carry. An empty id or
+// event and a non-positive retry are omitted. A pointer field is also omitted
+// when nil and dereferenced otherwise. cond and assign are format strings
+// applied to the field value expression.
+func writeSSEMessageField(b *sourceBuilder, local, source string, pointer bool, cond, assign string) {
+	value := local
+	check := fmt.Sprintf(cond, value)
+	if pointer {
+		value = "*" + local
+		check = local + " != nil && " + fmt.Sprintf(cond, value)
+	}
+	b.Addf("\tif %s := %s; %s {\n\t\t%s\n\t}\n", local, source, check, fmt.Sprintf(assign, value))
 }
 
 func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {

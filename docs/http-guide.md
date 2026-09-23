@@ -900,6 +900,25 @@ Method("stream", func() {
 })
 ```
 
+### Event ID, Type, and Retry Fields
+
+The attributes mapped by `SSEEventID`, `SSEEventType`, and `SSEEventRetry` may
+be required, optional, or optional with a default value:
+
+- The server writes `id:` and `event:` only for a non-empty value, and
+  `retry:` only for a positive value. An optional attribute that is unset (nil)
+  is omitted, and so is a pointer to an empty string or a non-positive retry.
+  An empty `id:` field would reset the client's last event ID, but the server
+  never writes one, so an empty id cannot reset it. An empty `event:` field
+  means the default `message` type, the same as an absent field, and the
+  generated client decodes it as unset.
+- The generated client sets an optional `id` or `event` attribute only when the
+  event carries that field, and leaves it nil otherwise. A defaulted attribute
+  receives its default value when the field is absent. A required attribute
+  receives the empty string.
+- The generated client does not decode `retry:`. It is a reconnection hint for
+  the SSE connection, not a value of the streamed result.
+
 ### Event Data Encoding
 
 The `data:` field of each event is encoded according to how the design maps it:

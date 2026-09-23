@@ -200,7 +200,6 @@ const (
 //	        JSONRPC(func() {
 //	            ServerSentEvents(func() {         // Use SSE instead of WebSocket
 //	                SSERequestID("last_event_id") // Map SSE Last-Event-ID header to payload "last_event_id" attribute
-//	                SSEEventID("id")              // Use "id" result attribute as SSE event ID
 //	            })
 //	        })
 //	    })

@@ -45,8 +45,8 @@ func (s *SSEDataIDFieldMethodServerStream) SendWithContext(ctx context.Context, 
 
 	msg := loomhttp.SSEMessage{Data: data}
 
-	if id := res.ID; id != "" {
-		msg.ID = id
+	if id := res.ID; id != nil && *id != "" {
+		msg.ID = *id
 	}
 
 	return s.writer.WriteEvent(ctx, func(w io.Writer) error {

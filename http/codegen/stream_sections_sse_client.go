@@ -41,12 +41,7 @@ func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
 	if ed.SSE.EventIsStruct {
 		b.Addf("\tevent = new(%s)\n", strings.TrimPrefix(ed.SSE.EventTypeRef, "*"))
 	}
-	if ed.SSE.IDField != "" {
-		b.Addf("\tevent.%s = parsed.ID\n", ed.SSE.IDField)
-	}
-	if ed.SSE.EventField != "" {
-		b.Addf("\tevent.%s = parsed.Type\n", ed.SSE.EventField)
-	}
+	renderSSEClientEventFields(&b, ed)
 	b.Add("\tdataContent := parsed.Data\n")
 	switch {
 	case ed.SSE.DataField != "":
@@ -91,11 +86,31 @@ func renderSSEProjectionClientDecode(b *sourceBuilder, ed *EndpointData) {
 	b.Addf("\tif err = %s(vres); err != nil {\n\t\treturn\n\t}\n", ed.SSE.ViewedValidateRef)
 	b.Addf("\tevent, err = %s(vres)\n", ed.SSE.ResultInitRef)
 	b.Add("\tif err != nil {\n\t\treturn\n\t}\n")
+	renderSSEClientEventFields(b, ed)
+}
+
+// renderSSEClientEventFields assigns the parsed SSE id and event type to the
+// mapped event fields.
+func renderSSEClientEventFields(b *sourceBuilder, ed *EndpointData) {
 	if ed.SSE.IDField != "" {
-		b.Addf("\tevent.%s = parsed.ID\n", ed.SSE.IDField)
+		renderSSEClientStringField(b, "event."+ed.SSE.IDField, "parsed.ID", "id", ed.SSE.IDPointer, ed.SSE.IDDefault)
 	}
 	if ed.SSE.EventField != "" {
-		b.Addf("\tevent.%s = parsed.Type\n", ed.SSE.EventField)
+		renderSSEClientStringField(b, "event."+ed.SSE.EventField, "parsed.Type", "eventType", ed.SSE.EventPointer, ed.SSE.EventDefault)
+	}
+}
+
+// renderSSEClientStringField assigns the parsed SSE string field source to
+// target. A pointer target stays nil when the event omits the field. A target
+// with a default value receives the default literal def instead.
+func renderSSEClientStringField(b *sourceBuilder, target, source, local string, pointer bool, def string) {
+	switch {
+	case pointer:
+		b.Addf("\tif %s := %s; %s != \"\" {\n\t\t%s = &%s\n\t}\n", local, source, local, target, local)
+	case def != "":
+		b.Addf("\t%s = %s\n\tif %s == \"\" {\n\t\t%s = %s\n\t}\n", target, source, target, target, def)
+	default:
+		b.Addf("\t%s = %s\n", target, source)
 	}
 }
 

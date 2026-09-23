@@ -208,3 +208,71 @@ var SSEResultTypesDSL = func() {
 		})
 	})
 }
+
+// SSEFieldPresenceDSL maps the SSE id, event, and retry fields from required,
+// optional, and defaulted result attributes so generated server encoding and
+// client decoding can be compiled and exercised for each presence mode.
+var SSEFieldPresenceDSL = func() {
+	Service("SSEFieldPresence", func() {
+		Method("StreamRequired", func() {
+			StreamingResult(func() {
+				Attribute("id", String)
+				Attribute("event", String)
+				Attribute("retry", Int)
+				Attribute("text", String)
+				Required("id", "event", "retry", "text")
+			})
+			HTTP(func() {
+				GET("/required")
+				ServerSentEvents(func() {
+					SSEEventID("id")
+					SSEEventType("event")
+					SSEEventRetry("retry")
+					SSEEventData("text")
+				})
+			})
+		})
+		Method("StreamOptional", func() {
+			StreamingResult(func() {
+				Attribute("id", String)
+				Attribute("event", String)
+				Attribute("retry", Int64)
+				Attribute("text", String)
+				Required("text")
+			})
+			HTTP(func() {
+				GET("/optional")
+				ServerSentEvents(func() {
+					SSEEventID("id")
+					SSEEventType("event")
+					SSEEventRetry("retry")
+					SSEEventData("text")
+				})
+			})
+		})
+		Method("StreamDefaulted", func() {
+			StreamingResult(func() {
+				Attribute("id", String, func() {
+					Default("default-id")
+				})
+				Attribute("event", String, func() {
+					Default("default-event")
+				})
+				Attribute("retry", UInt, func() {
+					Default(1500)
+				})
+				Attribute("text", String)
+				Required("text")
+			})
+			HTTP(func() {
+				GET("/defaulted")
+				ServerSentEvents(func() {
+					SSEEventID("id")
+					SSEEventType("event")
+					SSEEventRetry("retry")
+					SSEEventData("text")
+				})
+			})
+		})
+	})
+}

@@ -45,14 +45,14 @@ func (s *SSEAllFieldsMethodServerStream) SendWithContext(ctx context.Context, v 
 
 	msg := loomhttp.SSEMessage{Data: data}
 
-	if id := res.ID; id != "" {
-		msg.ID = id
+	if id := res.ID; id != nil && *id != "" {
+		msg.ID = *id
 	}
-	if event := res.Event; event != "" {
-		msg.Type = event
+	if event := res.Event; event != nil && *event != "" {
+		msg.Type = *event
 	}
-	if retry := res.Retry; retry > 0 {
-		msg.RetryMillis = int64(retry)
+	if retry := res.Retry; retry != nil && *retry > 0 {
+		msg.RetryMillis = int64(*retry)
 	}
 
 	return s.writer.WriteEvent(ctx, func(w io.Writer) error {
