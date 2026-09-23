@@ -158,23 +158,25 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 }
 
 func clientCLIPayloadTransformHelpers(svc *expr.GRPCServiceExpr, sd *ServiceData) []*TransformHelperData {
-	byName := make(map[string]*TransformHelperData, len(sd.transformHelpers))
+	// Scan candidates in sd.transformHelpers order, never map order, so the
+	// emitted helper sections are byte-stable across generations.
+	candidates := make([]*TransformHelperData, 0, len(sd.transformHelpers))
 	for _, helper := range sd.transformHelpers {
 		if helper.Kind != validateServer {
 			continue
 		}
-		byName[helper.Name] = helper
+		candidates = append(candidates, helper)
 	}
 
 	var selected []*TransformHelperData
-	seen := make(map[string]struct{}, len(byName))
+	seen := make(map[string]struct{}, len(candidates))
 	var collectFromCode func(string)
 	collectFromCode = func(src string) {
-		for name, helper := range byName {
-			if _, ok := seen[name]; ok || !strings.Contains(src, name+"(") {
+		for _, helper := range candidates {
+			if _, ok := seen[helper.Name]; ok || !strings.Contains(src, helper.Name+"(") {
 				continue
 			}
-			seen[name] = struct{}{}
+			seen[helper.Name] = struct{}{}
 			selected = append(selected, helper)
 			collectFromCode(helper.Code)
 		}
