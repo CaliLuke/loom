@@ -165,8 +165,10 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		fieldType := scope.GoFullTypeRef(nat.Attribute, pkg)
 		primitiveAliasType, hasPrimitiveAlias := primitiveAliasGoType(nat.Attribute.Type)
 		_, isUserType := nat.Attribute.Type.(expr.UserType)
-		emitPrimitiveAlias := hasPrimitiveAlias && !isUserType && pkg == ""
-		if emitPrimitiveAlias && primitiveAliasType == "loom.JSONValue" {
+		// Bare primitive branches use their native Go type. Only an Any branch
+		// gets a named alias of loom.JSONValue.
+		emitPrimitiveAlias := hasPrimitiveAlias && primitiveAliasType == "loom.JSONValue" && !isUserType && pkg == ""
+		if emitPrimitiveAlias {
 			fieldType = scope.Unique(name + fieldName)
 		}
 		kindConst := kindName + codegen.Goify(nat.Name, true)
@@ -217,8 +219,8 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 		fieldType := scope.GoTypeRef(nat.Attribute)
 		primitiveAliasType, hasPrimitiveAlias := primitiveAliasGoType(nat.Attribute.Type)
 		_, isUserType := nat.Attribute.Type.(expr.UserType)
-		emitPrimitiveAlias := hasPrimitiveAlias && !isUserType
-		if emitPrimitiveAlias && primitiveAliasType == "loom.JSONValue" {
+		emitPrimitiveAlias := hasPrimitiveAlias && primitiveAliasType == "loom.JSONValue" && !isUserType
+		if emitPrimitiveAlias {
 			fieldType = scope.Unique(name + fieldName)
 		}
 		kindConst := kindName + codegen.Goify(nat.Name, true)

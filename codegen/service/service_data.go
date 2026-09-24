@@ -509,7 +509,8 @@ type (
 		// value when FlatFormObjectAllowsEmpty is true.
 		EmptyValueExpr string
 		// EmitPrimitiveAlias is true when the branch uses a generated primitive alias
-		// that must be declared in the same file as the union type.
+		// that must be declared in the same file as the union type. Service data
+		// sets it only for bare Any branches, whose alias is loom.JSONValue.
 		EmitPrimitiveAlias bool
 		// PrimitiveAliasType is the underlying Go type used by the generated branch
 		// alias (for example "string" or "float64").
