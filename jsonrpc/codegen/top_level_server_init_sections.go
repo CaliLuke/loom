@@ -34,7 +34,7 @@ func jsonrpcServerInitParams(data *httpcodegen.ServiceData) []jen.Code {
 		params = append(params, jen.Id("streamHandler").Func().Params(jen.Qual("context", "Context"), codegen.TypeRef(data.Service.PkgName+".Stream")).Error())
 	}
 	params = append(params,
-		jen.Id("endpoints").Op("*").Qual(data.Service.PkgName, "Endpoints"),
+		jen.Id("endpoints").Op("*").Add(codegen.PkgQual(data.Service.PkgName, "Endpoints")),
 		jen.Id("mux").Add(codegen.TypeRef("loomhttp.Muxer")),
 		jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Decoder")),
 		jen.Id("encoder").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter")).Add(codegen.TypeRef("loomhttp.Encoder")),

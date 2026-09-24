@@ -87,6 +87,16 @@ func TypeRef(ref string) *jen.Statement {
 	return Expr(ref)
 }
 
+// PkgQual renders the identifier name qualified by the package imported under
+// alias, as in "alias.name". Unlike jen.Qual, which takes an import path and
+// derives the qualifier from its last element, lower-cased with every rune
+// outside [a-z0-9] removed, PkgQual renders alias verbatim, so it stays
+// correct for the aliases Loom computes for its generated packages (e.g.
+// "event_streamerpb").
+func PkgQual(alias, name string) *jen.Statement {
+	return jen.Id(alias).Dot(name)
+}
+
 // commentLines drops the leading and trailing empty entries of lines, turns
 // the remaining empty entries into "//" separators, and returns "//" when no
 // line is left.

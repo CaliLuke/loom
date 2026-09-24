@@ -28,7 +28,7 @@ func grpcExampleServerParams(services []*ServiceData) []jen.Code {
 		if len(service.Service.Methods) == 0 {
 			continue
 		}
-		params = append(params, jen.Id(service.Service.VarName+"Endpoints").Op("*").Qual(service.Service.PkgName, "Endpoints"))
+		params = append(params, jen.Id(service.Service.VarName+"Endpoints").Op("*").Add(codegenpkg.PkgQual(service.Service.PkgName, "Endpoints")))
 	}
 	return append(params,
 		jen.Id("wg").Op("*").Qual("sync", "WaitGroup"),

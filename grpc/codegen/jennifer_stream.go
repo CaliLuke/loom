@@ -35,7 +35,7 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 				viewArg = "s.view"
 			}
 			body = append(body,
-				jen.List(jen.Id("vres"), jen.Err()).Op(":=").Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.Init.Name).
+				jen.List(jen.Id("vres"), jen.Err()).Op(":=").Add(codegenpkg.PkgQual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.Init.Name)).
 					Call(jen.Id("res"), codegenpkg.Expr(viewArg)),
 				jen.If(jen.Err().Op("!=").Nil()).Block(
 					jen.Return(grpcStreamEncodeError(stream, jen.Err())),
@@ -54,7 +54,7 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 		if stream.Type == "client" && stream.Endpoint.Request.StreamEnvelope != nil {
 			env := stream.Endpoint.Request.StreamEnvelope
 			body = append(body, jen.Return(jen.Id("s").Dot("stream").Dot(stream.SendName).Call(
-				jen.Op("&").Qual(stream.Endpoint.PkgName, stream.Endpoint.Request.Message.VarName).Values(jen.Dict{
+				jen.Op("&").Add(codegenpkg.PkgQual(stream.Endpoint.PkgName, stream.Endpoint.Request.Message.VarName)).Values(jen.Dict{
 					jen.Id(env.FieldName): jen.Op("&").Add(codegenpkg.TypeRef(env.StreamItemWrapperRef)).Values(jen.Dict{
 						jen.Id(env.StreamItemFieldName): jen.Id("v"),
 					}),
@@ -249,12 +249,12 @@ func appendGRPCStreamRecvViewedResult(g *jen.Group, stream *StreamData) bool {
 		g.Add(codegenpkg.Expr("vres := " + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
 	}
 	g.If(
-		jen.Err().Op(":=").Qual(stream.Endpoint.Method.ViewedResult.ViewsPkg, "Validate"+stream.Endpoint.Method.Result).Call(jen.Id("vres")),
+		jen.Err().Op(":=").Add(codegenpkg.PkgQual(stream.Endpoint.Method.ViewedResult.ViewsPkg, "Validate"+stream.Endpoint.Method.Result)).Call(jen.Id("vres")),
 		jen.Err().Op("!=").Nil(),
 	).Block(
 		jen.Return(jen.Nil(), jen.Err()),
 	)
-	g.List(jen.Id("out"), jen.Err()).Op(":=").Qual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.ResultInit.Name).Call(jen.Id("vres"))
+	g.List(jen.Id("out"), jen.Err()).Op(":=").Add(codegenpkg.PkgQual(stream.Endpoint.ServicePkgName, stream.Endpoint.Method.ViewedResult.ResultInit.Name)).Call(jen.Id("vres"))
 	g.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(jen.Nil(), jen.Err()),
 	)

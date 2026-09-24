@@ -38,7 +38,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 			if ed.Payload != nil && ed.Payload.Ref != "" {
 				fields[jen.Id("Payload")] = jen.Id("payload").Assert(codegen.TypeRef(ed.Payload.Ref))
 			}
-			cg.Id("endpointInput").Op(":=").Op("&").Qual(ed.ServicePkgName, ed.Method.ServerStream.EndpointStruct).Values(fields)
+			cg.Id("endpointInput").Op(":=").Op("&").Add(codegen.PkgQual(ed.ServicePkgName, ed.Method.ServerStream.EndpointStruct)).Values(fields)
 			cg.If(
 				jen.List(jen.Id("_"), jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)+"Endpoint").Call(jen.Id("ctx"), jen.Id("endpointInput")),
 				jen.Err().Op("!=").Nil(),
@@ -76,7 +76,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 				jen.Return(jen.Id("s").Dot("sendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"), jen.Lit("Internal error"), jen.Nil())),
 			),
 			jen.If(
-				jen.List(jen.Id("r"), jen.Id("ok")).Op(":=").Id("res").Assert(jen.Op("*").Qual(ed.ServicePkgName, ed.Method.VarName+"Result")),
+				jen.List(jen.Id("r"), jen.Id("ok")).Op(":=").Id("res").Assert(jen.Op("*").Add(codegen.PkgQual(ed.ServicePkgName, ed.Method.VarName+"Result"))),
 				jen.Id("ok"),
 			).Block(
 				jen.If(

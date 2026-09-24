@@ -193,7 +193,7 @@ func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 func grpcServerInitSection(data *ServiceData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("server-init", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s instantiates the server struct with the %s service endpoints.", data.ServerInit, data.Service.Name))
-		params := []jen.Code{jen.Id("e").Op("*").Qual(data.Service.PkgName, "Endpoints")}
+		params := []jen.Code{jen.Id("e").Op("*").Add(codegenpkg.PkgQual(data.Service.PkgName, "Endpoints"))}
 		if data.HasUnaryEndpoint() {
 			params = append(params, jen.Id("uh").Add(codegenpkg.TypeRef("loomgrpc.UnaryHandler")))
 		}
@@ -366,7 +366,7 @@ func writeGRPCStreamInputDecode(g *jen.Group, endpoint *EndpointData) {
 	g.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(jen.Nil(), jen.Err()),
 	)
-	g.Id("ep").Op(":=").Op("&").Qual(endpoint.ServicePkgName, endpoint.Method.VarName+"EndpointInput").ValuesFunc(func(dict *jen.Group) {
+	g.Id("ep").Op(":=").Op("&").Add(codegenpkg.PkgQual(endpoint.ServicePkgName, endpoint.Method.VarName+"EndpointInput")).ValuesFunc(func(dict *jen.Group) {
 		dict.Id("Stream").Op(":").Op("&").Id(endpoint.ServerStream.VarName).Values(jen.Dict{
 			jen.Id("stream"): jen.Id("stream"),
 			jen.Id("ctx"):    jen.Id("ctx"),
@@ -438,19 +438,8 @@ func grpcExampleCLISection(defaultTransportType string, services []*ServiceData,
 func grpcParseEndpointSection(commands []*cli.CommandData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("parse-endpoint-grpc", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, "ParseEndpoint returns the endpoint and payload as specified on the command line.")
-		params := []jen.Code{
-			jen.Id("cc").Op("*").Qual("google.golang.org/grpc", "ClientConn"),
-		}
-		for _, command := range commands {
-			if command.Interceptors != nil {
-				params = append(params,
-					jen.Id(command.Interceptors.VarName).Qual(command.Interceptors.PkgName, "ClientInterceptors"),
-				)
-			}
-		}
-		params = append(params, jen.Id("opts").Op("...").Qual("google.golang.org/grpc", "CallOption"))
 		stmt.Func().Id("ParseEndpoint").
-			Params(params...).
+			Params(grpcParseEndpointParams(commands)...).
 			Params(codegenpkg.TypeRef("loom.Endpoint"), jen.Any(), jen.Error()).
 			BlockFunc(func(g *jen.Group) {
 				g.Add(cli.FlagsCodeStatement(commands))
@@ -497,6 +486,23 @@ func grpcParseEndpointSection(commands []*cli.CommandData) codegenpkg.Section {
 				g.Return(jen.Id("endpoint"), jen.Id("data"), jen.Nil())
 			})
 	})
+}
+
+// grpcParseEndpointParams returns the ParseEndpoint parameters: the client
+// connection, one client interceptors value per command that declares
+// interceptors, and the call options.
+func grpcParseEndpointParams(commands []*cli.CommandData) []jen.Code {
+	params := []jen.Code{
+		jen.Id("cc").Op("*").Qual("google.golang.org/grpc", "ClientConn"),
+	}
+	for _, command := range commands {
+		if command.Interceptors != nil {
+			params = append(params,
+				jen.Id(command.Interceptors.VarName).Add(codegenpkg.PkgQual(command.Interceptors.PkgName, "ClientInterceptors")),
+			)
+		}
+	}
+	return append(params, jen.Id("opts").Op("...").Qual("google.golang.org/grpc", "CallOption"))
 }
 
 func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {

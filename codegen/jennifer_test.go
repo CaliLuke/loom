@@ -43,6 +43,29 @@ func TestJenniferHelpers(t *testing.T) {
 	}
 }
 
+// TestPkgQual checks that PkgQual renders a package import alias verbatim,
+// including aliases that jen.Qual would rewrite when guessing an alias from an
+// import path.
+func TestPkgQual(t *testing.T) {
+	cases := []struct {
+		Name  string
+		Alias string
+		Ident string
+		Want  string
+	}{
+		{"plain", "streamer", "Endpoints", "streamer.Endpoints"},
+		{"underscore", "event_streamerpb", "ExchangeStreamingRequest", "event_streamerpb.ExchangeStreamingRequest"},
+		{"escaped astral rune", "U0001d49cstreamerviews", "ValidateReply", "U0001d49cstreamerviews.ValidateReply"},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			var buf bytes.Buffer
+			require.NoError(t, jen.Op("&").Add(PkgQual(c.Alias, c.Ident)).Render(&buf))
+			require.Equal(t, "&"+c.Want, buf.String())
+		})
+	}
+}
+
 func TestCommentBlock(t *testing.T) {
 	var buf bytes.Buffer
 	stmt := jen.Empty()

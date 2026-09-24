@@ -207,7 +207,7 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 	if e.Payload != nil && e.Payload.Ref != "" {
 		vDict[jen.Id("Payload")] = jen.Id("params")
 	}
-	g.Id("v").Op(":=").Op("&").Qual(e.ServicePkgName, e.Method.ServerStream.EndpointStruct).Values(vDict)
+	g.Id("v").Op(":=").Op("&").Add(codegen.PkgQual(e.ServicePkgName, e.Method.ServerStream.EndpointStruct)).Values(vDict)
 	g.If(
 		jen.List(jen.Id("_"), jen.Id("err")).Op(":=").Id("endpoint").Call(jen.Id("ctx"), jen.Id("v")),
 		jen.Id("err").Op("!=").Nil(),
