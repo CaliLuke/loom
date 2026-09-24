@@ -246,10 +246,9 @@ func safelyGetMetaTypeImports(att *expr.AttributeExpr, seen map[string]struct{})
 		uniqueImports[*im] = struct{}{}
 	}
 	for imp := range uniqueImports {
-		// Copy loop variable into body so next iteration doesn't overwrite its address https://stackoverflow.com/questions/27610039/golang-appending-leaves-only-last-element
-		cp := imp
-		imports = append(imports, &cp)
+		imports = append(imports, &imp)
 	}
+	sortImportSpecs(imports)
 	return imports
 }
 
@@ -260,4 +259,15 @@ func AddServiceMetaTypeImports(header *SectionTemplate, svc *expr.ServiceExpr) {
 		AddImport(header, GetMetaTypeImports(m.StreamingPayload)...)
 		AddImport(header, GetMetaTypeImports(m.Result)...)
 	}
+}
+
+// sortImportSpecs orders imports by path, then by name, so that output built
+// from map iteration does not depend on the process.
+func sortImportSpecs(imports []*ImportSpec) {
+	sort.Slice(imports, func(i, j int) bool {
+		if imports[i].Path != imports[j].Path {
+			return imports[i].Path < imports[j].Path
+		}
+		return imports[i].Name < imports[j].Name
+	})
 }

@@ -1,6 +1,9 @@
 package service
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 )
@@ -17,7 +20,7 @@ func ConvertFiles(root *expr.RootExpr, service *expr.ServiceExpr, services *Serv
 
 	conversionsByPath, creationsByPath, allPaths := groupTypeMapsByPath(conversions, creations, service)
 	files := make([]*codegen.File, 0, len(allPaths))
-	for convertPath := range allPaths {
+	for _, convertPath := range slices.Sorted(maps.Keys(allPaths)) {
 		packageName := convertPackageName(conversionsByPath[convertPath], creationsByPath[convertPath], svc.PkgName)
 		file, err := buildConvertFile(
 			convertPath,

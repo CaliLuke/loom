@@ -341,9 +341,14 @@ func userTypeImports(genpkg string, d *Data) []*codegen.ImportSpec {
 		initLoc(et.Loc)
 	}
 
-	imports := make([]*codegen.ImportSpec, 0, len(importsByPath))
-	for _, imp := range importsByPath { // Order does not matter, imports are sorted during formatting.
-		imports = append(imports, imp)
+	filePaths := make([]string, 0, len(importsByPath))
+	for filePath := range importsByPath {
+		filePaths = append(filePaths, filePath)
+	}
+	sort.Strings(filePaths)
+	imports := make([]*codegen.ImportSpec, 0, len(filePaths))
+	for _, filePath := range filePaths {
+		imports = append(imports, importsByPath[filePath])
 	}
 	return imports
 }

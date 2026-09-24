@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -306,17 +305,21 @@ type objT5 struct {
 }
 
 func TestConvertFiles(t *testing.T) {
+	type expectedFile struct {
+		Path     string
+		Sections int
+	}
 	cases := []struct {
 		Name          string
 		DSL           func()
-		ExpectedFiles map[string]int // path -> number of sections
+		ExpectedFiles []expectedFile
 	}{
 		{
 			"multi-package-conversions",
 			testdata.ConvertMultiPkgDSL,
-			map[string]int{
-				"gen/types/convert.go":  5, // header + 2 convert-to + 2 create-from sections
-				"gen/models/convert.go": 5, // header + 2 convert-to + 2 create-from sections
+			[]expectedFile{
+				{"gen/models/convert.go", 5}, // header + 2 convert-to + 2 create-from sections
+				{"gen/types/convert.go", 5},  // header + 2 convert-to + 2 create-from sections
 			},
 		},
 	}
@@ -327,28 +330,18 @@ func TestConvertFiles(t *testing.T) {
 			services := NewServicesData(root)
 
 			for _, svc := range root.Services {
-				files, err := ConvertFiles(root, svc, services)
-				require.NoError(t, err)
-
-				// Check expected number of files
-				require.Equal(t, len(c.ExpectedFiles), len(files))
-
-				// Verify each expected file
-				for expectedPath, expectedSections := range c.ExpectedFiles {
-					found := false
-					// Normalize expected path for cross-platform compatibility
-					normalizedExpected := filepath.FromSlash(expectedPath)
-					for _, file := range files {
-						if strings.HasSuffix(file.Path, normalizedExpected) {
-							found = true
-							sections := file.AllSections()
-							require.Equal(t, expectedSections, len(sections))
-							// First section should be header
-							require.Equal(t, "source-header", sections[0].SectionName())
-							break
-						}
+				// Go randomizes the start of every map iteration, so repeated
+				// generation in one process detects files emitted in map order.
+				for range importOrderRepeats {
+					files, err := ConvertFiles(root, svc, services)
+					require.NoError(t, err)
+					require.Len(t, files, len(c.ExpectedFiles))
+					for i, expected := range c.ExpectedFiles {
+						require.Equal(t, filepath.FromSlash(expected.Path), files[i].Path)
+						sections := files[i].AllSections()
+						require.Len(t, sections, expected.Sections)
+						require.Equal(t, "source-header", sections[0].SectionName())
 					}
-					require.True(t, found, "Expected file %s not found", expectedPath)
 				}
 			}
 		})
