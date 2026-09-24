@@ -449,8 +449,10 @@ func convertPrimitiveToProto(_, tgt *expr.AttributeExpr, srcPtr, _ bool, srcVar 
 }
 
 func convertPrimitiveFromProto(_, tgt *expr.AttributeExpr, srcPtr, _ bool, srcVar string, ta *transformAttrs) string {
-	// Special handling for Any type conversion from google.protobuf.Value
-	if tgt.Type.Kind() == expr.AnyKind {
+	// Special handling for Any type conversion from google.protobuf.Value.
+	// Aliases of Any, such as OneOf branches, are Go type aliases of
+	// loom.JSONValue, so the converted value is assigned without a cast.
+	if unAlias(tgt).Type.Kind() == expr.AnyKind {
 		if srcPtr {
 			srcVar = "*" + srcVar
 		}

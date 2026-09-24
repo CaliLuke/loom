@@ -68,8 +68,11 @@ func protoImportExists(imports []*codegen.ImportSpec, path string) bool {
 	return false
 }
 
+// collectPrimitiveMessageImports returns the proto import that declares the
+// message of the primitive at, looking through the user types that wrap Any
+// values such as OneOf branches and type aliases.
 func collectPrimitiveMessageImports(at *expr.AttributeExpr, imports []string) []string {
-	if at.Type.Kind() != expr.AnyKind || slices.Contains(imports, "google/protobuf/struct.proto") {
+	if unAlias(at).Type.Kind() != expr.AnyKind || slices.Contains(imports, "google/protobuf/struct.proto") {
 		return nil
 	}
 	return []string{"google/protobuf/struct.proto"}

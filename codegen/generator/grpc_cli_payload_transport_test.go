@@ -57,6 +57,12 @@ func TestGRPCClientCLIPayloadConversionsCompile(t *testing.T) {
 				dsl.Field(1, "items", dsl.ArrayOf(inner))
 			})
 		}, false)},
+		{"any-alias-field", grpcCLIPayloadDSL(func() any {
+			blob := dsl.Type("Blob", dsl.Any)
+			return dsl.Type("Message", func() {
+				dsl.Field(1, "value", blob)
+			})
+		}, false)},
 		{"bytes-field", grpcCLIPayloadDSL(func() any {
 			return dsl.Type("Message", func() {
 				dsl.Field(1, "data", dsl.Bytes)
@@ -67,6 +73,14 @@ func TestGRPCClientCLIPayloadConversionsCompile(t *testing.T) {
 				dsl.OneOf("pick", func() {
 					dsl.Field(1, "text", dsl.String)
 					dsl.Field(2, "count", dsl.Int)
+				})
+			})
+		}, false)},
+		{"union-field-with-any", grpcCLIPayloadDSL(func() any {
+			return dsl.Type("Message", func() {
+				dsl.OneOf("pick", func() {
+					dsl.Field(1, "text", dsl.String)
+					dsl.Field(2, "value", dsl.Any)
 				})
 			})
 		}, false)},
@@ -89,6 +103,11 @@ func TestGRPCClientCLIPayloadConversionsCompile(t *testing.T) {
 				dsl.Field(1, "count", dsl.Int)
 			})
 			return dsl.OneOf(inner, other)
+		}, false)},
+		{"top-level-union-of-string-and-any-aliases", grpcCLIPayloadDSL(func() any {
+			label := dsl.Type("Label", dsl.String)
+			blob := dsl.Type("Blob", dsl.Any)
+			return dsl.OneOf(label, blob)
 		}, false)},
 		{"top-level-union-of-string-and-any", grpcCLIPayloadDSL(func() any {
 			return dsl.OneOf(dsl.String, dsl.Any)
