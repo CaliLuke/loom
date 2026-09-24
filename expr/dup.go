@@ -9,6 +9,20 @@ func Dup(d DataType) DataType {
 	return newDupper().DupType(d)
 }
 
+// DupKeeping creates a copy of the given data type like Dup, except that it
+// keeps the references to the user types in keep instead of copying them. It
+// also returns the attributes of the copy that reference a kept user type.
+// Use it to copy a type that references user types whose DSL is still
+// running, so that the copy does not snapshot their incomplete definitions.
+func DupKeeping(d DataType, keep []UserType) (DataType, []*AttributeExpr) {
+	dupper := newDupper()
+	dupper.keep = make(map[string]struct{}, len(keep))
+	for _, ut := range keep {
+		dupper.keep[ut.ID()] = struct{}{}
+	}
+	return dupper.DupType(d), dupper.kept
+}
+
 // DupAtt creates a copy of the given attribute.
 func DupAtt(att *AttributeExpr) *AttributeExpr {
 	dupper := newDupper()
@@ -25,6 +39,10 @@ func DupAtt(att *AttributeExpr) *AttributeExpr {
 type dupper struct {
 	uts map[string]UserType
 	ats map[*AttributeExpr]struct{}
+	// keep lists the IDs of the user types that the dupper does not copy.
+	keep map[string]struct{}
+	// kept lists the copied attributes that reference a kept user type.
+	kept []*AttributeExpr
 }
 
 // newDupper returns a new initialized dupper.
@@ -63,7 +81,20 @@ func (d *dupper) DupAttribute(att *AttributeExpr) *AttributeExpr {
 		finalized:    att.finalized,
 	}
 	d.ats[&dup] = struct{}{}
+	if d.isKept(dup.Type) {
+		d.kept = append(d.kept, &dup)
+	}
 	return &dup
+}
+
+// isKept reports whether t is a user type that d does not copy.
+func (d *dupper) isKept(t DataType) bool {
+	ut, ok := t.(UserType)
+	if !ok {
+		return false
+	}
+	_, ok = d.keep[ut.ID()]
+	return ok
 }
 
 // DupType creates a copy of the given data type.
@@ -107,6 +138,9 @@ func (d *dupper) DupType(t DataType) DataType {
 	case UserType:
 		if u, ok := d.uts[actual.ID()]; ok {
 			return u
+		}
+		if d.isKept(actual) {
+			return actual
 		}
 		dp := actual.Dup(nil)
 		d.uts[actual.ID()] = dp

@@ -116,11 +116,11 @@ func Type(name string, args ...any) expr.UserType {
 	t := &expr.UserTypeExpr{
 		TypeName: name,
 		AttributeExpr: &expr.AttributeExpr{
-			Type:    base,
-			DSLFunc: fn,
-			Meta:    expr.MetaExpr{"openapi:typename": []string{name}},
+			Type: base,
+			Meta: expr.MetaExpr{"openapi:typename": []string{name}},
 		},
 	}
+	t.DSLFunc = typeDSL(t, fn)
 	expr.Root.Types = append(expr.Root.Types, t)
 	return t
 }
@@ -182,7 +182,7 @@ func ArrayOf(v any, fn ...func()) *expr.Array {
 	}
 	at := expr.AttributeExpr{Type: t}
 	if len(fn) == 1 {
-		at.Type = localAttributeType(at.Type, currentAttribute())
+		localizeAttribute(&at, currentAttribute())
 		eval.Execute(fn[0], &at)
 	}
 	return &expr.Array{ElemType: &at}
@@ -266,8 +266,8 @@ func MapOf(k, v any, fn ...func()) *expr.Map {
 	vat := expr.AttributeExpr{Type: tv}
 	m := &expr.Map{KeyType: &kat, ElemType: &vat}
 	if len(fn) == 1 {
-		m.KeyType.Type = localAttributeType(m.KeyType.Type, currentAttribute())
-		m.ElemType.Type = localAttributeType(m.ElemType.Type, currentAttribute())
+		localizeAttribute(m.KeyType, currentAttribute())
+		localizeAttribute(m.ElemType, currentAttribute())
 		mat := expr.AttributeExpr{Type: m}
 		eval.Execute(fn[0], &mat)
 	}

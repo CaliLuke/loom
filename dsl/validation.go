@@ -398,6 +398,11 @@ func Required(names ...string) {
 		}
 		at.Validation.AddRequired(names...)
 		if ut, ok := at.Type.(expr.UserType); ok {
+			if isKeptReference(at) {
+				// The attribute gets its own copy of the type once the
+				// DSL of the type ends.
+				return
+			}
 			if ut.Attribute().Validation == nil {
 				ut.Attribute().Validation = &expr.ValidationExpr{}
 			}

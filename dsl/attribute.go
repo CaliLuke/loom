@@ -157,7 +157,7 @@ func Attribute(name string, args ...any) {
 			}
 		}
 		if fn != nil {
-			attr.Type = localAttributeType(attr.Type, parent)
+			localizeAttribute(attr, parent)
 			eval.Execute(fn, attr)
 		}
 		applyUnionMetaFromAttribute(attr)
@@ -171,22 +171,21 @@ func Attribute(name string, args ...any) {
 		obj.Set(name, attr)
 		return
 	}
-	union := parent.Type.(*expr.Union)
+	appendUnionBranch(parent.Type.(*expr.Union), name, attr)
+}
+
+// appendUnionBranch adds attr to union as the branch name. It promotes an
+// inline branch type to a user type named after the union and the branch. The
+// promoted type keeps the branch type itself: a deep copy would snapshot the
+// user types it references before their DSL has run, including the enclosing
+// type when the branch closes a recursive cycle.
+func appendUnionBranch(union *expr.Union, name string, attr *expr.AttributeExpr) {
 	if _, ok := attr.Type.(expr.UserType); !ok {
 		att := expr.DupAtt(attr)
+		att.Type = attr.Type
 		attr.Type = &expr.UserTypeExpr{AttributeExpr: att, TypeName: union.TypeName + expr.Title(name)}
 	}
 	union.Values = append(union.Values, &expr.NamedAttributeExpr{Name: name, Attribute: attr})
-}
-
-func localAttributeType(dataType expr.DataType, parent *expr.AttributeExpr) expr.DataType {
-	if dataType == nil {
-		return nil
-	}
-	if referencesAttribute(dataType, parent) {
-		return dataType
-	}
-	return expr.Dup(dataType)
 }
 
 func referencesAttribute(dataType expr.DataType, target *expr.AttributeExpr) bool {
