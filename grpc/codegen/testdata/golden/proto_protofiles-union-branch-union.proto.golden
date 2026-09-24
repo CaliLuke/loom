@@ -1,0 +1,107 @@
+
+syntax = "proto3";
+
+package nestedunion;
+
+option go_package = "/nestedunionpb";
+
+// Service is the nestedunion service interface.
+service Nestedunion {
+	// Echo implements echo.
+	rpc Echo (EchoRequest) returns (EchoResponse);
+	// Wrap implements wrap.
+	rpc Wrap (Outer) returns (Outer);
+	// Pick implements pick.
+	rpc Pick (Choice) returns (PickResponse);
+}
+
+message EchoRequest {
+	optional string id = 1;
+	oneof wrapped {
+		Choice choice = 2;
+		Extra extra = 3;
+	}
+	oneof nested {
+		Leaf leaf = 4;
+		ExtraOrOther extra_or_other = 5;
+	}
+	oneof block {
+		Choice picked = 6;
+		string text = 7;
+	}
+	Holder holder = 8;
+	repeated Holder holders = 9;
+}
+
+message Choice {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message Leaf {
+	optional string name = 1;
+}
+
+message Other {
+	optional sint64 count = 1;
+}
+
+message Extra {
+	optional bool flag = 1;
+}
+
+message ExtraOrOther {
+	oneof field {
+		Extra extra = 1;
+		Other other = 2;
+	}
+}
+
+message Holder {
+	oneof pick {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+	oneof outer {
+		Choice choice = 3;
+		Extra extra = 4;
+	}
+}
+
+message EchoResponse {
+	optional string id = 1;
+	oneof wrapped {
+		Choice choice = 2;
+		Extra extra = 3;
+	}
+	oneof nested {
+		Leaf leaf = 4;
+		ExtraOrOther extra_or_other = 5;
+	}
+	oneof block {
+		Choice picked = 6;
+		string text = 7;
+	}
+	Holder holder = 8;
+	repeated Holder holders = 9;
+}
+
+message Outer {
+	oneof field {
+		Choice choice = 1;
+		Extra extra = 2;
+	}
+}
+
+message PickResponse {
+	oneof pick {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+	oneof outer {
+		Choice choice = 3;
+		Extra extra = 4;
+	}
+}

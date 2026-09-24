@@ -323,8 +323,9 @@ func (a *Array) Example(r *ExampleGenerator) any {
 	for i := range count {
 		res[i] = a.ElemType.Example(r)
 		if res[i] == nil {
-			// Handle the case of recursive data structures
-			res[i] = make(map[string]any)
+			// Handle the case of recursive data structures: the example of
+			// an element whose type is still being generated is empty.
+			res[i] = emptyExampleValue(toReflectType(a).Elem())
 		}
 	}
 	return a.MakeSlice(res)
@@ -524,4 +525,21 @@ func (m MapVal) ToMap() map[any]any {
 		}
 	}
 	return mp
+}
+
+// emptyExampleValue returns the empty value of the Go type t of an example:
+// an empty object for an object or untyped value, an empty array for an array
+// type, never a nil slice that renders as null, and the zero value of a
+// primitive type otherwise.
+func emptyExampleValue(t reflect.Type) any {
+	switch t.Kind() {
+	case reflect.Map:
+		return reflect.MakeMap(t).Interface()
+	case reflect.Slice:
+		return reflect.MakeSlice(t, 0, 0).Interface()
+	case reflect.Interface:
+		return make(map[string]any)
+	default:
+		return reflect.Zero(t).Interface()
+	}
 }

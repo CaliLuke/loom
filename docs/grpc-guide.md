@@ -159,6 +159,33 @@ The message is named after the enclosing message and the field, for example
 `CreateUserRequestPreferences`. Inline object array elements and map values are
 handled the same way.
 
+#### Named Arrays
+
+A `Type` defined as an array, such as `Type("Tags", ArrayOf(String))`, is a
+message that holds the array in a repeated field named `field`. This applies
+wherever the type appears: as a unary payload, as a result or streaming
+result, as a message field, as an array element or map value, and as a union
+branch. A streaming payload is the exception: the message of
+`StreamingPayload(Tags)` is named after the method, such as
+`UploadStreamingRequest`, and holds the same repeated `field`. A named array of
+another named array, such as `Type("More", Tags)`, holds the array itself in
+every other position, but `StreamingPayload(More)` streams `Tags` messages:
+
+```proto
+message EchoRequest {
+    Tags labels = 1;               // Field(1, "labels", Tags)
+    repeated Tags label_lists = 2; // Field(2, "label_lists", ArrayOf(Tags))
+}
+
+message Tags {
+    repeated string field = 1;
+}
+```
+
+The service type is still the Go slice type, such as `type Tags []string`.
+Do not rely on the wrapper message to tell an absent array from an empty one:
+other transports and JSON encoding treat both as missing.
+
 #### Union Fields
 
 A union is a `oneof` named after the attribute. Each branch of a `OneOf` block
@@ -188,8 +215,8 @@ branches `leaf` and `other`.
 A named union, a `Type` defined as a `OneOf`, works the same way when you pass
 it to `Field`. The field is a `oneof` of the enclosing message, and its
 branches take their numbers from the field number. Loom does not generate a
-separate message for the union. Each message that uses the union has its own
-`oneof`, numbered from the number of its own field:
+separate message for a union field. Each message that uses the union has its
+own `oneof`, numbered from the number of its own field:
 
 ```go
 var Choice = Type("Choice", OneOf(Leaf, Other))
@@ -231,6 +258,39 @@ message EchoRequest {
 
 The generated server rejects a request message with no branch set with
 `InvalidArgument`.
+
+A `oneof` cannot hold another `oneof`, so a union used as a branch of another
+union is the message that wraps its `oneof`, as for a union payload. This
+applies to a named union used as a branch of a named union, of a constructor
+`OneOf` or of a `OneOf` block, and to a constructor `OneOf` inside another
+one. The message takes the name of the named union or the derived name of the
+constructor `OneOf`, such as `ExtraOrOther` for `OneOf(Extra, Other)`. The
+same named union passed to `Field` elsewhere remains a `oneof` of the message
+that holds it:
+
+```go
+var Choice = Type("Choice", OneOf(Leaf, Other))
+var Outer = Type("Outer", OneOf(Choice, Extra))
+
+var Holder = Type("Holder", func() {
+    Field(1, "outer", Outer) // oneof outer { Choice choice = 1; Extra extra = 2; }
+})
+```
+
+```proto
+message Choice {
+    oneof field {
+        Leaf leaf = 1;
+        Other other = 2;
+    }
+}
+```
+
+The generated validation rejects a union branch message with no branch set.
+A named array can also be a union branch, and so can an array branch of a
+`OneOf` block, which Loom names after the union and the branch, for example
+`DetailWords`. Design validation rejects a map branch, named or not. Wrap the
+map in a type with one field and use that type as the branch.
 
 #### Metadata Handling
 

@@ -69,7 +69,6 @@ func collectValidations(att *expr.AttributeExpr, attName string, req bool, sd *S
 // collectValidationsR recurses through the attribute and collects validation
 // functions with cycle detection using a seen set of user type IDs.
 func collectValidationsR(att *expr.AttributeExpr, attName string, req bool, sd *ServiceData, seen map[string]struct{}) {
-	gattName := codegen.Goify(attName, false)
 	switch dt := att.Type.(type) {
 	case expr.UserType:
 		if expr.IsPrimitive(dt) {
@@ -83,41 +82,18 @@ func collectValidationsR(att *expr.AttributeExpr, attName string, req bool, sd *
 			}
 			seen[id] = struct{}{}
 		}
-		vtx := protoBufTypeContext(sd.PkgName, sd.Scope, false)
-		def := codegen.AttributeValidationCode(att, dt, vtx, true, false, gattName, attName)
-		// Match helper function identifiers with validation template calls by
-		// using the same protobuf-aware scope for the type name. This keeps
-		// names like Message_ consistent between declarations and call sites.
-		name := vtx.Scope.Name(att, "", vtx.Pointer, vtx.UseDefault)
-		kind := validateClient
-		if req {
-			kind = validateServer
+		if expr.IsUnion(dt) {
+			// A named union is a oneof of the message that holds it, whose
+			// validation code validates the branches inline, so it has no
+			// validation function. Its name may be the name of the message
+			// that wraps it as a payload, result or union branch.
+			collectValidationsR(dt.Attribute(), attName, req, sd, seen)
+			return
 		}
-		for _, n := range sd.validations {
-			if n.SrcName == name {
-				if n.Kind != validateBoth && n.Kind != kind {
-					n.Kind = validateBoth
-					goto collect
-				}
-				return
-			}
+		if !addUserTypeValidation(att, dt, attName, req, sd) {
+			return
 		}
-		if def != "" {
-			sd.validations = append(sd.validations, &ValidationData{
-				// Match helper function identifiers with validation template
-				// calls. The template uses the scoped type name directly (no
-				// Goify) to preserve proto-reserved names like Message_.
-				Name:    "Validate" + name,
-				Def:     def,
-				ArgName: gattName,
-				SrcName: name,
-				SrcRef:  protoBufGoFullTypeRef(att, sd.PkgName, sd.Scope),
-				Kind:    kind,
-			})
-		}
-	collect:
-		att := userTypeAttribute(dt)
-		collectValidationsR(att, attName, req, sd, seen)
+		collectValidationsR(userTypeAttribute(dt), attName, req, sd, seen)
 	case *expr.Object:
 		for _, nat := range *dt {
 			collectValidationsR(nat.Attribute, nat.Name, req, sd, seen)
@@ -132,6 +108,47 @@ func collectValidationsR(att *expr.AttributeExpr, attName string, req bool, sd *
 			collectValidationsR(nat.Attribute, nat.Name, req, sd, seen)
 		}
 	}
+}
+
+// addUserTypeValidation records the validation function of the message of
+// the user type dt held by att, if it has validations. It reports whether
+// the validations of the attributes of dt remain to be collected, which is
+// the case unless the function is already recorded for the same kind.
+func addUserTypeValidation(att *expr.AttributeExpr, dt expr.UserType, attName string, req bool, sd *ServiceData) bool {
+	gattName := codegen.Goify(attName, false)
+	vtx := protoBufTypeContext(sd.PkgName, sd.Scope, false)
+	def := codegen.AttributeValidationCode(att, dt, vtx, true, false, gattName, attName)
+	// Match helper function identifiers with validation template calls by
+	// using the same protobuf-aware scope for the type name. This keeps
+	// names like Message_ consistent between declarations and call sites.
+	name := vtx.Scope.Name(att, "", vtx.Pointer, vtx.UseDefault)
+	kind := validateClient
+	if req {
+		kind = validateServer
+	}
+	for _, n := range sd.validations {
+		if n.SrcName == name {
+			if n.Kind != validateBoth && n.Kind != kind {
+				n.Kind = validateBoth
+				return true
+			}
+			return false
+		}
+	}
+	if def != "" {
+		sd.validations = append(sd.validations, &ValidationData{
+			// Match helper function identifiers with validation template
+			// calls. The template uses the scoped type name directly (no
+			// Goify) to preserve proto-reserved names like Message_.
+			Name:    "Validate" + name,
+			Def:     def,
+			ArgName: gattName,
+			SrcName: name,
+			SrcRef:  protoBufGoFullTypeRef(att, sd.PkgName, sd.Scope),
+			Kind:    kind,
+		})
+	}
+	return true
 }
 
 // userTypeAttribute returns the attribute of the given user type.

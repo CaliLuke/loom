@@ -3,6 +3,8 @@ package expr_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -173,4 +175,60 @@ func TestUserTypeWithOwnExample(t *testing.T) {
 	if example != customExample {
 		t.Errorf("UserType with custom example should return %q, got %q", customExample, example)
 	}
+}
+
+// TestRecursiveNamedArrayExample checks that the example of a named array of
+// objects that reach the named array through array elements and map values
+// has the Go types of those collections at every depth, and that the example
+// of an element whose type is still being generated is an empty array rather
+// than a nil slice, which would render as null.
+func TestRecursiveNamedArrayExample(t *testing.T) {
+	node := &expr.UserTypeExpr{TypeName: "Node", AttributeExpr: &expr.AttributeExpr{}}
+	nodes := &expr.UserTypeExpr{TypeName: "Nodes", AttributeExpr: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: node}}}}
+	node.AttributeExpr.Type = &expr.Object{
+		{Name: "grid", Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: nodes}}}},
+		{Name: "index", Attribute: &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: nodes}}}},
+	}
+	placeholders := 0
+	for _, seed := range []string{"a", "b", "c", "d", "e", "f", "g", "h"} {
+		t.Run(seed, func(t *testing.T) {
+			var example any
+			require.NotPanics(t, func() {
+				example = (&expr.AttributeExpr{Type: nodes}).Example(expr.NewRandom(seed))
+			})
+			placeholders += requireNodesExample(t, example)
+		})
+	}
+	require.Positive(t, placeholders, "no seed generated the example of an element whose type is still being generated")
+}
+
+// requireNodesExample checks that example is a non-nil list of node objects
+// whose "grid" and "index" members hold non-nil lists of node objects, and
+// returns the number of empty lists it holds.
+func requireNodesExample(t *testing.T, example any) int {
+	t.Helper()
+	list, ok := example.([]map[string]any)
+	require.True(t, ok, "nodes example has type %T", example)
+	require.NotNil(t, list)
+	empty := 0
+	if len(list) == 0 {
+		empty++
+	}
+	for _, item := range list {
+		if grid, ok := item["grid"]; ok {
+			lists, ok := grid.([][]map[string]any)
+			require.True(t, ok, "grid example has type %T", grid)
+			for _, nested := range lists {
+				empty += requireNodesExample(t, nested)
+			}
+		}
+		if index, ok := item["index"]; ok {
+			lists, ok := index.(map[string][]map[string]any)
+			require.True(t, ok, "index example has type %T", index)
+			for _, nested := range lists {
+				empty += requireNodesExample(t, nested)
+			}
+		}
+	}
+	return empty
 }

@@ -515,6 +515,7 @@ func TestFiles(t *testing.T) {
 		{"string", testdata.StringValidationDSL},
 		{"integer", testdata.IntValidationDSL},
 		{"array", testdata.ArrayValidationDSL},
+		{"recursive-named-array", testdata.RecursiveNamedArrayDSL},
 		// Error examples
 		{"error-examples", testdata.ErrorExamplesDSL},
 		// Inline request bodies

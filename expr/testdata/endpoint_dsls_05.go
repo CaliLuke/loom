@@ -145,3 +145,38 @@ var GRPCEndpointWithNamedUnionField = func() {
 		})
 	})
 }
+
+// GRPCEndpointWithUnionCollectionBranches uses named arrays, an inline array
+// and unions as union branches, which gRPC holds in messages of their own,
+// and a named map and an inline map as union branches, which it rejects.
+var GRPCEndpointWithUnionCollectionBranches = func() {
+	var Leaf = Type("Leaf", func() {
+		Field(1, "name", String)
+	})
+	var Other = Type("Other", func() {
+		Field(1, "count", Int)
+	})
+	var Tags = Type("Tags", ArrayOf(String))
+	var Index = Type("Index", MapOf(String, Int))
+	var Choice = Type("Choice", OneOf(Leaf, Other))
+	Service("Service", func() {
+		Method("Method", func() {
+			Payload(func() {
+				Field(1, "named", OneOf(Tags, Choice))
+				Field(3, "nested", OneOf(Leaf, OneOf(Tags, Other)))
+				OneOf("block", func() {
+					Field(5, "words", ArrayOf(String))
+					Field(6, "choice_branch", Choice)
+				})
+			})
+			Result(func() {
+				Field(1, "indexed", OneOf(Index, Leaf))
+				OneOf("inline", func() {
+					Field(3, "counts", MapOf(String, Int))
+					Field(4, "other", Other)
+				})
+			})
+			GRPC(func() {})
+		})
+	})
+}

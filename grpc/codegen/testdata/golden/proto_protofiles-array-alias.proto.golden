@@ -1,0 +1,72 @@
+
+syntax = "proto3";
+
+package arrayalias;
+
+option go_package = "/arrayaliaspb";
+
+// Service is the arrayalias service interface.
+service Arrayalias {
+	// Echo implements echo.
+	rpc Echo (EchoRequest) returns (EchoResponse);
+	// List implements list.
+	rpc List (Tags) returns (Tags);
+	// Extend implements extend.
+	rpc Extend (More) returns (More);
+}
+
+message EchoRequest {
+	Tags labels = 1;
+	Tags required_labels = 2;
+	Leaves leaf_list = 3;
+	More more = 4;
+	repeated Tags label_lists = 5;
+	map<string, Tags> labels_by_key = 6;
+	oneof pick {
+		Tags tags = 7;
+		Leaves leaves = 8;
+	}
+	oneof detail {
+		Tags names = 9;
+		DetailWords words = 10;
+		sint64 count = 11;
+	}
+}
+
+message Tags {
+	repeated string field = 1;
+}
+
+message Leaves {
+	repeated Leaf field = 1;
+}
+
+message Leaf {
+	optional string name = 1;
+}
+
+message More {
+	repeated string field = 1;
+}
+
+message DetailWords {
+	repeated string field = 1;
+}
+
+message EchoResponse {
+	Tags labels = 1;
+	Tags required_labels = 2;
+	Leaves leaf_list = 3;
+	More more = 4;
+	repeated Tags label_lists = 5;
+	map<string, Tags> labels_by_key = 6;
+	oneof pick {
+		Tags tags = 7;
+		Leaves leaves = 8;
+	}
+	oneof detail {
+		Tags names = 9;
+		DetailWords words = 10;
+		sint64 count = 11;
+	}
+}

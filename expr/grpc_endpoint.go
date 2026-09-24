@@ -331,6 +331,11 @@ func (e *GRPCEndpointExpr) validateGRPCErrors() *eval.ValidationErrors {
 	return verr
 }
 
+// validateGRPCUnionShapes reports the unions reachable from att that a
+// protocol buffer message cannot hold: unions with a map branch or an array
+// branch that is not a named type, and unions used as array elements or map
+// keys and values. A union branch that holds a named array or another union
+// is the message that wraps it.
 func validateGRPCUnionShapes(att *AttributeExpr, parent eval.Expression, verr *eval.ValidationErrors, seenUnions map[*Union]struct{}, seenAttrs map[*AttributeExpr]struct{}) {
 	if att == nil || att.Type == nil {
 		return
@@ -346,11 +351,15 @@ func validateGRPCUnionShapes(att *AttributeExpr, parent eval.Expression, verr *e
 		}
 		seenUnions[u] = struct{}{}
 		for _, ut := range u.Values {
+			// A named array branch is the message that wraps the array. The
+			// DSL names the array branches of a OneOf block after the union
+			// and the branch.
+			_, named := ut.Attribute.Type.(UserType)
 			switch {
-			case IsArray(ut.Attribute.Type):
-				verr.Add(parent, "union type %s has array elements, not supported by gRPC", u.Name())
+			case IsArray(ut.Attribute.Type) && !named:
+				verr.Add(parent, "union type %s has array elements, not supported by gRPC; declare the array with Type and use that type as the branch", u.Name())
 			case IsMap(ut.Attribute.Type):
-				verr.Add(parent, "union type %s has map elements, not supported by gRPC", u.Name())
+				verr.Add(parent, "union type %s has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch", u.Name())
 			}
 			validateGRPCUnionShapes(ut.Attribute, parent, verr, seenUnions, seenAttrs)
 		}

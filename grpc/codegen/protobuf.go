@@ -72,7 +72,11 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 	case isut:
 		switch {
 		case expr.IsArray(ut):
-			wrapAttr(att, tname, false, sd)
+			// A named array payload or result is the same message as the
+			// named array anywhere else, including references to it from
+			// its own elements when it is recursive.
+			wrapArrayUserType(att)
+			att.Validation = nil
 		case expr.IsUnion(ut):
 			wrapAttr(att, tname, true, sd)
 		}
@@ -96,6 +100,7 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 // scope identifies the position of att in the enclosing message and names the
 // messages generated for anonymous objects nested in att.
 func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceData, seen map[string]struct{}, scope messageScope) {
+	wrapArrayUserType(att)
 	ut, isut := att.Type.(expr.UserType)
 
 	// handle infinite recursions
@@ -123,9 +128,6 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 	case expr.IsPrimitive(att.Type):
 		return
 	case isut:
-		if expr.IsArray(ut) {
-			wrapAttr(ut.Attribute(), ut.Name(), false, sd)
-		}
 		makeProtoBufMessageR(ut.Attribute(), tname, sd, seen, messageScope{name: ut.Name(), path: strconv.Quote(ut.Name())})
 	case expr.IsArray(att.Type):
 		ar := expr.AsArray(att.Type)
@@ -141,6 +143,7 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 		wrap(m.ElemType, *tname)
 	case expr.IsUnion(att.Type):
 		for _, nat := range expr.AsUnion(att.Type).Values {
+			wrapUnionBranch(nat.Attribute, sd)
 			makeProtoBufMessageField(nat, tname, sd, seen, scope)
 		}
 	case expr.IsObject(att.Type):
@@ -148,96 +151,6 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 			makeProtoBufMessageField(nat, tname, sd, seen, scope)
 		}
 	}
-}
-
-// wrapAttr makes the attribute type a user type by wrapping the given
-// attribute into an attribute named "field", or for a union into the
-// attribute that unionWrapperFieldName names.
-func wrapAttr(att *expr.AttributeExpr, tname string, req bool, sd *ServiceData) {
-	wrap := func(attr *expr.AttributeExpr) *expr.AttributeExpr {
-		name := "field"
-		if union := expr.AsUnion(attr.Type); union != nil {
-			name = unionWrapperFieldName(union)
-		}
-		res := &expr.AttributeExpr{
-			Type: &expr.Object{
-				&expr.NamedAttributeExpr{
-					Name: name,
-					Attribute: &expr.AttributeExpr{
-						Type:       attr.Type,
-						Meta:       expr.MetaExpr{"rpc:tag": []string{"1"}},
-						Validation: attr.Validation,
-					},
-				},
-			},
-		}
-		if req {
-			res.Validation = &expr.ValidationExpr{
-				Required: []string{name},
-			}
-		}
-		return res
-	}
-	switch dt := att.Type.(type) {
-	case expr.UserType:
-		// Don't change the original user type. Create a copy and wrap that.
-		ut := expr.Dup(dt).(expr.UserType)
-		ut.SetAttribute(wrap(ut.Attribute()))
-		att.Type = ut
-	default:
-		att.Type = &expr.UserTypeExpr{
-			TypeName:      tname,
-			AttributeExpr: wrap(att),
-			UID:           sd.Name + "#" + tname,
-		}
-	}
-	// Validation is moved to wrapped attribute.
-	att.Validation = nil
-}
-
-// unwrapAttr returns the attribute under the attribute name "field", or the
-// union that wrapAttr wrapped. Otherwise it returns the given attribute.
-func unwrapAttr(att *expr.AttributeExpr) *expr.AttributeExpr {
-	if a := att.Find("field"); a != nil {
-		return a
-	}
-	if nat := unionWrapperField(att); nat != nil {
-		return nat.Attribute
-	}
-	return att
-}
-
-// unionWrapperFieldName returns the name of the attribute of the message that
-// wraps union, which is also the name of its oneof: "field" followed by
-// "_oneof" as many times as needed to differ from the branch names.
-func unionWrapperFieldName(union *expr.Union) string {
-	name, _ := protoBufUnionNames("field", union)
-	return name
-}
-
-// unionWrapperField returns the single attribute of att when att is a
-// message that wrapAttr made to wrap a union, or nil otherwise.
-func unionWrapperField(att *expr.AttributeExpr) *expr.NamedAttributeExpr {
-	obj := expr.AsObject(att.Type)
-	if obj == nil || len(*obj) != 1 {
-		return nil
-	}
-	nat := (*obj)[0]
-	union := expr.AsUnion(nat.Attribute.Type)
-	if union == nil || nat.Name != unionWrapperFieldName(union) {
-		return nil
-	}
-	return nat
-}
-
-// wrapperGoFieldName returns the name of the Go field that holds the wrapped
-// value in the protocol buffer Go type generated for the wrapper message att:
-// the oneof of a wrapped union or "Field".
-func wrapperGoFieldName(att *expr.AttributeExpr, ctx *codegen.AttributeContext) string {
-	if nat := unionWrapperField(att); nat != nil {
-		return ctx.Scope.Field(nat.Attribute, nat.Name, true)
-	}
-	return "Field"
 }
 
 // protoBufMessageName returns the protocol buffer message name of the given

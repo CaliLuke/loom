@@ -1,0 +1,1825 @@
+{
+  "components": {
+    "schemas": {
+      "Node_895ce43afcecfd5a": {
+        "example": {
+          "grid": [
+            [
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              }
+            ],
+            [
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              }
+            ],
+            [
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              }
+            ]
+          ],
+          "id": "Deserunt alias velit.",
+          "idx": {
+            "Officiis a.": [
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              }
+            ],
+            "Quia aut.": [
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              },
+              {
+                "grid": [
+                  [
+                    {},
+                    {},
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {}
+                  ],
+                  [
+                    {},
+                    {},
+                    {}
+                  ]
+                ],
+                "id": "Est accusantium quis voluptate totam.",
+                "idx": {
+                  "Aut exercitationem et magni.": [
+                    {},
+                    {},
+                    {}
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "properties": {
+          "grid": {
+            "example": [
+              [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sunt suscipit est iusto.",
+                  "idx": {
+                    "Eos harum error iusto laboriosam repellat praesentium.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ]
+            ],
+            "items": {
+              "example": [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sit itaque libero et.",
+                  "idx": {
+                    "Unde quod dignissimos dolor.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sit itaque libero et.",
+                  "idx": {
+                    "Unde quod dignissimos dolor.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sit itaque libero et.",
+                  "idx": {
+                    "Unde quod dignissimos dolor.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Sit itaque libero et.",
+                  "idx": {
+                    "Unde quod dignissimos dolor.": [
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ],
+              "items": {
+                "$ref": "#/components/schemas/Node_895ce43afcecfd5a"
+              },
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "id": {
+            "example": "Architecto hic iure.",
+            "type": "string"
+          },
+          "idx": {
+            "additionalProperties": {
+              "example": [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Molestias tenetur velit.",
+                  "idx": {
+                    "Ab tenetur eum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Molestias tenetur velit.",
+                  "idx": {
+                    "Ab tenetur eum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Molestias tenetur velit.",
+                  "idx": {
+                    "Ab tenetur eum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Molestias tenetur velit.",
+                  "idx": {
+                    "Ab tenetur eum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ],
+              "items": {
+                "$ref": "#/components/schemas/Node_895ce43afcecfd5a"
+              },
+              "type": "array"
+            },
+            "example": {
+              "Aut iusto itaque vel sit rerum.": [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Culpa ipsa.",
+                  "idx": {
+                    "At pariatur voluptatum.": [
+                      {},
+                      {},
+                      {}
+                    ],
+                    "Quisquam qui adipisci sed temporibus nihil eligendi.": [
+                      {},
+                      {}
+                    ],
+                    "Vel recusandae velit odio atque sint rerum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Culpa ipsa.",
+                  "idx": {
+                    "At pariatur voluptatum.": [
+                      {},
+                      {},
+                      {}
+                    ],
+                    "Quisquam qui adipisci sed temporibus nihil eligendi.": [
+                      {},
+                      {}
+                    ],
+                    "Vel recusandae velit odio atque sint rerum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Culpa ipsa.",
+                  "idx": {
+                    "At pariatur voluptatum.": [
+                      {},
+                      {},
+                      {}
+                    ],
+                    "Quisquam qui adipisci sed temporibus nihil eligendi.": [
+                      {},
+                      {}
+                    ],
+                    "Vel recusandae velit odio atque sint rerum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ],
+              "Quia qui.": [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Culpa ipsa.",
+                  "idx": {
+                    "At pariatur voluptatum.": [
+                      {},
+                      {},
+                      {}
+                    ],
+                    "Quisquam qui adipisci sed temporibus nihil eligendi.": [
+                      {},
+                      {}
+                    ],
+                    "Vel recusandae velit odio atque sint rerum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Culpa ipsa.",
+                  "idx": {
+                    "At pariatur voluptatum.": [
+                      {},
+                      {},
+                      {}
+                    ],
+                    "Quisquam qui adipisci sed temporibus nihil eligendi.": [
+                      {},
+                      {}
+                    ],
+                    "Vel recusandae velit odio atque sint rerum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ],
+              "Tempora facere voluptatibus eos.": [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Culpa ipsa.",
+                  "idx": {
+                    "At pariatur voluptatum.": [
+                      {},
+                      {},
+                      {}
+                    ],
+                    "Quisquam qui adipisci sed temporibus nihil eligendi.": [
+                      {},
+                      {}
+                    ],
+                    "Vel recusandae velit odio atque sint rerum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Culpa ipsa.",
+                  "idx": {
+                    "At pariatur voluptatum.": [
+                      {},
+                      {},
+                      {}
+                    ],
+                    "Quisquam qui adipisci sed temporibus nihil eligendi.": [
+                      {},
+                      {}
+                    ],
+                    "Vel recusandae velit odio atque sint rerum.": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ]
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/": {
+      "post": {
+        "operationId": "test_service.walk",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": [
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Fuga maxime.",
+                  "idx": {
+                    "Iste nesciunt qui doloremque molestiae laudantium nisi.": [
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Fuga maxime.",
+                  "idx": {
+                    "Iste nesciunt qui doloremque molestiae laudantium nisi.": [
+                      {},
+                      {}
+                    ]
+                  }
+                },
+                {
+                  "grid": [
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {}
+                    ],
+                    [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  ],
+                  "id": "Fuga maxime.",
+                  "idx": {
+                    "Iste nesciunt qui doloremque molestiae laudantium nisi.": [
+                      {},
+                      {}
+                    ]
+                  }
+                }
+              ],
+              "schema": {
+                "example": [
+                  {
+                    "grid": [
+                      [
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {}
+                      ]
+                    ],
+                    "id": "Molestiae sed itaque vitae qui officiis sit.",
+                    "idx": {
+                      "Dolore earum ex ipsam nam.": [
+                        {},
+                        {}
+                      ],
+                      "Ea soluta tempora.": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      "Reprehenderit aliquid consequatur.": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    }
+                  },
+                  {
+                    "grid": [
+                      [
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {}
+                      ]
+                    ],
+                    "id": "Molestiae sed itaque vitae qui officiis sit.",
+                    "idx": {
+                      "Dolore earum ex ipsam nam.": [
+                        {},
+                        {}
+                      ],
+                      "Ea soluta tempora.": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      "Reprehenderit aliquid consequatur.": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    }
+                  },
+                  {
+                    "grid": [
+                      [
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {}
+                      ]
+                    ],
+                    "id": "Molestiae sed itaque vitae qui officiis sit.",
+                    "idx": {
+                      "Dolore earum ex ipsam nam.": [
+                        {},
+                        {}
+                      ],
+                      "Ea soluta tempora.": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      "Reprehenderit aliquid consequatur.": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    }
+                  },
+                  {
+                    "grid": [
+                      [
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {}
+                      ]
+                    ],
+                    "id": "Molestiae sed itaque vitae qui officiis sit.",
+                    "idx": {
+                      "Dolore earum ex ipsam nam.": [
+                        {},
+                        {}
+                      ],
+                      "Ea soluta tempora.": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      "Reprehenderit aliquid consequatur.": [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ]
+                    }
+                  }
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/Node_895ce43afcecfd5a"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "grid": [
+                      [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {}
+                      ]
+                    ],
+                    "id": "Ut maiores ut ut.",
+                    "idx": {
+                      "Quia reprehenderit deserunt soluta blanditiis.": [
+                        {},
+                        {},
+                        {}
+                      ],
+                      "Sequi nihil quam dolores unde expedita blanditiis.": [
+                        {},
+                        {}
+                      ]
+                    }
+                  },
+                  {
+                    "grid": [
+                      [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {},
+                        {}
+                      ],
+                      [
+                        {},
+                        {},
+                        {}
+                      ]
+                    ],
+                    "id": "Ut maiores ut ut.",
+                    "idx": {
+                      "Quia reprehenderit deserunt soluta blanditiis.": [
+                        {},
+                        {},
+                        {}
+                      ],
+                      "Sequi nihil quam dolores unde expedita blanditiis.": [
+                        {},
+                        {}
+                      ]
+                    }
+                  }
+                ],
+                "schema": {
+                  "example": [
+                    {
+                      "grid": [
+                        [
+                          {},
+                          {},
+                          {}
+                        ],
+                        [
+                          {},
+                          {},
+                          {}
+                        ]
+                      ],
+                      "id": "Aut tenetur iure aut.",
+                      "idx": {
+                        "Dolor ea cupiditate ut.": [
+                          {},
+                          {},
+                          {}
+                        ],
+                        "Eius libero eum quis voluptatem.": [
+                          {},
+                          {},
+                          {}
+                        ],
+                        "Ipsa dolores at ad earum.": [
+                          {},
+                          {}
+                        ]
+                      }
+                    },
+                    {
+                      "grid": [
+                        [
+                          {},
+                          {},
+                          {}
+                        ],
+                        [
+                          {},
+                          {},
+                          {}
+                        ]
+                      ],
+                      "id": "Aut tenetur iure aut.",
+                      "idx": {
+                        "Dolor ea cupiditate ut.": [
+                          {},
+                          {},
+                          {}
+                        ],
+                        "Eius libero eum quis voluptatem.": [
+                          {},
+                          {},
+                          {}
+                        ],
+                        "Ipsa dolores at ad earum.": [
+                          {},
+                          {}
+                        ]
+                      }
+                    },
+                    {
+                      "grid": [
+                        [
+                          {},
+                          {},
+                          {}
+                        ],
+                        [
+                          {},
+                          {},
+                          {}
+                        ]
+                      ],
+                      "id": "Aut tenetur iure aut.",
+                      "idx": {
+                        "Dolor ea cupiditate ut.": [
+                          {},
+                          {},
+                          {}
+                        ],
+                        "Eius libero eum quis voluptatem.": [
+                          {},
+                          {},
+                          {}
+                        ],
+                        "Ipsa dolores at ad earum.": [
+                          {},
+                          {}
+                        ]
+                      }
+                    },
+                    {
+                      "grid": [
+                        [
+                          {},
+                          {},
+                          {}
+                        ],
+                        [
+                          {},
+                          {},
+                          {}
+                        ]
+                      ],
+                      "id": "Aut tenetur iure aut.",
+                      "idx": {
+                        "Dolor ea cupiditate ut.": [
+                          {},
+                          {},
+                          {}
+                        ],
+                        "Eius libero eum quis voluptatem.": [
+                          {},
+                          {},
+                          {}
+                        ],
+                        "Ipsa dolores at ad earum.": [
+                          {},
+                          {}
+                        ]
+                      }
+                    }
+                  ],
+                  "items": {
+                    "$ref": "#/components/schemas/Node_895ce43afcecfd5a"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "summary": "walk testService",
+        "tags": [
+          "testService"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "name": "test",
+      "url": "https://loom.design"
+    }
+  ],
+  "tags": [
+    {
+      "name": "testService"
+    }
+  ]
+}

@@ -380,7 +380,9 @@ func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar 
 		return renderTransformHelperCall(src, tgt, srcVar, ta)
 	}
 
-	if _, ok := src.Type.(expr.UserType); ok {
+	if _, ok := src.Type.(expr.UserType); ok || expr.IsUnion(src.Type) {
+		// A union held by a union branch is converted to and from the
+		// message that wraps its oneof by a helper function.
 		return renderTransformHelperCall(src, tgt, srcVar, ta)
 	}
 

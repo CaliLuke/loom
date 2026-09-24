@@ -22,7 +22,7 @@ func transformAttributeHelpers(source, target *expr.AttributeExpr, ta *transform
 	case expr.IsMap(source.Type):
 		return transformMapAttributeHelpers(source, target, ta, seen)
 	case expr.IsUnion(source.Type):
-		return transformUnionAttributeHelpers(source, target, ta, seen)
+		return collectUnionHelpers(source, target, ta, seen)
 	case expr.IsObject(source.Type):
 		return transformObjectAttributeHelpers(source, target, ta, seen)
 	default:
@@ -61,24 +61,6 @@ func transformMapAttributeHelpers(source, target *expr.AttributeExpr, ta *transf
 		return nil, err
 	}
 	return append(helpers, other...), nil
-}
-
-func transformUnionAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
-	srcAttrs := expr.AsUnion(source.Type)
-	tgtAttrs := expr.AsUnion(target.Type)
-	if len(srcAttrs.Values) != len(tgtAttrs.Values) {
-		return nil, fmt.Errorf("cannot transform union attribute %s with %d types to union attribute %s with %d types",
-			source.Type.Name(), len(srcAttrs.Values), target.Type.Name(), len(tgtAttrs.Values))
-	}
-	helpers := []*codegen.TransformFunctionData{}
-	for i, srcAtt := range srcAttrs.Values {
-		h, err := collectHelpers(srcAtt.Attribute, tgtAttrs.Values[i].Attribute, true, ta, seen)
-		if err != nil {
-			return nil, err
-		}
-		helpers = append(helpers, h...)
-	}
-	return helpers, nil
 }
 
 func transformObjectAttributeHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
@@ -143,10 +125,22 @@ func collectUnionHelpers(source, target *expr.AttributeExpr, ta *transformAttrs,
 	for i, srcVal := range srcAttrs.Values {
 		src := srcVal.Attribute
 		tgt := tgtAttrs.Values[i].Attribute
-		if ta.proto {
-			tgt = unwrapAttr(tgt)
-		} else {
-			src = unwrapAttr(src)
+		tfd, stop, err := unionBranchMessageHelper(src, tgt, ta, seen)
+		if err != nil {
+			return nil, err
+		}
+		if stop {
+			// The helper of the branch and the helpers it calls are
+			// collected already, or are being collected by a caller when
+			// the branch closes a recursive cycle.
+			continue
+		}
+		if tfd != nil {
+			data = append(data, tfd)
+		}
+		src, tgt, err = compatibleTransformAttributes(src, tgt, ta)
+		if err != nil {
+			return nil, err
 		}
 		helpers, err := collectHelpers(src, tgt, true, ta, seen)
 		if err != nil {
@@ -157,10 +151,32 @@ func collectUnionHelpers(source, target *expr.AttributeExpr, ta *transformAttrs,
 	return data, nil
 }
 
+// unionBranchMessageHelper returns the helper function that converts the
+// value of the union branch src to the union branch tgt when the branch holds
+// a named array or a union. Protocol buffer holds such a value in a
+// message of its own, and the union transform code converts it with a call to
+// this helper. It returns nil when the branch needs no such helper, and nil
+// and true when seen already holds it.
+func unionBranchMessageHelper(src, tgt *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) (*codegen.TransformFunctionData, bool, error) {
+	svc := src
+	if !ta.proto {
+		svc = tgt
+	}
+	_, named := svc.Type.(expr.UserType)
+	if !expr.IsUnion(svc.Type) && (!named || !expr.IsArray(svc.Type)) {
+		return nil, false, nil
+	}
+	body := src
+	if ut, ok := src.Type.(expr.UserType); ok {
+		body = ut.Attribute()
+	}
+	return buildObjectHelper(src, tgt, body, true, ta, seen)
+}
+
 func collectObjectHelpers(source, target *expr.AttributeExpr, req bool, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {
 	var data []*codegen.TransformFunctionData
 	if ut, ok := source.Type.(expr.UserType); ok && !isAnonymousObject(target.Type) {
-		tfd, stop, err := buildObjectHelper(source, target, req, ut, ta, seen)
+		tfd, stop, err := buildObjectHelper(source, target, ut.Attribute(), req, ta, seen)
 		if err != nil {
 			return nil, err
 		}
@@ -178,13 +194,17 @@ func collectObjectHelpers(source, target *expr.AttributeExpr, req bool, ta *tran
 	return append(data, helpers...), nil
 }
 
-func buildObjectHelper(source, target *expr.AttributeExpr, req bool, ut expr.UserType, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) (*codegen.TransformFunctionData, bool, error) {
+// buildObjectHelper returns the helper function that initializes a value of
+// target from a value of source. body is the attribute that describes the
+// source value, the attribute of a source user type. It reports true when
+// seen already holds the helper.
+func buildObjectHelper(source, target, body *expr.AttributeExpr, req bool, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) (*codegen.TransformFunctionData, bool, error) {
 	ta = objectHelperTransformAttrs(source, target, ta)
 	name := transformHelperName(source, target, ta)
 	if _, ok := seen[name]; ok {
 		return nil, true, nil
 	}
-	code, err := transformAttribute(ut.Attribute(), target, "v", "res", true, ta)
+	code, err := transformAttribute(body, target, "v", "res", true, ta)
 	if err != nil {
 		return nil, false, err
 	}
