@@ -355,15 +355,22 @@ func (s *Sink) claimIdleMessages(ctx context.Context, streams []sinkClaimStream)
 	}
 }
 
-// Helper function to claim messages from a stream used by claimIdleMessages.
+// claim claims one batch of idle messages for claimIdleMessages, delivers the
+// claimed events and returns the start id of the next batch.
 func (s *Sink) claim(ctx context.Context, streamName string, args redis.XAutoClaimArgs) (string, error) {
-	messages, start, err := s.rdb.XAutoClaim(ctx, &args).Result()
+	messages, deleted, start, err := autoClaim(ctx, s.rdb, args)
+	if err != nil {
+		return "", err
+	}
+	if deleted > 0 {
+		s.logger.Debug("claimed pending entries whose events were deleted", "stream", streamName, "entries", deleted)
+	}
 	if len(messages) > 0 {
 		s.logger.Info("claimed", "stream", streamName, "messages", len(messages))
 		subscribers, filter := s.snapshotFanOut()
 		streamEvents(ctx, streamName, args.Stream, s.Name, messages, filter, subscribers, s.rdb, s.logger, s.donechan)
 	}
-	return start, err
+	return start, nil
 }
 
 func (s *Sink) isClosing() bool {

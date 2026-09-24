@@ -328,16 +328,16 @@ func TestSinkClaimsPendingEventsOfClosedSink(t *testing.T) {
 // events of a closed sink when the stream no longer holds an older pending
 // event, as after a MAXLEN trim of an unacked event.
 //
-// Fails on Redis 6.2: XAUTOCLAIM replies with a null entry for the deleted
-// id, go-redis fails to parse the reply with redis.Nil, and the sink never
-// delivers the live event, although Redis moved it to the claiming consumer
-// (#408).
+// On Redis 6.2 XAUTOCLAIM replies with a null entry for the deleted id,
+// which go-redis XAutoClaim fails to parse, so the sink parses the raw reply
+// (#408). The pending entry of the deleted id is left as each version leaves
+// it: Redis 6.2 keeps it, owned by the claiming consumer, and Redis 7 and
+// later purge it.
 func TestSinkClaimsPendingEventsAfterTrim(t *testing.T) {
 	srv := startTestServer(t)
 	rdb := srv.Client
 	ctx := t.Context()
 	stream := newTestStream(t, rdb, "sink-claim-trimmed")
-	srv.SkipOnRedis6(t, "#408")
 	ids, _ := closeSinkWithPendingEvents(t, stream, "claimer", 2)
 	require.NoError(t, rdb.XDel(ctx, stream.key, ids[0]).Err())
 
@@ -353,6 +353,21 @@ func TestSinkClaimsPendingEventsAfterTrim(t *testing.T) {
 	claimed := awaitIdleClaim(t, rdb, "claimer", idleChecks, secondCh)
 	require.Equal(t, ids[1], claimed.ID)
 	require.NoError(t, second.Ack(ctx, claimed))
+
+	pending, err := rdb.XPendingExt(ctx, &redis.XPendingExtArgs{
+		Stream: stream.key, Group: "claimer", Start: ids[0], End: ids[0], Count: 1,
+	}).Result()
+	require.NoError(t, err)
+	purges := srv.MajorVersion() >= 7
+	require.Equal(t, !purges, len(pending) == 1, "pending entry of the deleted id kept on Redis %d (0 is miniredis)", srv.MajorVersion())
+	if !purges && srv.Real() {
+		// Redis 6.2 moves the entry to the claiming consumer. miniredis
+		// leaves it with its owner.
+		second.lock.Lock()
+		consumer := second.consumer
+		second.lock.Unlock()
+		require.Equal(t, consumer, pending[0].Consumer)
+	}
 	second.Close(ctx)
 }
 

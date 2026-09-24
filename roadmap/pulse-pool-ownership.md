@@ -274,10 +274,13 @@ Details:
 - Stream ids are compared as numbers, never as strings: split `ms-seq`, then
   compare `ms`, then `seq`. Both fit in a Lua double.
 - The script needs no Redis version beyond the 6.2 that the sink already
-  requires for XAUTOCLAIM.
-  Redis 6.2 support has an open bug: the sink cannot parse the `XAUTOCLAIM`
-  null entry of a deleted or trimmed pending id (#408). The real-Redis tier
-  skips that test on 6.2 only.
+  requires for XAUTOCLAIM. On Redis 6.2, `XAUTOCLAIM` replies with a null
+  entry for a deleted or trimmed pending id, which go-redis `XAutoClaim`
+  cannot parse, so the sink parses the raw reply and skips the null entry
+  (#408). It does not ack the id: Redis 6.2 keeps that pending entry, and
+  `in_flight` relies on it until `pendingEventTTL`. Acking it would open
+  the #385 window on 6.2 too. The cost is that 6.2 pending lists keep such
+  entries until an ack, as Redis 6.2 itself does.
 - The script must trim and set expiry exactly as `Stream.Add` does
   (`MaxLen`, `Approx`, and the TTL in the same script through
   `pulse/internal/keyttl`, which emulates `EXPIRE ... NX` for 6.2). A golden

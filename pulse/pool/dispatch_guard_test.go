@@ -134,3 +134,73 @@ func TestDispatchGuardKeptWhileStartUnacked(t *testing.T) {
 		})
 	}
 }
+
+// TestIdleClaimAfterTrimmedStart covers a router that crashed after reading
+// two start events, one of which the pool stream then trimmed while it was
+// pending. Once the events are idle for ackGracePeriod, another node's sink
+// claims them: the live start must still start its job on every Redis
+// version (issue #408).
+//
+// The trimmed start can never be delivered. Redis 6.2 and miniredis keep its
+// pending entry, so its dispatch guard stays until pendingEventTTL. Redis 7
+// and later purge it, so the guard is released early: the known gap of issue
+// #385, which must flip that expectation.
+func TestIdleClaimAfterTrimmedStart(t *testing.T) {
+	srv := startTestServer(t)
+	rdb := srv.Client
+	ctx := t.Context()
+	const pool = "idle-claim-trimmed"
+	dispatcher := sinklessNode(t, rdb, pool)
+	stream := dispatcher.poolStream.Key()
+	claim := func(key string) (string, string) {
+		t.Helper()
+		job := marshalJob(&Job{Key: key, Payload: []byte(key), CreatedAt: time.Now(), NodeID: dispatcher.ID})
+		guard, id, err := dispatcher.claimDispatch(ctx, key, job)
+		require.NoError(t, err)
+		return guard, id
+	}
+	trimmedGuard, trimmedID := claim("trimmed")
+	_, liveID := claim("live")
+
+	// The crashed router read both start events and acked neither.
+	require.NoError(t, rdb.XGroupCreate(ctx, stream, poolSinkName, "0").Err())
+	res, err := rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
+		Group:    poolSinkName,
+		Consumer: "crashed",
+		Streams:  []string{stream, ">"},
+		Count:    2,
+		Block:    -1,
+	}).Result()
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.Len(t, res[0].Messages, 2)
+	trimPending(t, rdb, stream, trimmedID)
+
+	router := addTestNode(t, rdb, pool, WithAckGracePeriod(200*time.Millisecond))
+	handler := newRecordingHandler()
+	_, err = router.AddWorker(ctx, handler)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		payload, ok := handler.startedPayload("live")
+		return ok && string(payload) == "live"
+	}, 10*time.Second, 5*time.Millisecond, "the live start %s was not claimed", liveID)
+	_, started := handler.startedPayload("trimmed")
+	require.False(t, started, "the trimmed start cannot start")
+
+	pending, err := rdb.XPendingExt(ctx, &redis.XPendingExtArgs{
+		Stream: stream, Group: poolSinkName, Start: trimmedID, End: trimmedID, Count: 1,
+	}).Result()
+	require.NoError(t, err)
+	purges := srv.MajorVersion() >= 7
+	require.Equal(t, !purges, len(pending) == 1, "pending entry of the trimmed start kept on Redis %d (0 is miniredis)", srv.MajorVersion())
+
+	status, err := router.runReleaseDispatch(ctx, "trimmed", trimmedGuard)
+	require.NoError(t, err)
+	want := dispatchReleaseInFlight
+	if purges {
+		// Known gap, issue #385: the fix must flip this to
+		// dispatchReleaseInFlight on every version.
+		want = dispatchReleaseDeleted
+	}
+	require.Equal(t, want, status, "release status on Redis %d (0 is miniredis); see issue #385", srv.MajorVersion())
+}
