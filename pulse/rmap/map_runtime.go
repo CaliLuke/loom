@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"github.com/CaliLuke/loom/pulse/internal/keyttl"
 )
 
 // Close closes the connection to the map, freeing resources. It is safe to
@@ -164,26 +166,14 @@ func (sm *Map) runLuaScript(ctx context.Context, name string, script *redis.Scri
 	if strings.Contains(key, "=") {
 		return nil, fmt.Errorf("pulse map: %s key %q cannot contain '=' in %q", sm.Name, key, name)
 	}
+	ttlSeconds, ttlSliding := keyttl.Args(sm.ttl, sm.ttlSliding)
+	args = append(args[:len(args):len(args)], ttlSeconds, ttlSliding)
 	res, err := script.Run(ctx, sm.rdb, []string{sm.hashkey, sm.chankey}, args...).Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return nil, fmt.Errorf("pulse map: %s failed to run %q for key %s: %w", sm.Name, name, key, err)
 	}
-	if err := sm.applyTTL(ctx); err != nil {
-		return nil, fmt.Errorf("pulse map: %s failed to apply TTL: %w", sm.Name, err)
-	}
 
 	return res, nil
-}
-
-func (sm *Map) applyTTL(ctx context.Context) error {
-	if sm.ttl <= 0 {
-		return nil
-	}
-	if sm.ttlSliding {
-		return sm.rdb.Expire(ctx, sm.hashkey, sm.ttl).Err()
-	}
-	_, err := sm.rdb.ExpireNX(ctx, sm.hashkey, sm.ttl).Result()
-	return err
 }
 
 // reconnect attempts to reconnect to the Redis server forever.

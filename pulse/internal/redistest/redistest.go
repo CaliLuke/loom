@@ -138,7 +138,7 @@ func (s *Server) MajorVersion() int {
 }
 
 // SkipOnRedis6 skips test t on a real Redis 6 server because of the known
-// product bug tracked by issue, for example "#407". The test still runs on
+// product bug tracked by issue, for example "#408". The test still runs on
 // miniredis and on Redis 7 and later. Remove the call when the issue is
 // fixed.
 func (s *Server) SkipOnRedis6(t testing.TB, issue string) {

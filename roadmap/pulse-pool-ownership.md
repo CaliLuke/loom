@@ -275,13 +275,13 @@ Details:
   compare `ms`, then `seq`. Both fit in a Lua double.
 - The script needs no Redis version beyond the 6.2 that the sink already
   requires for XAUTOCLAIM.
-  Redis 6.2 support has open bugs: fixed TTLs send `EXPIRE ... NX`, which
-  needs 7.0 (#407), and the sink cannot parse the `XAUTOCLAIM` null entry of
-  a deleted or trimmed pending id (#408). The real-Redis tier skips those
-  tests on 6.2 only.
+  Redis 6.2 support has an open bug: the sink cannot parse the `XAUTOCLAIM`
+  null entry of a deleted or trimmed pending id (#408). The real-Redis tier
+  skips that test on 6.2 only.
 - The script must trim and set expiry exactly as `Stream.Add` does
-  (`MaxLen`, `Approx`, `applyTTL`). A golden test compares the entry fields
-  with a `Stream.Add` entry.
+  (`MaxLen`, `Approx`, and the TTL in the same script through
+  `pulse/internal/keyttl`, which emulates `EXPIRE ... NX` for 6.2). A golden
+  test compares the entry fields with a `Stream.Add` entry.
 - If the client sees an error but the server applied the script, the guard
   and event both exist, and the in-flight check below protects them. If the
   script failed, nothing was written.

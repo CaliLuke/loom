@@ -38,7 +38,9 @@ func WithStreamLogger(logger pulse.Logger) Stream {
 }
 
 // WithStreamTTL sets an absolute TTL on the Redis key backing the stream.
-// The TTL is set once (when the key is created) and never extended.
+// Add and NewSink set the TTL, in the same script as the write, only when the
+// key has none, so the TTL is set once (when the key is created) and never
+// extended.
 func WithStreamTTL(ttl time.Duration) Stream {
 	return func(o *StreamOptions) {
 		o.TTL = ttl

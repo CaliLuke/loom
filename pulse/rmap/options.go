@@ -33,7 +33,8 @@ func WithLogger(logger pulse.Logger) MapOption {
 }
 
 // WithTTL sets an absolute TTL on the Redis hash backing the map.
-// The TTL is set once (when the hash is created) and never extended.
+// A write sets the TTL, in the same script, only when the hash has none, so
+// the TTL is set once (when the hash is created) and never extended.
 func WithTTL(ttl time.Duration) MapOption {
 	return func(o *options) {
 		o.TTL = ttl

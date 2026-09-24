@@ -163,11 +163,8 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 		return nil, fmt.Errorf("failed to join replicated map for sink keep-alives %s: %w", name, err)
 	}
 
-	if err := stream.rdb.XGroupCreateMkStream(ctx, stream.key, name, o.LastEventID).Err(); err != nil && !isBusyGroupErr(err) {
+	if err := stream.createGroup(ctx, name, o.LastEventID); err != nil {
 		return nil, fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", name, stream.Name, err)
-	}
-	if err := stream.applyTTL(ctx); err != nil {
-		return nil, fmt.Errorf("failed to apply stream TTL: %w", err)
 	}
 
 	runtimeBase := log.WithContext(context.WithoutCancel(ctx), ctx)

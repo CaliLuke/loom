@@ -1,13 +1,39 @@
 // Package rmap keeps every replicated-map mutation in Lua so Redis updates,
-// revision bumps, and pubsub notifications stay atomic and totally ordered.
+// revision bumps, pubsub notifications, and the hash TTL stay atomic and
+// totally ordered.
 package rmap
 
-import "github.com/redis/go-redis/v9"
+import (
+	"github.com/redis/go-redis/v9"
+
+	"github.com/CaliLuke/loom/pulse/internal/keyttl"
+)
+
+// mapScriptPrologue starts every map script. It takes the TTL seconds and
+// sliding flag from the last two script arguments, so the body sees only the
+// arguments of the mutation in ARGV.
+const mapScriptPrologue = keyttl.LuaApply + `
+local ttl_argc = #ARGV - 2
+local ttl_seconds, ttl_sliding = ARGV[ttl_argc + 1], ARGV[ttl_argc + 2]
+local mutation_args = {}
+for i = 1, ttl_argc do
+   mutation_args[i] = ARGV[i]
+end
+local result = (function(ARGV)
+`
+
+// mapScriptEpilogue ends every map script. It applies the hash TTL after the
+// mutation and returns the mutation result.
+const mapScriptEpilogue = `
+end)(mutation_args)
+apply_ttl(KEYS[1], ttl_seconds, ttl_sliding)
+return result
+`
 
 var (
 	// luaAppend is the Lua script used to append an item to an array key and
 	// return its new value.
-	luaAppend = redis.NewScript(`
+	luaAppend = mapScript(`
 	   local key = ARGV[1]
 	   local v = redis.call("HGET", KEYS[1], key)
 
@@ -42,7 +68,7 @@ var (
 
 	// luaAppendUnique is the Lua script used to append an item to a set and return
 	// the result.
-	luaAppendUnique = redis.NewScript(`
+	luaAppendUnique = mapScript(`
 	  local key = ARGV[1]
 	  local v = redis.call("HGET", KEYS[1], key)
 
@@ -92,7 +118,7 @@ var (
 
 	// luaDelete is the Lua script used to delete a key and return its previous
 	// value.
-	luaDelete = redis.NewScript(`
+	luaDelete = mapScript(`
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
 	   if not v then
 	      return nil
@@ -106,7 +132,7 @@ var (
 	`)
 
 	// luaIncr is the Lua script used to increment a key and return the new value.
-	luaIncr = redis.NewScript(`
+	luaIncr = mapScript(`
 	   redis.call("HINCRBY", KEYS[1], ARGV[1], ARGV[2])
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
 	   local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
@@ -118,7 +144,7 @@ var (
 
 	// luaRemove is the Lua script used to remove items from an array value and
 	// return the result along with a flag indicating if any value was removed.
-	luaRemove = redis.NewScript(`
+	luaRemove = mapScript(`
 	   local key = ARGV[1]
 	   local v = redis.call("HGET", KEYS[1], key)
 
@@ -174,7 +200,7 @@ var (
 	`)
 
 	// luaReset is the Lua script used to reset the map.
-	luaReset = redis.NewScript(`
+	luaReset = mapScript(`
 	   local rev = redis.call("HINCRBY", KEYS[1], "=rev", 1)
 	   redis.call("DEL", KEYS[1])
 	   redis.call("HSET", KEYS[1], "=rev", rev, "=kind", "reset")
@@ -182,7 +208,7 @@ var (
 	`)
 
 	// luaDestroy is the Lua script used to delete the map entirely.
-	luaDestroy = redis.NewScript(`
+	luaDestroy = mapScript(`
 	   local rev = redis.call("HINCRBY", KEYS[1], "=rev", 1)
 	   redis.call("DEL", KEYS[1])
 	   redis.call("HSET", KEYS[1], "=rev", rev, "=kind", "destroy")
@@ -192,7 +218,7 @@ var (
 	// luaSet is the Lua script used to set a key and return its previous value.  We
 	// use Lua scripts to publish notifications "at the same time" and preserve the
 	// order of operations (scripts are run atomically within Redis).
-	luaSet = redis.NewScript(`
+	luaSet = mapScript(`
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
 	   redis.call("HSET", KEYS[1], ARGV[1], ARGV[2])
 	   local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
@@ -209,7 +235,7 @@ var (
 	`)
 
 	// luaTestAndDel is the Lua script used to delete a key if it has a specific value.
-	luaTestAndDel = redis.NewScript(`
+	luaTestAndDel = mapScript(`
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
 	   if v == ARGV[2] then
 	      redis.call("HDEL", KEYS[1], ARGV[1])
@@ -223,7 +249,7 @@ var (
 
 	// luaTestAndReset is the Lua script used to reset the map if all the given keys
 	// have the given values.
-	luaTestAndReset = redis.NewScript(`
+	luaTestAndReset = mapScript(`
 	  local hash = KEYS[1]
 	  local n = (#ARGV - 1) / 2
 	  
@@ -240,7 +266,7 @@ var (
 	`)
 
 	// luaTestAndSet is the Lua script used to set a key if it has a specific value.
-	luaTestAndSet = redis.NewScript(`
+	luaTestAndSet = mapScript(`
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
 	   if v == ARGV[2] then
 	      redis.call("HSET", KEYS[1], ARGV[1], ARGV[3])
@@ -253,7 +279,7 @@ var (
 	`)
 
 	// luaSetIfNotExists is the Lua script used to set a key if it does not exist.
-	luaSetIfNotExists = redis.NewScript(`
+	luaSetIfNotExists = mapScript(`
         local v = redis.call("HGET", KEYS[1], ARGV[1])
         if not v then
             redis.call("HSET", KEYS[1], ARGV[1], ARGV[2])
@@ -266,3 +292,10 @@ var (
         return 0    -- Value already existed
     `)
 )
+
+// mapScript returns the map script that runs the mutation body and then
+// applies the hash TTL in the same script. Callers pass the TTL arguments
+// built by keyttl.Args after the mutation arguments.
+func mapScript(body string) *redis.Script {
+	return redis.NewScript(mapScriptPrologue + body + mapScriptEpilogue)
+}

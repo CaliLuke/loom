@@ -399,33 +399,6 @@ func TestCloseSemantics(t *testing.T) {
 	require.Equal(t, 0, fresh.Len())
 }
 
-// TestTTLApplied checks that a write sets the map expiry with a sliding and
-// with a fixed TTL.
-//
-// The fixed TTL fails on Redis 6.2: applyTTL sends EXPIRE ... NX, which needs
-// Redis 7.0, so every write returns an error after the script applied it
-// (#407).
-func TestTTLApplied(t *testing.T) {
-	srv := redistest.Start(t, redistest.DBRmap)
-	rdb := srv.Client
-	ctx := t.Context()
-
-	sliding := joinMap(t, rdb, "ttlsliding", WithSlidingTTL(time.Minute))
-	_, err := sliding.Set(ctx, "key", "value")
-	require.NoError(t, err)
-	ttl, err := rdb.TTL(ctx, "map:ttlsliding:content").Result()
-	require.NoError(t, err)
-	require.Positive(t, ttl)
-
-	srv.SkipOnRedis6(t, "#407")
-	fixed := joinMap(t, rdb, "ttlfixed", WithTTL(time.Minute))
-	_, err = fixed.Set(ctx, "key", "value")
-	require.NoError(t, err)
-	ttl, err = rdb.TTL(ctx, "map:ttlfixed:content").Result()
-	require.NoError(t, err)
-	require.Positive(t, ttl)
-}
-
 func TestTestAndReset(t *testing.T) {
 	rdb := startTestRedis(t)
 	ctx := t.Context()

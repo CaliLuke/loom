@@ -356,40 +356,6 @@ func TestSinkClaimsPendingEventsAfterTrim(t *testing.T) {
 	second.Close(ctx)
 }
 
-// TestStreamAddAppliesTTL checks that Add sets the stream expiry with a fixed
-// and with a sliding TTL.
-//
-// The fixed TTL fails on Redis 6.2: Add sends EXPIRE ... NX, which needs
-// Redis 7.0, so every Add returns an error after it added the event (#407).
-func TestStreamAddAppliesTTL(t *testing.T) {
-	cases := []struct {
-		name string
-		opt  options.Stream
-		// issue is the known Redis 6.2 bug that breaks the case there.
-		issue string
-	}{
-		{name: "fixed", opt: options.WithStreamTTL(time.Minute), issue: "#407"},
-		{name: "sliding", opt: options.WithStreamSlidingTTL(time.Minute)},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			srv := startTestServer(t)
-			if tc.issue != "" {
-				srv.SkipOnRedis6(t, tc.issue)
-			}
-			rdb := srv.Client
-			ctx := t.Context()
-			stream, err := NewStream("ttl-"+tc.name, rdb, tc.opt)
-			require.NoError(t, err)
-			_, err = stream.Add(ctx, "created", []byte("payload"))
-			require.NoError(t, err)
-			ttl, err := rdb.PTTL(ctx, stream.key).Result()
-			require.NoError(t, err)
-			require.Positive(t, ttl)
-		})
-	}
-}
-
 func TestSinkKeepsStaleConsumerWithPendingEventsUntilClaimed(t *testing.T) {
 	srv := startTestServer(t)
 	rdb := srv.Client

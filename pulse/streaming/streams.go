@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/CaliLuke/loom/pulse/internal/keyttl"
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming/options"
@@ -49,6 +50,50 @@ const (
 	// topicKey is the key used to store the event topic.
 	topicKey = "t"
 )
+
+// addEventScript adds an event to a stream and applies the stream TTL in the
+// same script, so a caller never sees an error for an event that was added.
+//
+// KEYS[1] is the stream key. ARGV holds the MAXLEN (0 for none), "1" to not
+// create a missing stream, the TTL arguments of keyttl.Args, then the event
+// field/value pairs. The script returns the event id, or nil when the stream
+// is missing and must not be created.
+var addEventScript = redis.NewScript(keyttl.LuaApply + `
+local args = {}
+if ARGV[2] == "1" then
+   table.insert(args, "NOMKSTREAM")
+end
+if tonumber(ARGV[1]) > 0 then
+   table.insert(args, "MAXLEN")
+   table.insert(args, "~")
+   table.insert(args, ARGV[1])
+end
+table.insert(args, "*")
+for i = 5, #ARGV do
+   table.insert(args, ARGV[i])
+end
+local id = redis.call("XADD", KEYS[1], unpack(args))
+if not id then
+   return false
+end
+apply_ttl(KEYS[1], ARGV[3], ARGV[4])
+return id
+`)
+
+// createGroupScript creates a consumer group, and the stream if missing, and
+// applies the stream TTL in the same script. An existing group is kept.
+//
+// KEYS[1] is the stream key. ARGV holds the group name, the start id, then
+// the TTL arguments of keyttl.Args. The script returns an error reply for
+// any failure other than BUSYGROUP.
+var createGroupScript = redis.NewScript(keyttl.LuaApply + `
+local res = redis.pcall("XGROUP", "CREATE", KEYS[1], ARGV[1], ARGV[2], "MKSTREAM")
+if type(res) == "table" and res.err and not string.find(res.err, "BUSYGROUP", 1, true) then
+   return res
+end
+apply_ttl(KEYS[1], ARGV[3], ARGV[4])
+return "OK"
+`)
 
 // NewStream returns the stream with the given name. All stream instances
 // with the same name share the same events.
@@ -134,13 +179,7 @@ func (s *Stream) Add(ctx context.Context, name string, payload []byte, opts ...o
 	if o.Topic != "" {
 		values = append(values, topicKey, o.Topic)
 	}
-	res, err := s.rdb.XAdd(ctx, &redis.XAddArgs{
-		Stream:     s.key,
-		Values:     values,
-		MaxLen:     int64(s.MaxLen),
-		Approx:     true,
-		NoMkStream: o.OnlyIfStreamExists,
-	}).Result()
+	res, err := s.addEvent(ctx, values, o.OnlyIfStreamExists)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			// Stream does not exist and OnlyIfStreamExists option was used.
@@ -150,24 +189,45 @@ func (s *Stream) Add(ctx context.Context, name string, payload []byte, opts ...o
 		s.logger.Error(err, "event", name)
 		return "", err
 	}
-	if err := s.applyTTL(ctx); err != nil {
-		err = fmt.Errorf("failed to apply stream TTL: %w", err)
-		s.logger.Error(err, "event", name)
-		return "", err
-	}
 	s.logger.Info("add", "event", name, "id", res)
 	return res, nil
 }
 
-func (s *Stream) applyTTL(ctx context.Context) error {
+// addEvent adds an event with the given field/value pairs and returns its
+// id. With a TTL it runs addEventScript, so the event and the TTL are applied
+// atomically; without one it sends XADD. It returns redis.Nil when
+// onlyIfExists is set and the stream does not exist.
+func (s *Stream) addEvent(ctx context.Context, values []any, onlyIfExists bool) (string, error) {
 	if s.ttl <= 0 {
+		return s.rdb.XAdd(ctx, &redis.XAddArgs{
+			Stream:     s.key,
+			Values:     values,
+			MaxLen:     int64(s.MaxLen),
+			Approx:     true,
+			NoMkStream: onlyIfExists,
+		}).Result()
+	}
+	noMkStream := "0"
+	if onlyIfExists {
+		noMkStream = "1"
+	}
+	ttlSeconds, ttlSliding := keyttl.Args(s.ttl, s.ttlSliding)
+	args := append([]any{s.MaxLen, noMkStream, ttlSeconds, ttlSliding}, values...)
+	return addEventScript.Run(ctx, s.rdb, []string{s.key}, args...).Text()
+}
+
+// createGroup creates the consumer group name starting after startID, and
+// the stream if missing. An existing group is kept. With a TTL it runs
+// createGroupScript, so the group and the TTL are applied atomically.
+func (s *Stream) createGroup(ctx context.Context, name, startID string) error {
+	if s.ttl <= 0 {
+		if err := s.rdb.XGroupCreateMkStream(ctx, s.key, name, startID).Err(); err != nil && !isBusyGroupErr(err) {
+			return err
+		}
 		return nil
 	}
-	if s.ttlSliding {
-		return s.rdb.Expire(ctx, s.key, s.ttl).Err()
-	}
-	_, err := s.rdb.ExpireNX(ctx, s.key, s.ttl).Result()
-	return err
+	ttlSeconds, ttlSliding := keyttl.Args(s.ttl, s.ttlSliding)
+	return createGroupScript.Run(ctx, s.rdb, []string{s.key}, name, startID, ttlSeconds, ttlSliding).Err()
 }
 
 // Remove removes the events with the given IDs from the stream.
