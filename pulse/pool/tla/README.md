@@ -16,6 +16,8 @@ This file describes the model and how to run it.
 | `PoolOwnership.tla` | The model: state, actions, invariants, liveness, toggles. |
 | `PoolOwnership.cfg` | Main as written, all safety invariants, full scope. |
 | `cfg/*.cfg` | One configuration per question. See [Results](#results). |
+| `WorkerEventAck.tla` | How a node matches a worker ack to the pool event it routed (issue #381). See [Worker event acks](#worker-event-acks-workereventacktla). |
+| `cfg/ack_*.cfg` | One `WorkerEventAck` configuration per routing design. |
 
 ## Running TLC
 
@@ -289,3 +291,93 @@ distinct-state count is the whole reachable space, so it does not depend on
 the number of workers.
 
 The roadmap document translates each trace into Go calls.
+
+## Worker event acks (`WorkerEventAck.tla`)
+
+`WorkerEventAck.tla` is a separate, smaller model. It covers how
+`routeWorkerEvent` registers a routed pool event and how `ackWorkerEvent`
+matches the worker's ack to it (issue #381). `PoolOwnership.tla` puts the
+worker ack and the router's `XACK` in one step, so it cannot show this race.
+
+### Abstraction
+
+One node routes one pool event to one worker. `MaxRoutes` bounds the
+routings: XAUTOCLAIM redelivers the event while it is unacked, and each
+routing gets a new worker event id. The router, the worker and the node's
+ack loop are separate processes. `Add` is two steps: Redis applies the
+`XADD`, then the call returns. The worker can ack in between.
+
+`DESIGN` selects how the router registers the pending event:
+
+| Design | Router | Ack loop |
+| --- | --- | --- |
+| `asis` | Registers after `Add` returns (main before #381). | Drops an unknown ack. |
+| `prereg` | Registers before `Add` and unregisters when it fails. Go cannot do this, because `XADD` assigns the id. | Drops an unknown ack. |
+| `lock` | Holds one lock across `Add` and the registration. | Looks the id up under the lock. |
+| `park` | After `Add`, consumes a parked ack or registers. | Parks an unknown ack. Parked acks are pruned by age. |
+
+Faults and environment:
+
+| Toggle | Meaning |
+| --- | --- |
+| `AMBIGUOUS_FAIL` | `Add` returns an error after Redis applied the `XADD` (for example a client timeout). `AddFail` covers a failure without effect. |
+| `DUP_ACK` | A second ack for the same id reaches the node stream. |
+| `SHUTDOWN` | The node stops. Its in-memory maps are gone. |
+| `PRUNE_ANYTIME` | `park`: a parked ack can be pruned while the router is still adding that id. The default assumes the prune age exceeds any `Add` call. |
+
+### Action map (Go)
+
+| Action | Go |
+| --- | --- |
+| `RouteBegin`, `AddApply`, `AddFail` | `routeWorkerEvent` (`node_events.go:59`): `stream.Add` (`:91`). A missing worker stream makes `Add` return no id and no error; `routeWorkerEvent` then returns an error and registers nothing (`:95`). |
+| `RouteRegister`, `RouteFailed` | `registerPendingEvent` (`node_events.go:112`). |
+| `WorkerAck` | `handleEvents` (`worker.go:204`), then `ackPoolEvent` (`worker.go:432`). |
+| `ProcessAck` | `ackWorkerEvent` (`node_events.go:167`): `LoadAndDelete` under `pendingEventsLock`, otherwise `parkWorkerAck`. A match calls `completePendingEvent`: `XACK`, then the dispatch return. |
+| `Prune` | `parkWorkerAck` (`node_events.go:228`) drops parked acks older than `ackGracePeriod`. |
+| `Redeliver` | XAUTOCLAIM with `MinIdle = ackGracePeriod`. |
+
+### Properties
+
+- `NoUnknownAckForRoutedEvent`: no ack of an event whose `Add` returned ok
+  is dropped or pruned before an ack of that id matched.
+- `NoRegistrationWithoutAdd`: a registration exists only for an event whose
+  `Add` returned ok.
+- `AckedOnlyAfterWorker`: the pool event is acked only after the worker
+  acked a routed copy.
+- `MatchedAtMostOnce`: one registration consumes at most one ack, so it
+  sends one `XACK` and one dispatch return.
+- `AckedWhenWorkerAcked`, `NoLeakWhenSettled`: once nothing is in flight,
+  the pool event is acked if the worker acked a copy whose `Add` returned ok,
+  and no registration remains for an acked id.
+- `ParkedBounded`: parked acks are acks the worker sent.
+- `ParkedDrains` (liveness): every parked ack is consumed or pruned.
+- `PromptAck` (liveness): after the worker acks a copy whose `Add` returned
+  ok, the pool event is acked without a redelivery, unless the node stops.
+
+Every configuration checks all properties with `FairSpec`, `MaxRoutes = 3`
+and every fault toggle on.
+
+### Results
+
+| Config | Design | Result | States | Trace |
+| --- | --- | --- | ---: | ---: |
+| `cfg/ack_asis` | `asis` | **violated**, `NoUnknownAckForRoutedEvent` | 24 | 5 |
+| `cfg/ack_prereg` | `prereg` | holds, exhaustive | 8,486 | — |
+| `cfg/ack_lock` | `lock` | holds, exhaustive | 5,054 | — |
+| `cfg/ack_park` | `park` | holds, exhaustive | 17,638 | — |
+| `cfg/ack_park_prune_anytime` | `park`, `PRUNE_ANYTIME` | **violated**, `NoUnknownAckForRoutedEvent` | 44 | 6 |
+
+The `asis` trace is issue #381: the router starts `Add`, Redis applies the
+`XADD`, the worker acks, and the ack loop drops the ack as unknown. Only then
+does `Add` return and the router registers the event. With the other
+invariants alone, `asis` also violates `AckedWhenWorkerAcked` and
+`NoLeakWhenSettled` (6-state traces), and `PromptAck` fails: every
+redelivery can race the same way.
+
+Go implements `park`, the same pattern as the dispatch-return fix.
+`prereg` needs the id before the `XADD`. `lock` holds a mutex across a Redis
+call and stalls the node's ack and dispatch-return loop behind every routing.
+`park_prune_anytime` shows that the prune age must exceed the `Add`
+duration. If an `Add` is slower than `ackGracePeriod`, the ack is lost and
+the pool event is redelivered, as on main before the fix.
+

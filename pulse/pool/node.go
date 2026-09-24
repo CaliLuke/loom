@@ -66,6 +66,13 @@ type (
 		// dispatcher registered, indexed by start event ID.
 		earlyReturns map[string]earlyDispatchReturn
 
+		// pendingEventsLock orders pending event registration against worker
+		// acks, and guards earlyAcks.
+		pendingEventsLock sync.Mutex
+		// earlyAcks holds worker acks that arrived before routeWorkerEvent
+		// registered their event, indexed by pendingEventKey.
+		earlyAcks map[string]earlyWorkerAck
+
 		lock     sync.RWMutex
 		closing  bool
 		shutdown bool
@@ -80,6 +87,13 @@ type (
 	// registered.
 	earlyDispatchReturn struct {
 		err error
+		at  time.Time
+	}
+
+	// earlyWorkerAck is a worker ack received before its pending event was
+	// registered.
+	earlyWorkerAck struct {
+		ack *ack
 		at  time.Time
 	}
 

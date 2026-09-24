@@ -92,12 +92,37 @@ func (node *Node) routeWorkerEvent(ctx context.Context, ev *streaming.Event) err
 	if err != nil {
 		return fmt.Errorf("routeWorkerEvent: failed to add event %s to worker stream %q: %w", ev.EventName, workerStreamName(wid), err)
 	}
+	if eventID == "" {
+		// The worker stream is gone, so nothing was added and no ack will
+		// come. Leave the pool event unacked for redelivery.
+		return fmt.Errorf("routeWorkerEvent: worker stream %q does not exist", workerStreamName(wid))
+	}
 	node.logger.Debug("routed", "event", ev.EventName, "id", ev.ID, "worker", wid, "worker-event-id", eventID)
 
 	// Record the event in the pending events map for future ack.
-	node.pendingEvents.Store(pendingEventKey(wid, eventID), ev)
+	node.registerPendingEvent(ctx, wid, eventID, ev)
 
 	return nil
+}
+
+// registerPendingEvent records the pool event ev routed to worker workerID as
+// worker event eventID until the worker acks it. The worker can ack before
+// the router registers the event, so an ack that ackWorkerEvent already
+// parked completes the event at once.
+func (node *Node) registerPendingEvent(ctx context.Context, workerID, eventID string, ev *streaming.Event) {
+	key := pendingEventKey(workerID, eventID)
+	node.pendingEventsLock.Lock()
+	early, ok := node.earlyAcks[key]
+	if ok {
+		delete(node.earlyAcks, key)
+	} else {
+		node.pendingEvents.Store(key, ev)
+	}
+	node.pendingEventsLock.Unlock()
+	if ok {
+		node.logger.Debug("routeWorkerEvent: worker ack before registration", "event", ev.EventName, "id", ev.ID, "worker", workerID, "worker-event-id", eventID)
+		node.completePendingEvent(ctx, ev, early.ack)
+	}
 }
 
 // handleNodeEvents reads events from the node event stream and acks the pending
@@ -136,11 +161,9 @@ func (node *Node) processNodeEvent(ctx context.Context, ev *streaming.Event) {
 	}
 }
 
-// ackWorkerEvent acks the pending event that corresponds to the acked job.  If
-// the event was a dispatched job then it sends a dispatch return event to the
-// node that dispatched the job. It XACKs the pool event first, so the
-// dispatcher's guard release that follows the return finds the event acked
-// and clears the guard.
+// ackWorkerEvent acks the pending event that corresponds to the acked job.
+// An ack whose event routeWorkerEvent has not registered yet is parked until
+// the registration.
 func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 	workerID, payload, err := unmarshalEnvelope(ev.Payload)
 	if err != nil {
@@ -153,13 +176,25 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 		return
 	}
 	key := pendingEventKey(workerID, ack.EventID)
-	val, ok := node.pendingEvents.Load(key)
+	node.pendingEventsLock.Lock()
+	val, ok := node.pendingEvents.LoadAndDelete(key)
 	if !ok {
-		node.logger.Error(fmt.Errorf("ackWorkerEvent: received unknown event %s from worker %s", ack.EventID, workerID))
+		// The router may not have registered the event yet: park the ack.
+		node.parkWorkerAck(key, ack)
+		node.pendingEventsLock.Unlock()
+		node.logger.Debug("ackWorkerEvent: ack before registration", "id", ack.EventID, "worker", workerID)
 		return
 	}
-	pending := val.(*streaming.Event)
+	node.pendingEventsLock.Unlock()
+	node.completePendingEvent(ctx, val.(*streaming.Event), ack)
+}
 
+// completePendingEvent acks the pool event pending that the worker acked with
+// ack. If the event was a dispatched job then it sends a dispatch return event
+// to the node that dispatched the job. It XACKs the pool event first, so the
+// dispatcher's guard release that follows the return finds the event acked
+// and clears the guard.
+func (node *Node) completePendingEvent(ctx context.Context, pending *streaming.Event, ack *ack) {
 	// Ack the sink event so it does not get redelivered.
 	if err := node.poolSink.Ack(ctx, pending); err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to ack event: %w", err), "event", pending.EventName, "id", pending.ID)
@@ -169,7 +204,6 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 	if pending.EventName == evStartJob {
 		node.returnDispatch(ctx, pending, ack)
 	}
-	node.pendingEvents.Delete(key)
 
 	// Garbage collect stale events.
 	var staleKeys []string
@@ -186,11 +220,30 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 	}
 }
 
+// parkWorkerAck records a worker ack whose pending event is not registered.
+// Registration follows the worker stream Add, which returns well within the
+// ack grace period, so acks no registration claims (duplicates, acks of
+// failed routings) are dropped once they are older than that period.
+// pendingEventsLock must be held.
+func (node *Node) parkWorkerAck(key string, ack *ack) {
+	now := time.Now()
+	for k, early := range node.earlyAcks {
+		if now.Sub(early.at) > node.ackGracePeriod {
+			delete(node.earlyAcks, k)
+			node.logger.Error(fmt.Errorf("ackWorkerEvent: dropping ack of unknown event %s", early.ack.EventID), "key", k)
+		}
+	}
+	if node.earlyAcks == nil {
+		node.earlyAcks = make(map[string]earlyWorkerAck)
+	}
+	node.earlyAcks[key] = earlyWorkerAck{ack: ack, at: now}
+}
+
 // returnDispatch sends the worker ack of the dispatched start event pending
 // to the node that dispatched it. When the return cannot be sent, the
 // dispatcher times out; its guard release then finds the event acked, and the
 // payload refuses a retry of a job that started.
-func (node *Node) returnDispatch(ctx context.Context, pending *streaming.Event, ack *ack) {
+func (node *Node) returnDispatch(ctx context.Context, pending *streaming.Event, workerAck *ack) {
 	_, nodeID, err := unmarshalJobKeyAndNodeID(pending.Payload)
 	if err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: no dispatch return for malformed job: %w", err), "id", pending.ID)
@@ -201,8 +254,10 @@ func (node *Node) returnDispatch(ctx context.Context, pending *streaming.Event, 
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to create node event stream %q: %w", nodeStreamName(node.PoolName, nodeID), err))
 		return
 	}
-	ack.EventID = pending.ID
-	if _, err := stream.Add(ctx, evDispatchReturn, marshalAck(ack), options.WithOnlyIfStreamExists()); err != nil {
+	// Leave workerAck unchanged: a parked ack is shared between the router
+	// and the ack loop.
+	ret := &ack{EventID: pending.ID, Error: workerAck.Error}
+	if _, err := stream.Add(ctx, evDispatchReturn, marshalAck(ret), options.WithOnlyIfStreamExists()); err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to dispatch return to stream %q: %w", nodeStreamName(node.PoolName, nodeID), err))
 	}
 }
