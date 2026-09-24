@@ -407,11 +407,6 @@ func TestWebSocketUnionResultRoundTrip(t *testing.T) {
 	hs := httptest.NewServer(mux)
 	defer hs.Close()
 	c := socketclient.NewClient("ws", host(hs), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
-	defer func() {
-		if err := c.Close(); err != nil {
-			t.Errorf("close client: %v", err)
-		}
-	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	raw, err := c.Talk()(ctx, nil)
@@ -440,6 +435,11 @@ func TestWebSocketUnionResultRoundTrip(t *testing.T) {
 		if got == nil || !reflect.DeepEqual(*got, tc.want) {
 			t.Errorf("recv %s: got %#v, want %#v", tc.sent.Name, got, tc.want)
 		}
+	}
+	// The stream owns the client connection: closing it, or canceling its
+	// context, closes the connection.
+	if err := stream.Close(); err != nil {
+		t.Errorf("close stream: %v", err)
 	}
 }
 `

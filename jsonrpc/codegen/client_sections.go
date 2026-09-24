@@ -10,7 +10,7 @@ import (
 )
 
 //nolint:maintidx // Stream helper generation intentionally centralizes protocol-handling branches.
-func writeJSONRPCWebSocketClientHelpers(stmt *jen.Statement, ws *httpcodegen.WebSocketData, hasRecv bool) {
+func writeJSONRPCWebSocketClientHelpers(stmt *jen.Statement, ws *httpcodegen.WebSocketData, hasRecv, isBidirectional bool) {
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
 		Id("responseHandler").
 		Params().
@@ -167,17 +167,25 @@ default:
 		Block(
 			jen.Var().Id("err").Error(),
 			jen.Id("s").Dot("closeOnce").Dot("Do").Call(
-				jen.Func().Params().Block(
-					jen.Id("s").Dot("cancel").Call(),
-					codegen.Expr(`select {
+				jen.Func().Params().BlockFunc(func(g *jen.Group) {
+					if isBidirectional {
+						g.Id("s").Dot("closed").Dot("Store").Call(jen.True())
+					}
+					g.Id("s").Dot("cancel").Call()
+					g.Add(codegen.Expr(`select {
 case <-s.done:
 case <-time.After(s.config.CloseTimeout):
-}`),
-					jen.Id("s").Dot("cleanupPendingRequests").Call(jen.Qual("fmt", "Errorf").Call(jen.Lit("stream closed"))),
-					jen.If(jen.Id("s").Dot("ws").Op("!=").Nil()).Block(
+}`))
+					g.Id("s").Dot("cleanupPendingRequests").Call(jen.Qual("fmt", "Errorf").Call(jen.Lit("stream closed")))
+					if isBidirectional {
+						g.Add(codegen.Expr(`s.recvMu.Lock()
+s.recvQueue = nil
+s.recvMu.Unlock()`))
+					}
+					g.If(jen.Id("s").Dot("ws").Op("!=").Nil()).Block(
 						jen.Id("err").Op("=").Id("s").Dot("ws").Dot("Close").Call(),
-					),
-				),
+					)
+				}),
 			),
 			jen.Return(jen.Id("err")),
 		)

@@ -40,10 +40,15 @@ const (
 type StreamErrorHandler func(ctx context.Context, errorType StreamErrorType, err error, response *jsonrpc.RawResponse)
 
 // StreamClientStream implements the Stream client stream with direct WebSocket
-// handling.
+// handling. Every request sent with Send gets its own response, which Recv
+// returns in send order. A response that arrives before Recv is called is held
+// until Recv returns it or the stream is closed.
 type StreamClientStream struct {
 	ws          *loomhttp.WebSocketStream
 	pending     sync.Map
+	closed      atomic.Bool
+	recvMu      sync.Mutex
+	recvQueue   []*StreamClientStreamPendingRequest
 	idGenerator atomic.Uint64
 	ctx         context.Context
 	cancel      context.CancelFunc
@@ -56,6 +61,7 @@ type StreamClientStream struct {
 }
 type StreamClientStreamPendingRequest struct {
 	userID     string
+	jsonrpcID  string
 	resultChan chan StreamClientStreamStreamResult
 	timeout    *time.Timer
 }
@@ -77,11 +83,13 @@ func (s *StreamClientStream) SendWithContext(ctx context.Context, v *jsonrpcwebs
 	userID := s.generateUserID()
 	jsonrpcID := strconv.FormatUint(s.idGenerator.Add(1), 10)
 	pending := &StreamClientStreamPendingRequest{
+		jsonrpcID:  jsonrpcID,
 		resultChan: make(chan StreamClientStreamStreamResult, s.config.ResultChannelBuffer),
 		timeout:    time.NewTimer(s.config.RequestTimeout),
 		userID:     userID,
 	}
 	s.pending.Store(jsonrpcID, pending)
+	s.enqueueRecv(pending)
 	request := &jsonrpc.Request{
 		ID:      &jsonrpcID,
 		JSONRPC: "2.0",
@@ -108,33 +116,27 @@ func (s *StreamClientStream) Recv() (*jsonrpcwebsocketruntimeservice.JSONRPCWebS
 // context.
 func (s *StreamClientStream) RecvWithContext(ctx context.Context) (*jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult, error) {
 	var zero *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult
+	if s.closed.Load() {
+		return zero, fmt.Errorf("stream closed")
+	}
 	if err := s.getError(); err != nil {
 		return zero, err
 	}
-	var oldestPending *StreamClientStreamPendingRequest
-	var oldestKey string
-	s.pending.Range(func(key, value any) bool {
-		pending := value.(*StreamClientStreamPendingRequest)
-		if oldestPending == nil {
-			oldestPending = pending
-			oldestKey = key.(string)
-		}
-		return false
-	})
+	oldestPending := s.dequeueRecv()
 	if oldestPending == nil {
 		return zero, fmt.Errorf("no pending requests - call Send() first")
 	}
 	select {
 	case result := <-oldestPending.resultChan:
-		s.pending.Delete(oldestKey)
 		oldestPending.timeout.Stop()
 		return result.result, result.err
 	case <-oldestPending.timeout.C:
-		s.pending.Delete(oldestKey)
+		s.pending.Delete(oldestPending.jsonrpcID)
 		timeoutErr := fmt.Errorf("request timeout after %v", s.config.RequestTimeout)
 		s.handleError(jsonrpc.StreamErrorTimeout, timeoutErr, nil)
 		return zero, timeoutErr
 	case <-ctx.Done():
+		s.requeueRecv(oldestPending)
 		return zero, ctx.Err()
 	case <-s.done:
 		if err := s.getError(); err != nil {
@@ -245,15 +247,45 @@ func (s *StreamClientStream) cleanupPendingRequests(err error) {
 func (s *StreamClientStream) Close() error {
 	var err error
 	s.closeOnce.Do(func() {
+		s.closed.Store(true)
 		s.cancel()
 		select {
 		case <-s.done:
 		case <-time.After(s.config.CloseTimeout):
 		}
 		s.cleanupPendingRequests(fmt.Errorf("stream closed"))
+		s.recvMu.Lock()
+		s.recvQueue = nil
+		s.recvMu.Unlock()
 		if s.ws != nil {
 			err = s.ws.Close()
 		}
 	})
 	return err
+}
+
+// enqueueRecv appends a sent request to the requests awaiting Recv.
+func (s *StreamClientStream) enqueueRecv(pending *StreamClientStreamPendingRequest) {
+	s.recvMu.Lock()
+	defer s.recvMu.Unlock()
+	s.recvQueue = append(s.recvQueue, pending)
+}
+
+// dequeueRecv removes and returns the oldest request awaiting Recv, or nil.
+func (s *StreamClientStream) dequeueRecv() *StreamClientStreamPendingRequest {
+	s.recvMu.Lock()
+	defer s.recvMu.Unlock()
+	if len(s.recvQueue) == 0 {
+		return nil
+	}
+	pending := s.recvQueue[0]
+	s.recvQueue = s.recvQueue[1:]
+	return pending
+}
+
+// requeueRecv puts back a request whose Recv was canceled as the oldest one.
+func (s *StreamClientStream) requeueRecv(pending *StreamClientStreamPendingRequest) {
+	s.recvMu.Lock()
+	defer s.recvMu.Unlock()
+	s.recvQueue = append([]*StreamClientStreamPendingRequest{pending}, s.recvQueue...)
 }
