@@ -617,13 +617,12 @@ func drainRequeueResults(logger pulse.Logger, jobsToRequeue map[string]*Job, res
 
 // requeueJob requeues a job.
 func (w *Worker) requeueJob(ctx context.Context, job *Job) error {
-	eventID, err := w.node.poolStream.Add(ctx, evStartJob, marshalJob(job))
-	if err != nil {
+	// No dispatcher waits for the requeued start event, so nothing is
+	// registered for its dispatch return: the node job.NodeID names parks
+	// that return until it expires (parkDispatchReturn).
+	if _, err := w.node.poolStream.Add(ctx, evStartJob, marshalJob(job)); err != nil {
 		return fmt.Errorf("requeueJob: failed to add job to pool stream: %w", err)
 	}
-	// Mark this event as a "requeue" so any node waiting for a dispatch return (if any)
-	// can simply clean up without blocking.
-	w.node.pendingJobChannels.Store(eventID, nil)
 
 	// Stop locally, but do not touch the replicated job/payload maps: we want the
 	// payload to remain available for distributed recovery until the job is

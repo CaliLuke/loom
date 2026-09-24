@@ -229,9 +229,6 @@ func (node *Node) returnDispatchStatus(ev *streaming.Event) {
 	}
 	node.dispatchReturnsLock.Unlock()
 	node.logger.Debug("dispatch return", "event", ev.EventName, "id", ev.ID, "ack-id", ack.EventID)
-	if val == nil {
-		return
-	}
 	cherr := val.(chan error)
 	defer func() {
 		if r := recover(); r != nil {

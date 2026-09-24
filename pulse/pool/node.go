@@ -55,7 +55,7 @@ type (
 		localSchedulers    sync.Map // schedulers created by this node
 		workerStreams      sync.Map // worker streams indexed by ID
 		nodeStreams        sync.Map // streams for worker acks indexed by ID
-		pendingJobChannels sync.Map // channels used to send DispatchJob results, nil if event is requeued
+		pendingJobChannels sync.Map // DispatchJob result channels indexed by start event ID
 		pendingEvents      sync.Map // pending events indexed by sender and event IDs
 		orphanedPayloads   sync.Map // job key -> first time observed orphaned payload (unix nanos)
 
