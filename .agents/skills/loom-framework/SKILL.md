@@ -387,6 +387,13 @@ filter, and serialization rules belong here.
 - Canonicalize implicit service collections after validation and before
   generation. Preserve explicit `Server.Services` order; do not let Go package
   initialization order churn aggregate clients, CLIs, or transport contracts.
+- A union HTTP or JSON-RPC body gets its own Go transport types. `expr`
+  suffixes the branch types of the body, as for object bodies. The HTTP code
+  generator renames the union in its private transport IR copy to
+  `<Endpoint>RequestBody`, `<Endpoint>StreamingBody` or
+  `<Endpoint>[<Status>]ResponseBody` (`nameUnionBodies`). It collects union
+  types from that same IR. OpenAPI keeps the service union names, so do not
+  rename the union in `expr` or in the shared IR.
 - Keep requiredness and nullability orthogonal. `expr` owns semantic
   nullability; shared service models use `loom.Nullable[T]` for null-admitting
   object fields; JSON decoding boundaries alone use `loom.Optional[T]` for

@@ -25,7 +25,7 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			DSL:     unionRequestBodyDSL(func() { POST("/pick") }, false),
 			Section: "request-decoder",
 			Contains: []string{
-				"body LeafOrOther\n",
+				"body PickRequestBody\n",
 				"err = decoder(r).Decode(&body)",
 				"payload = NewPickLeafOrOther(&body)",
 			},
@@ -35,7 +35,7 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			DSL:     unionRequestBodyDSL(func() { GET("/pick") }, false),
 			Section: "request-decoder",
 			Contains: []string{
-				"body LeafOrOther\n",
+				"body PickRequestBody\n",
 				"err = decoder(r).Decode(&body)",
 				"payload = NewPickLeafOrOther(&body)",
 			},
@@ -45,7 +45,7 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			DSL:     optionalUnionRequestBodyDSL,
 			Section: "request-decoder",
 			Contains: []string{
-				"body LeafOrOther\n",
+				"body PickRequestBody\n",
 				"err = decoder(r).Decode(&body)",
 				"payload = NewPickPayload(&body, q)",
 			},
@@ -58,7 +58,7 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			}, false),
 			Section: "request-decoder",
 			Contains: []string{
-				"body LeafOrOther\n",
+				"body PickRequestBody\n",
 				`loomhttp.DecodeFormValue(r.PostForm, "", &body)`,
 				"payload = NewPickLeafOrOther(&body)",
 			},
@@ -68,9 +68,9 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			DSL:     unionRequestBodyDSL(func() { GET("/pick") }, true),
 			Section: "server-websocket-recv",
 			Contains: []string{
-				"msg *LeafOrOther\n",
+				"msg *PickStreamingBody\n",
 				"s.conn.ReadJSON(ctx, &msg)",
-				"return NewPickLeafOrOther(msg), nil",
+				"return NewPickStreamingBody(msg), nil",
 			},
 		},
 	}
@@ -84,8 +84,8 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			for _, want := range c.Contains {
 				assert.Contains(t, code, want)
 			}
-			assert.NotContains(t, code, "body *LeafOrOther")
-			assert.NotContains(t, code, "msg **LeafOrOther")
+			assert.NotContains(t, code, "body *Pick")
+			assert.NotContains(t, code, "msg **")
 		})
 	}
 }

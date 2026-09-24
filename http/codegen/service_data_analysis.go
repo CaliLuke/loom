@@ -76,6 +76,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 		"file_servers", len(httpSvc.FileServers),
 	)
 	irService := transportir.BuildService(httpSvc)
+	nameUnionBodies(irService.Endpoints)
 	svc, scope := newHTTPAnalysisService(svc, sds.serviceImportAliases[httpSvc.Name()])
 	sd = newHTTPServiceData(svc, scope)
 	sd.exampleGenerator = examplegen.ForScope(sds.Root.API.ExampleGenerator, "http", httpSvc.Name())
@@ -97,7 +98,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	for _, endpointIR := range irService.Endpoints {
 		sds.collectEndpointBodyAttributeTypes(endpointIR, sd)
 	}
-	sd.UnionTypes = sds.collectEndpointUnionTypes(httpSvc, sd.Scope)
+	sd.UnionTypes = sds.collectEndpointUnionTypes(httpSvc.ServiceExpr.Name, irService.Endpoints, sd.Scope)
 
 	return sd
 }

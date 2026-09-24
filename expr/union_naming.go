@@ -9,11 +9,12 @@ import (
 const unionVariantTagMetaKey = "oneof:type:tag"
 
 // UnionVariantPublicName returns the stable public-facing name for the union
-// variant data type.
+// variant data type. A user type renamed for a transport body, possibly more
+// than once, keeps the name it had before its first rename.
 func UnionVariantPublicName(dt DataType) string {
 	if ut, ok := dt.(UserType); ok && ut.Attribute() != nil {
-		if name, ok := ut.Attribute().Meta.Last("name:original"); ok && strings.TrimSpace(name) != "" {
-			return name
+		if names := ut.Attribute().Meta["name:original"]; len(names) > 0 && strings.TrimSpace(names[0]) != "" {
+			return names[0]
 		}
 		if name, ok := ut.Attribute().Meta.Last("openapi:typename"); ok && strings.TrimSpace(name) != "" {
 			return name

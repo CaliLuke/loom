@@ -8,6 +8,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 // makeHTTPType traverses the attribute recursively and performs these actions:
@@ -145,24 +146,23 @@ func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, ids, seen map[stri
 	}
 }
 
-func (sds *ServicesData) collectEndpointUnionTypes(httpSvc *expr.HTTPServiceExpr, scope *codegen.NameScope) []*service.UnionTypeData {
+func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints []*transportir.Endpoint, scope *codegen.NameScope) []*service.UnionTypeData {
 	unionByHash := make(map[string]*service.UnionTypeData)
 	seenUnionTypes := make(map[string]struct{})
-	for _, endpoint := range httpSvc.HTTPEndpoints {
-		collectHTTPUnionTypes(endpoint.Body, scope, unionByHash, seenUnionTypes)
-		if endpoint.MethodExpr.StreamingPayload.Type != expr.Empty {
-			collectHTTPUnionTypes(endpoint.StreamingBody, scope, unionByHash, seenUnionTypes)
+	for _, endpoint := range endpoints {
+		collectHTTPUnionTypes(endpoint.Request.Body, scope, unionByHash, seenUnionTypes)
+		if payload := endpoint.Stream.RequestPayload; payload != nil && payload.Type != expr.Empty {
+			collectHTTPUnionTypes(endpoint.Request.StreamingBody, scope, unionByHash, seenUnionTypes)
 		}
-		if endpoint.MethodExpr.Result != nil {
-			svcData := sds.ServicesData.Get(httpSvc.ServiceExpr.Name)
-			md := svcData.Method(endpoint.MethodExpr.Name)
-			for _, response := range endpoint.Responses {
-				body := effectiveClientResponseBody(response.Body, endpoint.MethodExpr.Result, md)
+		if endpoint.Response.Result != nil {
+			md := sds.ServicesData.Get(serviceName).Method(endpoint.MethodName)
+			for _, response := range endpoint.Response.Responses {
+				body := effectiveClientResponseBody(response.Body, endpoint.Response.Result, md)
 				collectHTTPUnionTypes(body, scope, unionByHash, seenUnionTypes)
 			}
 		}
-		for _, httpError := range endpoint.HTTPErrors {
-			collectHTTPUnionTypes(httpError.Response.Body, scope, unionByHash, seenUnionTypes)
+		for _, response := range endpoint.Response.ErrorResponses {
+			collectHTTPUnionTypes(response.Body, scope, unionByHash, seenUnionTypes)
 		}
 	}
 	unions := make([]*service.UnionTypeData, 0, len(unionByHash))

@@ -27,10 +27,10 @@ func TestJSONRPCUnionRequestBodyDeclaration(t *testing.T) {
 			root := RunJSONRPCDSL(t, c.DSL)
 			file := requireEncodeDecodeFile(t, ServerFiles("", CreateJSONRPCServices(root)), "server")
 			code := sectionSourceByName(t, file, "jsonrpc-request-decoder")
-			assert.Contains(t, code, "body LeafOrOther\n")
+			assert.Contains(t, code, "body PickRequestBody\n")
 			assert.Contains(t, code, "err = decoder(r).Decode(&body)")
 			assert.Contains(t, code, "payload = NewPickLeafOrOther(&body,")
-			assert.NotContains(t, code, "body *LeafOrOther")
+			assert.NotContains(t, code, "body *Pick")
 		})
 	}
 }

@@ -474,6 +474,8 @@ func renameType(att *AttributeExpr, name, suffix string) {
 		appendSuffix(rt, suffix)
 	case *Map:
 		appendSuffix(rt, suffix)
+	case *Union:
+		appendSuffix(rt, suffix)
 	}
 }
 
