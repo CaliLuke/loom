@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/cli"
+	"github.com/CaliLuke/loom/codegen/example"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -171,7 +172,7 @@ func endpointParser(
 	services *ServicesData,
 	transport ClientCLITransport,
 ) *codegen.File {
-	pkg := codegen.SnakeCase(codegen.Goify(svr.Name, true))
+	pkg := example.ServerDir(svr.Name)
 	path := filepath.Join(codegen.Gendir, transport.PathName, "cli", pkg, "cli.go")
 	title := fmt.Sprintf("%s %s client CLI support package", svr.Name, transport.DisplayName)
 	specs := []*codegen.ImportSpec{

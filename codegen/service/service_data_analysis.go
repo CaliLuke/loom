@@ -153,7 +153,7 @@ func newServiceData(
 		APIName:            d.Root.API.Name,
 		APIVersion:         d.Root.API.Version,
 		VarName:            varName,
-		PathName:           servicePathName(service.Name),
+		PathName:           DirName(service.Name),
 		StructName:         codegen.Goify(service.Name, true),
 		PkgName:            pkgName,
 		ViewsPkg:           viewspkg,

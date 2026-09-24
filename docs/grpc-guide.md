@@ -630,6 +630,12 @@ service map to the same rpc name, such as `añadir` and `a_adir`, or to the same
 generated message name with different fields. Generated Go package directories
 and names escape non-ASCII runes instead, because Go import paths are ASCII
 only: the packages of a `Café` service are under `gen/cafu00e9`.
+The same rules apply to metadata: a `struct:name:proto` value such as
+`EntréeProto` names the `EntrEProto` message, and a `struct:pkg:path` value such
+as `tipos/menü` generates the `menu00fc` package under `gen/tipos/menu00fc`.
+Server names are escaped the same way in the example command and client CLI
+directories, so a `サーバー` server is under `cmd/valu30b5u30fcu30d0u30fc`, and
+the API package of the example files of a `Café` API is `cafu00e9`.
 
 ### Protoc Configuration
 

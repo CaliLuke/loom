@@ -72,7 +72,7 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 		if parent, _, ok := strings.CutLast(genpkg, "/"); ok && parent != "" {
 			rootPath = parent
 		}
-		apiPkg = scope.Unique(strings.ToLower(codegen.Goify(root.API.Name, false)), "api")
+		apiPkg = scope.Unique(service.PackageBaseName(root.API.Name), "api")
 	}
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath, Name: apiPkg})
 	if hasInterceptors {

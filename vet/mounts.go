@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"github.com/CaliLuke/loom/codegen"
+	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -95,7 +95,7 @@ func designedHTTPServices(design *expr.RootExpr) []designedHTTPService {
 		}
 		services = append(services, designedHTTPService{
 			name: service.Name(),
-			path: codegen.SnakeCase(codegen.Goify(service.Name(), false)),
+			path: servicecodegen.DirName(service.Name()),
 			suppressed: suppressed(service.Meta, RuleServiceNotMounted) ||
 				suppressed(service.ServiceExpr.Meta, RuleServiceNotMounted),
 		})

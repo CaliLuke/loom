@@ -102,11 +102,10 @@ func collectUserTypeMessages(
 }
 
 func protoStructName(at *expr.AttributeExpr, dt expr.UserType) string {
-	name := dt.Name()
-	if n := at.Meta["struct:name:proto"]; n != nil {
-		name = n[0]
+	if name, ok := protoMetaName(at.Meta); ok {
+		return name
 	}
-	return name
+	return dt.Name()
 }
 
 func collectObjectMessages(

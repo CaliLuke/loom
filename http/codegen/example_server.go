@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/example"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -116,7 +117,7 @@ func exampleServerImports(genpkg string, root *expr.RootExpr, services *Services
 	if parent, _, ok := strings.CutLast(genpkg, "/"); ok && parent != "" {
 		rootPath = parent
 	}
-	apiPkg := scope.Unique(strings.ToLower(codegen.Goify(services.Root.API.Name, false) + "api"))
+	apiPkg := scope.Unique(service.PackageBaseName(services.Root.API.Name) + "api")
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath, Name: apiPkg})
 	return specs, exampleServices, apiPkg
 }
@@ -153,7 +154,7 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, services *ServicesDa
 		}
 		scope.Unique(s.PkgName)
 	}
-	apiPkg := scope.Unique(strings.ToLower(codegen.Goify(root.API.Name, false)), "api")
+	apiPkg := scope.Unique(service.PackageBaseName(root.API.Name), "api")
 	specs := []*codegen.ImportSpec{{Path: "mime/multipart"}}
 	var sections []codegen.Section
 	for _, httpSvc := range services.Expressions.Services {

@@ -56,6 +56,13 @@ const DefaultProtoc = expr.DefaultProtoc
 //	    Meta("struct:pkg:path", "types")
 //	})
 //
+// The value must be a relative Go import path. Go import paths are ASCII
+// only, so code generation escapes each non-ASCII rune the same way as in
+// service package paths: Meta("struct:pkg:path", "tipos/menü") generates the
+// package "menu00fc" in gen/tipos/menu00fc. Any other value that is not a
+// valid relative import path, such as one with a leading slash, a ".."
+// element or a space, is a design validation error.
+//
 // Note: If that meta tag is used more that once in the same design, but with
 // different values in the meta statement (ex. one type has Meta("struct:pkg:path", "types1")
 // and another has Meta("struct:pkg:path", "types2")) then those two types cannot
@@ -110,7 +117,12 @@ const DefaultProtoc = expr.DefaultProtoc
 //	})
 //
 // - "struct:name:proto" overrides the generated protobuf message name. Applicable
-// to Type and ResultType only.
+// to Type and ResultType only. The ASCII runes of the value must be letters,
+// digits or underscores, and an ASCII value must start with a letter or
+// underscore; any other value is a design validation error. Protocol buffer
+// identifiers are ASCII only, so code generation treats the non-ASCII runes
+// of a value as word separators, as it does for design names: "EntréeProto"
+// names the "EntrEProto" message.
 //
 //	var MyType = Type("MyType", func() {
 //	    Meta("struct:name:proto", "MyProtoType")

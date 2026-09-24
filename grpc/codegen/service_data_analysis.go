@@ -134,11 +134,15 @@ func buildResponseContractCaseData(endpoint *transportir.Endpoint, protoPkg stri
 	return cases, nil
 }
 
+// qualifyResponseContractMessage returns the protocol buffer full name of the
+// response contract message. The contract carries the design or
+// struct:name:proto name, so non-ASCII runes become word separators as they
+// do in the generated message name.
 func qualifyResponseContractMessage(protoPkg, message string) string {
 	if message == "" || strings.Contains(message, ".") {
 		return message
 	}
-	return protoPkg + "." + message
+	return protoPkg + "." + protoMetaMessageName(message)
 }
 
 func responseContractLimitationWarnings(endpoint *transportir.Endpoint, limitations []transportir.ResponseContractLimitation) []string {
@@ -193,8 +197,8 @@ func (c *messageCollector) lookupMessage(att *expr.AttributeExpr) *service.UserT
 		return nil
 	}
 	name := ut.Name()
-	if n := att.Meta["struct:name:proto"]; n != nil {
-		name = n[0]
+	if n, ok := protoMetaName(att.Meta); ok {
+		name = n
 	}
 	for _, t := range c.sd.Messages {
 		if t.Name == name {

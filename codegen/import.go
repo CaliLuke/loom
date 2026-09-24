@@ -73,7 +73,8 @@ func (s *ImportSpec) Code() string {
 }
 
 // UserTypeLocation returns the location of the user type if set via the
-// struct:pkg:path metadata, nil otherwise..
+// struct:pkg:path metadata, nil otherwise. The location escapes the non-ASCII
+// runes of the metadata value with EscapeNonASCII.
 func UserTypeLocation(dt expr.DataType) *Location {
 	ut, ok := dt.(expr.UserType)
 	if !ok {
@@ -83,9 +84,12 @@ func UserTypeLocation(dt expr.DataType) *Location {
 	if !ok || p == "" {
 		return nil
 	}
+	// Go import paths are ASCII only; escape the non-ASCII runes of the
+	// design path the same way as service package paths.
+	rel := EscapeNonASCII(p)
 	return &Location{
-		FilePath:      filepath.Join(filepath.FromSlash(p), SnakeCase(ut.Name())+".go"),
-		RelImportPath: p,
+		FilePath:      filepath.Join(filepath.FromSlash(rel), SnakeCase(ut.Name())+".go"),
+		RelImportPath: rel,
 	}
 }
 

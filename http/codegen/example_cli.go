@@ -7,6 +7,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/example"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -114,7 +115,7 @@ func exampleCLIWithCache(
 	}
 	interceptorsPkg := importScope.Unique("interceptors", "ex")
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath + "/interceptors", Name: interceptorsPkg})
-	apiPkg := importScope.Unique(strings.ToLower(codegen.Goify(services.Root.API.Name, false)), "api")
+	apiPkg := importScope.Unique(service.PackageBaseName(services.Root.API.Name), "api")
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath, Name: apiPkg})
 
 	svcData := make([]exampleCLIServiceData, 0, len(svr.Services))

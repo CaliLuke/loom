@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/cli"
+	"github.com/CaliLuke/loom/codegen/example"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -50,7 +51,7 @@ func ClientCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 // endpointParser returns the file that implements the command line parser that
 // builds the client endpoint and payload necessary to perform a request.
 func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr, data []*cli.CommandData) *codegen.File {
-	pkg := codegen.SnakeCase(codegen.Goify(svr.Name, true))
+	pkg := example.ServerDir(svr.Name)
 	fpath := filepath.Join(codegen.Gendir, "grpc", "cli", pkg, "cli.go")
 	title := svr.Name + " gRPC client CLI support package"
 	specs := []*codegen.ImportSpec{

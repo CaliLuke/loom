@@ -39,6 +39,7 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 	verr.Merge(a.validateExamples(ctx, parent))
 	verr.Merge(a.validatePresence(ctx, parent))
 	verr.Merge(a.validateStructTagKeys(ctx, parent))
+	verr.Merge(validateStructMeta(ctx, a.Meta, parent))
 	verr.Merge(a.validateChildTypes(ctx, parent))
 	verr.Merge(a.validateViewReference(ctx, parent))
 

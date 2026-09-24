@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -46,7 +45,7 @@ func ExampleServiceFiles(genpkg string, root *expr.RootExpr, services *ServicesD
 		}
 		scope.Unique(s.PkgName)
 	}
-	apipkg := scope.Unique(strings.ToLower(codegen.Goify(root.API.Name, false)), "api")
+	apipkg := scope.Unique(PackageBaseName(root.API.Name), "api")
 
 	var fw []*codegen.File
 	for _, svc := range root.Services {

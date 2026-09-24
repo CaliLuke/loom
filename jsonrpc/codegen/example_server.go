@@ -7,6 +7,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/example"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 )
@@ -177,5 +178,5 @@ func jsonrpcExampleAPIPkg(genpkg string, header codegen.Section, data *httpcodeg
 			}
 		}
 	}
-	return strings.ToLower(codegen.Goify(data.Root.API.Name, false))
+	return service.PackageBaseName(data.Root.API.Name)
 }

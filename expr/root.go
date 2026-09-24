@@ -228,6 +228,12 @@ func (r *RootExpr) Validate() error {
 		}
 	}
 
+	for _, ut := range r.Types {
+		verr.Merge(validateStructMeta("", ut.Attribute().Meta, ut))
+	}
+	for _, rt := range r.ResultTypes {
+		verr.Merge(validateStructMeta("", rt.Attribute().Meta, rt))
+	}
 	verr.Merge(r.validateRelocatedUserTypes())
 	for _, sessionAuth := range r.SessionAuths {
 		verr.Merge(sessionAuth.Validate())

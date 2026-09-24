@@ -22,7 +22,7 @@ func TestServicePackageNames(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			path := servicePathName(c.Service)
+			path := DirName(c.Service)
 			assert.Equal(t, c.ExpectedPath, path)
 			assert.NoError(t, module.CheckImportPath("example.com/gen/"+path))
 			assert.Equal(t, c.ExpectedPkg, PackageBaseName(c.Service))

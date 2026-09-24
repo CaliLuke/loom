@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -115,26 +114,14 @@ func (s *NameScope) PeekUnique(name string, suffix ...string) string {
 // useDefault if true indicates that the attribute must not be a pointer
 // if it has a default value.
 func (s *NameScope) GoTypeDef(att *expr.AttributeExpr, ptr, useDefault bool) string {
-	pkg := ""
-	if loc := UserTypeLocation(att.Type); loc != nil {
-		pkg = loc.PackageName()
-	} else if p, ok := att.Meta.Last("struct:pkg:path"); ok && p != "" {
-		pkg = Goify(filepath.Base(p), false)
-	}
-	return s.goTypeDef(att, ptr, useDefault, pkg)
+	return s.goTypeDef(att, ptr, useDefault, attributePkgName(att))
 }
 
 // GoValueTypeDef returns the Go type definition for the concrete value of att
 // without wrapping att itself in a presence type. Nested attributes retain
 // their own presence semantics.
 func (s *NameScope) GoValueTypeDef(att *expr.AttributeExpr, ptr, useDefault bool) string {
-	pkg := ""
-	if loc := UserTypeLocation(att.Type); loc != nil {
-		pkg = loc.PackageName()
-	} else if p, ok := att.Meta.Last("struct:pkg:path"); ok && p != "" {
-		pkg = Goify(filepath.Base(p), false)
-	}
-	return s.goValueTypeDefWithPkgOverride(att, ptr, useDefault, pkg, "")
+	return s.goValueTypeDefWithPkgOverride(att, ptr, useDefault, attributePkgName(att), "")
 }
 
 // GoTypeDefWithTargetPkg returns the Go type definition string, qualifying any
@@ -429,6 +416,19 @@ func IsExplicitPresenceType(att *expr.AttributeExpr) bool {
 	value, ok := att.Meta.Last("openapi:nullable")
 	typeName, _ := GetMetaType(att)
 	return typeName != "" && (ok && value != "false" || strings.HasPrefix(typeName, "loom.Nullable["))
+}
+
+// attributePkgName returns the name of the package that defines the type of
+// att as selected by the struct:pkg:path metadata of the user type or of att,
+// or the empty string if neither sets one.
+func attributePkgName(att *expr.AttributeExpr) string {
+	if loc := UserTypeLocation(att.Type); loc != nil {
+		return loc.PackageName()
+	}
+	if p, ok := att.Meta.Last("struct:pkg:path"); ok && p != "" {
+		return (&Location{RelImportPath: EscapeNonASCII(p)}).PackageName()
+	}
+	return ""
 }
 
 // pkgWithDefault returns the package defining the given type. If the types is a

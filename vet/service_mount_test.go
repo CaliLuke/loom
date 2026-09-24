@@ -94,9 +94,36 @@ func main() {
 	})
 }
 
-func mountedServicesDesign() *expr.RootExpr {
+// TestAnalyzeConfiguredHTTPServiceMountsNonASCII checks that a mounted HTTP
+// service with a non-ASCII name is found in its escaped generated package.
+func TestAnalyzeConfiguredHTTPServiceMountsNonASCII(t *testing.T) {
+	moduleRoot := t.TempDir()
+	writeTestFile(t, filepath.Join(moduleRoot, "go.mod"), "module example.com/service\n\ngo 1.27.0\n")
+	writeGeneratedServerStub(t, moduleRoot, "cafu00e9")
+	writeGeneratedServerStub(t, moduleRoot, "u65e5u672c")
+	writeTestFile(t, filepath.Join(moduleRoot, "cmd", "api", "main.go"), `package main
+
+import cafeserver "example.com/service/gen/http/cafu00e9/server"
+
+func main() {
+	cafeserver.Mount(nil, new(cafeserver.Server))
+}
+`)
+	design := mountedServicesDesign("Café", "日本")
+	design.API.Meta = expr.MetaExpr{httpEntrypointMeta: {"./cmd/api"}}
+
+	diagnostics, err := analyzeConfiguredHTTPMounts(moduleRoot, design)
+
+	require.NoError(t, err)
+	require.Equal(t, []string{RuleServiceNotMounted + ":service.日本.http"}, diagnosticKeys(diagnostics))
+}
+
+func mountedServicesDesign(names ...string) *expr.RootExpr {
+	if len(names) == 0 {
+		names = []string{"widgets", "reports"}
+	}
 	httpRoot := &expr.HTTPExpr{}
-	for _, name := range []string{"widgets", "reports"} {
+	for _, name := range names {
 		service := &expr.ServiceExpr{Name: name}
 		httpRoot.Services = append(httpRoot.Services, &expr.HTTPServiceExpr{
 			Root:          httpRoot,
