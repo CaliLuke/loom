@@ -68,6 +68,55 @@ func TestWebSocketStreamCloseIsIdempotent(t *testing.T) {
 	require.NoError(t, stream.Close())
 }
 
+// TestWebSocketStreamCloseAfterContextCancellation checks that a stream closed
+// by a canceled read reports that close, not a second close of the
+// connection, to every later or concurrent Close. Generated JSON-RPC clients
+// rely on this when a stream and the client share one stream wrapper.
+func TestWebSocketStreamCloseAfterContextCancellation(t *testing.T) {
+	cases := []struct {
+		name    string
+		closers int
+		// waitRead makes Close run only after the canceled read returned.
+		waitRead bool
+	}{
+		{name: "after the canceled read", closers: 2, waitRead: true},
+		{name: "concurrent with the canceled read", closers: 8, waitRead: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			stream, cleanup := newIdleWebSocketStream(t)
+			defer cleanup()
+
+			// The deadline leaves the read time to block on the connection
+			// before it is canceled, so the cancellation closes the stream.
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			readc := make(chan error, 1)
+			go func() {
+				readc <- stream.ReadJSON(ctx, new(map[string]string))
+			}()
+			if tc.waitRead {
+				require.ErrorIs(t, <-readc, context.DeadlineExceeded)
+				require.ErrorIs(t, stream.Conn().Close(), net.ErrClosed, "the canceled read must close the connection")
+			} else {
+				<-ctx.Done()
+			}
+			errc := make(chan error, tc.closers)
+			for range tc.closers {
+				go func() {
+					errc <- stream.Close()
+				}()
+			}
+			for range tc.closers {
+				require.NoError(t, <-errc)
+			}
+			if !tc.waitRead {
+				require.ErrorIs(t, <-readc, context.DeadlineExceeded)
+			}
+		})
+	}
+}
+
 func TestWebSocketStreamNilConnection(t *testing.T) {
 	stream := loomhttp.NewWebSocketStream(nil)
 	require.NoError(t, stream.Close())

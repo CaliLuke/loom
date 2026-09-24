@@ -34,7 +34,15 @@ func TestJSONRPCWebSocketUsesSharedRuntimeStream(t *testing.T) {
 	require.NotContains(t, clientCode, "writeMu")
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-websocket-client-file.golden"), clientCode)
 	clientEndpointCode := renderedJSONRPCFile(t, ClientFiles("", services), "client.go", "client")
-	require.Contains(t, clientEndpointCode, "ws:      loomhttp.NewWebSocketStream(ws)")
+	// The client wraps its connection once and shares the wrapper with every
+	// stream, so the connection has a single close state.
+	require.Contains(t, clientEndpointCode, "conn   *loomhttp.WebSocketStream")
+	require.Contains(t, clientEndpointCode, "c.conn = loomhttp.NewWebSocketStream(ws)")
+	require.Contains(t, clientEndpointCode, "ws:      ws,")
+	require.Equal(t, 1, strings.Count(clientEndpointCode, "NewWebSocketStream("))
+	// A configure function returning nil must not leave a wrapper around a nil
+	// connection for the next getConn to ping.
+	require.Contains(t, clientEndpointCode, "if configured == nil {")
 }
 
 func renderedJSONRPCWebSocketFile(t *testing.T, files []*codegen.File, side string) string {

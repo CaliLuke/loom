@@ -17,7 +17,9 @@ import (
 // Recv was canceled before the response arrived, and after a request timed
 // out, whose late response must then be reported as orphaned. A Recv while a
 // Send is still writing its request waits for that response, and a Recv
-// after Close reports the closed stream and finds no held response.
+// after Close reports the closed stream and finds no held response. It also
+// checks that the client Close succeeds however the shared connection was
+// closed before, and reports a failure to close a live connection.
 func TestJSONRPCWebSocketRecvAfterResponseGeneratedModule(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcWebSocketPendingOrderDSL)
 	dir := t.TempDir()
@@ -111,12 +113,26 @@ func (s *service) Talk(ctx context.Context, p *echo.Note, st echo.TalkServerStre
 }
 
 // gatedConn blocks its writes while gated until open is closed. It signals
-// writing when a write starts blocking.
+// writing when a write starts blocking. Close closes the connection and also
+// reports closeErr when it is set.
 type gatedConn struct {
 	net.Conn
-	gated   chan struct{}
-	open    chan struct{}
-	writing chan struct{}
+	gated    chan struct{}
+	open     chan struct{}
+	writing  chan struct{}
+	closeErr error
+}
+
+func newGatedConn() *gatedConn {
+	return &gatedConn{gated: make(chan struct{}), open: make(chan struct{}), writing: make(chan struct{}, 1)}
+}
+
+func (c *gatedConn) Close() error {
+	err := c.Conn.Close()
+	if c.closeErr != nil {
+		return errors.Join(c.closeErr, err)
+	}
+	return err
 }
 
 func (c *gatedConn) Write(b []byte) (int, error) {
@@ -255,16 +271,7 @@ func TestRecvOrder(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := &service{
-				responded: make(chan struct{}, 16),
-				release:   make(chan struct{}),
-				late:      make(chan struct{}),
-				lateSent:  make(chan error, 1),
-			}
-			mux := loomhttp.NewMuxer()
-			server.Mount(mux, server.New(svc.HandleStream, echo.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
-			hs := httptest.NewServer(mux)
-			defer hs.Close()
+			svc := newService()
 			orphaned := make(chan *jsonrpc.RawResponse, 16)
 			opts := []jsonrpc.StreamConfigOption{
 				jsonrpc.WithErrorHandler(func(_ context.Context, kind jsonrpc.StreamErrorType, _ error, response *jsonrpc.RawResponse) {
@@ -276,16 +283,8 @@ func TestRecvOrder(t *testing.T) {
 			if tc.timeout > 0 {
 				opts = append(opts, jsonrpc.WithRequestTimeout(tc.timeout))
 			}
-			conn := &gatedConn{gated: make(chan struct{}), open: make(chan struct{}), writing: make(chan struct{}, 1)}
-			dialer := &websocket.Dialer{NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				c, err := (&net.Dialer{}).DialContext(ctx, network, addr)
-				if err != nil {
-					return nil, err
-				}
-				conn.Conn = c
-				return conn, nil
-			}}
-			c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, dialer, nil, opts...)
+			conn := newGatedConn()
+			c := newClient(t, svc, conn, nil, opts...)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			raw, err := c.Talk()(ctx, nil)
@@ -294,12 +293,183 @@ func TestRecvOrder(t *testing.T) {
 			}
 			f := &fixture{svc: svc, stream: raw.(*client.TalkClientStream), orphaned: orphaned, conn: conn}
 			tc.run(t, ctx, f)
-			// The stream owns the client connection and closing it closes
-			// the connection. Close is idempotent.
 			if err := f.stream.Close(); err != nil {
 				t.Errorf("close stream: %v", err)
 			}
+			if err := c.Close(); err != nil {
+				t.Errorf("close client: %v", err)
+			}
 		})
+	}
+}
+
+// TestClientClose checks that the client Close succeeds before any stream,
+// when called twice, and after, before, or concurrently with a stream that
+// closes the shared connection, and that it reports a failure to close a
+// live connection.
+func TestClientClose(t *testing.T) {
+	errClose := errors.New("injected close failure")
+	cases := []struct {
+		name string
+		// run gets an open stream unless noStream is set.
+		noStream bool
+		closeErr error
+		run      func(t *testing.T, ctx context.Context, cancel context.CancelFunc, c *client.Client, stream *client.TalkClientStream)
+	}{
+		{"before any stream", true, nil, func(t *testing.T, _ context.Context, _ context.CancelFunc, c *client.Client, _ *client.TalkClientStream) {
+			closeClientTwice(t, c)
+		}},
+		{"after stream close", false, nil, func(t *testing.T, ctx context.Context, _ context.CancelFunc, c *client.Client, stream *client.TalkClientStream) {
+			roundTrip(t, ctx, stream)
+			if err := stream.Close(); err != nil {
+				t.Errorf("close stream: %v", err)
+			}
+			closeClientTwice(t, c)
+		}},
+		{"after stream context cancellation", false, nil, func(t *testing.T, ctx context.Context, cancel context.CancelFunc, c *client.Client, stream *client.TalkClientStream) {
+			if err := stream.SendWithContext(ctx, &echo.Note{Text: "slow"}); err != nil {
+				t.Fatalf("send: %v", err)
+			}
+			cancel()
+			if got, err := stream.RecvWithContext(context.Background()); err == nil {
+				t.Fatalf("recv after cancel: got %+v, want an error", got)
+			}
+			closeClientTwice(t, c)
+			if err := stream.Close(); err != nil {
+				t.Errorf("close stream: %v", err)
+			}
+		}},
+		{"before stream close", false, nil, func(t *testing.T, ctx context.Context, _ context.CancelFunc, c *client.Client, stream *client.TalkClientStream) {
+			roundTrip(t, ctx, stream)
+			closeClientTwice(t, c)
+			if err := stream.Close(); err != nil {
+				t.Errorf("close stream: %v", err)
+			}
+		}},
+		{"concurrent with stream close", false, nil, func(t *testing.T, ctx context.Context, _ context.CancelFunc, c *client.Client, stream *client.TalkClientStream) {
+			roundTrip(t, ctx, stream)
+			errs := make(chan error, 2)
+			start := make(chan struct{})
+			go func() {
+				<-start
+				errs <- c.Close()
+			}()
+			go func() {
+				<-start
+				errs <- stream.Close()
+			}()
+			close(start)
+			for range 2 {
+				if err := <-errs; err != nil {
+					t.Errorf("concurrent close: %v", err)
+				}
+			}
+			closeClientTwice(t, c)
+		}},
+		{"live connection close failure", false, errClose, func(t *testing.T, ctx context.Context, _ context.CancelFunc, c *client.Client, stream *client.TalkClientStream) {
+			roundTrip(t, ctx, stream)
+			if err := c.Close(); !errors.Is(err, errClose) {
+				t.Errorf("close client: got %v, want %v", err, errClose)
+			}
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := newService()
+			defer close(svc.release)
+			conn := newGatedConn()
+			conn.closeErr = tc.closeErr
+			c := newClient(t, svc, conn, nil)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			var stream *client.TalkClientStream
+			if !tc.noStream {
+				raw, err := c.Talk()(ctx, nil)
+				if err != nil {
+					t.Fatalf("open stream: %v", err)
+				}
+				stream = raw.(*client.TalkClientStream)
+			}
+			tc.run(t, ctx, cancel, c, stream)
+		})
+	}
+}
+
+// TestConfigureReturningNil checks that a stream fails to open with an error,
+// without keeping a connection, every time the connection configure function
+// returns nil, that the dialed connection is closed, and that the client
+// still closes cleanly.
+func TestConfigureReturningNil(t *testing.T) {
+	svc := newService()
+	defer close(svc.release)
+	conn := newGatedConn()
+	var calls int
+	cfn := func(*websocket.Conn, context.CancelFunc) *websocket.Conn {
+		calls++
+		return nil
+	}
+	c := newClient(t, svc, conn, cfn)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for i := range 2 {
+		if _, err := c.Talk()(ctx, nil); err == nil || !strings.Contains(err.Error(), "returned a nil connection") {
+			t.Errorf("open stream (call %d): got %v, want a nil connection error", i+1, err)
+		}
+		if err := conn.Conn.Close(); !errors.Is(err, net.ErrClosed) {
+			t.Errorf("dialed connection (call %d) was not closed: %v", i+1, err)
+		}
+	}
+	if calls != 2 {
+		t.Errorf("configure calls: got %d, want 2", calls)
+	}
+	closeClientTwice(t, c)
+}
+
+func newService() *service {
+	return &service{
+		responded: make(chan struct{}, 16),
+		release:   make(chan struct{}),
+		late:      make(chan struct{}),
+		lateSent:  make(chan error, 1),
+	}
+}
+
+// newClient serves svc and returns a client whose connection to it is conn,
+// configured with cfn when it is not nil.
+func newClient(t *testing.T, svc *service, conn *gatedConn, cfn loomhttp.ConnConfigureFunc, opts ...jsonrpc.StreamConfigOption) *client.Client {
+	t.Helper()
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(svc.HandleStream, echo.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	hs := httptest.NewServer(mux)
+	t.Cleanup(hs.Close)
+	dialer := &websocket.Dialer{NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		c, err := (&net.Dialer{}).DialContext(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		conn.Conn = c
+		return conn, nil
+	}}
+	return client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, dialer, cfn, opts...)
+}
+
+// roundTrip sends one note on stream and receives its echo.
+func roundTrip(t *testing.T, ctx context.Context, stream *client.TalkClientStream) {
+	t.Helper()
+	if err := stream.SendWithContext(ctx, &echo.Note{Text: "ping"}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if got, err := stream.RecvWithContext(ctx); err != nil || got == nil || got.Text != "ping" {
+		t.Fatalf("recv: got (%+v, %v), want ping", got, err)
+	}
+}
+
+func closeClientTwice(t *testing.T, c *client.Client) {
+	t.Helper()
+	for i := range 2 {
+		if err := c.Close(); err != nil {
+			t.Errorf("close client (call %d): %v", i+1, err)
+		}
 	}
 }
 `

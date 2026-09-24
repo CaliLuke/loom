@@ -159,7 +159,7 @@ default:
 			),
 		)
 	stmt.Line()
-	codegen.Doc(stmt, "Close closes the stream and cleans up resources.")
+	codegen.Doc(stmt, "Close closes the stream and cleans up resources. The stream shares its WebSocket connection with the client and the other streams opened on it, so when one of them already closed the connection Close returns the recorded result of that close: nil if it succeeded, its error otherwise.")
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ws.VarName)).
 		Id("Close").
 		Params().
@@ -353,7 +353,7 @@ func writeJSONRPCWebSocketEndpointBody(g *jen.Group, ed *httpcodegen.EndpointDat
 	g.Line()
 	g.List(jen.Id("streamCtx"), jen.Id("cancel")).Op(":=").Qual("context", "WithCancel").Call(jen.Id("ctx"))
 	dict := jen.Dict{
-		jen.Id("ws"):     jen.Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("ws")),
+		jen.Id("ws"):     jen.Id("ws"),
 		jen.Id("ctx"):    jen.Id("streamCtx"),
 		jen.Id("cancel"): jen.Id("cancel"),
 		jen.Id("done"):   jen.Make(jen.Chan().Struct()),
@@ -425,18 +425,18 @@ func writeJSONRPCDoRequest(g *jen.Group, ed *httpcodegen.EndpointData) {
 //nolint:maintidx // Connection bootstrap and reconnection logic are intentionally emitted together.
 func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.NewJenniferSection("jsonrpc-client-websocket-conn", func(stmt *jen.Statement) {
-		codegen.Doc(stmt, "getConn returns the current WebSocket connection or creates a new one.")
+		codegen.Doc(stmt, "getConn returns the current WebSocket connection or creates a new one. The client and every stream share the returned wrapper, so whichever closes it first closes the connection and later closes report that result.")
 		stmt.Func().
 			Params(jen.Id("c").Op("*").Id(data.ClientStruct)).
 			Id("getConn").
 			Params(jen.Id("ctx").Qual("context", "Context")).
-			Params(jen.Op("*").Qual("github.com/gorilla/websocket", "Conn"), jen.Error()).
+			Params(jen.Op("*").Add(codegen.TypeRef("loomhttp.WebSocketStream")), jen.Error()).
 			BlockFunc(func(g *jen.Group) {
 				g.Id("c").Dot("connMu").Dot("RLock").Call()
 				g.Id("conn").Op(":=").Id("c").Dot("conn")
 				g.If(jen.Id("conn").Op("!=").Nil()).Block(
 					jen.If(
-						jen.Err().Op(":=").Id("conn").Dot("WriteControl").Call(
+						jen.Err().Op(":=").Id("conn").Dot("Conn").Call().Dot("WriteControl").Call(
 							jen.Qual("github.com/gorilla/websocket", "PingMessage"),
 							jen.Index().Byte().Values(),
 							jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Lit(5).Op("*").Qual("time", "Second")),
@@ -454,7 +454,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 				g.Line()
 				g.If(jen.Id("c").Dot("conn").Op("!=").Nil()).Block(
 					jen.If(
-						jen.Err().Op(":=").Id("c").Dot("conn").Dot("WriteControl").Call(
+						jen.Err().Op(":=").Id("c").Dot("conn").Dot("Conn").Call().Dot("WriteControl").Call(
 							jen.Qual("github.com/gorilla/websocket", "PingMessage"),
 							jen.Index().Byte().Values(),
 							jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Lit(5).Op("*").Qual("time", "Second")),
@@ -489,14 +489,29 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 				)
 				g.Line()
 				g.If(jen.Id("c").Dot("configfn").Op("!=").Nil()).Block(
-					jen.Id("ws").Op("=").Id("c").Dot("configfn").Call(jen.Id("ws"), jen.Nil()),
+					jen.Id("configured").Op(":=").Id("c").Dot("configfn").Call(jen.Id("ws"), jen.Nil()),
+					jen.If(jen.Id("configured").Op("==").Nil()).Block(
+						jen.Id("err").Op(":=").Qual("fmt", "Errorf").Call(jen.Lit("connection configure function returned a nil connection")),
+						jen.If(jen.Id("closeErr").Op(":=").Id("ws").Dot("Close").Call(), jen.Id("closeErr").Op("!=").Nil()).Block(
+							jen.Id("err").Op("=").Qual("fmt", "Errorf").Call(jen.Lit("%w; closing the dialed connection: %w"), jen.Id("err"), jen.Id("closeErr")),
+						),
+						jen.Return(
+							jen.Nil(),
+							jen.Id("loomhttp").Dot("ErrRequestError").Call(
+								jen.Lit(data.Service.Name),
+								jen.Lit("connect"),
+								jen.Id("err"),
+							),
+						),
+					),
+					jen.Id("ws").Op("=").Id("configured"),
 				)
 				g.Line()
-				g.Id("c").Dot("conn").Op("=").Id("ws")
+				g.Id("c").Dot("conn").Op("=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("ws"))
 				g.Return(jen.Id("c").Dot("conn"), jen.Nil())
 			})
 		stmt.Line()
-		codegen.Doc(stmt, "Close closes the WebSocket connection and marks the client as closed.")
+		codegen.Doc(stmt, "Close closes the WebSocket connection and marks the client as closed. It returns nil when a stream already closed the connection successfully, and the error of that earlier close otherwise.")
 		stmt.Func().
 			Params(jen.Id("c").Op("*").Id(data.ClientStruct)).
 			Id("Close").

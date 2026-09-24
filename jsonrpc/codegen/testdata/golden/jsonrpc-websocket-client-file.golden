@@ -243,7 +243,10 @@ func (s *StreamClientStream) cleanupPendingRequests(err error) {
 	})
 }
 
-// Close closes the stream and cleans up resources.
+// Close closes the stream and cleans up resources. The stream shares its
+// WebSocket connection with the client and the other streams opened on it, so
+// when one of them already closed the connection Close returns the recorded
+// result of that close: nil if it succeeded, its error otherwise.
 func (s *StreamClientStream) Close() error {
 	var err error
 	s.closeOnce.Do(func() {
