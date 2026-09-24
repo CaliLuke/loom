@@ -321,7 +321,7 @@ func userTypeImports(genpkg string, d *Data) []*codegen.ImportSpec {
 		if loc == nil {
 			return
 		}
-		importsByPath[loc.FilePath] = &codegen.ImportSpec{Name: loc.PackageName(), Path: genpkg + "/" + loc.RelImportPath}
+		importsByPath[loc.FilePath] = &codegen.ImportSpec{Name: loc.PackageName(), Path: userTypeImportPath(genpkg, loc)}
 	}
 
 	// Process method-specific locations
@@ -346,6 +346,11 @@ func userTypeImports(genpkg string, d *Data) []*codegen.ImportSpec {
 		imports = append(imports, imp)
 	}
 	return imports
+}
+
+// userTypeImportPath returns the import path of the package generated at loc.
+func userTypeImportPath(genpkg string, loc *codegen.Location) string {
+	return genpkg + "/" + loc.RelImportPath
 }
 
 func appendUniqueImport(imports []*codegen.ImportSpec, seen map[codegen.ImportSpec]struct{}, specs ...*codegen.ImportSpec) []*codegen.ImportSpec {

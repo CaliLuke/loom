@@ -161,7 +161,7 @@ func (s *NameScope) goValueTypeDefWithPkgOverride(att *expr.AttributeExpr, ptr, 
 	case *expr.Union:
 		// Unions are generated as named sum-type structs. Refer to the concrete
 		// value here; the nullable wrapper, when present, is added by the caller.
-		return s.goFullValueTypeName(att, targetPkg)
+		return s.goFullValueTypeName(att, targetPkg, nil)
 	case *expr.Object:
 		return s.objectTypeDefWithPkgOverride(att, actual, ptr, useDefault, pkg, targetPkg)
 	case expr.UserType:
@@ -304,11 +304,16 @@ func (s *NameScope) GoTypeRefWithDefaults(att *expr.AttributeExpr) string {
 // GoFullTypeRef returns the Go code that refers to the Go type which matches
 // the given attribute type defined in the given package if a user type.
 func (s *NameScope) GoFullTypeRef(att *expr.AttributeExpr, pkg string) string {
-	name := s.GoFullTypeName(att, pkg)
-	if IsExplicitPresenceType(att) {
-		return name
-	}
-	return goTypeRef(name, att.Type)
+	return s.goFullTypeRef(att, pkg, nil)
+}
+
+// GoFullTypeRefWithPackages returns the same reference as GoFullTypeRef,
+// except that it qualifies every user type generated in a struct:pkg:path
+// package, including array elements and map keys and values at any depth,
+// with pkgName(loc) instead of the package's own name. It lets a file import
+// such packages under aliases.
+func (s *NameScope) GoFullTypeRefWithPackages(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
+	return s.goFullTypeRef(att, pkgWithDefault(att.Type, pkg, pkgName), pkgName)
 }
 
 // GoTypeName returns the Go type name of the given attribute type.
@@ -319,7 +324,7 @@ func (s *NameScope) GoTypeName(att *expr.AttributeExpr) string {
 // GoValueTypeName returns the concrete Go type name of att without wrapping
 // att itself in a presence type.
 func (s *NameScope) GoValueTypeName(att *expr.AttributeExpr) string {
-	return s.goFullValueTypeName(att, "")
+	return s.goFullValueTypeName(att, "", nil)
 }
 
 // GoTypeNameWithDefaults returns the Go type name of the given attribute type.
@@ -337,16 +342,32 @@ func (s *NameScope) GoTypeNameWithDefaults(att *expr.AttributeExpr) string {
 // GoFullTypeName returns the Go type name of the given data type qualified with
 // the given package name if applicable and if not the empty string.
 func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
+	return s.goFullTypeName(att, pkg, nil)
+}
+
+// goFullTypeRef implements GoFullTypeRef. pkgName names the packages of
+// user types generated in struct:pkg:path packages; nil selects their own
+// package names.
+func (s *NameScope) goFullTypeRef(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
+	name := s.goFullTypeName(att, pkg, pkgName)
+	if IsExplicitPresenceType(att) {
+		return name
+	}
+	return goTypeRef(name, att.Type)
+}
+
+// goFullTypeName implements GoFullTypeName. pkgName is as in goFullTypeRef.
+func (s *NameScope) goFullTypeName(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
 	if t, _ := GetMetaType(att); IsExplicitPresenceType(att) && t != "" {
 		return t
 	}
 	if expr.IsNullable(att) {
-		return "loom.Nullable[" + s.goFullValueTypeName(att, pkg) + "]"
+		return "loom.Nullable[" + s.goFullValueTypeName(att, pkg, pkgName) + "]"
 	}
-	return s.goFullValueTypeName(att, pkg)
+	return s.goFullValueTypeName(att, pkg, pkgName)
 }
 
-func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string) string {
+func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
 	switch actual := att.Type.(type) {
 	case expr.Primitive:
 		if t, _ := GetMetaType(att); t != "" {
@@ -354,11 +375,11 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string) str
 		}
 		return primitiveTypeDef(att, actual)
 	case *expr.Array:
-		return "[]" + s.GoFullTypeRef(actual.ElemType, pkgWithDefault(actual.ElemType.Type, pkg))
+		return "[]" + s.goFullTypeRef(actual.ElemType, pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName)
 	case *expr.Map:
 		return fmt.Sprintf("map[%s]%s",
-			s.goFullMapKeyTypeName(actual.KeyType, pkgWithDefault(actual.KeyType.Type, pkg)),
-			s.GoFullTypeRef(actual.ElemType, pkgWithDefault(actual.ElemType.Type, pkg)))
+			s.goFullMapKeyTypeName(actual.KeyType, pkgWithDefault(actual.KeyType.Type, pkg, pkgName), pkgName),
+			s.goFullTypeRef(actual.ElemType, pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName))
 	case *expr.Object:
 		return s.GoTypeDef(att, false, false)
 	case expr.UserType, *expr.Union:
@@ -389,19 +410,19 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string) str
 		}
 		return pkg + "." + base
 	case expr.CompositeExpr:
-		return s.GoFullTypeName(actual.Attribute(), pkgWithDefault(actual.Attribute().Type, pkg))
+		return s.goFullTypeName(actual.Attribute(), pkgWithDefault(actual.Attribute().Type, pkg, pkgName), pkgName)
 	default:
 		panic(NewError(nil, att, fmt.Errorf("unknown collection element data type %T", actual)))
 	}
 }
 
-func (s *NameScope) goFullMapKeyTypeName(att *expr.AttributeExpr, pkg string) string {
+func (s *NameScope) goFullMapKeyTypeName(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
 	if expr.IsAny(att.Type) {
 		if metaType, _ := GetMetaType(att); metaType == "" {
 			return "any"
 		}
 	}
-	return s.GoFullTypeRef(att, pkg)
+	return s.goFullTypeRef(att, pkg, pkgName)
 }
 
 // IsExplicitPresenceType reports whether att uses explicit presence semantics
@@ -433,9 +454,12 @@ func attributePkgName(att *expr.AttributeExpr) string {
 
 // pkgWithDefault returns the package defining the given type. If the types is a
 // user type with "struct:pkg:path" metadata then it returns the corresponding
-// value, otherwise it returns pkg.
-func pkgWithDefault(dt expr.DataType, pkg string) string {
+// value, named by pkgName when not nil, otherwise it returns pkg.
+func pkgWithDefault(dt expr.DataType, pkg string, pkgName func(*Location) string) string {
 	if loc := UserTypeLocation(dt); loc != nil {
+		if pkgName != nil {
+			return pkgName(loc)
+		}
 		return loc.PackageName()
 	}
 	return pkg

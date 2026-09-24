@@ -18,8 +18,6 @@ type (
 		ServiceVarName string
 		// PayloadFullRef is the fully qualified reference to the payload.
 		PayloadFullRef string
-		// ResultFullName is the fully qualified name of the result.
-		ResultFullName string
 		// ResultFullRef is the fully qualified reference to the result.
 		ResultFullRef string
 		// ResultIsStruct indicates that the result type is a struct.
@@ -77,6 +75,14 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 	if hasFileResponse(data.Methods) {
 		specs = append(specs, codegen.LoomNamedImport("http", "loomhttp"))
 	}
+	// Payloads and results may use types generated in struct:pkg:path
+	// packages. Alias any such package whose name clashes with an import
+	// above; the formatter drops the imports the stubs do not use.
+	scope := codegen.NewNameScope()
+	reserveImportNames(scope, specs)
+	pkgs := NewUserTypePackages(genpkg, scope)
+	pkgs.Add(data)
+	specs = append(specs, pkgs.Imports()...)
 	sections := []codegen.Section{
 		codegen.Header("", apipkg, specs),
 		exampleServiceStructSection(data),
@@ -86,7 +92,7 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 		sections = append(sections, exampleSecurityAuthSection(data))
 	}
 	for _, m := range svc.Methods {
-		sections = append(sections, basicEndpointSection(m, data))
+		sections = append(sections, basicEndpointSection(m, data, pkgs))
 	}
 
 	// Add HandleStream method for JSON-RPC WebSocket services (not SSE)
@@ -102,19 +108,18 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 }
 
 // basicEndpointSection returns a section with a basic implementation for the
-// given method.
-func basicEndpointSection(m *expr.MethodExpr, svcData *Data) codegen.Section {
+// given method. pkgs names the struct:pkg:path packages the file imports.
+func basicEndpointSection(m *expr.MethodExpr, svcData *Data, pkgs *UserTypePackages) codegen.Section {
 	md := svcData.Method(m.Name)
 	ed := &basicEndpointData{
 		MethodData:     md,
 		ServiceVarName: svcData.VarName,
 	}
 	if m.Payload.Type != expr.Empty {
-		ed.PayloadFullRef = svcData.Scope.GoFullTypeRef(m.Payload, svcData.PkgName)
+		ed.PayloadFullRef = svcData.Scope.GoFullTypeRefWithPackages(m.Payload, svcData.PkgName, pkgs.PackageName)
 	}
 	if m.Result.Type != expr.Empty {
-		ed.ResultFullName = svcData.Scope.GoFullTypeName(m.Result, svcData.PkgName)
-		ed.ResultFullRef = svcData.Scope.GoFullTypeRef(m.Result, svcData.PkgName)
+		ed.ResultFullRef = svcData.Scope.GoFullTypeRefWithPackages(m.Result, svcData.PkgName, pkgs.PackageName)
 		ed.ResultIsStruct = expr.IsObject(m.Result.Type)
 		if md.ViewedResult != nil {
 			view := expr.DefaultView

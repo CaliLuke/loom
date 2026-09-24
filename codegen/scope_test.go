@@ -135,3 +135,53 @@ func TestNameScope_PeekUniqueNeverReturnsReservedName(t *testing.T) {
 		})
 	}
 }
+
+func TestNameScopeGoFullTypeRefWithPackagesAliasesNestedLocations(t *testing.T) {
+	entry := &expr.UserTypeExpr{
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{Name: "id", Attribute: &expr.AttributeExpr{Type: expr.String}}},
+			Meta: expr.MetaExpr{"struct:pkg:path": []string{"types/log"}},
+		},
+		TypeName: "Entry",
+		UID:      "entry",
+	}
+	local := &expr.UserTypeExpr{
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{Name: "id", Attribute: &expr.AttributeExpr{Type: expr.String}}}},
+		TypeName:      "Local",
+		UID:           "local",
+	}
+	array := func(elem expr.DataType) *expr.Array {
+		return &expr.Array{ElemType: &expr.AttributeExpr{Type: elem}}
+	}
+	mapOf := func(key, elem expr.DataType) *expr.Map {
+		return &expr.Map{KeyType: &expr.AttributeExpr{Type: key}, ElemType: &expr.AttributeExpr{Type: elem}}
+	}
+	alias := func(loc *Location) string {
+		return map[string]string{"types/log": "log2"}[loc.RelImportPath]
+	}
+	cases := []struct {
+		Name    string
+		Type    expr.DataType
+		Want    string
+		WantOwn string
+	}{
+		{Name: "user-type", Type: entry, Want: "*log2.Entry", WantOwn: "*log.Entry"},
+		{Name: "array", Type: array(entry), Want: "[]*log2.Entry", WantOwn: "[]*log.Entry"},
+		{Name: "map-value", Type: mapOf(expr.String, entry), Want: "map[string]*log2.Entry", WantOwn: "map[string]*log.Entry"},
+		{Name: "map-key", Type: mapOf(entry, expr.String), Want: "map[*log2.Entry]string", WantOwn: "map[*log.Entry]string"},
+		{
+			Name:    "nested",
+			Type:    mapOf(expr.String, array(mapOf(expr.String, array(entry)))),
+			Want:    "map[string][]map[string][]*log2.Entry",
+			WantOwn: "map[string][]map[string][]*log.Entry",
+		},
+		{Name: "service-local", Type: array(local), Want: "[]*svc.Local", WantOwn: "[]*svc.Local"},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			att := &expr.AttributeExpr{Type: c.Type}
+			require.Equal(t, c.Want, NewNameScope().GoFullTypeRefWithPackages(att, "svc", alias))
+			require.Equal(t, c.WantOwn, NewNameScope().GoFullTypeRef(att, pkgWithDefault(c.Type, "svc", nil)))
+		})
+	}
+}

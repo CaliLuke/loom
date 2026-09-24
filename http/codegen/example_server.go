@@ -156,6 +156,8 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, services *ServicesDa
 	}
 	apiPkg := scope.Unique(service.PackageBaseName(root.API.Name), "api")
 	specs := []*codegen.ImportSpec{{Path: "mime/multipart"}}
+	scope.Unique("multipart")
+	pkgs := service.NewUserTypePackages(genpkg, scope)
 	var sections []codegen.Section
 	for _, httpSvc := range services.Expressions.Services {
 		data := services.Get(httpSvc.Name())
@@ -167,24 +169,32 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, services *ServicesDa
 			if e.MultipartRequestDecoder == nil && e.MultipartRequestEncoder == nil {
 				continue
 			}
-			mustImport = true
+			if !mustImport {
+				mustImport = true
+				pkgs.Add(data.Service)
+			}
+			payload := httpSvc.Endpoint(e.Method.Name).MethodExpr.Payload
+			ref := data.Service.Scope.GoFullTypeRefWithPackages(payload, data.Service.PkgName, pkgs.PackageName)
 			if e.MultipartRequestDecoder != nil {
-				sections = append(sections, dummyMultipartRequestDecoderSection(e.MultipartRequestDecoder))
+				sections = append(sections, dummyMultipartRequestDecoderSection(e.MultipartRequestDecoder, ref))
 			}
 			if e.MultipartRequestEncoder != nil {
-				sections = append(sections, dummyMultipartRequestEncoderSection(e.MultipartRequestEncoder))
+				sections = append(sections, dummyMultipartRequestEncoderSection(e.MultipartRequestEncoder, ref))
 			}
 		}
 		if mustImport {
 			// Payload references qualify service types with the HTTP service
 			// import alias (data.Service.PkgName), so import the service
-			// under that name.
+			// under that name. Payload types generated in a struct:pkg:path
+			// package use that package's name, or its alias when the name
+			// clashes with another import of the file.
 			specs = append(specs, &codegen.ImportSpec{
 				Path: path.Join(genpkg, data.Service.PathName),
 				Name: data.Service.PkgName,
 			})
 		}
 	}
+	specs = append(specs, pkgs.Imports()...)
 	if len(sections) == 0 {
 		return nil
 	}

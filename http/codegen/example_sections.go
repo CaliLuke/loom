@@ -272,7 +272,7 @@ func exampleServerErrorHandlerSection() codegen.Section {
 	})
 }
 
-func dummyMultipartRequestDecoderSection(data *MultipartData) codegen.Section {
+func dummyMultipartRequestDecoderSection(data *MultipartData, payloadRef string) codegen.Section {
 	return codegen.NewJenniferSection("dummy-multipart-request-decoder", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the multipart decoder for service %q endpoint %q. The decoder must populate the argument p after encoding.", data.FuncName, data.ServiceName, data.MethodName))
@@ -280,7 +280,7 @@ func dummyMultipartRequestDecoderSection(data *MultipartData) codegen.Section {
 			Id(data.FuncName).
 			Params(
 				jen.Id("mr").Op("*").Qual("mime/multipart", "Reader"),
-				jen.Id("p").Op("*").Add(codegen.TypeRef(data.Payload.Ref)),
+				jen.Id("p").Op("*").Add(codegen.TypeRef(payloadRef)),
 			).
 			Params(jen.Error()).
 			Block(
@@ -291,7 +291,7 @@ func dummyMultipartRequestDecoderSection(data *MultipartData) codegen.Section {
 	})
 }
 
-func dummyMultipartRequestEncoderSection(data *MultipartData) codegen.Section {
+func dummyMultipartRequestEncoderSection(data *MultipartData, payloadRef string) codegen.Section {
 	return codegen.NewJenniferSection("dummy-multipart-request-encoder", func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the multipart encoder for service %q endpoint %q.", data.FuncName, data.ServiceName, data.MethodName))
@@ -299,7 +299,7 @@ func dummyMultipartRequestEncoderSection(data *MultipartData) codegen.Section {
 			Id(data.FuncName).
 			Params(
 				jen.Id("mw").Op("*").Qual("mime/multipart", "Writer"),
-				jen.Id("p").Add(codegen.TypeRef(data.Payload.Ref)),
+				jen.Id("p").Add(codegen.TypeRef(payloadRef)),
 			).
 			Params(jen.Error()).
 			Block(
