@@ -365,14 +365,30 @@ func validateGRPCUnionShapes(att *AttributeExpr, parent eval.Expression, verr *e
 	}
 
 	if ar := AsArray(att.Type); ar != nil {
+		validateGRPCCollectionUnion(ar.ElemType, "an array element", "element", parent, verr)
 		validateGRPCUnionShapes(ar.ElemType, parent, verr, seenUnions, seenAttrs)
 		return
 	}
 
 	if m := AsMap(att.Type); m != nil {
+		validateGRPCCollectionUnion(m.KeyType, "a map key", "key", parent, verr)
+		validateGRPCCollectionUnion(m.ElemType, "a map value", "value", parent, verr)
 		validateGRPCUnionShapes(m.KeyType, parent, verr, seenUnions, seenAttrs)
 		validateGRPCUnionShapes(m.ElemType, parent, verr, seenUnions, seenAttrs)
 		return
+	}
+}
+
+// validateGRPCCollectionUnion reports an error when att, the element, key or
+// value of an array or map, is a union. A protocol buffer oneof cannot be
+// repeated or used as a map key or value. position describes att in the
+// error, and role names it in the fix.
+func validateGRPCCollectionUnion(att *AttributeExpr, position, role string, parent eval.Expression, verr *eval.ValidationErrors) {
+	if att == nil {
+		return
+	}
+	if u := AsUnion(att.Type); u != nil {
+		verr.Add(parent, "union type %s is %s, not supported by gRPC; wrap the union in a Type with one Field and use that type as the %s", u.Name(), position, role)
 	}
 }
 

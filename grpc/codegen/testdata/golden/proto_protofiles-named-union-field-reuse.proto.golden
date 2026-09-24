@@ -1,0 +1,75 @@
+
+syntax = "proto3";
+
+package reuse;
+
+option go_package = "/reusepb";
+
+// Service is the reuse service interface.
+service Reuse {
+	// Echo implements echo.
+	rpc Echo (EchoRequest) returns (EchoResponse);
+	// Named implements named.
+	rpc Named (Choice) returns (Choice);
+	// Relay implements relay.
+	rpc Relay (stream RelayStreamingRequest) returns (stream RelayResponse);
+}
+
+message EchoRequest {
+	optional string id = 1;
+	oneof choice {
+		Leaf leaf = 3;
+		Other other = 4;
+	}
+	Holder holder = 5;
+	repeated Holder holders = 6;
+}
+
+message Leaf {
+	optional string name = 1;
+}
+
+message Other {
+	optional sint64 count = 1;
+}
+
+message Holder {
+	optional string label = 1;
+	oneof choice {
+		Leaf leaf = 2;
+		Other other = 3;
+	}
+}
+
+message EchoResponse {
+	optional string label = 1;
+	oneof choice {
+		Leaf leaf = 2;
+		Other other = 3;
+	}
+}
+
+message Choice {
+	oneof field {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+}
+
+message RelayStreamingRequest {
+	optional string label = 1;
+	oneof choice {
+		Leaf leaf = 2;
+		Other other = 3;
+	}
+}
+
+message RelayResponse {
+	optional string id = 1;
+	oneof choice {
+		Leaf leaf = 3;
+		Other other = 4;
+	}
+	Holder holder = 5;
+	repeated Holder holders = 6;
+}

@@ -330,7 +330,9 @@ func compatibleTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs
 
 // objectFieldAssignment returns the code that assigns the object field held by
 // srcVar to tgtVar. targetPtr reports whether a service union target is an
-// optional field and therefore a pointer that must be allocated.
+// optional field and therefore a pointer that must be allocated. A union
+// field, constructor or named, is a oneof of the protocol buffer message, so
+// it is converted inline rather than by a helper function.
 func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr, targetPtr bool, ta *transformAttrs) (string, error) {
 	_, isUserType := srcc.Type.(expr.UserType)
 	switch {
@@ -338,6 +340,11 @@ func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr
 		return transformArray(expr.AsArray(srcc.Type), expr.AsArray(tgtc.Type), srcVar, tgtVar, false, false, false, ta)
 	case expr.IsMap(srcc.Type):
 		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, false, ta)
+	case expr.IsUnion(srcc.Type):
+		if ta.proto {
+			return transformUnionToProto(srcc, tgtc, srcVar, tgtVar, false, ta)
+		}
+		return transformUnionFromProto(srcc, tgtc, srcVar, tgtVar, targetPtr, ta)
 	case isUserType && isAnonymousObject(tgtc.Type):
 		// The service type of an anonymous object is an unnamed struct,
 		// which a helper function cannot name, so convert it inline.
@@ -349,11 +356,6 @@ func objectFieldAssignment(srcVar, tgtVar string, srcc, tgtc *expr.AttributeExpr
 		return "", nil
 	case expr.IsObject(srcc.Type):
 		return transformAttribute(srcc, tgtc, srcVar, tgtVar, false, ta)
-	case expr.IsUnion(srcc.Type):
-		if ta.proto {
-			return transformUnionToProto(srcc, tgtc, srcVar, tgtVar, false, ta)
-		}
-		return transformUnionFromProto(srcc, tgtc, srcVar, tgtVar, targetPtr, ta)
 	default:
 		return "", nil
 	}

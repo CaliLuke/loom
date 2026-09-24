@@ -106,6 +106,19 @@ service "Service" gRPC endpoint "Method": union branch "fast" of attribute "mode
 			DSL:    testdata.GRPCResponseMessageWithMultipleAttributes,
 			Errors: []string{},
 		},
+		"endpoint-with-named-union-field": {
+			DSL:    testdata.GRPCEndpointWithNamedUnionField,
+			Errors: []string{},
+		},
+		"endpoint-with-union-collections": {
+			DSL: testdata.GRPCEndpointWithUnionCollections,
+			Errors: []string{
+				`service "Service" method "Method": union type Choice is an array element, not supported by gRPC; wrap the union in a Type with one Field and use that type as the element
+service "Service" method "Method": union type LeafOrOther is an array element, not supported by gRPC; wrap the union in a Type with one Field and use that type as the element
+service "Service" method "Method": union type Choice is a map value, not supported by gRPC; wrap the union in a Type with one Field and use that type as the value
+service "Service" method "Method": union type Choice is an array element, not supported by gRPC; wrap the union in a Type with one Field and use that type as the element`,
+			},
+		},
 		"endpoint-union-containing-any": {
 			DSL: testdata.GRPCEndpointWithUnionContainingAny,
 			Errors: []string{

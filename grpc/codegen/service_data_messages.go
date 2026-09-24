@@ -85,11 +85,17 @@ func collectUserTypeMessages(
 	seen map[string]struct{},
 	collect func(*expr.AttributeExpr) ([]*service.UserTypeData, []string),
 ) ([]*service.UserTypeData, []string) {
+	att := userTypeAttribute(dt)
+	if expr.IsUnion(att.Type) {
+		// A named union is a oneof of the message that holds it, so it
+		// generates no message of its own. makeProtoBufMessage wraps a union
+		// used directly as a payload or result in an object.
+		return collect(att)
+	}
 	name := protoStructName(at, dt)
 	if _, ok := seen[name]; ok {
 		return nil, nil
 	}
-	att := userTypeAttribute(dt)
 	seen[name] = struct{}{}
 	data := make([]*service.UserTypeData, 0, 1)
 	data = append(data, &service.UserTypeData{

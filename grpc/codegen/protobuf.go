@@ -386,12 +386,12 @@ func protoBufObjectMessageDef(att *expr.AttributeExpr, actual *expr.Object, sd *
 	return strings.Join(lines, "\n")
 }
 
+// protoBufObjectFieldLine returns the definition of the field nat of the
+// message with the object attribute att. A union field, constructor or named,
+// is a oneof of the message named after the field.
 func protoBufObjectFieldLine(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr, sd *ServiceData) string {
-	if _, ok := nat.Attribute.Type.(*expr.Union); ok {
-		return protoBufOneofDef(nat.Name, nat.Attribute, sd)
-	}
 	if expr.IsUnion(nat.Attribute.Type) {
-		return protoBufMessageDef(nat.Attribute, sd)
+		return protoBufOneofDef(nat.Name, nat.Attribute, sd)
 	}
 	field := protoBufObjectField(att, nat, sd)
 	return fmt.Sprintf("\t%s%s%s %s = %d%s;", field.Description, field.Optional, field.TypeName, field.Name, field.Number, field.JSONOption)

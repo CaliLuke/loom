@@ -185,6 +185,34 @@ every generated message, including nested user types and inline objects. For
 example, two constructor unions of the same types in one message both have the
 branches `leaf` and `other`.
 
+A named union, a `Type` defined as a `OneOf`, works the same way when you pass
+it to `Field`. The field is a `oneof` of the enclosing message, and its
+branches take their numbers from the field number. Loom does not generate a
+separate message for the union. Each message that uses the union has its own
+`oneof`, numbered from the number of its own field:
+
+```go
+var Choice = Type("Choice", OneOf(Leaf, Other))
+
+var Holder = Type("Holder", func() {
+    Field(1, "label", String)
+    Field(2, "choice", Choice) // oneof choice { Leaf leaf = 2; Other other = 3; }
+})
+```
+
+A protocol buffer `oneof` cannot be repeated or used as a map key or value, so
+design validation rejects a union, named or constructor, used as an array
+element or as a map key or value in a gRPC method. To send a list of union
+values, wrap the union in a type with one field and use that type as the
+element:
+
+```go
+var Item = Type("Item", func() {
+    Field(1, "choice", Choice)
+})
+// Field(3, "items", ArrayOf(Item))
+```
+
 A method payload or result that is a union, such as `Payload(OneOf(Leaf, Other))`
 or a `Type` defined as a `OneOf`, is a message that holds one `oneof` named
 `field`. When a branch has that name, Loom adds `_oneof` to the oneof name

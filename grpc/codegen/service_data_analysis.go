@@ -494,8 +494,8 @@ func checkMessageFields(message string, att *expr.AttributeExpr) {
 		panic(fmt.Errorf("field number %d in attribute %q of protocol buffer message %q already exists for attribute %q%s", number, owner.name, message, other.name, hint))
 	}
 	for _, nat := range *obj {
-		union, ok := nat.Attribute.Type.(*expr.Union)
-		if !ok {
+		union := expr.AsUnion(nat.Attribute.Type)
+		if union == nil {
 			addName(codegen.SnakeCase(protoBufify(nat.Name, false, false)), fmt.Sprintf("attribute %q", nat.Name))
 			tag, _ := nat.Attribute.FieldTag()
 			if parseRPCTag(tag, nat.Attribute) == 0 {
