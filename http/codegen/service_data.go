@@ -413,6 +413,12 @@ type (
 		PayloadAttr string
 		// MustHaveBody is true if the request body cannot be empty.
 		MustHaveBody bool
+		// OptionalUnionBody is true when the request body is the optional,
+		// non-nullable union payload attribute named by PayloadAttr. When
+		// that attribute is nil, HTTP clients send no request body and
+		// JSON-RPC clients omit params. HTTP servers decode an empty body,
+		// and JSON-RPC servers absent params, as a nil union.
+		OptionalUnionBody bool
 		// MustValidate is true if the request body or at least one
 		// parameter or header requires validation.
 		MustValidate bool

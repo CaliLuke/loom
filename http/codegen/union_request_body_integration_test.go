@@ -14,7 +14,8 @@ import (
 // or streaming payload is a constructor OneOf union carried in a required
 // JSON body, an optional JSON body, a form body and WebSocket messages,
 // compiles and vets them in a temporary module, and round-trips every branch
-// through the generated client and server. It also sends empty, whitespace,
+// through the generated client and server, including a nil optional union,
+// which the client sends as no body at all. It also sends empty, whitespace,
 // malformed, truncated and invalid JSON bodies to the generated server and
 // checks the status, the problem code and detail, whether the service is
 // invoked and the decoded payload.
@@ -82,6 +83,7 @@ func unionRequestBodyIntegrationDSL() {
 const unionRequestBodyHarness = `package unionrequestbody
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -222,13 +224,16 @@ func TestOptionalJSONBodyRoundTrip(t *testing.T) {
 	svc := &optService{}
 	mux := loomhttp.NewMuxer()
 	optserver.Mount(mux, optserver.New(optpick.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
-	hs := httptest.NewServer(mux)
+	wire := &wireRecorder{next: mux}
+	hs := httptest.NewServer(wire)
 	defer hs.Close()
 	c := optclient.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
 
 	payloads := []optpick.PickPayload{
 		{Q: ptr("a"), U: ptr(optpick.NewLeafOrOtherLeaf(&optpick.Leaf{Name: "a"}))},
 		{U: ptr(optpick.NewLeafOrOtherOther(&optpick.Other{Count: ptr(3)}))},
+		{Q: ptr("b")},
+		{},
 	}
 	for _, p := range payloads {
 		if _, err := c.Pick()(context.Background(), &p); err != nil {
@@ -237,6 +242,18 @@ func TestOptionalJSONBodyRoundTrip(t *testing.T) {
 		seen := svc.take()
 		if len(seen) != 1 || !reflect.DeepEqual(*seen[0], p) {
 			t.Errorf("pick: server received %+v, want %+v", seen, p)
+		}
+		body, contentType, contentLength := wire.take()
+		if p.U == nil {
+			// No body at all, not JSON null: the server decodes an empty
+			// body as a nil union and rejects null.
+			if len(body) != 0 || contentType != "" || contentLength != 0 {
+				t.Errorf("pick nil union: sent body %q, Content-Type %q, Content-Length %d, want no body", body, contentType, contentLength)
+			}
+			continue
+		}
+		if len(body) == 0 || contentType != "application/json" {
+			t.Errorf("pick %s: sent body %q, Content-Type %q, want a JSON body", p.U.Kind(), body, contentType)
 		}
 	}
 
@@ -255,6 +272,35 @@ func TestOptionalJSONBodyRoundTrip(t *testing.T) {
 	for _, tc := range cases {
 		checkBody(t, hs, "/opt", tc, &svc.recorder, func(p *optpick.PickPayload) *optpick.LeafOrOther { return p.U })
 	}
+}
+
+// wireRecorder records the body, Content-Type and Content-Length of the last
+// request before passing it on to next.
+type wireRecorder struct {
+	next          http.Handler
+	mu            sync.Mutex
+	body          []byte
+	contentType   string
+	contentLength int64
+}
+
+func (w *wireRecorder) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.mu.Lock()
+	w.body, w.contentType, w.contentLength = body, r.Header.Get("Content-Type"), r.ContentLength
+	w.mu.Unlock()
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	w.next.ServeHTTP(rw, r)
+}
+
+func (w *wireRecorder) take() ([]byte, string, int64) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.body, w.contentType, w.contentLength
 }
 
 // bodyCase is a raw request body sent to a generated server with the expected

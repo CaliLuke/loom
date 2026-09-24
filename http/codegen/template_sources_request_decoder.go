@@ -7,9 +7,11 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	return func(r *http.Request{{ if .Method.IsJSONRPC }}, req *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
 	{{- if .Method.IsJSONRPC }}
 		params := req.Params
+		{{- if not .Payload.Request.OptionalUnionBody }}
 		if len(params) == 0 {
 			params = []byte("{}")
 		}
+		{{- end }}
 		r.Body = io.NopCloser(bytes.NewReader(params))
 	{{- end }}
 		var payload {{ .Payload.Ref }}

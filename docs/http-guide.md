@@ -328,6 +328,15 @@ and cannot contain required body attributes. It cannot be combined with
 `io.EOF` only for endpoints that opt into `OptionalRequestBody`; form decoders
 accept an empty form. Malformed input and validation errors still fail normally.
 
+A constructor union selected with `Body("name")` from an optional payload
+attribute does not need `OptionalRequestBody`. When the attribute is nil, the
+generated client sends no request body, without a `Content-Type` header, and
+the generated server decodes an empty body as a nil union. The server rejects
+a JSON `null` body because it has no union discriminator. A JSON-RPC method
+that selects its params the same way works alike: the client omits `params`
+for a nil union, the server decodes absent `params` as a nil union, and it
+rejects `"params": null` and `"params": {}` with `-32602`.
+
 ### Raw Request and Response Bodies
 
 Use `SkipRequestBodyEncodeDecode` when the service should receive the request

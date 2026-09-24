@@ -152,18 +152,22 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
 	{{- else if .Payload.Request.ClientBody }}
-		{{- if .Payload.Request.ClientBody.Init }}
-		{{- if .Method.IsJSONRPC }}
-		b := {{ .Payload.Request.ClientBody.Init.Name }}({{ range $i, $arg := .Payload.Request.ClientBody.Init.ClientArgs }}{{ if $i }}, {{ end }}{{ if $arg.FieldPointer }}&{{ end }}{{ $arg.VarName }}{{ end }})
+		{{- if and .Method.IsJSONRPC .Payload.Request.OptionalUnionBody }}
+		body := &jsonrpc.Request{
+			JSONRPC: "2.0",
+			Method:  "{{ .Method.Name }}",
+		}
+		if p.{{ .Payload.Request.PayloadAttr }} != nil {
+			body.Params = {{ template "partial_client_body_init" .Payload.Request }}
+		}
 		{{- else }}
-		body := {{ .Payload.Request.ClientBody.Init.Name }}({{ range $i, $arg := .Payload.Request.ClientBody.Init.ClientArgs }}{{ if $i }}, {{ end }}{{ if $arg.FieldPointer }}&{{ end }}{{ $arg.VarName }}{{ end }})
+		{{- if .Payload.Request.OptionalUnionBody }}
+		if p.{{ .Payload.Request.PayloadAttr }} != nil {
 		{{- end }}
-		{{- else }}
 		{{- if .Method.IsJSONRPC }}
-		b := p{{ if .Payload.Request.PayloadAttr }}.{{ .Payload.Request.PayloadAttr }}{{ end }}
+		b := {{ template "partial_client_body_init" .Payload.Request }}
 		{{- else }}
-		body := p{{ if .Payload.Request.PayloadAttr }}.{{ .Payload.Request.PayloadAttr }}{{ end }}
-		{{- end }}
+		body := {{ template "partial_client_body_init" .Payload.Request }}
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
 		body := &jsonrpc.Request{
@@ -171,6 +175,9 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			Method:  "{{ .Method.Name }}",
 			Params:  b,
 		}
+		{{- end }}
+		{{- end }}
+		{{- if .Method.IsJSONRPC }}
 		{{- if .Payload.IDAttribute }}
 			{{- if .Payload.IDAttributeRequired }}
 		if p.{{ .Payload.IDAttribute }} != "" {
@@ -201,6 +208,9 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
 		{{- end }}
+		{{- if and .Payload.Request.OptionalUnionBody (not .Method.IsJSONRPC) }}
+		}
+		{{- end }}
 	{{- end }}
 	{{- if .BasicScheme }}{{ with .BasicScheme }}
 		{{- if not .UsernameRequired }}
@@ -221,6 +231,9 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 	}
 }
 `,
+		templateSource{name: "client_body_init", source: `
+		{{- if .ClientBody.Init }}{{ .ClientBody.Init.Name }}({{ range $i, $arg := .ClientBody.Init.ClientArgs }}{{ if $i }}, {{ end }}{{ if $arg.FieldPointer }}&{{ end }}{{ $arg.VarName }}{{ end }})
+		{{- else }}p{{ if .PayloadAttr }}.{{ .PayloadAttr }}{{ end }}{{ end }}`},
 		templateSource{name: "client_type_conversion", source: `  {{- if eq .Type.Name "boolean" -}}
     {{ .VarName }} := strconv.FormatBool({{ if .IsAliased }}bool({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }})
   {{- else if eq .Type.Name "int" -}}

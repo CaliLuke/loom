@@ -139,3 +139,84 @@ func optionalUnionRequestBodyDSL() {
 		})
 	})
 }
+
+// TestOptionalUnionRequestBodyClientEncoder asserts that the client request
+// encoder sends no body when the optional union payload attribute mapped to
+// the request body is nil, and that a required union body is still always
+// encoded.
+func TestOptionalUnionRequestBodyClientEncoder(t *testing.T) {
+	cases := []struct {
+		Name     string
+		DSL      func()
+		Optional bool
+		Encode   string
+	}{
+		{
+			Name:     "optional-json-body",
+			DSL:      optionalUnionRequestBodyDSL,
+			Optional: true,
+			Encode:   "err := encoder(req).Encode(&body)",
+		},
+		{
+			Name:   "required-json-body",
+			DSL:    unionRequestBodyDSL(func() { POST("/pick") }, false),
+			Encode: "err := encoder(req).Encode(&body)",
+		},
+		{
+			Name:   "required-attribute-body",
+			DSL:    requiredUnionAttributeRequestBodyDSL,
+			Encode: "err := encoder(req).Encode(&body)",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			root := RunHTTPDSL(t, c.DSL)
+			services := CreateHTTPServices(root)
+			data := services.Get("Picker").Endpoint("Pick")
+			require.NotNil(t, data)
+			assert.Equal(t, c.Optional, data.Payload.Request.OptionalUnionBody)
+
+			file := findFileWithSection(t, ClientFiles("gen", services), "request-encoder")
+			code := codegen.SectionCode(t, file.Section("request-encoder")[0])
+			assert.Contains(t, code, c.Encode)
+			guarded := "\t\tif p.U != nil {\n" +
+				"\t\t\tbody := NewPickRequestBody(p)\n" +
+				"\t\t\tif " + c.Encode + "; err != nil {\n" +
+				"\t\t\t\treturn loomhttp.ErrEncodingError(\"Picker\", \"Pick\", err)\n" +
+				"\t\t\t}\n" +
+				"\t\t}\n" +
+				"\t\treturn nil\n"
+			if c.Optional {
+				assert.Contains(t, code, guarded)
+				return
+			}
+			assert.NotContains(t, code, "if p.U != nil")
+		})
+	}
+}
+
+// requiredUnionAttributeRequestBodyDSL returns a design whose method maps a
+// required constructor OneOf union payload attribute to the request body.
+func requiredUnionAttributeRequestBodyDSL() {
+	var Leaf = Type("Leaf", func() {
+		Attribute("name", String)
+		Required("name")
+	})
+	var Other = Type("Other", func() {
+		Attribute("count", Int)
+	})
+	Service("Picker", func() {
+		Method("Pick", func() {
+			Payload(func() {
+				Attribute("q", String)
+				Attribute("u", OneOf(Leaf, Other))
+				Required("u")
+			})
+			HTTP(func() {
+				POST("/pick")
+				Param("q")
+				Body("u")
+			})
+		})
+	})
+}

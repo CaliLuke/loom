@@ -139,6 +139,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		PayloadAttr:         codegen.Goify(origin, true),
 		PayloadType:         b.endpointIR.Request.Payload.Type,
 		MustHaveBody:        mustHaveBody,
+		OptionalUnionBody:   isOptionalUnionBody(b.endpointIR.Request),
 		MustValidate:        payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
 		Multipart:           b.endpointIR.Request.Multipart,
 		MultipartGenerated:  multipartGen,
@@ -227,6 +228,17 @@ func buildPayloadRequestBodyRequirements(request *transportir.Request) (string, 
 		return "", true
 	}
 	return request.BodyOrigin, request.MustHaveBody
+}
+
+// isOptionalUnionBody reports whether the request body is a non-nullable
+// union selected with Body from an optional payload attribute. The generated
+// service field is then a nil-able pointer that the client must check before
+// building the body.
+func isOptionalUnionBody(request *transportir.Request) bool {
+	if request == nil || request.BodyOrigin == "" || request.Body == nil || request.Payload == nil {
+		return false
+	}
+	return expr.IsUnion(request.Body.Type) && !expr.IsNullable(request.Body) && !request.Payload.IsRequired(request.BodyOrigin)
 }
 
 func (b *payloadBuilder) buildMapQueryParam() *ParamData {
