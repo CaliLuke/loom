@@ -93,12 +93,17 @@ func buildRequestBodyTypeDetails(
 	if svr && expr.IsObject(body.Type) {
 		body.Validation = nil
 	}
-	details := requestBodyTypeDetails{
-		varName:           goBodyTypeRef(sd.Scope, body, httpctx),
+	varName := goBodyTypeRef(sd.Scope, body, httpctx)
+	if expr.IsUnion(body.Type) {
+		// Unions are sum-type structs. Declare the body by value, like a union
+		// response body, so that decoders and initializers take its address.
+		varName = sd.Scope.GoTypeName(body)
+	}
+	return requestBodyTypeDetails{
+		varName:           varName,
 		description:       body.Description,
 		validateReference: validateReference,
 	}
-	return details
 }
 
 func buildUserRequestBodyTypeDetails(
