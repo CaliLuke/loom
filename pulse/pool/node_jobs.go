@@ -103,8 +103,7 @@ func (node *Node) dispatchJob(ctx context.Context, key string, job []byte) error
 		return fmt.Errorf("DispatchJob: failed to add job to stream %q: %w", node.poolStream.Name, err)
 	}
 
-	cherr := make(chan error, 1)
-	node.pendingJobChannels.Store(eventID, cherr)
+	cherr := node.registerDispatch(eventID)
 
 	timer := time.NewTimer(2 * node.ackGracePeriod)
 	defer timer.Stop()
@@ -129,6 +128,23 @@ func (node *Node) dispatchJob(ctx context.Context, key string, job []byte) error
 
 	node.logger.Info("dispatched", "key", key)
 	return nil
+}
+
+// registerDispatch returns the channel that receives the dispatch return of
+// the start event eventID. The return can arrive before the dispatcher
+// registers, so a return that returnDispatchStatus already parked is
+// delivered at once.
+func (node *Node) registerDispatch(eventID string) chan error {
+	cherr := make(chan error, 1)
+	node.dispatchReturnsLock.Lock()
+	defer node.dispatchReturnsLock.Unlock()
+	if early, ok := node.earlyReturns[eventID]; ok {
+		delete(node.earlyReturns, eventID)
+		cherr <- early.err
+		return cherr
+	}
+	node.pendingJobChannels.Store(eventID, cherr)
+	return cherr
 }
 
 // claimDispatch atomically decides whether a job key may be dispatched. Redis is

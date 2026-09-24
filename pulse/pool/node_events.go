@@ -216,18 +216,23 @@ func (node *Node) returnDispatchStatus(ev *streaming.Event) {
 		node.logger.Error(fmt.Errorf("returnDispatchStatus: dropping malformed dispatch return: %w", err), "id", ev.ID)
 		return
 	}
-	val, ok := node.pendingJobChannels.LoadAndDelete(ack.EventID)
-	if !ok {
-		node.logger.Error(fmt.Errorf("returnDispatchStatus: received dispatch return for unknown event"), "id", ack.EventID)
-		return
-	}
-	node.logger.Debug("dispatch return", "event", ev.EventName, "id", ev.ID, "ack-id", ack.EventID)
-	if val == nil {
-		return
-	}
 	var startErr error
 	if ack.Error != "" {
 		startErr = errors.New(ack.Error)
+	}
+	node.dispatchReturnsLock.Lock()
+	val, ok := node.pendingJobChannels.LoadAndDelete(ack.EventID)
+	if !ok {
+		// The dispatcher may not have registered yet: park the return.
+		node.parkDispatchReturn(ack.EventID, startErr)
+		node.dispatchReturnsLock.Unlock()
+		node.logger.Debug("returnDispatchStatus: dispatch return before registration", "id", ack.EventID)
+		return
+	}
+	node.dispatchReturnsLock.Unlock()
+	node.logger.Debug("dispatch return", "event", ev.EventName, "id", ev.ID, "ack-id", ack.EventID)
+	if val == nil {
+		return
 	}
 	cherr := val.(chan error)
 	defer func() {
@@ -236,6 +241,23 @@ func (node *Node) returnDispatchStatus(ev *streaming.Event) {
 		}
 	}()
 	cherr <- startErr
+}
+
+// parkDispatchReturn records a dispatch return whose dispatcher has not
+// registered. Returns for events no dispatcher waits for (requeues,
+// redeliveries, dispatchers that gave up) are dropped once they are older
+// than the dispatch timeout. dispatchReturnsLock must be held.
+func (node *Node) parkDispatchReturn(eventID string, err error) {
+	now := time.Now()
+	for id, early := range node.earlyReturns {
+		if now.Sub(early.at) > 2*node.ackGracePeriod {
+			delete(node.earlyReturns, id)
+		}
+	}
+	if node.earlyReturns == nil {
+		node.earlyReturns = make(map[string]earlyDispatchReturn)
+	}
+	node.earlyReturns[eventID] = earlyDispatchReturn{err: err, at: now}
 }
 
 // watches monitors the workers replicated map and triggers job rebalancing

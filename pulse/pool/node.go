@@ -59,6 +59,13 @@ type (
 		pendingEvents      sync.Map // pending events indexed by sender and event IDs
 		orphanedPayloads   sync.Map // job key -> first time observed orphaned payload (unix nanos)
 
+		// dispatchReturnsLock orders dispatch registration against dispatch
+		// returns, and guards earlyReturns.
+		dispatchReturnsLock sync.Mutex
+		// earlyReturns holds dispatch returns that arrived before their
+		// dispatcher registered, indexed by start event ID.
+		earlyReturns map[string]earlyDispatchReturn
+
 		lock     sync.RWMutex
 		closing  bool
 		shutdown bool
@@ -67,6 +74,13 @@ type (
 	// hasher is the interface implemented by types that can hash keys.
 	hasher interface {
 		Hash(key string, numBuckets int64) int64
+	}
+
+	// earlyDispatchReturn is a dispatch return received before its dispatcher
+	// registered.
+	earlyDispatchReturn struct {
+		err error
+		at  time.Time
 	}
 
 	// jumpHash implement Jump Consistent Hash.
