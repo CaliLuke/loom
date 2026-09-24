@@ -453,6 +453,36 @@ SSE changes require coverage for:
 - compile-after-generation
 - branch-specific connection timing
 
+Pulse (`pulse/pool`, `pulse/streaming`, `pulse/rmap`) tests run against
+miniredis by default, so `make test` stays hermetic. miniredis does not model
+every Redis behavior: it lacks the Lua `struct` library (the test helper
+prepends a shim), keeps pending entries of deleted stream ids as Redis 6.2
+does, and accepts commands that older servers reject. Changes to pulse Lua
+scripts, stream, consumer-group, or expiry commands require the real-Redis
+tier:
+
+- `make test-pulse-redis` starts `redis:6.2` and `redis:7.4` containers with
+  Docker and runs `./pulse/...` with `-race` against each. With
+  `LOOM_PULSE_REDIS_ADDR=host:port` set, it runs once against that server, as
+  the `pulse-redis` CI job does with a service container.
+  `LOOM_PULSE_REDIS_VERSIONS` overrides the container versions.
+- The shared helper is `pulse/internal/redistest`. Each package uses its own
+  database and flushes it per test, so point the tier at a disposable server
+  only. It refuses a non-loopback address unless
+  `LOOM_PULSE_REDIS_ALLOW_REMOTE=1`, and the Makefile unexports
+  `LOOM_PULSE_REDIS_ADDR` for every other target. Pub/sub is server-wide, so
+  packages run with `-p 1`. `ci-local` excludes this tier because pre-push must
+  not need Docker.
+- Where Redis versions differ, assert the version-specific behavior with
+  `Server.MajorVersion()` instead of skipping. A test that fails on 6.2
+  because of a filed product bug calls `Server.SkipOnRedis6(t, "#issue")`;
+  remove the call with the fix. Tests that need miniredis-only
+  control, such as its clock, need a wall-clock path on a real server.
+- `pulse/pool/redis_semantics_test.go` pins the stream behaviors the pool
+  scripts rely on: single-id `XPENDING`, `XINFO GROUPS` fields, `XADD MAXLEN ~`
+  in Lua, pending entries of deleted ids under `XAUTOCLAIM`, and script
+  atomicity under concurrent claims.
+
 Use repository gates rather than duplicating their logic:
 
 ```bash
@@ -463,6 +493,7 @@ make coverage-ratchet         # protected consumer-aware boundaries
 make openapi-contract          # OpenAPI work
 make generated-code-quality    # generated Go/output work
 make integration-test          # transport behavior
+make test-pulse-redis          # pulse work, real Redis 6.2 and 7.4 (Docker)
 ./check.sh --full              # full repository verification
 ```
 

@@ -2,115 +2,39 @@ package streaming
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/pulse/internal/redistest"
 	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming/options"
 )
 
-// luaStructShim is a pure-Lua replacement for the Redis "struct" library used
-// by the rmap mutation scripts that back sink bookkeeping. miniredis does not
-// ship the struct library so the test client rewrites scripts to prepend this
-// shim. Only the struct.pack "i" (4-byte little-endian length) and "c0" (raw
-// string) format codes used by the production scripts are implemented.
-const luaStructShim = `
-local struct = { pack = function(fmt, ...)
-   local args = {...}
-   local out = {}
-   local ai = 1
-   local i = 1
-   while i <= string.len(fmt) do
-      local c = string.sub(fmt, i, i)
-      if c == "i" then
-         local n = args[ai]
-         ai = ai + 1
-         out[#out+1] = string.char(n % 256, math.floor(n / 256) % 256, math.floor(n / 65536) % 256, math.floor(n / 16777216) % 256)
-      elseif c == "c" then
-         while i < string.len(fmt) and string.match(string.sub(fmt, i + 1, i + 1), "%d") do
-            i = i + 1
-         end
-         out[#out+1] = args[ai]
-         ai = ai + 1
-      end
-      i = i + 1
-   end
-   return table.concat(out)
-end }
-`
-
-// structShimHook rewrites EVAL and SCRIPT LOAD commands on their way to
-// miniredis so scripts that use the Redis struct library keep working.
-type structShimHook struct{}
-
-func (structShimHook) DialHook(next redis.DialHook) redis.DialHook {
-	return next
-}
-
-func (structShimHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
-	return func(ctx context.Context, cmd redis.Cmder) error {
-		shimStructScript(cmd)
-		return next(ctx, cmd)
-	}
-}
-
-func (structShimHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
-	return func(ctx context.Context, cmds []redis.Cmder) error {
-		for _, cmd := range cmds {
-			shimStructScript(cmd)
-		}
-		return next(ctx, cmds)
-	}
-}
-
-// shimStructScript prepends the struct shim to Lua sources sent via EVAL or
-// SCRIPT LOAD. EVALSHA calls issued for the original source fail with NOSCRIPT
-// and go-redis falls back to EVAL, which is then rewritten here.
-func shimStructScript(cmd redis.Cmder) {
-	args := cmd.Args()
-	switch cmd.Name() {
-	case "eval":
-		if len(args) > 1 {
-			if src, ok := args[1].(string); ok && strings.Contains(src, "struct.pack") {
-				args[1] = luaStructShim + src
-			}
-		}
-	case "script":
-		if len(args) > 2 {
-			if sub, ok := args[1].(string); ok && strings.EqualFold(sub, "load") {
-				if src, ok := args[2].(string); ok && strings.Contains(src, "struct.pack") {
-					args[2] = luaStructShim + src
-				}
-			}
-		}
-	}
-}
-
-// startTestRedis runs an in-process miniredis server and returns a client
-// whose Lua scripts are rewritten to work around the missing struct library.
+// startTestRedis returns a client of the test Redis server: miniredis, or the
+// real server named by redistest.AddrEnv.
 func startTestRedis(t *testing.T) *redis.Client {
 	t.Helper()
-	_, rdb := startTestRedisServer(t)
-	return rdb
+	return startTestServer(t).Client
 }
 
-// startTestRedisServer is startTestRedis but also returns the miniredis server
-// so tests can control its clock.
-func startTestRedisServer(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
+// startTestServer is startTestRedis but returns the server, so tests can
+// control the miniredis clock.
+func startTestServer(t *testing.T) *redistest.Server {
 	t.Helper()
-	mr := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	rdb.AddHook(structShimHook{})
-	t.Cleanup(func() {
-		require.NoError(t, rdb.Close())
-	})
-	return mr, rdb
+	return redistest.Start(t, redistest.DBStreaming)
+}
+
+// ageIdleEntries ages the pending entries of srv past claimTestAckGracePeriod.
+// It moves the miniredis clock. A real server ages them on the wall clock
+// while awaitIdleClaim retries.
+func ageIdleEntries(srv *redistest.Server) {
+	if mr := srv.Miniredis(); mr != nil {
+		mr.SetTime(time.Now().Add(time.Hour))
+	}
 }
 
 // newTestStream creates a stream backed by the test Redis server.
@@ -372,7 +296,8 @@ func TestSinkAddAndRemoveStream(t *testing.T) {
 }
 
 func TestSinkClaimsPendingEventsOfClosedSink(t *testing.T) {
-	mr, rdb := startTestRedisServer(t)
+	srv := startTestServer(t)
+	rdb := srv.Client
 	ctx := t.Context()
 	stream := newTestStream(t, rdb, "sink-claim")
 	id, _ := closeSinkWithPendingEvent(t, stream, "claimer")
@@ -387,8 +312,8 @@ func TestSinkClaimsPendingEventsOfClosedSink(t *testing.T) {
 
 	// Age the pending entry past the ack grace period on the Redis clock
 	// instead of waiting on the wall clock.
-	mr.SetTime(time.Now().Add(time.Hour))
-	claimed := awaitIdleClaim(t, mr, "claimer", idleChecks, secondCh)
+	ageIdleEntries(srv)
+	claimed := awaitIdleClaim(t, rdb, "claimer", idleChecks, secondCh)
 	require.Equal(t, id, claimed.ID)
 	require.Equal(t, "created", claimed.EventName)
 	require.NoError(t, second.Ack(ctx, claimed))
@@ -399,8 +324,75 @@ func TestSinkClaimsPendingEventsOfClosedSink(t *testing.T) {
 	second.Close(ctx)
 }
 
+// TestSinkClaimsPendingEventsAfterTrim checks that a sink claims the pending
+// events of a closed sink when the stream no longer holds an older pending
+// event, as after a MAXLEN trim of an unacked event.
+//
+// Fails on Redis 6.2: XAUTOCLAIM replies with a null entry for the deleted
+// id, go-redis fails to parse the reply with redis.Nil, and the sink never
+// delivers the live event, although Redis moved it to the claiming consumer
+// (#408).
+func TestSinkClaimsPendingEventsAfterTrim(t *testing.T) {
+	srv := startTestServer(t)
+	rdb := srv.Client
+	ctx := t.Context()
+	stream := newTestStream(t, rdb, "sink-claim-trimmed")
+	srv.SkipOnRedis6(t, "#408")
+	ids, _ := closeSinkWithPendingEvents(t, stream, "claimer", 2)
+	require.NoError(t, rdb.XDel(ctx, stream.key, ids[0]).Err())
+
+	idleChecks := make(chan time.Time)
+	second := newTestSinkWithRuntime(t, stream, "claimer", sinkRuntime{
+		idleCheckPeriod: 25 * time.Millisecond,
+		idleChecks:      idleChecks,
+	},
+		options.WithSinkAckGracePeriod(claimTestAckGracePeriod))
+	secondCh := second.Subscribe()
+
+	ageIdleEntries(srv)
+	claimed := awaitIdleClaim(t, rdb, "claimer", idleChecks, secondCh)
+	require.Equal(t, ids[1], claimed.ID)
+	require.NoError(t, second.Ack(ctx, claimed))
+	second.Close(ctx)
+}
+
+// TestStreamAddAppliesTTL checks that Add sets the stream expiry with a fixed
+// and with a sliding TTL.
+//
+// The fixed TTL fails on Redis 6.2: Add sends EXPIRE ... NX, which needs
+// Redis 7.0, so every Add returns an error after it added the event (#407).
+func TestStreamAddAppliesTTL(t *testing.T) {
+	cases := []struct {
+		name string
+		opt  options.Stream
+		// issue is the known Redis 6.2 bug that breaks the case there.
+		issue string
+	}{
+		{name: "fixed", opt: options.WithStreamTTL(time.Minute), issue: "#407"},
+		{name: "sliding", opt: options.WithStreamSlidingTTL(time.Minute)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := startTestServer(t)
+			if tc.issue != "" {
+				srv.SkipOnRedis6(t, tc.issue)
+			}
+			rdb := srv.Client
+			ctx := t.Context()
+			stream, err := NewStream("ttl-"+tc.name, rdb, tc.opt)
+			require.NoError(t, err)
+			_, err = stream.Add(ctx, "created", []byte("payload"))
+			require.NoError(t, err)
+			ttl, err := rdb.PTTL(ctx, stream.key).Result()
+			require.NoError(t, err)
+			require.Positive(t, ttl)
+		})
+	}
+}
+
 func TestSinkKeepsStaleConsumerWithPendingEventsUntilClaimed(t *testing.T) {
-	mr, rdb := startTestRedisServer(t)
+	srv := startTestServer(t)
+	rdb := srv.Client
 	ctx := t.Context()
 	stream := newTestStream(t, rdb, "sink-stale-pending")
 	id, firstConsumer := closeSinkWithPendingEvent(t, stream, "claimer")
@@ -429,14 +421,14 @@ func TestSinkKeepsStaleConsumerWithPendingEventsUntilClaimed(t *testing.T) {
 	second.lock.Unlock()
 	requireConsumerPending(t, rdb, stream.key, "claimer", firstConsumer, 1)
 
-	mr.SetTime(time.Now().Add(time.Hour))
-	claimed := awaitIdleClaim(t, mr, "claimer", idleChecks, secondCh)
+	ageIdleEntries(srv)
+	claimed := awaitIdleClaim(t, rdb, "claimer", idleChecks, secondCh)
 	require.Equal(t, id, claimed.ID)
 	require.NoError(t, second.Ack(ctx, claimed))
 
 	// Once its pending entry moved, the stale consumer is deleted.
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		mr.Del(staleLockName("claimer"))
+		assert.NoError(c, rdb.Del(ctx, staleLockName("claimer")).Err())
 		select {
 		case idleChecks <- time.Now():
 		default:
@@ -449,7 +441,7 @@ func TestSinkKeepsStaleConsumerWithPendingEventsUntilClaimed(t *testing.T) {
 }
 
 func TestSinkDeleteIdleConsumerKeepsPendingEntries(t *testing.T) {
-	_, rdb := startTestRedisServer(t)
+	rdb := startTestRedis(t)
 	ctx := t.Context()
 	stream := newTestStream(t, rdb, "sink-delete-idle")
 	id, owner := closeSinkWithPendingEvent(t, stream, "claimer")
@@ -498,6 +490,14 @@ const claimTestAckGracePeriod = 150 * time.Millisecond
 // returns the event ID and the consumer that still owns the pending entry.
 func closeSinkWithPendingEvent(t *testing.T, stream *Stream, name string) (string, string) {
 	t.Helper()
+	ids, consumer := closeSinkWithPendingEvents(t, stream, name, 1)
+	return ids[0], consumer
+}
+
+// closeSinkWithPendingEvents is closeSinkWithPendingEvent for n events. It
+// returns their IDs in order.
+func closeSinkWithPendingEvents(t *testing.T, stream *Stream, name string, n int) ([]string, string) {
+	t.Helper()
 	ctx := t.Context()
 	first := newTestSinkWithRuntime(t, stream, name, sinkRuntime{
 		idleCheckPeriod: 25 * time.Millisecond,
@@ -506,31 +506,39 @@ func closeSinkWithPendingEvent(t *testing.T, stream *Stream, name string) (strin
 		options.WithSinkStartAtOldest(),
 		options.WithSinkAckGracePeriod(claimTestAckGracePeriod))
 	firstCh := first.Subscribe()
-	id, err := stream.Add(ctx, "created", []byte("payload"))
-	require.NoError(t, err)
-	ev := receiveEvent(t, firstCh)
-	require.Equal(t, id, ev.ID)
+	ids := make([]string, n)
+	for i := range n {
+		id, err := stream.Add(ctx, "created", []byte("payload"))
+		require.NoError(t, err)
+		ids[i] = id
+	}
+	for _, id := range ids {
+		ev := receiveEvent(t, firstCh)
+		require.Equal(t, id, ev.ID)
+	}
 	first.Close(ctx)
-	requireConsumerPending(t, stream.rdb, stream.key, name, first.consumer, 1)
-	return id, first.consumer
+	requireConsumerPending(t, stream.rdb, stream.key, name, first.consumer, int64(n))
+	return ids, first.consumer
 }
 
 // awaitIdleClaim triggers idle message checks of the sink named name until it
 // claims a pending event and delivers it on events. It clears the check lease
 // before each trigger so every check claims regardless of wall-clock time.
-func awaitIdleClaim(t *testing.T, mr *miniredis.Miniredis, name string, checks chan<- time.Time, events <-chan *Event) *Event {
+func awaitIdleClaim(t *testing.T, rdb *redis.Client, name string, checks chan<- time.Time, events <-chan *Event) *Event {
 	t.Helper()
 	claimed := make(chan *Event, 1)
-	require.Eventually(t, func() bool {
-		mr.Del(staleLockName(name))
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		if !assert.NoError(c, rdb.Del(t.Context(), staleLockName(name)).Err()) {
+			return
+		}
 		select {
 		case ev := <-events:
 			claimed <- ev
-			return true
+			return
 		case checks <- time.Now():
 		default:
 		}
-		return false
+		c.Errorf("sink %q has not claimed a pending event", name)
 	}, 10*time.Second, 5*time.Millisecond)
 	return <-claimed
 }

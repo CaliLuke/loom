@@ -275,6 +275,10 @@ Details:
   compare `ms`, then `seq`. Both fit in a Lua double.
 - The script needs no Redis version beyond the 6.2 that the sink already
   requires for XAUTOCLAIM.
+  Redis 6.2 support has open bugs: fixed TTLs send `EXPIRE ... NX`, which
+  needs 7.0 (#407), and the sink cannot parse the `XAUTOCLAIM` null entry of
+  a deleted or trimmed pending id (#408). The real-Redis tier skips those
+  tests on 6.2 only.
 - The script must trim and set expiry exactly as `Stream.Add` does
   (`MaxLen`, `Approx`, `applyTTL`). A golden test compares the entry fields
   with a `Stream.Add` entry.
@@ -605,9 +609,11 @@ useful even before the owner record lands.
 
 ## Test Strategy
 
-- Use `miniredis` for all script tests. It runs Lua through gopher-lua. Check
-  that `struct.pack` and `HSCAN` inside scripts behave as in Redis, and fall
-  back to a real Redis job in CI if they do not.
+- Use `miniredis` for all script tests. It runs Lua through gopher-lua. The
+  same tests also run against real Redis 6.2 and 7.4 in the opt-in tier
+  (`make test-pulse-redis` and the `pulse-redis` CI job, issue #383). Pin
+  behaviour that differs between versions, such as `XAUTOCLAIM` on deleted
+  ids, in `pulse/pool/redis_semantics_test.go`.
 - Make interleavings deterministic with seams instead of sleeps:
   - Pass observed replica values in explicitly (`claimCleanupLock` already
     does this since `ba2af97c`).

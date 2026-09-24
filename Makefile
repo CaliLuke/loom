@@ -7,6 +7,7 @@
 # - "ci-local" runs the meaningful direct-main GitHub CI gates locally
 # - "lint" runs the linter
 # - "test" runs the tests
+# - "test-pulse-redis" runs the pulse suites against real Redis servers
 # - "release" verifies a staged release, atomically publishes its commit and tag, and
 #   waits for the matching substantive GitHub Release. It requires an explicit semantic VERSION.
 #
@@ -30,7 +31,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend install-hooks lint lint-docs lint-filesize lint-json-v2 lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend install-hooks lint lint-docs lint-filesize lint-json-v2 lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release test-pulse-redis integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -45,7 +46,13 @@ all-tests: lint test integration-test
 
 ci: depend all coverage-ratchet
 
-# ci-local mirrors the meaningful Linux gates in .github/workflows/test.yml.
+# Hermetic targets must never reach a real Redis server: the pulse tests flush
+# the server named by LOOM_PULSE_REDIS_ADDR. Only test-pulse-redis passes it on.
+unexport LOOM_PULSE_REDIS_ADDR
+
+# ci-local mirrors the meaningful Linux gates in .github/workflows/test.yml,
+# except the pulse-redis job: it needs Docker, which pre-push must not
+# require. Run `make test-pulse-redis` for it.
 # Run `make depend` once to install the pinned Go tools. Node.js, npm/npx,
 # rsync, and network access are also required by the external contract gates.
 # The source mode is intentionally inherited from the worktree or LOOM_DIR.
@@ -165,6 +172,20 @@ ifneq ($(GOOS),windows)
 	PATH="$(GOBIN_DIR):$$PATH" go test -race -shuffle=on -count=1 -timeout 20m ./...
 else
 	go test -race -shuffle=on -count=1 -timeout 20m ./...
+endif
+
+# Opt-in real-Redis tier for the pulse suites (issue #383). `make test` runs
+# them against miniredis only. This target starts one Docker container per
+# LOOM_PULSE_REDIS_VERSIONS entry (default "6.2 7.4") and runs the suites with
+# -race against each, or runs them once against LOOM_PULSE_REDIS_ADDR when it
+# is set, as CI does with a service container. The tests flush Redis
+# databases 1 to 3 of that server, which must be on a loopback address unless
+# LOOM_PULSE_REDIS_ALLOW_REMOTE=1.
+test-pulse-redis:
+ifneq ($(GOOS),windows)
+	LOOM_PULSE_REDIS_ADDR="$(LOOM_PULSE_REDIS_ADDR)" bash ./scripts/test_pulse_redis.sh
+else
+	@echo "SKIPPED: test-pulse-redis does not run on Windows"
 endif
 
 integration-test: build-loom

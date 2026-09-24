@@ -76,11 +76,27 @@ expected_workflow_targets="$(printf '%s\n' \
   depend \
   generated-code-quality \
   openapi-contract \
+  test-pulse-redis \
   test-race \
   | LC_ALL=C sort)"
 if [[ "$workflow_targets" != "$expected_workflow_targets" ]]; then
   fail "workflow Make targets are [$workflow_targets], want [$expected_workflow_targets]"
 fi
+
+# Every workflow gate must also run in ci-local, except the ones listed here.
+# ci is covered by ci-local's all and coverage-ratchet, and depend installs
+# tools. test-pulse-redis needs Docker, which pre-push must not require (see
+# the ci-local comment in the Makefile).
+ci_local_exceptions=" ci depend test-pulse-redis "
+ci_local_prerequisites=" $(target_prerequisites ci-local) "
+for target in $workflow_targets; do
+  if [[ "$ci_local_exceptions" == *" $target "* ]]; then
+    continue
+  fi
+  if [[ "$ci_local_prerequisites" != *" $target "* ]]; then
+    fail "workflow Make target $target is not run by ci-local and is not a declared exception"
+  fi
+done
 
 STUB_BIN="$TMP_BASE/bin"
 MAKE_LOG="$TMP_BASE/make.log"

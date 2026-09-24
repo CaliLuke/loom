@@ -89,3 +89,33 @@ jobs:
 
       - name: Generated code quality
         run: make generated-code-quality
+
+  # Opt-in real-Redis tier for the pulse suites (issue #383). The unit jobs
+  # run pulse against miniredis only.
+  pulse-redis:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        redis: ['6.2', '7.4']
+
+    services:
+      redis:
+        image: redis:${{ matrix.redis }}
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 5s --health-retries 15
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Pulse suites against Redis ${{ matrix.redis }}
+        env:
+          LOOM_PULSE_REDIS_ADDR: localhost:6379
+        run: make test-pulse-redis

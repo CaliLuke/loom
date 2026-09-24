@@ -2,103 +2,20 @@ package rmap
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/pulse/internal/redistest"
 )
 
-// luaStructShim is a pure-Lua replacement for the Redis "struct" library used
-// by the rmap mutation scripts. miniredis does not ship the struct library so
-// the test client rewrites scripts to prepend this shim. Only the struct.pack
-// "i" (4-byte little-endian length) and "c0" (raw string) format codes used by
-// the production scripts are implemented.
-const luaStructShim = `
-local struct = { pack = function(fmt, ...)
-   local args = {...}
-   local out = {}
-   local ai = 1
-   local i = 1
-   while i <= string.len(fmt) do
-      local c = string.sub(fmt, i, i)
-      if c == "i" then
-         local n = args[ai]
-         ai = ai + 1
-         out[#out+1] = string.char(n % 256, math.floor(n / 256) % 256, math.floor(n / 65536) % 256, math.floor(n / 16777216) % 256)
-      elseif c == "c" then
-         while i < string.len(fmt) and string.match(string.sub(fmt, i + 1, i + 1), "%d") do
-            i = i + 1
-         end
-         out[#out+1] = args[ai]
-         ai = ai + 1
-      end
-      i = i + 1
-   end
-   return table.concat(out)
-end }
-`
-
-// structShimHook rewrites EVAL and SCRIPT LOAD commands on their way to
-// miniredis so scripts that use the Redis struct library keep working.
-type structShimHook struct{}
-
-func (structShimHook) DialHook(next redis.DialHook) redis.DialHook {
-	return next
-}
-
-func (structShimHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
-	return func(ctx context.Context, cmd redis.Cmder) error {
-		shimStructScript(cmd)
-		return next(ctx, cmd)
-	}
-}
-
-func (structShimHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
-	return func(ctx context.Context, cmds []redis.Cmder) error {
-		for _, cmd := range cmds {
-			shimStructScript(cmd)
-		}
-		return next(ctx, cmds)
-	}
-}
-
-// shimStructScript prepends the struct shim to Lua sources sent via EVAL or
-// SCRIPT LOAD. EVALSHA calls issued for the original source fail with NOSCRIPT
-// and go-redis falls back to EVAL, which is then rewritten here.
-func shimStructScript(cmd redis.Cmder) {
-	args := cmd.Args()
-	switch cmd.Name() {
-	case "eval":
-		if len(args) > 1 {
-			if src, ok := args[1].(string); ok && strings.Contains(src, "struct.pack") {
-				args[1] = luaStructShim + src
-			}
-		}
-	case "script":
-		if len(args) > 2 {
-			if sub, ok := args[1].(string); ok && strings.EqualFold(sub, "load") {
-				if src, ok := args[2].(string); ok && strings.Contains(src, "struct.pack") {
-					args[2] = luaStructShim + src
-				}
-			}
-		}
-	}
-}
-
-// startTestRedis runs an in-process miniredis server and returns a client
-// whose Lua scripts are rewritten to work around the missing struct library.
+// startTestRedis returns a client of the test Redis server: miniredis, or the
+// real server named by redistest.AddrEnv.
 func startTestRedis(t *testing.T) *redis.Client {
 	t.Helper()
-	mr := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	rdb.AddHook(structShimHook{})
-	t.Cleanup(func() {
-		require.NoError(t, rdb.Close())
-	})
-	return rdb
+	return redistest.Start(t, redistest.DBRmap).Client
 }
 
 // joinMap joins the replicated map with the given name and closes it when the
@@ -482,21 +399,29 @@ func TestCloseSemantics(t *testing.T) {
 	require.Equal(t, 0, fresh.Len())
 }
 
+// TestTTLApplied checks that a write sets the map expiry with a sliding and
+// with a fixed TTL.
+//
+// The fixed TTL fails on Redis 6.2: applyTTL sends EXPIRE ... NX, which needs
+// Redis 7.0, so every write returns an error after the script applied it
+// (#407).
 func TestTTLApplied(t *testing.T) {
-	rdb := startTestRedis(t)
+	srv := redistest.Start(t, redistest.DBRmap)
+	rdb := srv.Client
 	ctx := t.Context()
 
-	fixed := joinMap(t, rdb, "ttlfixed", WithTTL(time.Minute))
-	_, err := fixed.Set(ctx, "key", "value")
+	sliding := joinMap(t, rdb, "ttlsliding", WithSlidingTTL(time.Minute))
+	_, err := sliding.Set(ctx, "key", "value")
 	require.NoError(t, err)
-	ttl, err := rdb.TTL(ctx, "map:ttlfixed:content").Result()
+	ttl, err := rdb.TTL(ctx, "map:ttlsliding:content").Result()
 	require.NoError(t, err)
 	require.Positive(t, ttl)
 
-	sliding := joinMap(t, rdb, "ttlsliding", WithSlidingTTL(time.Minute))
-	_, err = sliding.Set(ctx, "key", "value")
+	srv.SkipOnRedis6(t, "#407")
+	fixed := joinMap(t, rdb, "ttlfixed", WithTTL(time.Minute))
+	_, err = fixed.Set(ctx, "key", "value")
 	require.NoError(t, err)
-	ttl, err = rdb.TTL(ctx, "map:ttlsliding:content").Result()
+	ttl, err = rdb.TTL(ctx, "map:ttlfixed:content").Result()
 	require.NoError(t, err)
 	require.Positive(t, ttl)
 }

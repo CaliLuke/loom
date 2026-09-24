@@ -16,10 +16,17 @@ import (
 func guardScriptNode(t *testing.T, pool string) (*redis.Client, *Node) {
 	t.Helper()
 	rdb := startTestRedis(t)
-	node := addTestNode(t, rdb, pool)
+	return rdb, sinklessNode(t, rdb, pool)
+}
+
+// sinklessNode is guardScriptNode on the server of rdb, with node options
+// opts.
+func sinklessNode(t *testing.T, rdb *redis.Client, pool string, opts ...NodeOption) *Node {
+	t.Helper()
+	node := addTestNode(t, rdb, pool, opts...)
 	node.poolSink.Close(t.Context())
 	require.NoError(t, rdb.XGroupDestroy(t.Context(), node.poolStream.Key(), poolSinkName).Err())
-	return rdb, node
+	return node
 }
 
 // setGuard writes guard for key through the pending rmap and waits until the
@@ -84,9 +91,9 @@ func TestDispatchGuardInFlight(t *testing.T) {
 			inFlight: false,
 		},
 		{
-			// This proves the Redis 6.2 and miniredis behaviour only: the
-			// pending entry survives the trim. Redis 7 and later XAUTOCLAIM
-			// purges it (issue #385).
+			// The pending entry survives the trim on every version, until
+			// XAUTOCLAIM reaches it. Redis 7 and later XAUTOCLAIM then purges
+			// it (issue #385, TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart).
 			name: "trimmed while pending",
 			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
 				t.Helper()
