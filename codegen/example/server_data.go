@@ -31,6 +31,9 @@ type (
 		Variables []*VariableData
 		// Transports is the list of transports defined in the server.
 		Transports []*TransportData
+		// JSONRPCServices is the list of services hosted by the server that
+		// define a JSON-RPC transport, in server order.
+		JSONRPCServices []string
 		// Dir is the directory name for the generated client and server examples.
 		Dir string
 		// HTTPHandlerArgs are the ordered arguments that follow the context and
@@ -191,6 +194,27 @@ func (s *Data) HasTransport(transport Transport) bool {
 	return false
 }
 
+// HostsHTTP reports whether the server hosts a service that defines an HTTP
+// transport. The example generators emit the HTTP server and client files of
+// a server only when it does.
+func (s *Data) HostsHTTP() bool {
+	return len(transportServiceNames(s.Transports, TransportHTTP)) > 0
+}
+
+// HostsJSONRPC reports whether the server hosts a service that defines a
+// JSON-RPC transport. The example generators emit the JSON-RPC server and
+// client files of a server only when it does.
+func (s *Data) HostsJSONRPC() bool {
+	return len(s.JSONRPCServices) > 0
+}
+
+// HostsGRPC reports whether the server hosts a service that defines a gRPC
+// transport. The example generators emit the gRPC server and client files of
+// a server only when it does.
+func (s *Data) HostsGRPC() bool {
+	return len(transportServiceNames(s.Transports, TransportGRPC)) > 0
+}
+
 // DefaultURL returns the first URL defined for the given transport in a host.
 func (h *HostData) DefaultURL(transport Transport) string {
 	for _, u := range h.URIs {
@@ -207,14 +231,15 @@ func buildServerData(svr *expr.ServerExpr, root *expr.RootExpr) *Data {
 	variables := collectServerVariables(hosts)
 	transports := collectServerTransports(svr, root)
 	sd := &Data{
-		Name:        svr.Name,
-		Description: svr.Description,
-		Services:    svr.Services,
-		Schemes:     svr.Schemes(),
-		Hosts:       hosts,
-		Variables:   variables,
-		Transports:  transports,
-		Dir:         ServerDir(svr.Name),
+		Name:            svr.Name,
+		Description:     svr.Description,
+		Services:        svr.Services,
+		Schemes:         svr.Schemes(),
+		Hosts:           hosts,
+		Variables:       variables,
+		Transports:      transports,
+		JSONRPCServices: collectJSONRPCServices(svr, root),
+		Dir:             ServerDir(svr.Name),
 	}
 	populateHandlerArgs(sd, root)
 	return sd
@@ -256,6 +281,16 @@ func collectServerTransports(svr *expr.ServerExpr, root *expr.RootExpr) []*Trans
 	}
 	assignTransportServices(transports, httpServices, grpcServices)
 	return transports
+}
+
+func collectJSONRPCServices(svr *expr.ServerExpr, root *expr.RootExpr) []string {
+	var names []string
+	for _, svc := range svr.Services {
+		if root.API.JSONRPC.Service(svc) != nil {
+			names = append(names, svc)
+		}
+	}
+	return names
 }
 
 func ensureHTTPTransport(transports []*TransportData, foundTrans map[Transport]struct{}, root *expr.RootExpr, svc string, httpServices *[]string) ([]*TransportData, bool) {

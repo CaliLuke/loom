@@ -52,31 +52,11 @@ func exampleCLIMain(_ string, root *expr.RootExpr, svr *expr.ServerExpr, servers
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
 		newRenderSection("cli-main", func() string {
-			return renderClientMain(svrdata, hasJSONRPC(root, svr), hasHTTP(root, svr))
+			return renderClientMain(svrdata, svrdata.HostsJSONRPC(), svrdata.HostsHTTP())
 		}),
 		newRenderSection("cli-main-usage", func() string {
-			return renderUsage(root.API.Name, svrdata, hasJSONRPC(root, svr), hasHTTP(root, svr))
+			return renderUsage(root.API.Name, svrdata, svrdata.HostsJSONRPC(), svrdata.HostsHTTP())
 		}),
 	}
 	return &codegen.File{Path: path, Sections: sections, SkipExist: true}
-}
-
-// hasJSONRPC returns true if the server expression has a JSON-RPC server.
-func hasJSONRPC(root *expr.RootExpr, svr *expr.ServerExpr) bool {
-	for _, s := range svr.Services {
-		if root.API.JSONRPC.Service(s) != nil {
-			return true
-		}
-	}
-	return false
-}
-
-// hasHTTP returns true if the server expression has an HTTP server.
-func hasHTTP(root *expr.RootExpr, svr *expr.ServerExpr) bool {
-	for _, s := range svr.Services {
-		if root.API.HTTP.Service(s) != nil {
-			return true
-		}
-	}
-	return false
 }

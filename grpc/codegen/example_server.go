@@ -12,11 +12,15 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-// ExampleServerFiles returns an example gRPC server implementation.
+// ExampleServerFiles returns an example gRPC server implementation for each
+// server expression that hosts a gRPC service.
 func ExampleServerFiles(genpkg string, services *ServicesData) []*codegen.File {
 	var fw []*codegen.File
 	servers := example.NewServersData()
 	for _, svr := range services.Root.API.Servers {
+		if !servers.Get(svr, services.Root).HostsGRPC() {
+			continue
+		}
 		if m := exampleServer(genpkg, services, svr, servers); m != nil {
 			fw = append(fw, m)
 		}

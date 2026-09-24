@@ -14,7 +14,8 @@ import (
 )
 
 // ClientCLIFiles returns the CLI files to generate a command-line client that
-// makes gRPC requests.
+// makes gRPC requests. It generates a CLI support package only for the
+// servers that host a gRPC service, matching the example client.
 func ClientCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 	if len(services.Root.API.GRPC.Services) == 0 {
 		return nil
@@ -39,7 +40,11 @@ func ClientCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 		svcs = append(svcs, svc)
 	}
 	files := make([]*codegen.File, 0, len(services.Root.API.Servers)+len(svcs))
+	servers := example.NewServersData()
 	for _, svr := range services.Root.API.Servers {
+		if !servers.Get(svr, services.Root).HostsGRPC() {
+			continue
+		}
 		files = append(files, endpointParser(genpkg, services, svr, data))
 	}
 	for i, svc := range svcs {

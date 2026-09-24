@@ -19,11 +19,15 @@ type exampleServerServiceData struct {
 	ServerImport  string
 }
 
-// ExampleServerFiles returns an example http service implementation.
+// ExampleServerFiles returns an example HTTP server implementation for each
+// server expression that hosts an HTTP service.
 func ExampleServerFiles(genpkg string, data *ServicesData) []*codegen.File {
 	var fw []*codegen.File
 	servers := example.NewServersData()
 	for _, svr := range data.Root.API.Servers {
+		if !servers.Get(svr, data.Root).HostsHTTP() {
+			continue
+		}
 		if m := exampleServerWithCache(genpkg, data.Root, svr, data, servers); m != nil {
 			fw = append(fw, m)
 		}
@@ -34,7 +38,9 @@ func ExampleServerFiles(genpkg string, data *ServicesData) []*codegen.File {
 	return fw
 }
 
-// ExampleServer returns an example HTTP server implementation.
+// ExampleServer returns an example HTTP server implementation for the given
+// server expression, whether or not it hosts an HTTP service. Transports that
+// share the HTTP server runtime use it as the base of their example server.
 func ExampleServer(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, services *ServicesData) *codegen.File {
 	return exampleServerWithCache(genpkg, root, svr, services, example.NewServersData())
 }

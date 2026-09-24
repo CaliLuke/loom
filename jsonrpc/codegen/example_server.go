@@ -19,14 +19,18 @@ type jsonrpcExampleServiceData struct {
 	JSONRPCServerImport string
 }
 
-// ExampleServerFiles returns example JSON-RPC server implementation. The
-// generated handleHTTPServer function also serves the plain HTTP services the
-// server hosts, so files may contain the HTTP example server to extend.
+// ExampleServerFiles returns an example JSON-RPC server implementation for
+// each server expression that hosts a JSON-RPC service. The generated
+// handleHTTPServer function also serves the plain HTTP services the server
+// hosts, so files may contain the HTTP example server to extend.
 func ExampleServerFiles(genpkg string, data *httpcodegen.ServicesData, files []*codegen.File) []*codegen.File {
 	var fw []*codegen.File
 	servers := example.NewServersData()
 	httpData := httpcodegen.NewServicesData(data.ServicesData, data.Root.API.HTTP)
 	for _, svr := range data.Root.API.Servers {
+		if !servers.Get(svr, data.Root).HostsJSONRPC() {
+			continue
+		}
 		if m := exampleServer(genpkg, data, httpData, svr, files, servers); m != nil {
 			fw = append(fw, m)
 		}
@@ -37,7 +41,7 @@ func ExampleServerFiles(genpkg string, data *httpcodegen.ServicesData, files []*
 func exampleServer(genpkg string, data, httpData *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, servers example.ServersData) *codegen.File {
 	svrdata := servers.Get(svr, data.Root)
 	httppath := filepath.Join("cmd", svrdata.Dir, "http.go")
-	file, _ := findOrBuildExampleHTTPServer(genpkg, data, svr, files, httppath)
+	file := findOrBuildExampleHTTPServer(genpkg, httpData, svr, files, httppath)
 	file.Path = filepath.Join(filepath.Dir(file.Path), "jsonrpc.go")
 
 	sections := file.AllSections()
@@ -88,15 +92,17 @@ func jsonrpcExampleServiceImports(serviceGroups ...[]jsonrpcExampleServiceData) 
 	return imports
 }
 
-func findOrBuildExampleHTTPServer(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, httpPath string) (*codegen.File, bool) {
+// findOrBuildExampleHTTPServer returns the example HTTP server of svr found
+// at httpPath in files, or builds it from the HTTP services data httpData when
+// the server hosts no HTTP service. Both paths yield the same file, which the
+// caller extends with the JSON-RPC services.
+func findOrBuildExampleHTTPServer(genpkg string, httpData *httpcodegen.ServicesData, svr *expr.ServerExpr, files []*codegen.File, httpPath string) *codegen.File {
 	for _, f := range files {
 		if f.Path == httpPath {
-			return f, true
+			return f
 		}
 	}
-	file := httpcodegen.ExampleServer(genpkg, data.Root, svr, data)
-	updateHeader(file)
-	return file, false
+	return httpcodegen.ExampleServer(genpkg, httpData.Root, svr, httpData)
 }
 
 func addJSONRPCExampleImports(header codegen.Section, genpkg string, data *httpcodegen.ServicesData) {

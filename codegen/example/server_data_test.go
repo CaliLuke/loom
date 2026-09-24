@@ -3,6 +3,7 @@ package example
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"
@@ -121,6 +122,64 @@ func TestComputeHandlerArgsSkipsJSONRPCServicesOutsideServer(t *testing.T) {
 			for _, uri := range data.Hosts[0].URIs {
 				require.Equal(t, c.Want, uri.HandlerArgs, uri.URL)
 			}
+		})
+	}
+}
+
+// TestServerDataHostedTransports checks the per-server transport presence
+// that the example generators share: a server hosts a transport only when one
+// of its own services uses it, whatever the other servers host.
+func TestServerDataHostedTransports(t *testing.T) {
+	web := &expr.ServiceExpr{Name: "web"}
+	store := &expr.ServiceExpr{Name: "store"}
+	rpc := &expr.ServiceExpr{Name: "rpc"}
+	dual := &expr.ServiceExpr{Name: "dual"}
+	both := &expr.ServiceExpr{Name: "both"}
+	root := &expr.RootExpr{
+		API: &expr.APIExpr{
+			HTTP: &expr.HTTPExpr{Services: []*expr.HTTPServiceExpr{
+				{ServiceExpr: web}, {ServiceExpr: dual}, {ServiceExpr: both},
+			}},
+			JSONRPC: &expr.JSONRPCExpr{HTTPExpr: expr.HTTPExpr{Services: []*expr.HTTPServiceExpr{
+				{ServiceExpr: rpc}, {ServiceExpr: both},
+			}}},
+			GRPC: &expr.GRPCExpr{Services: []*expr.GRPCServiceExpr{
+				{ServiceExpr: store}, {ServiceExpr: dual},
+			}},
+		},
+		Services: []*expr.ServiceExpr{web, store, rpc, dual, both},
+	}
+	cases := []struct {
+		Name        string
+		Services    []string
+		WantHTTP    bool
+		WantJSONRPC bool
+		WantGRPC    bool
+	}{
+		{Name: "http-only", Services: []string{"web"}, WantHTTP: true},
+		{Name: "grpc-only", Services: []string{"store"}, WantGRPC: true},
+		{Name: "jsonrpc-only", Services: []string{"rpc"}, WantJSONRPC: true},
+		{Name: "http-and-grpc-services", Services: []string{"web", "store"}, WantHTTP: true, WantGRPC: true},
+		{Name: "http-and-grpc-service", Services: []string{"dual"}, WantHTTP: true, WantGRPC: true},
+		{Name: "http-and-jsonrpc-service", Services: []string{"both"}, WantHTTP: true, WantJSONRPC: true},
+		{Name: "jsonrpc-and-grpc-services", Services: []string{"rpc", "store"}, WantJSONRPC: true, WantGRPC: true},
+		{Name: "all", Services: []string{"web", "rpc", "store"}, WantHTTP: true, WantJSONRPC: true, WantGRPC: true},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			svr := &expr.ServerExpr{
+				Name:     c.Name,
+				Services: c.Services,
+				Hosts: []*expr.HostExpr{{
+					Name:      "local",
+					URIs:      []expr.URIExpr{"http://localhost:80", "grpc://localhost:8080"},
+					Variables: &expr.AttributeExpr{Type: &expr.Object{}},
+				}},
+			}
+			data := buildServerData(svr, root)
+			assert.Equal(t, c.WantHTTP, data.HostsHTTP(), "HostsHTTP")
+			assert.Equal(t, c.WantJSONRPC, data.HostsJSONRPC(), "HostsJSONRPC")
+			assert.Equal(t, c.WantGRPC, data.HostsGRPC(), "HostsGRPC")
 		})
 	}
 }

@@ -11,11 +11,15 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-// ExampleCLIFiles returns an example gRPC client tool implementation.
+// ExampleCLIFiles returns an example gRPC client tool implementation for each
+// server expression that hosts a gRPC service.
 func ExampleCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 	var files []*codegen.File
 	servers := example.NewServersData()
 	for _, svr := range services.Root.API.Servers {
+		if !servers.Get(svr, services.Root).HostsGRPC() {
+			continue
+		}
 		if f := exampleCLI(genpkg, services, svr, servers); f != nil {
 			files = append(files, f)
 		}
