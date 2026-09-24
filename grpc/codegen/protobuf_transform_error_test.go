@@ -130,3 +130,31 @@ func TestProtoBufTransformError(t *testing.T) {
 		})
 	}
 }
+
+// TestDupTransformAttrsCopiesEveryField checks that the copy made before
+// transforming a nested union or wrapped value keeps every setting of the
+// original, so that nested conversions of Any values still pass and set the
+// transformErr variable.
+func TestDupTransformAttrsCopiesEveryField(t *testing.T) {
+	cases := []struct {
+		Name string
+		TA   *transformAttrs
+	}{
+		{"zero", &transformAttrs{}},
+		{"every-field-set", &transformAttrs{
+			TransformAttrs: &codegen.TransformAttrs{Prefix: "protobuf"},
+			proto:          true,
+			targetInit:     "make([]string, 0)",
+			wrapped:        true,
+			message:        "pb.Message",
+			errorAware:     true,
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			dup := dupTransformAttrs(c.TA)
+			require.NotSame(t, c.TA, dup)
+			require.Equal(t, c.TA, dup)
+		})
+	}
+}

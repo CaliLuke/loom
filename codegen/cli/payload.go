@@ -32,6 +32,9 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData) codegen.Section {
 				group.Block(field.Init)
 			}
 			if buildFunction.PayloadInit != nil {
+				if buildFunction.PayloadInit.ErrorAware {
+					group.Id("transformErr").Op(":=").New(jen.Error())
+				}
 				if buildFunction.PayloadInit.Code != nil {
 					group.Add(buildFunction.PayloadInit.Code)
 					if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
@@ -59,6 +62,12 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData) codegen.Section {
 				resultVar := "v"
 				if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
 					resultVar = "res"
+				}
+				if buildFunction.PayloadInit.ErrorAware {
+					group.If(jen.Op("*").Id("transformErr").Op("!=").Nil()).Block(
+						jen.Var().Id("zero").Add(codegen.TypeRef(buildFunction.ResultType)),
+						jen.Return(jen.Id("zero"), jen.Op("*").Id("transformErr")),
+					)
 				}
 				group.Return(codegen.Expr(resultVar), jen.Nil())
 			}

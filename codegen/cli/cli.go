@@ -149,5 +149,9 @@ type (
 		ReturnTypePkg string
 		// Args is the list of arguments for the constructor.
 		Args []*codegen.InitArgData
+		// ErrorAware is true when Code can fail. Code then records the
+		// failure through a transformErr variable of type *error that the
+		// build function declares and checks before returning the payload.
+		ErrorAware bool
 	}
 )

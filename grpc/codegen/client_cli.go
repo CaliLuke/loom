@@ -127,6 +127,7 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
+		codegen.LoomNamedImport("grpc", "loomgrpc"),
 		{Path: path.Join(genpkg, svcName), Name: sd.Service.PkgName},
 		{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName},
 	}
@@ -249,6 +250,7 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 			ReturnIsStruct: e.Request.ServerConvert.Init.ReturnIsStruct,
 			ReturnTypePkg:  e.Request.ServerConvert.Init.ReturnTypePkg,
 			Args:           pInitArgs,
+			ErrorAware:     e.Request.ServerConvert.Init.ErrorAware,
 		}
 	}
 

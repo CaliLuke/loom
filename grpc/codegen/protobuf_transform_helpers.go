@@ -339,15 +339,11 @@ func isUnionMessage(at *expr.AttributeExpr) bool {
 	return false
 }
 
-// dupTransformAttrs returns a shallow copy of the given transformAttrs.
+// dupTransformAttrs returns a shallow copy of the given transformAttrs that
+// keeps every field, including errorAware.
 func dupTransformAttrs(ta *transformAttrs) *transformAttrs {
-	return &transformAttrs{
-		TransformAttrs: ta.TransformAttrs,
-		proto:          ta.proto,
-		targetInit:     ta.targetInit,
-		wrapped:        ta.wrapped,
-		message:        ta.message,
-	}
+	dup := *ta
+	return &dup
 }
 
 func formatGoLiteral(v any) string {

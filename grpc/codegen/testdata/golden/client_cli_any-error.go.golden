@@ -1,0 +1,76 @@
+// AnyError gRPC client CLI support package
+//
+// Command:
+// loom
+
+package client
+
+import (
+	anyerror "any_error"
+	json "encoding/json/v2"
+	"fmt"
+	any_errorpb "grpc/any_error/pb"
+
+	loomgrpc "github.com/CaliLuke/loom/grpc"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+// BuildConvertPayload builds the payload for the AnyError Convert endpoint
+// from CLI flags.
+func BuildConvertPayload(anyErrorConvertMessage string) (*anyerror.AnyErrorMessage, error) {
+	var err error
+	var message any_errorpb.ConvertRequest
+	{
+		if anyErrorConvertMessage != "" {
+			err = json.Unmarshal([]byte(anyErrorConvertMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"mapped\": {\n         \"Consequuntur sint voluptate.\": \"Perspiciatis voluptatum laudantium eos aut.\",\n         \"Velit assumenda fuga est sint maxime.\": \"Qui molestiae iure.\"\n      },\n      \"value\": \"Quia molestias.\",\n      \"values\": [\n         \"Qui quia inventore et tempora.\",\n         \"Quae sunt itaque inventore optio quia.\",\n         \"Aut iste iste perspiciatis repellendus harum et.\",\n         \"Neque nisi quibusdam nisi sint sunt.\"\n      ]\n   }'")
+			}
+		}
+	}
+	transformErr := new(error)
+	v := &anyerror.AnyErrorMessage{}
+	if message.Value != nil {
+		v.Value = func() loom.JSONValue {
+			value, err := loomgrpc.NewJSONValue(message.Value)
+			if err != nil {
+				*transformErr = err
+				return nil
+			}
+			return value
+		}()
+	}
+	if message.Values != nil {
+		v.Values = make([]loom.JSONValue, len(message.Values))
+		for i, val := range message.Values {
+			v.Values[i] = func() loom.JSONValue {
+				value, err := loomgrpc.NewJSONValue(val)
+				if err != nil {
+					*transformErr = err
+					return nil
+				}
+				return value
+			}()
+		}
+	}
+	if message.Mapped != nil {
+		v.Mapped = make(map[string]loom.JSONValue, len(message.Mapped))
+		for key, val := range message.Mapped {
+			tv := func() loom.JSONValue {
+				value, err := loomgrpc.NewJSONValue(val)
+				if err != nil {
+					*transformErr = err
+					return nil
+				}
+				return value
+			}()
+			v.Mapped[key] = tv
+		}
+	}
+
+	if *transformErr != nil {
+		var zero *anyerror.AnyErrorMessage
+		return zero, *transformErr
+	}
+	return v, nil
+}
