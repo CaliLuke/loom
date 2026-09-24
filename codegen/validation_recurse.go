@@ -22,6 +22,12 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 	// concrete named value. Keep wrapped and concrete states distinct.
 	if isUT && !alias {
 		key := ut.ID()
+		if expr.IsUnion(ut) {
+			// The code that validates a named union inline refers to the
+			// value that holds it, so two fields of the same union need
+			// their own code.
+			key += "@" + target
+		}
 		if isNullableAttribute(att) {
 			key += ":nullable"
 		}
@@ -75,19 +81,26 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 	}
 	mapped := expr.NewMappedAttributeExpr(att)
 	parentRequired := parentRequiredValidationFields(att, attCtx)
+	messageScope, isMessage := attCtx.Scope.(messageFieldScope)
 	for _, nat := range *(expr.AsObject(att.Type)) {
-		tgt := target + "." + attCtx.Scope.Field(nat.Attribute, nat.Name, true)
+		field := attCtx.Scope.Field(nat.Attribute, nat.Name, true)
+		fieldCtx := attCtx
+		if isMessage && expr.IsUnion(nat.Attribute.Type) {
+			fieldCtx = attCtx.Dup()
+			field, fieldCtx.oneofFields = messageScope.UnionFieldNames(att, nat.Name)
+		}
+		tgt := target + "." + field
 		ctx := context + "." + nat.Name
 		var val string
 		switch attCtx.FieldPresence(mapped, nat.Name, nat.Attribute) {
 		case OptionalPresence:
-			val = validateOptionalAttribute(attCtx, nat.Attribute, put, tgt, ctx, view, seen)
+			val = validateOptionalAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, view, seen)
 		case NullablePresence:
 			_, requiredByParent := parentRequired[nat.Name]
 			required := att.IsRequired(nat.Name) && !requiredByParent
-			val = validateNullableAttribute(attCtx, nat.Attribute, put, tgt, ctx, required, view, seen)
+			val = validateNullableAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, required, view, seen)
 		default:
-			val = validateAttribute(attCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
+			val = validateAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
 		}
 		appendValidationBlock(buf, first, val)
 	}
@@ -212,7 +225,13 @@ func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCt
 		vals  []string
 		types []string
 	)
-	for _, v := range u.Values {
+	// The names of the branches apply to this union only, not to the unions
+	// that the branches hold.
+	branchCtx := attCtx
+	if len(attCtx.oneofFields) > 0 {
+		branchCtx = attCtx.Dup()
+	}
+	for i, v := range u.Values {
 		vatt := v.Attribute
 		if view {
 			unionCtx := attCtx.Dup()
@@ -225,7 +244,10 @@ func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCt
 			continue
 		}
 		fieldName := attCtx.Scope.Field(vatt, v.Name, true)
-		val := validateAttribute(attCtx, vatt, put, "v."+fieldName, context+".value", true, view, seen)
+		if i < len(attCtx.oneofFields) {
+			fieldName = attCtx.oneofFields[i]
+		}
+		val := validateAttribute(branchCtx, vatt, put, "v."+fieldName, context+".value", true, view, seen)
 		if val != "" {
 			tref := attCtx.Scope.Ref(&expr.AttributeExpr{Type: put}, attCtx.DefaultPkg)
 			types = append(types, tref+"_"+fieldName)

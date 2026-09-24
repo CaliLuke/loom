@@ -337,6 +337,12 @@ completion shapes are explicit generation limitations.
   each branch when the branches can be reordered or removed. A named union
   `Type("U", OneOf(A, B))` passed to `Field(n, ...)` numbers its branches the
   same way.
+- On gRPC, the fields, `oneof` names and `oneof` fields of a message share one
+  namespace. A field that is not a union keeps its name. A `oneof` that
+  collides takes `_oneof` suffixes, and a branch that collides with an earlier
+  name takes the union field name as a prefix, such as `b_int64`. Protocol
+  buffer clients see the prefixed names; the service type keeps the branch
+  names.
 - gRPC rejects a union used as an array element or map key or value. Wrap the
   union in a type with one `Field` and use that type in the collection.
 - On gRPC, a union used as a branch of another union and a named array such as

@@ -1,7 +1,6 @@
 package codegen
 
 import (
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -145,8 +144,8 @@ func unwrapAttr(att *expr.AttributeExpr) *expr.AttributeExpr {
 // wraps union, which is also the name of its oneof: "field" followed by
 // "_oneof" as many times as needed to differ from the branch names.
 func unionWrapperFieldName(union *expr.Union) string {
-	name, _ := protoBufUnionNames("field", union)
-	return name
+	names := newProtoMessageNames(&expr.Object{{Name: "field", Attribute: &expr.AttributeExpr{Type: union}}})
+	return names.field("field")
 }
 
 // unionWrapperField returns the single attribute of att when att is a
@@ -167,9 +166,23 @@ func unionWrapperField(att *expr.AttributeExpr) *expr.NamedAttributeExpr {
 // wrapperGoFieldName returns the name of the Go field that holds the wrapped
 // value in the protocol buffer Go type generated for the wrapper message att:
 // the oneof of a wrapped union or "Field".
-func wrapperGoFieldName(att *expr.AttributeExpr, ctx *codegen.AttributeContext) string {
+func wrapperGoFieldName(att *expr.AttributeExpr) string {
 	if nat := unionWrapperField(att); nat != nil {
-		return ctx.Scope.Field(nat.Attribute, nat.Name, true)
+		return newProtoMessageNames(expr.AsObject(att.Type)).goField(nat.Name)
 	}
 	return "Field"
+}
+
+// wrappedUnionTransformAttrs returns ta when att is not a message that
+// wrapAttr made to wrap a union. Otherwise it returns a copy of ta whose
+// oneofFields are the names of the Go fields of the oneof fields of the
+// message.
+func wrappedUnionTransformAttrs(att *expr.AttributeExpr, ta *transformAttrs) *transformAttrs {
+	nat := unionWrapperField(att)
+	if nat == nil {
+		return ta
+	}
+	ta = dupTransformAttrs(ta)
+	ta.oneofFields = newProtoMessageNames(expr.AsObject(att.Type)).goBranches(nat.Name)
+	return ta
 }

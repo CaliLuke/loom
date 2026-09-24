@@ -206,11 +206,43 @@ This gives the same message as the block form
 Adding a branch at the end of a constructor `OneOf` takes the next number.
 Reordering or removing its branches changes the numbers of the other branches,
 so use the block form when branches can change. Generation fails when a field
-or union branch of a message has no number, when two of them have the same
-number, or when two of them have the same protocol buffer name. This applies to
-every generated message, including nested user types and inline objects. For
-example, two constructor unions of the same types in one message both have the
-branches `leaf` and `other`.
+or union branch of a message has no number, or when two of them have the same
+number. This applies to every generated message, including nested user types
+and inline objects.
+
+The fields, `oneof` names and `oneof` fields of a message share one namespace
+in protocol buffers, so Loom gives each of them a unique name in the message:
+
+- A field that is not a union keeps its name. Generation fails when two such
+  fields have the same protocol buffer name, such as `fooBar` and `foo_bar`.
+- A union field is a `oneof` named after the field. Loom adds `_oneof` until
+  the name differs from the names of its branches and from the names already
+  used, for example `oneof leaf_oneof` for `Field(1, "leaf", OneOf(Leaf, Other))`.
+- A branch keeps its name unless an earlier field, `oneof` or branch uses it.
+  Loom then adds the union field name and an underscore as a prefix, as many
+  times as needed.
+
+Fields that are not unions take their names first. The unions then take their
+names in declaration order, so the first union to use a name keeps it:
+
+```go
+var Envelope = Type("Envelope", func() {
+    Field(1, "a", OneOf(String, Int64))  // oneof a { string string_ = 1; sint64 int64_ = 2; }
+    Field(3, "b", OneOf(Boolean, Int64)) // oneof b { bool boolean = 3; sint64 b_int64 = 4; }
+    Field(5, "pick", OneOf(Leaf, Other)) // oneof pick { Leaf pick_leaf = 5; Other other = 6; }
+    Field(7, "leaf", String)             // optional string leaf = 7;
+})
+```
+
+The names are deterministic, and a message without collisions keeps the names
+of its branches. The protocol buffer Go code follows the same names, such as
+the `BInt64` field of the `<Message>_BInt64` oneof type, while the service
+type keeps the branch names, such as `SetInt64`. A new field that takes
+the name of a branch renames that branch. So does a union inserted earlier in
+declaration order, or a branch added to an earlier union, that takes the name
+of a later branch. This changes the JSON name and the
+generated Go names of the branch, but not its field number, so the binary wire
+format does not change.
 
 A named union, a `Type` defined as a `OneOf`, works the same way when you pass
 it to `Field`. The field is a `oneof` of the enclosing message, and its

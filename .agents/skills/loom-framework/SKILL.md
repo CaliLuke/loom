@@ -361,6 +361,14 @@ filter, and serialization rules belong here.
   `codegen.File` prunes the unused imports. The transport generator adds only
   `struct:field:type` imports afterward. Do not reintroduce a blanket pass that
   hides a missing import in a direct file builder.
+- The fields, oneofs and oneof fields of a gRPC message share one namespace.
+  `newProtoMessageNames` (`grpc/codegen/protobuf_message_names.go`) allocates
+  their names per message, and the proto renderer, `checkMessageFields`, the
+  Go transforms and the validation code (through the `messageFieldScope`
+  interface in `codegen`) all use it. Derive the Go name of a oneof or oneof
+  field from the allocated proto name with `protoGoName`, never from the
+  branch name with `Scope.Field`. The same union can take different names in
+  different messages.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
   endpoints should not grow independent read/write/close loops.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,

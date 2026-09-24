@@ -4,10 +4,10 @@ func transform() {
 	}
 	if source.EmbeddedOneOf != nil {
 		switch val := source.EmbeddedOneOf.(type) {
-		case *proto.EmbeddedOneOf_String_:
+		case *proto.EmbeddedOneOf_EmbeddedOneOfString:
 			{
 				u := &proto.EmbeddedOneOf{}
-				u.SetString(proto.EmbeddedOneOfString(val.String_))
+				u.SetString(proto.EmbeddedOneOfString(val.EmbeddedOneOfString))
 				target.EmbeddedOneOf = u
 			}
 		case *proto.EmbeddedOneOf_Integer:

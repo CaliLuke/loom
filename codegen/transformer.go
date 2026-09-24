@@ -65,6 +65,11 @@ type (
 		// PresenceUseDefaultTypes records named types whose physical object fields
 		// use value storage for optional primitive fields with defaults.
 		PresenceUseDefaultTypes map[string]bool
+		// oneofFields holds the Go names of the fields that hold the branches
+		// of the union being validated, in branch order, when Scope is a
+		// messageFieldScope. Dup does not copy it, so it names the branches of
+		// that union only.
+		oneofFields []string
 	}
 
 	// PresenceKind identifies the physical presence representation of an
@@ -83,6 +88,19 @@ type (
 	// rather than protocol buffer oneof interfaces.
 	sumTypeUnionScope interface {
 		sumTypeUnions()
+	}
+
+	// messageFieldScope is implemented by attribute scopes in which the
+	// fields of an object share one namespace with the fields that hold the
+	// branches of its union fields, such as the protocol buffer scope, where
+	// the fields, oneofs and oneof fields of a message must have distinct
+	// names. The Go names of a union field and of its branches then depend
+	// on the other fields of the object.
+	messageFieldScope interface {
+		// UnionFieldNames returns the Go name of the field that holds the
+		// union field name of the object attribute obj, and the Go names of
+		// the fields that hold its branches in branch order.
+		UnionFieldNames(obj *expr.AttributeExpr, name string) (string, []string)
 	}
 
 	// TransformAttrs are the attributes that help in the transformation.

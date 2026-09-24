@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -33,6 +32,16 @@ func (p *protoBufScope) Ref(att *expr.AttributeExpr, pkg string) string {
 // first transform the name into snake case to end up with Api.
 func (*protoBufScope) Field(att *expr.AttributeExpr, name string, firstUpper bool) string {
 	return protoBufifyAtt(att, codegen.SnakeCase(name), firstUpper)
+}
+
+// UnionFieldNames returns the name of the Go field of the oneof that holds
+// the union field name of the message with the object attribute obj, and the
+// names of the Go fields of its oneof fields in branch order. The fields,
+// oneofs and oneof fields of a message share one namespace, so these names
+// depend on the other fields of the message, see newProtoMessageNames.
+func (*protoBufScope) UnionFieldNames(obj *expr.AttributeExpr, name string) (string, []string) {
+	names := newProtoMessageNames(expr.AsObject(obj.Type))
+	return names.goField(name), names.goBranches(name)
 }
 
 // Scope returns the name scope.
@@ -251,35 +260,27 @@ func protoBufMessageDef(att *expr.AttributeExpr, sd *ServiceData) string {
 	}
 }
 
+// protoBufUnionMessageDef returns the definition of the oneof that holds the
+// branches of the union actual in a message of its own, named after the union.
 func protoBufUnionMessageDef(actual *expr.Union, sd *ServiceData) string {
-	return protoBufOneofDef(actual.Name(), &expr.AttributeExpr{Type: actual}, sd)
+	name := actual.Name()
+	att := &expr.AttributeExpr{Type: actual}
+	names := newProtoMessageNames(&expr.Object{{Name: name, Attribute: att}})
+	return protoBufOneofDef(names.field(name), names.oneofFields(name), att, sd)
 }
 
-// protoBufOneofDef returns the definition of the oneof name that holds the
-// branches of the union attribute att. The branches take the field numbers
-// that UnionFieldTags returns, so a union passed to Field numbers its
-// branches from the field number.
-func protoBufOneofDef(name string, att *expr.AttributeExpr, sd *ServiceData) string {
+// protoBufOneofDef returns the definition of the oneof oneofName that holds
+// the branches of the union attribute att in fields named fieldNames. The
+// branches take the field numbers that UnionFieldTags returns, so a union
+// passed to Field numbers its branches from the field number.
+func protoBufOneofDef(oneofName string, fieldNames []string, att *expr.AttributeExpr, sd *ServiceData) string {
 	union := expr.AsUnion(att.Type)
-	oneofName, fieldNames := protoBufUnionNames(name, union)
 	tags := att.UnionFieldTags()
 	def := "\toneof " + oneofName + " {"
 	for i, nat := range union.Values {
 		def += fmt.Sprintf("\n\t\t%s", protoBufUnionFieldDef(nat, fieldNames[i], parseRPCTag(tags[i], nat.Attribute), sd))
 	}
 	return def + "\n\t}"
-}
-
-func protoBufUnionNames(name string, actual *expr.Union) (string, []string) {
-	oneofName := codegen.SnakeCase(protoBufify(name, false, false))
-	fieldNames := make([]string, 0, len(actual.Values))
-	for _, nat := range actual.Values {
-		fieldNames = append(fieldNames, codegen.SnakeCase(protoBufify(nat.Name, false, false)))
-	}
-	for slices.Contains(fieldNames, oneofName) {
-		oneofName += "_oneof"
-	}
-	return oneofName, fieldNames
 }
 
 func protoBufUnionFieldDef(nat *expr.NamedAttributeExpr, fieldName string, fnum uint64, sd *ServiceData) string {
@@ -292,19 +293,21 @@ func protoBufUnionFieldDef(nat *expr.NamedAttributeExpr, fieldName string, fnum 
 func protoBufObjectMessageDef(att *expr.AttributeExpr, actual *expr.Object, sd *ServiceData) string {
 	lines := make([]string, 0, 1+len(*actual)+1)
 	lines = append(lines, " {")
+	names := newProtoMessageNames(actual)
 	for _, nat := range *actual {
-		lines = append(lines, protoBufObjectFieldLine(att, nat, sd))
+		lines = append(lines, protoBufObjectFieldLine(att, nat, names, sd))
 	}
 	lines = append(lines, "}")
 	return strings.Join(lines, "\n")
 }
 
 // protoBufObjectFieldLine returns the definition of the field nat of the
-// message with the object attribute att. A union field, constructor or named,
-// is a oneof of the message named after the field.
-func protoBufObjectFieldLine(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr, sd *ServiceData) string {
+// message with the object attribute att, whose fields, oneofs and oneof fields
+// take the names in names. A union field, constructor or named, is a oneof of
+// the message.
+func protoBufObjectFieldLine(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr, names *protoMessageNames, sd *ServiceData) string {
 	if expr.IsUnion(nat.Attribute.Type) {
-		return protoBufOneofDef(nat.Name, nat.Attribute, sd)
+		return protoBufOneofDef(names.field(nat.Name), names.oneofFields(nat.Name), nat.Attribute, sd)
 	}
 	field := protoBufObjectField(att, nat, sd)
 	return fmt.Sprintf("\t%s%s%s %s = %d%s;", field.Description, field.Optional, field.TypeName, field.Name, field.Number, field.JSONOption)

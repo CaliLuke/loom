@@ -31,6 +31,11 @@ type transformAttrs struct {
 	// source message when proto is false.  (protoc builds union struct type
 	// names from the parent message name).
 	message string
+	// oneofFields holds the names of the Go fields of the oneof fields that
+	// hold the branches of the union being converted, in branch order. They
+	// also suffix the Go wrapper types of the oneof fields. The message that
+	// holds the union names them, see newProtoMessageNames.
+	oneofFields []string
 	// errorAware indicates that protobuf conversion can fail at runtime.
 	errorAware bool
 }
@@ -146,11 +151,13 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 		if ta.proto {
 			name := ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault)
 			initCode += renderJenLine(exprCode(targetVar).Op(":=").Op("&").Id(name).Values())
-			targetVar += "." + wrapperGoFieldName(target, ta.TargetCtx)
+			ta = wrappedUnionTransformAttrs(target, ta)
+			targetVar += "." + wrapperGoFieldName(target)
 			newVar = false
 			target = unwrapAttr(expr.DupAtt(target))
 		} else {
-			sourceVar += "." + wrapperGoFieldName(source, ta.SourceCtx)
+			ta = wrappedUnionTransformAttrs(source, ta)
+			sourceVar += "." + wrapperGoFieldName(source)
 			source = unwrapAttr(expr.DupAtt(source))
 		}
 		if err = codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
@@ -222,9 +229,14 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	fmt.Fprintf(buffer, "%s %s &%s{%s}\n", targetVar, assign, tname, initCode)
 	fmt.Fprint(buffer, postInitCode)
 
+	message := source
+	if ta.proto {
+		message = target
+	}
+	names := newProtoMessageNames(expr.AsObject(message.Type))
 	var err error
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
-		code, fieldErr := buildObjectFieldTransform(sourceVar, targetVar, srcMatt, tgtMatt, srcc, tgtc, n, ta)
+		code, fieldErr := buildObjectFieldTransform(sourceVar, targetVar, srcMatt, tgtMatt, srcc, tgtc, n, names, ta)
 		if fieldErr != nil {
 			err = fieldErr
 			return
@@ -294,11 +306,26 @@ func transformAnyPresenceObjectField(srcField, tgtField string, source, target *
 	return "if " + srcField + " != nil {\n\t" + tgtField + " = " + converted + "\n}\n", true
 }
 
-func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
+// buildObjectFieldTransform returns the code that converts the field n of the
+// object held by sourceVar to the field n of the object held by targetVar.
+// names holds the names of the fields of the protocol buffer message, which
+// name the oneof of a union field and its oneof fields.
+func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, names *protoMessageNames, ta *transformAttrs) (string, error) {
 	srcc = unAlias(srcc)
 	tgtc = unAlias(tgtc)
-	srcValue := sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
-	tgtValue := targetVar + "." + ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
+	srcField := ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
+	tgtField := ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
+	if expr.IsUnion(srcc.Type) {
+		if ta.proto {
+			tgtField = names.goField(n)
+		} else {
+			srcField = names.goField(n)
+		}
+		ta = dupTransformAttrs(ta)
+		ta.oneofFields = names.goBranches(n)
+	}
+	srcValue := sourceVar + "." + srcField
+	tgtValue := targetVar + "." + tgtField
 	compatibleSource, compatibleTarget, err := compatibleTransformAttrs(srcc, tgtc, ta)
 	if err != nil {
 		return "", err

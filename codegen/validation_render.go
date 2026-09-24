@@ -302,6 +302,9 @@ func renderLengthValidation(data validationRenderData) string {
 
 func renderRequiredValidation(data validationRenderData) string {
 	field := data.AttributeCtx.Scope.Field(data.RequiredAttr, data.RequiredName, true)
+	if scope, ok := data.AttributeCtx.Scope.(messageFieldScope); ok && expr.IsUnion(data.RequiredAttr.Type) {
+		field, _ = scope.UnionFieldNames(data.Attribute, data.RequiredName)
+	}
 	mapped := expr.NewMappedAttributeExpr(data.Attribute)
 	presence := data.AttributeCtx.FieldPresence(mapped, data.RequiredName, data.RequiredAttr)
 	if presence == OptionalPresence || presence == NullablePresence {

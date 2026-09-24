@@ -1,0 +1,136 @@
+
+syntax = "proto3";
+
+package collision;
+
+option go_package = "/collisionpb";
+
+// Service is the collision service interface.
+service Collision {
+	// Echo implements echo.
+	rpc Echo (EchoRequest) returns (EchoResponse);
+	// Grow implements grow.
+	rpc Grow (GrowRequest) returns (GrowResponse);
+	// Match implements match.
+	rpc Match (MatchRequest) returns (MatchResponse);
+}
+
+message EchoRequest {
+	oneof a {
+		string string_ = 1;
+		sint64 int64_ = 2;
+	}
+	oneof b {
+		bool boolean = 3;
+		sint64 b_int64 = 4;
+	}
+	oneof c {
+		sint64 c_int64 = 5;
+		Leaf c_leaf = 6;
+	}
+	optional string leaf = 7;
+	oneof d {
+		sint64 d_int64 = 8;
+		string d_leaf = 9;
+	}
+	oneof pick {
+		Leaf pick_leaf = 10;
+		Other other = 11;
+	}
+	Holder holder = 12;
+	repeated Holder holders = 13;
+}
+
+message Leaf {
+	optional string name = 1;
+}
+
+message Other {
+	optional sint64 count = 1;
+}
+
+message Holder {
+	oneof first {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+	oneof second {
+		Leaf second_leaf = 3;
+		Other second_other = 4;
+	}
+	oneof tag {
+		string code = 5;
+		Other tag_other = 6;
+	}
+	oneof alt {
+		string alt_code = 7;
+		Other alt_other = 8;
+	}
+}
+
+message EchoResponse {
+	oneof a {
+		string string_ = 1;
+		sint64 int64_ = 2;
+	}
+	oneof b {
+		bool boolean = 3;
+		sint64 b_int64 = 4;
+	}
+	oneof c {
+		sint64 c_int64 = 5;
+		Leaf c_leaf = 6;
+	}
+	optional string leaf = 7;
+	oneof d {
+		sint64 d_int64 = 8;
+		string d_leaf = 9;
+	}
+	oneof pick {
+		Leaf pick_leaf = 10;
+		Other other = 11;
+	}
+	Holder holder = 12;
+	repeated Holder holders = 13;
+}
+
+message GrowRequest {
+	oneof leaf_oneof {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+	oneof choice {
+		Leaf choice_leaf = 3;
+		Other choice_other = 4;
+	}
+}
+
+message GrowResponse {
+	oneof leaf_oneof {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+	oneof choice {
+		Leaf choice_leaf = 3;
+		Other choice_other = 4;
+	}
+}
+
+message MatchRequest {
+	oneof leaf_oneof_oneof {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+	optional string leaf_oneof = 3;
+}
+
+message MatchResponse {
+	oneof u {
+		Leaf leaf = 1;
+		Other other = 2;
+	}
+	oneof w {
+		Leaf w_u = 3;
+		Other v = 4;
+	}
+}

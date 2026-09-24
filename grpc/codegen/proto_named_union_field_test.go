@@ -53,30 +53,32 @@ func TestProtoFilesNamedUnionFieldReuse(t *testing.T) {
 
 // TestProtoFilesNamedUnionFieldErrors checks that generation fails with an
 // error naming the message and the fields when the branches of a named union
-// passed to Field collide with another field of a nested message, by number
-// or by name, and that a named union wrapped in a type is valid as array
+// passed to Field collide by number with another field of a nested message,
+// that the branches of the same named union used twice in a message take
+// unique names, and that a named union wrapped in a type is valid as array
 // elements and map values.
 func TestProtoFilesNamedUnionFieldErrors(t *testing.T) {
 	cases := []struct {
 		name     string
 		holder   func(choice any)
 		payload  func(holder any)
+		contains string
 		expected string
 	}{
 		{"branch number and field", func(choice any) {
 			Field(2, "choice", choice)
 			Field(3, "x", String)
-		}, nil, `field number 3 in attribute "x" of protocol buffer message "Holder" already exists for attribute "choice.Leaf"; a OneOf passed to Field numbers its branches consecutively from the field number`},
+		}, nil, "", `field number 3 in attribute "x" of protocol buffer message "Holder" already exists for attribute "choice.Leaf"; a OneOf passed to Field numbers its branches consecutively from the field number`},
 		{"same union twice", func(choice any) {
 			Field(1, "first", choice)
 			Field(3, "second", choice)
-		}, nil, `protocol buffer message "Holder" has two fields named "other": branch "Other" of attribute "first" and branch "Other" of attribute "second"`},
+		}, nil, "message Holder {\n\toneof first {\n\t\tOther other = 1;\n\t\tLeaf leaf = 2;\n\t}\n\toneof second {\n\t\tOther second_other = 3;\n\t\tLeaf second_leaf = 4;\n\t}\n}", ""},
 		{"wrapped in collections", func(choice any) {
 			Field(1, "choice", choice)
 		}, func(holder any) {
 			Field(1, "holders", ArrayOf(holder))
 			Field(2, "by_name", MapOf(String, holder))
-		}, ""},
+		}, "message Holder {\n\toneof choice {\n\t\tOther other = 1;\n\t\tLeaf leaf = 2;\n\t}\n}", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -116,7 +118,7 @@ func TestProtoFilesNamedUnionFieldErrors(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Contains(t, code, "message Holder {\n\toneof choice {\n\t\tOther other = 1;\n\t\tLeaf leaf = 2;\n\t}\n}")
+			assert.Contains(t, code, c.contains)
 			fpath := codegen.CreateTempFile(t, code)
 			assert.NoError(t, protoc(defaultProtocCmd, fpath, nil), "compile proto file %q", fpath)
 		})

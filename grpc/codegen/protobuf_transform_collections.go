@@ -297,7 +297,7 @@ func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, target
 	cases := make([]map[string]any, 0, len(tdata.SourceValues))
 	for i, sv := range tdata.SourceValues {
 		tv := tdata.TargetValues[i]
-		fieldName := ta.TargetCtx.Scope.Field(tv.Attribute, tv.Name, true)
+		fieldName := oneofFieldName(ta, i, tv, ta.TargetCtx)
 		cases = append(cases, map[string]any{
 			"typeTag":           sv.Name,
 			"sourceFieldName":   codegen.Goify(sv.Name, true),
@@ -336,7 +336,7 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 	cases := make([]map[string]any, 0, len(tdata.SourceValues))
 	for i, sv := range tdata.SourceValues {
 		tv := tdata.TargetValues[i]
-		sourceFieldName := ta.SourceCtx.Scope.Field(sv.Attribute, sv.Name, true)
+		sourceFieldName := oneofFieldName(ta, i, sv, ta.SourceCtx)
 		targetFieldName := codegen.Goify(tv.Name, true)
 		cases = append(cases, map[string]any{
 			"sourceValueTypeRef": tdata.SourceValueTypeRefs[i],
@@ -526,8 +526,7 @@ func buildProtoUnionTypeRefs(source *expr.AttributeExpr, ta *transformAttrs, src
 
 func buildSourceUnionTypeRefs(ta *transformAttrs, src *expr.Union, sourceValueTypeRefs []string) {
 	for i, v := range src.Values {
-		fieldName := ta.SourceCtx.Scope.Field(v.Attribute, v.Name, true)
-		sourceValueTypeRefs[i] = ta.message + "_" + fieldName
+		sourceValueTypeRefs[i] = ta.message + "_" + oneofFieldName(ta, i, v, ta.SourceCtx)
 	}
 }
 
@@ -549,6 +548,18 @@ func buildTargetUnionWrapperRefs(target *expr.AttributeExpr, ta *transformAttrs,
 			targetWrapperRefs[i] = w
 		}
 	}
+}
+
+// oneofFieldName returns the name of the Go field of the oneof field that
+// holds the branch i, nat, of the union being converted in the protocol
+// buffer context ctx, which also suffixes the Go wrapper type of the oneof
+// field. It is the name that the message that holds the union gives the oneof
+// field, or the name of the branch when ta does not hold one.
+func oneofFieldName(ta *transformAttrs, i int, nat *expr.NamedAttributeExpr, ctx *codegen.AttributeContext) string {
+	if i < len(ta.oneofFields) {
+		return ta.oneofFields[i]
+	}
+	return ctx.Scope.Field(nat.Attribute, nat.Name, true)
 }
 
 func unionCommonPkg(values []*expr.NamedAttributeExpr) (bool, string) {

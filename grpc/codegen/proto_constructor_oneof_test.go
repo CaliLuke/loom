@@ -33,24 +33,27 @@ func TestProtoFilesConstructorOneOfField(t *testing.T) {
 	assert.Equal(t, protoFileCode(t, testdata.BlockOneOfFieldDSL), code)
 }
 
-// TestProtoFilesDuplicateUnionBranchNames checks that generation fails with
-// an error naming the message and the fields when union branches, whose
-// constructor form derives their names from the branch types, give two
-// fields of the same message the same protocol buffer name.
+// TestProtoFilesDuplicateUnionBranchNames checks that union branches, whose
+// constructor form derives their names from the branch types, take unique
+// protocol buffer names when they collide with other fields or branches of the
+// same message, and that generation fails with an error naming the message
+// and the fields when two attributes that are not unions have the same
+// protocol buffer name.
 func TestProtoFilesDuplicateUnionBranchNames(t *testing.T) {
 	cases := []struct {
 		name     string
 		fields   func(leaf, other any)
+		contains string
 		expected string
 	}{
 		{"two constructor unions", func(leaf, other any) {
 			Field(2, "pick", OneOf(leaf, other))
 			Field(4, "alt", OneOf(leaf, other))
-		}, `protocol buffer message "EchoRequest" has two fields named "leaf": branch "Leaf" of attribute "pick" and branch "Leaf" of attribute "alt"`},
+		}, "\toneof alt {\n\t\tLeaf alt_leaf = 4;\n\t\tOther alt_other = 5;\n\t}", ""},
 		{"branch and field", func(leaf, other any) {
 			Field(1, "leaf", String)
 			Field(2, "pick", OneOf(leaf, other))
-		}, `protocol buffer message "EchoRequest" has two fields named "leaf": attribute "leaf" and branch "Leaf" of attribute "pick"`},
+		}, "\toneof pick {\n\t\tLeaf pick_leaf = 2;\n\t\tOther other = 3;\n\t}", ""},
 		{"block unions", func(_, _ any) {
 			OneOf("pick", func() {
 				Field(1, "text", String)
@@ -58,11 +61,15 @@ func TestProtoFilesDuplicateUnionBranchNames(t *testing.T) {
 			OneOf("alt", func() {
 				Field(2, "text", String)
 			})
-		}, `protocol buffer message "EchoRequest" has two fields named "text": branch "text" of attribute "pick" and branch "text" of attribute "alt"`},
+		}, "\toneof alt {\n\t\tstring alt_text = 2;\n\t}", ""},
+		{"two fields", func(_, _ any) {
+			Field(1, "fooBar", String)
+			Field(2, "foo_bar", String)
+		}, "", `protocol buffer message "EchoRequest" has two fields named "foo_bar": attribute "fooBar" and attribute "foo_bar"`},
 		{"distinct names", func(leaf, other any) {
 			Field(2, "pick", OneOf(leaf, other))
 			Field(4, "next", String)
-		}, ""},
+		}, "\toneof pick {\n\t\tLeaf leaf = 2;\n\t\tOther other = 3;\n\t}", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -82,13 +89,21 @@ func TestProtoFilesDuplicateUnionBranchNames(t *testing.T) {
 					})
 				})
 			})
-			err := generationError(func() { ProtoFiles("", CreateGRPCServices(root)) })
-			if c.expected == "" {
-				assert.NoError(t, err)
+			var code string
+			err := generationError(func() {
+				fs := ProtoFiles("", CreateGRPCServices(root))
+				require.Len(t, fs, 1)
+				code = sectionCode(t, fs[0].AllSections()[1:]...)
+			})
+			if c.expected != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), c.expected)
 				return
 			}
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), c.expected)
+			require.NoError(t, err)
+			assert.Contains(t, code, c.contains)
+			fpath := codegen.CreateTempFile(t, code)
+			assert.NoError(t, protoc(defaultProtocCmd, fpath, nil), "compile proto file %q", fpath)
 		})
 	}
 }

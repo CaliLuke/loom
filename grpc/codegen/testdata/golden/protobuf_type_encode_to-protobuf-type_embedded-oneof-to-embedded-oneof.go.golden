@@ -6,7 +6,7 @@ func transform() {
 		switch string(source.EmbeddedOneOf.Kind()) {
 		case "string":
 			actual, _ := source.EmbeddedOneOf.AsString()
-			target.EmbeddedOneOf = &proto.EmbeddedOneOf_String_{String_: string(actual)}
+			target.EmbeddedOneOf = &proto.EmbeddedOneOf_EmbeddedOneOfString{EmbeddedOneOfString: string(actual)}
 		case "integer":
 			actual, _ := source.EmbeddedOneOf.AsInteger()
 			target.EmbeddedOneOf = &proto.EmbeddedOneOf_Integer{Integer: int64(actual)}
