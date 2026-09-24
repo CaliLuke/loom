@@ -134,6 +134,12 @@ starts per key when epochs are tracked.
   reported trace depends on that. In every counterexample, each event is
   routed well within 2 minutes of its creation. The longest wait before a
   routing is the dispatch timeout in B2 (`2*ackGracePeriod`, 40s by default).
+  Since roadmap ticket 4, Go also releases a pending guard once its event
+  is older than `pendingEventTTL`, even if the event is still unacked.
+  `FIX_DISPATCH` releases only after the ack, so it covers Go up to that
+  age, with one more exception: on Redis 7 and later, XAUTOCLAIM purges the
+  pending entry of a start event that `MAXLEN` trimmed, so Go can release
+  the guard of an unacked event early (roadmap, issue #385).
 - Only one node can crash. With two nodes and crash-only deaths, only one node
   survives, so `CleanupLockMutualExclusion` is checked meaningfully only in
   configurations where live workers can look dead.
@@ -175,8 +181,8 @@ only `w1` can look dead.
 
 | Action | Go |
 | --- | --- |
-| `Dispatch` | `dispatchJob` (`node_jobs.go:89`): `luaClaimDispatch` (`scripts.go:21`), then `poolStream.Add` (`node_jobs.go:99`). |
-| `DispatchRelease` | `releaseDispatchPending` on ack or timeout (`node_jobs.go:112-123`). Stale guard replaced in `luaClaimDispatch` (`scripts.go:41-51`) or swept by `cleanupStalePendingJobs` (`node_membership.go:29`). |
+| `Dispatch` | `dispatchJob` (`node_jobs.go:89`): `luaClaimDispatch` (`scripts.go:21`), then `poolStream.Add` (`node_jobs.go:99`). Since roadmap ticket 4 (`FIX_DISPATCH`), one `luaClaimDispatch` script adds the event and writes the guard. |
+| `DispatchRelease` | `releaseDispatchPending` on ack or timeout (`node_jobs.go:112-123`). Stale guard replaced in `luaClaimDispatch` (`scripts.go:41-51`) or swept by `cleanupStalePendingJobs` (`node_membership.go:29`). Since ticket 4, every path clears a guard only when its event is not in flight, and `ackWorkerEvent` XACKs before the dispatch return. |
 | `StopJob` | `node_jobs.go:207` |
 | `Route` | `routeWorkerEvent` (`node_events.go:59-93`): `activeWorkers` on replicas (`:72`), hash (`:76`), `Add` with `WithOnlyIfStreamExists` (`:83`). Redelivery comes from XAUTOCLAIM with `MinIdle = ackGracePeriod` (`streaming/sink_consumers.go:308-316`). |
 | `WorkerHandle` | `handleEvents` (`worker.go:186`), then `startJob` (`worker.go:248-273`) or `stopJob` (`worker.go:277-293`). Includes the ack path: `ackPoolEvent` (`worker.go:313`), then `ackWorkerEvent` (`node_events.go:134-163`). |

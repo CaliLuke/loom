@@ -25,21 +25,24 @@ func (node *Node) processInactiveJobs(ctx context.Context) {
 }
 
 // cleanupStalePendingJobs checks for and removes stale entries in the pending jobs map.
-// An entry is considered stale if its timestamp has expired.
+// An entry is stale once its TTL has passed and its start event is no longer
+// in flight; a guard whose event is still unacked stays.
 func (node *Node) cleanupStalePendingJobs(ctx context.Context) {
-	for key, pendingTS := range node.jobPendingMap.Map() {
-		if _, err := strconv.ParseInt(pendingTS, 10, 64); err != nil {
-			node.logger.Error(fmt.Errorf("cleanupStalePendingJobs: malformed pending timestamp for job %q: %w", key, err))
+	for key, guard := range node.jobPendingMap.Map() {
+		until, _, err := parsePendingGuard(guard)
+		if err != nil {
+			node.logger.Error(fmt.Errorf("cleanupStalePendingJobs: job %q: %w", key, err))
 			continue
 		}
-		if node.isWithinTTL(pendingTS, 0) {
+		if time.Now().UnixNano() <= until {
 			continue
 		}
-		prev, err := node.jobPendingMap.TestAndDelete(ctx, key, pendingTS)
+		status, err := node.runReleaseDispatch(ctx, key, guard)
 		if err != nil {
 			node.logger.Error(fmt.Errorf("cleanupStalePendingJobs: failed to delete stale pending entry: %w", err))
+			continue
 		}
-		if prev == pendingTS {
+		if status == dispatchReleaseDeleted {
 			node.logger.Info("cleanupStalePendingJobs: removed stale pending entry", "key", key)
 		}
 	}

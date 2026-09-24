@@ -118,6 +118,12 @@ func (s *Stream) NewSink(ctx context.Context, name string, opts ...options.Sink)
 	return sink, nil
 }
 
+// Key returns the Redis key of the stream. Scripts that add events to the
+// stream atomically with other writes use it.
+func (s *Stream) Key() string {
+	return s.key
+}
+
 // Add appends an event to the stream and returns its ID. If the option
 // WithOnlyIfStreamExists is used and the stream does not exist then no event is
 // added and the empty string is returned. The stream is created if the option

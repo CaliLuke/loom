@@ -91,16 +91,12 @@ func (node *Node) dispatchJob(ctx context.Context, key string, job []byte) error
 		return fmt.Errorf("DispatchJob: pool %q is closed", node.PoolName)
 	}
 
-	pendingTS, err := node.claimDispatch(ctx, key)
+	// claimDispatch adds the start event with its guard. On a client-side
+	// error the script may still have run; the guard then stays until its
+	// event is acked, so there is nothing to release here.
+	guard, eventID, err := node.claimDispatch(ctx, key, job)
 	if err != nil {
 		return err
-	}
-
-	eventID, err := node.poolStream.Add(ctx, evStartJob, job)
-	if err != nil {
-		// Clean up pending entry on failure
-		node.releaseDispatchPending(key, pendingTS)
-		return fmt.Errorf("DispatchJob: failed to add job to stream %q: %w", node.poolStream.Name, err)
 	}
 
 	cherr := node.registerDispatch(eventID)
@@ -118,8 +114,10 @@ func (node *Node) dispatchJob(ctx context.Context, key string, job []byte) error
 
 	node.pendingJobChannels.Delete(eventID)
 
-	// Clean up pending entry
-	node.releaseDispatchPending(key, pendingTS)
+	// Clear the guard unless the start event is still unacked: after a
+	// timeout or cancellation it may still start, so a retry must see
+	// ErrJobExists until it is acked.
+	node.releaseDispatchPending(key, guard)
 
 	if err != nil {
 		node.logger.Error(fmt.Errorf("DispatchJob: failed to dispatch job: %w", err), "key", key)
@@ -128,6 +126,47 @@ func (node *Node) dispatchJob(ctx context.Context, key string, job []byte) error
 
 	node.logger.Info("dispatched", "key", key)
 	return nil
+}
+
+// claimDispatch atomically decides whether a job key may be dispatched and, if
+// so, adds its start event to the pool stream. Redis is the source of truth
+// for both states that matter to singleton admission: a durable payload means
+// the job is already running, and a pending guard means its start event may
+// still start it. It returns the guard it wrote and the start event id.
+func (node *Node) claimDispatch(ctx context.Context, key string, job []byte) (string, string, error) {
+	if key == "" {
+		return "", "", fmt.Errorf("DispatchJob: job key cannot be empty")
+	}
+	if strings.Contains(key, "=") {
+		return "", "", fmt.Errorf("DispatchJob: job key %q cannot contain '='", key)
+	}
+	now := time.Now()
+	raw, err := node.runClaimDispatch(ctx, key, job, now, now.Add(2*node.ackGracePeriod))
+	if err != nil {
+		return "", "", fmt.Errorf("DispatchJob: failed to claim job %q: %w", key, err)
+	}
+	status, value, err := parseDispatchClaim(raw)
+	if err != nil {
+		return "", "", fmt.Errorf("DispatchJob: failed to parse claim result for job %q: %w", key, err)
+	}
+	switch status {
+	case dispatchClaimed:
+		_, eventID, err := parsePendingGuard(value)
+		if err != nil || eventID == "" {
+			return "", "", fmt.Errorf("DispatchJob: invalid guard %q written for job %q", value, key)
+		}
+		return value, eventID, nil
+	case dispatchAlreadyPending:
+		node.logger.Info("DispatchJob: job already dispatched", "key", key)
+		return "", "", fmt.Errorf("%w: job %q is already dispatched", ErrJobExists, key)
+	case dispatchAlreadyRunning:
+		node.logger.Info("DispatchJob: job already exists", "key", key)
+		return "", "", fmt.Errorf("%w: job %q", ErrJobExists, key)
+	case dispatchMalformedPending:
+		return "", "", fmt.Errorf("DispatchJob: malformed pending guard for job %q: %q", key, value)
+	default:
+		return "", "", fmt.Errorf("DispatchJob: unexpected claim status %d for job %q", status, key)
+	}
 }
 
 // registerDispatch returns the channel that receives the dispatch return of
@@ -147,57 +186,74 @@ func (node *Node) registerDispatch(eventID string) chan error {
 	return cherr
 }
 
-// claimDispatch atomically decides whether a job key may be dispatched. Redis is
-// the source of truth for both states that matter to singleton admission: a
-// durable payload means the job is already running, and a pending guard means a
-// worker is currently starting it.
-func (node *Node) claimDispatch(ctx context.Context, key string) (string, error) {
-	if key == "" {
-		return "", fmt.Errorf("DispatchJob: job key cannot be empty")
-	}
-	if strings.Contains(key, "=") {
-		return "", fmt.Errorf("DispatchJob: job key %q cannot contain '='", key)
-	}
-	now := time.Now()
-	pendingUntil := strconv.FormatInt(now.Add(2*node.ackGracePeriod).UnixNano(), 10)
-	raw, err := luaClaimDispatch.Run(ctx, node.rdb, []string{
+// runClaimDispatch runs luaClaimDispatch for key with a guard that expires at
+// until.
+func (node *Node) runClaimDispatch(ctx context.Context, key string, job []byte, now, until time.Time) (any, error) {
+	return luaClaimDispatch.Run(ctx, node.rdb, []string{
 		rmapContentKey(jobPayloadMapName(node.PoolName)),
 		rmapContentKey(jobPendingMapName(node.PoolName)),
 		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
-	}, key, strconv.FormatInt(now.UnixNano(), 10), pendingUntil).Result()
+		node.poolStream.Key(),
+	}, key, strconv.FormatInt(now.UnixNano(), 10), strconv.FormatInt(until.UnixNano(), 10),
+		node.poolStream.MaxLen, job, poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds()).Result()
+}
+
+// releaseDispatchPending clears the pending guard only if it still has the
+// value guard and its start event is no longer in flight. Dispatch callers
+// can time out while another node later claims a stale pending key, so
+// unconditional deletion would erase a newer guard, and a guard whose event
+// is still unacked must stay so a retry is refused.
+func (node *Node) releaseDispatchPending(key, guard string) {
+	status, err := node.runReleaseDispatch(node.runtimeCtx, key, guard)
 	if err != nil {
-		return "", fmt.Errorf("DispatchJob: failed to claim job %q: %w", key, err)
+		node.logger.Error(fmt.Errorf("DispatchJob: failed to clean up pending entry for job %q: %w", key, err))
+		return
 	}
-	status, value, err := parseDispatchClaim(raw)
-	if err != nil {
-		return "", fmt.Errorf("DispatchJob: failed to parse claim result for job %q: %w", key, err)
-	}
-	switch status {
-	case dispatchClaimed:
-		return value, nil
-	case dispatchAlreadyPending:
-		node.logger.Info("DispatchJob: job already dispatched", "key", key)
-		return "", fmt.Errorf("%w: job %q is already dispatched", ErrJobExists, key)
-	case dispatchAlreadyRunning:
-		node.logger.Info("DispatchJob: job already exists", "key", key)
-		return "", fmt.Errorf("%w: job %q", ErrJobExists, key)
-	case dispatchMalformedPending:
-		return "", fmt.Errorf("DispatchJob: malformed pending guard for job %q: %q", key, value)
-	default:
-		return "", fmt.Errorf("DispatchJob: unexpected claim status %d for job %q", status, key)
+	if status == dispatchReleaseInFlight {
+		node.logger.Info("DispatchJob: start event still unacked, keeping pending guard", "key", key)
 	}
 }
 
-// releaseDispatchPending clears the pending guard only if this dispatch still
-// owns it. Dispatch callers can time out while another node later claims a
-// stale pending key, so unconditional deletion would erase a newer guard.
-func (node *Node) releaseDispatchPending(key, pendingTS string) {
-	if _, err := luaReleaseDispatch.Run(node.runtimeCtx, node.rdb, []string{
+// runReleaseDispatch runs luaReleaseDispatch for the guard value guard of key
+// and returns its status.
+func (node *Node) runReleaseDispatch(ctx context.Context, key, guard string) (int64, error) {
+	return luaReleaseDispatch.Run(ctx, node.rdb, []string{
 		rmapContentKey(jobPendingMapName(node.PoolName)),
 		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
-	}, key, pendingTS).Result(); err != nil {
-		node.logger.Error(fmt.Errorf("DispatchJob: failed to clean up pending entry for job %q: %w", key, err))
+		node.poolStream.Key(),
+	}, key, guard, poolSinkName, time.Now().UnixMilli(), pendingEventTTL.Milliseconds()).Int64()
+}
+
+// parsePendingGuard parses a pending guard value. A guard is
+// "untilNanos:eventID"; a guard written by an earlier release is "untilNanos"
+// and has no event id.
+func parsePendingGuard(value string) (int64, string, error) {
+	untilPart, eventID, hasID := strings.Cut(value, ":")
+	until, err := strconv.ParseInt(untilPart, 10, 64)
+	if err != nil || until < 0 {
+		return 0, "", fmt.Errorf("malformed pending guard %q", value)
 	}
+	if !hasID {
+		return until, "", nil
+	}
+	ms, seq, ok := strings.Cut(eventID, "-")
+	if !ok || !isDigits(ms) || !isDigits(seq) {
+		return 0, "", fmt.Errorf("malformed pending guard %q", value)
+	}
+	return until, eventID, nil
+}
+
+// isDigits reports whether s is a non-empty string of ASCII digits.
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // parseDispatchClaim decodes the Lua admission result into its status code and

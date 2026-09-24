@@ -106,6 +106,10 @@ const (
 	evDispatchReturn string = "d"
 )
 
+// poolSinkName is the name of the pool stream sink, which is also the Redis
+// consumer group of the pool stream.
+const poolSinkName = "events"
+
 // pendingEventTTL is the TTL for pending events.
 var pendingEventTTL = 2 * time.Minute
 
@@ -215,7 +219,7 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 			return nil, fmt.Errorf("AddNode: failed to join pending jobs replicated map %q: %w", jobPendingMapName(poolName), err)
 		}
 
-		poolSink, err = poolStream.NewSink(ctx, "events",
+		poolSink, err = poolStream.NewSink(ctx, poolSinkName,
 			options.WithSinkBlockDuration(o.jobSinkBlockDuration),
 			options.WithSinkAckGracePeriod(o.ackGracePeriod))
 		if err != nil {

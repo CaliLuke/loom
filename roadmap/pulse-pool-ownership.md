@@ -1,7 +1,7 @@
 # Pulse Pool Job Ownership
 
-Status: active. Design accepted (owner-record redesign). Tickets 1 to 3
-are done. Tickets 4 to 8 are open.
+Status: active. Design accepted (owner-record redesign). Tickets 1 to 4
+are done. Tickets 5 to 8 are open.
 
 Code references are to `main` at `967f4fbe`. The model lives in
 [`pulse/pool/tla`](../pulse/pool/tla/README.md).
@@ -31,7 +31,7 @@ worker, breadth-first). Configurations are under `pulse/pool/tla/cfg/`.
 | Id | Defect | Code | Trace | Status |
 | --- | --- | --- | ---: | --- |
 | B1 | The sink redelivers an unacked start event (XAUTOCLAIM after `ackGracePeriod`). `startJob` never checks `w.jobs`, so the job starts twice on one worker, or on two workers if the second router's view differs. | `worker.go:248-273`, `streaming/sink_consumers.go:308-316` | 6 (`double_asis`), 7 (`runner_asis`) | same worker fixed by ticket 2; across workers open until ticket 5 |
-| B2 | `dispatchJob` releases the pending guard on timeout while the start event is still queued. A retry is admitted and adds a second start. | `node_jobs.go:112-123`, `scripts.go:41-51` | 8 (`double_noredeliver`), 9 (`runner_dispatch_retry`) | open |
+| B2 | `dispatchJob` releases the pending guard on timeout while the start event is still queued. A retry is admitted and adds a second start. | `node_jobs.go:112-123`, `scripts.go:41-51` | 8 (`double_noredeliver`), 9 (`runner_dispatch_retry`) | fixed by ticket 4 |
 | B3 | `Close` and `cleanupWorker` delete the worker's `jobMap` entry but keep the payload. The orphan sweep takes no lock and requeues a job whose requeue is still in flight. | `node_cleanup.go:59`, `node_recovery.go:80-134` | 12 (`double_orphan`) | open |
 | B4 | `rebalance` requeues without checking whether cleanup already moved the key, and without removing `jobMap[w]`. Rebalance and cleanup both requeue the same job. | `worker.go:370-388`, `node_recovery.go:145,161` | 15 (`double_rebalance`) | open |
 | B5 | `startJob` writes `jobMap` then the payload. These are separate `rmap`s with separate subscriptions. A node that sees the payload without the `jobMap` entry for longer than the grace period requeues a running job. | `worker.go:252,256`, `node_recovery.go:104-126` | 10 (`runner_orphan_lag`) | open, needs lag longer than `2*workerTTL` |
@@ -245,15 +245,32 @@ return {1, id}
 
 Details:
 
-- `in_flight(id)` is true only if both conditions hold:
-  - The entry still exists (`XRANGE pool id id` is non-empty).
-  - It is unacked in the `events` group. That means it is listed by
-    `XPENDING pool events id id 1`, or it is not yet delivered: `id` is
-    greater than the group's `last-delivered-id` (`XINFO GROUPS pool`).
-- The existence check covers a trimmed stream (`WithStreamMaxLen`,
-  `node.go:144`). Redis 7 and later purge deleted entries from the pending
-  list during XAUTOCLAIM, but Redis 6.2 does not. A trimmed entry can never be
-  redelivered, so it is not in flight on any version.
+- `in_flight(id)` is true only if the event is younger than
+  `pendingEventTTL` and unacked in the `events` group:
+  - It is listed by `XPENDING pool events id id 1`. Routing does not ack
+    an event, and a trim (`WithStreamMaxLen`, `node.go:144`) or XDEL
+    leaves the pending entry, so this holds even when the stream no longer
+    has the entry. A routed event can still start.
+  - Or it is still in the stream (`XRANGE pool id id`) and not yet
+    delivered: `id` is greater than the group's `last-delivered-id`
+    (`XINFO GROUPS pool`), or the group does not exist.
+- The age bound keeps a guard from outliving every recovery path. Redis 7
+  and later purge deleted entries from the pending list during XAUTOCLAIM,
+  but Redis 6.2 keeps them, so a trimmed pending entry may never be acked.
+  An event that no sink reads is never delivered. `routeWorkerEvent` acks
+  events older than `pendingEventTTL` as stale without starting them, so
+  after that age only an event already queued on a worker stream can
+  start. The model has no time and does not model this bound.
+- Known gap on Redis 7 and later (issue #385): XAUTOCLAIM purges the
+  pending entry of a deleted id. The guard can then be released before
+  `pendingEventTTL` when all of these hold:
+  - Redis 7 or later,
+  - `maxQueuedJobs` (default 1000) or more events are added while the
+    start event is unacked, so `MAXLEN ~` trims it,
+  - XAUTOCLAIM runs after `ackGracePeriod` and purges its pending entry.
+
+  A retry is then admitted while the first start is still queued on a
+  worker stream, which is the B2 double start.
 - Stream ids are compared as numbers, never as strings: split `ms-seq`, then
   compare `ms`, then `seq`. Both fit in a Lua double.
 - The script needs no Redis version beyond the 6.2 that the sink already
@@ -366,8 +383,9 @@ return {2, requeued}
     unacked. The model's `WorkerHandle` handles, acks and returns in one step,
     which is the new Go order (XACK, then return, then release). It is not
     today's order.
-  - The model never trims the pool stream, so it does not exercise the
-    existence check in `in_flight`. It also never fails `handler.Start`, so
+  - The model never trims the pool stream and has no time, so it exercises
+    neither the trimmed-pending case nor the `pendingEventTTL` bound in
+    `in_flight`. It also never fails `handler.Start`, so
     the start-error retry is covered only by the Go test in ticket 4.
 - **The orphan sweep** requeues only keys with no owner record.
 - **Lock release** (`removeWorkerFromMaps`) runs a test-and-delete with the
@@ -475,9 +493,10 @@ useful even before the owner record lands.
      `stopHandlers`, only the payload remains, and the key runs nowhere
      until the orphan sweep requeues it (its grace period plus one sweep
      period). Tickets 5 to 7 close this window.
-4. **Keep the pending guard until ack (B2).** Replace `luaClaimDispatch` and
-   the separate `poolStream.Add` with the `claimDispatch` script, which adds
-   the event and writes `untilNanos:eventID` in one step. Make every release
+4. **Keep the pending guard until ack (B2).** Done. Replace
+   `luaClaimDispatch` and the separate `poolStream.Add` with the
+   `claimDispatch` script, which adds the event and writes
+   `untilNanos:eventID` in one step. Make every release
    path check `in_flight`, and make `ackWorkerEvent` XACK before it sends
    `evDispatchReturn` (see [Other changes](#other-changes)). The owner-record
    check in `claimDispatch` (`HEXISTS owners key`) is added in ticket 5.
@@ -498,7 +517,8 @@ useful even before the owner record lands.
      admission.
    - `cleanupStalePendingJobs` runs after the guard TTL. The guard stays.
    - The event is trimmed from the pool stream while still pending. Every
-     path treats the guard as not in flight.
+     path treats the guard as in flight, until the event is older than
+     `pendingEventTTL`.
    - Stream ids with a multi-digit sequence (`5-10` against `5-9`) compare as
      numbers.
    - After the event is acked, each path clears the guard.
@@ -510,6 +530,37 @@ useful even before the owner record lands.
    versions run. To avoid this, either accept both formats for one release
    before writing the new one, or document that a rolling upgrade is not
    supported.
+
+   Delivered:
+   - `luaClaimDispatch` adds the start event (`MAXLEN ~` as `Stream.Add`;
+     the pool stream has no TTL) and writes `untilNanos:eventID` in one
+     step. `luaReleaseDispatch` clears a guard only when its value is
+     unchanged and `in_flight` is false. The dispatcher (timeout,
+     cancellation, return), the stale replacement in `luaClaimDispatch`
+     and `cleanupStalePendingJobs` all use it. A client-side error from
+     `claimDispatch` releases nothing.
+   - `in_flight` checks the pending list first, so a trimmed event that
+     is still pending stays in flight. A missing sink group means not yet
+     delivered, so in flight. Every in-flight state ends once the event is
+     older than `pendingEventTTL`; see
+     [claimDispatch](#claimdispatch-dispatchjob).
+   - Residual gaps: after `pendingEventTTL`, an event already on a worker
+     stream can still start. On Redis 7 and later, a trimmed pending event
+     loses its guard early (issue #385, preconditions in
+     [claimDispatch](#claimdispatch-dispatchjob)).
+   - `ackWorkerEvent` XACKs the pool event, then sends `evDispatchReturn`.
+   - The commit before this ticket stopped losing a dispatch return that
+     arrives before `dispatchJob` registers for it. The dispatch tests
+     here depend on it under load.
+   - Tests: `dispatch_guard_test.go` (dispatch paths, the
+     `double_noredeliver` trace) and `dispatch_guard_script_test.go`
+     (every delivery state against every release path, id order, formats,
+     the entry golden).
+   - Compatibility decision (conservative option): new nodes read both
+     guard formats. A guard without an event id keeps its TTL-only
+     meaning. Older nodes still reject the new format, so a rolling upgrade
+     across this ticket is not supported: close every older node before
+     starting new ones, as for ticket 5.
 5. **Owner record, atomic cleanup, protocol gate and backfill.**
    - Add `claimJob` and `releaseJob`, and use them in stop, rebalance,
      requeue and a failed start.

@@ -138,7 +138,9 @@ func (node *Node) processNodeEvent(ctx context.Context, ev *streaming.Event) {
 
 // ackWorkerEvent acks the pending event that corresponds to the acked job.  If
 // the event was a dispatched job then it sends a dispatch return event to the
-// node that dispatched the job.
+// node that dispatched the job. It XACKs the pool event first, so the
+// dispatcher's guard release that follows the return finds the event acked
+// and clears the guard.
 func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 	workerID, payload, err := unmarshalEnvelope(ev.Payload)
 	if err != nil {
@@ -157,17 +159,15 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 		return
 	}
 	pending := val.(*streaming.Event)
-	// If a dispatched job then send a return event to the node that
-	// dispatched the job.
-	if pending.EventName == evStartJob {
-		if !node.returnDispatch(ctx, pending, ack) {
-			return
-		}
-	}
 
 	// Ack the sink event so it does not get redelivered.
 	if err := node.poolSink.Ack(ctx, pending); err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to ack event: %w", err), "event", pending.EventName, "id", pending.ID)
+	}
+	// If a dispatched job then send a return event to the node that
+	// dispatched the job.
+	if pending.EventName == evStartJob {
+		node.returnDispatch(ctx, pending, ack)
 	}
 	node.pendingEvents.Delete(key)
 
@@ -187,26 +187,24 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 }
 
 // returnDispatch sends the worker ack of the dispatched start event pending
-// to the node that dispatched it. It returns false when the dispatching node
-// stream cannot be created, in which case the pending event stays unacked so
-// the sink redelivers it. A pending payload without a readable node ID has no
-// dispatcher to return to and still returns true so the event is acked.
-func (node *Node) returnDispatch(ctx context.Context, pending *streaming.Event, ack *ack) bool {
+// to the node that dispatched it. When the return cannot be sent, the
+// dispatcher times out; its guard release then finds the event acked, and the
+// payload refuses a retry of a job that started.
+func (node *Node) returnDispatch(ctx context.Context, pending *streaming.Event, ack *ack) {
 	_, nodeID, err := unmarshalJobKeyAndNodeID(pending.Payload)
 	if err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: no dispatch return for malformed job: %w", err), "id", pending.ID)
-		return true
+		return
 	}
 	stream, err := node.getNodeStream(nodeID)
 	if err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to create node event stream %q: %w", nodeStreamName(node.PoolName, nodeID), err))
-		return false
+		return
 	}
 	ack.EventID = pending.ID
 	if _, err := stream.Add(ctx, evDispatchReturn, marshalAck(ack), options.WithOnlyIfStreamExists()); err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to dispatch return to stream %q: %w", nodeStreamName(node.PoolName, nodeID), err))
 	}
-	return true
 }
 
 // returnDispatchStatus returns the start job result to the caller.
