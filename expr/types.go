@@ -321,12 +321,7 @@ func (a *Array) Example(r *ExampleGenerator) any {
 	}
 	res := make([]any, count)
 	for i := range count {
-		res[i] = a.ElemType.Example(r)
-		if res[i] == nil {
-			// Handle the case of recursive data structures: the example of
-			// an element whose type is still being generated is empty.
-			res[i] = emptyExampleValue(toReflectType(a).Elem())
-		}
+		res[i] = elementExample(a, a.ElemType, r)
 	}
 	return a.MakeSlice(res)
 }
@@ -525,6 +520,17 @@ func (m MapVal) ToMap() map[any]any {
 		}
 	}
 	return mp
+}
+
+// elementExample returns the example of elem, the element attribute of the
+// array or map dt. The example of an element whose type is still being
+// generated, which is the case of recursive data structures, or that has no
+// example is the empty value of the element Go type.
+func elementExample(dt DataType, elem *AttributeExpr, r *ExampleGenerator) any {
+	if ex := elem.Example(r); ex != nil {
+		return ex
+	}
+	return emptyExampleValue(toReflectType(dt).Elem())
 }
 
 // emptyExampleValue returns the empty value of the Go type t of an example:

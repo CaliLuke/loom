@@ -91,8 +91,8 @@ func byLength(a *AttributeExpr, r *ExampleGenerator) any {
 		m := dt.(*Map)
 		for attempts := 0; len(raw) < count && attempts < maxAttempts; attempts++ {
 			key := m.KeyType.Example(r)
-			value := m.ElemType.Example(r)
-			if key != nil && value != nil {
+			value := elementExample(m, m.ElemType, r)
+			if key != nil {
 				raw[key] = value
 			}
 		}
@@ -104,7 +104,7 @@ func byLength(a *AttributeExpr, r *ExampleGenerator) any {
 		raw := make([]any, count)
 		ar := dt.(*Array)
 		for i := range count {
-			raw[i] = ar.ElemType.Example(r)
+			raw[i] = elementExample(ar, ar.ElemType, r)
 		}
 		return ar.MakeSlice(raw)
 	default:
