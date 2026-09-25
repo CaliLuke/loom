@@ -1,0 +1,133 @@
+openapi: 3.2.0
+info:
+    title: Scalar Map Keys API
+    version: 1.0.0
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+servers:
+    - name: scalarMapKeys
+      url: http://localhost:80
+      description: Default server for scalarMapKeys
+paths:
+    /flags:
+        get:
+            tags:
+                - flags
+            summary: list flags
+            operationId: flags.list
+            parameters:
+                - name: enabled
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: object
+                    additionalProperties:
+                        type: array
+                        items:
+                            type: boolean
+                            example: true
+                        example:
+                            - false
+                            - false
+                            - false
+                            - false
+                  example:
+                    "false":
+                        - true
+                        - true
+                        - true
+                - name: labels
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: object
+                    default:
+                        "false": "off"
+                        "true": "on"
+                    additionalProperties:
+                        type: string
+                        example: Sunt quae enim quis ea.
+                  example:
+                    "false": Nihil ratione.
+                - name: groups
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: object
+                    additionalProperties:
+                        type: object
+                        example:
+                            "true": 8502003361035730206
+                        additionalProperties:
+                            type: integer
+                            example: 2835445916999919775
+                            format: int64
+                  example:
+                    Rerum dolor voluptas.:
+                        "true": 2904695021514256195
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                example:
+                                    "1": one
+                                    "20": twenty
+                                additionalProperties:
+                                    type: string
+                                    example: Porro eos soluta excepturi qui et ad.
+                            example:
+                                "1": one
+                                "20": twenty
+            security: []
+        put:
+            tags:
+                - flags
+            summary: update flags
+            operationId: flags.update
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateRequestBody'
+                        example:
+                            rules:
+                                "true":
+                                    maxCount: 3
+            responses:
+                "204":
+                    description: No Content response.
+            security: []
+components:
+    schemas:
+        Rule:
+            type: object
+            properties:
+                maxCount:
+                    type: integer
+                    example: 4370867896863893535
+                    format: int64
+            example:
+                maxCount: 8809587863041828333
+            required:
+                - maxCount
+        UpdateRequestBody:
+            type: object
+            properties:
+                rules:
+                    type: object
+                    example:
+                        "true":
+                            maxCount: 3
+                    additionalProperties:
+                        $ref: '#/components/schemas/Rule'
+            example:
+                rules:
+                    "true":
+                        maxCount: 3
+            required:
+                - rules
+tags:
+    - name: flags

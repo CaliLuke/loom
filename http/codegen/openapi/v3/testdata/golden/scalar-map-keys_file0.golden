@@ -1,0 +1,205 @@
+{
+  "components": {
+    "schemas": {
+      "Rule": {
+        "example": {
+          "maxCount": 8809587863041828333
+        },
+        "properties": {
+          "maxCount": {
+            "example": 4370867896863893535,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "maxCount"
+        ],
+        "type": "object"
+      },
+      "UpdateRequestBody": {
+        "example": {
+          "rules": {
+            "true": {
+              "maxCount": 3
+            }
+          }
+        },
+        "properties": {
+          "rules": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Rule"
+            },
+            "example": {
+              "true": {
+                "maxCount": 3
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "rules"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Scalar Map Keys API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/flags": {
+      "get": {
+        "operationId": "flags.list",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "false": [
+                true,
+                true,
+                true
+              ]
+            },
+            "in": "query",
+            "name": "enabled",
+            "schema": {
+              "additionalProperties": {
+                "example": [
+                  false,
+                  false,
+                  false,
+                  false
+                ],
+                "items": {
+                  "example": true,
+                  "type": "boolean"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "false": "Nihil ratione."
+            },
+            "in": "query",
+            "name": "labels",
+            "schema": {
+              "additionalProperties": {
+                "example": "Sunt quae enim quis ea.",
+                "type": "string"
+              },
+              "default": {
+                "false": "off",
+                "true": "on"
+              },
+              "type": "object"
+            }
+          },
+          {
+            "allowEmptyValue": true,
+            "example": {
+              "Rerum dolor voluptas.": {
+                "true": 2904695021514256195
+              }
+            },
+            "in": "query",
+            "name": "groups",
+            "schema": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "example": 2835445916999919775,
+                  "format": "int64",
+                  "type": "integer"
+                },
+                "example": {
+                  "true": 8502003361035730206
+                },
+                "type": "object"
+              },
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "1": "one",
+                  "20": "twenty"
+                },
+                "schema": {
+                  "additionalProperties": {
+                    "example": "Porro eos soluta excepturi qui et ad.",
+                    "type": "string"
+                  },
+                  "example": {
+                    "1": "one",
+                    "20": "twenty"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "list flags",
+        "tags": [
+          "flags"
+        ]
+      },
+      "put": {
+        "operationId": "flags.update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "rules": {
+                  "true": {
+                    "maxCount": 3
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content response."
+          }
+        },
+        "security": [],
+        "summary": "update flags",
+        "tags": [
+          "flags"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for scalarMapKeys",
+      "name": "scalarMapKeys",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "flags"
+    }
+  ]
+}

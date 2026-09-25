@@ -446,7 +446,7 @@ func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, conte
 				s.Example = example
 			}
 		} else if raw != nil {
-			s.Example = raw
+			s.Example = expr.CanonicalizeExample(attr, raw)
 		}
 	}
 }

@@ -1,12 +1,16 @@
 package expr
 
 import (
+	"encoding/json/v2"
 	"math/big"
 	"reflect"
+	"strconv"
 )
 
-// CanonicalizeExample normalizes example values so Loom unions use their
-// canonical discriminator/value JSON shape.
+// CanonicalizeExample normalizes example values to their canonical JSON shape:
+// objects use their JSON field names, Loom unions use their discriminator/value
+// shape, and map keys become JSON object member names, so that the key true
+// becomes "true" and the key 12 becomes "12".
 func CanonicalizeExample(att *AttributeExpr, example any) any {
 	if att == nil || att.Type == nil || att.Type == Empty {
 		return example
@@ -77,7 +81,7 @@ func canonicalizeArrayExample(array *Array, example any) any {
 }
 
 func canonicalizeMapExample(object *Map, example any) any {
-	values, ok := stringMapExample(example)
+	values, ok := memberMapExample(example)
 	if !ok {
 		return example
 	}
@@ -168,7 +172,7 @@ func exampleMatchesAttribute(attribute *AttributeExpr, value any) bool {
 			}
 		}
 	case *Map:
-		items, ok := stringMapExample(value)
+		items, ok := memberMapExample(value)
 		if !ok {
 			return false
 		}
@@ -370,6 +374,73 @@ func stringMapExample(value any) (map[string]any, bool) {
 		out[key.String()] = iterator.Value().Interface()
 	}
 	return out, true
+}
+
+// memberMapExample returns a copy of the map example value keyed by the JSON
+// object member names of its keys. A string key is its own name. A bool or
+// number key is named by its JSON text, as encoding/json/v2 names the numeric
+// keys it encodes. It reports false when value is not a map, when a key has
+// another kind or no JSON text, or when two keys have the same name.
+func memberMapExample(value any) (map[string]any, bool) {
+	actual := reflect.ValueOf(value)
+	if !actual.IsValid() || actual.Kind() != reflect.Map {
+		return nil, false
+	}
+	if actual.IsNil() {
+		return nil, true
+	}
+	out := make(map[string]any, actual.Len())
+	iterator := actual.MapRange()
+	for iterator.Next() {
+		name, ok := jsonMemberName(iterator.Key())
+		if !ok {
+			return nil, false
+		}
+		if _, exists := out[name]; exists {
+			return nil, false
+		}
+		out[name] = iterator.Value().Interface()
+	}
+	return out, true
+}
+
+// jsonMemberName returns the JSON object member name of the map key key.
+func jsonMemberName(key reflect.Value) (string, bool) {
+	for key.IsValid() && key.Kind() == reflect.Interface {
+		if key.IsNil() {
+			return "", false
+		}
+		key = key.Elem()
+	}
+	if !key.IsValid() {
+		return "", false
+	}
+	switch key.Kind() {
+	case reflect.String:
+		return key.String(), true
+	case reflect.Bool:
+		return strconv.FormatBool(key.Bool()), true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(key.Int(), 10), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return strconv.FormatUint(key.Uint(), 10), true
+	case reflect.Float32:
+		return jsonNumberText(float32(key.Float()))
+	case reflect.Float64:
+		return jsonNumberText(key.Float())
+	default:
+		return "", false
+	}
+}
+
+// jsonNumberText returns the JSON text of the float number, or false when
+// JSON cannot represent it.
+func jsonNumberText[T float32 | float64](number T) (string, bool) {
+	text, err := json.Marshal(number)
+	if err != nil {
+		return "", false
+	}
+	return string(text), true
 }
 
 func sliceExample(value any) ([]any, bool) {

@@ -209,6 +209,73 @@ func TestCanonicalizeExample(t *testing.T) {
 			expected: nil,
 		},
 		{
+			name:     "bool map keys become JSON member names",
+			attr:     &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Boolean}, ElemType: &expr.AttributeExpr{Type: expr.Boolean}}},
+			example:  map[bool]bool{true: false, false: true},
+			expected: map[string]any{"true": false, "false": true},
+		},
+		{
+			name:     "bool map value keys become JSON member names",
+			attr:     &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Boolean}, ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			example:  expr.MapVal{true: "yes", false: "no"},
+			expected: map[string]any{"true": "yes", "false": "no"},
+		},
+		{
+			name:     "integer map keys become JSON member names",
+			attr:     &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Int}, ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			example:  map[int]string{-3: "a", 12: "b"},
+			expected: map[string]any{"-3": "a", "12": "b"},
+		},
+		{
+			name:     "unsigned map keys become JSON member names",
+			attr:     &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.UInt64}, ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			example:  map[uint64]string{18446744073709551615: "max"},
+			expected: map[string]any{"18446744073709551615": "max"},
+		},
+		{
+			name:     "float map keys use JSON number text",
+			attr:     &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Float64}, ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			example:  map[float64]string{1.5: "a", 1e21: "b"},
+			expected: map[string]any{"1.5": "a", "1e+21": "b"},
+		},
+		{
+			name:     "float32 map keys use their own precision",
+			attr:     &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Float32}, ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			example:  map[float32]string{0.1: "a"},
+			expected: map[string]any{"0.1": "a"},
+		},
+		{
+			name: "non-string map keys canonicalize their values",
+			attr: &expr.AttributeExpr{Type: &expr.Map{
+				KeyType:  &expr.AttributeExpr{Type: expr.Boolean},
+				ElemType: constrainedWirePayload("a"),
+			}},
+			example:  map[bool]any{true: map[string]any{"kind": "a", "payload": "x"}},
+			expected: map[string]any{"true": map[string]any{"kind": "a", "data": "x"}},
+		},
+		{
+			name: "union selects a bool-keyed map branch",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				TypeKey:  "kind",
+				ValueKey: "data",
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "flags", Attribute: &expr.AttributeExpr{Type: &expr.Map{
+						KeyType:  &expr.AttributeExpr{Type: expr.Boolean},
+						ElemType: &expr.AttributeExpr{Type: expr.String},
+					}}},
+					{Name: "label", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				},
+			}},
+			example:  map[bool]string{true: "on"},
+			expected: map[string]any{"kind": "flags", "data": map[string]any{"true": "on"}},
+		},
+		{
+			name:     "colliding map member names are preserved",
+			attr:     &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Any}, ElemType: &expr.AttributeExpr{Type: expr.String}}},
+			example:  map[any]any{1: "a", "1": "b"},
+			expected: map[any]any{1: "a", "1": "b"},
+		},
+		{
 			name:     "non-union examples are unchanged",
 			attr:     &expr.AttributeExpr{Type: expr.String},
 			example:  "plain",

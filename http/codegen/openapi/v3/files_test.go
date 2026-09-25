@@ -525,6 +525,8 @@ func TestFiles(t *testing.T) {
 		{"body-object-validate", testdata.PayloadBodyObjectValidateDSL},
 		{"inline-body-selection", testdata.InlineBodySelectionDSL},
 		{"inline-body-shared-method-name", testdata.InlineBodySharedMethodNameDSL},
+		// Scalar map keys
+		{"scalar-map-keys", testdata.OpenAPIScalarMapKeysDSL},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {

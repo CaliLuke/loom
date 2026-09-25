@@ -67,6 +67,10 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			dsl:  fileResponseOpenAPIDSL,
 		},
 		{
+			name: "scalar-map-keys",
+			dsl:  testdata.OpenAPIScalarMapKeysDSL,
+		},
+		{
 			name: "raw-request-bodies",
 			dsl:  testdata.RawRequestBodyOpenAPIDSL,
 			extra: func(t *testing.T, spec map[string]any) {
@@ -209,6 +213,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "shared-error-responses", dsl: testdata.OpenAPISharedErrorHeaderDSL},
 		{name: "vendor-extension-scopes", dsl: testdata.OpenAPIVendorExtensionScopeDSL},
 		{name: "nullable-presence", dsl: presenceOpenAPIDSL},
+		{name: "scalar-map-keys", dsl: testdata.OpenAPIScalarMapKeysDSL},
 	}
 	for _, tc := range lintCases {
 		t.Run("redocly-"+tc.name, func(t *testing.T) {
