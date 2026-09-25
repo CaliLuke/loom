@@ -154,6 +154,7 @@ func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceDat
 		ClientPresencePointerTypes:    make(map[string]bool),
 		ClientPresenceUseDefaultTypes: make(map[string]bool),
 		Scope:                         scope,
+		clientBodyInits:               codegen.NewNameScope(),
 	}
 }
 

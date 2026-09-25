@@ -578,6 +578,13 @@ filter, and serialization rules belong here.
   keeps the name of the evaluated streaming body user type
   (`initWebSocketPayloadConstructor`), and `Stream.RequestMessage` keeps the
   evaluated body for the response contract message names.
+- The client functions that build the request bodies and the WebSocket
+  streaming bodies of a service are named after the Go type name of the body,
+  such as `NewItemRequestBody`, which a nested collection shares with the flat
+  collection of its element type. `clientBodyInitName` allocates the names in
+  a scope of the service keyed by the Go type of the body, so bodies of one
+  type share a function and another body gets a name of its own. Do not name
+  these functions outside that scope.
 - A named union, a user type whose attribute is a union, is declared as the
   union type itself under the name of the user type: in the service package
   (`collectUnionTypes`), as a streaming payload or result

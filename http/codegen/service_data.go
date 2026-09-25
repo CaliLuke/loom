@@ -95,6 +95,7 @@ type (
 		// Scope initialized with all the server and client types.
 		Scope            *codegen.NameScope
 		exampleGenerator *expr.ExampleGenerator
+		clientBodyInits  *codegen.NameScope
 	}
 
 	// EndpointData contains the data used to render the code related to a

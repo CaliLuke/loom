@@ -406,7 +406,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 
 	const sourceVar = "p"
 
-	initName := fmt.Sprintf("New%s", codegen.Goify(sd.Scope.GoTypeName(body), true))
+	initName := clientBodyInitName(sd, body)
 	initDesc := fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",
 		initName, endpointName, sd.Service.Name)
 	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
