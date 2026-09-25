@@ -218,3 +218,41 @@ attribute: type "ErrorType" is used to define multiple errors. Mark the attribut
 		})
 	}
 }
+
+func TestServiceExprValidateInterceptorNames(t *testing.T) {
+	cases := []struct {
+		Name   string
+		DSL    func()
+		Errors []string
+	}{
+		{"distinct-names", testdata.MixedInterceptorsDSL, nil},
+		{"distinct-go-names", testdata.DistinctGoNamesInterceptorsDSL, nil},
+		{"same-interceptor-at-every-level", testdata.DuplicateInterceptorsDSL, nil},
+		{"collision-in-separate-services", testdata.SeparateServicesInterceptorsDSL, nil},
+		{"case", testdata.CaseCollidingInterceptorsDSL, []string{
+			`service "Service": interceptors "Audit", "audit" all generate the Go name "Audit"; rename them so that each interceptor has a distinct Go name`,
+		}},
+		{"separators-server-and-client", testdata.SeparatorCollidingInterceptorsDSL, []string{
+			`service "Service": interceptors "audit-log", "audit_log" all generate the Go name "AuditLog"`,
+		}},
+		{"api-and-method", testdata.APICollidingInterceptorsDSL, []string{
+			`service "Service": interceptors "Audit", "audit" all generate the Go name "Audit"`,
+		}},
+		{"three-names", testdata.ThreeCollidingInterceptorsDSL, []string{
+			`service "Service": interceptors "AuditLog", "audit-log", "audit_log" all generate the Go name "AuditLog"`,
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if len(c.Errors) == 0 {
+				expr.RunDSL(t, c.DSL)
+				return
+			}
+			err := expr.RunInvalidDSL(t, c.DSL)
+			for _, want := range c.Errors {
+				assert.Contains(t, err.Error(), want)
+			}
+			assert.Equal(t, len(c.Errors), strings.Count(err.Error(), "all generate the Go name"), err.Error())
+		})
+	}
+}

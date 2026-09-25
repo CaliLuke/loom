@@ -160,6 +160,13 @@ var RequestLogger = Interceptor("RequestLogger", func() {
 })
 ```
 
+The generated code names an interceptor method and its `<Name>Info` type
+after the Go form of the interceptor name. The interceptors that apply to one
+service, at the API, service, or method level and on the server or the client
+side, must have distinct Go names. Loom rejects a design where two of them,
+such as `audit` and `Audit` or `audit_log` and `audit-log`, produce the same
+Go name.
+
 ### Applying Interceptors
 
 Apply at service or method level:

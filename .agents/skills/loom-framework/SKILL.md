@@ -103,7 +103,8 @@ consumer validation.
   `internal/naming`. Generators call `naming.ServerDir` and
   `naming.ServiceDir` directly, the public `codegen` case functions such as
   `Goify` and `SnakeCase` and `expr.Title` delegate to it, and `expr` uses it
-  to reject servers or services whose directories collide, ignoring case.
+  to reject servers or services whose directories collide, ignoring case,
+  and interceptors of one service whose `naming.Goify` names collide.
   Change the naming rules there only, so validation cannot drift from the
   generated paths. `naming.CLIDir` and `naming.TransportServiceDirs` record
   the client CLI tree and the transport packages of a service, which `expr`

@@ -3,8 +3,12 @@ package expr
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 type (
@@ -98,6 +102,7 @@ func (s *ServiceExpr) Validate() error {
 		}
 		methods[method.Name] = struct{}{}
 	}
+	s.validateInterceptorNames(verr)
 	for _, e := range s.Errors {
 		if err := e.Validate(); err != nil {
 			var verrs *eval.ValidationErrors
@@ -178,5 +183,40 @@ func (e *ErrorExpr) Finalize() {
 			TypeName:      e.Name,
 		}
 		e.AttributeExpr = &AttributeExpr{Type: ut}
+	}
+}
+
+// validateInterceptorNames reports the interceptors that apply to the service,
+// on the server or the client side, whose names differ but produce the same Go
+// name. The generated service package declares an interceptor method and
+// types such as <Name>Info under that name, so such interceptors would
+// redeclare them.
+func (s *ServiceExpr) validateInterceptorNames(verr *eval.ValidationErrors) {
+	ints := slices.Concat(Root.API.ServerInterceptors, Root.API.ClientInterceptors, s.ServerInterceptors, s.ClientInterceptors)
+	for _, m := range s.Methods {
+		ints = slices.Concat(ints, m.ServerInterceptors, m.ClientInterceptors)
+	}
+	var goNames []string
+	designNames := make(map[string][]string)
+	for _, i := range ints {
+		goName := naming.Goify(i.Name, true)
+		if _, ok := designNames[goName]; !ok {
+			goNames = append(goNames, goName)
+		}
+		if !slices.Contains(designNames[goName], i.Name) {
+			designNames[goName] = append(designNames[goName], i.Name)
+		}
+	}
+	for _, goName := range goNames {
+		names := designNames[goName]
+		if len(names) < 2 {
+			continue
+		}
+		slices.Sort(names)
+		quoted := make([]string, len(names))
+		for j, name := range names {
+			quoted[j] = strconv.Quote(name)
+		}
+		verr.Add(s, "interceptors %s all generate the Go name %q; rename them so that each interceptor has a distinct Go name", strings.Join(quoted, ", "), goName)
 	}
 }
