@@ -19,7 +19,8 @@ import (
 // and for the methods of a JSON-RPC WebSocket service that receive a
 // streaming payload and return a result, then builds and vets the module.
 // The example stubs must implement the service interface, and the JSON-RPC
-// WebSocket server must send the result type of each method.
+// WebSocket server must send the result type of each method, or no result
+// for a method without one.
 func TestExampleStreamMethodsCompile(t *testing.T) {
 	cases := []struct {
 		Name string
@@ -116,7 +117,7 @@ func jsonrpcSSEMixedResultsDSL() {
 
 // jsonrpcWebSocketStreamingPayloadDSL declares a JSON-RPC WebSocket service
 // whose methods receive a streaming payload and return results of a user
-// type, an inline object and an array.
+// type, an inline object and an array, or no result.
 func jsonrpcWebSocketStreamingPayloadDSL() {
 	dsl.API("streams", func() {
 		dsl.JSONRPC(func() {})
@@ -144,6 +145,10 @@ func jsonrpcWebSocketStreamingPayloadDSL() {
 		dsl.Method("names", func() {
 			dsl.StreamingPayload(dsl.String)
 			dsl.Result(dsl.ArrayOf(dsl.String))
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Method("push", func() {
+			dsl.StreamingPayload(dsl.String)
 			dsl.JSONRPC(func() {})
 		})
 	})

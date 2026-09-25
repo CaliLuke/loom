@@ -58,8 +58,13 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 		})
 		return
 	}
+	hasResult := ed.Result != nil && ed.Result.Ref != ""
 	g.Case(jen.Lit(ed.Method.Name)).BlockFunc(func(cg *jen.Group) {
-		cg.List(jen.Id("res"), jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
+		res := jen.Id("res")
+		if !hasResult {
+			res = jen.Id("_")
+		}
+		cg.List(res, jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
 		cg.If(jen.Err().Op("!=").Nil()).Block(
 			jen.If(jen.Id("req").Dot("HasID")).Block(
 				jen.If(
@@ -71,6 +76,20 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 			),
 			jen.Return(jen.Nil()),
 		)
+		if !hasResult {
+			// A method without a result answers a request with an ID with
+			// a success response without a result.
+			cg.If(jen.Id("req").Dot("HasID")).Block(
+				jen.If(
+					jen.Err().Op(":=").Id("s").Dot("conn").Dot("WriteJSON").Call(jen.Id("ctx"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("req").Dot("ID"), jen.Nil())),
+					jen.Err().Op("!=").Nil(),
+				).Block(
+					jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("send response error for "+ed.Method.Name+": %w"), jen.Err())),
+				),
+			)
+			cg.Return(jen.Nil())
+			return
+		}
 		cg.If(jen.Id("req").Dot("HasID")).Block(
 			jen.If(jen.Id("res").Op("==").Nil()).Block(
 				jen.Return(jen.Id("s").Dot("sendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"), jen.Lit("Internal error"), jen.Nil())),
