@@ -206,11 +206,11 @@ func TestDispatchGuardKeptWhileStartUnacked(t *testing.T) {
 // claims them: the live start must still start its job on every Redis
 // version (issue #408).
 //
-// The trimmed start can never be delivered again. Redis 6.2 and miniredis
-// keep its pending entry; Redis 7 and later purge it. Either way the guard
-// must stay until pendingEventTTL, because a router may have added the start
-// to a worker stream before it crashed (issue #385, TLC config
-// guard_asis_r7).
+// The trimmed start can never be delivered again. The sink acks its pending
+// entry on every version, as Redis 7 and later XAUTOCLAIM purges it (issue
+// #411). The guard must still stay until pendingEventTTL, because a router
+// may have added the start to a worker stream before it crashed (issue #385,
+// TLC config guard_asis_r7).
 func TestIdleClaimAfterTrimmedStart(t *testing.T) {
 	srv := startTestServer(t)
 	rdb := srv.Client
@@ -257,8 +257,7 @@ func TestIdleClaimAfterTrimmedStart(t *testing.T) {
 		Stream: stream, Group: poolSinkName, Start: trimmedID, End: trimmedID, Count: 1,
 	}).Result()
 	require.NoError(t, err)
-	purges := srv.MajorVersion() >= 7
-	require.Equal(t, !purges, len(pending) == 1, "pending entry of the trimmed start kept on Redis %d (0 is miniredis)", srv.MajorVersion())
+	require.Empty(t, pending, "pending entry of the trimmed start on Redis %d (0 is miniredis)", srv.MajorVersion())
 
 	status, err := router.runReleaseDispatch(ctx, "trimmed", trimmedGuard)
 	require.NoError(t, err)

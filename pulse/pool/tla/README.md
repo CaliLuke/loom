@@ -168,7 +168,7 @@ starts per key when epochs are tracked.
 | `ENABLE_*` | Turn stop, close, crash, rebalance, orphan requeue or handler writes on or off to narrow a search. |
 | `PRE_BA2AF97C` | Cleanup lock as before `ba2af97c`: unconditional `Delete`, then `SetIfNotExists`. |
 | `TRACK_STREAM` | Pool stream detail: delivery state per entry, `MAXLEN` trimming, two-step routing. `FALSE` gives the model as before issue #385. |
-| `REDIS7` | XAUTOCLAIM purges the pending entry of a trimmed id (Redis 7 and later). Also stands for the sink acking deleted ids on 6.2 (issue #411), which is the same state change. |
+| `REDIS7` | XAUTOCLAIM purges the pending entry of a trimmed id (Redis 7 and later). Also stands for the sink acking deleted ids on every version (issue #411), which is the same state change. |
 | `ENABLE_TTL` | `pendingEventTTL` can pass for an event that no router or worker stream holds. |
 | `GUARD_DESIGN` | How `in_flight` tells a start event that can still start from one that cannot. See [Pool stream trimming](#pool-stream-trimming-and-the-dispatch-guard-issue-385). |
 | `REQUEUE_DESIGN` | How a job whose requeued start event is lost gets back to a worker. See [Lost requeued starts](#lost-requeued-starts-issue-416). |
@@ -211,7 +211,7 @@ only `w1` can look dead.
 | `NodeCrash` | Process death. The node's handlers stop, and Redis state stays as it was. |
 | `Deliver`, `RouteIn`, `RouteDrop` | `TRACK_STREAM` only. The sink delivers an entry that is in the stream (`XREADGROUP`, or XAUTOCLAIM of a pending entry), then `routeWorkerEvent` adds it to a worker stream (`node_events.go:91`) or fails and leaves it pending. |
 | `Trim` | `MAXLEN ~ maxQueuedJobs` on any pool stream `XADD` (`scripts.go` `luaClaimDispatch`, `Stream.Add`). |
-| `AutoClaim` | XAUTOCLAIM reaches a trimmed pending entry (`streaming/sink_autoclaim.go`). |
+| `AutoClaim` | The sink idle check reaches a trimmed pending entry (`streaming/sink_claim.go`). |
 | `EventExpire` | `pendingEventTTL` passes: `in_flight` is false by age, and routing acks the event as stale (`node_events.go:61`). |
 | `AckStart` | `SPLIT_ACK` only. The worker's ack reaches the router node, which runs `luaAckStart` (`ackRoutedEvent`). |
 
@@ -346,10 +346,11 @@ roadmap: the TTL exceeds the time an event waits on a worker stream.
 | `minid` | `asis` | A trim never passes the oldest pending id (`XTRIM MINID`). |
 | `ackclear` | `asis`, or delivered and in neither the stream nor the pending list | The worker ack deletes the guard that names the event, in the `XACK` script. |
 
-`REDIS7 = FALSE` is Redis 6.2: XAUTOCLAIM keeps a trimmed pending entry,
-so the model has no step for it. `REDIS7 = TRUE` also stands for the sink
-acking deleted ids on 6.2 (issue #411): both leave a delivered event in
-neither the stream nor the pending list.
+`REDIS7 = FALSE` is Redis 6.2 before issue #411: XAUTOCLAIM keeps a
+trimmed pending entry, so the model has no step for it. `REDIS7 = TRUE`
+also stands for the sink acking deleted ids, which it does on every Redis
+version since #411: both leave a delivered event in neither the stream nor
+the pending list, once the entry is idle for `ackGracePeriod`.
 
 Scopes. All configurations use `MaxEv=3`, `MaxTok=2`, `MaxStream=1`,
 `REDELIVER_INFLIGHT = FALSE` and the fixes of tickets 1 to 4
@@ -413,8 +414,9 @@ The traces:
 
 What the results mean:
 
-- Redis 6.2 as written is safe (`guard_asis_r6`, `guard_double_asis_r6`).
-  Only the Redis 7 purge, or acking deleted ids on 6.2 (#411), opens B2.
+- Redis 6.2 as written before #411 is safe (`guard_asis_r6`,
+  `guard_double_asis_r6`). Only the Redis 7 purge, or acking deleted ids
+  (#411), opens B2.
 - `marker_check`, `minid` and `ackclear` all hold on both versions. Go
   implements `ackclear`:
   - It changes one branch of `in_flight` and adds one script on the ack
@@ -442,8 +444,10 @@ What the results mean:
   TTL. That a normal start's guard is released at its ack, with no added
   wait, rests on the Go tests `TestAckStartDeletesGuard` and
   `TestDispatchGuardClearedByAckOfTrimmedStart`.
-- `REDIS7 = TRUE` also covers the sink acking deleted ids on 6.2, so #411
-  can ack them once this design is in place.
+- `REDIS7 = TRUE` also covers the sink acking deleted ids, so with
+  `ackclear` in place the sink acks them on every version (#411). For #411
+  `guard_double_ackclear_r7` and `guard_live_ackclear_r7` were run again
+  with no change to the model and gave the results above.
 
 ### Lost requeued starts (issue #416)
 

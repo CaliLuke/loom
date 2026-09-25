@@ -36,9 +36,10 @@ const (
 //   - It is still in the stream and not yet delivered: its id is above the
 //     group's last-delivered-id, or the group does not exist.
 //   - It was delivered and is now in neither the stream nor the pending
-//     list. Redis 7 and later XAUTOCLAIM purges the pending entry of a
-//     trimmed id, although a router may have added the event to a worker
-//     stream already (issue #385). Such an event is indistinguishable from
+//     list. The sink idle check acks the pending entry of a trimmed id once
+//     it is idle, as Redis 7 and later XAUTOCLAIM purges it (issue #411),
+//     although a router may have added the event to a worker stream
+//     already (issue #385). Such an event is indistinguishable from
 //     one that was acked and then trimmed, but a worker ack deletes the
 //     guard, so a guard that names an acked event is left only by an ack
 //     that does not start the job: a stale or malformed event.

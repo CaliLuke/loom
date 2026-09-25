@@ -46,7 +46,7 @@ CONSTANTS
     TRACK_STREAM,     \* pool stream entries have a delivery state, MAXLEN may trim them,
                       \* and routing is two steps (sink delivery, then worker XADD)
     REDIS7,           \* XAUTOCLAIM purges the pending entry of a trimmed id (Redis 7+);
-                      \* the same state change as the sink acking deleted ids on 6.2 (#411)
+                      \* the same state change as the sink acking deleted ids (#411)
     ENABLE_TTL,       \* pendingEventTTL passes for an event no worker stream or router holds
     GUARD_DESIGN,     \* how the dispatch guard tells a live start event from a gone one:
                       \* "asis", "marker", "marker_check", "minid" or "ackclear" (README)
@@ -384,9 +384,10 @@ Route(n, e) ==
 
 (* TRACK_STREAM routing, in two steps. Deliver: the sink hands an entry that
    is in the stream to node n's router, by XREADGROUP (first delivery) or by
-   XAUTOCLAIM (redelivery of a pending entry, after ackGracePeriod). A trimmed
-   entry is never delivered again: Redis 6.2 replies with a null entry, which
-   the sink skips (#408), and Redis 7 purges it (AutoClaim). *)
+   the sink idle check (redelivery of a pending entry, after ackGracePeriod).
+   A trimmed entry is never delivered again: the idle check acks its pending
+   entry on every version (#411), as Redis 7 XAUTOCLAIM purges it
+   (AutoClaim). *)
 Deliver(n, e) ==
     /\ TRACK_STREAM
     /\ nodeUp[n] /\ inbox[n] = NoEv
@@ -450,8 +451,9 @@ Trim(e) ==
                    wstream, wsExists, routed, localVars, ghostVars, acking>>
 
 (* XAUTOCLAIM reaches a trimmed pending entry after ackGracePeriod. Redis 7
-   and later purge it from the pending list (REDIS7); Redis 6.2 keeps it, so
-   the model has no step for 6.2. Only a purged dispatch start whose guard
+   and later purge it from the pending list, and the sink acks it on every
+   version since #411 (REDIS7); Redis 6.2 before #411 kept it, so the model
+   has no step for that case. Only a purged dispatch start whose guard
    still names it is kept, because only in_flight reads it. *)
 AutoClaim(e) ==
     /\ TRACK_STREAM /\ REDIS7

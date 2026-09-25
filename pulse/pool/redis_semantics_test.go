@@ -229,7 +229,7 @@ func TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart(t *testing.T) {
 	setGuard(t, node, "k2", guard)
 
 	// The raw command, because go-redis XAutoClaim cannot parse the Redis
-	// 6.2 reply for a deleted id. The sink parses it too (issue #408).
+	// 6.2 reply for a deleted id (issue #408).
 	require.NoError(t, rdb.Do(ctx, "XAUTOCLAIM", stream, poolSinkName, "c2", 0, "0-0").Err())
 	status, err := node.runReleaseDispatch(ctx, "k2", guard)
 	require.NoError(t, err)

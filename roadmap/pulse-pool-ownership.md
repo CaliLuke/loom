@@ -255,9 +255,10 @@ Details:
     delivered: `id` is greater than the group's `last-delivered-id`
     (`XINFO GROUPS pool`), or the group does not exist.
   - Or it was delivered (`id` is at most `last-delivered-id`) and is in
-    neither the stream nor the pending list. Redis 7 and later XAUTOCLAIM
-    purges the pending entry of a trimmed id, although a router may already
-    have queued the event on a worker stream (issue #385). Redis cannot tell
+    neither the stream nor the pending list. The sink idle check acks the
+    pending entry of a trimmed id on every version (issue #411), as Redis 7
+    and later XAUTOCLAIM purges it, although a router may already have
+    queued the event on a worker stream (issue #385). Redis cannot tell
     this from an event that was acked and then trimmed, so the worker ack
     deletes the guard itself (`luaAckStart`, below).
 - **Ack deletes the guard.** `completePendingEvent` acks a start event with
@@ -270,13 +271,14 @@ Details:
   later entry: the lost event then looks delivered and purged. Without the
   later delivery it is released as before. Both cases hold a guard longer
   than needed, never shorter.
-- The age bound keeps a guard from outliving every recovery path. Redis 7
-  and later purge deleted entries from the pending list during XAUTOCLAIM,
-  but Redis 6.2 keeps them, so a trimmed pending entry may never be acked.
-  An event that no sink reads is never delivered. `routeWorkerEvent` acks
-  events older than `pendingEventTTL` as stale without starting them, so
-  after that age only an event already queued on a worker stream can
-  start. The model has no time and does not model this bound.
+- The age bound keeps a guard from outliving every recovery path. The sink
+  idle check removes a deleted entry from the pending list once it is idle
+  for `ackGracePeriod` (Redis 7 and later XAUTOCLAIM purges it; the sink
+  acks it on every version, issue #411). An event that no sink reads is
+  never delivered. `routeWorkerEvent` acks events older than
+  `pendingEventTTL` as stale without starting them, so after that age only
+  an event already queued on a worker stream can start. The model has no
+  time and does not model this bound.
 - Closed gap on Redis 7 and later (issue #385). Before the fix, the guard
   could be released before `pendingEventTTL` when all of these held:
   - Redis 7 or later,
@@ -299,14 +301,14 @@ Details:
 - Stream ids are compared as numbers, never as strings: split `ms-seq`, then
   compare `ms`, then `seq`. Both fit in a Lua double.
 - The script needs no Redis version beyond the 6.2 that the sink already
-  requires for XAUTOCLAIM. On Redis 6.2, `XAUTOCLAIM` replies with a null
-  entry for a deleted or trimmed pending id, which go-redis `XAutoClaim`
-  cannot parse, so the sink parses the raw reply and skips the null entry
-  (#408). It does not ack the id, so 6.2 pending lists keep such entries,
-  and nothing acks them (issue #411). Since #385, `in_flight` no longer
-  depends on that entry: acking it leaves the state that a Redis 7 purge
-  leaves, which the `guard_*_r7` configurations check. #411 can therefore
-  ack deleted ids.
+  requires for `XPENDING ... IDLE`. On Redis 6.2, `XAUTOCLAIM` replies with
+  a null entry that carries no id for a deleted or trimmed pending id
+  (#408), and claims it again on every scan. The sink therefore claims idle
+  entries with a script (`claimIdleScript`): `XPENDING ... IDLE`, then
+  `XACK` of each idle entry whose event the stream no longer holds, then
+  `XCLAIM` of the others (issue #411). Since #385, `in_flight` does not
+  depend on such an entry: the ack leaves the state that a Redis 7 purge
+  leaves, which the `guard_*_r7` configurations check.
 - The script must trim and set expiry exactly as `Stream.Add` does
   (`MaxLen`, `Approx`, and the TTL in the same script through
   `pulse/internal/keyttl`, which emulates `EXPIRE ... NX` for 6.2). A golden

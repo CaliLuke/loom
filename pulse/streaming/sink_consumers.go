@@ -23,7 +23,8 @@ type sinkClaimStream struct {
 
 // deleteStreamStaleConsumers deletes stale consumers for a specific stream.
 // Consumers that still own pending entries are kept because deleting a Redis
-// consumer drops its pending entries; the idle message check claims them first.
+// consumer drops its pending entries; the idle message check claims them first,
+// and acks those whose events were deleted.
 // s.lock must be held.
 func (s *Sink) deleteStreamStaleConsumers(ctx context.Context, stream *Stream) error {
 	// Get all consumers for this group
@@ -332,20 +333,20 @@ func (s *Sink) snapshotClaimStreams() []sinkClaimStream {
 
 func (s *Sink) claimIdleMessages(ctx context.Context, streams []sinkClaimStream) {
 	for _, stream := range streams {
-		args := redis.XAutoClaimArgs{
-			Stream:   stream.key,
-			Group:    s.Name,
-			MinIdle:  s.ackGracePeriod,
-			Start:    "0-0",
-			Consumer: stream.consumer,
+		args := claimArgs{
+			stream:   stream.key,
+			group:    s.Name,
+			consumer: stream.consumer,
+			minIdle:  s.ackGracePeriod,
+			start:    "0-0",
 		}
 		start, err := s.claim(ctx, stream.name, args)
 		if err != nil {
 			s.logger.Error(fmt.Errorf("failed to claim idle messages for stream %s: %w", stream.name, err))
 			continue
 		}
-		for start != "0-0" {
-			args.Start = start
+		for start != claimDone {
+			args.start = start
 			start, err = s.claim(ctx, stream.name, args)
 			if err != nil {
 				s.logger.Error(fmt.Errorf("failed to claim idle messages for stream %s: %w", stream.name, err))
@@ -357,18 +358,18 @@ func (s *Sink) claimIdleMessages(ctx context.Context, streams []sinkClaimStream)
 
 // claim claims one batch of idle messages for claimIdleMessages, delivers the
 // claimed events and returns the start id of the next batch.
-func (s *Sink) claim(ctx context.Context, streamName string, args redis.XAutoClaimArgs) (string, error) {
-	messages, deleted, start, err := autoClaim(ctx, s.rdb, args)
+func (s *Sink) claim(ctx context.Context, streamName string, args claimArgs) (string, error) {
+	messages, deleted, start, err := claimIdle(ctx, s.rdb, args)
 	if err != nil {
 		return "", err
 	}
 	if deleted > 0 {
-		s.logger.Debug("claimed pending entries whose events were deleted", "stream", streamName, "entries", deleted)
+		s.logger.Debug("acked pending entries whose events were deleted", "stream", streamName, "entries", deleted)
 	}
 	if len(messages) > 0 {
 		s.logger.Info("claimed", "stream", streamName, "messages", len(messages))
 		subscribers, filter := s.snapshotFanOut()
-		streamEvents(ctx, streamName, args.Stream, s.Name, messages, filter, subscribers, s.rdb, s.logger, s.donechan)
+		streamEvents(ctx, streamName, args.stream, s.Name, messages, filter, subscribers, s.rdb, s.logger, s.donechan)
 	}
 	return start, nil
 }

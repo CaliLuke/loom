@@ -326,13 +326,10 @@ func TestSinkClaimsPendingEventsOfClosedSink(t *testing.T) {
 
 // TestSinkClaimsPendingEventsAfterTrim checks that a sink claims the pending
 // events of a closed sink when the stream no longer holds an older pending
-// event, as after a MAXLEN trim of an unacked event.
-//
-// On Redis 6.2 XAUTOCLAIM replies with a null entry for the deleted id,
-// which go-redis XAutoClaim fails to parse, so the sink parses the raw reply
-// (#408). The pending entry of the deleted id is left as each version leaves
-// it: Redis 6.2 keeps it, owned by the claiming consumer, and Redis 7 and
-// later purge it.
+// event, as after a MAXLEN trim of an unacked event, and acks the pending
+// entry of the deleted event on every Redis version (issue #411). Redis 7 and
+// later XAUTOCLAIM purges such an entry; Redis 6.2 XAUTOCLAIM would claim it
+// again on every scan, with a null entry that go-redis cannot parse (#408).
 func TestSinkClaimsPendingEventsAfterTrim(t *testing.T) {
 	srv := startTestServer(t)
 	rdb := srv.Client
@@ -352,22 +349,77 @@ func TestSinkClaimsPendingEventsAfterTrim(t *testing.T) {
 	ageIdleEntries(srv)
 	claimed := awaitIdleClaim(t, rdb, "claimer", idleChecks, secondCh)
 	require.Equal(t, ids[1], claimed.ID)
-	require.NoError(t, second.Ack(ctx, claimed))
-
 	pending, err := rdb.XPendingExt(ctx, &redis.XPendingExtArgs{
-		Stream: stream.key, Group: "claimer", Start: ids[0], End: ids[0], Count: 1,
+		Stream: stream.key, Group: "claimer", Start: "-", End: "+", Count: 10,
 	}).Result()
 	require.NoError(t, err)
-	purges := srv.MajorVersion() >= 7
-	require.Equal(t, !purges, len(pending) == 1, "pending entry of the deleted id kept on Redis %d (0 is miniredis)", srv.MajorVersion())
-	if !purges && srv.Real() {
-		// Redis 6.2 moves the entry to the claiming consumer. miniredis
-		// leaves it with its owner.
-		second.lock.Lock()
-		consumer := second.consumer
-		second.lock.Unlock()
-		require.Equal(t, consumer, pending[0].Consumer)
+	require.Len(t, pending, 1, "pending entries on Redis %d (0 is miniredis)", srv.MajorVersion())
+	assert.Equal(t, ids[1], pending[0].ID)
+	assert.Equal(t, int64(2), pending[0].RetryCount, "the claim counts as a delivery")
+	second.lock.Lock()
+	consumer := second.consumer
+	second.lock.Unlock()
+	assert.Equal(t, consumer, pending[0].Consumer)
+	require.NoError(t, second.Ack(ctx, claimed))
+	second.Close(ctx)
+}
+
+// TestSinkAcksPendingEntriesOfDeletedEvents checks that the idle message
+// check acks the pending entries of deleted events once they are idle, and
+// only those, so the stale consumer that owned them is deleted (issue #411).
+func TestSinkAcksPendingEntriesOfDeletedEvents(t *testing.T) {
+	srv := startTestServer(t)
+	rdb := srv.Client
+	ctx := t.Context()
+	stream := newTestStream(t, rdb, "sink-ack-deleted")
+	ids, firstConsumer := closeSinkWithPendingEvents(t, stream, "acker", 3)
+	require.NoError(t, rdb.XDel(ctx, stream.key, ids[0], ids[2]).Err())
+
+	idleChecks := make(chan time.Time)
+	second := newTestSinkWithRuntime(t, stream, "acker", sinkRuntime{
+		idleCheckPeriod: 25 * time.Millisecond,
+		idleChecks:      idleChecks,
+	},
+		options.WithSinkAckGracePeriod(claimTestAckGracePeriod))
+	secondCh := second.Subscribe()
+
+	if !srv.Real() {
+		// Before the entries are idle, nothing is acked. The check loop
+		// takes the second tick only once the first check is done. A real
+		// server ages the entries on the wall clock, so only the miniredis
+		// clock keeps them from becoming idle here.
+		for range 2 {
+			require.NoError(t, rdb.Del(ctx, staleLockName("acker")).Err())
+			idleChecks <- time.Now()
+		}
+		requireConsumerPending(t, rdb, stream.key, "acker", firstConsumer, 3)
 	}
+
+	ageIdleEntries(srv)
+	claimed := awaitIdleClaim(t, rdb, "acker", idleChecks, secondCh)
+	require.Equal(t, ids[1], claimed.ID)
+	pending, err := rdb.XPendingExt(ctx, &redis.XPendingExtArgs{
+		Stream: stream.key, Group: "acker", Start: "-", End: "+", Count: 10,
+	}).Result()
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	assert.Equal(t, ids[1], pending[0].ID)
+	// The closed consumer owns no pending entry any more, so the idle check
+	// deletes it once its keep-alive is stale.
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		if !assert.NoError(c, rdb.Del(ctx, staleLockName("acker")).Err()) {
+			return
+		}
+		select {
+		case idleChecks <- time.Now():
+		default:
+		}
+		got, err := consumerPending(ctx, rdb, stream.key, "acker", firstConsumer)
+		if assert.NoError(c, err) {
+			assert.Equal(c, int64(-1), got, "consumer %s", firstConsumer)
+		}
+	}, 10*time.Second, 5*time.Millisecond)
+	require.NoError(t, second.Ack(ctx, claimed))
 	second.Close(ctx)
 }
 

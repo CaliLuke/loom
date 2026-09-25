@@ -96,8 +96,9 @@ func TestDispatchGuardInFlight(t *testing.T) {
 		},
 		{
 			// The pending entry survives the trim on every version, until
-			// XAUTOCLAIM reaches it. Redis 7 and later XAUTOCLAIM then purges
-			// it (TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart).
+			// the sink idle check acks it (issue #411) or Redis 7 and later
+			// XAUTOCLAIM purges it
+			// (TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart).
 			name: "trimmed while pending",
 			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
 				t.Helper()
