@@ -176,7 +176,7 @@ func buildView(name string, mt *expr.ResultTypeExpr, at *expr.AttributeExpr) (*e
 		n := nat.Name
 		cat := nat.Attribute
 		if existing := mt.Find(n); existing != nil {
-			dup := expr.DupAtt(existing)
+			dup := viewAttribute(existing)
 			if v, ok := cat.Meta.Last(expr.ViewMetaKey); ok {
 				dup.AddMeta("view", v)
 			}
@@ -193,6 +193,21 @@ func buildView(name string, mt *expr.ResultTypeExpr, at *expr.AttributeExpr) (*e
 		Name:          name,
 		Parent:        mt,
 	}, nil
+}
+
+// viewAttribute returns a copy of the result type attribute att for a view.
+// The copy has its own metadata and validation so that the view can select
+// the view of the attribute. It shares the type of att: a deep copy would
+// snapshot the result types that att references before their DSL has run.
+func viewAttribute(att *expr.AttributeExpr) *expr.AttributeExpr {
+	dup := *att
+	if att.Meta != nil {
+		dup.Meta = att.Meta.Dup()
+	}
+	if att.Validation != nil {
+		dup.Validation = att.Validation.Dup()
+	}
+	return &dup
 }
 
 func viewRequiredOverrides(at *expr.AttributeExpr) []string {

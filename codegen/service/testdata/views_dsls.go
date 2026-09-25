@@ -2,6 +2,7 @@ package testdata
 
 import (
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 )
 
 var ResultWithMultipleViewsDSL = func() {
@@ -138,6 +139,79 @@ var ResultWithResultTypeDSL = func() {
 			})
 			Attribute("c")
 		})
+	})
+	Service("ResultWithResultType", func() {
+		Method("A", func() {
+			Result(RT)
+		})
+	})
+}
+
+// ResultWithLaterDeclaredResultTypeDSL is ResultWithResultTypeDSL with the
+// result type declared before the types it references.
+var ResultWithLaterDeclaredResultTypeDSL = func() {
+	var RT2, RT3 *expr.ResultTypeExpr
+	var RT = ResultType("application/vnd.result", func() {
+		TypeName("RT")
+		Attributes(func() {
+			Attribute("a", String)
+			Attribute("b", RT2)
+			Attribute("c", RT3)
+			Required("b", "c")
+		})
+		View("default", func() {
+			Attribute("a")
+			Attribute("b", func() {
+				View("extended")
+			})
+			Attribute("c")
+		})
+		View("tiny", func() {
+			Attribute("b", func() {
+				View("tiny")
+			})
+			Attribute("c")
+		})
+	})
+	RT2 = ResultType("application/vnd.result.2", func() {
+		TypeName("RT2")
+		Attributes(func() {
+			Attribute("c", String)
+			Attribute("d", "UserType")
+			Attribute("e", String)
+			Required("c", "d")
+		})
+		View("default", func() {
+			Attribute("c")
+			Attribute("d")
+		})
+		View("extended", func() {
+			Attribute("c")
+			Attribute("d")
+			Attribute("e")
+		})
+		View("tiny", func() {
+			Attribute("d")
+		})
+	})
+	RT3 = ResultType("application/vnd.result.3", func() {
+		TypeName("RT3")
+		Attributes(func() {
+			Attribute("x", ArrayOf(String))
+			Attribute("y", MapOf(Int, "UserType"))
+			Attribute("z", String)
+			Required("x", "y", "z")
+		})
+		View("default", func() {
+			Attribute("x")
+			Attribute("y")
+		})
+		View("tiny", func() {
+			Attribute("x")
+		})
+	})
+	Type("UserType", func() {
+		Attribute("p")
 	})
 	Service("ResultWithResultType", func() {
 		Method("A", func() {
