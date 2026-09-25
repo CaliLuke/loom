@@ -41,6 +41,15 @@ CONSTANTS
     REDELIVER_INFLIGHT, \* sink may redeliver while a routed copy is still queued/unacked
     ORPHAN_GRACE_COVERS_LAG, \* replicas converge within the orphan grace period
     PRE_BA2AF97C,     \* cleanup lock as before ba2af97c: unconditional Delete, then SetIfNotExists
+    \* Pool stream detail (issue #385). With TRACK_STREAM = FALSE the model is
+    \* exactly the one before #385: no trimming, atomic routing, no TTL.
+    TRACK_STREAM,     \* pool stream entries have a delivery state, MAXLEN may trim them,
+                      \* and routing is two steps (sink delivery, then worker XADD)
+    REDIS7,           \* XAUTOCLAIM purges the pending entry of a trimmed id (Redis 7+);
+                      \* the same state change as the sink acking deleted ids on 6.2 (#411)
+    ENABLE_TTL,       \* pendingEventTTL passes for an event no worker stream or router holds
+    GUARD_DESIGN,     \* how the dispatch guard tells a live start event from a gone one:
+                      \* "asis", "marker", "marker_check", "minid" or "ackclear" (README)
     \* Fixes and redesign steps (FALSE = main as written)
     FIX_LOCK_RELEASE, \* removeWorkerFromMaps only deletes the cleanup lock it owns (token-checked)
     FIX_DEDUP,        \* startJob returns early when key already in w.jobs
@@ -82,6 +91,7 @@ VARIABLES
     pool,      \* unacked pool stream events: set of [id, kind, key]
     wstream,   \* worker streams: [w -> Seq(event)]
     wsExists,  \* worker stream exists: [w -> BOOLEAN]
+    routed,    \* GUARD_DESIGN marker*: ids of routed start events not yet acked
     \* ---- node-local state ----
     rep,       \* rep[n][m]: node n's replica of map m
     nodeUp,    \* node process running
@@ -92,14 +102,17 @@ VARIABLES
     runEp,     \* epoch a worker holds for its run of k
     cstate,    \* cleanup progress per node: [ph, w, tok, seen]
     orphanSeen,\* node.orphanedPayloads first-seen marks
+    inbox,     \* TRACK_STREAM: event a node's router read from the sink and has not
+               \* added to a worker stream yet (NoEv when none)
     \* ---- ghost (history) ----
     gen,       \* number of handler.Start calls for k
     runGen,    \* gen value of the run w holds for k
     staleWrite \* a write from a superseded run was accepted
 
 redisVars == <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
-               pool, wstream, wsExists>>
-localVars == <<rep, nodeUp, stopped, fenced, jobs, running, runEp, cstate, orphanSeen>>
+               pool, wstream, wsExists, routed>>
+localVars == <<rep, nodeUp, stopped, fenced, jobs, running, runEp, cstate, orphanSeen,
+               inbox>>
 ghostVars == <<gen, runGen, staleWrite>>
 vars == <<redisVars, localVars, ghostVars>>
 
@@ -124,20 +137,62 @@ Active(n) == {w \in Workers :
                 /\ ka[w]
                 /\ ~kaStale[w]}
 
+\* A pool stream record. st is its state in Redis (TRACK_STREAM only, else
+\* always "new"):
+\*   "new"    in the stream, not yet delivered to the sink group
+\*   "pend"   in the stream, delivered and unacked (in the pending list)
+\*   "trim"   trimmed by MAXLEN while unacked; still in the pending list
+\*   "purged" trimmed, then its pending entry purged by XAUTOCLAIM (REDIS7)
+\* An acked record, or one trimmed before delivery, is dropped from pool.
+\* disp marks a start event added by Dispatch (TRACK_STREAM only), which is
+\* the only kind of event a dispatch guard names.
+Rec(id, kind, k, disp) == [id |-> id, kind |-> kind, key |-> k, disp |-> disp, st |-> "new"]
+\* The copy that routing adds to a worker stream.
+Copy(e) == [id |-> e.id, kind |-> e.kind, key |-> e.key, disp |-> e.disp]
+NoEv == [id |-> 0, kind |-> "none", key |-> "none", disp |-> FALSE]
+
 \* Event ids and lock tokens are recycled once nothing references them.
 UsedIds == {e.id : e \in pool}
            \cup UNION {{wstream[w][i].id : i \in 1..Len(wstream[w])} : w \in Workers}
            \cup {pend[k] : k \in Keys}
+           \cup {inbox[n].id : n \in {m \in Nodes : inbox[m] # NoEv}}
+           \cup routed
 FreeIds == (1..MaxEv) \ UsedIds
 UsedToks == {cl[w] : w \in Workers} \cup {cstate[n].tok : n \in Nodes}
             \cup {cstate[n].seen : n \in Nodes}
             \cup {rep[n].cl[w] : n \in Nodes, w \in Workers}
 FreeToks == (1..MaxTok) \ UsedToks
 
+
 AddStarts(R) ==
     /\ Cardinality(FreeIds) >= Cardinality(R)
     /\ LET f == CHOOSE f \in [R -> FreeIds] : \A a, b \in R : a # b => f[a] # f[b]
-       IN pool' = pool \cup {[id |-> f[k], kind |-> "start", key |-> k] : k \in R}
+       IN pool' = pool \cup {Rec(f[k], "start", k, FALSE) : k \in R}
+
+\* Redis view of an event id, as in_flight reads it.
+RecOf(id) == {e \in pool : e.id = id}
+InPEL(id) == \E e \in RecOf(id) : e.st \in {"pend", "trim"}
+Undelivered(id) == \E e \in RecOf(id) : e.st = "new"
+Purged(id) == \E e \in RecOf(id) : e.st = "purged"
+
+\* in_flight(id) of the dispatch guard, per design. Without TRACK_STREAM every
+\* record is "new", so each design reduces to FIX_DISPATCH as before #385:
+\* the guard stays while its event is unacked.
+\*   asis          pending, or in the stream and undelivered (main)
+\*   marker*       asis, or routed and not yet acked by a worker
+\*   minid         asis; trimming never removes a pending entry
+\*   ackclear      asis, or delivered and gone from both stream and pending
+\*                 list: it may have been purged unacked. A worker ack clears
+\*                 the guard in the XACK script, so an acked event never
+\*                 reaches this check.
+InFlight(id) ==
+    \/ InPEL(id) \/ Undelivered(id)
+    \/ GUARD_DESIGN \in {"marker", "marker_check"} /\ id \in routed
+    \/ GUARD_DESIGN = "ackclear" /\ Purged(id)
+
+\* Copies of an event held by a router or queued on a worker stream.
+Held(id) == \/ \E n \in Nodes : inbox[n] # NoEv /\ inbox[n].id = id
+            \/ \E w \in Workers : \E i \in 1..Len(wstream[w]) : wstream[w][i].id = id
 
 Alive(w) == nodeUp[Host[w]]
 Fenced(w) == FIX_SELF_FENCE /\ fenced[w]
@@ -175,6 +230,7 @@ Init ==
     /\ pool = {}
     /\ wstream = [w \in Workers |-> <<>>]
     /\ wsExists = [w \in Workers |-> TRUE]
+    /\ routed = {}
     /\ rep = [n \in Nodes |-> Redis]
     /\ nodeUp = [n \in Nodes |-> TRUE]
     /\ stopped = [w \in Workers |-> FALSE]
@@ -184,6 +240,7 @@ Init ==
     /\ runEp = [w \in Workers |-> ZeroRun]
     /\ cstate = [n \in Nodes |-> IdleC]
     /\ orphanSeen = [n \in Nodes |-> {}]
+    /\ inbox = [n \in Nodes |-> NoEv]
     /\ gen = [k \in Keys |-> 0]
     /\ runGen = [w \in Workers |-> ZeroRun]
     /\ staleWrite = FALSE
@@ -195,7 +252,7 @@ Replicate(n, m) ==
     /\ rep[n][m] # Redis[m]
     /\ rep' = [rep EXCEPT ![n][m] = Redis[m]]
     /\ UNCHANGED <<redisVars, nodeUp, stopped, fenced, jobs, running, runEp,
-                   cstate, orphanSeen, ghostVars>>
+                   cstate, orphanSeen, inbox, ghostVars>>
 
 (* Time: node_membership.go:98 isWithinTTL becomes false. With self-fencing
    and a bounded pause/skew (LEASE_BOUND), others can see a live worker as
@@ -206,7 +263,7 @@ KeepAliveExpire(w) ==
        \/ FALSE_DEATH /\ (~(FIX_SELF_FENCE /\ LEASE_BOUND) \/ fenced[w])
     /\ kaStale' = [kaStale EXCEPT ![w] = TRUE]
     /\ UNCHANGED <<wmap, ka, cl, staleTok, jm, pl, pend, owner, ownerEp, pool,
-                   wstream, wsExists, localVars, ghostVars>>
+                   wstream, wsExists, routed, localVars, ghostVars>>
 
 LockExpire(w) ==
     /\ LockFresh(cl[w])
@@ -214,7 +271,7 @@ LockExpire(w) ==
        ~\E n \in Nodes : nodeUp[n] /\ cstate[n].ph = "holding" /\ cstate[n].tok = cl[w]
     /\ staleTok' = staleTok \cup {cl[w]}
     /\ UNCHANGED <<wmap, ka, kaStale, cl, jm, pl, pend, owner, ownerEp, pool,
-                   wstream, wsExists, localVars, ghostVars>>
+                   wstream, wsExists, routed, localVars, ghostVars>>
 
 (* FIX_SELF_FENCE: the worker failed to refresh its keep-alive for
    workerTTL - margin, so it stops its handlers but remembers its jobs. *)
@@ -224,7 +281,7 @@ SelfFence(w) ==
     /\ fenced' = [fenced EXCEPT ![w] = TRUE]
     /\ running' = [running EXCEPT ![w] = ZeroRun]
     /\ UNCHANGED <<redisVars, rep, nodeUp, stopped, jobs, runEp, cstate,
-                   orphanSeen, ghostVars>>
+                   orphanSeen, inbox, ghostVars>>
 
 (* worker.go:331 keepAlive: Set recreates the entry even after deletion.
    With FIX_SELF_FENCE a fenced worker then resumes only the jobs whose owner
@@ -241,8 +298,8 @@ KeepAlive(w) ==
             /\ running' = [running EXCEPT ![w] = [k \in Keys |-> IF k \in keep THEN 1 ELSE 0]]
        ELSE UNCHANGED <<fenced, jobs, running>>
     /\ UNCHANGED <<wmap, cl, staleTok, jm, pl, pend, owner, ownerEp, pool,
-                   wstream, wsExists, rep, nodeUp, stopped, runEp, cstate,
-                   orphanSeen, ghostVars>>
+                   wstream, wsExists, routed, rep, nodeUp, stopped, runEp, cstate,
+                   orphanSeen, inbox, ghostVars>>
 
 -----------------------------------------------------------------------------
 (* Client API *)
@@ -254,31 +311,36 @@ Dispatch(k) ==
     /\ FIX_OWNER => owner[k] = NoW
     /\ LET id == MinOf(FreeIds) IN
        /\ pend' = [pend EXCEPT ![k] = id]
-       /\ pool' = pool \cup {[id |-> id, kind |-> "start", key |-> k]}
+       /\ pool' = pool \cup {Rec(id, "start", k, TRACK_STREAM)}
     /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, owner, ownerEp,
-                   wstream, wsExists, localVars, ghostVars>>
+                   wstream, wsExists, routed, localVars, ghostVars>>
 
 (* node_jobs.go:112-123 releaseDispatchPending after ack or timeout, plus the
-   stale-guard paths (scripts.go:41-51, node_membership.go:29). *)
+   stale-guard paths (scripts.go:41-51, node_membership.go:29). With
+   FIX_DISPATCH every path runs luaReleaseDispatch, which clears the guard
+   only when in_flight is false. A purged record whose guard is released is
+   of no further use and is dropped. *)
 DispatchRelease(k) ==
     /\ pend[k] # 0
-    /\ FIX_DISPATCH => \A e \in pool : e.id # pend[k]
+    /\ FIX_DISPATCH => ~InFlight(pend[k])
     /\ pend' = [pend EXCEPT ![k] = 0]
-    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, owner, ownerEp, pool,
-                   wstream, wsExists, localVars, ghostVars>>
+    /\ pool' = {e \in pool : ~(e.id = pend[k] /\ e.st = "purged")}
+    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, owner, ownerEp,
+                   wstream, wsExists, routed, localVars, ghostVars>>
 
 (* node_jobs.go:207 StopJob *)
 StopJob(k) ==
     /\ ENABLE_STOP
     /\ FreeIds # {}
-    /\ pool' = pool \cup {[id |-> MinOf(FreeIds), kind |-> "stop", key |-> k]}
+    /\ pool' = pool \cup {Rec(MinOf(FreeIds), "stop", k, FALSE)}
     /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
-                   wstream, wsExists, localVars, ghostVars>>
+                   wstream, wsExists, routed, localVars, ghostVars>>
 
 -----------------------------------------------------------------------------
 (* Routing: node_events.go:59 routeWorkerEvent; redelivery by XAUTOCLAIM
    (streaming/sink_consumers.go:308). *)
 Route(n, e) ==
+    /\ ~TRACK_STREAM
     /\ nodeUp[n]
     /\ e \in pool
     /\ LET A == Active(n) IN
@@ -286,10 +348,101 @@ Route(n, e) ==
        /\ LET w == Owner(e.key, A) IN
           /\ wsExists[w]                       \* WithOnlyIfStreamExists
           /\ Len(wstream[w]) < MaxStream
-          /\ REDELIVER_INFLIGHT \/ \A v \in Workers : \A i \in 1..Len(wstream[v]) : wstream[v][i] # e
-          /\ wstream' = [wstream EXCEPT ![w] = Append(@, e)]
+          /\ REDELIVER_INFLIGHT \/ \A v \in Workers : \A i \in 1..Len(wstream[v]) : wstream[v][i].id # e.id
+          /\ wstream' = [wstream EXCEPT ![w] = Append(@, Copy(e))]
     /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
-                   pool, wsExists, localVars, ghostVars>>
+                   pool, wsExists, routed, localVars, ghostVars>>
+
+(* TRACK_STREAM routing, in two steps. Deliver: the sink hands an entry that
+   is in the stream to node n's router, by XREADGROUP (first delivery) or by
+   XAUTOCLAIM (redelivery of a pending entry, after ackGracePeriod). A trimmed
+   entry is never delivered again: Redis 6.2 replies with a null entry, which
+   the sink skips (#408), and Redis 7 purges it (AutoClaim). *)
+Deliver(n, e) ==
+    /\ TRACK_STREAM
+    /\ nodeUp[n] /\ inbox[n] = NoEv
+    /\ e \in pool /\ e.st \in {"new", "pend"}
+    /\ REDELIVER_INFLIGHT \/ ~Held(e.id)
+    /\ pool' = (pool \ {e}) \cup {[e EXCEPT !.st = "pend"]}
+    /\ inbox' = [inbox EXCEPT ![n] = Copy(e)]
+    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
+                   wstream, wsExists, routed, rep, nodeUp, stopped, fenced, jobs,
+                   running, runEp, cstate, orphanSeen, ghostVars>>
+
+(* RouteIn: routeWorkerEvent adds the delivered event to the worker stream
+   (node_events.go:91). The router can stall between Deliver and RouteIn for
+   longer than ackGracePeriod, so the pending entry can be claimed, trimmed or
+   purged meanwhile. The marker designs set the routed marker in the same
+   script as the worker XADD. marker_check refuses to route an event whose
+   pending entry is gone. *)
+RouteIn(n) ==
+    /\ TRACK_STREAM
+    /\ nodeUp[n] /\ inbox[n] # NoEv
+    /\ LET e == inbox[n]
+           A == Active(n)
+       IN
+       /\ inbox' = [inbox EXCEPT ![n] = NoEv]
+       /\ IF GUARD_DESIGN = "marker_check" /\ ~InPEL(e.id)
+          THEN UNCHANGED <<wstream, routed>>
+          ELSE /\ A # {}
+               /\ LET w == Owner(e.key, A) IN
+                  /\ wsExists[w]
+                  /\ Len(wstream[w]) < MaxStream
+                  /\ wstream' = [wstream EXCEPT ![w] = Append(@, e)]
+               /\ routed' = IF GUARD_DESIGN \in {"marker", "marker_check"} /\ e.kind = "start"
+                             THEN routed \cup {e.id} ELSE routed
+    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
+                   pool, wsExists, rep, nodeUp, stopped, fenced, jobs, running,
+                   runEp, cstate, orphanSeen, ghostVars>>
+
+(* The router fails to route (no active worker, missing worker stream, a
+   client error): the event stays pending for redelivery. *)
+RouteDrop(n) ==
+    /\ TRACK_STREAM
+    /\ nodeUp[n] /\ inbox[n] # NoEv
+    /\ inbox' = [inbox EXCEPT ![n] = NoEv]
+    /\ UNCHANGED <<redisVars, rep, nodeUp, stopped, fenced, jobs, running, runEp,
+                   cstate, orphanSeen, ghostVars>>
+
+(* MAXLEN ~ maxQueuedJobs trims an entry once enough events were added after
+   it; any pool stream XADD can trim. The model lets any entry go, in any
+   order. With minid, a trim never passes the oldest pending entry, and
+   undelivered entries are newer than every pending one, so only undelivered
+   entries go, and only while nothing is pending. An entry trimmed before
+   delivery is lost; one trimmed while pending stays in the pending list. *)
+Trim(e) ==
+    /\ TRACK_STREAM
+    /\ e \in pool /\ e.st \in {"new", "pend"}
+    /\ GUARD_DESIGN = "minid" => (e.st = "new" /\ \A f \in pool : ~InPEL(f.id))
+    /\ pool' = IF e.st = "new" THEN pool \ {e}
+               ELSE (pool \ {e}) \cup {[e EXCEPT !.st = "trim"]}
+    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
+                   wstream, wsExists, routed, localVars, ghostVars>>
+
+(* XAUTOCLAIM reaches a trimmed pending entry after ackGracePeriod. Redis 7
+   and later purge it from the pending list (REDIS7); Redis 6.2 keeps it, so
+   the model has no step for 6.2. Only a purged dispatch start whose guard
+   still names it is kept, because only in_flight reads it. *)
+AutoClaim(e) ==
+    /\ TRACK_STREAM /\ REDIS7
+    /\ e \in pool /\ e.st = "trim"
+    /\ pool' = IF e.disp /\ pend[e.key] = e.id
+               THEN (pool \ {e}) \cup {[e EXCEPT !.st = "purged"]}
+               ELSE pool \ {e}
+    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
+                   wstream, wsExists, routed, localVars, ghostVars>>
+
+(* pendingEventTTL passes. Assumption: it exceeds the time an event waits on
+   a worker stream or in a router, so no copy is held. After it, routing acks
+   the event as stale, in_flight is false by age, and any routed marker has
+   expired. The guard is then released by DispatchRelease. *)
+EventExpire(e) ==
+    /\ TRACK_STREAM /\ ENABLE_TTL
+    /\ e \in pool /\ ~Held(e.id)
+    /\ pool' = pool \ {e}
+    /\ routed' = routed \ {e.id}
+    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
+                   wstream, wsExists, localVars, ghostVars>>
 
 (* worker.go:186 handleEvents -> startJob (worker.go:248) / stopJob
    (worker.go:277), then the ack path. With FIX_OWNER, startJob's claim is one
@@ -318,7 +471,12 @@ WorkerHandle(w) ==
     /\ LET e == Head(wstream[w])
            k == e.key IN
        /\ wstream' = [wstream EXCEPT ![w] = Tail(@)]
-       /\ pool' = pool \ {e}
+       /\ pool' = {p \in pool : p.id # e.id}
+       \* The worker ack: XACK, which also clears the routed marker (marker
+       \* designs) or the guard that names this event (ackclear).
+       /\ routed' = routed \ {e.id}
+       /\ pend' = IF GUARD_DESIGN = "ackclear" /\ e.kind = "start" /\ pend[k] = e.id
+                  THEN [pend EXCEPT ![k] = 0] ELSE pend
        /\ IF e.kind = "start"
           THEN IF \/ (FIX_OWNER /\ owner[k] \notin {NoW, w})
                   \/ ((FIX_DEDUP \/ FIX_OWNER) /\ k \in jobs[w])
@@ -332,8 +490,8 @@ WorkerHandle(w) ==
                        /\ pl' = [pl EXCEPT ![k] = FALSE]
                        /\ ReleaseOwner(k, w)
                   ELSE UNCHANGED <<jm, pl, running, jobs, owner>>
-    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, pend, wsExists, rep, nodeUp,
-                   stopped, fenced, cstate, orphanSeen, staleWrite>>
+    /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, wsExists, rep, nodeUp,
+                   stopped, fenced, cstate, orphanSeen, inbox, staleWrite>>
 
 (* A handler side-effect write (ENABLE_WRITES). With FIX_EPOCH the write
    carries runEp and Redis rejects it unless owner/epoch still match; on
@@ -353,7 +511,7 @@ JobWrite(w, k) ==
                /\ jobs' = [jobs EXCEPT ![w] = @ \ {k}]
                /\ UNCHANGED staleWrite
     /\ UNCHANGED <<redisVars, rep, nodeUp, stopped, fenced, runEp, cstate,
-                   orphanSeen, gen, runGen>>
+                   orphanSeen, inbox, gen, runGen>>
 
 -----------------------------------------------------------------------------
 (* Worker map watcher: node_events.go:226 handleWorkerMapUpdate. *)
@@ -369,8 +527,8 @@ Evict(n, w) ==
        THEN /\ running' = [running EXCEPT ![w] = ZeroRun]
             /\ jobs' = [jobs EXCEPT ![w] = {}]
        ELSE UNCHANGED <<running, jobs>>
-    /\ UNCHANGED <<kaStale, staleTok, pl, pend, owner, ownerEp, pool,
-                   rep, nodeUp, fenced, runEp, cstate, orphanSeen, ghostVars>>
+    /\ UNCHANGED <<kaStale, staleTok, pl, pend, owner, ownerEp, pool, routed,
+                   rep, nodeUp, fenced, runEp, cstate, orphanSeen, inbox, ghostVars>>
 
 (* Second loop: worker.go:354 rebalance. As coded it leaves jobMap[w] and the
    payload untouched. With FIX_OWNER it releases ownership (CAD) and jobMap. *)
@@ -388,8 +546,8 @@ Rebalance(n, w, k) ==
     /\ ReleaseOwner(k, w)
     /\ jm' = IF FIX_OWNER THEN [jm EXCEPT ![w] = @ \ {k}] ELSE jm
     /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, pl, pend, ownerEp, wstream,
-                   wsExists, rep, nodeUp, stopped, fenced, runEp, cstate,
-                   orphanSeen, ghostVars>>
+                   wsExists, routed, rep, nodeUp, stopped, fenced, runEp, cstate,
+                   orphanSeen, inbox, ghostVars>>
 
 -----------------------------------------------------------------------------
 (* Cleanup: node_recovery.go:36 cleanupInactiveWorkers -> cleanupWorker
@@ -408,8 +566,8 @@ CleanupBegin(n, w) ==
        /\ cl' = IF PRE_BA2AF97C /\ seen # 0 THEN [cl EXCEPT ![w] = 0] ELSE cl
        /\ cstate' = [cstate EXCEPT ![n] = [ph |-> "try", w |-> w, tok |-> 0, seen |-> seen]]
     /\ UNCHANGED <<wmap, ka, kaStale, staleTok, jm, pl, pend, owner, ownerEp, pool,
-                   wstream, wsExists, rep, nodeUp, stopped, fenced, jobs,
-                   running, runEp, orphanSeen, ghostVars>>
+                   wstream, wsExists, routed, rep, nodeUp, stopped, fenced, jobs,
+                   running, runEp, orphanSeen, inbox, ghostVars>>
 
 \* Step 2: SetIfNotExists when nothing was seen (node_membership.go:65), else
 \* TestAndSetEx(seen, now) (node_membership.go:82). Pre-ba2af97c: always
@@ -429,8 +587,8 @@ CleanupAcquire(n) ==
        ELSE /\ cstate' = [cstate EXCEPT ![n] = IdleC]
             /\ UNCHANGED <<cl, staleTok>>
     /\ UNCHANGED <<wmap, ka, kaStale, jm, pl, pend, owner, ownerEp, pool,
-                   wstream, wsExists, rep, nodeUp, stopped, fenced, jobs, running,
-                   runEp, orphanSeen, ghostVars>>
+                   wstream, wsExists, routed, rep, nodeUp, stopped, fenced, jobs, running,
+                   runEp, orphanSeen, inbox, ghostVars>>
 
 \* Step 3, as coded: requeue keys read from the LOCAL jobMap / payload replicas
 \* (node_recovery.go:145, 161), then deleteWorker (193). partial models a
@@ -466,8 +624,8 @@ CleanupFinish(n) ==
     /\ IF FIX_OWNER THEN CleanupFinishScript(n, cstate[n].w)
                     ELSE CleanupFinishAsCoded(n, cstate[n].w)
     /\ cstate' = [cstate EXCEPT ![n] = IdleC]
-    /\ UNCHANGED <<kaStale, staleTok, pl, pend, ownerEp, rep, nodeUp, stopped,
-                   fenced, jobs, running, runEp, orphanSeen, ghostVars>>
+    /\ UNCHANGED <<kaStale, staleTok, pl, pend, ownerEp, routed, rep, nodeUp, stopped,
+                   fenced, jobs, running, runEp, orphanSeen, inbox, ghostVars>>
 
 (* node_recovery.go:80 requeueOrphanedPayloads: per-node grace, no lock,
    local replicas only. With FIX_OWNER only unowned keys are requeued. *)
@@ -484,8 +642,8 @@ Orphan(n, k) ==
             /\ AddStarts({k})
             /\ orphanSeen' = [orphanSeen EXCEPT ![n] = @ \ {k}]
     /\ UNCHANGED <<wmap, ka, kaStale, cl, staleTok, jm, pl, pend, owner, ownerEp,
-                   wstream, wsExists, rep, nodeUp, stopped, fenced, jobs, running,
-                   runEp, cstate, ghostVars>>
+                   wstream, wsExists, routed, rep, nodeUp, stopped, fenced, jobs, running,
+                   runEp, cstate, inbox, ghostVars>>
 
 OrphanClear(n, k) ==
     /\ nodeUp[n]
@@ -493,7 +651,7 @@ OrphanClear(n, k) ==
     /\ ~rep[n].pl[k] \/ \E w \in Workers : k \in rep[n].jm[w]
     /\ orphanSeen' = [orphanSeen EXCEPT ![n] = @ \ {k}]
     /\ UNCHANGED <<redisVars, rep, nodeUp, stopped, fenced, jobs, running, runEp,
-                   cstate, ghostVars>>
+                   cstate, inbox, ghostVars>>
 
 -----------------------------------------------------------------------------
 (* Process lifecycle *)
@@ -506,6 +664,7 @@ NodeCrash(n) ==
     /\ running' = [w \in Workers |-> IF Host[w] = n THEN ZeroRun ELSE running[w]]
     /\ jobs' = [w \in Workers |-> IF Host[w] = n THEN {} ELSE jobs[w]]
     /\ cstate' = [cstate EXCEPT ![n] = IdleC]
+    /\ inbox' = [inbox EXCEPT ![n] = NoEv]
     /\ UNCHANGED <<redisVars, rep, stopped, fenced, runEp, orphanSeen, ghostVars>>
 
 (* node_jobs.go:311 close(shutdown=false): requeueAllJobs then removeWorker.
@@ -531,7 +690,8 @@ NodeClose(n) ==
        /\ running' = [w \in Workers |-> IF Host[w] = n THEN ZeroRun ELSE running[w]]
        /\ jobs' = [w \in Workers |-> IF Host[w] = n THEN {} ELSE jobs[w]]
     /\ nodeUp' = [nodeUp EXCEPT ![n] = FALSE]
-    /\ UNCHANGED <<kaStale, staleTok, pl, pend, ownerEp, rep, fenced, runEp,
+    /\ inbox' = [inbox EXCEPT ![n] = NoEv]
+    /\ UNCHANGED <<kaStale, staleTok, pl, pend, ownerEp, routed, rep, fenced, runEp,
                    cstate, orphanSeen, ghostVars>>
 
 -----------------------------------------------------------------------------
@@ -556,12 +716,19 @@ DoNodeCrash      == \E n \in Nodes : NodeCrash(n)
 DoNodeClose      == \E n \in Nodes : NodeClose(n)
 DoOrphan         == \E n \in Nodes, k \in Keys : Orphan(n, k)
 DoOrphanClear    == \E n \in Nodes, k \in Keys : OrphanClear(n, k)
+DoDeliver        == \E n \in Nodes, e \in pool : Deliver(n, e)
+DoRouteIn        == \E n \in Nodes : RouteIn(n)
+DoRouteDrop      == \E n \in Nodes : RouteDrop(n)
+DoTrim           == \E e \in pool : Trim(e)
+DoAutoClaim      == \E e \in pool : AutoClaim(e)
+DoEventExpire    == \E e \in pool : EventExpire(e)
 
 Next ==
     \/ DoReplicate \/ DoKeepAliveExp \/ DoLockExpire \/ DoKeepAlive \/ DoSelfFence
     \/ DoWorkerHandle \/ DoJobWrite \/ DoDispatch \/ DoDispatchRel \/ DoStopJob
     \/ DoRoute \/ DoEvict \/ DoCleanupBegin \/ DoCleanupAcquire \/ DoCleanupFinish
     \/ DoRebalance \/ DoNodeCrash \/ DoNodeClose \/ DoOrphan \/ DoOrphanClear
+    \/ DoDeliver \/ DoRouteIn \/ DoRouteDrop \/ DoTrim \/ DoAutoClaim \/ DoEventExpire
 
 Spec == Init /\ [][Next]_vars
 
@@ -594,6 +761,18 @@ CleanupLockMutualExclusion ==
 \* (5) no write from a superseded run (an earlier handler.Start of k) is accepted
 NoStaleWrite == ~staleWrite
 
+\* (6) TRACK_STREAM: the dispatch guard stays while its start event can still
+\* start the job: while a router holds it, a live worker's stream queues it,
+\* or the sink can still deliver it. This is the promise B2 breaks. A router
+\* copy that marker_check will refuse to route does not count.
+LiveDispatchCopies ==
+    {Copy(e) : e \in {f \in pool : f.disp /\ f.st \in {"new", "pend"}}}
+    \cup {inbox[n] : n \in {m \in Nodes : nodeUp[m] /\ inbox[m] # NoEv /\ inbox[m].disp
+                          /\ (GUARD_DESIGN = "marker_check" => InPEL(inbox[m].id))}}
+    \cup UNION {{wstream[w][i] : i \in {j \in 1..Len(wstream[w]) : wstream[w][j].disp}} :
+                w \in {v \in Workers : Alive(v) /\ ~stopped[v] /\ wsExists[v]}}
+GuardHeld == \A e \in LiveDispatchCopies : pend[e.key] = e.id
+
 \* (4) liveness: a queued start event eventually results in the key running
 \* on a live worker. Fairness covers the system's own progress, not faults or
 \* client calls.
@@ -603,6 +782,14 @@ FairSpec == /\ Spec
             /\ WF_vars(DoCleanupBegin) /\ WF_vars(DoCleanupAcquire)
             /\ WF_vars(DoCleanupFinish) /\ WF_vars(DoOrphan) /\ WF_vars(DoOrphanClear)
             /\ WF_vars(DoDispatchRel)  \* DispatchJob always returns (ack or timeout)
+\* (7) liveness, TRACK_STREAM: a dispatch guard is eventually released, so no
+\* guard leaks. The TTL is part of the fairness, as it is in Go.
+\* The TTL is fair per event: expiring other events does not discharge it.
+ExpireId(i) == \E e \in pool : e.id = i /\ EventExpire(e)
+FairGuardSpec == /\ FairSpec
+                 /\ WF_vars(DoDeliver) /\ WF_vars(DoRouteIn) /\ WF_vars(DoAutoClaim)
+                 /\ \A i \in 1..MaxEv : SF_vars(ExpireId(i))
+GuardReleased == \A k \in Keys : pend[k] # 0 ~> pend[k] = 0
 EventuallyRuns ==
     \A k \in Keys :
         (\E e \in pool : e.key = k /\ e.kind = "start")

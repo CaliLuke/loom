@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,8 +11,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// failingStartHandler is a JobHandler whose Start always fails.
-type failingStartHandler struct{}
+type (
+	// failingStartHandler is a JobHandler whose Start always fails.
+	failingStartHandler struct{}
+
+	// gatedFailingHandler is a JobHandler whose Start always fails. The
+	// first Start blocks until release is closed.
+	gatedFailingHandler struct {
+		entered chan struct{}
+		release chan struct{}
+		once    sync.Once
+	}
+)
 
 // Start implements JobHandler.
 func (failingStartHandler) Start(*Job) error {
@@ -20,6 +31,20 @@ func (failingStartHandler) Start(*Job) error {
 
 // Stop implements JobHandler.
 func (failingStartHandler) Stop(string) error {
+	return nil
+}
+
+// Start implements JobHandler.
+func (h *gatedFailingHandler) Start(*Job) error {
+	h.once.Do(func() {
+		close(h.entered)
+		<-h.release
+	})
+	return errors.New("start failed")
+}
+
+// Stop implements JobHandler.
+func (h *gatedFailingHandler) Stop(string) error {
 	return nil
 }
 
@@ -66,6 +91,46 @@ func TestDispatchGuardClearedAfterAckedStart(t *testing.T) {
 		_, ok := pendingGuard(t, rdb, "guard-start-ok")
 		require.False(t, ok, "guard kept after an acked start")
 	})
+}
+
+// TestDispatchGuardClearedByAckOfTrimmedStart covers a start event that the
+// pool stream trims while its worker runs handler.Start, as on a busy pool
+// (maxQueuedJobs events added meanwhile). Once acked, the event is in neither
+// the stream nor the pending list, which in_flight cannot tell from a Redis 7
+// purge, so only the ack itself can release the guard (issue #385). A start
+// error must still admit a retry at once.
+func TestDispatchGuardClearedByAckOfTrimmedStart(t *testing.T) {
+	rdb := startTestRedis(t)
+	ctx := t.Context()
+	const pool = "guard-ack-trimmed"
+	node := addTestNode(t, rdb, pool)
+	handler := &gatedFailingHandler{entered: make(chan struct{}), release: make(chan struct{})}
+	_, err := node.AddWorker(ctx, handler)
+	require.NoError(t, err)
+
+	errc := make(chan error, 1)
+	go func() {
+		errc <- node.DispatchJob(ctx, "k1", nil)
+	}()
+	select {
+	case <-handler.entered:
+	case <-time.After(10 * time.Second):
+		t.Fatal("handler.Start was not called")
+	}
+	guard, ok := pendingGuard(t, rdb, pool)
+	require.True(t, ok)
+	_, eventID, err := parsePendingGuard(guard)
+	require.NoError(t, err)
+	require.NoError(t, rdb.XTrimMaxLen(ctx, node.poolStream.Key(), 0).Err())
+	require.Empty(t, rdb.XRange(ctx, node.poolStream.Key(), eventID, eventID).Val(), "the start event is trimmed")
+
+	close(handler.release)
+	require.ErrorContains(t, <-errc, "start failed")
+	_, ok = pendingGuard(t, rdb, pool)
+	require.False(t, ok, "guard kept after an acked start error")
+	err = node.DispatchJob(ctx, "k1", nil)
+	require.ErrorContains(t, err, "start failed")
+	require.NotErrorIs(t, err, ErrJobExists)
 }
 
 // TestDispatchGuardKeptWhileStartUnacked replays the double_noredeliver TLC
@@ -141,10 +206,11 @@ func TestDispatchGuardKeptWhileStartUnacked(t *testing.T) {
 // claims them: the live start must still start its job on every Redis
 // version (issue #408).
 //
-// The trimmed start can never be delivered. Redis 6.2 and miniredis keep its
-// pending entry, so its dispatch guard stays until pendingEventTTL. Redis 7
-// and later purge it, so the guard is released early: the known gap of issue
-// #385, which must flip that expectation.
+// The trimmed start can never be delivered again. Redis 6.2 and miniredis
+// keep its pending entry; Redis 7 and later purge it. Either way the guard
+// must stay until pendingEventTTL, because a router may have added the start
+// to a worker stream before it crashed (issue #385, TLC config
+// guard_asis_r7).
 func TestIdleClaimAfterTrimmedStart(t *testing.T) {
 	srv := startTestServer(t)
 	rdb := srv.Client
@@ -196,11 +262,5 @@ func TestIdleClaimAfterTrimmedStart(t *testing.T) {
 
 	status, err := router.runReleaseDispatch(ctx, "trimmed", trimmedGuard)
 	require.NoError(t, err)
-	want := dispatchReleaseInFlight
-	if purges {
-		// Known gap, issue #385: the fix must flip this to
-		// dispatchReleaseInFlight on every version.
-		want = dispatchReleaseDeleted
-	}
-	require.Equal(t, want, status, "release status on Redis %d (0 is miniredis); see issue #385", srv.MajorVersion())
+	require.Equal(t, dispatchReleaseInFlight, status, "release status on Redis %d (0 is miniredis); see issue #385", srv.MajorVersion())
 }

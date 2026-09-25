@@ -16,9 +16,11 @@ import (
 // replies with a null entry, which go-redis fails to parse, dropping the
 // whole batch (issue #408). A null entry is skipped. Redis 6.2 keeps its
 // pending entry, now owned by args.Consumer, so later scans claim it again;
-// it is not acked, because the pool dispatch guard reads a pending entry as
-// an unacked start event. Redis 7 and later purge such pending entries and
-// list their ids in a third reply element, which is counted.
+// it is not acked (issue #411). The pool dispatch guard does not depend on
+// that entry: it counts a delivered event that is in neither the stream nor
+// the pending list as in flight (issue #385). Redis 7 and later purge such
+// pending entries and list their ids in a third reply element, which is
+// counted.
 func autoClaim(ctx context.Context, rdb *redis.Client, args redis.XAutoClaimArgs) ([]redis.XMessage, int, string, error) {
 	cmd := []any{"XAUTOCLAIM", args.Stream, args.Group, args.Consumer, args.MinIdle.Milliseconds(), args.Start}
 	if args.Count > 0 {

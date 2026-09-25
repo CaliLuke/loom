@@ -191,12 +191,12 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 
 // completePendingEvent acks the pool event pending that the worker acked with
 // ack. If the event was a dispatched job then it sends a dispatch return event
-// to the node that dispatched the job. It XACKs the pool event first, so the
-// dispatcher's guard release that follows the return finds the event acked
-// and clears the guard.
+// to the node that dispatched the job. It acks the pool event first, and the
+// ack of a start event deletes the dispatch guard that names it, so the
+// guard is cleared before the dispatcher sees the return.
 func (node *Node) completePendingEvent(ctx context.Context, pending *streaming.Event, ack *ack) {
 	// Ack the sink event so it does not get redelivered.
-	if err := node.poolSink.Ack(ctx, pending); err != nil {
+	if err := node.ackRoutedEvent(ctx, pending); err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to ack event: %w", err), "event", pending.EventName, "id", pending.ID)
 	}
 	// If a dispatched job then send a return event to the node that
@@ -218,6 +218,25 @@ func (node *Node) completePendingEvent(ctx context.Context, pending *streaming.E
 	for _, key := range staleKeys {
 		node.pendingEvents.Delete(key)
 	}
+}
+
+// ackRoutedEvent acks the pool event ev after a worker acked it. A start event
+// is acked by luaAckStart, which also deletes the dispatch guard of its job
+// if the guard names ev (issue #385). Other events, and a start event whose
+// job key does not decode, are acked by the sink.
+func (node *Node) ackRoutedEvent(ctx context.Context, ev *streaming.Event) error {
+	if ev.EventName != evStartJob {
+		return node.poolSink.Ack(ctx, ev)
+	}
+	key, err := unmarshalJobKey(ev.Payload)
+	if err != nil {
+		return node.poolSink.Ack(ctx, ev)
+	}
+	return luaAckStart.Run(ctx, node.rdb, []string{
+		node.poolStream.Key(),
+		rmapContentKey(jobPendingMapName(node.PoolName)),
+		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
+	}, poolSinkName, ev.ID, key).Err()
 }
 
 // parkWorkerAck records a worker ack whose pending event is not registered.

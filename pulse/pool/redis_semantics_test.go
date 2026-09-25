@@ -212,11 +212,11 @@ func TestRedisAutoClaimDeletedEntries(t *testing.T) {
 // guard of a start event that was delivered, trimmed while unacked, and then
 // reached by XAUTOCLAIM, as after ackGracePeriod on a busy pool stream.
 //
-// This pins the known gap of issue #385. On Redis 6.2 (and miniredis) the
-// pending entry survives XAUTOCLAIM, so the guard stays. On Redis 7 and later
-// XAUTOCLAIM purges it, so the guard is released before pendingEventTTL
-// although the start may still be queued on a worker stream. The fix for
-// #385 must make the guard stay on every version and change this test.
+// On Redis 6.2 (and miniredis) the pending entry survives XAUTOCLAIM. On
+// Redis 7 and later XAUTOCLAIM purges it, although the start may still be
+// queued on a worker stream. The guard must stay on every version (issue
+// #385): in_flight counts a delivered event that is gone from both the
+// stream and the pending list.
 func TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart(t *testing.T) {
 	srv := startTestServer(t)
 	rdb := srv.Client
@@ -234,13 +234,7 @@ func TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart(t *testing.T) {
 	status, err := node.runReleaseDispatch(ctx, "k2", guard)
 	require.NoError(t, err)
 
-	want := dispatchReleaseInFlight
-	if srv.MajorVersion() >= 7 {
-		// Known gap, issue #385: the fix must flip this to
-		// dispatchReleaseInFlight on every version.
-		want = dispatchReleaseDeleted
-	}
-	require.Equal(t, want, status, "release status on Redis %d (0 is miniredis); see issue #385", srv.MajorVersion())
+	require.Equal(t, dispatchReleaseInFlight, status, "release status on Redis %d (0 is miniredis); see issue #385", srv.MajorVersion())
 }
 
 // TestRedisClaimDispatchAtomicUnderConcurrency races concurrent claims of the

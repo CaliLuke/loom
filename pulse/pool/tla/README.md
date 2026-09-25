@@ -16,6 +16,7 @@ This file describes the model and how to run it.
 | `PoolOwnership.tla` | The model: state, actions, invariants, liveness, toggles. |
 | `PoolOwnership.cfg` | Main as written, all safety invariants, full scope. |
 | `cfg/*.cfg` | One configuration per question. See [Results](#results). |
+| `cfg/guard_*.cfg` | Pool stream trimming and the dispatch guard (issue #385). See [Pool stream trimming](#pool-stream-trimming-and-the-dispatch-guard-issue-385). |
 | `WorkerEventAck.tla` | How a node matches a worker ack to the pool event it routed (issue #381). See [Worker event acks](#worker-event-acks-workereventacktla). |
 | `cfg/ack_*.cfg` | One `WorkerEventAck` configuration per routing design. |
 
@@ -64,7 +65,8 @@ multiplies the state space.
 | `jm` | `jobMap` (worker to set of keys) |
 | `pl` | `jobPayloadMap` (presence only) |
 | `pend` | `jobPendingMap` guard (holds the dispatch event id) |
-| `pool` | Unacked events in the pool stream (`start` or `stop`) |
+| `pool` | Unacked events in the pool stream (`start` or `stop`). With `TRACK_STREAM`, each record also has its Redis state `st` and a `disp` flag for dispatch starts. |
+| `routed` | `GUARD_DESIGN` `marker` and `marker_check` only: the routed marker |
 | `wstream`, `wsExists` | Worker streams and whether each exists |
 | `owner`, `ownerEp` | Redesign only: the owner record and the per-key epoch counter |
 
@@ -78,6 +80,7 @@ multiplies the state space.
 | `runEp[w][k]` | Redesign: the epoch the worker holds for its run |
 | `stopped[w]`, `fenced[w]` | `Worker.stop` was called; redesign: the worker has fenced itself |
 | `cstate[n]` | Progress through `acquireCleanupLock` and `cleanupWorker`, including the observed lock value `seen` |
+| `inbox[n]` | `TRACK_STREAM` only: the pool event node `n`'s router read from the sink and has not yet added to a worker stream |
 | `orphanSeen[n]` | `node.orphanedPayloads` first-seen marks |
 | `nodeUp[n]` | Node process is running |
 | `gen`, `runGen`, `staleWrite` | History variables for `NoStaleWrite` |
@@ -139,9 +142,9 @@ starts per key when epochs are tracked.
   Since roadmap ticket 4, Go also releases a pending guard once its event
   is older than `pendingEventTTL`, even if the event is still unacked.
   `FIX_DISPATCH` releases only after the ack, so it covers Go up to that
-  age, with one more exception: on Redis 7 and later, XAUTOCLAIM purges the
-  pending entry of a start event that `MAXLEN` trimmed, so Go can release
-  the guard of an unacked event early (roadmap, issue #385).
+  age. The `guard_*` configurations add pool stream trimming, XAUTOCLAIM
+  and the TTL (`TRACK_STREAM`); see
+  [Pool stream trimming](#pool-stream-trimming-and-the-dispatch-guard-issue-385).
 - Only one node can crash. With two nodes and crash-only deaths, only one node
   survives, so `CleanupLockMutualExclusion` is checked meaningfully only in
   configurations where live workers can look dead.
@@ -162,6 +165,10 @@ starts per key when epochs are tracked.
 | `ALLOW_PARTIAL` | `poolStream.Add` can fail inside `cleanupWorker`. |
 | `ENABLE_*` | Turn stop, close, crash, rebalance, orphan requeue or handler writes on or off to narrow a search. |
 | `PRE_BA2AF97C` | Cleanup lock as before `ba2af97c`: unconditional `Delete`, then `SetIfNotExists`. |
+| `TRACK_STREAM` | Pool stream detail: delivery state per entry, `MAXLEN` trimming, two-step routing. `FALSE` gives the model as before issue #385. |
+| `REDIS7` | XAUTOCLAIM purges the pending entry of a trimmed id (Redis 7 and later). Also stands for the sink acking deleted ids on 6.2 (issue #411), which is the same state change. |
+| `ENABLE_TTL` | `pendingEventTTL` can pass for an event that no router or worker stream holds. |
+| `GUARD_DESIGN` | How `in_flight` tells a start event that can still start from one that cannot. See [Pool stream trimming](#pool-stream-trimming-and-the-dispatch-guard-issue-385). |
 
 The cleanup-lock configurations also use the state constraint `LockScope`:
 only `w1` can look dead.
@@ -198,6 +205,10 @@ only `w1` can look dead.
 | `Orphan`, `OrphanClear` | `requeueOrphanedPayloads` (`node_recovery.go:80-134`). |
 | `NodeClose` | `close(shutdown=false)` (`node_jobs.go:311-380`): `requeueAllJobs` (`:360`, `worker.go:394`, `:500`), then `removeWorker` (`:368`). |
 | `NodeCrash` | Process death. The node's handlers stop, and Redis state stays as it was. |
+| `Deliver`, `RouteIn`, `RouteDrop` | `TRACK_STREAM` only. The sink delivers an entry that is in the stream (`XREADGROUP`, or XAUTOCLAIM of a pending entry), then `routeWorkerEvent` adds it to a worker stream (`node_events.go:91`) or fails and leaves it pending. |
+| `Trim` | `MAXLEN ~ maxQueuedJobs` on any pool stream `XADD` (`scripts.go` `luaClaimDispatch`, `Stream.Add`). |
+| `AutoClaim` | XAUTOCLAIM reaches a trimmed pending entry (`streaming/sink_autoclaim.go`). |
+| `EventExpire` | `pendingEventTTL` passes: `in_flight` is false by age, and routing acks the event as stale (`node_events.go:61`). |
 
 ## Properties
 
@@ -214,6 +225,12 @@ only `w1` can look dead.
    locks). It does not cover faults or client calls.
 5. `NoStaleWrite`: no handler write from a superseded run is accepted. A run
    is superseded when a later `handler.Start` for the same key has happened.
+6. `GuardHeld` (`TRACK_STREAM`): the dispatch guard names its start event
+   while that event can still start the job: while a live router holds it, a
+   live worker's stream queues it, or the sink can still deliver it.
+7. `GuardReleased` (liveness, under `FairGuardSpec`): every dispatch guard is
+   eventually released, so no guard leaks. The fairness adds delivery,
+   routing, XAUTOCLAIM and, per event id, the TTL.
 
 ## Results
 
@@ -291,6 +308,129 @@ distinct-state count is the whole reachable space, so it does not depend on
 the number of workers.
 
 The roadmap document translates each trace into Go calls.
+
+### Pool stream trimming and the dispatch guard (issue #385)
+
+The `guard_*` configurations set `TRACK_STREAM`. Each pool stream record
+then has a Redis state: `new` (in the stream, undelivered), `pend`
+(delivered, pending), `trim` (trimmed by `MAXLEN` while pending) and
+`purged` (its pending entry purged by XAUTOCLAIM, `REDIS7`). An acked
+record, or one trimmed before delivery, is dropped. Routing is two steps,
+`Deliver` and `RouteIn`, so a router can stall with a delivered event for
+longer than `ackGracePeriod`. `Trim` can remove any entry at any time, which
+over-approximates `MAXLEN ~` (it trims oldest first). `EventExpire` models
+`pendingEventTTL`. It fires only for an event that no router or worker
+stream holds, the same assumption as the existing residual gap in the
+roadmap: the TTL exceeds the time an event waits on a worker stream.
+
+`GUARD_DESIGN` selects how `in_flight` decides:
+
+| Design | `in_flight(id)` | Other change |
+| --- | --- | --- |
+| `asis` | pending, or in the stream and undelivered (main before #385) | — |
+| `marker` | `asis`, or a routed marker exists | `RouteIn` sets the marker with the worker `XADD`; the worker ack clears it. |
+| `marker_check` | same as `marker` | `RouteIn` also refuses an event whose pending entry is gone. |
+| `minid` | `asis` | A trim never passes the oldest pending id (`XTRIM MINID`). |
+| `ackclear` | `asis`, or delivered and in neither the stream nor the pending list | The worker ack deletes the guard that names the event, in the `XACK` script. |
+
+`REDIS7 = FALSE` is Redis 6.2: XAUTOCLAIM keeps a trimmed pending entry,
+so the model has no step for it. `REDIS7 = TRUE` also stands for the sink
+acking deleted ids on 6.2 (issue #411): both leave a delivered event in
+neither the stream nor the pending list.
+
+Scopes. All configurations use `MaxEv=3`, `MaxTok=2`, `MaxStream=1`,
+`REDELIVER_INFLIGHT = FALSE` and the fixes of tickets 1 to 4
+(`FIX_LOCK_RELEASE`, `FIX_DEDUP`, `FIX_DISPATCH`, `FIX_EVICT_STOP`). With
+in-flight redelivery, the first worker ack of one copy ends the guard while
+another copy is queued. That is B1 across workers (ticket 5), not a guard
+defect.
+
+- Guard scope (`guard_<design>_r6|r7`): crash-only deaths, with stop, close
+  and crash, no orphan sweep, rebalance or partial cleanup. The omitted
+  features add requeue starts, which carry no guard, and the cleanup of a
+  live worker, which the full scope covers up to its bound.
+- End-to-end scope (`guard_double_*`): `FIX_DEDUP = FALSE`, as in
+  `double_noredeliver`, and no orphan, rebalance, close, crash or false
+  death. With close and crash enabled, TLC first finds the known
+  close-plus-cleanup double requeue (17 states, both Redis versions),
+  which is not a guard defect.
+- Liveness scope (`guard_live_*`): as `asis_live`, crash-only, no partial
+  cleanup, no stop, under `FairGuardSpec`.
+- Full scope (`guard_ackclear_r7_full`): the guard scope plus false death,
+  orphan sweep, rebalance and partial cleanup. The run used `-workers 3` and
+  was stopped with 12 million states still queued.
+
+The exhaustive runs used `-workers 1` to `-workers 3`. The largest,
+`guard_marker_check_r7`, took about 90 minutes on 10 cores shared with the
+other runs.
+
+| Config | Property | Design | Redis | Result | States | Trace |
+| --- | --- | --- | --- | --- | ---: | ---: |
+| `cfg/guard_asis_r7` | 6 | `asis` | 7+ | **violated**, #385 | 657 | 6 |
+| `cfg/guard_asis_r6` | 6 | `asis` | 6.2 | holds, exhaustive | 10,410,672 | — |
+| `cfg/guard_marker_r7` | 6 | `marker` | 7+ | **violated** | 664 | 6 |
+| `cfg/guard_marker_r6` | 6 | `marker` | 6.2 | holds, exhaustive | 12,717,552 | — |
+| `cfg/guard_marker_check_r7` | 6 | `marker_check` | 7+ | holds, exhaustive | 24,555,168 | — |
+| `cfg/guard_marker_check_r6` | 6 | `marker_check` | 6.2 | holds, exhaustive | 12,717,552 | — |
+| `cfg/guard_minid_r7` | 6 | `minid` | 7+ | holds, exhaustive | 2,746,992 | — |
+| `cfg/guard_minid_r6` | 6 | `minid` | 6.2 | holds, exhaustive | 2,746,992 | — |
+| `cfg/guard_ackclear_r7` | 6 | `ackclear` | 7+ | holds, exhaustive | 17,816,256 | — |
+| `cfg/guard_ackclear_r6` | 6 | `ackclear` | 6.2 | holds, exhaustive | 9,983,040 | — |
+| `cfg/guard_ackclear_r7_full` | 6 | `ackclear` | 7+ | no violation, **not exhaustive** (stopped at depth 17) | 22,331,060 | — |
+| `cfg/guard_double_asis_r7` | 2 | `asis` | 7+ | **violated**, B2 | 8,839 | 12 |
+| `cfg/guard_double_asis_r6` | 2 | `asis` | 6.2 | holds, exhaustive | 59,264 | — |
+| `cfg/guard_double_ackclear_r7` | 2 | `ackclear` | 7+ | holds, exhaustive | 111,296 | — |
+| `cfg/guard_double_ackclear_r6` | 2 | `ackclear` | 6.2 | holds, exhaustive | 55,040 | — |
+| `cfg/guard_live_ackclear_r7` | 7 | `ackclear` | 7+ | holds, exhaustive | 2,350,707 | — |
+| `cfg/guard_live_ackclear_r6` | 7 | `ackclear` | 6.2 | holds, exhaustive | 1,429,785 | — |
+
+The traces:
+
+- `guard_double_asis_r7` is issue #385 as reported. `DispatchJob(k1)` adds
+  `s1`. The sink delivers it and the router adds it to `w1`'s stream. `MAXLEN`
+  trims `s1`, and XAUTOCLAIM purges its pending entry. `in_flight` finds `s1`
+  neither pending nor in the stream, so the guard is released. A retry adds
+  `s2`, and `w1` starts `k1` for `s1` and again for `s2`.
+- `guard_asis_r7` is shorter and needs no worker stream. The router holds `s1`
+  between delivery and its worker `XADD` while `s1` is trimmed and purged, and
+  the guard is released.
+- `guard_marker_r7` is the same trace. The marker is written only with the
+  worker `XADD`, which has not happened yet. `marker_check` closes it by
+  refusing to route an event whose pending entry is gone.
+
+What the results mean:
+
+- Redis 6.2 as written is safe (`guard_asis_r6`, `guard_double_asis_r6`).
+  Only the Redis 7 purge, or acking deleted ids on 6.2 (#411), opens B2.
+- `marker_check`, `minid` and `ackclear` all hold on both versions. Go
+  implements `ackclear`:
+  - It changes one branch of `in_flight` and adds one script on the ack
+    path. It needs no new key and no change to routing or trimming.
+  - `marker_check` needs a routing script that duplicates `Stream.Add`
+    for the worker stream, and one more write per routed event.
+  - `minid` needs every pool stream `XADD` to run a trim script. It also
+    lets one stuck pending entry grow the pool stream past
+    `maxQueuedJobs` until `pendingEventTTL`.
+  - Ack-aware trimming (`XADD`/`XTRIM ... ACKED`) exists only from
+    Redis 8.2. Redis 6.2.24 and 7.4.11 reject it as a syntax error.
+- Under `ackclear`, a guard whose start event was purged and whose worker
+  stream copy was destroyed (worker cleanup, close) is held until
+  `pendingEventTTL`. `GuardReleased` shows that the TTL releases every such
+  guard. Nothing else in Redis can tell such an event from one that may
+  still start.
+- Go also holds until `pendingEventTTL` the guard of a start event that
+  was trimmed before delivery, once the group delivered a later entry: the
+  event's id is then below `last-delivered-id`, so it looks purged. The
+  model drops such a record and releases the guard. That divergence is
+  sound for `GuardHeld`: the model releases in a superset of Go's cases,
+  and a record trimmed before delivery has no copy anywhere. For
+  `GuardReleased`, the TTL releases the Go guard too.
+- `GuardReleased` cannot tell a release by the ack from a release by the
+  TTL. That a normal start's guard is released at its ack, with no added
+  wait, rests on the Go tests `TestAckStartDeletesGuard` and
+  `TestDispatchGuardClearedByAckOfTrimmedStart`.
+- `REDIS7 = TRUE` also covers the sink acking deleted ids on 6.2, so #411
+  can ack them once this design is in place.
 
 ## Worker event acks (`WorkerEventAck.tla`)
 

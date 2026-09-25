@@ -246,7 +246,7 @@ return {1, id}
 Details:
 
 - `in_flight(id)` is true only if the event is younger than
-  `pendingEventTTL` and unacked in the `events` group:
+  `pendingEventTTL` and may still start:
   - It is listed by `XPENDING pool events id id 1`. Routing does not ack
     an event, and a trim (`WithStreamMaxLen`, `node.go:144`) or XDEL
     leaves the pending entry, so this holds even when the stream no longer
@@ -254,6 +254,22 @@ Details:
   - Or it is still in the stream (`XRANGE pool id id`) and not yet
     delivered: `id` is greater than the group's `last-delivered-id`
     (`XINFO GROUPS pool`), or the group does not exist.
+  - Or it was delivered (`id` is at most `last-delivered-id`) and is in
+    neither the stream nor the pending list. Redis 7 and later XAUTOCLAIM
+    purges the pending entry of a trimmed id, although a router may already
+    have queued the event on a worker stream (issue #385). Redis cannot tell
+    this from an event that was acked and then trimmed, so the worker ack
+    deletes the guard itself (`luaAckStart`, below).
+- **Ack deletes the guard.** `completePendingEvent` acks a start event with
+  `luaAckStart`: `XACK`, and in the same script the deletion of the guard
+  of the job when the guard names that event. A guard can then name an
+  acked event only after an ack that does not start the job (a stale or
+  malformed event), and `in_flight` may keep such a guard until
+  `pendingEventTTL`. A guard also lasts until `pendingEventTTL` when its
+  start event is trimmed before delivery and the group then delivers a
+  later entry: the lost event then looks delivered and purged. Without the
+  later delivery it is released as before. Both cases hold a guard longer
+  than needed, never shorter.
 - The age bound keeps a guard from outliving every recovery path. Redis 7
   and later purge deleted entries from the pending list during XAUTOCLAIM,
   but Redis 6.2 keeps them, so a trimmed pending entry may never be acked.
@@ -261,26 +277,36 @@ Details:
   events older than `pendingEventTTL` as stale without starting them, so
   after that age only an event already queued on a worker stream can
   start. The model has no time and does not model this bound.
-- Known gap on Redis 7 and later (issue #385): XAUTOCLAIM purges the
-  pending entry of a deleted id. The guard can then be released before
-  `pendingEventTTL` when all of these hold:
+- Closed gap on Redis 7 and later (issue #385). Before the fix, the guard
+  could be released before `pendingEventTTL` when all of these held:
   - Redis 7 or later,
-  - `maxQueuedJobs` (default 1000) or more events are added while the
-    start event is unacked, so `MAXLEN ~` trims it,
-  - XAUTOCLAIM runs after `ackGracePeriod` and purges its pending entry.
+  - `maxQueuedJobs` (default 1000) or more events were added while the
+    start event was unacked, so `MAXLEN ~` trimmed it,
+  - XAUTOCLAIM ran after `ackGracePeriod` and purged its pending entry.
 
-  A retry is then admitted while the first start is still queued on a
-  worker stream, which is the B2 double start.
+  A retry was then admitted while the first start was still queued on a
+  worker stream or held by a stalled router, which is the B2 double start.
+  TLC finds it in the `guard_*_r7` configurations. Three other designs were
+  checked. A routed marker set with the worker `XADD` and cleared on the
+  ack fails when a router stalls between the sink delivery and the `XADD`.
+  The same marker with a pending-entry check before routing holds, but
+  needs a routing script that duplicates `Stream.Add` and one more write
+  per event. Trimming only below the oldest pending id (`XTRIM MINID`)
+  holds, but lets one stuck pending entry grow the pool stream past
+  `maxQueuedJobs`, and every pool stream `XADD` would need it. Ack-aware
+  trimming (`XADD`/`XTRIM ... ACKED`) needs Redis 8.2. See the
+  [model README](../pulse/pool/tla/README.md#pool-stream-trimming-and-the-dispatch-guard-issue-385).
 - Stream ids are compared as numbers, never as strings: split `ms-seq`, then
   compare `ms`, then `seq`. Both fit in a Lua double.
 - The script needs no Redis version beyond the 6.2 that the sink already
   requires for XAUTOCLAIM. On Redis 6.2, `XAUTOCLAIM` replies with a null
   entry for a deleted or trimmed pending id, which go-redis `XAutoClaim`
   cannot parse, so the sink parses the raw reply and skips the null entry
-  (#408). It does not ack the id: Redis 6.2 keeps that pending entry, and
-  `in_flight` relies on it until `pendingEventTTL`. Acking it would open
-  the #385 window on 6.2 too. The cost is that 6.2 pending lists keep such
-  entries until an ack, as Redis 6.2 itself does.
+  (#408). It does not ack the id, so 6.2 pending lists keep such entries,
+  and nothing acks them (issue #411). Since #385, `in_flight` no longer
+  depends on that entry: acking it leaves the state that a Redis 7 purge
+  leaves, which the `guard_*_r7` configurations check. #411 can therefore
+  ack deleted ids.
 - The script must trim and set expiry exactly as `Stream.Add` does
   (`MaxLen`, `Approx`, and the TTL in the same script through
   `pulse/internal/keyttl`, which emulates `EXPIRE ... NX` for 6.2). A golden
@@ -390,10 +416,11 @@ return {2, requeued}
     unacked. The model's `WorkerHandle` handles, acks and returns in one step,
     which is the new Go order (XACK, then return, then release). It is not
     today's order.
-  - The model never trims the pool stream and has no time, so it exercises
-    neither the trimmed-pending case nor the `pendingEventTTL` bound in
-    `in_flight`. It also never fails `handler.Start`, so
-    the start-error retry is covered only by the Go test in ticket 4.
+  - The main configurations never trim the pool stream and have no time.
+    The `guard_*` configurations (`TRACK_STREAM`) add trimming,
+    XAUTOCLAIM, two-step routing and the `pendingEventTTL` bound. The
+    model never fails `handler.Start`, so the start-error retry is covered
+    only by the Go tests.
 - **The orphan sweep** requeues only keys with no owner record.
 - **Lock release** (`removeWorkerFromMaps`) runs a test-and-delete with the
   caller's token. Eviction, `close`, and `RemoveWorker` pass no token and leave
@@ -551,10 +578,17 @@ useful even before the owner record lands.
      delivered, so in flight. Every in-flight state ends once the event is
      older than `pendingEventTTL`; see
      [claimDispatch](#claimdispatch-dispatchjob).
-   - Residual gaps: after `pendingEventTTL`, an event already on a worker
-     stream can still start. On Redis 7 and later, a trimmed pending event
-     loses its guard early (issue #385, preconditions in
-     [claimDispatch](#claimdispatch-dispatchjob)).
+   - Residual gap: after `pendingEventTTL`, an event already on a worker
+     stream can still start. The Redis 7 early release of a trimmed
+     pending event (issue #385) is closed: a delivered event that left the
+     stream and the pending list stays in flight, and the worker ack
+     deletes the guard (`luaAckStart`). Tests:
+     `TestDispatchGuardInFlight` (purged and trimmed states),
+     `TestAckStartDeletesGuard`,
+     `TestDispatchGuardClearedByAckOfTrimmedStart`,
+     `TestIdleClaimAfterTrimmedStart` and
+     `TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart`, on miniredis
+     and on Redis 6.2 and 7.4.
    - `ackWorkerEvent` XACKs the pool event, then sends `evDispatchReturn`.
    - The commit before this ticket stopped losing a dispatch return that
      arrives before `dispatchJob` registers for it. The dispatch tests

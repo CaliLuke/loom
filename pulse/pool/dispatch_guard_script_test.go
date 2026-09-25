@@ -8,6 +8,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/pulse/streaming"
 )
 
 // guardScriptNode returns a node whose pool sink is closed and whose sink
@@ -47,8 +49,10 @@ const staleUntil = "1"
 // TestDispatchGuardInFlight checks every path that clears a stale guard
 // against every delivery state of its start event. A guard whose event is in
 // flight stays: not yet delivered, or delivered and unacked, including after
-// the stream trimmed the entry while it was pending. A guard whose event is
-// acked, or older than pendingEventTTL, is cleared.
+// the stream trimmed the entry while it was pending, and after Redis 7
+// XAUTOCLAIM then purged its pending entry (issue #385). A guard whose event
+// is acked and still in the stream, was trimmed before delivery, or is older
+// than pendingEventTTL, is cleared.
 func TestDispatchGuardInFlight(t *testing.T) {
 	states := []struct {
 		name     string
@@ -93,7 +97,7 @@ func TestDispatchGuardInFlight(t *testing.T) {
 		{
 			// The pending entry survives the trim on every version, until
 			// XAUTOCLAIM reaches it. Redis 7 and later XAUTOCLAIM then purges
-			// it (issue #385, TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart).
+			// it (TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart).
 			name: "trimmed while pending",
 			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
 				t.Helper()
@@ -123,11 +127,85 @@ func TestDispatchGuardInFlight(t *testing.T) {
 			inFlight: false,
 		},
 		{
-			name: "trimmed after ack",
+			// The state Redis 7 XAUTOCLAIM leaves after it purges a trimmed
+			// pending entry: delivered, in neither the stream nor the pending
+			// list. A router may have queued the event on a worker stream
+			// (issue #385, TLC config guard_asis_r7). XACK stands in for the
+			// purge so that every server reaches the state.
+			name: "purged after trim",
+			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
+				t.Helper()
+				id := deliverEvent(t, rdb, stream)
+				require.NoError(t, rdb.XDel(t.Context(), stream, id).Err())
+				require.NoError(t, rdb.XAck(t.Context(), stream, poolSinkName, id).Err())
+				return id
+			},
+			inFlight: true,
+		},
+		{
+			// Redis cannot tell this state from a purge. A worker ack
+			// deletes the guard (TestAckStartDeletesGuard), so a guard left
+			// on an acked event comes from an ack that did not start the job.
+			name: "trimmed after an ack that kept the guard",
 			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
 				t.Helper()
 				id := deliverEvent(t, rdb, stream)
 				require.NoError(t, rdb.XAck(t.Context(), stream, poolSinkName, id).Err())
+				require.NoError(t, rdb.XDel(t.Context(), stream, id).Err())
+				return id
+			},
+			inFlight: true,
+		},
+		{
+			name: "purged after trim, older than pendingEventTTL",
+			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
+				t.Helper()
+				id := deliverEventWithID(t, rdb, stream, "1-0")
+				require.NoError(t, rdb.XDel(t.Context(), stream, id).Err())
+				require.NoError(t, rdb.XAck(t.Context(), stream, poolSinkName, id).Err())
+				return id
+			},
+			inFlight: false,
+		},
+		{
+			// A trim before delivery loses the event: no router ever saw it.
+			name: "trimmed before delivery",
+			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
+				t.Helper()
+				require.NoError(t, rdb.XGroupCreateMkStream(t.Context(), stream, poolSinkName, "$").Err())
+				id := rdb.XAdd(t.Context(), &redis.XAddArgs{Stream: stream, Values: []any{"n", "j", "p", "x"}}).Val()
+				require.NoError(t, rdb.XDel(t.Context(), stream, id).Err())
+				return id
+			},
+			inFlight: false,
+		},
+		{
+			// Once the group delivers a later entry, the lost event's id is
+			// below last-delivered-id and it looks purged, so the guard is
+			// held until pendingEventTTL: the safe direction.
+			name: "trimmed before delivery, later entries delivered",
+			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
+				t.Helper()
+				ctx := t.Context()
+				require.NoError(t, rdb.XGroupCreateMkStream(ctx, stream, poolSinkName, "$").Err())
+				id := rdb.XAdd(ctx, &redis.XAddArgs{Stream: stream, Values: []any{"n", "j", "p", "x"}}).Val()
+				require.NoError(t, rdb.XDel(ctx, stream, id).Err())
+				require.NoError(t, rdb.XAdd(ctx, &redis.XAddArgs{Stream: stream, Values: []any{"n", "j", "p", "y"}}).Err())
+				res, err := rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
+					Group: poolSinkName, Consumer: "c1", Streams: []string{stream, ">"}, Count: 1, Block: -1,
+				}).Result()
+				require.NoError(t, err)
+				require.Len(t, res, 1)
+				require.Len(t, res[0].Messages, 1)
+				return id
+			},
+			inFlight: true,
+		},
+		{
+			name: "trimmed, no sink group",
+			prepare: func(t *testing.T, rdb *redis.Client, stream string) string {
+				t.Helper()
+				id := rdb.XAdd(t.Context(), &redis.XAddArgs{Stream: stream, Values: []any{"n", "j", "p", "x"}}).Val()
 				require.NoError(t, rdb.XDel(t.Context(), stream, id).Err())
 				return id
 			},
@@ -181,6 +259,68 @@ func TestDispatchGuardInFlight(t *testing.T) {
 				require.Equal(t, !state.inFlight, cleared, "guard cleared")
 			})
 		}
+	}
+}
+
+// TestAckStartDeletesGuard checks luaAckStart, which acks a start event after
+// a worker acked it. It XACKs the event in every case, and deletes the
+// pending guard of the job only when the guard names that event, including
+// after the stream trimmed the event (issue #385: in_flight then holds the
+// guard until pendingEventTTL, so the ack must delete it). A guard that
+// names another event, or no event, stays. The deletion reaches the node's
+// replica, so the rmap notification is published.
+func TestAckStartDeletesGuard(t *testing.T) {
+	future := strconv.FormatInt(time.Now().Add(time.Hour).UnixNano(), 10)
+	cases := []struct {
+		name string
+		// guard returns the guard to write for the acked event id, or ""
+		// for no guard.
+		guard   func(id string) string
+		trim    bool
+		deleted bool
+	}{
+		{name: "guard names the event", guard: func(id string) string { return staleUntil + ":" + id }, deleted: true},
+		{name: "active guard names the event", guard: func(id string) string { return future + ":" + id }, deleted: true},
+		{name: "guard names the trimmed event", guard: func(id string) string { return staleUntil + ":" + id }, trim: true, deleted: true},
+		{name: "guard names another event", guard: func(string) string { return future + ":1-1" }},
+		{name: "guard without event id", guard: func(string) string { return future }},
+		{name: "no guard", guard: func(string) string { return "" }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rdb, node := guardScriptNode(t, "guard-ack")
+			ctx := t.Context()
+			stream := node.poolStream.Key()
+			id := deliverEvent(t, rdb, stream)
+			if tc.trim {
+				trimPending(t, rdb, stream, id)
+			}
+			guard := tc.guard(id)
+			if guard != "" {
+				setGuard(t, node, "k1", guard)
+			}
+
+			ev := &streaming.Event{ID: id, EventName: evStartJob, Payload: marshalJob(&Job{Key: "k1", NodeID: node.ID})}
+			require.NoError(t, node.ackRoutedEvent(ctx, ev))
+
+			pending, err := rdb.XPendingExt(ctx, &redis.XPendingExtArgs{
+				Stream: stream, Group: poolSinkName, Start: id, End: id, Count: 1,
+			}).Result()
+			require.NoError(t, err)
+			require.Empty(t, pending, "the start event is acked")
+			if guard == "" {
+				_, ok := pendingGuard(t, rdb, node.PoolName)
+				require.False(t, ok, "a guard was written")
+				return
+			}
+			require.Equal(t, tc.deleted, guardGone(t, node, guard), "guard deleted")
+			if tc.deleted {
+				require.Eventually(t, func() bool {
+					_, ok := node.jobPendingMap.Get("k1")
+					return !ok
+				}, 5*time.Second, time.Millisecond, "the replica still has the guard")
+			}
+		})
 	}
 }
 
