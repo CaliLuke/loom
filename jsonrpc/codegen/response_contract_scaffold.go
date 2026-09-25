@@ -16,7 +16,7 @@ import (
 func ResponseContractTestFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File {
 	var files []*codegen.File
 	for _, service := range data.Root.API.JSONRPC.Services {
-		contractData := buildResponseContractServiceData(service, data)
+		contractData := buildResponseContractServiceData(service, data.Get(service.Name()))
 		if !contractData.hasCases() {
 			continue
 		}

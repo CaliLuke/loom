@@ -11,8 +11,9 @@ import (
 )
 
 // PayloadBuilderSection builds the section that can be used to
-// generate the payload builder code.
-func PayloadBuilderSection(buildFunction *BuildFunctionData) codegen.Section {
+// generate the payload builder code. pkgs names the struct:pkg:path packages
+// of the payload field types, see codegen.NameScope.PackageName.
+func PayloadBuilderSection(buildFunction *BuildFunctionData, pkgs *codegen.NameScope) codegen.Section {
 	return codegen.NewJenniferSection("cli-build-payload", func(stmt *jen.Statement) {
 		codegen.Doc(stmt, fmt.Sprintf("%s builds the payload for the %s %s endpoint from CLI flags.", buildFunction.Name, buildFunction.ServiceName, buildFunction.MethodName))
 		fn := stmt.Func().Id(buildFunction.Name).ParamsFunc(func(group *jen.Group) {
@@ -57,7 +58,7 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData) codegen.Section {
 						}
 						group.Id(target).Op(":=").Op("&").Add(codegen.TypeRef(buildFunction.PayloadInit.ReturnTypeName)).Values()
 					}
-					group.Add(fieldCode(buildFunction.PayloadInit))
+					group.Add(fieldCode(buildFunction.PayloadInit, pkgs))
 				}
 				resultVar := "v"
 				if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
@@ -204,14 +205,14 @@ func generateExample(sub *SubcommandData, svc string) {
 
 // fieldCode generates code to initialize the data structures fields
 // from the given args. It is used only in templates.
-func fieldCode(init *PayloadInitData) *jen.Statement {
+func fieldCode(init *PayloadInitData, pkgs *codegen.NameScope) *jen.Statement {
 	varn := "res"
 	if init.ReturnTypeAttribute == "" {
 		varn = "v"
 	}
 	// We can ignore the transform helpers as there won't be any generated
 	// because the args cannot be user types.
-	c, _, err := codegen.InitStructFields(init.Args, varn, "", init.ReturnTypePkg)
+	c, _, err := codegen.InitStructFields(init.Args, varn, "", init.ReturnTypePkg, pkgs)
 	if err != nil {
 		panic(fmt.Errorf("build CLI payload field init for %s: %w", init.ReturnTypeName, err))
 	}

@@ -76,7 +76,6 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 	svc := services.Get(service.Name)
 	svcName := svc.PathName
 	path := filepath.Join(codegen.Gendir, svcName, "endpoints.go")
-	data := endpointData(svc)
 	var (
 		sections []codegen.Section
 	)
@@ -93,6 +92,8 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 			imports = append(imports, codegen.LoomNamedImport("http", "loomhttp"))
 		}
 		imports = append(imports, userTypeImports(genpkg, svc)...)
+		svc, imports = services.fileData(service.Name, imports)
+		data := endpointData(svc)
 		header := codegen.Header(service.Name+" endpoints", svc.PkgName, imports)
 		def := endpointsStructSection(data)
 		sections = []codegen.Section{header, def}

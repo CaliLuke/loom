@@ -12,18 +12,10 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-func authorizationFiles(genpkg string, svc *Data) []*codegen.File {
+func authorizationFiles(genpkg string, services *ServicesData, svc *Data) []*codegen.File {
 	if svc.Authorization == nil {
 		return nil
 	}
-	var b strings.Builder
-	writeAuthorizerInterface(&b, svc.Authorization)
-	for _, m := range endpointData(svc).Methods {
-		if m.Authorization != nil {
-			writeAuthorizationCheck(&b, m)
-		}
-	}
-	writeAuthorizationValidators(&b, svc)
 	typeImports := userTypeImports(genpkg, svc)
 	imports := make([]*codegen.ImportSpec, 0, 5+len(typeImports)+len(svc.metaTypeImports))
 	imports = append(imports,
@@ -32,6 +24,15 @@ func authorizationFiles(genpkg string, svc *Data) []*codegen.File {
 	)
 	imports = append(imports, typeImports...)
 	imports = append(imports, svc.metaTypeImports...)
+	fileSvc, imports := services.fileData(svc.Name, imports)
+	var b strings.Builder
+	writeAuthorizerInterface(&b, fileSvc.Authorization)
+	for _, m := range endpointData(fileSvc).Methods {
+		if m.Authorization != nil {
+			writeAuthorizationCheck(&b, m)
+		}
+	}
+	writeAuthorizationValidators(&b, fileSvc)
 	return []*codegen.File{{
 		Path:     filepath.Join(codegen.Gendir, svc.PathName, "authorization.go"),
 		Sections: []codegen.Section{codegen.Header(svc.Name+" authorization", svc.PkgName, imports), codegen.NewRawSection("authorization", b.String())},
@@ -268,7 +269,7 @@ func writeAuthorizationValidators(b *strings.Builder, svc *Data) {
 		if validation == "" {
 			continue
 		}
-		fmt.Fprintf(b, "// %s checks the authored constraints before authorization.\nfunc %s(value %s) error {\n", name, name, svc.Scope.GoFullTypeRef(&expr.AttributeExpr{Type: ut.Type}, ut.Loc.PackageName()))
+		fmt.Fprintf(b, "// %s checks the authored constraints before authorization.\nfunc %s(value %s) error {\n", name, name, svc.Scope.GoFullTypeRef(&expr.AttributeExpr{Type: ut.Type}, svc.Scope.PackageName(ut.Loc)))
 		if expr.IsObject(ut.Type) {
 			b.WriteString("if value == nil {\nreturn loom.MissingFieldError(\"value\", \"authorization\")\n}\n")
 		}

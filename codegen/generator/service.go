@@ -30,18 +30,18 @@ func Service(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 			// Make sure service is first so name scope is
 			// properly initialized.
 			svcFiles := service.Files(genpkg, s, services, userTypePkgs)
-			addServiceImports(svcFiles, d)
+			addMetaTypeImports(svcFiles, d)
 			files = append(files, svcFiles...)
 
 			endpointFiles := []*codegen.File{
 				service.EndpointFile(genpkg, s, services),
 				service.ClientFile(genpkg, s, services),
 			}
-			addServiceImports(endpointFiles, d)
+			addMetaTypeImports(endpointFiles, d)
 			files = append(files, endpointFiles...)
 
 			if f := service.ViewsFile(genpkg, s, services); f != nil {
-				addServiceImports([]*codegen.File{f}, d)
+				addMetaTypeImports([]*codegen.File{f}, d)
 				files = append(files, f)
 			}
 			convFiles, err := service.ConvertFiles(r, s, services)
@@ -52,15 +52,6 @@ func Service(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		}
 	}
 	return files, nil
-}
-
-func addServiceImports(files []*codegen.File, d *service.Data) {
-	for _, f := range files {
-		if header := f.HeaderTemplate(); header != nil {
-			service.AddServiceDataMetaTypeImports(header, d)
-			service.AddUserTypeImports(header, d)
-		}
-	}
 }
 
 func addMetaTypeImports(files []*codegen.File, d *service.Data) {

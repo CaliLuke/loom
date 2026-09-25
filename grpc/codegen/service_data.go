@@ -12,6 +12,9 @@ type (
 	ServicesData struct {
 		*service.ServicesData
 		GRPCServices map[string]*ServiceData
+		// renamed caches the transport data returned by fileData by the
+		// service data it is computed from.
+		renamed map[*service.ServicesData]*ServicesData
 	}
 
 	// ServiceData contains the data used to render the code related to a
@@ -525,6 +528,28 @@ func (d *ServicesData) Get(name string) *ServiceData {
 	}
 	d.GRPCServices[name] = d.analyze(service)
 	return d.GRPCServices[name]
+}
+
+// fileData returns the transport data of the service name that renders the
+// code of a generated file that lists imports, and the imports of the file.
+// The file imports the struct:pkg:path packages whose names clash with other
+// imports under aliases, and the returned data qualifies their types with
+// these aliases, see service.Data.FileImports.
+func (d *ServicesData) fileData(name string, imports []*codegen.ImportSpec) (*ServiceData, []*codegen.ImportSpec) {
+	names, imports := d.Get(name).Service.FileImports(imports)
+	services := d.ServicesData.WithPackageNames(names)
+	if services == d.ServicesData {
+		return d.Get(name), imports
+	}
+	renamed, ok := d.renamed[services]
+	if !ok {
+		renamed = NewServicesData(services)
+		if d.renamed == nil {
+			d.renamed = make(map[*service.ServicesData]*ServicesData)
+		}
+		d.renamed[services] = renamed
+	}
+	return renamed.Get(name), imports
 }
 
 // Endpoint returns the endpoint data for the endpoint with the given name, nil

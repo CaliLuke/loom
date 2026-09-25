@@ -35,7 +35,7 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 	payload := endpointIR.Request.Payload
 	svc := sd.Service
 	ep := svc.Method(endpointIR.MethodName)
-	pkg := service.DefaultPackageName(ep.PayloadLoc, svc.PkgName)
+	pkg := svc.LocationPackageName(ep.PayloadLoc)
 	bodyAttr := endpointIR.Request.Body
 	body := expr.DataType(expr.Empty)
 	if bodyAttr != nil {

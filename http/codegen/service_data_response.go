@@ -34,7 +34,7 @@ func newResultBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *S
 		sd:       sd,
 		svc:      svc,
 		method:   method,
-		pkg:      service.DefaultPackageName(method.ResultLoc, svc.PkgName),
+		pkg:      svc.LocationPackageName(method.ResultLoc),
 		result:   endpointIR.Response.Result,
 	}
 }
@@ -94,7 +94,7 @@ func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, 
 
 		svc        = sd.Service
 		md         = svc.Method(endpointIR.Name)
-		pkg        = service.DefaultPackageName(md.ResultLoc, svc.PkgName)
+		pkg        = svc.LocationPackageName(md.ResultLoc)
 		httpclictx = httpContext(sd.Scope, false, false)
 		scope      = svc.Scope
 		svcctx     = serviceContext(pkg, sd.Service.Scope)

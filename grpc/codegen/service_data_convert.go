@@ -31,7 +31,7 @@ func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, m
 	}
 
 	svc := sd.Service
-	pkg := service.DefaultPackageName(svc.Method(endpoint.Name).PayloadLoc, svc.PkgName)
+	pkg := svc.LocationPackageName(svc.Method(endpoint.Name).PayloadLoc)
 	svcCtx := serviceTypeContext(pkg, svc.Scope)
 	if svr {
 		// server side

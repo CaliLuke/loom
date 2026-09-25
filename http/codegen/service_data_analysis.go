@@ -156,7 +156,7 @@ func endpointPath(ep *transportir.Endpoint) string {
 }
 
 func newHTTPAnalysisService(svc *service.Data, importAlias string) (*service.Data, *codegen.NameScope) {
-	scope := codegen.NewNameScope()
+	scope := codegen.NewNameScopeLike(svc.Scope)
 	scope.Unique("c") // 'c' is reserved as the client's receiver name.
 	scope.Unique("v") // 'v' is reserved as the request builder payload argument name.
 	scope.Unique("websocket")

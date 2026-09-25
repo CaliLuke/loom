@@ -953,7 +953,10 @@ service package would import itself, so `loom gen` fails and asks for another
 path such as `types/common`. When the package has the name of the service
 package, as with `types/catalog` in a service named `catalog` that has a transport,
 the generated service package is named `catalogsvc` so that the transport
-files can import both packages.
+files can import both packages. A generated file that also imports another
+package of the same name, such as `types/security` next to the Loom `security`
+package or `types/multipart` next to `mime/multipart`, imports the type package
+under an alias such as `security2`. The other files keep the package name.
 
 ### Field Customization
 

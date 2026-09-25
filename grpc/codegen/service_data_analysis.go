@@ -25,7 +25,7 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 	if err := checkProtoNames(svc, irService); err != nil {
 		panic(err)
 	}
-	scope := codegen.NewNameScope()
+	scope := codegen.NewNameScopeLike(svc.Scope)
 	pkg := svc.PathName + pbPkgName
 	svcVarN := scope.HashedUnique(gs.ServiceExpr, protoServiceName(svc.StructName))
 	goName := protoBufIdentifier(svcVarN, true, true)

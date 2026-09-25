@@ -14,6 +14,11 @@ type (
 	NameScope struct {
 		names  map[string]string // type hash to unique name
 		counts map[string]int    // raw type name to occurrence count
+		// packages maps the relative import paths of struct:pkg:path
+		// packages to the names that qualify their types in the code
+		// generated with the scope, when these differ from the package
+		// names.
+		packages map[string]string
 	}
 
 	// Hasher is the interface implemented by the objects that must be
@@ -36,6 +41,51 @@ func NewNameScope() *NameScope {
 		names:  make(map[string]string),
 		counts: make(map[string]int),
 	}
+}
+
+// NewNameScopeWithPackageNames creates an empty name scope whose type
+// references qualify the types of the struct:pkg:path package at each
+// relative import path (Location.RelImportPath) of names with the mapped name
+// instead of the package name. A generated file that imports such a package
+// under an alias renders its code with such a scope.
+func NewNameScopeWithPackageNames(names map[string]string) *NameScope {
+	s := NewNameScope()
+	s.packages = names
+	return s
+}
+
+// NewNameScopeLike creates an empty name scope that qualifies the types of
+// struct:pkg:path packages as s does.
+func NewNameScopeLike(s *NameScope) *NameScope {
+	if s == nil {
+		return NewNameScope()
+	}
+	return NewNameScopeWithPackageNames(s.packages)
+}
+
+// WithoutPackageNames returns a name scope that shares the names of s but
+// qualifies the types of every struct:pkg:path package with the package name.
+// Code that derives identifiers from type names uses it, so that the
+// identifiers do not depend on the aliases under which the files that use
+// them import the packages.
+func (s *NameScope) WithoutPackageNames() *NameScope {
+	return &NameScope{names: s.names, counts: s.counts}
+}
+
+// PackageName returns the name that qualifies the types generated at loc in
+// the code generated with the scope: the name set with
+// NewNameScopeWithPackageNames, or else loc.PackageName(). It returns the
+// empty string when loc is nil.
+func (s *NameScope) PackageName(loc *Location) string {
+	if loc == nil {
+		return ""
+	}
+	if s != nil {
+		if name, ok := s.packages[loc.RelImportPath]; ok {
+			return name
+		}
+	}
+	return loc.PackageName()
 }
 
 // HashedUnique builds the unique name for key using name and - if not unique -
@@ -115,14 +165,14 @@ func (s *NameScope) PeekUnique(name string, suffix ...string) string {
 // useDefault if true indicates that the attribute must not be a pointer
 // if it has a default value.
 func (s *NameScope) GoTypeDef(att *expr.AttributeExpr, ptr, useDefault bool) string {
-	return s.goTypeDef(att, ptr, useDefault, attributePkgName(att))
+	return s.goTypeDef(att, ptr, useDefault, s.attributePkgName(att))
 }
 
 // GoValueTypeDef returns the Go type definition for the concrete value of att
 // without wrapping att itself in a presence type. Nested attributes retain
 // their own presence semantics.
 func (s *NameScope) GoValueTypeDef(att *expr.AttributeExpr, ptr, useDefault bool) string {
-	return s.goValueTypeDefWithPkgOverride(att, ptr, useDefault, attributePkgName(att), "")
+	return s.goValueTypeDefWithPkgOverride(att, ptr, useDefault, s.attributePkgName(att), "")
 }
 
 // GoTypeDefWithTargetPkg returns the Go type definition string, qualifying any
@@ -232,7 +282,7 @@ func (s *NameScope) userTypeDefWithPkgOverride(att *expr.AttributeExpr, actual e
 	if actual == expr.Empty {
 		return "struct {}"
 	}
-	prefix := userTypePkgPrefix(actual, pkg, targetPkg)
+	prefix := s.userTypePkgPrefix(actual, pkg, targetPkg)
 	// Qualified references (pkg.Type) do not compete in the local identifier
 	// namespace. Never apply local scoping (suffixing) to the type name portion
 	// of an external reference, otherwise we can emit identifiers that do not
@@ -243,16 +293,17 @@ func (s *NameScope) userTypeDefWithPkgOverride(att *expr.AttributeExpr, actual e
 	return prefix + Goify(actual.Name(), true)
 }
 
-func userTypePkgPrefix(actual expr.UserType, pkg, targetPkg string) string {
+func (s *NameScope) userTypePkgPrefix(actual expr.UserType, pkg, targetPkg string) string {
 	if loc := UserTypeLocation(actual); loc != nil {
+		name := s.PackageName(loc)
 		if targetPkg != "" {
-			if loc.PackageName() != targetPkg {
-				return loc.PackageName() + "."
+			if name != targetPkg {
+				return name + "."
 			}
 			return targetPkg + "."
 		}
-		if loc.PackageName() != pkg {
-			return loc.PackageName() + "."
+		if name != pkg {
+			return name + "."
 		}
 		return ""
 	}
@@ -314,7 +365,7 @@ func (s *NameScope) GoFullTypeRef(att *expr.AttributeExpr, pkg string) string {
 // with pkgName(loc) instead of the package's own name. It lets a file import
 // such packages under aliases.
 func (s *NameScope) GoFullTypeRefWithPackages(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
-	return s.goFullTypeRef(att, pkgWithDefault(att.Type, pkg, pkgName), pkgName)
+	return s.goFullTypeRef(att, s.pkgWithDefault(att.Type, pkg, pkgName), pkgName)
 }
 
 // GoTypeName returns the Go type name of the given attribute type.
@@ -347,8 +398,8 @@ func (s *NameScope) GoFullTypeName(att *expr.AttributeExpr, pkg string) string {
 }
 
 // goFullTypeRef implements GoFullTypeRef. pkgName names the packages of
-// user types generated in struct:pkg:path packages; nil selects their own
-// package names.
+// user types generated in struct:pkg:path packages; nil selects the names of
+// the scope, see PackageName.
 func (s *NameScope) goFullTypeRef(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
 	name := s.goFullTypeName(att, pkg, pkgName)
 	if IsExplicitPresenceType(att) {
@@ -376,11 +427,11 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string, pkg
 		}
 		return primitiveTypeDef(att, actual)
 	case *expr.Array:
-		return "[]" + s.goFullTypeRef(actual.ElemType, pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName)
+		return "[]" + s.goFullTypeRef(actual.ElemType, s.pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName)
 	case *expr.Map:
 		return fmt.Sprintf("map[%s]%s",
-			s.goFullMapKeyTypeName(actual.KeyType, pkgWithDefault(actual.KeyType.Type, pkg, pkgName), pkgName),
-			s.goFullTypeRef(actual.ElemType, pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName))
+			s.goFullMapKeyTypeName(actual.KeyType, s.pkgWithDefault(actual.KeyType.Type, pkg, pkgName), pkgName),
+			s.goFullTypeRef(actual.ElemType, s.pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName))
 	case *expr.Object:
 		return s.GoTypeDef(att, false, false)
 	case expr.UserType, *expr.Union:
@@ -411,7 +462,7 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string, pkg
 		}
 		return pkg + "." + base
 	case expr.CompositeExpr:
-		return s.goFullTypeName(actual.Attribute(), pkgWithDefault(actual.Attribute().Type, pkg, pkgName), pkgName)
+		return s.goFullTypeName(actual.Attribute(), s.pkgWithDefault(actual.Attribute().Type, pkg, pkgName), pkgName)
 	default:
 		panic(NewError(nil, att, fmt.Errorf("unknown collection element data type %T", actual)))
 	}
@@ -442,26 +493,28 @@ func IsExplicitPresenceType(att *expr.AttributeExpr) bool {
 
 // attributePkgName returns the name of the package that defines the type of
 // att as selected by the struct:pkg:path metadata of the user type or of att,
-// or the empty string if neither sets one.
-func attributePkgName(att *expr.AttributeExpr) string {
+// or the empty string if neither sets one. The scope names the package, see
+// PackageName.
+func (s *NameScope) attributePkgName(att *expr.AttributeExpr) string {
 	if loc := UserTypeLocation(att.Type); loc != nil {
-		return loc.PackageName()
+		return s.PackageName(loc)
 	}
 	if p, ok := att.Meta.Last("struct:pkg:path"); ok && p != "" {
-		return (&Location{RelImportPath: naming.EscapeNonASCII(p)}).PackageName()
+		return s.PackageName(&Location{RelImportPath: naming.EscapeNonASCII(p)})
 	}
 	return ""
 }
 
 // pkgWithDefault returns the package defining the given type. If the types is a
 // user type with "struct:pkg:path" metadata then it returns the corresponding
-// value, named by pkgName when not nil, otherwise it returns pkg.
-func pkgWithDefault(dt expr.DataType, pkg string, pkgName func(*Location) string) string {
+// value, named by pkgName when not nil and by the scope otherwise, see
+// PackageName. Otherwise it returns pkg.
+func (s *NameScope) pkgWithDefault(dt expr.DataType, pkg string, pkgName func(*Location) string) string {
 	if loc := UserTypeLocation(dt); loc != nil {
 		if pkgName != nil {
 			return pkgName(loc)
 		}
-		return loc.PackageName()
+		return s.PackageName(loc)
 	}
 	return pkg
 }

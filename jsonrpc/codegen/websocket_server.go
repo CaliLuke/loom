@@ -35,6 +35,7 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
+	data, imports = services.FileData(svc.Name(), imports)
 	sections := make([]codegen.Section, 0, 1+len(data.Endpoints))
 	sections = append(sections, codegen.Header(title, "server", imports))
 	sections = append(sections, jsonrpcWebSocketServerSections(data)...)

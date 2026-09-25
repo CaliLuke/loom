@@ -23,19 +23,26 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 		}
 	}
 	for _, svc := range jsvcs {
-		svcData := data.Get(svc.Name())
-		if f := clientEncodeDecodeFile(genpkg, svc, data, svcData); f != nil {
+		if f := clientEncodeDecodeFile(genpkg, svc, data); f != nil {
 			files = append(files, f)
 		}
 	}
 	return files
 }
 
-func clientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *httpcodegen.ServicesData, svcData *httpcodegen.ServiceData) *codegen.File {
-	f := httpcodegen.ClientEncodeDecodeFile(genpkg, svc, data)
+func clientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *httpcodegen.ServicesData) *codegen.File {
+	f := httpcodegen.ClientEncodeDecodeFile(genpkg, svc, data,
+		&codegen.ImportSpec{Path: "bufio"},
+		&codegen.ImportSpec{Path: "bytes"},
+		&codegen.ImportSpec{Path: "encoding/json/jsontext"},
+		&codegen.ImportSpec{Path: "sync"},
+		&codegen.ImportSpec{Path: "sync/atomic"},
+		codegen.LoomImport("jsonrpc"),
+	)
 	if f == nil {
 		return nil
 	}
+	svcData, _ := data.FileData(svc.Name(), codegen.HeaderDataForSection(f.HeaderSection()).Imports)
 	updateHeader(f)
 	f.SetSections(clientEncodeDecodeSections(f, svcData))
 	f.Path = jsonrpcTransportPath(f.Path)
@@ -45,10 +52,7 @@ func clientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *http
 func clientEncodeDecodeSections(f *codegen.File, svcData *httpcodegen.ServiceData) []codegen.Section {
 	sections := make([]codegen.Section, 0, len(f.AllSections())+len(svcData.Endpoints))
 	for _, section := range f.AllSections() {
-		switch section.SectionName() {
-		case "source-header":
-			addJSONRPCClientImports(section)
-		case "response-decoder":
+		if section.SectionName() == "response-decoder" {
 			ed, ok := endpointDataForSection(section)
 			if !ok {
 				continue
@@ -72,42 +76,32 @@ func clientEncodeDecodeSections(f *codegen.File, svcData *httpcodegen.ServiceDat
 	return sections
 }
 
-func addJSONRPCClientImports(section codegen.Section) {
-	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "bufio"})
-	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "bytes"})
-	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "encoding/json/jsontext"})
-	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "sync"})
-	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "sync/atomic"})
-	codegen.AddSectionImport(section, codegen.LoomImport("jsonrpc"))
-}
-
 // clientFile returns the client HTTP transport file
 func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.ServicesData) *codegen.File {
 	data := services.Get(svc.Name())
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "jsonrpc", svcName, "client", "client.go")
 	title := fmt.Sprintf("%s client JSON-RPC transport", svc.Name())
-	sections := []codegen.Section{
-		codegen.Header(title, "client", append([]*codegen.ImportSpec{
-			{Path: "bufio"},
-			{Path: "bytes"},
-			{Path: "context"},
-			{Path: "fmt"},
-			{Path: "io"},
-			{Path: "net/http"},
-			{Path: "strconv"},
-			{Path: "strings"},
-			{Path: "sync"},
-			{Path: "sync/atomic"},
-			{Path: "time"},
-			{Path: "github.com/gorilla/websocket"},
-			codegen.LoomImport(""),
-			codegen.LoomImport("jsonrpc"),
-			codegen.LoomNamedImport("http", "loomhttp"),
-			{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
-			{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
-		}, data.Service.UserTypeImports...)),
-	}
+	data, imports := services.FileData(svc.Name(), append([]*codegen.ImportSpec{
+		{Path: "bufio"},
+		{Path: "bytes"},
+		{Path: "context"},
+		{Path: "fmt"},
+		{Path: "io"},
+		{Path: "net/http"},
+		{Path: "strconv"},
+		{Path: "strings"},
+		{Path: "sync"},
+		{Path: "sync/atomic"},
+		{Path: "time"},
+		{Path: "github.com/gorilla/websocket"},
+		codegen.LoomImport(""),
+		codegen.LoomImport("jsonrpc"),
+		codegen.LoomNamedImport("http", "loomhttp"),
+		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
+		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
+	}, data.Service.UserTypeImports...))
+	sections := []codegen.Section{codegen.Header(title, "client", imports)}
 	sections = append(sections, jsonrpcClientStructSection(data))
 	sections = append(sections, jsonrpcClientInitSection(data))
 

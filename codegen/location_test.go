@@ -38,7 +38,7 @@ func TestUserTypeLocationEscapesNonASCII(t *testing.T) {
 				assert.NoError(t, module.CheckImportPath("example.com/gen/"+loc.RelImportPath))
 			}
 			att := &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:pkg:path": {c.PkgPath}}}
-			assert.Equal(t, c.Package, attributePkgName(att))
+			assert.Equal(t, c.Package, NewNameScope().attributePkgName(att))
 		})
 	}
 }

@@ -505,7 +505,7 @@ func transformUnionTypeRefs(source, target *expr.AttributeExpr, ta *transformAtt
 
 func buildProtoUnionTypeRefs(source *expr.AttributeExpr, ta *transformAttrs, src *expr.Union, sourceValueTypeRefs []string) {
 	unionPkg := ta.SourceCtx.Pkg(source)
-	samePkg, commonPkg := unionCommonPkg(src.Values)
+	samePkg, commonPkg := unionCommonPkg(ta.SourceCtx.Scope.Scope(), src.Values)
 	for i, v := range src.Values {
 		if _, ok := v.Attribute.Type.(expr.UserType); ok {
 			sourceValueTypeRefs[i] = ta.SourceCtx.Scope.Ref(v.Attribute, ta.SourceCtx.Pkg(v.Attribute))
@@ -532,7 +532,7 @@ func buildSourceUnionTypeRefs(ta *transformAttrs, src *expr.Union, sourceValueTy
 
 func buildTargetUnionWrapperRefs(target *expr.AttributeExpr, ta *transformAttrs, tgt *expr.Union, targetWrapperRefs []string) {
 	unionPkg := ta.TargetCtx.Pkg(target)
-	samePkg, commonPkg := unionCommonPkg(tgt.Values)
+	samePkg, commonPkg := unionCommonPkg(ta.TargetCtx.Scope.Scope(), tgt.Values)
 	for i, tv := range tgt.Values {
 		if _, ok := tv.Attribute.Type.(expr.UserType); ok {
 			continue
@@ -562,7 +562,9 @@ func oneofFieldName(ta *transformAttrs, i int, nat *expr.NamedAttributeExpr, ctx
 	return ctx.Scope.Field(nat.Attribute, nat.Name, true)
 }
 
-func unionCommonPkg(values []*expr.NamedAttributeExpr) (bool, string) {
+// unionCommonPkg reports whether the union values are all user types of one
+// struct:pkg:path package, and returns the name that scope gives the package.
+func unionCommonPkg(scope *codegen.NameScope, values []*expr.NamedAttributeExpr) (bool, string) {
 	samePkg := true
 	commonPkg := ""
 	for _, v := range values {
@@ -575,10 +577,10 @@ func unionCommonPkg(values []*expr.NamedAttributeExpr) (bool, string) {
 			return false, ""
 		}
 		if commonPkg == "" {
-			commonPkg = loc.PackageName()
+			commonPkg = scope.PackageName(loc)
 			continue
 		}
-		if commonPkg != loc.PackageName() {
+		if commonPkg != scope.PackageName(loc) {
 			return false, ""
 		}
 	}

@@ -300,7 +300,11 @@ func (a *AttributeContext) Pkg(att *expr.AttributeExpr) string {
 		return a.DefaultPkg
 	}
 	if loc := UserTypeLocation(att.Type); loc != nil {
-		pkg := loc.PackageName()
+		var scope *NameScope
+		if a.Scope != nil {
+			scope = a.Scope.Scope()
+		}
+		pkg := scope.PackageName(loc)
 		// If this is same-package conversion and the type's package matches
 		// the context's default package, return empty string to avoid qualification
 		if a.SamePackageConversion && pkg == a.DefaultPkg {
@@ -315,6 +319,19 @@ func (a *AttributeContext) Pkg(att *expr.AttributeExpr) string {
 		return a.DefaultPkg
 	}
 	return a.DefaultPkg
+}
+
+// NamePkg returns the package that qualifies the type of att in identifiers
+// derived from type names, such as the names of transform helpers: Pkg(att),
+// except that the name of a struct:pkg:path package replaces the alias under
+// which a file may import it. Such identifiers are declared in one file and
+// used in others, which do not necessarily alias the package.
+func (a *AttributeContext) NamePkg(att *expr.AttributeExpr) string {
+	pkg := a.Pkg(att)
+	if loc := UserTypeLocation(att.Type); loc != nil && pkg != "" {
+		return loc.PackageName()
+	}
+	return pkg
 }
 
 // Dup creates a shallow copy of the AttributeContext.

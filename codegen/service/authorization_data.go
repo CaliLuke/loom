@@ -87,7 +87,7 @@ func buildAuthorizationData(service *expr.ServiceExpr, data *Data) *authorizatio
 	for _, requirement := range a.requirements {
 		requirement.methodName = methodScope.Unique("Authorize" + codegen.Goify(requirement.expr.Name, true))
 		if requirement.expr.Input.Type != expr.Empty {
-			pkg := codegen.UserTypeLocation(requirement.expr.Input.Type).PackageName()
+			pkg := data.Scope.PackageName(codegen.UserTypeLocation(requirement.expr.Input.Type))
 			requirement.inputRef = data.Scope.GoFullTypeRef(requirement.expr.Input, pkg)
 			requirement.inputName = data.Scope.GoFullTypeName(requirement.expr.Input, pkg)
 		}

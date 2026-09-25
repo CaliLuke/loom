@@ -34,7 +34,11 @@ func ServerFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 }
 
 func serverEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *httpcodegen.ServicesData) *codegen.File {
-	f := httpcodegen.ServerEncodeDecodeFile(genpkg, svc, data)
+	f := httpcodegen.ServerEncodeDecodeFile(genpkg, svc, data,
+		&codegen.ImportSpec{Path: "bytes"},
+		&codegen.ImportSpec{Path: "io"},
+		codegen.LoomImport("jsonrpc"),
+	)
 	if f == nil {
 		return nil
 	}
@@ -48,8 +52,6 @@ func serverEncodeDecodeSections(f *codegen.File) []codegen.Section {
 	sections := make([]codegen.Section, 0, len(f.AllSections()))
 	for _, section := range f.AllSections() {
 		switch section.SectionName() {
-		case "source-header":
-			addJSONRPCServerImports(section)
 		case "request-decoder":
 			sections = append(sections, renameJSONRPCSection(section, "jsonrpc-request-decoder"))
 			continue
@@ -64,20 +66,14 @@ func serverEncodeDecodeSections(f *codegen.File) []codegen.Section {
 	return sections
 }
 
-func addJSONRPCServerImports(section codegen.Section) {
-	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "bytes"})
-	codegen.AddSectionImport(section, &codegen.ImportSpec{Path: "io"})
-	codegen.AddSectionImport(section, codegen.LoomImport("jsonrpc"))
-}
-
 // serverFile returns the file implementing the HTTP server.
 func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.ServicesData) *codegen.File {
 	data := services.Get(svc.Name())
-	contractData := buildResponseContractServiceData(svc, services)
 	svcName := data.Service.PathName
 	fpath := filepath.Join(codegen.Gendir, "jsonrpc", svcName, "server", "server.go")
 	title := fmt.Sprintf("%s JSON-RPC server", svc.Name())
-	imports := jsonrpcServerImports(genpkg, svcName, data)
+	data, imports := services.FileData(svc.Name(), jsonrpcServerImports(genpkg, svcName, data))
+	contractData := buildResponseContractServiceData(svc, data)
 	sections := []codegen.Section{
 		codegen.Header(title, "server", imports),
 	}

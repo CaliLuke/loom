@@ -665,8 +665,8 @@ func transformHelperName(source, target *expr.AttributeExpr, ta *TransformAttrs)
 		prefix string
 	)
 	{
-		sname = Goify(ta.SourceCtx.Scope.Name(source, ta.SourceCtx.Pkg(source), ta.SourceCtx.Pointer, ta.SourceCtx.UseDefault), true)
-		tname = Goify(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
+		sname = Goify(ta.SourceCtx.Scope.Name(source, ta.SourceCtx.NamePkg(source), ta.SourceCtx.Pointer, ta.SourceCtx.UseDefault), true)
+		tname = Goify(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.NamePkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
 		prefix = ta.Prefix
 		if prefix == "" {
 			prefix = "transform"

@@ -14,6 +14,17 @@ type (
 		// (future) error attribution. A nil Ctx is treated as a silent
 		// context; analyze populates it lazily on first use.
 		Ctx *codegen.Context
+
+		// packageNames maps the relative import paths of the struct:pkg:path
+		// packages that the data renames to their names, see
+		// WithPackageNames.
+		packageNames map[string]string
+		// base is the services data whose packages the data renames, nil
+		// if packageNames is empty.
+		base *ServicesData
+		// renamed caches the services data returned by WithPackageNames by
+		// their package names.
+		renamed map[string]*ServicesData
 	}
 
 	// Data contains the data used to render the code related to a single
@@ -79,6 +90,9 @@ type (
 		// ownPackageType is a type that the service uses and that
 		// struct:pkg:path places in the service package, nil if none.
 		ownPackageType expr.UserType
+		// genpkg is the import path of the gen package that
+		// SetUserTypeImports computed UserTypeImports with.
+		genpkg string
 	}
 
 	// MethodData describes a single service method.
@@ -559,8 +573,14 @@ func (d *ServicesData) Get(name string) *Data {
 	if service == nil {
 		return nil
 	}
-	d.Services[name] = d.analyze(service)
-	return d.Services[name]
+	data := d.analyze(service)
+	if d.base != nil {
+		base := d.base.Get(name)
+		data.UserTypeImports = base.UserTypeImports
+		data.genpkg = base.genpkg
+	}
+	d.Services[name] = data
+	return data
 }
 
 // Method returns the service method data for the method with the given name,

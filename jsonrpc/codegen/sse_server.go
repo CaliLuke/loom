@@ -47,6 +47,7 @@ func sseServerStreamFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
+	data, imports = services.FileData(svc.Name(), imports)
 	sections := []codegen.Section{
 		codegen.Header(title, "server", imports),
 		jsonrpcSSEServerImplSection(data),

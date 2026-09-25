@@ -114,7 +114,7 @@ func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint
 		args = append(args, arg)
 	}
 	caps := service.DescribeMethodCapabilities(method)
-	pkg := service.DefaultPackageName(method.PayloadLoc, svc.PkgName)
+	pkg := svc.LocationPackageName(method.PayloadLoc)
 	payloadRef := ""
 	if len(routes[0].PathInit.ClientArgs) > 0 && endpointIR.Request.Payload.Type != expr.Empty {
 		payloadRef = svc.Scope.GoFullTypeRef(endpointIR.Request.Payload, pkg)

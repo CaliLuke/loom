@@ -77,20 +77,7 @@ func ClientCLIFilesForTransport(
 	for _, svc := range data.Expressions.Services {
 		sd := data.Get(svc.Name())
 		if len(sd.Endpoints) > 0 {
-			command := &commandData{
-				CommandData: cli.BuildCommandData(sd.Service),
-				NeedDialer:  HasWebSocket(sd),
-			}
-
-			for _, e := range sd.Endpoints {
-				sub := buildSubcommandData(sd, e)
-				command.Subcommands = append(command.Subcommands, sub)
-				command.CommandData.Subcommands = append(command.CommandData.Subcommands, sub.SubcommandData)
-			}
-
-			command.Example = command.Subcommands[0].Example
-
-			cmds = append(cmds, command)
+			cmds = append(cmds, buildCommandData(sd))
 			svcs = append(svcs, svc)
 		}
 	}
@@ -143,6 +130,22 @@ func normalizeClientCLITransport(transport ClientCLITransport) ClientCLITranspor
 		transport.StreamingConfigurerType = defaults.StreamingConfigurerType
 	}
 	return transport
+}
+
+// buildCommandData returns the CLI command of the service sd, which has
+// endpoints.
+func buildCommandData(sd *ServiceData) *commandData {
+	command := &commandData{
+		CommandData: cli.BuildCommandData(sd.Service),
+		NeedDialer:  HasWebSocket(sd),
+	}
+	for _, e := range sd.Endpoints {
+		sub := buildSubcommandData(sd, e)
+		command.Subcommands = append(command.Subcommands, sub)
+		command.CommandData.Subcommands = append(command.CommandData.Subcommands, sub.SubcommandData)
+	}
+	command.Example = command.Subcommands[0].Example
+	return command
 }
 
 func buildSubcommandData(sd *ServiceData, e *EndpointData) *subcommandData {
@@ -234,12 +237,16 @@ func payloadBuilders(
 	sd := services.Get(svc.Name())
 	path := filepath.Join(codegen.Gendir, transport.PathName, sd.Service.PathName, "client", "cli.go")
 	title := fmt.Sprintf("%s %s client CLI support package", svc.Name(), transport.DisplayName)
+	fileSD, imports := services.FileData(svc.Name(), clientCLIImports(genpkg, sd))
+	if fileSD != sd {
+		data = buildCommandData(fileSD).CommandData
+	}
 	sections := []codegen.Section{
-		codegen.Header(title, "client", clientCLIImports(genpkg, sd)),
+		codegen.Header(title, "client", imports),
 	}
 	for _, sub := range data.Subcommands {
 		if sub.BuildFunction != nil {
-			sections = append(sections, cli.PayloadBuilderSection(sub.BuildFunction))
+			sections = append(sections, cli.PayloadBuilderSection(sub.BuildFunction, fileSD.Service.Scope))
 		}
 	}
 

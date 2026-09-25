@@ -155,7 +155,7 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 	}
 	data.serverRecvTypeName = streamDesc.Payload.Name
 	data.serverRecvTypeRef = streamDesc.Payload.Ref
-	pkg := service.DefaultPackageName(sd.Service.Method(endpointIR.MethodName).StreamingPayloadLoc, sd.Service.PkgName)
+	pkg := sd.Service.LocationPackageName(sd.Service.Method(endpointIR.MethodName).StreamingPayloadLoc)
 	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, pkg, false, false, true, sd)
 	if needInit(endpointIR.Stream.RequestPayload) ||
 		expr.ContainsNonNullableCollectionElement(endpointIR.Request.StreamingBody) {
@@ -293,6 +293,7 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	}, data.Service.UserTypeImports...)
+	data, imports = services.FileData(svc.Name(), imports)
 	structSections := websocketStructSections(data, false)
 	wsSections := websocketCodeSections(data, false)
 	sections := make([]codegen.Section, 0, 1+len(structSections)+len(wsSections))
@@ -330,6 +331,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *Ser
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	}, data.Service.UserTypeImports...)
+	data, imports = services.FileData(svc.Name(), imports)
 	structSections := websocketStructSections(data, true)
 	wsSections := websocketCodeSections(data, true)
 	sections := make([]codegen.Section, 0, 1+len(structSections)+len(wsSections))

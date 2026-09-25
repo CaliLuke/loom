@@ -226,7 +226,7 @@ func quotedViews(views []*ViewData) []string {
 func fullTypeRefForAttribute(scope *codegen.NameScope, att *expr.AttributeExpr, defaultPkg string) string {
 	pkg := defaultPkg
 	if loc := codegen.UserTypeLocation(att.Type); loc != nil {
-		pkg = loc.PackageName()
+		pkg = scope.PackageName(loc)
 	}
 	return scope.GoFullTypeRef(att, pkg)
 }

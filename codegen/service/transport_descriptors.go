@@ -104,32 +104,38 @@ type (
 	}
 )
 
-// DefaultPackageName returns loc package when present, otherwise def.
-func DefaultPackageName(loc *codegen.Location, def string) string {
+// LocationPackageName returns the name that qualifies the types generated at
+// loc in the code rendered with d: the name that d.Scope gives the
+// struct:pkg:path package at loc, see codegen.NameScope.PackageName, or the
+// service package name d.PkgName when loc is nil.
+func (d *Data) LocationPackageName(loc *codegen.Location) string {
 	if loc == nil {
-		return def
+		return d.PkgName
 	}
-	return loc.PackageName()
+	return d.Scope.PackageName(loc)
 }
 
 // BuildPayloadDescriptor returns the resolved payload type information for a
 // method.
 func BuildPayloadDescriptor(svc *Data, method *MethodData, payload *expr.AttributeExpr) TypeDescriptor {
-	pkg := DefaultPackageName(method.PayloadLoc, svc.PkgName)
+	pkg := svc.LocationPackageName(method.PayloadLoc)
 	return buildTypeDescriptor(svc.Scope, payload, pkg)
 }
 
 // BuildResultDescriptor returns the declared and effective result type
 // information for a method.
 func BuildResultDescriptor(svc *Data, method *MethodData, result *expr.AttributeExpr) ResultDescriptor {
-	pkg := DefaultPackageName(method.ResultLoc, svc.PkgName)
+	pkg := svc.LocationPackageName(method.ResultLoc)
 	return buildResultDescriptorForPackage(svc, method, result, pkg)
 }
 
 // BuildErrorDescriptor returns the resolved error type information for a
 // method error.
 func BuildErrorDescriptor(svc *Data, method *MethodData, name string, errAttr *expr.AttributeExpr) ErrorDescriptor {
-	pkg := DefaultPackageName(method.ErrorLocs[name], packageNameForAttribute(errAttr, svc.PkgName))
+	pkg := svc.attributePackageName(errAttr)
+	if loc := method.ErrorLocs[name]; loc != nil {
+		pkg = svc.Scope.PackageName(loc)
+	}
 	return ErrorDescriptor{
 		Name: name,
 		Type: buildTypeDescriptor(svc.Scope, errAttr, pkg),
@@ -141,10 +147,10 @@ func BuildErrorDescriptor(svc *Data, method *MethodData, name string, errAttr *e
 func BuildStreamDescriptor(svc *Data, method *MethodData, payload, result *expr.AttributeExpr) StreamDescriptor {
 	desc := DescribeStream(method)
 	if desc.HasPayload {
-		desc.Payload = buildTypeDescriptor(svc.Scope, payload, packageNameForAttribute(payload, svc.PkgName))
+		desc.Payload = buildTypeDescriptor(svc.Scope, payload, svc.attributePackageName(payload))
 	}
 	if desc.HasResult {
-		desc.Result = buildResultDescriptorForPackage(svc, method, result, packageNameForAttribute(result, svc.PkgName))
+		desc.Result = buildResultDescriptorForPackage(svc, method, result, svc.attributePackageName(result))
 	}
 	return desc
 }
@@ -221,11 +227,13 @@ func DescribeStream(method *MethodData) StreamDescriptor {
 	return desc
 }
 
-func packageNameForAttribute(att *expr.AttributeExpr, def string) string {
+// attributePackageName returns the name that qualifies the type of att in the
+// code rendered with d, see LocationPackageName.
+func (d *Data) attributePackageName(att *expr.AttributeExpr) string {
 	if att == nil {
-		return def
+		return d.PkgName
 	}
-	return DefaultPackageName(codegen.UserTypeLocation(att.Type), def)
+	return d.LocationPackageName(codegen.UserTypeLocation(att.Type))
 }
 
 func buildTypeDescriptor(scope *codegen.NameScope, att *expr.AttributeExpr, pkg string) TypeDescriptor {

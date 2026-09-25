@@ -16,13 +16,13 @@ func grpcTypeFile(
 	skipKind validateKind,
 ) *codegen.File {
 	sd := services.Get(svc.Name())
+	sd, imports := services.fileData(svc.Name(), grpcTypeImports(genpkg, svc, sd))
 	initData := collect(svc, sd)
 	svcName := sd.Service.PathName
 	fpath := filepath.Join(codegen.Gendir, "grpc", svcName, side, "types.go")
-	imports := grpcTypeImports(genpkg, svc, sd)
 	sections := []codegen.Section{codegen.Header(svc.Name()+" gRPC "+side+" types", side, imports)}
 	for _, init := range initData {
-		sections = append(sections, grpcTypeInitSection(init))
+		sections = append(sections, grpcTypeInitSection(init, sd.Service.Scope))
 	}
 	for _, data := range sd.validations {
 		if data.Kind == skipKind {

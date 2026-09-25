@@ -23,8 +23,12 @@ func ViewsFile(_ string, service *expr.ServiceExpr, services *ServicesData) *cod
 		return nil
 	}
 	unions := collectViewsUnions(svc)
+	fileSvc, imports := services.fileData(service.Name, viewsImports(svc, unions))
+	if fileSvc != svc {
+		svc, unions = fileSvc, collectViewsUnions(fileSvc)
+	}
 	sections := make([]codegen.Section, 0, 2+len(svc.viewedResultTypes)+len(svc.projectedTypes)+len(unions))
-	sections = append(sections, viewsHeader(service.Name, unions))
+	sections = append(sections, codegen.Header(service.Name+" views", "views", imports))
 	sections = append(sections, viewTypeSections(svc, unions)...)
 	sections = append(sections, viewedTypeMapSection(collectViewedTypes(svc)))
 	sections = append(sections, viewValidationSections(svc)...)
@@ -49,7 +53,9 @@ func collectViewsUnions(svc *Data) []*UnionTypeData {
 	return unions
 }
 
-func viewsHeader(serviceName string, unions []*UnionTypeData) codegen.Section {
+// viewsImports returns the imports of the views file of svc, which defines
+// unions.
+func viewsImports(svc *Data, unions []*UnionTypeData) []*codegen.ImportSpec {
 	imports := []*codegen.ImportSpec{
 		codegen.LoomImport(""),
 		{Path: "unicode/utf8"},
@@ -63,7 +69,7 @@ func viewsHeader(serviceName string, unions []*UnionTypeData) codegen.Section {
 			codegen.LoomNamedImport("http", "loomhttp"),
 		)
 	}
-	return codegen.Header(serviceName+" views", "views", imports)
+	return append(imports, svc.UserTypeImports...)
 }
 
 func viewTypeSections(svc *Data, unions []*UnionTypeData) []codegen.Section {

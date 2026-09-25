@@ -500,13 +500,13 @@ func bodyInitSection(name string, init *InitData, client bool) codegen.Section {
 	})
 }
 
-func typeInitSection(name string, init *InitData, client bool) codegen.Section {
+func typeInitSection(name string, init *InitData, client bool, pkgs *codegen.NameScope) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		args, code := initRenderData(init, client)
 		typ := initRenderTarget(client)
 		fieldInitCode := ""
 		if !init.SkipFieldInit {
-			fieldInitCode = strings.TrimRight(fieldCode(init, typ), "\n\t ")
+			fieldInitCode = strings.TrimRight(fieldCode(init, typ, pkgs), "\n\t ")
 		}
 
 		stmt.Line()

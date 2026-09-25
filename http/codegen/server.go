@@ -5,6 +5,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -37,8 +38,9 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	svcName := data.Service.PathName
 	fpath := filepath.Join(codegen.Gendir, "http", svcName, "server", "server.go")
 	title := fmt.Sprintf("%s HTTP server", svc.Name())
+	data, imports := services.FileData(svc.Name(), serverImports(genpkg, svcName, data))
 	sections := []codegen.Section{
-		codegen.Header(title, "server", serverImports(genpkg, svcName, data)),
+		codegen.Header(title, "server", imports),
 	}
 	sections = append(sections, serverBaseSections(data)...)
 	for _, e := range data.Endpoints {
@@ -69,14 +71,15 @@ func serverResponseContractWarnings(data *ServiceData) []string {
 }
 
 // ServerEncodeDecodeFile returns the file defining the HTTP server encoding and
-// decoding logic.
-func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
+// decoding logic. The file also lists the imports extra.
+func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData, extra ...*codegen.ImportSpec) *codegen.File {
 	data := services.Get(svc.Name())
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "http", svcName, "server", "encode_decode.go")
 	title := fmt.Sprintf("%s HTTP server encoders and decoders", svc.Name())
+	data, imports := services.FileData(svc.Name(), appendMissingImports(serverEncodeDecodeImports(genpkg, svcName, data), extra))
 	sections := make([]codegen.Section, 0, 1+len(data.Endpoints)*4+len(data.ServerTransformHelpers))
-	sections = append(sections, codegen.Header(title, "server", serverEncodeDecodeImports(genpkg, svcName, data)))
+	sections = append(sections, codegen.Header(title, "server", imports))
 	for _, e := range data.Endpoints {
 		sections = append(sections, serverEncodeDecodeSections(svc, services, e)...)
 	}
@@ -91,6 +94,17 @@ func ServerEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *
 	}
 
 	return &codegen.File{Path: path, Sections: sections}
+}
+
+// appendMissingImports appends to imports the imports of extra that it does
+// not list yet.
+func appendMissingImports(imports, extra []*codegen.ImportSpec) []*codegen.ImportSpec {
+	for _, spec := range extra {
+		if !slices.ContainsFunc(imports, func(s *codegen.ImportSpec) bool { return *s == *spec }) {
+			imports = append(imports, spec)
+		}
+	}
+	return imports
 }
 
 func serverImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportSpec {

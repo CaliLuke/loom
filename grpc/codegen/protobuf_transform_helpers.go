@@ -314,8 +314,8 @@ func transformHelperName(source, target *expr.AttributeExpr, ta *transformAttrs)
 				return nil
 			})
 		}
-		sname = codegen.Goify(ta.SourceCtx.Scope.Name(source, ta.SourceCtx.Pkg(source), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
-		tname = codegen.Goify(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.Pkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
+		sname = codegen.Goify(ta.SourceCtx.Scope.Name(source, ta.SourceCtx.NamePkg(source), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
+		tname = codegen.Goify(ta.TargetCtx.Scope.Name(target, ta.TargetCtx.NamePkg(target), ta.TargetCtx.Pointer, ta.TargetCtx.UseDefault), true)
 		prefix = ta.Prefix
 	}
 	return codegen.Goify(prefix+sname+"To"+tname, false)

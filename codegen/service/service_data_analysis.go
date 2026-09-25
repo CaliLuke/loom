@@ -31,7 +31,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 		}
 	}()
 
-	scope, viewScope, pkgName, viewspkg := newServiceScopes(d.Root, service)
+	scope, viewScope, pkgName, viewspkg := newServiceScopes(d.Root, service, d.packageNames)
 	state := d.collectServiceAnalysisData(service, scope, viewScope, viewspkg)
 	seen := analysisSeenTypes(state.types, state.errTypes)
 	wrapRawObjectMethods(service, scope, seen)
@@ -53,9 +53,9 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	return data
 }
 
-func newServiceScopes(root *expr.RootExpr, service *expr.ServiceExpr) (*codegen.NameScope, *codegen.NameScope, string, string) {
-	scope := newServiceNameScope()
-	viewScope := codegen.NewNameScope()
+func newServiceScopes(root *expr.RootExpr, service *expr.ServiceExpr, packageNames map[string]string) (*codegen.NameScope, *codegen.NameScope, string, string) {
+	scope := newServiceNameScope(packageNames)
+	viewScope := codegen.NewNameScopeWithPackageNames(packageNames)
 	pkgName := servicePackageName(scope, root, service)
 	return scope, viewScope, pkgName, pkgName + "views"
 }

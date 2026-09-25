@@ -183,7 +183,7 @@ func collectAttributes(attrNames, parent *expr.AttributeExpr, scope *codegen.Nam
 		}
 		var pkg string
 		if loc := codegen.UserTypeLocation(parentAttr.Type); loc != nil {
-			pkg = loc.PackageName()
+			pkg = scope.PackageName(loc)
 		}
 		data[i] = &AttributeData{
 			Name:    codegen.Goify(nat.Name, true),

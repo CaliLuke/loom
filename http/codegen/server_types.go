@@ -9,6 +9,8 @@ import (
 )
 
 type serverTypeSections struct {
+	// pkgs names the struct:pkg:path packages in the sections.
+	pkgs           *codegen.NameScope
 	sections       []codegen.Section
 	initData       []*InitData
 	validatedTypes []*TypeData
@@ -21,11 +23,7 @@ func ServerTypeFiles(genpkg string, data *ServicesData) []*codegen.File {
 	fw := make([]*codegen.File, 0, len(data.Expressions.Services))
 	for _, svc := range data.Expressions.Services {
 		file := serverType(genpkg, svc, data)
-		svcData := data.Get(svc.Name())
-		svcName := svcData.Service.PathName
-		title := svc.Name() + " HTTP server types"
-		imports := serverTypeImports(genpkg, svcName, svcData)
-		fw = append(fw, splitTypeFileIfLarge(file, title, "server", imports)...)
+		fw = append(fw, splitTypeFileIfLarge(file, svc.Name()+" HTTP server types", "server")...)
 	}
 	return fw
 }
@@ -57,7 +55,8 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	data := services.Get(svc.Name())
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "http", svcName, "server", "types.go")
-	sections := newServerTypeSections(codegen.Header(svc.Name()+" HTTP server types", "server", serverTypeImports(genpkg, svcName, data)))
+	data, imports := services.FileData(svc.Name(), serverTypeImports(genpkg, svcName, data))
+	sections := newServerTypeSections(codegen.Header(svc.Name()+" HTTP server types", "server", imports), data.Service.Scope)
 
 	for _, a := range svc.HTTPEndpoints {
 		sections.appendEndpointTypes(data.Endpoint(a.Name()), data)
@@ -96,8 +95,9 @@ func serverTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.Imp
 	}, data.Service.UserTypeImports...)
 }
 
-func newServerTypeSections(header codegen.Section) *serverTypeSections {
+func newServerTypeSections(header codegen.Section, pkgs *codegen.NameScope) *serverTypeSections {
 	return &serverTypeSections{
+		pkgs:          pkgs,
 		sections:      []codegen.Section{header},
 		seenValidated: make(map[string]struct{}),
 		seenInits:     make(map[string]struct{}),
@@ -173,7 +173,7 @@ func (s *serverTypeSections) appendPayloadInitSection(init *InitData) {
 		return
 	}
 	s.seenInits[init.Name] = struct{}{}
-	s.sections = append(s.sections, typeInitSection("server-payload-init", init, false))
+	s.sections = append(s.sections, typeInitSection("server-payload-init", init, false, s.pkgs))
 }
 
 func (s *serverTypeSections) appendValidateSections() {
@@ -182,9 +182,10 @@ func (s *serverTypeSections) appendValidateSections() {
 	}
 }
 
-// fieldCode returns the code to initialize the return struct fields. It is
-// used only in templates.
-func fieldCode(init *InitData, typ string) string {
+// fieldCode returns the code to initialize the return struct fields. pkgs
+// names the struct:pkg:path packages of the field types. It is used only in
+// templates.
+func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) string {
 	varn := "res"
 	if init.ReturnTypeAttribute == "" {
 		varn = "v"
@@ -206,7 +207,7 @@ func fieldCode(init *InitData, typ string) string {
 	}
 	// We can ignore the transform helpers as there won't be any generated
 	// because the headers and params cannot be user types.
-	c, _, err := codegen.InitStructFields(initArgs, varn, "", init.ReturnTypePkg)
+	c, _, err := codegen.InitStructFields(initArgs, varn, "", init.ReturnTypePkg, pkgs)
 	if err != nil {
 		panic(fmt.Errorf("build HTTP field init for %s: %w", init.Name, err))
 	}

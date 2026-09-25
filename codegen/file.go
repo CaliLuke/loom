@@ -274,14 +274,19 @@ func compilePatternValidations(fset *token.FileSet, file *ast.File, path string)
 		return
 	}
 
-	astutil.AddImport(fset, file, "regexp")
+	regexpName := regexpImportName(file, usedNames)
+	if regexpName == "regexp" {
+		astutil.AddImport(fset, file, "regexp")
+	} else {
+		astutil.AddNamedImport(fset, file, regexpName, "regexp")
+	}
 	specs := make([]ast.Spec, 0, len(patternOrder))
 	for _, pattern := range patternOrder {
 		specs = append(specs, &ast.ValueSpec{
 			Names: []*ast.Ident{ast.NewIdent(patternVars[pattern])},
 			Values: []ast.Expr{&ast.CallExpr{
 				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent("regexp"),
+					X:   ast.NewIdent(regexpName),
 					Sel: ast.NewIdent("MustCompile"),
 				},
 				Args: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: pattern}},
@@ -330,6 +335,38 @@ func uniquePatternVarName(prefix string, index int, used map[string]struct{}) st
 			return name
 		}
 		index++
+	}
+}
+
+// regexpImportName returns the name under which file imports the regexp
+// package for its compiled pattern variables: the name of its import of the
+// package if any, else "regexp" unless another import of file has that name,
+// such as a struct:pkg:path package named regexp. It is then "regexp"
+// followed by the first number from 2 that neither an import nor a name of
+// used holds.
+func regexpImportName(file *ast.File, used map[string]struct{}) string {
+	names := make(map[string]struct{}, len(file.Imports))
+	for _, imp := range file.Imports {
+		path := strings.Trim(imp.Path.Value, `"`)
+		name := inferPackageName(path)
+		if imp.Name != nil {
+			name = imp.Name.Name
+		}
+		if path == "regexp" {
+			return name
+		}
+		names[name] = struct{}{}
+	}
+	if _, ok := names["regexp"]; !ok {
+		return "regexp"
+	}
+	for i := 2; ; i++ {
+		name := "regexp" + strconv.Itoa(i)
+		_, imported := names[name]
+		_, declared := used[name]
+		if !imported && !declared {
+			return name
+		}
 	}
 }
 

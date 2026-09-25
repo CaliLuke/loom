@@ -30,14 +30,15 @@ func ClientFiles(genpkg string, data *ServicesData) []*codegen.File {
 }
 
 // ClientEncodeDecodeFile returns the file containing the HTTP client encoding
-// and decoding logic.
-func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData) *codegen.File {
+// and decoding logic. The file also lists the imports extra.
+func ClientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData, extra ...*codegen.ImportSpec) *codegen.File {
 	data := services.Get(svc.Name())
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "http", svcName, "client", "encode_decode.go")
 	title := fmt.Sprintf("%s HTTP client encoders and decoders", svc.Name())
+	data, imports := services.FileData(svc.Name(), appendMissingImports(clientEncodeDecodeImports(genpkg, svcName, data), extra))
 	sections := make([]codegen.Section, 0, 1+len(data.Endpoints)*4+len(data.ClientTransformHelpers))
-	sections = append(sections, codegen.Header(title, "client", clientEncodeDecodeImports(genpkg, svcName, data)))
+	sections = append(sections, codegen.Header(title, "client", imports))
 	for _, e := range data.Endpoints {
 		sections = append(sections, clientEncodeDecodeSections(svc, services, e)...)
 	}
@@ -151,6 +152,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}, data.Service.UserTypeImports...)
+	data, imports = services.FileData(svc.Name(), imports)
 	sections := []codegen.Section{codegen.Header(title, "client", imports)}
 	sections = append(sections, clientStructSection(data))
 	if len(clientOperationGroups(data)) > 0 {

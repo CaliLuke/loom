@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -193,7 +192,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		httpctx.PresencePointerTypes = sd.ClientPresencePointerTypes
 		httpctx.PresenceUseDefaultTypes = sd.ClientPresenceUseDefaultTypes
 	}
-	pkg := service.DefaultPackageName(loc, sd.Service.PkgName)
+	pkg := sd.Service.LocationPackageName(loc)
 	svcctx := serviceContext(pkg, sd.Service.Scope)
 	body, viewName := projectResponseBodyView(body, view, svr, sd)
 	if svr {

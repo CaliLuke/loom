@@ -126,7 +126,7 @@ func buildMethodAttributeProjection(att *expr.AttributeExpr, kind, serviceName, 
 	}
 
 	projection := methodAttributeProjection{
-		Name:        scope.GoValueTypeName(att),
+		Name:        scope.WithoutPackageNames().GoValueTypeName(att),
 		Description: att.Description,
 		Example:     att.Example(gen),
 	}
@@ -136,7 +136,7 @@ func buildMethodAttributeProjection(att *expr.AttributeExpr, kind, serviceName, 
 		}
 		projection.Location = codegen.UserTypeLocation(dt)
 	}
-	projection.Reference = scope.GoFullTypeRef(att, projection.Location.PackageName())
+	projection.Reference = scope.GoFullTypeRef(att, scope.PackageName(projection.Location))
 	if projection.Description == "" {
 		projection.Description = fmt.Sprintf("%s is the %s type of the %s service %s method.",
 			projection.Name, kind, serviceName, methodName)
@@ -265,7 +265,7 @@ func (d *ServicesData) buildStreamingPayloadData(m *expr.MethodExpr, scope *code
 
 func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope *codegen.NameScope, examples *expr.ExampleGenerator) streamAttributeData {
 	data := streamAttributeData{
-		Name:    scope.GoValueTypeName(att),
+		Name:    scope.WithoutPackageNames().GoValueTypeName(att),
 		Desc:    att.Description,
 		Example: att.Example(examples),
 	}
@@ -273,7 +273,7 @@ func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope
 		data.Def = scope.GoValueTypeDef(dt.Attribute(), false, true)
 		data.Loc = codegen.UserTypeLocation(dt)
 	}
-	data.Ref = scope.GoFullTypeRef(att, data.Loc.PackageName())
+	data.Ref = scope.GoFullTypeRef(att, scope.PackageName(data.Loc))
 	if data.Desc == "" {
 		data.Desc = streamAttributeDescription(data.Name, att, m)
 	}

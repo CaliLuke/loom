@@ -29,15 +29,7 @@ func ClientCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 		if len(svc.GRPCEndpoints) == 0 {
 			continue
 		}
-		sd := services.Get(svc.Name())
-		command := cli.BuildCommandData(sd.Service)
-		for _, e := range sd.Endpoints {
-			flags, buildFunction := buildFlags(e)
-			subcmd := cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags)
-			command.Subcommands = append(command.Subcommands, subcmd)
-		}
-		command.Example = command.Subcommands[0].Example
-		data = append(data, command)
+		data = append(data, buildCommandData(services.Get(svc.Name())))
 		svcs = append(svcs, svc)
 	}
 	files := make([]*codegen.File, 0, len(services.Root.API.Servers)+len(svcs))
@@ -52,6 +44,19 @@ func ClientCLIFiles(genpkg string, services *ServicesData) []*codegen.File {
 		files = append(files, payloadBuilders(genpkg, svc, data[i], services))
 	}
 	return files
+}
+
+// buildCommandData returns the CLI command of the service sd, which has
+// endpoints.
+func buildCommandData(sd *ServiceData) *cli.CommandData {
+	command := cli.BuildCommandData(sd.Service)
+	for _, e := range sd.Endpoints {
+		flags, buildFunction := buildFlags(e)
+		subcmd := cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags)
+		command.Subcommands = append(command.Subcommands, subcmd)
+	}
+	command.Example = command.Subcommands[0].Example
+	return command
 }
 
 // endpointParser returns the file that implements the command line parser that
@@ -152,12 +157,16 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 			&codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"},
 		)
 	}
+	fileSD, specs := services.fileData(svc.Name(), specs)
+	if fileSD != sd {
+		sd, data = fileSD, buildCommandData(fileSD)
+	}
 	sections := []codegen.Section{
 		codegen.Header(title, "client", specs),
 	}
 	for _, sub := range data.Subcommands {
 		if sub.BuildFunction != nil {
-			sections = append(sections, cli.PayloadBuilderSection(sub.BuildFunction))
+			sections = append(sections, cli.PayloadBuilderSection(sub.BuildFunction, sd.Service.Scope))
 		}
 	}
 	for _, helper := range clientCLIPayloadTransformHelpers(svc, sd) {

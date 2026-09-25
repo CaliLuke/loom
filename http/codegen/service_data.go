@@ -13,6 +13,9 @@ type (
 		Expressions          *expr.HTTPExpr
 		HTTPData             map[string]*ServiceData
 		serviceImportAliases map[string]string
+		// renamed caches the transport data returned by fileData by the
+		// service data it is computed from.
+		renamed map[*service.ServicesData]*ServicesData
 	}
 
 	// ServiceData contains the data used to render the code related to a

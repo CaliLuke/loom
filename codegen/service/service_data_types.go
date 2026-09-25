@@ -149,7 +149,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		name = names[0]
 	}
 	kindName := scope.Unique(name + "Kind")
-	unionPkg := loc.PackageName()
+	unionPkg := scope.PackageName(loc)
 
 	fields := make([]*UnionFieldData, len(u.Values))
 	hasScalarFormBranch := false
@@ -157,7 +157,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		fieldName := codegen.Goify(nat.Name, true)
 		var pkg string
 		if tloc := codegen.UserTypeLocation(nat.Attribute.Type); tloc != nil {
-			pkg = tloc.PackageName()
+			pkg = scope.PackageName(tloc)
 			if pkg == unionPkg {
 				pkg = ""
 			}
@@ -358,7 +358,7 @@ func buildErrorInitData(er *expr.ErrorExpr, scope *codegen.NameScope) *ErrorInit
 	_, fault := er.Meta["loom:error:fault"]
 	var pkg string
 	if ut, ok := er.Type.(expr.UserType); ok {
-		pkg = codegen.UserTypeLocation(ut).PackageName()
+		pkg = scope.PackageName(codegen.UserTypeLocation(ut))
 	}
 	return &ErrorInitData{
 		Name:        fmt.Sprintf("Make%s", codegen.Goify(er.Name, true)),

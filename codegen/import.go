@@ -65,6 +65,56 @@ func LoomNamedImport(rel, name string) *ImportSpec {
 	return &ImportSpec{Name: name, Path: root + rel}
 }
 
+// AliasClashingImports returns the aliases under which a generated file that
+// lists imports must import the packages at paths, keyed by path, so that no
+// two of its imports share a name. Only the packages of paths whose names
+// clash get an alias: every other import keeps its name, and so does the
+// first package of paths, in order, among those that share a name that no
+// other import uses. An alias is the package name followed by a number that
+// makes it unique in the file. The paths absent from imports are ignored.
+//
+// codegen.File removes the unused imports of a name together, so a file that
+// lists two imports of one name compiles only when it uses neither. Aliasing
+// the packages of a file that compiles therefore leaves the file unchanged.
+func AliasClashingImports(imports []*ImportSpec, paths []string) map[string]string {
+	names := make(map[string]string, len(paths))
+	for _, path := range paths {
+		names[path] = ""
+	}
+	scope := NewNameScope()
+	reserve := func(name string) bool {
+		if scope.PeekUnique(name) != name {
+			return false
+		}
+		scope.Unique(name)
+		return true
+	}
+	for _, spec := range imports {
+		if spec == nil {
+			continue
+		}
+		if _, ok := names[spec.Path]; !ok {
+			reserve(importName(spec))
+		}
+	}
+	var clashing []string
+	for _, path := range paths {
+		spec := findImport(imports, path)
+		if spec == nil || names[path] != "" {
+			continue
+		}
+		names[path] = importName(spec)
+		if !reserve(names[path]) {
+			clashing = append(clashing, path)
+		}
+	}
+	aliases := make(map[string]string, len(clashing))
+	for _, path := range clashing {
+		aliases[path] = scope.Unique(names[path])
+	}
+	return aliases
+}
+
 // Code returns the Go import statement for the ImportSpec.
 func (s *ImportSpec) Code() string {
 	if len(s.Name) > 0 {
@@ -271,4 +321,22 @@ func sortImportSpecs(imports []*ImportSpec) {
 		}
 		return imports[i].Name < imports[j].Name
 	})
+}
+
+// importName returns the name under which spec imports its package.
+func importName(spec *ImportSpec) string {
+	if spec.Name != "" {
+		return spec.Name
+	}
+	return inferPackageName(spec.Path)
+}
+
+// findImport returns the import of imports at path, nil if there is none.
+func findImport(imports []*ImportSpec, path string) *ImportSpec {
+	for _, spec := range imports {
+		if spec != nil && spec.Path == path {
+			return spec
+		}
+	}
+	return nil
 }

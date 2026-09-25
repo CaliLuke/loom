@@ -181,7 +181,7 @@ func TestNameScopeGoFullTypeRefWithPackagesAliasesNestedLocations(t *testing.T) 
 		t.Run(c.Name, func(t *testing.T) {
 			att := &expr.AttributeExpr{Type: c.Type}
 			require.Equal(t, c.Want, NewNameScope().GoFullTypeRefWithPackages(att, "svc", alias))
-			require.Equal(t, c.WantOwn, NewNameScope().GoFullTypeRef(att, pkgWithDefault(c.Type, "svc", nil)))
+			require.Equal(t, c.WantOwn, NewNameScope().GoFullTypeRef(att, NewNameScope().pkgWithDefault(c.Type, "svc", nil)))
 		})
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-func grpcTypeInitSection(init *InitData) codegenpkg.Section {
+func grpcTypeInitSection(init *InitData, scope *codegenpkg.NameScope) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("type-init", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, init.Description)
 		params := make([]jen.Code, 0, len(init.Args))
@@ -35,7 +35,7 @@ func grpcTypeInitSection(init *InitData) codegenpkg.Section {
 						}
 						fieldValue := arg.Name
 						if expr.IsAlias(arg.FieldType) {
-							fieldValue = fullTypeName(arg.FieldType) + "(" + fieldValue + ")"
+							fieldValue = fullTypeName(scope, arg.FieldType) + "(" + fieldValue + ")"
 						}
 						if !arg.Pointer && arg.FieldPointer && expr.IsPrimitive(arg.FieldType) {
 							fieldValueVar := codegenpkg.Goify(arg.FieldName+"Value", false)
@@ -92,9 +92,11 @@ func grpcTransformHelperSection(data *codegenpkg.TransformFunctionData) codegenp
 	})
 }
 
-func fullTypeName(dt expr.DataType) string {
+// fullTypeName returns the name of the type dt qualified with the name that
+// scope gives its struct:pkg:path package if any.
+func fullTypeName(scope *codegenpkg.NameScope, dt expr.DataType) string {
 	if loc := codegenpkg.UserTypeLocation(dt); loc != nil {
-		return loc.PackageName() + "." + dt.Name()
+		return scope.PackageName(loc) + "." + dt.Name()
 	}
 	return dt.Name()
 }

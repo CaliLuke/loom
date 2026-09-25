@@ -156,9 +156,10 @@ func WrapText(text string, maxChars int) string {
 }
 
 // InitStructFields produces Go code to initialize a struct and its fields from
-// the given init arguments.
-func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg string) (string, []*TransformFunctionData, error) {
-	scope := NewNameScope()
+// the given init arguments. pkgs names the struct:pkg:path packages of the
+// field types, see NameScope.PackageName; nil selects the package names.
+func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg string, pkgs *NameScope) (string, []*TransformFunctionData, error) {
+	scope := NewNameScopeLike(pkgs)
 	scope.Unique(targetVar)
 
 	var (
@@ -181,7 +182,7 @@ func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg strin
 			// aliased primitive type
 			pkg := targetPkg
 			if loc := UserTypeLocation(arg.FieldType); loc != nil {
-				pkg = loc.PackageName()
+				pkg = scope.PackageName(loc)
 			}
 			t := scope.GoFullTypeRef(&expr.AttributeExpr{Type: arg.FieldType}, pkg)
 			cast := fmt.Sprintf("%s(%s)", t, arg.Name)

@@ -44,6 +44,7 @@ func clientFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}, data.Service.UserTypeImports...)
+		data, imports = services.fileData(svc.Name(), imports)
 		sections = []codegen.Section{
 			codegen.Header(svc.Name()+" gRPC client", "client", imports),
 			grpcClientStructSection(data),
@@ -102,6 +103,7 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}, data.Service.UserTypeImports...)
+		data, imports = services.fileData(svc.Name(), imports)
 		sections = []codegen.Section{codegen.Header(svc.Name()+" gRPC client encoders and decoders", "client", imports)}
 		for _, e := range data.Endpoints {
 			sections = append(sections, grpcRemoteMethodBuilderSection(e))

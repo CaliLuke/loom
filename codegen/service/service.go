@@ -13,34 +13,77 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+type (
+	// serviceTypeSections holds the sections that define the types of a
+	// service, by the path of the file that defines them.
+	serviceTypeSections struct {
+		// typeDefSections holds the type definition sections by file path and
+		// type name.
+		typeDefSections map[string]map[string]codegen.Section
+		// typesByPath lists the type names defined in each file.
+		typesByPath map[string][]string
+		// validationUTF8Paths records the files whose validations use the
+		// unicode/utf8 package.
+		validationUTF8Paths map[string]bool
+		// svcSections holds the error and type initialization sections of the
+		// service file.
+		svcSections []codegen.Section
+	}
+)
+
 // Files returns the generated files for the given service as well as a map
 // indexing user type names by custom path as defined by the "struct:pkg:path"
 // metadata. The map is built over each invocation of Files to avoid duplicate
 // type definitions.
 func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, userTypePkgs map[string][]string) []*codegen.File {
 	svc := services.Get(service.Name)
-	svcName := svc.PathName
-	svcPath := filepath.Join(codegen.Gendir, svcName, "service.go")
-	seen := make(map[string]struct{})
-	typeDefSections := make(map[string]map[string]codegen.Section)
-	typesByPath := make(map[string][]string)
-	validationUTF8Paths := make(map[string]bool)
-	svcSections := make([]codegen.Section, 0, 10)
+	svcPath := filepath.Join(codegen.Gendir, svc.PathName, "service.go")
+	types := collectServiceTypeSections(svc, svcPath)
+	fileSvc, imports := services.fileData(service.Name, serviceFileImports(genpkg, svc, types.validationUTF8Paths[svcPath]))
+	svcTypes := types
+	if fileSvc != svc {
+		svcTypes = collectServiceTypeSections(fileSvc, svcPath)
+	}
+	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
+	def := serviceDefinitionSection(fileSvc)
 
-	addTypeDefSection := newTypeSectionCollector(typeDefSections, typesByPath, seen)
+	files := make([]*codegen.File, 0, 1+len(svc.ServerInterceptors)+len(svc.ClientInterceptors))
+	files = append(files, &codegen.File{Path: svcPath, Sections: buildServiceFileSections(svcTypes.typeDefSections[svcPath], header, def, svcTypes.svcSections)})
+
+	files = append(files, InterceptorsFiles(genpkg, service, services)...)
+	files = append(files, authorizationFiles(genpkg, services, svc)...)
+	return appendUserTypeFiles(files, svcPath, types.typeDefSections, types.typesByPath, userTypePkgs, types.validationUTF8Paths)
+}
+
+// collectServiceTypeSections returns the sections that define the types of
+// the service svc, whose service file is at svcPath.
+func collectServiceTypeSections(svc *Data, svcPath string) *serviceTypeSections {
+	seen := make(map[string]struct{})
+	types := &serviceTypeSections{
+		typeDefSections:     make(map[string]map[string]codegen.Section),
+		typesByPath:         make(map[string][]string),
+		validationUTF8Paths: make(map[string]bool),
+		svcSections:         make([]codegen.Section, 0, 10),
+	}
+	addTypeDefSection := newTypeSectionCollector(types.typeDefSections, types.typesByPath, seen)
 	collectMethodTypeSections(svc, svcPath, addTypeDefSection, seen)
 	collectUserTypeSections(svc, svcPath, addTypeDefSection, seen)
-	collectUntaggedUnionValidationSections(svc, svcPath, addTypeDefSection, seen, validationUTF8Paths)
+	collectUntaggedUnionValidationSections(svc, svcPath, addTypeDefSection, seen, types.validationUTF8Paths)
 	errorTypes := collectErrorTypeSections(svc, svcPath, addTypeDefSection, seen)
-	svcSections = append(svcSections, buildErrorSections(errorTypes, svc, svcPath, addTypeDefSection)...)
-	svcSections = append(svcSections, buildTypeInitSections(svc)...)
+	types.svcSections = append(types.svcSections, buildErrorSections(errorTypes, svc, svcPath, addTypeDefSection)...)
+	types.svcSections = append(types.svcSections, buildTypeInitSections(svc)...)
+	return types
+}
 
+// serviceFileImports returns the imports of the service file of svc. utf8
+// reports whether the validations of the file use the unicode/utf8 package.
+func serviceFileImports(genpkg string, svc *Data, utf8 bool) []*codegen.ImportSpec {
 	imports := []*codegen.ImportSpec{
 		codegen.SimpleImport("context"),
 		codegen.SimpleImport("io"),
 		codegen.LoomImport(""),
 		codegen.LoomImport("security"),
-		codegen.NewImport(svc.ViewsPkg, genpkg+"/"+svcName+"/views"),
+		codegen.NewImport(svc.ViewsPkg, genpkg+"/"+svc.PathName+"/views"),
 	}
 	if len(svc.unions) > 0 {
 		imports = append(imports,
@@ -53,20 +96,11 @@ func Files(genpkg string, service *expr.ServiceExpr, services *ServicesData, use
 	if len(svc.unions) > 0 || hasFileResponse(svc.Methods) {
 		imports = append(imports, codegen.LoomNamedImport("http", "loomhttp"))
 	}
-	if validationUTF8Paths[svcPath] {
+	if utf8 {
 		imports = append(imports, codegen.SimpleImport("unicode/utf8"))
 	}
 	imports = append(imports, userTypeImports(genpkg, svc)...)
-	imports = append(imports, svc.metaTypeImports...)
-	header := codegen.Header(service.Name+" service", svc.PkgName, imports)
-	def := serviceDefinitionSection(svc)
-
-	files := make([]*codegen.File, 0, 1+len(svc.ServerInterceptors)+len(svc.ClientInterceptors))
-	files = append(files, &codegen.File{Path: svcPath, Sections: buildServiceFileSections(typeDefSections[svcPath], header, def, svcSections)})
-
-	files = append(files, InterceptorsFiles(genpkg, service, services)...)
-	files = append(files, authorizationFiles(genpkg, svc)...)
-	return appendUserTypeFiles(files, svcPath, typeDefSections, typesByPath, userTypePkgs, validationUTF8Paths)
+	return append(imports, svc.metaTypeImports...)
 }
 
 func newTypeSectionCollector(typeDefSections map[string]map[string]codegen.Section, typesByPath map[string][]string, seen map[string]struct{}) func(string, string, codegen.Section) {
@@ -284,6 +318,7 @@ func SetUserTypeImports(genpkg string, d *Data) error {
 		return err
 	}
 	d.UserTypeImports = userTypeImports(genpkg, d)
+	d.genpkg = genpkg
 	return nil
 }
 
@@ -291,12 +326,6 @@ func SetUserTypeImports(genpkg string, d *Data) error {
 // metadata for the service data.
 func AddServiceDataMetaTypeImports(header *codegen.SectionTemplate, d *Data) {
 	codegen.AddImport(header, d.metaTypeImports...)
-}
-
-// AddUserTypeImports adds the imports for user types declared in custom
-// packages with the Meta key "struct:pkg:path".
-func AddUserTypeImports(header *codegen.SectionTemplate, d *Data) {
-	codegen.AddImport(header, d.UserTypeImports...)
 }
 
 func metaTypeImports(svcExpr *expr.ServiceExpr, svcData *Data) []*codegen.ImportSpec {

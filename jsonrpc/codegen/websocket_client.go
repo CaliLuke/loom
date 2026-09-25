@@ -31,6 +31,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
+	data, imports = services.FileData(svc.Name(), imports)
 
 	sections := []codegen.Section{
 		codegen.Header(title, "client", imports),

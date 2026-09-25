@@ -43,27 +43,22 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 	}
 
 	path := filepath.Join(codegen.Gendir, "jsonrpc", data.Service.PathName, "server", "stream.go")
+	data, imports := services.FileData(svc.Name(), append([]*codegen.ImportSpec{
+		{Path: "context"},
+		{Path: "errors"},
+		{Path: "fmt"},
+		{Path: "io"},
+		{Path: "net/http"},
+		{Path: "sync"},
+		codegen.LoomImport(""),
+		codegen.LoomImport("jsonrpc"),
+		codegen.LoomNamedImport("http", "loomhttp"),
+		codegen.LoomNamedImport("observability/transport", "loomtransport"),
+		{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
+	}, data.Service.UserTypeImports...))
 	streamSections := sseServerStreamSections(data)
 	sections := make([]codegen.Section, 0, 1+len(streamSections))
-	sections = append(sections,
-		codegen.Header(
-			"stream",
-			"server",
-			append([]*codegen.ImportSpec{
-				{Path: "context"},
-				{Path: "errors"},
-				{Path: "fmt"},
-				{Path: "io"},
-				{Path: "net/http"},
-				{Path: "sync"},
-				codegen.LoomImport(""),
-				codegen.LoomImport("jsonrpc"),
-				codegen.LoomNamedImport("http", "loomhttp"),
-				codegen.LoomNamedImport("observability/transport", "loomtransport"),
-				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
-			}, data.Service.UserTypeImports...),
-		),
-	)
+	sections = append(sections, codegen.Header("stream", "server", imports))
 	for _, section := range streamSections {
 		sections = append(sections, section)
 	}
@@ -90,30 +85,25 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 	}
 
 	path := filepath.Join(codegen.Gendir, "jsonrpc", data.Service.PathName, "client", "stream.go")
+	data, imports := services.FileData(svc.Name(), append([]*codegen.ImportSpec{
+		{Path: "bufio"},
+		{Path: "bytes"},
+		{Path: "context"},
+		{Path: "encoding/json/jsontext"},
+		{Path: "encoding/json/v2", Name: "json"},
+		{Path: "fmt"},
+		{Path: "io"},
+		{Path: "net/http"},
+		{Path: "strings"},
+		{Path: "sync"},
+		codegen.LoomImport(""),
+		codegen.LoomImport("jsonrpc"),
+		codegen.LoomNamedImport("http", "loomhttp"),
+		{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
+	}, data.Service.UserTypeImports...))
 	tmplSections := sseClientStreamSections(data)
 	sections := make([]codegen.Section, 0, 1+len(tmplSections))
-	sections = append(sections,
-		codegen.Header(
-			"stream",
-			"client",
-			append([]*codegen.ImportSpec{
-				{Path: "bufio"},
-				{Path: "bytes"},
-				{Path: "context"},
-				{Path: "encoding/json/jsontext"},
-				{Path: "encoding/json/v2", Name: "json"},
-				{Path: "fmt"},
-				{Path: "io"},
-				{Path: "net/http"},
-				{Path: "strings"},
-				{Path: "sync"},
-				codegen.LoomImport(""),
-				codegen.LoomImport("jsonrpc"),
-				codegen.LoomNamedImport("http", "loomhttp"),
-				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
-			}, data.Service.UserTypeImports...),
-		),
-	)
+	sections = append(sections, codegen.Header("stream", "client", imports))
 	for _, section := range tmplSections {
 		sections = append(sections, section)
 	}

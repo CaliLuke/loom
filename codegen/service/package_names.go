@@ -26,13 +26,15 @@ func PackageBaseName(name string) string {
 // generated file imports both under the same name (the example service stub
 // aliases the type package), so the name is kept.
 func PackageName(root *expr.RootExpr, service *expr.ServiceExpr) string {
-	return servicePackageName(newServiceNameScope(), root, service)
+	return servicePackageName(newServiceNameScope(nil), root, service)
 }
 
 // newServiceNameScope returns the name scope of the service package with the
-// names that generated service code reserves.
-func newServiceNameScope() *codegen.NameScope {
-	scope := codegen.NewNameScope()
+// names that generated service code reserves. The scope names the
+// struct:pkg:path packages as names does, see
+// codegen.NewNameScopeWithPackageNames.
+func newServiceNameScope(names map[string]string) *codegen.NameScope {
+	scope := codegen.NewNameScopeWithPackageNames(names)
 	scope.Unique("Use")
 	scope.Unique("websocket")
 	return scope

@@ -8,6 +8,8 @@ import (
 )
 
 type clientTypeSections struct {
+	// pkgs names the struct:pkg:path packages in the sections.
+	pkgs           *codegen.NameScope
 	sections       []codegen.Section
 	initData       []*InitData
 	validatedTypes []*TypeData
@@ -21,11 +23,7 @@ func ClientTypeFiles(genpkg string, data *ServicesData) []*codegen.File {
 	fw := make([]*codegen.File, 0, len(data.Expressions.Services))
 	for _, svc := range data.Expressions.Services {
 		file := clientType(genpkg, svc, make(map[string]struct{}), data)
-		svcData := data.Get(svc.Name())
-		svcName := svcData.Service.PathName
-		title := svc.Name() + " HTTP client types"
-		imports := clientTypeImports(genpkg, svcName, svcData)
-		fw = append(fw, splitTypeFileIfLarge(file, title, "client", imports)...)
+		fw = append(fw, splitTypeFileIfLarge(file, svc.Name()+" HTTP client types", "client")...)
 	}
 	return fw
 }
@@ -58,7 +56,8 @@ func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct
 	data := services.Get(svc.Name())
 	svcName := data.Service.PathName
 	path := filepath.Join(codegen.Gendir, "http", svcName, "client", "types.go")
-	sections := newClientTypeSections(codegen.Header(svc.Name()+" HTTP client types", "client", clientTypeImports(genpkg, svcName, data)))
+	data, imports := services.FileData(svc.Name(), clientTypeImports(genpkg, svcName, data))
+	sections := newClientTypeSections(codegen.Header(svc.Name()+" HTTP client types", "client", imports), data.Service.Scope)
 
 	for _, a := range svc.HTTPEndpoints {
 		sections.appendEndpointTypes(data.Endpoint(a.Name()), seen)
@@ -94,8 +93,9 @@ func clientTypeImports(genpkg, svcName string, data *ServiceData) []*codegen.Imp
 	}, data.Service.UserTypeImports...)
 }
 
-func newClientTypeSections(header codegen.Section) *clientTypeSections {
+func newClientTypeSections(header codegen.Section, pkgs *codegen.NameScope) *clientTypeSections {
 	return &clientTypeSections{
+		pkgs:          pkgs,
 		sections:      []codegen.Section{header},
 		seenTypes:     make(map[string]struct{}),
 		seenValidated: make(map[string]struct{}),
@@ -185,7 +185,7 @@ func (s *clientTypeSections) appendTypeInitSection(section string, init *InitDat
 		return
 	}
 	s.seenTypes[init.Name] = struct{}{}
-	s.sections = append(s.sections, typeInitSection(section, init, true))
+	s.sections = append(s.sections, typeInitSection(section, init, true, s.pkgs))
 }
 
 func (s *clientTypeSections) appendValidateSections() {

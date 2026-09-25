@@ -374,12 +374,31 @@ filter, and serialization rules belong here.
   a local in one of those functions, add it to the matching list.
 - Every per-service HTTP, gRPC, and JSON-RPC file that can reference service
   types imports the `struct:pkg:path` packages itself, as do the service,
-  endpoint, and client files through `userTypeImports`. Transport files append
-  `Service.UserTypeImports`,
-  which `service.SetUserTypeImports` sets before any transport data is built.
-  `codegen.File` prunes the unused imports. The transport generator adds only
-  `struct:field:type` imports afterward. Do not reintroduce a blanket pass that
-  hides a missing import in a direct file builder.
+  endpoint, client, views, interceptor, and authorization files. Transport
+  files append `Service.UserTypeImports`, which `service.SetUserTypeImports`
+  sets before any transport data is built. `codegen.File` prunes the unused
+  imports. The generators add only `struct:field:type` imports afterward. Do
+  not reintroduce a blanket pass that hides a missing import in a direct file
+  builder.
+- A file imports a `struct:pkg:path` package under an alias, such as
+  `security2`, only when its name clashes with another import that the same
+  file lists (`codegen.AliasClashingImports`). A file builder lists its imports
+  first, then renders its sections with the data that `FileData` returns for
+  them (`service.Data.FileImports` and `ServicesData.WithPackageNames`). The
+  name scopes of that data qualify the renamed packages with their aliases
+  (`codegen.NameScope.PackageName`). Resolve every relocated type qualifier
+  through the scope of the data, never with `Location.PackageName`, which
+  only names import specs and the packages themselves. Derive identifiers that
+  other files use, such as transform helper, constructor, and method type
+  names, from the package names (`NameScope.WithoutPackageNames`,
+  `AttributeContext.NamePkg`). Code that
+  adds imports to a header after the builder, such as the JSON-RPC encoders,
+  passes them to the builder instead. Import pruning keeps or removes imports
+  of one name together, so a file that lists two imports of one name compiles
+  only when it uses neither, and the aliases change only code that did not
+  compile. Do not replace this with a blanket rename or an import fixup after
+  rendering. Compiled pattern validations import `regexp` under an
+  alias when the file already has another import named `regexp`.
 - `service.PackageName` names a service package and seeds the HTTP service
   import aliases. It adds the `svc` suffix when the service has a transport and a
   `struct:pkg:path` package of its types has the same name, because the

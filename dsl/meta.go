@@ -69,7 +69,10 @@ const DefaultProtoc = expr.DefaultProtoc
 // fails. When the package has the name of the package of a service that uses
 // the type, as with Meta("struct:pkg:path", "types/catalog") in a service
 // named "catalog" that has a transport, the service package is named
-// "catalogsvc" instead.
+// "catalogsvc" instead. A generated file that also imports another package
+// of the same name, such as the Loom security package next to
+// Meta("struct:pkg:path", "types/security"), imports the type package under
+// an alias such as "security2"; the other files keep the package name.
 //
 // Note: If that meta tag is used more that once in the same design, but with
 // different values in the meta statement (ex. one type has Meta("struct:pkg:path", "types1")

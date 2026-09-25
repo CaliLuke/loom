@@ -15,11 +15,16 @@ type typeFileBucket struct {
 	section []codegen.Section
 }
 
-func splitTypeFileIfLarge(file *codegen.File, title, pkg string, imports []*codegen.ImportSpec) []*codegen.File {
+// splitTypeFileIfLarge splits the types file file of package pkg by kind of
+// section when it holds too many sections. The files it splits file into
+// list the imports of file, so they qualify the types of the struct:pkg:path
+// packages as the sections of file do.
+func splitTypeFileIfLarge(file *codegen.File, title, pkg string) []*codegen.File {
 	sections := file.AllSections()
 	if len(sections)-1 <= typeSplitSectionThreshold {
 		return []*codegen.File{file}
 	}
+	imports := codegen.HeaderDataForSection(file.HeaderSection()).Imports
 
 	buckets := []typeFileBucket{
 		{suffix: "requests", title: title + " request types"},

@@ -47,6 +47,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}, data.Service.UserTypeImports...)
+		data, imports = services.fileData(svc.Name(), imports)
 		sections = []codegen.Section{
 			codegen.Header(svc.Name()+" gRPC server", "server", imports),
 			grpcServerStructSection(data),
@@ -121,6 +122,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
 		}, data.Service.UserTypeImports...)
+		data, imports = services.fileData(svc.Name(), imports)
 		sections = []codegen.Section{codegen.Header(title, "server", imports)}
 
 		for _, e := range data.Endpoints {

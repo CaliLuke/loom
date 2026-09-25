@@ -38,8 +38,7 @@ type (
 	}
 )
 
-func buildResponseContractServiceData(service *expr.HTTPServiceExpr, data *httpcodegen.ServicesData) *responseContractServiceData {
-	serviceData := data.Get(service.Name())
+func buildResponseContractServiceData(service *expr.HTTPServiceExpr, serviceData *httpcodegen.ServiceData) *responseContractServiceData {
 	result := &responseContractServiceData{Service: serviceData}
 	for _, endpoint := range service.HTTPEndpoints {
 		analysis := transportir.AnalyzeResponseContractCases(endpoint)

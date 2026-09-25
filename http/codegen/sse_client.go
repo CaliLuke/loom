@@ -26,29 +26,24 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 		return nil
 	}
 	path := filepath.Join(codegen.Gendir, "http", data.Service.PathName, "client", "sse.go")
+	data, imports := services.FileData(svc.Name(), append([]*codegen.ImportSpec{
+		{Path: "bytes"},
+		{Path: "context"},
+		{Path: "errors"},
+		{Path: "io"},
+		{Path: "net/http"},
+		{Path: "fmt"},
+		{Path: "strconv"},
+		{Path: "strings"},
+		{Path: "sync"},
+		{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
+		{Path: genpkg + "/" + data.Service.PathName + "/views", Name: data.Service.ViewsPkg},
+		{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
+		codegen.LoomImport(""),
+	}, data.Service.UserTypeImports...))
 	streamSections := sseClientSections(data)
 	sections := make([]codegen.Section, 0, 1+len(streamSections))
-	sections = append(sections,
-		codegen.Header(
-			"sse-client",
-			"client",
-			append([]*codegen.ImportSpec{
-				{Path: "bytes"},
-				{Path: "context"},
-				{Path: "errors"},
-				{Path: "io"},
-				{Path: "net/http"},
-				{Path: "fmt"},
-				{Path: "strconv"},
-				{Path: "strings"},
-				{Path: "sync"},
-				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
-				{Path: genpkg + "/" + data.Service.PathName + "/views", Name: data.Service.ViewsPkg},
-				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
-				codegen.LoomImport(""),
-			}, data.Service.UserTypeImports...),
-		),
-	)
+	sections = append(sections, codegen.Header("sse-client", "client", imports))
 	for _, section := range streamSections {
 		sections = append(sections, section)
 	}

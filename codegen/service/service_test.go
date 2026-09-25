@@ -341,8 +341,8 @@ func TestServiceDataImportsAreCachedAndDeduped(t *testing.T) {
 	header := codegen.Header("cached imports", "cache", nil)
 	AddServiceDataMetaTypeImports(header, data)
 	AddServiceDataMetaTypeImports(header, data)
-	AddUserTypeImports(header, data)
-	AddUserTypeImports(header, data)
+	codegen.AddImport(header, data.UserTypeImports...)
+	codegen.AddImport(header, data.UserTypeImports...)
 
 	imports := codegen.HeaderSectionData(header).Imports
 	seen := make(map[codegen.ImportSpec]struct{}, len(imports))

@@ -265,28 +265,23 @@ func sseServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesD
 	}
 
 	path := filepath.Join(codegen.Gendir, "http", data.Service.PathName, "server", "sse.go")
+	data, imports := services.FileData(svc.Name(), append([]*codegen.ImportSpec{
+		{Path: "context"},
+		{Path: "io"},
+		{Path: "net/http"},
+		{Path: "sync"},
+		{Path: "time"},
+		{Path: "encoding/json/v2", Name: "json"},
+		{Path: "fmt"},
+		{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
+		codegen.LoomNamedImport("observability/transport", "loomtransport"),
+		codegen.LoomImport(""),
+		{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
+		{Path: genpkg + "/" + data.Service.PathName + "/views", Name: data.Service.ViewsPkg},
+	}, data.Service.UserTypeImports...))
 	sseSections := serverSSESections(data)
 	sections := make([]codegen.Section, 0, 1+len(sseSections))
-	sections = append(sections,
-		codegen.Header(
-			"sse",
-			"server",
-			append([]*codegen.ImportSpec{
-				{Path: "context"},
-				{Path: "io"},
-				{Path: "net/http"},
-				{Path: "sync"},
-				{Path: "time"},
-				{Path: "encoding/json/v2", Name: "json"},
-				{Path: "fmt"},
-				{Path: "github.com/CaliLuke/loom/http", Name: "loomhttp"},
-				codegen.LoomNamedImport("observability/transport", "loomtransport"),
-				codegen.LoomImport(""),
-				{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
-				{Path: genpkg + "/" + data.Service.PathName + "/views", Name: data.Service.ViewsPkg},
-			}, data.Service.UserTypeImports...),
-		),
-	)
+	sections = append(sections, codegen.Header("sse", "server", imports))
 	for _, section := range sseSections {
 		sections = append(sections, section)
 	}

@@ -162,7 +162,7 @@ func buildTypeInits(projected, att *expr.AttributeExpr, viewspkg string, scope, 
 
 		pkg := ""
 		if loc := codegen.UserTypeLocation(att.Type); loc != nil {
-			pkg = loc.PackageName()
+			pkg = scope.PackageName(loc)
 		}
 		init = append(init, &InitData{
 			Name:          name,
@@ -225,7 +225,7 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 
 		pkg := ""
 		if loc := codegen.UserTypeLocation(att.Type); loc != nil {
-			pkg = loc.PackageName()
+			pkg = scope.PackageName(loc)
 		}
 		projections = append(projections, &InitData{
 			Name:          name,
