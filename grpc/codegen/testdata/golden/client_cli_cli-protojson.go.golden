@@ -209,7 +209,7 @@ func BuildScalarPayload(pbjsonScalarMessage string) (string, error) {
 			err = protojson.Unmarshal([]byte(pbjsonScalarMessage), &message)
 			if err != nil {
 				var zero string
-				return zero, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"field\": \"Dolorem autem aliquid.\"\n   }'")
+				return zero, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"field\": \"Autem aliquid tempore nostrum numquam laudantium aliquid.\"\n   }'")
 			}
 		}
 	}
@@ -226,7 +226,7 @@ func BuildListPayload(pbjsonListMessage string) ([]*pbjson.Leaf, error) {
 		if pbjsonListMessage != "" {
 			err = protojson.Unmarshal([]byte(pbjsonListMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"field\": [\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         },\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         }\n      ]\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"field\": [\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         },\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         },\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         }\n      ]\n   }'")
 			}
 		}
 	}

@@ -85,7 +85,7 @@ func BuildNamedPayload(reuseNamedMessage string) (*reuse.Choice, error) {
 		if reuseNamedMessage != "" {
 			err = protojson.Unmarshal([]byte(reuseNamedMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": 5094429249470280925\n      }\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"leaf\": {\n         \"name\": \"Qui quia inventore et tempora.\"\n      }\n   }'")
 			}
 		}
 	}

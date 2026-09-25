@@ -131,7 +131,7 @@ func BuildWrapPayload(nestedunionWrapMessage string) (*nestedunion.Outer, error)
 		if nestedunionWrapMessage != "" {
 			err = protojson.Unmarshal([]byte(nestedunionWrapMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"extra\": {\n         \"flag\": false\n      }\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"choice\": {\n         \"leaf\": {\n            \"name\": \"Quia inventore et.\"\n         }\n      }\n   }'")
 			}
 		}
 	}
@@ -163,7 +163,7 @@ func BuildPickPayload(nestedunionPickMessage string) (*nestedunion.Choice, error
 		if nestedunionPickMessage != "" {
 			err = protojson.Unmarshal([]byte(nestedunionPickMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"leaf\": {\n         \"name\": \"Quia inventore et.\"\n      }\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": 1719082120441533495\n      }\n   }'")
 			}
 		}
 	}
