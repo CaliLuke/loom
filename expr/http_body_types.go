@@ -232,18 +232,19 @@ func objectHTTPBody(a *HTTPEndpointExpr, payload *AttributeExpr) *MappedAttribut
 }
 
 // httpStreamingBody returns an attribute representing the structs being
-// streamed via websocket.
+// streamed via websocket. The body refers to no struct:pkg:path type: the
+// transport declares its own types and converts them to the service types.
 func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 	if !e.MethodExpr.IsStreaming() || e.MethodExpr.Stream == ServerStreamKind {
 		return nil
 	}
 	att := e.MethodExpr.StreamingPayload
-	if !IsObject(att.Type) {
-		return DupAtt(att)
-	}
-	const suffix = "StreamingBody"
 	dupped := DupAtt(att)
 	RemovePkgPath(dupped)
+	if !IsObject(att.Type) {
+		return dupped
+	}
+	const suffix = "StreamingBody"
 	appendSuffix(dupped.Type, suffix)
 	ut := &UserTypeExpr{
 		AttributeExpr: dupped,

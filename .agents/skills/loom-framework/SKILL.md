@@ -405,7 +405,11 @@ filter, and serialization rules belong here.
   transport files import both. A transport-less service keeps its name. `SetUserTypeImports` rejects a type placed in the package of the
   service that uses it. Streaming payload and result types keep their own
   locations (`StreamingPayloadLoc`, `StreamingResultLoc`); do not derive them
-  from the unary payload or result location.
+  from the unary payload or result location. HTTP request, response and
+  WebSocket streaming bodies (`httpStreamingBody`) strip `struct:pkg:path`
+  from every user type they refer to, including the elements of a collection
+  body, so the transport declares its own types and converts them to the
+  relocated service types.
 - The fields, oneofs and oneof fields of a gRPC message share one namespace.
   `newProtoMessageNames` (`grpc/codegen/protobuf_message_names.go`) allocates
   their names per message, and the proto renderer, `checkMessageFields`, the

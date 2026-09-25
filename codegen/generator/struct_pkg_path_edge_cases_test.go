@@ -174,7 +174,8 @@ func writeStructPkgPathModule(t *testing.T, source string) string {
 
 // structPkgPathStreamingDSL returns a design whose streaming methods exposed
 // on transport send and receive the "Plain" type generated in the "menu"
-// struct:pkg:path package, directly and nested in a service type.
+// struct:pkg:path package, directly, nested in a service type, and, over HTTP
+// and JSON-RPC, as the elements of arrays and maps.
 func structPkgPathStreamingDSL(transport string) func() {
 	return func() {
 		dsl.API("probe", func() {
@@ -231,6 +232,15 @@ func structPkgPathStreamingDSL(transport string) func() {
 					dsl.GET("/wrapped")
 				})
 			})
+			if transport != "grpc" {
+				dsl.Method("batch", func() {
+					dsl.StreamingPayload(dsl.ArrayOf(plain))
+					dsl.StreamingResult(dsl.MapOf(dsl.String, plain))
+					endpoint(func() {
+						dsl.GET("/batch")
+					})
+				})
+			}
 			if transport != "jsonrpc" {
 				dsl.Method("watch", func() {
 					dsl.Payload(func() {
@@ -253,6 +263,19 @@ func structPkgPathStreamingDSL(transport string) func() {
 				})
 			}
 		})
+		if transport == "http" {
+			// A separate service keeps the "svc" client below the operation
+			// group threshold.
+			dsl.Service("sets", func() {
+				dsl.Method("index", func() {
+					dsl.StreamingPayload(dsl.MapOf(dsl.String, plain))
+					dsl.Result(dsl.ArrayOf(plain))
+					dsl.HTTP(func() {
+						dsl.GET("/index")
+					})
+				})
+			})
+		}
 		if transport == "jsonrpc" {
 			dsl.Service("feed", func() {
 				dsl.JSONRPC(func() {
