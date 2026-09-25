@@ -207,9 +207,13 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 // buildViewUnionTypeData creates the data needed to generate a sum-type union
 // in the views package. Field types are computed using the view scope and are
 // always emitted unqualified so they refer to the view-local projected types.
-func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Location) *UnionTypeData {
+// The union takes the name given in names, if any, like in buildUnionTypeData.
+func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Location, names ...string) *UnionTypeData {
 	att := &expr.AttributeExpr{Type: u}
 	name := scope.GoTypeName(att)
+	if len(names) > 0 {
+		name = names[0]
+	}
 	kindName := scope.Unique(name + "Kind")
 
 	fields := make([]*UnionFieldData, len(u.Values))

@@ -95,7 +95,7 @@ func ProjectApplicationDashedType(res *ApplicationDashedType) *resultwithdashedm
 func NewApplicationDashedTypeCollectionFromApplicationDashedTypeCollectionView(vres resultwithdashedmimetypeviews.ApplicationDashedTypeCollectionView) ApplicationDashedTypeCollection {
 	res := make(ApplicationDashedTypeCollection, len(vres))
 	for i, n := range vres {
-		res[i] = newApplicationDashedType(n)
+		res[i] = NewApplicationDashedTypeFromApplicationDashedTypeView(n)
 	}
 	return res
 }
@@ -106,7 +106,7 @@ func NewApplicationDashedTypeCollectionFromApplicationDashedTypeCollectionView(v
 func ProjectApplicationDashedTypeCollection(res ApplicationDashedTypeCollection) resultwithdashedmimetypeviews.ApplicationDashedTypeCollectionView {
 	vres := make(resultwithdashedmimetypeviews.ApplicationDashedTypeCollectionView, len(res))
 	for i, n := range res {
-		vres[i] = newApplicationDashedTypeView(n)
+		vres[i] = ProjectApplicationDashedType(n)
 	}
 	return vres
 }

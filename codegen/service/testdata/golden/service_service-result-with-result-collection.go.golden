@@ -88,7 +88,7 @@ func NewViewedRT(res *RT, view string) (*resultwithresulttypecollectionviews.RT,
 func NewRTFromRTView(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	res := &RT{}
 	if vres.A != nil {
-		res.A = newRT2Collection(vres.A)
+		res.A = NewRT2CollectionFromRT2CollectionView(vres.A)
 	}
 	return res
 }
@@ -97,7 +97,7 @@ func NewRTFromRTView(vres *resultwithresulttypecollectionviews.RTView) *RT {
 func NewRTFromRTViewExtended(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	res := &RT{}
 	if vres.A != nil {
-		res.A = newRT2CollectionExtended(vres.A)
+		res.A = NewRT2CollectionFromRT2CollectionViewExtended(vres.A)
 	}
 	return res
 }
@@ -106,7 +106,7 @@ func NewRTFromRTViewExtended(vres *resultwithresulttypecollectionviews.RTView) *
 func NewRTFromRTViewTiny(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	res := &RT{}
 	if vres.A != nil {
-		res.A = newRT2CollectionTiny(vres.A)
+		res.A = NewRT2CollectionFromRT2CollectionViewTiny(vres.A)
 	}
 	return res
 }
@@ -116,7 +116,7 @@ func NewRTFromRTViewTiny(vres *resultwithresulttypecollectionviews.RTView) *RT {
 func ProjectRT(res *RT) *resultwithresulttypecollectionviews.RTView {
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
-		vres.A = newRT2CollectionView(res.A)
+		vres.A = ProjectRT2Collection(res.A)
 	}
 	return vres
 }
@@ -126,7 +126,7 @@ func ProjectRT(res *RT) *resultwithresulttypecollectionviews.RTView {
 func ProjectRTExtended(res *RT) *resultwithresulttypecollectionviews.RTView {
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
-		vres.A = newRT2CollectionViewExtended(res.A)
+		vres.A = ProjectRT2CollectionExtended(res.A)
 	}
 	return vres
 }
@@ -136,7 +136,7 @@ func ProjectRTExtended(res *RT) *resultwithresulttypecollectionviews.RTView {
 func ProjectRTTiny(res *RT) *resultwithresulttypecollectionviews.RTView {
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
-		vres.A = newRT2CollectionViewTiny(res.A)
+		vres.A = ProjectRT2CollectionTiny(res.A)
 	}
 	return vres
 }
@@ -146,7 +146,7 @@ func ProjectRTTiny(res *RT) *resultwithresulttypecollectionviews.RTView {
 func NewRT2CollectionFromRT2CollectionView(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
 	res := make(RT2Collection, len(vres))
 	for i, n := range vres {
-		res[i] = newRT2(n)
+		res[i] = NewRT2FromRT2View(n)
 	}
 	return res
 }
@@ -156,7 +156,7 @@ func NewRT2CollectionFromRT2CollectionView(vres resultwithresulttypecollectionvi
 func NewRT2CollectionFromRT2CollectionViewExtended(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
 	res := make(RT2Collection, len(vres))
 	for i, n := range vres {
-		res[i] = newRT2Extended(n)
+		res[i] = NewRT2FromRT2ViewExtended(n)
 	}
 	return res
 }
@@ -166,7 +166,7 @@ func NewRT2CollectionFromRT2CollectionViewExtended(vres resultwithresulttypecoll
 func NewRT2CollectionFromRT2CollectionViewTiny(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
 	res := make(RT2Collection, len(vres))
 	for i, n := range vres {
-		res[i] = newRT2Tiny(n)
+		res[i] = NewRT2FromRT2ViewTiny(n)
 	}
 	return res
 }
@@ -176,7 +176,7 @@ func NewRT2CollectionFromRT2CollectionViewTiny(vres resultwithresulttypecollecti
 func ProjectRT2Collection(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
 	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
 	for i, n := range res {
-		vres[i] = newRT2View(n)
+		vres[i] = ProjectRT2(n)
 	}
 	return vres
 }
@@ -186,7 +186,7 @@ func ProjectRT2Collection(res RT2Collection) resultwithresulttypecollectionviews
 func ProjectRT2CollectionExtended(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
 	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
 	for i, n := range res {
-		vres[i] = newRT2ViewExtended(n)
+		vres[i] = ProjectRT2Extended(n)
 	}
 	return vres
 }
@@ -196,7 +196,7 @@ func ProjectRT2CollectionExtended(res RT2Collection) resultwithresulttypecollect
 func ProjectRT2CollectionTiny(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
 	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
 	for i, n := range res {
-		vres[i] = newRT2ViewTiny(n)
+		vres[i] = ProjectRT2Tiny(n)
 	}
 	return vres
 }

@@ -84,7 +84,7 @@ func NewMultipleViewsFromMultipleViewsView(vres *resultwithotherresultviews.Mult
 		res.A = *vres.A
 	}
 	if vres.B != nil {
-		res.B = newMultipleViews2(vres.B)
+		res.B = NewMultipleViews2FromMultipleViews2View(vres.B)
 	}
 	return res
 }
@@ -97,7 +97,7 @@ func NewMultipleViewsFromMultipleViewsViewTiny(vres *resultwithotherresultviews.
 		res.A = *vres.A
 	}
 	if vres.B != nil {
-		res.B = newMultipleViews2(vres.B)
+		res.B = NewMultipleViews2FromMultipleViews2View(vres.B)
 	}
 	return res
 }
@@ -109,7 +109,7 @@ func ProjectMultipleViews(res *MultipleViews) *resultwithotherresultviews.Multip
 		A: &res.A,
 	}
 	if res.B != nil {
-		vres.B = newMultipleViews2View(res.B)
+		vres.B = ProjectMultipleViews2(res.B)
 	}
 	return vres
 }

@@ -486,6 +486,17 @@ filter, and serialization rules belong here.
   type with its underlying type and a named union user type with its union,
   so a type declared from the evaluated `HTTPEndpointExpr.Body` refers to
   types that the generated code does not declare.
+- A named union, a user type whose attribute is a union, is declared as the
+  union type itself under the name of the user type: in the service package
+  (`collectUnionTypes`), as a streaming payload or result
+  (`buildStreamAttributeData`), and as a projected type in the views package,
+  where it takes the `<Name>View` name (`collectViewUnionTypes`). Never emit a
+  type definition for the user type.
+- The view conversions of a collection element or of a nested result type
+  call the conversions generated for that result type,
+  `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the
+  called names from the functions that name them
+  (`projectedResultInitHelperBaseName`, `projectionHelperBaseName`).
 - Keep requiredness and nullability orthogonal. `expr` owns semantic
   nullability; shared service models use `loom.Nullable[T]` for null-admitting
   object fields; JSON decoding boundaries alone use `loom.Optional[T]` for

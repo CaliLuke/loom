@@ -158,7 +158,11 @@ func buildTypeInits(projected, att *expr.AttributeExpr, viewspkg string, scope, 
 		if view.Name != expr.DefaultView {
 			name += codegen.Goify(view.Name, true)
 		}
-		code, helpers := buildConstructorCode(src, att, "vres", "res", srcCtx, tgtCtx, view.Name)
+		initName := func(field string) string {
+			nested, nestedProjected := nestedResultTypeAttributes(att, projected, field)
+			return projectedResultInitHelperBaseName(scope, viewScope, nested, nestedProjected)
+		}
+		code, helpers := buildConstructorCode(src, att, "vres", "res", srcCtx, tgtCtx, view.Name, initName)
 
 		pkg := ""
 		if loc := codegen.UserTypeLocation(att.Type); loc != nil {
@@ -221,7 +225,11 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 		if view.Name != expr.DefaultView {
 			name += codegen.Goify(view.Name, true)
 		}
-		code, helpers := buildConstructorCode(att, tgt, "res", "vres", srcCtx, tgtCtx, view.Name)
+		initName := func(field string) string {
+			nested, _ := nestedResultTypeAttributes(att, projected, field)
+			return projectionHelperBaseName(scope, nested)
+		}
+		code, helpers := buildConstructorCode(att, tgt, "res", "vres", srcCtx, tgtCtx, view.Name, initName)
 
 		pkg := ""
 		if loc := codegen.UserTypeLocation(att.Type); loc != nil {
@@ -247,6 +255,16 @@ func projectionHelperBaseName(scope *codegen.NameScope, att *expr.AttributeExpr)
 	return "Project" + scope.GoTypeName(att)
 }
 
+// nestedResultTypeAttributes returns the attributes of the service type att
+// and of its projected type projected that hold the element of a collection,
+// when field is empty, or the attribute named field otherwise.
+func nestedResultTypeAttributes(att, projected *expr.AttributeExpr, field string) (*expr.AttributeExpr, *expr.AttributeExpr) {
+	if field == "" {
+		return expr.AsArray(att.Type).ElemType, expr.AsArray(projected.Type).ElemType
+	}
+	return expr.AsObject(att.Type).Attribute(field), expr.AsObject(projected.Type).Attribute(field)
+}
+
 // buildConstructorCode builds the transformation code to create a projected
 // type from a service type and vice versa.
 //
@@ -256,7 +274,12 @@ func projectionHelperBaseName(scope *codegen.NameScope, att *expr.AttributeExpr)
 // target data structures in the transformation code.
 //
 // view is used to generate the constructor function name.
-func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext, view string) (string, []*codegen.TransformFunctionData) {
+//
+// initName returns the name of the helper that converts the element of a
+// collection, when given the empty string, or the nested result type held by
+// the named attribute. The helper of a view other than the default one adds
+// the view name to it.
+func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *codegen.AttributeContext, view string, initName func(field string) string) (string, []*codegen.TransformFunctionData) {
 	var helpers []*codegen.TransformFunctionData
 	rt := src.Type.(*expr.ResultTypeExpr)
 	arr := expr.AsArray(tgt.Type)
@@ -269,7 +292,7 @@ func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar str
 	}
 
 	if arr != nil {
-		init := "new" + targetCtx.Scope.Name(arr.ElemType, "", targetCtx.Pointer, targetCtx.UseDefault)
+		init := initName("")
 		if view != "" && view != expr.DefaultView {
 			init += codegen.Goify(view, true)
 		}
@@ -300,7 +323,7 @@ func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar str
 	}
 	fields := make([]initFieldTemplateData, 0, len(*targetRTs))
 	for _, nat := range *targetRTs {
-		finit := "new" + targetCtx.Scope.Name(nat.Attribute, "", targetCtx.Pointer, targetCtx.UseDefault)
+		finit := initName(nat.Name)
 		if view != "" {
 			v := ""
 			if vatt := rt.View(view).Find(nat.Name); vatt != nil {

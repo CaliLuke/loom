@@ -78,6 +78,11 @@ func viewTypeSections(svc *Data, unions []*UnionTypeData) []codegen.Section {
 		sections = append(sections, userTypeSection("viewed-result-type", t.UserTypeData))
 	}
 	for _, t := range svc.projectedTypes {
+		// A projected named union is declared by its union type section,
+		// see collectViewUnionTypes.
+		if expr.IsUnion(t.Type) {
+			continue
+		}
 		sections = append(sections, userTypeSection("projected-type", t.UserTypeData))
 	}
 	for _, u := range unions {

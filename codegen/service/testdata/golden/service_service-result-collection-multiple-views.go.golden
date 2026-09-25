@@ -79,7 +79,7 @@ func NewViewedMultipleViewsCollection(res MultipleViewsCollection, view string) 
 func NewMultipleViewsCollectionFromMultipleViewsCollectionView(vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView) MultipleViewsCollection {
 	res := make(MultipleViewsCollection, len(vres))
 	for i, n := range vres {
-		res[i] = newMultipleViews(n)
+		res[i] = NewMultipleViewsFromMultipleViewsView(n)
 	}
 	return res
 }
@@ -90,7 +90,7 @@ func NewMultipleViewsCollectionFromMultipleViewsCollectionView(vres resultcollec
 func NewMultipleViewsCollectionFromMultipleViewsCollectionViewTiny(vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView) MultipleViewsCollection {
 	res := make(MultipleViewsCollection, len(vres))
 	for i, n := range vres {
-		res[i] = newMultipleViewsTiny(n)
+		res[i] = NewMultipleViewsFromMultipleViewsViewTiny(n)
 	}
 	return res
 }
@@ -100,7 +100,7 @@ func NewMultipleViewsCollectionFromMultipleViewsCollectionViewTiny(vres resultco
 func ProjectMultipleViewsCollection(res MultipleViewsCollection) resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView {
 	vres := make(resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView, len(res))
 	for i, n := range res {
-		vres[i] = newMultipleViewsView(n)
+		vres[i] = ProjectMultipleViews(n)
 	}
 	return vres
 }
@@ -111,7 +111,7 @@ func ProjectMultipleViewsCollection(res MultipleViewsCollection) resultcollectio
 func ProjectMultipleViewsCollectionTiny(res MultipleViewsCollection) resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView {
 	vres := make(resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView, len(res))
 	for i, n := range res {
-		vres[i] = newMultipleViewsViewTiny(n)
+		vres[i] = ProjectMultipleViewsTiny(n)
 	}
 	return vres
 }

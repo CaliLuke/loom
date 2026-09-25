@@ -270,7 +270,11 @@ func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope
 		Example: att.Example(examples),
 	}
 	if dt, ok := att.Type.(expr.UserType); ok {
-		data.Def = scope.GoValueTypeDef(dt.Attribute(), false, true)
+		// A named union is declared as the union type itself, see
+		// collectUnionTypes.
+		if expr.AsUnion(dt.Attribute().Type) == nil {
+			data.Def = scope.GoValueTypeDef(dt.Attribute(), false, true)
+		}
 		data.Loc = codegen.UserTypeLocation(dt)
 	}
 	data.Ref = scope.GoFullTypeRef(att, scope.PackageName(data.Loc))
