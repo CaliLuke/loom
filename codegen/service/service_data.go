@@ -167,11 +167,11 @@ type (
 		// Schemes contains the security schemes types used by the
 		// method.
 		Schemes SchemesData
-		// ServerInterceptors list the server interceptors that apply to this
-		// method.
+		// ServerInterceptors lists the Go names (InterceptorData.Name) of the
+		// server interceptors that apply to this method.
 		ServerInterceptors []string
-		// ClientInterceptors list the client interceptors that apply to this
-		// method.
+		// ClientInterceptors lists the Go names (InterceptorData.Name) of the
+		// client interceptors that apply to this method.
 		ClientInterceptors []string
 	}
 
@@ -608,8 +608,8 @@ func (m *MethodData) AssignEndpointFields(scope *codegen.NameScope) {
 	}
 }
 
-// AppendInterceptorName records an interceptor name on the server or client
-// side of the method.
+// AppendInterceptorName records the Go name of an interceptor
+// (InterceptorData.Name) on the server or client side of the method.
 func (m *MethodData) AppendInterceptorName(name string, server bool) {
 	if server {
 		m.MethodSecurityData.ServerInterceptors = append(m.MethodSecurityData.ServerInterceptors, name)

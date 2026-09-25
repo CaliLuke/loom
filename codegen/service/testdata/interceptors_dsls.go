@@ -334,6 +334,34 @@ var StreamingInterceptorsWithReadResultDSL = func() {
 	})
 }
 
+var LowerCaseInterceptorNamesDSL = func() {
+	audit := Interceptor("audit", func() {
+		ReadPayload(func() {
+			Attribute("id")
+		})
+	})
+	auditLog := Interceptor("audit_log", func() {
+		WriteResult(func() {
+			Attribute("name")
+		})
+	})
+	Service("LowerCaseInterceptorNames", func() {
+		Method("direct", func() {
+			ServerInterceptor(audit)
+			ServerInterceptor(auditLog)
+			ClientInterceptor(audit)
+			ClientInterceptor(auditLog)
+			Payload(func() {
+				Attribute("id", String)
+			})
+			Result(func() {
+				Attribute("name", String)
+			})
+			HTTP(func() { PUT("/v1/direct") })
+		})
+	})
+}
+
 // Invalid DSL
 var StreamingResultInterceptorDSL = func() {
 	Interceptor("logging", func() {

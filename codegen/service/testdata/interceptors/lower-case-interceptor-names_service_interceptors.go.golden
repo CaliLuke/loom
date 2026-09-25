@@ -1,0 +1,127 @@
+// ServerInterceptors defines the interface for all server-side interceptors.
+// Server interceptors execute after the request is decoded and before the
+// payload is sent to the service. The implementation is responsible for calling
+// next to complete the request.
+type ServerInterceptors interface {
+	Audit(ctx context.Context, info *AuditInfo, next loom.Endpoint) (any, error)
+	AuditLog(ctx context.Context, info *AuditLogInfo, next loom.Endpoint) (any, error)
+}
+
+// Access interfaces for interceptor payloads and results
+type (
+	// AuditInfo provides metadata about the current interception.
+	// It includes service name, method name, and access to the endpoint.
+	AuditInfo struct {
+		service    string
+		method     string
+		callType   loom.InterceptorCallType
+		rawPayload any
+	}
+
+	// AuditPayload provides type-safe access to the method payload.
+	// It allows reading and writing specific fields of the payload as defined
+	// in the design.
+	AuditPayload interface {
+		ID() string
+	}
+	// AuditLogInfo provides metadata about the current interception.
+	// It includes service name, method name, and access to the endpoint.
+	AuditLogInfo struct {
+		service    string
+		method     string
+		callType   loom.InterceptorCallType
+		rawPayload any
+	}
+
+	// AuditLogResult provides type-safe access to the method result.
+	// It allows reading and writing specific fields of the result as defined
+	// in the design.
+	AuditLogResult interface {
+		SetName(string)
+	}
+)
+
+// Private implementation types
+type (
+	auditDirectPayload struct {
+		payload *DirectPayload
+	}
+	auditLogDirectResult struct {
+		result *DirectResult
+	}
+)
+
+// WrapDirectEndpoint wraps the direct endpoint with the server-side
+// interceptors defined in the design.
+func WrapDirectEndpoint(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
+	if i != nil {
+		endpoint = wrapDirectAudit(endpoint, i)
+		endpoint = wrapDirectAuditLog(endpoint, i)
+	}
+	return endpoint
+}
+
+// Public accessor methods for Info types
+
+// Service returns the name of the service handling the request.
+func (info *AuditInfo) Service() string {
+	return info.service
+}
+
+// Method returns the name of the method handling the request.
+func (info *AuditInfo) Method() string {
+	return info.method
+}
+
+// CallType returns the type of call the interceptor is handling.
+func (info *AuditInfo) CallType() loom.InterceptorCallType {
+	return info.callType
+}
+
+// RawPayload returns the raw payload of the request.
+func (info *AuditInfo) RawPayload() any {
+	return info.rawPayload
+}
+
+// Payload returns a type-safe accessor for the method payload.
+func (info *AuditInfo) Payload() AuditPayload {
+	return &auditDirectPayload{payload: info.RawPayload().(*DirectPayload)}
+}
+
+// Service returns the name of the service handling the request.
+func (info *AuditLogInfo) Service() string {
+	return info.service
+}
+
+// Method returns the name of the method handling the request.
+func (info *AuditLogInfo) Method() string {
+	return info.method
+}
+
+// CallType returns the type of call the interceptor is handling.
+func (info *AuditLogInfo) CallType() loom.InterceptorCallType {
+	return info.callType
+}
+
+// RawPayload returns the raw payload of the request.
+func (info *AuditLogInfo) RawPayload() any {
+	return info.rawPayload
+}
+
+// Result returns a type-safe accessor for the method result.
+func (info *AuditLogInfo) Result(res any) AuditLogResult {
+	return &auditLogDirectResult{result: res.(*DirectResult)}
+}
+
+// Private implementation methods
+
+func (p *auditDirectPayload) ID() string {
+	if p.payload.ID == nil {
+		var zero string
+		return zero
+	}
+	return *p.payload.ID
+}
+func (r *auditLogDirectResult) SetName(v string) {
+	r.result.Name = &v
+}

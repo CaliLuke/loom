@@ -18,7 +18,9 @@ import (
 // output for a service with method-level server and client interceptors, then
 // builds and vets the module. The example interceptors must qualify the
 // interceptor Info types with the service package, under an alias when its
-// name clashes with another import of the example file.
+// name clashes with another import of the example file. The generated service
+// code must call the interceptor wrappers it declares whatever the case of the
+// interceptor design name.
 func TestExampleInterceptorsCompile(t *testing.T) {
 	cases := []struct {
 		Name string
@@ -27,6 +29,9 @@ func TestExampleInterceptorsCompile(t *testing.T) {
 		// PkgPath is the struct:pkg:path of the payload and result type, none
 		// when empty.
 		PkgPath string
+		// Interceptor and GoName are the design and Go names of the
+		// interceptor, "Audit" when empty.
+		Interceptor, GoName string
 		// Import and Qualifier are the import of the service package in the
 		// example interceptor files and the qualifier of its types.
 		Import, Qualifier string
@@ -56,6 +61,14 @@ func TestExampleInterceptorsCompile(t *testing.T) {
 			// (#435).
 			Packages: []string{"./gen/...", "./interceptors/..."},
 		},
+		{
+			Name:        "lower-case-interceptor-name",
+			Service:     "shop",
+			Interceptor: "audit_log",
+			GoName:      "AuditLog",
+			Import:      `shop "example.com/shop/gen/shop"`,
+			Qualifier:   "shop",
+		},
 	}
 	repoRoot, err := loomsource.RepositoryRoot(".")
 	require.NoError(t, err)
@@ -63,8 +76,12 @@ func TestExampleInterceptorsCompile(t *testing.T) {
 	require.NoError(t, err)
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			name, goName := c.Interceptor, c.GoName
+			if name == "" {
+				name, goName = "Audit", "Audit"
+			}
 			codegen.RunDSL(t, func() {
-				interceptorExampleDSL(c.Service, c.PkgPath)
+				interceptorExampleDSL(c.Service, c.PkgPath, name)
 			})
 			dir := t.TempDir()
 			goMod := fmt.Sprintf("module example.com/shop\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", source)
@@ -79,7 +96,7 @@ func TestExampleInterceptorsCompile(t *testing.T) {
 				content, err := os.ReadFile(filepath.Join(dir, "interceptors", c.Service+"_"+side+".go"))
 				require.NoError(t, err)
 				require.Contains(t, string(content), c.Import)
-				require.Contains(t, string(content), "Audit(ctx context.Context, info *"+c.Qualifier+".AuditInfo, next loom.Endpoint) (any, error)")
+				require.Contains(t, string(content), goName+"(ctx context.Context, info *"+c.Qualifier+"."+goName+"Info, next loom.Endpoint) (any, error)")
 			}
 
 			_, err = testingx.RunCmd(dir, "go", "mod", "tidy")
@@ -97,10 +114,10 @@ func TestExampleInterceptorsCompile(t *testing.T) {
 }
 
 // interceptorExampleDSL declares the service svc with a method "direct" that
-// uses the "Audit" interceptor on both the server and the client side. The
-// payload and result type is placed in the pkgPath package when pkgPath is not
-// empty.
-func interceptorExampleDSL(svc, pkgPath string) {
+// uses the interceptor named interceptor on both the server and the client
+// side. The payload and result type is placed in the pkgPath package when
+// pkgPath is not empty.
+func interceptorExampleDSL(svc, pkgPath, interceptor string) {
 	dsl.API("shop", func() {})
 	item := dsl.Type("Item", func() {
 		if pkgPath != "" {
@@ -109,7 +126,7 @@ func interceptorExampleDSL(svc, pkgPath string) {
 		dsl.Attribute("id", dsl.String)
 		dsl.Attribute("name", dsl.String)
 	})
-	audit := dsl.Interceptor("Audit", func() {
+	audit := dsl.Interceptor(interceptor, func() {
 		dsl.ReadPayload(func() {
 			dsl.Attribute("id")
 		})

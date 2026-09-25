@@ -37,7 +37,7 @@ type (
 // interceptors defined in the design.
 func WrapMethodEndpoint(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
 	if i != nil {
-		endpoint = wrapMethodcaching(endpoint, i)
+		endpoint = wrapMethodCaching(endpoint, i)
 	}
 	return endpoint
 }

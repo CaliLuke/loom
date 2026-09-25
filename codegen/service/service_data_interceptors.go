@@ -62,7 +62,7 @@ func buildInterceptorData(svc *expr.ServiceExpr, methods []*MethodData, i *expr.
 		}
 		md := findMethodData(methods, m.Name)
 		data.Methods = append(data.Methods, buildInterceptorMethodData(i, md))
-		appendInterceptorName(md, i.Name, server)
+		md.AppendInterceptorName(data.Name, server)
 	}
 	return data
 }
@@ -103,10 +103,6 @@ func findMethodData(methods []*MethodData, name string) *MethodData {
 		}
 	}
 	return nil
-}
-
-func appendInterceptorName(md *MethodData, name string, server bool) {
-	md.AppendInterceptorName(name, server)
 }
 
 // buildInterceptorMethodData creates the data needed to generate interceptor

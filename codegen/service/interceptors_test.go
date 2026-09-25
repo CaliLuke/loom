@@ -39,6 +39,7 @@ func TestInterceptors(t *testing.T) {
 		{"streaming-interceptors-with-read-streaming-result", testdata.StreamingInterceptorsWithReadStreamingResultDSL, 3},
 		{"streaming-interceptors-with-read-payload", testdata.StreamingInterceptorsWithReadPayloadDSL, 2},
 		{"streaming-interceptors-with-read-result", testdata.StreamingInterceptorsWithReadResultDSL, 2},
+		{"lower-case-interceptor-names", testdata.LowerCaseInterceptorNamesDSL, 3},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
