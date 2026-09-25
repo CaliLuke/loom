@@ -725,6 +725,8 @@ Each OpenAPI Server Object uses the description of its `Host`. If the host has n
 
 Each `Variable` description becomes the description of the matching OpenAPI Server Variable Object.
 
+Loom generates the example commands of a server in `cmd/<name>` and its CLI support packages in `gen/<transport>/cli/<name>`. The directory name is the snake_case form of the server name, with each non-ASCII rune escaped: `calc server` and `CalcServer` become `calc_server`, and `Café` becomes `cafu00e9`. Evaluation rejects a design in which two servers get the same directory name, or names that differ only in case, because their generated files would overwrite each other.
+
 ### API-Level Errors
 
 Define reusable errors at the API level:
@@ -803,6 +805,8 @@ var _ = Service("users", func() {
     })
 })
 ```
+
+The generated packages of a service are in `gen/<name>` and the transport directories such as `gen/http/<name>`. The directory name is derived from the service name as for servers. Evaluation rejects a design in which two services get the same directory name, or names that differ only in case.
 
 ### Method DSL
 

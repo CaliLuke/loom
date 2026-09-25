@@ -235,6 +235,7 @@ func (r *RootExpr) Validate() error {
 		verr.Merge(validateStructMeta("", rt.Attribute().Meta, rt))
 	}
 	verr.Merge(r.validateRelocatedUserTypes())
+	verr.Merge(r.validateGeneratedDirs())
 	for _, sessionAuth := range r.SessionAuths {
 		verr.Merge(sessionAuth.Validate())
 	}

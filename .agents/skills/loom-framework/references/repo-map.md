@@ -30,6 +30,9 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   owns their typed adapters and static manifest
 - `vet/`: evaluated-design and consuming-module adoption diagnostics
 - `internal/`: repository-private support packages and release/source tooling
+- `internal/naming`: the Go identifiers and generated directory names derived
+  from design names; `codegen` and `expr` share it, so design validation uses
+  the same names as the generators
 - `scripts/`, `Makefile`, `check.sh`: canonical verification and contributor
   workflows
 - `docs/`: public user documentation

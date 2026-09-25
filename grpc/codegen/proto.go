@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 const (
@@ -93,7 +94,7 @@ func pkgName(svc *expr.GRPCServiceExpr, svcName string) string {
 	if svc.ProtoPkg != "" {
 		return svc.ProtoPkg
 	}
-	return codegen.EscapeNonASCII(codegen.SnakeCase(svcName))
+	return naming.EscapeNonASCII(codegen.SnakeCase(svcName))
 }
 
 var defaultProtocCmd = []string{expr.DefaultProtoc}

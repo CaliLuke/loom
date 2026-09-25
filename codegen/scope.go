@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 type (
@@ -447,7 +448,7 @@ func attributePkgName(att *expr.AttributeExpr) string {
 		return loc.PackageName()
 	}
 	if p, ok := att.Meta.Last("struct:pkg:path"); ok && p != "" {
-		return (&Location{RelImportPath: EscapeNonASCII(p)}).PackageName()
+		return (&Location{RelImportPath: naming.EscapeNonASCII(p)}).PackageName()
 	}
 	return ""
 }

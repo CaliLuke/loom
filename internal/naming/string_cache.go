@@ -1,4 +1,4 @@
-package codegen
+package naming
 
 import (
 	"sync"

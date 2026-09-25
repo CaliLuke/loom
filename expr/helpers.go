@@ -2,13 +2,12 @@ package expr
 
 import (
 	"github.com/CaliLuke/loom/eval"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // Title returns the string with the first character of each word in upper case.
 func Title(s string) string {
-	return cases.Title(language.Und, cases.NoLower).String(s)
+	return naming.Title(s)
 }
 
 // findKey finds the given key in the endpoint expression and returns the

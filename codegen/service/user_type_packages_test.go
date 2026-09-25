@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 func TestUserTypePackagesAliasClashingNames(t *testing.T) {
@@ -48,7 +49,7 @@ func TestUserTypePackagesAliasClashingNames(t *testing.T) {
 			Name:     "clash-with-escaped-non-ascii-name",
 			Reserved: []*codegen.ImportSpec{{Path: "example.com/other/menu00fc"}},
 			Imports:  []*codegen.ImportSpec{{Name: "menu00fc", Path: "example.com/app/gen/tipos/menu00fc"}},
-			Loc:      &codegen.Location{RelImportPath: codegen.EscapeNonASCII("tipos/menü")},
+			Loc:      &codegen.Location{RelImportPath: naming.EscapeNonASCII("tipos/menü")},
 			Want:     []*codegen.ImportSpec{{Name: "menu00fc2", Path: "example.com/app/gen/tipos/menu00fc"}},
 			WantName: "menu00fc2",
 		},

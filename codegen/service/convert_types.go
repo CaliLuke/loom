@@ -9,6 +9,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // uniquify checks if base is a key of taken and if not returns it. Otherwise
@@ -152,7 +153,7 @@ func convertFilePath(user expr.UserType, serviceName string) string {
 	if loc := codegen.UserTypeLocation(user); loc != nil {
 		return filepath.Join(codegen.Gendir, filepath.Dir(loc.FilePath), "convert.go")
 	}
-	return filepath.Join(codegen.Gendir, DirName(serviceName), "convert.go")
+	return filepath.Join(codegen.Gendir, naming.ServiceDir(serviceName), "convert.go")
 }
 
 func convertPackageName(conversions, creations []*expr.TypeMap, fallback string) string {

@@ -1,4 +1,4 @@
-package example
+package naming
 
 import (
 	"testing"

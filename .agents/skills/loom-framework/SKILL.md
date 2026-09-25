@@ -99,6 +99,13 @@ consumer validation.
   from Loom version skew.
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
+- Derive identifiers and generated directory names from design names with
+  `internal/naming`. Generators call `naming.ServerDir` and
+  `naming.ServiceDir` directly, the public `codegen` case functions such as
+  `Goify` and `SnakeCase` and `expr.Title` delegate to it, and `expr` uses it
+  to reject servers or services whose directories collide, ignoring case.
+  Change the naming rules there only, so validation cannot drift from the
+  generated paths.
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted
   Go type references. Never construct type syntax by string concatenation.
 - Let Loom determine pointer/value semantics except at explicit transport

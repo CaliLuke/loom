@@ -1,13 +1,8 @@
 package codegen
 
 import (
-	"go/doc"
-	"go/token"
-	"strings"
-	"unicode"
-	"unicode/utf8"
-
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // Goify makes a valid Go identifier out of any string. It does that by removing
@@ -19,38 +14,7 @@ import (
 // exported Go identifier: a first letter without an upper case form, such as
 // one from a caseless script, also receives the Val prefix.
 func Goify(str string, firstUpper bool) string {
-	// Optimize trivial case
-	if str == "" {
-		return ""
-	}
-
-	// Remove optional suffix that defines corresponding transport specific
-	// name.
-	idx := strings.Index(str, ":")
-	if idx > 0 {
-		str = str[:idx]
-	}
-
-	str = CamelCase(str, firstUpper, true)
-	if str == "" {
-		// All characters are invalid. Produce a default value.
-		if firstUpper {
-			return "Val"
-		}
-		return "val"
-	}
-	first, size := utf8.DecodeRuneInString(str)
-	switch {
-	case unicode.IsDigit(first):
-		if firstUpper {
-			str = "Val" + str
-		} else {
-			str = "val" + str
-		}
-	case firstUpper && !unicode.IsUpper(first):
-		str = exportIdentifier(first, str[size:])
-	}
-	return fixReservedGo(str)
+	return naming.Goify(str, firstUpper)
 }
 
 // GoifyAtt honors any struct:field:name meta set on the attribute and calls
@@ -69,36 +33,3 @@ func GoifyAtt(att *expr.AttributeExpr, name string, upper bool) string {
 func UnionValTypeName(unionName string) string {
 	return Goify(unionName+"Val", false)
 }
-
-// exportIdentifier returns an exported identifier made of first followed by
-// rest. Go only exports identifiers that start with an upper case letter
-// (Unicode class Lu), so a title case first letter is converted to upper
-// case and a letter without an upper case form, such as one from a caseless
-// script, receives the Val prefix.
-func exportIdentifier(first rune, rest string) string {
-	if upper := unicode.ToUpper(first); unicode.IsUpper(upper) {
-		return string(upper) + rest
-	}
-	return "Val" + string(first) + rest
-}
-
-// fixReservedGo appends an underscore on to Go reserved keywords.
-func fixReservedGo(w string) string {
-	if doc.IsPredeclared(w) || token.IsKeyword(w) || isPackage[w] {
-		w += "_"
-	}
-	return w
-}
-
-var (
-	isPackage = map[string]bool{
-		// stdlib and Loom packages used by generated code
-		"errors": true,
-		"fmt":    true,
-		"http":   true,
-		"json":   true,
-		"os":     true,
-		"url":    true,
-		"time":   true,
-	}
-)

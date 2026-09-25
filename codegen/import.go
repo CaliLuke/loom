@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -73,8 +74,8 @@ func (s *ImportSpec) Code() string {
 }
 
 // UserTypeLocation returns the location of the user type if set via the
-// struct:pkg:path metadata, nil otherwise. The location escapes the non-ASCII
-// runes of the metadata value with EscapeNonASCII.
+// struct:pkg:path metadata, nil otherwise. The location escapes each non-ASCII
+// rune of the metadata value as the generated service package paths do.
 func UserTypeLocation(dt expr.DataType) *Location {
 	ut, ok := dt.(expr.UserType)
 	if !ok {
@@ -86,7 +87,7 @@ func UserTypeLocation(dt expr.DataType) *Location {
 	}
 	// Go import paths are ASCII only; escape the non-ASCII runes of the
 	// design path the same way as service package paths.
-	rel := EscapeNonASCII(p)
+	rel := naming.EscapeNonASCII(p)
 	return &Location{
 		FilePath:      filepath.Join(filepath.FromSlash(rel), SnakeCase(ut.Name())+".go"),
 		RelImportPath: rel,

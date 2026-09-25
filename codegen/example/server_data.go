@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 type (
@@ -128,15 +129,6 @@ const (
 	TransportGRPC = "grpc"
 )
 
-// ServerDir returns the name of the directories and packages generated for
-// the server with the given design name: the example commands under cmd and
-// the client CLI support packages under gen/<transport>/cli. Go import paths
-// are ASCII only, so ServerDir escapes the non-ASCII runes of the snake_case
-// name with codegen.EscapeNonASCII.
-func ServerDir(name string) string {
-	return codegen.EscapeNonASCII(codegen.SnakeCase(codegen.Goify(name, true)))
-}
-
 // NewServersData creates a fresh per-generation server cache.
 func NewServersData() ServersData {
 	return make(ServersData)
@@ -239,7 +231,7 @@ func buildServerData(svr *expr.ServerExpr, root *expr.RootExpr) *Data {
 		Variables:       variables,
 		Transports:      transports,
 		JSONRPCServices: collectJSONRPCServices(svr, root),
-		Dir:             ServerDir(svr.Name),
+		Dir:             naming.ServerDir(svr.Name),
 	}
 	populateHandlerArgs(sd, root)
 	return sd

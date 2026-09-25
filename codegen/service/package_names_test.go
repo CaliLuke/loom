@@ -3,6 +3,7 @@ package service
 import (
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/naming"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/mod/module"
 )
@@ -22,7 +23,7 @@ func TestServicePackageNames(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			path := DirName(c.Service)
+			path := naming.ServiceDir(c.Service)
 			assert.Equal(t, c.ExpectedPath, path)
 			assert.NoError(t, module.CheckImportPath("example.com/gen/"+path))
 			assert.Equal(t, c.ExpectedPkg, PackageBaseName(c.Service))

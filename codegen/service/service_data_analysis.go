@@ -6,6 +6,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // analyze creates the data necessary to render the code of the given service.
@@ -153,7 +154,7 @@ func newServiceData(
 		APIName:            d.Root.API.Name,
 		APIVersion:         d.Root.API.Version,
 		VarName:            varName,
-		PathName:           DirName(service.Name),
+		PathName:           naming.ServiceDir(service.Name),
 		StructName:         codegen.Goify(service.Name, true),
 		PkgName:            pkgName,
 		ViewsPkg:           viewspkg,

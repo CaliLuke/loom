@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 type designedHTTPService struct {
@@ -95,7 +95,7 @@ func designedHTTPServices(design *expr.RootExpr) []designedHTTPService {
 		}
 		services = append(services, designedHTTPService{
 			name: service.Name(),
-			path: servicecodegen.DirName(service.Name()),
+			path: naming.ServiceDir(service.Name()),
 			suppressed: suppressed(service.Meta, RuleServiceNotMounted) ||
 				suppressed(service.ServiceExpr.Meta, RuleServiceNotMounted),
 		})
