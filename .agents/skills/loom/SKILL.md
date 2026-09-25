@@ -38,6 +38,9 @@ HTTP generation includes servers, per-service clients, and the aggregate
 client CLI by default. For an HTTP server-only application, set API metadata
 `Meta("http:generate", "server")`. Loom keeps generated service and HTTP server
 packages and removes stale `gen/http/*/client/` and `gen/http/cli/` directories.
+The gRPC client CLI takes the request message in `--message` as protocol
+buffer JSON (`protojson`): set a `oneof` by the name of its selected `oneof`
+field, not by the union attribute name.
 Synthesized service and HTTP CLI examples are scoped by stable service and
 method identity, so unrelated service edits or declaration reordering do not
 churn their values. Implicit server service lists use stable service-name

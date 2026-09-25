@@ -71,7 +71,7 @@ func buildSubcommandConversion(m *service.MethodData, buildFunction *BuildFuncti
 	}
 	flag := flags[0]
 	target, prefix, suffix := subcommandConversionTarget(m.Payload)
-	conv, _, check := conversionCode("*"+flag.FullName+"Flag", target, m.Payload, false)
+	conv, _, check := conversionCode("*"+flag.FullName+"Flag", target, m.Payload, flag.Unmarshal, false)
 	conversion := codegen.Expr(prefix).Add(conv).Add(codegen.Expr(suffix))
 	if !check {
 		return conversion

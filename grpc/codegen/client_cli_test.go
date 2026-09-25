@@ -18,6 +18,9 @@ func TestClientCLIFiles(t *testing.T) {
 	}{
 		{"payload-with-validations", testdata.PayloadWithValidationsDSL},
 		{"any-error", testdata.AnyErrorDSL},
+		{"named-union-field-reuse", testdata.NamedUnionFieldReuseDSL},
+		{"union-branch-union", testdata.UnionBranchUnionDSL},
+		{"cli-protojson", testdata.CLIProtoJSONDSL},
 	}
 
 	for _, c := range cases {

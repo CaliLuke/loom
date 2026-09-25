@@ -266,11 +266,12 @@ func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *ser
 	hasRequestMessage := !isEmpty(endpoint.Request.Message.Type)
 	if obj := expr.AsObject(endpoint.Request.ProtoMessage.Type); (obj != nil && len(*obj) > 0) || expr.IsUnion(endpoint.Request.ProtoMessage.Type) {
 		request.CLIArgs = append(request.CLIArgs, &InitArgData{
-			Name:     "message",
-			Ref:      "message",
-			TypeName: protoBufGoFullTypeName(endpoint.Request.ProtoMessage, sd.PkgName, sd.Scope),
-			TypeRef:  protoBufGoFullTypeRef(endpoint.Request.ProtoMessage, sd.PkgName, sd.Scope),
-			Example:  endpoint.Request.ProtoMessage.Example(d.Root.API.ExampleGenerator),
+			Name:         "message",
+			Ref:          "message",
+			TypeName:     protoBufGoFullTypeName(endpoint.Request.ProtoMessage, sd.PkgName, sd.Scope),
+			TypeRef:      protoBufGoFullTypeRef(endpoint.Request.ProtoMessage, sd.PkgName, sd.Scope),
+			Example:      protoJSONExample(endpoint.Request.ProtoMessage, d.Root.API.ExampleGenerator),
+			ProtoMessage: true,
 		})
 	}
 	for _, m := range reqMD {

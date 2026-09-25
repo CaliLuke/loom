@@ -1,0 +1,187 @@
+// nestedunion gRPC client CLI support package
+//
+// Command:
+// loom
+
+package client
+
+import (
+	"fmt"
+	nestedunionpb "grpc/nestedunion/pb"
+	nestedunion "nestedunion"
+
+	protojson "google.golang.org/protobuf/encoding/protojson"
+)
+
+// BuildEchoPayload builds the payload for the nestedunion echo endpoint from
+// CLI flags.
+func BuildEchoPayload(nestedunionEchoMessage string) (*nestedunion.Envelope, error) {
+	var err error
+	var message nestedunionpb.EchoRequest
+	{
+		if nestedunionEchoMessage != "" {
+			err = protojson.Unmarshal([]byte(nestedunionEchoMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"choice\": {\n         \"other\": {\n            \"count\": 1719082120441533495\n         }\n      },\n      \"extra_or_other\": {\n         \"extra\": {\n            \"flag\": false\n         }\n      },\n      \"holder\": {\n         \"choice\": {\n            \"other\": {\n               \"count\": 1719082120441533495\n            }\n         },\n         \"leaf\": {\n            \"name\": \"Quia inventore et.\"\n         }\n      },\n      \"holders\": [\n         {\n            \"extra\": {\n               \"flag\": false\n            },\n            \"leaf\": {\n               \"name\": \"Quia inventore et.\"\n            }\n         },\n         {\n            \"choice\": {\n               \"other\": {\n                  \"count\": 1719082120441533495\n               }\n            },\n            \"leaf\": {\n               \"name\": \"Quia inventore et.\"\n            }\n         }\n      ],\n      \"id\": \"Neque nisi quibusdam nisi sint sunt.\",\n      \"text\": \"Maxime quo qui molestiae iure sit consequuntur.\"\n   }'")
+			}
+		}
+	}
+	v := &nestedunion.Envelope{
+		ID: message.Id,
+	}
+	if message.Wrapped != nil {
+		switch val := message.Wrapped.(type) {
+		case *nestedunionpb.EchoRequest_Choice:
+			{
+				u := &nestedunion.ChoiceOrExtra{}
+				u.SetChoice(protobufNestedunionpbChoiceToNestedunionChoice(val.Choice))
+				v.Wrapped = u
+			}
+		case *nestedunionpb.EchoRequest_Extra:
+			{
+				u := &nestedunion.ChoiceOrExtra{}
+				u.SetExtra(protobufNestedunionpbExtraToNestedunionExtra(val.Extra))
+				v.Wrapped = u
+			}
+		}
+	}
+	if message.Nested != nil {
+		switch val := message.Nested.(type) {
+		case *nestedunionpb.EchoRequest_Leaf:
+			{
+				u := &nestedunion.ExtraOrOtherOrLeaf{}
+				u.SetLeaf(protobufNestedunionpbLeafToNestedunionLeaf(val.Leaf))
+				v.Nested = u
+			}
+		case *nestedunionpb.EchoRequest_ExtraOrOther:
+			{
+				u := &nestedunion.ExtraOrOtherOrLeaf{}
+				u.SetExtraOrOther(protobufNestedunionpbExtraOrOtherToNestedunionExtraOrOther(val.ExtraOrOther))
+				v.Nested = u
+			}
+		}
+	}
+	if message.Block != nil {
+		switch val := message.Block.(type) {
+		case *nestedunionpb.EchoRequest_Picked:
+			{
+				u := &nestedunion.Block{}
+				u.SetPicked(protobufNestedunionpbChoiceToNestedunionChoice(val.Picked))
+				v.Block = u
+			}
+		case *nestedunionpb.EchoRequest_Text:
+			{
+				u := &nestedunion.Block{}
+				u.SetText(nestedunion.BlockText(val.Text))
+				v.Block = u
+			}
+		}
+	}
+	if message.Holder != nil {
+		v.Holder = protobufNestedunionpbHolderToNestedunionHolder(message.Holder)
+	}
+	if message.Holders != nil {
+		v.Holders = make([]*nestedunion.Holder, len(message.Holders))
+		for i, val := range message.Holders {
+			v.Holders[i] = &nestedunion.Holder{}
+			if val.Pick != nil {
+				switch val := val.Pick.(type) {
+				case *nestedunionpb.Holder_Leaf:
+					{
+						u := &nestedunion.Choice{}
+						u.SetLeaf(protobufNestedunionpbLeafToNestedunionLeaf(val.Leaf))
+						v.Holders[i].Pick = u
+					}
+				case *nestedunionpb.Holder_Other:
+					{
+						u := &nestedunion.Choice{}
+						u.SetOther(protobufNestedunionpbOtherToNestedunionOther(val.Other))
+						v.Holders[i].Pick = u
+					}
+				}
+			}
+			if val.Outer != nil {
+				switch val := val.Outer.(type) {
+				case *nestedunionpb.Holder_Choice:
+					{
+						u := v.Holders[i].Outer
+						u.SetChoice(protobufNestedunionpbChoiceToNestedunionChoice(val.Choice))
+						v.Holders[i].Outer = u
+					}
+				case *nestedunionpb.Holder_Extra:
+					{
+						u := v.Holders[i].Outer
+						u.SetExtra(protobufNestedunionpbExtraToNestedunionExtra(val.Extra))
+						v.Holders[i].Outer = u
+					}
+				}
+			}
+		}
+	}
+
+	return v, nil
+}
+
+// BuildWrapPayload builds the payload for the nestedunion wrap endpoint from
+// CLI flags.
+func BuildWrapPayload(nestedunionWrapMessage string) (*nestedunion.Outer, error) {
+	var err error
+	var message nestedunionpb.Outer
+	{
+		if nestedunionWrapMessage != "" {
+			err = protojson.Unmarshal([]byte(nestedunionWrapMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"extra\": {\n         \"flag\": false\n      }\n   }'")
+			}
+		}
+	}
+	var v *nestedunion.Outer
+	switch val := message.Field.(type) {
+	case *nestedunionpb.Outer_Choice:
+		{
+			u := &nestedunion.Outer{}
+			u.SetChoice(protobufNestedunionpbChoiceToNestedunionChoice(val.Choice))
+			v = u
+		}
+	case *nestedunionpb.Outer_Extra:
+		{
+			u := &nestedunion.Outer{}
+			u.SetExtra(protobufNestedunionpbExtraToNestedunionExtra(val.Extra))
+			v = u
+		}
+	}
+
+	return v, nil
+}
+
+// BuildPickPayload builds the payload for the nestedunion pick endpoint from
+// CLI flags.
+func BuildPickPayload(nestedunionPickMessage string) (*nestedunion.Choice, error) {
+	var err error
+	var message nestedunionpb.Choice
+	{
+		if nestedunionPickMessage != "" {
+			err = protojson.Unmarshal([]byte(nestedunionPickMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"leaf\": {\n         \"name\": \"Quia inventore et.\"\n      }\n   }'")
+			}
+		}
+	}
+	var v *nestedunion.Choice
+	switch val := message.Field.(type) {
+	case *nestedunionpb.Choice_Leaf:
+		{
+			u := &nestedunion.Choice{}
+			u.SetLeaf(protobufNestedunionpbLeafToNestedunionLeaf(val.Leaf))
+			v = u
+		}
+	case *nestedunionpb.Choice_Other:
+		{
+			u := &nestedunion.Choice{}
+			u.SetOther(protobufNestedunionpbOtherToNestedunionOther(val.Other))
+			v = u
+		}
+	}
+
+	return v, nil
+}

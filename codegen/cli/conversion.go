@@ -32,11 +32,12 @@ var (
 // typeName. The second return value indicates whether the "err" variable must
 // be declared prior to the conversion code being rendered. The last return
 // value indicates whether the generated code can produce errors (i.e.
-// initialize the err variable).
-func conversionCode(from, to, typeName string, pointer bool) (*jen.Statement, bool, bool) {
+// initialize the err variable). unmarshal is the function that decodes a JSON
+// value, see FlagData.Unmarshal.
+func conversionCode(from, to, typeName, unmarshal string, pointer bool) (*jen.Statement, bool, bool) {
 	target, decl := conversionTarget(to, typeName, pointer)
 	needCast := typeName != stringN && typeName != bytesN && flagType(typeName) != "JSON"
-	parse, cast, declErr, checkErr := conversionStatements(from, target, typeName, pointer, decl)
+	parse, cast, declErr, checkErr := conversionStatements(from, target, typeName, unmarshal, pointer, decl)
 	if !needCast {
 		return parse, declErr, checkErr
 	}
@@ -61,7 +62,7 @@ func conversionTarget(to, typeName string, pointer bool) (target, decl string) {
 	return "val", ":"
 }
 
-func conversionStatements(from, target, typeName string, pointer bool, decl string) (parse, cast *jen.Statement, declErr, checkErr bool) {
+func conversionStatements(from, target, typeName, unmarshal string, pointer bool, decl string) (parse, cast *jen.Statement, declErr, checkErr bool) {
 	declErr = true
 	checkErr = true
 	switch typeName {
@@ -95,7 +96,10 @@ func conversionStatements(from, target, typeName string, pointer bool, decl stri
 		declErr = false
 		checkErr = false
 	default:
-		parse = codegen.Expr("err = json.Unmarshal([]byte(" + from + "), &" + target + ")")
+		if unmarshal == "" {
+			unmarshal = "json.Unmarshal"
+		}
+		parse = codegen.Expr("err = " + unmarshal + "([]byte(" + from + "), &" + target + ")")
 	}
 	return parse, cast, declErr, checkErr
 }

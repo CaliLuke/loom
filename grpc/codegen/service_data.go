@@ -410,6 +410,11 @@ type (
 		Validate string
 		// Example is a example value
 		Example any
+		// ProtoMessage is true if the argument holds the request protocol
+		// buffer message. The command-line client decodes the value of
+		// its flag with protojson, and Example is in the protocol buffer
+		// JSON mapping.
+		ProtoMessage bool
 	}
 
 	// StreamData contains data to render the stream struct type that implements

@@ -81,6 +81,13 @@ type (
 		Example string
 		// Default returns the default value if any.
 		Default any
+		// Unmarshal is the qualified name of the function that decodes
+		// the value of a JSON flag, such as "protojson.Unmarshal". The
+		// function takes the JSON bytes and a pointer to the value and
+		// returns an error. It is "json.Unmarshal" of encoding/json/v2
+		// when empty. The file that holds the decoding code must import
+		// the package of the function.
+		Unmarshal string
 	}
 
 	// BuildFunctionData contains the data needed to generate a constructor

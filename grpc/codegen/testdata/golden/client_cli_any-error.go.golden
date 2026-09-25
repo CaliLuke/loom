@@ -7,12 +7,12 @@ package client
 
 import (
 	anyerror "any_error"
-	json "encoding/json/v2"
 	"fmt"
 	any_errorpb "grpc/any_error/pb"
 
 	loomgrpc "github.com/CaliLuke/loom/grpc"
 	loom "github.com/CaliLuke/loom/pkg"
+	protojson "google.golang.org/protobuf/encoding/protojson"
 )
 
 // BuildConvertPayload builds the payload for the AnyError Convert endpoint
@@ -22,7 +22,7 @@ func BuildConvertPayload(anyErrorConvertMessage string) (*anyerror.AnyErrorMessa
 	var message any_errorpb.ConvertRequest
 	{
 		if anyErrorConvertMessage != "" {
-			err = json.Unmarshal([]byte(anyErrorConvertMessage), &message)
+			err = protojson.Unmarshal([]byte(anyErrorConvertMessage), &message)
 			if err != nil {
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"mapped\": {\n         \"Consequuntur sint voluptate.\": \"Perspiciatis voluptatum laudantium eos aut.\",\n         \"Velit assumenda fuga est sint maxime.\": \"Qui molestiae iure.\"\n      },\n      \"value\": \"Quia molestias.\",\n      \"values\": [\n         \"Qui quia inventore et tempora.\",\n         \"Quae sunt itaque inventore optio quia.\",\n         \"Aut iste iste perspiciatis repellendus harum et.\",\n         \"Neque nisi quibusdam nisi sint sunt.\"\n      ]\n   }'")
 			}

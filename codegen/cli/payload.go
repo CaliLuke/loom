@@ -112,7 +112,7 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 		declErr = validate != ""
 	} else {
 		var checkErr bool
-		code, declErr, checkErr = conversionCode(f.FullName, argName, argTypeName, !f.Required && defaultValue == nil)
+		code, declErr, checkErr = conversionCode(f.FullName, argName, argTypeName, f.Unmarshal, !f.Required && defaultValue == nil)
 		if checkErr {
 			code.Line().If(jen.Err().Op("!=").Nil()).Block(buildFieldLoadConversionError(f, argName, argTypeName, payload, payloadRef))
 		}

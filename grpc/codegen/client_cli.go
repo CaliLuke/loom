@@ -134,6 +134,7 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("grpc", "loomgrpc"),
+		{Path: "google.golang.org/protobuf/encoding/protojson", Name: "protojson"},
 		{Path: path.Join(genpkg, svcName), Name: sd.Service.PkgName},
 		{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName},
 	}
@@ -225,6 +226,10 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 		}
 
 		f := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.Name, arg.TypeName, arg.Description, arg.Required, arg.Example, arg.DefaultValue)
+		if arg.ProtoMessage {
+			// encoding/json/v2 cannot set the oneof fields of a message.
+			f.Unmarshal = "protojson.Unmarshal"
+		}
 		flags[i] = f
 		params[i] = f.FullName
 		code, chek := cli.FieldLoadCode(f, arg.Name, arg.TypeName, arg.Validate, arg.DefaultValue, e.PayloadType, e.PayloadRef)

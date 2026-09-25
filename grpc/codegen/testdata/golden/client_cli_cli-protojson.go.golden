@@ -1,0 +1,252 @@
+// pbjson gRPC client CLI support package
+//
+// Command:
+// loom
+
+package client
+
+import (
+	"fmt"
+	pbjsonpb "grpc/pbjson/pb"
+	pbjson "pbjson"
+
+	loomgrpc "github.com/CaliLuke/loom/grpc"
+	loom "github.com/CaliLuke/loom/pkg"
+	protojson "google.golang.org/protobuf/encoding/protojson"
+)
+
+// BuildPlainPayload builds the payload for the pbjson plain endpoint from CLI
+// flags.
+func BuildPlainPayload(pbjsonPlainMessage string) (*pbjson.PlainPayload, error) {
+	var err error
+	var message pbjsonpb.PlainRequest
+	{
+		if pbjsonPlainMessage != "" {
+			err = protojson.Unmarshal([]byte(pbjsonPlainMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"anything\": \"Voluptatum laudantium.\",\n      \"big\": 1013211566890979765,\n      \"blob\": \"Q29uc2VxdXVudHVyIHNpbnQgdm9sdXB0YXRlLg==\",\n      \"by_id\": {\n         \"457614838226001925\": \"Sint maxime quo qui molestiae iure.\"\n      },\n      \"by_name\": {\n         \"Et est neque.\": {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         }\n      },\n      \"ratio\": 0.23672038,\n      \"request_id\": \"Quia molestias.\",\n      \"tags\": [\n         {\n            \"field\": [\n               \"Quia inventore et.\",\n               \"Et quae sunt itaque.\",\n               \"Optio quia ullam aut.\",\n               \"Iste perspiciatis.\"\n            ]\n         },\n         {\n            \"field\": [\n               \"Quia inventore et.\",\n               \"Et quae sunt itaque.\",\n               \"Optio quia ullam aut.\",\n               \"Iste perspiciatis.\"\n            ]\n         },\n         {\n            \"field\": [\n               \"Quia inventore et.\",\n               \"Et quae sunt itaque.\",\n               \"Optio quia ullam aut.\",\n               \"Iste perspiciatis.\"\n            ]\n         },\n         {\n            \"field\": [\n               \"Quia inventore et.\",\n               \"Et quae sunt itaque.\",\n               \"Optio quia ullam aut.\",\n               \"Iste perspiciatis.\"\n            ]\n         }\n      ]\n   }'")
+			}
+		}
+	}
+	transformErr := new(error)
+	v := &pbjson.PlainPayload{
+		RequestID: message.RequestId,
+		Blob:      message.Blob,
+		Big:       message.Big,
+		Ratio:     message.Ratio,
+	}
+	if message.Anything != nil {
+		v.Anything = func() loom.JSONValue {
+			value, err := loomgrpc.NewJSONValue(message.Anything)
+			if err != nil {
+				*transformErr = err
+				return nil
+			}
+			return value
+		}()
+	}
+	if message.Tags != nil {
+		v.Tags = make([][]string, len(message.Tags))
+		for i, val := range message.Tags {
+			v.Tags[i] = make([]string, len(val.Field))
+			copy(v.Tags[i], val.Field)
+		}
+	}
+	if message.ByName != nil {
+		v.ByName = make(map[string]*pbjson.Leaf, len(message.ByName))
+		for key, val := range message.ByName {
+			tv := &pbjson.Leaf{
+				LeafName: val.LeafName,
+				Message:  val.Message_,
+			}
+			v.ByName[key] = tv
+		}
+	}
+	if message.ById != nil {
+		v.ByID = make(map[int]string, len(message.ById))
+		for key, val := range message.ById {
+			tk := int(key)
+			v.ByID[tk] = val
+		}
+	}
+
+	if *transformErr != nil {
+		var zero *pbjson.PlainPayload
+		return zero, *transformErr
+	}
+	return v, nil
+}
+
+// BuildSendPayload builds the payload for the pbjson send endpoint from CLI
+// flags.
+func BuildSendPayload(pbjsonSendMessage string) (*pbjson.SendPayload, error) {
+	var err error
+	var message pbjsonpb.SendRequest
+	{
+		if pbjsonSendMessage != "" {
+			err = protojson.Unmarshal([]byte(pbjsonSendMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"choice_map\": {\n         \"Neque distinctio dolor neque.\": {\n            \"int\": 2696330042365866864\n         }\n      },\n      \"choices\": [\n         {\n            \"leaf\": {\n               \"leaf_name\": \"Quibusdam nisi sint.\",\n               \"message_\": \"Beatae quia velit.\"\n            }\n         },\n         {\n            \"int\": 606954162061553144\n         },\n         {\n            \"leaf\": {\n               \"leaf_name\": \"Quibusdam nisi sint.\",\n               \"message_\": \"Beatae quia velit.\"\n            }\n         }\n      ],\n      \"leaf\": {\n         \"leaf_name\": \"Quibusdam nisi sint.\",\n         \"message_\": \"Beatae quia velit.\"\n      },\n      \"leaves\": [\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         },\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         },\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         }\n      ],\n      \"request_id\": \"A et in delectus eaque voluptatibus nihil.\"\n   }'")
+			}
+		}
+	}
+	v := &pbjson.SendPayload{
+		RequestID: message.RequestId,
+	}
+	if message.Pick != nil {
+		switch val := message.Pick.(type) {
+		case *pbjsonpb.SendRequest_Leaf:
+			{
+				u := v.Pick
+				u.SetLeaf(protobufPbjsonpbLeafToPbjsonLeaf(val.Leaf))
+				v.Pick = u
+			}
+		case *pbjsonpb.SendRequest_Int:
+			{
+				u := v.Pick
+				u.SetInt(int(val.Int))
+				v.Pick = u
+			}
+		}
+	}
+	if message.Choices != nil {
+		v.Choices = make([]*pbjson.Slot, len(message.Choices))
+		for i, val := range message.Choices {
+			v.Choices[i] = &pbjson.Slot{}
+			if val.Choice != nil {
+				switch val := val.Choice.(type) {
+				case *pbjsonpb.Slot_Leaf:
+					{
+						u := &pbjson.Choice{}
+						u.SetLeaf(protobufPbjsonpbLeafToPbjsonLeaf(val.Leaf))
+						v.Choices[i].Choice = u
+					}
+				case *pbjsonpb.Slot_Int:
+					{
+						u := &pbjson.Choice{}
+						u.SetInt(int(val.Int))
+						v.Choices[i].Choice = u
+					}
+				}
+			}
+		}
+	}
+	if message.ChoiceMap != nil {
+		v.ChoiceMap = make(map[string]*pbjson.Slot, len(message.ChoiceMap))
+		for key, val := range message.ChoiceMap {
+			tv := &pbjson.Slot{}
+			if val.Choice != nil {
+				switch val := val.Choice.(type) {
+				case *pbjsonpb.Slot_Leaf:
+					{
+						u := &pbjson.Choice{}
+						u.SetLeaf(protobufPbjsonpbLeafToPbjsonLeaf(val.Leaf))
+						tv.Choice = u
+					}
+				case *pbjsonpb.Slot_Int:
+					{
+						u := &pbjson.Choice{}
+						u.SetInt(int(val.Int))
+						tv.Choice = u
+					}
+				}
+			}
+			v.ChoiceMap[key] = tv
+		}
+	}
+	if message.Leaves != nil {
+		v.Leaves = make([]*pbjson.Leaf, len(message.Leaves))
+		for i, val := range message.Leaves {
+			v.Leaves[i] = &pbjson.Leaf{
+				LeafName: val.LeafName,
+				Message:  val.Message_,
+			}
+		}
+	}
+
+	return v, nil
+}
+
+// BuildUnionPayload builds the payload for the pbjson union endpoint from CLI
+// flags.
+func BuildUnionPayload(pbjsonUnionMessage string) (*pbjson.Choice, error) {
+	var err error
+	var message pbjsonpb.Choice
+	{
+		if pbjsonUnionMessage != "" {
+			err = protojson.Unmarshal([]byte(pbjsonUnionMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"leaf\": {\n         \"leaf_name\": \"Quibusdam nisi sint.\",\n         \"message_\": \"Beatae quia velit.\"\n      }\n   }'")
+			}
+		}
+	}
+	var v *pbjson.Choice
+	switch val := message.Field.(type) {
+	case *pbjsonpb.Choice_Leaf:
+		{
+			u := &pbjson.Choice{}
+			u.SetLeaf(protobufPbjsonpbLeafToPbjsonLeaf(val.Leaf))
+			v = u
+		}
+	case *pbjsonpb.Choice_Int:
+		{
+			u := &pbjson.Choice{}
+			u.SetInt(int(val.Int))
+			v = u
+		}
+	}
+
+	return v, nil
+}
+
+// BuildScalarPayload builds the payload for the pbjson scalar endpoint from
+// CLI flags.
+func BuildScalarPayload(pbjsonScalarMessage string) (string, error) {
+	var err error
+	var message pbjsonpb.ScalarRequest
+	{
+		if pbjsonScalarMessage != "" {
+			err = protojson.Unmarshal([]byte(pbjsonScalarMessage), &message)
+			if err != nil {
+				var zero string
+				return zero, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"field\": \"Dolorem autem aliquid.\"\n   }'")
+			}
+		}
+	}
+	v := message.Field
+	return v, nil
+}
+
+// BuildListPayload builds the payload for the pbjson list endpoint from CLI
+// flags.
+func BuildListPayload(pbjsonListMessage string) ([]*pbjson.Leaf, error) {
+	var err error
+	var message pbjsonpb.ListRequest
+	{
+		if pbjsonListMessage != "" {
+			err = protojson.Unmarshal([]byte(pbjsonListMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"field\": [\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         },\n         {\n            \"leaf_name\": \"Quibusdam nisi sint.\",\n            \"message_\": \"Beatae quia velit.\"\n         }\n      ]\n   }'")
+			}
+		}
+	}
+	v := make([]*pbjson.Leaf, len(message.Field))
+	for i, val := range message.Field {
+		v[i] = &pbjson.Leaf{
+			LeafName: val.LeafName,
+			Message:  val.Message_,
+		}
+	}
+	return v, nil
+}
+
+// protobufPbjsonpbLeafToPbjsonLeaf builds a value of type *pbjson.Leaf from a
+// value of type *pbjsonpb.Leaf.
+func protobufPbjsonpbLeafToPbjsonLeaf(v *pbjsonpb.Leaf) *pbjson.Leaf {
+	res := &pbjson.Leaf{
+		LeafName: v.LeafName,
+		Message:  v.Message_,
+	}
+
+	return res
+}

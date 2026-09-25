@@ -94,6 +94,7 @@ func TestConversionCode(t *testing.T) {
 		from            string
 		to              string
 		typeName        string
+		unmarshal       string
 		pointer         bool
 		wantDeclErr     bool
 		wantCheckErr    bool
@@ -143,11 +144,27 @@ func TestConversionCode(t *testing.T) {
 				"err = json.Unmarshal([]byte(raw), &target)",
 			},
 		},
+		{
+			name:         "json conversion uses the flag unmarshal function",
+			from:         "raw",
+			to:           "target",
+			typeName:     "WidgetPayload",
+			unmarshal:    "protojson.Unmarshal",
+			pointer:      false,
+			wantDeclErr:  true,
+			wantCheckErr: true,
+			wantContains: []string{
+				"err = protojson.Unmarshal([]byte(raw), &target)",
+			},
+			wantNotContains: []string{
+				"= json.Unmarshal",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stmt, declErr, checkErr := conversionCode(tc.from, tc.to, tc.typeName, tc.pointer)
+			stmt, declErr, checkErr := conversionCode(tc.from, tc.to, tc.typeName, tc.unmarshal, tc.pointer)
 			require.Equal(t, tc.wantDeclErr, declErr)
 			require.Equal(t, tc.wantCheckErr, checkErr)
 			rendered := renderStatement(t, stmt)

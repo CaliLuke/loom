@@ -714,6 +714,35 @@ func main() {
 }
 ```
 
+### Command-Line Client
+
+The generated gRPC command-line client takes the request message in the
+`--message` flag as JSON in the
+[protocol buffer JSON mapping](https://protobuf.dev/programming-guides/json/),
+and decodes it with `protojson`. Fields use their protocol buffer names, such
+as `request_id`, or their lowerCamelCase JSON names, such as `requestId`. To
+set a `oneof`, use the name of the selected `oneof` field at the level of the
+message that holds the `oneof`. Do not use the name of the union attribute:
+
+```go
+var Choice = Type("Choice", OneOf(Leaf, Other))
+
+var Envelope = Type("Envelope", func() {
+    Field(1, "id", String)
+    Field(2, "choice", Choice) // oneof choice { Leaf leaf = 2; Other other = 3; }
+})
+```
+
+```bash
+api-cli svc echo --message '{"id": "a", "leaf": {"name": "n"}}'
+```
+
+A union branch that is a union is the message that wraps its `oneof`, so
+`{"choice": {"leaf": {"name": "n"}}}` sets the `Choice` branch of
+`OneOf(Choice, Extra)`. The client rejects unknown fields and a message that
+sets two fields of one `oneof`. The usage examples of the client use the same
+mapping.
+
 ---
 
 ## Protocol Buffer Integration

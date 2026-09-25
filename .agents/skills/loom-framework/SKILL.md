@@ -391,6 +391,14 @@ filter, and serialization rules belong here.
   field from the allocated proto name with `protoGoName`, never from the
   branch name with `Scope.Field`. The same union can take different names in
   different messages.
+- The gRPC client CLI decodes the request message flag with `protojson`
+  (`InitArgData.ProtoMessage` sets `cli.FlagData.Unmarshal`), because
+  `encoding/json/v2` leaves oneof fields nil. `protoJSONExample`
+  (`grpc/codegen/client_cli_example.go`) builds the flag example in the same
+  protocol buffer JSON mapping from the proto message attribute and
+  `newProtoMessageNames`. A message without a union keeps the example that the
+  attribute generates, with keys renamed to the protocol buffer names, so its
+  example and the examples generated after it do not change.
 - Protocol buffer messages always live in the pb package of the service.
   `makeProtoBufMessage` strips `struct:pkg:path` from the message attribute as
   well as from its user types. `struct:name:proto` names only the top-level

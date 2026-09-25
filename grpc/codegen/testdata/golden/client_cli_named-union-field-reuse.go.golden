@@ -1,0 +1,109 @@
+// reuse gRPC client CLI support package
+//
+// Command:
+// loom
+
+package client
+
+import (
+	"fmt"
+	reusepb "grpc/reuse/pb"
+	reuse "reuse"
+
+	protojson "google.golang.org/protobuf/encoding/protojson"
+)
+
+// BuildEchoPayload builds the payload for the reuse echo endpoint from CLI
+// flags.
+func BuildEchoPayload(reuseEchoMessage string) (*reuse.Envelope, error) {
+	var err error
+	var message reusepb.EchoRequest
+	{
+		if reuseEchoMessage != "" {
+			err = protojson.Unmarshal([]byte(reuseEchoMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"holder\": {\n         \"label\": \"Fuga est sint maxime.\",\n         \"leaf\": {\n            \"name\": \"Qui quia inventore et tempora.\"\n         }\n      },\n      \"holders\": [\n         {\n            \"label\": \"Iure sit consequuntur sint voluptate rem perspiciatis.\",\n            \"leaf\": {\n               \"name\": \"Qui quia inventore et tempora.\"\n            }\n         },\n         {\n            \"label\": \"Eos aut ipsam.\",\n            \"leaf\": {\n               \"name\": \"Qui quia inventore et tempora.\"\n            }\n         }\n      ],\n      \"id\": \"Nisi quibusdam nisi sint sunt beatae.\",\n      \"other\": {\n         \"count\": 5094429249470280925\n      }\n   }'")
+			}
+		}
+	}
+	v := &reuse.Envelope{
+		ID: message.Id,
+	}
+	if message.Choice != nil {
+		switch val := message.Choice.(type) {
+		case *reusepb.EchoRequest_Leaf:
+			{
+				u := v.Choice
+				u.SetLeaf(protobufReusepbLeafToReuseLeaf(val.Leaf))
+				v.Choice = u
+			}
+		case *reusepb.EchoRequest_Other:
+			{
+				u := v.Choice
+				u.SetOther(protobufReusepbOtherToReuseOther(val.Other))
+				v.Choice = u
+			}
+		}
+	}
+	if message.Holder != nil {
+		v.Holder = protobufReusepbHolderToReuseHolder(message.Holder)
+	}
+	if message.Holders != nil {
+		v.Holders = make([]*reuse.Holder, len(message.Holders))
+		for i, val := range message.Holders {
+			v.Holders[i] = &reuse.Holder{
+				Label: val.Label,
+			}
+			if val.Choice != nil {
+				switch val := val.Choice.(type) {
+				case *reusepb.Holder_Leaf:
+					{
+						u := &reuse.Choice{}
+						u.SetLeaf(protobufReusepbLeafToReuseLeaf(val.Leaf))
+						v.Holders[i].Choice = u
+					}
+				case *reusepb.Holder_Other:
+					{
+						u := &reuse.Choice{}
+						u.SetOther(protobufReusepbOtherToReuseOther(val.Other))
+						v.Holders[i].Choice = u
+					}
+				}
+			}
+		}
+	}
+
+	return v, nil
+}
+
+// BuildNamedPayload builds the payload for the reuse named endpoint from CLI
+// flags.
+func BuildNamedPayload(reuseNamedMessage string) (*reuse.Choice, error) {
+	var err error
+	var message reusepb.Choice
+	{
+		if reuseNamedMessage != "" {
+			err = protojson.Unmarshal([]byte(reuseNamedMessage), &message)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": 5094429249470280925\n      }\n   }'")
+			}
+		}
+	}
+	var v *reuse.Choice
+	switch val := message.Field.(type) {
+	case *reusepb.Choice_Leaf:
+		{
+			u := &reuse.Choice{}
+			u.SetLeaf(protobufReusepbLeafToReuseLeaf(val.Leaf))
+			v = u
+		}
+	case *reusepb.Choice_Other:
+		{
+			u := &reuse.Choice{}
+			u.SetOther(protobufReusepbOtherToReuseOther(val.Other))
+			v = u
+		}
+	}
+
+	return v, nil
+}
