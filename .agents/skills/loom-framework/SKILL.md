@@ -581,10 +581,13 @@ filter, and serialization rules belong here.
 - The client functions that build the request bodies and the WebSocket
   streaming bodies of a service are named after the Go type name of the body,
   such as `NewItemRequestBody`, which a nested collection shares with the flat
-  collection of its element type. `clientBodyInitName` allocates the names in
-  a scope of the service keyed by the Go type of the body, so bodies of one
-  type share a function and another body gets a name of its own. Do not name
-  these functions outside that scope.
+  collection of its element type, and a body shares with the same body built
+  from another named collection type or another attribute selected with
+  `Body`. `clientBodyInitName` allocates the names in a scope of the service
+  keyed by the Go type of the body, the Go type of the argument and the
+  expression read from it, so the bodies built from one source share a
+  function and every other body gets a name of its own. Do not name these
+  functions outside that scope.
 - A named union, a user type whose attribute is a union, is declared as the
   union type itself under the name of the user type: in the service package
   (`collectUnionTypes`), as a streaming payload or result

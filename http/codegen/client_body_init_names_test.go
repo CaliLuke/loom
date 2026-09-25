@@ -80,3 +80,88 @@ func clientBodyInitNamesDSL() {
 		stream("stream map", "/stream-map", MapOf(String, ArrayOf(item)))
 	})
 }
+
+// TestClientBodyInitNamesPerSource checks that the client functions that
+// build bodies of one Go type from different payload types, or from
+// different attributes of one payload type, get names of their own, while
+// the bodies built from one source share a function.
+func TestClientBodyInitNamesPerSource(t *testing.T) {
+	cases := []struct {
+		method string
+		name   string
+		arg    string
+		code   string
+	}{
+		{method: "one", name: "NewItemRequestBody", arg: "named.L1", code: "range p {"},
+		{method: "two", name: "NewItemRequestBody2", arg: "named.L2", code: "range p {"},
+		{method: "one again", name: "NewItemRequestBody", arg: "named.L1", code: "range p {"},
+		{method: "stream one", name: "NewItem", arg: "named.L1", code: "range p {"},
+		{method: "stream two", name: "NewItem2", arg: "named.L2", code: "range p {"},
+		{method: "first", name: "NewItemRequestBodyRequestBody", arg: "*named.Pair", code: "range p.A {"},
+		{method: "second", name: "NewItemRequestBodyRequestBody2", arg: "*named.Pair", code: "range p.B {"},
+	}
+	root := RunHTTPDSL(t, clientBodyInitNamesPerSourceDSL)
+	data := CreateHTTPServices(root).Get("named")
+	require.NotNil(t, data)
+	for _, c := range cases {
+		t.Run(c.method, func(t *testing.T) {
+			ed := data.Endpoint(c.method)
+			require.NotNil(t, ed)
+			body := ed.Payload.Request.ClientBody
+			if ed.ClientWebSocket != nil {
+				body = ed.ClientWebSocket.Payload
+			}
+			require.NotNil(t, body)
+			require.NotNil(t, body.Init)
+			require.Equal(t, c.name, body.Init.Name)
+			require.Len(t, body.Init.ClientArgs, 1)
+			require.Equal(t, c.arg, body.Init.ClientArgs[0].TypeRef)
+			require.Contains(t, body.Init.ClientCode, c.code)
+		})
+	}
+}
+
+func clientBodyInitNamesPerSourceDSL() {
+	item := Type("Item", func() {
+		Attribute("name", String)
+		Required("name")
+	})
+	l1 := Type("L1", ArrayOf(item))
+	l2 := Type("L2", ArrayOf(item), func() {
+		MinLength(1)
+	})
+	pair := Type("Pair", func() {
+		Attribute("a", ArrayOf(item))
+		Attribute("b", ArrayOf(item))
+		Required("a", "b")
+	})
+	Service("named", func() {
+		unary := func(name, path string, payload any, body string) {
+			Method(name, func() {
+				Payload(payload)
+				HTTP(func() {
+					POST(path)
+					if body != "" {
+						Body(body)
+					}
+				})
+			})
+		}
+		stream := func(name, path string, payload any) {
+			Method(name, func() {
+				StreamingPayload(payload)
+				Result(String)
+				HTTP(func() {
+					GET(path)
+				})
+			})
+		}
+		unary("one", "/one", l1, "")
+		unary("two", "/two", l2, "")
+		unary("one again", "/one-again", l1, "")
+		stream("stream one", "/stream-one", l1)
+		stream("stream two", "/stream-two", l2)
+		unary("first", "/first", pair, "a")
+		unary("second", "/second", pair, "b")
+	})
+}

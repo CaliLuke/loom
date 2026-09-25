@@ -406,10 +406,11 @@ func (sds *ServicesData) buildRequestBodyInit(
 
 	const sourceVar = "p"
 
-	initName := clientBodyInitName(sd, body)
+	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
+	argTypeRef := sd.Service.Scope.GoFullTypeRef(att, pkg)
+	initName := clientBodyInitName(sd, body, argTypeRef, src)
 	initDesc := fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",
 		initName, endpointName, sd.Service.Name)
-	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
 	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP request body transform: %w", err)))
@@ -421,7 +422,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 		AttributeData: &AttributeData{
 			Name:     "payload",
 			VarName:  sourceVar,
-			TypeRef:  sd.Service.Scope.GoFullTypeRef(att, pkg),
+			TypeRef:  argTypeRef,
 			Type:     att.Type,
 			Validate: validateDef,
 			Example:  att.Example(sds.examplesFor(sd)),
