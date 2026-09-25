@@ -50,7 +50,7 @@ func TestJSONRPCOptionalUnionParamsClientEncoder(t *testing.T) {
 			services := CreateJSONRPCServices(root)
 			data := services.Get("Picker").Endpoint("Pick")
 			require.NotNil(t, data)
-			assert.Equal(t, !c.Required, data.Payload.Request.OptionalUnionBody)
+			assert.Equal(t, !c.Required, data.Payload.Request.OptionalBodyAttribute)
 
 			file := requireEncodeDecodeFile(t, ClientFiles("", services), "client")
 			code := sectionSourceByName(t, file, "jsonrpc-request-encoder")

@@ -174,7 +174,7 @@ func TestOptionalUnionRequestBodyClientEncoder(t *testing.T) {
 			services := CreateHTTPServices(root)
 			data := services.Get("Picker").Endpoint("Pick")
 			require.NotNil(t, data)
-			assert.Equal(t, c.Optional, data.Payload.Request.OptionalUnionBody)
+			assert.Equal(t, c.Optional, data.Payload.Request.OptionalBodyAttribute)
 
 			file := findFileWithSection(t, ClientFiles("gen", services), "request-encoder")
 			code := codegen.SectionCode(t, file.Section("request-encoder")[0])

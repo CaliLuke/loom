@@ -5,12 +5,13 @@ func DecodeMethodBodyObjectOptionalOriginRequestRequest(mux loomhttp.Muxer, deco
 	return func(r *http.Request) (*servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload, error) {
 		var payload *servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload
 		var (
-			body MethodBodyObjectOptionalOriginRequestRequestBody
+			body = &MethodBodyObjectOptionalOriginRequestRequestBody{}
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(r).Decode(body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				body = nil
 				err = nil
 			} else {
 				var gerr *loom.ServiceError
@@ -20,7 +21,7 @@ func DecodeMethodBodyObjectOptionalOriginRequestRequest(mux loomhttp.Muxer, deco
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
-		payload = NewMethodBodyObjectOptionalOriginRequestPayload(&body)
+		payload = NewMethodBodyObjectOptionalOriginRequestPayload(body)
 
 		return payload, nil
 	}

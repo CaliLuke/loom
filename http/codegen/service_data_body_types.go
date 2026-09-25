@@ -128,10 +128,21 @@ func buildUserRequestBodyTypeDetails(
 	if svr || containsUnionType(body.Type) {
 		details.validateDefinition = codegen.ValidationCode(body, userType, httpctx, true, expr.IsAlias(body.Type), false, "body")
 		if details.validateDefinition != "" {
-			details.validateReference = fmt.Sprintf("err = Validate%s(&body)", varName)
+			details.validateReference = requestBodyValidateRef(varName, false)
 		}
 	}
 	return details
+}
+
+// requestBodyValidateRef returns the statement that validates the server
+// request body variable "body" with the generated Validate function of the
+// body type named varName. The variable holds a pointer when pointer is true
+// and a value otherwise.
+func requestBodyValidateRef(varName string, pointer bool) string {
+	if pointer {
+		return fmt.Sprintf("err = Validate%s(body)", varName)
+	}
+	return fmt.Sprintf("err = Validate%s(&body)", varName)
 }
 
 func flatFormUnionMetadata(

@@ -520,31 +520,7 @@ func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 			}).
 			Add(codegen.TypeRef(init.ReturnTypeRef)).
 			BlockFunc(func(group *jen.Group) {
-				if code != "" {
-					appendHTTPRawBlock(group, code)
-					if init.ReturnTypeAttribute != "" {
-						valueExpr := "v"
-						if init.ReturnIsPrimitivePointer {
-							valueExpr = "&v"
-						} else if init.ReturnIsUnionValue {
-							valueExpr = "*v"
-						}
-						group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).CustomFunc(jen.Options{
-							Open:      "{",
-							Close:     "}",
-							Separator: ",",
-							Multi:     true,
-						}, func(values *jen.Group) {
-							values.Id(init.ReturnTypeAttribute).Op(":").Add(codegen.Expr(valueExpr))
-						})
-					}
-				} else if init.ReturnIsStruct {
-					if init.ReturnTypeAttribute != "" {
-						group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
-					} else {
-						group.Id("v").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
-					}
-				}
+				appendInitResult(group, init, code, client)
 				if fieldInitCode != "" {
 					appendHTTPRawBlock(group, fieldInitCode)
 				}
@@ -559,6 +535,45 @@ func typeInitSection(name string, init *InitData, client bool) codegen.Section {
 			})
 		stmt.Line()
 	})
+}
+
+// appendInitResult appends the statements of the constructor init that build
+// its result from the transform code: the returned struct res when init
+// initializes the single attribute ReturnTypeAttribute, or v otherwise.
+func appendInitResult(group *jen.Group, init *InitData, code string, client bool) {
+	switch {
+	case code != "" && !client && init.ReturnIsOptionalBody && init.ReturnTypeAttribute != "":
+		// A nil body is an absent request body: leave the attribute nil.
+		group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
+		group.If(jen.Id("body").Op("!=").Nil()).BlockFunc(func(body *jen.Group) {
+			appendHTTPRawBlock(body, code)
+			body.Id("res").Dot(init.ReturnTypeAttribute).Op("=").Id("v")
+		})
+	case code != "":
+		appendHTTPRawBlock(group, code)
+		if init.ReturnTypeAttribute != "" {
+			valueExpr := "v"
+			if init.ReturnIsPrimitivePointer {
+				valueExpr = "&v"
+			} else if init.ReturnIsUnionValue {
+				valueExpr = "*v"
+			}
+			group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).CustomFunc(jen.Options{
+				Open:      "{",
+				Close:     "}",
+				Separator: ",",
+				Multi:     true,
+			}, func(values *jen.Group) {
+				values.Id(init.ReturnTypeAttribute).Op(":").Add(codegen.Expr(valueExpr))
+			})
+		}
+	case init.ReturnIsStruct:
+		if init.ReturnTypeAttribute != "" {
+			group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
+		} else {
+			group.Id("v").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
+		}
+	}
 }
 
 func validateSection(name string, data *TypeData) codegen.Section {

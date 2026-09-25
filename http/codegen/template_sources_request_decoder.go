@@ -7,7 +7,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	return func(r *http.Request{{ if .Method.IsJSONRPC }}, req *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
 	{{- if .Method.IsJSONRPC }}
 		params := req.Params
-		{{- if not .Payload.Request.OptionalUnionBody }}
+		{{- if not .Payload.Request.OptionalBodyAttribute }}
 		if len(params) == 0 {
 			params = []byte("{}")
 		}
@@ -25,7 +25,11 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		}
 {{- else if .Payload.Request.ServerBody }}
 		var (
+		{{- if .Payload.Request.OptionalObjectBody }}
+			body = &{{ .Payload.Request.ServerBody.VarName }}{}
+		{{- else }}
 			body {{ .Payload.Request.ServerBody.VarName }}
+		{{- end }}
 		{{- if .Payload.Request.NeedsServerErrorVar }}
 			err  error
 		{{- end }}
@@ -92,9 +96,11 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		if len(r.PostForm) == 0 {
 		{{- if .Payload.Request.MustHaveBody }}
 			return payload, loom.MissingPayloadError()
+		{{- else if .Payload.Request.OptionalObjectBody }}
+			body = nil
 		{{- end }}
 		} else {
-			if _, err = loomhttp.DecodeFormValue(r.PostForm, "", &body); err != nil {
+			if _, err = loomhttp.DecodeFormValue(r.PostForm, "", {{ if not .Payload.Request.OptionalObjectBody }}&{{ end }}body); err != nil {
 				var gerr *loom.ServiceError
 				if errors.As(err, &gerr) {
 					return payload, gerr
@@ -103,7 +109,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			}
 		}
 	{{- else }}
-		err = decoder(r).Decode(&body)
+		err = decoder(r).Decode({{ if not .Payload.Request.OptionalObjectBody }}&{{ end }}body)
 		if err != nil {
 		{{- if .Payload.Request.MustHaveBody }}
 			if errors.Is(err, io.EOF) {
@@ -111,6 +117,9 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			}
 		{{- else }}
 			if errors.Is(err, io.EOF) {
+			{{- if .Payload.Request.OptionalObjectBody }}
+				body = nil
+			{{- end }}
 				err = nil
 			} else {
 		{{- end }}
@@ -125,6 +134,9 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		}
 	{{- end }}
 	{{- if .Payload.Request.ServerBody.ValidateRef }}
+		{{- if .Payload.Request.OptionalObjectBody }}
+		if body != nil {
+		{{- end }}
 		{{ .Payload.Request.ServerBody.ValidateRef }}
 		if err != nil {
 		{{- if .Payload.Request.MultipartGenerated }}
@@ -134,6 +146,9 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		{{- end }}
 			return payload, err
 		}
+		{{- if .Payload.Request.OptionalObjectBody }}
+		}
+		{{- end }}
 	{{- end }}
 	{{- if .Payload.Request.MultipartGenerated }}
 		if multipartErr != nil {

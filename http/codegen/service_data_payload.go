@@ -130,21 +130,22 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 	registerRequestBodyTypeNames(serverBodyData, b.sd)
 	origin, mustHaveBody := buildPayloadRequestBodyRequirements(b.endpointIR.Request)
 	request := &RequestData{
-		PathParams:          paramsData,
-		QueryParams:         queryData,
-		Headers:             headersData,
-		Cookies:             cookiesData,
-		ServerBody:          serverBodyData,
-		ClientBody:          clientBodyData,
-		PayloadAttr:         codegen.Goify(origin, true),
-		PayloadType:         b.endpointIR.Request.Payload.Type,
-		MustHaveBody:        mustHaveBody,
-		OptionalUnionBody:   isOptionalUnionBody(b.endpointIR.Request),
-		MustValidate:        payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
-		Multipart:           b.endpointIR.Request.Multipart,
-		MultipartGenerated:  multipartGen,
-		MultipartFileFields: multipartFiles,
-		FormEncoded:         b.endpointIR.Request.FormEncoded,
+		PathParams:            paramsData,
+		QueryParams:           queryData,
+		Headers:               headersData,
+		Cookies:               cookiesData,
+		ServerBody:            serverBodyData,
+		ClientBody:            clientBodyData,
+		PayloadAttr:           codegen.Goify(origin, true),
+		PayloadType:           b.endpointIR.Request.Payload.Type,
+		MustHaveBody:          mustHaveBody,
+		OptionalBodyAttribute: isOptionalBodyAttribute(b.endpointIR.Request),
+		OptionalObjectBody:    isOptionalObjectBody(b.endpointIR.Request),
+		MustValidate:          payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
+		Multipart:             b.endpointIR.Request.Multipart,
+		MultipartGenerated:    multipartGen,
+		MultipartFileFields:   multipartFiles,
+		FormEncoded:           b.endpointIR.Request.FormEncoded,
 	}
 	request.NeedsServerErrorVar = requestNeedsServerErrorVar(request)
 	request.DecodePlan = newRequestDecodePlan(request)
@@ -198,8 +199,12 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 }
 
 func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {
-	return b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, true, b.sd),
-		b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
+	server := b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, true, b.sd)
+	if server != nil && server.ValidateRef != "" && isOptionalObjectBody(b.endpointIR.Request) {
+		// The server decodes an optional object body into a pointer.
+		server.ValidateRef = requestBodyValidateRef(server.VarName, true)
+	}
+	return server, b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
 }
 
 func (b *payloadBuilder) buildRequestElements() ([]*ParamData, []*ParamData, []*HeaderData, []*CookieData, *ParamData) {
@@ -230,15 +235,26 @@ func buildPayloadRequestBodyRequirements(request *transportir.Request) (string, 
 	return request.BodyOrigin, request.MustHaveBody
 }
 
-// isOptionalUnionBody reports whether the request body is a non-nullable
-// union selected with Body from an optional payload attribute. The generated
-// service field is then a nil-able pointer that the client must check before
-// building the body.
-func isOptionalUnionBody(request *transportir.Request) bool {
+// isOptionalBodyAttribute reports whether the request body is a
+// non-nullable union or object selected with Body from an optional payload
+// attribute. The generated service field is then a nil-able pointer that the
+// client must check before building the body.
+func isOptionalBodyAttribute(request *transportir.Request) bool {
 	if request == nil || request.BodyOrigin == "" || request.Body == nil || request.Payload == nil {
 		return false
 	}
-	return expr.IsUnion(request.Body.Type) && !expr.IsNullable(request.Body) && !request.Payload.IsRequired(request.BodyOrigin)
+	if expr.IsNullable(request.Body) || request.Payload.IsRequired(request.BodyOrigin) {
+		return false
+	}
+	return expr.IsUnion(request.Body.Type) || expr.IsObject(request.Body.Type)
+}
+
+// isOptionalObjectBody reports whether the request body is an object selected
+// with Body from an optional payload attribute. The server decodes such a body
+// into a pointer that stays nil when the body is empty. A union needs no
+// pointer: its empty discriminator already decodes to a nil attribute.
+func isOptionalObjectBody(request *transportir.Request) bool {
+	return isOptionalBodyAttribute(request) && expr.IsObject(request.Body.Type)
 }
 
 func (b *payloadBuilder) buildMapQueryParam() *ParamData {
@@ -413,6 +429,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		ClientCode:               clientCode,
 		ReturnIsPrimitivePointer: pointer,
 		ReturnIsUnionValue:       unionValue,
+		ReturnIsOptionalBody:     request.OptionalObjectBody,
 	}
 }
 
@@ -430,8 +447,14 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			cvcode = codegen.ValidationCode(ut.Attribute(), ut, b.httpclictx, true, expr.IsAlias(ut), false, "body")
 		}
 	}
+	serverRef := b.sd.Scope.GoVar("body", b.body)
+	if isOptionalObjectBody(b.endpointIR.Request) {
+		// The server decodes an optional object body into a pointer that is
+		// nil when the request has no body.
+		serverRef = "body"
+	}
 	serverArgs = append(serverArgs, &InitArgData{
-		Ref: b.sd.Scope.GoVar("body", b.body),
+		Ref: serverRef,
 		AttributeData: &AttributeData{
 			Name:     "body",
 			VarName:  "body",

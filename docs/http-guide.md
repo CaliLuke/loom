@@ -322,20 +322,27 @@ Method("search", func() {
 })
 ```
 
-The optional body must be an object body, or a map when `FormRequest` is set,
-and cannot contain required body attributes. It cannot be combined with
-`MultipartRequest` or raw request body streaming. JSON decoders tolerate
-`io.EOF` only for endpoints that opt into `OptionalRequestBody`; form decoders
-accept an empty form. Malformed input and validation errors still fail normally.
+The optional body must be an object body, or a map when `FormRequest` is set.
+A body built from the payload attributes cannot contain required attributes; a
+body selected with `Body("name")` must come from an optional payload
+attribute. It cannot be combined with `MultipartRequest` or raw request body
+streaming. JSON decoders tolerate `io.EOF` only for endpoints that opt into
+`OptionalRequestBody`; form decoders accept an empty form. Malformed input and
+validation errors still fail normally.
 
-A constructor union selected with `Body("name")` from an optional payload
-attribute does not need `OptionalRequestBody`. When the attribute is nil, the
-generated client sends no request body, without a `Content-Type` header, and
-the generated server decodes an empty body as a nil union. The server rejects
-a JSON `null` body because it has no union discriminator. A JSON-RPC method
-that selects its params the same way works alike: the client omits `params`
-for a nil union, the server decodes absent `params` as a nil union, and it
-rejects `"params": null` and `"params": {}` with `-32602`.
+An object or constructor union selected with `Body("name")` from an optional
+payload attribute is optional with or without `OptionalRequestBody`. When the
+attribute is nil, the generated client sends no request body, without a
+`Content-Type` header. The generated server decodes an empty or
+whitespace-only body, or an empty form, as a nil attribute. A present body is
+decoded and validated normally, so the required fields of the object apply
+only when the client sends a body. The server decodes a JSON `null` object
+body like `{}`, and rejects a JSON `null` union body because it has no union
+discriminator. A JSON-RPC method that selects its params the same way works
+alike: the client omits `params` for a nil attribute and the server decodes
+absent `params` as a nil attribute. For a union, the server rejects
+`"params": null` and `"params": {}` with `-32602`; for an object, it decodes
+them like `{}` and validates the object.
 
 ### Raw Request and Response Bodies
 

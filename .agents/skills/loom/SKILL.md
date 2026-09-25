@@ -375,7 +375,9 @@ completion shapes are explicit generation limitations.
   and select it with `Body(...)` when other transport fields must coexist.
 - Use `MultipartRequest()` for supported multipart object payloads.
 - Use `OptionalRequestBody()` for optional JSON object bodies and optional
-  typed form object/map bodies.
+  typed form object/map bodies. An object or union selected with `Body("name")`
+  from an optional payload attribute is optional either way: a nil attribute
+  sends no body, and an empty body decodes to a nil attribute.
 - Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
   request stream needs a documentation-only OpenAPI contract.
 - Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts

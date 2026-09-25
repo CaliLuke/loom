@@ -152,7 +152,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
 	{{- else if .Payload.Request.ClientBody }}
-		{{- if and .Method.IsJSONRPC .Payload.Request.OptionalUnionBody }}
+		{{- if and .Method.IsJSONRPC .Payload.Request.OptionalBodyAttribute }}
 		body := &jsonrpc.Request{
 			JSONRPC: "2.0",
 			Method:  "{{ .Method.Name }}",
@@ -161,7 +161,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			body.Params = {{ template "partial_client_body_init" .Payload.Request }}
 		}
 		{{- else }}
-		{{- if .Payload.Request.OptionalUnionBody }}
+		{{- if .Payload.Request.OptionalBodyAttribute }}
 		if p.{{ .Payload.Request.PayloadAttr }} != nil {
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
@@ -208,7 +208,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
 		{{- end }}
-		{{- if and .Payload.Request.OptionalUnionBody (not .Method.IsJSONRPC) }}
+		{{- if and .Payload.Request.OptionalBodyAttribute (not .Method.IsJSONRPC) }}
 		}
 		{{- end }}
 	{{- end }}

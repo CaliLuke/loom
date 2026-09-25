@@ -2,14 +2,15 @@
 // ServiceBodyObjectOptionalOriginRequest service
 // MethodBodyObjectOptionalOriginRequest endpoint payload.
 func NewMethodBodyObjectOptionalOriginRequestPayload(body *MethodBodyObjectOptionalOriginRequestRequestBody) *servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload {
-	v := &servicebodyobjectoptionaloriginrequest.LinkStart{}
-	if actual, ok := body.Continue.Value(); ok {
-		vContinueValue := actual
+	res := &servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload{}
+	if body != nil {
+		v := &servicebodyobjectoptionaloriginrequest.LinkStart{}
+		if actual, ok := body.Continue.Value(); ok {
+			vContinueValue := actual
 
-		v.Continue = &vContinueValue
-	}
-	res := &servicebodyobjectoptionaloriginrequest.MethodBodyObjectOptionalOriginRequestPayload{
-		Body: v,
+			v.Continue = &vContinueValue
+		}
+		res.Body = v
 	}
 
 	return res

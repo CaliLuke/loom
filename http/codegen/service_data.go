@@ -413,12 +413,19 @@ type (
 		PayloadAttr string
 		// MustHaveBody is true if the request body cannot be empty.
 		MustHaveBody bool
-		// OptionalUnionBody is true when the request body is the optional,
-		// non-nullable union payload attribute named by PayloadAttr. When
-		// that attribute is nil, HTTP clients send no request body and
-		// JSON-RPC clients omit params. HTTP servers decode an empty body,
-		// and JSON-RPC servers absent params, as a nil union.
-		OptionalUnionBody bool
+		// OptionalBodyAttribute is true when the request body is the
+		// optional, non-nullable union or object payload attribute named by
+		// PayloadAttr. When that attribute is nil, HTTP clients send no
+		// request body and JSON-RPC clients omit params. HTTP servers decode
+		// an empty body, and JSON-RPC servers absent params, as a nil
+		// attribute.
+		OptionalBodyAttribute bool
+		// OptionalObjectBody is true when OptionalBodyAttribute is true and
+		// the attribute is an object. The server then decodes the body into
+		// a pointer that it sets to nil when the body is empty, validates the
+		// body only when it is present, and passes the pointer to the payload
+		// constructor, which leaves the attribute nil for a nil body.
+		OptionalObjectBody bool
 		// MustValidate is true if the request body or at least one
 		// parameter or header requires validation.
 		MustValidate bool
@@ -617,6 +624,11 @@ type (
 		// ReturnIsUnionValue indicates that a detached union transform returns a
 		// pointer that must be dereferenced for a required struct field.
 		ReturnIsUnionValue bool
+		// ReturnIsOptionalBody indicates that the server body argument is nil
+		// when the request has no body. The server constructor then builds
+		// the ReturnTypeAttribute field only for a non-nil body and leaves it
+		// nil otherwise.
+		ReturnIsOptionalBody bool
 		// SkipFieldInit disables the generic struct-field assignment path when
 		// a constructor already builds the full return value itself.
 		SkipFieldInit bool

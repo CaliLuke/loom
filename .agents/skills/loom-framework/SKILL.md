@@ -331,6 +331,14 @@ filter, and serialization rules belong here.
   parameters. They use nil for an omitted key. They use a nonnil pointer for
   an empty or nonempty value. Generated clients emit the key for every nonnil
   pointer.
+- An optional, non-nullable object or union payload attribute selected with
+  `Body` (`RequestData.OptionalBodyAttribute`) is sent only when it is not
+  nil: HTTP clients send no body and JSON-RPC clients omit params. Servers
+  decode an empty body, empty form, or absent JSON-RPC params to a nil
+  attribute. A union gets this from its empty discriminator. An object
+  (`OptionalObjectBody`) is decoded into a pointer that is set to nil for an
+  empty body, is validated only when present, and is passed to the payload
+  constructor, which leaves the attribute nil for a nil body.
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
   A response encoder failure that occurs before commit is encoded through the
