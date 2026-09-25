@@ -62,9 +62,10 @@ func (s *StreamClientStream) Recv() (*jsonrpcwebsocketruntimeservice.JSONRPCWebS
 // and not received yet. When ctx is done first, that request stays the oldest
 // one.
 func (s *StreamClientStream) RecvWithContext(ctx context.Context) (*jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult, error) {
+	var zero *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult
 	response, err := s.stream.Recv(ctx)
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
 	return s.decodeResponse(response)
 }
@@ -75,10 +76,10 @@ func (s *StreamClientStream) decodeResponse(response *jsonrpc.RawResponse) (*jso
 		Body:       io.NopCloser(bytes.NewReader(response.Result)),
 		StatusCode: http.StatusOK,
 	}
-	var out *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult
+	var out, zero *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult
 	if err := s.decoder(resp).Decode(&out); err != nil {
 		s.stream.ReportError(jsonrpc.StreamErrorParsing, err, response)
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return zero, fmt.Errorf("failed to decode response: %w", err)
 	}
 	return out, nil
 }

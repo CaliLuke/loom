@@ -103,9 +103,12 @@ func writeJSONRPCWebSocketRecv(stmt *jen.Statement, ws *httpcodegen.WebSocketDat
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
 		Block(
+			// zero is declared before the locals that could shadow the
+			// package of the result type.
+			jen.Var().Id("zero").Add(codegen.TypeRef(ws.RecvTypeRef)),
 			jen.List(jen.Id("response"), jen.Err()).Op(":=").Add(receive),
 			jen.If(jen.Err().Op("!=").Nil()).Block(
-				jen.Return(jen.Nil(), jen.Err()),
+				jen.Return(jen.Id("zero"), jen.Err()),
 			),
 			jen.Return(jen.Id("s").Dot("decodeResponse").Call(jen.Id("response"))),
 		)
@@ -124,13 +127,15 @@ func writeJSONRPCWebSocketDecodeResponse(stmt *jen.Statement, ws *httpcodegen.We
 				jen.Id("StatusCode"): jen.Qual("net/http", "StatusOK"),
 				jen.Id("Body"):       jen.Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("response").Dot("Result"))),
 			})
-			g.Var().Id("out").Add(codegen.TypeRef(ws.RecvTypeRef))
+			// out and zero share one declaration, so the result type is
+			// resolved before either name can shadow its package.
+			g.Var().List(jen.Id("out"), jen.Id("zero")).Add(codegen.TypeRef(ws.RecvTypeRef))
 			g.If(
 				jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("resp")).Dot("Decode").Call(jen.Op("&").Id("out")),
 				jen.Err().Op("!=").Nil(),
 			).Block(
 				jen.Id("s").Dot("stream").Dot("ReportError").Call(codegen.Expr("jsonrpc.StreamErrorParsing"), jen.Err(), jen.Id("response")),
-				jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode response: %w"), jen.Err())),
+				jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode response: %w"), jen.Err())),
 			)
 			if attr := ws.Endpoint.Result.IDAttribute; attr != "" {
 				if ws.Endpoint.Result.IDAttributeRequired {
