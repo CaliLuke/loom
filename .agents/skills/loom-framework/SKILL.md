@@ -520,11 +520,15 @@ filter, and serialization rules belong here.
   rename the union in `expr` or in the shared IR.
 - The HTTP code generator declares the request and response body types, and
   the user types nested in them, from the normalized bodies of its transport
-  IR (`transportir.Request.Body`, `ResponseStatus.Body`). The union types and
-  the transforms use the same bodies. The normalization replaces an alias user
-  type with its underlying type and a named union user type with its union,
-  so a type declared from the evaluated `HTTPEndpointExpr.Body` refers to
-  types that the generated code does not declare.
+  IR (`transportir.Request.Body`, `Request.StreamingBody`,
+  `ResponseStatus.Body`). The union types and the transforms use the same
+  bodies. The normalization replaces an alias user type with its underlying
+  type and a named union user type with its union, so a type declared from
+  the evaluated `HTTPEndpointExpr.Body` or `StreamingBody` refers to types
+  that the generated code does not declare. The WebSocket payload constructor
+  keeps the name of the evaluated streaming body user type
+  (`initWebSocketPayloadConstructor`), and `Stream.RequestMessage` keeps the
+  evaluated body for the response contract message names.
 - A named union, a user type whose attribute is a union, is declared as the
   union type itself under the name of the user type: in the service package
   (`collectUnionTypes`), as a streaming payload or result

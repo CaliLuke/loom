@@ -3,11 +3,8 @@ import "regexp"
 // MethodStreamingBody is the type of the "ServicePayloadValidatedAlias"
 // service "Method" endpoint HTTP request body.
 type MethodStreamingBody struct {
-	Name loom.Optional[ValidatedStringStreamingBody] `form:"name,omitempty" json:"name,omitzero" xml:"name,omitempty"`
+	Name loom.Optional[string] `form:"name,omitempty" json:"name,omitzero" xml:"name,omitempty"`
 }
-
-// ValidatedStringStreamingBody is used to define fields on request body types.
-type ValidatedStringStreamingBody string
 
 // NewMethodStreamingBody builds a ServicePayloadValidatedAlias service Method
 // endpoint payload.
@@ -27,8 +24,8 @@ func NewMethodStreamingBody(body *MethodStreamingBody) *servicepayloadvalidateda
 func ValidateMethodStreamingBody(body *MethodStreamingBody) (err error) {
 	if actual, ok := body.Name.Value(); ok {
 		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.name", actual, loomPatternTest0))
-		if len(actual) < 10 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body.name", actual, len(actual), 10, true))
+		if utf8.RuneCountInString(actual) < 10 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body.name", actual, utf8.RuneCountInString(actual), 10, true))
 		}
 	}
 	return

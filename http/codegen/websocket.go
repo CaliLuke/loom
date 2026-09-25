@@ -171,9 +171,16 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 
 // initWebSocketPayloadConstructor sets the constructor of the streaming
 // payload of endpointIR, whose type is generated in the package named pkg.
+// The constructor is named after the user type of the evaluated streaming
+// body, if any, and after the transport body type otherwise: the normalized
+// body of a named non-object payload has the name of the underlying type.
 func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpointIR *transportir.Endpoint, pkg string, sd *ServiceData) {
 	body := endpointIR.Request.StreamingBody.Type
-	name := websocketPayloadInitName(endpointIR.MethodName, payload.Name)
+	typeName := payload.Name
+	if ut, ok := endpointIR.Stream.RequestMessage.Type.(expr.UserType); ok {
+		typeName = ut.Name()
+	}
+	name := websocketPayloadInitName(endpointIR.MethodName, typeName)
 	desc := fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, sd.Service.Name, endpointIR.MethodName)
 	serverArgs := websocketPayloadInitArgs(sds, endpointIR.Request.StreamingBody, sd, body)
 	serverCode := ""

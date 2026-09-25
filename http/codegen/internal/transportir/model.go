@@ -39,7 +39,10 @@ type (
 		// DocumentContentTypes are the documentation-only request media types.
 		DocumentContentTypes []string
 		// DocumentRequired is the documentation-only request body requiredness.
-		DocumentRequired    bool
+		DocumentRequired bool
+		// StreamingBody is the body of the WebSocket messages of a streaming
+		// payload, normalized like Body: named non-object types, including
+		// named unions, are replaced with their underlying types.
 		StreamingBody       *expr.AttributeExpr
 		BodyOrigin          string
 		PathParams          []*Parameter

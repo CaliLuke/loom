@@ -15,7 +15,7 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 	}
 	payload := endpoint.MethodExpr.Payload
 	body := normalizeHTTPAttribute(endpoint.Body)
-	streamingBody := endpoint.StreamingBody
+	streamingBody := normalizeHTTPAttribute(endpoint.StreamingBody)
 	bodyOrigin := attributeOrigin(body)
 	mustHaveBody := body != nil && body.Type != expr.Empty
 	if endpoint.OptionalRequestBody {
