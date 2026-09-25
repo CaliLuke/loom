@@ -31,15 +31,16 @@ func transformElementHelpers(source, target *expr.AttributeExpr, ta *transformAt
 
 // isInlineRecursive reports whether att is an object user type that reaches
 // itself through array elements and map keys or values alone, including the
-// elements of named arrays and of the messages that wrap them. Transform code
-// inlines those collection elements, while it converts object fields of a user
-// type and union branches with helper calls, so only this kind of cycle
-// requires a helper call.
+// elements of named arrays and maps and of the messages that wrap them.
+// Transform code inlines those collection elements, while it converts object
+// fields of a user type and union branches with helper calls, so only this
+// kind of cycle requires a helper call.
 func isInlineRecursive(att *expr.AttributeExpr) bool {
 	ut, ok := att.Type.(expr.UserType)
-	if !ok || !expr.IsObject(ut) || isArrayMessage(ut) {
-		// The message that wraps a named array is converted inline like the
-		// array of the service type, whose recursive elements call helpers.
+	if !ok || !expr.IsObject(ut) || isCollectionMessage(ut) {
+		// The message that wraps a named array or map is converted inline
+		// like the collection of the service type, whose recursive elements
+		// call helpers.
 		return false
 	}
 	return reachesInline(ut.Attribute(), ut.ID(), false, make(map[string]struct{}))
@@ -48,11 +49,12 @@ func isInlineRecursive(att *expr.AttributeExpr) bool {
 // reachesInline reports whether att reaches the user type with the given ID
 // through inlined transform code. element reports whether att is an array
 // element or a map key or value. The message generated for an anonymous
-// object and a named array, or the message that wraps it, are always inlined.
+// object and a named array or map, or the message that wraps it, are always
+// inlined.
 func reachesInline(att *expr.AttributeExpr, id string, element bool, seen map[string]struct{}) bool {
 	switch dt := att.Type.(type) {
 	case expr.UserType:
-		named := expr.IsArray(dt) || isArrayMessage(dt)
+		named := expr.IsArray(dt) || expr.IsMap(dt) || isCollectionMessage(dt)
 		if !named && (!(element || isAnonymousMessage(dt)) || !expr.IsObject(dt)) {
 			return false
 		}

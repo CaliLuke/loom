@@ -4,51 +4,55 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-// arrayMessageMeta marks the attribute of the message that wraps a named
-// array.
-const arrayMessageMeta = "grpc:message:array"
+// collectionMessageMeta marks the attribute of the message that wraps a
+// named array or map.
+const collectionMessageMeta = "grpc:message:collection"
 
-// wrapArrayUserType makes the named array held by att, such as
-// Type("Tags", ArrayOf(String)), the message that wraps the array in its
-// "field" attribute, as for an array payload or result, since a message field
-// or a oneof branch cannot refer to an array by name. The message takes the
-// name of the type. A named array whose type is another named array wraps the
-// array itself. The new user type has its own identifier, so it does not
-// share the examples or copies of the service type.
-func wrapArrayUserType(att *expr.AttributeExpr) {
+// wrapCollectionUserType makes the named array or map held by att, such as
+// Type("Tags", ArrayOf(String)) or Type("Index", MapOf(String, Int)), the
+// message that wraps the collection in its "field" attribute, as for an array
+// or map payload or result, since a message field, an array element, a map
+// value or a oneof branch cannot refer to an array or map by name. The message
+// takes the name of the type. A named collection whose type is another named
+// collection wraps the collection itself. The new user type has its own
+// identifier, so it does not share the examples or copies of the service
+// type.
+func wrapCollectionUserType(att *expr.AttributeExpr) {
 	ut, ok := att.Type.(expr.UserType)
-	if !ok || !expr.IsArray(ut) {
+	if !ok || !expr.IsArray(ut) && !expr.IsMap(ut) {
 		return
 	}
 	att.Type = &expr.UserTypeExpr{
 		TypeName:      ut.Name(),
-		AttributeExpr: arrayMessageAttribute(ut),
+		AttributeExpr: collectionMessageAttribute(ut),
 		UID:           ut.ID() + "#message",
 	}
 }
 
-// arrayMessageAttribute returns the attribute of the message that wraps the
-// named array ut in its "field" attribute, marked with arrayMessageMeta. A
-// named array whose type is another named array wraps the array itself.
-func arrayMessageAttribute(ut expr.UserType) *expr.AttributeExpr {
-	array := ut.Attribute()
+// collectionMessageAttribute returns the attribute of the message that wraps
+// the named array or map ut in its "field" attribute, marked with
+// collectionMessageMeta. A named collection whose type is another named
+// collection wraps the collection itself.
+func collectionMessageAttribute(ut expr.UserType) *expr.AttributeExpr {
+	collection := ut.Attribute()
 	for {
-		inner, ok := array.Type.(expr.UserType)
+		inner, ok := collection.Type.(expr.UserType)
 		if !ok {
 			break
 		}
-		array = inner.Attribute()
+		collection = inner.Attribute()
 	}
-	message := wrapperAttribute(array, false)
-	message.Meta = expr.MetaExpr{arrayMessageMeta: []string{"true"}}
+	message := wrapperAttribute(collection, false)
+	message.Meta = expr.MetaExpr{collectionMessageMeta: []string{"true"}}
 	return message
 }
 
-// isArrayMessage reports whether ut is the message that wrapArrayUserType
-// generated for a named array. Transform code converts a field that holds
-// such a message inline, as it converts the array of the service type.
-func isArrayMessage(ut expr.UserType) bool {
-	_, ok := ut.Attribute().Meta[arrayMessageMeta]
+// isCollectionMessage reports whether ut is the message that
+// wrapCollectionUserType generated for a named array or map. Transform code
+// converts a field that holds such a message inline, as it converts the
+// collection of the service type.
+func isCollectionMessage(ut expr.UserType) bool {
+	_, ok := ut.Attribute().Meta[collectionMessageMeta]
 	return ok
 }
 

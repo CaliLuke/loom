@@ -85,11 +85,11 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 		return att
 	case isut:
 		switch {
-		case expr.IsArray(ut):
-			// A named array payload or result is the same message as the
-			// named array anywhere else, including references to it from
-			// its own elements when it is recursive.
-			wrapArrayUserType(att)
+		case expr.IsArray(ut) || expr.IsMap(ut):
+			// A named array or map payload or result is the same message
+			// as the named collection anywhere else, including references
+			// to it from its own elements when it is recursive.
+			wrapCollectionUserType(att)
 			att.Validation = nil
 		case expr.IsUnion(ut):
 			wrapAttr(att, tname, true, sd)
@@ -114,7 +114,7 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 // scope identifies the position of att in the enclosing message and names the
 // messages generated for anonymous objects nested in att.
 func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceData, seen map[string]struct{}, scope messageScope) {
-	wrapArrayUserType(att)
+	wrapCollectionUserType(att)
 	ut, isut := att.Type.(expr.UserType)
 
 	// handle infinite recursions

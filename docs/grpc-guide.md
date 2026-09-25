@@ -159,32 +159,41 @@ The message is named after the enclosing message and the field, for example
 `CreateUserRequestPreferences`. Inline object array elements and map values are
 handled the same way.
 
-#### Named Arrays
+#### Named Arrays and Maps
 
 A `Type` defined as an array, such as `Type("Tags", ArrayOf(String))`, is a
-message that holds the array in a repeated field named `field`. This applies
-wherever the type appears: as a unary payload, as a result or streaming
-result, as a message field, as an array element or map value, and as a union
-branch. A streaming payload is the exception: the message of
+message that holds the array in a repeated field named `field`. A `Type`
+defined as a map, such as `Type("Index", MapOf(String, Int))`, is a message
+that holds the map in a map field named `field`. This applies wherever the
+type appears: as a unary payload, as a result or streaming result, as a
+message field, and as an array element or map value. A named array can also be
+a union branch. A streaming payload is the exception: the message of
 `StreamingPayload(Tags)` is named after the method, such as
-`UploadStreamingRequest`, and holds the same repeated `field`. A named array of
-another named array, such as `Type("More", Tags)`, holds the array itself in
-every other position, but `StreamingPayload(More)` streams `Tags` messages:
+`UploadStreamingRequest`, and holds the same `field`. A named array of another
+named array, such as `Type("More", Tags)`, holds the array itself in every
+other position, but `StreamingPayload(More)` streams `Tags` messages. A named
+map of another named map works the same way:
 
 ```proto
 message EchoRequest {
     Tags labels = 1;               // Field(1, "labels", Tags)
     repeated Tags label_lists = 2; // Field(2, "label_lists", ArrayOf(Tags))
+    Index index = 3;               // Field(3, "index", Index)
 }
 
 message Tags {
     repeated string field = 1;
 }
+
+message Index {
+    map<string, sint64> field = 1;
+}
 ```
 
-The service type is still the Go slice type, such as `type Tags []string`.
-Do not rely on the wrapper message to tell an absent array from an empty one:
-other transports and JSON encoding treat both as missing.
+The service type is still the Go slice or map type, such as
+`type Tags []string` or `type Index map[string]int`. Do not rely on the
+wrapper message to tell an absent array or map from an empty one: other
+transports and JSON encoding treat both as missing.
 
 #### Union Fields
 

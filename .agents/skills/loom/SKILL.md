@@ -348,10 +348,11 @@ completion shapes are explicit generation limitations.
   names.
 - gRPC rejects a union used as an array element or map key or value. Wrap the
   union in a type with one `Field` and use that type in the collection.
-- On gRPC, a union used as a branch of another union and a named array such as
-  `Type("Tags", ArrayOf(String))` are each a message that wraps the `oneof` or
-  the repeated `field`. gRPC rejects a map union branch; wrap the map in a type
-  with one `Field`.
+- On gRPC, a union used as a branch of another union, a named array such as
+  `Type("Tags", ArrayOf(String))` and a named map such as
+  `Type("Index", MapOf(String, Int))` are each a message that wraps the
+  `oneof`, the repeated `field` or the map `field`. gRPC rejects a map union
+  branch; wrap the map in a type with one `Field`.
 - Add `Untagged()` in the union attribute, payload, or result block only when
   JSON must encode the selected concrete named object branch directly. Decoding
   tests every branch and requires exactly one match.
