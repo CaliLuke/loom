@@ -69,38 +69,34 @@ the design error names, e.g:
 
 func exampleEndpointSection(data *basicEndpointData) codegen.Section {
 	return codegen.NewJenniferSection("basic-endpoint", func(stmt *jen.Statement) {
+		sig := serviceMethodSignature(data.MethodData)
 		codegen.Doc(stmt, data.Description)
 		stmt.Func().
 			Params(jen.Id("s").Op("*").Id(data.ServiceVarName + "srvc")).
 			Id(data.VarName).
 			ParamsFunc(func(group *jen.Group) {
 				group.Id("ctx").Add(codegen.TypeRef("context.Context"))
-				if data.PayloadFullRef != "" {
+				if sig.Payload {
 					group.Id("p").Add(codegen.TypeRef(data.PayloadFullRef))
 				}
-				if data.ServerStream != nil {
+				if sig.Stream {
 					group.Id("stream").Add(codegen.TypeRef(data.StreamInterface))
-					return
 				}
-				if data.SkipRequestBodyEncodeDecode {
+				if sig.RequestBody {
 					group.Id("req").Add(codegen.TypeRef("io.ReadCloser"))
 				}
 			}).
 			ParamsFunc(func(group *jen.Group) {
-				if data.ServerStream != nil {
-					group.Id("err").Error()
-					return
-				}
-				if data.Result != "" {
+				if sig.Result {
 					group.Id("res").Add(codegen.TypeRef(data.ResultFullRef))
 				}
-				if data.SkipResponseBodyEncodeDecode {
+				if sig.ResponseBody {
 					group.Id("resp").Add(codegen.TypeRef("io.ReadCloser"))
 				}
-				if data.FileResponse {
+				if sig.FileResponse {
 					group.Id("file").Add(codegen.TypeRef("*loomhttp.FileResponse"))
 				}
-				if data.ViewedResult != nil && data.ViewedResult.ViewName == "" {
+				if sig.View {
 					group.Id("view").String()
 				}
 				group.Id("err").Error()

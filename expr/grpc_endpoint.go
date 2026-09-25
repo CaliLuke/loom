@@ -88,6 +88,9 @@ func (e *GRPCEndpointExpr) Validate() error {
 	if e.Name() == "" {
 		verr.Add(e, "Endpoint name cannot be empty")
 	}
+	if e.MethodExpr.HasMixedResults() {
+		verr.Add(e, "gRPC methods cannot define both Result and StreamingResult with different types because a gRPC server stream sends only the streaming result")
+	}
 	e.validateGRPCUnionShapes(verr)
 	e.validateNullableTransport(verr)
 	verr.Merge(e.validateRequestShape())

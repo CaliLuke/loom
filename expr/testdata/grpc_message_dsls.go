@@ -157,3 +157,28 @@ var GRPCResponseMessageWithMultipleAttributes = func() {
 		})
 	})
 }
+
+var GRPCEndpointWithMixedResults = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			Result(func() {
+				Field(1, "done", Boolean)
+			})
+			StreamingResult(func() {
+				Field(1, "line", String)
+			})
+			GRPC(func() {})
+		})
+	})
+}
+
+var GRPCEndpointWithStreamingResultOnly = func() {
+	Service("Service", func() {
+		Method("Method", func() {
+			StreamingResult(func() {
+				Field(1, "line", String)
+			})
+			GRPC(func() {})
+		})
+	})
+}

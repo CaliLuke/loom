@@ -7,7 +7,6 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/expr"
 )
 
 // JSONRPCSSEEventMethods returns the JSON-RPC SSE server-streaming methods
@@ -73,72 +72,34 @@ func buildServiceMethod(group *jen.Group, method *MethodData) {
 }
 
 func addServiceMethodParams(params *jen.Group, method *MethodData) {
+	sig := serviceMethodSignature(method)
 	params.Qual("context", "Context")
-	if method.Payload != "" {
+	if sig.Payload {
 		params.Add(codegen.TypeRef(method.PayloadRef))
 	}
-	if method.ServerStream != nil {
-		addStreamingServiceMethodParams(params, method)
-		return
+	if sig.Stream {
+		params.Add(codegen.TypeRef(method.ServerStream.Interface))
 	}
-	if method.SkipRequestBodyEncodeDecode {
+	if sig.RequestBody {
 		params.Qual("io", "ReadCloser")
 	}
 }
 
-func addStreamingServiceMethodParams(params *jen.Group, method *MethodData) {
-	switch {
-	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == expr.ClientStreamKind:
-		return
-	case method.HasMixedResults:
-		params.Add(codegen.TypeRef(method.ServerStream.Interface))
-	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == expr.ServerStreamKind && method.PayloadRef != "":
-		params.Add(codegen.TypeRef(method.PayloadRef))
-		params.Add(codegen.TypeRef(method.ServerStream.Interface))
-	default:
-		params.Add(codegen.TypeRef(method.ServerStream.Interface))
-	}
-}
-
 func addServiceMethodResults(results *jen.Group, method *MethodData) {
-	if method.ServerStream != nil {
-		addStreamingServiceMethodResults(results, method)
-		return
-	}
-	addServiceMethodResultValue(results, method)
-	if method.SkipResponseBodyEncodeDecode {
-		results.Id("body").Qual("io", "ReadCloser")
-	} else if method.FileResponse {
-		results.Id("file").Add(codegen.TypeRef("*loomhttp.FileResponse"))
-	}
-	addServiceMethodViewResult(results, method)
-	results.Id("err").Error()
-}
-
-func addStreamingServiceMethodResults(results *jen.Group, method *MethodData) {
-	switch {
-	case method.IsJSONRPC && !method.IsJSONRPCSSE && method.ServerStream.Kind == expr.ClientStreamKind:
-		addServiceMethodResultValue(results, method)
-		results.Id("err").Error()
-	case method.HasMixedResults:
-		addServiceMethodResultValue(results, method)
-		addServiceMethodViewResult(results, method)
-		results.Id("err").Error()
-	default:
-		results.Id("err").Error()
-	}
-}
-
-func addServiceMethodResultValue(results *jen.Group, method *MethodData) {
-	if method.Result != "" {
+	sig := serviceMethodSignature(method)
+	if sig.Result {
 		results.Id("res").Add(codegen.TypeRef(method.ResultRef))
 	}
-}
-
-func addServiceMethodViewResult(results *jen.Group, method *MethodData) {
-	if method.Result != "" && method.ViewedResult != nil && method.ViewedResult.ViewName == "" {
+	if sig.ResponseBody {
+		results.Id("body").Qual("io", "ReadCloser")
+	}
+	if sig.FileResponse {
+		results.Id("file").Add(codegen.TypeRef("*loomhttp.FileResponse"))
+	}
+	if sig.View {
 		results.Id("view").String()
 	}
+	results.Id("err").Error()
 }
 
 func addViewedResultComment(group *jen.Group, method *MethodData) {

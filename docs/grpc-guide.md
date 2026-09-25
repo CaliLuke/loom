@@ -390,6 +390,10 @@ Method("create", func() {
 
 gRPC supports three streaming patterns.
 
+A gRPC server stream sends only streaming messages, so a gRPC method cannot
+declare both `Result` and `StreamingResult` with different types. That
+combination is available only through Server-Sent Events.
+
 ### Initial Payload and Stream Item Envelopes
 
 A client- or bidirectional-streaming method may declare both `Payload` and

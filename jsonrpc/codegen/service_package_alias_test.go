@@ -59,11 +59,14 @@ func TestServicePackageAliasRenderedVerbatim(t *testing.T) {
 			Design: serviceAliasWebSocketDSL,
 			Render: func(data *httpcodegen.ServiceData) jen.Code {
 				e := serviceAliasEndpoint(t, data, "upload")
+				// The result reference comes qualified from the name scope
+				// of the service data, which holds the alias.
+				e.Result.Ref = "*my_svc.Frame"
 				return jen.Switch().BlockFunc(func(g *jen.Group) {
 					writeWebSocketRequestCase(g, e)
 				})
 			},
-			Want: []string{"res.(*my_svc.UploadResult)"},
+			Want: []string{"res.(*my_svc.Frame)", "s.SendUploadResponse(ctx, req.ID, r)"},
 		},
 	}
 	for _, c := range cases {

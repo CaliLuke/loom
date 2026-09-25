@@ -66,9 +66,10 @@ func TestFileResponseServiceSections(t *testing.T) {
 	exampleCode := codegen.SectionCode(t, exampleEndpointSection(&basicEndpointData{
 		MethodData:     method,
 		ServiceVarName: "files",
+		PayloadFullRef: "*files.DownloadPayload",
 		ResultFullRef:  "*files.DownloadResult",
 	}))
-	require.Contains(t, exampleCode, "file *loomhttp.FileResponse")
+	require.Contains(t, exampleCode, "Download(ctx context.Context, p *files.DownloadPayload) (res *files.DownloadResult, file *loomhttp.FileResponse, err error)")
 	require.Contains(t, exampleCode, `err = loom.Fault("files.Download is not implemented")`)
 	require.NotContains(t, exampleCode, "file = &loomhttp.FileResponse")
 }

@@ -76,7 +76,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 				jen.Return(jen.Id("s").Dot("sendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError"), jen.Lit("Internal error"), jen.Nil())),
 			),
 			jen.If(
-				jen.List(jen.Id("r"), jen.Id("ok")).Op(":=").Id("res").Assert(jen.Op("*").Add(codegen.PkgQual(ed.ServicePkgName, ed.Method.VarName+"Result"))),
+				jen.List(jen.Id("r"), jen.Id("ok")).Op(":=").Id("res").Assert(codegen.TypeRef(ed.Result.Ref)),
 				jen.Id("ok"),
 			).Block(
 				jen.If(

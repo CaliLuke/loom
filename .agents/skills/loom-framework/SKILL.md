@@ -121,7 +121,10 @@ consumer validation.
   the same Loom path consumers use.
 - Generated example service methods fail closed with a transport-neutral Loom
   fault. They never create placeholder success bodies, files, or stream events.
-  The design remains the source of declared transport responses.
+  The design remains the source of declared transport responses. The service
+  interface and the example stubs render one signature per method
+  (`serviceMethodSignature` in `codegen/service/method_signature.go`); do not
+  derive a stub signature separately.
 - HTTP transport generation defaults to all artifacts. API metadata
   `Meta("http:generate", "server")` omits client, client-type, client-path, and
   aggregate CLI files while retaining service and server packages. Stale client

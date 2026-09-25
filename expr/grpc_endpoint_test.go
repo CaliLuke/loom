@@ -106,6 +106,16 @@ service "Service" gRPC endpoint "Method": union branch "fast" of attribute "mode
 			DSL:    testdata.GRPCResponseMessageWithMultipleAttributes,
 			Errors: []string{},
 		},
+		"endpoint-with-mixed-results": {
+			DSL: testdata.GRPCEndpointWithMixedResults,
+			Errors: []string{
+				`service "Service" gRPC endpoint "Method": gRPC methods cannot define both Result and StreamingResult with different types because a gRPC server stream sends only the streaming result`,
+			},
+		},
+		"endpoint-with-streaming-result-only": {
+			DSL:    testdata.GRPCEndpointWithStreamingResultOnly,
+			Errors: []string{},
+		},
 		"endpoint-with-named-union-field": {
 			DSL:    testdata.GRPCEndpointWithNamedUnionField,
 			Errors: []string{},
