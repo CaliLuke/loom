@@ -26,10 +26,11 @@ func ExampleInterceptorsFiles(genpkg string, r *expr.RootExpr, services *Service
 // exampleInterceptorsFile returns the example interceptors for the given service.
 func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *ServicesData) []*codegen.File {
 	sdata := services.Get(svc.Name)
+	_, svcQual := exampleInterceptorsImports(genpkg, sdata)
 	data := map[string]any{
 		"ServiceName":        sdata.Name,
 		"StructName":         sdata.StructName,
-		"PkgName":            "interceptors",
+		"PkgName":            svcQual,
 		"ServerInterceptors": sdata.ServerInterceptors,
 		"ClientInterceptors": sdata.ClientInterceptors,
 	}
@@ -40,16 +41,11 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 	if len(sdata.ServerInterceptors) > 0 {
 		serverPath := filepath.Join("interceptors", sdata.PathName+"_server.go")
 		if _, err := os.Stat(serverPath); os.IsNotExist(err) {
+			serverImports, _ := exampleInterceptorsImports(genpkg, sdata)
 			files = append(files, &codegen.File{
 				Path: serverPath,
 				Sections: []codegen.Section{
-					codegen.Header(fmt.Sprintf("%s example server interceptors", sdata.Name), "interceptors", []*codegen.ImportSpec{
-						{Path: "context"},
-						{Path: "fmt"},
-						{Path: "github.com/CaliLuke/loom/clue/log"},
-						codegen.LoomImport(""),
-						{Path: path.Join(genpkg, sdata.PathName), Name: sdata.PkgName},
-					}),
+					codegen.Header(fmt.Sprintf("%s example server interceptors", sdata.Name), "interceptors", serverImports),
 					exampleInterceptorSection("example-server-interceptor", data, true),
 				},
 			})
@@ -60,16 +56,11 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 	if len(sdata.ClientInterceptors) > 0 {
 		clientPath := filepath.Join("interceptors", sdata.PathName+"_client.go")
 		if _, err := os.Stat(clientPath); os.IsNotExist(err) {
+			clientImports, _ := exampleInterceptorsImports(genpkg, sdata)
 			files = append(files, &codegen.File{
 				Path: clientPath,
 				Sections: []codegen.Section{
-					codegen.Header(fmt.Sprintf("%s example client interceptors", sdata.Name), "interceptors", []*codegen.ImportSpec{
-						{Path: "context"},
-						{Path: "fmt"},
-						{Path: "github.com/CaliLuke/loom/clue/log"},
-						codegen.LoomImport(""),
-						{Path: path.Join(genpkg, sdata.PathName), Name: sdata.PkgName},
-					}),
+					codegen.Header(fmt.Sprintf("%s example client interceptors", sdata.Name), "interceptors", clientImports),
 					exampleInterceptorSection("example-client-interceptor", data, false),
 				},
 			})
@@ -77,6 +68,26 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 	}
 
 	return files
+}
+
+// exampleInterceptorsImports returns the imports of the example interceptor
+// files of the service described by sdata and the name under which they
+// import the service package, which declares the interceptor Info types. The
+// service package is imported under an alias when its name clashes with
+// another import of the files.
+func exampleInterceptorsImports(genpkg string, sdata *Data) ([]*codegen.ImportSpec, string) {
+	svcImport := &codegen.ImportSpec{Path: path.Join(genpkg, sdata.PathName), Name: sdata.PkgName}
+	imports := []*codegen.ImportSpec{
+		{Path: "context"},
+		{Path: "fmt"},
+		{Path: "github.com/CaliLuke/loom/clue/log"},
+		codegen.LoomImport(""),
+		svcImport,
+	}
+	if alias, ok := codegen.AliasClashingImports(imports, []string{svcImport.Path})[svcImport.Path]; ok {
+		svcImport.Name = alias
+	}
+	return imports, svcImport.Name
 }
 
 func exampleInterceptorSection(name string, data map[string]any, server bool) codegen.Section {
@@ -117,7 +128,7 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 				Id(interceptor.Name).
 				Params(
 					jen.Id("ctx").Add(codegen.TypeRef("context.Context")),
-					jen.Id("info").Add(codegen.TypeRef("*"+pkgName+"."+interceptor.Name+"Info")),
+					jen.Id("info").Op("*").Add(codegen.PkgQual(pkgName, interceptor.Name+"Info")),
 					jen.Id("next").Add(codegen.TypeRef("loom.Endpoint")),
 				).
 				Params(jen.Any(), jen.Error()).
