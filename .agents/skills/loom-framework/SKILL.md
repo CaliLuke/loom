@@ -484,6 +484,12 @@ filter, and serialization rules belong here.
   HTTP/SSE negotiation, WebSocket setup, and final stream-response decisions
   in `jsonrpc`. Generated JSON-RPC code supplies typed dispatch, error, and
   stream adapters only.
+- `jsonrpc.Response` owns the wire form of every JSON-RPC response
+  (`Response.MarshalJSONTo`): a success response always has a `result`
+  member, null for a method without a result, and an error response has none.
+  Build responses with `MakeSuccessResponse` and `MakeErrorResponse`; do not
+  add an envelope type with an `omitempty` result, because JSON v2 omits
+  `""`, `[]` and `{}` as well as null.
 - Generated JSON-RPC WebSocket clients share one `jsonrpc.WebSocketClientConn`
   per connection. It is the only reader: it assigns connection-wide request
   ids, routes each response by id, and fails every waiter when the read fails.

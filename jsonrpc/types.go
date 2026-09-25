@@ -16,7 +16,10 @@ type (
 		ID      any    `json:"id,omitempty"`
 	}
 
-	// Response represents a JSON-RPC response.
+	// Response represents a JSON-RPC response. A response without an Error is
+	// a success response: its JSON form always has a "result" member, which is
+	// null when Result is nil, as JSON-RPC 2.0 requires. The JSON form of a
+	// response with an Error has no "result" member.
 	Response struct {
 		JSONRPC string         `json:"jsonrpc"`
 		Result  any            `json:"result,omitempty"`
@@ -65,6 +68,20 @@ type (
 
 	// Code is a JSON-RPC error code, see JSON-RPC 2.0 section 5.1
 	Code int
+
+	// successEnvelope is the JSON form of a success Response.
+	successEnvelope struct {
+		JSONRPC string `json:"jsonrpc"`
+		Result  any    `json:"result"`
+		ID      any    `json:"id"`
+	}
+
+	// errorEnvelope is the JSON form of an error Response.
+	errorEnvelope struct {
+		JSONRPC string         `json:"jsonrpc"`
+		Error   *ErrorResponse `json:"error"`
+		ID      any            `json:"id"`
+	}
 )
 
 const (
@@ -116,6 +133,15 @@ func MakeNotification(method string, params any) *Request {
 		Method:  method,
 		Params:  params,
 	}
+}
+
+// MarshalJSONTo encodes r with the options of enc. A success response always
+// has a "result" member and an error response has none; see Response.
+func (r Response) MarshalJSONTo(enc *jsontext.Encoder) error {
+	if r.Error != nil {
+		return json.MarshalEncode(enc, errorEnvelope{JSONRPC: r.JSONRPC, Error: r.Error, ID: r.ID})
+	}
+	return json.MarshalEncode(enc, successEnvelope{JSONRPC: r.JSONRPC, Result: r.Result, ID: r.ID})
 }
 
 // Error returns a string representation of the error.

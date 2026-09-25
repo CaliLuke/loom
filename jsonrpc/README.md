@@ -162,6 +162,11 @@ Message structure:
 }
 ```
 
+Every success response has a `result` member, over HTTP, as the final response
+of an SSE stream and over WebSocket. A method without a result answers with
+`"result": null`, and empty results such as `""`, `[]` and `{}` keep their
+value. An error response has an `error` member and no `result` member.
+
 ### Single Endpoint Architecture
 
 Unlike REST where each resource has its own URL, JSON-RPC services multiplex all
