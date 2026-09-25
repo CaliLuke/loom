@@ -258,6 +258,8 @@ func (s *Sink) Ack(ctx context.Context, e *Event) error {
 // AddStream adds the stream to the sink. By default the stream cursor starts at
 // the same timestamp as the sink main stream cursor.  This can be overridden
 // with opts. AddStream does nothing if the stream is already part of the sink.
+// It creates the stream if missing and applies the stream TTL in the same
+// script as the consumer group, as NewSink does.
 func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.AddStream) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -279,7 +281,7 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 	if _, err := cm.AppendValues(ctx, s.Name, s.consumer); err != nil {
 		return fmt.Errorf("failed to append consumer %s to replicated map for stream %s: %w", s.consumer, stream.Name, err)
 	}
-	if err := stream.rdb.XGroupCreateMkStream(ctx, stream.key, s.Name, startID).Err(); err != nil && !isBusyGroupErr(err) {
+	if err := stream.createGroup(ctx, s.Name, startID); err != nil {
 		return fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", s.Name, stream.Name, err)
 	}
 	s.streams = append(s.streams, stream)

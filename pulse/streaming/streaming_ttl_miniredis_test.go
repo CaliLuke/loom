@@ -118,6 +118,64 @@ func TestNewSinkReportsGroupCreateError(t *testing.T) {
 	assert.Equal(t, time.Duration(-1), ttl)
 }
 
+// TestSinkAddStreamAppliesTTL checks that Sink.AddStream sets the TTL of a
+// stream it creates in the same script that creates the consumer group, and
+// that a fixed TTL is not extended when AddStream joins an existing stream.
+func TestSinkAddStreamAppliesTTL(t *testing.T) {
+	for _, mode := range ttlModes {
+		t.Run(mode.name, func(t *testing.T) {
+			rdb := startTestRedis(t)
+			ctx := t.Context()
+			rec := redistest.Record(rdb)
+			main, err := NewStream("ttl-addstream-main-"+mode.name, rdb)
+			require.NoError(t, err)
+			first, err := NewStream("ttl-addstream-first-"+mode.name, rdb, mode.opt)
+			require.NoError(t, err)
+			sink := newTestSink(t, main, "sink")
+
+			rec.Reset()
+			require.NoError(t, sink.AddStream(ctx, first))
+			assertNoSeparateExpiry(t, rec.Names())
+			assertTTLBetween(t, rdb, first.key, testShortTTL, testTTL)
+
+			// A second sink joins the existing stream after most of the
+			// TTL elapsed.
+			require.NoError(t, rdb.PExpire(ctx, first.key, testShortTTL).Err())
+			other := newTestSink(t, main, "other")
+			rec.Reset()
+			require.NoError(t, other.AddStream(ctx, first))
+			assertNoSeparateExpiry(t, rec.Names())
+			if mode.extended {
+				assertTTLBetween(t, rdb, first.key, testShortTTL, testTTL)
+			} else {
+				assertTTLBetween(t, rdb, first.key, 0, testShortTTL)
+			}
+		})
+	}
+}
+
+// TestSinkAddStreamReportsGroupCreateError checks that Sink.AddStream returns
+// the error of a failed consumer group creation of a TTL stream, applies no
+// TTL then, and does not add the stream to the sink.
+func TestSinkAddStreamReportsGroupCreateError(t *testing.T) {
+	rdb := startTestRedis(t)
+	ctx := t.Context()
+	main, err := NewStream("ttl-addstream-error-main", rdb)
+	require.NoError(t, err)
+	stream, err := NewStream("ttl-addstream-error", rdb, options.WithStreamTTL(testTTL))
+	require.NoError(t, err)
+	require.NoError(t, rdb.Set(ctx, stream.key, "not a stream", 0).Err())
+	sink := newTestSink(t, main, "sink")
+
+	err = sink.AddStream(ctx, stream)
+	require.ErrorContains(t, err, "failed to create Redis consumer group sink")
+	require.ErrorContains(t, err, "WRONGTYPE")
+	ttl, err := rdb.PTTL(ctx, stream.key).Result()
+	require.NoError(t, err)
+	assert.Equal(t, time.Duration(-1), ttl)
+	assert.Len(t, sink.streams, 1)
+}
+
 // TestAddOnlyIfStreamExistsWithTTL checks that Add with
 // WithOnlyIfStreamExists neither creates a missing stream nor fails when the
 // stream has a TTL.
