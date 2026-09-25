@@ -308,3 +308,27 @@ var ConflictWithAPINameAndServiceNamesIncludingMultipartDSL = func() {
 		})
 	})
 }
+
+var ServiceWithoutTransportDSL = func() {
+	Service("Service", func() {
+		Method("Method", func() {})
+	})
+}
+
+var ServerHostingServiceWithoutTransportDSL = func() {
+	API("ServerHostingServiceWithoutTransport", func() {
+		Server("SingleHost", func() {
+			Services("Service", "Plain")
+		})
+	})
+	Service("Service", func() {
+		Method("Method", func() {
+			HTTP(func() {
+				GET("/")
+			})
+		})
+	})
+	Service("Plain", func() {
+		Method("Method", func() {})
+	})
+}

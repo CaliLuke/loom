@@ -1,0 +1,51 @@
+func main() {
+	// Define command line flags, add any other flag required to configure the
+	// service.
+	var (
+		hostF = flag.String("host", "localhost", "Server host (valid values: localhost)")
+		dbgF  = flag.Bool("debug", false, "Log request and response bodies")
+	)
+	flag.Parse()
+
+	// Setup logger. Replace logger with your own log package of choice.
+	format := log.FormatJSON
+	if log.IsTerminal() {
+		format = log.FormatTerminal
+	}
+	ctx := log.Context(context.Background(), log.WithFormat(format))
+	if *dbgF {
+		ctx = log.Context(ctx, log.WithDebug())
+		log.Debugf(ctx, "debug logs enabled")
+	}
+
+	// Create channel used by both the signal handler and server goroutines
+	// to notify the main goroutine when to stop the server.
+	errc := make(chan error)
+
+	// Setup interrupt handler. This optional step configures the process so
+	// that SIGINT and SIGTERM signals cause the services to stop gracefully.
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errc <- fmt.Errorf("%s", <-c)
+	}()
+
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Start the servers and send errors (if any) to the error channel.
+	switch *hostF {
+	case "localhost":
+	default:
+		log.Fatal(ctx, fmt.Errorf("invalid host argument: %q (valid hosts: localhost)", *hostF))
+	}
+
+	// Wait for signal.
+	log.Printf(ctx, "exiting (%v)", <-errc)
+
+	// Send cancellation signal to the goroutines.
+	cancel()
+
+	wg.Wait()
+	log.Printf(ctx, "exited")
+}

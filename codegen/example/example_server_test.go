@@ -37,6 +37,8 @@ func TestExampleServerFiles(t *testing.T) {
 		{"service-for-only-http", testdata.ServiceForOnlyHTTPDSL},
 		{"sercice-for-only-grpc", testdata.ServiceForOnlyGRPCDSL},
 		{"service-for-http-and-part-of-grpc", testdata.ServiceForHTTPAndPartOfGRPCDSL},
+		{"service-without-transport", testdata.ServiceWithoutTransportDSL},
+		{"server-hosting-service-without-transport", testdata.ServerHostingServiceWithoutTransportDSL},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {

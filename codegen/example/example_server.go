@@ -60,12 +60,15 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 		scope.Unique(name)
 	}
 	svcData := serverMainServices(svr, services, scope)
-	hasInterceptors := false
 	for _, sd := range svcData {
 		specs = append(specs, &codegen.ImportSpec{
 			Path: path.Join(genpkg, sd.PathName),
 			Name: sd.PkgName,
 		})
+	}
+	served := servedServices(svrdata, svcData)
+	hasInterceptors := false
+	for _, sd := range served {
 		hasInterceptors = hasInterceptors || len(sd.ServerInterceptors) > 0
 	}
 	interPkg := scope.Unique("interceptors", "ex")
@@ -90,7 +93,7 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
 		newRenderSection("server-main", func() string {
-			return renderServerMain(svrdata, svcData, apiPkg, interPkg, hasInterceptors)
+			return renderServerMain(svrdata, served, apiPkg, interPkg, hasInterceptors)
 		}),
 	}
 
@@ -113,6 +116,33 @@ func serverMainServices(svr *expr.ServerExpr, services *service.ServicesData, sc
 		svcData[i] = sd
 	}
 	return svcData
+}
+
+// servedServices returns the services, in server order, whose endpoints the
+// example main passes to the handler of a server URI. The main initializes
+// only these services: the variables of a service that no transport of the
+// server serves, such as a service without a transport, would be unused.
+func servedServices(server *Data, services []*service.Data) []*service.Data {
+	served := make(map[string]bool, len(services))
+	for _, h := range server.Hosts {
+		for _, u := range h.URIs {
+			if !server.HasTransport(u.Transport.Type) {
+				continue
+			}
+			for _, arg := range u.HandlerArgs {
+				if arg.Endpoint != "" {
+					served[arg.ServiceName] = true
+				}
+			}
+		}
+	}
+	out := make([]*service.Data, 0, len(services))
+	for _, svc := range services {
+		if served[svc.Name] {
+			out = append(out, svc)
+		}
+	}
+	return out
 }
 
 // mustInitServices returns true if at least one of the services defines methods.

@@ -129,6 +129,10 @@ consumer validation.
   interface and the example stubs render one signature per method
   (`serviceMethodSignature` in `codegen/service/method_signature.go`); do not
   derive a stub signature separately.
+- The example main of a server initializes only the services whose endpoints
+  it passes to a transport handler of that server (`servedServices` in
+  `codegen/example/example_server.go`). A hosted service without a transport
+  gets no service, interceptor, or endpoint variables.
 - HTTP transport generation defaults to all artifacts. API metadata
   `Meta("http:generate", "server")` omits client, client-type, client-path, and
   aggregate CLI files while retaining service and server packages. Stale client
