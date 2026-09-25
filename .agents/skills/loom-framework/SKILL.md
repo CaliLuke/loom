@@ -585,6 +585,12 @@ filter, and serialization rules belong here.
   `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the
   called names from the functions that name them
   (`projectedResultInitHelperBaseName`, `projectionHelperBaseName`).
+- A projected type declares the field of a required union as a value and
+  every other field as a pointer or a collection. The view conversions
+  transform through an object of the attributes of the view
+  (`viewObjectAttribute`) that requires only the unions that the projected
+  type requires, so that the transforms use the union fields as declared and
+  still check the other fields for nil.
 - A method result that customizes the requiredness of a result type, such as
   `Result(RT, func() { Required("x") })`, is a renamed copy that keeps the
   identifier of the result type. The service analysis keys projected and

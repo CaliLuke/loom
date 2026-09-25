@@ -124,26 +124,21 @@ func buildTypeInits(projected, att *expr.AttributeExpr, viewspkg string, scope, 
 
 	init := make([]*InitData, 0, len(prt.Views))
 	for _, view := range prt.Views {
-		var typ expr.DataType
-		obj := &expr.Object{}
-		walkViewAttrs(pobj, view, func(name string, att, _ *expr.AttributeExpr) {
-			obj.Set(name, att)
-		})
-		typ = obj
+		vatt := viewObjectAttribute(projected, pobj, view)
 		if parr != nil {
-			typ = &expr.Array{ElemType: &expr.AttributeExpr{
+			vatt = &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{
 				Type: &expr.ResultTypeExpr{
 					UserTypeExpr: &expr.UserTypeExpr{
-						AttributeExpr: &expr.AttributeExpr{Type: obj},
+						AttributeExpr: vatt,
 						TypeName:      scope.GoTypeName(parr.ElemType),
 					},
 				},
-			}}
+			}}}
 		}
 		src := &expr.AttributeExpr{
 			Type: &expr.ResultTypeExpr{
 				UserTypeExpr: &expr.UserTypeExpr{
-					AttributeExpr: &expr.AttributeExpr{Type: typ},
+					AttributeExpr: vatt,
 					TypeName:      scope.GoTypeName(projected),
 				},
 				Views:      prt.Views,
@@ -186,31 +181,26 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 	rt := att.Type.(*expr.ResultTypeExpr)
 	projections := make([]*InitData, 0, len(rt.Views))
 	for _, view := range rt.Views {
-		var typ expr.DataType
-		obj := &expr.Object{}
 		pobj := expr.AsObject(projected.Type)
 		parr := expr.AsArray(projected.Type)
 		if parr != nil {
 			pobj = expr.AsObject(parr.ElemType.Type)
 		}
-		walkViewAttrs(pobj, view, func(name string, att, _ *expr.AttributeExpr) {
-			obj.Set(name, att)
-		})
-		typ = obj
+		vatt := viewObjectAttribute(projected, pobj, view)
 		if parr != nil {
-			typ = &expr.Array{ElemType: &expr.AttributeExpr{
+			vatt = &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{
 				Type: &expr.ResultTypeExpr{
 					UserTypeExpr: &expr.UserTypeExpr{
-						AttributeExpr: &expr.AttributeExpr{Type: obj},
+						AttributeExpr: vatt,
 						TypeName:      parr.ElemType.Type.Name(),
 					},
 				},
-			}}
+			}}}
 		}
 		tgt := &expr.AttributeExpr{
 			Type: &expr.ResultTypeExpr{
 				UserTypeExpr: &expr.UserTypeExpr{
-					AttributeExpr: &expr.AttributeExpr{Type: typ},
+					AttributeExpr: vatt,
 					TypeName:      projected.Type.Name(),
 				},
 				Views:      rt.Views,
@@ -245,6 +235,33 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 		})
 	}
 	return projections
+}
+
+// viewObjectAttribute returns an object attribute that holds the attributes
+// of the projected object pobj that view renders. The projected type declares
+// the field of a union that it, or its element for a collection, requires as
+// a value and the field of an optional union as a pointer, so the attribute
+// requires the same unions for the conversions to use the fields as
+// declared. The other attributes stay optional: the projected type declares
+// them as pointers or collections whether they are required or not, and the
+// conversions check them for nil.
+func viewObjectAttribute(projected *expr.AttributeExpr, pobj *expr.Object, view *expr.ViewExpr) *expr.AttributeExpr {
+	if parr := expr.AsArray(projected.Type); parr != nil {
+		projected = parr.ElemType
+	}
+	obj := &expr.Object{}
+	var required []string
+	walkViewAttrs(pobj, view, func(name string, att, _ *expr.AttributeExpr) {
+		obj.Set(name, att)
+		if expr.IsUnion(att.Type) && projected.IsRequired(name) {
+			required = append(required, name)
+		}
+	})
+	att := &expr.AttributeExpr{Type: obj}
+	if len(required) > 0 {
+		att.Validation = &expr.ValidationExpr{Required: required}
+	}
+	return att
 }
 
 func projectedResultInitHelperBaseName(scope, viewScope *codegen.NameScope, att, projected *expr.AttributeExpr) string {
