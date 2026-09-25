@@ -819,6 +819,13 @@ optional field required, or a method that moves a field to gRPC metadata,
 changes the fields of its message, and code generation then fails with an
 error that names the methods.
 
+A client tells the errors of a method apart by the type of the message in the
+status details. Two errors of a method can use one type that has a
+`struct:name:proto` name, because the error name is a field of the type
+(`ErrorName`). Code generation fails when two errors of a method map
+different types to one message, because the client could not tell which type
+to return.
+
 ### Protoc Configuration
 
 The versions above are the supported defaults. Use metadata overrides only

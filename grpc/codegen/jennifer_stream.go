@@ -165,10 +165,7 @@ func appendGRPCStreamRecvErrorHandling(g *jen.Group, stream *StreamData) {
 		if stream.Endpoint != nil && len(stream.Endpoint.Errors) > 0 && stream.Type == "client" {
 			eg.Id("resp").Op(":=").Add(codegenpkg.Expr("loomgrpc.DecodeError")).Call(jen.Err())
 			eg.Switch(jen.Id("message").Op(":=").Id("resp").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
-				for _, errData := range stream.Endpoint.Errors {
-					if errData.Response.ClientConvert == nil {
-						continue
-					}
+				for _, errData := range clientErrorCases(stream.Endpoint.Errors) {
 					sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(grpcStreamRecvErrorCase(errData)...)
 				}
 				sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(

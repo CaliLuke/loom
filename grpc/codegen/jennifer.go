@@ -100,10 +100,7 @@ func writeGRPCClientEndpointErrorHandling(g *jen.Group, endpoint *EndpointData) 
 
 func writeGRPCClientEndpointTypedErrors(eg *jen.Group, endpoint *EndpointData) {
 	eg.Switch(jen.Id("message").Op(":=").Id("resp").Assert(jen.Type())).BlockFunc(func(sg *jen.Group) {
-		for _, errData := range endpoint.Errors {
-			if errData.Response.ClientConvert == nil {
-				continue
-			}
+		for _, errData := range clientErrorCases(endpoint.Errors) {
 			sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(grpcClientEndpointErrorCaseBody(errData)...)
 		}
 		sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(
@@ -119,6 +116,28 @@ func writeGRPCClientEndpointTypedErrors(eg *jen.Group, endpoint *EndpointData) {
 			),
 		)
 	})
+}
+
+// clientErrorCases returns the errors that the client decodes from the
+// status details, one per protocol buffer message. The client tells errors
+// apart by the type of the message, and errors that share a message, such as
+// the errors of one type with a struct:name:proto name, share its first
+// converter: they have the same type, which holds the error name.
+func clientErrorCases(errors []*ErrorData) []*ErrorData {
+	cases := make([]*ErrorData, 0, len(errors))
+	seen := make(map[string]struct{}, len(errors))
+	for _, errData := range errors {
+		convert := errData.Response.ClientConvert
+		if convert == nil {
+			continue
+		}
+		if _, ok := seen[convert.SrcRef]; ok {
+			continue
+		}
+		seen[convert.SrcRef] = struct{}{}
+		cases = append(cases, errData)
+	}
+	return cases
 }
 
 func grpcClientEndpointErrorCaseBody(errData *ErrorData) []jen.Code {

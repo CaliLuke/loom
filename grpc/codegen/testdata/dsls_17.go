@@ -51,3 +51,87 @@ var MappedNamesDSL = func() {
 		})
 	})
 }
+
+// PayloadShapesDSL declares methods named after the named array, named map
+// and primitive alias that they use as payload and result, so that the rpc
+// and its messages have the same name, a result type used only by gRPC, an
+// empty object used as unary and streaming payload and result, and a type
+// with a struct:name:proto name used for two errors of a unary and a server
+// streaming method.
+var PayloadShapesDSL = func() {
+	var Leaf = Type("Leaf", func() {
+		Field(1, "name", String)
+	})
+	var Tags = Type("Tags", ArrayOf(String))
+	var Index = Type("Index", MapOf(String, Leaf))
+	var ID = Type("ID", String)
+	var Nothing = Type("Nothing", func() {})
+	var Detail = ResultType("application/vnd.detail", func() {
+		Attributes(func() {
+			Field(1, "name", String)
+		})
+	})
+	var Fault = Type("Fault", func() {
+		Field(1, "msg", String)
+		ErrorName(2, "name", String)
+		Required("name")
+		Meta("struct:name:proto", "FaultProto")
+	})
+	Service("shapes", func() {
+		Method("tags", func() {
+			Payload(Tags)
+			Result(Tags)
+			GRPC(func() {})
+		})
+		Method("index", func() {
+			Payload(Index)
+			Result(Index)
+			GRPC(func() {})
+		})
+		Method("id", func() {
+			Payload(ID)
+			Result(ID)
+			GRPC(func() {})
+		})
+		Method("describe", func() {
+			Payload(String)
+			Result(Detail)
+			GRPC(func() {})
+		})
+		Method("empty", func() {
+			Payload(Nothing)
+			Result(Nothing)
+			GRPC(func() {})
+		})
+		Method("watch", func() {
+			Payload(Nothing)
+			StreamingResult(Nothing)
+			GRPC(func() {})
+		})
+		Method("upload", func() {
+			StreamingPayload(Nothing)
+			Result(Nothing)
+			GRPC(func() {})
+		})
+		Method("fail", func() {
+			Payload(String)
+			Result(String)
+			Error("missing", Fault)
+			Error("invalid", Fault)
+			GRPC(func() {
+				Response("missing", CodeNotFound)
+				Response("invalid", CodeInvalidArgument)
+			})
+		})
+		Method("fail_stream", func() {
+			Payload(String)
+			StreamingResult(String)
+			Error("missing", Fault)
+			Error("invalid", Fault)
+			GRPC(func() {
+				Response("missing", CodeNotFound)
+				Response("invalid", CodeInvalidArgument)
+			})
+		})
+	})
+}

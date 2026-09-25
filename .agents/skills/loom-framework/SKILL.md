@@ -460,6 +460,20 @@ filter, and serialization rules belong here.
   gives each service type its own converter to the message in each of the
   server and client packages. The first converter keeps the message name, so
   designs without shared messages keep their output.
+- The gRPC client tells the errors of a method apart only by the type of the
+  status detail message, so its type switches have one case per message
+  (`clientErrorCases`). Errors of one type that share a `struct:name:proto`
+  message share the first converter; errors of different types that map to
+  one message fail generation.
+- protoc resolves the messages of an rpc in the scope of the service first,
+  where the rpcs are defined. The service definition qualifies a message that
+  has the name of an rpc with the package (`rpcMessageRef`), such as the
+  named array `Tags` of the method `tags`.
+- An empty object payload or result is an object, not `Empty`: the gRPC code
+  generator tests the payload and result against `expr.Empty` and uses
+  `isEmpty` only for messages without fields. The converter of such a message
+  takes no argument, so the codecs discard the value that they assert
+  (`valueVar`), while the stream converters always take the stream item.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
   endpoints should not grow independent read/write/close loops.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,

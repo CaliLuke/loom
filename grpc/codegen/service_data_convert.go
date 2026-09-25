@@ -22,7 +22,7 @@ import (
 func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, md []*MetadataData, sd *ServiceData, svr bool) *ConvertData {
 	request := endpoint.Request.ProtoMessage
 	payload := endpoint.Request.Payload
-	if svr && isEmpty(payload.Type) {
+	if svr && payload.Type == expr.Empty {
 		return nil
 	}
 	if !svr && endpoint.Stream.IsPayloadStreaming && isEmpty(endpoint.Request.Message.Type) {
@@ -90,7 +90,7 @@ func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, m
 // svr param indicates that the convert data is generated for server side.
 func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, result *expr.AttributeExpr, svcCtx *codegen.AttributeContext, hdrs, trlrs []*MetadataData, sd *ServiceData, svr bool) *ConvertData {
 	response := endpoint.Response.ProtoMessage
-	if !svr && (endpoint.Stream.IsStreaming || isEmpty(endpoint.Response.Result.Type)) {
+	if !svr && (endpoint.Stream.IsStreaming || endpoint.Response.Result.Type == expr.Empty) {
 		return nil
 	}
 	svc := sd.Service
@@ -165,6 +165,8 @@ func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, 
 // svcCtx is the attribute context for service type
 // proto if true indicates the target type is a protocol buffer type
 // svr if true indicates the code is generated for conversion server side
+// usesrc if true indicates a stream converter, which is named after the
+// source type and takes the stream item even when its message has no fields
 func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceVar, targetVar string, svcCtx *codegen.AttributeContext, proto, svr, usesrc bool, sd *ServiceData) *InitData {
 	pbCtx := protoBufTypeContext(sd.PkgName, sd.Scope, false)
 	name := "New"
@@ -192,7 +194,7 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 	}
 	sd.transformHelpers = appendTransformHelpers(sd.transformHelpers, helpers, svr)
 	var args []*InitArgData
-	if (!proto && !isEmpty(source.Type)) || (proto && !isEmpty(target.Type)) {
+	if usesrc || (!proto && !isEmpty(source.Type)) || (proto && !isEmpty(target.Type)) {
 		args = []*InitArgData{{
 			Name:     sourceVar,
 			Ref:      sourceVar,
@@ -247,6 +249,7 @@ func (d *ServicesData) buildErrorsData(endpoint *transportir.Endpoint, sd *Servi
 	svc := sd.Service
 	method := svc.Method(endpoint.Name)
 	errors := make([]*ErrorData, 0, len(endpoint.Errors))
+	messages := make(map[string]*ErrorData, len(endpoint.Errors))
 	for _, v := range endpoint.Errors {
 		responseData := &ResponseData{
 			StatusCode:    statusCodeToGRPCConst(v.Response.StatusCode),
@@ -255,11 +258,20 @@ func (d *ServicesData) buildErrorsData(endpoint *transportir.Endpoint, sd *Servi
 			ClientConvert: d.buildErrorConvertData(v, endpoint, sd, false),
 		}
 		errorDesc := service.BuildErrorDescriptor(svc, method, v.Name, v.Attribute)
-		errors = append(errors, &ErrorData{
+		errData := &ErrorData{
 			Name:     v.Name,
 			Ref:      errorDesc.Type.Ref,
 			Response: responseData,
-		})
+		}
+		if convert := responseData.ClientConvert; convert != nil {
+			if other, ok := messages[convert.SrcRef]; !ok {
+				messages[convert.SrcRef] = errData
+			} else if other.Ref != errData.Ref {
+				panic(fmt.Errorf("errors %q and %q of method %q of service %q map different types to protocol buffer message %q, so the client cannot tell them apart",
+					other.Name, v.Name, endpoint.Name, svc.Name, protoBufFullMessageName(v.Response.ProtoMessage, "", sd.Scope, false)))
+			}
+		}
+		errors = append(errors, errData)
 	}
 	return errors
 }

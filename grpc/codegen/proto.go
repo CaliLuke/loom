@@ -57,7 +57,7 @@ func protoFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData)
 			"Imports":      data.ProtoImports,
 		}),
 		// service definition
-		codegen.NewTextTemplateSection("grpc-service", grpcTemplates.Read(grpcServiceT), nil, data),
+		codegen.NewTextTemplateSection("grpc-service", grpcTemplates.Read(grpcServiceT), map[string]any{"rpcMessageRef": rpcMessageRef(data)}, data),
 	)
 
 	// message definition
@@ -87,6 +87,25 @@ func protoFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData)
 		Path:         path,
 		Sections:     sections,
 		FinalizeFunc: runProtoc,
+	}
+}
+
+// rpcMessageRef returns the function that the service definition of data
+// uses to refer to the request and response messages of its rpcs. protoc
+// resolves a name in the scope of the service first, where the rpcs are
+// defined, so the reference to a message that has the name of an rpc, such
+// as the message of a named array used as the payload of a method of the same
+// name, is qualified with the package.
+func rpcMessageRef(data *ServiceData) func(string) string {
+	rpcs := make(map[string]struct{}, len(data.Endpoints))
+	for _, endpoint := range data.Endpoints {
+		rpcs[endpoint.RPCName] = struct{}{}
+	}
+	return func(message string) string {
+		if _, ok := rpcs[message]; ok {
+			return "." + data.ProtoPkg + "." + message
+		}
+		return message
 	}
 }
 

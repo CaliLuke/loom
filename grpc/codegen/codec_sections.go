@@ -40,7 +40,8 @@ func renderGRPCRequestEncoder(endpoint *EndpointData) string {
 	var b sourceBuilder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment("Encode"+endpoint.Method.VarName+"Request encodes requests sent to "+endpoint.ServiceName+" "+endpoint.Method.Name+" endpoint."))
 	fmt.Fprintf(&b, "func Encode%sRequest(ctx context.Context, v any, md *metadata.MD) (any, error) {\n", endpoint.Method.VarName)
-	fmt.Fprintf(&b, "\tpayload, ok := v.(%s)\n", endpoint.PayloadRef)
+	usesPayload := len(endpoint.Request.Metadata) > 0 || (endpoint.Request.ClientConvert != nil && len(endpoint.Request.ClientConvert.Init.Args) > 0)
+	fmt.Fprintf(&b, "\t%s, ok := v.(%s)\n", valueVar("payload", usesPayload), endpoint.PayloadRef)
 	b.Add("\tif !ok {\n")
 	fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.PayloadRef)
 	b.Add("\t}\n")
@@ -83,7 +84,8 @@ func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 	if endpoint.ClientStream != nil {
 		return grpcClientStreamResponseDecoder(&b, endpoint)
 	}
-	fmt.Fprintf(&b, "\tmessage, ok := v.(%s)\n", endpoint.Response.ClientConvert.SrcRef)
+	usesMessage := len(endpoint.Response.ClientConvert.Init.Args) > 0 || (endpoint.Response.ClientConvert.Validation != nil && endpoint.ViewedResultRef == "")
+	fmt.Fprintf(&b, "\t%s, ok := v.(%s)\n", valueVar("message", usesMessage), endpoint.Response.ClientConvert.SrcRef)
 	b.Add("\tif !ok {\n")
 	fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.Response.ClientConvert.SrcRef)
 	b.Add("\t}\n")
@@ -299,15 +301,18 @@ func renderGRPCResponseEncoder(endpoint *EndpointData) string {
 	var b sourceBuilder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(`Encode`+endpoint.Method.VarName+`Response encodes responses from the "`+endpoint.ServiceName+`" service "`+endpoint.Method.Name+`" endpoint.`))
 	fmt.Fprintf(&b, "func Encode%sResponse(ctx context.Context, v any, hdr, trlr *metadata.MD) (any, error) {\n", endpoint.Method.VarName)
+	usesResult := len(endpoint.Response.Headers) > 0 || len(endpoint.Response.Trailers) > 0 || len(endpoint.Response.ServerConvert.Init.Args) > 0
 	if endpoint.ViewedResultRef != "" {
 		fmt.Fprintf(&b, "\tvres, ok := v.(%s)\n", endpoint.ViewedResultRef)
 		b.Add("\tif !ok {\n")
 		fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ViewedResultRef)
 		b.Add("\t}\n")
-		b.Add("\tresult := vres.Projected\n")
+		if usesResult {
+			b.Add("\tresult := vres.Projected\n")
+		}
 		b.Add("\t(*hdr).Append(\"loom-view\", vres.View)\n")
 	} else if endpoint.ResultRef != "" {
-		fmt.Fprintf(&b, "\tresult, ok := v.(%s)\n", endpoint.ResultRef)
+		fmt.Fprintf(&b, "\t%s, ok := v.(%s)\n", valueVar("result", usesResult), endpoint.ResultRef)
 		b.Add("\tif !ok {\n")
 		fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.ResultRef)
 		b.Add("\t}\n")
@@ -505,6 +510,17 @@ func renderSliceFloatParseBlock(name, varName, kind string, bits *jen.Statement,
 	).Line()
 	stmt.Add(exprCode(varName)).Index(jen.Id("i")).Op("=").Add(exprCode(assign))
 	return stmt
+}
+
+// valueVar returns name, the variable that holds the value asserted from v,
+// when the generated function uses the value, and the blank identifier
+// otherwise. The converter of a message without fields, such as the message
+// of an empty object, takes no argument.
+func valueVar(name string, used bool) string {
+	if used {
+		return name
+	}
+	return "_"
 }
 
 func renderInitArgList(args []*InitArgData) string {
