@@ -2,6 +2,7 @@ package framework
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -39,6 +40,9 @@ type Runner struct {
 	servers         map[string]*harness.Server
 	filterPattern   *regexp.Regexp
 	executorFactory func(string) *executor
+	// cli is the generated CLI, built once for all scenarios; nil when the
+	// generated module has none.
+	cli *harness.CLIClient
 }
 
 // NewRunner creates a new test runner
@@ -115,6 +119,10 @@ func (r *Runner) Run(t *testing.T) {
 	// Parallel scenarios run after Run returns, so stop the servers in a
 	// cleanup, which waits for them, rather than in a deferred call.
 	t.Cleanup(r.stopServers)
+
+	if err := r.buildCLI(t); err != nil {
+		t.Fatalf("Failed to build CLI: %v", err)
+	}
 
 	// Count scenarios to run
 	scenarios := r.filterScenarios()
@@ -233,6 +241,29 @@ func (r *Runner) startServers(t *testing.T) error {
 	return nil
 }
 
+// buildCLI builds the generated CLI once for all scenarios and removes it in
+// a cleanup, which runs after the parallel scenarios. A module without a CLI
+// leaves r.cli nil.
+func (r *Runner) buildCLI(t *testing.T) error {
+	t.Helper()
+
+	cli, err := harness.NewCLIClient(r.testDir, r.runnerConfig.ServerURL)
+	if errors.Is(err, harness.ErrCLINotFound) {
+		t.Logf("No generated CLI: %v", err)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	r.cli = cli
+	t.Cleanup(func() {
+		if err := cli.Close(); err != nil {
+			t.Errorf("Failed to remove CLI: %v", err)
+		}
+	})
+	return nil
+}
+
 // stopServers stops all test servers
 func (r *Runner) stopServers() {
 	for name, server := range r.servers {
@@ -262,7 +293,7 @@ func (r *Runner) runScenario(t *testing.T, scenario Scenario) {
 	if r.config.Settings.Timeout > 0 {
 		opts = append(opts, withWebSocketTimeout(r.config.Settings.Timeout))
 	}
-	opts = append(opts, withWorkDir(r.testDir))
+	opts = append(opts, withCLIClient(r.cli))
 
 	// Enable debug if requested
 	if r.runnerConfig.Debug || os.Getenv("DEBUG") == "true" {

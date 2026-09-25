@@ -86,10 +86,8 @@ func (e *executor) executeHTTP(ctx context.Context, t *testing.T, scenario Scena
 
 	// Try CLI client first for non-streaming scenarios
 	// Skip CLI if custom JSONRPC field is specified
-	if e.config.WorkDir != "" && scenario.Request.JSONRPC == "" {
-		cliClient, err := harness.NewCLIClient(e.config.WorkDir, e.serverURL)
-		if err != nil {
-		} else if cliClient.CanHandle(method, scenario.Request.Params) {
+	if cliClient := e.config.CLI; cliClient != nil && scenario.Request.JSONRPC == "" {
+		if cliClient.CanHandle(method, scenario.Request.Params) {
 			// For CLI, we need to separate service and method
 			// Default to "test" service if no dot in method name
 			service := "test"

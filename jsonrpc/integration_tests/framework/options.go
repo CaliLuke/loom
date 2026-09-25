@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
 // RunnerOption configures the test runner
@@ -119,7 +121,9 @@ type executorOption func(*executorConfig)
 type executorConfig struct {
 	WebSocketTimeout time.Duration
 	Debug            bool
-	WorkDir          string
+	// CLI is the generated CLI that plain HTTP scenarios try first; nil
+	// sends every scenario through the direct client.
+	CLI *harness.CLIClient
 }
 
 func withWebSocketTimeout(d time.Duration) executorOption {
@@ -134,9 +138,9 @@ func withExecutorDebug(debug bool) executorOption {
 	}
 }
 
-func withWorkDir(dir string) executorOption {
+func withCLIClient(cli *harness.CLIClient) executorOption {
 	return func(c *executorConfig) {
-		c.WorkDir = dir
+		c.CLI = cli
 	}
 }
 

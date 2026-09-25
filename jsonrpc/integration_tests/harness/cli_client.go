@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,57 +13,73 @@ import (
 	"strings"
 )
 
-// CLIClient wraps the generated CLI client for testing
+// CLIClient runs the generated CLI of a module against a server. The CLI is
+// built once, and each call runs the binary itself, not a go run wrapper, so
+// ending a call's context kills the process that talks to the server.
 type CLIClient struct {
 	cliPath   string
+	binDir    string
+	binPath   string
 	serverURL string
 }
 
-// NewCLIClient creates a new CLI client wrapper
+// ErrCLINotFound reports that a generated module has no CLI main package.
+var ErrCLINotFound = errors.New("CLI source not found")
+
+// NewCLIClient builds the generated CLI of the module in workDir and returns
+// a client that runs it against serverURL. It returns an error wrapping
+// ErrCLINotFound when the module has no CLI. Close removes the binary.
 func NewCLIClient(workDir, serverURL string) (*CLIClient, error) {
-	// Find the CLI source directory
-	candidates := []string{
-		filepath.Join(workDir, "cmd", "test_api-cli"),
-		filepath.Join(workDir, "cmd", "test-cli"),
-		filepath.Join(workDir, "cmd", "api-cli"),
+	cliPath, err := findCLIDir(workDir)
+	if err != nil {
+		return nil, err
 	}
 
-	var cliPath string
-	for _, path := range candidates {
-		mainFile := filepath.Join(path, "main.go")
-		if _, err := os.Stat(mainFile); err == nil {
-			cliPath = path
-			break
+	binDir, err := os.MkdirTemp("", "loom-jsonrpc-cli-")
+	if err != nil {
+		return nil, fmt.Errorf("create CLI build dir: %w", err)
+	}
+	// Build all files in the package so helpers generated alongside main.go
+	// are included.
+	binPath := filepath.Join(binDir, "cli")
+	if output, err := goCommand(cliPath, "build", "-o", binPath, ".").CombinedOutput(); err != nil {
+		err = fmt.Errorf("build CLI: %w\nOutput: %s", err, output)
+		if removeErr := os.RemoveAll(binDir); removeErr != nil {
+			err = errors.Join(err, fmt.Errorf("remove CLI build dir: %w", removeErr))
 		}
-	}
-
-	if cliPath == "" {
-		return nil, fmt.Errorf("CLI source not found in %s", workDir)
+		return nil, err
 	}
 
 	return &CLIClient{
 		cliPath:   cliPath,
+		binDir:    binDir,
+		binPath:   binPath,
 		serverURL: serverURL,
 	}, nil
 }
 
-// CallMethod invokes a service method via the CLI
+// Close removes the CLI binary. Calls must not run concurrently with or after
+// Close. It may be called more than once.
+func (c *CLIClient) Close() error {
+	if err := os.RemoveAll(c.binDir); err != nil {
+		return fmt.Errorf("remove CLI build dir: %w", err)
+	}
+	return nil
+}
+
+// CallMethod invokes a service method via the CLI. Ending ctx kills the CLI
+// process.
 func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payload any) (jsontext.Value, error) {
 	// Convert method name from snake_case to kebab-case for CLI
 	cliMethod := strings.ReplaceAll(method, "_", "-")
 
-	// Build command arguments - use go run to execute the CLI
 	// URL must come before service and method for proper flag parsing
 	args := []string{
-		"run", ".",
 		"-url", c.serverURL,
 		"-verbose",
 		service,
 		cliMethod,
 	}
-
-	cmd := exec.CommandContext(ctx, "go", args...)
-	cmd.Dir = c.cliPath
 
 	// Add payload if provided
 	// Note: Generate methods don't take payload but the scenario might still
@@ -86,8 +103,7 @@ func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payl
 	}
 	// If payload is nil, don't add any body argument - let the CLI handle it
 
-	// Create command with all args
-	cmd = exec.CommandContext(ctx, "go", args...)
+	cmd := exec.CommandContext(ctx, c.binPath, args...)
 	cmd.Dir = c.cliPath
 
 	// Capture output
@@ -178,4 +194,19 @@ func (c *CLIClient) CanHandle(method string, params any) bool {
 
 	// CLI can handle methods with payloads
 	return true
+}
+
+// findCLIDir returns the directory of the generated CLI main package.
+func findCLIDir(workDir string) (string, error) {
+	candidates := []string{
+		filepath.Join(workDir, "cmd", "test_api-cli"),
+		filepath.Join(workDir, "cmd", "test-cli"),
+		filepath.Join(workDir, "cmd", "api-cli"),
+	}
+	for _, path := range candidates {
+		if _, err := os.Stat(filepath.Join(path, "main.go")); err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("%w in %s", ErrCLINotFound, workDir)
 }
