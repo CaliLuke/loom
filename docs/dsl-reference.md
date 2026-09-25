@@ -1507,11 +1507,19 @@ Map HTTP element names to attribute names:
 ```go
 Header("version:X-Api-Version")  // version attribute from X-Api-Version header
 
+GET("/items/{k}")
+Param("key:k")                   // key attribute from the "k" path parameter
+
 Body(func() {
     Attribute("name:n")  // name attribute from "n" field in JSON
     Attribute("age:a")   // age attribute from "a" field in JSON
 })
 ```
+
+A route wildcard names the parameter, not the attribute: `Param("key:k")`
+maps the `{k}` wildcard of the route to the `key` attribute, and a route that
+uses `{key}` for that attribute is rejected. A mapped `Param` that no route
+wildcard names is a query string parameter named `k`.
 
 The same suffix on an attribute of a type or payload, such as
 `Attribute("name:n", String)`, names the field of the HTTP and JSON-RPC

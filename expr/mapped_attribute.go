@@ -254,3 +254,15 @@ func (ma *MappedAttributeExpr) FindKey(keyName string) (string, bool) {
 func (ma *MappedAttributeExpr) IsEmpty() bool {
 	return len(*ma.Type.(*Object)) == 0
 }
+
+// attributeOfElem returns the name of the attribute whose transport element
+// name is elem and true, or an empty string and false when no attribute uses
+// that element name.
+func (ma *MappedAttributeExpr) attributeOfElem(elem string) (string, bool) {
+	for _, nat := range *AsObject(ma.Type) {
+		if ma.ElemName(nat.Name) == elem {
+			return nat.Name, true
+		}
+	}
+	return "", false
+}

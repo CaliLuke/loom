@@ -74,7 +74,8 @@ Method("get_user", func() {
         Field(1, "id", Int, "User ID")
     })
     HTTP(func() {
-        GET("/users/{user_id:id}")  // URL uses user_id, maps to payload.ID
+        GET("/users/{user_id}")  // URL uses user_id
+        Param("id:user_id")      // maps user_id to payload.ID
     })
 })
 ```

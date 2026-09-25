@@ -7,20 +7,25 @@ import (
 )
 
 // PathParams computes a mapped attribute containing the subset of e.Params that
-// describe path parameters.
+// describe path parameters. A route wildcard names the transport element of a
+// param: the route "/{k}" matches Param("key:k"), the path parameter of the
+// key attribute.
 func (e *HTTPEndpointExpr) PathParams() *MappedAttributeExpr {
 	obj := Object{}
 	v := &ValidationExpr{}
-	pat := e.Params.Attribute() // need "attribute:name" style keys
 	for _, r := range e.Routes {
 		for _, p := range r.Params() {
-			att := pat.Find(p)
-			if att == nil {
+			name, ok := e.Params.attributeOfElem(p)
+			if !ok {
 				continue
 			}
-			obj.Set(p, att)
-			if e.Params.IsRequired(p) {
-				v.AddRequired(p)
+			key := name
+			if p != name {
+				key = name + ":" + p
+			}
+			obj.Set(key, AsObject(e.Params.Type).Attribute(name))
+			if e.Params.IsRequired(name) {
+				v.AddRequired(key)
 			}
 		}
 	}
@@ -29,7 +34,8 @@ func (e *HTTPEndpointExpr) PathParams() *MappedAttributeExpr {
 }
 
 // QueryParams computes a mapped attribute containing the subset of e.Params
-// that describe query parameters.
+// that describe query parameters: the params whose transport element no route
+// wildcard names.
 func (e *HTTPEndpointExpr) QueryParams() *MappedAttributeExpr {
 	obj := Object{}
 	v := &ValidationExpr{}
@@ -41,14 +47,7 @@ func (e *HTTPEndpointExpr) QueryParams() *MappedAttributeExpr {
 	}
 	pat := e.Params.Attribute() // need "attribute:name" style keys
 	for _, at := range *(pat.Type.(*Object)) {
-		found := false
-		for n := range pp {
-			if n == at.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if _, found := pp[ElementName(at.Name)]; !found {
 			obj.Set(at.Name, at.Attribute)
 			attName := AttributeName(at.Name)
 			if e.Params.IsRequired(attName) {

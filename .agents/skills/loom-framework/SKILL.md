@@ -481,7 +481,12 @@ filter, and serialization rules belong here.
   (the CLI body examples) and the JSON fields of the HTTP untagged union
   branches: they name the field with `expr.JSONFieldName(expr.ElementName(key),
   att)`. gRPC ignores it: the protocol buffer field and the Go fields of the
-  service and pb types use the attribute name.
+  service and pb types use the attribute name. A route wildcard names the
+  element of a param, so `Param("key:k")` is the path parameter of `{k}`
+  (`HTTPEndpointExpr.PathParams`, `QueryParams`, `ensureRouteParams` and
+  `RouteExpr.Validate` match wildcards by element name, and the path builders
+  look path parameters up by `HTTPName`); a wildcard that names the attribute
+  of a mapped param is rejected.
 - Protocol buffer messages always live in the pb package of the service.
   `makeProtoBufMessage` strips `struct:pkg:path` from the message attribute as
   well as from its user types. `struct:name:proto` names only the top-level

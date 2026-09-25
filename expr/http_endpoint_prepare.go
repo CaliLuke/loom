@@ -83,7 +83,7 @@ func (e *HTTPEndpointExpr) inheritCanonicalPathParams(canonical *HTTPEndpointExp
 func (e *HTTPEndpointExpr) ensureRouteParams() {
 	for _, route := range e.Routes {
 		for _, param := range route.Params() {
-			if e.Params.Find(param) != nil {
+			if _, ok := e.Params.attributeOfElem(param); ok || e.Params.Find(param) != nil {
 				continue
 			}
 			e.Params.Merge(NewMappedAttributeExpr(&AttributeExpr{

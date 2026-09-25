@@ -83,3 +83,38 @@ var MappedNamesDSL = func() {
 		})
 	})
 }
+
+// MappedParamsDSL declares path and query parameters with a transport element
+// name suffix: Param("key:k") with the route wildcard "{k}" is the path
+// parameter of the key attribute, an implicit route parameter keeps its name,
+// and suffixed params absent from the route are query parameters named after
+// their element names.
+var MappedParamsDSL = func() {
+	Service("mappedparams", func() {
+		Method("show", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("key", String, func() {
+					MinLength(2)
+				})
+				Attribute("id", Int)
+				Attribute("q", String)
+				Attribute("flag", Boolean)
+				Required("key", "id")
+			})
+			Result(func() {
+				Attribute("key", String)
+				Attribute("id", Int)
+				Attribute("q", String)
+				Attribute("flag", Boolean)
+				Required("key", "id")
+			})
+			HTTP(func() {
+				GET("/items/{k}/{id}")
+				Param("key:k")
+				Param("q:query")
+				Param("flag:f")
+			})
+		})
+	})
+}

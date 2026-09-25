@@ -354,7 +354,10 @@ func Params(args any) {
 // Param accepts the same arguments as the Function Attribute.
 //
 // The name may be of the form "name of attribute:name of parameter" to define a
-// mapping between the attribute and parameter names when they differ.
+// mapping between the attribute and parameter names when they differ. A route
+// wildcard names the parameter, not the attribute: Param("key:k") is the path
+// parameter of the route "/items/{k}", and the route "/items/{key}" is
+// rejected.
 //
 // Example:
 //

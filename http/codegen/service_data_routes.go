@@ -32,10 +32,12 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 	}
 	name := fmt.Sprintf("%s%sPath%s", method.VarName, svc.StructName, suffix)
 	vars := newPathVarScope(sd)
-	for j, arg := range params {
-		patt := parameterAttributeByName(endpointIR.Request.PathParams, arg)
+	for j, elem := range params {
+		param := pathParameterByElement(endpointIR.Request.PathParams, elem)
+		arg := param.Name
+		patt := param.Attribute
 		att := makeHTTPType(patt)
-		pointer := parameterPrimitivePointerByName(endpointIR.Request.PathParams, arg)
+		pointer := param.PrimitivePointer
 		if payloadPointer := payloadPrimitivePointerByName(endpointIR.Request.Payload, arg); payloadPointer {
 			pointer = true
 		}
@@ -142,22 +144,16 @@ func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint
 	}
 }
 
-func parameterAttributeByName(params []*transportir.Parameter, name string) *expr.AttributeExpr {
+// pathParameterByElement returns the path parameter that the route wildcard
+// elem names: the parameter whose HTTP name is elem, such as the key attribute
+// of Param("key:k") for the wildcard "{k}".
+func pathParameterByElement(params []*transportir.Parameter, elem string) *transportir.Parameter {
 	for _, param := range params {
-		if param.Name == name {
-			return param.Attribute
+		if param.HTTPName == elem {
+			return param
 		}
 	}
-	return nil
-}
-
-func parameterPrimitivePointerByName(params []*transportir.Parameter, name string) bool {
-	for _, param := range params {
-		if param.Name == name {
-			return param.PrimitivePointer
-		}
-	}
-	return false
+	panic("route wildcard " + elem + " has no path parameter") // bug
 }
 
 func payloadPrimitivePointerByName(payload *expr.AttributeExpr, name string) bool {

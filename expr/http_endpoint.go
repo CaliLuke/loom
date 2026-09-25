@@ -204,7 +204,15 @@ func (r *RouteExpr) Validate() *eval.ValidationErrors {
 				verr.Add(r, "Route parameters are defined, but method payload is a map. Method payload must be a primitive or an object.")
 			case *Object, UserType:
 				for _, p := range rparams {
-					if r.Endpoint.MethodExpr.Payload.Find(p) == nil {
+					name, ok := r.Endpoint.Params.attributeOfElem(p)
+					if !ok {
+						if elem, mapped := r.Endpoint.Params.FindKey(p); mapped {
+							verr.Add(r, "route param %q names the attribute of Param \"%s:%s\"; use \"{%s}\" in the route", p, p, elem, elem)
+							continue
+						}
+						name = p
+					}
+					if r.Endpoint.MethodExpr.Payload.Find(name) == nil {
 						verr.Add(r, "Route param %q not found in method payload", p)
 					}
 				}
@@ -270,8 +278,9 @@ func validHTTPMethodToken(method string) bool {
 }
 
 // Params returns all the route parameters across all the base paths. For
-// example for the route "GET /foo/{fooID:foo_id}" Params returns
-// []string{"fooID:foo_id"}.
+// example for the route "GET /foo/{foo_id}" Params returns
+// []string{"foo_id"}. A route parameter is the transport element name of a
+// param, such as "k" for Param("key:k").
 func (r *RouteExpr) Params() []string {
 	paths := r.FullPaths()
 	var res []string
