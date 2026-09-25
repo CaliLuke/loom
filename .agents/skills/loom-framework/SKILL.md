@@ -365,6 +365,11 @@ filter, and serialization rules belong here.
   the flag is not empty. Body flag examples go through
   `expr.CanonicalizeExample` so that they match the JSON of the client body
   type.
+- The HTTP and JSON-RPC client CLI command parsers never name a service type,
+  because their package does not import the service packages. An object
+  payload without flags, such as an object type without attributes, gets a
+  payload builder without parameters in the client package (`buildFlags` in
+  `http/codegen/client_cli.go`).
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
   A response encoder failure that occurs before commit is encoded through the

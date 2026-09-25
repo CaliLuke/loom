@@ -45,7 +45,9 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData, pkgs *codegen.NameS
 						}
 						group.Id(target).Op(":=").Op("&").Add(codegen.TypeRef(buildFunction.PayloadInit.ReturnTypeName)).Values()
 					}
-					group.Add(fieldCode(buildFunction.PayloadInit, pkgs))
+					if len(buildFunction.PayloadInit.Args) > 0 {
+						group.Add(fieldCode(buildFunction.PayloadInit, pkgs))
+					}
 				}
 				resultVar := "v"
 				if buildFunction.PayloadInit.ReturnTypeAttribute != "" {

@@ -279,10 +279,13 @@ func buildFlags(svc *ServiceData, e *EndpointData) ([]*cli.FlagData, *cli.BuildF
 	svcn := svc.Service.Name
 	en := e.Method.Name
 	if e.Payload != nil {
-		if e.Payload.Request.PayloadInit != nil &&
-			len(e.Payload.Request.PayloadInit.ClientArgs)+len(e.Payload.Request.PayloadInit.CLIArgs) > 0 {
-			args := e.Payload.Request.PayloadInit.ClientArgs
-			args = append(args, e.Payload.Request.PayloadInit.CLIArgs...)
+		if init := e.Payload.Request.PayloadInit; init != nil &&
+			(len(init.ClientArgs)+len(init.CLIArgs) > 0 || init.ReturnIsStruct) {
+			// An object payload without arguments, such as an object type
+			// without attributes, gets a builder without flags: the command
+			// parser cannot refer to the service type itself.
+			args := init.ClientArgs
+			args = append(args, init.CLIArgs...)
 			flags, buildFunction = makeFlags(e, args, e.Payload.Request.PayloadType)
 		} else if e.Payload.Ref != "" {
 			flags = append(flags, cli.NewFlagData(svcn, en, "p", e.Method.PayloadRef, e.Method.PayloadDesc, true, e.Method.PayloadEx, e.Method.PayloadDefault))
