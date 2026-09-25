@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	cg "github.com/CaliLuke/loom/codegen"
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	. "github.com/CaliLuke/loom/dsl"
@@ -53,7 +55,7 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 	genpkg := modulePath + "/gen"
 	serviceData := servicecodegen.NewServicesData(root)
 	for _, service := range root.Services {
-		servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(service.Name))
+		require.NoError(t, servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(service.Name)))
 	}
 	httpData := NewServicesData(serviceData, root.API.HTTP)
 

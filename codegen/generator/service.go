@@ -23,7 +23,9 @@ func Service(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 
 		for _, s := range r.Services {
 			d := services.Get(s.Name)
-			service.SetUserTypeImports(genpkg, d)
+			if err := service.SetUserTypeImports(genpkg, d); err != nil {
+				return nil, err
+			}
 
 			// Make sure service is first so name scope is
 			// properly initialized.

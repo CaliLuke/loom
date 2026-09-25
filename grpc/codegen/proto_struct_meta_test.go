@@ -365,9 +365,8 @@ func TestStructMetaProtoTypeRefs(t *testing.T) {
 
 // TestStructMetaStreamingPayloadProtoTypeRefs checks that the protocol buffer
 // message of a streaming payload of a type with struct:pkg:path metadata, with
-// or without struct:name:proto metadata, is referenced from the pb package.
-// Generated service code does not compile yet for streaming payloads of such
-// types (#372), so the check stays at the generator seam.
+// or without struct:name:proto metadata, is referenced from the pb package,
+// then compiles and vets the generated module.
 func TestStructMetaStreamingPayloadProtoTypeRefs(t *testing.T) {
 	root := RunGRPCDSL(t, func() {
 		plain := Type("Plain", func() {
@@ -413,6 +412,11 @@ func TestStructMetaStreamingPayloadProtoTypeRefs(t *testing.T) {
 		require.NotNil(t, e.ClientStream.SendConvert, e.Method.Name)
 		assert.Equal(t, want, e.ClientStream.SendConvert.TgtRef, e.Method.Name)
 	}
+
+	dir := t.TempDir()
+	renderGRPCModule(t, dir, "example.com/grpcstreammeta", root, resolveGRPCLoomSource(t))
+	runGRPCGoCommand(t, dir, "mod", "tidy")
+	runGRPCGoCommand(t, dir, "vet", "./...")
 }
 
 // TestGeneratedStructMetaRoundTrip compiles and vets a generated module whose

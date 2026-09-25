@@ -171,7 +171,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildRequestBodyType flattens form union helper field", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
-		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData)
+		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "Values", bodyType.FlatFormUnionField)
 		require.True(t, bodyType.FlatFormUnionPointer)
@@ -184,8 +184,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildRequestBodyType only emits constructors on the client", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
-		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData)
-		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), endpointExpr.FormRequest, endpointExpr.MultipartRequest, true, svcData)
+		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData)
+		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, true, svcData)
 		require.NotNil(t, clientBodyType)
 		require.NotNil(t, clientBodyType.Init)
 		require.NotNil(t, serverBodyType)
@@ -199,6 +199,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 			endpointExpr.Body,
 			endpointExpr.MethodExpr.Payload,
 			endpointExpr.Name(),
+			svcData.Service.PkgName,
 			false,
 			false,
 			true,

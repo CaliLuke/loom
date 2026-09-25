@@ -117,7 +117,7 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 	genpkg := modulePath + "/gen"
 	serviceData := servicecodegen.NewServicesData(root)
 	for _, svc := range root.Services {
-		servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(svc.Name))
+		require.NoError(t, servicecodegen.SetUserTypeImports(genpkg, serviceData.Get(svc.Name)))
 	}
 	jsonrpcData := httpcodegen.NewServicesData(serviceData, &root.API.JSONRPC.HTTPExpr)
 

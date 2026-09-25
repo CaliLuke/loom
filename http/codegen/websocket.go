@@ -155,12 +155,13 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 	}
 	data.serverRecvTypeName = streamDesc.Payload.Name
 	data.serverRecvTypeRef = streamDesc.Payload.Ref
-	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, true, sd)
+	pkg := service.DefaultPackageName(sd.Service.Method(endpointIR.MethodName).StreamingPayloadLoc, sd.Service.PkgName)
+	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, pkg, false, false, true, sd)
 	if needInit(endpointIR.Stream.RequestPayload) ||
 		expr.ContainsNonNullableCollectionElement(endpointIR.Request.StreamingBody) {
-		initWebSocketPayloadConstructor(data.serverPayload, sds, endpointIR, sd)
+		initWebSocketPayloadConstructor(data.serverPayload, sds, endpointIR, pkg, sd)
 	}
-	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, false, false, false, sd)
+	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, pkg, false, false, false, sd)
 	if data.clientPayload != nil {
 		sd.ClientTypeNames[data.clientPayload.Name] = false
 		sd.ServerTypeNames[data.clientPayload.Name] = false
@@ -168,7 +169,9 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 	return data
 }
 
-func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData) {
+// initWebSocketPayloadConstructor sets the constructor of the streaming
+// payload of endpointIR, whose type is generated in the package named pkg.
+func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpointIR *transportir.Endpoint, pkg string, sd *ServiceData) {
 	body := endpointIR.Request.StreamingBody.Type
 	name := websocketPayloadInitName(endpointIR.MethodName, payload.Name)
 	desc := fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, sd.Service.Name, endpointIR.MethodName)
@@ -183,7 +186,7 @@ func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpo
 		httpctx.JSONPresence = true
 		httpctx.CollectionElementPresence = true
 		streamBody := makeHTTPType(endpointIR.Request.StreamingBody)
-		serverCode, helpers, err = marshal(streamBody, endpointIR.Stream.RequestPayload, "body", "v", httpctx, serviceContext(sd.Service.PkgName, sd.Service.Scope))
+		serverCode, helpers, err = marshal(streamBody, endpointIR.Stream.RequestPayload, "body", "v", httpctx, serviceContext(pkg, sd.Service.Scope))
 		if err == nil {
 			sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
 		} else {
@@ -194,10 +197,10 @@ func initWebSocketPayloadConstructor(payload *TypeData, sds *ServicesData, endpo
 		Name:           name,
 		Description:    desc,
 		ServerArgs:     serverArgs,
-		ReturnTypeName: sd.Service.Scope.GoFullTypeName(endpointIR.Stream.RequestPayload, sd.Service.PkgName),
-		ReturnTypeRef:  sd.Service.Scope.GoFullTypeRef(endpointIR.Stream.RequestPayload, sd.Service.PkgName),
+		ReturnTypeName: sd.Service.Scope.GoFullTypeName(endpointIR.Stream.RequestPayload, pkg),
+		ReturnTypeRef:  sd.Service.Scope.GoFullTypeRef(endpointIR.Stream.RequestPayload, pkg),
 		ReturnIsStruct: expr.IsObject(endpointIR.Stream.RequestPayload.Type),
-		ReturnTypePkg:  sd.Service.PkgName,
+		ReturnTypePkg:  pkg,
 		ServerCode:     serverCode,
 	}
 }

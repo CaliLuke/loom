@@ -334,8 +334,8 @@ func TestServiceDataImportsAreCachedAndDeduped(t *testing.T) {
 	require.Len(t, root.Services, 1)
 
 	data := services.Get(root.Services[0].Name)
-	SetUserTypeImports("github.com/CaliLuke/loom/example", data)
-	SetUserTypeImports("github.com/CaliLuke/loom/example", data)
+	require.NoError(t, SetUserTypeImports("github.com/CaliLuke/loom/example", data))
+	require.NoError(t, SetUserTypeImports("github.com/CaliLuke/loom/example", data))
 	require.Len(t, data.UserTypeImports, 1)
 
 	header := codegen.Header("cached imports", "cache", nil)

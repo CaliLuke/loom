@@ -368,6 +368,13 @@ filter, and serialization rules belong here.
   `codegen.File` prunes the unused imports. The transport generator adds only
   `struct:field:type` imports afterward. Do not reintroduce a blanket pass that
   hides a missing import in a direct file builder.
+- `service.PackageName` names a service package and seeds the HTTP service
+  import aliases. It adds the `svc` suffix when the service has a transport and a
+  `struct:pkg:path` package of its types has the same name, because the
+  transport files import both. A transport-less service keeps its name. `SetUserTypeImports` rejects a type placed in the package of the
+  service that uses it. Streaming payload and result types keep their own
+  locations (`StreamingPayloadLoc`, `StreamingResultLoc`); do not derive them
+  from the unary payload or result location.
 - The fields, oneofs and oneof fields of a gRPC message share one namespace.
   `newProtoMessageNames` (`grpc/codegen/protobuf_message_names.go`) allocates
   their names per message, and the proto renderer, `checkMessageFields`, the

@@ -947,6 +947,14 @@ gen/
     └── common_type.go
 ```
 
+The path must not be the package of a service that uses the type: with
+`Meta("struct:pkg:path", "common")` on a type of a service named `common`, the
+service package would import itself, so `loom gen` fails and asks for another
+path such as `types/common`. When the package has the name of the service
+package, as with `types/catalog` in a service named `catalog` that has a transport,
+the generated service package is named `catalogsvc` so that the transport
+files can import both packages.
+
 ### Field Customization
 
 ```go

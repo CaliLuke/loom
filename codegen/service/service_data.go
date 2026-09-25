@@ -76,6 +76,9 @@ type (
 		// metaTypeImports lists the imports derived from struct:field:type
 		// metadata for the service.
 		metaTypeImports []*codegen.ImportSpec
+		// ownPackageType is a type that the service uses and that
+		// struct:pkg:path places in the service package, nil if none.
+		ownPackageType expr.UserType
 	}
 
 	// MethodData describes a single service method.
@@ -203,6 +206,9 @@ type (
 		StreamingPayload string
 		// StreamingPayloadDef is the streaming payload type definition if any.
 		StreamingPayloadDef string
+		// StreamingPayloadLoc defines the file and Go package of the
+		// streaming payload type if overridden via Meta.
+		StreamingPayloadLoc *codegen.Location
 		// StreamingPayloadRef is a reference to the streaming payload type if any.
 		StreamingPayloadRef string
 		// StreamingPayloadDesc is the streaming payload type description if any.
@@ -213,6 +219,10 @@ type (
 		StreamingResult string
 		// StreamingResultDef is the streaming result type definition if any.
 		StreamingResultDef string
+		// StreamingResultLoc defines the file and Go package of the
+		// streaming result type if overridden via Meta. It is only set when
+		// the streaming result differs from the result.
+		StreamingResultLoc *codegen.Location
 		// StreamingResultRef is the reference to the streaming result type if any.
 		StreamingResultRef string
 		// StreamingResultDesc is the streaming result type description if any.

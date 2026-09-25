@@ -224,6 +224,7 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, vnam
 	data.ServerStream = svrStream
 	data.StreamingPayload = spayload.Name
 	data.StreamingPayloadDef = spayload.Def
+	data.StreamingPayloadLoc = spayload.Loc
 	data.StreamingPayloadRef = spayload.Ref
 	data.StreamingPayloadDesc = spayload.Desc
 	data.StreamingPayloadEx = spayload.Example
@@ -233,6 +234,7 @@ type streamAttributeData struct {
 	Name    string
 	Ref     string
 	Def     string
+	Loc     *codegen.Location
 	Desc    string
 	Example any
 }
@@ -247,6 +249,7 @@ func (d *ServicesData) buildStreamingResultData(data *MethodData, m *expr.Method
 	data.StreamingResult = sresult.Name
 	data.StreamingResultRef = sresult.Ref
 	data.StreamingResultDef = sresult.Def
+	data.StreamingResultLoc = sresult.Loc
 	data.StreamingResultDesc = sresult.Desc
 	data.StreamingResultEx = sresult.Example
 	return sresult
@@ -263,13 +266,14 @@ func (d *ServicesData) buildStreamingPayloadData(m *expr.MethodExpr, scope *code
 func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope *codegen.NameScope, examples *expr.ExampleGenerator) streamAttributeData {
 	data := streamAttributeData{
 		Name:    scope.GoValueTypeName(att),
-		Ref:     scope.GoTypeRef(att),
 		Desc:    att.Description,
 		Example: att.Example(examples),
 	}
 	if dt, ok := att.Type.(expr.UserType); ok {
 		data.Def = scope.GoValueTypeDef(dt.Attribute(), false, true)
+		data.Loc = codegen.UserTypeLocation(dt)
 	}
+	data.Ref = scope.GoFullTypeRef(att, data.Loc.PackageName())
 	if data.Desc == "" {
 		data.Desc = streamAttributeDescription(data.Name, att, m)
 	}

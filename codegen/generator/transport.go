@@ -32,7 +32,9 @@ func Transport(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		// Create service data
 		services := service.NewServicesData(r)
 		for _, s := range r.Services {
-			service.SetUserTypeImports(genpkg, services.Get(s.Name))
+			if err := service.SetUserTypeImports(genpkg, services.Get(s.Name)); err != nil {
+				return nil, err
+			}
 		}
 		services.Ctx.Debug("transport codegen starting",
 			"api", r.API.Name,

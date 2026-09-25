@@ -113,8 +113,9 @@ func (r pkgRef) orCommon() pkgRef {
 	return r
 }
 
-// structPkgPathDesign declares a "catalog" service whose "put" method payload
-// and result use the "Item" type generated in a struct:pkg:path package.
+// structPkgPathDesign declares a service, "catalog" unless Service is set,
+// whose "put" method payload and result use the "Item" type generated in a
+// struct:pkg:path package.
 type structPkgPathDesign struct {
 	// HTTP, GRPC, and JSONRPC select the transports that expose the methods.
 	HTTP, GRPC, JSONRPC bool
@@ -127,6 +128,8 @@ type structPkgPathDesign struct {
 	Maps bool
 	// PkgPath is the struct:pkg:path of "Item", "common" when empty.
 	PkgPath string
+	// Service is the name of the service, "catalog" when empty.
+	Service string
 }
 
 // DSL declares the design selected by d.
@@ -134,6 +137,10 @@ func (d structPkgPathDesign) DSL() {
 	pkgPath := d.PkgPath
 	if pkgPath == "" {
 		pkgPath = "common"
+	}
+	svc := d.Service
+	if svc == "" {
+		svc = "catalog"
 	}
 	dsl.API("catalog", func() {
 		if d.JSONRPC {
@@ -157,7 +164,7 @@ func (d structPkgPathDesign) DSL() {
 			dsl.JSONRPC(func() {})
 		}
 	}
-	dsl.Service("catalog", func() {
+	dsl.Service(svc, func() {
 		if d.JSONRPC {
 			dsl.JSONRPC(func() {
 				dsl.POST("/rpc")

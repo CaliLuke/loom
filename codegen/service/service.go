@@ -83,11 +83,13 @@ func newTypeSectionCollector(typeDefSections map[string]map[string]codegen.Secti
 func collectMethodTypeSections(svc *Data, svcPath string, addTypeDefSection func(string, string, codegen.Section), seen map[string]struct{}) {
 	for _, method := range svc.Methods {
 		payloadPath := pathWithDefault(method.PayloadLoc, svcPath)
+		streamingPayloadPath := pathWithDefault(method.StreamingPayloadLoc, svcPath)
 		resultPath := pathWithDefault(method.ResultLoc, svcPath)
+		streamingResultPath := pathWithDefault(method.StreamingResultLoc, svcPath)
 		maybeAddNamedTypeSection(method.PayloadDef != "", method.Payload, payloadPath, payloadSection(method), addTypeDefSection, seen)
-		maybeAddNamedTypeSection(method.StreamingPayloadDef != "", method.StreamingPayload, payloadPath, streamingPayloadSection(method), addTypeDefSection, seen)
+		maybeAddNamedTypeSection(method.StreamingPayloadDef != "", method.StreamingPayload, streamingPayloadPath, streamingPayloadSection(method), addTypeDefSection, seen)
 		maybeAddNamedTypeSection(method.ResultDef != "", method.Result, resultPath, resultSection("service-result", method.Result, method.ResultDesc, method.ResultDef), addTypeDefSection, seen)
-		maybeAddNamedTypeSection(method.StreamingResultDef != "" && method.StreamingResult != method.Result, method.StreamingResult, resultPath, resultSection("service-streaming-result", method.StreamingResult, method.StreamingResultDesc, method.StreamingResultDef), addTypeDefSection, seen)
+		maybeAddNamedTypeSection(method.StreamingResultDef != "" && method.StreamingResult != method.Result, method.StreamingResult, streamingResultPath, resultSection("service-streaming-result", method.StreamingResult, method.StreamingResultDesc, method.StreamingResultDef), addTypeDefSection, seen)
 	}
 }
 
@@ -274,9 +276,15 @@ func containsString(values []string, target string) bool {
 }
 
 // SetUserTypeImports sets the import paths for user types declared in custom
-// packages with the Meta key "struct:pkg:path".
-func SetUserTypeImports(genpkg string, d *Data) {
+// packages with the Meta key "struct:pkg:path". It returns an error when the
+// package of such a type is the package generated for the service itself,
+// which would then import itself.
+func SetUserTypeImports(genpkg string, d *Data) error {
+	if err := checkUserTypePackages(d); err != nil {
+		return err
+	}
 	d.UserTypeImports = userTypeImports(genpkg, d)
+	return nil
 }
 
 // AddServiceDataMetaTypeImports adds all imports defined by struct:field:type
@@ -327,7 +335,9 @@ func userTypeImports(genpkg string, d *Data) []*codegen.ImportSpec {
 	// Process method-specific locations
 	for _, m := range d.Methods {
 		initLoc(m.PayloadLoc)
+		initLoc(m.StreamingPayloadLoc)
 		initLoc(m.ResultLoc)
+		initLoc(m.StreamingResultLoc)
 		for _, l := range m.ErrorLocs {
 			initLoc(l)
 		}
@@ -351,6 +361,18 @@ func userTypeImports(genpkg string, d *Data) []*codegen.ImportSpec {
 		imports = append(imports, importsByPath[filePath])
 	}
 	return imports
+}
+
+// checkUserTypePackages returns an error if the service d uses a user type
+// generated in the package of the service: the service files qualify and
+// import the type package, so the package would import itself.
+func checkUserTypePackages(d *Data) error {
+	ut := d.ownPackageType
+	if ut == nil {
+		return nil
+	}
+	pkgPath, _ := ut.Attribute().Meta.Last("struct:pkg:path")
+	return fmt.Errorf("service %q: type %q has struct:pkg:path %q, the package generated for the service; the service package cannot import itself. Remove the struct:pkg:path metadata to generate the type in the service package, or use another path such as %q", d.Name, ut.Name(), pkgPath, "types/"+pkgPath)
 }
 
 // userTypeImportPath returns the import path of the package generated at loc.

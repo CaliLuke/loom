@@ -198,8 +198,8 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 }
 
 func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {
-	return b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, true, b.sd),
-		b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
+	return b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, true, b.sd),
+		b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
 }
 
 func (b *payloadBuilder) buildRequestElements() ([]*ParamData, []*ParamData, []*HeaderData, []*CookieData, *ParamData) {

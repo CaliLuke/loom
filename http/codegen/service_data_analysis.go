@@ -167,7 +167,7 @@ func newHTTPAnalysisService(svc *service.Data, importAlias string) (*service.Dat
 	return &httpSvc, scope
 }
 
-func newServiceImportAliases(expressions *expr.HTTPExpr) map[string]string {
+func newServiceImportAliases(root *expr.RootExpr, expressions *expr.HTTPExpr) map[string]string {
 	scope := codegen.NewNameScope()
 	for _, name := range transportGeneratedImportNames {
 		scope.Unique(name)
@@ -178,16 +178,9 @@ func newServiceImportAliases(expressions *expr.HTTPExpr) map[string]string {
 
 	aliases := make(map[string]string, len(expressions.Services))
 	for _, httpSvc := range expressions.Services {
-		aliases[httpSvc.Name()] = scope.Unique(httpServicePackageName(httpSvc.ServiceExpr), "svc")
+		aliases[httpSvc.Name()] = scope.Unique(service.PackageName(root, httpSvc.ServiceExpr), "svc")
 	}
 	return aliases
-}
-
-func httpServicePackageName(svc *expr.ServiceExpr) string {
-	scope := codegen.NewNameScope()
-	scope.Unique("Use")
-	scope.Unique("websocket")
-	return scope.HashedUnique(svc, service.PackageBaseName(svc.Name), "svc")
 }
 
 func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceData {

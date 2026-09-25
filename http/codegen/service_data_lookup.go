@@ -11,7 +11,7 @@ func NewServicesData(services *service.ServicesData, expressions *expr.HTTPExpr)
 		ServicesData:         services,
 		Expressions:          expressions,
 		HTTPData:             make(map[string]*ServiceData),
-		serviceImportAliases: newServiceImportAliases(expressions),
+		serviceImportAliases: newServiceImportAliases(services.Root, expressions),
 	}
 }
 

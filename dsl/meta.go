@@ -63,6 +63,14 @@ const DefaultProtoc = expr.DefaultProtoc
 // valid relative import path, such as one with a leading slash, a ".."
 // element or a space, is a design validation error.
 //
+// The package must not be the package generated for a service that uses the
+// type, such as Meta("struct:pkg:path", "common") on a type of a service
+// named "common": that package would import itself, so code generation
+// fails. When the package has the name of the package of a service that uses
+// the type, as with Meta("struct:pkg:path", "types/catalog") in a service
+// named "catalog" that has a transport, the service package is named
+// "catalogsvc" instead.
+//
 // Note: If that meta tag is used more that once in the same design, but with
 // different values in the meta statement (ex. one type has Meta("struct:pkg:path", "types1")
 // and another has Meta("struct:pkg:path", "types2")) then those two types cannot

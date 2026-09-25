@@ -145,12 +145,10 @@ func reserveExampleImportNames(scope *codegen.NameScope, specs []*codegen.Import
 
 // dummyMultipartFile returns a dummy implementation of the multipart decoders
 // and encoders of every HTTP service. The file belongs to the same root
-// package as the example service implementations.
+// package as the example service implementations. It is multipart.go unless
+// the implementation of a service uses that name, as for a service named
+// "multipart", in which case its name gets a "_codecs" suffix.
 func dummyMultipartFile(genpkg string, root *expr.RootExpr, services *ServicesData) *codegen.File {
-	mpath := "multipart.go"
-	if _, err := os.Stat(mpath); !os.IsNotExist(err) {
-		return nil // file already exists, skip it.
-	}
 	// determine the unique API package name different from the service names
 	scope := codegen.NewNameScope()
 	for _, svc := range root.Services {
@@ -159,6 +157,10 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, services *ServicesDa
 			panic(codegen.NewError(nil, svc, fmt.Errorf("unknown service %q", svc.Name)))
 		}
 		scope.Unique(s.PkgName)
+	}
+	mpath := dummyMultipartFilePath(root, services)
+	if _, err := os.Stat(mpath); !os.IsNotExist(err) {
+		return nil // file already exists, skip it.
 	}
 	apiPkg := scope.Unique(service.PackageBaseName(root.API.Name), "api")
 	specs := []*codegen.ImportSpec{{Path: "mime/multipart"}}
@@ -209,4 +211,15 @@ func dummyMultipartFile(genpkg string, root *expr.RootExpr, services *ServicesDa
 		Sections:  append([]codegen.Section{codegen.Header("", apiPkg, specs)}, sections...),
 		SkipExist: true,
 	}
+}
+
+// dummyMultipartFilePath returns the path of the example multipart file,
+// which must differ from the paths of the example service implementations
+// of root, named after their services.
+func dummyMultipartFilePath(root *expr.RootExpr, services *ServicesData) string {
+	files := codegen.NewNameScope()
+	for _, svc := range root.Services {
+		files.Unique(services.ServicesData.Get(svc.Name).PathName)
+	}
+	return files.Unique("multipart", "_codecs") + ".go"
 }

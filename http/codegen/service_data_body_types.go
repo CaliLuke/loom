@@ -22,15 +22,14 @@ type requestBodyTypeDetails struct {
 
 // buildRequestBodyType builds the TypeData for a request body. The data makes
 // it possible to generate a function on the client side that creates the body
-// from the service method payload.
-func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, endpointName string, formEncoded, multipart, svr bool, sd *ServiceData) *TypeData {
+// from the service method payload or streaming payload att, whose type is
+// generated in the package named pkg.
+func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, endpointName, pkg string, formEncoded, multipart, svr bool, sd *ServiceData) *TypeData {
 	if body.Type == expr.Empty {
 		return nil
 	}
 	var (
 		httpctx = httpContext(sd.Scope, true, svr)
-		ep      = sd.Service.Method(endpointName)
-		pkg     = service.DefaultPackageName(ep.PayloadLoc, sd.Service.PkgName)
 		svcctx  = serviceContext(pkg, sd.Service.Scope)
 	)
 	httpctx.JSONPresence = svr && !formEncoded && !multipart

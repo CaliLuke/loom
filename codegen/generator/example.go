@@ -22,7 +22,9 @@ func Example(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 		}
 		services := service.NewServicesData(r)
 		for _, s := range r.Services {
-			service.SetUserTypeImports(genpkg, services.Get(s.Name))
+			if err := service.SetUserTypeImports(genpkg, services.Get(s.Name)); err != nil {
+				return nil, err
+			}
 		}
 		rootFiles := make([]*codegen.File, 0, 16)
 		rootFiles = append(rootFiles, baseExampleFiles(genpkg, r, services)...)

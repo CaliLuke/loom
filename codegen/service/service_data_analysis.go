@@ -31,7 +31,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 		}
 	}()
 
-	scope, viewScope, pkgName, viewspkg := newServiceScopes(service)
+	scope, viewScope, pkgName, viewspkg := newServiceScopes(d.Root, service)
 	state := d.collectServiceAnalysisData(service, scope, viewScope, viewspkg)
 	seen := analysisSeenTypes(state.types, state.errTypes)
 	wrapRawObjectMethods(service, scope, seen)
@@ -53,12 +53,10 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	return data
 }
 
-func newServiceScopes(service *expr.ServiceExpr) (*codegen.NameScope, *codegen.NameScope, string, string) {
-	scope := codegen.NewNameScope()
-	scope.Unique("Use")
-	scope.Unique("websocket")
+func newServiceScopes(root *expr.RootExpr, service *expr.ServiceExpr) (*codegen.NameScope, *codegen.NameScope, string, string) {
+	scope := newServiceNameScope()
 	viewScope := codegen.NewNameScope()
-	pkgName := scope.HashedUnique(service, PackageBaseName(service.Name), "svc")
+	pkgName := servicePackageName(scope, root, service)
 	return scope, viewScope, pkgName, pkgName + "views"
 }
 
@@ -172,6 +170,7 @@ func newServiceData(
 		unions:             unions,
 	}
 	data.metaTypeImports = metaTypeImports(service, data)
+	data.ownPackageType = ownPackageUserType(service)
 	return data
 }
 
