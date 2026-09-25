@@ -112,7 +112,9 @@ func (r *Runner) Run(t *testing.T) {
 	if err := r.startServers(t); err != nil {
 		t.Fatalf("Failed to start servers: %v", err)
 	}
-	defer r.stopServers()
+	// Parallel scenarios run after Run returns, so stop the servers in a
+	// cleanup, which waits for them, rather than in a deferred call.
+	t.Cleanup(r.stopServers)
 
 	// Count scenarios to run
 	scenarios := r.filterScenarios()

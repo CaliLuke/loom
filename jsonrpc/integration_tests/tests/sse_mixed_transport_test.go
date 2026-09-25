@@ -304,8 +304,8 @@ func startMixedTickServer(t *testing.T) *harness.Server {
 	serverCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	// Serialize server startup: StartServer runs go mod tidy + go run in the
-	// shared work dir, and concurrent module-file writes would race.
+	// Serialize server startup: StartServer runs go mod tidy + go build in
+	// the shared work dir, and concurrent module-file writes would race.
 	mixedTickStartMu.Lock()
 	defer mixedTickStartMu.Unlock()
 	server, err := harness.StartServer(serverCtx, workDir, 0)
