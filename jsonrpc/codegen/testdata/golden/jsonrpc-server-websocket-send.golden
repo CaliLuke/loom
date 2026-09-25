@@ -1,11 +1,11 @@
 // SendEchoNotification sends a JSON-RPC notification for the echo method.
-func (s *streamStream) SendEchoNotification(ctx context.Context, result *stream.EchoResult) error {
+func (s *streamStream) SendEchoNotification(ctx context.Context, result *streamsvc.EchoResult) error {
 	body := NewEchoResponseBody(result)
 	return s.conn.WriteJSON(ctx, jsonrpc.MakeNotification("echo", body))
 }
 
 // SendEchoResponse sends a JSON-RPC response for the echo method.
-func (s *streamStream) SendEchoResponse(ctx context.Context, id any, result *stream.EchoResult) error {
+func (s *streamStream) SendEchoResponse(ctx context.Context, id any, result *streamsvc.EchoResult) error {
 	body := NewEchoResponseBody(result)
 	return s.conn.WriteJSON(ctx, jsonrpc.MakeSuccessResponse(id, body))
 }

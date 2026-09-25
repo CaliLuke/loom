@@ -11,54 +11,6 @@ import (
 	"github.com/CaliLuke/loom/internal/examplegen"
 )
 
-// transportGeneratedImportNames is the union of local names from literal
-// ImportSpec and Loom import constructors in generated files that also emit a
-// dynamic transport import. TestTransportImportAliasReservationsCoverGeneratedImports
-// keeps it aligned with those constructors. Service, view, and user-type
-// imports are dynamic design data and therefore allocate their own aliases.
-var transportGeneratedImportNames = []string{
-	"atomic",
-	"bufio",
-	"bytes",
-	"context",
-	"debug",
-	"errors",
-	"flag",
-	"fmt",
-	"http",
-	"io",
-	"json",
-	"jsontext",
-	"jsonrpc",
-	"log",
-	"loom",
-	"loomhttp",
-	"loomhttpcli",
-	"loomtransport",
-	"middleware",
-	"multipart",
-	"os",
-	"path",
-	"strconv",
-	"strings",
-	"sync",
-	"testing",
-	"time",
-	"url",
-	"utf8",
-	"websocket",
-}
-
-// transportGeneratedLocalNames are local identifiers that coexist with
-// service package references in generated transport functions.
-var transportGeneratedLocalNames = []string{
-	"body",
-	"c",
-	"ctx",
-	"err",
-	"v",
-}
-
 // analyze creates the data necessary to render the code of the given service.
 // It records the user types needed by the service definition in userTypes.
 // Panics are wrapped with DSL attribution (service, endpoint, source location)

@@ -11,6 +11,14 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+// serverMainLocalNames lists the locals that the example server main
+// declares in scope where it refers to the service packages. A service
+// package named like one of them is imported under an alias, see
+// exampleSvrMain. TestServerMainLocalNameReservationsCoverGeneratedLocals
+// collects these names from the generated main and fails when the list
+// misses one.
+var serverMainLocalNames = []string{"ctx", "format"}
+
 // ServerFiles returns an example server main implementation for every server
 // expression in the service design.
 func ServerFiles(genpkg string, root *expr.RootExpr, services *service.ServicesData) []*codegen.File {
@@ -47,16 +55,16 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 		{Path: "github.com/CaliLuke/loom/clue/log"},
 	}
 
-	// Iterate through services listed in the server expression.
-	svcData := make([]*service.Data, len(svr.Services))
 	scope := codegen.NewNameScope()
+	for _, name := range serverMainLocalNames {
+		scope.Unique(name)
+	}
+	svcData := serverMainServices(svr, services, scope)
 	hasInterceptors := false
-	for i, svc := range svr.Services {
-		sd := services.Get(svc)
-		svcData[i] = sd
+	for _, sd := range svcData {
 		specs = append(specs, &codegen.ImportSpec{
 			Path: path.Join(genpkg, sd.PathName),
-			Name: scope.Unique(sd.PkgName, "svc"),
+			Name: sd.PkgName,
 		})
 		hasInterceptors = hasInterceptors || len(sd.ServerInterceptors) > 0
 	}
@@ -87,6 +95,24 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 	}
 
 	return &codegen.File{Path: mainPath, Sections: sections, SkipExist: true}
+}
+
+// serverMainServices returns the data of the services that svr hosts in the
+// order it lists them. It allocates the import name of each service package
+// in scope. The main qualifies the service types with PkgName, so the data
+// of a service imported under an alias is a copy that holds the alias.
+func serverMainServices(svr *expr.ServerExpr, services *service.ServicesData, scope *codegen.NameScope) []*service.Data {
+	svcData := make([]*service.Data, len(svr.Services))
+	for i, svc := range svr.Services {
+		sd := services.Get(svc)
+		if alias := scope.Unique(sd.PkgName, "svc"); alias != sd.PkgName {
+			aliased := *sd
+			aliased.PkgName = alias
+			sd = &aliased
+		}
+		svcData[i] = sd
+	}
+	return svcData
 }
 
 // mustInitServices returns true if at least one of the services defines methods.

@@ -131,7 +131,7 @@ func TestJSONRPCTopLevelSections(t *testing.T) {
 		serverCode := topLevelSectionCode(t, ServerFiles("", services), "jsonrpc-server-struct", "jsonrpc-server-init")
 		clientCode := topLevelSectionCode(t, ClientFiles("", services), "jsonrpc-client-struct", "jsonrpc-client-init")
 
-		require.Contains(t, serverCode, "StreamHandler func(context.Context, stream.Stream) error")
+		require.Contains(t, serverCode, "StreamHandler func(context.Context, streamsvc.Stream) error")
 		require.Contains(t, clientCode, "streamConfig *jsonrpc.StreamConfig")
 		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-server-websocket.golden"), serverCode)
 		testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-top-level-client-websocket.golden"), clientCode)

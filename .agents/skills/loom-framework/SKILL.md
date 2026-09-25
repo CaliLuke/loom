@@ -428,6 +428,18 @@ filter, and serialization rules belong here.
   from every user type they refer to, including the elements of a collection
   body, so the transport declares its own types and converts them to the
   relocated service types.
+- HTTP and JSON-RPC transport and example files import a service package
+  under a `svc` alias, such as `ssvc`, when its name equals an import of
+  those files (`transportGeneratedImportNames`) or a name that they declare
+  where the package would not compile under its own name
+  (`transportGeneratedLocalNames`, such as the server receiver `s` or the
+  request `r`). `newServiceImportAliases` allocates the aliases.
+  `testingx.ServicePackageShadowNames` collects those names from
+  generated code by scope, and the HTTP and JSON-RPC local name tests fail
+  when the list misses one and compile services named after each. Add a new
+  generated name to the list. The example server main allocates its service
+  imports in its own scope, which reserves its locals
+  (`serverMainLocalNames` in `codegen/example`).
 - The fields, oneofs and oneof fields of a gRPC message share one namespace.
   `newProtoMessageNames` (`grpc/codegen/protobuf_message_names.go`) allocates
   their names per message, and the proto renderer, `checkMessageFields`, the
