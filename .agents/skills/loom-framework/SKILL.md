@@ -513,6 +513,11 @@ filter, and serialization rules belong here.
   that is being closed. Generated
   streams wrap `jsonrpc.WebSocketClientStream` and only decode results. Check
   changes against `jsonrpc/tla/WebSocketClientDemux.tla`.
+- JSON-RPC reuses HTTP file builders for its encoders, decoders, types and
+  paths. `updateHeader` (`jsonrpc/codegen/header.go`) moves only the imports
+  below `genpkg/http/` to `genpkg/jsonrpc/`, matching whole path segments;
+  service packages such as `genpkg/http_` and module paths that contain
+  `gen/http` keep their import paths.
 - Preserve the generated public `ServeHTTP` middleware and policy chain when
   adding JSON-RPC dispatch branches.
 - Keep gRPC request context, metadata application, status conversion,

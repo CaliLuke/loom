@@ -43,7 +43,7 @@ func clientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *http
 		return nil
 	}
 	svcData, _ := data.FileData(svc.Name(), codegen.HeaderDataForSection(f.HeaderSection()).Imports)
-	updateHeader(f)
+	updateHeader(f, genpkg)
 	f.SetSections(clientEncodeDecodeSections(f, svcData))
 	f.Path = jsonrpcTransportPath(f.Path)
 	return f
