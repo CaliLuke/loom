@@ -344,6 +344,17 @@ absent `params` as a nil attribute. For a union, the server rejects
 `"params": null` and `"params": {}` with `-32602`; for an object, it decodes
 them like `{}` and validates the object.
 
+A nullable union selected with `Body("name")` keeps the absent, null, and
+concrete states of its `loom.Nullable` payload field. When the attribute is
+optional, the generated client sends no body for an absent value, `null` for a
+null value, and the union otherwise. The generated server decodes an empty or
+whitespace-only body as an absent value, `null` as a null value, and validates
+the selected branch of a concrete union. When the attribute is required, an
+empty body fails with `missing_payload`. A JSON-RPC client cannot send null
+params, because JSON-RPC 2.0 does not allow them: it omits `params` for a null
+value as well as for an absent one. The JSON-RPC server still decodes
+`"params": null` as a null value.
+
 ### Raw Request and Response Bodies
 
 Use `SkipRequestBodyEncodeDecode` when the service should receive the request

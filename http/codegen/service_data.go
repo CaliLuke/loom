@@ -414,12 +414,18 @@ type (
 		// MustHaveBody is true if the request body cannot be empty.
 		MustHaveBody bool
 		// OptionalBodyAttribute is true when the request body is the
-		// optional, non-nullable union or object payload attribute named by
-		// PayloadAttr. When that attribute is nil, HTTP clients send no
-		// request body and JSON-RPC clients omit params. HTTP servers decode
-		// an empty body, and JSON-RPC servers absent params, as a nil
-		// attribute.
+		// optional union or non-nullable object payload attribute named by
+		// PayloadAttr. When that attribute is nil, or absent for a nullable
+		// union, HTTP clients send no request body and JSON-RPC clients omit
+		// params. HTTP servers decode an empty body, and JSON-RPC servers
+		// absent params, as a nil or absent attribute.
 		OptionalBodyAttribute bool
+		// OptionalBodyNullable is true when OptionalBodyAttribute is true and
+		// the attribute is a nullable union. The service field is then a
+		// loom.Nullable value: clients send the body, possibly JSON null,
+		// only when it is present, and servers decode an empty body as an
+		// absent value.
+		OptionalBodyNullable bool
 		// OptionalObjectBody is true when OptionalBodyAttribute is true and
 		// the attribute is an object. The server then decodes the body into
 		// a pointer that it sets to nil when the body is empty, validates the

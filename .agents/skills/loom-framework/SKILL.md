@@ -335,7 +335,11 @@ filter, and serialization rules belong here.
   `Body` (`RequestData.OptionalBodyAttribute`) is sent only when it is not
   nil: HTTP clients send no body and JSON-RPC clients omit params. Servers
   decode an empty body, empty form, or absent JSON-RPC params to a nil
-  attribute. A union gets this from its empty discriminator. An object
+  attribute. A union gets this from its empty discriminator. A nullable union
+  (`OptionalBodyNullable`) is checked with `Present()` and decodes an empty
+  body to an absent `loom.Nullable`. Explicit presence bodies such as
+  `loom.Nullable` are passed to the payload constructor by value, and their
+  validation requires presence only when the body is required. An object
   (`OptionalObjectBody`) is decoded into a pointer that is set to nil for an
   empty body, is validated only when present, and is passed to the payload
   constructor, which leaves the attribute nil for a nil body.

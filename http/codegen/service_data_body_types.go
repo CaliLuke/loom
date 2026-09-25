@@ -76,11 +76,10 @@ func buildRequestBodyTypeDetails(
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
 	if codegen.IsExplicitPresenceType(body) {
-		ctx := codegen.NewAttributeContext(false, false, !svr, "", sd.Scope)
 		return requestBodyTypeDetails{
 			varName:           sd.Scope.GoTypeRef(body),
 			description:       body.Description,
-			validateReference: codegen.ValidationCode(body, nil, ctx, true, expr.IsAlias(body.Type), false, "body"),
+			validateReference: explicitPresenceBodyValidateRef(body, svr, true, sd.Scope),
 		}
 	}
 	if userType, ok := body.Type.(expr.UserType); ok {
@@ -132,6 +131,16 @@ func buildUserRequestBodyTypeDetails(
 		}
 	}
 	return details
+}
+
+// explicitPresenceBodyValidateRef returns the validation code of the request
+// body variable "body" whose type, such as loom.Nullable, records its own
+// presence. The code reports an absent body as a missing field only when
+// required is true. It validates the selected branch of a nullable union
+// through the pointer fields of the branch transport types.
+func explicitPresenceBodyValidateRef(body *expr.AttributeExpr, svr, required bool, scope *codegen.NameScope) string {
+	ctx := codegen.NewAttributeContext(isNullableUnionBody(body), false, !svr, "", scope)
+	return codegen.ValidationCode(body, nil, ctx, required, expr.IsAlias(body.Type), false, "body")
 }
 
 // requestBodyValidateRef returns the statement that validates the server

@@ -157,12 +157,12 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			JSONRPC: "2.0",
 			Method:  "{{ .Method.Name }}",
 		}
-		if p.{{ .Payload.Request.PayloadAttr }} != nil {
+		if p.{{ .Payload.Request.PayloadAttr }}{{ if .Payload.Request.OptionalBodyNullable }}.Present(){{ else }} != nil{{ end }} {
 			body.Params = {{ template "partial_client_body_init" .Payload.Request }}
 		}
 		{{- else }}
 		{{- if .Payload.Request.OptionalBodyAttribute }}
-		if p.{{ .Payload.Request.PayloadAttr }} != nil {
+		if p.{{ .Payload.Request.PayloadAttr }}{{ if .Payload.Request.OptionalBodyNullable }}.Present(){{ else }} != nil{{ end }} {
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
 		b := {{ template "partial_client_body_init" .Payload.Request }}

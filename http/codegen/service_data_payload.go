@@ -140,6 +140,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		PayloadType:           b.endpointIR.Request.Payload.Type,
 		MustHaveBody:          mustHaveBody,
 		OptionalBodyAttribute: isOptionalBodyAttribute(b.endpointIR.Request),
+		OptionalBodyNullable:  isOptionalNullableBody(b.endpointIR.Request),
 		OptionalObjectBody:    isOptionalObjectBody(b.endpointIR.Request),
 		MustValidate:          payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
 		Multipart:             b.endpointIR.Request.Multipart,
@@ -204,6 +205,11 @@ func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {
 		// The server decodes an optional object body into a pointer.
 		server.ValidateRef = requestBodyValidateRef(server.VarName, true)
 	}
+	if server != nil && isOptionalNullableBody(b.endpointIR.Request) {
+		// The loom.Nullable body of an optional nullable union attribute may
+		// be absent.
+		server.ValidateRef = explicitPresenceBodyValidateRef(b.bodyAttr, true, false, b.sd.Scope)
+	}
 	return server, b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
 }
 
@@ -235,18 +241,36 @@ func buildPayloadRequestBodyRequirements(request *transportir.Request) (string, 
 	return request.BodyOrigin, request.MustHaveBody
 }
 
-// isOptionalBodyAttribute reports whether the request body is a
-// non-nullable union or object selected with Body from an optional payload
-// attribute. The generated service field is then a nil-able pointer that the
-// client must check before building the body.
+// isOptionalBodyAttribute reports whether the request body is a union, or a
+// non-nullable object, selected with Body from an optional payload attribute.
+// The generated service field is then a nil-able pointer, or a loom.Nullable
+// value for a nullable union, that the client must check before building the
+// body.
 func isOptionalBodyAttribute(request *transportir.Request) bool {
 	if request == nil || request.BodyOrigin == "" || request.Body == nil || request.Payload == nil {
 		return false
 	}
-	if expr.IsNullable(request.Body) || request.Payload.IsRequired(request.BodyOrigin) {
+	if request.Payload.IsRequired(request.BodyOrigin) {
 		return false
 	}
-	return expr.IsUnion(request.Body.Type) || expr.IsObject(request.Body.Type)
+	if expr.IsUnion(request.Body.Type) {
+		return true
+	}
+	return expr.IsObject(request.Body.Type) && !expr.IsNullable(request.Body)
+}
+
+// isOptionalNullableBody reports whether the request body is a nullable union
+// selected with Body from an optional payload attribute. The generated
+// service field is then a loom.Nullable value whose Present method tells the
+// client whether to send the body.
+func isOptionalNullableBody(request *transportir.Request) bool {
+	return isOptionalBodyAttribute(request) && isNullableUnionBody(request.Body)
+}
+
+// isNullableUnionBody reports whether the request body is a nullable union,
+// which the server declares and decodes as a loom.Nullable value.
+func isNullableUnionBody(body *expr.AttributeExpr) bool {
+	return body != nil && expr.IsUnion(body.Type) && expr.IsNullable(body)
 }
 
 // isOptionalObjectBody reports whether the request body is an object selected
@@ -448,9 +472,11 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 		}
 	}
 	serverRef := b.sd.Scope.GoVar("body", b.body)
-	if isOptionalObjectBody(b.endpointIR.Request) {
+	if isOptionalObjectBody(b.endpointIR.Request) || isNullableUnionBody(b.bodyAttr) {
 		// The server decodes an optional object body into a pointer that is
-		// nil when the request has no body.
+		// nil when the request has no body, and declares the loom.Nullable
+		// body of a nullable union by value, which is how the constructor
+		// takes it.
 		serverRef = "body"
 	}
 	serverArgs = append(serverArgs, &InitArgData{
@@ -496,7 +522,7 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 			pAtt = expr.AsObject(b.payload.Type).Attribute(origin)
 			pAtt = serviceFieldTransformAttribute(b.payload, origin, pAtt)
 			pointer = !b.payload.IsRequired(o[0]) && expr.IsPrimitive(pAtt.Type)
-			unionValue = b.payload.IsRequired(o[0]) && expr.IsUnion(pAtt.Type)
+			unionValue = b.payload.IsRequired(o[0]) && expr.IsUnion(pAtt.Type) && !expr.IsNullable(pAtt)
 		}
 		var helpers []*codegen.TransformFunctionData
 		var err error
