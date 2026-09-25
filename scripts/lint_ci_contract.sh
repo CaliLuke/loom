@@ -158,35 +158,83 @@ run_hook_and_assert_make \
   "|||lint test"
 run_hook_and_assert_make "" "|||lint test"
 
+# The release attestation cases need real tags. Create them in a throwaway
+# repository, never in the caller's: worktrees share one tag namespace, so tags
+# there would clash between concurrent lint runs, and a killed run would leave a
+# release-looking tag behind that a later tag push could publish.
+caller_tags_before="$(git -C "$ROOT" for-each-ref --format='%(refname) %(objectname)' refs/tags)"
+release_repo="$TMP_BASE/release-repo"
+HOOK_ERR="$TMP_BASE/hook.err"
+# Clear the repository-local variables, such as GIT_DIR and GIT_INDEX_FILE, that
+# a calling hook may export, so they cannot point these commands at the caller.
+release_env_unset=()
+for name in $(git rev-parse --local-env-vars); do
+  release_env_unset+=(-u "$name")
+done
+release_git() {
+  env "${release_env_unset[@]}" git -C "$release_repo" \
+    -c core.hooksPath=/dev/null -c commit.gpgsign=false -c tag.gpgsign=false \
+    -c user.name="Loom CI Contract" -c user.email="loom-ci-contract@example.com" "$@"
+}
+mkdir -p "$release_repo"
+release_git init -q || fail "could not create the release attestation repository"
+release_git commit -q --allow-empty -m "CI contract release" ||
+  fail "could not create the release attestation commit"
 release_version="v9.8.7-alpha.6"
 lightweight_version="v9.8.7-alpha.5"
-release_head="$(git -C "$ROOT" rev-parse HEAD)"
+release_git tag -a "$release_version" -m "CI contract test" || fail "could not create $release_version"
+release_git tag "$lightweight_version" || fail "could not create $lightweight_version"
+release_head="$(release_git rev-parse HEAD)"
 release_tag="refs/tags/$release_version"
-git -C "$ROOT" -c user.name="Loom CI Contract" -c user.email="loom-ci-contract@example.com" \
-  tag -a "$release_version" -m "CI contract test"
-git -C "$ROOT" tag "$lightweight_version"
-release_tag_oid="$(git -C "$ROOT" rev-parse "$release_tag")"
+release_tag_oid="$(release_git rev-parse "$release_tag")"
 lightweight_tag="refs/tags/$lightweight_version"
-lightweight_tag_oid="$(git -C "$ROOT" rev-parse "$lightweight_tag")"
-trap 'git -C "$ROOT" tag -d "$release_version" "$lightweight_version" >/dev/null 2>&1 || true; rm -rf "$TMP_BASE"' EXIT
-run_hook_and_assert_make \
-  "HEAD $release_head refs/heads/main $remote_oid\n$release_tag $release_tag_oid $release_tag $delete_oid\n" \
-  "" \
-  "$release_version"
+lightweight_tag_oid="$(release_git rev-parse "$lightweight_tag")"
 
-git_dir="$(git -C "$ROOT" rev-parse --absolute-git-dir)"
-if printf '%b' "HEAD $release_head refs/heads/main $remote_oid\n" | \
-  CI_CONTRACT_MAKE_LOG="$MAKE_LOG" PATH="$STUB_BIN:$PATH" LOOM_DIR= \
-  GIT_DIR="$git_dir" GIT_WORK_TREE="$repo_root" LOOM_RELEASE_VERSION="$release_version" \
-  "$PRE_PUSH" origin https://github.com/CaliLuke/loom.git >/dev/null 2>&1; then
-  fail "pre-push accepted an incomplete Loom release publication"
+run_release_hook() {
+  local input="$1"
+  local version="$2"
+  : >"$MAKE_LOG"
+  printf '%b' "$input" | CI_CONTRACT_MAKE_LOG="$MAKE_LOG" PATH="$STUB_BIN:$PATH" LOOM_DIR= \
+    GIT_DIR="$release_repo/.git" GIT_WORK_TREE="$release_repo" LOOM_RELEASE_VERSION="$version" \
+    "$PRE_PUSH" origin https://github.com/CaliLuke/loom.git >/dev/null 2>"$HOOK_ERR"
+}
+
+assert_release_hook_rejects() {
+  local input="$1"
+  local version="$2"
+  local reason="$3"
+  local description="$4"
+  if run_release_hook "$input" "$version"; then
+    fail "pre-push accepted $description"
+  fi
+  if ! grep -Fqx "$reason" "$HOOK_ERR"; then
+    fail "pre-push rejected $description with [$(<"$HOOK_ERR")], want [$reason]"
+  fi
+}
+
+if ! run_release_hook \
+  "HEAD $release_head refs/heads/main $remote_oid\n$release_tag $release_tag_oid $release_tag $delete_oid\n" \
+  "$release_version"; then
+  fail "pre-push rejected a complete Loom release publication: $(<"$HOOK_ERR")"
+fi
+if [[ -s "$MAKE_LOG" ]]; then
+  fail "pre-push invoked Make as [$(<"$MAKE_LOG")] for a Loom release publication, want []"
 fi
 
-if printf '%b' "HEAD $release_head refs/heads/main $remote_oid\n$lightweight_tag $lightweight_tag_oid $lightweight_tag $delete_oid\n" | \
-  CI_CONTRACT_MAKE_LOG="$MAKE_LOG" PATH="$STUB_BIN:$PATH" LOOM_DIR= \
-  GIT_DIR="$git_dir" GIT_WORK_TREE="$repo_root" LOOM_RELEASE_VERSION="$lightweight_version" \
-  "$PRE_PUSH" origin https://github.com/CaliLuke/loom.git >/dev/null 2>&1; then
-  fail "pre-push accepted a lightweight Loom release tag"
+assert_release_hook_rejects \
+  "HEAD $release_head refs/heads/main $remote_oid\n" \
+  "$release_version" \
+  "Loom release publication must atomically update main and $release_version" \
+  "an incomplete Loom release publication"
+assert_release_hook_rejects \
+  "HEAD $release_head refs/heads/main $remote_oid\n$lightweight_tag $lightweight_tag_oid $lightweight_tag $delete_oid\n" \
+  "$lightweight_version" \
+  "Loom release tag $lightweight_version is not annotated" \
+  "a lightweight Loom release tag"
+
+caller_tags_after="$(git -C "$ROOT" for-each-ref --format='%(refname) %(objectname)' refs/tags)"
+if [[ "$caller_tags_after" != "$caller_tags_before" ]]; then
+  fail "release attestation checks changed the tags of the caller's repository"
 fi
 
 FAST_ROOT="$TMP_BASE/integration-fast"
