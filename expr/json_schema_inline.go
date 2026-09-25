@@ -58,7 +58,9 @@ const (
 )
 
 // InlineJSONSchema returns a compact JSON Schema for the given Loom attribute.
-// The schema is fully resolved and does not include $ref references.
+// The schema is fully resolved and does not include $ref references. Object
+// properties use the JSON field names of the HTTP and JSON-RPC bodies, which
+// name a field declared as "n:m" after its element name "m".
 func InlineJSONSchema(attr *AttributeExpr) ([]byte, error) {
 	if attr == nil || attr.Type == nil || attr.Type == Empty {
 		return json.Marshal(&InlineSchema{
@@ -257,7 +259,7 @@ func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *O
 		designNames[nat.Name] = struct{}{}
 	}
 	for _, nat := range *dt {
-		name := JSONFieldName(nat.Name, nat.Attribute)
+		name := JSONFieldName(ElementName(nat.Name), nat.Attribute)
 		if name == "-" {
 			continue
 		}
@@ -471,7 +473,7 @@ func inlineRequiredNames(attribute *AttributeExpr, required []string) []string {
 		wireName := requiredName
 		for _, field := range *object {
 			if field != nil && field.Name == requiredName {
-				wireName = JSONFieldName(field.Name, field.Attribute)
+				wireName = JSONFieldName(ElementName(field.Name), field.Attribute)
 				break
 			}
 		}

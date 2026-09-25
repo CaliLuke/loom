@@ -91,7 +91,8 @@ func TestMappedNamesOpenAPIUnionBranches(t *testing.T) {
 // generated client and server, and sends raw bodies that use the element
 // names to the generated server, checking the status, the problem code and
 // detail, whether the service is invoked, the decoded payload and the JSON
-// names of the response.
+// names of the response. The branches of the untagged union of the lookup
+// method are matched by the element names of their fields.
 func TestMappedNamesGeneratedModule(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.MappedNamesDSL)
 	dir := t.TempDir()
@@ -135,9 +136,10 @@ import (
 )
 
 type service struct {
-	mu     sync.Mutex
-	echoes []*mappednames.Envelope
-	inline []*mappednames.InlinePayload
+	mu      sync.Mutex
+	echoes  []*mappednames.Envelope
+	inline  []*mappednames.InlinePayload
+	lookups []*mappednames.DataResultOrFailResult
 }
 
 func (s *service) Echo(_ context.Context, p *mappednames.Envelope) (*mappednames.Envelope, error) {
@@ -152,6 +154,21 @@ func (s *service) Inline(_ context.Context, p *mappednames.InlinePayload) (*mapp
 	defer s.mu.Unlock()
 	s.inline = append(s.inline, p)
 	return &mappednames.InlineResult{ID: p.ID, Count: p.Count}, nil
+}
+
+func (s *service) Lookup(_ context.Context, p *mappednames.DataResultOrFailResult) (*mappednames.DataResultOrFailResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lookups = append(s.lookups, p)
+	return p, nil
+}
+
+func (s *service) takeLookups() []*mappednames.DataResultOrFailResult {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	lookups := s.lookups
+	s.lookups = nil
+	return lookups
 }
 
 func (s *service) take() ([]*mappednames.Envelope, []*mappednames.InlinePayload) {
@@ -344,6 +361,68 @@ func TestInlineWire(t *testing.T) {
 		}
 		if got := strings.TrimSpace(string(raw)); got != tc.json {
 			t.Errorf("%s: response %s, want %s", tc.name, got, tc.json)
+		}
+	}
+}
+
+func TestLookup(t *testing.T) {
+	svc, hs, c := start(t)
+	data := mappednames.NewDataResultOrFailResultDataResult(&mappednames.DataResult{Data: "d", Size: ptr(2)})
+	fail := mappednames.NewDataResultOrFailResultFailResult(&mappednames.FailResult{Reason: "r"})
+	for name, value := range map[string]mappednames.DataResultOrFailResult{"data": data, "fail": fail} {
+		res, err := c.Lookup()(context.Background(), &value)
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		if seen := svc.takeLookups(); len(seen) != 1 || !reflect.DeepEqual(*seen[0], value) {
+			t.Errorf("%s: service received %+v, want %+v", name, seen, value)
+		}
+		if got, ok := res.(*mappednames.DataResultOrFailResult); !ok || !reflect.DeepEqual(*got, value) {
+			t.Errorf("%s: client received %+v, want %+v", name, res, value)
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		body   string
+		status int
+		want   *mappednames.DataResultOrFailResult
+	}{
+		{"data branch", ` + "`" + `{"dt":"d","sz":2}` + "`" + `, http.StatusOK, &data},
+		{"fail branch", ` + "`" + `{"rs":"r"}` + "`" + `, http.StatusOK, &fail},
+		{"attribute names", ` + "`" + `{"data":"d"}` + "`" + `, http.StatusBadRequest, nil},
+		{"suffixed keys", ` + "`" + `{"data:dt":"d"}` + "`" + `, http.StatusBadRequest, nil},
+	} {
+		resp, err := hs.Client().Post(hs.URL+"/lookup", "application/json", strings.NewReader(tc.body))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		raw, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("%s: read body: %v", tc.name, err)
+		}
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("%s: close body: %v", tc.name, err)
+		}
+		if resp.StatusCode != tc.status {
+			t.Errorf("%s: status %d, want %d (%s)", tc.name, resp.StatusCode, tc.status, raw)
+		}
+		seen := svc.takeLookups()
+		if tc.want == nil {
+			var problem loomhttp.ProblemResponse
+			if err := json.Unmarshal(raw, &problem); err != nil || problem.Code != "decode_payload" {
+				t.Errorf("%s: problem %s, want code decode_payload (%v)", tc.name, raw, err)
+			}
+			if len(seen) != 0 {
+				t.Errorf("%s: service invoked with %+v", tc.name, seen)
+			}
+			continue
+		}
+		if len(seen) != 1 || !reflect.DeepEqual(seen[0], tc.want) {
+			t.Errorf("%s: service received %+v, want %+v", tc.name, seen, tc.want)
+		}
+		if got := strings.TrimSpace(string(raw)); got != tc.body {
+			t.Errorf("%s: response %s, want %s", tc.name, got, tc.body)
 		}
 	}
 }

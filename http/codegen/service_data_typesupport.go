@@ -269,6 +269,10 @@ func unionBranchValidateRef(fieldType string) string {
 	return "Validate" + typeName + "(v)"
 }
 
+// serviceUnionBranchJSONFields returns the sorted required, non-nullable and
+// all JSON field names of the untagged union branch att in HTTP and JSON-RPC
+// bodies, which name a field declared as "n:m" after its element name "m", and
+// whether the branch rejects unknown fields.
 func serviceUnionBranchJSONFields(att *expr.AttributeExpr) ([]string, []string, []string, bool) {
 	ut := att.Type.(expr.UserType)
 	parent := ut.Attribute()
@@ -277,7 +281,7 @@ func serviceUnionBranchJSONFields(att *expr.AttributeExpr) ([]string, []string, 
 	nonNullable := make([]string, 0, len(*object))
 	fields := make([]string, 0, len(*object))
 	for _, field := range *object {
-		name := codegen.JSONFieldName(field.Name, field.Attribute)
+		name := codegen.JSONFieldName(expr.ElementName(field.Name), field.Attribute)
 		fields = append(fields, name)
 		if parent.IsRequired(field.Name) {
 			required = append(required, name)

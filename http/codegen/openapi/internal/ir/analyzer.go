@@ -267,7 +267,7 @@ func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj 
 		s.Properties = make(map[string]*Schema)
 	}
 	for _, nat := range *obj {
-		name := expr.JSONFieldName(nat.Name, nat.Attribute)
+		name := expr.JSONFieldName(expr.ElementName(nat.Name), nat.Attribute)
 		if name != "-" && openapi.MustGenerate(nat.Attribute.Meta) {
 			s.Properties[name] = a.analyzeSchema(
 				nat.Attribute,
@@ -425,7 +425,7 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 			if !openapi.MustGenerate(child.Meta) {
 				continue
 			}
-			required = expr.JSONFieldName(required, child)
+			required = expr.JSONFieldName(expr.ElementName(required), child)
 			if required == "-" {
 				continue
 			}

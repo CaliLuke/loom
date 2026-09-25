@@ -444,6 +444,26 @@ func TestInlineJSONSchema(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("names suffixed fields after their element names", func(t *testing.T) {
+		attr := &AttributeExpr{
+			Type: &Object{
+				&NamedAttributeExpr{Name: "n:m", Attribute: &AttributeExpr{Type: String}},
+				&NamedAttributeExpr{Name: "req:r", Attribute: &AttributeExpr{Type: Int}},
+			},
+			Validation:   &ValidationExpr{Required: []string{"req:r"}},
+			UserExamples: []*ExampleExpr{{Value: map[string]any{"n:m": "x", "req:r": 1}}},
+		}
+
+		data := mustInlineJSONSchema(t, attr)
+
+		require.Equal(t, []any{"r"}, data["required"])
+		props := data["properties"].(map[string]any)
+		require.Len(t, props, 2)
+		require.Equal(t, "string", props["m"].(map[string]any)["type"])
+		require.Equal(t, "integer", props["r"].(map[string]any)["type"])
+		require.Equal(t, []any{map[string]any{"m": "x", "r": float64(1)}}, data["examples"])
+	})
 }
 
 func TestInlineJSONSchemaRepresentsNullableValues(t *testing.T) {

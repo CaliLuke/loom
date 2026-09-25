@@ -40,7 +40,7 @@ func untaggedBranchExampleMatches(branch *expr.AttributeExpr, value any) bool {
 		if field == nil || field.Attribute == nil {
 			continue
 		}
-		name := codegen.JSONFieldName(field.Name, field.Attribute)
+		name := codegen.JSONFieldName(expr.ElementName(field.Name), field.Attribute)
 		if !openapi.MustGenerate(field.Attribute.Meta) {
 			suppressed[name] = struct{}{}
 			continue

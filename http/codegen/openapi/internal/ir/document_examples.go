@@ -103,7 +103,7 @@ func projectOpenAPIObjectExample(objectType *expr.Object, value any) any {
 		if field == nil || field.Attribute == nil {
 			continue
 		}
-		wireName := expr.JSONFieldName(field.Name, field.Attribute)
+		wireName := expr.JSONFieldName(expr.ElementName(field.Name), field.Attribute)
 		if wireName == "-" || !openapi.MustGenerate(field.Attribute.Meta) {
 			delete(projected, wireName)
 			continue
@@ -222,7 +222,7 @@ func requiredOpenAPIFieldPresent(attr *expr.AttributeExpr, obj map[string]any, n
 	if child == nil || !openapi.MustGenerate(child.Meta) {
 		return true
 	}
-	wireName := expr.JSONFieldName(name, child)
+	wireName := expr.JSONFieldName(expr.ElementName(name), child)
 	if wireName == "-" {
 		return true
 	}
@@ -396,7 +396,7 @@ func normalizeOpenAPIObjectExample(objectType *expr.Object, value any) any {
 		if field == nil || field.Attribute == nil {
 			continue
 		}
-		wireName := expr.JSONFieldName(field.Name, field.Attribute)
+		wireName := expr.JSONFieldName(expr.ElementName(field.Name), field.Attribute)
 		known[wireName] = struct{}{}
 		if fieldValue, present := object[wireName]; present {
 			object[wireName] = normalizeOpenAPIExampleForAttribute(field.Attribute, fieldValue)

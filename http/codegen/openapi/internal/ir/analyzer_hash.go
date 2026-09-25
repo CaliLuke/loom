@@ -244,7 +244,7 @@ func (e *canonicalSchemaEncoder) writeObject(att *expr.AttributeExpr, object *ex
 	e.writeString("object")
 	members := make(map[string]*expr.AttributeExpr, len(*object))
 	for _, member := range *object {
-		name := expr.JSONFieldName(member.Name, member.Attribute)
+		name := expr.JSONFieldName(expr.ElementName(member.Name), member.Attribute)
 		if name != "-" && openapi.MustGenerate(member.Attribute.Meta) {
 			members[name] = member.Attribute
 		}
@@ -313,7 +313,7 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr) {
 			if !openapi.MustGenerate(child.Meta) {
 				continue
 			}
-			name = expr.JSONFieldName(name, child)
+			name = expr.JSONFieldName(expr.ElementName(name), child)
 			if name == "-" {
 				continue
 			}

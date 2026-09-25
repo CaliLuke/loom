@@ -1516,7 +1516,9 @@ Body(func() {
 The same suffix on an attribute of a type or payload, such as
 `Attribute("name:n", String)`, names the field of the HTTP and JSON-RPC
 bodies: the body uses `"n"`, and the Go field and `Required("name:n")` refer
-to the `name` attribute. gRPC ignores the suffix. `ConvertTo` and
+to the `name` attribute. The OpenAPI properties, required lists and examples,
+the client CLI `--body` examples and the fields that select the branch of an
+untagged `OneOf` in those bodies also use `"n"`. gRPC ignores the suffix. `ConvertTo` and
 `CreateFrom` select the external Go field with `struct:field:external` or
 by the attribute name; the suffix does not select it.
 The service package also uses the attribute name: the JSON tag of the Go

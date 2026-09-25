@@ -3,6 +3,7 @@ package expr
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -81,6 +82,25 @@ func TestAttributeName(t *testing.T) {
 	}
 	for key, want := range cases {
 		require.Equal(t, want, AttributeName(key), key)
+	}
+}
+
+// TestElementName checks that ElementName returns the element name suffix,
+// the name that a mapped attribute records for the key, or the key when it
+// has no suffix.
+func TestElementName(t *testing.T) {
+	cases := map[string]string{
+		"n:m":   "m",
+		"n":     "n",
+		"n:m:o": "m",
+		"n:":    "",
+		"":      "",
+	}
+	for key, want := range cases {
+		assert.Equal(t, want, ElementName(key), key)
+		obj := Object{{Name: key, Attribute: &AttributeExpr{Type: String}}}
+		ma := NewMappedAttributeExpr(&AttributeExpr{Type: &obj})
+		assert.Equal(t, want, ma.ElemName(AttributeName(key)), key)
 	}
 }
 

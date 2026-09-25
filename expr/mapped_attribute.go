@@ -32,6 +32,18 @@ func AttributeName(key string) string {
 	return name
 }
 
+// ElementName returns the transport element name of the object key: the
+// suffix of key, such as "m" for "n:m", or key when it has no suffix. HTTP
+// and JSON-RPC bodies name the field after it.
+func ElementName(key string) string {
+	_, elem, ok := strings.Cut(key, ":")
+	if !ok {
+		return key
+	}
+	elem, _, _ = strings.Cut(elem, ":")
+	return elem
+}
+
 // NewEmptyMappedAttributeExpr creates an empty mapped attribute expression.
 func NewEmptyMappedAttributeExpr() *MappedAttributeExpr {
 	return NewMappedAttributeExpr(&AttributeExpr{Type: &Object{}})
@@ -92,11 +104,12 @@ func (ma *MappedAttributeExpr) Remap() {
 		o = AsObject(ma.Type)
 	)
 	for _, nat := range *o {
-		elems := strings.Split(nat.Name, ":")
-		n.Set(elems[0], nat.Attribute)
-		if len(elems) > 1 {
-			ma.nameMap[elems[0]] = elems[1]
-			ma.reverseMap[elems[1]] = elems[0]
+		name := AttributeName(nat.Name)
+		n.Set(name, nat.Attribute)
+		if name != nat.Name {
+			elem := ElementName(nat.Name)
+			ma.nameMap[name] = elem
+			ma.reverseMap[elem] = name
 		}
 	}
 	if ma.Validation != nil && len(ma.Validation.Required) > 0 {

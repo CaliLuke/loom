@@ -3,8 +3,10 @@ package codegen
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/CaliLuke/loom/dsl"
@@ -16,7 +18,8 @@ import (
 // server, and sends raw requests to the generated server, checking that the
 // params and the result use the suffix as the JSON name of the field, that
 // union branches are identified by their attribute names and that missing
-// required fields are reported by attribute name.
+// required fields are reported by attribute name. The branches of an untagged
+// union are matched by the element names of their fields.
 func TestJSONRPCMappedNamesGeneratedModule(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcMappedNamesDSL)
 	dir := t.TempDir()
@@ -25,6 +28,21 @@ func TestJSONRPCMappedNamesGeneratedModule(t *testing.T) {
 	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
 	runGoJSONRPCTestCommand(t, dir, "vet", "./...")
 	runGoJSONRPCTestCommand(t, dir, "test", "-race", "-count=1", "./...")
+}
+
+// TestJSONRPCMappedNamesCLIBodyExamples checks that the client CLI body
+// examples use the element names of suffixed attributes.
+func TestJSONRPCMappedNamesCLIBodyExamples(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcMappedNamesDSL)
+	var cli string
+	for _, file := range ClientCLIFiles("gen", CreateJSONRPCServices(root)) {
+		cli += renderCodegenFile(t, file)
+	}
+
+	for _, want := range []string{`mappednames echo --body '{\n      \"ch\": {`, `\"m\": `, `\"dt\": `} {
+		assert.Contains(t, cli, want)
+	}
+	assert.Empty(t, regexp.MustCompile(`\\"[a-z_]+:[a-z]+\\"`).FindAllString(cli, -1), "keys with an element name suffix")
 }
 
 func jsonrpcMappedNamesDSL() {
@@ -53,6 +71,15 @@ func jsonrpcMappedNamesDSL() {
 		})
 		Required("req:r", "pick:p", "obj:o")
 	})
+	var DataResult = Type("DataResult", func() {
+		Attribute("data:dt", String)
+		Attribute("size:sz", Int)
+		Required("data:dt")
+	})
+	var FailResult = Type("FailResult", func() {
+		Attribute("reason:rs", String)
+		Required("reason:rs")
+	})
 	Service("mappednames", func() {
 		JSONRPC(func() {
 			POST("/rpc")
@@ -60,6 +87,15 @@ func jsonrpcMappedNamesDSL() {
 		Method("echo", func() {
 			Payload(Envelope)
 			Result(Envelope)
+			JSONRPC(func() {})
+		})
+		Method("lookup", func() {
+			Payload(OneOf(DataResult, FailResult), func() {
+				Untagged()
+			})
+			Result(OneOf(DataResult, FailResult), func() {
+				Untagged()
+			})
 			JSONRPC(func() {})
 		})
 	})
@@ -86,8 +122,24 @@ import (
 )
 
 type service struct {
-	mu   sync.Mutex
-	seen []*mappednames.Envelope
+	mu      sync.Mutex
+	seen    []*mappednames.Envelope
+	lookups []*mappednames.DataResultOrFailResult
+}
+
+func (s *service) Lookup(_ context.Context, p *mappednames.DataResultOrFailResult) (*mappednames.DataResultOrFailResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lookups = append(s.lookups, p)
+	return p, nil
+}
+
+func (s *service) takeLookups() []*mappednames.DataResultOrFailResult {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	lookups := s.lookups
+	s.lookups = nil
+	return lookups
 }
 
 func (s *service) Echo(_ context.Context, p *mappednames.Envelope) (*mappednames.Envelope, error) {
@@ -201,6 +253,84 @@ func TestMappedNames(t *testing.T) {
 		var result map[string]any
 		if err := json.Unmarshal(envelope.Result, &result); err != nil || !reflect.DeepEqual(result, tc.result) {
 			t.Errorf("%s: result %s, want %v (%v)", tc.name, envelope.Result, tc.result, err)
+		}
+	}
+}
+func TestLookup(t *testing.T) {
+	svc := &service{}
+	mux := loomhttp.NewMuxer()
+	errhandler := func(context.Context, http.ResponseWriter, error) {}
+	server.Mount(mux, server.New(mappednames.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, errhandler))
+	hs := httptest.NewServer(mux)
+	defer hs.Close()
+	c := client.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+
+	data := mappednames.NewDataResultOrFailResultDataResult(&mappednames.DataResult{Data: "d", Size: ptr(2)})
+	fail := mappednames.NewDataResultOrFailResultFailResult(&mappednames.FailResult{Reason: "r"})
+	for name, value := range map[string]mappednames.DataResultOrFailResult{"data": data, "fail": fail} {
+		res, err := c.Lookup()(context.Background(), &value)
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		if seen := svc.takeLookups(); len(seen) != 1 || !reflect.DeepEqual(*seen[0], value) {
+			t.Errorf("%s: server received %+v, want %+v", name, seen, value)
+		}
+		if got, ok := res.(*mappednames.DataResultOrFailResult); !ok || !reflect.DeepEqual(*got, value) {
+			t.Errorf("%s: client received %+v, want %+v", name, res, value)
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		params string
+		want   *mappednames.DataResultOrFailResult
+	}{
+		{"data branch", ` + "`" + `{"dt":"d","sz":2}` + "`" + `, &data},
+		{"fail branch", ` + "`" + `{"rs":"r"}` + "`" + `, &fail},
+		{"attribute names", ` + "`" + `{"data":"d"}` + "`" + `, nil},
+		{"suffixed keys", ` + "`" + `{"data:dt":"d"}` + "`" + `, nil},
+	} {
+		body := ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"lookup","params":` + "`" + ` + tc.params + "}"
+		resp, err := hs.Client().Post(hs.URL+"/rpc", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		raw, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("%s: read: %v", tc.name, err)
+		}
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("%s: close: %v", tc.name, err)
+		}
+		var envelope struct {
+			Result jsontext.Value ` + "`" + `json:"result"` + "`" + `
+			Error  *struct {
+				Code int ` + "`" + `json:"code"` + "`" + `
+			} ` + "`" + `json:"error"` + "`" + `
+		}
+		if err := json.Unmarshal(raw, &envelope); err != nil {
+			t.Errorf("%s: decode response %q: %v", tc.name, raw, err)
+			continue
+		}
+		seen := svc.takeLookups()
+		if tc.want == nil {
+			if envelope.Error == nil || envelope.Error.Code != -32602 {
+				t.Errorf("%s: response %s, want invalid params error", tc.name, raw)
+			}
+			if len(seen) != 0 {
+				t.Errorf("%s: service invoked with %+v", tc.name, seen)
+			}
+			continue
+		}
+		if envelope.Error != nil {
+			t.Errorf("%s: unexpected error %s", tc.name, raw)
+			continue
+		}
+		if len(seen) != 1 || !reflect.DeepEqual(seen[0], tc.want) {
+			t.Errorf("%s: server received %+v, want %+v", tc.name, seen, tc.want)
+		}
+		if string(envelope.Result) != tc.params {
+			t.Errorf("%s: result %s, want %s", tc.name, envelope.Result, tc.params)
 		}
 	}
 }

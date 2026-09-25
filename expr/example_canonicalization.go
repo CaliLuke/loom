@@ -8,9 +8,10 @@ import (
 )
 
 // CanonicalizeExample normalizes example values to their canonical JSON shape:
-// objects use their JSON field names, Loom unions use their discriminator/value
-// shape, and map keys become JSON object member names, so that the key true
-// becomes "true" and the key 12 becomes "12".
+// objects use the JSON field names of the HTTP and JSON-RPC bodies, which name
+// a field declared as "n:m" after its element name "m", Loom unions use their
+// discriminator/value shape, and map keys become JSON object member names, so
+// that the key true becomes "true" and the key 12 becomes "12".
 func CanonicalizeExample(att *AttributeExpr, example any) any {
 	if att == nil || att.Type == nil || att.Type == Empty {
 		return example
@@ -46,7 +47,7 @@ func canonicalizeObjectExample(object *Object, example any) any {
 		if field == nil || field.Attribute == nil {
 			continue
 		}
-		wireName := JSONFieldName(field.Name, field.Attribute)
+		wireName := JSONFieldName(ElementName(field.Name), field.Attribute)
 		recognized[field.Name] = struct{}{}
 		recognized[wireName] = struct{}{}
 		if wireName == "-" {
@@ -193,7 +194,7 @@ func exampleMatchesObject(attribute *AttributeExpr, object *Object, example map[
 		if field == nil || field.Attribute == nil {
 			continue
 		}
-		wireName := JSONFieldName(field.Name, field.Attribute)
+		wireName := JSONFieldName(ElementName(field.Name), field.Attribute)
 		if wireName == "-" {
 			continue
 		}
@@ -225,7 +226,7 @@ func exampleMatchesObject(attribute *AttributeExpr, object *Object, example map[
 		if field == nil {
 			return false
 		}
-		wireName := JSONFieldName(fieldName, field)
+		wireName := JSONFieldName(ElementName(fieldName), field)
 		_, authoredPresent := example[fieldName]
 		_, wirePresent := example[wireName]
 		if !authoredPresent && !wirePresent {
@@ -250,7 +251,7 @@ func exampleMatchesKnownObjectField(attribute *AttributeExpr, example map[string
 		if _, exists := example[field.Name]; exists {
 			return true
 		}
-		if _, exists := example[JSONFieldName(field.Name, field.Attribute)]; exists {
+		if _, exists := example[JSONFieldName(ElementName(field.Name), field.Attribute)]; exists {
 			return true
 		}
 	}
@@ -282,7 +283,7 @@ func objectExampleField(object *Object, name string) (string, *AttributeExpr) {
 		if field == nil || field.Attribute == nil {
 			continue
 		}
-		if field.Name == name || JSONFieldName(field.Name, field.Attribute) == name {
+		if field.Name == name || JSONFieldName(ElementName(field.Name), field.Attribute) == name {
 			return field.Name, field.Attribute
 		}
 	}

@@ -71,6 +71,21 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			dsl:  testdata.OpenAPIScalarMapKeysDSL,
 		},
 		{
+			name: "mapped-names",
+			dsl:  testdata.MappedNamesDSL,
+			extra: func(t *testing.T, spec map[string]any) {
+				envelope := requireComponentSchema(t, spec, "Envelope")
+				properties := requireMap(t, envelope["properties"], "Envelope properties")
+				for _, name := range []string{"m", "r", "d", "p", "o", "ls", "ix", "ch"} {
+					require.Contains(t, properties, name)
+				}
+				require.Equal(t, []any{"r", "p", "o"}, envelope["required"])
+				branch := requireComponentSchema(t, spec, "DataResult")
+				require.Equal(t, []any{"dt"}, branch["required"])
+				require.Contains(t, requireMap(t, branch["example"], "DataResult example"), "dt")
+			},
+		},
+		{
 			name: "raw-request-bodies",
 			dsl:  testdata.RawRequestBodyOpenAPIDSL,
 			extra: func(t *testing.T, spec map[string]any) {
@@ -214,6 +229,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "vendor-extension-scopes", dsl: testdata.OpenAPIVendorExtensionScopeDSL},
 		{name: "nullable-presence", dsl: presenceOpenAPIDSL},
 		{name: "scalar-map-keys", dsl: testdata.OpenAPIScalarMapKeysDSL},
+		{name: "mapped-names", dsl: testdata.MappedNamesDSL},
 	}
 	for _, tc := range lintCases {
 		t.Run("redocly-"+tc.name, func(t *testing.T) {

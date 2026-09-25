@@ -1,0 +1,357 @@
+openapi: 3.2.0
+info:
+    title: Loom API
+    version: 0.0.1
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+servers:
+    - name: test api
+      url: http://localhost:80
+      description: Default server for test api
+paths:
+    /echo:
+        post:
+            tags:
+                - mappednames
+            summary: echo mappednames
+            operationId: mappednames.echo
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Envelope'
+                        example:
+                            ch:
+                                type: leaf_branch
+                                value:
+                                    c: 5548733831573761323
+                                    l: Sit nisi et cumque ut dolores nisi.
+                            d: 4263525935063012503
+                            ix:
+                                Error unde expedita.:
+                                    c: 5548733831573761323
+                                    l: Sit nisi et cumque ut dolores nisi.
+                                Fugiat possimus dolores quis illum enim.:
+                                    c: 5548733831573761323
+                                    l: Sit nisi et cumque ut dolores nisi.
+                                Modi dolor.:
+                                    c: 5548733831573761323
+                                    l: Sit nisi et cumque ut dolores nisi.
+                            ls:
+                                - Veritatis fugit ducimus ut.
+                                - Non rem.
+                            m: ti9
+                            o:
+                                c: 5548733831573761323
+                                l: Sit nisi et cumque ut dolores nisi.
+                            p:
+                                type: String
+                                value: Non officiis est eveniet cumque assumenda harum.
+                            r: 3278230784115772513
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Envelope'
+                            example:
+                                ch:
+                                    type: text
+                                    value: Accusamus non omnis ea.
+                                d: 701429087238794845
+                                ix:
+                                    Perspiciatis maxime dolorem perspiciatis aut.:
+                                        c: 8484239527683163076
+                                        l: Maxime ipsam nemo.
+                                    Ullam tenetur asperiores.:
+                                        c: 8484239527683163076
+                                        l: Maxime ipsam nemo.
+                                ls:
+                                    - Eos aliquid delectus tenetur autem.
+                                    - Perspiciatis laboriosam.
+                                m: rtn
+                                o:
+                                    c: 8484239527683163076
+                                    l: Maxime ipsam nemo.
+                                p:
+                                    type: Int
+                                    value: 783963046367297326
+                                r: 2139032956500809398
+            security: []
+    /inline:
+        put:
+            tags:
+                - mappednames
+            summary: inline mappednames
+            operationId: mappednames.inline
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/InlineRequestBody'
+                        example:
+                            c: 3929698557579756363
+                            i: Earum sunt eum illum eveniet.
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InlineRequestBody'
+                            example:
+                                c: 1092984419881242691
+                                i: Modi sit impedit iusto dolores explicabo aut.
+            security: []
+    /lookup:
+        post:
+            tags:
+                - mappednames
+            summary: lookup mappednames
+            operationId: mappednames.lookup
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            example:
+                                rs: Necessitatibus omnis quia blanditiis minus soluta.
+                            oneOf:
+                                - example:
+                                    dt: Explicabo laudantium et facilis pariatur deleniti.
+                                    sz: 9189135370062656203
+                                  $ref: '#/components/schemas/DataResult'
+                                - example:
+                                    rs: Facilis voluptas aliquam.
+                                  $ref: '#/components/schemas/FailResult'
+                        example:
+                            dt: Fugiat reprehenderit sequi quibusdam ea a.
+                            sz: 2494475531249662066
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                example:
+                                    rs: Exercitationem molestiae voluptas aspernatur.
+                                oneOf:
+                                    - example:
+                                        dt: Delectus et nostrum at.
+                                        sz: 9483040194205279
+                                      $ref: '#/components/schemas/DataResult'
+                                    - example:
+                                        rs: Est maiores dolor ut libero.
+                                      $ref: '#/components/schemas/FailResult'
+                            example:
+                                rs: Vero voluptas aut.
+            security: []
+components:
+    schemas:
+        ChoiceLeafBranchEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - leaf_branch
+                value:
+                    $ref: '#/components/schemas/Leaf'
+            description: Synthetic wrapper for union variant "leaf_branch".
+            required:
+                - type
+                - value
+        ChoiceTextEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - text
+                value:
+                    type: string
+                    example: Veritatis architecto.
+            description: Synthetic wrapper for union variant "text".
+            required:
+                - type
+                - value
+        DataResult:
+            type: object
+            properties:
+                dt:
+                    type: string
+                    example: Doloribus commodi vel autem dolorum.
+                sz:
+                    type: integer
+                    example: 4284537304472848100
+                    format: int64
+            example:
+                dt: Iure sed qui quo sit.
+                sz: 1930016779874418987
+            required:
+                - dt
+        Envelope:
+            type: object
+            properties:
+                ch:
+                    type: object
+                    example:
+                        type: text
+                        value: Consequuntur est quibusdam excepturi quaerat.
+                    oneOf:
+                        - $ref: '#/components/schemas/ChoiceLeafBranchEnvelope'
+                        - $ref: '#/components/schemas/ChoiceTextEnvelope'
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            leaf_branch: '#/components/schemas/ChoiceLeafBranchEnvelope'
+                            text: '#/components/schemas/ChoiceTextEnvelope'
+                d:
+                    type: integer
+                    default: 3
+                    example: 2150444874310935728
+                    format: int64
+                ix:
+                    type: object
+                    example:
+                        Ex incidunt et quam deserunt saepe.:
+                            c: 2942875107564597653
+                            l: In pariatur aut doloribus.
+                        Officiis voluptatem itaque rerum aut eos sint.:
+                            c: 2942875107564597653
+                            l: In pariatur aut doloribus.
+                        Omnis harum ut a.:
+                            c: 2942875107564597653
+                            l: In pariatur aut doloribus.
+                    additionalProperties:
+                        $ref: '#/components/schemas/Leaf'
+                ls:
+                    type: array
+                    items:
+                        type: string
+                        example: Dolorem rem optio id.
+                    example:
+                        - Sed nulla hic unde corporis qui sit.
+                        - Esse accusantium dicta eum officiis.
+                        - Voluptates corporis dignissimos voluptatem.
+                m:
+                    type: string
+                    example: r1k
+                    minLength: 2
+                o:
+                    $ref: '#/components/schemas/Leaf'
+                p:
+                    type: object
+                    example:
+                        type: String
+                        value: Minus qui rem magni perferendis.
+                    oneOf:
+                        - $ref: '#/components/schemas/IntOrStringIntEnvelope'
+                        - $ref: '#/components/schemas/IntOrStringStringEnvelope'
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Int: '#/components/schemas/IntOrStringIntEnvelope'
+                            String: '#/components/schemas/IntOrStringStringEnvelope'
+                r:
+                    type: integer
+                    example: 2214720609152820530
+                    format: int64
+            example:
+                ch:
+                    type: text
+                    value: Quia provident ab.
+                d: 7182092962764848145
+                ix:
+                    Rerum praesentium ad.:
+                        c: 9989278945237798
+                        l: Nostrum aut id velit quis omnis quo.
+                ls:
+                    - Voluptatem fugiat asperiores.
+                    - Cupiditate voluptatem maiores ipsum facere et.
+                    - At voluptatibus praesentium et dolores voluptatum.
+                m: ko7
+                o:
+                    c: 9989278945237798
+                    l: Nostrum aut id velit quis omnis quo.
+                p:
+                    type: String
+                    value: Cum vero est.
+                r: 55401241288441001
+            required:
+                - r
+                - p
+                - o
+        FailResult:
+            type: object
+            properties:
+                rs:
+                    type: string
+                    example: Assumenda soluta necessitatibus quos velit voluptatem.
+            example:
+                rs: Quasi fugit.
+            required:
+                - rs
+        InlineRequestBody:
+            type: object
+            properties:
+                c:
+                    type: integer
+                    example: 6701908460090607661
+                    format: int64
+                i:
+                    type: string
+                    example: Quasi sed.
+            example:
+                c: 2213108781397830148
+                i: Qui beatae.
+            required:
+                - i
+        IntOrStringIntEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - Int
+                value:
+                    type: integer
+                    example: 1424984799827003970
+                    format: int64
+            description: Synthetic wrapper for union variant "Int".
+            required:
+                - type
+                - value
+        IntOrStringStringEnvelope:
+            type: object
+            properties:
+                type:
+                    type: string
+                    enum:
+                        - String
+                value:
+                    type: string
+                    example: Enim qui consequatur aliquid.
+            description: Synthetic wrapper for union variant "String".
+            required:
+                - type
+                - value
+        Leaf:
+            type: object
+            properties:
+                c:
+                    type: integer
+                    example: 3465304465709234021
+                    format: int64
+                l:
+                    type: string
+                    example: Eos molestiae.
+            example:
+                c: 3410353924096148190
+                l: Delectus ex aperiam omnis nulla et.
+            required:
+                - c
+tags:
+    - name: mappednames

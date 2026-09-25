@@ -527,6 +527,8 @@ func TestFiles(t *testing.T) {
 		{"inline-body-shared-method-name", testdata.InlineBodySharedMethodNameDSL},
 		// Scalar map keys
 		{"scalar-map-keys", testdata.OpenAPIScalarMapKeysDSL},
+		// Attributes with a transport element name suffix
+		{"mapped-names", testdata.MappedNamesDSL},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {

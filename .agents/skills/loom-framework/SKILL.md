@@ -477,7 +477,10 @@ filter, and serialization rules belong here.
   `OneOf` block unions and of their promoted branch types, view attribute
   lists and validation error names use the attribute name. HTTP and
   JSON-RPC bodies use the suffix as the JSON, form and XML name of the
-  field. gRPC ignores it: the protocol buffer field and the Go fields of the
+  field, and so do the OpenAPI schemas and examples, `expr.CanonicalizeExample`
+  (the CLI body examples) and the JSON fields of the HTTP untagged union
+  branches: they name the field with `expr.JSONFieldName(expr.ElementName(key),
+  att)`. gRPC ignores it: the protocol buffer field and the Go fields of the
   service and pb types use the attribute name.
 - Protocol buffer messages always live in the pb package of the service.
   `makeProtoBufMessage` strips `struct:pkg:path` from the message attribute as

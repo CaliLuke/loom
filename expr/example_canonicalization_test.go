@@ -281,6 +281,39 @@ func TestCanonicalizeExample(t *testing.T) {
 			example:  "plain",
 			expected: "plain",
 		},
+		{
+			name: "suffixed object keys use the element name",
+			attr: &expr.AttributeExpr{Type: &expr.Object{
+				{Name: "n:m", Attribute: &expr.AttributeExpr{Type: expr.String}},
+				{Name: "t:x", Attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:tag:json:name": []string{"jt"}}}},
+				{Name: "e:el", Attribute: &expr.AttributeExpr{Type: expr.String}},
+			}},
+			example:  map[string]any{"n:m": "a", "t:x": "b", "el": "c", "extra": "d"},
+			expected: map[string]any{"m": "a", "jt": "b", "el": "c", "extra": "d"},
+		},
+		{
+			name: "untagged union matches suffixed required fields by element name",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				Untagged: true,
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "Data", Attribute: suffixedBranch("data:dt")},
+					{Name: "Fail", Attribute: suffixedBranch("reason:rs")},
+				},
+			}},
+			example:  map[string]any{"reason:rs": "no"},
+			expected: map[string]any{"rs": "no"},
+		},
+		{
+			name: "tagged union picks a suffixed branch by its element names",
+			attr: &expr.AttributeExpr{Type: &expr.Union{
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "Data", Attribute: suffixedBranch("data:dt")},
+					{Name: "Fail", Attribute: suffixedBranch("reason:rs")},
+				},
+			}},
+			example:  map[string]any{"dt": "yes"},
+			expected: map[string]any{"type": "Data", "value": map[string]any{"dt": "yes"}},
+		},
 	}
 
 	for _, tc := range cases {
@@ -300,5 +333,15 @@ func constrainedWirePayload(kind string) *expr.AttributeExpr {
 			{Name: "payload", Attribute: &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:tag:json:name": []string{"data"}}}},
 		},
 		Validation: &expr.ValidationExpr{Required: []string{"kind", "payload"}},
+	}
+}
+
+// suffixedBranch returns a closed object with the required string field key,
+// such as "data:dt".
+func suffixedBranch(key string) *expr.AttributeExpr {
+	return &expr.AttributeExpr{
+		Type:       &expr.Object{{Name: key, Attribute: &expr.AttributeExpr{Type: expr.String}}},
+		Validation: &expr.ValidationExpr{Required: []string{key}},
+		Meta:       expr.MetaExpr{"openapi:additionalProperties": []string{"false"}},
 	}
 }

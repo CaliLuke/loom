@@ -1,0 +1,531 @@
+{
+  "components": {
+    "schemas": {
+      "ChoiceLeafBranchEnvelope": {
+        "description": "Synthetic wrapper for union variant \"leaf_branch\".",
+        "properties": {
+          "type": {
+            "enum": [
+              "leaf_branch"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/Leaf"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "ChoiceTextEnvelope": {
+        "description": "Synthetic wrapper for union variant \"text\".",
+        "properties": {
+          "type": {
+            "enum": [
+              "text"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "example": "Veritatis architecto.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "DataResult": {
+        "example": {
+          "dt": "Iure sed qui quo sit.",
+          "sz": 1930016779874418987
+        },
+        "properties": {
+          "dt": {
+            "example": "Doloribus commodi vel autem dolorum.",
+            "type": "string"
+          },
+          "sz": {
+            "example": 4284537304472848100,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dt"
+        ],
+        "type": "object"
+      },
+      "Envelope": {
+        "example": {
+          "ch": {
+            "type": "text",
+            "value": "Quia provident ab."
+          },
+          "d": 7182092962764848145,
+          "ix": {
+            "Rerum praesentium ad.": {
+              "c": 9989278945237798,
+              "l": "Nostrum aut id velit quis omnis quo."
+            }
+          },
+          "ls": [
+            "Voluptatem fugiat asperiores.",
+            "Cupiditate voluptatem maiores ipsum facere et.",
+            "At voluptatibus praesentium et dolores voluptatum."
+          ],
+          "m": "ko7",
+          "o": {
+            "c": 9989278945237798,
+            "l": "Nostrum aut id velit quis omnis quo."
+          },
+          "p": {
+            "type": "String",
+            "value": "Cum vero est."
+          },
+          "r": 55401241288441001
+        },
+        "properties": {
+          "ch": {
+            "discriminator": {
+              "mapping": {
+                "leaf_branch": "#/components/schemas/ChoiceLeafBranchEnvelope",
+                "text": "#/components/schemas/ChoiceTextEnvelope"
+              },
+              "propertyName": "type"
+            },
+            "example": {
+              "type": "text",
+              "value": "Consequuntur est quibusdam excepturi quaerat."
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChoiceLeafBranchEnvelope"
+              },
+              {
+                "$ref": "#/components/schemas/ChoiceTextEnvelope"
+              }
+            ],
+            "type": "object"
+          },
+          "d": {
+            "default": 3,
+            "example": 2150444874310935728,
+            "format": "int64",
+            "type": "integer"
+          },
+          "ix": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Leaf"
+            },
+            "example": {
+              "Ex incidunt et quam deserunt saepe.": {
+                "c": 2942875107564597653,
+                "l": "In pariatur aut doloribus."
+              },
+              "Officiis voluptatem itaque rerum aut eos sint.": {
+                "c": 2942875107564597653,
+                "l": "In pariatur aut doloribus."
+              },
+              "Omnis harum ut a.": {
+                "c": 2942875107564597653,
+                "l": "In pariatur aut doloribus."
+              }
+            },
+            "type": "object"
+          },
+          "ls": {
+            "example": [
+              "Sed nulla hic unde corporis qui sit.",
+              "Esse accusantium dicta eum officiis.",
+              "Voluptates corporis dignissimos voluptatem."
+            ],
+            "items": {
+              "example": "Dolorem rem optio id.",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "m": {
+            "example": "r1k",
+            "minLength": 2,
+            "type": "string"
+          },
+          "o": {
+            "$ref": "#/components/schemas/Leaf"
+          },
+          "p": {
+            "discriminator": {
+              "mapping": {
+                "Int": "#/components/schemas/IntOrStringIntEnvelope",
+                "String": "#/components/schemas/IntOrStringStringEnvelope"
+              },
+              "propertyName": "type"
+            },
+            "example": {
+              "type": "String",
+              "value": "Minus qui rem magni perferendis."
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/IntOrStringIntEnvelope"
+              },
+              {
+                "$ref": "#/components/schemas/IntOrStringStringEnvelope"
+              }
+            ],
+            "type": "object"
+          },
+          "r": {
+            "example": 2214720609152820530,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "r",
+          "p",
+          "o"
+        ],
+        "type": "object"
+      },
+      "FailResult": {
+        "example": {
+          "rs": "Quasi fugit."
+        },
+        "properties": {
+          "rs": {
+            "example": "Assumenda soluta necessitatibus quos velit voluptatem.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rs"
+        ],
+        "type": "object"
+      },
+      "InlineRequestBody": {
+        "example": {
+          "c": 2213108781397830148,
+          "i": "Qui beatae."
+        },
+        "properties": {
+          "c": {
+            "example": 6701908460090607661,
+            "format": "int64",
+            "type": "integer"
+          },
+          "i": {
+            "example": "Quasi sed.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "i"
+        ],
+        "type": "object"
+      },
+      "IntOrStringIntEnvelope": {
+        "description": "Synthetic wrapper for union variant \"Int\".",
+        "properties": {
+          "type": {
+            "enum": [
+              "Int"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "example": 1424984799827003970,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "IntOrStringStringEnvelope": {
+        "description": "Synthetic wrapper for union variant \"String\".",
+        "properties": {
+          "type": {
+            "enum": [
+              "String"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "example": "Enim qui consequatur aliquid.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "Leaf": {
+        "example": {
+          "c": 3410353924096148190,
+          "l": "Delectus ex aperiam omnis nulla et."
+        },
+        "properties": {
+          "c": {
+            "example": 3465304465709234021,
+            "format": "int64",
+            "type": "integer"
+          },
+          "l": {
+            "example": "Eos molestiae.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "c"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/echo": {
+      "post": {
+        "operationId": "mappednames.echo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "ch": {
+                  "type": "leaf_branch",
+                  "value": {
+                    "c": 5548733831573761323,
+                    "l": "Sit nisi et cumque ut dolores nisi."
+                  }
+                },
+                "d": 4263525935063012503,
+                "ix": {
+                  "Error unde expedita.": {
+                    "c": 5548733831573761323,
+                    "l": "Sit nisi et cumque ut dolores nisi."
+                  },
+                  "Fugiat possimus dolores quis illum enim.": {
+                    "c": 5548733831573761323,
+                    "l": "Sit nisi et cumque ut dolores nisi."
+                  },
+                  "Modi dolor.": {
+                    "c": 5548733831573761323,
+                    "l": "Sit nisi et cumque ut dolores nisi."
+                  }
+                },
+                "ls": [
+                  "Veritatis fugit ducimus ut.",
+                  "Non rem."
+                ],
+                "m": "ti9",
+                "o": {
+                  "c": 5548733831573761323,
+                  "l": "Sit nisi et cumque ut dolores nisi."
+                },
+                "p": {
+                  "type": "String",
+                  "value": "Non officiis est eveniet cumque assumenda harum."
+                },
+                "r": 3278230784115772513
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Envelope"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "ch": {
+                    "type": "text",
+                    "value": "Accusamus non omnis ea."
+                  },
+                  "d": 701429087238794845,
+                  "ix": {
+                    "Perspiciatis maxime dolorem perspiciatis aut.": {
+                      "c": 8484239527683163076,
+                      "l": "Maxime ipsam nemo."
+                    },
+                    "Ullam tenetur asperiores.": {
+                      "c": 8484239527683163076,
+                      "l": "Maxime ipsam nemo."
+                    }
+                  },
+                  "ls": [
+                    "Eos aliquid delectus tenetur autem.",
+                    "Perspiciatis laboriosam."
+                  ],
+                  "m": "rtn",
+                  "o": {
+                    "c": 8484239527683163076,
+                    "l": "Maxime ipsam nemo."
+                  },
+                  "p": {
+                    "type": "Int",
+                    "value": 783963046367297326
+                  },
+                  "r": 2139032956500809398
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "echo mappednames",
+        "tags": [
+          "mappednames"
+        ]
+      }
+    },
+    "/inline": {
+      "put": {
+        "operationId": "mappednames.inline",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "c": 3929698557579756363,
+                "i": "Earum sunt eum illum eveniet."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/InlineRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "c": 1092984419881242691,
+                  "i": "Modi sit impedit iusto dolores explicabo aut."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/InlineRequestBody"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "inline mappednames",
+        "tags": [
+          "mappednames"
+        ]
+      }
+    },
+    "/lookup": {
+      "post": {
+        "operationId": "mappednames.lookup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "dt": "Fugiat reprehenderit sequi quibusdam ea a.",
+                "sz": 2494475531249662066
+              },
+              "schema": {
+                "example": {
+                  "rs": "Necessitatibus omnis quia blanditiis minus soluta."
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/DataResult",
+                    "example": {
+                      "dt": "Explicabo laudantium et facilis pariatur deleniti.",
+                      "sz": 9189135370062656203
+                    }
+                  },
+                  {
+                    "$ref": "#/components/schemas/FailResult",
+                    "example": {
+                      "rs": "Facilis voluptas aliquam."
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "rs": "Vero voluptas aut."
+                },
+                "schema": {
+                  "example": {
+                    "rs": "Exercitationem molestiae voluptas aspernatur."
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/DataResult",
+                      "example": {
+                        "dt": "Delectus et nostrum at.",
+                        "sz": 9483040194205279
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/FailResult",
+                      "example": {
+                        "rs": "Est maiores dolor ut libero."
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "lookup mappednames",
+        "tags": [
+          "mappednames"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "name": "test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "mappednames"
+    }
+  ]
+}

@@ -8,8 +8,9 @@ import (
 // element name suffix, such as "n:m", in a type, a nested type, unions and an
 // inline payload: optional, required and defaulted primitives, a validated
 // string, an object, an array, a map, a constructor OneOf and a OneOf block
-// with suffixed branches. The HTTP bodies use the suffix as the JSON name of
-// the field.
+// with suffixed branches, and an untagged union whose branch fields are
+// suffixed. The HTTP bodies, the OpenAPI schemas and examples and the CLI
+// body examples use the suffix as the JSON name of the field.
 var MappedNamesDSL = func() {
 	var Leaf = Type("Leaf", func() {
 		Attribute("leaf:l", String)
@@ -34,8 +35,18 @@ var MappedNamesDSL = func() {
 		})
 		Required("req:r", "pick:p", "obj:o")
 	})
+	var DataResult = Type("DataResult", func() {
+		Attribute("data:dt", String)
+		Attribute("size:sz", Int)
+		Required("data:dt")
+	})
+	var FailResult = Type("FailResult", func() {
+		Attribute("reason:rs", String)
+		Required("reason:rs")
+	})
 	Service("mappednames", func() {
 		Method("echo", func() {
+			NoSecurity()
 			Payload(Envelope)
 			Result(Envelope)
 			HTTP(func() {
@@ -43,6 +54,7 @@ var MappedNamesDSL = func() {
 			})
 		})
 		Method("inline", func() {
+			NoSecurity()
 			Payload(func() {
 				Attribute("id:i", String)
 				Attribute("count:c", Int)
@@ -55,6 +67,18 @@ var MappedNamesDSL = func() {
 			})
 			HTTP(func() {
 				PUT("/inline")
+			})
+		})
+		Method("lookup", func() {
+			NoSecurity()
+			Payload(OneOf(DataResult, FailResult), func() {
+				Untagged()
+			})
+			Result(OneOf(DataResult, FailResult), func() {
+				Untagged()
+			})
+			HTTP(func() {
+				POST("/lookup")
 			})
 		})
 	})
