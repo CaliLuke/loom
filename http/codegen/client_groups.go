@@ -29,7 +29,10 @@ func clientOperationGroups(data *ServiceData) []clientOperationGroup {
 	reserved := clientOperationGroupReservedFields(data)
 	for _, endpoint := range data.Endpoints {
 		name := clientOperationGroupName(endpoint)
-		if _, ok := reserved[name]; ok {
+		for {
+			if _, ok := reserved[name]; !ok {
+				break
+			}
 			name += "Operations"
 		}
 		if _, ok := byName[name]; !ok {
@@ -49,6 +52,9 @@ func clientOperationGroups(data *ServiceData) []clientOperationGroup {
 	return groups
 }
 
+// clientOperationGroupReservedFields returns the names of the fields and
+// methods of the client struct. A struct field and a method cannot share a
+// name, so an operation group field takes none of them.
 func clientOperationGroupReservedFields(data *ServiceData) map[string]struct{} {
 	reserved := map[string]struct{}{
 		"RestoreResponseBody": {},
@@ -61,6 +67,11 @@ func clientOperationGroupReservedFields(data *ServiceData) map[string]struct{} {
 	}
 	for _, endpoint := range data.Endpoints {
 		reserved[endpoint.Method.VarName+"Doer"] = struct{}{}
+		reserved[endpoint.EndpointInit] = struct{}{}
+		if endpoint.HasMixedResults {
+			reserved[endpoint.EndpointInit+"Stream"] = struct{}{}
+		}
+		reserved[endpoint.RequestInit.Name] = struct{}{}
 	}
 	return reserved
 }
