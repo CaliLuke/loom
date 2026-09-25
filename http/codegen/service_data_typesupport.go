@@ -181,10 +181,14 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 	}
 	switch dt := att.Type.(type) {
 	case expr.UserType:
-		if _, ok := seen[dt.ID()]; ok {
+		// The body types of a result type, such as the response body of
+		// the result type and the element of a collection of it, share
+		// the identifier of the result type but hold different branch
+		// types. Visit each Go type, which the scope names after the hash.
+		if _, ok := seen[dt.Hash()]; ok {
 			return
 		}
-		seen[dt.ID()] = struct{}{}
+		seen[dt.Hash()] = struct{}{}
 		if union := expr.AsUnion(dt.Attribute().Type); union != nil {
 			hash := union.Hash()
 			if _, ok := unions[hash]; !ok {

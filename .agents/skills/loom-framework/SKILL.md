@@ -561,8 +561,12 @@ filter, and serialization rules belong here.
   generator renames the union in its private transport IR copy to
   `<Endpoint>RequestBody`, `<Endpoint>StreamingBody` or
   `<Endpoint>[<Status>]ResponseBody` (`nameUnionBodies`). It collects union
-  types from that same IR. OpenAPI keeps the service union names, so do not
-  rename the union in `expr` or in the shared IR.
+  types from that same IR (`collectHTTPUnionTypes`) and visits each body user
+  type once by its hash, which names its Go type, not by its identifier: the
+  body types of a result type, such as the response body and the element of
+  a collection of it, share the identifier and hold different branch types.
+  OpenAPI keeps the service union names, so do not rename the union in
+  `expr` or in the shared IR.
 - The HTTP code generator declares the request and response body types, and
   the user types nested in them, from the normalized bodies of its transport
   IR (`transportir.Request.Body`, `Request.StreamingBody`,

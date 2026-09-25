@@ -10,8 +10,7 @@ import (
 // service whose methods return a result type with views that requires a
 // named union, a collection of it and a result type that holds it. It vets
 // the module and runs a harness that converts the results through every
-// view, validates the projected types and round-trips the result type and
-// the result type that holds it over HTTP.
+// view, validates the projected types and round-trips them over HTTP.
 func TestRequiredUnionViewsCompile(t *testing.T) {
 	runDesignHarness(t, "example.com/requiredunionviews", requiredUnionViewsDSL, requiredUnionViewsHarness)
 }
@@ -53,10 +52,11 @@ func requiredUnionViewsDSL() {
 				dsl.GET("/get")
 			})
 		})
-		// The collection has no transport: HTTP bodies of a result type
-		// returned directly and as a collection are a separate issue.
 		dsl.Method("list", func() {
 			dsl.Result(dsl.CollectionOf(rt))
+			dsl.HTTP(func() {
+				dsl.GET("/list")
+			})
 		})
 		dsl.Method("family", func() {
 			dsl.Result(parent)
@@ -177,6 +177,7 @@ func TestViews(t *testing.T) {
 func TestHTTPRoundTrip(t *testing.T) {
 	s := &service{
 		rt:     leaf(),
+		list:   svc.RTCollection{leaf(), other()},
 		parent: &svc.Parent{Name: ptr("p"), Child: other()},
 	}
 	mux := loomhttp.NewMuxer()
@@ -184,14 +185,15 @@ func TestHTTPRoundTrip(t *testing.T) {
 	hs := httptest.NewServer(mux)
 	defer hs.Close()
 	c := svcclient.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
-	client := svc.NewClient(c.Get(), nil, c.Family())
+	client := svc.NewClient(c.Get(), c.List(), c.Family())
 	ctx := context.Background()
 
 	for _, view := range []string{"default", "tiny"} {
 		s.view = view
-		wantRT := s.rt
+		wantRT, wantList := s.rt, s.list
 		if view == "tiny" {
 			wantRT = &svc.RT{ID: "a"}
+			wantList = svc.RTCollection{{ID: "a"}, {ID: "b"}}
 		}
 		rt, err := client.Get(ctx)
 		if err != nil {
@@ -199,6 +201,13 @@ func TestHTTPRoundTrip(t *testing.T) {
 		}
 		if !reflect.DeepEqual(rt, wantRT) {
 			t.Errorf("%s: get: got %#v, want %#v", view, rt, wantRT)
+		}
+		list, err := client.List(ctx)
+		if err != nil {
+			t.Fatalf("%s: %v", view, err)
+		}
+		if !reflect.DeepEqual(list, wantList) {
+			t.Errorf("%s: list: got %#v, want %#v", view, list, wantList)
 		}
 	}
 	parent, err := client.Family(ctx)
