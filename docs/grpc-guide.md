@@ -757,6 +757,17 @@ Server names are escaped the same way in the example command and client CLI
 directories, so a `サーバー` server is under `cmd/valu30b5u30fcu30d0u30fc`, and
 the API package of the example files of a `Café` API is `cafu00e9`.
 
+`Meta("struct:name:proto", "MenuProto")` on a `Type` or `ResultType` names the
+message generated for the type used directly as a method payload, result,
+error, streaming payload or streaming result. Where the type is nested, such
+as in a message field, an array element, a map value or a union branch, its
+message keeps the name of the type, and so do the messages that wrap a named
+union or a named array. Generated Go code refers to messages from the pb
+package of the service, never from the `struct:pkg:path` package of the
+service types, so a type can set both metadata keys. It uses the Go type
+name that protoc-gen-go generates for the message, such as `NodeTree` for
+`node_tree`.
+
 ### Protoc Configuration
 
 The versions above are the supported defaults. Use metadata overrides only

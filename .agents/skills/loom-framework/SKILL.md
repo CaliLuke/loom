@@ -369,6 +369,10 @@ filter, and serialization rules belong here.
   field from the allocated proto name with `protoGoName`, never from the
   branch name with `Scope.Field`. The same union can take different names in
   different messages.
+- Protocol buffer messages always live in the pb package of the service.
+  `makeProtoBufMessage` strips `struct:pkg:path` from the message attribute as
+  well as from its user types. `struct:name:proto` names only the top-level
+  messages of a type; Go references apply `protoGoName` to the metadata name.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
   endpoints should not grow independent read/write/close loops.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,

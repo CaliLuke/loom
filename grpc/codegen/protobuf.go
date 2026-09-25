@@ -63,9 +63,14 @@ func protoBufTypeContext(pkg string, scope *codegen.NameScope, useDefault bool) 
 // attribute. A wrapped union is required and generates a message with a oneof
 // that unionWrapperFieldName names and whose branches are numbered from 1. For nested arrays/maps,
 // the inner array/map is wrapped into a user type.
+//
+// Protocol buffer messages are generated in the pb package of the service, so
+// the result carries no struct:pkg:path metadata, neither in its user types
+// nor in its own metadata, which the message made from an object copies.
 func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData) *expr.AttributeExpr {
 	att = expr.DupAtt(att)
 	expr.RemovePkgPath(att)
+	delete(att.Meta, "struct:pkg:path")
 	ut, isut := att.Type.(expr.UserType)
 	switch {
 	case att.Type == expr.Empty:
@@ -165,24 +170,31 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 // protoBufMessageName returns the protocol buffer message name of the given
 // attribute type.
 func protoBufMessageName(att *expr.AttributeExpr, s *codegen.NameScope) string {
-	return protoBufFullMessageName(att, "", s)
+	return protoBufFullMessageName(att, "", s, false)
 }
 
 // protoBufFullMessageName returns the protocol buffer message name of the
-// given user type qualified with the given package name if applicable.
-func protoBufFullMessageName(att *expr.AttributeExpr, pkg string, s *codegen.NameScope) string {
+// given user type qualified with the given package name if applicable. goName
+// selects the name of the Go type that protoc-gen-go generates for the
+// message instead. The two differ only for a struct:name:proto name, which
+// names the message verbatim and which protoc-gen-go converts with
+// GoCamelCase, as it converts field names.
+func protoBufFullMessageName(att *expr.AttributeExpr, pkg string, s *codegen.NameScope, goName bool) string {
 	switch actual := att.Type.(type) {
 	case expr.UserType, *expr.Union:
 		n := s.HashedUnique(actual, protoBufify(actual.Name(), true, true), "")
 		if name, ok := protoMetaName(att.Meta); ok {
 			n = name
+			if goName {
+				n = protoGoName(name)
+			}
 		}
 		if pkg == "" {
 			return n
 		}
 		return pkg + "." + n
 	case expr.CompositeExpr:
-		return protoBufFullMessageName(actual.Attribute(), pkg, s)
+		return protoBufFullMessageName(actual.Attribute(), pkg, s, goName)
 	default:
 		panic(codegen.NewError(nil, att, fmt.Errorf("data type is not a user type or union: received type %T", actual)))
 	}
@@ -208,7 +220,7 @@ func protoBufGoFullTypeName(att *expr.AttributeExpr, pkg string, s *codegen.Name
 	}
 	switch actual := att.Type.(type) {
 	case expr.UserType, expr.CompositeExpr, *expr.Union:
-		return protoBufFullMessageName(att, pkg, s)
+		return protoBufFullMessageName(att, pkg, s, true)
 	case expr.Primitive:
 		return protoBufNativeGoTypeName(att.Type)
 	case *expr.Array:
