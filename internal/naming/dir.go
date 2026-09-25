@@ -4,6 +4,12 @@
 // generation uses.
 package naming
 
+// CLIDir is the name of the directory of gen/<transport> that holds the
+// client CLI support package of each server, gen/<transport>/cli/<ServerDir>.
+// The transport packages of a service whose ServiceDir is CLIDir are in the
+// same directory.
+const CLIDir = "cli"
+
 // ServerDir returns the name of the directories and packages generated for
 // the server with the given design name: the example commands under cmd and
 // the client CLI support packages under gen/<transport>/cli. Go import paths
@@ -20,4 +26,14 @@ func ServerDir(name string) string {
 // the packages of a "Café" service are under gen/cafu00e9.
 func ServiceDir(name string) string {
 	return EscapeNonASCII(SnakeCase(Goify(name, false)))
+}
+
+// TransportServiceDirs returns the names of the directories of the packages
+// that the generators create in gen/<transport>/<ServiceDir> for a service
+// exposed over transport, one of "http", "grpc" and "jsonrpc".
+func TransportServiceDirs(transport string) []string {
+	if transport == "grpc" {
+		return []string{"server", "client", "pb"}
+	}
+	return []string{"server", "client"}
 }

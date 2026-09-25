@@ -1,6 +1,7 @@
 package expr_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,6 +107,146 @@ func generatedDirDSL(servers, services []string) func() {
 		for _, name := range services {
 			Service(name, func() {
 				Method("show", func() {})
+			})
+		}
+	}
+}
+
+// TestGeneratedCLIDirCollisions covers a service whose directory is cli, the
+// directory of the client CLI packages of a transport. The generators place
+// the transport packages of the service in gen/<transport>/cli/server, client
+// and, for gRPC, pb, and the client CLI package of each server that hosts a
+// service of the transport in gen/<transport>/cli/<server>.
+func TestGeneratedCLIDirCollisions(t *testing.T) {
+	cases := []struct {
+		Name       string
+		Servers    []string
+		API        string
+		Transports []string
+		Hosted     []string
+		ServerOnly bool
+		Errors     []string
+	}{
+		{Name: "cli service", Servers: []string{"calc"}, Transports: []string{"http", "grpc"}},
+		{Name: "JSON-RPC cli service", Servers: []string{"calc"}, Transports: []string{"jsonrpc", "grpc"}},
+		{Name: "cli service and cli server", Servers: []string{"cli"}, Transports: []string{"http", "grpc"}},
+		{Name: "pb server without gRPC", Servers: []string{"pb"}, Transports: []string{"http"}},
+		{Name: "pb server without gRPC over JSON-RPC", Servers: []string{"pb"}, Transports: []string{"jsonrpc"}},
+		{Name: "cli service without transport", Servers: []string{"server"}},
+		{
+			Name:       "HTTP server package",
+			Servers:    []string{"server"},
+			Transports: []string{"http"},
+			Errors:     []string{`service "cli": service "cli" and server "server" both use the generated directory gen/http/cli/server: the HTTP server package of the service and the HTTP client CLI package of the server; rename the service or the server`},
+		},
+		{
+			Name:       "HTTP client package",
+			Servers:    []string{"Client"},
+			Transports: []string{"http"},
+			Errors:     []string{`service "cli" and server "Client" both use the generated directory gen/http/cli/client: the HTTP client package of the service and the HTTP client CLI package of the server`},
+		},
+		{
+			Name:       "gRPC pb package",
+			Servers:    []string{"pb"},
+			Transports: []string{"grpc"},
+			Errors:     []string{`service "cli" and server "pb" both use the generated directory gen/grpc/cli/pb: the gRPC pb package of the service and the gRPC client CLI package of the server`},
+		},
+		{
+			Name:       "JSON-RPC server package",
+			Servers:    []string{"server"},
+			Transports: []string{"jsonrpc"},
+			Errors:     []string{`service "cli" and server "server" both use the generated directory gen/jsonrpc/cli/server: the JSON-RPC server package of the service and the JSON-RPC client CLI package of the server`},
+		},
+		{
+			Name:       "server that does not host the cli service",
+			Servers:    []string{"server"},
+			Transports: []string{"grpc"},
+			Hosted:     []string{"other"},
+			Errors:     []string{`service "cli" and server "server" both use the generated directory gen/grpc/cli/server: the gRPC server package of the service and the gRPC client CLI package of the server`},
+		},
+		{
+			Name:       "default server",
+			API:        "server",
+			Transports: []string{"grpc"},
+			Errors:     []string{`service "cli" and server "server" both use the generated directory gen/grpc/cli/server`},
+		},
+		{
+			Name:       "server-only HTTP generation",
+			Servers:    []string{"calc"},
+			Transports: []string{"http"},
+			ServerOnly: true,
+			Errors:     []string{`service "cli": service "cli" uses the generated directory gen/http/cli, which Meta("http:generate", "server") removes as stale HTTP client CLI output; rename the service`},
+		},
+		{
+			Name:       "server-only HTTP generation without an HTTP cli service",
+			Servers:    []string{"calc"},
+			Transports: []string{"grpc"},
+			ServerOnly: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			design := generatedCLIDirDSL(c.API, c.Servers, c.Hosted, c.Transports, c.ServerOnly)
+			if len(c.Errors) == 0 {
+				expr.RunDSL(t, design)
+				return
+			}
+			err := expr.RunInvalidDSL(t, design)
+			require.Error(t, err)
+			for _, want := range c.Errors {
+				assert.Contains(t, err.Error(), want)
+			}
+		})
+	}
+}
+
+// generatedCLIDirDSL returns a design with a service named cli and a service
+// named other, both exposed over transports, and servers that host the hosted
+// services, both when hosted is empty.
+func generatedCLIDirDSL(api string, servers, hosted, transports []string, serverOnly bool) func() {
+	if api == "" {
+		api = "dirs"
+	}
+	if len(hosted) == 0 {
+		hosted = []string{"cli", "other"}
+	}
+	return func() {
+		API(api, func() {
+			if serverOnly {
+				Meta("http:generate", "server")
+			}
+			for _, name := range servers {
+				Server(name, func() {
+					Services(hosted...)
+				})
+			}
+		})
+		for _, name := range []string{"cli", "other"} {
+			Service(name, func() {
+				if slices.Contains(transports, "jsonrpc") {
+					JSONRPC(func() {
+						POST("/" + name + "/rpc")
+					})
+				}
+				Method("show", func() {
+					Payload(func() {
+						Attribute("id", Int, func() {
+							Meta("rpc:tag", "1")
+						})
+					})
+					for _, transport := range transports {
+						switch transport {
+						case "http":
+							HTTP(func() {
+								POST("/" + name)
+							})
+						case "grpc":
+							GRPC(func() {})
+						case "jsonrpc":
+							JSONRPC(func() {})
+						}
+					}
+				})
 			})
 		}
 	}

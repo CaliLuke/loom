@@ -105,7 +105,10 @@ consumer validation.
   `Goify` and `SnakeCase` and `expr.Title` delegate to it, and `expr` uses it
   to reject servers or services whose directories collide, ignoring case.
   Change the naming rules there only, so validation cannot drift from the
-  generated paths.
+  generated paths. `naming.CLIDir` and `naming.TransportServiceDirs` record
+  the client CLI tree and the transport packages of a service, which `expr`
+  checks for a `cli` service; `TestCLIServiceTransportDirs` in
+  `codegen/generator` fails when the generated layout drifts from them.
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted
   Go type references. Never construct type syntax by string concatenation.
 - Let Loom determine pointer/value semantics except at explicit transport

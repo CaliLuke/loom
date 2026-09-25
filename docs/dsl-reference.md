@@ -808,6 +808,8 @@ var _ = Service("users", func() {
 
 The generated packages of a service are in `gen/<name>` and the transport directories such as `gen/http/<name>`. The directory name is derived from the service name as for servers. Evaluation rejects a design in which two services get the same directory name, or names that differ only in case.
 
+The transport packages of a service whose directory name is `cli` are in `gen/<transport>/cli/server`, `gen/<transport>/cli/client` and, for gRPC, `gen/grpc/cli/pb`. These directories are in the directory of the client CLI packages, `gen/<transport>/cli/<server>`. Evaluation rejects such a service when a server that hosts a service of the same transport has the directory name `server`, `client` or, for gRPC, `pb`. It also rejects a `cli` service exposed over HTTP when `Meta("http:generate", "server")` is set, because that mode removes `gen/http/cli` as stale client output.
+
 ### Method DSL
 
 ```go
