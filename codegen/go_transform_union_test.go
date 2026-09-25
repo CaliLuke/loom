@@ -154,3 +154,59 @@ func TestGoTransformOptionalUnionFieldsPreserveAbsence(t *testing.T) {
 	require.Contains(t, code, "if source.Choice != nil && source.Choice.Kind() != \"\"")
 	require.Contains(t, code, "target.Choice = &u")
 }
+
+func TestGoTransformUnionWithUnionBranchKeepsOuterTempVar(t *testing.T) {
+	leaf := &expr.UserTypeExpr{TypeName: "Leaf", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{
+		{Name: "name", Attribute: &expr.AttributeExpr{Type: expr.String}},
+	}}}
+	choice := &expr.UserTypeExpr{TypeName: "Choice", AttributeExpr: &expr.AttributeExpr{Type: &expr.Union{
+		TypeName: "Choice",
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "Leaf", Attribute: &expr.AttributeExpr{Type: leaf}},
+			{Name: "Text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		},
+	}}}
+	outer := &expr.AttributeExpr{Type: &expr.Union{
+		TypeName: "ChoiceOrText",
+		Values: []*expr.NamedAttributeExpr{
+			{Name: "Choice", Attribute: &expr.AttributeExpr{Type: choice}},
+			{Name: "Text", Attribute: &expr.AttributeExpr{Type: expr.String}},
+		},
+	}}
+	ctx := NewAttributeContext(false, false, true, "", NewNameScope())
+
+	code, _, err := GoTransform(outer, expr.DupAtt(outer), "source", "target", ctx, ctx, "", true)
+	require.NoError(t, err)
+	formatted := FormatTestCode(t, "package foo\nfunc transform(){\n"+code+"}")
+	testutil.AssertGo(t, "testdata/golden/go_transform_union_union-branch.go.golden", formatted)
+	// The inner union declares obj and converts its branches into tmp, so
+	// its cases assign the outer obj and not a variable that shadows it.
+	require.Contains(t, formatted, "var obj *Choice\n")
+	require.Contains(t, formatted, "tmp := actual\n")
+	require.Contains(t, formatted, "u.SetText((string)(tmp))\n\t\t\tobj = &u\n")
+	require.Contains(t, formatted, "u.SetChoice((*Choice)(obj))\n")
+}
+
+func TestTransformUnionTempVarName(t *testing.T) {
+	cases := []struct {
+		TargetVar string
+		Expected  string
+	}{
+		{"target", "obj"},
+		{"body.P", "obj"},
+		{"tv", "obj"},
+		{"tmp", "obj"},
+		{"tmp.Field", "obj"},
+		{"objects", "obj"},
+		{"object.Field", "obj"},
+		{"obj", "tmp"},
+		{"obj.Field", "tmp"},
+		{"obj[i]", "tmp"},
+		{"obj.Field[i]", "tmp"},
+	}
+	for _, c := range cases {
+		t.Run(c.TargetVar, func(t *testing.T) {
+			require.Equal(t, c.Expected, transformUnionTempVarName(c.TargetVar))
+		})
+	}
+}

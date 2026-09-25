@@ -1,0 +1,32 @@
+func transform() {
+	var target *ChoiceOrText
+	switch string(source.Kind()) {
+	case "Choice":
+		actual, _ := source.AsChoice()
+		var obj *Choice
+		switch string(actual.Kind()) {
+		case "Leaf":
+			actual, _ := actual.AsLeaf()
+			tmp := transformLeafToLeaf(actual)
+
+			var u Choice
+			u.SetLeaf((*Leaf)(tmp))
+			obj = &u
+		case "Text":
+			actual, _ := actual.AsText()
+			tmp := actual
+			var u Choice
+			u.SetText((string)(tmp))
+			obj = &u
+		}
+		var u ChoiceOrText
+		u.SetChoice((*Choice)(obj))
+		target = &u
+	case "Text":
+		actual, _ := source.AsText()
+		obj := actual
+		var u ChoiceOrText
+		u.SetText((string)(obj))
+		target = &u
+	}
+}

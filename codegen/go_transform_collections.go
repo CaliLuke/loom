@@ -224,8 +224,17 @@ func validateTransformUnion(source, target *expr.AttributeExpr, sourceVar, targe
 	return srcUnion, tgtUnion, nil
 }
 
+// transformUnionTempVarName returns the name of the variable that holds the
+// converted branch value in each case of a union transform. A case assigns
+// the target after it declares the variable, so the variable must not shadow
+// the variable that the target expression starts with, such as the variable
+// of an enclosing union whose branch is a union.
 func transformUnionTempVarName(targetVar string) string {
-	if strings.HasPrefix(targetVar, "obj.") {
+	root := targetVar
+	if i := strings.IndexAny(targetVar, ".["); i >= 0 {
+		root = targetVar[:i]
+	}
+	if root == "obj" {
 		return "tmp"
 	}
 	return "obj"
