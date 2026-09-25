@@ -417,23 +417,24 @@ type (
 		// MustHaveBody is true if the request body cannot be empty.
 		MustHaveBody bool
 		// OptionalBodyAttribute is true when the request body is the
-		// optional union or non-nullable object payload attribute named by
-		// PayloadAttr. When that attribute is nil, or absent for a nullable
-		// union, HTTP clients send no request body and JSON-RPC clients omit
-		// params. HTTP servers decode an empty body, and JSON-RPC servers
-		// absent params, as a nil or absent attribute.
+		// optional union, object or explicit presence payload attribute,
+		// such as a nullable type or Any, named by PayloadAttr. When that
+		// attribute is nil or absent, HTTP clients send no request body and
+		// JSON-RPC clients omit params. HTTP servers decode an empty body,
+		// and JSON-RPC servers absent params, as a nil or absent attribute.
 		OptionalBodyAttribute bool
 		// OptionalBodyNullable is true when OptionalBodyAttribute is true and
-		// the attribute is a nullable union. The service field is then a
+		// the attribute is nullable. The service field is then a
 		// loom.Nullable value: clients send the body, possibly JSON null,
 		// only when it is present, and servers decode an empty body as an
 		// absent value.
 		OptionalBodyNullable bool
 		// OptionalObjectBody is true when OptionalBodyAttribute is true and
-		// the attribute is an object. The server then decodes the body into
-		// a pointer that it sets to nil when the body is empty, validates the
-		// body only when it is present, and passes the pointer to the payload
-		// constructor, which leaves the attribute nil for a nil body.
+		// the attribute is an object without explicit presence. The server
+		// then decodes the body into a pointer that it sets to nil when the
+		// body is empty, validates the body only when it is present, and
+		// passes the pointer to the payload constructor, which leaves the
+		// attribute nil for a nil body.
 		OptionalObjectBody bool
 		// MustValidate is true if the request body or at least one
 		// parameter or header requires validation.

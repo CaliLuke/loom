@@ -28,7 +28,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		{{- if .Payload.Request.OptionalObjectBody }}
 			body = &{{ .Payload.Request.ServerBody.VarName }}{}
 		{{- else }}
-			body {{ .Payload.Request.ServerBody.VarName }}
+			body {{ .Payload.Request.ServerBody.ValueRef }}
 		{{- end }}
 		{{- if .Payload.Request.NeedsServerErrorVar }}
 			err  error

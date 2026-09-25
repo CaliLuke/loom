@@ -381,7 +381,10 @@ completion shapes are explicit generation limitations.
 - Use `OptionalRequestBody()` for optional JSON object bodies and optional
   typed form object/map bodies. An object or union selected with `Body("name")`
   from an optional payload attribute is optional either way: a nil attribute
-  sends no body, and an empty body decodes to a nil attribute.
+  sends no body, and an empty body decodes to a nil attribute. A nullable or
+  `Any` attribute selected with `Body("name")` keeps absent, null, and concrete
+  states: an absent optional value sends no body, and an empty body decodes to
+  an absent value.
 - Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
   request stream needs a documentation-only OpenAPI contract.
 - Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts

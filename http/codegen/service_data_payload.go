@@ -205,11 +205,6 @@ func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {
 		// The server decodes an optional object body into a pointer.
 		server.ValidateRef = requestBodyValidateRef(server.VarName, true)
 	}
-	if server != nil && isOptionalNullableBody(b.endpointIR.Request) {
-		// The loom.Nullable body of an optional nullable union attribute may
-		// be absent.
-		server.ValidateRef = explicitPresenceBodyValidateRef(b.bodyAttr, true, false, b.sd.Scope)
-	}
 	return server, b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
 }
 
@@ -241,11 +236,11 @@ func buildPayloadRequestBodyRequirements(request *transportir.Request) (string, 
 	return request.BodyOrigin, request.MustHaveBody
 }
 
-// isOptionalBodyAttribute reports whether the request body is a union, or a
-// non-nullable object, selected with Body from an optional payload attribute.
-// The generated service field is then a nil-able pointer, or a loom.Nullable
-// value for a nullable union, that the client must check before building the
-// body.
+// isOptionalBodyAttribute reports whether the request body is a union, an
+// object or a type with explicit presence, such as a nullable type or Any,
+// selected with Body from an optional payload attribute. The generated
+// service field is then a nil-able pointer, a loom.Nullable value or a
+// loom.JSONValue that the client must check before building the body.
 func isOptionalBodyAttribute(request *transportir.Request) bool {
 	if request == nil || request.BodyOrigin == "" || request.Body == nil || request.Payload == nil {
 		return false
@@ -253,32 +248,24 @@ func isOptionalBodyAttribute(request *transportir.Request) bool {
 	if request.Payload.IsRequired(request.BodyOrigin) {
 		return false
 	}
-	if expr.IsUnion(request.Body.Type) {
-		return true
-	}
-	return expr.IsObject(request.Body.Type) && !expr.IsNullable(request.Body)
+	return expr.IsUnion(request.Body.Type) || expr.IsObject(request.Body.Type) || codegen.IsExplicitPresenceType(request.Body)
 }
 
-// isOptionalNullableBody reports whether the request body is a nullable union
+// isOptionalNullableBody reports whether the request body is a nullable type
 // selected with Body from an optional payload attribute. The generated
 // service field is then a loom.Nullable value whose Present method tells the
 // client whether to send the body.
 func isOptionalNullableBody(request *transportir.Request) bool {
-	return isOptionalBodyAttribute(request) && isNullableUnionBody(request.Body)
+	return isOptionalBodyAttribute(request) && expr.IsNullable(request.Body)
 }
 
-// isNullableUnionBody reports whether the request body is a nullable union,
-// which the server declares and decodes as a loom.Nullable value.
-func isNullableUnionBody(body *expr.AttributeExpr) bool {
-	return body != nil && expr.IsUnion(body.Type) && expr.IsNullable(body)
-}
-
-// isOptionalObjectBody reports whether the request body is an object selected
-// with Body from an optional payload attribute. The server decodes such a body
-// into a pointer that stays nil when the body is empty. A union needs no
-// pointer: its empty discriminator already decodes to a nil attribute.
+// isOptionalObjectBody reports whether the request body is an object without
+// explicit presence selected with Body from an optional payload attribute.
+// The server decodes such a body into a pointer that stays nil when the body
+// is empty. A union needs no pointer: its empty discriminator already decodes
+// to a nil attribute. A type with explicit presence records its own absence.
 func isOptionalObjectBody(request *transportir.Request) bool {
-	return isOptionalBodyAttribute(request) && expr.IsObject(request.Body.Type)
+	return isOptionalBodyAttribute(request) && expr.IsObject(request.Body.Type) && !codegen.IsExplicitPresenceType(request.Body)
 }
 
 func (b *payloadBuilder) buildMapQueryParam() *ParamData {
@@ -472,11 +459,11 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 		}
 	}
 	serverRef := b.sd.Scope.GoVar("body", b.body)
-	if isOptionalObjectBody(b.endpointIR.Request) || isNullableUnionBody(b.bodyAttr) {
+	if isOptionalObjectBody(b.endpointIR.Request) || codegen.IsExplicitPresenceType(b.bodyAttr) {
 		// The server decodes an optional object body into a pointer that is
-		// nil when the request has no body, and declares the loom.Nullable
-		// body of a nullable union by value, which is how the constructor
-		// takes it.
+		// nil when the request has no body, and declares a body with
+		// explicit presence, such as a loom.Nullable, by value, which is how
+		// the constructor takes it.
 		serverRef = "body"
 	}
 	serverArgs = append(serverArgs, &InitArgData{
@@ -521,7 +508,9 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 			origin = o[0]
 			pAtt = expr.AsObject(b.payload.Type).Attribute(origin)
 			pAtt = serviceFieldTransformAttribute(b.payload, origin, pAtt)
-			pointer = !b.payload.IsRequired(o[0]) && expr.IsPrimitive(pAtt.Type)
+			// A service field with explicit presence, such as a loom.Nullable
+			// or a loom.JSONValue, holds the value itself.
+			pointer = !b.payload.IsRequired(o[0]) && expr.IsPrimitive(pAtt.Type) && !codegen.IsExplicitPresenceType(pAtt)
 			unionValue = b.payload.IsRequired(o[0]) && expr.IsUnion(pAtt.Type) && !expr.IsNullable(pAtt)
 		}
 		var helpers []*codegen.TransformFunctionData

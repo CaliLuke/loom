@@ -344,16 +344,22 @@ absent `params` as a nil attribute. For a union, the server rejects
 `"params": null` and `"params": {}` with `-32602`; for an object, it decodes
 them like `{}` and validates the object.
 
-A nullable union selected with `Body("name")` keeps the absent, null, and
-concrete states of its `loom.Nullable` payload field. When the attribute is
-optional, the generated client sends no body for an absent value, `null` for a
-null value, and the union otherwise. The generated server decodes an empty or
-whitespace-only body as an absent value, `null` as a null value, and validates
-the selected branch of a concrete union. When the attribute is required, an
-empty body fails with `missing_payload`. A JSON-RPC client cannot send null
-params, because JSON-RPC 2.0 does not allow them: it omits `params` for a null
-value as well as for an absent one. The JSON-RPC server still decodes
-`"params": null` as a null value.
+A nullable attribute selected with `Body("name")`, such as a nullable object,
+array, map, primitive, or union, keeps the absent, null, and concrete states
+of its `loom.Nullable` payload field. When the attribute is optional, the
+generated client sends no body for an absent value, `null` for a null value,
+and the value otherwise. The generated server decodes an empty or
+whitespace-only body as an absent value and `null` as a null value, and it
+validates a concrete value: the fields of an object, the non-null elements of
+an array, the values of a map, the selected branch of a union, and the
+validations of a primitive. When the attribute is required, an empty body
+fails with `missing_payload`. An `Any` attribute works the same way, but its
+`loom.JSONValue` payload field is nil when absent and holds `null` when null.
+A required `Any` attribute has no absent state: the client sends a nil value
+as `null`. A JSON-RPC client cannot send null params, because JSON-RPC 2.0
+does not allow them: it omits `params` for a null value as well as for an
+absent one. The JSON-RPC server still decodes `"params": null` as a null
+value.
 
 ### Raw Request and Response Bodies
 

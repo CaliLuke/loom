@@ -334,15 +334,21 @@ filter, and serialization rules belong here.
   parameters. They use nil for an omitted key. They use a nonnil pointer for
   an empty or nonempty value. Generated clients emit the key for every nonnil
   pointer.
-- An optional, non-nullable object or union payload attribute selected with
-  `Body` (`RequestData.OptionalBodyAttribute`) is sent only when it is not
-  nil: HTTP clients send no body and JSON-RPC clients omit params. Servers
-  decode an empty body, empty form, or absent JSON-RPC params to a nil
-  attribute. A union gets this from its empty discriminator. A nullable union
-  (`OptionalBodyNullable`) is checked with `Present()` and decodes an empty
-  body to an absent `loom.Nullable`. Explicit presence bodies such as
-  `loom.Nullable` are passed to the payload constructor by value, and their
-  validation requires presence only when the body is required. An object
+- An optional object, union, or explicit presence payload attribute
+  (`codegen.IsExplicitPresenceType`, such as a nullable type or `Any`)
+  selected with `Body` (`RequestData.OptionalBodyAttribute`) is sent only when
+  it is not nil or absent: HTTP clients send no body and JSON-RPC clients omit
+  params. Servers decode an empty body, empty form, or absent JSON-RPC params
+  to a nil or absent attribute. A union gets this from its empty
+  discriminator. A nullable attribute (`OptionalBodyNullable`) is checked with
+  `Present()` and an `Any` attribute against nil. Explicit presence bodies are
+  declared with the type that the payload constructor takes, including the
+  `loom.Nullable` collection elements of JSON decoding, and are passed to it
+  by value; the payload field holds the value without a pointer. Their
+  validation requires presence only when the body is required
+  (`requestBodyRequired`). A nullable object body gets its own transport
+  struct; its `Validate` function takes the `loom.Nullable` of that struct,
+  and `TypeData.ValueRef` declares the decoded variable. A non-nullable object
   (`OptionalObjectBody`) is decoded into a pointer that is set to nil for an
   empty body, is validated only when present, and is passed to the payload
   constructor, which leaves the attribute nil for a nil body.

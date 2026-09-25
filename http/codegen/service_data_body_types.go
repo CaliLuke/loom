@@ -9,6 +9,7 @@ import (
 
 type requestBodyTypeDetails struct {
 	varName              string
+	valueRef             string
 	description          string
 	definition           string
 	validateDefinition   string
@@ -46,8 +47,12 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 	applyUserTypeLayout(httpctx, sd, body, svr)
 	addMarshalTags(body)
-	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, sd, httpctx)
+	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, requestBodyRequired(body, att), sd, httpctx)
 	ref := sd.Scope.GoTypeRef(body)
+	valueRef := details.valueRef
+	if valueRef == "" {
+		valueRef = details.varName
+	}
 	init := sds.buildRequestBodyInit(body, att, endpointName, pkg, details.validateDefinition, svr, svcctx, httpctx, sd)
 	return &TypeData{
 		Name:                 body.Type.Name(),
@@ -55,6 +60,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		Description:          details.description,
 		Def:                  details.definition,
 		Ref:                  ref,
+		ValueRef:             valueRef,
 		Init:                 init,
 		ValidateDef:          details.validateDefinition,
 		ValidateRef:          details.validateReference,
@@ -66,20 +72,20 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 }
 
+// buildRequestBodyTypeDetails returns the type name, definition and
+// validation code of the request body. required is false when the body is
+// an optional payload attribute selected with Body.
 func buildRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
 	endpointName string,
 	formEncoded bool,
 	svr bool,
+	required bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
 	if codegen.IsExplicitPresenceType(body) {
-		return requestBodyTypeDetails{
-			varName:           sd.Scope.GoTypeRef(body),
-			description:       body.Description,
-			validateReference: explicitPresenceBodyValidateRef(body, svr, true, sd.Scope),
-		}
+		return buildExplicitPresenceRequestBodyTypeDetails(body, endpointName, formEncoded, svr, required, sd, httpctx)
 	}
 	if userType, ok := body.Type.(expr.UserType); ok {
 		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
@@ -132,14 +138,57 @@ func buildUserRequestBodyTypeDetails(
 	return details
 }
 
-// explicitPresenceBodyValidateRef returns the validation code of the request
-// body variable "body" whose type, such as loom.Nullable, records its own
-// presence. The code reports an absent body as a missing field only when
-// required is true. It validates the selected branch of a nullable union
-// through the pointer fields of the branch transport types.
-func explicitPresenceBodyValidateRef(body *expr.AttributeExpr, svr, required bool, scope *codegen.NameScope) string {
-	ctx := codegen.NewAttributeContext(isNullableUnionBody(body), false, !svr, "", scope)
-	return codegen.ValidationCode(body, nil, ctx, required, expr.IsAlias(body.Type), false, "body")
+// buildExplicitPresenceRequestBodyTypeDetails returns the details of a
+// request body whose type, such as loom.Nullable or loom.JSONValue, records
+// its own presence. The server declares the body with the type that the
+// payload constructor takes, which holds loom.Nullable collection elements
+// for JSON. A nullable object body gets its own transport struct, named and
+// validated like the struct of a non-nullable object body; its variable
+// holds the loom.Nullable of that struct. The validation reports an absent
+// body as a missing field only when required is true.
+func buildExplicitPresenceRequestBodyTypeDetails(
+	body *expr.AttributeExpr,
+	endpointName string,
+	formEncoded bool,
+	svr bool,
+	required bool,
+	sd *ServiceData,
+	httpctx *codegen.AttributeContext,
+) requestBodyTypeDetails {
+	if userType, ok := body.Type.(expr.UserType); ok && expr.IsNullable(body) && expr.IsObject(userType) {
+		details := buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
+		details.valueRef = sd.Scope.GoTypeRef(body)
+		if svr {
+			details.validateDefinition = codegen.ValidationCode(body, userType, httpctx, required, expr.IsAlias(body.Type), false, "body")
+			details.validateReference = ""
+			if details.validateDefinition != "" {
+				details.validateReference = requestBodyValidateRef(details.varName, true)
+			}
+		}
+		return details
+	}
+	varName := sd.Scope.GoTypeRef(body)
+	if svr {
+		varName = goBodyTypeRef(sd.Scope, body, httpctx)
+	}
+	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !svr, "", sd.Scope)
+	ctx.CollectionElementPresence = httpctx.JSONPresence
+	return requestBodyTypeDetails{
+		varName:           varName,
+		description:       body.Description,
+		validateReference: codegen.ValidationCode(body, nil, ctx, required, expr.IsAlias(body.Type), false, "body"),
+	}
+}
+
+// requestBodyRequired reports whether the request body body of the payload
+// att must be present: it is false only when body is an optional attribute
+// of att selected with Body.
+func requestBodyRequired(body, att *expr.AttributeExpr) bool {
+	origin, ok := body.Meta.Last("origin:attribute")
+	if !ok || att == nil || !expr.IsObject(att.Type) {
+		return true
+	}
+	return att.IsRequired(origin)
 }
 
 // requestBodyValidateRef returns the statement that validates the server

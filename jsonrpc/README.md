@@ -396,11 +396,12 @@ Content-Type: application/json
 - If the incoming message has no `id` (a notification), the server does not
   send a response, per the spec.
 - Absent `params` decode as `{}`, except when `Body("name")` selects an
-  optional object or union payload attribute as the params. The client then
-  omits `params` when that attribute is nil, and the server decodes absent
-  `params` as a nil attribute. For a union, `"params": null` is still rejected
-  with `-32602`; for an object, it decodes like `{}` and the object is
-  validated.
+  optional object, union, nullable, or `Any` payload attribute as the params.
+  The client then omits `params` when that attribute is nil or absent, and the
+  server decodes absent `params` as a nil or absent attribute. For a
+  non-nullable union, `"params": null` is still rejected with `-32602`; for a
+  non-nullable object, it decodes like `{}` and the object is validated; for a
+  nullable or `Any` attribute, it decodes as a null value.
 - Batch requests are decoded to `[]jsonrpc.RawRequest` and each entry is
   processed independently; responses are streamed into a JSON array.
 
