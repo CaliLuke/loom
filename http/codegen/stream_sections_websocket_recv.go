@@ -6,6 +6,7 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func websocketRecvSection(ws *WebSocketData) codegen.Section {
@@ -83,12 +84,18 @@ func serverWebSocketPayloadValidation(ws *WebSocketData) string {
 	return ""
 }
 
+// writeServerWebsocketRecvReturn writes the statement that returns the
+// received payload. The constructor of a payload takes a primitive body, such
+// as the body of a named primitive type, by value.
 func writeServerWebsocketRecvReturn(b *sourceBuilder, ws *WebSocketData) {
 	switch {
 	case ws.Payload != nil && ws.Payload.Init != nil:
-		if ws.RecvTypeIsPointer {
+		switch {
+		case ws.RecvTypeIsPointer:
 			b.Addf("\treturn %s(body), nil\n", ws.Payload.Init.Name)
-		} else {
+		case websocketPayloadIsPrimitive(ws):
+			b.Addf("\treturn %s(*msg), nil\n", ws.Payload.Init.Name)
+		default:
 			b.Addf("\treturn %s(msg), nil\n", ws.Payload.Init.Name)
 		}
 	case ws.RecvTypeIsPointer:
@@ -96,6 +103,13 @@ func writeServerWebsocketRecvReturn(b *sourceBuilder, ws *WebSocketData) {
 	default:
 		b.Add("\treturn *msg, nil\n")
 	}
+}
+
+// websocketPayloadIsPrimitive reports whether the payload constructor of the
+// server stream ws takes a primitive body.
+func websocketPayloadIsPrimitive(ws *WebSocketData) bool {
+	args := ws.Payload.Init.ServerArgs
+	return len(args) == 1 && args[0].AttributeData != nil && expr.IsPrimitive(args[0].AttributeData.Type)
 }
 
 func writeClientWebsocketRecvBody(b *sourceBuilder, ws *WebSocketData, ctxExpr string) {
