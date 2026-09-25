@@ -11,14 +11,16 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
+	httptestdata "github.com/CaliLuke/loom/http/codegen/testdata"
 	"github.com/CaliLuke/loom/internal/loomsource"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 // TestStructPkgPathEdgeCasesCompile generates the service, transport and
 // example output of designs that use struct:pkg:path types in streams, in a
-// package named like the service, or in a service whose name matches a root
-// example file, then builds and vets the module.
+// package named like the service, in a service whose name matches a root
+// example file, or in methods that skip the HTTP body encoding, then builds
+// and vets the module.
 func TestStructPkgPathEdgeCasesCompile(t *testing.T) {
 	cases := []struct {
 		Name string
@@ -79,6 +81,14 @@ func TestStructPkgPathEdgeCasesCompile(t *testing.T) {
 		{
 			Name: "service-common-package-types-common",
 			DSL:  structPkgPathDesign{HTTP: true, GRPC: true, List: true, Service: "common", PkgPath: "types/common"}.DSL,
+		},
+		{
+			Name: "skip-body-http",
+			DSL:  httptestdata.SkipBodyStructPkgPathDSL,
+			Files: map[string][]string{
+				"gen/http/files/client/encode_decode.go": {"v.(*files.UploadRequestData)", "(*files.UploadRequestData, error)", "return &files.UploadRequestData{"},
+				"gen/http/files/client/client.go":        {"&files.DownloadResponseData{"},
+			},
 		},
 		{
 			Name: "service-named-multipart",

@@ -5,9 +5,9 @@ var (
 func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
 		{{- if .Method.SkipRequestBodyEncodeDecode }}
-		data, ok := v.(*{{ requestStructPkg .Method .ServicePkgName }}.{{ .Method.RequestStruct }})
+		data, ok := v.(*{{ .ServicePkgName }}.{{ .Method.RequestStruct }})
 		if !ok {
-			return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "*{{ requestStructPkg .Method .ServicePkgName }}.{{ .Method.RequestStruct }}", v)
+			return loomhttp.ErrInvalidType("{{ .ServiceName }}", "{{ .Method.Name }}", "*{{ .ServicePkgName }}.{{ .Method.RequestStruct }}", v)
 		}
 		p := data.Payload
 		{{- else }}

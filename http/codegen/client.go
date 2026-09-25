@@ -113,7 +113,6 @@ func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesDat
 			}
 			return dt
 		},
-		"requestStructPkg": requestStructPkg,
 	}
 }
 
@@ -233,18 +232,4 @@ func isBearer(schemes []*service.SchemeData) bool {
 		}
 	}
 	return false
-}
-
-func requestStructPkg(m *service.MethodData, def string) string {
-	if m.PayloadLoc != nil {
-		return m.PayloadLoc.PackageName()
-	}
-	return def
-}
-
-func responseStructPkg(m *service.MethodData, def string) string {
-	if m.ResultLoc != nil {
-		return m.ResultLoc.PackageName()
-	}
-	return def
 }

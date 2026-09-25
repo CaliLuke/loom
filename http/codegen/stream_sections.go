@@ -68,7 +68,7 @@ func buildStreamRequestSection(endpoint *EndpointData) codegen.Section {
 				}
 				group.Id("fpath").String()
 			}).
-			Params(jen.Op("*").Id(requestStructPkg(endpoint.Method, endpoint.ServicePkgName)).Dot(endpoint.Method.RequestStruct), jen.Error()).
+			Params(jen.Op("*").Id(endpoint.ServicePkgName).Dot(endpoint.Method.RequestStruct), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
 				addRawWebSocketGroup(group, renderBuildStreamRequestBody(endpoint))
 			})
@@ -109,7 +109,7 @@ func renderBuildStreamRequestBody(endpoint *EndpointData) string {
 	var b sourceBuilder
 	b.Add("f, err := os.Open(fpath)\n")
 	b.Add("if err != nil {\n\treturn nil, err\n}\n")
-	b.Addf("return &%s.%s{\n", requestStructPkg(endpoint.Method, endpoint.ServicePkgName), endpoint.Method.RequestStruct)
+	b.Addf("return &%s.%s{\n", endpoint.ServicePkgName, endpoint.Method.RequestStruct)
 	if endpoint.Payload.Ref != "" {
 		b.Addf("\tPayload: payload.(%s),\n", endpoint.Payload.Ref)
 	}

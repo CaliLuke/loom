@@ -121,7 +121,7 @@ func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint
 	}
 	requestStruct := ""
 	if caps.HasRequestStruct {
-		requestStruct = pkg + "." + method.RequestStruct
+		requestStruct = svc.PkgName + "." + method.RequestStruct
 	}
 	code := renderRequestInitCode(
 		payloadRef,

@@ -317,7 +317,7 @@ func renderClientHTTPEndpoint(group *jen.Group, endpoint *EndpointData) {
 		)
 
 		group.Return(
-			jen.Op("&").Id(responseStructPkg(endpoint.Method, endpoint.ServicePkgName)).Dot(endpoint.Method.ResponseStruct).ValuesFunc(func(values *jen.Group) {
+			jen.Op("&").Id(endpoint.ServicePkgName).Dot(endpoint.Method.ResponseStruct).ValuesFunc(func(values *jen.Group) {
 				if endpoint.Result.Ref != "" {
 					values.Id("Result").Op(":").Id("res").Assert(jen.Id(endpoint.Result.Ref))
 				}
