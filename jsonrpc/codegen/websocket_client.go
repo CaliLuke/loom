@@ -18,8 +18,9 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	svcName := data.Service.PathName
 	title := fmt.Sprintf("%s WebSocket JSON-RPC client", svc.Name())
 
-	// Build imports list for WebSocket clients
-	imports := make([]*codegen.ImportSpec, 0, 8+len(data.Service.UserTypeImports))
+	// Build imports list for WebSocket clients. The loom package declares
+	// loom.JSONValue, the Go type of Any results and payloads.
+	imports := make([]*codegen.ImportSpec, 0, 9+len(data.Service.UserTypeImports))
 	imports = append(imports,
 		&codegen.ImportSpec{Path: "bytes"},
 		&codegen.ImportSpec{Path: "context"},
@@ -28,6 +29,7 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		&codegen.ImportSpec{Path: "net/http"},
 		codegen.LoomImport("jsonrpc"),
 		codegen.LoomNamedImport("http", "loomhttp"),
+		codegen.LoomImport(""),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
