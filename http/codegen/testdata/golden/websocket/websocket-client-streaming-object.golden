@@ -17,6 +17,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"unicode/utf8"
 )
 
 // ConnConfigurer holds the websocket connection configurer functions for the
