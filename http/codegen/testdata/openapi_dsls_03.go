@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var OpenAPINamedRequestBodyExamplesDSL = func() {
 	var SearchFilters = Type("SearchFilters", func() {
 		Meta("openapi:component:requestBody", "SearchFiltersRequest")
@@ -31,5 +30,3 @@ var OpenAPINamedRequestBodyExamplesDSL = func() {
 		})
 	})
 }
-
-

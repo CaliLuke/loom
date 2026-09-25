@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyQueryPathObjectEncodeCode = `// EncodeMethodBodyQueryPathObjectRequest returns an encoder for requests sent
 // to the ServiceBodyQueryPathObject MethodBodyQueryPathObject server.
 func EncodeMethodBodyQueryPathObjectRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -22,5 +21,3 @@ func EncodeMethodBodyQueryPathObjectRequest(encoder func(*http.Request) loomhttp
 	}
 }
 `
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadCookieCustomNameBuildCode = `// BuildMethodCookieCustomNamePayload builds the payload for the
 // ServiceCookieCustomName MethodCookieCustomName endpoint from CLI flags.
 func BuildMethodCookieCustomNamePayload(serviceCookieCustomNameMethodCookieCustomNameC2 string) (*servicecookiecustomname.MethodCookieCustomNamePayload, error) {
@@ -16,4 +15,3 @@ func BuildMethodCookieCustomNamePayload(serviceCookieCustomNameMethodCookieCusto
 	return v, nil
 }
 `
-

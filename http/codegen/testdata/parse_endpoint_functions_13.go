@@ -1,6 +1,5 @@
 package testdata
 
-
 var QueryStringDefaultBuildCode = `// BuildMethodQueryStringDefaultPayload builds the payload for the
 // ServiceQueryStringDefault MethodQueryStringDefault endpoint from CLI flags.
 func BuildMethodQueryStringDefaultPayload(serviceQueryStringDefaultMethodQueryStringDefaultQ string) (*servicequerystringdefault.MethodQueryStringDefaultPayload, error) {
@@ -16,5 +15,3 @@ func BuildMethodQueryStringDefaultPayload(serviceQueryStringDefaultMethodQuerySt
 	return v, nil
 }
 `
-
-

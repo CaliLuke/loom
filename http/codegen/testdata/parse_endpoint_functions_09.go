@@ -1,6 +1,5 @@
 package testdata
 
-
 var QueryUInt32BuildCode = `// BuildMethodQueryUInt32Payload builds the payload for the ServiceQueryUInt32
 // MethodQueryUInt32 endpoint from CLI flags.
 func BuildMethodQueryUInt32Payload(serviceQueryUInt32MethodQueryUInt32Q string) (*servicequeryuint32.MethodQueryUInt32Payload, error) {
@@ -23,5 +22,3 @@ func BuildMethodQueryUInt32Payload(serviceQueryUInt32MethodQueryUInt32Q string) 
 	return v, nil
 }
 `
-
-

@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var OpenAPIProblemLinksAsyncDSL = func() {
 	var ThreadSummary = Type("OpenAPIThreadSummary", func() {
 		Attribute("thread_id", String, func() {
@@ -206,5 +205,3 @@ var OpenAPIProblemLinksAsyncDSL = func() {
 		})
 	})
 }
-
-

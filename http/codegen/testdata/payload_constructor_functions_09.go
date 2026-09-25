@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyInlineMapUserConstructorCode = `// NewMethodBodyInlineMapUserMapKeyTypeElemType builds a
 // ServiceBodyInlineMapUser service MethodBodyInlineMapUser endpoint payload.
 func NewMethodBodyInlineMapUserMapKeyTypeElemType(body map[*KeyTypeRequestBody]*ElemTypeRequestBody) map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType {
@@ -16,5 +15,3 @@ func NewMethodBodyInlineMapUserMapKeyTypeElemType(body map[*KeyTypeRequestBody]*
 	return v
 }
 `
-
-

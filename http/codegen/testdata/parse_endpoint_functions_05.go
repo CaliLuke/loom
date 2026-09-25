@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadObjectBuildCode = `// BuildMethodBodyInlineObjectPayload builds the payload for the
 // ServiceBodyInlineObject MethodBodyInlineObject endpoint from CLI flags.
 func BuildMethodBodyInlineObjectPayload(serviceBodyInlineObjectMethodBodyInlineObjectBody string) (*servicebodyinlineobject.MethodBodyInlineObjectPayload, error) {
@@ -21,5 +20,3 @@ func BuildMethodBodyInlineObjectPayload(serviceBodyInlineObjectMethodBodyInlineO
 	return v, nil
 }
 `
-
-

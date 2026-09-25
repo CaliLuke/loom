@@ -1,6 +1,5 @@
 package testdata
 
-
 var QueryStringBuildCode = `// BuildMethodQueryStringPayload builds the payload for the ServiceQueryString
 // MethodQueryString endpoint from CLI flags.
 func BuildMethodQueryStringPayload(serviceQueryStringMethodQueryStringQ string) (*servicequerystring.MethodQueryStringPayload, error) {
@@ -16,5 +15,3 @@ func BuildMethodQueryStringPayload(serviceQueryStringMethodQueryStringQ string) 
 	return v, nil
 }
 `
-
-

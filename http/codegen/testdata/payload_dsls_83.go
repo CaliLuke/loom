@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyMapStringDSL = func() {
 	Service("ServiceBodyMapString", func() {
 		Method("MethodBodyMapString", func() {
@@ -23,5 +22,3 @@ var PayloadBodyMapStringDSL = func() {
 		})
 	})
 }
-
-

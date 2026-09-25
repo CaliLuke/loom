@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var MealPlannerDSL = func() {
 	var accessToken = JWTSecurity("access_token", func() {
 		Description("Bearer token used by web and mobile clients.")
@@ -361,5 +360,3 @@ var MealPlannerDSL = func() {
 		})
 	})
 }
-
-

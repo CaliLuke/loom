@@ -1,6 +1,5 @@
 package testdata
 
-
 var WithParamsAndHeadersBlockBuildCode = `// BuildMethodAPayload builds the payload for the
 // ServiceWithParamsAndHeadersBlock MethodA endpoint from CLI flags.
 func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, serviceWithParamsAndHeadersBlockMethodAPath string, serviceWithParamsAndHeadersBlockMethodAOptional string, serviceWithParamsAndHeadersBlockMethodAOptionalButRequiredParam string, serviceWithParamsAndHeadersBlockMethodARequired string, serviceWithParamsAndHeadersBlockMethodAOptionalButRequiredHeader string) (*servicewithparamsandheadersblock.MethodAPayload, error) {
@@ -67,5 +66,3 @@ func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, ser
 	return v, nil
 }
 `
-
-

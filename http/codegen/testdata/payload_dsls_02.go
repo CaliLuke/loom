@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadQueryMapBoolBoolDSL = func() {
 	Service("ServiceQueryMapBoolBool", func() {
 		Method("MethodQueryMapBoolBool", func() {
@@ -24,5 +23,3 @@ var PayloadQueryMapBoolBoolDSL = func() {
 		})
 	})
 }
-
-

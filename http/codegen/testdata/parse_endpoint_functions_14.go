@@ -1,6 +1,5 @@
 package testdata
 
-
 var EmptyBodyBuildCode = `// BuildMethodBodyPrimitiveArrayUserPayload builds the payload for the
 // ServiceBodyPrimitiveArrayUser MethodBodyPrimitiveArrayUser endpoint from CLI
 // flags.
@@ -21,5 +20,3 @@ func BuildMethodBodyPrimitiveArrayUserPayload(serviceBodyPrimitiveArrayUserMetho
 	return v, nil
 }
 `
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyUserInnerConstructorCode = `// NewMethodBodyUserInnerPayloadType builds a ServiceBodyUserInner service
 // MethodBodyUserInner endpoint payload.
 func NewMethodBodyUserInnerPayloadType(body *MethodBodyUserInnerRequestBody) *servicebodyuserinner.PayloadType {
@@ -12,5 +11,3 @@ func NewMethodBodyUserInnerPayloadType(body *MethodBodyUserInnerRequestBody) *se
 	return v
 }
 `
-
-

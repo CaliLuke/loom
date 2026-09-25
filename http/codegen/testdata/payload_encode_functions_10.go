@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadQueryMapStringArrayStringValidateEncodeCode = `// EncodeMethodQueryMapStringArrayStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryMapStringArrayStringValidate
 // MethodQueryMapStringArrayStringValidate server.
@@ -20,5 +19,3 @@ func EncodeMethodQueryMapStringArrayStringValidateRequest(encoder func(*http.Req
 	}
 }
 `
-
-

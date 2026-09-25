@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadQueryPrimitiveStringDefaultDSL = func() {
 	Service("ServiceQueryPrimitiveStringDefault", func() {
 		Method("MethodQueryPrimitiveStringDefault", func() {
@@ -24,5 +23,3 @@ var PayloadQueryPrimitiveStringDefaultDSL = func() {
 		})
 	})
 }
-
-

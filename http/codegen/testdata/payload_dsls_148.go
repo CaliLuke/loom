@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var QueryArrayAliasDSL = func() {
 	var ArrayAlias = Type("ArrayAlias", ArrayOf(UInt))
 	Service("ServiceQueryArrayAlias", func() {
@@ -27,5 +26,3 @@ var QueryArrayAliasDSL = func() {
 		})
 	})
 }
-
-

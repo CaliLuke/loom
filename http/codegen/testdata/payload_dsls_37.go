@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadPathPrimitiveBoolValidateDSL = func() {
 	Service("ServicePathPrimitiveBoolValidate", func() {
 		Method("MethodPathPrimitiveBoolValidate", func() {
@@ -23,5 +22,3 @@ var PayloadPathPrimitiveBoolValidateDSL = func() {
 		})
 	})
 }
-
-

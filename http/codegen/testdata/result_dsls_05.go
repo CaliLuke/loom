@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ExplicitBodyUserResultObjectDSL = func() {
 	var UserType = Type("UserType", func() {
 		Attribute("x", String)
@@ -37,5 +36,3 @@ var ExplicitBodyUserResultObjectDSL = func() {
 		})
 	})
 }
-
-

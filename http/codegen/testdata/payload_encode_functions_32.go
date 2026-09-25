@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadHeaderArrayStringEncodeCode = `// EncodeMethodHeaderArrayStringRequest returns an encoder for requests sent to
 // the ServiceHeaderArrayString MethodHeaderArrayString server.
 func EncodeMethodHeaderArrayStringRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -19,5 +18,3 @@ func EncodeMethodHeaderArrayStringRequest(encoder func(*http.Request) loomhttp.E
 	}
 }
 `
-
-

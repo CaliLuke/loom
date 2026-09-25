@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var AsyncSessionSecurityDSL = func() {
 	var browserSession = APIKeySecurity("browser_session_cookie", func() {
 		Description("Browser session cookie used by first-party async clients.")
@@ -87,4 +86,3 @@ var AsyncSessionSecurityDSL = func() {
 		})
 	})
 }
-

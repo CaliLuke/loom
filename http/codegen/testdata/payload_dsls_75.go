@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyUnionDSL = func() {
 	var Union = Type("Union", func() {
 		OneOf("Values", func() {
@@ -27,5 +26,3 @@ var PayloadBodyUnionDSL = func() {
 		})
 	})
 }
-
-

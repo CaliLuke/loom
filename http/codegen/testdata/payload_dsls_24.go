@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadQueryStringDefaultValidateDSL = func() {
 	Service("ServiceQueryStringDefaultValidate", func() {
 		Method("MethodQueryStringDefaultValidate", func() {
@@ -27,5 +26,3 @@ var PayloadQueryStringDefaultValidateDSL = func() {
 		})
 	})
 }
-
-

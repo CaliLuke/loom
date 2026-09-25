@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadMultipartBodyMapTypeEncodeCode = `// EncodeMethodMultipartMapTypeRequest returns an encoder for requests sent to
 // the ServiceMultipartMapType MethodMultipartMapType server.
 func EncodeMethodMultipartMapTypeRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -16,5 +15,3 @@ func EncodeMethodMultipartMapTypeRequest(encoder func(*http.Request) loomhttp.En
 	}
 }
 `
-
-

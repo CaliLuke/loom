@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var CollabStreamsDSL = func() {
 	var ThreadSummary = Type("ThreadSummary", func() {
 		Attribute("thread_id", String, func() {
@@ -97,5 +96,3 @@ var CollabStreamsDSL = func() {
 		})
 	})
 }
-
-

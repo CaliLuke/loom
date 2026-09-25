@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyUserInnerDefaultConstructorCode = `// NewMethodBodyUserInnerDefaultPayloadType builds a
 // ServiceBodyUserInnerDefault service MethodBodyUserInnerDefault endpoint
 // payload.
@@ -13,5 +12,3 @@ func NewMethodBodyUserInnerDefaultPayloadType(body *MethodBodyUserInnerDefaultRe
 	return v
 }
 `
-
-

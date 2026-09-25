@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var AdditionalPropertiesEmbeddedPayloadResultDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
@@ -31,5 +30,3 @@ var AdditionalPropertiesEmbeddedPayloadResultDSL = func() {
 		})
 	})
 }
-
-

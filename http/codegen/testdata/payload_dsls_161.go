@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyCustomNameDSL = func() {
 	Service("ServiceBodyCustomName", func() {
 		Method("MethodBodyCustomName", func() {
@@ -25,5 +24,3 @@ var PayloadBodyCustomNameDSL = func() {
 		})
 	})
 }
-
-

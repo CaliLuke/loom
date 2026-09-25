@@ -51,6 +51,9 @@ func TestSSEHeadersAreDeferredUntilFirstEvent(t *testing.T) {
 		},
 		ID: "req-1",
 	})
+	if resp != nil {
+		require.NoError(t, resp.Body.Close())
+	}
 	require.Error(t, err)
 	require.Nil(t, resp)
 }

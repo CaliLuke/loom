@@ -1,6 +1,5 @@
 package testdata
 
-
 var ResultMultipleViewsTagEncodeCode = `// EncodeMethodTagMultipleViewsResponse returns an encoder for responses
 // returned by the ServiceTagMultipleViews MethodTagMultipleViews endpoint.
 func EncodeMethodTagMultipleViewsResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
@@ -33,5 +32,3 @@ func EncodeMethodTagMultipleViewsResponse(encoder func(context.Context, http.Res
 	}
 }
 `
-
-

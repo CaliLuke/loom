@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadHeaderPrimitiveArrayBoolValidateEncodeCode = `// EncodeMethodHeaderPrimitiveArrayBoolValidateRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveArrayBoolValidate
 // MethodHeaderPrimitiveArrayBoolValidate server.
@@ -14,5 +13,3 @@ func EncodeMethodHeaderPrimitiveArrayBoolValidateRequest(encoder func(*http.Requ
 	}
 }
 `
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyMapUserEncodeCode = `// EncodeMethodBodyMapUserRequest returns an encoder for requests sent to the
 // ServiceBodyMapUser MethodBodyMapUser server.
 func EncodeMethodBodyMapUserRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -17,5 +16,3 @@ func EncodeMethodBodyMapUserRequest(encoder func(*http.Request) loomhttp.Encoder
 	}
 }
 `
-
-

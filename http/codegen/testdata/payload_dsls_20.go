@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadQueryMapIntMapStringArrayIntValidateDSL = func() {
 	Service("ServiceQueryMapIntMapStringArrayIntValidate", func() {
 		Method("MethodQueryMapIntMapStringArrayIntValidate", func() {
@@ -26,5 +25,3 @@ var PayloadQueryMapIntMapStringArrayIntValidateDSL = func() {
 		})
 	})
 }
-
-

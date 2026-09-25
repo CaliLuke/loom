@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultBodyUnionCustomKeysMultiDSL = func() {
 	var TypeA = Type("TypeA", func() {
 		Attribute("a", Int)
@@ -35,4 +34,3 @@ var ResultBodyUnionCustomKeysMultiDSL = func() {
 		})
 	})
 }
-

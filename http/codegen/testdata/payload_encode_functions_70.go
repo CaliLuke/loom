@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyPathObjectValidateEncodeCode = `// EncodeMethodBodyPathObjectValidateRequest returns an encoder for requests
 // sent to the ServiceBodyPathObjectValidate MethodBodyPathObjectValidate
 // server.
@@ -18,5 +17,3 @@ func EncodeMethodBodyPathObjectValidateRequest(encoder func(*http.Request) loomh
 	}
 }
 `
-
-

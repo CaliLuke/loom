@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -100,7 +101,7 @@ func verifyTickTockStream(t *testing.T, url string, expected []sseExpectation) {
 	case <-ctx.Done():
 		t.Fatalf("timed out waiting for SSE events from %s", url)
 	}
-	require.True(t, connectErr == nil || connectErr == context.Canceled, "unexpected connection result: %v", connectErr)
+	require.True(t, connectErr == nil || errors.Is(connectErr, context.Canceled), "unexpected connection result: %v", connectErr)
 
 	mu.Lock()
 	got := append([]sse.Event(nil), events...)

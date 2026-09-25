@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadArrayUserTypeBuildCode = `// BuildMethodBodyInlineArrayUserPayload builds the payload for the
 // ServiceBodyInlineArrayUser MethodBodyInlineArrayUser endpoint from CLI flags.
 func BuildMethodBodyInlineArrayUserPayload(serviceBodyInlineArrayUserMethodBodyInlineArrayUserBody string) ([]*servicebodyinlinearrayuser.ElemType, error) {
@@ -19,5 +18,3 @@ func BuildMethodBodyInlineArrayUserPayload(serviceBodyInlineArrayUserMethodBodyI
 	return v, nil
 }
 `
-
-

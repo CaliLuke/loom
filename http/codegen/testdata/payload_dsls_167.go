@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyUnionCustomKeysDSL = func() {
 	var CustomUnion = Type("CustomUnion", func() {
 		OneOf("Values", func() {
@@ -29,5 +28,3 @@ var PayloadBodyUnionCustomKeysDSL = func() {
 		})
 	})
 }
-
-

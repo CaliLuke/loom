@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyQueryPathUserValidateConstructorCode = `// NewMethodBodyQueryPathUserValidatePayloadType builds a
 // ServiceBodyQueryPathUserValidate service MethodBodyQueryPathUserValidate
 // endpoint payload.
@@ -14,5 +13,3 @@ func NewMethodBodyQueryPathUserValidatePayloadType(body *MethodBodyQueryPathUser
 	return v
 }
 `
-
-

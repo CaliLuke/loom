@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultHeaderBoolDSL = func() {
 	Service("ServiceHeaderBool", func() {
 		Method("MethodHeaderBool", func() {
@@ -941,5 +940,3 @@ var ResultWithResultViewDSL = func() {
 		})
 	})
 }
-
-

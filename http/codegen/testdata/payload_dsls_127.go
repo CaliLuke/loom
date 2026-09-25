@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadFormBodyInvalidDSL = func() {
 	Service("ServiceFormBodyInvalid", func() {
 		Method("MethodFormBodyInvalid", func() {
@@ -25,5 +24,3 @@ var PayloadFormBodyInvalidDSL = func() {
 		})
 	})
 }
-
-

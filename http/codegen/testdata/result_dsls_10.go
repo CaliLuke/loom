@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultBodyArrayStringDSL = func() {
 	Service("ServiceBodyArrayString", func() {
 		Method("MethodBodyArrayString", func() {
@@ -23,5 +22,3 @@ var ResultBodyArrayStringDSL = func() {
 		})
 	})
 }
-
-

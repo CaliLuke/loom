@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var HeaderIntAliasDSL = func() {
 	var IntAlias = Type("IntAlias", Int)
 	var Int32Alias = Type("Int32Alias", Int32)
@@ -33,5 +32,3 @@ var HeaderIntAliasDSL = func() {
 		})
 	})
 }
-
-

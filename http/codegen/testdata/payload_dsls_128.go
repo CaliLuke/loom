@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadFormBodyUnionDSL = func() {
 	var Grant = Type("FormGrant", func() {
 		OneOf("Values", func() {
@@ -34,5 +33,3 @@ var PayloadFormBodyUnionDSL = func() {
 		})
 	})
 }
-
-

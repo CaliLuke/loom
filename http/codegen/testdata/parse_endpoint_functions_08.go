@@ -1,6 +1,5 @@
 package testdata
 
-
 var MapQueryObjectBuildCode = `// BuildMethodMapQueryObjectPayload builds the payload for the
 // ServiceMapQueryObject MethodMapQueryObject endpoint from CLI flags.
 func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectBody string, serviceMapQueryObjectMethodMapQueryObjectA string, serviceMapQueryObjectMethodMapQueryObjectC string) (*servicemapqueryobject.PayloadType, error) {
@@ -42,5 +41,3 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 	return v, nil
 }
 `
-
-

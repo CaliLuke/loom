@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadHeaderArrayIntValidateEncodeCode = `// EncodeMethodHeaderArrayIntValidateRequest returns an encoder for requests
 // sent to the ServiceHeaderArrayIntValidate MethodHeaderArrayIntValidate
 // server.
@@ -21,5 +20,3 @@ func EncodeMethodHeaderArrayIntValidateRequest(encoder func(*http.Request) loomh
 	}
 }
 `
-
-

@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultHeaderArrayValidateDSL = func() {
 	Service("ServiceHeaderArrayValidateResponse", func() {
 		Method("MethodA", func() {
@@ -30,5 +29,3 @@ var ResultHeaderArrayValidateDSL = func() {
 		})
 	})
 }
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadMapQueryPrimitiveArrayEncodeCode = `// EncodeMapQueryPrimitiveArrayRequest returns an encoder for requests sent to
 // the ServiceMapQueryPrimitiveArray MapQueryPrimitiveArray server.
 func EncodeMapQueryPrimitiveArrayRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -22,5 +21,3 @@ func EncodeMapQueryPrimitiveArrayRequest(encoder func(*http.Request) loomhttp.En
 	}
 }
 `
-
-

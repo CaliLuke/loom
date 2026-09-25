@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var EmptyBodyResultMultipleViewsDSL = func() {
 	var ResultType = ResultType("ResultTypeMultipleViews", func() {
 		Attribute("a", String)
@@ -37,5 +36,3 @@ var EmptyBodyResultMultipleViewsDSL = func() {
 		})
 	})
 }
-
-

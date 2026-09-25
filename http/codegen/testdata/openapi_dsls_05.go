@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var OpenAPIRequestResponseSplitDSL = func() {
 	var Account = Type("Account", func() {
 		Attribute("id", String, func() {
@@ -31,5 +30,3 @@ var OpenAPIRequestResponseSplitDSL = func() {
 		})
 	})
 }
-
-

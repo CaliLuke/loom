@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadQueryCustomNameDSL = func() {
 	Service("ServiceQueryCustomName", func() {
 		Method("MethodQueryCustomName", func() {
@@ -28,5 +27,3 @@ var PayloadQueryCustomNameDSL = func() {
 		})
 	})
 }
-
-

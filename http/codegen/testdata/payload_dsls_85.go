@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyMapUserDSL = func() {
 	var PayloadType = Type("PayloadType", func() {
 		Attribute("a", String, func() {
@@ -28,5 +27,3 @@ var PayloadBodyMapUserDSL = func() {
 		})
 	})
 }
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyQueryPathUserValidateEncodeCode = `// EncodeMethodBodyQueryPathUserValidateRequest returns an encoder for requests
 // sent to the ServiceBodyQueryPathUserValidate MethodBodyQueryPathUserValidate
 // server.
@@ -21,5 +20,3 @@ func EncodeMethodBodyQueryPathUserValidateRequest(encoder func(*http.Request) lo
 	}
 }
 `
-
-

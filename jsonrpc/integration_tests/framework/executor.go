@@ -402,20 +402,10 @@ func (e *executor) executeSSESequence(ctx context.Context, t *testing.T, scenari
 func (e *executor) validateSSEEvent(t *testing.T, event harness.SSEEvent, expectedMsg map[string]any, step int) {
 	t.Helper()
 
-	require.Equalf(t, expectedSSEEventType(expectedMsg), event.Type, "Step %d: unexpected SSE event type", step)
+	require.Equalf(t, "message", event.Type, "Step %d: unexpected SSE event type", step)
 
 	var response map[string]any
 	err := json.Unmarshal(event.Data, &response)
 	require.NoErrorf(t, err, "Failed to unmarshal event %d", step)
 	e.compareJSONRPCMessages(t, response, expectedMsg)
-}
-
-func expectedSSEEventType(msg map[string]any) string {
-	if _, ok := msg["error"]; ok {
-		return "message"
-	}
-	if _, ok := msg["result"]; ok {
-		return "message"
-	}
-	return "message"
 }

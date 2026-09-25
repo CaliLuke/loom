@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyUserOriginConstructorCode = `// NewMethodBodyUserOriginDefaultPayload builds a ServiceBodyUserOriginDefault
 // service MethodBodyUserOriginDefault endpoint payload.
 func NewMethodBodyUserOriginDefaultPayload(body *MethodBodyUserOriginDefaultRequestBody) *servicebodyuserorigindefault.MethodBodyUserOriginDefaultPayload {
@@ -14,5 +13,3 @@ func NewMethodBodyUserOriginDefaultPayload(body *MethodBodyUserOriginDefaultRequ
 	return res
 }
 `
-
-

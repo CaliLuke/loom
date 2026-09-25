@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var SkipResponseBodyEncodeDecodeDSL = func() {
 	Service("testService", func() {
 		Method("empty", func() {
@@ -45,5 +44,3 @@ var SkipResponseBodyEncodeDecodeDSL = func() {
 		})
 	})
 }
-
-

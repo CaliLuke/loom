@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ValidateErrorResponseTypeDSL = func() {
 	var AResult = ResultType("application/vnd.loom.aresult", func() {
 		TypeName("AResult")
@@ -45,5 +44,3 @@ var ValidateErrorResponseTypeDSL = func() {
 		})
 	})
 }
-
-

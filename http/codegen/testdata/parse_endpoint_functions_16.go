@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyCustomNameBuildCode = `// BuildMethodBodyCustomNamePayload builds the payload for the
 // ServiceBodyCustomName MethodBodyCustomName endpoint from CLI flags.
 func BuildMethodBodyCustomNamePayload(serviceBodyCustomNameMethodBodyCustomNameBody string) (*servicebodycustomname.MethodBodyCustomNamePayload, error) {
@@ -19,5 +18,3 @@ func BuildMethodBodyCustomNamePayload(serviceBodyCustomNameMethodBodyCustomNameB
 	return v, nil
 }
 `
-
-

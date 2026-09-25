@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultHeaderStringImplicitDSL = func() {
 	Service("ServiceHeaderStringImplicit", func() {
 		Method("MethodHeaderStringImplicit", func() {
@@ -24,5 +23,3 @@ var ResultHeaderStringImplicitDSL = func() {
 		})
 	})
 }
-
-

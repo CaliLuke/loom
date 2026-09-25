@@ -1,6 +1,5 @@
 package testdata
 
-
 var ResultTagStringEncodeCode = `// EncodeMethodTagStringResponse returns an encoder for responses returned by
 // the ServiceTagString MethodTagString endpoint.
 func EncodeMethodTagStringResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
@@ -18,5 +17,3 @@ func EncodeMethodTagStringResponse(encoder func(context.Context, http.ResponseWr
 	}
 }
 `
-
-

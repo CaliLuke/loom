@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadExtendedValidateDSL = func() {
 	var UT = Type("UserType", func() {
 		Attribute("q", String)
@@ -32,5 +31,3 @@ var PayloadExtendedValidateDSL = func() {
 		})
 	})
 }
-
-

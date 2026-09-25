@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var OpsSocketDSL = func() {
 	var _ = API("ops-socket", func() {
 		Title("Ops Socket API")
@@ -54,5 +53,3 @@ var OpsSocketDSL = func() {
 		})
 	})
 }
-
-

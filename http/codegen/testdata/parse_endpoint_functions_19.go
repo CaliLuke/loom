@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadHeaderCustomNameBuildCode = `// BuildMethodHeaderCustomNamePayload builds the payload for the
 // ServiceHeaderCustomName MethodHeaderCustomName endpoint from CLI flags.
 func BuildMethodHeaderCustomNamePayload(serviceHeaderCustomNameMethodHeaderCustomNameH string) (*serviceheadercustomname.MethodHeaderCustomNamePayload, error) {
@@ -16,5 +15,3 @@ func BuildMethodHeaderCustomNamePayload(serviceHeaderCustomNameMethodHeaderCusto
 	return v, nil
 }
 `
-
-

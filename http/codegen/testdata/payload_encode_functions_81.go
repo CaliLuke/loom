@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadMultipartBodyUserTypeEncodeCode = `// EncodeMethodMultipartUserTypeRequest returns an encoder for requests sent to
 // the ServiceMultipartUserType MethodMultipartUserType server.
 func EncodeMethodMultipartUserTypeRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -16,5 +15,3 @@ func EncodeMethodMultipartUserTypeRequest(encoder func(*http.Request) loomhttp.E
 	}
 }
 `
-
-

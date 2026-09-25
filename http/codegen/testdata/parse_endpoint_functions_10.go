@@ -1,6 +1,5 @@
 package testdata
 
-
 var QueryUIntBuildCode = `// BuildMethodQueryUIntPayload builds the payload for the ServiceQueryUInt
 // MethodQueryUInt endpoint from CLI flags.
 func BuildMethodQueryUIntPayload(serviceQueryUIntMethodQueryUIntQ string) (*servicequeryuint.MethodQueryUIntPayload, error) {
@@ -23,5 +22,3 @@ func BuildMethodQueryUIntPayload(serviceQueryUIntMethodQueryUIntQ string) (*serv
 	return v, nil
 }
 `
-
-

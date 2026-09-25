@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ExplicitContentTypeResponseDSL = func() {
 	var ResultType = ResultType("ResultType", func() {
 		Attribute("a", String)
@@ -28,5 +27,3 @@ var ExplicitContentTypeResponseDSL = func() {
 		})
 	})
 }
-
-

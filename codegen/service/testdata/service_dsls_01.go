@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 )
 
 var SingleMethodDSL = func() {
@@ -676,37 +677,7 @@ var StreamingResultNoPayloadMethodDSL = func() {
 }
 
 var StreamingPayloadMethodDSL = func() {
-	var _ = Type("Child", func() {
-		Attribute("p", "Parent")
-	})
-	var ParentType = Type("Parent", func() {
-		Attribute("c", "Child")
-	})
-	var APayload = Type("APayload", func() {
-		Attribute("IntField", Int)
-		Attribute("StringField", String)
-		Attribute("BooleanField", Boolean)
-		Attribute("BytesField", Bytes)
-		Attribute("OptionalField", String)
-		Required("IntField", "StringField", "BooleanField", "BytesField")
-	})
-	var AResult = Type("AResult", func() {
-		Attribute("IntField", Int)
-		Attribute("StringField", String)
-		Attribute("BooleanField", Boolean)
-		Attribute("BytesField", Bytes)
-		Attribute("OptionalField", String)
-		Required("IntField", "StringField", "BooleanField", "BytesField")
-	})
-	var BPayload = Type("BPayload", func() {
-		Attribute("ArrayField", ArrayOf(Boolean))
-		Attribute("MapField", MapOf(Int, String))
-		Attribute("ObjectField", func() {
-			Attribute("IntField", Int)
-			Attribute("StringField", String)
-		})
-		Attribute("UserTypeField", ParentType)
-	})
+	BPayload, APayload, AResult := streamingPayloadTypes()
 
 	Service("StreamingPayloadService", func() {
 		Method("StreamingPayloadMethod", func() {
@@ -792,37 +763,7 @@ var StreamingPayloadResultWithExplicitViewMethodDSL = func() {
 }
 
 var BidirectionalStreamingMethodDSL = func() {
-	var _ = Type("Child", func() {
-		Attribute("p", "Parent")
-	})
-	var ParentType = Type("Parent", func() {
-		Attribute("c", "Child")
-	})
-	var APayload = Type("APayload", func() {
-		Attribute("IntField", Int)
-		Attribute("StringField", String)
-		Attribute("BooleanField", Boolean)
-		Attribute("BytesField", Bytes)
-		Attribute("OptionalField", String)
-		Required("IntField", "StringField", "BooleanField", "BytesField")
-	})
-	var AResult = Type("AResult", func() {
-		Attribute("IntField", Int)
-		Attribute("StringField", String)
-		Attribute("BooleanField", Boolean)
-		Attribute("BytesField", Bytes)
-		Attribute("OptionalField", String)
-		Required("IntField", "StringField", "BooleanField", "BytesField")
-	})
-	var BPayload = Type("BPayload", func() {
-		Attribute("ArrayField", ArrayOf(Boolean))
-		Attribute("MapField", MapOf(Int, String))
-		Attribute("ObjectField", func() {
-			Attribute("IntField", Int)
-			Attribute("StringField", String)
-		})
-		Attribute("UserTypeField", ParentType)
-	})
+	BPayload, APayload, AResult := streamingPayloadTypes()
 	Service("BidirectionalStreamingService", func() {
 		Method("BidirectionalStreamingMethod", func() {
 			Payload(BPayload)
@@ -923,4 +864,42 @@ var NamesWithSpacesDSL = func() {
 			GRPC(func() {})
 		})
 	})
+}
+
+// streamingPayloadTypes declares the recursive Child/Parent pair and the
+// APayload, AResult and BPayload types shared by the streaming payload DSLs,
+// in that order, and returns BPayload, APayload and AResult.
+func streamingPayloadTypes() (expr.UserType, expr.UserType, expr.UserType) {
+	var _ = Type("Child", func() {
+		Attribute("p", "Parent")
+	})
+	var ParentType = Type("Parent", func() {
+		Attribute("c", "Child")
+	})
+	var APayload = Type("APayload", func() {
+		Attribute("IntField", Int)
+		Attribute("StringField", String)
+		Attribute("BooleanField", Boolean)
+		Attribute("BytesField", Bytes)
+		Attribute("OptionalField", String)
+		Required("IntField", "StringField", "BooleanField", "BytesField")
+	})
+	var AResult = Type("AResult", func() {
+		Attribute("IntField", Int)
+		Attribute("StringField", String)
+		Attribute("BooleanField", Boolean)
+		Attribute("BytesField", Bytes)
+		Attribute("OptionalField", String)
+		Required("IntField", "StringField", "BooleanField", "BytesField")
+	})
+	var BPayload = Type("BPayload", func() {
+		Attribute("ArrayField", ArrayOf(Boolean))
+		Attribute("MapField", MapOf(Int, String))
+		Attribute("ObjectField", func() {
+			Attribute("IntField", Int)
+			Attribute("StringField", String)
+		})
+		Attribute("UserTypeField", ParentType)
+	})
+	return BPayload, APayload, AResult
 }

@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ExplicitBodyPrimitiveResultMultipleViewsDSL = func() {
 	var ResultType = ResultType("ResultTypeMultipleViews", func() {
 		Attribute("a", String, func() {
@@ -41,5 +40,3 @@ var ExplicitBodyPrimitiveResultMultipleViewsDSL = func() {
 		})
 	})
 }
-
-

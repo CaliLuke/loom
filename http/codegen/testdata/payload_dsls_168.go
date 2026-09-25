@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyUnionCustomKeysValidateDSL = func() {
 	var PaymentMethod = Type("PaymentMethod", func() {
 		OneOf("method", func() {
@@ -32,4 +31,3 @@ var PayloadBodyUnionCustomKeysValidateDSL = func() {
 		})
 	})
 }
-

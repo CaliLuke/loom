@@ -1,6 +1,5 @@
 package testdata
 
-
 var EmptyServerResponseEncodeCode = `// EncodeMethodEmptyServerResponseResponse returns an encoder for responses
 // returned by the ServiceEmptyServerResponse MethodEmptyServerResponse
 // endpoint.
@@ -11,5 +10,3 @@ func EncodeMethodEmptyServerResponseResponse(encoder func(context.Context, http.
 	}
 }
 `
-
-

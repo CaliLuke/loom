@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var AdditionalPropertiesTypeDSL = func() {
 	var PayloadT = Type("Payload", func() {
 		Attribute("string", String, func() {
@@ -33,5 +32,3 @@ var AdditionalPropertiesTypeDSL = func() {
 		})
 	})
 }
-
-

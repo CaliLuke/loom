@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadJWTAuthorizationHeaderEncodeCode = `// EncodeMethodHeaderPrimitiveStringDefaultRequest returns an encoder for
 // requests sent to the ServiceHeaderPrimitiveStringDefault
 // MethodHeaderPrimitiveStringDefault server.
@@ -22,5 +21,3 @@ func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request)
 	}
 }
 `
-
-

@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ExplicitBodyResultCollectionDSL = func() {
 	var ResultType = ResultType("ResultType", func() {
 		Attributes(func() {
@@ -33,5 +32,3 @@ var ExplicitBodyResultCollectionDSL = func() {
 		})
 	})
 }
-
-

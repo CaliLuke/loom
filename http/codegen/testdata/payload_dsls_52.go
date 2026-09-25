@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadHeaderStringDefaultDSL = func() {
 	Service("ServiceHeaderStringDefault", func() {
 		Method("MethodHeaderStringDefault", func() {
@@ -26,5 +25,3 @@ var PayloadHeaderStringDefaultDSL = func() {
 		})
 	})
 }
-
-

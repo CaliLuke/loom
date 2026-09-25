@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadQueryStringDefaultEncodeCode = `// EncodeMethodQueryStringDefaultRequest returns an encoder for requests sent
 // to the ServiceQueryStringDefault MethodQueryStringDefault server.
 func EncodeMethodQueryStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -16,5 +15,3 @@ func EncodeMethodQueryStringDefaultRequest(encoder func(*http.Request) loomhttp.
 	}
 }
 `
-
-

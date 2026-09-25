@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyMapStringValidateEncodeCode = `// EncodeMethodBodyMapStringValidateRequest returns an encoder for requests
 // sent to the ServiceBodyMapStringValidate MethodBodyMapStringValidate server.
 func EncodeMethodBodyMapStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -17,5 +16,3 @@ func EncodeMethodBodyMapStringValidateRequest(encoder func(*http.Request) loomht
 	}
 }
 `
-
-

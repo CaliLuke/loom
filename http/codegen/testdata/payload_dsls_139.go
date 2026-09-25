@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var MultipleMethodsDSL = func() {
 	var APayload = Type("APayload", func() {
 		Attribute("a", String, func() {
@@ -43,5 +42,3 @@ var MultipleMethodsDSL = func() {
 		})
 	})
 }
-
-

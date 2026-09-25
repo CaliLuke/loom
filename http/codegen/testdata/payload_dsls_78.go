@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyUnionUserValidateDSL = func() {
 	var SomeType = Type("SomeType", func() {
 		Attribute("a", String)
@@ -38,5 +37,3 @@ var PayloadBodyUnionUserValidateDSL = func() {
 		})
 	})
 }
-
-

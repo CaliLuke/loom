@@ -1,6 +1,5 @@
 package testdata
 
-
 var ResponseEncoderSkipResponseBodyEncodeDecodeCode = `// EncodeMethodResponseEncoderSkipResponse returns an encoder for responses
 // returned by the ServiceResponseEncoderSkip MethodResponseEncoderSkip
 // endpoint.
@@ -10,5 +9,3 @@ func EncodeMethodResponseEncoderSkipResponse(encoder func(context.Context, http.
 	}
 }
 `
-
-

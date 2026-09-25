@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyQueryUserValidateEncodeCode = `// EncodeMethodBodyQueryUserValidateRequest returns an encoder for requests
 // sent to the ServiceBodyQueryUserValidate MethodBodyQueryUserValidate server.
 func EncodeMethodBodyQueryUserValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -20,5 +19,3 @@ func EncodeMethodBodyQueryUserValidateRequest(encoder func(*http.Request) loomht
 	}
 }
 `
-
-

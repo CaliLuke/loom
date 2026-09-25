@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadHeaderCustomNameEncodeCode = `// EncodeMethodHeaderCustomNameRequest returns an encoder for requests sent to
 // the ServiceHeaderCustomName MethodHeaderCustomName server.
 func EncodeMethodHeaderCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -17,5 +16,3 @@ func EncodeMethodHeaderCustomNameRequest(encoder func(*http.Request) loomhttp.En
 	}
 }
 `
-
-

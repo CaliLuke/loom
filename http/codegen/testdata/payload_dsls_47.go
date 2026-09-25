@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadHeaderArrayIntValidateDSL = func() {
 	Service("ServiceHeaderArrayIntValidate", func() {
 		Method("MethodHeaderArrayIntValidate", func() {
@@ -26,5 +25,3 @@ var PayloadHeaderArrayIntValidateDSL = func() {
 		})
 	})
 }
-
-

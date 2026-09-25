@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadExtendBodyPrimitiveFieldStringDSL = func() {
 	var Ext = Type("Ext", func() {
 		Attribute("b", String)
@@ -28,5 +27,3 @@ var PayloadExtendBodyPrimitiveFieldStringDSL = func() {
 		})
 	})
 }
-
-

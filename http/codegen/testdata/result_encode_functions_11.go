@@ -1,6 +1,5 @@
 package testdata
 
-
 var ResultWithEmbeddedCustomPkgTypeEncodeCode = `// EncodeMethodResultWithEmbeddedCustomPkgTypeDSLResponse returns an encoder
 // for responses returned by the ServiceResultWithEmbeddedCustomPkgTypeDSL
 // MethodResultWithEmbeddedCustomPkgTypeDSL endpoint.
@@ -14,4 +13,3 @@ func EncodeMethodResultWithEmbeddedCustomPkgTypeDSLResponse(encoder func(context
 	}
 }
 `
-

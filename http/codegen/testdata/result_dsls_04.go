@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ExplicitBodyUserResultMultipleViewsDSL = func() {
 	var UserType = Type("UserType", func() {
 		Attribute("x", String)
@@ -43,5 +42,3 @@ var ExplicitBodyUserResultMultipleViewsDSL = func() {
 		})
 	})
 }
-
-

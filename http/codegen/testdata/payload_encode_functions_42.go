@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadHeaderStringDefaultEncodeCode = `// EncodeMethodHeaderStringDefaultRequest returns an encoder for requests sent
 // to the ServiceHeaderStringDefault MethodHeaderStringDefault server.
 func EncodeMethodHeaderStringDefaultRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -17,5 +16,3 @@ func EncodeMethodHeaderStringDefaultRequest(encoder func(*http.Request) loomhttp
 	}
 }
 `
-
-

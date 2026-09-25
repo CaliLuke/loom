@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadPathCustomNameDSL = func() {
 	Service("ServicePathCustomName", func() {
 		Method("MethodPathCustomName", func() {
@@ -26,5 +25,3 @@ var PayloadPathCustomNameDSL = func() {
 		})
 	})
 }
-
-

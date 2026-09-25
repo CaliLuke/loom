@@ -21,6 +21,13 @@ import (
 	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
+// mixedTickSSEResponseHead is the status line and headers of a fully read and
+// closed mixedtick SSE response.
+type mixedTickSSEResponseHead struct {
+	StatusCode int
+	Header     http.Header
+}
+
 // The mixedtick fixture copy is generated once for the whole package:
 // regeneration (loom gen via go run) dominates the mixed-transport tests'
 // runtime and the generated tree is read-only for the servers, so the three
@@ -306,7 +313,7 @@ func startMixedTickServer(t *testing.T) *harness.Server {
 	return server
 }
 
-func postMixedTickSSERequest(t *testing.T, url string, payload map[string]any) (*http.Response, []byte) {
+func postMixedTickSSERequest(t *testing.T, url string, payload map[string]any) (mixedTickSSEResponseHead, []byte) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -322,16 +329,16 @@ func postMixedTickSSERequest(t *testing.T, url string, payload map[string]any) (
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		resp.Body.Close() //nolint:errcheck
-	})
+	defer func() {
+		require.NoError(t, resp.Body.Close())
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	return resp, body
+	return mixedTickSSEResponseHead{StatusCode: resp.StatusCode, Header: resp.Header}, body
 }
 
-func postMixedTickSSERawRequest(t *testing.T, url string, body io.Reader) (*http.Response, []byte) {
+func postMixedTickSSERawRequest(t *testing.T, url string, body io.Reader) (mixedTickSSEResponseHead, []byte) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -344,11 +351,11 @@ func postMixedTickSSERawRequest(t *testing.T, url string, body io.Reader) (*http
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		resp.Body.Close() //nolint:errcheck
-	})
+	defer func() {
+		require.NoError(t, resp.Body.Close())
+	}()
 
 	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	return resp, respBody
+	return mixedTickSSEResponseHead{StatusCode: resp.StatusCode, Header: resp.Header}, respBody
 }

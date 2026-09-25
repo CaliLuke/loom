@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var JSONPrefixDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
@@ -19,5 +18,3 @@ var JSONPrefixDSL = func() {
 		})
 	})
 }
-
-

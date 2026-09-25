@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyUserInnerDSL = func() {
 	var InnerType = Type("InnerType", func() {
 		Attribute("a", String, func() {
@@ -33,5 +32,3 @@ var PayloadBodyUserInnerDSL = func() {
 		})
 	})
 }
-
-

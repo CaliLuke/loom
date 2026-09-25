@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadQueryPrimitiveStringDefaultEncodeCode = `// EncodeMethodQueryPrimitiveStringDefaultRequest returns an encoder for
 // requests sent to the ServiceQueryPrimitiveStringDefault
 // MethodQueryPrimitiveStringDefault server.
@@ -17,5 +16,3 @@ func EncodeMethodQueryPrimitiveStringDefaultRequest(encoder func(*http.Request) 
 	}
 }
 `
-
-

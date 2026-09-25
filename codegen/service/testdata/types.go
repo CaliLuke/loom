@@ -1,7 +1,5 @@
 package testdata
 
-import "time"
-
 type StringT struct {
 	String string
 }
@@ -32,7 +30,6 @@ type ObjectT struct {
 
 type ObjectExtraT struct {
 	Object *ObjectFieldT
-	t      *time.Time
 }
 
 type ObjectFieldT struct {

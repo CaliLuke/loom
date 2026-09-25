@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var QueryIntAliasValidateDSL = func() {
 	var IntAlias = Type("IntAlias", Int, func() {
 		Minimum(10)
@@ -39,5 +38,3 @@ var QueryIntAliasValidateDSL = func() {
 		})
 	})
 }
-
-

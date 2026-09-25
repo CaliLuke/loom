@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadExtendBodyPrimitiveFieldArrayUserDSL = func() {
 	var PayloadType = Type("PayloadType", func() {
 		Attribute("a", ArrayOf(String))
@@ -25,5 +24,3 @@ var PayloadExtendBodyPrimitiveFieldArrayUserDSL = func() {
 		})
 	})
 }
-
-

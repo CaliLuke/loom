@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var WithHeadersBlockDSL = func() {
 	Service("ServiceWithHeadersBlock", func() {
 		Method("MethodA", func() {
@@ -34,5 +33,3 @@ var WithHeadersBlockDSL = func() {
 		})
 	})
 }
-
-

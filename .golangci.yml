@@ -29,6 +29,12 @@ linters:
       - path: _test\.go
         linters:
           - maintidx
+      # The integration-test harness and scenario framework are test support
+      # code in non-_test.go files. Their long step-driven functions follow
+      # the same exemption as _test.go files.
+      - path: integration_tests/(framework|harness)/
+        linters:
+          - maintidx
   settings:
     dupl:
       threshold: 150

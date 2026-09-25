@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var QueryArrayNestedAliasValidateDSL = func() {
 	var Float64Alias = Type("Float64Alias", Float64, func() {
 		Minimum(10)
@@ -30,5 +29,3 @@ var QueryArrayNestedAliasValidateDSL = func() {
 		})
 	})
 }
-
-

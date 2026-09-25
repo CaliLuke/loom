@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultBodyHeaderObjectDSL = func() {
 	Service("ServiceBodyHeaderObject", func() {
 		Method("MethodBodyHeaderObject", func() {
@@ -27,5 +26,3 @@ var ResultBodyHeaderObjectDSL = func() {
 		})
 	})
 }
-
-

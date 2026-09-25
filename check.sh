@@ -24,11 +24,7 @@ MODE="${1:-check}"
 case "$MODE" in
   --fix)
     echo "▶ auto-fixing formatting + imports"
-    if command -v goimports >/dev/null 2>&1; then
-      goimports -w -local github.com/CaliLuke/loom $(go list -f '{{.Dir}}' ./...)
-    else
-      echo "  goimports not on PATH; skipping (install: go install golang.org/x/tools/cmd/goimports@latest)"
-    fi
+    make fmt
     if command -v golangci-lint >/dev/null 2>&1; then
       golangci-lint run --fix || true
     fi

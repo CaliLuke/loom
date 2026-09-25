@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var EmptyServerResponseWithTagsDSL = func() {
 	Service("ServiceEmptyServerResponseWithTags", func() {
 		Method("MethodEmptyServerResponseWithTags", func() {
@@ -31,5 +30,3 @@ var EmptyServerResponseWithTagsDSL = func() {
 		})
 	})
 }
-
-

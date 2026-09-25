@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadQueryStringMappedDSL = func() {
 	Service("ServiceQueryStringMapped", func() {
 		Method("MethodQueryStringMapped", func() {
@@ -24,5 +23,3 @@ var PayloadQueryStringMappedDSL = func() {
 		})
 	})
 }
-
-

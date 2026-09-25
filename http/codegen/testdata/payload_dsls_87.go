@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadDeepUserDSL = func() {
 	var DeepChild = ResultType("DeepChild", func() {
 		Attribute("name", String)
@@ -44,5 +43,3 @@ var PayloadDeepUserDSL = func() {
 		})
 	})
 }
-
-

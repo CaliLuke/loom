@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var MixedPayloadInBodyDSL = func() {
 	var BPayload = Type("BPayload", func() {
 		Attribute("int", Int)
@@ -34,5 +33,3 @@ var MixedPayloadInBodyDSL = func() {
 		})
 	})
 }
-
-

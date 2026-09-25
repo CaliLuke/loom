@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var NotGenerateHostDSL = func() {
 	var _ = API("test", func() {
 		Server("test", func() {
@@ -21,5 +20,3 @@ var NotGenerateHostDSL = func() {
 		})
 	})
 }
-
-

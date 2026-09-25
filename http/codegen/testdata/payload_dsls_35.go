@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadPathPrimitiveStringValidateDSL = func() {
 	Service("ServicePathPrimitiveStringValidate", func() {
 		Method("MethodPathPrimitiveStringValidate", func() {
@@ -23,5 +22,3 @@ var PayloadPathPrimitiveStringValidateDSL = func() {
 		})
 	})
 }
-
-

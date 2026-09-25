@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyNestedUserDSL = func() {
 	var NestedType = Type("NestedType", func() {
 		Attribute("a", String)
@@ -30,5 +29,3 @@ var PayloadBodyNestedUserDSL = func() {
 		})
 	})
 }
-
-

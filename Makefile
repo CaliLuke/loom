@@ -5,7 +5,10 @@
 # Targets:
 # - "depend" retrieves the Go packages needed to run the linter and tests
 # - "ci-local" runs the meaningful direct-main GitHub CI gates locally
-# - "lint" runs the linter
+# - "fmt" formats hand-written Go, including testdata and the integration-test
+#   modules
+# - "lint" runs the linters, including on testdata packages and the
+#   integration-test modules
 # - "test" runs the tests
 # - "test-pulse-redis" runs the pulse suites against real Redis servers
 # - "release" verifies a staged release, atomically publishes its commit and tag, and
@@ -31,7 +34,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend install-hooks lint lint-docs lint-filesize lint-json-v2 lint-legacy-middleware lint-namescope lint-toolchain test test-race test-release test-pulse-redis integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-race test-release test-pulse-redis integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -111,6 +114,7 @@ install-hooks:
 lint:
 ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_filesize.sh || (echo "^ - file size lint errors!" && echo && exit 1)
+	@bash ./scripts/lint_gofmt.sh || (echo "^ - gofmt lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_json_v2.sh || (echo "^ - JSON v2 lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_legacy_middleware.sh || (echo "^ - legacy middleware lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
@@ -119,12 +123,20 @@ ifneq ($(GOOS),windows)
 	@go run ./scripts/docscheck || (echo "^ - documentation lint errors!" && echo && exit 1)
 	@$(STATICCHECK) -checks='$(STATICCHECK_CHECKS)' ./... || (echo "^ - staticcheck errors!" && echo && exit 1)
 	@$(GOLANGCI_LINT) run ./... || (echo "^ - lint errors!" && echo && exit 1)
+	@GOLANGCI_LINT="$(GOLANGCI_LINT)" STATICCHECK="$(STATICCHECK)" STATICCHECK_CHECKS='$(STATICCHECK_CHECKS)' \
+		bash ./scripts/lint_test_sources.sh || (echo "^ - testdata and integration-module lint errors!" && echo && exit 1)
 else
 	@echo "SKIPPED: lint does not run on Windows"
 endif
 
 lint-filesize:
 	@bash ./scripts/lint_filesize.sh
+
+lint-gofmt:
+	@bash ./scripts/lint_gofmt.sh
+
+fmt:
+	@bash ./scripts/fmt.sh
 
 lint-json-v2:
 	@bash ./scripts/lint_json_v2.sh
@@ -137,6 +149,10 @@ lint-namescope:
 
 lint-toolchain:
 	@bash ./scripts/lint_toolchain.sh
+
+lint-test-sources:
+	@GOLANGCI_LINT="$(GOLANGCI_LINT)" STATICCHECK="$(STATICCHECK)" STATICCHECK_CHECKS='$(STATICCHECK_CHECKS)' \
+		bash ./scripts/lint_test_sources.sh
 
 lint-docs:
 	@go run ./scripts/docscheck

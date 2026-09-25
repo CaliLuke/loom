@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var StreamingPartialExamplesDSL = func() {
 	var RealtimeSSEEvent = Type("RealtimeSSEEvent", func() {
 		Attribute("event", String, func() {
@@ -59,5 +58,3 @@ var StreamingPartialExamplesDSL = func() {
 		})
 	})
 }
-
-

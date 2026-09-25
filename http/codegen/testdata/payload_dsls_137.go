@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadMultipartObjectGeneratedOptionalDSL = func() {
 	Service("ServiceMultipartObjectGeneratedOptional", func() {
 		Method("MethodMultipartObjectGeneratedOptional", func() {
@@ -27,5 +26,3 @@ var PayloadMultipartObjectGeneratedOptionalDSL = func() {
 		})
 	})
 }
-
-

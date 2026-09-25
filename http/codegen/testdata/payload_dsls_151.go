@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var QueryMapAliasValidateDSL = func() {
 	var MapAlias = Type("MapAlias", MapOf(Float32, Boolean), func() {
 		MinLength(5)
@@ -29,5 +28,3 @@ var QueryMapAliasValidateDSL = func() {
 		})
 	})
 }
-
-

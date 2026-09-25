@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultTagStringDSL = func() {
 	Service("ServiceTagString", func() {
 		Method("MethodTagString", func() {
@@ -28,5 +27,3 @@ var ResultTagStringDSL = func() {
 		})
 	})
 }
-
-

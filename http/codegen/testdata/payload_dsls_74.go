@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyObjectOptionalOriginRequestDSL = func() {
 	var LinkStart = Type("LinkStart", func() {
 		Attribute("continue", String)
@@ -28,5 +27,3 @@ var PayloadBodyObjectOptionalOriginRequestDSL = func() {
 		})
 	})
 }
-
-

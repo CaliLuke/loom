@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyQueryPathObjectDSL = func() {
 	Service("ServiceBodyQueryPathObject", func() {
 		Method("MethodBodyQueryPathObject", func() {
@@ -26,5 +25,3 @@ var PayloadBodyQueryPathObjectDSL = func() {
 		})
 	})
 }
-
-

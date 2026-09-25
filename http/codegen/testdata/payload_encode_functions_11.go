@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadQueryMapStringArrayBoolEncodeCode = `// EncodeMethodQueryMapStringArrayBoolRequest returns an encoder for requests
 // sent to the ServiceQueryMapStringArrayBool MethodQueryMapStringArrayBool
 // server.
@@ -23,5 +22,3 @@ func EncodeMethodQueryMapStringArrayBoolRequest(encoder func(*http.Request) loom
 	}
 }
 `
-
-

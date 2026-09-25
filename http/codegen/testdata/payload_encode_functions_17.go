@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadQueryPrimitiveStringValidateEncodeCode = `// EncodeMethodQueryPrimitiveStringValidateRequest returns an encoder for
 // requests sent to the ServiceQueryPrimitiveStringValidate
 // MethodQueryPrimitiveStringValidate server.
@@ -17,5 +16,3 @@ func EncodeMethodQueryPrimitiveStringValidateRequest(encoder func(*http.Request)
 	}
 }
 `
-
-

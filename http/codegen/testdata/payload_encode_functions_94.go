@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadCookieCustomNameEncodeCode = `// EncodeMethodCookieCustomNameRequest returns an encoder for requests sent to
 // the ServiceCookieCustomName MethodCookieCustomName server.
 func EncodeMethodCookieCustomNameRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -20,4 +19,3 @@ func EncodeMethodCookieCustomNameRequest(encoder func(*http.Request) loomhttp.En
 	}
 }
 `
-

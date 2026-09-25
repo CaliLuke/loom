@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var ParamValidateDSL = func() {
 	Service("ServiceParamValidate", func() {
 		Method("MethodParamValidate", func() {
@@ -26,5 +25,3 @@ var ParamValidateDSL = func() {
 		})
 	})
 }
-
-

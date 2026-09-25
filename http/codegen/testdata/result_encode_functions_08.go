@@ -1,6 +1,5 @@
 package testdata
 
-
 var EmptyServerResponseWithTagsEncodeCode = `// EncodeMethodEmptyServerResponseWithTagsResponse returns an encoder for
 // responses returned by the ServiceEmptyServerResponseWithTags
 // MethodEmptyServerResponseWithTags endpoint.
@@ -16,5 +15,3 @@ func EncodeMethodEmptyServerResponseWithTagsResponse(encoder func(context.Contex
 	}
 }
 `
-
-

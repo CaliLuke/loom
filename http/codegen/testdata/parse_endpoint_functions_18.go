@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadQueryCustomNameBuildCode = `// BuildMethodQueryCustomNamePayload builds the payload for the
 // ServiceQueryCustomName MethodQueryCustomName endpoint from CLI flags.
 func BuildMethodQueryCustomNamePayload(serviceQueryCustomNameMethodQueryCustomNameQ string) (*servicequerycustomname.MethodQueryCustomNamePayload, error) {
@@ -16,5 +15,3 @@ func BuildMethodQueryCustomNamePayload(serviceQueryCustomNameMethodQueryCustomNa
 	return v, nil
 }
 `
-
-

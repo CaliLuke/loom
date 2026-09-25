@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultBodyUnionCustomKeysDSL = func() {
 	var CustomUnion = Type("CustomUnion", func() {
 		OneOf("Values", func() {
@@ -29,5 +28,3 @@ var ResultBodyUnionCustomKeysDSL = func() {
 		})
 	})
 }
-
-

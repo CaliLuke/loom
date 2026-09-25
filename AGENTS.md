@@ -153,7 +153,7 @@ No commented-out code—delete dead code.
 ### Build & Test
 
 ```bash
-make lint          # Run linters (filesize, namescope, golangci-lint)
+make lint          # Run linters (filesize, gofmt, namescope, staticcheck, golangci-lint; root module, testdata packages, integration-test modules)
 make test          # Run tests
 make ci-local      # Run all meaningful direct-main GitHub CI gates locally, except pulse-redis (needs Docker)
 ./check.sh         # Thin wrapper: make lint + make test

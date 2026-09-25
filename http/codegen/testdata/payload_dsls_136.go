@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadMultipartObjectGeneratedWithPathParamDSL = func() {
 	Service("ServiceMultipartObjectGeneratedWithPathParam", func() {
 		Method("MethodMultipartObjectGeneratedWithPathParam", func() {
@@ -34,5 +33,3 @@ var PayloadMultipartObjectGeneratedWithPathParamDSL = func() {
 		})
 	})
 }
-
-

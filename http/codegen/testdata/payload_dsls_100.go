@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadBodyQueryObjectValidateDSL = func() {
 	Service("ServiceBodyQueryObjectValidate", func() {
 		Method("MethodBodyQueryObjectValidate", func() {
@@ -30,5 +29,3 @@ var PayloadBodyQueryObjectValidateDSL = func() {
 		})
 	})
 }
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyInlineRecursiveUserConstructorCode = `// NewMethodBodyInlineRecursiveUserPayloadType builds a
 // ServiceBodyInlineRecursiveUser service MethodBodyInlineRecursiveUser
 // endpoint payload.
@@ -13,4 +12,3 @@ func NewMethodBodyInlineRecursiveUserPayloadType(body *MethodBodyInlineRecursive
 	return v
 }
 `
-

@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadWithValidatedAliasDSL = func() {
 	var ValidatedString = Type("ValidatedString", String, func() {
 		MinLength(10)
@@ -28,5 +27,3 @@ var PayloadWithValidatedAliasDSL = func() {
 		})
 	})
 }
-
-

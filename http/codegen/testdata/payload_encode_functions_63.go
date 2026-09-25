@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyPrimitiveFieldArrayUserEncodeCode = `// EncodeMethodBodyPrimitiveArrayUserRequest returns an encoder for requests
 // sent to the ServiceBodyPrimitiveArrayUser MethodBodyPrimitiveArrayUser
 // server.
@@ -18,5 +17,3 @@ func EncodeMethodBodyPrimitiveArrayUserRequest(encoder func(*http.Request) loomh
 	}
 }
 `
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var QueryStringRequiredBuildCode = `// BuildMethodQueryStringValidatePayload builds the payload for the
 // ServiceQueryStringValidate MethodQueryStringValidate endpoint from CLI flags.
 func BuildMethodQueryStringValidatePayload(serviceQueryStringValidateMethodQueryStringValidateQ string) (*servicequerystringvalidate.MethodQueryStringValidatePayload, error) {
@@ -21,5 +20,3 @@ func BuildMethodQueryStringValidatePayload(serviceQueryStringValidateMethodQuery
 	return v, nil
 }
 `
-
-

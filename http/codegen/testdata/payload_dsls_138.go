@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadMultipartObjectGeneratedInvalidDSL = func() {
 	Service("ServiceMultipartObjectGeneratedInvalid", func() {
 		Method("MethodMultipartObjectGeneratedInvalid", func() {
@@ -27,5 +26,3 @@ var PayloadMultipartObjectGeneratedInvalidDSL = func() {
 		})
 	})
 }
-
-

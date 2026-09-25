@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultBodyPrimitiveArrayStringDSL = func() {
 	Service("ServiceBodyPrimitiveArrayString", func() {
 		Method("MethodBodyPrimitiveArrayString", func() {
@@ -26,5 +25,3 @@ var ResultBodyPrimitiveArrayStringDSL = func() {
 		})
 	})
 }
-
-

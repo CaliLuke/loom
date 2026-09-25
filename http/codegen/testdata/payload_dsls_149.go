@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var QueryArrayAliasValidateDSL = func() {
 	var ArrayAlias = Type("ArrayAlias", ArrayOf(UInt), func() {
 		MinLength(3)
@@ -32,5 +31,3 @@ var QueryArrayAliasValidateDSL = func() {
 		})
 	})
 }
-
-

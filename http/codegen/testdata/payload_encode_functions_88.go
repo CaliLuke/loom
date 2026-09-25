@@ -1,6 +1,5 @@
 package testdata
 
-
 var QueryMapAliasEncodeCode = `// EncodeMethodARequest returns an encoder for requests sent to the
 // ServiceQueryMapAlias MethodA server.
 func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -21,5 +20,3 @@ func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*ht
 	}
 }
 `
-
-

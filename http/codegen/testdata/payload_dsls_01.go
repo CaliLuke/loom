@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadQueryBoolDSL = func() {
 	Service("ServiceQueryBool", func() {
 		Method("MethodQueryBool", func() {
@@ -932,5 +931,3 @@ var PayloadQueryMapBoolStringValidateDSL = func() {
 		})
 	})
 }
-
-

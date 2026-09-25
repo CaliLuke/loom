@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadJWTAuthorizationQueryDSL = func() {
 	var JWT = JWTSecurity("jwt", func() {
 		Scope("api:read")
@@ -28,5 +27,3 @@ var PayloadJWTAuthorizationQueryDSL = func() {
 		})
 	})
 }
-
-

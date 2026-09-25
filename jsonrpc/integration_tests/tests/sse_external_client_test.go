@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json/v2"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -111,7 +112,7 @@ func verifyExternalSSEStream(t *testing.T, baseURL string, method string, id str
 	case <-ctx.Done():
 		t.Fatalf("timed out waiting for SSE events for %s", method)
 	}
-	require.True(t, connectErr == nil || connectErr == context.Canceled, "unexpected connection result: %v", connectErr)
+	require.True(t, connectErr == nil || errors.Is(connectErr, context.Canceled), "unexpected connection result: %v", connectErr)
 
 	mu.Lock()
 	got := append([]sse.Event(nil), events...)

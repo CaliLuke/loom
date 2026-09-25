@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadFormBodyObjectOptionalDSL = func() {
 	Service("ServiceFormBodyObjectOptional", func() {
 		Method("MethodFormBodyObjectOptional", func() {
@@ -27,5 +26,3 @@ var PayloadFormBodyObjectOptionalDSL = func() {
 		})
 	})
 }
-
-

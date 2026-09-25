@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadMultipartPrimitiveDSL = func() {
 	Service("ServiceMultipartPrimitive", func() {
 		Method("MethodMultipartPrimitive", func() {
@@ -22,5 +21,3 @@ var PayloadMultipartPrimitiveDSL = func() {
 		})
 	})
 }
-
-

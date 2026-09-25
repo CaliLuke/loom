@@ -193,7 +193,7 @@ func (s *` + service.ServicePackage + `srvc) HandleStream(ctx context.Context, s
 		b.WriteString(renderMethodSignature(m))
 		b.WriteString(" {\n")
 		fmt.Fprintf(&b, "\tlog.Printf(%q)\n", m.GoName+" called")
-		body := renderMethodImplementation(service, m)
+		body := renderMethodImplementation(m)
 		b.WriteString(indentBlock(body, 1))
 		if !strings.HasSuffix(body, "\n") {
 			b.WriteString("\n")
@@ -213,23 +213,24 @@ func renderMethodSignature(m *MethodImplData) string {
 		fmt.Fprintf(&b, ", stream %s.%s", m.ServicePackage, m.StreamInterface)
 	}
 	b.WriteString(") ")
-	if m.IsStreaming {
+	switch {
+	case m.IsStreaming:
 		b.WriteString("error")
-	} else if m.HasResult {
+	case m.HasResult:
 		fmt.Fprintf(&b, "(%s, error)", m.ResultRef)
-	} else {
+	default:
 		b.WriteString("error")
 	}
 	return b.String()
 }
 
-func renderMethodImplementation(service *ServiceImplData, m *MethodImplData) string {
+func renderMethodImplementation(m *MethodImplData) string {
 	if m.IsStreaming {
 		if m.IsSSE() {
 			return renderSSEImplementation(m)
 		}
 		if m.IsWebSocket() {
-			return renderWebSocketImplementation(service, m)
+			return renderWebSocketImplementation(m)
 		}
 	}
 	if m.ReturnsError {
@@ -417,7 +418,7 @@ func renderSSEDefault(m *MethodImplData) string {
 	}
 }
 
-func renderWebSocketImplementation(service *ServiceImplData, m *MethodImplData) string {
+func renderWebSocketImplementation(m *MethodImplData) string {
 	// Keep the current scenario semantics but in direct Go rendering.
 	// This is intentionally straightforward rather than abstract.
 	switch m.Info.Action {

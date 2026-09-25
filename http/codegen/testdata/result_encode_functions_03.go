@@ -1,6 +1,5 @@
 package testdata
 
-
 var ResultBodyHeaderUserEncodeCode = `// EncodeMethodBodyHeaderUserResponse returns an encoder for responses returned
 // by the ServiceBodyHeaderUser MethodBodyHeaderUser endpoint.
 func EncodeMethodBodyHeaderUserResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
@@ -16,5 +15,3 @@ func EncodeMethodBodyHeaderUserResponse(encoder func(context.Context, http.Respo
 	}
 }
 `
-
-

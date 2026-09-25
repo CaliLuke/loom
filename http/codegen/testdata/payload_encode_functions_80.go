@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadMultipartBodyPrimitiveEncodeCode = `// EncodeMethodMultipartPrimitiveRequest returns an encoder for requests sent
 // to the ServiceMultipartPrimitive MethodMultipartPrimitive server.
 func EncodeMethodMultipartPrimitiveRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -16,5 +15,3 @@ func EncodeMethodMultipartPrimitiveRequest(encoder func(*http.Request) loomhttp.
 	}
 }
 `
-
-

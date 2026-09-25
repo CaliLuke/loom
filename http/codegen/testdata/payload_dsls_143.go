@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var MultipleServicesSamePayloadAndResultDSL = func() {
 	Service("ServiceA", func() {
 		Method("list", func() {
@@ -55,5 +54,3 @@ var MultipleServicesSamePayloadAndResultDSL = func() {
 		})
 	})
 }
-
-

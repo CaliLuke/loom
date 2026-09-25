@@ -1,6 +1,5 @@
 package testdata
 
-
 var MapQueryParseCode = `// ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(
@@ -100,5 +99,3 @@ func ParseEndpoint(
 	return endpoint, data, nil
 }
 `
-
-

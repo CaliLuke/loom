@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var ActivityFeedDSL = func() {
 	var CommentAdded = Type("CommentAddedActivity", func() {
 		Attribute("comment_id", String, func() {
@@ -108,5 +107,3 @@ var ActivityFeedDSL = func() {
 		})
 	})
 }
-
-

@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadQueryMapBoolBoolValidateEncodeCode = `// EncodeMethodQueryMapBoolBoolValidateRequest returns an encoder for requests
 // sent to the ServiceQueryMapBoolBoolValidate MethodQueryMapBoolBoolValidate
 // server.
@@ -22,5 +21,3 @@ func EncodeMethodQueryMapBoolBoolValidateRequest(encoder func(*http.Request) loo
 	}
 }
 `
-
-

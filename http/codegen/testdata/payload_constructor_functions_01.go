@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadQueryBoolConstructorCode = `// NewMethodQueryBoolPayload builds a ServiceQueryBool service MethodQueryBool
 // endpoint payload.
 func NewMethodQueryBoolPayload(q *bool) *servicequerybool.MethodQueryBoolPayload {
@@ -910,5 +909,3 @@ func NewMethodBodyQueryPathObjectPayload(body *MethodBodyQueryPathObjectRequestB
 	return v
 }
 `
-
-

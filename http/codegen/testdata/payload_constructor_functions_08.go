@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyInlineArrayUserConstructorCode = `// NewMethodBodyInlineArrayUserElemType builds a ServiceBodyInlineArrayUser
 // service MethodBodyInlineArrayUser endpoint payload.
 func NewMethodBodyInlineArrayUserElemType(body []*ElemTypeRequestBody) []*servicebodyinlinearrayuser.ElemType {
@@ -11,5 +10,3 @@ func NewMethodBodyInlineArrayUserElemType(body []*ElemTypeRequestBody) []*servic
 	return v
 }
 `
-
-

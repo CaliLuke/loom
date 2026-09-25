@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadMapUserTypeBuildCode = `// BuildMethodBodyInlineMapUserPayload builds the payload for the
 // ServiceBodyInlineMapUser MethodBodyInlineMapUser endpoint from CLI flags.
 func BuildMethodBodyInlineMapUserPayload(serviceBodyInlineMapUserMethodBodyInlineMapUserBody string) (map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, error) {
@@ -24,5 +23,3 @@ func BuildMethodBodyInlineMapUserPayload(serviceBodyInlineMapUserMethodBodyInlin
 	return v, nil
 }
 `
-
-

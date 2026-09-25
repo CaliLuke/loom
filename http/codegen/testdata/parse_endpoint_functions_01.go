@@ -1,6 +1,5 @@
 package testdata
 
-
 var MultiNoPayloadParseCode = `// ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
 func ParseEndpoint(
@@ -943,5 +942,3 @@ func ParseEndpoint(
 	return endpoint, data, nil
 }
 `
-
-

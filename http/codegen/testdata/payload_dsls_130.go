@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadMultipartUserTypeDSL = func() {
 	Service("ServiceMultipartUserType", func() {
 		Method("MethodMultipartUserType", func() {
@@ -28,5 +27,3 @@ var PayloadMultipartUserTypeDSL = func() {
 		})
 	})
 }
-
-

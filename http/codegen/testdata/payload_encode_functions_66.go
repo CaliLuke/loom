@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadBodyQueryObjectValidateEncodeCode = `// EncodeMethodBodyQueryObjectValidateRequest returns an encoder for requests
 // sent to the ServiceBodyQueryObjectValidate MethodBodyQueryObjectValidate
 // server.
@@ -21,5 +20,3 @@ func EncodeMethodBodyQueryObjectValidateRequest(encoder func(*http.Request) loom
 	}
 }
 `
-
-

@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the payload or result.
 
-
 var PayloadCookieStringValidateDSL = func() {
 	Service("ServiceCookieStringValidate", func() {
 		Method("MethodCookieStringValidate", func() {
@@ -26,5 +25,3 @@ var PayloadCookieStringValidateDSL = func() {
 		})
 	})
 }
-
-

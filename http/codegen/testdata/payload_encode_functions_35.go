@@ -1,6 +1,5 @@
 package testdata
 
-
 var PayloadHeaderIntValidateEncodeCode = `// EncodeMethodHeaderIntValidateRequest returns an encoder for requests sent to
 // the ServiceHeaderIntValidate MethodHeaderIntValidate server.
 func EncodeMethodHeaderIntValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
@@ -18,5 +17,3 @@ func EncodeMethodHeaderIntValidateRequest(encoder func(*http.Request) loomhttp.E
 	}
 }
 `
-
-

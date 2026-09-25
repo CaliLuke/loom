@@ -10,7 +10,6 @@ import (
 //
 // Where Type is the type of the result or result.
 
-
 var ResultBodyHeaderUserDSL = func() {
 	var ResultType = Type("ResultType", func() {
 		Attribute("a", String)
@@ -28,5 +27,3 @@ var ResultBodyHeaderUserDSL = func() {
 		})
 	})
 }
-
-

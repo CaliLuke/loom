@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var OpenAPIExplicitBodyWrapperExamplesDSL = func() {
 	var SearchFilters = Type("SearchFilters", func() {
 		Attribute("query", String)
@@ -31,5 +30,3 @@ var OpenAPIExplicitBodyWrapperExamplesDSL = func() {
 		})
 	})
 }
-
-

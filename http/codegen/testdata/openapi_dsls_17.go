@@ -2,7 +2,6 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-
 var OpenAPIClosedObjectsDSL = func() {
 	var Nested = Type("ClosedObjectsNested", func() {
 		Attribute("street", String, func() {
@@ -66,5 +65,3 @@ var OpenAPIClosedObjectsDSL = func() {
 		})
 	})
 }
-
-
