@@ -27,7 +27,6 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 	return &Request{
 		Payload:              payload,
 		Body:                 body,
-		RawBody:              endpoint.Body,
 		DocumentBody:         normalizeHTTPAttribute(endpoint.OpenAPIRequestBody),
 		DocumentContentTypes: append([]string(nil), endpoint.OpenAPIRequestBodyContentTypes...),
 		DocumentRequired:     endpoint.OpenAPIRequestBodyRequired,

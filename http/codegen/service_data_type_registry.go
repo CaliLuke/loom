@@ -10,7 +10,7 @@ import (
 
 func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transportir.Endpoint, sd *ServiceData) {
 	unionBranchTypes := make(map[string]struct{})
-	collectUnionBranchUserTypes(endpointIR.Request.RawBody, unionBranchTypes)
+	collectUnionBranchUserTypes(endpointIR.Request.Body, unionBranchTypes)
 	if endpointIR.Stream.RequestPayload != nil && endpointIR.Stream.RequestPayload.Type != expr.Empty {
 		collectUnionBranchUserTypes(endpointIR.Request.StreamingBody, unionBranchTypes)
 	}
@@ -39,8 +39,8 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 		})
 	}
 	requestJSONPresence := !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
-	appendTypeData(endpointIR.Request.RawBody, true, true, requestJSONPresence, &sd.ServerBodyAttributeTypes)
-	appendTypeData(endpointIR.Request.RawBody, false, false, false, &sd.ClientBodyAttributeTypes)
+	appendTypeData(endpointIR.Request.Body, true, true, requestJSONPresence, &sd.ServerBodyAttributeTypes)
+	appendTypeData(endpointIR.Request.Body, false, false, false, &sd.ClientBodyAttributeTypes)
 
 	if endpointIR.Stream.RequestPayload != nil && endpointIR.Stream.RequestPayload.Type != expr.Empty {
 		appendTypeData(endpointIR.Request.StreamingBody, true, true, true, &sd.ServerBodyAttributeTypes)
@@ -93,8 +93,8 @@ func recordEndpointRootTypeLayouts(endpoint *transportir.Endpoint, sd *ServiceDa
 		return
 	}
 	requestJSONPresence := !endpoint.Request.FormEncoded && !endpoint.Request.Multipart
-	recordRootTypeLayout(sd, endpoint.Request.RawBody, true, requestJSONPresence, true, false)
-	recordRootTypeLayout(sd, endpoint.Request.RawBody, false, false, false, true)
+	recordRootTypeLayout(sd, endpoint.Request.Body, true, requestJSONPresence, true, false)
+	recordRootTypeLayout(sd, endpoint.Request.Body, false, false, false, true)
 	if endpoint.Stream.RequestPayload != nil && endpoint.Stream.RequestPayload.Type != expr.Empty {
 		recordRootTypeLayout(sd, endpoint.Request.StreamingBody, true, true, true, false)
 		recordRootTypeLayout(sd, endpoint.Request.StreamingBody, false, false, false, true)
@@ -132,8 +132,8 @@ func recordServerRequestNestedTypeLayouts(endpoint *transportir.Endpoint, sd *Se
 		return
 	}
 	requestJSONPresence := !endpoint.Request.FormEncoded && !endpoint.Request.Multipart
-	recordServerRequestValidationTypes(sd, endpoint.Request.RawBody)
-	recordNestedTypeLayouts(sd, endpoint.Request.RawBody, true, requestJSONPresence, true, false)
+	recordServerRequestValidationTypes(sd, endpoint.Request.Body)
+	recordNestedTypeLayouts(sd, endpoint.Request.Body, true, requestJSONPresence, true, false)
 	if endpoint.Stream.RequestPayload != nil && endpoint.Stream.RequestPayload.Type != expr.Empty {
 		recordServerRequestValidationTypes(sd, endpoint.Request.StreamingBody)
 		recordNestedTypeLayouts(sd, endpoint.Request.StreamingBody, true, true, true, false)
@@ -157,7 +157,7 @@ func recordClientNestedTypeLayouts(endpoint *transportir.Endpoint, sd *ServiceDa
 	if endpoint == nil {
 		return
 	}
-	recordNestedTypeLayouts(sd, endpoint.Request.RawBody, false, false, false, true)
+	recordNestedTypeLayouts(sd, endpoint.Request.Body, false, false, false, true)
 	if endpoint.Stream.RequestPayload != nil && endpoint.Stream.RequestPayload.Type != expr.Empty {
 		recordNestedTypeLayouts(sd, endpoint.Request.StreamingBody, false, false, false, true)
 	}

@@ -479,6 +479,13 @@ filter, and serialization rules belong here.
   `<Endpoint>[<Status>]ResponseBody` (`nameUnionBodies`). It collects union
   types from that same IR. OpenAPI keeps the service union names, so do not
   rename the union in `expr` or in the shared IR.
+- The HTTP code generator declares the request and response body types, and
+  the user types nested in them, from the normalized bodies of its transport
+  IR (`transportir.Request.Body`, `ResponseStatus.Body`). The union types and
+  the transforms use the same bodies. The normalization replaces an alias user
+  type with its underlying type and a named union user type with its union,
+  so a type declared from the evaluated `HTTPEndpointExpr.Body` refers to
+  types that the generated code does not declare.
 - Keep requiredness and nullability orthogonal. `expr` owns semantic
   nullability; shared service models use `loom.Nullable[T]` for null-admitting
   object fields; JSON decoding boundaries alone use `loom.Optional[T]` for

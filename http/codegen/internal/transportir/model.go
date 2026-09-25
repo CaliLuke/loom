@@ -34,7 +34,6 @@ type (
 	Request struct {
 		Payload *expr.AttributeExpr
 		Body    *expr.AttributeExpr
-		RawBody *expr.AttributeExpr
 		// DocumentBody is the documentation-only request body schema.
 		DocumentBody *expr.AttributeExpr
 		// DocumentContentTypes are the documentation-only request media types.
