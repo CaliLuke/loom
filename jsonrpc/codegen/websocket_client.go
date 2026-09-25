@@ -19,20 +19,13 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 	title := fmt.Sprintf("%s WebSocket JSON-RPC client", svc.Name())
 
 	// Build imports list for WebSocket clients
-	imports := make([]*codegen.ImportSpec, 0, 15+len(data.Service.UserTypeImports))
+	imports := make([]*codegen.ImportSpec, 0, 8+len(data.Service.UserTypeImports))
 	imports = append(imports,
 		&codegen.ImportSpec{Path: "bytes"},
 		&codegen.ImportSpec{Path: "context"},
-		&codegen.ImportSpec{Path: "encoding/json/jsontext"},
-		&codegen.ImportSpec{Path: "encoding/json/v2", Name: "json"},
 		&codegen.ImportSpec{Path: "fmt"},
 		&codegen.ImportSpec{Path: "io"},
 		&codegen.ImportSpec{Path: "net/http"},
-		&codegen.ImportSpec{Path: "strconv"},
-		&codegen.ImportSpec{Path: "sync"},
-		&codegen.ImportSpec{Path: "sync/atomic"},
-		&codegen.ImportSpec{Path: "time"},
-		codegen.LoomImport(""),
 		codegen.LoomImport("jsonrpc"),
 		codegen.LoomNamedImport("http", "loomhttp"),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},

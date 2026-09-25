@@ -501,6 +501,11 @@ requirement retain AND semantics.
   Messages decode with strict `encoding/json/v2`. JSON-RPC WebSocket `Recv`
   returns `io.EOF` on a normal closure and answers invalid JSON with a Parse
   error frame itself.
+- JSON-RPC WebSocket client streams opened on one generated client share its
+  connection safely: each stream receives only its own responses. Closing a
+  stream or canceling its context ends that stream alone; the connection
+  closes with its last stream or with the client. Do not add a separate
+  reader or a client per stream to work around sharing.
 
 Loom also emits the framework-owned `x-loom-async` OpenAPI extension for richer
 SSE and WebSocket handshake/message contracts.

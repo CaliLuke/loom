@@ -413,6 +413,17 @@ filter, and serialization rules belong here.
   HTTP/SSE negotiation, WebSocket setup, and final stream-response decisions
   in `jsonrpc`. Generated JSON-RPC code supplies typed dispatch, error, and
   stream adapters only.
+- Generated JSON-RPC WebSocket clients share one `jsonrpc.WebSocketClientConn`
+  per connection. It is the only reader: it assigns connection-wide request
+  ids, routes each response by id, and fails every waiter when the read fails.
+  Registration checks, under the same lock, that the connection is still
+  usable, so no request registers after that fan-out. Streams hold a
+  reference; the last release or the client closes the connection. The last
+  release marks the connection closed in the same critical section that
+  drops the reference, so a concurrent `Acquire` cannot take a connection
+  that is being closed. Generated
+  streams wrap `jsonrpc.WebSocketClientStream` and only decode results. Check
+  changes against `jsonrpc/tla/WebSocketClientDemux.tla`.
 - Preserve the generated public `ServeHTTP` middleware and policy chain when
   adding JSON-RPC dispatch branches.
 - Keep gRPC request context, metadata application, status conversion,

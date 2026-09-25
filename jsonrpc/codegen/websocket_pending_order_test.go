@@ -25,8 +25,6 @@ func TestJSONRPCWebSocketRecvAfterResponseGeneratedModule(t *testing.T) {
 	dir := t.TempDir()
 	renderJSONRPCModule(t, dir, "example.com/jsonrpcwspending", root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "pending_order_test.go"), []byte(jsonRPCWebSocketPendingOrderHarness), 0o600))
-	clientDir := filepath.Join(dir, "gen", "jsonrpc", "echo", "client")
-	require.NoError(t, os.WriteFile(filepath.Join(clientDir, "close_test.go"), []byte(jsonRPCWebSocketCloseHarness), 0o600))
 	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
 	runGoJSONRPCTestCommand(t, dir, "vet", "./...")
 	runGoJSONRPCTestCommand(t, dir, "test", "-race", "-count=3", "./...")
@@ -470,34 +468,6 @@ func closeClientTwice(t *testing.T, c *client.Client) {
 		if err := c.Close(); err != nil {
 			t.Errorf("close client (call %d): %v", i+1, err)
 		}
-	}
-}
-`
-
-// jsonRPCWebSocketCloseHarness checks from inside the generated client
-// package that Close releases the requests held for Recv.
-const jsonRPCWebSocketCloseHarness = `package client
-
-import (
-	"testing"
-	"time"
-
-	"github.com/CaliLuke/loom/jsonrpc"
-)
-
-func TestCloseReleasesHeldRequests(t *testing.T) {
-	s := &TalkClientStream{
-		cancel: func() {},
-		config: &jsonrpc.StreamConfig{CloseTimeout: time.Millisecond},
-		done:   make(chan struct{}),
-	}
-	close(s.done)
-	s.enqueueRecv(&TalkClientStreamPendingRequest{jsonrpcID: "1", resultChan: make(chan TalkClientStreamStreamResult, 1), timeout: time.NewTimer(time.Hour)})
-	if err := s.Close(); err != nil {
-		t.Fatalf("close: %v", err)
-	}
-	if n := len(s.recvQueue); n != 0 {
-		t.Errorf("close kept %d requests held for Recv", n)
 	}
 }
 `

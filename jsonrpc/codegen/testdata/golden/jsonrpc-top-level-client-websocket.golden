@@ -13,10 +13,10 @@ type Client struct {
 	dialer   loomhttp.Dialer
 	configfn loomhttp.ConnConfigureFunc
 
-	connMu sync.RWMutex
-	// conn is the connection shared by the client and its streams. Both close
-	// it through this one wrapper, so it is closed only once.
-	conn   *loomhttp.WebSocketStream
+	connMu sync.Mutex
+	// conn is the connection shared by the client and its streams. It reads
+	// the connection once and routes every response to its stream.
+	conn   *jsonrpc.WebSocketClientConn
 	closed atomic.Bool
 
 	// Stream configuration (shared by all WebSocket streams)

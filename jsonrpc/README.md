@@ -724,6 +724,42 @@ func (s *chatSvc) Echo(ctx context.Context, p *chat.EchoPayload,
     canceled during a read closes the stream, so later calls return
     `loomhttp.ErrWebSocketStreamClosed`. Return from `HandleStream` on any
     error.
+- Generated client:
+  - Every stream opened on one generated client shares the client's
+    connection. The client reads the connection with one goroutine and
+    routes each response to the stream and request with the same id. Request
+    ids are unique on the connection, so streams never receive each other's
+    responses. The runtime types are `jsonrpc.WebSocketClientConn` and
+    `jsonrpc.WebSocketClientStream`.
+  - Closing a stream, or canceling the context it was opened with, ends only
+    that stream: its waiting requests fail, and late responses to them are
+    reported as orphaned. The connection closes when its last stream ends or
+    when the client is closed, and the next stream dials a new connection.
+  - When the connection fails, every waiting request of every stream returns
+    the read error, and later sends fail.
+  - All events go to the one handler configured with
+    `jsonrpc.WithErrorHandler`, but with different contexts:
+    - Connection events have no stream, so the handler gets
+      `context.Background()`: the read failure (`StreamErrorConnection`),
+      responses with an unknown id (`StreamErrorOrphaned`), server
+      notifications (`StreamErrorNotification`), and a failure to close an
+      unusable connection.
+    - Stream events get the context the stream was opened with: error
+      responses (`StreamErrorProtocol`), undecodable results
+      (`StreamErrorParsing`), timeouts (`StreamErrorTimeout`) and write
+      failures (`StreamErrorConnection`).
+  - Behavior that differs from clients generated before this design:
+    - Closing a stream or canceling its context no longer closes the
+      connection for the other streams.
+    - Protocol and parsing errors are reported when `Recv` (or the
+      server-streaming receive) consumes the response, not when it arrives.
+      An error response to a request that is never received is not
+      reported.
+    - A stream whose context is canceled returns `context.Canceled` from
+      later calls instead of a connection read error.
+    - A `Send` that races `Close` on the same stream can report a
+      `StreamErrorConnection` write failure for a stream that is already
+      closed.
 
 ### Mixed Transports: Content Negotiation
 

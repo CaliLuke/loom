@@ -22,7 +22,9 @@ belong in the `loom` skill and the canonical guides under `docs/`.
 - `grpc/`: gRPC runtime-owned metadata, status, observation, and stream
   completion lifecycle; protobuf/transport generation; and typed error mapping
 - `jsonrpc/`: JSON-RPC runtime-owned envelope, batch, notification, SSE, and
-  WebSocket lifecycle; typed transport generation; and integrations
+  WebSocket lifecycle, including the client connection demultiplexer
+  (`websocket_client.go`, modeled in `jsonrpc/tla/`); typed transport
+  generation; and integrations
 - `observability/`: framework-owned tracing, metrics, logging, and transport
   event contracts
 - `security/authorization.go`: mandatory endpoint checks and cancellation;

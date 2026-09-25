@@ -30,15 +30,24 @@ func TestJSONRPCWebSocketUsesSharedRuntimeStream(t *testing.T) {
 	require.Contains(t, serverHandlerCode, "conn:           conn")
 
 	clientCode := renderedJSONRPCWebSocketFile(t, ClientFiles("", services), "client")
-	require.Contains(t, clientCode, "ws          *loomhttp.WebSocketStream")
+	// The generated stream only adapts types: the runtime stream owns the
+	// requests, and the connection has a single reader that routes the
+	// responses of every stream (#399).
+	require.Contains(t, clientCode, "stream  *jsonrpc.WebSocketClientStream")
+	require.Contains(t, clientCode, "s.stream.Recv(ctx)")
+	require.NotContains(t, clientCode, "ReadJSON(")
+	require.NotContains(t, clientCode, "WriteJSON(")
+	require.NotContains(t, clientCode, "responseHandler")
 	require.NotContains(t, clientCode, "writeMu")
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-websocket-client-file.golden"), clientCode)
 	clientEndpointCode := renderedJSONRPCFile(t, ClientFiles("", services), "client.go", "client")
-	// The client wraps its connection once and shares the wrapper with every
-	// stream, so the connection has a single close state.
-	require.Contains(t, clientEndpointCode, "conn   *loomhttp.WebSocketStream")
-	require.Contains(t, clientEndpointCode, "c.conn = loomhttp.NewWebSocketStream(ws)")
-	require.Contains(t, clientEndpointCode, "ws:      ws,")
+	// The client wraps each dialed connection once in the runtime
+	// demultiplexer, and every stream takes a reference on it.
+	require.Contains(t, clientEndpointCode, "conn   *jsonrpc.WebSocketClientConn")
+	require.Contains(t, clientEndpointCode, "jsonrpc.NewWebSocketClientConn(loomhttp.NewWebSocketStream(ws), c.streamConfig.ErrorHandler)")
+	require.Contains(t, clientEndpointCode, "c.conn != nil && c.conn.Acquire()")
+	require.Contains(t, clientEndpointCode, `jsonrpc.NewWebSocketClientStream(ctx, conn, "Stream", c.streamConfig)`)
+	require.NotContains(t, clientEndpointCode, "go stream.")
 	require.Equal(t, 1, strings.Count(clientEndpointCode, "NewWebSocketStream("))
 	// A configure function returning nil must not leave a wrapper around a nil
 	// connection for the next getConn to ping.
