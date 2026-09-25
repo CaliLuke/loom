@@ -483,11 +483,12 @@ filter, and serialization rules belong here.
   `makeProtoBufMessage` strips `struct:pkg:path` from the message attribute as
   well as from its user types. `struct:name:proto` names only the top-level
   messages of a type; Go references apply `protoGoName` to the metadata name.
-- The messages that wrap a named union or a named array (`wrapAttr`,
-  `wrapUnionBranch`, `wrapArrayUserType`) are new user types with their own
-  identifiers. Copies and examples share user types by identifier, so a
+- The messages that wrap a named primitive, union, array or map (`wrapAttr`,
+  `wrapUnionBranch`, `wrapCollectionUserType`) are new user types with their
+  own identifiers. Copies and examples share user types by identifier, so a
   wrapper that kept the identifier of the type would replace the type
-  wherever the type refers to itself, such as a recursive branch of a union.
+  wherever else it appears, such as a recursive branch of a union or a field
+  of the same named primitive.
 - A `struct:name:proto` name can give one message to several service types,
   such as customized copies of a type. `registerProtoMessage` keys messages by
   that name and rejects two uses with different fields. `nameProtoConverter`

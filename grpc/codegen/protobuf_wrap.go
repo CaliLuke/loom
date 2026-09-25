@@ -86,26 +86,21 @@ func wrapUnionBranch(att *expr.AttributeExpr, sd *ServiceData) {
 // attribute into an attribute named "field", or for a union into the
 // attribute that unionWrapperFieldName names.
 //
-// A named union is wrapped in a new user type with its name and its own
-// identifier, whose field holds the union. The named union itself is left
-// unchanged, so the references to it from its own branches, such as the
-// field of a recursive branch type, still refer to the union, in the message
-// and in the copies of the message, which share user types by identifier.
+// A named type, such as a named primitive or a named union, is wrapped in a
+// new user type with its name and its own identifier, whose field holds the
+// value of the named type. The named type itself is left unchanged, so the
+// other references to it, such as a field of the same named primitive or the
+// field of a recursive branch type of the named union, still refer to the
+// named type, in the message, in the copies of the message and in examples,
+// which share user types by identifier.
 func wrapAttr(att *expr.AttributeExpr, tname string, req bool, sd *ServiceData) {
 	switch dt := att.Type.(type) {
 	case expr.UserType:
-		if expr.IsUnion(dt) {
-			att.Type = &expr.UserTypeExpr{
-				TypeName:      dt.Name(),
-				AttributeExpr: wrapperAttribute(dt.Attribute(), req),
-				UID:           dt.ID() + "#message",
-			}
-			break
+		att.Type = &expr.UserTypeExpr{
+			TypeName:      dt.Name(),
+			AttributeExpr: wrapperAttribute(dt.Attribute(), req),
+			UID:           dt.ID() + "#message",
 		}
-		// Don't change the original user type. Create a copy and wrap that.
-		ut := expr.Dup(dt).(expr.UserType)
-		ut.SetAttribute(wrapperAttribute(ut.Attribute(), req))
-		att.Type = ut
 	default:
 		att.Type = &expr.UserTypeExpr{
 			TypeName:      tname,
