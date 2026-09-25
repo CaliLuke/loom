@@ -131,7 +131,9 @@ const DefaultProtoc = expr.DefaultProtoc
 // Applicable to Type and ResultType only. The name applies to the message
 // generated for the type used directly as a method payload, result, error or
 // stream message; nested uses of the type keep the name of the type. The
-// ASCII runes of the value must be letters, digits or underscores, and an
+// direct uses of the type and of its customized copies in the methods of a
+// service share the message, so they must map the same fields with the same
+// numbers and requiredness; code generation fails otherwise. The ASCII runes of the value must be letters, digits or underscores, and an
 // ASCII value must start with a letter or underscore; any other value is a
 // design validation error. Protocol buffer identifiers are ASCII only, so
 // code generation treats the non-ASCII runes of a value as word separators,

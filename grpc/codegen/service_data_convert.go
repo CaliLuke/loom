@@ -2,6 +2,8 @@ package codegen
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
@@ -67,6 +69,7 @@ func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, m
 
 	// client side
 	data := d.buildInitData(payload, request, "payload", "message", svcCtx, true, svr, false, sd)
+	sd.nameProtoConverter(data, payload, svc.Scope, svr)
 	data.Description = fmt.Sprintf("%s builds the gRPC request type from the payload of the %q endpoint of the %q service.", data.Name, endpoint.Name, svc.Name)
 	return &ConvertData{
 		SrcName: svc.Scope.GoFullTypeName(payload, pkg),
@@ -94,6 +97,7 @@ func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, 
 	if svr {
 		// server side
 		data := d.buildInitData(result, response, "result", "message", svcCtx, true, svr, false, sd)
+		sd.nameProtoConverter(data, result, svcCtx.Scope.Scope(), svr)
 		data.Description = fmt.Sprintf("%s builds the gRPC response type from the result of the %q endpoint of the %q service.", data.Name, endpoint.Name, svc.Name)
 		return &ConvertData{
 			SrcName: svcCtx.Scope.Name(result, svcCtx.Pkg(result), svcCtx.Pointer, svcCtx.UseDefault),
@@ -294,4 +298,43 @@ func (d *ServicesData) buildErrorConvertData(grpcErr *transportir.Error, endpoin
 		Init:       data,
 		Validation: addValidation(grpcErr.Response.ProtoMessage, "errmsg", sd, false),
 	}
+}
+
+// nameProtoConverter names init, the converter from the service type of src
+// to a protocol buffer message, so that no converter from another service
+// type generated in the same package, the server package if svr is true and
+// the client package otherwise, has the same name. Converters are named after
+// the message they build, and customized copies of one type, such as
+// payloads that add required attributes, can build the message that a
+// struct:name:proto name shares. The first converter to a message keeps the
+// name of the message and the converters of other service types add the Go
+// name of the type that scope gives src, so the converters of designs without
+// shared messages keep their names. Converters of the same service type to
+// the same message are identical and share the name.
+func (sd *ServiceData) nameProtoConverter(init *InitData, src *expr.AttributeExpr, scope *codegen.NameScope, svr bool) {
+	ref := ""
+	if len(init.Args) > 0 {
+		ref = init.Args[0].TypeRef
+	}
+	if sd.protoConverters == nil {
+		sd.protoConverters = make(map[protoConverterKey]string)
+	}
+	alt := "NewProto" + codegen.Goify(scope.GoTypeName(src), true) + strings.TrimPrefix(init.Name, "NewProto")
+	name := init.Name
+	for i := 1; ; i++ {
+		key := protoConverterKey{server: svr, name: name}
+		other, ok := sd.protoConverters[key]
+		if !ok {
+			sd.protoConverters[key] = ref
+			break
+		}
+		if other == ref {
+			break
+		}
+		name = alt
+		if i > 1 {
+			name = alt + strconv.Itoa(i)
+		}
+	}
+	init.Name = name
 }

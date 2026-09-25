@@ -78,6 +78,10 @@ type (
 		// anonymousMessages maps the names of the messages generated for
 		// anonymous objects to the paths of the objects.
 		anonymousMessages map[string]string
+		// protoConverters maps the names of the generated converters from
+		// service types to protocol buffer messages to the references of
+		// the service types they convert.
+		protoConverters map[protoConverterKey]string
 	}
 
 	// EndpointData contains the data used to render the code related to
@@ -471,6 +475,14 @@ type (
 	// validateKind is a type to determine where the validation code is generated
 	// (server, client, or both)
 	validateKind int
+
+	// protoConverterKey identifies a generated converter from a service type
+	// to a protocol buffer message by its name and by the package, server or
+	// client, that defines it.
+	protoConverterKey struct {
+		server bool
+		name   string
+	}
 
 	// protoMessageShape identifies the method and the fields of a generated
 	// protocol buffer message.

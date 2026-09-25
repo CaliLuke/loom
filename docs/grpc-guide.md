@@ -810,6 +810,15 @@ service types, so a type can set both metadata keys. It uses the Go type
 name that protoc-gen-go generates for the message, such as `NodeTree` for
 `node_tree`.
 
+The methods of a service that use the type directly share its message, and
+so do customized copies of the type, such as `Payload(Menu, func() {
+Required("name") })`: each service type gets its own converter to the shared
+message. A message has one definition, so all the uses that share it must map
+the same fields with the same numbers and requiredness. A copy that makes an
+optional field required, or a method that moves a field to gRPC metadata,
+changes the fields of its message, and code generation then fails with an
+error that names the methods.
+
 ### Protoc Configuration
 
 The versions above are the supported defaults. Use metadata overrides only

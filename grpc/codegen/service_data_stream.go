@@ -56,6 +56,7 @@ func (d *ServicesData) buildServerStreamData(endpoint *transportir.Endpoint, sd 
 			TgtRef:  protoBufGoFullTypeRef(endpoint.Response.ProtoMessage, sd.PkgName, sd.Scope),
 			Init:    d.buildInitData(result, endpoint.Response.ProtoMessage, resVar, "v", resCtx, true, true, true, sd),
 		}
+		sd.nameProtoConverter(data.SendConvert.Init, result, resCtx.Scope.Scope(), true)
 	}
 	if streamDesc.HasPayload {
 		data.RecvName = md.ServerStream.RecvName
@@ -95,6 +96,7 @@ func (d *ServicesData) buildClientStreamData(endpoint *transportir.Endpoint, sd 
 			TgtRef:  protoBufGoFullTypeRef(endpoint.Request.ProtoStreamingInput, sd.PkgName, sd.Scope),
 			Init:    d.buildInitData(endpoint.Request.StreamingPayload, endpoint.Request.ProtoStreamingInput, "spayload", "v", svcCtx, true, false, true, sd),
 		}
+		sd.nameProtoConverter(data.SendConvert.Init, endpoint.Request.StreamingPayload, svcCtx.Scope.Scope(), false)
 	}
 	if streamDesc.HasResult {
 		data.RecvName = md.ClientStream.RecvName

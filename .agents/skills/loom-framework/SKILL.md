@@ -438,6 +438,12 @@ filter, and serialization rules belong here.
   `makeProtoBufMessage` strips `struct:pkg:path` from the message attribute as
   well as from its user types. `struct:name:proto` names only the top-level
   messages of a type; Go references apply `protoGoName` to the metadata name.
+- A `struct:name:proto` name can give one message to several service types,
+  such as customized copies of a type. `registerProtoMessage` keys messages by
+  that name and rejects two uses with different fields. `nameProtoConverter`
+  gives each service type its own converter to the message in each of the
+  server and client packages. The first converter keeps the message name, so
+  designs without shared messages keep their output.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
   endpoints should not grow independent read/write/close loops.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,

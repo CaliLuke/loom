@@ -364,11 +364,12 @@ func checkProtoNames(svc *service.Data, irService *transportir.Service) error {
 }
 
 // registerProtoMessage records the top-level protocol buffer message att
-// generated for method. Generated messages are identified by name, so it
-// panics when a message of another method has the same name but different
-// fields: one of the two shapes would be silently lost. Messages with the
-// same name and fields are shared. It also panics when checkProtoFields
-// finds an invalid message reachable from att.
+// generated for method. Generated messages are identified by name, the
+// struct:name:proto name of att if it has one, so it panics when another
+// message of the service has the same name but different fields: one of the
+// two shapes would be silently lost. Messages with the same name and fields
+// are shared. It also panics when checkProtoFields finds an invalid message
+// reachable from att.
 func registerProtoMessage(sd *ServiceData, att *expr.AttributeExpr, method string) {
 	ut, ok := att.Type.(expr.UserType)
 	if !ok {
@@ -378,25 +379,36 @@ func registerProtoMessage(sd *ServiceData, att *expr.AttributeExpr, method strin
 	if sd.protoMessages == nil {
 		sd.protoMessages = make(map[string]protoMessageShape)
 	}
-	shape := protoMessageShape{method: method, hash: protoMessageHash(ut)}
-	other, ok := sd.protoMessages[ut.Name()]
+	name, ok := protoMetaName(att.Meta)
 	if !ok {
-		sd.protoMessages[ut.Name()] = shape
+		name = ut.Name()
+	}
+	shape := protoMessageShape{method: method, hash: protoMessageHash(ut)}
+	other, ok := sd.protoMessages[name]
+	if !ok {
+		sd.protoMessages[name] = shape
 		return
 	}
-	if other.hash != shape.hash {
-		panic(fmt.Errorf("methods %q and %q of service %q both map to protocol buffer message %q with different fields",
-			other.method, method, sd.Service.Name, protoBufify(ut.Name(), true, true)))
+	if other.hash == shape.hash {
+		return
 	}
+	if other.method == method {
+		panic(fmt.Errorf("method %q of service %q maps two messages with different fields to protocol buffer message %q",
+			method, sd.Service.Name, protoBufify(name, true, true)))
+	}
+	panic(fmt.Errorf("methods %q and %q of service %q both map to protocol buffer message %q with different fields",
+		other.method, method, sd.Service.Name, protoBufify(name, true, true)))
 }
 
 // protoMessageHash returns a hash of the fields of the message ut and of every
 // message reachable from it, including the numbers and requiredness of the
-// fields at every depth.
+// fields at every depth. The name of ut is left out, because messages are
+// registered by their protocol buffer name and ut may be the message of a
+// single method that a struct:name:proto name shares.
 func protoMessageHash(ut expr.UserType) string {
 	var b strings.Builder
-	b.WriteString(expr.Hash(ut, false, false, false))
-	writeProtoFieldShapes(&b, &expr.AttributeExpr{Type: ut}, make(map[expr.UserType]struct{}))
+	b.WriteString(expr.Hash(ut.Attribute().Type, false, false, false))
+	writeProtoFieldShapes(&b, ut.Attribute(), make(map[expr.UserType]struct{}))
 	return b.String()
 }
 
