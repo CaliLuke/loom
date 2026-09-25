@@ -543,6 +543,12 @@ filter, and serialization rules belong here.
   `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the
   called names from the functions that name them
   (`projectedResultInitHelperBaseName`, `projectionHelperBaseName`).
+- A method result that customizes the requiredness of a result type, such as
+  `Result(RT, func() { Required("x") })`, is a renamed copy that keeps the
+  identifier of the result type. The service analysis keys projected and
+  viewed result types by identifier and name (`projectionKey`), so the result
+  type and each copy get their own projected type, viewed result type and
+  `NewViewed<Type>` constructor.
 - Keep requiredness and nullability orthogonal. `expr` owns semantic
   nullability; shared service models use `loom.Nullable[T]` for null-admitting
   object fields; JSON decoding boundaries alone use `loom.Optional[T]` for

@@ -66,6 +66,15 @@ func collectViewUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, lo
 	}
 }
 
+// projectionKey returns the key that identifies the projected type of ut. A
+// customized copy of a result type, such as one that changes its requiredness
+// in a method, is renamed but keeps the identifier of the result type, so the
+// key combines the identifier with the name to give each copy its own
+// projected and viewed result types.
+func projectionKey(ut expr.UserType) string {
+	return ut.ID() + "#" + ut.Name()
+}
+
 // collectProjectedTypes builds a projected type for every user type found when
 // recursing through the attributes. The projected types live in the views
 // package and support the marshaling and unmarshalling of result types that
@@ -80,17 +89,18 @@ func collectProjectedTypes(projected, att *expr.AttributeExpr, viewspkg string, 
 	switch pt := projected.Type.(type) {
 	case expr.UserType:
 		dt := att.Type.(expr.UserType)
-		if pd, ok := seen[dt.ID()]; ok {
+		key := projectionKey(dt)
+		if pd, ok := seen[key]; ok {
 			if pd != nil {
 				projected.Type = pd.Type
 			}
 			return data
 		}
-		seen[dt.ID()] = nil
+		seen[key] = nil
 		pt.Rename(pt.Name() + "View")
 		types := collect(pt.Attribute(), dt.Attribute())
 		pd := buildProjectedType(projected, att, viewspkg, scope, viewScope)
-		seen[dt.ID()] = pd
+		seen[key] = pd
 		data = append(data, pd)
 		data = append(data, types...)
 	case *expr.Array:

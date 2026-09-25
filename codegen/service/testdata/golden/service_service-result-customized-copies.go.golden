@@ -1,0 +1,290 @@
+
+// Service is the CustomizedResultCopies service interface.
+type Service interface {
+	// M1 implements M1.
+	// The "view" return value must have one of the following views
+	//   - "default"
+	//   - "tiny"
+	M1(context.Context) (res *MenuM1Result, view string, err error)
+	// M2 implements M2.
+	M2(context.Context) (res *MenuM2Result, err error)
+	// M3 implements M3.
+	// The "view" return value must have one of the following views
+	//   - "default"
+	//   - "tiny"
+	M3(context.Context) (res *Menu, view string, err error)
+}
+
+// APIName is the name of the API as defined in the design.
+const APIName = "test api"
+
+// APIVersion is the version of the API as defined in the design.
+const APIVersion = "0.0.1"
+
+// ServiceName is the name of the service as defined in the design. This is the
+// same value that is set in the endpoint request contexts under the ServiceKey
+// key.
+const ServiceName = "CustomizedResultCopies"
+
+// MethodNames lists the service method names as defined in the design. These
+// are the same values that are set in the endpoint request contexts under the
+// MethodKey key.
+var MethodNames = [3]string{"M1", "M2", "M3"}
+
+// Menu is the result type of the CustomizedResultCopies service M3 method.
+type Menu struct {
+	X *string `json:"x,omitempty"`
+	Y *string `json:"y,omitempty"`
+}
+
+// MenuM1Result is the result type of the CustomizedResultCopies service M1
+// method.
+type MenuM1Result struct {
+	X string  `json:"x"`
+	Y *string `json:"y,omitempty"`
+}
+
+// MenuM2Result is the result type of the CustomizedResultCopies service M2
+// method.
+type MenuM2Result struct {
+	X string  `json:"x"`
+	Y *string `json:"y,omitempty"`
+}
+
+// NewMenuM1Result initializes result type MenuM1Result from viewed result type
+// MenuM1Result.
+func NewMenuM1Result(vres *customizedresultcopiesviews.MenuM1Result) (*MenuM1Result, error) {
+
+	var res *MenuM1Result
+	switch vres.View {
+	case "default", "":
+		res = NewMenuM1ResultFromMenuM1ResultView(vres.Projected)
+	case "tiny":
+		res = NewMenuM1ResultFromMenuM1ResultViewTiny(vres.Projected)
+	default:
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+			"tiny",
+		})
+	}
+	return res, nil
+}
+
+// NewViewedMenuM1Result initializes viewed result type MenuM1Result from
+// result type MenuM1Result using the given view.
+func NewViewedMenuM1Result(res *MenuM1Result, view string) (*customizedresultcopiesviews.MenuM1Result, error) {
+
+	var vres *customizedresultcopiesviews.MenuM1Result
+	switch view {
+	case "default", "":
+		p := ProjectMenuM1Result(res)
+		vres = &customizedresultcopiesviews.MenuM1Result{Projected: p, View: "default"}
+	case "tiny":
+		p := ProjectMenuM1ResultTiny(res)
+		vres = &customizedresultcopiesviews.MenuM1Result{Projected: p, View: "tiny"}
+	default:
+		return vres, loom.InvalidEnumValueError("view", view, []any{
+			"default",
+			"tiny",
+		})
+	}
+	return vres, nil
+}
+
+// NewMenuM2Result initializes result type MenuM2Result from viewed result type
+// MenuM2Result.
+func NewMenuM2Result(vres *customizedresultcopiesviews.MenuM2Result) (*MenuM2Result, error) {
+
+	var res *MenuM2Result
+	switch vres.View {
+	case "default", "":
+		res = NewMenuM2ResultFromMenuM2ResultView(vres.Projected)
+	case "tiny":
+		res = NewMenuM2ResultFromMenuM2ResultViewTiny(vres.Projected)
+	default:
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+			"tiny",
+		})
+	}
+	return res, nil
+}
+
+// NewViewedMenuM2Result initializes viewed result type MenuM2Result from
+// result type MenuM2Result using the given view.
+func NewViewedMenuM2Result(res *MenuM2Result, view string) (*customizedresultcopiesviews.MenuM2Result, error) {
+
+	var vres *customizedresultcopiesviews.MenuM2Result
+	switch view {
+	case "default", "":
+		p := ProjectMenuM2Result(res)
+		vres = &customizedresultcopiesviews.MenuM2Result{Projected: p, View: "default"}
+	case "tiny":
+		p := ProjectMenuM2ResultTiny(res)
+		vres = &customizedresultcopiesviews.MenuM2Result{Projected: p, View: "tiny"}
+	default:
+		return vres, loom.InvalidEnumValueError("view", view, []any{
+			"default",
+			"tiny",
+		})
+	}
+	return vres, nil
+}
+
+// NewMenu initializes result type Menu from viewed result type Menu.
+func NewMenu(vres *customizedresultcopiesviews.Menu) (*Menu, error) {
+
+	var res *Menu
+	switch vres.View {
+	case "default", "":
+		res = NewMenuFromMenuView(vres.Projected)
+	case "tiny":
+		res = NewMenuFromMenuViewTiny(vres.Projected)
+	default:
+		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+			"default",
+			"tiny",
+		})
+	}
+	return res, nil
+}
+
+// NewViewedMenu initializes viewed result type Menu from result type Menu
+// using the given view.
+func NewViewedMenu(res *Menu, view string) (*customizedresultcopiesviews.Menu, error) {
+
+	var vres *customizedresultcopiesviews.Menu
+	switch view {
+	case "default", "":
+		p := ProjectMenu(res)
+		vres = &customizedresultcopiesviews.Menu{Projected: p, View: "default"}
+	case "tiny":
+		p := ProjectMenuTiny(res)
+		vres = &customizedresultcopiesviews.Menu{Projected: p, View: "tiny"}
+	default:
+		return vres, loom.InvalidEnumValueError("view", view, []any{
+			"default",
+			"tiny",
+		})
+	}
+	return vres, nil
+}
+
+// NewMenuM1ResultFromMenuM1ResultView converts projected type MenuM1ResultView
+// to service type MenuM1Result.
+func NewMenuM1ResultFromMenuM1ResultView(vres *customizedresultcopiesviews.MenuM1ResultView) *MenuM1Result {
+	res := &MenuM1Result{
+		Y: vres.Y,
+	}
+	if vres.X != nil {
+		res.X = *vres.X
+	}
+	return res
+}
+
+// NewMenuM1ResultFromMenuM1ResultViewTiny converts projected type
+// MenuM1ResultView to service type MenuM1Result.
+func NewMenuM1ResultFromMenuM1ResultViewTiny(vres *customizedresultcopiesviews.MenuM1ResultView) *MenuM1Result {
+	res := &MenuM1Result{}
+	if vres.X != nil {
+		res.X = *vres.X
+	}
+	return res
+}
+
+// ProjectMenuM1Result projects result type MenuM1Result to projected type
+// MenuM1ResultView using the "default" view.
+func ProjectMenuM1Result(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
+	vres := &customizedresultcopiesviews.MenuM1ResultView{
+		X: &res.X,
+		Y: res.Y,
+	}
+	return vres
+}
+
+// ProjectMenuM1ResultTiny projects result type MenuM1Result to projected type
+// MenuM1ResultView using the "tiny" view.
+func ProjectMenuM1ResultTiny(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
+	vres := &customizedresultcopiesviews.MenuM1ResultView{
+		X: &res.X,
+	}
+	return vres
+}
+
+// NewMenuM2ResultFromMenuM2ResultView converts projected type MenuM2ResultView
+// to service type MenuM2Result.
+func NewMenuM2ResultFromMenuM2ResultView(vres *customizedresultcopiesviews.MenuM2ResultView) *MenuM2Result {
+	res := &MenuM2Result{
+		Y: vres.Y,
+	}
+	if vres.X != nil {
+		res.X = *vres.X
+	}
+	return res
+}
+
+// NewMenuM2ResultFromMenuM2ResultViewTiny converts projected type
+// MenuM2ResultView to service type MenuM2Result.
+func NewMenuM2ResultFromMenuM2ResultViewTiny(vres *customizedresultcopiesviews.MenuM2ResultView) *MenuM2Result {
+	res := &MenuM2Result{}
+	if vres.X != nil {
+		res.X = *vres.X
+	}
+	return res
+}
+
+// ProjectMenuM2Result projects result type MenuM2Result to projected type
+// MenuM2ResultView using the "default" view.
+func ProjectMenuM2Result(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
+	vres := &customizedresultcopiesviews.MenuM2ResultView{
+		X: &res.X,
+		Y: res.Y,
+	}
+	return vres
+}
+
+// ProjectMenuM2ResultTiny projects result type MenuM2Result to projected type
+// MenuM2ResultView using the "tiny" view.
+func ProjectMenuM2ResultTiny(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
+	vres := &customizedresultcopiesviews.MenuM2ResultView{
+		X: &res.X,
+	}
+	return vres
+}
+
+// NewMenuFromMenuView converts projected type MenuView to service type Menu.
+func NewMenuFromMenuView(vres *customizedresultcopiesviews.MenuView) *Menu {
+	res := &Menu{
+		X: vres.X,
+		Y: vres.Y,
+	}
+	return res
+}
+
+// NewMenuFromMenuViewTiny converts projected type MenuView to service type
+// Menu.
+func NewMenuFromMenuViewTiny(vres *customizedresultcopiesviews.MenuView) *Menu {
+	res := &Menu{
+		X: vres.X,
+	}
+	return res
+}
+
+// ProjectMenu projects result type Menu to projected type MenuView using the
+// "default" view.
+func ProjectMenu(res *Menu) *customizedresultcopiesviews.MenuView {
+	vres := &customizedresultcopiesviews.MenuView{
+		X: res.X,
+		Y: res.Y,
+	}
+	return vres
+}
+
+// ProjectMenuTiny projects result type Menu to projected type MenuView using
+// the "tiny" view.
+func ProjectMenuTiny(res *Menu) *customizedresultcopiesviews.MenuView {
+	vres := &customizedresultcopiesviews.MenuView{
+		X: res.X,
+	}
+	return vres
+}

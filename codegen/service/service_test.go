@@ -39,6 +39,7 @@ func TestService(t *testing.T) {
 		{"service-result-with-dashed-mime-type", testdata.ResultWithDashedMimeTypeMethodDSL},
 		{"service-result-with-one-of-type", testdata.ResultWithOneOfTypeMethodDSL},
 		{"service-result-with-inline-validation", testdata.ResultWithInlineValidationDSL},
+		{"service-result-customized-copies", testdata.CustomizedResultCopiesDSL},
 		{"service-service-level-error", testdata.ServiceErrorDSL},
 		{"service-error-remedy-method", testdata.ErrorRemedyMethodDSL},
 		{"service-custom-errors", testdata.CustomErrorsDSL},

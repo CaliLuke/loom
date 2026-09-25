@@ -363,7 +363,7 @@ func (d *ServicesData) buildServiceMethods(
 			method.SetViewedResult(vrt)
 			continue
 		}
-		projected := seenProj[rt.ID()]
+		projected := seenProj[projectionKey(rt)]
 		projAtt := &expr.AttributeExpr{Type: projected.Type}
 		vrt := buildViewedResultType(methodExpr.Result, projAtt, viewspkg, scope, viewScope)
 		if !containsViewedResultType(viewedRTs, vrt) {
@@ -377,7 +377,7 @@ func (d *ServicesData) buildServiceMethods(
 
 func containsViewedResultType(viewed []*ViewedResultTypeData, target *ViewedResultTypeData) bool {
 	for _, existing := range viewed {
-		if existing.Type.ID() == target.Type.ID() {
+		if projectionKey(existing.Type) == projectionKey(target.Type) {
 			return true
 		}
 	}
