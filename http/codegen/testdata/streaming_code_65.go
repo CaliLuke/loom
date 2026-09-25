@@ -50,11 +50,6 @@ func (s *BidirectionalStreamingMethodServerStream) RecvWithContext(ctx context.C
 	if msg == nil {
 		return rv, io.EOF
 	}
-	body := *msg
-	err = ValidateBidirectionalStreamingMethodStreamingBody(&body)
-	if err != nil {
-		return rv, err
-	}
 	return NewBidirectionalStreamingMethodStreamingBody(msg), nil
 }
 `

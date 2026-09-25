@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -80,9 +79,6 @@ func serverWebSocketPayloadValidation(ws *WebSocketData) string {
 		if arg.AttributeData != nil && arg.AttributeData.Validate != "" {
 			return arg.AttributeData.Validate
 		}
-	}
-	if ws.Payload.Def != "" && strings.HasPrefix(ws.Payload.Ref, "*") {
-		return fmt.Sprintf("err = Validate%s(&body)", ws.Payload.VarName)
 	}
 	return ""
 }
