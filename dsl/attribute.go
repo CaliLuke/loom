@@ -183,7 +183,7 @@ func appendUnionBranch(union *expr.Union, name string, attr *expr.AttributeExpr)
 	if _, ok := attr.Type.(expr.UserType); !ok {
 		att := expr.DupAtt(attr)
 		att.Type = attr.Type
-		attr.Type = &expr.UserTypeExpr{AttributeExpr: att, TypeName: union.TypeName + expr.Title(name)}
+		attr.Type = &expr.UserTypeExpr{AttributeExpr: att, TypeName: union.TypeName + expr.Title(expr.AttributeName(name))}
 	}
 	union.Values = append(union.Values, &expr.NamedAttributeExpr{Name: name, Attribute: attr})
 }

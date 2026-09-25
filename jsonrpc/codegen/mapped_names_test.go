@@ -14,8 +14,9 @@ import (
 // whose params and result declare attributes with a transport element name
 // suffix, such as "n:m", round-trips values through the generated client and
 // server, and sends raw requests to the generated server, checking that the
-// params and the result use the suffix as the JSON name of the field and
-// that missing required fields are reported.
+// params and the result use the suffix as the JSON name of the field, that
+// union branches are identified by their attribute names and that missing
+// required fields are reported by attribute name.
 func TestJSONRPCMappedNamesGeneratedModule(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcMappedNamesDSL)
 	dir := t.TempDir()
@@ -117,7 +118,7 @@ func TestMappedNames(t *testing.T) {
 
 	full := &mappednames.Envelope{N: ptr("name"), Req: 7, Def: 5, Obj: &mappednames.Leaf{Leaf: ptr("leaf"), Count: 2}, List: []string{"a"}}
 	full.Pick.SetString("picked")
-	full.Choice = &mappednames.Choice2{}
+	full.Choice = &mappednames.Choice{}
 	full.Choice.SetText("text")
 	minimal := &mappednames.Envelope{Def: 3, Obj: &mappednames.Leaf{}}
 	minimal.Pick.SetInt(4)
@@ -137,6 +138,10 @@ func TestMappedNames(t *testing.T) {
 
 	want := &mappednames.Envelope{Req: 1, Def: 3, Obj: &mappednames.Leaf{Count: 2}}
 	want.Pick.SetInt(4)
+	branch := &mappednames.Envelope{Req: 1, Def: 3, Obj: &mappednames.Leaf{Count: 2}}
+	branch.Pick.SetInt(4)
+	branch.Choice = &mappednames.Choice{}
+	branch.Choice.SetText("t")
 	cases := []struct {
 		name    string
 		params  string
@@ -147,8 +152,10 @@ func TestMappedNames(t *testing.T) {
 	}{
 		{"element names", ` + "`" + `{"r":1,"p":{"type":"Int","value":4},"o":{"c":2}}` + "`" + `, 0, "", want,
 			map[string]any{"r": 1.0, "d": 3.0, "p": map[string]any{"type": "Int", "value": 4.0}, "o": map[string]any{"c": 2.0}}},
-		{"attribute names", ` + "`" + `{"req":1,"pick":{"type":"Int","value":4},"obj":{"count":2}}` + "`" + `, -32602, "Missing required field: req:r", nil, nil},
-		{"missing nested required", ` + "`" + `{"r":1,"p":{"type":"Int","value":4},"o":{}}` + "`" + `, -32602, "Missing required field: count:c", nil, nil},
+		{"union branch", ` + "`" + `{"r":1,"p":{"type":"Int","value":4},"o":{"c":2},"ch":{"type":"text","value":"t"}}` + "`" + `, 0, "", branch,
+			map[string]any{"r": 1.0, "d": 3.0, "p": map[string]any{"type": "Int", "value": 4.0}, "o": map[string]any{"c": 2.0}, "ch": map[string]any{"type": "text", "value": "t"}}},
+		{"attribute names", ` + "`" + `{"req":1,"pick":{"type":"Int","value":4},"obj":{"count":2}}` + "`" + `, -32602, "Missing required field: req", nil, nil},
+		{"missing nested required", ` + "`" + `{"r":1,"p":{"type":"Int","value":4},"o":{}}` + "`" + `, -32602, "Missing required field: count", nil, nil},
 	}
 	for _, tc := range cases {
 		body := ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"echo","params":` + "`" + ` + tc.params + "}"

@@ -1519,6 +1519,11 @@ bodies: the body uses `"n"`, and the Go field and `Required("name:n")` refer
 to the `name` attribute. gRPC ignores the suffix. `ConvertTo` and
 `CreateFrom` select the external Go field with `struct:field:external` or
 by the attribute name; the suffix does not select it.
+The service package also uses the attribute name: the JSON tag of the Go
+field, the kind of a union branch and the types of the branches of a `OneOf`
+block use `name`. Validation errors, including those of HTTP and JSON-RPC
+bodies, name the attribute and not the wire element, as they do for fields
+renamed with `struct:tag:json`.
 
 ### Response Headers
 

@@ -305,17 +305,19 @@ func renderRequiredValidation(data validationRenderData) string {
 	if scope, ok := data.AttributeCtx.Scope.(messageFieldScope); ok && expr.IsUnion(data.RequiredAttr.Type) {
 		field, _ = scope.UnionFieldNames(data.Attribute, data.RequiredName)
 	}
+	name := expr.AttributeName(data.RequiredName)
+	missing := "\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(name) + ", " + quoteString(data.Context) + "))\n}"
 	mapped := expr.NewMappedAttributeExpr(data.Attribute)
-	presence := data.AttributeCtx.FieldPresence(mapped, expr.AttributeName(data.RequiredName), data.RequiredAttr)
+	presence := data.AttributeCtx.FieldPresence(mapped, name, data.RequiredAttr)
 	if presence == OptionalPresence || presence == NullablePresence {
-		return "if !" + data.Target + "." + field + ".Present() {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
+		return "if !" + data.Target + "." + field + ".Present() {" + missing
 	}
 	if expr.IsUnion(data.RequiredAttr.Type) {
 		if _, ok := data.AttributeCtx.Scope.(sumTypeUnionScope); ok {
-			return "if " + data.Target + "." + field + ".Kind() == \"\" {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
+			return "if " + data.Target + "." + field + ".Kind() == \"\" {" + missing
 		}
 	}
-	return "if " + data.Target + "." + field + " == nil {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
+	return "if " + data.Target + "." + field + " == nil {" + missing
 }
 
 func renderArrayValidation(target, validation string, rejectNativeNil, jsonPresence bool, context string) string {

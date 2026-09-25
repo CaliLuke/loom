@@ -232,7 +232,7 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, names ...st
 		fieldType := scope.GoTypeRef(nat.Attribute)
 		kindConst := kindName + fieldName
 		fields[i] = &service.UnionFieldData{
-			Name:                      nat.Name,
+			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
 			FieldType:                 fieldType,

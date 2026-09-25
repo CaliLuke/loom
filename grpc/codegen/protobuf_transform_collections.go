@@ -299,7 +299,7 @@ func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, target
 		tv := tdata.TargetValues[i]
 		fieldName := oneofFieldName(ta, i, tv, ta.TargetCtx)
 		cases = append(cases, map[string]any{
-			"typeTag":           sv.Name,
+			"typeTag":           expr.UnionVariantTag(sv),
 			"sourceFieldName":   codegen.Goify(sv.Name, true),
 			"sourceAttr":        sv.Attribute,
 			"targetAttr":        tv.Attribute,

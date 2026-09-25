@@ -472,7 +472,10 @@ filter, and serialization rules belong here.
   `MappedAttributeExpr.Attribute` restores the suffix on both. Go fields are
   named after the attribute, so the shared and gRPC transforms walk objects
   through the mapped attribute and never call `ElemName`, and validation
-  looks attributes up in the mapped attribute by attribute name. HTTP and
+  looks attributes up in the mapped attribute by attribute name. Service
+  JSON tags, union branch kinds (`expr.UnionVariantTag`), the names of
+  `OneOf` block unions and of their promoted branch types, view attribute
+  lists and validation error names use the attribute name. HTTP and
   JSON-RPC bodies use the suffix as the JSON, form and XML name of the
   field. gRPC ignores it: the protocol buffer field and the Go fields of the
   service and pb types use the attribute name.

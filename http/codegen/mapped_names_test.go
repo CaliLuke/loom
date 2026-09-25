@@ -42,9 +42,9 @@ func TestMappedNamesBodies(t *testing.T) {
 		"type LeafRequestBody struct {\n" +
 			"\tLeaf  loom.Optional[string] `form:\"l,omitempty\" json:\"l,omitzero\" xml:\"l,omitempty\"`\n" +
 			"\tCount *int                  `form:\"c,omitempty\" json:\"c,omitempty\" xml:\"c,omitempty\"`\n",
-		"\tif body.Req == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"req:r\", \"body\"))\n\t}\n",
-		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count:c\", \"body\"))\n\t}\n",
-		"\tif body.ID == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"id:i\", \"body\"))\n\t}\n",
+		"\tif body.Req == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"req\", \"body\"))\n\t}\n",
+		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count\", \"body\"))\n\t}\n",
+		"\tif body.ID == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"id\", \"body\"))\n\t}\n",
 		"\tv := &mappednames.Envelope{\n\t\tReq: *body.Req,\n\t}\n",
 		"\t\tv.N = &vNValue\n",
 		"\tbody := &EchoResponseBody{\n\t\tN:   res.N,\n\t\tReq: res.Req,\n\t\tDef: res.Def,\n\t}\n",
@@ -54,7 +54,7 @@ func TestMappedNamesBodies(t *testing.T) {
 	for _, want := range []string{
 		"\tbody := &EchoRequestBody{\n\t\tN:   p.N,\n\t\tReq: p.Req,\n\t\tDef: p.Def,\n\t}\n",
 		"\tv := &mappednames.Envelope{\n\t\tReq: *body.Req,\n\t}\n",
-		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count:c\", \"body\"))\n\t}\n",
+		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count\", \"body\"))\n\t}\n",
 	} {
 		assert.Contains(t, client, want)
 	}
@@ -63,6 +63,26 @@ func TestMappedNamesBodies(t *testing.T) {
 	assert.Contains(t, clientTransport, "\tres := &LeafRequestBody{\n\t\tLeaf:  v.Leaf,\n\t\tCount: v.Count,\n\t}\n")
 	for _, code := range []string{server, client, serverTransport, clientTransport} {
 		assert.Empty(t, elemField.FindAllString(code, -1), "fields named after the element names")
+	}
+}
+
+// TestMappedNamesOpenAPIUnionBranches checks that the OpenAPI document parses
+// and names the branches of a OneOf block union declared with element name
+// suffixes, and their discriminator values, after the attribute names.
+func TestMappedNamesOpenAPIUnionBranches(t *testing.T) {
+	root := RunHTTPDSL(t, testdata.MappedNamesDSL)
+	spec := renderOpenAPIJSON(t, OpenAPIFiles, root)
+	doc := parseOpenAPIV3Document(t, spec)
+
+	for _, name := range []string{"ChoiceTextEnvelope", "ChoiceLeafBranchEnvelope"} {
+		_, ok := doc.Components.Schemas.Get(name)
+		assert.True(t, ok, name)
+	}
+	code := string(spec)
+	assert.Contains(t, code, `"text": "#/components/schemas/ChoiceTextEnvelope"`)
+	assert.Contains(t, code, `"leaf_branch": "#/components/schemas/ChoiceLeafBranchEnvelope"`)
+	for _, stale := range []string{"text:t", "leaf_branch:lb", "ChoiceCh"} {
+		assert.NotContains(t, code, stale)
 	}
 }
 
@@ -165,13 +185,13 @@ func envelopes() map[string]*mappednames.Envelope {
 		Index: map[string]*mappednames.Leaf{"k": {Count: 3}},
 	}
 	full.Pick.SetString("picked")
-	full.Choice = &mappednames.Choice2{}
+	full.Choice = &mappednames.Choice{}
 	full.Choice.SetText("text")
 	minimal := &mappednames.Envelope{Def: 3, Obj: &mappednames.Leaf{}}
 	minimal.Pick.SetInt(4)
 	branch := &mappednames.Envelope{Def: 3, Obj: &mappednames.Leaf{}}
 	branch.Pick.SetInt(1)
-	branch.Choice = &mappednames.Choice2{}
+	branch.Choice = &mappednames.Choice{}
 	branch.Choice.SetLeafBranch(&mappednames.Leaf{Leaf: ptr("leaf"), Count: 9})
 	return map[string]*mappednames.Envelope{"full": full, "minimal": minimal, "leaf branch": branch}
 }
@@ -218,16 +238,16 @@ func TestWire(t *testing.T) {
 	minimal.Pick.SetInt(4)
 	full := &mappednames.Envelope{N: ptr("nm"), Req: 1, Def: 8, Obj: &mappednames.Leaf{Leaf: ptr("x"), Count: 2}, List: []string{"a"}, Index: map[string]*mappednames.Leaf{"k": {Count: 5}}}
 	full.Pick.SetString("s")
-	full.Choice = &mappednames.Choice2{}
+	full.Choice = &mappednames.Choice{}
 	full.Choice.SetText("t")
 	cases := []bodyCase{
 		{"minimal", ` + "`" + `{"r":1,"p":{"type":"Int","value":4},"o":{"c":2}}` + "`" + `, http.StatusOK, "", "", minimal,
 			map[string]any{"r": 1.0, "d": 3.0, "p": map[string]any{"type": "Int", "value": 4.0}, "o": map[string]any{"c": 2.0}}},
-		{"full", ` + "`" + `{"m":"nm","r":1,"d":8,"p":{"type":"String","value":"s"},"o":{"l":"x","c":2},"ls":["a"],"ix":{"k":{"c":5}},"ch":{"type":"text:t","value":"t"}}` + "`" + `, http.StatusOK, "", "", full,
-			map[string]any{"m": "nm", "r": 1.0, "d": 8.0, "p": map[string]any{"type": "String", "value": "s"}, "o": map[string]any{"l": "x", "c": 2.0}, "ls": []any{"a"}, "ix": map[string]any{"k": map[string]any{"c": 5.0}}, "ch": map[string]any{"type": "text:t", "value": "t"}}},
-		{"attribute names", ` + "`" + `{"req":1,"pick":{"type":"Int","value":4},"obj":{"count":2}}` + "`" + `, http.StatusBadRequest, "missing_field", "Missing required field: req:r", nil, nil},
-		{"missing required", ` + "`" + `{"p":{"type":"Int","value":4},"o":{"c":2}}` + "`" + `, http.StatusBadRequest, "missing_field", "Missing required field: req:r", nil, nil},
-		{"missing nested required", ` + "`" + `{"r":1,"p":{"type":"Int","value":4},"o":{}}` + "`" + `, http.StatusBadRequest, "missing_field", "Missing required field: count:c", nil, nil},
+		{"full", ` + "`" + `{"m":"nm","r":1,"d":8,"p":{"type":"String","value":"s"},"o":{"l":"x","c":2},"ls":["a"],"ix":{"k":{"c":5}},"ch":{"type":"text","value":"t"}}` + "`" + `, http.StatusOK, "", "", full,
+			map[string]any{"m": "nm", "r": 1.0, "d": 8.0, "p": map[string]any{"type": "String", "value": "s"}, "o": map[string]any{"l": "x", "c": 2.0}, "ls": []any{"a"}, "ix": map[string]any{"k": map[string]any{"c": 5.0}}, "ch": map[string]any{"type": "text", "value": "t"}}},
+		{"attribute names", ` + "`" + `{"req":1,"pick":{"type":"Int","value":4},"obj":{"count":2}}` + "`" + `, http.StatusBadRequest, "missing_field", "Missing required field: req", nil, nil},
+		{"missing required", ` + "`" + `{"p":{"type":"Int","value":4},"o":{"c":2}}` + "`" + `, http.StatusBadRequest, "missing_field", "Missing required field: req", nil, nil},
+		{"missing nested required", ` + "`" + `{"r":1,"p":{"type":"Int","value":4},"o":{}}` + "`" + `, http.StatusBadRequest, "missing_field", "Missing required field: count", nil, nil},
 		{"too short", ` + "`" + `{"m":"x","r":1,"p":{"type":"Int","value":4},"o":{"c":2}}` + "`" + `, http.StatusBadRequest, "invalid_length", "validation error", nil, nil},
 		{"empty", "", http.StatusBadRequest, "missing_payload", "validation error", nil, nil},
 		{"whitespace", " \n\t", http.StatusBadRequest, "missing_payload", "validation error", nil, nil},
@@ -287,7 +307,7 @@ func TestInlineWire(t *testing.T) {
 		json   string
 	}{
 		{"valid", ` + "`" + `{"i":"a","c":2}` + "`" + `, http.StatusOK, "", &mappednames.InlinePayload{ID: "a", Count: ptr(2)}, ` + "`" + `{"i":"a","c":2}` + "`" + `},
-		{"missing required", ` + "`" + `{"c":2}` + "`" + `, http.StatusBadRequest, "Missing required field: id:i", nil, ""},
+		{"missing required", ` + "`" + `{"c":2}` + "`" + `, http.StatusBadRequest, "Missing required field: id", nil, ""},
 	} {
 		req, err := http.NewRequest(http.MethodPut, hs.URL+"/inline", strings.NewReader(tc.body))
 		if err != nil {

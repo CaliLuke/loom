@@ -172,7 +172,7 @@ func buildViews(rt *expr.ResultTypeExpr, viewScope *codegen.NameScope) []*ViewDa
 		vatt := expr.AsObject(view.Type)
 		attrs := make([]string, len(*vatt))
 		for j, nat := range *vatt {
-			attrs[j] = nat.Name
+			attrs[j] = expr.AttributeName(nat.Name)
 		}
 		views[i] = &ViewData{
 			Name:        view.Name,

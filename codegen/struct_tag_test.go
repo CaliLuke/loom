@@ -20,12 +20,13 @@ func TestAttributeTagsWithNameJSONRoundTrip(t *testing.T) {
 		meta  expr.MetaExpr
 		name  string
 	}{
-		"plain":          {field: "user_id", name: "user_id"},
-		"space":          {field: "user id", name: "user id"},
-		"newline":        {field: "user\nid", name: "user\nid"},
-		"tab and colon":  {field: "a\tb:c", name: "a\tb:c"},
-		"unicode":        {field: "日本語", name: "日本語"},
-		"json name meta": {field: "x", meta: expr.MetaExpr{"struct:tag:json:name": {"new\nline"}}, name: "new\nline"},
+		"plain":           {field: "user_id", name: "user_id"},
+		"space":           {field: "user id", name: "user id"},
+		"newline":         {field: "user\nid", name: "user\nid"},
+		"tab and suffix":  {field: "a\tb:c", name: "a\tb"},
+		"colon json name": {field: "x", meta: expr.MetaExpr{"struct:tag:json:name": {"a\tb:c"}}, name: "a\tb:c"},
+		"unicode":         {field: "日本語", name: "日本語"},
+		"json name meta":  {field: "x", meta: expr.MetaExpr{"struct:tag:json:name": {"new\nline"}}, name: "new\nline"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

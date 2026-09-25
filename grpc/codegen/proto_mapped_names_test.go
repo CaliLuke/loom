@@ -59,7 +59,7 @@ func envelopes() map[string]*mappednames.Envelope {
 		Index: map[string]*mappednames.Leaf{"k": {Count: 3}},
 	}
 	full.Pick.SetString("picked")
-	full.Choice = &mappednames.Choice2{}
+	full.Choice = &mappednames.Choice{}
 	full.Choice.SetText("text")
 	cases["full"] = full
 	minimal := &mappednames.Envelope{Def: 3, Obj: &mappednames.Leaf{}}
@@ -67,7 +67,7 @@ func envelopes() map[string]*mappednames.Envelope {
 	cases["minimal"] = minimal
 	branch := &mappednames.Envelope{Def: 3, Obj: &mappednames.Leaf{}}
 	branch.Pick.SetInt(1)
-	branch.Choice = &mappednames.Choice2{}
+	branch.Choice = &mappednames.Choice{}
 	branch.Choice.SetLeafBranch(&mappednames.Leaf{Leaf: &leaf, Count: 9})
 	cases["leaf branch"] = branch
 	return cases

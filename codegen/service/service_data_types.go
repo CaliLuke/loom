@@ -173,7 +173,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		}
 		kindConst := kindName + codegen.Goify(nat.Name, true)
 		fields[i] = &UnionFieldData{
-			Name:                      nat.Name,
+			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
 			FieldType:                 fieldType,
@@ -229,7 +229,7 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 		}
 		kindConst := kindName + codegen.Goify(nat.Name, true)
 		fields[i] = &UnionFieldData{
-			Name:                      nat.Name,
+			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
 			FieldType:                 fieldType,
@@ -295,7 +295,7 @@ func unionBranchJSONFields(att *expr.AttributeExpr) ([]string, []string, []strin
 	nonNullable := make([]string, 0, len(*object))
 	fields := make([]string, 0, len(*object))
 	for _, field := range *object {
-		name := codegen.JSONFieldName(field.Name, field.Attribute)
+		name := codegen.JSONFieldName(expr.AttributeName(field.Name), field.Attribute)
 		fields = append(fields, name)
 		if parent.IsRequired(field.Name) {
 			required = append(required, name)

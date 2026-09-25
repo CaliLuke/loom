@@ -140,7 +140,7 @@ func normalizeAttributeJSONTag(tags map[string]string, jsonName string, parent *
 	jsonTag, hasJSONTag := tags["json"]
 	if !hasJSONTag {
 		if jsonName == "" {
-			jsonName = fieldName
+			jsonName = expr.AttributeName(fieldName)
 		}
 		if jsonName == "" {
 			return

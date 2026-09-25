@@ -59,7 +59,7 @@ func deterministicUnionBranchSchemaName(union *expr.Union, val *expr.NamedAttrib
 	if unionName == "" {
 		unionName = "Union"
 	}
-	branchName := strings.TrimSpace(val.Name)
+	branchName := strings.TrimSpace(expr.AttributeName(val.Name))
 	if branchName == "" {
 		branchName = "Value"
 	}

@@ -90,7 +90,7 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 			field, fieldCtx.oneofFields = messageScope.UnionFieldNames(att, nat.Name)
 		}
 		tgt := target + "." + field
-		ctx := context + "." + nat.Name
+		ctx := context + "." + expr.AttributeName(nat.Name)
 		var val string
 		switch attCtx.FieldPresence(mapped, expr.AttributeName(nat.Name), nat.Attribute) {
 		case OptionalPresence:

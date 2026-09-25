@@ -93,7 +93,7 @@ func oneOfAttribute(name string, args ...any) {
 			eval.InvalidArgError("string", args[0])
 		}
 	}
-	Attribute(name, &expr.Union{TypeName: name}, desc, fn)
+	Attribute(name, &expr.Union{TypeName: expr.AttributeName(name)}, desc, fn)
 	applyOneOfAttributeMeta(name)
 }
 

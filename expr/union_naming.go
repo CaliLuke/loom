@@ -53,7 +53,8 @@ func DerivedUnionTypeName(names []string) string {
 }
 
 // UnionVariantTag returns the wire discriminator value for a union branch.
-// It prefers explicit metadata and falls back to the branch name.
+// It prefers explicit metadata and falls back to the attribute name of the
+// branch, without its element name suffix.
 func UnionVariantTag(nat *NamedAttributeExpr) string {
 	if nat == nil || nat.Attribute == nil {
 		return ""
@@ -68,7 +69,7 @@ func UnionVariantTag(nat *NamedAttributeExpr) string {
 			return tag
 		}
 	}
-	return nat.Name
+	return AttributeName(nat.Name)
 }
 
 // UniqueStableNames deduplicates base names using the corresponding stable
