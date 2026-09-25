@@ -64,26 +64,34 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 			first = false
 			name := lowerInitial(ed.Method.VarName)
 			stmt.Comment(fmt.Sprintf("%sStreamWrapper wraps the JSON-RPC stream to provide a method-specific interface.", name)).Line()
-			stmt.Type().Id(name+"StreamWrapper").Struct(
-				jen.Id("stream").Op("*").Id(streamName),
-				jen.Id("requestHasID").Bool(),
-				jen.Id("requestID").Any(),
-			)
+			dynamicView := ed.Method.ViewedResult != nil && ed.Method.ViewedResult.ViewName == ""
+			stmt.Type().Id(name + "StreamWrapper").StructFunc(func(g *jen.Group) {
+				g.Id("stream").Op("*").Id(streamName)
+				g.Id("requestHasID").Bool()
+				g.Id("requestID").Any()
+				if dynamicView {
+					g.Id("view").String()
+				}
+			})
 			stmt.Line()
-			stmt.Func().Params(jen.Id("w").Op("*").Id(name+"StreamWrapper")).
-				Id("SendNotification").
-				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("res").Add(codegen.TypeRef(ed.Result.Ref))).
-				Error().
-				Block(
-					jen.Return(jen.Id("w").Dot("stream").Dot("Send"+ed.Method.VarName+"Notification").Call(jen.Id("ctx"), jen.Id("res"))),
-				)
+			if dynamicView {
+				addDynamicViewStreamWrapperMethods(stmt, name+"StreamWrapper", ed)
+			} else {
+				stmt.Func().Params(jen.Id("w").Op("*").Id(name+"StreamWrapper")).
+					Id("SendNotification").
+					Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("res").Add(codegen.TypeRef(ed.Result.Ref))).
+					Error().
+					Block(
+						jen.Return(jen.Id("w").Dot("stream").Dot("Send"+ed.Method.VarName+"Notification").Call(jen.Id("ctx"), jen.Id("res"))),
+					)
+			}
 			stmt.Line()
 			stmt.Func().Params(jen.Id("w").Op("*").Id(name+"StreamWrapper")).
 				Id("SendResponse").
 				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("res").Add(codegen.TypeRef(ed.Result.Ref))).
 				Error().
 				BlockFunc(func(g *jen.Group) {
-					writeStreamResultBodyInit(g, "res", ed)
+					writeStreamResultBodyInit(g, "res", "w.view", ed)
 					g.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "CompleteStream").Call(
 						jen.Id("ctx"),
 						jen.Id("w").Dot("requestHasID"),
@@ -208,7 +216,7 @@ func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *h
 			Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("result").Add(codegen.TypeRef(ed.Result.Ref))).
 			Error().
 			BlockFunc(func(g *jen.Group) {
-				writeStreamResultBodyInit(g, "result", ed)
+				writeStreamResultBodyInit(g, "result", defaultViewExpr, ed)
 				g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
 					jen.Id("ctx"),
 					jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
@@ -228,7 +236,7 @@ func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *h
 		).
 		Error().
 		BlockFunc(func(g *jen.Group) {
-			writeStreamResultBodyInit(g, "result", ed)
+			writeStreamResultBodyInit(g, "result", defaultViewExpr, ed)
 			g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
 				jen.Id("ctx"),
 				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
@@ -393,14 +401,6 @@ func streamMappedErrorCase(prefix string, item *httpcodegen.ErrorData) string {
 		fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), %s)\n", prefix, response.Code, data),
 	)
 	return strings.Join(parts, "")
-}
-
-func writeStreamResultBodyInit(g *jen.Group, resultVar string, ed *httpcodegen.EndpointData) {
-	if ed.Result != nil && len(ed.Result.Responses) > 0 && len(ed.Result.Responses[0].ServerBody) > 0 && ed.Result.Responses[0].ServerBody[0].Init != nil {
-		g.Id("body").Op(":=").Id(ed.Result.Responses[0].ServerBody[0].Init.Name).Call(jen.Id(resultVar))
-		return
-	}
-	g.Id("body").Op(":=").Id(resultVar)
 }
 
 func writeStreamErrorDataSwitch(g *jen.Group, errs []*httpcodegen.ErrorData, targetID jen.Code) {

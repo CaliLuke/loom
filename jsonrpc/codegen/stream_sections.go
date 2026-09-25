@@ -121,6 +121,11 @@ func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
 // collection, and mixed-result events, and the event value otherwise.
 func sseEventBodyInit(resultVar string, ed *httpcodegen.EndpointData) string {
 	if body := ed.SSE.ResponseBody; body != nil && body.Init != nil {
+		// The SSE streams have no view to select, so a viewed result
+		// renders the view that the design fixes or the default view.
+		if code, ok := viewedStreamResultBodyInit(resultVar, defaultViewExpr, body, ed); ok {
+			return code
+		}
 		return fmt.Sprintf("body := %s(%s)", body.Init.Name, resultVar)
 	}
 	return fmt.Sprintf("body := %s", resultVar)
