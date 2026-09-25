@@ -148,6 +148,12 @@ type (
 		// ReturnTypeAttributeUnionValue is true if the generated transform
 		// returns a union pointer for a required value field.
 		ReturnTypeAttributeUnionValue bool
+		// ReturnTypeAttributeFlag is the build function parameter holding
+		// the flag that initializes the ReturnTypeAttribute field when that
+		// field is optional and Code does not leave it nil for an empty
+		// flag. The build function then runs Code and sets the field only
+		// when the flag is not empty.
+		ReturnTypeAttributeFlag string
 		// ReturnIsStruct if true indicates that the method payload is an object.
 		ReturnIsStruct bool
 		// ReturnTypeName is the fully-qualified name of the payload.

@@ -36,20 +36,7 @@ func PayloadBuilderSection(buildFunction *BuildFunctionData, pkgs *codegen.NameS
 				if buildFunction.PayloadInit.ErrorAware {
 					group.Id("transformErr").Op(":=").New(jen.Error())
 				}
-				if buildFunction.PayloadInit.Code != nil {
-					group.Add(buildFunction.PayloadInit.Code)
-					if buildFunction.PayloadInit.ReturnTypeAttribute != "" {
-						group.Id("res").Op(":=").Op("&").Add(codegen.TypeRef(buildFunction.PayloadInit.ReturnTypeName)).ValuesFunc(func(values *jen.Group) {
-							value := values.Id(buildFunction.PayloadInit.ReturnTypeAttribute).Op(":")
-							if buildFunction.PayloadInit.ReturnTypeAttributePointer {
-								value.Op("&")
-							} else if buildFunction.PayloadInit.ReturnTypeAttributeUnionValue {
-								value.Op("*")
-							}
-							value.Id("v")
-						})
-					}
-				}
+				appendPayloadInitCode(group, buildFunction.PayloadInit)
 				if buildFunction.PayloadInit.ReturnIsStruct {
 					if buildFunction.PayloadInit.Code == nil {
 						target := "v"
@@ -133,6 +120,36 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 		return jen.If(codegen.Expr(f.FullName).Op("!=").Lit("")).Block(code), declErr
 	}
 	return code, declErr
+}
+
+// appendPayloadInitCode appends the payload initialization code of init and
+// the statement that builds the result struct res when init initializes its
+// ReturnTypeAttribute field. When ReturnTypeAttributeFlag is set, the code
+// runs and sets the field only when that flag is not empty.
+func appendPayloadInitCode(group *jen.Group, init *PayloadInitData) {
+	switch {
+	case init.Code == nil:
+	case init.ReturnTypeAttribute != "" && init.ReturnTypeAttributeFlag != "":
+		// An empty flag leaves the optional attribute nil.
+		group.Id("res").Op(":=").Op("&").Add(codegen.TypeRef(init.ReturnTypeName)).Values()
+		group.If(jen.Id(init.ReturnTypeAttributeFlag).Op("!=").Lit("")).Block(
+			init.Code,
+			jen.Id("res").Dot(init.ReturnTypeAttribute).Op("=").Id("v"),
+		)
+	default:
+		group.Add(init.Code)
+		if init.ReturnTypeAttribute != "" {
+			group.Id("res").Op(":=").Op("&").Add(codegen.TypeRef(init.ReturnTypeName)).ValuesFunc(func(values *jen.Group) {
+				value := values.Id(init.ReturnTypeAttribute).Op(":")
+				if init.ReturnTypeAttributePointer {
+					value.Op("&")
+				} else if init.ReturnTypeAttributeUnionValue {
+					value.Op("*")
+				}
+				value.Id("v")
+			})
+		}
+	}
 }
 
 func fieldLoadStringPrefix(f *FlagData, defaultValue any) string {

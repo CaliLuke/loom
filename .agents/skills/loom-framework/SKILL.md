@@ -351,7 +351,12 @@ filter, and serialization rules belong here.
   and `TypeData.ValueRef` declares the decoded variable. A non-nullable object
   (`OptionalObjectBody`) is decoded into a pointer that is set to nil for an
   empty body, is validated only when present, and is passed to the payload
-  constructor, which leaves the attribute nil for a nil body.
+  constructor, which leaves the attribute nil for a nil body. The client CLI
+  body flag of such an attribute is optional; for an object,
+  `cli.PayloadInitData.ReturnTypeAttributeFlag` sets the attribute only when
+  the flag is not empty. Body flag examples go through
+  `expr.CanonicalizeExample` so that they match the JSON of the client body
+  type.
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
   A response encoder failure that occurs before commit is encoded through the

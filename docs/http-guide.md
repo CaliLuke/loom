@@ -361,6 +361,11 @@ does not allow them: it omits `params` for a null value as well as for an
 absent one. The JSON-RPC server still decodes `"params": null` as a null
 value.
 
+The generated client CLI makes the body flag of an optional object, union,
+nullable, or `Any` attribute selected with `Body("name")` optional. An empty
+flag leaves the attribute nil or absent. The flag example shows the JSON that
+the flag accepts, including the `type` and `value` fields of a union.
+
 ### Raw Request and Response Bodies
 
 Use `SkipRequestBodyEncodeDecode` when the service should receive the request

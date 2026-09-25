@@ -337,20 +337,7 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*
 		})
 	}
 
-	var initCode *jen.Statement
-	if e.Payload.Request.PayloadInit.ClientCode != "" {
-		initCode = codegen.Expr(e.Payload.Request.PayloadInit.ClientCode)
-	}
-	pInit := cli.PayloadInitData{
-		Code:                          initCode,
-		ReturnTypeAttribute:           e.Payload.Request.PayloadInit.ReturnTypeAttribute,
-		ReturnTypeAttributePointer:    e.Payload.Request.PayloadInit.ReturnIsPrimitivePointer,
-		ReturnTypeAttributeUnionValue: e.Payload.Request.PayloadInit.ReturnIsUnionValue,
-		ReturnIsStruct:                e.Payload.Request.PayloadInit.ReturnIsStruct,
-		ReturnTypeName:                e.Payload.Request.PayloadInit.ReturnTypeName,
-		ReturnTypePkg:                 e.Payload.Request.PayloadInit.ReturnTypePkg,
-		Args:                          pInitArgs,
-	}
+	pInit := payloadInitData(e, flagFullName(flags, args, "body"), pInitArgs)
 
 	return flags, &cli.BuildFunctionData{
 		Name:         "Build" + e.Method.VarName + "Payload",
@@ -360,9 +347,48 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*
 		MethodName:   e.Method.Name,
 		ResultType:   e.Payload.Ref,
 		Fields:       fdata,
-		PayloadInit:  &pInit,
+		PayloadInit:  pInit,
 		CheckErr:     check,
 	}
+}
+
+// payloadInitData returns the data of the code of the CLI payload builder
+// of e that initializes the payload from the flags. bodyFlag is the build
+// function parameter holding the body flag, if any, and args the payload
+// constructor arguments.
+func payloadInitData(e *EndpointData, bodyFlag string, args []*codegen.InitArgData) *cli.PayloadInitData {
+	init := e.Payload.Request.PayloadInit
+	var initCode *jen.Statement
+	if init.ClientCode != "" {
+		initCode = codegen.Expr(init.ClientCode)
+	}
+	if !e.Payload.Request.OptionalObjectBody {
+		// Only the zero object body decoded from an empty flag is not nil.
+		bodyFlag = ""
+	}
+	return &cli.PayloadInitData{
+		Code:                          initCode,
+		ReturnTypeAttributeFlag:       bodyFlag,
+		ReturnTypeAttribute:           init.ReturnTypeAttribute,
+		ReturnTypeAttributePointer:    init.ReturnIsPrimitivePointer,
+		ReturnTypeAttributeUnionValue: init.ReturnIsUnionValue,
+		ReturnIsStruct:                init.ReturnIsStruct,
+		ReturnTypeName:                init.ReturnTypeName,
+		ReturnTypePkg:                 init.ReturnTypePkg,
+		Args:                          args,
+	}
+}
+
+// flagFullName returns the full name of the flag of the argument of args
+// named varName, or the empty string if there is none. flags holds the flag
+// of each argument.
+func flagFullName(flags []*cli.FlagData, args []*InitArgData, varName string) string {
+	for i, arg := range args {
+		if arg.VarName == varName {
+			return flags[i].FullName
+		}
+	}
+	return ""
 }
 
 // streamFlag returns the flag used to specify the upload file for endpoints

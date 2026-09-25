@@ -479,6 +479,9 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			Validate: svcode,
 		},
 	})
+	// The CLI body flag holds the JSON of the client body type: it is
+	// optional when the body attribute is, and its example wraps unions in
+	// their discriminator and value.
 	clientArgs = append(clientArgs, &InitArgData{
 		Ref: b.sd.Scope.GoVar("body", b.body),
 		AttributeData: &AttributeData{
@@ -487,8 +490,8 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			TypeName: b.sd.Scope.GoTypeNameWithDefaults(b.bodyAttr),
 			TypeRef:  b.sd.Scope.GoTypeRefWithDefaults(b.bodyAttr),
 			Type:     b.body,
-			Required: true,
-			Example:  b.bodyAttr.Example(b.sds.examplesFor(b.sd)),
+			Required: !isOptionalBodyAttribute(b.endpointIR.Request),
+			Example:  expr.CanonicalizeExample(b.bodyAttr, b.bodyAttr.Example(b.sds.examplesFor(b.sd))),
 			Validate: cvcode,
 		},
 	})
