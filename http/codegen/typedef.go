@@ -111,16 +111,15 @@ func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *
 	_ = actual
 	lines := []string{"struct {"}
 	ma := expr.NewMappedAttributeExpr(att)
-	parent := ma.Attribute()
 	codegen.WalkMappedAttr(ma, func(name, elem string, _ bool, at *expr.AttributeExpr) error { // nolint: errcheck
-		lines = append(lines, goObjectFieldDef(scope, ma, parent, name, elem, at, ptr, useDefault, jsonPresence))
+		lines = append(lines, goObjectFieldDef(scope, ma, name, elem, at, ptr, useDefault, jsonPresence))
 		return nil
 	})
 	lines = append(lines, "}")
 	return strings.Join(lines, "\n")
 }
 
-func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, parent *expr.AttributeExpr, name, elem string, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
+func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, name, elem string, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
 	fieldName := codegen.GoifyAtt(att, name, true)
 	typeDef := goTypeDef(scope, att, ptr, useDefault, jsonPresence)
 	wireOptional := !ma.IsRequiredNoDefault(name)
@@ -133,10 +132,10 @@ func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, pa
 	case codegen.IsExplicitPresenceType(att), jsonPresence && wireOptional:
 		// Explicit field types define their own presence semantics.
 	case expr.IsPrimitive(att.Type):
-		if (ptr || parent.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && !expr.IsAny(att.Type) {
+		if (ptr || ma.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && !expr.IsAny(att.Type) {
 			typeDef = "*" + typeDef
 		}
-	case expr.IsObject(att.Type) || (expr.IsUnion(att.Type) && !parent.IsRequired(name)):
+	case expr.IsObject(att.Type) || (expr.IsUnion(att.Type) && !ma.IsRequired(name)):
 		typeDef = "*" + typeDef
 	}
 	description := ""

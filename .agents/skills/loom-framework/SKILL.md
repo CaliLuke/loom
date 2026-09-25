@@ -465,11 +465,17 @@ filter, and serialization rules belong here.
   `newProtoMessageNames`. A message without a union keeps the example that the
   attribute generates, with keys renamed to the protocol buffer names, so its
   example and the examples generated after it do not change.
-- gRPC ignores the mapping suffix of an attribute name such as `"n:m"`. The
-  protocol buffer field, the Go fields of the service and pb types, and the
-  transforms use the part before the colon. The transforms walk objects
-  through `messageMappedAttribute`, which also strips the suffix from the
-  required names, so they never call `ElemName`.
+- The part of an object key before a colon is the attribute name, and the
+  part after it, as in `"n:m"`, is the name of the transport element
+  (`expr.AttributeName`, `MappedAttributeExpr.ElemName`). A mapped attribute
+  names its attributes and its required attributes without the suffix, and
+  `MappedAttributeExpr.Attribute` restores the suffix on both. Go fields are
+  named after the attribute, so the shared and gRPC transforms walk objects
+  through the mapped attribute and never call `ElemName`, and validation
+  looks attributes up in the mapped attribute by attribute name. HTTP and
+  JSON-RPC bodies use the suffix as the JSON, form and XML name of the
+  field. gRPC ignores it: the protocol buffer field and the Go fields of the
+  service and pb types use the attribute name.
 - Protocol buffer messages always live in the pb package of the service.
   `makeProtoBufMessage` strips `struct:pkg:path` from the message attribute as
   well as from its user types. `struct:name:proto` names only the top-level

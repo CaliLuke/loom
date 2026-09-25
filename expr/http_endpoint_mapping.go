@@ -50,7 +50,7 @@ func (e *HTTPEndpointExpr) QueryParams() *MappedAttributeExpr {
 		}
 		if !found {
 			obj.Set(at.Name, at.Attribute)
-			attName := splitMappedAttributeName(at.Name)
+			attName := AttributeName(at.Name)
 			if e.Params.IsRequired(attName) {
 				v.AddRequired(attName)
 			}
@@ -58,15 +58,6 @@ func (e *HTTPEndpointExpr) QueryParams() *MappedAttributeExpr {
 	}
 	at := &AttributeExpr{Type: &obj, Validation: v}
 	return NewMappedAttributeExpr(at)
-}
-
-func splitMappedAttributeName(name string) string {
-	for i := 0; i < len(name); i++ {
-		if name[i] == ':' {
-			return name[:i]
-		}
-	}
-	return name
 }
 
 // validateParams checks the endpoint parameters are of an allowed type and the

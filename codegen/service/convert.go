@@ -131,7 +131,7 @@ func shouldIgnoreExternalField(oref *expr.Object, attributeName string) bool {
 	if oref == nil {
 		return false
 	}
-	at := oref.Attribute(attributeName)
+	at := objectAttribute(oref, attributeName)
 	if at == nil {
 		return false
 	}
@@ -170,12 +170,16 @@ func buildStructNamedAttribute(f reflect.StructField, typeName string, oref *exp
 		return nil, false, fmt.Errorf("%q.%s: %w", typeName, f.Name, err)
 	}
 	name := atn
+	att := &expr.AttributeExpr{Type: fdt}
 	if fn != "" {
 		name += ":" + fn
+		// The transforms name the Go fields after the attribute, so the
+		// external field name must be explicit.
+		att.Meta = expr.MetaExpr{"struct:field:name": []string{fn}}
 	}
 	return &expr.NamedAttributeExpr{
 		Name:      name,
-		Attribute: &expr.AttributeExpr{Type: fdt},
+		Attribute: att,
 	}, required, nil
 }
 
@@ -183,7 +187,7 @@ func matchingAttributeRef(oref *expr.Object, atn string) expr.DataType {
 	if oref == nil {
 		return nil
 	}
-	if at := oref.Attribute(atn); at != nil {
+	if at := objectAttribute(oref, atn); at != nil {
 		return at.Type
 	}
 	return nil
@@ -218,55 +222,52 @@ func buildStructFieldDesignType(f reflect.StructField, attributeName string, are
 }
 
 // attributeName computes the name of the attribute for the given field name and
-// object that must contain the matching attribute.
+// object that must contain the matching attribute. It compares and returns
+// attribute names without their element name suffix, and returns the field
+// name as second value when it differs from the attribute name.
 func attributeName(obj *expr.Object, name string) (string, string) {
 	if obj == nil {
 		return name, ""
 	}
 	// first look for a "struct:field:external" meta
-	for _, nat := range *obj {
-		if m := nat.Attribute.Meta["struct:field:external"]; len(m) > 0 {
-			if m[0] == name {
-				return nat.Name, name
+	for _, key := range []string{"struct:field:external", "struct.field.external"} { // "struct.field.external" is the deprecated syntax.
+		for _, nat := range *obj {
+			if m := nat.Attribute.Meta[key]; len(m) > 0 && m[0] == name {
+				return expr.AttributeName(nat.Name), name
 			}
 		}
 	}
-	for _, nat := range *obj { // Deprecated syntax. Only present for backward compatibility.
-		if m := nat.Attribute.Meta["struct.field.external"]; len(m) > 0 {
-			if m[0] == name {
-				return nat.Name, name
-			}
-		}
+	candidates := []struct {
+		name  string
+		field string
+	}{
+		// next look for an exact match
+		{name, ""},
+		// next try to lower case first letter
+		{strings.ToLower(name[0:1]) + name[1:], name},
+		// next look for a lower camel case without acronym
+		{codegen.CamelCase(name, false, false), name},
+		// finally look for a snake case representation
+		{codegen.SnakeCase(name), name},
 	}
-	// next look for an exact match
-	for _, nat := range *obj {
-		if nat.Name == name {
-			return name, ""
-		}
-	}
-	// next try to lower case first letter
-	ln := strings.ToLower(name[0:1]) + name[1:]
-	for _, nat := range *obj {
-		if nat.Name == ln {
-			return ln, name
-		}
-	}
-	// next look for a lower camel case without acronym
-	lcn := codegen.CamelCase(name, false, false)
-	for _, nat := range *obj {
-		if nat.Name == lcn {
-			return lcn, name
-		}
-	}
-	// finally look for a snake case representation
-	sn := codegen.SnakeCase(name)
-	for _, nat := range *obj {
-		if nat.Name == sn {
-			return sn, name
+	for _, candidate := range candidates {
+		if objectAttribute(obj, candidate.name) != nil {
+			return candidate.name, candidate.field
 		}
 	}
 	// no match, return field name
 	return name, ""
+}
+
+// objectAttribute returns the attribute of obj whose attribute name, without
+// its element name suffix, is name, or nil.
+func objectAttribute(obj *expr.Object, name string) *expr.AttributeExpr {
+	for _, nat := range *obj {
+		if expr.AttributeName(nat.Name) == name {
+			return nat.Attribute
+		}
+	}
+	return nil
 }
 
 // isPrimitive is true if the given kind matches a Loom primitive type.
@@ -389,9 +390,8 @@ func compatibleObject(from expr.DataType, to reflect.Type, toName string, rec co
 		return fmt.Errorf("types don't match: %s is a %s, expected a struct", rec.path, toName)
 	}
 	obj := expr.AsObject(from)
-	ma := expr.NewMappedAttributeExpr(&expr.AttributeExpr{Type: obj})
 	for _, nat := range *obj {
-		fname, field, ok := compatibleFieldLookup(ma, nat, to)
+		fname, field, ok := compatibleFieldLookup(nat, to)
 		if fname == "-" {
 			continue
 		}
@@ -405,7 +405,11 @@ func compatibleObject(from expr.DataType, to reflect.Type, toName string, rec co
 	return nil
 }
 
-func compatibleFieldLookup(ma *expr.MappedAttributeExpr, nat *expr.NamedAttributeExpr, to reflect.Type) (string, reflect.StructField, bool) {
+// compatibleFieldLookup returns the field of the external struct to that
+// corresponds to the attribute nat: the field named by struct:field:external
+// or the field named after the attribute. An element name suffix such as
+// "string" in "text:string" does not select the field.
+func compatibleFieldLookup(nat *expr.NamedAttributeExpr, to reflect.Type) (string, reflect.StructField, bool) {
 	if ef, ok := nat.Attribute.Meta["struct:field:external"]; ok {
 		if ef[0] == "-" {
 			return "-", reflect.StructField{}, false
@@ -420,7 +424,7 @@ func compatibleFieldLookup(ma *expr.MappedAttributeExpr, nat *expr.NamedAttribut
 		field, found := to.FieldByName(ef[0])
 		return ef[0], field, found
 	}
-	name := codegen.Goify(ma.ElemName(nat.Name), true)
+	name := codegen.Goify(expr.AttributeName(nat.Name), true)
 	field, found := to.FieldByName(name)
 	return name, field, found
 }

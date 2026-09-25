@@ -268,7 +268,7 @@ func buildTransformObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		if exp == nil {
 			return
 		}
-		tgtField := GoifyAtt(tgtc, tgtMatt.ElemName(n), true)
+		tgtField := GoifyAtt(tgtc, n, true)
 		initFields = append(initFields, objectInitField{Name: tgtField, Expr: exp})
 	})
 	return initFields, postInitCode, err
@@ -281,8 +281,8 @@ func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttribu
 	}
 	srcPtr := ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr)
 	tgtPtr := ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr)
-	srcField := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)
-	tgtField := GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
+	srcField := sourceVar + "." + GoifyAtt(srcc, name, true)
+	tgtField := GoifyAtt(tgtc, name, true)
 	_, isSrcUT := srcc.Type.(expr.UserType)
 	_, isTgtUT := tgtc.Type.(expr.UserType)
 	if matchingExplicitType(srcc, tgtc) {
@@ -297,10 +297,10 @@ func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttribu
 		}
 		exp := Expr(ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)) + "(" + baseExpr + ")")
 		if srcPtr && !srcMatt.IsRequired(name) {
-			return nil, buildConditionalPrimitiveAssignmentStmt(srcField, targetVar, tgtField, exp, tgtPtr, Goify(tgtMatt.ElemName(name), false))
+			return nil, buildConditionalPrimitiveAssignmentStmt(srcField, targetVar, tgtField, exp, tgtPtr, Goify(name, false))
 		}
 		if tgtPtr {
-			return nil, buildPointerPrimitiveAssignmentStmt(targetVar, tgtField, exp, Goify(tgtMatt.ElemName(name), false))
+			return nil, buildPointerPrimitiveAssignmentStmt(targetVar, tgtField, exp, Goify(name, false))
 		}
 		return exp, nil
 	case srcPtr && !tgtPtr:
@@ -345,8 +345,8 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 		return nil, nil
 	}
 
-	srcFieldVar := sourceVar + "." + GoifyAtt(srcc, srcMatt.ElemName(name), true)
-	tgtFieldVar := targetVar + "." + GoifyAtt(tgtc, tgtMatt.ElemName(name), true)
+	srcFieldVar := sourceVar + "." + GoifyAtt(srcc, name, true)
+	tgtFieldVar := targetVar + "." + GoifyAtt(tgtc, name, true)
 	if code, handled, err := transformObjectPresenceField(srcMatt, tgtMatt, srcc, tgtc, srcFieldVar, tgtFieldVar, name, ta); handled {
 		return code, err
 	}

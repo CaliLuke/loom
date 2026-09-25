@@ -2,6 +2,7 @@ package expr
 
 import (
 	"maps"
+	"slices"
 	"strings"
 )
 
@@ -22,6 +23,14 @@ type (
 	//
 	MappedAttributeWalker func(name, elem string, a *AttributeExpr) error
 )
+
+// AttributeName returns the attribute name of the object key: the part of key
+// that precedes the transport element name suffix, such as "n" for "n:m", or
+// key when it has no suffix.
+func AttributeName(key string) string {
+	name, _, _ := strings.Cut(key, ":")
+	return name
+}
 
 // NewEmptyMappedAttributeExpr creates an empty mapped attribute expression.
 func NewEmptyMappedAttributeExpr() *MappedAttributeExpr {
@@ -74,7 +83,9 @@ func inheritedAttributeValidation(att *AttributeExpr, seen map[string]struct{}) 
 
 // Remap recomputes the name mappings from the inner attribute. Use this if
 // the underlying attribute is modified after the mapped attribute has been
-// initially created.
+// initially created. The keys of the mapped object and the names of its
+// required attributes are the attribute names, without the element name
+// suffix: a required attribute listed as "n:m" is listed as "n".
 func (ma *MappedAttributeExpr) Remap() {
 	var (
 		n = &Object{}
@@ -87,6 +98,16 @@ func (ma *MappedAttributeExpr) Remap() {
 			ma.nameMap[elems[0]] = elems[1]
 			ma.reverseMap[elems[1]] = elems[0]
 		}
+	}
+	if ma.Validation != nil && len(ma.Validation.Required) > 0 {
+		required := make([]string, 0, len(ma.Validation.Required))
+		for _, name := range ma.Validation.Required {
+			name = AttributeName(name)
+			if !slices.Contains(required, name) {
+				required = append(required, name)
+			}
+		}
+		ma.Validation.Required = required
 	}
 
 	// Conserve examples defined on user type
@@ -147,13 +168,21 @@ func (ma *MappedAttributeExpr) Delete(attName string) {
 	}
 }
 
-// Attribute returns the original attribute using "att:elem" format for the keys.
+// Attribute returns the original attribute using "att:elem" format for the
+// keys and for the names of the required attributes.
 func (ma *MappedAttributeExpr) Attribute() *AttributeExpr {
 	att := DupAtt(ma.AttributeExpr)
 	obj := AsObject(att.Type)
 	for _, nat := range *obj {
 		if elem := ma.ElemName(nat.Name); elem != nat.Name {
 			obj.Rename(nat.Name, nat.Name+":"+elem)
+		}
+	}
+	if att.Validation != nil {
+		for i, name := range att.Validation.Required {
+			if elem, ok := ma.nameMap[name]; ok {
+				att.Validation.Required[i] = name + ":" + elem
+			}
 		}
 	}
 	return att

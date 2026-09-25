@@ -92,7 +92,7 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		tgt := target + "." + field
 		ctx := context + "." + nat.Name
 		var val string
-		switch attCtx.FieldPresence(mapped, nat.Name, nat.Attribute) {
+		switch attCtx.FieldPresence(mapped, expr.AttributeName(nat.Name), nat.Attribute) {
 		case OptionalPresence:
 			val = validateOptionalAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, view, seen)
 		case NullablePresence:

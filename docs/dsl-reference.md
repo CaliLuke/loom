@@ -1513,6 +1513,13 @@ Body(func() {
 })
 ```
 
+The same suffix on an attribute of a type or payload, such as
+`Attribute("name:n", String)`, names the field of the HTTP and JSON-RPC
+bodies: the body uses `"n"`, and the Go field and `Required("name:n")` refer
+to the `name` attribute. gRPC ignores the suffix. `ConvertTo` and
+`CreateFrom` select the external Go field with `struct:field:external` or
+by the attribute name; the suffix does not select it.
+
 ### Response Headers
 
 Declare response headers inside a `Response` block. The mapped attribute comes

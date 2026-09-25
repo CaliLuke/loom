@@ -355,7 +355,7 @@ func (e *HTTPEndpointExpr) validateObjectPayloadTransport(verr *eval.ValidationE
 	props, ok := e.Body.Meta["origin:attribute"]
 	if !ok {
 		for _, nat := range *bObj {
-			props = append(props, splitMappedAttributeName(nat.Name))
+			props = append(props, AttributeName(nat.Name))
 		}
 	}
 	for _, prop := range props {

@@ -306,7 +306,7 @@ func renderRequiredValidation(data validationRenderData) string {
 		field, _ = scope.UnionFieldNames(data.Attribute, data.RequiredName)
 	}
 	mapped := expr.NewMappedAttributeExpr(data.Attribute)
-	presence := data.AttributeCtx.FieldPresence(mapped, data.RequiredName, data.RequiredAttr)
+	presence := data.AttributeCtx.FieldPresence(mapped, expr.AttributeName(data.RequiredName), data.RequiredAttr)
 	if presence == OptionalPresence || presence == NullablePresence {
 		return "if !" + data.Target + "." + field + ".Present() {\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(data.RequiredName) + ", " + quoteString(data.Context) + "))\n}"
 	}
