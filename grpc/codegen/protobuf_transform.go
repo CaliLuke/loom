@@ -259,8 +259,8 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		if !expr.IsPrimitive(srcc.Type) {
 			return
 		}
-		srcField := sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
-		tgtField := ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
+		srcField := sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, n, true)
+		tgtField := ta.TargetCtx.Scope.Field(tgtc, n, true)
 		if presenceCode, handled := transformAnyPresenceObjectField(srcField, targetVar+"."+tgtField, srcc, tgtc, ta); handled {
 			postInitCode += presenceCode
 			return
@@ -269,7 +269,7 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		tgtPtr := ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr)
 		srcFieldConv := convertType(srcc, tgtc, srcPtr, tgtPtr, srcField, ta)
 		exp, updatedPostInit, handled := transformObjectPrimitivePointerCases(
-			srcMatt, srcc, tgtc, srcField, tgtField, srcFieldConv, srcPtr, tgtPtr, targetVar, postInitCode, tgtMatt.ElemName(n), n, ta,
+			srcMatt, srcc, tgtc, srcField, tgtField, srcFieldConv, srcPtr, tgtPtr, targetVar, postInitCode, n, ta,
 		)
 		postInitCode = updatedPostInit
 		if handled {
@@ -313,8 +313,8 @@ func transformAnyPresenceObjectField(srcField, tgtField string, source, target *
 func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, names *protoMessageNames, ta *transformAttrs) (string, error) {
 	srcc = unAlias(srcc)
 	tgtc = unAlias(tgtc)
-	srcField := ta.SourceCtx.Scope.Field(srcc, srcMatt.ElemName(n), true)
-	tgtField := ta.TargetCtx.Scope.Field(tgtc, tgtMatt.ElemName(n), true)
+	srcField := ta.SourceCtx.Scope.Field(srcc, n, true)
+	tgtField := ta.TargetCtx.Scope.Field(tgtc, n, true)
 	if expr.IsUnion(srcc.Type) {
 		if ta.proto {
 			tgtField = names.goField(n)
@@ -450,7 +450,7 @@ func transformObjectPrimitivePointerCases(
 	srcField, tgtField, srcFieldConv string,
 	srcPtr, tgtPtr bool,
 	targetVar, postInitCode string,
-	elemName, attrName string,
+	attrName string,
 	ta *transformAttrs,
 ) (string, string, bool) {
 	_, isSrcUT := srcc.Type.(expr.UserType)
@@ -463,7 +463,7 @@ func transformObjectPrimitivePointerCases(
 			TargetVar:      targetVar,
 			TargetField:    tgtField,
 			Expression:     exp,
-			TempVar:        codegen.Goify(elemName, false),
+			TempVar:        codegen.Goify(attrName, false),
 			SourcePointer:  srcPtr,
 			TargetPointer:  tgtPtr,
 			SourceRequired: srcMatt.IsRequired(attrName),

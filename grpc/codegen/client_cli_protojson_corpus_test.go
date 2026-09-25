@@ -51,6 +51,7 @@ func TestClientCLIMessageExamplesDecodeWithProtoJSON(t *testing.T) {
 		{"InterceptorsDSL", testdata.InterceptorsDSL},
 		{"InvalidFirstCharacterNamesDSL", testdata.InvalidFirstCharacterNamesDSL},
 		{"MapAliasDSL", testdata.MapAliasDSL},
+		{"MappedNamesDSL", testdata.MappedNamesDSL},
 		{"MessageArrayDSL", testdata.MessageArrayDSL},
 		{"MessageMapDSL", testdata.MessageMapDSL},
 		{"MessagePrimitiveDSL", testdata.MessagePrimitiveDSL},

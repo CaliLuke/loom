@@ -278,10 +278,13 @@ func normalizedTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs
 }
 
 // walkMatches iterates through the source attribute expression and executes
-// the walker function.
+// the walker function for each attribute that the target also has. It names
+// the attributes without the mapping suffix that follows a colon, such as "m"
+// in "n:m", since the Go fields of the service and protocol buffer types, and
+// the protocol buffer fields, are named without it.
 func walkMatches(source, target *expr.AttributeExpr, walker func(src, tgt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string)) {
-	srcMatt := expr.NewMappedAttributeExpr(source)
-	tgtMatt := expr.NewMappedAttributeExpr(target)
+	srcMatt := messageMappedAttribute(source)
+	tgtMatt := messageMappedAttribute(target)
 	srcObj := expr.AsObject(srcMatt.Type)
 	tgtObj := expr.AsObject(tgtMatt.Type)
 	for _, nat := range *srcObj {
@@ -289,6 +292,20 @@ func walkMatches(source, target *expr.AttributeExpr, walker func(src, tgt *expr.
 			walker(srcMatt, tgtMatt, nat.Attribute, att, nat.Name)
 		}
 	}
+}
+
+// messageMappedAttribute returns the mapped attribute of the object att, whose
+// attributes and required attribute names drop the mapping suffix that
+// follows a colon. gRPC ignores the suffix, so the names of the required
+// attributes must match the attribute names of the mapped object.
+func messageMappedAttribute(att *expr.AttributeExpr) *expr.MappedAttributeExpr {
+	ma := expr.NewMappedAttributeExpr(att)
+	if ma.Validation != nil {
+		for i, name := range ma.Validation.Required {
+			ma.Validation.Required[i] = protoNameKey(name)
+		}
+	}
+	return ma
 }
 
 // transformHelperName returns the transformation function name to initialize a
