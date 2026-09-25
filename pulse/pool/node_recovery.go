@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -123,14 +124,68 @@ func (node *Node) requeueOrphanedPayloads(ctx context.Context) {
 			continue
 		}
 		job := &Job{Key: key, Payload: payload, CreatedAt: now, NodeID: node.ID}
-		if _, err := node.poolStream.Add(ctx, evStartJob, marshalJob(job)); err != nil {
+		// A guarded start (a rebalance or an earlier sweep) that is still in
+		// flight may yet start the job, so the sweep waits for it: once it
+		// is acked the job map lists the key, and once it is lost the guard
+		// no longer blocks.
+		queued, err := node.claimRequeue(ctx, job)
+		if err != nil {
 			node.logger.Error(fmt.Errorf("requeueOrphanedPayloads: failed to requeue orphaned job: %w", err), "key", key)
+			continue
+		}
+		if !queued {
+			node.logger.Debug("requeueOrphanedPayloads: start event in flight, not requeuing", "key", key)
 			continue
 		}
 
 		node.orphanedPayloads.Delete(key)
 		node.logger.Info("requeueOrphanedPayloads: requeued orphaned job", "key", key, "grace", grace)
 	}
+}
+
+// claimRequeue adds a start event for job with a guard that names it
+// (luaClaimRequeue). It returns false with no error when the key already has
+// a guard whose start event is in flight: that event may still start the job,
+// so a second start is not added.
+func (node *Node) claimRequeue(ctx context.Context, job *Job) (bool, error) {
+	now := time.Now()
+	raw, err := luaClaimRequeue.Run(ctx, node.rdb, []string{
+		rmapContentKey(jobPendingMapName(node.PoolName)),
+		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
+		node.poolStream.Key(),
+	}, job.Key, strconv.FormatInt(now.UnixNano(), 10), node.poolStream.MaxLen, marshalJob(job),
+		poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds()).Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to requeue job %q: %w", job.Key, err)
+	}
+	status, value, err := parseDispatchClaim(raw)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse requeue result for job %q: %w", job.Key, err)
+	}
+	switch status {
+	case dispatchClaimed:
+		return true, nil
+	case dispatchAlreadyPending:
+		return false, nil
+	case dispatchMalformedPending:
+		return false, fmt.Errorf("malformed pending guard for job %q: %q", job.Key, value)
+	default:
+		return false, fmt.Errorf("unexpected requeue status %d for job %q", status, job.Key)
+	}
+}
+
+// requeueInFlight reports whether claimRequeue would refuse key because its
+// guard names a start event that is in flight (luaRequeueInFlight).
+func (node *Node) requeueInFlight(ctx context.Context, key string) (bool, error) {
+	now := time.Now()
+	res, err := luaRequeueInFlight.Run(ctx, node.rdb, []string{
+		rmapContentKey(jobPendingMapName(node.PoolName)),
+		node.poolStream.Key(),
+	}, key, poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds()).Int64()
+	if err != nil {
+		return false, fmt.Errorf("failed to check the guard of job %q: %w", key, err)
+	}
+	return res == 1, nil
 }
 
 // cleanupWorker requeues the jobs assigned to the worker and deletes it from

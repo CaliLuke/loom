@@ -141,6 +141,22 @@ local function delete_guard(content, channel, key)
    local msg = struct.pack("ic0ic0", string.len(key), key, string.len(rev), rev)
    redis.call("PUBLISH", channel, "del:" .. msg)
 end
+
+local function add_start(stream, max_len, job, content, channel, key, until_ns)
+   local event_id
+   if tonumber(max_len) > 0 then
+      event_id = redis.call("XADD", stream, "MAXLEN", "~", max_len, "*", "n", "j", "p", job)
+   else
+      event_id = redis.call("XADD", stream, "*", "n", "j", "p", job)
+   end
+   local guard = until_ns .. ":" .. event_id
+   redis.call("HSET", content, key, guard)
+   local rev = tostring(redis.call("HINCRBY", content, "=rev", 1))
+   redis.call("HSET", content, "=kind", "set")
+   local msg = struct.pack("ic0ic0ic0", string.len(key), key, string.len(guard), guard, string.len(rev), rev)
+   redis.call("PUBLISH", channel, "set:" .. msg)
+   return guard
+end
 `
 
 var (
@@ -174,20 +190,68 @@ if pending then
    end
 end
 
-local event_id
-if tonumber(ARGV[4]) > 0 then
-   event_id = redis.call("XADD", KEYS[4], "MAXLEN", "~", ARGV[4], "*", "n", "j", "p", ARGV[5])
-else
-   event_id = redis.call("XADD", KEYS[4], "*", "n", "j", "p", ARGV[5])
-end
-local guard = ARGV[3] .. ":" .. event_id
+return {1, add_start(KEYS[4], ARGV[4], ARGV[5], KEYS[2], KEYS[3], ARGV[1], ARGV[3])}
+`)
 
-redis.call("HSET", KEYS[2], ARGV[1], guard)
-local rev = tostring(redis.call("HINCRBY", KEYS[2], "=rev", 1))
-redis.call("HSET", KEYS[2], "=kind", "set")
-local msg = struct.pack("ic0ic0ic0", string.len(ARGV[1]), ARGV[1], string.len(guard), guard, string.len(rev), rev)
-redis.call("PUBLISH", KEYS[3], "set:" .. msg)
-return {1, guard}
+	// luaClaimRequeue adds the start event that moves a running job to
+	// another worker (rebalance) or recovers it from its payload (orphan
+	// sweep), and writes the guard "nowNanos:eventID" that names it, as
+	// luaClaimDispatch does. The worker ack deletes that guard
+	// (luaAckStart). While the guard is held and its event is in flight, the
+	// script refuses a second requeue of the key, so the orphan sweep never
+	// adds a start next to one that may still start the job (issue #416).
+	// The guard TTL has already passed when it is written, so a guard whose
+	// event is lost (trimmed, or dropped as stale) blocks nothing once
+	// in_flight is false. A malformed guard is rejected, as by
+	// luaClaimDispatch. There is no payload check: the job is running or has
+	// a payload.
+	//
+	// A guard written by a release before ticket 4 ("untilNanos") names no
+	// event, so in_flight is false and the script replaces it whatever its
+	// TTL, while luaClaimDispatch honors that TTL. This is safe: a requeue
+	// runs only for a job that runs or has a payload, so the dispatch that
+	// wrote the guard has already started the job, and luaClaimDispatch
+	// refuses the key on its payload anyway. A rolling upgrade across ticket
+	// 4 is not supported, so such a guard is a leftover from before the
+	// upgrade and no running node writes one.
+	//
+	// KEYS: pending content, pending channel, pool stream.
+	// ARGV: key, nowNanos, maxLen, job bytes, sink group, nowMs, maxAgeMs.
+	luaClaimRequeue = redis.NewScript(luaDispatchGuard + `
+local pending = redis.call("HGET", KEYS[1], ARGV[1])
+if pending then
+   local until_ns, id = parse_guard(pending)
+   if not until_ns then
+      return {4, pending}
+   end
+   if in_flight(KEYS[3], ARGV[5], id, tonumber(ARGV[6]), tonumber(ARGV[7])) then
+      return {2, pending}
+   end
+end
+
+return {1, add_start(KEYS[3], ARGV[3], ARGV[4], KEYS[1], KEYS[2], ARGV[1], ARGV[2])}
+`)
+
+	// luaRequeueInFlight reports whether luaClaimRequeue would refuse the
+	// key: 1 when its guard names a start event that is in flight, else 0.
+	// A malformed guard is an error. It writes nothing, so rebalance can
+	// check before it stops the job.
+	//
+	// KEYS: pending content, pool stream.
+	// ARGV: key, sink group, nowMs, maxAgeMs.
+	luaRequeueInFlight = redis.NewScript(luaDispatchGuard + `
+local pending = redis.call("HGET", KEYS[1], ARGV[1])
+if not pending then
+   return 0
+end
+local until_ns, id = parse_guard(pending)
+if not until_ns then
+   return redis.error_reply("malformed pending guard " .. pending)
+end
+if in_flight(KEYS[2], ARGV[2], id, tonumber(ARGV[3]), tonumber(ARGV[4])) then
+   return 1
+end
+return 0
 `)
 
 	// luaReleaseDispatch removes the pending guard only if it still has the

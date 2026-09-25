@@ -17,6 +17,7 @@ This file describes the model and how to run it.
 | `PoolOwnership.cfg` | Main as written, all safety invariants, full scope. |
 | `cfg/*.cfg` | One configuration per question. See [Results](#results). |
 | `cfg/guard_*.cfg` | Pool stream trimming and the dispatch guard (issue #385). See [Pool stream trimming](#pool-stream-trimming-and-the-dispatch-guard-issue-385). |
+| `cfg/requeue_*.cfg` | Lost requeued start events (issue #416). See [Lost requeued starts](#lost-requeued-starts-issue-416). |
 | `WorkerEventAck.tla` | How a node matches a worker ack to the pool event it routed (issue #381). See [Worker event acks](#worker-event-acks-workereventacktla). |
 | `cfg/ack_*.cfg` | One `WorkerEventAck` configuration per routing design. |
 
@@ -130,8 +131,9 @@ starts per key when epochs are tracked.
 ### Simplifications
 
 - The worker's ack and the router's `XACK` happen in the same step as
-  `startJob`. Redelivery can still happen before the worker handles the event,
-  which is the window every redelivery trace uses.
+  `startJob`, unless `SPLIT_ACK` is set. Redelivery can still happen before
+  the worker handles the event, which is the window every redelivery trace
+  uses.
 - `NodeClose` is atomic, and `handler.Start` never fails.
 - `pendingEventTTL` is not modeled. `routeWorkerEvent` drops events older than
   2 minutes (`node_events.go:61`). Without that filter, the model allows
@@ -169,6 +171,8 @@ starts per key when epochs are tracked.
 | `REDIS7` | XAUTOCLAIM purges the pending entry of a trimmed id (Redis 7 and later). Also stands for the sink acking deleted ids on 6.2 (issue #411), which is the same state change. |
 | `ENABLE_TTL` | `pendingEventTTL` can pass for an event that no router or worker stream holds. |
 | `GUARD_DESIGN` | How `in_flight` tells a start event that can still start from one that cannot. See [Pool stream trimming](#pool-stream-trimming-and-the-dispatch-guard-issue-385). |
+| `REQUEUE_DESIGN` | How a job whose requeued start event is lost gets back to a worker. See [Lost requeued starts](#lost-requeued-starts-issue-416). |
+| `SPLIT_ACK` | The router's `XACK` of a start (`luaAckStart`, which deletes the guard) is a later step (`AckStart`) than the worker's `startJob`. `FALSE` keeps them in one step. |
 
 The cleanup-lock configurations also use the state constraint `LockScope`:
 only `w1` can look dead.
@@ -209,6 +213,7 @@ only `w1` can look dead.
 | `Trim` | `MAXLEN ~ maxQueuedJobs` on any pool stream `XADD` (`scripts.go` `luaClaimDispatch`, `Stream.Add`). |
 | `AutoClaim` | XAUTOCLAIM reaches a trimmed pending entry (`streaming/sink_autoclaim.go`). |
 | `EventExpire` | `pendingEventTTL` passes: `in_flight` is false by age, and routing acks the event as stale (`node_events.go:61`). |
+| `AckStart` | `SPLIT_ACK` only. The worker's ack reaches the router node, which runs `luaAckStart` (`ackRoutedEvent`). |
 
 ## Properties
 
@@ -231,6 +236,14 @@ only `w1` can look dead.
 7. `GuardReleased` (liveness, under `FairGuardSpec`): every dispatch guard is
    eventually released, so no guard leaks. The fairness adds delivery,
    routing, XAUTOCLAIM and, per event id, the TTL.
+8. `JobRecovered` (liveness, under `FairJobSpec`): once the faults stop, a
+   job that has a payload (it started and was not stopped) runs again on a
+   live worker, even if one of its start events was lost. See
+   [Lost requeued starts](#lost-requeued-starts-issue-416).
+9. `OwnerReached` (liveness, under `FairJobSpec`): once the faults stop, a
+   job that runs on a worker other than its owner among the workers that
+   are really active stops running there. `StopJob` and `NotifyWorker` route
+   to the owner, so a job left elsewhere cannot be stopped or notified.
 
 ## Results
 
@@ -431,6 +444,200 @@ What the results mean:
   `TestDispatchGuardClearedByAckOfTrimmedStart`.
 - `REDIS7 = TRUE` also covers the sink acking deleted ids on 6.2, so #411
   can ack them once this design is in place.
+
+### Lost requeued starts (issue #416)
+
+Four paths requeue a job that already has a payload: `cleanupWorker`,
+`close` (`requeueJobs`), the orphan sweep and `rebalance`. Before the fix,
+each added a plain start event with no dispatch guard. Such an event can be
+lost before any worker handles it:
+
+- `MAXLEN ~ maxQueuedJobs` trims it before delivery, when the pool sink lags
+  by `maxQueuedJobs` events.
+- Routing fails, and `MAXLEN` then trims the pending entry. The sink never
+  redelivers a trimmed entry.
+- Routing acks it as stale after `pendingEventTTL`.
+
+After `cleanupWorker`, `close` or an orphan requeue, no `jobMap` entry
+lists the key and the payload stays, so the orphan sweep requeues the job
+after its grace period. `rebalance` left the key in the old worker's
+`jobMap` entry. The orphan sweep skips a key that `jobMap` lists, and
+cleanup skips a live worker. The job then ran nowhere until the old worker
+left the pool. Issue #416 expected only the first kind of loss.
+
+`JobRecovered` (property 8) checks this. `EventuallyRuns` follows a queued
+start event, so it cannot see a start that is lost. `JobRecovered` follows
+the payload: once the faults stop, a job with a payload runs again on a live
+worker. The faults are trims, failed routings (`RouteDrop`), TTL expiries and
+false deaths. The property needs them to stop, because a pool that loses
+every event can run nothing. `OwnerReached` (property 9) checks that a job
+also reaches its owner, which `JobRecovered` does not ask.
+
+Both run under `FairJobSpec`, which differs from `FairGuardSpec` in four
+ways:
+
+- It is fair to each replica and to the orphan sweep of each node and key.
+  `WF_vars(DoReplicate)` lets one map replicate forever while another never
+  does. Under it, TLC reported a false violation in which the payload
+  replica never caught up.
+- It is fair only to the keep-alive expiry of a dead or stopped worker.
+  With `FALSE_DEATH`, `WF_vars(DoKeepAliveExp)` forces false deaths forever,
+  so the faults never stop and `JobRecovered` holds for no reason.
+- The keep-alive loop of a live worker is fair.
+- Rebalance and `AckStart` are fair.
+
+`REQUEUE_DESIGN` selects the candidate design:
+
+| Design | Change |
+| --- | --- |
+| `asis` | Main before #416. |
+| `acktrim` | Trimming never removes an unacked entry. This is `XADD`/`XTRIM ... ACKED`, which exists only from Redis 8.2. |
+| `release` | `rebalance` removes the key from `jobMap[w]` before it adds the start event. |
+| `guard` | `release`. Also, `rebalance` and the orphan sweep add the start event and write the dispatch guard that names it in one script (`GuardedStart`, Go `luaClaimRequeue`). The script refuses while a guard of the key is in flight. The worker ack deletes the guard (`luaAckStart`). A rebalance that meets an in-flight guard keeps the job running and does not retry. |
+| `guard_retry` | `guard`, and a rebalance that meets an in-flight guard retries (Go `retryRebalance`, after `ackGracePeriod`). |
+
+`GUARD_DESIGN = "minid"` (a trim never passes the oldest pending entry) is
+the sixth candidate. It is not a `REQUEUE_DESIGN` value.
+
+In the guard designs, rebalance is triggered, as in Go. `rebal[w]` says a
+pass of `w` is due. A worker map change on a node's replica, or a worker
+that returns after a false death (which stands for a join), sets it. A
+pass that moves the job clears it, and so does a refusal in `guard`. In
+the other designs `rebal` stays `TRUE`, and rebalance can fire whenever the
+node's view calls for it. A pass with nothing to move keeps the trigger.
+This leaves out a race that exists on main too: a pass can run before a
+start lands on the worker, and nothing rebalances the job afterwards. A
+variant of the model in which such a pass ends the trigger fails
+`OwnerReached` in 12 states for `guard`. That trace has no refusal, so the
+retry does not help (#433). In Go, `handleWorkerMapUpdate` also runs only on
+worker map updates, and a joining worker's map entry can arrive before its
+keep-alive, so the join's rebalance can see the old worker set.
+
+Scopes. Every configuration has the fixes of tickets 1 to 4, `ackclear`
+where the stream is tracked, `MaxEv=3`, `MaxTok=2` and no stop. The model
+has a fixed set of workers, so a worker that comes back after a false
+death stands for a worker that joins. The `guard_retry` configurations
+also set `SPLIT_ACK`.
+
+- Rebalance scope (`requeue_live_*`): false deaths, rebalance, orphan
+  sweep and cleanup, no close or crash, `MaxStream=1`.
+- Crash scope (`requeue_live_*crash*`): crash-only deaths with close and
+  crash, as `guard_live_*`. Rebalance is enabled but can hardly fire,
+  because a crashed worker never comes back.
+- Owner scope (`requeue_owner_*`): the rebalance scope with atomic routing,
+  no trimming or TTL, and `SPLIT_ACK`.
+- Runner scope (`requeue_runner_*`): safety with atomic routing, false
+  deaths, close and crash, `MaxStream=2`, grace covers lag. The state
+  constraint `NoLiveCleanup` keeps cleanup from taking a running worker,
+  which leaves out the known B6 double runner.
+- Stream scope (`requeue_stream_*`): the runner scope with two-step
+  routing, trimming, the TTL and `MaxStream=1`.
+
+| Config | Property | Design | Scope | Result | States | Trace |
+| --- | --- | --- | --- | --- | ---: | ---: |
+| `cfg/requeue_live_notrim` | 8 | `asis` | rebalance, no trimming or TTL | no violation, **not exhaustive** (depth 17) | 1,696,500 | — |
+| `cfg/requeue_live_asis_r7` | 8 | `asis` | rebalance, trimming, Redis 7+ | **violated**, #416 | 227,507 | 13 |
+| `cfg/requeue_live_asis_r6` | 8 | `asis` | rebalance, trimming, Redis 6.2 | **violated**, #416 | 249,516 | 13 |
+| `cfg/requeue_live_ttl_r7` | 8 | `acktrim` | rebalance, TTL, Redis 7+ | **violated** | 242,140 | 13 |
+| `cfg/requeue_live_minid_r7` | 8 | `minid` | rebalance, no TTL, Redis 7+ | **violated** | 472,834 | 14 |
+| `cfg/requeue_live_crash_r7` | 8 | `asis` | crash, trimming and TTL, Redis 7+ | no violation, **not exhaustive** (depth 29) | 2,014,043 | — |
+| `cfg/requeue_live_retry_r7` | 8 | `guard_retry` | rebalance, trimming and TTL, Redis 7+ | no violation, **not exhaustive** (depth 18) | 2,495,398 | — |
+| `cfg/requeue_live_retry_crash_r7` | 8 | `guard_retry` | crash, trimming and TTL, Redis 7+ | no violation, **not exhaustive** (depth 26) | 1,628,785 | — |
+| `cfg/requeue_owner_asis` | 9 | `asis` | owner | no violation, **not exhaustive** (depth 17) | 1,932,138 | — |
+| `cfg/requeue_owner_guard` | 9 | `guard` | owner | **violated** | 92,487 | 12 |
+| `cfg/requeue_owner_retry` | 9 | `guard_retry` | owner | no violation, **not exhaustive** (depth 18) | 3,198,780 | — |
+| `cfg/requeue_runner_asis` | 1, 2 | `asis` | runner | holds, exhaustive | 846,024 | — |
+| `cfg/requeue_runner_release` | 1, 2 | `release` | runner | **violated** (1) | 46,875 | 14 |
+| `cfg/requeue_runner_retry` | 1, 2 | `guard_retry` | runner | holds, exhaustive | 3,660,345 | — |
+| `cfg/requeue_stream_asis_r7` | 1, 2, 6 | `asis` | stream, Redis 7+ | no violation, **not exhaustive** (depth 30) | 4,139,906 | — |
+| `cfg/requeue_stream_retry_r7` | 1, 2, 6 | `guard_retry` | stream, Redis 7+ | no violation, **not exhaustive** (depth 36) | 61,608,283 | — |
+
+For a liveness run that was stopped, States is the graph size at the last
+periodic liveness check that finished without a violation. TLC checks
+liveness on the graph found so far, so a violation in that part would have
+been reported. The violations were reported at the first check after 90,000
+to 470,000 states. The larger liveness runs grow by millions of states, and
+each check then takes 5 to 30 minutes, so they were stopped after one to two
+hours with 1 to 3 workers each. The `requeue_stream_*` safety runs were
+stopped too: `requeue_stream_asis_r7` is a baseline, and
+`requeue_stream_retry_r7` checked 61 million states in 90 minutes with 3
+workers.
+
+The traces:
+
+- `requeue_live_asis_r7` is issue #416 on the rebalance path. `w1` looks
+  dead, so `DispatchJob(k1)` is routed to `w2`, which starts `k1`. `w1`
+  refreshes its keep-alive. `n2` sees `w1` active again, and
+  `w2.rebalance` stops `k1` and adds a start event for it. `MAXLEN` trims
+  that event before delivery. `jobMap[w2]` still lists `k1`, so the orphan
+  sweep skips it, and cleanup skips `w2`, which is alive. `k1` runs
+  nowhere for the rest of the behavior. `requeue_live_asis_r6` is the same
+  trace.
+- `requeue_live_ttl_r7` is the same trace with the TTL in place of the
+  trim: routing drops the rebalance start as stale. So `acktrim` does not
+  close the loss.
+- `requeue_runner_release` is B3 on the rebalance path. `w1` starts `k1`,
+  then looks dead. `w1.rebalance` on `n1` stops `k1`, removes it from
+  `jobMap[w1]` and adds `s2`, which is routed to `w2`'s stream. `w1`
+  refreshes its keep-alive. Before `w2` handles `s2`, the orphan sweep on
+  `n1` finds `k1` in no `jobMap` entry and adds `s3`, which is routed to
+  `w1`. `w1` and `w2` both start `k1`. So `release` turns the loss into a
+  double runner.
+- `requeue_owner_guard` is the refusal without a retry. `DispatchJob(k1)`
+  adds `s1` and its guard. `w1` looks dead, so `s1` is routed to `w2`,
+  which starts `k1`. The ack of `s1` has not reached `luaAckStart`, so the
+  guard is still in flight. `w1` returns, `w2.rebalance` meets the guard,
+  keeps `k1` and ends the pass. Then the ack deletes the guard. No trigger
+  follows, so `k1` stays on `w2` while `w1` owns it. On main the pass
+  moved the job at once.
+
+What the results mean:
+
+- The loss is real on both Redis versions. On the cleanup, close and
+  orphan paths, the orphan sweep recovers the job, as the issue expected.
+  On the rebalance path, nothing recovers it while the old worker is alive.
+- `guard_retry` is the only candidate that holds for all three properties
+  checked. Go implements it:
+  - `acktrim` needs Redis 8.2 and still loses a start to the TTL.
+  - `minid` still trims an undelivered entry while nothing is pending
+    (`requeue_live_minid_r7`, the `asis` trace).
+  - `release` recovers the job, but adds a B3 double runner.
+  - `guard` leaves a job on a worker that does not own it when the pass
+    meets the guard of the start that placed the job there.
+- The guard is in flight while its start event may still start the job,
+  so the orphan sweep and rebalance wait for it. Once the event is acked,
+  the job map lists the key. Once the event is lost, the guard no longer
+  blocks, and the sweep requeues the job. A requeue guard is written with a
+  TTL that has already passed, so only `in_flight` decides.
+- Rebalance checks the guard before it stops the job
+  (`luaRequeueInFlight`), so a refused pass does not stop and restart the
+  handler. If the guard appears between that check and `luaClaimRequeue`,
+  the job is restarted and the retry follows.
+- Recovery takes the orphan grace period plus one sweep period. In Go, a
+  start trimmed before delivery looks purged once the group delivers a
+  later entry (see the dispatch guard results above), so the sweep can
+  wait up to `pendingEventTTL` (2 minutes). A rebalance that meets such a
+  guard retries every `ackGracePeriod` for as long.
+- `in_flight` is false once an event is older than `pendingEventTTL`, so a
+  requeued start that waits longer on a worker stream can be requeued a
+  second time. This is the residual gap of the dispatch guard.
+- A client-side error after `luaClaimRequeue` ran on the server, such as a
+  timeout, makes rebalance restart the job locally while the start it
+  queued starts the job on the owner too: two runners. `poolStream.Add`
+  had the same risk before this change. The model has no client errors.
+- `close` and `cleanupWorker` still requeue without a guard, so B3 stays
+  open on those paths until ticket 6 of the roadmap.
+- Tests, on miniredis and on Redis 6.2 and 7.4:
+  - `TestLostRebalanceStartIsRecovered` replays the `requeue_live_asis_r7`
+    trace. It fails on main in two places (the `jobMap` entry and the
+    recovery). With `release` alone it fails on the orphan sweep's second
+    start.
+  - `TestRebalanceWaitsForUnackedStart` replays the `requeue_owner_guard`
+    trace. Without the check and the retry it fails twice: the pass stops
+    and restarts the job, and the job never reaches `w2`.
+  - `TestClaimRequeue`, `TestRebalanceReleaseAndRestart` and the
+    `claimRequeue` and `requeueInFlight` paths of
+    `TestDispatchGuardInFlight` cover the scripts.
 
 ## Worker event acks (`WorkerEventAck.tla`)
 

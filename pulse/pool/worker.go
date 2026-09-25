@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/CaliLuke/loom/clue/log"
@@ -60,6 +61,10 @@ type (
 
 		lock    sync.RWMutex
 		stopped bool
+
+		// rebalanceRetry is set while a retry of rebalance is pending
+		// (retryRebalance).
+		rebalanceRetry atomic.Bool
 	}
 
 	// Job is a job that can be added to a worker.
@@ -394,24 +399,6 @@ func (w *Worker) stopTrackedJob(key string) (bool, error) {
 	return true, nil
 }
 
-// restartJob restarts a job locally after its requeue failed. It does
-// nothing if the worker is stopped or already tracks the key again.
-func (w *Worker) restartJob(job *Job) error {
-	w.jobLock.Lock()
-	defer w.jobLock.Unlock()
-	if w.IsStopped() {
-		return fmt.Errorf("worker %q stopped", w.ID)
-	}
-	if _, ok := w.jobs.Load(job.Key); ok {
-		return nil
-	}
-	if err := w.handler.Start(job); err != nil {
-		return err
-	}
-	w.jobs.Store(job.Key, job)
-	return nil
-}
-
 // notify notifies the worker with the given payload.
 func (w *Worker) notify(_ context.Context, key string, payload []byte) error {
 	if w.IsStopped() {
@@ -465,45 +452,6 @@ func (w *Worker) keepAlive(ctx context.Context) {
 		case <-w.done:
 			w.logger.Debug("keepAlive: done")
 			return
-		}
-	}
-}
-
-// rebalance rebalances the jobs handled by the worker.
-func (w *Worker) rebalance(ctx context.Context, activeWorkers []string) {
-	w.logger.Debug("rebalance")
-	rebalanced := make(map[string]*Job)
-	w.jobs.Range(func(key, value any) bool {
-		job := value.(*Job)
-		wid := activeWorkers[w.node.h.Hash(job.Key, int64(len(activeWorkers)))]
-		if wid != w.ID {
-			rebalanced[job.Key] = job
-		}
-		return true
-	})
-	total := len(rebalanced)
-	if total == 0 {
-		w.logger.Debug("rebalance: no jobs to rebalance")
-		return
-	}
-	for key, job := range rebalanced {
-		stopped, err := w.stopTrackedJob(key)
-		if err != nil {
-			w.logger.Error(fmt.Errorf("rebalance: failed to stop job: %w", err), "job", key)
-			continue
-		}
-		if !stopped {
-			// Another transition (stop, eviction) already took the key.
-			continue
-		}
-		w.logger.Debug("stopped job", "job", key)
-		if _, err := w.node.poolStream.Add(ctx, evStartJob, marshalJob(job)); err != nil {
-			w.logger.Error(fmt.Errorf("rebalance: failed to requeue job: %w", err), "job", key)
-			// Restart the job locally and track it again so future
-			// close/shutdown can still requeue it.
-			if err := w.restartJob(job); err != nil {
-				w.logger.Error(fmt.Errorf("rebalance: failed to restart job: %w", err), "job", key)
-			}
 		}
 	}
 }

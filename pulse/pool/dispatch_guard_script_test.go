@@ -231,6 +231,28 @@ func TestDispatchGuardInFlight(t *testing.T) {
 			},
 		},
 		{
+			// A rebalance or orphan requeue replaces a guard only when its
+			// event is not in flight (issue #416).
+			name: "claimRequeue replacement",
+			clear: func(t *testing.T, node *Node, _ string) bool {
+				t.Helper()
+				queued, err := node.claimRequeue(t.Context(), &Job{Key: "k1"})
+				require.NoError(t, err)
+				return queued
+			},
+		},
+		{
+			// The read-only check rebalance runs before it stops a job
+			// agrees with claimRequeue.
+			name: "requeueInFlight check",
+			clear: func(t *testing.T, node *Node, _ string) bool {
+				t.Helper()
+				inFlight, err := node.requeueInFlight(t.Context(), "k1")
+				require.NoError(t, err)
+				return !inFlight
+			},
+		},
+		{
 			name: "dispatcher release",
 			clear: func(t *testing.T, node *Node, guard string) bool {
 				t.Helper()
