@@ -783,6 +783,13 @@ message AddResponse {
 }
 ```
 
+The messages generated for a method are named after it: `AddRequest`,
+`AddResponse`, `AddStreamingRequest`, `AddStreamItem` and `Add<Error>Error`.
+When a design type that a message of the service refers to has one of these
+names and different fields, the generated message takes the name followed by
+the first free number instead, such as `AddRequest2`, and the type keeps its
+name. A type with the same fields shares the message.
+
 Protocol buffer identifiers are ASCII only. Loom derives service, rpc, message,
 field, and `oneof` names from design names by treating every non-ASCII rune as a
 word separator: an `añadir` method becomes the `AAdir` rpc. ASCII service and

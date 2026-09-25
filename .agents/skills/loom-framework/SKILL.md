@@ -489,6 +489,16 @@ filter, and serialization rules belong here.
   wrapper that kept the identifier of the type would replace the type
   wherever else it appears, such as a recursive branch of a union or a field
   of the same named primitive.
+- Protocol buffer messages are identified by name, and the name scope hashes a
+  user type by its name, so a generated message and a design type with the
+  same name become one message. The top-level messages generated for a
+  method (`<Method>Request`, `<Method>Response`, the streaming request, stream
+  item and envelope, and `<Method><Error>Error`) take their names from
+  `endpointMessageName` (`grpc/codegen/protobuf_endpoint_names.go`), which
+  numbers the name when a design type that a message of the service declares
+  has it and a different message (`designMessageShapes`). A design type with
+  the same message still shares it, so designs without a conflict keep their
+  output.
 - A `struct:name:proto` name can give one message to several service types,
   such as customized copies of a type. `registerProtoMessage` keys messages by
   that name and rejects two uses with different fields. `nameProtoConverter`

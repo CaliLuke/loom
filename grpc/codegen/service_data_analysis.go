@@ -45,6 +45,7 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 		ClientInterfaceInit: fmt.Sprintf("%s.New%sClient", pkg, goName),
 		Scope:               scope,
 	}
+	sd.designMessages = designMessageShapes(irService.Endpoints)
 	collector := newMessageCollector(sd)
 	for _, endpointIR := range irService.Endpoints {
 		epCtx := ctx.WithMethod(gs.ServiceExpr.Method(endpointIR.Name))
@@ -219,11 +220,14 @@ func (c *messageCollector) collectErrorMessages(endpoint *transportir.Endpoint) 
 
 func prepareEndpointProtoMessages(endpoint *transportir.Endpoint, sd *ServiceData) {
 	useEnvelope := usesStreamEnvelope(endpoint)
-	endpoint.Request.ProtoMessage = makeProtoBufMessage(endpoint.Request.Message, protoBufify(endpoint.Name+"_request", true, true), sd)
+	name := func(suffix string, message *expr.AttributeExpr) string {
+		return sd.endpointMessageName(protoBufify(endpoint.Name+suffix, true, true), message)
+	}
+	endpoint.Request.ProtoMessage = makeProtoBufMessage(endpoint.Request.Message, name("_request", endpoint.Request.Message), sd)
 	if endpoint.Request.StreamingPayload.Type != expr.Empty {
-		streamName := protoBufify(endpoint.Name+"_streaming_request", true, true)
+		streamName := name("_streaming_request", endpoint.Request.StreamingMessage)
 		if useEnvelope {
-			streamName = protoBufify(endpoint.Name+"_stream_item", true, true)
+			streamName = name("_stream_item", endpoint.Request.StreamingMessage)
 		}
 		endpoint.Request.ProtoStreamingInput = makeProtoBufMessage(endpoint.Request.StreamingMessage, streamName, sd)
 	}
@@ -231,16 +235,16 @@ func prepareEndpointProtoMessages(endpoint *transportir.Endpoint, sd *ServiceDat
 		endpoint.Request.ProtoStreamEnvelope = makeProtoBufStreamEnvelope(
 			endpoint.Request.ProtoMessage,
 			endpoint.Request.ProtoStreamingInput,
-			protoBufify(endpoint.Name+"_streaming_request", true, true),
+			name("_streaming_request", nil),
 			sd,
 		)
 	}
-	endpoint.Response.ProtoMessage = makeProtoBufMessage(endpoint.Response.Message, protoBufify(endpoint.Name+"_response", true, true), sd)
+	endpoint.Response.ProtoMessage = makeProtoBufMessage(endpoint.Response.Message, name("_response", endpoint.Response.Message), sd)
 	for _, grpcErr := range endpoint.Errors {
 		if grpcErr.Type == expr.ErrorResult || !expr.IsObject(grpcErr.Attribute.Type) {
 			continue
 		}
-		grpcErr.Response.ProtoMessage = makeProtoBufMessage(grpcErr.Response.Message, protoBufify(endpoint.Name+"_"+grpcErr.Name+"_error", true, true), sd)
+		grpcErr.Response.ProtoMessage = makeProtoBufMessage(grpcErr.Response.Message, name("_"+grpcErr.Name+"_error", grpcErr.Response.Message), sd)
 		registerProtoMessage(sd, grpcErr.Response.ProtoMessage, endpoint.Name)
 	}
 	for _, message := range []*expr.AttributeExpr{
@@ -383,7 +387,7 @@ func registerProtoMessage(sd *ServiceData, att *expr.AttributeExpr, method strin
 	if !ok {
 		name = ut.Name()
 	}
-	shape := protoMessageShape{method: method, hash: protoMessageHash(ut)}
+	shape := protoMessageShape{method: method, hash: protoAttributeShape(ut.Attribute())}
 	other, ok := sd.protoMessages[name]
 	if !ok {
 		sd.protoMessages[name] = shape
@@ -400,15 +404,16 @@ func registerProtoMessage(sd *ServiceData, att *expr.AttributeExpr, method strin
 		other.method, method, sd.Service.Name, protoBufify(name, true, true)))
 }
 
-// protoMessageHash returns a hash of the fields of the message ut and of every
-// message reachable from it, including the numbers and requiredness of the
-// fields at every depth. The name of ut is left out, because messages are
-// registered by their protocol buffer name and ut may be the message of a
-// single method that a struct:name:proto name shares.
-func protoMessageHash(ut expr.UserType) string {
+// protoAttributeShape returns a hash of the fields of the message with the
+// attribute att and of every message reachable from it, including the numbers
+// and requiredness of the fields at every depth. The name of the message is
+// left out, because messages are registered by their protocol buffer name and
+// a user type may be the message of a single method that a struct:name:proto
+// name shares.
+func protoAttributeShape(att *expr.AttributeExpr) string {
 	var b strings.Builder
-	b.WriteString(expr.Hash(ut.Attribute().Type, false, false, false))
-	writeProtoFieldShapes(&b, ut.Attribute(), make(map[expr.UserType]struct{}))
+	b.WriteString(expr.Hash(att.Type, false, false, false))
+	writeProtoFieldShapes(&b, att, make(map[expr.UserType]struct{}))
 	return b.String()
 }
 

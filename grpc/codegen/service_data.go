@@ -78,6 +78,10 @@ type (
 		// anonymousMessages maps the names of the messages generated for
 		// anonymous objects to the paths of the objects.
 		anonymousMessages map[string]string
+		// designMessages maps the names of the design user types that the
+		// messages of the service declare as messages to the shapes of
+		// those messages, see endpointMessageName.
+		designMessages map[string]string
 		// protoConverters maps the names of the generated converters from
 		// service types to protocol buffer messages to the references of
 		// the service types they convert.
