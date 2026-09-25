@@ -1,7 +1,9 @@
 func Validate() (err error) {
-	switch string(target.Response.Kind()) {
-	case "timestamp":
-		actual, _ := target.Response.AsTimestamp()
-		err = loom.MergeErrors(err, loom.ValidateFormat("target.response.value", string(actual), loom.FormatDateTime))
+	if target.Response != nil {
+		switch string(target.Response.Kind()) {
+		case "timestamp":
+			actual, _ := target.Response.AsTimestamp()
+			err = loom.MergeErrors(err, loom.ValidateFormat("target.response.value", string(actual), loom.FormatDateTime))
+		}
 	}
 }

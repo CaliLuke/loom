@@ -268,13 +268,17 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	if isNullableAttribute(att) {
 		return validateNullableAttribute(ctx, att, put, target, context, req, view, seen)
 	}
+	if expr.IsUnion(att.Type) {
+		code := recurseValidationCode(att, put, ctx, req, false, view, target, context, seen).String()
+		return optionalUnionValidation(ctx, target, code, req)
+	}
 	ut, isUT := att.Type.(expr.UserType)
 	if !isUT {
 		code := recurseValidationCode(att, put, ctx, req, false, view, target, context, seen).String()
 		if code == "" {
 			return ""
 		}
-		if expr.IsArray(att.Type) || expr.IsMap(att.Type) || expr.IsUnion(att.Type) {
+		if expr.IsArray(att.Type) || expr.IsMap(att.Type) {
 			return code
 		}
 		if !ctx.Pointer && (req || (att.DefaultValue != nil && ctx.UseDefault)) {
@@ -308,9 +312,6 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		}
 		return cond + code + "\n}"
 	}
-	if expr.IsUnion(ut.Attribute().Type) {
-		return recurseValidationCode(att, put, ctx, req, false, view, target, context, seen).String()
-	}
 	if !hasValidations(ctx, ut) {
 		return ""
 	}
@@ -326,6 +327,23 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	}
 	fmt.Fprint(&buf, renderUserValidation(prefix+name, target))
 	return "if " + target + " != nil {\n\t" + buf.String() + "\n}"
+}
+
+// optionalUnionValidation returns the validation code of the union held by
+// target, run only when target is not nil if the union is an optional object
+// field. A sum type scope declares such a field as a pointer to the union
+// (NameScope.objectFieldTypeDef), and the union methods that the code calls
+// have value receivers. A required union field holds the union value, and a
+// protocol buffer oneof is an interface that the type switch of its
+// validation accepts when nil.
+func optionalUnionValidation(ctx *AttributeContext, target, code string, req bool) string {
+	if req || code == "" {
+		return code
+	}
+	if _, ok := ctx.Scope.(sumTypeUnionScope); !ok {
+		return code
+	}
+	return "if " + target + " != nil {\n" + indentCode(code) + "}"
 }
 
 func isNullableAttribute(att *expr.AttributeExpr) bool {
