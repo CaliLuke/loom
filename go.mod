@@ -38,7 +38,7 @@ require (
 	golang.org/x/net v0.59.0
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0
-	golang.org/x/tools v0.49.0
+	golang.org/x/tools v0.50.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260831171406-18b4a7587f8a
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
