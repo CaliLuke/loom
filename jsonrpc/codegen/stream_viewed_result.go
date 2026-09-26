@@ -78,11 +78,22 @@ func viewedStreamResultBodyInit(resultVar, view string, body *httpcodegen.TypeDa
 	var b strings.Builder
 	fmt.Fprintf(&b, "vres, err := %s.%s(%s, %s)\n", ed.ServicePkgName, viewed.Init.Name, resultVar, view)
 	b.WriteString("if err != nil {\n\treturn err\n}\n")
+	b.WriteString(viewedResultBodyInit("vres", bodies))
+	return b.String(), true
+}
+
+// viewedResultBodyInit renders the statements that declare body, the response
+// body of the viewed result in the variable vres, from bodies, the response
+// bodies of the result, one for each view. With one body, body is built with
+// its constructor. Otherwise body is built with the constructor of the body of
+// the view of vres, as the HTTP response encoders do; the empty view is the
+// default view.
+func viewedResultBodyInit(vres string, bodies []*httpcodegen.TypeData) string {
 	if len(bodies) == 1 {
-		fmt.Fprintf(&b, "body := %s(vres.Projected)", bodies[0].Init.Name)
-		return b.String(), true
+		return fmt.Sprintf("body := %s(%s.Projected)", bodies[0].Init.Name, vres)
 	}
-	b.WriteString("var body any\nswitch vres.View {\n")
+	var b strings.Builder
+	fmt.Fprintf(&b, "var body any\nswitch %s.View {\n", vres)
 	for _, vb := range bodies {
 		if vb.Init == nil {
 			continue
@@ -92,10 +103,10 @@ func viewedStreamResultBodyInit(resultVar, view string, body *httpcodegen.TypeDa
 		} else {
 			fmt.Fprintf(&b, "case %q:\n", vb.View)
 		}
-		fmt.Fprintf(&b, "\tbody = %s(vres.Projected)\n", vb.Init.Name)
+		fmt.Fprintf(&b, "\tbody = %s(%s.Projected)\n", vb.Init.Name, vres)
 	}
 	b.WriteString("}")
-	return b.String(), true
+	return b.String()
 }
 
 // viewedResponseBodies returns the response bodies of the response of ed that

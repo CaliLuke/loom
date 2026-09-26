@@ -541,9 +541,15 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 	success := e.Result.Responses[0]
 	if success != nil && len(success.ServerBody) > 0 && success.ServerBody[0].Init != nil {
 		g.Comment("Convert result to response body with proper JSON tags")
-		if e.Method.ViewedResult != nil {
-			g.Id("viewedRes").Op(":=").Id("res").Assert(codegen.TypeRef(e.Method.ViewedResult.FullRef))
-			g.Id("body").Op(":=").Id(success.ServerBody[0].Init.Name).Call(jen.Id("viewedRes").Dot("Projected"))
+		if viewed := e.Method.ViewedResult; viewed != nil {
+			// Render the view that the service returned, as the response
+			// encoder does, and name it in the loom-view header that the
+			// client reads when the design fixes no view.
+			g.Id("viewedRes").Op(":=").Id("res").Assert(codegen.TypeRef(viewed.FullRef))
+			if viewed.ViewName == "" {
+				g.Id("w").Dot("Header").Call().Dot("Set").Call(jen.Lit("loom-view"), jen.Id("viewedRes").Dot("View"))
+			}
+			g.Add(codegen.Expr(viewedResultBodyInit("viewedRes", success.ServerBody)))
 		} else {
 			g.Id("body").Op(":=").Id(success.ServerBody[0].Init.Name).Call(jen.Id("res").Assert(codegen.TypeRef(e.Result.Ref)))
 		}

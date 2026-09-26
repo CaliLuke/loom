@@ -618,6 +618,12 @@ filter, and serialization rules belong here.
   `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the
   called names from the functions that name them
   (`projectedResultInitHelperBaseName`, `projectionHelperBaseName`).
+- The JSON-RPC servers build the response body of a viewed result with the
+  constructor of the body of its view (`viewedResultBodyInit` in
+  `jsonrpc/codegen/stream_viewed_result.go`), as the HTTP response encoders
+  do. The unary HTTP handler renders the view that the endpoint returned and,
+  when the design fixes no view, names it in the `loom-view` header that the
+  client reads; the streams first project the result with `NewViewed<Type>`.
 - A projected type declares the field of a required union as a value and
   every other field as a pointer or a collection. The view conversions
   transform through an object of the attributes of the view
