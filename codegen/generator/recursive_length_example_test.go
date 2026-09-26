@@ -10,7 +10,6 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/internal/loomsource"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
 
@@ -21,16 +20,13 @@ import (
 // examples of the client CLIs stop at the type that is still being
 // generated.
 func TestRecursiveLengthValidatedExampleCompile(t *testing.T) {
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	source, err := loomsource.Resolve(repoRoot, filepath.Join(t.TempDir(), "loom-pinned"))
-	require.NoError(t, err)
+	source := loomModuleSource(t)
 	codegen.RunDSL(t, recursiveLengthValidatedDesign)
 	dir := t.TempDir()
 	goMod := fmt.Sprintf("module example.com/tree\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", source)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
-	_, err = Generate(dir, "gen", false)
+	_, err := Generate(dir, "gen", false)
 	require.NoError(t, err)
 	_, err = Generate(dir, "example", false)
 	require.NoError(t, err)

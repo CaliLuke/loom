@@ -13,7 +13,6 @@ import (
 
 	cg "github.com/CaliLuke/loom/codegen"
 	d "github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/internal/loomsource"
 )
 
 // TestNonASCIINamesGeneratedModuleBuilds runs the gen and example commands
@@ -74,10 +73,7 @@ func TestNonASCIINamesGeneratedModuleBuilds(t *testing.T) {
 			},
 		},
 	}
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	source, err := loomsource.Resolve(repoRoot, filepath.Join(t.TempDir(), "loom-pinned"))
-	require.NoError(t, err)
+	source := loomModuleSource(t)
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			dir := t.TempDir()

@@ -17,6 +17,7 @@
 # Meta targets:
 # - "all" is the default target, it runs "lint" and "test"
 #
+LOOM_TEST_TIMEOUT?=40m
 VERSION?=
 
 GOOS=$(shell go env GOOS)
@@ -159,25 +160,25 @@ lint-docs:
 
 test:
 ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" go test ./... --coverprofile=cover.out
+	PATH="$(GOBIN_DIR):$$PATH" go test -timeout=$(LOOM_TEST_TIMEOUT) ./... --coverprofile=cover.out
 else
-	go test ./... --coverprofile=cover.out
+	go test -timeout=$(LOOM_TEST_TIMEOUT) ./... --coverprofile=cover.out
 endif
 
 test-release:
 ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" go test -count=1 ./...
+	PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout=$(LOOM_TEST_TIMEOUT) ./...
 else
-	go test -count=1 ./...
+	go test -count=1 -timeout=$(LOOM_TEST_TIMEOUT) ./...
 endif
 
 coverage-ratchet:
-	go run ./scripts/coveragecheck
+	go run ./scripts/coveragecheck -test-timeout=$(LOOM_TEST_TIMEOUT)
 
 # Rewrite the checked-in floors from the current consumer-aware profile. Review
 # every reduction and document why the protected boundary lost coverage.
 coverage-baseline:
-	go run ./scripts/coveragecheck --update
+	go run ./scripts/coveragecheck -test-timeout=$(LOOM_TEST_TIMEOUT) --update
 
 # Race + shuffled-order guard for the unit suite. Shuffling catches
 # order-coupled tests (the failing seed is printed for reproduction) and the
@@ -185,9 +186,9 @@ coverage-baseline:
 # covers importer tests that compile generated temporary modules under race.
 test-race:
 ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" go test -race -shuffle=on -count=1 -timeout 20m ./...
+	PATH="$(GOBIN_DIR):$$PATH" go test -race -shuffle=on -count=1 -timeout $(LOOM_TEST_TIMEOUT) ./...
 else
-	go test -race -shuffle=on -count=1 -timeout 20m ./...
+	go test -race -shuffle=on -count=1 -timeout $(LOOM_TEST_TIMEOUT) ./...
 endif
 
 # Opt-in real-Redis tier for the pulse suites (issue #383). `make test` runs

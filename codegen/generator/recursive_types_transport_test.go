@@ -20,7 +20,6 @@ import (
 	exprtestdata "github.com/CaliLuke/loom/expr/testdata"
 	grpctestdata "github.com/CaliLuke/loom/grpc/codegen/testdata"
 	httptestdata "github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/CaliLuke/loom/internal/loomsource"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
 
@@ -95,10 +94,7 @@ func buildGeneratedModule(t *testing.T, modulePath string, dsl func()) string {
 		_, err := file.Render(dir)
 		require.NoError(t, err, file.Path)
 	}
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	source, err := loomsource.Resolve(repoRoot, filepath.Join(t.TempDir(), "loom-pinned"))
-	require.NoError(t, err)
+	source := loomModuleSource(t)
 	goMod := fmt.Sprintf("module %s\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, source)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 	_, err = testingx.RunCmd(dir, "go", "mod", "tidy")

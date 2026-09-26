@@ -12,7 +12,6 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
 	httptestdata "github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/CaliLuke/loom/internal/loomsource"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
 
@@ -99,7 +98,7 @@ func TestStructPkgPathEdgeCasesCompile(t *testing.T) {
 			},
 		},
 	}
-	source := structPkgPathLoomSource(t)
+	source := loomModuleSource(t)
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			codegen.RunDSL(t, c.DSL)
@@ -141,7 +140,7 @@ func TestStructPkgPathServicePackageRejected(t *testing.T) {
 				d.JSONRPC = true
 			}
 			codegen.RunDSL(t, d.DSL)
-			dir := writeStructPkgPathModule(t, structPkgPathLoomSource(t))
+			dir := writeStructPkgPathModule(t, loomModuleSource(t))
 			for _, cmd := range []string{"gen", "example"} {
 				_, err := Generate(dir, cmd, false)
 				require.Error(t, err, cmd)
@@ -149,17 +148,6 @@ func TestStructPkgPathServicePackageRejected(t *testing.T) {
 			}
 		})
 	}
-}
-
-// structPkgPathLoomSource returns the Loom module directory that generated
-// test modules replace github.com/CaliLuke/loom with.
-func structPkgPathLoomSource(t *testing.T) string {
-	t.Helper()
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	source, err := loomsource.Resolve(repoRoot, filepath.Join(t.TempDir(), "loom-pinned"))
-	require.NoError(t, err)
-	return source
 }
 
 // writeStructPkgPathModule returns a new directory holding the go.mod file

@@ -104,7 +104,7 @@ func TestStructPkgPathFrameworkImportNamesCompile(t *testing.T) {
 		},
 		{Name: "common"},
 	}
-	source := structPkgPathLoomSource(t)
+	source := loomModuleSource(t)
 	dirs := make(map[string]string, len(cases))
 	for _, c := range cases {
 		name, _, _ := strings.Cut(c.Name, "-")

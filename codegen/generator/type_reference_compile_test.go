@@ -12,7 +12,6 @@ import (
 	dsl "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/internal/loomsource"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
 
@@ -51,10 +50,7 @@ func compileAndVetDesign(t *testing.T, design func()) {
 		_, err := file.Render(dir)
 		require.NoError(t, err, file.Path)
 	}
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	source, err := loomsource.Resolve(repoRoot, filepath.Join(t.TempDir(), "loom-pinned"))
-	require.NoError(t, err)
+	source := loomModuleSource(t)
 	goMod := fmt.Sprintf("module example.com/unioncycle\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", source)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 	_, err = testingx.RunCmd(dir, "go", "mod", "tidy")

@@ -12,7 +12,6 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/internal/loomsource"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
 
@@ -38,10 +37,7 @@ func TestExampleTransportlessServiceCompile(t *testing.T) {
 		{Name: "jsonrpc-and-plain", Server: []string{"rpc", "plain"}, Served: []string{"rpc"}},
 		{Name: "all-and-plain", Server: []string{"web", "plain", "rpc", "store"}, Served: []string{"web", "rpc", "store"}},
 	}
-	repoRoot, err := loomsource.RepositoryRoot(".")
-	require.NoError(t, err)
-	source, err := loomsource.Resolve(repoRoot, filepath.Join(t.TempDir(), "loom-pinned"))
-	require.NoError(t, err)
+	source := loomModuleSource(t)
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			codegen.RunDSL(t, transportlessServiceDesign(c.Server))

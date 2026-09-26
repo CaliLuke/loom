@@ -75,3 +75,22 @@ func TestValidateConfigRejectsDuplicateBoundary(t *testing.T) {
 	err := validateConfig(config)
 	require.ErrorContains(t, err, `duplicate boundary "design"`)
 }
+
+func TestCoverageTestTimeout(t *testing.T) {
+	config := baselineConfig{CoverPackages: []string{"example.com/service"}, TestPackages: []string{"./service"}}
+	for _, tc := range []struct {
+		name, timeout string
+		want          []string
+	}{
+		{"default", "", []string{"test", "-count=1", "-covermode=count", "-coverpkg=example.com/service", "-coverprofile=profile.out", "./service"}},
+		{"extended", "40m", []string{"test", "-count=1", "-covermode=count", "-coverpkg=example.com/service", "-coverprofile=profile.out", "-timeout=40m", "./service"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, coverageTestArgs(config, "profile.out", tc.timeout))
+		})
+	}
+}
+
+func TestInvalidCoverageTimeout(t *testing.T) {
+	require.ErrorContains(t, run("missing.json", false, "invalid"), "parse -test-timeout")
+}

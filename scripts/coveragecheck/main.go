@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type (
@@ -48,20 +49,26 @@ type (
 func main() {
 	configPath := flag.String("config", "coverage/baselines.json", "path to the checked-in coverage baseline")
 	update := flag.Bool("update", false, "replace each baseline with the current measured coverage")
+	testTimeout := flag.String("test-timeout", "", "go test -timeout for the coverage run; empty keeps the go test default")
 	flag.Parse()
 
-	if err := run(*configPath, *update); err != nil {
+	if err := run(*configPath, *update, *testTimeout); err != nil {
 		fmt.Fprintln(os.Stderr, "coverage ratchet:", err)
 		os.Exit(1)
 	}
 }
 
-func run(configPath string, update bool) error {
+func run(configPath string, update bool, testTimeout string) error {
+	if testTimeout != "" {
+		if _, err := time.ParseDuration(testTimeout); err != nil {
+			return fmt.Errorf("parse -test-timeout: %w", err)
+		}
+	}
 	config, err := readConfig(configPath)
 	if err != nil {
 		return err
 	}
-	blocks, err := collectCoverage(config)
+	blocks, err := collectCoverage(config, testTimeout)
 	if err != nil {
 		return err
 	}
@@ -82,7 +89,7 @@ func run(configPath string, update bool) error {
 	return nil
 }
 
-func collectCoverage(config baselineConfig) (blocks map[string]profileBlock, returnErr error) {
+func collectCoverage(config baselineConfig, testTimeout string) (blocks map[string]profileBlock, returnErr error) {
 	profile, err := os.CreateTemp("", "loom-coverage-*.out")
 	if err != nil {
 		return nil, fmt.Errorf("create temporary coverage profile: %w", err)
@@ -97,16 +104,7 @@ func collectCoverage(config baselineConfig) (blocks map[string]profileBlock, ret
 		}
 	}()
 
-	args := make([]string, 0, 5+len(config.TestPackages))
-	args = append(args,
-		"test",
-		"-count=1",
-		"-covermode=count",
-		"-coverpkg="+strings.Join(config.CoverPackages, ","),
-		"-coverprofile="+profilePath,
-	)
-	args = append(args, config.TestPackages...)
-	command := exec.Command("go", args...)
+	command := exec.Command("go", coverageTestArgs(config, profilePath, testTimeout)...)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	if err := command.Run(); err != nil {
@@ -118,6 +116,24 @@ func collectCoverage(config baselineConfig) (blocks map[string]profileBlock, ret
 		return nil, fmt.Errorf("read coverage profile: %w", err)
 	}
 	return parseProfile(bytes.NewReader(profileData))
+}
+
+// coverageTestArgs returns the go command arguments that write the
+// consumer-aware profile of config to profilePath. A non-empty testTimeout
+// replaces the default go test timeout of each test binary.
+func coverageTestArgs(config baselineConfig, profilePath, testTimeout string) []string {
+	args := make([]string, 0, 6+len(config.TestPackages))
+	args = append(args,
+		"test",
+		"-count=1",
+		"-covermode=count",
+		"-coverpkg="+strings.Join(config.CoverPackages, ","),
+		"-coverprofile="+profilePath,
+	)
+	if testTimeout != "" {
+		args = append(args, "-timeout="+testTimeout)
+	}
+	return append(args, config.TestPackages...)
 }
 
 func measureBoundaries(config baselineConfig, blocks map[string]profileBlock) (map[string]measurement, error) {
