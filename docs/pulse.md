@@ -72,6 +72,14 @@ channels. `Stream.Destroy` is different: it deletes the shared stream and sink
 membership state. Reserve it for intentional teardown, tests, or coordinated
 retirement—not ordinary process shutdown.
 
+`Sink.RemoveStream` releases its local map subscription even when another
+instance still consumes that stream. On a membership-removal error, the local
+stream is retained; retry removal because Redis may have applied a write whose
+reply was lost. If membership removal succeeds but group cleanup fails, polling
+stops and the sink retains the map for cleanup. Retry `RemoveStream` to finish,
+or call `AddStream` to resume the stream with that same map. `Sink.Close` also
+closes maps retained for pending cleanup.
+
 ## Worker Pool Shutdown
 
 Every non-client pool node returned by `pool.AddNode` must end through exactly

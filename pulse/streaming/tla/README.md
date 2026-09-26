@@ -87,3 +87,29 @@ concurrent `RemoveStream` sees it and keeps the group. When the group
 creation, the consumer creation or the keep-alive update fails, `NewSink`
 removes the consumer from the map again and keeps the group, as the rollback
 of `AddStream` does.
+
+## Per-stream map ownership (#518)
+
+`SinkMapOwnership.tla` models one sink's local stream, its map handle and open
+subscription count, and its registered consumer. Removal has separate map and
+group steps. Map failures include lost replies; group failures leave cleanup
+pending. Add may resume a pending removal. The model checks ownership and
+retryability; `SinkAddStream.tla` separately checks shared group protection.
+The old finish path models the branch where another consumer remains, keeping
+the old map until AddStream overwrites it. The no-consumer branch also leaked
+by dropping the handle without closing it; real-socket subscription tests cover
+both branches.
+
+Use the TLC command above with `SinkMapOwnership.tla`:
+
+| Configuration | Result |
+| --- | --- |
+| `cfg/map_asis.cfg` | `Retryable` fails in 3 states: local removal precedes a failed Redis map write, and another RemoveStream cannot find the stream. |
+| `cfg/map_asis_leak.cfg` | `NoLostHandle` fails in 4 states: re-add joins a second map and overwrites the first handle. |
+| `cfg/map_owned.cfg` | Both invariants pass, 8 distinct states. Failed cleanup keeps its handle, re-add reuses it, and successful cleanup closes it. |
+
+A lost map reply can leave local polling temporarily out of sync with Redis
+membership; the caller must retry the failed removal. The model does not claim
+a distributed transaction across these commands. Tests inject errors before and
+after both writes and check retry, re-add, failed re-add, final group state, and
+actual PUBSUB subscription counts. Sink.Close also releases pending maps.

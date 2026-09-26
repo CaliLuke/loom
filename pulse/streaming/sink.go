@@ -119,7 +119,8 @@ type (
 		// consumersMap are the replicated maps used to track sink
 		// consumers.  Each map key is the sink name and the value is a list
 		// of consumer names.  consumersMap is indexed by stream name.
-		// consumer names are unique for each in-process sink instance.
+		// consumer names are unique for each in-process sink instance. Maps
+		// also retain ownership of group cleanup after failed RemoveStream calls.
 		consumersMap map[string]*rmap.Map
 		// consumersKeepAliveMap records consumer keep-alives for this
 		// sink (i.e. for all in-process instances of the sink).
@@ -310,21 +311,30 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 		startID = addStreamOptions.LastEventID
 	}
 
-	cm, err := rmap.Join(ctx, consumersMapName(stream), stream.rdb, consumersMapOptions(stream, stream.logger)...)
-	if err != nil {
-		return fmt.Errorf("failed to join consumer replicated map for stream %s: %w", stream.Name, err)
+	cm := s.consumersMap[stream.Name]
+	joined := cm == nil
+	if joined {
+		var err error
+		cm, err = rmap.Join(ctx, consumersMapName(stream), stream.rdb, consumersMapOptions(stream, stream.logger)...)
+		if err != nil {
+			return fmt.Errorf("failed to join consumer replicated map for stream %s: %w", stream.Name, err)
+		}
 	}
 	// The consumer goes to the map before the group is created, so a
 	// concurrent RemoveStream of another instance of the sink sees it and
 	// keeps the group (tla/SinkAddStream.tla).
 	if _, err := cm.AppendValues(ctx, s.Name, s.consumer); err != nil {
-		cm.Close()
+		if joined {
+			cm.Close()
+		}
 		return fmt.Errorf("failed to append consumer %s to replicated map for stream %s: %w", s.consumer, stream.Name, err)
 	}
 	if err := stream.createGroup(ctx, s.Name, startID); err != nil {
 		err = fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", s.Name, stream.Name, err)
 		err = rollbackConsumer(ctx, cm, stream, s.Name, s.consumer, err)
-		cm.Close()
+		if joined {
+			cm.Close()
+		}
 		return err
 	}
 	s.streams = append(s.streams, stream)
@@ -342,20 +352,26 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 // RemoveStream removes the stream from the sink, it is idempotent. It removes
 // the sink consumer from the replicated consumers map of the stream and, when
 // no consumer remains, destroys the consumer group. The group is kept if
-// another instance of the sink added the stream in the meantime.
+// another instance of the sink added the stream in the meantime. If map
+// removal fails, the local stream is retained. If group cleanup fails after
+// deregistration, polling stops but cleanup remains owned: retry RemoveStream
+// to finish, or AddStream to resume using the stream.
 func (s *Sink) RemoveStream(ctx context.Context, stream *Stream) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	found := false
+	cm := s.consumersMap[stream.Name]
+	if cm == nil {
+		return nil
+	}
+	removed, err := s.removeStreamConsumer(ctx, stream)
+	if !removed {
+		return err
+	}
 	for i, st := range s.streams {
-		if st == stream {
+		if st.Name == stream.Name {
 			s.streams = append(s.streams[:i], s.streams[i+1:]...)
-			found = true
 			break
 		}
-	}
-	if !found {
-		return nil
 	}
 	s.streamCursors = make([]string, len(s.streams)*2)
 	for i, stream := range s.streams {
@@ -363,9 +379,13 @@ func (s *Sink) RemoveStream(ctx context.Context, stream *Stream) error {
 		s.streamCursors[len(s.streams)+i] = ">"
 	}
 	s.cancelActiveRead()
-	if err := s.removeStreamConsumer(ctx, stream); err != nil {
+	if err != nil {
+		// Keep the map owned so RemoveStream can retry group cleanup,
+		// AddStream can reuse it, and Close can always release it.
 		return err
 	}
+	cm.Close()
+	delete(s.consumersMap, stream.Name)
 	s.logger.Info("removed", "stream", stream.Name)
 	return nil
 }

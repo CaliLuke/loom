@@ -104,20 +104,18 @@ func (s *Sink) deleteStaleConsumers(ctx context.Context) {
 	}
 }
 
-// removeStreamConsumer removes the stream consumer from the sink. When no
-// consumer remains in the consumers map, it destroys the consumer group unless
-// another instance of the sink added the stream in the meantime.
-func (s *Sink) removeStreamConsumer(ctx context.Context, stream *Stream) error {
+// removeStreamConsumer removes the stream consumer from the sink. The boolean
+// reports confirmed deregistration, even when subsequent group cleanup fails.
+// The caller owns the map until cleanup succeeds or the sink closes.
+func (s *Sink) removeStreamConsumer(ctx context.Context, stream *Stream) (bool, error) {
 	remains, _, err := s.consumersMap[stream.Name].RemoveValues(ctx, s.Name, s.consumer)
 	if err != nil {
-		return fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", s.consumer, stream.Name, err)
+		return false, fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", s.consumer, stream.Name, err)
 	}
 	if len(remains) == 0 {
-		if err := s.deleteConsumerGroup(ctx, stream); err != nil {
-			return err
-		}
+		return true, s.deleteConsumerGroup(ctx, stream)
 	}
-	return nil
+	return true, nil
 }
 
 // newConsumer creates a new consumer of the sink for stream and registers it
@@ -408,7 +406,6 @@ func (s *Sink) deleteConsumerGroup(ctx context.Context, stream *Stream) error {
 	if destroyed == 0 {
 		s.logger.Debug("consumer group in use by another instance or missing, not destroyed", "stream", stream.Name)
 	}
-	delete(s.consumersMap, stream.Name)
 	return nil
 }
 
