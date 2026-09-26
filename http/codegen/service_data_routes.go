@@ -25,7 +25,6 @@ func (sds *ServicesData) buildEndpointRoutes(endpointIR *transportir.Endpoint, m
 func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, sd *ServiceData, path string, pathCount int) *InitData {
 	params := expr.ExtractHTTPWildcards(path)
 	initArgs := make([]*InitArgData, len(params))
-	pathParamsObj := pathParametersObject(endpointIR.Request.PathParams)
 	suffix := ""
 	if pathCount > 0 {
 		suffix = strconv.Itoa(pathCount + 1)
@@ -66,7 +65,7 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 			},
 		}
 	}
-	code := renderPathInitCode(initArgs, pathParamsObj, expr.HTTPWildcardRegex.ReplaceAllString(path, "/%v"))
+	code := renderPathInitCode(initArgs, path)
 	return &InitData{
 		Name:           name,
 		Description:    fmt.Sprintf("%s returns the URL path to the %s service %s HTTP endpoint. ", name, svc.Name, method.Name),
@@ -131,8 +130,7 @@ func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint
 		svc.Name,
 		method.Name,
 		args,
-		routes[0].PathInit,
-		routes[0].Verb,
+		routes[0],
 		endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE,
 		requestStruct,
 	)
@@ -161,15 +159,4 @@ func payloadPrimitivePointerByName(payload *expr.AttributeExpr, name string) boo
 		return false
 	}
 	return payload.IsPrimitivePointer(name, true)
-}
-
-func pathParametersObject(params []*transportir.Parameter) *expr.Object {
-	object := make(expr.Object, 0, len(params))
-	for _, param := range params {
-		object = append(object, &expr.NamedAttributeExpr{
-			Name:      param.Name,
-			Attribute: param.Attribute,
-		})
-	}
-	return &object
 }

@@ -383,6 +383,14 @@ filter, and serialization rules belong here.
   observation, and commit-aware failure routing. File and raw-body branches
   also delegate writes and cleanup. Generated code retains typed result and
   stream adapters.
+- Generated HTTP path builders return escaped paths (`renderPathInitCode` in
+  `http/codegen/paths.go`). They escape route literals at generation time and
+  string-like values at run time with `http.EscapePathSegment`, or
+  `http.EscapePathRemainder` for a catch-all value. Each value is formatted by
+  the type of its own param. Clients build the request URL with
+  `http.RequestURL`, which keeps the escaping in `URL.RawPath`; a route whose
+  builder returns an unescaped literal keeps `url.URL.Path`. The muxer routes
+  on the raw path and unescapes each captured value once.
 - Generated wildcard static-file routes delegate target resolution to
   `http.NewStaticFileServer`. Directory targets map the captured request suffix
   below the target, while file targets serve the same file for every matching

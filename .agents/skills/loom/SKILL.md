@@ -397,7 +397,11 @@ completion shapes are explicit generation limitations.
 - String-backed path, query, header, and cookie fields with
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
 - Let generated clients and routers handle path escaping exactly once. Do not
-  add app-local `url.PathEscape` or `url.PathUnescape` layers.
+  add app-local `url.PathEscape` or `url.PathUnescape` layers. Generated path
+  builders return escaped paths: a value such as `a/b` stays in its segment,
+  and a catch-all value keeps its `/` separators. Build a URL from a path
+  builder result with `loomhttp.RequestURL`, not `url.URL{Path: ...}`, which
+  escapes it twice.
 - Percent-encode reserved query delimiters, such as `;`, in manually built
   URLs. Generated clients encode them. Generated servers return a
   `decode_payload` response with status 400 for malformed query strings.

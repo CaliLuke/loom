@@ -14,7 +14,10 @@ func (c *Client) BuildMethodPathObjectRequest(ctx context.Context, v any) (*http
 			id = *p.ID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathObjectServicePathObjectPath(id)}
+	u, err := loomhttp.RequestURL(c.scheme, c.host, MethodPathObjectServicePathObjectPath(id))
+	if err != nil {
+		return nil, loomhttp.ErrInvalidURL("ServicePathObject", "MethodPathObject", u.String(), err)
+	}
 	req, err := http.NewRequest("PUT", u.String(), nil)
 	if err != nil {
 		return nil, loomhttp.ErrInvalidURL("ServicePathObject", "MethodPathObject", u.String(), err)

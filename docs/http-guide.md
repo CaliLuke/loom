@@ -152,6 +152,27 @@ Method("serve_files", func() {
 })
 ```
 
+### Path Value Escaping
+
+The generated path builders, such as `ShowItemsPath`, return escaped URL paths.
+They escape each path value as one segment, so a value such as `a/b` stays in
+its segment as `a%2Fb`. They also escape the dots of a `.` or `..` value. A
+catch-all value keeps its `/` separators, and each of its segments is escaped.
+Numbers and booleans are not escaped. Generated clients send the escaped path
+unchanged, and the router returned by `loomhttp.NewMuxer` decodes each value.
+Services receive the original values. Do not add `url.PathEscape` or
+`url.PathUnescape` calls in the application.
+
+A path builder result is already escaped. Do not set it as `url.URL.Path`,
+which escapes it again, so `a b` becomes `a%2520b`. Build the URL with
+`loomhttp.RequestURL(scheme, host, path)`, or set the result as `RawPath` and
+its unescaped form as `Path`.
+
+When a value needs an escape such as an escaped `/`, the router matches the
+route against the escaped path. A route literal that needs escaping, such as
+`my files`, then does not match. Use route literals that need no escaping, such
+as ASCII letters, digits, and `-`.
+
 ### Service Relationships
 
 Use `Parent` to establish service hierarchies:

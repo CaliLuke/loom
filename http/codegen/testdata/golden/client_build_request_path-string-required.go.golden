@@ -12,7 +12,10 @@ func (c *Client) BuildMethodPathStringValidateRequest(ctx context.Context, v any
 		}
 		p2 = p.P
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringValidateServicePathStringValidatePath(p2)}
+	u, err := loomhttp.RequestURL(c.scheme, c.host, MethodPathStringValidateServicePathStringValidatePath(p2))
+	if err != nil {
+		return nil, loomhttp.ErrInvalidURL("ServicePathStringValidate", "MethodPathStringValidate", u.String(), err)
+	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, loomhttp.ErrInvalidURL("ServicePathStringValidate", "MethodPathStringValidate", u.String(), err)

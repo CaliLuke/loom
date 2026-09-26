@@ -38,11 +38,11 @@ func TestMappedParamsRouteElementNames(t *testing.T) {
 	}
 	for _, want := range []string{
 		"\t\tkey = p.Key\n\t\tid = p.ID\n",
-		"Path: ShowMappedparamsPath(key, id)}",
+		"u, err := loomhttp.RequestURL(c.scheme, c.host, ShowMappedparamsPath(key, id))\n",
 	} {
 		assert.Contains(t, client, want)
 	}
-	assert.Contains(t, paths, "func ShowMappedparamsPath(key string, id int) string {\n\treturn fmt.Sprintf(\"/items/%v/%v\", key, id)\n}\n")
+	assert.Contains(t, paths, "func ShowMappedparamsPath(key string, id int) string {\n\treturn fmt.Sprintf(\"/items/%v/%v\", loomhttp.EscapePathSegment(key), id)\n}\n")
 
 	doc := parseOpenAPIV3Document(t, renderOpenAPIJSON(t, OpenAPIFiles, root))
 	item := doc.Paths.PathItems.GetOrZero("/items/{k}/{id}")

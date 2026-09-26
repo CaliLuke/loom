@@ -14,7 +14,10 @@ func (c *Client) BuildMethodPathStringRequest(ctx context.Context, v any) (*http
 			p2 = *p.P
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MethodPathStringServicePathStringPath(p2)}
+	u, err := loomhttp.RequestURL(c.scheme, c.host, MethodPathStringServicePathStringPath(p2))
+	if err != nil {
+		return nil, loomhttp.ErrInvalidURL("ServicePathString", "MethodPathString", u.String(), err)
+	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, loomhttp.ErrInvalidURL("ServicePathString", "MethodPathString", u.String(), err)

@@ -326,52 +326,6 @@ func renderServerSSESendWithContextBody(ed *EndpointData) string {
 	return b.String()
 }
 
-func renderPathInitCode(args []*InitArgData, pathParams *expr.Object, pathFormat string) string {
-	var b sourceBuilder
-	if len(args) > 0 {
-		for i, arg := range args {
-			typ := (*pathParams)[i].Attribute.Type
-			if typ.Name() == "array" {
-				b.Addf("\t%s := make([]string, len(%s))\n", arg.Locals.Slice, arg.VarName)
-				b.Addf("\tfor i, v := range %s {\n", arg.VarName)
-				b.Addf("\t\t%s[i] = %s\n", arg.Locals.Slice, renderPathSliceConversion(expr.AsArray(typ).ElemType.Type))
-				b.Add("\t}\n")
-			}
-		}
-		b.Add("\treturn " + renderJen(jen.Qual("fmt", "Sprintf")) + "(" + renderJen(jen.Lit(pathFormat)))
-		for i, arg := range args {
-			typ := (*pathParams)[i].Attribute.Type
-			b.Add(", ")
-			switch {
-			case typ.Name() == "array":
-				b.Add("strings.Join(" + arg.Locals.Slice + ", \",\")")
-			case expr.IsAny(typ):
-				b.Add("loom.JSONValueString(" + arg.VarName + ")")
-			default:
-				b.Add(arg.VarName)
-			}
-		}
-		b.Add(")\n")
-		return b.String()
-	}
-	return "\treturn " + renderJen(jen.Lit(pathFormat)) + "\n"
-}
-
-func renderPathSliceConversion(dt expr.DataType) string {
-	switch dt.Name() {
-	case "string":
-		return "v"
-	case "bytes":
-		return "string(v)"
-	default:
-		converted := renderQuerySliceConversion(dt)
-		if strings.HasPrefix(converted, "url.QueryEscape(") {
-			return strings.TrimSuffix(strings.TrimPrefix(converted, "url.QueryEscape("), ")")
-		}
-		return converted
-	}
-}
-
 func renderQuerySliceConversion(dt expr.DataType) string {
 	switch dt.Name() {
 	case "string":
@@ -399,12 +353,12 @@ func renderQuerySliceConversion(dt expr.DataType) string {
 	}
 }
 
-func renderRequestInitCode(payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, pathInit *InitData, verb string, isWebSocket bool, requestStruct string) string {
+func renderRequestInitCode(payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, route *RouteData, isWebSocket bool, requestStruct string) string {
 	var b sourceBuilder
 	renderRequestInitVars(&b, args, requestStruct)
 	renderRequestPayloadSetup(&b, payloadRef, hasFields, serviceName, endpointName, args, requestStruct)
-	renderRequestURLSetup(&b, pathInit, args, isWebSocket)
-	renderRequestCreation(&b, serviceName, endpointName, requestStruct, verb)
+	renderRequestURLSetup(&b, serviceName, endpointName, route, args, isWebSocket)
+	renderRequestCreation(&b, serviceName, endpointName, requestStruct, route.Verb)
 	renderRequestContextBinding(&b)
 	renderRequestReturn(&b)
 	return b.String()
@@ -423,14 +377,29 @@ func renderRequestPayloadSetup(b *sourceBuilder, payloadRef string, hasFields bo
 	b.Add("\tbody = rd.Body\n")
 }
 
-func renderRequestURLSetup(b *sourceBuilder, pathInit *InitData, args []*InitArgData, isWebSocket bool) {
+// renderRequestURLSetup writes the statements that declare the URL u of the
+// request to the route. The path builder of a route with wildcards, or with
+// literal parts that need escaping, returns an escaped path, which
+// loomhttp.RequestURL keeps so that an escaped "/" stays inside its segment.
+func renderRequestURLSetup(b *sourceBuilder, serviceName, endpointName string, route *RouteData, args []*InitArgData, isWebSocket bool) {
 	renderRequestScheme(b, isWebSocket)
-	renderRequestURLPrefix(b, isWebSocket)
-	b.Addf("%s(", pathInit.Name)
-	for _, arg := range args {
-		b.Addf("%s, ", arg.Ref)
+	scheme := "c.scheme"
+	if isWebSocket {
+		scheme = "scheme"
 	}
-	b.Add(")}\n")
+	call := route.PathInit.Name + "("
+	for _, arg := range args {
+		call += arg.Ref + ", "
+	}
+	call += ")"
+	if len(route.PathInit.ClientArgs) == 0 && escapeRouteLiteral(route.Path) == route.Path {
+		b.Addf("\tu := &url.URL{Scheme: %s, Host: c.host, Path: %s}\n", scheme, call)
+		return
+	}
+	b.Addf("\tu, err := loomhttp.RequestURL(%s, c.host, %s)\n", scheme, call)
+	b.Add("\tif err != nil {\n")
+	b.Addf("\t\treturn nil, loomhttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
+	b.Add("\t}\n")
 }
 
 func renderRequestScheme(b *sourceBuilder, isWebSocket bool) {
@@ -442,14 +411,6 @@ func renderRequestScheme(b *sourceBuilder, isWebSocket bool) {
 	b.Add("\tcase \"http\":\n\t\tscheme = \"ws\"\n")
 	b.Add("\tcase \"https\":\n\t\tscheme = \"wss\"\n")
 	b.Add("\t}\n")
-}
-
-func renderRequestURLPrefix(b *sourceBuilder, isWebSocket bool) {
-	if isWebSocket {
-		b.Add("\tu := &url.URL{Scheme: scheme, Host: c.host, Path: ")
-		return
-	}
-	b.Add("\tu := &url.URL{Scheme: c.scheme, Host: c.host, Path: ")
 }
 
 func renderRequestCreation(b *sourceBuilder, serviceName, endpointName, requestStruct, verb string) {

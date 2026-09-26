@@ -11,7 +11,7 @@ import (
 func PathFiles(data *httpcodegen.ServicesData) []*codegen.File {
 	res := httpcodegen.PathFiles(data)
 	for _, f := range res {
-		// The path files import standard library packages only.
+		// The path files import no generated packages.
 		updateTitle(f)
 		f.Path = jsonrpcTransportPath(f.Path)
 	}
