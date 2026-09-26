@@ -1561,6 +1561,13 @@ block use `name`. Validation errors, including those of HTTP and JSON-RPC
 bodies, name the attribute and not the wire element, as they do for fields
 renamed with `struct:tag:json`.
 
+A `struct:tag:json` or `struct:tag:json:name` of `"-"` omits a field from
+JSON. An HTTP or JSON-RPC body cannot hold such a field when it is optional,
+that is not required or given a default value, because the generated decoders
+track the presence of optional fields. The design is rejected; remove the tag,
+or leave the attribute out of the body with an explicit `Body` or map it to a
+header, param or cookie.
+
 ### Response Headers
 
 Declare response headers inside a `Response` block. The mapped attribute comes
