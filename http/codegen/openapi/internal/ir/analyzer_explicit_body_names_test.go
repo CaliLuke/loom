@@ -1,6 +1,8 @@
 package ir
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -131,6 +134,131 @@ func TestBuildBodyTypesKeepsInlineBodyNameAndReuse(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestBuildBodyTypesReusesTypeOfDeclaredBody checks that a Body declared with
+// the result or error type of the method reuses the component of that type.
+// The body wraps the type in a user type of its own, whose component must get
+// the fingerprint of the type it aliases whether that type is a result type or
+// a plain type.
+func TestBuildBodyTypesReusesTypeOfDeclaredBody(t *testing.T) {
+	attributes := func() {
+		dsl.Attribute("a", dsl.String)
+		dsl.Attribute("b", dsl.String)
+		dsl.Required("a")
+	}
+	cases := []struct {
+		name     string
+		design   func(newType declaredBodyTypeFunc) func()
+		status   int
+		wantName string
+	}{
+		{
+			name: "result",
+			design: func(newType declaredBodyTypeFunc) func() {
+				return func() {
+					rt := newType("RT", attributes)
+					declaredBodyService(func() { dsl.Result(rt) }, dsl.StatusOK, func() { dsl.Body(rt) })
+				}
+			},
+			status:   200,
+			wantName: "RT",
+		},
+		{
+			name: "result with type name",
+			design: func(newType declaredBodyTypeFunc) func() {
+				return func() {
+					rt := newType("RT", func() {
+						dsl.Meta("openapi:typename", "Named")
+						attributes()
+					})
+					declaredBodyService(func() { dsl.Result(rt) }, dsl.StatusOK, func() { dsl.Body(rt) })
+				}
+			},
+			status:   200,
+			wantName: "Named",
+		},
+		{
+			name: "nested types",
+			design: func(newType declaredBodyTypeFunc) func() {
+				return func() {
+					rt := newType("RT", attributes)
+					wrap := newType("Wrap", func() {
+						dsl.Attribute("rt", rt)
+						dsl.Attribute("rts", dsl.ArrayOf(rt))
+						dsl.Attribute("byName", dsl.MapOf(dsl.String, rt))
+					})
+					declaredBodyService(func() { dsl.Result(wrap) }, dsl.StatusOK, func() { dsl.Body(wrap) })
+				}
+			},
+			status:   200,
+			wantName: "Wrap",
+		},
+		{
+			name: "error",
+			design: func(newType declaredBodyTypeFunc) func() {
+				return func() {
+					rt := newType("RT", attributes)
+					declaredBodyService(func() { dsl.Error("bad", rt) }, "bad", func() { dsl.Body(rt) })
+				}
+			},
+			status:   400,
+			wantName: "RT",
+		},
+	}
+	kinds := []struct {
+		name    string
+		newType declaredBodyTypeFunc
+	}{
+		{
+			name: "type",
+			newType: func(name string, fn func()) expr.UserType {
+				return dsl.Type(name, fn)
+			},
+		},
+		{
+			name: "result type",
+			newType: func(name string, fn func()) expr.UserType {
+				return dsl.ResultType("application/vnd."+strings.ToLower(name), name, fn)
+			},
+		},
+	}
+	for _, tc := range cases {
+		for _, kind := range kinds {
+			t.Run(fmt.Sprintf("%s/%s", tc.name, kind.name), func(t *testing.T) {
+				root := codegen.RunDSL(t, tc.design(kind.newType))
+				var bodies *BodyTypes
+				require.NotPanics(t, func() {
+					bodies = BuildBodyTypes(root.API, root.Types, root.ResultTypes)
+				})
+				require.NotNil(t, bodies)
+				responses := bodies.Services["Svc"]["do"].ResponseBodies[tc.status]
+				require.Len(t, responses, 1)
+				assert.Equal(t, toRef(tc.wantName), responses[0].Ref)
+				for name := range bodies.Components {
+					assert.False(t, strings.HasPrefix(name, tc.wantName+"_"), "duplicate component %q", name)
+				}
+			})
+		}
+	}
+}
+
+// declaredBodyTypeFunc declares a user type with the given name and DSL.
+type declaredBodyTypeFunc func(name string, fn func()) expr.UserType
+
+// declaredBodyService declares the method "do" of the service "Svc" with the
+// given method DSL and an HTTP response with the given status or error name
+// and response DSL.
+func declaredBodyService(method func(), status any, response func()) {
+	dsl.Service("Svc", func() {
+		dsl.Method("do", func() {
+			method()
+			dsl.HTTP(func() {
+				dsl.POST("/do")
+				dsl.Response(status, response)
+			})
+		})
+	})
 }
 
 // implicitResultBodyDSL returns ExplicitBodyUserResultObjectDSL with the

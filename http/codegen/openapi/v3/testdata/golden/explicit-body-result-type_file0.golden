@@ -1,0 +1,228 @@
+{
+  "components": {
+    "schemas": {
+      "Item": {
+        "example": {
+          "id": "Voluptatem quidem et.",
+          "name": "Aut quasi quasi est voluptatibus possimus blanditiis."
+        },
+        "properties": {
+          "id": {
+            "example": "Vero ex sed impedit at maiores et.",
+            "type": "string"
+          },
+          "name": {
+            "example": "Ab laborum cumque dolorum.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "ItemCollection": {
+        "example": [
+          {
+            "id": "Voluptatem eius nemo eveniet dolores tempora.",
+            "name": "Eos laudantium."
+          },
+          {
+            "id": "Voluptatem eius nemo eveniet dolores tempora.",
+            "name": "Eos laudantium."
+          },
+          {
+            "id": "Voluptatem eius nemo eveniet dolores tempora.",
+            "name": "Eos laudantium."
+          },
+          {
+            "id": "Voluptatem eius nemo eveniet dolores tempora.",
+            "name": "Eos laudantium."
+          }
+        ],
+        "items": {
+          "$ref": "#/components/schemas/Item"
+        },
+        "type": "array"
+      },
+      "Listing": {
+        "example": {
+          "first": {
+            "id": "Delectus facere veniam omnis itaque.",
+            "name": "Consequatur voluptatum."
+          },
+          "items": [
+            {
+              "id": "Delectus facere veniam omnis itaque.",
+              "name": "Consequatur voluptatum."
+            },
+            {
+              "id": "Delectus facere veniam omnis itaque.",
+              "name": "Consequatur voluptatum."
+            },
+            {
+              "id": "Delectus facere veniam omnis itaque.",
+              "name": "Consequatur voluptatum."
+            }
+          ],
+          "next": "Facere est perspiciatis."
+        },
+        "properties": {
+          "first": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "items": {
+            "$ref": "#/components/schemas/ItemCollection"
+          },
+          "next": {
+            "example": "Explicabo dolorum sed culpa voluptate distinctio.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "first",
+          "items"
+        ],
+        "type": "object"
+      },
+      "Problem": {
+        "example": {
+          "code": "Numquam aut exercitationem.",
+          "detail": "Aut iste qui et molestiae."
+        },
+        "properties": {
+          "code": {
+            "example": "Quia at.",
+            "type": "string"
+          },
+          "detail": {
+            "example": "Quia alias illo aliquid.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/listings": {
+      "get": {
+        "operationId": "service_explicit_body_result_type.method_implicit_body_result_type",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "first": {
+                    "id": "Atque ut delectus nam ullam quia numquam.",
+                    "name": "Dicta eum beatae tenetur eveniet aut illo."
+                  },
+                  "items": [
+                    {
+                      "id": "Atque ut delectus nam ullam quia numquam.",
+                      "name": "Dicta eum beatae tenetur eveniet aut illo."
+                    },
+                    {
+                      "id": "Atque ut delectus nam ullam quia numquam.",
+                      "name": "Dicta eum beatae tenetur eveniet aut illo."
+                    },
+                    {
+                      "id": "Atque ut delectus nam ullam quia numquam.",
+                      "name": "Dicta eum beatae tenetur eveniet aut illo."
+                    }
+                  ],
+                  "next": "Qui qui id commodi qui."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Listing"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "MethodImplicitBodyResultType ServiceExplicitBodyResultType",
+        "tags": [
+          "ServiceExplicitBodyResultType"
+        ]
+      },
+      "post": {
+        "operationId": "service_explicit_body_result_type.method_explicit_body_result_type",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "first": {
+                    "id": "Reiciendis laudantium reprehenderit ea cupiditate suscipit.",
+                    "name": "Consequuntur quae sapiente odio."
+                  },
+                  "items": [
+                    {
+                      "id": "Reiciendis laudantium reprehenderit ea cupiditate suscipit.",
+                      "name": "Consequuntur quae sapiente odio."
+                    },
+                    {
+                      "id": "Reiciendis laudantium reprehenderit ea cupiditate suscipit.",
+                      "name": "Consequuntur quae sapiente odio."
+                    },
+                    {
+                      "id": "Reiciendis laudantium reprehenderit ea cupiditate suscipit.",
+                      "name": "Consequuntur quae sapiente odio."
+                    }
+                  ],
+                  "next": "Perferendis sapiente."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Listing"
+                }
+              }
+            },
+            "description": "OK response."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "Dolores et.",
+                  "detail": "Tenetur eaque nihil voluptatem."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "unavailable: Service Unavailable response."
+          }
+        },
+        "security": [],
+        "summary": "MethodExplicitBodyResultType ServiceExplicitBodyResultType",
+        "tags": [
+          "ServiceExplicitBodyResultType"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "name": "test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "ServiceExplicitBodyResultType"
+    }
+  ]
+}

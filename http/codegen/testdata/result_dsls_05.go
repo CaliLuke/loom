@@ -36,3 +36,49 @@ var ExplicitBodyUserResultObjectDSL = func() {
 		})
 	})
 }
+
+// ExplicitBodyResultTypeDSL declares response bodies with the result type of
+// the method and with the result type of an error, such as Body(Listing) with
+// Result(Listing). The listing nests another result type and a collection of
+// it, and a second method returns the same listing with an implicit body.
+var ExplicitBodyResultTypeDSL = func() {
+	var Item = ResultType("application/vnd.item", "Item", func() {
+		Attribute("id", String)
+		Attribute("name", String)
+		Required("id")
+	})
+	var Listing = ResultType("application/vnd.listing", "Listing", func() {
+		Attribute("first", Item)
+		Attribute("items", CollectionOf(Item))
+		Attribute("next", String)
+		Required("first", "items")
+	})
+	var Problem = ResultType("application/vnd.problem", "Problem", func() {
+		Attribute("code", String)
+		Attribute("detail", String)
+		Required("code")
+	})
+	Service("ServiceExplicitBodyResultType", func() {
+		Method("MethodExplicitBodyResultType", func() {
+			NoSecurity()
+			Result(Listing)
+			Error("unavailable", Problem)
+			HTTP(func() {
+				POST("/listings")
+				Response(StatusOK, func() {
+					Body(Listing)
+				})
+				Response("unavailable", StatusServiceUnavailable, func() {
+					Body(Problem)
+				})
+			})
+		})
+		Method("MethodImplicitBodyResultType", func() {
+			NoSecurity()
+			Result(Listing)
+			HTTP(func() {
+				GET("/listings")
+			})
+		})
+	})
+}

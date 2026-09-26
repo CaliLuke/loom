@@ -99,6 +99,35 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			},
 		},
 		{
+			name: "explicit-body-result-type",
+			dsl:  testdata.ExplicitBodyResultTypeDSL,
+			extra: func(t *testing.T, spec map[string]any) {
+				for _, method := range []string{"get", "post"} {
+					media := requireResponseMediaType(t, requireOperation(t, spec, "/listings", method), "application/json")
+					schema := requireMap(t, media["schema"], method+" response schema")
+					require.Equal(t, "#/components/schemas/Listing", schema["$ref"])
+				}
+				operation := requireOperation(t, spec, "/listings", "post")
+				responses := requireMap(t, operation["responses"], "post responses")
+				unavailable := requireMap(t, responses["503"], "unavailable response")
+				content := requireMap(t, unavailable["content"], "unavailable response content")
+				media := requireMap(t, content["application/json"], "unavailable response media")
+				schema := requireMap(t, media["schema"], "unavailable response schema")
+				require.Equal(t, "#/components/schemas/Problem", schema["$ref"])
+				components := requireMap(t, spec["components"], "components")
+				schemas := requireMap(t, components["schemas"], "component schemas")
+				names := make([]string, 0, len(schemas))
+				for name := range schemas {
+					names = append(names, name)
+				}
+				require.ElementsMatch(t, []string{"Item", "ItemCollection", "Listing", "Problem"}, names)
+				listing := requireComponentSchema(t, spec, "Listing")
+				properties := requireMap(t, listing["properties"], "Listing properties")
+				require.Equal(t, "#/components/schemas/Item", requireMap(t, properties["first"], "first")["$ref"])
+				require.Equal(t, "#/components/schemas/ItemCollection", requireMap(t, properties["items"], "items")["$ref"])
+			},
+		},
+		{
 			name: "raw-request-bodies",
 			dsl:  testdata.RawRequestBodyOpenAPIDSL,
 			extra: func(t *testing.T, spec map[string]any) {
@@ -243,6 +272,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "nullable-presence", dsl: presenceOpenAPIDSL},
 		{name: "scalar-map-keys", dsl: testdata.OpenAPIScalarMapKeysDSL},
 		{name: "mapped-names", dsl: testdata.MappedNamesDSL},
+		{name: "explicit-body-result-type", dsl: testdata.ExplicitBodyResultTypeDSL},
 	}
 	for _, tc := range lintCases {
 		t.Run("redocly-"+tc.name, func(t *testing.T) {

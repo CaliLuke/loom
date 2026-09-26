@@ -330,7 +330,7 @@ func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, co
 	}
 
 	s := &Schema{}
-	fingerprint := a.FingerprintAttribute(componentAttribute(attr, t))
+	fingerprint := a.componentFingerprint(attr, t)
 
 	refs, ok := a.schemasByFingerprint[fingerprint]
 	if !noRef && ok {

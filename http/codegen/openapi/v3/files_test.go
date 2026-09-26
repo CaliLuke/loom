@@ -528,6 +528,8 @@ func TestFiles(t *testing.T) {
 		// Inline response bodies that select result type attributes
 		{"explicit-body-result-object", testdata.ExplicitBodyUserResultObjectDSL},
 		{"explicit-body-result-object-views", testdata.ExplicitBodyUserResultObjectMultipleViewDSL},
+		// Response bodies declared with the result type of the method or error
+		{"explicit-body-result-type", testdata.ExplicitBodyResultTypeDSL},
 		// Scalar map keys
 		{"scalar-map-keys", testdata.OpenAPIScalarMapKeysDSL},
 		// Attributes with a transport element name suffix

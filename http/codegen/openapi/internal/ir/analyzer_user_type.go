@@ -12,10 +12,7 @@ func (a *Analyzer) analyzeProjectedResult(attr *expr.AttributeExpr, t expr.UserT
 	if !ok {
 		return nil, false
 	}
-	view, hasView := attr.Meta.Last(expr.ViewMetaKey)
-	if !hasView {
-		view, hasView = resultType.Meta.Last(expr.ViewMetaKey)
-	}
+	view, hasView := resultTypeView(attr, resultType)
 	if !hasView {
 		return nil, false
 	}
@@ -97,6 +94,33 @@ func componentAttribute(attr *expr.AttributeExpr, t expr.UserType) *expr.Attribu
 		componentAttr.UserExamples = attr.UserExamples
 	}
 	return componentAttr
+}
+
+// resultTypeView returns the view that projects the result type of attr: the
+// view of attr, or else the view of the result type. It reports false when
+// neither declares a view, so that attr renders the result type as a whole.
+func resultTypeView(attr *expr.AttributeExpr, resultType *expr.ResultTypeExpr) (string, bool) {
+	if view, ok := attr.Meta.Last(expr.ViewMetaKey); ok {
+		return view, true
+	}
+	return resultType.Meta.Last(expr.ViewMetaKey)
+}
+
+// componentFingerprint returns the fingerprint of the component schema of the
+// user type t referenced by attr. A user type whose attribute is a result type
+// without a view, such as the wrapper of a Body declared with a result type,
+// renders the component of that result type. Its fingerprint is therefore the
+// fingerprint of the result type's component, as the fingerprint of a user
+// type that aliases a plain type already is, and not the fingerprint of a
+// reference to the result type.
+func (a *Analyzer) componentFingerprint(attr *expr.AttributeExpr, t expr.UserType) string {
+	componentAttr := componentAttribute(attr, t)
+	if resultType, ok := componentAttr.Type.(*expr.ResultTypeExpr); ok {
+		if _, hasView := resultTypeView(componentAttr, resultType); !hasView {
+			return a.componentFingerprint(componentAttr, resultType)
+		}
+	}
+	return a.FingerprintAttribute(componentAttr)
 }
 
 func (a *Analyzer) reuseEquivalentCanonicalSchema(s *Schema, attr *expr.AttributeExpr, t expr.UserType, typeName, fingerprint, metaName string) bool {
