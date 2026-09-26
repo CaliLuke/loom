@@ -66,14 +66,10 @@ func (w *Worker) rebalance(ctx context.Context, activeWorkers []string) {
 		} else if !queued {
 			w.logger.Info("rebalance: a start event of the job is in flight, keeping it", "job", key)
 		}
-		if err != nil || !queued {
-			// Restart the job locally and track it again so future
-			// close/shutdown can still requeue it.
-			if err := w.restartJob(ctx, job); err != nil {
-				w.logger.Error(fmt.Errorf("rebalance: failed to restart job: %w", err), "job", key)
-			}
-			retry = true
-		}
+		// A failed reply does not prove that Redis rejected the start. Never
+		// restart locally after this call: the queued event may already run
+		// elsewhere. If no event was added, the payload and missing job-map
+		// entry let the orphan sweep recover it after its grace period.
 	}
 	if retry {
 		w.retryRebalance()
@@ -82,7 +78,7 @@ func (w *Worker) rebalance(ctx context.Context, activeWorkers []string) {
 
 // retryRebalance runs rebalance again after ackGracePeriod, with the active
 // workers at that time. rebalance calls it when it left a job on this worker
-// because a start of the job was in flight or the requeue failed. Rebalance
+// because a start of the job was in flight or releasing the job failed. Rebalance
 // otherwise runs only when the worker map changes, so without the retry the
 // job would stay on a worker that does not own it, where StopJob and
 // NotifyWorker do not reach it. At most one retry is pending per worker, and
@@ -152,31 +148,4 @@ func (w *Worker) releaseTrackedJob(ctx context.Context, key string) (bool, error
 	}
 	w.jobs.Delete(key)
 	return true, nil
-}
-
-// restartJob restarts a job locally after its requeue failed. It adds the
-// job back to the worker's job map entry first, which releaseTrackedJob
-// removed. It does nothing if the worker is stopped or already tracks the
-// key again. When it fails, the job runs nowhere and has no job map entry,
-// so the orphan sweep requeues it from its payload.
-func (w *Worker) restartJob(ctx context.Context, job *Job) error {
-	w.jobLock.Lock()
-	defer w.jobLock.Unlock()
-	if w.IsStopped() {
-		return fmt.Errorf("worker %q stopped", w.ID)
-	}
-	if _, ok := w.jobs.Load(job.Key); ok {
-		return nil
-	}
-	if _, err := w.jobsMap.AppendUniqueValues(ctx, w.ID, job.Key); err != nil {
-		return fmt.Errorf("failed to add job %q to jobs map: %w", job.Key, err)
-	}
-	if err := w.handler.Start(job); err != nil {
-		if _, _, rerr := w.jobsMap.RemoveValues(ctx, w.ID, job.Key); rerr != nil {
-			return errors.Join(err, fmt.Errorf("failed to remove job %q from jobs map: %w", job.Key, rerr))
-		}
-		return err
-	}
-	w.jobs.Store(job.Key, job)
-	return nil
 }

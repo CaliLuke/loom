@@ -117,6 +117,11 @@ can interrupt healthy peers.
 - Tune worker TTL and acknowledgement grace periods to the deployment's
   failure-detection needs; values that are too short cause premature recovery
   during network pauses, while values that are too long delay requeue.
+- After rebalance releases a job, a failed Redis requeue reply never restarts
+  it on the old worker: Redis may already have queued it elsewhere. If the
+  write did not happen, the orphan sweep recovers the retained payload after
+  observing it without a worker for `max(2 * workerTTL, ackGracePeriod)`, on
+  a subsequent sweep. Redis must be available for recovery.
 - Let unacknowledged sink events remain pending when processing fails. Another
   consumer can claim them after recovery.
 - Treat Redis connectivity errors as operational failures. Log the object

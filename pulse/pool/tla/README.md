@@ -732,3 +732,28 @@ call and stalls the node's ack and dispatch-return loop behind every routing.
 duration. If an `Add` is slower than `ackGracePeriod`, the ack is lost and
 the pool event is redelivered, as on main before the fix.
 
+## Ambiguous requeue replies (#436)
+
+`RequeueReply.tla` models a successful release followed by a guarded requeue
+on two workers. Redis can fail before executing the script or lose the reply
+after executing it; another requeue can also win before the call. Delivery
+can precede the reply. The former local restart violates `AtMostOneRunner`
+in six states with a lost reply (`requeue_reply_asis.cfg`). Keeping the old
+worker stopped and allowing orphan recovery passes safety and `Recovered`
+with 10 distinct states (`requeue_reply_sweep.cfg`).
+
+Run from this directory with a local `tla2tools.jar`:
+
+```sh
+java -XX:+UseParallelGC -cp /tmp/tla2tools.jar tlc2.TLC -workers 1 -deadlock \
+  -metadir /tmp/requeue-reply-asis -config cfg/requeue_reply_asis.cfg RequeueReply.tla
+java -XX:+UseParallelGC -cp /tmp/tla2tools.jar tlc2.TLC -workers 1 -deadlock \
+  -metadir /tmp/requeue-reply-sweep -config cfg/requeue_reply_sweep.cfg RequeueReply.tla
+```
+
+The first command must fail its invariant; the second must pass. Liveness
+assumes Redis recovers, the orphan grace passes, and delivery and the sweep
+continue. It does not model crashes, stale job-map replicas, or ownership
+races outside this handoff; those remain in `PoolOwnership.tla` and the
+owner-record roadmap. `TestRebalanceRequeueReply` exercises the corresponding
+Redis faults, refusal, orphan recovery, and target-worker start in Go.

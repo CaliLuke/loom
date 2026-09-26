@@ -667,6 +667,12 @@ loom vet <module-import-path>/design
 
 ## Canonical Guides
 
+For Pulse applications, read `docs/pulse.md`. After rebalance releases a job,
+a failed Redis requeue reply does not restart it on the old worker because
+the write may already have succeeded. If it did not, orphan recovery waits
+for `max(2 * workerTTL, ackGracePeriod)` without a worker and a subsequent
+sweep. Account for that recovery delay when choosing these settings.
+
 - `docs/quickstart.md`
 - `docs/dsl-reference.md`
 - `docs/code-generation.md`

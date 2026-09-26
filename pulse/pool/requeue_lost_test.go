@@ -93,11 +93,9 @@ func TestLostRebalanceStartIsRecovered(t *testing.T) {
 	}, 30*time.Second, 10*time.Millisecond, "w2 did not start %s", key)
 }
 
-// TestRebalanceReleaseAndRestart covers the job map entry across the two
-// steps of a rebalance whose requeue fails: releaseTrackedJob stops the
-// handler and removes the key from the worker's entry but keeps the payload,
-// and restartJob adds the key back before it starts the handler again.
-func TestRebalanceReleaseAndRestart(t *testing.T) {
+// TestRebalanceRelease preserves the payload for recovery while removing
+// the stopped job from the worker's entry. Releasing it again is a no-op.
+func TestRebalanceRelease(t *testing.T) {
 	rdb := startTestRedis(t)
 	ctx := t.Context()
 	node := addTestNode(t, rdb, "requeue-release-restart")
@@ -107,7 +105,6 @@ func TestRebalanceReleaseAndRestart(t *testing.T) {
 	require.NoError(t, node.DispatchJob(ctx, "k1", []byte("payload")))
 	jobs := w.Jobs()
 	require.Len(t, jobs, 1)
-	job := jobs[0]
 	listed := func(want bool) func() bool {
 		return func() bool {
 			keys, _ := node.jobMap.GetValues(w.ID)
@@ -129,10 +126,6 @@ func TestRebalanceReleaseAndRestart(t *testing.T) {
 	released, err = w.releaseTrackedJob(ctx, "k1")
 	require.NoError(t, err)
 	require.False(t, released, "an untracked key is not released")
-
-	require.NoError(t, w.restartJob(ctx, job))
-	require.Len(t, w.Jobs(), 1)
-	require.Eventually(t, listed(true), 5*time.Second, 5*time.Millisecond, "restart did not add the key back")
 }
 
 // TestClaimRequeue checks luaClaimRequeue beyond the delivery states of
