@@ -375,7 +375,11 @@ filter, and serialization rules belong here.
   the flag is not empty, and the CLI declares a primitive body as a pointer
   unless it decodes a user type, such as an alias, as JSON
   (`isCLIBodyPointer`). The client body builder of an optional alias of a
-  primitive dereferences the field, which the encoder checks for nil. Body flag examples go through
+  primitive dereferences the field, which the encoder checks for nil. The
+  server validates a request body that is an alias of a primitive, an array
+  or a map by value: its `Validate` function reads the value without a nil
+  check (`buildUserRequestBodyTypeDetails`), and the decoder passes it the
+  body, not its address (`requestBodyValidateRef`). Body flag examples go through
   `expr.CanonicalizeExample` so that they match the JSON of the client body
   type.
 - The HTTP and JSON-RPC client CLI command parsers never name a service type,

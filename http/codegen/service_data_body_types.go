@@ -130,9 +130,16 @@ func buildUserRequestBodyTypeDetails(
 	details.flatFormUnionField, details.flatFormUnionPointer, details.flatFormUnionTypeKey, details.flatFormUnionRef =
 		flatFormUnionMetadata(userType.Attribute(), formEncoded, sd.Scope)
 	if svr || containsUnionType(body.Type) {
-		details.validateDefinition = codegen.ValidationCode(body, userType, httpctx, true, expr.IsAlias(body.Type), false, "body")
+		validationContext := httpctx
+		if expr.IsPrimitive(userType) {
+			// The body of an alias of a primitive is a value, not a pointer.
+			validationContext = httpctx.Dup()
+			validationContext.Pointer = false
+		}
+		details.validateDefinition = codegen.ValidationCode(body, userType, validationContext, true, expr.IsAlias(body.Type), false, "body")
 		if details.validateDefinition != "" {
-			details.validateReference = requestBodyValidateRef(varName, false)
+			// Only an object body is validated through its address.
+			details.validateReference = requestBodyValidateRef(varName, !expr.IsObject(userType))
 		}
 	}
 	return details
@@ -204,10 +211,11 @@ func originKey(parent *expr.AttributeExpr, origin string) string {
 
 // requestBodyValidateRef returns the statement that validates the server
 // request body variable "body" with the generated Validate function of the
-// body type named varName. The variable holds a pointer when pointer is true
-// and a value otherwise.
-func requestBodyValidateRef(varName string, pointer bool) string {
-	if pointer {
+// body type named varName. The function takes the variable itself when
+// direct is true, such as a pointer to an object or the value of an alias of
+// a primitive, an array or a map, and the address of the variable otherwise.
+func requestBodyValidateRef(varName string, direct bool) string {
+	if direct {
 		return fmt.Sprintf("err = Validate%s(body)", varName)
 	}
 	return fmt.Sprintf("err = Validate%s(&body)", varName)
