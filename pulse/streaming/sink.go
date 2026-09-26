@@ -176,10 +176,13 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 	}
 	km, err := rmap.Join(ctx, sinkKeepAliveMapName(name), stream.rdb, rmap.WithLogger(logger))
 	if err != nil {
+		cm.Close()
 		return nil, fmt.Errorf("failed to join replicated map for sink keep-alives %s: %w", name, err)
 	}
 
 	if err := stream.createGroup(ctx, name, o.LastEventID); err != nil {
+		km.Close()
+		cm.Close()
 		return nil, fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", name, stream.Name, err)
 	}
 
@@ -219,6 +222,10 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 
 	consumer, err := sink.newConsumer(ctx, stream)
 	if err != nil {
+		// The group stays: another instance of the sink may use it.
+		runtimeCancel()
+		km.Close()
+		cm.Close()
 		return nil, fmt.Errorf("failed to create consumer: %w", err)
 	}
 	sink.consumer = consumer
