@@ -11,19 +11,22 @@ import (
 )
 
 type (
-	// interleaveHook runs the function that interleave marks a context with
-	// once, right after the first command sent with that context succeeds.
-	// A test uses it to run another sink instance's call between two Redis
-	// steps of one call.
+	// interleaveHook runs the function that interleave or interleaveAfter
+	// marks a context with once, right after the first matching command sent
+	// with that context succeeds. A test uses it to run another sink
+	// instance's call between two Redis steps of one call.
 	interleaveHook struct{}
 
 	// interleaveKey is the context key of the *interleaveStep to run.
 	interleaveKey struct{}
 
-	// interleaveStep is the function interleaveHook runs, and whether it ran.
+	// interleaveStep is the function interleaveHook runs, the leading
+	// arguments of the command it runs after (any command if empty), and
+	// whether it ran.
 	interleaveStep struct {
-		once sync.Once
-		run  func()
+		once  sync.Once
+		after commandArgs
+		run   func()
 	}
 )
 
@@ -91,11 +94,13 @@ func (interleaveHook) DialHook(next redis.DialHook) redis.DialHook {
 	return next
 }
 
-// ProcessHook implements redis.Hook.
+// ProcessHook implements redis.Hook. A BUSYGROUP error counts as success, as
+// it does for the group creation of a sink.
 func (interleaveHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		err := next(ctx, cmd)
-		if step, ok := ctx.Value(interleaveKey{}).(*interleaveStep); ok && err == nil {
+		step, ok := ctx.Value(interleaveKey{}).(*interleaveStep)
+		if ok && (err == nil || isBusyGroupErr(err)) && step.after.matches(cmd) {
 			step.once.Do(step.run)
 		}
 		return err
@@ -110,5 +115,12 @@ func (interleaveHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.
 // interleave returns ctx marked so interleaveHook runs fn once, right after
 // the first command sent with the returned context succeeds.
 func interleave(ctx context.Context, fn func()) context.Context {
-	return context.WithValue(ctx, interleaveKey{}, &interleaveStep{run: fn})
+	return interleaveAfter(ctx, nil, fn)
+}
+
+// interleaveAfter returns ctx marked so interleaveHook runs fn once, right
+// after the first command whose leading arguments are args, ignoring case,
+// succeeds with the returned context.
+func interleaveAfter(ctx context.Context, args []string, fn func()) context.Context {
+	return context.WithValue(ctx, interleaveKey{}, &interleaveStep{after: args, run: fn})
 }

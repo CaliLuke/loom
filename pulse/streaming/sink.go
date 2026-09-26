@@ -2,12 +2,12 @@ package streaming
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"sync"
 	"time"
 
+	"github.com/oklog/ulid/v2"
 	redis "github.com/redis/go-redis/v9"
 
 	"github.com/CaliLuke/loom/clue/log"
@@ -150,6 +150,11 @@ type (
 // Pulse maintains a pool of consumers per stream and reuses them when possible.
 // This is because deleting a consumer causes Redis to drop its pending messages
 // which is not the semantics Pulse wants to enforce.
+// The consumer goes to the replicated consumers map of the stream before the
+// consumer group and the consumer are created, so a concurrent RemoveStream
+// of another instance of the sink sees it and keeps the group
+// (tla/SinkAddStream.tla). If newSink fails, the map does not hold the
+// consumer.
 //
 //nolint:maintidx // Sink setup validates options and initializes Redis-backed state together.
 func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRuntime, opts ...options.Sink) (*Sink, error) {
@@ -180,16 +185,25 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 		return nil, fmt.Errorf("failed to join replicated map for sink keep-alives %s: %w", name, err)
 	}
 
-	if err := stream.createGroup(ctx, name, o.LastEventID); err != nil {
+	consumer := ulid.Make().String()
+	if _, err := cm.AppendValues(ctx, name, consumer); err != nil {
 		km.Close()
 		cm.Close()
-		return nil, fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", name, stream.Name, err)
+		return nil, fmt.Errorf("failed to append consumer %s to replicated map for stream %s: %w", consumer, stream.Name, err)
+	}
+	if err := stream.createGroup(ctx, name, o.LastEventID); err != nil {
+		err = fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", name, stream.Name, err)
+		err = rollbackConsumer(ctx, cm, stream, name, consumer, err)
+		km.Close()
+		cm.Close()
+		return nil, err
 	}
 
 	runtimeBase := log.WithContext(context.WithoutCancel(ctx), ctx)
 	runtimeCtx, runtimeCancel := context.WithCancel(runtimeBase)
 	sink := &Sink{
 		Name:                  name,
+		consumer:              consumer,
 		leaseKeyName:          []string{staleLockName(name)},
 		startID:               o.LastEventID,
 		noAck:                 o.NoAck,
@@ -220,15 +234,13 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 		sink.logger.Error(fmt.Errorf("failed to cleanup stale consumers: %w", err))
 	}
 
-	consumer, err := sink.newConsumer(ctx, stream)
-	if err != nil {
-		// The group stays: another instance of the sink may use it.
+	if err := sink.createConsumer(ctx, stream, consumer); err != nil {
+		err = rollbackConsumer(ctx, cm, stream, name, consumer, fmt.Errorf("failed to create consumer: %w", err))
 		runtimeCancel()
 		km.Close()
 		cm.Close()
-		return nil, fmt.Errorf("failed to create consumer: %w", err)
+		return nil, err
 	}
-	sink.consumer = consumer
 	sink.logger = sink.logger.WithPrefix("consumer", consumer)
 
 	sink.wait.Add(3)
@@ -311,11 +323,7 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 	}
 	if err := stream.createGroup(ctx, s.Name, startID); err != nil {
 		err = fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", s.Name, stream.Name, err)
-		// Remove the consumer again even if ctx is canceled. The group
-		// stays: another instance may use it (tla/README.md).
-		if _, _, rerr := cm.RemoveValues(context.WithoutCancel(ctx), s.Name, s.consumer); rerr != nil {
-			err = errors.Join(err, fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", s.consumer, stream.Name, rerr))
-		}
+		err = rollbackConsumer(ctx, cm, stream, s.Name, s.consumer, err)
 		cm.Close()
 		return err
 	}

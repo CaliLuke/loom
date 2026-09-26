@@ -2,6 +2,7 @@ package streaming
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -119,27 +120,38 @@ func (s *Sink) removeStreamConsumer(ctx context.Context, stream *Stream) error {
 	return nil
 }
 
-// newConsumer creates a new consumer and registers it in the consumers and
-// keep-alive maps.
+// newConsumer creates a new consumer of the sink for stream and registers it
+// in the consumers and keep-alive maps. The consumer goes to the consumers map
+// first, as in NewSink. If newConsumer fails, the consumers map does not hold
+// the new consumer.
 func (s *Sink) newConsumer(ctx context.Context, stream *Stream) (string, error) {
 	consumer := ulid.Make().String()
-	if err := stream.rdb.XGroupCreateConsumer(ctx, stream.key, s.Name, consumer).Err(); err != nil {
-		return "", fmt.Errorf("failed to create Redis consumer %s for consumer group %s: %w", consumer, s.Name, err)
+	cm := s.consumersMap[stream.Name]
+	if _, err := cm.AppendValues(ctx, s.Name, consumer); err != nil {
+		return "", fmt.Errorf("failed to append consumer %s to replicated map for stream %s: %w", consumer, stream.Name, err)
 	}
-	if _, err := s.consumersMap[stream.Name].AppendValues(ctx, s.Name, consumer); err != nil {
-		if err := stream.rdb.XGroupDelConsumer(ctx, stream.key, s.Name, consumer).Err(); err != nil {
-			s.logger.Error(fmt.Errorf("failed to delete consumer %s after failed append: %w", consumer, err))
-		}
-		return "", fmt.Errorf("failed to append store consumer %s for sink %s: %w", consumer, s.Name, err)
+	if err := s.createConsumer(ctx, stream, consumer); err != nil {
+		return "", rollbackConsumer(ctx, cm, stream, s.Name, consumer, err)
+	}
+	return consumer, nil
+}
+
+// createConsumer creates consumer in the consumer group of the sink for
+// stream and records its keep-alive. If the keep-alive update fails, it
+// deletes the consumer again, even if ctx is canceled.
+func (s *Sink) createConsumer(ctx context.Context, stream *Stream, consumer string) error {
+	if err := stream.rdb.XGroupCreateConsumer(ctx, stream.key, s.Name, consumer).Err(); err != nil {
+		return fmt.Errorf("failed to create Redis consumer %s for consumer group %s: %w", consumer, s.Name, err)
 	}
 	s.lastKeepAlive = time.Now().UnixNano()
 	if _, err := s.consumersKeepAliveMap.Set(ctx, consumer, strconv.FormatInt(s.lastKeepAlive, 10)); err != nil {
-		if err := stream.rdb.XGroupDelConsumer(ctx, stream.key, s.Name, consumer).Err(); err != nil {
-			s.logger.Error(fmt.Errorf("failed to delete consumer %s after failed keep-alive set: %w", consumer, err))
+		err = fmt.Errorf("failed to set sink keep-alive for new consumer %s: %w", consumer, err)
+		if derr := stream.rdb.XGroupDelConsumer(context.WithoutCancel(ctx), stream.key, s.Name, consumer).Err(); derr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to delete consumer %s after failed keep-alive set: %w", consumer, derr))
 		}
-		return "", fmt.Errorf("failed to set sink keep-alive for new consumer %s: %w", consumer, err)
+		return err
 	}
-	return consumer, nil
+	return nil
 }
 
 // read reads events from the streams and sends them to the sink channel.
@@ -398,6 +410,18 @@ func (s *Sink) deleteConsumerGroup(ctx context.Context, stream *Stream) error {
 	}
 	delete(s.consumersMap, stream.Name)
 	return nil
+}
+
+// rollbackConsumer removes consumer of the sink named sink from the consumers
+// map cm of stream after err failed a later step of NewSink, AddStream or a
+// consumer replacement, even if ctx is canceled. It returns err joined with
+// the removal error, if any. The consumer group stays: another instance of
+// the sink may use it (tla/README.md).
+func rollbackConsumer(ctx context.Context, cm *rmap.Map, stream *Stream, sink, consumer string, err error) error {
+	if _, _, rerr := cm.RemoveValues(context.WithoutCancel(ctx), sink, consumer); rerr != nil {
+		err = errors.Join(err, fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", consumer, stream.Name, rerr))
+	}
+	return err
 }
 
 // isBusyGroupErr returns true if the error is a busy group error.
