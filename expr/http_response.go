@@ -428,9 +428,10 @@ func (r *HTTPResponseExpr) finalizeObjectBody(a *HTTPEndpointExpr, bodyAtt *Attr
 			ensureValidation(r.Body).AddRequired(nat.Name)
 		}
 	}
+	_, declared := r.Body.Type.(UserType)
 	r.rememberOriginalBodyName()
 	r.wrapBodyUserType(a)
-	r.propagateOpenAPITypename(bodyAtt)
+	r.propagateOpenAPITypename(bodyAtt, declared)
 }
 
 func responseBodyFieldSource(bodyAtt *AttributeExpr, bodyObj *Object, name string) (*AttributeExpr, bool) {
@@ -454,7 +455,17 @@ func (r *HTTPResponseExpr) wrapBodyUserType(a *HTTPEndpointExpr) {
 	}
 }
 
-func (r *HTTPResponseExpr) propagateOpenAPITypename(bodyAtt *AttributeExpr) {
+// propagateOpenAPITypename gives the wrapped response body the OpenAPI type
+// name of the user type bodyAtt when the body declares none. A body declared
+// with a user type claims the name as its canonical component name. An inline
+// body that lists attributes of the user type has a shape of its own, so it
+// takes the name only as a hint, like an implicit body: the OpenAPI generator
+// reuses the component of an identical schema and derives a distinct name for
+// a different one.
+func (r *HTTPResponseExpr) propagateOpenAPITypename(bodyAtt *AttributeExpr, declared bool) {
+	if name, ok := r.Body.Meta.Last("openapi:typename"); ok && strings.TrimSpace(name) != "" {
+		return
+	}
 	ut, ok := bodyAtt.Type.(UserType)
 	if !ok {
 		return
@@ -463,10 +474,16 @@ func (r *HTTPResponseExpr) propagateOpenAPITypename(bodyAtt *AttributeExpr) {
 	if !ok || strings.TrimSpace(name) == "" {
 		return
 	}
-	r.Body.AddMeta("openapi:typename", name)
-	if utBody, ok := r.Body.Type.(UserType); ok {
-		utBody.Attribute().AddMeta("openapi:typename", name)
+	utBody, ok := r.Body.Type.(UserType)
+	if !ok {
+		return
 	}
+	utBody.Attribute().AddMeta("openapi:typename", name)
+	if declared {
+		r.Body.AddMeta("openapi:typename", name)
+		return
+	}
+	utBody.Attribute().AddMeta(inheritedHTTPBodyTypenameMetaKey)
 }
 
 func ensureValidation(att *AttributeExpr) *ValidationExpr {

@@ -571,6 +571,11 @@ single schema component and reuses it by `$ref`. Explicit names from
 `openapi:typename` are treated as public component names: equivalent schemas may
 reuse the name, but different schemas claiming the same explicit name fail
 generation instead of receiving hash-suffixed public names.
+A response `Body(func() { ... })` that lists attributes of the result or error
+type declares a shape of its own. It inherits the type's name only as a
+fallback, like the implicit body: an identical schema reuses the type's
+component, and a different schema gets a hash-suffixed name. Set
+`Meta("openapi:typename", "...")` inside that `Body` to give it a public name.
 Hash-suffixed fallback names are generated collision identities, not a public
 naming API. If downstream SDKs or tooling depend on a component name, set the
 corresponding `openapi:typename` or `openapi:component:*` metadata explicitly.

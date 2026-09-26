@@ -1,0 +1,59 @@
+openapi: 3.2.0
+info:
+    title: Loom API
+    version: 0.0.1
+jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
+servers:
+    - name: test api
+      url: http://localhost:80
+      description: Default server for test api
+paths:
+    /:
+        post:
+            tags:
+                - ServiceExplicitBodyUserResultObjectMultipleView
+            summary: MethodExplicitBodyUserResultObjectMultipleView ServiceExplicitBodyUserResultObjectMultipleView
+            operationId: service_explicit_body_user_result_object_multiple_view.method_explicit_body_user_result_object_multiple_view
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        Location:
+                            schema:
+                                type: string
+                                example: A quae velit repudiandae quis ipsum est.
+                            example: A quae velit repudiandae quis ipsum est.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Resulttypemultipleviews_e30f7140cbd99e86'
+                            example:
+                                a:
+                                    x: Excepturi at.
+                                    "y": 1668926359201162383
+components:
+    schemas:
+        Resulttypemultipleviews_e30f7140cbd99e86:
+            type: object
+            properties:
+                a:
+                    $ref: '#/components/schemas/UserType'
+            example:
+                a:
+                    x: Optio rerum fuga sit.
+                    "y": 8435905110803584754
+        UserType:
+            type: object
+            properties:
+                x:
+                    type: string
+                    example: Illo molestiae accusantium consectetur eum.
+                "y":
+                    type: integer
+                    example: 2316163594086730582
+                    format: int64
+            example:
+                x: Inventore deleniti.
+                "y": 2793531410412585661
+tags:
+    - name: ServiceExplicitBodyUserResultObjectMultipleView

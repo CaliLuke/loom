@@ -86,6 +86,19 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 			},
 		},
 		{
+			name: "explicit-body-result-object",
+			dsl:  testdata.ExplicitBodyUserResultObjectDSL,
+			extra: func(t *testing.T, spec map[string]any) {
+				media := requireResponseMediaType(t, requireOperation(t, spec, "/", "post"), "application/json")
+				schema := requireMap(t, media["schema"], "response schema")
+				require.Equal(t, "#/components/schemas/Resulttype_e30f7140cbd99e86", schema["$ref"])
+				body := requireComponentSchema(t, spec, "Resulttype_e30f7140cbd99e86")
+				properties := requireMap(t, body["properties"], "response body properties")
+				require.Len(t, properties, 1)
+				require.Contains(t, properties, "a")
+			},
+		},
+		{
 			name: "raw-request-bodies",
 			dsl:  testdata.RawRequestBodyOpenAPIDSL,
 			extra: func(t *testing.T, spec map[string]any) {

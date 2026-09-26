@@ -8,9 +8,16 @@ import (
 	"unicode"
 )
 
-// inlineHTTPBodyMetaKey marks the attribute of the user type that wraps an
-// inline object request body defined with the Body DSL.
-const inlineHTTPBodyMetaKey = "loom:http:body:inline"
+const (
+	// inlineHTTPBodyMetaKey marks the attribute of the user type that wraps an
+	// inline object request body defined with the Body DSL.
+	inlineHTTPBodyMetaKey = "loom:http:body:inline"
+	// inheritedHTTPBodyTypenameMetaKey marks the attribute of the user type
+	// that wraps an inline object response body whose OpenAPI type name comes
+	// from the result or error user type. The name is a hint, not a canonical
+	// component name.
+	inheritedHTTPBodyTypenameMetaKey = "loom:http:body:typename:inherited"
+)
 
 // UnionToObject returns an object adequate to serialize the given union type in
 // HTTP requests and responses. The object has two fields for the discriminator
@@ -520,9 +527,18 @@ func explicitHTTPRequestBody(body *AttributeExpr, name, suffix, uid string) *Att
 	return cloned
 }
 
+// preserveCanonicalOpenAPITypeName makes the OpenAPI type name of an explicit
+// body its canonical component name. A name that an inline response body
+// inherits from its result or error type stays a hint on the body type.
 func preserveCanonicalOpenAPITypeName(attr *AttributeExpr) {
+	ut, isUserType := attr.Type.(UserType)
+	if isUserType {
+		if _, inherited := ut.Attribute().Meta[inheritedHTTPBodyTypenameMetaKey]; inherited {
+			return
+		}
+	}
 	attr.AddMeta("openapi:typename:canonical", "true")
-	if ut, ok := attr.Type.(UserType); ok {
+	if isUserType {
 		if m, ok := ut.Attribute().Meta.Last("openapi:typename"); ok {
 			attr.AddMeta("openapi:typename", m)
 		}

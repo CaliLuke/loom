@@ -1,0 +1,94 @@
+{
+  "components": {
+    "schemas": {
+      "Resulttypemultipleviews_e30f7140cbd99e86": {
+        "example": {
+          "a": {
+            "x": "Optio rerum fuga sit.",
+            "y": 8435905110803584754
+          }
+        },
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/UserType"
+          }
+        },
+        "type": "object"
+      },
+      "UserType": {
+        "example": {
+          "x": "Inventore deleniti.",
+          "y": 2793531410412585661
+        },
+        "properties": {
+          "x": {
+            "example": "Illo molestiae accusantium consectetur eum.",
+            "type": "string"
+          },
+          "y": {
+            "example": 2316163594086730582,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Loom API",
+    "version": "0.0.1"
+  },
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "openapi": "3.2.0",
+  "paths": {
+    "/": {
+      "post": {
+        "operationId": "service_explicit_body_user_result_object_multiple_view.method_explicit_body_user_result_object_multiple_view",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "a": {
+                    "x": "Excepturi at.",
+                    "y": 1668926359201162383
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Resulttypemultipleviews_e30f7140cbd99e86"
+                }
+              }
+            },
+            "description": "OK response.",
+            "headers": {
+              "Location": {
+                "example": "A quae velit repudiandae quis ipsum est.",
+                "schema": {
+                  "example": "A quae velit repudiandae quis ipsum est.",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "MethodExplicitBodyUserResultObjectMultipleView ServiceExplicitBodyUserResultObjectMultipleView",
+        "tags": [
+          "ServiceExplicitBodyUserResultObjectMultipleView"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Default server for test api",
+      "name": "test api",
+      "url": "http://localhost:80"
+    }
+  ],
+  "tags": [
+    {
+      "name": "ServiceExplicitBodyUserResultObjectMultipleView"
+    }
+  ]
+}

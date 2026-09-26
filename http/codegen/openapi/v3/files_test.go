@@ -525,6 +525,9 @@ func TestFiles(t *testing.T) {
 		{"body-object-validate", testdata.PayloadBodyObjectValidateDSL},
 		{"inline-body-selection", testdata.InlineBodySelectionDSL},
 		{"inline-body-shared-method-name", testdata.InlineBodySharedMethodNameDSL},
+		// Inline response bodies that select result type attributes
+		{"explicit-body-result-object", testdata.ExplicitBodyUserResultObjectDSL},
+		{"explicit-body-result-object-views", testdata.ExplicitBodyUserResultObjectMultipleViewDSL},
 		// Scalar map keys
 		{"scalar-map-keys", testdata.OpenAPIScalarMapKeysDSL},
 		// Attributes with a transport element name suffix
