@@ -73,7 +73,12 @@ func transformOptionalToNative(
 		group.Add(conversion).Line()
 		group.Add(assignment)
 	})
-	if defaultValue := targetParent.GetDefault(name); defaultValue != nil {
+	// Like a native field (transformObjectDefaultValueCode), an absent field
+	// takes its default only in a target that uses defaults and does not store
+	// primitives as pointers. A projected type is such a pointer target: the
+	// conversion of the view to its result type assigns the default.
+	defaultValue := targetParent.GetDefault(name)
+	if defaultValue != nil && ta.TargetCtx.UseDefault && !ta.TargetCtx.Pointer {
 		stmt.Else().Block(Expr(targetVar + " = " + defaultValueLiteral(targetValue, defaultValue, ta)))
 	}
 	return stmt, nil

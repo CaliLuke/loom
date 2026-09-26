@@ -375,6 +375,52 @@ func TestTransformJSONOptionalPrimitiveToServicePointer(t *testing.T) {
 	require.Contains(t, code, "payload.Count = &")
 }
 
+// TestTransformJSONOptionalDefaultFollowsTargetContext checks that an absent
+// JSON optional field takes its default only in a target context that uses
+// defaults and does not store primitives as pointers, as a native field does.
+// A projected type is such a pointer context: the conversion of the view to
+// the result type assigns the default.
+func TestTransformJSONOptionalDefaultFollowsTargetContext(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type: &expr.Object{
+			{Name: "count", Attribute: &expr.AttributeExpr{Type: expr.Int, DefaultValue: 3}},
+			{Name: "tags", Attribute: &expr.AttributeExpr{
+				Type:         &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}},
+				DefaultValue: []any{"a"},
+			}},
+		},
+	}
+	cases := []struct {
+		Name       string
+		Pointer    bool
+		UseDefault bool
+		Defaults   bool
+	}{
+		{Name: "service", UseDefault: true, Defaults: true},
+		{Name: "view", Pointer: true, UseDefault: true},
+		{Name: "no-default"},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			scope := NewNameScope()
+			sourceCtx := NewAttributeContext(false, false, true, "", scope)
+			sourceCtx.JSONPresence = true
+			targetCtx := NewAttributeContext(c.Pointer, false, c.UseDefault, "", scope)
+
+			code, _, err := GoTransform(attribute, attribute, "body", "target", sourceCtx, targetCtx, "unmarshal", true)
+			require.NoError(t, err)
+			require.Contains(t, code, "body.Count.Value()")
+			require.Contains(t, code, "body.Tags.Value()")
+			if c.Defaults {
+				require.Contains(t, code, "target.Count = 3")
+				require.Contains(t, code, "} else {\n\ttarget.Tags = ")
+				return
+			}
+			require.NotContains(t, code, "} else {")
+		})
+	}
+}
+
 func TestTransformServicePointerToJSONOptionalPrimitive(t *testing.T) {
 	attribute := &expr.AttributeExpr{
 		Type: &expr.Object{{Name: "count", Attribute: &expr.AttributeExpr{Type: expr.Int}}},
