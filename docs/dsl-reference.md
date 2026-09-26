@@ -1897,6 +1897,13 @@ var OAuth2Auth = OAuth2Security("oauth2", func() {
 
 ### Applying Security
 
+Credential declarations (`Token`, `AccessToken`, `APIKey`, `Username`,
+`Password`, and their numbered `Field` forms) use attribute names without a
+mapping suffix. For example, use `Token("token", String)` and map it with
+`Header("token:Authorization")` in the HTTP DSL. A declaration such as
+`Token("token:wire", String)` fails design validation. Ordinary attributes
+can still use mapping suffixes.
+
 #### Method Level
 
 ```go

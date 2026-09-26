@@ -436,6 +436,11 @@ rather than modifying generated files.
 
 ## Authentication and Sessions
 
+Declare credentials with plain attribute names: `Token("token", String)`,
+then map them in the transport DSL, such as `Header("token:Authorization")`.
+Mapping suffixes on `Token`, `AccessToken`, `APIKey`, `Username`, `Password`,
+or their numbered `Field` declarations are rejected during validation.
+
 Prefer Loom's first-class session DSL:
 
 - `SessionAuth(name, fn)`

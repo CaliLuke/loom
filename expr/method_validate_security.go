@@ -1,12 +1,18 @@
 package expr
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/CaliLuke/loom/eval"
 )
 
 // validateRequirements validates the security requirements.
 func (m *MethodExpr) validateRequirements() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	if err := validateCredentialNames(m.Payload); err != nil {
+		verr.Add(m, "%s", err)
+	}
 	requirements := m.validationRequirements()
 	flags := newRequirementFlags()
 	for _, r := range requirements {
@@ -15,6 +21,38 @@ func (m *MethodExpr) validateRequirements() *eval.ValidationErrors {
 	}
 	verr.Merge(m.validateMissingRequirementTags(flags))
 	return verr
+}
+
+// validateCredentialNames checks the payload and its bases. References only
+// supply metadata for selected fields, which the DSL has already copied.
+func validateCredentialNames(payload *AttributeExpr) error {
+	if ut, ok := payload.Type.(UserType); ok {
+		if err := validateCredentialNames(ut.Attribute()); err != nil {
+			return err
+		}
+	} else if obj := AsObject(payload.Type); obj != nil {
+		for _, field := range *obj {
+			if !strings.Contains(field.Name, ":") {
+				continue
+			}
+			for tag := range field.Attribute.Meta {
+				switch tag {
+				case "security:username", "security:password", "security:token", "security:accesstoken":
+				default:
+					if !strings.HasPrefix(tag, "security:apikey:") {
+						continue
+					}
+				}
+				return fmt.Errorf("security credential attribute %q must not use a mapping suffix; declare an attribute name and map it in the transport DSL", field.Name)
+			}
+		}
+	}
+	for _, base := range payload.Bases {
+		if err := validateCredentialNames(&AttributeExpr{Type: base}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type requirementFlags struct {
