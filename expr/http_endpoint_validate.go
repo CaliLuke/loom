@@ -24,6 +24,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateBodyAndPayload(verr)
 	e.validateNullableTransportLocations(verr)
 	e.validateBodyElementNames(verr)
+	e.validateAPIKeyLocations(verr)
 	for _, er := range e.HTTPErrors {
 		verr.Merge(er.Validate())
 	}

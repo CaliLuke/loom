@@ -1839,6 +1839,11 @@ var APIKeyAuth = APIKeySecurity("api_key", func() {
 })
 ```
 
+An HTTP endpoint reads the API key from a header, a query string parameter or
+a cookie. A design that reads it from a path parameter, a `Param` that a route
+wildcard names, is rejected, because an OpenAPI API key security scheme cannot
+name a path parameter.
+
 #### Basic Authentication
 
 ```go
