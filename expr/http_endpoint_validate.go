@@ -143,6 +143,7 @@ func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
 
 	if e.Body != nil {
 		verr.Merge(e.Body.Validate("HTTP body", e))
+		validateBodyRequiredKeys(e.Body, "HTTP request body", e, verr)
 		if e.SkipRequestBodyEncodeDecode {
 			verr.Add(e, "Cannot define a request body when using SkipRequestBodyEncodeDecode.")
 		}
@@ -173,16 +174,22 @@ func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
 	}
 }
 
+// validateBodyRequiredPayloadAttributes checks that the payload requires each
+// attribute that the explicit request body requires. It compares attribute
+// names, so a body that requires "name:n" matches a payload that requires
+// "name".
 func (e *HTTPEndpointExpr) validateBodyRequiredPayloadAttributes(verr *eval.ValidationErrors) {
 	if e.Body == nil || e.Body.Validation == nil {
 		return
 	}
 	var preqs, missing []string
 	if e.MethodExpr.Payload != nil && e.MethodExpr.Payload.Validation != nil {
-		preqs = e.MethodExpr.Payload.Validation.Required
+		for _, req := range e.MethodExpr.Payload.Validation.Required {
+			preqs = append(preqs, AttributeName(req))
+		}
 	}
 	for _, req := range e.Body.Validation.Required {
-		if containsString(preqs, req) {
+		if containsString(preqs, AttributeName(req)) {
 			continue
 		}
 		missing = append(missing, req)

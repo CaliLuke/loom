@@ -21,7 +21,10 @@ import (
 //
 //   - A function listing the body attributes. The attributes inherit the
 //     properties (description, type, validations etc.) of the request or
-//     response type attributes with identical names.
+//     response type attributes with identical attribute names. The attribute
+//     name is the part of the name that precedes an element name suffix, so
+//     Attribute("name:n") inherits the attribute "name" and names the body
+//     field "n".
 //
 // Assuming the type:
 //

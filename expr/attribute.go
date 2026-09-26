@@ -2,6 +2,7 @@ package expr
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/eval"
@@ -457,6 +458,20 @@ func (a *AttributeExpr) Find(name string) *AttributeExpr {
 	return nil
 }
 
+// FindAttribute finds a child attribute by attribute name in the attribute
+// and its bases and references, as Find does. The attribute name of an object
+// key is the part that precedes its element name suffix (AttributeName), so
+// FindAttribute("n") and FindAttribute("n:x") both find a child declared as
+// "n", "n:m" or "n:x". A child whose key is name takes precedence. It returns
+// the object key and the child, or an empty string and nil when the attribute
+// is not an object or has no such child.
+func (a *AttributeExpr) FindAttribute(name string) (string, *AttributeExpr) {
+	if att := a.Find(name); att != nil {
+		return name, att
+	}
+	return a.findByAttributeName(AttributeName(name))
+}
+
 // Delete removes an attribute with the given name. It does nothing if the
 // attribute expression is not an object type.
 func (a *AttributeExpr) Delete(name string) {
@@ -530,4 +545,38 @@ func extractUserExamplesFromType(dt DataType, seen map[string]struct{}) []*Examp
 	}
 	seen[id] = struct{}{}
 	return ut.Attribute().extractUserExamples(seen)
+}
+
+// objectAttribute returns the key and the child of o whose key is key or, when
+// o has no such key, whose attribute name is the attribute name of key. It
+// returns an empty string and nil when o has neither.
+func objectAttribute(o *Object, key string) (string, *AttributeExpr) {
+	if att := o.Attribute(key); att != nil {
+		return key, att
+	}
+	name := AttributeName(key)
+	for _, nat := range *o {
+		if AttributeName(nat.Name) == name {
+			return nat.Name, nat.Attribute
+		}
+	}
+	return "", nil
+}
+
+func (a *AttributeExpr) findByAttributeName(name string) (string, *AttributeExpr) {
+	find := func(dt DataType) (string, *AttributeExpr) {
+		switch t := dt.(type) {
+		case UserType:
+			return t.Attribute().findByAttributeName(name)
+		case *Object:
+			return objectAttribute(t, name)
+		}
+		return "", nil
+	}
+	for _, dt := range slices.Concat([]DataType{a.Type}, a.Bases, a.References) {
+		if key, att := find(dt); att != nil {
+			return key, att
+		}
+	}
+	return "", nil
 }

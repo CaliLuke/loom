@@ -1516,6 +1516,13 @@ Body(func() {
 })
 ```
 
+An attribute of a `Body` defined with a function names the payload or result
+attribute before the colon: `Attribute("name:n")` inherits the type,
+description, validations and requiredness of the `name` attribute, as
+`Attribute("name")` does, and the body names the field `"n"`. As in a type,
+a `Required` list in the body names the attribute `"name:n"`, and a request
+body may require it only when the payload requires `name`.
+
 A route wildcard names the parameter, not the attribute: `Param("key:k")`
 maps the `{k}` wildcard of the route to the `key` attribute, and a route that
 uses `{key}` for that attribute is rejected. A mapped `Param` that no route

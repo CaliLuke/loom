@@ -513,7 +513,15 @@ filter, and serialization rules belong here.
   `HTTPEndpointExpr.validateBodyElementNames` checks the element names in the
   objects of the HTTP and JSON-RPC bodies of each endpoint, without the
   attributes mapped to params, headers and cookies, so that a suffix that
-  collides only in a gRPC type or outside a body is accepted. A route wildcard names the
+  collides only in a gRPC type or outside a body is accepted. An attribute
+  of an explicit `Body` function or of a type with a reference inherits the
+  referenced attribute with the same attribute name
+  (`AttributeExpr.FindAttribute`, `objectAttribute` in `Inherit`), and the
+  inherited required names use the body keys, so `Attribute("name:n")`
+  behaves as `Attribute("name")` except for the element name;
+  `validateBodyRequiredPayloadAttributes` and the response body checks
+  compare attribute names, and `validateBodyRequiredKeys` rejects a body
+  `Required` name that omits the suffix of its key. A route wildcard names the
   element of a param, so `Param("key:k")` is the path parameter of `{k}`
   (`HTTPEndpointExpr.PathParams`, `QueryParams`, `ensureRouteParams` and
   `RouteExpr.Validate` match wildcards by element name, and the path builders

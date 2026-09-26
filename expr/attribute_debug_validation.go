@@ -240,7 +240,7 @@ func (a *AttributeExpr) inheritRecursive(parent *AttributeExpr, seen map[*Attrib
 		return
 	}
 	for _, nat := range *AsObject(a.Type) {
-		if patt := AsObject(parent.Type).Attribute(nat.Name); patt != nil {
+		if _, patt := objectAttribute(AsObject(parent.Type), nat.Name); patt != nil {
 			att := nat.Attribute
 			att.Nullable = att.Nullable || patt.Nullable
 			if att.Description == "" {
@@ -259,8 +259,7 @@ func (a *AttributeExpr) inheritRecursive(parent *AttributeExpr, seen map[*Attrib
 				seen[att] = struct{}{}
 				for _, nat := range *AsObject(att.Type) {
 					child := nat.Attribute
-					parent := AsObject(patt.Type).Attribute(nat.Name)
-					if parent != nil {
+					if _, parent := objectAttribute(AsObject(patt.Type), nat.Name); parent != nil {
 						child.inheritValidations(parent)
 						child.inheritRecursive(parent, seen)
 					}
@@ -277,7 +276,15 @@ func (a *AttributeExpr) inheritValidations(parent *AttributeExpr) {
 	if a.Validation == nil {
 		a.Validation = &ValidationExpr{}
 	}
-	a.Validation.AddRequired(parent.Validation.Required...)
+	obj := AsObject(a.Type)
+	for _, name := range parent.Validation.Required {
+		if obj != nil {
+			if key, _ := objectAttribute(obj, name); key != "" {
+				name = key
+			}
+		}
+		a.Validation.AddRequired(name)
+	}
 }
 
 func (a *AttributeExpr) shouldInherit(parent *AttributeExpr) bool {

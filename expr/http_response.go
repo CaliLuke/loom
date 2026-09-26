@@ -294,6 +294,7 @@ func (r *HTTPResponseExpr) validateCookies(
 func (r *HTTPResponseExpr) validateBodyAndLinks(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
 	if r.Body != nil {
 		verr.Merge(r.Body.Validate("HTTP response body", r))
+		validateBodyRequiredKeys(r.Body, "HTTP response body", r, verr)
 		if e.SkipResponseBodyEncodeDecode || e.FileResponse {
 			mode := "SkipResponseBodyEncodeDecode"
 			if e.FileResponse {
@@ -307,7 +308,7 @@ func (r *HTTPResponseExpr) validateBodyAndLinks(e *HTTPEndpointExpr, resultType 
 			}
 		} else if bobj := AsObject(r.Body.Type); bobj != nil {
 			for _, n := range *bobj {
-				if resultType.AttributeType(n.Name) == nil {
+				if resultType.AttributeType(AttributeName(n.Name)) == nil {
 					verr.Add(r, "body %q has no equivalent attribute in%s result type", n.Name, resultType.InView)
 				}
 			}
@@ -419,7 +420,7 @@ func (r *HTTPResponseExpr) finalizeObjectBody(a *HTTPEndpointExpr, bodyAtt *Attr
 		source, required := responseBodyFieldSource(bodyAtt, bodyObj, name)
 		initAttrFromDesign(nat.Attribute, source)
 		if required {
-			ensureValidation(r.Body).AddRequired(name)
+			ensureValidation(r.Body).AddRequired(nat.Name)
 		}
 	}
 	r.rememberOriginalBodyName()

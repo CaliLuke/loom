@@ -118,3 +118,65 @@ var MappedParamsDSL = func() {
 		})
 	})
 }
+
+// MappedExplicitBodyDSL declares explicit request and response bodies whose
+// attributes carry a transport element name suffix, such as
+// Attribute("name:n") in Body. The body attributes inherit the type,
+// description, validations and requiredness of the payload and result
+// attributes of the same attribute names, and the bodies use the suffixes as
+// the JSON names of the fields. The create method maps a user type payload
+// and an inline result. The pair method lists body attributes of an inline
+// payload that are not strings and requires one of them in the body.
+var MappedExplicitBodyDSL = func() {
+	var Account = Type("Account", func() {
+		Attribute("id", Int, "Account ID")
+		Attribute("name", String, "Account name", func() {
+			MinLength(2)
+		})
+		Attribute("age", Int, "Account age")
+		Required("id", "name")
+	})
+	Service("mappedbody", func() {
+		Method("create", func() {
+			NoSecurity()
+			Payload(Account)
+			Result(func() {
+				Attribute("id", Int, "Account ID")
+				Attribute("name", String, "Account name", func() {
+					MinLength(2)
+				})
+				Attribute("age", Int, "Account age")
+				Required("name")
+			})
+			HTTP(func() {
+				POST("/accounts/{id}")
+				Body(func() {
+					Attribute("name:n")
+					Attribute("age:ag")
+				})
+				Response(StatusOK, func() {
+					Body(func() {
+						Attribute("name:n")
+						Attribute("age:ag")
+					})
+				})
+			})
+		})
+		Method("pair", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("a", Int)
+				Attribute("b", Int)
+				Required("a")
+			})
+			HTTP(func() {
+				POST("/pair")
+				Body(func() {
+					Attribute("a:x")
+					Attribute("b:y")
+					Required("a:x")
+				})
+			})
+		})
+	})
+}

@@ -59,6 +59,25 @@ func bodyFieldName(key string, att *AttributeExpr) bodyField {
 	}
 }
 
+// validateBodyRequiredKeys reports the names of the Required list of an
+// explicit body that name an attribute declared with an element name suffix
+// without the suffix, such as "n" for the attribute "n:m". As in a type, the
+// Required list of a body names such an attribute with its key.
+func validateBodyRequiredKeys(body *AttributeExpr, ctx string, parent eval.Expression, verr *eval.ValidationErrors) {
+	obj := AsObject(body.Type)
+	if obj == nil || body.Validation == nil {
+		return
+	}
+	for _, name := range body.Validation.Required {
+		if obj.Attribute(name) != nil {
+			continue
+		}
+		if key, _ := objectAttribute(obj, name); key != "" {
+			verr.Add(parent, "required attribute %q of the %s is declared as %q; use Required(%q)", name, ctx, key, key)
+		}
+	}
+}
+
 // validateBodyElementNames rejects the fields of the HTTP and JSON-RPC bodies
 // of the endpoint whose element name, such as "m" for a field declared as
 // "n:m", gives them a JSON name that the body cannot use: an empty name, "-",

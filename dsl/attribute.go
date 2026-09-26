@@ -55,6 +55,12 @@ import (
 //	                                       // validations, default and/or
 //	                                       // example value
 //
+// An attribute of an object that refers to another type, such as a Body
+// defined with a function or a type that uses Reference, inherits the
+// properties of the attribute of that type with the same attribute name. The
+// attribute name is the part of name that precedes an element name suffix, so
+// Attribute("name:n") in a Body inherits the payload attribute "name".
+//
 // Where name is a string indicating the name of the attribute, type specifies
 // the attribute type (see above for the possible values), description a string
 // providing a human description of the attribute and fn the defining DSL if
@@ -138,7 +144,7 @@ func Attribute(name string, args ...any) {
 
 	var attr *expr.AttributeExpr
 	{
-		if ref := parent.Find(name); ref != nil {
+		if _, ref := parent.FindAttribute(name); ref != nil {
 			attr = expr.DupAtt(ref)
 		}
 
