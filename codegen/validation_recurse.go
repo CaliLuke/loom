@@ -418,13 +418,14 @@ func presenceValueContext(ctx *AttributeContext, underlying *expr.AttributeExpr)
 		valueCtx.Pointer = false
 	}
 	if userType, ok := underlying.Type.(expr.UserType); ok && !primitive {
-		if jsonPresence, recorded := ctx.JSONPresenceTypes[userType.ID()]; recorded {
+		key := userType.Hash()
+		if jsonPresence, recorded := ctx.JSONPresenceTypes[key]; recorded {
 			valueCtx.JSONPresence = jsonPresence
 		}
-		if pointer, recorded := ctx.PresencePointerTypes[userType.ID()]; recorded {
+		if pointer, recorded := ctx.PresencePointerTypes[key]; recorded {
 			valueCtx.Pointer = pointer
 		}
-		if useDefault, recorded := ctx.PresenceUseDefaultTypes[userType.ID()]; recorded {
+		if useDefault, recorded := ctx.PresenceUseDefaultTypes[key]; recorded {
 			valueCtx.UseDefault = useDefault
 		}
 	}

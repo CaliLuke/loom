@@ -58,12 +58,15 @@ type (
 		CollectionElementPresence bool
 		// JSONPresenceTypes records named types whose physical object fields use
 		// loom.Optional even when the root conversion itself uses native presence.
+		// It is keyed by the hash of the user type, which names its Go type.
 		JSONPresenceTypes map[string]bool
 		// PresencePointerTypes records named types whose physical object fields
-		// use pointer presence after a wrapper value is unwrapped.
+		// use pointer presence after a wrapper value is unwrapped. It is keyed
+		// by the hash of the user type.
 		PresencePointerTypes map[string]bool
 		// PresenceUseDefaultTypes records named types whose physical object fields
-		// use value storage for optional primitive fields with defaults.
+		// use value storage for optional primitive fields with defaults. It is
+		// keyed by the hash of the user type.
 		PresenceUseDefaultTypes map[string]bool
 		// oneofFields holds the Go names of the fields that hold the branches
 		// of the union being validated, in branch order, when Scope is a

@@ -593,8 +593,12 @@ filter, and serialization rules belong here.
   type once by its hash, which names its Go type, not by its identifier: the
   body types of a result type, such as the response body and the element of
   a collection of it, share the identifier and hold different branch types.
-  OpenAPI keeps the service union names, so do not rename the union in
-  `expr` or in the shared IR.
+  The layouts of the body types (`recordUserTypeLayout` and the
+  `JSONPresenceTypes`, `PresencePointerTypes` and `PresenceUseDefaultTypes`
+  maps of `codegen.AttributeContext`) are keyed by the same hash, because the
+  request and response body types of a result type share its identifier and
+  have different layouts. OpenAPI keeps the service union names, so do not
+  rename the union in `expr` or in the shared IR.
 - The HTTP code generator declares the request and response body types, and
   the user types nested in them, from the normalized bodies of its transport
   IR (`transportir.Request.Body`, `Request.StreamingBody`,

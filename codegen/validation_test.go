@@ -460,8 +460,8 @@ func TestOptionalUnionInlineObjectValidationUsesNativePresence(t *testing.T) {
 	}}}
 	ctx := NewAttributeContext(true, false, true, "", NewNameScope())
 	ctx.JSONPresence = true
-	ctx.JSONPresenceTypes = map[string]bool{details.ID(): true}
-	ctx.PresencePointerTypes = map[string]bool{details.ID(): true}
+	ctx.JSONPresenceTypes = map[string]bool{details.Hash(): true}
+	ctx.PresencePointerTypes = map[string]bool{details.Hash(): true}
 
 	code := ValidationCode(attribute, nil, ctx, true, false, false, "body")
 

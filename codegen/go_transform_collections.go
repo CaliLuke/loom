@@ -642,11 +642,8 @@ func attributeUsesJSONPresence(attribute *expr.AttributeExpr, context *Attribute
 	if attribute == nil || context == nil || len(context.JSONPresenceTypes) == 0 {
 		return false
 	}
-	if userType, ok := attribute.Type.(expr.UserType); ok && context.JSONPresenceTypes[userType.ID()] {
-		return true
-	}
-	name := context.Scope.Name(attribute, context.Pkg(attribute), false, context.UseDefault)
-	return context.JSONPresenceTypes[name]
+	userType, ok := attribute.Type.(expr.UserType)
+	return ok && context.JSONPresenceTypes[userType.Hash()]
 }
 
 // walkMatches iterates through the attributes of source and looks for

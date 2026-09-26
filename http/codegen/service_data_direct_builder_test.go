@@ -61,9 +61,9 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		recordUserTypeLayout(sd, nested, true, false, false, true)
 		recordUserTypeLayout(sd, nested, true, true, true, false)
 
-		require.True(t, sd.ServerJSONPresenceTypes[nested.ID()])
-		require.True(t, sd.ServerPresencePointerTypes[nested.ID()])
-		require.False(t, sd.ServerPresenceUseDefaultTypes[nested.ID()])
+		require.True(t, sd.ServerJSONPresenceTypes[nested.Hash()])
+		require.True(t, sd.ServerPresencePointerTypes[nested.Hash()])
+		require.False(t, sd.ServerPresenceUseDefaultTypes[nested.Hash()])
 	})
 
 	t.Run("error name header keeps routing metadata out of the body", func(t *testing.T) {

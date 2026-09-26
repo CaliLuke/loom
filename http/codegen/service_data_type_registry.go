@@ -191,45 +191,35 @@ func recordNestedTypeLayouts(sd *ServiceData, attribute *expr.AttributeExpr, ser
 	if attribute == nil {
 		return
 	}
-	rootID := ""
+	rootHash := ""
 	if root, ok := attribute.Type.(expr.UserType); ok {
-		rootID = root.ID()
+		rootHash = root.Hash()
 	}
 	collectUserTypes(attribute.Type, func(userType expr.UserType) {
-		if userType.ID() == rootID {
+		if userType.Hash() == rootHash {
 			return
 		}
 		recordUserTypeLayout(sd, userType, server, jsonPresence, pointer, useDefault)
 	})
 }
 
+// recordUserTypeLayout records the layout of the Go type of userType unless
+// the type already has a layout of equal or higher priority. Layouts are keyed
+// by the hash of the user type, which names its Go type: the request and
+// response body types of a result type share the identifier of the result
+// type but are different Go types with different layouts.
 func recordUserTypeLayout(sd *ServiceData, userType expr.UserType, server, jsonPresence, pointer, useDefault bool) {
 	ensureTypeLayoutMaps(sd)
 	jsonPresenceTypes, pointerTypes, useDefaultTypes := typeLayoutMaps(sd, server)
-	name := userType.Name()
-	if recordedJSONPresence, recorded := jsonPresenceTypes[userType.ID()]; recorded {
-		recordedPointer := pointerTypes[userType.ID()]
-		if typeLayoutPriority(recordedJSONPresence, recordedPointer) >= typeLayoutPriority(jsonPresence, pointer) {
-			jsonPresenceTypes[name] = recordedJSONPresence
-			pointerTypes[name] = recordedPointer
-			useDefaultTypes[name] = useDefaultTypes[userType.ID()]
-			return
-		}
-	} else if recordedJSONPresence, recorded = jsonPresenceTypes[name]; recorded {
-		recordedPointer := pointerTypes[name]
-		if typeLayoutPriority(recordedJSONPresence, recordedPointer) >= typeLayoutPriority(jsonPresence, pointer) {
-			jsonPresenceTypes[userType.ID()] = recordedJSONPresence
-			pointerTypes[userType.ID()] = recordedPointer
-			useDefaultTypes[userType.ID()] = useDefaultTypes[name]
+	key := userType.Hash()
+	if recordedJSONPresence, recorded := jsonPresenceTypes[key]; recorded {
+		if typeLayoutPriority(recordedJSONPresence, pointerTypes[key]) >= typeLayoutPriority(jsonPresence, pointer) {
 			return
 		}
 	}
-	jsonPresenceTypes[name] = jsonPresence
-	pointerTypes[name] = pointer
-	useDefaultTypes[name] = useDefault
-	jsonPresenceTypes[userType.ID()] = jsonPresence
-	pointerTypes[userType.ID()] = pointer
-	useDefaultTypes[userType.ID()] = useDefault
+	jsonPresenceTypes[key] = jsonPresence
+	pointerTypes[key] = pointer
+	useDefaultTypes[key] = useDefault
 }
 
 func typeLayoutPriority(jsonPresence, pointer bool) uint8 {
@@ -258,14 +248,10 @@ func applyUserTypeLayout(ctx *codegen.AttributeContext, sd *ServiceData, attribu
 		return
 	}
 	jsonPresenceTypes, pointerTypes, useDefaultTypes := typeLayoutMaps(sd, server)
-	key := userType.ID()
+	key := userType.Hash()
 	jsonPresence, recorded := jsonPresenceTypes[key]
 	if !recorded {
-		key = userType.Name()
-		jsonPresence, recorded = jsonPresenceTypes[key]
-		if !recorded {
-			return
-		}
+		return
 	}
 	ctx.JSONPresence = jsonPresence
 	ctx.CollectionElementPresence = jsonPresence
