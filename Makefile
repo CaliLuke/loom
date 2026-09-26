@@ -104,6 +104,8 @@ depend:
 	@rm -f "$(PROTOC_DEST)" && \
 		cp $(PROTOC_EXEC) "$(PROTOC_DEST)" && \
 		chmod 0755 "$(PROTOC_DEST)" && \
+		mkdir -p "$(GOBIN_DIR)/../include" && \
+		cp -R "$(PROTOC)/include/." "$(GOBIN_DIR)/../include/" && \
 		rm -rf $(PROTOC) && \
 		"$(PROTOC_DEST)" --version
 
