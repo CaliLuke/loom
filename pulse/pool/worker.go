@@ -52,13 +52,20 @@ type (
 		jobs        sync.Map // jobs being handled by the worker indexed by job key
 		nodeStreams sync.Map
 
-		// jobLock serializes every transition of w.jobs (start, stop,
-		// rebalance, requeue, eviction), so a start or stop of a key never
-		// runs while another transition of that key is in progress. Handler
-		// callbacks run while it is held. No code waits on another goroutine
-		// while holding it.
+		// jobLock serializes ownership operations, including Redis I/O.
+		// handlerLock protects callbacks, local jobs, and fencing state; no
+		// Redis call holds it. Fencing takes only handlerLock, so it can stop
+		// handlers during blocked ownership I/O. When both locks are needed,
+		// acquire jobLock first. Heartbeats take neither lock.
 		jobLock         sync.Mutex
 		pendingReleases map[string]pendingRelease
+		handlerLock     sync.Mutex
+		fencedJobs      map[string]bool
+
+		leaseLock   sync.Mutex
+		leaseStart  time.Time
+		leaseFenced atomic.Bool
+		leaseWake   chan struct{}
 
 		lock    sync.RWMutex
 		stopped bool
@@ -88,14 +95,17 @@ type (
 	// JobHandler starts and stops jobs. Its methods run on pool goroutines
 	// that Node.RemoveWorker, Node.Close and Node.Shutdown wait for, so they
 	// must not call those methods for their own worker or node: the call
-	// never returns. Start and Stop run while the worker's job lock is held,
+	// never returns. Start and Stop run while the worker's handler lock is held,
 	// so a blocking call delays event handling, rebalance, eviction, Close
-	// and Shutdown for that worker until it returns.
+	// and Shutdown for that worker until it returns. Fencing also waits for
+	// callbacks; all Stop calls and scheduling delays must fit within one
+	// eighth of the worker TTL to finish before Redis permits takeover.
 	JobHandler interface {
 		// Start starts a job.
 		Start(job *Job) error
 		// Stop stops a job with a given key. The pool also calls Stop when
-		// it evicts a local worker that it considers dead; the job may
+		// the lease monitor fences it or it evicts a worker considered dead;
+		// the job may
 		// then already run on another worker. Errors returned on that path
 		// are only logged.
 		Stop(key string) error
@@ -104,7 +114,8 @@ type (
 	// NotificationHandler handle job notifications. HandleNotification has
 	// the same restriction as the JobHandler methods: it must not call
 	// Node.RemoveWorker, Node.Close or Node.Shutdown for its own worker or
-	// node.
+	// node. HandleNotification runs under the handler lock, so it also delays
+	// fencing and must return promptly.
 	NotificationHandler interface {
 		// HandleNotification handles a notification.
 		HandleNotification(key string, payload []byte) error
@@ -126,6 +137,7 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 	if _, err := node.workerMap.SetAndWait(ctx, wid, strconv.FormatInt(createdAt.UnixNano(), 10)); err != nil {
 		return nil, fmt.Errorf("failed to add worker %q to pool %q: %w", wid, node.PoolName, err)
 	}
+	leaseStart := time.Now()
 	if err := node.initialWorkerHeartbeat(ctx, wid); err != nil {
 		return nil, fmt.Errorf("failed to update worker keep-alive: %w", err)
 	}
@@ -150,6 +162,7 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 		stream:            stream,
 		reader:            reader,
 		done:              make(chan struct{}),
+		leaseWake:         make(chan struct{}, 1),
 		jobsMap:           node.jobMap,
 		jobPayloadsMap:    node.jobPayloadMap,
 		keepAliveMap:      node.workerKeepAliveMap,
@@ -167,10 +180,13 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 		"worker_ttl", w.workerTTL,
 		"worker_shutdown_ttl", w.workerShutdownTTL)
 
-	w.wg.Add(3)
+	w.recordLease(leaseStart)
+	w.wg.Add(5)
 
 	pulse.Go(w.logger, func() { w.handleEvents(runtimeCtx, reader.Subscribe()) })
 	pulse.Go(w.logger, func() { w.keepAlive(runtimeCtx) })
+	pulse.Go(w.logger, func() { w.monitorLease() })
+	pulse.Go(w.logger, func() { w.resumeLease(runtimeCtx) })
 	pulse.Go(w.logger, func() { w.retryPendingReleases(runtimeCtx) })
 
 	return w, nil
@@ -215,6 +231,14 @@ func (w *Worker) handleEvents(ctx context.Context, c <-chan *streaming.Event) {
 	defer w.wg.Done()
 
 	for {
+		if w.leaseFenced.Load() {
+			select {
+			case <-w.leaseWake:
+			case <-w.done:
+				return
+			}
+			continue
+		}
 		select {
 		case ev, ok := <-c:
 			if !ok {
@@ -253,6 +277,9 @@ func (w *Worker) handleEvents(ctx context.Context, c <-chan *streaming.Event) {
 // decode returns an error wrapping errMalformedMessage, which the caller acks
 // as a failure.
 func (w *Worker) handleEvent(ctx context.Context, ev *streaming.Event, payload []byte) error {
+	if w.leaseFenced.Load() || w.leaseExpired(time.Now()) {
+		return ErrRequeue
+	}
 	switch ev.EventName {
 	case evStartJob:
 		w.logger.Debug("handleEvents: received start job", "event", ev.EventName, "id", ev.ID)
@@ -306,20 +333,23 @@ func (w *Worker) stop(ctx context.Context) {
 // used on eviction, after cleanup has already requeued the jobs. Call it after
 // stop.
 //
-// It holds jobLock for the whole pass, so any transition in progress
-// (a stopJob that stores its job back after a failed Stop) completes first.
+// It holds both transition locks for the whole pass, so any transition in
+// progress completes first.
 // Every transition that adds a job checks IsStopped under jobLock, so after
 // stopHandlers returns no handler of the worker is left running or tracked,
 // barring handler.Stop errors, which are logged.
 func (w *Worker) stopHandlers() {
 	w.jobLock.Lock()
 	defer w.jobLock.Unlock()
+	w.handlerLock.Lock()
+	defer w.handlerLock.Unlock()
 	w.jobs.Range(func(key, _ any) bool {
 		w.jobs.Delete(key)
-		if err := w.handler.Stop(key.(string)); err != nil {
+		if err := w.stopTrackedHandler(key.(string)); err != nil {
 			w.logger.Error(fmt.Errorf("stop handlers: failed to stop job: %w", err), "job", key)
 			return true
 		}
+		delete(w.fencedJobs, key.(string))
 		w.logger.Info("stopped job of evicted worker", "job", key)
 		return true
 	})
@@ -333,6 +363,9 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 	defer w.jobLock.Unlock()
 	if w.IsStopped() {
 		return fmt.Errorf("worker %q stopped", w.ID)
+	}
+	if w.leaseFenced.Load() || w.leaseExpired(time.Now()) {
+		return ErrRequeue
 	}
 	if release, ok := w.pendingReleases[job.Key]; ok {
 		if _, err := w.finishRelease(ctx, release); err != nil {
@@ -353,7 +386,16 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 	}
 	job.Epoch = epoch
 	job.Worker = w
+	w.handlerLock.Lock()
+	if w.leaseFenced.Load() || w.leaseExpired(time.Now()) || w.IsStopped() {
+		w.handlerLock.Unlock()
+		if _, err := w.finishRelease(ctx, pendingRelease{job: job}); err != nil {
+			w.logger.Error(err)
+		}
+		return ErrRequeue
+	}
 	if err := w.handler.Start(job); err != nil {
+		w.handlerLock.Unlock()
 		if _, releaseErr := w.finishRelease(ctx, pendingRelease{job: job, deletePayload: true}); releaseErr != nil {
 			return errors.Join(err, releaseErr)
 		}
@@ -361,6 +403,7 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 	}
 	w.logger.Info("started job", "job", job.Key)
 	w.jobs.Store(job.Key, job)
+	w.handlerLock.Unlock()
 	return nil
 }
 
@@ -368,19 +411,15 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 func (w *Worker) stopJob(ctx context.Context, key string) error {
 	w.jobLock.Lock()
 	defer w.jobLock.Unlock()
-	// Take the job before stopping it so a concurrent stopHandlers (eviction
-	// during shutdown) cannot stop the same key a second time.
-	job, ok := w.jobs.LoadAndDelete(key)
-	if !ok {
-		return fmt.Errorf("job %s not found in local worker", key)
-	}
-	if err := w.handler.Stop(key); err != nil {
-		// The job keeps running, so keep tracking it.
-		w.jobs.Store(key, job)
+	job, err := w.takeJob(key)
+	if err != nil {
 		return fmt.Errorf("failed to stop job %q: %w", key, err)
 	}
+	if job == nil {
+		return fmt.Errorf("job %s not found in local worker", key)
+	}
 	w.logger.Debug("stopped job", "job", key)
-	if _, err := w.finishRelease(ctx, pendingRelease{job: job.(*Job), deletePayload: true}); err != nil {
+	if _, err := w.finishRelease(ctx, pendingRelease{job: job, deletePayload: true}); err != nil {
 		return err
 	}
 	w.logger.Info("stopped job", "job", key)
@@ -389,6 +428,11 @@ func (w *Worker) stopJob(ctx context.Context, key string) error {
 
 // notify notifies the worker with the given payload.
 func (w *Worker) notify(_ context.Context, key string, payload []byte) error {
+	w.handlerLock.Lock()
+	defer w.handlerLock.Unlock()
+	if w.leaseFenced.Load() || w.leaseExpired(time.Now()) {
+		return ErrRequeue
+	}
 	if w.IsStopped() {
 		w.logger.Debug("worker stopped, ignoring notification")
 		return nil
@@ -433,8 +477,11 @@ func (w *Worker) keepAlive(ctx context.Context) {
 			if w.IsStopped() {
 				return // Let's not recreate the map if we just deleted it
 			}
+			start := time.Now()
 			if err := w.node.workerHeartbeat(ctx, w.ID); err != nil {
 				w.logger.Error(fmt.Errorf("failed to update worker keep-alive: %w", err))
+			} else {
+				w.recordLease(start)
 			}
 		case <-w.done:
 			w.logger.Debug("keepAlive: done")

@@ -787,3 +787,39 @@ Run with the same TLC command above, replacing the module with
 lag. Recovery reads authoritative owners and the requeue script checks both
 ownership and the observed payload bytes atomically; a stopped or replaced
 job cannot be resurrected from a cached payload.
+
+## Self-fencing and resume
+
+`redesign_false_death` reproduces two live runners without fencing (depth 10,
+126,785 distinct states). `redesign_lease_expire_bounded` completes 39,839,424
+distinct states, depth 48, with no invariant violation. It reduces `MaxEv` to 1
+and `MaxTok` to 2 from `redesign_lease_expire_min`; its other bounds are unchanged.
+The wider original run is still not exhaustive. Both permit cleanup leases to
+expire while held and assume bounded pauses before takeover.
+
+`redesign_fence_live` completes 181,194 distinct states, depth 38, including the
+`FenceRecovery` temporal check. It assumes faults eventually cease and a worker
+remains available, with weak fairness for renewal, delivery, replication,
+dispatch release, and cleanup. This smaller configuration has no rebalance,
+crash, close, stop, or orphan sweep; only worker membership replicas can lag.
+`MaxEpoch=2` permits the modeled takeover; a bound of 1 artificially prevents
+recovery after the first claim. These finite checks do not prove unbounded
+liveness or safety across arbitrary process pauses.
+
+Run from this directory (TLC 2.19, Java 25 used):
+
+```sh
+java -XX:+UseParallelGC -Xmx4g -cp /tmp/loom-tla2tools.jar tlc2.TLC \
+  -workers 4 -deadlock -metadir /tmp/loom-lease-check \
+  -config cfg/redesign_lease_expire_bounded.cfg PoolOwnership
+java -XX:+UseParallelGC -Xmx2g -cp /tmp/loom-tla2tools.jar tlc2.TLC \
+  -workers 4 -deadlock -metadir /tmp/loom-fence-live-check \
+  -config cfg/redesign_fence_live.cfg PoolOwnership
+```
+
+`worker_fencing_test.go` replays pause/resume with and without takeover, checks
+callback failure retries and stop-after-fence, and runs two real node loops to
+verify local fencing before Redis permits cleanup. The local monitor runs
+independently of heartbeat requests and resume verification. Blocked claim,
+release, and resume RPC regressions prove that ownership I/O cannot hold the
+handler lock needed for fencing. Resume requires owner/epoch checks.

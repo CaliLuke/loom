@@ -100,7 +100,7 @@ The design has eight parts:
 5. **Stop on eviction.** `handleWorkerMapUpdate` calls `handler.Stop` for
    every job of an evicted local worker.
 6. **Self-fencing.** A worker whose keep-alive `Set` has not succeeded for
-   `workerTTL - fenceMargin` stops its handlers and stops reading its stream.
+   `workerTTL - fenceMargin` stops its handlers and pauses event handling.
    It keeps `w.jobs`. After the next successful keep-alive, it resumes only
    the keys whose owner record still names it with the same epoch.
 7. **Holder-only lock release.** Only the node that holds a cleanup lock can
@@ -650,10 +650,14 @@ useful even before the owner record lands.
    and claims, stops, or payload replacement between observation and requeue.
    The requeue script checks current ownership and exact durable payload bytes
    in the same operation that appends the guarded event.
-7. **Self-fencing and resume.** Add the keep-alive failure timer,
+7. **Self-fencing and resume.** Done. Added the keep-alive failure timer,
    `handler.Stop` on fence, and owner-and-epoch validation on resume. Tests:
    fence, cleanup, then resume drops the job; fence with no cleanup, then
-   resume restarts it with the same epoch.
+   resume restarts it with the same epoch. An independent monitor checks every
+   eighth of the TTL and fences at three quarters; renewal records the request
+   start time, so a delayed reply cannot extend the local lease. Callback
+   failures remain fenced and retry. Both real Redis versions exercise these
+   paths.
 8. **Application fencing API and documentation.** Pulse's own writes are
    already checked by ticket 5. This ticket adds
    `Worker.CheckOwnership(ctx, key, epoch)`, which stops the local handler on
@@ -682,11 +686,11 @@ useful even before the owner record lands.
 
 ## Open Questions
 
-1. **Fence margin.** How large should `fenceMargin` be? It must cover clock
-   skew between nodes and Redis, plus expected pauses. A proposed default is
-   `workerTTL/4`. Self-fencing on every Redis blip longer than `3/4*workerTTL`
-   restarts handlers. Is that acceptable, or should fencing need several
-   consecutive failures?
+1. **Fence margin (decided).** Fence at `3/4*workerTTL`, checking every
+   `workerTTL/8`. The remaining eighth covers scheduling and handler stops.
+   Lease renewal uses monotonic request time locally and Redis time remotely.
+   Safety requires bounded pauses and callbacks; epochs protect downstream
+   writes outside that assumption.
 2. **Keep-alive re-check clock.** Keep-alive values are node-clock
    nanoseconds. The re-check compares them to Redis `TIME`. Either store
    keep-alive as Redis `TIME` (set by script), or add skew slack.
@@ -703,13 +707,14 @@ useful even before the owner record lands.
      not exhaustive.
    - The self-fencing scope freezes the `jobMap` and payload replicas and has
      no crash, close, stop or orphan sweep.
-   - Liveness under self-fencing is not checked. Unbounded fence and unfence
-     cycles break liveness by definition, so the check needs a fairness
-     assumption on keep-alive recovery.
+   - `redesign_fence_live` checks eventual recovery once lease faults cease,
+     a worker remains available, and renewal, delivery, replication, and
+     cleanup are weakly fair (181,194 distinct states).
    - The two-phase cleanup variant (question 3) is not modeled.
 
-   Before ticket 7, finish the lease-expiry run and add a liveness
-   configuration with fencing.
+   `redesign_lease_expire_bounded` exhaustively checks 39,839,424 states with
+   `MaxEv=1` and `MaxTok=2`; the wider original configuration remains unfinished.
+   See the model README for the exact bounds and commands.
 
 The pending-guard question is decided: keep the guard until the event is
 acked (part 8, ticket 4). The owner record would make duplicate admissions

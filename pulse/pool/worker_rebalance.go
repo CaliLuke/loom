@@ -129,17 +129,13 @@ func (w *Worker) retryRebalance() {
 func (w *Worker) releaseTrackedJob(ctx context.Context, key string) (bool, error) {
 	w.jobLock.Lock()
 	defer w.jobLock.Unlock()
-	job, ok := w.jobs.Load(key)
-	if !ok {
-		return false, nil
-	}
-	if err := w.handler.Stop(key); err != nil {
+	job, err := w.takeJob(key)
+	if err != nil || job == nil {
 		return false, err
 	}
 	// Never restart after an ambiguous release reply: another worker may
 	// already own the key. The ownership check fences all durable writes.
-	w.jobs.Delete(key)
-	released, err := w.finishRelease(ctx, pendingRelease{job: job.(*Job)})
+	released, err := w.finishRelease(ctx, pendingRelease{job: job})
 	if err != nil {
 		return false, err
 	}

@@ -678,7 +678,10 @@ For Pulse applications, read `docs/pulse.md`. Pool protocol 2 requires closing
 all protocol 1 nodes before upgrading or rolling back; mixed versions are not
 supported. `Node.Health(ctx)` reports incompatible live members. `Job.Epoch`
 identifies ownership; external stores must enforce fencing themselves. Pool
-shutdown retains epoch counters. After rebalance releases a job,
+shutdown retains epoch counters. Workers stop handlers after three quarters
+of the TTL without a confirmed renewal, then resume only the same owner and
+epoch. Callbacks must finish within the remaining fence margin; external
+writes still need store-side epoch checks. After rebalance releases a job,
 a failed Redis requeue reply does not restart it on the old worker because
 the write may already have succeeded. If it did not, orphan recovery waits
 for `max(2 * workerTTL, ackGracePeriod)` without a worker and a subsequent

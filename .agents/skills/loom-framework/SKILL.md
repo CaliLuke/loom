@@ -803,6 +803,14 @@ tier:
   its lock token and the Redis-time heartbeat in the same script that releases
   and requeues jobs. Lost release replies stay pending locally; never restart
   a handler on the assumption that Redis rejected its release.
+- Keep heartbeat I/O and resume verification independent of the lease monitor.
+  Redis operations may hold the ownership lock but never the handler lock
+  needed by fencing. Acquire the ownership lock before the handler lock when
+  both are required. Record
+  renewal request start times, never delayed reply times. Resume must check
+  the current owner, epoch, registration, and Redis lease without creating
+  ownership. A fenced handler already stopped successfully must not receive
+  another Stop during release or eviction.
 - Close all protocol 1 nodes before migration. Join registration and backfill
   are atomic with the initial node heartbeat; routing and claims reject live
   incompatible nodes. Preserve epoch counters across pool shutdown and read

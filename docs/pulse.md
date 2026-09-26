@@ -105,9 +105,18 @@ appears later, protocol 2 nodes stop routing and claiming new work until it
 leaves or its heartbeat expires. `Node.Health(ctx)` reports this condition and
 Redis errors. Older binaries cannot enforce this gate themselves.
 
-Ownership records protect pool state; they do not make external side effects
-exactly once. Until worker self-fencing is implemented, a worker whose lease
-expires may still run its handler while another worker takes over. Applications
+Workers pause event handling and call `Stop` for running jobs if a heartbeat
+has not succeeded within three quarters of the worker TTL. A separate monitor
+checks every eighth of the TTL, independently of Redis heartbeat requests.
+Successful renewal resumes a paused job only after Redis confirms the same
+owner and epoch. Cleanup or transfer makes the old worker forget that job.
+`Start` may therefore be called again with the same epoch after a pause. A
+failed `Stop` or resume `Start` is logged and retried while the job stays fenced.
+
+Handlers must finish callbacks promptly: the remaining eighth of the TTL must
+cover scheduling delays and all `Stop` calls. A callback that blocks, a failed
+`Stop`, or an unbounded process pause can outlast that margin. Ownership records
+and local fencing do not make external side effects exactly once. Applications
 that need to fence external writes must have the destination store check epochs
 atomically and reject tokens older than the highest accepted token for that key.
 

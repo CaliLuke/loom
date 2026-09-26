@@ -161,4 +161,15 @@ if not worker or worker == "-" then return redis.error_reply("worker is no longe
 set_map(KEYS[1], KEYS[2], ARGV[1], string.format("%.0f", now_ms() * 1000000))
 return 1
 `)
+	// KEYS: owners, workers, worker keepalive, node keepalive, protocols.
+	// ARGV: key, worker ID, epoch, TTL ms. Resume must not recreate ownership.
+	luaCheckOwner = redis.NewScript(luaOwnerMaps + `
+local bad = incompatible(KEYS[4], KEYS[5], ARGV[4])
+if bad ~= "" then return redis.error_reply("incompatible pool node " .. bad) end
+local worker = redis.call("HGET", KEYS[2], ARGV[2])
+if not worker or worker == "-" then return 0 end
+if not live(redis.call("HGET", KEYS[3], ARGV[2]), ARGV[4]) then return 0 end
+if redis.call("HGET", KEYS[1], ARGV[1]) ~= ARGV[2] .. ":" .. ARGV[3] then return 0 end
+return 1
+`)
 )

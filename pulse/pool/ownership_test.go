@@ -45,7 +45,9 @@ func ownershipWorker(t *testing.T, n *Node, id string) *Worker {
 		ID: id, node: n, handler: newRecordingHandler(), logger: n.logger,
 		jobsMap: n.jobMap, jobPayloadsMap: n.jobPayloadMap,
 		done: make(chan struct{}), runtimeCtx: t.Context(),
+		workerTTL: n.workerTTL, leaseWake: make(chan struct{}, 1),
 	}
+	w.recordLease(time.Now())
 	t.Cleanup(func() {
 		close(w.done)
 		w.wg.Wait()

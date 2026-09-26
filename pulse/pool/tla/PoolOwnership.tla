@@ -939,4 +939,15 @@ LockScope == ~kaStale["w2"]
 \* is left out and rebalance can be checked on its own.
 NoLiveCleanup == \A n \in Nodes : cstate[n].w = NoW \/ ~Alive(cstate[n].w) \/ stopped[cstate[n].w]
 
+\* Progress after lease failures cease and at least one worker remains available.
+FairFenceSpec == /\ Spec
+  /\ WF_vars(DoRoute) /\ WF_vars(DoWorkerHandle)
+  /\ WF_vars(DoCleanupBegin) /\ WF_vars(DoCleanupAcquire)
+  /\ WF_vars(DoCleanupFinish) /\ WF_vars(DoEvict)
+  /\ WF_vars(DoDispatchRel)
+  /\ \A n \in Nodes, m \in RepMaps : WF_vars(Replicate(n,m))
+  /\ \A w \in Workers : WF_vars(KeepAlive(w))
+FenceFaultsCease == <>[][~(DoSelfFence \/ FalseDeath)]_vars
+WorkerRemains == <>[](\E w \in Workers : Alive(w) /\ wmap[w] = "live" /\ ~stopped[w] /\ ~kaStale[w])
+FenceRecovery == (FenceFaultsCease /\ WorkerRemains) => EventuallyRuns
 =============================================================================

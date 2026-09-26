@@ -71,15 +71,7 @@ func TestRebalanceRequeueReply(t *testing.T) {
 
 			// Deliver to a second worker through the real start transition.
 			// Register its lease without a local worker loop.
-			registerFakeWorker(t, node, "target")
-			target := &Worker{
-				ID:             "target",
-				node:           node,
-				handler:        newRecordingHandler(),
-				jobsMap:        node.jobMap,
-				jobPayloadsMap: node.jobPayloadMap,
-				logger:         node.logger,
-			}
+			target := ownershipWorker(t, node, "target")
 			require.NoError(t, target.startJob(ctx, job))
 			require.Len(t, target.Jobs(), 1)
 			require.Empty(t, worker.Jobs(), "both workers run the job")
