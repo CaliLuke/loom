@@ -93,6 +93,10 @@ func TestWorkerAckBeforeRegistration(t *testing.T) {
 
 			tc.event(t, ctx, node)
 
+			// The pending count is also zero before the sink delivers the event.
+			require.Eventually(t, func() bool {
+				return acked.Load() != nil
+			}, 3*time.Second, 5*time.Millisecond, "worker event not delivered")
 			poolStreamKey := "pulse:stream:" + poolStreamName(pool)
 			require.Eventually(t, func() bool {
 				pending, err := rdb.XPending(ctx, poolStreamKey, poolSinkName).Result()
