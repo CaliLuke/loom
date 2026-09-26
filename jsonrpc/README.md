@@ -407,6 +407,20 @@ Content-Type: application/json
   non-nullable union, `"params": null` is still rejected with `-32602`; for a
   non-nullable object, it decodes like `{}` and the object is validated; for a
   nullable or `Any` attribute, it decodes as a null value.
+- Clients omit `params` only when a request sets none: a method without
+  payload, or a nil or absent optional object, union, nullable, or `Any`
+  attribute selected with `Body("name")`. Empty strings, arrays and objects
+  and null values are sent, as are the params of notifications. An optional
+  primitive or array attribute selected with `Body("name")` is always sent,
+  as `"params": null` when it is nil.
+- Loom params may be any JSON value, including `null`, strings, and numbers.
+  JSON-RPC 2.0 allows only arrays and objects, so a strict third-party
+  JSON-RPC 2.0 server may reject such params.
+- Absent `params` are also kept absent when the params are a nullable or `Any`
+  payload, or a required nullable or `Any` payload attribute selected with
+  `Body("name")`. Such params are required, so the server rejects absent
+  `params` with `-32602` and a `missing_payload` error instead of decoding
+  them as `{}`.
 - Batch requests are decoded to `[]jsonrpc.RawRequest` and each entry is
   processed independently; responses are streamed into a JSON array.
 

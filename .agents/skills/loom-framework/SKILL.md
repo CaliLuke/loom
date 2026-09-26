@@ -354,7 +354,11 @@ filter, and serialization rules belong here.
   `loom.Nullable` collection elements of JSON decoding, and are passed to it
   by value; the payload field holds the value without a pointer. Their
   validation requires presence only when the body is required
-  (`requestBodyRequired`). A nullable object body gets its own transport
+  (`requestBodyRequired`). JSON-RPC servers decode absent params as `{}`
+  only when the body is neither optional nor explicit presence
+  (`RequestData.ExplicitPresenceBody`), so absent params of a required
+  explicit presence body, or of a nullable or `Any` payload, fail with
+  `missing_payload`. A nullable object body gets its own transport
   struct; its `Validate` function takes the `loom.Nullable` of that struct,
   and `TypeData.ValueRef` declares the decoded variable. A non-nullable object
   (`OptionalObjectBody`) is decoded into a pointer that is set to nil for an
@@ -538,7 +542,12 @@ filter, and serialization rules belong here.
   member, null for a method without a result, and an error response has none.
   Build responses with `MakeSuccessResponse` and `MakeErrorResponse`; do not
   add an envelope type with an `omitempty` result, because JSON v2 omits
-  `""`, `[]` and `{}` as well as null.
+  `""`, `[]` and `{}` as well as null. `Request.Params` is likewise
+  `omitzero`: a request omits `params` only when `Params` is nil, so HTTP and
+  WebSocket clients and notifications send empty strings, arrays, objects
+  and null alike. Generated HTTP clients leave `Params` nil only for a method
+  without payload and for an absent `OptionalBodyAttribute`; a nil optional
+  primitive or array body is a typed nil and is sent as null (#466).
 - Generated JSON-RPC WebSocket clients share one `jsonrpc.WebSocketClientConn`
   per connection. It is the only reader: it assigns connection-wide request
   ids, routes each response by id, and fails every waiter when the read fails.

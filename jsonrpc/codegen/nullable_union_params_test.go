@@ -16,7 +16,7 @@ import (
 // Body to the payload constructor by value, and that the client omits params
 // for an absent optional attribute while the server decodes absent params as
 // an absent value instead of substituting {}. A required attribute is always
-// encoded.
+// encoded, and the server reports its absent params as a missing payload.
 func TestJSONRPCNullableUnionParams(t *testing.T) {
 	for _, required := range []bool{false, true} {
 		name := "optional"
@@ -37,7 +37,8 @@ func TestJSONRPCNullableUnionParams(t *testing.T) {
 			assert.NotContains(t, decoder, "NewPickPayload(&body")
 			if required {
 				assert.NotContains(t, encoder, "p.U.Present()")
-				assert.Contains(t, decoder, "params = []byte(\"{}\")")
+				assert.NotContains(t, decoder, "params = []byte(\"{}\")")
+				assert.Contains(t, decoder, "return payload, loom.MissingPayloadError()")
 				return
 			}
 			assert.Contains(t, encoder, "\t\tif p.U.Present() {\n\t\t\tbody.Params = NewLoomNullablePickRequestBody(p)\n\t\t}\n")
@@ -48,11 +49,10 @@ func TestJSONRPCNullableUnionParams(t *testing.T) {
 
 // TestJSONRPCNullableUnionParamsGeneratedModule compiles and vets a JSON-RPC
 // service whose params are an optional nullable union payload attribute
-// selected with Body, round-trips absent and concrete unions through
+// selected with Body, round-trips absent, null and concrete unions through
 // the generated client and server, checks that an absent union is sent
-// without params, and sends absent, null, concrete, empty-object and invalid
-// params to the generated server. The client cannot send a null union: the
-// JSON-RPC envelope omits null params, which JSON-RPC 2.0 does not allow.
+// without params and a null union as null params, and sends absent, null,
+// concrete, empty-object and invalid params to the generated server.
 func TestJSONRPCNullableUnionParamsGeneratedModule(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcNullableUnionParamsDSL(false))
 	dir := t.TempDir()
@@ -202,6 +202,7 @@ func TestNullableUnionParams(t *testing.T) {
 		params string
 	}{
 		{picker.PickPayload{ID: ptr("1")}, ""},
+		{picker.PickPayload{ID: ptr("2"), U: loom.NullValue[picker.LeafOrOther]()}, "null"},
 		{picker.PickPayload{ID: ptr("3"), U: loom.NullableValue(picker.NewLeafOrOtherLeaf(&picker.Leaf{Name: "a"}))}, ` + "`" + `{"type":"Leaf","value":{"name":"a"}}` + "`" + `},
 	}
 	for _, tc := range payloads {

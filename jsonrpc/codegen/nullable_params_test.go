@@ -18,7 +18,7 @@ import (
 // payload constructor by value, and that the client omits params for an
 // absent optional attribute while the server decodes absent params as an
 // absent value instead of substituting {}. A required attribute is always
-// encoded.
+// encoded, and the server reports its absent params as a missing payload.
 func TestJSONRPCNullableParams(t *testing.T) {
 	cases := []struct {
 		Name string
@@ -51,7 +51,8 @@ func TestJSONRPCNullableParams(t *testing.T) {
 				assert.NotContains(t, decoder, "Payload(&body")
 				if required {
 					assert.NotContains(t, encoder, c.Guard)
-					assert.Contains(t, decoder, "params = []byte(\"{}\")")
+					assert.NotContains(t, decoder, "params = []byte(\"{}\")")
+					assert.Contains(t, decoder, "return payload, loom.MissingPayloadError()")
 					return
 				}
 				assert.Contains(t, encoder, "\t\tif "+c.Guard+" {\n\t\t\tbody.Params = ")

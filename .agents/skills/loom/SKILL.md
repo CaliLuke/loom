@@ -519,7 +519,9 @@ SSE and WebSocket handshake/message contracts.
 JSON-RPC is a first-class transport, not an HTTP behavior alias.
 
 - Omitted `params` decode as `{}`; ordinary required-field validation still
-  applies.
+  applies. Nullable or `Any` params are the exception: omitted params leave an
+  optional attribute absent and fail a required one, or a nullable or `Any`
+  payload, with `-32602` `missing_payload`.
 - Only an explicit effective JSON-RPC `Response(...)` mapping creates a typed
   `error.data` contract. HTTP mappings never apply to JSON-RPC.
 - Explicit mappings project the concrete service error into the designed body.

@@ -8,11 +8,14 @@ import (
 )
 
 type (
-	// Request represents a JSON-RPC request.
+	// Request represents a JSON-RPC request. Its JSON form has a "params"
+	// member unless Params is nil, so empty strings, arrays and objects and
+	// null values are sent. It has an "id" member unless ID is nil or empty,
+	// as for a notification.
 	Request struct {
 		JSONRPC string `json:"jsonrpc"`
 		Method  string `json:"method"`
-		Params  any    `json:"params,omitempty"`
+		Params  any    `json:"params,omitzero"`
 		ID      any    `json:"id,omitempty"`
 	}
 

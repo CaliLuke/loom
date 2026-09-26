@@ -353,13 +353,13 @@ and the value otherwise. The generated server decodes an empty or
 whitespace-only body as an absent value and `null` as a null value, and it
 validates a concrete value: the fields of an object, the non-null elements of
 an array, the values of a map, the selected branch of a union, and the
-validations of a primitive. When the attribute is required, an empty body
-fails with `missing_payload`. An `Any` attribute works the same way, but its
+validations of a primitive. When the attribute is required, an empty body,
+or absent JSON-RPC `params`, fails with `missing_payload`; a JSON-RPC server
+answers `-32602`. An `Any` attribute works the same way, but its
 `loom.JSONValue` payload field is nil when absent and holds `null` when null.
 A required `Any` attribute has no absent state: the client sends a nil value
-as `null`. A JSON-RPC client cannot send null params, because JSON-RPC 2.0
-does not allow them: it omits `params` for a null value as well as for an
-absent one. The JSON-RPC server still decodes `"params": null` as a null
+as `null`. A JSON-RPC client omits `params` only for an absent value; it
+sends `"params": null` for a null value, which the server decodes as a null
 value.
 
 The generated client CLI makes the body flag of an optional object, union,

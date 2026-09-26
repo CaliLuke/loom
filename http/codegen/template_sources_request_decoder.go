@@ -7,7 +7,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	return func(r *http.Request{{ if .Method.IsJSONRPC }}, req *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
 	{{- if .Method.IsJSONRPC }}
 		params := req.Params
-		{{- if not .Payload.Request.OptionalBodyAttribute }}
+		{{- if not (or .Payload.Request.OptionalBodyAttribute .Payload.Request.ExplicitPresenceBody) }}
 		if len(params) == 0 {
 			params = []byte("{}")
 		}

@@ -11,6 +11,29 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
+// RequestDecodePlan contains the derived control flow decisions for
+// rendering a server request decoder.
+type RequestDecodePlan struct {
+	// HasElements is true when the request binds at least one path, query,
+	// header, or cookie element.
+	HasElements bool
+	// HasPathParams is true when the request binds path parameters.
+	HasPathParams bool
+	// HasQueryParams is true when the request binds query parameters.
+	HasQueryParams bool
+	// HasHeaders is true when the request binds headers.
+	HasHeaders bool
+	// HasCookies is true when the request binds cookies.
+	HasCookies bool
+	// QueryValuesVar is the local variable containing parsed query values.
+	QueryValuesVar string
+	// QueryErrorVar is the local variable containing a query parse error.
+	QueryErrorVar string
+	// MustValidate is true when decoded request elements may accumulate
+	// validation errors.
+	MustValidate bool
+}
+
 type payloadBuilder struct {
 	sds        *ServicesData
 	endpointIR *transportir.Endpoint
@@ -142,6 +165,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		OptionalBodyAttribute: isOptionalBodyAttribute(b.endpointIR.Request),
 		OptionalBodyNullable:  isOptionalNullableBody(b.endpointIR.Request),
 		OptionalObjectBody:    isOptionalObjectBody(b.endpointIR.Request),
+		ExplicitPresenceBody:  codegen.IsExplicitPresenceType(b.endpointIR.Request.Body),
 		MustValidate:          payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
 		Multipart:             b.endpointIR.Request.Multipart,
 		MultipartGenerated:    multipartGen,

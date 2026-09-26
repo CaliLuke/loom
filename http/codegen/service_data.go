@@ -437,6 +437,12 @@ type (
 		// passes the pointer to the payload constructor, which leaves the
 		// attribute nil for a nil body.
 		OptionalObjectBody bool
+		// ExplicitPresenceBody is true when the request body is a nullable
+		// type or Any, such as a nullable or Any payload or payload
+		// attribute selected with Body. JSON-RPC servers then decode absent
+		// params as an absent body, which is a missing payload when the
+		// body is required, instead of as {}.
+		ExplicitPresenceBody bool
 		// MustValidate is true if the request body or at least one
 		// parameter or header requires validation.
 		MustValidate bool
@@ -458,29 +464,6 @@ type (
 		// DecodePlan contains precomputed decisions used by the server request
 		// decoder template.
 		DecodePlan *RequestDecodePlan
-	}
-
-	// RequestDecodePlan contains the derived control flow decisions for
-	// rendering a server request decoder.
-	RequestDecodePlan struct {
-		// HasElements is true when the request binds at least one path, query,
-		// header, or cookie element.
-		HasElements bool
-		// HasPathParams is true when the request binds path parameters.
-		HasPathParams bool
-		// HasQueryParams is true when the request binds query parameters.
-		HasQueryParams bool
-		// HasHeaders is true when the request binds headers.
-		HasHeaders bool
-		// HasCookies is true when the request binds cookies.
-		HasCookies bool
-		// QueryValuesVar is the local variable containing parsed query values.
-		QueryValuesVar string
-		// QueryErrorVar is the local variable containing a query parse error.
-		QueryErrorVar string
-		// MustValidate is true when decoded request elements may accumulate
-		// validation errors.
-		MustValidate bool
 	}
 
 	// MultipartFileFieldData describes a multipart file field handled by the
