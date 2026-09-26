@@ -576,6 +576,13 @@ filter, and serialization rules belong here.
   and null alike. Generated HTTP clients leave `Params` nil only for a method
   without payload and for an absent `OptionalBodyAttribute`, so a typed nil
   never reaches the envelope as null.
+- The unary endpoint of a generated JSON-RPC HTTP client whose payload has an
+  ID attribute checks the response to a notification, which the encoder sends
+  for an empty ID, with `jsonrpc.DecodeNotificationResponse` and returns the
+  zero result instead of decoding a response
+  (`writeJSONRPCNotificationResponse` in `jsonrpc/codegen/client_sections.go`).
+  Its locals are names that service imports already avoid
+  (`transportGeneratedLocalNames`).
 - Generated JSON-RPC WebSocket clients share one `jsonrpc.WebSocketClientConn`
   per connection. It is the only reader: it assigns connection-wide request
   ids, routes each response by id, and fails every waiter when the read fails.

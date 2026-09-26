@@ -316,7 +316,13 @@ How IDs behave across transports and shapes:
   - Client
     - If the payload has an ID field and it is non-empty, the client sends it
       as `id` (request). If empty (or nil pointer), the client omits `id`
-      (notification).
+      (notification). The server sends no response to a notification, so
+      the client returns the zero result and no error when the HTTP response
+      has a 2xx status and an empty body. It returns an error for another
+      status, a body that is not a JSON-RPC response, or a JSON-RPC error
+      response, such as the Invalid Request error of a server that could not
+      read the notification. A service error of a notification never reaches
+      the client.
     - If the payload has no ID field, the client generates a string `id` and
       sends a request (never a notification).
   - Server

@@ -15,7 +15,9 @@ import (
 	"net/http"
 	"strings"
 
+	clock "example.com/mixedtick/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -67,6 +69,10 @@ func (c *Client) Initialize() loom.Endpoint {
 		resp, err := c.Doer.Do(req)
 		if err != nil {
 			return nil, loomhttp.ErrRequestError("clock", "Initialize", err)
+		}
+		if p := v.(*clock.InitializePayload); p.ID == nil || *p.ID == "" {
+			var res *clock.InitializeResult
+			return res, jsonrpc.DecodeNotificationResponse("clock", "Initialize", resp)
 		}
 		return decodeResponse(resp)
 	}

@@ -542,8 +542,8 @@ func TestClient(t *testing.T) {
 	}
 	for _, tc := range cases {
 		// The server sends no response to a notification, which the
-		// generated client reports as a decoding error.
-		if _, err := tc.call(); err != nil && !tc.notification {
+		// generated client reports as a success.
+		if _, err := tc.call(); err != nil {
 			t.Errorf("%s: %v", tc.name, err)
 			continue
 		}
