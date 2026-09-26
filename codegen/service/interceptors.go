@@ -8,7 +8,7 @@ import (
 )
 
 // InterceptorsFiles returns the interceptors files for the given service.
-func InterceptorsFiles(_ string, service *expr.ServiceExpr, services *ServicesData) []*codegen.File {
+func InterceptorsFiles(genpkg string, service *expr.ServiceExpr, services *ServicesData) []*codegen.File {
 	var files []*codegen.File
 	svc := services.Get(service.Name)
 
@@ -22,7 +22,7 @@ func InterceptorsFiles(_ string, service *expr.ServiceExpr, services *ServicesDa
 
 	// Generate wrapper file if this service has any interceptors
 	if len(svc.ServerInterceptors) > 0 || len(svc.ClientInterceptors) > 0 {
-		files = append(files, wrapperFile(services, svc))
+		files = append(files, wrapperFile(genpkg, services, svc))
 	}
 
 	return files
@@ -94,13 +94,14 @@ func interceptorFile(services *ServicesData, svc *Data, server bool) *codegen.Fi
 }
 
 // wrapperFile returns the file containing the interceptor wrappers.
-func wrapperFile(services *ServicesData, svc *Data) *codegen.File {
+func wrapperFile(genpkg string, services *ServicesData, svc *Data) *codegen.File {
 	path := filepath.Join(codegen.Gendir, svc.PathName, "interceptor_wrappers.go")
 
 	svc, imports := services.fileData(svc.Name, append([]*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "fmt"},
 		codegen.LoomImport(""),
+		{Path: genpkg + "/" + svc.PathName + "/views", Name: svc.ViewsPkg},
 	}, svc.UserTypeImports...))
 	var sections []codegen.Section
 	sections = append(sections, codegen.Header("Interceptor wrappers", svc.PkgName, imports))

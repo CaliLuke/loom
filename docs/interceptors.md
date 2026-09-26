@@ -97,6 +97,14 @@ Why the accessor interfaces matter:
 - If you declare `WriteResult(Attribute("cachedAt"))`, Loom generates `SetCachedAt(<type>)`.
 - Your interceptor can’t accidentally reach for fields you didn’t declare; that’s the compile-time contract.
 
+When the method result is a result type, the server endpoint returns the viewed
+result (the type in the `views` package). For a server interceptor that reads or
+writes the result, Loom converts that value to the result type before `next`
+returns it, so `info.Result(res)` works. The generated wrapper then renders the
+value that the interceptor returns with the same view. The interceptor sees the
+fields of that view only, as a client does. A server interceptor that declares
+no result access gets the viewed result unchanged.
+
 ### The Client Interceptor Contract
 
 Client interceptors are the same idea on the client side: they wrap the transport endpoint you pass into `gen/<service>.NewClient(...)`.

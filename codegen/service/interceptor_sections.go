@@ -520,6 +520,10 @@ func renderServerInterceptorWrapperBody(service string, interceptor *Interceptor
 		return b.String()
 	}
 	fmt.Fprintf(&b, "info := &%sInfo{\n\tservice:    %q,\n\tmethod:     %q,\n\tcallType:   loom.InterceptorUnary,\n\trawPayload: req,\n}\n", interceptor.Name, service, method.MethodName)
+	if interceptor.HasResultAccess && method.ViewedResult != nil {
+		b.Add(renderViewedResultInterception(interceptor, method))
+		return b.String()
+	}
 	fmt.Fprintf(&b, "return i.%s(ctx, info, endpoint)", interceptor.Name)
 	return b.String()
 }

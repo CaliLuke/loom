@@ -637,6 +637,13 @@ filter, and serialization rules belong here.
   do. The unary HTTP handler renders the view that the endpoint returned and,
   when the design fixes no view, names it in the `loom-view` header that the
   client reads; the streams first project the result with `NewViewed<Type>`.
+- The server endpoint of a method whose result is a result type returns the
+  viewed result, while the result accessors of interceptors take the result
+  type. The server wrapper of an interceptor with result access
+  (`renderViewedResultInterception`) converts the endpoint result with
+  `New<Type>` for the interceptor and projects the returned result with
+  `NewViewed<Type>` and the view of the endpoint result, or the view of the
+  design. Other interceptors and the client wrappers pass values through.
 - A projected type declares the field of a required union as a value and
   every other field as a pointer or a collection. The view conversions
   transform through an object of the attributes of the view

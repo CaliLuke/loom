@@ -415,6 +415,9 @@ type (
 		ServerStream *StreamInterceptorData
 		// ClientStream is the stream data if the endpoint defines a client stream.
 		ClientStream *StreamInterceptorData
+		// ViewedResult is the viewed result type data of a method whose
+		// unary server endpoint returns the viewed result, nil otherwise.
+		ViewedResult *ViewedResultTypeData
 	}
 
 	// StreamInterceptorData is the stream data for an interceptor.

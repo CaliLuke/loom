@@ -147,6 +147,10 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData) *Method
 	if i.ReadStreamingResult != nil || i.WriteStreamingResult != nil {
 		streamingResultAccess = codegen.Goify(i.Name, false) + md.VarName + "StreamingResult"
 	}
+	var viewedResult *ViewedResultTypeData
+	if md.ServerStream == nil {
+		viewedResult = md.ViewedResult
+	}
 	return &MethodInterceptorData{
 		MethodName:             md.VarName,
 		PayloadAccess:          payloadAccess,
@@ -159,6 +163,7 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData) *Method
 		StreamingResultRef:     md.ResultRef,
 		ClientStream:           clientStream,
 		ServerStream:           serverStream,
+		ViewedResult:           viewedResult,
 	}
 }
 
