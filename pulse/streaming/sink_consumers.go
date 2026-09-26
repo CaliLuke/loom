@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oklog/ulid/v2"
 	redis "github.com/redis/go-redis/v9"
 
 	"github.com/CaliLuke/loom/pulse/pulse"
@@ -108,7 +107,8 @@ func (s *Sink) deleteStaleConsumers(ctx context.Context) {
 // reports confirmed deregistration, even when subsequent group cleanup fails.
 // The caller owns the map until cleanup succeeds or the sink closes.
 func (s *Sink) removeStreamConsumer(ctx context.Context, stream *Stream) (bool, error) {
-	remains, _, err := s.consumersMap[stream.Name].RemoveValues(ctx, s.Name, s.consumer)
+	consumers := append([]string{s.consumer}, s.retiredConsumers...)
+	remains, _, err := s.consumersMap[stream.Name].RemoveValues(ctx, s.Name, consumers...)
 	if err != nil {
 		return false, fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", s.consumer, stream.Name, err)
 	}
@@ -116,22 +116,6 @@ func (s *Sink) removeStreamConsumer(ctx context.Context, stream *Stream) (bool, 
 		return true, s.deleteConsumerGroup(ctx, stream)
 	}
 	return true, nil
-}
-
-// newConsumer creates a new consumer of the sink for stream and registers it
-// in the consumers and keep-alive maps. The consumer goes to the consumers map
-// first, as in NewSink. If newConsumer fails, the consumers map does not hold
-// the new consumer.
-func (s *Sink) newConsumer(ctx context.Context, stream *Stream) (string, error) {
-	consumer := ulid.Make().String()
-	cm := s.consumersMap[stream.Name]
-	if _, err := cm.AppendValues(ctx, s.Name, consumer); err != nil {
-		return "", fmt.Errorf("failed to append consumer %s to replicated map for stream %s: %w", consumer, stream.Name, err)
-	}
-	if err := s.createConsumer(ctx, stream, consumer); err != nil {
-		return "", rollbackConsumer(ctx, cm, stream, s.Name, consumer, err)
-	}
-	return consumer, nil
 }
 
 // createConsumer creates consumer in the consumer group of the sink for
@@ -165,7 +149,10 @@ func (s *Sink) read(ctx context.Context) {
 		}
 		readCtx, readStreams, consumer, armed := s.armRead(ctx)
 		if !armed {
-			return
+			if s.isClosing() || !s.waitBeforeEnsureConsumerRetry() {
+				return
+			}
+			continue
 		}
 
 		s.logger.Debug("reading", "streams", readStreams, "max", s.maxPolled, "block", s.blockDuration)
@@ -202,7 +189,7 @@ func (s *Sink) armRead(ctx context.Context) (context.Context, []string, string, 
 	readCtx, cancel := context.WithCancel(ctx)
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if s.closing {
+	if s.closing || len(s.streams) == 0 {
 		cancel()
 		return readCtx, nil, "", false
 	}
@@ -244,22 +231,6 @@ func (s *Sink) clearActiveRead() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.readCancel = nil
-}
-
-// ensureConsumer ensures that the consumer is still alive.
-func (s *Sink) ensureConsumer(ctx context.Context) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	if time.Since(time.Unix(0, s.lastKeepAlive)) > 2*s.ackGracePeriod {
-		s.logger.Debug("consumer stale, creating new one")
-		var err error
-		s.consumer, err = s.newConsumer(ctx, s.streams[0])
-		if err != nil {
-			s.logger.Error(fmt.Errorf("failed to create new consumer: %w", err))
-			return err
-		}
-	}
-	return nil
 }
 
 // periodicKeepAlive updates this consumer keep-alive every half ack grace period.

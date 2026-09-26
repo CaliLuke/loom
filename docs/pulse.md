@@ -80,6 +80,13 @@ stops and the sink retains the map for cleanup. Retry `RemoveStream` to finish,
 or call `AddStream` to resume the stream with that same map. `Sink.Close` also
 closes maps retained for pending cleanup.
 
+A stale sink consumer is replaced across every active stream before the sink
+switches to the new name. Rotation preserves pending messages on old Redis
+consumers for idle-message recovery. Failed retirement remains owned and is
+retried; removing a stream also removes any retained consumer names. With no
+streams, the sink waits without creating a consumer or issuing empty reads;
+adding a stream resumes polling.
+
 ## Worker Pool Shutdown
 
 Every non-client pool node returned by `pool.AddNode` must end through exactly

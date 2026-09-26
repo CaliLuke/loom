@@ -113,3 +113,27 @@ membership; the caller must retry the failed removal. The model does not claim
 a distributed transaction across these commands. Tests inject errors before and
 after both writes and check retry, re-add, failed re-add, final group state, and
 actual PUBSUB subscription counts. Sink.Close also releases pending maps.
+
+## Consumer rotation (#519)
+
+`SinkRotation.tla` models two streams, preparation of a replacement, commitment
+of the current name, failed rollback/retirement, and stream removal. Rotation
+and removal are serialized by the sink lock. Redis consumers and pending entries
+are outside this membership model; a regression test checks that rotation keeps
+an old consumer's pending entry.
+
+Run the TLC command above with `SinkRotation.tla`:
+
+| Configuration | Result |
+| --- | --- |
+| `cfg/rotation_asis.cfg` | `CurrentRegistered` fails in 3 states: rotation registers the new name on only the first stream. |
+| `cfg/rotation_owned.cfg` | All three invariants pass (21 distinct states): current names are registered on active streams, removed streams have no owned names left, and empty-stream checks do not panic. |
+
+Preparation failure leaves the current name unchanged. Candidates are owned
+before the first write, including failures with lost replies, until confirmed
+removed from every map. Commitment retires the previous name; failed retirement
+remains owned so later removal can clean up all names. A successful rotation
+can therefore proceed despite retirement errors without losing cleanup
+ownership. The model folds partial preparation and rollback failures into the
+set of names left registered; tests inject failures before/after consumer
+creation and during rollback/retirement to verify those boundaries.

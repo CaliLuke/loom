@@ -682,7 +682,9 @@ sweep. Account for that recovery delay when choosing these settings.
 Retry failed `Sink.RemoveStream` calls: membership errors retain the local
 stream, while group-cleanup errors stop polling and retain cleanup ownership.
 `AddStream` can resume a stream with pending group cleanup; `Close` releases all
-retained map subscriptions.
+retained map subscriptions. Consumer rotation covers all active streams and
+preserves pending entries for idle recovery. A sink with no streams waits;
+adding a stream resumes polling.
 
 - `docs/quickstart.md`
 - `docs/dsl-reference.md`

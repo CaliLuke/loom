@@ -80,6 +80,8 @@ type (
 		closed bool
 		// consumer is the sink consumer name.
 		consumer string
+		// retiredConsumers are owned names awaiting removal from every stream map.
+		retiredConsumers []string
 		// leaseKeyName is the stale check lock key name.
 		leaseKeyName []string
 		// startID is the sink start event ID.
