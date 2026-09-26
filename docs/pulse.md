@@ -87,6 +87,28 @@ retried; removing a stream also removes any retained consumer names. With no
 streams, the sink waits without creating a consumer or issuing empty reads;
 adding a stream resumes polling.
 
+## Pool Job Ownership and Upgrades
+
+Pool protocol 2 records one owner and a monotonically increasing epoch for each
+job key in Redis. Claims and releases are atomic; a stale worker cannot delete
+a later owner's payload. Recovery rechecks the worker's keep-alive in Redis
+and reads authoritative ownership instead of a local replica. Handlers receive
+the ownership token in `Job.Epoch`; the pool retains epoch counters even after
+`Shutdown` so tokens never restart when the pool name is reused.
+
+Upgrade from protocol 1 requires stopping every old node with `Close` before
+starting protocol 2 nodes. This boundary does not support rolling upgrades or
+mixed-version rollbacks. `AddNode` rejects a live older member. If an older node
+appears later, protocol 2 nodes stop routing and claiming new work until it
+leaves or its heartbeat expires. `Node.Health(ctx)` reports this condition and
+Redis errors. Older binaries cannot enforce this gate themselves.
+
+Ownership records protect pool state; they do not make external side effects
+exactly once. Until worker self-fencing is implemented, a worker whose lease
+expires may still run its handler while another worker takes over. Applications
+that need to fence external writes must have the destination store check epochs
+atomically and reject tokens older than the highest accepted token for that key.
+
 ## Worker Pool Shutdown
 
 Every non-client pool node returned by `pool.AddNode` must end through exactly

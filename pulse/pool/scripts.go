@@ -171,12 +171,12 @@ var (
 	// guard is never written without its event and the event is never queued
 	// without its guard. The pool stream has no TTL, so none is applied.
 	//
-	// KEYS: payload content, pending content, pending channel, pool stream.
+	// KEYS: payload content, pending content, pending channel, pool stream, owners.
 	// ARGV: key, nowNanos, untilNanos, maxLen, job bytes, sink group, nowMs,
 	// maxAgeMs.
 	luaClaimDispatch = redis.NewScript(luaDispatchGuard + `
 local payload = redis.call("HGET", KEYS[1], ARGV[1])
-if payload then
+if payload or redis.call("HEXISTS", KEYS[5], ARGV[1]) == 1 then
    return {3, ""}
 end
 

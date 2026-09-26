@@ -57,6 +57,9 @@ func (node *Node) handlePoolEvents(ctx context.Context, c <-chan *streaming.Even
 
 // routeWorkerEvent routes a dispatched event to the proper worker.
 func (node *Node) routeWorkerEvent(ctx context.Context, ev *streaming.Event) error {
+	if err := node.Health(ctx); err != nil {
+		return err
+	}
 	// Filter out stale events
 	if time.Since(ev.CreatedAt()) > pendingEventTTL {
 		node.logger.Debug("routeWorkerEvent: stale event, not routing", "event", ev.EventName, "id", ev.ID, "since", time.Since(ev.CreatedAt()), "TTL", pendingEventTTL)

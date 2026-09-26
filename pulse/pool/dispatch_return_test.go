@@ -72,6 +72,7 @@ func TestRequeueRegistersNoDispatchReturn(t *testing.T) {
 			}
 
 			job := &Job{Key: "job-1", Payload: []byte("payload-1"), CreatedAt: time.Now(), NodeID: nodeID}
+			require.NoError(t, worker.startJob(ctx, job))
 			require.NoError(t, worker.requeueJob(ctx, job))
 			require.Eventually(t, func() bool {
 				_, ok := handler.startedPayload("job-1")

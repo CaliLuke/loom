@@ -129,6 +129,9 @@ func (node *Node) requeueAllJobs(ctx context.Context) error {
 
 // cleanupPool removes the pool resources from Redis.
 func (node *Node) cleanupPool(ctx context.Context) {
+	if err := node.rdb.Del(ctx, node.ownersKey(), node.PoolName+":protocol", node.PoolName+":protocol-version").Err(); err != nil {
+		node.logger.Error(fmt.Errorf("cleanupPool: ownership keys: %w", err))
+	}
 	for _, m := range node.maps() {
 		if m != nil {
 			if err := m.Destroy(ctx); err != nil {
@@ -143,6 +146,13 @@ func (node *Node) cleanupPool(ctx context.Context) {
 
 // cleanupNode closes the node resources.
 func (node *Node) cleanupNode(ctx context.Context) {
+	if node.nodeKeepAliveMap != nil {
+		if _, err := node.nodeKeepAliveMap.Delete(ctx, node.ID); err != nil {
+			node.logger.Error(fmt.Errorf("cleanupNode: remove heartbeat: %w", err))
+		} else if err := node.rdb.HDel(ctx, node.PoolName+":protocol", node.ID).Err(); err != nil {
+			node.logger.Error(fmt.Errorf("cleanupNode: remove protocol: %w", err))
+		}
+	}
 	for _, m := range node.maps() {
 		if m != nil {
 			m.Close()

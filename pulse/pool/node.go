@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"hash"
 	"hash/crc64"
-	"strconv"
 	"sync"
 	"time"
 
@@ -168,8 +167,11 @@ func AddNode(ctx context.Context, poolName string, rdb *redis.Client, opts ...No
 	if err != nil {
 		return nil, fmt.Errorf("AddNode: failed to join node keep-alive map %q: %w", nodeKeepAliveMapName(poolName), err)
 	}
-	if _, err := nkm.Set(ctx, nodeID, strconv.FormatInt(time.Now().UnixNano(), 10)); err != nil {
-		return nil, fmt.Errorf("AddNode: failed to set initial node keep-alive: %w", err)
+	registration := &Node{ID: nodeID, PoolName: poolName, rdb: rdb, workerTTL: o.workerTTL}
+	if err := joinOwnershipProtocol(ctx, registration); err != nil {
+		nkm.Close()
+		nsm.Close()
+		return nil, fmt.Errorf("AddNode: ownership protocol: %w", err)
 	}
 
 	poolStream, err := streaming.NewStream(poolStreamName(poolName), rdb,

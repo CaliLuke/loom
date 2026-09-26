@@ -194,6 +194,7 @@ func (node *Node) runClaimDispatch(ctx context.Context, key string, job []byte, 
 		rmapContentKey(jobPendingMapName(node.PoolName)),
 		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
 		node.poolStream.Key(),
+		node.ownersKey(),
 	}, key, strconv.FormatInt(now.UnixNano(), 10), strconv.FormatInt(until.UnixNano(), 10),
 		node.poolStream.MaxLen, job, poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds()).Result()
 }

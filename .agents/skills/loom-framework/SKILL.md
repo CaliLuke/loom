@@ -796,6 +796,17 @@ tier:
   because of a filed product bug calls `Server.SkipOnRedis6(t, "#issue")`;
   remove the call with the fix. Tests that need miniredis-only
   control, such as its clock, need a wall-clock path on a real server.
+- Pool protocol 2 ownership lives in plain Redis hashes (`owners` and
+  `owner-epochs`). Claim and release scripts update ownership, job indexes,
+  and payloads together with rmap revision notifications. Never perform a
+  per-job write without checking the owning worker and epoch. Cleanup checks
+  its lock token and the Redis-time heartbeat in the same script that releases
+  and requeues jobs. Lost release replies stay pending locally; never restart
+  a handler on the assumption that Redis rejected its release.
+- Close all protocol 1 nodes before migration. Join registration and backfill
+  are atomic with the initial node heartbeat; routing and claims reject live
+  incompatible nodes. Preserve epoch counters across pool shutdown and read
+  incremented tokens as decimal strings, not Lua floating-point values.
 - `pulse/pool/redis_semantics_test.go` pins the stream behaviors the pool
   scripts rely on: single-id `XPENDING`, `XINFO GROUPS` fields, `XADD MAXLEN ~`
   in Lua, pending entries of deleted ids under `XAUTOCLAIM`, and script

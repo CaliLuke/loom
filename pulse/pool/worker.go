@@ -57,7 +57,8 @@ type (
 		// runs while another transition of that key is in progress. Handler
 		// callbacks run while it is held. No code waits on another goroutine
 		// while holding it.
-		jobLock sync.Mutex
+		jobLock         sync.Mutex
+		pendingReleases map[string]pendingRelease
 
 		lock    sync.RWMutex
 		stopped bool
@@ -71,6 +72,9 @@ type (
 	Job struct {
 		// Key is used to identify the worker that handles the job.
 		Key string
+		// Epoch is the monotonically increasing ownership token for this key.
+		// Stores may reject writes from an older epoch after ownership changes.
+		Epoch uint64
 		// Payload is the job payload.
 		Payload []byte
 		// CreatedAt is the time the job was created.
@@ -122,8 +126,7 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 	if _, err := node.workerMap.SetAndWait(ctx, wid, strconv.FormatInt(createdAt.UnixNano(), 10)); err != nil {
 		return nil, fmt.Errorf("failed to add worker %q to pool %q: %w", wid, node.PoolName, err)
 	}
-	now := strconv.FormatInt(time.Now().UnixNano(), 10)
-	if _, err := node.workerKeepAliveMap.SetAndWait(ctx, wid, now); err != nil {
+	if err := node.initialWorkerHeartbeat(ctx, wid); err != nil {
 		return nil, fmt.Errorf("failed to update worker keep-alive: %w", err)
 	}
 	stream, err := streaming.NewStream(workerStreamName(wid), node.rdb, options.WithStreamLogger(node.logger))
@@ -164,10 +167,11 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 		"worker_ttl", w.workerTTL,
 		"worker_shutdown_ttl", w.workerShutdownTTL)
 
-	w.wg.Add(2)
+	w.wg.Add(3)
 
 	pulse.Go(w.logger, func() { w.handleEvents(runtimeCtx, reader.Subscribe()) })
 	pulse.Go(w.logger, func() { w.keepAlive(runtimeCtx) })
+	pulse.Go(w.logger, func() { w.retryPendingReleases(runtimeCtx) })
 
 	return w, nil
 }
@@ -193,6 +197,7 @@ func (w *Worker) Jobs() []*Job {
 			CreatedAt: job.CreatedAt,
 			Worker:    &Worker{ID: w.ID, node: w.node, CreatedAt: w.CreatedAt},
 			NodeID:    job.NodeID,
+			Epoch:     job.Epoch,
 		})
 	}
 	return jobs
@@ -329,26 +334,28 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 	if w.IsStopped() {
 		return fmt.Errorf("worker %q stopped", w.ID)
 	}
+	if release, ok := w.pendingReleases[job.Key]; ok {
+		if _, err := w.finishRelease(ctx, release); err != nil {
+			return ErrRequeue
+		}
+	}
 	if _, ok := w.jobs.Load(job.Key); ok {
 		w.logger.Debug("start job: already running, ignoring duplicate start", "job", job.Key)
 		return nil
 	}
-	if _, err := w.jobsMap.AppendUniqueValues(ctx, w.ID, job.Key); err != nil {
-		w.logger.Error(fmt.Errorf("failed to add job %q to jobs map: %w, requeueing", job.Key, err))
+	epoch, err := w.node.claimJob(ctx, w.ID, job)
+	if err != nil {
+		w.logger.Error(err)
 		return ErrRequeue
 	}
-	if _, err := w.jobPayloadsMap.Set(ctx, job.Key, string(job.Payload)); err != nil {
-		w.logger.Error(fmt.Errorf("failed to add job payload %q to job payloads map: %w, requeueing", job.Key, err))
-		return ErrRequeue
+	if epoch == 0 {
+		return nil
 	}
+	job.Epoch = epoch
 	job.Worker = w
 	if err := w.handler.Start(job); err != nil {
-		w.logger.Debug("handler failed to start job", "job", job.Key, "error", err)
-		if _, _, err := w.jobsMap.RemoveValues(ctx, w.ID, job.Key); err != nil {
-			w.logger.Error(fmt.Errorf("start failure handling: failed to remove job %q from jobs map: %w", job.Key, err))
-		}
-		if _, err := w.jobPayloadsMap.Delete(ctx, job.Key); err != nil {
-			w.logger.Error(fmt.Errorf("start failure handling: failed to remove job payload %q from job payloads map: %w", job.Key, err))
+		if _, releaseErr := w.finishRelease(ctx, pendingRelease{job: job, deletePayload: true}); releaseErr != nil {
+			return errors.Join(err, releaseErr)
 		}
 		return err
 	}
@@ -373,30 +380,11 @@ func (w *Worker) stopJob(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to stop job %q: %w", key, err)
 	}
 	w.logger.Debug("stopped job", "job", key)
-	if _, _, err := w.jobsMap.RemoveValues(ctx, w.ID, key); err != nil {
-		w.logger.Error(fmt.Errorf("stop job: failed to remove job %q from jobs map: %w", key, err))
-	}
-	if _, err := w.jobPayloadsMap.Delete(ctx, key); err != nil {
-		w.logger.Error(fmt.Errorf("stop job: failed to remove job payload %q from job payloads map: %w", key, err))
+	if _, err := w.finishRelease(ctx, pendingRelease{job: job.(*Job), deletePayload: true}); err != nil {
+		return err
 	}
 	w.logger.Info("stopped job", "job", key)
 	return nil
-}
-
-// stopTrackedJob stops the handler of a tracked job and forgets it locally.
-// It returns false with no error if the worker no longer tracks the key.
-// When Stop fails the job stays tracked.
-func (w *Worker) stopTrackedJob(key string) (bool, error) {
-	w.jobLock.Lock()
-	defer w.jobLock.Unlock()
-	if _, ok := w.jobs.Load(key); !ok {
-		return false, nil
-	}
-	if err := w.handler.Stop(key); err != nil {
-		return false, err
-	}
-	w.jobs.Delete(key)
-	return true, nil
 }
 
 // notify notifies the worker with the given payload.
@@ -445,8 +433,7 @@ func (w *Worker) keepAlive(ctx context.Context) {
 			if w.IsStopped() {
 				return // Let's not recreate the map if we just deleted it
 			}
-			now := strconv.FormatInt(time.Now().UnixNano(), 10)
-			if _, err := w.keepAliveMap.Set(ctx, w.ID, now); err != nil {
+			if err := w.node.workerHeartbeat(ctx, w.ID); err != nil {
 				w.logger.Error(fmt.Errorf("failed to update worker keep-alive: %w", err))
 			}
 		case <-w.done:
@@ -459,6 +446,7 @@ func (w *Worker) keepAlive(ctx context.Context) {
 // requeueJobs requeues the jobs handled by the worker.
 // This should be done after the worker is stopped.
 func (w *Worker) requeueJobs(ctx context.Context) error {
+	w.retryReleases(ctx)
 	jobsToRequeue := make(map[string]*Job)
 	jobCount := 0
 	w.jobs.Range(func(key, value any) bool {
@@ -565,18 +553,12 @@ func drainRequeueResults(logger pulse.Logger, jobsToRequeue map[string]*Job, res
 
 // requeueJob requeues a job.
 func (w *Worker) requeueJob(ctx context.Context, job *Job) error {
-	// No dispatcher waits for the requeued start event, so nothing is
-	// registered for its dispatch return: the node job.NodeID names parks
-	// that return until it expires (parkDispatchReturn).
-	if _, err := w.node.poolStream.Add(ctx, evStartJob, marshalJob(job)); err != nil {
-		return fmt.Errorf("requeueJob: failed to add job to pool stream: %w", err)
+	released, err := w.releaseTrackedJob(ctx, job.Key)
+	if err != nil || !released {
+		return err
 	}
-
-	// Stop locally, but do not touch the replicated job/payload maps: we want the
-	// payload to remain available for distributed recovery until the job is
-	// confirmed running elsewhere.
-	if _, err := w.stopTrackedJob(job.Key); err != nil {
-		return fmt.Errorf("requeueJob: failed to stop job %q: %w", job.Key, err)
+	if _, err := w.node.claimRequeue(ctx, job); err != nil {
+		return fmt.Errorf("requeue job %q: %w", job.Key, err)
 	}
 	return nil
 }

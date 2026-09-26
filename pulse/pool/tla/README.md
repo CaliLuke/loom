@@ -757,3 +757,17 @@ continue. It does not model crashes, stale job-map replicas, or ownership
 races outside this handoff; those remain in `PoolOwnership.tla` and the
 owner-record roadmap. `TestRebalanceRequeueReply` exercises the corresponding
 Redis faults, refusal, orphan recovery, and target-worker start in Go.
+
+## Owner-record implementation verification
+
+The owner-record implementation reran `runner_asis` and `redesign_crash` with
+TLC 2.19. The former reproduces `AtMostOneRunner` at depth 7 (5,655 distinct
+states); the latter completes all 82,100 distinct states without a violation.
+The crash-only check does not establish safety for live workers whose leases
+expire; self-fencing and the separate pause/epoch configurations remain needed.
+
+`ownership_test.go` replays cross-worker duplicate delivery and stale-snapshot
+cleanup, checks cleanup with a missing jobs index, validates the cleanup event
+bytes against `marshalJob`, and tests stale-epoch release, protocol migration,
+and shutdown retention. Redis script epochs are read as decimal strings after
+incrementing, so tokens beyond the exact integer range of Lua numbers survive.

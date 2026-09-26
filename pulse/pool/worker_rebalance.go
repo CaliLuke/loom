@@ -2,7 +2,6 @@ package pool
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -125,9 +124,8 @@ func (w *Worker) retryRebalance() {
 // worker would hide the job from the orphan sweep and from cleanup.
 //
 // It returns false with no error if the worker no longer tracks the key.
-// When Stop fails the job stays tracked. When the job map update fails, the
-// handler is started again and the job stays tracked; if that start fails
-// too, the job is forgotten and the error says so.
+// When Stop fails the job stays tracked. A failed Redis release stays pending
+// for retry by a dedicated loop. The stopped handler is never restarted.
 func (w *Worker) releaseTrackedJob(ctx context.Context, key string) (bool, error) {
 	w.jobLock.Lock()
 	defer w.jobLock.Unlock()
@@ -138,14 +136,12 @@ func (w *Worker) releaseTrackedJob(ctx context.Context, key string) (bool, error
 	if err := w.handler.Stop(key); err != nil {
 		return false, err
 	}
-	if _, _, err := w.jobsMap.RemoveValues(ctx, w.ID, key); err != nil {
-		err = fmt.Errorf("failed to remove job %q from jobs map: %w", key, err)
-		if startErr := w.handler.Start(job.(*Job)); startErr != nil {
-			w.jobs.Delete(key)
-			return false, errors.Join(err, fmt.Errorf("failed to restart job %q: %w", key, startErr))
-		}
+	// Never restart after an ambiguous release reply: another worker may
+	// already own the key. The ownership check fences all durable writes.
+	w.jobs.Delete(key)
+	released, err := w.finishRelease(ctx, pendingRelease{job: job.(*Job)})
+	if err != nil {
 		return false, err
 	}
-	w.jobs.Delete(key)
-	return true, nil
+	return released, nil
 }

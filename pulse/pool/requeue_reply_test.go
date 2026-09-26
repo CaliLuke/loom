@@ -70,7 +70,8 @@ func TestRebalanceRequeueReply(t *testing.T) {
 			require.Equal(t, 1, countStartEvents(t, entries)[job.Key])
 
 			// Deliver to a second worker through the real start transition.
-			// It is not registered, so no watcher can reorder the handoff.
+			// Register its lease without a local worker loop.
+			registerFakeWorker(t, node, "target")
 			target := &Worker{
 				ID:             "target",
 				node:           node,

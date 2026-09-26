@@ -51,7 +51,12 @@ func TestEvictionStopsJobHandlers(t *testing.T) {
 	_, err = nodeB.AddWorker(ctx, handlerB)
 	require.NoError(t, err)
 
-	// Step 3: nodeB acts on a stale keep-alive snapshot of w1.
+	// Stop heartbeats while leaving handlers running, then expire the lease
+	// in Redis. Cleanup now rejects a merely stale replica snapshot.
+	w1.stop(ctx)
+	_, err = nodeA.workerKeepAliveMap.SetAndWait(ctx, w1.ID, "1")
+	require.NoError(t, err)
+	// Step 3: nodeB cleans up the expired worker.
 	require.Eventually(t, func() bool {
 		values, ok := nodeB.jobMap.GetValues(w1.ID)
 		return ok && len(values) == 2 && len(nodeB.JobKeys()) == 2

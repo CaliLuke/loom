@@ -114,11 +114,20 @@ func (node *Node) updateNodeKeepAlive(ctx context.Context) {
 	defer node.wg.Done()
 	ticker := time.NewTicker(node.workerTTL / 2)
 	defer ticker.Stop()
+	updates := node.nodeKeepAliveMap.Subscribe()
+	defer node.nodeKeepAliveMap.Unsubscribe(updates)
 
 	for {
 		select {
 		case <-node.stop:
 			return
+		case _, ok := <-updates:
+			if !ok {
+				return
+			}
+			if err := node.Health(ctx); err != nil {
+				node.logger.Error(err)
+			}
 		case <-ticker.C:
 			if _, err := node.nodeKeepAliveMap.Set(ctx, node.ID,
 				strconv.FormatInt(time.Now().UnixNano(), 10)); err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -48,6 +49,19 @@ func (node *Node) cleanupInactiveWorkers(ctx context.Context) {
 	}
 	for _, workerID := range node.workerMap.Keys() {
 		workersToCheck[workerID] = struct{}{}
+	}
+
+	// A close may have removed the replica index after a failed release.
+	// The authoritative owners still make every abandoned worker discoverable.
+	owners, err := node.rdb.HVals(ctx, node.ownersKey()).Result()
+	if err != nil {
+		node.logger.Error(fmt.Errorf("read job owners for cleanup: %w", err))
+		return
+	}
+	for _, owner := range owners {
+		if i := strings.LastIndexByte(owner, ':'); i >= 0 {
+			workersToCheck[owner[:i]] = struct{}{}
+		}
 	}
 
 	// Check each worker
@@ -197,56 +211,10 @@ func (node *Node) cleanupWorker(ctx context.Context, workerID string) {
 		return
 	}
 
-	// Get the worker's jobs
-	keys, ok := node.jobMap.GetValues(workerID)
-	if !ok || len(keys) == 0 {
-		// Worker has no jobs, just delete it
-		if err := node.deleteWorker(ctx, workerID, lockToken); err != nil {
-			node.logger.Error(fmt.Errorf("cleanupWorkerJobs: failed to delete worker: %w", err), "worker", workerID)
-		}
-		node.logger.Info("cleaned up worker with no jobs", "worker", workerID)
+	status, err := node.cleanupOwnedJobs(ctx, workerID, lockToken)
+	if err != nil {
+		node.logger.Error(fmt.Errorf("cleanup worker %q: %w", workerID, err))
 		return
 	}
-
-	// Requeue jobs and process them
-	var (
-		requeued  int // jobs successfully requeued
-		processed int // jobs that were either requeued or cleaned up as stale
-	)
-	for _, key := range keys {
-		payload, ok := node.JobPayload(key)
-		if !ok {
-			// The job key can remain in the jobs map even if the payload has already
-			// been removed (e.g. the job was stopped, or another node already handled
-			// the requeue). Treat it as a stale entry and remove it so future cleanup
-			// attempts don't keep looping on it.
-			if _, _, err := node.jobMap.RemoveValues(ctx, workerID, key); err != nil {
-				node.logger.Error(fmt.Errorf("cleanupWorker: failed to remove stale job from jobs map: %w", err), "job", key, "worker", workerID)
-				continue
-			}
-			node.logger.Info("cleanupWorker: removed stale job key with missing payload", "job", key, "worker", workerID)
-			processed++
-			continue
-		}
-		job := &Job{Key: key, Payload: payload, CreatedAt: time.Now(), NodeID: node.ID}
-		// Requeue by adding an event back to the pool stream.
-		// We intentionally do not wait for the job to start (which can time out
-		// under heavy churn) - the pool sink will retry routing until it is acked.
-		if _, err := node.poolStream.Add(ctx, evStartJob, marshalJob(job)); err != nil {
-			node.logger.Error(fmt.Errorf("requeueWorkerJobs: failed to requeue job: %w", err), "job", job.Key, "worker", workerID)
-			continue
-		}
-		requeued++
-		processed++
-	}
-	if len(keys) != processed {
-		node.logger.Info("partially processed stale worker jobs", "requeued", requeued, "processed", processed, "jobs", len(keys), "worker", workerID)
-		return
-	}
-
-	// Delete worker
-	node.logger.Info("cleaned up worker", "worker", workerID, "requeued", requeued)
-	if err := node.deleteWorker(ctx, workerID, lockToken); err != nil {
-		node.logger.Error(fmt.Errorf("cleanupWorkerJobs: failed to delete worker: %w", err), "worker", workerID)
-	}
+	node.logger.Debug("worker cleanup", "worker", workerID, "status", status)
 }
