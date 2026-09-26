@@ -55,7 +55,7 @@ assert_prerequisites() {
 
 assert_prerequisites all "lint test integration-test"
 assert_prerequisites ci "depend all coverage-ratchet"
-assert_prerequisites ci-local "all coverage-ratchet test-race openapi-contract generated-code-quality"
+assert_prerequisites ci-local "all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile"
 assert_prerequisites release-preflight "lint test-release coverage-ratchet integration-test openapi-contract generated-code-quality"
 
 fast_recipe="$(make --no-print-directory -C "$ROOT" -n integration-test-fast SERVICE=ticktock RUN='^TestFast$$')"
@@ -77,6 +77,7 @@ expected_workflow_targets="$(printf '%s\n' \
   generated-code-quality \
   openapi-contract \
   test-pulse-redis \
+  test-testdata-compile \
   test-race \
   | LC_ALL=C sort)"
 if [[ "$workflow_targets" != "$expected_workflow_targets" ]]; then

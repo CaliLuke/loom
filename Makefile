@@ -35,7 +35,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-race test-release test-pulse-redis integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-race test-release test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -60,7 +60,7 @@ unexport LOOM_PULSE_REDIS_ADDR
 # Run `make depend` once to install the pinned Go tools. Node.js, npm/npx,
 # rsync, and network access are also required by the external contract gates.
 # The source mode is intentionally inherited from the worktree or LOOM_DIR.
-ci-local: all coverage-ratchet test-race openapi-contract generated-code-quality
+ci-local: all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile
 
 # Install protoc
 PROTOC_VERSION=35.1
@@ -240,6 +240,13 @@ integration-test-fast: build-loom-cached
 ifneq ($(GOOS),windows)
 	bash ./scripts/integration_test_fast.sh
 endif
+
+# Full exported-design corpus; the ordinary unit tier runs catalog checks only.
+TESTDATA_RUN?=TestDesigns
+TESTDATA_PARALLEL?=2
+test-testdata-compile:
+	LOOM_TESTDATA_COMPILE=1 go test ./internal/testdatacompile \
+		-run '$(TESTDATA_RUN)' -parallel $(TESTDATA_PARALLEL) -timeout 90m -count=1
 
 generated-code-quality: build-loom-cached
 ifneq ($(GOOS),windows)

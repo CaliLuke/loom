@@ -810,6 +810,7 @@ make test
 make coverage-ratchet         # protected consumer-aware boundaries
 make openapi-contract          # OpenAPI work
 make generated-code-quality    # generated Go/output work
+make test-testdata-compile     # all exported design fixtures: gen, example, build, vet
 make integration-test          # transport behavior
 make test-pulse-redis          # pulse work, real Redis 6.2 and 7.4 (Docker)
 ./check.sh --full              # full repository verification
@@ -843,6 +844,22 @@ make loom-status
 Temp-copy regeneration tests for checked-in fixtures are intentionally
 local-only and should rewrite the copied fixture's `replace` directive to the
 current repository root before invoking `loom gen`.
+
+## Exported Design Compile Corpus
+
+`make test-testdata-compile` discovers exported zero-argument design functions
+and function-valued variables from the five testdata packages (service, HTTP,
+gRPC, JSON-RPC, and expr). It uses `loomsource.Resolve`, runs `loom gen` (including
+protoc) and `loom example` in isolated temporary modules, then tidies, builds and
+vets the complete module. Cases share Go caches; `TESTDATA_PARALLEL` bounds
+concurrent modules (default 2). `TESTDATA_RUN` selects a domain or design.
+
+The ordinary unit tier checks discovery and the expectation manifest; the full
+corpus is a separate CI matrix and part of `ci-local`. Read
+`internal/testdatacompile/README.md` before adding an expected failure. Never
+accept an unexpected failure by silently skipping a design. Expected validation
+errors need an exact case and diagnostic; generator/build failures need a GitHub
+issue. A fixed case must have its stale expectation removed.
 
 ## Fixture Contracts
 

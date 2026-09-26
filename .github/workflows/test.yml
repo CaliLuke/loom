@@ -90,6 +90,24 @@ jobs:
       - name: Generated code quality
         run: make generated-code-quality
 
+  testdata-compile:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        domain: ['codegen/service', 'http/codegen', 'grpc/codegen', 'jsonrpc/codegen', 'expr']
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Install dependencies
+        run: make depend
+      - name: Compile exported testdata designs
+        run: make test-testdata-compile TESTDATA_RUN='TestDesigns/${{ matrix.domain }}/'
+
   # Opt-in real-Redis tier for the pulse suites (issue #383). The unit jobs
   # run pulse against miniredis only.
   pulse-redis:

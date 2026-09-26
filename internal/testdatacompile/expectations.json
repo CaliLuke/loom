@@ -1,0 +1,727 @@
+{
+  "codegen/service/StreamingResultInterceptorDSL": {
+    "contains": "cannot be applied because the method result is streaming",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/APICollidingInterceptorsDSL": {
+    "contains": "service \"Service\": interceptors \"Audit\", \"audit\" all generate the Go name \"Audit\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/CaseCollidingInterceptorsDSL": {
+    "contains": "service \"Service\": interceptors \"Audit\", \"audit\" all generate the Go name \"Audit\"; rename them so that each interceptor has a distinct Go name",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/ConstructorUnionResultViewDSL": {
+    "contains": "service \"ConstructorUnionResultViewService\" method \"Show\": result -  uses view \"tiny\" but \"AOrB\" is not a result type",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/DisallowResponseBodyHeadDSL": {
+    "contains": "route HEAD \"/\" of service \"DisallowResponseBody\" HTTP endpoint \"Method\": HTTP status 200: Response body defined for HEAD method which does not allow response body.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/DuplicateResponseCookieNameDSL": {
+    "contains": "response defines duplicate cookie \"ak\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/DuplicateResultTypeNamesDSL": {
+    "contains": "result type \"A\" defined twice",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/DuplicateUserTypeNamesDSL": {
+    "contains": "type \"P\" defined twice",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/DuplicateWCRouteDSL": {
+    "contains": "route POST \"/{id}\" of service \"DuplicateWCRoute\" HTTP endpoint \"Method\": Wildcard \"id\" appears multiple times in full path \"/{id}/{id}\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EmptyExampleDSL": {
+    "contains": "too few arguments given to Example in attribute",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EmptyInterceptorNameDSL": {
+    "contains": "ServerInterceptor: interceptor name cannot be empty",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointArrayPayloadBodyConflict": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is array but HTTP endpoint body is not.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointArrayPayloadSkipRequestBodyWithoutTransport": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is array but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers or params.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointBodyAsMissedPayloadProp": {
+    "contains": "Request type does not have an attribute named \"name\" in service \"Service\" HTTP endpoint \"Method\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointDuplicateResponseStatusCode": {
+    "contains": "Multiple response definitions with status code 200",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointHasSkipEncodeAndGRPC": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipRequestBodyEncodeDecode and define a gRPC transport.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointHasSkipRequestEncodeAndFormWithBody": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": HTTP endpoint cannot use FormRequest with SkipRequestBodyEncodeDecode.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointHasSkipRequestEncodeAndMultipartWithBody": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Cannot define a request body when using SkipRequestBodyEncodeDecode.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointHasSkipRequestEncodeAndPayloadStreaming": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipRequestBodyEncodeDecode when method defines a StreamingPayload.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointHasSkipRequestEncodeAndResultStreaming": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipRequestBodyEncodeDecode when method defines a StreamingResult. Use SkipResponseBodyEncodeDecode instead.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointHasSkipResponseEncodeAndPayloadStreaming": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipResponseBodyEncodeDecode when method defines a StreamingPayload. Use SkipRequestBodyEncodeDecode instead.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointHasSkipResponseEncodeAndResultStreaming": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipResponseBodyEncodeDecode when method defines a StreamingResult.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointMapPayloadBodyConflict": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is map but HTTP endpoint body is not.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointMapPayloadSkipRequestBodyWithoutTransport": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is map but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointMissingToken": {
+    "contains": "service \"Service\" method \"Method\": payload of method \"Method\" of service \"Service\" does not define a JWT attribute, use Token to define one",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointMissingTokenPayload": {
+    "contains": "service \"Service\" method \"Method\": payload of method \"Method\" of service \"Service\" does not define a JWT attribute, use Token to define one",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointMultipartConstructorUnion": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": MultipartRequest requires an object payload, constructor unions are not supported",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointObjectPayloadBodyConflict": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": Body \"value\" is not found in Payload.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointOptionalRequestBodyMissingBody": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": HTTP endpoint uses OptionalRequestBody but does not define a request body.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointOptionalRequestBodyRequiredAttribute": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": OptionalRequestBody requires the request body to have no required attributes.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointOptionalRequestBodyRequiredOriginAttribute": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": OptionalRequestBody requires the payload attribute mapped to the request body to be optional.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointOptionalRequestBodyWithMultipart": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointPayloadMissingRequired": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": The following HTTP request body attribute is required but the corresponding method payload attribute is not: nonreq. Use 'Required' to make the attribute required in the method payload as well.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointRecursiveParentDSL": {
+    "contains": "service \"Parent\": Parent service Child is also child",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointUnionCookie": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": cookie \"filter\" must be primitive",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointUnionHeader": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": header \"filter\" must be primitive or array",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/EndpointUnionQueryParam": {
+    "contains": "service \"Service\" HTTP endpoint \"Method\": path parameter filter cannot be an object, path parameter types must be primitive, array or map (query string only)",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/FilesIncompatibleDSL": {
+    "contains": "invalid use of Files in API files-incompatile",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/FilesTooManyArgErrorDSL": {
+    "contains": "too many arguments given to Files in API files-too-many-arg-error",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/FilesValidDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "expr/GRPCEndpointWithAnyType": {
+    "contains": "Key in map fields cannot be float/double, bytes or message types.",
+    "issue": "https://github.com/CaliLuke/loom/issues/544",
+    "phase": "gen",
+    "reason": "Unsupported protobuf map key passes DSL validation."
+  },
+  "expr/GRPCEndpointWithConstructorUnionFieldCollision": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": field number 3 in attribute \"next\" already exists for attribute \"pick.Other\"; a OneOf passed to Field numbers its branches consecutively from the field number",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCEndpointWithMixedResults": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": gRPC methods cannot define both Result and StreamingResult with different types because a gRPC server stream sends only the streaming result",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCEndpointWithRepeatedFieldTags": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": field number 1 in attribute \"key_dup_id\" already exists for attribute \"key\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCEndpointWithUnionCollectionBranches": {
+    "contains": "service \"Service\" method \"Method\": union type IndexOrLeaf has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCEndpointWithUnionCollections": {
+    "contains": "service \"Service\" method \"Method\": union type Choice is an array element, not supported by gRPC; wrap the union in a Type with one Field and use that type as the element",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCEndpointWithUnionContainingAny": {
+    "contains": "service \"Service\" method \"MethodUnion\": union type choice has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCEndpointWithUntaggedFields": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": attribute \"req_not_field\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCEndpointWithUntaggedUnionBranches": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": union branch \"Leaf\" of attribute \"pick\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define each branch of a OneOf block or pass the OneOf to \"Field\" to number its branches",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCRequestMessageWithDuplicateSecondTag": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": field number 1 in attribute \"second\" already exists for attribute \"first\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCRequestMessageWithMissingSecondAttribute": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": Request message attribute \"missing\" is not found in Payload",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCRequestMessageWithUntaggedSecondAttribute": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": attribute \"second\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCResponseMessageWithDuplicateSecondTag": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": field number 1 in attribute \"second\" already exists for attribute \"first\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCResponseMessageWithMissingSecondAttribute": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": Response message attribute \"missing\" is not found in Result",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/GRPCResponseMessageWithUntaggedSecondAttribute": {
+    "contains": "service \"Service\" gRPC endpoint \"Method\": attribute \"second\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidAuthErrorResponsesPlacementDSL": {
+    "contains": "invalid use of AuthErrorResponses",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidCookieInsecurePlacementDSL": {
+    "contains": "cookie attributes must be declared after Cookie or SessionCookie in an HTTP response",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidCookieSetterPlacementDSL": {
+    "contains": "cookie attributes must be declared after Cookie or SessionCookie in an HTTP response",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidEmptyErrorRemedyDSL": {
+    "contains": "error remedy: error remedy must define at least one of code, safe message, or retry hint",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidEmptyErrorTypeDSL": {
+    "contains": "attribute: error type \"bodyless\" must not be Empty. Omit the type and map Body(Empty) on a bodyless HTTP response",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidErrorRemedyPlacementDSL": {
+    "contains": "invalid use of RemedyCode",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidExampleTypeDSL": {
+    "contains": "service \"InvalidExampleType\" method \"Method\": payload - example value map[int]int{1:1} is incompatible with type map",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidMixedWebSocketAPI": {
+    "contains": "JSON-RPC endpoints cannot define routes at the method level.",
+    "issue": "https://github.com/CaliLuke/loom/issues/545",
+    "phase": "gen",
+    "reason": "JSON-RPC fixture uses obsolete method-level routing."
+  },
+  "expr/InvalidRouteDSL": {
+    "contains": "routes at the service level are only allowed for JSON-RPC services. Use method-level routes instead. in service \"InvalidRoute\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidSecuritySchemesDSL": {
+    "contains": "payload of method \"SecureMethod\" of service \"InvalidSecuritySchemesService\" does not define a username attribute, use Username to define one",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidSessionCookiePlacementDSL": {
+    "contains": "invalid use of SessionCookie",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidSessionSecurityDuplicateTransportDSL": {
+    "contains": "session auth \"duplicate_transport_session\": session auth \"duplicate_transport_session\" defines duplicate bearer transport",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidSessionSecurityPayloadConflictDSL": {
+    "contains": "service \"InvalidSessionSecurityPayloadConflictService\" method \"SecureMethod\": payload of method \"SecureMethod\" of service \"InvalidSessionSecurityPayloadConflictService\" defines field \"auth\" which conflicts with session auth \"conflict_session\" bearer transport",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidSessionSecurityTransportDSL": {
+    "contains": "session auth \"invalid_session\": cookie transport must use an API key security scheme",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/InvalidStructErrorNameDSL": {
+    "contains": "attribute: error name \"a\" must be required in type \"ServiceError\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/MixedJSONRPCTransportsAPI": {
+    "contains": "JSON-RPC endpoints cannot define routes at the method level.",
+    "issue": "https://github.com/CaliLuke/loom/issues/545",
+    "phase": "gen",
+    "reason": "JSON-RPC fixture uses obsolete method-level routing."
+  },
+  "expr/SeparatorCollidingInterceptorsDSL": {
+    "contains": "service \"Service\": interceptors \"audit-log\", \"audit_log\" all generate the Go name \"AuditLog\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/ServiceErrorDSL": {
+    "contains": "attribute: error name \"a\" must be required in type \"ServiceError\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/StreamingEndpointRequestBody": {
+    "contains": "service \"Service\" HTTP endpoint \"MethodA\": HTTP endpoint request body must be empty when the endpoint uses streaming. Payload attributes must be mapped to headers and/or params.",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/ThreeCollidingInterceptorsDSL": {
+    "contains": "service \"Service\": interceptors \"AuditLog\", \"audit-log\", \"audit_log\" all generate the Go name \"AuditLog\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/UndefinedInterceptorDSL": {
+    "contains": "ServerInterceptor: interceptor \"undefined\" not found in service \"Service\" method \"Method\"",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/UnionBranchSecurityAttributeDSL": {
+    "contains": "service \"UnionBranchSecurityService\" method \"SecureMethod\": payload of method \"SecureMethod\" of service \"UnionBranchSecurityService\" does not define a JWT attribute, use Token to define one",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
+  "expr/ValidMethodAuthErrorResponsesReuseAPIMappingDSL": {
+    "contains": "undefined: validmethodautherrorresponsesreuseapimappingservice.APIAuthErrorForbidden",
+    "issue": "https://github.com/CaliLuke/loom/issues/547",
+    "phase": "build",
+    "reason": "Inherited API error mapping references missing service types."
+  },
+  "expr/ValidWebSocketOnlyAPI": {
+    "contains": "JSON-RPC endpoints cannot define routes at the method level.",
+    "issue": "https://github.com/CaliLuke/loom/issues/545",
+    "phase": "gen",
+    "reason": "JSON-RPC fixture uses obsolete method-level routing."
+  },
+  "grpc/codegen/MetadataVarNameCollisionDSL": {
+    "contains": "FooBar redeclared",
+    "issue": "https://github.com/CaliLuke/loom/issues/542",
+    "phase": "build",
+    "reason": "Distinct DSL fields produce duplicate Go struct field names."
+  },
+  "http/codegen/APINoBodyErrorResponseDSL": {
+    "contains": "undefined: servicenobodyerrorresponse.StringError",
+    "issue": "https://github.com/CaliLuke/loom/issues/547",
+    "phase": "build",
+    "reason": "Inherited API error mapping references missing service types."
+  },
+  "http/codegen/APINoBodyErrorResponseWithContentTypeDSL": {
+    "contains": "undefined: servicenobodyerrorresponse.StringError",
+    "issue": "https://github.com/CaliLuke/loom/issues/547",
+    "phase": "build",
+    "reason": "Inherited API error mapping references missing service types."
+  },
+  "http/codegen/AsyncSessionSecurityDSL": {
+    "contains": "payload.last_event_id undefined (type *asyncsessionsecurity.EventsPayload has no field or method last_event_id)",
+    "issue": "https://github.com/CaliLuke/loom/issues/541",
+    "phase": "build",
+    "reason": "SSE request ID uses the DSL name instead of the Go field name."
+  },
+  "http/codegen/CollabStreamsDSL": {
+    "contains": "payload.last_event_id undefined (type *collabstreams.WatchThreadPayload has no field or method last_event_id)",
+    "issue": "https://github.com/CaliLuke/loom/issues/541",
+    "phase": "build",
+    "reason": "SSE request ID uses the DSL name instead of the Go field name."
+  },
+  "http/codegen/FileServiceDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/FileServiceWildcardDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/IntValidationDSL": {
+    "contains": "undefined: strconv",
+    "issue": "https://github.com/CaliLuke/loom/issues/534",
+    "phase": "build",
+    "reason": "Primitive CLI parsing omits the strconv import."
+  },
+  "http/codegen/InvalidDSL": {
+    "contains": "malformed URI \"http://[::1]:namedport\"",
+    "issue": "https://github.com/CaliLuke/loom/issues/507",
+    "phase": "gen",
+    "reason": "Fixture URI uses a nonnumeric literal port."
+  },
+  "http/codegen/JSONIndentDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/JSONPrefixDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/JSONPrefixIndentDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/OpenAPI32FeaturesDSL": {
+    "contains": "cannot use &catalogParametersFilter (value of type *string) as string value in assignment",
+    "issue": "https://github.com/CaliLuke/loom/issues/540",
+    "phase": "build",
+    "reason": "Transport-only default produces incompatible CLI field assignment."
+  },
+  "http/codegen/OpenAPIProblemLinksAsyncDSL": {
+    "contains": "payload.last_event_id undefined (type *threadops.WatchThreadPayload has no field or method last_event_id)",
+    "issue": "https://github.com/CaliLuke/loom/issues/541",
+    "phase": "build",
+    "reason": "SSE request ID uses the DSL name instead of the Go field name."
+  },
+  "http/codegen/OpenAPISharedErrorHeaderDSL": {
+    "contains": "field and method with the same name Error",
+    "issue": "https://github.com/CaliLuke/loom/issues/533",
+    "phase": "build",
+    "reason": "Generated error field conflicts with the Error method."
+  },
+  "http/codegen/PayloadBodyPrimitiveBoolValidateDSL": {
+    "contains": "undefined: strconv",
+    "issue": "https://github.com/CaliLuke/loom/issues/534",
+    "phase": "build",
+    "reason": "Primitive CLI parsing omits the strconv import."
+  },
+  "http/codegen/PayloadCookieCustomTextUnmarshalerDSL": {
+    "contains": "cannot use v (variable of array type \"github.com/google/uuid\".UUID) as string value in struct literal",
+    "issue": "https://github.com/CaliLuke/loom/issues/537",
+    "phase": "build",
+    "reason": "Custom scalar client encoding or CLI conversion does not compile."
+  },
+  "http/codegen/PayloadCookieCustomTextUnmarshalerDefaultDSL": {
+    "contains": "cannot use v (variable of array type \"github.com/google/uuid\".UUID) as string value in struct literal",
+    "issue": "https://github.com/CaliLuke/loom/issues/537",
+    "phase": "build",
+    "reason": "Custom scalar client encoding or CLI conversion does not compile."
+  },
+  "http/codegen/PayloadCookiePrimitiveBoolValidateDSL": {
+    "contains": "declared and not used: p",
+    "issue": "https://github.com/CaliLuke/loom/issues/539",
+    "phase": "build",
+    "reason": "Primitive header or cookie client encoding declares an unused payload."
+  },
+  "http/codegen/PayloadCookiePrimitiveStringDefaultDSL": {
+    "contains": "declared and not used: p",
+    "issue": "https://github.com/CaliLuke/loom/issues/539",
+    "phase": "build",
+    "reason": "Primitive header or cookie client encoding declares an unused payload."
+  },
+  "http/codegen/PayloadCookiePrimitiveStringValidateDSL": {
+    "contains": "declared and not used: p",
+    "issue": "https://github.com/CaliLuke/loom/issues/539",
+    "phase": "build",
+    "reason": "Primitive header or cookie client encoding declares an unused payload."
+  },
+  "http/codegen/PayloadHeaderCustomTextUnmarshalerDSL": {
+    "contains": "cannot use head (variable of array type \"github.com/google/uuid\".UUID) as string value in argument to req.Header.Set",
+    "issue": "https://github.com/CaliLuke/loom/issues/537",
+    "phase": "build",
+    "reason": "Custom scalar client encoding or CLI conversion does not compile."
+  },
+  "http/codegen/PayloadHeaderCustomTextUnmarshalerOptionalValidateDSL": {
+    "contains": "undefined: idRaw",
+    "issue": "https://github.com/CaliLuke/loom/issues/537",
+    "phase": "build",
+    "reason": "Custom scalar client encoding or CLI conversion does not compile."
+  },
+  "http/codegen/PayloadHeaderPrimitiveArrayBoolValidateDSL": {
+    "contains": "declared and not used: p",
+    "issue": "https://github.com/CaliLuke/loom/issues/539",
+    "phase": "build",
+    "reason": "Primitive header or cookie client encoding declares an unused payload."
+  },
+  "http/codegen/PayloadHeaderPrimitiveArrayStringValidateDSL": {
+    "contains": "declared and not used: p",
+    "issue": "https://github.com/CaliLuke/loom/issues/539",
+    "phase": "build",
+    "reason": "Primitive header or cookie client encoding declares an unused payload."
+  },
+  "http/codegen/PayloadHeaderPrimitiveBoolValidateDSL": {
+    "contains": "declared and not used: p",
+    "issue": "https://github.com/CaliLuke/loom/issues/539",
+    "phase": "build",
+    "reason": "Primitive header or cookie client encoding declares an unused payload."
+  },
+  "http/codegen/PayloadHeaderPrimitiveStringDefaultDSL": {
+    "contains": "declared and not used: p",
+    "issue": "https://github.com/CaliLuke/loom/issues/539",
+    "phase": "build",
+    "reason": "Primitive header or cookie client encoding declares an unused payload."
+  },
+  "http/codegen/PayloadHeaderPrimitiveStringValidateDSL": {
+    "contains": "declared and not used: p",
+    "issue": "https://github.com/CaliLuke/loom/issues/539",
+    "phase": "build",
+    "reason": "Primitive header or cookie client encoding declares an unused payload."
+  },
+  "http/codegen/PayloadPathArrayStringValidateDSL": {
+    "contains": "invalid operation: p == []string{\u2026} (slice can only be compared to nil)",
+    "issue": "https://github.com/CaliLuke/loom/issues/535",
+    "phase": "build",
+    "reason": "Slice enum validation emits an invalid equality comparison."
+  },
+  "http/codegen/PayloadPathCustomFloat32DSL": {
+    "contains": "undefined: hide.Float32",
+    "issue": "https://github.com/CaliLuke/loom/issues/536",
+    "phase": "build",
+    "reason": "Custom numeric fixture metadata names nonexistent external types."
+  },
+  "http/codegen/PayloadPathCustomFloat64DSL": {
+    "contains": "undefined: hide.Float64",
+    "issue": "https://github.com/CaliLuke/loom/issues/536",
+    "phase": "build",
+    "reason": "Custom numeric fixture metadata names nonexistent external types."
+  },
+  "http/codegen/PayloadPathCustomIntDSL": {
+    "contains": "undefined: hide.Int",
+    "issue": "https://github.com/CaliLuke/loom/issues/536",
+    "phase": "build",
+    "reason": "Custom numeric fixture metadata names nonexistent external types."
+  },
+  "http/codegen/PayloadPathCustomNameDSL": {
+    "contains": "p.P undefined (type *servicepathcustomname.MethodPathCustomNamePayload has no field or method P)",
+    "issue": "https://github.com/CaliLuke/loom/issues/517",
+    "phase": "build",
+    "reason": "Existing HTTP fixture compile failure."
+  },
+  "http/codegen/PayloadPathCustomTextUnmarshalerValidateDSL": {
+    "contains": "undefined: idRaw",
+    "issue": "https://github.com/CaliLuke/loom/issues/537",
+    "phase": "build",
+    "reason": "Custom scalar client encoding or CLI conversion does not compile."
+  },
+  "http/codegen/PayloadPathCustomUIntDSL": {
+    "contains": "undefined: hide.Uint",
+    "issue": "https://github.com/CaliLuke/loom/issues/536",
+    "phase": "build",
+    "reason": "Custom numeric fixture metadata names nonexistent external types."
+  },
+  "http/codegen/PayloadPathPrimitiveBoolValidateDSL": {
+    "contains": "undefined: strconv",
+    "issue": "https://github.com/CaliLuke/loom/issues/534",
+    "phase": "build",
+    "reason": "Primitive CLI parsing omits the strconv import."
+  },
+  "http/codegen/PayloadQueryBytesValidateDSL": {
+    "contains": "undefined: err",
+    "issue": "https://github.com/CaliLuke/loom/issues/538",
+    "phase": "build",
+    "reason": "Validated bytes CLI uses err without declaring it."
+  },
+  "http/codegen/PayloadQueryCustomTextUnmarshalerDSL": {
+    "contains": "cannot use p.ID (variable of array type \"github.com/google/uuid\".UUID) as string value in argument to values.Add",
+    "issue": "https://github.com/CaliLuke/loom/issues/537",
+    "phase": "build",
+    "reason": "Custom scalar client encoding or CLI conversion does not compile."
+  },
+  "http/codegen/PayloadQueryCustomTextUnmarshalerOptionalDSL": {
+    "contains": "cannot use id (variable of array type \"github.com/google/uuid\".UUID) as *\"github.com/google/uuid\".UUID value in assignment",
+    "issue": "https://github.com/CaliLuke/loom/issues/537",
+    "phase": "build",
+    "reason": "Custom scalar client encoding or CLI conversion does not compile."
+  },
+  "http/codegen/PayloadQueryCustomTextUnmarshalerOptionalValidateDSL": {
+    "contains": "undefined: idRaw",
+    "issue": "https://github.com/CaliLuke/loom/issues/537",
+    "phase": "build",
+    "reason": "Custom scalar client encoding or CLI conversion does not compile."
+  },
+  "http/codegen/PayloadQueryPrimitiveBoolValidateDSL": {
+    "contains": "undefined: strconv",
+    "issue": "https://github.com/CaliLuke/loom/issues/534",
+    "phase": "build",
+    "reason": "Primitive CLI parsing omits the strconv import."
+  },
+  "http/codegen/SSEAllFieldsDSL": {
+    "contains": "payload.id undefined (type *sseallfieldsservice.SSEAllFieldsMethodPayload has no field or method id)",
+    "issue": "https://github.com/CaliLuke/loom/issues/541",
+    "phase": "build",
+    "reason": "SSE request ID uses the DSL name instead of the Go field name."
+  },
+  "http/codegen/SSERequestIDDSL": {
+    "contains": "payload.id undefined (type *sserequestidservice.SSERequestIDMethodPayload has no field or method id)",
+    "issue": "https://github.com/CaliLuke/loom/issues/541",
+    "phase": "build",
+    "reason": "SSE request ID uses the DSL name instead of the Go field name."
+  },
+  "http/codegen/ServerFileServerDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/ServerFileServerRootPathDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/ServerFileServerWithRedirectDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/ServerMixedDSL": {
+    "contains": "declared and not used: ctx",
+    "issue": "https://github.com/CaliLuke/loom/issues/546",
+    "phase": "build",
+    "reason": "File redirect handler declares an unused context."
+  },
+  "http/codegen/ServerMultipleFilesDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/ServerMultipleFilesWithPrefixPathDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/ServerMultipleFilesWithRedirectDSL": {
+    "contains": "declared and not used: epn",
+    "issue": "https://github.com/CaliLuke/loom/issues/543",
+    "phase": "build",
+    "reason": "File-only service generates an unused CLI endpoint variable."
+  },
+  "http/codegen/ServerNoPayloadNoResultWithRedirectDSL": {
+    "contains": "declared and not used: ctx",
+    "issue": "https://github.com/CaliLuke/loom/issues/546",
+    "phase": "build",
+    "reason": "File redirect handler declares an unused context."
+  },
+  "http/codegen/ServerPayloadNoResultWithRedirectDSL": {
+    "contains": "declared and not used: ctx",
+    "issue": "https://github.com/CaliLuke/loom/issues/546",
+    "phase": "build",
+    "reason": "File redirect handler declares an unused context."
+  },
+  "http/codegen/ServerSimpleRoutingWithRedirectDSL": {
+    "contains": "declared and not used: ctx",
+    "issue": "https://github.com/CaliLuke/loom/issues/546",
+    "phase": "build",
+    "reason": "File redirect handler declares an unused context."
+  },
+  "http/codegen/ValidateErrorResponseTypeDSL": {
+    "contains": "field and method with the same name Error",
+    "issue": "https://github.com/CaliLuke/loom/issues/533",
+    "phase": "build",
+    "reason": "Generated error field conflicts with the Error method."
+  }
+}
