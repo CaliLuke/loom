@@ -1,7 +1,7 @@
 # Pulse Pool Job Ownership
 
-Status: active. Design accepted (owner-record redesign). Tickets 1 to 5
-are done. Tickets 6 to 8 are open.
+Status: active. Design accepted (owner-record redesign). Tickets 1 to 6
+are done. Tickets 7 and 8 are open.
 
 Code references are to `main` at `967f4fbe`. The model lives in
 [`pulse/pool/tla`](../pulse/pool/tla/README.md).
@@ -32,9 +32,9 @@ worker, breadth-first). Configurations are under `pulse/pool/tla/cfg/`.
 | --- | --- | --- | ---: | --- |
 | B1 | The sink redelivers an unacked start event (XAUTOCLAIM after `ackGracePeriod`). `startJob` never checks `w.jobs`, so the job starts twice on one worker, or on two workers if the second router's view differs. | `worker.go:248-273`, `streaming/sink_consumers.go:308-316` | 6 (`double_asis`), 7 (`runner_asis`) | same worker fixed by ticket 2; cross-worker claim fixed by ticket 5; expired live handlers still need ticket 7 |
 | B2 | `dispatchJob` releases the pending guard on timeout while the start event is still queued. A retry is admitted and adds a second start. | `node_jobs.go:112-123`, `scripts.go:41-51` | 8 (`double_noredeliver`), 9 (`runner_dispatch_retry`) | fixed by ticket 4 |
-| B3 | `Close` and `cleanupWorker` delete the worker's `jobMap` entry but keep the payload. The orphan sweep takes no lock and requeues a job whose requeue is still in flight. | `node_cleanup.go:59`, `node_recovery.go:80-134` | 12 (`double_orphan`) | open; since issue #416 a rebalance or orphan requeue carries a guard that the sweep respects, so only close and cleanup requeues remain exposed |
+| B3 | `Close` and `cleanupWorker` delete the worker's `jobMap` entry but keep the payload. The orphan sweep takes no lock and requeues a job whose requeue is still in flight. | `node_cleanup.go:59`, `node_recovery.go:80-134` | 12 (`double_orphan`) | fixed by tickets 5 and 6: close and cleanup enqueue guarded starts; sweeps check ownership |
 | B4 | `rebalance` requeues without checking whether cleanup already moved the key, and without removing `jobMap[w]`. Rebalance and cleanup both requeue the same job. | `worker.go:370-388`, `node_recovery.go:145,161` | 15 (`double_rebalance`) | fixed by ticket 5: cleanup and release compare authoritative ownership; requeued starts claim the key |
-| B5 | `startJob` writes `jobMap` then the payload. These are separate `rmap`s with separate subscriptions. A node that sees the payload without the `jobMap` entry for longer than the grace period requeues a running job. | `worker.go:252,256`, `node_recovery.go:104-126` | 10 (`runner_orphan_lag`) | open, needs lag longer than `2*workerTTL` |
+| B5 | `startJob` writes `jobMap` then the payload. These are separate `rmap`s with separate subscriptions. A node that sees the payload without the `jobMap` entry for longer than the grace period requeues a running job. | `worker.go:252,256`, `node_recovery.go:104-126` | 10 (`runner_orphan_lag`) | fixed by ticket 6: replica lag cannot override authoritative ownership |
 | B6 | Cleanup trusts a stale keep-alive snapshot and never re-checks it after taking the lock. Eviction calls `worker.stop`, which never calls `handler.Stop`, so a worker that only looked dead keeps running its jobs until the process exits. | `node_recovery.go:37-69`, `node_events.go:231-245`, `worker.go:230-245` | 12 (`runner_false_death`) | zombie after eviction fixed by ticket 3; fresh-heartbeat cleanup fixed by ticket 5; expired live workers still need ticket 7; a requeue routed to the still-running worker waits for the orphan sweep until tickets 5 to 7 |
 | L1 | `removeWorkerFromMaps` deletes the cleanup lock without checking the holder. An eviction on one goroutine deletes the lock another node just acquired, and both nodes hold it. | `node_cleanup.go:47` | 11 (`lock_asis`) | fixed by ticket 1 |
 | L2 | `acquireCleanupLock` deleted a stale lock unconditionally, then called `SetIfNotExists`. Two nodes that saw the same stale value could both acquire. | `node_membership.go` before `ba2af97c` | 17 (`lock_pre_release_only`) | fixed on main by `ba2af97c` |
@@ -643,9 +643,13 @@ useful even before the owner record lands.
      protocol 1 keep-alive that appears later pauses the protocol 2 nodes.
    - Backfill runs once per marker. `Shutdown` removes owners and protocol
      keys and keeps epochs.
-6. **Owner-aware orphan sweep (B3, B5).** The orphan sweep requeues only keys
+6. **Owner-aware orphan sweep (B3, B5).** Done. The orphan sweep requeues only keys
    with no owner record. Tests: the B3 close and orphan trace, and the B5 lag
    trace (payload replica ahead of `jobMap`), each with a single start.
+   `orphan_ownership_test.go` also covers stale indexes hiding an unowned key,
+   and claims, stops, or payload replacement between observation and requeue.
+   The requeue script checks current ownership and exact durable payload bytes
+   in the same operation that appends the guarded event.
 7. **Self-fencing and resume.** Add the keep-alive failure timer,
    `handler.Stop` on fence, and owner-and-epoch validation on resume. Tests:
    fence, cleanup, then resume drops the job; fence with no cleanup, then

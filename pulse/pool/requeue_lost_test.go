@@ -139,6 +139,7 @@ func TestClaimRequeue(t *testing.T) {
 	t.Run("adds a guarded start", func(t *testing.T) {
 		rdb, node := guardScriptNode(t, "requeue-claim")
 		ctx := t.Context()
+		require.NoError(t, rdb.HSet(ctx, rmapContentKey(jobPayloadMapName(node.PoolName)), job.Key, job.Payload).Err())
 		before := time.Now().UnixNano()
 		queued, err := node.claimRequeue(ctx, job)
 		require.NoError(t, err)
@@ -197,6 +198,7 @@ func TestClaimRequeue(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rdb, node := guardScriptNode(t, "requeue-claim-replace")
+			require.NoError(t, rdb.HSet(t.Context(), rmapContentKey(jobPayloadMapName(node.PoolName)), job.Key, job.Payload).Err())
 			old := tc.guard(t, rdb, node.poolStream.Key())
 			setGuard(t, node, "k1", old)
 

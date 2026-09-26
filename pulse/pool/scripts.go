@@ -12,6 +12,9 @@ const (
 	dispatchMalformedPending
 )
 
+// requeueObsolete means a running, stopped, or replaced job makes the snapshot obsolete.
+const requeueObsolete int64 = 5
+
 // luaReleaseDispatch statuses. Status 0 means the guard changed since it was
 // read and was left alone.
 const (
@@ -204,8 +207,9 @@ return {1, add_start(KEYS[4], ARGV[4], ARGV[5], KEYS[2], KEYS[3], ARGV[1], ARGV[
 	// The guard TTL has already passed when it is written, so a guard whose
 	// event is lost (trimmed, or dropped as stale) blocks nothing once
 	// in_flight is false. A malformed guard is rejected, as by
-	// luaClaimDispatch. There is no payload check: the job is running or has
-	// a payload.
+	// luaClaimDispatch. Ownership and the exact payload are checked in the
+	// same script, so a claim, stop or replacement after the sweep's snapshot
+	// prevents a stale requeue.
 	//
 	// A guard written by a release before ticket 4 ("untilNanos") names no
 	// event, so in_flight is false and the script replaces it whatever its
@@ -216,9 +220,12 @@ return {1, add_start(KEYS[4], ARGV[4], ARGV[5], KEYS[2], KEYS[3], ARGV[1], ARGV[
 	// 4 is not supported, so such a guard is a leftover from before the
 	// upgrade and no running node writes one.
 	//
-	// KEYS: pending content, pending channel, pool stream.
-	// ARGV: key, nowNanos, maxLen, job bytes, sink group, nowMs, maxAgeMs.
+	// KEYS: pending content, pending channel, pool stream, owners, payloads.
+	// ARGV: key, nowNanos, maxLen, job bytes, sink group, nowMs, maxAgeMs, payload.
 	luaClaimRequeue = redis.NewScript(luaDispatchGuard + `
+if redis.call("HEXISTS", KEYS[4], ARGV[1]) == 1 or redis.call("HGET", KEYS[5], ARGV[1]) ~= ARGV[8] then
+   return {5, ""}
+end
 local pending = redis.call("HGET", KEYS[1], ARGV[1])
 if pending then
    local until_ns, id = parse_guard(pending)

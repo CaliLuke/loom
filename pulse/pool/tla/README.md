@@ -771,3 +771,19 @@ cleanup, checks cleanup with a missing jobs index, validates the cleanup event
 bytes against `marshalJob`, and tests stale-epoch release, protocol migration,
 and shutdown retention. Redis script epochs are read as decimal strings after
 incrementing, so tokens beyond the exact integer range of Lua numbers survive.
+
+## Owner-aware orphan recovery
+
+`OrphanOwnership.tla` isolates the observation-to-requeue race: a cached
+payload can be followed by a claim, stop, or payload replacement before the
+sweep runs. `orphan_owner_asis` violates `CurrentRequeue` in four states;
+`orphan_owner_fixed` checks all 21 distinct states without a violation. The
+model abstracts the grace period as an arbitrary delay after observation.
+
+Run with the same TLC command above, replacing the module with
+`OrphanOwnership` and the configuration with `cfg/orphan_owner_asis.cfg` or
+`cfg/orphan_owner_fixed.cfg`. The Go regressions in
+`orphan_ownership_test.go` also cover both directions of job-index replica
+lag. Recovery reads authoritative owners and the requeue script checks both
+ownership and the observed payload bytes atomically; a stopped or replaced
+job cannot be resurrected from a cached payload.

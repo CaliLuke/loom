@@ -92,7 +92,9 @@ adding a stream resumes polling.
 Pool protocol 2 records one owner and a monotonically increasing epoch for each
 job key in Redis. Claims and releases are atomic; a stale worker cannot delete
 a later owner's payload. Recovery rechecks the worker's keep-alive in Redis
-and reads authoritative ownership instead of a local replica. Handlers receive
+and reads authoritative ownership instead of a local replica. Orphan recovery
+checks ownership and the current payload atomically before requeueing, so stale
+replicas cannot requeue an owned job or revive a stopped job. Handlers receive
 the ownership token in `Job.Epoch`; the pool retains epoch counters even after
 `Shutdown` so tokens never restart when the pool name is reused.
 

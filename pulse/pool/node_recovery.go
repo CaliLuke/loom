@@ -90,22 +90,18 @@ func (node *Node) cleanupInactiveWorkers(ctx context.Context) {
 	node.requeueOrphanedPayloads(ctx)
 }
 
-// requeueOrphanedPayloads detects payloads for job keys that are not present in
-// the job map and requeues them after a short grace period.
+// requeueOrphanedPayloads detects payloads without authoritative ownership
+// and requeues them after a grace period. The script rechecks ownership and
+// payload bytes atomically, so a claim or stop after this snapshot wins.
 func (node *Node) requeueOrphanedPayloads(ctx context.Context) {
-	// Build a set of all job keys referenced by the job map.
-	existingJobs := make(map[string]struct{})
-	for workerID := range node.jobMap.Map() {
-		keys, ok := node.jobMap.GetValues(workerID)
-		if !ok {
-			continue
-		}
-		for _, key := range keys {
-			if key == "" {
-				continue
-			}
-			existingJobs[key] = struct{}{}
-		}
+	owners, err := node.rdb.HKeys(ctx, node.ownersKey()).Result()
+	if err != nil {
+		node.logger.Error(fmt.Errorf("read owners for orphan recovery: %w", err))
+		return
+	}
+	existingJobs := make(map[string]struct{}, len(owners))
+	for _, key := range owners {
+		existingJobs[key] = struct{}{}
 	}
 
 	// Use a short grace period: we want recovery to be fast under churn,
@@ -140,7 +136,7 @@ func (node *Node) requeueOrphanedPayloads(ctx context.Context) {
 		job := &Job{Key: key, Payload: payload, CreatedAt: now, NodeID: node.ID}
 		// A guarded start (a rebalance or an earlier sweep) that is still in
 		// flight may yet start the job, so the sweep waits for it: once it
-		// is acked the job map lists the key, and once it is lost the guard
+		// is acked the owner record holds the key, and once it is lost the guard
 		// no longer blocks.
 		queued, err := node.claimRequeue(ctx, job)
 		if err != nil {
@@ -148,7 +144,7 @@ func (node *Node) requeueOrphanedPayloads(ctx context.Context) {
 			continue
 		}
 		if !queued {
-			node.logger.Debug("requeueOrphanedPayloads: start event in flight, not requeuing", "key", key)
+			node.logger.Debug("requeueOrphanedPayloads: snapshot or pending start prevents requeue", "key", key)
 			continue
 		}
 
@@ -159,16 +155,17 @@ func (node *Node) requeueOrphanedPayloads(ctx context.Context) {
 
 // claimRequeue adds a start event for job with a guard that names it
 // (luaClaimRequeue). It returns false with no error when the key already has
-// a guard whose start event is in flight: that event may still start the job,
-// so a second start is not added.
+// a guard whose start event is in flight, has an owner, or its durable payload
+// no longer matches the observed job.
 func (node *Node) claimRequeue(ctx context.Context, job *Job) (bool, error) {
 	now := time.Now()
 	raw, err := luaClaimRequeue.Run(ctx, node.rdb, []string{
 		rmapContentKey(jobPendingMapName(node.PoolName)),
 		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
 		node.poolStream.Key(),
+		node.ownersKey(), rmapContentKey(jobPayloadMapName(node.PoolName)),
 	}, job.Key, strconv.FormatInt(now.UnixNano(), 10), node.poolStream.MaxLen, marshalJob(job),
-		poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds()).Result()
+		poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds(), job.Payload).Result()
 	if err != nil {
 		return false, fmt.Errorf("failed to requeue job %q: %w", job.Key, err)
 	}
@@ -179,7 +176,7 @@ func (node *Node) claimRequeue(ctx context.Context, job *Job) (bool, error) {
 	switch status {
 	case dispatchClaimed:
 		return true, nil
-	case dispatchAlreadyPending:
+	case dispatchAlreadyPending, requeueObsolete:
 		return false, nil
 	case dispatchMalformedPending:
 		return false, fmt.Errorf("malformed pending guard for job %q: %q", job.Key, value)

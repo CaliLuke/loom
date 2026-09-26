@@ -237,6 +237,7 @@ func TestDispatchGuardInFlight(t *testing.T) {
 			name: "claimRequeue replacement",
 			clear: func(t *testing.T, node *Node, _ string) bool {
 				t.Helper()
+				require.NoError(t, node.rdb.HSet(t.Context(), rmapContentKey(jobPayloadMapName(node.PoolName)), "k1", "").Err())
 				queued, err := node.claimRequeue(t.Context(), &Job{Key: "k1"})
 				require.NoError(t, err)
 				return queued
