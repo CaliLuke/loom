@@ -7,7 +7,8 @@
 #
 # The integration fixture modules under */integration_tests/fixtures/ are
 # excluded: `make generated-code-quality` lints their regenerated gen/ trees.
-# Generated gen/ trees are excluded everywhere for the same reason.
+# Generated gen/ trees are excluded everywhere for the same reason. Nested
+# Git checkouts are independent repositories and are excluded from discovery.
 #
 # Each target is checked with the root .golangci.yml and the same staticcheck
 # checks as the root-module lint.
@@ -31,7 +32,8 @@ cd "$ROOT"
 
 # module_dirs prints every module directory except the integration fixtures.
 module_dirs() {
-  find . -path ./.git -prune -o -type f -name go.mod -print |
+  find . \( -path ./.git -o \( -type d ! -path . -exec test -e '{}/.git' \; \) \) -prune -o \
+    -type f -name go.mod -print |
     sed 's|/go\.mod$||' |
     grep -Ev '/integration_tests/fixtures(/|$)' |
     LC_ALL=C sort
@@ -41,11 +43,14 @@ module_dirs() {
 # relative to MODULE. It skips gen/ trees and every module nested below MODULE.
 testdata_dirs() {
   local module="$1"
-  local prune=(-path ./.git -o -type d -name gen)
+  local prune=(-path ./.git -o -type d -name gen
+    -o '(' -type d ! -path . -exec test -e '{}/.git' ';' ')')
   local nested
   while IFS= read -r nested; do
     prune+=(-o -path "$nested")
-  done < <(cd "$module" && find . -mindepth 2 -type f -name go.mod ! -path './.git/*' | sed 's|/go\.mod$||')
+  done < <(cd "$module" && find . \
+    \( -path ./.git -o \( -type d ! -path . -exec test -e '{}/.git' \; \) \) -prune -o \
+    -type f -name go.mod ! -path ./go.mod -print | sed 's|/go\.mod$||')
   (cd "$module" && find . \( "${prune[@]}" \) -prune -o -type f -name '*.go' -path '*/testdata/*' -print) |
     sed 's|/[^/]*$||' |
     LC_ALL=C sort -u

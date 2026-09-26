@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -20,6 +21,15 @@ func TestProductionFilesUseGenericSections(t *testing.T) {
 			return err
 		}
 		if d.IsDir() {
+			if path != root {
+				_, statErr := os.Stat(filepath.Join(path, ".git"))
+				if statErr == nil {
+					return filepath.SkipDir
+				}
+				if !errors.Is(statErr, fs.ErrNotExist) {
+					return statErr
+				}
+			}
 			switch d.Name() {
 			case ".git", ".codex-upstream", "gen", "vendor":
 				return filepath.SkipDir

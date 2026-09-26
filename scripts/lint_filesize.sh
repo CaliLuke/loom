@@ -61,6 +61,7 @@ while IFS= read -r -d '' file; do
     warn_count=$((warn_count + 1))
   fi
 done < <(find "${ROOT_DIR}" \
+  \( -type d ! -path "${ROOT_DIR}" -exec test -e '{}/.git' \; \) -prune -o \
   -type f \
   -name '*.go' \
   -not -path "${ROOT_DIR}/.git/*" \

@@ -10,7 +10,8 @@
 # hand_written_go_files prints the hand-written Go files under the current
 # directory, one per line, sorted.
 hand_written_go_files() {
-  find . \( -path ./.git -o -type d -name gen -o -path '*/integration_tests/fixtures' \) -prune -o \
+  find . \( -path ./.git -o -type d -name gen -o -path '*/integration_tests/fixtures' \
+    -o \( -type d ! -path . -exec test -e '{}/.git' \; \) \) -prune -o \
     -type f -name '*.go' -print |
     LC_ALL=C sort
 }
