@@ -550,7 +550,7 @@ func (s *StreamingResultWithViewsMethodClientStream) Recv() (*streamingresultwit
 		return rv, err
 	}
 	res := NewStreamingResultWithViewsMethodUsertypeOK(&body)
-	vres := &streamingresultwithviewsserviceviews.Usertype{res, s.view}
+	vres := &streamingresultwithviewsserviceviews.Usertype{Projected: res, View: s.view}
 	if err := streamingresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 	}
@@ -589,7 +589,7 @@ func (s *StreamingResultWithViewsMethodClientStream) RecvWithContext(ctx context
 		return rv, err
 	}
 	res := NewStreamingResultWithViewsMethodUsertypeOK(&body)
-	vres := &streamingresultwithviewsserviceviews.Usertype{res, s.view}
+	vres := &streamingresultwithviewsserviceviews.Usertype{Projected: res, View: s.view}
 	if err := streamingresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 	}
@@ -677,7 +677,7 @@ func (s *StreamingResultWithExplicitViewMethodClientStream) Recv() (*streamingre
 		return rv, err
 	}
 	res := NewStreamingResultWithExplicitViewMethodUsertypeOK(&body)
-	vres := &streamingresultwithexplicitviewserviceviews.Usertype{res, "extended"}
+	vres := &streamingresultwithexplicitviewserviceviews.Usertype{Projected: res, View: "extended"}
 	if err := streamingresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 	}
@@ -717,7 +717,7 @@ func (s *StreamingResultWithExplicitViewMethodClientStream) RecvWithContext(ctx 
 		return rv, err
 	}
 	res := NewStreamingResultWithExplicitViewMethodUsertypeOK(&body)
-	vres := &streamingresultwithexplicitviewserviceviews.Usertype{res, "extended"}
+	vres := &streamingresultwithexplicitviewserviceviews.Usertype{Projected: res, View: "extended"}
 	if err := streamingresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 	}
@@ -890,7 +890,7 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) Recv() (streaming
 		return rv, err
 	}
 	res := NewStreamingResultCollectionWithViewsMethodUsertypeCollectionOK(body)
-	vres := streamingresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
+	vres := streamingresultcollectionwithviewsserviceviews.UsertypeCollection{Projected: res, View: s.view}
 	if err := streamingresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithViewsService", "StreamingResultCollectionWithViewsMethod", err)
 	}
@@ -930,7 +930,7 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) RecvWithContext(c
 		return rv, err
 	}
 	res := NewStreamingResultCollectionWithViewsMethodUsertypeCollectionOK(body)
-	vres := streamingresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
+	vres := streamingresultcollectionwithviewsserviceviews.UsertypeCollection{Projected: res, View: s.view}
 	if err := streamingresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithViewsService", "StreamingResultCollectionWithViewsMethod", err)
 	}
@@ -1078,7 +1078,7 @@ func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) Recv() (st
 		return rv, err
 	}
 	res := NewStreamingResultCollectionWithExplicitViewMethodUsertypeCollectionOK(body)
-	vres := streamingresultcollectionwithexplicitviewserviceviews.UsertypeCollection{res, "tiny"}
+	vres := streamingresultcollectionwithexplicitviewserviceviews.UsertypeCollection{Projected: res, View: "tiny"}
 	if err := streamingresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 	}
@@ -1118,7 +1118,7 @@ func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) RecvWithCo
 		return rv, err
 	}
 	res := NewStreamingResultCollectionWithExplicitViewMethodUsertypeCollectionOK(body)
-	vres := streamingresultcollectionwithexplicitviewserviceviews.UsertypeCollection{res, "tiny"}
+	vres := streamingresultcollectionwithexplicitviewserviceviews.UsertypeCollection{Projected: res, View: "tiny"}
 	if err := streamingresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 	}

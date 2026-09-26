@@ -25,7 +25,7 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodClientStream) Clo
 		return rv, err
 	}
 	res := NewStreamingPayloadResultCollectionWithExplicitViewMethodUsertypeCollectionOK(body)
-	vres := streamingpayloadresultcollectionwithexplicitviewserviceviews.UsertypeCollection{res, "tiny"}
+	vres := streamingpayloadresultcollectionwithexplicitviewserviceviews.UsertypeCollection{Projected: res, View: "tiny"}
 	if err := streamingpayloadresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithExplicitViewService", "StreamingPayloadResultCollectionWithExplicitViewMethod", err)
 	}
@@ -64,7 +64,7 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodClientStream) Clo
 		return rv, err
 	}
 	res := NewStreamingPayloadResultCollectionWithExplicitViewMethodUsertypeCollectionOK(body)
-	vres := streamingpayloadresultcollectionwithexplicitviewserviceviews.UsertypeCollection{res, "tiny"}
+	vres := streamingpayloadresultcollectionwithexplicitviewserviceviews.UsertypeCollection{Projected: res, View: "tiny"}
 	if err := streamingpayloadresultcollectionwithexplicitviewserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithExplicitViewService", "StreamingPayloadResultCollectionWithExplicitViewMethod", err)
 	}

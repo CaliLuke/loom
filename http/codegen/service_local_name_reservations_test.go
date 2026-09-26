@@ -62,7 +62,7 @@ func TestServicePackageNamedLikeLocalCompiles(t *testing.T) {
 
 			dir := renderLocalNameModule(t, "example.com/localnamesweep", c.Design, transportGeneratedLocalNames...)
 			runGoCommand(t, dir, "mod", "tidy")
-			runGoCommand(t, dir, "vet", "-composites=false", "./...")
+			runGoCommand(t, dir, "vet", "./...")
 		})
 	}
 }

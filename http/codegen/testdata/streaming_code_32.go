@@ -24,7 +24,7 @@ func (s *StreamingPayloadResultWithExplicitViewMethodClientStream) CloseAndRecv(
 		return rv, err
 	}
 	res := NewStreamingPayloadResultWithExplicitViewMethodUsertypeOK(&body)
-	vres := &streamingpayloadresultwithexplicitviewserviceviews.Usertype{res, "extended"}
+	vres := &streamingpayloadresultwithexplicitviewserviceviews.Usertype{Projected: res, View: "extended"}
 	if err := streamingpayloadresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultWithExplicitViewService", "StreamingPayloadResultWithExplicitViewMethod", err)
 	}
@@ -63,7 +63,7 @@ func (s *StreamingPayloadResultWithExplicitViewMethodClientStream) CloseAndRecvW
 		return rv, err
 	}
 	res := NewStreamingPayloadResultWithExplicitViewMethodUsertypeOK(&body)
-	vres := &streamingpayloadresultwithexplicitviewserviceviews.Usertype{res, "extended"}
+	vres := &streamingpayloadresultwithexplicitviewserviceviews.Usertype{Projected: res, View: "extended"}
 	if err := streamingpayloadresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultWithExplicitViewService", "StreamingPayloadResultWithExplicitViewMethod", err)
 	}

@@ -175,7 +175,7 @@ func writeClientWebsocketViewedResultReturn(b *sourceBuilder, ws *WebSocketData)
 	if view.ViewName == "" {
 		viewArg = "s.view"
 	}
-	b.Addf("\tvres := %s%s.%s{res, %s }\n", prefix, view.ViewsPkg, view.VarName, viewArg)
+	b.Addf("\tvres := %s%s{Projected: res, View: %s}\n", prefix, view.FullName, viewArg)
 	b.Addf("\tif err := %s.Validate%s(vres); err != nil {\n", view.ViewsPkg, ws.Endpoint.Method.Result)
 	b.Addf("\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
 	b.Add("\t}\n")

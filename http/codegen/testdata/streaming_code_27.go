@@ -24,7 +24,7 @@ func (s *StreamingPayloadResultWithViewsMethodClientStream) CloseAndRecv() (*str
 		return rv, err
 	}
 	res := NewStreamingPayloadResultWithViewsMethodUsertypeOK(&body)
-	vres := &streamingpayloadresultwithviewsserviceviews.Usertype{res, s.view}
+	vres := &streamingpayloadresultwithviewsserviceviews.Usertype{Projected: res, View: s.view}
 	if err := streamingpayloadresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultWithViewsService", "StreamingPayloadResultWithViewsMethod", err)
 	}
@@ -62,7 +62,7 @@ func (s *StreamingPayloadResultWithViewsMethodClientStream) CloseAndRecvWithCont
 		return rv, err
 	}
 	res := NewStreamingPayloadResultWithViewsMethodUsertypeOK(&body)
-	vres := &streamingpayloadresultwithviewsserviceviews.Usertype{res, s.view}
+	vres := &streamingpayloadresultwithviewsserviceviews.Usertype{Projected: res, View: s.view}
 	if err := streamingpayloadresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultWithViewsService", "StreamingPayloadResultWithViewsMethod", err)
 	}

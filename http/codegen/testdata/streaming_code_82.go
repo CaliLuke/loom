@@ -17,7 +17,7 @@ func (s *BidirectionalStreamingResultWithViewsMethodClientStream) Recv() (*bidir
 		return rv, err
 	}
 	res := NewBidirectionalStreamingResultWithViewsMethodUsertypeOK(&body)
-	vres := &bidirectionalstreamingresultwithviewsserviceviews.Usertype{res, s.view}
+	vres := &bidirectionalstreamingresultwithviewsserviceviews.Usertype{Projected: res, View: s.view}
 	if err := bidirectionalstreamingresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultWithViewsService", "BidirectionalStreamingResultWithViewsMethod", err)
 	}
@@ -49,7 +49,7 @@ func (s *BidirectionalStreamingResultWithViewsMethodClientStream) RecvWithContex
 		return rv, err
 	}
 	res := NewBidirectionalStreamingResultWithViewsMethodUsertypeOK(&body)
-	vres := &bidirectionalstreamingresultwithviewsserviceviews.Usertype{res, s.view}
+	vres := &bidirectionalstreamingresultwithviewsserviceviews.Usertype{Projected: res, View: s.view}
 	if err := bidirectionalstreamingresultwithviewsserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultWithViewsService", "BidirectionalStreamingResultWithViewsMethod", err)
 	}

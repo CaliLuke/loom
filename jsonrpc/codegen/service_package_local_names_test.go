@@ -53,7 +53,7 @@ func TestServicePackageNamedLikeLocalGeneratedModuleBuilds(t *testing.T) {
 			sweep := t.TempDir()
 			renderLocalNameModule(t, sweep, "example.com/localnamesweep", c.Design, names...)
 			runGoJSONRPCTestCommand(t, sweep, "mod", "tidy")
-			runGoJSONRPCTestCommand(t, sweep, "vet", "-composites=false", "./...")
+			runGoJSONRPCTestCommand(t, sweep, "vet", "./...")
 		})
 	}
 }

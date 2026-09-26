@@ -25,7 +25,7 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodClientStream) CloseAndRe
 		return rv, err
 	}
 	res := NewStreamingPayloadResultCollectionWithViewsMethodUsertypeCollectionOK(body)
-	vres := streamingpayloadresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
+	vres := streamingpayloadresultcollectionwithviewsserviceviews.UsertypeCollection{Projected: res, View: s.view}
 	if err := streamingpayloadresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithViewsService", "StreamingPayloadResultCollectionWithViewsMethod", err)
 	}
@@ -64,7 +64,7 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodClientStream) CloseAndRe
 		return rv, err
 	}
 	res := NewStreamingPayloadResultCollectionWithViewsMethodUsertypeCollectionOK(body)
-	vres := streamingpayloadresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
+	vres := streamingpayloadresultcollectionwithviewsserviceviews.UsertypeCollection{Projected: res, View: s.view}
 	if err := streamingpayloadresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("StreamingPayloadResultCollectionWithViewsService", "StreamingPayloadResultCollectionWithViewsMethod", err)
 	}

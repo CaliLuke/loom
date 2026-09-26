@@ -18,7 +18,7 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodClientStream) Recv
 		return rv, err
 	}
 	res := NewBidirectionalStreamingResultCollectionWithViewsMethodUsertypeCollectionOK(body)
-	vres := bidirectionalstreamingresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
+	vres := bidirectionalstreamingresultcollectionwithviewsserviceviews.UsertypeCollection{Projected: res, View: s.view}
 	if err := bidirectionalstreamingresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultCollectionWithViewsService", "BidirectionalStreamingResultCollectionWithViewsMethod", err)
 	}
@@ -50,7 +50,7 @@ func (s *BidirectionalStreamingResultCollectionWithViewsMethodClientStream) Recv
 		return rv, err
 	}
 	res := NewBidirectionalStreamingResultCollectionWithViewsMethodUsertypeCollectionOK(body)
-	vres := bidirectionalstreamingresultcollectionwithviewsserviceviews.UsertypeCollection{res, s.view}
+	vres := bidirectionalstreamingresultcollectionwithviewsserviceviews.UsertypeCollection{Projected: res, View: s.view}
 	if err := bidirectionalstreamingresultcollectionwithviewsserviceviews.ValidateUsertypeCollection(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultCollectionWithViewsService", "BidirectionalStreamingResultCollectionWithViewsMethod", err)
 	}

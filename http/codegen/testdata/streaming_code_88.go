@@ -18,7 +18,7 @@ func (s *BidirectionalStreamingResultWithExplicitViewMethodClientStream) Recv() 
 		return rv, err
 	}
 	res := NewBidirectionalStreamingResultWithExplicitViewMethodUsertypeOK(&body)
-	vres := &bidirectionalstreamingresultwithexplicitviewserviceviews.Usertype{res, "extended"}
+	vres := &bidirectionalstreamingresultwithexplicitviewserviceviews.Usertype{Projected: res, View: "extended"}
 	if err := bidirectionalstreamingresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultWithExplicitViewService", "BidirectionalStreamingResultWithExplicitViewMethod", err)
 	}
@@ -50,7 +50,7 @@ func (s *BidirectionalStreamingResultWithExplicitViewMethodClientStream) RecvWit
 		return rv, err
 	}
 	res := NewBidirectionalStreamingResultWithExplicitViewMethodUsertypeOK(&body)
-	vres := &bidirectionalstreamingresultwithexplicitviewserviceviews.Usertype{res, "extended"}
+	vres := &bidirectionalstreamingresultwithexplicitviewserviceviews.Usertype{Projected: res, View: "extended"}
 	if err := bidirectionalstreamingresultwithexplicitviewserviceviews.ValidateUsertype(vres); err != nil {
 		return rv, loomhttp.ErrValidationError("BidirectionalStreamingResultWithExplicitViewService", "BidirectionalStreamingResultWithExplicitViewMethod", err)
 	}
