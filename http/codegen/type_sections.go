@@ -547,7 +547,11 @@ func appendInitResult(group *jen.Group, init *InitData, code string, client bool
 		group.Id("res").Op(":=").Op("&").Id(init.ReturnTypeName).Values()
 		group.If(jen.Id("body").Op("!=").Nil()).BlockFunc(func(body *jen.Group) {
 			appendHTTPRawBlock(body, code)
-			body.Id("res").Dot(init.ReturnTypeAttribute).Op("=").Id("v")
+			value := body.Id("res").Dot(init.ReturnTypeAttribute).Op("=")
+			if init.ReturnIsPrimitivePointer {
+				value.Op("&")
+			}
+			value.Id("v")
 		})
 	case code != "":
 		appendHTTPRawBlock(group, code)

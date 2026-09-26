@@ -342,10 +342,10 @@ filter, and serialization rules belong here.
   parameters. They use nil for an omitted key. They use a nonnil pointer for
   an empty or nonempty value. Generated clients emit the key for every nonnil
   pointer.
-- An optional object, union, or explicit presence payload attribute
-  (`codegen.IsExplicitPresenceType`, such as a nullable type or `Any`)
-  selected with `Body` (`RequestData.OptionalBodyAttribute`) is sent only when
-  it is not nil or absent: HTTP clients send no body and JSON-RPC clients omit
+- An optional payload attribute selected with `Body`
+  (`RequestData.OptionalBodyAttribute`) whose service field can be nil or
+  absent, which is any attribute but a primitive with a default value, is
+  sent only when it is not nil or absent: HTTP clients send no body and JSON-RPC clients omit
   params. Servers decode an empty body, empty form, or absent JSON-RPC params
   to a nil or absent attribute. A union gets this from its empty
   discriminator. A nullable attribute (`OptionalBodyNullable`) is checked with
@@ -363,10 +363,19 @@ filter, and serialization rules belong here.
   and `TypeData.ValueRef` declares the decoded variable. A non-nullable object
   (`OptionalObjectBody`) is decoded into a pointer that is set to nil for an
   empty body, is validated only when present, and is passed to the payload
-  constructor, which leaves the attribute nil for a nil body. The client CLI
-  body flag of such an attribute is optional; for an object,
+  constructor, which leaves the attribute nil for a nil body. A primitive
+  pointer (`OptionalPrimitiveBody`) is decoded the same way into `new(T)`,
+  and the constructors read it through `*body`. An array, map, or bytes body
+  stays nil for an empty body and is validated only when it is not nil
+  (`payloadBuilder.optionalBodyValidateRef`); the constructor of every such
+  nil-able body (`InitData.ReturnIsOptionalBody`) leaves the attribute nil
+  for a nil body. The client CLI body flag of such an attribute is optional;
+  for these nil-able bodies,
   `cli.PayloadInitData.ReturnTypeAttributeFlag` sets the attribute only when
-  the flag is not empty. Body flag examples go through
+  the flag is not empty, and the CLI declares a primitive body as a pointer
+  unless it decodes a user type, such as an alias, as JSON
+  (`isCLIBodyPointer`). The client body builder of an optional alias of a
+  primitive dereferences the field, which the encoder checks for nil. Body flag examples go through
   `expr.CanonicalizeExample` so that they match the JSON of the client body
   type.
 - The HTTP and JSON-RPC client CLI command parsers never name a service type,
@@ -565,8 +574,8 @@ filter, and serialization rules belong here.
   `omitzero`: a request omits `params` only when `Params` is nil, so HTTP and
   WebSocket clients and notifications send empty strings, arrays, objects
   and null alike. Generated HTTP clients leave `Params` nil only for a method
-  without payload and for an absent `OptionalBodyAttribute`; a nil optional
-  primitive or array body is a typed nil and is sent as null (#466).
+  without payload and for an absent `OptionalBodyAttribute`, so a typed nil
+  never reaches the envelope as null.
 - Generated JSON-RPC WebSocket clients share one `jsonrpc.WebSocketClientConn`
   per connection. It is the only reader: it assigns connection-wide request
   ids, routes each response by id, and fails every waiter when the read fails.

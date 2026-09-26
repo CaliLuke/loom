@@ -134,10 +134,11 @@ func appendPayloadInitCode(group *jen.Group, init *PayloadInitData) {
 	case init.ReturnTypeAttribute != "" && init.ReturnTypeAttributeFlag != "":
 		// An empty flag leaves the optional attribute nil.
 		group.Id("res").Op(":=").Op("&").Add(codegen.TypeRef(init.ReturnTypeName)).Values()
-		group.If(jen.Id(init.ReturnTypeAttributeFlag).Op("!=").Lit("")).Block(
-			init.Code,
-			jen.Id("res").Dot(init.ReturnTypeAttribute).Op("=").Id("v"),
-		)
+		value := jen.Id("res").Dot(init.ReturnTypeAttribute).Op("=")
+		if init.ReturnTypeAttributePointer {
+			value.Op("&")
+		}
+		group.If(jen.Id(init.ReturnTypeAttributeFlag).Op("!=").Lit("")).Block(init.Code, value.Id("v"))
 	default:
 		group.Add(init.Code)
 		if init.ReturnTypeAttribute != "" {

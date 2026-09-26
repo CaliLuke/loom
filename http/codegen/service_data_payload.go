@@ -165,6 +165,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		OptionalBodyAttribute: isOptionalBodyAttribute(b.endpointIR.Request),
 		OptionalBodyNullable:  isOptionalNullableBody(b.endpointIR.Request),
 		OptionalObjectBody:    isOptionalObjectBody(b.endpointIR.Request),
+		OptionalPrimitiveBody: isOptionalPrimitiveBody(b.endpointIR.Request),
 		ExplicitPresenceBody:  codegen.IsExplicitPresenceType(b.endpointIR.Request.Body),
 		MustValidate:          payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
 		Multipart:             b.endpointIR.Request.Multipart,
@@ -225,9 +226,8 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 
 func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {
 	server := b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, true, b.sd)
-	if server != nil && server.ValidateRef != "" && isOptionalObjectBody(b.endpointIR.Request) {
-		// The server decodes an optional object body into a pointer.
-		server.ValidateRef = requestBodyValidateRef(server.VarName, true)
+	if server != nil && server.ValidateRef != "" {
+		server.ValidateRef = b.optionalBodyValidateRef(server)
 	}
 	return server, b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
 }
@@ -260,11 +260,11 @@ func buildPayloadRequestBodyRequirements(request *transportir.Request) (string, 
 	return request.BodyOrigin, request.MustHaveBody
 }
 
-// isOptionalBodyAttribute reports whether the request body is a union, an
-// object or a type with explicit presence, such as a nullable type or Any,
-// selected with Body from an optional payload attribute. The generated
-// service field is then a nil-able pointer, a loom.Nullable value or a
-// loom.JSONValue that the client must check before building the body.
+// isOptionalBodyAttribute reports whether the request body is selected with
+// Body from an optional payload attribute whose service field can be nil or
+// absent: a pointer, a slice, a map, a loom.Nullable value or a
+// loom.JSONValue that the client must check before building the body. The
+// field of a primitive with a default value is a value that is always sent.
 func isOptionalBodyAttribute(request *transportir.Request) bool {
 	if request == nil || request.BodyOrigin == "" || request.Body == nil || request.Payload == nil {
 		return false
@@ -272,7 +272,7 @@ func isOptionalBodyAttribute(request *transportir.Request) bool {
 	if request.Payload.IsRequired(request.BodyOrigin) {
 		return false
 	}
-	return expr.IsUnion(request.Body.Type) || expr.IsObject(request.Body.Type) || codegen.IsExplicitPresenceType(request.Body)
+	return codegen.IsExplicitPresenceType(request.Body) || !expr.IsPrimitive(request.Body.Type) || !request.Payload.HasDefaultValue(request.BodyOrigin)
 }
 
 // isOptionalNullableBody reports whether the request body is a nullable type
@@ -290,6 +290,50 @@ func isOptionalNullableBody(request *transportir.Request) bool {
 // to a nil attribute. A type with explicit presence records its own absence.
 func isOptionalObjectBody(request *transportir.Request) bool {
 	return isOptionalBodyAttribute(request) && expr.IsObject(request.Body.Type) && !codegen.IsExplicitPresenceType(request.Body)
+}
+
+// isOptionalPrimitiveBody reports whether the request body is a primitive
+// selected with Body from an optional payload attribute whose service field
+// is a pointer. The server decodes such a body into a pointer that stays nil
+// when the body is empty.
+func isOptionalPrimitiveBody(request *transportir.Request) bool {
+	return isOptionalBodyAttribute(request) && !codegen.IsExplicitPresenceType(request.Body) &&
+		request.Payload.IsPrimitivePointer(request.BodyOrigin, true)
+}
+
+// isCLIBodyPointer reports whether the client CLI declares the body of an
+// optional primitive as a pointer that it sets only for a body flag that is
+// set. The CLI decodes the flag of a user type, such as an alias of a
+// primitive, as JSON into a value.
+func isCLIBodyPointer(request *transportir.Request) bool {
+	_, userType := request.Body.Type.(expr.UserType)
+	return isOptionalPrimitiveBody(request) && !userType
+}
+
+// bodyTransformSources returns the expressions that the server and CLI
+// payload constructors read the request body from. The server body of an
+// optional primitive is a pointer that the constructor checks before it
+// builds the attribute, and so is the CLI body unless the CLI decodes it as
+// JSON.
+func bodyTransformSources(request *transportir.Request) (string, string) {
+	server, client := "body", "body"
+	if isOptionalPrimitiveBody(request) {
+		server = "*body"
+	}
+	if isCLIBodyPointer(request) {
+		client = "*body"
+	}
+	return server, client
+}
+
+// isOptionalNilBody reports whether the request body is selected with Body
+// from an optional payload attribute that the server leaves nil when the
+// request has no body: an object or a primitive pointer, which the server
+// decodes into a pointer, or an array, a map or bytes. A union gets a nil
+// attribute from its empty discriminator, and a type with explicit presence
+// records its own absence.
+func isOptionalNilBody(request *transportir.Request) bool {
+	return isOptionalBodyAttribute(request) && !expr.IsUnion(request.Body.Type) && !codegen.IsExplicitPresenceType(request.Body)
 }
 
 func (b *payloadBuilder) buildMapQueryParam() *ParamData {
@@ -464,7 +508,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		ClientCode:               clientCode,
 		ReturnIsPrimitivePointer: pointer,
 		ReturnIsUnionValue:       unionValue,
-		ReturnIsOptionalBody:     request.OptionalObjectBody,
+		ReturnIsOptionalBody:     isOptionalNilBody(b.endpointIR.Request),
 	}
 }
 
@@ -483,7 +527,19 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 		}
 	}
 	serverRef := b.sd.Scope.GoVar("body", b.body)
-	if isOptionalObjectBody(b.endpointIR.Request) || codegen.IsExplicitPresenceType(b.bodyAttr) {
+	serverTypeRef := goBodyTypeRef(b.sd.Scope, b.bodyAttr, b.httpsvrctx)
+	clientTypeRef := b.sd.Scope.GoTypeRefWithDefaults(b.bodyAttr)
+	optionalPrimitive := isOptionalPrimitiveBody(b.endpointIR.Request)
+	if optionalPrimitive {
+		// The server decodes an optional primitive body into a pointer that
+		// is nil when the request has no body.
+		serverTypeRef = "*" + serverTypeRef
+	}
+	if isCLIBodyPointer(b.endpointIR.Request) {
+		// The CLI sets the body only when its flag is not empty.
+		clientTypeRef = "*" + clientTypeRef
+	}
+	if optionalPrimitive || isOptionalObjectBody(b.endpointIR.Request) || codegen.IsExplicitPresenceType(b.bodyAttr) {
 		// The server decodes an optional object body into a pointer that is
 		// nil when the request has no body, and declares a body with
 		// explicit presence, such as a loom.Nullable, by value, which is how
@@ -496,7 +552,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			Name:     "body",
 			VarName:  "body",
 			TypeName: b.sd.Scope.GoTypeName(b.bodyAttr),
-			TypeRef:  goBodyTypeRef(b.sd.Scope, b.bodyAttr, b.httpsvrctx),
+			TypeRef:  serverTypeRef,
 			Type:     b.body,
 			Required: true,
 			Example:  b.bodyAttr.Example(b.sds.examplesFor(b.sd)),
@@ -512,7 +568,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			Name:     "body",
 			VarName:  "body",
 			TypeName: b.sd.Scope.GoTypeNameWithDefaults(b.bodyAttr),
-			TypeRef:  b.sd.Scope.GoTypeRefWithDefaults(b.bodyAttr),
+			TypeRef:  clientTypeRef,
 			Type:     b.body,
 			Required: !isOptionalBodyAttribute(b.endpointIR.Request),
 			Example:  expr.CanonicalizeExample(b.bodyAttr, b.bodyAttr.Example(b.sds.examplesFor(b.sd))),
@@ -536,20 +592,22 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 			pAtt = expr.AsObject(b.payload.Type).Attribute(origin)
 			pAtt = serviceFieldTransformAttribute(b.payload, origin, pAtt)
 			// A service field with explicit presence, such as a loom.Nullable
-			// or a loom.JSONValue, holds the value itself.
-			pointer = !b.payload.IsRequired(o[0]) && expr.IsPrimitive(pAtt.Type) && !codegen.IsExplicitPresenceType(pAtt)
+			// or a loom.JSONValue, holds the value itself, and so does a
+			// primitive with a default value.
+			pointer = b.payload.IsPrimitivePointer(o[0], true) && !codegen.IsExplicitPresenceType(pAtt)
 			unionValue = b.payload.IsRequired(o[0]) && expr.IsUnion(pAtt.Type) && !expr.IsNullable(pAtt)
 		}
 		var helpers []*codegen.TransformFunctionData
 		var err error
 		serverContext := b.httpsvrctx.Dup()
 		serverContext.CollectionElementPresence = serverContext.JSONPresence
-		serverCode, helpers, err = unmarshal(request.Body, pAtt, "body", serverContext, b.svcctx)
+		serverSource, clientSource := bodyTransformSources(request)
+		serverCode, helpers, err = unmarshal(request.Body, pAtt, serverSource, serverContext, b.svcctx)
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP server payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}
 		b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
-		clientCode, helpers, err = marshal(request.Body, pAtt, "body", "v", b.httpclictx, b.svcctx)
+		clientCode, helpers, err = marshal(request.Body, pAtt, clientSource, "v", b.httpclictx, b.svcctx)
 		if err != nil {
 			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP client payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}
@@ -573,4 +631,23 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 		}
 	}
 	return serverCode, clientCode, origin, pointer, unionValue
+}
+
+// optionalBodyValidateRef returns the statement that validates the server
+// request body server. The server decodes an optional object body into a
+// pointer and validates it through that pointer, validates an optional
+// primitive body through its pointer when it is not nil, and validates an
+// optional array, map or bytes body only when it is not nil.
+func (b *payloadBuilder) optionalBodyValidateRef(server *TypeData) string {
+	request := b.endpointIR.Request
+	switch {
+	case isOptionalObjectBody(request):
+		return requestBodyValidateRef(server.VarName, true)
+	case isOptionalPrimitiveBody(request):
+		ctx := codegen.NewAttributeContext(true, false, false, "", b.sd.Scope)
+		return codegen.ValidationCode(b.bodyAttr, nil, ctx, true, expr.IsAlias(b.bodyAttr.Type), false, "body")
+	case isOptionalNilBody(request):
+		return "if body != nil {\n" + server.ValidateRef + "\n}"
+	}
+	return server.ValidateRef
 }

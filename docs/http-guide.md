@@ -383,10 +383,21 @@ as `null`. A JSON-RPC client omits `params` only for an absent value; it
 sends `"params": null` for a null value, which the server decodes as a null
 value.
 
+An optional primitive, array, map, or `Bytes` attribute selected with
+`Body("name")` is optional the same way. When the attribute is nil, the
+generated client sends no request body, and a JSON-RPC client omits
+`params`. The generated server decodes an empty or whitespace-only body, or
+absent JSON-RPC `params`, as a nil attribute, and validates a present body.
+A JSON `null` body decodes like the zero value of a primitive, such as `""`
+or `0`, and like a nil array or map. An empty array or map is present: it is
+sent and decoded as an empty value. A primitive with a default value is not a
+pointer in the payload, so the client always sends it.
+
 The generated client CLI makes the body flag of an optional object, union,
-nullable, or `Any` attribute selected with `Body("name")` optional. An empty
-flag leaves the attribute nil or absent. The flag example shows the JSON that
-the flag accepts, including the `type` and `value` fields of a union.
+nullable, `Any`, primitive, array, map, or `Bytes` attribute selected with
+`Body("name")` optional. An empty flag leaves the attribute nil or absent.
+The flag example shows the JSON that the flag accepts, including the `type`
+and `value` fields of a union.
 
 ### Raw Request and Response Bodies
 

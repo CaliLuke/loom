@@ -262,7 +262,7 @@ func TestTransportVarNamesAreUniquePerFunction(t *testing.T) {
 		{
 			Name:     "server payload initializer",
 			Func:     "NewCollidingPayload",
-			Contains: []string{"v := body", "res.FooBarQuery = fooBar2", "res.FooBarHeader = fooBar3", "res.FooBarCookie = fooBar4", "res.V = v2"},
+			Contains: []string{"v := *body", "res.FooBarQuery = fooBar2", "res.FooBarHeader = fooBar3", "res.FooBarCookie = fooBar4", "res.V = v2"},
 		},
 		{
 			Name:     "client request builder",

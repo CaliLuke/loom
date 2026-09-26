@@ -20,9 +20,11 @@ func DecodeMethodBodyPrimitiveArrayUserRequest(mux loomhttp.Muxer, decoder func(
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
-		for i, e := range body {
-			if _, ok := e.Value(); !ok {
-				err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+		if body != nil {
+			for i, e := range body {
+				if _, ok := e.Value(); !ok {
+					err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+				}
 			}
 		}
 		if err != nil {

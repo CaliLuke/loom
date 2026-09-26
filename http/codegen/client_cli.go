@@ -365,8 +365,10 @@ func payloadInitData(e *EndpointData, bodyFlag string, args []*codegen.InitArgDa
 	if init.ClientCode != "" {
 		initCode = codegen.Expr(init.ClientCode)
 	}
-	if !e.Payload.Request.OptionalObjectBody {
-		// Only the zero object body decoded from an empty flag is not nil.
+	if !init.ReturnIsOptionalBody {
+		// An empty flag leaves a union or a type with explicit presence nil
+		// or absent by itself. The builder sets any other optional body
+		// attribute only when its flag is set.
 		bodyFlag = ""
 	}
 	return &cli.PayloadInitData{

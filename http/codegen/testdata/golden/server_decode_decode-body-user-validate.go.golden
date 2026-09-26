@@ -6,12 +6,13 @@ func DecodeMethodBodyUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.
 	return func(r *http.Request) (*servicebodyuservalidate.PayloadType, error) {
 		var payload *servicebodyuservalidate.PayloadType
 		var (
-			body string
+			body = new(string)
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(r).Decode(body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				body = nil
 				err = nil
 			} else {
 				var gerr *loom.ServiceError
@@ -21,7 +22,9 @@ func DecodeMethodBodyUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 			}
 		}
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body", body, loomPatternTest0))
+		if body != nil {
+			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body", *body, loomPatternTest0))
+		}
 		if err != nil {
 			return payload, err
 		}

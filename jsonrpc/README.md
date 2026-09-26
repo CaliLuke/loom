@@ -401,18 +401,18 @@ Content-Type: application/json
 - If the incoming message has no `id` (a notification), the server does not
   send a response, per the spec.
 - Absent `params` decode as `{}`, except when `Body("name")` selects an
-  optional object, union, nullable, or `Any` payload attribute as the params.
-  The client then omits `params` when that attribute is nil or absent, and the
-  server decodes absent `params` as a nil or absent attribute. For a
-  non-nullable union, `"params": null` is still rejected with `-32602`; for a
-  non-nullable object, it decodes like `{}` and the object is validated; for a
+  optional payload attribute as the params, other than a primitive with a
+  default value. The client then omits `params` when that attribute is nil or
+  absent, and the server decodes absent `params` as a nil or absent
+  attribute. For a non-nullable union, `"params": null` is still rejected
+  with `-32602`; for a non-nullable object, it decodes like `{}` and the
+  object is validated; for a non-nullable primitive, array, or map, it decodes
+  like the zero value of a primitive and like a nil array or map; for a
   nullable or `Any` attribute, it decodes as a null value.
 - Clients omit `params` only when a request sets none: a method without
-  payload, or a nil or absent optional object, union, nullable, or `Any`
-  attribute selected with `Body("name")`. Empty strings, arrays and objects
-  and null values are sent, as are the params of notifications. An optional
-  primitive or array attribute selected with `Body("name")` is always sent,
-  as `"params": null` when it is nil.
+  payload, or a nil or absent optional attribute selected with `Body("name")`.
+  Empty strings, arrays and objects and null values are sent, as are the
+  params of notifications.
 - Loom params may be any JSON value, including `null`, strings, and numbers.
   JSON-RPC 2.0 allows only arrays and objects, so a strict third-party
   JSON-RPC 2.0 server may reject such params.

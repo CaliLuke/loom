@@ -407,6 +407,11 @@ func (sds *ServicesData) buildRequestBodyInit(
 	const sourceVar = "p"
 
 	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
+	if origin != "" && att.IsPrimitivePointer(origin, true) && !codegen.IsExplicitPresenceType(srcAtt) {
+		// The client builds the body of an optional primitive only when
+		// the service field is not nil.
+		src = "*" + src
+	}
 	argTypeRef := sd.Service.Scope.GoFullTypeRef(att, pkg)
 	initName := clientBodyInitName(sd, body, argTypeRef, src)
 	initDesc := fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",

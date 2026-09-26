@@ -418,11 +418,12 @@ type (
 		// MustHaveBody is true if the request body cannot be empty.
 		MustHaveBody bool
 		// OptionalBodyAttribute is true when the request body is the
-		// optional union, object or explicit presence payload attribute,
-		// such as a nullable type or Any, named by PayloadAttr. When that
-		// attribute is nil or absent, HTTP clients send no request body and
-		// JSON-RPC clients omit params. HTTP servers decode an empty body,
-		// and JSON-RPC servers absent params, as a nil or absent attribute.
+		// optional payload attribute named by PayloadAttr and its service
+		// field can be nil or absent: any attribute but a primitive with a
+		// default value. When that attribute is nil or absent, HTTP clients
+		// send no request body and JSON-RPC clients omit params. HTTP
+		// servers decode an empty body, and JSON-RPC servers absent params,
+		// as a nil or absent attribute.
 		OptionalBodyAttribute bool
 		// OptionalBodyNullable is true when OptionalBodyAttribute is true and
 		// the attribute is nullable. The service field is then a
@@ -437,6 +438,11 @@ type (
 		// passes the pointer to the payload constructor, which leaves the
 		// attribute nil for a nil body.
 		OptionalObjectBody bool
+		// OptionalPrimitiveBody is true when OptionalBodyAttribute is true
+		// and the attribute is a primitive pointer. The server decodes the
+		// body into a new pointer that it sets to nil when the body is
+		// empty, and the payload constructor then leaves the attribute nil.
+		OptionalPrimitiveBody bool
 		// ExplicitPresenceBody is true when the request body is a nullable
 		// type or Any, such as a nullable or Any payload or payload
 		// attribute selected with Body. JSON-RPC servers then decode absent

@@ -5,12 +5,13 @@ func DecodeMethodBodyPrimitiveArrayUserRequest(mux loomhttp.Muxer, decoder func(
 	return func(r *http.Request) (*servicebodyprimitivearrayuser.PayloadType, error) {
 		var payload *servicebodyprimitivearrayuser.PayloadType
 		var (
-			body string
+			body = new(string)
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(r).Decode(body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				body = nil
 				err = nil
 			} else {
 				var gerr *loom.ServiceError

@@ -27,6 +27,8 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		var (
 		{{- if .Payload.Request.OptionalObjectBody }}
 			body = &{{ .Payload.Request.ServerBody.VarName }}{}
+		{{- else if .Payload.Request.OptionalPrimitiveBody }}
+			body = new({{ .Payload.Request.ServerBody.VarName }})
 		{{- else }}
 			body {{ .Payload.Request.ServerBody.ValueRef }}
 		{{- end }}
@@ -109,7 +111,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			}
 		}
 	{{- else }}
-		err = decoder(r).Decode({{ if not .Payload.Request.OptionalObjectBody }}&{{ end }}body)
+		err = decoder(r).Decode({{ if not (or .Payload.Request.OptionalObjectBody .Payload.Request.OptionalPrimitiveBody) }}&{{ end }}body)
 		if err != nil {
 		{{- if .Payload.Request.MustHaveBody }}
 			if errors.Is(err, io.EOF) {
@@ -117,7 +119,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			}
 		{{- else }}
 			if errors.Is(err, io.EOF) {
-			{{- if .Payload.Request.OptionalObjectBody }}
+			{{- if or .Payload.Request.OptionalObjectBody .Payload.Request.OptionalPrimitiveBody }}
 				body = nil
 			{{- end }}
 				err = nil
