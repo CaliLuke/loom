@@ -5,8 +5,8 @@ rebalanced, requeued and recovered across pool nodes and workers. It covers
 the code on `main` at commit `967f4fbe`. Behind `FIX_*` toggles, it also
 covers the owner-record redesign.
 
-The bugs found, the redesign and the implementation plan are in
-[`roadmap/pulse-pool-ownership.md`](../../../roadmap/pulse-pool-ownership.md).
+The historical findings, accepted design, and completed delivery record are in
+[the ownership design](ownership_design.md).
 This file describes the model and how to run it.
 
 ## Files
@@ -823,3 +823,36 @@ verify local fencing before Redis permits cleanup. The local monitor runs
 independently of heartbeat requests and resume verification. Blocked claim,
 release, and resume RPC regressions prove that ownership I/O cannot hold the
 handler lock needed for fencing. Resume requires owner/epoch checks.
+
+
+## Application epoch checks
+
+`redesign_pause_noepoch` reproduces `NoStaleWrite` with unbounded pauses
+(185,132 distinct states in this rerun). The tighter
+`redesign_pause_writes_bounded` completes 7,476,496 distinct states, depth 40,
+with no violation. It reduces `MaxEv` to 1 and `MaxTok` to 2 from
+`redesign_pause_writes_min`; all other bounds remain the same. Run with the
+same TLC command as above and this configuration.
+
+The model's `JobWrite` validates ownership and performs a write in one atomic
+step. `Worker.CheckOwnership` implements a read-only check and stops the stale
+local run, but a later external write is not atomic with that check. The
+`NoStaleWrite` result therefore requires atomic validation against the current
+authoritative owner and epoch. A destination that only tracks its highest
+accepted epoch has a weaker guarantee: it rejects the old run after accepting
+the new epoch. Calling the helper before an unguarded write supplies neither
+atomic guarantee.
+`ownership_check_test.go` covers current/superseded tokens, local snapshots,
+Redis failure, fencing, stop retries, and retaining paused ownership across an
+expired Redis lease until renewal or transfer is confirmed.
+
+
+`OwnershipCheck.tla` isolates a checking job loop whose Stop callback joins
+that loop. `ownership_check_sync` fails the `Stopped` liveness property in two
+states: Check calls Stop before it can return, while Stop waits for the caller
+to exit. `ownership_check_async` checks all six states including liveness.
+The caller returns its rejection and exits independently of the pool's stop
+callback, under weak fairness of both. Run the same TLC command with this
+module and the corresponding configuration. This model does not assume
+callbacks always terminate: Stop progresses specifically when its joined work
+loop exits. Other unbounded callback waits remain outside the guarantee.

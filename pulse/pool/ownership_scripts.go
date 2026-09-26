@@ -166,10 +166,10 @@ return 1
 	luaCheckOwner = redis.NewScript(luaOwnerMaps + `
 local bad = incompatible(KEYS[4], KEYS[5], ARGV[4])
 if bad ~= "" then return redis.error_reply("incompatible pool node " .. bad) end
-local worker = redis.call("HGET", KEYS[2], ARGV[2])
-if not worker or worker == "-" then return 0 end
-if not live(redis.call("HGET", KEYS[3], ARGV[2]), ARGV[4]) then return 0 end
 if redis.call("HGET", KEYS[1], ARGV[1]) ~= ARGV[2] .. ":" .. ARGV[3] then return 0 end
+local worker = redis.call("HGET", KEYS[2], ARGV[2])
+if not worker or worker == "-" then return redis.error_reply("worker is not active") end
+if not live(redis.call("HGET", KEYS[3], ARGV[2]), ARGV[4]) then return redis.error_reply("worker lease expired") end
 return 1
 `)
 )

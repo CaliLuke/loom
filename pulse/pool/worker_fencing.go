@@ -48,7 +48,10 @@ func (w *Worker) resumeLease(ctx context.Context) {
 	defer ticker.Stop()
 	for {
 		select {
+		case <-w.ownershipWake:
+			w.stopRejectedJobs()
 		case <-ticker.C:
+			w.stopRejectedJobs()
 			if w.leaseFenced.Load() && !w.leaseExpired(time.Now()) {
 				checkCtx, cancel := context.WithTimeout(ctx, w.workerTTL/8)
 				w.updateLeaseState(checkCtx, time.Now())

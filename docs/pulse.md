@@ -120,6 +120,27 @@ and local fencing do not make external side effects exactly once. Applications
 that need to fence external writes must have the destination store check epochs
 atomically and reject tokens older than the highest accepted token for that key.
 
+Call `job.Worker.CheckOwnership(ctx, job.Key, job.Epoch)` from the job's work
+loop to check that the local run and Redis owner still match. Abort the planned
+operation on any error. `errors.Is(err, pool.ErrOwnershipLost)` identifies a
+superseded, paused, or stopped run. A confirmed mismatch queues a stop of the matching
+local run on a pool goroutine and returns immediately; this lets `Stop` safely
+join the calling work loop. Failed stops are logged and retried. Redis failures
+are returned without assuming an ownership transfer. The claimed job is
+available to a work loop as soon as `Start` receives it; failed starts remove
+that local claim. `Worker.Jobs` includes starting and paused jobs. Workers returned by
+`AddWorker`, `Worker.Jobs`, and `Node.Workers` support this local check; remote
+`Node.PoolWorkers` entries do not.
+
+A successful check can become stale immediately. To protect a downstream
+write, include the epoch in the write and atomically compare it with the
+highest epoch recorded for that key in the destination store. Reject a lower
+epoch; accept an equal epoch for further operations by the same owner, and
+advance the stored epoch when accepting a higher one. This prevents an old
+worker from writing after the store has accepted the new owner's epoch. It
+does not prevent duplicate operations within an epoch: use an operation ID
+and destination-side deduplication when that is required.
+
 ## Worker Pool Shutdown
 
 Every non-client pool node returned by `pool.AddNode` must end through exactly

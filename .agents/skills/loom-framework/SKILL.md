@@ -805,9 +805,10 @@ tier:
   a handler on the assumption that Redis rejected its release.
 - Keep heartbeat I/O and resume verification independent of the lease monitor.
   Redis operations may hold the ownership lock but never the handler lock
-  needed by fencing. Acquire the ownership lock before the handler lock when
-  both are required. Record
-  renewal request start times, never delayed reply times. Resume must check
+  needed by fencing. Distinguish a changed owner/epoch from an expired lease
+  whose ownership record remains; the latter must retain paused work for retry.
+  Acquire the ownership lock before the handler lock when both are required.
+  Record renewal request start times, never delayed reply times. Resume must check
   the current owner, epoch, registration, and Redis lease without creating
   ownership. A fenced handler already stopped successfully must not receive
   another Stop during release or eviction.

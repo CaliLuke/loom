@@ -1,10 +1,12 @@
 # Pulse Pool Job Ownership
 
-Status: active. Design accepted (owner-record redesign). Tickets 1 to 6
-are done. Tickets 7 and 8 are open.
+Status: implemented. All eight delivery tickets are complete.
+
+This document preserves the historical defect analysis and accepted design.
+For the current application contract, see [the Pulse guide](../../../docs/pulse.md).
 
 Code references are to `main` at `967f4fbe`. The model lives in
-[`pulse/pool/tla`](../pulse/pool/tla/README.md).
+[the model README](README.md).
 
 ## Problem
 
@@ -297,7 +299,7 @@ Details:
   holds, but lets one stuck pending entry grow the pool stream past
   `maxQueuedJobs`, and every pool stream `XADD` would need it. Ack-aware
   trimming (`XADD`/`XTRIM ... ACKED`) needs Redis 8.2. See the
-  [model README](../pulse/pool/tla/README.md#pool-stream-trimming-and-the-dispatch-guard-issue-385).
+  [model README](README.md#pool-stream-trimming-and-the-dispatch-guard-issue-385).
 - Stream ids are compared as numbers, never as strings: split `ms-seq`, then
   compare `ms`, then `seq`. Both fit in a Lua double.
 - The script needs no Redis version beyond the 6.2 that the sink already
@@ -436,8 +438,9 @@ return {2, requeued}
     already check `workerID:epoch`, so no other pulse write needs a check.
   - For applications, pulse adds `Job.Epoch` and one helper,
     `Worker.CheckOwnership(ctx, key, epoch) error`. The helper is a read-only
-    script. On a mismatch, it stops the local handler for that key, as the
-    model's rejected `JobWrite` does.
+    script. On a mismatch, it queues a stop of the matching local incarnation.
+    Stopping is asynchronous so a Stop callback can join the checking work
+    loop without deadlock. `OwnershipCheck.tla` checks this scheduling choice.
   - The pulse docs describe how to fence a downstream store: keep the
     highest accepted epoch per key and reject lower ones.
 
@@ -658,12 +661,16 @@ useful even before the owner record lands.
    start time, so a delayed reply cannot extend the local lease. Callback
    failures remain fenced and retry. Both real Redis versions exercise these
    paths.
-8. **Application fencing API and documentation.** Pulse's own writes are
+8. **Application fencing API and documentation.** Done. Pulse's own writes are
    already checked by ticket 5. This ticket adds
-   `Worker.CheckOwnership(ctx, key, epoch)`, which stops the local handler on
+   `Worker.CheckOwnership(ctx, key, epoch)`, which queues a local stop on
    a mismatch, and documents how to fence a downstream store with
    `Job.Epoch`. Tests: a check with a superseded epoch fails and stops the
-   handler; the current epoch passes.
+   handler; the current epoch passes. A wrong token does not stop a different
+   local incarnation. Redis failures and expired leases preserve ownership;
+   callback failure is logged and retried asynchronously. Worker snapshots
+   resolve to the local runtime instance. This helper is only a point-in-time check: the
+   destination must enforce epochs atomically with writes.
 
 ## Test Strategy
 
@@ -684,24 +691,21 @@ useful even before the owner record lands.
 - Keep one end-to-end miniredis test per ticket that runs two nodes with real
   rmap replication, to catch integration breakage that the seams hide.
 
-## Open Questions
+## Decisions and Model Limits
 
 1. **Fence margin (decided).** Fence at `3/4*workerTTL`, checking every
    `workerTTL/8`. The remaining eighth covers scheduling and handler stops.
    Lease renewal uses monotonic request time locally and Redis time remotely.
    Safety requires bounded pauses and callbacks; epochs protect downstream
    writes outside that assumption.
-2. **Keep-alive re-check clock.** Keep-alive values are node-clock
-   nanoseconds. The re-check compares them to Redis `TIME`. Either store
-   keep-alive as Redis `TIME` (set by script), or add skew slack.
-3. **Cleanup script size.** Requeue inside Lua needs `pack_job`. The
-   alternative is a two-phase cleanup: the script releases and returns the
-   keys, then Go adds the events, and the orphan sweep recovers a failed add.
-   It is simpler, but liveness then depends on the sweep. It is not modeled
-   yet.
-4. **Epoch API naming.** Ticket 8 proposes `Worker.CheckOwnership`. Should it
-   instead live on `Job` or `Node`, and should it return the current owner
-   when the check fails?
+2. **Keep-alive re-check clock (decided).** Worker lease writes and cleanup
+   comparisons use Redis `TIME`; local lease expiry uses monotonic request
+   start time.
+3. **Cleanup script (decided).** Requeue stays in the atomic cleanup script.
+   The alternative two-phase cleanup was not adopted or modeled.
+4. **Epoch API naming (decided).** `Worker.CheckOwnership(ctx, key, epoch)`
+   returns an error; `ErrOwnershipLost` identifies an inactive supplied run.
+   It does not return the new owner or grant a durable write lease.
 5. **Model coverage.**
    - The lease-expiry check of the redesign (`redesign_lease_expire_min`) is
      not exhaustive.

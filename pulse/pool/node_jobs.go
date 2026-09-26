@@ -51,6 +51,7 @@ func (node *Node) Workers() []*Worker {
 		workers = append(workers, &Worker{
 			ID:        w.ID,
 			CreatedAt: w.CreatedAt,
+			node:      node,
 		})
 		return true
 	})

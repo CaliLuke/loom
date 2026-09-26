@@ -681,7 +681,11 @@ identifies ownership; external stores must enforce fencing themselves. Pool
 shutdown retains epoch counters. Workers stop handlers after three quarters
 of the TTL without a confirmed renewal, then resume only the same owner and
 epoch. Callbacks must finish within the remaining fence margin; external
-writes still need store-side epoch checks. After rebalance releases a job,
+writes still need store-side epoch checks. Use `Worker.CheckOwnership` in the
+job work loop as a point-in-time check; abort the
+operation on any error. Ownership mismatches queue an asynchronous stop so
+`Stop` can join the checking loop. It cannot replace atomic epoch enforcement at the
+destination store. After rebalance releases a job,
 a failed Redis requeue reply does not restart it on the old worker because
 the write may already have succeeded. If it did not, orphan recovery waits
 for `max(2 * workerTTL, ackGracePeriod)` without a worker and a subsequent

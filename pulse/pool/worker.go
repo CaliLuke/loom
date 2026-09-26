@@ -49,8 +49,9 @@ type (
 		runtimeCancel     context.CancelFunc
 		wg                sync.WaitGroup
 
-		jobs        sync.Map // jobs being handled by the worker indexed by job key
-		nodeStreams sync.Map
+		jobs         sync.Map // jobs being handled by the worker indexed by job key
+		nodeStreams  sync.Map
+		rejectedJobs sync.Map // rejected *Job incarnations awaiting Stop
 
 		// jobLock serializes ownership operations, including Redis I/O.
 		// handlerLock protects callbacks, local jobs, and fencing state; no
@@ -62,10 +63,11 @@ type (
 		handlerLock     sync.Mutex
 		fencedJobs      map[string]bool
 
-		leaseLock   sync.Mutex
-		leaseStart  time.Time
-		leaseFenced atomic.Bool
-		leaseWake   chan struct{}
+		leaseLock     sync.Mutex
+		leaseStart    time.Time
+		leaseFenced   atomic.Bool
+		leaseWake     chan struct{}
+		ownershipWake chan struct{}
 
 		lock    sync.RWMutex
 		stopped bool
@@ -163,6 +165,7 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 		reader:            reader,
 		done:              make(chan struct{}),
 		leaseWake:         make(chan struct{}, 1),
+		ownershipWake:     make(chan struct{}, 1),
 		jobsMap:           node.jobMap,
 		jobPayloadsMap:    node.jobPayloadMap,
 		keepAliveMap:      node.workerKeepAliveMap,
@@ -192,7 +195,8 @@ func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
 	return w, nil
 }
 
-// Jobs returns the jobs handled by the worker.
+// Jobs returns jobs claimed by the worker, including a job whose Start
+// callback is still in progress and paused jobs awaiting ownership validation.
 func (w *Worker) Jobs() []*Job {
 	var keys []string
 	w.jobs.Range(func(key, _ any) bool {
@@ -394,7 +398,11 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 		}
 		return ErrRequeue
 	}
+	// Publish the claimed incarnation before Start can launch a work loop
+	// that calls CheckOwnership. Roll it back if the callback fails.
+	w.jobs.Store(job.Key, job)
 	if err := w.handler.Start(job); err != nil {
+		w.jobs.Delete(job.Key)
 		w.handlerLock.Unlock()
 		if _, releaseErr := w.finishRelease(ctx, pendingRelease{job: job, deletePayload: true}); releaseErr != nil {
 			return errors.Join(err, releaseErr)
@@ -402,7 +410,6 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 		return err
 	}
 	w.logger.Info("started job", "job", job.Key)
-	w.jobs.Store(job.Key, job)
 	w.handlerLock.Unlock()
 	return nil
 }
