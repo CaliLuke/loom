@@ -28,6 +28,16 @@ func startTestServer(t *testing.T) *redistest.Server {
 	return redistest.Start(t, redistest.DBStreaming)
 }
 
+// freezeIdleClock stops the miniredis clock of srv, so the pending entries
+// delivered afterwards stay younger than claimTestAckGracePeriod until
+// ageIdleEntries moves the clock, however slowly the test runs. A real server
+// keeps its wall clock.
+func freezeIdleClock(srv *redistest.Server) {
+	if mr := srv.Miniredis(); mr != nil {
+		mr.SetTime(time.Now())
+	}
+}
+
 // ageIdleEntries ages the pending entries of srv past claimTestAckGracePeriod.
 // It moves the miniredis clock. A real server ages them on the wall clock
 // while awaitIdleClaim retries.
@@ -372,6 +382,7 @@ func TestSinkAcksPendingEntriesOfDeletedEvents(t *testing.T) {
 	rdb := srv.Client
 	ctx := t.Context()
 	stream := newTestStream(t, rdb, "sink-ack-deleted")
+	freezeIdleClock(srv)
 	ids, firstConsumer := closeSinkWithPendingEvents(t, stream, "acker", 3)
 	require.NoError(t, rdb.XDel(ctx, stream.key, ids[0], ids[2]).Err())
 
@@ -385,9 +396,10 @@ func TestSinkAcksPendingEntriesOfDeletedEvents(t *testing.T) {
 
 	if !srv.Real() {
 		// Before the entries are idle, nothing is acked. The check loop
-		// takes the second tick only once the first check is done. A real
-		// server ages the entries on the wall clock, so only the miniredis
-		// clock keeps them from becoming idle here.
+		// takes the second tick only once the first check is done. The
+		// frozen miniredis clock keeps the entries from becoming idle
+		// however long the checks take; a real server ages them on the
+		// wall clock, so it skips this step.
 		for range 2 {
 			require.NoError(t, rdb.Del(ctx, staleLockName("acker")).Err())
 			idleChecks <- time.Now()
