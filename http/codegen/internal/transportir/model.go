@@ -43,8 +43,14 @@ type (
 		// StreamingBody is the body of the WebSocket messages of a streaming
 		// payload, normalized like Body: named non-object types, including
 		// named unions, are replaced with their underlying types.
-		StreamingBody       *expr.AttributeExpr
-		BodyOrigin          string
+		StreamingBody *expr.AttributeExpr
+		// BodyOrigin is the attribute name of the payload attribute selected
+		// with Body(name), or empty when the body is not one attribute.
+		BodyOrigin string
+		// BodyOriginKey is the object key of the payload attribute that
+		// BodyOrigin names, such as "v:x" for "v". Requiredness, defaults
+		// and pointer semantics of the attribute are looked up by this key.
+		BodyOriginKey       string
 		PathParams          []*Parameter
 		QueryParams         []*Parameter
 		Headers             []*Parameter

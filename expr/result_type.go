@@ -202,7 +202,8 @@ func (rt *ResultTypeExpr) ViewHasAttribute(view, attr string) bool {
 	if v == nil {
 		return false
 	}
-	return v.Find(attr) != nil
+	_, att := v.FindAttribute(attr)
+	return att != nil
 }
 
 func (rt *ResultTypeExpr) validateExplicitViewMeta() error {

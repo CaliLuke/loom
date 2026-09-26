@@ -212,7 +212,7 @@ func (r *RouteExpr) Validate() *eval.ValidationErrors {
 						}
 						name = p
 					}
-					if r.Endpoint.MethodExpr.Payload.Find(name) == nil {
+					if _, att := r.Endpoint.MethodExpr.Payload.FindAttribute(name); att == nil {
 						verr.Add(r, "Route param %q not found in method payload", p)
 					}
 				}
@@ -333,8 +333,9 @@ func initAttr(ma *MappedAttributeExpr, svcAtt *AttributeExpr) {
 		var patt *AttributeExpr
 		var required bool
 		if svcObj != nil {
-			patt = svcObj.Attribute(nat.Name)
-			required = svcAtt.IsRequired(nat.Name)
+			var key string
+			key, patt = objectAttribute(svcObj, nat.Name)
+			required = patt != nil && svcAtt.IsRequired(key)
 		} else {
 			patt = svcAtt
 			required = true

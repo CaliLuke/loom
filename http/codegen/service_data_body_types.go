@@ -188,7 +188,18 @@ func requestBodyRequired(body, att *expr.AttributeExpr) bool {
 	if !ok || att == nil || !expr.IsObject(att.Type) {
 		return true
 	}
-	return att.IsRequired(origin)
+	return att.IsRequired(originKey(att, origin))
+}
+
+// originKey returns the object key of the attribute of parent that a body or
+// field selected by the attribute name origin holds, such as "v:x" for "v",
+// or origin when parent has no such attribute. Requiredness, defaults and
+// pointer semantics of the attribute are looked up by this key.
+func originKey(parent *expr.AttributeExpr, origin string) string {
+	if key, att := parent.FindAttribute(origin); att != nil {
+		return key
+	}
+	return origin
 }
 
 // requestBodyValidateRef returns the statement that validates the server
@@ -407,7 +418,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 	const sourceVar = "p"
 
 	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
-	if origin != "" && att.IsPrimitivePointer(origin, true) && !codegen.IsExplicitPresenceType(srcAtt) {
+	if origin != "" && att.IsPrimitivePointer(originKey(att, origin), true) && !codegen.IsExplicitPresenceType(srcAtt) {
 		// The client builds the body of an optional primitive only when
 		// the service field is not nil.
 		src = "*" + src
@@ -527,7 +538,7 @@ func serviceBodyTransformSource(att, body *expr.AttributeExpr, sourceVar string)
 		return att, sourceVar, ""
 	}
 	name := origin[0]
-	attribute := expr.AsObject(att.Type).Attribute(name)
+	_, attribute := att.FindAttribute(name)
 	attribute = serviceFieldTransformAttribute(att, name, attribute)
 	return attribute, sourceVar + "." + codegen.Goify(name, true), name
 }

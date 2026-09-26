@@ -1523,6 +1523,15 @@ description, validations and requiredness of the `name` attribute, as
 a `Required` list in the body names the attribute `"name:n"`, and a request
 body may require it only when the payload requires `name`.
 
+`Header`, `Param`, `Cookie`, `MapParams`, `Body` and route wildcards select a
+payload, result or error attribute declared with a suffix by its attribute
+name: with `Attribute("tok:t", String)` in the payload, `Header("tok")` reads
+the `tok` header and `Header("tok:X-Token")` the `X-Token` header. The suffix
+of a type or payload attribute names only the field of a body, never a header,
+parameter or cookie. `Body("data")` selects the attribute declared as
+`"data:d"`, and `Attribute("name")` in a `Body` function inherits the
+attribute declared as `"name:nm"` and names the body field `"name"`.
+
 A route wildcard names the parameter, not the attribute: `Param("key:k")`
 maps the `{k}` wildcard of the route to the `key` attribute, and a route that
 uses `{key}` for that attribute is rejected. A mapped `Param` that no route

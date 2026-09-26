@@ -119,7 +119,7 @@ func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseSt
 	errAtt := httpError.Attribute
 	if o, ok := body.Meta["origin:attribute"]; ok {
 		origin = o[0]
-		errAtt = expr.AsObject(httpError.Type).Attribute(origin)
+		_, errAtt = httpError.Attribute.FindAttribute(origin)
 		errAtt = serviceFieldTransformAttribute(httpError.Attribute, origin, errAtt)
 	}
 	code, err := b.sds.buildClientResultTransformCode(body, errAtt, httpError.Attribute, b.endpoint.Request, b.httpclictx, errctx, b.sd)

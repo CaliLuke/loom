@@ -93,13 +93,13 @@ func TestJSONRPCOptionalValueParams(t *testing.T) {
 }
 
 // TestJSONRPCOptionalValueParamsGeneratedModule compiles and vets a JSON-RPC
-// service whose params are optional string, integer, array, map and bytes
-// payload attributes selected with Body. It round-trips nil and concrete
+// service whose params are optional string, integer, array, map, bytes and
+// string alias payload attributes or a defaulted string selected with Body. It round-trips nil and concrete
 // values through the generated client and server, checks that a nil value
 // is sent without params, and sends absent, null, concrete, empty, invalid
 // and malformed params to the generated server.
 func TestJSONRPCOptionalValueParamsGeneratedModule(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcOptionalValueParamsModuleDSL)
+	root := RunJSONRPCDSL(t, jsonrpcOptionalValueParamsModuleDSL("v"))
 	dir := t.TempDir()
 	renderJSONRPCModule(t, dir, "example.com/jsonrpcoptvalue", root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "optional_value_params_test.go"), []byte(jsonRPCOptionalValueParamsHarness), 0o600))
@@ -136,34 +136,41 @@ func jsonrpcOptionalValueParamsDSL(attribute func(), required bool) func() {
 	}
 }
 
-// jsonrpcOptionalValueParamsModuleDSL is a JSON-RPC design whose methods map
-// optional string, integer, array, map and bytes payload attributes to the
-// params with Body.
-func jsonrpcOptionalValueParamsModuleDSL() {
-	dsl.API("optvalue", func() {
-		dsl.JSONRPC(func() {})
-	})
-	method := func(name string, attribute func()) {
-		dsl.Method(name, func() {
-			dsl.Payload(func() {
-				dsl.ID("id", dsl.String)
-				attribute()
+// jsonrpcOptionalValueParamsModuleDSL returns a JSON-RPC design whose methods
+// map optional string, integer, array, map, bytes and string alias payload
+// attributes and a defaulted string to the params with Body("v"). The
+// payload declares the attribute with the object key key, "v" or a key with
+// an element name suffix such as "v:x".
+func jsonrpcOptionalValueParamsModuleDSL(key string) func() {
+	return func() {
+		dsl.API("optvalue", func() {
+			dsl.JSONRPC(func() {})
+		})
+		var Plain = dsl.Type("Plain", dsl.String)
+		method := func(name string, attribute func()) {
+			dsl.Method(name, func() {
+				dsl.Payload(func() {
+					dsl.ID("id", dsl.String)
+					attribute()
+				})
+				dsl.JSONRPC(func() {
+					dsl.Body("v")
+				})
 			})
+		}
+		dsl.Service("Picker", func() {
 			dsl.JSONRPC(func() {
-				dsl.Body("v")
+				dsl.POST("/rpc")
 			})
+			method("Str", func() { dsl.Attribute(key, dsl.String, func() { dsl.MinLength(2) }) })
+			method("Num", func() { dsl.Attribute(key, dsl.Int) })
+			method("Strs", func() { dsl.Attribute(key, dsl.ArrayOf(dsl.String)) })
+			method("Counts", func() { dsl.Attribute(key, dsl.MapOf(dsl.String, dsl.Int)) })
+			method("Blob", func() { dsl.Attribute(key, dsl.Bytes) })
+			method("Alias", func() { dsl.Attribute(key, Plain) })
+			method("Dflt", func() { dsl.Attribute(key, dsl.String, func() { dsl.Default("d") }) })
 		})
 	}
-	dsl.Service("Picker", func() {
-		dsl.JSONRPC(func() {
-			dsl.POST("/rpc")
-		})
-		method("Str", func() { dsl.Attribute("v", dsl.String, func() { dsl.MinLength(2) }) })
-		method("Num", func() { dsl.Attribute("v", dsl.Int) })
-		method("Strs", func() { dsl.Attribute("v", dsl.ArrayOf(dsl.String)) })
-		method("Counts", func() { dsl.Attribute("v", dsl.MapOf(dsl.String, dsl.Int)) })
-		method("Blob", func() { dsl.Attribute("v", dsl.Bytes) })
-	})
 }
 
 const jsonRPCOptionalValueParamsHarness = `package jsonrpcoptvalue_test
@@ -200,6 +207,8 @@ func (s *service) Num(_ context.Context, p *picker.NumPayload) error       { ret
 func (s *service) Strs(_ context.Context, p *picker.StrsPayload) error     { return s.record(p) }
 func (s *service) Counts(_ context.Context, p *picker.CountsPayload) error { return s.record(p) }
 func (s *service) Blob(_ context.Context, p *picker.BlobPayload) error     { return s.record(p) }
+func (s *service) Alias(_ context.Context, p *picker.AliasPayload) error   { return s.record(p) }
+func (s *service) Dflt(_ context.Context, p *picker.DfltPayload) error     { return s.record(p) }
 
 func (s *service) record(p any) error {
 	s.mu.Lock()
@@ -291,6 +300,10 @@ func TestClient(t *testing.T) {
 		{"Counts nil", c.Counts(), &picker.CountsPayload{ID: ptr("9")}, ""},
 		{"Blob", c.Blob(), &picker.BlobPayload{ID: ptr("10"), V: []byte("ab")}, "\"YWI=\""},
 		{"Blob nil", c.Blob(), &picker.BlobPayload{ID: ptr("11")}, ""},
+		{"Alias", c.Alias(), &picker.AliasPayload{ID: ptr("12"), V: ptr(picker.Plain("x"))}, "\"x\""},
+		{"Alias nil", c.Alias(), &picker.AliasPayload{ID: ptr("13")}, ""},
+		{"Dflt", c.Dflt(), &picker.DfltPayload{ID: ptr("14"), V: "x"}, "\"x\""},
+		{"Dflt empty", c.Dflt(), &picker.DfltPayload{ID: ptr("15")}, "\"\""},
 	}
 	for _, tc := range cases {
 		err := func() (err error) {
@@ -349,6 +362,9 @@ func TestWire(t *testing.T) {
 		{"Blob", "", 0, "", "", []byte(nil)},
 		{"Blob", "\"YWI=\"", 0, "", "", []byte("ab")},
 		{"Blob", "\"!\"", -32602, invalid, "decode_payload", nil},
+		{"Alias", "", 0, "", "", (*picker.Plain)(nil)},
+		{"Alias", "\"x\"", 0, "", "", ptr(picker.Plain("x"))},
+		{"Dflt", "\"x\"", 0, "", "", "x"},
 	}
 	for _, tc := range cases {
 		name := tc.method + " " + tc.params

@@ -521,7 +521,16 @@ filter, and serialization rules belong here.
   behaves as `Attribute("name")` except for the element name;
   `validateBodyRequiredPayloadAttributes` and the response body checks
   compare attribute names, and `validateBodyRequiredKeys` rejects a body
-  `Required` name that omits the suffix of its key. A route wildcard names the
+  `Required` name that omits the suffix of its key. Header, Param, Cookie,
+  MapParams, Body and route wildcard names select payload, result and error
+  attributes by attribute name the same way: the expr validations and
+  `initAttr`, `initResponseCookies` and the response body finalization, the
+  HTTP transport IR and the payload, response and error builders look the
+  attribute up with `FindAttribute` or `objectAttribute` and test
+  requiredness, defaults and pointers with the key it returns
+  (`transportir.Request.BodyOriginKey` for an attribute selected with
+  `Body(name)`, `originKey` in the HTTP code generator). The element name of the
+  mapping, not the payload suffix, names the header, parameter or cookie. A route wildcard names the
   element of a param, so `Param("key:k")` is the path parameter of `{k}`
   (`HTTPEndpointExpr.PathParams`, `QueryParams`, `ensureRouteParams` and
   `RouteExpr.Validate` match wildcards by element name, and the path builders

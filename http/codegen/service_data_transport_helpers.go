@@ -25,16 +25,16 @@ func transportFieldBinding(name string, fieldAttr, svcAtt *expr.AttributeExpr, s
 	if !expr.IsObject(svcAtt.Type) {
 		return "", fieldType, false
 	}
-	svcField := svcAtt.Find(name)
+	key, svcField := svcAtt.FindAttribute(name)
 	if svcField == nil {
 		return "", fieldAttr.Type, false
 	}
 	fieldType = svcField.Type
 	fieldName := codegen.GoifyAtt(fieldAttr, name, true)
 	if svcCtx == nil {
-		return fieldName, fieldType, svcAtt.IsPrimitivePointer(name, true)
+		return fieldName, fieldType, svcAtt.IsPrimitivePointer(key, true)
 	}
-	return fieldName, fieldType, svcCtx.IsPrimitivePointer(name, svcAtt)
+	return fieldName, fieldType, svcCtx.IsPrimitivePointer(key, svcAtt)
 }
 
 func (sds *ServicesData) buildTransportAttributeData(
@@ -136,8 +136,8 @@ func (sds *ServicesData) extractHeaders(headersIR []*transportir.Header, svcAtt 
 	for _, headerIR := range headersIR {
 		name := headerIR.Name
 		elem := headerIR.HTTPName
-		var attr *expr.AttributeExpr
-		if attr = svcAtt.Find(name); attr == nil {
+		_, attr := svcAtt.FindAttribute(name)
+		if attr == nil {
 			attr = svcAtt
 		}
 		stringSlice := transportStringSlice(attr)
@@ -181,8 +181,8 @@ func (sds *ServicesData) extractResponseCookies(cookiesIR []*transportir.Cookie,
 }
 
 func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bool, mappedAttr *expr.AttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope, vars *transportVarScope, examples *expr.ExampleGenerator) *CookieData {
-	var hattr *expr.AttributeExpr
-	if hattr = svcAtt.Find(name); hattr == nil {
+	_, hattr := svcAtt.FindAttribute(name)
+	if hattr == nil {
 		if mappedAttr != nil {
 			hattr = mappedAttr
 		} else {

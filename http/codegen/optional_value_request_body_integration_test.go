@@ -24,7 +24,7 @@ import (
 func TestOptionalValueRequestBodyGeneratedIntegration(t *testing.T) {
 	const modulePath = "example.com/optvaluebody"
 
-	root := RunHTTPDSL(t, optionalValueRequestBodyIntegrationDSL)
+	root := RunHTTPDSL(t, optionalValueBodyModuleDSL("v"))
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, modulePath, root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "optional_value_body_test.go"), []byte(optionalValueRequestBodyHarness), 0o600))
@@ -307,7 +307,7 @@ func checkBody(t *testing.T, hs *httptest.Server, svc *service, tc bodyCase) {
 `
 
 // optionalValueRequestBodyCLIHarness tests the generated CLI payload
-// builders of optionalValueRequestBodyIntegrationDSL.
+// builders of optionalValueBodyModuleDSL.
 const optionalValueRequestBodyCLIHarness = `package optvaluebody
 
 import (
@@ -393,43 +393,49 @@ func TestCLI(t *testing.T) {
 }
 `
 
-func optionalValueRequestBodyIntegrationDSL() {
-	var Leaf = Type("Leaf", func() {
-		Attribute("name", String)
-		Required("name")
-	})
-	var Plain = Type("Plain", String)
-	methods := []struct {
-		name      string
-		required  bool
-		attribute func()
-	}{
-		{"str", false, func() { Attribute("v", String, func() { MinLength(2) }) }},
-		{"num", false, func() { Attribute("v", Int, func() { Minimum(1) }) }},
-		{"strs", false, func() { Attribute("v", ArrayOf(String), func() { MinLength(1) }) }},
-		{"leaves", false, func() { Attribute("v", ArrayOf(Leaf)) }},
-		{"counts", false, func() { Attribute("v", MapOf(String, Int)) }},
-		{"blob", false, func() { Attribute("v", Bytes) }},
-		{"alias", false, func() { Attribute("v", Plain) }},
-		{"dflt", false, func() { Attribute("v", String, func() { Default("d") }) }},
-		{"reqstr", true, func() { Attribute("v", String) }},
-	}
-	Service("values", func() {
-		for _, m := range methods {
-			Method(m.name, func() {
-				Payload(func() {
-					Attribute("q", String)
-					m.attribute()
-					if m.required {
-						Required("v")
-					}
-				})
-				HTTP(func() {
-					POST("/" + m.name)
-					Param("q")
-					Body("v")
-				})
-			})
+// optionalValueBodyModuleDSL returns a design whose methods select an
+// optional or required payload attribute with Body("v"). The payload
+// declares the attribute with the object key key, "v" or a key with an
+// element name suffix such as "v:x".
+func optionalValueBodyModuleDSL(key string) func() {
+	return func() {
+		var Leaf = Type("Leaf", func() {
+			Attribute("name", String)
+			Required("name")
+		})
+		var Plain = Type("Plain", String)
+		methods := []struct {
+			name      string
+			required  bool
+			attribute func()
+		}{
+			{"str", false, func() { Attribute(key, String, func() { MinLength(2) }) }},
+			{"num", false, func() { Attribute(key, Int, func() { Minimum(1) }) }},
+			{"strs", false, func() { Attribute(key, ArrayOf(String), func() { MinLength(1) }) }},
+			{"leaves", false, func() { Attribute(key, ArrayOf(Leaf)) }},
+			{"counts", false, func() { Attribute(key, MapOf(String, Int)) }},
+			{"blob", false, func() { Attribute(key, Bytes) }},
+			{"alias", false, func() { Attribute(key, Plain) }},
+			{"dflt", false, func() { Attribute(key, String, func() { Default("d") }) }},
+			{"reqstr", true, func() { Attribute(key, String) }},
 		}
-	})
+		Service("values", func() {
+			for _, m := range methods {
+				Method(m.name, func() {
+					Payload(func() {
+						Attribute("q", String)
+						m.attribute()
+						if m.required {
+							Required(key)
+						}
+					})
+					HTTP(func() {
+						POST("/" + m.name)
+						Param("q")
+						Body("v")
+					})
+				})
+			}
+		})
+	}
 }

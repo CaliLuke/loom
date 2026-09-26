@@ -169,7 +169,7 @@ func responseOriginAttribute(resp *transportir.ResponseStatus, result *expr.Attr
 		return "", result
 	}
 	if resp.BodyOrigin != "" {
-		attribute := expr.AsObject(result.Type).Attribute(resp.BodyOrigin)
+		_, attribute := result.FindAttribute(resp.BodyOrigin)
 		return resp.BodyOrigin, serviceFieldTransformAttribute(result, resp.BodyOrigin, attribute)
 	}
 	return "", result
@@ -398,7 +398,7 @@ func buildResponseResultPointer(resp *transportir.ResponseStatus, result *expr.A
 	if origin == "" {
 		return false
 	}
-	return result.IsPrimitivePointer(origin, true)
+	return result.IsPrimitivePointer(originKey(result, origin), true)
 }
 
 func responseTagData(resp *transportir.ResponseStatus, result *expr.AttributeExpr, viewed bool) (string, string, bool) {

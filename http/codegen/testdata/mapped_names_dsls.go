@@ -180,3 +180,98 @@ var MappedExplicitBodyDSL = func() {
 		})
 	})
 }
+
+// MappedPayloadReferencesDSL maps payload, result and error attributes
+// declared with a transport element name suffix, such as "tok:t", to
+// headers, params, cookies, route wildcards, MapParams and bodies by their
+// attribute names. The mapping names the transport element: Header("tok")
+// reads the "tok" header, and the suffix names only the field of a body.
+var MappedPayloadReferencesDSL = func() {
+	var Fault = Type("Fault", func() {
+		Attribute("code:c", String)
+		Attribute("detail:dt", String)
+		Required("code:c")
+	})
+	Service("mappedrefs", func() {
+		Method("send", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("id:i", Int)
+				Attribute("tok:t", String, func() {
+					MinLength(2)
+				})
+				Attribute("ver:v", String)
+				Attribute("q:qq", String)
+				Attribute("sid:s", String)
+				Attribute("name:nm", String)
+				Required("id:i", "tok:t")
+			})
+			Result(func() {
+				Attribute("loc:l", String)
+				Attribute("sid:s", String)
+				Attribute("name:nm", String)
+				Required("loc:l")
+			})
+			Error("bad", Fault)
+			HTTP(func() {
+				POST("/items/{id}")
+				Header("tok")
+				Header("ver:X-Version")
+				Param("q")
+				Cookie("sid")
+				Response(StatusOK, func() {
+					Header("loc:Location")
+					Cookie("sid")
+				})
+				Response("bad", StatusBadRequest, func() {
+					Header("code:X-Code")
+				})
+			})
+		})
+		Method("put", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("id:i", Int)
+				Attribute("data:d", MapOf(String, Int))
+				Required("data:d")
+			})
+			Result(func() {
+				Attribute("data:d", ArrayOf(String))
+				Required("data:d")
+			})
+			HTTP(func() {
+				PUT("/data/{id}")
+				Body("data")
+				Response(StatusOK, func() {
+					Body("data")
+				})
+			})
+		})
+		Method("rename", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("name:nm", String, func() {
+					MinLength(2)
+				})
+				Required("name:nm")
+			})
+			HTTP(func() {
+				POST("/rename")
+				Body(func() {
+					Attribute("name")
+					Required("name")
+				})
+			})
+		})
+		Method("filter", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("filters:f", MapOf(String, String))
+			})
+			HTTP(func() {
+				GET("/filter")
+				MapParams("filters")
+			})
+		})
+	})
+}

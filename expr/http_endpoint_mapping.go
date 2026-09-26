@@ -195,7 +195,7 @@ func (e *HTTPEndpointExpr) validatePayloadHeaderCookieCompatibility(verr *eval.V
 			if e.isTransportOnlySessionCookie(name) {
 				return nil
 			}
-			if e.MethodExpr.Payload.Find(name) == nil {
+			if _, att := e.MethodExpr.Payload.FindAttribute(name); att == nil {
 				verr.Add(e, `cookie %q not found in payload.`, name)
 			}
 			return nil
@@ -230,7 +230,7 @@ func (e *HTTPEndpointExpr) isTransportOnlySessionCookie(name string) bool {
 
 func (e *HTTPEndpointExpr) validateMappedAttributesExist(verr *eval.ValidationErrors, attrs *MappedAttributeExpr, format string) {
 	WalkMappedAttr(attrs, func(name, _ string, _ *AttributeExpr) error { // nolint: errcheck
-		if e.MethodExpr.Payload.Find(name) == nil {
+		if _, att := e.MethodExpr.Payload.FindAttribute(name); att == nil {
 			verr.Add(e, format, name)
 		}
 		return nil

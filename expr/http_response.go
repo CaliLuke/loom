@@ -361,7 +361,11 @@ func newHTTPResponseResultType(e *HTTPEndpointExpr) *httpResponseResultType {
 				if v == nil {
 					return nil
 				}
-				return v.AttributeExpr.Find(name).Type
+				_, att := v.AttributeExpr.FindAttribute(name)
+				if att == nil {
+					return nil
+				}
+				return att.Type
 			}
 			for _, v := range rt.Views {
 				if !rt.ViewHasAttribute(v.Name, name) {
@@ -369,7 +373,7 @@ func newHTTPResponseResultType(e *HTTPEndpointExpr) *httpResponseResultType {
 				}
 			}
 		}
-		att := e.MethodExpr.Result.Find(name)
+		_, att := e.MethodExpr.Result.FindAttribute(name)
 		if att == nil || att.Type == nil {
 			return nil
 		}
@@ -408,7 +412,8 @@ func (r *HTTPResponseExpr) finalizeBody(a *HTTPEndpointExpr, svcAtt *AttributeEx
 
 func responseBodyAttribute(body, svcAtt *AttributeExpr) *AttributeExpr {
 	if origin, ok := body.Meta["origin:attribute"]; ok {
-		return svcAtt.Find(origin[0])
+		_, att := svcAtt.FindAttribute(origin[0])
+		return att
 	}
 	return svcAtt
 }
@@ -430,7 +435,8 @@ func (r *HTTPResponseExpr) finalizeObjectBody(a *HTTPEndpointExpr, bodyAtt *Attr
 
 func responseBodyFieldSource(bodyAtt *AttributeExpr, bodyObj *Object, name string) (*AttributeExpr, bool) {
 	if bodyObj != nil {
-		return bodyObj.Attribute(name), bodyAtt.IsRequired(name)
+		key, att := objectAttribute(bodyObj, name)
+		return att, att != nil && bodyAtt.IsRequired(key)
 	}
 	return bodyAtt, bodyAtt.Type != Empty
 }
@@ -607,8 +613,9 @@ func initResponseCookies(cookies []*HTTPResponseCookieExpr, svcAtt *AttributeExp
 			required bool
 		)
 		if svcObj != nil {
-			patt = svcObj.Attribute(name)
-			required = svcAtt.IsRequired(name)
+			var key string
+			key, patt = objectAttribute(svcObj, name)
+			required = patt != nil && svcAtt.IsRequired(key)
 		} else {
 			patt = svcAtt
 			required = true

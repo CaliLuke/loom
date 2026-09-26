@@ -276,7 +276,10 @@ func Path(val string) {
 //
 // Header accepts the same arguments as the Attribute function. The header name
 // may define a mapping between the attribute name and the HTTP header name when
-// they differ. The mapping syntax is "name of attribute:name of header".
+// they differ. The mapping syntax is "name of attribute:name of header". The
+// name of attribute selects a payload or result attribute declared with an
+// element name suffix, such as "auth:a", by its attribute name "auth"; the
+// suffix names only the field of a body, not the header.
 //
 // Example:
 //

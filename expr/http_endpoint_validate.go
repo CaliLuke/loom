@@ -55,7 +55,7 @@ func (e *HTTPEndpointExpr) validateNullableTransportLocations(verr *eval.Validat
 	if e.MapQueryParams != nil && e.MethodExpr != nil {
 		mapped := e.MethodExpr.Payload
 		if name := *e.MapQueryParams; name != "" && mapped != nil {
-			mapped = mapped.Find(name)
+			_, mapped = mapped.FindAttribute(name)
 		}
 		if containsNullable(mapped) {
 			verr.Add(e, "HTTP map query parameters do not support nullable attributes")
@@ -207,6 +207,15 @@ func (e *HTTPEndpointExpr) validateBodyRequiredPayloadAttributes(verr *eval.Vali
 		s, is, s, is, strings.Join(missing, ", "), s)
 }
 
+// payloadKey returns the object key of the attribute of payload named name,
+// such as "n:m" for "n", or name when payload has no such attribute.
+func payloadKey(payload *AttributeExpr, name string) string {
+	if key, att := payload.FindAttribute(name); att != nil {
+		return key
+	}
+	return name
+}
+
 func containsString(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {
@@ -346,7 +355,7 @@ func (e *HTTPEndpointExpr) validateObjectPayloadTransport(verr *eval.ValidationE
 	if e.MapQueryParams != nil {
 		if pAttr := *e.MapQueryParams; pAttr == "" {
 			verr.Add(e, "MapParams is set to map entire payload but payload is an object. Payload must be a map.")
-		} else if e.MethodExpr.Payload.Find(pAttr) == nil {
+		} else if _, att := e.MethodExpr.Payload.FindAttribute(pAttr); att == nil {
 			verr.Add(e, "MapParams is set to an attribute in Payload. But payload has no attribute with type map and name %s", pAttr)
 		}
 	}
@@ -368,14 +377,14 @@ func (e *HTTPEndpointExpr) validateObjectPayloadTransport(verr *eval.ValidationE
 		}
 	}
 	for _, prop := range props {
-		if e.MethodExpr.Payload.Find(prop) == nil {
+		if _, att := e.MethodExpr.Payload.FindAttribute(prop); att == nil {
 			verr.Add(e, "Body %q is not found in Payload.", prop)
 		}
 	}
 	if !e.OptionalRequestBody {
 		return
 	}
-	if ok && len(props) == 1 && e.MethodExpr.Payload.IsRequired(props[0]) {
+	if ok && len(props) == 1 && e.MethodExpr.Payload.IsRequired(payloadKey(e.MethodExpr.Payload, props[0])) {
 		verr.Add(e, "OptionalRequestBody requires the payload attribute mapped to the request body to be optional.")
 	}
 	if !ok && hasRequiredBodyAttributes(e.Body) {

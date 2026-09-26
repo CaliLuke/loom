@@ -269,10 +269,10 @@ func isOptionalBodyAttribute(request *transportir.Request) bool {
 	if request == nil || request.BodyOrigin == "" || request.Body == nil || request.Payload == nil {
 		return false
 	}
-	if request.Payload.IsRequired(request.BodyOrigin) {
+	if request.Payload.IsRequired(request.BodyOriginKey) {
 		return false
 	}
-	return codegen.IsExplicitPresenceType(request.Body) || !expr.IsPrimitive(request.Body.Type) || !request.Payload.HasDefaultValue(request.BodyOrigin)
+	return codegen.IsExplicitPresenceType(request.Body) || !expr.IsPrimitive(request.Body.Type) || !request.Payload.HasDefaultValue(request.BodyOriginKey)
 }
 
 // isOptionalNullableBody reports whether the request body is a nullable type
@@ -298,7 +298,7 @@ func isOptionalObjectBody(request *transportir.Request) bool {
 // when the body is empty.
 func isOptionalPrimitiveBody(request *transportir.Request) bool {
 	return isOptionalBodyAttribute(request) && !codegen.IsExplicitPresenceType(request.Body) &&
-		request.Payload.IsPrimitivePointer(request.BodyOrigin, true)
+		request.Payload.IsPrimitivePointer(request.BodyOriginKey, true)
 }
 
 // isCLIBodyPointer reports whether the client CLI declares the body of an
@@ -345,8 +345,8 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 		attr := b.payload
 		if param.Name != "query" || (param.MapQueryParams != nil && *param.MapQueryParams != "") {
 			fieldName = codegen.Goify(param.Name, true)
-			if object := expr.AsObject(b.payload.Type); object != nil {
-				if payloadAttr := object.Attribute(param.Name); payloadAttr != nil {
+			if expr.IsObject(b.payload.Type) {
+				if _, payloadAttr := b.payload.FindAttribute(param.Name); payloadAttr != nil {
 					attr = payloadAttr
 				}
 			}
@@ -418,7 +418,7 @@ func (b *payloadBuilder) buildQueryParams(params []*transportir.Parameter) []*Pa
 
 func rawServiceField(service *expr.AttributeExpr, name string, fallback *expr.AttributeExpr) *expr.AttributeExpr {
 	if service != nil {
-		if field := service.Find(name); field != nil {
+		if _, field := service.FindAttribute(name); field != nil {
 			return field
 		}
 	}
@@ -428,7 +428,7 @@ func rawServiceField(service *expr.AttributeExpr, name string, fallback *expr.At
 func (b *payloadBuilder) buildHeaders(params []*transportir.Parameter) []*HeaderData {
 	headers := make([]*HeaderData, 0, len(params))
 	for _, param := range params {
-		attr := b.payload.Find(param.Name)
+		_, attr := b.payload.FindAttribute(param.Name)
 		if attr == nil {
 			attr = b.payload
 		}
@@ -589,13 +589,14 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 	if b.body != expr.Empty {
 		if o, ok := request.Body.Meta["origin:attribute"]; ok {
 			origin = o[0]
-			pAtt = expr.AsObject(b.payload.Type).Attribute(origin)
+			var key string
+			key, pAtt = b.payload.FindAttribute(origin)
 			pAtt = serviceFieldTransformAttribute(b.payload, origin, pAtt)
 			// A service field with explicit presence, such as a loom.Nullable
 			// or a loom.JSONValue, holds the value itself, and so does a
 			// primitive with a default value.
-			pointer = b.payload.IsPrimitivePointer(o[0], true) && !codegen.IsExplicitPresenceType(pAtt)
-			unionValue = b.payload.IsRequired(o[0]) && expr.IsUnion(pAtt.Type) && !expr.IsNullable(pAtt)
+			pointer = b.payload.IsPrimitivePointer(key, true) && !codegen.IsExplicitPresenceType(pAtt)
+			unionValue = b.payload.IsRequired(key) && expr.IsUnion(pAtt.Type) && !expr.IsNullable(pAtt)
 		}
 		var helpers []*codegen.TransformFunctionData
 		var err error

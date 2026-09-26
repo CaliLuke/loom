@@ -17,11 +17,15 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 	body := normalizeHTTPAttribute(endpoint.Body)
 	streamingBody := normalizeHTTPAttribute(endpoint.StreamingBody)
 	bodyOrigin := attributeOrigin(body)
+	var bodyOriginKey string
+	if bodyOrigin != "" && payload != nil {
+		bodyOriginKey = originKey(payload, bodyOrigin)
+	}
 	mustHaveBody := body != nil && body.Type != expr.Empty
 	if endpoint.OptionalRequestBody {
 		mustHaveBody = false
 	}
-	if bodyOrigin != "" && payload != nil && !payload.IsRequired(bodyOrigin) {
+	if bodyOriginKey != "" && !payload.IsRequired(bodyOriginKey) {
 		mustHaveBody = false
 	}
 	return &Request{
@@ -32,6 +36,7 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 		DocumentRequired:     endpoint.OpenAPIRequestBodyRequired,
 		StreamingBody:        streamingBody,
 		BodyOrigin:           bodyOrigin,
+		BodyOriginKey:        bodyOriginKey,
 		PathParams:           buildPathParameters(endpoint),
 		QueryParams:          buildQueryParameters(endpoint),
 		Headers:              buildHeaderParameters(endpoint),
@@ -110,6 +115,15 @@ func buildResponseStatus(status *expr.HTTPResponseExpr, httpErrorExpr *expr.HTTP
 		Meta:         status.Meta,
 		Links:        buildResponseLinks(status),
 	}
+}
+
+// originKey returns the object key of the attribute of parent that a body
+// selected with Body(origin) holds, such as "n:m" for the origin "n".
+func originKey(parent *expr.AttributeExpr, origin string) string {
+	if key, att := parent.FindAttribute(origin); att != nil {
+		return key
+	}
+	return origin
 }
 
 func attributeOrigin(attr *expr.AttributeExpr) string {

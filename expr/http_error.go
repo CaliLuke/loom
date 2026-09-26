@@ -56,7 +56,7 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 		e.Response.validateCookies(
 			ee.AttributeExpr,
 			func(name string) DataType {
-				att := ee.Find(name)
+				_, att := ee.FindAttribute(name)
 				if att == nil {
 					return nil
 				}
@@ -81,7 +81,7 @@ func (e *HTTPErrorExpr) validateHeaders(ee *ErrorExpr, verr *eval.ValidationErro
 			verr.Add(e.Response, "response defines headers but error type is empty")
 		case IsObject(ee.Type):
 			for _, h := range *AsObject(e.Response.Headers.Type) {
-				att := ee.Find(h.Name)
+				_, att := ee.FindAttribute(h.Name)
 				switch {
 				case att == nil:
 					verr.Add(e.Response, "header %q has no equivalent attribute in error type, use notation 'attribute_name:header_name' to identify corresponding error type attribute.", h.Name)

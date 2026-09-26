@@ -17,7 +17,9 @@ import (
 // Body accepts one argument which describes the shape of the body, it can be:
 //
 //   - The name of an attribute of the request or response type. In this case the
-//     attribute type describes the shape of the body.
+//     attribute type describes the shape of the body. An attribute declared
+//     with an element name suffix, such as "data:d", is named by its
+//     attribute name "data".
 //
 //   - A function listing the body attributes. The attributes inherit the
 //     properties (description, type, validations etc.) of the request or
@@ -265,7 +267,7 @@ func resolveNamedBodyAttribute(ref *expr.AttributeExpr, kind, name string) (*exp
 		eval.ReportError("%s type must be an object with an attribute with name %#v, got %T", kind, name, ref.Type)
 		return nil, false
 	}
-	attr := ref.Find(name)
+	_, attr := ref.FindAttribute(name)
 	if attr == nil {
 		eval.ReportError("%s type does not have an attribute named %#v", kind, name)
 		return nil, false

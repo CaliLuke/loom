@@ -16,8 +16,9 @@ func buildQueryParameters(endpoint *expr.HTTPEndpointExpr) []*Parameter {
 	required := true
 	if mappedName := *endpoint.MapQueryParams; mappedName != "" {
 		name = mappedName
-		attr = expr.AsObject(endpoint.MethodExpr.Payload.Type).Attribute(mappedName)
-		required = endpoint.MethodExpr.Payload.IsRequired(mappedName)
+		var key string
+		key, attr = endpoint.MethodExpr.Payload.FindAttribute(mappedName)
+		required = endpoint.MethodExpr.Payload.IsRequired(key)
 	}
 	params = append(params, &Parameter{
 		Name:           name,
