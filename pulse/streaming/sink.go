@@ -2,6 +2,7 @@ package streaming
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sync"
@@ -259,7 +260,8 @@ func (s *Sink) Ack(ctx context.Context, e *Event) error {
 // the same timestamp as the sink main stream cursor.  This can be overridden
 // with opts. AddStream does nothing if the stream is already part of the sink.
 // It creates the stream if missing and applies the stream TTL in the same
-// script as the consumer group, as NewSink does.
+// script as the consumer group, as NewSink does. If AddStream fails, the
+// replicated consumers map of the stream does not hold the sink consumer.
 func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.AddStream) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -278,11 +280,22 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 	if err != nil {
 		return fmt.Errorf("failed to join consumer replicated map for stream %s: %w", stream.Name, err)
 	}
+	// The consumer goes to the map before the group is created, so a
+	// concurrent RemoveStream of another instance of the sink sees it and
+	// keeps the group (tla/SinkAddStream.tla).
 	if _, err := cm.AppendValues(ctx, s.Name, s.consumer); err != nil {
+		cm.Close()
 		return fmt.Errorf("failed to append consumer %s to replicated map for stream %s: %w", s.consumer, stream.Name, err)
 	}
 	if err := stream.createGroup(ctx, s.Name, startID); err != nil {
-		return fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", s.Name, stream.Name, err)
+		err = fmt.Errorf("failed to create Redis consumer group %s for stream %s: %w", s.Name, stream.Name, err)
+		// Remove the consumer again even if ctx is canceled. The group
+		// stays: another instance may use it (tla/README.md).
+		if _, _, rerr := cm.RemoveValues(context.WithoutCancel(ctx), s.Name, s.consumer); rerr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to remove consumer %s from replicated map for stream %s: %w", s.consumer, stream.Name, rerr))
+		}
+		cm.Close()
+		return err
 	}
 	s.streams = append(s.streams, stream)
 	s.streamCursors = make([]string, len(s.streams)*2)

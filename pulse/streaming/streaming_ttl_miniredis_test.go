@@ -156,7 +156,8 @@ func TestSinkAddStreamAppliesTTL(t *testing.T) {
 
 // TestSinkAddStreamReportsGroupCreateError checks that Sink.AddStream returns
 // the error of a failed consumer group creation of a TTL stream, applies no
-// TTL then, and does not add the stream to the sink.
+// TTL then, and does not add the stream to the sink or its consumer to the
+// consumers map of the stream.
 func TestSinkAddStreamReportsGroupCreateError(t *testing.T) {
 	rdb := startTestRedis(t)
 	ctx := t.Context()
@@ -174,6 +175,7 @@ func TestSinkAddStreamReportsGroupCreateError(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, time.Duration(-1), ttl)
 	assert.Len(t, sink.streams, 1)
+	assert.Empty(t, streamConsumers(t, rdb, stream))
 }
 
 // TestAddOnlyIfStreamExistsWithTTL checks that Add with
