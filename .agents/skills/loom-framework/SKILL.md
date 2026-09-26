@@ -499,7 +499,12 @@ filter, and serialization rules belong here.
   (the CLI body examples) and the JSON fields of the HTTP untagged union
   branches: they name the field with `expr.JSONFieldName(expr.ElementName(key),
   att)`. gRPC ignores it: the protocol buffer field and the Go fields of the
-  service and pb types use the attribute name. A route wildcard names the
+  service and pb types use the attribute name. The object validation checks
+  the JSON names of the service fields, named after the attribute, and
+  `HTTPEndpointExpr.validateBodyElementNames` checks the element names in the
+  objects of the HTTP and JSON-RPC bodies of each endpoint, without the
+  attributes mapped to params, headers and cookies, so that a suffix that
+  collides only in a gRPC type or outside a body is accepted. A route wildcard names the
   element of a param, so `Param("key:k")` is the path parameter of `{k}`
   (`HTTPEndpointExpr.PathParams`, `QueryParams`, `ensureRouteParams` and
   `RouteExpr.Validate` match wildcards by element name, and the path builders

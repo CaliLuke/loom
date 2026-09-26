@@ -315,11 +315,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	if !IsObject(attr.Type) {
 		return primitiveHTTPResponseBody(attr, resp, name)
 	}
-	body := NewMappedAttributeExpr(attr)
-	RemovePkgPath(body.AttributeExpr)
-	extendBodyAttribute(body)
-	removeAttributes(body, resp.Headers)
-	removeResponseCookieAttributes(body, resp.Cookies)
+	body := responseBodyObject(attr, resp)
 	if len(*AsObject(body.Type)) == 0 {
 		return &AttributeExpr{Type: Empty}
 	}
@@ -362,6 +358,17 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		Validation: userType.Validation,
 		Meta:       attr.Meta,
 	}
+}
+
+// responseBodyObject returns the attributes of the object attr that the body
+// of the response resp holds: those that resp maps to no header or cookie.
+func responseBodyObject(attr *AttributeExpr, resp *HTTPResponseExpr) *MappedAttributeExpr {
+	body := NewMappedAttributeExpr(attr)
+	RemovePkgPath(body.AttributeExpr)
+	extendBodyAttribute(body)
+	removeAttributes(body, resp.Headers)
+	removeResponseCookieAttributes(body, resp.Cookies)
+	return body
 }
 
 func explicitHTTPResponseBody(body *AttributeExpr, name, suffix string, svc *HTTPServiceExpr) *AttributeExpr {

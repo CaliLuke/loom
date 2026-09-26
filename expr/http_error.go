@@ -107,16 +107,7 @@ func (e *HTTPErrorExpr) validateHeaders(ee *ErrorExpr, verr *eval.ValidationErro
 
 // Finalize looks up the corresponding method error expression.
 func (e *HTTPErrorExpr) Finalize(a *HTTPEndpointExpr) {
-	var ee *ErrorExpr
-	switch p := e.Response.Parent.(type) {
-	case *HTTPEndpointExpr:
-		ee = p.MethodExpr.Error(e.Name)
-	case *HTTPServiceExpr:
-		ee = p.Error(e.Name)
-	case *RootExpr:
-		ee = Root.Error(e.Name)
-	}
-	e.ErrorExpr = ee
+	e.ErrorExpr = e.designError()
 	e.Response.Finalize(a, e.AttributeExpr)
 	if e.Response.Body == nil {
 		e.Response.Body = httpErrorResponseBody(a, e)
@@ -146,4 +137,18 @@ func (e *HTTPErrorExpr) Dup() *HTTPErrorExpr {
 		Name:      e.Name,
 		Response:  e.Response.Dup(),
 	}
+}
+
+// designError returns the error expression that the HTTP error maps, looked
+// up where the HTTP error is declared, or nil if there is none.
+func (e *HTTPErrorExpr) designError() *ErrorExpr {
+	switch p := e.Response.Parent.(type) {
+	case *HTTPEndpointExpr:
+		return p.MethodExpr.Error(e.Name)
+	case *HTTPServiceExpr:
+		return p.Error(e.Name)
+	case *RootExpr:
+		return Root.Error(e.Name)
+	}
+	return nil
 }

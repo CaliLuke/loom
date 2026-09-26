@@ -319,7 +319,7 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 					if !isUntaggedBranchFieldType(field.Attribute.Type) {
 						verr.Add(parent, "%suntagged OneOf branch %q field %q must be primitive, a concrete named object type, or an array of either", ctx, branch.Name, field.Name)
 					}
-					wireName := JSONFieldName(field.Name, field.Attribute)
+					wireName := JSONFieldName(AttributeName(field.Name), field.Attribute)
 					if wireName == "" {
 						verr.Add(parent, "%suntagged OneOf branch %q field %q cannot use an empty JSON tag name", ctx, branch.Name, field.Name)
 						continue
@@ -376,6 +376,11 @@ func attributeJSONTag(attribute *AttributeExpr) (string, bool) {
 	values, ok := attribute.Meta["struct:tag:json"]
 	return strings.Join(values, ","), ok
 }
+
+// validateObjectChildren validates the fields of obj and their JSON names in
+// the service types, which name a field declared as "n:m" after its attribute
+// name "n". HTTPEndpointExpr.validateBodyElementNames checks the element names
+// that HTTP and JSON-RPC bodies use.
 func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expression, obj *Object) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	for _, name := range a.AllRequired() {
@@ -387,13 +392,14 @@ func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expressio
 	wireNames := make(map[string]string, len(*obj))
 	designNames := make(map[string]struct{}, len(*obj))
 	for _, nat := range *obj {
-		designNames[nat.Name] = struct{}{}
+		designNames[AttributeName(nat.Name)] = struct{}{}
 	}
 	for _, nat := range *obj {
 		verr.Merge(a.validatePkgPath(pkgPath, nat.Attribute.Type))
 		fieldCtx := fmt.Sprintf("field %s", nat.Name)
 		verr.Merge(nat.Attribute.Validate(fieldCtx, parent))
-		wireName := JSONFieldName(nat.Name, nat.Attribute)
+		name := AttributeName(nat.Name)
+		wireName := JSONFieldName(name, nat.Attribute)
 		if wireName == "-" {
 			continue
 		}
@@ -405,7 +411,7 @@ func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expressio
 			verr.Add(parent, "%s %s", fieldCtx, invalidJSONWireNameMessage(wireName))
 			continue
 		}
-		if _, conflicts := designNames[wireName]; conflicts && wireName != nat.Name {
+		if _, conflicts := designNames[wireName]; conflicts && wireName != name {
 			verr.Add(parent, "%s JSON field name %q conflicts with another design field name", fieldCtx, wireName)
 			continue
 		}

@@ -1524,7 +1524,12 @@ wildcard names is a query string parameter named `k`.
 The same suffix on an attribute of a type or payload, such as
 `Attribute("name:n", String)`, names the field of the HTTP and JSON-RPC
 bodies: the body uses `"n"`, and the Go field and `Required("name:n")` refer
-to the `name` attribute. The OpenAPI properties, required lists and examples,
+to the `name` attribute. Each field of a body object needs its own JSON name:
+a design is rejected when the suffix gives a body field the JSON name of
+another field of the same object, as `"a:x"` and `"b:x"` or `"a:x"` and `"x"`
+do, or an empty name, `"-"`, or a name that a JSON struct tag cannot hold. A
+`struct:tag:json` name takes precedence over the suffix, and an attribute that
+the endpoint maps to a header, param or cookie is not in the body. The OpenAPI properties, required lists and examples,
 the client CLI `--body` examples and the fields that select the branch of an
 untagged `OneOf` in those bodies also use `"n"`. gRPC ignores the suffix. `ConvertTo` and
 `CreateFrom` select the external Go field with `struct:field:external` or

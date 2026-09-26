@@ -23,6 +23,7 @@ func (e *HTTPEndpointExpr) Validate() error {
 	e.validateResponses(verr)
 	e.validateBodyAndPayload(verr)
 	e.validateNullableTransportLocations(verr)
+	e.validateBodyElementNames(verr)
 	for _, er := range e.HTTPErrors {
 		verr.Merge(er.Validate())
 	}
