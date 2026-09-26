@@ -276,3 +276,54 @@ var SSEFieldPresenceDSL = func() {
 		})
 	})
 }
+
+// SSEOptionalDataDSL maps the SSE data field from optional String, Int, and
+// Boolean result attributes without a default value, whose service type
+// fields are pointers, so the generated server encoding and client decoding
+// of each can be compiled and exercised.
+var SSEOptionalDataDSL = func() {
+	Service("SSEOptionalData", func() {
+		Method("StreamText", func() {
+			StreamingResult(func() {
+				Attribute("id", String)
+				Attribute("text", String)
+				Required("id")
+			})
+			HTTP(func() {
+				GET("/text")
+				ServerSentEvents(func() {
+					SSEEventID("id")
+					SSEEventData("text")
+				})
+			})
+		})
+		Method("StreamCount", func() {
+			StreamingResult(func() {
+				Attribute("id", String)
+				Attribute("count", Int)
+				Required("id")
+			})
+			HTTP(func() {
+				GET("/count")
+				ServerSentEvents(func() {
+					SSEEventID("id")
+					SSEEventData("count")
+				})
+			})
+		})
+		Method("StreamFlag", func() {
+			StreamingResult(func() {
+				Attribute("id", String)
+				Attribute("flag", Boolean)
+				Required("id")
+			})
+			HTTP(func() {
+				GET("/flag")
+				ServerSentEvents(func() {
+					SSEEventID("id")
+					SSEEventData("flag")
+				})
+			})
+		})
+	})
+}

@@ -157,17 +157,31 @@ func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
 	if ed.SSE.ResponseBody != nil {
 		writeServerBodyInitCall(b, ed.SSE.ResponseBody, "\tbody := ")
 		if ed.SSE.DataField != "" {
-			b.Addf("\tpayload = body.%s\n", ed.SSE.DataField)
+			writeSSEDataFieldPayload(b, ed.SSE, "body."+ed.SSE.DataField)
 			return
 		}
 		b.Add("\tpayload = body\n")
 		return
 	}
 	if ed.SSE.DataField != "" {
-		b.Addf("\tpayload = res.%s\n", ed.SSE.DataField)
+		writeSSEDataFieldPayload(b, ed.SSE, "res."+ed.SSE.DataField)
 		return
 	}
 	b.Add("\tpayload = res\n")
+}
+
+// writeSSEDataFieldPayload assigns the mapped data field source to payload.
+// An optional String field without a default value is raw text: payload is
+// its dereferenced value, or empty data when it is nil, since raw text cannot
+// tell null from a string. Other optional primitives stay pointers and encode
+// as JSON literals, null when nil.
+func writeSSEDataFieldPayload(b *sourceBuilder, data *SSEData, source string) {
+	if data.DataPointer && data.DataFieldTypeRef == "string" {
+		b.Add("\tpayload = \"\"\n")
+		b.Addf("\tif %s != nil {\n\t\tpayload = *%s\n\t}\n", source, source)
+		return
+	}
+	b.Addf("\tpayload = %s\n", source)
 }
 
 func sseProjectionResponse(ed *EndpointData) *ResponseData {

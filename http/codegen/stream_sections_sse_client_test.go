@@ -10,26 +10,56 @@ import (
 
 func TestRenderSSEParseAssignment(t *testing.T) {
 	t.Run("string", func(t *testing.T) {
-		code := renderSSEParseAssignment("event", "string")
+		code := renderSSEParseAssignment("event", "string", false)
 		require.Contains(t, code, "\tevent = dataContent\n")
 	})
 
 	t.Run("bytes", func(t *testing.T) {
-		code := renderSSEParseAssignment("event", "[]byte")
+		code := renderSSEParseAssignment("event", "[]byte", false)
 		require.Contains(t, code, "\tevent = []byte(dataContent)\n")
 	})
 
 	t.Run("int", func(t *testing.T) {
-		code := renderSSEParseAssignment("event", "int")
+		code := renderSSEParseAssignment("event", "int", false)
 		require.Contains(t, code, "strconv.Atoi(dataContent)")
 		require.Contains(t, code, "\tevent = v\n")
 	})
 
 	t.Run("default decode", func(t *testing.T) {
-		code := renderSSEParseAssignment("event", "*Example")
+		code := renderSSEParseAssignment("event", "*Example", false)
 		require.Contains(t, code, "strings.NewReader(dataContent)")
 		require.Contains(t, code, "s.decoder(respBody).Decode(&event)")
 	})
+
+	t.Run("optional string", func(t *testing.T) {
+		code := renderSSEParseAssignment("event", "string", true)
+		require.Equal(t, "\tif dataContent != \"\" {\n\t\tevent = &dataContent\n\t}\n", code)
+	})
+
+	t.Run("optional int decode", func(t *testing.T) {
+		code := renderSSEParseAssignment("event", "int", true)
+		require.NotContains(t, code, "strconv.Atoi")
+		require.Contains(t, code, "s.decoder(respBody).Decode(&event)")
+	})
+}
+
+func TestSSEParseAssignmentNeedsDecoder(t *testing.T) {
+	cases := []struct {
+		TypeRef string
+		Pointer bool
+		Want    bool
+	}{
+		{"string", false, false},
+		{"string", true, false},
+		{"[]byte", false, false},
+		{"int", false, false},
+		{"int", true, true},
+		{"bool", true, true},
+		{"float64", false, true},
+	}
+	for _, c := range cases {
+		require.Equal(t, c.Want, sseParseAssignmentNeedsDecoder(c.TypeRef, c.Pointer), "%s pointer=%t", c.TypeRef, c.Pointer)
+	}
 }
 
 func TestSSEClientEmitterDelegatesCoreReader(t *testing.T) {

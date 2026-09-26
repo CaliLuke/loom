@@ -997,6 +997,12 @@ The `data:` field of each event is encoded according to how the design maps it:
   an event that clients do not dispatch, and bytes must be valid UTF-8 text. Map
   the data to a structured field, or use a whole-event result, when values can
   contain these characters.
+- **Optional field-level data** (an optional attribute without a default):
+  a `String` field is written as raw text when it is set. When it is nil, the
+  event has no data. Generated clients set the field only when the data is not
+  empty, so an empty string is received as nil. An optional number or boolean
+  is written as its literal text, or `null` when it is nil, and generated
+  clients decode `null` to nil.
 
 ### Per-Event JSON Projections
 

@@ -10,13 +10,19 @@ import (
 
 func sseClientNeedsDecoder(ed *EndpointData) bool {
 	if ed.SSE.DataField != "" {
-		return sseParseAssignmentNeedsDecoder(ed.SSE.DataFieldTypeRef)
+		return sseParseAssignmentNeedsDecoder(ed.SSE.DataFieldTypeRef, ed.SSE.DataPointer)
 	}
 	// Whole-event data is always JSON and decodes through the decoder.
 	return true
 }
 
-func sseParseAssignmentNeedsDecoder(typeRef string) bool {
+// sseParseAssignmentNeedsDecoder reports whether the client decodes the data
+// of a field of type typeRef with the decoder. Optional primitives other than
+// String, pointer data fields, encode as JSON literals or null.
+func sseParseAssignmentNeedsDecoder(typeRef string, pointer bool) bool {
+	if pointer && typeRef != "string" {
+		return true
+	}
 	switch typeRef {
 	case "string", "[]byte", "int":
 		return false
@@ -45,7 +51,7 @@ func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
 	b.Add("\tdataContent := parsed.Data\n")
 	switch {
 	case ed.SSE.DataField != "":
-		b.Add(renderSSEParseAssignment("event."+ed.SSE.DataField, ed.SSE.DataFieldTypeRef))
+		b.Add(renderSSEParseAssignment("event."+ed.SSE.DataField, ed.SSE.DataFieldTypeRef, ed.SSE.DataPointer))
 	case ed.SSE.EventIsStruct:
 		b.Add("\t// Decode JSON into the struct pointer directly\n")
 		b.Add("\trespBody := &http.Response{\n")
@@ -114,14 +120,22 @@ func renderSSEClientStringField(b *sourceBuilder, target, source, local string, 
 	}
 }
 
-func renderSSEParseAssignment(target, typeRef string) string {
+// renderSSEParseAssignment returns the statements that decode the event data
+// into the target field of type typeRef. A pointer target stays nil when the
+// data of an optional String field is empty; other pointer targets decode JSON
+// literals and stay nil for null.
+func renderSSEParseAssignment(target, typeRef string, pointer bool) string {
 	var b sourceBuilder
-	switch typeRef {
-	case "string":
+	switch {
+	case pointer && typeRef == "string":
+		b.Addf("\tif dataContent != \"\" {\n\t\t%s = &dataContent\n\t}\n", target)
+	case pointer:
+		renderSSEDecodeAssignment(&b, target)
+	case typeRef == "string":
 		b.Addf("\t%s = dataContent\n", target)
-	case "[]byte":
+	case typeRef == "[]byte":
 		b.Addf("\t%s = []byte(dataContent)\n", target)
-	case "int":
+	case typeRef == "int":
 		b.Addf("\tv, parseErr := strconv.Atoi(dataContent)\n")
 		b.Add("\tif parseErr != nil {\n")
 		b.Add("\t\terr = parseErr\n")
@@ -129,12 +143,18 @@ func renderSSEParseAssignment(target, typeRef string) string {
 		b.Add("\t}\n")
 		b.Addf("\t%s = v\n", target)
 	default:
-		b.Addf("\trespBody := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(dataContent))}\n")
-		b.Addf("\tif err = s.decoder(respBody).Decode(&%s); err != nil {\n", target)
-		b.Add("\t\treturn\n")
-		b.Add("\t}\n")
+		renderSSEDecodeAssignment(&b, target)
 	}
 	return b.String()
+}
+
+// renderSSEDecodeAssignment writes the statements that decode the JSON event
+// data into target with the decoder. A null decodes to a nil pointer target.
+func renderSSEDecodeAssignment(b *sourceBuilder, target string) {
+	b.Add("\trespBody := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(dataContent))}\n")
+	b.Addf("\tif err = s.decoder(respBody).Decode(&%s); err != nil {\n", target)
+	b.Add("\t\treturn\n")
+	b.Add("\t}\n")
 }
 
 func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {

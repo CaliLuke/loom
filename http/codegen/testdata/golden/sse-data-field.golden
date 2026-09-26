@@ -37,7 +37,10 @@ func (s *SSEDataFieldMethodServerStream) SendWithContext(ctx context.Context, v 
 
 	var payload any
 	body := NewSSEDataFieldMethodResponseBody(res)
-	payload = body.Data
+	payload = ""
+	if body.Data != nil {
+		payload = *body.Data
+	}
 	data, err := loomhttp.EncodeSSEData(payload)
 	if err != nil {
 		return err

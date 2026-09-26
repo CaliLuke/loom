@@ -401,6 +401,12 @@ filter, and serialization rules belong here.
   dereference optional fields; clients leave them nil when the frame omits the
   field and assign defaults to defaulted ones. JSON-RPC SSE does not map these
   fields onto SSE frames.
+- An HTTP SSE data mapping of an optional primitive without a default
+  (`SSEData.DataPointer`) follows the same pointer semantics. A String field
+  is raw text: servers write the dereferenced value, or no data for nil
+  (`writeSSEDataFieldPayload`), and clients leave the field nil for empty
+  data. Other optional primitives stay JSON literals, `null` for nil, and
+  clients decode them with the decoder (`renderSSEParseAssignment`).
 - Protocol errors must use event types compatible with the relevant client
   contract.
 - Generated HTTP variables named after path params, query params, headers,

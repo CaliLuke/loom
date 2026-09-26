@@ -52,6 +52,9 @@ type (
 		// DataField is the name of the result type event data attribute if any.
 		// If empty, the entire result type is used as the data field.
 		DataField string
+		// DataPointer indicates whether DataField is a pointer, that is an
+		// optional primitive attribute without a default value.
+		DataPointer bool
 		// IDField is the name of the result type event ID attribute if any.
 		// If empty, no id field is included in the event.
 		IDField string
@@ -214,6 +217,7 @@ func setSSEEventFields(data *SSEData, mapping *transportir.SSE, sd *ServiceData,
 		case mapping.DataField:
 			data.DataField = codegen.GoifyAtt(nat.Attribute, nat.Name, true)
 			data.DataFieldTypeRef = sd.Service.Scope.GoFullTypeRef(nat.Attribute, sd.Service.PkgName)
+			data.DataPointer = eventAttr.IsPrimitivePointer(nat.Name, true)
 		}
 	}
 }
