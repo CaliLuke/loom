@@ -760,7 +760,10 @@ func (s *chatSvc) Echo(ctx context.Context, p *chat.EchoPayload,
   - Closing a stream, or canceling the context it was opened with, ends only
     that stream: its waiting requests fail, and late responses to them are
     reported as orphaned. The connection closes when its last stream ends or
-    when the client is closed, and the next stream dials a new connection.
+    when the client is closed. While the client remains open, the next stream
+    dials a new connection. Closing the client is permanent: subsequent
+    attempts to open a stream fail without dialing. A dial already in progress
+    can finish, but `Close` closes its connection before returning.
   - When the connection fails, every waiting request of every stream returns
     the read error, and later sends fail.
   - All events go to the one handler configured with

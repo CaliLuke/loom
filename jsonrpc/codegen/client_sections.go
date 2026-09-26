@@ -247,7 +247,7 @@ func writeJSONRPCDoRequest(g *jen.Group, ed *httpcodegen.EndpointData) {
 //nolint:maintidx // Connection bootstrap and reconnection logic are intentionally emitted together.
 func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.NewJenniferSection("jsonrpc-client-websocket-conn", func(stmt *jen.Statement) {
-		codegen.Doc(stmt, "getConn returns the WebSocket connection shared by the streams of the client, with a reference for a new stream, and dials a new connection when the current one is closed or fails its ping. The stream releases the reference when it ends, and the connection closes with its last reference or with the client.")
+		codegen.Doc(stmt, "getConn returns the WebSocket connection shared by the streams of the client, with a reference for a new stream, and dials a new connection when the current one is closed. It returns an error after the client is closed. The stream releases the reference when it ends, and the connection closes with its last reference or with the client.")
 		stmt.Func().
 			Params(jen.Id("c").Op("*").Id(data.ClientStruct)).
 			Id("getConn").
@@ -256,6 +256,12 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 			BlockFunc(func(g *jen.Group) {
 				g.Id("c").Dot("connMu").Dot("Lock").Call()
 				g.Defer().Id("c").Dot("connMu").Dot("Unlock").Call()
+				g.Line()
+				g.If(jen.Id("c").Dot("closed").Dot("Load").Call()).Block(
+					jen.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrRequestError").Call(
+						jen.Lit(data.Service.Name), jen.Lit("connect"), jen.Qual("fmt", "Errorf").Call(jen.Lit("client is closed")),
+					)),
+				)
 				g.Line()
 				g.If(jen.Id("c").Dot("conn").Op("!=").Nil().Op("&&").Id("c").Dot("conn").Dot("Acquire").Call()).Block(
 					jen.Return(jen.Id("c").Dot("conn"), jen.Nil()),
@@ -320,7 +326,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 				g.Return(jen.Id("conn"), jen.Nil())
 			})
 		stmt.Line()
-		codegen.Doc(stmt, "Close closes the WebSocket connection shared by the streams of the client, failing the requests they still wait for, and marks the client as closed. When the last stream already closed the connection, Close returns the result of that close.")
+		codegen.Doc(stmt, "Close closes the WebSocket connection shared by the streams of the client, failing the requests they still wait for, and marks the client as closed. Later attempts to open a stream fail without dialing. When the last stream already closed the connection, Close returns the result of that close.")
 		stmt.Func().
 			Params(jen.Id("c").Op("*").Id(data.ClientStruct)).
 			Id("Close").

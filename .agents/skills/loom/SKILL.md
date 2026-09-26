@@ -519,7 +519,9 @@ requirement retain AND semantics.
 - JSON-RPC WebSocket client streams opened on one generated client share its
   connection safely: each stream receives only its own responses. Closing a
   stream or canceling its context ends that stream alone; the connection
-  closes with its last stream or with the client. Do not add a separate
+  closes with its last stream or with the client. Client `Close` is permanent:
+  later stream calls fail without dialing. Create a new client to reconnect.
+  Do not add a separate
   reader or a client per stream to work around sharing.
 
 Loom also emits the framework-owned `x-loom-async` OpenAPI extension for richer

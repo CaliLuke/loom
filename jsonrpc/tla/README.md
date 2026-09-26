@@ -127,3 +127,25 @@ it fails the waiters. `demux_split` is the first implementation of
 critical section that drops the last reference.
 `TestWebSocketClientConnAcquireAfterLastRelease` fails on that version.
 `demux` is the implemented design.
+
+## Client closure and redial (#400)
+
+`ClientClose.tla` models the generated client's `connMu`, the atomic closed
+flag, connection acquisition/dialing, and `Close`. A get holds the mutex while
+it acquires or dials; Close marks the client first, then takes the mutex and
+closes any connection. A stream release can independently close the connection.
+The model abstracts acquisition and a successful dial as the same operation;
+failed dials cannot create a surviving connection. It checks safety, not dial
+termination: Close still waits for an in-progress dial's context to finish.
+
+Run with the TLC command above, using `ClientClose.tla` and one of:
+
+| Configuration | Result |
+| --- | --- |
+| `cfg/close_asis.cfg` | Reproduces #400 in five states: Close finishes, then a get dials a connection that subsequent Close calls do not own. |
+| `cfg/close_guarded.cfg` | No error, 9 distinct states: `NoConnectionAfterClose` holds with the closed check under `connMu`, including a dial overlapping Close. |
+
+The generated-module tests `TestClientClosePreventsNewStreams` and
+`TestClientCloseDuringDial` exercise these cases against real sockets under the
+race detector. Closing before the first dial and after an active stream both
+reproduced unwanted redials before the guard was added.

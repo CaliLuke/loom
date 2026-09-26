@@ -74,6 +74,8 @@ type countingConn struct {
 	mu    sync.Mutex
 	dials int
 	last  net.Conn
+	started chan struct{}
+	resume chan struct{}
 }
 
 func (c *countingConn) lastConn() net.Conn {
@@ -95,6 +97,17 @@ func newClient(t *testing.T, svc *service, dials *countingConn, opts ...jsonrpc.
 	hs := httptest.NewServer(mux)
 	t.Cleanup(hs.Close)
 	dialer := &websocket.Dialer{NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if dials.started != nil {
+			select {
+			case dials.started <- struct{}{}:
+			default:
+			}
+			select {
+			case <-dials.resume:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
 		c, err := (&net.Dialer{}).DialContext(ctx, network, addr)
 		if err != nil {
 			return nil, err
@@ -327,5 +340,94 @@ func TestConnectionFailureEndsEveryStream(t *testing.T) {
 	if err := c.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 		t.Errorf("close client: %v", err)
 	}
+}
+
+func assertClientClosed(t *testing.T, ctx context.Context, c *client.Client, dials *countingConn) {
+	t.Helper()
+	before := dials.dialCount()
+	for range 3 {
+		raw, err := c.Talk()(ctx, nil)
+		if err == nil || raw != nil {
+			t.Errorf("call after Close: stream=%v error=%v", raw, err)
+		}
+		if raw != nil {
+			if err := raw.(*client.TalkClientStream).Close(); err != nil {
+				t.Errorf("cleanup unexpected stream: %v", err)
+			}
+		}
+		if err := c.Close(); err != nil {
+			t.Errorf("repeated Close: %v", err)
+		}
+	}
+	if got := dials.dialCount(); got != before {
+		t.Errorf("calls after Close dialed %d new connections", got-before)
+	}
+}
+
+func TestClientClosePreventsNewStreams(t *testing.T) {
+	for _, active := range []bool{false, true} {
+		t.Run(fmt.Sprintf("active=%t", active), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			dials := &countingConn{}
+			c := newClient(t, &service{}, dials)
+			if active {
+				stream := open(t, ctx, c)
+				roundTrip(t, ctx, stream, "before close")
+			}
+			if err := c.Close(); err != nil {
+				t.Fatalf("close: %v", err)
+			}
+			assertClientClosed(t, ctx, c, dials)
+		})
+	}
+}
+
+func TestClientCloseDuringDial(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	dials := &countingConn{started: make(chan struct{}, 1), resume: make(chan struct{})}
+	c := newClient(t, &service{}, dials)
+	opened := make(chan error, 1)
+	go func() {
+		_, err := c.Talk()(ctx, nil)
+		opened <- err
+	}()
+	select {
+	case <-dials.started:
+	case <-ctx.Done():
+		t.Fatal("dial did not start")
+	}
+	closed := make(chan error, 1)
+	go func() {
+		closed <- c.Close()
+	}()
+	for !c.IsClosed() {
+		select {
+		case <-ctx.Done():
+			t.Fatal("Close did not mark the client")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	close(dials.resume)
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Errorf("close during dial: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("Close did not return")
+	}
+	select {
+	case <-opened: // A racing call can either fail or return a closed stream.
+	case <-ctx.Done():
+		t.Fatal("opening stream did not return")
+	}
+	if conn := dials.lastConn(); conn == nil {
+		t.Error("no connection was dialed")
+	} else if _, err := conn.Write([]byte{0}); !errors.Is(err, net.ErrClosed) {
+		t.Errorf("connection survived Close: %v", err)
+	}
+	assertClientClosed(t, ctx, c, dials)
 }
 `

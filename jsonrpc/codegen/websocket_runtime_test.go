@@ -46,6 +46,8 @@ func TestJSONRPCWebSocketUsesSharedRuntimeStream(t *testing.T) {
 	require.Contains(t, clientEndpointCode, "conn   *jsonrpc.WebSocketClientConn")
 	require.Contains(t, clientEndpointCode, "jsonrpc.NewWebSocketClientConn(loomhttp.NewWebSocketStream(ws), c.streamConfig.ErrorHandler)")
 	require.Contains(t, clientEndpointCode, "c.conn != nil && c.conn.Acquire()")
+	require.Contains(t, clientEndpointCode, "if c.closed.Load() {")
+	require.Less(t, strings.Index(clientEndpointCode, "if c.closed.Load() {"), strings.Index(clientEndpointCode, "c.conn != nil && c.conn.Acquire()"))
 	require.Contains(t, clientEndpointCode, `jsonrpc.NewWebSocketClientStream(ctx, conn, "Stream", c.streamConfig)`)
 	require.NotContains(t, clientEndpointCode, "go stream.")
 	require.Equal(t, 1, strings.Count(clientEndpointCode, "NewWebSocketStream("))
