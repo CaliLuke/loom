@@ -17,13 +17,22 @@
 (*   ROLLBACK       AddStream removes the consumer from the map again     *)
 (*                  when the group creation fails. FALSE is main before   *)
 (*                  the fix of #481.                                       *)
-(*   ATOMIC_REMOVE  RemoveStream removes the consumer and destroys the    *)
-(*                  group, if no consumer remains, in one step. FALSE is  *)
-(*                  main: two separate Redis calls.                        *)
+(*   REMOVE         How RemoveStream destroys the group when the map      *)
+(*                  update leaves no consumer (issue #508):               *)
+(*                  "split"   a separate XGROUP DESTROY: main before the  *)
+(*                            fix of #508.                                 *)
+(*                  "atomic"  the map update and the destroy are one      *)
+(*                            step: a candidate fix.                       *)
+(*                  "checked" a separate step that destroys the group     *)
+(*                            only if the map still holds no consumer:    *)
+(*                            the fix of #508 (destroyGroupScript in      *)
+(*                            sink.go).                                    *)
 (***************************************************************************)
 EXTENDS FiniteSets
 
-CONSTANTS Instances, CREATE_FIRST, ROLLBACK, ATOMIC_REMOVE
+CONSTANTS Instances, CREATE_FIRST, ROLLBACK, REMOVE
+
+ASSUME REMOVE \in {"split", "atomic", "checked"}
 
 VARIABLES
     members,  \* consumers the map holds under the sink name
@@ -79,19 +88,23 @@ Rollback(i) ==
     /\ pc' = [pc EXCEPT ![i] = "out"]
     /\ UNCHANGED group
 
+\* rmap RemoveValues, which returns the consumers that remain.
 RemoveFromMap(i) ==
     LET remains == members \ {i} IN
     /\ pc[i] = "in"
     /\ members' = remains
-    /\ IF ATOMIC_REMOVE
+    /\ IF REMOVE = "atomic"
           THEN /\ group' = (group /\ remains # {})
                /\ pc' = [pc EXCEPT ![i] = "out"]
           ELSE /\ pc' = [pc EXCEPT ![i] = IF remains = {} THEN "rm_destroy" ELSE "out"]
                /\ UNCHANGED group
 
+\* "split": XGROUP DESTROY. "checked": destroyGroupScript, which destroys the
+\* group only if the map holds no consumer under the sink name, in the same
+\* script.
 DestroyGroup(i) ==
     /\ pc[i] = "rm_destroy"
-    /\ group' = FALSE
+    /\ group' = IF REMOVE = "checked" /\ members # {} THEN group ELSE FALSE
     /\ pc' = [pc EXCEPT ![i] = "out"]
     /\ UNCHANGED members
 

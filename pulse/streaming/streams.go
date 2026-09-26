@@ -264,16 +264,14 @@ func (s *Stream) Destroy(ctx context.Context) error {
 // rmap destroy protocol so reconnecting replicas observe the same revisioned
 // destroy semantics as every other replicated map.
 func (s *Stream) destroyConsumersMap(ctx context.Context) error {
-	mapName := consumersMapName(s)
-	mapKey := fmt.Sprintf("map:%s:content", mapName)
-	exists, err := s.rdb.Exists(ctx, mapKey).Result()
+	exists, err := s.rdb.Exists(ctx, consumersMapKey(s)).Result()
 	if err != nil {
 		return err
 	}
 	if exists == 0 {
 		return nil
 	}
-	consumers, err := rmap.Join(ctx, mapName, s.rdb, consumersMapOptions(s, s.rootLogger)...)
+	consumers, err := rmap.Join(ctx, consumersMapName(s), s.rdb, consumersMapOptions(s, s.rootLogger)...)
 	if err != nil {
 		return err
 	}

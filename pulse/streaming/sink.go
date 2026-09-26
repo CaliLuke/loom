@@ -51,6 +51,21 @@ var deleteIdleConsumerScript = redis.NewScript(`
     return 1
 `)
 
+// destroyGroupScript destroys the consumer group of a sink only if the
+// replicated consumers map of the stream holds no consumer of the sink. The
+// check and the destroy run atomically, so a group that another instance of
+// the sink added the stream with, after RemoveStream removed the last
+// consumer from the map, is kept (issue #508, tla/SinkAddStream.tla).
+// KEYS[1] is the hash key of the consumers map and KEYS[2] the stream key.
+// ARGV[1] is the sink name, which is both the map key and the group name. It
+// returns 1 if the group was destroyed, 0 otherwise.
+var destroyGroupScript = redis.NewScript(`
+    if redis.call("HEXISTS", KEYS[1], ARGV[1]) == 1 then
+        return 0
+    end
+    return redis.call("XGROUP", "DESTROY", KEYS[2], ARGV[1])
+`)
+
 type (
 	sinkRuntime struct {
 		idleCheckPeriod time.Duration
@@ -309,7 +324,10 @@ func (s *Sink) AddStream(ctx context.Context, stream *Stream, opts ...options.Ad
 	return nil
 }
 
-// RemoveStream removes the stream from the sink, it is idempotent.
+// RemoveStream removes the stream from the sink, it is idempotent. It removes
+// the sink consumer from the replicated consumers map of the stream and, when
+// no consumer remains, destroys the consumer group. The group is kept if
+// another instance of the sink added the stream in the meantime.
 func (s *Sink) RemoveStream(ctx context.Context, stream *Stream) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()

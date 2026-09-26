@@ -1,14 +1,18 @@
 # TLA+ model of `Sink.AddStream` in `pulse/streaming`
 
 `SinkAddStream.tla` models how instances of one sink add a stream to the sink
-and remove it again (issue #481). Every in-process instance of a sink has its
-own consumer. The replicated consumers map of a stream holds, under the sink
-name, the consumers of the instances that added the stream:
+and remove it again (issues #481 and #508). Every in-process instance of a
+sink has its own consumer. The replicated consumers map of a stream holds,
+under the sink name, the consumers of the instances that added the stream:
 
 - `Sink.AddStream` adds the consumer to the map and creates the consumer
   group. It keeps an existing group (`BUSYGROUP`).
 - `Sink.RemoveStream` removes the consumer from the map and destroys the group
   when no consumer remains.
+
+The model covers `AddStream` and `RemoveStream` only. `NewSink` still creates
+the group before it adds its consumer to the map, the order of
+`cfg/create_first.cfg`; that race is tracked in issue #531.
 
 Each map update and each group command is one atomic Redis step. The steps of
 one call are not atomic together, so the calls of two instances interleave.
@@ -23,11 +27,11 @@ Group creation can fail at any time.
 
 ## Toggles
 
-| Constant | `TRUE` means |
+| Constant | Meaning |
 | --- | --- |
-| `CREATE_FIRST` | `AddStream` creates the group before it adds the consumer to the map. |
-| `ROLLBACK` | `AddStream` removes the consumer from the map again when the group creation fails. |
-| `ATOMIC_REMOVE` | `RemoveStream` removes the consumer and destroys an unused group in one step. |
+| `CREATE_FIRST` | `TRUE`: `AddStream` creates the group before it adds the consumer to the map. |
+| `ROLLBACK` | `TRUE`: `AddStream` removes the consumer from the map again when the group creation fails. |
+| `REMOVE` | How `RemoveStream` destroys the group when the map update leaves no consumer. `"split"`: a separate `XGROUP DESTROY` (before #508). `"atomic"`: the map update and the destroy are one step. `"checked"`: a separate script that destroys the group only if the map still holds no consumer under the sink name (`destroyGroupScript` in `sink.go`, the code on `main`). |
 
 ## Running TLC
 
@@ -51,13 +55,24 @@ configuration finishes in about a second.
 | Configuration | Result |
 | --- | --- |
 | `cfg/asis.cfg` | `NoStaleMember` is violated after a 4-state trace: the instance adds its consumer to the map, the group creation fails, and the consumer stays in the map. This is issue #481. |
-| `cfg/create_first.cfg` | `AddedHasGroup` is violated after an 8-state trace: instance 2 creates the group (`BUSYGROUP`), instance 1 removes the stream, sees no remaining consumer and destroys the group, then instance 2 adds its consumer and returns with no group. Moving the map update after the group creation is therefore not a fix. |
-| `cfg/fixed_nonatomic.cfg` | The fix of #481 as shipped, with `RemoveStream` as on `main`. `NoStaleMember` holds with three instances (424 distinct states). The consumer goes to the map before the group creation, so a concurrent `RemoveStream` sees it and keeps the group, and a failed creation removes it again. `AddedHasGroup` is not checked here because of the `RemoveStream` race below. |
-| `cfg/fixed_remove_asis.cfg` | The same design, checking `AddedHasGroup`: it is violated after a 9-state trace, with or without the fix of #481. `RemoveStream` removes the last consumer, another instance adds the stream and finds the existing group, then the first instance destroys the group. The map update and the group destroy of `RemoveStream` are separate calls (issue #508). |
-| `cfg/fixed.cfg` | The fix of #481 with a future atomic `RemoveStream` (#508). Both invariants hold with three instances (189 distinct states). |
+| `cfg/create_first.cfg` | `AddedHasGroup` is violated after a 9-state trace: instance 2 creates the group (`BUSYGROUP`), instance 1 removes the stream, sees no consumer in the map and destroys the group, then instance 2 adds its consumer and returns with no group. The checked destroy of #508 does not prevent this: the map holds no consumer when it runs. Moving the map update after the group creation is therefore not a fix. |
+| `cfg/fixed_nonatomic.cfg` | The fix of #481 with `RemoveStream` before #508 (`REMOVE = "split"`). `NoStaleMember` holds with three instances (424 distinct states). The consumer goes to the map before the group creation, so a concurrent `RemoveStream` sees it and keeps the group, and a failed creation removes it again. `AddedHasGroup` is not checked here because of the `RemoveStream` race below. |
+| `cfg/fixed_remove_asis.cfg` | The same design, checking `AddedHasGroup`: it is violated after a 9-state trace, with or without the fix of #481. `RemoveStream` removes the last consumer, another instance adds the stream and finds the existing group, then the first instance destroys the group. The map update and the group destroy of `RemoveStream` are separate calls. This is issue #508. |
+| `cfg/fixed_atomic.cfg` | The fix of #481 with `REMOVE = "atomic"`, one candidate fix of #508. Both invariants hold with three instances (189 distinct states). |
+| `cfg/fixed.cfg` | The code on `main`: the fix of #481 with `REMOVE = "checked"`, the fix of #508. Both invariants hold with three instances (340 distinct states). |
 
-The fix does not destroy the group when its rollback leaves no consumer in the
-map. A destroy there would reproduce the `RemoveStream` race above for
-instances that add the stream at the same time. The group that such a rollback
-can leave is the one an earlier instance created. The next `AddStream` reuses
-it.
+The fix of #508 checks the map again instead of making the map update and the
+destroy one step. The map update is an rmap script that bumps the map
+revision, publishes the change and applies the map TTL. One script that also
+destroys the group would have to repeat that protocol outside rmap. The check
+needs only the hash key of the map, which holds no field for the sink name
+once `RemoveValues` removed its last consumer. An instance that adds the
+stream puts its consumer in the map before it creates the group, so the check
+sees it and keeps the group. The check reads the map in Redis, not the local
+replica, and runs in the same script as `XGROUP DESTROY`.
+
+The fix of #481 does not destroy the group when its rollback leaves no
+consumer in the map. A destroy there would reproduce the `RemoveStream` race
+above for instances that add the stream at the same time. The group that such
+a rollback can leave is the one an earlier instance created. The next
+`AddStream` reuses it.

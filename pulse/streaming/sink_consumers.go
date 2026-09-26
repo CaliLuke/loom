@@ -103,7 +103,9 @@ func (s *Sink) deleteStaleConsumers(ctx context.Context) {
 	}
 }
 
-// removeStreamConsumer removes the stream consumer from the sink.
+// removeStreamConsumer removes the stream consumer from the sink. When no
+// consumer remains in the consumers map, it destroys the consumer group unless
+// another instance of the sink added the stream in the meantime.
 func (s *Sink) removeStreamConsumer(ctx context.Context, stream *Stream) error {
 	remains, _, err := s.consumersMap[stream.Name].RemoveValues(ctx, s.Name, s.consumer)
 	if err != nil {
@@ -380,10 +382,19 @@ func (s *Sink) isClosing() bool {
 	return s.closing
 }
 
-// deleteConsumerGroup deletes the consumer group.
+// deleteConsumerGroup destroys the consumer group of the sink for stream
+// unless the consumers map of stream holds a consumer of the sink. The check
+// and the destroy are one Redis script: the map update of RemoveStream and
+// the destroy are separate steps, and another instance may add the stream
+// between them.
 func (s *Sink) deleteConsumerGroup(ctx context.Context, stream *Stream) error {
-	if err := s.rdb.XGroupDestroy(ctx, stream.key, s.Name).Err(); err != nil {
+	keys := []string{consumersMapKey(stream), stream.key}
+	destroyed, err := destroyGroupScript.Run(ctx, s.rdb, keys, s.Name).Int64()
+	if err != nil {
 		return fmt.Errorf("failed to destroy Redis consumer group %q for stream %q: %w", s.Name, stream.Name, err)
+	}
+	if destroyed == 0 {
+		s.logger.Debug("consumer group in use by another instance or missing, not destroyed", "stream", stream.Name)
 	}
 	delete(s.consumersMap, stream.Name)
 	return nil
@@ -400,6 +411,12 @@ func isBusyGroupErr(err error) bool {
 // consumersMapName is the name of the replicated map that backs a sink.
 func consumersMapName(stream *Stream) string {
 	return fmt.Sprintf("stream:%s:sinks", stream.Name)
+}
+
+// consumersMapKey is the Redis hash key that holds the content of the
+// replicated map named consumersMapName(stream), as rmap.Join names it.
+func consumersMapKey(stream *Stream) string {
+	return fmt.Sprintf("map:%s:content", consumersMapName(stream))
 }
 
 func consumersMapOptions(stream *Stream, logger pulse.Logger) []rmap.MapOption {
