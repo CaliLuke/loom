@@ -546,6 +546,14 @@ filter, and serialization rules belong here.
   wrapper that kept the identifier of the type would replace the type
   wherever else it appears, such as a recursive branch of a union or a field
   of the same named primitive.
+- The message that wraps a named array or map, and the message that wraps an
+  array or map nested in an array or map, such as `ArrayOfHolder`, are
+  collection messages (`isCollectionMessage`) that the gRPC transforms convert
+  inline. Recursion detection (`isInlineRecursive`) skips them and finds the
+  object type that reaches itself through them, which converts through a
+  helper. The loop variable of a map transform (`transformMapElemVar`) never
+  shadows the variable of the target map, because the map depth that names
+  it does not tell nested maps apart when a message is recursive.
 - Protocol buffer messages are identified by name, and the name scope hashes a
   user type by its name, so a generated message and a design type with the
   same name become one message. The top-level messages generated for a

@@ -5,7 +5,8 @@ import (
 )
 
 // collectionMessageMeta marks the attribute of the message that wraps a
-// named array or map.
+// named array or map, or an array or map that is an array element or a map
+// value.
 const collectionMessageMeta = "grpc:message:collection"
 
 // wrapCollectionUserType makes the named array or map held by att, such as
@@ -48,12 +49,23 @@ func collectionMessageAttribute(ut expr.UserType) *expr.AttributeExpr {
 }
 
 // isCollectionMessage reports whether ut is the message that
-// wrapCollectionUserType generated for a named array or map. Transform code
-// converts a field that holds such a message inline, as it converts the
+// wrapCollectionUserType generated for a named array or map, or the message
+// that wraps an array or map that is an array element or a map value.
+// Transform code converts such a message inline, as it converts the
 // collection of the service type.
 func isCollectionMessage(ut expr.UserType) bool {
 	_, ok := ut.Attribute().Meta[collectionMessageMeta]
 	return ok
+}
+
+// markCollectionMessage marks ut, the message that wraps an array or map
+// that is an array element or a map value, with collectionMessageMeta.
+func markCollectionMessage(ut expr.UserType) {
+	att := ut.Attribute()
+	if att.Meta == nil {
+		att.Meta = expr.MetaExpr{}
+	}
+	att.Meta[collectionMessageMeta] = []string{"true"}
 }
 
 // wrapUnionBranch makes the union held by the union branch att the message

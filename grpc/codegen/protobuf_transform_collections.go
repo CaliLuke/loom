@@ -156,7 +156,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	}
 	elemVar := "val"
 	if !canDirectAssignPrimitive(src, tgt, ta) {
-		elemVar = "tv" + suffix
+		elemVar = transformMapElemVar(suffix, mapVar)
 		elemCode, err := transformElement(src, tgt, "val", elemVar, true, ta)
 		if err != nil {
 			return "", err
@@ -255,6 +255,31 @@ func transformMapElementAttrs(source, target *expr.Map, ta *transformAttrs) (*ex
 		return nil, nil, err
 	}
 	return src, tgt, nil
+}
+
+// transformMapElemVar returns the name of the variable that holds the
+// converted value in the loop of a map transform: "tv" followed by suffix, or
+// by the letters after suffix when that name is the variable that mapVar, the
+// expression of the target map, starts with. The loop assigns the map after
+// it declares the variable, so the variable must not shadow the variable of
+// the map, such as the variable of an enclosing map transform whose value is
+// the message that holds the map. The suffix, which the depth of nested maps
+// names, does not tell such maps apart when the message is recursive.
+func transformMapElemVar(suffix, mapVar string) string {
+	root := mapVar
+	if i := strings.IndexAny(mapVar, ".["); i >= 0 {
+		root = mapVar[:i]
+	}
+	name := "tv" + suffix
+	for name == root {
+		if suffix == "" {
+			suffix = "a"
+		} else {
+			suffix = string(rune(suffix[0] + 1))
+		}
+		name = "tv" + suffix
+	}
+	return name
 }
 
 func transformMapLoopNames(target *expr.Map) (string, string) {

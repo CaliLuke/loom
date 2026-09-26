@@ -135,7 +135,10 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 			wrapAttr(att, tname+"MapOf"+
 				protoBufify(protoBufMessageDef(m.KeyType, sd), true, true)+
 				protoBufify(protoBufMessageDef(m.ElemType, sd), true, true), true, sd)
+		default:
+			return
 		}
+		markCollectionMessage(att.Type.(expr.UserType))
 	}
 
 	switch {
