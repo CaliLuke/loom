@@ -29,6 +29,10 @@ func jsonrpcWebSocketClientStreamSection(ws *httpcodegen.WebSocketData) codegen.
 			writeJSONRPCWebSocketRecv(stmt, ws, isBidirectional)
 			stmt.Line()
 			writeJSONRPCWebSocketDecodeResponse(stmt, ws)
+			if ws.Endpoint.Method.ViewedResult != nil {
+				stmt.Line()
+				writeViewedStreamResultDecoder(stmt, ws.Endpoint)
+			}
 		}
 		stmt.Line()
 		codegen.Doc(stmt, "Close ends the stream: the requests it still waits for fail, and the other streams on the connection are not affected. It closes the connection when the stream is the last one using it and returns the result of that close. Later calls return the same result.")
@@ -123,20 +127,33 @@ func writeJSONRPCWebSocketDecodeResponse(stmt *jen.Statement, ws *httpcodegen.We
 		Params(jen.Id("response").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawResponse")).
 		Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
 		BlockFunc(func(g *jen.Group) {
-			g.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{
-				jen.Id("StatusCode"): jen.Qual("net/http", "StatusOK"),
-				jen.Id("Body"):       jen.Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("response").Dot("Result"))),
-			})
-			// out and zero share one declaration, so the result type is
-			// resolved before either name can shadow its package.
-			g.Var().List(jen.Id("out"), jen.Id("zero")).Add(codegen.TypeRef(ws.RecvTypeRef))
-			g.If(
-				jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("resp")).Dot("Decode").Call(jen.Op("&").Id("out")),
-				jen.Err().Op("!=").Nil(),
-			).Block(
-				jen.Id("s").Dot("stream").Dot("ReportError").Call(codegen.Expr("jsonrpc.StreamErrorParsing"), jen.Err(), jen.Id("response")),
-				jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode response: %w"), jen.Err())),
-			)
+			if ws.Endpoint.Method.ViewedResult != nil {
+				g.Var().Id("zero").Add(codegen.TypeRef(ws.RecvTypeRef))
+				args := []jen.Code{jen.Id("s").Dot("decoder"), jen.Id("response").Dot("Result"), jen.String().Call(jen.Id("response").Dot("View"))}
+				if ws.Endpoint.Result.IDAttribute != "" {
+					args = append(args, jen.Id("response").Dot("ID"))
+				}
+				g.List(jen.Id("out"), jen.Err()).Op(":=").Id("decode" + ws.Endpoint.Method.VarName + "StreamResult").Call(args...)
+				g.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Id("s").Dot("stream").Dot("ReportError").Call(codegen.Expr("jsonrpc.StreamErrorParsing"), jen.Err(), jen.Id("response")),
+					jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode response: %w"), jen.Err())),
+				)
+			} else {
+				g.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{
+					jen.Id("StatusCode"): jen.Qual("net/http", "StatusOK"),
+					jen.Id("Body"):       jen.Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("response").Dot("Result"))),
+				})
+				// out and zero share one declaration, so the result type is
+				// resolved before either name can shadow its package.
+				g.Var().List(jen.Id("out"), jen.Id("zero")).Add(codegen.TypeRef(ws.RecvTypeRef))
+				g.If(
+					jen.Err().Op(":=").Id("s").Dot("decoder").Call(jen.Id("resp")).Dot("Decode").Call(jen.Op("&").Id("out")),
+					jen.Err().Op("!=").Nil(),
+				).Block(
+					jen.Id("s").Dot("stream").Dot("ReportError").Call(codegen.Expr("jsonrpc.StreamErrorParsing"), jen.Err(), jen.Id("response")),
+					jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode response: %w"), jen.Err())),
+				)
+			}
 			if attr := ws.Endpoint.Result.IDAttribute; attr != "" {
 				if ws.Endpoint.Result.IDAttributeRequired {
 					g.If(jen.Id("out").Dot(attr).Op("==").Lit("")).Block(

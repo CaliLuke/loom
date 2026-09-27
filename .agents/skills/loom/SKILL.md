@@ -560,6 +560,11 @@ JSON-RPC is a first-class transport, not an HTTP behavior alias.
   expose retry guidance. Generic errors carry Loom's nested remedy metadata.
 - SSE notifications, final responses, and protocol errors use the generated
   stream contract.
+- For viewed JSON-RPC stream results, call `SetView(name)` on a dynamic method
+  stream; fixed-view methods have no setter. Generated peers carry `loom_view`
+  per message and validate the selected view before returning the canonical
+  type. Missing markers fall back to the fixed or default view. Regenerate both
+  peers for dynamic views; keep this Loom extension when using a custom client.
 - Set intermediate notification names with
   `SSENotificationMethod(...)` when the default namespaced method is unsuitable.
 - A raw `GET /rpc` events listener is ID-less and suppresses final responses;

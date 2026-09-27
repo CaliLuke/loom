@@ -17,6 +17,10 @@ func jsonrpcSSEClientStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 		if ed.Method.Result != "" {
 			stmt.Line()
 			writeJSONRPCSSEDecodeResult(stmt, ed)
+			if ed.Method.ViewedResult != nil {
+				stmt.Line()
+				writeViewedStreamResultDecoder(stmt, ed)
+			}
 		}
 		stmt.Line()
 		writeJSONRPCSSEClose(stmt, ed)
@@ -193,11 +197,14 @@ func writeJSONRPCSSERecv(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
 }
 
 func writeSSEClientNotificationCase(g *jen.Group, ed *httpcodegen.EndpointData) {
-	g.Var().Id("notification").Struct(
-		jen.Id("JSONRPC").String().Tag(map[string]string{"json": "jsonrpc"}),
-		jen.Id("Method").String().Tag(map[string]string{"json": "method"}),
-		jen.Id("Params").Qual("encoding/json/jsontext", "Value").Tag(map[string]string{"json": "params"}),
-	)
+	g.Var().Id("notification").StructFunc(func(sg *jen.Group) {
+		sg.Id("JSONRPC").String().Tag(map[string]string{"json": "jsonrpc"})
+		sg.Id("Method").String().Tag(map[string]string{"json": "method"})
+		sg.Id("Params").Qual("encoding/json/jsontext", "Value").Tag(map[string]string{"json": "params"})
+		if ed.Method.ViewedResult != nil {
+			sg.Id("View").Qual("github.com/CaliLuke/loom/jsonrpc", "ResultView").Tag(map[string]string{"json": "loom_view"})
+		}
+	})
 	g.If(
 		jen.Err().Op(":=").Id("json").Dot("Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("notification")),
 		jen.Err().Op("!=").Nil(),
@@ -211,7 +218,11 @@ func writeSSEClientNotificationCase(g *jen.Group, ed *httpcodegen.EndpointData) 
 		jen.Continue(),
 	)
 	if ed.Method.Result != "" {
-		g.List(jen.Id("result"), jen.Err()).Op(":=").Id("s").Dot("decodeResult").Call(jen.Id("notification").Dot("Params"))
+		args := []jen.Code{jen.Id("notification").Dot("Params")}
+		if ed.Method.ViewedResult != nil {
+			args = append(args, jen.String().Call(jen.Id("notification").Dot("View")))
+		}
+		g.List(jen.Id("result"), jen.Err()).Op(":=").Id("s").Dot("decodeResult").Call(args...)
 		g.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode result: %w"), jen.Err())),
 		)
@@ -250,7 +261,11 @@ func writeSSEClientResponseCase(g *jen.Group, ed *httpcodegen.EndpointData, clos
 		g.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to marshal result: %w"), jen.Err())),
 		)
-		g.List(jen.Id("result"), jen.Err()).Op(":=").Id("s").Dot("decodeResult").Call(jen.Qual("encoding/json/jsontext", "Value").Call(jen.Id("resultBytes")))
+		args := []jen.Code{jen.Qual("encoding/json/jsontext", "Value").Call(jen.Id("resultBytes"))}
+		if ed.Method.ViewedResult != nil {
+			args = append(args, jen.String().Call(jen.Id("response").Dot("View")))
+		}
+		g.List(jen.Id("result"), jen.Err()).Op(":=").Id("s").Dot("decodeResult").Call(args...)
 		g.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(jen.Id("zero"), jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode final result: %w"), jen.Err())),
 		)
@@ -301,23 +316,36 @@ func writeSSEClientMessageCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 func writeJSONRPCSSEDecodeResult(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
 		Id("decodeResult").
-		Params(jen.Id("data").Qual("encoding/json/jsontext", "Value")).
+		ParamsFunc(func(g *jen.Group) {
+			g.Id("data").Qual("encoding/json/jsontext", "Value")
+			if ed.Method.ViewedResult != nil {
+				g.Id("wireView").String()
+			}
+		}).
 		Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()).
-		Block(
-			jen.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{
-				jen.Id("StatusCode"): jen.Qual("net/http", "StatusOK"),
-				jen.Id("Body"):       jen.Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("data"))),
-			}),
-			jen.Id("decoder").Op(":=").Id("s").Dot("decoder").Call(jen.Id("resp")),
-			jen.Var().Id("result").Add(codegen.TypeRef(ed.SSE.EventTypeRef)),
-			jen.If(
-				jen.Err().Op(":=").Id("decoder").Dot("Decode").Call(jen.Op("&").Id("result")),
-				jen.Err().Op("!=").Nil(),
-			).Block(
-				jen.Return(jen.Id("result"), jen.Err()),
-			),
-			jen.Return(jen.Id("result"), jen.Nil()),
-		)
+		BlockFunc(func(g *jen.Group) {
+			if ed.Method.ViewedResult != nil {
+				g.Return(jen.Id("decode"+ed.Method.VarName+"StreamResult").Call(jen.Id("s").Dot("decoder"), jen.Id("data"), jen.Id("wireView")))
+				return
+			}
+			for _, line := range []jen.Code{
+				jen.Id("resp").Op(":=").Op("&").Qual("net/http", "Response").Values(jen.Dict{
+					jen.Id("StatusCode"): jen.Qual("net/http", "StatusOK"),
+					jen.Id("Body"):       jen.Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewReader").Call(jen.Id("data"))),
+				}),
+				jen.Id("decoder").Op(":=").Id("s").Dot("decoder").Call(jen.Id("resp")),
+				jen.Var().Id("result").Add(codegen.TypeRef(ed.SSE.EventTypeRef)),
+				jen.If(
+					jen.Err().Op(":=").Id("decoder").Dot("Decode").Call(jen.Op("&").Id("result")),
+					jen.Err().Op("!=").Nil(),
+				).Block(
+					jen.Return(jen.Id("result"), jen.Err()),
+				),
+				jen.Return(jen.Id("result"), jen.Nil()),
+			} {
+				g.Add(line)
+			}
+		})
 }
 
 func writeJSONRPCSSEClose(stmt *jen.Statement, ed *httpcodegen.EndpointData) {

@@ -34,10 +34,8 @@ func addDynamicViewStreamWrapperMethods(stmt *jen.Statement, wrapper string, ed 
 		Error().
 		BlockFunc(func(g *jen.Group) {
 			writeStreamResultBodyInit(g, "res", "w.view", ed)
-			g.Return(jen.Id("w").Dot("stream").Dot("conn").Dot("WriteJSON").Call(
-				jen.Id("ctx"),
-				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
-			))
+			writeStreamMessage(g, jen.Id("w").Dot("stream").Dot("conn"), jen.Id("ctx"),
+				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")), ed)
 		})
 }
 
@@ -123,4 +121,16 @@ func viewedResponseBodies(body *httpcodegen.TypeData, ed *httpcodegen.EndpointDa
 		}
 	}
 	return []*httpcodegen.TypeData{body}
+}
+
+// writeStreamMessage writes the converted body and, for a viewed result, the
+// view from that same projection in one JSON-RPC envelope.
+func writeStreamMessage(g *jen.Group, connection, ctx, constructor jen.Code, ed *httpcodegen.EndpointData) {
+	message := constructor
+	if ed.Method.ViewedResult != nil {
+		g.Id("message").Op(":=").Add(constructor)
+		g.Id("message").Dot("View").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "ResultView").Call(jen.Id("vres").Dot("View"))
+		message = jen.Id("message")
+	}
+	g.Return(jen.Add(connection).Dot("WriteJSON").Call(ctx, message))
 }

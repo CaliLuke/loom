@@ -10,18 +10,18 @@ import (
 
 	cg "github.com/CaliLuke/loom/codegen"
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
-	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
 )
 
 // TestJSONRPCViewedStreamResultGeneratedModule covers the JSON-RPC WebSocket
 // and SSE methods whose result or streaming result is a result type with
 // views, a collection of it, or a view that the design fixes. The server
 // projects each result with its view before it renders the response body of
-// that view: the view set with SetView on a WebSocket method stream, the
-// fixed view, or the default view for the streams without SetView and the
+// that view: the view set with SetView on a WebSocket or SSE method stream,
+// the fixed view, or the default view for connection streams and the
 // streaming-payload methods that return their result.
 func TestJSONRPCViewedStreamResultGeneratedModule(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcViewedStreamResultDSL)
+	root := RunJSONRPCDSL(t, testdata.ViewedStreamResultDSL)
 	dir := t.TempDir()
 	const modulePath = "example.com/jsonrpcviewed"
 	renderJSONRPCModule(t, dir, modulePath, root)
@@ -52,15 +52,16 @@ func TestJSONRPCViewedStreamResultGeneratedModule(t *testing.T) {
 	}
 	stream := readGeneratedFile(t, dir, "gen/jsonrpc/feed/server/stream.go")
 	for _, want := range []string{
-		"vres, err := feed.NewViewedNote(result, \"default\")",
+		"vres, err := feed.NewViewedNote(result, s.currentView())",
 		"vres, err := feed.NewViewedNote(result, \"tiny\")",
-		"vres, err := feed.NewViewedNoteCollection(result, \"default\")",
+		"vres, err := feed.NewViewedNoteCollection(result, s.currentView())",
 	} {
 		assertGeneratedContains(t, "stream.go", stream, want)
 	}
 	assertGeneratedContains(t, "sse.go", readGeneratedFile(t, dir, "gen/jsonrpc/feed/server/sse.go"), "vres, err := feed.NewViewedNote(v, \"default\")")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "viewed_test.go"), []byte(jsonRPCViewedStreamResultHarness), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "view_marker_test.go"), []byte(jsonRPCViewMarkerHarness), 0o600))
 	serverDir := filepath.Join(dir, "gen", "jsonrpc", "feed", "server")
 	require.NoError(t, os.WriteFile(filepath.Join(serverDir, "service_stream_test.go"), []byte(jsonRPCViewedSSEServiceStreamHarness), 0o600))
 	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
@@ -84,98 +85,6 @@ func assertGeneratedContains(t *testing.T, name, code, want string) {
 	if !strings.Contains(code, want) {
 		t.Errorf("%s does not contain %q", name, want)
 	}
-}
-
-func jsonrpcViewedStreamResultDSL() {
-	dsl.API("viewed", func() {
-		dsl.JSONRPC(func() {})
-	})
-	note := dsl.ResultType("application/vnd.note", func() {
-		dsl.TypeName("Note")
-		dsl.Attributes(func() {
-			dsl.Attribute("id", dsl.String)
-			dsl.Attribute("title", dsl.String)
-			dsl.Attribute("body", dsl.String)
-			dsl.Required("id")
-		})
-		dsl.View("default", func() {
-			dsl.Attribute("id")
-			dsl.Attribute("title")
-			dsl.Attribute("body")
-		})
-		dsl.View("tiny", func() {
-			dsl.Attribute("id")
-		})
-	})
-	tiny := func() {
-		dsl.View("tiny")
-	}
-	dsl.Service("files", func() {
-		dsl.JSONRPC(func() {
-			dsl.GET("/ws")
-		})
-		dsl.Method("upload", func() {
-			dsl.StreamingPayload(dsl.String)
-			dsl.Result(note)
-			dsl.JSONRPC(func() {})
-		})
-		dsl.Method("uploadTiny", func() {
-			dsl.StreamingPayload(dsl.String)
-			dsl.Result(note, tiny)
-			dsl.JSONRPC(func() {})
-		})
-		dsl.Method("uploadList", func() {
-			dsl.StreamingPayload(dsl.String)
-			dsl.Result(dsl.CollectionOf(note))
-			dsl.JSONRPC(func() {})
-		})
-		dsl.Method("talk", func() {
-			dsl.StreamingPayload(dsl.String)
-			dsl.StreamingResult(note)
-			dsl.JSONRPC(func() {})
-		})
-		dsl.Method("talkTiny", func() {
-			dsl.StreamingPayload(dsl.String)
-			dsl.StreamingResult(note, tiny)
-			dsl.JSONRPC(func() {})
-		})
-		dsl.Method("talkList", func() {
-			dsl.StreamingPayload(dsl.String)
-			dsl.StreamingResult(dsl.CollectionOf(note))
-			dsl.JSONRPC(func() {})
-		})
-		dsl.Method("watch", func() {
-			dsl.Payload(dsl.String)
-			dsl.StreamingResult(note)
-			dsl.JSONRPC(func() {})
-		})
-	})
-	dsl.Service("feed", func() {
-		dsl.JSONRPC(func() {
-			dsl.POST("/feed")
-		})
-		dsl.Method("follow", func() {
-			dsl.Payload(dsl.String)
-			dsl.StreamingResult(note)
-			dsl.JSONRPC(func() {
-				dsl.ServerSentEvents()
-			})
-		})
-		dsl.Method("followTiny", func() {
-			dsl.Payload(dsl.String)
-			dsl.StreamingResult(note, tiny)
-			dsl.JSONRPC(func() {
-				dsl.ServerSentEvents()
-			})
-		})
-		dsl.Method("followList", func() {
-			dsl.Payload(dsl.String)
-			dsl.StreamingResult(dsl.CollectionOf(note))
-			dsl.JSONRPC(func() {
-				dsl.ServerSentEvents()
-			})
-		})
-	})
 }
 
 // jsonRPCViewedSSEServiceStreamHarness sends a viewed result on the
@@ -325,10 +234,15 @@ func (filesService) Watch(ctx context.Context, p string, st files.WatchServerStr
 
 type feedService struct{}
 
-func (feedService) Follow(ctx context.Context, _ string, st feed.FollowServerStream) error {
+func (feedService) Follow(ctx context.Context, view string, st feed.FollowServerStream) error {
+	st.SetView("tiny")
+	if view == "bogus" {
+		st.SetView(view)
+	}
 	if err := st.Send(ctx, feedNote()); err != nil {
 		return err
 	}
+	st.SetView("default")
 	return st.SendAndClose(ctx, feedNote())
 }
 
@@ -340,9 +254,11 @@ func (feedService) FollowTiny(ctx context.Context, _ string, st feed.FollowTinyS
 }
 
 func (feedService) FollowList(ctx context.Context, _ string, st feed.FollowListServerStream) error {
+	st.SetView("tiny")
 	if err := st.Send(ctx, feed.NoteCollection{feedNote()}); err != nil {
 		return err
 	}
+	st.SetView("default")
 	return st.SendAndClose(ctx, feed.NoteCollection{feedNote(), feedNote()})
 }
 
@@ -431,6 +347,7 @@ func TestWebSocketClientViews(t *testing.T) {
 }
 
 type frame struct {
+	View string ` + "`json:\"loom_view\"`" + `
 	ID     any            ` + "`json:\"id\"`" + `
 	Method string         ` + "`json:\"method\"`" + `
 	Params jsontext.Value ` + "`json:\"params\"`" + `
@@ -474,7 +391,7 @@ func TestWebSocketWireViews(t *testing.T) {
 		}
 		return f
 	}
-	if f := read(); f.ID != nil || f.Method != "talk" || string(f.Params) != fullJSON {
+	if f := read(); f.ID != nil || f.Method != "talk" || string(f.Params) != fullJSON || f.View != "default" {
 		t.Errorf("greeting: got %+v, want a talk notification with %s", f, fullJSON)
 	}
 	for i, tc := range []struct {
@@ -490,17 +407,24 @@ func TestWebSocketWireViews(t *testing.T) {
 		{"upload", "", false, fullJSON},
 		{"uploadTiny", "", false, tinyJSON},
 	} {
+		wantView := tc.view
+		if wantView == "" {
+			wantView = "default"
+		}
+		if tc.method == "talkTiny" || tc.method == "uploadTiny" {
+			wantView = "tiny"
+		}
 		id := i + 1
 		req := fmt.Sprintf(` + "`" + `{"jsonrpc":"2.0","id":%d,"method":%q,"params":%q}` + "`" + `, id, tc.method, tc.view)
 		if err := conn.WriteMessage(websocket.TextMessage, []byte(req)); err != nil {
 			t.Fatalf("write %s: %v", req, err)
 		}
 		if tc.notification {
-			if f := read(); f.ID != nil || f.Method != tc.method || string(f.Params) != tc.want {
+			if f := read(); f.ID != nil || f.Method != tc.method || string(f.Params) != tc.want || f.View != wantView {
 				t.Errorf("%s %q notification: got %+v, want %s", tc.method, tc.view, f, tc.want)
 			}
 		}
-		if f := read(); f.ID != float64(id) || f.Error != nil || string(f.Result) != tc.want {
+		if f := read(); f.ID != float64(id) || f.Error != nil || string(f.Result) != tc.want || f.View != wantView {
 			t.Errorf("%s %q response: got %+v, want %s", tc.method, tc.view, f, tc.want)
 		}
 	}
@@ -508,7 +432,7 @@ func TestWebSocketWireViews(t *testing.T) {
 	if err := conn.WriteMessage(websocket.TextMessage, []byte(req)); err != nil {
 		t.Fatalf("write %s: %v", req, err)
 	}
-	if f := read(); f.ID != float64(99) || f.Error == nil || len(f.Result) != 0 {
+	if f := read(); f.ID != float64(99) || f.Error == nil || len(f.Result) != 0 || f.View != "" {
 		t.Errorf("talk bogus: got %+v, want an error response", f)
 	}
 }
@@ -517,11 +441,24 @@ func TestSSEViews(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	mux := loomhttp.NewMuxer()
-	errhandler := func(context.Context, http.ResponseWriter, error) {}
+	errhandler := func(_ context.Context, w http.ResponseWriter, err error) {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 	feedserver.Mount(mux, feedserver.New(feed.NewEndpoints(feedService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, errhandler))
 	hs := httptest.NewServer(mux)
 	defer hs.Close()
 	c := feedclient.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+    failed, err := c.Follow()(ctx, "bogus")
+    if err != nil {
+        t.Fatal(err)
+    }
+    failedStream := failed.(*feedclient.FollowClientStream)
+    if result, err := failedStream.Recv(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") || result != nil {
+        t.Errorf("invalid view before first result: got (%#v, %v), want protocol error", result, err)
+    }
+    if err := failedStream.Close(); err != nil {
+        t.Error(err)
+    }
 	fullNote, tinyNote := feedNote(), &feed.Note{ID: "n1"}
 
 	recvAll := func(name string, open func(context.Context, any) (any, error), recv func(any, context.Context) (any, error), want []any) {
@@ -545,12 +482,12 @@ func TestSSEViews(t *testing.T) {
 	}
 	recvAll("follow", c.Follow(), func(s any, ctx context.Context) (any, error) {
 		return s.(*feedclient.FollowClientStream).Recv(ctx)
-	}, []any{fullNote, fullNote})
+	}, []any{tinyNote, fullNote})
 	recvAll("followTiny", c.FollowTiny(), func(s any, ctx context.Context) (any, error) {
 		return s.(*feedclient.FollowTinyClientStream).Recv(ctx)
 	}, []any{tinyNote, tinyNote})
 	recvAll("followList", c.FollowList(), func(s any, ctx context.Context) (any, error) {
 		return s.(*feedclient.FollowListClientStream).Recv(ctx)
-	}, []any{feed.NoteCollection{fullNote}, feed.NoteCollection{fullNote, fullNote}})
+	}, []any{feed.NoteCollection{tinyNote}, feed.NoteCollection{fullNote, fullNote}})
 }
 `

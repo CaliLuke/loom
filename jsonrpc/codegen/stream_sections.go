@@ -16,6 +16,24 @@ func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 }
 
 func renderSSEServerStreamSource(ed *httpcodegen.EndpointData) string {
+	viewField, viewMethods := "", ""
+	if ed.Method.ViewedResult != nil && ed.Method.ViewedResult.ViewName == "" {
+		viewField = "\t// view is protected by mu and sampled once per result.\n\tview string\n"
+		viewMethods = fmt.Sprintf(`
+// SetView sets the view used to render subsequent stream results.
+func (s *%s) SetView(view string) {
+    s.mu.Lock()
+    s.view = view
+    s.mu.Unlock()
+}
+
+func (s *%s) currentView() string {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    return s.view
+}
+`, ed.SSE.StructName, ed.SSE.StructName)
+	}
 	return fmt.Sprintf(`
 %s
 type %s struct {
@@ -34,7 +52,7 @@ type %s struct {
 	// closed records that the terminal response (SendAndClose or SendError)
 	// has been issued.
 	closed bool
-	// mu serializes every stream write with the terminal transition so no
+%s	// mu serializes every stream write with the terminal transition so no
 	// event can follow the final response.
 	mu sync.Mutex
 }
@@ -66,6 +84,7 @@ func (s *%s) SendComment(ctx context.Context, text string) error {
 %s
 `, codegen.Comment(fmt.Sprintf("%s implements the %s.%s interface using Server-Sent Events.", ed.SSE.StructName, ed.ServicePkgName, ed.Method.ServerStream.Interface)),
 		ed.SSE.StructName,
+		viewField,
 		codegen.Comment("Open commits and flushes the SSE headers before the first application event."),
 		ed.SSE.StructName,
 		codegen.Comment("SendComment writes and flushes an SSE heartbeat comment."),
@@ -74,15 +93,23 @@ func (s *%s) SendComment(ctx context.Context, text string) error {
 		renderSSEEndpointStreamSendAndCloseSource(ed),
 		renderSSEEndpointStreamErrorsSource(ed),
 		renderSSEEndpointSendSSEEventSource(ed),
-		"",
+		viewMethods,
 	)
 }
 
 func renderSSEEndpointStreamSendSource(ed *httpcodegen.EndpointData) string {
-	bodyInit := sseEventBodyInit("result", ed)
+	view := defaultViewExpr
+	if ed.Method.ViewedResult != nil && ed.Method.ViewedResult.ViewName == "" {
+		view = "s.currentView()"
+	}
+	bodyInit := sseEventBodyInit("result", view, ed)
 	bodyComment := ""
 	if bodyInit != "body := result" {
 		bodyComment = "\t// Convert to response body type for proper JSON encoding\n"
+	}
+	viewEntry := ""
+	if ed.Method.ViewedResult != nil {
+		viewEntry = "\t\t\"loom_view\": vres.View,\n"
 	}
 	notificationMethod := sseNotificationMethod(ed)
 	return fmt.Sprintf(`%s
@@ -95,7 +122,7 @@ func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
 		"jsonrpc": "2.0",
 		"method":  %q,
 		"params":  body,
-	}
+%s	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -112,18 +139,16 @@ func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
 		sseEventResult(ed),
 		bodyComment,
 		bodyInit,
-		notificationMethod)
+		notificationMethod, viewEntry)
 }
 
 // sseEventBodyInit renders the statement that converts the event value in
 // resultVar to the JSON-RPC params or result body. It uses the SSE response
 // body constructor when the event has one, which excludes primitive,
 // collection, and mixed-result events, and the event value otherwise.
-func sseEventBodyInit(resultVar string, ed *httpcodegen.EndpointData) string {
+func sseEventBodyInit(resultVar, view string, ed *httpcodegen.EndpointData) string {
 	if body := ed.SSE.ResponseBody; body != nil && body.Init != nil {
-		// The SSE streams have no view to select, so a viewed result
-		// renders the view that the design fixes or the default view.
-		if code, ok := viewedStreamResultBodyInit(resultVar, defaultViewExpr, body, ed); ok {
+		if code, ok := viewedStreamResultBodyInit(resultVar, view, body, ed); ok {
 			return code
 		}
 		return fmt.Sprintf("body := %s(%s)", body.Init.Name, resultVar)
@@ -154,10 +179,18 @@ func sseNotificationMethod(ed *httpcodegen.EndpointData) string {
 }
 
 func renderSSEEndpointStreamSendAndCloseSource(ed *httpcodegen.EndpointData) string {
-	bodyInit := sseEventBodyInit("result", ed)
+	view := defaultViewExpr
+	if ed.Method.ViewedResult != nil && ed.Method.ViewedResult.ViewName == "" {
+		view = "s.currentView()"
+	}
+	bodyInit := sseEventBodyInit("result", view, ed)
 	bodyComment := ""
 	if bodyInit != "body := result" {
 		bodyComment = "\t// Convert to response body type for proper JSON encoding\n"
+	}
+	commit := "commit"
+	if ed.Method.ViewedResult != nil {
+		commit = "func(response *jsonrpc.Response) error {\nresponse.View = jsonrpc.ResultView(vres.View)\nreturn commit(response)\n}"
 	}
 	return fmt.Sprintf(`%s
 %s
@@ -166,7 +199,7 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 %s
 %s	%s
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)
+		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, %s)
 	})
 }
 `, codegen.Comment("SendAndClose sends a final JSON-RPC response to the client and closes the stream."),
@@ -177,7 +210,7 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 		ed.Method.VarName,
 		sseEventResult(ed),
 		bodyComment,
-		bodyInit)
+		bodyInit, commit)
 }
 
 func renderSSEEndpointStreamErrorsSource(ed *httpcodegen.EndpointData) string {

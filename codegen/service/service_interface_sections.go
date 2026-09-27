@@ -275,6 +275,10 @@ func buildJSONRPCSSEMethodStream(stmt *jen.Statement, data *serviceStreamInterfa
 		if stream.SendTypeRef != "" {
 			buildJSONRPCSSESendMethods(group, data, stream)
 		}
+		if data.IsViewedResult {
+			groupDoc(group, "SetView sets the view used to render subsequent stream results.")
+			group.Id("SetView").Params(jen.Id("view").String())
+		}
 		groupDoc(group, "SendError sends a JSON-RPC error response.")
 		group.Id("SendError").Params(
 			jen.Qual("context", "Context"),

@@ -127,7 +127,7 @@ func writeJSONRPCDecodedResponseReturn(g *jen.Group, e *httpcodegen.EndpointData
 
 func writeJSONRPCDecodedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, resp *httpcodegen.ResponseData) {
 	if resp.ViewedResult != nil {
-		writeJSONRPCViewedInitReturn(g, e, resp)
+		writeJSONRPCViewedInitReturn(g, e, resp, nil)
 		return
 	}
 	g.Id("res").Op(":=").Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...)
@@ -135,8 +135,15 @@ func writeJSONRPCDecodedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, re
 	g.Return(jen.Id("res"), jen.Nil())
 }
 
-func writeJSONRPCViewedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, resp *httpcodegen.ResponseData) {
+func writeJSONRPCViewedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, resp *httpcodegen.ResponseData, responseID jen.Code) {
 	g.Id("p").Op(":=").Id(resp.ResultInit.Name).Call(jsonrpcInitArgs(resp.ResultInit.ClientArgs)...)
+	if responseID != nil && e.Result.IDAttribute != "" {
+		attr := e.Result.IDAttribute
+		g.If(jen.Id("p").Op("!=").Nil().Op("&&").Parens(jen.Id("p").Dot(attr).Op("==").Nil().Op("||").Op("*").Id("p").Dot(attr).Op("==").Lit(""))).Block(
+			jen.Id("idCopy").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "IDToString").Call(responseID),
+			jen.Id("p").Dot(attr).Op("=").Op("&").Id("idCopy"),
+		)
+	}
 	if resp.TagName != "" {
 		g.Id("tmp").Op(":=").Lit(resp.TagValue)
 		g.Id("p").Dot(resp.TagName).Op("=").Op("&").Id("tmp")

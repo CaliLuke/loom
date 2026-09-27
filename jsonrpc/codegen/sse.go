@@ -85,7 +85,7 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 	}
 
 	path := filepath.Join(codegen.Gendir, "jsonrpc", data.Service.PathName, "client", "stream.go")
-	data, imports := services.FileData(svc.Name(), append([]*codegen.ImportSpec{
+	imports := append([]*codegen.ImportSpec{
 		{Path: "bufio"},
 		{Path: "bytes"},
 		{Path: "context"},
@@ -100,7 +100,14 @@ func sseClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodeg
 		codegen.LoomImport("jsonrpc"),
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + data.Service.PathName, Name: data.Service.PkgName},
-	}, data.Service.UserTypeImports...))
+	}, data.Service.UserTypeImports...)
+	for _, ed := range data.Endpoints {
+		if ed.SSE != nil && ed.Method.ViewedResult != nil {
+			imports = append(imports, &codegen.ImportSpec{Path: genpkg + "/" + data.Service.PathName + "/views", Name: data.Service.ViewsPkg})
+			break
+		}
+	}
+	data, imports = services.FileData(svc.Name(), imports)
 	tmplSections := sseClientStreamSections(data)
 	sections := make([]codegen.Section, 0, 1+len(tmplSections))
 	sections = append(sections, codegen.Header("stream", "client", imports))

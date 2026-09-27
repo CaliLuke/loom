@@ -97,9 +97,12 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 						jen.Id("w").Dot("requestHasID"),
 						jen.Id("w").Dot("requestID"),
 						jen.Id("body"),
-						jen.Func().Params(jen.Id("response").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "Response")).Error().Block(
-							jen.Return(jen.Id("w").Dot("stream").Dot("conn").Dot("WriteJSON").Call(jen.Id("ctx"), jen.Id("response"))),
-						),
+						jen.Func().Params(jen.Id("response").Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "Response")).Error().BlockFunc(func(bg *jen.Group) {
+							if ed.Method.ViewedResult != nil {
+								bg.Id("response").Dot("View").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "ResultView").Call(jen.Id("vres").Dot("View"))
+							}
+							bg.Return(jen.Id("w").Dot("stream").Dot("conn").Dot("WriteJSON").Call(jen.Id("ctx"), jen.Id("response")))
+						}),
 					))
 				})
 			stmt.Line()
@@ -217,10 +220,8 @@ func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *h
 			Error().
 			BlockFunc(func(g *jen.Group) {
 				writeStreamResultBodyInit(g, "result", defaultViewExpr, ed)
-				g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
-					jen.Id("ctx"),
-					jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")),
-				))
+				writeStreamMessage(g, jen.Id("s").Dot("conn"), jen.Id("ctx"),
+					jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")), ed)
 			})
 		stmt.Add(decl)
 		return
@@ -237,10 +238,8 @@ func addJSONRPCWebSocketSendMethod(stmt *jen.Statement, streamName string, ed *h
 		Error().
 		BlockFunc(func(g *jen.Group) {
 			writeStreamResultBodyInit(g, "result", defaultViewExpr, ed)
-			g.Return(jen.Id("s").Dot("conn").Dot("WriteJSON").Call(
-				jen.Id("ctx"),
-				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")),
-			))
+			writeStreamMessage(g, jen.Id("s").Dot("conn"), jen.Id("ctx"),
+				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body")), ed)
 		})
 	stmt.Add(decl)
 }
@@ -501,7 +500,7 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 						continue
 					}
 					sg.Case(codegen.Expr(ed.SSE.EventTypeRef)).BlockFunc(func(cg *jen.Group) {
-						cg.Add(codegen.Expr(sseEventBodyInit("v", ed)))
+						cg.Add(codegen.Expr(sseEventBodyInit("v", defaultViewExpr, ed)))
 						cg.Var().Id("message").Map(jen.String()).Any()
 						if sseEventCanBeResponse(ed) {
 							cg.Var().Id("id").String()
@@ -527,6 +526,9 @@ func writeSSEServiceStreamSend(stmt *jen.Statement, data *httpcodegen.ServiceDat
 								jen.Lit("method"):  jen.Lit(sseNotificationMethod(ed)),
 								jen.Lit("params"):  jen.Id("body"),
 							})
+						}
+						if ed.Method.ViewedResult != nil {
+							cg.Id("message").Index(jen.Lit("loom_view")).Op("=").Id("vres").Dot("View")
 						}
 						cg.Return(jen.Id("s").Dot("sendSSEEvent").Call(jen.Id("ctx"), jen.Lit("message"), jen.Id("message")))
 					})

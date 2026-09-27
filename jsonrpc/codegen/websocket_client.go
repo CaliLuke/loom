@@ -32,6 +32,15 @@ func websocketClientFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		codegen.LoomImport(""),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	)
+	for _, ed := range data.Endpoints {
+		if httpcodegen.IsWebSocketEndpoint(ed) && ed.Method.ViewedResult != nil {
+			imports = append(imports,
+				&codegen.ImportSpec{Path: "encoding/json/jsontext"},
+				&codegen.ImportSpec{Path: genpkg + "/" + svcName + "/views", Name: data.Service.ViewsPkg},
+			)
+			break
+		}
+	}
 	imports = append(imports, data.Service.UserTypeImports...)
 	data, imports = services.FileData(svc.Name(), imports)
 

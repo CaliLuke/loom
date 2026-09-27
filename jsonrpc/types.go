@@ -17,6 +17,9 @@ type (
 		Method  string `json:"method"`
 		Params  any    `json:"params,omitzero"`
 		ID      any    `json:"id,omitempty"`
+		// View names the Loom result view used for this message. It is omitted
+		// for ordinary messages and carried as the loom_view extension.
+		View ResultView `json:"loom_view,omitempty"`
 	}
 
 	// Response represents a JSON-RPC response. A response without an Error is
@@ -28,6 +31,10 @@ type (
 		Result  any            `json:"result,omitempty"`
 		Error   *ErrorResponse `json:"error,omitempty"`
 		ID      any            `json:"id"`
+		// View names the Loom result view used for this message. It is omitted
+		// for ordinary messages and error responses. Success responses carry it
+		// as the loom_view extension.
+		View ResultView `json:"loom_view,omitempty"`
 	}
 
 	// ErrorResponse represents a JSON-RPC error response.
@@ -59,6 +66,9 @@ type (
 		Result  jsontext.Value    `json:"result,omitempty"`
 		Error   *RawErrorResponse `json:"error,omitempty"`
 		ID      any               `json:"id,omitempty"`
+		// View names the Loom result view used for this message. It is omitted
+		// for ordinary messages and carried as the loom_view extension.
+		View ResultView `json:"loom_view,omitempty"`
 	}
 
 	// RawErrorResponse represents a JSON-RPC error response with marshalled
@@ -74,9 +84,10 @@ type (
 
 	// successEnvelope is the JSON form of a success Response.
 	successEnvelope struct {
-		JSONRPC string `json:"jsonrpc"`
-		Result  any    `json:"result"`
-		ID      any    `json:"id"`
+		JSONRPC string     `json:"jsonrpc"`
+		Result  any        `json:"result"`
+		ID      any        `json:"id"`
+		View    ResultView `json:"loom_view,omitempty"`
 	}
 
 	// errorEnvelope is the JSON form of an error Response.
@@ -144,7 +155,7 @@ func (r Response) MarshalJSONTo(enc *jsontext.Encoder) error {
 	if r.Error != nil {
 		return json.MarshalEncode(enc, errorEnvelope{JSONRPC: r.JSONRPC, Error: r.Error, ID: r.ID})
 	}
-	return json.MarshalEncode(enc, successEnvelope{JSONRPC: r.JSONRPC, Result: r.Result, ID: r.ID})
+	return json.MarshalEncode(enc, successEnvelope{JSONRPC: r.JSONRPC, Result: r.Result, ID: r.ID, View: r.View})
 }
 
 // Error returns a string representation of the error.

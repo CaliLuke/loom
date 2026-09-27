@@ -1847,6 +1847,29 @@ Method("watch", func() {
 })
 ```
 
+When a streamed result has views, dynamic WebSocket and SSE method streams
+expose `SetView(name)`. The selection applies to subsequent sends. A method
+with a fixed `View(...)` uses that view and has no setter. Connection-level
+send methods use the fixed or default view of the method.
+
+Loom adds a `"loom_view"` string to each viewed streaming notification or
+success response. This is a Loom protocol extension. The `params` or `result`
+member still contains the projected body directly, including collections.
+For example, a notification can contain:
+
+```json
+{"jsonrpc":"2.0","method":"feed/stream.event","params":{"id":"n1"},"loom_view":"tiny"}
+```
+
+Generated clients decode and validate each body using its own marker, then
+return the canonical service type. They reject non-string markers (including `null`), unknown view names, missing
+fields required by that view, and markers that conflict with a fixed view.
+An absent or empty marker falls back to the fixed view or `default`, for older
+servers; it cannot identify an older server's dynamically selected view.
+Regenerate both peers to use dynamic view selection reliably. Non-viewed
+messages and error responses omit the marker. Unary HTTP responses continue
+to use the `loom-view` header.
+
 Use JSON-RPC `Response` blocks to map service errors to JSON-RPC error codes:
 
 ```go

@@ -511,7 +511,7 @@ func TestWriteJSONRPCViewedInitReturnWithTag(t *testing.T) {
 	}
 
 	code := renderGroupWriter(t, func(g *jen.Group) {
-		writeJSONRPCViewedInitReturn(g, endpoint, resp)
+		writeJSONRPCViewedInitReturn(g, endpoint, resp, nil)
 	})
 
 	require.Contains(t, code, `tmp := "ok"`)

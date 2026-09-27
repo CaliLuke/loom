@@ -6,15 +6,17 @@ import (
 
 type (
 	viewedResultValidateTemplateData struct {
-		Projected    string
-		ArgVar       string
-		Source       string
-		Views        []*ViewData
-		IsViewed     bool
-		IsCollection bool
-		ValidateVar  string
-		Validate     string
-		Fields       []validateFieldTemplateData
+		Projected       string
+		ArgVar          string
+		Source          string
+		Views           []*ViewData
+		IsViewed        bool
+		IsCollection    bool
+		NilableElement  bool
+		NullableElement bool
+		ValidateVar     string
+		Validate        string
+		Fields          []validateFieldTemplateData
 	}
 
 	viewedResultInitTemplateData struct {

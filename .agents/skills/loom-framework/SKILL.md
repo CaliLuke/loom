@@ -701,6 +701,14 @@ filter, and serialization rules belong here.
   do. The unary HTTP handler renders the view that the endpoint returned and,
   when the design fixes no view, names it in the `loom-view` header that the
   client reads; the streams first project the result with `NewViewed<Type>`.
+  Stream envelopes take `loom_view` from that same projection. Both endpoint
+  and connection senders carry it on notifications and success responses;
+  errors omit it. Dynamic SSE streams sample view selection under their mutex.
+  Viewed stream clients reuse the projected response decoder and validate each
+  frame independently, reject fixed-view mismatches, and fall back to fixed or
+  default selection only when the marker is absent or empty. Preserve ordinary
+  non-viewed message bytes. Keep the bounded models in `jsonrpc/codegen/tla`
+  paired with generated wire, decoder, and raw GET listener tests.
 - The server endpoint of a method whose result is a result type returns the
   viewed result, while the result accessors of interceptors take the result
   type. The server wrapper of an interceptor with result access
@@ -768,6 +776,9 @@ filter, and serialization rules belong here.
   bodies. The built-in JSON decoder rejects root null before unmarshalling;
   optionality still controls EOF independently. Custom decoder factories own
   their codec contract.
+- Projected collection view validation checks nil elements before calling the
+  element validator. Reject non-nullable elements with an indexed error and
+  skip validation of nullable nil elements.
 - JSON decoding types use `loom.Nullable[T]` for non-null array elements and
   map values so validation can reject explicit `null` with stable collection
   paths before conversion to service types.

@@ -149,3 +149,21 @@ func projectedTypeDataFor(t *testing.T, data *Data, rt *expr.ResultTypeExpr) *Pr
 	t.Fatalf("missing projected type data for result type %q", rt.TypeName)
 	return nil
 }
+
+func TestViewCollectionValidationRejectsNullElements(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.ResultCollectionMultipleViewsDSL)
+	services := NewServicesData(root)
+	fs := ViewsFile("github.com/CaliLuke/loom/example", root.Services[0], services)
+	require.NotNil(t, fs)
+	var buf bytes.Buffer
+	for _, section := range fs.AllSections()[1:] {
+		require.NoError(t, section.Write(&buf))
+	}
+	code := codegen.FormatTestCode(t, "package views\n"+buf.String())
+	for _, name := range []string{"ValidateResultTypeCollectionView", "ValidateResultTypeCollectionViewTiny"} {
+		body := generatedFunction(t, code, name)
+		require.Contains(t, body, "if item == nil {")
+		require.Contains(t, body, `loom.InvalidNullElementError("result", i)`)
+		require.Contains(t, body, "continue")
+	}
+}

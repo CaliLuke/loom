@@ -30,6 +30,22 @@ var _ = API("ticktock", func() {
 	JSONRPC(func() {})
 })
 
+var ListenerUpdate = ResultType("application/vnd.listener.event", func() {
+    TypeName("ListenerUpdate")
+    Attributes(func() {
+        Attribute("value", String)
+        Attribute("title", String)
+        Required("title")
+    })
+    View("default", func() {
+        Attribute("value")
+        Attribute("title")
+    })
+    View("tiny", func() {
+        Attribute("value")
+    })
+})
+
 var _ = Service("clock", func() {
 	JSONRPC(func() {
 		POST("/rpc")
@@ -39,9 +55,7 @@ var _ = Service("clock", func() {
 		Payload(func() {
 			ID("id", String)
 		})
-		StreamingResult(func() {
-			Attribute("value", String)
-		})
+		StreamingResult(ListenerUpdate)
 		JSONRPC(func() {
 			ServerSentEvents()
 		})
@@ -66,12 +80,13 @@ func NewClock() clock.Service {
 }
 
 func (s *clocksrvc) EventsStream(ctx context.Context, p *clock.EventsStreamPayload, stream clock.EventsStreamServerStream) error {
+	stream.SetView("tiny")
 	for _, value := range []string{"event-1", "event-2"} {
-		if err := stream.Send(ctx, &clock.EventsStreamResult{Value: stringPtr(value)}); err != nil {
+		if err := stream.Send(ctx, &clock.ListenerUpdate{Value: stringPtr(value)}); err != nil {
 			return err
 		}
 	}
-	return stream.SendAndClose(ctx, &clock.EventsStreamResult{Value: stringPtr("event-done")})
+	return stream.SendAndClose(ctx, &clock.ListenerUpdate{Value: stringPtr("event-done")})
 }
 
 func stringPtr(v string) *string {
@@ -86,6 +101,8 @@ func stringPtr(v string) *string {
 //   - A plain GET with Accept: text/event-stream (no JSON-RPC body) opens the
 //     stream: 200, text/event-stream, and every Send value arrives framed as
 //     a JSON-RPC 2.0 notification.
+//   - Every notification carries the selected tiny view and omits the required
+//     title of the default view.
 //   - The SendAndClose value is intentionally NOT delivered: the GET listener
 //     carries no JSON-RPC request ID, and generated streams close ID-less
 //     requests without a final response (jsonrpc/codegen/stream_sections.go,
@@ -154,6 +171,8 @@ func readSSEStreamValues(t *testing.T, body io.Reader) []string {
 		var envelope map[string]any
 		require.NoError(t, json.Unmarshal([]byte(raw), &envelope), "frame data %q", raw)
 		require.Equal(t, "2.0", envelope["jsonrpc"], "frame data %q", raw)
+		require.Equal(t, "tiny", envelope["loom_view"], "frame data %q", raw)
+		require.NotContains(t, envelope["params"], "title")
 		values = append(values, extractStreamValue(t, envelope))
 	}
 

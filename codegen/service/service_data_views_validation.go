@@ -50,7 +50,18 @@ func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 	}
 
 	if data.IsCollection {
-		lines = append(lines, "for _, "+data.Source+" := range "+data.ArgVar+" {")
+		index := "_"
+		if data.NilableElement && !data.NullableElement {
+			index = "i"
+		}
+		lines = append(lines, "for "+index+", "+data.Source+" := range "+data.ArgVar+" {")
+		if data.NilableElement {
+			lines = append(lines, "\tif "+data.Source+" == nil {")
+			if !data.NullableElement {
+				lines = append(lines, "\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError("+fmt.Sprintf("%q", data.ArgVar)+", i))")
+			}
+			lines = append(lines, "\t\tcontinue", "\t}")
+		}
 		lines = append(lines, "\tif err2 := "+data.ValidateVar+"("+data.Source+"); err2 != nil {")
 		lines = append(lines, "\t\terr = loom.MergeErrors(err, err2)")
 		lines = append(lines, "\t}")
@@ -116,28 +127,10 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 			if arr != nil {
 				data.Source = "item"
 				data.ValidateVar = "Validate" + scope.GoTypeName(arr.ElemType) + vn
+				data.NilableElement = expr.IsObject(arr.ElemType.Type) || expr.IsArray(arr.ElemType.Type) || expr.IsMap(arr.ElemType.Type)
+				data.NullableElement = arr.ElemType.Nullable
 			} else {
-				required := view.AttributeExpr
-				var fields []validateFieldTemplateData
-				o := &expr.Object{}
-				walkViewAttrs(expr.AsObject(projected.Type), view, func(name string, attr, vatt *expr.AttributeExpr) {
-					if _, ok := attr.Type.(*expr.ResultTypeExpr); ok {
-						vw := ""
-						if v, ok := vatt.Meta.Last(expr.ViewMetaKey); ok && v != expr.DefaultView {
-							vw = v
-						}
-						fields = append(fields, validateFieldTemplateData{
-							Name:        name,
-							ValidateVar: "Validate" + scope.GoTypeName(attr) + codegen.Goify(vw, true),
-							IsRequired:  required.IsRequired(name),
-						})
-					} else {
-						o.Set(name, attr)
-					}
-				})
-				ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
-				data.Validate = codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: view.Validation}, rt, ctx, true, false, true, "result")
-				data.Fields = fields
+				data.Validate, data.Fields = buildViewObjectValidation(projected, rt, view, scope)
 			}
 
 			validations = append(validations, &ValidateData{
@@ -158,4 +151,28 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 		})
 	}
 	return validations
+}
+
+func buildViewObjectValidation(projected *expr.AttributeExpr, rt *expr.ResultTypeExpr, view *expr.ViewExpr, scope *codegen.NameScope) (string, []validateFieldTemplateData) {
+	required := view.AttributeExpr
+	var fields []validateFieldTemplateData
+	o := &expr.Object{}
+	walkViewAttrs(expr.AsObject(projected.Type), view, func(name string, attr, vatt *expr.AttributeExpr) {
+		if _, ok := attr.Type.(*expr.ResultTypeExpr); ok {
+			vw := ""
+			if v, ok := vatt.Meta.Last(expr.ViewMetaKey); ok && v != expr.DefaultView {
+				vw = v
+			}
+			fields = append(fields, validateFieldTemplateData{
+				Name:        name,
+				ValidateVar: "Validate" + scope.GoTypeName(attr) + codegen.Goify(vw, true),
+				IsRequired:  required.IsRequired(name),
+			})
+		} else {
+			o.Set(name, attr)
+		}
+	})
+	ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
+	validate := codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: view.Validation}, rt, ctx, true, false, true, "result")
+	return validate, fields
 }
