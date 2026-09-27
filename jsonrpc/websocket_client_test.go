@@ -195,7 +195,7 @@ func TestWebSocketClientStreamEndsAlone(t *testing.T) {
 			}()
 			require.NoError(t, tc.end(ending, cancel))
 			require.ErrorIs(t, <-waiting, tc.want)
-			require.ErrorIs(t, ending.Send(t.Context(), "after"), ErrWebSocketClientStreamClosed)
+			require.ErrorIs(t, ending.Send(t.Context(), "after"), tc.want)
 			// The late answer of the ended stream is an orphan; the other
 			// stream keeps working on the same connection.
 			writeRaw(t, serverConn, fmt.Sprintf(`{"jsonrpc":"2.0","id":%q,"result":"late"}`, IDToString(held.ID)))

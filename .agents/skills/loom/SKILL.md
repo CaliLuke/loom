@@ -539,6 +539,12 @@ requirement retain AND semantics.
   stream or canceling its context ends that stream alone; the connection
   closes with its last stream or with the client. Client `Close` is permanent:
   later stream calls fail without dialing. Create a new client to reconnect.
+  Match explicit stream or client closure with
+  `errors.Is(err, jsonrpc.ErrStreamClosed)`, including blocked receives and
+  attempts to open a stream after client closure. Independent cancellation
+  and network failures keep their own errors. An interrupted write also
+  preserves its socket error; a response already available may win a race
+  with closure.
   Do not add a separate
   reader or a client per stream to work around sharing.
 

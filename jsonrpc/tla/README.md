@@ -149,3 +149,44 @@ The generated-module tests `TestClientClosePreventsNewStreams` and
 `TestClientCloseDuringDial` exercise these cases against real sockets under the
 race detector. Closing before the first dial and after an active stream both
 reproduced unwanted redials before the guard was added.
+
+## Matchable closure errors (#401)
+
+`CloseErrors.tla` models one stream with or without another connection holder,
+an empty or nonempty receive queue, and one Send, Notify, Call, or Recv. It
+separates preflight from the write and waiting phases so closure can interrupt
+an in-flight operation. Stream cancellation, explicit stream/client closure,
+and an independent connection failure are distinct causes. Connection failure
+keeps the first recorded cause. A queued successful response can win a race
+with closure; the model does not require Close to revoke that response.
+`CancelStream` represents completion of the `contextDone` callback. The
+operation uses an independent live context, so a write already in flight can
+still succeed after its stream ends if another holder keeps the socket open.
+For a failed write, the stream's termination cause takes precedence over the
+connection's cause, as in `writeFailed`.
+
+Run TLC with `CloseErrors.tla` and the following configurations, using the
+same command and `-deadlock` option above:
+
+| Configuration | Result |
+| --- | --- |
+| `cfg/errors_asis.cfg` | Closure is not matchable through a common sentinel: 39 states, depth 3. |
+| `cfg/errors_sentinels.cfg` | Adding a shared sentinel alone misclassifies canceled-stream sends as explicit closure: 46 states, depth 3. |
+| `cfg/errors_sentinels_closure.cfg` | An empty-queue Recv ignores the closed connection: 49 states, depth 3. |
+| `cfg/errors_sentinels_write.cfg` | A Call passes preflight, the client closes, and its write returns only the socket error: 139 states, depth 4. |
+| `cfg/errors_complete.cfg` | Both `ClosureMatches` and `OtherCausesStayDistinct` hold: 464 distinct states, depth 6. |
+
+`Start` corresponds to the stream's `register`, `usable`, and `Recv` checks;
+`Write` corresponds to `writeFailed`; `Wake` corresponds to `await`.
+The complete design checks the semantic termination cause in those paths.
+Socket-closed write errors are joined with that cause, preserving their
+original identity. Independent encoding failures are not relabeled merely
+because the client subsequently closed.
+
+This is a bounded safety check of error classification, not a proof of Go
+scheduling, socket behavior, or liveness. The direct tests in
+`jsonrpc/websocket_close_errors_test.go` exercise the same cases against real
+sockets, including a write held until the connection is closed. Generated
+module tests cover client closure before dialing, bidirectional receives,
+and blocked and subsequent server-streaming receives under the race detector.
+The earlier demultiplexer model covers routing and waiter liveness separately.

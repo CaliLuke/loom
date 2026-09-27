@@ -101,14 +101,19 @@ type (
 )
 
 var (
+	// ErrStreamClosed identifies operations ended by explicitly closing a
+	// JSON-RPC WebSocket client stream or its client connection. Independent
+	// context cancellation and network failures retain their own errors.
+	ErrStreamClosed = errors.New("stream closed")
+
 	// ErrWebSocketClientConnClosed is the error of the requests that were
 	// waiting on a WebSocketClientConn when it was closed, and of the
-	// requests sent after.
-	ErrWebSocketClientConnClosed = errors.New("jsonrpc: websocket client connection closed")
+	// requests sent after. It wraps ErrStreamClosed.
+	ErrWebSocketClientConnClosed = fmt.Errorf("jsonrpc: websocket client connection closed: %w", ErrStreamClosed)
 
 	// ErrWebSocketClientStreamClosed is returned by the operations of a
-	// WebSocketClientStream after Close.
-	ErrWebSocketClientStreamClosed = errors.New("stream closed")
+	// WebSocketClientStream after Close. It wraps ErrStreamClosed.
+	ErrWebSocketClientStreamClosed = fmt.Errorf("%w", ErrStreamClosed)
 )
 
 // NewWebSocketClientConn starts routing the responses read from ws and
@@ -253,6 +258,9 @@ func (s *WebSocketClientStream) Recv(ctx context.Context) (*RawResponse, error) 
 	}
 	if len(s.queue) == 0 {
 		s.mu.Unlock()
+		if err := s.conn.Err(); err != nil {
+			return nil, err
+		}
 		return nil, errors.New("no pending requests - call Send() first")
 	}
 	call := s.queue[0]
@@ -422,7 +430,7 @@ func (call *webSocketCall) complete(result webSocketResult) {
 func (s *WebSocketClientStream) register(queued bool) (*webSocketCall, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed || s.ended {
+	if s.closed {
 		return nil, ErrWebSocketClientStreamClosed
 	}
 	if s.err != nil {
@@ -456,6 +464,20 @@ func (s *WebSocketClientStream) write(ctx context.Context, call *webSocketCall, 
 // writeFailed fails the stream with a write error and reports it.
 func (s *WebSocketClientStream) writeFailed(err error) error {
 	s.mu.Lock()
+	// Keep an independent codec, context, or network failure distinct from
+	// closure. A socket closed during an in-flight write retains both causes.
+	if errors.Is(err, net.ErrClosed) || errors.Is(err, loomhttp.ErrWebSocketStreamClosed) {
+		switch {
+		case s.closed:
+			err = errors.Join(ErrWebSocketClientStreamClosed, err)
+		case s.err != nil:
+			err = errors.Join(s.err, err)
+		default:
+			if cause := s.conn.Err(); cause != nil {
+				err = errors.Join(cause, err)
+			}
+		}
+	}
 	s.failLocked(err)
 	s.mu.Unlock()
 	s.ReportError(StreamErrorConnection, err, nil)
@@ -466,10 +488,13 @@ func (s *WebSocketClientStream) writeFailed(err error) error {
 func (s *WebSocketClientStream) usable() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed || s.ended {
+	if s.closed {
 		return ErrWebSocketClientStreamClosed
 	}
-	return s.err
+	if s.err != nil {
+		return s.err
+	}
+	return s.conn.Err()
 }
 
 // await waits for the result of call. When ctx is done first, the call goes

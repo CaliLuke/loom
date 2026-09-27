@@ -259,7 +259,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 				g.Line()
 				g.If(jen.Id("c").Dot("closed").Dot("Load").Call()).Block(
 					jen.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrRequestError").Call(
-						jen.Lit(data.Service.Name), jen.Lit("connect"), jen.Qual("fmt", "Errorf").Call(jen.Lit("client is closed")),
+						jen.Lit(data.Service.Name), jen.Lit("connect"), jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ErrWebSocketClientConnClosed"),
 					)),
 				)
 				g.Line()

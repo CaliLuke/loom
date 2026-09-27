@@ -764,6 +764,16 @@ func (s *chatSvc) Echo(ctx context.Context, p *chat.EchoPayload,
     dials a new connection. Closing the client is permanent: subsequent
     attempts to open a stream fail without dialing. A dial already in progress
     can finish, but `Close` closes its connection before returning.
+  - Match explicit stream or client closure with
+    `errors.Is(err, jsonrpc.ErrStreamClosed)`. This works for `Send`, `Recv`,
+    notifications, a receive already waiting for a response, and opening a
+    stream after client closure. The more specific
+    `jsonrpc.ErrWebSocketClientStreamClosed` and
+    `jsonrpc.ErrWebSocketClientConnClosed` also remain matchable. A write
+    interrupted by closure preserves its underlying socket error too.
+    Independent context cancellation and network failures retain their own
+    errors. A successful response already available may still win a race
+    with closure.
   - When the connection fails, every waiting request of every stream returns
     the read error, and later sends fail.
   - All events go to the one handler configured with
@@ -786,9 +796,8 @@ func (s *chatSvc) Echo(ctx context.Context, p *chat.EchoPayload,
       reported.
     - A stream whose context is canceled returns `context.Canceled` from
       later calls instead of a connection read error.
-    - A `Send` that races `Close` on the same stream can report a
-      `StreamErrorConnection` write failure for a stream that is already
-      closed.
+    - A `Send` that races `Close` can report a `StreamErrorConnection` write
+      failure wrapping `jsonrpc.ErrStreamClosed` and the socket error.
 
 ### Mixed Transports: Content Negotiation
 

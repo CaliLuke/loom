@@ -350,6 +350,9 @@ func assertClientClosed(t *testing.T, ctx context.Context, c *client.Client, dia
 		if err == nil || raw != nil {
 			t.Errorf("call after Close: stream=%v error=%v", raw, err)
 		}
+		if !errors.Is(err, jsonrpc.ErrStreamClosed) {
+			t.Errorf("call after Close: got %v, want ErrStreamClosed", err)
+		}
 		if raw != nil {
 			if err := raw.(*client.TalkClientStream).Close(); err != nil {
 				t.Errorf("cleanup unexpected stream: %v", err)

@@ -623,6 +623,12 @@ filter, and serialization rules belong here.
   that is being closed. Generated
   streams wrap `jsonrpc.WebSocketClientStream` and only decode results. Check
   changes against `jsonrpc/tla/WebSocketClientDemux.tla`.
+  Explicit closure errors share `jsonrpc.ErrStreamClosed`; retain the more
+  specific stream and connection sentinels. Empty-queue receives still check
+  the connection error. In-flight socket-closed writes retain both their
+  semantic cause and socket error, while cancellation and unrelated failures
+  remain distinct. Keep `jsonrpc/tla/CloseErrors.tla` paired with direct socket
+  races and compiled client tests, including server-streaming receives.
 - JSON-RPC reuses HTTP file builders for its encoders, decoders, types and
   paths. `updateHeader` (`jsonrpc/codegen/header.go`) moves only the imports
   below `genpkg/http/` to `genpkg/jsonrpc/`, matching whole path segments;
