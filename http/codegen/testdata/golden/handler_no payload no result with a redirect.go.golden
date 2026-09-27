@@ -12,7 +12,6 @@ func NewMethodNoPayloadNoResultHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "ServiceNoPayloadNoResult", "MethodNoPayloadNoResult")
 		defer lifecycle.End()
-		ctx := lifecycle.Context()
 		w = lifecycle.Writer()
 		http.Redirect(w, r, "/redirect/dest", http.StatusMovedPermanently)
 	})

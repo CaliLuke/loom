@@ -571,12 +571,6 @@
     "phase": "build",
     "reason": "File-only service generates an unused CLI endpoint variable."
   },
-  "http/codegen/ServerMixedDSL": {
-    "contains": "declared and not used: ctx",
-    "issue": "https://github.com/CaliLuke/loom/issues/546",
-    "phase": "build",
-    "reason": "File redirect handler declares an unused context."
-  },
   "http/codegen/ServerMultipleFilesDSL": {
     "contains": "declared and not used: epn",
     "issue": "https://github.com/CaliLuke/loom/issues/543",
@@ -594,24 +588,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/543",
     "phase": "build",
     "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/ServerNoPayloadNoResultWithRedirectDSL": {
-    "contains": "declared and not used: ctx",
-    "issue": "https://github.com/CaliLuke/loom/issues/546",
-    "phase": "build",
-    "reason": "File redirect handler declares an unused context."
-  },
-  "http/codegen/ServerPayloadNoResultWithRedirectDSL": {
-    "contains": "declared and not used: ctx",
-    "issue": "https://github.com/CaliLuke/loom/issues/546",
-    "phase": "build",
-    "reason": "File redirect handler declares an unused context."
-  },
-  "http/codegen/ServerSimpleRoutingWithRedirectDSL": {
-    "contains": "declared and not used: ctx",
-    "issue": "https://github.com/CaliLuke/loom/issues/546",
-    "phase": "build",
-    "reason": "File redirect handler declares an unused context."
   },
   "http/codegen/ValidateErrorResponseTypeDSL": {
     "contains": "field and method with the same name Error",

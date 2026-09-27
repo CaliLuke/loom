@@ -16,7 +16,6 @@ func NewMethodPayloadNoResultHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lifecycle := loomhttp.NewHandlerLifecycle(w, r, "ServicePayloadNoResult", "MethodPayloadNoResult")
 		defer lifecycle.End()
-		ctx := lifecycle.Context()
 		w = lifecycle.Writer()
 		_, err := decodeRequest(r)
 		if err != nil {

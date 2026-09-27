@@ -89,7 +89,9 @@ func {{ .HandlerInit }}(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lifecycle := loomhttp.NewHandlerLifecycle(w, r, {{ printf "%q" .ServiceName }}, {{ printf "%q" .Method.Name }})
 		defer lifecycle.End()
+		{{- if or (not .Redirect) .HasMixedResults (isWebSocketEndpoint .) (isSSEEndpoint .) .Method.SkipRequestBodyEncodeDecode }}
 		ctx := lifecycle.Context()
+		{{- end }}
 		w = lifecycle.Writer()
 	{{- if .HasMixedResults }}
 
