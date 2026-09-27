@@ -7,6 +7,10 @@ func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request)
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveStringDefault", "MethodHeaderPrimitiveStringDefault", "string", v)
 		}
+		{
+			head := p
+			req.Header.Set("h", head)
+		}
 		return nil
 	}
 }

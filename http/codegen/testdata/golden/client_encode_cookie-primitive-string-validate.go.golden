@@ -1,0 +1,19 @@
+// EncodeMethodCookiePrimitiveStringValidateRequest returns an encoder for
+// requests sent to the ServiceCookiePrimitiveStringValidate
+// MethodCookiePrimitiveStringValidate server.
+func EncodeMethodCookiePrimitiveStringValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(string)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceCookiePrimitiveStringValidate", "MethodCookiePrimitiveStringValidate", "string", v)
+		}
+		{
+			v := p
+			req.AddCookie(&http.Cookie{
+				Name:  "c",
+				Value: v,
+			})
+		}
+		return nil
+	}
+}

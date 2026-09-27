@@ -403,54 +403,6 @@
     "phase": "build",
     "reason": "Generated error field conflicts with the Error method."
   },
-  "http/codegen/PayloadCookiePrimitiveBoolValidateDSL": {
-    "contains": "declared and not used: p",
-    "issue": "https://github.com/CaliLuke/loom/issues/539",
-    "phase": "build",
-    "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
-  "http/codegen/PayloadCookiePrimitiveStringDefaultDSL": {
-    "contains": "declared and not used: p",
-    "issue": "https://github.com/CaliLuke/loom/issues/539",
-    "phase": "build",
-    "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
-  "http/codegen/PayloadCookiePrimitiveStringValidateDSL": {
-    "contains": "declared and not used: p",
-    "issue": "https://github.com/CaliLuke/loom/issues/539",
-    "phase": "build",
-    "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
-  "http/codegen/PayloadHeaderPrimitiveArrayBoolValidateDSL": {
-    "contains": "declared and not used: p",
-    "issue": "https://github.com/CaliLuke/loom/issues/539",
-    "phase": "build",
-    "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
-  "http/codegen/PayloadHeaderPrimitiveArrayStringValidateDSL": {
-    "contains": "declared and not used: p",
-    "issue": "https://github.com/CaliLuke/loom/issues/539",
-    "phase": "build",
-    "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
-  "http/codegen/PayloadHeaderPrimitiveBoolValidateDSL": {
-    "contains": "declared and not used: p",
-    "issue": "https://github.com/CaliLuke/loom/issues/539",
-    "phase": "build",
-    "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
-  "http/codegen/PayloadHeaderPrimitiveStringDefaultDSL": {
-    "contains": "declared and not used: p",
-    "issue": "https://github.com/CaliLuke/loom/issues/539",
-    "phase": "build",
-    "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
-  "http/codegen/PayloadHeaderPrimitiveStringValidateDSL": {
-    "contains": "declared and not used: p",
-    "issue": "https://github.com/CaliLuke/loom/issues/539",
-    "phase": "build",
-    "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
   "http/codegen/PayloadPathArrayStringValidateDSL": {
     "contains": "invalid operation: p == []string{\u2026} (slice can only be compared to nil)",
     "issue": "https://github.com/CaliLuke/loom/issues/535",

@@ -1,0 +1,20 @@
+// EncodeMethodCookiePrimitiveBoolValidateRequest returns an encoder for
+// requests sent to the ServiceCookiePrimitiveBoolValidate
+// MethodCookiePrimitiveBoolValidate server.
+func EncodeMethodCookiePrimitiveBoolValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(bool)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceCookiePrimitiveBoolValidate", "MethodCookiePrimitiveBoolValidate", "bool", v)
+		}
+		{
+			vraw := p
+			v := strconv.FormatBool(vraw)
+			req.AddCookie(&http.Cookie{
+				Name:  "c",
+				Value: v,
+			})
+		}
+		return nil
+	}
+}

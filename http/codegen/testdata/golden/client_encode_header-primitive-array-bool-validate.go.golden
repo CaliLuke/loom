@@ -7,6 +7,13 @@ func EncodeMethodHeaderPrimitiveArrayBoolValidateRequest(encoder func(*http.Requ
 		if !ok {
 			return loomhttp.ErrInvalidType("ServiceHeaderPrimitiveArrayBoolValidate", "MethodHeaderPrimitiveArrayBoolValidate", "[]bool", v)
 		}
+		{
+			head := p
+			for _, val := range head {
+				valStr := strconv.FormatBool(val)
+				req.Header.Add("h", valStr)
+			}
+		}
 		return nil
 	}
 }

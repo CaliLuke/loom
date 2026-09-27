@@ -17,13 +17,12 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		}
 		{{- end }}
 	{{- range .Payload.Request.Headers }}
-		{{- if .FieldName }}
 			{{- if .FieldPointer }}
-		if p.{{ .FieldName }} != nil {
+		if p{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
 			{{- else }}
 			{
 			{{- end }}
-			head := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}{{ if .IsTextUnmarshaler }}){{ end }}
+			head := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
 			{{- if (and (eq .HTTPName "Authorization") (isBearer $.HeaderSchemes)) }}
 		if !strings.Contains(head, " ") {
 			req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+head)
@@ -52,16 +51,14 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		}
 			{{- end }}
 		}
-		{{- end }}
 	{{- end }}
 	{{- range .Payload.Request.Cookies }}
-		{{- if .FieldName }}
 			{{- if .FieldPointer }}
-		if p.{{ .FieldName }} != nil {
+		if p{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
 			{{- else }}
 			{
 			{{- end }}
-			v{{ if not (eq .Type.Name "string") }}raw{{ end }} := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}{{ if .IsTextUnmarshaler }}){{ end }}
+			v{{ if not (eq .Type.Name "string") }}raw{{ end }} := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
 			{{- if not (eq .Type.Name "string" ) }}
 			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "v" "vraw") }}
 			{{- end }}
@@ -88,7 +85,6 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 				{{- end }}
 			})
 		}
-		{{- end }}
 	{{- end }}
 	{{- if or .Payload.Request.QueryParams }}
 		values := req.URL.Query()
