@@ -72,7 +72,9 @@ func (sm *Map) init(ctx context.Context) error {
 	sm.sub = sm.rdb.Subscribe(ctx, sm.chankey)
 	_, err := sm.sub.Receive(ctx) // Fail fast if we can't subscribe.
 	if err != nil {
-		_ = sm.sub.Close()
+		if closeErr := sm.sub.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close subscription: %w", closeErr))
+		}
 		return fmt.Errorf("pulse map: %s failed to join: %w", sm.Name, err)
 	}
 	sm.msgch = sm.sub.Channel()
@@ -84,8 +86,12 @@ func (sm *Map) init(ctx context.Context) error {
 	// local copy with the same data.
 	cmd := sm.rdb.HGetAll(ctx, sm.hashkey)
 	if err := cmd.Err(); err != nil {
-		_ = sm.sub.Unsubscribe(ctx, sm.chankey)
-		_ = sm.sub.Close()
+		if unsubscribeErr := sm.sub.Unsubscribe(ctx, sm.chankey); unsubscribeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to unsubscribe: %w", unsubscribeErr))
+		}
+		if closeErr := sm.sub.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close subscription: %w", closeErr))
+		}
 		return fmt.Errorf("pulse map: %s failed to read initial content: %w", sm.Name, err)
 	}
 	sm.content = cmd.Val()
