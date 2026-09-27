@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -33,7 +34,15 @@ func updateTitle(f *codegen.File) *codegen.HeaderData {
 	if data == nil {
 		return nil
 	}
-	data.Title = strings.Replace(data.Title, "HTTP", "JSON-RPC", 1)
+	// Path titles start with the transport; other HTTP-derived titles place
+	// it after the service name, which may itself contain HTTP.
+	if filepath.Base(f.Path) == "paths.go" {
+		if title, ok := strings.CutPrefix(data.Title, "HTTP "); ok {
+			data.Title = "JSON-RPC " + title
+		}
+	} else if index := strings.LastIndex(data.Title, " HTTP "); index >= 0 {
+		data.Title = data.Title[:index] + " JSON-RPC " + data.Title[index+len(" HTTP "):]
+	}
 	return data
 }
 
