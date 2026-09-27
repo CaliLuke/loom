@@ -40,7 +40,7 @@ func TestNullableNamedPrimitiveBodyDeclaration(t *testing.T) {
 	for _, c := range nullableNamedBodyCases {
 		for _, required := range []bool{false, true} {
 			t.Run(c.name+"/required="+strconv.FormatBool(required), func(t *testing.T) {
-				root := RunHTTPDSL(t, nullableNamedPrimitiveBodyDSL(c.primitive, required))
+				root := RunHTTPDSL(t, nullableNamedBodyDSL(c.primitive, required))
 				request := CreateHTTPServices(root).Get("sender").Endpoint("send").Payload.Request
 				require.Equal(t, c.definition, request.ServerBody.Def)
 				require.Equal(t, c.definition, request.ClientBody.Def)
@@ -59,7 +59,7 @@ func TestNullableNamedPrimitiveBodyRoundTrip(t *testing.T) {
 	for _, c := range nullableNamedBodyCases {
 		for _, required := range []bool{false, true} {
 			t.Run(c.name+"/required="+strconv.FormatBool(required), func(t *testing.T) {
-				root := RunHTTPDSL(t, nullableNamedPrimitiveBodyDSL(c.primitive, required))
+				root := RunHTTPDSL(t, nullableNamedBodyDSL(c.primitive, required))
 				dir := t.TempDir()
 				renderHTTPModule(t, dir, "example.com/namedbody", root)
 				invalid, code, detail := "0", "invalid_range", "validation error"
@@ -78,7 +78,7 @@ func TestNullableNamedPrimitiveBodyRoundTrip(t *testing.T) {
 					"INVALID_JSON", strconv.Quote(invalid),
 					"VALIDATION_CODE", strconv.Quote(code),
 					"VALIDATION_DETAIL", strconv.Quote(detail),
-				).Replace(nullableNamedPrimitiveBodyHarness)
+				).Replace(nullableNamedBodyHarness)
 				require.NoError(t, os.WriteFile(filepath.Join(dir, "named_body_test.go"), []byte(harness), 0o600))
 				runGoCommand(t, dir, "mod", "tidy")
 				runGoCommand(t, dir, "vet", "./...")
@@ -88,17 +88,19 @@ func TestNullableNamedPrimitiveBodyRoundTrip(t *testing.T) {
 	}
 }
 
-func nullableNamedPrimitiveBodyDSL(primitive expr.Primitive, required bool) func() {
+func nullableNamedBodyDSL(typ expr.DataType, required bool) func() {
 	return func() {
-		value := Type("Value", primitive, func() {
+		value := Type("Value", typ, func() {
 			Nullable()
-			switch primitive {
+			switch typ {
 			case String, Bytes:
 				MinLength(2)
 			case Boolean:
 				Enum(true)
 			default:
-				Minimum(1)
+				if expr.IsPrimitive(typ) {
+					Minimum(1)
+				}
 			}
 		})
 		Service("sender", func() {
@@ -118,7 +120,7 @@ func nullableNamedPrimitiveBodyDSL(primitive expr.Primitive, required bool) func
 	}
 }
 
-const nullableNamedPrimitiveBodyHarness = `package namedbody_test
+const nullableNamedBodyHarness = `package namedbody_test
 
 import (
 	"context"

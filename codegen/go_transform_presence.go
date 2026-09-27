@@ -119,24 +119,12 @@ func transformNativeToOptional(
 	if err != nil {
 		return nil, err
 	}
-	wrapped := temp
-	if concreteTransformProducesPointer(targetValue, ta.TargetCtx) {
-		wrapped = "*" + temp
-	}
 	body := &jen.Statement{}
 	if objectTarget && !userObject {
 		body.Add(Expr(temp + ", _ := " + targetVar + ".Value()")).Line()
 	}
 	body.Add(conversion).Line()
-	if objectTarget {
-		value := temp
-		if userObject {
-			value = "*" + temp
-		}
-		body.Add(Expr(targetVar + ".SetValue(" + value + ")"))
-	} else {
-		body.Add(Expr(targetVar + " = loom.OptionalValue(" + wrapped + ")"))
-	}
+	body.Add(presenceValueAssignment(targetValue, temp, targetVar, "OptionalValue", userObject, ta.TargetCtx))
 	if guard == "" {
 		return body, nil
 	}
@@ -173,10 +161,6 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		return nil, err
 	}
 	targetValueRef := presenceValueTypeRef(target, ta.TargetCtx)
-	wrapped := temp
-	if concreteTransformProducesPointer(targetValue, ta.TargetCtx) {
-		wrapped = "*" + temp
-	}
 	stmt := &jen.Statement{}
 	if newVar {
 		stmt.Var().Add(Expr(targetVar)).Add(TypeRef(nullablePhysicalTypeRef(target, ta.TargetCtx))).Line()
@@ -192,20 +176,39 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 			group.Add(Expr(temp + ", _ := " + targetVar + ".Value()")).Line()
 		}
 		group.Add(conversion).Line()
-		if objectTarget {
-			value := temp
-			if userObject {
-				value = "*" + temp
-			}
-			group.Add(Expr(targetVar + ".SetValue(" + value + ")"))
-		} else {
-			group.Add(Expr(targetVar + " = loom.NullableValue(" + wrapped + ")"))
-		}
+		group.Add(presenceValueAssignment(targetValue, temp, targetVar, "NullableValue", userObject, ta.TargetCtx))
 	})
 	if defaultValue != nil {
-		stmt.Else().Block(Expr(targetVar + " = loom.NullableValue(" + defaultValueLiteral(targetValue, defaultValue, ta) + ")"))
+		value := defaultValueLiteral(targetValue, defaultValue, ta)
+		assignment := targetVar + " = loom.NullableValue(" + value + ")"
+		if isNamedCollection(targetValue) {
+			assignment = targetVar + ".SetValue(" + value + ")"
+		}
+		stmt.Else().Block(Expr(assignment))
 	}
 	return stmt, nil
+}
+
+// presenceValueAssignment preserves the target's declared type when wrapping a
+// converted value. Generic constructor inference would use an unnamed collection.
+func presenceValueAssignment(target *expr.AttributeExpr, value, targetVar, constructor string, userObject bool, context *AttributeContext) *jen.Statement {
+	if expr.IsObject(target.Type) || isNamedCollection(target) {
+		if userObject {
+			value = "*" + value
+		}
+		return Expr(targetVar + ".SetValue(" + value + ")")
+	}
+	if concreteTransformProducesPointer(target, context) {
+		value = "*" + value
+	}
+	return Expr(targetVar + " = loom." + constructor + "(" + value + ")")
+}
+
+// isNamedCollection reports whether a presence wrapper needs the declared
+// collection type instead of the unnamed slice or map produced by conversion.
+func isNamedCollection(attribute *expr.AttributeExpr) bool {
+	_, named := attribute.Type.(expr.UserType)
+	return named && (expr.IsArray(attribute.Type) || expr.IsMap(attribute.Type))
 }
 
 func transformRawAnyPresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar, targetNullable bool, ta *TransformAttrs) (*jen.Statement, error) {

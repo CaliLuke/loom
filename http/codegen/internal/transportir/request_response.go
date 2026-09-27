@@ -358,6 +358,8 @@ func normalizeHTTPAttributeRecursive(attr *expr.AttributeExpr, seen map[string]s
 		}
 		if _, ok := actual.(*expr.ResultTypeExpr); !ok && !expr.IsObject(actual) &&
 			!hasCanonicalOpenAPITypeName(attr, actual) {
+			// Preserve inherited nullability before removing the named type.
+			attr.Nullable = expr.IsNullable(attr)
 			attr.Type = actual.Attribute().Type
 			if validation := actual.Attribute().Validation; validation != nil {
 				if attr.Validation == nil {
