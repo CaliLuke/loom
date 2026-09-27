@@ -49,7 +49,7 @@ var mapQueryLocalPattern = regexp.MustCompile(`^(key[a-z]?(Err|Raw)?|val[a-z]?(R
 // client request builder that calls it declare or receive in the scopes where
 // they also use the variables named after the path params.
 var pathLocalNames = []string{
-	"body", "c", "ctx", "err", "ok", "p", "req", "u", "v",
+	"body", "c", "ctx", "err", "i", "ok", "p", "rd", "req", "scheme", "u", "v",
 }
 
 // responseLocalNames lists the identifiers that the generated server response
