@@ -151,7 +151,7 @@ func newValidationRenderData(att *expr.AttributeExpr, attCtx *AttributeContext, 
 		targetValue = "*" + targetValue
 	}
 	if alias {
-		targetValue = unaliased.Name() + "(" + targetValue + ")"
+		targetValue = GoNativeTypeName(unaliased) + "(" + targetValue + ")"
 		kind = unaliased.Kind()
 	}
 	return validationRenderData{

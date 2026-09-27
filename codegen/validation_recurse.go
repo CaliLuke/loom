@@ -37,7 +37,7 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 		seen[key] = buf
 	}
 	if isNullableAttribute(att) {
-		fmt.Fprint(buf, validateNullableAttribute(attCtx, att, put, target, context, req, view, seen))
+		fmt.Fprint(buf, validateNullableAttribute(attCtx, att, put, target, context, req, alias, view, seen))
 		return buf
 	}
 
@@ -98,7 +98,7 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		case NullablePresence:
 			_, requiredByParent := parentRequired[nat.Name]
 			required := att.IsRequired(nat.Name) && !requiredByParent
-			val = validateNullableAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, required, view, seen)
+			val = validateNullableAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, required, expr.IsAlias(nat.Attribute.Type), view, seen)
 		default:
 			val = validateAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
 		}
@@ -266,7 +266,7 @@ func prefixedValidation(val string) string {
 
 func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.UserType, target, context string, req, view bool, seen map[string]*bytes.Buffer) string {
 	if isNullableAttribute(att) {
-		return validateNullableAttribute(ctx, att, put, target, context, req, view, seen)
+		return validateNullableAttribute(ctx, att, put, target, context, req, expr.IsAlias(att.Type), view, seen)
 	}
 	if expr.IsUnion(att.Type) {
 		code := recurseValidationCode(att, put, ctx, req, false, view, target, context, seen).String()
@@ -368,6 +368,7 @@ func validateNullableAttribute(
 	target string,
 	context string,
 	required bool,
+	alias bool,
 	view bool,
 	seen map[string]*bytes.Buffer,
 ) string {
@@ -381,7 +382,7 @@ func validateNullableAttribute(
 	}
 
 	valueCtx := presenceValueContext(ctx, underlying)
-	validation := recurseValidationCode(underlying, put, valueCtx, true, false, view, "actual", context, seen).String()
+	validation := recurseValidationCode(underlying, put, valueCtx, true, alias || expr.IsAlias(underlying.Type), view, "actual", context, seen).String()
 	var lines []string
 	if required {
 		field, parent := nullableValidationContext(context)

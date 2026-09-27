@@ -149,9 +149,9 @@ func buildUserRequestBodyTypeDetails(
 // request body whose type, such as loom.Nullable or loom.JSONValue, records
 // its own presence. The server declares the body with the type that the
 // payload constructor takes, which holds loom.Nullable collection elements
-// for JSON. A nullable object body gets its own transport struct, named and
-// validated like the struct of a non-nullable object body; its variable
-// holds the loom.Nullable of that struct. The validation reports an absent
+// for JSON. A nullable named body gets its own transport type, named and
+// validated like a non-nullable named body; its variable holds the
+// loom.Nullable of that type. The validation reports an absent
 // body as a missing field only when required is true.
 func buildExplicitPresenceRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
@@ -162,7 +162,7 @@ func buildExplicitPresenceRequestBodyTypeDetails(
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
-	if userType, ok := body.Type.(expr.UserType); ok && expr.IsNullable(body) && expr.IsObject(userType) {
+	if userType, ok := body.Type.(expr.UserType); ok && expr.IsNullable(body) {
 		details := buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
 		details.valueRef = sd.Scope.GoTypeRef(body)
 		if svr {
