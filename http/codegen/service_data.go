@@ -603,5 +603,8 @@ type (
 		*AttributeData
 		// Reference to the argument, e.g. "&body".
 		Ref string
+		// TransformCode assigns a service value to the transport argument when
+		// direct assignment or a single type conversion cannot preserve its type.
+		TransformCode string
 	}
 )

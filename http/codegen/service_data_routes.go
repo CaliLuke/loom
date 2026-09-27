@@ -99,6 +99,7 @@ func endpointRequestEncoderName(method *service.MethodData, payload *PayloadData
 
 func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint, method *service.MethodData, svc *service.Data, routes []*RouteData) *InitData {
 	name := fmt.Sprintf("Build%sRequest", method.VarName)
+	pkg := svc.LocationPackageName(method.PayloadLoc)
 	args := make([]*InitArgData, 0, len(routes[0].PathInit.ClientArgs))
 	for _, arg := range routes[0].PathInit.ClientArgs {
 		if arg.FieldName == "" {
@@ -112,10 +113,25 @@ func (sds *ServicesData) buildClientRequestInit(endpointIR *transportir.Endpoint
 				arg.ServiceTypeRef = codegen.Goify(arg.FieldType.Name(), true)
 			}
 		}
+		if array := expr.AsArray(arg.FieldType); array != nil && expr.IsAlias(array.ElemType.Type) {
+			source := &expr.AttributeExpr{Type: arg.FieldType}
+			target := &expr.AttributeExpr{Type: arg.Type}
+			value := "p"
+			if expr.IsObject(endpointIR.Request.Payload.Type) {
+				value += "." + arg.FieldName
+			}
+			var err error
+			// HTTP path array elements are primitive, so the transform needs
+			// no helper functions. The target variable is already declared.
+			arg.TransformCode, _, err = codegen.GoTransform(source, target, value, arg.VarName,
+				serviceContext(pkg, svc.Scope), serviceContext("", svc.Scope), "", false)
+			if err != nil {
+				panic(codegen.NewError(sds.Ctx, source, fmt.Errorf("build HTTP path argument transform for %s: %w", endpointIR.MethodName, err)))
+			}
+		}
 		args = append(args, arg)
 	}
 	caps := service.DescribeMethodCapabilities(method)
-	pkg := svc.LocationPackageName(method.PayloadLoc)
 	payloadRef := ""
 	if len(routes[0].PathInit.ClientArgs) > 0 && endpointIR.Request.Payload.Type != expr.Empty {
 		payloadRef = svc.Scope.GoFullTypeRef(endpointIR.Request.Payload, pkg)

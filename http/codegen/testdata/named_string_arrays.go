@@ -5,6 +5,16 @@ import . "github.com/CaliLuke/loom/dsl"
 // NamedStringArraysDSL covers whole and field array mappings with native,
 // named, and transitively named string elements and named array containers.
 var NamedStringArraysDSL = func() {
+	namedStringArrayMappings("header", "query")
+}
+
+// NamedStringArrayPathsDSL covers array element conversions in path requests,
+// including a wildcard whose name matches the conversion loop's value local.
+var NamedStringArrayPathsDSL = func() {
+	namedStringArrayMappings("path")
+}
+
+func namedStringArrayMappings(locations ...string) {
 	label := Type("Label", String)
 	chain := Type("LabelChain", label)
 	lists := map[string]any{
@@ -32,12 +42,16 @@ var NamedStringArraysDSL = func() {
 					if field {
 						prefix += "field"
 					}
-					for _, location := range []string{"header", "query"} {
+					for _, location := range locations {
 						Method(prefix+location, func() {
+							attribute := "values"
+							if location == "path" {
+								attribute = "val"
+							}
 							if field {
 								Payload(func() {
-									Attribute("values", array)
-									Required("values")
+									Attribute(attribute, array)
+									Required(attribute)
 								})
 							} else {
 								Payload(array)
@@ -49,6 +63,8 @@ var NamedStringArraysDSL = func() {
 									Header("values")
 								case "query":
 									Param("values")
+								case "path":
+									path += "/{" + attribute + "}"
 								}
 								GET(path)
 							})

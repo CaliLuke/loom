@@ -66,21 +66,39 @@ func TestNamedStringArrays(t *testing.T) {
 }
 
 func TestNamedStringArraysGeneratedModule(t *testing.T) {
-	root := RunHTTPDSL(t, testdata.NamedStringArraysDSL)
+	for _, tc := range []struct {
+		name   string
+		design func()
+	}{{"headers and queries", testdata.NamedStringArraysDSL}, {"paths", testdata.NamedStringArrayPathsDSL}} {
+		t.Run(tc.name, func(t *testing.T) {
+			testNamedStringArrayModule(t, tc.design)
+		})
+	}
+}
+
+func testNamedStringArrayModule(t *testing.T, design func()) {
+	t.Helper()
+	root := RunHTTPDSL(t, design)
 	data := CreateHTTPServices(root).Get("namedarrays")
 	var cases strings.Builder
 	for _, endpoint := range data.Endpoints {
 		name := endpoint.Method.Name
+		encode := ""
+		if endpoint.RequestEncoder != "" {
+			encode = fmt.Sprintf("if err := %s(nil)(req, p); err != nil {\n t.Fatal(err)\n}\n", endpoint.RequestEncoder)
+		}
 		fmt.Fprintf(&cases, `t.Run(%q, func(t *testing.T) {
  p := arrayPayload[%s]()
  req, err := c.%s(context.Background(), p)
  if err != nil { t.Fatal(err) }
- if err := %s(nil)(req, p); err != nil { t.Fatal(err) }
+ %s
  switch {
  case strings.HasSuffix(%q, "header"):
   if got := req.Header.Values("values"); !slices.Equal(got, []string{"first", "second"}) { t.Errorf("headers = %%v", got) }
  case strings.HasSuffix(%q, "query"):
   if got := req.URL.Query()["values"]; !slices.Equal(got, []string{"first", "second"}) { t.Errorf("query = %%v", got) }
+ default:
+  if !strings.HasSuffix(req.URL.Path, "/first,second") { t.Errorf("path = %%q", req.URL.Path) }
  }
  mux := loomhttp.NewMuxer()
  called := false
@@ -92,7 +110,7 @@ func TestNamedStringArraysGeneratedModule(t *testing.T) {
  })
  mux.ServeHTTP(httptest.NewRecorder(), req)
  if !called { t.Error("decoder was not called") }
-`, name, endpoint.Payload.Ref, endpoint.RequestInit.Name, endpoint.RequestEncoder, name, name, endpoint.Routes[0].Path, endpoint.RequestDecoder)
+`, name, endpoint.Payload.Ref, endpoint.RequestInit.Name, encode, name, name, endpoint.Routes[0].Path, endpoint.RequestDecoder)
 		if init := endpoint.Payload.Request.PayloadInit; init != nil {
 			fmt.Fprintf(&cases, `got, err := Build%sPayload(%q)
  if err != nil { t.Fatal(err) }
@@ -160,4 +178,18 @@ func TestNamedStringAliasTransportDefaults(t *testing.T) {
 	require.Equal(t, "fallback", header.DefaultValue)
 	require.Equal(t, "outer example", header.Example)
 	require.Equal(t, expr.String, header.Type)
+}
+
+func TestNamedStringArrayPathTransforms(t *testing.T) {
+	data := CreateHTTPServices(RunHTTPDSL(t, testdata.NamedStringArrayPathsDSL)).Get("namedarrays")
+	require.Len(t, data.Endpoints, 9)
+	for _, endpoint := range data.Endpoints {
+		t.Run(endpoint.Method.Name, func(t *testing.T) {
+			if strings.HasPrefix(endpoint.Method.Name, "plain") {
+				return
+			}
+			require.Contains(t, endpoint.RequestInit.ClientCode, "make([]string")
+			require.NotEqual(t, "val", endpoint.Routes[0].PathInit.ClientArgs[0].VarName)
+		})
+	}
 }

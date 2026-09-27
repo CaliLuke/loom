@@ -485,9 +485,12 @@ func renderPayloadAssignment(b *sourceBuilder, hasFields bool, arg *InitArgData)
 			b.Add("\t\tif p != nil {\n")
 		}
 	}
-	if arg.IsAliased {
+	switch {
+	case arg.TransformCode != "":
+		b.Add(arg.TransformCode + "\n")
+	case arg.IsAliased:
 		renderAliasedPayloadAssignment(b, hasFields, arg)
-	} else {
+	default:
 		renderDirectPayloadAssignment(b, hasFields, arg)
 	}
 	if arg.Pointer {
