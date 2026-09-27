@@ -315,7 +315,9 @@ func (a *Array) IsCompatible(val any) bool {
 // Example generates a pseudo-random array value using the given random
 // generator.
 func (a *Array) Example(r *ExampleGenerator) any {
-	count, ok := safeExampleLength(a.ElemType, r)
+	// Attribute-level collection bounds are handled by byLength. The element's
+	// bounds constrain each value, never the number of values in this array.
+	count, ok := safeExampleLength(&AttributeExpr{Type: a}, r)
 	if !ok {
 		return nil
 	}
@@ -480,8 +482,8 @@ func (m *Map) Example(r *ExampleGenerator) any {
 	pair := map[any]any{}
 	for range count {
 		k := m.KeyType.Example(r)
-		v := m.ElemType.Example(r)
-		if k != nil && v != nil {
+		v := elementExample(m, m.ElemType, r)
+		if k != nil {
 			pair[k] = v
 		}
 	}
