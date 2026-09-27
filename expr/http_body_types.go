@@ -162,8 +162,9 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 	const suffix = "RequestBody"
 	name := concat(a.Name(), "Request", "Body")
 	if a.Body != nil {
-		a.Body = explicitHTTPRequestBody(a.Body, name, suffix, a.Service.Name()+"#"+name)
-		return a.Body
+		// Validation also derives bodies. Only finalization may replace the
+		// authored body, otherwise each analysis appends another type suffix.
+		return explicitHTTPRequestBody(a.Body, name, suffix, a.Service.Name()+"#"+name)
 	}
 	payload := a.MethodExpr.Payload
 	if !IsObject(payload.Type) {

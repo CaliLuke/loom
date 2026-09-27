@@ -233,8 +233,8 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 	}
 	require.Contains(t, serverTypes.String(), "Values loom.Optional[[]loom.Nullable[string]]")
 	require.Contains(t, serverTypes.String(), "[]loom.Nullable[string]")
-	require.Contains(t, serverTypes.String(), "[]loom.Nullable[*ServerDetailsRequestBodyRequestBody]")
-	require.Contains(t, serverTypes.String(), "[]loom.Nullable[ServerDetailsRequestBodyRequestBody]")
+	require.Contains(t, serverTypes.String(), "[]loom.Nullable[*ServerDetailsRequestBody]")
+	require.Contains(t, serverTypes.String(), "[]loom.Nullable[ServerDetailsRequestBody]")
 	require.Contains(t, serverTypes.String(), "AnyItems")
 	require.Contains(t, serverTypes.String(), "loom.Optional[[]loom.Nullable[loom.JSONValue]]")
 	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.string_items", i)`)
@@ -245,7 +245,7 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 	require.Contains(t, serverTypes.String(), "Field loom.Optional[string]")
 	require.Contains(t, serverTypes.String(), "if !actual.Field.Present()")
 	require.NotContains(t, serverTypes.String(), "actual.Field == nil")
-	require.Contains(t, serverTypes.String(), "func ValidateServerSharedNestedRequestBodyRequestBody")
+	require.Contains(t, serverTypes.String(), "func ValidateServerSharedNestedRequestBody")
 	require.Contains(t, serverTypes.String(), "func ValidateResponseRootShared")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "presence_regression_test.go"), []byte(`package optionalunionvalidation_test
 
@@ -260,16 +260,16 @@ import (
 )
 
 func TestSharedRequestPresence(t *testing.T) {
-	var nullBody server.ServerSharedNestedRequestBodyRequestBody
+	var nullBody server.ServerSharedNestedRequestBody
 	if err := json.Unmarshal([]byte("{\"optional_value\":null,\"required_value\":\"ok\"}"), &nullBody); err == nil {
 		t.Error("expected explicit null to be rejected")
 	}
 
-	var missingRequired server.ServerSharedNestedRequestBodyRequestBody
+	var missingRequired server.ServerSharedNestedRequestBody
 	if err := json.Unmarshal([]byte("{}"), &missingRequired); err != nil {
 		t.Fatalf("decode empty object: %v", err)
 	}
-	if err := server.ValidateServerSharedNestedRequestBodyRequestBody(&missingRequired); err == nil {
+	if err := server.ValidateServerSharedNestedRequestBody(&missingRequired); err == nil {
 		t.Error("expected missing required value to be rejected")
 	}
 }
@@ -302,11 +302,11 @@ func TestArrayItemNullability(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var body server.ServerSharedNestedRequestBodyRequestBody
+			var body server.ServerSharedNestedRequestBody
 			if err := json.Unmarshal([]byte(test.body), &body); err != nil {
 				t.Fatalf("decode body: %v", err)
 			}
-			err := server.ValidateServerSharedNestedRequestBodyRequestBody(&body)
+			err := server.ValidateServerSharedNestedRequestBody(&body)
 			if test.wantErrorPath == "" {
 				if err != nil {
 					t.Fatalf("validate nullable item: %v", err)

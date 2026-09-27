@@ -1,6 +1,11 @@
 package expr
 
 func (e *HTTPEndpointExpr) initTransportAttributes() {
+	if e.Body != nil {
+		// Type finalization removes inherited bases. Capture their examples
+		// before that happens, without deriving or renaming the body yet.
+		e.Body.UserExamples = e.Body.ExtractUserExamples()
+	}
 	if e.Headers == nil {
 		e.Headers = NewEmptyMappedAttributeExpr()
 	}

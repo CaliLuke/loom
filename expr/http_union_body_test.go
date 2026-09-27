@@ -62,11 +62,6 @@ func TestUnionHTTPBodyBranchesAreSuffixed(t *testing.T) {
 			})
 			endpoint := root.API.HTTP.Service("svc").Endpoint("pick")
 			requestBranches := []string{"LeafRequestBody", "OtherRequestBody"}
-			if c.explicit {
-				// The explicit body is renamed once when it is declared and
-				// once when the endpoint is finalized.
-				requestBranches = []string{"LeafRequestBodyRequestBody", "OtherRequestBodyRequestBody"}
-			}
 			assert.Equal(t, requestBranches, unionBranchNames(t, endpoint.Body))
 			assert.Equal(t, []string{"LeafResponse", "OtherResponse"}, unionBranchNames(t, endpoint.Responses[0].Body))
 			result := endpoint.MethodExpr.Result

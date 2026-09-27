@@ -19,7 +19,7 @@
         },
         "required": true
       },
-      "CollisionRequestBody_5b92cad8": {
+      "CollisionRequestBody_f349b76e": {
         "content": {
           "application/json": {
             "example": {
@@ -134,7 +134,7 @@
       "post": {
         "operationId": "collision.alternate",
         "requestBody": {
-          "$ref": "#/components/requestBodies/CollisionRequestBody_5b92cad8"
+          "$ref": "#/components/requestBodies/CollisionRequestBody_f349b76e"
         },
         "responses": {
           "201": {

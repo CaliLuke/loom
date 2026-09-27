@@ -95,9 +95,7 @@ var unionBodyNameCases = []unionBodyNameCase{
 			})
 		},
 		Unions: map[string][]string{
-			// The explicit body is renamed twice by the design, see
-			// TestUnionHTTPBodyBranchesAreSuffixed.
-			"PickRequestBody":  {"*LeafRequestBodyRequestBody", "*OtherRequestBodyRequestBody"},
+			"PickRequestBody":  {"*LeafRequestBody", "*OtherRequestBody"},
 			"PickResponseBody": {"*LeafResponse", "*OtherResponse"},
 		},
 		Components: []string{"Choice", "ChoiceLeafEnvelope", "ChoiceOtherEnvelope", "Leaf", "Other"},

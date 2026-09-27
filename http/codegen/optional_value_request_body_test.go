@@ -99,7 +99,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Name:      "array of objects",
 			Attribute: func(leaf, _ any) { Attribute("v", ArrayOf(leaf)) },
 			Optional:  true,
-			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := NewLeafRequestBodyRequestBody(p)\n",
+			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := NewLeafRequestBody(p)\n",
 			Decode: []string{
 				"\t\tif body != nil {\n\t\t\tfor i, e := range body {\n",
 			},

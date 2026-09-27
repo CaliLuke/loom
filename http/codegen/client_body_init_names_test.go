@@ -97,8 +97,8 @@ func TestClientBodyInitNamesPerSource(t *testing.T) {
 		{method: "one again", name: "NewItemRequestBody", arg: "named.L1", code: "range p {"},
 		{method: "stream one", name: "NewItem", arg: "named.L1", code: "range p {"},
 		{method: "stream two", name: "NewItem2", arg: "named.L2", code: "range p {"},
-		{method: "first", name: "NewItemRequestBodyRequestBody", arg: "*named.Pair", code: "range p.A {"},
-		{method: "second", name: "NewItemRequestBodyRequestBody2", arg: "*named.Pair", code: "range p.B {"},
+		{method: "first", name: "NewItemRequestBody3", arg: "*named.Pair", code: "range p.A {"},
+		{method: "second", name: "NewItemRequestBody4", arg: "*named.Pair", code: "range p.B {"},
 	}
 	root := RunHTTPDSL(t, clientBodyInitNamesPerSourceDSL)
 	data := CreateHTTPServices(root).Get("named")
@@ -164,4 +164,24 @@ func clientBodyInitNamesPerSourceDSL() {
 		unary("first", "/first", pair, "a")
 		unary("second", "/second", pair, "b")
 	})
+}
+
+// TestClientBodyInitNamesCompile checks the shared constructor namespace in
+// complete generated modules, including whole and selected collection bodies.
+func TestClientBodyInitNamesCompile(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		design func()
+	}{
+		{"shapes", clientBodyInitNamesDSL},
+		{"sources", clientBodyInitNamesPerSourceDSL},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := RunHTTPDSL(t, tc.design)
+			dir := t.TempDir()
+			renderHTTPModule(t, dir, "example.com/bodynames", root)
+			runGoCommand(t, dir, "mod", "tidy")
+			runGoCommand(t, dir, "test", "./...")
+		})
+	}
 }
