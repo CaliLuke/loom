@@ -205,36 +205,6 @@ var CreateObjectRequiredDSL = func() {
 	})
 }
 
-var CreateObjectExtraDSL = func() {
-	var ObjectField = Type("ObjectField", func() {
-		Attribute("Bool", Boolean)
-		Attribute("Int", Int)
-		Attribute("Int32", Int32)
-		Attribute("Int64", Int64)
-		Attribute("UInt", UInt)
-		Attribute("UInt32", UInt32)
-		Attribute("UInt64", UInt64)
-		Attribute("Float32", Float32)
-		Attribute("Float64", Float64)
-		Attribute("Bytes", Bytes)
-		Attribute("String", String)
-		Attribute("Array", ArrayOf(Boolean))
-		Attribute("Map", MapOf(String, Boolean))
-	})
-
-	var ObjectType = Type("ObjectType", func() {
-		CreateFrom(ObjectExtraT{})
-		Attribute("Object", ObjectField)
-		Required("Object")
-	})
-
-	Service("Service", func() {
-		Method("Method", func() {
-			Payload(ObjectType)
-		})
-	})
-}
-
 var CreateExternalDSL = func() {
 	var StringType = Type("StringType", func() {
 		CreateFrom(external.ConvertModel{})

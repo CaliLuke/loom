@@ -28,10 +28,6 @@ type ObjectT struct {
 	Object *ObjectFieldT
 }
 
-type ObjectExtraT struct {
-	Object *ObjectFieldT
-}
-
 type ObjectFieldT struct {
 	Bool    bool
 	Int     int
