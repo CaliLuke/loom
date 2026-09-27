@@ -180,6 +180,7 @@ func endpointParser(
 	title := fmt.Sprintf("%s %s client CLI support package", svr.Name, transport.DisplayName)
 	specs := []*codegen.ImportSpec{
 		{Path: "encoding/json/v2", Name: "json"},
+		{Path: "errors"},
 		{Path: "flag"},
 		{Path: "fmt"},
 		{Path: "net/http"},

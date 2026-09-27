@@ -16,8 +16,10 @@ func parseEndpointSection(
 	transport ClientCLITransport,
 ) codegen.Section {
 	return codegen.NewJenniferSection("parse-endpoint", func(stmt *jen.Statement) {
-		appendKongCommandLineStruct(stmt, common)
-		stmt.Line()
+		if len(commands) > 0 {
+			appendKongCommandLineStruct(stmt, common)
+			stmt.Line()
+		}
 		stmt.Comment("ParseEndpoint returns the endpoint and payload as specified on the command").Line()
 		stmt.Comment("line.").Line()
 		stmt.Func().
@@ -34,6 +36,10 @@ func parseEndpointSection(
 			}).
 			Params(codegen.TypeRef("loom.Endpoint"), jen.Any(), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
+				if len(commands) == 0 {
+					group.Return(jen.Nil(), jen.Nil(), jen.Qual("errors", "New").Call(jen.Lit("no "+transport.DisplayName+" endpoints are available")))
+					return
+				}
 				appendKongParseCommand(group, commands)
 				appendHTTPParseEndpointBody(group, commands, transport)
 			})

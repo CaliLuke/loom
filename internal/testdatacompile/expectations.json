@@ -199,12 +199,6 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
-  "expr/FilesValidDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
   "expr/GRPCEndpointWithAnyType": {
     "contains": "gRPC map keys must be Boolean, String, or integer types (including aliases); got any",
     "phase": "gen",
@@ -391,18 +385,6 @@
     "phase": "build",
     "reason": "Distinct DSL fields produce duplicate Go struct field names."
   },
-  "http/codegen/FileServiceDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/FileServiceWildcardDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
   "http/codegen/IntValidationDSL": {
     "contains": "undefined: strconv",
     "issue": "https://github.com/CaliLuke/loom/issues/534",
@@ -414,24 +396,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/507",
     "phase": "gen",
     "reason": "Fixture URI uses a nonnumeric literal port."
-  },
-  "http/codegen/JSONIndentDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/JSONPrefixDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/JSONPrefixIndentDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
   },
   "http/codegen/OpenAPI32FeaturesDSL": {
     "contains": "cannot use &catalogParametersFilter (value of type *string) as string value in assignment",
@@ -552,42 +516,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/534",
     "phase": "build",
     "reason": "Primitive CLI parsing omits the strconv import."
-  },
-  "http/codegen/ServerFileServerDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/ServerFileServerRootPathDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/ServerFileServerWithRedirectDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/ServerMultipleFilesDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/ServerMultipleFilesWithPrefixPathDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
-  },
-  "http/codegen/ServerMultipleFilesWithRedirectDSL": {
-    "contains": "declared and not used: epn",
-    "issue": "https://github.com/CaliLuke/loom/issues/543",
-    "phase": "build",
-    "reason": "File-only service generates an unused CLI endpoint variable."
   },
   "http/codegen/ValidateErrorResponseTypeDSL": {
     "contains": "field and method with the same name Error",

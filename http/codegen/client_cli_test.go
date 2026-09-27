@@ -30,6 +30,7 @@ func TestClientCLIFiles(t *testing.T) {
 		{"custom-text-cookie", testdata.PayloadCookieCustomTextUnmarshalerDSL, 1, 1},
 		{"custom-text-cookie-default", testdata.PayloadCookieCustomTextUnmarshalerDefaultDSL, 1, 1},
 		{"no-payload-parse", testdata.MultiNoPayloadDSL, 0, 3},
+		{"file-only-parse", testdata.FileServiceDSL, 0, 3},
 		{"simple-parse", testdata.MultiSimpleDSL, 0, 3},
 		{"multi-parse", testdata.MultiDSL, 0, 3},
 		{"multi-required-payload", testdata.MultiRequiredPayloadDSL, 0, 3},
