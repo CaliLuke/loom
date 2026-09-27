@@ -75,6 +75,14 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 	files = append(files, ServerTypeFiles(genpkg, httpData)...)
 	files = append(files, ServerFiles(genpkg, httpData)...)
 
+	for _, svc := range root.Services {
+		for _, file := range files {
+			if header := file.HeaderTemplate(); header != nil {
+				servicecodegen.AddServiceDataMetaTypeImports(header, serviceData.Get(svc.Name))
+			}
+		}
+	}
+
 	renderGeneratedFiles(t, dir, files)
 
 	repoRoot := checkoutPinnedLoomModule(t)

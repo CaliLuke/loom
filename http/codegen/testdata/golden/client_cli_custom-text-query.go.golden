@@ -1,0 +1,17 @@
+// BuildMethodQueryCustomTextUnmarshalerPayload builds the payload for the
+// ServiceQueryCustomTextUnmarshaler MethodQueryCustomTextUnmarshaler endpoint
+// from CLI flags.
+func BuildMethodQueryCustomTextUnmarshalerPayload(serviceQueryCustomTextUnmarshalerMethodQueryCustomTextUnmarshalerID string) (*servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload, error) {
+	var id uuid.UUID
+	{
+		idRaw := serviceQueryCustomTextUnmarshalerMethodQueryCustomTextUnmarshalerID
+		if err := id.UnmarshalText([]byte(idRaw)); err != nil {
+			var zero *servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload
+			return zero, fmt.Errorf("invalid value for id: %w", err)
+		}
+	}
+	v := &servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload{}
+	v.ID = id
+
+	return v, nil
+}

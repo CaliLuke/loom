@@ -1,0 +1,16 @@
+// EncodeMethodHeaderCustomTextUnmarshalerRequest returns an encoder for
+// requests sent to the ServiceHeaderCustomTextUnmarshaler
+// MethodHeaderCustomTextUnmarshaler server.
+func EncodeMethodHeaderCustomTextUnmarshalerRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderCustomTextUnmarshaler", "MethodHeaderCustomTextUnmarshaler", "*serviceheadercustomtextunmarshaler.MethodHeaderCustomTextUnmarshalerPayload", v)
+		}
+		{
+			head := fmt.Sprint(p.ID)
+			req.Header.Set("id", head)
+		}
+		return nil
+	}
+}

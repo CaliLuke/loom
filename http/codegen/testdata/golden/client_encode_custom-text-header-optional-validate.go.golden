@@ -1,0 +1,17 @@
+// EncodeMethodHeaderCustomTextUnmarshalerOptionalValidateRequest returns an
+// encoder for requests sent to the
+// ServiceHeaderCustomTextUnmarshalerOptionalValidate
+// MethodHeaderCustomTextUnmarshalerOptionalValidate server.
+func EncodeMethodHeaderCustomTextUnmarshalerOptionalValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*serviceheadercustomtextunmarshaleroptionalvalidate.MethodHeaderCustomTextUnmarshalerOptionalValidatePayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceHeaderCustomTextUnmarshalerOptionalValidate", "MethodHeaderCustomTextUnmarshalerOptionalValidate", "*serviceheadercustomtextunmarshaleroptionalvalidate.MethodHeaderCustomTextUnmarshalerOptionalValidatePayload", v)
+		}
+		if p.ID != nil {
+			head := fmt.Sprint(*p.ID)
+			req.Header.Set("id", head)
+		}
+		return nil
+	}
+}

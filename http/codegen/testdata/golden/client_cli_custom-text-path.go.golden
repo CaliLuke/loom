@@ -1,0 +1,17 @@
+// BuildMethodPathCustomTextUnmarshalerPayload builds the payload for the
+// ServicePathCustomTextUnmarshaler MethodPathCustomTextUnmarshaler endpoint
+// from CLI flags.
+func BuildMethodPathCustomTextUnmarshalerPayload(servicePathCustomTextUnmarshalerMethodPathCustomTextUnmarshalerID string) (*servicepathcustomtextunmarshaler.MethodPathCustomTextUnmarshalerPayload, error) {
+	var id uuid.UUID
+	{
+		idRaw := servicePathCustomTextUnmarshalerMethodPathCustomTextUnmarshalerID
+		if err := id.UnmarshalText([]byte(idRaw)); err != nil {
+			var zero *servicepathcustomtextunmarshaler.MethodPathCustomTextUnmarshalerPayload
+			return zero, fmt.Errorf("invalid value for id: %w", err)
+		}
+	}
+	v := &servicepathcustomtextunmarshaler.MethodPathCustomTextUnmarshalerPayload{}
+	v.ID = &id
+
+	return v, nil
+}

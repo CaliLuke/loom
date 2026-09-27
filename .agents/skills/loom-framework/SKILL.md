@@ -740,6 +740,11 @@ filter, and serialization rules belong here.
   optional non-null fields. Reject nullable shapes at transports that cannot
   preserve absent, null, and concrete states instead of weakening the service
   contract.
+- Preserve custom scalar conversion metadata and allocated raw/value locals
+  when deriving HTTP payload constructor arguments. CLI custom string fields
+  parse raw flags with UnmarshalText, validate the raw text, and retain optional
+  pointer semantics. Request encoders format custom values consistently with
+  path builders through fmt.Sprint; custom types own their wire representation.
 - Generated request decoders derive root nullability from the evaluated body
   and pass `http.WithNonNullableBody` to decoder factories for non-nullable
   bodies. The built-in JSON decoder rejects root null before unmarshalling;

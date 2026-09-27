@@ -23,7 +23,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- else }}
 			{
 			{{- end }}
-			head := {{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
+			head := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}{{ if .IsTextUnmarshaler }}){{ end }}
 			{{- if (and (eq .HTTPName "Authorization") (isBearer $.HeaderSchemes)) }}
 		if !strings.Contains(head, " ") {
 			req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+head)
@@ -61,7 +61,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- else }}
 			{
 			{{- end }}
-			v{{ if not (eq .Type.Name "string") }}raw{{ end }} := {{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
+			v{{ if not (eq .Type.Name "string") }}raw{{ end }} := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p.{{ .FieldName }}{{ if .IsTextUnmarshaler }}){{ end }}
 			{{- if not (eq .Type.Name "string" ) }}
 			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "v" "vraw") }}
 			{{- end }}
@@ -125,10 +125,10 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		values.Add("{{ .HTTPName }}",
 			{{- if eq .Type.Name "any" }} loom.JSONValueString(
 			{{- else if or (eq .Type.Name "bytes") (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }} string(
-			{{- else if not (eq .Type.Name "string") }} fmt.Sprintf("%v",
+			{{- else if or .IsTextUnmarshaler (not (eq .Type.Name "string")) }} fmt.Sprintf("%v",
 			{{- end }}
 			{{- if .FieldPointer }}*{{ end }}p.{{ .FieldName }}
-			{{- if or (eq .Type.Name "bytes") (not (eq .Type.Name "string")) (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }})
+			{{- if or .IsTextUnmarshaler (eq .Type.Name "bytes") (not (eq .Type.Name "string")) (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }})
 			{{- end }})
 			{{- if .FieldPointer }}
 		}

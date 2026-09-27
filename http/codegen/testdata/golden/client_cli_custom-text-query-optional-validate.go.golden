@@ -1,0 +1,29 @@
+// BuildMethodQueryCustomTextUnmarshalerOptionalValidatePayload builds the
+// payload for the ServiceQueryCustomTextUnmarshalerOptionalValidate
+// MethodQueryCustomTextUnmarshalerOptionalValidate endpoint from CLI flags.
+func BuildMethodQueryCustomTextUnmarshalerOptionalValidatePayload(serviceQueryCustomTextUnmarshalerOptionalValidateMethodQueryCustomTextUnmarshalerOptionalValidateID string) (*servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload, error) {
+	var err error
+	var id *uuid.UUID
+	{
+		idRaw := serviceQueryCustomTextUnmarshalerOptionalValidateMethodQueryCustomTextUnmarshalerOptionalValidateID
+		if idRaw != "" {
+			var idVal uuid.UUID
+			if err := idVal.UnmarshalText([]byte(idRaw)); err != nil {
+				var zero *servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload
+				return zero, fmt.Errorf("invalid value for id: %w", err)
+			}
+			if utf8.RuneCountInString(idRaw) < 1 {
+				err = loom.MergeErrors(err, loom.InvalidLengthError("id", idRaw, utf8.RuneCountInString(idRaw), 1, true))
+			}
+			if err != nil {
+				var zero *servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload
+				return zero, err
+			}
+			id = &idVal
+		}
+	}
+	v := &servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload{}
+	v.ID = id
+
+	return v, nil
+}

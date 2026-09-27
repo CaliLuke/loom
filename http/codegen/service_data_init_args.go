@@ -8,57 +8,26 @@ import (
 
 func buildPayloadFieldArgs(request *RequestData) []*InitArgData {
 	args := make([]*InitArgData, 0, len(request.PathParams)+len(request.QueryParams)+len(request.Headers)+len(request.Cookies))
-	appendField := func(
-		ref string,
-		name string,
-		varName string,
-		description string,
-		fieldName string,
-		fieldPointer bool,
-		fieldType expr.DataType,
-		typeName string,
-		typeRef string,
-		typ expr.DataType,
-		pointer bool,
-		required bool,
-		defaultValue any,
-		validate string,
-		example any,
-	) {
-		args = append(args, &InitArgData{
-			Ref: ref,
-			AttributeData: &AttributeData{
-				Name:         name,
-				VarName:      varName,
-				Description:  description,
-				FieldName:    fieldName,
-				FieldPointer: fieldPointer,
-				FieldType:    fieldType,
-				TypeName:     typeName,
-				TypeRef:      typeRef,
-				Type:         typ,
-				Pointer:      pointer,
-				Required:     required,
-				DefaultValue: defaultValue,
-				Validate:     validate,
-				Example:      example,
-			},
-		})
+	appendField := func(attr *AttributeData, description string, defaultValue any) {
+		field := *attr
+		field.Description = description
+		field.DefaultValue = defaultValue
+		args = append(args, &InitArgData{Ref: attr.VarName, AttributeData: &field})
 	}
 	for _, param := range request.PathParams {
-		appendField(param.VarName, param.Name, param.VarName, param.Description, param.FieldName, param.FieldPointer, param.FieldType, param.TypeName, param.TypeRef, param.Type, param.Pointer, param.Required, nil, param.Validate, param.Example)
+		appendField(param.AttributeData, param.Description, nil)
 	}
 	for _, param := range request.QueryParams {
-		appendField(param.VarName, param.Name, param.VarName, "", param.FieldName, param.FieldPointer, param.FieldType, param.TypeName, param.TypeRef, param.Type, param.Pointer, param.Required, param.DefaultValue, param.Validate, param.Example)
+		appendField(param.AttributeData, "", param.DefaultValue)
 	}
 	for _, header := range request.Headers {
-		appendField(header.VarName, header.Name, header.VarName, "", header.FieldName, header.FieldPointer, header.FieldType, header.TypeName, header.TypeRef, header.Type, header.Pointer, header.Required, header.DefaultValue, header.Validate, header.Example)
+		appendField(header.AttributeData, "", header.DefaultValue)
 	}
 	for _, cookie := range request.Cookies {
 		if cookie.FieldName == "" {
 			continue
 		}
-		appendField(cookie.VarName, cookie.Name, cookie.VarName, "", cookie.FieldName, cookie.FieldPointer, cookie.FieldType, cookie.TypeName, cookie.TypeRef, cookie.Type, cookie.Pointer, cookie.Required, cookie.DefaultValue, cookie.Validate, cookie.Example)
+		appendField(cookie.AttributeData, "", cookie.DefaultValue)
 	}
 	return args
 }

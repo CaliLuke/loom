@@ -318,12 +318,21 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*
 		}
 
 		f := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.VarName, arg.TypeName, arg.Description, arg.Required, arg.Example, arg.DefaultValue)
+		if arg.IsTextUnmarshaler {
+			f.Type = "STRING"
+		}
 		flags[i] = f
 		params[i] = f.FullName
 		if arg.FieldName == "" && arg.VarName != "body" {
 			continue
 		}
-		code, chek := cli.FieldLoadCode(f, arg.VarName, arg.TypeName, arg.Validate, arg.DefaultValue, payload, e.Payload.Ref)
+		var code *jen.Statement
+		var chek bool
+		if arg.IsTextUnmarshaler {
+			code, chek = textFieldLoadCode(f, arg, e.Payload.Ref)
+		} else {
+			code, chek = cli.FieldLoadCode(f, arg.VarName, arg.TypeName, arg.Validate, arg.DefaultValue, payload, e.Payload.Ref)
+		}
 		check = check || chek
 		tn := arg.TypeRef
 		if f.Type == "JSON" {

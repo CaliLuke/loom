@@ -1,0 +1,19 @@
+// EncodeMethodCookieCustomTextUnmarshalerRequest returns an encoder for
+// requests sent to the ServiceCookieCustomTextUnmarshaler
+// MethodCookieCustomTextUnmarshaler server.
+func EncodeMethodCookieCustomTextUnmarshalerRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicecookiecustomtextunmarshaler.MethodCookieCustomTextUnmarshalerPayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceCookieCustomTextUnmarshaler", "MethodCookieCustomTextUnmarshaler", "*servicecookiecustomtextunmarshaler.MethodCookieCustomTextUnmarshalerPayload", v)
+		}
+		{
+			v := fmt.Sprint(p.ID)
+			req.AddCookie(&http.Cookie{
+				Name:  "id",
+				Value: v,
+			})
+		}
+		return nil
+	}
+}

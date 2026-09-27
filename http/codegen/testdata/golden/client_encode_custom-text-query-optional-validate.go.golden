@@ -1,0 +1,18 @@
+// EncodeMethodQueryCustomTextUnmarshalerOptionalValidateRequest returns an
+// encoder for requests sent to the
+// ServiceQueryCustomTextUnmarshalerOptionalValidate
+// MethodQueryCustomTextUnmarshalerOptionalValidate server.
+func EncodeMethodQueryCustomTextUnmarshalerOptionalValidateRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload)
+		if !ok {
+			return loomhttp.ErrInvalidType("ServiceQueryCustomTextUnmarshalerOptionalValidate", "MethodQueryCustomTextUnmarshalerOptionalValidate", "*servicequerycustomtextunmarshaleroptionalvalidate.MethodQueryCustomTextUnmarshalerOptionalValidatePayload", v)
+		}
+		values := req.URL.Query()
+		if p.ID != nil {
+			values.Add("id", fmt.Sprintf("%v", *p.ID))
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}

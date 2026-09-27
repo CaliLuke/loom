@@ -1,0 +1,25 @@
+// BuildMethodPathCustomTextUnmarshalerValidatePayload builds the payload for
+// the ServicePathCustomTextUnmarshalerValidate
+// MethodPathCustomTextUnmarshalerValidate endpoint from CLI flags.
+func BuildMethodPathCustomTextUnmarshalerValidatePayload(servicePathCustomTextUnmarshalerValidateMethodPathCustomTextUnmarshalerValidateID string) (*servicepathcustomtextunmarshalervalidate.MethodPathCustomTextUnmarshalerValidatePayload, error) {
+	var err error
+	var id uuid.UUID
+	{
+		idRaw := servicePathCustomTextUnmarshalerValidateMethodPathCustomTextUnmarshalerValidateID
+		if err := id.UnmarshalText([]byte(idRaw)); err != nil {
+			var zero *servicepathcustomtextunmarshalervalidate.MethodPathCustomTextUnmarshalerValidatePayload
+			return zero, fmt.Errorf("invalid value for id: %w", err)
+		}
+		if utf8.RuneCountInString(idRaw) < 1 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("id", idRaw, utf8.RuneCountInString(idRaw), 1, true))
+		}
+		if err != nil {
+			var zero *servicepathcustomtextunmarshalervalidate.MethodPathCustomTextUnmarshalerValidatePayload
+			return zero, err
+		}
+	}
+	v := &servicepathcustomtextunmarshalervalidate.MethodPathCustomTextUnmarshalerValidatePayload{}
+	v.ID = &id
+
+	return v, nil
+}

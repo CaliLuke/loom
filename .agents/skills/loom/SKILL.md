@@ -404,6 +404,9 @@ completion shapes are explicit generation limitations.
   `OpenAPIBody(...)` only to document the schema.
 - String-backed path, query, header, and cookie fields with
   `Meta("struct:field:type", ...)` decode through `encoding.TextUnmarshaler`.
+  CLI flags accept raw text through the same parser; omitted optional fields
+  remain absent and declared defaults apply. Implement `fmt.Stringer` on the
+  custom type to supply the wire text used by generated HTTP clients.
 - Let generated clients and routers handle path escaping exactly once. Do not
   add app-local `url.PathEscape` or `url.PathUnescape` layers. Generated path
   builders return escaped paths: a value such as `a/b` stays in its segment,

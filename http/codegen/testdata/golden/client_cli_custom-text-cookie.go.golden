@@ -1,0 +1,17 @@
+// BuildMethodCookieCustomTextUnmarshalerPayload builds the payload for the
+// ServiceCookieCustomTextUnmarshaler MethodCookieCustomTextUnmarshaler
+// endpoint from CLI flags.
+func BuildMethodCookieCustomTextUnmarshalerPayload(serviceCookieCustomTextUnmarshalerMethodCookieCustomTextUnmarshalerID string) (*servicecookiecustomtextunmarshaler.MethodCookieCustomTextUnmarshalerPayload, error) {
+	var id uuid.UUID
+	{
+		idRaw := serviceCookieCustomTextUnmarshalerMethodCookieCustomTextUnmarshalerID
+		if err := id.UnmarshalText([]byte(idRaw)); err != nil {
+			var zero *servicecookiecustomtextunmarshaler.MethodCookieCustomTextUnmarshalerPayload
+			return zero, fmt.Errorf("invalid value for id: %w", err)
+		}
+	}
+	v := &servicecookiecustomtextunmarshaler.MethodCookieCustomTextUnmarshalerPayload{}
+	v.ID = id
+
+	return v, nil
+}

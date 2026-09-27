@@ -20,6 +20,15 @@ func TestClientCLIFiles(t *testing.T) {
 		FileIndex    int
 		SectionIndex int
 	}{
+		{"custom-text-path", testdata.PayloadPathCustomTextUnmarshalerDSL, 1, 1},
+		{"custom-text-path-validate", testdata.PayloadPathCustomTextUnmarshalerValidateDSL, 1, 1},
+		{"custom-text-query", testdata.PayloadQueryCustomTextUnmarshalerDSL, 1, 1},
+		{"custom-text-query-optional", testdata.PayloadQueryCustomTextUnmarshalerOptionalDSL, 1, 1},
+		{"custom-text-query-optional-validate", testdata.PayloadQueryCustomTextUnmarshalerOptionalValidateDSL, 1, 1},
+		{"custom-text-header", testdata.PayloadHeaderCustomTextUnmarshalerDSL, 1, 1},
+		{"custom-text-header-optional-validate", testdata.PayloadHeaderCustomTextUnmarshalerOptionalValidateDSL, 1, 1},
+		{"custom-text-cookie", testdata.PayloadCookieCustomTextUnmarshalerDSL, 1, 1},
+		{"custom-text-cookie-default", testdata.PayloadCookieCustomTextUnmarshalerDefaultDSL, 1, 1},
 		{"no-payload-parse", testdata.MultiNoPayloadDSL, 0, 3},
 		{"simple-parse", testdata.MultiSimpleDSL, 0, 3},
 		{"multi-parse", testdata.MultiDSL, 0, 3},

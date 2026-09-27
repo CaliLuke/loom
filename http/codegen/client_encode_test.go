@@ -15,6 +15,13 @@ func TestClientEncode(t *testing.T) {
 		Name string
 		DSL  func()
 	}{
+		{"custom-text-query", testdata.PayloadQueryCustomTextUnmarshalerDSL},
+		{"custom-text-query-optional", testdata.PayloadQueryCustomTextUnmarshalerOptionalDSL},
+		{"custom-text-query-optional-validate", testdata.PayloadQueryCustomTextUnmarshalerOptionalValidateDSL},
+		{"custom-text-header", testdata.PayloadHeaderCustomTextUnmarshalerDSL},
+		{"custom-text-header-optional-validate", testdata.PayloadHeaderCustomTextUnmarshalerOptionalValidateDSL},
+		{"custom-text-cookie", testdata.PayloadCookieCustomTextUnmarshalerDSL},
+		{"custom-text-cookie-default", testdata.PayloadCookieCustomTextUnmarshalerDefaultDSL},
 		{"query-bool", testdata.PayloadQueryBoolDSL},
 		{"query-bool-validate", testdata.PayloadQueryBoolValidateDSL},
 		{"query-int", testdata.PayloadQueryIntDSL},

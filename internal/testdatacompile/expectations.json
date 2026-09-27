@@ -496,18 +496,6 @@
     "phase": "build",
     "reason": "Primitive CLI parsing omits the strconv import."
   },
-  "http/codegen/PayloadCookieCustomTextUnmarshalerDSL": {
-    "contains": "cannot use v (variable of array type \"github.com/google/uuid\".UUID) as string value in struct literal",
-    "issue": "https://github.com/CaliLuke/loom/issues/537",
-    "phase": "build",
-    "reason": "Custom scalar client encoding or CLI conversion does not compile."
-  },
-  "http/codegen/PayloadCookieCustomTextUnmarshalerDefaultDSL": {
-    "contains": "cannot use v (variable of array type \"github.com/google/uuid\".UUID) as string value in struct literal",
-    "issue": "https://github.com/CaliLuke/loom/issues/537",
-    "phase": "build",
-    "reason": "Custom scalar client encoding or CLI conversion does not compile."
-  },
   "http/codegen/PayloadCookiePrimitiveBoolValidateDSL": {
     "contains": "declared and not used: p",
     "issue": "https://github.com/CaliLuke/loom/issues/539",
@@ -525,18 +513,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/539",
     "phase": "build",
     "reason": "Primitive header or cookie client encoding declares an unused payload."
-  },
-  "http/codegen/PayloadHeaderCustomTextUnmarshalerDSL": {
-    "contains": "cannot use head (variable of array type \"github.com/google/uuid\".UUID) as string value in argument to req.Header.Set",
-    "issue": "https://github.com/CaliLuke/loom/issues/537",
-    "phase": "build",
-    "reason": "Custom scalar client encoding or CLI conversion does not compile."
-  },
-  "http/codegen/PayloadHeaderCustomTextUnmarshalerOptionalValidateDSL": {
-    "contains": "undefined: idRaw",
-    "issue": "https://github.com/CaliLuke/loom/issues/537",
-    "phase": "build",
-    "reason": "Custom scalar client encoding or CLI conversion does not compile."
   },
   "http/codegen/PayloadHeaderPrimitiveArrayBoolValidateDSL": {
     "contains": "declared and not used: p",
@@ -598,12 +574,6 @@
     "phase": "build",
     "reason": "Existing HTTP fixture compile failure."
   },
-  "http/codegen/PayloadPathCustomTextUnmarshalerValidateDSL": {
-    "contains": "undefined: idRaw",
-    "issue": "https://github.com/CaliLuke/loom/issues/537",
-    "phase": "build",
-    "reason": "Custom scalar client encoding or CLI conversion does not compile."
-  },
   "http/codegen/PayloadPathCustomUIntDSL": {
     "contains": "undefined: hide.Uint",
     "issue": "https://github.com/CaliLuke/loom/issues/536",
@@ -621,24 +591,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/538",
     "phase": "build",
     "reason": "Validated bytes CLI uses err without declaring it."
-  },
-  "http/codegen/PayloadQueryCustomTextUnmarshalerDSL": {
-    "contains": "cannot use p.ID (variable of array type \"github.com/google/uuid\".UUID) as string value in argument to values.Add",
-    "issue": "https://github.com/CaliLuke/loom/issues/537",
-    "phase": "build",
-    "reason": "Custom scalar client encoding or CLI conversion does not compile."
-  },
-  "http/codegen/PayloadQueryCustomTextUnmarshalerOptionalDSL": {
-    "contains": "cannot use id (variable of array type \"github.com/google/uuid\".UUID) as *\"github.com/google/uuid\".UUID value in assignment",
-    "issue": "https://github.com/CaliLuke/loom/issues/537",
-    "phase": "build",
-    "reason": "Custom scalar client encoding or CLI conversion does not compile."
-  },
-  "http/codegen/PayloadQueryCustomTextUnmarshalerOptionalValidateDSL": {
-    "contains": "undefined: idRaw",
-    "issue": "https://github.com/CaliLuke/loom/issues/537",
-    "phase": "build",
-    "reason": "Custom scalar client encoding or CLI conversion does not compile."
   },
   "http/codegen/PayloadQueryPrimitiveBoolValidateDSL": {
     "contains": "undefined: strconv",
