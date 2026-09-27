@@ -389,11 +389,5 @@
     "issue": "https://github.com/CaliLuke/loom/issues/535",
     "phase": "build",
     "reason": "Slice enum validation emits an invalid equality comparison."
-  },
-  "http/codegen/PayloadPathCustomNameDSL": {
-    "contains": "p.P undefined (type *servicepathcustomname.MethodPathCustomNamePayload has no field or method P)",
-    "issue": "https://github.com/CaliLuke/loom/issues/517",
-    "phase": "build",
-    "reason": "Existing HTTP fixture compile failure."
   }
 }

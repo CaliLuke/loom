@@ -50,7 +50,11 @@ func namedStringArrayMappings(locations ...string) {
 							}
 							if field {
 								Payload(func() {
-									Attribute(attribute, array)
+									Attribute(attribute, array, func() {
+										if location == "path" {
+											Meta("struct:field:name", "Entries")
+										}
+									})
 									Required(attribute)
 								})
 							} else {

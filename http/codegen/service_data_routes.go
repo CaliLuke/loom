@@ -52,7 +52,7 @@ func (sds *ServicesData) buildPathInitData(endpointIR *transportir.Endpoint, met
 				Name:        arg,
 				VarName:     varName,
 				Description: att.Description,
-				FieldName:   codegen.Goify(arg, true),
+				FieldName:   codegen.GoifyAtt(rawServiceField(endpointIR.Request.Payload, arg, patt), arg, true),
 				FieldType:   patt.Type,
 				TypeName:    sd.Scope.GoTypeName(att),
 				TypeRef:     sd.Scope.GoTypeRef(att),
