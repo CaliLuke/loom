@@ -226,7 +226,7 @@ func hasJSONTagName(att *expr.AttributeExpr) bool {
 }
 
 func mergeJSONOmitOption(tag, option string) string {
-	if option == "" {
+	if tag == "-" || option == "" {
 		return tag
 	}
 	parts := strings.Split(tag, ",")
