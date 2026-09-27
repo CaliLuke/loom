@@ -385,12 +385,6 @@
     "phase": "build",
     "reason": "Distinct DSL fields produce duplicate Go struct field names."
   },
-  "http/codegen/IntValidationDSL": {
-    "contains": "undefined: strconv",
-    "issue": "https://github.com/CaliLuke/loom/issues/534",
-    "phase": "build",
-    "reason": "Primitive CLI parsing omits the strconv import."
-  },
   "http/codegen/InvalidDSL": {
     "contains": "malformed URI \"http://[::1]:namedport\"",
     "issue": "https://github.com/CaliLuke/loom/issues/507",
@@ -408,12 +402,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/533",
     "phase": "build",
     "reason": "Generated error field conflicts with the Error method."
-  },
-  "http/codegen/PayloadBodyPrimitiveBoolValidateDSL": {
-    "contains": "undefined: strconv",
-    "issue": "https://github.com/CaliLuke/loom/issues/534",
-    "phase": "build",
-    "reason": "Primitive CLI parsing omits the strconv import."
   },
   "http/codegen/PayloadCookiePrimitiveBoolValidateDSL": {
     "contains": "declared and not used: p",
@@ -499,23 +487,11 @@
     "phase": "build",
     "reason": "Custom numeric fixture metadata names nonexistent external types."
   },
-  "http/codegen/PayloadPathPrimitiveBoolValidateDSL": {
-    "contains": "undefined: strconv",
-    "issue": "https://github.com/CaliLuke/loom/issues/534",
-    "phase": "build",
-    "reason": "Primitive CLI parsing omits the strconv import."
-  },
   "http/codegen/PayloadQueryBytesValidateDSL": {
     "contains": "undefined: err",
     "issue": "https://github.com/CaliLuke/loom/issues/538",
     "phase": "build",
     "reason": "Validated bytes CLI uses err without declaring it."
-  },
-  "http/codegen/PayloadQueryPrimitiveBoolValidateDSL": {
-    "contains": "undefined: strconv",
-    "issue": "https://github.com/CaliLuke/loom/issues/534",
-    "phase": "build",
-    "reason": "Primitive CLI parsing omits the strconv import."
   },
   "http/codegen/ValidateErrorResponseTypeDSL": {
     "contains": "field and method with the same name Error",

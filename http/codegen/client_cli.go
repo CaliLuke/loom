@@ -185,6 +185,7 @@ func endpointParser(
 		{Path: "fmt"},
 		{Path: "net/http"},
 		{Path: "os"},
+		{Path: "strconv"},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http/cli", "loomhttpcli"),
 		codegen.LoomNamedImport("http", "loomhttp"),
