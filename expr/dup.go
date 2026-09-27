@@ -80,6 +80,10 @@ func (d *dupper) DupAttribute(att *AttributeExpr) *AttributeExpr {
 		UserExamples: att.UserExamples,
 		finalized:    att.finalized,
 	}
+	if att.Docs != nil {
+		docs := *att.Docs
+		dup.Docs = &docs
+	}
 	d.ats[&dup] = struct{}{}
 	if d.isKept(dup.Type) {
 		d.kept = append(d.kept, &dup)

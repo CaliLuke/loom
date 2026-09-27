@@ -47,6 +47,38 @@ func TestDupAttPreservesTitleNullableAndExplicitNullExample(t *testing.T) {
 	}
 }
 
+func TestDupAttPreservesDocs(t *testing.T) {
+	for _, nested := range []bool{false, true} {
+		name := "direct"
+		if nested {
+			name = "nested"
+		}
+		t.Run(name, func(t *testing.T) {
+			original := &AttributeExpr{
+				Type: String,
+				Docs: &DocsExpr{Description: "Field guide", URL: "https://example.com/guide"},
+			}
+			attribute := original
+			if nested {
+				attribute = &AttributeExpr{Type: &Object{{Name: "field", Attribute: original}}}
+			}
+			duplicated := DupAtt(attribute)
+			if nested {
+				duplicated = AsObject(duplicated.Type).Attribute("field")
+			}
+			require.Equal(t, original.Docs, duplicated.Docs)
+			require.NotSame(t, original.Docs, duplicated.Docs)
+			duplicated.Docs.Description = "Updated guide"
+			duplicated.Docs.URL = "https://example.com/updated"
+			require.Equal(t, "Field guide", original.Docs.Description)
+			require.Equal(t, "https://example.com/guide", original.Docs.URL)
+		})
+	}
+	t.Run("absent", func(t *testing.T) {
+		require.Nil(t, DupAtt(&AttributeExpr{Type: String}).Docs)
+	})
+}
+
 func TestPresenceValidation(t *testing.T) {
 	tests := []struct {
 		name      string
