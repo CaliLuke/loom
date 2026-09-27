@@ -94,20 +94,21 @@ func NewFlagData(svcn, en, name, typeName, description string, required bool, ex
 // code and a boolean indicating whether the code requires an "err" variable.
 func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultValue any, payload expr.DataType, payloadRef string) (*jen.Statement, bool) {
 	var (
-		code    *jen.Statement
-		declErr bool
+		code     *jen.Statement
+		declErr  bool
+		checkErr bool
 	)
 	if argTypeName == codegen.GoNativeTypeName(expr.String) {
 		code = codegen.Expr(argName + " = " + fieldLoadStringPrefix(f, defaultValue) + f.FullName)
-		declErr = validate != ""
 	} else {
-		var checkErr bool
 		code, declErr, checkErr = conversionCode(f.FullName, argName, argTypeName, f.Unmarshal, !f.Required && defaultValue == nil)
 		if checkErr {
 			code.Line().If(jen.Err().Op("!=").Nil()).Block(buildFieldLoadConversionError(f, argName, argTypeName, payload, payloadRef))
 		}
 	}
 	if validate != "" {
+		// Infallible conversions do not declare err, but validation needs it.
+		declErr = declErr || !checkErr
 		validate = stripNilGuardValidation(validate, argName)
 		code.Line().Add(codegen.Expr(validate)).Line()
 		nilVal, declareZero := fieldLoadReturnZero(payload, payloadRef)

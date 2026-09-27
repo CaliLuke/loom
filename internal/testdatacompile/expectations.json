@@ -487,12 +487,6 @@
     "phase": "build",
     "reason": "Custom numeric fixture metadata names nonexistent external types."
   },
-  "http/codegen/PayloadQueryBytesValidateDSL": {
-    "contains": "undefined: err",
-    "issue": "https://github.com/CaliLuke/loom/issues/538",
-    "phase": "build",
-    "reason": "Validated bytes CLI uses err without declaring it."
-  },
   "http/codegen/ValidateErrorResponseTypeDSL": {
     "contains": "field and method with the same name Error",
     "issue": "https://github.com/CaliLuke/loom/issues/533",
