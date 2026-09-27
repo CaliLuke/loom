@@ -601,7 +601,8 @@ func (s *StreamingResultWithViewsMethodClientStream) RecvWithContext(ctx context
 }
 `
 
-var StreamingResultWithViewsClientStreamSetViewCode = `// SetView sets the view to render the  type before sending to the
+var StreamingResultWithViewsClientStreamSetViewCode = `// SetView sets the view used to validate
+// streamingresultwithviewsservice.Usertype results received from the
 // "StreamingResultWithViewsMethod" endpoint websocket connection.
 func (s *StreamingResultWithViewsMethodClientStream) SetView(view string) {
 	s.view = view
@@ -942,8 +943,10 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) RecvWithContext(c
 }
 `
 
-var StreamingResultCollectionWithViewsClientStreamSetViewCode = `// SetView sets the view to render the  type before sending to the
-// "StreamingResultCollectionWithViewsMethod" endpoint websocket connection.
+var StreamingResultCollectionWithViewsClientStreamSetViewCode = `// SetView sets the view used to validate
+// streamingresultcollectionwithviewsservice.UsertypeCollection results
+// received from the "StreamingResultCollectionWithViewsMethod" endpoint
+// websocket connection.
 func (s *StreamingResultCollectionWithViewsMethodClientStream) SetView(view string) {
 	s.view = view
 }

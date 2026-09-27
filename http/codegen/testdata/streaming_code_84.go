@@ -1,7 +1,9 @@
 package testdata
 
-var BidirectionalStreamingResultWithViewsClientStreamSetViewCode = `// SetView sets the view to render the float32 type before sending to the
-// "BidirectionalStreamingResultWithViewsMethod" endpoint websocket connection.
+var BidirectionalStreamingResultWithViewsClientStreamSetViewCode = `// SetView sets the view used to validate
+// bidirectionalstreamingresultwithviewsservice.Usertype results received from
+// the "BidirectionalStreamingResultWithViewsMethod" endpoint websocket
+// connection.
 func (s *BidirectionalStreamingResultWithViewsMethodClientStream) SetView(view string) {
 	s.view = view
 }

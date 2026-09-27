@@ -44,7 +44,11 @@ func websocketCloseSection(ws *WebSocketData) codegen.Section {
 func websocketSetViewSection(ws *WebSocketData) codegen.Section {
 	return codegen.NewJenniferSection(ws.Type+"-websocket-set-view", func(stmt *jen.Statement) {
 		stmt.Line()
-		codegen.Doc(stmt, fmt.Sprintf("SetView sets the view to render the %s type before sending to the %q endpoint websocket connection.", ws.SendTypeName, ws.Endpoint.Method.Name))
+		doc := fmt.Sprintf("SetView sets the view to render the %s type before sending to the %q endpoint websocket connection.", ws.SendTypeName, ws.Endpoint.Method.Name)
+		if ws.Type == "client" {
+			doc = fmt.Sprintf("SetView sets the view used to validate %s results received from the %q endpoint websocket connection.", ws.RecvTypeName, ws.Endpoint.Method.Name)
+		}
+		codegen.Doc(stmt, doc)
 		stmt.Func().
 			Params(jen.Id("s").Op("*").Id(ws.VarName)).
 			Id("SetView").

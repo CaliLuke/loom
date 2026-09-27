@@ -140,7 +140,11 @@ func websocketStructTypeSection(ws *WebSocketData) codegen.Section {
 				group.Id("closeOnce").Qual("sync", "Once")
 			}
 			if ws.Endpoint.Method.ViewedResult != nil && ws.Endpoint.Method.ViewedResult.ViewName == "" {
-				addWrappedGroupComment(group, fmt.Sprintf("view is the view to render %s result type before sending to the websocket connection.", ws.SendTypeName))
+				doc := fmt.Sprintf("view is the view to render %s result type before sending to the websocket connection.", ws.SendTypeName)
+				if ws.Type == "client" {
+					doc = fmt.Sprintf("view is the view used to validate received %s results.", ws.RecvTypeName)
+				}
+				addWrappedGroupComment(group, doc)
 				group.Id("view").String()
 			}
 		})

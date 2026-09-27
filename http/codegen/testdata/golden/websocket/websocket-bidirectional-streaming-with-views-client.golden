@@ -31,8 +31,7 @@ type ConnConfigurer struct {
 type BidirectionalWithViewsClientStream struct {
 	// conn owns the websocket connection lifecycle.
 	conn *loomhttp.WebSocketStream
-	// view is the view to render testservice.Request result type before sending to
-	// the websocket connection.
+	// view is the view used to validate received testservice.Response results.
 	view string
 }
 
@@ -135,8 +134,8 @@ func (s *BidirectionalWithViewsClientStream) Close() error {
 	return s.conn.Close()
 }
 
-// SetView sets the view to render the testservice.Request type before sending
-// to the "BidirectionalWithViews" endpoint websocket connection.
+// SetView sets the view used to validate testservice.Response results received
+// from the "BidirectionalWithViews" endpoint websocket connection.
 func (s *BidirectionalWithViewsClientStream) SetView(view string) {
 	s.view = view
 }
