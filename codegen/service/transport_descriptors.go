@@ -129,13 +129,11 @@ func BuildResultDescriptor(svc *Data, method *MethodData, result *expr.Attribute
 	return buildResultDescriptorForPackage(svc, method, result, pkg)
 }
 
-// BuildErrorDescriptor returns the resolved error type information for a
-// method error.
-func BuildErrorDescriptor(svc *Data, method *MethodData, name string, errAttr *expr.AttributeExpr) ErrorDescriptor {
+// BuildErrorDescriptor returns the resolved error type information for an
+// evaluated transport error. Its mapped type may differ from a method error
+// of the same name when the transport inherits an API response mapping.
+func BuildErrorDescriptor(svc *Data, name string, errAttr *expr.AttributeExpr) ErrorDescriptor {
 	pkg := svc.attributePackageName(errAttr)
-	if loc := method.ErrorLocs[name]; loc != nil {
-		pkg = svc.Scope.PackageName(loc)
-	}
 	return ErrorDescriptor{
 		Name: name,
 		Type: buildTypeDescriptor(svc.Scope, errAttr, pkg),

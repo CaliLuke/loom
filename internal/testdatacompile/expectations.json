@@ -388,12 +388,6 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
-  "expr/ValidMethodAuthErrorResponsesReuseAPIMappingDSL": {
-    "contains": "undefined: validmethodautherrorresponsesreuseapimappingservice.APIAuthErrorForbidden",
-    "issue": "https://github.com/CaliLuke/loom/issues/547",
-    "phase": "build",
-    "reason": "Inherited API error mapping references missing service types."
-  },
   "expr/ValidWebSocketOnlyAPI": {
     "contains": "JSON-RPC endpoints cannot define routes at the method level.",
     "issue": "https://github.com/CaliLuke/loom/issues/545",
@@ -405,18 +399,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/542",
     "phase": "build",
     "reason": "Distinct DSL fields produce duplicate Go struct field names."
-  },
-  "http/codegen/APINoBodyErrorResponseDSL": {
-    "contains": "undefined: servicenobodyerrorresponse.StringError",
-    "issue": "https://github.com/CaliLuke/loom/issues/547",
-    "phase": "build",
-    "reason": "Inherited API error mapping references missing service types."
-  },
-  "http/codegen/APINoBodyErrorResponseWithContentTypeDSL": {
-    "contains": "undefined: servicenobodyerrorresponse.StringError",
-    "issue": "https://github.com/CaliLuke/loom/issues/547",
-    "phase": "build",
-    "reason": "Inherited API error mapping references missing service types."
   },
   "http/codegen/FileServiceDSL": {
     "contains": "declared and not used: epn",

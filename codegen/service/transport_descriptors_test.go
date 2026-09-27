@@ -138,11 +138,9 @@ func TestBuildErrorDescriptorUsesResolvedPackage(t *testing.T) {
 	services := NewServicesData(root)
 	svc := services.Get("ErrorPkgService")
 	require.NotNil(t, svc)
-	method := svc.Method("Fail")
-	require.NotNil(t, method)
 	require.NotEmpty(t, root.Services[0].Methods[0].Errors)
 
-	desc := BuildErrorDescriptor(svc, method, "boom", root.Services[0].Methods[0].Errors[0].AttributeExpr)
+	desc := BuildErrorDescriptor(svc, "boom", root.Services[0].Methods[0].Errors[0].AttributeExpr)
 	assert.Equal(t, "boom", desc.Name)
 	assert.Equal(t, "errs", desc.Type.Package)
 	assert.Equal(t, "*errs.CustomErr", desc.Type.Ref)

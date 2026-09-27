@@ -68,7 +68,7 @@ func hasTransport(root *expr.RootExpr, service *expr.ServiceExpr) bool {
 // named name other than the service package itself.
 func usesUserTypePackage(root *expr.RootExpr, service *expr.ServiceExpr, name string) bool {
 	dir := naming.ServiceDir(service.Name)
-	atts := append(serviceAttributes(service), forcedTypeAttributes(root, service)...)
+	atts := append(serviceAttributes(root, service), forcedTypeAttributes(root, service)...)
 	return findUserType(atts, func(loc *codegen.Location) bool {
 		return loc.PackageName() == name && loc.RelImportPath != dir
 	}) != nil
@@ -78,16 +78,16 @@ func usesUserTypePackage(root *expr.RootExpr, service *expr.ServiceExpr, name st
 // errors of service that struct:pkg:path places in the package generated for
 // the service, nil if there is none. The service files would import their
 // own package to reference it.
-func ownPackageUserType(service *expr.ServiceExpr) expr.UserType {
+func ownPackageUserType(root *expr.RootExpr, service *expr.ServiceExpr) expr.UserType {
 	dir := naming.ServiceDir(service.Name)
-	return findUserType(serviceAttributes(service), func(loc *codegen.Location) bool {
+	return findUserType(serviceAttributes(root, service), func(loc *codegen.Location) bool {
 		return loc.RelImportPath == dir
 	})
 }
 
 // serviceAttributes returns the attributes of the payloads, results and
-// errors of the methods of service and of its errors.
-func serviceAttributes(service *expr.ServiceExpr) []*expr.AttributeExpr {
+// errors of the methods of service, its errors and its evaluated mappings.
+func serviceAttributes(root *expr.RootExpr, service *expr.ServiceExpr) []*expr.AttributeExpr {
 	atts := make([]*expr.AttributeExpr, 0, 4*len(service.Methods)+len(service.Errors))
 	for _, e := range service.Errors {
 		atts = append(atts, e.AttributeExpr)
@@ -97,6 +97,9 @@ func serviceAttributes(service *expr.ServiceExpr) []*expr.AttributeExpr {
 		for _, e := range m.Errors {
 			atts = append(atts, e.AttributeExpr)
 		}
+	}
+	for _, e := range mappedServiceErrors(root, service) {
+		atts = append(atts, e.AttributeExpr)
 	}
 	return atts
 }

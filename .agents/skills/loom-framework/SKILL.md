@@ -714,6 +714,15 @@ filter, and serialization rules belong here.
   (`viewObjectAttribute`) that requires only the unions that the projected
   type requires, so that the transforms use the union fields as declared and
   still check the other fields for nil.
+- Shared service analysis collects custom error types from evaluated HTTP and
+  JSON-RPC endpoint mappings as well as service/method declarations. Inherited
+  mappings can retain an API error type even when the local error uses the
+  default type. Collect mapped custom types before payloads to avoid duplicate
+  declarations when they share a type, and retain default constructor precedence.
+  Package-name allocation and self-import validation traverse those same mapped
+  types. Error descriptors and HTTP body constructors resolve the evaluated
+  mapped type's location, which can differ from the method error of the same
+  name. Do not emit unused API errors or errors replaced by local mappings.
 - Explicit body DSL functions inherit from the full source attribute, including
   inline payload requiredness. `AttributeExpr.Inherit` copies requirements only
   for selected target fields; request-body validation reads `AllRequired()` so

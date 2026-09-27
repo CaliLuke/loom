@@ -264,7 +264,9 @@ Loom's default HTTP errors are RFC 9457-style
 
 - Use `ProblemResult` when explicitly modeling the same public document shape.
 - Use `ProblemType(...)` and `ProblemTitle(...)` for public error overrides.
-- Use `AuthErrorResponses()` for standard 401/403 mappings.
+- Use `AuthErrorResponses()` for standard 401/403 mappings. Inherited API HTTP
+  mappings retain their custom error types; return the generated custom type
+  to use that mapping. Unused API error definitions are not generated.
 - Use `Remedy(...)` for structured remediation metadata. Put
   `RemedyCode(...)`, `SafeMessage(...)`, and `RetryHint(...)` inside its
   callback. See the structured-remediation example in

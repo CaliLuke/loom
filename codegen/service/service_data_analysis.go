@@ -86,6 +86,7 @@ func (d *ServicesData) collectServiceAnalysisData(service *expr.ServiceExpr, sco
 		state.errTypes,
 		state.errorInits,
 	)
+	state.types, state.errTypes, state.errorInits = d.collectServiceErrorData(mappedServiceErrors(d.Root, service), scope, seen, seenErrors, state.types, state.errTypes, state.errorInits)
 	state.types, state.projTypes, state.errTypes, state.errorInits = d.collectMethodTypeData(service, scope, viewScope, viewspkg, seen, state.seenProj, seenErrors, state.types, state.projTypes, state.errTypes, state.errorInits)
 	return state
 }
@@ -170,7 +171,7 @@ func newServiceData(
 		unions:             unions,
 	}
 	data.metaTypeImports = metaTypeImports(service, data)
-	data.ownPackageType = ownPackageUserType(service)
+	data.ownPackageType = ownPackageUserType(d.Root, service)
 	return data
 }
 
@@ -382,4 +383,36 @@ func containsViewedResultType(viewed []*ViewedResultTypeData, target *ViewedResu
 		}
 	}
 	return false
+}
+
+// mappedServiceErrors returns the evaluated errors used by HTTP mappings,
+// including API definitions inherited by HTTP and JSON-RPC endpoints. Default
+// errors already belong to service/method analysis and retain its constructor
+// precedence. Collect custom types before payloads that may reuse them.
+func mappedServiceErrors(root *expr.RootExpr, service *expr.ServiceExpr) []*expr.ErrorExpr {
+	if root == nil || root.API == nil {
+		return nil
+	}
+	var errors []*expr.ErrorExpr
+	transports := []*expr.HTTPExpr{root.API.HTTP}
+	if root.API.JSONRPC != nil {
+		transports = append(transports, &root.API.JSONRPC.HTTPExpr)
+	}
+	for _, transport := range transports {
+		if transport == nil {
+			continue
+		}
+		mapped := transport.Service(service.Name)
+		if mapped == nil {
+			continue
+		}
+		for _, endpoint := range mapped.HTTPEndpoints {
+			for _, response := range endpoint.HTTPErrors {
+				if !expr.IsDefaultErrorResult(response.Type) {
+					errors = append(errors, response.ErrorExpr)
+				}
+			}
+		}
+	}
+	return errors
 }

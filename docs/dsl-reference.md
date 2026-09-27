@@ -1248,6 +1248,13 @@ to an empty OpenAPI Security Requirement Object (`{}`). Use `NoSecurity()` on a
 method to replace inherited requirements with an explicit empty security list
 (`security: []`).
 
+Inherited API HTTP error mappings retain the custom type declared by the API,
+including mappings reused by `AuthErrorResponses()`. Return that generated
+custom error type to select the inherited response. Loom generates it in each
+service that uses the mapping, or in its configured `struct:pkg:path` package.
+Unused API error definitions do not add types to unrelated services. A local
+HTTP response mapping takes precedence over the inherited mapping.
+
 Use `AuthErrorResponses()` in HTTP scope to add standard 401/403 error response
 mappings, and use `SessionCookie(...)` in HTTP response scope when setting a
 session cookie with secure defaults: `Path("/")`, `Secure`, `HttpOnly`, and

@@ -247,7 +247,6 @@ func appendTransformHelpers(oldH []*TransformHelperData, newH []*codegen.Transfo
 // inferred from the method's error expression if not specified explicitly.
 func (d *ServicesData) buildErrorsData(endpoint *transportir.Endpoint, sd *ServiceData) []*ErrorData {
 	svc := sd.Service
-	method := svc.Method(endpoint.Name)
 	errors := make([]*ErrorData, 0, len(endpoint.Errors))
 	messages := make(map[string]*ErrorData, len(endpoint.Errors))
 	for _, v := range endpoint.Errors {
@@ -257,7 +256,7 @@ func (d *ServicesData) buildErrorsData(endpoint *transportir.Endpoint, sd *Servi
 			ServerConvert: d.buildErrorConvertData(v, endpoint, sd, true),
 			ClientConvert: d.buildErrorConvertData(v, endpoint, sd, false),
 		}
-		errorDesc := service.BuildErrorDescriptor(svc, method, v.Name, v.Attribute)
+		errorDesc := service.BuildErrorDescriptor(svc, v.Name, v.Attribute)
 		errData := &ErrorData{
 			Name:     v.Name,
 			Ref:      errorDesc.Type.Ref,
