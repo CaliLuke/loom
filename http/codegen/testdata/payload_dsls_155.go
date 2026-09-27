@@ -15,7 +15,7 @@ var PayloadPathCustomIntDSL = func() {
 		Method("MethodPathCustomInt", func() {
 			Payload(func() {
 				Attribute("p", Int, func() {
-					Meta("struct:field:type", "hide.Int", "github.com/c2h5oh/hide")
+					Meta("struct:field:type", "custom.Int", "github.com/CaliLuke/loom/http/codegen/testdata/custom")
 				})
 			})
 			HTTP(func() {

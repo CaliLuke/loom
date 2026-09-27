@@ -15,7 +15,7 @@ var PayloadPathCustomFloat32DSL = func() {
 		Method("MethodPathCustomFloat32", func() {
 			Payload(func() {
 				Attribute("p", Float32, func() {
-					Meta("struct:field:type", "hide.Float32", "github.com/c2h5oh/hide")
+					Meta("struct:field:type", "custom.Float32", "github.com/CaliLuke/loom/http/codegen/testdata/custom")
 				})
 			})
 			HTTP(func() {

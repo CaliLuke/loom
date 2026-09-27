@@ -4,7 +4,7 @@ func DecodeMethodPathCustomIntRequest(mux loomhttp.Muxer, _ func(*http.Request) 
 	return func(r *http.Request) (*servicepathcustomint.MethodPathCustomIntPayload, error) {
 		var payload *servicepathcustomint.MethodPathCustomIntPayload
 		var (
-			p   hide.Int
+			p   custom.Int
 			err error
 
 			params = mux.Vars(r)
@@ -15,7 +15,7 @@ func DecodeMethodPathCustomIntRequest(mux loomhttp.Muxer, _ func(*http.Request) 
 			if err2 != nil {
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("p", pRaw, "integer"))
 			}
-			p = hide.Int(v)
+			p = custom.Int(v)
 		}
 		if err != nil {
 			return payload, err

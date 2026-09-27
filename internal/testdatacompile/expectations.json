@@ -402,35 +402,11 @@
     "phase": "build",
     "reason": "Slice enum validation emits an invalid equality comparison."
   },
-  "http/codegen/PayloadPathCustomFloat32DSL": {
-    "contains": "undefined: hide.Float32",
-    "issue": "https://github.com/CaliLuke/loom/issues/536",
-    "phase": "build",
-    "reason": "Custom numeric fixture metadata names nonexistent external types."
-  },
-  "http/codegen/PayloadPathCustomFloat64DSL": {
-    "contains": "undefined: hide.Float64",
-    "issue": "https://github.com/CaliLuke/loom/issues/536",
-    "phase": "build",
-    "reason": "Custom numeric fixture metadata names nonexistent external types."
-  },
-  "http/codegen/PayloadPathCustomIntDSL": {
-    "contains": "undefined: hide.Int",
-    "issue": "https://github.com/CaliLuke/loom/issues/536",
-    "phase": "build",
-    "reason": "Custom numeric fixture metadata names nonexistent external types."
-  },
   "http/codegen/PayloadPathCustomNameDSL": {
     "contains": "p.P undefined (type *servicepathcustomname.MethodPathCustomNamePayload has no field or method P)",
     "issue": "https://github.com/CaliLuke/loom/issues/517",
     "phase": "build",
     "reason": "Existing HTTP fixture compile failure."
-  },
-  "http/codegen/PayloadPathCustomUIntDSL": {
-    "contains": "undefined: hide.Uint",
-    "issue": "https://github.com/CaliLuke/loom/issues/536",
-    "phase": "build",
-    "reason": "Custom numeric fixture metadata names nonexistent external types."
   },
   "http/codegen/ValidateErrorResponseTypeDSL": {
     "contains": "field and method with the same name Error",

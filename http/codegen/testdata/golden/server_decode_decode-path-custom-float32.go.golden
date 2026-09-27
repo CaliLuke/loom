@@ -4,7 +4,7 @@ func DecodeMethodPathCustomFloat32Request(mux loomhttp.Muxer, _ func(*http.Reque
 	return func(r *http.Request) (*servicepathcustomfloat32.MethodPathCustomFloat32Payload, error) {
 		var payload *servicepathcustomfloat32.MethodPathCustomFloat32Payload
 		var (
-			p   hide.Float32
+			p   custom.Float32
 			err error
 
 			params = mux.Vars(r)
@@ -15,7 +15,7 @@ func DecodeMethodPathCustomFloat32Request(mux loomhttp.Muxer, _ func(*http.Reque
 			if err2 != nil {
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("p", pRaw, "float"))
 			}
-			p = hide.Float32(v)
+			p = custom.Float32(v)
 		}
 		if err != nil {
 			return payload, err

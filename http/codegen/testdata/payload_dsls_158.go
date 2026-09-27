@@ -15,7 +15,7 @@ var PayloadPathCustomUIntDSL = func() {
 		Method("MethodPathCustomUInt", func() {
 			Payload(func() {
 				Attribute("p", UInt, func() {
-					Meta("struct:field:type", "hide.Uint", "github.com/c2h5oh/hide")
+					Meta("struct:field:type", "custom.Uint", "github.com/CaliLuke/loom/http/codegen/testdata/custom")
 				})
 			})
 			HTTP(func() {
