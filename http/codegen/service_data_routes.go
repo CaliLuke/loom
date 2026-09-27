@@ -151,7 +151,7 @@ func pathParameterByElement(params []*transportir.Parameter, elem string) *trans
 			return param
 		}
 	}
-	panic("route wildcard " + elem + " has no path parameter") // bug
+	panic(codegen.NewError(nil, nil, fmt.Errorf("route wildcard %s has no path parameter", elem)))
 }
 
 func payloadPrimitivePointerByName(payload *expr.AttributeExpr, name string) bool {

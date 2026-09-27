@@ -5,15 +5,25 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 // The tests in this file drive the analysis panic paths that fire when the
 // transport expression tree is inconsistent with the service expression tree.
-// Valid DSL evaluation always derives compatible body and payload/result
-// types, so each test first runs a valid design and then corrupts the derived
-// transport attribute the way a buggy plugin or finalizer would.
+// Tests pass inconsistent transport data directly or first run a valid design
+// and then corrupt the derived transport attribute the way a buggy plugin or
+// finalizer would.
+
+func TestPathParameterLookupPanicsWithCodegenError(t *testing.T) {
+	err := recoverAnalysisError(t, func() {
+		pathParameterByElement(nil, "missing")
+	})
+	var codegenErr *codegen.Error
+	require.ErrorAs(t, err, &codegenErr)
+	require.EqualError(t, codegenErr.Err, "route wildcard missing has no path parameter")
+}
 
 // recoverAnalysisError runs fn, requires that it panics and returns the
 // recovered panic value as an error.
