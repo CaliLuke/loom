@@ -1,4 +1,9 @@
 {
+  "codegen/service/StreamingInterceptorsWithReadResultDSL": {
+    "contains": "use ReadStreamingResult or WriteStreamingResult",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
   "codegen/service/StreamingResultInterceptorDSL": {
     "contains": "cannot be applied because the method result is streaming",
     "phase": "gen",

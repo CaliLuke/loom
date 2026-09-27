@@ -100,6 +100,8 @@ func WritePayload(arg any) {
 // ReadResult defines the result attributes read by the interceptor.
 //
 // ReadResult must appear in an interceptor DSL.
+// It applies to ordinary endpoint results, including JSON-RPC request/reply
+// methods. For an HTTP or gRPC client stream, use ReadStreamingResult instead.
 //
 // ReadResult takes a function as argument which can use the Attribute DSL to
 // define the attributes read by the interceptor.
@@ -123,6 +125,8 @@ func ReadResult(arg any) {
 // WriteResult defines the result attributes written by the interceptor.
 //
 // WriteResult must appear in an interceptor DSL.
+// It applies to ordinary endpoint results, including JSON-RPC request/reply
+// methods. For an HTTP or gRPC client stream, use WriteStreamingResult instead.
 //
 // WriteResult takes a function as argument which can use the Attribute DSL to
 // define the attributes written by the interceptor.
@@ -192,6 +196,8 @@ func WriteStreamingPayload(arg any) {
 // ReadStreamingResult defines the streaming result attributes read by the interceptor.
 //
 // ReadStreamingResult must appear in an interceptor DSL.
+// It also applies to the single final response of an HTTP or gRPC client stream,
+// sent with SendAndClose and received with CloseAndRecv.
 //
 // ReadStreamingResult takes a function as argument which can use the Attribute DSL to
 // define the attributes read by the interceptor.
@@ -215,6 +221,8 @@ func ReadStreamingResult(arg any) {
 // WriteStreamingResult defines the streaming result attributes written by the interceptor.
 //
 // WriteStreamingResult must appear in an interceptor DSL.
+// It also applies to the single final response of an HTTP or gRPC client stream,
+// sent with SendAndClose and received with CloseAndRecv.
 //
 // WriteStreamingResult takes a function as argument which can use the Attribute DSL to
 // define the attributes written by the interceptor.

@@ -38,7 +38,7 @@ func TestInterceptors(t *testing.T) {
 		{"streaming-interceptors-with-read-payload-and-read-streaming-payload", testdata.StreamingInterceptorsWithReadPayloadAndReadStreamingPayloadDSL, 3},
 		{"streaming-interceptors-with-read-streaming-result", testdata.StreamingInterceptorsWithReadStreamingResultDSL, 3},
 		{"streaming-interceptors-with-read-payload", testdata.StreamingInterceptorsWithReadPayloadDSL, 2},
-		{"streaming-interceptors-with-read-result", testdata.StreamingInterceptorsWithReadResultDSL, 2},
+		{"final-result-interceptors", testdata.FinalResultInterceptorsDSL, 3},
 		{"lower-case-interceptor-names", testdata.LowerCaseInterceptorNamesDSL, 3},
 	}
 	for _, c := range cases {
@@ -72,6 +72,11 @@ func TestInvalidInterceptors(t *testing.T) {
 		DSL         func()
 		ErrContains string
 	}{
+		{
+			Name:        "unary-result-access-on-client-stream",
+			DSL:         testdata.StreamingInterceptorsWithReadResultDSL,
+			ErrContains: "use ReadStreamingResult or WriteStreamingResult",
+		},
 		{
 			Name:        "streaming-result-interceptor",
 			DSL:         testdata.StreamingResultInterceptorDSL,

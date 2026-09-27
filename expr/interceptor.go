@@ -68,6 +68,9 @@ func (i *InterceptorExpr) validateResultAccess(m *MethodExpr, verr *eval.Validat
 	}
 	if m.IsResultStreaming() {
 		verr.Add(m, "interceptor %q cannot be applied because the method result is streaming", i.Name)
+	} else if hasStreamedFinalResult(m) {
+		verr.Add(m, "interceptor %q cannot be applied because the method result is delivered through a stream; use ReadStreamingResult or WriteStreamingResult", i.Name)
+		return
 	}
 	result := i.objectAccessTarget(m, verr, m.Result, "result is not an object")
 	if result == nil {
@@ -95,7 +98,7 @@ func (i *InterceptorExpr) validateStreamingResultAccess(m *MethodExpr, verr *eva
 	if i.ReadStreamingResult == nil && i.WriteStreamingResult == nil {
 		return
 	}
-	if !m.IsResultStreaming() {
+	if !m.IsResultStreaming() && !hasStreamedFinalResult(m) {
 		verr.Add(m, "interceptor %q cannot be applied because the method result is not streaming", i.Name)
 		return
 	}
@@ -104,6 +107,14 @@ func (i *InterceptorExpr) validateStreamingResultAccess(m *MethodExpr, verr *eva
 		return
 	}
 	i.validateAccessPair(m, verr, result, "streaming result", i.ReadStreamingResult, i.WriteStreamingResult)
+}
+
+// hasStreamedFinalResult reports whether a client-streaming service delivers
+// its result through SendAndClose. JSON-RPC uses a request/reply service method
+// whose canonical result is returned at the ordinary endpoint boundary.
+func hasStreamedFinalResult(m *MethodExpr) bool {
+	_, jsonrpc := m.Meta["jsonrpc"]
+	return m.Stream == ClientStreamKind && !jsonrpc
 }
 
 func (i *InterceptorExpr) objectAccessTarget(m *MethodExpr, verr *eval.ValidationErrors, att *AttributeExpr, objectErr string) *AttributeExpr {

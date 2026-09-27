@@ -667,6 +667,19 @@ before an intentional direct mux route. The same source-comment form accepts
 `duplicate-route-registration` and `route-conflict-with-design`; Loom does not
 infer conflicts from dynamic method or path expressions.
 
+## Interceptor Result Boundaries
+
+Use `ReadResult` and `WriteResult` for ordinary endpoint results. An HTTP or
+gRPC method with a streaming payload sends its final response through
+`SendAndClose`; use
+`ReadStreamingResult` or `WriteStreamingResult` for it. Server send callbacks
+access `info.ServerStreamingResult()` before `next`; client receive callbacks
+access `info.ClientStreamingResult(result)` after a successful `next` call.
+Branch on `info.CallType()` when also accessing ordinary or streaming payloads.
+Stream wrappers preserve `SetView` and expose canonical service result types.
+JSON-RPC WebSocket streaming-payload methods retain their ordinary server
+result boundary; the new final-response streaming accessors do not apply.
+
 ## Installation and Commands
 
 The repository skill tracks Loom `main`; a copy read from a release tag

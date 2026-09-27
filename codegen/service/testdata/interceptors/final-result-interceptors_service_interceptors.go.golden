@@ -1,0 +1,281 @@
+// ServerInterceptors defines the interface for all server-side interceptors.
+// Server interceptors execute after the request is decoded and before the
+// payload is sent to the service. The implementation is responsible for calling
+// next to complete the request.
+type ServerInterceptors interface {
+	Audit(ctx context.Context, info *AuditInfo, next loom.Endpoint) (any, error)
+}
+
+// Access interfaces for interceptor payloads and results
+type (
+	// AuditInfo provides metadata about the current interception.
+	// It includes service name, method name, and access to the endpoint.
+	AuditInfo struct {
+		service    string
+		method     string
+		callType   loom.InterceptorCallType
+		rawPayload any
+	}
+
+	// AuditPayload provides type-safe access to the method payload.
+	// It allows reading and writing specific fields of the payload as defined
+	// in the design.
+	AuditPayload interface {
+		Initial() string
+	}
+
+	// AuditStreamingPayload provides type-safe access to the method streaming payload.
+	// It allows reading and writing specific fields of the streaming payload as defined
+	// in the design.
+	AuditStreamingPayload interface {
+		Chunk() string
+	}
+
+	// AuditStreamingResult provides type-safe access to the method streaming result.
+	// It allows reading and writing specific fields of the streaming result as defined
+	// in the design.
+	AuditStreamingResult interface {
+		Data() string
+		SetData(string)
+	}
+)
+
+// Private implementation types
+type (
+	auditPlainPayload struct {
+		payload *PlainPayload
+	}
+	auditViewedPayload struct {
+		payload *ViewedPayload
+	}
+	auditFixedPayload struct {
+		payload *FixedPayload
+	}
+	auditPlainStreamingPayload struct {
+		payload *PlainStreamingPayload
+	}
+	auditViewedStreamingPayload struct {
+		payload *ViewedStreamingPayload
+	}
+	auditFixedStreamingPayload struct {
+		payload *FixedStreamingPayload
+	}
+	auditPlainStreamingResult struct {
+		result *PlainMessage
+	}
+	auditViewedStreamingResult struct {
+		result *Message
+	}
+	auditFixedStreamingResult struct {
+		result *Message
+	}
+)
+
+// WrapPlainEndpoint wraps the plain endpoint with the server-side interceptors
+// defined in the design.
+func WrapPlainEndpoint(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
+	if i != nil {
+		endpoint = wrapPlainAudit(endpoint, i)
+	}
+	return endpoint
+}
+
+// WrapViewedEndpoint wraps the viewed endpoint with the server-side
+// interceptors defined in the design.
+func WrapViewedEndpoint(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
+	if i != nil {
+		endpoint = wrapViewedAudit(endpoint, i)
+	}
+	return endpoint
+}
+
+// WrapFixedEndpoint wraps the fixed endpoint with the server-side interceptors
+// defined in the design.
+func WrapFixedEndpoint(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
+	if i != nil {
+		endpoint = wrapFixedAudit(endpoint, i)
+	}
+	return endpoint
+}
+
+// Public accessor methods for Info types
+
+// Service returns the name of the service handling the request.
+func (info *AuditInfo) Service() string {
+	return info.service
+}
+
+// Method returns the name of the method handling the request.
+func (info *AuditInfo) Method() string {
+	return info.method
+}
+
+// CallType returns the type of call the interceptor is handling.
+func (info *AuditInfo) CallType() loom.InterceptorCallType {
+	return info.callType
+}
+
+// RawPayload returns the raw payload of the request.
+func (info *AuditInfo) RawPayload() any {
+	return info.rawPayload
+}
+
+// Payload returns a type-safe accessor for the method payload.
+func (info *AuditInfo) Payload() AuditPayload {
+	switch info.Method() {
+	case "Plain":
+		switch pay := info.RawPayload().(type) {
+		case *PlainEndpointInput:
+			return &auditPlainPayload{payload: pay.Payload}
+		default:
+			return &auditPlainPayload{payload: pay.(*PlainPayload)}
+		}
+	case "Viewed":
+		switch pay := info.RawPayload().(type) {
+		case *ViewedEndpointInput:
+			return &auditViewedPayload{payload: pay.Payload}
+		default:
+			return &auditViewedPayload{payload: pay.(*ViewedPayload)}
+		}
+	case "Fixed":
+		switch pay := info.RawPayload().(type) {
+		case *FixedEndpointInput:
+			return &auditFixedPayload{payload: pay.Payload}
+		default:
+			return &auditFixedPayload{payload: pay.(*FixedPayload)}
+		}
+	default:
+		return nil
+	}
+}
+
+// ClientStreamingPayload returns a type-safe accessor for the method streaming payload for a client-side interceptor.
+func (info *AuditInfo) ClientStreamingPayload() AuditStreamingPayload {
+	switch info.Method() {
+	case "Plain":
+		return &auditPlainStreamingPayload{payload: info.RawPayload().(*PlainStreamingPayload)}
+	case "Viewed":
+		return &auditViewedStreamingPayload{payload: info.RawPayload().(*ViewedStreamingPayload)}
+	case "Fixed":
+		return &auditFixedStreamingPayload{payload: info.RawPayload().(*FixedStreamingPayload)}
+	default:
+		return nil
+	}
+}
+
+// ClientStreamingResult returns a type-safe accessor for the method streaming result for a client-side interceptor.
+func (info *AuditInfo) ClientStreamingResult(res any) AuditStreamingResult {
+	switch info.Method() {
+	case "Plain":
+		return &auditPlainStreamingResult{result: res.(*PlainMessage)}
+	case "Viewed":
+		return &auditViewedStreamingResult{result: res.(*Message)}
+	case "Fixed":
+		return &auditFixedStreamingResult{result: res.(*Message)}
+	default:
+		return nil
+	}
+}
+
+// ServerStreamingPayload returns a type-safe accessor for the method streaming payload for a server-side interceptor.
+func (info *AuditInfo) ServerStreamingPayload(pay any) AuditStreamingPayload {
+	switch info.Method() {
+	case "Plain":
+		return &auditPlainStreamingPayload{payload: pay.(*PlainStreamingPayload)}
+	case "Viewed":
+		return &auditViewedStreamingPayload{payload: pay.(*ViewedStreamingPayload)}
+	case "Fixed":
+		return &auditFixedStreamingPayload{payload: pay.(*FixedStreamingPayload)}
+	default:
+		return nil
+	}
+}
+
+// ServerStreamingResult returns a type-safe accessor for the method streaming result for a server-side interceptor.
+func (info *AuditInfo) ServerStreamingResult() AuditStreamingResult {
+	switch info.Method() {
+	case "Plain":
+		return &auditPlainStreamingResult{result: info.RawPayload().(*PlainMessage)}
+	case "Viewed":
+		return &auditViewedStreamingResult{result: info.RawPayload().(*Message)}
+	case "Fixed":
+		return &auditFixedStreamingResult{result: info.RawPayload().(*Message)}
+	default:
+		return nil
+	}
+}
+
+// Private implementation methods
+
+func (p *auditPlainPayload) Initial() string {
+	if p.payload.Initial == nil {
+		var zero string
+		return zero
+	}
+	return *p.payload.Initial
+}
+func (p *auditPlainStreamingPayload) Chunk() string {
+	if p.payload.Chunk == nil {
+		var zero string
+		return zero
+	}
+	return *p.payload.Chunk
+}
+func (r *auditPlainStreamingResult) Data() string {
+	if r.result.Data == nil {
+		var zero string
+		return zero
+	}
+	return *r.result.Data
+}
+func (r *auditPlainStreamingResult) SetData(v string) {
+	r.result.Data = &v
+}
+func (p *auditViewedPayload) Initial() string {
+	if p.payload.Initial == nil {
+		var zero string
+		return zero
+	}
+	return *p.payload.Initial
+}
+func (p *auditViewedStreamingPayload) Chunk() string {
+	if p.payload.Chunk == nil {
+		var zero string
+		return zero
+	}
+	return *p.payload.Chunk
+}
+func (r *auditViewedStreamingResult) Data() string {
+	if r.result.Data == nil {
+		var zero string
+		return zero
+	}
+	return *r.result.Data
+}
+func (r *auditViewedStreamingResult) SetData(v string) {
+	r.result.Data = &v
+}
+func (p *auditFixedPayload) Initial() string {
+	if p.payload.Initial == nil {
+		var zero string
+		return zero
+	}
+	return *p.payload.Initial
+}
+func (p *auditFixedStreamingPayload) Chunk() string {
+	if p.payload.Chunk == nil {
+		var zero string
+		return zero
+	}
+	return *p.payload.Chunk
+}
+func (r *auditFixedStreamingResult) Data() string {
+	if r.result.Data == nil {
+		var zero string
+		return zero
+	}
+	return *r.result.Data
+}
+func (r *auditFixedStreamingResult) SetData(v string) {
+	r.result.Data = &v
+}

@@ -1,0 +1,34 @@
+// ClientInterceptors defines the interface for all client-side interceptors.
+// Client interceptors execute after the payload is encoded and before the request
+// is sent to the server. The implementation is responsible for calling next to
+// complete the request.
+type ClientInterceptors interface {
+	Audit(ctx context.Context, info *AuditInfo, next loom.Endpoint) (any, error)
+}
+
+// WrapPlainClientEndpoint wraps the plain endpoint with the client
+// interceptors defined in the design.
+func WrapPlainClientEndpoint(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
+	if i != nil {
+		endpoint = wrapClientPlainAudit(endpoint, i)
+	}
+	return endpoint
+}
+
+// WrapViewedClientEndpoint wraps the viewed endpoint with the client
+// interceptors defined in the design.
+func WrapViewedClientEndpoint(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
+	if i != nil {
+		endpoint = wrapClientViewedAudit(endpoint, i)
+	}
+	return endpoint
+}
+
+// WrapFixedClientEndpoint wraps the fixed endpoint with the client
+// interceptors defined in the design.
+func WrapFixedClientEndpoint(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
+	if i != nil {
+		endpoint = wrapClientFixedAudit(endpoint, i)
+	}
+	return endpoint
+}

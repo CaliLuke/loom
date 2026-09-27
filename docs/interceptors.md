@@ -141,13 +141,34 @@ If ordering matters, rely on this mental model rather than a generic “service 
 
 ### Streaming Interceptors (Send/Recv)
 
-For bidirectional streaming, codegen wraps the stream implementation so that each message send/receive is intercepted. A single interceptor method may be invoked for multiple call types:
+For streaming methods, codegen wraps the stream implementation so that each declared message send/receive is intercepted. A single interceptor method may be invoked for multiple call types:
 
-- `loom.InterceptorUnary`: one-time interception of the stream endpoint call
+- `loom.InterceptorUnary`: one-time interception of the stream endpoint call when the interceptor accesses its ordinary payload
 - `loom.InterceptorStreamingSend`: interception of each `SendWithContext`
 - `loom.InterceptorStreamingRecv`: interception of each `RecvWithContext`
 
 Use `info.CallType()` to branch when needed. For send interceptions, `info.RawPayload()` is the message being sent. For recv interceptions, the “payload” is produced by `next` (your interceptor sees it as the returned value).
+
+An HTTP or gRPC client-streaming method also delivers its single final response through the
+stream: `SendAndClose` on the server and `CloseAndRecv` on the client, including
+their `WithContext` variants. Declare `ReadStreamingResult` or
+`WriteStreamingResult` for that response. On the server, use
+`info.ServerStreamingResult()` before calling `next`; on the client, pass the
+successful value returned by `next` to `info.ClientStreamingResult(value)`.
+These accessors expose the canonical service result type. The stream preserves
+`SetView` selection and the transport performs view projection.
+
+`ReadResult` and `WriteResult` apply to ordinary endpoint results. HTTP and
+gRPC designs that used them with a streaming payload are now rejected with a migration
+message: the server endpoint returns no result after `SendAndClose`, so those
+accessors could not read or change the response. An interceptor that also reads
+the initial payload or incoming messages receives separate callbacks; branch
+on `info.CallType()` instead of assuming every callback carries a final result.
+
+JSON-RPC WebSocket methods with only a streaming payload use a request/reply
+service method. Their server endpoint returns the canonical result directly,
+so their existing `ReadResult` and `WriteResult` boundary remains unchanged.
+The new final-response streaming accessors do not apply to those methods.
 
 ### Defining Interceptors
 

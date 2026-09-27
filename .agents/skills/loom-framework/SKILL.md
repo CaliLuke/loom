@@ -708,6 +708,15 @@ filter, and serialization rules belong here.
   `New<Type>` for the interceptor and projects the returned result with
   `NewViewed<Type>` and the view of the endpoint result, or the view of the
   design. Other interceptors and the client wrappers pass values through.
+- HTTP and gRPC client-streaming endpoints return nil after the service sends
+  its final result through `SendAndClose`. Reject unary result access there and
+  allow streaming result access for those final responses. JSON-RPC WebSocket
+  client-streaming service methods return a canonical result per request; keep
+  their ordinary result boundary and reject final-response streaming access. Preserve dynamic `SetView` on generated server interceptor
+  wrappers. Intercept canonical values at send/receive operations; do not wrap
+  the nil endpoint return as a viewed result or buffer final sends. Check the
+  lifecycle model in `codegen/service/tla/FinalResultInterceptor.tla` and pair it
+  with compiled server/client tests of normal, blocked and failed operations.
 - A projected type declares the field of a required union as a value and
   every other field as a pointer or a collection. The view conversions
   transform through an object of the attributes of the view

@@ -422,6 +422,8 @@ type (
 
 	// StreamInterceptorData is the stream data for an interceptor.
 	StreamInterceptorData struct {
+		// SetView indicates that the server wrapper must forward view selection.
+		SetView bool
 		// Interface is the name of the stream interface.
 		Interface string
 		// SendName is the name of the send function.
