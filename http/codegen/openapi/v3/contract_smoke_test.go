@@ -272,6 +272,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "nullable-presence", dsl: presenceOpenAPIDSL},
 		{name: "scalar-map-keys", dsl: testdata.OpenAPIScalarMapKeysDSL},
 		{name: "mapped-names", dsl: testdata.MappedNamesDSL},
+		{name: "mapped-explicit-body", dsl: testdata.MappedExplicitBodyDSL},
 		{name: "explicit-body-result-type", dsl: testdata.ExplicitBodyResultTypeDSL},
 	}
 	for _, tc := range lintCases {

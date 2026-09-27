@@ -183,8 +183,8 @@ func (e *HTTPEndpointExpr) validateBodyRequiredPayloadAttributes(verr *eval.Vali
 		return
 	}
 	var preqs, missing []string
-	if e.MethodExpr.Payload != nil && e.MethodExpr.Payload.Validation != nil {
-		for _, req := range e.MethodExpr.Payload.Validation.Required {
+	if e.MethodExpr.Payload != nil {
+		for _, req := range e.MethodExpr.Payload.AllRequired() {
 			preqs = append(preqs, AttributeName(req))
 		}
 	}

@@ -235,7 +235,11 @@ func resolveBodyAttribute(args []any, ref *expr.AttributeExpr, kind string, open
 			}
 			return &expr.AttributeExpr{}, a, true
 		}
-		return &expr.AttributeExpr{References: []expr.DataType{ref.Type}}, a, true
+		attr := &expr.AttributeExpr{References: []expr.DataType{ref.Type}}
+		return attr, func() {
+			a()
+			attr.Inherit(ref)
+		}, true
 	default:
 		if openAPIOnly {
 			eval.InvalidArgError("attribute name, data type, user type or DSL", a)

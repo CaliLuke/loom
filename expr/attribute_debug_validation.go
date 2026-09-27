@@ -270,18 +270,21 @@ func (a *AttributeExpr) inheritRecursive(parent *AttributeExpr, seen map[*Attrib
 }
 
 func (a *AttributeExpr) inheritValidations(parent *AttributeExpr) {
-	if parent.Validation == nil {
+	required := parent.AllRequired()
+	if len(required) == 0 {
 		return
 	}
-	if a.Validation == nil {
-		a.Validation = &ValidationExpr{}
-	}
 	obj := AsObject(a.Type)
-	for _, name := range parent.Validation.Required {
+	for _, name := range required {
 		if obj != nil {
-			if key, _ := objectAttribute(obj, name); key != "" {
-				name = key
+			key, _ := objectAttribute(obj, name)
+			if key == "" {
+				continue
 			}
+			name = key
+		}
+		if a.Validation == nil {
+			a.Validation = &ValidationExpr{}
 		}
 		a.Validation.AddRequired(name)
 	}

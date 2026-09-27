@@ -1526,7 +1526,10 @@ attribute before the colon: `Attribute("name:n")` inherits the type,
 description, validations and requiredness of the `name` attribute, as
 `Attribute("name")` does, and the body names the field `"n"`. As in a type,
 a `Required` list in the body names the attribute `"name:n"`, and a request
-body may require it only when the payload requires `name`.
+body may require it only when the payload requires `name`. Inline and named
+payloads inherit requiredness the same way. Only attributes listed in the body
+contribute required fields; fields mapped exclusively to parameters, headers,
+or cookies do not become required body properties.
 
 `Header`, `Param`, `Cookie`, `MapParams`, `Body` and route wildcards select a
 payload, result or error attribute declared with a suffix by its attribute

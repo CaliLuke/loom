@@ -200,7 +200,6 @@ func TestErrorExprValidate(t *testing.T) {
 			`attribute: error name "a" must be required in type "ServiceError"
 attribute: duplicate error names in type "Error"
 attribute: error name "a" must be a string in type "Error"
-attribute: error name "a" must be required in type "Error"
 attribute: type "ErrorType" is used to define multiple errors. Mark the attribute containing the error name with ErrorName and add it to Required`,
 		},
 		{"invalid-empty-error-type", testdata.InvalidEmptyErrorTypeDSL,

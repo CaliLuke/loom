@@ -50,6 +50,7 @@ func jsonrpcMappedExplicitBodyDSL() {
 				Body(func() {
 					Attribute("name:n")
 					Attribute("age:ag")
+					Required("name:n")
 				})
 			})
 		})
@@ -64,7 +65,6 @@ func jsonrpcMappedExplicitBodyDSL() {
 				Body(func() {
 					Attribute("a:x")
 					Attribute("b:y")
-					Required("a:x")
 				})
 			})
 		})

@@ -126,7 +126,7 @@ var MappedParamsDSL = func() {
 // attributes of the same attribute names, and the bodies use the suffixes as
 // the JSON names of the fields. The create method maps a user type payload
 // and an inline result. The pair method lists body attributes of an inline
-// payload that are not strings and requires one of them in the body.
+// payload that are not strings and inherits their requiredness in the body.
 var MappedExplicitBodyDSL = func() {
 	var Account = Type("Account", func() {
 		Attribute("id", Int, "Account ID")
@@ -174,7 +174,6 @@ var MappedExplicitBodyDSL = func() {
 				Body(func() {
 					Attribute("a:x")
 					Attribute("b:y")
-					Required("a:x")
 				})
 			})
 		})

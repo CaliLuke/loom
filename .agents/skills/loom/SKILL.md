@@ -369,6 +369,9 @@ completion shapes are explicit generation limitations.
 
 ## HTTP Bodies and Parameters
 
+- An explicit `Body(func() { ... })` inherits requiredness from both inline
+  and named payloads for the fields it lists. A body `Required(...)` must agree
+  with payload requiredness; parameter-only fields stay outside the body.
 - Generated service payloads use `*string` for optional string query fields.
   A nil pointer means omitted. A nonnil pointer preserves an empty or nonempty
   value. Map the field with `Param(...)`. No additional DSL is necessary.

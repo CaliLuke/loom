@@ -15,9 +15,8 @@ import (
 // explicit Body declared with an element name suffix, such as "name:n",
 // inherits the payload or result attribute of the same attribute name as an
 // attribute declared without the suffix does: its type, description and
-// validations, and its requiredness when the body inherits the required
-// attributes of a user type or is a response body. The body keeps the
-// suffixed keys and names its required attributes after them.
+// validations, and requiredness for both inline and named payloads or results.
+// The body keeps the suffixed keys and names its required attributes after them.
 func TestExplicitBodyElementNameInheritsPayload(t *testing.T) {
 	cases := map[string]struct {
 		userType bool
@@ -49,13 +48,11 @@ func TestExplicitBodyElementNameInheritsPayload(t *testing.T) {
 			for _, att := range []string{"name", "age"} {
 				assert.Equal(t, plainMapped.IsRequired(att), mappedMapped.IsRequired(att), att)
 			}
-			assert.Equal(t, tc.userType || tc.response, mappedMapped.IsRequired("name"))
+			assert.True(t, mappedMapped.IsRequired("name"))
 			assert.Equal(t, "n", mappedMapped.ElemName("name"))
 			assert.Equal(t, "ag", mappedMapped.ElemName("age"))
-			if tc.userType || tc.response {
-				assert.Contains(t, bodyRequired(mapped), "name:n", "required names use the body keys")
-				assert.NotContains(t, bodyRequired(mapped), "name")
-			}
+			assert.Contains(t, bodyRequired(mapped), "name:n", "required names use the body keys")
+			assert.NotContains(t, bodyRequired(mapped), "name")
 		})
 	}
 }

@@ -64,7 +64,7 @@ func TestMappedExplicitBodyOpenAPI(t *testing.T) {
 	require.NotNil(t, create)
 	require.NotNil(t, create.Post)
 	request := create.Post.RequestBody.Content.GetOrZero("application/json").Schema.Schema()
-	assert.Contains(t, request.Required, "n")
+	assert.Equal(t, []string{"n"}, request.Required)
 	name := request.Properties.GetOrZero("n").Schema()
 	assert.Equal(t, []string{"string"}, name.Type)
 	assert.Equal(t, "Account name", name.Description)
@@ -155,7 +155,6 @@ func mappedExplicitBodyPlainDSL() {
 				Body(func() {
 					Attribute("a")
 					Attribute("b")
-					Required("a")
 				})
 			})
 		})

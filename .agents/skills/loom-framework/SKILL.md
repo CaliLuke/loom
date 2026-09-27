@@ -714,6 +714,13 @@ filter, and serialization rules belong here.
   (`viewObjectAttribute`) that requires only the unions that the projected
   type requires, so that the transforms use the union fields as declared and
   still check the other fields for nil.
+- Explicit body DSL functions inherit from the full source attribute, including
+  inline payload requiredness. `AttributeExpr.Inherit` copies requirements only
+  for selected target fields; request-body validation reads `AllRequired()` so
+  named payload requirements are included. Before finalization, `AllRequired`
+  resolves Reference and Extend requirements with cycle protection: references
+  select only existing fields, while extensions include inherited fields. Do not
+  copy transport-only required names into a body schema.
 - A method result that customizes the requiredness of a result type, such as
   `Result(RT, func() { Required("x") })`, is a renamed copy that keeps the
   identifier of the result type. The service analysis keys projected and

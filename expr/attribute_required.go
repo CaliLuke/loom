@@ -8,15 +8,10 @@ import (
 
 // AllRequired returns the list of all required fields from the underlying
 // object. This method recurses if the type is itself an attribute (i.e. a
-// UserType, this happens with the Reference DSL for example).
+// UserType). Before finalization it also resolves required fields inherited
+// from Reference and Extend, restricted to fields selected by a reference.
 func (a *AttributeExpr) AllRequired() []string {
-	if u, ok := a.Type.(UserType); ok {
-		return u.Attribute().AllRequired()
-	}
-	if a.Validation != nil {
-		return a.Validation.Required
-	}
-	return nil
+	return a.allRequired(make(map[*AttributeExpr]bool))
 }
 
 // IsRequired returns true if the given string matches the name of a required
@@ -190,4 +185,54 @@ func (a *AttributeExpr) SetDefault(def any) {
 	default:
 		a.DefaultValue = actual
 	}
+}
+
+func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
+	if a == nil || active[a] {
+		return nil
+	}
+	active[a] = true
+	defer delete(active, a)
+	if u, ok := a.Type.(UserType); ok {
+		return u.Attribute().allRequired(active)
+	}
+	if len(a.References) == 0 && len(a.Bases) == 0 {
+		if a.Validation != nil {
+			return a.Validation.Required
+		}
+		return nil
+	}
+	var required []string
+	if a.Validation != nil {
+		required = append(required, a.Validation.Required...)
+	}
+	object := AsObject(a.Type)
+	inherit := func(dt DataType, extend bool) {
+		parent := &AttributeExpr{Type: dt}
+		if u, ok := dt.(UserType); ok {
+			parent = u.Attribute()
+		}
+		for _, name := range parent.allRequired(active) {
+			key := ""
+			if object != nil {
+				key, _ = objectAttribute(object, name)
+			}
+			if key == "" {
+				if !extend {
+					continue
+				}
+				key = name
+			}
+			if !slices.Contains(required, key) {
+				required = append(required, key)
+			}
+		}
+	}
+	for _, ref := range a.References {
+		inherit(ref, false)
+	}
+	for _, base := range a.Bases {
+		inherit(base, true)
+	}
+	return required
 }
