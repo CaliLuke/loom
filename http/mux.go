@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	chi "github.com/go-chi/chi/v5"
+
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (
@@ -133,8 +135,16 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 		m.NotFound(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			ctx := context.WithValue(req.Context(), AcceptTypeKey, requestAcceptHeader(req))
 			enc := ResponseEncoder(ctx, w)
-			w.WriteHeader(http.StatusNotFound)
-			enc.Encode(NewErrorResponse(ctx, fmt.Errorf("404 page not found"))) // nolint:errcheck
+			problem := NewProblemResponse(ctx, loom.PermanentError("not_found", "404 page not found"), http.StatusNotFound, "", "")
+			var body any = problem
+			if _, text := enc.(*textEncoder); text {
+				body = problem.Detail
+			}
+			w.WriteHeader(problem.StatusCode())
+			if err := enc.Encode(body); err != nil {
+				// The status is committed; abort an incomplete response.
+				panic(http.ErrAbortHandler)
+			}
 		}))
 		m.routesRegistered = true
 	}

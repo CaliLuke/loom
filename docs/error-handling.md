@@ -453,6 +453,13 @@ Generic HTTP problems use `about:blank` when the error code matches the status.
 Other errors get deterministic Loom problem type URIs such as
 `https://github.com/CaliLuke/loom/problems/div-by-zero`.
 
+After routes are registered, the default HTTP muxer's JSON, XML, and Gob
+responses for unmatched paths have HTTP status and body `status` both set to `404`,
+`code: "not_found"`, `type: "about:blank"`, and `title: "Not Found"`.
+This routing fallback uses `ResponseEncoder` negotiation: JSON by default,
+or XML or Gob when requested through `Accept`. For `text/plain` and `text/html`,
+it returns status `404` with the public message `404 page not found` as the body.
+
 Override the generated problem type or title in the error DSL:
 
 ```go

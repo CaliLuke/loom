@@ -261,6 +261,10 @@ Other important OpenAPI usage rules:
 
 Loom's default HTTP errors are RFC 9457-style
 `application/problem+json` documents with a stable `code` field.
+After routes are mounted, the default muxer's unmatched-path response carries
+HTTP/body status `404` and code `not_found` in JSON, XML, and Gob. That routing
+fallback retains `ResponseEncoder` negotiation (JSON by default). Text formats
+receive status `404` and the public message `404 page not found`.
 
 - Use `ProblemResult` when explicitly modeling the same public document shape.
 - Use `ProblemType(...)` and `ProblemTitle(...)` for public error overrides.
