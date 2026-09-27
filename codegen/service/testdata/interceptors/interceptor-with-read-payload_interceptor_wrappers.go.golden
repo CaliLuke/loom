@@ -1,6 +1,6 @@
 
 
-// wrapValidationMethod applies the validation server interceptor to endpoints.
+// wrapMethodValidation applies the validation server interceptor to endpoints.
 func wrapMethodValidation(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		info := &ValidationInfo{
@@ -13,7 +13,7 @@ func wrapMethodValidation(endpoint loom.Endpoint, i ServerInterceptors) loom.End
 	}
 }
 
-// wrapClientValidationMethod applies the validation client interceptor to
+// wrapClientMethodValidation applies the validation client interceptor to
 // endpoints.
 func wrapClientMethodValidation(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {

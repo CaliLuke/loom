@@ -19,7 +19,8 @@ import (
 // TestInterceptorWrapperNames generates the interceptor files of services
 // whose interceptor design names do not start with an upper case letter and
 // checks that every interceptor wrapper that the endpoint wrappers call is
-// declared, and that every declared wrapper is called.
+// declared, that every declared wrapper is called, and that each wrapper's
+// GoDoc names the function it documents.
 func TestInterceptorWrapperNames(t *testing.T) {
 	cases := []struct {
 		Name string
@@ -62,13 +63,15 @@ func TestInterceptorWrapperNames(t *testing.T) {
 				for _, s := range f.AllSections() {
 					require.NoError(t, s.Write(buf))
 				}
-				file, err := parser.ParseFile(fset, f.Path, buf.Bytes(), 0)
+				file, err := parser.ParseFile(fset, f.Path, buf.Bytes(), parser.ParseComments)
 				require.NoError(t, err, buf.String())
 				ast.Inspect(file, func(n ast.Node) bool {
 					switch n := n.(type) {
 					case *ast.FuncDecl:
 						if n.Recv == nil && strings.HasPrefix(n.Name.Name, "wrap") {
 							declared[n.Name.Name] = true
+							assert.True(t, strings.HasPrefix(n.Doc.Text(), n.Name.Name+" applies "),
+								"GoDoc for %s must name its function: %q", n.Name.Name, n.Doc.Text())
 						}
 					case *ast.CallExpr:
 						if id, ok := n.Fun.(*ast.Ident); ok && strings.HasPrefix(id.Name, "wrap") {

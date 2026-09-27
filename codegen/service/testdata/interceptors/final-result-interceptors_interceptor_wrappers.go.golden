@@ -54,7 +54,7 @@ type wrappedFixedClientStream struct {
 	stream          FixedClientStream
 }
 
-// wrapAuditPlain applies the audit server interceptor to endpoints.
+// wrapPlainAudit applies the audit server interceptor to endpoints.
 func wrapPlainAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		stream := req.(*PlainEndpointInput).Stream
@@ -97,7 +97,7 @@ func wrapPlainAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint 
 	}
 }
 
-// wrapAuditViewed applies the audit server interceptor to endpoints.
+// wrapViewedAudit applies the audit server interceptor to endpoints.
 func wrapViewedAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		stream := req.(*ViewedEndpointInput).Stream
@@ -140,7 +140,7 @@ func wrapViewedAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint
 	}
 }
 
-// wrapAuditFixed applies the audit server interceptor to endpoints.
+// wrapFixedAudit applies the audit server interceptor to endpoints.
 func wrapFixedAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		stream := req.(*FixedEndpointInput).Stream
@@ -183,7 +183,7 @@ func wrapFixedAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint 
 	}
 }
 
-// wrapClientAuditPlain applies the audit client interceptor to endpoints.
+// wrapClientPlainAudit applies the audit client interceptor to endpoints.
 func wrapClientPlainAudit(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		info := &AuditInfo{
@@ -229,7 +229,7 @@ func wrapClientPlainAudit(endpoint loom.Endpoint, i ClientInterceptors) loom.End
 	}
 }
 
-// wrapClientAuditViewed applies the audit client interceptor to endpoints.
+// wrapClientViewedAudit applies the audit client interceptor to endpoints.
 func wrapClientViewedAudit(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		info := &AuditInfo{
@@ -275,7 +275,7 @@ func wrapClientViewedAudit(endpoint loom.Endpoint, i ClientInterceptors) loom.En
 	}
 }
 
-// wrapClientAuditFixed applies the audit client interceptor to endpoints.
+// wrapClientFixedAudit applies the audit client interceptor to endpoints.
 func wrapClientFixedAudit(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		info := &AuditInfo{

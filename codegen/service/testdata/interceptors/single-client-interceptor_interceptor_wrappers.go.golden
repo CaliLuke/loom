@@ -1,6 +1,6 @@
 
 
-// wrapClientTracingMethod applies the tracing client interceptor to endpoints.
+// wrapClientMethodTracing applies the tracing client interceptor to endpoints.
 func wrapClientMethodTracing(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		info := &TracingInfo{

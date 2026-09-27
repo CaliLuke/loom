@@ -1,6 +1,6 @@
 
 
-// wrapCachingMethod applies the caching server interceptor to endpoints.
+// wrapMethodCaching applies the caching server interceptor to endpoints.
 func wrapMethodCaching(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		info := &CachingInfo{
@@ -13,7 +13,7 @@ func wrapMethodCaching(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoi
 	}
 }
 
-// wrapClientCachingMethod applies the caching client interceptor to endpoints.
+// wrapClientMethodCaching applies the caching client interceptor to endpoints.
 func wrapClientMethodCaching(endpoint loom.Endpoint, i ClientInterceptors) loom.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		info := &CachingInfo{

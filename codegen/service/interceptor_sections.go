@@ -484,12 +484,12 @@ func interceptorWrapperMeta(service string, interceptor *InterceptorData, method
 	if client {
 		return "wrapClient" + method.MethodName + interceptor.Name,
 			"ClientInterceptors",
-			fmt.Sprintf("wrapClient%s%s applies the %s client interceptor to endpoints.", interceptor.Name, method.MethodName, interceptor.DesignName),
+			fmt.Sprintf("wrapClient%s%s applies the %s client interceptor to endpoints.", method.MethodName, interceptor.Name, interceptor.DesignName),
 			renderClientInterceptorWrapperBody(service, interceptor, method)
 	}
 	return "wrap" + method.MethodName + interceptor.Name,
 		"ServerInterceptors",
-		fmt.Sprintf("wrap%s%s applies the %s server interceptor to endpoints.", interceptor.Name, method.MethodName, interceptor.DesignName),
+		fmt.Sprintf("wrap%s%s applies the %s server interceptor to endpoints.", method.MethodName, interceptor.Name, interceptor.DesignName),
 		renderServerInterceptorWrapperBody(service, interceptor, method)
 }
 
