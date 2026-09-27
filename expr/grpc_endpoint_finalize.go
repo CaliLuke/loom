@@ -85,11 +85,12 @@ func (e *GRPCEndpointExpr) finalizeCredentialScheme(field string, sch *SchemeExp
 func (e *GRPCEndpointExpr) finalizeRequestMessageFromPayload(pobj *Object) {
 	msgObj := Dup(pobj).(*Object)
 	for _, nat := range *AsObject(e.Metadata.Type) {
-		initAttrFromDesign(nat.Attribute, pobj.Attribute(nat.Name))
-		if e.MethodExpr.Payload.IsRequired(nat.Name) {
+		key, attr := objectAttribute(pobj, nat.Name)
+		initAttrFromDesign(nat.Attribute, attr)
+		if e.MethodExpr.Payload.IsRequired(key) {
 			e.Metadata.Validation.AddRequired(nat.Name)
 		}
-		msgObj.Delete(nat.Name)
+		msgObj.Delete(key)
 	}
 	if len(*msgObj) > 0 {
 		if e.Request.Type == Empty {
@@ -97,16 +98,19 @@ func (e *GRPCEndpointExpr) finalizeRequestMessageFromPayload(pobj *Object) {
 		}
 		reqObj := AsObject(e.Request.Type)
 		for _, nat := range *msgObj {
-			if reqObj.Attribute(nat.Name) == nil {
-				reqObj.Set(nat.Name, nat.Attribute)
+			key, attr := objectAttribute(reqObj, nat.Name)
+			if attr == nil {
+				key = nat.Name
+				reqObj.Set(key, nat.Attribute)
 			}
 			if e.MethodExpr.Payload.IsRequired(nat.Name) {
-				e.Request.Validation.AddRequired(nat.Name)
+				e.Request.Validation.AddRequired(key)
 			}
 		}
 	}
 	for _, nat := range *AsObject(e.Request.Type) {
-		patt := DupAtt(pobj.Attribute(nat.Name))
+		_, attr := objectAttribute(pobj, nat.Name)
+		patt := DupAtt(attr)
 		initAttrFromDesign(nat.Attribute, patt)
 		if nat.Attribute.Meta == nil {
 			nat.Attribute.Meta = patt.Meta

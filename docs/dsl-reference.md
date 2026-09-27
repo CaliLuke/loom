@@ -1552,6 +1552,13 @@ parameter or cookie. `Body("data")` selects the attribute declared as
 `"data:d"`, and `Attribute("name")` in a `Body` function inherits the
 attribute declared as `"name:nm"` and names the body field `"name"`.
 
+gRPC `Message`, request `Metadata`, and response `Headers` and `Trailers`
+select these fields by attribute name too. With `Attribute("tok:t", String)`
+in the payload, `Metadata(func() { Attribute("tok:x-token") })` sends `tok`
+as `x-token` metadata and leaves it out of the protobuf message. The payload's
+`t` suffix does not name the gRPC metadata. Requiredness and defaults are
+inherited from the selected service attribute.
+
 A route wildcard names the parameter, not the attribute: `Param("key:k")`
 maps the `{k}` wildcard of the route to the `key` attribute, and a route that
 uses `{key}` for that attribute is rejected. A mapped `Param` that no route

@@ -25,8 +25,9 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 		if !expr.IsObject(service.Type) {
 			fieldName = ""
 		} else {
-			pointer = service.IsPrimitivePointer(name, true)
-			ft = service.Find(name).Type
+			key, attribute := service.FindAttribute(name)
+			pointer = service.IsPrimitivePointer(key, true)
+			ft = attribute.Type
 		}
 		if pointer {
 			typeRef = "*" + typeRef

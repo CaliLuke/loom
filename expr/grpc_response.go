@@ -113,14 +113,16 @@ func (r *GRPCResponseExpr) validateResponseShape(e *GRPCEndpointExpr, hasMessage
 
 func (r *GRPCResponseExpr) validateObjectResponseShape(e *GRPCEndpointExpr, robj *Object, hasMessage, hasHeaders, hasTrailers bool) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	switch {
-	case hasMessage && hasHeaders:
+	if hasMessage && hasHeaders {
 		verr.Merge(validateDistinctResponseObjects(e, AsObject(r.Message.Type), AsObject(r.Headers.Type), "response message", "header metadata"))
-	case hasMessage && hasTrailers:
+	}
+	if hasMessage && hasTrailers {
 		verr.Merge(validateDistinctResponseObjects(e, AsObject(r.Message.Type), AsObject(r.Trailers.Type), "response message", "trailer metadata"))
-	case hasHeaders && hasTrailers:
+	}
+	if hasHeaders && hasTrailers {
 		verr.Merge(validateDistinctResponseObjects(e, AsObject(r.Trailers.Type), AsObject(r.Headers.Type), "response trailer metadata", "header metadata"))
-	case !hasMessage && !hasHeaders && !hasTrailers:
+	}
+	if !hasMessage && !hasHeaders && !hasTrailers {
 		verr.Merge(validateRPCTags(robj, e))
 	}
 	return verr
@@ -142,7 +144,7 @@ func (r *GRPCResponseExpr) validateScalarResponseShape(e *GRPCEndpointExpr, hasM
 func validateDistinctResponseObjects(e *GRPCEndpointExpr, left, right *Object, leftKind, rightKind string) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	for _, nat := range *left {
-		if right.Attribute(nat.Name) != nil {
+		if _, attr := objectAttribute(right, nat.Name); attr != nil {
 			verr.Add(e, "Attribute %q defined in both %s and %s. Define the attribute in either %s or %s.", nat.Name, leftKind, rightKind, leftKind, rightKind)
 		}
 	}
@@ -160,11 +162,12 @@ func (r *GRPCResponseExpr) finalizeObjectResponse(svcAtt *AttributeExpr, svcObj 
 
 func (r *GRPCResponseExpr) initMetadataFromResult(mapped *MappedAttributeExpr, svcAtt *AttributeExpr, svcObj, msgObj *Object) {
 	for _, nat := range *AsObject(mapped.Type) {
-		initAttrFromDesign(nat.Attribute, svcObj.Attribute(nat.Name))
-		if svcAtt.IsRequired(nat.Name) {
+		key, attr := objectAttribute(svcObj, nat.Name)
+		initAttrFromDesign(nat.Attribute, attr)
+		if svcAtt.IsRequired(key) {
 			mapped.Validation.AddRequired(nat.Name)
 		}
-		msgObj.Delete(nat.Name)
+		msgObj.Delete(key)
 	}
 }
 
@@ -177,18 +180,21 @@ func (r *GRPCResponseExpr) addResultMessageAttributes(svcAtt *AttributeExpr, msg
 	}
 	resObj := AsObject(r.Message.Type)
 	for _, nat := range *msgObj {
-		if resObj.Attribute(nat.Name) == nil {
-			resObj.Set(nat.Name, nat.Attribute)
+		key, attr := objectAttribute(resObj, nat.Name)
+		if attr == nil {
+			key = nat.Name
+			resObj.Set(key, nat.Attribute)
 		}
 		if svcAtt.IsRequired(nat.Name) {
-			r.Message.Validation.AddRequired(nat.Name)
+			r.Message.Validation.AddRequired(key)
 		}
 	}
 }
 
 func (r *GRPCResponseExpr) initMessageFromResult(svcObj *Object) {
 	for _, nat := range *AsObject(r.Message.Type) {
-		svcAtt := DupAtt(svcObj.Attribute(nat.Name))
+		_, attr := objectAttribute(svcObj, nat.Name)
+		svcAtt := DupAtt(attr)
 		initAttrFromDesign(nat.Attribute, svcAtt)
 		if nat.Attribute.Meta == nil {
 			nat.Attribute.Meta = svcAtt.Meta

@@ -297,7 +297,7 @@ func (e *GRPCEndpointExpr) validateDistinctRequestMessageAndMetadata() *eval.Val
 	metObj := AsObject(e.Metadata.Type)
 	for _, msgnat := range *msgObj {
 		for _, metnat := range *metObj {
-			if metnat.Name == msgnat.Name {
+			if AttributeName(metnat.Name) == AttributeName(msgnat.Name) {
 				verr.Add(e, "Attribute %q defined in both request message and metadata. Define the attribute in either message or metadata.", metnat.Name)
 				break
 			}
@@ -464,7 +464,7 @@ func validateMessage(msgAtt, serviceAtt *AttributeExpr, e *GRPCEndpointExpr, req
 		// rpc:tag in the meta.
 		msgFields := &Object{}
 		for _, nat := range *AsObject(msgAtt.Type) {
-			if a := serviceAtt.Find(nat.Name); a != nil {
+			if _, a := serviceAtt.FindAttribute(nat.Name); a != nil {
 				msgFields.Set(nat.Name, a)
 				continue
 			}
@@ -543,7 +543,7 @@ func validateMetadata(metAtt *MappedAttributeExpr, serviceAtt *AttributeExpr, e 
 		// service type is an object type. Ensure the attributes defined in
 		// the metadata are found in the service type.
 		for _, nat := range *AsObject(metAtt.Type) {
-			if a := serviceAtt.Find(nat.Name); a == nil {
+			if _, a := serviceAtt.FindAttribute(nat.Name); a == nil {
 				verr.Add(e, "%s metadata attribute %q is not found in %s", metKind, nat.Name, serviceKind)
 			}
 		}
