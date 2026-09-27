@@ -325,7 +325,7 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*
 		}
 		flags[i] = f
 		params[i] = f.FullName
-		if arg.FieldName == "" && arg.VarName != "body" {
+		if arg.FieldName == "" && arg.VarName != "body" && expr.IsObject(payload) {
 			continue
 		}
 		var code *jen.Statement

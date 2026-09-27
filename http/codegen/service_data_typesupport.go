@@ -34,7 +34,9 @@ func makeHTTPMappedType(mapped, service *expr.AttributeExpr) *expr.AttributeExpr
 func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *expr.AttributeExpr {
 	switch dt := att.Type.(type) {
 	case expr.UserType:
-		if _, ok := dt.(*expr.ResultTypeExpr); !ok && !expr.IsObject(dt) && !expr.IsUnion(dt) {
+		_, result := dt.(*expr.ResultTypeExpr)
+		alias := !result && !expr.IsObject(dt) && !expr.IsUnion(dt)
+		if alias {
 			att.Type = dt.Attribute().Type
 			if v := dt.Attribute().Validation; v != nil {
 				if att.Validation == nil {
@@ -51,6 +53,11 @@ func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *e
 		}
 		seen[dt.ID()] = struct{}{}
 		dt.SetAttribute(makeHTTPTypeRecursive(dt.Attribute(), seen))
+		if alias {
+			// Use the fully normalized type without replacing the outer
+			// attribute's default, examples, or validation with an inner alias's.
+			att.Type = dt.Attribute().Type
+		}
 	case *expr.Array:
 		dt.ElemType = makeHTTPTypeRecursive(dt.ElemType, seen)
 	case *expr.Map:

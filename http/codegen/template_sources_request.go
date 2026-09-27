@@ -30,10 +30,8 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- end }}
 			{{- if eq .Type.Name "array" }}
 			for _, val := range head {
-				{{- if eq .Type.ElemType.Type.Name "string" }}
+				{{- if and (eq .Type.ElemType.Type.Name "string") (not (isAlias (aliasedType .FieldType).ElemType.Type)) }}
 				req.Header.Add({{ printf "%q" .HTTPName }}, val)
-				{{- else if (and (isAlias .Type.ElemType.Type) (eq (underlyingType .Type.ElemType.Type).Name "string")) }}
-				req.Header.Set({{ printf "%q" .HTTPName }}, string(val))
 				{{- else }}
 				{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valStr" "val") }}
 				req.Header.Add({{ printf "%q" .HTTPName }}, valStr)

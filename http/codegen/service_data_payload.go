@@ -615,24 +615,43 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 		}
 		b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
 	} else if expr.IsArray(b.payload.Type) || expr.IsMap(b.payload.Type) {
-		if len(request.PathParams) > 0 {
+		if sourceParam, source := b.collectionPayloadSource(requestData); sourceParam != nil {
 			var helpers []*codegen.TransformFunctionData
 			var err error
-			sourceParam := request.PathParams[0]
-			source := requestData.PathParams[0].VarName
-			serverCode, helpers, err = unmarshal(sourceParam.Attribute, b.payload, source, b.httpsvrctx, b.svcctx)
+			serverCode, helpers, err = unmarshal(sourceParam, b.payload, source, b.httpsvrctx, b.svcctx)
 			if err != nil {
-				panic(codegen.NewError(b.sds.Ctx, sourceParam.Attribute, fmt.Errorf("build HTTP server path payload transform for %s: %w", b.endpointIR.MethodName, err)))
+				panic(codegen.NewError(b.sds.Ctx, sourceParam, fmt.Errorf("build HTTP server collection payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
 			b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
-			clientCode, helpers, err = marshal(sourceParam.Attribute, b.payload, source, "v", b.httpclictx, b.svcctx)
+			clientCode, helpers, err = marshal(sourceParam, b.payload, source, "v", b.httpclictx, b.svcctx)
 			if err != nil {
-				panic(codegen.NewError(b.sds.Ctx, sourceParam.Attribute, fmt.Errorf("build HTTP client path payload transform for %s: %w", b.endpointIR.MethodName, err)))
+				panic(codegen.NewError(b.sds.Ctx, sourceParam, fmt.Errorf("build HTTP client collection payload transform for %s: %w", b.endpointIR.MethodName, err)))
 			}
 			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
 		}
 	}
 	return serverCode, clientCode, origin, pointer, unionValue
+}
+
+// collectionPayloadSource selects the decoded transport collection used by a
+// bodyless whole-payload constructor. Its type must match the constructor
+// argument, including alias removal for ordinary parameters and headers.
+func (b *payloadBuilder) collectionPayloadSource(data *RequestData) (*expr.AttributeExpr, string) {
+	request := b.endpointIR.Request
+	switch {
+	case len(data.PathParams) > 0:
+		return makeHTTPType(request.PathParams[0].Attribute), data.PathParams[0].VarName
+	case len(data.QueryParams) > 0:
+		param := request.QueryParams[0]
+		if param.MapQueryParams != nil {
+			return param.Attribute, data.QueryParams[0].VarName
+		}
+		return makeHTTPType(param.Attribute), data.QueryParams[0].VarName
+	case len(data.Headers) > 0:
+		return makeHTTPMappedType(request.Headers[0].Attribute, b.payload), data.Headers[0].VarName
+	default:
+		return nil, ""
+	}
 }
 
 // optionalBodyValidateRef returns the statement that validates the server
