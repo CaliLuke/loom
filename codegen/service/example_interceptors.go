@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 
 	"github.com/dave/jennifer/jen"
 
@@ -26,7 +27,7 @@ func ExampleInterceptorsFiles(genpkg string, r *expr.RootExpr, services *Service
 // exampleInterceptorsFile returns the example interceptors for the given service.
 func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *ServicesData) []*codegen.File {
 	sdata := services.Get(svc.Name)
-	_, svcQual := exampleInterceptorsImports(genpkg, sdata)
+	imports, svcQual := exampleInterceptorsImports(genpkg, sdata)
 	data := map[string]any{
 		"ServiceName":        sdata.Name,
 		"StructName":         sdata.StructName,
@@ -41,7 +42,7 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 	if len(sdata.ServerInterceptors) > 0 {
 		serverPath := filepath.Join("interceptors", sdata.PathName+"_server.go")
 		if _, err := os.Stat(serverPath); os.IsNotExist(err) {
-			serverImports, _ := exampleInterceptorsImports(genpkg, sdata)
+			serverImports := slices.Clone(imports)
 			files = append(files, &codegen.File{
 				Path: serverPath,
 				Sections: []codegen.Section{
@@ -56,7 +57,7 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 	if len(sdata.ClientInterceptors) > 0 {
 		clientPath := filepath.Join("interceptors", sdata.PathName+"_client.go")
 		if _, err := os.Stat(clientPath); os.IsNotExist(err) {
-			clientImports, _ := exampleInterceptorsImports(genpkg, sdata)
+			clientImports := slices.Clone(imports)
 			files = append(files, &codegen.File{
 				Path: clientPath,
 				Sections: []codegen.Section{
