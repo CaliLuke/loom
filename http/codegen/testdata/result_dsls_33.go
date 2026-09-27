@@ -19,7 +19,9 @@ var ValidateErrorResponseTypeDSL = func() {
 		})
 	})
 	var AError = Type("AError", func() {
-		Attribute("error", String)
+		Attribute("error", String, func() {
+			Meta("struct:field:name", "ErrorDetail")
+		})
 		Attribute("num_occur", Int, func() {
 			Minimum(1)
 		})

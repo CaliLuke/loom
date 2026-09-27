@@ -384,12 +384,6 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
-  "http/codegen/OpenAPISharedErrorHeaderDSL": {
-    "contains": "field and method with the same name Error",
-    "issue": "https://github.com/CaliLuke/loom/issues/533",
-    "phase": "build",
-    "reason": "Generated error field conflicts with the Error method."
-  },
   "http/codegen/PayloadPathArrayStringValidateDSL": {
     "contains": "invalid operation: p == []string{\u2026} (slice can only be compared to nil)",
     "issue": "https://github.com/CaliLuke/loom/issues/535",
@@ -401,11 +395,5 @@
     "issue": "https://github.com/CaliLuke/loom/issues/517",
     "phase": "build",
     "reason": "Existing HTTP fixture compile failure."
-  },
-  "http/codegen/ValidateErrorResponseTypeDSL": {
-    "contains": "field and method with the same name Error",
-    "issue": "https://github.com/CaliLuke/loom/issues/533",
-    "phase": "build",
-    "reason": "Generated error field conflicts with the Error method."
   }
 }

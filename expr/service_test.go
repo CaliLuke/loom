@@ -128,7 +128,9 @@ func TestMethodRejectsAmbiguousEffectiveErrorTypes(t *testing.T) {
 		"service and method errors": {
 			dsl: func() {
 				exceptionResponse := Type("ExceptionResponse", func() {
-					Attribute("error", String)
+					Attribute("error", String, func() {
+						Meta("struct:field:name", "ErrorDetail")
+					})
 					Attribute("message", String)
 				})
 

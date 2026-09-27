@@ -132,6 +132,7 @@ func (e *ErrorExpr) Validate() error {
 		return verr
 	}
 	verr.Merge(e.Remedy.Validate())
+	verr.Merge(e.validateGoFieldNames())
 	var errField string
 	walkAttribute(e.AttributeExpr, func(name string, att *AttributeExpr) error { // nolint: errcheck
 		if _, ok := att.Meta["struct:error:name"]; ok {
@@ -219,4 +220,17 @@ func (s *ServiceExpr) validateInterceptorNames(verr *eval.ValidationErrors) {
 		}
 		verr.Add(s, "interceptors %s all generate the Go name %q; rename them so that each interceptor has a distinct Go name", strings.Join(quoted, ", "), goName)
 	}
+}
+
+// validateGoFieldNames reserves the methods generated on the error itself.
+// Nested objects are ordinary data and do not share this method namespace.
+func (e *ErrorExpr) validateGoFieldNames() *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	for _, field := range *effectiveGoFields(e.AttributeExpr, make(map[*AttributeExpr]bool)) {
+		goName := naming.GoifyAttribute(field.Name, field.Attribute.Meta, true)
+		if goName == "Error" || goName == "LoomErrorName" || (goName == "LoomErrorRemedy" && e.Remedy != nil) {
+			verr.Add(e, "attribute %q conflicts with generated error method %q; rename it or set distinct struct:field:name metadata", field.Name, goName)
+		}
+	}
+	return verr
 }

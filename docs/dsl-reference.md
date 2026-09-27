@@ -70,6 +70,9 @@ and `fooBar` both become `FooBar`, so declaring both in one object is rejected.
 Rename an attribute or set `Meta("struct:field:name", "OtherFooBar")` on one
 of them. The override changes its Go field name without changing its design
 name or transport mapping. This check includes fields inherited with `Extend`.
+Error types also reserve `Error` and `LoomErrorName` for generated methods,
+and `LoomErrorRemedy` when the error declares a `Remedy`. Use the same field
+metadata override to keep a wire field such as `error` under a different Go name.
 
 ### Presence and Nullability
 

@@ -5,7 +5,9 @@ import . "github.com/CaliLuke/loom/dsl"
 var OpenAPISharedErrorHeaderDSL = func() {
 	var ExceptionResponse = Type("ExceptionResponse", func() {
 		ErrorName("loomError", String, "Which declared error this is.")
-		Attribute("error", String)
+		Attribute("error", String, func() {
+			Meta("struct:field:name", "ErrorDetail")
+		})
 		Attribute("message", String)
 		Attribute("path", String)
 		Attribute("status", Int32)

@@ -62,6 +62,9 @@ order.
 - Give each object distinct generated Go field names. `foo_bar` and `fooBar`
   both become `FooBar`; rename one or set `Meta("struct:field:name", "OtherFooBar")`
   on it. The override preserves the design name and transport mapping.
+- Error fields must also avoid generated methods `Error`, `LoomErrorName`, and
+  `LoomErrorRemedy` when a `Remedy` is declared. Use `struct:field:name` to keep
+  the wire name while choosing a different Go field name.
 - Prefer a canonical `ResultType` with `View(...)` definitions over parallel
   hand-maintained DTOs for alternate public representations.
 - Repeated `HTTP`, `GRPC`, or `JSONRPC` blocks in the same API, service, or

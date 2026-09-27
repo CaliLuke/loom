@@ -237,6 +237,9 @@ func (r *RootExpr) Validate() error {
 	verr.Merge(r.validateRelocatedUserTypes())
 	verr.Merge(r.validateGeneratedDirs())
 	verr.Merge(r.validateGoFieldNames())
+	for _, e := range r.Errors {
+		verr.Merge(e.validateGoFieldNames())
+	}
 	for _, sessionAuth := range r.SessionAuths {
 		verr.Merge(sessionAuth.Validate())
 	}
