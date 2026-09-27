@@ -43,6 +43,32 @@ func TestHTTPTransportRejectsNullableFormBody(t *testing.T) {
 	require.ErrorContains(t, verr, "form and multipart bodies do not support nullable attributes")
 }
 
+func TestNullableRootOtherTransportBoundaries(t *testing.T) {
+	nullable := &AttributeExpr{Type: String, Nullable: true}
+	for _, tc := range []struct {
+		name     string
+		endpoint *HTTPEndpointExpr
+	}{
+		{"JSON-RPC stream payload", &HTTPEndpointExpr{MethodExpr: &MethodExpr{
+			StreamingPayload: nullable,
+			Meta:             MetaExpr{"jsonrpc": []string{}},
+		}}},
+		{"unary JSON body", &HTTPEndpointExpr{
+			MethodExpr: &MethodExpr{Payload: nullable},
+			Body:       nullable,
+		}},
+		{"WebSocket result", &HTTPEndpointExpr{MethodExpr: &MethodExpr{
+			Result: nullable, StreamingResult: nullable, Stream: ServerStreamKind,
+		}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			verr := newValidationErrors()
+			tc.endpoint.validateNullableTransportLocations(verr)
+			require.Empty(t, verr.Errors)
+		})
+	}
+}
+
 func TestHTTPTransportRejectsNullableErrorMetadata(t *testing.T) {
 	nullable := &AttributeExpr{Type: String, Nullable: true}
 	response := &HTTPResponseExpr{

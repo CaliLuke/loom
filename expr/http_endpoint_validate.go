@@ -43,6 +43,12 @@ func (e *HTTPEndpointExpr) validateNullableTransportLocations(verr *eval.Validat
 	if e == nil {
 		return
 	}
+	if e.MethodExpr != nil && e.SSE == nil {
+		_, jsonrpc := e.MethodExpr.Meta["jsonrpc"]
+		if !jsonrpc && IsNullable(e.MethodExpr.StreamingPayload) {
+			verr.Add(e, "HTTP WebSocket streaming payload root cannot be nullable: JSON null marks end of input; use nullable fields inside a non-null payload")
+		}
+	}
 	if e.Params != nil && containsNullable(e.Params.Attribute()) {
 		verr.Add(e, "HTTP query and path parameters do not support nullable attributes")
 	}

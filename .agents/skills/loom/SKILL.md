@@ -345,6 +345,10 @@ completion shapes are explicit generation limitations.
   parameters or metadata, forms, multipart bodies, or gRPC message fields.
 - Array elements reject JSON null by default. Put `Nullable()` on the element
   definition to accept null members; array-field requiredness is independent.
+- HTTP WebSocket `StreamingPayload` roots cannot be nullable: a root JSON `null`
+  frame ends client input. Put nullable values inside a non-null payload object.
+  Nested nullable fields and collection members remain supported; this request
+  framing restriction does not apply to JSON-RPC or WebSocket responses.
 - OpenAPI 3.1/3.2 value-or-null unions and OpenAPI 3.0 `nullable: true` import
   to this same DSL contract.
 

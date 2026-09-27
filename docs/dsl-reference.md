@@ -122,6 +122,12 @@ forms, multipart bodies, and gRPC messages reject nullable shapes during design
 validation because those transports cannot preserve the same JSON presence
 contract. An unconstrained `Any` value remains the gRPC exception.
 
+An HTTP WebSocket `StreamingPayload` cannot have a nullable root: a JSON `null`
+frame signals end of client input. Put nullable values in fields of a non-null
+payload object instead. Nullable fields, array elements, and map values inside
+a stream message remain supported. This restriction does not apply to JSON-RPC
+envelopes or HTTP WebSocket responses, which use different stream framing.
+
 OpenAPI 3.1 and 3.2 render nullable schemas as a value-or-null union. The
 OpenAPI importer maps those unions, and OpenAPI 3.0 `nullable: true`, back to
 the same `Nullable()` DSL contract.

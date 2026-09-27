@@ -34,6 +34,17 @@ func webSocketDecodeDSL() {
 			Attribute("count", Int)
 		})
 		Attribute("extra", Any)
+		Attribute("note", String, func() {
+			Nullable()
+		})
+		Attribute("labels", ArrayOf(String, func() {
+			Nullable()
+		}))
+		Attribute("lookup", MapOf(String, String, func() {
+			Elem(func() {
+				Nullable()
+			})
+		}))
 		Required("text")
 	})
 	Service("chat", func() {
@@ -79,7 +90,7 @@ var frames = []string{
 	" \n\t ",
 	` + "`" + `{"text":x}` + "`" + `,
 	` + "`" + `{"text":"a"` + "`" + `,
-	` + "`" + `{"text":"hi","value":{"type":"count","value":3},"extra":{"k":[1,true]}}` + "`" + `,
+	` + "`" + `{"text":"hi","value":{"type":"count","value":3},"extra":{"k":[1,true]},"note":null,"labels":[null,"kept"],"lookup":{"empty":null,"kept":"value"}}` + "`" + `,
 }
 
 type talkService struct {
@@ -228,6 +239,18 @@ func checkDecoding(t *testing.T, observations []observation) {
 	}
 	if valid.msg.Value == nil || valid.msg.Value.Kind() != chat.ValueKindCount || valid.msg.Value.Count != 3 {
 		t.Errorf("valid union: got %+v", valid.msg.Value)
+	}
+	if !valid.msg.Note.IsNull() {
+		t.Errorf("nullable field: got %+v", valid.msg.Note)
+	}
+	if len(valid.msg.Labels) != 2 {
+		t.Fatalf("nullable array length: got %+v", valid.msg.Labels)
+	}
+	if value, present := valid.msg.Labels[1].Value(); !valid.msg.Labels[0].IsNull() || !present || value != "kept" {
+		t.Errorf("nullable array elements: got %+v", valid.msg.Labels)
+	}
+	if value, present := valid.msg.Lookup["kept"].Value(); len(valid.msg.Lookup) != 2 || !valid.msg.Lookup["empty"].IsNull() || !present || value != "value" {
+		t.Errorf("nullable map values: got %+v", valid.msg.Lookup)
 	}
 	want := jsontext.Value(` + "`" + `{"k":[1,true]}` + "`" + `)
 	if got := jsontext.Value(valid.msg.Extra); !got.IsValid() || string(got.Clone()) != string(want) {
