@@ -167,6 +167,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		OptionalObjectBody:    isOptionalObjectBody(b.endpointIR.Request),
 		OptionalPrimitiveBody: isOptionalPrimitiveBody(b.endpointIR.Request),
 		ExplicitPresenceBody:  codegen.IsExplicitPresenceType(b.endpointIR.Request.Body),
+		BodyAllowsNull:        expr.AllowsNull(b.endpointIR.Request.Body) || codegen.IsExplicitPresenceType(b.endpointIR.Request.Body),
 		MustValidate:          payloadRequestNeedsValidation(paramsData, queryData, headersData, cookiesData),
 		Multipart:             b.endpointIR.Request.Multipart,
 		MultipartGenerated:    multipartGen,

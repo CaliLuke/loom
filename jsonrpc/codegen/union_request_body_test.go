@@ -28,7 +28,7 @@ func TestJSONRPCUnionRequestBodyDeclaration(t *testing.T) {
 			file := requireEncodeDecodeFile(t, ServerFiles("", CreateJSONRPCServices(root)), "server")
 			code := sectionSourceByName(t, file, "jsonrpc-request-decoder")
 			assert.Contains(t, code, "body PickRequestBody\n")
-			assert.Contains(t, code, "err = decoder(r).Decode(&body)")
+			assert.Contains(t, code, "err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)")
 			assert.Contains(t, code, "payload = NewPickLeafOrOther(&body,")
 			assert.NotContains(t, code, "body *Pick")
 		})
@@ -189,7 +189,7 @@ func TestUnionParamsRoundTrip(t *testing.T) {
 		{"malformed", "{x}", http.StatusOK, -32700, "Parse error", "", nil},
 		{"truncated", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Pick","params":{"type":"Leaf"` + "`" + `, http.StatusOK, -32700, "Parse error", "", nil},
 		{"absent params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Pick"}` + "`" + `, http.StatusOK, -32602, ` + "`" + `invalid value for "type": got "", expected one of "Leaf", "Other"` + "`" + `, "invalid_enum_value", nil},
-		{"null params", request("null"), http.StatusOK, -32602, ` + "`" + `invalid value for "type": got "", expected one of "Leaf", "Other"` + "`" + `, "invalid_enum_value", nil},
+		{"null params", request("null"), http.StatusOK, -32602, "invalid request body", "decode_payload", nil},
 		{"unknown branch", request(` + "`" + `{"type":"Nope","value":{}}` + "`" + `), http.StatusOK, -32602, ` + "`" + `invalid value for "type": got "Nope", expected one of "Leaf", "Other"` + "`" + `, "invalid_enum_value", nil},
 		{"missing value", request(` + "`" + `{"type":"Leaf"}` + "`" + `), http.StatusOK, -32602, "Missing required field: value", "missing_field", nil},
 		{"null value", request(` + "`" + `{"type":"Leaf","value":null}` + "`" + `), http.StatusOK, -32602, "Missing required field: value", "missing_field", nil},

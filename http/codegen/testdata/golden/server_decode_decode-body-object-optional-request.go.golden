@@ -8,7 +8,7 @@ func DecodeMethodBodyObjectOptionalRequestRequest(mux loomhttp.Muxer, decoder fu
 			body MethodBodyObjectOptionalRequestRequestBody
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				err = nil

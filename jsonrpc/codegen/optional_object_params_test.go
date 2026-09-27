@@ -36,7 +36,7 @@ func TestJSONRPCOptionalObjectParams(t *testing.T) {
 			Decode: []string{
 				"\t\tparams := req.Params\n\t\tr.Body = io.NopCloser(bytes.NewReader(params))\n",
 				"\t\t\tbody = &FindRequestBody{}\n",
-				"\t\terr = decoder(r).Decode(body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\t\tbody = nil\n",
 				"\t\tif body != nil {\n",
 				"err = ValidateFindRequestBody(body)\n",
@@ -55,7 +55,7 @@ func TestJSONRPCOptionalObjectParams(t *testing.T) {
 			Decode: []string{
 				"\t\tif len(params) == 0 {\n\t\t\tparams = []byte(\"{}\")\n\t\t}\n",
 				"\t\t\tbody FindRequestBody\n",
-				"\t\terr = decoder(r).Decode(&body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 				"\t\terr = ValidateFindRequestBody(&body)\n",
 				"payload = NewFindPayload(&body, ",
 			},
@@ -258,7 +258,7 @@ func TestOptionalObjectParams(t *testing.T) {
 	}{
 		{"absent params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Find"}` + "`" + `, 0, "", "", nil},
 		{"valid params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Find","params":{"name":"x"}}` + "`" + `, 0, "", "", &finder.Filters{Name: "x"}},
-		{"null params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Find","params":null}` + "`" + `, -32602, "Missing required field: name", "missing_field", nil},
+		{"null params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Find","params":null}` + "`" + `, -32602, "invalid request body", "decode_payload", nil},
 		{"empty object params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Find","params":{}}` + "`" + `, -32602, "Missing required field: name", "missing_field", nil},
 	}
 	for _, tc := range cases {

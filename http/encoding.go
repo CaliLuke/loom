@@ -99,7 +99,11 @@ func RequestDecoder(r *http.Request) Decoder {
 	}
 	switch contentType {
 	case "application/json":
-		return newLimitedDecoder(r.Body, decodeJSON, decodeRequest, limit)
+		decode := decodeJSON
+		if rejectNull, _ := r.Context().Value(nonNullableBodyKey{}).(bool); rejectNull {
+			decode = decodeNonNullableJSON
+		}
+		return newLimitedDecoder(r.Body, decode, decodeRequest, limit)
 	case "application/gob":
 		return newLimitedDecoder(r.Body, decodeGOB, decodeRequest, limit)
 	case "application/xml":

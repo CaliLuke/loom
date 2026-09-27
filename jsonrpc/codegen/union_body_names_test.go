@@ -230,7 +230,7 @@ func TestUnaryUnionRoundTrip(t *testing.T) {
 			{"malformed", "{x}", -32700, "Parse error", "", ""},
 			{"truncated", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"` + "`" + ` + method + ` + "`" + `","params":{"type":"Leaf"` + "`" + `, -32700, "Parse error", "", ""},
 			{"absent params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"` + "`" + ` + method + ` + "`" + `"}` + "`" + `, -32602, enum(""), "invalid_enum_value", ""},
-			{"null params", request("null"), -32602, enum(""), "invalid_enum_value", ""},
+			{"null params", request("null"), -32602, "invalid request body", "decode_payload", ""},
 			{"unknown branch", request(` + "`" + `{"type":"Nope","value":{}}` + "`" + `), -32602, enum("Nope"), "invalid_enum_value", ""},
 			{"missing value", request(` + "`" + `{"type":"Leaf"}` + "`" + `), -32602, "Missing required field: value", "missing_field", ""},
 			{"null value", request(` + "`" + `{"type":"Leaf","value":null}` + "`" + `), -32602, "Missing required field: value", "missing_field", ""},

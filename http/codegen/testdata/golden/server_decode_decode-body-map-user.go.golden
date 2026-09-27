@@ -7,7 +7,7 @@ func DecodeMethodBodyMapUserRequest(mux loomhttp.Muxer, decoder func(*http.Reque
 			body MethodBodyMapUserRequestBody
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return payload, loom.MissingPayloadError()

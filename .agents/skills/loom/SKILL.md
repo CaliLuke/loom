@@ -386,7 +386,8 @@ completion shapes are explicit generation limitations.
   with a default value, which is always sent. A nullable or
   `Any` attribute selected with `Body("name")` keeps absent, null, and concrete
   states: an absent optional value sends no body, and an empty body decodes to
-  an absent value.
+  an absent value. Non-nullable JSON bodies reject root `null` with
+  `decode_payload`, whether required or optional; JSON-RPC returns `-32602`.
 - Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
   request stream needs a documentation-only OpenAPI contract.
 - Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts

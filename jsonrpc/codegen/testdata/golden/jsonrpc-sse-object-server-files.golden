@@ -388,7 +388,7 @@ func DecodeStreamRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhtt
 			body StreamRequestBody
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return payload, loom.MissingPayloadError()

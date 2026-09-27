@@ -49,7 +49,7 @@ func DecodeInitializeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loo
 			body InitializeRequestBody
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return payload, loom.MissingPayloadError()
@@ -95,7 +95,7 @@ func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.
 			body TickRequestBody
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return payload, loom.MissingPayloadError()

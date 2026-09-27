@@ -449,6 +449,9 @@ type (
 		// params as an absent body, which is a missing payload when the
 		// body is required, instead of as {}.
 		ExplicitPresenceBody bool
+		// BodyAllowsNull reports whether the DSL body accepts top-level JSON null.
+		// Requiredness is independent of this flag.
+		BodyAllowsNull bool
 		// MustValidate is true if the request body or at least one
 		// parameter or header requires validation.
 		MustValidate bool

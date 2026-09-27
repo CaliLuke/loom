@@ -264,7 +264,7 @@ func TestOptionalJSONObjectBody(t *testing.T) {
 	cases := []bodyCase[jsonfind.Filters]{
 		{"valid", ` + "`" + `{"name":"x","limit":3}` + "`" + `, http.StatusNoContent, "", "", &jsonfind.Filters{Name: ptr("x"), Limit: ptr(3)}},
 		{"empty object", "{}", http.StatusNoContent, "", "", &jsonfind.Filters{}},
-		{"null", "null", http.StatusNoContent, "", "", &jsonfind.Filters{}},
+		{"null", "null", http.StatusBadRequest, "decode_payload", "invalid request body", nil},
 		{"empty", "", http.StatusNoContent, "", "", nil},
 		{"whitespace", " \n\t", http.StatusNoContent, "", "", nil},
 		{"null field", ` + "`" + `{"name":null}` + "`" + `, http.StatusBadRequest, "decode_payload", "invalid request body", nil},
@@ -298,8 +298,8 @@ func TestOptionalJSONObjectBodyWithRequiredFields(t *testing.T) {
 		{"valid", ` + "`" + `{"name":"x"}` + "`" + `, http.StatusNoContent, "", "", &strictfind.Strict{Name: "x"}},
 		{"empty", "", http.StatusNoContent, "", "", nil},
 		{"whitespace", " \n\t", http.StatusNoContent, "", "", nil},
+		{"null", "null", http.StatusBadRequest, "decode_payload", "invalid request body", nil},
 		{"empty object", "{}", http.StatusBadRequest, "missing_field", "Missing required field: name", nil},
-		{"null", "null", http.StatusBadRequest, "missing_field", "Missing required field: name", nil},
 		{"missing required field", ` + "`" + `{"limit":1}` + "`" + `, http.StatusBadRequest, "missing_field", "Missing required field: name", nil},
 		{"malformed", "{x}", http.StatusBadRequest, "decode_payload", "invalid request body", nil},
 		{"truncated", ` + "`" + `{"name":"x"` + "`" + `, http.StatusBadRequest, "decode_payload", "invalid request body", nil},
@@ -384,6 +384,7 @@ func TestRequiredJSONObjectBody(t *testing.T) {
 		{"valid", ` + "`" + `{"name":"x"}` + "`" + `, http.StatusNoContent, "", "", &reqfind.Strict{Name: "x"}},
 		{"empty", "", http.StatusBadRequest, "missing_payload", "validation error", nil},
 		{"whitespace", " \n\t", http.StatusBadRequest, "missing_payload", "validation error", nil},
+		{"null", "null", http.StatusBadRequest, "decode_payload", "invalid request body", nil},
 		{"empty object", "{}", http.StatusBadRequest, "missing_field", "Missing required field: name", nil},
 	}
 	for _, tc := range cases {

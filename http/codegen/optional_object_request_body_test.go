@@ -35,7 +35,7 @@ func TestOptionalObjectRequestBody(t *testing.T) {
 			Encode:   "err := encoder(req).Encode(&body)",
 			Decode: []string{
 				"\t\tvar (\n\t\t\tbody = &FindRequestBody{}\n\t\t\terr  error\n\t\t)\n",
-				"\t\terr = decoder(r).Decode(body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\tif errors.Is(err, io.EOF) {\n\t\t\t\tbody = nil\n\t\t\t\terr = nil\n\t\t\t} else {\n",
 			},
 		},
@@ -45,7 +45,7 @@ func TestOptionalObjectRequestBody(t *testing.T) {
 			Optional: true,
 			Encode:   "err := encoder(req).Encode(&body)",
 			Decode: []string{
-				"\t\terr = decoder(r).Decode(body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\t\tbody = nil\n",
 			},
 			Validate: "\t\tif body != nil {\n\t\t\terr = ValidateFindRequestBody(body)\n\t\t\tif err != nil {\n\t\t\t\treturn payload, err\n\t\t\t}\n\t\t}\n",
@@ -56,7 +56,7 @@ func TestOptionalObjectRequestBody(t *testing.T) {
 			Optional: true,
 			Encode:   "err := encoder(req).Encode(&body)",
 			Decode: []string{
-				"\t\terr = decoder(r).Decode(body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\t\tbody = nil\n",
 			},
 		},
@@ -76,7 +76,7 @@ func TestOptionalObjectRequestBody(t *testing.T) {
 			Encode: "err := encoder(req).Encode(&body)",
 			Decode: []string{
 				"\t\tvar (\n\t\t\tbody FindRequestBody\n\t\t\terr  error\n\t\t)\n",
-				"\t\terr = decoder(r).Decode(&body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 			},
 			Validate: "\t\terr = ValidateFindRequestBody(&body)\n\t\tif err != nil {\n\t\t\treturn payload, err\n\t\t}\n",
 		},

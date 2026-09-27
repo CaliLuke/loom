@@ -26,7 +26,7 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			Section: "request-decoder",
 			Contains: []string{
 				"body PickRequestBody\n",
-				"err = decoder(r).Decode(&body)",
+				"err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)",
 				"payload = NewPickLeafOrOther(&body)",
 			},
 		},
@@ -36,7 +36,7 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			Section: "request-decoder",
 			Contains: []string{
 				"body PickRequestBody\n",
-				"err = decoder(r).Decode(&body)",
+				"err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)",
 				"payload = NewPickLeafOrOther(&body)",
 			},
 		},
@@ -46,7 +46,7 @@ func TestUnionRequestBodyDeclaration(t *testing.T) {
 			Section: "request-decoder",
 			Contains: []string{
 				"body PickRequestBody\n",
-				"err = decoder(r).Decode(&body)",
+				"err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)",
 				"payload = NewPickPayload(&body, q)",
 			},
 		},

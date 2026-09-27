@@ -44,7 +44,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\tvar (\n\t\t\tbody = new(string)\n\t\t\terr  error\n\t\t)\n",
-				"\t\terr = decoder(r).Decode(body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\tif errors.Is(err, io.EOF) {\n\t\t\t\tbody = nil\n\t\t\t\terr = nil\n\t\t\t} else {\n",
 				"\t\tif body != nil {\n\t\t\tif utf8.RuneCountInString(*body) < 2 {\n",
 				"payload = NewSendPayload(body, q)",
@@ -65,7 +65,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\t\tbody = new(int)\n",
-				"\t\terr = decoder(r).Decode(body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\t\tbody = nil\n",
 			},
 			Init: []string{
@@ -82,7 +82,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Optional:  true,
 			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
 			Decode: []string{
-				"\t\terr = decoder(r).Decode(&body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 				"\t\tif body != nil {\n\t\t\tif len(body) < 1 {\n",
 				"payload = NewSendPayload(body, q)",
 			},
@@ -116,7 +116,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Optional:  true,
 			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
 			Decode: []string{
-				"\t\terr = decoder(r).Decode(&body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 			},
 			Init: []string{
 				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tv := make(map[string]int, len(body))\n",
@@ -132,7 +132,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\t\tbody []byte\n",
-				"\t\terr = decoder(r).Decode(&body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 			},
 			Init: []string{
 				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tv := body\n\t\tres.V = v\n\t}\n",
@@ -149,7 +149,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := NewSendRequestBody(p)\n",
 			Decode: []string{
 				"\t\t\tbody = new(SendRequestBody)\n",
-				"\t\terr = decoder(r).Decode(body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 			},
 			Init: []string{
 				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tv := picker.Plain(*body)\n\t\tres.V = &v\n\t}\n",
@@ -166,7 +166,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Encode:    "\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\t\tbody string\n",
-				"\t\terr = decoder(r).Decode(&body)\n",
+				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 			},
 			Init: []string{
 				"\tv := body\n\tres := &picker.SendPayload{\n\t\tV: v,\n\t}\n",

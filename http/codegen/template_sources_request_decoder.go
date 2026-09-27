@@ -111,7 +111,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			}
 		}
 	{{- else }}
-		err = decoder(r).Decode({{ if not (or .Payload.Request.OptionalObjectBody .Payload.Request.OptionalPrimitiveBody) }}&{{ end }}body)
+		err = decoder({{ if .Payload.Request.BodyAllowsNull }}r{{ else }}loomhttp.WithNonNullableBody(r){{ end }}).Decode({{ if not (or .Payload.Request.OptionalObjectBody .Payload.Request.OptionalPrimitiveBody) }}&{{ end }}body)
 		if err != nil {
 		{{- if .Payload.Request.MustHaveBody }}
 			if errors.Is(err, io.EOF) {

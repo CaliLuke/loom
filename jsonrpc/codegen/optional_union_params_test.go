@@ -248,7 +248,7 @@ func TestOptionalUnionParams(t *testing.T) {
 		errName string
 	}{
 		{"absent params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Pick"}` + "`" + `, 0, "", ""},
-		{"null params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Pick","params":null}` + "`" + `, -32602, ` + "`" + `invalid value for "type": got "", expected one of "Leaf", "Other"` + "`" + `, "invalid_enum_value"},
+		{"null params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Pick","params":null}` + "`" + `, -32602, "invalid request body", "decode_payload"},
 		{"empty object params", ` + "`" + `{"jsonrpc":"2.0","id":1,"method":"Pick","params":{}}` + "`" + `, -32602, ` + "`" + `invalid value for "type": got "", expected one of "Leaf", "Other"` + "`" + `, "invalid_enum_value"},
 	}
 	for _, tc := range cases {

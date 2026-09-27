@@ -262,7 +262,7 @@ func TestOptionalJSONBodyRoundTrip(t *testing.T) {
 		{"other", ` + "`" + `{"type":"Other","value":{}}` + "`" + `, http.StatusNoContent, "", "", ptr(optpick.NewLeafOrOtherOther(&optpick.Other{}))},
 		{"empty", "", http.StatusNoContent, "", "", nil},
 		{"whitespace", " \n\t", http.StatusNoContent, "", "", nil},
-		{"null", "null", http.StatusBadRequest, "invalid_enum_value", ` + "`" + `invalid value for "type": got "", expected one of "Leaf", "Other"` + "`" + `, nil},
+		{"null", "null", http.StatusBadRequest, "decode_payload", "invalid request body", nil},
 		{"empty object", "{}", http.StatusBadRequest, "invalid_enum_value", ` + "`" + `invalid value for "type": got "", expected one of "Leaf", "Other"` + "`" + `, nil},
 		{"malformed", "{x}", http.StatusBadRequest, "decode_payload", "invalid request body", nil},
 		{"truncated", ` + "`" + `{"type":"Leaf"` + "`" + `, http.StatusBadRequest, "decode_payload", "invalid request body", nil},

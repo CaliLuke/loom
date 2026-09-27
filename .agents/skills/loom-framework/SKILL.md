@@ -726,6 +726,11 @@ filter, and serialization rules belong here.
   optional non-null fields. Reject nullable shapes at transports that cannot
   preserve absent, null, and concrete states instead of weakening the service
   contract.
+- Generated request decoders derive root nullability from the evaluated body
+  and pass `http.WithNonNullableBody` to decoder factories for non-nullable
+  bodies. The built-in JSON decoder rejects root null before unmarshalling;
+  optionality still controls EOF independently. Custom decoder factories own
+  their codec contract.
 - JSON decoding types use `loom.Nullable[T]` for non-null array elements and
   map values so validation can reject explicit `null` with stable collection
   paths before conversion to service types.

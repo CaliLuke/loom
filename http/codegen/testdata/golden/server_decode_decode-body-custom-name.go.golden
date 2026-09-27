@@ -7,7 +7,7 @@ func DecodeMethodBodyCustomNameRequest(mux loomhttp.Muxer, decoder func(*http.Re
 			body MethodBodyCustomNameRequestBody
 			err  error
 		)
-		err = decoder(r).Decode(&body)
+		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return payload, loom.MissingPayloadError()

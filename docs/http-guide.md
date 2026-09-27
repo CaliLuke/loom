@@ -358,13 +358,14 @@ attribute is nil, the generated client sends no request body, without a
 `Content-Type` header. The generated server decodes an empty or
 whitespace-only body, or an empty form, as a nil attribute. A present body is
 decoded and validated normally, so the required fields of the object apply
-only when the client sends a body. The server decodes a JSON `null` object
-body like `{}`, and rejects a JSON `null` union body because it has no union
-discriminator. A JSON-RPC method that selects its params the same way works
-alike: the client omits `params` for a nil attribute and the server decodes
-absent `params` as a nil attribute. For a union, the server rejects
-`"params": null` and `"params": {}` with `-32602`; for an object, it decodes
-them like `{}` and validates the object.
+only when the client sends a body. The built-in JSON decoder rejects a
+`null` body with `decode_payload` unless the body allows null. Optionality
+permits absence, not null. A JSON-RPC method that selects its params the same
+way works alike: the client omits `params` for a nil attribute and the server
+decodes absent `params` as a nil attribute. The server rejects non-nullable
+`"params": null` with `-32602`.
+An object value `{}` is decoded and validated normally; a union still needs
+its discriminator.
 
 A nullable attribute selected with `Body("name")`, such as a nullable object,
 array, map, primitive, or union, keeps the absent, null, and concrete states
@@ -388,8 +389,8 @@ An optional primitive, array, map, or `Bytes` attribute selected with
 generated client sends no request body, and a JSON-RPC client omits
 `params`. The generated server decodes an empty or whitespace-only body, or
 absent JSON-RPC `params`, as a nil attribute, and validates a present body.
-A JSON `null` body decodes like the zero value of a primitive, such as `""`
-or `0`, and like a nil array or map. An empty array or map is present: it is
+A JSON `null` body is rejected unless the body allows null, regardless of
+whether it is required. An empty array or map is present: it is
 sent and decoded as an empty value. A primitive with a default value is not a
 pointer in the payload, so the client always sends it.
 
