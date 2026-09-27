@@ -206,10 +206,9 @@
     "reason": "File-only service generates an unused CLI endpoint variable."
   },
   "expr/GRPCEndpointWithAnyType": {
-    "contains": "Key in map fields cannot be float/double, bytes or message types.",
-    "issue": "https://github.com/CaliLuke/loom/issues/544",
+    "contains": "gRPC map keys must be Boolean, String, or integer types (including aliases); got any",
     "phase": "gen",
-    "reason": "Unsupported protobuf map key passes DSL validation."
+    "reason": "intentional validation failure"
   },
   "expr/GRPCEndpointWithConstructorUnionFieldCollision": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": field number 3 in attribute \"next\" already exists for attribute \"pick.Other\"; a OneOf passed to Field numbers its branches consecutively from the field number",

@@ -27,8 +27,8 @@ import (
 // valid testdata DSL that declares a recursive user or result type and over a
 // design exposed on HTTP, gRPC, and JSON-RPC whose types recurse mutually and
 // through collections alone. It renders every file section in memory and
-// parses the Go output; it does not run protoc because some of these designs
-// are valid Loom designs that protoc rejects.
+// parses the Go output. Protoc and generated-module compilation are covered by
+// the transport compile tests and exported-design corpus.
 func TestTransportRecursiveTypes(t *testing.T) {
 	cases := []struct {
 		Name string
@@ -41,7 +41,7 @@ func TestTransportRecursiveTypes(t *testing.T) {
 		{"service-streaming-payload", servicetestdata.StreamingPayloadMethodDSL},
 		{"codegen-recursive-validation", codegentestdata.RecursiveValidationDSL},
 		{"codegen-types", codegentestdata.TestTypesDSL},
-		{"expr-grpc-endpoint-with-any-type", exprtestdata.GRPCEndpointWithAnyType},
+		{"expr-grpc-map-keys-with-any-values", exprtestdata.GRPCMapKeys},
 		{"grpc-nested-user-types", grpctestdata.MessageUserTypeWithNestedUserTypesDSL},
 		{"http-multi", httptestdata.MultiDSL},
 		{"http-payload-body-inline-recursive-user", httptestdata.PayloadBodyInlineRecursiveUserDSL},

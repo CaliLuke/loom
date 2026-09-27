@@ -45,16 +45,7 @@ func (e *GRPCErrorExpr) Validate() *eval.ValidationErrors {
 
 // Finalize looks up the corresponding method error expression.
 func (e *GRPCErrorExpr) Finalize(a *GRPCEndpointExpr) {
-	var ee *ErrorExpr
-	switch p := e.Response.Parent.(type) {
-	case *GRPCEndpointExpr:
-		ee = p.MethodExpr.Error(e.Name)
-	case *GRPCServiceExpr:
-		ee = p.Error(e.Name)
-	case *GRPCExpr:
-		ee = Root.Error(e.Name)
-	}
-	e.ErrorExpr = ee
+	e.ErrorExpr = e.sourceError()
 	e.Response.Finalize(a, e.AttributeExpr)
 }
 
@@ -65,4 +56,19 @@ func (e *GRPCErrorExpr) Dup() *GRPCErrorExpr {
 		Name:      e.Name,
 		Response:  e.Response.Dup(),
 	}
+}
+
+// sourceError resolves the error definition owned by the response mapping.
+// Inherited mappings retain their original scope even when a method declares
+// another error with the same name.
+func (e *GRPCErrorExpr) sourceError() *ErrorExpr {
+	switch p := e.Response.Parent.(type) {
+	case *GRPCEndpointExpr:
+		return p.MethodExpr.Error(e.Name)
+	case *GRPCServiceExpr:
+		return p.Error(e.Name)
+	case *GRPCExpr:
+		return Root.Error(e.Name)
+	}
+	return nil
 }

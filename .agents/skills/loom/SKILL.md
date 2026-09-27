@@ -352,8 +352,11 @@ completion shapes are explicit generation limitations.
   name takes the union field name as a prefix, such as `b_int64`. Protocol
   buffer clients see the prefixed names; the service type keeps the branch
   names.
-- gRPC rejects a union used as an array element or map key or value. Wrap the
-  union in a type with one `Field` and use that type in the collection.
+- gRPC map keys must be `Boolean`, `String`, or integer types, including
+  aliases. `Any` is supported as a map value, but cannot be a map key.
+- gRPC rejects a union used as an array element or map value. Wrap the
+  union in a type with one `Field` and use that type as the element or value.
+  Wrapping a union does not make it a valid map key.
 - On gRPC, a union used as a branch of another union, a named array such as
   `Type("Tags", ArrayOf(String))` and a named map such as
   `Type("Index", MapOf(String, Int))` are each a message that wraps the

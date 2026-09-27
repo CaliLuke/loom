@@ -18,7 +18,7 @@ func TestGRPCEndpointValidation(t *testing.T) {
 	}{
 		"endpoint-with-any-type": {
 			DSL:    testdata.GRPCEndpointWithAnyType,
-			Errors: []string{}, // Any type is now supported in gRPC
+			Errors: []string{`service "Service" method "Method": gRPC map keys must be Boolean, String, or integer types (including aliases); got any`},
 		},
 		"endpoint-with-untagged-fields": {
 			DSL: testdata.GRPCEndpointWithUntaggedFields,

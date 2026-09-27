@@ -61,6 +61,10 @@ protoc-gen-go-grpc --version
 | ArrayOf   | repeated           |
 | MapOf     | map                |
 
+Map keys must be `Boolean`, `String`, or an integer type, including aliases of
+these types. `Any`, floating-point, bytes, object, array, and union keys are
+rejected during design validation. Map values may use `Any`.
+
 `Any` maps to `google.protobuf.Value`. Generated Go uses `loom.JSONValue`
 for direct values and uses the same type for array and map elements. Generated
 transforms parse the raw JSON before writing protobuf messages and encode

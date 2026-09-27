@@ -91,7 +91,7 @@ func (e *GRPCEndpointExpr) Validate() error {
 	if e.MethodExpr.HasMixedResults() {
 		verr.Add(e, "gRPC methods cannot define both Result and StreamingResult with different types because a gRPC server stream sends only the streaming result")
 	}
-	e.validateGRPCUnionShapes(verr)
+	e.validateGRPCMessageShapes(verr)
 	e.validateNullableTransport(verr)
 	verr.Merge(e.validateRequestShape())
 	verr.Merge(e.Response.Validate(e))
@@ -238,15 +238,17 @@ func (e *GRPCEndpointExpr) prepareGRPCErrorResponses() {
 	}
 }
 
-func (e *GRPCEndpointExpr) validateGRPCUnionShapes(verr *eval.ValidationErrors) {
+func (e *GRPCEndpointExpr) validateGRPCMessageShapes(verr *eval.ValidationErrors) {
 	seenUnions := make(map[*Union]struct{})
 	seenAttrs := make(map[*AttributeExpr]struct{})
-	validateGRPCUnionShapes(e.MethodExpr.Payload, e.MethodExpr, verr, seenUnions, seenAttrs)
-	validateGRPCUnionShapes(e.MethodExpr.StreamingPayload, e.MethodExpr, verr, seenUnions, seenAttrs)
-	validateGRPCUnionShapes(e.MethodExpr.Result, e.MethodExpr, verr, seenUnions, seenAttrs)
-	validateGRPCUnionShapes(e.MethodExpr.StreamingResult, e.MethodExpr, verr, seenUnions, seenAttrs)
-	for _, err := range e.MethodExpr.Errors {
-		validateGRPCUnionShapes(err.AttributeExpr, e.MethodExpr, verr, seenUnions, seenAttrs)
+	validateGRPCMessageShapes(e.MethodExpr.Payload, e.MethodExpr, verr, seenUnions, seenAttrs)
+	validateGRPCMessageShapes(e.MethodExpr.StreamingPayload, e.MethodExpr, verr, seenUnions, seenAttrs)
+	validateGRPCMessageShapes(e.MethodExpr.Result, e.MethodExpr, verr, seenUnions, seenAttrs)
+	validateGRPCMessageShapes(e.MethodExpr.StreamingResult, e.MethodExpr, verr, seenUnions, seenAttrs)
+	for _, mapped := range e.GRPCErrors {
+		if err := mapped.sourceError(); err != nil {
+			validateGRPCMessageShapes(err.AttributeExpr, e.MethodExpr, verr, seenUnions, seenAttrs)
+		}
 	}
 }
 
@@ -334,12 +336,13 @@ func (e *GRPCEndpointExpr) validateGRPCErrors() *eval.ValidationErrors {
 	return verr
 }
 
-// validateGRPCUnionShapes reports the unions reachable from att that a
-// protocol buffer message cannot hold: unions with a map branch or an array
-// branch that is not a named type, and unions used as array elements or map
+// validateGRPCMessageShapes reports invalid map keys and the unions reachable
+// from att that a protocol buffer message cannot hold: unions with a map
+// branch or an array branch that is not a named type, and unions used as array
+// elements or map
 // keys and values. A union branch that holds a named array or another union
 // is the message that wraps it.
-func validateGRPCUnionShapes(att *AttributeExpr, parent eval.Expression, verr *eval.ValidationErrors, seenUnions map[*Union]struct{}, seenAttrs map[*AttributeExpr]struct{}) {
+func validateGRPCMessageShapes(att *AttributeExpr, parent eval.Expression, verr *eval.ValidationErrors, seenUnions map[*Union]struct{}, seenAttrs map[*AttributeExpr]struct{}) {
 	if att == nil || att.Type == nil {
 		return
 	}
@@ -364,34 +367,46 @@ func validateGRPCUnionShapes(att *AttributeExpr, parent eval.Expression, verr *e
 			case IsMap(ut.Attribute.Type):
 				verr.Add(parent, "union type %s has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch", u.Name())
 			}
-			validateGRPCUnionShapes(ut.Attribute, parent, verr, seenUnions, seenAttrs)
+			validateGRPCMessageShapes(ut.Attribute, parent, verr, seenUnions, seenAttrs)
 		}
 		return
 	}
 
 	if o := AsObject(att.Type); o != nil {
 		for _, nat := range *o {
-			validateGRPCUnionShapes(nat.Attribute, parent, verr, seenUnions, seenAttrs)
+			validateGRPCMessageShapes(nat.Attribute, parent, verr, seenUnions, seenAttrs)
 		}
 		return
 	}
 
 	if ar := AsArray(att.Type); ar != nil {
 		validateGRPCCollectionUnion(ar.ElemType, "an array element", "element", parent, verr)
-		validateGRPCUnionShapes(ar.ElemType, parent, verr, seenUnions, seenAttrs)
+		validateGRPCMessageShapes(ar.ElemType, parent, verr, seenUnions, seenAttrs)
 		return
 	}
 
 	if m := AsMap(att.Type); m != nil {
-		validateGRPCCollectionUnion(m.KeyType, "a map key", "key", parent, verr)
+		key := m.KeyType.Type
+		for {
+			ut, ok := key.(UserType)
+			if !ok {
+				break
+			}
+			key = ut.Attribute().Type
+		}
+		switch key {
+		case Boolean, String, Int, Int32, Int64, UInt, UInt32, UInt64:
+		default:
+			verr.Add(parent, "gRPC map keys must be Boolean, String, or integer types (including aliases); got %s", m.KeyType.Type.Name())
+		}
 		validateGRPCCollectionUnion(m.ElemType, "a map value", "value", parent, verr)
-		validateGRPCUnionShapes(m.KeyType, parent, verr, seenUnions, seenAttrs)
-		validateGRPCUnionShapes(m.ElemType, parent, verr, seenUnions, seenAttrs)
+		validateGRPCMessageShapes(m.KeyType, parent, verr, seenUnions, seenAttrs)
+		validateGRPCMessageShapes(m.ElemType, parent, verr, seenUnions, seenAttrs)
 		return
 	}
 }
 
-// validateGRPCCollectionUnion reports an error when att, the element, key or
+// validateGRPCCollectionUnion reports an error when att, the element or
 // value of an array or map, is a union. A protocol buffer oneof cannot be
 // repeated or used as a map key or value. position describes att in the
 // error, and role names it in the fix.
