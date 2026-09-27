@@ -23,6 +23,14 @@ func makeHTTPType(att *expr.AttributeExpr) *expr.AttributeExpr {
 	return makeHTTPTypeRecursive(att, make(map[string]struct{}))
 }
 
+// makeHTTPMappedType keeps mapping defaults and validation while taking Go
+// representation metadata from the service field it encodes or decodes.
+func makeHTTPMappedType(mapped, service *expr.AttributeExpr) *expr.AttributeExpr {
+	attr := *mapped
+	attr.Meta = service.Meta
+	return makeHTTPType(&attr)
+}
+
 func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *expr.AttributeExpr {
 	switch dt := att.Type.(type) {
 	case expr.UserType:

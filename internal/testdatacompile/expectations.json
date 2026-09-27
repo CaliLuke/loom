@@ -391,12 +391,6 @@
     "phase": "gen",
     "reason": "Fixture URI uses a nonnumeric literal port."
   },
-  "http/codegen/OpenAPI32FeaturesDSL": {
-    "contains": "cannot use &catalogParametersFilter (value of type *string) as string value in assignment",
-    "issue": "https://github.com/CaliLuke/loom/issues/540",
-    "phase": "build",
-    "reason": "Transport-only default produces incompatible CLI field assignment."
-  },
   "http/codegen/OpenAPISharedErrorHeaderDSL": {
     "contains": "field and method with the same name Error",
     "issue": "https://github.com/CaliLuke/loom/issues/533",

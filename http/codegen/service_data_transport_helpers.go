@@ -30,7 +30,7 @@ func transportFieldBinding(name string, fieldAttr, svcAtt *expr.AttributeExpr, s
 		return "", fieldAttr.Type, false
 	}
 	fieldType = svcField.Type
-	fieldName := codegen.GoifyAtt(fieldAttr, name, true)
+	fieldName := codegen.GoifyAtt(svcField, name, true)
 	if svcCtx == nil {
 		return fieldName, fieldType, svcAtt.IsPrimitivePointer(key, true)
 	}
@@ -181,16 +181,19 @@ func (sds *ServicesData) extractResponseCookies(cookiesIR []*transportir.Cookie,
 }
 
 func (sds *ServicesData) cookieData(name, elem string, required bool, pointer bool, mappedAttr *expr.AttributeExpr, svcAtt *expr.AttributeExpr, svcCtx *codegen.AttributeContext, scope *codegen.NameScope, vars *transportVarScope, examples *expr.ExampleGenerator) *CookieData {
-	_, hattr := svcAtt.FindAttribute(name)
-	if hattr == nil {
-		if mappedAttr != nil {
-			hattr = mappedAttr
+	_, serviceAttr := svcAtt.FindAttribute(name)
+	if serviceAttr == nil {
+		if expr.IsObject(svcAtt.Type) && mappedAttr != nil {
+			serviceAttr = mappedAttr
 		} else {
-			hattr = svcAtt
+			serviceAttr = svcAtt
 		}
 	}
-	stringSlice := transportStringSlice(hattr)
-	hattr = makeHTTPType(hattr)
+	if mappedAttr == nil {
+		mappedAttr = serviceAttr
+	}
+	stringSlice := transportStringSlice(serviceAttr)
+	hattr := makeHTTPMappedType(mappedAttr, serviceAttr)
 	fieldName, fieldType, fieldPointer := transportFieldBinding(name, hattr, svcAtt, svcCtx)
 	return &CookieData{
 		Element: sds.buildTransportElement(name, elem, hattr, stringSlice, required, pointer, fieldName, fieldType, fieldPointer, svcCtx, scope, vars, examples),

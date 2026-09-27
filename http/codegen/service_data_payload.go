@@ -434,7 +434,7 @@ func (b *payloadBuilder) buildHeaders(params []*transportir.Parameter) []*Header
 			attr = b.payload
 		}
 		stringSlice := transportStringSlice(attr)
-		hattr := makeHTTPType(attr)
+		hattr := makeHTTPMappedType(param.Attribute, attr)
 		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, b.svcctx)
 		headers = append(headers, &HeaderData{
 			CanonicalName: http.CanonicalHeaderKey(param.HTTPName),
