@@ -83,9 +83,8 @@ func validateBodyRequiredKeys(body *AttributeExpr, ctx string, parent eval.Expre
 // optional in a body, so that generated decoders track its presence: the
 // object does not require it or gives it a default value. The required list
 // of an object names a field declared as "n:m" by its key or by its attribute
-// name. A null-admitting
-// field is left to the attribute validation, which rejects a JSON tag that
-// omits it.
+// name. A null-admitting field is left to the attribute validation, which
+// rejects a JSON tag that omits it.
 func wireOptionalField(att *AttributeExpr, nat *NamedAttributeExpr) bool {
 	if AllowsNull(nat.Attribute) {
 		return false
