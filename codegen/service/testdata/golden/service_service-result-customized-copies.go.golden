@@ -5,6 +5,8 @@ type Service interface {
 	// The "view" return value must have one of the following views
 	//   - "default"
 	//   - "tiny"
+	//   - "optional"
+	//   - "required"
 	M1(context.Context) (res *MenuM1Result, view string, err error)
 	// M2 implements M2.
 	M2(context.Context) (res *MenuM2Result, err error)
@@ -12,6 +14,8 @@ type Service interface {
 	// The "view" return value must have one of the following views
 	//   - "default"
 	//   - "tiny"
+	//   - "optional"
+	//   - "required"
 	M3(context.Context) (res *Menu, view string, err error)
 }
 
@@ -61,10 +65,16 @@ func NewMenuM1Result(vres *customizedresultcopiesviews.MenuM1Result) (*MenuM1Res
 		res = NewMenuM1ResultFromMenuM1ResultView(vres.Projected)
 	case "tiny":
 		res = NewMenuM1ResultFromMenuM1ResultViewTiny(vres.Projected)
+	case "optional":
+		res = NewMenuM1ResultFromMenuM1ResultViewOptional(vres.Projected)
+	case "required":
+		res = NewMenuM1ResultFromMenuM1ResultViewRequired(vres.Projected)
 	default:
 		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
+			"optional",
+			"required",
 		})
 	}
 	return res, nil
@@ -82,10 +92,18 @@ func NewViewedMenuM1Result(res *MenuM1Result, view string) (*customizedresultcop
 	case "tiny":
 		p := ProjectMenuM1ResultTiny(res)
 		vres = &customizedresultcopiesviews.MenuM1Result{Projected: p, View: "tiny"}
+	case "optional":
+		p := ProjectMenuM1ResultOptional(res)
+		vres = &customizedresultcopiesviews.MenuM1Result{Projected: p, View: "optional"}
+	case "required":
+		p := ProjectMenuM1ResultRequired(res)
+		vres = &customizedresultcopiesviews.MenuM1Result{Projected: p, View: "required"}
 	default:
 		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
+			"optional",
+			"required",
 		})
 	}
 	return vres, nil
@@ -101,10 +119,16 @@ func NewMenuM2Result(vres *customizedresultcopiesviews.MenuM2Result) (*MenuM2Res
 		res = NewMenuM2ResultFromMenuM2ResultView(vres.Projected)
 	case "tiny":
 		res = NewMenuM2ResultFromMenuM2ResultViewTiny(vres.Projected)
+	case "optional":
+		res = NewMenuM2ResultFromMenuM2ResultViewOptional(vres.Projected)
+	case "required":
+		res = NewMenuM2ResultFromMenuM2ResultViewRequired(vres.Projected)
 	default:
 		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
+			"optional",
+			"required",
 		})
 	}
 	return res, nil
@@ -122,10 +146,18 @@ func NewViewedMenuM2Result(res *MenuM2Result, view string) (*customizedresultcop
 	case "tiny":
 		p := ProjectMenuM2ResultTiny(res)
 		vres = &customizedresultcopiesviews.MenuM2Result{Projected: p, View: "tiny"}
+	case "optional":
+		p := ProjectMenuM2ResultOptional(res)
+		vres = &customizedresultcopiesviews.MenuM2Result{Projected: p, View: "optional"}
+	case "required":
+		p := ProjectMenuM2ResultRequired(res)
+		vres = &customizedresultcopiesviews.MenuM2Result{Projected: p, View: "required"}
 	default:
 		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
+			"optional",
+			"required",
 		})
 	}
 	return vres, nil
@@ -140,10 +172,16 @@ func NewMenu(vres *customizedresultcopiesviews.Menu) (*Menu, error) {
 		res = NewMenuFromMenuView(vres.Projected)
 	case "tiny":
 		res = NewMenuFromMenuViewTiny(vres.Projected)
+	case "optional":
+		res = NewMenuFromMenuViewOptional(vres.Projected)
+	case "required":
+		res = NewMenuFromMenuViewRequired(vres.Projected)
 	default:
 		return res, loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
+			"optional",
+			"required",
 		})
 	}
 	return res, nil
@@ -161,10 +199,18 @@ func NewViewedMenu(res *Menu, view string) (*customizedresultcopiesviews.Menu, e
 	case "tiny":
 		p := ProjectMenuTiny(res)
 		vres = &customizedresultcopiesviews.Menu{Projected: p, View: "tiny"}
+	case "optional":
+		p := ProjectMenuOptional(res)
+		vres = &customizedresultcopiesviews.Menu{Projected: p, View: "optional"}
+	case "required":
+		p := ProjectMenuRequired(res)
+		vres = &customizedresultcopiesviews.Menu{Projected: p, View: "required"}
 	default:
 		return vres, loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
+			"optional",
+			"required",
 		})
 	}
 	return vres, nil
@@ -192,6 +238,28 @@ func NewMenuM1ResultFromMenuM1ResultViewTiny(vres *customizedresultcopiesviews.M
 	return res
 }
 
+// NewMenuM1ResultFromMenuM1ResultViewOptional converts projected type
+// MenuM1ResultView to service type MenuM1Result.
+func NewMenuM1ResultFromMenuM1ResultViewOptional(vres *customizedresultcopiesviews.MenuM1ResultView) *MenuM1Result {
+	res := &MenuM1Result{}
+	if vres.X != nil {
+		res.X = *vres.X
+	}
+	return res
+}
+
+// NewMenuM1ResultFromMenuM1ResultViewRequired converts projected type
+// MenuM1ResultView to service type MenuM1Result.
+func NewMenuM1ResultFromMenuM1ResultViewRequired(vres *customizedresultcopiesviews.MenuM1ResultView) *MenuM1Result {
+	res := &MenuM1Result{
+		Y: vres.Y,
+	}
+	if vres.X != nil {
+		res.X = *vres.X
+	}
+	return res
+}
+
 // ProjectMenuM1Result projects result type MenuM1Result to projected type
 // MenuM1ResultView using the "default" view.
 func ProjectMenuM1Result(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
@@ -207,6 +275,25 @@ func ProjectMenuM1Result(res *MenuM1Result) *customizedresultcopiesviews.MenuM1R
 func ProjectMenuM1ResultTiny(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
 	vres := &customizedresultcopiesviews.MenuM1ResultView{
 		X: &res.X,
+	}
+	return vres
+}
+
+// ProjectMenuM1ResultOptional projects result type MenuM1Result to projected
+// type MenuM1ResultView using the "optional" view.
+func ProjectMenuM1ResultOptional(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
+	vres := &customizedresultcopiesviews.MenuM1ResultView{
+		X: &res.X,
+	}
+	return vres
+}
+
+// ProjectMenuM1ResultRequired projects result type MenuM1Result to projected
+// type MenuM1ResultView using the "required" view.
+func ProjectMenuM1ResultRequired(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
+	vres := &customizedresultcopiesviews.MenuM1ResultView{
+		X: &res.X,
+		Y: res.Y,
 	}
 	return vres
 }
@@ -233,6 +320,28 @@ func NewMenuM2ResultFromMenuM2ResultViewTiny(vres *customizedresultcopiesviews.M
 	return res
 }
 
+// NewMenuM2ResultFromMenuM2ResultViewOptional converts projected type
+// MenuM2ResultView to service type MenuM2Result.
+func NewMenuM2ResultFromMenuM2ResultViewOptional(vres *customizedresultcopiesviews.MenuM2ResultView) *MenuM2Result {
+	res := &MenuM2Result{}
+	if vres.X != nil {
+		res.X = *vres.X
+	}
+	return res
+}
+
+// NewMenuM2ResultFromMenuM2ResultViewRequired converts projected type
+// MenuM2ResultView to service type MenuM2Result.
+func NewMenuM2ResultFromMenuM2ResultViewRequired(vres *customizedresultcopiesviews.MenuM2ResultView) *MenuM2Result {
+	res := &MenuM2Result{
+		Y: vres.Y,
+	}
+	if vres.X != nil {
+		res.X = *vres.X
+	}
+	return res
+}
+
 // ProjectMenuM2Result projects result type MenuM2Result to projected type
 // MenuM2ResultView using the "default" view.
 func ProjectMenuM2Result(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
@@ -248,6 +357,25 @@ func ProjectMenuM2Result(res *MenuM2Result) *customizedresultcopiesviews.MenuM2R
 func ProjectMenuM2ResultTiny(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
 	vres := &customizedresultcopiesviews.MenuM2ResultView{
 		X: &res.X,
+	}
+	return vres
+}
+
+// ProjectMenuM2ResultOptional projects result type MenuM2Result to projected
+// type MenuM2ResultView using the "optional" view.
+func ProjectMenuM2ResultOptional(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
+	vres := &customizedresultcopiesviews.MenuM2ResultView{
+		X: &res.X,
+	}
+	return vres
+}
+
+// ProjectMenuM2ResultRequired projects result type MenuM2Result to projected
+// type MenuM2ResultView using the "required" view.
+func ProjectMenuM2ResultRequired(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
+	vres := &customizedresultcopiesviews.MenuM2ResultView{
+		X: &res.X,
+		Y: res.Y,
 	}
 	return vres
 }
@@ -270,6 +398,25 @@ func NewMenuFromMenuViewTiny(vres *customizedresultcopiesviews.MenuView) *Menu {
 	return res
 }
 
+// NewMenuFromMenuViewOptional converts projected type MenuView to service type
+// Menu.
+func NewMenuFromMenuViewOptional(vres *customizedresultcopiesviews.MenuView) *Menu {
+	res := &Menu{
+		X: vres.X,
+	}
+	return res
+}
+
+// NewMenuFromMenuViewRequired converts projected type MenuView to service type
+// Menu.
+func NewMenuFromMenuViewRequired(vres *customizedresultcopiesviews.MenuView) *Menu {
+	res := &Menu{
+		X: vres.X,
+		Y: vres.Y,
+	}
+	return res
+}
+
 // ProjectMenu projects result type Menu to projected type MenuView using the
 // "default" view.
 func ProjectMenu(res *Menu) *customizedresultcopiesviews.MenuView {
@@ -285,6 +432,25 @@ func ProjectMenu(res *Menu) *customizedresultcopiesviews.MenuView {
 func ProjectMenuTiny(res *Menu) *customizedresultcopiesviews.MenuView {
 	vres := &customizedresultcopiesviews.MenuView{
 		X: res.X,
+	}
+	return vres
+}
+
+// ProjectMenuOptional projects result type Menu to projected type MenuView
+// using the "optional" view.
+func ProjectMenuOptional(res *Menu) *customizedresultcopiesviews.MenuView {
+	vres := &customizedresultcopiesviews.MenuView{
+		X: res.X,
+	}
+	return vres
+}
+
+// ProjectMenuRequired projects result type Menu to projected type MenuView
+// using the "required" view.
+func ProjectMenuRequired(res *Menu) *customizedresultcopiesviews.MenuView {
+	vres := &customizedresultcopiesviews.MenuView{
+		X: res.X,
+		Y: res.Y,
 	}
 	return vres
 }

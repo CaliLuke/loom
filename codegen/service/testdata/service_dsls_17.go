@@ -20,6 +20,15 @@ var CustomizedResultCopiesDSL = func() {
 		View("tiny", func() {
 			Attribute("x")
 		})
+		View("optional", func() {
+			Attribute("x")
+			ViewOptional("x")
+		})
+		View("required", func() {
+			Attribute("x")
+			Attribute("y")
+			ViewRequired("y")
+		})
 	})
 	Service("CustomizedResultCopies", func() {
 		Method("M1", func() {

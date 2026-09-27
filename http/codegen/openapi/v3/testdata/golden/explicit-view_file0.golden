@@ -1,6 +1,22 @@
 {
   "components": {
     "schemas": {
+      "TestEndpointCustomizedResponseBodyTiny": {
+        "description": "TestEndpointCustomizedResponseBody result type (tiny view)",
+        "example": {
+          "string": ""
+        },
+        "properties": {
+          "string": {
+            "example": "",
+            "type": "string"
+          }
+        },
+        "required": [
+          "string"
+        ],
+        "type": "object"
+      },
       "TestEndpointDefaultResponseBody": {
         "description": "TestEndpointDefaultResponseBody result type (default view)",
         "example": {
@@ -18,6 +34,28 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "TestEndpointOverriddenResponseBodyOverridden": {
+        "description": "TestEndpointOverriddenResponseBody result type (overridden view)",
+        "example": {
+          "int": 1,
+          "string": ""
+        },
+        "properties": {
+          "int": {
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          },
+          "string": {
+            "example": "",
+            "type": "string"
+          }
+        },
+        "required": [
+          "int"
+        ],
         "type": "object"
       },
       "TestEndpointTinyResponseBodyTiny": {
@@ -61,7 +99,59 @@
             "description": "OK response."
           }
         },
+        "security": [],
         "summary": "testEndpointDefault testService",
+        "tags": [
+          "testService"
+        ]
+      }
+    },
+    "/customized": {
+      "get": {
+        "operationId": "test_service.test_endpoint_customized",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "string": ""
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TestEndpointCustomizedResponseBodyTiny"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "testEndpointCustomized testService",
+        "tags": [
+          "testService"
+        ]
+      }
+    },
+    "/overridden": {
+      "get": {
+        "operationId": "test_service.test_endpoint_overridden",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "int": 1,
+                  "string": ""
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TestEndpointOverriddenResponseBodyOverridden"
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "testEndpointOverridden testService",
         "tags": [
           "testService"
         ]
@@ -85,6 +175,7 @@
             "description": "OK response."
           }
         },
+        "security": [],
         "summary": "testEndpointTiny testService",
         "tags": [
           "testService"

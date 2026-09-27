@@ -361,7 +361,9 @@ completion shapes are explicit generation limitations.
 - Optional object unions generate as pointers; required unions remain values.
 - Missing and explicit JSON `null` are both rejected for required unions.
 - Result views inherit canonical requiredness. Use `ViewRequired(...)` and
-  `ViewOptional(...)` for deliberate overrides.
+  `ViewOptional(...)` for deliberate overrides. Method-specific `Required(...)`
+  customization applies to included view fields while explicit view overrides
+  take precedence; the original result type and other methods are unchanged.
 - Generated projection helpers convert between canonical results and view
   types. Use them instead of maintaining app-local conversion copies.
 - For typed SSE projections, use `SSEProjection(eventType, view)` with

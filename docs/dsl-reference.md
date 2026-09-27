@@ -221,6 +221,11 @@ Overrides may reference only fields selected by that view. Declaring the same
 field both required and optional is a design error. Named views selected for
 nested result fields carry their own overrides recursively.
 
+Method-specific customization such as `Result(Report, func() { Required("warning") })`
+also applies to the fields included in each view. Explicit `ViewRequired` and
+`ViewOptional` overrides still take precedence. The original result type and
+other methods using it retain their own requirements.
+
 #### Arrays
 
 Arrays define ordered collections with optional validation:

@@ -185,14 +185,17 @@ func buildView(name string, mt *expr.ResultTypeExpr, at *expr.AttributeExpr) (*e
 			return nil, fmt.Errorf("unknown attribute %#v", n)
 		}
 	}
-	at.Validation = effectiveViewValidation(mt.AttributeExpr, selected, requiredOverrides, optionalOverrides)
 	delete(at.Meta, viewDefinitionMetaKey)
 	delete(at.Meta, viewOptionalMetaKey)
-	return &expr.ViewExpr{
-		AttributeExpr: at,
-		Name:          name,
-		Parent:        mt,
-	}, nil
+	view := &expr.ViewExpr{
+		AttributeExpr:     at,
+		Name:              name,
+		Parent:            mt,
+		RequiredOverrides: requiredOverrides,
+		OptionalOverrides: append([]string(nil), optionalOverrides...),
+	}
+	view.FinalizeRequiredness()
+	return view, nil
 }
 
 // viewAttribute returns a copy of the result type attribute att for a view.
@@ -234,40 +237,4 @@ func validateViewRequirednessOverrides(required, optional []string, selected map
 		}
 	}
 	return nil
-}
-
-func effectiveViewValidation(
-	canonical *expr.AttributeExpr,
-	selected map[string]struct{},
-	requiredOverrides, optionalOverrides []string,
-) *expr.ValidationExpr {
-	required := make(map[string]struct{}, len(selected))
-	if canonical.Validation != nil {
-		for _, name := range canonical.Validation.Required {
-			if _, ok := selected[name]; ok {
-				required[name] = struct{}{}
-			}
-		}
-	}
-	for _, name := range optionalOverrides {
-		delete(required, name)
-	}
-	for _, name := range requiredOverrides {
-		required[name] = struct{}{}
-	}
-	ordered := make([]string, 0, len(required))
-	for _, nat := range *expr.AsObject(canonical.Type) {
-		if _, ok := required[nat.Name]; ok {
-			ordered = append(ordered, nat.Name)
-		}
-	}
-	if canonical.Validation == nil && len(ordered) == 0 {
-		return nil
-	}
-	validation := &expr.ValidationExpr{}
-	if canonical.Validation != nil {
-		validation = canonical.Validation.Dup()
-	}
-	validation.Required = ordered
-	return validation
 }

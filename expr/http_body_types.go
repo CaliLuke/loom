@@ -346,11 +346,9 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		mv := NewMappedAttributeExpr(v.AttributeExpr)
 		removeAttributes(mv, resp.Headers)
 		removeResponseCookieAttributes(mv, resp.Cookies)
-		nv := &ViewExpr{
-			AttributeExpr: mv.Attribute(),
-			Name:          v.Name,
-		}
-		views[i] = nv
+		nv := *v
+		nv.AttributeExpr = mv.Attribute()
+		views[i] = &nv
 	}
 	nmt := &ResultTypeExpr{
 		UserTypeExpr: userType,

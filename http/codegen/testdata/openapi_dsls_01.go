@@ -127,9 +127,16 @@ var ExplicitViewDSL = func() {
 		View("tiny", func() {
 			Attribute("string")
 		})
+		View("overridden", func() {
+			Attribute("string")
+			Attribute("int")
+			ViewOptional("string")
+			ViewRequired("int")
+		})
 	})
 	Service("testService", func() {
 		Method("testEndpointDefault", func() {
+			NoSecurity()
 			Result(ResultT, func() {
 				View("default")
 			})
@@ -138,11 +145,32 @@ var ExplicitViewDSL = func() {
 			})
 		})
 		Method("testEndpointTiny", func() {
+			NoSecurity()
 			Result(ResultT, func() {
 				View("tiny")
 			})
 			HTTP(func() {
 				GET("/tiny")
+			})
+		})
+		Method("testEndpointCustomized", func() {
+			NoSecurity()
+			Result(ResultT, func() {
+				Required("string")
+				View("tiny")
+			})
+			HTTP(func() {
+				GET("/customized")
+			})
+		})
+		Method("testEndpointOverridden", func() {
+			NoSecurity()
+			Result(ResultT, func() {
+				Required("string")
+				View("overridden")
+			})
+			HTTP(func() {
+				GET("/overridden")
 			})
 		})
 	})

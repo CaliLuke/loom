@@ -43,6 +43,32 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 		extra func(*testing.T, map[string]any)
 	}{
 		{
+			name: "customized-result-views",
+			dsl:  testdata.ExplicitViewDSL,
+			extra: func(t *testing.T, spec map[string]any) {
+				for _, tc := range []struct {
+					path     string
+					required []any
+				}{
+					{"/", nil},
+					{"/tiny", nil},
+					{"/customized", []any{"string"}},
+					{"/overridden", []any{"int"}},
+				} {
+					media := requireResponseMediaType(t, requireOperation(t, spec, tc.path, "get"), "application/json")
+					schema := requireMap(t, media["schema"], "result schema")
+					if ref, ok := schema["$ref"].(string); ok {
+						schema = requireComponentSchema(t, spec, strings.TrimPrefix(ref, "#/components/schemas/"))
+					}
+					if len(tc.required) == 0 {
+						require.Empty(t, schema["required"], tc.path)
+					} else {
+						require.Equal(t, tc.required, schema["required"], tc.path)
+					}
+				}
+			},
+		},
+		{
 			name: "meal-planner",
 			dsl:  testdata.MealPlannerDSL,
 		},
@@ -273,6 +299,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "scalar-map-keys", dsl: testdata.OpenAPIScalarMapKeysDSL},
 		{name: "mapped-names", dsl: testdata.MappedNamesDSL},
 		{name: "mapped-explicit-body", dsl: testdata.MappedExplicitBodyDSL},
+		{name: "customized-result-views", dsl: testdata.ExplicitViewDSL},
 		{name: "explicit-body-result-type", dsl: testdata.ExplicitBodyResultTypeDSL},
 	}
 	for _, tc := range lintCases {

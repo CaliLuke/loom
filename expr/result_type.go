@@ -39,6 +39,10 @@ type (
 		Name string
 		// Parent result Type
 		Parent *ResultTypeExpr
+		// RequiredOverrides lists selected fields explicitly required by the view.
+		RequiredOverrides []string
+		// OptionalOverrides lists selected fields explicitly optional in the view.
+		OptionalOverrides []string
 	}
 )
 
@@ -163,13 +167,33 @@ func CanonicalIdentifier(identifier string) string {
 // Kind implements DataKind.
 func (*ResultTypeExpr) Kind() Kind { return ResultTypeKind }
 
-// Dup creates a deep copy of the result type given a deep copy of its attribute.
+// Dup creates a copy of the result type given a deep copy of its attribute.
+// Views keep independent metadata, validation and requiredness overrides while
+// sharing field types whose DSL may still be awaiting evaluation.
 func (rt *ResultTypeExpr) Dup(att *AttributeExpr) UserType {
-	return &ResultTypeExpr{
+	dup := &ResultTypeExpr{
 		UserTypeExpr: rt.UserTypeExpr.Dup(att).(*UserTypeExpr),
 		Identifier:   rt.Identifier,
-		Views:        rt.Views,
 	}
+	if rt.Views != nil {
+		dup.Views = make([]*ViewExpr, len(rt.Views))
+	}
+	for i, view := range rt.Views {
+		copy := *view
+		attribute := *view.AttributeExpr
+		if attribute.Validation != nil {
+			attribute.Validation = attribute.Validation.Dup()
+		}
+		if attribute.Meta != nil {
+			attribute.Meta = attribute.Meta.Dup()
+		}
+		copy.AttributeExpr = &attribute
+		copy.Parent = dup
+		copy.RequiredOverrides = append([]string(nil), view.RequiredOverrides...)
+		copy.OptionalOverrides = append([]string(nil), view.OptionalOverrides...)
+		dup.Views[i] = &copy
+	}
+	return dup
 }
 
 // ID returns the identifier of the result type.
@@ -220,14 +244,17 @@ func (rt *ResultTypeExpr) validateExplicitViewMeta() error {
 // Finalize builds the default view if not explicitly defined and finalizes
 // the underlying UserTypeExpr.
 func (rt *ResultTypeExpr) Finalize() {
+	rt.finalizeViews()
 	rt.useExplicitView()
 	rt.ensureDefaultView()
 	rt.UserTypeExpr.Finalize()
+	rt.finalizeViews()
 	seen := make(map[string]struct{})
 	walkAttribute(rt.AttributeExpr, func(_ string, att *AttributeExpr) error { // nolint: errcheck
 		if rt, ok := att.Type.(*ResultTypeExpr); ok {
 			if _, ok := seen[rt.Identifier]; !ok {
 				seen[rt.Identifier] = struct{}{}
+				rt.finalizeViews()
 				rt.useExplicitView()
 				rt.ensureDefaultView()
 			}
@@ -323,22 +350,12 @@ func projectSingle(rt *ResultTypeExpr, view string, seen map[string]*AttributeEx
 }
 
 func projectedResultValidation(rt *ResultTypeExpr, view *ViewExpr) *ValidationExpr {
-	if view.Validation != nil {
-		return view.Validation.Dup()
-	}
-	if rt.Validation == nil {
-		return nil
-	}
-	viewObject := AsObject(view.Type)
-	required := make([]string, 0, len(rt.Validation.Required))
-	for _, name := range rt.Validation.Required {
-		if viewObject.Attribute(name) != nil {
-			required = append(required, name)
-		}
-	}
-	val := rt.Validation.Dup()
-	val.Required = required
-	return val
+	copy := *view
+	attribute := *view.AttributeExpr
+	copy.AttributeExpr = &attribute
+	copy.Parent = rt
+	copy.FinalizeRequiredness()
+	return copy.Validation
 }
 
 func projectedResultDescription(rt *ResultTypeExpr, view string) string {

@@ -24,6 +24,40 @@ paths:
                             example:
                                 int: 1
                                 string: ""
+            security: []
+    /customized:
+        get:
+            tags:
+                - testService
+            summary: testEndpointCustomized testService
+            operationId: test_service.test_endpoint_customized
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/TestEndpointCustomizedResponseBodyTiny'
+                            example:
+                                string: ""
+            security: []
+    /overridden:
+        get:
+            tags:
+                - testService
+            summary: testEndpointOverridden testService
+            operationId: test_service.test_endpoint_overridden
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/TestEndpointOverriddenResponseBodyOverridden'
+                            example:
+                                int: 1
+                                string: ""
+            security: []
     /tiny:
         get:
             tags:
@@ -39,8 +73,20 @@ paths:
                                 $ref: '#/components/schemas/TestEndpointTinyResponseBodyTiny'
                             example:
                                 string: ""
+            security: []
 components:
     schemas:
+        TestEndpointCustomizedResponseBodyTiny:
+            type: object
+            properties:
+                string:
+                    type: string
+                    example: ""
+            description: TestEndpointCustomizedResponseBody result type (tiny view)
+            example:
+                string: ""
+            required:
+                - string
         TestEndpointDefaultResponseBody:
             type: object
             properties:
@@ -55,6 +101,22 @@ components:
             example:
                 int: 1
                 string: ""
+        TestEndpointOverriddenResponseBodyOverridden:
+            type: object
+            properties:
+                int:
+                    type: integer
+                    example: 1
+                    format: int64
+                string:
+                    type: string
+                    example: ""
+            description: TestEndpointOverriddenResponseBody result type (overridden view)
+            example:
+                int: 1
+                string: ""
+            required:
+                - int
         TestEndpointTinyResponseBodyTiny:
             type: object
             properties:

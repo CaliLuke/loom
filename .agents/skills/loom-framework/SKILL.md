@@ -726,7 +726,14 @@ filter, and serialization rules belong here.
   identifier of the result type. The service analysis keys projected and
   viewed result types by identifier and name (`projectionKey`), so the result
   type and each copy get their own projected type, viewed result type and
-  `NewViewed<Type>` constructor.
+  `NewViewed<Type>` constructor. `ViewExpr` retains authored required/optional
+  overrides separately from effective validation. Recompute view requiredness
+  from each customized parent before projection and after finalization. Copies
+  own view metadata, validation and override slices; preserve nil views until
+  collection DSL evaluation inherits element views. Derived HTTP response views
+  must preserve authored overrides too. A projected HTTP client body carries the
+  projected validation on both the outer attribute and its result type so field
+  declarations and conversions use the same requiredness.
 - Keep requiredness and nullability orthogonal. `expr` owns semantic
   nullability; shared service models use `loom.Nullable[T]` for null-admitting
   object fields; JSON decoding boundaries alone use `loom.Optional[T]` for

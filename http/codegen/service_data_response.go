@@ -275,6 +275,7 @@ func effectiveClientResponseBody(body, methodResult *expr.AttributeExpr, md *ser
 		panic(codegen.NewError(nil, body, fmt.Errorf("project effective client response body view %q: %w", view, err)))
 	}
 	body.Type = projected
+	body.Validation = projected.Validation
 	return body
 }
 
