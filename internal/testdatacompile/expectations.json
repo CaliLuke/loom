@@ -387,9 +387,8 @@
   },
   "http/codegen/InvalidDSL": {
     "contains": "malformed URI \"http://[::1]:namedport\"",
-    "issue": "https://github.com/CaliLuke/loom/issues/507",
     "phase": "gen",
-    "reason": "Fixture URI uses a nonnumeric literal port."
+    "reason": "intentional validation failure"
   },
   "http/codegen/OpenAPISharedErrorHeaderDSL": {
     "contains": "field and method with the same name Error",
