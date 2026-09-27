@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -65,6 +66,9 @@ func scanRepository(root string) ([]finding, error) {
 	var findings []finding
 	for _, path := range paths {
 		data, readErr := os.ReadFile(filepath.Join(root, path))
+		if errors.Is(readErr, os.ErrNotExist) {
+			continue
+		}
 		if readErr != nil {
 			return nil, fmt.Errorf("read %s: %w", path, readErr)
 		}
