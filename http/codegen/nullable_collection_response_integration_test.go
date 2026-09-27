@@ -15,34 +15,34 @@ import (
 
 func TestNullableCollectionResponsesGenerated(t *testing.T) {
 	cases := []struct {
-		name                                 string
-		shape                                func() expr.DataType
-		empty, value, invalid, invalidDetail string
+		name                                                 string
+		shape                                                func() expr.DataType
+		empty, value, invalid, invalidDetail, invalidPointer string
 	}{
 		{"array", func() expr.DataType {
 			return ArrayOf(String)
-		}, "[]", `["a","b"]`, `[null]`, "invalid null value"},
+		}, "[]", `["a","b"]`, `[null]`, "invalid null value", ""},
 		{"map", func() expr.DataType {
 			return MapOf(String, String)
-		}, "{}", `{"a":"b"}`, `{"a":null}`, "invalid null value"},
+		}, "{}", `{"a":"b"}`, `{"a":null}`, "invalid null value", ""},
 		{"array nullable elements", func() expr.DataType {
 			return ArrayOf(String, func() {
 				Nullable()
 			})
-		}, "[]", `[null,"a"]`, `[1]`, "cannot unmarshal"},
+		}, "[]", `[null,"a"]`, `[1]`, "", "/0"},
 		{"map nullable elements", func() expr.DataType {
 			return MapOf(String, String, func() {
 				Elem(func() {
 					Nullable()
 				})
 			})
-		}, "{}", `{"a":null,"b":"c"}`, `{"a":1}`, "cannot unmarshal"},
+		}, "{}", `{"a":null,"b":"c"}`, `{"a":1}`, "", "/a"},
 		{"nested array", func() expr.DataType {
 			return ArrayOf(ArrayOf(String))
-		}, "[]", `[["a"],[]]`, `[[null]]`, "invalid null value"},
+		}, "[]", `[["a"],[]]`, `[[null]]`, "invalid null value", ""},
 		{"aliased map", func() expr.DataType {
 			return Type("Inner", MapOf(String, String))
-		}, "{}", `{"a":"b"}`, `{"a":null}`, "invalid null value"},
+		}, "{}", `{"a":"b"}`, `{"a":null}`, "invalid null value", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -72,6 +72,7 @@ func TestNullableCollectionResponsesGenerated(t *testing.T) {
 				"VALUE_JSON", strconv.Quote(c.value),
 				"INVALID_JSON", strconv.Quote(c.invalid),
 				"INVALID_DETAIL", strconv.Quote(c.invalidDetail),
+				"INVALID_POINTER", strconv.Quote(c.invalidPointer),
 			).Replace(nullableCollectionResponseHarness)
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "response_test.go"), []byte(harness), 0o600))
 			runGoCommand(t, dir, "mod", "tidy")
@@ -90,6 +91,7 @@ import (
  "io"
  "net/http"
  "net/http/httptest"
+ "reflect"
  "strings"
  "testing"
  "time"
@@ -182,15 +184,43 @@ func TestGeneratedClientsRejectInvalidCollection(t *testing.T) {
  defer host.Close()
  ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
  defer cancel()
- if _, err := newClient("http", host.URL).Read()(ctx, nil); err == nil || !strings.Contains(err.Error(), INVALID_DETAIL) {
-  t.Errorf("HTTP client invalid collection: %v", err)
- }
+ _, httpErr := newClient("http", host.URL).Read()(ctx, nil)
+ requireInvalidCollection(t, "HTTP", httpErr)
  raw, err := newClient("ws", host.URL).Watch()(ctx, nil)
  if err != nil {
   t.Fatal(err)
  }
- if _, err := raw.(collections.WatchClientStream).RecvWithContext(ctx); err == nil || !strings.Contains(err.Error(), INVALID_DETAIL) {
-  t.Errorf("WebSocket client invalid collection: %v", err)
+ _, streamErr := raw.(collections.WatchClientStream).RecvWithContext(ctx)
+ requireInvalidCollection(t, "WebSocket", streamErr)
+}
+
+func requireInvalidCollection(t *testing.T, transport string, err error) {
+ t.Helper()
+ if err == nil {
+  t.Errorf("%s client accepted an invalid collection", transport)
+  return
+ }
+ if INVALID_DETAIL != "" {
+  if !strings.Contains(err.Error(), INVALID_DETAIL) {
+   t.Errorf("%s client invalid collection: %v", transport, err)
+  }
+  return
+ }
+ if transport == "HTTP" {
+  var clientError *loomhttp.ClientError
+  if !errors.As(err, &clientError) || clientError.Name != "decoding_error" {
+   t.Errorf("HTTP client did not report a decoding error: %v", err)
+  }
+ }
+ var semantic *json.SemanticError
+ if !errors.As(err, &semantic) {
+  t.Errorf("%s client did not preserve the JSON semantic error: %v", transport, err)
+  return
+ }
+ if semantic.JSONKind != '0' || semantic.GoType != reflect.TypeFor[string]() ||
+  string(semantic.JSONPointer) != INVALID_POINTER {
+  t.Errorf("%s client wrong decoding error: kind=%q type=%v pointer=%q",
+   transport, semantic.JSONKind, semantic.GoType, semantic.JSONPointer)
  }
 }
 
