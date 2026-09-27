@@ -270,7 +270,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		recordAttributeTypeLayouts(sd, body, false, true, true, false)
 	}
 	applyUserTypeLayout(httpctx, sd, body, svr)
-	data := initResponseBodyTypeData(body, att, sd)
+	data := initResponseBodyTypeData(body, att, httpctx, sd)
 	addMarshalTags(body)
 
 	switch ut := body.Type.(type) {
@@ -296,7 +296,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		Description: data.desc,
 		Def:         data.def,
 		Ref:         data.ref,
-		ValueRef:    bodyValueRef(sd.Scope, body, data.varName),
+		ValueRef:    bodyValueRef(sd.Scope, body, data.varName, httpctx),
 		Init:        init,
 		ValidateDef: data.validateDef,
 		ValidateRef: data.validateRef,
@@ -345,10 +345,10 @@ func projectResponseBodyView(body *expr.AttributeExpr, view *string, svr bool, s
 	return body, viewName
 }
 
-func initResponseBodyTypeData(body, att *expr.AttributeExpr, sd *ServiceData) *responseBodyTypeData {
+func initResponseBodyTypeData(body, att *expr.AttributeExpr, httpctx *codegen.AttributeContext, sd *ServiceData) *responseBodyTypeData {
 	return &responseBodyTypeData{
 		name:     body.Type.Name(),
-		ref:      bodyTypeRef(sd.Scope, body),
+		ref:      goBodyTypeRef(sd.Scope, body, httpctx),
 		mustInit: att.Type != expr.Empty && needInit(body),
 	}
 }
@@ -480,7 +480,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 	const sourceVar = "res"
 
 	rtname := codegen.Goify(sd.Scope.GoValueTypeName(body), true)
-	rtref := bodyTypeRef(sd.Scope, body)
+	rtref := goBodyTypeRef(sd.Scope, body, httpctx)
 	if _, ok := body.Type.(expr.UserType); !ok && !expr.IsPrimitive(body.Type) && !expr.IsUnion(body.Type) {
 		rtname = codegen.Goify(endpointName, true) + "ResponseBody"
 		rtref = rtname
@@ -526,16 +526,9 @@ func (sds *ServicesData) buildResponseBodyInit(
 	}
 }
 
-func bodyTypeRef(scope *codegen.NameScope, body *expr.AttributeExpr) string {
+func bodyValueRef(scope *codegen.NameScope, body *expr.AttributeExpr, varName string, httpctx *codegen.AttributeContext) string {
 	if expr.IsNullable(body) {
-		return scope.GoTypeName(body)
-	}
-	return scope.GoTypeRef(body)
-}
-
-func bodyValueRef(scope *codegen.NameScope, body *expr.AttributeExpr, varName string) string {
-	if expr.IsNullable(body) {
-		return scope.GoTypeName(body)
+		return goBodyTypeRef(scope, body, httpctx)
 	}
 	return varName
 }
