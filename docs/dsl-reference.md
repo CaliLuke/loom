@@ -65,6 +65,12 @@ Top-level Go identifiers cannot reuse exported DSL names. Examples include
 dot-import. Give the Go variable an application-specific name. The declaration
 string can still use the public contract name.
 
+Each object needs distinct generated Go field names. For example, `foo_bar`
+and `fooBar` both become `FooBar`, so declaring both in one object is rejected.
+Rename an attribute or set `Meta("struct:field:name", "OtherFooBar")` on one
+of them. The override changes its Go field name without changing its design
+name or transport mapping. This check includes fields inherited with `Extend`.
+
 ### Presence and Nullability
 
 Requiredness and nullability are separate parts of an attribute contract.

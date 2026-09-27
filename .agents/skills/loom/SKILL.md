@@ -59,6 +59,9 @@ order.
 - For each non-`Extend` type, payload, or result, start literal field tags at
   `1` and increment within that definition. For definitions using `Extend`,
   start newly introduced fields at `100`.
+- Give each object distinct generated Go field names. `foo_bar` and `fooBar`
+  both become `FooBar`; rename one or set `Meta("struct:field:name", "OtherFooBar")`
+  on it. The override preserves the design name and transport mapping.
 - Prefer a canonical `ResultType` with `View(...)` definitions over parallel
   hand-maintained DTOs for alternate public representations.
 - Repeated `HTTP`, `GRPC`, or `JSONRPC` blocks in the same API, service, or

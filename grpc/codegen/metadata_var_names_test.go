@@ -5,12 +5,51 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
+
+const metadataVarNamesHarness = `package metadata_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/metadata"
+
+	svc "example.com/metadata/gen/metadata_collision"
+	"example.com/metadata/gen/grpc/metadata_collision/client"
+	"example.com/metadata/gen/grpc/metadata_collision/server"
+)
+
+func TestMetadataFields(t *testing.T) {
+	first, second := "first", "second"
+	payload := &svc.CollidingPayload{FooBar: &first, OtherFooBar: &second}
+	ctx := context.Background()
+	md := metadata.MD{}
+	request, err := client.EncodeCollidingRequest(ctx, payload, &md)
+	require.NoError(t, err)
+	require.Equal(t, []string{first}, md.Get("foo_bar"))
+	require.Equal(t, []string{second}, md.Get("x-foo-bar"))
+	decoded, err := server.DecodeCollidingRequest(ctx, request, md)
+	require.NoError(t, err)
+	require.Equal(t, payload, decoded)
+	result := &svc.CollidingResult{ResID: &first, OtherResID: &second}
+	headers, trailers := metadata.MD{}, metadata.MD{}
+	response, err := server.EncodeCollidingResponse(ctx, result, &headers, &trailers)
+	require.NoError(t, err)
+	require.Equal(t, []string{first}, headers.Get("res_id"))
+	require.Equal(t, []string{second}, trailers.Get("x-res-id"))
+	decoded, err = client.DecodeCollidingResponse(ctx, response, headers, trailers)
+	require.NoError(t, err)
+	require.Equal(t, result, decoded)
+}
+`
 
 func TestMetadataVarNamesAreUniquePerEndpoint(t *testing.T) {
 	root := RunGRPCDSL(t, testdata.MetadataVarNameCollisionDSL)
@@ -79,6 +118,16 @@ func TestMetadataVarNamesAreUniquePerEndpoint(t *testing.T) {
 		})
 	}
 	require.Contains(t, funcs["DecodeCollidingRequest"], "NewCollidingPayload(message, fooBar, fooBar2)")
+}
+
+func TestMetadataVarNamesGeneratedRoundTrip(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.MetadataVarNameCollisionDSL)
+	dir := t.TempDir()
+	renderGRPCResponseContractModule(t, dir, "example.com/metadata", root)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "metadata_test.go"), []byte(metadataVarNamesHarness), 0o600))
+	runGRPCGoCommand(t, dir, "mod", "tidy")
+	runGRPCGoCommand(t, dir, "vet", "./...")
+	runGRPCGoCommand(t, dir, "test", ".")
 }
 
 // duplicateBlockVars returns the identifiers declared more than once by var

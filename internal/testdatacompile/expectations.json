@@ -379,12 +379,6 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
-  "grpc/codegen/MetadataVarNameCollisionDSL": {
-    "contains": "FooBar redeclared",
-    "issue": "https://github.com/CaliLuke/loom/issues/542",
-    "phase": "build",
-    "reason": "Distinct DSL fields produce duplicate Go struct field names."
-  },
   "http/codegen/InvalidDSL": {
     "contains": "malformed URI \"http://[::1]:namedport\"",
     "phase": "gen",

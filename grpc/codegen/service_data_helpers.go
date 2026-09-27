@@ -20,12 +20,13 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 		typeRef := scope.GoTypeRef(unalias(c))
 		ft := service.Type
 		varn := vars.Unique(scope.PeekUnique(codegen.Goify(name, false)))
-		fieldName := codegen.Goify(name, true)
+		var fieldName string
 		var pointer bool
 		if !expr.IsObject(service.Type) {
 			fieldName = ""
 		} else {
 			key, attribute := service.FindAttribute(name)
+			fieldName = codegen.GoifyAtt(attribute, key, true)
 			pointer = service.IsPrimitivePointer(key, true)
 			ft = attribute.Type
 		}

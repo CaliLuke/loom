@@ -65,6 +65,15 @@ func Goify(str string, firstUpper bool) string {
 	return fixReservedGo(str)
 }
 
+// GoifyAttribute applies the first struct:field:name override, when present,
+// before deriving the Go identifier used for a design attribute.
+func GoifyAttribute(name string, metadata map[string][]string, firstUpper bool) string {
+	if values := metadata["struct:field:name"]; len(values) > 0 {
+		name = values[0]
+	}
+	return Goify(name, firstUpper)
+}
+
 // exportIdentifier returns an exported identifier made of first followed by
 // rest. Go only exports identifiers that start with an upper case letter
 // (Unicode class Lu), so a title case first letter is converted to upper

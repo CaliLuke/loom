@@ -64,7 +64,9 @@ func TestProtoFilesDuplicateUnionBranchNames(t *testing.T) {
 		}, "\toneof alt {\n\t\tstring alt_text = 2;\n\t}", ""},
 		{"two fields", func(_, _ any) {
 			Field(1, "fooBar", String)
-			Field(2, "foo_bar", String)
+			Field(2, "foo_bar", String, func() {
+				Meta("struct:field:name", "OtherFooBar")
+			})
 		}, "", `protocol buffer message "EchoRequest" has two fields named "foo_bar": attribute "fooBar" and attribute "foo_bar"`},
 		{"distinct names", func(leaf, other any) {
 			Field(2, "pick", OneOf(leaf, other))

@@ -20,12 +20,7 @@ func Goify(str string, firstUpper bool) string {
 // GoifyAtt honors any struct:field:name meta set on the attribute and calls
 // Goify with the tag value if present or the given name otherwise.
 func GoifyAtt(att *expr.AttributeExpr, name string, upper bool) string {
-	if tname, ok := att.Meta["struct:field:name"]; ok {
-		if len(tname) > 0 {
-			name = tname[0]
-		}
-	}
-	return Goify(name, upper)
+	return naming.GoifyAttribute(name, att.Meta, upper)
 }
 
 // UnionValTypeName returns the Go type name of the interface and method used to

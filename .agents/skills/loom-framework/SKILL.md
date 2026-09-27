@@ -105,6 +105,9 @@ consumer validation.
   `Goify` and `SnakeCase` and `expr.Title` delegate to it, and `expr` uses it
   to reject servers or services whose directories collide, ignoring case,
   and interceptors of one service whose `naming.Goify` names collide.
+  `naming.GoifyAttribute` owns field-name overrides for both `codegen.GoifyAtt`
+  and service-field collision validation. Check service data separately from
+  transport mapping objects, whose names may legitimately collide as Go locals.
   Change the naming rules there only, so validation cannot drift from the
   generated paths. `naming.CLIDir` and `naming.TransportServiceDirs` record
   the client CLI tree and the transport packages of a service, which `expr`
