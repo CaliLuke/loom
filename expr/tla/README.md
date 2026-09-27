@@ -22,3 +22,46 @@ This is an abstract lifecycle model, not a proof of Go graph cloning. The direct
 map, and inline-object graphs, repeated derivation, source pointer identity, and
 names that already end in `RequestBody`. DSL and generated-module tests check
 union branches, shared constructor allocation, presence validation, and compile.
+
+## Method type ownership
+
+`MethodTypeOwnership.tla` models a named type used for both a payload and a
+result, with one occurrence extended. Code generation emits one declaration per
+Go type identity, in either traversal order. Reusing the original identity can
+silently widen the plain occurrence or leave fields missing from the extended
+occurrence. Giving the extended occurrence its own identity preserves both
+shapes; description-only customization keeps the shared identity.
+
+```sh
+cd expr/tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config MethodTypeOwnership_before.cfg MethodTypeOwnership.tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config MethodTypeOwnership_after.cfg MethodTypeOwnership.tla
+```
+
+The before configuration violates `EveryUseHasItsOwnShape`; the after
+configuration checks all 16 states without error. The model abstracts the Go
+identity and field set, not expression IDs or requiredness. The direct method
+matrix additionally checks all four payload/result positions, both declaration
+orders, direct types, alias chains, result types, inherited requiredness, and
+description-only controls. Generated HTTP and WebSocket round trips check both
+direct types and alias chains.
+
+## Inheritance and default view finalization
+
+`ResultViewFinalization.tla` checks when a result's automatic default view
+captures its fields. Capturing before inheritance loses added fields during
+projection even when the canonical Go type contains them. Merging inheritance
+first preserves the automatic view's full shape and leaves explicit field
+selection unchanged.
+
+```sh
+cd expr/tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config ResultViewFinalization_before.cfg ResultViewFinalization.tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config ResultViewFinalization_after.cfg ResultViewFinalization.tla
+```
+
+The before configuration violates `ViewMatchesContract`; after checks all six
+states without error. The model covers field selection and ordering, not Go
+cloning or validation. Direct projection tests cover inherited and method-local
+requiredness, while generated HTTP and WebSocket tests check the response value
+survives the default view on the wire.

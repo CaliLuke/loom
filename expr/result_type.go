@@ -246,8 +246,10 @@ func (rt *ResultTypeExpr) validateExplicitViewMeta() error {
 func (rt *ResultTypeExpr) Finalize() {
 	rt.finalizeViews()
 	rt.useExplicitView()
-	rt.ensureDefaultView()
 	rt.UserTypeExpr.Finalize()
+	// Implicit views must snapshot the complete shape, including inherited
+	// fields. Explicit views retain their authored field selection.
+	rt.ensureDefaultView()
 	rt.finalizeViews()
 	seen := make(map[string]struct{})
 	walkAttribute(rt.AttributeExpr, func(_ string, att *AttributeExpr) error { // nolint: errcheck

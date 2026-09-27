@@ -769,6 +769,12 @@ filter, and serialization rules belong here.
   must preserve authored overrides too. A projected HTTP client body carries the
   projected validation on both the outer attribute and its result type so field
   declarations and conversions use the same requiredness.
+- Method-level `Extend` on a named payload or result, including streaming
+  positions, must give the copied type its own name. Store inherited bases on
+  the copied user type attribute so emitted fields and requiredness share an
+  owner. Plain uses must retain their original shape in either traversal order.
+  Finalize inheritance before creating an automatic default result view so
+  projection sees the full shape. Preserve explicit view field selection.
 - Keep requiredness and nullability orthogonal. `expr` owns semantic
   nullability; shared service models use `loom.Nullable[T]` for null-admitting
   object fields; JSON decoding boundaries alone use `loom.Optional[T]` for

@@ -313,6 +313,19 @@ var Manager = Type("Manager", func() {
 })
 ```
 
+Using `Extend` inside a named `Payload`, `Result`, `StreamingPayload`, or
+`StreamingResult` customization creates a method-specific type. It inherits the
+base fields and their requiredness. Other uses of the original named type keep
+their original fields and requirements.
+Automatic result views include the inherited fields. Explicit views keep their
+authored field selection.
+
+```go
+Payload(Employee, func() {
+    Extend(AuditFields)
+})
+```
+
 ### Validation Rules
 
 #### String Validations

@@ -389,6 +389,11 @@ completion shapes are explicit generation limitations.
   take precedence; the original result type and other methods are unchanged.
 - Generated projection helpers convert between canonical results and view
   types. Use them instead of maintaining app-local conversion copies.
+- `Extend(...)` inside a named `Payload`, `Result`, `StreamingPayload`, or
+  `StreamingResult` customization creates a method-specific type with the
+  inherited fields and requiredness. Plain uses of the named type are unchanged.
+  Automatic result views include inherited fields; explicit views keep their
+  authored field selection.
 - For typed SSE projections, use `SSEProjection(eventType, view)` with
   `SSEEventType(...)`.
 

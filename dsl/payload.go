@@ -1,6 +1,8 @@
 package dsl
 
 import (
+	"slices"
+
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 )
@@ -172,28 +174,7 @@ func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.Attr
 		fn = actual
 		att = &expr.AttributeExpr{Type: &expr.Object{}}
 	case expr.UserType:
-		if len(args) == 0 {
-			// Do not duplicate type if it is not customized
-			return &expr.AttributeExpr{Type: actual}
-		}
-		dupped := expr.Dup(actual)
-		att = &expr.AttributeExpr{Type: dupped}
-		if f, ok := args[len(args)-1].(func()); ok {
-			numreqs := 0
-			if att.Validation != nil {
-				numreqs = len(att.Validation.Required)
-			}
-			eval.Execute(f, att)
-			if att.Validation != nil && len(att.Validation.Required) != numreqs {
-				// If the DSL modifies the type attributes "requiredness"
-				// then rename the type to avoid collisions.
-				if renamer, ok := dupped.(interface {
-					Rename(string)
-				}); ok {
-					renamer.Rename(actual.Name() + "_" + m.Name + "_" + suffix)
-				}
-			}
-		}
+		att = methodUserTypeAttribute(actual, m.Name, suffix, args)
 	case expr.DataType:
 		att = &expr.AttributeExpr{Type: actual}
 		directDataType = true
@@ -218,9 +199,54 @@ func methodDSL(m *expr.MethodExpr, suffix string, p any, args ...any) *expr.Attr
 		}
 		eval.Execute(fn, att)
 		applyUnionMetaFromAttribute(att)
+		if ut, ok := att.Type.(expr.UserType); ok && ut != expr.Empty && len(att.Bases) > 0 {
+			// The emitted declaration comes from the user type attribute.
+			// Keep inherited fields and requiredness on that same owner.
+			owner := ut.Attribute()
+			for nested, ok := owner.Type.(expr.UserType); ok; nested, ok = owner.Type.(expr.UserType) {
+				if nested == expr.Empty {
+					owner.Type = &expr.Object{}
+					break
+				}
+				// An object alias also changes the underlying declaration.
+				// Give every copied link its own identity before adding fields.
+				nested.Rename(nested.Name() + "_" + m.Name + "_" + suffix)
+				owner = nested.Attribute()
+			}
+			owner.Bases = slices.Concat(owner.Bases, att.Bases)
+			att.Bases = nil
+		}
 		if obj, ok := att.Type.(*expr.Object); ok {
 			if len(*obj) == 0 {
 				att.Type = expr.Empty
+			}
+		}
+	}
+	return att
+}
+
+// methodUserTypeAttribute owns method-specific copies and distinguishes any
+// customization that changes their Go declaration from plain uses of the type.
+func methodUserTypeAttribute(actual expr.UserType, methodName, suffix string, args []any) *expr.AttributeExpr {
+	if len(args) == 0 {
+		// Do not duplicate type if it is not customized
+		return &expr.AttributeExpr{Type: actual}
+	}
+	dupped := expr.Dup(actual)
+	att := &expr.AttributeExpr{Type: dupped}
+	if f, ok := args[len(args)-1].(func()); ok {
+		numreqs := 0
+		if att.Validation != nil {
+			numreqs = len(att.Validation.Required)
+		}
+		eval.Execute(f, att)
+		if actual != expr.Empty && (len(att.Bases) > 0 || att.Validation != nil && len(att.Validation.Required) != numreqs) {
+			// Method-specific fields and requiredness need their own Go type.
+			// Other uses of the named type keep the original contract.
+			if renamer, ok := dupped.(interface {
+				Rename(string)
+			}); ok {
+				renamer.Rename(actual.Name() + "_" + methodName + "_" + suffix)
 			}
 		}
 	}
