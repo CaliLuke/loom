@@ -78,10 +78,9 @@ func (w *Worker) rebalance(ctx context.Context, activeWorkers []string) {
 // retryRebalance runs rebalance again after ackGracePeriod, with the active
 // workers at that time. rebalance calls it when it left a job on this worker
 // because a start of the job was in flight or releasing the job failed. Rebalance
-// otherwise runs only when the worker map changes, so without the retry the
-// job would stay on a worker that does not own it, where StopJob and
-// NotifyWorker do not reach it. At most one retry is pending per worker, and
-// it ends when the worker stops.
+// also runs on membership changes and periodic reconciliation, but this retry
+// lets a pending guard be revisited after its own grace period. At most one
+// retry is pending per worker, and it ends when the worker stops.
 func (w *Worker) retryRebalance() {
 	if !w.rebalanceRetry.CompareAndSwap(false, true) {
 		return

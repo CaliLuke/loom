@@ -869,6 +869,11 @@ tier:
   the current owner, epoch, registration, and Redis lease without creating
   ownership. A fenced handler already stopped successfully must not receive
   another Stop during release or eviction.
+- Reconcile job placement periodically as well as on worker-map updates.
+  Membership can arrive before a joining heartbeat or an already-routed start;
+  heartbeat notifications alone miss the latter case. Keep the bounded
+  `pulse/pool/tla/JoinRebalance.tla` model and watcher regressions paired with
+  real-Redis migration coverage when changing these triggers.
 - Close all protocol 1 nodes before migration. Join registration and backfill
   are atomic with the initial node heartbeat; routing and claims reject live
   incompatible nodes. Preserve epoch counters across pool shutdown and read

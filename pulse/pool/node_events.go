@@ -332,12 +332,15 @@ func (node *Node) parkDispatchReturn(eventID string, err error) {
 	node.earlyReturns[eventID] = earlyDispatchReturn{err: err, at: now}
 }
 
-// watches monitors the workers replicated map and triggers job rebalancing
-// when workers are added or removed from the pool.
+// watchWorkers reacts to membership changes and periodically reconciles jobs.
+// A membership notification can precede the joining worker's heartbeat or a
+// previously routed start. Neither later arrival changes the worker map.
 func (node *Node) watchWorkers(ctx context.Context) {
 	defer node.wg.Done()
 	updates := node.workerMap.Subscribe()
 	defer node.workerMap.Unsubscribe(updates)
+	ticker := time.NewTicker(node.workerTTL / 2)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-node.stop:
@@ -348,11 +351,14 @@ func (node *Node) watchWorkers(ctx context.Context) {
 			}
 			node.logger.Debug("watchWorkers: worker map updated")
 			node.handleWorkerMapUpdate(ctx)
+		case <-ticker.C:
+			node.handleWorkerMapUpdate(ctx)
 		}
 	}
 }
 
-// handleWorkerMapUpdate is called when the worker map is updated.
+// handleWorkerMapUpdate reconciles local workers and jobs with the current
+// membership and heartbeat replicas, on notifications and periodic passes.
 func (node *Node) handleWorkerMapUpdate(ctx context.Context) {
 	if node.IsClosed() {
 		return

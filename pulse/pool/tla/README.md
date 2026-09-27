@@ -509,13 +509,14 @@ that returns after a false death (which stands for a join), sets it. A
 pass that moves the job clears it, and so does a refusal in `guard`. In
 the other designs `rebal` stays `TRUE`, and rebalance can fire whenever the
 node's view calls for it. A pass with nothing to move keeps the trigger.
-This leaves out a race that exists on main too: a pass can run before a
+This leaves out a race that existed before #433: a pass can run before a
 start lands on the worker, and nothing rebalances the job afterwards. A
 variant of the model in which such a pass ends the trigger fails
 `OwnerReached` in 12 states for `guard`. That trace has no refusal, so the
-retry does not help (#433). In Go, `handleWorkerMapUpdate` also runs only on
+retry does not help (#433). In Go, `handleWorkerMapUpdate` also ran only on
 worker map updates, and a joining worker's map entry can arrive before its
 keep-alive, so the join's rebalance can see the old worker set.
+The smaller `JoinRebalance` model below checks the reconciliation fix.
 
 Scopes. Every configuration has the fixes of tickets 1 to 4, `ackclear`
 where the stream is tracked, `MaxEv=3`, `MaxTok=2` and no stop. The model
@@ -856,3 +857,51 @@ callback, under weak fairness of both. Run the same TLC command with this
 module and the corresponding configuration. This model does not assume
 callbacks always terminate: Stop progresses specifically when its joined work
 loop exits. Other unbounded callback waits remain outside the guarantee.
+
+## Join-time reconciliation (#433)
+
+`JoinRebalance.tla` isolates two workers and one start routed to the old
+worker before the new worker joins. Membership, the new worker's heartbeat,
+and delivery of the start can reach the old node in any order. The job's hash
+selects the new worker once both workers are active. `OwnerReached` requires
+that the job eventually stays on that worker; `NoPrematureMove` requires
+membership, a heartbeat, and acknowledgement before moving it.
+
+| Configuration | Trigger strategy | TLC result | Distinct states |
+| --- | --- | --- | --- |
+| `join_rebalance_membership` | Membership only (previous code) | `OwnerReached` violated | 20 |
+| `join_rebalance_heartbeat` | Membership and heartbeat | `OwnerReached` violated | 23 |
+| `join_rebalance_periodic` | Membership and periodic reconciliation | All invariants and liveness pass | 28 |
+
+TLC 2.19 with Java 25 checked each finite state space. Run from this directory:
+
+```sh
+for strategy in membership heartbeat periodic; do
+  java -cp /tmp/loom-tla2tools.jar tlc2.TLC -workers 1 \
+    -metadir "/tmp/loom-join-rebalance-$strategy" \
+    -config "cfg/join_rebalance_$strategy.cfg" JoinRebalance
+done
+```
+
+The first two runs intentionally report temporal counterexamples. Membership
+can trigger a pass before the heartbeat arrives. Adding heartbeat triggers
+still fails if the already-routed start lands after both passes. Existing
+guard retries do not help when the pass sees no misplaced job. A periodic
+pass eventually observes both arrivals and moves the acknowledged job.
+
+`Membership` maps to the worker-map subscription in `watchWorkers`; `Poll`
+maps to its ticker at half the worker TTL. `Start` represents publication in
+`Worker.jobs`, and `Rebalance` represents `handleWorkerMapUpdate` and
+`Worker.rebalance`. Retaining `due` for an unacknowledged job abstracts the
+existing guard retry. `Deliver` abstracts routing and the new worker's claim.
+`worker_rebalance_watch_test.go` replays both missed triggers without another
+membership event and checks watcher shutdown. `TestLostRebalanceStartIsRecovered`
+exercises automatic migration and lost-start recovery on miniredis and both
+supported real Redis versions, without manually invoking reconciliation.
+
+The liveness result assumes stable membership, fresh heartbeats, and eventual
+start delivery, acknowledgement, callback completion, and routing. Weak
+fairness supplies those eventual steps and periodic passes; the model does
+not establish a wall-clock bound. It abstracts Redis failures, stream loss,
+churn, fencing, and ownership scripts. Existing ownership models and runtime
+tests remain necessary; this check proves only the finite trigger model.

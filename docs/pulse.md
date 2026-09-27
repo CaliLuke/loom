@@ -186,6 +186,10 @@ can interrupt healthy peers.
 - Tune worker TTL and acknowledgement grace periods to the deployment's
   failure-detection needs; values that are too short cause premature recovery
   during network pauses, while values that are too long delay requeue.
+- Nodes reconcile job placement on membership changes and every half worker
+  TTL. This catches joining workers whose heartbeat arrives after membership,
+  and jobs delivered after the first rebalance pass. In-flight dispatch guards,
+  handler callbacks, and Redis availability can delay completion further.
 - After rebalance releases a job, a failed Redis requeue reply never restarts
   it on the old worker: Redis may already have queued it elsewhere. If the
   write did not happen, the orphan sweep recovers the retained payload after

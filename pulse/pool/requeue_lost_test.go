@@ -58,12 +58,11 @@ func TestLostRebalanceStartIsRecovered(t *testing.T) {
 	handler2 := newRecordingHandler()
 	_, err = nodeA.AddWorker(ctx, handler2)
 	require.NoError(t, err)
-	// The worker map update that w2 causes can reach the watcher before
-	// w2's keep-alive does, so rebalance explicitly once w2 is active.
+	// Reconciliation must notice the join even when the worker map update
+	// reaches the watcher before w2's keep-alive.
 	require.Eventually(t, func() bool {
 		return len(nodeA.activeWorkers()) == 2
 	}, 10*time.Second, 5*time.Millisecond)
-	nodeA.handleWorkerMapUpdate(ctx)
 	require.Eventually(t, func() bool {
 		return handler1.wasStopped(key) &&
 			countStartEvents(t, rdb.XRange(ctx, poolStreamKey, "-", "+").Val())[key] > before
