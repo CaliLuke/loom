@@ -17,8 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CaliLuke/loom/codegen"
 	"golang.org/x/tools/go/packages"
+
+	"github.com/CaliLuke/loom/codegen"
 )
 
 const temporaryGeneratorPrefix = ".loom-generator-"

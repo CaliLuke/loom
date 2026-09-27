@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/CaliLuke/loom/dsl"
 	"github.com/stretchr/testify/require"
+
+	. "github.com/CaliLuke/loom/dsl"
 )
 
 const finalResultHarness = `package finalresult_test

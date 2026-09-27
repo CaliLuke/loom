@@ -5,8 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/stretchr/testify/assert"
+
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 func TestSmartRedirectSlashes(t *testing.T) {

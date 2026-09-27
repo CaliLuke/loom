@@ -1,8 +1,9 @@
 package codegen
 
 import (
-	"github.com/CaliLuke/loom/codegen/testutil"
 	"testing"
+
+	"github.com/CaliLuke/loom/codegen/testutil"
 
 	"github.com/stretchr/testify/require"
 

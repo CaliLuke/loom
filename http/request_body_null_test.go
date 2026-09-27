@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/stretchr/testify/require"
+
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // TestNonNullableJSONRequestBody checks root null rejection independently of

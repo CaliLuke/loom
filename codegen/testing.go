@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/stretchr/testify/require"
 )
 
 // RunDSL returns the DSL root resulting from running the given DSL.

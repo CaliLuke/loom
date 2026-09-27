@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
-	"github.com/CaliLuke/loom/observability/otel/logrusbridge"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
 	otelglobal "go.opentelemetry.io/otel/log/global"
+
+	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
+	"github.com/CaliLuke/loom/observability/otel/logrusbridge"
 
 	"github.com/stretchr/testify/require"
 )

@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"
 	"github.com/CaliLuke/loom/internal/testingx"
-	"github.com/stretchr/testify/require"
 )
 
 const customizedResultValidationHarness = `package customizedviews_test

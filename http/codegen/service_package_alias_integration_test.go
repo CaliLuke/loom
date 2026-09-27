@@ -3,9 +3,10 @@ package codegen
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	. "github.com/CaliLuke/loom/dsl"
-	"github.com/stretchr/testify/require"
 )
 
 var httpServicePackageCollisionNames = []string{"strconv", "body", "bodysvc"}

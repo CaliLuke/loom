@@ -5,12 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	ctestdata "github.com/CaliLuke/loom/codegen/example/testdata"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 func TestExampleCLIFiles(t *testing.T) {

@@ -7,8 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CaliLuke/loom/observability/transport"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/observability/transport"
 )
 
 type recordingObserver struct {

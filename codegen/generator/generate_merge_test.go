@@ -8,12 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/designfingerprint"
 	loom "github.com/CaliLuke/loom/pkg"
-	"github.com/stretchr/testify/require"
 )
 
 // TestGenerateMergesSamePathFiles verifies that when two generators emit content

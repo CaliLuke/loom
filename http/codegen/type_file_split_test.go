@@ -6,9 +6,10 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	. "github.com/CaliLuke/loom/dsl"
-	"github.com/stretchr/testify/require"
 )
 
 func TestLargeHTTPTypeFilesSplitByConcern(t *testing.T) {

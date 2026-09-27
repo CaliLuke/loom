@@ -12,9 +12,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/internal/testingx"
 	loom "github.com/CaliLuke/loom/pkg"
-	"github.com/stretchr/testify/require"
 )
 
 type fakeGenerator struct {

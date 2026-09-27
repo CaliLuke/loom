@@ -3,12 +3,13 @@ package openapiv3
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/openapi/v3/testdata/dsls"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBuildInfo(t *testing.T) {

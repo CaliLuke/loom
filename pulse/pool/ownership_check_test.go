@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/pulse/pulse"
 )
 
 func TestCheckOwnership(t *testing.T) {

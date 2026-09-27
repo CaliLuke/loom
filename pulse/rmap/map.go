@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/CaliLuke/loom/pulse/pulse"
 )
 
 type (

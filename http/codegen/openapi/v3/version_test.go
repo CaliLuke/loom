@@ -4,11 +4,12 @@ import (
 	"encoding/json/v2"
 	"testing"
 
+	"github.com/pb33f/libopenapi"
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/internal/openapiversion"
-	"github.com/pb33f/libopenapi"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRenderOpenAPIVersion(t *testing.T) {

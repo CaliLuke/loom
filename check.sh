@@ -2,9 +2,9 @@
 # Quality-gate entry point for the Loom repo.
 #
 # This is a thin forwarder to the canonical `make` targets — the real gate
-# logic lives in `Makefile`, `.golangci.yml`, `scripts/lint_filesize.sh`,
-# and `scripts/lint_name_scope.sh`. The script exists so that external
-# tooling (CI, pre-push hooks, agent harnesses) has a single stable entry
+# logic lives in `Makefile`, `.golangci.yml`, and `scripts/`. `--fix` delegates
+# formatting to `make fmt`, which excludes generated Go files. This script lets
+# tooling (CI, pre-push hooks, agent harnesses) use a single stable entry
 # point with the conventional name.
 #
 # Usage:

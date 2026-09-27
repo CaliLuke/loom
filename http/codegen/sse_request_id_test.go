@@ -3,8 +3,9 @@ package codegen
 import (
 	"testing"
 
-	. "github.com/CaliLuke/loom/dsl"
 	"github.com/stretchr/testify/require"
+
+	. "github.com/CaliLuke/loom/dsl"
 )
 
 // TestSSERequestIDGeneratedField resolves payload field names and pointer semantics.

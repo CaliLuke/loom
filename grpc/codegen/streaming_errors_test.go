@@ -4,10 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
 // TestStreamingWithErrors tests that streaming endpoints properly handle

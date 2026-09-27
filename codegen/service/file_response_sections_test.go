@@ -3,8 +3,9 @@ package service
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/codegen"
 )
 
 func TestFileResponseServiceSections(t *testing.T) {

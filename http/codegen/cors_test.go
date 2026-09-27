@@ -6,11 +6,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/codegentest"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 func TestServerCORSOutput(t *testing.T) {

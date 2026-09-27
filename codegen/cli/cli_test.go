@@ -4,10 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CaliLuke/loom/codegen/service"
-	"github.com/CaliLuke/loom/expr"
 	"github.com/dave/jennifer/jen"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestJSONExampleHandlesEmptyMaps(t *testing.T) {

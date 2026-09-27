@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPFileResponseValidation(t *testing.T) {

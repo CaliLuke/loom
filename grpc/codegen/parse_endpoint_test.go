@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 func TestParseEndpointWithInterceptors(t *testing.T) {

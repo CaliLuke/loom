@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/stretchr/testify/require"
+
+	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 func TestFileResponseDelegatesHTTPContentSemantics(t *testing.T) {

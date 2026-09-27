@@ -7,9 +7,10 @@ import (
 	"reflect"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
-	"gopkg.in/yaml.v3"
 )
 
 type openAPIJSONNumber string

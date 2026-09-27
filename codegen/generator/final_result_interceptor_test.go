@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/internal/testingx"
-	"github.com/stretchr/testify/require"
 )
 
 const jsonRPCFinalResultHarness = `package jsonrpcfinal_test

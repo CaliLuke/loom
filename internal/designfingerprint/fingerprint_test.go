@@ -5,8 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CaliLuke/loom/expr"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
 type (

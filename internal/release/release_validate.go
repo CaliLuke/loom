@@ -11,8 +11,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/CaliLuke/loom/internal/docsmeta"
 	"golang.org/x/mod/semver"
+
+	"github.com/CaliLuke/loom/internal/docsmeta"
 )
 
 func validateVersion(version string) error {

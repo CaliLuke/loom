@@ -1,13 +1,14 @@
 package codegen
 
 import (
-	"github.com/CaliLuke/loom/codegen/testutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/CaliLuke/loom/codegen/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

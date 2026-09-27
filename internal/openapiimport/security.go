@@ -6,11 +6,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	yaml4 "go.yaml.in/yaml/v4"
+
+	"github.com/CaliLuke/loom/codegen"
 )
 
 func (a *analyzer) securityScheme(name string, source *v3.SecurityScheme, path string) (SecurityScheme, bool) {

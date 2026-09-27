@@ -3,9 +3,10 @@ package dsl
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNullable(t *testing.T) {

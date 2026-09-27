@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	loomhttpotel "github.com/CaliLuke/loom/http/middleware/otel"
 	"github.com/felixge/httpsnoop"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,6 +14,8 @@ import (
 	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	loomhttpotel "github.com/CaliLuke/loom/http/middleware/otel"
 )
 
 type (

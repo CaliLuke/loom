@@ -7,11 +7,12 @@ import (
 	"regexp"
 	"time"
 
+	redis "github.com/redis/go-redis/v9"
+
 	"github.com/CaliLuke/loom/pulse/internal/keyttl"
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming/options"
-	redis "github.com/redis/go-redis/v9"
 )
 
 type (

@@ -5,10 +5,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/http/codegen/testdata"
 	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
 func TestVendorExtensionScopesSurviveRendering(t *testing.T) {

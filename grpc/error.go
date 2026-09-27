@@ -4,12 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	loompb "github.com/CaliLuke/loom/grpc/pb"
-	loom "github.com/CaliLuke/loom/pkg"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/runtime/protoiface"
+
+	loompb "github.com/CaliLuke/loom/grpc/pb"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (

@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	projectiontestutil "github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	projectiontestutil "github.com/CaliLuke/loom/codegen/testutil"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"

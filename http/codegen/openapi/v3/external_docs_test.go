@@ -7,10 +7,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBuildDocumentPreservesExternalDocs(t *testing.T) {

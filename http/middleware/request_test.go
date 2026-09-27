@@ -6,9 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpm "github.com/CaliLuke/loom/http/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	httpm "github.com/CaliLuke/loom/http/middleware"
 )
 
 func TestPopulateRequestContext(t *testing.T) {

@@ -13,8 +13,9 @@ import (
 	"regexp"
 	"testing"
 
-	loomhttp "github.com/CaliLuke/loom/http"
 	"time"
+
+	loomhttp "github.com/CaliLuke/loom/http"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

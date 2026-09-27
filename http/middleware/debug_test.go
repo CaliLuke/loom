@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	loomhttp "github.com/CaliLuke/loom/http"
-	httpm "github.com/CaliLuke/loom/http/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	loomhttp "github.com/CaliLuke/loom/http"
+	httpm "github.com/CaliLuke/loom/http/middleware"
 )
 
 func TestDebug(t *testing.T) {

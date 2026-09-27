@@ -5,27 +5,34 @@
 #
 # Generated gen/ trees and the integration fixture modules under
 # */integration_tests/fixtures/ are excluded: `make generated-code-quality`
-# covers them.
+# covers them. Files marked with the standard generated-code comment before
+# their package declaration are also excluded.
 
 # hand_written_go_files prints the hand-written Go files under the current
-# directory, one per line, sorted.
-hand_written_go_files() {
+# directory, one per line, sorted. Discovery and file-read failures propagate.
+hand_written_go_files() (
+  set -o pipefail
   find . \( -path ./.git -o -type d -name gen -o -path '*/integration_tests/fixtures' \
     -o \( -type d ! -path . -exec test -e '{}/.git' \; \) \) -prune -o \
     -type f -name '*.go' -print |
-    LC_ALL=C sort
-}
+    LC_ALL=C sort |
+    go run "$(dirname "${BASH_SOURCE[0]}")/gosources/main.go"
+)
 
 # load_hand_written_go_files stores the discovered files in the global array
-# GO_FILES and fails when discovery finds none.
+# GO_FILES and fails when discovery fails or finds none.
 load_hand_written_go_files() {
   GO_FILES=()
-  local file
-  while IFS= read -r file; do
-    GO_FILES+=("$file")
-  done < <(hand_written_go_files)
-  if [ "${#GO_FILES[@]}" -eq 0 ]; then
+  local discovered file
+  if ! discovered="$(hand_written_go_files)"; then
+    echo "Go source discovery failed" >&2
+    return 1
+  fi
+  if [ -z "$discovered" ]; then
     echo "Go source discovery found no hand-written Go files" >&2
     return 1
   fi
+  while IFS= read -r file; do
+    GO_FILES+=("$file")
+  done <<< "$discovered"
 }

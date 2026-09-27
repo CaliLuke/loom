@@ -6,8 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/CaliLuke/loom/observability/transport"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/observability/transport"
 )
 
 func TestRequestObserverEmitsStartAndFinishOnSuccess(t *testing.T) {

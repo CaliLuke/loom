@@ -3,9 +3,10 @@ package service
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/internal/naming"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/mod/module"
+
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 func TestServicePackageNames(t *testing.T) {

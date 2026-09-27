@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	loomvet "github.com/CaliLuke/loom/vet"
 	"github.com/stretchr/testify/require"
+
+	loomvet "github.com/CaliLuke/loom/vet"
 )
 
 func TestRunVet(t *testing.T) {

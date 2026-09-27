@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
 // executeBatch handles batch request scenarios

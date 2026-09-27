@@ -8,10 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CaliLuke/loom/clue/log"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/CaliLuke/loom/clue/log"
 )
 
 type (

@@ -11,8 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/stretchr/testify/require"
+
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (

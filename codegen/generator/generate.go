@@ -12,11 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/go/packages"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/designfingerprint"
-	"golang.org/x/tools/go/packages"
 )
 
 // Generate runs the code generation algorithms.

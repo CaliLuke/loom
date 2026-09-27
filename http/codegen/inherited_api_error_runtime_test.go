@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 const inheritedAPIErrorHarness = `package apierror_test

@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 	"gopkg.in/yaml.v3"
+
+	"github.com/CaliLuke/loom/jsonrpc/integration_tests/harness"
 )
 
 // RunnerConfig holds runner configuration

@@ -6,8 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/CaliLuke/loom/eval"
 	"github.com/dimfeld/httppath"
+
+	"github.com/CaliLuke/loom/eval"
 )
 
 type (

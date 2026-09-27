@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	cg "github.com/CaliLuke/loom/codegen"
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 const customTextClientHarness = `package customtext_test

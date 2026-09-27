@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CaliLuke/loom/expr"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestAnalyzeConfiguredHTTPServiceMounts(t *testing.T) {

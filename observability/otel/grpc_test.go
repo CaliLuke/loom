@@ -3,10 +3,11 @@ package otel
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
 	"google.golang.org/grpc"
 	health "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+
+	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
 
 	"github.com/stretchr/testify/require"
 )

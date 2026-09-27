@@ -8,8 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CaliLuke/loom/observability/transport"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/observability/transport"
 )
 
 // TestHTTPObserver pins the observable contract generated HTTP handlers must

@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/CaliLuke/loom/observability/transport"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/observability/transport"
 )
 
 func TestCaptureResponseWriterRecordsStatusAndBytes(t *testing.T) {

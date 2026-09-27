@@ -3,8 +3,9 @@ package expr
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/eval"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/eval"
 )
 
 func TestHTTPTransportRejectsNullableOutsideJSONBodies(t *testing.T) {

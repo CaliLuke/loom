@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CaliLuke/loom/clue/log"
 	"github.com/oklog/ulid/v2"
 	redis "github.com/redis/go-redis/v9"
+
+	"github.com/CaliLuke/loom/clue/log"
 
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/rmap"
