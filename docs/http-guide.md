@@ -1058,6 +1058,12 @@ Method("stream", func() {
 })
 ```
 
+`SSERequestID` takes the DSL payload attribute name, such as `last_event_id`.
+Generated HTTP handlers resolve its Go field name, including a
+`Meta("struct:field:name", ...)` override, and preserve whether the field is
+optional or required. A nonempty `Last-Event-ID` header replaces the decoded
+payload field; without that header, the decoded value is retained.
+
 ### SSE Implementation
 
 ```go

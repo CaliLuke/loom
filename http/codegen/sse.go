@@ -81,8 +81,8 @@ type (
 		// RetryPointer indicates whether RetryField is a pointer, that is an
 		// optional attribute without a default value.
 		RetryPointer bool
-		// RequestIDField is the name of the payload field that maps to the Last-Event-ID header if any.
-		// If empty, no last event id is included in the request.
+		// RequestIDField is the generated Go payload field bound to Last-Event-ID.
+		// It is empty when no payload binding is configured.
 		RequestIDField string
 		// NotificationMethod is the JSON-RPC method for intermediate SSE events.
 		NotificationMethod string
@@ -131,6 +131,10 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 		RequestIDField:      endpointIR.Stream.SSE.RequestIDField,
 		NotificationMethod:  endpointIR.Stream.SSE.NotificationMethod,
 		RequestIDPointer:    endpointIR.Stream.SSE.RequestIDPointer,
+	}
+	if name := endpointIR.Stream.SSE.RequestIDField; name != "" {
+		_, attr := endpointIR.Request.Payload.FindAttribute(name)
+		ed.SSE.RequestIDField = codegen.GoifyAtt(attr, name, true)
 	}
 	setSSEEventFields(ed.SSE, endpointIR.Stream.SSE, sd, eventAttr)
 	for _, projection := range endpointIR.Stream.SSE.Projections {

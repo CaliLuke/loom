@@ -510,6 +510,9 @@ requirement retain AND semantics.
   heartbeat frames.
 - Configure bounded stream writes with `loomhttp.NewStreamWritePolicy`.
 - Read `Last-Event-ID` through `loomhttp.LastEventIDKey`.
+  For HTTP SSE payload binding, pass the DSL attribute name to `SSERequestID`;
+  generated Go field names and `struct:field:name` overrides are resolved
+  automatically.
 - Do not recover or write the raw response writer to work around streaming
   behavior.
 - Generated WebSocket streams use `loomhttp.WebSocketStream`; use the generated

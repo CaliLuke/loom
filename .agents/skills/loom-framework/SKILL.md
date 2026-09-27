@@ -787,6 +787,10 @@ generated required and optional body handling. At the generated transport seam,
 assert HTTP status, problem code and detail, service invocation, and decoded
 payload state.
 
+Keep SSE request-ID names in DSL form in the transport IR. Resolve
+`SSEData.RequestIDField` with `GoifyAtt` at the Go generator boundary, using the
+payload attribute metadata; retain the separately evaluated pointer semantics.
+
 SSE changes require coverage for:
 
 - happy paths

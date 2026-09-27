@@ -418,18 +418,6 @@
     "phase": "build",
     "reason": "Inherited API error mapping references missing service types."
   },
-  "http/codegen/AsyncSessionSecurityDSL": {
-    "contains": "payload.last_event_id undefined (type *asyncsessionsecurity.EventsPayload has no field or method last_event_id)",
-    "issue": "https://github.com/CaliLuke/loom/issues/541",
-    "phase": "build",
-    "reason": "SSE request ID uses the DSL name instead of the Go field name."
-  },
-  "http/codegen/CollabStreamsDSL": {
-    "contains": "payload.last_event_id undefined (type *collabstreams.WatchThreadPayload has no field or method last_event_id)",
-    "issue": "https://github.com/CaliLuke/loom/issues/541",
-    "phase": "build",
-    "reason": "SSE request ID uses the DSL name instead of the Go field name."
-  },
   "http/codegen/FileServiceDSL": {
     "contains": "declared and not used: epn",
     "issue": "https://github.com/CaliLuke/loom/issues/543",
@@ -477,12 +465,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/540",
     "phase": "build",
     "reason": "Transport-only default produces incompatible CLI field assignment."
-  },
-  "http/codegen/OpenAPIProblemLinksAsyncDSL": {
-    "contains": "payload.last_event_id undefined (type *threadops.WatchThreadPayload has no field or method last_event_id)",
-    "issue": "https://github.com/CaliLuke/loom/issues/541",
-    "phase": "build",
-    "reason": "SSE request ID uses the DSL name instead of the Go field name."
   },
   "http/codegen/OpenAPISharedErrorHeaderDSL": {
     "contains": "field and method with the same name Error",
@@ -597,18 +579,6 @@
     "issue": "https://github.com/CaliLuke/loom/issues/534",
     "phase": "build",
     "reason": "Primitive CLI parsing omits the strconv import."
-  },
-  "http/codegen/SSEAllFieldsDSL": {
-    "contains": "payload.id undefined (type *sseallfieldsservice.SSEAllFieldsMethodPayload has no field or method id)",
-    "issue": "https://github.com/CaliLuke/loom/issues/541",
-    "phase": "build",
-    "reason": "SSE request ID uses the DSL name instead of the Go field name."
-  },
-  "http/codegen/SSERequestIDDSL": {
-    "contains": "payload.id undefined (type *sserequestidservice.SSERequestIDMethodPayload has no field or method id)",
-    "issue": "https://github.com/CaliLuke/loom/issues/541",
-    "phase": "build",
-    "reason": "SSE request ID uses the DSL name instead of the Go field name."
   },
   "http/codegen/ServerFileServerDSL": {
     "contains": "declared and not used: epn",
