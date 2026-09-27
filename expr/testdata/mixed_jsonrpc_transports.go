@@ -26,9 +26,6 @@ var MixedJSONRPCTransportsAPI = func() {
 				Field(2, "email", String)
 				Required("id")
 			})
-			HTTP(func() {
-				POST("/users/{id}")
-			})
 			JSONRPC(func() {
 			})
 		})
@@ -45,11 +42,8 @@ var MixedJSONRPCTransportsAPI = func() {
 				Field(2, "event", String)
 				Field(3, "timestamp", String)
 			})
-			HTTP(func() {
-				POST("/users/watch")
-				ServerSentEvents() // Enable SSE for this method
-			})
 			JSONRPC(func() {
+				ServerSentEvents()
 			})
 		})
 
@@ -63,9 +57,6 @@ var MixedJSONRPCTransportsAPI = func() {
 			Result(func() {
 				Field(1, "id", String, "Created user ID")
 			})
-			HTTP(func() {
-				POST("/users")
-			})
 			JSONRPC(func() {
 				// Notification - no ID needed
 			})
@@ -73,7 +64,7 @@ var MixedJSONRPCTransportsAPI = func() {
 
 		// Configure JSON-RPC endpoint
 		JSONRPC(func() {
-			Path("/api/rpc")
+			POST("/api/rpc")
 		})
 	})
 }
@@ -98,15 +89,12 @@ var ValidWebSocketOnlyAPI = func() {
 			StreamingResult(func() {
 				Field(1, "response", String)
 			})
-			HTTP(func() {
-				GET("/ws")
-			})
 			JSONRPC(func() {
 			})
 		})
 
 		JSONRPC(func() {
-			Path("/ws")
+			GET("/ws")
 		})
 	})
 }
@@ -124,9 +112,6 @@ var InvalidMixedWebSocketAPI = func() {
 		Method("Stream", func() {
 			StreamingPayload(String)
 			StreamingResult(String)
-			HTTP(func() {
-				GET("/stream")
-			})
 			JSONRPC(func() {
 				// Streaming methods typically don't use ID
 			})
@@ -136,16 +121,13 @@ var InvalidMixedWebSocketAPI = func() {
 		Method("Get", func() {
 			Payload(String)
 			Result(String)
-			HTTP(func() {
-				POST("/get")
-			})
 			JSONRPC(func() {
 				// This method mixes with WebSocket - should error
 			})
 		})
 
 		JSONRPC(func() {
-			Path("/invalid")
+			GET("/invalid")
 		})
 	})
 }

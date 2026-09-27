@@ -317,10 +317,9 @@
     "reason": "intentional validation failure"
   },
   "expr/InvalidMixedWebSocketAPI": {
-    "contains": "JSON-RPC endpoints cannot define routes at the method level.",
-    "issue": "https://github.com/CaliLuke/loom/issues/545",
+    "contains": "JSON-RPC service \"InvalidService\" cannot mix WebSocket with other transports",
     "phase": "gen",
-    "reason": "JSON-RPC fixture uses obsolete method-level routing."
+    "reason": "intentional validation failure"
   },
   "expr/InvalidRouteDSL": {
     "contains": "routes at the service level are only allowed for JSON-RPC services. Use method-level routes instead. in service \"InvalidRoute\"",
@@ -357,12 +356,6 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
-  "expr/MixedJSONRPCTransportsAPI": {
-    "contains": "JSON-RPC endpoints cannot define routes at the method level.",
-    "issue": "https://github.com/CaliLuke/loom/issues/545",
-    "phase": "gen",
-    "reason": "JSON-RPC fixture uses obsolete method-level routing."
-  },
   "expr/SeparatorCollidingInterceptorsDSL": {
     "contains": "service \"Service\": interceptors \"audit-log\", \"audit_log\" all generate the Go name \"AuditLog\"",
     "phase": "gen",
@@ -392,12 +385,6 @@
     "contains": "service \"UnionBranchSecurityService\" method \"SecureMethod\": payload of method \"SecureMethod\" of service \"UnionBranchSecurityService\" does not define a JWT attribute, use Token to define one",
     "phase": "gen",
     "reason": "intentional validation failure"
-  },
-  "expr/ValidWebSocketOnlyAPI": {
-    "contains": "JSON-RPC endpoints cannot define routes at the method level.",
-    "issue": "https://github.com/CaliLuke/loom/issues/545",
-    "phase": "gen",
-    "reason": "JSON-RPC fixture uses obsolete method-level routing."
   },
   "grpc/codegen/MetadataVarNameCollisionDSL": {
     "contains": "FooBar redeclared",
