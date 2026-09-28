@@ -409,6 +409,14 @@ filter, and serialization rules belong here.
   select `http/cli.UnmarshalJSON` when their types contain boolean map keys.
   Custom JSON/text codecs retain precedence, and the runtime import receives
   a collision-free alias in each payload-builder file.
+- `loom.JSONOptions()` exposes the shared boolean map-key options to generated
+  code. Apply them at typed branch decoding and value encoding in both service
+  and HTTP union codecs, in `Optional` and `Nullable`, and at HTTP body codec
+  boundaries. Outer JSON options do not propagate through legacy custom
+  `MarshalJSON`/`UnmarshalJSON` methods that start new JSON operations. Preserve
+  explicit `json.Deterministic(true)` in custom marshalers. The model under
+  `pkg/tla/json_options` reproduces the outer-only failure and the incomplete
+  union-only repair, then checks nested option handling at all three layers.
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
   A response encoder failure that occurs before commit is encoded through the

@@ -54,7 +54,7 @@ func (o Optional[T]) MarshalJSON() ([]byte, error) {
 	if o.value == nil {
 		return nil, ErrAbsentOptional
 	}
-	data, err := json.Marshal(o.value, json.Deterministic(true))
+	data, err := json.Marshal(o.value, JSONOptions(), json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (o *Optional[T]) UnmarshalJSON(data []byte) error {
 		return ErrNullOptional
 	}
 	var value T
-	if err := json.Unmarshal(data, &value); err != nil {
+	if err := json.Unmarshal(data, &value, JSONOptions()); err != nil {
 		return err
 	}
 	o.value = &value

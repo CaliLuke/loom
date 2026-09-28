@@ -407,6 +407,14 @@ Collection flags accept JSON. Boolean map keys use the member names `"true"`
 and `"false"`, including in nested collections. The flag example shows the JSON that the flag accepts, including the `type`
 and `value` fields of a union.
 
+HTTP JSON bodies use the same boolean map-key representation, including maps
+inside tagged or untagged unions and optional or nullable fields. Only the
+member names `"true"` and `"false"` are accepted for boolean keys; boolean values
+remain JSON booleans. Custom JSON and text codecs keep their authored
+representation. For custom JSON integration, pass `loom.JSONOptions()` to
+`json.Marshal` or `json.Unmarshal` to use the same map-key rules. Add
+`json.Deterministic(true)` when stable member ordering is required.
+
 `Bytes` values in JSON bodies are base64 strings. OpenAPI schema examples,
 enums, and defaults use the same JSON representation. Raw binary body media
 examples contain the literal bytes when they form valid UTF-8 text; Loom omits

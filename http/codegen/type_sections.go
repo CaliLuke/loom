@@ -305,7 +305,7 @@ func renderHTTPUnionMarshalJSONBody(data *servicecodegen.UnionTypeData) string {
 	}
 	b.Addf("\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
 	b.Addf("return json.Marshal(struct {\n\tType  string%s\n\tValue any   %s\n}{\n", codegen.StructTag(map[string]string{"json": data.TypeKey}), codegen.StructTag(map[string]string{"json": data.ValueKey}))
-	b.Add("\tType:  string(u.kind),\n\tValue: value,\n}, json.Deterministic(true))")
+	b.Add("\tType:  string(u.kind),\n\tValue: value,\n}, loom.JSONOptions(), json.Deterministic(true))")
 	return b.String()
 }
 
@@ -315,7 +315,7 @@ func renderHTTPUntaggedUnionMarshalJSONBody(data *servicecodegen.UnionTypeData) 
 	b.Add("switch u.kind {\n")
 	for _, field := range data.Fields {
 		b.Addf(
-			"\tcase %s:\n\t\treturn json.Marshal(u.%s, json.Deterministic(true))\n",
+			"\tcase %s:\n\t\treturn json.Marshal(u.%s, loom.JSONOptions(), json.Deterministic(true))\n",
 			field.KindConst,
 			field.FieldName,
 		)
@@ -390,7 +390,7 @@ func renderHTTPUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData) string
 		b.Addf("\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
 		b.Add("\t\tif len(raw.Value) == 0 || string(raw.Value) == \"null\" {\n")
 		b.Addf("\t\t\treturn loom.MissingFieldError(%q, \"body\")\n\t\t}\n", data.ValueKey)
-		b.Add("\t\tif err := json.Unmarshal(raw.Value, &v); err != nil {\n\t\t\treturn err\n\t\t}\n")
+		b.Add("\t\tif err := json.Unmarshal(raw.Value, &v, loom.JSONOptions()); err != nil {\n\t\t\treturn err\n\t\t}\n")
 		b.Addf("\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
 	}
 	b.Add("\tdefault:\n")
@@ -431,7 +431,7 @@ func renderHTTPUntaggedUnionUnmarshalJSONBody(data *servicecodegen.UnionTypeData
 		b.Add("\tif eligible {\n")
 		b.Add("\tcandidateData, marshalErr := json.Marshal(filtered)\n")
 		b.Add("\tif marshalErr == nil {\n")
-		b.Add("\tif err := json.Unmarshal(candidateData, &v); err == nil {\n")
+		b.Add("\tif err := json.Unmarshal(candidateData, &v, loom.JSONOptions()); err == nil {\n")
 		validated := false
 		if field.ValidateCode != "" {
 			b.Add("\t\tbranchErr := func() (err error) {\n")

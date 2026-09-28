@@ -82,7 +82,7 @@ func (n Nullable[T]) MarshalJSON() ([]byte, error) {
 	if n.null {
 		return []byte("null"), nil
 	}
-	data, err := json.Marshal(n.value, json.Deterministic(true))
+	data, err := json.Marshal(n.value, JSONOptions(), json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (n *Nullable[T]) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	var value T
-	if err := json.Unmarshal(data, &value); err != nil {
+	if err := json.Unmarshal(data, &value, JSONOptions()); err != nil {
 		return err
 	}
 	n.value = &value

@@ -113,6 +113,7 @@ func TestRenderHTTPUntaggedUnionUsesExactFilteredMatch(t *testing.T) {
 	require.Contains(t, body, "for name := range rawObject")
 	require.Contains(t, body, "matched.kind = OutcomeKindOK")
 	require.Contains(t, body, "*u = matched")
+	require.Contains(t, body, "json.Unmarshal(candidateData, &v, loom.JSONOptions())")
 	require.NotContains(t, body, "u.kind = OutcomeKindOK")
 }
 
@@ -120,7 +121,7 @@ func TestRenderHTTPUnionMarshalJSONPreservesDeterministicNestedOrdering(t *testi
 	scope := cg.NewNameScope()
 	tagged := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
 
-	require.Contains(t, renderHTTPUnionMarshalJSONBody(tagged), "}, json.Deterministic(true))")
+	require.Contains(t, renderHTTPUnionMarshalJSONBody(tagged), "}, loom.JSONOptions(), json.Deterministic(true))")
 
 	untagged := &svc.UnionTypeData{
 		Name:     "Outcome",
@@ -132,7 +133,7 @@ func TestRenderHTTPUnionMarshalJSONPreservesDeterministicNestedOrdering(t *testi
 	require.Contains(
 		t,
 		renderHTTPUnionMarshalJSONBody(untagged),
-		"return json.Marshal(u.OK, json.Deterministic(true))",
+		"return json.Marshal(u.OK, loom.JSONOptions(), json.Deterministic(true))",
 	)
 }
 
@@ -142,6 +143,7 @@ func TestRenderHTTPUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 
 	body := renderHTTPUnionUnmarshalJSONBody(data)
 
+	require.Contains(t, body, "json.Unmarshal(raw.Value, &v, loom.JSONOptions())")
 	require.Contains(t, body, `return loom.MissingFieldError("value", "body")`)
 	require.Contains(t, body, `len(raw.Value) == 0 || string(raw.Value) == "null"`)
 	require.Contains(t, body, `return loom.InvalidEnumValueError("type", raw.Type, []any{`)

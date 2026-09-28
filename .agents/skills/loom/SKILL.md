@@ -432,6 +432,11 @@ completion shapes are explicit generation limitations.
   array and map attributes selected with `Body`. Explicit empty collections
   override the default. Collection flags accept JSON; boolean map keys must be
   the member names `"true"` or `"false"`, including in nested collections.
+- HTTP JSON bodies, generated union codecs, and optional/nullable wrappers use
+  the same boolean map-key rules. Boolean values keep JSON boolean syntax and
+  custom JSON/text codecs keep their representation. Custom JSON integrations
+  can pass `loom.JSONOptions()` to the JSON v2 encoder or decoder; deterministic
+  ordering still requires `json.Deterministic(true)`.
 - Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
   request stream needs a documentation-only OpenAPI contract.
 - Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts

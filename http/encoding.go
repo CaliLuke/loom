@@ -238,7 +238,7 @@ func (je *jsonEncoder) Read(b []byte) (n int, err error) {
 func (*jsonEncoder) Close() (err error) { return nil }
 
 func (je *jsonEncoder) Encode(v any) error {
-	b, err := json.Marshal(v)
+	b, err := json.Marshal(v, loom.JSONOptions())
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func newJSONResponseEncoder(w io.Writer) *jsonResponseEncoder {
 }
 
 func (e *jsonResponseEncoder) Encode(v any) error {
-	data, err := json.Marshal(v)
+	data, err := json.Marshal(v, loom.JSONOptions())
 	if err != nil {
 		return err
 	}
@@ -462,7 +462,7 @@ func decodeJSON(data []byte, v any) error {
 	if jsonWhitespaceOnly(data) {
 		return io.EOF
 	}
-	return json.Unmarshal(data, v)
+	return json.Unmarshal(data, v, loom.JSONOptions())
 }
 
 func decodeXML(data []byte, v any) error {
