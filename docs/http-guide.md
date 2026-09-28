@@ -399,9 +399,12 @@ unchanged. A required body must still be present.
 
 The generated client CLI makes the body flag of an optional object, union,
 nullable, `Any`, primitive, array, map, or `Bytes` attribute selected with
-`Body("name")` optional. An empty flag leaves the attribute nil or absent.
-For a defaulted primitive, an omitted flag uses the declared default; an
-explicit flag overrides it. The flag example shows the JSON that the flag accepts, including the `type`
+`Body("name")` optional. Without a declared default, an empty flag leaves the
+attribute nil or absent.
+For a defaulted primitive or collection, an omitted flag uses the declared
+default; an explicit flag overrides it, including an empty array or map.
+Collection flags accept JSON. Boolean map keys use the member names `"true"`
+and `"false"`, including in nested collections. The flag example shows the JSON that the flag accepts, including the `type`
 and `value` fields of a union.
 
 `Bytes` values in JSON bodies are base64 strings. OpenAPI schema examples,

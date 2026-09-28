@@ -3,13 +3,13 @@ package cli
 import (
 	"encoding/json/v2"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/jsonkey"
 )
 
 // PayloadBuilderSection builds the section that can be used to
@@ -159,8 +159,7 @@ func appendPayloadInitCode(group *jen.Group, init *PayloadInitData) {
 }
 
 // flagDefault converts a declared default to the text accepted by its flag.
-// Primitive flags accept raw text; named primitive flags accept JSON.
-// Collection defaults retain their existing representation.
+// Primitive flags accept raw text; named primitive and collection flags accept JSON.
 func flagDefault(typeName string, value any) any {
 	if value == nil {
 		return nil
@@ -173,17 +172,7 @@ func flagDefault(typeName string, value any) any {
 	if flagType(typeName) != "JSON" {
 		return value
 	}
-	if _, bytes := value.([]byte); !bytes {
-		switch reflect.ValueOf(value).Kind() {
-		case reflect.Bool, reflect.String,
-			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			reflect.Float32, reflect.Float64:
-		default:
-			return value
-		}
-	}
-	encoded, err := json.Marshal(value, json.Deterministic(true))
+	encoded, err := json.Marshal(value, json.Deterministic(true), jsonkey.BooleanKeys)
 	if err != nil {
 		panic(fmt.Sprintf("encode CLI default for %s: %v", typeName, err))
 	}

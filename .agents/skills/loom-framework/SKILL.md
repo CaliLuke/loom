@@ -402,6 +402,13 @@ filter, and serialization rules belong here.
   payload without flags, such as an object type without attributes, gets a
   payload builder without parameters in the client package (`buildFlags` in
   `http/codegen/client_cli.go`).
+- JSON CLI flags serialize defaults deterministically, including nested
+  collections. Optional collection attributes selected with `Body` propagate
+  their defaults to the CLI flag metadata. Boolean map keys use the shared
+  `internal/jsonkey` JSON options; generated HTTP and JSON-RPC CLI builders
+  select `http/cli.UnmarshalJSON` when their types contain boolean map keys.
+  Custom JSON/text codecs retain precedence, and the runtime import receives
+  a collision-free alias in each payload-builder file.
 - Ordinary unary HTTP handlers delegate request context, observation, decode,
   invocation, response encode, and failure routing to the typed runtime helper.
   A response encoder failure that occurs before commit is encoded through the

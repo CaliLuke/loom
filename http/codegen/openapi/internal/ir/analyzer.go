@@ -1,8 +1,6 @@
 package ir
 
 import (
-	"encoding"
-	"encoding/json/v2"
 	"fmt"
 	"reflect"
 	"slices"
@@ -617,7 +615,7 @@ func toStringMap(val any) any {
 	if !actual.IsValid() {
 		return nil
 	}
-	if hasCustomJSONEncoding(actual.Type()) {
+	if jsonkey.HasCustomEncoding(actual.Type()) {
 		return val
 	}
 	switch actual.Kind() {
@@ -625,7 +623,7 @@ func toStringMap(val any) any {
 		out := make(map[string]any, actual.Len())
 		iterator := actual.MapRange()
 		for iterator.Next() {
-			if hasCustomJSONEncoding(reflect.TypeOf(iterator.Key().Interface())) {
+			if jsonkey.HasCustomEncoding(reflect.TypeOf(iterator.Key().Interface())) {
 				return val
 			}
 			name, ok := jsonkey.Name(iterator.Key())
@@ -647,21 +645,4 @@ func toStringMap(val any) any {
 	default:
 		return val
 	}
-}
-
-// hasCustomJSONEncoding reports whether JSON serialization owns the value's
-// representation. JSON v2 also checks pointer methods on addressable copies.
-func hasCustomJSONEncoding(valueType reflect.Type) bool {
-	if valueType == nil {
-		return false
-	}
-	for _, candidate := range []reflect.Type{valueType, reflect.PointerTo(valueType)} {
-		if candidate.Implements(reflect.TypeFor[json.MarshalerTo]()) ||
-			candidate.Implements(reflect.TypeFor[json.Marshaler]()) ||
-			candidate.Implements(reflect.TypeFor[encoding.TextAppender]()) ||
-			candidate.Implements(reflect.TypeFor[encoding.TextMarshaler]()) {
-			return true
-		}
-	}
-	return false
 }

@@ -24,7 +24,7 @@ type transportVarScope struct {
 // aligned with the import lists of those files.
 var transportFunctionImportNames = []string{
 	"bytes", "context", "errors", "fmt", "http", "io", "json", "jsontext", "loom", "loomhttp",
-	"multipart", "os", "strconv", "strings", "url", "utf8",
+	"loomhttpcli", "multipart", "os", "strconv", "strings", "url", "utf8",
 }
 
 // requestLocalNames lists the identifiers that the generated server request
@@ -65,7 +65,7 @@ var responseLocalNames = []string{
 // decoder, server payload initializer, and CLI payload builder of an
 // endpoint.
 func newRequestVarScope(sd *ServiceData) *transportVarScope {
-	return newTransportVarScope(sd, requestLocalNames, func(names *codegen.NameScope, varName string) DerivedVarNames {
+	s := newTransportVarScope(sd, requestLocalNames, func(names *codegen.NameScope, varName string) DerivedVarNames {
 		return DerivedVarNames{
 			Raw:       names.Unique(varName + "Raw"),
 			RawSlice:  names.Unique(varName + "RawSlice"),
@@ -73,6 +73,10 @@ func newRequestVarScope(sd *ServiceData) *transportVarScope {
 			Val:       names.Unique(varName + "Val"),
 		}
 	})
+	if name := cliJSONPackageName(sd); name != "loomhttpcli" {
+		s.reserve(name)
+	}
+	return s
 }
 
 // newPathVarScope returns the variable scope of a path builder and of the

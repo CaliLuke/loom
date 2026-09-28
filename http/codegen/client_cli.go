@@ -258,7 +258,8 @@ func payloadBuilders(
 // clientCLIImports returns the imports of the client CLI support file of the
 // service.
 func clientCLIImports(genpkg string, sd *ServiceData) []*codegen.ImportSpec {
-	return append([]*codegen.ImportSpec{
+	jsonCLI := codegen.LoomNamedImport("http/cli", "loomhttpcli")
+	imports := append([]*codegen.ImportSpec{
 		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "fmt"},
 		{Path: "net/http"},
@@ -266,9 +267,14 @@ func clientCLIImports(genpkg string, sd *ServiceData) []*codegen.ImportSpec {
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
+		jsonCLI,
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + sd.Service.PathName, Name: sd.Service.PkgName},
 	}, sd.Service.UserTypeImports...)
+	if alias, ok := codegen.AliasClashingImports(imports, []string{jsonCLI.Path})[jsonCLI.Path]; ok {
+		jsonCLI.Name = alias
+	}
+	return imports
 }
 
 // buildFlags builds the flag data and build function for an endpoint.
@@ -288,9 +294,13 @@ func buildFlags(svc *ServiceData, e *EndpointData) ([]*cli.FlagData, *cli.BuildF
 			// parser cannot refer to the service type itself.
 			args := init.ClientArgs
 			args = append(args, init.CLIArgs...)
-			flags, buildFunction = makeFlags(e, args, e.Payload.Request.PayloadType)
+			flags, buildFunction = makeFlags(e, args, e.Payload.Request.PayloadType, cliJSONPackageName(svc)+".UnmarshalJSON")
 		} else if e.Payload.Ref != "" {
-			flags = append(flags, cli.NewFlagData(svcn, en, "p", e.Method.PayloadRef, e.Method.PayloadDesc, true, e.Method.PayloadEx, e.Method.PayloadDefault))
+			flag := cli.NewFlagData(svcn, en, "p", e.Method.PayloadRef, e.Method.PayloadDesc, true, e.Method.PayloadEx, e.Method.PayloadDefault)
+			if containsBooleanMapKeys(e.Payload.Request.PayloadType) {
+				flag.Unmarshal = "loomhttpcli.UnmarshalJSON"
+			}
+			flags = append(flags, flag)
 		}
 	}
 	if e.Method.SkipRequestBodyEncodeDecode {
@@ -301,7 +311,7 @@ func buildFlags(svc *ServiceData, e *EndpointData) ([]*cli.FlagData, *cli.BuildF
 }
 
 // makeFlags creates flag data and build function from endpoint arguments.
-func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*cli.FlagData, *cli.BuildFunctionData) {
+func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType, jsonDecoder string) ([]*cli.FlagData, *cli.BuildFunctionData) {
 	var (
 		fdata     = make([]*cli.FieldData, 0, len(args)) // preallocate
 		flags     = make([]*cli.FlagData, len(args))
@@ -324,6 +334,9 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*
 			flagType = "string"
 		}
 		f := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.VarName, flagType, arg.Description, arg.Required, arg.Example, arg.DefaultValue)
+		if !arg.IsTextUnmarshaler && containsBooleanMapKeys(arg.Type) {
+			f.Unmarshal = jsonDecoder
+		}
 		flags[i] = f
 		params[i] = f.FullName
 		if arg.FieldName == "" && arg.VarName != "body" && expr.IsObject(payload) {

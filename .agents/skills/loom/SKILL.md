@@ -425,6 +425,10 @@ completion shapes are explicit generation limitations.
   states: an absent optional value sends no body, and an empty body decodes to
   an absent value. Non-nullable JSON bodies reject root `null` with
   `decode_payload`, whether required or optional; JSON-RPC returns `-32602`.
+- Omitted optional collection CLI flags use their declared defaults, including
+  array and map attributes selected with `Body`. Explicit empty collections
+  override the default. Collection flags accept JSON; boolean map keys must be
+  the member names `"true"` or `"false"`, including in nested collections.
 - Use `OpenAPIRequestBody(...)` with `SkipRequestBodyEncodeDecode()` when a raw
   request stream needs a documentation-only OpenAPI contract.
 - Use `OpenAPIRequestBodyTypes(...)` when one raw request schema accepts

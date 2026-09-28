@@ -272,6 +272,15 @@ func optionalBodyDefault(request *transportir.Request) any {
 	return request.Payload.GetDefault(request.BodyOriginKey)
 }
 
+// cliBodyDefault returns the flag input default in the client body's JSON shape.
+func cliBodyDefault(request *transportir.Request, body *expr.AttributeExpr) any {
+	if request != nil && request.BodyOrigin != "" && !request.MustHaveBody &&
+		(expr.IsArray(body.Type) || expr.IsMap(body.Type)) && !codegen.IsExplicitPresenceType(body) {
+		return expr.CanonicalizeExample(body, request.Payload.GetDefault(request.BodyOriginKey))
+	}
+	return optionalBodyDefault(request)
+}
+
 // isOptionalBodyAttribute reports whether the request body is selected with
 // Body from an optional payload attribute whose service field can be nil or
 // absent: a pointer, a slice, a map, a loom.Nullable value or a
@@ -574,7 +583,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 	// The CLI body flag holds the JSON of the client body type: it is
 	// optional when the body attribute is, and its example wraps unions in
 	// their discriminator and value.
-	defaultValue := optionalBodyDefault(b.endpointIR.Request)
+	defaultValue := cliBodyDefault(b.endpointIR.Request, b.bodyAttr)
 	clientArgs = append(clientArgs, &InitArgData{
 		Ref: b.sd.Scope.GoVar("body", b.body),
 		AttributeData: &AttributeData{

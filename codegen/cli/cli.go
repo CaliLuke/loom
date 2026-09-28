@@ -80,8 +80,8 @@ type (
 		// Example returns a JSON serialized example value.
 		Example string
 		// Default is the default flag input, or nil when none is declared.
-		// Named primitive flags use JSON text, while byte flags use raw text.
-		// Collection flags retain the declared value.
+		// Named primitive and collection flags use JSON text, while byte flags
+		// use raw text.
 		Default any
 		// Unmarshal is the qualified name of the function that decodes
 		// the value of a JSON flag, such as "protojson.Unmarshal". The
