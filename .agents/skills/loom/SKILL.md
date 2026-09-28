@@ -431,6 +431,10 @@ completion shapes are explicit generation limitations.
 
 ## HTTP Bodies and Parameters
 
+- A method may share its name with a type nested in its object or union body.
+  Loom allocates distinct transport type names, including WebSocket bodies;
+  a numeric suffix on a generated body type does not change schema names or
+  the wire format.
 - An explicit `Body(func() { ... })` inherits requiredness from both inline
   and named payloads for the fields it lists. A body `Required(...)` must agree
   with payload requiredness; parameter-only fields stay outside the body.

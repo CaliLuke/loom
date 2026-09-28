@@ -29,7 +29,7 @@ func TestOpenAPIClosedObjectWrapperUnionExamplesAreSuppressed(t *testing.T) {
 	previewBody := componentSchemaFromSpec(t, spec, "PreviewSelectionRequestBody")
 	require.NotContains(t, previewBody, "example")
 
-	previewMediaType := operationMediaTypeFromSpec(t, spec, "/plans/preview", "post", "application/json")
+	previewMediaType := postRequestMediaTypeFromSpec(t, spec, "/plans/preview", "application/json")
 	require.NotContains(t, previewMediaType, "example")
 }
 
@@ -39,7 +39,7 @@ func TestOpenAPIExampleFalseSuppressesWrapperRequestExamples(t *testing.T) {
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
 
-	suppressedMediaType := operationMediaTypeFromSpec(t, spec, "/plans/preview-suppressed", "post", "application/json")
+	suppressedMediaType := postRequestMediaTypeFromSpec(t, spec, "/plans/preview-suppressed", "application/json")
 	require.NotContains(t, suppressedMediaType, "example")
 }
 
@@ -68,7 +68,7 @@ func TestOpenAPIMultipartBinaryExamplesUseStrings(t *testing.T) {
 		}
 	}
 
-	importMediaType := operationMediaTypeFromSpec(t, spec, "/pantries/{pantry_id}/imports", "post", "multipart/form-data")
+	importMediaType := postRequestMediaTypeFromSpec(t, spec, "/pantries/{pantry_id}/imports", "multipart/form-data")
 	if example, ok := importMediaType["example"].(map[string]any); ok {
 		fileExample, hasFile := example["file"]
 		if hasFile {
@@ -140,11 +140,11 @@ func componentSchemaFromSpec(t *testing.T, spec []byte, name string) map[string]
 	return schema
 }
 
-func operationMediaTypeFromSpec(t *testing.T, spec []byte, path, method, contentType string) map[string]any {
+func postRequestMediaTypeFromSpec(t *testing.T, spec []byte, path, contentType string) map[string]any {
 	t.Helper()
 
 	doc := parseSpecMap(t, spec)
-	op := operationFromSpec(t, spec, path, method)
+	op := operationFromSpec(t, spec, path, "post")
 	requestBody := resolveRequestBodyRef(t, doc, op)
 	content, ok := requestBody["content"].(map[string]any)
 	require.True(t, ok)

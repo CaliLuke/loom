@@ -775,6 +775,17 @@ filter, and serialization rules belong here.
   keeps the name of the evaluated streaming body user type
   (`initWebSocketPayloadConstructor`), and `Stream.RequestMessage` keeps the
   evaluated body for the response contract message names.
+- Allocate endpoint body names before the HTTP type and layout registries
+  (`nameBodyTypes`). Reserve nested types and every preferred body name before
+  assigning collision suffixes; retain one allocation for copies of a body.
+  Keep this renaming in the Go transport IR so OpenAPI names stay unchanged.
+  Named scalar request wrappers also need an endpoint-owned expression ID,
+  and the expression copy key must distinguish transport wrappers from
+  authored types structurally: an authored name can equal any wrapper ID
+  string. Copies preserve the private wrapper marker, and example memoization
+  uses it to keep authored and wrapper values separate. The public example
+  cache API retains authored-type IDs. The models in
+  `http/codegen/tla/body_type_names` check copy, example and naming boundaries.
 - The client functions that build the request bodies and the WebSocket
   streaming bodies of a service are named after the Go type name of the body,
   such as `NewItemRequestBody`, which a nested collection shares with the flat

@@ -67,32 +67,56 @@ func NewRandom(seed string) *ExampleGenerator {
 	}
 }
 
+// ExampleGenerator memoizes examples by type identity while drawing values
+// from Randomizer. Transport wrappers have a separate identity namespace.
 type ExampleGenerator struct {
 	Randomizer
-	seen map[string]*any
+	seen map[exampleTypeKey]*any
 	mu   sync.RWMutex
 }
 
-// PreviouslySeen returns the previously seen value for a given ID
+type exampleTypeKey struct {
+	id   string
+	body bool
+}
+
+// PreviouslySeen returns the previously seen value for an authored type ID.
 func (r *ExampleGenerator) PreviouslySeen(typeID string) (*any, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if r.seen == nil {
 		return nil, false
 	}
-	val, haveSeen := r.seen[typeID]
+	val, haveSeen := r.seen[exampleTypeKey{id: typeID}]
 	return val, haveSeen
 }
 
-// HaveSeen stores the seen value in the randomizer, for reuse later
+// HaveSeen stores the value for an authored type ID, for reuse later.
 func (r *ExampleGenerator) HaveSeen(typeID string, val *any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.seen == nil {
-		r.seen = make(map[string]*any)
+		r.seen = make(map[exampleTypeKey]*any)
 	}
 
-	r.seen[typeID] = val
+	r.seen[exampleTypeKey{id: typeID}] = val
+}
+
+// exampleSlot reserves the memo entry before generating a value, so recursive
+// references terminate without conflating authored and synthesized identities.
+func (r *ExampleGenerator) exampleSlot(u *UserTypeExpr) (*any, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := exampleTypeKey{id: u.ID(), body: u.httpBody}
+	if value, ok := r.seen[key]; ok {
+		return value, true
+	}
+	if r.seen == nil {
+		r.seen = make(map[exampleTypeKey]*any)
+	}
+	value := new(any)
+	r.seen[key] = value
+	return value, false
 }
 
 // NewFakerRandomizer creates a randomizer that uses the faker library to

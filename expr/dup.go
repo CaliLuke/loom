@@ -5,11 +5,12 @@ import (
 )
 
 type (
-	// copyTypeKey keeps private promoted identities out of the authored name
-	// namespace, including during DSL evaluation before names are allocated.
+	// copyTypeKey keeps promoted definitions and transport wrappers out of the
+	// authored name namespace, including before names are allocated.
 	copyTypeKey struct {
 		id     string
 		branch uint64
+		body   bool
 	}
 
 	// dupper implements recursive and cycle safe copy of data types.
@@ -62,13 +63,17 @@ func newDupper() *dupper {
 	}
 }
 
-// typeCopyKey separates promoted definitions from authored string identities
-// before stable names exist. Including the current ID also keeps renamed
-// projections distinct from their source type after preparation.
+// typeCopyKey separates promoted definitions and HTTP wrappers from authored
+// string identities. Including the current ID also keeps renamed projections
+// distinct from their source type after preparation.
 func typeCopyKey(ut UserType) copyTypeKey {
 	key := copyTypeKey{id: ut.ID()}
-	if branch, ok := ut.(*UserTypeExpr); ok {
-		key.branch = branch.unionBranchID
+	switch actual := ut.(type) {
+	case *UserTypeExpr:
+		key.branch = actual.unionBranchID
+		key.body = actual.httpBody
+	case *ResultTypeExpr:
+		key.body = actual.httpBody
 	}
 	return key
 }

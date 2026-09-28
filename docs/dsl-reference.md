@@ -1464,6 +1464,12 @@ Method("create", func() {
 
 The HTTP DSL defines how service methods map to HTTP endpoints.
 
+An endpoint may share its name with a type nested in its body. For example,
+`Method("other", ...)` can accept an object or union containing `Type("Other",
+...)`. Loom assigns distinct transport type names, adding a numeric suffix
+when needed. This allocation preserves the authored schema names and wire
+format and also applies to WebSocket message bodies.
+
 Loom generates HTTP servers, per-service clients, and the aggregate client CLI
 by default. Set `Meta("http:generate", "server")` at API scope for a
 server-only application. This keeps `gen/http/<service>/server/`, generated

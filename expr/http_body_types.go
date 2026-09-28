@@ -179,6 +179,7 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		AttributeExpr: att,
 		TypeName:      name,
 		UID:           a.Service.Name() + "#" + a.Name(),
+		httpBody:      true,
 	}
 	appendSuffix(ut.Attribute().Type, suffix)
 
@@ -216,6 +217,9 @@ func scalarHTTPBody(a *HTTPEndpointExpr, payload *AttributeExpr, name, suffix st
 		payload.AddMeta("openapi:typename:canonical", "true")
 	}
 	renameType(payload, name, suffix)
+	// A named scalar or union wrapper can now have the same name as one of
+	// its suffixed branches. Copies must retain their distinct identities.
+	setHTTPBodyUID(payload.Type, a.Service.Name()+"#"+name)
 	return payload
 }
 
@@ -258,6 +262,7 @@ func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 		AttributeExpr: dupped,
 		TypeName:      concat(e.Name(), "Streaming", "Body"),
 		UID:           e.Service.Name() + "#" + e.Name() + "StreamingBody",
+		httpBody:      true,
 	}
 
 	return &AttributeExpr{
@@ -331,6 +336,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		AttributeExpr: body.Attribute(),
 		TypeName:      name,
 		UID:           concat(svc.Name(), "#", name),
+		httpBody:      true,
 	}
 	copyHTTPResponseBodyMeta(userType, attr)
 	appendSuffix(userType.Attribute().Type, suffix)
@@ -498,7 +504,7 @@ func cloneExplicitHTTPBody(body *AttributeExpr, name, suffix, uid string) *Attri
 	cloned.UserExamples = cloned.ExtractUserExamples()
 	preserveCanonicalOpenAPITypeName(cloned)
 	renameType(cloned, name, suffix)
-	setTypeUID(cloned.Type, uid)
+	setHTTPBodyUID(cloned.Type, uid)
 	return cloned
 }
 
@@ -522,6 +528,7 @@ func explicitHTTPRequestBody(body *AttributeExpr, name, suffix, uid string) *Att
 		AttributeExpr: wrapped,
 		TypeName:      name,
 		UID:           uid,
+		httpBody:      true,
 	}
 	return cloned
 }
@@ -544,12 +551,14 @@ func preserveCanonicalOpenAPITypeName(attr *AttributeExpr) {
 	}
 }
 
-func setTypeUID(dt DataType, uid string) {
+func setHTTPBodyUID(dt DataType, uid string) {
 	switch actual := dt.(type) {
 	case *UserTypeExpr:
 		actual.UID = uid
+		actual.httpBody = true
 	case *ResultTypeExpr:
 		actual.UID = uid
+		actual.httpBody = true
 	}
 }
 

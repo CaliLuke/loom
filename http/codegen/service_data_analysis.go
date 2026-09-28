@@ -29,6 +29,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	)
 	irService := transportir.BuildService(httpSvc)
 	nameUnionBodies(irService.Endpoints)
+	nameBodyTypes(irService.Endpoints)
 	svc, scope := newHTTPAnalysisService(svc, sds.serviceImportAliases[httpSvc.Name()])
 	sd = newHTTPServiceData(svc, scope)
 	sd.exampleGenerator = examplegen.ForScope(sds.Root.API.ExampleGenerator, "http", httpSvc.Name())

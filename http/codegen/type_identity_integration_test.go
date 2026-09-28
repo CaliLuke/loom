@@ -34,6 +34,7 @@ func TestTypeIdentityGeneratedHTTP(t *testing.T) {
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, "example.com/identity", root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "identity_test.go"), []byte(testdata.TypeIdentityHarness), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "body_names_test.go"), []byte(testdata.BodyTypeNamesHarness), 0o600))
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "vet", "./...")
 	runGoCommand(t, dir, "test", "-race", "./...")

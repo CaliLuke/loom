@@ -18,6 +18,9 @@ type (
 		// and its preferred name. Copies retain the definition identity.
 		unionBranchID   uint64
 		unionBranchName string
+		// httpBody distinguishes synthesized transport wrappers from authored
+		// types, whose names may equal any string chosen for a wrapper UID.
+		httpBody bool
 	}
 )
 
@@ -78,6 +81,7 @@ func (u *UserTypeExpr) Dup(att *AttributeExpr) UserType {
 		UID:             u.UID,
 		unionBranchID:   u.unionBranchID,
 		unionBranchName: u.unionBranchName,
+		httpBody:        u.httpBody,
 	}
 }
 
@@ -96,13 +100,9 @@ func (u *UserTypeExpr) Example(r *ExampleGenerator) any {
 }
 
 func (u *UserTypeExpr) recExample(r *ExampleGenerator) *any {
-	if ex, ok := r.PreviouslySeen(u.ID()); ok {
-		return ex
+	value, seen := r.exampleSlot(u)
+	if !seen {
+		*value = u.AttributeExpr.Example(r)
 	}
-	var ex any
-	pex := &ex
-	r.HaveSeen(u.ID(), pex)
-	actual := u.AttributeExpr.Example(r)
-	*pex = actual
-	return pex
+	return value
 }

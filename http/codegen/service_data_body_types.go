@@ -118,7 +118,7 @@ func buildUserRequestBodyTypeDetails(
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
-	varName := codegen.Goify(userType.Name(), true)
+	varName := sd.Scope.GoValueTypeName(body)
 	details := requestBodyTypeDetails{
 		varName:     varName,
 		description: fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP request body.", varName, sd.Service.Name, endpointName),
@@ -354,7 +354,7 @@ func initResponseBodyTypeData(body, att *expr.AttributeExpr, httpctx *codegen.At
 }
 
 func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.AttributeExpr, ut expr.UserType, endpointName string, httpctx *codegen.AttributeContext, sd *ServiceData, svr, allowValidateDef bool) {
-	data.varName = codegen.Goify(ut.Name(), true)
+	data.varName = sd.Scope.GoValueTypeName(body)
 	if !expr.IsUnion(ut.Attribute().Type) {
 		data.def = goValueTypeDef(sd.Scope, ut.Attribute(), !svr, svr, !svr)
 	}
