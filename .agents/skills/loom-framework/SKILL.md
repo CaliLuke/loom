@@ -486,6 +486,14 @@ filter, and serialization rules belong here.
   imports. The generators add only `struct:field:type` imports afterward. Do
   not reintroduce a blanket pass that hides a missing import in a direct file
   builder.
+- Declarations of types placed with `struct:pkg:path` use their canonical Go
+  name, just like qualified references. `NameScope.goFullValueTypeName` keeps
+  the existing conservative reservations that protect generated helper names,
+  then returns the canonical name for a relocated declaration. Removing those
+  reservations lets a union discriminator steal an authored `ChoiceKind`
+  name. The models under `codegen/tla/external_type_names` check declaration
+  consistency and preservation of authored names; the shared transport fixture
+  covers all six type shapes and an authored union-discriminator name.
 - A file imports a `struct:pkg:path` package under an alias, such as
   `security2`, only when its name clashes with another import that the same
   file lists (`codegen.AliasClashingImports`). A file builder lists its imports

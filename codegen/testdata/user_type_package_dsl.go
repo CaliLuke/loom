@@ -7,7 +7,9 @@ import . "github.com/CaliLuke/loom/dsl"
 // errors, streaming results, nested fields, arrays, and maps over HTTP, gRPC,
 // and JSON-RPC, including JSON-RPC SSE and WebSocket streams of local
 // wrappers. Payloads also have a field named "common", so generated variables
-// must not shadow the package name.
+// must not shadow the package name. Relocated type names also match method
+// names in two services, so declarations must retain their canonical names.
+// An authored MovedUnionKind also reserves the preferred discriminator name.
 var UserTypePackageTransportsDSL = func() {
 	API("usertypepkg", func() {
 		JSONRPC(func() {})
@@ -36,14 +38,51 @@ var UserTypePackageTransportsDSL = func() {
 		Field(2, "items", ArrayOf(item))
 		Required("item")
 	})
+	relocated := []struct {
+		name  string
+		value any
+	}{
+		{"moved_empty", Type("MovedEmpty", func() {
+			Meta("struct:pkg:path", "common")
+		})},
+		{"moved_object", Type("MovedObject", item, func() {
+			Meta("struct:pkg:path", "common")
+		})},
+		{"moved_array", Type("MovedArray", ArrayOf(item), func() {
+			Meta("struct:pkg:path", "common")
+		})},
+		{"moved_map", Type("MovedMap", MapOf(String, item), func() {
+			Meta("struct:pkg:path", "common")
+		})},
+		{"moved_primitive", Type("MovedPrimitive", String, func() {
+			Meta("struct:pkg:path", "common")
+		})},
+		{"moved_union", Type("MovedUnion", OneOf(inner, item), func() {
+			Meta("struct:pkg:path", "common")
+		})},
+	}
+	unionKind := Type("MovedUnionKind", String, func() {
+		Meta("struct:pkg:path", "common")
+	})
 	payload := func() {
 		Field(1, "item", item)
 		Field(2, "common", String)
 		Field(3, "items", ArrayOf(item))
 		Field(4, "index", MapOf(String, item))
+		Field(5, "kind", unionKind)
 		Required("item")
 	}
 	Service("catalog", func() {
+		for _, shape := range relocated {
+			Method(shape.name, func() {
+				Payload(shape.value)
+				Result(shape.value)
+				HTTP(func() {
+					POST("/names/" + shape.name)
+				})
+				GRPC(func() {})
+			})
+		}
 		Error("invalid", fault)
 		Method("update", func() {
 			Payload(payload)
@@ -89,6 +128,16 @@ var UserTypePackageTransportsDSL = func() {
 		})
 	})
 	Service("catalogrpc", func() {
+		for _, shape := range relocated {
+			Method(shape.name, func() {
+				Payload(func() {
+					ID("id", String)
+					Field(1, "value", shape.value)
+				})
+				Result(shape.value)
+				JSONRPC(func() {})
+			})
+		}
 		Error("invalid", fault)
 		JSONRPC(func() {
 			POST("/rpc")

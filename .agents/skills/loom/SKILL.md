@@ -67,6 +67,10 @@ order.
   the wire name while choosing a different Go field name.
 - Prefer a canonical `ResultType` with `View(...)` definitions over parallel
   hand-maintained DTOs for alternate public representations.
+- A type placed with `Meta("struct:pkg:path", "types")` keeps its Go name
+  independently of service methods. A `Moved` type remains `types.Moved` even
+  when a consuming service declares a `moved` method, including empty objects
+  and aliases of primitives, arrays, maps or unions.
 - Repeated `HTTP`, `GRPC`, or `JSONRPC` blocks in the same API, service, or
   method scope compose in declaration order. Use this to keep transport
   mappings near the errors or methods they describe; ordinary duplicate and

@@ -958,6 +958,11 @@ package of the same name, such as `types/security` next to the Loom `security`
 package or `types/multipart` next to `mime/multipart`, imports the type package
 under an alias such as `security2`. The other files keep the package name.
 
+A type in a shared package keeps its Go name even when a service method has
+the same name. For example, `Type("Moved", ...)` in `types` is declared and
+referenced as `types.Moved` even if a consuming service has a `moved` method.
+This also applies to empty objects, primitive aliases, arrays, maps and unions.
+
 ### Field Customization
 
 ```go

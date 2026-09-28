@@ -453,7 +453,13 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string, pkg
 		// payload type defined as Request2).
 		base := Goify(actual.Name(), true)
 		if pkg == "" {
-			return s.HashedUnique(actual, base, "")
+			name := s.HashedUnique(actual, base, "")
+			// Keep reservations that protect generated helpers, but declare
+			// relocated types by the canonical name used by qualified references.
+			if UserTypeLocation(actual) != nil {
+				return base
+			}
+			return name
 		}
 		if UserTypeLocation(actual) == nil {
 			if n, ok := s.names[actual.Hash()]; ok {
