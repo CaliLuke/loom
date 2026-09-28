@@ -96,8 +96,9 @@ func collectTypes(at *expr.AttributeExpr, scope *codegen.NameScope, seen map[str
 }
 
 // collectUnionTypes traverses the attribute to gather all union sum-type
-// definitions referenced by the service. It records each union by its hash to
-// avoid generating duplicate types.
+// definitions referenced by the service. It keys declarations by the referenced
+// type's hash, matching NameScope, so a named wrapper and its underlying union
+// each get the declaration used by their references.
 func collectUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, loc *codegen.Location, unions map[string]*UnionTypeData, seen map[string]struct{}) {
 	if att == nil || att.Type == expr.Empty {
 		return
@@ -109,7 +110,7 @@ func collectUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, loc *c
 		}
 		seen[dt.ID()] = struct{}{}
 		if union := expr.AsUnion(dt.Attribute().Type); union != nil {
-			hash := union.Hash()
+			hash := dt.Hash()
 			if _, ok := unions[hash]; !ok {
 				name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
 				unions[hash] = buildUnionTypeData(union, scope, codegen.UserTypeLocation(dt), name)

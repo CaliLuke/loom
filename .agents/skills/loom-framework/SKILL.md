@@ -785,7 +785,11 @@ filter, and serialization rules belong here.
   (`collectUnionTypes`), as a streaming payload or result
   (`buildStreamAttributeData`), and as a projected type in the views package,
   where it takes the `<Name>View` name (`collectViewUnionTypes`). Never emit a
-  type definition for the user type.
+  type definition for the user type. Key union declarations by the referenced
+  type's hash, as `NameScope` does, rather than the underlying union's hash:
+  raw constructor unions and promoted block branches may share an underlying
+  union while referring to different Go declarations. The model under
+  `codegen/service/tla/union_declarations` checks collection order and reuse.
 - Copies of union branch attributes must keep their canonical type references
   without traversing unfinished definitions. Use the private DSL helper
   `copyAttributeKeepingType` for named unions, promoted branches and view

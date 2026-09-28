@@ -37,8 +37,8 @@ func collectViewUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, lo
 		if union := expr.AsUnion(dt.Attribute().Type); union != nil {
 			// A projected named union is declared as the union type itself
 			// under the name of the projected type, see viewTypeSections.
-			if _, ok := unions[union.Hash()]; !ok {
-				unions[union.Hash()] = buildViewUnionTypeData(union, scope, loc, scope.GoTypeName(&expr.AttributeExpr{Type: dt}))
+			if _, ok := unions[dt.Hash()]; !ok {
+				unions[dt.Hash()] = buildViewUnionTypeData(union, scope, loc, scope.GoTypeName(&expr.AttributeExpr{Type: dt}))
 			}
 			for _, nat := range union.Values {
 				collectViewUnionTypes(nat.Attribute, scope, loc, unions, seen)

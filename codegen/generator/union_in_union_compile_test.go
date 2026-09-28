@@ -73,6 +73,11 @@ func unionInUnionDSL() {
 		dsl.Field(1, "id", dsl.String)
 		dsl.Field(2, "p", dsl.OneOf(choice, tags))
 		dsl.Field(4, "r", dsl.OneOf(outer, other))
+		dsl.Field(6, "also", dsl.OneOf(leaf, other))
+		dsl.OneOf("block", func() {
+			dsl.Field(8, "s", dsl.OneOf(leaf, other))
+			dsl.Field(9, "t", dsl.OneOf(leaf, other))
+		})
 		dsl.Required("id")
 	})
 	// gRPC does not support unions as collection elements.
@@ -121,11 +126,13 @@ const unionInUnionHarness = `package unioninunion
 
 import (
 	"context"
+	"encoding/json/v2"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
 	grpcclient "example.com/unioninunion/gen/grpc/nest/client"
@@ -154,26 +161,41 @@ func (rpcEcho) List(_ context.Context, p *nestrpc.Lists) (*nestrpc.Lists, error)
 
 func ptr[T any](v T) *T { return &v }
 
-func holders() []*nest.Holder {
+func holders(t *testing.T) []*nest.Holder {
 	return []*nest.Holder{
 		{ID: "leaf", P: ptr(nest.NewChoiceOrTagsChoice(ptr(nest.NewChoiceLeaf(&nest.Leaf{Name: "x"}))))},
 		{ID: "other", P: ptr(nest.NewChoiceOrTagsChoice(ptr(nest.NewChoiceOther(&nest.Other{Count: ptr(2)}))))},
 		{ID: "tags", P: ptr(nest.NewChoiceOrTagsTags(&nest.Tags{Values: []string{"a", "b"}}))},
 		{ID: "deep", R: ptr(nest.NewOtherOrOuterOuter(ptr(nest.NewOuterChoice(ptr(nest.NewChoiceLeaf(&nest.Leaf{Name: "y"}))))))},
 		{ID: "deep-other", R: ptr(nest.NewOtherOrOuterOther(&nest.Other{}))},
+		decodeHolder[*nest.Holder](t, "{\"id\":\"sLeaf\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"s\",\"value\":{\"type\":\"Leaf\",\"value\":{\"name\":\"nested\"}}}}"),
+		decodeHolder[*nest.Holder](t, "{\"id\":\"sOther\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"s\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"),
+		decodeHolder[*nest.Holder](t, "{\"id\":\"tLeaf\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Leaf\",\"value\":{\"name\":\"nested\"}}}}"),
+		decodeHolder[*nest.Holder](t, "{\"id\":\"tOther\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"),
 		{ID: "none"},
 	}
 }
 
-func rpcHolders() []*nestrpc.Holder {
+func rpcHolders(t *testing.T) []*nestrpc.Holder {
 	return []*nestrpc.Holder{
 		{ID: "leaf", P: ptr(nestrpc.NewChoiceOrTagsChoice(ptr(nestrpc.NewChoiceLeaf(&nestrpc.Leaf{Name: "x"}))))},
 		{ID: "other", P: ptr(nestrpc.NewChoiceOrTagsChoice(ptr(nestrpc.NewChoiceOther(&nestrpc.Other{Count: ptr(2)}))))},
 		{ID: "tags", P: ptr(nestrpc.NewChoiceOrTagsTags(&nestrpc.Tags{Values: []string{"a", "b"}}))},
 		{ID: "deep", R: ptr(nestrpc.NewOtherOrOuterOuter(ptr(nestrpc.NewOuterChoice(ptr(nestrpc.NewChoiceLeaf(&nestrpc.Leaf{Name: "y"}))))))},
 		{ID: "deep-other", R: ptr(nestrpc.NewOtherOrOuterOther(&nestrpc.Other{}))},
+		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"sLeaf\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"s\",\"value\":{\"type\":\"Leaf\",\"value\":{\"name\":\"nested\"}}}}"),
+		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"sOther\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"s\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"),
+		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"tLeaf\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Leaf\",\"value\":{\"name\":\"nested\"}}}}"),
+		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"tOther\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"),
 		{ID: "none"},
 	}
+}
+
+func decodeHolder[T any](t *testing.T, value string) T {
+	t.Helper()
+	var result T
+	require.NoError(t, json.Unmarshal([]byte(value), &result))
+	return result
 }
 
 func lists() []*nest.Lists {
@@ -201,7 +223,7 @@ func TestHTTPRoundTrip(t *testing.T) {
 	defer hs.Close()
 	c := httpclient.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
 	client := nest.NewClient(c.Show(), c.List())
-	for _, want := range holders() {
+	for _, want := range holders(t) {
 		got, err := client.Show(context.Background(), want)
 		if err != nil {
 			t.Errorf("%s: %v", want.ID, err)
@@ -230,7 +252,7 @@ func TestJSONRPCRoundTrip(t *testing.T) {
 	defer hs.Close()
 	c := rpcclient.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
 	client := nestrpc.NewClient(c.Show(), c.List())
-	for _, want := range rpcHolders() {
+	for _, want := range rpcHolders(t) {
 		got, err := client.Show(context.Background(), want)
 		if err != nil {
 			t.Errorf("%s: %v", want.ID, err)
@@ -253,7 +275,7 @@ func TestJSONRPCRoundTrip(t *testing.T) {
 }
 
 func TestGRPCConversions(t *testing.T) {
-	for _, want := range holders() {
+	for _, want := range holders(t) {
 		wire, err := proto.Marshal(grpcclient.NewProtoShowRequest(want))
 		if err != nil {
 			t.Fatalf("%s: %v", want.ID, err)

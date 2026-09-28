@@ -58,14 +58,26 @@ func namedUnionStreamsAndViewsDSL() {
 	choice := dsl.Type("Choice", dsl.OneOf(leaf, other))
 	holder := dsl.Type("Holder", func() {
 		dsl.Attribute("choice", choice)
+		dsl.Attribute("also", dsl.OneOf(leaf, other))
+		dsl.OneOf("block", func() {
+			dsl.Attribute("s", dsl.OneOf(leaf, other))
+			dsl.Attribute("t", dsl.OneOf(leaf, other))
+		})
 	})
 	rt := dsl.ResultType("application/vnd.rt", "RT", func() {
 		dsl.Attribute("id", dsl.String)
 		dsl.Attribute("c", choice)
+		dsl.Attribute("also", dsl.OneOf(leaf, other))
+		dsl.OneOf("block", func() {
+			dsl.Attribute("s", dsl.OneOf(leaf, other))
+			dsl.Attribute("t", dsl.OneOf(leaf, other))
+		})
 		dsl.Required("id")
 		dsl.View("default", func() {
 			dsl.Attribute("id")
 			dsl.Attribute("c")
+			dsl.Attribute("also")
+			dsl.Attribute("block")
 		})
 		dsl.View("tiny", func() {
 			dsl.Attribute("id")
@@ -118,6 +130,7 @@ const namedUnionStreamsAndViewsHarness = `package namedunionviews
 
 import (
 	"context"
+	"encoding/json/v2"
 	"net/http/httptest"
 	"reflect"
 	"strings"
@@ -169,15 +182,25 @@ var (
 
 func ptr[T any](v T) *T { return &v }
 
-func collection() svc.RTCollection {
-	return svc.RTCollection{
+func collection(t *testing.T) svc.RTCollection {
+	res := svc.RTCollection{
 		{ID: "a", C: ptr(svc.NewChoiceLeaf(&svc.Leaf{Name: "leaf"}))},
 		{ID: "b", C: ptr(svc.NewChoiceOther(&svc.Other{Count: ptr(2)}))},
 	}
+	for i, branch := range []string{"s", "t"} {
+		wire := "{\"id\":\"" + res[i].ID + "\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"" + branch + "\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"
+		var nested svc.RT
+		if err := json.Unmarshal([]byte(wire), &nested); err != nil {
+			t.Fatal(err)
+		}
+		res[i].Also = nested.Also
+		res[i].Block = nested.Block
+	}
+	return res
 }
 
 func TestViews(t *testing.T) {
-	res := collection()
+	res := collection(t)
 	cases := []struct {
 		view string
 		want svc.RTCollection
@@ -232,7 +255,7 @@ func TestViews(t *testing.T) {
 
 func TestHTTPRoundTrip(t *testing.T) {
 	s := &service{
-		list:   collection(),
+		list:   collection(t),
 		parent: &svc.Parent{Name: ptr("p"), Child: &svc.RT{ID: "c"}},
 	}
 	mux := loomhttp.NewMuxer()
