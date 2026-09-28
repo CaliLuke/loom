@@ -34,10 +34,8 @@ func transform() {
 			target.Bytes = []byte{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72}
 		}
 	}
-	{
-		if target.Any == nil {
-			target.Any = loom.JSONValue("\"something\"")
-		}
+	if source.Any == nil {
+		target.Any = loom.JSONValue("\"something\"")
 	}
 	if source.Array != nil {
 		target.Array = make([]string, len(source.Array))

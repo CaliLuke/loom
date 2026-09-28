@@ -428,7 +428,7 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 	defaultLiteral := defaultValueLiteral(tgtc, tdef, ta)
 
 	switch {
-	case ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type):
+	case ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type) || isRawJSONValue(srcc):
 		stmt := &jen.Statement{}
 		stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
 			switch {

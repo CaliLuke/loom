@@ -352,6 +352,11 @@ filter, and serialization rules belong here.
   parameters. They use nil for an omitted key. They use a nonnil pointer for
   an empty or nonempty value. Generated clients emit the key for every nonnil
   pointer.
+- Raw JSON (`Any`) object properties use nil for absence, including named
+  types. Their transforms apply defaults only to absent optional properties
+  when the target context uses defaults and is not a pointer context. Explicit
+  JSON null and concrete zero values retain their bytes. Custom Go type
+  overrides keep their own representation rules.
 - An optional payload attribute selected with `Body`
   (`RequestData.OptionalBodyAttribute`) whose service field can be nil or
   absent, which is any attribute but a primitive with a default value, is
