@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/CaliLuke/loom/internal/testprocess"
 )
 
 type (
@@ -16,7 +18,7 @@ type (
 	// server binary itself, not a go run wrapper, so stopping the Server
 	// stops the process that holds the port.
 	Server struct {
-		cmd     *exec.Cmd
+		cmd     *testprocess.Cmd
 		port    int
 		logFile *os.File
 		binDir  string
@@ -77,7 +79,7 @@ func StartServer(ctx context.Context, workDir string, port int) (*Server, error)
 	}
 	server.logFile = logFile
 
-	cmd := exec.CommandContext(ctx, binPath, "--http-port", fmt.Sprintf("%d", port))
+	cmd := testprocess.CommandContext(ctx, binPath, "--http-port", fmt.Sprintf("%d", port))
 	cmd.Dir = serverDir
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
@@ -135,8 +137,8 @@ func (s *Server) Stop() error {
 
 // goCommand returns a go command run in dir in module mode, outside any
 // workspace.
-func goCommand(dir string, args ...string) *exec.Cmd {
-	cmd := exec.Command("go", args...)
+func goCommand(dir string, args ...string) *testprocess.Cmd {
+	cmd := testprocess.CommandContext(context.Background(), "go", args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 	return cmd

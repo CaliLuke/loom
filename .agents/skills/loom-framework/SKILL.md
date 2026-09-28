@@ -1105,6 +1105,16 @@ accept an unexpected failure by silently skipping a design. Expected validation
 errors need an exact case and diagnostic; generator/build failures need a GitHub
 issue. A fixed case must have its stale expectation removed.
 
+## Integration Process Ownership
+
+HTTP and JSON-RPC harness subprocesses use `internal/testprocess`. On Unix, a
+separate process-group guardian observes a parent-owned pipe, so test timeout
+panics and parent termination clean up servers, CLIs and build subprocesses.
+Do not bypass the wrapper execution methods or detach descendants from their
+process group. JSON-RPC CLI calls also enforce a 30-second deadline. The
+`internal/testprocess/tla` model records the ownership protocol and its bounds.
+Windows retains standard `os/exec` behavior; integration suites remain Unix-only.
+
 ## Fixture Contracts
 
 Treat these as regression surfaces, not demos:

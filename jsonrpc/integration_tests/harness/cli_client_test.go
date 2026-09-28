@@ -103,6 +103,21 @@ func TestCLIClientRunsBinaryBuiltOnce(t *testing.T) {
 	require.NoError(t, client.Close(), "Close must be idempotent")
 }
 
+func TestCLIClientOwnDeadline(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "cli.pid")
+	t.Setenv("FAKE_CLI_PID_FILE", pidFile)
+	client, err := NewCLIClient(writeFakeCLI(t, "unused"), "http://127.0.0.1:1")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, client.Close())
+	})
+	client.callTimeout = 2 * time.Second
+	_, err = client.CallMethod(context.Background(), "test", "hang", nil)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	pid := waitForPID(t, pidFile)
+	require.ErrorIs(t, syscall.Kill(pid, 0), syscall.ESRCH)
+}
+
 func TestNewCLIClientReportsMissingCLI(t *testing.T) {
 	client, err := NewCLIClient(t.TempDir(), "http://127.0.0.1:1")
 	if err == nil {

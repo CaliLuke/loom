@@ -8,19 +8,22 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/CaliLuke/loom/internal/testprocess"
 )
 
 // CLIClient runs the generated CLI of a module against a server. The CLI is
 // built once, and each call runs the binary itself, not a go run wrapper, so
 // ending a call's context kills the process that talks to the server.
 type CLIClient struct {
-	cliPath   string
-	binDir    string
-	binPath   string
-	serverURL string
+	cliPath     string
+	binDir      string
+	binPath     string
+	serverURL   string
+	callTimeout time.Duration
 }
 
 // ErrCLINotFound reports that a generated module has no CLI main package.
@@ -68,8 +71,15 @@ func (c *CLIClient) Close() error {
 }
 
 // CallMethod invokes a service method via the CLI. Ending ctx kills the CLI
-// process.
+// process and its descendants. Calls have a 30-second deadline even if ctx does not.
 func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payload any) (jsontext.Value, error) {
+	timeout := c.callTimeout
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	// Convert method name from snake_case to kebab-case for CLI
 	cliMethod := strings.ReplaceAll(method, "_", "-")
 
@@ -103,7 +113,7 @@ func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payl
 	}
 	// If payload is nil, don't add any body argument - let the CLI handle it
 
-	cmd := exec.CommandContext(ctx, c.binPath, args...)
+	cmd := testprocess.CommandContext(ctx, c.binPath, args...)
 	cmd.Dir = c.cliPath
 
 	// Capture output
@@ -121,7 +131,7 @@ func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payl
 			errMsg = err.Error()
 		}
 		// Include both stdout and stderr for debugging
-		return nil, fmt.Errorf("CLI command failed: %s\nStderr: %s\nStdout: %s", errMsg, stderr.String(), stdout.String())
+		return nil, fmt.Errorf("CLI command failed: %s\nStderr: %s\nStdout: %s: %w", errMsg, stderr.String(), stdout.String(), errors.Join(err, ctx.Err()))
 	}
 
 	// Parse verbose output from stderr to get the raw JSON-RPC response
@@ -152,31 +162,6 @@ func (c *CLIClient) CallMethod(ctx context.Context, service, method string, payl
 		return nil, nil
 	}
 	return jsontext.Value(output), nil
-}
-
-// CallJSONRPC makes a raw JSON-RPC call via the CLI
-func (c *CLIClient) CallJSONRPC(ctx context.Context, request map[string]any) (jsontext.Value, error) {
-	// For JSON-RPC, we need to use the jsonrpc command if available
-	// Otherwise fall back to method call
-
-	method, ok := request["method"].(string)
-	if !ok {
-		return nil, fmt.Errorf("no method in request")
-	}
-
-	// Extract service and method from JSON-RPC method name
-	// Assuming format: service.method or just method
-	parts := strings.Split(method, ".")
-	service := "test" // default service
-	methodName := method
-
-	if len(parts) == 2 {
-		service = parts[0]
-		methodName = parts[1]
-	}
-
-	// Use the CLI to call the method
-	return c.CallMethod(ctx, service, methodName, request["params"])
 }
 
 // CanHandle returns true if the CLI can handle this method
