@@ -208,6 +208,11 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   consume a shared traversal sequence that lets unrelated design changes
   perturb output. API-level example omission must retain explicitly authored
   examples in both JSON and YAML without mutating the evaluated design.
+- The IR analyzer defaults to `OpenAPIExampleValue` for every schema surface.
+  Keep byte encoding, completeness checks, and explicit nullable examples
+  consistent across bodies, nested parameters, response headers, and async
+  messages. Caller-specific example projections may override that default;
+  new analyzer construction sites must not bypass it accidentally.
 - Treat stable schema names, canonical `operationId`, reusable component
   identity, and extension output as public framework contracts.
 - Canonical JSON member names for authored map keys come from

@@ -3,6 +3,9 @@ package testdata
 import . "github.com/CaliLuke/loom/dsl"
 
 var StreamingPartialExamplesDSL = func() {
+	var RealtimeChunk = Type("RealtimeChunk", Bytes, func() {
+		Example([]byte{0, 255})
+	})
 	var RealtimeSSEEvent = Type("RealtimeSSEEvent", func() {
 		Attribute("event", String, func() {
 			Example("abc123")
@@ -18,7 +21,13 @@ var StreamingPartialExamplesDSL = func() {
 			Example(1)
 		})
 		Attribute("event", String)
+		Attribute("attachment", RealtimeChunk)
+		Attribute("note", String, func() {
+			Nullable()
+			Example(Null())
+		})
 		Required("ts", "event")
+		Example(Val{"ts": 1})
 	})
 	var _ = API("streaming-partial-examples", func() {
 		Title("Streaming Partial Examples API")
@@ -34,6 +43,26 @@ var StreamingPartialExamplesDSL = func() {
 		})
 	})
 	Service("streamingPartialExamples", func() {
+		Method("metadata", func() {
+			NoSecurity()
+			Payload(func() {
+				Attribute("chunks", ArrayOf(RealtimeChunk), func() {
+					Example([][]byte{{0, 255}})
+				})
+			})
+			Result(func() {
+				Attribute("checksum", RealtimeChunk)
+				Attribute("label", String)
+				Required("checksum", "label")
+			})
+			HTTP(func() {
+				GET("/metadata")
+				Param("chunks")
+				Response(StatusOK, func() {
+					Header("checksum:X-Checksum")
+				})
+			})
+		})
 		Method("events", func() {
 			NoSecurity()
 			StreamingResult(RealtimeSSEEvent)

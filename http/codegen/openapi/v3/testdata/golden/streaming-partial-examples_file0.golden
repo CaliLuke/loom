@@ -1,6 +1,21 @@
 {
   "components": {
     "schemas": {
+      "MetadataResponseBody": {
+        "example": {
+          "label": "Sint beatae occaecati."
+        },
+        "properties": {
+          "label": {
+            "example": "Id ipsam voluptatibus dolores atque soluta.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "type": "object"
+      },
       "RealtimeSSEEvent": {
         "example": {
           "data": {
@@ -144,6 +159,59 @@
         }
       }
     },
+    "/metadata": {
+      "get": {
+        "operationId": "streaming_partial_examples.metadata",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "example": [
+              "AP8="
+            ],
+            "in": "query",
+            "name": "chunks",
+            "schema": {
+              "items": {
+                "example": "AP8=",
+                "format": "binary",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "label": "Ipsam quia."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResponseBody"
+                }
+              }
+            },
+            "description": "OK response.",
+            "headers": {
+              "X-Checksum": {
+                "example": "AP8=",
+                "schema": {
+                  "example": "AP8=",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "metadata streamingPartialExamples",
+        "tags": [
+          "streamingPartialExamples"
+        ]
+      }
+    },
     "/ws/projects/{projectID}": {
       "get": {
         "operationId": "streaming_partial_examples.project_socket",
@@ -184,14 +252,26 @@
             "outbound": {
               "contentType": "application/json",
               "schema": {
-                "example": {
-                  "event": "Qui dolorum similique beatae.",
-                  "ts": 1
-                },
                 "properties": {
+                  "attachment": {
+                    "example": "AP8=",
+                    "format": "binary",
+                    "type": "string"
+                  },
                   "event": {
                     "example": "Recusandae error sint.",
                     "type": "string"
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "example": null
                   },
                   "ts": {
                     "example": 1,

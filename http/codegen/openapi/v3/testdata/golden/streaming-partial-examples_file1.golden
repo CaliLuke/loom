@@ -76,6 +76,41 @@ paths:
                             requestIDField: null
                             retryField: null
                 transport: sse
+    /metadata:
+        get:
+            tags:
+                - streamingPartialExamples
+            summary: metadata streamingPartialExamples
+            operationId: streaming_partial_examples.metadata
+            parameters:
+                - name: chunks
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: array
+                    items:
+                        type: string
+                        example: AP8=
+                        format: binary
+                  example:
+                    - AP8=
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        X-Checksum:
+                            schema:
+                                type: string
+                                example: AP8=
+                                format: binary
+                            example: AP8=
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MetadataResponseBody'
+                            example:
+                                label: Ipsam quia.
+            security: []
     /ws/projects/{projectID}:
         get:
             operationId: streaming_partial_examples.project_socket
@@ -108,22 +143,38 @@ paths:
                         schema:
                             type: object
                             properties:
+                                attachment:
+                                    type: string
+                                    example: AP8=
+                                    format: binary
                                 event:
                                     type: string
                                     example: Recusandae error sint.
+                                note:
+                                    example: null
+                                    anyOf:
+                                        - type: string
+                                        - type: "null"
                                 ts:
                                     type: integer
                                     example: 1
                                     format: int64
-                            example:
-                                event: Qui dolorum similique beatae.
-                                ts: 1
                             required:
                                 - ts
                                 - event
                 transport: websocket
 components:
     schemas:
+        MetadataResponseBody:
+            type: object
+            properties:
+                label:
+                    type: string
+                    example: Id ipsam voluptatibus dolores atque soluta.
+            example:
+                label: Sint beatae occaecati.
+            required:
+                - label
         RealtimeSSEEvent:
             type: object
             properties:

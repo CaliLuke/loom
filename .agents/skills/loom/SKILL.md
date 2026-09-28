@@ -95,6 +95,11 @@ only one format. Generation removes the stale sibling file when this setting
 changes. JSON output is deterministically ordered, two-space indented, and
 newline-terminated for reviewable diffs.
 
+Schema examples use JSON representations, including base64 for `Bytes`, in
+both JSON and YAML. Incomplete object examples are omitted; explicit null
+examples are retained for nullable schemas. These rules also apply to nested
+parameter schemas, response-header schemas, and streaming message schemas.
+
 OpenAPI security follows each endpoint's credential location. JWTs mapped to
 query parameters, cookies, or custom headers use API-key schemes; Authorization
 header JWTs use HTTP bearer. One scheme used at several locations gets separate

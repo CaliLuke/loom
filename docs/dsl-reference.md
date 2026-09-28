@@ -536,6 +536,11 @@ To omit only synthesized examples, set `Meta("openapi:example", "false")` at
 API scope. Explicit `Example(...)` values remain in both `openapi.json` and
 `openapi.yaml`.
 
+Schema examples use JSON representations, including base64 strings for `Bytes`,
+and omit incomplete object examples. This applies to body schemas, nested
+parameter schemas, response-header schemas, and `x-loom-async` message schemas
+in both output formats. Explicit null examples remain null for nullable schemas.
+
 #### OpenAPI 3.2 features
 
 All OpenAPI 3.2 additions use the same design and renderer:

@@ -69,7 +69,9 @@ func WithExampleGenerator(generator *expr.ExampleGenerator) AnalyzerOption {
 	}
 }
 
-// NewAnalyzer creates a schema analyzer.
+// NewAnalyzer creates a schema analyzer. Examples use OpenAPIExampleValue by
+// default, including byte encoding and completeness checks. WithExampleValue
+// overrides this projection when a caller needs another representation.
 func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...AnalyzerOption) *Analyzer {
 	a := &Analyzer{
 		schemas:              make(map[string]*Schema),
@@ -79,7 +81,8 @@ func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...Anal
 		unionBranchSchemas:   make(map[string]string),
 		closeObjects:         closeObjects,
 
-		rand: rand,
+		rand:         rand,
+		exampleValue: OpenAPIExampleValue,
 	}
 	for _, opt := range options {
 		opt(a)
