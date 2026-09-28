@@ -125,6 +125,10 @@ func collectProjectedTypes(projected, att *expr.AttributeExpr, viewspkg string, 
 			types := collect(n.Attribute, dt.Values[i].Attribute)
 			data = append(data, types...)
 		}
+		// Reserve the local declaration name after projecting its branches.
+		// Qualified references in the enclosing result's conversions must use
+		// this allocation, including any suffix needed for another raw union.
+		viewScope.GoTypeName(projected)
 	}
 	return data
 }

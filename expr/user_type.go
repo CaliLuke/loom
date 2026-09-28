@@ -14,6 +14,10 @@ type (
 		TypeName string
 		// UID of type
 		UID string
+		// unionBranchID and unionBranchName identify a DSL-promoted definition
+		// and its preferred name. Copies retain the definition identity.
+		unionBranchID   uint64
+		unionBranchName string
 	}
 )
 
@@ -69,9 +73,11 @@ func (u *UserTypeExpr) Dup(att *AttributeExpr) UserType {
 		return u
 	}
 	return &UserTypeExpr{
-		AttributeExpr: att,
-		TypeName:      u.TypeName,
-		UID:           u.UID,
+		AttributeExpr:   att,
+		TypeName:        u.TypeName,
+		UID:             u.UID,
+		unionBranchID:   u.unionBranchID,
+		unionBranchName: u.unionBranchName,
 	}
 }
 

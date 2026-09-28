@@ -211,8 +211,8 @@ func TestHTTPRoundTrip(t *testing.T) {
 	holders := []*opt.Holder{
 		{ID: "absent", Req: opt.NewChoiceOther(&opt.Other{})},
 		{ID: "inline", Req: opt.NewChoiceOther(&opt.Other{}), Anon: &struct {
-			Anon *opt.Anon ` + "`" + `json:"anon,omitempty"` + "`" + `
-		}{Anon: ptr(opt.NewAnonText("xy"))}},
+			Anon *opt.Anon2 ` + "`" + `json:"anon,omitempty"` + "`" + `
+		}{Anon: ptr(opt.NewAnon2Text("xy"))}},
 		{ID: "present", Req: opt.NewChoiceOther(&opt.Other{}), Named: ptr(opt.NewChoiceLeaf(&opt.Leaf{Name: "x"}))},
 	}
 	for _, want := range holders {

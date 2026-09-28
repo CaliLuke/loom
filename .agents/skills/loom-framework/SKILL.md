@@ -790,6 +790,21 @@ filter, and serialization rules belong here.
   raw constructor unions and promoted block branches may share an underlying
   union while referring to different Go declarations. The model under
   `codegen/service/tla/union_declarations` checks collection order and reuse.
+- Create promoted block branches with `RootExpr.NewUnionBranch`. Their
+  private definition identities prevent DSL copies from merging definitions that
+  have the same preferred name. `RootExpr.Prepare` walks source attributes by
+  stable paths, reserves authored names and all branch base names, and assigns
+  one final name to every copy of a definition before transport preparation.
+  Copy memo keys separate private identities from authored string IDs; do not
+  encode temporary identities as reserved-looking names. Walk types by pointer
+  when evaluating their DSL. Do not let declaration order enter generated
+  identity. The model under `dsl/tla/union_names` checks copy identity,
+  reservations and ordering. Extend the source-root collector when adding
+  a design position that can contain user-authored types.
+- Reserve raw union names in the views scope after projecting their branches
+  and before rendering enclosing result conversions. Qualified references
+  reuse that allocation; they cannot safely allocate names for another package.
+  The model under `codegen/service/tla/view_union_names` checks this ordering.
 - Copies of union branch attributes must keep their canonical type references
   without traversing unfinished definitions. Use the private DSL helper
   `copyAttributeKeepingType` for named unions, promoted branches and view

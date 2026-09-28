@@ -188,7 +188,7 @@ func Attribute(name string, args ...any) {
 func appendUnionBranch(union *expr.Union, name string, attr *expr.AttributeExpr) {
 	if _, ok := attr.Type.(expr.UserType); !ok {
 		att := copyAttributeKeepingType(attr)
-		attr.Type = &expr.UserTypeExpr{AttributeExpr: att, TypeName: union.TypeName + expr.Title(expr.AttributeName(name))}
+		attr.Type = expr.Root.NewUnionBranch(union.TypeName+expr.Title(expr.AttributeName(name)), att)
 	}
 	union.Values = append(union.Values, &expr.NamedAttributeExpr{Name: name, Attribute: attr})
 }

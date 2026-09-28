@@ -40,6 +40,10 @@ type (
 		Schemes []*SchemeExpr
 		// SessionAuths list the registered multi-transport session auth contracts.
 		SessionAuths []*SessionAuthExpr
+		// unionBranchSequence distinguishes promoted definitions during DSL
+		// evaluation, before their stable names can be assigned.
+		unionBranchSequence   uint64
+		unionBranchesPrepared uint64
 	}
 
 	// MetaExpr is a set of key/value pairs

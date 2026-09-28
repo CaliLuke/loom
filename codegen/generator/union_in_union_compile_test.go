@@ -69,6 +69,12 @@ func unionInUnionDSL() {
 		dsl.Field(1, "values", dsl.ArrayOf(dsl.String))
 	})
 	outer := dsl.Type("Outer", dsl.OneOf(choice, tags))
+	peer := dsl.Type("Peer", func() {
+		dsl.OneOf("block", func() {
+			dsl.Field(1, "s", dsl.OneOf(tags, other))
+			dsl.Field(2, "t", dsl.OneOf(leaf, tags))
+		})
+	})
 	holder := dsl.Type("Holder", func() {
 		dsl.Field(1, "id", dsl.String)
 		dsl.Field(2, "p", dsl.OneOf(choice, tags))
@@ -78,6 +84,7 @@ func unionInUnionDSL() {
 			dsl.Field(8, "s", dsl.OneOf(leaf, other))
 			dsl.Field(9, "t", dsl.OneOf(leaf, other))
 		})
+		dsl.Field(10, "peer", peer)
 		dsl.Required("id")
 	})
 	// gRPC does not support unions as collection elements.
@@ -172,6 +179,8 @@ func holders(t *testing.T) []*nest.Holder {
 		decodeHolder[*nest.Holder](t, "{\"id\":\"sOther\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"s\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"),
 		decodeHolder[*nest.Holder](t, "{\"id\":\"tLeaf\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Leaf\",\"value\":{\"name\":\"nested\"}}}}"),
 		decodeHolder[*nest.Holder](t, "{\"id\":\"tOther\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"),
+		decodeHolder[*nest.Holder](t, "{\"id\":\"peer-s\",\"peer\":{\"block\":{\"type\":\"s\",\"value\":{\"type\":\"Tags\",\"value\":{\"values\":[\"nested\",\"peer\"]}}}}}"),
+		decodeHolder[*nest.Holder](t, "{\"id\":\"peer-t\",\"peer\":{\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Tags\",\"value\":{\"values\":[\"nested\",\"peer\"]}}}}}"),
 		{ID: "none"},
 	}
 }
@@ -187,6 +196,8 @@ func rpcHolders(t *testing.T) []*nestrpc.Holder {
 		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"sOther\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"s\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"),
 		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"tLeaf\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Leaf\",\"value\":{\"name\":\"nested\"}}}}"),
 		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"tOther\",\"also\":{\"type\":\"Leaf\",\"value\":{\"name\":\"raw\"}},\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Other\",\"value\":{\"count\":7}}}}"),
+		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"peer-s\",\"peer\":{\"block\":{\"type\":\"s\",\"value\":{\"type\":\"Tags\",\"value\":{\"values\":[\"nested\",\"peer\"]}}}}}"),
+		decodeHolder[*nestrpc.Holder](t, "{\"id\":\"peer-t\",\"peer\":{\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Tags\",\"value\":{\"values\":[\"nested\",\"peer\"]}}}}}"),
 		{ID: "none"},
 	}
 }

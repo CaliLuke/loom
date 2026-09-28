@@ -60,13 +60,14 @@ func namedUnionStreamsAndViewsDSL() {
 		dsl.Attribute("choice", choice)
 		dsl.Attribute("also", dsl.OneOf(leaf, other))
 		dsl.OneOf("block", func() {
-			dsl.Attribute("s", dsl.OneOf(leaf, other))
+			dsl.Attribute("s", dsl.OneOf(leaf, dsl.String))
 			dsl.Attribute("t", dsl.OneOf(leaf, other))
 		})
 	})
 	rt := dsl.ResultType("application/vnd.rt", "RT", func() {
 		dsl.Attribute("id", dsl.String)
 		dsl.Attribute("c", choice)
+		dsl.Attribute("peer", holder)
 		dsl.Attribute("also", dsl.OneOf(leaf, other))
 		dsl.OneOf("block", func() {
 			dsl.Attribute("s", dsl.OneOf(leaf, other))
@@ -76,6 +77,7 @@ func namedUnionStreamsAndViewsDSL() {
 		dsl.View("default", func() {
 			dsl.Attribute("id")
 			dsl.Attribute("c")
+			dsl.Attribute("peer")
 			dsl.Attribute("also")
 			dsl.Attribute("block")
 		})
@@ -195,8 +197,29 @@ func collection(t *testing.T) svc.RTCollection {
 		}
 		res[i].Also = nested.Also
 		res[i].Block = nested.Block
+		var peer svc.Holder
+		peerJSON := "{\"block\":{\"type\":\"s\",\"value\":{\"type\":\"String\",\"value\":\"peer\"}}}"
+		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
+			t.Fatal(err)
+		}
+		res[i].Peer = &peer
 	}
 	return res
+}
+
+func TestStreamBranchIdentity(t *testing.T) {
+	input := "{\"block\":{\"type\":\"s\",\"value\":{\"type\":\"String\",\"value\":\"stream\"}}}"
+	var holder stream.Holder
+	if err := json.Unmarshal([]byte(input), &holder); err != nil {
+		t.Fatal(err)
+	}
+	if holder.Block == nil || holder.Block.S == nil {
+		t.Fatal("stream branch missing after decoding")
+	}
+	value, ok := holder.Block.S.AsString()
+	if !ok || value != "stream" {
+		t.Errorf("stream branch: got %q, %v", value, ok)
+	}
 }
 
 func TestViews(t *testing.T) {

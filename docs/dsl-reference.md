@@ -139,6 +139,10 @@ the same `Nullable()` DSL contract.
 `OneOf` defines tagged union values. It can be used as a named attribute inside
 an object DSL or as a data type for payloads, results, and attributes.
 
+Different objects can reuse the same block and branch names. Each branch keeps
+its declared type; Loom adds stable suffixes to generated Go type names when
+needed. These suffixes do not change the JSON discriminator values.
+
 Named union branches may refer to types declared later. Recursion must pass
 through an object field. A union branch cycle without an object boundary, such
 as `Type("Tree", OneOf(Leaf, "Tree"))`, is rejected during design validation,

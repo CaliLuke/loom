@@ -91,15 +91,15 @@ func isKeptReference(att *expr.AttributeExpr) bool {
 // that only the types whose DSL is running remain incomplete.
 func evaluateReferencedTypes(dt expr.DataType, evaluate bool) []expr.UserType {
 	var incomplete []expr.UserType
-	seen := make(map[string]struct{})
+	seen := make(map[expr.UserType]struct{})
 	var walk func(expr.DataType)
 	walk = func(dt expr.DataType) {
 		switch actual := dt.(type) {
 		case expr.UserType:
-			if _, ok := seen[actual.ID()]; ok {
+			if _, ok := seen[actual]; ok {
 				return
 			}
-			seen[actual.ID()] = struct{}{}
+			seen[actual] = struct{}{}
 			if ev, ok := evaluations.current().byType[actual.Attribute()]; ok {
 				if ev.running || (!ev.done && !evaluate) {
 					incomplete = append(incomplete, actual)

@@ -4,6 +4,25 @@ import (
 	"fmt"
 )
 
+type (
+	// copyTypeKey keeps private promoted identities out of the authored name
+	// namespace, including during DSL evaluation before names are allocated.
+	copyTypeKey struct {
+		id     string
+		branch uint64
+	}
+
+	// dupper implements recursive and cycle safe copy of data types.
+	dupper struct {
+		uts map[copyTypeKey]UserType
+		ats map[*AttributeExpr]struct{}
+		// keep lists the identities of the user types not to copy.
+		keep map[copyTypeKey]struct{}
+		// kept lists copied attributes that reference a kept user type.
+		kept []*AttributeExpr
+	}
+)
+
 // Dup creates a copy the given data type.
 func Dup(d DataType) DataType {
 	return newDupper().DupType(d)
@@ -16,9 +35,9 @@ func Dup(d DataType) DataType {
 // running, so that the copy does not snapshot their incomplete definitions.
 func DupKeeping(d DataType, keep []UserType) (DataType, []*AttributeExpr) {
 	dupper := newDupper()
-	dupper.keep = make(map[string]struct{}, len(keep))
+	dupper.keep = make(map[copyTypeKey]struct{}, len(keep))
 	for _, ut := range keep {
-		dupper.keep[ut.ID()] = struct{}{}
+		dupper.keep[typeCopyKey(ut)] = struct{}{}
 	}
 	return dupper.DupType(d), dupper.kept
 }
@@ -35,22 +54,23 @@ func DupAtt(att *AttributeExpr) *AttributeExpr {
 	return res
 }
 
-// dupper implements recursive and cycle safe copy of data types.
-type dupper struct {
-	uts map[string]UserType
-	ats map[*AttributeExpr]struct{}
-	// keep lists the IDs of the user types that the dupper does not copy.
-	keep map[string]struct{}
-	// kept lists the copied attributes that reference a kept user type.
-	kept []*AttributeExpr
-}
-
 // newDupper returns a new initialized dupper.
 func newDupper() *dupper {
 	return &dupper{
-		uts: make(map[string]UserType),
+		uts: make(map[copyTypeKey]UserType),
 		ats: make(map[*AttributeExpr]struct{}),
 	}
+}
+
+// typeCopyKey separates promoted definitions from authored string identities
+// before stable names exist. Including the current ID also keeps renamed
+// projections distinct from their source type after preparation.
+func typeCopyKey(ut UserType) copyTypeKey {
+	key := copyTypeKey{id: ut.ID()}
+	if branch, ok := ut.(*UserTypeExpr); ok {
+		key.branch = branch.unionBranchID
+	}
+	return key
 }
 
 // DupAttribute creates a copy of the given attribute.
@@ -97,7 +117,7 @@ func (d *dupper) isKept(t DataType) bool {
 	if !ok {
 		return false
 	}
-	_, ok = d.keep[ut.ID()]
+	_, ok = d.keep[typeCopyKey(ut)]
 	return ok
 }
 
@@ -140,14 +160,15 @@ func (d *dupper) DupType(t DataType) DataType {
 		}
 		return &dp
 	case UserType:
-		if u, ok := d.uts[actual.ID()]; ok {
+		key := typeCopyKey(actual)
+		if u, ok := d.uts[key]; ok {
 			return u
 		}
 		if d.isKept(actual) {
 			return actual
 		}
 		dp := actual.Dup(nil)
-		d.uts[actual.ID()] = dp
+		d.uts[key] = dp
 		dupAtt := d.DupAttribute(actual.Attribute())
 		dp.SetAttribute(dupAtt)
 

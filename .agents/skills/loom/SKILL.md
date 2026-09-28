@@ -368,6 +368,8 @@ completion shapes are explicit generation limitations.
 ## Unions, Views, and Projections
 
 - `OneOf(...)` works as both a named union declaration and a type constructor.
+- Block and branch names can repeat in different objects. Loom keeps their
+  types distinct and suffixes generated Go names without changing wire tags.
 - Named union branches can refer to types declared later. Recursive unions
   must pass through an object field; union branch cycles, including cycles
   through arrays or maps, are rejected during design validation.
