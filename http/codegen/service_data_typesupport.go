@@ -74,8 +74,9 @@ func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *e
 	return att
 }
 
-// collectUserTypes traverses the given data type recursively and calls back the
-// given function for each attribute using a user type.
+// collectUserTypes calls cb once per generated user type in dt. Generated body
+// variants can share a design identifier, so traversal uses the same type hashes
+// as NameScope and the physical layout registry.
 func collectUserTypes(dt expr.DataType, cb func(expr.UserType), seen ...map[string]struct{}) {
 	if dt == expr.Empty {
 		return
@@ -101,17 +102,17 @@ func collectUserTypes(dt expr.DataType, cb func(expr.UserType), seen ...map[stri
 		collectUserTypes(actual.KeyType.Type, cb, s)
 		collectUserTypes(actual.ElemType.Type, cb, s)
 	case expr.UserType:
-		if _, ok := s[actual.ID()]; ok {
+		if _, ok := s[actual.Hash()]; ok {
 			return
 		}
-		s[actual.ID()] = struct{}{}
+		s[actual.Hash()] = struct{}{}
 		cb(actual)
 		collectUserTypes(actual.Attribute().Type, cb, s)
 	}
 }
 
-func collectUnionBranchUserTypes(att *expr.AttributeExpr, ids map[string]struct{}) {
-	collectUnionBranchUserTypesSeen(att, ids, make(map[string]struct{}))
+func collectUnionBranchUserTypes(att *expr.AttributeExpr, hashes map[string]struct{}) {
+	collectUnionBranchUserTypesSeen(att, hashes, make(map[string]struct{}))
 }
 
 func containsUntaggedUnion(att *expr.AttributeExpr) bool {
@@ -131,32 +132,32 @@ func containsUntaggedUnion(att *expr.AttributeExpr) bool {
 	return found
 }
 
-func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, ids, seen map[string]struct{}) {
+func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, hashes, seen map[string]struct{}) {
 	if att == nil || att.Type == expr.Empty {
 		return
 	}
 	switch actual := att.Type.(type) {
 	case expr.UserType:
-		if _, ok := seen[actual.ID()]; ok {
+		if _, ok := seen[actual.Hash()]; ok {
 			return
 		}
-		seen[actual.ID()] = struct{}{}
-		collectUnionBranchUserTypesSeen(actual.Attribute(), ids, seen)
+		seen[actual.Hash()] = struct{}{}
+		collectUnionBranchUserTypesSeen(actual.Attribute(), hashes, seen)
 	case *expr.Object:
 		for _, nat := range *actual {
-			collectUnionBranchUserTypesSeen(nat.Attribute, ids, seen)
+			collectUnionBranchUserTypesSeen(nat.Attribute, hashes, seen)
 		}
 	case *expr.Array:
-		collectUnionBranchUserTypesSeen(actual.ElemType, ids, seen)
+		collectUnionBranchUserTypesSeen(actual.ElemType, hashes, seen)
 	case *expr.Map:
-		collectUnionBranchUserTypesSeen(actual.KeyType, ids, seen)
-		collectUnionBranchUserTypesSeen(actual.ElemType, ids, seen)
+		collectUnionBranchUserTypesSeen(actual.KeyType, hashes, seen)
+		collectUnionBranchUserTypesSeen(actual.ElemType, hashes, seen)
 	case *expr.Union:
 		for _, nat := range actual.Values {
 			collectUserTypes(nat.Attribute.Type, func(ut expr.UserType) {
-				ids[ut.ID()] = struct{}{}
+				hashes[ut.Hash()] = struct{}{}
 			})
-			collectUnionBranchUserTypesSeen(nat.Attribute, ids, seen)
+			collectUnionBranchUserTypesSeen(nat.Attribute, hashes, seen)
 		}
 	}
 }

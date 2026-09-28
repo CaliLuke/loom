@@ -65,6 +65,7 @@ type (
 		ServerPresenceUseDefaultTypes map[string]bool
 		// ServerRequestValidationTypes records server body user types that must
 		// emit request validation even when a response owns their definition.
+		// Keys are generated type hashes, matching the physical type layouts.
 		ServerRequestValidationTypes map[string]bool
 		// ClientTypeNames records the user type names used to define
 		// the endpoint request and response bodies for client code.

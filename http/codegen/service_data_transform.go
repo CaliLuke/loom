@@ -185,10 +185,10 @@ func containsUnionTypeRecursive(dt expr.DataType, seen map[string]struct{}) bool
 	case *expr.Union:
 		return true
 	case expr.UserType:
-		if _, ok := seen[actual.ID()]; ok {
+		if _, ok := seen[actual.Hash()]; ok {
 			return false
 		}
-		seen[actual.ID()] = struct{}{}
+		seen[actual.Hash()] = struct{}{}
 		return containsUnionTypeRecursive(actual.Attribute().Type, seen)
 	case *expr.Object:
 		for _, nat := range *actual {

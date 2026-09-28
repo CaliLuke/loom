@@ -70,7 +70,7 @@ func supportsGeneratedMultipartObject(body *expr.AttributeExpr) bool {
 }
 
 // supportsGeneratedMultipartNested reports whether generated multipart code
-// can encode the nested attribute att. visiting holds the IDs of the user
+// can encode the nested attribute att. visiting holds generated type hashes of the user
 // types on the current path. A recursive user type is not supported.
 func supportsGeneratedMultipartNested(att *expr.AttributeExpr, visiting map[string]struct{}) bool {
 	switch actual := att.Type.(type) {
@@ -100,7 +100,7 @@ func supportsGeneratedMultipartNested(att *expr.AttributeExpr, visiting map[stri
 }
 
 // supportsGeneratedMultipartCollectionElem reports whether generated multipart
-// code can encode the collection element att. visiting holds the IDs of the
+// code can encode the collection element att. visiting holds generated type hashes of the
 // user types on the current path. A recursive user type is not supported.
 func supportsGeneratedMultipartCollectionElem(att *expr.AttributeExpr, visiting map[string]struct{}) bool {
 	switch actual := att.Type.(type) {
@@ -130,11 +130,12 @@ func supportsGeneratedMultipartCollectionElem(att *expr.AttributeExpr, visiting 
 // supportsGeneratedMultipartUserType applies supports to the attribute of ut.
 // It reports false when ut is already on the current path.
 func supportsGeneratedMultipartUserType(ut expr.UserType, visiting map[string]struct{}, supports func(*expr.AttributeExpr, map[string]struct{}) bool) bool {
-	if _, ok := visiting[ut.ID()]; ok {
+	key := ut.Hash()
+	if _, ok := visiting[key]; ok {
 		return false
 	}
-	visiting[ut.ID()] = struct{}{}
-	defer delete(visiting, ut.ID())
+	visiting[key] = struct{}{}
+	defer delete(visiting, key)
 	return supports(ut.Attribute(), visiting)
 }
 

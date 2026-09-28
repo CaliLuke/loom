@@ -359,7 +359,7 @@ func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.Attrib
 		data.def = goValueTypeDef(sd.Scope, ut.Attribute(), !svr, svr, !svr)
 	}
 	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
-	serverRequestValidation := svr && (sd.ServerRequestValidationTypes[ut.ID()] || sd.ServerRequestValidationTypes[ut.Name()])
+	serverRequestValidation := svr && sd.ServerRequestValidationTypes[ut.Hash()]
 	if allowValidateDef && (!svr || serverRequestValidation) {
 		data.validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
 		if data.validateDef == "" && serverRequestValidation {
