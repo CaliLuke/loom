@@ -77,9 +77,10 @@ type (
 		// validations contain the data to generate the validation functions to
 		// validate the initialized type.
 		validations []*ValidationData
-		// anonymousMessages maps the names of the messages generated for
-		// anonymous objects to the paths of the objects.
-		anonymousMessages map[string]string
+		// generatedMessageNames maps generated endpoint and anonymous message
+		// names to stable allocation owners. Endpoint messages with one
+		// candidate share an owner; their shapes are checked separately.
+		generatedMessageNames map[string]string
 		// designMessages maps the names of the design user types that the
 		// messages of the service declare as messages to the shapes of
 		// those messages, see endpointMessageName.

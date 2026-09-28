@@ -150,21 +150,25 @@ func (w *designMessageWalker) record(ut expr.UserType) {
 // endpointMessageName returns the name of the message that makeProtoBufMessage
 // generates for the top-level attribute message of a method: candidate,
 // unless a design user type that a message of the service declares has that
-// name and a different message. It then returns candidate followed by the
+// name and a different message, or an anonymous message already owns the name.
+// It then returns candidate followed by the
 // first number from 2 that no design type and no other generated message
-// uses. A user type message keeps its own name, so candidate is not used.
+// uses. The chosen name is reserved against later anonymous allocations.
+// A user type message keeps its own name, so candidate is not used or reserved.
 // message is nil for a message that has no design counterpart, such as a
 // stream envelope.
 func (sd *ServiceData) endpointMessageName(candidate string, message *expr.AttributeExpr) string {
-	shape, ok := sd.designMessages[candidate]
-	if !ok {
-		return candidate
-	}
 	if message != nil {
 		if _, ok := message.Type.(expr.UserType); ok && message.Type != expr.Empty {
 			return candidate
 		}
-		if shape == protoAttributeShape(generatedMessageAttribute(message)) {
+	}
+	// Preserve same-name endpoint sharing; registerProtoMessage checks that
+	// their message shapes agree. Anonymous positions have separate owners.
+	owner := "endpoint:" + strconv.Quote(candidate)
+	shape, exists := sd.designMessages[candidate]
+	if !exists || (message != nil && shape == protoAttributeShape(generatedMessageAttribute(message))) {
+		if sd.reserveMessageName(candidate, owner) {
 			return candidate
 		}
 	}
@@ -173,9 +177,8 @@ func (sd *ServiceData) endpointMessageName(candidate string, message *expr.Attri
 		if _, ok := sd.designMessages[name]; ok || isDesignUserTypeName(name) {
 			continue
 		}
-		if _, ok := sd.anonymousMessages[name]; ok {
-			continue
+		if sd.reserveMessageName(name, owner) {
+			return name
 		}
-		return name
 	}
 }

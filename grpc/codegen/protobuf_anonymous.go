@@ -76,22 +76,28 @@ func isAnonymousObject(dt expr.DataType) bool {
 // for the anonymous object at scope. Protocol buffer messages are identified
 // by user type name, so two positions whose names coincide, such as the field
 // "outer_inner" and the field "inner" of the field "outer", receive distinct
-// names, and so does a position whose name is the name of a design user type.
+// names, and so does a position whose name is the name of a design user type
+// or an allocated endpoint message.
 // The same position always receives the same name.
 func (sd *ServiceData) anonymousMessageName(scope messageScope) string {
-	if sd.anonymousMessages == nil {
-		sd.anonymousMessages = make(map[string]string)
-	}
 	name := scope.name
 	for i := 2; ; i++ {
-		path, ok := sd.anonymousMessages[name]
-		if !ok && !isDesignUserTypeName(name) {
-			sd.anonymousMessages[name] = scope.path
-			return name
-		}
-		if path == scope.path {
+		if !isDesignUserTypeName(name) && sd.reserveMessageName(name, scope.path) {
 			return name
 		}
 		name = scope.name + strconv.Itoa(i)
 	}
+}
+
+// reserveMessageName reports whether name is available to owner and reserves
+// it when available. A repeated reservation by the same owner succeeds.
+func (sd *ServiceData) reserveMessageName(name, owner string) bool {
+	if sd.generatedMessageNames == nil {
+		sd.generatedMessageNames = make(map[string]string)
+	}
+	if previous, ok := sd.generatedMessageNames[name]; ok {
+		return previous == owner
+	}
+	sd.generatedMessageNames[name] = owner
+	return true
 }
