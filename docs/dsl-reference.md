@@ -556,8 +556,10 @@ API scope. Explicit `Example(...)` values remain in both `openapi.json` and
 `openapi.yaml`.
 
 Schema examples use JSON representations, including base64 strings for `Bytes`,
-and omit incomplete object examples. This applies to body schemas, nested
-parameter schemas, response-header schemas, and `x-loom-async` message schemas
+and omit incomplete object examples. Untagged union branches preserve this
+encoding for byte fields, including fields authored as text and nested
+collections. This applies to body schemas, nested parameter schemas,
+response-header schemas, and `x-loom-async` message schemas
 in both output formats. Explicit null examples remain null for nullable schemas.
 Synthesized tagged-union examples retain a discriminator/value envelope at
 every nesting level, including unions that reuse the same branch shapes in

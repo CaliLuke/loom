@@ -37,12 +37,27 @@ var MappedNamesDSL = func() {
 	})
 	var DataResult = Type("DataResult", func() {
 		Attribute("data:dt", String)
+		Attribute("blob:b", Bytes, func() {
+			Enum("hi")
+		})
 		Attribute("size:sz", Int)
 		Required("data:dt")
 	})
 	var FailResult = Type("FailResult", func() {
 		Attribute("reason:rs", String)
 		Required("reason:rs")
+	})
+	var ByteData = Type("ByteData", func() {
+		Attribute("data:d", Bytes, func() {
+			Enum("hi")
+		})
+		Required("data:d")
+	})
+	var TextData = Type("TextData", func() {
+		Attribute("data:d", String, func() {
+			Enum("hi")
+		})
+		Required("data:d")
 	})
 	Service("mappednames", func() {
 		Method("echo", func() {
@@ -72,13 +87,29 @@ var MappedNamesDSL = func() {
 		Method("lookup", func() {
 			NoSecurity()
 			Payload(OneOf(DataResult, FailResult), func() {
+				Example(map[string]any{"data:dt": "payload", "blob:b": "hi"})
 				Untagged()
 			})
 			Result(OneOf(DataResult, FailResult), func() {
+				Example(map[string]any{"data:dt": "payload", "blob:b": "hi"})
 				Untagged()
 			})
 			HTTP(func() {
 				POST("/lookup")
+			})
+		})
+		Method("byte_choice", func() {
+			NoSecurity()
+			Payload(OneOf(ByteData, TextData), func() {
+				Untagged()
+				Example(map[string]any{"data:d": []byte("hi")})
+			})
+			Result(OneOf(ByteData, TextData), func() {
+				Untagged()
+				Example(map[string]any{"data:d": []byte("hi")})
+			})
+			HTTP(func() {
+				POST("/byte-choice")
 			})
 		})
 	})

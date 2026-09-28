@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"bytes"
 	"math/big"
 	"reflect"
 
@@ -273,7 +274,7 @@ func exampleMatchesValidation(attribute *AttributeExpr, value any) bool {
 	if validation != nil && len(validation.Values) > 0 {
 		matched := false
 		for _, allowed := range validation.Values {
-			if exampleValuesEqual(allowed, value) {
+			if exampleEnumValuesEqual(attribute.Type, allowed, value) {
 				matched = true
 				break
 			}
@@ -283,6 +284,29 @@ func exampleMatchesValidation(attribute *AttributeExpr, value any) bool {
 		}
 	}
 	return checkLength(attribute, value) && checkPattern(attribute, value) && checkMinMaxValue(attribute, value)
+}
+
+func exampleEnumValuesEqual(datatype DataType, allowed, value any) bool {
+	if named, ok := datatype.(UserType); ok {
+		return exampleEnumValuesEqual(named.Attribute().Type, allowed, value)
+	}
+	if datatype == Bytes {
+		// Bytes accepts authored text. Compare both representations as bytes
+		// before choosing a union branch; String and Any retain their own
+		// distinct string/byte semantics.
+		if text, ok := allowed.(string); ok {
+			allowed = []byte(text)
+		}
+		if text, ok := value.(string); ok {
+			value = []byte(text)
+		}
+		if left, ok := allowed.([]byte); ok {
+			if right, ok := value.([]byte); ok {
+				return bytes.Equal(left, right)
+			}
+		}
+	}
+	return exampleValuesEqual(allowed, value)
 }
 
 func objectExampleField(object *Object, name string) (string, *AttributeExpr) {

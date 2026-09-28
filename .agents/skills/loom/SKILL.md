@@ -100,8 +100,10 @@ changes. JSON output is deterministically ordered, two-space indented, and
 newline-terminated for reviewable diffs.
 
 Schema examples use JSON representations, including base64 for `Bytes`, in
-both JSON and YAML. Incomplete object examples are omitted; explicit null
-examples are retained for nullable schemas. These rules also apply to nested
+both JSON and YAML, including byte fields inside untagged union branches.
+Author text or byte values as usual; examples encode them once. Incomplete
+object examples are omitted; explicit null examples are retained for nullable
+schemas. These rules also apply to nested
 parameter schemas, response-header schemas, and streaming message schemas.
 Synthesized tagged-union examples retain every nested envelope, including when
 branches share the same shape. Configured discriminator/value keys and branch

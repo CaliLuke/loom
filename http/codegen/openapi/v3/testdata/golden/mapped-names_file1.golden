@@ -8,6 +8,46 @@ servers:
       url: http://localhost:80
       description: Default server for test api
 paths:
+    /byte-choice:
+        post:
+            tags:
+                - mappednames
+            summary: byte_choice mappednames
+            operationId: mappednames.byte_choice
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            example:
+                                d: aGk=
+                            oneOf:
+                                - example:
+                                    d: aGk=
+                                  $ref: '#/components/schemas/ByteData'
+                                - example:
+                                    d: hi
+                                  $ref: '#/components/schemas/TextData'
+                        example:
+                            d: aGk=
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                example:
+                                    d: aGk=
+                                oneOf:
+                                    - example:
+                                        d: aGk=
+                                      $ref: '#/components/schemas/ByteData'
+                                    - example:
+                                        d: hi
+                                      $ref: '#/components/schemas/TextData'
+                            example:
+                                d: aGk=
+            security: []
     /echo:
         post:
             tags:
@@ -117,18 +157,20 @@ paths:
                     application/json:
                         schema:
                             example:
-                                rs: Necessitatibus omnis quia blanditiis minus soluta.
+                                b: aGk=
+                                dt: payload
                             oneOf:
                                 - example:
-                                    dt: Explicabo laudantium et facilis pariatur deleniti.
-                                    sz: 9189135370062656203
+                                    b: aGk=
+                                    dt: Et iusto voluptate architecto dicta.
+                                    sz: 2351642574693167900
                                   $ref: '#/components/schemas/DataResult'
                                 - example:
-                                    rs: Facilis voluptas aliquam.
+                                    rs: Et voluptas.
                                   $ref: '#/components/schemas/FailResult'
                         example:
-                            dt: Fugiat reprehenderit sequi quibusdam ea a.
-                            sz: 2494475531249662066
+                            b: aGk=
+                            dt: payload
             responses:
                 "200":
                     description: OK response.
@@ -136,20 +178,36 @@ paths:
                         application/json:
                             schema:
                                 example:
-                                    rs: Exercitationem molestiae voluptas aspernatur.
+                                    b: aGk=
+                                    dt: payload
                                 oneOf:
                                     - example:
-                                        dt: Delectus et nostrum at.
-                                        sz: 9483040194205279
+                                        b: aGk=
+                                        dt: Eaque harum quo commodi consectetur dolores.
+                                        sz: 3521377706838790630
                                       $ref: '#/components/schemas/DataResult'
                                     - example:
-                                        rs: Est maiores dolor ut libero.
+                                        rs: Minus eum eius natus dolores dolorum.
                                       $ref: '#/components/schemas/FailResult'
                             example:
-                                rs: Vero voluptas aut.
+                                b: aGk=
+                                dt: payload
             security: []
 components:
     schemas:
+        ByteData:
+            type: object
+            properties:
+                d:
+                    type: string
+                    example: aGk=
+                    enum:
+                        - aGk=
+                    format: binary
+            example:
+                d: aGk=
+            required:
+                - d
         ChoiceLeafBranchEnvelope:
             type: object
             properties:
@@ -180,6 +238,12 @@ components:
         DataResult:
             type: object
             properties:
+                b:
+                    type: string
+                    example: aGk=
+                    enum:
+                        - aGk=
+                    format: binary
                 dt:
                     type: string
                     example: Doloribus commodi vel autem dolorum.
@@ -188,8 +252,9 @@ components:
                     example: 4284537304472848100
                     format: int64
             example:
-                dt: Iure sed qui quo sit.
-                sz: 1930016779874418987
+                b: aGk=
+                dt: Sed enim error dolores.
+                sz: 7012243597426332715
             required:
                 - dt
         Envelope:
@@ -353,5 +418,17 @@ components:
                 l: Delectus ex aperiam omnis nulla et.
             required:
                 - c
+        TextData:
+            type: object
+            properties:
+                d:
+                    type: string
+                    example: hi
+                    enum:
+                        - hi
+            example:
+                d: hi
+            required:
+                - d
 tags:
     - name: mappednames

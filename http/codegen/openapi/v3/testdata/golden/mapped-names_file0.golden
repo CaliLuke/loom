@@ -1,6 +1,25 @@
 {
   "components": {
     "schemas": {
+      "ByteData": {
+        "example": {
+          "d": "aGk="
+        },
+        "properties": {
+          "d": {
+            "enum": [
+              "aGk="
+            ],
+            "example": "aGk=",
+            "format": "binary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "d"
+        ],
+        "type": "object"
+      },
       "ChoiceLeafBranchEnvelope": {
         "description": "Synthetic wrapper for union variant \"leaf_branch\".",
         "properties": {
@@ -42,10 +61,19 @@
       },
       "DataResult": {
         "example": {
-          "dt": "Iure sed qui quo sit.",
-          "sz": 1930016779874418987
+          "b": "aGk=",
+          "dt": "Sed enim error dolores.",
+          "sz": 7012243597426332715
         },
         "properties": {
+          "b": {
+            "enum": [
+              "aGk="
+            ],
+            "example": "aGk=",
+            "format": "binary",
+            "type": "string"
+          },
           "dt": {
             "example": "Doloribus commodi vel autem dolorum.",
             "type": "string"
@@ -291,6 +319,24 @@
           "c"
         ],
         "type": "object"
+      },
+      "TextData": {
+        "example": {
+          "d": "hi"
+        },
+        "properties": {
+          "d": {
+            "enum": [
+              "hi"
+            ],
+            "example": "hi",
+            "type": "string"
+          }
+        },
+        "required": [
+          "d"
+        ],
+        "type": "object"
       }
     }
   },
@@ -301,6 +347,76 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "openapi": "3.2.0",
   "paths": {
+    "/byte-choice": {
+      "post": {
+        "operationId": "mappednames.byte_choice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "d": "aGk="
+              },
+              "schema": {
+                "example": {
+                  "d": "aGk="
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ByteData",
+                    "example": {
+                      "d": "aGk="
+                    }
+                  },
+                  {
+                    "$ref": "#/components/schemas/TextData",
+                    "example": {
+                      "d": "hi"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "d": "aGk="
+                },
+                "schema": {
+                  "example": {
+                    "d": "aGk="
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ByteData",
+                      "example": {
+                        "d": "aGk="
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/TextData",
+                      "example": {
+                        "d": "hi"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "security": [],
+        "summary": "byte_choice mappednames",
+        "tags": [
+          "mappednames"
+        ]
+      }
+    },
     "/echo": {
       "post": {
         "operationId": "mappednames.echo",
@@ -449,25 +565,27 @@
           "content": {
             "application/json": {
               "example": {
-                "dt": "Fugiat reprehenderit sequi quibusdam ea a.",
-                "sz": 2494475531249662066
+                "b": "aGk=",
+                "dt": "payload"
               },
               "schema": {
                 "example": {
-                  "rs": "Necessitatibus omnis quia blanditiis minus soluta."
+                  "b": "aGk=",
+                  "dt": "payload"
                 },
                 "oneOf": [
                   {
                     "$ref": "#/components/schemas/DataResult",
                     "example": {
-                      "dt": "Explicabo laudantium et facilis pariatur deleniti.",
-                      "sz": 9189135370062656203
+                      "b": "aGk=",
+                      "dt": "Et iusto voluptate architecto dicta.",
+                      "sz": 2351642574693167900
                     }
                   },
                   {
                     "$ref": "#/components/schemas/FailResult",
                     "example": {
-                      "rs": "Facilis voluptas aliquam."
+                      "rs": "Et voluptas."
                     }
                   }
                 ]
@@ -481,24 +599,27 @@
             "content": {
               "application/json": {
                 "example": {
-                  "rs": "Vero voluptas aut."
+                  "b": "aGk=",
+                  "dt": "payload"
                 },
                 "schema": {
                   "example": {
-                    "rs": "Exercitationem molestiae voluptas aspernatur."
+                    "b": "aGk=",
+                    "dt": "payload"
                   },
                   "oneOf": [
                     {
                       "$ref": "#/components/schemas/DataResult",
                       "example": {
-                        "dt": "Delectus et nostrum at.",
-                        "sz": 9483040194205279
+                        "b": "aGk=",
+                        "dt": "Eaque harum quo commodi consectetur dolores.",
+                        "sz": 3521377706838790630
                       }
                     },
                     {
                       "$ref": "#/components/schemas/FailResult",
                       "example": {
-                        "rs": "Est maiores dolor ut libero."
+                        "rs": "Minus eum eius natus dolores dolorum."
                       }
                     }
                   ]

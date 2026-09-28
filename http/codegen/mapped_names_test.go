@@ -163,6 +163,10 @@ func (s *service) Lookup(_ context.Context, p *mappednames.DataResultOrFailResul
 	return p, nil
 }
 
+func (s *service) ByteChoice(_ context.Context, p *mappednames.ByteDataOrTextData) (*mappednames.ByteDataOrTextData, error) {
+	return p, nil
+}
+
 func (s *service) takeLookups() []*mappednames.DataResultOrFailResult {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -423,6 +427,24 @@ func TestLookup(t *testing.T) {
 		}
 		if got := strings.TrimSpace(string(raw)); got != tc.body {
 			t.Errorf("%s: response %s, want %s", tc.name, got, tc.body)
+		}
+	}
+}
+
+func TestByteChoice(t *testing.T) {
+	_, _, c := start(t)
+	values := map[string]mappednames.ByteDataOrTextData{
+		"bytes": mappednames.NewByteDataOrTextDataByteData(&mappednames.ByteData{Data: []byte("hi")}),
+		"text":  mappednames.NewByteDataOrTextDataTextData(&mappednames.TextData{Data: "hi"}),
+	}
+	for name, value := range values {
+		result, err := c.ByteChoice()(context.Background(), &value)
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		if got, ok := result.(*mappednames.ByteDataOrTextData); !ok || !reflect.DeepEqual(*got, value) {
+			t.Errorf("%s: client received %+v, want %+v", name, result, value)
 		}
 	}
 }

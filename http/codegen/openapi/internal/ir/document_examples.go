@@ -558,14 +558,17 @@ func openAPISlice(value any) ([]any, bool) {
 }
 func matchingUntaggedOpenAPIBranch(union *expr.Union, value any) *expr.AttributeExpr {
 	var matched *expr.AttributeExpr
-	_, objectValue := value.(map[string]any)
+	// Every branch must see the same wire value. Branch-specific conversion
+	// could reinterpret []byte as text for a competing string branch.
+	wire := normalizeOpenAPIExample(value)
+	_, objectValue := wire.(map[string]any)
 	for _, branch := range union.Values {
 		if branch == nil || branch.Attribute == nil {
 			continue
 		}
-		matches := primitiveExampleMatches(branch.Attribute, value)
+		matches := primitiveExampleMatches(branch.Attribute, wire)
 		if objectValue {
-			matches = untaggedBranchExampleMatches(branch.Attribute, value)
+			matches = untaggedBranchExampleMatches(branch.Attribute, wire)
 		}
 		if !matches {
 			continue
@@ -581,7 +584,7 @@ func matchingUntaggedOpenAPIBranch(union *expr.Union, value any) *expr.Attribute
 func normalizeOpenAPIExample(val any) any {
 	switch actual := val.(type) {
 	case []byte:
-		return string(actual)
+		return base64.StdEncoding.EncodeToString(actual)
 	case expr.Val:
 		out := make(map[string]any, len(actual))
 		for key, value := range actual {

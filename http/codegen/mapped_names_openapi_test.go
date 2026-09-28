@@ -30,7 +30,7 @@ func TestMappedNamesOpenAPIElementNames(t *testing.T) {
 	}{
 		"Envelope":   {[]string{"m", "r", "d", "p", "o", "ls", "ix", "ch"}, []string{"r", "p", "o"}},
 		"Leaf":       {[]string{"l", "c"}, []string{"c"}},
-		"DataResult": {[]string{"dt", "sz"}, []string{"dt"}},
+		"DataResult": {[]string{"dt", "b", "sz"}, []string{"dt"}},
 		"FailResult": {[]string{"rs"}, []string{"rs"}},
 	} {
 		schema, ok := schemas[name].(map[string]any)
@@ -59,7 +59,7 @@ func TestMappedNamesCLIBodyExamples(t *testing.T) {
 	root := RunHTTPDSL(t, testdata.MappedNamesDSL)
 	cli := filesCode(t, ClientCLIFiles("gen", CreateHTTPServices(root)))
 
-	for _, want := range []string{`mappednames echo --body '{\n      \"ch\": {`, `\"m\": `, `\"i\": `, `mappednames lookup --body '{\n      \"rs\": `} {
+	for _, want := range []string{`mappednames echo --body '{\n      \"ch\": {`, `\"m\": `, `\"i\": `, `\"dt\": `, `\"b\": `} {
 		assert.Contains(t, cli, want)
 	}
 	assert.Empty(t, regexp.MustCompile(`\\"[a-z_]+:[a-z]+\\"`).FindAllString(cli, -1), "keys with an element name suffix")

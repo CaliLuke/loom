@@ -78,7 +78,7 @@ func openAPIFieldExampleMatches(attribute *expr.AttributeExpr, value any) bool {
 	if value == nil {
 		return expr.AllowsNull(attribute)
 	}
-	if !validationMatches(attribute.Validation, value) {
+	if !attributeValidationMatches(attribute, value) {
 		return false
 	}
 	if userType, ok := attribute.Type.(expr.UserType); ok {
@@ -164,7 +164,7 @@ func primitiveExampleMatches(attribute *expr.AttributeExpr, value any) bool {
 	if value == nil {
 		return expr.AllowsNull(attribute)
 	}
-	if attribute == nil || !primitiveTypeMatches(attribute.Type, value) || !validationMatches(attribute.Validation, value) {
+	if attribute == nil || !primitiveTypeMatches(attribute.Type, value) || !attributeValidationMatches(attribute, value) {
 		return false
 	}
 	if userType, ok := attribute.Type.(expr.UserType); ok {
@@ -198,6 +198,18 @@ func primitiveTypeMatches(dataType expr.DataType, value any) bool {
 	default:
 		return false
 	}
+}
+
+func attributeValidationMatches(attribute *expr.AttributeExpr, value any) bool {
+	validation := attribute.Validation
+	if validation != nil && len(validation.Values) > 0 {
+		// Compare against the same enum representation emitted in the schema.
+		// Keep the authored validation intact for runtime and other transports.
+		projected := *validation
+		projected.Values = projectOpenAPIValues(attribute, validation.Values)
+		validation = &projected
+	}
+	return validationMatches(validation, value)
 }
 
 func validationMatches(validation *expr.ValidationExpr, value any) bool {

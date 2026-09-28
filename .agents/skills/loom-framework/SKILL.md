@@ -216,6 +216,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   payload shape or cache a completed envelope by its leaf identity. Custom
   example projectors keep receiving raw expression values. The bounded model
   in `internal/ir/tla/nested_union_examples` checks selection ownership.
+- Select untagged example branches against one shared normalized JSON value, while
+  retaining the typed value for projection and final encoding. In particular,
+  coerced `[]byte` fields must be matched as base64 strings without replacing
+  the intermediate input or encoding it twice. Compare enum constraints using
+  the same projected values emitted in the schema. Ambiguous wire shapes
+  remain omitted. Never reinterpret typed bytes separately for a competing
+  string branch; `internal/ir/tla/byte_examples` records that counterexample.
 - The IR analyzer defaults to `OpenAPIExampleValue` for every schema surface.
   Keep byte encoding, completeness checks, and explicit nullable examples
   consistent across bodies, nested parameters, response headers, and async
