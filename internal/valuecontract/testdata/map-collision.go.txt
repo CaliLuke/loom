@@ -1,0 +1,18 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = Service("svc", func() {
+
+	Method("send", func() {
+
+		Payload(MapOf(Any, String), func() {
+			Example(map[any]any{1: "integer", "1": "text"})
+		})
+		HTTP(func() {
+			POST("/send")
+		})
+
+	})
+
+})

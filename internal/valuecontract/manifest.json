@@ -1,0 +1,350 @@
+{
+  "baseline": "f5b786b39675e2b5c1466f04f3301b7b337779b6",
+  "probes": [
+    {
+      "id": "bytes-text",
+      "design": "bytes-text.go.txt",
+      "coverage": [
+        "authored bytes",
+        "text",
+        "JSON CLI decoder"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/565"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/565"
+      },
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"aGk=\"}"
+    },
+    {
+      "id": "bytes-binary",
+      "design": "bytes-binary.go.txt",
+      "coverage": [
+        "authored bytes",
+        "binary",
+        "JSON CLI decoder"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"AP8=\"}"
+    },
+    {
+      "id": "bytes-empty",
+      "design": "bytes-empty.go.txt",
+      "coverage": [
+        "authored bytes",
+        "empty",
+        "JSON CLI decoder"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"\"}"
+    },
+    {
+      "id": "nested-union",
+      "design": "nested-union.go.txt",
+      "coverage": [
+        "nested unions",
+        "distinct branch names with identical scalar payloads"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/566"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/566"
+      },
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": ""
+    },
+    {
+      "id": "grpc-type-union",
+      "design": "grpc-type-union.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "type-union"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-type-plain",
+      "design": "grpc-type-plain.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "type-plain"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-payload-union",
+      "design": "grpc-payload-union.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "payload-union"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-payload-plain",
+      "design": "grpc-payload-plain.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "payload-plain"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "map-collision",
+      "design": "map-collision.go.txt",
+      "coverage": [
+        "mixed map keys",
+        "collision diagnostic"
+      ],
+      "baseline": {
+        "phase": "gen",
+        "contains": "duplicate object member name \"1\"",
+        "issue": "https://github.com/CaliLuke/loom/issues/456"
+      },
+      "candidate": {
+        "phase": "gen",
+        "contains": "duplicate object member name \"1\"",
+        "issue": "https://github.com/CaliLuke/loom/issues/456"
+      }
+    },
+    {
+      "id": "grpc-integer-limits",
+      "design": "grpc-integer-limits.go.txt",
+      "coverage": [
+        "protobuf numeric limits",
+        "int32",
+        "int64"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": ""
+    },
+    {
+      "id": "presence",
+      "design": "presence.go.txt",
+      "coverage": [
+        "absent",
+        "explicit null",
+        "empty collections",
+        "typed nil collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "effective-occurrence",
+      "design": "effective-occurrence.go.txt",
+      "coverage": [
+        "method-local requiredness",
+        "HTTP selected Body",
+        "transport-local example override"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "custom-codec",
+      "design": "custom-codec.go.txt",
+      "coverage": [
+        "opaque Any",
+        "pure custom JSON codec"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "suppression",
+      "design": "suppression.go.txt",
+      "coverage": [
+        "example suppression",
+        "authored exception",
+        "target exclusion"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "mapped-names",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "MappedNamesDSL",
+      "coverage": [
+        "mapped fields",
+        "untagged bytes/string enums"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "type-identity",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "TypeIdentityDSL",
+      "coverage": [
+        "designed errors",
+        "streaming payload/result",
+        "nested identical shapes"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "CollectionBodyDefaultsDSL",
+      "coverage": [
+        "HTTP collection defaults",
+        "selected Body",
+        "boolean map keys"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "JSONRPCCollectionBodyDefaultsDSL",
+      "coverage": [
+        "JSON-RPC collection defaults",
+        "selected Body"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "documentation-bodies",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "RawRequestBodyOpenAPIDSL",
+      "coverage": [
+        "documentation-only bodies",
+        "media codecs"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "views",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "ResultBodyMultipleViewsDSL",
+      "coverage": [
+        "views",
+        "result projection"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "protojson",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "CLIProtoJSONDSL",
+      "coverage": [
+        "protobuf field mapping",
+        "nested oneofs",
+        "collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "recursive",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "RecursiveMapMessageDSL",
+      "coverage": [
+        "finite recursive declarations",
+        "map wrappers"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-ticktock",
+      "fixture": "http/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "http",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-ticktock",
+      "fixture": "jsonrpc/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "jsonrpc",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    }
+  ],
+  "intended_differences": []
+}

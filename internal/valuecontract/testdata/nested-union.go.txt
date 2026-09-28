@@ -1,0 +1,40 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var left = Type("Left", func() {
+
+	OneOf("inner", func() {
+		Attribute("left", String)
+		Attribute("right", String)
+	})
+	Required("inner")
+
+})
+var right = Type("Right", func() {
+
+	OneOf("other_inner", func() {
+		Attribute("one", String)
+		Attribute("two", String)
+	})
+	Required("other_inner")
+
+})
+var data = Type("Data", func() {
+
+	OneOf("outer", func() {
+		Attribute("left", left)
+		Attribute("right", right)
+	})
+	Required("outer")
+
+})
+var _ = Service("svc", func() {
+	Method("send", func() {
+		Payload(data)
+		Result(data)
+		HTTP(func() {
+			POST("/send")
+		})
+	})
+})

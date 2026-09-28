@@ -1,0 +1,27 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+type custom string
+
+func (c custom) MarshalJSON() ([]byte, error) {
+	return []byte(`{"custom":"wire"}`), nil
+}
+
+var _ = Service("svc", func() {
+
+	Method("send", func() {
+
+		Payload(func() {
+			Attribute("opaque", Any, func() {
+				Example(custom("source"))
+			})
+			Required("opaque")
+		})
+		HTTP(func() {
+			POST("/send")
+		})
+
+	})
+
+})

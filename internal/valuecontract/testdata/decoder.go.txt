@@ -1,0 +1,94 @@
+package svcapi_test
+
+import (
+	"encoding/json/v2"
+	"os"
+	"strings"
+	"testing"
+
+	client "example.com/valueprobe/gen/TRANSPORT/svc/client"
+)
+
+func TestValueContract(t *testing.T) {
+
+	raw := "{"
+	_, err := client.BuildSendPayload(ARGUMENT)
+	if err == nil {
+
+		t.Fatal("malformed input unexpectedly accepted")
+
+	}
+	_, example, ok := strings.Cut(err.Error(), "example of valid JSON:\n")
+	if !ok {
+
+		t.Fatalf("missing advertised example: %v", err)
+
+	}
+	raw = strings.Trim(strings.TrimSpace(example), "'")
+	payload, decodeErr := client.BuildSendPayload(ARGUMENT)
+	observation := map[string]any{"advertised": raw, "decoded": decodeErr == nil}
+	if decodeErr == nil {
+
+		observation["payload"] = payload
+
+	}
+	snapshot, err := json.Marshal(observation, json.Deterministic(true))
+	if err != nil {
+
+		t.Fatal(err)
+
+	}
+	if err := os.WriteFile("observation.json", snapshot, 0600); err != nil {
+
+		t.Fatal(err)
+
+	}
+	if decodeErr != nil {
+
+		t.Fatalf("advertised example rejected: %v", decodeErr)
+
+	}
+	if expected := EXPECTED; expected != "" {
+
+		data, err := json.Marshal(payload, json.Deterministic(true))
+		if err != nil {
+
+			t.Fatal(err)
+
+		}
+		var got, want map[string]any
+		if err := json.Unmarshal(data, &got); err != nil {
+
+			t.Fatal(err)
+
+		}
+		if err := json.Unmarshal([]byte(expected), &want); err != nil {
+
+			t.Fatal(err)
+
+		}
+		for field, value := range want {
+
+			actual, err := json.Marshal(got[field], json.Deterministic(true))
+			if err != nil {
+
+				t.Fatal(err)
+
+			}
+			desired, err := json.Marshal(value, json.Deterministic(true))
+			if err != nil {
+
+				t.Fatal(err)
+
+			}
+			if string(actual) != string(desired) {
+
+				t.Errorf("authored value replaced at %s: got %s, want %s", field, actual, desired)
+
+			}
+
+		}
+
+	}
+
+}

@@ -1,0 +1,26 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = Service("svc", func() {
+
+	Method("send", func() {
+
+		Payload(func() {
+
+			Field(1, "small", Int32, func() {
+				Example(int32(2147483647))
+			})
+			Field(2, "big", Int64, func() {
+				Example(int64(9223372036854775807))
+			})
+			Required("small", "big")
+
+		})
+		GRPC(func() {
+
+		})
+
+	})
+
+})

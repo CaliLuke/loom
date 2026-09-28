@@ -9,8 +9,40 @@ This is a staged replacement of duplicated decisions, not a framework rewrite.
 ## Status
 
 - 2026-09-28 — Design and execution plan independently reviewed; all findings resolved.
-  No implementation work has started. The user's current request is planning.
-- 2026-09-28 — Added the user-approved Lean proof requirement and explicit proved/tested/assumed boundaries; proof implementation remains pending.
+  The design and plan were approved before implementation.
+- 2026-09-28 — Added the user-approved Lean proof requirement and explicit proved/tested/assumed boundaries; proof implementation was pending at plan approval.
+
+- 2026-09-28 — User authorized execution through agents, with the parent coordinating. Milestone 1 is active; implementation ownership and atomic ticket order are below.
+
+## Dependency tickets and commit order
+
+Every row is one atomic ticket commit. Parallel preparation is limited to the
+three disjoint M1 slices; commits land in the order below after review and gates.
+Reviewers never review a slice they implemented. Shared checkout:
+`/Users/luca/.codex/worktrees/body-type-names/loom`.
+
+| Order / milestone | Ticket | Scope and owner | Prerequisites |
+| --- | --- | --- | --- |
+| 1 / M1 | [#566](https://github.com/CaliLuke/loom/issues/566) | `internal/valuecontract/**`: baseline agent; execution record/inventory reconciliation: coordinator | Approved design/plan |
+| 2 / M1 | [#567](https://github.com/CaliLuke/loom/issues/567) | `expr/lean/value_projection/**`, proof scripts/tests and Make proof target: Lean agent | #566 evidence available; implementation may proceed in parallel |
+| 3 / M1 | [#568](https://github.com/CaliLuke/loom/issues/568) | `expr/tla/value_projection/**`: TLA agent | #566 evidence available; implementation may proceed in parallel |
+| 4 / M2 | [#569](https://github.com/CaliLuke/loom/issues/569) | Universal candidate Lean semantics and reviewed theorem statements | #567, #568 |
+| 5 / M2 | [#570](https://github.com/CaliLuke/loom/issues/570) | Go semantic API/projection, shared carriers, executable Lean correspondence and CI | #566, #569 |
+| 6 / M3 | [#571](https://github.com/CaliLuke/loom/issues/571) | Shared enum/default/inline-schema consumer migration | #570 |
+| 7 / M3 | [#456](https://github.com/CaliLuke/loom/issues/456) | Deterministic path-qualified collision rejection and regression | #571; close only after affected consumers satisfy the contract |
+| 8 / M4 | [#572](https://github.com/CaliLuke/loom/issues/572) | OpenAPI shared pipeline and independent example validation | #571, #456 |
+| 9 / M5 | [#565](https://github.com/CaliLuke/loom/issues/565) | HTTP/JSON-RPC body examples/defaults, CLI hints and usage migration | #572 |
+| 10 / M6 | [#434](https://github.com/CaliLuke/loom/issues/434) | Protobuf projection preserving authored source and branch | #565 |
+| 11 / M6 | [#573](https://github.com/CaliLuke/loom/issues/573) | Final inventory cleanup, property tests, docs and complete proof/test evidence | All preceding rows |
+
+The initial inventory was refreshed at `ff7873df`: all 31 production matches
+still reconcile to the inventory. `expr` source/canonicalization and shared
+carriers map to M2; enum/default/inline-schema consumers to M3; OpenAPI to M4;
+HTTP/JSON-RPC and CLI routing/usage to M5; protobuf and final bypass removal to
+M6. Retained public compatibility adapters and location/custom codecs keep the
+explicit dispositions in the inventory. Additional matches are reconciled
+before their owning milestone changes code. The coordinator owns this execution
+record; agents must not edit one another's paths or commit shared work.
 
 ## Execution rules
 
@@ -103,8 +135,8 @@ Acceptance Criteria
 
 Checklist
 
-- [ ] Read this plan end-to-end, the design, inventory, `AGENTS.md` and `.agents/skills/loom-framework/SKILL.md`; recite milestone order, exit criteria, commands in execution order, test-first work, independent review, commit/push handoff and inherited constraints before editing code.
-- [ ] Run both exact `rg` commands in `value-contract-inventory.md`; reconcile every match and additional boundary to milestones 2–6, including retained compatibility adapters and plain codecs. Record the dependency-ticket/atomic-commit map in this plan before implementation.
+- [x] Read this plan end-to-end, the design, inventory, `AGENTS.md` and `.agents/skills/loom-framework/SKILL.md`; recite milestone order, exit criteria, commands in execution order, test-first work, independent review, commit/push handoff and inherited constraints before editing code.
+- [x] Run both exact `rg` commands in `value-contract-inventory.md`; reconcile every match and additional boundary to milestones 2–6, including retained compatibility adapters and plain codecs. Record the dependency-ticket/atomic-commit map in this plan before implementation.
 - [ ] Add the new comparison driver at `internal/valuecontract/compare_test.go`, with reusable probe designs under `internal/valuecontract/testdata`; reuse source resolution and `internal/testprocess`. Its explicit inputs are `LOOM_VALUE_BASE`, `LOOM_VALUE_CANDIDATE`, and `LOOM_VALUE_RESULTS`; its opt-in test is `TestCompareRevisions`.
 - [ ] Make the driver generate a common probe corpus under each revision, including probes absent from the old source tree, and capture relative paths plus exact generated bytes before temporary modules are removed. Capture generator/build/vet failures separately; do not compare source-location-dependent `go.mod` replacements as generated artifacts. Record selected affected fixture/testdata IDs and all intended differences in a checked-in manifest.
 - [ ] Turn applicable temporary Goa-audit cases into the durable probe corpus: authored text/binary/empty bytes, nested unions with distinct names but identical payloads, authored gRPC payload/type examples with and without unions, integer limits, mixed-key maps, mapped names, null/empty/absent values, recursive types, and custom codecs. Record legacy failures as characterization results, not permanently skipped regression tests.

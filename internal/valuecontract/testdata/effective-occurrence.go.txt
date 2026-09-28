@@ -1,0 +1,33 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var data = Type("Data", func() {
+
+	Attribute("id", String)
+	Attribute("value", String)
+	Example(map[string]any{"value": "authored"})
+
+})
+var _ = Service("svc", func() {
+
+	Method("send", func() {
+
+		Payload(data, func() {
+			Required("id")
+		})
+		Result(data)
+		HTTP(func() {
+
+			POST("/send")
+			Header("id:X-ID")
+			Body(func() {
+				Attribute("value")
+				Example(map[string]any{"value": "transport"})
+			})
+
+		})
+
+	})
+
+})

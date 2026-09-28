@@ -1,0 +1,32 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var data = Type("Data", func() {
+
+	Attribute("absent", String)
+	Attribute("null", String, func() {
+		Nullable()
+	})
+	Attribute("empty", ArrayOf(String))
+	Attribute("nil_list", ArrayOf(String))
+	Attribute("nil_map", MapOf(String, String))
+
+})
+var _ = Service("svc", func() {
+
+	Method("send", func() {
+
+		Payload(data, func() {
+
+			Example(map[string]any{"null": nil, "empty": []string{}, "nil_list": []string(nil), "nil_map": map[string]string(nil)})
+
+		})
+		Result(data)
+		HTTP(func() {
+			POST("/send")
+		})
+
+	})
+
+})

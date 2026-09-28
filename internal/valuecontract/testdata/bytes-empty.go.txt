@@ -1,0 +1,23 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var data = Type("Data", func() {
+	Attribute("bytes", Bytes)
+	Required("bytes")
+})
+var _ = Service("svc", func() {
+
+	Method("send", func() {
+
+		Payload(data, func() {
+			Example(map[string]any{"bytes": []byte{}})
+		})
+		Result(data)
+		HTTP(func() {
+			POST("/send")
+		})
+
+	})
+
+})

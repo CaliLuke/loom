@@ -1,0 +1,31 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("suppression", func() {
+	Meta("openapi:example", "false")
+})
+var _ = Service("svc", func() {
+
+	Method("send", func() {
+
+		Payload(func() {
+			Attribute("authored", String, func() {
+				Example("retain")
+			})
+			Attribute("synthesized", String)
+		})
+		HTTP(func() {
+			POST("/send")
+		})
+
+	})
+	Method("excluded", func() {
+		Payload(String)
+		HTTP(func() {
+			POST("/excluded")
+			Meta("openapi:generate", "false")
+		})
+	})
+
+})
