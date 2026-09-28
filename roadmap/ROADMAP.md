@@ -16,5 +16,9 @@ surface without a current consumer.
 
 ## Active Designs
 
+- [Value meaning and transport projection](value-contract-design.md) defines the
+  root-cause repair for inconsistent examples, enums, and defaults. The
+  [execution plan](value-contract-plan.md) sequences the work against a
+  [consumer inventory](value-contract-inventory.md).
 - [Generated transport runtime boundary](codegen-runtime-boundary.md) tracks
   the staged work from issue #267.
