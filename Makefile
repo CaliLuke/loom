@@ -35,7 +35,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-race test-release test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-race test-release test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -260,6 +260,11 @@ ifneq ($(GOOS),windows)
 	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run 'Test(RenderedSpecsPassContractLint|RepresentativeSpecsPassRedoclyLintAndConsumerSmoke)$$' ./http/codegen/openapi/v3
 	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run 'TestOpenAPIImportSemanticRoundTrip$$' ./cmd/loom
 endif
+
+# Lean is a pinned contributor dependency; this gate must fail if unavailable.
+value-contract-proof:
+	bash ./scripts/check_value_contract_proof.sh
+	LOOM_VALUE_PROOF_TEST=1 go test ./scripts -run '^TestValueContractProof' -count=1
 
 # Remove gitignored artifacts that integration-test runs leave behind
 # (per-run loom build dirs and server logs inside the integration trees).

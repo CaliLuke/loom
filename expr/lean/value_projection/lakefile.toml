@@ -1,0 +1,9 @@
+name = "valueContract"
+version = "0.1.0"
+defaultTargets = ["ValueContract"]
+
+[leanOptions]
+warningAsError = true
+
+[[lean_lib]]
+name = "ValueContract"
