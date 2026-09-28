@@ -40,6 +40,10 @@ func TestJSONRPCViewedStreamResultGeneratedModule(t *testing.T) {
 		"vres, err := files.NewViewedNoteCollection(res, w.view)",
 		// The connection stream renders with the default view.
 		"vres, err := files.NewViewedNote(result, \"default\")",
+		"body := NewTalkResponseBody(vres.Projected)",
+		"body := NewNoteResponseCollection(vres.Projected)",
+		// Streaming-payload methods return one result with the default view.
+		"body := NewUploadResponseBody(vres.Projected)",
 		// A fixed view renders with the body of that view.
 		"vres, err := files.NewViewedNote(result, \"tiny\")",
 		"body := NewTalkTinyResponseBodyTiny(vres.Projected)",
@@ -58,7 +62,9 @@ func TestJSONRPCViewedStreamResultGeneratedModule(t *testing.T) {
 	} {
 		assertGeneratedContains(t, "stream.go", stream, want)
 	}
-	assertGeneratedContains(t, "sse.go", readGeneratedFile(t, dir, "gen/jsonrpc/feed/server/sse.go"), "vres, err := feed.NewViewedNote(v, \"default\")")
+	sse := readGeneratedFile(t, dir, "gen/jsonrpc/feed/server/sse.go")
+	assertGeneratedContains(t, "sse.go", sse, "vres, err := feed.NewViewedNote(v, \"default\")")
+	assertGeneratedContains(t, "sse.go", sse, "body := NewFollowResponseBody(vres.Projected)")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "viewed_test.go"), []byte(jsonRPCViewedStreamResultHarness), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "view_marker_test.go"), []byte(jsonRPCViewMarkerHarness), 0o600))

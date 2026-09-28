@@ -1885,7 +1885,9 @@ Method("watch", func() {
 When a streamed result has views, dynamic WebSocket and SSE method streams
 expose `SetView(name)`. The selection applies to subsequent sends. A method
 with a fixed `View(...)` uses that view and has no setter. Connection-level
-send methods use the fixed or default view of the method.
+send methods use the fixed or default view of the method. A WebSocket method
+that receives a streaming payload and returns one result also renders that
+result with its fixed or default view.
 
 Loom adds a `"loom_view"` string to each viewed streaming notification or
 success response. This is a Loom protocol extension. The `params` or `result`

@@ -345,6 +345,11 @@ filter, and serialization rules belong here.
   and server-SSE cases are supported. Server-SSE requests with an ID retain a
   final response. ID-less streams suppress it. Other streaming completion
   shapes stay explicit generation limitations.
+- Viewed JSON-RPC WebSocket and SSE method streams select a view with
+  `SetView`, unless the design fixes it. Connection-level sends and WebSocket
+  streaming-payload methods that return one result use the fixed or default
+  view. When generation knows the view, emit only its body constructor;
+  retain runtime selection for dynamic method streams.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.

@@ -73,6 +73,16 @@ func viewedStreamResultBodyInit(resultVar, view string, body *httpcodegen.TypeDa
 	if viewed.ViewName != "" {
 		view = strconv.Quote(viewed.ViewName)
 	}
+	if view == defaultViewExpr {
+		// NewViewed returns the requested view, so other body constructors
+		// cannot be reached when the stream always selects the default.
+		for _, vb := range bodies {
+			if vb.View == "default" && vb.Init != nil {
+				bodies = []*httpcodegen.TypeData{vb}
+				break
+			}
+		}
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "vres, err := %s.%s(%s, %s)\n", ed.ServicePkgName, viewed.Init.Name, resultVar, view)
 	b.WriteString("if err != nil {\n\treturn err\n}\n")

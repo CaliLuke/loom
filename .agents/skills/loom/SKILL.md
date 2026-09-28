@@ -609,8 +609,11 @@ JSON-RPC is a first-class transport, not an HTTP behavior alias.
 - SSE notifications, final responses, and protocol errors use the generated
   stream contract.
 - For viewed JSON-RPC stream results, call `SetView(name)` on a dynamic method
-  stream; fixed-view methods have no setter. Generated peers carry `loom_view`
-  per message and validate the selected view before returning the canonical
+  stream over WebSocket or SSE; fixed-view methods have no setter.
+  Connection-level sends use the method's fixed or default view. WebSocket
+  methods that receive a streaming payload and return one result also use
+  the fixed or default view. Generated peers carry `loom_view` per message
+  and validate the selected view before returning the canonical
   type. Missing markers fall back to the fixed or default view. Regenerate both
   peers for dynamic views; keep this Loom extension when using a custom client.
 - Set intermediate notification names with
