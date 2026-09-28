@@ -7,7 +7,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	return func(r *http.Request{{ if .Method.IsJSONRPC }}, req *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
 	{{- if .Method.IsJSONRPC }}
 		params := req.Params
-		{{- if not (or .Payload.Request.OptionalBodyAttribute .Payload.Request.ExplicitPresenceBody) }}
+		{{- if not (or .Payload.Request.OptionalBodyAttribute .Payload.Request.ExplicitPresenceBody (ne .Payload.Request.BodyDefaultValue nil)) }}
 		if len(params) == 0 {
 			params = []byte("{}")
 		}
@@ -29,6 +29,8 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			body = &{{ .Payload.Request.ServerBody.VarName }}{}
 		{{- else if .Payload.Request.OptionalPrimitiveBody }}
 			body = new({{ .Payload.Request.ServerBody.VarName }})
+		{{- else if ne .Payload.Request.BodyDefaultValue nil }}
+			body = {{ .Payload.Request.ServerBody.ValueRef }}({{ printf "%#v" .Payload.Request.BodyDefaultValue }})
 		{{- else }}
 			body {{ .Payload.Request.ServerBody.ValueRef }}
 		{{- end }}

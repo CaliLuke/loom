@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"encoding/json/v2"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -85,7 +87,7 @@ func NewFlagData(svcn, en, name, typeName, description string, required bool, ex
 		Description: description,
 		Required:    required,
 		Example:     ex,
-		Default:     def,
+		Default:     flagDefault(typeName, def),
 	}
 }
 
@@ -119,7 +121,7 @@ func FieldLoadCode(f *FlagData, argName, argTypeName, validate string, defaultVa
 			jen.Return(codegen.Expr(nilVal), jen.Err()),
 		)
 	}
-	if !f.Required {
+	if !f.Required && defaultValue == nil {
 		return jen.If(codegen.Expr(f.FullName).Op("!=").Lit("")).Block(code), declErr
 	}
 	return code, declErr
@@ -154,6 +156,38 @@ func appendPayloadInitCode(group *jen.Group, init *PayloadInitData) {
 			})
 		}
 	}
+}
+
+// flagDefault converts a declared default to the text accepted by its flag.
+// Primitive flags accept raw text; named primitive flags accept JSON.
+// Collection defaults retain their existing representation.
+func flagDefault(typeName string, value any) any {
+	if value == nil {
+		return nil
+	}
+	if typeName == bytesN {
+		if bytes, ok := value.([]byte); ok {
+			return string(bytes)
+		}
+	}
+	if flagType(typeName) != "JSON" {
+		return value
+	}
+	if _, bytes := value.([]byte); !bytes {
+		switch reflect.ValueOf(value).Kind() {
+		case reflect.Bool, reflect.String,
+			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			reflect.Float32, reflect.Float64:
+		default:
+			return value
+		}
+	}
+	encoded, err := json.Marshal(value, json.Deterministic(true))
+	if err != nil {
+		panic(fmt.Sprintf("encode CLI default for %s: %v", typeName, err))
+	}
+	return string(encoded)
 }
 
 func fieldLoadStringPrefix(f *FlagData, defaultValue any) string {

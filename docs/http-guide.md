@@ -392,12 +392,16 @@ absent JSON-RPC `params`, as a nil attribute, and validates a present body.
 A JSON `null` body is rejected unless the body allows null, regardless of
 whether it is required. An empty array or map is present: it is
 sent and decoded as an empty value. A primitive with a default value is not a
-pointer in the payload, so the client always sends it.
+pointer in the payload, so the client always sends it. If that attribute is
+optional and non-nullable, an empty or whitespace-only body, or absent JSON-RPC `params`,
+receives its declared default. An explicit zero, false, or empty string stays
+unchanged. A required body must still be present.
 
 The generated client CLI makes the body flag of an optional object, union,
 nullable, `Any`, primitive, array, map, or `Bytes` attribute selected with
 `Body("name")` optional. An empty flag leaves the attribute nil or absent.
-The flag example shows the JSON that the flag accepts, including the `type`
+For a defaulted primitive, an omitted flag uses the declared default; an
+explicit flag overrides it. The flag example shows the JSON that the flag accepts, including the `type`
 and `value` fields of a union.
 
 `Bytes` values in JSON bodies are base64 strings. OpenAPI schema examples,

@@ -84,7 +84,10 @@ func TestCustomTextCLIAndWire(t *testing.T) {
 `
 
 const customTextTokenSource = `package scalar
-import "strings"
+import (
+ "fmt"
+ "strings"
+)
 // Token is a custom scalar with a canonical wire representation.
 type Token struct {
  // Text is the parsed token value.
@@ -96,6 +99,9 @@ func (t Token) String() string {
 }
 // UnmarshalText parses a token; DSL validation owns length constraints.
 func (t *Token) UnmarshalText(b []byte) error {
+ if !strings.HasPrefix(string(b), "token:") {
+  return fmt.Errorf("invalid token prefix: %q", b)
+ }
  t.Text = strings.TrimPrefix(string(b), "token:")
  return nil
 }
@@ -208,6 +214,39 @@ func TestCustomTextClientStringer(t *testing.T) {
 			harness = strings.ReplaceAll(harness, "10290aeb-ea52-40ab-acb7-538dd06d9d1e", "token:abc")
 			harness = strings.ReplaceAll(harness, "invalid UUID accepted", "invalid raw text accepted")
 			harness = strings.ReplaceAll(harness, `BuildSendPayload("invalid")`, `BuildSendPayload("x")`)
+			if location == "cookie" {
+				harness = strings.Replace(harness, ` "context"`, ` "context"
+ "flag"
+ cli "example.com/customtext/gen/http/cli/test_api"
+ svc "example.com/customtext/gen/token"`, 1)
+				harness += `
+func TestCustomTextCLIDefault(t *testing.T) {
+	oldFlags := flag.CommandLine
+	t.Cleanup(func() {
+		flag.CommandLine = oldFlags
+	})
+	for _, explicit := range []bool{false, true} {
+		args := []string{"token", "send"}
+		expected := "token:default"
+		if explicit {
+			args = append(args, "--id=token:explicit")
+			expected = "token:explicit"
+		}
+		flag.CommandLine = flag.NewFlagSet("token", flag.ContinueOnError)
+		if err := flag.CommandLine.Parse(args); err != nil {
+			t.Fatal(err)
+		}
+		_, payload, err := cli.ParseEndpoint("http", "localhost", http.DefaultClient, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := payload.(*svc.SendPayload).ID.String(); got != expected {
+			t.Errorf("token = %q, want %q", got, expected)
+		}
+	}
+}
+`
+			}
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "client_test.go"), []byte(harness), 0600))
 			runGoCommand(t, dir, "mod", "tidy")
 			runGoCommand(t, dir, "vet", "./...")

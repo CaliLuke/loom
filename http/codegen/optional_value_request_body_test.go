@@ -17,8 +17,8 @@ import (
 // optional and leaves it nil when it is empty. A primitive is decoded into a
 // pointer, and the client builds the body of an alias of a primitive from
 // the dereferenced field. A primitive with a default value is a value field: it keeps the
-// unconditional client body and a required CLI flag, and so does a required
-// attribute.
+// unconditional client body. An optional defaulted attribute applies its default
+// to an absent body and CLI flag; a required attribute still requires both.
 func TestOptionalValueRequestBody(t *testing.T) {
 	cases := []struct {
 		Name      string
@@ -202,11 +202,21 @@ func TestOptionalValueRequestBody(t *testing.T) {
 					assert.NotContains(t, encoder, "if p.V != nil {")
 					assert.NotContains(t, decoder, "body = nil")
 					assert.NotContains(t, init, "if body != nil {")
-					assert.NotContains(t, build, "if pickerSendBody != \"\"")
-					assert.Contains(t, parse, "\t\t\tBody string `help:\"\" name:\"body\" required:\"\"`\n")
+					defaulted := c.Name == "default" && !required
+					if defaulted {
+						assert.Equal(t, "d", data.Payload.Request.BodyDefaultValue)
+						assert.Contains(t, decoder, "body = string(\"d\")")
+						assert.Contains(t, parse, "Body *string")
+						assert.Contains(t, parse, "value := \"d\"")
+					} else {
+						assert.NotContains(t, build, "if pickerSendBody != \"\"")
+						assert.Contains(t, parse, "\t\t\tBody string `help:\"\" name:\"body\" required:\"\"`\n")
+					}
 					if !c.Optional {
-						for _, want := range c.Decode {
-							assert.Contains(t, decoder, want)
+						if !defaulted {
+							for _, want := range c.Decode {
+								assert.Contains(t, decoder, want)
+							}
 						}
 						for _, want := range c.Init {
 							assert.Contains(t, init, want)

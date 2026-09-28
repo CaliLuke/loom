@@ -332,6 +332,9 @@ type (
 		PayloadAttr string
 		// MustHaveBody is true if the request body cannot be empty.
 		MustHaveBody bool
+		// BodyDefaultValue is the declared default of an optional non-nullable
+		// primitive attribute selected with Body. It applies only to an absent body.
+		BodyDefaultValue any
 		// OptionalBodyAttribute is true when the request body is the
 		// optional payload attribute named by PayloadAttr and its service
 		// field can be nil or absent: any attribute but a primitive with a

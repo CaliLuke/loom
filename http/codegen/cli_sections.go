@@ -53,7 +53,11 @@ func appendKongCommandLineStruct(stmt *jen.Statement, commands []*cli.CommandDat
 				for _, sub := range cmd.Subcommands {
 					serviceGroup.Id(kongFieldName(sub.Name)).StructFunc(func(methodGroup *jen.Group) {
 						for _, flag := range sub.Flags {
-							methodGroup.Id(kongFieldName(flag.Name)).String().Tag(kongFlagTags(flag))
+							field := methodGroup.Id(kongFieldName(flag.Name))
+							if flag.Default != nil {
+								field.Op("*")
+							}
+							field.String().Tag(kongFlagTags(flag))
 						}
 					}).Tag(map[string]string{
 						"cmd":  "",
@@ -120,10 +124,18 @@ func appendKongFlagAssignments(group *jen.Group, commands []*commandData) {
 	for _, cmd := range commands {
 		for _, sub := range cmd.Subcommands {
 			for _, flag := range sub.Flags {
-				group.Id(flag.FullName + "Flag").Op("=").Op("&").Id("command").
-					Dot(kongFieldName(cmd.Name)).
-					Dot(kongFieldName(sub.Name)).
-					Dot(kongFieldName(flag.Name))
+				field := jen.Id("command").Dot(kongFieldName(cmd.Name)).Dot(kongFieldName(sub.Name)).Dot(kongFieldName(flag.Name))
+				if flag.Default != nil {
+					// Preserve flag presence and apply defaults after parsing. Passing
+					// defaults through tag parsing can alter non-UTF-8 byte values.
+					group.If(field.Clone().Op("==").Nil()).Block(
+						jen.Id("value").Op(":=").Lit(fmt.Sprint(flag.Default)),
+						field.Clone().Op("=").Op("&").Id("value"),
+					)
+					group.Id(flag.FullName + "Flag").Op("=").Add(field)
+				} else {
+					group.Id(flag.FullName + "Flag").Op("=").Op("&").Add(field)
+				}
 			}
 		}
 	}
@@ -137,11 +149,11 @@ func kongFlagTags(flag *cli.FlagData) map[string]string {
 	if len(flag.Name) == 1 {
 		tags["short"] = flag.Name
 	}
-	if flag.Required {
+	if flag.Required && flag.Default == nil {
 		tags["required"] = ""
 	}
 	if flag.Default != nil {
-		tags["default"] = fmt.Sprint(flag.Default)
+		tags["help"] = strings.TrimSpace(flag.Description + fmt.Sprintf(" (default: %q)", fmt.Sprint(flag.Default)))
 	}
 	return tags
 }

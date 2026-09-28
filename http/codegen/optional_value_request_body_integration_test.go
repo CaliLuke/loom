@@ -257,6 +257,11 @@ func TestServerBodies(t *testing.T) {
 		{"/alias", "null", "null", bad, "decode_payload", malformed, nil},
 		{"/alias", "valid", ` + "`" + `"x"` + "`" + `, ok, "", "", ptr(values.Plain("x"))},
 		{"/alias", "malformed", "{x}", bad, "decode_payload", malformed, nil},
+		{"/dflt", "absent", "", ok, "", "", "d"},
+		{"/dflt", "whitespace", " \n\t", ok, "", "", "d"},
+		{"/dflt", "empty string", ` + "`" + `""` + "`" + `, ok, "", "", ""},
+		{"/dflt", "malformed", "{x}", bad, "decode_payload", malformed, nil},
+		{"/dflt", "truncated", ` + "`" + `"ab` + "`" + `, bad, "decode_payload", malformed, nil},
 		{"/dflt", "null", "null", bad, "decode_payload", malformed, nil},
 		{"/dflt", "valid", ` + "`" + `"x"` + "`" + `, ok, "", "", "x"},
 		{"/reqstr", "empty", "", bad, "missing_payload", "validation error", nil},
@@ -316,11 +321,41 @@ func checkBody(t *testing.T, hs *httptest.Server, svc *service, tc bodyCase) {
 const optionalValueRequestBodyCLIHarness = `package optvaluebody
 
 import (
+	"flag"
+	"net/http"
 	"reflect"
 	"testing"
 
+	cli "example.com/optvaluebody/gen/http/cli/test_api"
 	client "example.com/optvaluebody/gen/http/values/client"
+	values "example.com/optvaluebody/gen/values"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
 )
+
+func TestDefaultBodyCLIFlags(t *testing.T) {
+	oldFlags := flag.CommandLine
+	t.Cleanup(func() {
+		flag.CommandLine = oldFlags
+	})
+	for _, tc := range []struct {
+		name     string
+		args     []string
+		expected string
+	}{
+		{"omitted", []string{"values", "dflt"}, "d"},
+		{"empty", []string{"values", "dflt", "--body="}, ""},
+		{"explicit", []string{"values", "dflt", "--body=x"}, "x"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			flag.CommandLine = flag.NewFlagSet("default-body", flag.ContinueOnError)
+			require.NoError(t, flag.CommandLine.Parse(tc.args))
+			_, payload, err := cli.ParseEndpoint("http", "localhost", http.DefaultClient, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, payload.(*values.DfltPayload).V)
+		})
+	}
+}
 
 // TestCLI calls the generated CLI payload builders. An empty body flag leaves
 // an optional value nil, and a set flag is decoded.
@@ -387,7 +422,11 @@ func TestCLI(t *testing.T) {
 	if err != nil || alias.V == nil || *alias.V != "x" {
 		t.Errorf("alias flag: payload %+v, error %v, want x", alias, err)
 	}
-	dflt, err := client.BuildDfltPayload("x", "")
+	dflt, err := client.BuildDfltPayload("", "")
+	if err != nil || dflt.V != "" {
+		t.Errorf("dflt explicit empty flag: payload %+v, error %v, want empty string", dflt, err)
+	}
+	dflt, err = client.BuildDfltPayload("x", "")
 	if err != nil || dflt.V != "x" {
 		t.Errorf("dflt flag: payload %+v, error %v, want x", dflt, err)
 	}

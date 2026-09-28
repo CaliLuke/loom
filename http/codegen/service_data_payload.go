@@ -162,6 +162,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		PayloadAttr:           codegen.Goify(origin, true),
 		PayloadType:           b.endpointIR.Request.Payload.Type,
 		MustHaveBody:          mustHaveBody,
+		BodyDefaultValue:      optionalBodyDefault(b.endpointIR.Request),
 		OptionalBodyAttribute: isOptionalBodyAttribute(b.endpointIR.Request),
 		OptionalBodyNullable:  isOptionalNullableBody(b.endpointIR.Request),
 		OptionalObjectBody:    isOptionalObjectBody(b.endpointIR.Request),
@@ -259,6 +260,16 @@ func buildPayloadRequestBodyRequirements(request *transportir.Request) (string, 
 		return "", true
 	}
 	return request.BodyOrigin, request.MustHaveBody
+}
+
+// optionalBodyDefault returns the default applied when a non-nullable primitive
+// body selected from an optional payload attribute is absent.
+func optionalBodyDefault(request *transportir.Request) any {
+	if request == nil || request.BodyOrigin == "" || request.MustHaveBody || request.Body == nil ||
+		request.Payload == nil || !expr.IsPrimitive(request.Body.Type) || codegen.IsExplicitPresenceType(request.Body) {
+		return nil
+	}
+	return request.Payload.GetDefault(request.BodyOriginKey)
 }
 
 // isOptionalBodyAttribute reports whether the request body is selected with
@@ -563,17 +574,19 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 	// The CLI body flag holds the JSON of the client body type: it is
 	// optional when the body attribute is, and its example wraps unions in
 	// their discriminator and value.
+	defaultValue := optionalBodyDefault(b.endpointIR.Request)
 	clientArgs = append(clientArgs, &InitArgData{
 		Ref: b.sd.Scope.GoVar("body", b.body),
 		AttributeData: &AttributeData{
-			Name:     "body",
-			VarName:  "body",
-			TypeName: b.sd.Scope.GoTypeNameWithDefaults(b.bodyAttr),
-			TypeRef:  clientTypeRef,
-			Type:     b.body,
-			Required: !isOptionalBodyAttribute(b.endpointIR.Request),
-			Example:  expr.CanonicalizeExample(b.bodyAttr, b.bodyAttr.Example(b.sds.examplesFor(b.sd))),
-			Validate: cvcode,
+			Name:         "body",
+			VarName:      "body",
+			TypeName:     b.sd.Scope.GoTypeNameWithDefaults(b.bodyAttr),
+			TypeRef:      clientTypeRef,
+			Type:         b.body,
+			Required:     !isOptionalBodyAttribute(b.endpointIR.Request) && defaultValue == nil,
+			DefaultValue: defaultValue,
+			Example:      expr.CanonicalizeExample(b.bodyAttr, b.bodyAttr.Example(b.sds.examplesFor(b.sd))),
+			Validate:     cvcode,
 		},
 	})
 	return serverArgs, clientArgs

@@ -416,7 +416,11 @@ completion shapes are explicit generation limitations.
   from an optional payload attribute is optional either way: a nil attribute
   sends no body, and an empty body decodes to a nil attribute. So is an
   optional primitive, array, map, or `Bytes` attribute, except a primitive
-  with a default value, which is always sent. A nullable or
+  with a default value, which is always sent. For an optional non-nullable defaulted
+  primitive selected with `Body`, an absent body or JSON-RPC `params` and an
+  omitted CLI body flag use the declared default. Explicit values, including
+  zero, false, and empty strings, override it. A required body or CLI flag
+  must still be present. A nullable or
   `Any` attribute selected with `Body("name")` keeps absent, null, and concrete
   states: an absent optional value sends no body, and an empty body decodes to
   an absent value. Non-nullable JSON bodies reject root `null` with

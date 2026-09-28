@@ -16,7 +16,8 @@ import (
 // mapped to the params with Body is nil, and that the server then decodes
 // absent params as a nil attribute instead of substituting {}. A primitive
 // with a default value and a required attribute are always encoded, and the
-// server still decodes their absent params as {}.
+// server applies an optional primitive default to absent params. Required
+// attributes keep the existing absent-params decoding behavior.
 func TestJSONRPCOptionalValueParams(t *testing.T) {
 	cases := []struct {
 		Name      string
@@ -78,7 +79,12 @@ func TestJSONRPCOptionalValueParams(t *testing.T) {
 				if !optional {
 					assert.NotContains(t, encoder, "if p.V != nil {")
 					assert.Contains(t, encoder, "\t\t\tParams:  b,\n")
-					assert.Contains(t, decoder, substitute)
+					if c.Name == "default" && !required {
+						assert.NotContains(t, decoder, substitute)
+						assert.Contains(t, decoder, "body = string(\"d\")")
+					} else {
+						assert.Contains(t, decoder, substitute)
+					}
 					assert.NotContains(t, decoder, "body = nil")
 					return
 				}
@@ -364,6 +370,9 @@ func TestWire(t *testing.T) {
 		{"Blob", "\"!\"", -32602, invalid, "decode_payload", nil},
 		{"Alias", "", 0, "", "", (*picker.Plain)(nil)},
 		{"Alias", "\"x\"", 0, "", "", ptr(picker.Plain("x"))},
+		{"Dflt", "", 0, "", "", "d"},
+		{"Dflt", "\"\"", 0, "", "", ""},
+		{"Dflt", "null", -32602, "invalid request body", "decode_payload", nil},
 		{"Dflt", "\"x\"", 0, "", "", "x"},
 	}
 	for _, tc := range cases {

@@ -319,10 +319,11 @@ func makeFlags(e *EndpointData, args []*InitArgData, payload expr.DataType) ([]*
 			Type:         arg.Type,
 		}
 
-		f := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.VarName, arg.TypeName, arg.Description, arg.Required, arg.Example, arg.DefaultValue)
+		flagType := arg.TypeName
 		if arg.IsTextUnmarshaler {
-			f.Type = "STRING"
+			flagType = "string"
 		}
+		f := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.VarName, flagType, arg.Description, arg.Required, arg.Example, arg.DefaultValue)
 		flags[i] = f
 		params[i] = f.FullName
 		if arg.FieldName == "" && arg.VarName != "body" && expr.IsObject(payload) {
