@@ -427,11 +427,11 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string, pkg
 		}
 		return primitiveTypeDef(att, actual)
 	case *expr.Array:
-		return "[]" + s.goFullTypeRef(actual.ElemType, s.pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName)
+		return "[]" + s.goFullCollectionElemTypeRef(actual.ElemType, s.pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName)
 	case *expr.Map:
 		return fmt.Sprintf("map[%s]%s",
 			s.goFullMapKeyTypeName(actual.KeyType, s.pkgWithDefault(actual.KeyType.Type, pkg, pkgName), pkgName),
-			s.goFullTypeRef(actual.ElemType, s.pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName))
+			s.goFullCollectionElemTypeRef(actual.ElemType, s.pkgWithDefault(actual.ElemType.Type, pkg, pkgName), pkgName))
 	case *expr.Object:
 		return s.GoTypeDef(att, false, false)
 	case expr.UserType, *expr.Union:
@@ -466,6 +466,15 @@ func (s *NameScope) goFullValueTypeName(att *expr.AttributeExpr, pkg string, pkg
 	default:
 		panic(NewError(nil, att, fmt.Errorf("unknown collection element data type %T", actual)))
 	}
+}
+
+// goFullCollectionElemTypeRef preserves the value representation of unions in
+// collections while retaining object pointers and explicit presence wrappers.
+func (s *NameScope) goFullCollectionElemTypeRef(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
+	if expr.IsUnion(att.Type) {
+		return s.goFullTypeName(att, pkg, pkgName)
+	}
+	return s.goFullTypeRef(att, pkg, pkgName)
 }
 
 func (s *NameScope) goFullMapKeyTypeName(att *expr.AttributeExpr, pkg string, pkgName func(*Location) string) string {
