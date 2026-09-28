@@ -12,7 +12,27 @@ This is a staged replacement of duplicated decisions, not a framework rewrite.
   The design and plan were approved before implementation.
 - 2026-09-28 — Added the user-approved Lean proof requirement and explicit proved/tested/assumed boundaries; proof implementation was pending at plan approval.
 
-- 2026-09-28 — User authorized execution through agents, with the parent coordinating. Milestone 1 is active; implementation ownership and atomic ticket order are below.
+- 2026-09-28 — User authorized execution through agents, with the parent coordinating. Milestone 1 established the baseline and proof foundation; implementation ownership and atomic ticket order are below.
+
+
+- 2026-09-28 — Milestone 1 complete: #566 retains 24 probe characterizations and
+  96 independent generation records with no unexpected differences; #567 audits
+  22 initial Lean witnesses, including newly found byte-length/decoder-alias
+  weaknesses; #568 checks bounded ordering/cache ownership with 47,712 distinct
+  candidate states and ten failing negative controls. Candidate correctness and
+  production Go correspondence remain pending milestone 2. The actual schema
+  representation conflict and retained named-Bytes compile failure are tracked
+  by #574–#576; #575 records the reviewed contract clarifications before further
+  implementation. Production generator behavior is unchanged by this milestone.
+
+Evidence lives in [the baseline record](../internal/valuecontract/BASELINE.md),
+[Lean proof guidance](../expr/lean/value_projection/README.md),
+[the correspondence ledger](../expr/lean/value_projection/correspondence.md), and
+[the TLA+ record](../expr/tla/value_projection/README.md). Full `make lint` and
+`make test` passed; final changed-package checks, proof negative controls,
+independent exact-diff reviews and refreshed affected TLC checks passed after
+repairs. These characterize existing defects; they do not claim those defects
+are fixed.
 
 ## Dependency tickets and commit order
 
@@ -73,11 +93,11 @@ Go/proto/schema output stays identical. Changed CLI help literals and example,
 enum or default values must be individually explained. Run two independent
 generation processes at each revision to test determinism. Never edit `gen/`.
 
-The comparison harness, Lean files, `make value-contract-proof`,
-`make value-contract-conformance`, and model commands below are **planned
-additions**, not tools that exist today. Other named Make targets already exist. The
-harness must use the existing source-resolution and process-ownership helpers,
-and must not duplicate the repository's lint/build gate logic. Retain evidence
+The comparison harness, initial Lean files, `make value-contract-proof` and
+TLA+ model commands are implemented by milestone 1. Candidate proofs, the
+executable reference and `make value-contract-conformance` remain planned
+milestone-2 additions. The harness uses the existing source-resolution and
+process-ownership helpers without duplicating the repository's lint/build gates. Retain evidence
 outside the checkout under a unique `/tmp/loom-value-contract/<run>/` directory;
 commit durable probes and compact result summaries beside their tests/models.
 
@@ -87,8 +107,8 @@ do not silently widen runtime acceptance or approve a changed golden.
 
 ## Formal assurance requirements
 
-Lean establishes universal properties of the finite semantic domain defined in
-the design. TLA+ explores bounded phase/cache ownership. V1 connects Lean to Go
+Candidate Lean proofs must establish universal properties of the finite semantic
+domain defined in the design; the initial legacy witnesses do not discharge them. TLA+ explores bounded phase/cache ownership. V1 connects Lean to Go
 through an executable reference and differential tests; it does not prove the
 Go implementation or universal validity of rendered Go. Compilation, schema
 validation and actual generated decoder checks remain required.
@@ -137,16 +157,16 @@ Checklist
 
 - [x] Read this plan end-to-end, the design, inventory, `AGENTS.md` and `.agents/skills/loom-framework/SKILL.md`; recite milestone order, exit criteria, commands in execution order, test-first work, independent review, commit/push handoff and inherited constraints before editing code.
 - [x] Run both exact `rg` commands in `value-contract-inventory.md`; reconcile every match and additional boundary to milestones 2–6, including retained compatibility adapters and plain codecs. Record the dependency-ticket/atomic-commit map in this plan before implementation.
-- [ ] Add the new comparison driver at `internal/valuecontract/compare_test.go`, with reusable probe designs under `internal/valuecontract/testdata`; reuse source resolution and `internal/testprocess`. Its explicit inputs are `LOOM_VALUE_BASE`, `LOOM_VALUE_CANDIDATE`, and `LOOM_VALUE_RESULTS`; its opt-in test is `TestCompareRevisions`.
-- [ ] Make the driver generate a common probe corpus under each revision, including probes absent from the old source tree, and capture relative paths plus exact generated bytes before temporary modules are removed. Capture generator/build/vet failures separately; do not compare source-location-dependent `go.mod` replacements as generated artifacts. Record selected affected fixture/testdata IDs and all intended differences in a checked-in manifest.
-- [ ] Turn applicable temporary Goa-audit cases into the durable probe corpus: authored text/binary/empty bytes, nested unions with distinct names but identical payloads, authored gRPC payload/type examples with and without unions, integer limits, mixed-key maps, mapped names, null/empty/absent values, recursive types, and custom codecs. Record legacy failures as characterization results, not permanently skipped regression tests.
-- [ ] Extend the probe matrix with method-local requiredness, HTTP Body selections, views, documentation-only bodies, explicit transport-local examples, suppression/exclusion, designed errors and streaming-message positions. Use existing mapped-names, type-identity, protojson and collection-default fixtures where suitable.
-- [ ] Create `expr/lean/value_projection/lean-toolchain`, `lakefile.toml`, `ValueContract/Model.lean`, `ValueContract/Legacy.lean`, `ValueContract/AxiomAudit.lean`, `README.md` and `correspondence.md`. Define finite typed values, raw inputs, outcomes, target plans, independent typing/decoding/observation and representability. Prove concrete legacy witnesses for branch loss, byte reinterpretation and authored-value replacement before implementing candidate rules; include legitimate field/visibility loss and distinguish explicit null from absent. Pin the toolchain and record the theorem-to-Go seam mapping.
-- [ ] Add planned `make value-contract-proof` through `scripts/check_value_contract_proof.sh`: run `lake build`, run `lake env lean ValueContract/AxiomAudit.lean`, and recheck the initial witness module with `lake env leanchecker --fresh ValueContract.Legacy`; milestone 2 additionally runs `lake env leanchecker --fresh ValueContract.Proofs`. Use the bundled checker from the pinned Lean >=4.28 toolchain, following the [upstream checker instructions](https://github.com/leanprover/lean4checker#using-the-built-in-leanchecker). The script must fail on warnings, missing required theorem names and forbidden transitive axioms; allow only the recorded standard logical axioms (`propext`, `Classical.choice`, `Quot.sound`). Include negative controls for an admitted dependency and an unlisted custom axiom. Document setup and exact checker invocation in the Lean README. Run `make value-contract-proof` and retain logs for the initial legacy witnesses; milestone 2 adds all candidate obligations to the required theorem manifest.
-- [ ] Add `expr/tla/value_projection/ValueProjection.tla`, `legacy.cfg`, `reselection.cfg`, `checked.cfg`, and `README.md`. Model source precedence, no authored-to-synthetic substitution, representation phases, branch/presence retention, and occurrence/source/cache ownership. Reproduce branch-loss/reselection before checking the proposed pipeline; keep byte encoding and arbitrary user codecs outside the abstraction.
-- [ ] Run `go test ./internal/valuecontract ./internal/testdatacompile`, then the new `LOOM_VALUE_BASE=f5b786b39675e2b5c1466f04f3301b7b337779b6 LOOM_VALUE_CANDIDATE="$PWD" LOOM_VALUE_RESULTS=/tmp/loom-value-contract/baseline go test ./internal/valuecontract -run '^TestCompareRevisions$' -count=1 -timeout=90m`; preserve the baseline manifest/results. The driver must distinguish expected legacy probe failures from infrastructure failure.
-- [ ] From `expr/tla/value_projection`, run `java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config legacy.cfg ValueProjection.tla`, repeat with `reselection.cfg` and `checked.cfg`, and record invariant names, traces, state counts and bounds. The first two must fail the named invariants; the checked model must pass. Document installation/version of the JAR without adding a runtime dependency.
-- [ ] Run `make lint` and `make test`; obtain independent exact-diff review, resolve findings, and commit/push the baseline/model dependency work.
+- [x] Add the new comparison driver at `internal/valuecontract/compare_test.go`, with reusable probe designs under `internal/valuecontract/testdata`; reuse source resolution and `internal/testprocess`. Its explicit inputs are `LOOM_VALUE_BASE`, `LOOM_VALUE_CANDIDATE`, and `LOOM_VALUE_RESULTS`; its opt-in test is `TestCompareRevisions`.
+- [x] Make the driver generate a common probe corpus under each revision, including probes absent from the old source tree, and capture relative paths plus exact generated bytes before temporary modules are removed. Capture generator/build/vet failures separately; do not compare source-location-dependent `go.mod` replacements as generated artifacts. Record selected affected fixture/testdata IDs and all intended differences in a checked-in manifest.
+- [x] Turn applicable temporary Goa-audit cases into the durable probe corpus: authored text/binary/empty bytes, nested unions with distinct names but identical payloads, authored gRPC payload/type examples with and without unions, integer limits, mixed-key maps, mapped names, null/empty/absent values, recursive types, and custom codecs. Record legacy failures as characterization results, not permanently skipped regression tests.
+- [x] Extend the probe matrix with method-local requiredness, HTTP Body selections, views, documentation-only bodies, explicit transport-local examples, suppression/exclusion, designed errors and streaming-message positions. Use existing mapped-names, type-identity, protojson and collection-default fixtures where suitable.
+- [x] Create `expr/lean/value_projection/lean-toolchain`, `lakefile.toml`, `ValueContract/Model.lean`, `ValueContract/Legacy.lean`, `ValueContract/AxiomAudit.lean`, `README.md` and `correspondence.md`. Define finite typed values, raw inputs, outcomes, target plans, independent typing/decoding/observation and representability. Prove concrete legacy witnesses for branch loss, byte reinterpretation and authored-value replacement before implementing candidate rules; include legitimate field/visibility loss and distinguish explicit null from absent. Pin the toolchain and record the theorem-to-Go seam mapping.
+- [x] Add planned `make value-contract-proof` through `scripts/check_value_contract_proof.sh`: run `lake build`, run `lake env lean ValueContract/AxiomAudit.lean`, and recheck the initial witness module with `lake env leanchecker --fresh ValueContract.Legacy`; milestone 2 additionally runs `lake env leanchecker --fresh ValueContract.Proofs`. Use the bundled checker from the pinned Lean >=4.28 toolchain, following the [upstream checker instructions](https://github.com/leanprover/lean4checker#using-the-built-in-leanchecker). The script must fail on warnings, missing required theorem names and forbidden transitive axioms; allow only the recorded standard logical axioms (`propext`, `Classical.choice`, `Quot.sound`). Include negative controls for an admitted dependency and an unlisted custom axiom. Document setup and exact checker invocation in the Lean README. Run `make value-contract-proof` and retain logs for the initial legacy witnesses; milestone 2 adds all candidate obligations to the required theorem manifest.
+- [x] Add `expr/tla/value_projection/ValueProjection.tla`, `legacy.cfg`, `reselection.cfg`, `checked.cfg`, and `README.md`. Model source precedence, no authored-to-synthetic substitution, representation phases, branch/presence retention, and occurrence/source/cache ownership. Reproduce branch-loss/reselection before checking the proposed pipeline; keep byte encoding and arbitrary user codecs outside the abstraction.
+- [x] Run `go test ./internal/valuecontract ./internal/testdatacompile`, then the new `LOOM_VALUE_BASE=f5b786b39675e2b5c1466f04f3301b7b337779b6 LOOM_VALUE_CANDIDATE="$PWD" LOOM_VALUE_RESULTS=/tmp/loom-value-contract/baseline go test ./internal/valuecontract -run '^TestCompareRevisions$' -count=1 -timeout=90m`; preserve the baseline manifest/results. The driver must distinguish expected legacy probe failures from infrastructure failure.
+- [x] From `expr/tla/value_projection`, run `java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config legacy.cfg ValueProjection.tla`, repeat with `reselection.cfg` and `checked.cfg`, and record invariant names, traces, state counts and bounds. The first two must fail the named invariants; the checked model must pass. Document installation/version of the JAR without adding a runtime dependency.
+- [x] Run `make lint` and `make test`; obtain independent exact-diff review, resolve findings, and commit/push the baseline/model dependency work.
 
 ### Milestone 2: One semantic resolver and immutable resolved values
 
