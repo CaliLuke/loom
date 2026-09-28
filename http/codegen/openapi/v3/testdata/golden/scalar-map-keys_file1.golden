@@ -93,6 +93,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/UpdateRequestBody'
                         example:
+                            metadata: Provident soluta.
                             rules:
                                 "true":
                                     maxCount: 3
@@ -116,6 +117,12 @@ components:
         UpdateRequestBody:
             type: object
             properties:
+                metadata:
+                    default:
+                        "18446744073709551615":
+                            "1.2": nested
+                        "7": seven
+                    example: Eum tempore illum.
                 rules:
                     type: object
                     example:
@@ -124,6 +131,7 @@ components:
                     additionalProperties:
                         $ref: '#/components/schemas/Rule'
             example:
+                metadata: Accusamus rem expedita tempore nihil praesentium.
                 rules:
                     "true":
                         maxCount: 3

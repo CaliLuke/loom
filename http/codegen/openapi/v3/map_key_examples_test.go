@@ -87,6 +87,13 @@ func TestFilesRenderScalarMapKeysAsJSONMemberNames(t *testing.T) {
 		require.Equal(t, map[string]any{"1": "one", "20": "twenty"}, media["example"], format)
 
 		update := requireOperation(t, spec, "/flags", "put")
+		updateSchema := requireComponentSchema(t, spec, "UpdateRequestBody")
+		properties := requireMap(t, updateSchema["properties"], format+" update properties")
+		metadata := requireMap(t, properties["metadata"], format+" metadata schema")
+		require.Equal(t, map[string]any{
+			"7":                    "seven",
+			"18446744073709551615": map[string]any{"1.2": "nested"},
+		}, metadata["default"], format)
 		body := requireMap(t, update["requestBody"], format+" update request body")
 		content := requireMap(t, body["content"], format+" update request content")
 		bodyMedia := requireMap(t, content["application/json"], format+" update JSON media")

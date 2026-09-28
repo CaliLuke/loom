@@ -1,10 +1,10 @@
 package expr
 
 import (
-	"encoding/json/v2"
 	"math/big"
 	"reflect"
-	"strconv"
+
+	"github.com/CaliLuke/loom/internal/jsonkey"
 )
 
 // CanonicalizeExample normalizes example values to their canonical JSON shape:
@@ -393,7 +393,7 @@ func memberMapExample(value any) (map[string]any, bool) {
 	out := make(map[string]any, actual.Len())
 	iterator := actual.MapRange()
 	for iterator.Next() {
-		name, ok := jsonMemberName(iterator.Key())
+		name, ok := jsonkey.Name(iterator.Key())
 		if !ok {
 			return nil, false
 		}
@@ -403,45 +403,6 @@ func memberMapExample(value any) (map[string]any, bool) {
 		out[name] = iterator.Value().Interface()
 	}
 	return out, true
-}
-
-// jsonMemberName returns the JSON object member name of the map key key.
-func jsonMemberName(key reflect.Value) (string, bool) {
-	for key.IsValid() && key.Kind() == reflect.Interface {
-		if key.IsNil() {
-			return "", false
-		}
-		key = key.Elem()
-	}
-	if !key.IsValid() {
-		return "", false
-	}
-	switch key.Kind() {
-	case reflect.String:
-		return key.String(), true
-	case reflect.Bool:
-		return strconv.FormatBool(key.Bool()), true
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.FormatInt(key.Int(), 10), true
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return strconv.FormatUint(key.Uint(), 10), true
-	case reflect.Float32:
-		return jsonNumberText(float32(key.Float()))
-	case reflect.Float64:
-		return jsonNumberText(key.Float())
-	default:
-		return "", false
-	}
-}
-
-// jsonNumberText returns the JSON text of the float number, or false when
-// JSON cannot represent it.
-func jsonNumberText[T float32 | float64](number T) (string, bool) {
-	text, err := json.Marshal(number)
-	if err != nil {
-		return "", false
-	}
-	return string(text), true
 }
 
 func sliceExample(value any) ([]any, bool) {

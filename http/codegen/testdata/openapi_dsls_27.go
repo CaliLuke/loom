@@ -46,6 +46,9 @@ var OpenAPIScalarMapKeysDSL = func() {
 				Attribute("rules", MapOf(Boolean, Rule), func() {
 					Example(map[bool]map[string]int{true: {"max_count": 3}})
 				})
+				Attribute("metadata", Any, func() {
+					Default(map[any]any{int64(7): "seven", uint64(18446744073709551615): map[any]any{float32(1.2): "nested"}})
+				})
 				Required("rules")
 			})
 			HTTP(func() {

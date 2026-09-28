@@ -202,6 +202,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   examples in both JSON and YAML without mutating the evaluated design.
 - Treat stable schema names, canonical `operationId`, reusable component
   identity, and extension output as public framework contracts.
+- Canonical JSON member names for authored map keys come from
+  `internal/jsonkey`. Expression examples and OpenAPI defaults share this
+  conversion so integer widths, named scalar keys, and floating-point keys
+  keep the same representation. Apply it recursively through default maps
+  and arrays without changing byte-slice JSON encoding. Preserve custom JSON
+  and text encoders, including pointer methods; the JSON library owns their
+  representation and fallback behavior.
 - An `Extensions map[string]any` field is tagged `json:"-" yaml:"-"`, so the type
   that declares it must also implement `MarshalJSON` and `MarshalYAML` through
   `openapi.MarshalJSON` and `openapi.MarshalYAML` with a `_Type` alias. A type

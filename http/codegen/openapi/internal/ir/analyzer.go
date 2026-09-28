@@ -1,7 +1,10 @@
 package ir
 
 import (
+	"encoding"
+	"encoding/json/v2"
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -10,6 +13,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/internal/enumvalue"
+	"github.com/CaliLuke/loom/internal/jsonkey"
 )
 
 type (
@@ -606,36 +610,58 @@ func mustGenerateType(meta expr.MetaExpr) bool {
 	return false
 }
 
+// toStringMap recursively canonicalizes map keys using the same member names
+// as authored examples. Byte slices retain their JSON encoding semantics.
 func toStringMap(val any) any {
-	switch actual := val.(type) {
-	case map[any]any:
-		m := make(map[string]any)
-		for k, v := range actual {
-			m[toString(k)] = toStringMap(v)
+	actual := reflect.ValueOf(val)
+	if !actual.IsValid() {
+		return nil
+	}
+	if hasCustomJSONEncoding(actual.Type()) {
+		return val
+	}
+	switch actual.Kind() {
+	case reflect.Map:
+		out := make(map[string]any, actual.Len())
+		iterator := actual.MapRange()
+		for iterator.Next() {
+			if hasCustomJSONEncoding(reflect.TypeOf(iterator.Key().Interface())) {
+				return val
+			}
+			name, ok := jsonkey.Name(iterator.Key())
+			if !ok {
+				panic(fmt.Sprintf("openapi: unsupported map key %T", iterator.Key().Interface()))
+			}
+			out[name] = toStringMap(iterator.Value().Interface())
 		}
-		return m
-	case []any:
-		out := make([]any, len(actual))
-		for i, entry := range actual {
-			out[i] = toStringMap(entry)
+		return out
+	case reflect.Slice, reflect.Array:
+		if actual.Kind() == reflect.Slice && actual.Type().Elem().Kind() == reflect.Uint8 {
+			return val
+		}
+		out := make([]any, actual.Len())
+		for index := range out {
+			out[index] = toStringMap(actual.Index(index).Interface())
 		}
 		return out
 	default:
-		return actual
+		return val
 	}
 }
 
-func toString(val any) string {
-	switch actual := val.(type) {
-	case string:
-		return actual
-	case int:
-		return strconv.Itoa(actual)
-	case float64:
-		return strconv.FormatFloat(actual, 'f', -1, 64)
-	case bool:
-		return strconv.FormatBool(actual)
-	default:
-		panic("unexpected key type")
+// hasCustomJSONEncoding reports whether JSON serialization owns the value's
+// representation. JSON v2 also checks pointer methods on addressable copies.
+func hasCustomJSONEncoding(valueType reflect.Type) bool {
+	if valueType == nil {
+		return false
 	}
+	for _, candidate := range []reflect.Type{valueType, reflect.PointerTo(valueType)} {
+		if candidate.Implements(reflect.TypeFor[json.MarshalerTo]()) ||
+			candidate.Implements(reflect.TypeFor[json.Marshaler]()) ||
+			candidate.Implements(reflect.TypeFor[encoding.TextAppender]()) ||
+			candidate.Implements(reflect.TypeFor[encoding.TextMarshaler]()) {
+			return true
+		}
+	}
+	return false
 }

@@ -19,6 +19,7 @@
       },
       "UpdateRequestBody": {
         "example": {
+          "metadata": "Accusamus rem expedita tempore nihil praesentium.",
           "rules": {
             "true": {
               "maxCount": 3
@@ -26,6 +27,15 @@
           }
         },
         "properties": {
+          "metadata": {
+            "default": {
+              "18446744073709551615": {
+                "1.2": "nested"
+              },
+              "7": "seven"
+            },
+            "example": "Eum tempore illum."
+          },
           "rules": {
             "additionalProperties": {
               "$ref": "#/components/schemas/Rule"
@@ -164,6 +174,7 @@
           "content": {
             "application/json": {
               "example": {
+                "metadata": "Provident soluta.",
                 "rules": {
                   "true": {
                     "maxCount": 3
