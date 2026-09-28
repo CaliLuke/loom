@@ -73,6 +73,8 @@ type (
 		// messageFieldScope. Dup does not copy it, so it names the branches of
 		// that union only.
 		oneofFields []string
+		// oneofTypes holds wrapper type suffixes for those branches. Dup omits it.
+		oneofTypes []string
 	}
 
 	// PresenceKind identifies the physical presence representation of an
@@ -93,17 +95,14 @@ type (
 		sumTypeUnions()
 	}
 
-	// messageFieldScope is implemented by attribute scopes in which the
-	// fields of an object share one namespace with the fields that hold the
-	// branches of its union fields, such as the protocol buffer scope, where
-	// the fields, oneofs and oneof fields of a message must have distinct
-	// names. The Go names of a union field and of its branches then depend
-	// on the other fields of the object.
+	// messageFieldScope names fields in their containing message. Sibling
+	// fields, generated getters, oneofs, and nested types can change both
+	// selectors and the wrapper type suffixes of union branches.
 	messageFieldScope interface {
-		// UnionFieldNames returns the Go name of the field that holds the
-		// union field name of the object attribute obj, and the Go names of
-		// the fields that hold its branches in branch order.
-		UnionFieldNames(obj *expr.AttributeExpr, name string) (string, []string)
+		// FieldNames returns the field selector, branch selectors, and
+		// branch wrapper type suffixes. The branch slices are nil for a
+		// field that is not a union.
+		FieldNames(obj *expr.AttributeExpr, name string) (string, []string, []string)
 	}
 
 	// TransformAttrs are the attributes that help in the transformation.

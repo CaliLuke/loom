@@ -226,7 +226,7 @@ and inline objects.
 The fields, `oneof` names and `oneof` fields of a message share one namespace
 in protocol buffers, so Loom gives each of them a unique name in the message:
 
-- A field that is not a union keeps its name. Generation fails when two such
+- A field that is not a union normally keeps its name. Generation fails when two such
   fields have the same protocol buffer name, such as `fooBar` and `foo_bar`.
 - A union field is a `oneof` named after the field. Loom adds `_oneof` until
   the name differs from the names of its branches and from the names already
@@ -234,6 +234,22 @@ in protocol buffers, so Loom gives each of them a unique name in the message:
 - A branch keeps its name unless an earlier field, `oneof` or branch uses it.
   Loom then adds the union field name and an underscore as a prefix, as many
   times as needed.
+
+Generated protobuf Go fields also avoid generated methods and getters. For
+example, `reset` becomes `Reset_`, and a field named `get_label` can become
+`GetLabel_` when a preceding field generates `GetLabel()`. Optional fields add
+synthetic oneofs that can affect this allocation. A branch wrapper type can
+have a different suffix from its field when it collides with a map-entry type.
+Use the emitted protobuf declarations when accessing these values directly;
+Loom's conversions, validation, and CLI use the same names. Service
+`struct:field:name` metadata does not rename protobuf fields.
+
+The Go plugin does not reserve every selector it emits. When that would make
+the generated message fail to compile, Loom adds further `_oneof` suffixes to
+its oneof names and `_field` suffixes to a field that would clash with
+`ProtoReflect`, avoiding names already in use. These repairs preserve service
+attribute names and protobuf field numbers. Designs whose generated protobuf
+Go selectors already compile keep their wire names.
 
 Fields that are not unions take their names first. The unions then take their
 names in declaration order, so the first union to use a name keeps it:

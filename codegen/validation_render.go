@@ -318,8 +318,8 @@ func renderLengthValidation(data validationRenderData) string {
 
 func renderRequiredValidation(data validationRenderData) string {
 	field := data.AttributeCtx.Scope.Field(data.RequiredAttr, data.RequiredName, true)
-	if scope, ok := data.AttributeCtx.Scope.(messageFieldScope); ok && expr.IsUnion(data.RequiredAttr.Type) {
-		field, _ = scope.UnionFieldNames(data.Attribute, data.RequiredName)
+	if scope, ok := data.AttributeCtx.Scope.(messageFieldScope); ok {
+		field, _, _ = scope.FieldNames(data.Attribute, data.RequiredName)
 	}
 	name := expr.AttributeName(data.RequiredName)
 	missing := "\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(name) + ", " + quoteString(data.Context) + "))\n}"

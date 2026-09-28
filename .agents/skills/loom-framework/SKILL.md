@@ -550,10 +550,18 @@ filter, and serialization rules belong here.
   `newProtoMessageNames` (`grpc/codegen/protobuf_message_names.go`) allocates
   their names per message, and the proto renderer, `checkMessageFields`, the
   Go transforms and the validation code (through the `messageFieldScope`
-  interface in `codegen`) all use it. Derive the Go name of a oneof or oneof
-  field from the allocated proto name with `protoGoName`, never from the
-  branch name with `Scope.Field`. The same union can take different names in
-  different messages.
+  interface in `codegen`) all use it. Pass the containing attribute, including
+  requiredness: optional primitives add synthetic oneofs to protoc's Go-name
+  reservations. `FieldNames` supplies field selectors, branch selectors, and
+  separate wrapper type suffixes. `protoGoName` is only the unallocated base;
+  never derive a message selector from it or from `Scope.Field` alone.
+  Go allocation follows descriptor order and reserves generated methods and
+  getters. Map-entry types can rename a branch wrapper without renaming its
+  field. If protoc itself would emit conflicting selectors, oneofs take extra
+  `_oneof` suffixes and a `ProtoReflect` field takes `_field` suffixes. Preserve
+  existing wire names when protoc's Go selectors are valid. The bounded model
+  in `grpc/codegen/tla/field_names` checks allocation order and repair; direct
+  tests compare against protoc descriptors and the pinned Go plugin.
 - `protoBufScope.Field` ignores service `struct:field:name` metadata without
   mutating it. Protobuf validation must use protoc field names even before
   transport normalization removes service metadata; service structs keep their

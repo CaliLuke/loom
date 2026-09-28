@@ -493,7 +493,7 @@ func checkProtoFields(att *expr.AttributeExpr, message string, seen map[expr.Use
 // and oneof fields take the unique names that newProtoMessageNames gives them.
 func checkMessageFields(message string, att *expr.AttributeExpr) {
 	obj := expr.AsObject(att.Type)
-	if conflict := newProtoMessageNames(obj).conflict; conflict != nil {
+	if conflict := newProtoMessageNames(att).conflict; conflict != nil {
 		panic(fmt.Errorf("protocol buffer message %q has two fields named %q: %s and %s", message, conflict.name, conflict.first, conflict.second))
 	}
 	numbers := make(map[uint64]protoFieldOwner, len(*obj))

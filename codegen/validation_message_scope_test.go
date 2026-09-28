@@ -38,12 +38,15 @@ func (s *messageScope) Scope() *NameScope {
 	return s.scope
 }
 
-// UnionFieldNames returns the names recorded for the union field name of the
+// FieldNames returns the names recorded for the union field name of the
 // object attribute obj: the name of the field followed by the names of the
 // branches.
-func (s *messageScope) UnionFieldNames(obj *expr.AttributeExpr, name string) (string, []string) {
+func (s *messageScope) FieldNames(obj *expr.AttributeExpr, name string) (string, []string, []string) {
 	names := s.names[expr.AsObject(obj.Type)][name]
-	return names[0], names[1:]
+	if len(names) == 0 {
+		return Goify(name, true), nil, nil
+	}
+	return names[0], names[1:], names[1:]
 }
 
 // TestValidationCodeUsesMessageFieldScopeNames checks that the validation

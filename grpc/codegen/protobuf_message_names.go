@@ -25,6 +25,10 @@ type (
 		// mapping suffix, to the protocol
 		// buffer names of the fields of its oneof, in branch order.
 		branches map[string][]string
+		// goNames maps wire field and oneof names to their allocated Go names.
+		goNames map[string]string
+		// goWrappers maps oneof branch wire names to their Go wrapper type suffixes.
+		goWrappers map[string]string
 		// conflict describes the first two attributes that are not unions
 		// and have the same protocol buffer name, if any. Such names come
 		// from the design and are not changed.
@@ -38,10 +42,10 @@ type (
 	}
 )
 
-// newProtoMessageNames returns the protocol buffer names of the fields,
-// oneofs and oneof fields of the message with the attributes obj.
+// newProtoMessageNames returns wire names and allocated Go names for the
+// fields, oneofs and branches of the object attribute att.
 //
-// An attribute that is not a union keeps its name. Such attributes take their
+// An attribute that is not a union initially keeps its name. Such attributes take their
 // names first, then the union attributes take theirs in declaration order, so
 // the first oneof or oneof field to use a name keeps it. A union attribute is
 // a oneof named after the attribute, followed by "_oneof" as many times as
@@ -51,8 +55,13 @@ type (
 // prefix, as many times as needed. A prefixed name contains an underscore, so
 // it is never a protocol buffer keyword and drops the underscore that
 // protoBufify appends to keywords. A name is taken when it, or the Go name
-// that protoc-gen-go makes of it, is used already.
-func newProtoMessageNames(obj *expr.Object) *protoMessageNames {
+// that protoc-gen-go makes of it, is used already. The Go allocation then
+// follows protoc declaration order, including optional-field synthetic oneofs.
+// If protoc would emit colliding selectors, oneofs receive more _oneof suffixes
+// and a field named ProtoReflect receives _field suffixes until the message
+// compiles. Branch wrapper type suffixes also avoid implicit map-entry types.
+func newProtoMessageNames(att *expr.AttributeExpr) *protoMessageNames {
+	obj := expr.AsObject(att.Type)
 	names := &protoMessageNames{
 		fields:   make(map[string]string, len(*obj)),
 		branches: make(map[string][]string),
@@ -106,6 +115,12 @@ func newProtoMessageNames(obj *expr.Object) *protoMessageNames {
 		}
 		names.branches[protoNameKey(nat.Name)] = branches
 	}
+	if names.conflict != nil {
+		return names
+	}
+	for !names.allocateGoNames(att) {
+		names.repairGoSelectors(obj, taken, claim)
+	}
 	return names
 }
 
@@ -126,9 +141,8 @@ func protoFieldName(name string) string {
 	return codegen.SnakeCase(protoBufify(name, false, false))
 }
 
-// protoGoName returns the name of the Go struct field that protoc-gen-go
-// generates for the protocol buffer field or oneof name, which also suffixes
-// the Go type of a oneof field. It follows the GoCamelCase function of
+// protoGoName returns the base Go name before per-message conflict resolution.
+// It follows the GoCamelCase function of
 // google.golang.org/protobuf for the names that protoFieldName returns, which
 // consist of ASCII letters, digits and underscores: an underscore followed
 // by a lowercase letter is removed, and a letter that starts a word is made
@@ -165,18 +179,20 @@ func isASCIILower(c byte) bool {
 // generates for the attribute name of the message, the field of the oneof
 // interface for a union attribute.
 func (n *protoMessageNames) goField(name string) string {
-	return protoGoName(n.field(name))
+	return n.goNames[n.field(name)]
 }
 
 // goBranches returns the names of the Go fields of the oneof fields of the
-// union attribute name of the message in branch order. protoc-gen-go also
-// names the Go wrapper type of each oneof field after the message and this
-// name.
+// union attribute name of the message in branch order. Wrapper type suffixes
+// are allocated separately; see goBranchTypes.
 func (n *protoMessageNames) goBranches(name string) []string {
 	branches := n.oneofFields(name)
+	if len(branches) == 0 {
+		return nil
+	}
 	res := make([]string, len(branches))
 	for i, branch := range branches {
-		res[i] = protoGoName(branch)
+		res[i] = n.goNames[branch]
 	}
 	return res
 }
@@ -191,4 +207,18 @@ func (n *protoMessageNames) field(name string) string {
 // union attribute name of the message in branch order.
 func (n *protoMessageNames) oneofFields(name string) []string {
 	return n.branches[protoNameKey(name)]
+}
+
+// goBranchTypes returns the wrapper type suffix of each oneof branch. A map
+// entry message can force the wrapper type to differ from its field name.
+func (n *protoMessageNames) goBranchTypes(name string) []string {
+	branches := n.oneofFields(name)
+	if len(branches) == 0 {
+		return nil
+	}
+	res := make([]string, len(branches))
+	for i, branch := range branches {
+		res[i] = n.goWrappers[branch]
+	}
+	return res
 }

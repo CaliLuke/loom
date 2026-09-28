@@ -36,6 +36,8 @@ type transformAttrs struct {
 	// also suffix the Go wrapper types of the oneof fields. The message that
 	// holds the union names them, see newProtoMessageNames.
 	oneofFields []string
+	// oneofTypes holds the corresponding wrapper type suffixes.
+	oneofTypes []string
 	// errorAware indicates that protobuf conversion can fail at runtime.
 	errorAware bool
 }
@@ -218,7 +220,12 @@ func transformScalarAssignment(source, target *expr.AttributeExpr, sourceVar, ta
 // type to target attribute of object type. It returns an error if source
 // and target are not compatible for transformation.
 func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, error) {
-	initCode, postInitCode := buildPrimitiveObjectInit(source, target, sourceVar, targetVar, ta)
+	message := source
+	if ta.proto {
+		message = target
+	}
+	names := newProtoMessageNames(message)
+	initCode, postInitCode := buildPrimitiveObjectInit(source, target, sourceVar, targetVar, names, ta)
 
 	buffer := &bytes.Buffer{}
 	assign := "="
@@ -229,11 +236,6 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	fmt.Fprintf(buffer, "%s %s &%s{%s}\n", targetVar, assign, tname, initCode)
 	fmt.Fprint(buffer, postInitCode)
 
-	message := source
-	if ta.proto {
-		message = target
-	}
-	names := newProtoMessageNames(expr.AsObject(message.Type))
 	var err error
 	walkMatches(source, target, func(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string) {
 		code, fieldErr := buildObjectFieldTransform(sourceVar, targetVar, srcMatt, tgtMatt, srcc, tgtc, n, names, ta)
@@ -250,7 +252,7 @@ func transformObject(source, target *expr.AttributeExpr, sourceVar, targetVar st
 	return buffer.String(), nil
 }
 
-func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, targetVar string, ta *transformAttrs) (string, string) {
+func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, targetVar string, names *protoMessageNames, ta *transformAttrs) (string, string) {
 	var (
 		initCode     string
 		postInitCode string
@@ -259,8 +261,14 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 		if !expr.IsPrimitive(srcc.Type) {
 			return
 		}
-		srcField := sourceVar + "." + ta.SourceCtx.Scope.Field(srcc, n, true)
+		srcFieldName := ta.SourceCtx.Scope.Field(srcc, n, true)
 		tgtField := ta.TargetCtx.Scope.Field(tgtc, n, true)
+		if ta.proto {
+			tgtField = names.goField(n)
+		} else {
+			srcFieldName = names.goField(n)
+		}
+		srcField := sourceVar + "." + srcFieldName
 		if presenceCode, handled := transformAnyPresenceObjectField(srcField, targetVar+"."+tgtField, srcc, tgtc, ta); handled {
 			postInitCode += presenceCode
 			return
@@ -315,14 +323,15 @@ func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *ex
 	tgtc = unAlias(tgtc)
 	srcField := ta.SourceCtx.Scope.Field(srcc, n, true)
 	tgtField := ta.TargetCtx.Scope.Field(tgtc, n, true)
+	if ta.proto {
+		tgtField = names.goField(n)
+	} else {
+		srcField = names.goField(n)
+	}
 	if expr.IsUnion(srcc.Type) {
-		if ta.proto {
-			tgtField = names.goField(n)
-		} else {
-			srcField = names.goField(n)
-		}
 		ta = dupTransformAttrs(ta)
 		ta.oneofFields = names.goBranches(n)
+		ta.oneofTypes = names.goBranchTypes(n)
 	}
 	srcValue := sourceVar + "." + srcField
 	tgtValue := targetVar + "." + tgtField

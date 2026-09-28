@@ -374,11 +374,16 @@ completion shapes are explicit generation limitations.
   `Type("U", OneOf(A, B))` passed to `Field(n, ...)` numbers its branches the
   same way.
 - On gRPC, the fields, `oneof` names and `oneof` fields of a message share one
-  namespace. A field that is not a union keeps its name. A `oneof` that
+  namespace. A field that is not a union normally keeps its name. A `oneof` that
   collides takes `_oneof` suffixes, and a branch that collides with an earlier
   name takes the union field name as a prefix, such as `b_int64`. Protocol
   buffer clients see the prefixed names; the service type keeps the branch
-  names.
+  names. Generated protobuf Go selectors can also take underscores to avoid
+  methods and getters; wrapper type names can differ from their fields. Use
+  the emitted Go declarations when accessing protobuf values directly. Loom
+  adds further `_oneof` suffixes if protoc would emit conflicting oneof
+  getters, and `_field` suffixes for a field that would clash with
+  `ProtoReflect`. Service attribute names and field numbers stay unchanged.
 - gRPC transport files alias service imports that collide with framework
   imports, such as `protojson` or `strconv`. Keep the service name; its package
   path and protocol buffer names do not change.

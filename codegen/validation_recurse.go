@@ -85,9 +85,9 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 	for _, nat := range *(expr.AsObject(att.Type)) {
 		field := attCtx.Scope.Field(nat.Attribute, nat.Name, true)
 		fieldCtx := attCtx
-		if isMessage && expr.IsUnion(nat.Attribute.Type) {
+		if isMessage {
 			fieldCtx = attCtx.Dup()
-			field, fieldCtx.oneofFields = messageScope.UnionFieldNames(att, nat.Name)
+			field, fieldCtx.oneofFields, fieldCtx.oneofTypes = messageScope.FieldNames(att, nat.Name)
 		}
 		tgt := target + "." + field
 		ctx := context + "." + expr.AttributeName(nat.Name)
@@ -250,7 +250,11 @@ func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCt
 		val := validateAttribute(branchCtx, vatt, put, "v."+fieldName, context+".value", true, view, seen)
 		if val != "" {
 			tref := attCtx.Scope.Ref(&expr.AttributeExpr{Type: put}, attCtx.DefaultPkg)
-			types = append(types, tref+"_"+fieldName)
+			typeName := fieldName
+			if i < len(attCtx.oneofTypes) {
+				typeName = attCtx.oneofTypes[i]
+			}
+			types = append(types, tref+"_"+typeName)
 			vals = append(vals, val)
 		}
 	}

@@ -169,7 +169,7 @@ func unwrapAttr(att *expr.AttributeExpr) *expr.AttributeExpr {
 // wraps union, which is also the name of its oneof: "field" followed by
 // "_oneof" as many times as needed to differ from the branch names.
 func unionWrapperFieldName(union *expr.Union) string {
-	names := newProtoMessageNames(&expr.Object{{Name: "field", Attribute: &expr.AttributeExpr{Type: union}}})
+	names := newProtoMessageNames(&expr.AttributeExpr{Type: &expr.Object{{Name: "field", Attribute: &expr.AttributeExpr{Type: union}}}})
 	return names.field("field")
 }
 
@@ -193,7 +193,7 @@ func unionWrapperField(att *expr.AttributeExpr) *expr.NamedAttributeExpr {
 // the oneof of a wrapped union or "Field".
 func wrapperGoFieldName(att *expr.AttributeExpr) string {
 	if nat := unionWrapperField(att); nat != nil {
-		return newProtoMessageNames(expr.AsObject(att.Type)).goField(nat.Name)
+		return newProtoMessageNames(att).goField(nat.Name)
 	}
 	return "Field"
 }
@@ -208,6 +208,8 @@ func wrappedUnionTransformAttrs(att *expr.AttributeExpr, ta *transformAttrs) *tr
 		return ta
 	}
 	ta = dupTransformAttrs(ta)
-	ta.oneofFields = newProtoMessageNames(expr.AsObject(att.Type)).goBranches(nat.Name)
+	names := newProtoMessageNames(att)
+	ta.oneofFields = names.goBranches(nat.Name)
+	ta.oneofTypes = names.goBranchTypes(nat.Name)
 	return ta
 }

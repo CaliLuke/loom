@@ -41,7 +41,7 @@ func protoJSONExampleR(att *expr.AttributeExpr, r *expr.ExampleGenerator, seen m
 	}
 	switch actual := att.Type.(type) {
 	case *expr.Object:
-		return protoJSONObjectExample(actual, r, seen)
+		return protoJSONObjectExample(att, r, seen)
 	case *expr.Union:
 		return protoJSONUnionExample(att, actual, r, seen)
 	case *expr.Array:
@@ -56,8 +56,9 @@ func protoJSONExampleR(att *expr.AttributeExpr, r *expr.ExampleGenerator, seen m
 // protoJSONObjectExample returns the example of the message with the fields
 // obj. A union field is set by the name of the oneof field of its selected
 // branch.
-func protoJSONObjectExample(obj *expr.Object, r *expr.ExampleGenerator, seen map[string]struct{}) map[string]any {
-	names := newProtoMessageNames(obj)
+func protoJSONObjectExample(att *expr.AttributeExpr, r *expr.ExampleGenerator, seen map[string]struct{}) map[string]any {
+	obj := expr.AsObject(att.Type)
+	names := newProtoMessageNames(att)
 	res := make(map[string]any, len(*obj))
 	for _, nat := range *obj {
 		if union := expr.AsUnion(nat.Attribute.Type); union != nil {
@@ -79,7 +80,7 @@ func protoJSONObjectExample(obj *expr.Object, r *expr.ExampleGenerator, seen map
 // example.
 func protoJSONUnionExample(att *expr.AttributeExpr, union *expr.Union, r *expr.ExampleGenerator, seen map[string]struct{}) any {
 	name := union.Name()
-	names := newProtoMessageNames(&expr.Object{{Name: name, Attribute: att}})
+	names := newProtoMessageNames(&expr.AttributeExpr{Type: &expr.Object{{Name: name, Attribute: att}}})
 	key, value := protoJSONOneofExample(union, names.oneofFields(name), r, seen)
 	if key == "" {
 		return nil
@@ -150,7 +151,7 @@ func protoJSONValue(att *expr.AttributeExpr, value any) (any, bool) {
 	}
 	switch actual := att.Type.(type) {
 	case *expr.Object:
-		return protoJSONObjectValue(actual, value)
+		return protoJSONObjectValue(att, value)
 	case *expr.Array:
 		return protoJSONArrayValue(actual, value)
 	case *expr.Map:
@@ -163,12 +164,13 @@ func protoJSONValue(att *expr.AttributeExpr, value any) (any, bool) {
 // protoJSONObjectValue returns the object value of the message with the
 // fields obj with its keys renamed to the protocol buffer names, see
 // protoJSONValue.
-func protoJSONObjectValue(obj *expr.Object, value any) (any, bool) {
+func protoJSONObjectValue(att *expr.AttributeExpr, value any) (any, bool) {
 	m, ok := value.(map[string]any)
 	if !ok {
 		return value, false
 	}
-	names := newProtoMessageNames(obj)
+	obj := expr.AsObject(att.Type)
+	names := newProtoMessageNames(att)
 	res := make(map[string]any, len(m))
 	changed := false
 	for _, nat := range *obj {

@@ -322,13 +322,13 @@ func transformUnionToProto(source, target *expr.AttributeExpr, sourceVar, target
 	cases := make([]map[string]any, 0, len(tdata.SourceValues))
 	for i, sv := range tdata.SourceValues {
 		tv := tdata.TargetValues[i]
-		fieldName := oneofFieldName(ta, i, tv, ta.TargetCtx)
+		fieldName, typeName := oneofNames(ta, i, tv, ta.TargetCtx)
 		cases = append(cases, map[string]any{
 			"typeTag":           expr.UnionVariantTag(sv),
 			"sourceFieldName":   codegen.Goify(sv.Name, true),
 			"sourceAttr":        sv.Attribute,
 			"targetAttr":        tv.Attribute,
-			"targetWrapperType": ta.message + "_" + fieldName,
+			"targetWrapperType": ta.message + "_" + typeName,
 			"targetFieldName":   fieldName,
 		})
 	}
@@ -361,7 +361,7 @@ func transformUnionFromProto(source, target *expr.AttributeExpr, sourceVar, targ
 	cases := make([]map[string]any, 0, len(tdata.SourceValues))
 	for i, sv := range tdata.SourceValues {
 		tv := tdata.TargetValues[i]
-		sourceFieldName := oneofFieldName(ta, i, sv, ta.SourceCtx)
+		sourceFieldName, _ := oneofNames(ta, i, sv, ta.SourceCtx)
 		targetFieldName := codegen.Goify(tv.Name, true)
 		cases = append(cases, map[string]any{
 			"sourceValueTypeRef": tdata.SourceValueTypeRefs[i],
@@ -551,7 +551,8 @@ func buildProtoUnionTypeRefs(source *expr.AttributeExpr, ta *transformAttrs, src
 
 func buildSourceUnionTypeRefs(ta *transformAttrs, src *expr.Union, sourceValueTypeRefs []string) {
 	for i, v := range src.Values {
-		sourceValueTypeRefs[i] = ta.message + "_" + oneofFieldName(ta, i, v, ta.SourceCtx)
+		_, typeName := oneofNames(ta, i, v, ta.SourceCtx)
+		sourceValueTypeRefs[i] = ta.message + "_" + typeName
 	}
 }
 
@@ -575,16 +576,19 @@ func buildTargetUnionWrapperRefs(target *expr.AttributeExpr, ta *transformAttrs,
 	}
 }
 
-// oneofFieldName returns the name of the Go field of the oneof field that
-// holds the branch i, nat, of the union being converted in the protocol
-// buffer context ctx, which also suffixes the Go wrapper type of the oneof
-// field. It is the name that the message that holds the union gives the oneof
-// field, or the name of the branch when ta does not hold one.
-func oneofFieldName(ta *transformAttrs, i int, nat *expr.NamedAttributeExpr, ctx *codegen.AttributeContext) string {
+// oneofNames returns the branch field selector and wrapper type suffix in
+// its containing message. A standalone union without recorded names uses
+// the protobuf scope's standalone field name for both.
+func oneofNames(ta *transformAttrs, i int, nat *expr.NamedAttributeExpr, ctx *codegen.AttributeContext) (string, string) {
+	field := ctx.Scope.Field(nat.Attribute, nat.Name, true)
 	if i < len(ta.oneofFields) {
-		return ta.oneofFields[i]
+		field = ta.oneofFields[i]
 	}
-	return ctx.Scope.Field(nat.Attribute, nat.Name, true)
+	typeName := field
+	if i < len(ta.oneofTypes) {
+		typeName = ta.oneofTypes[i]
+	}
+	return field, typeName
 }
 
 // unionCommonPkg reports whether the union values are all user types of one

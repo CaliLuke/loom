@@ -136,7 +136,7 @@ func TestNewProtoMessageNames(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			names := newProtoMessageNames(c.obj)
+			names := newProtoMessageNames(&expr.AttributeExpr{Type: c.obj})
 			for field, want := range c.fields {
 				assert.Equal(t, want, names.fields[field], "field %q", field)
 			}
