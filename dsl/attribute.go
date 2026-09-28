@@ -187,8 +187,7 @@ func Attribute(name string, args ...any) {
 // type when the branch closes a recursive cycle.
 func appendUnionBranch(union *expr.Union, name string, attr *expr.AttributeExpr) {
 	if _, ok := attr.Type.(expr.UserType); !ok {
-		att := expr.DupAtt(attr)
-		att.Type = attr.Type
+		att := copyAttributeKeepingType(attr)
 		attr.Type = &expr.UserTypeExpr{AttributeExpr: att, TypeName: union.TypeName + expr.Title(expr.AttributeName(name))}
 	}
 	union.Values = append(union.Values, &expr.NamedAttributeExpr{Name: name, Attribute: attr})

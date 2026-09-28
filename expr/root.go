@@ -230,6 +230,9 @@ func (r *RootExpr) Validate() error {
 
 	for _, ut := range r.Types {
 		verr.Merge(validateStructMeta("", ut.Attribute().Meta, ut))
+		if union := AsUnion(ut); union != nil && hasInlineUnionCycle(union) {
+			verr.Add(ut, "recursive OneOf branch cycle in %q is not supported; place the recursive reference inside an object field", union.Name())
+		}
 	}
 	for _, rt := range r.ResultTypes {
 		verr.Merge(validateStructMeta("", rt.Attribute().Meta, rt))

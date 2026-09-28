@@ -368,6 +368,9 @@ completion shapes are explicit generation limitations.
 ## Unions, Views, and Projections
 
 - `OneOf(...)` works as both a named union declaration and a type constructor.
+- Named union branches can refer to types declared later. Recursive unions
+  must pass through an object field; union branch cycles, including cycles
+  through arrays or maps, are rejected during design validation.
 - For gRPC, `Field(n, "name", OneOf(A, B))` gives the branches the numbers n
   and n+1, so leave those numbers free. Use the block form with a `Field` for
   each branch when the branches can be reordered or removed. A named union

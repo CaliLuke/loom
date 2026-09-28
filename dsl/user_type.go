@@ -131,8 +131,7 @@ func namedUnionCopy(union *expr.Union, name string) *expr.Union {
 	cloned.ExplicitTypeName = true
 	cloned.Values = make([]*expr.NamedAttributeExpr, len(union.Values))
 	for index, branch := range union.Values {
-		attribute := expr.DupAtt(branch.Attribute)
-		attribute.Type = branch.Attribute.Type
+		attribute := copyAttributeKeepingType(branch.Attribute)
 		cloned.Values[index] = &expr.NamedAttributeExpr{Name: branch.Name, Attribute: attribute}
 	}
 	return &cloned

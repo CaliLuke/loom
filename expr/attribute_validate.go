@@ -340,6 +340,9 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 		for _, ut := range u.Values {
 			verr.Merge(ut.Attribute.Validate(ctx, parent))
 		}
+		if hasInlineUnionCycle(u) {
+			verr.Add(parent, "%srecursive OneOf branch cycle in %q is not supported; place the recursive reference inside an object field", ctx, u.Name())
+		}
 	}
 	return verr
 }

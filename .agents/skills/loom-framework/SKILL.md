@@ -786,6 +786,15 @@ filter, and serialization rules belong here.
   (`buildStreamAttributeData`), and as a projected type in the views package,
   where it takes the `<Name>View` name (`collectViewUnionTypes`). Never emit a
   type definition for the user type.
+- Copies of union branch attributes must keep their canonical type references
+  without traversing unfinished definitions. Use the private DSL helper
+  `copyAttributeKeepingType` for named unions, promoted branches and view
+  attributes. It isolates metadata entries, validation records and docs while
+  preserving type identity. Union branch cycles, including cycles through
+  collections, are rejected during design validation because their transforms expand inline; recursion
+  through object fields remains supported. The bounded copy and expansion
+  models under `dsl/tla/union_copy` reproduce both failures and check the copy
+  ownership and cycle-rejection rules.
 - The view conversions of a collection element or of a nested result type
   call the conversions generated for that result type,
   `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the

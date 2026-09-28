@@ -139,6 +139,12 @@ the same `Nullable()` DSL contract.
 `OneOf` defines tagged union values. It can be used as a named attribute inside
 an object DSL or as a data type for payloads, results, and attributes.
 
+Named union branches may refer to types declared later. Recursion must pass
+through an object field. A union branch cycle without an object boundary, such
+as `Type("Tree", OneOf(Leaf, "Tree"))`, is rejected during design validation,
+even if it passes through an array or map. To represent a recursive tree, define
+a node object with a union field that refers to the node or a leaf.
+
 ```go
 var Created = Type("Created", func() {
     Field(1, "id", String)
