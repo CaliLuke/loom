@@ -32,6 +32,9 @@ func TestRequestValidation(t *testing.T) {
 		called                   bool
 	}{
 		{"valid", "{\"data\":\"aGk=\",\"optional\":\"aGV5\",\"chain\":\"aGk=\",\"choice\":\"aGk=\",\"items\":[\"aGk=\"],\"lookup\":{\"key\":\"aGk=\"},\"nullable\":\"aGk=\",\"label\":\"hi\"}", "fault", "observed", 500, true},
+		{"native_empty", "{\"data\":\"aGk=\",\"native_default\":\"\"}", "fault", "observed", 500, true},
+		{"defaults_present", "{\"data\":\"aGk=\",\"native_default\":\"aGV5\",\"defaulted\":\"aGV5\",\"chain_default\":\"aGV5\",\"nullable_default\":\"aGV5\"}", "fault", "observed", 500, true},
+		{"default_null", "{\"data\":\"aGk=\",\"nullable_default\":null}", "fault", "observed", 500, true},
 		{"minimum", "{\"data\":\"aA==\"}", "invalid_length", "validation error", 400, false},
 		{"maximum", "{\"data\":\"bG9uZw==\"}", "invalid_length", "validation error", 400, false},
 		{"missing", "{}", "missing_field", "Missing required field: data", 400, false},
@@ -69,8 +72,22 @@ func TestRequestValidation(t *testing.T) {
 				if !tc.called {
 					t.Error("invalid request invoked service")
 				}
-				if string(got.Data) != "hi" || got.Defaulted != "hi" {
+				native, named := "hi", "hi"
+				if tc.name == "native_empty" {
+					native = ""
+				}
+				if tc.name == "defaults_present" {
+					native, named = "hey", "hey"
+				}
+				if string(got.Data) != "hi" || string(got.Defaulted) != named || string(got.NativeDefault) != native || string(got.ChainDefault) != named || got.NativeDefault == nil {
 					t.Errorf("decoded payload=%+v", got)
+				}
+				if tc.name == "default_null" {
+					if !got.NullableDefault.IsNull() {
+						t.Error("explicit null became a default")
+					}
+				} else if value, ok := got.NullableDefault.Value(); !ok || string(value) != named {
+					t.Errorf("nullable default=%q present=%t", value, ok)
 				}
 			default:
 				if tc.called {

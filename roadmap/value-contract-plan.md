@@ -41,7 +41,11 @@ comparison of 13 retained cases plus four new probes. Exactly five generated
 files change across three probes; the minimal unpreserved request control and
 all retained cases stay byte-identical. Full lint, tests and generated-code
 quality gates pass. The separate invalid byte-default transform discovered in
-verification is tracked by #577 and remains the next repair.
+verification is fixed by #577 at the shared default-transform owners. Its
+[repair evidence](../codegen/bytes_defaults.md) records 448 compiled layouts,
+64 presence/context cases, generated runtime coverage and a passing 12-probe
+comparison (48 runs, 18 intended generated changes). The next implementation is
+#570's shared semantic core, supported by the #569 candidate proofs.
 
 ## Dependency tickets and commit order
 
@@ -59,7 +63,7 @@ Reviewers never review a slice they implemented. Shared checkout:
 | 3 / M1 | [#568](https://github.com/CaliLuke/loom/issues/568) | Bounded pipeline ordering and cache-ownership model | Independent baseline/model evidence |
 | 4 / M2 | [#575](https://github.com/CaliLuke/loom/issues/575) | Reviewed contract clarifications, proof navigation and maintenance/cleanup process | M1; explicit counterexamples for #574 and #576 |
 | 5 / M2 | [#576](https://github.com/CaliLuke/loom/issues/576) | Named Bytes validation pointer conversion and generated compile regression | M1; separate atomic correctness repair; preparation may overlap #569 |
-| 6 / M2 | [#577](https://github.com/CaliLuke/loom/issues/577) | Byte-default transform zero checks and generated compile/behavior regression | #576; independent default-transform owner |
+| 6 / M2 | [#577](https://github.com/CaliLuke/loom/issues/577) | Byte-default physical type/presence handling and generated compile/behavior regression | #576; independent default-transform owner |
 | 7 / M2 | [#569](https://github.com/CaliLuke/loom/issues/569) | Universal candidate Lean semantics and reviewed theorem statements | M1, #575 |
 | 8 / M2 | [#570](https://github.com/CaliLuke/loom/issues/570) | Go semantic API/projection, shared value and representation-plan carriers, executable Lean correspondence and CI | M1, #575, #569, #577 |
 | 9 / M2 | [#574](https://github.com/CaliLuke/loom/issues/574) | Byte JSON grammar/length schemas and complete representation-specific component ownership | Reviewed #575 policy; #570 target plans; #576 named-byte runtime probe |
@@ -124,6 +128,29 @@ Installed reusable toolchains are not task output.
 A newly discovered conflict between runtime behavior and the accepted design
 is a **Design Blocker**. Record the counterexample and return to the design;
 do not silently widen runtime acceptance or approve a changed golden.
+
+## Architecture-first execution
+
+The user requires execution to converge on the shared architecture rather than
+expand into successive local repairs. Finish the already implemented #577 scope
+with its existing verification and independent review, then proceed to #569/#570
+and the planned consumer migrations. Do not add newly discovered local defects
+as prerequisite patch tickets. Record their concrete failures, assign them to
+the shared semantic or representation-plan owner, and make them acceptance cases
+for that architectural implementation. A check failure still needs an honest
+disposition; it is not permission to hide a regression or waive a required gate.
+
+In particular, the named nullable default in a result view that loses nullability
+before HTTP/JSON-RPC transformation belongs to #570's occurrence/shape propagation
+acceptance. Preserve the reproduction and test the complete declaration-to-plan
+path when implementing that owner. Do not repair individual renderer call sites.
+
+Proof work must converge on the executable resolver/projection contracts needed
+by #570. Keep the approved domain and honest boundary claims, retain discovered
+counterexamples, and use external-codec/compiler tests for those explicit
+boundaries. Do not turn every incidental runtime detail into another prerequisite
+model expansion. The next architectural delivery must establish the common owner
+and remove duplicated decisions from its first consumers.
 
 ## Formal assurance requirements
 
@@ -245,7 +272,7 @@ Checklist
 
 - [x] Complete #575 as a design-only commit: record complete-first partial-union rules, exact JSON Bytes grammar/length policy, complete schemas per representation, JSON-primary canonical naming and the narrow derived-reference compatibility exception. Independently review the integrated design and dependency order; run `go run ./scripts/docscheck` and `git diff --check` before commit/push. Proof navigation is linked from the framework skill, and AGENTS.md owns the manual artifact cleanup process. Candidate proofs may model this chosen contract before the production schema correction; no current-schema correctness claim follows.
 - [x] Complete #576 separately: add a failing direct regression at the shared validation seam (`codegen/validation_render.go`, `codegen/validation_test.go` or a focused new test file) plus a generated HTTP named-Bytes compile regression alongside `http/codegen/optional_validation_compile_test.go`. Inspect actual pointer/value/type references, then fix the conversion owner without forcing pointer semantics. Cover required/optional aliases and all affected transport callers, compare parent/candidate generated bytes and compile results, run targeted codegen/transport tests plus lint/test, and obtain independent exact-diff review before its one commit/push.
-- [ ] Complete #577 separately after #576: reproduce invalid native/named Bytes default comparisons at `codegen/go_transform.go` with compiled direct and generated HTTP/JSON-RPC tests before changing the default-transform owner. Preserve nil/empty/nonempty and pointer/Optional/default context semantics; cover comparable scalar and raw-JSON controls. Restore the full byte-default transport cases discovered during #576 verification. Compare common parent/candidate fixtures, testdata and new probes twice with exact bytes and compile/vet results, run required gates, obtain independent exact-diff review, then commit/push. A matching golden containing an invalid slice equality is not passing compilation evidence.
+- [x] Complete #577 separately after #576: reproduce invalid native/named Bytes default comparisons at `codegen/go_transform.go` and nullable named-byte default type inference at `codegen/go_transform_presence.go` with compiled direct and generated HTTP/JSON-RPC tests before changing the default-transform owners. Verify generated form requests apply declared defaults to omitted native/named bytes even when the source context does not apply defaults; preserve explicitly supplied empty/nonempty bytes. Preserve null and supplied values, and honor the target default/pointer policy for Nullable just as for Optional/native fields; cover comparable scalar and raw-JSON controls. Restore the full byte-default transport cases discovered during #576 verification. Compare common parent/candidate fixtures, testdata and new probes twice with exact bytes and compile/vet results, run required gates, obtain independent exact-diff review, then commit/push. A matching golden containing an invalid slice equality is not passing compilation evidence.
 - [ ] Add failing regressions at existing seams in `expr/example_canonicalization_test.go` and example tests before changing behavior. Pin legacy public adapter outputs for partial, ambiguous, invalid and unsupported values separately from new built-in guarantees.
 - [ ] Implement and prove candidate semantics in planned `ValueContract/Resolve.lean`, `Projection.lean` and `Proofs.lean` under the Lean project. Define target validity and decoding independently of the projector; prove soundness and progress for complete representable values, with legitimate target field loss retained in the domain. Prove failure/source-selection properties and explicit finite recursive-value cases. Expand `AxiomAudit.lean` to require every named candidate theorem, and run `make value-contract-proof`. Have a fresh reviewer check theorem statements, definitions, non-vacuous premises and the axiom report before using them as implementation guidance.
 - [ ] Introduce the documented opaque result/query declarations in proposed `expr/resolved_value.go`; then add table-driven resolver tests in `expr/resolved_value_test.go` before implementing the new operations. Cover effective method copies, independent documentation bodies, explicit transport overrides, absent source versus explicit null, wrong types, cycles, collisions, recursion and custom-materialization failure.

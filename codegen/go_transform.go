@@ -428,7 +428,7 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 	defaultLiteral := defaultValueLiteral(tgtc, tdef, ta)
 
 	switch {
-	case ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type) || isRawJSONValue(srcc):
+	case ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type) || defaultValueUsesNil(srcc):
 		stmt := &jen.Statement{}
 		stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
 			switch {
@@ -448,13 +448,10 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 		stmt := &jen.Statement{}
 		stmt.BlockFunc(func(group *jen.Group) {
 			zeroType := ""
-			nilable := expr.IsAny(tgtc.Type)
+			nilable := defaultValueUsesNil(tgtc)
 			if !nilable {
 				if typeName, _ := GetMetaType(tgtc); typeName != "" {
-					nilable = typeStringIsNilable(typeName)
-					if !nilable {
-						zeroType = typeName
-					}
+					zeroType = typeName
 				} else if _, ok := tgtc.Type.(expr.UserType); ok {
 					zeroType = ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc))
 				} else {
@@ -619,10 +616,15 @@ func buildObjectLiteralExpr(name string, pointer bool, fields []objectInitField)
 	return stmt
 }
 
-// typeStringIsNilable takes a go type as a string and checks for a '[]' or
-// 'map[' prefix to see if it's a nilable primitive type.
-func typeStringIsNilable(typeName string) bool {
-	return strings.HasPrefix(typeName, "[]") || strings.HasPrefix(typeName, "map[")
+// defaultValueUsesNil classifies physical default storage. Metadata overrides
+// take precedence over the semantic kind; jsontext.Value is a known named slice.
+// Supplied nonnil empty slices are values and must never trigger a default.
+func defaultValueUsesNil(att *expr.AttributeExpr) bool {
+	if typeName, _ := GetMetaType(att); typeName != "" {
+		return strings.HasPrefix(typeName, "[]") || strings.HasPrefix(typeName, "map[") || typeName == "jsontext.Value"
+	}
+	kind := unalias(att.Type).Kind()
+	return kind == expr.BytesKind || kind == expr.AnyKind
 }
 
 // transformArray generates Go code to transform source array to target array.

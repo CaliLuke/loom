@@ -126,10 +126,18 @@ func bytesValidationPayload(blob, chain, choice, label, arbitrary expr.DataType,
 		}
 		Attribute("data", blob)
 		Attribute("optional", blob)
-		Attribute("defaulted", String, func() {
-			// Byte defaults exercise a separate transformer defect (#577).
-			// Their validation layouts remain covered in codegen tests.
-			Default("hi")
+		Attribute("defaulted", blob, func() {
+			Default([]byte("hi"))
+		})
+		Attribute("native_default", Bytes, func() {
+			Default([]byte("hi"))
+		})
+		Attribute("chain_default", chain, func() {
+			Default([]byte("hi"))
+		})
+		Attribute("nullable_default", chain, func() {
+			Nullable()
+			Default([]byte("hi"))
 		})
 		Attribute("chain", chain)
 		Attribute("choice", choice)
@@ -144,4 +152,27 @@ func bytesValidationPayload(blob, chain, choice, label, arbitrary expr.DataType,
 		Attribute("union", OneOf(blob, label))
 		Required("data")
 	}
+}
+
+// BytesDefaultFormDSL exercises defaults without JSON presence wrappers.
+func BytesDefaultFormDSL() {
+	API("bytesdefaults", func() {})
+	blob := Type("FormBlob", Bytes)
+	Service("bytesdefaults", func() {
+		Method("check", func() {
+			Payload(func() {
+				Attribute("marker", String)
+				Attribute("native", Bytes, func() {
+					Default([]byte("hi"))
+				})
+				Attribute("named", blob, func() {
+					Default([]byte("hi"))
+				})
+			})
+			HTTP(func() {
+				POST("/defaults")
+				FormRequest()
+			})
+		})
+	})
 }

@@ -178,13 +178,11 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		group.Add(conversion).Line()
 		group.Add(presenceValueAssignment(targetValue, temp, targetVar, "NullableValue", userObject, ta.TargetCtx))
 	})
-	if defaultValue != nil {
+	if defaultValue != nil && ta.TargetCtx.UseDefault && !ta.TargetCtx.Pointer {
 		value := defaultValueLiteral(targetValue, defaultValue, ta)
-		assignment := targetVar + " = loom.NullableValue(" + value + ")"
-		if isNamedCollection(targetValue) {
-			assignment = targetVar + ".SetValue(" + value + ")"
-		}
-		stmt.Else().Block(Expr(assignment))
+		// The declared wrapper owns its value type. Generic constructor inference
+		// would turn a named Bytes default into Nullable[[]byte].
+		stmt.Else().Block(Expr(targetVar + ".SetValue(" + value + ")"))
 	}
 	return stmt, nil
 }

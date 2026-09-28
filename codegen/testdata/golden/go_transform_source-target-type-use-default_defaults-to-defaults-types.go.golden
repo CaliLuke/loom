@@ -16,11 +16,8 @@ func transform() {
 			target.Int = 100
 		}
 	}
-	{
-		var zero jsontext.Value
-		if target.RawJSON == zero {
-			target.RawJSON = jsontext.Value{0x66, 0x6f, 0x6f}
-		}
+	if source.RawJSON == nil {
+		target.RawJSON = jsontext.Value{0x66, 0x6f, 0x6f}
 	}
 	{
 		var zero string
@@ -28,11 +25,8 @@ func transform() {
 			target.String = "foo"
 		}
 	}
-	{
-		var zero []byte
-		if target.Bytes == zero {
-			target.Bytes = []byte{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72}
-		}
+	if source.Bytes == nil {
+		target.Bytes = []byte{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72}
 	}
 	if source.Any == nil {
 		target.Any = loom.JSONValue("\"something\"")

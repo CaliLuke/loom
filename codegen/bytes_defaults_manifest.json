@@ -1,0 +1,279 @@
+{
+  "baseline": "8714f0d2008e565c1e41c71a2b14388cd359a3c1",
+  "probes": [
+    {
+      "id": "http-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "CollectionBodyDefaultsDSL",
+      "coverage": [
+        "HTTP collection defaults",
+        "selected Body",
+        "boolean map keys"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "JSONRPCCollectionBodyDefaultsDSL",
+      "coverage": [
+        "JSON-RPC collection defaults",
+        "selected Body"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "protojson",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "CLIProtoJSONDSL",
+      "coverage": [
+        "protobuf field mapping",
+        "nested oneofs",
+        "collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-ticktock",
+      "fixture": "http/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "http",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-ticktock",
+      "fixture": "jsonrpc/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "jsonrpc",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-any-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "HTTPAnyDefaultsDSL",
+      "coverage": [
+        "native/named raw JSON defaults",
+        "Nullable constructor and default context controls"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-any-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "JSONRPCAnyDefaultsDSL",
+      "coverage": [
+        "native/named raw JSON defaults",
+        "Nullable constructor and default context controls"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "named-bytes-http",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesValidationHTTPDSL",
+      "coverage": [
+        "byte defaults, aliases and presence"
+      ],
+      "baseline": {
+        "phase": "build",
+        "contains": "slice can only be compared to nil",
+        "issue": "https://github.com/CaliLuke/loom/issues/577"
+      },
+      "candidate": {}
+    },
+    {
+      "id": "unpreserved-bytes-http",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesValidationHTTPUnpreservedDSL",
+      "coverage": [
+        "byte defaults, aliases and presence"
+      ],
+      "baseline": {
+        "phase": "build",
+        "contains": "slice can only be compared to nil",
+        "issue": "https://github.com/CaliLuke/loom/issues/577"
+      },
+      "candidate": {}
+    },
+    {
+      "id": "named-bytes-rpc",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesValidationJSONRPCDSL",
+      "coverage": [
+        "byte defaults, aliases and presence"
+      ],
+      "baseline": {
+        "phase": "build",
+        "contains": "slice can only be compared to nil",
+        "issue": "https://github.com/CaliLuke/loom/issues/577"
+      },
+      "candidate": {}
+    },
+    {
+      "id": "minimal-unpreserved-bytes-http",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesValidationHTTPMinimalDSL",
+      "coverage": [
+        "unchanged no-default request control"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "bytes-form-defaults",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesDefaultFormDSL",
+      "coverage": [
+        "native form fields without JSON presence",
+        "nil versus nonnil empty defaults"
+      ],
+      "baseline": {
+        "phase": "build",
+        "contains": "slice can only be compared to nil",
+        "issue": "https://github.com/CaliLuke/loom/issues/577"
+      },
+      "candidate": {}
+    }
+  ],
+  "intended_differences": [
+    {
+      "probe": "http-any-defaults",
+      "path": "gen/http/defaults/client/cli.go",
+      "before": "5b8d4f8f263cf1ccca55b9a137ab268a63506df4c06d8908591d55fd9b948355",
+      "after": "40e0d3f6ef8c001110e2b685054bea0a45c2d9fddfe53947caa8f65d088d517d",
+      "reason": "Use the declared Nullable wrapper to assign its default without inferring a different generic element type."
+    },
+    {
+      "probe": "http-any-defaults",
+      "path": "gen/http/defaults/client/types.go",
+      "before": "8dfc3ce3f733b3e175b0581747d10833c2f24ef176fdcb270be142de0d75aa65",
+      "after": "7fc87b9cff568c8082df3aef42cfcfd5bbac06f02d0610198bcafb8a86b81460",
+      "reason": "Use the declared Nullable wrapper to assign its default without inferring a different generic element type."
+    },
+    {
+      "probe": "http-any-defaults",
+      "path": "gen/http/defaults/server/types.go",
+      "before": "063a0d868884e0fffea13eea2f0ef66adf4269ceace01a7fe6eba63a70b3e8ed",
+      "after": "f576419236110cbf290cc9ceec0edd2d2c289473b34eed9a4c731f3f1ff742f4",
+      "reason": "Use the declared Nullable wrapper to assign its default without inferring a different generic element type."
+    },
+    {
+      "probe": "jsonrpc-any-defaults",
+      "path": "gen/jsonrpc/defaults/client/cli.go",
+      "before": "b633eef93984bf037b8a3e2b7fd9799dbbc458993f56ad2153d58e9cb2124b0f",
+      "after": "0734e0b170cf5fd1981c5bb7da00241a19971a911b52c9e64badb1b30567cef6",
+      "reason": "Use the declared Nullable wrapper to assign its default without inferring a different generic element type."
+    },
+    {
+      "probe": "jsonrpc-any-defaults",
+      "path": "gen/jsonrpc/defaults/client/types.go",
+      "before": "3af9272e39375cb9159f8d309d86d787311c0966351dc913f5d5d54e676af0ad",
+      "after": "a9d8a63da95a972b9012564985b91665d74a623880d90f936bbaedf78613e9ce",
+      "reason": "Use the declared Nullable wrapper to assign its default without inferring a different generic element type."
+    },
+    {
+      "probe": "jsonrpc-any-defaults",
+      "path": "gen/jsonrpc/defaults/server/types.go",
+      "before": "e9b78e9170d413799092628a69a35a996d5f42dc85e51fc4dd5ebba5c1232ac9",
+      "after": "82e1c68b7e95408655f6c8689d390ecea331aa2345eaddfcb5d3935a8003a966",
+      "reason": "Use the declared Nullable wrapper to assign its default without inferring a different generic element type."
+    },
+    {
+      "probe": "named-bytes-http",
+      "path": "gen/http/bytescheck/client/cli.go",
+      "before": "ddfad136f19d6cecd7cd4c61aa33664dd3ae82fa5eea26eb8623af7bf5aea2de",
+      "after": "fb42dc04ff849f07659ffb5c6d11ceb6394df47186b9062a26455f494ee4c5cc",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "named-bytes-http",
+      "path": "gen/http/bytescheck/client/types.go",
+      "before": "35e750c8e94db5a7c8eeebc485c7d7d3cb2e20f1f36ac4cc3e454f9337c8e147",
+      "after": "bb7ab34cdf19b23bbd3bba1a09e0bdca0f30949a531169023e1b5e9243f35624",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "named-bytes-http",
+      "path": "gen/http/bytescheck/server/types.go",
+      "before": "25fc3a500a8e6cce5a43eebc8da8911189467d6a32912c55a45e2b34bef39b15",
+      "after": "f94ab9a7c4d31b3761dc181861b459dc452df0d5616a507e780d436cc140c89e",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "unpreserved-bytes-http",
+      "path": "gen/http/bytescheck/client/cli.go",
+      "before": "16f087d86730fbd93363f49686d7d592ffaa9c3d8d5807da312144845eb328b5",
+      "after": "6f37ad5c2771c2e9081b417344b111a2817f819a4e00a385790904c3f1a12bfb",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "unpreserved-bytes-http",
+      "path": "gen/http/bytescheck/client/types.go",
+      "before": "b8184f332c2ce41a0f7ab28b559d2a47c827ab771ac059e8500b6753bb0723e8",
+      "after": "a695aa8c6a897c4881692829c6f2a5bab35c7526609ddab482b26db997c36183",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "unpreserved-bytes-http",
+      "path": "gen/http/bytescheck/server/types.go",
+      "before": "4b4387faf7936431686b5308727437ac264d298eb7f4c2117437a6795eee76ae",
+      "after": "d20f277376d967b18eae836c310d521fb29a304436a94976050748448e51d615",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "named-bytes-rpc",
+      "path": "gen/jsonrpc/bytescheck/client/cli.go",
+      "before": "df9a96cffae4fe643551b64c1b4701f39f7144d182d163d5591ba30b73e56252",
+      "after": "16bc520c2eeb1e2fe62b6d42fa50909268bd3afd0c2f0cc5e91d5bcfaf1b46cb",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "named-bytes-rpc",
+      "path": "gen/jsonrpc/bytescheck/client/types.go",
+      "before": "b0cf16324798f785d78565a0814a8466907b8073fc641477226afab69a52ebc7",
+      "after": "01eb80729c64603326fd3df40b3c84469cae175625ad75eb3cb625003039437e",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "named-bytes-rpc",
+      "path": "gen/jsonrpc/bytescheck/server/types.go",
+      "before": "8e9b9aad5776d651bd646fb44618ea77923bfefab14cec7c567292d555bde7d4",
+      "after": "777c364463dda7c27b7b983576a75cc83b42327c602532e84ea24e98e35c2fc6",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "bytes-form-defaults",
+      "path": "gen/http/bytesdefaults/client/cli.go",
+      "before": "5197ee80e234e337ec20d2a96b7c6afdd045bb63d5a11caf5bc8764e46bdf7ec",
+      "after": "3ed2d45e87f2392ca6e7f05e02c343859b17cbf371d22e0bab45257c6b0df0a4",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "bytes-form-defaults",
+      "path": "gen/http/bytesdefaults/client/types.go",
+      "before": "7f20e20a5d42cd09e11ce2f01228bfb5eef36865b055e6c90f6c50ec71c60938",
+      "after": "d2102cdc84a9511aaa612c3fec5adf2bda53719fc692f97fed1da29eb1ea971a",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    },
+    {
+      "probe": "bytes-form-defaults",
+      "path": "gen/http/bytesdefaults/server/types.go",
+      "before": "47c503b6096e5080842a1025ca56b6a052431019fe2279213dd6a672c55c8380",
+      "after": "a091d1f8f7b286f9e852d2ff6e33e04e4a6dc5293b731711d9e3b00ee791d161",
+      "reason": "Replace invalid byte-slice equality with nil-source guards, apply omitted byte defaults where required, and assign Nullable defaults through the declared wrapper; preserve supplied empty values."
+    }
+  ]
+}
