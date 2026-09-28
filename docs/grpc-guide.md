@@ -835,6 +835,13 @@ optional field required, or a method that moves a field to gRPC metadata,
 changes the fields of its message, and code generation then fails with an
 error that names the methods.
 
+This compatibility check also applies when an explicit message name matches a
+nested type's message. Choose a different `struct:name:proto` value when their
+fields differ. Distinct protobuf names must also produce distinct Go type names:
+for example, `node_tree` and `NodeTree` both produce `NodeTree` and cannot coexist
+in one service. Generated nested collection wrappers receive separate names
+when their default names conflict with design types.
+
 A client tells the errors of a method apart by the type of the message in the
 status details. Two errors of a method can use one type that has a
 `struct:name:proto` name, because the error name is a field of the type

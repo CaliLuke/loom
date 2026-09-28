@@ -163,14 +163,14 @@ func responseContractLimitationWarnings(endpoint *transportir.Endpoint, limitati
 
 type messageCollector struct {
 	sd       *ServiceData
-	seen     map[string]struct{}
+	seen     map[string]collectedMessage
 	imported map[string]struct{}
 }
 
 func newMessageCollector(sd *ServiceData) *messageCollector {
 	return &messageCollector{
 		sd:       sd,
-		seen:     make(map[string]struct{}),
+		seen:     make(map[string]collectedMessage),
 		imported: make(map[string]struct{}),
 	}
 }
@@ -196,16 +196,13 @@ func (c *messageCollector) appendImports(imports []string) {
 }
 
 func (c *messageCollector) lookupMessage(att *expr.AttributeExpr) *service.UserTypeData {
-	ut, ok := att.Type.(expr.UserType)
+	_, ok := att.Type.(expr.UserType)
 	if !ok {
 		return nil
 	}
-	name := ut.Name()
-	if n, ok := protoMetaName(att.Meta); ok {
-		name = n
-	}
+	name := protoBufMessageName(att, c.sd.Scope)
 	for _, t := range c.sd.Messages {
-		if t.Name == name {
+		if t.VarName == name {
 			return t
 		}
 	}

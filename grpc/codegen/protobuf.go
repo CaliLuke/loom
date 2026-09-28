@@ -106,38 +106,47 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 		}
 	}
 	n := ""
-	makeProtoBufMessageR(att, &n, sd, make(map[string]struct{}), messageScope{})
+	makeProtoBufMessageR(att, &n, sd, make(map[string]expr.UserType), messageScope{})
 	return att
 }
 
 // makeProtoBufMessageR is the recursive implementation of makeProtoBufMessage.
 // scope identifies the position of att in the enclosing message and names the
 // messages generated for anonymous objects nested in att.
-func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceData, seen map[string]struct{}, scope messageScope) {
+func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceData, seen map[string]expr.UserType, scope messageScope) {
 	wrapCollectionUserType(att)
 	ut, isut := att.Type.(expr.UserType)
 
-	// handle infinite recursions
+	// Reuse the canonical message on recursive references. Naming an inline
+	// object copies its graph, so merely stopping at a seen identifier can
+	// leave a reference pointing to an unnormalized copy of that message.
 	if isut {
-		if _, ok := seen[ut.ID()]; ok {
+		if canonical, ok := seen[ut.ID()]; ok {
+			att.Type = canonical
 			return
 		}
-		seen[ut.ID()] = struct{}{}
+		seen[ut.ID()] = ut
 	}
 
 	wrap := func(att *expr.AttributeExpr, tname string) {
+		var name string
 		switch {
 		case expr.IsArray(att.Type):
-			wrapAttr(att, "ArrayOf"+tname+
-				protoBufify(protoBufMessageDef(expr.AsArray(att.Type).ElemType, sd), true, true), true, sd)
+			name = "ArrayOf" + tname +
+				protoBufify(protoBufMessageDef(expr.AsArray(att.Type).ElemType, sd), true, true)
 		case expr.IsMap(att.Type):
 			m := expr.AsMap(att.Type)
-			wrapAttr(att, tname+"MapOf"+
-				protoBufify(protoBufMessageDef(m.KeyType, sd), true, true)+
-				protoBufify(protoBufMessageDef(m.ElemType, sd), true, true), true, sd)
+			name = tname + "MapOf" +
+				protoBufify(protoBufMessageDef(m.KeyType, sd), true, true) +
+				protoBufify(protoBufMessageDef(m.ElemType, sd), true, true)
 		default:
 			return
 		}
+		// Equal collection shapes share a wrapper, while different shapes and
+		// other generated positions reserve separate names.
+		owner := "collection:" + strconv.Quote(name) + ":" + protoAttributeShape(wrapperAttribute(att, true))
+		name = sd.anonymousMessageName(messageScope{name: name, path: owner})
+		wrapAttr(att, name, true, sd)
 		markCollectionMessage(att.Type.(expr.UserType))
 	}
 

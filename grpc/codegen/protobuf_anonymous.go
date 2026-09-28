@@ -25,7 +25,7 @@ const anonymousMessageMeta = "grpc:message:anonymous"
 // makeProtoBufMessageField applies makeProtoBufMessageR to the attribute of
 // a field of the message at scope. An anonymous object field becomes a
 // message named after the scope and the field name.
-func makeProtoBufMessageField(nat *expr.NamedAttributeExpr, tname *string, sd *ServiceData, seen map[string]struct{}, scope messageScope) {
+func makeProtoBufMessageField(nat *expr.NamedAttributeExpr, tname *string, sd *ServiceData, seen map[string]expr.UserType, scope messageScope) {
 	scope = messageScope{name: scope.name + "_" + nat.Name, path: scope.path + "/" + strconv.Quote(nat.Name)}
 	nameAnonymousMessage(nat.Attribute, scope, sd)
 	makeProtoBufMessageR(nat.Attribute, tname, sd, seen, scope)

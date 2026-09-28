@@ -621,6 +621,13 @@ filter, and serialization rules belong here.
   has it and a different message (`designMessageShapes`). A design type with
   the same message still shares it, so designs without a conflict keep their
   output.
+- Nested collection wrappers reserve names with stable collection-shape owners
+  in the same registry as endpoint and anonymous messages. Collection keys
+  emitted declarations by their generated Go name and checks the protobuf name
+  and field shape before reusing one. This catches explicit-name conflicts at
+  every depth and rejects distinct protobuf names that map to one Go type.
+  Recursive normalization rebinds repeated canonical type IDs to the first
+  message, so copied inline-object graphs cannot retain unnormalized aliases.
 - A `struct:name:proto` name can give one message to several service types,
   such as customized copies of a type. `registerProtoMessage` keys messages by
   that name and rejects two uses with different fields. `nameProtoConverter`

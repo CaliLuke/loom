@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -9,8 +10,16 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+// collectedMessage records the declaration already emitted for a Go type
+// name. Both the protobuf name and the fields must agree before it is shared.
+type collectedMessage struct {
+	protoName string
+	typeName  string
+	shape     string
+}
+
 // collectMessages recurses through the attribute to gather all the messages.
-func collectMessages(at *expr.AttributeExpr, sd *ServiceData, seen map[string]struct{}) (data []*service.UserTypeData, imports []string) {
+func collectMessages(at *expr.AttributeExpr, sd *ServiceData, seen map[string]collectedMessage) (data []*service.UserTypeData, imports []string) {
 	if at == nil {
 		return data, imports
 	}
@@ -82,7 +91,7 @@ func collectUserTypeMessages(
 	at *expr.AttributeExpr,
 	dt expr.UserType,
 	sd *ServiceData,
-	seen map[string]struct{},
+	seen map[string]collectedMessage,
 	collect func(*expr.AttributeExpr) ([]*service.UserTypeData, []string),
 ) ([]*service.UserTypeData, []string) {
 	att := userTypeAttribute(dt)
@@ -93,14 +102,23 @@ func collectUserTypeMessages(
 		return collect(att)
 	}
 	name := protoStructName(at, dt)
-	if _, ok := seen[name]; ok {
+	protoName := protoBufMessageName(at, sd.Scope)
+	goName := protoBufGoTypeName(at, sd.Scope)
+	shape := protoAttributeShape(att)
+	if previous, ok := seen[goName]; ok {
+		if previous.protoName != protoName {
+			panic(fmt.Errorf("protocol buffer messages %q and %q both map to Go type %q", previous.protoName, protoName, goName))
+		}
+		if previous.shape != shape {
+			panic(fmt.Errorf("protocol buffer message %q has conflicting fields for types %q and %q", protoName, previous.typeName, dt.Name()))
+		}
 		return nil, nil
 	}
-	seen[name] = struct{}{}
+	seen[goName] = collectedMessage{protoName: protoName, typeName: dt.Name(), shape: shape}
 	data := make([]*service.UserTypeData, 0, 1)
 	data = append(data, &service.UserTypeData{
 		Name:        name,
-		VarName:     protoBufMessageName(at, sd.Scope),
+		VarName:     protoName,
 		Description: dt.Attribute().Description,
 		Def:         protoBufMessageDef(att, sd),
 		Ref:         protoBufGoFullTypeRef(at, sd.PkgName, sd.Scope),
