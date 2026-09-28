@@ -338,8 +338,76 @@ protobuf have different representations of the same semantic value.
 
 ## Proof obligations
 
-1. Projection preserves supplied values and selected branch, and preserves presence
-   under the target-specific equivalence defined above, through
+### Lean scope and connection to production
+
+Lean is required for the shared value semantics. For every finite built-in
+value in the modeled domain, successful resolution/projection must produce a
+well-typed target value whose modeled decoding preserves the target-observable
+semantic value, including retained branch identity and target-specific presence
+equivalence. Define `Observe(plan, value)` independently of the projector: it
+selects fields and visibility from the plan, retains branch identities of unions
+that remain visible, and applies the documented target presence equivalence.
+For example, observing an HTTP body excludes its service payload's header
+fields. Preservation compares decoding with this observation, not with the
+entire service value. Legitimate field/visibility loss remains in the progress
+theorem's domain; it cannot be excluded by a representability premise. The domain
+includes scalars, bytes, objects, arrays, maps and nested unions. Recursive type
+declarations may describe finite values; cyclic input graphs and incomplete
+recursive examples have explicit failure outcomes. These are general theorems
+over the domain, not enumeration of a bounded example set.
+
+Typing, representability, decoding and semantic equivalence must be defined
+independently of the projector. A success-soundness theorem alone is insufficient:
+prove that a finite, complete, unambiguous, well-typed value representable under
+the target plan succeeds. An implementation that always omits examples must not
+satisfy the contract. Failure theorems distinguish invalid/ambiguous/incomplete
+inputs, and source-selection theorems exclude replacement of authored values by
+synthesis. Representability includes target ranges, naming uniqueness, visibility
+and the unique wire match required by untagged unions.
+
+The proved target is a structured JSON/protobuf value, not rendered Go source
+or arbitrary serialized text. Target plans are inputs satisfying explicit
+well-formedness conditions; deriving those plans from the evaluated DSL and
+allocating real protobuf fields remains an implementation obligation. Numeric
+formatting, external codecs, opaque Any/custom values, runtime libraries and the
+Go compiler are outside the core theorem. Each boundary must be recorded rather
+than hidden in a premise that assumes the conclusion.
+
+V1 keeps the production resolver in Go and provides an executable Lean reference
+for differential checking. A correspondence record maps each modeled constructor,
+operation and outcome to its Go owner and executable contract tests. Tests compare
+Go and Lean on the same independently encoded inputs and target plans, then check
+actual emitted examples with real decoders/schema validators. Negative controls
+must detect wrong bytes, branch changes, lost presence and incorrect omission.
+The input adapter must preserve duplicate map entries, source identity and
+absence/null distinctions so it cannot erase the bug before comparison.
+
+This is a **proved semantic reference with tested implementation correspondence**.
+V1 does not contain a machine-checked refinement proof of the Go implementation
+or a verified Go renderer. Neither differential testing nor a passing build is
+described as such a proof. Certifying every generated Go program for every
+accepted design would require that additional verified generation pipeline and
+is deferred beyond this repair; actual generated compilation remains mandatory.
+
+Proof acceptance includes independent review of theorem statements, non-vacuous
+preconditions and definitions, plus kernel checking and a transitive axiom audit.
+No `sorry`, admitted obligations, custom correctness axioms or native-evaluation
+trust may discharge the required theorems. Standard Lean logical axioms are
+listed explicitly. The proof checks follow Lean's
+[validation guidance](https://lean-lang.org/doc/reference/latest/ValidatingProofs/).
+
+| Evidence | Required claim | Limit |
+| --- | --- | --- |
+| Lean | Universal soundness, progress and preservation for the defined finite semantic domain | Does not certify handwritten Go, external codecs or rendered source |
+| TLA+ | Bounded exploration of ordering and cache/source/occurrence ownership | Not an unbounded type-preservation proof |
+| Go/Lean differential tests | Production behavior agrees with the executable reference on exercised inputs | Tested correspondence, not universal refinement |
+| Generated compilation and decoder/schema tests | Actual artifacts compile and preserve the tested contracts | Tested designs and environments only |
+| Assumptions ledger | Explicit codec, toolchain, library and specification boundaries | No excluded boundary may be reported as proved |
+
+### Required properties
+
+1. Projection preserves the supplied target-observable values and retained branch,
+   with the target-specific presence equivalence defined above, through
    the actual generated decoder/conversion path for every runtime-backed surface.
    Documentation-only bodies instead satisfy emitted schema/media validation.
 2. Every emitted ordinary example validates against the emitted schema;
@@ -352,8 +420,9 @@ protobuf have different representations of the same semantic value.
 5. Old counterexamples fail the old pipeline and pass the replacement, including
    nested identical branches, byte/text enums, binary/empty bytes, field mapping,
    recursive types, optional/null values, map collisions and protobuf ranges.
-6. A bounded model checks phase ordering, branch/presence preservation and cache
-   ownership; its abstraction mapping and excluded cases are documented. Go
-   property tests and generated round trips discharge the implementation seams.
+6. Lean proves the semantic obligations above; a bounded TLA+ model checks phase
+   ordering and cache ownership. The correspondence record and assumptions ledger
+   distinguish proved properties, bounded checks and implementation test evidence.
+   Neither formal model replaces Go property tests and generated round trips.
 7. Migration is complete only when the inventory has no built-in bypass that
    independently reselects branches or applies scalar coercion.
