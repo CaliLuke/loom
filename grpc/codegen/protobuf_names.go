@@ -139,18 +139,6 @@ func protoMetaMessageName(name string) string {
 	return name
 }
 
-// protoBufifyAtt honors any struct:field:name meta set on the attribute and
-// and calls protoBufify with the tag value if present or the given name
-// otherwise.
-func protoBufifyAtt(att *expr.AttributeExpr, name string, upper bool) string {
-	if tname, ok := att.Meta["struct:field:name"]; ok {
-		if len(tname) > 0 {
-			name = tname[0]
-		}
-	}
-	return protoBufify(name, upper, false)
-}
-
 // asciiIdentifierRune returns r when it is an ASCII rune and an underscore
 // otherwise. It maps every non-ASCII rune, including the replacement rune of
 // invalid UTF-8, to a word separator for protoBufify.

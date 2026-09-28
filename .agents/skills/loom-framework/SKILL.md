@@ -554,6 +554,10 @@ filter, and serialization rules belong here.
   field from the allocated proto name with `protoGoName`, never from the
   branch name with `Scope.Field`. The same union can take different names in
   different messages.
+- `protoBufScope.Field` ignores service `struct:field:name` metadata without
+  mutating it. Protobuf validation must use protoc field names even before
+  transport normalization removes service metadata; service structs keep their
+  authored field overrides.
 - The gRPC client CLI decodes the request message flag with `protojson`
   (`InitArgData.ProtoMessage` sets `cli.FlagData.Unmarshal`), because
   `encoding/json/v2` leaves oneof fields nil. `protoJSONExample`
