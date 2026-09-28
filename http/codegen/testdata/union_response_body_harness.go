@@ -138,7 +138,7 @@ func responseCases() []responseCase {
 				return new(s4.RequiredNamedEnvelope)
 			},
 			failure: func() error {
-				return new(s4.RequiredNamedError)
+				return new(s4.RequiredNamedEnvelope)
 			},
 			mount: func(endpoint loom.Endpoint) http.Handler {
 				mux := loomhttp.NewMuxer()
@@ -155,7 +155,7 @@ func responseCases() []responseCase {
 				return new(s5.OptionalNamedEnvelope)
 			},
 			failure: func() error {
-				return new(s5.OptionalNamedError)
+				return new(s5.OptionalNamedEnvelope)
 			},
 			mount: func(endpoint loom.Endpoint) http.Handler {
 				mux := loomhttp.NewMuxer()
@@ -172,7 +172,7 @@ func responseCases() []responseCase {
 				return new(s6.RequiredNamedNullableEnvelope)
 			},
 			failure: func() error {
-				return new(s6.RequiredNamedNullableError)
+				return new(s6.RequiredNamedNullableEnvelope)
 			},
 			mount: func(endpoint loom.Endpoint) http.Handler {
 				mux := loomhttp.NewMuxer()
@@ -189,7 +189,7 @@ func responseCases() []responseCase {
 				return new(s7.OptionalNamedNullableEnvelope)
 			},
 			failure: func() error {
-				return new(s7.OptionalNamedNullableError)
+				return new(s7.OptionalNamedNullableEnvelope)
 			},
 			mount: func(endpoint loom.Endpoint) http.Handler {
 				mux := loomhttp.NewMuxer()

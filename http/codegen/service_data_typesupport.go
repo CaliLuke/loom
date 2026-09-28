@@ -162,26 +162,26 @@ func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, ids, seen map[stri
 }
 
 func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints []*transportir.Endpoint, scope *codegen.NameScope) []*service.UnionTypeData {
-	unionByHash := make(map[string]*service.UnionTypeData)
+	unionByName := make(map[string]*service.UnionTypeData)
 	seenUnionTypes := make(map[string]struct{})
 	for _, endpoint := range endpoints {
-		collectHTTPUnionTypes(endpoint.Request.Body, scope, unionByHash, seenUnionTypes)
+		collectHTTPUnionTypes(endpoint.Request.Body, scope, unionByName, seenUnionTypes)
 		if payload := endpoint.Stream.RequestPayload; payload != nil && payload.Type != expr.Empty {
-			collectHTTPUnionTypes(endpoint.Request.StreamingBody, scope, unionByHash, seenUnionTypes)
+			collectHTTPUnionTypes(endpoint.Request.StreamingBody, scope, unionByName, seenUnionTypes)
 		}
 		if endpoint.Response.Result != nil {
 			md := sds.ServicesData.Get(serviceName).Method(endpoint.MethodName)
 			for _, response := range endpoint.Response.Responses {
 				body := effectiveClientResponseBody(response.Body, endpoint.Response.Result, md)
-				collectHTTPUnionTypes(body, scope, unionByHash, seenUnionTypes)
+				collectHTTPUnionTypes(body, scope, unionByName, seenUnionTypes)
 			}
 		}
 		for _, response := range endpoint.Response.ErrorResponses {
-			collectHTTPUnionTypes(response.Body, scope, unionByHash, seenUnionTypes)
+			collectHTTPUnionTypes(response.Body, scope, unionByName, seenUnionTypes)
 		}
 	}
-	unions := make([]*service.UnionTypeData, 0, len(unionByHash))
-	for _, union := range unionByHash {
+	unions := make([]*service.UnionTypeData, 0, len(unionByName))
+	for _, union := range unionByName {
 		unions = append(unions, union)
 	}
 	sort.Slice(unions, func(i, j int) bool {
@@ -205,10 +205,12 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 		}
 		seen[dt.Hash()] = struct{}{}
 		if union := expr.AsUnion(dt.Attribute().Type); union != nil {
-			hash := union.Hash()
-			if _, ok := unions[hash]; !ok {
-				name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
-				unions[hash] = buildHTTPUnionTypeData(union, scope, name)
+			// References use the enclosing type's allocated Go name. Distinct
+			// declarations can share an inner union shape, so that shape cannot
+			// be the deduplication key.
+			name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
+			if _, ok := unions[name]; !ok {
+				unions[name] = buildHTTPUnionTypeData(union, scope, name)
 			}
 			for _, nat := range union.Values {
 				collectHTTPUnionTypes(nat.Attribute, scope, unions, seen)
@@ -226,9 +228,9 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 		collectHTTPUnionTypes(dt.KeyType, scope, unions, seen)
 		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen)
 	case *expr.Union:
-		hash := dt.Hash()
-		if _, ok := unions[hash]; !ok {
-			unions[hash] = buildHTTPUnionTypeData(dt, scope)
+		name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
+		if _, ok := unions[name]; !ok {
+			unions[name] = buildHTTPUnionTypeData(dt, scope, name)
 		}
 		for _, nat := range dt.Values {
 			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen)

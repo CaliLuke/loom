@@ -56,7 +56,7 @@ func TestCollectHTTPUnionTypesDeterministicAcrossObjectOrder(t *testing.T) {
 	forwardNames := collectHTTPUnionTypeNames(forward)
 	reverseNames := collectHTTPUnionTypeNames(reverse)
 
-	require.Len(t, forwardNames, 2)
+	require.Len(t, forwardNames, 4)
 	require.Equal(t, forwardNames, reverseNames)
 }
 
@@ -163,12 +163,15 @@ func TestRenderHTTPUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
 func collectHTTPUnionTypeNames(att *expr.AttributeExpr) map[string]string {
 	scope := cg.NewNameScope()
 	seen := make(map[string]struct{})
-	unionByHash := make(map[string]*svc.UnionTypeData)
-	collectHTTPUnionTypes(att, scope, unionByHash, seen)
+	unionByName := make(map[string]*svc.UnionTypeData)
+	collectHTTPUnionTypes(att, scope, unionByName, seen)
 
-	names := make(map[string]string, len(unionByHash))
-	for hash, data := range unionByHash {
-		names[hash] = data.Name
+	names := make(map[string]string, len(unionByName))
+	for _, data := range unionByName {
+		// Key by the branch contract, so this detects swapped allocated names.
+		for _, field := range data.Fields {
+			names[field.TypeTag] = data.Name
+		}
 	}
 	return names
 }

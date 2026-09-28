@@ -55,20 +55,6 @@ var UnionResponseBodyDSL = func() {
 			}
 		}
 		envelope := Type(c.name+"_envelope", attributes)
-		errorEnvelope := envelope
-		if c.named {
-			errorChoice := Type(c.name+"_error_choice", OneOf(leaf, other))
-			errorEnvelope = Type(c.name+"_error", func() {
-				Attribute("choice", errorChoice, func() {
-					if c.nullable {
-						Nullable()
-					}
-				})
-				if c.required {
-					Required("choice")
-				}
-			})
-		}
 		var result any = envelope
 		if c.viewed {
 			result = ResultType("application/vnd."+c.name, func() {
@@ -81,7 +67,7 @@ var UnionResponseBodyDSL = func() {
 		Service(c.name, func() {
 			Method("show", func() {
 				Result(result)
-				Error("bad", errorEnvelope)
+				Error("bad", envelope)
 				HTTP(func() {
 					GET("/" + c.name)
 					Response(StatusOK, func() {
