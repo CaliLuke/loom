@@ -383,11 +383,5 @@
     "contains": "malformed URI \"http://[::1]:namedport\"",
     "phase": "gen",
     "reason": "intentional validation failure"
-  },
-  "http/codegen/PayloadPathArrayStringValidateDSL": {
-    "contains": "invalid operation: p == []string{\u2026} (slice can only be compared to nil)",
-    "issue": "https://github.com/CaliLuke/loom/issues/535",
-    "phase": "build",
-    "reason": "Slice enum validation emits an invalid equality comparison."
   }
 }

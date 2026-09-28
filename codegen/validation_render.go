@@ -215,6 +215,8 @@ func renderEnumValidation(data validationRenderData) string {
 	predicate := oneof(data.TargetValue, data.Values)
 	if unalias(data.Attribute.Type).Kind() == expr.AnyKind {
 		predicate = jsonValueOneof(data.TargetValue, data.Values)
+	} else if data.IsArray || unalias(data.Attribute.Type).Kind() == expr.BytesKind {
+		predicate = collectionEnumPredicate(data)
 	}
 	b.Add("if !(" + predicate + ") {\n")
 	b.Add("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + toSlice(data.Values) + "))\n")
@@ -223,6 +225,19 @@ func renderEnumValidation(data validationRenderData) string {
 		b.Add("\n}")
 	}
 	return strings.Trim(b.String(), "\n")
+}
+
+// collectionEnumPredicate compares the JSON values represented by a collection.
+// Canonicalization follows the design, so an ArrayOf(UInt) enum authored as
+// []uint8 remains an array of numbers rather than a base64-encoded byte string.
+func collectionEnumPredicate(data validationRenderData) string {
+	values := make([]string, len(data.Values))
+	for index, value := range data.Values {
+		canonical := collectionEnumValue(data.Attribute, value)
+		values[index] = "loom.JSONValueEqual(encoded, " + formatRawJSONLiteral(canonical) + ")"
+	}
+	return "func() bool {\nencoded, encodeErr := loom.JSONValueFrom(" + data.TargetValue + ")\n" +
+		"return encodeErr == nil && (" + strings.Join(values, " || ") + ")\n}()"
 }
 
 func renderFormatValidation(data validationRenderData) string {

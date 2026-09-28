@@ -18,7 +18,10 @@ func DecodeMethodPathArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*http
 				p[i] = rv
 			}
 		}
-		if !(p == []string{"val"}) {
+		if !(func() bool {
+			encoded, encodeErr := loom.JSONValueFrom(p)
+			return encodeErr == nil && (loom.JSONValueEqual(encoded, loom.JSONValue("[\"val\"]")))
+		}()) {
 			err = loom.MergeErrors(err, loom.InvalidEnumValueError("p", p, []any{[]string{"val"}}))
 		}
 		if err != nil {
