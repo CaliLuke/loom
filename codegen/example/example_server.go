@@ -55,10 +55,7 @@ func exampleSvrMain(genpkg string, root *expr.RootExpr, svr *expr.ServerExpr, se
 		{Path: "github.com/CaliLuke/loom/clue/log"},
 	}
 
-	scope := codegen.NewNameScope()
-	for _, name := range serverMainLocalNames {
-		scope.Unique(name)
-	}
+	scope := serverMainImportScope(specs)
 	svcData := serverMainServices(svr, services, scope)
 	for _, sd := range svcData {
 		specs = append(specs, &codegen.ImportSpec{
@@ -154,4 +151,19 @@ func mustInitServices(data []*service.Data) bool {
 		}
 	}
 	return false
+}
+
+func serverMainImportScope(specs []*codegen.ImportSpec) *codegen.NameScope {
+	scope := codegen.NewNameScope()
+	for _, spec := range specs {
+		name := spec.Name
+		if name == "" {
+			name = path.Base(spec.Path)
+		}
+		scope.Unique(name)
+	}
+	for _, name := range serverMainLocalNames {
+		scope.Unique(name)
+	}
+	return scope
 }

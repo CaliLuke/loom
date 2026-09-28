@@ -40,8 +40,6 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr, 
 		return nil // file already exists, skip it.
 	}
 
-	var scope = codegen.NewNameScope()
-
 	specs := []*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "fmt"},
@@ -54,6 +52,7 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr, 
 		{Path: "google.golang.org/grpc"},
 		{Path: "google.golang.org/grpc/reflection"},
 	}
+	scope := exampleServerImportScope(specs)
 	for _, svc := range services.Root.API.GRPC.Services {
 		sd := services.Get(svc.Name())
 		svcName := sd.Service.PathName
@@ -68,7 +67,7 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr, 
 			},
 			&codegen.ImportSpec{
 				Path: path.Join(genpkg, "grpc", svcName, pbPkgName),
-				Name: scope.Unique(svcName + pbPkgName),
+				Name: scope.Unique(sd.PkgName),
 			})
 	}
 
@@ -98,4 +97,16 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr, 
 		grpcExampleServerSection(svcdata),
 	}
 	return &codegen.File{Path: mainPath, Sections: sections, SkipExist: true}
+}
+
+func exampleServerImportScope(specs []*codegen.ImportSpec) *codegen.NameScope {
+	scope := codegen.NewNameScope()
+	for _, spec := range specs {
+		name := spec.Name
+		if name == "" {
+			name = path.Base(spec.Path)
+		}
+		scope.Unique(name)
+	}
+	return scope
 }

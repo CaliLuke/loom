@@ -502,6 +502,24 @@ filter, and serialization rules belong here.
   generated name to the list. The example server main allocates its service
   imports in its own scope, which reserves its locals
   (`serverMainLocalNames` in `codegen/example`).
+- gRPC analysis copies the neutral service data and assigns a transport import
+  alias from `newImportAliases`. Reserve fixed transport and example
+  imports in `transportGeneratedImportNames` before allocating protobuf and
+  service aliases. `ServiceData.PkgName` is the protobuf import alias, while
+  `ProtoPkg` keeps the wire package and generated package declaration.
+  `TestGRPCServiceImportReservationsCoverGeneratedImports` checks the emitted
+  import lists. Alias allocation must preserve the neutral service package and
+  protobuf names, remain unique when another service uses an alias suffix, and
+  survive file-specific `struct:pkg:path` import renaming. `metadataVarScope`
+  reserves fixed, service, protobuf, view, and custom type imports separately
+  from the neutral type scope. Request locals and the shared response header
+  and trailer locals must avoid these aliases, including numeric suffixes.
+  Example service
+  stubs also alias service imports that clash with their fixed imports;
+  example server scopes reserve their fixed imports before service and API
+  packages. The bounded model under `grpc/codegen/tla/import_aliases`
+  reproduces the original import and metadata collisions and checks safety and
+  termination across all orders of its adversarial names.
 - The fields, oneofs and oneof fields of a gRPC message share one namespace.
   `newProtoMessageNames` (`grpc/codegen/protobuf_message_names.go`) allocates
   their names per message, and the proto renderer, `checkMessageFields`, the

@@ -366,6 +366,9 @@ completion shapes are explicit generation limitations.
   name takes the union field name as a prefix, such as `b_int64`. Protocol
   buffer clients see the prefixed names; the service type keeps the branch
   names.
+- gRPC transport files alias service imports that collide with framework
+  imports, such as `protojson` or `strconv`. Keep the service name; its package
+  path and protocol buffer names do not change.
 - gRPC map keys must be `Boolean`, `String`, or integer types, including
   aliases. `Any` is supported as a map value, but cannot be a map key.
 - gRPC rejects a union used as an array element or map value. Wrap the

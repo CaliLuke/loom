@@ -794,6 +794,11 @@ names and different fields, the generated message takes the name followed by
 the first free number instead, such as `AddRequest2`, and the type keeps its
 name. A type with the same fields shares the message.
 
+Generated gRPC files alias service imports that would collide with framework
+imports. For example, a service named `protojson` is imported as `protojsonsvc`.
+Service package names, import paths, and protocol buffer names stay unchanged.
+You do not need to rename the service to avoid a framework import.
+
 Protocol buffer identifiers are ASCII only. Loom derives service, rpc, message,
 field, and `oneof` names from design names by treating every non-ASCII rune as a
 word separator: an `añadir` method becomes the `AAdir` rpc. ASCII service and

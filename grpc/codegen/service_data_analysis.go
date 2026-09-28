@@ -14,7 +14,10 @@ import (
 // Panics are wrapped with DSL attribution (service, method, source location)
 // and re-panicked so opaque failures surface with navigable context.
 func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
-	svc := d.ServicesData.Get(gs.Name())
+	neutral := d.ServicesData.Get(gs.Name())
+	svcCopy := *neutral
+	svcCopy.PkgName = d.importAliases[gs.Name()].service
+	svc := &svcCopy
 	ctx := d.ServicesData.Ctx.WithService(gs.ServiceExpr)
 	defer func() {
 		if err := codegen.RecoverPanic(recover()); err != nil {
@@ -26,7 +29,7 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 		panic(err)
 	}
 	scope := codegen.NewNameScopeLike(svc.Scope)
-	pkg := svc.PathName + pbPkgName
+	pkg := d.importAliases[gs.Name()].protobuf
 	svcVarN := scope.HashedUnique(gs.ServiceExpr, protoServiceName(svc.StructName))
 	goName := protoBufIdentifier(svcVarN, true, true)
 	sd = &ServiceData{
@@ -260,7 +263,8 @@ func prepareEndpointProtoMessages(endpoint *transportir.Endpoint, sd *ServiceDat
 }
 
 func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *service.Data, sd *ServiceData, collector *messageCollector) *RequestData {
-	reqMD := extractMetadata(endpoint.Request.Metadata, endpoint.Request.Payload, svc.Scope, codegen.NewNameScope(), *d)
+	vars := metadataVarScope(sd, endpoint.Request.Payload)
+	reqMD := extractMetadata(endpoint.Request.Metadata, endpoint.Request.Payload, svc.Scope, vars, *d)
 	request := &RequestData{
 		Description:   endpoint.Request.ProtoMessage.Description,
 		Metadata:      reqMD,
@@ -312,7 +316,7 @@ func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *ser
 
 func (d *ServicesData) buildResponseData(endpoint *transportir.Endpoint, svc *service.Data, sd *ServiceData, collector *messageCollector) *ResponseData {
 	result, svcCtx := resultContext(endpoint, sd)
-	vars := codegen.NewNameScope()
+	vars := metadataVarScope(sd, result)
 	hdrs := extractMetadata(endpoint.Response.Headers, result, svc.Scope, vars, *d)
 	trlrs := extractMetadata(endpoint.Response.Trailers, result, svc.Scope, vars, *d)
 	response := &ResponseData{

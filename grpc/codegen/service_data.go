@@ -12,6 +12,8 @@ type (
 	ServicesData struct {
 		*service.ServicesData
 		GRPCServices map[string]*ServiceData
+		// importAliases qualifies service and protobuf types in generated transport files.
+		importAliases map[string]transportImportAliases
 		// renamed caches the transport data returned by fileData by the
 		// service data it is computed from.
 		renamed map[*service.ServicesData]*ServicesData
@@ -22,7 +24,7 @@ type (
 	ServiceData struct {
 		// Service contains the related service data.
 		Service *service.Data
-		// PkgName is the name of the generated package in *.pb.go.
+		// PkgName is the import alias of the generated protocol buffer package.
 		PkgName string
 		// ProtoPkg is the protobuf wire package name.
 		ProtoPkg string
@@ -98,7 +100,7 @@ type (
 		// RPCGoName is the Go method name that protoc-gen-go derives from
 		// RPCName on the client and server interfaces.
 		RPCGoName string
-		// PkgName is the name of the generated package in *.pb.go.
+		// PkgName is the import alias of the generated protocol buffer package.
 		PkgName string
 		// ServicePkgName is the name of the service package name.
 		ServicePkgName string
@@ -508,8 +510,9 @@ type (
 // NewServicesData creates a new ServicesData instance for the given service data.
 func NewServicesData(services *service.ServicesData) *ServicesData {
 	return &ServicesData{
-		ServicesData: services,
-		GRPCServices: make(map[string]*ServiceData),
+		ServicesData:  services,
+		GRPCServices:  make(map[string]*ServiceData),
+		importAliases: newImportAliases(services.Root),
 	}
 }
 

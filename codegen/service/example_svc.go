@@ -58,6 +58,7 @@ func ExampleServiceFiles(genpkg string, root *expr.RootExpr, services *ServicesD
 func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, services *ServicesData, apipkg string) *codegen.File {
 	data := services.Get(svc.Name)
 	svcName := data.PathName
+	servicePath := path.Join(genpkg, svcName)
 	fpath := svcName + ".go"
 	if _, err := os.Stat(fpath); !os.IsNotExist(err) {
 		return nil // file already exists, skip it.
@@ -67,13 +68,23 @@ func exampleServiceFile(genpkg string, _ *expr.RootExpr, svc *expr.ServiceExpr, 
 		{Path: "errors"},
 		{Path: "fmt"},
 		{Path: "io"},
-		{Path: path.Join(genpkg, svcName), Name: data.PkgName},
+		{Path: servicePath, Name: data.PkgName},
 		{Path: "github.com/CaliLuke/loom/clue/log"},
 		codegen.LoomImport(""),
 		{Path: "github.com/CaliLuke/loom/security"},
 	}
 	if hasFileResponse(data.Methods) {
 		specs = append(specs, codegen.LoomNamedImport("http", "loomhttp"))
+	}
+	if alias, ok := codegen.AliasClashingImports(specs, []string{servicePath})[servicePath]; ok {
+		aliased := *data
+		aliased.PkgName = alias
+		data = &aliased
+		for _, spec := range specs {
+			if spec.Path == servicePath {
+				spec.Name = alias
+			}
+		}
 	}
 	// Payloads and results may use types generated in struct:pkg:path
 	// packages. Alias any such package whose name clashes with an import

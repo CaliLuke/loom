@@ -88,3 +88,16 @@ func serverMainLocalNameDSL(services ...string) {
 		})
 	}
 }
+
+func TestServerMainServicePackageNamedLikeImport(t *testing.T) {
+	const genpkg = "example.com/importnames/gen"
+	names := []string{"context", "flag", "net", "log", "strings", "sync", "signal", "syscall"}
+	dir := t.TempDir()
+	renderLocalNameServerMain(t, dir, genpkg, names...)
+	code, err := os.ReadFile(filepath.Join(dir, "cmd", "zzapi", "main.go"))
+	require.NoError(t, err)
+	for _, name := range names {
+		assert.Contains(t, string(code), name+`svc "`+genpkg+"/"+name+`"`)
+		assert.Contains(t, string(code), name+"svc.NewEndpoints(")
+	}
+}
