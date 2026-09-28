@@ -13,7 +13,8 @@ import (
 
 // TestGeneratedAnyValueRoundTrip serves a generated module whose payloads and
 // results carry an Any value in a OneOf branch and in a field typed with an
-// alias of Any. It sends an object, a scalar and a nil Any through the
+// alias of Any, including a map-valued union branch. It sends an object, a
+// scalar and a nil Any through the
 // generated client over an in-memory gRPC connection and checks the JSON
 // bytes the client decodes from the echoed result.
 func TestGeneratedAnyValueRoundTrip(t *testing.T) {
@@ -36,6 +37,7 @@ func anyValueRoundTripDSL() {
 		OneOf("pick", func() {
 			Field(1, "text", String)
 			Field(2, "value", Any)
+			Field(3, "entries", MapOf(String, Any))
 		})
 	})
 	var Blob = Type("Blob", Any)
@@ -134,6 +136,17 @@ func TestAnyRoundTrip(t *testing.T) {
 			value, ok := got.Pick.AsValue()
 			require.True(t, ok)
 			require.Equal(t, tc.WantBranch, string(value))
+		})
+		t.Run("map-branch/"+tc.Name, func(t *testing.T) {
+			sent := &anyecho.Picked{Pick: &anyecho.Pick{}}
+			sent.Pick.SetEntries(anyecho.PickEntries{"key": tc.Sent})
+			res, err := c.Echo()(ctx, sent)
+			require.NoError(t, err)
+			got := res.(*anyecho.Picked)
+			entries, ok := got.Pick.AsEntries()
+			require.True(t, ok)
+			require.Len(t, entries, 1)
+			require.Equal(t, tc.WantBranch, string(entries["key"]))
 		})
 		t.Run("alias-field/"+tc.Name, func(t *testing.T) {
 			res, err := c.Box()(ctx, &anyecho.Boxed{Value: tc.Sent})

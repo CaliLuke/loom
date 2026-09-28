@@ -196,6 +196,15 @@ stable tag-to-component mappings. Custom `oneof:type:field` and
 `oneof:value:field` metadata changes the discriminator field and branch payload
 field used in that OpenAPI contract.
 
+For gRPC, named maps and arrays can be union branches, as can another union.
+Loom generates a message wrapper around the map, repeated field, or nested
+`oneof`. Declare a map branch with `Type("Index", MapOf(String, Int))`, or use
+`Field` inside a `OneOf` block to name an inline map automatically. A selected
+map branch remains selected even when its map is nil or empty; protobuf does
+not distinguish nil maps from empty maps. Map key and value restrictions still
+apply: keys must be booleans, strings, or integers, and a union cannot be a map
+value or array element unless it is wrapped in an object with a `Field`.
+
 Use `Untagged()` when an existing JSON contract encodes each named object
 branch directly instead of using Loom's discriminator/value envelope:
 

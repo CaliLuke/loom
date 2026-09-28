@@ -130,17 +130,12 @@ service "Service" method "Method": union type Choice is an array element, not su
 			},
 		},
 		"endpoint-union-containing-any": {
-			DSL: testdata.GRPCEndpointWithUnionContainingAny,
-			Errors: []string{
-				`service "Service" method "MethodUnion": union type choice has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch`,
-			},
+			DSL:    testdata.GRPCEndpointWithUnionContainingAny,
+			Errors: []string{},
 		},
 		"endpoint-union-collection-branches": {
-			DSL: testdata.GRPCEndpointWithUnionCollectionBranches,
-			Errors: []string{
-				`service "Service" method "Method": union type IndexOrLeaf has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch
-service "Service" method "Method": union type inline has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch`,
-			},
+			DSL:    testdata.GRPCEndpointWithUnionCollectionBranches,
+			Errors: []string{},
 		},
 	}
 	for name, c := range cases {

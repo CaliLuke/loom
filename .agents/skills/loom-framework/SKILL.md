@@ -641,6 +641,11 @@ filter, and serialization rules belong here.
   helper. The loop variable of a map transform (`transformMapElemVar`) never
   shadows the variable of the target map, because the map depth that names
   it does not tell nested maps apart when a message is recursive.
+- Named map and array union branches use their collection message wrappers.
+  `unionBranchMessageHelper` must collect conversion helpers for both kinds,
+  as well as nested unions. Keep a wrapper for every selected branch, including
+  nil and empty maps. `grpc/codegen/tla/map_union_branches` checks this presence
+  rule; the map-alias fixture tests it through protobuf serialization.
 - Protocol buffer messages are identified by name, and the name scope hashes a
   user type by its name, so a generated message and a design type with the
   same name become one message. The top-level messages generated for a

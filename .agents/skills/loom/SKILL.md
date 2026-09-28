@@ -404,8 +404,10 @@ completion shapes are explicit generation limitations.
 - On gRPC, a union used as a branch of another union, a named array such as
   `Type("Tags", ArrayOf(String))` and a named map such as
   `Type("Index", MapOf(String, Int))` are each a message that wraps the
-  `oneof`, the repeated `field` or the map `field`. gRPC rejects a map union
-  branch; wrap the map in a type with one `Field`.
+  `oneof`, the repeated `field` or the map `field`. Named maps and arrays
+  can be union branches; `OneOf` blocks name inline collections automatically.
+  A selected nil or empty map keeps its branch through protobuf serialization;
+  nil and empty map entries are equivalent on the wire.
 - Add `Untagged()` in the union attribute, payload, or result block only when
   JSON must encode the selected concrete named object branch directly. Decoding
   tests every branch and requires exactly one match.

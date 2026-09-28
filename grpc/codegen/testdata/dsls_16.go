@@ -10,7 +10,8 @@ import (
 // directly the payload and result of a method, and so is More. Both are also
 // streaming payloads. Every named map is the message that wraps the map in
 // its "field" attribute. Limited carries length and value validations, which
-// the message validates.
+// the message validates. Named, block-promoted and nested union branches reuse
+// these maps, including a direct union payload and result.
 var MapAliasDSL = func() {
 	var Leaf = Type("Leaf", func() {
 		Field(1, "name", String)
@@ -27,6 +28,7 @@ var MapAliasDSL = func() {
 	}), func() {
 		MaxLength(2)
 	})
+	var Choice = Type("Choice", OneOf(Index, Leaf))
 	var Envelope = Type("Envelope", func() {
 		Field(1, "index", Index)
 		Field(2, "required_index", Index)
@@ -36,6 +38,14 @@ var MapAliasDSL = func() {
 		Field(6, "indexes", ArrayOf(Index))
 		Field(7, "index_by_key", MapOf(String, Index))
 		Field(8, "limited", Limited)
+		Field(9, "pick", Choice)
+		Field(11, "maps", OneOf(LeafIndex, TagIndex))
+		OneOf("detail", func() {
+			Field(13, "counts", MapOf(String, Int))
+			Field(14, "more", More)
+			Field(15, "limited", Limited)
+		})
+		Field(16, "nested", OneOf(Choice, Leaf))
 		Required("required_index")
 	})
 	Service("mapalias", func() {
@@ -61,6 +71,11 @@ var MapAliasDSL = func() {
 		})
 		Method("upload_more", func() {
 			StreamingPayload(More)
+			GRPC(func() {})
+		})
+		Method("choose", func() {
+			Payload(Choice)
+			Result(Choice)
 			GRPC(func() {})
 		})
 	})

@@ -17,6 +17,8 @@ service Mapalias {
 	rpc Upload (stream UploadStreamingRequest) returns (Index);
 	// UploadMore implements upload_more.
 	rpc UploadMore (stream Index) returns (UploadMoreResponse);
+	// Choose implements choose.
+	rpc Choose (Choice) returns (Choice);
 }
 
 message EchoRequest {
@@ -28,6 +30,23 @@ message EchoRequest {
 	repeated Index indexes = 6;
 	map<string, Index> index_by_key = 7;
 	Limited limited = 8;
+	oneof pick {
+		Index pick_index = 9;
+		Leaf leaf = 10;
+	}
+	oneof maps {
+		LeafIndex maps_leaf_index = 11;
+		TagIndex maps_tag_index = 12;
+	}
+	oneof detail {
+		DetailCounts counts = 13;
+		More detail_more = 14;
+		Limited detail_limited = 15;
+	}
+	oneof nested {
+		Choice choice = 16;
+		Leaf nested_leaf = 17;
+	}
 }
 
 message Index {
@@ -58,6 +77,17 @@ message Limited {
 	map<string, string> field = 1;
 }
 
+message DetailCounts {
+	map<string, sint64> field = 1;
+}
+
+message Choice {
+	oneof field {
+		Index index = 1;
+		Leaf leaf = 2;
+	}
+}
+
 message EchoResponse {
 	Index index = 1;
 	Index required_index = 2;
@@ -67,6 +97,23 @@ message EchoResponse {
 	repeated Index indexes = 6;
 	map<string, Index> index_by_key = 7;
 	Limited limited = 8;
+	oneof pick {
+		Index pick_index = 9;
+		Leaf leaf = 10;
+	}
+	oneof maps {
+		LeafIndex maps_leaf_index = 11;
+		TagIndex maps_tag_index = 12;
+	}
+	oneof detail {
+		DetailCounts counts = 13;
+		More detail_more = 14;
+		Limited detail_limited = 15;
+	}
+	oneof nested {
+		Choice choice = 16;
+		Leaf nested_leaf = 17;
+	}
 }
 
 message UploadStreamingRequest {

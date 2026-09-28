@@ -15,7 +15,7 @@ import (
 // TestProtoFilesMapAlias checks that a named map is the message that wraps
 // the map in its "field" attribute wherever it appears: as a message field,
 // an array element, a map value and directly as a payload, streaming payload
-// and result, and that a named map of a named map wraps the map itself.
+// and result, and as union branches. A named map of a named map wraps the map itself.
 func TestProtoFilesMapAlias(t *testing.T) {
 	code := protoFileCode(t, testdata.MapAliasDSL)
 
@@ -24,7 +24,12 @@ func TestProtoFilesMapAlias(t *testing.T) {
 	assert.Contains(t, code, "rpc Upload (stream UploadStreamingRequest) returns (Index);")
 	assert.Contains(t, code, "rpc UploadMore (stream Index) returns (UploadMoreResponse);")
 	assert.Contains(t, code, "message UploadStreamingRequest {\n\tmap<string, sint64> field = 1;\n}")
-	assert.Contains(t, code, "message EchoRequest {\n\tIndex index = 1;\n\tIndex required_index = 2;\n\tLeafIndex leaf_index = 3;\n\tTagIndex tag_index = 4;\n\tMore more = 5;\n\trepeated Index indexes = 6;\n\tmap<string, Index> index_by_key = 7;\n\tLimited limited = 8;\n}")
+	assert.Contains(t, code, "message EchoRequest {\n\tIndex index = 1;\n\tIndex required_index = 2;\n\tLeafIndex leaf_index = 3;\n\tTagIndex tag_index = 4;\n\tMore more = 5;\n\trepeated Index indexes = 6;\n\tmap<string, Index> index_by_key = 7;\n\tLimited limited = 8;\n")
+	assert.Contains(t, code, "oneof pick {\n\t\tIndex pick_index = 9;\n\t\tLeaf leaf = 10;\n\t}")
+	assert.Contains(t, code, "oneof maps {\n\t\tLeafIndex maps_leaf_index = 11;\n\t\tTagIndex maps_tag_index = 12;\n\t}")
+	assert.Contains(t, code, "oneof detail {\n\t\tDetailCounts counts = 13;\n\t\tMore detail_more = 14;\n\t\tLimited detail_limited = 15;\n\t}")
+	assert.Contains(t, code, "message Choice {\n\toneof field {\n\t\tIndex index = 1;\n\t\tLeaf leaf = 2;\n\t}\n}")
+	assert.Contains(t, code, "rpc Choose (Choice) returns (Choice);")
 	for _, message := range []string{
 		"message Index {\n\tmap<string, sint64> field = 1;\n}",
 		"message LeafIndex {\n\tmap<string, Leaf> field = 1;\n}",
@@ -32,6 +37,7 @@ func TestProtoFilesMapAlias(t *testing.T) {
 		"message Tags {\n\trepeated string field = 1;\n}",
 		"message More {\n\tmap<string, sint64> field = 1;\n}",
 		"message Limited {\n\tmap<string, string> field = 1;\n}",
+		"message DetailCounts {\n\tmap<string, sint64> field = 1;\n}",
 	} {
 		assert.Contains(t, code, message)
 	}
@@ -71,6 +77,27 @@ func TestProtoFilesMapAliasShapes(t *testing.T) {
 				Field(1, "by_key", MapOf(String, index))
 			})
 		}, []string{"\tmap<string, Index> by_key = 1;"}},
+		{"union branch", func(index, _ any) {
+			Payload(func() {
+				Field(1, "pick", OneOf(index, "Other"))
+			})
+		}, []string{"oneof pick {", "Index index = 1;"}},
+		{"alias union branch", func(_, more any) {
+			Payload(func() {
+				Field(1, "pick", OneOf(more, "Other"))
+			})
+		}, []string{"More more = 1;", "message More {\n\tmap<string, sint64> field = 1;\n}"}},
+		{"block union branch", func(_, _ any) {
+			Payload(func() {
+				OneOf("pick", func() {
+					Field(1, "index", MapOf(String, Int))
+					Field(2, "text", String)
+				})
+			})
+		}, []string{"PickIndex index = 1;", "message PickIndex {\n\tmap<string, sint64> field = 1;\n}"}},
+		{"nested union branch", func(index, _ any) {
+			Payload(OneOf("Choice", "Number"))
+		}, []string{"Choice choice = 1;", "Index index = 1;"}},
 		{"payload", func(index, _ any) {
 			Payload(index)
 		}, []string{"rpc Echo (Index) returns (EchoResponse);"}},
@@ -93,6 +120,9 @@ func TestProtoFilesMapAliasShapes(t *testing.T) {
 			code := protoFileCode(t, func() {
 				index := Type("Index", MapOf(String, Int))
 				more := Type("More", index)
+				other := Type("Other", String)
+				Type("Number", Int)
+				Type("Choice", OneOf(index, other))
 				Service("shapes", func() {
 					Method("echo", func() {
 						c.method(index, more)
@@ -103,7 +133,7 @@ func TestProtoFilesMapAliasShapes(t *testing.T) {
 			for _, want := range c.contains {
 				assert.Contains(t, code, want)
 			}
-			if c.name != "alias field" && c.name != "alias payload" {
+			if c.name != "alias field" && c.name != "alias payload" && c.name != "alias union branch" && c.name != "block union branch" {
 				assert.Contains(t, code, "message Index {\n\tmap<string, sint64> field = 1;\n}")
 			}
 			assert.NotContains(t, code, "map<string, sint64>\n")
@@ -135,9 +165,10 @@ func TestProtoFilesRecursiveMapMessage(t *testing.T) {
 // carry named maps as optional and required fields, array elements and map
 // values, and as a direct payload, streaming payload and result. It
 // round-trips the service values through the generated protobuf conversions
-// with the maps unset, empty and set, and checks the map validations.
+// with the maps unset, empty and set, and checks the map validations. Union
+// branches also pass through protobuf serialization to verify selection survives.
 func TestGeneratedMapAliasRoundTrip(t *testing.T) {
-	runGeneratedRoundTrip(t, "example.com/grpcmapalias", testdata.MapAliasDSL, mapAliasRoundTripHarness)
+	runGeneratedRoundTrip(t, "example.com/grpcmapalias", testdata.MapAliasDSL, mapAliasRoundTripHarness+mapUnionBranchRoundTripTests)
 }
 
 // TestGeneratedRecursiveMapMessageRoundTrip compiles the module generated for
@@ -155,6 +186,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"%[1]s/gen/grpc/mapalias/client"
 	pb "%[1]s/gen/grpc/mapalias/pb"

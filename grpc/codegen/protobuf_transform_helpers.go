@@ -153,7 +153,7 @@ func collectUnionHelpers(source, target *expr.AttributeExpr, ta *transformAttrs,
 
 // unionBranchMessageHelper returns the helper function that converts the
 // value of the union branch src to the union branch tgt when the branch holds
-// a named array or a union. Protocol buffer holds such a value in a
+// a named array, a named map or a union. Protocol buffer holds such a value in a
 // message of its own, and the union transform code converts it with a call to
 // this helper. It returns nil when the branch needs no such helper, and nil
 // and true when seen already holds it.
@@ -163,7 +163,8 @@ func unionBranchMessageHelper(src, tgt *expr.AttributeExpr, ta *transformAttrs, 
 		svc = tgt
 	}
 	_, named := svc.Type.(expr.UserType)
-	if !expr.IsUnion(svc.Type) && (!named || !expr.IsArray(svc.Type)) {
+	namedCollection := named && (expr.IsArray(svc.Type) || expr.IsMap(svc.Type))
+	if !expr.IsUnion(svc.Type) && !namedCollection {
 		return nil, false, nil
 	}
 	body := src
