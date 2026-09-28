@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"reflect"
 
+	"github.com/CaliLuke/loom/internal/examplevalue"
 	"github.com/CaliLuke/loom/internal/jsonkey"
 )
 
@@ -97,7 +98,16 @@ func canonicalizeUnionExample(union *Union, example any) any {
 	if example == nil || len(union.Values) == 0 {
 		return example
 	}
-	chosen := pickUnionVariantForExample(union, example)
+	var chosen *NamedAttributeExpr
+	if selected, ok := example.(examplevalue.Union); ok {
+		if selected.Branch < 0 || selected.Branch >= len(union.Values) {
+			return nil
+		}
+		chosen = union.Values[selected.Branch]
+		example = selected.Value
+	} else {
+		chosen = pickUnionVariantForExample(union, example)
+	}
 	if chosen == nil {
 		return example
 	}

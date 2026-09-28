@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/examplevalue"
 )
 
 // Normalize projects a DSL value onto its declared JSON shape without
@@ -180,6 +181,9 @@ func collectionEnumUnionValue(attribute *expr.AttributeExpr, union *expr.Union, 
 	selection := *attribute
 	selection.Type = &tagged
 	projected := expr.CanonicalizeExample(&selection, value)
+	if selected, ok := value.(examplevalue.Union); ok {
+		value = selected.Value
+	}
 	envelope, ok := projected.(map[string]any)
 	if !ok {
 		return projected

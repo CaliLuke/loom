@@ -38,7 +38,6 @@ func newSchemafier(rand *expr.ExampleGenerator) *schemafier {
 		analyzer: openapiir.NewAnalyzer(
 			rand,
 			false,
-			openapiir.WithExampleValue(openAPIExampleValue),
 			openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
 		),
 		schemas:            make(map[string]*openapi.Schema),
@@ -57,7 +56,6 @@ func buildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 		api,
 		types,
 		resultTypes,
-		openapiir.WithExampleValue(openAPIExampleValue),
 		openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
 	)
 	renderedServices, renderedComponents := openapiir.RenderBodyTypes(bodyTypes)

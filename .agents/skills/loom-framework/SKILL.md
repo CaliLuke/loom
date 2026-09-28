@@ -208,6 +208,14 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   consume a shared traversal sequence that lets unrelated design changes
   perturb output. API-level example omission must retain explicitly authored
   examples in both JSON and YAML without mutating the evaluated design.
+- OpenAPI synthesis must retain selected union branches through composition.
+  `internal/ir/example_generation.go` wraps unions only in a private expression
+  copy and keeps its memo separate from raw expression examples. The internal
+  `examplevalue.Union` carries a branch index and unprojected value through
+  canonicalization and scalar coercion; do not infer that selection again from
+  payload shape or cache a completed envelope by its leaf identity. Custom
+  example projectors keep receiving raw expression values. The bounded model
+  in `internal/ir/tla/nested_union_examples` checks selection ownership.
 - The IR analyzer defaults to `OpenAPIExampleValue` for every schema surface.
   Keep byte encoding, completeness checks, and explicit nullable examples
   consistent across bodies, nested parameters, response headers, and async

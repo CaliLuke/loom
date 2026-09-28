@@ -5,6 +5,7 @@ import . "github.com/CaliLuke/loom/dsl"
 // TypeIdentityDSL reuses a result type in request, success, collection, and
 // error bodies, which retain its design identifier but have distinct Go types.
 // Its collision services give endpoint bodies and nested types the same name.
+// Nested unions reuse branch shapes in scalar and collection result examples.
 var TypeIdentityDSL = func() {
 	API("identity", func() {})
 	leaf := Type("Leaf", func() {
@@ -24,6 +25,11 @@ var TypeIdentityDSL = func() {
 		Attribute("id", String)
 		Attribute("optional", choice)
 		Attribute("required", choice)
+		Attribute("also", OneOf(leaf, other))
+		OneOf("block", func() {
+			Attribute("s", OneOf(leaf, other))
+			Attribute("t", OneOf(leaf, other))
+		})
 		Required("id", "required")
 	})
 	Service("probe", func() {

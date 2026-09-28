@@ -103,6 +103,9 @@ Schema examples use JSON representations, including base64 for `Bytes`, in
 both JSON and YAML. Incomplete object examples are omitted; explicit null
 examples are retained for nullable schemas. These rules also apply to nested
 parameter schemas, response-header schemas, and streaming message schemas.
+Synthesized tagged-union examples retain every nested envelope, including when
+branches share the same shape. Configured discriminator/value keys and branch
+tags apply at each level; authored examples keep their existing interpretation.
 
 OpenAPI security follows each endpoint's credential location. JWTs mapped to
 query parameters, cookies, or custom headers use API-key schemes; Authorization

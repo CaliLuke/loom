@@ -399,7 +399,7 @@ func initExamples(target interface {
 		}
 	default:
 		generator := exampleGeneratorForAttribute(rand, attr, closeObjects, context)
-		if val, ok := OpenAPIExampleValue(attr, attr.Example(generator)); ok {
+		if val, ok := OpenAPIExampleValue(attr, synthesizedOpenAPIExample(attr, generator)); ok {
 			target.setExample(val)
 		}
 	}

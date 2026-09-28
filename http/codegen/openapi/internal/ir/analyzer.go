@@ -30,8 +30,9 @@ type (
 		closeObjects         bool
 		rand                 *expr.ExampleGenerator
 
-		exampleValue     func(*expr.AttributeExpr, any) (any, bool)
-		suppressExamples func(*expr.AttributeExpr, bool) bool
+		exampleValue       func(*expr.AttributeExpr, any) (any, bool)
+		customExampleValue bool
+		suppressExamples   func(*expr.AttributeExpr, bool) bool
 	}
 
 	schemaRef struct {
@@ -52,6 +53,7 @@ const projectedResultMetaKey = "loom:openapi:projected-result"
 func WithExampleValue(fn func(*expr.AttributeExpr, any) (any, bool)) AnalyzerOption {
 	return func(a *Analyzer) {
 		a.exampleValue = fn
+		a.customExampleValue = fn != nil
 	}
 }
 
@@ -446,7 +448,13 @@ func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, conte
 		suppress = a.suppressExamples(attr, a.closeObjects)
 	}
 	if !suppress {
-		raw := attr.Example(exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context))
+		generator := exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context)
+		var raw any
+		if a.customExampleValue {
+			raw = attr.Example(generator)
+		} else {
+			raw = synthesizedOpenAPIExample(attr, generator)
+		}
 		if a.exampleValue != nil {
 			if example, ok := a.exampleValue(attr, raw); ok {
 				s.Example = example

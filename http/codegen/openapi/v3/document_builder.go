@@ -22,7 +22,6 @@ func buildDocument(root *expr.RootExpr) (*OpenAPI, error) {
 		root.Types,
 		root.ResultTypes,
 		openapiir.WithExampleGenerator(openAPIExampleGenerator(root.API)),
-		openapiir.WithExampleValue(openAPIExampleValue),
 		openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
 	)
 	if err != nil {

@@ -559,6 +559,10 @@ Schema examples use JSON representations, including base64 strings for `Bytes`,
 and omit incomplete object examples. This applies to body schemas, nested
 parameter schemas, response-header schemas, and `x-loom-async` message schemas
 in both output formats. Explicit null examples remain null for nullable schemas.
+Synthesized tagged-union examples retain a discriminator/value envelope at
+every nesting level, including unions that reuse the same branch shapes in
+objects, arrays, and maps. Each envelope uses its configured field names and
+branch tags. Authored `Example(...)` values keep their existing interpretation.
 
 #### OpenAPI 3.2 features
 
