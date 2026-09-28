@@ -149,6 +149,11 @@ func (e *GRPCEndpointExpr) finalizeStreamingRequest() {
 		attr = ut.Attribute()
 	}
 	initAttrFromDesign(e.StreamingRequest, attr)
+	// Prepare creates a non-nil message validation before finalization, so
+	// initAttrFromDesign cannot inherit the constraints of the unwrapped type.
+	if attr.Validation != nil {
+		e.StreamingRequest.Validation.Merge(attr.Validation)
+	}
 	if msgObj := AsObject(e.StreamingRequest.Type); msgObj != nil {
 		for _, nat := range *msgObj {
 			if e.MethodExpr.StreamingPayload.IsRequired(nat.Name) {

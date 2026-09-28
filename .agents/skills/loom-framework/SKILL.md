@@ -546,6 +546,11 @@ filter, and serialization rules belong here.
   packages. The bounded model under `grpc/codegen/tla/import_aliases`
   reproduces the original import and metadata collisions and checks safety and
   termination across all orders of its adversarial names.
+- gRPC streaming request finalization must merge the validation of the
+  unwrapped payload attribute into the prepared message validation. The
+  prepared validation is already non-nil, so `initAttrFromDesign` alone drops
+  root array, map and scalar constraints. Preserve element constraints and
+  object requiredness, and test both ordinary streams and stream envelopes.
 - The fields, oneofs and oneof fields of a gRPC message share one namespace.
   `newProtoMessageNames` (`grpc/codegen/protobuf_message_names.go`) allocates
   their names per message, and the proto renderer, `checkMessageFields`, the
