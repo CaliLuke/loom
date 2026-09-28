@@ -1,5 +1,12 @@
 # Request body analysis
 
+For value source selection, representation phases and cache ownership, see the
+child [value projection model](value_projection/README.md). Its bounded pipeline
+checks complement the separate [Lean semantic foundation](../lean/value_projection/README.md);
+neither establishes correctness of generated Go. The repository-wide
+[formal model index](../../.agents/skills/loom-framework/references/formal-models.md)
+maps other concerns to their local models and records maintenance/cleanup rules.
+
 `RequestBodyAnalysis.tla` models two endpoints sharing an authored body shape.
 The integer for each endpoint counts suffix applications to a nested user type.
 Analysis may run zero, one, or two times before finalization; the checker explores

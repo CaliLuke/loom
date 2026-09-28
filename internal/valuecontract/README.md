@@ -9,6 +9,13 @@ not fix it.
 The initial run's source identities, outcomes and verification limits are recorded
 in [BASELINE.md](BASELINE.md).
 
+The retained snapshots, generated artifacts and logs described below are temporary
+review evidence. After the ticket's validation and independent review finish,
+record concise findings and reproduction inputs in the repository, then delete
+its results directory and logs under the cleanup process in `AGENTS.md`. Keep
+inputs needed by an explicitly identified active task. Compiled tools and generated
+probe modules do not belong in the repository; later checks regenerate them.
+
 Run from a Loom checkout with Go 1.27 and `make depend` prerequisites:
 
 ```sh

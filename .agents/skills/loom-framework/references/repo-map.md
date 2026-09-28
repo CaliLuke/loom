@@ -39,6 +39,9 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   workflows
 - `docs/`: public user documentation
 - `roadmap/`: active framework plans
+- [Formal model index](formal-models.md): concern-to-model navigation, proof
+  correspondence, maintenance and task-output cleanup. Model-local READMEs own
+  their exact commands, assumptions and findings.
 
 ## Lookup Flow
 
@@ -46,8 +49,10 @@ belong in the `loom` skill and the canonical guides under `docs/`.
 2. Trace its expression ownership and validation.
 3. Inspect the shared generator or transport IR before renderer-specific code.
 4. Find direct tests at the ownership seam.
-5. Find the meaningful checked-in fixture or integration path.
-6. Update public docs only if the consuming workflow changes.
+5. Consult the [formal model index](formal-models.md) for related invariants and
+   unresolved correspondence obligations.
+6. Find the meaningful checked-in fixture or integration path.
+7. Update public docs only if the consuming workflow changes.
 
 ## Useful Searches
 

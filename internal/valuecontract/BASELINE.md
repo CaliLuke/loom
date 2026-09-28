@@ -23,8 +23,10 @@ directory. The accepted local run used
 `/tmp/loom397-protoc35/runtime/bin` on PATH, and the candidate checkout as both
 `LOOM_VALUE_CANDIDATE` and `LOOM_DIR`. Its command additionally used `-v`.
 The full log is `/tmp/loom-value-contract-566-4.log`; it exited zero in 616.73
-seconds. These local paths retain detailed evidence, not required repository
-inputs. Re-running produces fresh exact bytes and reports.
+seconds. These are historical review-output paths, not required repository
+inputs. Their temporary contents are deleted after completed validation and
+review under `AGENTS.md`. Re-running produces fresh exact bytes and reports;
+the historical dirty source snapshot itself is not retained after cleanup.
 
 ## Observed results
 
@@ -63,12 +65,13 @@ Independent review confirmed all three source/input/rewrite findings resolved
 before the accepted run. The exact final docs and evidence receive a separate
 review before commit.
 
-Earlier runs remain diagnostic evidence, not acceptance. Run 1 exposed a harness
+Earlier runs supplied diagnostic evidence, not acceptance. Run 1 exposed a harness
 test-package mismatch; run 2 exposed invalid draft Nullable DSL and absent nested
 fixture modules in the downloaded root module. Run 3 reached all 24 probes but
 failed JSON-RPC fixture compilation because `loom example` added `http.go` beside
 the handwritten `jsonrpc.go`, duplicating `handleHTTPServer` and `errorHandler`.
 The corrected full-fixture workflow runs `gen`, `tidy`, `build` and `vet`, while
 fresh probe modules still run `example`. Run 4 verifies that correction on both
-full fixture apps under both revisions twice. Logs and result directories use
-the same local naming with suffixes `-1`, `-2` and `-3`.
+full fixture apps under both revisions twice. Temporary logs and result directories
+used the same local naming with suffixes `-1`, `-2` and `-3`; this summary retains
+their findings after cleanup.

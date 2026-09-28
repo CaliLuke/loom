@@ -29,6 +29,9 @@ capabilities; there is no separate capability-maintenance skill.
 3. Inspect nearby direct tests and meaningful fixtures.
 4. Read the relevant public guide and the consumer `loom` skill only when the
    task changes how users design or operate a Loom service.
+5. Find the owning proof or model in the [formal model index](references/formal-models.md).
+   Read its assumptions, implementation correspondence and expected failures
+   before changing the behavior it describes.
 
 Fix the root framework boundary. Do not patch generated `gen/` output or add an
 application-facing workaround when the framework owns the behavior.
@@ -954,6 +957,15 @@ filter, and serialization rules belong here.
 
 ## Verification Strategy
 
+Use the [formal model index](references/formal-models.md) alongside direct tests
+for ownership, ordering and semantic projection changes. New weaknesses require
+counterexample/model and correspondence-ledger updates, affected claim review,
+audited checks and independent re-review before dependent implementation relies
+on the result. A passing model does not establish generated-Go correctness.
+Keep sources, configurations, theorem manifests, toolchain pins, run instructions
+and concise findings; follow the index's cleanup rule for task-owned compiled
+and checker output after validation and review, preserving active dependencies.
+
 For framework and codegen bugs, add the failing direct test first. Pair the test
 layers that apply:
 
@@ -1165,6 +1177,7 @@ consumer skill with contributor detail.
 ## References
 
 - `references/repo-map.md`
+- [Formal models and proof maintenance](references/formal-models.md)
 - repository `AGENTS.md`
 - `roadmap/`
 - `docs/`
