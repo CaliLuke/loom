@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
@@ -91,7 +93,8 @@ func TestBuildOperationID(t *testing.T) {
 				if s.Name() == c.Service {
 					for _, e := range s.HTTPEndpoints {
 						for i, r := range e.Routes {
-							op := buildOperation(c.Name, r, &EndpointBodies{}, expr.NewRandom(c.Name), api.Meta)
+							op, err := buildOperation(c.Name, r, &EndpointBodies{}, expr.NewRandom(c.Name), api.Meta)
+							require.NoError(t, err)
 
 							if len(c.ExpectedOperationIDs) == 0 {
 								t.Error("no expected operation IDs")
@@ -132,7 +135,8 @@ func TestBuildOperationErrorRemedyDescription(t *testing.T) {
 		t.Fatal("could not find route")
 	}
 
-	op := buildOperation(metName, route, endpointBodies, expr.NewRandom(metName), root.API.Meta)
+	op, err := buildOperation(metName, route, endpointBodies, expr.NewRandom(metName), root.API.Meta)
+	require.NoError(t, err)
 	resp := op.Responses["400"]
 	if resp == nil || resp.Value == nil || resp.Value.Description == nil {
 		t.Fatal("missing bad request response description")

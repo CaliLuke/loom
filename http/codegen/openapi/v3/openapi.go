@@ -264,6 +264,8 @@ type (
 	// SecurityScheme represents an OpenAPI SecurityScheme object as defined in
 	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#securitySchemeObject
 	SecurityScheme struct {
+		// securityURI replaces this allocated component in the OpenAPI 3.2 projection.
+		securityURI  string
 		Type         string      `json:"type,omitzero" yaml:"type,omitempty"`
 		Description  string      `json:"description,omitzero" yaml:"description,omitempty"`
 		Name         string      `json:"name,omitzero" yaml:"name,omitempty"`

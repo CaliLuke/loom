@@ -1,22 +1,30 @@
 package ir
 
-import "encoding/json/v2"
+import (
+	"encoding/json/v2"
+
+	"github.com/CaliLuke/loom/expr"
+)
 
 type (
 	// Document is the root OpenAPI-oriented IR document.
 	Document struct {
 		Paths      map[string]*PathItem
 		Components *Components
+		// Security contains API defaults with resolved component names.
+		Security []map[string][]string
 	}
 
 	// Components contains reusable IR components.
 	Components struct {
-		Schemas       map[string]*Schema
-		Parameters    map[string]*ParameterRef
-		Headers       map[string]*HeaderRef
-		RequestBodies map[string]*RequestBodyRef
-		Responses     map[string]*ResponseRef
-		Examples      map[string]*ExampleRef
+		// SecuritySchemes maps allocated names to distinct HTTP credential bindings.
+		SecuritySchemes map[string]*expr.SchemeExpr
+		Schemas         map[string]*Schema
+		Parameters      map[string]*ParameterRef
+		Headers         map[string]*HeaderRef
+		RequestBodies   map[string]*RequestBodyRef
+		Responses       map[string]*ResponseRef
+		Examples        map[string]*ExampleRef
 	}
 
 	// PathItem groups operations by method.

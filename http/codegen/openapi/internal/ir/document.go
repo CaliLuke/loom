@@ -12,18 +12,37 @@ import (
 	"github.com/CaliLuke/loom/internal/enumvalue"
 )
 
-// BuildDocument analyzes HTTP body/schema-related OpenAPI document data.
-func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr.ResultTypeExpr, options ...AnalyzerOption) *Document {
+// BuildDocument analyzes HTTP operations, schemas and security bindings. It
+// returns an error when OpenAPI cannot represent a credential location.
+func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr.ResultTypeExpr, options ...AnalyzerOption) (*Document, error) {
 	if api == nil || api.HTTP == nil {
-		return nil
+		return nil, nil
+	}
+	apiRequirements := apiSecurityRequirements(api)
+	requirements := [][]*expr.SecurityExpr{apiRequirements}
+	for _, svc := range api.HTTP.Services {
+		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
+			continue
+		}
+		for _, endpoint := range svc.HTTPEndpoints {
+			if openapi.MustGenerate(endpoint.Meta) && openapi.MustGenerate(endpoint.MethodExpr.Meta) {
+				requirements = append(requirements, endpoint.Requirements)
+			}
+		}
+	}
+	bindings, err := newSecurityBindings(requirements...)
+	if err != nil {
+		return nil, err
 	}
 	exampleGenerator := exampleGeneratorWithOptions(api.ExampleGenerator, options...)
 	bodyTypes := BuildBodyTypes(api, types, resultTypes, options...)
 	doc := &Document{
 		Paths: make(map[string]*PathItem),
 		Components: &Components{
-			Schemas: bodyTypes.Components,
+			Schemas:         bodyTypes.Components,
+			SecuritySchemes: bindings.schemes,
 		},
+		Security: bindings.requirements(apiRequirements),
 	}
 	closeObjects := openapi.ClosedObjectModeFromExpr(api.Meta)
 	for _, svc := range api.HTTP.Services {
@@ -38,7 +57,7 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 			}
 			for _, route := range endpoint.Routes {
 				key := expr.HTTPWildcardRegex.ReplaceAllString(route.Path, "/{$1}")
-				operation := buildRouteOperationFromIR(endpoint, route, key, serviceBodies[endpoint.Name], exampleGenerator, api.Meta, closeObjects)
+				operation := buildRouteOperationFromIR(endpoint, route, key, serviceBodies[endpoint.Name], exampleGenerator, api.Meta, closeObjects, bindings)
 				pathItem := doc.Paths[key]
 				if pathItem == nil {
 					pathItem = &PathItem{Operations: make(map[string]*Operation)}
@@ -49,7 +68,7 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 		}
 	}
 	componentizeDocument(doc)
-	return doc
+	return doc, nil
 }
 
 func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {

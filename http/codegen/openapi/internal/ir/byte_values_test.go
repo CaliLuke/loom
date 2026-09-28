@@ -173,7 +173,8 @@ func TestOpenAPIExamplesWithPointerAndNestedCollectionFields(t *testing.T) {
 				})
 			})
 			require.NotPanics(t, func() {
-				BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(OpenAPIExampleValue))
+				_, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(OpenAPIExampleValue))
+				require.NoError(t, err)
 			})
 			attribute := root.Service("example").Method("send").Payload
 			projected, ok := OpenAPIExampleValue(attribute, value)

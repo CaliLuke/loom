@@ -62,7 +62,7 @@ func applyOpenAPI32(root *expr.RootExpr, spec *OpenAPI) {
 			}
 		}
 	}
-	applySecuritySchemeURIs(root, spec)
+	applySecuritySchemeURIs(spec)
 	componentizeMediaTypes(spec)
 }
 
@@ -165,18 +165,18 @@ func promoteQueryStringParameters(parameters []*ParameterRef) {
 	}
 }
 
-func applySecuritySchemeURIs(root *expr.RootExpr, spec *OpenAPI) {
-	if root == nil || spec == nil || spec.Components == nil {
+func applySecuritySchemeURIs(spec *OpenAPI) {
+	if spec == nil || spec.Components == nil {
 		return
 	}
 	replacements := make(map[string]string)
-	for _, scheme := range root.Schemes {
-		if scheme == nil {
+	for name, ref := range spec.Components.SecuritySchemes {
+		if ref == nil || ref.Value == nil {
 			continue
 		}
-		if uri, ok := scheme.Meta.Last("openapi:security:uri"); ok && uri != "" {
-			replacements[scheme.Hash()] = uri
-			delete(spec.Components.SecuritySchemes, scheme.Hash())
+		if uri := ref.Value.securityURI; uri != "" {
+			replacements[name] = uri
+			delete(spec.Components.SecuritySchemes, name)
 		}
 	}
 	if len(replacements) == 0 {

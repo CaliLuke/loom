@@ -183,6 +183,14 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   members.
 - Start OpenAPI contract changes in `http/codegen/openapi/internal/ir`; keep the
   `v3` package focused on rendering IR-owned decisions.
+- Security component allocation belongs to the document IR. Identify a binding
+  by authored scheme, kind, HTTP location, and credential name; canonicalize
+  header case. Reserve authored names before allocating sorted binding variants,
+  and project operation requirements through that registry. Keep API defaults,
+  session-cookie names, AND/OR composition, OAuth scopes, and OpenAPI 3.2 external
+  scheme URIs consistent. Do not change shared `SchemeExpr.Hash` for this purpose.
+  Reject path credentials and OAuth2 mappings outside Authorization during
+  OpenAPI generation; preserve their HTTP transport support and honor exclusions.
 - Keep `http/codegen/openapi` limited to the active schema/document model and
   shared renderer helpers. Schema analysis state is per-render state owned by
   `internal/ir`; do not reintroduce the legacy JSON Hyper-Schema generator,

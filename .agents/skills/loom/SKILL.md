@@ -95,6 +95,14 @@ only one format. Generation removes the stale sibling file when this setting
 changes. JSON output is deterministically ordered, two-space indented, and
 newline-terminated for reviewable diffs.
 
+OpenAPI security follows each endpoint's credential location. JWTs mapped to
+query parameters, cookies, or custom headers use API-key schemes; Authorization
+header JWTs use HTTP bearer. One scheme used at several locations gets separate
+components. Path credentials and OAuth2 credentials outside Authorization cause
+OpenAPI generation errors. Keep OAuth2 flows and scopes by using Authorization,
+or exclude the endpoint with `Meta("openapi:generate", "false")` and document it
+separately; the HTTP transport mappings remain supported.
+
 To bootstrap a design from an existing OpenAPI 3.0, 3.1, or 3.2 JSON/YAML contract,
 run `loom import openapi <input> -o design`. Import supports a strict subset:
 it reports every unsupported construct it finds, writes no partial design or

@@ -4,7 +4,6 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
-	"github.com/CaliLuke/loom/internal/securityreq"
 )
 
 func openAPIExampleGenerator(api *expr.APIExpr) *expr.ExampleGenerator {
@@ -17,8 +16,8 @@ func openAPIExampleGenerator(api *expr.APIExpr) *expr.ExampleGenerator {
 	return api.ExampleGenerator
 }
 
-func buildDocument(root *expr.RootExpr) *OpenAPI {
-	doc := openapiir.BuildDocument(
+func buildDocument(root *expr.RootExpr) (*OpenAPI, error) {
+	doc, err := openapiir.BuildDocument(
 		root.API,
 		root.Types,
 		root.ResultTypes,
@@ -26,6 +25,9 @@ func buildDocument(root *expr.RootExpr) *OpenAPI {
 		openapiir.WithExampleValue(openAPIExampleValue),
 		openapiir.WithExampleSuppression(shouldSuppressOpenAPIExamples),
 	)
+	if err != nil {
+		return nil, err
+	}
 	paths := buildPaths(root.API.HTTP, doc, root.API)
 	reusable := reusableComponentsFromIR(doc.Components)
 	schemas := openapiir.RenderSchemaMap(doc.Components.Schemas)
@@ -35,12 +37,12 @@ func buildDocument(root *expr.RootExpr) *OpenAPI {
 		OpenAPI:           OpenAPIVersion,
 		Info:              buildInfo(root.API),
 		JSONSchemaDialect: JSONSchemaDialect,
-		Components:        buildComponents(root, pruneUnusedComponentSchemas(paths, schemas, reusable), reusable),
+		Components:        buildComponents(doc.Components.SecuritySchemes, pruneUnusedComponentSchemas(paths, schemas, reusable), reusable),
 		Paths:             paths,
 		Servers:           buildServers(root.API.Servers),
-		Security:          securityreq.OpenAPI(securityreq.Effective(root.API.Requirements, root.API.SessionAuths)),
+		Security:          cloneOperationSecurity(doc.Security),
 		Tags:              buildTags(root.API),
 		ExternalDocs:      openapi.DocsFromExpr(root.API.Docs),
 		Extensions:        openapi.ScopedExtensionsFromExpr(root.API.Meta, "document"),
-	}
+	}, nil
 }

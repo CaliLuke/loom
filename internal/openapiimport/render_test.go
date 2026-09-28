@@ -206,9 +206,17 @@ components:
 	var contract map[string]any
 	require.NoError(t, json.Unmarshal(generated, &contract))
 	securitySchemes := contract["components"].(map[string]any)["securitySchemes"].(map[string]any)
-	require.Equal(t, "header", securitySchemes["HeaderKey"].(map[string]any)["in"])
+	defaultHeader := securitySchemes["HeaderKey_header_Authorization"].(map[string]any)
+	require.Equal(t, "header", defaultHeader["in"])
+	require.Equal(t, "Authorization", defaultHeader["name"])
+	endpointHeader := securitySchemes["HeaderKey_header_X-Api-Key"].(map[string]any)
+	require.Equal(t, "header", endpointHeader["in"])
+	require.Equal(t, "X-Api-Key", endpointHeader["name"])
 	require.Equal(t, "cookie", securitySchemes["CookieKey"].(map[string]any)["in"])
-	require.Equal(t, []any{map[string]any{"HeaderKey": []any{}}}, contract["security"])
+	require.Equal(t, "session-id", securitySchemes["CookieKey"].(map[string]any)["name"])
+	require.Equal(t, []any{map[string]any{"HeaderKey_header_Authorization": []any{}}}, contract["security"])
+	require.Equal(t, []any{map[string]any{"HeaderKey_header_X-Api-Key": []any{}}},
+		operationFromImportedSpec(t, contract, "/inherited", "get")["security"])
 	require.Equal(t, []any{}, operationFromImportedSpec(t, contract, "/public", "get")["security"])
 	require.Equal(t, []any{
 		map[string]any{"CookieKey": []any{}},

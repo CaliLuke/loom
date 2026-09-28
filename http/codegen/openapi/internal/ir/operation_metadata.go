@@ -11,7 +11,6 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
-	"github.com/CaliLuke/loom/internal/securityreq"
 )
 
 const defaultOperationIDFormat = "{service}.{method}(.{routeIndex})"
@@ -22,16 +21,21 @@ var (
 )
 
 // BuildRouteOperation analyzes one route-scoped HTTP operation including
-// parameters and OpenAPI metadata.
-func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool) *Operation {
+// parameters and OpenAPI metadata. It returns an error for a credential
+// location that OpenAPI cannot represent.
+func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool) (*Operation, error) {
 	if route == nil || route.Endpoint == nil {
-		return nil
+		return nil, nil
 	}
 	endpointIR := transportir.BuildEndpoint(route.Endpoint)
-	return buildRouteOperationFromIR(endpointIR, transportir.RouteForExpr(endpointIR, route, path), path, bodies, rand, apiMeta, closeObjects)
+	bindings, err := newSecurityBindings(endpointIR.Security.Requirements)
+	if err != nil {
+		return nil, err
+	}
+	return buildRouteOperationFromIR(endpointIR, transportir.RouteForExpr(endpointIR, route, path), path, bodies, rand, apiMeta, closeObjects, bindings), nil
 }
 
-func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transportir.Route, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool) *Operation {
+func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transportir.Route, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool, bindings *securityBindings) *Operation {
 	service := endpointIR.Service
 
 	summary := fmt.Sprintf("%s %s", endpointIR.Name, service.Name)
@@ -77,7 +81,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 		RequestBody:  wrapRequestBody(requestBody),
 		Responses:    responses,
 		Deprecated:   deprecated,
-		Security:     buildOperationSecurity(endpointIR),
+		Security:     buildOperationSecurity(endpointIR, bindings),
 		ExternalDocs: externalDocs(endpointIR.MethodDocs),
 		Extensions:   extensions,
 	}
@@ -198,7 +202,7 @@ func externalDocs(docs *expr.DocsExpr) *ExternalDocs {
 	}
 }
 
-func buildOperationSecurity(endpointIR *transportir.Endpoint) []map[string][]string {
+func buildOperationSecurity(endpointIR *transportir.Endpoint, bindings *securityBindings) []map[string][]string {
 	if endpointIR == nil {
 		return nil
 	}
@@ -208,7 +212,7 @@ func buildOperationSecurity(endpointIR *transportir.Endpoint) []map[string][]str
 	if len(endpointIR.Security.Requirements) == 0 {
 		return nil
 	}
-	return securityreq.OpenAPI(endpointIR.Security.Requirements)
+	return bindings.requirements(endpointIR.Security.Requirements)
 }
 
 func isSecurityParameter(security *transportir.Security, in, name string) bool {

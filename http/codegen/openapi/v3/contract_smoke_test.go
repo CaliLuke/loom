@@ -284,6 +284,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		unsupportedOAS32Diagnostic string
 	}{
 		{name: "meal-planner", dsl: testdata.MealPlannerDSL},
+		{name: "security-locations", dsl: testdata.SecurityDSL},
 		{name: "constrained-response-cookie", dsl: synthesizedExampleStabilityDSL(false, false)},
 		{
 			name:                       "openapi-3.2-features",

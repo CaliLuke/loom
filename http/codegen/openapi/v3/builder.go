@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"maps"
 	"sort"
+	"strings"
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
-	"github.com/CaliLuke/loom/internal/securityreq"
 )
 
 const (
@@ -26,9 +26,9 @@ const (
 )
 
 // New returns the OpenAPI v3 specification for the given API. It returns nil
-// if the design does not define HTTP endpoints or configures an unsupported
-// openapi:version value. Callers that need the validation error should evaluate
-// the design before calling New or use Files.
+// if the design does not define HTTP endpoints, configures an unsupported
+// openapi:version, or uses a credential location OpenAPI cannot represent.
+// Call Files to obtain the generation error.
 func New(root *expr.RootExpr) *OpenAPI {
 	target := openAPIVersion32
 	if root != nil && root.API != nil {
@@ -51,7 +51,10 @@ func newForVersion(root *expr.RootExpr, target openAPIVersion) (*OpenAPI, []stri
 		return nil, nil, nil
 	}
 
-	spec := buildDocument(root)
+	spec, err := buildDocument(root)
+	if err != nil {
+		return nil, nil, err
+	}
 	warnings, err := renderOpenAPI(root, spec, target)
 	if err != nil {
 		return nil, nil, err
@@ -89,21 +92,10 @@ func buildInfo(api *expr.APIExpr) *Info {
 }
 
 // buildComponents builds the OpenAPI Components object.
-func buildComponents(root *expr.RootExpr, types map[string]*openapi.Schema, reusable reusableComponents) *Components {
-	var schemesRef map[string]*SecuritySchemeRef
-	{
-		schemesRef = make(map[string]*SecuritySchemeRef)
-		for _, s := range root.API.HTTP.Services {
-			for _, e := range s.HTTPEndpoints {
-				for _, r := range e.Requirements {
-					for _, sch := range r.Schemes {
-						schemesRef[sch.Hash()] = &SecuritySchemeRef{
-							Value: buildSecurityScheme(sch),
-						}
-					}
-				}
-			}
-		}
+func buildComponents(schemes map[string]*expr.SchemeExpr, types map[string]*openapi.Schema, reusable reusableComponents) *Components {
+	schemesRef := make(map[string]*SecuritySchemeRef, len(schemes))
+	for name, scheme := range schemes {
+		schemesRef[name] = &SecuritySchemeRef{Value: buildSecurityScheme(scheme)}
 	}
 	return &Components{
 		SecuritySchemes: schemesRef,
@@ -125,16 +117,19 @@ func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) ma
 			continue
 		}
 		buildServiceEndpointPaths(paths, doc, svc, openapi.ExtensionsFromExpr(svc.Meta))
-		buildServiceFileServerPaths(paths, api, svc)
+		buildServiceFileServerPaths(paths, api, svc, doc.Security)
 	}
 	return paths
 }
 
 // buildOperation builds the OpenAPI Operation object for the given path.
-func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, meta expr.MetaExpr) *Operation {
+func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, meta expr.MetaExpr) (*Operation, error) {
 	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
-	operationIR := openapiir.BuildRouteOperation(r, key, endpointBodiesToIR(bodies), rand, meta, closeObjects)
-	return buildOperationFromIR(operationIR)
+	operationIR, err := openapiir.BuildRouteOperation(r, key, endpointBodiesToIR(bodies), rand, meta, closeObjects)
+	if err != nil {
+		return nil, err
+	}
+	return buildOperationFromIR(operationIR), nil
 }
 
 func buildOperationFromIR(operationIR *openapiir.Operation) *Operation {
@@ -168,7 +163,7 @@ func irOperation(doc *openapiir.Document, path, method string) *openapiir.Operat
 }
 
 // buildFileServerOperation builds the OpenAPI Operation object for the given file server.
-func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr.APIExpr) *Operation {
+func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr.APIExpr, security []map[string][]string) *Operation {
 	wildcards := expr.ExtractHTTPWildcards(key)
 	svc := fs.Service
 
@@ -179,7 +174,7 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 		Parameters:   fileServerParameters(wildcards),
 		Responses:    fileServerResponses(wildcards),
 		Tags:         operationTagNames(fs.Meta, svc.Meta, svc.Name()),
-		Security:     securityreq.OpenAPI(securityreq.Effective(api.Requirements, api.SessionAuths)),
+		Security:     cloneOperationSecurity(security),
 		Deprecated:   false,
 		ExternalDocs: openapi.DocsFromExpr(fs.Docs),
 		Extensions:   openapi.ExtensionsFromExpr(fs.Meta),
@@ -253,14 +248,14 @@ func assignCORSExtension(path *PathItem, cors map[string]any) {
 	path.Extensions["x-loom-cors"] = cors
 }
 
-func buildServiceFileServerPaths(paths map[string]*PathItem, api *expr.APIExpr, svc *expr.HTTPServiceExpr) {
+func buildServiceFileServerPaths(paths map[string]*PathItem, api *expr.APIExpr, svc *expr.HTTPServiceExpr, security []map[string][]string) {
 	for _, fileServer := range svc.FileServers {
 		if !openapi.MustGenerate(fileServer.Meta) || !openapi.MustGenerate(fileServer.Service.Meta) {
 			continue
 		}
 		for _, key := range fileServer.RequestPaths {
 			normalizedKey := normalizeOpenAPIPath(key)
-			assignPathOperation(paths, normalizedKey, "GET", buildFileServerOperation(normalizedKey, fileServer, api))
+			assignPathOperation(paths, normalizedKey, "GET", buildFileServerOperation(normalizedKey, fileServer, api, security))
 		}
 	}
 }
@@ -480,11 +475,21 @@ func buildSecurityScheme(se *expr.SchemeExpr) *SecurityScheme {
 			Extensions:  extensions,
 		}
 	case expr.JWTKind:
-		scheme = &SecurityScheme{
-			Type:        "http",
-			Scheme:      "bearer",
-			Description: se.Description,
-			Extensions:  extensions,
+		if se.In == "header" && strings.EqualFold(se.Name, "Authorization") {
+			scheme = &SecurityScheme{
+				Type:        "http",
+				Scheme:      "bearer",
+				Description: se.Description,
+				Extensions:  extensions,
+			}
+		} else {
+			scheme = &SecurityScheme{
+				Type:        "apiKey",
+				In:          se.In,
+				Name:        se.Name,
+				Description: se.Description,
+				Extensions:  extensions,
+			}
 		}
 	case expr.OAuth2Kind:
 		scheme = &SecurityScheme{
@@ -495,6 +500,7 @@ func buildSecurityScheme(se *expr.SchemeExpr) *SecurityScheme {
 		}
 	}
 	if scheme != nil {
+		scheme.securityURI, _ = se.Meta.Last("openapi:security:uri")
 		scheme.OAuth2MetadataURL = metaFirst(se.Meta, "openapi:oauth2MetadataUrl")
 		scheme.Deprecated = metaBool(se.Meta, "openapi:deprecated")
 	}

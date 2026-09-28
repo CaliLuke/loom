@@ -25,7 +25,8 @@ func TestBuildDocumentIncludesRequestBodyAndResponses(t *testing.T) {
 	)
 
 	root := codegen.RunDSL(t, dsls.RequestObjectBody(serviceName, methodName))
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 
 	path := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0].FullPaths()[0]
 	operation := doc.Paths[path].Operations["POST"]
@@ -63,7 +64,8 @@ func TestBuildDocumentNullableAliasComponentReferencesUnderlyingType(t *testing.
 		})
 	})
 
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes)
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
+	require.NoError(t, err)
 
 	component := doc.Components.Schemas["NullableWidget"]
 	require.NotNil(t, component)
@@ -276,7 +278,8 @@ func TestBuildDocumentComposesRepeatedHTTPBlocks(t *testing.T) {
 		})
 	})
 
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes)
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
+	require.NoError(t, err)
 	operation := doc.Paths["/base/thing"].Operations["GET"]
 	require.NotNil(t, operation)
 	require.Contains(t, operation.Responses, "409")
@@ -428,7 +431,8 @@ func TestBuildDocumentUsesExplicitRequestBodyDescriptionMeta(t *testing.T) {
 			})
 		})
 	})
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 
 	path := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0].FullPaths()[0]
 	operation := doc.Paths[path].Operations["POST"]
@@ -440,7 +444,8 @@ func TestBuildDocumentUsesExplicitRequestBodyDescriptionMeta(t *testing.T) {
 
 func TestBuildDocumentPublishesDocumentedRawRequestBodies(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.RawRequestBodyOpenAPIDSL)
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 
 	binary := doc.Paths["/uploads/{id}"].Operations["POST"]
 	require.NotNil(t, binary)
@@ -497,7 +502,8 @@ func TestBuildDocumentPublishesMultipleRawRequestBodyMediaTypes(t *testing.T) {
 			})
 		})
 	})
-	document := BuildDocument(root.API, root.Types, root.ResultTypes)
+	document, err := BuildDocument(root.API, root.Types, root.ResultTypes)
+	require.NoError(t, err)
 
 	body := document.Paths["/flexible"].Operations["POST"].RequestBody.Value
 	require.Len(t, body.Content, 3)
@@ -514,7 +520,8 @@ func TestBuildDocumentPublishesMultipleRawRequestBodyMediaTypes(t *testing.T) {
 
 func TestBuildDocumentOmitsUndocumentedRawRequestBody(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.SkipRequestBodyEncodeDecodeDSL)
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 
 	operation := doc.Paths["/"].Operations["POST"]
 	require.NotNil(t, operation)
@@ -528,7 +535,8 @@ func TestBuildDocumentCarriesErrorRemedyDescriptions(t *testing.T) {
 	)
 
 	root := codegen.RunDSL(t, dsls.ErrorRemedyResponseBodyDSL(serviceName, methodName))
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 
 	path := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0].FullPaths()[0]
 	operation := doc.Paths[path].Operations["POST"]
@@ -557,7 +565,8 @@ func TestBuildDocumentCanPreserveExactErrorResponseDescription(t *testing.T) {
 		})
 	})
 
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 	operation := doc.Paths["/pets"].Operations["GET"]
 	require.NotNil(t, operation)
 	require.Equal(t, "Pet was not found.", operation.Responses["404"].Value.Description)
@@ -624,7 +633,8 @@ func TestBuildOperationSuppressesStreamingResponseExamples(t *testing.T) {
 func TestBuildDocumentComponentizesRepeatedContractNodes(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.OpenAPIReusableComponentsDSL)
 
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 	require.NotNil(t, doc)
 	require.NotNil(t, doc.Components)
 	require.NotEmpty(t, doc.Components.RequestBodies)
@@ -658,7 +668,8 @@ func TestBuildExampleUsesAuthoredOpenAPISummary(t *testing.T) {
 func TestBuildDocumentPublishesResponseLinksAndAsyncContracts(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.OpenAPIProblemLinksAsyncDSL)
 
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 	require.NotNil(t, doc)
 
 	createThread := doc.Paths["/threads"].Operations["POST"]
@@ -701,7 +712,8 @@ func TestBuildDocumentPublishesResponseLinksAndAsyncContracts(t *testing.T) {
 
 func TestBuildDocumentPublishesSSEProjectionAlternatives(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.SSEVariantProjectionDSL)
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 
 	watch := doc.Paths["/events"].Operations["GET"]
 	require.NotNil(t, watch)
@@ -737,7 +749,8 @@ func TestBuildDocumentPublishesSSEProjectionAlternatives(t *testing.T) {
 func TestBuildDocumentMixedTransportContracts(t *testing.T) {
 	root := codegen.RunDSL(t, mixedTransportDocumentDSL)
 
-	doc := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	require.NoError(t, err)
 	require.NotNil(t, doc)
 
 	create := doc.Paths["/plain/{id}"].Operations["POST"]

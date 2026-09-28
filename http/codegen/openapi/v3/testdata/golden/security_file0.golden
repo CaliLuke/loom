@@ -6,10 +6,16 @@
       }
     },
     "securitySchemes": {
-      "api_key": {
+      "api_key_header_X-Key": {
         "description": "Secures endpoint by requiring an API key.",
         "in": "header",
-        "name": "Authorization",
+        "name": "X-Key",
+        "type": "apiKey"
+      },
+      "api_key_query_k": {
+        "description": "Secures endpoint by requiring an API key.",
+        "in": "query",
+        "name": "k",
         "type": "apiKey"
       },
       "basic": {
@@ -17,10 +23,17 @@
         "scheme": "basic",
         "type": "http"
       },
-      "jwt": {
+      "jwt_header_X-Authorization": {
         "description": "Secures endpoint by requiring a valid JWT token retrieved via the signin endpoint. Supports scopes \"api:read\" and \"api:write\".",
-        "scheme": "bearer",
-        "type": "http"
+        "in": "header",
+        "name": "X-Authorization",
+        "type": "apiKey"
+      },
+      "jwt_query_access_token": {
+        "description": "Secures endpoint by requiring a valid JWT token retrieved via the signin endpoint. Supports scopes \"api:read\" and \"api:write\".",
+        "in": "query",
+        "name": "access_token",
+        "type": "apiKey"
       },
       "oauth2": {
         "description": "Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes \"api:read\" and \"api:write\".",
@@ -56,12 +69,9 @@
         },
         "security": [
           {
-            "api_key": [],
+            "api_key_query_k": [],
             "basic": [],
-            "jwt": [],
-            "oauth2": [
-              "api:read"
-            ]
+            "jwt_header_X-Authorization": []
           }
         ],
         "summary": "testEndpointA testService",
@@ -78,7 +88,7 @@
         },
         "security": [
           {
-            "api_key": []
+            "api_key_header_X-Key": []
           },
           {
             "oauth2": [
@@ -88,6 +98,25 @@
           }
         ],
         "summary": "testEndpointB testService",
+        "tags": [
+          "testService"
+        ]
+      }
+    },
+    "/query-token": {
+      "get": {
+        "operationId": "test_service.test_endpoint_c",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContentResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt_query_access_token": []
+          }
+        ],
+        "summary": "testEndpointC testService",
         "tags": [
           "testService"
         ]

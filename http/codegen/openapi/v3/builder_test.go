@@ -324,7 +324,8 @@ func TestBuildOperation(t *testing.T) {
 				return
 			}
 
-			op := buildOperation(c.Name, route, bodies, expr.NewRandom(c.Name), root.API.Meta)
+			op, err := buildOperation(c.Name, route, bodies, expr.NewRandom(c.Name), root.API.Meta)
+			require.NoError(t, err)
 
 			if op.Description != c.ExpectedDescription {
 				t.Errorf("got description %q for method %q, expected %q", op.Description, c.Name, c.ExpectedDescription)

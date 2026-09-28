@@ -624,6 +624,21 @@ basic, and cookie security schemes. OAuth2 is the only scheme kind that
 publishes required scopes in those arrays; JWT and bearer scopes remain part of
 generated auth data without being advertised as OpenAPI OAuth-style scopes.
 
+JWT credentials use an HTTP bearer scheme when read from the Authorization
+header. A JWT mapped to another header, a query parameter, or a cookie uses an
+API-key scheme with that exact location. Reusing one scheme at different
+locations produces separate security components, and each operation references
+its own binding. API-level defaults use the Authorization header or the declared
+session-cookie name; endpoint mappings override those defaults. Component names
+can change when a scheme acquires another credential location.
+
+OpenAPI generation rejects path credentials and OAuth2 credentials outside the
+Authorization header. These mappings cannot be represented by standard security
+schemes while preserving OAuth flows and scopes. The HTTP transport still supports
+them. To document such an endpoint separately, exclude it from OpenAPI with
+`Meta("openapi:generate", "false")` on the method or HTTP endpoint. OAuth2 schemes
+using the Authorization header retain their flows and required scopes.
+
 When `Meta("openapi:closed-objects", "true")` is set at API scope, normal object
 schemas are emitted as closed JSON Schema objects with
 `additionalProperties: false`. Explicit maps remain open by using schema-valued

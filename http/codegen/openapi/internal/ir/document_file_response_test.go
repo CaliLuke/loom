@@ -52,6 +52,7 @@ func TestFileResponseRequestHeadersAndHeadResponse(t *testing.T) {
 		root.API.ExampleGenerator,
 		root.API.Meta,
 		false,
+		nil,
 	)
 
 	wantHeaders := []string{"Range", "If-Range", "If-Match", "If-None-Match", "If-Modified-Since", "If-Unmodified-Since"}

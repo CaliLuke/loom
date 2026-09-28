@@ -18,11 +18,9 @@ paths:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
             security:
-                - api_key: []
+                - api_key_query_k: []
                   basic: []
-                  jwt: []
-                  oauth2:
-                    - api:read
+                  jwt_header_X-Authorization: []
         post:
             tags:
                 - testService
@@ -32,28 +30,50 @@ paths:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
             security:
-                - api_key: []
+                - api_key_header_X-Key: []
                 - oauth2:
                     - api:read
                     - api:write
+    /query-token:
+        get:
+            tags:
+                - testService
+            summary: testEndpointC testService
+            operationId: test_service.test_endpoint_c
+            responses:
+                "204":
+                    $ref: '#/components/responses/NoContentResponse'
+            security:
+                - jwt_query_access_token: []
 components:
     responses:
         NoContentResponse:
             description: No Content response.
     securitySchemes:
-        api_key:
+        api_key_header_X-Key:
             type: apiKey
             description: Secures endpoint by requiring an API key.
-            name: Authorization
+            name: X-Key
             in: header
+        api_key_query_k:
+            type: apiKey
+            description: Secures endpoint by requiring an API key.
+            name: k
+            in: query
         basic:
             type: http
             description: Basic authentication used to authenticate security principal during signin
             scheme: basic
-        jwt:
-            type: http
+        jwt_header_X-Authorization:
+            type: apiKey
             description: Secures endpoint by requiring a valid JWT token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".
-            scheme: bearer
+            name: X-Authorization
+            in: header
+        jwt_query_access_token:
+            type: apiKey
+            description: Secures endpoint by requiring a valid JWT token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".
+            name: access_token
+            in: query
         oauth2:
             type: oauth2
             description: Secures endpoint by requiring a valid OAuth2 token retrieved via the signin endpoint. Supports scopes "api:read" and "api:write".
