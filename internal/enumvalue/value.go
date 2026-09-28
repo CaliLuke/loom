@@ -1,8 +1,7 @@
-package codegen
+// Package enumvalue projects authored enum values onto their declared JSON shapes.
+package enumvalue
 
 import (
-	"encoding/json/jsontext"
-	"encoding/json/v2"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -11,34 +10,56 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-// collectionEnumValue applies the same primitive coercions as generated Go
-// comparisons before projecting the value onto its JSON representation. In
-// particular, floats round to their declared precision and Bytes accepts text.
-// Non-null nil collections become empty collections, as encoding/json/v2 does.
-func collectionEnumValue(attribute *expr.AttributeExpr, value any) any {
-	if value == nil {
-		return nil
+// Normalize projects a DSL value onto its declared JSON shape without
+// mutating the attribute or value. It applies the primitive coercions used by
+// generated Go comparisons: floats round to their declared precision and Bytes
+// accepts text. Non-null nil collections become empty collections, as
+// encoding/json/v2 does. Any values retain their original Go representation.
+// Pointers are dereferenced for declared types; incompatible example shapes are
+// left unchanged for the caller to validate or omit.
+func Normalize(attribute *expr.AttributeExpr, value any) any {
+	if value == nil || attribute == nil || attribute.Type == nil {
+		return value
 	}
-	switch actual := unalias(attribute.Type).(type) {
+	datatype := baseType(attribute.Type)
+	if datatype == expr.Any {
+		return value
+	}
+	input := reflect.ValueOf(value)
+	for input.Kind() == reflect.Pointer || input.Kind() == reflect.Interface {
+		if input.IsNil() {
+			return nil
+		}
+		input = input.Elem()
+	}
+	value = input.Interface()
+	switch actual := datatype.(type) {
 	case *expr.Array:
-		input := reflect.ValueOf(value)
+		if input.Kind() != reflect.Array && input.Kind() != reflect.Slice {
+			return value
+		}
 		values := make([]any, input.Len())
 		for index := range values {
-			values[index] = collectionEnumValue(actual.ElemType, input.Index(index).Interface())
+			values[index] = Normalize(actual.ElemType, input.Index(index).Interface())
 		}
 		return values
 	case *expr.Map:
-		input := reflect.ValueOf(value)
+		if input.Kind() != reflect.Map {
+			return value
+		}
 		values := make(map[any]any, input.Len())
 		iterator := input.MapRange()
 		for iterator.Next() {
 			key := iterator.Key().Interface()
-			if unalias(actual.KeyType.Type).Kind() != expr.AnyKind {
-				key = collectionEnumValue(actual.KeyType, key)
+			if baseType(actual.KeyType.Type).Kind() != expr.AnyKind {
+				key = Normalize(actual.KeyType, key)
 			}
-			values[key] = collectionEnumValue(actual.ElemType, iterator.Value().Interface())
+			values[key] = Normalize(actual.ElemType, iterator.Value().Interface())
 		}
-		return expr.CanonicalizeExample(attribute, values)
+		// Canonicalize keys without traversing the normalized values again:
+		// Any must retain its exact Go/JSON value, including typed nil bytes.
+		keysOnly := &expr.AttributeExpr{Type: &expr.Map{KeyType: actual.KeyType, ElemType: &expr.AttributeExpr{}}}
+		return expr.CanonicalizeExample(keysOnly, values)
 	case *expr.Object:
 		return collectionEnumObjectValue(attribute, actual, value)
 	case *expr.Union:
@@ -72,18 +93,13 @@ func collectionEnumPrimitiveValue(primitive expr.Primitive, value any) any {
 		if text, ok := value.(string); ok {
 			return []byte(text)
 		}
-		bytes := value.([]byte)
+		bytes, ok := value.([]byte)
+		if !ok {
+			return value
+		}
 		copied := make([]byte, len(bytes))
 		copy(copied, bytes)
 		return copied
-	case expr.Any:
-		// Keep Any's own JSON semantics when enclosing object/map projection
-		// traverses this value, including typed nil values and raw JSON.
-		encoded, err := json.Marshal(value, json.Deterministic(true))
-		if err != nil {
-			panic(fmt.Sprintf("encode arbitrary JSON enum value: %v", err))
-		}
-		return jsontext.Value(encoded)
 	default:
 		return value
 	}
@@ -100,25 +116,32 @@ func collectionEnumObjectValue(attribute *expr.AttributeExpr, object *expr.Objec
 	if input.IsNil() {
 		return nil
 	}
-	values := make(map[string]any, input.Len())
+	authored := make(map[string]any, input.Len())
 	iterator := input.MapRange()
 	for iterator.Next() {
 		key := iterator.Key()
 		for key.Kind() == reflect.Interface {
 			key = key.Elem()
 		}
-		name := key.String()
-		field := &expr.AttributeExpr{Type: expr.Any}
-		for _, candidate := range *object {
-			wireName := expr.JSONFieldName(expr.ElementName(candidate.Name), candidate.Attribute)
-			if name == candidate.Name || name == wireName {
-				field = candidate.Attribute
-				break
-			}
-		}
-		values[name] = collectionEnumValue(field, iterator.Value().Interface())
+		authored[key.String()] = iterator.Value().Interface()
 	}
-	return expr.CanonicalizeExample(attribute, values)
+	values := make(map[string]any, input.Len())
+	for _, field := range *object {
+		wireName := expr.JSONFieldName(expr.ElementName(field.Name), field.Attribute)
+		value, present := authored[wireName]
+		if !present {
+			value, present = authored[field.Name]
+		}
+		delete(authored, wireName)
+		delete(authored, field.Name)
+		if present && wireName != "-" {
+			values[wireName] = Normalize(field.Attribute, value)
+		}
+	}
+	for name, value := range authored {
+		values[name] = value
+	}
+	return values
 }
 
 // collectionEnumStructFields preserves authored struct field values so nested
@@ -165,11 +188,21 @@ func collectionEnumUnionValue(attribute *expr.AttributeExpr, union *expr.Union, 
 		if envelope[union.GetTypeKey()] != expr.UnionVariantTag(branch) {
 			continue
 		}
-		normalized := collectionEnumValue(branch.Attribute, value)
+		normalized := Normalize(branch.Attribute, value)
 		if union.Untagged {
 			return normalized
 		}
 		return map[string]any{union.GetTypeKey(): expr.UnionVariantTag(branch), union.GetValueKey(): normalized}
 	}
 	return projected
+}
+
+func baseType(datatype expr.DataType) expr.DataType {
+	for {
+		userType, ok := datatype.(expr.UserType)
+		if !ok {
+			return datatype
+		}
+		datatype = userType.Attribute().Type
+	}
 }

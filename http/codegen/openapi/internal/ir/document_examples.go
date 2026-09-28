@@ -11,6 +11,7 @@ import (
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/internal/enumvalue"
 )
 
 type openAPIJSONNumber string
@@ -172,7 +173,7 @@ func projectOpenAPIUnionExample(union *expr.Union, value any) any {
 func projectOpenAPIValues(attribute *expr.AttributeExpr, values []any) []any {
 	projected := make([]any, len(values))
 	for index, value := range values {
-		canonical := expr.CanonicalizeExample(attribute, value)
+		canonical := enumvalue.Normalize(attribute, value)
 		projected[index] = normalizeOpenAPIExampleForAttribute(attribute, projectOpenAPIExample(attribute, canonical))
 	}
 	return projected
@@ -327,8 +328,11 @@ func normalizePrimitiveOpenAPIExample(primitive expr.Primitive, value any) any {
 			return base64.StdEncoding.EncodeToString(actual)
 		}
 	case expr.Bytes:
-		if actual, ok := value.([]byte); ok {
-			return string(actual)
+		switch actual := value.(type) {
+		case []byte:
+			return base64.StdEncoding.EncodeToString(actual)
+		case string:
+			return base64.StdEncoding.EncodeToString([]byte(actual))
 		}
 	}
 	return normalizeOpenAPIExample(value)

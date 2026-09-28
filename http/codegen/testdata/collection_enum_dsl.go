@@ -10,8 +10,12 @@ var CollectionEnumDSL = func() {
 	labels := Type("LabelList", ArrayOf(String), func() {
 		Enum([]string{"val"}, []string{"a", "b"})
 	})
+	allBytes := make([]byte, 256)
+	for index := range allBytes {
+		allBytes[index] = byte(index)
+	}
 	bytes := Type("Blob", Bytes, func() {
-		Enum("\x00\x7f")
+		Enum("\x00\x7f", allBytes)
 	})
 	nested := Type("Rows", ArrayOf(ArrayOf(String)), func() {
 		Enum([][]string{{"val"}})
@@ -32,6 +36,7 @@ var CollectionEnumDSL = func() {
 	})
 	Service("enums", func() {
 		Method("records", func() {
+			NoSecurity()
 			Payload(records)
 			Result(records)
 			HTTP(func() {
@@ -39,6 +44,7 @@ var CollectionEnumDSL = func() {
 			})
 		})
 		Method("precise", func() {
+			NoSecurity()
 			Payload(precise)
 			Result(precise)
 			HTTP(func() {
@@ -46,6 +52,7 @@ var CollectionEnumDSL = func() {
 			})
 		})
 		Method("labels", func() {
+			NoSecurity()
 			Payload(labels)
 			Result(labels)
 			HTTP(func() {
@@ -53,6 +60,7 @@ var CollectionEnumDSL = func() {
 			})
 		})
 		Method("bytes", func() {
+			NoSecurity()
 			Payload(bytes)
 			Result(bytes)
 			HTTP(func() {
@@ -60,6 +68,7 @@ var CollectionEnumDSL = func() {
 			})
 		})
 		Method("nested", func() {
+			NoSecurity()
 			Payload(nested)
 			Result(nested)
 			HTTP(func() {
@@ -67,6 +76,7 @@ var CollectionEnumDSL = func() {
 			})
 		})
 		Method("optional", func() {
+			NoSecurity()
 			Payload(func() {
 				Attribute("labels", labels)
 			})
@@ -77,6 +87,7 @@ var CollectionEnumDSL = func() {
 	})
 	Service("enum_grpc", func() {
 		Method("send", func() {
+			NoSecurity()
 			Payload(func() {
 				Attribute("items", ArrayOf(String), func() {
 					Enum([]string{"val"})

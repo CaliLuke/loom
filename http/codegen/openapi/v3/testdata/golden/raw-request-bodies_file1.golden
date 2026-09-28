@@ -89,7 +89,7 @@ paths:
                         schema:
                             type: string
                             description: Binary archive streamed directly to the service.
-                            example: archive
+                            example: YXJjaGl2ZQ==
                             format: binary
                         example: archive
             responses:

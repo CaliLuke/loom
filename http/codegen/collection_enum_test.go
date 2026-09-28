@@ -14,6 +14,7 @@ const collectionEnumHarness = `package enums_test
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -33,6 +34,10 @@ import (
 )
 
 func TestCollectionEnums(t *testing.T) {
+	allBytes := make([]byte, 256)
+	for index := range allBytes {
+		allBytes[index] = byte(index)
+	}
 	var calls atomic.Int32
 	echo := func(_ context.Context, value any) (any, error) {
 		calls.Add(1)
@@ -57,6 +62,7 @@ func TestCollectionEnums(t *testing.T) {
 		{"/labels", "[\"b\",\"a\"]", false},
 		{"/labels", "[\"val\",\"val\"]", false},
 		{"/bytes", "\"AH8=\"", true},
+		{"/bytes", "\"" + base64.StdEncoding.EncodeToString(allBytes) + "\"", true},
 		{"/bytes", "\"fwA=\"", false},
 		{"/nested", "[[\"val\"]]", true},
 		{"/nested", "[[\"bad\"]]", false},

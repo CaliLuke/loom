@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/internal/enumvalue"
 )
 
 // BuildDocument analyzes HTTP body/schema-related OpenAPI document data.
@@ -83,7 +84,7 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		contentTypes = []string{"application/x-www-form-urlencoded"}
 	}
 	context := attributeExampleContext(bodyAttr, closeObjects, "request-media")
-	mediaType := buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects, context)
+	mediaType := buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects, context, endpointIR.Request.DocumentBody != nil)
 	content := make(map[string]*MediaType, len(contentTypes))
 	for _, contentType := range contentTypes {
 		content[contentType] = mediaType
@@ -217,6 +218,7 @@ func buildResponseContent(
 				rand,
 				closeObjects,
 				mediaContext,
+				resp.BinaryBody,
 			)
 		}
 		if !resp.EmitExamples {
@@ -267,6 +269,7 @@ func buildMediaType(
 	rand *expr.ExampleGenerator,
 	closeObjects bool,
 	context string,
+	rawBody bool,
 ) *MediaType {
 	mediaType := &MediaType{
 		Schema:        schema,
@@ -275,6 +278,9 @@ func buildMediaType(
 		Extensions:    openapi.ScopedExtensionsFromExpr(attr.Meta, "mediaType"),
 	}
 	initExamples(mediaType, attr, rand, closeObjects, context)
+	if rawBody {
+		serializeBinaryMediaExamples(mediaType, attr)
+	}
 	return mediaType
 }
 
@@ -427,7 +433,11 @@ func OpenAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 		}
 		return nil, false
 	}
-	val := normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, expr.CanonicalizeExample(attr, raw)))
+	canonical := expr.CanonicalizeExample(attr, raw)
+	if canonical != nil {
+		canonical = enumvalue.Normalize(attr, raw)
+	}
+	val := normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, canonical))
 	if !isCompleteOpenAPIExample(attr, val) {
 		return nil, false
 	}

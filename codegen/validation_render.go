@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/enumvalue"
 )
 
 type (
@@ -233,7 +234,7 @@ func renderEnumValidation(data validationRenderData) string {
 func collectionEnumPredicate(data validationRenderData) string {
 	values := make([]string, len(data.Values))
 	for index, value := range data.Values {
-		canonical := collectionEnumValue(data.Attribute, value)
+		canonical := enumvalue.Normalize(data.Attribute, value)
 		values[index] = "loom.JSONValueEqual(encoded, " + formatRawJSONLiteral(canonical) + ")"
 	}
 	return "func() bool {\nencoded, encodeErr := loom.JSONValueFrom(" + data.TargetValue + ")\n" +

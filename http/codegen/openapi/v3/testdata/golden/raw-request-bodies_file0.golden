@@ -153,7 +153,7 @@
               "example": "archive",
               "schema": {
                 "description": "Binary archive streamed directly to the service.",
-                "example": "archive",
+                "example": "YXJjaGl2ZQ==",
                 "format": "binary",
                 "type": "string"
               }

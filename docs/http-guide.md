@@ -400,6 +400,13 @@ nullable, `Any`, primitive, array, map, or `Bytes` attribute selected with
 The flag example shows the JSON that the flag accepts, including the `type`
 and `value` fields of a union.
 
+`Bytes` values in JSON bodies are base64 strings. OpenAPI schema examples,
+enums, and defaults use the same JSON representation. Raw binary body media
+examples contain the literal bytes when they form valid UTF-8 text; Loom omits
+inline media examples for other byte sequences. Explicit `dataValue` and
+`serializedValue` example metadata keep their respective data and serialized
+representations.
+
 ### Raw Request and Response Bodies
 
 Use `SkipRequestBodyEncodeDecode` when the service should receive the request

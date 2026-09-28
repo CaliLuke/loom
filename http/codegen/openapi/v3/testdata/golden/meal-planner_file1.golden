@@ -218,7 +218,7 @@ paths:
                             $ref: '#/components/schemas/ImportPantryRequestBody'
                         example:
                             content_type: Totam consequatur voluptas.
-                            file: Non aut doloribus.
+                            file: Tm9uIGF1dCBkb2xvcmlidXMu
                             filename: Dolorum nihil accusamus at distinctio quidem.
                             label: scan-weekly
             responses:
@@ -412,7 +412,7 @@ components:
                     example: Repellat natus libero expedita facilis voluptatibus sed.
                 file:
                     type: string
-                    example: Tempore fugit exercitationem iusto.
+                    example: VGVtcG9yZSBmdWdpdCBleGVyY2l0YXRpb25lbSBpdXN0by4=
                     format: binary
                 filename:
                     type: string
@@ -423,7 +423,7 @@ components:
                     pattern: ^scan-[a-z]+$
             example:
                 content_type: Quasi rerum.
-                file: Consequatur debitis et est maxime eum non.
+                file: Q29uc2VxdWF0dXIgZGViaXRpcyBldCBlc3QgbWF4aW1lIGV1bSBub24u
                 filename: Est rerum eum aperiam qui porro.
                 label: scan-weekly
             required:

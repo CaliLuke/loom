@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/internal/enumvalue"
 )
 
 type (
@@ -378,7 +379,7 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 	if note != "" {
 		s.Description += "\n" + note
 	}
-	s.DefaultValue = toStringMap(normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, expr.CanonicalizeExample(attr, attr.DefaultValue))))
+	s.DefaultValue = toStringMap(normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, enumvalue.Normalize(attr, attr.DefaultValue))))
 
 	a.applySchemaExample(s, attr, context)
 	s.Extensions = openapi.MergeExtensions(
