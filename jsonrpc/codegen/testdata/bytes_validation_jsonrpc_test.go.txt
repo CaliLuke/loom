@@ -1,0 +1,87 @@
+package bytesvalidation_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	service "example.com/bytesvalidation/gen/bytescheck"
+	server "example.com/bytesvalidation/gen/jsonrpc/bytescheck/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+func TestRequestValidation(t *testing.T) {
+	seen := make(chan *service.CheckPayload, 1)
+	endpoints := &service.Endpoints{Check: func(_ context.Context, p any) (any, error) {
+		seen <- p.(*service.CheckPayload)
+		return nil, loom.Fault("observed")
+	}}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+	hs := httptest.NewServer(mux)
+	defer hs.Close()
+	cases := []struct {
+		name, params, errorName, message string
+		code                             int
+		called                           bool
+	}{
+		{"valid", "{\"data\":\"aGk=\",\"optional\":\"aGV5\",\"chain\":\"aGk=\",\"choice\":\"aGk=\",\"items\":[\"aGk=\"],\"lookup\":{\"key\":\"aGk=\"},\"nullable\":\"aGk=\"}", "fault", "observed", -32603, true},
+		{"minimum", "{\"data\":\"aA==\"}", "invalid_length", "validation error", -32602, false},
+		{"maximum", "{\"data\":\"bG9uZw==\"}", "invalid_length", "validation error", -32602, false},
+		{"missing", "{}", "missing_field", "Missing required field: data", -32602, false},
+		{"enum", "{\"data\":\"aGk=\",\"choice\":\"bm8=\"}", "invalid_enum_value", "invalid value", -32602, false},
+		{"array", "{\"data\":\"aGk=\",\"items\":[\"aA==\"]}", "invalid_length", "validation error", -32602, false},
+		{"map", "{\"data\":\"aGk=\",\"lookup\":{\"key\":\"aA==\"}}", "invalid_length", "validation error", -32602, false},
+		{"nullable", "{\"data\":\"aGk=\",\"nullable\":\"aA==\"}", "invalid_length", "validation error", -32602, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"check\",\"params\":" + tc.params + "}"
+			response, err := http.Post(hs.URL+"/rpc", "application/json", strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := io.ReadAll(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := response.Body.Close(); err != nil {
+				t.Fatal(err)
+			}
+			var envelope struct {
+				Error *struct {
+					Code    int
+					Message string
+					Data    struct{ Name string }
+				}
+			}
+			if err := json.Unmarshal(raw, &envelope, json.MatchCaseInsensitiveNames(true)); err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != 200 || envelope.Error == nil {
+				t.Fatalf("status=%d body=%s", response.StatusCode, raw)
+			}
+			if envelope.Error.Code != tc.code || envelope.Error.Data.Name != tc.errorName || !strings.Contains(envelope.Error.Message, tc.message) {
+				t.Errorf("body=%s", raw)
+			}
+			select {
+			case got := <-seen:
+				if !tc.called {
+					t.Error("invalid request invoked service")
+				}
+				if string(got.Data) != "hi" || got.Defaulted != "hi" {
+					t.Errorf("decoded payload=%+v", got)
+				}
+			default:
+				if tc.called {
+					t.Error("valid request did not invoke service")
+				}
+			}
+		})
+	}
+}

@@ -1,0 +1,240 @@
+{
+  "baseline": "5c260e95abcc5448623e0d1e0761e6c90b8fe462",
+  "probes": [
+    {
+      "id": "mapped-names",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "MappedNamesDSL",
+      "coverage": [
+        "mapped fields",
+        "untagged bytes/string enums"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "type-identity",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "TypeIdentityDSL",
+      "coverage": [
+        "designed errors",
+        "streaming payload/result",
+        "nested identical shapes"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "CollectionBodyDefaultsDSL",
+      "coverage": [
+        "HTTP collection defaults",
+        "selected Body",
+        "boolean map keys"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "JSONRPCCollectionBodyDefaultsDSL",
+      "coverage": [
+        "JSON-RPC collection defaults",
+        "selected Body"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "protojson",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "CLIProtoJSONDSL",
+      "coverage": [
+        "protobuf field mapping",
+        "nested oneofs",
+        "collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-ticktock",
+      "fixture": "http/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "http",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-ticktock",
+      "fixture": "jsonrpc/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "jsonrpc",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-payloadquerybytesvalidatedsl",
+      "function": "PayloadQueryBytesValidateDSL",
+      "coverage": [
+        "affected validation caller"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-collectionenumdsl",
+      "function": "CollectionEnumDSL",
+      "coverage": [
+        "affected validation caller"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-streamingpartialexamplesdsl",
+      "function": "StreamingPartialExamplesDSL",
+      "coverage": [
+        "affected validation caller"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "grpc-aliasvalidationdsl",
+      "function": "AliasValidationDSL",
+      "coverage": [
+        "affected validation caller"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-resultwithaliasvalidation",
+      "function": "ResultWithAliasValidation",
+      "coverage": [
+        "affected validation caller"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-messagewithvalidatedsl",
+      "function": "MessageWithValidateDSL",
+      "coverage": [
+        "affected validation caller"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "named-bytes-http",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesValidationHTTPDSL",
+      "coverage": [
+        "named Bytes physical pointer validation",
+        "views and response validators",
+        "collections and presence"
+      ],
+      "baseline": {
+        "phase": "build",
+        "contains": "cannot convert result.Data (variable of type *BlobView) to type []byte",
+        "issue": "https://github.com/CaliLuke/loom/issues/576"
+      },
+      "candidate": {}
+    },
+    {
+      "id": "unpreserved-bytes-http",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesValidationHTTPUnpreservedDSL",
+      "coverage": [
+        "named Bytes physical pointer validation",
+        "views and response validators",
+        "collections and presence"
+      ],
+      "baseline": {
+        "phase": "build",
+        "contains": "cannot convert result.Data (variable of type *BlobView) to type []byte",
+        "issue": "https://github.com/CaliLuke/loom/issues/576"
+      },
+      "candidate": {}
+    },
+    {
+      "id": "named-bytes-rpc",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesValidationJSONRPCDSL",
+      "coverage": [
+        "named Bytes physical pointer validation",
+        "views and response validators",
+        "collections and presence"
+      ],
+      "baseline": {
+        "phase": "build",
+        "contains": "cannot convert result.Data (variable of type *BlobView) to type []byte",
+        "issue": "https://github.com/CaliLuke/loom/issues/576"
+      },
+      "candidate": {}
+    },
+    {
+      "id": "minimal-unpreserved-bytes-http",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesValidationHTTPMinimalDSL",
+      "coverage": [
+        "passing parent control without metadata or service views"
+      ],
+      "baseline": {},
+      "candidate": {}
+    }
+  ],
+  "intended_differences": [
+    {
+      "probe": "named-bytes-http",
+      "path": "gen/bytescheck/views/view.go",
+      "before": "a05c7cf5642dbadcc0f1379161e6495dec602c7517cea7e09d566a55ebf779ba",
+      "after": "ddcdd9910d14c4c98ab4039b0ff2cd1b33fca1d243fa8b1ec4aca13ad6147d94",
+      "reason": "Dereference the physical named byte pointer in validation before conversion to []byte; preserve nil guard and all declarations, codecs and schemas."
+    },
+    {
+      "probe": "named-bytes-http",
+      "path": "gen/http/bytescheck/server/types.go",
+      "before": "04a595f8e1fe398aa3f68127ad4de2f7ec5a0394e0b25f483665714a738cf696",
+      "after": "4ff1eb3c974584c0fc215ffe6ccdd4b3fc6eaf9314893e1386a102856c830d32",
+      "reason": "Dereference the physical named byte pointer in validation before conversion to []byte; preserve nil guard and all declarations, codecs and schemas."
+    },
+    {
+      "probe": "unpreserved-bytes-http",
+      "path": "gen/bytescheck/views/view.go",
+      "before": "a05c7cf5642dbadcc0f1379161e6495dec602c7517cea7e09d566a55ebf779ba",
+      "after": "ddcdd9910d14c4c98ab4039b0ff2cd1b33fca1d243fa8b1ec4aca13ad6147d94",
+      "reason": "Dereference the physical named byte pointer in validation before conversion to []byte; preserve nil guard and all declarations, codecs and schemas."
+    },
+    {
+      "probe": "named-bytes-rpc",
+      "path": "gen/bytescheck/views/view.go",
+      "before": "a05c7cf5642dbadcc0f1379161e6495dec602c7517cea7e09d566a55ebf779ba",
+      "after": "ddcdd9910d14c4c98ab4039b0ff2cd1b33fca1d243fa8b1ec4aca13ad6147d94",
+      "reason": "Dereference the physical named byte pointer in validation before conversion to []byte; preserve nil guard and all declarations, codecs and schemas."
+    },
+    {
+      "probe": "named-bytes-rpc",
+      "path": "gen/jsonrpc/bytescheck/server/types.go",
+      "before": "1f843f8c0c3b0077bc9dce1e80035fe0be1af280ab696479076a12806720f672",
+      "after": "f2d16a6d27ed571408eb1a748981fe59b02ec9366142516e5fa5991a27e4da63",
+      "reason": "Dereference the physical named byte pointer in validation before conversion to []byte; preserve nil guard and all declarations, codecs and schemas."
+    }
+  ]
+}

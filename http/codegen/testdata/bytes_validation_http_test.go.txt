@@ -1,0 +1,108 @@
+package bytesvalidation_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	service "example.com/bytesvalidation/gen/bytescheck"
+	client "example.com/bytesvalidation/gen/http/bytescheck/client"
+	server "example.com/bytesvalidation/gen/http/bytescheck/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+func TestRequestValidation(t *testing.T) {
+	seen := make(chan *service.CheckPayload, 1)
+	endpoints := &service.Endpoints{Check: func(_ context.Context, p any) (any, error) {
+		seen <- p.(*service.CheckPayload)
+		return nil, loom.Fault("observed")
+	}}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	hs := httptest.NewServer(mux)
+	defer hs.Close()
+	cases := []struct {
+		name, body, code, detail string
+		status                   int
+		called                   bool
+	}{
+		{"valid", "{\"data\":\"aGk=\",\"optional\":\"aGV5\",\"chain\":\"aGk=\",\"choice\":\"aGk=\",\"items\":[\"aGk=\"],\"lookup\":{\"key\":\"aGk=\"},\"nullable\":\"aGk=\",\"label\":\"hi\"}", "fault", "observed", 500, true},
+		{"minimum", "{\"data\":\"aA==\"}", "invalid_length", "validation error", 400, false},
+		{"maximum", "{\"data\":\"bG9uZw==\"}", "invalid_length", "validation error", 400, false},
+		{"missing", "{}", "missing_field", "Missing required field: data", 400, false},
+		{"null", "{\"data\":null}", "missing_field", "Missing required field: data", 400, false},
+		{"enum", "{\"data\":\"aGk=\",\"choice\":\"bm8=\"}", "invalid_enum_value", "invalid value", 400, false},
+		{"array", "{\"data\":\"aGk=\",\"items\":[\"aA==\"]}", "invalid_length", "validation error", 400, false},
+		{"map", "{\"data\":\"aGk=\",\"lookup\":{\"key\":\"aA==\"}}", "invalid_length", "validation error", 400, false},
+		{"nullable", "{\"data\":\"aGk=\",\"nullable\":\"aA==\"}", "invalid_length", "validation error", 400, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			response, err := http.Post(hs.URL+"/check", "application/json", strings.NewReader(tc.body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := response.Body.Close(); err != nil {
+				t.Fatal(err)
+			}
+			var problem struct {
+				Code   string `json:"code"`
+				Detail string `json:"detail"`
+			}
+			if err := json.Unmarshal(body, &problem); err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != tc.status || problem.Code != tc.code || !strings.Contains(problem.Detail, tc.detail) {
+				t.Errorf("status=%d problem=%s", response.StatusCode, body)
+			}
+			select {
+			case got := <-seen:
+				if !tc.called {
+					t.Error("invalid request invoked service")
+				}
+				if string(got.Data) != "hi" || got.Defaulted != "hi" {
+					t.Errorf("decoded payload=%+v", got)
+				}
+			default:
+				if tc.called {
+					t.Error("valid request did not invoke service")
+				}
+			}
+		})
+	}
+}
+
+func TestClientResponseValidation(t *testing.T) {
+	for _, tc := range []struct {
+		body  string
+		valid bool
+	}{
+		{"{\"data\":\"aGk=\"}", true},
+		{"{\"data\":\"aA==\"}", false},
+		{"{\"data\":\"bG9uZw==\"}", false},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			hs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := io.WriteString(w, tc.body); err != nil {
+					t.Error(err)
+				}
+			}))
+			defer hs.Close()
+			c := client.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+			_, err := c.Check()(t.Context(), &service.CheckPayload{Data: service.Blob("hi")})
+			if (err == nil) != tc.valid {
+				t.Errorf("error=%v want valid=%t", err, tc.valid)
+			}
+		})
+	}
+}

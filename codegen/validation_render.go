@@ -147,8 +147,12 @@ func newValidationRenderData(att *expr.AttributeExpr, attCtx *AttributeContext, 
 	unaliased := unalias(att.Type)
 	isNativePointer := unaliased.Kind() == expr.BytesKind || unaliased.Kind() == expr.AnyKind
 	isPointer := attCtx.Pointer || (!req && (att.DefaultValue == nil || !attCtx.UseDefault))
+	// Forced-pointer contexts wrap named byte slices, but leave native byte
+	// slices and all Any values unchanged. Outside those contexts byte aliases
+	// remain slice values, including optional attributes without defaults.
+	isForcedBytesPointer := attCtx.Pointer && unaliased.Kind() == expr.BytesKind && kind != expr.BytesKind
 	targetValue := target
-	if isPointer && expr.IsPrimitive(att.Type) && !isNativePointer {
+	if isPointer && expr.IsPrimitive(att.Type) && (!isNativePointer || isForcedBytesPointer) {
 		targetValue = "*" + targetValue
 	}
 	if alias {
