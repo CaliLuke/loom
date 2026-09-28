@@ -102,6 +102,7 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 		ReturnTypeName:      b.svc.Scope.GoFullTypeName(httpError.Attribute, pkg),
 		ReturnTypeRef:       b.svc.Scope.GoFullTypeRef(httpError.Attribute, pkg),
 		ReturnIsStruct:      expr.IsObject(httpError.Type),
+		ReturnIsUnionValue:  bodyFieldIsUnionValue(httpError.Attribute, origin),
 		ReturnTypeAttribute: codegen.Goify(origin, true),
 		ReturnTypePkg:       pkg,
 		ClientCode:          code,

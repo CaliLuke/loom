@@ -88,6 +88,21 @@ func serviceFieldTransformAttribute(parent *expr.AttributeExpr, name string, att
 	return clone
 }
 
+// bodyFieldIsUnionValue reports whether a detached body union must be
+// dereferenced when assigned to its enclosing service or viewed result field.
+// Required unions use values; optional unions and explicit presence wrappers do
+// not. Look up the object key so mapped field names preserve requiredness.
+func bodyFieldIsUnionValue(parent *expr.AttributeExpr, origin string) bool {
+	if parent == nil || origin == "" {
+		return false
+	}
+	key, attribute := parent.FindAttribute(origin)
+	if attribute == nil {
+		return false
+	}
+	return parent.IsRequired(key) && expr.IsUnion(attribute.Type) && !expr.AllowsNull(attribute)
+}
+
 // needConversion returns true if the type needs to be converted from a string.
 func needConversion(dt expr.DataType) bool {
 	if dt == expr.Empty {

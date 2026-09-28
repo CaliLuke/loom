@@ -619,7 +619,7 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 			// or a loom.JSONValue, holds the value itself, and so does a
 			// primitive with a default value.
 			pointer = b.payload.IsPrimitivePointer(key, true) && !codegen.IsExplicitPresenceType(pAtt)
-			unionValue = b.payload.IsRequired(key) && expr.IsUnion(pAtt.Type) && !expr.IsNullable(pAtt)
+			unionValue = bodyFieldIsUnionValue(b.payload, origin)
 		}
 		var helpers []*codegen.TransformFunctionData
 		var err error

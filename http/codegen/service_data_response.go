@@ -347,6 +347,7 @@ func (sds *ServicesData) buildResponseResultInit(
 		ReturnTypeAttribute:      codegen.Goify(origin, true),
 		ReturnTypePkg:            pkg,
 		ReturnIsPrimitivePointer: pointer,
+		ReturnIsUnionValue:       bodyFieldIsUnionValue(result, origin),
 		ClientCode:               code,
 	}
 }
