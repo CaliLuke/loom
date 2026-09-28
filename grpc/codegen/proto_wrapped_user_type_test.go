@@ -59,7 +59,8 @@ func TestWrapAttrUserTypeIdentity(t *testing.T) {
 // array element and a map value elsewhere. The message that wraps the direct
 // use must not replace the named primitive in the other positions, so the
 // designs generate, protoc accepts them, and the generated module compiles
-// and round-trips the values through the generated conversions.
+// and round-trips the values through the generated conversions. Named map
+// values retain their length constraints on requests and responses.
 func TestNamedPrimitiveMessage(t *testing.T) {
 	var code string
 	require.NoError(t, generationError(func() {
@@ -266,5 +267,47 @@ func TestValidation(t *testing.T) {
 	require.NoError(t, server.ValidateBRequest(&pb.BRequest{Id: "ab", Ids: []string{"cd"}}))
 	require.Error(t, server.ValidateBRequest(&pb.BRequest{Id: "a"}))
 	require.Error(t, server.ValidateBRequest(&pb.BRequest{Id: "ab", Ids: []string{"c"}}))
+}
+
+func TestNamedMapValueValidation(t *testing.T) {
+	for _, path := range []struct {
+		name     string
+		validate func(map[string]string) error
+	}{
+		{"unary request", func(values map[string]string) error {
+			return server.ValidateBRequest(&pb.BRequest{Id: "ok", Ids: []string{"ok"}, ByKey: values})
+		}},
+		{"streaming request", func(values map[string]string) error {
+			return server.ValidateCRequest(&pb.CRequest{Id: "ok", Ids: []string{"ok"}, ByKey: values})
+		}},
+		{"client response", func(values map[string]string) error {
+			return client.ValidateAResponse(&pb.AResponse{Id: "ok", Ids: []string{"ok"}, ByKey: values})
+		}},
+	} {
+		t.Run(path.name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name    string
+				values  map[string]string
+				invalid bool
+			}{
+				{"nil", nil, false},
+				{"empty", map[string]string{}, false},
+				{"empty value", map[string]string{"key": ""}, true},
+				{"short", map[string]string{"key": "x"}, true},
+				{"one rune", map[string]string{"key": "界"}, true},
+				{"boundary", map[string]string{"key": "ab"}, false},
+				{"two runes", map[string]string{"key": "世界"}, false},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					err := path.validate(tc.values)
+					if tc.invalid {
+						require.ErrorContains(t, err, "message.by_key[key]")
+					} else {
+						require.NoError(t, err)
+					}
+				})
+			}
+		})
+	}
 }
 `
