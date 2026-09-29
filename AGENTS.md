@@ -19,6 +19,29 @@
 - **Loom naming only**: Do not introduce or keep legacy upstream-named aliases, env vars, scripts, targets, or compatibility shims in Loom-owned workflows. Use `loom` naming exclusively.
 - **Proof maintenance and cleanup**: Keep proof sources, model configurations, theorem manifests, pinned toolchain declarations, run instructions and concise findings beside the owning code. Link models to implementation seams, regression tests and known limitations; update those records and rerun affected checks when a weakness is discovered. Do not commit compiled proofs, checker state/trace output, raw logs or temporary probe/build directories. As soon as a task's validation and independent review finish, delete its temporary artifacts, including ignored Lean `.lake` output, after confirming no active task or process still needs them. Preserve durable reproduction inputs and summarized evidence first. This is an agent cleanup responsibility; do not add cleanup automation solely for this policy. Keep reusable installed toolchains and shared caches, and use the managed worktree tools for worktree lifecycle operations.
 
+### Architecture Decisions
+
+- Derive behavior from the documented DSL and accepted contract semantics. Do not
+  privilege accidental runtime behavior, the easiest patch, or a passing test.
+- Favor predictable, compositional semantics and explicit author intent over
+  clever context-dependent behavior. Do not silently discard authored intent or
+  inherited guarantees unless the contract explicitly says to do so.
+- Distinguish intended contract behavior from defects, and assess compatibility
+  effects before changing either. Inspect actual consumer designs to understand
+  adoption impact; never add consumer-specific exceptions.
+- Put each decision in the shared layer that owns it. Do not repair the same
+  semantic disagreement separately in transports or duplicate policy decisions
+  across generators.
+- When the accepted contract does not settle a semantic disagreement between
+  layers, or a proposal would change that contract, classify it as a policy
+  change. Briefly record the alternatives, recommendation, and concrete accepted
+  and rejected examples with their effects in the owning design or documentation.
+  Ask the user only when public behavior remains genuinely unresolved; make
+  routine implementation choices autonomously. A heavyweight RFC or approval is
+  not required for every change.
+- Use proofs and tests to verify the selected contract, not to select the
+  contract after implementation.
+
 ### Skill Routing
 
 - Use the [`loom` skill](.agents/skills/loom/SKILL.md) only for consuming Loom:
