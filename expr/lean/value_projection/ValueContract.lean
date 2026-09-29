@@ -1,2 +1,1 @@
-import ValueContract.Model
-import ValueContract.Legacy
+import ValueContract.Proofs

@@ -208,6 +208,17 @@ examples and owning its returned representation. Built-in guarantees do not
 silently rewrite custom output. Custom codec behavior is covered by explicit
 compatibility probes; it is never inferred from ordinary byte/string rules.
 
+Raw built-in `Any` enum comparisons preserve the existing host-language
+`reflect.DeepEqual` precheck before numeric, string-map, and slice fallbacks.
+The finite reference model retains an adapter-owned equality-class identity at
+every raw node of an immutable built-in snapshot. Identity equality means actual
+host `DeepEqual`, not hash equality or equality after JSON conversion. Different
+identities still use the established recursive fallbacks; concrete non-string map
+and dynamic element types must not disappear before this check. This evidence
+cannot bypass payload validity or map-name collision checks and has no effect on
+target bytes. Extraction and equality-class assignment remain explicitly tested
+host-library correspondence, not a theorem about Go reflection.
+
 ## Detailed behavior
 
 ### Union selection
@@ -219,8 +230,8 @@ An authored union is selected against its effective finalized service occurrence
 without consulting a target's field selection, visibility, names or wire encoding.
 The resolver preserves the existing complete-candidate ranking and completeness
 preference: validate each branch with the approved typed authored-value and coercion
-semantics, prefer a unique complete candidate recognizing a supplied object field,
-otherwise choose the sole complete candidate when none recognizes a field, and
+semantics, prefer a unique complete candidate satisfying the existing preference
+predicate, otherwise choose the sole complete candidate when none is preferred, and
 report ambiguity in every other nonempty complete-candidate case. This preserves
 the complete candidate set and selection order, subject to the already approved
 typed-Bytes/String distinctions and coercion rules, including their explicitly
@@ -232,6 +243,14 @@ into the complete set. In particular, a complete branch continues to win over a
 branch missing required fields or obstructed by nested ambiguity. An ambiguous nonempty complete set
 never falls through to partial matching.
 
+For object-shaped authored input, the existing preference predicate unwraps named
+aliases. An object candidate is preferred when a supplied key matches one of its
+authored or JSON field names. A compatible non-object candidate, including Any,
+a map or a nested union, is also preferred. It is not necessary for that candidate
+to declare a named object field. Preserve this behavior: a known-field object and
+a compatible Any candidate can both be preferred and therefore ambiguous. For
+non-object input, selection uses the complete-match count without this preference.
+
 Only when there are no complete candidates may the resolver consider viable
 partial or ambiguity-obstructed branches. Partial matching defers missing required object members, recursively;
 it does not invent values or relax checks on supplied values. A supplied wrong
@@ -242,7 +261,7 @@ not an absent field. Optional absent fields stay absent. Constraints on a suppli
 container are checked on that container; hypothetical extra members/elements
 cannot repair a failed constraint. An absent child's own constraints are not run.
 
-Apply the same known-field preference to the viable fallback branches: choose the
+Apply the same preference predicate to the viable fallback branches: choose the
 unique preferred candidate, or the sole viable candidate when none is preferred.
 Multiple preferred candidates, or multiple viable candidates with none preferred,
 are ambiguous. Zero viable candidates are invalid. Present nested unions use the

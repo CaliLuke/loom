@@ -1,4 +1,4 @@
-import ValueContract.Legacy
+import ValueContract.Proofs
 import Lean.Util.CollectAxioms
 import Lean.Elab.Command
 

@@ -1,16 +1,107 @@
-# Value projection proof foundation
+# Value contract model and proofs
 
-Ticket [#567](https://github.com/CaliLuke/loom/issues/567), milestone 1 of the
-[value contract](../../../roadmap/value-contract-design.md). This directory
-contains finite model vocabulary, independently specified judgments and proved
-legacy counterexamples. **Candidate resolver/projection soundness, progress and
-preservation are pending #569. Production correspondence is pending #570.**
+This directory owns the formal source-value and target-projection model for the
+[value-contract design](../../../roadmap/value-contract-design.md) and
+[implementation plan](../../../roadmap/value-contract-plan.md). Start with the
+[correspondence ledger](correspondence.md) for exact claims, assumptions,
+counterexamples and production seams.
 
-## Run the gate
+**Status:** The candidate source-outcome and target-projection proofs pass the
+integrated gate: 483 required theorems, a transitive axiom audit, fresh kernel
+replay and deliberate rejection controls. The gate targets the candidate
+`Proofs` entry point. Production Go correspondence and CI integration belong to
+#570.
 
-Lean **4.34.1** is pinned in `lean-toolchain`. It includes `lake` and
-`leanchecker`. This is a development dependency only; no proof library or
-generated-service dependency is added. With elan installed:
+## Architecture and navigation
+
+The pipeline preserves an authored source and its selected branch, resolves a
+semantic value, observes what a target exposes, constructs its canonical wire
+value, then checks that same wire against the schema and runtime decoder.
+Observation finishes before construction: an omitted optional child must not
+fail a required-field check for a wire object that will never be emitted.
+
+All module names below refer to files under [`ValueContract/`](ValueContract/).
+The independent judgments describe the accepted behavior without assuming that
+the candidate evaluator succeeds.
+
+| Stage | Executable or data model | Independent specification | Proofs |
+| --- | --- | --- | --- |
+| Source precedence and provenance | `SourceSelection` | Eligibility and source-order predicates in the same module | Theorems in `SourceSelection` |
+| Declarations and target plans | `CandidateModel`, `GraphValidation` | Well-formed declaration and target predicates | Theorems in `GraphValidation` |
+| Source interpretation and typing | `Resolve` | `ResolutionSpec`, `Typing`, `SourceBodySpec`, `SourceUnionSpec` | `ResolverProofs`, `SourceResolutionProofs`, `SourceBodyProofs`, `SourceUnionProofs`, `SourceMissingProofs` |
+| Complete source outcomes | `Resolve` | `SourceFullOutcomeSpec`, composed from the `Source*OutcomeSpec` relations | `SourceFullOutcomeProofs`, `SourcePublicOutcomeProofs`, supported by `Source*OutcomeProofs` |
+| Source depth and recursive graph budgets | `Resolve`, `ValueDepth` | Input depth, expansion ranks and independent raw outcomes | `SourceRawProofs`, `SourceNullProofs`, `SourceBudgetProofs`, `SourceGraphBudgetProofs`, `SourceStabilityProofs`, `SourceEqualityBudgetProofs`, `SourcePreferenceProofs` |
+| Visibility and field presence | `ProjectionObservation` | `Observation`: `Observe`, `FieldPresence`, `EmptyObserved` | `ObservationExecutionProofs`, `ObservationProofs`, `EmptyProofs`, `ValueBudgetProofs` |
+| Canonical wire construction | `CanonicalConstruction` | `Canonical` | `CanonicalConstructionProofs`, `CanonicalProofs` |
+| Schema admission | `SchemaValidation` | `SchemaSemantics` | `SchemaProofs` |
+| Runtime decoding | `Decoding`, `KeyDecoding` | `DecoderSemantics` | `RuntimeProofs` |
+| End-to-end projection | `ProjectionBuild`, `Projection` | `Representation`: `Representable`, `RuntimeObligation` | `ProjectionProofs`, `ProjectionCorrectness` |
+| Raw JSON materialization | `Materialization`, `MapKeys` | Materialization and JSON-validity relations in `Materialization` | `MaterializationProofs`, `MaterializationValidity` |
+| Value and wire equality | `ValueEquality`, `TargetEquality`, `WireEquality`, `StrictValueDepth` | Independent equality relations in those modules | `EqualityBudgetProofs`, `StrictEqualityBudgetProofs`, `SourceEqualityBudgetProofs` |
+
+`resolve_outcome_iff` covers the full source result, including failures, selected
+branches and ordered missing-member paths. Source outcomes have adequate finite
+derivations and are unique across adequate depth/rank choices. Successful
+enum/default resolution retains no missing required-member paths.
+`project_emitted_iff` and `project_progress` establish target correspondence and
+progress from independent representability, including legitimate field loss.
+Component checks are not a substitute for the final audited manifest and review.
+
+Public depth-indexed judgments quantify over finite derivations without a fixed
+maximum value depth. Internal indexed source judgments expose exhausted runs;
+their public relations admit only structurally adequate derivations. Budget
+adequacy and result stability cover negative outcomes as well as success.
+
+Source selection consumes already extracted source groups: local attributes,
+ordered references, ordered bases, then the type. It selects the last example
+within the first nonempty group. Authored examples take precedence over synthesis
+suppression; raw null and empty values remain authored values. Extraction from
+the actual DSL graph is a separate production boundary.
+
+Source equality, target equivalence and exact snapshot equality serve different
+contracts. In particular, numeric wire equivalence cannot stand in for exact
+lexical snapshot equality. Raw `Any` values can carry adapter-assigned host
+identity classes that preserve Go `reflect.DeepEqual` distinctions. These IDs
+never reach the wire and cannot bypass invalid-input or map-collision checks.
+
+## Counterexamples and controls
+
+[`Model.lean`](ValueContract/Model.lean) and
+[`Legacy.lean`](ValueContract/Legacy.lean) retain the initial foundation and
+proved abstract counterexamples: selected-branch erasure, equal-shaped branch
+misidentification, literal bytes sent to a base64 decoder, and authored value or
+provenance replacement. They are not a simulation proof of historical Go.
+
+The wire model has one string constructor. Bytes `hi` and string `aGk=` can have
+the same wire string, so a private type tag cannot establish untagged branch
+uniqueness. The original finite specimen codecs cover only their named witness
+strings. They do not prove the complete base64 grammar or length projection.
+The witnesses include both directions of the decoded-byte versus encoded-text
+length mismatch and a noncanonical base64 spelling accepted by a decoder but
+rejected by a canonical schema enum.
+
+Candidate controls are grouped by responsibility:
+
+- `ResolutionControls`: authored matching, nullability, source equality and
+  whole-node enum admission.
+- `CandidateControls` and `ProjectionControls`: target behavior, schema/runtime
+  distinctions and the rejected enum-gate placement.
+- `HostMaterializationControls`: preservation of host equality evidence without
+  weakening raw-input validation or leaking evidence into wire values.
+- `PresenceControls`: required versus optional field construction, including
+  a schema alternative that must not excuse a missing selected-branch field.
+- `OmissionControls` and `LegacyProjectionBuild`: a representable optional
+  omitted child that the former combined observation/construction pass rejected,
+  plus successful candidate and retained-child rejection controls.
+
+Keep the rejected behavior and the corrected behavior distinguishable. A witness
+can establish a defect without establishing its repair.
+
+## Run the audited gate
+
+Lean **4.34.1** is pinned in [`lean-toolchain`](lean-toolchain). It includes
+`lake` and `leanchecker`; no proof-library or generated-service dependency is
+added. With elan installed:
 
 ```sh
 export PATH="$HOME/.elan/bin:$PATH"
@@ -20,110 +111,58 @@ make value-contract-proof
 ```
 
 The Make target runs `scripts/check_value_contract_proof.sh`, then the gate tests
-with `LOOM_VALUE_PROOF_TEST=1` so the real rejection controls cannot be skipped.
-The script checks
-the actual toolchain version, runs `lake build`, then runs the following from
-this directory:
+with `LOOM_VALUE_PROOF_TEST=1` so real rejection controls cannot be skipped.
+The script checks the actual toolchain version, runs `lake build`, then runs
+these commands from this directory:
 
 ```sh
 lake env lean -DwarningAsError=true ValueContract/AxiomAudit.lean
-lake env leanchecker --fresh ValueContract.Legacy
+lake env leanchecker --fresh ValueContract.Proofs
 ```
 
-The gate fails on missing tools, command failure, warnings, missing theorem
-reports, an absent/empty audit result, or a forbidden transitive axiom. The
-reviewed required-theorem manifest is `required-theorems.txt`. The audit uses
-Lean's `collectAxioms` on each theorem, including imported dependencies; it does
-not infer trust from source-text searches. Only `propext`, `Classical.choice`
-and `Quot.sound` are allowed. Each theorem's actual dependency list is printed.
-The fresh checker replays the witness module and all imported declarations in
-an empty kernel environment. It supplements, rather than replaces, the axiom
-audit: a kernel can accept a declaration that depends on a declared axiom.
+[`required-theorems.txt`](required-theorems.txt) is the reviewed claim manifest.
+`AxiomAudit` uses Lean's `collectAxioms` for each required theorem, including
+imported dependencies. Only `propext`, `Classical.choice` and `Quot.sound` are
+allowed. The gate rejects missing tools, command failures, warnings, missing
+required theorem reports, empty audits and forbidden transitive axioms.
+Fresh kernel replay supplements the audit: a kernel can accept a declaration
+that depends on a declared axiom, so replay alone is insufficient.
 
-The ordinary Go tier tests gate orchestration with controlled tool outputs.
-The explicitly enabled external-tool tier compiles temporary copies containing
-an admitted intermediate theorem or a custom axiom behind an intermediate
-theorem. The same audit must reject the transitive dependency, and the full
-gate must fail. Another control requires a nonexistent theorem. These are
-intentional negative test inputs, never dependencies
-of the accepted witnesses. Enabled mode fails when Lean is unavailable.
+Ordinary Go tests check orchestration with controlled tool outputs. The enabled
+external-tool tier builds temporary copies containing an admitted intermediate
+theorem, a custom axiom behind an intermediate theorem, or a missing required
+theorem. The real gate must reject each. Enabled mode fails if Lean is absent;
+ordinary Go test success does not claim to have run Lean.
 
-The gate is explicit in M1. Wiring proof/conformance into CI and `ci-local`
-belongs to #570; no ordinary test silently claims to have run Lean.
+## Production boundaries and maintenance
 
-## Model and witnesses
+The model does **not** prove that arbitrary generated Go always compiles. These
+boundaries require executable conformance and compiler evidence in #570 and
+subsequent migrations:
 
-- `Model.lean` distinguishes raw and semantic values, roles/source identities,
-  presence, nil containers, map entry lists, selected union identities, outcomes,
-  recursive declarations and target plans. Observation, structural typing,
-  scalar decoding and the initial representability fragment are independent of
-  any candidate implementation.
-- `Legacy.lean` proves that erasing a chosen branch loses information, that
-  choosing the first equal-shaped branch changes identity, that literal byte
-  text fails a base64-oriented decoder, and that resynthesis replaces both
-  authored value and provenance. These are proofs of concrete abstract
-  counterexamples, not a simulation proof of historical Go.
-- The 22 required witnesses include both directions of the byte-length schema
-  mismatch: valid two-byte `hi` has a four-character JSON encoding, and a
-  one-byte value also has a four-character encoding. They also show that the
-  pad-bit alias `aGl=` decodes to the allowed bytes `hi` while the canonical
-  byte enum contains only `aGk=`. Schema enum rejection therefore cannot prove
-  runtime branch disjointness. A canonical-spelling control admits `aGk=` in
-  both independent predicates.
-- Positive controls preserve a selected HTTP body's bytes while dropping its
-  service header, keep that field loss representable, retain visible branches,
-  distinguish null/absence, limit empty-value collapse to its field rule, retain
-  duplicate map entries, and type a finite value of a recursive declaration.
+- DSL extraction, occurrence identity and derivation of target/representation
+  plans, including copied attributes, views and selected bodies;
+- Go host identity assignment and numeric coercion/precision;
+- rendered path-qualified diagnostics, including array indices and map keys;
+- actual lexical codecs, regex checks, JSON/protojson behavior and schema
+  validators;
+- generated Go types, pointer conversions, defaults and transport compilation.
 
-The wire model has one string constructor. Bytes `hi` and String `aGk=` have
-the **same wire string** `aGk=`; the collision witness proves both scalar
-interpretations accept it. A private wire tag must never establish untagged
-branch uniqueness. `ByteCodec` exposes lexical encode/decode functions, and
-`ByteCodec.RoundTrip` names a possible theorem premise. The tiny `specimenCodec`
-only models the literal witness strings; it is not a complete base64 codec and
-does not satisfy a claimed universal round-trip law.
-The separate `boundaryCodec` adds exactly the one-byte `aA==` and alias `aGl=`
-cases needed for the new counterexamples; it has the same explicit limitation.
-Neither finite specimen proves the full base64 grammar or the proposed length
-projection. Actual codec acceptance is a tested boundary.
+The actual Go controls live in `scripts/value_contract_*_test.go`. The
+[correspondence ledger](correspondence.md) maps these boundaries and records
+remaining assumptions. Documentation-only targets have no runtime-decoder claim;
+runtime-backed targets must check the same canonical wire against the actual
+modeled decoder and preserve its observed value.
 
-Judgments with a depth argument quantify existentially over all natural depths
-at their public boundary. They do not fix a maximum value or recursion depth.
-No universal candidate theorem has been proved from this vocabulary yet.
+Source missing paths are ordered lists of member identities, while failures
+carry semantic categories. Exact correspondence for those modeled outputs does
+not prove the text or collection locations of production diagnostics.
 
-## Required expansion before #569 can pass
-
-The full domain is not represented by the initial wire judgments. `WireTyped`
-and `Decode` cover scalar, nullable, array and selected-body cases only.
-Object/map/union wire decoding, unique untagged matching, protobuf mapping,
-numeric/enum constraints, required/optional fields and full presence equivalence
-must be specified and proved in #569. `HasType` currently checks complete
-structural trees; it does not type absent optional object fields.
-Complete-first authored matching, zero-complete partial fallback and nested
-ambiguity ranking need the independently reviewed #575 clarification before
-candidate proofs. Emitted-schema validity and actual decoder branch preservation
-are separate obligations: matching a schema alone cannot discharge the latter.
-Representation ownership must also enter schema/cache/reference plans; the same
-named type cannot share an incompatible JSON and raw/location schema. The #574
-length/grammar policy and #570 carriers remain pending production work.
-
-`Observe` already expresses object visibility and selected bodies. Its initial
-omission examples are not a complete specification of Go JSON/protobuf omission.
-The candidate progress theorem must include legitimate field/visibility loss;
-it may not exclude those values to make preservation trivial. Raw cyclic/opaque
-inputs and all failure outcomes have constructors, but there is no resolver
-claiming their outcomes yet.
-
-The [correspondence ledger](correspondence.md) records the current claims and
-their limits. #569 must extend the required-theorem manifest and fresh-check
-`ValueContract.Proofs`; #570 must connect the proved functions to the executable
-reference and production Go tests. Actual lexical codecs, target-plan derivation,
-generated compilation and schema/decoder behavior remain separate obligations.
-The known named-Bytes pointer-conversion compile regression #576 is a failure
-of that generated-Go boundary, outside this semantic model. Passing this gate
-does not establish generated-code correctness or close that regression.
-
-Newly discovered weaknesses require updating the relevant counterexample or
-model and this ledger before relying on the affected claim. Re-run the audited
-gate and obtain independent re-review of the changed proof scope. A new witness
-can establish a defect without establishing its candidate repair.
+When a weakness is found, update its independent specification or counterexample,
+the affected correspondence claims and the production acceptance cases before
+relying on the proof again. Run the audited gate and obtain independent review
+of the changed scope. Follow [AGENTS.md](../../../AGENTS.md) for manual cleanup:
+keep durable proof/model sources, configuration, manifests, toolchain pins and
+concise findings; remove task-owned compiled proofs, traces, logs and probes
+when validation and review finish and no active task needs them. Installed
+toolchains and shared caches are not task-owned output.

@@ -68,5 +68,5 @@ if [[ "$count" -eq 0 ]] || ! grep -Fxq "VALUE_CONTRACT_AUDIT_OK $count" "$proof_
 fi
 
 run_check 'fresh kernel replay' "$proof_tmp/kernel" \
-  lake env leanchecker --fresh ValueContract.Legacy
-echo "value contract proof gate passed ($count required M1 theorems; candidate proofs pending #569)"
+  lake env leanchecker --fresh ValueContract.Proofs
+echo "value contract proof gate passed ($count required theorems)"

@@ -37,7 +37,7 @@ case "$*" in
       echo 'VALUE_CONTRACT_THEOREM ValueContract.Legacy.second axioms=[]'
     fi
     echo 'VALUE_CONTRACT_AUDIT_OK 2' ;;
-  'env leanchecker --fresh ValueContract.Legacy')
+  'env leanchecker --fresh ValueContract.Proofs')
     case "$LOOM_PROOF_TEST_MODE" in
       kernel) exit 1 ;;
       missing-checker) echo 'leanchecker: command not found'; exit 127 ;;
@@ -187,7 +187,7 @@ func proofTestTree(t *testing.T, full bool) string {
 
 func proofRun(t *testing.T, dir string, env []string, name string, args ...string) (string, error) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
