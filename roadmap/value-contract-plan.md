@@ -44,8 +44,37 @@ quality gates pass. The separate invalid byte-default transform discovered in
 verification is fixed by #577 at the shared default-transform owners. Its
 [repair evidence](../codegen/bytes_defaults.md) records 448 compiled layouts,
 64 presence/context cases, generated runtime coverage and a passing 12-probe
-comparison (48 runs, 18 intended generated changes). The next implementation is
-#570's shared semantic core, supported by the #569 candidate proofs.
+comparison (48 runs, 18 intended generated changes). The shared semantic core in #570 builds on the #569 candidate proofs;
+the next consumer is #574's representation-aware schema analysis.
+
+## #570 delivery checkpoint
+
+The shared semantic API, immutable occurrence/source ownership, JSON projection,
+service carriers and representation plans are implemented. The first service
+consumers use one retained selection/resolution/synthesis result; later rendering
+consumers remain assigned to M3–M6. Direct tests live under `expr/value_*_test.go`,
+`codegen/service/value_data_test.go` and `http/codegen/value_plan_test.go`.
+The [inventory checkpoint](value-contract-inventory.md) records the actual
+ownership changes and retained compatibility paths.
+
+The combined proof/conformance target passed: 567 audited theorems, fresh kernel
+replay, real rejected-proof controls and 13 executed conformance assertion groups.
+The corpus includes 402 production source comparisons, 48 projection comparisons
+and 420 native numeric target cases. These counts describe tested cases, not a
+universal Go refinement. The ledger lists unsupported extraction boundaries.
+The checked TLA+ configuration passed with 47,712 distinct states.
+
+The first full Go/coverage runs found two integration regressions: premature
+JSON-name uniqueness in logical service capture, and stale naming provenance in
+projected collections. Both shared-owner repairs passed direct, generated and
+independent scoped review. Existing gRPC metadata round trips and meal-planner
+JSON/YAML goldens remain unchanged. The repeated full lint, test and coverage
+ratchet gates pass. Final comparison covers six cases and 24 generation records:
+meal-planner and mapped-metadata artifacts are byte-identical, and the remaining
+cases retain exactly the 28 previously reviewed differences. The durable
+[comparison record](../internal/valuecontract/OCCURRENCES.md) preserves all
+inputs and results. Atomic delivery requires final exact-diff review after this
+evidence is frozen; all later milestones remain open.
 
 ## Dependency tickets and commit order
 
@@ -113,10 +142,10 @@ enum or default values must be individually explained. Run two independent
 generation processes at each revision to test determinism. Never edit `gen/`.
 
 The comparison harness, initial Lean files, `make value-contract-proof` and
-TLA+ model commands are implemented by milestone 1. Candidate proofs, the
-executable reference and `make value-contract-conformance` remain planned
-milestone-2 additions. The harness uses the existing source-resolution and
-process-ownership helpers without duplicating the repository's lint/build gates. Keep
+TLA+ model commands landed in milestone 1. Candidate proofs landed in #569;
+#570 implements the executable reference and `make value-contract-conformance`.
+The harness uses the existing source-resolution and process-ownership helpers
+without duplicating the repository's lint/build gates. Keep
 active review evidence outside the checkout under a unique
 `/tmp/loom-value-contract/<run>/` directory. Commit durable probes, manifests,
 reproduction commands and compact findings beside their tests/models. Once that
@@ -132,9 +161,8 @@ do not silently widen runtime acceptance or approve a changed golden.
 ## Architecture-first execution
 
 The user requires execution to converge on the shared architecture rather than
-expand into successive local repairs. Finish the already implemented #577 scope
-with its existing verification and independent review, then proceed to #569/#570
-and the planned consumer migrations. Do not add newly discovered local defects
+expand into successive local repairs. The #577/#569 prerequisites are delivered;
+finish #570's final review and proceed through the planned consumer migrations. Do not add newly discovered local defects
 as prerequisite patch tickets. Record their concrete failures, assign them to
 the shared semantic or representation-plan owner, and make them acceptance cases
 for that architectural implementation. A check failure still needs an honest
@@ -151,6 +179,33 @@ counterexamples, and use external-codec/compiler tests for those explicit
 boundaries. Do not turn every incidental runtime detail into another prerequisite
 model expansion. The next architectural delivery must establish the common owner
 and remove duplicated decisions from its first consumers.
+
+The #570 source-codec correction and shared selection/resolution/synthesis
+ownership passed the registered proof/conformance and repository gates. Obtain
+the final exact-diff review and deliver the dependency before beginning #574. Do not add another prerequisite Lean vocabulary expansion merely
+because a production adapter does not yet translate a supported DSL shape.
+Unsupported translation must fail explicitly; it must never be counted as a
+passing comparison or used to skip an already registered failing obligation.
+
+Alias-local and map-key constraints are supported by the shared Go implementation
+and have direct regressions and independent review. Full independent lowering of
+those constraints into the Lean reference remains pending. #574 must discharge
+alias-local schema/length correspondence before using it for byte-schema claims;
+#571 must discharge cumulative alias/key-constraint and key-enum correspondence
+before using it for migrated enum/default consumers. Keep the existing adapter
+rejection controls until those translations are implemented and reviewed. These
+are existing migration obligations, not new prerequisite patch tickets. The
+proof ledger must distinguish tested Go behavior from these unproved extraction
+boundaries throughout the migration.
+
+The full gRPC mapped-metadata matrix also requires logical declarations with
+unique authored names but duplicate JSON aliases: transport components can make
+those names independently valid. Source ambiguity and target emitted-name
+validation belong to different owners. Preserve direct/generated coverage and
+an explicit adapter rejection for graphs outside the model's unique-wire-alias
+premise. #573 must reconcile this lowering boundary, or the first earlier
+migration that needs it; existing cross-namespace authored/wire overlaps stay
+inside the current correspondence domain.
 
 ## Formal assurance requirements
 
@@ -273,14 +328,14 @@ Checklist
 - [x] Complete #575 as a design-only commit: record complete-first partial-union rules, exact JSON Bytes grammar/length policy, complete schemas per representation, JSON-primary canonical naming and the narrow derived-reference compatibility exception. Independently review the integrated design and dependency order; run `go run ./scripts/docscheck` and `git diff --check` before commit/push. Proof navigation is linked from the framework skill, and AGENTS.md owns the manual artifact cleanup process. Candidate proofs may model this chosen contract before the production schema correction; no current-schema correctness claim follows.
 - [x] Complete #576 separately: add a failing direct regression at the shared validation seam (`codegen/validation_render.go`, `codegen/validation_test.go` or a focused new test file) plus a generated HTTP named-Bytes compile regression alongside `http/codegen/optional_validation_compile_test.go`. Inspect actual pointer/value/type references, then fix the conversion owner without forcing pointer semantics. Cover required/optional aliases and all affected transport callers, compare parent/candidate generated bytes and compile results, run targeted codegen/transport tests plus lint/test, and obtain independent exact-diff review before its one commit/push.
 - [x] Complete #577 separately after #576: reproduce invalid native/named Bytes default comparisons at `codegen/go_transform.go` and nullable named-byte default type inference at `codegen/go_transform_presence.go` with compiled direct and generated HTTP/JSON-RPC tests before changing the default-transform owners. Verify generated form requests apply declared defaults to omitted native/named bytes even when the source context does not apply defaults; preserve explicitly supplied empty/nonempty bytes. Preserve null and supplied values, and honor the target default/pointer policy for Nullable just as for Optional/native fields; cover comparable scalar and raw-JSON controls. Restore the full byte-default transport cases discovered during #576 verification. Compare common parent/candidate fixtures, testdata and new probes twice with exact bytes and compile/vet results, run required gates, obtain independent exact-diff review, then commit/push. A matching golden containing an invalid slice equality is not passing compilation evidence.
-- [ ] Add failing regressions at existing seams in `expr/example_canonicalization_test.go` and example tests before changing behavior. Pin legacy public adapter outputs for partial, ambiguous, invalid and unsupported values separately from new built-in guarantees.
+- [x] Add fail-first source/resolution/eligibility regressions under `expr/value_*_test.go` and retain the existing example-canonicalization tests. Pin legacy public adapter outputs for partial, ambiguous, invalid and unsupported values separately from new built-in guarantees.
 - [x] Implement and prove candidate semantics in `ValueContract/Resolve.lean`, `Projection.lean` and `Proofs.lean` under the Lean project. Define target validity and decoding independently of the projector; prove soundness and progress for complete representable values, with legitimate target field loss retained in the domain. Prove failure/source-selection properties and finite recursive-value cases without a fixed maximum depth. The #569 gate checks 483 required theorems, transitive axioms, fresh kernel replay and actual admitted-proof/custom-axiom/missing-theorem rejection controls. Independent review checks theorem statements, definitions, non-vacuous premises and the axiom report. The [proof README](../expr/lean/value_projection/README.md) maps the stages; the [correspondence ledger](../expr/lean/value_projection/correspondence.md) distinguishes proved model claims from the production boundaries still owned by #570 and later migrations. Observation must finish before canonical construction, so omitted children cannot fail construction of wire objects that will never be emitted.
-- [ ] Introduce the documented opaque result/query declarations in proposed `expr/resolved_value.go`; then add table-driven resolver tests in `expr/resolved_value_test.go` before implementing the new operations. Cover effective method copies, independent documentation bodies, explicit transport overrides, absent source versus explicit null, wrong types, cycles, collisions, recursion and custom-materialization failure.
-- [ ] Implement selection/resolution/synthesis separation in `expr`, using private node storage and copied read access; migrate `example.go`, `example_length.go`, `types.go`, `types_union.go`, `user_type.go` and `random.go` ownership. Retain thin compatibility behavior in `example_canonicalization.go`; prevent `expr` from importing generators or `internal/enumvalue`.
-- [ ] Add common JSON projection beside the resolver, accepting a resolved value and target-shape plan. Test bytes/String/Any distinctions, exactly-once encoding, mapped fields, immutable access, occurrence-specific memoization, custom snapshot counts, suppression before materialization and independently seeded map inputs.
-- [ ] Add planned `ValueContract/Reference.lean` and a Lake executable `value_contract_reference` that invokes the proved functions directly. Add `internal/valuecontract/conformance_test.go` with `TestLeanConformance`. Ordinary Go tests skip only this external-reference test when `LOOM_VALUE_CONFORMANCE` is not `1`; adapter unit tests and negative controls remain in the ordinary tier. Wire `make value-contract-conformance` to build the reference and run `LOOM_VALUE_CONFORMANCE=1 LOOM_LEAN_REFERENCE=/absolute/path/to/value_contract_reference go test -json ./internal/valuecontract -run '^TestLeanConformance$' -count=1 -timeout=10m`, substituting the actual built executable path. Enabled mode fails on a missing/non-executable reference. The gate must require a passing, non-skipped `TestLeanConformance` event and a nonzero executed-case count in `conformance-results.json`; test the gate against missing tools and a skipped/zero-case result so it cannot silently pass. Test the input/output adapter independently: use typed map-entry lists preserving collisions, explicit source/occurrence IDs, branch IDs and presence tags. Compare outcomes, target values and observations on fixed regressions and deterministically generated finite inputs; test negative controls for double-encoding, branch substitution, lost null/absence and always-omit behavior. Record coverage and trusted serializer/compiler boundaries in `correspondence.md`. Run `make value-contract-conformance`.
-- [ ] Carry semantic values/source identity through `codegen/service/service_data.go`, `service_data_methods.go`, and `expr/http_body_types.go` before consumer migrations; preserve distinct documentation-only/transport-override occurrences and existing exported carrier compatibility. Add direct tests for payload/result/error/stream copies before changing these carriers. Derive a durable representation/shape plan from the actual transport encoding path and make it available to schema/body analysis as well as value projection. Include codec owner, occurrence, selected fields, names, requiredness and visibility; custom runtime injection stays an explicit boundary. `http/codegen/internal/transportir` must consume this plan without inventing another classifier. Test equal logical types used across JSON, multipart/raw and parameter positions; media labels alone cannot determine the codec.
-- [ ] Run `go test ./expr ./internal/enumvalue ./codegen ./codegen/service ./codegen/cli`; rerun checked TLC and the revision comparison with this commit's parent as `LOOM_VALUE_BASE`. Enumerate changed examples; retain legacy adapter and custom callback outputs.
+- [x] Introduce the opaque result/query declarations in `expr/resolved_value.go`, with fail-first table-driven resolver coverage in `expr/value_resolve_test.go` and the focused occurrence/source test files. Cover effective method copies, independent documentation bodies, explicit transport overrides, absent source versus explicit null, wrong types, cycles, collisions, recursion and custom-materialization failure.
+- [x] Establish selection/resolution/synthesis separation in `expr`, using private node storage and copied read access. First service consumers must share source selection, retained branch choices, occurrence-scoped caching and publication of the same sampling result. Existing `example.go`, `example_length.go`, `types.go`, `types_union.go`, `user_type.go` and `random.go` may remain the sampling engine behind the isolated synthesis graph; rewriting these files is not itself an acceptance condition. Keep public raw-value and `example_canonicalization.go` compatibility behavior while their remaining consumers migrate in M3–M6, then remove duplicate semantics under #573. Prevent `expr` from importing generators or `internal/enumvalue`.
+- [x] Add common JSON projection beside the resolver, accepting a resolved value and target-shape plan. Test bytes/String/Any distinctions, exactly-once encoding, mapped fields, immutable access, occurrence-specific memoization, custom snapshot counts, suppression before materialization and independently seeded map inputs.
+- [x] Add `ValueContract/Reference.lean` and a Lake executable `value_contract_reference` that invokes the proved functions directly. Add `internal/valuecontract/conformance_test.go` with `TestLeanConformance`. Ordinary Go tests skip only this external-reference test when `LOOM_VALUE_CONFORMANCE` is not `1`; adapter unit tests and negative controls remain in the ordinary tier. Wire `make value-contract-conformance` to build the reference and run `LOOM_VALUE_CONFORMANCE=1 LOOM_LEAN_REFERENCE=/absolute/path/to/value_contract_reference LOOM_VALUE_CONFORMANCE_REPORT=/absolute/path/to/conformance-results.json go test -json ./internal/valuecontract -run '^TestLeanConformance$' -count=1 -timeout=10m`, substituting the actual built executable path. Enabled mode fails on a missing/non-executable reference. The gate must require a passing, non-skipped `TestLeanConformance` event and a nonzero executed assertion-group count for every required owner in `conformance-results.json` (groups are not reported as corpus input counts); test the gate against missing tools and a skipped/zero-case result so it cannot silently pass. Test the input/output adapter independently: use typed map-entry lists preserving collisions, explicit source/occurrence IDs, branch IDs and presence tags. Compare outcomes, target values and observations on fixed regressions and deterministically generated finite inputs; test negative controls for double-encoding, branch substitution, lost null/absence and always-omit behavior. Record coverage and trusted serializer/compiler boundaries in `correspondence.md`. Run `make value-contract-conformance`.
+- [x] Carry semantic values/source identity through `codegen/service/service_data.go`, `service_data_methods.go`, and `expr/http_body_types.go` before consumer migrations; preserve distinct documentation-only/transport-override occurrences and existing exported carrier compatibility. Add direct tests for payload/result/error/stream copies before changing these carriers. Derive a durable representation/shape plan from the actual transport encoding path and make it available to schema/body analysis as well as value projection. Include codec owner, occurrence, selected fields, names, requiredness and visibility; custom runtime injection stays an explicit boundary. `http/codegen/internal/transportir` must consume this plan without inventing another classifier. Test equal logical types used across JSON, multipart/raw and parameter positions; media labels alone cannot determine the codec.
+- [x] Run `go test ./expr ./internal/enumvalue ./codegen ./codegen/service ./codegen/cli`; rerun checked TLC and the revision comparison with this commit's parent as `LOOM_VALUE_BASE`. Enumerate changed examples; retain legacy adapter and custom callback outputs.
 - [ ] Add a dedicated proof/conformance job to `.github/workflows/test.yml` and make `ci-local` depend on `value-contract-conformance`; use the same scripts locally and in CI, install pinned Lean/checker tools, and fail rather than skip when unavailable. Run `go fmt ./...`, `make value-contract-conformance`, `make lint`, `make test`, and `make coverage-ratchet`; obtain independent exact-diff review, resolve findings, and commit/push the semantic-core dependency work.
 
 - [ ] After #570, implement #574 in its own atomic commit. Add failing byte-length/schema assertions in `expr/json_schema_inline_test.go`, OpenAPI IR `byte_values_test.go`, and actual generated server/independent schema tests. A dependency-free helper under proposed `internal/byteschema/` owns residue grammars and checked arithmetic; both schema owners adapt it. Extend `expr/json_schema_inline.go`, OpenAPI `schema.go`, IR `model.go`/`render.go` and relevant clone/hash/reference/filter walkers for the required standard schema vocabulary. Preserve every field in manual marshal/clone paths.

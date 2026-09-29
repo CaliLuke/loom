@@ -63,9 +63,9 @@ private theorem runtimeEnumLift {codecs checks targets identity wire result}
         Bool.eq_false_iff.mpr allowed
       simpa [Option.filter, no] using RuntimeEvaluation.enumRejected declaration member same node rejected
 
-private theorem keyOutcome_actual (codec : NumericCodec) (kind : MapKeyKind) (name : String) :
-    KeyOutcome codec kind name (decodeKey codec kind name) := by
-  cases parsed : decodeKey codec kind name with
+private theorem keyOutcome_actual (codec : NumericCodec) (format : NumericFormat) (integers : IntegerFormat) (kind : MapKeyKind) (name : String) :
+    KeyOutcome codec format integers kind name (decodeKey codec kind format integers name) := by
+  cases parsed : decodeKey codec kind format integers name with
   | none =>
     intro key relation
     have result := keyDecoder_progress relation
@@ -89,7 +89,7 @@ private theorem decodeStep_sound {codecs : ScalarCodecs} {checks : ExternalScala
     RuntimeNode codecs checks targets declaration.decoderRejectsUnknown declaration.target wire result := by
   cases shape : declaration.target with
   | scalar encoding kind rules =>
-    cases parsed : decodeScalar codecs encoding kind wire with
+    cases parsed : decodeScalar codecs encoding kind rules.numericFormat rules.integerFormat wire with
     | none =>
       simp [decodeStep, decodeBody, shape, parsed, Option.filter] at success
       subst result
@@ -155,9 +155,9 @@ private theorem decodeStep_sound {codecs : ScalarCodecs} {checks : ExternalScala
       obtain ⟨outcomes, done, same⟩ := except_bind_ok.mp success
       cases same
       have related := (mapM_ok_iff ..).mp done
-      have keys := all₂_map_right (fun entry decoded => KeyOutcome codecs.numbers key entry.1 decoded)
-        (fun entry => decodeKey codecs.numbers key entry.1)
-        (fun entry => keyOutcome_actual codecs.numbers key entry.1) items
+      have keys := all₂_map_right (fun entry decoded => KeyOutcome codecs.numbers rules.numericFormat rules.integerFormat key entry.1 decoded)
+        (fun entry => decodeKey codecs.numbers key rules.numericFormat rules.integerFormat entry.1)
+        (fun entry => keyOutcome_actual codecs.numbers rules.numericFormat rules.integerFormat key entry.1) items
       exact RuntimeNode.map keys.1 related.1 keys.2
         (fun pair member => sound _ _ _ (related.2 pair member))
   | object members additional =>
@@ -249,12 +249,12 @@ theorem decodeFuel_sound {codecs : ScalarCodecs} {checks : ExternalScalarChecks}
       exact runtimeEnumLift declaration (findTarget_mem found) (findTarget_identity found)
         (decodeStep_sound (fun identity wire result done => ih done) body)
 
-private theorem keyOutcome_complete {codec kind name result}
-    (related : KeyOutcome codec kind name result) : decodeKey codec kind name = result := by
+private theorem keyOutcome_complete {codec kind format integers name result}
+    (related : KeyOutcome codec format integers kind name result) : decodeKey codec kind format integers name = result := by
   cases result with
   | some key => exact keyDecoder_progress related
   | none =>
-    cases parsed : decodeKey codec kind name with
+    cases parsed : decodeKey codec kind format integers name with
     | none => rfl
     | some key => exact False.elim (related key (keyDecoder_sound parsed))
 
@@ -285,7 +285,7 @@ private theorem decodeBody_complete {codecs : ScalarCodecs} {checks : ExternalSc
   case scalar encoding kind value rules valid decoded =>
     simp [decodeBody, shape, scalarDecoder_progress decoded, Option.filter, valid]
   case scalarRejected encoding kind rules rejected =>
-    cases parsed : decodeScalar codecs encoding kind wire with
+    cases parsed : decodeScalar codecs encoding kind rules.numericFormat rules.integerFormat wire with
     | none => simp [decodeBody, shape, parsed, Option.filter]
     | some value =>
       have invalid := rejected value (scalarDecoder_sound parsed)
@@ -315,7 +315,7 @@ private theorem decodeBody_complete {codecs : ScalarCodecs} {checks : ExternalSc
       apply (mapM_ok_iff ..).mpr
       exact ⟨valueLengths, fun pair member => childWire child (by simp [targetConsumingChildren]) _ _
         (object_wireHeight_lt (List.of_mem_zip member).1) (results pair member)⟩
-    have parsed : items.map (fun entry => decodeKey codecs.numbers kind entry.1) = keys :=
+    have parsed : items.map (fun entry => decodeKey codecs.numbers kind rules.numericFormat rules.integerFormat entry.1) = keys :=
       all₂_map_eq _ ⟨keyLengths, fun pair member => keyOutcome_complete (keyResults pair member)⟩
     simp [decodeBody, shape, done, parsed]
   case object items members additional outcomes lengths missing present =>

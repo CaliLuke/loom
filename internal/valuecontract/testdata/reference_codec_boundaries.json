@@ -1,0 +1,503 @@
+[
+  {
+    "name": "source_decimal_spelling_collision",
+    "request": {
+      "version": 1,
+      "command": {
+        "evaluate": {
+          "request": {
+            "declarations": [
+              {
+                "identity": {
+                  "occurrence": 1,
+                  "declaration": 1
+                },
+                "expansionRank": 0,
+                "contract": "any",
+                "enumeration": null
+              }
+            ],
+            "root": {
+              "occurrence": 1,
+              "declaration": 1
+            },
+            "supplied": {
+              "source": {
+                "occurrence": {
+                  "occurrence": 1,
+                  "declaration": 1
+                },
+                "origin": 1,
+                "role": "authoredExample"
+              },
+              "value": {
+                "map": {
+                  "entries": [
+                    [
+                      {
+                        "value": {
+                          "decimal": {
+                            "coefficient": 100000001490116119384765625,
+                            "exponent": -27,
+                            "format": "binary32",
+                            "negativeZero": false,
+                            "literalOrigin": 0
+                          }
+                        },
+                        "primitive": "builtinFloat32"
+                      },
+                      {
+                        "scalar": {
+                          "value": {
+                            "value": {
+                              "string": {
+                                "value": "number"
+                              }
+                            },
+                            "primitive": "builtinString"
+                          }
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "value": {
+                          "string": {
+                            "value": "0.1"
+                          }
+                        },
+                        "primitive": "builtinString"
+                      },
+                      {
+                        "scalar": {
+                          "value": {
+                            "value": {
+                              "string": {
+                                "value": "string"
+                              }
+                            },
+                            "primitive": "builtinString"
+                          }
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            },
+            "codecs": {
+              "numberReadings": [],
+              "decimalSpellings": [],
+              "literalSpellings": [],
+              "literalReadings": [],
+              "integerReadings": [],
+              "decimalReadings": []
+            },
+            "checks": [],
+            "projection": null
+          }
+        }
+      }
+    },
+    "codecs": {
+      "numberReadings": [],
+      "decimalSpellings": [
+        {
+          "text": "0.1",
+          "number": {
+            "value": {
+              "coefficient": 100000001490116119384765625,
+              "exponent": -27
+            },
+            "format": "binary32",
+            "negativeZero": false
+          }
+        }
+      ],
+      "literalSpellings": [],
+      "literalReadings": [],
+      "integerReadings": [],
+      "decimalReadings": []
+    },
+    "requestField": "decimalRequests"
+  },
+  {
+    "name": "generated_wire_key_reading",
+    "request": {
+      "version": 1,
+      "command": {
+        "evaluate": {
+          "request": {
+            "declarations": [
+              {
+                "identity": {
+                  "occurrence": 9,
+                  "declaration": 1
+                },
+                "expansionRank": 1,
+                "contract": {
+                  "union": {
+                    "occurrence": {
+                      "occurrence": 9,
+                      "declaration": 1
+                    },
+                    "alternatives": [
+                      {
+                        "identity": {
+                          "occurrence": 9,
+                          "declaration": 11
+                        },
+                        "name": "a",
+                        "child": {
+                          "occurrence": 9,
+                          "declaration": 2
+                        }
+                      }
+                    ]
+                  }
+                },
+                "enumeration": null
+              },
+              {
+                "identity": {
+                  "occurrence": 9,
+                  "declaration": 2
+                },
+                "expansionRank": 0,
+                "contract": {
+                  "object": {
+                    "members": [
+                      {
+                        "identity": {
+                          "occurrence": 9,
+                          "declaration": 5
+                        },
+                        "sourceName": "x",
+                        "wireAlias": "x",
+                        "required": true,
+                        "child": {
+                          "occurrence": 9,
+                          "declaration": 4
+                        }
+                      }
+                    ],
+                    "isOpen": false
+                  }
+                },
+                "enumeration": null
+              },
+              {
+                "identity": {
+                  "occurrence": 9,
+                  "declaration": 4
+                },
+                "expansionRank": 0,
+                "contract": {
+                  "scalar": {
+                    "kind": "string",
+                    "rules": {
+                      "enumeration": null,
+                      "length": {
+                        "minimum": null,
+                        "maximum": null
+                      },
+                      "numeric": {
+                        "minimum": null,
+                        "maximum": null,
+                        "exclusiveMinimum": false,
+                        "exclusiveMaximum": false
+                      },
+                      "externalChecks": [],
+                      "numericFormat": "exact",
+                      "integerFormat": "mathematical"
+                    }
+                  }
+                },
+                "enumeration": null
+              }
+            ],
+            "root": {
+              "occurrence": 9,
+              "declaration": 1
+            },
+            "supplied": {
+              "source": {
+                "occurrence": {
+                  "occurrence": 9,
+                  "declaration": 1
+                },
+                "origin": 1,
+                "role": "authoredExample"
+              },
+              "value": {
+                "selected": {
+                  "occurrence": {
+                    "occurrence": 9,
+                    "declaration": 1
+                  },
+                  "branch": {
+                    "occurrence": 9,
+                    "declaration": 11
+                  },
+                  "payload": {
+                    "object": {
+                      "fields": [
+                        [
+                          "x",
+                          {
+                            "scalar": {
+                              "value": {
+                                "value": {
+                                  "string": {
+                                    "value": "v"
+                                  }
+                                },
+                                "primitive": "builtinString"
+                              }
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "codecs": {
+              "numberReadings": [
+                {
+                  "text": "v",
+                  "schema": null
+                }
+              ],
+              "decimalSpellings": [],
+              "literalSpellings": [],
+              "literalReadings": [],
+              "integerReadings": [
+                {
+                  "format": {
+                    "signed": {
+                      "bits": 64
+                    }
+                  },
+                  "text": "v",
+                  "scalar": null,
+                  "key": null
+                }
+              ],
+              "decimalReadings": []
+            },
+            "checks": [],
+            "projection": {
+              "root": {
+                "occurrence": 9,
+                "declaration": 1
+              },
+              "use": "runtime",
+              "targets": [
+                {
+                  "identity": {
+                    "occurrence": 9,
+                    "declaration": 1
+                  },
+                  "expansionRank": 1,
+                  "target": {
+                    "union": {
+                      "occurrence": {
+                        "occurrence": 9,
+                        "declaration": 1
+                      },
+                      "style": "untagged",
+                      "alternatives": [
+                        {
+                          "identity": {
+                            "occurrence": 9,
+                            "declaration": 11
+                          },
+                          "wireName": "a",
+                          "child": {
+                            "occurrence": 9,
+                            "declaration": 2
+                          }
+                        },
+                        {
+                          "identity": {
+                            "occurrence": 9,
+                            "declaration": 12
+                          },
+                          "wireName": "b",
+                          "child": {
+                            "occurrence": 9,
+                            "declaration": 3
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "enumeration": null,
+                  "schemaEnumeration": null,
+                  "schemaAllowsUnknown": true,
+                  "decoderRejectsUnknown": false
+                },
+                {
+                  "identity": {
+                    "occurrence": 9,
+                    "declaration": 2
+                  },
+                  "expansionRank": 0,
+                  "target": {
+                    "object": {
+                      "members": [
+                        {
+                          "identity": {
+                            "occurrence": 9,
+                            "declaration": 5
+                          },
+                          "wireName": "9223372036854775808",
+                          "required": true,
+                          "presence": "explicit",
+                          "child": {
+                            "occurrence": 9,
+                            "declaration": 4
+                          }
+                        }
+                      ],
+                      "preserveAdditional": false
+                    }
+                  },
+                  "enumeration": null,
+                  "schemaEnumeration": null,
+                  "schemaAllowsUnknown": true,
+                  "decoderRejectsUnknown": false
+                },
+                {
+                  "identity": {
+                    "occurrence": 9,
+                    "declaration": 3
+                  },
+                  "expansionRank": 0,
+                  "target": {
+                    "map": {
+                      "key": {
+                        "scalar": {
+                          "kind": "integer"
+                        }
+                      },
+                      "keyRules": {
+                        "enumeration": null,
+                        "length": {
+                          "minimum": null,
+                          "maximum": null
+                        },
+                        "numeric": {
+                          "minimum": null,
+                          "maximum": null,
+                          "exclusiveMinimum": false,
+                          "exclusiveMaximum": false
+                        },
+                        "externalChecks": [],
+                        "numericFormat": "exact",
+                        "integerFormat": {
+                          "signed": {
+                            "bits": 64
+                          }
+                        }
+                      },
+                      "child": {
+                        "occurrence": 9,
+                        "declaration": 4
+                      },
+                      "length": {
+                        "minimum": null,
+                        "maximum": null
+                      }
+                    }
+                  },
+                  "enumeration": null,
+                  "schemaEnumeration": [],
+                  "schemaAllowsUnknown": true,
+                  "decoderRejectsUnknown": false
+                },
+                {
+                  "identity": {
+                    "occurrence": 9,
+                    "declaration": 4
+                  },
+                  "expansionRank": 0,
+                  "target": {
+                    "scalar": {
+                      "encoding": "json",
+                      "kind": "string",
+                      "rules": {
+                        "enumeration": null,
+                        "length": {
+                          "minimum": null,
+                          "maximum": null
+                        },
+                        "numeric": {
+                          "minimum": null,
+                          "maximum": null,
+                          "exclusiveMinimum": false,
+                          "exclusiveMaximum": false
+                        },
+                        "externalChecks": [],
+                        "numericFormat": "exact",
+                        "integerFormat": "mathematical"
+                      }
+                    }
+                  },
+                  "enumeration": null,
+                  "schemaEnumeration": null,
+                  "schemaAllowsUnknown": true,
+                  "decoderRejectsUnknown": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "codecs": {
+      "numberReadings": [
+        {
+          "text": "v",
+          "schema": null
+        },
+        {
+          "text": "9223372036854775808",
+          "schema": {
+            "coefficient": 9223372036854775808,
+            "exponent": 0
+          }
+        }
+      ],
+      "decimalSpellings": [],
+      "literalSpellings": [],
+      "literalReadings": [],
+      "integerReadings": [
+        {
+          "format": {
+            "signed": {
+              "bits": 64
+            }
+          },
+          "text": "v",
+          "scalar": null,
+          "key": null
+        },
+        {
+          "format": {
+            "signed": {
+              "bits": 64
+            }
+          },
+          "text": "9223372036854775808",
+          "scalar": null,
+          "key": null
+        }
+      ],
+      "decimalReadings": []
+    },
+    "requestField": "numericRequests"
+  }
+]

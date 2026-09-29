@@ -358,9 +358,40 @@ constructors, accessors, supported bare JSON and wire tags remain unchanged.
 - Declared Bytes accepts the currently supported authored text and byte slices;
   semantic equality uses bytes, including the existing empty-byte equivalence.
   String and Any do not inherit that coercion.
+- Primitive source admission precedes normalization and preserves the existing
+  `Primitive.IsCompatible` concrete Go type matrix. Named scalars do not become
+  admitted primitives merely because reflection exposes the same underlying
+  kind or a formatter produces valid numeric text. `Int` and `Int64` retain
+  their different source acceptance even on a 64-bit host. Any uses its separate
+  finite raw-value contract. The reference must retain enough concrete type
+  evidence to state this admission independently of resolver success.
+- Sequence source shape and JSON representation are independent. Native byte
+  slices and fixed arrays both serialize as base64, but only an unnamed native
+  byte slice is admitted by declared Bytes. A named container of native bytes
+  still encodes as base64; defined byte elements encode as an array. Declared
+  Array checks the original elements, preserving their concrete source types;
+  empty arrays retain the existing vacuous element check. Raw host evidence may
+  not be reconstructed from a selected branch or target.
 - Integer boundaries and floating-point rounding follow the declared type.
   Protobuf projection additionally honors the actual protobuf field range and
   protojson representation; it cannot synthesize a new number to make it fit.
+- Numeric meaning and representation identity are separate. Equal exact numeric
+  values held as Float32 and Float64 can have different JSON/key spellings; raw
+  values retain that precision, and decoding precision belongs to each target
+  occurrence. Numeric enum equality ignores representation identity. Map-key
+  source collision checks use the contract's actual key conversion and canonical
+  member names, not enum equality. Native runtime maps separately require unique
+  decoded keys under the actual target type's equality: opposite signed zeros
+  collide even when their JSON member names differ. Key admission uses the actual
+  JSON map codec, not a standalone numeric parser. Exact reference coefficients must support arbitrary
+  precision; encoding a Float32 as its short JSON decimal must not replace its
+  exact numeric meaning. Declared floating-point roles apply the established
+  authored-literal formatting and destination parsing before validation or branch
+  ranking, after source admission. Formatting is an independent boundary and
+  cannot admit an otherwise unsupported named source. Numeric source formatting
+  methods retain separate literal provenance; normalized scalars lose that
+  source-specific formatter. JSON spelling and enum
+  numeric equality do not inherit literal-formatting identity.
 - Requiredness, nullability, nil/empty serialization, and absent optional fields
   follow their existing evaluated and codec contracts. No new equivalence
   between absent, null, and empty is introduced.

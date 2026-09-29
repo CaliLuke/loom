@@ -28,7 +28,7 @@ theorem MapResolution_complete_missing {child : Input → Resolution → Prop}
     {rules : ScalarRules} {bounds : LengthBounds} {input : Input} {result : Resolution}
     (children : ∀ input value, child input value → value.missing = [])
     (matched : MapResolution checks keys kind rules bounds child input result) : result.missing = [] := by
-  rcases matched with ⟨_, _, rfl⟩ | ⟨inputs, normalized, values, _, _, _, _, _, related, rfl⟩
+  rcases matched with ⟨_, _, rfl⟩ | ⟨inputs, normalized, values, _, _, _, _, related, rfl⟩
   · rfl
   · apply List.flatMap_eq_nil_iff.mpr
     intro value member

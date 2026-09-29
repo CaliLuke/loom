@@ -4,9 +4,71 @@ values are inductive trees of arbitrary finite depth. This file does not define
 typing, representation, decoding, or success in terms of the candidate projector.
 The milestone-1 vocabulary and counterexamples remain in Model/Legacy unchanged.
 -/
-import ValueContract.Model
+import ValueContract.SourceBytes
 
 namespace ValueContract.Candidate
+
+/-- Raw floating-point representation is distinct from mathematical meaning.
+Exact values are used for schema arithmetic; binary formats retain the width
+that controls literal and JSON spelling. -/
+inductive NumericFormat where
+  | exact | binary32 | binary64
+  deriving DecidableEq, Repr
+
+/-- Integer runtime parsing owns both signedness and effective machine width.
+Mathematical targets are explicit abstract controls, never a default Go width. -/
+inductive IntegerFormat where
+  | mathematical
+  | signed (bits : Nat)
+  | unsigned (bits : Nat)
+  deriving DecidableEq, Repr
+
+/-- Candidate scalars retain arbitrary-precision mathematical values together
+with raw representation evidence. Signed zero affects encoding, not numeric
+comparison. A literal origin distinguishes source-specific numeric formatting
+methods; zero denotes ordinary builtin literal formatting. It does not affect
+JSON spelling or enum numeric equality. The milestone-1 vocabulary is unchanged. -/
+inductive Scalar where
+  | boolean (value : Bool)
+  | integer (value : Int) (literalOrigin : Nat := 0)
+  | decimal (coefficient exponent : Int) (format : NumericFormat := .exact)
+      (negativeZero : Bool := false) (literalOrigin : Nat := 0)
+  | string (value : String)
+  | bytes (value : List UInt8)
+  deriving DecidableEq, Repr
+
+def Scalar.kind : Scalar → ScalarKind
+  | .boolean _ => .boolean
+  | .integer _ _ => .integer
+  | .decimal _ _ _ _ _ => .decimal
+  | .string _ => .string
+  | .bytes _ => .bytes
+
+/-- Concrete source admission evidence is retained until declared normalization.
+It is deliberately absent from canonical values and target decoder scalars.
+The normalized constructor vocabulary is for abstract controls only; production
+inputs supply the concrete primitive captured from the original Go value. -/
+structure SourceScalar where
+  value : Scalar
+  primitive : RawPrimitive := .normalized value.kind
+  deriving DecidableEq, Repr
+
+namespace SourceScalar
+
+/-- Explicit abstract scalar vocabulary, never production admission evidence. -/
+def boolean (value : Bool) : SourceScalar := ⟨.boolean value, .normalized .boolean⟩
+def integer (value : Int) (literalOrigin : Nat := 0) : SourceScalar :=
+  ⟨.integer value literalOrigin, .normalized .integer⟩
+def decimal (coefficient exponent : Int) (format : NumericFormat := .exact)
+    (negativeZero : Bool := false) (literalOrigin : Nat := 0) : SourceScalar :=
+  ⟨.decimal coefficient exponent format negativeZero literalOrigin, .normalized .decimal⟩
+def string (value : String) : SourceScalar := ⟨.string value, .normalized .string⟩
+def bytes (value : List UInt8) : SourceScalar := ⟨.bytes value, .normalized .bytes⟩
+
+end SourceScalar
+
+instance : Coe Scalar SourceScalar where
+  coe value := ⟨value, .normalized value.kind⟩
 
 /-- Protobuf byte values and oneofs are structured target values. JSON bytes
 use the same text constructor as strings, never a hidden base64 tag. -/
@@ -47,16 +109,29 @@ inductive Value where
 Raw input entry lists retain duplicates for validation before any lookup. -/
 inductive Input where
   | absent | null | nilArray | nilMap | nilBytes
-  | scalar (value : Scalar)
+  | scalar (value : SourceScalar)
+  | byteSequence (sequence : NativeByteSequence)
   | object (fields : List (String × Input))
   | array (items : List Input)
-  | map (entries : List (Scalar × Input))
+  | map (entries : List (SourceScalar × Input))
   | selected (occurrence branch : Identity) (payload : Input)
   | cycle (identity : Nat)
   | opaque (identity : Nat)
   /-- Retains concrete host-type equality evidence before declared coercion. -/
   | host (identity : Nat) (payload : Input)
   deriving Repr
+
+/-- Native byte elements keep their original host class when a declared Array
+consumes them. Their concrete scalar type and literal origin are fixed by the
+native-byte constructor, independently of the selected declaration or target. -/
+def NativeByteSequence.inputs (sequence : NativeByteSequence) : List Input :=
+  sequence.items.map fun item =>
+    .host item.1 (.scalar ⟨.integer (Int.ofNat item.2.toNat), .builtinUInt8⟩)
+
+/-- Raw Any keeps the codec meaning after source dispatch. Source-only array,
+slice and container naming evidence remains on Input, not on target values. -/
+def NativeByteSequence.rawValue (sequence : NativeByteSequence) : Value :=
+  if sequence.isNil then .nilBytes else .scalar (.bytes sequence.octets)
 
 /-- Remove only outer host evidence; child nodes retain their own evidence. -/
 def stripHostValue : Value → Value
@@ -80,6 +155,13 @@ structure Decimal where
   exponent : Int
   deriving DecidableEq, Repr
 
+/-- Exact numeric result of one machine parser, including signed zero. The
+requested precision is supplied separately and cannot be chosen by the parser. -/
+structure ParsedDecimal where
+  value : Decimal
+  negativeZero : Bool := false
+  deriving DecidableEq, Repr
+
 /-- Lower and upper bounds may be negative in the evaluated DSL. Their meaning
 is comparison with the actual nonnegative length, not a Nat coercion of bounds. -/
 structure LengthBounds where
@@ -98,6 +180,15 @@ structure NumericBounds where
 adapter. Its result is an explicit boundary; it cannot establish core typing or
 branch preservation. None and some [] distinguish no enum from an empty enum. -/
 structure ScalarRules where
+  /-- Concrete source policy is checked before normalization. None names the
+  explicit abstract scalar-kind policy used by normalized model controls.
+  Runtime target decoding does not consult this source-only field. -/
+  sourcePrimitive : Option SourcePrimitive := none
+  /-- Effective declared or target precision, independently owned per occurrence. -/
+  numericFormat : NumericFormat := .exact
+  /-- Runtime integer policy; independent of authored/schema numeric bounds.
+  Source integer matching preserves existing acceptance and does not use it. -/
+  integerFormat : IntegerFormat := .mathematical
   enumeration : Option (List Scalar) := none
   length : LengthBounds := {}
   numeric : NumericBounds := {}

@@ -4,6 +4,8 @@ import ValueContract.SourceNullProofs
 
 namespace ValueContract.Candidate
 
+variable {keys : KeyCodec}
+
 private theorem mapEntries_stripHost (input : Input) :
     mapEntries input = mapEntries (stripHostInput input) := by
   cases input <;> simp only [mapEntries, stripHostInput]
@@ -24,23 +26,23 @@ termination_by sizeOf input
 
 /-- Executable map input extraction exactly preserves the independently
 specified shape and supplied entries, including transparent host wrappers. -/
-theorem mapEntries_iff (input : Input) (entries : List (Scalar × Input)) :
+theorem mapEntries_iff (input : Input) (entries : List (SourceScalar × Input)) :
     mapEntries input = some entries ↔ MapInputEntries input entries := by
   rw [mapEntries_stripHost]
   cases shape : stripHostInput input <;> simp [mapEntries, MapInputEntries, shape, eq_comm]
   case host identity payload =>
     exact False.elim (stripHost_not_host input identity payload shape)
 
-private theorem objectMapEntries_iff (inputs : List (Scalar × Input))
+private theorem objectMapEntries_iff (inputs : List (SourceScalar × Input))
     (entries : List (String × Input)) :
-    inputs.mapM (fun entry => match entry.1 with
+    inputs.mapM (fun entry => match entry.1.value with
       | .string name => some (name, entry.2)
       | _ => none) = some entries ↔
-      All₂ (fun source actual => source.1 = .string actual.1 ∧ source.2 = actual.2) inputs entries := by
+      All₂ (fun source actual => source.1.value = .string actual.1 ∧ source.2 = actual.2) inputs entries := by
   induction inputs generalizing entries with
   | nil => cases entries <;> simp [All₂]
   | cons head tail ih =>
-    rcases head with ⟨key, value⟩
+    rcases head with ⟨⟨key, primitive⟩, value⟩
     cases entries with
     | nil => cases key <;> simp [List.mapM_cons, All₂, Option.bind_eq_some_iff]
     | cons entry rest =>
@@ -59,17 +61,17 @@ theorem objectEntries_iff (input : Input) (entries : List (String × Input)) :
     exact False.elim (stripHost_not_host input identity payload shape)
 
 /-- Key normalization agrees with the independent coercion/validation rule. -/
-theorem mapKeyResolution_iff (checks : ExternalScalarChecks) (kind : MapKeyKind)
-    (rules : ScalarRules) (source actual : Scalar × Input) :
+theorem mapKeyResolution_iff (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : MapKeyKind)
+    (rules : ScalarRules) (source : SourceScalar × Input) (actual : Scalar × Input) :
     (match kind with
     | .builtin =>
-      if mapKeyCompatible kind source.1 = false ∨ scalarAllowed checks rules source.1 = false then
-        (.error Failure.invalid : Except Failure (Scalar × Input)) else .ok source
-    | .scalar expected => match coerceScalar expected source.1 with
+      if mapKeyCompatible kind source.1.value = false ∨ scalarAllowed checks rules source.1.value = false then
+        (.error Failure.invalid : Except Failure (Scalar × Input)) else .ok (source.1.value, source.2)
+    | .scalar expected => match coerceSourceScalar keys rules expected source.1 with
       | some key => if mapKeyCompatible kind key = false ∨ scalarAllowed checks rules key = false then
         .error Failure.invalid else .ok (key, source.2)
       | none => .error Failure.invalid) = .ok actual ↔
-      MapKeyResolution checks kind rules source actual := by
+      MapKeyResolution checks keys kind rules source actual := by
   rcases source with ⟨original, input⟩
   rcases actual with ⟨key, child⟩
   cases kind with
@@ -79,10 +81,10 @@ theorem mapKeyResolution_iff (checks : ExternalScalarChecks) (kind : MapKeyKind)
     all_goals intro same; subst key; try simp_all
     all_goals intro compatible valid; simp_all
   | scalar expected =>
-    cases coerced : coerceScalar expected original with
-    | none => simp [coerced, MapKeyResolution, ← coercion_iff]
+    cases coerced : coerceSourceScalar keys rules expected original with
+    | none => simp [coerced, MapKeyResolution, ← sourceCoercion_iff]
     | some converted =>
-      simp only [coerced, MapKeyResolution, ← coercion_iff, Option.some.injEq]
+      simp only [coerced, MapKeyResolution, ← sourceCoercion_iff, Option.some.injEq]
       split <;> simp_all
       all_goals intro same; subst key; try simp_all
       all_goals intro compatible valid; simp_all
@@ -238,12 +240,12 @@ theorem MapResolution_typed {declarations : Declarations} {checks : ExternalScal
     {kind : MapKeyKind} {rules : ScalarRules} {child : Identity} {bounds : LengthBounds}
     {relation : Input → Resolution → Prop} {input : Input} {result : Resolution}
     (present : declaration ∈ declarations) (contract : declaration.contract = .map kind rules child bounds)
-    (enumeration : EnumAllows declaration.enumeration result.value)
-    (children : ∀ raw value, relation raw value → Typed declarations checks complete child value.value)
+    (enumeration : EnumAllows keys declaration.enumeration result.value)
+    (children : ∀ raw value, relation raw value → Typed keys declarations checks complete child value.value)
     (matched : MapResolution checks keys kind rules bounds relation input result) :
-    Typed declarations checks complete declaration.identity result.value := by
+    Typed keys declarations checks complete declaration.identity result.value := by
   rcases matched with ⟨_, length, shape⟩ |
-    ⟨entries, normalized, values, _, length, normalizedKeys, _, unique, related, shape⟩
+    ⟨entries, normalized, values, _, length, normalizedKeys, unique, related, shape⟩
   · subst result
     exact ⟨1, declaration, present, rfl, enumeration, by simpa only [contract] using length⟩
   · subst result
@@ -251,10 +253,8 @@ theorem MapResolution_typed {declarations : Declarations} {checks : ExternalScal
     apply Typed_map_intro present contract enumeration
     · rw [normalizedKeys.1, related.1] at length
       simpa using length
-    · have keyUnique : (normalized.map Prod.fst).Pairwise (fun a b => scalarEqual a b = false) := by
-        simpa [List.pairwise_map] using unique
-      rw [sameKeys] at keyUnique
-      simpa [List.pairwise_map] using keyUnique
+    · change AdmissibleKeys keys ((values.map (fun entry => (entry.1, entry.2.value))).map Prod.fst)
+      simpa only [AdmissibleKeys, List.map_map, Function.comp_def, ← sameKeys] using unique
     · intro value member
       obtain ⟨resolution, inside, same⟩ := List.mem_map.mp member
       obtain ⟨normalized, normalizedInside, matching⟩ := all₂_right related inside
@@ -313,11 +313,11 @@ theorem ObjectResolution_typed {declarations : Declarations} {checks : ExternalS
     {relation : Identity → Input → Resolution → Prop} {input : Input} {result : Resolution}
     (present : declaration ∈ declarations) (contract : declaration.contract = .object members isOpen)
     (identities : (members.map Member.identity).Nodup)
-    (enumeration : EnumAllows declaration.enumeration result.value)
+    (enumeration : EnumAllows keys declaration.enumeration result.value)
     (children : ∀ identity raw value, relation identity raw value →
-      Typed declarations checks complete identity value.value)
+      Typed keys declarations checks complete identity value.value)
     (matched : ObjectResolution keys rawDepth complete members isOpen relation input result) :
-    Typed declarations checks complete declaration.identity result.value := by
+    Typed keys declarations checks complete declaration.identity result.value := by
   obtain ⟨entries, fields, extras, _, uniqueNames, openPolicy, fieldRelation, extraRelation, shape⟩ := matched
   subst result
   have fieldKeys := all₂_map_eq fieldRelation Member.identity Prod.fst

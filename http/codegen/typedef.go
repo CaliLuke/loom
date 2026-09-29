@@ -142,8 +142,7 @@ func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, na
 	if att.Description != "" {
 		description = codegen.Comment(att.Description) + "\n\t"
 	}
-	optional := objectFieldOptional(ma, name, ptr, useDefault)
-	omitZero := wireOptional && (jsonPresence || codegen.IsExplicitPresenceType(att) || expr.AllowsNull(att))
+	optional, omitZero := httpFieldOmission(ma, name, att, ptr, useDefault, jsonPresence)
 	tags := attributeTags(att, elem, optional, omitZero)
 	return fmt.Sprintf("\t%s%s %s%s", description, fieldName, typeDef, tags)
 }
@@ -255,4 +254,11 @@ func isJSONRPCID(att *expr.AttributeExpr) bool {
 	}
 	_, ok := att.Meta["jsonrpc:id"]
 	return ok
+}
+
+// httpFieldOmission is shared by emitted tags and semantic target plans.
+func httpFieldOmission(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr, pointer, useDefault, jsonPresence bool) (bool, bool) {
+	optional := objectFieldOptional(parent, name, pointer, useDefault)
+	omitZero := !parent.IsRequiredNoDefault(name) && (jsonPresence || codegen.IsExplicitPresenceType(attribute) || expr.AllowsNull(attribute))
+	return optional, omitZero
 }

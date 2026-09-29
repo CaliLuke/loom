@@ -1,0 +1,31 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var blob = Type("OccurrenceBlob", Bytes, func() {
+	Meta("openapi:typename:canonical", "true")
+})
+var viewed = ResultType("application/vnd.occurrence", func() {
+	Attributes(func() {
+		Attribute("data", blob)
+		Attribute("value", blob, func() {
+			Nullable()
+			Default([]byte("default"))
+		})
+		Required("data")
+	})
+	View("default", func() {
+		Attribute("data")
+		Attribute("value")
+	})
+	View("tiny", func() {
+		Attribute("value")
+		Attribute("data")
+	})
+})
+var _ = Service("svc", func() {
+	Method("send", func() {
+		Result(viewed)
+		HTTP(func() { GET("/view") })
+	})
+})

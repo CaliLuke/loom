@@ -8,11 +8,15 @@ import ValueContract.HostMaterializationControls
 import ValueContract.KeyDecoding
 import ValueContract.Legacy
 import ValueContract.MapKeys
+import ValueContract.MapIdentityControls
 import ValueContract.MaterializationProofs
 import ValueContract.MaterializationValidity
 import ValueContract.Observation
 import ValueContract.ObservationExecutionProofs
 import ValueContract.ObservationProofs
+import ValueContract.NumericCoercionControls
+import ValueContract.NumericRepresentationControls
+import ValueContract.NumericTargetControls
 import ValueContract.OmissionControls
 import ValueContract.PresenceControls
 import ValueContract.ProjectionControls
@@ -24,6 +28,8 @@ import ValueContract.RuntimeProofs
 import ValueContract.ScalarProjection
 import ValueContract.ScalarSemantics
 import ValueContract.SchemaProofs
+import ValueContract.SourceAdmissionControls
+import ValueContract.SourceByteControls
 import ValueContract.SourceBodyOutcomeProofs
 import ValueContract.SourceBodyProofs
 import ValueContract.SourceBudgetProofs

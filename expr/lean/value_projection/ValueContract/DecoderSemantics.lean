@@ -21,11 +21,14 @@ def unionDecoded (occurrence : Identity) (alternatives : List TargetAlternative)
   | _ => none
 
 /-- Key decoder acceptance is independent of canonical encoder membership. -/
-def KeyOutcome (numbers : NumericCodec) (kind : MapKeyKind) (name : String)
+def KeyOutcome (numbers : NumericCodec) (format : NumericFormat) (integers : IntegerFormat) (kind : MapKeyKind) (name : String)
     (result : Option Scalar) : Prop := match result with
-  | some key => KeyDecodes numbers kind name key
-  | none => ∀ key, ¬ KeyDecodes numbers kind name key
+  | some key => KeyDecodes numbers format integers kind name key
+  | none => ∀ key, ¬ KeyDecodes numbers format integers kind name key
 
+/-- All decoded keys belong to one target key type and precision. Native key
+equality therefore rejects equal numeric keys, including opposite signed zeros.
+This is distinct from canonical-name identity of heterogeneous source maps. -/
 def mapDecoded (checks : ExternalScalarChecks) (rules : ScalarRules) (bounds : LengthBounds)
     (keys : List (Option Scalar)) (values : List (Option Value)) : Option Value := do
   let keys ← keys.mapM (fun key => key.filter (scalarAllowed checks rules))
@@ -71,11 +74,11 @@ inductive RuntimeEvaluation (codecs : ScalarCodecs) (checks : ExternalScalarChec
 
 inductive RuntimeNode (codecs : ScalarCodecs) (checks : ExternalScalarChecks)
     (targets : Targets) : Bool → Target → Wire → Option Value → Prop where
-  | scalar (decoded : ScalarDecodes codecs encoding kind wire value)
+  | scalar (decoded : ScalarDecodes codecs rules.numericFormat rules.integerFormat encoding kind wire value)
       (valid : scalarAllowed checks rules value = true) :
       RuntimeNode codecs checks targets rejectUnknown (.scalar encoding kind rules) wire
         (some (.scalar value))
-  | scalarRejected (rejected : ∀ value, ScalarDecodes codecs encoding kind wire value →
+  | scalarRejected (rejected : ∀ value, ScalarDecodes codecs rules.numericFormat rules.integerFormat encoding kind wire value →
       scalarAllowed checks rules value = false) :
       RuntimeNode codecs checks targets rejectUnknown (.scalar encoding kind rules) wire none
   | nullableNull : RuntimeNode codecs checks targets rejectUnknown (.nullable identity) .null (some .null)
@@ -96,7 +99,7 @@ inductive RuntimeNode (codecs : ScalarCodecs) (checks : ExternalScalarChecks)
       RuntimeNode codecs checks targets rejectUnknown (.array identity bounds) (.array items)
         (if lengthAllowed bounds items.length then (collectDecoded outcomes).map Value.array else none)
   | map (keyLengths : items.length = keys.length) (valueLengths : items.length = outcomes.length)
-      (keyResults : ∀ pair ∈ items.zip keys, KeyOutcome codecs.numbers kind pair.1.1 pair.2)
+      (keyResults : ∀ pair ∈ items.zip keys, KeyOutcome codecs.numbers rules.numericFormat rules.integerFormat kind pair.1.1 pair.2)
       (results : ∀ pair ∈ items.zip outcomes,
         RuntimeEvaluation codecs checks targets identity pair.1.2 pair.2) :
       RuntimeNode codecs checks targets rejectUnknown (.map kind rules identity bounds) (.object items)

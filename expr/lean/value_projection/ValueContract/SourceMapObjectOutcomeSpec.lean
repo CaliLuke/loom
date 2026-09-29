@@ -10,10 +10,10 @@ def EntriesOutcome (entries : List α → Prop) : Except Failure (List α) → P
 
 /-- Local key normalization can only reject invalid coercion/constraints;
 recursive child failures are evaluated later and retain their own identity. -/
-def MapKeyOutcome (checks : ExternalScalarChecks) (kind : MapKeyKind) (rules : ScalarRules)
-    (entry : Scalar × Input) : Except Failure (Scalar × Input) → Prop
-  | .ok actual => MapKeyResolution checks kind rules entry actual
-  | .error failure => failure = .invalid ∧ ¬ ∃ actual, MapKeyResolution checks kind rules entry actual
+def MapKeyOutcome (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : MapKeyKind) (rules : ScalarRules)
+    (entry : SourceScalar × Input) : Except Failure (Scalar × Input) → Prop
+  | .ok actual => MapKeyResolution checks keys kind rules entry actual
+  | .error failure => failure = .invalid ∧ ¬ ∃ actual, MapKeyResolution checks keys kind rules entry actual
 
 /-- Complete map outcomes keep every intermediate key before spelling and
 semantic collision checks, then retain every child outcome and missing path. -/
@@ -25,13 +25,12 @@ def MapOutcome (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : MapKeyK
       (fun output => output = .ok ⟨.nilMap, []⟩) result
   | _ => SequencedOutcome (EntriesOutcome (MapInputEntries input))
       (fun entries => GuardedOutcome (lengthAllowed bounds entries.length = true)
-        (SequencedOutcome (ChildrenOutcome (MapKeyOutcome checks kind rules) entries)
+        (SequencedOutcome (ChildrenOutcome (MapKeyOutcome checks keys kind rules) entries)
           (fun normalized => GuardedOutcome (AdmissibleKeys keys (normalized.map Prod.fst))
-            (GuardedOutcome (normalized.Pairwise (fun left right => scalarEqual left.1 right.1 = false))
-              (MapChildOutcome (fun values : List (Scalar × Resolution) => {
+            (MapChildOutcome (fun values : List (Scalar × Resolution) => {
                 value := .map (values.map (fun entry => (entry.1, entry.2.value)))
                 missing := values.flatMap (fun entry => entry.2.missing) })
-                (ChildrenOutcome (fun entry => MapChildOutcome (entry.1, ·) (child entry.2)) normalized)))))) result
+                (ChildrenOutcome (fun entry => MapChildOutcome (entry.1, ·) (child entry.2)) normalized))))) result
 
 /-- Grouped reduction compares all field and extra failures before constructing
 values. Payload erasure is relational; failures retain their exact identity. -/

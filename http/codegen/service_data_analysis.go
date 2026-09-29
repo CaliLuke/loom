@@ -37,6 +37,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
 	recordServiceTypeLayouts(irService.Endpoints, sd)
 	for _, httpEndpoint := range irService.Endpoints {
+		attachHTTPValueCarriers(httpEndpoint, svc.Method(httpEndpoint.MethodName))
 		epCtx := ctx.WithMethod(httpSvc.ServiceExpr.Method(httpEndpoint.MethodName))
 		epCtx.Debug("analyzing HTTP endpoint",
 			"verb", endpointVerb(httpEndpoint),
@@ -201,6 +202,7 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 	responseContractCases, responseContractWarnings := buildResponseContractCaseData(endpointIR)
 
 	endpoint := &EndpointData{
+		valueTransport:            endpointIR,
 		Method:                    method,
 		ServiceName:               svc.Name,
 		ServiceVarName:            svc.VarName,

@@ -53,26 +53,26 @@ private theorem entries_graph (input : Option (List α)) (meaning : List α → 
       simp
     cases output <;> simp [extractEntries, EntriesOutcome, chosen, eq_comm]
 
-private def normalizeKey (checks : ExternalScalarChecks) (kind : MapKeyKind)
-    (rules : ScalarRules) (entry : Scalar × Input) : Except Failure (Scalar × Input) := do
+private def normalizeKey (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : MapKeyKind)
+    (rules : ScalarRules) (entry : SourceScalar × Input) : Except Failure (Scalar × Input) := do
   let key ← match kind with
-    | .builtin => .ok entry.1
-    | .scalar expected => match coerceScalar expected entry.1 with
+    | .builtin => .ok entry.1.value
+    | .scalar expected => match coerceSourceScalar keys rules expected entry.1 with
       | some key => .ok key
       | none => .error .invalid
   if !mapKeyCompatible kind key || !scalarAllowed checks rules key then throw .invalid
   return (key, entry.2)
 
-private theorem normalizedKey_graph (checks : ExternalScalarChecks) (kind : MapKeyKind)
-    (rules : ScalarRules) (entry : Scalar × Input) :
-    MapKeyOutcome checks kind rules entry = (fun output => normalizeKey checks kind rules entry = output) := by
-  have success : ∀ value, normalizeKey checks kind rules entry = .ok value ↔
-      MapKeyResolution checks kind rules entry value := by
+private theorem normalizedKey_graph (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : MapKeyKind)
+    (rules : ScalarRules) (entry : SourceScalar × Input) :
+    MapKeyOutcome checks keys kind rules entry = (fun output => normalizeKey checks keys kind rules entry = output) := by
+  have success : ∀ value, normalizeKey checks keys kind rules entry = .ok value ↔
+      MapKeyResolution checks keys kind rules entry value := by
     intro value
     rw [← mapKeyResolution_iff]
     cases kind <;> simp [normalizeKey, Bind.bind, Except.bind, exceptThrow]
     split <;> simp_all
-  have failure : ∀ failure, normalizeKey checks kind rules entry = .error failure → failure = .invalid := by
+  have failure : ∀ failure, normalizeKey checks keys kind rules entry = .error failure → failure = .invalid := by
     intro failure failed
     cases kind <;> simp only [normalizeKey, Bind.bind, Except.bind] at failed
     all_goals split at failed <;> try simp_all only [exceptThrow, Except.error.injEq]
@@ -81,8 +81,8 @@ private theorem normalizedKey_graph (checks : ExternalScalarChecks) (kind : MapK
   funext output
   apply propext
   symm
-  have correct := invalidOtherwise_iff (normalizeKey checks kind rules entry)
-    (MapKeyResolution checks kind rules entry) success failure output
+  have correct := invalidOtherwise_iff (normalizeKey checks keys kind rules entry)
+    (MapKeyResolution checks keys kind rules entry) success failure output
   cases output <;> exact correct
 
 private theorem keys_guard_graph (keys : KeyCodec) (values : List Scalar) (next : Except Failure α) :
@@ -106,10 +106,8 @@ private def mapWork (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : Ma
     | some entries => .ok entries
     | none => .error .invalid
   if !lengthAllowed bounds entries.length then throw .invalid
-  let normalized ← combineChecked (entries.map (normalizeKey checks kind rules))
+  let normalized ← combineChecked (entries.map (normalizeKey checks keys kind rules))
   let _ ← nameKeys keys (normalized.map Prod.fst)
-  if !(decide (normalized.Pairwise (fun left right => scalarEqual left.1 right.1 = false))) then
-    throw .invalid
   let values ← combineChecked (normalized.map fun entry => do
     let value ← child entry.2
     return (entry.1, value))
@@ -121,19 +119,18 @@ private theorem mapWork_graph (checks : ExternalScalarChecks) (keys : KeyCodec) 
     (rules : ScalarRules) (bounds : LengthBounds) (input : Input) (child : Input → ResolveResult) :
     SequencedOutcome (EntriesOutcome (MapInputEntries input))
       (fun entries => GuardedOutcome (lengthAllowed bounds entries.length = true)
-        (SequencedOutcome (ChildrenOutcome (MapKeyOutcome checks kind rules) entries)
+        (SequencedOutcome (ChildrenOutcome (MapKeyOutcome checks keys kind rules) entries)
           (fun normalized => GuardedOutcome (AdmissibleKeys keys (normalized.map Prod.fst))
-            (GuardedOutcome (normalized.Pairwise (fun left right => scalarEqual left.1 right.1 = false))
-              (MapChildOutcome (fun values : List (Scalar × Resolution) => {
+            (MapChildOutcome (fun values : List (Scalar × Resolution) => {
                 value := .map (values.map (fun entry => (entry.1, entry.2.value)))
                 missing := values.flatMap (fun entry => entry.2.missing) })
                 (ChildrenOutcome (fun entry => MapChildOutcome (entry.1, ·)
-                  (fun output => child entry.2 = output)) normalized)))))) =
+                  (fun output => child entry.2 = output)) normalized))))) =
       (fun output => mapWork checks keys kind rules bounds input child = output) := by
   have extraction := entries_graph (mapEntries input) (MapInputEntries input) (mapEntries_iff input)
-  have keyMeaning : MapKeyOutcome checks kind rules =
-      (fun entry output => normalizeKey checks kind rules entry = output) := by
-    funext entry; exact normalizedKey_graph checks kind rules entry
+  have keyMeaning : MapKeyOutcome checks keys kind rules =
+      (fun entry output => normalizeKey checks keys kind rules entry = output) := by
+    funext entry; exact normalizedKey_graph checks keys kind rules entry
   simp only [extraction, keyMeaning, mapChildOutcome_graph, childrenOutcome_graph,
     guarded_graph, keys_guard_graph, sequenced_graph]
   funext output

@@ -4,11 +4,11 @@ namespace ValueContract.Candidate
 
 def encodeScalar (codecs : ScalarCodecs) (encoding : Encoding) : Scalar → Wire
   | .boolean value => .boolean value
-  | .integer value => match encoding with
+  | .integer value _ => match encoding with
     | .json => .number (codecs.numbers.encodeInteger value)
     | .protobuf => .integer value
-  | .decimal coefficient exponent => match encoding with
-    | .json => .number (codecs.numbers.encodeDecimal coefficient exponent)
+  | .decimal coefficient exponent format negativeZero _ => match encoding with
+    | .json => .number (codecs.numbers.encodeDecimal coefficient exponent format negativeZero)
     | .protobuf => .decimal coefficient exponent
   | .string value => .text value
   | .bytes value => match encoding with
@@ -19,31 +19,31 @@ def encodeScalar (codecs : ScalarCodecs) (encoding : Encoding) : Scalar → Wire
 shared JSON lexical constructors BEFORE schema or runtime branch matching. -/
 inductive CanonicalScalar (codecs : ScalarCodecs) : Encoding → Scalar → Wire → Prop where
   | boolean : CanonicalScalar codecs encoding (.boolean value) (.boolean value)
-  | jsonInteger : CanonicalScalar codecs .json (.integer value)
+  | jsonInteger : CanonicalScalar codecs .json (.integer value origin)
       (.number (codecs.numbers.encodeInteger value))
-  | jsonDecimal : CanonicalScalar codecs .json (.decimal coefficient exponent)
-      (.number (codecs.numbers.encodeDecimal coefficient exponent))
-  | protobufInteger : CanonicalScalar codecs .protobuf (.integer value) (.integer value)
-  | protobufDecimal : CanonicalScalar codecs .protobuf (.decimal coefficient exponent)
+  | jsonDecimal : CanonicalScalar codecs .json (.decimal coefficient exponent format negativeZero origin)
+      (.number (codecs.numbers.encodeDecimal coefficient exponent format negativeZero))
+  | protobufInteger : CanonicalScalar codecs .protobuf (.integer value origin) (.integer value)
+  | protobufDecimal : CanonicalScalar codecs .protobuf (.decimal coefficient exponent format negativeZero origin)
       (.decimal coefficient exponent)
   | string : CanonicalScalar codecs encoding (.string value) (.text value)
   | jsonBytes : CanonicalScalar codecs .json (.bytes value) (.text (codecs.bytes.encode value))
   | protobufBytes : CanonicalScalar codecs .protobuf (.bytes value) (.bytes value)
 
-def decodeScalar (codecs : ScalarCodecs) (encoding : Encoding) (kind : ScalarKind) :
-    Wire → Option Scalar
+def decodeScalar (codecs : ScalarCodecs) (encoding : Encoding) (kind : ScalarKind)
+    (format : NumericFormat) (integers : IntegerFormat) : Wire → Option Scalar
   | .boolean value => if kind = .boolean then some (.boolean value) else none
   | .number text => if encoding = .json then
       match kind with
-      | .integer => (codecs.numbers.decodeInteger text).map Scalar.integer
-      | .decimal => (codecs.numbers.decodeDecimal text).map
-          (fun value => .decimal value.coefficient value.exponent)
+      | .integer => (codecs.numbers.decodeInteger integers text).map Scalar.integer
+      | .decimal => (codecs.numbers.decodeDecimal format text).map
+          (fun value => .decimal value.value.coefficient value.value.exponent format value.negativeZero)
       | _ => none
     else none
   | .integer value => if encoding = .protobuf ∧ kind = .integer then
       some (.integer value) else none
   | .decimal coefficient exponent => if encoding = .protobuf ∧ kind = .decimal then
-      some (.decimal coefficient exponent) else none
+      some (.decimal coefficient exponent format) else none
   | .text value => if kind = .string then some (.string value)
       else if kind = .bytes ∧ encoding = .json then (codecs.bytes.decode value).map Scalar.bytes
       else none
@@ -53,20 +53,21 @@ def decodeScalar (codecs : ScalarCodecs) (encoding : Encoding) (kind : ScalarKin
 /-- Runtime relation is independent of decodeScalar and of schema acceptance.
 In particular, integer/decimal decoding sees the SAME numeric text, without
 access to the source's kind or selected branch. -/
-inductive ScalarDecodes (codecs : ScalarCodecs) : Encoding → ScalarKind → Wire → Scalar → Prop where
-  | boolean : ScalarDecodes codecs encoding .boolean (.boolean value) (.boolean value)
-  | jsonInteger (decoded : codecs.numbers.decodeInteger text = some value) :
-      ScalarDecodes codecs .json .integer (.number text) (.integer value)
-  | jsonDecimal (decoded : codecs.numbers.decodeDecimal text = some value) :
-      ScalarDecodes codecs .json .decimal (.number text)
-        (.decimal value.coefficient value.exponent)
-  | protobufInteger : ScalarDecodes codecs .protobuf .integer (.integer value) (.integer value)
-  | protobufDecimal : ScalarDecodes codecs .protobuf .decimal (.decimal coefficient exponent)
-      (.decimal coefficient exponent)
-  | string : ScalarDecodes codecs encoding .string (.text value) (.string value)
+inductive ScalarDecodes (codecs : ScalarCodecs) (format : NumericFormat)
+    (integers : IntegerFormat) : Encoding → ScalarKind → Wire → Scalar → Prop where
+  | boolean : ScalarDecodes codecs format integers encoding .boolean (.boolean value) (.boolean value)
+  | jsonInteger (decoded : codecs.numbers.decodeInteger integers text = some value) :
+      ScalarDecodes codecs format integers .json .integer (.number text) (.integer value)
+  | jsonDecimal (decoded : codecs.numbers.decodeDecimal format text = some value) :
+      ScalarDecodes codecs format integers .json .decimal (.number text)
+        (.decimal value.value.coefficient value.value.exponent format value.negativeZero)
+  | protobufInteger : ScalarDecodes codecs format integers .protobuf .integer (.integer value) (.integer value)
+  | protobufDecimal : ScalarDecodes codecs format integers .protobuf .decimal (.decimal coefficient exponent)
+      (.decimal coefficient exponent format)
+  | string : ScalarDecodes codecs format integers encoding .string (.text value) (.string value)
   | jsonBytes (decoded : codecs.bytes.decode text = some value) :
-      ScalarDecodes codecs .json .bytes (.text text) (.bytes value)
-  | protobufBytes : ScalarDecodes codecs .protobuf .bytes (.bytes value) (.bytes value)
+      ScalarDecodes codecs format integers .json .bytes (.text text) (.bytes value)
+  | protobufBytes : ScalarDecodes codecs format integers .protobuf .bytes (.bytes value) (.bytes value)
 
 /-- JSON byte schemas use lexical grammar and canonical enum spellings, not
 whether a decoder maps a noncanonical spelling to a semantic enum member. -/
@@ -110,7 +111,7 @@ def ScalarRepresentable (codecs : ScalarCodecs) (checks : ExternalScalarChecks)
   value.kind = kind ∧ scalarAllowed checks rules value = true ∧
     ∃ wire decoded, CanonicalScalar codecs encoding value wire ∧
       scalarSchema codecs checks encoding kind rules wire = true ∧
-      ScalarDecodes codecs encoding kind wire decoded ∧ SameScalar value decoded ∧
+      ScalarDecodes codecs rules.numericFormat rules.integerFormat encoding kind wire decoded ∧ SameScalar value decoded ∧
       scalarAllowed checks rules decoded = true
 
 def scalarPreserved (checks : ExternalScalarChecks) (rules : ScalarRules)
@@ -125,7 +126,7 @@ def projectScalar (codecs : ScalarCodecs) (checks : ExternalScalarChecks)
   let wire := encodeScalar codecs encoding value
   if value.kind = kind ∧ scalarAllowed checks rules value = true ∧
       scalarSchema codecs checks encoding kind rules wire = true ∧
-      (decodeScalar codecs encoding kind wire).any (scalarPreserved checks rules value) = true then
+      (decodeScalar codecs encoding kind rules.numericFormat rules.integerFormat wire).any (scalarPreserved checks rules value) = true then
     some wire
   else none
 
@@ -154,14 +155,14 @@ theorem canonicalScalar_unique {codecs encoding value left right}
     (b : CanonicalScalar codecs encoding value right) : left = right := by
   rw [← canonicalScalar_realized a, ← canonicalScalar_realized b]
 
-theorem scalarDecoder_progress {codecs encoding kind wire value}
-    (decoded : ScalarDecodes codecs encoding kind wire value) :
-    decodeScalar codecs encoding kind wire = some value := by
+theorem scalarDecoder_progress {codecs encoding kind format integers wire value}
+    (decoded : ScalarDecodes codecs format integers encoding kind wire value) :
+    decodeScalar codecs encoding kind format integers wire = some value := by
   cases decoded <;> simp_all [decodeScalar]
 
-theorem scalarDecoder_sound {codecs encoding kind wire value}
-    (decoded : decodeScalar codecs encoding kind wire = some value) :
-    ScalarDecodes codecs encoding kind wire value := by
+theorem scalarDecoder_sound {codecs encoding kind format integers wire value}
+    (decoded : decodeScalar codecs encoding kind format integers wire = some value) :
+    ScalarDecodes codecs format integers encoding kind wire value := by
   cases wire <;> cases kind <;> cases encoding <;> simp_all [decodeScalar]
   all_goals try { subst value; constructor }
   all_goals
@@ -181,7 +182,7 @@ theorem scalarProjection_sound {codecs checks encoding kind rules value wire}
     value.kind = kind ∧ scalarAllowed checks rules value = true ∧
       CanonicalScalar codecs encoding value wire ∧
       scalarSchema codecs checks encoding kind rules wire = true ∧
-      ∃ decoded, ScalarDecodes codecs encoding kind wire decoded ∧ SameScalar value decoded ∧
+      ∃ decoded, ScalarDecodes codecs rules.numericFormat rules.integerFormat encoding kind wire decoded ∧ SameScalar value decoded ∧
         scalarAllowed checks rules decoded = true := by
   unfold projectScalar at success
   dsimp only at success
@@ -189,9 +190,9 @@ theorem scalarProjection_sound {codecs checks encoding kind rules value wire}
   next valid =>
     cases Option.some.inj success
     have existsDecoded : ∃ decoded,
-        decodeScalar codecs encoding kind (encodeScalar codecs encoding value) = some decoded ∧
+        decodeScalar codecs encoding kind rules.numericFormat rules.integerFormat (encodeScalar codecs encoding value) = some decoded ∧
         scalarPreserved checks rules value decoded = true := by
-      cases found : decodeScalar codecs encoding kind (encodeScalar codecs encoding value) with
+      cases found : decodeScalar codecs encoding kind rules.numericFormat rules.integerFormat (encodeScalar codecs encoding value) with
       | none => simp [found] at valid
       | some decoded => exact ⟨decoded, rfl, by simpa [found] using valid.2.2.2⟩
     obtain ⟨decoded, decodedAt, preserved⟩ := existsDecoded

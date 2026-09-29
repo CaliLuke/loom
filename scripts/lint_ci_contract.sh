@@ -55,8 +55,16 @@ assert_prerequisites() {
 
 assert_prerequisites all "lint test integration-test"
 assert_prerequisites ci "depend all coverage-ratchet"
-assert_prerequisites ci-local "all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile"
+assert_prerequisites ci-local "all coverage-ratchet test-race openapi-contract generated-code-quality test-testdata-compile value-contract-conformance"
+assert_prerequisites value-contract-conformance "value-contract-proof"
 assert_prerequisites release-preflight "lint test-release coverage-ratchet integration-test openapi-contract generated-code-quality"
+
+conformance_recipe="$(make --no-print-directory -C "$ROOT" -n value-contract-conformance)"
+proof_line="$(grep -nFx 'bash ./scripts/check_value_contract_proof.sh' <<<"$conformance_recipe" | cut -d: -f1)"
+conformance_line="$(grep -nFx 'bash ./scripts/check_value_contract_conformance.sh' <<<"$conformance_recipe" | cut -d: -f1)"
+if [[ -z "$proof_line" || -z "$conformance_line" || "$proof_line" -ge "$conformance_line" ]]; then
+  fail "conformance must run the audited proof before the reference checks"
+fi
 
 fast_recipe="$(make --no-print-directory -C "$ROOT" -n integration-test-fast SERVICE=ticktock RUN='^TestFast$$')"
 expected_fast_recipe="bash ./scripts/integration_test_fast.sh"
@@ -79,6 +87,7 @@ expected_workflow_targets="$(printf '%s\n' \
   test-pulse-redis \
   test-testdata-compile \
   test-race \
+  value-contract-conformance \
   | LC_ALL=C sort)"
 if [[ "$workflow_targets" != "$expected_workflow_targets" ]]; then
   fail "workflow Make targets are [$workflow_targets], want [$expected_workflow_targets]"

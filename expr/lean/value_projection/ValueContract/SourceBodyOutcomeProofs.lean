@@ -15,18 +15,42 @@ theorem resolveBody_array_outcome_iff (declarations : Declarations)
     resolveBody declarations checks keys depth rank complete (.array child bounds) input same descend = result ↔
       SourceGuard input
         (ArrayOutcome (fun raw outcome => descend complete child raw = outcome) bounds input) result := by
-  cases shape : stripHostInput input <;> simp only [resolveBody, SourceGuard, ArrayOutcome, shape]
-  all_goals try (simp only [eq_comm]; done)
+  cases shape : stripHostInput input <;>
+    simp only [resolveBody, SourceGuard, ArrayOutcome, shape, arrayInput, ArrayInputEntries]
+  all_goals try (simp only [reduceCtorEq, false_and, false_or, exists_false,
+    not_false_eq_true, true_and, eq_comm]; done)
+  case byteSequence sequence =>
+    cases nilShape : sequence.isNil <;>
+      simp only [← nativeBytesNil_iff, nilShape, Bool.false_eq_true, ↓reduceIte,
+        false_and, true_and, not_false_eq_true, not_true_eq_false, false_or,
+        or_false, reduceCtorEq]
+    all_goals simp only [Option.some.injEq, exists_eq_left, exists_eq, exists_false,
+      not_true_eq_false, false_and, or_false]
+    · simp only [childrenOutcome_graph, mapChildOutcome_graph]
+      cases allowed : lengthAllowed bounds sequence.inputs.length <;>
+        simp only [GuardedOutcome, Bool.not_true, Bool.not_false, Bool.false_eq_true,
+          ↓reduceIte, true_and, false_and, not_true_eq_false, not_false_eq_true,
+          false_or, or_false, exceptThrow, Bind.bind, Except.bind]
+      all_goals exact eq_comm
+    · cases allowed : lengthAllowed bounds 0 <;>
+        simp only [GuardedOutcome, Bool.false_eq_true, ↓reduceIte, true_and,
+          false_and, not_true_eq_false, not_false_eq_true, false_or, or_false]
+      all_goals exact eq_comm
   case nilArray =>
+    simp only [reduceCtorEq, false_and, true_and, exists_false, exists_eq,
+      not_true_eq_false, or_false]
     cases allowed : lengthAllowed bounds 0 <;>
-      simp [GuardedOutcome, eq_comm]
+      simp only [GuardedOutcome, Bool.false_eq_true, ↓reduceIte, true_and,
+        false_and, not_true_eq_false, not_false_eq_true, false_or, or_false]
+    all_goals exact eq_comm
   case array items =>
-    simp only [childrenOutcome_graph, mapChildOutcome_graph]
+    simp only [reduceCtorEq, false_and, false_or, Option.some.injEq, exists_eq_left,
+      exists_eq, not_true_eq_false, or_false, childrenOutcome_graph, mapChildOutcome_graph]
     cases allowed : lengthAllowed bounds items.length <;>
       simp only [GuardedOutcome, Bool.not_true, Bool.not_false, Bool.false_eq_true,
-        ↓reduceIte, true_and, false_and, not_true_eq_false, not_false_eq_true, false_or,
-        or_false, exceptThrow, Bind.bind, Except.bind]
-    all_goals simp only [eq_comm]
+        ↓reduceIte, true_and, false_and, not_true_eq_false, not_false_eq_true,
+        false_or, or_false, exceptThrow, Bind.bind, Except.bind]
+    all_goals exact eq_comm
 
 theorem resolveBody_any_outcome_iff (declarations : Declarations)
     (checks : ExternalScalarChecks) (keys : KeyCodec) (depth rank : Nat) (complete : Bool)
@@ -48,7 +72,7 @@ theorem resolveBody_scalar_outcome_iff (declarations : Declarations)
     (kind : ScalarKind) (rules : ScalarRules) (input : Input)
     (same descend : Bool → Identity → Input → ResolveResult) (result : ResolveResult) :
     resolveBody declarations checks keys depth rank complete (.scalar kind rules) input same descend = result ↔
-      SourceGuard input (ScalarOutcome checks kind rules input) result := by
+      SourceGuard input (ScalarOutcome checks keys kind rules input) result := by
   have success := resolveBody_scalar_iff declarations checks keys depth rank complete kind rules
     input same descend
   cases shape : stripHostInput input

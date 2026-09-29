@@ -102,19 +102,17 @@ theorem resolveRaw_noMalformed {keys : KeyCodec} {budget : Nat} {input : Input}
     case map entries =>
       apply NoMalformed_bind (nameKeys_noMalformed keys _)
       intro names
-      split
-      · simp [NoMalformed, exceptThrow, Bind.bind, Except.bind]
-      · apply NoMalformed_bind
-        · apply combineChecked_noMalformed
-          intro result member
-          obtain ⟨entry, inside, same⟩ := List.mem_map.mp member
-          subst result
-          apply NoMalformed_bind
-          · apply ih
-            have smaller := map_inputDepth_lt inside
-            omega
-          · intro value; simp [NoMalformed]
-        · intro values; simp [NoMalformed]
+      apply NoMalformed_bind
+      · apply combineChecked_noMalformed
+        intro result member
+        obtain ⟨entry, inside, same⟩ := List.mem_map.mp member
+        subst result
+        apply NoMalformed_bind
+        · apply ih
+          have smaller := map_inputDepth_lt inside
+          omega
+        · intro value; simp [NoMalformed]
+      · intro values; simp [NoMalformed]
 
 /-- Resetting the graph counter after input descent admits every declaration
 in the validated finite table; it is not a separately chosen fuel constant. -/

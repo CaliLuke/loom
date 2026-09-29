@@ -187,7 +187,7 @@ func (sds *ServicesData) buildResponseBodyData(
 	if viewed {
 		return sds.buildViewedResponseBodyData(resp, result, origin, md, endpointIR, sd)
 	}
-	return sds.buildResponseBodyPair(resp.Body, result, md.ResultLoc, endpointIR.Name, sd)
+	return sds.buildResponseBodyPair(resp.Body, result, md.ResultLoc, endpointIR.Name, sd, resp.BodyValue)
 }
 
 func (sds *ServicesData) buildViewedResponseBodyData(
@@ -202,11 +202,11 @@ func (sds *ServicesData) buildViewedResponseBodyData(
 	serverBodyData := make([]*TypeData, 0, len(serverViews))
 	for _, view := range serverViews {
 		viewName := view
-		if sbd := sds.buildResponseBodyType(resp.Body, result, md.ResultLoc, endpointIR.Name, true, viewName, sd); sbd != nil {
+		if sbd := sds.buildResponseBodyType(resp.Body, result, md.ResultLoc, endpointIR.Name, true, viewName, sd, resp.BodyValue); sbd != nil {
 			serverBodyData = append(serverBodyData, sbd)
 		}
 	}
-	clientBodyData := sds.buildResponseBodyType(resp.Body, result, md.ResultLoc, endpointIR.Name, false, clientView, sd)
+	clientBodyData := sds.buildResponseBodyType(resp.Body, result, md.ResultLoc, endpointIR.Name, false, clientView, sd, resp.BodyValue)
 	registerClientBodyType(clientBodyData, sd)
 	return serverBodyData, clientBodyData
 }
@@ -284,12 +284,13 @@ func (sds *ServicesData) buildResponseBodyPair(
 	loc *codegen.Location,
 	endpointName string,
 	sd *ServiceData,
+	value *transportir.ValueTarget,
 ) ([]*TypeData, *TypeData) {
 	var serverBodyData []*TypeData
-	if sbd := sds.buildResponseBodyType(body, target, loc, endpointName, true, nil, sd); sbd != nil {
+	if sbd := sds.buildResponseBodyType(body, target, loc, endpointName, true, nil, sd, value); sbd != nil {
 		serverBodyData = append(serverBodyData, sbd)
 	}
-	clientBodyData := sds.buildResponseBodyType(body, target, loc, endpointName, false, nil, sd)
+	clientBodyData := sds.buildResponseBodyType(body, target, loc, endpointName, false, nil, sd, value)
 	registerClientBodyType(clientBodyData, sd)
 	return serverBodyData, clientBodyData
 }

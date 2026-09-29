@@ -17,11 +17,11 @@ def targetEquivalentAt : Nat → NumericCodec → Value → Value → Prop
       le.length = re.length ∧
       (∀ entry ∈ le, ∃ other ∈ re, entry.1 = other.1 ∧ targetEquivalentAt depth numbers entry.2 other.2)
     | .map l, .map r => l.length = r.length ∧
-      ∀ entry ∈ l, ∃ other ∈ r, scalarEqual entry.1 other.1 = true ∧
+      ∀ entry ∈ l, ∃ other ∈ r, SameKey numbers entry.1 other.1 ∧
         targetEquivalentAt depth numbers entry.2 other.2
     | .union li lb lv, .union ri rb rv =>
       li = ri ∧ lb = rb ∧ targetEquivalentAt depth numbers lv rv
-    | _, _ => enumEquivalentAt (depth + 1) left right
+    | _, _ => enumEquivalentAt numbers (depth + 1) left right
 
 def targetEqualAt : Nat → NumericCodec → Value → Value → Bool
   | 0, _, _, _ => false
@@ -35,11 +35,11 @@ def targetEqualAt : Nat → NumericCodec → Value → Value → Bool
       le.length == re.length && le.all (fun entry => re.any (fun other =>
         entry.1 == other.1 && targetEqualAt depth numbers entry.2 other.2))
     | .map l, .map r => l.length == r.length &&
-      l.all (fun entry => r.any (fun other => scalarEqual entry.1 other.1 &&
+      l.all (fun entry => r.any (fun other => keyEqual numbers entry.1 other.1 &&
         targetEqualAt depth numbers entry.2 other.2))
     | .union li lb lv, .union ri rb rv =>
       li == ri && lb == rb && targetEqualAt depth numbers lv rv
-    | _, _ => valueEqualAt (depth + 1) true left right
+    | _, _ => valueEqualAt numbers (depth + 1) true left right
 
 theorem targetEqualAt_iff (depth : Nat) (numbers : NumericCodec) (left right : Value) :
     targetEqualAt depth numbers left right = true ↔ targetEquivalentAt depth numbers left right := by
@@ -48,7 +48,7 @@ theorem targetEqualAt_iff (depth : Nat) (numbers : NumericCodec) (left right : V
   | succ depth ih =>
     cases left <;> cases right <;>
       simp [targetEqualAt, targetEquivalentAt, wireEqual, wireEqualAt_iff,
-        valueEqualAt_enum_iff, All₂, List.all_eq_true, List.any_eq_true, ih, and_assoc]
+        valueEqualAt_enum_iff, keyEqual_iff, All₂, List.all_eq_true, List.any_eq_true, ih, and_assoc]
 
 def targetEnumAllowed (numbers : NumericCodec) (members : Option (List Value)) (value : Value) : Bool :=
   members.all (fun entries => entries.any (fun member =>

@@ -1,0 +1,31 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var child = ResultType("application/vnd.occurrence-child", func() {
+	Attributes(func() {
+		Attribute("name", String)
+		Attribute("detail", String)
+	})
+	View("default", func() {
+		Attribute("name")
+		Attribute("detail")
+	})
+	View("tiny", func() { Attribute("name") })
+})
+var parent = ResultType("application/vnd.occurrence-parent", func() {
+	Attributes(func() {
+		Attribute("full", child)
+		Attribute("small", child)
+	})
+	View("default", func() {
+		Attribute("full")
+		Attribute("small", func() { View("tiny") })
+	})
+})
+var _ = Service("svc", func() {
+	Method("send", func() {
+		Result(parent)
+		HTTP(func() { GET("/nested") })
+	})
+})

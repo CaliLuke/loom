@@ -5,6 +5,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 type requestBodyTypeDetails struct {
@@ -24,7 +25,7 @@ type requestBodyTypeDetails struct {
 // it possible to generate a function on the client side that creates the body
 // from the service method payload or streaming payload att, whose type is
 // generated in the package named pkg.
-func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, endpointName, pkg string, formEncoded, multipart, svr bool, sd *ServiceData) *TypeData {
+func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, endpointName, pkg string, formEncoded, multipart, svr bool, sd *ServiceData, value *transportir.ValueTarget) *TypeData {
 	if body.Type == expr.Empty {
 		return nil
 	}
@@ -47,6 +48,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 	applyUserTypeLayout(httpctx, sd, body, svr)
 	addMarshalTags(body)
+	value = buildHTTPValuePlan(value, body, httpctx, sd, svr)
 	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, requestBodyRequired(body, att), sd, httpctx)
 	ref := sd.Scope.GoTypeRef(body)
 	valueRef := details.valueRef
@@ -65,6 +67,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		ValidateDef:          details.validateDefinition,
 		ValidateRef:          details.validateReference,
 		Example:              body.Example(sds.examplesFor(sd)),
+		Value:                value,
 		FlatFormUnionField:   details.flatFormUnionField,
 		FlatFormUnionPointer: details.flatFormUnionPointer,
 		FlatFormUnionTypeKey: details.flatFormUnionTypeKey,
@@ -243,7 +246,7 @@ func flatFormUnionMetadata(
 // buildResponseBodyType builds the TypeData for a response body. The data
 // makes it possible to generate a function that creates the server response
 // body from the service method result/projected result or error.
-func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, loc *codegen.Location, endpointName string, svr bool, view *string, sd *ServiceData) *TypeData {
+func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, loc *codegen.Location, endpointName string, svr bool, view *string, sd *ServiceData, value *transportir.ValueTarget) *TypeData {
 	if body.Type == expr.Empty {
 		return nil
 	}
@@ -272,6 +275,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	applyUserTypeLayout(httpctx, sd, body, svr)
 	data := initResponseBodyTypeData(body, att, httpctx, sd)
 	addMarshalTags(body)
+	value = buildHTTPValuePlan(value, body, httpctx, sd, svr)
 
 	switch ut := body.Type.(type) {
 	case expr.UserType:
@@ -301,6 +305,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		ValidateDef: data.validateDef,
 		ValidateRef: data.validateRef,
 		Example:     body.Example(sds.examplesFor(sd)),
+		Value:       value,
 		View:        viewName,
 	}
 }

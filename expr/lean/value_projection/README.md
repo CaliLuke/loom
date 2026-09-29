@@ -6,11 +6,26 @@ This directory owns the formal source-value and target-projection model for the
 [correspondence ledger](correspondence.md) for exact claims, assumptions,
 counterexamples and production seams.
 
-**Status:** The candidate source-outcome and target-projection proofs pass the
-integrated gate: 483 required theorems, a transitive axiom audit, fresh kernel
-replay and deliberate rejection controls. The gate targets the candidate
-`Proofs` entry point. Production Go correspondence and CI integration belong to
-#570.
+**Status:** The reviewed #569 candidate passed 483 required theorem audits,
+fresh kernel replay and deliberate rejection controls. The #570 numeric and
+map-identity checkpoint passed 522 theorem audits and fresh kernel replay, with
+independent review. That checkpoint distinguishes canonical source keys from
+native decoded-key identity and uses actual native-map codec correspondence.
+The source-admission and native-byte-shape checkpoint passed 567 theorem audits
+and fresh kernel replay, with independent review. Its production adapter passed
+402 source comparisons. The subsequent no-callback control exposed reference
+preflight requests for inadmissible numeric sources. The shared admission-aware
+request collector now passes all 13 registered conformance assertion groups,
+including those 402 comparisons and missing-codec negative controls. Full lint,
+test, coverage and final generation comparisons pass. Commit authorization
+requires final independent review of the frozen diff and this evidence.
+Shared Go target-constraint and source-traversal repairs passed independent
+re-review. Alias-local and map-key constraints still lack complete formal
+correspondence; the adapter rejects unsupported shapes explicitly.
+The gate targets the candidate `Proofs` entry point. #570 wires the same
+registered-corpus proof/conformance gate into local checks and CI.
+Alias-local schema lowering is due in #574; cumulative alias/key-constraint and
+key-enum lowering is due in #571, before those consumers rely on it.
 
 ## Architecture and navigation
 
@@ -28,6 +43,8 @@ the candidate evaluator succeeds.
 | --- | --- | --- | --- |
 | Source precedence and provenance | `SourceSelection` | Eligibility and source-order predicates in the same module | Theorems in `SourceSelection` |
 | Declarations and target plans | `CandidateModel`, `GraphValidation` | Well-formed declaration and target predicates | Theorems in `GraphValidation` |
+| Concrete source primitive admission | `SourceAdmission`, `SourceScalar`, `coerceSourceScalar` | `SourceAdmits`, `SourceCoerces` | Universal admission/coercion equivalence and `SourceAdmissionControls` |
+| Native byte source shape | `SourceBytes`, `NativeByteSequence.inputs`, `arrayInput` | `NativeByteOctets`, `NativeBytesAdmitted`, `NativeByteValue`, `ArrayInputEntries` | Source/raw correspondence plus `SourceByteControls` |
 | Source interpretation and typing | `Resolve` | `ResolutionSpec`, `Typing`, `SourceBodySpec`, `SourceUnionSpec` | `ResolverProofs`, `SourceResolutionProofs`, `SourceBodyProofs`, `SourceUnionProofs`, `SourceMissingProofs` |
 | Complete source outcomes | `Resolve` | `SourceFullOutcomeSpec`, composed from the `Source*OutcomeSpec` relations | `SourceFullOutcomeProofs`, `SourcePublicOutcomeProofs`, supported by `Source*OutcomeProofs` |
 | Source depth and recursive graph budgets | `Resolve`, `ValueDepth` | Input depth, expansion ranks and independent raw outcomes | `SourceRawProofs`, `SourceNullProofs`, `SourceBudgetProofs`, `SourceGraphBudgetProofs`, `SourceStabilityProofs`, `SourceEqualityBudgetProofs`, `SourcePreferenceProofs` |
@@ -82,6 +99,26 @@ rejected by a canonical schema enum.
 
 Candidate controls are grouped by responsibility:
 
+- `NumericRepresentationControls`: exact numeric equality with distinct float
+  widths and signed-zero spellings, plus the rejected numeric-equality key
+  uniqueness rule. The reviewed map-identity amendment uses canonical names.
+- `NumericCoercionControls`: declared precision before validation and selection,
+  all-role normalization, normalized-key collisions, and source-specific numeric
+  literal origins for named formatting methods. Formatting/parsing callbacks
+  remain an explicit production boundary. Normalization does not establish
+  concrete Go source-type admission; that separate check precedes coercion.
+- `NumericTargetControls`: destination-owned integer width/signedness and float
+  precision, distinct scalar/member-name parsers, signed zero, same-wire union
+  matching and independent schema acceptance. Codec implementations remain
+  external; the Go target corpus checks 420 real-codec cases.
+- `MapIdentityControls`: canonical source/enum keys, native decoded-key
+  uniqueness, mixed-width keys, signed zero, and raw Any host separation.
+- `SourceAdmissionControls`: concrete host eligibility before normalization,
+  map-key and object-name evidence, and explicit abstract-control boundaries.
+- `SourceByteControls`: byte/array competing candidates, slice/array/container
+  admission, original child host evidence, nil presence, raw binary meaning and
+  the rejected scalar-erasure counterexample. The integrated 567-theorem
+  checkpoint and 402 production source comparisons passed independent review.
 - `ResolutionControls`: authored matching, nullability, source equality and
   whole-node enum admission.
 - `CandidateControls` and `ProjectionControls`: target behavior, schema/runtime
@@ -133,6 +170,23 @@ external-tool tier builds temporary copies containing an admitted intermediate
 theorem, a custom axiom behind an intermediate theorem, or a missing required
 theorem. The real gate must reject each. Enabled mode fails if Lean is absent;
 ordinary Go test success does not claim to have run Lean.
+
+The mandatory production gate is:
+
+```sh
+make value-contract-conformance
+```
+
+It runs the proof dependency, builds `value_contract_reference` from the proved
+functions, runs enabled differential tests and verifies both Go test events and
+a fresh JSON report. Report counts are executed assertion groups, not corpus
+input counts. Missing tools, failed/skipped tests, empty reports and absent owner
+coverage fail the gate. CI uses the same target and pinned toolchain. Unsupported
+DSL translations fail explicitly in adapter controls; they are not silently
+skipped or counted as differential coverage. Each consumer migration must extend
+the registered corpus before relying on a newly translated contract.
+A direct enabled test invocation must also set `LOOM_VALUE_CONFORMANCE_REPORT`
+to an absolute report path; the Make target supplies and cleans its own path.
 
 ## Production boundaries and maintenance
 

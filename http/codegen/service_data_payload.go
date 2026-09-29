@@ -227,11 +227,11 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 }
 
 func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {
-	server := b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, true, b.sd)
+	server := b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, true, b.sd, b.endpointIR.Request.BodyValue)
 	if server != nil && server.ValidateRef != "" {
 		server.ValidateRef = b.optionalBodyValidateRef(server)
 	}
-	return server, b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd)
+	return server, b.sds.buildRequestBodyType(b.bodyAttr, b.payload, b.endpointIR.Name, b.pkg, b.endpointIR.Request.FormEncoded, b.endpointIR.Request.Multipart, false, b.sd, b.endpointIR.Request.BodyValue)
 }
 
 func (b *payloadBuilder) buildRequestElements() ([]*ParamData, []*ParamData, []*HeaderData, []*CookieData, *ParamData) {

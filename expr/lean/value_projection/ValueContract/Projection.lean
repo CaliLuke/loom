@@ -33,7 +33,7 @@ def project (codecs : ScalarCodecs) (checks : ExternalScalarChecks) (targets : T
         | .error failure => evaluationFailureResult failure
         | .ok none => .unrepresentable
         | .ok (some decoded) =>
-          if valueEqualAt (strictValueDepth observed + strictValueDepth decoded + 1) false observed decoded then .emitted wire
+          if valueEqualAt codecs.numbers (strictValueDepth observed + strictValueDepth decoded + 1) false observed decoded then .emitted wire
           else .unrepresentable
 
 end ValueContract.Candidate

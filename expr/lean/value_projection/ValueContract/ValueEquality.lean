@@ -3,6 +3,8 @@ import ValueContract.ValueDepth
 
 namespace ValueContract.Candidate
 
+variable {keys : KeyCodec}
+
 /-- Snapshot equality preserves exact JSON number spelling. This is stronger
 than JSONValueEqual's rational-number equivalence and is used only for the
 canonical materialize/decode preservation theorem, never schema enum matching.
@@ -100,18 +102,18 @@ theorem rawAnyEqualLayer_at_iff (depth : Nat) (left right : Value) :
 the nil-to-empty cases. Object/map order is irrelevant; array order and union
 occurrence/branch identities remain observable. Typed inputs separately reject
 duplicates, so the existential member lookup cannot collapse their multiplicity. -/
-def valueEqualAt : Nat → Bool → Value → Value → Bool
+def valueEqualAt (keys : KeyCodec) : Nat → Bool → Value → Value → Bool
   | 0, _, _, _ => false
   | depth + 1, enumMode, left, right =>
     match left, right with
     | .host identity payload, right =>
       if enumMode then rawAnyEqualLayer (rawAnyEqualAt depth) (.host identity payload) right
       else match right with
-        | .host _ otherPayload => valueEqualAt depth false payload otherPayload
-        | _ => valueEqualAt depth false payload right
+        | .host _ otherPayload => valueEqualAt keys depth false payload otherPayload
+        | _ => valueEqualAt keys depth false payload right
     | left, .host identity payload =>
       if enumMode then rawAnyEqualLayer (rawAnyEqualAt depth) left (.host identity payload)
-      else valueEqualAt depth false left payload
+      else valueEqualAt keys depth false left payload
     | .absent, .absent | .null, .null | .nilArray, .nilArray | .nilMap, .nilMap => true
     | .nilBytes, .nilBytes => !enumMode
     | .nilArray, .array [] | .array [], .nilArray => enumMode
@@ -119,80 +121,79 @@ def valueEqualAt : Nat → Bool → Value → Value → Bool
     | .scalar l, .scalar r => (enumMode || l.kind == r.kind) && scalarEqual l r
     | .array l, .array r =>
       l.length == r.length && (l.zip r).all (fun pair =>
-        valueEqualAt depth enumMode pair.1 pair.2)
+        valueEqualAt keys depth enumMode pair.1 pair.2)
     | .object l le, .object r re =>
       l.length == r.length &&
       l.all (fun entry => r.any (fun other =>
-        entry.1 == other.1 && valueEqualAt depth enumMode entry.2 other.2)) &&
+        entry.1 == other.1 && valueEqualAt keys depth enumMode entry.2 other.2)) &&
       le.length == re.length &&
       le.all (fun entry => re.any (fun other =>
-        entry.1 == other.1 && valueEqualAt depth enumMode entry.2 other.2))
+        entry.1 == other.1 && valueEqualAt keys depth enumMode entry.2 other.2))
     | .map l, .map r => l.length == r.length &&
       l.all (fun entry => r.any (fun other =>
-        (enumMode || entry.1.kind == other.1.kind) &&
-        scalarEqual entry.1 other.1 && valueEqualAt depth enumMode entry.2 other.2))
+        keyEqual keys entry.1 other.1 && valueEqualAt keys depth enumMode entry.2 other.2))
     | .union identity branch payload, .union other otherBranch otherPayload =>
       identity == other && branch == otherBranch &&
-        valueEqualAt depth enumMode payload otherPayload
+        valueEqualAt keys depth enumMode payload otherPayload
     | .jsonSnapshot l, .jsonSnapshot r => !enumMode && wireSameAt depth l r
     | .any l, .any r => if enumMode then rawAnyEqualAt depth l r
-      else valueEqualAt depth false l r
+      else valueEqualAt keys depth false l r
     | _, _ => false
 
 /-- The Boolean enum comparison implements the pre-existing independent typing
 relation at every derivation depth, rather than defining equality by execution. -/
 theorem valueEqualAt_enum_iff (depth : Nat) (left right : Value) :
-    valueEqualAt depth true left right = true ↔ enumEquivalentAt depth left right := by
+    valueEqualAt keys depth true left right = true ↔ enumEquivalentAt keys depth left right := by
   induction depth generalizing left right with
   | zero => simp [valueEqualAt, enumEquivalentAt]
   | succ depth ih =>
     cases left <;> cases right <;>
       simp [valueEqualAt, enumEquivalentAt, All₂, List.all_eq_true,
-        List.any_eq_true, ih, rawAnyEqualAt_iff, rawAnyEqualLayer_at_iff, and_assoc]
+        List.any_eq_true, ih, keyEqual_iff, rawAnyEqualAt_iff, rawAnyEqualLayer_at_iff, and_assoc]
     all_goals split <;> simp_all
 
 /-- Strict equality for semantic/observation use never introduces enum-only
 nil-container normalization. It retains absent and explicit null separately. -/
-def strictEquivalentAt : Nat → Value → Value → Prop
+def strictEquivalentAt (keys : KeyCodec) : Nat → Value → Value → Prop
   | 0, _, _ => False
   | depth + 1, left, right =>
     match left, right with
-    | .host _ payload, .host _ otherPayload => strictEquivalentAt depth payload otherPayload
-    | .host _ payload, right => strictEquivalentAt depth payload right
-    | left, .host _ payload => strictEquivalentAt depth left payload
+    | .host _ payload, .host _ otherPayload => strictEquivalentAt keys depth payload otherPayload
+    | .host _ payload, right => strictEquivalentAt keys depth payload right
+    | left, .host _ payload => strictEquivalentAt keys depth left payload
     | .absent, .absent | .null, .null | .nilArray, .nilArray | .nilMap, .nilMap
     | .nilBytes, .nilBytes => True
     | .scalar l, .scalar r => l.kind = r.kind ∧ scalarEqual l r = true
-    | .array l, .array r => All₂ (strictEquivalentAt depth) l r
+    | .array l, .array r => All₂ (strictEquivalentAt keys depth) l r
     | .object l le, .object r re =>
       l.length = r.length ∧
       (∀ entry ∈ l, ∃ other ∈ r, entry.1 = other.1 ∧
-        strictEquivalentAt depth entry.2 other.2) ∧
+        strictEquivalentAt keys depth entry.2 other.2) ∧
       le.length = re.length ∧
       (∀ entry ∈ le, ∃ other ∈ re, entry.1 = other.1 ∧
-        strictEquivalentAt depth entry.2 other.2)
+        strictEquivalentAt keys depth entry.2 other.2)
     | .map l, .map r => l.length = r.length ∧
       ∀ entry ∈ l, ∃ other ∈ r,
-        entry.1.kind = other.1.kind ∧ scalarEqual entry.1 other.1 = true ∧
-        strictEquivalentAt depth entry.2 other.2
+        SameKey keys entry.1 other.1 ∧
+        strictEquivalentAt keys depth entry.2 other.2
     | .union identity branch payload, .union other otherBranch otherPayload =>
       identity = other ∧ branch = otherBranch ∧
-        strictEquivalentAt depth payload otherPayload
+        strictEquivalentAt keys depth payload otherPayload
     | .jsonSnapshot l, .jsonSnapshot r => WireSameAt depth l r
-    | .any l, .any r => strictEquivalentAt depth l r
+    | .any l, .any r => strictEquivalentAt keys depth l r
     | _, _ => False
 
-def StrictEquivalent (left right : Value) : Prop :=
-  ∃ depth, strictEquivalentAt depth left right
+def StrictEquivalent (keys : KeyCodec) (left right : Value) : Prop :=
+  ∃ depth, strictEquivalentAt keys depth left right
 
 theorem valueEqualAt_strict_iff (depth : Nat) (left right : Value) :
-    valueEqualAt depth false left right = true ↔ strictEquivalentAt depth left right := by
+    valueEqualAt keys depth false left right = true ↔ strictEquivalentAt keys depth left right := by
   induction depth generalizing left right with
   | zero => simp [valueEqualAt, strictEquivalentAt]
   | succ depth ih =>
     cases left <;> cases right <;>
       simp [valueEqualAt, strictEquivalentAt, All₂, List.all_eq_true,
-        List.any_eq_true, ih, wireSameAt_iff, and_assoc]
+        List.any_eq_true, ih, keyEqual_iff, wireSameAt_iff, and_assoc]
     all_goals split <;> simp_all
 
 end ValueContract.Candidate

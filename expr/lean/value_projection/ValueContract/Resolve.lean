@@ -4,6 +4,8 @@ import ValueContract.MapKeys
 
 namespace ValueContract.Candidate
 
+variable {keys : KeyCodec}
+
 /-- Select only after recursive validation. An ambiguity obstruction remains
 eligible for fallback ranking and is never mistaken for an invalid branch. -/
 def rankCandidates (candidates : List BranchCandidate) : Except Failure BranchCandidate :=
@@ -44,15 +46,15 @@ def combineChecked : List (Except Failure α) → Except Failure (List α)
 def objectEntries : Input → Option (List (String × Input))
   | .host _ payload => objectEntries payload
   | .object fields => some fields
-  | .map entries => entries.mapM (fun entry => match entry.1 with
+  | .map entries => entries.mapM (fun entry => match entry.1.value with
       | .string name => some (name, entry.2)
       | _ => none)
   | _ => none
 
-def mapEntries : Input → Option (List (Scalar × Input))
+def mapEntries : Input → Option (List (SourceScalar × Input))
   | .host _ payload => mapEntries payload
   | .map entries => some entries
-  | .object fields => some (fields.map (fun field => (.string field.1, field.2)))
+  | .object fields => some (fields.map (fun field => (⟨.string field.1, .builtinString⟩, field.2)))
   | _ => none
 
 /-- Free built-in data retains scalar kinds and typed nil markers. The depth
@@ -69,7 +71,8 @@ def resolveRawAt (keys : KeyCodec) : Nat → Input → Except Failure Value
     | .nilBytes => .ok .nilBytes
     | .nilArray => .ok .nilArray
     | .nilMap => .ok .nilMap
-    | .scalar scalar => .ok (.scalar scalar)
+    | .scalar scalar => .ok (.scalar scalar.value)
+    | .byteSequence sequence => .ok sequence.rawValue
     | .cycle _ => .error .cyclic
     | .opaque _ | .selected _ _ _ => .error .unsupported
     | .array items => do
@@ -82,12 +85,10 @@ def resolveRawAt (keys : KeyCodec) : Nat → Input → Except Failure Value
         return (entry.1, value))
       return .object [] values
     | .map entries => do
-      let _ ← nameKeys keys (entries.map Prod.fst)
-      if !(decide (entries.Pairwise (fun left right => scalarEqual left.1 right.1 = false))) then
-        throw .invalid
+      let _ ← nameKeys keys (entries.map (fun entry => entry.1.value))
       let values ← combineChecked (entries.map fun entry => do
         let value ← resolveRawAt keys depth entry.2
-        return (entry.1, value))
+        return (entry.1.value, value))
       return .map values
 
 def maximumExpansionRank (declarations : Declarations) : Nat :=
@@ -113,9 +114,9 @@ def prefersObjectInput (declarations : Declarations) : Nat → Identity → Inpu
               entry.1 == member.sourceName || entry.1 == member.wireAlias))
         | _ => true
 
-def enumValueAllowed (enumeration : Option (List Value)) (value : Value) : Bool :=
+def enumValueAllowed (keys : KeyCodec) (enumeration : Option (List Value)) (value : Value) : Bool :=
   enumeration.all (fun values => values.any (fun member =>
-    valueEqualAt (valueDepth value + valueDepth member + 1) true value member))
+    valueEqualAt keys (valueDepth value + valueDepth member + 1) true value member))
 
 def hasSuppliedValue : Input → Bool
   | .absent => false
@@ -148,6 +149,15 @@ def objectMemberResult (completeOnly : Bool) (resolveChild : Identity → Input 
     return (member.identity, { resolution with
       missing := resolution.missing.map (member.identity :: ·) })
 
+/-- Declared arrays admit raw arrays and native-byte containers. Nil presence
+is retained; only the source constructor determines the original child inputs. -/
+def arrayInput : Input → Option (Option (List Input))
+  | .nilArray => some none
+  | .array items => some (some items)
+  | .byteSequence sequence =>
+    some (if sequence.isNil then none else some sequence.inputs)
+  | _ => none
+
 /-- Evaluate one declared source body using explicit same-input and child
 recursors. This function owns body-local early returns. The enclosing resolver
 applies the declaration enum only after this call returns, for every shape. -/
@@ -175,8 +185,11 @@ def resolveBody (declarations : Declarations) (checks : ExternalScalarChecks)
       | _ => same completeOnly child input
     | .scalar kind rules =>
       let scalar := match stripHostInput input with
-        | .scalar value => coerceScalar kind value
+        | .scalar value => coerceSourceScalar keys rules kind value
         | .nilBytes => if kind == .bytes then some (.bytes []) else none
+        | .byteSequence sequence =>
+          if kind == .bytes && sequence.bytesAdmission then some (.bytes sequence.octets)
+          else none
         | _ => none
       match scalar with
       | some value =>
@@ -184,18 +197,18 @@ def resolveBody (declarations : Declarations) (checks : ExternalScalarChecks)
         else .error .invalid
       | none => .error .invalid
     | .array child bounds =>
-      match stripHostInput input with
-      | .nilArray =>
+      match arrayInput (stripHostInput input) with
+      | some none =>
         if lengthAllowed bounds 0 then .ok { value := .nilArray, missing := [] }
         else .error .invalid
-      | .array items => do
+      | some (some items) => do
         if !lengthAllowed bounds items.length then throw .invalid
         let values ← combineChecked (items.map
           (descend completeOnly child))
         return {
           value := .array (values.map Resolution.value)
           missing := values.flatMap Resolution.missing }
-      | _ => .error .invalid
+      | none => .error .invalid
     | .map kind rules child bounds =>
       match stripHostInput input with
       | .nilMap =>
@@ -208,15 +221,13 @@ def resolveBody (declarations : Declarations) (checks : ExternalScalarChecks)
         if !lengthAllowed bounds entries.length then throw .invalid
         let normalized ← combineChecked (entries.map fun entry => do
           let key ← match kind with
-            | .builtin => .ok entry.1
-            | .scalar expected => match coerceScalar expected entry.1 with
+            | .builtin => .ok entry.1.value
+            | .scalar expected => match coerceSourceScalar keys rules expected entry.1 with
               | some key => .ok key
               | none => .error .invalid
           if !mapKeyCompatible kind key || !scalarAllowed checks rules key then throw .invalid
           return (key, entry.2))
         let _ ← nameKeys keys (normalized.map Prod.fst)
-        if !(decide (normalized.Pairwise (fun left right => scalarEqual left.1 right.1 = false))) then
-          throw .invalid
         let values ← combineChecked (normalized.map fun entry => do
           let value ← descend completeOnly child entry.2
           return (entry.1, value))
@@ -283,13 +294,14 @@ def resolveAt (declarations : Declarations) (checks : ExternalScalarChecks)
       (fun mode child value => resolveAt declarations checks keys (depth + 1) rank mode child value)
       (fun mode child value => resolveAt declarations checks keys depth
         (maximumExpansionRank declarations + 1) mode child value)
-    if enumValueAllowed declaration.enumeration resolution.value then pure resolution
+    if enumValueAllowed keys declaration.enumeration resolution.value then pure resolution
     else throw .invalid
 termination_by depth rank _ _ _ => (depth, rank)
 
 /-- Computable input depth. Child descent decreases this measure regardless of
 the declaration identity, admitting arbitrarily deep finite recursive values. -/
 def inputDepth : Input → Nat
+  | .byteSequence _ => 3
   | .array items => 1 + (items.map inputDepth).foldl max 0
   | .object fields => 1 + (fields.map (fun field => inputDepth field.2)).foldl max 0
   | .map entries => 1 + (entries.map (fun entry => inputDepth entry.2)).foldl max 0

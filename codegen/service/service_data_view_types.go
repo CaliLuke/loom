@@ -169,4 +169,5 @@ type methodAttributeProjection struct {
 	Reference   string
 	Description string
 	Example     any
+	Value       *ValueData
 }

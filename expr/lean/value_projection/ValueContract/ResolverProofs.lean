@@ -2,6 +2,8 @@ import ValueContract.Resolve
 
 namespace ValueContract.Candidate
 
+variable {keys : KeyCodec}
+
 /-- Collection succeeds exactly when every supplied child succeeded. No
 invalid losing alias can disappear from this relation. -/
 theorem combineChecked_ok_iff (results : List (Except Failure α)) (values : List α) :
@@ -85,20 +87,25 @@ theorem resolveRaw_object_iff (keys : KeyCodec) (depth : Nat)
   · simp [resolveRawAt, unique, Bind.bind, Except.bind, throw]
 
 theorem resolveRaw_map_iff (keys : KeyCodec) (depth : Nat)
-    (inputs : List (Scalar × Input)) (values : List (Scalar × Value)) :
+    (inputs : List (SourceScalar × Input)) (values : List (Scalar × Value)) :
     resolveRawAt keys (depth + 1) (.map inputs) = .ok (.map values) ↔
-      (∃ names, names.Nodup ∧ All₂ (KeySpelling keys) (inputs.map Prod.fst) names) ∧
-      inputs.Pairwise (fun left right => scalarEqual left.1 right.1 = false) ∧
-      All₂ (fun input value => input.1 = value.1 ∧
+      (∃ names, names.Nodup ∧ All₂ (KeySpelling keys) (inputs.map (fun entry => entry.1.value)) names) ∧
+      All₂ (fun input value => input.1.value = value.1 ∧
         resolveRawAt keys depth input.2 = .ok value.2) inputs values := by
-  by_cases unique : inputs.Pairwise (fun left right => scalarEqual left.1 right.1 = false)
-  · simp only [resolveRawAt, unique, decide_true, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
-    simp only [exceptBind_ok, exceptReturn_ok, Value.map.injEq,
-      exists_eq_right, combineChecked_map_iff, nameKeys_iff]
-    simp [All₂, exists_and_right, and_left_comm]
-  · simp only [resolveRawAt, unique, decide_false, Bool.not_false, ↓reduceIte]
-    cases nameKeys keys (inputs.map Prod.fst) <;>
-      simp [Bind.bind, Except.bind]
+  have pair (input : SourceScalar × Input) (value : Scalar × Value) :
+      (∃ child, resolveRawAt keys depth input.2 = .ok child ∧
+        (input.1.value, child) = value) ↔
+      input.1.value = value.1 ∧ resolveRawAt keys depth input.2 = .ok value.2 := by
+    rcases value with ⟨key, child⟩
+    constructor
+    · rintro ⟨actual, resolved, same⟩
+      cases same
+      exact ⟨rfl, resolved⟩
+    · rintro ⟨same, resolved⟩
+      exact ⟨child, resolved, by simp [same]⟩
+  simp only [resolveRawAt, exceptBind_ok, exceptReturn_ok, Value.map.injEq,
+    exists_eq_right, combineChecked_map_iff, nameKeys_iff]
+  simp only [pair, exists_and_right]
 
 /-- Full raw Any/open-member correspondence over arbitrary finite structures.
 The depth is a derivation index, not an assumed success or a fixed test bound. -/
@@ -109,9 +116,10 @@ theorem resolveRawAt_iff (keys : KeyCodec) (depth : Nat) (input : Input) (value 
   | succ depth ih =>
     cases input <;> cases value <;>
       simp [resolveRawAt, RawResolutionAt, exceptBind_ok,
-        combineChecked_map_iff, nameKeys_iff, All₂, ih, exists_and_right]
+        combineChecked_map_iff, nameKeys_iff, All₂, ih, exists_and_right, ← nativeByteValue_iff]
     all_goals first
       | exact and_comm
+      | (simp [and_comm, and_left_comm]; done)
       | (split <;> simp_all [exceptBind_ok, combineChecked_map_iff, All₂, throw])
     all_goals simp [and_comm, and_left_comm]
 
@@ -146,7 +154,7 @@ theorem all₂_map_eq {relation : α → β → Prop} {left : List α} {right : 
 /-- Raw resolution produces independently well-formed finite built-in values;
 source inputs cannot forge target snapshots or selected-union evidence. -/
 theorem rawResolution_free {keys : KeyCodec} {depth : Nat} {input : Input} {value : Value}
-    (matched : RawResolutionAt keys depth input value) : freeValueAt depth value := by
+    (matched : RawResolutionAt keys depth input value) : freeValueAt keys depth value := by
   induction depth generalizing input value with
   | zero => simp [RawResolutionAt] at matched
   | succ depth ih =>
@@ -165,19 +173,15 @@ theorem rawResolution_free {keys : KeyCodec} {depth : Nat} {input : Input} {valu
       obtain ⟨original, _, related⟩ := all₂_right pairs member
       exact ih related.2
     case map.map inputs values =>
-      obtain ⟨_, unique, pairs⟩ := matched
-      have names := all₂_map_eq pairs Prod.fst Prod.fst (fun _ _ h => h.1)
-      constructor
-      · have keyUnique : (inputs.map Prod.fst).Pairwise
-            (fun l r => scalarEqual l r = false) := by
-          simpa [List.pairwise_map] using unique
-        rw [names] at keyUnique
-        simpa [List.pairwise_map] using keyUnique
+      obtain ⟨admissible, pairs⟩ := matched
+      have names := all₂_map_eq pairs (fun entry => entry.1.value) Prod.fst (fun _ _ h => h.1)
+      refine ⟨?_, ?_⟩
+      · exact names ▸ admissible
       · intro value member
         obtain ⟨original, _, related⟩ := all₂_right pairs member
         exact ih related.2
     case host.host => exact ih matched.2
-    all_goals trivial
+    all_goals first | trivial | simp [NativeByteValue] at matched
 
 theorem hasSuppliedValue_iff (input : Input) :
     hasSuppliedValue input = true ↔ input ≠ .absent := by
@@ -284,7 +288,7 @@ theorem objectMemberResult_iff (complete : Bool)
 /-- Enum checking can establish membership only through the independently
 defined enum relation. No generic semantic equality or nil policy is assumed. -/
 theorem enumValueAllowed_sound {enumeration : Option (List Value)} {value : Value}
-    (allowed : enumValueAllowed enumeration value = true) : EnumAllows enumeration value := by
+    (allowed : enumValueAllowed keys enumeration value = true) : EnumAllows keys enumeration value := by
   cases enumeration with
   | none => trivial
   | some members =>
@@ -296,8 +300,8 @@ theorem enumValueAllowed_sound {enumeration : Option (List Value)} {value : Valu
 proof-index law only; it imposes no bound on the depth of admitted values. -/
 theorem typedAt_step {depth : Nat} {declarations : Declarations}
     {checks : ExternalScalarChecks} {complete : Bool} {identity : Identity} {value : Value}
-    (typed : typedAt depth declarations checks complete identity value) :
-    typedAt (depth + 1) declarations checks complete identity value := by
+    (typed : typedAt keys depth declarations checks complete identity value) :
+    typedAt keys (depth + 1) declarations checks complete identity value := by
   induction depth generalizing identity value with
   | zero => simp [typedAt] at typed
   | succ depth ih =>
@@ -332,8 +336,8 @@ theorem typedAt_step {depth : Nat} {declarations : Declarations}
 
 theorem typedAt_mono {depth larger : Nat} {declarations : Declarations}
     {checks : ExternalScalarChecks} {complete : Bool} {identity : Identity} {value : Value}
-    (le : depth ≤ larger) (typed : typedAt depth declarations checks complete identity value) :
-    typedAt larger declarations checks complete identity value := by
+    (le : depth ≤ larger) (typed : typedAt keys depth declarations checks complete identity value) :
+    typedAt keys larger declarations checks complete identity value := by
   induction le with
   | refl => exact typed
   | step le ih => exact typedAt_step ih
@@ -342,8 +346,8 @@ theorem typedAt_mono {depth larger : Nat} {declarations : Declarations}
 branch remains a valid partial interpretation without changing its value. -/
 theorem typedAt_partial {depth : Nat} {declarations : Declarations}
     {checks : ExternalScalarChecks} {complete : Bool} {identity : Identity} {value : Value}
-    (typed : typedAt depth declarations checks complete identity value) :
-    typedAt depth declarations checks false identity value := by
+    (typed : typedAt keys depth declarations checks complete identity value) :
+    typedAt keys depth declarations checks false identity value := by
   induction depth generalizing identity value with
   | zero => simp [typedAt] at typed
   | succ depth ih =>
@@ -378,8 +382,8 @@ theorem typedAt_partial {depth : Nat} {declarations : Declarations}
 
 theorem Typed_partial {declarations : Declarations} {checks : ExternalScalarChecks}
     {complete : Bool} {identity : Identity} {value : Value}
-    (typed : Typed declarations checks complete identity value) :
-    Typed declarations checks false identity value := by
+    (typed : Typed keys declarations checks complete identity value) :
+    Typed keys declarations checks false identity value := by
   obtain ⟨depth, typed⟩ := typed
   exact ⟨depth, typedAt_partial typed⟩
 
@@ -404,12 +408,12 @@ theorem commonDepth (items : List α) (predicate : Nat → α → Prop)
 theorem enumGate_iff (computation : ResolveResult) (enumeration : Option (List Value))
     (result : Resolution) :
     (do let resolved ← computation
-        if enumValueAllowed enumeration resolved.value then pure resolved else throw Failure.invalid) =
-      .ok result ↔ computation = .ok result ∧ enumValueAllowed enumeration result.value = true := by
+        if enumValueAllowed keys enumeration resolved.value then pure resolved else throw Failure.invalid) =
+      .ok result ↔ computation = .ok result ∧ enumValueAllowed keys enumeration result.value = true := by
   cases computation with
   | error failure => simp [Bind.bind, Except.bind]
   | ok resolved =>
-    by_cases allowed : enumValueAllowed enumeration resolved.value = true
+    by_cases allowed : enumValueAllowed keys enumeration resolved.value = true
     · simp [Bind.bind, Except.bind, allowed, Pure.pure, Except.pure]
       intro equal
       cases equal
@@ -430,7 +434,7 @@ theorem resolveAt_body_iff (declarations : Declarations) (checks : ExternalScala
         (fun mode child value => resolveAt declarations checks keys (depth + 1) rank mode child value)
         (fun mode child value => resolveAt declarations checks keys depth
           (maximumExpansionRank declarations + 1) mode child value) = .ok result ∧
-      enumValueAllowed declaration.enumeration result.value = true := by
+      enumValueAllowed keys declaration.enumeration result.value = true := by
   rw [resolveAt]
   simp only [found]
   exact enumGate_iff _ _ _
@@ -440,7 +444,7 @@ theorem resolveAt_enum_sound {declarations : Declarations} {checks : ExternalSca
     {input : Input} {declaration : Declaration} {result : Resolution}
     (found : findDeclaration declarations identity = some declaration)
     (resolved : resolveAt declarations checks keys depth rank complete identity input = .ok result) :
-    EnumAllows declaration.enumeration result.value := by
+    EnumAllows keys declaration.enumeration result.value := by
   cases depth with
   | zero => simp [resolveAt] at resolved
   | succ depth =>
@@ -454,12 +458,12 @@ theorem Typed_array_intro {declarations : Declarations} {checks : ExternalScalar
     {complete : Bool} {declaration : Declaration} {child : Identity} {bounds : LengthBounds}
     {values : List Value} (member : declaration ∈ declarations)
     (contract : declaration.contract = .array child bounds)
-    (enumeration : EnumAllows declaration.enumeration (.array values))
+    (enumeration : EnumAllows keys declaration.enumeration (.array values))
     (length : lengthAllowed bounds values.length = true)
-    (children : ∀ value ∈ values, Typed declarations checks complete child value) :
-    Typed declarations checks complete declaration.identity (.array values) := by
+    (children : ∀ value ∈ values, Typed keys declarations checks complete child value) :
+    Typed keys declarations checks complete declaration.identity (.array values) := by
   obtain ⟨depth, allTyped⟩ := commonDepth values
-    (fun depth value => typedAt depth declarations checks complete child value)
+    (fun depth value => typedAt keys depth declarations checks complete child value)
     (fun _ _ _ le typed => typedAt_mono le typed) children
   refine ⟨depth + 1, declaration, member, rfl, enumeration, ?_⟩
   simpa [contract, All] using And.intro length allTyped
@@ -468,30 +472,30 @@ theorem Typed_map_intro {declarations : Declarations} {checks : ExternalScalarCh
     {complete : Bool} {declaration : Declaration} {kind : MapKeyKind} {rules : ScalarRules}
     {child : Identity} {bounds : LengthBounds} {values : List (Scalar × Value)}
     (member : declaration ∈ declarations) (contract : declaration.contract = .map kind rules child bounds)
-    (enumeration : EnumAllows declaration.enumeration (.map values))
+    (enumeration : EnumAllows keys declaration.enumeration (.map values))
     (length : lengthAllowed bounds values.length = true)
-    (unique : values.Pairwise (fun left right => scalarEqual left.1 right.1 = false))
-    (keys : ∀ value ∈ values, mapKeyCompatible kind value.1 = true ∧
+    (unique : AdmissibleKeys keys (values.map Prod.fst))
+    (keyRules : ∀ value ∈ values, mapKeyCompatible kind value.1 = true ∧
       scalarAllowed checks rules value.1 = true)
-    (children : ∀ value ∈ values, Typed declarations checks complete child value.2) :
-    Typed declarations checks complete declaration.identity (.map values) := by
+    (children : ∀ value ∈ values, Typed keys declarations checks complete child value.2) :
+    Typed keys declarations checks complete declaration.identity (.map values) := by
   obtain ⟨depth, allTyped⟩ := commonDepth values
-    (fun depth value => typedAt depth declarations checks complete child value.2)
+    (fun depth value => typedAt keys depth declarations checks complete child value.2)
     (fun _ _ _ le typed => typedAt_mono le typed) children
   refine ⟨depth + 1, declaration, member, rfl, enumeration, ?_⟩
   simp only [contract]
-  exact ⟨length, unique, fun value inside => ⟨(keys value inside).1,
-    (keys value inside).2, allTyped value inside⟩⟩
+  exact ⟨length, unique, fun value inside => ⟨(keyRules value inside).1,
+    (keyRules value inside).2, allTyped value inside⟩⟩
 
 theorem Typed_union_intro {declarations : Declarations} {checks : ExternalScalarChecks}
     {complete : Bool} {declaration : Declaration} {occurrence : Identity}
     {alternatives : List Alternative} {alternative : Alternative} {value : Value}
     (member : declaration ∈ declarations)
     (contract : declaration.contract = .union occurrence alternatives)
-    (enumeration : EnumAllows declaration.enumeration (.union occurrence alternative.identity value))
+    (enumeration : EnumAllows keys declaration.enumeration (.union occurrence alternative.identity value))
     (inside : alternative ∈ alternatives)
-    (child : Typed declarations checks complete alternative.child value) :
-    Typed declarations checks complete declaration.identity (.union occurrence alternative.identity value) := by
+    (child : Typed keys declarations checks complete alternative.child value) :
+    Typed keys declarations checks complete declaration.identity (.union occurrence alternative.identity value) := by
   obtain ⟨depth, typed⟩ := child
   refine ⟨depth + 1, declaration, member, rfl, enumeration, ?_⟩
   simp only [contract, true_and]
@@ -501,22 +505,22 @@ theorem Typed_object_intro {declarations : Declarations} {checks : ExternalScala
     {complete : Bool} {declaration : Declaration} {members : List Member} {isOpen : Bool}
     {fields : List (Identity × Value)} {extra : List (String × Value)}
     (present : declaration ∈ declarations) (contract : declaration.contract = .object members isOpen)
-    (enumeration : EnumAllows declaration.enumeration (.object fields extra))
+    (enumeration : EnumAllows keys declaration.enumeration (.object fields extra))
     (unique : (fields.map Prod.fst).Nodup)
     (known : ∀ entry ∈ fields, ∃ member ∈ members, entry.1 = member.identity)
     (children : ∀ member ∈ members,
       (∃ value, (member.identity, value) ∈ fields ∧ value ≠ .absent ∧
-        Typed declarations checks complete member.child value) ∨
+        Typed keys declarations checks complete member.child value) ∨
       ((complete = false ∨ member.required = false) ∧
         ∀ value, (member.identity, value) ∈ fields → value = .absent))
     (openAllowed : isOpen = true ∨ extra = []) (extraUnique : (extra.map Prod.fst).Nodup)
     (extraNames : ∀ entry ∈ extra, ∀ member ∈ members,
       entry.1 ≠ member.sourceName ∧ entry.1 ≠ member.wireAlias)
-    (extraTyped : ∀ entry ∈ extra, FreeValue entry.2) :
-    Typed declarations checks complete declaration.identity (.object fields extra) := by
+    (extraTyped : ∀ entry ∈ extra, FreeValue keys entry.2) :
+    Typed keys declarations checks complete declaration.identity (.object fields extra) := by
   let P := fun depth (member : Member) =>
     (∃ value, (member.identity, value) ∈ fields ∧ value ≠ .absent ∧
-      typedAt depth declarations checks complete member.child value) ∨
+      typedAt keys depth declarations checks complete member.child value) ∨
     ((complete = false ∨ member.required = false) ∧
       ∀ value, (member.identity, value) ∈ fields → value = .absent)
   have each : ∀ member ∈ members, ∃ depth, P depth member := by
@@ -536,34 +540,61 @@ theorem Typed_object_intro {declarations : Declarations} {checks : ExternalScala
   simp only [contract]
   exact ⟨unique, known, allTyped, openAllowed, extraUnique, extraNames, extraTyped⟩
 
-theorem coercion_iff (kind : ScalarKind) (input output : Scalar) :
-    coerceScalar kind input = some output ↔ Coerces kind input output :=
+theorem coercion_iff (keys : KeyCodec) (format : NumericFormat) (kind : ScalarKind) (input output : Scalar) :
+    coerceScalar keys format kind input = some output ↔ Coerces keys format kind input output :=
   ⟨coercion_sound, coercion_progress⟩
 
-theorem resolveBody_array_iff (declarations : Declarations) (checks : ExternalScalarChecks)
+theorem arrayInput_iff (input : Input) (items : Option (List Input)) :
+    arrayInput input = some items ↔ ArrayInputEntries input items := by
+  cases input <;> simp only [arrayInput, ArrayInputEntries]
+  all_goals try simp only [reduceCtorEq, Option.some.injEq]
+  all_goals try exact eq_comm
+  all_goals try exact iff_false_intro id
+  case byteSequence sequence =>
+    simp only [← nativeBytesNil_iff]
+    cases sequence.isNil <;> simp [eq_comm]
+
+ theorem resolveBody_array_iff (declarations : Declarations) (checks : ExternalScalarChecks)
     (keys : KeyCodec) (depth rank : Nat) (complete : Bool) (child : Identity)
     (bounds : LengthBounds) (input : Input) (same descend : Bool → Identity → Input → ResolveResult)
     (result : Resolution) :
     resolveBody declarations checks keys depth rank complete (.array child bounds) input same descend = .ok result ↔
       ArrayResolution (fun input value => descend complete child input = .ok value) bounds input result := by
-  cases shape : stripHostInput input <;> simp [resolveBody, ArrayResolution, shape]
-  all_goals split <;>
-    simp_all [exceptBind_ok, combineChecked_map_iff, throw]
-  all_goals simp [eq_comm]
+  cases shape : stripHostInput input
+  all_goals try (simp [resolveBody, ArrayResolution, arrayInput, ArrayInputEntries, shape]; done)
+  case byteSequence sequence =>
+    cases nilShape : sequence.isNil <;>
+      simp [resolveBody, ArrayResolution, arrayInput, ArrayInputEntries, shape,
+        ← nativeBytesNil_iff, nilShape]
+    all_goals split <;> simp_all [exceptBind_ok, combineChecked_map_iff, throw]
+    all_goals simp [eq_comm]
+  case nilArray =>
+    simp only [resolveBody, shape, arrayInput, ArrayResolution, ArrayInputEntries]
+    split <;> simp_all
+    all_goals simp [eq_comm]
+  case array items =>
+    simp only [resolveBody, shape, arrayInput, ArrayResolution, ArrayInputEntries]
+    split <;> simp_all [exceptBind_ok, combineChecked_map_iff, throw]
+    all_goals simp [eq_comm]
 
 theorem resolveBody_scalar_iff (declarations : Declarations) (checks : ExternalScalarChecks)
     (keys : KeyCodec) (depth rank : Nat) (complete : Bool) (kind : ScalarKind)
     (rules : ScalarRules) (input : Input) (same descend : Bool → Identity → Input → ResolveResult)
     (result : Resolution) :
     resolveBody declarations checks keys depth rank complete (.scalar kind rules) input same descend = .ok result ↔
-      ScalarResolution checks kind rules input result := by
-  cases shape : stripHostInput input <;> simp [resolveBody, ScalarResolution, shape, ← coercion_iff]
+      ScalarResolution checks keys kind rules input result := by
+  cases shape : stripHostInput input <;> simp [resolveBody, ScalarResolution, shape, ← sourceCoercion_iff, ← nativeBytesAdmission_iff, ← nativeByteOctets_iff]
   case nilBytes =>
     cases kind <;> simp
     all_goals split <;> simp_all
     all_goals simp [eq_comm]
+  case byteSequence sequence =>
+    cases kind <;> simp
+    all_goals cases sequence.bytesAdmission <;> simp
+    all_goals split <;> simp_all
+    all_goals simp [eq_comm]
   case scalar original =>
-    cases encoded : coerceScalar kind original with
+    cases encoded : coerceSourceScalar keys rules kind original with
     | none => simp
     | some value =>
       simp only [Option.some.injEq]

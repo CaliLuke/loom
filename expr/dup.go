@@ -83,32 +83,11 @@ func (d *dupper) DupAttribute(att *AttributeExpr) *AttributeExpr {
 	if _, ok := d.ats[att]; ok {
 		return att
 	}
-	var valDup *ValidationExpr
-	if att.Validation != nil {
-		valDup = att.Validation.Dup()
-	}
-	var metaDup MetaExpr
-	if att.Meta != nil {
-		metaDup = att.Meta.Dup()
-	}
-	dup := AttributeExpr{
-		Type:         d.DupType(att.Type),
-		Description:  att.Description,
-		Title:        att.Title,
-		References:   att.References,
-		Bases:        att.Bases,
-		Validation:   valDup,
-		Meta:         metaDup,
-		DefaultValue: att.DefaultValue,
-		Nullable:     att.Nullable,
-		DSLFunc:      att.DSLFunc,
-		UserExamples: att.UserExamples,
-		finalized:    att.finalized,
-	}
-	if att.Docs != nil {
-		docs := *att.Docs
-		dup.Docs = &docs
-	}
+	dup := *copyValueAttribute(att)
+	dup.Type = d.DupType(att.Type)
+	// Declaration references remain governed by DupType/keep. Mutable local
+	// occurrence data and builtin authored values belong to this copy.
+	dup.References, dup.Bases = att.References, att.Bases
 	d.ats[&dup] = struct{}{}
 	if d.isKept(dup.Type) {
 		d.kept = append(d.kept, &dup)

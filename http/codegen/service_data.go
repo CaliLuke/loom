@@ -4,6 +4,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 type (
@@ -102,6 +103,8 @@ type (
 	// EndpointData contains the data used to render the code related to a
 	// single service HTTP endpoint.
 	EndpointData struct {
+		// valueTransport retains location and documentation carriers alongside emitted body plans.
+		valueTransport *transportir.Endpoint
 		// Method contains the related service method data.
 		Method *service.MethodData
 		// ServiceName is the name of the service exposing the endpoint.

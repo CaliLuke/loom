@@ -110,18 +110,18 @@ private theorem completeWrapped_safe (complete : List BranchCandidate)
   · exact rankedWrapped_safe _ _ fallbackSafe
   · exact rankedWrapped_safe _ _ completeSafe
 
-private def normalizeKey (checks : ExternalScalarChecks) (kind : MapKeyKind)
-    (rules : ScalarRules) (entry : Scalar × Input) : Except Failure (Scalar × Input) := do
+private def normalizeKey (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : MapKeyKind)
+    (rules : ScalarRules) (entry : SourceScalar × Input) : Except Failure (Scalar × Input) := do
   let key ← match kind with
-    | .builtin => .ok entry.1
-    | .scalar expected => match coerceScalar expected entry.1 with
+    | .builtin => .ok entry.1.value
+    | .scalar expected => match coerceSourceScalar keys rules expected entry.1 with
       | some key => .ok key
       | none => .error .invalid
   if !mapKeyCompatible kind key || !scalarAllowed checks rules key then throw .invalid
   return (key, entry.2)
 
 private theorem normalizeKey_safe (checks kind rules entry) :
-    NoMalformed (normalizeKey checks kind rules entry) := by
+    NoMalformed (normalizeKey checks keys kind rules entry) := by
   cases kind <;> simp only [normalizeKey]
   all_goals simp only [Bind.bind, Except.bind, exceptThrow]
   all_goals repeat' first
@@ -129,7 +129,7 @@ private theorem normalizeKey_safe (checks kind rules entry) :
     | (simp [NoMalformed]; done)
 
 private theorem normalizeKey_child {checks kind rules entry normalized}
-    (done : normalizeKey checks kind rules entry = .ok normalized) : entry.2 = normalized.2 := by
+    (done : normalizeKey checks keys kind rules entry = .ok normalized) : entry.2 = normalized.2 := by
   cases kind <;> simp only [normalizeKey] at done
   all_goals simp only [Bind.bind, Except.bind, exceptThrow] at done
   all_goals repeat' first
@@ -139,7 +139,7 @@ private theorem normalizeKey_child {checks kind rules entry normalized}
 
 private theorem normalized_child_depth {checks kind rules input entries normalized entry}
     (extracted : mapEntries input = some entries)
-    (done : combineChecked (entries.map (normalizeKey checks kind rules)) = .ok normalized)
+    (done : combineChecked (entries.map (normalizeKey checks keys kind rules)) = .ok normalized)
     (inside : entry ∈ normalized) : inputDepth entry.2 < inputDepth input := by
   obtain ⟨original, member, related⟩ := all₂_right ((combineChecked_map_iff ..).mp done) inside
   rw [← normalizeKey_child related]
@@ -185,7 +185,7 @@ theorem resolveBody_noMalformed {declarations checks keys depth rank complete co
           · apply combined_map_safe
             intro item inside
             apply descendSafe child (by simp [consumingChildren]) complete
-            exact stripped_array_child_depth shape inside
+            exact arrayInput_child_depth shape inside
           · intro values; simp [NoMalformed]
       · simp [NoMalformed]
     case map kind rules child bounds =>
@@ -198,10 +198,8 @@ theorem resolveBody_noMalformed {declarations checks keys depth rank complete co
           split
           · simp [NoMalformed, exceptThrow]
           · change NoMalformed (do
-              let normalized ← combineChecked (entries.map (normalizeKey checks kind rules))
+              let normalized ← combineChecked (entries.map (normalizeKey checks keys kind rules))
               let _ ← nameKeys keys (normalized.map Prod.fst)
-              if !(decide (normalized.Pairwise (fun left right => scalarEqual left.1 right.1 = false))) then
-                throw .invalid
               let values ← combineChecked (normalized.map fun entry => do
                 let value ← descend complete child entry.2
                 pure (entry.1, value))
@@ -211,16 +209,14 @@ theorem resolveBody_noMalformed {declarations checks keys depth rank complete co
             intro normalized done
             apply NoMalformed_bind (nameKeys_noMalformed keys _)
             intro ignored
-            split
-            · simp [NoMalformed, exceptThrow, Bind.bind, Except.bind]
-            · apply NoMalformed_bind
-              · apply combined_map_safe
-                intro entry inside
-                apply NoMalformed_bind
-                · apply descendSafe child (by simp [consumingChildren]) complete
-                  exact normalized_child_depth extracted done inside
-                · intro resolution; simp [NoMalformed]
-              · intro values; simp [NoMalformed]
+            apply NoMalformed_bind
+            · apply combined_map_safe
+              intro entry inside
+              apply NoMalformed_bind
+              · apply descendSafe child (by simp [consumingChildren]) complete
+                exact normalized_child_depth extracted done inside
+              · intro resolution; simp [NoMalformed]
+            · intro values; simp [NoMalformed]
     case object members isOpen =>
       cases extracted : objectEntries input with
       | none => simp [NoMalformed]

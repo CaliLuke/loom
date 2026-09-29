@@ -10,7 +10,7 @@ def decodeBody (codecs : ScalarCodecs) (checks : ExternalScalarChecks)
     (declaration : TargetDeclaration) (wire : Wire) : Except Failure (Option Value) :=
   match declaration.target, wire with
   | .scalar encoding kind rules, wire =>
-    .ok (((decodeScalar codecs encoding kind wire).filter (scalarAllowed checks rules)).map Value.scalar)
+    .ok (((decodeScalar codecs encoding kind rules.numericFormat rules.integerFormat wire).filter (scalarAllowed checks rules)).map Value.scalar)
   | .nullable _, .null => .ok (some .null)
   | .nullable child, wire | .alias child, wire | .select _ child, wire =>
     recurse child wire
@@ -21,7 +21,7 @@ def decodeBody (codecs : ScalarCodecs) (checks : ExternalScalarChecks)
     return if lengthAllowed bounds items.length then (collectDecoded outcomes).map Value.array else none
   | .map kind rules child bounds, .object items => do
     let outcomes ← items.mapM (fun entry => recurse child entry.2)
-    let keys := items.map (fun entry => decodeKey codecs.numbers kind entry.1)
+    let keys := items.map (fun entry => decodeKey codecs.numbers kind rules.numericFormat rules.integerFormat entry.1)
     return if (items.map Prod.fst).Nodup then mapDecoded checks rules bounds keys outcomes else none
   | .object members preserveAdditional, .object items => do
     let outcomes ← members.mapM fun member => match wireMember items member.wireName with

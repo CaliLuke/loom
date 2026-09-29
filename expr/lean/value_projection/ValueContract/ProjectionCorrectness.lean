@@ -80,7 +80,7 @@ theorem project_runtime_preservation {codecs checks targets role identity resolv
     ∃ observed decoded, Observe codecs targets role identity resolved.value observed ∧
       SchemaAccepts codecs checks targets identity wire ∧
       RuntimeDecodes codecs checks targets identity wire decoded ∧
-      StrictEquivalent observed decoded := by
+      StrictEquivalent codecs.numbers observed decoded := by
   obtain ⟨observed, observation, _, valid, decoded, decodes, preserved⟩ :=
     (project_emitted_iff wellFormed found).mp emitted
   exact ⟨observed, decoded, observation, valid, decodes, preserved⟩

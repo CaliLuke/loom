@@ -17,7 +17,7 @@ theorem object_inputDepth_lt {entries : List (String × Input)} {entry : String 
   simp only [inputDepth]
   omega
 
-theorem map_inputDepth_lt {entries : List (Scalar × Input)} {entry : Scalar × Input}
+theorem map_inputDepth_lt {entries : List (SourceScalar × Input)} {entry : SourceScalar × Input}
     (member : entry ∈ entries) : inputDepth entry.2 < inputDepth (.map entries) := by
   have bound := foldMax_member (List.mem_map_of_mem (f := fun entry => inputDepth entry.2) member) 0
   simp only [inputDepth]
@@ -45,9 +45,9 @@ theorem RawResolutionAt_mono {keys : KeyCodec} {low high : Nat} {input : Input} 
         have child := related.2.2.2 pair member
         exact ⟨child.1, ih smaller child.2⟩
       case map.map inputs values =>
-        refine ⟨related.1, related.2.1, related.2.2.1, ?_⟩
+        refine ⟨related.1, related.2.1, ?_⟩
         intro pair member
-        have child := related.2.2.2 pair member
+        have child := related.2.2 pair member
         exact ⟨child.1, ih smaller child.2⟩
       case host.host identity payload other child => exact ⟨related.1, ih smaller related.2⟩
 
@@ -78,9 +78,9 @@ theorem RawResolutionAt_rebudget {keys : KeyCodec} {depth budget : Nat}
         have small := object_inputDepth_lt (List.of_mem_zip member).1
         omega
       case map.map inputs values =>
-        refine ⟨related.1, related.2.1, related.2.2.1, ?_⟩
+        refine ⟨related.1, related.2.1, ?_⟩
         intro pair member
-        have child := related.2.2.2 pair member
+        have child := related.2.2 pair member
         refine ⟨child.1, ih child.2 ?_⟩
         have small := map_inputDepth_lt (List.of_mem_zip member).1
         omega
@@ -130,6 +130,31 @@ theorem stripped_array_child_depth {input : Input} {items : List Input} {child :
   rw [shape] at outer
   exact Nat.lt_of_lt_of_le (array_inputDepth_lt inside) outer
 
+/-- Native-byte array children retain their original host classes and have
+exactly the host/scalar depth, independently of sequence length. -/
+theorem nativeByteSequence_child_depth {sequence : NativeByteSequence} {child : Input}
+    (inside : child ∈ sequence.inputs) : inputDepth child = 2 := by
+  obtain ⟨item, _, rfl⟩ := List.mem_map.mp inside
+  simp [inputDepth]
+
+/-- Every admitted array child consumes structural input depth, including
+native byte slices and fixed arrays interpreted as declared arrays. -/
+theorem arrayInput_child_depth {input : Input} {items : List Input} {child : Input}
+    (shape : arrayInput (stripHostInput input) = some (some items))
+    (inside : child ∈ items) : inputDepth child < inputDepth input := by
+  have outer := stripHostInput_depth_le input
+  cases raw : stripHostInput input <;> simp only [raw, arrayInput] at shape
+  all_goals try (simp at shape)
+  case array original =>
+    subst items
+    exact stripped_array_child_depth raw inside
+  case byteSequence sequence =>
+    cases nilShape : sequence.isNil <;> simp [nilShape] at shape
+    subst items
+    have childDepth := nativeByteSequence_child_depth inside
+    simp only [raw, inputDepth] at outer
+    omega
+
 theorem stripped_object_child_depth {input : Input} {entries : List (String × Input)}
     {entry : String × Input} (shape : stripHostInput input = .object entries)
     (inside : entry ∈ entries) : inputDepth entry.2 < inputDepth input := by
@@ -137,8 +162,8 @@ theorem stripped_object_child_depth {input : Input} {entries : List (String × I
   rw [shape] at outer
   exact Nat.lt_of_lt_of_le (object_inputDepth_lt inside) outer
 
-theorem stripped_map_child_depth {input : Input} {entries : List (Scalar × Input)}
-    {entry : Scalar × Input} (shape : stripHostInput input = .map entries)
+theorem stripped_map_child_depth {input : Input} {entries : List (SourceScalar × Input)}
+    {entry : SourceScalar × Input} (shape : stripHostInput input = .map entries)
     (inside : entry ∈ entries) : inputDepth entry.2 < inputDepth input := by
   have outer := stripHostInput_depth_le input
   rw [shape] at outer

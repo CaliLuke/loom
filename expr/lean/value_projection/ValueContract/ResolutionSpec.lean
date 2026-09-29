@@ -3,6 +3,30 @@ import ValueContract.MapKeys
 
 namespace ValueContract.Candidate
 
+/-- Independent raw binary meaning: nil remains nil, while each original
+native byte contributes exactly one octet irrespective of container naming. -/
+def NativeByteValue (sequence : NativeByteSequence) (value : Value) : Prop :=
+  (NativeBytesNil sequence ∧ value = .nilBytes) ∨
+  (¬ NativeBytesNil sequence ∧ ∃ bytes, NativeByteOctets sequence bytes ∧
+    value = .scalar (.bytes bytes))
+
+theorem nativeByteValue_iff (sequence : NativeByteSequence) (value : Value) :
+    sequence.rawValue = value ↔ NativeByteValue sequence value := by
+  simp only [NativeByteSequence.rawValue, NativeByteValue,
+    ← nativeBytesNil_iff, ← nativeByteOctets_iff]
+  cases sequence.isNil <;> simp [eq_comm]
+
+/-- Independent extraction preserves nil and each original native-byte host
+class. This relation does not inspect a declaration, branch or target. -/
+def ArrayInputEntries (input : Input) (items : Option (List Input)) : Prop :=
+  match input with
+  | .nilArray => items = none
+  | .array original => items = some original
+  | .byteSequence sequence =>
+    (NativeBytesNil sequence ∧ items = none) ∨
+    (¬ NativeBytesNil sequence ∧ items = some sequence.inputs)
+  | _ => False
+
 /-- Raw source interpretation is structural and preserves every scalar kind,
 name and nil marker. Key spelling is a narrow codec relation; no resolver
 success premise, target representation, or DSL alias lookup occurs here. -/
@@ -12,16 +36,16 @@ def RawResolutionAt (keys : KeyCodec) : Nat → Input → Value → Prop
     | .host identity payload, .host actual child =>
         identity = actual ∧ RawResolutionAt keys depth payload child
     | .null, .null | .nilBytes, .nilBytes | .nilArray, .nilArray | .nilMap, .nilMap => True
-    | .scalar original, .scalar actual => original = actual
+    | .scalar original, .scalar actual => original.value = actual
+    | .byteSequence sequence, value => NativeByteValue sequence value
     | .array inputs, .array values => All₂ (RawResolutionAt keys depth) inputs values
     | .object inputs, .object fields values => fields = [] ∧
         (inputs.map Prod.fst).Nodup ∧
         All₂ (fun original actual => original.1 = actual.1 ∧
           RawResolutionAt keys depth original.2 actual.2) inputs values
     | .map inputs, .map values =>
-        (∃ names, names.Nodup ∧ All₂ (KeySpelling keys) (inputs.map Prod.fst) names) ∧
-        inputs.Pairwise (fun left right => scalarEqual left.1 right.1 = false) ∧
-        All₂ (fun original actual => original.1 = actual.1 ∧
+        (∃ names, names.Nodup ∧ All₂ (KeySpelling keys) (inputs.map (fun entry => entry.1.value)) names) ∧
+        All₂ (fun original actual => original.1.value = actual.1 ∧
           RawResolutionAt keys depth original.2 actual.2) inputs values
     | _, _ => False
 
@@ -64,18 +88,20 @@ def MemberResolution (child : Identity → Input → Resolution → Prop)
 
 /-- Scalar source matching allows only the established built-in coercions;
 raw nil Bytes are the distinct legacy normalization to an empty byte sequence. -/
-def ScalarResolution (checks : ExternalScalarChecks) (kind : ScalarKind) (rules : ScalarRules)
+def ScalarResolution (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : ScalarKind) (rules : ScalarRules)
     (input : Input) (result : Resolution) : Prop :=
-  ∃ scalar, ((∃ original, stripHostInput input = .scalar original ∧ Coerces kind original scalar) ∨
-      (stripHostInput input = .nilBytes ∧ kind = .bytes ∧ scalar = .bytes [])) ∧
+  ∃ scalar, ((∃ original, stripHostInput input = .scalar original ∧ SourceCoerces keys rules kind original scalar) ∨
+      (stripHostInput input = .nilBytes ∧ kind = .bytes ∧ scalar = .bytes []) ∨
+      (∃ sequence bytes, stripHostInput input = .byteSequence sequence ∧ kind = .bytes ∧
+        NativeBytesAdmitted sequence ∧ NativeByteOctets sequence bytes ∧ scalar = .bytes bytes)) ∧
     scalarAllowed checks rules scalar = true ∧ result = ⟨.scalar scalar, []⟩
 
 /-- Collections retain every child resolution and concatenate its missing
 paths in order. Nil and empty remain different semantic source constructors. -/
 def ArrayResolution (child : Input → Resolution → Prop) (bounds : LengthBounds)
     (input : Input) (result : Resolution) : Prop :=
-  (stripHostInput input = .nilArray ∧ lengthAllowed bounds 0 = true ∧ result = ⟨.nilArray, []⟩) ∨
-  (∃ inputs children, stripHostInput input = .array inputs ∧ lengthAllowed bounds inputs.length = true ∧
+  (ArrayInputEntries (stripHostInput input) none ∧ lengthAllowed bounds 0 = true ∧ result = ⟨.nilArray, []⟩) ∨
+  (∃ inputs children, ArrayInputEntries (stripHostInput input) (some inputs) ∧ lengthAllowed bounds inputs.length = true ∧
     All₂ child inputs children ∧ result = ⟨.array (children.map Resolution.value),
       children.flatMap Resolution.missing⟩)
 

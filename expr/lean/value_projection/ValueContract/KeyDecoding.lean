@@ -5,26 +5,26 @@ namespace ValueContract.Candidate
 /-- Key decoding is not the inverse of canonical spelling: accepted aliases must
 remain visible when validating untagged alternatives. Built-in heterogeneous
 keys materialize into the JSON string-key domain, after collision checking. -/
-def decodeKey (codec : NumericCodec) (kind : MapKeyKind) (name : String) : Option Scalar :=
+def decodeKey (codec : NumericCodec) (kind : MapKeyKind) (format : NumericFormat) (integers : IntegerFormat) (name : String) : Option Scalar :=
   match kind with
   | .builtin | .scalar .string => some (.string name)
   | .scalar .boolean =>
     if name = "true" then some (.boolean true)
     else if name = "false" then some (.boolean false) else none
-  | .scalar .integer => (codec.decodeKeyInteger name).map Scalar.integer
-  | .scalar .decimal => (codec.decodeKeyDecimal name).map
-      (fun number => .decimal number.coefficient number.exponent)
+  | .scalar .integer => (codec.decodeKeyInteger integers name).map Scalar.integer
+  | .scalar .decimal => (codec.decodeKeyDecimal format name).map
+      (fun number => .decimal number.value.coefficient number.value.exponent format number.negativeZero)
   | .scalar .bytes => none
 
-inductive KeyDecodes (codec : NumericCodec) : MapKeyKind → String → Scalar → Prop where
-  | builtin : KeyDecodes codec .builtin name (.string name)
-  | string : KeyDecodes codec (.scalar .string) name (.string name)
-  | trueKey : KeyDecodes codec (.scalar .boolean) "true" (.boolean true)
-  | falseKey : KeyDecodes codec (.scalar .boolean) "false" (.boolean false)
-  | integer (decoded : codec.decodeKeyInteger name = some integer) :
-      KeyDecodes codec (.scalar .integer) name (.integer integer)
-  | decimal (decoded : codec.decodeKeyDecimal name = some number) :
-      KeyDecodes codec (.scalar .decimal) name (.decimal number.coefficient number.exponent)
+inductive KeyDecodes (codec : NumericCodec) (format : NumericFormat) (integers : IntegerFormat) : MapKeyKind → String → Scalar → Prop where
+  | builtin : KeyDecodes codec format integers .builtin name (.string name)
+  | string : KeyDecodes codec format integers (.scalar .string) name (.string name)
+  | trueKey : KeyDecodes codec format integers (.scalar .boolean) "true" (.boolean true)
+  | falseKey : KeyDecodes codec format integers (.scalar .boolean) "false" (.boolean false)
+  | integer (decoded : codec.decodeKeyInteger integers name = some integer) :
+      KeyDecodes codec format integers (.scalar .integer) name (.integer integer)
+  | decimal (decoded : codec.decodeKeyDecimal format name = some number) :
+      KeyDecodes codec format integers (.scalar .decimal) name (.decimal number.value.coefficient number.value.exponent format number.negativeZero)
 
 /-- Target observation preserves declared scalar keys but observes heterogeneous
 built-in keys by their final JSON member names. It never hides a collision:
@@ -40,12 +40,12 @@ def observeKey (codec : NumericCodec) (kind : MapKeyKind) (value : Scalar) : Opt
   | .scalar _ => if mapKeyCompatible kind value then some value else none
   | .builtin => (encodeKey codec value).map Scalar.string
 
-theorem keyDecoder_progress {codec kind name value} (decoded : KeyDecodes codec kind name value) :
-    decodeKey codec kind name = some value := by
+theorem keyDecoder_progress {codec kind format integers name value} (decoded : KeyDecodes codec format integers kind name value) :
+    decodeKey codec kind format integers name = some value := by
   cases decoded <;> simp [decodeKey, *]
 
-theorem keyDecoder_sound {codec kind name value} (decoded : decodeKey codec kind name = some value) :
-    KeyDecodes codec kind name value := by
+theorem keyDecoder_sound {codec kind format integers name value} (decoded : decodeKey codec kind format integers name = some value) :
+    KeyDecodes codec format integers kind name value := by
   cases kind with
   | builtin =>
     simp [decodeKey] at decoded
@@ -81,8 +81,8 @@ theorem keyDecoder_sound {codec kind name value} (decoded : decodeKey codec kind
       subst value
       exact .decimal parsed
 
-theorem keyDecoder_iff (codec : NumericCodec) (kind : MapKeyKind) (name : String) (value : Scalar) :
-    decodeKey codec kind name = some value ↔ KeyDecodes codec kind name value :=
+theorem keyDecoder_iff (codec : NumericCodec) (kind : MapKeyKind) (format : NumericFormat) (integers : IntegerFormat) (name : String) (value : Scalar) :
+    decodeKey codec kind format integers name = some value ↔ KeyDecodes codec format integers kind name value :=
   ⟨keyDecoder_sound, keyDecoder_progress⟩
 
 end ValueContract.Candidate

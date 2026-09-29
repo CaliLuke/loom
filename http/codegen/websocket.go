@@ -156,12 +156,12 @@ func buildWebSocketStreamData(sds *ServicesData, endpointIR *transportir.Endpoin
 	data.serverRecvTypeName = streamDesc.Payload.Name
 	data.serverRecvTypeRef = streamDesc.Payload.Ref
 	pkg := sd.Service.LocationPackageName(sd.Service.Method(endpointIR.MethodName).StreamingPayloadLoc)
-	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, pkg, false, false, true, sd)
+	data.serverPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, pkg, false, false, true, sd, endpointIR.Request.StreamingValue)
 	if needInit(endpointIR.Stream.RequestPayload) ||
 		expr.ContainsNonNullableCollectionElement(endpointIR.Request.StreamingBody) {
 		initWebSocketPayloadConstructor(data.serverPayload, sds, endpointIR, pkg, sd)
 	}
-	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, pkg, false, false, false, sd)
+	data.clientPayload = sds.buildRequestBodyType(endpointIR.Request.StreamingBody, endpointIR.Stream.RequestPayload, endpointIR.Name, pkg, false, false, false, sd, endpointIR.Request.StreamingValue)
 	if data.clientPayload != nil {
 		sd.ClientTypeNames[data.clientPayload.Name] = false
 		sd.ServerTypeNames[data.clientPayload.Name] = false

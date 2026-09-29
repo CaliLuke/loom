@@ -40,6 +40,9 @@ type (
 		// finalized is true if the attribute has been finalized - only
 		// applies if attribute type is an object
 		finalized bool
+		// valueOrigin records structural copy ancestry, never a semantic value
+		// context or resolution. Effective occurrences always receive fresh IDs.
+		valueOrigin *AttributeExpr
 	}
 
 	// ExampleExpr represents an example.
@@ -55,6 +58,8 @@ type (
 		// ExplicitNull distinguishes an authored null example from a missing
 		// example value.
 		ExplicitNull bool
+		// valueOrigin retains authored provenance through structural copies.
+		valueOrigin *ExampleExpr
 	}
 
 	// Val is the type used to provide the value of examples for attributes that are

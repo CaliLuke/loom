@@ -94,7 +94,7 @@ theorem resolveAt_outcome_iff {declarations : Declarations}
         ∃ body, SourceBodyOutcome declarations checks keys depth rank complete declaration.contract input
           (SourceOutcomeAt declarations checks keys (depth + 1) rank)
           (SourceOutcomeAt declarations checks keys depth (maximumExpansionRank declarations + 1)) body ∧
-          NodeEnumOutcome declaration.enumeration body result := by
+          NodeEnumOutcome keys declaration.enumeration body result := by
       rw [SourceOutcomeAt]
       constructor
       · rintro (⟨actual, member, identitySame, body, matched, enumeration⟩ | ⟨missing, _⟩)

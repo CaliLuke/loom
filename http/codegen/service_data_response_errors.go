@@ -168,7 +168,7 @@ func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStat
 func (b *errorBuilder) buildResponseBodyData(errorResponse *transportir.ResponseStatus) ([]*TypeData, *TypeData) {
 	httpError := errorResponse.Error
 	errorLoc := codegen.UserTypeLocation(httpError.Attribute.Type)
-	serverBodyData, clientBodyData := b.sds.buildResponseBodyPair(responseStatusBody(errorResponse), httpError.Attribute, errorLoc, b.endpoint.Name, b.sd)
+	serverBodyData, clientBodyData := b.sds.buildResponseBodyPair(responseStatusBody(errorResponse), httpError.Attribute, errorLoc, b.endpoint.Name, b.sd, errorResponse.BodyValue)
 	if expr.IsDefaultErrorResult(httpError.Attribute.Type) && len(serverBodyData) > 0 && serverBodyData[0] != nil && serverBodyData[0].Init != nil {
 		serverBodyData[0].Init.ServerCode = buildProblemServerResponseBodyCode(serverBodyData[0].Ref, errorResponse)
 	}

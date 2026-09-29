@@ -1,5 +1,7 @@
 package codegen
 
+import "github.com/CaliLuke/loom/http/codegen/internal/transportir"
+
 type (
 	// RouteData describes a route.
 	RouteData struct {
@@ -97,6 +99,8 @@ type (
 
 	// TypeData contains the data needed to render a type definition.
 	TypeData struct {
+		// Value retains the semantic source and finalized body representation plan.
+		Value *transportir.ValueTarget
 		// Name is the type name.
 		Name string
 		// VarName is the Go type name.

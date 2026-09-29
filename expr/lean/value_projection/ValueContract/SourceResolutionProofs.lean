@@ -5,9 +5,13 @@ import ValueContract.SourceBodyProofs
 
 namespace ValueContract.Candidate
 
-theorem Coerces_kind {kind : ScalarKind} {input output : Scalar}
-    (coercion : Coerces kind input output) : output.kind = kind := by
-  cases coercion <;> first | assumption | rfl
+variable {keys : KeyCodec}
+
+theorem Coerces_kind {codec format} {kind : ScalarKind} {input output : Scalar}
+    (coercion : Coerces codec format kind input output) : output.kind = kind := by
+  cases coercion with
+  | builtin _ basic => cases basic <;> first | assumption | rfl
+  | floating => rfl
 
 /-- Scalar source interpretation produces the declaration's kind and enforces
 its constraints. Host evidence and supported coercion do not change that owner. -/
@@ -15,13 +19,15 @@ theorem ScalarResolution_typed {declarations : Declarations} {checks : ExternalS
     {complete : Bool} {declaration : Declaration} {kind : ScalarKind} {rules : ScalarRules}
     {input : Input} {result : Resolution}
     (present : declaration ∈ declarations) (contract : declaration.contract = .scalar kind rules)
-    (enumeration : EnumAllows declaration.enumeration result.value)
-    (matched : ScalarResolution checks kind rules input result) :
-    Typed declarations checks complete declaration.identity result.value := by
+    (enumeration : EnumAllows keys declaration.enumeration result.value)
+    (matched : ScalarResolution checks keys kind rules input result) :
+    Typed keys declarations checks complete declaration.identity result.value := by
   obtain ⟨scalar, shape, allowed, resultShape⟩ := matched
   have scalarKind : scalar.kind = kind := by
-    rcases shape with ⟨_, _, coercion⟩ | ⟨_, sameKind, sameValue⟩
-    · exact Coerces_kind coercion
+    rcases shape with ⟨_, _, coercion⟩ | ⟨_, sameKind, sameValue⟩ |
+        ⟨_, bytes, _, sameKind, _, _, sameValue⟩
+    · exact Coerces_kind coercion.2
+    · subst kind; subst scalar; rfl
     · subst kind; subst scalar; rfl
   subst result
   exact ⟨1, declaration, present, rfl, enumeration, by simpa only [contract] using ⟨scalarKind, allowed⟩⟩
@@ -32,10 +38,10 @@ theorem ArrayResolution_typed {declarations : Declarations} {checks : ExternalSc
     {complete : Bool} {declaration : Declaration} {child : Identity} {bounds : LengthBounds}
     {relation : Input → Resolution → Prop} {input : Input} {result : Resolution}
     (present : declaration ∈ declarations) (contract : declaration.contract = .array child bounds)
-    (enumeration : EnumAllows declaration.enumeration result.value)
-    (children : ∀ raw value, relation raw value → Typed declarations checks complete child value.value)
+    (enumeration : EnumAllows keys declaration.enumeration result.value)
+    (children : ∀ raw value, relation raw value → Typed keys declarations checks complete child value.value)
     (matched : ArrayResolution relation bounds input result) :
-    Typed declarations checks complete declaration.identity result.value := by
+    Typed keys declarations checks complete declaration.identity result.value := by
   rcases matched with ⟨_, length, shape⟩ | ⟨inputs, values, _, length, related, shape⟩
   · subst result
     exact ⟨1, declaration, present, rfl, enumeration, by simpa only [contract] using length⟩
@@ -56,11 +62,11 @@ theorem SelectedUnionResolution_typed {declarations : Declarations} {checks : Ex
     {input : Input} {result : Resolution}
     (present : declaration ∈ declarations)
     (contract : declaration.contract = .union occurrence alternatives)
-    (enumeration : EnumAllows declaration.enumeration result.value)
+    (enumeration : EnumAllows keys declaration.enumeration result.value)
     (children : ∀ identity raw value, relation identity raw value →
-      Typed declarations checks complete identity value.value)
+      Typed keys declarations checks complete identity value.value)
     (matched : SelectedUnionResolution relation occurrence alternatives input result) :
-    Typed declarations checks complete declaration.identity result.value := by
+    Typed keys declarations checks complete declaration.identity result.value := by
   obtain ⟨branch, payload, alternative, value, _, chosen, interpreted, shape⟩ := matched
   have inside : alternative ∈ alternatives :=
     List.mem_of_find?_eq_some ((firstAlternative_iff _ _ _).mpr chosen)
@@ -78,14 +84,14 @@ theorem ImplicitUnionOutcome_typed {declarations : Declarations} {checks : Exter
     {preference : Alternative → Bool} {input : Input} {result : Resolution}
     (present : declaration ∈ declarations)
     (contract : declaration.contract = .union occurrence alternatives)
-    (enumeration : EnumAllows declaration.enumeration result.value)
+    (enumeration : EnumAllows keys declaration.enumeration result.value)
     (fullTyped : ∀ identity raw value, full identity raw (.ok value) →
-      Typed declarations checks true identity value.value)
+      Typed keys declarations checks true identity value.value)
     (partialTyped : ∀ identity raw value, incomplete identity raw (.ok value) →
-      Typed declarations checks false identity value.value)
+      Typed keys declarations checks false identity value.value)
     (matched : ImplicitUnionOutcome full incomplete preference complete occurrence alternatives
       input (.ok result)) :
-    Typed declarations checks complete declaration.identity result.value := by
+    Typed keys declarations checks complete declaration.identity result.value := by
   obtain ⟨alternative, inside, value, interpreted, shape⟩ := implicitUnion_success matched
   subst result
   apply Typed_union_intro present contract enumeration inside
@@ -116,29 +122,29 @@ theorem resolveBody_any_typed {declarations : Declarations} {checks : ExternalSc
     {keys : KeyCodec} {depth rank : Nat} {complete : Bool} {declaration : Declaration}
     {input : Input} {same descend : Bool → Identity → Input → ResolveResult} {result : Resolution}
     (present : declaration ∈ declarations) (contract : declaration.contract = .any)
-    (enumeration : EnumAllows declaration.enumeration result.value)
+    (enumeration : EnumAllows keys declaration.enumeration result.value)
     (success : resolveBody declarations checks keys depth rank complete .any input same descend = .ok result) :
-    Typed declarations checks complete declaration.identity result.value := by
+    Typed keys declarations checks complete declaration.identity result.value := by
   obtain ⟨raw, interpreted, shape⟩ := (resolveBody_any_iff _ _ _ _ _ _ _ _ _ _).mp success
   subst result
   exact ⟨1, declaration, present, rfl, enumeration,
-    by simpa only [contract] using (show FreeValue raw from ⟨_, rawResolution_free interpreted⟩)⟩
+    by simpa only [contract] using (show FreeValue keys raw from ⟨_, rawResolution_free interpreted⟩)⟩
 
 theorem Typed_alias_intro {declarations : Declarations} {checks : ExternalScalarChecks}
     {complete : Bool} {declaration : Declaration} {child : Identity} {value : Value}
     (present : declaration ∈ declarations) (contract : declaration.contract = .alias child)
-    (enumeration : EnumAllows declaration.enumeration value)
-    (typed : Typed declarations checks complete child value) :
-    Typed declarations checks complete declaration.identity value := by
+    (enumeration : EnumAllows keys declaration.enumeration value)
+    (typed : Typed keys declarations checks complete child value) :
+    Typed keys declarations checks complete declaration.identity value := by
   obtain ⟨depth, typed⟩ := typed
   exact ⟨depth + 1, declaration, present, rfl, enumeration, by simpa only [contract] using typed⟩
 
 theorem Typed_nullable_intro {declarations : Declarations} {checks : ExternalScalarChecks}
     {complete : Bool} {declaration : Declaration} {child : Identity} {value : Value}
     (present : declaration ∈ declarations) (contract : declaration.contract = .nullable child)
-    (enumeration : EnumAllows declaration.enumeration value)
-    (typed : Typed declarations checks complete child value) :
-    Typed declarations checks complete declaration.identity value := by
+    (enumeration : EnumAllows keys declaration.enumeration value)
+    (typed : Typed keys declarations checks complete child value) :
+    Typed keys declarations checks complete declaration.identity value := by
   obtain ⟨depth, typed⟩ := typed
   refine ⟨depth + 1, declaration, present, rfl, enumeration, ?_⟩
   cases value <;> simp only [contract]
@@ -147,9 +153,9 @@ theorem Typed_nullable_intro {declarations : Declarations} {checks : ExternalSca
 theorem Typed_nonNull_intro {declarations : Declarations} {checks : ExternalScalarChecks}
     {complete : Bool} {declaration : Declaration} {child : Identity} {value : Value}
     (present : declaration ∈ declarations) (contract : declaration.contract = .nonNull child)
-    (enumeration : EnumAllows declaration.enumeration value) (notNull : valueIsNull value = false)
-    (typed : Typed declarations checks complete child value) :
-    Typed declarations checks complete declaration.identity value := by
+    (enumeration : EnumAllows keys declaration.enumeration value) (notNull : valueIsNull value = false)
+    (typed : Typed keys declarations checks complete child value) :
+    Typed keys declarations checks complete declaration.identity value := by
   obtain ⟨depth, typed⟩ := typed
   exact ⟨depth + 1, declaration, present, rfl, enumeration,
     by simpa only [contract] using And.intro notNull typed⟩
@@ -175,7 +181,7 @@ theorem resolveBody_null_reflect (declarations : Declarations) (checks : Externa
       subst result <;> simp [valueIsNull] at isNull
   | map kind rules child bounds =>
     have matched := (resolveBody_map_iff _ _ _ _ _ _ _ _ _ _ _ _ _ _).mp success
-    rcases matched with ⟨_, _, shape⟩ | ⟨_, _, _, _, _, _, _, _, _, shape⟩ <;>
+    rcases matched with ⟨_, _, shape⟩ | ⟨_, _, _, _, _, _, _, _, shape⟩ <;>
       subst result <;> simp [valueIsNull] at isNull
   | object members isOpen =>
     obtain ⟨_, _, _, _, _, _, _, _, shape⟩ :=
@@ -222,7 +228,7 @@ theorem resolveAt_typed {declarations : Declarations} {checks : ExternalScalarCh
     {input : Input} {result : Resolution}
     (wellFormed : WellFormedDeclarations declarations)
     (resolved : resolveAt declarations checks keys depth rank complete identity input = .ok result) :
-    Typed declarations checks complete identity result.value := by
+    Typed keys declarations checks complete identity result.value := by
   induction depth, rank, complete, identity, input using resolveAt.induct declarations checks keys
       generalizing result with
   | case1 => simp [resolveAt] at resolved
@@ -307,7 +313,7 @@ require complete typing; authored and synthesized examples permit omissions. -/
 theorem resolve_typed {declarations : Declarations} {checks : ExternalScalarChecks}
     {keys : KeyCodec} {role : Role} {effective : Identity} {input : Input} {result : Resolution}
     (resolved : resolve declarations checks keys role effective input = .ok result) :
-    Typed declarations checks (role == .enumMember || role == .defaultValue)
+    Typed keys declarations checks (role == .enumMember || role == .defaultValue)
       effective result.value := by
   by_cases valid : validateDeclarations declarations = true
   · simp only [resolve, valid, Bool.not_true, Bool.false_eq_true, ↓reduceIte] at resolved

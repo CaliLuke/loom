@@ -53,18 +53,18 @@ private theorem objectMemberResult_congr {complete left right entries member}
     rw [child] at equal
     rw [equal]
 
-private def normalizeKey (checks : ExternalScalarChecks) (kind : MapKeyKind)
-    (rules : ScalarRules) (entry : Scalar × Input) : Except Failure (Scalar × Input) := do
+private def normalizeKey (checks : ExternalScalarChecks) (keys : KeyCodec) (kind : MapKeyKind)
+    (rules : ScalarRules) (entry : SourceScalar × Input) : Except Failure (Scalar × Input) := do
   let key ← match kind with
-    | .builtin => .ok entry.1
-    | .scalar expected => match coerceScalar expected entry.1 with
+    | .builtin => .ok entry.1.value
+    | .scalar expected => match coerceSourceScalar keys rules expected entry.1 with
       | some key => .ok key
       | none => .error .invalid
   if !mapKeyCompatible kind key || !scalarAllowed checks rules key then throw .invalid
   return (key, entry.2)
 
 private theorem normalizeKey_child {checks kind rules entry normalized}
-    (done : normalizeKey checks kind rules entry = .ok normalized) : entry.2 = normalized.2 := by
+    (done : normalizeKey checks keys kind rules entry = .ok normalized) : entry.2 = normalized.2 := by
   cases kind <;> simp only [normalizeKey] at done
   all_goals simp only [Bind.bind, Except.bind] at done
   all_goals repeat' first
@@ -74,7 +74,7 @@ private theorem normalizeKey_child {checks kind rules entry normalized}
 
 private theorem normalized_child_depth {checks kind rules input entries normalized entry}
     (extracted : mapEntries input = some entries)
-    (done : combineChecked (entries.map (normalizeKey checks kind rules)) = .ok normalized)
+    (done : combineChecked (entries.map (normalizeKey checks keys kind rules)) = .ok normalized)
     (inside : entry ∈ normalized) : inputDepth entry.2 < inputDepth input := by
   obtain ⟨original, member, related⟩ := all₂_right ((combineChecked_map_iff ..).mp done) inside
   rw [← normalizeKey_child related]
@@ -119,7 +119,7 @@ theorem resolveBody_stable {declarations checks keys firstDepth secondDepth firs
         have children : items.map (firstDescend complete child) = items.map (secondDescend complete child) := by
           apply List.map_congr_left
           intro item inside
-          exact descend child (by simp [consumingChildren]) complete item (stripped_array_child_depth shape inside)
+          exact descend child (by simp [consumingChildren]) complete item (arrayInput_child_depth shape inside)
         rw [children]
       · rfl
     case map kind rules child bounds =>
@@ -132,19 +132,15 @@ theorem resolveBody_stable {declarations checks keys firstDepth secondDepth firs
           split
           · rfl
           · change ((do
-              let normalized ← combineChecked (entries.map (normalizeKey checks kind rules))
+              let normalized ← combineChecked (entries.map (normalizeKey checks keys kind rules))
               let _ ← nameKeys keys (normalized.map Prod.fst)
-              if !(decide (normalized.Pairwise (fun left right => scalarEqual left.1 right.1 = false))) then
-                throw .invalid
               let values ← combineChecked (normalized.map fun entry => do
                 let value ← firstDescend complete child entry.2
                 pure (entry.1, value))
               pure (Resolution.mk (.map (values.map (fun entry => (entry.1, entry.2.value))))
                 (values.flatMap (fun entry => entry.2.missing)))) : ResolveResult) = (do
-              let normalized ← combineChecked (entries.map (normalizeKey checks kind rules))
+              let normalized ← combineChecked (entries.map (normalizeKey checks keys kind rules))
               let _ ← nameKeys keys (normalized.map Prod.fst)
-              if !(decide (normalized.Pairwise (fun left right => scalarEqual left.1 right.1 = false))) then
-                throw .invalid
               let values ← combineChecked (normalized.map fun entry => do
                 let value ← secondDescend complete child entry.2
                 pure (entry.1, value))

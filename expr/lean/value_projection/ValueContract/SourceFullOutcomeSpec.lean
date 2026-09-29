@@ -26,7 +26,7 @@ def SourceBodyOutcome (declarations : Declarations) (checks : ExternalScalarChec
     | .nonNull child => match stripHostInput input with
       | .null => output = .error .invalid
       | _ => same complete child input output
-    | .scalar kind rules => ScalarOutcome checks kind rules input output
+    | .scalar kind rules => ScalarOutcome checks keys kind rules input output
     | .array child bounds => ArrayOutcome (descend complete child) bounds input output
     | .map kind rules child bounds =>
         MapOutcome checks keys kind rules bounds (descend complete child) input output
@@ -51,7 +51,7 @@ def SourceOutcomeAt (declarations : Declarations) (checks : ExternalScalarChecks
         (SourceOutcomeAt declarations checks keys (depth + 1) rank)
         (fun mode child raw => SourceOutcomeAt declarations checks keys depth
           (maximumExpansionRank declarations + 1) mode child raw) body ∧
-      NodeEnumOutcome declaration.enumeration body result) ∨
+      NodeEnumOutcome keys declaration.enumeration body result) ∨
     ((¬ ∃ declaration ∈ declarations, declaration.identity = identity) ∧
       result = .error .malformedDeclaration)
 termination_by depth rank _ _ _ _ => (depth, rank)

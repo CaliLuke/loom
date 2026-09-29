@@ -28,8 +28,8 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 	}
 	payloadExamples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "payload")
 	resultExamples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "result")
-	payloadData = buildMethodAttributeProjection(m.Payload, "payload", m.Service.Name, m.Name, payloadExamples, scope)
-	resultData = buildMethodAttributeProjection(m.Result, "result", m.Service.Name, m.Name, resultExamples, scope)
+	payloadData = buildMethodAttributeProjection(m.Payload, "payload", m.Service.Name, m.Name, d.methodValue(m, "payload", m.Payload, payloadExamples), scope)
+	resultData = buildMethodAttributeProjection(m.Result, "result", m.Service.Name, m.Name, d.methodValue(m, "result", m.Result, resultExamples), scope)
 	errors, errorLocs = buildMethodErrorData(m.Errors, scope)
 
 	data := &MethodData{
@@ -43,6 +43,13 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 		MethodStreamingData: buildMethodStreamingData(m),
 	}
 
+	if len(m.Errors) > 0 {
+		data.ErrorValues = make(map[string]*ValueData, len(m.Errors))
+		for _, methodError := range m.Errors {
+			examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "error", methodError.Name)
+			data.ErrorValues[methodError.Name] = d.methodValue(m, "error:"+methodError.Name, methodError.AttributeExpr, examples)
+		}
+	}
 	d.initStreamData(data, m, vname, resultData.Name, resultData.Reference, scope)
 	return data
 }
@@ -59,18 +66,20 @@ func buildMethodPayloadData(m *expr.MethodExpr, payloadData methodAttributeProje
 		PayloadRef:     payloadData.Reference,
 		PayloadDesc:    payloadData.Description,
 		PayloadEx:      payloadData.Example,
+		PayloadValue:   payloadData.Value,
 		PayloadDefault: payloadDefault,
 	}
 }
 
 func buildMethodResultData(resultData methodAttributeProjection) MethodResultData {
 	return MethodResultData{
-		Result:     resultData.Name,
-		ResultLoc:  resultData.Location,
-		ResultDef:  resultData.Definition,
-		ResultRef:  resultData.Reference,
-		ResultDesc: resultData.Description,
-		ResultEx:   resultData.Example,
+		Result:      resultData.Name,
+		ResultLoc:   resultData.Location,
+		ResultDef:   resultData.Definition,
+		ResultRef:   resultData.Reference,
+		ResultDesc:  resultData.Description,
+		ResultEx:    resultData.Example,
+		ResultValue: resultData.Value,
 	}
 }
 
@@ -120,7 +129,7 @@ func buildMethodStreamingData(m *expr.MethodExpr) MethodStreamingData {
 	}
 }
 
-func buildMethodAttributeProjection(att *expr.AttributeExpr, kind, serviceName, methodName string, gen *expr.ExampleGenerator, scope *codegen.NameScope) methodAttributeProjection {
+func buildMethodAttributeProjection(att *expr.AttributeExpr, kind, serviceName, methodName string, value *ValueData, scope *codegen.NameScope) methodAttributeProjection {
 	if att == nil || att.Type == expr.Empty {
 		return methodAttributeProjection{}
 	}
@@ -128,7 +137,8 @@ func buildMethodAttributeProjection(att *expr.AttributeExpr, kind, serviceName, 
 	projection := methodAttributeProjection{
 		Name:        scope.WithoutPackageNames().GoValueTypeName(att),
 		Description: att.Description,
-		Example:     att.Example(gen),
+		Example:     valueDataExample(value),
+		Value:       value,
 	}
 	if dt, ok := att.Type.(expr.UserType); ok {
 		if expr.AsUnion(dt.Attribute().Type) == nil {
@@ -228,6 +238,8 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, vnam
 	data.StreamingPayloadRef = spayload.Ref
 	data.StreamingPayloadDesc = spayload.Desc
 	data.StreamingPayloadEx = spayload.Example
+	data.StreamingPayloadValue = spayload.Value
+	data.StreamingResultValue = sresult.Value
 }
 
 type streamAttributeData struct {
@@ -237,21 +249,23 @@ type streamAttributeData struct {
 	Loc     *codegen.Location
 	Desc    string
 	Example any
+	Value   *ValueData
 }
 
 func (d *ServicesData) buildStreamingResultData(data *MethodData, m *expr.MethodExpr, rname, resultRef string, scope *codegen.NameScope) streamAttributeData {
-	sresult := streamAttributeData{Name: rname, Ref: resultRef}
+	sresult := streamAttributeData{Name: rname, Ref: resultRef, Value: data.ResultValue}
 	if !m.HasMixedResults() || m.StreamingResult == nil || m.StreamingResult.Type == expr.Empty {
 		return sresult
 	}
 	examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "streaming-result")
-	sresult = buildStreamAttributeData(m.StreamingResult, m, scope, examples)
+	sresult = buildStreamAttributeData(m.StreamingResult, m, scope, d.methodValue(m, "streaming-result", m.StreamingResult, examples))
 	data.StreamingResult = sresult.Name
 	data.StreamingResultRef = sresult.Ref
 	data.StreamingResultDef = sresult.Def
 	data.StreamingResultLoc = sresult.Loc
 	data.StreamingResultDesc = sresult.Desc
 	data.StreamingResultEx = sresult.Example
+	data.StreamingResultValue = sresult.Value
 	return sresult
 }
 
@@ -260,14 +274,15 @@ func (d *ServicesData) buildStreamingPayloadData(m *expr.MethodExpr, scope *code
 		return streamAttributeData{}
 	}
 	examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "streaming-payload")
-	return buildStreamAttributeData(m.StreamingPayload, m, scope, examples)
+	return buildStreamAttributeData(m.StreamingPayload, m, scope, d.methodValue(m, "streaming-payload", m.StreamingPayload, examples))
 }
 
-func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope *codegen.NameScope, examples *expr.ExampleGenerator) streamAttributeData {
+func buildStreamAttributeData(att *expr.AttributeExpr, m *expr.MethodExpr, scope *codegen.NameScope, value *ValueData) streamAttributeData {
 	data := streamAttributeData{
 		Name:    scope.WithoutPackageNames().GoValueTypeName(att),
 		Desc:    att.Description,
-		Example: att.Example(examples),
+		Example: valueDataExample(value),
+		Value:   value,
 	}
 	if dt, ok := att.Type.(expr.UserType); ok {
 		// A named union is declared as the union type itself, see

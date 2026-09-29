@@ -9,16 +9,16 @@ abbrev KeyCodec := NumericCodec
 
 def encodeKey (codec : KeyCodec) : Scalar → Option String
   | .boolean value => some (if value then "true" else "false")
-  | .integer value => some (toString value)
-  | .decimal coefficient exponent => some (codec.encodeDecimal coefficient exponent)
+  | .integer value _ => some (toString value)
+  | .decimal coefficient exponent format negativeZero _ => some (codec.encodeDecimal coefficient exponent format negativeZero)
   | .string value => some value
   | .bytes _ => none
 
 inductive KeySpelling (codec : KeyCodec) : Scalar → String → Prop where
   | boolean : KeySpelling codec (.boolean value) (if value then "true" else "false")
-  | integer : KeySpelling codec (.integer value) (toString value)
-  | decimal : KeySpelling codec (.decimal coefficient exponent)
-      (codec.encodeDecimal coefficient exponent)
+  | integer : KeySpelling codec (.integer value origin) (toString value)
+  | decimal : KeySpelling codec (.decimal coefficient exponent format negativeZero origin)
+      (codec.encodeDecimal coefficient exponent format negativeZero)
   | string : KeySpelling codec (.string value) value
 
 theorem keySpelling_sound {codec key name} (encoded : encodeKey codec key = some name) :
@@ -28,6 +28,38 @@ theorem keySpelling_sound {codec key name} (encoded : encodeKey codec key = some
 theorem keySpelling_progress {codec key name} (spelled : KeySpelling codec key name) :
     encodeKey codec key = some name := by
   cases spelled <;> rfl
+
+theorem keySpelling_iff (codec : KeyCodec) (key : Scalar) (name : String) :
+    encodeKey codec key = some name ↔ KeySpelling codec key name :=
+  ⟨keySpelling_sound, keySpelling_progress⟩
+
+/-- Declared-map identity follows the canonical member name. Numeric enum
+equality and raw host equality are different contracts. Invalid keys never
+compare equal merely because both encoders reject them. -/
+def SameKey (keys : KeyCodec) (left right : Scalar) : Prop :=
+  ∃ name, KeySpelling keys left name ∧ KeySpelling keys right name
+
+def keyEqual (keys : KeyCodec) (left right : Scalar) : Bool :=
+  match encodeKey keys left, encodeKey keys right with
+  | some left, some right => left == right
+  | _, _ => false
+
+theorem keyEqual_iff (keys : KeyCodec) (left right : Scalar) :
+    keyEqual keys left right = true ↔ SameKey keys left right := by
+  constructor
+  · intro equal
+    cases l : encodeKey keys left <;> cases r : encodeKey keys right <;>
+      simp only [keyEqual, l, r, Bool.false_eq_true, beq_iff_eq] at equal
+    case some.some lname rname =>
+      subst rname
+      exact ⟨lname, keySpelling_sound l, keySpelling_sound r⟩
+  · rintro ⟨name, leftName, rightName⟩
+    simp [keyEqual, keySpelling_progress leftName, keySpelling_progress rightName]
+
+/-- Key admissibility is stated through spelling evidence for the entire list,
+not successful execution of a map encoder. -/
+def AdmissibleKeys (keys : KeyCodec) (values : List Scalar) : Prop :=
+  ∃ names, names.Nodup ∧ All₂ (KeySpelling keys) values names
 
 /-- All spellings are obtained in an entry list BEFORE checking uniqueness.
 No insertion or right-biased map conversion is permitted to hide a collision. -/

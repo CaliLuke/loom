@@ -77,12 +77,12 @@ func TestNullableNamedMethodRootsKeepDeclarationNamesUnwrapped(t *testing.T) {
 	attribute := &expr.AttributeExpr{Type: named, Nullable: true, Description: "Patch stream value."}
 	scope := codegen.NewNameScope()
 
-	projection := buildMethodAttributeProjection(attribute, "payload", "Updates", "Apply", expr.NewRandom("presence"), scope)
+	projection := buildMethodAttributeProjection(attribute, "payload", "Updates", "Apply", newValueData(expr.NewValueContext(), attribute, expr.NewRandom("presence")), scope)
 	require.Equal(t, "Patch", projection.Name)
 	require.Equal(t, "loom.Nullable[Patch]", projection.Reference)
 	require.Contains(t, projection.Definition, "struct {")
 
-	stream := buildStreamAttributeData(attribute, &expr.MethodExpr{Name: "Apply"}, scope, expr.NewRandom("presence"))
+	stream := buildStreamAttributeData(attribute, &expr.MethodExpr{Name: "Apply"}, scope, newValueData(expr.NewValueContext(), attribute, expr.NewRandom("presence")))
 	require.Equal(t, "Patch", stream.Name)
 	require.Equal(t, "loom.Nullable[Patch]", stream.Ref)
 	require.Contains(t, stream.Def, "struct {")

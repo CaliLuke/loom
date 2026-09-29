@@ -25,6 +25,8 @@ type (
 		// renamed caches the services data returned by WithPackageNames by
 		// their package names.
 		renamed map[string]*ServicesData
+		// values is shared by all package-name analyses of this generation.
+		values *serviceValueStore
 	}
 
 	// Data contains the data used to render the code related to a single
@@ -130,6 +132,8 @@ type (
 		PayloadDesc string
 		// PayloadEx is an example of a valid payload value.
 		PayloadEx any
+		// PayloadValue retains the effective payload occurrence and example provenance.
+		PayloadValue *ValueData
 		// PayloadDefault is the default value of the payload if any.
 		PayloadDefault any
 	}
@@ -149,6 +153,8 @@ type (
 		ResultDesc string
 		// ResultEx is an example of a valid result value.
 		ResultEx any
+		// ResultValue retains the effective result occurrence and example provenance.
+		ResultValue *ValueData
 		// ViewedResult contains the data required to generate the code handling
 		// views if any.
 		ViewedResult *ViewedResultTypeData
@@ -158,6 +164,8 @@ type (
 	MethodSecurityData struct {
 		// Errors list the possible errors defined in the design if any.
 		Errors []*ErrorInitData
+		// ErrorValues carries method-specific error occurrences by authored name.
+		ErrorValues map[string]*ValueData
 		// ErrorLocs lists the file and Go package of the error type
 		// if overridden via Meta indexed by error name.
 		ErrorLocs map[string]*codegen.Location
@@ -229,6 +237,8 @@ type (
 		StreamingPayloadDesc string
 		// StreamingPayloadEx is an example of a valid streaming payload value.
 		StreamingPayloadEx any
+		// StreamingPayloadValue retains the effective streaming payload occurrence.
+		StreamingPayloadValue *ValueData
 		// StreamingResult is the name of the streaming result type if any (when different from Result).
 		StreamingResult string
 		// StreamingResultDef is the streaming result type definition if any.
@@ -243,6 +253,8 @@ type (
 		StreamingResultDesc string
 		// StreamingResultEx is an example of a valid streaming result value.
 		StreamingResultEx any
+		// StreamingResultValue retains the effective streaming result occurrence.
+		StreamingResultValue *ValueData
 		// ServerStream indicates that the service method receives a payload
 		// stream or sends a result stream or both.
 		ServerStream *StreamData

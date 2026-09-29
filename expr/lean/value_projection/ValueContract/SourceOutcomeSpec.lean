@@ -4,6 +4,8 @@ import ValueContract.SourceUnionSpec
 
 namespace ValueContract.Candidate
 
+variable {keys : KeyCodec}
+
 /-- Independent error reduction validates all entries. A failure must occur in
 the original list and have no lower-priority competitor; success preserves the
 whole ordered value list. No executable reduction appears in this judgment. -/
@@ -45,12 +47,12 @@ def SequencedOutcome (first : Except Failure α → Prop)
 
 /-- An enum constrains a successfully interpreted whole node. Body failures
 propagate before enum comparison; no branch may bypass the whole-node gate. -/
-def NodeEnumOutcome (enumeration : Option (List Value)) (body : ResolveResult)
+def NodeEnumOutcome (keys : KeyCodec) (enumeration : Option (List Value)) (body : ResolveResult)
     (result : ResolveResult) : Prop :=
   match body with
   | .error failure => result = .error failure
-  | .ok value => (EnumAllows enumeration value.value ∧ result = .ok value) ∨
-      (¬ EnumAllows enumeration value.value ∧ result = .error .invalid)
+  | .ok value => (EnumAllows keys enumeration value.value ∧ result = .ok value) ∨
+      (¬ EnumAllows keys enumeration value.value ∧ result = .error .invalid)
 
 /-- Source preference follows same-input declaration wrappers and tests known
 object names. Non-object declarations are preferred for object-shaped input,

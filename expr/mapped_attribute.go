@@ -124,7 +124,14 @@ func (ma *MappedAttributeExpr) Remap() {
 	}
 
 	// Conserve examples defined on user type
-	ma.UserExamples = ma.ExtractUserExamples()
+	examples := ma.ExtractUserExamples()
+	ma.UserExamples = nil
+	if examples != nil {
+		ma.UserExamples = make([]*ExampleExpr, len(examples))
+	}
+	for i, example := range examples {
+		ma.UserExamples[i] = copyValueExample(example)
+	}
 
 	ma.Type = n
 }

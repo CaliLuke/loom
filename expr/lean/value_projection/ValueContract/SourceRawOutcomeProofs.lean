@@ -92,6 +92,8 @@ theorem resolveRawAt_outcome_iff (keys : KeyCodec) (depth : Nat) (input : Input)
     all_goals first
       | (simp only [eq_comm]; done)
       | skip
+    case byteSequence sequence =>
+      simp only [← nativeByteValue_iff, exists_eq_left, eq_comm]
     case host identity payload =>
       simpa only [children] using mapChildOutcome_iff (Value.host identity)
         (resolveRawAt keys depth payload) result
@@ -108,11 +110,6 @@ theorem resolveRawAt_outcome_iff (keys : KeyCodec) (depth : Nat) (input : Input)
     case map entries =>
       rw [nameKeys_guard]
       simp only [children, mapChildOutcome_graph, childrenOutcome_graph]
-      by_cases unique : entries.Pairwise (fun left right => scalarEqual left.1 right.1 = false)
-      · simp [unique, GuardedOutcome, Bind.bind, Except.bind]
-      · simp only [unique, decide_false, Bool.not_false, ↓reduceIte, GuardedOutcome,
-          false_and, not_false_eq_true, true_and, false_or, Bind.bind, Except.bind]
-        simp only [exceptThrow, eq_comm]
 
 /-- The independently stated outcome is total and unique, including rejection. -/
 theorem rawOutcomeAt_total_unique (keys : KeyCodec) (depth : Nat) (input : Input) :
@@ -167,9 +164,9 @@ theorem resolveRawAt_stable {keys : KeyCodec} {first second : Nat} {input : Inpu
       case map entries =>
         have children : entries.map (fun entry => do
             let value ← resolveRawAt keys first entry.2
-            pure (entry.1, value)) = entries.map (fun entry => do
+            pure (entry.1.value, value)) = entries.map (fun entry => do
             let value ← resolveRawAt keys second entry.2
-            pure (entry.1, value)) := by
+            pure (entry.1.value, value)) := by
           apply List.map_congr_left
           intro entry member
           have smaller := map_inputDepth_lt member

@@ -1,8 +1,30 @@
 package transportir
 
-import "github.com/CaliLuke/loom/expr"
+import (
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/expr"
+)
 
 type (
+	// ValueTarget retains source provenance and the actual target codec. A
+	// boundary or error is explicit; an absent plan never implies validity.
+	ValueTarget struct {
+		// Source is the shared effective service occurrence and selected result.
+		Source *service.ValueData
+		// Selection is an authored member path within Source.
+		Selection []string
+		// Codec is selected by actual transport behavior, never media labels.
+		Codec expr.ValueCodec
+		// Plan is populated only after actual emitter policies are available.
+		Plan expr.ValuePlan
+		// Error retains a plan construction failure for consuming analysis.
+		Error error
+		// Boundary records an external codec whose guarantees are not built-in JSON.
+		Boundary string
+		// Documentary excludes runtime decoding claims for a documentation-only target.
+		Documentary bool
+	}
+
 	Service struct {
 		Name            string
 		Meta            expr.MetaExpr
@@ -33,7 +55,13 @@ type (
 
 	Request struct {
 		Payload *expr.AttributeExpr
-		Body    *expr.AttributeExpr
+		// BodyValue shares service source authority for the request body.
+		BodyValue *ValueTarget
+		// DocumentValue has documentation-only source authority when explicitly authored.
+		DocumentValue *ValueTarget
+		// StreamingValue shares the service streaming-payload occurrence.
+		StreamingValue *ValueTarget
+		Body           *expr.AttributeExpr
 		// DocumentBody is the documentation-only request body schema.
 		DocumentBody *expr.AttributeExpr
 		// DocumentContentTypes are the documentation-only request media types.
@@ -78,24 +106,30 @@ type (
 	}
 
 	ResponseStatus struct {
-		Error        *Error
-		StatusCode   int
-		Description  string
-		ContentType  string
-		ContentTypes []string
-		Headers      []*Header
-		Cookies      []*Cookie
-		Body         *expr.AttributeExpr
-		DocumentBody *expr.AttributeExpr
-		BodyOrigin   string
-		TagName      string
-		TagValue     string
-		IsError      bool
-		EmitExamples bool
-		IsWebSocket  bool
-		BinaryBody   bool
-		Meta         expr.MetaExpr
-		Links        []*ResponseLink
+		// BodyValue carries the effective result or error occurrence.
+		BodyValue *ValueTarget
+		// DocumentValue carries the documentation body authority.
+		DocumentValue *ValueTarget
+		// IndependentDocumentBody marks an authored OpenAPIBody contract.
+		IndependentDocumentBody bool
+		Error                   *Error
+		StatusCode              int
+		Description             string
+		ContentType             string
+		ContentTypes            []string
+		Headers                 []*Header
+		Cookies                 []*Cookie
+		Body                    *expr.AttributeExpr
+		DocumentBody            *expr.AttributeExpr
+		BodyOrigin              string
+		TagName                 string
+		TagValue                string
+		IsError                 bool
+		EmitExamples            bool
+		IsWebSocket             bool
+		BinaryBody              bool
+		Meta                    expr.MetaExpr
+		Links                   []*ResponseLink
 	}
 
 	Route struct {
@@ -107,6 +141,9 @@ type (
 	}
 
 	Stream struct {
+		// RequestValue and ResponseValue carry stream message source authority.
+		RequestValue     *ValueTarget
+		ResponseValue    *ValueTarget
 		Kind             expr.StreamKind
 		Direction        string
 		IsStreaming      bool
@@ -141,6 +178,8 @@ type (
 	}
 
 	Parameter struct {
+		// Value shares the selected service member and its actual text codec.
+		Value            *ValueTarget
 		Name             string
 		HTTPName         string
 		In               string
@@ -179,6 +218,8 @@ type (
 	}
 
 	Header struct {
+		// Value shares the selected service member and its actual text codec.
+		Value            *ValueTarget
 		Name             string
 		HTTPName         string
 		Attribute        *expr.AttributeExpr
@@ -187,6 +228,8 @@ type (
 	}
 
 	Cookie struct {
+		// Value shares the selected service member and its actual text codec.
+		Value            *ValueTarget
 		Name             string
 		HTTPName         string
 		Attribute        *expr.AttributeExpr

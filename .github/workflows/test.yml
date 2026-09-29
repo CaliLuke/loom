@@ -72,6 +72,25 @@ jobs:
       - name: OpenAPI contract smoke
         run: make openapi-contract
 
+  value-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Install Lean toolchain manager
+        run: sudo apt-get update && sudo apt-get install --yes elan
+      - name: Install pinned Lean and bundled checker
+        run: elan toolchain install "$(cat expr/lean/value_projection/lean-toolchain)"
+      - name: Make Lean tools available
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Audited proof and executed Go conformance
+        run: make value-contract-conformance
+
   generated-code-quality:
     runs-on: ubuntu-latest
 

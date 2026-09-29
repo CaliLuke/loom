@@ -4,10 +4,10 @@ namespace ValueContract.Candidate.ResolutionControls
 
 def keys : KeyCodec where
   encodeInteger value := toString value
-  encodeDecimal _ _ := "0"
+  encodeDecimal _ _ _ _ := "0"
   schemaNumber _ := none
-  decodeInteger _ := none
-  decodeDecimal _ := none
+  decodeInteger _ _ := none
+  decodeDecimal _ _ := none
 
 def checks : ExternalScalarChecks := fun _ _ => true
 

@@ -1,0 +1,966 @@
+{
+  "baseline": "cd6d2fb03afa2381d42819a9bd50e364b419b3c6",
+  "probes": [
+    {
+      "id": "bytes-text",
+      "design": "bytes-text.go.txt",
+      "coverage": [
+        "authored bytes",
+        "text",
+        "JSON CLI decoder"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/565"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/565"
+      },
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"aGk=\"}"
+    },
+    {
+      "id": "bytes-binary",
+      "design": "bytes-binary.go.txt",
+      "coverage": [
+        "authored bytes",
+        "binary",
+        "JSON CLI decoder"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"AP8=\"}"
+    },
+    {
+      "id": "bytes-empty",
+      "design": "bytes-empty.go.txt",
+      "coverage": [
+        "authored bytes",
+        "empty",
+        "JSON CLI decoder"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"\"}"
+    },
+    {
+      "id": "nested-union",
+      "design": "nested-union.go.txt",
+      "coverage": [
+        "nested unions",
+        "distinct branch names with identical scalar payloads"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/566"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/566"
+      },
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": ""
+    },
+    {
+      "id": "grpc-type-union",
+      "design": "grpc-type-union.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "type-union"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-type-plain",
+      "design": "grpc-type-plain.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "type-plain"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-payload-union",
+      "design": "grpc-payload-union.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "payload-union"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-payload-plain",
+      "design": "grpc-payload-plain.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "payload-plain"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "map-collision",
+      "design": "map-collision.go.txt",
+      "coverage": [
+        "mixed map keys",
+        "collision diagnostic"
+      ],
+      "baseline": {
+        "phase": "gen",
+        "contains": "duplicate object member name \"1\"",
+        "issue": "https://github.com/CaliLuke/loom/issues/456"
+      },
+      "candidate": {
+        "phase": "gen",
+        "contains": "duplicate object member name \"1\"",
+        "issue": "https://github.com/CaliLuke/loom/issues/456"
+      }
+    },
+    {
+      "id": "grpc-integer-limits",
+      "design": "grpc-integer-limits.go.txt",
+      "coverage": [
+        "protobuf numeric limits",
+        "int32",
+        "int64"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": ""
+    },
+    {
+      "id": "presence",
+      "design": "presence.go.txt",
+      "coverage": [
+        "absent",
+        "explicit null",
+        "empty collections",
+        "typed nil collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "effective-occurrence",
+      "design": "effective-occurrence.go.txt",
+      "coverage": [
+        "method-local requiredness",
+        "HTTP selected Body",
+        "transport-local example override"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "custom-codec",
+      "design": "custom-codec.go.txt",
+      "coverage": [
+        "opaque Any",
+        "pure custom JSON codec"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "suppression",
+      "design": "suppression.go.txt",
+      "coverage": [
+        "example suppression",
+        "authored exception",
+        "target exclusion"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "mapped-names",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "MappedNamesDSL",
+      "coverage": [
+        "mapped fields",
+        "untagged bytes/string enums"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "type-identity",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "TypeIdentityDSL",
+      "coverage": [
+        "designed errors",
+        "streaming payload/result",
+        "nested identical shapes"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "CollectionBodyDefaultsDSL",
+      "coverage": [
+        "HTTP collection defaults",
+        "selected Body",
+        "boolean map keys"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "JSONRPCCollectionBodyDefaultsDSL",
+      "coverage": [
+        "JSON-RPC collection defaults",
+        "selected Body"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "documentation-bodies",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "RawRequestBodyOpenAPIDSL",
+      "coverage": [
+        "documentation-only bodies",
+        "media codecs"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "views",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "ResultBodyMultipleViewsDSL",
+      "coverage": [
+        "views",
+        "result projection"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "protojson",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "CLIProtoJSONDSL",
+      "coverage": [
+        "protobuf field mapping",
+        "nested oneofs",
+        "collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "recursive",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "RecursiveMapMessageDSL",
+      "coverage": [
+        "finite recursive declarations",
+        "map wrappers"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-ticktock",
+      "fixture": "http/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "http",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-ticktock",
+      "fixture": "jsonrpc/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "jsonrpc",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-boolean-map-union",
+      "function": "BooleanMapUnionDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-collection-enum",
+      "function": "CollectionEnumDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-payload-form-body-object",
+      "function": "PayloadFormBodyObjectDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-payload-form-body-union",
+      "function": "PayloadFormBodyUnionDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-payload-multipart-user-type",
+      "function": "PayloadMultipartUserTypeDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-with-headers-block-viewed-result",
+      "function": "WithHeadersBlockViewedResultDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-explicit-body-user-result-multiple-views",
+      "function": "ExplicitBodyUserResultMultipleViewsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-explicit-body-primitive-result-multiple-views",
+      "function": "ExplicitBodyPrimitiveResultMultipleViewsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-streaming-payload",
+      "function": "StreamingPayloadDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-mixed-results",
+      "function": "MixedResultsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-default-error-response",
+      "function": "DefaultErrorResponseDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-error-examples",
+      "function": "ErrorExamplesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-streaming-aliased-array",
+      "function": "StreamingAliasedArrayDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-open-a-p-i-closed-objects",
+      "function": "OpenAPIClosedObjectsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-streaming-partial-examples",
+      "function": "StreamingPartialExamplesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-h-t-t-p-any-defaults",
+      "function": "HTTPAnyDefaultsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-j-s-o-n-r-p-c-any-defaults",
+      "function": "JSONRPCAnyDefaultsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-s-s-e-variant-projection",
+      "function": "SSEVariantProjectionDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "codegen-user-type-package-transports",
+      "function": "UserTypePackageTransportsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/testdata"
+    },
+    {
+      "id": "codegen-projection-parity-nested-views",
+      "function": "ProjectionParityNestedViewsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-view-requiredness-overrides",
+      "function": "ViewRequirednessOverridesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-result-with-recursive-result-type",
+      "function": "ResultWithRecursiveResultTypeDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-result-with-recursive-collection-of-result-type",
+      "function": "ResultWithRecursiveCollectionOfResultTypeDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-pkg-path-recursive",
+      "function": "PkgPathRecursiveDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-union-with-alias-cross-pkg",
+      "function": "UnionWithAliasCrossPkgDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-streaming-payload-result-with-views-method",
+      "function": "StreamingPayloadResultWithViewsMethodDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "grpc-map-alias",
+      "function": "MapAliasDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-array-alias",
+      "function": "ArrayAliasDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-recursive-array-message",
+      "function": "RecursiveArrayMessageDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-named-union-field-reuse",
+      "function": "NamedUnionFieldReuseDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-message-result-type-with-views",
+      "function": "MessageResultTypeWithViewsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-mapped-names",
+      "function": "MappedNamesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "jsonrpc-viewed-stream-result",
+      "function": "ViewedStreamResultDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
+    },
+    {
+      "id": "jsonrpc-viewed-stream-response-i-d",
+      "function": "ViewedStreamResponseIDDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
+    },
+    {
+      "id": "jsonrpc-j-s-o-n-r-p-c-s-s-e-result-types",
+      "function": "JSONRPCSSEResultTypesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
+    },
+    {
+      "id": "occurrence-view",
+      "design": "occurrence-view.go.txt",
+      "coverage": [
+        "new effective occurrence probe",
+        "view"
+      ],
+      "baseline": {
+        "phase": "gen",
+        "contains": "cannot transform nullable field value to a non-nullable representation",
+        "issue": "https://github.com/CaliLuke/loom/issues/570"
+      },
+      "candidate": {}
+    },
+    {
+      "id": "occurrence-body",
+      "design": "occurrence-body.go.txt",
+      "coverage": [
+        "new effective occurrence probe",
+        "body"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "occurrence-child-views",
+      "design": "occurrence-child-views.go.txt",
+      "coverage": [
+        "new effective occurrence probe",
+        "child-views"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-meal-planner",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "MealPlannerDSL",
+      "coverage": [
+        "collection view original-name ownership",
+        "OpenAPI projected collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "grpc-mapped-metadata",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "MappedMetadataDSL",
+      "coverage": [
+        "distinct authored identities sharing JSON aliases",
+        "gRPC message/header/trailer partitions"
+      ],
+      "baseline": {},
+      "candidate": {}
+    }
+  ],
+  "intended_differences": [
+    {
+      "probe": "jsonrpc-viewed-stream-result",
+      "path": "gen/loom.json",
+      "before": "f4148fcac482f67f936d506cabfc75b1a2ed179588ce3f1a69668f343797cfbc",
+      "after": "642d35f27342ed153cdf371a7858801d3de5b541ad6270ffeb919c4c9bd75cb8",
+      "reason": "Projected occurrence copies preserve nil Bases instead of manufacturing empty slices; only design_digest changes. Full evaluated graph differences are exclusively these empty Bases representations; normalizing only empty Bases yields equal fingerprints."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "cmd/svc-cli/http.go",
+      "after": "298263521d6e7a6da4941ea062ca54e153f1ebe0e2f303222fce457ddd8975b3",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "cmd/svc-cli/main.go",
+      "after": "9f339546edb242fb25e84cf319108017d41a20a3943665398b3ee5a35a0e4ab6",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "cmd/svc/http.go",
+      "after": "175dd2ffbb6668b595f919b088f7affc970f9a32a08dae8566473f5405bd13cb",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "cmd/svc/main.go",
+      "after": "d7519ca90afa8f94e0e9ad7ffe7544a1f6d0ac97d146a9a9a9fb3faf620f94a2",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/cli/svc/cli.go",
+      "after": "5622957b5e954d8cd1514437a45734ebccf496116e3a54ad91d95ae05bbe1494",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/openapi.json",
+      "after": "caf8b0ed2c23e3498249b878427dbe0e19eb1663a96c01eb188ef2f0c38d739e",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/openapi.yaml",
+      "after": "84cea40fbad8409990486dda804b33a3c0983af71174464476b6d6bfd1cadaca",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/client/cli.go",
+      "after": "38d554fecd89c0215a51bc68be097c357d21f83b6edc6482c0b2718a6321e5ff",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/client/client.go",
+      "after": "7df72fb2d1f01a6358e57fca78e346c55757cd8c21cc0ac4205c8534c8534857",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/client/encode_decode.go",
+      "after": "42ca76faa1294d5068e0bc7a804a251c96552b9400ce4972eec4b51d3c37f3cb",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/client/paths.go",
+      "after": "d3ce8e299431468e2ff3e5a69443ec4de0c1d3a048d3323cf6d0a5d01f2f224e",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/client/types.go",
+      "after": "58fc479a18d071439dd9df9a494555094a72783a04f53559f3243647a480ed00",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/server/encode_decode.go",
+      "after": "df94a9d9d7f7c28c909ef51b21cb16b519aee6a8af833ce5d7ba998f2fddc6b7",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/server/paths.go",
+      "after": "437688ade6f906ecc59283eb573ab5cd948ad53225ece8ebf5fad7fb17ed0fc6",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/server/server.go",
+      "after": "f5d0c447e8fa577192a9623817884dd31143a53ed1c478a918b778ed8fc6403c",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/svc/server/types.go",
+      "after": "4cb3c64d7d49567fd401cc1ae47693983cf7efabc952825f3b2d5d4e9e5b9de2",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/loom.json",
+      "after": "da379e321bd07bcd3d180627a02fde917e36d3ad1ed83d5e5d999f63c4949fde",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/svc/client.go",
+      "after": "7606923805fa7aa75a2318a905d7aca6183955c0066c25e9015d90e7599f0c06",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/svc/endpoints.go",
+      "after": "7830a3c94c6d9e349496a376e0105353ecd82dccf160d10144c338cb1a4b96a5",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/svc/service.go",
+      "after": "d60c8e0452e286367efe54111cbf50e68fc51710fce4bd80c4292024d675ea1a",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/svc/views/view.go",
+      "after": "d7062ca8613f277fa7d1a4ac94bfc90e5c12a370d6efff6405c94e56a0bae03a",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "svc.go",
+      "after": "04e47cbe4a47c6d991a7d3e916e9555c6f10fdac42bdfe121cb38bf482bc60f7",
+      "reason": "Independent nullable/non-null occurrences of one named Bytes declaration now generate instead of panicking during response transformation. Newly emitted module builds and vets successfully."
+    },
+    {
+      "probe": "occurrence-body",
+      "path": "gen/loom.json",
+      "before": "646247d9599c7775b06d4e0c19d24bd887a5530fb69f133eb35e67510edeefa6",
+      "after": "c3c2ea2800dcef080dc44c32d8de4c31d3667e14e1b96e5023d7aab19b062cea",
+      "reason": "HTTP body filtering owns its mutable example copy; authored service/type trace data remains intact. Only design_digest changes; deleting only the preserved trace in diagnostic source reproduces the parent digest."
+    },
+    {
+      "probe": "occurrence-child-views",
+      "path": "gen/http/svc/client/encode_decode.go",
+      "before": "a839e5675d4caacfbbe0f6c416a8d385875637ec12f1e2942e99d750fefd93b1",
+      "after": "26757a9d42c678cace663ad0f6bab711292b01dcf4b67ae0e2487d2be82330ea",
+      "reason": "Effective nested view resolves before declaration reuse: Small selects the Tiny body declaration and conversion, omitting Detail; Full retains the default declaration and Detail."
+    },
+    {
+      "probe": "occurrence-child-views",
+      "path": "gen/http/svc/client/types.go",
+      "before": "f7ae453b0cf7b636ef87c909e758543fe26ef52eac2611c70573a02161bbc017",
+      "after": "813aede2e38d065aef751aaaf644ef892e4a068b9f33163e11328f5ec20beff6",
+      "reason": "Effective nested view resolves before declaration reuse: Small selects the Tiny body declaration and conversion, omitting Detail; Full retains the default declaration and Detail."
+    },
+    {
+      "probe": "occurrence-child-views",
+      "path": "gen/http/svc/server/encode_decode.go",
+      "before": "6a92b00caf9dfeaf8f51ac9e2c90f1f5d147f823210cd4c70672ea7be3be3db7",
+      "after": "b0b71d918388966f01e993897d245dd714846e64e109c42c3869adf0aaf25dc4",
+      "reason": "Effective nested view resolves before declaration reuse: Small selects the Tiny body declaration and conversion, omitting Detail; Full retains the default declaration and Detail."
+    },
+    {
+      "probe": "occurrence-child-views",
+      "path": "gen/http/svc/server/types.go",
+      "before": "bb222bd021701dd3b6e915fd7581b16e18d3974772609dd6a4765a4f4c6fba0f",
+      "after": "24944a4e293ec73f988a67a7421750522d92fcf5a7dcbe7573644d2f5aa8b8e8",
+      "reason": "Effective nested view resolves before declaration reuse: Small selects the Tiny body declaration and conversion, omitting Detail; Full retains the default declaration and Detail."
+    }
+  ]
+}

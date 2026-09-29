@@ -11,7 +11,7 @@ def RuntimeObligation (use : TargetUse) (codecs : ScalarCodecs)
   match use with
   | .documentation => True
   | .runtime => ∃ decoded, RuntimeDecodes codecs checks targets identity wire decoded ∧
-      StrictEquivalent observed decoded
+      StrictEquivalent codecs.numbers observed decoded
 
 /-- Representability describes canonical wire existence using independent
 observation, canonical representation, schema and runtime judgments. It neither

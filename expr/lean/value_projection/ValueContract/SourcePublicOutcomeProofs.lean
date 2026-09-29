@@ -5,6 +5,8 @@ import ValueContract.SourceMissingProofs
 
 namespace ValueContract.Candidate
 
+variable {keys : KeyCodec}
+
 /-- Any adequately budgeted source worker computes exactly the unbounded
 semantic outcome. The only premises concern the finite declaration graph and
 structural budgets; there is no candidate-success or target assumption. -/
@@ -79,7 +81,7 @@ theorem sourceOutcome_typed {declarations : Declarations} {checks : ExternalScal
     {keys : KeyCodec} {complete : Bool} {identity : Identity} {input : Input}
     {result : Resolution} (wellFormed : WellFormedDeclarations declarations)
     (specified : SourceOutcome declarations checks keys complete identity input (.ok result)) :
-    Typed declarations checks complete identity result.value := by
+    Typed keys declarations checks complete identity result.value := by
   obtain ⟨_, _, _, depth, rank, _, _, indexed⟩ := specified
   exact resolveAt_typed wellFormed ((resolveAt_outcome_iff wellFormed checks keys depth rank
     complete identity input (.ok result)).mpr indexed)

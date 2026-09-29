@@ -10,11 +10,11 @@ Go JSON-v2 regression independently marshals int(1) and float64(1) to `1` and
 decodes that same text into both destinations. -/
 def numbers : NumericCodec where
   encodeInteger value := if value = 1 then "1" else "outside-specimen"
-  encodeDecimal coefficient exponent :=
+  encodeDecimal coefficient exponent _ _ :=
     if coefficient = 1 ∧ exponent = 0 then "1" else "outside-specimen"
   schemaNumber text := if text = "1" ∨ text = "1.0" ∨ text = "1e0" then some ⟨1, 0⟩ else none
-  decodeInteger text := if text = "1" then some 1 else none
-  decodeDecimal text := if text = "1" ∨ text = "1.0" ∨ text = "1e0" then some ⟨1, 0⟩ else none
+  decodeInteger _ text := if text = "1" then some 1 else none
+  decodeDecimal _ text := if text = "1" ∨ text = "1.0" ∨ text = "1e0" then some ⟨⟨1, 0⟩, false⟩ else none
 
 def codecs : ScalarCodecs := ⟨Legacy.boundaryCodec, numbers⟩
 
@@ -30,21 +30,21 @@ theorem numericSharedSchema :
     scalarSchema codecs noExternal .json .decimal {} (.number "1") = true := by decide
 
 theorem numericSharedDecoder :
-    ScalarDecodes codecs .json .integer (.number "1") (.integer 1) ∧
-    ScalarDecodes codecs .json .decimal (.number "1") (.decimal 1 0) := by
-  exact ⟨.jsonInteger rfl, .jsonDecimal (value := ⟨1, 0⟩) rfl⟩
+    ScalarDecodes codecs .exact .mathematical .json .integer (.number "1") (.integer 1) ∧
+    ScalarDecodes codecs .exact .mathematical .json .decimal (.number "1") (.decimal 1 0) := by
+  exact ⟨.jsonInteger rfl, .jsonDecimal (value := ⟨⟨1, 0⟩, false⟩) rfl⟩
 
 theorem numericLexicalAliasDiffers :
     scalarSchema codecs noExternal .json .integer {} (.number "1.0") = true ∧
-    decodeScalar codecs .json .integer (.number "1.0") = none ∧
-    ScalarDecodes codecs .json .decimal (.number "1.0") (.decimal 1 0) := by
-  exact ⟨by decide, rfl, .jsonDecimal (value := ⟨1, 0⟩) rfl⟩
+    decodeScalar codecs .json .integer .exact .mathematical (.number "1.0") = none ∧
+    ScalarDecodes codecs .exact .mathematical .json .decimal (.number "1.0") (.decimal 1 0) := by
+  exact ⟨by decide, rfl, .jsonDecimal (value := ⟨⟨1, 0⟩, false⟩) rfl⟩
 
 def byteEnum : ScalarRules := { enumeration := some [.bytes [104, 105]] }
 
 theorem aliasSchemaRuntimeDisagree :
     scalarSchema codecs noExternal .json .bytes byteEnum (.text "aGl=") = false ∧
-    ScalarDecodes codecs .json .bytes (.text "aGl=") (.bytes [104, 105]) ∧
+    ScalarDecodes codecs .exact .mathematical .json .bytes (.text "aGl=") (.bytes [104, 105]) ∧
     scalarAllowed noExternal byteEnum (.bytes [104, 105]) = true := by
   exact ⟨by decide, .jsonBytes rfl, by decide⟩
 

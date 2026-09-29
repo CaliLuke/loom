@@ -4,6 +4,8 @@ import ValueContract.SourceUnionProofs
 
 namespace ValueContract.Candidate
 
+variable {keys : KeyCodec}
+
 theorem failurePriority_injective {left right : Failure}
     (same : failurePriority left = failurePriority right) : left = right := by
   cases left <;> cases right <;> simp_all [failurePriority]
@@ -99,16 +101,16 @@ theorem childrenOutcome_iff (child : α → Except Failure β) (inputs : List α
 exactly the successful semantic values outside the independent enum relation. -/
 theorem nodeEnumOutcome_iff (enumeration : Option (List Value)) (body result : ResolveResult) :
     (do let resolution ← body
-        if enumValueAllowed enumeration resolution.value then pure resolution
-        else throw .invalid) = result ↔ NodeEnumOutcome enumeration body result := by
+        if enumValueAllowed keys enumeration resolution.value then pure resolution
+        else throw .invalid) = result ↔ NodeEnumOutcome keys enumeration body result := by
   cases body with
   | error failure => simp [NodeEnumOutcome, Bind.bind, Except.bind, eq_comm]
   | ok resolution =>
-    by_cases allowed : enumValueAllowed enumeration resolution.value = true
+    by_cases allowed : enumValueAllowed keys enumeration resolution.value = true
     · have permitted := (enumValueAllowed_iff _ _).mp allowed
       simp [NodeEnumOutcome, Bind.bind, Except.bind, allowed, permitted,
         Pure.pure, Except.pure, eq_comm]
-    · have forbidden : ¬ EnumAllows enumeration resolution.value :=
+    · have forbidden : ¬ EnumAllows keys enumeration resolution.value :=
         fun permitted => allowed ((enumValueAllowed_iff _ _).mpr permitted)
       simp [NodeEnumOutcome, Bind.bind, Except.bind, allowed, forbidden, eq_comm]
       rfl

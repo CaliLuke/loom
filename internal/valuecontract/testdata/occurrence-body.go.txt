@@ -1,0 +1,24 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var value = Type("OccurrenceValue", func() {
+	Attribute("body", Float32, func() { Example(float32(0.1)) })
+	Attribute("trace", String)
+	Required("body")
+	Example(map[string]any{"body": float32(0.1), "trace": "authored"})
+})
+var _ = Service("svc", func() {
+	Method("send", func() {
+		Payload(value)
+		Result(value)
+		HTTP(func() {
+			POST("/body")
+			Body("body")
+			Header("trace")
+			Response(StatusOK, func() {
+				Header("trace")
+			})
+		})
+	})
+})

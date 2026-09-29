@@ -171,7 +171,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildRequestBodyType flattens form union helper field", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
-		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData)
+		bodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData, nil)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "Values", bodyType.FlatFormUnionField)
 		require.True(t, bodyType.FlatFormUnionPointer)
@@ -184,8 +184,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 	t.Run("buildRequestBodyType only emits constructors on the client", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadFormBodyUnionDSL)
 
-		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData)
-		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, true, svcData)
+		clientBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, false, svcData, nil)
+		serverBodyType := services.buildRequestBodyType(endpointExpr.Body, endpointExpr.MethodExpr.Payload, endpointExpr.Name(), svcData.Service.PkgName, endpointExpr.FormRequest, endpointExpr.MultipartRequest, true, svcData, nil)
 		require.NotNil(t, clientBodyType)
 		require.NotNil(t, clientBodyType.Init)
 		require.NotNil(t, serverBodyType)
@@ -204,6 +204,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 			false,
 			true,
 			svcData,
+			nil,
 		)
 
 		require.NotNil(t, bodyType)
@@ -224,7 +225,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultWithResultViewDSL)
 		method := svcData.Service.Method(endpointExpr.Name())
 
-		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, stringPtr("full"), svcData)
+		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, stringPtr("full"), svcData, nil)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "full", bodyType.View)
 		require.NotNil(t, bodyType.Init)
@@ -235,8 +236,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultBodyCollectionDSL)
 		method := svcData.Service.Method(endpointExpr.Name())
 
-		serverBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, nil, svcData)
-		clientBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), false, nil, svcData)
+		serverBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, nil, svcData, nil)
+		clientBodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), false, nil, svcData, nil)
 		require.NotNil(t, serverBodyType)
 		require.NotNil(t, serverBodyType.Init)
 		require.NotNil(t, clientBodyType)
@@ -247,7 +248,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.ResultBodyCollectionDSL)
 		method := svcData.Service.Method(endpointExpr.Name())
 
-		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, nil, svcData)
+		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), true, nil, svcData, nil)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "MethodBodyCollectionResponseBody", bodyType.Name)
 		require.Equal(t, "MethodBodyCollectionResponseBody", bodyType.VarName)
@@ -259,7 +260,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, namedMapResponseBodyDSL)
 		method := svcData.Service.Method(endpointExpr.Name())
 
-		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), false, nil, svcData)
+		bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), false, nil, svcData, nil)
 		require.NotNil(t, bodyType)
 		require.Equal(t, "err = ValidateShowResponseBody(body)", bodyType.ValidateRef)
 	})

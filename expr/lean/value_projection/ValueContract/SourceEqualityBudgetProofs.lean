@@ -2,6 +2,8 @@ import ValueContract.ValueEquality
 
 namespace ValueContract.Candidate
 
+variable {keys : KeyCodec}
+
 /-- A raw comparison layer only uses its recursive relation positively. -/
 theorem rawAnyLayer_mono {first second : Value → Value → Prop}
     (lift : ∀ left right, first left right → second left right)
@@ -186,8 +188,8 @@ theorem rawAnyEquivalentAt_budget {budget : Nat} {left right : Value}
 
 /-- Extra derivation depth preserves declared enum equality. -/
 theorem enumEquivalentAt_mono {low high : Nat} {left right : Value}
-    (increase : low ≤ high) (related : enumEquivalentAt low left right) :
-    enumEquivalentAt high left right := by
+    (increase : low ≤ high) (related : enumEquivalentAt keys low left right) :
+    enumEquivalentAt keys high left right := by
   induction low generalizing high left right with
   | zero => simp [enumEquivalentAt] at related
   | succ low ih =>
@@ -223,9 +225,9 @@ theorem enumEquivalentAt_mono {low high : Nat} {left right : Value}
 
 /-- Declared enum comparison has the same complete finite-depth bound. -/
 theorem enumEquivalentAt_rebudget {depth budget : Nat} {left right : Value}
-    (related : enumEquivalentAt depth left right)
+    (related : enumEquivalentAt keys depth left right)
     (enough : valueDepth left + valueDepth right + 1 ≤ budget) :
-    enumEquivalentAt budget left right := by
+    enumEquivalentAt keys budget left right := by
   induction depth generalizing budget left right with
   | zero => simp [enumEquivalentAt] at related
   | succ depth ih =>
@@ -284,7 +286,7 @@ theorem enumEquivalentAt_rebudget {depth budget : Nat} {left right : Value}
 false therefore cannot be caused by a hidden fixed recursion cap. -/
 theorem enumEquivalentAt_budget {budget : Nat} {left right : Value}
     (enough : valueDepth left + valueDepth right + 1 ≤ budget) :
-    (∃ depth, enumEquivalentAt depth left right) ↔ enumEquivalentAt budget left right :=
+    (∃ depth, enumEquivalentAt keys depth left right) ↔ enumEquivalentAt keys budget left right :=
   ⟨fun ⟨_, related⟩ => enumEquivalentAt_rebudget related enough, fun related => ⟨_, related⟩⟩
 
 end ValueContract.Candidate

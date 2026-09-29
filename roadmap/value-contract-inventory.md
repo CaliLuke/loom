@@ -69,6 +69,33 @@ interfaces, body DTO pointer/presence wrappers, protobuf oneof wrappers, example
 service implementations and custom projector test doubles are compile-impact
 surfaces even when their public shape must stay unchanged.
 
+## #570 ownership checkpoint
+
+The inventory searches were rerun for the #570 candidate against parent
+`cd6d2fb03afa2381d42819a9bd50e364b419b3c6`. Service method payloads, results,
+errors and streaming values now enter through `codegen/service/value_data.go`:
+one `ValueContext` selects the source, resolves or synthesizes it once, and
+publishes both the retained semantic result and its legacy raw example.
+Package reanalysis reuses that same result. HTTP transport carriers preserve the
+service source and add an occurrence-specific representation plan; their legacy
+rendering consumers are still assigned to the later milestones below.
+
+`expr/value_synthesis.go` is the new inventory match. Its calls into the existing
+`AttributeExpr.Example` sampler occur inside an isolated synthesis graph; its
+union adapter retains occurrence and branch identities before resolution. The
+existing scalar/length/collection sampling helpers and recursion memo remain the
+sampling engine, not a second transport projection owner. Public raw-value and
+canonicalization APIs remain compatibility paths during the staged migration.
+
+The remaining inline-schema/enum/default matches belong to #571, OpenAPI matches
+to #572, HTTP/JSON-RPC/CLI matches to #565, and protobuf matches to #434. #573
+must rerun the inventory and retire duplicate built-in interpretation only after
+those consumers migrate. Adding carriers does not mean their old rendering
+paths have already migrated. `PayloadEx`/`StreamingPayloadEx` declarations and
+`renderPayloadExtraction` are carrier/name matches, not extra source-selection
+implementations. The formatter search retains the same location-codec and CLI
+migration owners recorded above.
+
 ## Existing proof anchors
 
 - `http/codegen/testdata/mapped_names_dsls.go`: authored bytes, mapped keys,

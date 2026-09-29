@@ -7,3 +7,7 @@ warningAsError = true
 
 [[lean_lib]]
 name = "ValueContract"
+
+[[lean_exe]]
+name = "value_contract_reference"
+root = "ValueContract.Reference"
