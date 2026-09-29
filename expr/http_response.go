@@ -402,6 +402,7 @@ func (r *HTTPResponseExpr) Finalize(a *HTTPEndpointExpr, svcAtt *AttributeExpr) 
 
 func (r *HTTPResponseExpr) finalizeBody(a *HTTPEndpointExpr, svcAtt *AttributeExpr) {
 	bodyAtt := responseBodyAttribute(r.Body, svcAtt)
+	bindValueSource(r.Body, bodyAtt)
 	if body := AsObject(r.Body.Type); body != nil {
 		r.finalizeObjectBody(a, bodyAtt, body)
 	}

@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -34,6 +35,29 @@ type (
 		ref    *ResponseRef
 		base   string
 		status string
+	}
+
+	responseComponentUse struct {
+		ref    *ResponseRef
+		base   string
+		keys   responseIdentity
+		forced bool
+	}
+
+	responseHistoricalSlot struct {
+		name     string
+		semantic string
+	}
+
+	responseNameAllocator struct {
+		counts           map[string]int
+		historical       map[string]responseHistoricalSlot
+		reserved         map[string]bool
+		historicalOwners map[string]string
+		used             map[string]string
+		bindings         map[responseIdentity]string
+		canonical        map[string]string
+		values           map[string]*Response
 	}
 
 	componentUsage[V any, R any] struct {
@@ -175,44 +199,66 @@ func componentizeRequestBodies(paths map[string]*PathItem, schemas map[string]*S
 }
 
 func componentizeResponses(paths map[string]*PathItem, schemas map[string]*Schema) map[string]*ResponseRef {
-	usages := collectResponseUsages(paths)
-	if len(usages) == 0 {
-		return nil
-	}
-
-	counts := countReusableValues(usages, func(usage responseUsage) (string, error) {
-		return responseHash(usage.ref, schemas)
-	})
-
+	uses := collectResponseComponentUses(paths, schemas)
+	allocator := newResponseNameAllocator(uses)
 	components := make(map[string]*ResponseRef)
-	namesByHash := make(map[string]string)
-	hashesByName := make(map[string]string)
-	for _, usage := range usages {
-		if usage.ref == nil || usage.ref.Value == nil || usage.ref.Ref != "" {
+	for _, use := range uses {
+		if !use.forced && allocator.counts[use.keys.semantic] < 2 {
 			continue
 		}
-		hash, err := responseHash(usage.ref, schemas)
-		if err != nil || (!shouldForceComponentizeResponse(usage.ref.Value) && counts[hash] < 2) {
-			continue
-		}
-		name, ok := namesByHash[hash]
-		if !ok {
-			base := usage.base
-			if inferred := reusableResponseComponentBase(usage.ref, usage.status, schemas); inferred != "" {
-				base = inferred
-			}
-			name = uniqueReusableComponentName(base, hash, hashesByName)
-			namesByHash[hash] = name
-			hashesByName[name] = hash
-			components[name] = &ResponseRef{Value: usage.ref.Value}
-		}
-		usage.ref.Ref = ResponseComponentRefPrefix + name
-		usage.ref.Value = nil
+		name := allocator.name(use)
+		components[name] = &ResponseRef{Value: allocator.values[name]}
+		use.ref.Ref = ResponseComponentRefPrefix + name
+		use.ref.Value = nil
 	}
 	if len(components) == 0 {
 		return nil
 	}
 	return components
+}
+
+func collectResponseComponentUses(paths map[string]*PathItem, schemas map[string]*Schema) []responseComponentUse {
+	usages := collectResponseUsages(paths)
+	uses := make([]responseComponentUse, 0, len(usages))
+	for _, usage := range usages {
+		if usage.ref == nil || usage.ref.Value == nil || usage.ref.Ref != "" {
+			continue
+		}
+		keys, err := responseKeys(usage.ref, schemas)
+		if err != nil || keys.semantic == "" || keys.allocation == "" {
+			continue
+		}
+		base := usage.base
+		if inferred := reusableResponseComponentBase(usage.ref, usage.status, schemas); inferred != "" {
+			base = inferred
+		}
+		uses = append(uses, responseComponentUse{
+			ref: usage.ref, base: base, keys: keys,
+			forced: shouldForceComponentizeResponse(usage.ref.Value),
+		})
+	}
+	return uses
+}
+
+func newResponseNameAllocator(uses []responseComponentUse) *responseNameAllocator {
+	a := &responseNameAllocator{
+		counts:           make(map[string]int),
+		historical:       make(map[string]responseHistoricalSlot),
+		reserved:         make(map[string]bool),
+		historicalOwners: make(map[string]string),
+		used:             make(map[string]string),
+		bindings:         make(map[responseIdentity]string),
+		canonical:        make(map[string]string),
+		values:           make(map[string]*Response),
+	}
+	for _, use := range uses {
+		a.counts[use.keys.semantic]++
+		if use.forced {
+			a.reserved[use.base] = true
+		}
+	}
+	a.reserveHistorical(uses)
+	return a
 }
 
 func collectInlineParameters(paths map[string]*PathItem) []*ParameterRef {
@@ -414,4 +460,82 @@ func collectResponseUsages(paths map[string]*PathItem) []responseUsage {
 		}
 	}
 	return usages
+}
+
+// reserveHistorical reproduces the complete parent pass before semantic
+// eligibility filtering. Even an old class split into ineligible singletons
+// owns a reserved public slot. Slot values retain their exact original producer.
+func (a *responseNameAllocator) reserveHistorical(uses []responseComponentUse) {
+	counts := make(map[string]int)
+	for _, use := range uses {
+		counts[use.keys.allocation]++
+	}
+	hashesByName := make(map[string]string)
+	for _, use := range uses {
+		if !use.forced && counts[use.keys.allocation] < 2 {
+			continue
+		}
+		if _, exists := a.historical[use.keys.allocation]; exists {
+			continue
+		}
+		name := uniqueReusableComponentName(use.base, use.keys.allocation, hashesByName)
+		hashesByName[name] = use.keys.allocation
+		a.historical[use.keys.allocation] = responseHistoricalSlot{
+			name: name, semantic: use.keys.semantic,
+		}
+		a.reserved[name] = true
+		if _, claimed := a.historicalOwners[name]; claimed {
+			continue
+		}
+		a.historicalOwners[name] = use.keys.semantic
+		if use.forced || a.counts[use.keys.semantic] >= 2 {
+			if a.canonical[use.keys.semantic] == "" {
+				a.canonical[use.keys.semantic] = name
+			}
+			a.values[name] = use.ref.Value
+		}
+	}
+}
+
+func (a *responseNameAllocator) name(use responseComponentUse) string {
+	if name := a.bindings[use.keys]; name != "" {
+		return name
+	}
+	slot, hadSlot := a.historical[use.keys.allocation]
+	name := ""
+	if hadSlot && slot.semantic == use.keys.semantic && a.historicalOwners[slot.name] == use.keys.semantic {
+		name = slot.name
+	} else if !hadSlot {
+		name = a.canonical[use.keys.semantic]
+	}
+	if name == "" {
+		name = a.fallback(use)
+	}
+	a.used[name] = use.keys.semantic
+	a.bindings[use.keys] = name
+	if a.canonical[use.keys.semantic] == "" {
+		a.canonical[use.keys.semantic] = name
+	}
+	if _, exists := a.values[name]; !exists {
+		a.values[name] = use.ref.Value
+	}
+	return name
+}
+
+func (a *responseNameAllocator) fallback(use responseComponentUse) string {
+	// Prefix extension and then a numeric suffix resolve occupied names without
+	// taking any historical or authored slot, including slots allocated later.
+	for width := 8; width <= len(use.keys.semantic); width += 8 {
+		name := use.base + "_" + use.keys.semantic[:width]
+		if !a.reserved[name] && a.used[name] == "" {
+			return name
+		}
+	}
+	base := use.base + "_" + use.keys.semantic
+	for suffix := 2; ; suffix++ {
+		name := fmt.Sprintf("%s_%d", base, suffix)
+		if !a.reserved[name] && a.used[name] == "" {
+			return name
+		}
+	}
 }

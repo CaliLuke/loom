@@ -109,6 +109,12 @@ Synthesized tagged-union examples retain every nested envelope, including when
 branches share the same shape. Configured discriminator/value keys and branch
 tags apply at each level; authored examples keep their existing interpretation.
 
+For built-in JSON, `Bytes` schemas describe padded base64 strings, while
+`MinLength` and `MaxLength` count decoded bytes. Generated constraints enforce
+the grammar and decoded bounds; `contentEncoding` alone is only an annotation.
+Raw/text bodies, multipart/form fields, custom codecs and explicit schema
+overrides retain their contracts. See the [HTTP guide](../../../docs/http-guide.md).
+
 OpenAPI security follows each endpoint's credential location. JWTs mapped to
 query parameters, cookies, or custom headers use API-key schemes; Authorization
 header JWTs use HTTP bearer. One scheme used at several locations gets separate

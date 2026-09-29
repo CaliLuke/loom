@@ -363,6 +363,10 @@ Payload(Employee, func() {
 - `MinLength(n)` - Minimum number of elements
 - `MaxLength(n)` - Maximum number of elements
 
+For `Bytes`, these bounds count decoded bytes. Built-in JSON represents the
+value as padded base64, and the generated schema projects the decoded bounds
+into constraints on that string. See [Bytes in JSON bodies](http-guide.md#bytes-in-json-bodies).
+
 #### Object Validations
 - `Required("field1", "field2")` - Required fields
 
@@ -633,7 +637,11 @@ When two generated request or response body shapes are equivalent, Loom emits a
 single schema component and reuses it by `$ref`. Explicit names from
 `openapi:typename` are treated as public component names: equivalent schemas may
 reuse the name, but different schemas claiming the same explicit name fail
-generation instead of receiving hash-suffixed public names.
+generation instead of receiving hash-suffixed public names. When the same
+declaration has different complete schemas for actual transport encodings,
+Loom allocates representation-specific references; an actual JSON representation
+keeps the canonical public name. This does not permit different authored shapes
+to claim one explicit name.
 A response `Body(func() { ... })` that lists attributes of the result or error
 type declares a shape of its own. It inherits the type's name only as a
 fallback, like the implicit body: an identical schema reuses the type's

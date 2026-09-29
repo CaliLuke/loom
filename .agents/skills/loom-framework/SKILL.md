@@ -186,6 +186,16 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   members.
 - Start OpenAPI contract changes in `http/codegen/openapi/internal/ir`; keep the
   `v3` package focused on rendering IR-owned decisions.
+- Prepare actual occurrence, codec and physical layout plans in
+  `http/codegen/internal/representation` before sharing schema components.
+  Built-in HTTP dispatch belongs to `internal/httpcodec`; SSE classification
+  follows the emitted field type. Media labels alone do not establish codecs.
+  `internal/byteschema` intersects alias bounds and projects the effective
+  interval into checked base64 constraints. Complete representation schemas
+  belong to the IR registry; renderers must not repair their constraints or
+  identity. Schema-only preparation queries captured structure without resolving
+  enum/default values or consuming example synthesis. Preserve component
+  annotation ownership separately from representation-specific schema identity.
 - Security component allocation belongs to the document IR. Identify a binding
   by authored scheme, kind, HTTP location, and credential name; canonicalize
   header case. Reserve authored names before allocating sorted binding variants,
@@ -294,8 +304,8 @@ filter, and serialization rules belong here.
 - Retain supported source values in the normalized import model before
   rendering. A diagnostic-only path cannot recover discarded values later.
 - Preserve `byte` and `binary` string formats as separate OpenAPI contracts.
-  Both formats use Loom `Bytes`. The rendered design must retain `byte` in
-  metadata because `Bytes` defaults to `binary`.
+  Both formats use Loom `Bytes`. The rendered design must retain either explicit
+  format in metadata instead of relying on an inferred Bytes schema format.
 - Scope diagnostics by their JSON Pointer and owning layer, not by diagnostic
   code alone. The same code can identify a root omission or an operation
   blocker.

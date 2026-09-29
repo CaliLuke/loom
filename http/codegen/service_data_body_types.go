@@ -5,6 +5,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
@@ -48,7 +49,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 	}
 	applyUserTypeLayout(httpctx, sd, body, svr)
 	addMarshalTags(body)
-	value = buildHTTPValuePlan(value, body, httpctx, sd, svr)
+	value = representation.BuildValuePlan(value, body, httpctx, expr.ValuePlanRuntime)
 	details := buildRequestBodyTypeDetails(body, endpointName, formEncoded, svr, requestBodyRequired(body, att), sd, httpctx)
 	ref := sd.Scope.GoTypeRef(body)
 	valueRef := details.valueRef
@@ -275,7 +276,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	applyUserTypeLayout(httpctx, sd, body, svr)
 	data := initResponseBodyTypeData(body, att, httpctx, sd)
 	addMarshalTags(body)
-	value = buildHTTPValuePlan(value, body, httpctx, sd, svr)
+	value = representation.BuildValuePlan(value, body, httpctx, expr.ValuePlanRuntime)
 
 	switch ut := body.Type.(type) {
 	case expr.UserType:
@@ -409,7 +410,7 @@ func applyPrimitiveResponseBodyTypeData(
 
 func collectServerResponseBodyTypes(sds *ServicesData, body *expr.AttributeExpr, name string, sd *ServiceData) {
 	sd.ServerTypeNames[name] = false
-	collectUserTypes(body.Type, func(ut expr.UserType) {
+	representation.WalkUserTypes(body.Type, func(ut expr.UserType) {
 		if d := sds.attributeTypeData(ut, false, false, true, false, sd); d != nil {
 			sd.ServerBodyAttributeTypes = append(sd.ServerBodyAttributeTypes, d)
 		}

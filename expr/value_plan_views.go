@@ -50,10 +50,11 @@ func (p *valueViewPlan) project(rt *ResultTypeExpr, name string) (*ResultTypeExp
 			TypeName: projectedResultTypeName(rt, name),
 			UID:      rt.projectIdentifier(name),
 			AttributeExpr: &AttributeExpr{
-				Type:        object,
-				Description: projectedResultDescription(rt, name),
-				Validation:  projectedResultValidation(rt, view),
-				valueOrigin: valueAttributeOrigin(rt.AttributeExpr),
+				Type:              object,
+				Description:       projectedResultDescription(rt, name),
+				Validation:        projectedResultValidation(rt, view),
+				valueOrigin:       valueAttributeOrigin(rt.AttributeExpr),
+				valueSourceOrigin: valueCopiedSourceOrigin(rt.AttributeExpr),
 			},
 		},
 	}

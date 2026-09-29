@@ -5,6 +5,7 @@ package expr
 func copyValueOccurrenceAttribute(source *AttributeExpr) *AttributeExpr {
 	copy := *source
 	copy.valueOrigin = valueAttributeOrigin(source)
+	copy.valueSourceOrigin = valueCopiedSourceOrigin(source)
 	copy.Type, copy.Bases, copy.References = nil, nil, nil
 	copy.DefaultValue, copy.UserExamples = nil, nil
 	copy.Meta = copyValueMeta(source.Meta)
@@ -60,6 +61,48 @@ func valueAttributeOrigin(attribute *AttributeExpr) *AttributeExpr {
 		return attribute.valueOrigin
 	}
 	return attribute
+}
+
+// bindValueSource changes only the semantic transport mapping. The target's
+// authored declaration remains the owner of naming and schema annotations.
+func bindValueSource(target, source *AttributeExpr) {
+	origin := valueCopiedSourceOrigin(source)
+	if origin == target {
+		origin = nil
+	}
+	target.valueSourceOrigin = origin
+}
+
+// valueCopiedSourceOrigin preserves normalized binding even when a constructor
+// retains only the canonical declaration origin. Invalid cycles retain an edge
+// to the invalid source so that copying cannot turn them into valid ancestry.
+func valueCopiedSourceOrigin(source *AttributeExpr) *AttributeExpr {
+	origin := valueSemanticOrigin(source)
+	if origin == nil && source != nil {
+		return source
+	}
+	return origin
+}
+
+// valueSemanticOrigin follows explicit bindings and controlled copies. A
+// constructed wrapper may retain only the canonical copy origin, which itself
+// carries a binding; cycle protection makes malformed internal graphs fail the
+// plan's ancestry guard instead of equating two missing origins.
+func valueSemanticOrigin(attribute *AttributeExpr) *AttributeExpr {
+	seen := make(map[*AttributeExpr]bool)
+	for attribute != nil && !seen[attribute] {
+		seen[attribute] = true
+		if attribute.valueSourceOrigin != nil {
+			attribute = attribute.valueSourceOrigin
+			continue
+		}
+		if origin := valueAttributeOrigin(attribute); origin != attribute {
+			attribute = origin
+			continue
+		}
+		return attribute
+	}
+	return nil
 }
 
 func copyValueAttribute(source *AttributeExpr) *AttributeExpr {

@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 	"github.com/stretchr/testify/require"
@@ -36,14 +37,14 @@ func TestHTTPValueCarriersUseServiceOwnership(t *testing.T) {
 	})
 	services := service.NewServicesData(root)
 	method := services.Get("values").Method("show")
-	endpoint := root.API.HTTP.Services[0].HTTPEndpoints[0]
-	ir := transportir.BuildEndpoint(endpoint)
-	attachHTTPValueCarriers(ir, method)
+	prepared, err := representation.PrepareService(root.API.HTTP.Services[0], services.Get("values"))
+	require.NoError(t, err)
+	ir := prepared.Endpoints[0]
 	require.Same(t, method.PayloadValue, ir.Request.BodyValue.Source)
 	require.Same(t, method.PayloadValue, ir.Request.Headers[0].Value.Source)
 	require.Equal(t, []string{"body"}, ir.Request.BodyValue.Selection)
 	require.Equal(t, expr.ValueCodecJSON, ir.Response.Responses[0].BodyValue.Codec, "media type does not select the codec")
-	plan := buildHTTPValuePlan(ir.Request.BodyValue, ir.Request.Body, httpContext(codegen.NewNameScope(), true, false), nil, false)
+	plan := representation.BuildValuePlan(ir.Request.BodyValue, ir.Request.Body, httpContext(codegen.NewNameScope(), true, false), expr.ValuePlanRuntime)
 	require.NoError(t, plan.Error)
 	projected := method.PayloadValue.Context.ProjectJSON(method.PayloadValue.Example, plan.Plan)
 	require.Equal(t, expr.ProjectionEmitted, projected.Outcome())
@@ -59,6 +60,7 @@ func TestHTTPValueRetainedPlans(t *testing.T) {
 		{"streaming payload", testdata.StreamingPayloadDSL},
 		{"mixed results", testdata.MixedResultsDSL},
 		{"error headers", sharedErrorHeaderDSL},
+		{"inherited API error", testdata.APIErrorResponseDSL},
 		{"problem error", testdata.DefaultErrorResponseDSL},
 		{"form", testdata.PayloadFormBodyObjectDSL},
 		{"multipart", testdata.PayloadMultipartUserTypeDSL},
@@ -167,7 +169,7 @@ func TestHTTPValueDocumentationAndCodecOwners(t *testing.T) {
 	require.True(t, present)
 	require.Equal(t, "service", raw)
 	for _, codec := range []expr.ValueCodec{expr.ValueCodecRaw, expr.ValueCodecText, expr.ValueCodecForm, expr.ValueCodecMultipart, expr.ValueCodecCustom} {
-		target := httpValueTarget(endpoint.Method.ResultValue, ir.Response.Responses[0].Body, "", codec)
+		target := representation.ValueTarget(endpoint.Method.ResultValue, ir.Response.Responses[0].Body, "", codec, false)
 		require.Equal(t, codec, target.Codec)
 		require.NotEmpty(t, target.Boundary)
 	}
@@ -212,7 +214,7 @@ func TestHTTPValueCustomTargetBoundaryFollowsEmission(t *testing.T) {
 			source := context.SupplyValue(expr.ValueInput{Raw: map[string]any{"when": "not a timestamp"}})
 			result := context.Resolve(occurrence, source, expr.ValueRoleExample)
 			value := &transportir.ValueTarget{Source: &service.ValueData{Context: context, Occurrence: occurrence, Example: result}, Codec: expr.ValueCodecJSON}
-			planned := buildHTTPValuePlan(value, attribute, httpContext(codegen.NewNameScope(), false, true), nil, true)
+			planned := representation.BuildValuePlan(value, attribute, httpContext(codegen.NewNameScope(), false, true), expr.ValuePlanRuntime)
 			require.NoError(t, planned.Error)
 			if hidden {
 				require.Empty(t, planned.Boundary, "excluded custom fields create no wire obligation")
@@ -236,11 +238,32 @@ func TestHTTPValueTargetGraphRecursiveDecoderContexts(t *testing.T) {
 		{Name: "ordinary", Attribute: &expr.AttributeExpr{Type: named}},
 		{Name: "choice", Attribute: &expr.AttributeExpr{Type: choice}},
 	}}
-	copied := httpValueTargetGraph(root)
+	copied := representation.TargetGraph(root)
 	ordinary := expr.AsObject(copied.Type).Attribute("ordinary").Type.(expr.UserType)
 	branch := expr.AsUnion(expr.AsObject(copied.Type).Attribute("choice").Type).Values[0].Attribute.Type.(expr.UserType)
 	require.NotSame(t, ordinary, branch, "branch decoder context is distinct")
 	require.Same(t, ordinary, expr.AsObject(branch.Attribute().Type).Attribute("next").Type, "consuming a member returns to ordinary decoding")
 	require.Same(t, ordinary, expr.AsObject(ordinary.Attribute().Type).Attribute("next").Type, "finite graph reservation supports recursive declarations")
 	require.Same(t, named, expr.AsObject(root.Type).Attribute("ordinary").Type, "source declaration is untouched")
+}
+
+// TestHTTPInheritedErrorPreparedSchemas exercises the public generation entry
+// with inherited mappings, including same-name default error declarations.
+func TestHTTPInheritedErrorPreparedSchemas(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		design func()
+	}{
+		{"body", testdata.APIErrorResponseDSL},
+		{"body content type", testdata.APIErrorResponseWithContentTypeDSL},
+		{"header", testdata.APINoBodyErrorResponseDSL},
+		{"header content type", testdata.APINoBodyErrorResponseWithContentTypeDSL},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := RunHTTPDSL(t, test.design)
+			files, err := OpenAPIFiles(root)
+			require.NoError(t, err)
+			require.NotEmpty(t, files)
+		})
+	}
 }

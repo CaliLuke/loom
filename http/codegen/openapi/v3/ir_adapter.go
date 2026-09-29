@@ -372,6 +372,7 @@ func schemaToIR(schema *openapi.Schema) *openapiir.Schema {
 		Required:              append([]string(nil), schema.Required...),
 		AdditionalProperties:  boolOrSchemaToIR(schema.AdditionalProperties),
 		UnevaluatedProperties: boolOrSchemaToIR(schema.UnevaluatedProperties),
+		Not:                   schemaToIR(schema.Not),
 		AllOf:                 schemaSliceToIR(schema.AllOf),
 		AnyOf:                 schemaSliceToIR(schema.AnyOf),
 		OneOf:                 schemaSliceToIR(schema.OneOf),

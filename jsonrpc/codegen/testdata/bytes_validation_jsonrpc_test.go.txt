@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -25,6 +26,7 @@ func TestRequestValidation(t *testing.T) {
 	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
 	hs := httptest.NewServer(mux)
 	defer hs.Close()
+	var observations []map[string]any
 	cases := []struct {
 		name, params, errorName, message string
 		code                             int
@@ -35,6 +37,10 @@ func TestRequestValidation(t *testing.T) {
 		{"defaults_present", "{\"data\":\"aGk=\",\"native_default\":\"aGV5\",\"defaulted\":\"aGV5\",\"chain_default\":\"aGV5\",\"nullable_default\":\"aGV5\"}", "fault", "observed", -32603, true},
 		{"default_null", "{\"data\":\"aGk=\",\"nullable_default\":null}", "fault", "observed", -32603, true},
 		{"minimum", "{\"data\":\"aA==\"}", "invalid_length", "validation error", -32602, false},
+		{"pad_alias", "{\"data\":\"aGl=\"}", "fault", "observed", -32603, true},
+		{"linefeed", "{\"data\":\"aGk=\\n\"}", "decode_payload", "invalid request body", -32602, false},
+		{"unicode_separator", "{\"data\":\"aGk=\\u2028\"}", "decode_payload", "invalid request body", -32602, false},
+		{"padding", "{\"data\":\"aGk===\"}", "decode_payload", "invalid request body", -32602, false},
 		{"maximum", "{\"data\":\"bG9uZw==\"}", "invalid_length", "validation error", -32602, false},
 		{"missing", "{}", "missing_field", "Missing required field: data", -32602, false},
 		{"enum", "{\"data\":\"aGk=\",\"choice\":\"bm8=\"}", "invalid_enum_value", "invalid value", -32602, false},
@@ -72,8 +78,10 @@ func TestRequestValidation(t *testing.T) {
 			if envelope.Error.Code != tc.code || envelope.Error.Data.Name != tc.errorName || !strings.Contains(envelope.Error.Message, tc.message) {
 				t.Errorf("body=%s", raw)
 			}
+			observedCall := false
 			select {
 			case got := <-seen:
+				observedCall = true
 				if !tc.called {
 					t.Error("invalid request invoked service")
 				}
@@ -99,6 +107,14 @@ func TestRequestValidation(t *testing.T) {
 					t.Error("valid request did not invoke service")
 				}
 			}
+			observations = append(observations, map[string]any{"name": tc.name, "params": tc.params, "accepted": observedCall})
 		})
+	}
+	data, err := json.Marshal(observations)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("schema_observations.json", data, 0o600); err != nil {
+		t.Fatal(err)
 	}
 }

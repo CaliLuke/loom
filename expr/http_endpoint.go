@@ -358,6 +358,9 @@ func initAttrFromDesign(att, patt *AttributeExpr) {
 	if patt == nil || patt.Type == Empty {
 		return
 	}
+	// This finalized mapping is the authoritative source relationship; local
+	// transport metadata and constraints remain occurrence-owned.
+	bindValueSource(att, patt)
 	att.Type = patt.Type
 	if att.Description == "" {
 		att.Description = patt.Description

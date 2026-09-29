@@ -56,6 +56,7 @@ func productionProjectionCases() []productionProjectionCase {
 		{name: "boolean", attribute: scalar(expr.Boolean), raw: true},
 		{name: "nullable null", attribute: &expr.AttributeExpr{Type: expr.String, Nullable: true}},
 		{name: "tagged retained branch", attribute: union(false), raw: []byte("hi")},
+		{name: "named tagged retained branch", attribute: scalar(&expr.UserTypeExpr{TypeName: "SelectedBranch", AttributeExpr: union(false)}), raw: []byte("hi")},
 		{name: "untagged ambiguity", attribute: union(true), raw: []byte("hi"), untagged: true},
 		{name: "array", attribute: scalar(&expr.Array{ElemType: scalar(expr.String)}), raw: []string{"one", "two"}},
 		{name: "empty array", attribute: scalar(&expr.Array{ElemType: scalar(expr.String)}), raw: []string{}},
@@ -67,6 +68,7 @@ func productionProjectionCases() []productionProjectionCase {
 		{name: "presence retained empty", attribute: object, raw: map[string]any{"empty": "", "explicit": nil}, hidden: map[string]bool{"hidden": true}},
 		{name: "nested partial omitted", attribute: nested, raw: map[string]any{"child": map[string]any{}}, fields: map[string]expr.ValueFieldPresence{"child": expr.ValueFieldOmitEmpty}},
 		{name: "nested partial retained", attribute: nested, raw: map[string]any{"child": map[string]any{}}},
+		{name: "named nested partial retained", attribute: scalar(&expr.UserTypeExpr{TypeName: "NestedRecord", AttributeExpr: nested}), raw: map[string]any{"child": map[string]any{}}},
 		{name: "selected body omits missing header", attribute: selected, raw: map[string]any{"body": "retained"}, selected: "body"},
 		{name: "selected header remains incomplete", attribute: selected, raw: map[string]any{"body": "retained"}, selected: "header"},
 		{name: "whole array enum", attribute: arrayEnum, raw: []string{"one"}},
@@ -114,12 +116,7 @@ func productionProjectPair(t *testing.T, executable string, tc productionProject
 	require.Contains(t, actual, "projected", "codec obligations must all be discharged: %s", productionJSON(t, actual))
 	plan, err := context.NewValuePlan(occurrence, productionProjectionPlan(tc, use))
 	require.NoError(t, err)
-	projected := context.ProjectJSON(resolved, plan)
-	output := productionProjected{outcome: map[expr.ProjectionOutcome]string{expr.ProjectionEmitted: "emitted", expr.ProjectionIncomplete: "incomplete", expr.ProjectionUnrepresentable: "unrepresentable", expr.ProjectionUnsupported: "unsupported", expr.ProjectionInvalidPlan: "invalidPlan"}[projected.Outcome()]}
-	require.NotEmpty(t, output.outcome)
-	if wire, present := projected.JSON(); present {
-		output.wire = productionCanonical(t, wire)
-	}
+	output := productionProjectionOutput(t, context.ProjectJSON(resolved, plan))
 	expected := productionProjected{}
 	if actual["projected"].Kind() == '"' {
 		expected.outcome = referenceDecode[string](t, actual["projected"])
@@ -128,5 +125,6 @@ func productionProjectPair(t *testing.T, executable string, tc productionProject
 		require.Contains(t, emitted, "emitted")
 		expected = productionProjected{outcome: "emitted", wire: productionCanonical(t, productionReferenceWire(t, emitted["emitted"]["value"]))}
 	}
+	checkProductionProjectionWrappers(t, context, occurrence, resolved, tc, use, expected)
 	return output, expected
 }

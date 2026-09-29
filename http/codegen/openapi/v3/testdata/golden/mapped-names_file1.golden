@@ -201,9 +201,18 @@ components:
                 d:
                     type: string
                     example: aGk=
+                    contentEncoding: base64
                     enum:
                         - aGk=
-                    format: binary
+                    not:
+                        pattern: '[^A-Za-z0-9+/=]'
+                    anyOf:
+                        - pattern: ^([A-Za-z0-9+/]{4})*$
+                          minLength: 0
+                        - pattern: ^([A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{2}==$
+                          minLength: 4
+                        - pattern: ^([A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{3}=$
+                          minLength: 4
             example:
                 d: aGk=
             required:
@@ -241,9 +250,18 @@ components:
                 b:
                     type: string
                     example: aGk=
+                    contentEncoding: base64
                     enum:
                         - aGk=
-                    format: binary
+                    not:
+                        pattern: '[^A-Za-z0-9+/=]'
+                    anyOf:
+                        - pattern: ^([A-Za-z0-9+/]{4})*$
+                          minLength: 0
+                        - pattern: ^([A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{2}==$
+                          minLength: 4
+                        - pattern: ^([A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{3}=$
+                          minLength: 4
                 dt:
                     type: string
                     example: Doloribus commodi vel autem dolorum.

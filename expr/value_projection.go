@@ -56,6 +56,9 @@ func (c *ValueContext) ProjectJSON(result ValueResult, plan ValuePlan) Projectio
 	if c == nil || plan.context != c.identity || plan.root == nil {
 		return projectionFailure(ProjectionInvalidPlan, "plan does not belong to the value context")
 	}
+	if plan.root.schemaOnly {
+		return projectionFailure(ProjectionInvalidPlan, "structural schema plans do not authorize value projection")
+	}
 	if result.source == nil {
 		return c.projectJSON(result, plan)
 	}

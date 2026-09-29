@@ -27,13 +27,14 @@ type (
 	}
 
 	valueOccurrenceNode struct {
-		id           uint64
-		origin       *AttributeExpr
-		attribute    *AttributeExpr
-		declaration  *valueDeclarationNode
-		examples     []valueOccurrenceExample
-		defaultValue *valueSourceSnapshot
-		enumValues   []valueSourceSnapshot
+		id            uint64
+		declarationID string
+		origin        *AttributeExpr
+		attribute     *AttributeExpr
+		declaration   *valueDeclarationNode
+		examples      []valueOccurrenceExample
+		defaultValue  *valueSourceSnapshot
+		enumValues    []valueSourceSnapshot
 	}
 
 	valueOccurrenceExample struct {
@@ -73,8 +74,11 @@ type (
 	}
 
 	valueOccurrenceBuilder struct {
-		graph *valueOccurrenceGraph
-		types map[DataType]*valueDeclarationNode
+		// capturedSources copies immutable descriptors as stored instead of
+		// rereading authored provenance. Only read-only plan queries use it.
+		capturedSources bool
+		graph           *valueOccurrenceGraph
+		types           map[DataType]*valueDeclarationNode
 	}
 )
 
@@ -107,6 +111,19 @@ func (o ValueOccurrence) ID() ValueIdentity {
 	return ValueIdentity{context: o.context, graph: o.graph, index: o.node.id}
 }
 
+// valueSourceDeclarationID snapshots declaration ancestry before a controlled
+// transport copy renames its Go type. Structural compatibility remains a
+// separate requirement; this identity alone never authorizes target reuse.
+func valueSourceDeclarationID(source *AttributeExpr) string {
+	if named, ok := valueAttributeOrigin(source).Type.(UserType); ok {
+		return named.ID()
+	}
+	if named, ok := source.Type.(UserType); ok {
+		return named.ID()
+	}
+	return ""
+}
+
 func valueMemberRequired(owner *valueOccurrenceNode, member valueOccurrenceMember) bool {
 	return owner != nil && owner.attribute.IsRequired(member.name)
 }
@@ -121,7 +138,8 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 		return nil, fmt.Errorf("value occurrence has no finalized type")
 	}
 	attribute := copyValueOccurrenceAttribute(source)
-	node := &valueOccurrenceNode{id: b.identity(), origin: source, attribute: attribute}
+	node := &valueOccurrenceNode{id: b.identity(), origin: source, attribute: attribute,
+		declarationID: valueSourceDeclarationID(source)}
 	b.graph.nodes = append(b.graph.nodes, node)
 	for _, example := range source.UserExamples {
 		if example == nil {
@@ -130,9 +148,13 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 		copy := *example
 		copy.Meta = copyValueMeta(example.Meta)
 		origin := valueExampleOrigin(example)
-		snapshot := snapshotValueSource(origin.Value)
+		exampleSource := origin
+		if b.capturedSources {
+			exampleSource = example
+		}
+		snapshot := snapshotValueSource(exampleSource.Value)
 		copy.Value = snapshot.raw
-		copy.ExplicitNull = origin.ExplicitNull
+		copy.ExplicitNull = exampleSource.ExplicitNull
 		node.examples = append(node.examples, valueOccurrenceExample{origin: origin, example: &copy, source: snapshot})
 		attribute.UserExamples = append(attribute.UserExamples, &copy)
 	}

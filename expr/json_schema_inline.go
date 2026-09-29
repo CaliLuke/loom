@@ -4,39 +4,46 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"reflect"
+
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
 type (
+
 	// InlineSchema represents a fully inlined JSON Schema document derived from
 	// a Loom attribute. It avoids $ref indirections so machine consumers can
 	// consume standalone payload and result contracts directly.
 	//
 	//nolint:tagliatelle // JSON Schema uses camelCase field names.
 	InlineSchema struct {
-		Type                 string                   `json:"type,omitempty"`
-		Title                string                   `json:"title,omitempty"`
-		Description          string                   `json:"description,omitempty"`
-		Examples             []any                    `json:"examples,omitempty"`
-		Required             []string                 `json:"required,omitempty"`
-		Properties           map[string]*InlineSchema `json:"properties,omitempty"`
-		OneOf                []*InlineSchema          `json:"oneOf,omitempty"`
-		AnyOf                []*InlineSchema          `json:"anyOf,omitempty"`
-		AllOf                []*InlineSchema          `json:"allOf,omitempty"`
-		Discriminator        *InlineDiscriminator     `json:"discriminator,omitempty"`
-		Items                *InlineSchema            `json:"items,omitempty"`
-		AdditionalProperties any                      `json:"additionalProperties,omitempty"`
-		Enum                 []any                    `json:"enum,omitempty"`
-		Default              any                      `json:"default,omitempty"`
-		Minimum              any                      `json:"minimum,omitempty"`
-		Maximum              any                      `json:"maximum,omitempty"`
-		ExclusiveMinimum     any                      `json:"exclusiveMinimum,omitempty"`
-		ExclusiveMaximum     any                      `json:"exclusiveMaximum,omitempty"`
-		MinLength            *int                     `json:"minLength,omitempty"`
-		MaxLength            *int                     `json:"maxLength,omitempty"`
-		Pattern              string                   `json:"pattern,omitempty"`
-		Format               string                   `json:"format,omitempty"`
-		MinItems             *int                     `json:"minItems,omitempty"`
-		MaxItems             *int                     `json:"maxItems,omitempty"`
+		Type        string                   `json:"type,omitempty"`
+		Title       string                   `json:"title,omitempty"`
+		Description string                   `json:"description,omitempty"`
+		Examples    []any                    `json:"examples,omitempty"`
+		Required    []string                 `json:"required,omitempty"`
+		Properties  map[string]*InlineSchema `json:"properties,omitempty"`
+		OneOf       []*InlineSchema          `json:"oneOf,omitempty"`
+		AnyOf       []*InlineSchema          `json:"anyOf,omitempty"`
+		AllOf       []*InlineSchema          `json:"allOf,omitempty"`
+		// Not rejects values accepted by the nested schema, including not:{} for an empty range.
+		Not *InlineSchema `json:"not,omitzero"`
+		// ContentEncoding names the string representation; validation remains explicit.
+		ContentEncoding      string               `json:"contentEncoding,omitempty"`
+		Discriminator        *InlineDiscriminator `json:"discriminator,omitempty"`
+		Items                *InlineSchema        `json:"items,omitempty"`
+		AdditionalProperties any                  `json:"additionalProperties,omitempty"`
+		Enum                 []any                `json:"enum,omitempty"`
+		Default              any                  `json:"default,omitempty"`
+		Minimum              any                  `json:"minimum,omitempty"`
+		Maximum              any                  `json:"maximum,omitempty"`
+		ExclusiveMinimum     any                  `json:"exclusiveMinimum,omitempty"`
+		ExclusiveMaximum     any                  `json:"exclusiveMaximum,omitempty"`
+		MinLength            *int                 `json:"minLength,omitempty"`
+		MaxLength            *int                 `json:"maxLength,omitempty"`
+		Pattern              string               `json:"pattern,omitempty"`
+		Format               string               `json:"format,omitempty"`
+		MinItems             *int                 `json:"minItems,omitempty"`
+		MaxItems             *int                 `json:"maxItems,omitempty"`
 	}
 
 	// InlineDiscriminator mirrors the JSON Schema/OpenAPI discriminator object.
@@ -44,6 +51,11 @@ type (
 	//nolint:tagliatelle // JSON Schema uses camelCase field names.
 	InlineDiscriminator struct {
 		PropertyName string `json:"propertyName,omitempty"`
+	}
+
+	inlineSchemaContext struct {
+		encodingOverride   bool
+		byteLengthsHandled bool
 	}
 )
 
@@ -68,14 +80,14 @@ func InlineJSONSchema(attr *AttributeExpr) ([]byte, error) {
 			AdditionalProperties: false,
 		}, json.Deterministic(true))
 	}
-	schema, err := buildInlineJSONSchema(attr, make(map[any]struct{}))
+	schema, err := buildInlineJSONSchema(attr, make(map[any]struct{}), inlineSchemaContext{})
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(schema, json.Deterministic(true))
 }
 
-func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}) (*InlineSchema, error) {
+func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}, context inlineSchemaContext) (*InlineSchema, error) {
 	if attr == nil || attr.Type == nil {
 		return &InlineSchema{
 			Type:                 jsonTypeObject,
@@ -83,34 +95,43 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}) (*Inli
 		}, nil
 	}
 
+	context.encodingOverride = context.encodingOverride || encodingmeta.Replacement(attr.Meta) != "" || encodingmeta.SchemaOverride(attr.Meta)
+	if !context.encodingOverride && !context.byteLengthsHandled {
+		if bounds, applies := inlineByteBounds(attr); applies {
+			return buildInlineByteSchema(attr, visited, context, bounds)
+		}
+	}
 	schema := &InlineSchema{
 		Title:       attr.Title,
 		Description: attr.Description,
 	}
 	populateInlineSchemaMetadata(schema, attr)
+	if context.byteLengthsHandled {
+		schema.MinLength, schema.MaxLength = nil, nil
+	}
 
 	switch dt := attr.Type.(type) {
 	case Primitive:
 		schema.Type = primitiveToInlineJSONType(dt)
 		applyInlinePrimitiveBounds(schema, dt)
 	case *Array:
-		if err := populateInlineArraySchema(schema, attr, dt, visited); err != nil {
+		if err := populateInlineArraySchema(schema, attr, dt, visited, context); err != nil {
 			return nil, err
 		}
 	case *Map:
-		if err := populateInlineMapSchema(schema, dt, visited); err != nil {
+		if err := populateInlineMapSchema(schema, dt, visited, context); err != nil {
 			return nil, err
 		}
 	case *Union:
-		if err := populateInlineUnionSchema(schema, dt, visited); err != nil {
+		if err := populateInlineUnionSchema(schema, dt, visited, context); err != nil {
 			return nil, err
 		}
 	case *Object:
-		if err := populateInlineObjectSchema(schema, attr, dt, visited); err != nil {
+		if err := populateInlineObjectSchema(schema, attr, dt, visited, context); err != nil {
 			return nil, err
 		}
 	case UserType:
-		schema, err := inlineWrappedJSONSchema(attr, dt.Attribute(), visited, dt, dt.Name())
+		schema, err := inlineWrappedJSONSchema(attr, dt.Attribute(), visited, dt, dt.Name(), context)
 		if err != nil {
 			return nil, err
 		}
@@ -177,12 +198,12 @@ func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr) {
 	}
 }
 
-func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Array, visited map[any]struct{}) error {
+func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Array, visited map[any]struct{}, context inlineSchemaContext) error {
 	schema.Type = jsonTypeArray
 	if dt.ElemType != nil {
-		items, err := buildInlineJSONSchema(dt.ElemType, visited)
+		items, err := buildInlineJSONSchema(dt.ElemType, visited, context)
 		if err != nil {
-			return err
+			return fmt.Errorf("array items: %w", err)
 		}
 		schema.Items = items
 	}
@@ -199,12 +220,12 @@ func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Ar
 	return nil
 }
 
-func populateInlineMapSchema(schema *InlineSchema, dt *Map, visited map[any]struct{}) error {
+func populateInlineMapSchema(schema *InlineSchema, dt *Map, visited map[any]struct{}, context inlineSchemaContext) error {
 	schema.Type = jsonTypeObject
 	if dt.ElemType != nil {
-		properties, err := buildInlineJSONSchema(dt.ElemType, visited)
+		properties, err := buildInlineJSONSchema(dt.ElemType, visited, context)
 		if err != nil {
-			return err
+			return fmt.Errorf("map values: %w", err)
 		}
 		schema.AdditionalProperties = properties
 	} else {
@@ -213,13 +234,13 @@ func populateInlineMapSchema(schema *InlineSchema, dt *Map, visited map[any]stru
 	return nil
 }
 
-func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]struct{}) error {
+func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]struct{}, context inlineSchemaContext) error {
 	if dt.Untagged {
 		schema.OneOf = make([]*InlineSchema, 0, len(dt.Values))
 		for _, val := range dt.Values {
-			valueSchema, err := buildInlineJSONSchema(val.Attribute, visited)
+			valueSchema, err := buildInlineJSONSchema(val.Attribute, visited, context)
 			if err != nil {
-				return err
+				return fmt.Errorf("union branch %q: %w", val.Name, err)
 			}
 			schema.OneOf = append(schema.OneOf, valueSchema)
 		}
@@ -231,9 +252,9 @@ func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]
 	schema.OneOf = make([]*InlineSchema, 0, len(dt.Values))
 	schema.Discriminator = &InlineDiscriminator{PropertyName: typeKey}
 	for _, val := range dt.Values {
-		valueSchema, err := buildInlineJSONSchema(val.Attribute, visited)
+		valueSchema, err := buildInlineJSONSchema(val.Attribute, visited, context)
 		if err != nil {
-			return err
+			return fmt.Errorf("union branch %q: %w", val.Name, err)
 		}
 		schema.OneOf = append(schema.OneOf, &InlineSchema{
 			Type: jsonTypeObject,
@@ -251,7 +272,7 @@ func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]
 	return nil
 }
 
-func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *Object, visited map[any]struct{}) error {
+func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *Object, visited map[any]struct{}, context inlineSchemaContext) error {
 	schema.Type = jsonTypeObject
 	schema.Properties = make(map[string]*InlineSchema, len(*dt))
 	designNames := make(map[string]struct{}, len(*dt))
@@ -272,9 +293,9 @@ func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *O
 		if _, exists := schema.Properties[name]; exists {
 			return fmt.Errorf("object has duplicate JSON field name %q", name)
 		}
-		property, err := buildInlineJSONSchema(nat.Attribute, visited)
+		property, err := buildInlineJSONSchema(nat.Attribute, visited, context)
 		if err != nil {
-			return err
+			return fmt.Errorf("object field %q: %w", name, err)
 		}
 		schema.Properties[name] = property
 		if attr.IsRequired(nat.Name) {
@@ -285,14 +306,14 @@ func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *O
 	return nil
 }
 
-func inlineWrappedJSONSchema(wrapper *AttributeExpr, inner *AttributeExpr, visited map[any]struct{}, identity any, typeName string) (*InlineSchema, error) {
+func inlineWrappedJSONSchema(wrapper *AttributeExpr, inner *AttributeExpr, visited map[any]struct{}, identity any, typeName string, context inlineSchemaContext) (*InlineSchema, error) {
 	if _, ok := visited[identity]; ok {
 		return nil, fmt.Errorf("recursive user type %q cannot be converted to inline JSON Schema", typeName)
 	}
 	visited[identity] = struct{}{}
 	defer delete(visited, identity)
 
-	schema, err := buildInlineJSONSchema(inner, visited)
+	schema, err := buildInlineJSONSchema(inner, visited, context)
 	if err != nil {
 		return nil, err
 	}
@@ -300,6 +321,9 @@ func inlineWrappedJSONSchema(wrapper *AttributeExpr, inner *AttributeExpr, visit
 		schema = &InlineSchema{Type: schema.Type, AllOf: []*InlineSchema{schema}}
 	}
 	applyInlineWrapperMetadata(schema, wrapper)
+	if context.byteLengthsHandled {
+		schema.MinLength, schema.MaxLength = nil, nil
+	}
 	return schema, nil
 }
 

@@ -1,4 +1,4 @@
-package codegen
+package representation
 
 import (
 	"fmt"
@@ -9,30 +9,35 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
 type httpValuePlanBuilder struct {
 	request  expr.ValuePlanRequest
-	service  *ServiceData
-	server   bool
 	seen     map[*expr.AttributeExpr]bool
 	boundary string
 }
 
-// buildHTTPValuePlan runs at the actual body declaration owner, after layout
+// BuildValuePlan runs at the actual body declaration owner, after layout
 // and view selection. Its policies consume the same tags used by the emitter.
-func buildHTTPValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, context *codegen.AttributeContext, data *ServiceData, server bool) *transportir.ValueTarget {
+func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, context *codegen.AttributeContext, use expr.ValuePlanUse) *transportir.ValueTarget {
 	if value == nil {
 		return nil
 	}
 	result := *value
-	if result.Error != nil || result.Source == nil || result.Boundary != "" {
+	if result.Error != nil || result.Source == nil {
 		return &result
 	}
-	target = httpValueTargetGraph(target)
+	target = TargetGraph(target)
 	builder := httpValuePlanBuilder{
-		request: expr.ValuePlanRequest{Target: target, Selection: append([]string(nil), value.Selection...), Codec: value.Codec, Use: expr.ValuePlanRuntime},
-		service: data, server: server, seen: make(map[*expr.AttributeExpr]bool),
+		request: expr.ValuePlanRequest{Target: target, Selection: append([]string(nil), value.Selection...), Codec: value.Codec, Use: use},
+		seen:    make(map[*expr.AttributeExpr]bool),
+	}
+	if value.SSEDataField != "" {
+		builder.request.Codecs = mappedSSECodecs(target, context, value.SSEDataField)
+	}
+	if value.Documentary && use != expr.ValuePlanSchema {
+		builder.request.Use = expr.ValuePlanDocumentation
 	}
 	if err := builder.walk(target, context, false, true); err != nil {
 		result.Error = err
@@ -40,7 +45,6 @@ func buildHTTPValuePlan(value *transportir.ValueTarget, target *expr.AttributeEx
 	}
 	if builder.boundary != "" {
 		result.Boundary = builder.boundary
-		return &result
 	}
 	result.Plan, result.Error = result.Source.Context.NewValuePlan(result.Source.Occurrence, builder.request)
 	return &result
@@ -55,13 +59,16 @@ func (b *httpValuePlanBuilder) walk(attribute *expr.AttributeExpr, context *code
 		return nil
 	}
 	b.seen[attribute] = prior || reachable
-	if reachable && b.boundary == "" {
-		b.boundary = httpCustomValueCodec(attribute)
+	if boundary := CustomCodec(attribute); boundary != "" {
+		if !visited {
+			b.request.Codecs = append(b.request.Codecs, expr.ValueCodecPolicy{Target: attribute, Codec: expr.ValueCodecCustom})
+		}
+		if reachable && b.boundary == "" {
+			b.boundary = boundary
+		}
 	}
 	local := *context
-	if b.service != nil {
-		applyUserTypeLayout(&local, b.service, attribute, b.server)
-	}
+	ApplyLayout(&local, attribute)
 	switch actual := attribute.Type.(type) {
 	case expr.UserType:
 		return b.walk(actual.Attribute(), &local, untaggedBranch, reachable)
@@ -91,8 +98,8 @@ func (b *httpValuePlanBuilder) walk(attribute *expr.AttributeExpr, context *code
 
 func emittedHTTPFieldPolicy(parent *expr.AttributeExpr, mapped *expr.MappedAttributeExpr, field *expr.NamedAttributeExpr, context *codegen.AttributeContext) (expr.ValueFieldPolicy, error) {
 	name := expr.AttributeName(field.Name)
-	optional, omitZero := httpFieldOmission(mapped, name, field.Attribute, context.Pointer, context.UseDefault, context.JSONPresence)
-	tags := attributeTags(field.Attribute, expr.ElementName(field.Name), optional, omitZero)
+	optional, omitZero := FieldOmission(mapped, name, field.Attribute, context.Pointer, context.UseDefault, context.JSONPresence)
+	tags := AttributeTags(field.Attribute, expr.ElementName(field.Name), optional, omitZero)
 	unquoted, err := strconv.Unquote(strings.TrimSpace(tags))
 	if err != nil {
 		return expr.ValueFieldPolicy{}, fmt.Errorf("HTTP field %q tags: %w", field.Name, err)
@@ -132,12 +139,12 @@ func emittedHTTPFieldPolicy(parent *expr.AttributeExpr, mapped *expr.MappedAttri
 	}, nil
 }
 
-// httpCustomValueCodec follows the same replacement sites as goTypeDef.
+// CustomCodec follows the same replacement sites as goTypeDef.
 // Finalization removes recognized matching framework Nullable metadata; ordinary
 // Optional/Nullable/JSONValue layout chosen by the emitter needs no replacement.
 // Any residual authored replacement keeps its external codec contract.
-func httpCustomValueCodec(attribute *expr.AttributeExpr) string {
-	typeName, _ := codegen.GetMetaType(attribute)
+func CustomCodec(attribute *expr.AttributeExpr) string {
+	typeName := encodingmeta.Replacement(attribute.Meta)
 	_, primitive := attribute.Type.(expr.Primitive)
 	if typeName != "" && (primitive || codegen.IsExplicitPresenceType(attribute)) {
 		return fmt.Sprintf("emitted type %s owns an external codec", typeName)

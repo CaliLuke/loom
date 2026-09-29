@@ -1,4 +1,4 @@
-package codegen
+package representation
 
 import (
 	"fmt"
@@ -8,9 +8,9 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
-// attachHTTPValueCarriers binds finalized transport occurrences to existing
+// attachTargets binds finalized transport occurrences to existing
 // service authority. It does not change the legacy raw example fields.
-func attachHTTPValueCarriers(endpoint *transportir.Endpoint, method *service.MethodData) {
+func attachTargets(endpoint *transportir.Endpoint, method *service.MethodData, errors map[*expr.AttributeExpr]*service.ValueData, schemaOnly bool) {
 	request := endpoint.Request
 	codec := expr.ValueCodecJSON
 	switch {
@@ -21,41 +21,62 @@ func attachHTTPValueCarriers(endpoint *transportir.Endpoint, method *service.Met
 	case request.FormEncoded:
 		codec = expr.ValueCodecForm
 	}
-	request.BodyValue = httpValueTarget(method.PayloadValue, request.Body, request.BodyOriginKey, codec)
-	request.StreamingValue = httpValueTarget(method.StreamingPayloadValue, request.StreamingBody, "", expr.ValueCodecJSON)
+	request.BodyValue = ValueTarget(method.PayloadValue, request.Body, request.BodyOriginKey, codec, schemaOnly)
+	request.StreamingValue = ValueTarget(method.StreamingPayloadValue, request.StreamingBody, "", expr.ValueCodecJSON, schemaOnly)
 	for _, group := range [][]*transportir.Parameter{request.PathParams, request.QueryParams, request.Headers, request.Cookies} {
 		for _, parameter := range group {
-			parameter.Value = httpValueTarget(method.PayloadValue, parameter.Attribute, parameter.Name, expr.ValueCodecText)
+			parameter.Value = ValueTarget(method.PayloadValue, parameter.Attribute, parameter.Name, expr.ValueCodecText, schemaOnly)
 		}
 	}
 	if request.DocumentBody != nil {
-		request.DocumentValue = httpDocumentValue(method.PayloadValue, request.DocumentBody, "", true)
+		request.DocumentValue = DocumentTarget(method.PayloadValue, request.DocumentBody, "", true, schemaOnly)
+		request.DocumentValues = documentationTargets(request.DocumentValue, request.DocumentContentTypes)
 	}
 	for _, status := range append(append([]*transportir.ResponseStatus(nil), endpoint.Response.Responses...), endpoint.Response.ErrorResponses...) {
 		source := method.ResultValue
 		if status.Error != nil {
-			source = method.ErrorValues[status.Error.Name]
+			source = errors[status.Error.Attribute]
 		}
-		responseCodec := expr.ValueCodecJSON
-		if status.BinaryBody || endpoint.Response.SkipBodyEncode || endpoint.Response.FileResponse {
-			responseCodec = expr.ValueCodecRaw
-		}
-		status.BodyValue = httpValueTarget(source, status.Body, status.BodyOrigin, responseCodec)
-		status.DocumentValue = httpDocumentValue(source, status.DocumentBody, status.BodyOrigin, status.IndependentDocumentBody)
+		attachResponseTargets(endpoint, status, source, schemaOnly)
 		for _, header := range status.Headers {
-			header.Value = httpValueTarget(source, header.Attribute, header.Name, expr.ValueCodecText)
+			header.Value = ValueTarget(source, header.Attribute, header.Name, expr.ValueCodecText, schemaOnly)
 		}
 		for _, cookie := range status.Cookies {
-			cookie.Value = httpValueTarget(source, cookie.Attribute, cookie.Name, expr.ValueCodecText)
+			cookie.Value = ValueTarget(source, cookie.Attribute, cookie.Name, expr.ValueCodecText, schemaOnly)
 		}
 	}
 	if endpoint.Stream != nil {
 		endpoint.Stream.RequestValue = request.StreamingValue
-		endpoint.Stream.ResponseValue = httpValueTarget(method.StreamingResultValue, endpoint.Stream.ResponseMessage, "", expr.ValueCodecJSON)
+		endpoint.Stream.ResponseValue = ValueTarget(method.StreamingResultValue, endpoint.Stream.ResponseMessage, "", expr.ValueCodecJSON, schemaOnly)
+	}
+	attachSSETargets(endpoint)
+}
+
+func attachSSETargets(endpoint *transportir.Endpoint) {
+	if endpoint.Stream == nil || endpoint.Stream.SSE == nil {
+		return
+	}
+	field := endpoint.Stream.SSE.DataField
+	if endpoint.Stream.ResponseValue != nil {
+		endpoint.Stream.ResponseValue.SSEDataField = field
+	}
+	if endpoint.Stream.HasMixedResults {
+		return
+	}
+	for _, status := range endpoint.Response.Responses {
+		if status.BodyValue != nil {
+			status.BodyValue.SSEDataField = field
+			for _, value := range status.BodyValues {
+				value.SSEDataField = field
+			}
+		}
+		if status.DocumentValue != nil && !status.IndependentDocumentBody {
+			status.DocumentValue.SSEDataField = field
+		}
 	}
 }
 
-func httpValueTarget(source *service.ValueData, target *expr.AttributeExpr, selection string, codec expr.ValueCodec) *transportir.ValueTarget {
+func ValueTarget(source *service.ValueData, target *expr.AttributeExpr, selection string, codec expr.ValueCodec, schemaOnly bool) *transportir.ValueTarget {
 	if target == nil || target.Type == expr.Empty {
 		return nil
 	}
@@ -80,7 +101,7 @@ func httpValueTarget(source *service.ValueData, target *expr.AttributeExpr, sele
 	if codec != expr.ValueCodecJSON {
 		value.Boundary = "target codec is outside the builtin JSON projection"
 	}
-	if len(target.ExtractUserExamples()) == 0 {
+	if schemaOnly || len(target.ExtractUserExamples()) == 0 {
 		return value
 	}
 	// Only a distinct authored source changes source authority. A derived copy
@@ -99,11 +120,11 @@ func httpValueTarget(source *service.ValueData, target *expr.AttributeExpr, sele
 	return value
 }
 
-func httpDocumentValue(source *service.ValueData, target *expr.AttributeExpr, selected string, independent bool) *transportir.ValueTarget {
+func DocumentTarget(source *service.ValueData, target *expr.AttributeExpr, selected string, independent, schemaOnly bool) *transportir.ValueTarget {
 	if target == nil || target.Type == expr.Empty {
 		return nil
 	}
-	value := httpValueTarget(source, target, selected, expr.ValueCodecJSON)
+	value := ValueTarget(source, target, selected, expr.ValueCodecJSON, schemaOnly)
 	if independent {
 		context := expr.NewValueContext()
 		if source != nil {
@@ -114,21 +135,23 @@ func httpDocumentValue(source *service.ValueData, target *expr.AttributeExpr, se
 			value.Error = err
 			return value
 		}
-		selection := context.SelectExample(occurrence, expr.ExamplePolicy{Reachable: true})
 		var result expr.ValueResult
-		if supplied, found := selection.Source(); found {
-			result = context.Resolve(occurrence, supplied, expr.ValueRoleExample)
-		} else {
-			// No new sampling is performed during carrier attachment. A later
-			// documentation consumer may synthesize through this same occurrence.
-			result = context.Synthesize(selection, nil)
+		if !schemaOnly {
+			selection := context.SelectExample(occurrence, expr.ExamplePolicy{Reachable: true})
+			if supplied, found := selection.Source(); found {
+				result = context.Resolve(occurrence, supplied, expr.ValueRoleExample)
+			} else {
+				// No new sampling is performed during carrier attachment. A later
+				// documentation consumer may synthesize through this same occurrence.
+				result = context.Synthesize(selection, nil)
+			}
 		}
 		value.Source = &service.ValueData{Context: context, Occurrence: occurrence, Example: result}
 		value.Error = nil
 		value.Selection = nil
 	}
 	value.Documentary = true
-	if value.Error == nil && value.Source != nil {
+	if !schemaOnly && value.Error == nil && value.Source != nil {
 		value.Plan, value.Error = value.Source.Context.NewValuePlan(value.Source.Occurrence, expr.ValuePlanRequest{
 			Target: target, Selection: value.Selection, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
 		})

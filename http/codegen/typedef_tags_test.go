@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 )
 
 func TestAttributeTagsJSONRoundTrip(t *testing.T) {
@@ -24,7 +25,7 @@ func TestAttributeTagsJSONRoundTrip(t *testing.T) {
 	}
 	for name, field := range cases {
 		t.Run(name, func(t *testing.T) {
-			rendered := attributeTags(&expr.AttributeExpr{Type: expr.String}, field, false, false)
+			rendered := representation.AttributeTags(&expr.AttributeExpr{Type: expr.String}, field, false, false)
 			src := "package p\n\ntype T struct {\n\tF string" + rendered + "\n}\n"
 			file, err := parser.ParseFile(token.NewFileSet(), "p.go", src, 0)
 			require.NoError(t, err, rendered)
@@ -74,7 +75,7 @@ func TestAttributeTagsQuoteDesignText(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			rendered := attributeTags(tc.att, tc.name, true, false)
+			rendered := representation.AttributeTags(tc.att, tc.name, true, false)
 			src := "package p\n\ntype T struct {\n\tF string" + rendered + "\n}\n"
 			file, err := parser.ParseFile(token.NewFileSet(), "p.go", src, 0)
 			require.NoError(t, err, rendered)

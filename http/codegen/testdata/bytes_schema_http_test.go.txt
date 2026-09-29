@@ -1,0 +1,123 @@
+package byteschema_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"reflect"
+	"strings"
+	"testing"
+
+	service "example.com/byteschema/gen/byteschema"
+	server "example.com/byteschema/gen/http/byteschema/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type observation struct {
+	Method string `json:"method"`
+	Text string `json:"text"`
+	Accepted bool `json:"accepted"`
+	Decoded []byte `json:"decoded"`
+	Status int `json:"status"`
+	Code string `json:"code"`
+	Detail string `json:"detail"`
+}
+
+func TestGeneratedBytesSchemaRequests(t *testing.T) {
+	var called int
+	var decoded []byte
+	var endpoint loom.Endpoint = func(_ context.Context, payload any) (any, error) {
+		called++
+		field := reflect.ValueOf(payload).Elem().FieldByName("Data")
+		if field.Kind() == reflect.Map {
+			field = field.MapIndex(reflect.ValueOf("key"))
+		} else if field.Kind() == reflect.Slice && field.Type().Elem().Kind() == reflect.Slice {
+			field = field.Index(0)
+		}
+		decoded = append([]byte{}, field.Bytes()...)
+		return nil, nil
+	}
+	endpoints := &service.Endpoints{}
+	fields := reflect.ValueOf(endpoints).Elem()
+	for i := range fields.NumField() {
+		fields.Field(i).Set(reflect.ValueOf(endpoint))
+	}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	texts := []string{"", "aA==", "aGk=", "aGV5", "bG9uZw==", "bG9uZ2Vy", "aGl=", "aGm=", "aGn=", "/w==", "//==", "aGk=\n", "aGk=\r", "aGk=\r\n", "aG\nk=", "aGk=\u2028", "aGk=\u2029", "aGk= ", "aGk=\t", "aGk=\x00", "aGk", "aGk===", "a===", "====", "aGk=aGk=", "_w==", "-w=="}
+	var observations []observation
+	for _, method := range []string{"unbounded", "minimum", "maximum", "zero", "one", "two", "three", "four", "named", "chain", "array", "map"} {
+		for _, text := range texts {
+			t.Run(fmt.Sprintf("%s/%q", method, text), func(t *testing.T) {
+				called, decoded = 0, nil
+				var value any = text
+				if method == "array" {
+					value = []string{text}
+				} else if method == "map" {
+					value = map[string]string{"key": text}
+				}
+				body, err := json.Marshal(map[string]any{"data": value})
+				if err != nil {
+					t.Fatal(err)
+				}
+				req := httptest.NewRequest(http.MethodPost, "/"+method, strings.NewReader(string(body)))
+				req.Header.Set("Content-Type", "application/json")
+				response := httptest.NewRecorder()
+				mux.ServeHTTP(response, req)
+				out := observation{Method: method, Text: text, Accepted: called == 1, Decoded: decoded, Status: response.Code}
+				wire, err := json.Marshal(text)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var expected []byte
+				decodeErr := json.Unmarshal(wire, &expected)
+				valid := decodeErr == nil
+				if valid {
+					switch method {
+					case "minimum":
+						valid = len(expected) >= 2
+					case "named", "chain", "array", "map":
+						valid = len(expected) >= 2 && len(expected) <= 3
+					case "maximum":
+						valid = len(expected) <= 2
+					case "zero", "one", "two", "three", "four":
+						valid = len(expected) == map[string]int{"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4}[method]
+					}
+				}
+				if valid {
+					if called != 1 || response.Code != http.StatusNoContent || string(decoded) != string(expected) {
+						t.Errorf("accepted request: called=%d status=%d decoded=%q want=%q", called, response.Code, decoded, expected)
+					}
+				} else {
+					var problem struct {
+						Code string `json:"code"`
+						Detail string `json:"detail"`
+					}
+					if err := json.Unmarshal(response.Body.Bytes(), &problem); err != nil {
+						t.Fatal(err)
+					}
+					out.Code, out.Detail = problem.Code, problem.Detail
+					wantCode, wantDetail := "invalid_length", "validation error"
+					if decodeErr != nil {
+						wantCode, wantDetail = "decode_payload", "invalid request body"
+					}
+					if called != 0 || response.Code != http.StatusBadRequest || problem.Code != wantCode || problem.Detail != wantDetail {
+						t.Errorf("rejected request: called=%d status=%d problem=%s", called, response.Code, response.Body.String())
+					}
+				}
+				observations = append(observations, out)
+			})
+		}
+	}
+	data, err := json.Marshal(observations)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("observations.json", data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}

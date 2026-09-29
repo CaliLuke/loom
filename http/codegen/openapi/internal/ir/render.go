@@ -56,6 +56,7 @@ func RenderSchema(schema *Schema) *openapi.Schema {
 	out.Required = append([]string(nil), schema.Required...)
 	out.AdditionalProperties = renderBoolOrSchema(schema.AdditionalProperties)
 	out.UnevaluatedProperties = renderBoolOrSchema(schema.UnevaluatedProperties)
+	out.Not = RenderSchema(schema.Not)
 	out.AllOf = renderSchemaSlice(schema.AllOf)
 	out.AnyOf = renderSchemaSlice(schema.AnyOf)
 	out.OneOf = renderSchemaSlice(schema.OneOf)

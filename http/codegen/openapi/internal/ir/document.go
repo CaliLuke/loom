@@ -49,7 +49,7 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
 			continue
 		}
-		irService := transportir.BuildService(svc)
+		irService := bodyTypes.prepared[svc.Name()]
 		serviceBodies := bodyTypes.Services[svc.Name()]
 		for _, endpoint := range irService.Endpoints {
 			if !endpoint.Generate || !endpoint.MethodGenerate {
@@ -103,10 +103,13 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		contentTypes = []string{"application/x-www-form-urlencoded"}
 	}
 	context := attributeExampleContext(bodyAttr, closeObjects, "request-media")
-	mediaType := buildMediaType(bodyAttr, bodies.RequestBody, rand, closeObjects, context, endpointIR.Request.DocumentBody != nil)
 	content := make(map[string]*MediaType, len(contentTypes))
 	for _, contentType := range contentTypes {
-		content[contentType] = mediaType
+		schema := bodies.RequestBody
+		if prepared, exists := bodies.requestMedia[contentType]; exists {
+			schema = prepared
+		}
+		content[contentType] = buildMediaType(bodyAttr, schema, rand, closeObjects, context, endpointIR.Request.DocumentBody != nil)
 	}
 	return &RequestBody{
 		Description:   requestBodyDescription(bodyAttr),
@@ -146,10 +149,10 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 			}
 		}
 		websocketHandshake := endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE && statusCode == expr.StatusSwitchingProtocols
-		responses[strconv.Itoa(statusCode)] = buildResponse(resp, statusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake)
+		responses[strconv.Itoa(statusCode)] = buildResponse(resp, statusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake, bodies.locations, bodies.responseMedia[resp])
 	}
 	for _, errResp := range endpointIR.Response.ErrorResponses {
-		resp := buildResponse(errResp, errResp.StatusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false)
+		resp := buildResponse(errResp, errResp.StatusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false, bodies.locations, bodies.responseMedia[errResp])
 		desc := resp.Description
 		if value, ok := errResp.Meta.Last("openapi:description:errorName"); !ok || value != "false" {
 			desc = errResp.Error.Name
@@ -179,8 +182,10 @@ func buildResponse(
 	closeObjects bool,
 	currentService string,
 	websocketHandshake bool,
+	prepared map[*expr.AttributeExpr]*Schema,
+	mediaSchemas map[string]*Schema,
 ) *Response {
-	headers := headersFromIR(resp.Headers, rand, closeObjects)
+	headers := headersFromIR(resp.Headers, rand, closeObjects, prepared)
 	if cookieHeader := responseCookieHeader(resp.Cookies, rand, closeObjects); cookieHeader != nil {
 		if headers == nil {
 			headers = make(map[string]*HeaderRef)
@@ -198,7 +203,7 @@ func buildResponse(
 		OmitDescription: metaBool(resp.Meta, "openapi:description:omit"),
 		ComponentName:   metaValue(resp.Meta, "openapi:component:response"),
 		Headers:         headers,
-		Content:         buildResponseContent(resp, statusCode, bodies, rand, closeObjects, websocketHandshake),
+		Content:         buildResponseContent(resp, statusCode, bodies, rand, closeObjects, websocketHandshake, mediaSchemas),
 		Links:           buildResponseLinks(resp.Links, currentService),
 		Extensions: openapi.MergeExtensions(
 			openapi.ExtensionsFromExpr(resp.Meta),
@@ -214,6 +219,7 @@ func buildResponseContent(
 	rand *expr.ExampleGenerator,
 	closeObjects bool,
 	websocketHandshake bool,
+	mediaSchemas map[string]*Schema,
 ) map[string]*MediaType {
 	body := attributeForSchemaUsage(resp.DocumentBody, schemaUsageResponse)
 	contentTypes := resp.ContentTypes
@@ -231,9 +237,13 @@ func buildResponseContent(
 				strconv.Itoa(statusCode),
 				contentType,
 			)
+			schema := firstResponseBody(bodies[statusCode])
+			if prepared, exists := mediaSchemas[contentType]; exists {
+				schema = prepared
+			}
 			content[contentType] = buildMediaType(
 				body,
-				firstResponseBody(bodies[statusCode]),
+				schema,
 				rand,
 				closeObjects,
 				mediaContext,
@@ -318,11 +328,11 @@ func headersFromIR(
 	headersIR []*transportir.Header,
 	rand *expr.ExampleGenerator,
 	closeObjects bool,
+	prepared ...map[*expr.AttributeExpr]*Schema,
 ) map[string]*HeaderRef {
 	if len(headersIR) == 0 {
 		return nil
 	}
-	analyzer := NewAnalyzer(rand, closeObjects)
 	headers := make(map[string]*HeaderRef, len(headersIR))
 	for _, headerIR := range headersIR {
 		child := headerIR.Attribute
@@ -334,7 +344,7 @@ func headersFromIR(
 			Description:   child.Description,
 			Required:      child.IsRequiredNoDefault(headerIR.Name),
 			AllowReserved: metaBool(child.Meta, "openapi:allowReserved"),
-			Schema:        analyzer.AnalyzeSchemaWithContext(child, headerContext),
+			Schema:        preparedLocationSchema(child, headerContext, rand, closeObjects, prepared),
 			Extensions:    openapi.ScopedExtensionsFromExpr(child.Meta, "header"),
 		}
 		initExamples(header, child, rand, closeObjects, headerContext)
@@ -536,4 +546,19 @@ func wrapResponses(responses map[string]*Response) map[string]*ResponseRef {
 		wrapped[status] = &ResponseRef{Value: response}
 	}
 	return wrapped
+}
+
+func preparedLocationSchema(attribute *expr.AttributeExpr, context string, random *expr.ExampleGenerator, closeObjects bool, prepared []map[*expr.AttributeExpr]*Schema) *Schema {
+	if len(prepared) > 0 && prepared[0] != nil {
+		schema, exists := prepared[0][attribute]
+		if !exists {
+			panic("OpenAPI location missing prepared representation")
+		}
+		if schema == nil {
+			return nil
+		}
+		copy := *schema
+		return &copy
+	}
+	return NewAnalyzer(random, closeObjects).AnalyzeSchemaWithContext(attribute, context)
 }

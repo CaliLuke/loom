@@ -1,6 +1,6 @@
 # Proof and production correspondence ledger
 
-Status: **M1 foundation and #569 candidate proofs reviewed and pushed; #570 registered production correspondence and full integration gates pass. Reviewed checkpoints are recorded below; atomic delivery requires final review of the frozen diff.** The reviewed contract is
+Status: **M1, #569 and #570 are independently reviewed and pushed. #574 byte-schema migration is in progress; its current proof checkpoint is recorded below, without claiming completed schema correspondence.** The reviewed contract is
 [value-contract-design.md](../../../roadmap/value-contract-design.md).
 The source-history reference is `f5b786b39675e2b5c1466f04f3301b7b337779b6`.
 The word “proved” below applies to the Lean statement, not to handwritten Go,
@@ -70,6 +70,7 @@ resolves, projects or decodes.
 | A projected collection can inherit stale naming provenance from its source declaration | Required meal-planner output changed `RecipeResponseSummaryCollection` to `RecipeCollection` after copying source occurrence metadata | Shared view projection must preserve occurrence constraints while assigning naming provenance to the new derived declaration. Four direct view/canonical-name controls, race checks and unchanged meal-planner JSON/YAML goldens pass; independent scoped review passed. The final parent/candidate meal-planner comparison is byte-identical. This is DSL-to-plan naming evidence outside the semantic theorem, not grounds for a renderer exception or a new proof vocabulary |
 | A named Bytes type shared by nullable and non-null result occurrences can corrupt view representation planning | The retained #570 nullable-view regression is outside the Lean table validator: the model receives explicit occurrence/target identities and does not construct them from shared Go attributes | #570 isolates effective occurrence presence and physical representation. Direct tests and generated nullable-view/child-view probes pass, with the original parent failure retained in the comparison record. This is tested adapter/plan derivation, not a semantic theorem |
 | Initial Lean evaluator branch returns bypassed whole-node enum gates | Universal schema correspondence exposed a candidate defect before approval; independent spec rejected the empty enum while the initial array evaluator accepted. `ProjectionControls.legacyHoistedEnumCounterexample` retains the rejected do-block layering, and repaired controls cover array/object/map/union/Any gates | Schema, decoder and resolver now compute their bodies in separate helper functions before uniform enum validation. All affected component proofs/controls have been rebuilt; independent exact-diff review remains required; this is a candidate implementation repair, not an assumption narrowing representability |
+| Alias enum overrides disagree across existing consumers | An admitted Inner Int enum `{1,2}` with bounds `[0,9]`, then Outer enum `{2,3}` with bounds `[1,5]`, produces a validator accepting `3`; its actual OpenAPI schema and resolver example role reject `3`. The emitted example is also `3`. Parent `2f6bfbf7` emits the same schema. | **Pending #571 design decision:** preserve outer-enum override or require cumulative membership before migration. This is an effective-contract extraction boundary, not permission to change runtime acceptance. Evidence executes the emitted validator and validates the schema with Ajv; it does not claim an HTTP round trip or enum/default-role coverage. Bound intersection is a separate policy. |
 
 These rows invalidate any broader inference from the old foundation approval;
 the original concrete lemmas remain unchanged. Counterexample/model and ledger
@@ -225,8 +226,374 @@ Go/reference adapters retain map entries, source identity and presence; the
 registered differential corpus and its negative controls pass. Full lint, test,
 coverage-ratchet and final generation comparisons pass. The [durable comparison
 record](../../../internal/valuecontract/OCCURRENCES.md) preserves the inputs,
-intended differences and outcomes. Atomic delivery requires independent review
-of the frozen final diff; this record does not grant that authorization.
+intended differences and outcomes. Final independent review authorized the frozen diff; the atomic commit
+`2f6bfbf7` was pushed. The completed task's temporary results and compiled Lean
+outputs were removed after review, with durable inputs retained in Git.
+
+**#574 checkpoint:** `AliasLengthBounds` proves decoded-bound intersection for
+arbitrary finite alias chains. `ByteLengthProjection` proves residue/encoded
+interval equivalence, actual clamp/omission behavior, complete residue coverage,
+grammar-length composition and the checked multiplication limit. These 19
+statements passed the 586-theorem aggregate audit and fresh kernel replay.
+The complete conformance target also passed its actual rejected-proof controls
+and all 15 executed comparison groups.
+The `byte-alias-lengths` and `byte-schema-bounds` executable groups compare the
+actual shared helper and Go source/target behavior against these functions.
+They do not discharge general alias enums, key constraints or DSL lowering.
+
+Independent review caught a production composition error: projecting an inner
+bound before intersecting the outer alias could overflow a redundant huge bound,
+or reject an effective empty range instead of emitting an unsatisfiable schema.
+Both adapters must collect the complete decoded-bound conjunction before the
+single shared projection. This is a production-to-model mismatch; the proved
+intersection statement itself did not require weakening. The direct and Ajv
+regressions retain both cases. Independent scoped review confirmed the repair;
+final whole-ticket implementation review remains required.
+
+Schema preparation also needs structural plans without example/enum resolution.
+A custom Any enum is valid existing schema input but need not resolve through a
+built-in value projector. `ValuePlanSchema` keeps that distinction explicit and
+cannot authorize `ProjectJSON`. Independent review also found that the initial
+`ValuePlanNode.Attribute` query used `DupAtt`, which appended copied result types
+to the global generated-result registry. The query now uses the shared occurrence
+copy owner in captured-source mode: it preserves the already captured example
+value and null flag instead of rereading the mutable authored origin. Repeated
+queries, recursive graphs and caller mutation have direct and race regressions;
+independent review closed both schema-mode findings. These are tested capture
+and query boundaries, not additional semantic theorems.
+
+The unchanged TLA+ checked configuration passes all 47,712 states, while the
+missing-target cache control still fails `CacheOwnership` as expected. Neither
+configuration models concrete component naming. The [byte-schema evidence
+record](../../../internal/valuecontract/BYTE_SCHEMA.md) links the production
+owners and reproduction commands. Complete schema registration,
+per-representation naming, generated comparisons and all final #574 gates remain
+open.
+
+The registry review reproduced a remaining target-ownership violation in
+synthetic tagged-union components: a cache keyed only by the authored branch
+fingerprint reused a raw schema for JSON, or the reverse, depending on traversal
+order. The existing TLA+ target-cache counterexample describes this ownership
+class; it does not itself find the concrete Go cache. Both-order Go regressions
+must pass after synthetic components enter the same representation-aware owner.
+The same entry-point audit found unprepared WebSocket and SSE schema analysis;
+their retained failures require migration through the shared representation
+factory before #574 can close. These findings extend the production acceptance
+matrix without claiming a new Lean theorem about component allocation.
+
+The next registry review also rejected a naming exception based only on shared
+source identity and the presence of a plan. A two-field String object and its
+one-field projection could then silently claim one explicit public name even
+without Bytes. Registration must retain structural identity separately from the
+representation-specific byte projection: only the latter conflict authorizes a
+variant. The no-byte case and a byte-containing sibling case are required
+negative controls. This is another concrete allocator obligation outside Lean's
+explicit target-plan domain.
+
+Actual codec selection remains a separate extraction obligation. The physical
+SSE check reproduced a false JSON classification for a native Bytes field mapped
+to event data: `EncodeSSEData` writes its raw text, whereas named slices,
+Nullable wrappers and whole-event values use JSON. A second runtime probe found
+the same class of failure in an ordinary `ContentType("text/plain")` HTTP
+response: `ResponseEncoder` writes `hi`, but the draft schema required base64.
+These are failures to supply the model's codec input correctly, not failures of
+the proved byte arithmetic. The repair must derive representation plans from
+the actual built-in codec owner before schema registration. Request encoding,
+request decoding, response encoding and SSE dispatch have distinct selection
+rules; a media label cannot substitute for those rules. The finite built-in
+codec matrix now passes against actual runtime functions and rendered schemas;
+independent scoped review confirms the shared selector's behavior and ownership.
+Whole-ticket comparison and final review remain pending. Custom runtime-injected
+codecs stay outside this correspondence claim. `internal/httpcodec/codec.go`
+owns the role-specific selectors consumed by runtime `http/encoding.go` and
+HTTP representation preparation; SSE retains its separate physical-type owner.
+
+The selector audit also found that a mapped response `Content-Type` header is
+written after the generated code chooses its encoder. Header enum values
+therefore do not establish a codec. A static response content type can establish
+the encoder context; a header-only media declaration must retain its old schema
+as an indeterminate codec boundary unless a separate runtime link establishes
+the choice. This preserves existing behavior without claiming JSON equivalence
+from an advertised label or introducing a new unsupported-target error.
+
+The first full repository/comparison checkpoint exposed additional production
+boundaries. A copied documentation body reported its transport wrapper's type ID
+instead of the original declaration ID, so an equivalent imported schema was
+rejected as a public-name collision. Original identity must be captured from
+controlled ancestry before later mutations; the independent legacy structural
+comparison still rejects genuinely different shapes. A referenced API error
+also lacks a method-local carrier even though its finalized transport error
+retains the correct declaration. Preparation must bind that exact declaration,
+including inherited mapping scope, without inheriting every API error or using
+the projected response body as its source.
+
+Separately, splitting a pre-registered component into representations sampled a
+new request copy and changed its existing example annotation. Legacy component
+annotation authority must stay separate from representation-specific schema
+identity, with source/context isolation, absence retention and copied results.
+This is not permission to share projected wire values across codecs, nor does it
+complete the #572 example migration. The importer must also retain explicit
+`format: binary` metadata rather than relying on the old implicit Bytes format.
+Independent scoped review has confirmed these repairs, including incompatible
+String/Bytes shape rejection, inherited error shadowing, annotation isolation
+and actual importer generation. Full comparison and final ticket gates remain
+pending. The existing Lean statements take correct source/plan extraction as
+an explicit boundary; these concrete tests do not turn it into a proved Go
+refinement.
+
+The isolated comparison also exposed an async reference-shape boundary: the
+legacy inline traversal retains a named reference when a declaration hash is
+already on its active path, including copied wrappers with the same hash. The
+new traversal expanded an acyclic component reference instead, changing both
+the schema shape and the example sampling context at a non-Bytes location.
+This remains an open comparison finding. Any repair must preserve the existing
+reference cuts while analyzing the intact constraint and representation graph;
+flattened constraints must not become the semantic authority again. The Lean
+byte-length statements do not establish reference-shape or sampling equivalence.
+The same materialization boundary includes synthetic tagged-union envelope
+references created during schema analysis: expanding them also changes existing
+async contracts even when no byte constraint is involved. Acceptance must cover
+those generated references as well as authored named declarations.
+An annotation-only sibling of a reference also triggered an unnecessary
+`allOf` wrapper. This hid inline properties from occurrence-context sampling
+and exposed different component-context samples. Materialization must distinguish
+annotations from assertion siblings: preserve ordinary inline shape for the
+former and retain conjunction for the latter, without discarding byte or other
+constraints to match an old example.
+The retained-reference assertion control also found that async contract
+extraction discarded active siblings through an unconditional reference-only
+shortcut. TestAsyncMaterializationCutKeepsAssertionSiblings covers this boundary:
+only a pure reference may take that shortcut; assertion siblings must reach
+the shared schema renderer intact.
+Independent review then found that a legitimate Required overlay retained its
+assertion but hid inline child properties beneath `allOf`, skipping a child's
+example callback. Constraint retention alone is insufficient: sampling must
+follow the source/schema correspondence through conjunction wrappers without
+flattening assertions or repeating callbacks. A combined rendered-document check
+also found a stale async component reference after allocation. The final alias
+collapse and reachability passes visited ordinary schema roots but omitted
+framework-owned async message schemas. Both passes must traverse those typed
+schema roots while leaving example/default values and arbitrary extensions as
+data. Pre-resolving aliases in the async materializer would duplicate the later
+cleanup policy instead of closing its missing edge ownership. Reference closure
+and paired sampling remain separate production obligations under this repair;
+neither follows from the byte arithmetic or graph fingerprint model.
+Collect the complete comparison inventory before changing this shared policy.
+
+The mixed representation probe also exposes a pre-existing named Bytes response
+root-validator mismatch: the generated signature takes a value, but the body
+and call assume a pointer. Parent and candidate inputs, non-OpenAPI artifacts
+and compiler diagnostics match exactly. Earlier field-layout regressions do not
+cover root declaration/body/call agreement. This is a tested counterexample at
+the generated-Go boundary, not a failure of the Lean byte arithmetic. Milestone
+5 / #565 must derive all three uses from the same physical body plan and make
+the retained probe build, vet and pass accepted/rejected runtime validation.
+Until then it remains an explicit known failure, never successful build evidence.
+
+Complete recursive schema identity is another allocation obligation outside the
+Lean value arithmetic. The mixed probe retained two identical completed schemas
+because the old DFS fingerprint distinguished a self-cycle from an equivalent
+prefix into that cycle. The [representation-equivalence model](../../../http/codegen/openapi/internal/ir/tla/representation_equivalence/README.md)
+reproduces this false distinction and an overmerge counterexample. Its proposed
+partition-refinement and quotient-fingerprint algorithm passes two bounded
+configurations, including successive refinement steps. Exact schema/annotation
+extraction, ordered reference paths, public-name reservations and Go
+implementation correspondence still require direct tests and independent review;
+this model does not establish universal JSON Schema semantic equivalence.
+The first Go quotient implementation also changed fingerprint serialization.
+A two-envelope acyclic control showed that this alone can switch the canonical
+name winner. The model used identical structural tuples for legacy and quotient
+fingerprints, so its passing equivalence checks did not cover that change.
+AcyclicFingerprintsPreserved now states abstract compatibility explicitly and
+passed both bounded configurations and independent re-review;
+exact legacy JSON serialization, reference-slot substitution and public-name
+stability remain Go regression and artifact-comparison obligations.
+
+Response semantic interning and public naming also require distinct keys.
+`UnionResponseBodyDSL` retained identical rendered responses, but preserving
+preexisting reference-sibling examples changed discriminator hash preimages and
+a public suffix. The shared response owner now retains complete equality while
+using the historical serialization only for naming. Its complete prior pass
+reserves slots before semantic eligibility filtering, preserving original
+representatives and per-use public aliases; split classes cannot steal retired
+or authored names. The [response allocation model](../../../http/codegen/openapi/internal/ir/tla/representation_equivalence/README.md#response-public-identities)
+checks this bounded policy with independent historical/semantic keys and rejected
+partial repairs. Exact serialization, recursive normalization and literal parent
+names remain Go extraction and artifact-comparison obligations, not Lean claims.
+
+The next complete-comparison checkpoint exposed a remaining source-origin
+boundary in TypeIdentityDSL. Both target wrapper levels correctly capture the
+original declaration, but the schema query reads only the independently advancing
+source cursor. At the inner wrapper that cursor is already an unnamed object;
+the IR fallback uses the renamed target and a different example context.
+Their non-annotation schemas are identical, but
+the newly retained async reference makes the inner component and its different
+examples observable. The registry correctly distinguishes those complete
+schemas; weakening annotation equivalence would hide the upstream ownership
+error. The schema query must use captured target declaration authority, and
+compatible existing public components must retain their annotation context.
+The [schema declaration model](../../tla/schema_declaration/README.md) records
+this boundary and rejected partial repairs. The candidate now stores captured
+target authority on each plan node and exposes it through `TargetDeclarationID`;
+The then-current IR inferred public annotation reuse from matching declaration
+and baseline; later counterexamples below invalidate that premise. The target
+identity extraction remains independently checked. Scoped direct tests passed:
+literal authored alias sequences (not the extraction helper as oracle), field/
+container/branch/recursive positions, distinct equal-shaped declarations and
+exact authored annotation-owner/context/position counts. Two fresh TypeIdentity
+generations match both parent runs byte for byte, with successful build/vet.
+The supplemental alias probe, final full comparison and repository gates remain
+pending. This is tested query-to-consumer correspondence: the bounded model still
+assumes correctly captured labels and does not prove arbitrary Go extraction,
+graph pairing or sampling behavior.
+
+The supplemental `DeclarationAuthorityDSL` then invalidated the annotation
+sharing claim beyond TypeIdentity: two authored alias collection components with
+the same declaration and baseline retain different legacy example contexts.
+The candidate merges them into the canonical component. All four generated apps
+build and vet, but the two OpenAPI artifacts differ without any Bytes contract
+change. This is a production correspondence failure, not an approved difference.
+The earlier declaration model assumed a derived target component and omitted
+neutral registration and independent annotation-owner provenance. Its passing
+result did not justify the production sharing rule.
+The corrected planned-first comparison confirms one sampled Base component is
+lost and AliasOne's reference changes: a plan-valid guard is insufficient. The
+earlier parent-side overlay did not apply because `/tmp` and `/private/tmp` were
+not canonicalized consistently; that run is invalid. Both corrected runs confirm
+the intended prepass override actually executed. The complete 66-probe inventory
+reproduces the same loss
+in moved-object `Item` examples. Actual ancestry traces locate an earlier error:
+the builder advances source aliases on inserted target-only wrapper edges.
+The intermediate declaration model rejected plan-only and shared-child-role
+repairs but still assumed representation edges could select context. The final
+allocation-owner correction below removes that assumption; exact original
+annotation binding remains required for byte variants. The
+paired-alias model reproduces blind advancement on a valid inserted wrapper and
+checks nearest-ancestry pairing over bounded valid and invalid target chains.
+Both original candidate configurations passed independent reruns. A subsequent
+extraction check confirms supported structural flattening retains outer ancestry
+but still requires exact underlying semantic IDs. The pairing model now separates
+that descent from alias-edge matching and rejects an ancestry-only repair; its
+expanded candidate passed independent review. Actual source-pointer
+controls reproduce the wrapper failure while structural projection still passes.
+The projection conformance adapter now compares one/two controlled wrappers
+against the same independent Lean outcomes, including named unions and objects.
+Independent execution passed 112 wrapper checks without skips; these compatibility
+controls also pass before repair and do not prove opaque source identity.
+Focused Go repair tests pass; final correspondence and review remain pending.
+Source-origin capture, recursive
+termination and baseline annotation binding are explicit assumptions, not proved
+Go refinements. No universal annotation-context claim follows from these models.
+An object-Bytes probe further shows that repeating a global baseline fingerprint
+lookup loses an authored `noRef` position. The implementation must carry the exact
+baseline binding along the paired traversal. The annotation model now distinguishes
+two authored allocated contexts and rejects a projected memo hit that overwrites a
+correct binding with another same-declaration/baseline context. That extension
+passed independent review. An explicit `Body(Extend(...))` then exposed conflated
+provenance: semantic transport binding overwrote copy/declaration ancestry. The
+candidate separates those roles and propagates both through copies/constructors;
+new controls reject overwriting target authority or dropping the semantic binding.
+The pairing model also preserves structurally valid explicit body mappings without
+requiring their structural definition in the source alias chain; named transitions
+remain strict. Its structural-check predicate abstracts actual kind/member/branch
+checks, whose extraction remains a Go obligation. Independent review reran all
+sixteen configurations: both candidates passed and fourteen negative controls
+failed on their intended invariants. `value_source_binding_test.go` checks that
+copies and real streaming wrappers preserve separate declaration/source bindings,
+including cycle rejection. `component_annotation_edges_test.go` checks explicit
+body identity and parent-derived ordinary/Bytes annotations in neutral-first and
+planned-first paths. `analyzer_baseline_test.go` checks exact structural routes,
+scope restoration and cycle termination. Full expr/IR/v3 tests and scoped race
+and lint checks pass; final generated comparisons and production review remain.
+The parent-derived method-order oracle also rejects an overstrong test premise:
+reordering authored methods already changes anonymous component names and samples.
+The repair must preserve each input's baseline, stable canonical declarations and
+same-input process determinism, not impose order invariance the parent lacks.
+
+The next four-case generated comparison retained exact TypeIdentity, ordinary
+aliases and moved-object outputs; all sixteen apps built and vetted. Bytes still
+introduced reachable alias examples absent from the parent. The terminal Base
+samples remained correct, exposing a gap in both the scalar context model and
+the direct test's terminal-only oracle. Parent IR inspection shows pure alias
+references without examples; the renderer normally collapses them. Projected
+analysis resampled those references, preventing collapse. Complete-schema
+allocation then correctly distinguished them and displaced canonical Base. This
+is not an approved grammar difference or a reason to weaken schema equivalence.
+`AnnotationPath.tla` now models the missing ordered annotation/absence
+obligation. The old terminal-only check passes reconstruction; full-path
+checking rejects it and an annotation-erasure control. The candidate permits new
+references without new sample authority. Independent review confirmed all five
+configurations, including the added resample-absent control: the terminal owner
+stays correct while an existing annotation-free layer acquires a sample, violating
+`OriginalAbsencePreserved`. The candidate passes all four invariants over 3,528
+states. Actual baseline-path extraction, recursive traversal and naming remain
+Go obligations.
+
+The reviewed implementation records actual construction slots in
+`analyzer_baseline.go`; `analyzer_representation.go` projects that baseline graph
+without reconstructing aliases or sampling again. Direct tests cover member,
+element, union and wrapper mapping, baseline immutability and full rendered
+annotation paths. The independent four-case comparison at `a6fcc679` preserves
+all parent names, references, samples and absence; only 72 byte-schema keyword
+paths differ. Complete ordinary/async schemas pass 156 independent Ajv assertions,
+now required by `make openapi-contract`. Capture `1ac7e9b0` passes strict
+66-case comparison with exactly 18 reviewed schema artifacts changed and no
+other artifact drift. All repository gates pass, including the 586-theorem audit,
+rejection controls and 15 production assertion groups. The 527-design compile corpus
+also passes; full affected-output comparison coverage and final ticket review remain
+pending. See the [evidence record](../../../internal/valuecontract/BYTE_SCHEMA.md)
+for retained baseline failures and the additional bounded alias-length check.
+Expanded comparison then exposed defaults lost before projection: after service
+generation names an async result, structural component reuse selects an ordinary
+baseline without its defaults. The path model assumes a correct baseline; its Go
+oracle checked examples but missed this acquisition boundary.
+[`BaselineAcquisition.tla`](../../tla/schema_declaration/BaselineAcquisition.tla)
+now reproduces cross-consumer and same-message reuse with identical examples but
+different default presence. Independent review confirmed all five configurations:
+annotation-aware and occurrence-owned acquisition preserve payloads and repeated
+identity; structural reuse and never-caching fail their respective invariants.
+Extraction and routing remain Go obligations: [IR controls](../../../http/codegen/openapi/internal/ir/async_baseline_authority_test.go)
+check occurrence reuse, branch-tag correspondence, recursive cuts and synthetic
+ownership; [generator controls](../../../codegen/generator/async_annotation_authority_test.go)
+check defaults, sibling annotations, explicit false overrides and retained names.
+These tests do not extend the model's proved domain. Expanded comparison also
+found ordinary named-type policies applied before inline consumer ownership.
+[`ConsumerDispatch.tla`](../../tla/schema_declaration/ConsumerDispatch.tla)
+checks view, enum-set and nullability ownership together, including repeated
+identity; faulty ordinary-first, global-suppression and policy-import controls
+fail their respective invariants. Its roles and extracted inputs are assumptions,
+not proofs of Go traversal, recursive cuts, byte constraints or runtime behavior.
+The production boundary is `analyzeSchema` before named-type processing and
+outer-occurrence nullability. [Public pipeline controls](../../../codegen/generator/async_view_authority_test.go)
+compare parent scalar/object/collection and combined policies; [retained-cut controls](../../../http/codegen/openapi/internal/ir/async_view_authority_test.go)
+keep ordinary view selection. The original plan still supplies effective byte
+bounds without changing baseline null policy. Independent repair review, all six
+repository gates and the registered 68-probe comparison pass. The broader 499-case
+comparison and final ticket review remain pending under #574.
+
+**Baseline allocation boundary:** the full catalog's `ResultBodyUserRequiredDSL`
+changed a non-Bytes component name and both sample levels. `componentNaming`
+overrode the actual allocated baseline context from matching declaration, shape
+and representation edge. Removing that inference preserves allocation; actual
+memo reuse and explicit canonical naming keep their existing owners. The
+strengthened `SchemaDeclaration` varies actual fresh/reuse decisions independently;
+old edge inference fails acquisition ownership, while byte memo controls fail only
+projection ownership. Parent-backed generator and IR controls preserve the selected
+body and TypeIdentity's ordinary suffix plus retained canonical cut. Three external
+public pipeline comparisons match parent bytes; full generated verification remains
+required. Source pairing, captured declaration identity and byte projection are
+unchanged. No total callback-parity claim is added.
+
+**M3 constraint-lowering gap:** a public DSL occurrence with `Minimum(5)` and
+`ExclusiveMinimum(1)` resolves value `3`, although generated validation and
+schemas retain both restrictions. `checkMinMaxValue` drops the inclusive bound;
+`productionRules` repeats that overwrite, so agreement with the reference can
+hide the defect. Independent lowering must preserve the complete effective
+interval. Alias-required checks also share `IsRequired`; test declaration-derived
+requiredness independently. A constructed alias loses outer required fields,
+but the tested public DSL route finalizes their union correctly. Pattern/format
+alias discrepancies are likewise internal-graph witnesses; the tested DSL route
+rejects them. #571 owns these acceptance cases and the pending enum policy.
 
 **Consumer migrations:** extend the registered corpus for each newly translated
 contract, discharge the explicitly assigned extraction boundaries above, validate

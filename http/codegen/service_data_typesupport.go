@@ -8,6 +8,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
@@ -77,39 +78,6 @@ func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *e
 // collectUserTypes calls cb once per generated user type in dt. Generated body
 // variants can share a design identifier, so traversal uses the same type hashes
 // as NameScope and the physical layout registry.
-func collectUserTypes(dt expr.DataType, cb func(expr.UserType), seen ...map[string]struct{}) {
-	if dt == expr.Empty {
-		return
-	}
-	var s map[string]struct{}
-	if len(seen) > 0 {
-		s = seen[0]
-	} else {
-		s = make(map[string]struct{})
-	}
-	switch actual := dt.(type) {
-	case *expr.Object:
-		for _, nat := range *actual {
-			collectUserTypes(nat.Attribute.Type, cb, s)
-		}
-	case *expr.Union:
-		for _, nat := range actual.Values {
-			collectUserTypes(nat.Attribute.Type, cb, s)
-		}
-	case *expr.Array:
-		collectUserTypes(actual.ElemType.Type, cb, s)
-	case *expr.Map:
-		collectUserTypes(actual.KeyType.Type, cb, s)
-		collectUserTypes(actual.ElemType.Type, cb, s)
-	case expr.UserType:
-		if _, ok := s[actual.Hash()]; ok {
-			return
-		}
-		s[actual.Hash()] = struct{}{}
-		cb(actual)
-		collectUserTypes(actual.Attribute().Type, cb, s)
-	}
-}
 
 func collectUnionBranchUserTypes(att *expr.AttributeExpr, hashes map[string]struct{}) {
 	collectUnionBranchUserTypesSeen(att, hashes, make(map[string]struct{}))
@@ -154,7 +122,7 @@ func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, hashes, seen map[s
 		collectUnionBranchUserTypesSeen(actual.ElemType, hashes, seen)
 	case *expr.Union:
 		for _, nat := range actual.Values {
-			collectUserTypes(nat.Attribute.Type, func(ut expr.UserType) {
+			representation.WalkUserTypes(nat.Attribute.Type, func(ut expr.UserType) {
 				hashes[ut.Hash()] = struct{}{}
 			})
 			collectUnionBranchUserTypesSeen(nat.Attribute, hashes, seen)

@@ -28,6 +28,9 @@ func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBod
 		return nil, nil
 	}
 	endpointIR := transportir.BuildEndpoint(route.Endpoint)
+	if bodies != nil && bodies.prepared != nil {
+		endpointIR = bodies.prepared
+	}
 	bindings, err := newSecurityBindings(endpointIR.Security.Requirements)
 	if err != nil {
 		return nil, err
@@ -69,7 +72,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 	}
 
 	operationID := ParseOperationIDTemplate(operationIDFormat, service.Name, endpointIR.Name, routeIR.Index)
-	extensions := mergeExtensions(openapi.ExtensionsFromExpr(endpointIR.MethodMeta), buildAsyncOperationExtension(endpointIR, path, rand, closeObjects))
+	extensions := mergeExtensions(openapi.ExtensionsFromExpr(endpointIR.MethodMeta), buildAsyncOperationExtension(endpointIR, path, bodies))
 
 	_, deprecated := endpointIR.Meta.Last("openapi:deprecated")
 	return &Operation{
@@ -77,7 +80,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 		Summary:      summary,
 		Description:  endpointIR.Description,
 		OperationID:  operationID,
-		Parameters:   buildParameters(endpointIR, rand, closeObjects),
+		Parameters:   buildParameters(endpointIR, rand, closeObjects, bodies.locations),
 		RequestBody:  wrapRequestBody(requestBody),
 		Responses:    responses,
 		Deprecated:   deprecated,
@@ -87,8 +90,8 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 	}
 }
 
-func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
-	params := append(paramsFromPath(endpointIR, rand, closeObjects), paramsFromHeadersAndCookies(endpointIR, rand, closeObjects)...)
+func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool, prepared ...map[*expr.AttributeExpr]*Schema) []*ParameterRef {
+	params := append(paramsFromPath(endpointIR, rand, closeObjects, prepared...), paramsFromHeadersAndCookies(endpointIR, rand, closeObjects, prepared...)...)
 	params = addFileResponseRequestParameters(endpointIR, params)
 	if endpointIR.Request.MapQueryParams != nil {
 		name := *endpointIR.Request.MapQueryParams
@@ -115,10 +118,10 @@ func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerat
 	return params
 }
 
-func paramsFromPath(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
+func paramsFromPath(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool, prepared ...map[*expr.AttributeExpr]*Schema) []*ParameterRef {
 	var params []*ParameterRef
 	for _, parameter := range endpointIR.Request.PathParams {
-		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "path", true, rand, closeObjects))
+		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "path", true, rand, closeObjects, prepared...))
 	}
 	if endpointIR.Request.MapQueryParams != nil {
 		return params
@@ -127,37 +130,37 @@ func paramsFromPath(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerato
 		if isSecurityParameter(endpointIR.Security, "query", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "query", parameter.Required, rand, closeObjects))
+		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "query", parameter.Required, rand, closeObjects, prepared...))
 	}
 	return params
 }
 
-func paramsFromHeadersAndCookies(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool) []*ParameterRef {
+func paramsFromHeadersAndCookies(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool, prepared ...map[*expr.AttributeExpr]*Schema) []*ParameterRef {
 	var params []*ParameterRef
 
 	for _, parameter := range endpointIR.Request.Headers {
 		if isSecurityParameter(endpointIR.Security, "header", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "header", parameter.Required, rand, closeObjects))
+		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "header", parameter.Required, rand, closeObjects, prepared...))
 	}
 	for _, parameter := range endpointIR.Request.Cookies {
 		if isSecurityParameter(endpointIR.Security, "cookie", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "cookie", parameter.Required, rand, closeObjects))
+		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "cookie", parameter.Required, rand, closeObjects, prepared...))
 	}
 
 	return params
 }
 
-func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *expr.ExampleGenerator, closeObjects bool) *ParameterRef {
+func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *expr.ExampleGenerator, closeObjects bool, prepared ...map[*expr.AttributeExpr]*Schema) *ParameterRef {
 	allowEmptyValue := in == "query"
 	if value, ok := attr.Meta.Last("openapi:allowEmptyValue"); ok && in == "query" {
 		allowEmptyValue = value == "true"
 	}
 	parameterContext := attributeExampleContext(attr, closeObjects, "parameter", in, name)
-	schema := NewAnalyzer(rand, closeObjects).AnalyzeSchemaWithContext(attr, parameterContext)
+	schema := preparedLocationSchema(attr, parameterContext, rand, closeObjects, prepared)
 	schema.Description = ""
 	schema.Example = nil
 	parameter := &Parameter{

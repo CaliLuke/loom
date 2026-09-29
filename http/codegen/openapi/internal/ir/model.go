@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 type (
@@ -177,14 +178,23 @@ type (
 
 	// BodyTypes groups endpoint bodies and component schemas.
 	BodyTypes struct {
+		prepared   map[string]*transportir.Service
+		locations  map[*expr.AttributeExpr]*Schema
 		Services   map[string]map[string]*EndpointBodies
 		Components map[string]*Schema
 	}
 
 	// EndpointBodies describes the request and response body schemas for one endpoint.
 	EndpointBodies struct {
-		RequestBody    *Schema
-		ResponseBodies map[int][]*Schema
+		async           map[string]map[string]*asyncSchema
+		asyncComponents map[string]*Schema
+		asyncAnalyzer   *Analyzer
+		prepared        *transportir.Endpoint
+		requestMedia    map[string]*Schema
+		responseMedia   map[*transportir.ResponseStatus]map[string]*Schema
+		locations       map[*expr.AttributeExpr]*Schema
+		RequestBody     *Schema
+		ResponseBodies  map[int][]*Schema
 	}
 
 	// Schema represents a renderer-neutral schema node.
@@ -221,6 +231,8 @@ type (
 		AdditionalProperties  *BoolOrSchema
 		UnevaluatedProperties *BoolOrSchema
 
+		// Not rejects values accepted by the child, preserving an empty child.
+		Not           *Schema   `json:",omitzero"`
 		AllOf         []*Schema `json:",omitzero,omitempty"`
 		AnyOf         []*Schema
 		OneOf         []*Schema
@@ -288,6 +300,8 @@ type (
 		AdditionalProperties  *BoolOrSchema
 		UnevaluatedProperties *BoolOrSchema
 
+		// Not rejects values accepted by the child, preserving an empty child.
+		Not           *Schema   `json:",omitzero"`
 		AllOf         []*Schema `json:",omitzero,omitempty"`
 		AnyOf         []*Schema
 		OneOf         []*Schema
@@ -333,6 +347,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		Required:              s.Required,
 		AdditionalProperties:  s.AdditionalProperties,
 		UnevaluatedProperties: s.UnevaluatedProperties,
+		Not:                   s.Not,
 		AllOf:                 s.AllOf,
 		AnyOf:                 s.AnyOf,
 		OneOf:                 s.OneOf,

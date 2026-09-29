@@ -5,6 +5,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
@@ -31,7 +32,7 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 	}
 
 	appendTypeData := func(att *expr.AttributeExpr, ptr, server, jsonPresence bool, target *[]*TypeData) {
-		collectUserTypes(att.Type, func(ut expr.UserType) {
+		representation.WalkUserTypes(att.Type, func(ut expr.UserType) {
 			if d := sds.attributeTypeData(ut, true, ptr, server, jsonPresence, sd); d != nil {
 				ensureUnionBranchValidator(d, ut)
 				*target = append(*target, d)
@@ -51,7 +52,7 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 		md := sd.Service.Method(endpointIR.MethodName)
 		for _, response := range endpointIR.Response.Responses {
 			body := effectiveClientResponseBody(response.Body, endpointIR.Response.Result, md)
-			collectUserTypes(body.Type, func(ut expr.UserType) {
+			representation.WalkUserTypes(body.Type, func(ut expr.UserType) {
 				if d := sds.attributeTypeData(ut, false, true, false, true, sd); d != nil {
 					ensureUnionBranchValidator(d, ut)
 					sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
@@ -60,7 +61,7 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 		}
 	}
 	for _, httpError := range endpointIR.Response.ErrorResponses {
-		collectUserTypes(httpError.Body.Type, func(ut expr.UserType) {
+		representation.WalkUserTypes(httpError.Body.Type, func(ut expr.UserType) {
 			if d := sds.attributeTypeData(ut, false, true, false, true, sd); d != nil {
 				ensureUnionBranchValidator(d, ut)
 				sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
@@ -73,70 +74,17 @@ func recordServiceTypeLayouts(endpoints []*transportir.Endpoint, sd *ServiceData
 	if sd == nil {
 		return
 	}
-	ensureTypeLayoutMaps(sd)
+	server, client := representation.ServiceLayouts(endpoints)
+	sd.ServerJSONPresenceTypes, sd.ServerPresencePointerTypes, sd.ServerPresenceUseDefaultTypes = server.JSONPresence, server.Pointer, server.UseDefault
+	sd.ClientJSONPresenceTypes, sd.ClientPresencePointerTypes, sd.ClientPresenceUseDefaultTypes = client.JSONPresence, client.Pointer, client.UseDefault
 	for _, endpoint := range endpoints {
-		recordEndpointRootTypeLayouts(endpoint, sd)
-	}
-	for _, endpoint := range endpoints {
-		recordServerResponseNestedTypeLayouts(endpoint, sd)
-	}
-	for _, endpoint := range endpoints {
-		recordServerRequestNestedTypeLayouts(endpoint, sd)
-	}
-	for _, endpoint := range endpoints {
-		recordClientNestedTypeLayouts(endpoint, sd)
-	}
-}
-
-func recordEndpointRootTypeLayouts(endpoint *transportir.Endpoint, sd *ServiceData) {
-	if endpoint == nil {
-		return
-	}
-	requestJSONPresence := !endpoint.Request.FormEncoded && !endpoint.Request.Multipart
-	recordRootTypeLayout(sd, endpoint.Request.Body, true, requestJSONPresence, true, false)
-	recordRootTypeLayout(sd, endpoint.Request.Body, false, false, false, true)
-	if endpoint.Stream.RequestPayload != nil && endpoint.Stream.RequestPayload.Type != expr.Empty {
-		recordRootTypeLayout(sd, endpoint.Request.StreamingBody, true, true, true, false)
-		recordRootTypeLayout(sd, endpoint.Request.StreamingBody, false, false, false, true)
-	}
-	for _, response := range endpoint.Response.Responses {
-		recordRootTypeLayout(sd, response.Body, true, false, false, true)
-		recordRootTypeLayout(sd, response.Body, false, true, true, false)
-	}
-	for _, response := range endpoint.Response.ErrorResponses {
-		recordRootTypeLayout(sd, response.Body, true, false, false, true)
-		recordRootTypeLayout(sd, response.Body, false, true, true, false)
-	}
-}
-
-func recordServerResponseNestedTypeLayouts(endpoint *transportir.Endpoint, sd *ServiceData) {
-	if endpoint == nil {
-		return
-	}
-	for _, response := range endpoint.Response.Responses {
-		if containsUntaggedUnion(response.Body) {
-			recordServerRequestValidationTypes(sd, response.Body)
-		}
-		recordNestedTypeLayouts(sd, response.Body, true, false, false, true)
-	}
-	for _, response := range endpoint.Response.ErrorResponses {
-		if containsUntaggedUnion(response.Body) {
-			recordServerRequestValidationTypes(sd, response.Body)
-		}
-		recordNestedTypeLayouts(sd, response.Body, true, false, false, true)
-	}
-}
-
-func recordServerRequestNestedTypeLayouts(endpoint *transportir.Endpoint, sd *ServiceData) {
-	if endpoint == nil {
-		return
-	}
-	requestJSONPresence := !endpoint.Request.FormEncoded && !endpoint.Request.Multipart
-	recordServerRequestValidationTypes(sd, endpoint.Request.Body)
-	recordNestedTypeLayouts(sd, endpoint.Request.Body, true, requestJSONPresence, true, false)
-	if endpoint.Stream.RequestPayload != nil && endpoint.Stream.RequestPayload.Type != expr.Empty {
+		recordServerRequestValidationTypes(sd, endpoint.Request.Body)
 		recordServerRequestValidationTypes(sd, endpoint.Request.StreamingBody)
-		recordNestedTypeLayouts(sd, endpoint.Request.StreamingBody, true, true, true, false)
+		for _, response := range append(append([]*transportir.ResponseStatus(nil), endpoint.Response.Responses...), endpoint.Response.ErrorResponses...) {
+			if containsUntaggedUnion(response.Body) {
+				recordServerRequestValidationTypes(sd, response.Body)
+			}
+		}
 	}
 }
 
@@ -147,59 +95,21 @@ func recordServerRequestValidationTypes(sd *ServiceData, attribute *expr.Attribu
 	if sd.ServerRequestValidationTypes == nil {
 		sd.ServerRequestValidationTypes = make(map[string]bool)
 	}
-	collectUserTypes(attribute.Type, func(userType expr.UserType) {
+	representation.WalkUserTypes(attribute.Type, func(userType expr.UserType) {
 		sd.ServerRequestValidationTypes[userType.Hash()] = true
 	})
 }
 
-func recordClientNestedTypeLayouts(endpoint *transportir.Endpoint, sd *ServiceData) {
-	if endpoint == nil {
-		return
-	}
-	recordNestedTypeLayouts(sd, endpoint.Request.Body, false, false, false, true)
-	if endpoint.Stream.RequestPayload != nil && endpoint.Stream.RequestPayload.Type != expr.Empty {
-		recordNestedTypeLayouts(sd, endpoint.Request.StreamingBody, false, false, false, true)
-	}
-	for _, response := range endpoint.Response.Responses {
-		recordNestedTypeLayouts(sd, response.Body, false, true, true, false)
-	}
-	for _, response := range endpoint.Response.ErrorResponses {
-		recordNestedTypeLayouts(sd, response.Body, false, true, true, false)
-	}
-}
-
 func recordRootTypeLayout(sd *ServiceData, attribute *expr.AttributeExpr, server, jsonPresence, pointer, useDefault bool) {
-	if attribute == nil {
-		return
-	}
-	if userType, ok := attribute.Type.(expr.UserType); ok {
-		recordUserTypeLayout(sd, userType, server, jsonPresence, pointer, useDefault)
-	}
+	ensureTypeLayoutMaps(sd)
+	presence, pointers, defaults := typeLayoutMaps(sd, server)
+	representation.Layout{JSONPresence: presence, Pointer: pointers, UseDefault: defaults}.RecordRoot(attribute, jsonPresence, pointer, useDefault)
 }
 
 func recordAttributeTypeLayouts(sd *ServiceData, attribute *expr.AttributeExpr, server, jsonPresence, pointer, useDefault bool) {
-	if attribute == nil {
-		return
-	}
-	collectUserTypes(attribute.Type, func(userType expr.UserType) {
-		recordUserTypeLayout(sd, userType, server, jsonPresence, pointer, useDefault)
-	})
-}
-
-func recordNestedTypeLayouts(sd *ServiceData, attribute *expr.AttributeExpr, server, jsonPresence, pointer, useDefault bool) {
-	if attribute == nil {
-		return
-	}
-	rootHash := ""
-	if root, ok := attribute.Type.(expr.UserType); ok {
-		rootHash = root.Hash()
-	}
-	collectUserTypes(attribute.Type, func(userType expr.UserType) {
-		if userType.Hash() == rootHash {
-			return
-		}
-		recordUserTypeLayout(sd, userType, server, jsonPresence, pointer, useDefault)
-	})
+	ensureTypeLayoutMaps(sd)
+	presence, pointers, defaults := typeLayoutMaps(sd, server)
+	representation.Layout{JSONPresence: presence, Pointer: pointers, UseDefault: defaults}.RecordAll(attribute, jsonPresence, pointer, useDefault)
 }
 
 // recordUserTypeLayout records the layout of the Go type of userType unless
@@ -209,26 +119,8 @@ func recordNestedTypeLayouts(sd *ServiceData, attribute *expr.AttributeExpr, ser
 // type but are different Go types with different layouts.
 func recordUserTypeLayout(sd *ServiceData, userType expr.UserType, server, jsonPresence, pointer, useDefault bool) {
 	ensureTypeLayoutMaps(sd)
-	jsonPresenceTypes, pointerTypes, useDefaultTypes := typeLayoutMaps(sd, server)
-	key := userType.Hash()
-	if recordedJSONPresence, recorded := jsonPresenceTypes[key]; recorded {
-		if typeLayoutPriority(recordedJSONPresence, pointerTypes[key]) >= typeLayoutPriority(jsonPresence, pointer) {
-			return
-		}
-	}
-	jsonPresenceTypes[key] = jsonPresence
-	pointerTypes[key] = pointer
-	useDefaultTypes[key] = useDefault
-}
-
-func typeLayoutPriority(jsonPresence, pointer bool) uint8 {
-	if jsonPresence {
-		return 2
-	}
-	if pointer {
-		return 1
-	}
-	return 0
+	presence, pointers, defaults := typeLayoutMaps(sd, server)
+	representation.Layout{JSONPresence: presence, Pointer: pointers, UseDefault: defaults}.Record(userType, jsonPresence, pointer, useDefault)
 }
 
 func typeLayoutMaps(sd *ServiceData, server bool) (map[string]bool, map[string]bool, map[string]bool) {
@@ -239,23 +131,8 @@ func typeLayoutMaps(sd *ServiceData, server bool) (map[string]bool, map[string]b
 }
 
 func applyUserTypeLayout(ctx *codegen.AttributeContext, sd *ServiceData, attribute *expr.AttributeExpr, server bool) {
-	if attribute == nil {
-		return
-	}
-	userType, ok := attribute.Type.(expr.UserType)
-	if !ok {
-		return
-	}
-	jsonPresenceTypes, pointerTypes, useDefaultTypes := typeLayoutMaps(sd, server)
-	key := userType.Hash()
-	jsonPresence, recorded := jsonPresenceTypes[key]
-	if !recorded {
-		return
-	}
-	ctx.JSONPresence = jsonPresence
-	ctx.CollectionElementPresence = jsonPresence
-	ctx.Pointer = pointerTypes[key]
-	ctx.UseDefault = useDefaultTypes[key]
+	ctx.JSONPresenceTypes, ctx.PresencePointerTypes, ctx.PresenceUseDefaultTypes = typeLayoutMaps(sd, server)
+	representation.ApplyLayout(ctx, attribute)
 }
 
 func ensureTypeLayoutMaps(sd *ServiceData) {

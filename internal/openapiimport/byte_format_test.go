@@ -47,6 +47,7 @@ components:
 		design, err := Render(analysis.Document, Options{PackageName: "design"})
 		require.NoError(t, err)
 		require.Contains(t, string(design), `Meta("openapi:format", "byte")`)
+		require.Contains(t, string(design), `Meta("openapi:format", "binary")`)
 		if allowLossy {
 			require.Equal(t, strictDesign, design)
 		} else {

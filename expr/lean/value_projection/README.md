@@ -17,8 +17,8 @@ and fresh kernel replay, with independent review. Its production adapter passed
 preflight requests for inadmissible numeric sources. The shared admission-aware
 request collector now passes all 13 registered conformance assertion groups,
 including those 402 comparisons and missing-codec negative controls. Full lint,
-test, coverage and final generation comparisons pass. Commit authorization
-requires final independent review of the frozen diff and this evidence.
+test, coverage and final generation comparisons passed. Final independent
+review authorized the atomic #570 commit, pushed as `2f6bfbf7`.
 Shared Go target-constraint and source-traversal repairs passed independent
 re-review. Alias-local and map-key constraints still lack complete formal
 correspondence; the adapter rejects unsupported shapes explicitly.
@@ -26,6 +26,28 @@ The gate targets the candidate `Proofs` entry point. #570 wires the same
 registered-corpus proof/conformance gate into local checks and CI.
 Alias-local schema lowering is due in #574; cumulative alias/key-constraint and
 key-enum lowering is due in #571, before those consumers rely on it.
+
+## Byte-schema migration: #574
+
+[`AliasLengthBounds.lean`](ValueContract/AliasLengthBounds.lean) proves that
+intersecting every local decoded-length constraint on a finite alias chain
+preserves their conjunction. [`ByteLengthProjection.lean`](ValueContract/ByteLengthProjection.lean)
+proves residue bounds, clamping, empty-branch omission, encoded-length arithmetic
+and its composition with an independently stated base64 grammar. The 19 new
+statements bring the current audited manifest to 586 theorems; the axiom audit
+and fresh kernel replay pass. This checkpoint does not complete #574.
+
+The executable reference exposes these same functions through `aliasLengths`
+and `byteLengthSchema`. The new Go conformance groups compare the real shared
+`internal/byteschema` helper, source resolution and target projection with the
+reference. General non-length alias/key constraints remain explicitly outside
+this lowering; their existing rejection controls remain required.
+
+Actual JSON codec acceptance, ECMA-262 regex execution, schema adapter traversal,
+component identity and emitted Go are still tested boundaries. The generated
+HTTP/JSON-RPC and Ajv checks run in `make openapi-contract`. Full affected-output
+comparisons and independent #574 review remain open; a checked arithmetic
+model alone does not establish correctness of the emitted schemas.
 
 ## Architecture and navigation
 

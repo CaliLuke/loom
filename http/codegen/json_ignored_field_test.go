@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 )
 
 // TestMergeJSONOmitOption preserves the exact ignore marker while retaining
@@ -29,7 +30,7 @@ func TestMergeJSONOmitOption(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.tag+"/"+c.option, func(t *testing.T) {
-			require.Equal(t, c.want, mergeJSONOmitOption(c.tag, c.option))
+			require.Equal(t, c.want, representation.MergeJSONOmitOption(c.tag, c.option))
 		})
 	}
 }

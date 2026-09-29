@@ -415,12 +415,26 @@ representation. For custom JSON integration, pass `loom.JSONOptions()` to
 `json.Marshal` or `json.Unmarshal` to use the same map-key rules. Add
 `json.Deterministic(true)` when stable member ordering is required.
 
+### Bytes in JSON Bodies
+
 `Bytes` values in JSON bodies are base64 strings. OpenAPI schema examples,
 enums, and defaults use the same JSON representation. Raw binary body media
 examples contain the literal bytes when they form valid UTF-8 text; Loom omits
 inline media examples for other byte sequences. Explicit `dataValue` and
 `serializedValue` example metadata keep their respective data and serialized
 representations.
+
+For built-in JSON encoding, a `Bytes` schema describes a padded base64 string.
+`MinLength` and `MaxLength` count decoded bytes, not base64 characters. Loom
+intersects length bounds inherited through named aliases and emits standard
+JSON Schema constraints for the base64 grammar and effective decoded length.
+`contentEncoding: base64` also identifies the encoding; that annotation alone
+does not validate the value. Requiredness, nullability and enum constraints
+remain separate.
+
+This schema projection applies when the representation uses built-in JSON.
+Raw and text bodies, form and multipart fields, custom codecs, and explicit
+schema overrides retain their own contracts.
 
 ### Raw Request and Response Bodies
 
@@ -578,6 +592,11 @@ media type from `Accept`, ignoring media-type parameters such as `charset`.
 Missing or unsupported values fall back to JSON. The built-in negotiator does
 not rank comma-separated alternatives, quality values, or wildcards; install a
 custom encoder when the API needs to select among several representations.
+
+A mapped response `Content-Type` header is written after encoder selection;
+its value alone does not select the encoder. Use the response `ContentType`
+declaration to select a fixed built-in encoding. A default JSON response schema
+describes the default negotiation path, not every possible `Accept` value.
 
 When an endpoint produces one known set of media types and must reject an
 incompatible `Accept` header, apply a strict policy to its generated handler:
@@ -1024,9 +1043,10 @@ The `data:` field of each event is encoded according to how the design maps it:
   clients decode the data through the configured JSON decoder, so every value
   round-trips exactly, including empty strings, carriage returns, trailing
   newlines, and binary bytes. Browser clients should `JSON.parse(event.data)`.
-- **Field-level data** (`SSEEventData("field")`): `String` and `Bytes` fields
-  are written as raw text, and numbers and booleans as their literal text.
-  Object and collection fields are JSON. Raw text is subject to SSE framing: CR
+- **Field-level data** (`SSEEventData("field")`): native string fields and
+  `Bytes` fields emitted as native `[]byte` are written as raw text. Named byte
+  types and nullable wrappers use JSON, as do objects and collections. Numbers
+  and booleans appear as their JSON literal text. Raw text is subject to SSE framing: CR
   and CRLF become LF, a trailing line break is lost, an empty value can produce
   an event that clients do not dispatch, and bytes must be valid UTF-8 text. Map
   the data to a structured field, or use a whole-event result, when values can

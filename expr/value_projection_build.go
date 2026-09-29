@@ -12,6 +12,9 @@ func observeJSON(plan *valuePlanNode, role ValueRole, value ResolvedValue) (Reso
 	if value.Presence() == ValueAbsent {
 		return ResolvedValue{}, nil
 	}
+	if plan.codec != ValueCodecJSON {
+		return ResolvedValue{}, projectionBuildFailure(ProjectionUnsupported, "target node requires an external codec")
+	}
 	if value.Presence() == ValueNull && plan.nullable {
 		return value, nil
 	}

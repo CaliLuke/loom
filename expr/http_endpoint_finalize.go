@@ -111,6 +111,9 @@ func (e *HTTPEndpointExpr) finalizeTransportBodies() {
 	initAttr(e.Headers, e.MethodExpr.Payload)
 	initAttr(e.Cookies, e.MethodExpr.Payload)
 
+	if e.Body != nil {
+		bindValueSource(e.Body, responseBodyAttribute(e.Body, e.MethodExpr.Payload))
+	}
 	e.Body = httpRequestBody(e)
 	e.Body.Finalize()
 	if e.OpenAPIRequestBody != nil {

@@ -763,8 +763,9 @@ components:
 	requireRenderedDesignEvaluates(t, rendered, 4)
 
 	design := string(rendered)
+	binaryBody := "OpenAPIBody(Bytes, func() {\n\t\t\t\t\tMeta(\"openapi:format\", \"binary\")\n\t\t\t\t})"
 	for _, expected := range []string{
-		`Attribute("file", Bytes)`,
+		"Attribute(\"file\", Bytes, func() {\n\t\tMeta(\"openapi:format\", \"binary\")\n\t})",
 		`Attribute("label", String)`,
 		`Extend(ImportedUpload)`,
 		`MultipartRequest()`,
@@ -775,10 +776,11 @@ components:
 		`FileResponse()`,
 		`SkipResponseBodyEncodeDecode()`,
 		`ContentType("application/pdf")`,
-		`OpenAPIBody(Bytes)`,
+		binaryBody,
 	} {
 		require.Contains(t, design, expected)
 	}
+	require.Equal(t, 3, strings.Count(design, binaryBody), "all binary response bodies retain their explicit format")
 	require.NotContains(t, design, `Body("body")`)
 }
 

@@ -12,6 +12,8 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   generation
 - `http/`: HTTP runtime, middleware, client/server generation, integrations,
   and OpenAPI generation
+- `http/codegen/internal/representation`: shared occurrence, codec, layout and
+  target-plan preparation for HTTP generation and OpenAPI analysis
 - `http/codegen/openapi/internal/ir`: shared OpenAPI analysis and contract
   decisions
 - `http/codegen/openapi/v3`: OpenAPI 3.2 rendering and 3.1 compatibility
@@ -32,6 +34,10 @@ belong in the `loom` skill and the canonical guides under `docs/`.
   owns their typed adapters and static manifest
 - `vet/`: evaluated-design and consuming-module adoption diagnostics
 - `internal/`: repository-private support packages and release/source tooling
+- `internal/httpcodec`: role-specific built-in HTTP codec selection shared by
+  runtime dispatch and representation preparation
+- `internal/byteschema`: alias-bound intersection and checked base64 grammar
+  and decoded-length schema projection
 - `internal/naming`: the Go identifiers and generated directory names derived
   from design names; `codegen` and `expr` share it, so design validation uses
   the same names as the generators

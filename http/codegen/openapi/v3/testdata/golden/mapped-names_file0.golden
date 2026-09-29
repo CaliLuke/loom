@@ -7,11 +7,28 @@
         },
         "properties": {
           "d": {
+            "anyOf": [
+              {
+                "minLength": 0,
+                "pattern": "^([A-Za-z0-9+/]{4})*$"
+              },
+              {
+                "minLength": 4,
+                "pattern": "^([A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{2}==$"
+              },
+              {
+                "minLength": 4,
+                "pattern": "^([A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{3}=$"
+              }
+            ],
+            "contentEncoding": "base64",
             "enum": [
               "aGk="
             ],
             "example": "aGk=",
-            "format": "binary",
+            "not": {
+              "pattern": "[^A-Za-z0-9+/=]"
+            },
             "type": "string"
           }
         },
@@ -67,11 +84,28 @@
         },
         "properties": {
           "b": {
+            "anyOf": [
+              {
+                "minLength": 0,
+                "pattern": "^([A-Za-z0-9+/]{4})*$"
+              },
+              {
+                "minLength": 4,
+                "pattern": "^([A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{2}==$"
+              },
+              {
+                "minLength": 4,
+                "pattern": "^([A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{3}=$"
+              }
+            ],
+            "contentEncoding": "base64",
             "enum": [
               "aGk="
             ],
             "example": "aGk=",
-            "format": "binary",
+            "not": {
+              "pattern": "[^A-Za-z0-9+/=]"
+            },
             "type": "string"
           },
           "dt": {

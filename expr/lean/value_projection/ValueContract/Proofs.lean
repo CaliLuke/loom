@@ -1,4 +1,6 @@
 import ValueContract.CandidateControls
+import ValueContract.AliasLengthBounds
+import ValueContract.ByteLengthProjection
 import ValueContract.CanonicalConstructionProofs
 import ValueContract.CanonicalProofs
 import ValueContract.EmptyProofs

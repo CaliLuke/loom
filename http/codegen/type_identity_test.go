@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 )
 
 func TestServerValidationUsesGeneratedTypeIdentity(t *testing.T) {
@@ -40,7 +41,7 @@ func TestCollectUserTypesKeepsDistinctBodyVariants(t *testing.T) {
 			{Name: "second", Attribute: &expr.AttributeExpr{Type: order[1]}},
 		}
 		var names []string
-		collectUserTypes(root, func(userType expr.UserType) {
+		representation.WalkUserTypes(root, func(userType expr.UserType) {
 			names = append(names, userType.Name())
 		})
 		require.ElementsMatch(t, []string{"FirstBody", "SecondBody"}, names)
@@ -93,7 +94,7 @@ func TestGeneratedTypeTraversalTerminatesOnRecursion(t *testing.T) {
 	expr.AsObject(first.Type).Set("child", &expr.AttributeExpr{Type: second})
 	expr.AsObject(second.Type).Set("parent", &expr.AttributeExpr{Type: first})
 	var names []string
-	collectUserTypes(first, func(userType expr.UserType) {
+	representation.WalkUserTypes(first, func(userType expr.UserType) {
 		names = append(names, userType.Name())
 	})
 	require.ElementsMatch(t, []string{"FirstBody", "SecondBody"}, names)

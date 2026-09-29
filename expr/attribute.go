@@ -43,6 +43,9 @@ type (
 		// valueOrigin records structural copy ancestry, never a semantic value
 		// context or resolution. Effective occurrences always receive fresh IDs.
 		valueOrigin *AttributeExpr
+		// valueSourceOrigin records an explicit finalized semantic transport
+		// binding independently of copy/declaration provenance.
+		valueSourceOrigin *AttributeExpr
 	}
 
 	// ExampleExpr represents an example.

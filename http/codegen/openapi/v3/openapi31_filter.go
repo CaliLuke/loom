@@ -261,6 +261,7 @@ func filterSchemaCompatibility(schema *openapi.Schema, seen map[*openapi.Schema]
 	if schema.XML != nil {
 		schema.XML.NodeType = ""
 	}
+	filterSchemaCompatibility(schema.Not, seen)
 	filterSchemaCompatibility(schema.Items, seen)
 	filterSchemaCompatibility(schema.ContentSchema, seen)
 	for _, child := range schema.Properties {

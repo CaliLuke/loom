@@ -7,6 +7,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/examplegen"
 )
@@ -27,7 +28,10 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 		"endpoints", len(httpSvc.HTTPEndpoints),
 		"file_servers", len(httpSvc.FileServers),
 	)
-	irService := transportir.BuildService(httpSvc)
+	irService, err := representation.PrepareService(httpSvc, svc)
+	if err != nil {
+		panic(err)
+	}
 	nameUnionBodies(irService.Endpoints)
 	nameBodyTypes(irService.Endpoints)
 	svc, scope := newHTTPAnalysisService(svc, sds.serviceImportAliases[httpSvc.Name()])
@@ -37,7 +41,6 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
 	recordServiceTypeLayouts(irService.Endpoints, sd)
 	for _, httpEndpoint := range irService.Endpoints {
-		attachHTTPValueCarriers(httpEndpoint, svc.Method(httpEndpoint.MethodName))
 		epCtx := ctx.WithMethod(httpSvc.ServiceExpr.Method(httpEndpoint.MethodName))
 		epCtx.Debug("analyzing HTTP endpoint",
 			"verb", endpointVerb(httpEndpoint),

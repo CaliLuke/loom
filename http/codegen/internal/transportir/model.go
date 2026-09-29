@@ -15,6 +15,9 @@ type (
 		Selection []string
 		// Codec is selected by actual transport behavior, never media labels.
 		Codec expr.ValueCodec
+		// SSEDataField identifies the physical field passed to EncodeSSEData.
+		// Its codec is derived from the emitted type and presence layout.
+		SSEDataField string
 		// Plan is populated only after actual emitter policies are available.
 		Plan expr.ValuePlan
 		// Error retains a plan construction failure for consuming analysis.
@@ -59,6 +62,8 @@ type (
 		BodyValue *ValueTarget
 		// DocumentValue has documentation-only source authority when explicitly authored.
 		DocumentValue *ValueTarget
+		// DocumentValues records separately declared documentation media representations.
+		DocumentValues map[string]*ValueTarget
 		// StreamingValue shares the service streaming-payload occurrence.
 		StreamingValue *ValueTarget
 		Body           *expr.AttributeExpr
@@ -108,8 +113,14 @@ type (
 	ResponseStatus struct {
 		// BodyValue carries the effective result or error occurrence.
 		BodyValue *ValueTarget
+		// BodyValues binds each advertised media label to the actual server encoder
+		// authority. A mapped header alone does not select that encoder.
+		BodyValues map[string]*ValueTarget
 		// DocumentValue carries the documentation body authority.
 		DocumentValue *ValueTarget
+		// DocumentValues records per-media schema authority: actual encoder plans
+		// for inherited bodies, declared media contracts for independent bodies.
+		DocumentValues map[string]*ValueTarget
 		// IndependentDocumentBody marks an authored OpenAPIBody contract.
 		IndependentDocumentBody bool
 		Error                   *Error

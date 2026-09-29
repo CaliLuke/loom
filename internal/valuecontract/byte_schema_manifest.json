@@ -1,0 +1,1090 @@
+{
+  "baseline": "2f6bfbf7758f4de56eb14569a49a645355ca228f",
+  "probes": [
+    {
+      "id": "bytes-text",
+      "design": "bytes-text.go.txt",
+      "coverage": [
+        "authored bytes",
+        "text",
+        "JSON CLI decoder"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/565"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/565"
+      },
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"aGk=\"}"
+    },
+    {
+      "id": "bytes-binary",
+      "design": "bytes-binary.go.txt",
+      "coverage": [
+        "authored bytes",
+        "binary",
+        "JSON CLI decoder"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"AP8=\"}"
+    },
+    {
+      "id": "bytes-empty",
+      "design": "bytes-empty.go.txt",
+      "coverage": [
+        "authored bytes",
+        "empty",
+        "JSON CLI decoder"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": "{\"bytes\": \"\"}"
+    },
+    {
+      "id": "nested-union",
+      "design": "nested-union.go.txt",
+      "coverage": [
+        "nested unions",
+        "distinct branch names with identical scalar payloads"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/566"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "advertised example rejected",
+        "issue": "https://github.com/CaliLuke/loom/issues/566"
+      },
+      "decoder": "advertised",
+      "transport": "http",
+      "expected_json": ""
+    },
+    {
+      "id": "grpc-type-union",
+      "design": "grpc-type-union.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "type-union"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-type-plain",
+      "design": "grpc-type-plain.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "type-plain"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-payload-union",
+      "design": "grpc-payload-union.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "payload-union"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "grpc-payload-plain",
+      "design": "grpc-payload-plain.go.txt",
+      "coverage": [
+        "gRPC authored provenance",
+        "payload-plain"
+      ],
+      "baseline": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "candidate": {
+        "phase": "decoder",
+        "contains": "authored value replaced",
+        "issue": "https://github.com/CaliLuke/loom/issues/434"
+      },
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": "{\"id\":\"authored-id\"}"
+    },
+    {
+      "id": "map-collision",
+      "design": "map-collision.go.txt",
+      "coverage": [
+        "mixed map keys",
+        "collision diagnostic"
+      ],
+      "baseline": {
+        "phase": "gen",
+        "contains": "duplicate object member name \"1\"",
+        "issue": "https://github.com/CaliLuke/loom/issues/456"
+      },
+      "candidate": {
+        "phase": "gen",
+        "contains": "duplicate object member name \"1\"",
+        "issue": "https://github.com/CaliLuke/loom/issues/456"
+      }
+    },
+    {
+      "id": "grpc-integer-limits",
+      "design": "grpc-integer-limits.go.txt",
+      "coverage": [
+        "protobuf numeric limits",
+        "int32",
+        "int64"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "decoder": "advertised",
+      "transport": "grpc",
+      "expected_json": ""
+    },
+    {
+      "id": "presence",
+      "design": "presence.go.txt",
+      "coverage": [
+        "absent",
+        "explicit null",
+        "empty collections",
+        "typed nil collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "effective-occurrence",
+      "design": "effective-occurrence.go.txt",
+      "coverage": [
+        "method-local requiredness",
+        "HTTP selected Body",
+        "transport-local example override"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "custom-codec",
+      "design": "custom-codec.go.txt",
+      "coverage": [
+        "opaque Any",
+        "pure custom JSON codec"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "suppression",
+      "design": "suppression.go.txt",
+      "coverage": [
+        "example suppression",
+        "authored exception",
+        "target exclusion"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "mapped-names",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "MappedNamesDSL",
+      "coverage": [
+        "mapped fields",
+        "untagged bytes/string enums"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "type-identity",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "TypeIdentityDSL",
+      "coverage": [
+        "designed errors",
+        "streaming payload/result",
+        "nested identical shapes"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "CollectionBodyDefaultsDSL",
+      "coverage": [
+        "HTTP collection defaults",
+        "selected Body",
+        "boolean map keys"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-defaults",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "JSONRPCCollectionBodyDefaultsDSL",
+      "coverage": [
+        "JSON-RPC collection defaults",
+        "selected Body"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "documentation-bodies",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "RawRequestBodyOpenAPIDSL",
+      "coverage": [
+        "documentation-only bodies",
+        "media codecs"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "views",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "ResultBodyMultipleViewsDSL",
+      "coverage": [
+        "views",
+        "result projection"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "protojson",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "CLIProtoJSONDSL",
+      "coverage": [
+        "protobuf field mapping",
+        "nested oneofs",
+        "collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "recursive",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "RecursiveMapMessageDSL",
+      "coverage": [
+        "finite recursive declarations",
+        "map wrappers"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-ticktock",
+      "fixture": "http/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "http",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "jsonrpc-ticktock",
+      "fixture": "jsonrpc/integration_tests/fixtures/ticktock",
+      "coverage": [
+        "jsonrpc",
+        "checked-in SSE fixture",
+        "streaming messages"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-boolean-map-union",
+      "function": "BooleanMapUnionDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-collection-enum",
+      "function": "CollectionEnumDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-payload-form-body-object",
+      "function": "PayloadFormBodyObjectDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-payload-form-body-union",
+      "function": "PayloadFormBodyUnionDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-payload-multipart-user-type",
+      "function": "PayloadMultipartUserTypeDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-with-headers-block-viewed-result",
+      "function": "WithHeadersBlockViewedResultDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-explicit-body-user-result-multiple-views",
+      "function": "ExplicitBodyUserResultMultipleViewsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-explicit-body-primitive-result-multiple-views",
+      "function": "ExplicitBodyPrimitiveResultMultipleViewsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-streaming-payload",
+      "function": "StreamingPayloadDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-mixed-results",
+      "function": "MixedResultsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-default-error-response",
+      "function": "DefaultErrorResponseDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-error-examples",
+      "function": "ErrorExamplesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-streaming-aliased-array",
+      "function": "StreamingAliasedArrayDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-open-a-p-i-closed-objects",
+      "function": "OpenAPIClosedObjectsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-streaming-partial-examples",
+      "function": "StreamingPartialExamplesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-h-t-t-p-any-defaults",
+      "function": "HTTPAnyDefaultsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-j-s-o-n-r-p-c-any-defaults",
+      "function": "JSONRPCAnyDefaultsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "http-s-s-e-variant-projection",
+      "function": "SSEVariantProjectionDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata"
+    },
+    {
+      "id": "codegen-user-type-package-transports",
+      "function": "UserTypePackageTransportsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/testdata"
+    },
+    {
+      "id": "codegen-projection-parity-nested-views",
+      "function": "ProjectionParityNestedViewsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-view-requiredness-overrides",
+      "function": "ViewRequirednessOverridesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-result-with-recursive-result-type",
+      "function": "ResultWithRecursiveResultTypeDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-result-with-recursive-collection-of-result-type",
+      "function": "ResultWithRecursiveCollectionOfResultTypeDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-pkg-path-recursive",
+      "function": "PkgPathRecursiveDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-union-with-alias-cross-pkg",
+      "function": "UnionWithAliasCrossPkgDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "codegen-streaming-payload-result-with-views-method",
+      "function": "StreamingPayloadResultWithViewsMethodDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/codegen/service/testdata"
+    },
+    {
+      "id": "grpc-map-alias",
+      "function": "MapAliasDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-array-alias",
+      "function": "ArrayAliasDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-recursive-array-message",
+      "function": "RecursiveArrayMessageDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-named-union-field-reuse",
+      "function": "NamedUnionFieldReuseDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-message-result-type-with-views",
+      "function": "MessageResultTypeWithViewsDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "grpc-mapped-names",
+      "function": "MappedNamesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata"
+    },
+    {
+      "id": "jsonrpc-viewed-stream-result",
+      "function": "ViewedStreamResultDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
+    },
+    {
+      "id": "jsonrpc-viewed-stream-response-i-d",
+      "function": "ViewedStreamResponseIDDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
+    },
+    {
+      "id": "jsonrpc-j-s-o-n-r-p-c-s-s-e-result-types",
+      "function": "JSONRPCSSEResultTypesDSL",
+      "coverage": [
+        "occurrence ownership",
+        "views and transport plans"
+      ],
+      "baseline": {},
+      "candidate": {},
+      "import": "github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
+    },
+    {
+      "id": "occurrence-view",
+      "design": "occurrence-view.go.txt",
+      "coverage": [
+        "new effective occurrence probe",
+        "view"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "occurrence-body",
+      "design": "occurrence-body.go.txt",
+      "coverage": [
+        "new effective occurrence probe",
+        "body"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "occurrence-child-views",
+      "design": "occurrence-child-views.go.txt",
+      "coverage": [
+        "new effective occurrence probe",
+        "child-views"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-meal-planner",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "MealPlannerDSL",
+      "coverage": [
+        "collection view original-name ownership",
+        "OpenAPI projected collections"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "grpc-mapped-metadata",
+      "import": "github.com/CaliLuke/loom/grpc/codegen/testdata",
+      "function": "MappedMetadataDSL",
+      "coverage": [
+        "distinct authored identities sharing JSON aliases",
+        "gRPC message/header/trailer partitions"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "byte-schema-runtime",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesSchemaHTTPDSL",
+      "coverage": [
+        "decoded byte lengths",
+        "base64 grammar",
+        "named alias inheritance",
+        "byte array and map items",
+        "actual generated HTTP decoder"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "byte-representation-ownership",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "BytesRepresentationDSL",
+      "coverage": [
+        "shared JSON multipart query header byte declaration",
+        "recursive representation graph",
+        "documentation media ownership",
+        "excluded raw contracts"
+      ],
+      "baseline": {
+        "phase": "build",
+        "contains": "cannot use &body (value of type *StaticJSONResponseBody) as StaticJSONResponseBody value in argument to ValidateStaticJSONResponseBody",
+        "issue": "https://github.com/CaliLuke/loom/issues/565"
+      },
+      "candidate": {
+        "phase": "build",
+        "contains": "cannot use &body (value of type *StaticJSONResponseBody) as StaticJSONResponseBody value in argument to ValidateStaticJSONResponseBody",
+        "issue": "https://github.com/CaliLuke/loom/issues/565"
+      }
+    },
+    {
+      "id": "declaration-authority",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "DeclarationAuthorityDSL",
+      "coverage": [
+        "zero/one/two authored object alias levels under ordinary and streaming derived wrappers",
+        "field/array/map/tagged-branch/recursive declaration positions",
+        "distinct equal-shape authored declaration annotation isolation"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "declaration-authority-bytes",
+      "import": "github.com/CaliLuke/loom/codegen/testdata",
+      "function": "DeclarationAuthorityBytesDSL",
+      "coverage": [
+        "same authored alias and transport wrapper positions with optional Bytes child",
+        "preserve parent annotation ownership independently from expected JSON byte schema vocabulary"
+      ],
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-mixedpayloadinbodydsl",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "MixedPayloadInBodyDSL",
+      "coverage": [
+        "mixed payload/body mapping preserves canonical field ownership",
+        "built-in JSON Bytes grammar with unchanged annotations and runtime artifacts"
+      ],
+      "transport": "http",
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-multidsl",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "MultiDSL",
+      "coverage": [
+        "multiple methods retain shared authored component identity",
+        "built-in JSON Bytes grammar with unchanged annotations and runtime artifacts"
+      ],
+      "transport": "http",
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-selectedbodydefaultsdsl",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "SelectedBodyDefaultsDSL",
+      "coverage": [
+        "selected optional and required JSON byte bodies",
+        "preserved defaults and examples with precise base64 grammar"
+      ],
+      "transport": "http",
+      "baseline": {},
+      "candidate": {}
+    },
+    {
+      "id": "http-sseresulttypesdsl",
+      "import": "github.com/CaliLuke/loom/http/codegen/testdata",
+      "function": "SSEResultTypesDSL",
+      "coverage": [
+        "whole-event SSE JSON byte encoding",
+        "logical and physical schemas preserve existing annotations and runtime artifacts"
+      ],
+      "transport": "http",
+      "baseline": {},
+      "candidate": {}
+    }
+  ],
+  "intended_differences": [
+    {
+      "probe": "byte-representation-ownership",
+      "path": "gen/http/openapi.json",
+      "before": "ac1ed899d00a4eafb113ed37e22b35573db4c054ae788a8446b2d02dd4bac3be",
+      "after": "9b6c3372f3f276c218b3dd3064cdba48da8d101fce3f6f3abf000e2898833f8e",
+      "reason": "Canonical PublicRepresentationBlob owns the JSON Bytes grammar. Excluded uses preserve the prior dereferenced contract through its binary variant; multipart splits the parent-shared JSONResponseBody into a suffix variant retaining the same example. Mapped native SSE data, locations, static text, raw documentation and header-only media remain dereferenced-equivalent. Whole-event/named JSON Bytes receives the grammar; recursive RepresentationNode remains parent-exact."
+    },
+    {
+      "probe": "byte-representation-ownership",
+      "path": "gen/http/openapi.yaml",
+      "before": "37f2b002ee3ba67087926ea7d8cba34614a311be8aad4492eef0cacb33133b75",
+      "after": "bacfc6d736b568f2a8a060e8ed9ce2f223010448ffbec207d5639158d4d97583",
+      "reason": "Canonical PublicRepresentationBlob owns the JSON Bytes grammar. Excluded uses preserve the prior dereferenced contract through its binary variant; multipart splits the parent-shared JSONResponseBody into a suffix variant retaining the same example. Mapped native SSE data, locations, static text, raw documentation and header-only media remain dereferenced-equivalent. Whole-event/named JSON Bytes receives the grammar; recursive RepresentationNode remains parent-exact."
+    },
+    {
+      "probe": "byte-schema-runtime",
+      "path": "gen/http/openapi.json",
+      "before": "9dafb4553c066beda2f8919eefc61ffba949643f0baf2131e9015d3aee421038",
+      "after": "9bba1e7b2f2a9821e39896154902c21f8f138cdc527753fe24cbafc13f575d6e",
+      "reason": "Effective decoded Bytes length bounds in SchemaBlob and the eight direct request body schemas become bounded base64 residue branches; arrays/maps continue to reference the same corrected component, preserving annotations and unrelated schema fields."
+    },
+    {
+      "probe": "byte-schema-runtime",
+      "path": "gen/http/openapi.yaml",
+      "before": "2c71bc50509aeadda177d2d4b574d71f95be4741dc091661e5f2398fda2ff913",
+      "after": "4e93f42a14cc07aaab5ef67784ecabe9bc4bc147e2a4080454c2f4af9137fc66",
+      "reason": "Effective decoded Bytes length bounds in SchemaBlob and the eight direct request body schemas become bounded base64 residue branches; arrays/maps continue to reference the same corrected component, preserving annotations and unrelated schema fields."
+    },
+    {
+      "probe": "bytes-binary",
+      "path": "gen/http/openapi.json",
+      "before": "c922cc85eeeedbf2166839012047749a3f52f27418f3c9f2a5153cf5b095d4b8",
+      "after": "2a6f353c21f923f6afe09bf3763b60cf4556d0c1d5af14e69bce5c09c9efc7a0",
+      "reason": "Built-in JSON Bytes at Data.bytes uses base64 contentEncoding, forbidden-character guard and three unbounded residue branches instead of default binary format; all other schema annotations and generated artifacts remain unchanged."
+    },
+    {
+      "probe": "bytes-binary",
+      "path": "gen/http/openapi.yaml",
+      "before": "e014dd8177111e4a3cf66b3599dec3a0f0de762cc376b80ddd398df71309fc71",
+      "after": "81debc93cdf54571c722512c61b5f4a1138d858ae01e2ecad477b0d85af109ed",
+      "reason": "Built-in JSON Bytes at Data.bytes uses base64 contentEncoding, forbidden-character guard and three unbounded residue branches instead of default binary format; all other schema annotations and generated artifacts remain unchanged."
+    },
+    {
+      "probe": "bytes-empty",
+      "path": "gen/http/openapi.json",
+      "before": "e283f12901ce0e4518d71c3ed8e79b5125f3d9477b86f32024f7acfbdb5d9776",
+      "after": "7db316b8b42e5720598da1fdba7a4c945e301d301eda065541b5884084f175c8",
+      "reason": "Built-in JSON Bytes at Data.bytes uses base64 contentEncoding, forbidden-character guard and three unbounded residue branches instead of default binary format; all other schema annotations and generated artifacts remain unchanged."
+    },
+    {
+      "probe": "bytes-empty",
+      "path": "gen/http/openapi.yaml",
+      "before": "602e60ed1f9dac9b1841c82a49ca1e51882cac7f4ca63ed2e083adb4b548e099",
+      "after": "2e850ce6079f0c8f1b4f367cb568516bcac5c341f406e732cca8690495f588d0",
+      "reason": "Built-in JSON Bytes at Data.bytes uses base64 contentEncoding, forbidden-character guard and three unbounded residue branches instead of default binary format; all other schema annotations and generated artifacts remain unchanged."
+    },
+    {
+      "probe": "bytes-text",
+      "path": "gen/http/openapi.json",
+      "before": "00c77f37a00d0155e3fa16579798a5c01b9d25629e3e15ffe9a34754c8045ad0",
+      "after": "df5807134178efe87a4f22842bdadef287355077c45272db93c5dd47f00f11ac",
+      "reason": "Built-in JSON Bytes at Data.bytes uses base64 contentEncoding, forbidden-character guard and three unbounded residue branches instead of default binary format; all other schema annotations and generated artifacts remain unchanged."
+    },
+    {
+      "probe": "bytes-text",
+      "path": "gen/http/openapi.yaml",
+      "before": "057f0857ad7a60250f1d97ead3b80f00331ed1b06fe57458b09a2e7f87f38797",
+      "after": "499894300bbcef4496ddd0d359448783a3924ce836136eab157b52a93694faf7",
+      "reason": "Built-in JSON Bytes at Data.bytes uses base64 contentEncoding, forbidden-character guard and three unbounded residue branches instead of default binary format; all other schema annotations and generated artifacts remain unchanged."
+    },
+    {
+      "probe": "http-collection-enum",
+      "path": "gen/http/openapi.json",
+      "before": "d31225e7c5644699db316706f46027daaf9d9865aedd305234ee88adfaf029e3",
+      "after": "0e1e9163399904350c0d03dc3e48461d06d7aaee44f853a85b7afb3ed9e77c32",
+      "reason": "Record.data and the /bytes JSON request/response schemas receive the built-in JSON Bytes grammar; collection enums, examples and unrelated contracts remain unchanged."
+    },
+    {
+      "probe": "http-collection-enum",
+      "path": "gen/http/openapi.yaml",
+      "before": "2070e7ad452bb407ee4f5e5056d70f961e9e21c745a7706f4165caafbaa3b2af",
+      "after": "561a32bdf08d3257e2d6f8bd3ae4baa379878e80555c621997f8cd514a27daa5",
+      "reason": "Record.data and the /bytes JSON request/response schemas receive the built-in JSON Bytes grammar; collection enums, examples and unrelated contracts remain unchanged."
+    },
+    {
+      "probe": "http-streaming-partial-examples",
+      "path": "gen/http/openapi.json",
+      "before": "6610fe43de97aab6e9a3fe6ee1bb1a8366da3f524163cd0cd350e525282bcb0c",
+      "after": "7b08d3e1df7f9cc50ce30e59fbcd84e6b1e9e719e82a51c86bae5b309b6ffc84",
+      "reason": "Only the JSON attachment schema in /ws/projects/{projectID} outbound async messages receives the Bytes grammar; all partial examples and other async schemas remain unchanged."
+    },
+    {
+      "probe": "http-streaming-partial-examples",
+      "path": "gen/http/openapi.yaml",
+      "before": "c468de8bb25f7b6b906b2c64c511a493e3d621b7f682b0888b598a284d4dce78",
+      "after": "c595aa1a5308847424391057ee5502079dd311f1ba50888cea5983a3856b3441",
+      "reason": "Only the JSON attachment schema in /ws/projects/{projectID} outbound async messages receives the Bytes grammar; all partial examples and other async schemas remain unchanged."
+    },
+    {
+      "probe": "mapped-names",
+      "path": "gen/http/openapi.json",
+      "before": "159128f44d08aecc7ab9d7556dda4edfae53d15f90c2dbf09e79682c96875900",
+      "after": "5fd29919ca4f71aa06d1cc90f1d0abe514cdd23b27ced3fd7a9c1b7fb4f152a5",
+      "reason": "ByteData.d and DataResult.b receive the built-in JSON Bytes grammar; mapped names, other schema fields and all generated Go remain unchanged."
+    },
+    {
+      "probe": "mapped-names",
+      "path": "gen/http/openapi.yaml",
+      "before": "56515de7d74db9c0fdc73e7a5bc9b7670b195ca5339cbb49a65758dbe8061c71",
+      "after": "a7c54faa4493fa79e1afebeb82b0556c91d5c3a61fa7418fcad8fb83d9f3e25d",
+      "reason": "ByteData.d and DataResult.b receive the built-in JSON Bytes grammar; mapped names, other schema fields and all generated Go remain unchanged."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/openapi.json",
+      "before": "caf8b0ed2c23e3498249b878427dbe0e19eb1663a96c01eb188ef2f0c38d739e",
+      "after": "26ee9fb0ec9a4ff14d891e4c4e5fff90084e18185e5011e99ecb84102b5ecfdf",
+      "reason": "OccurrenceBlob alone receives the built-in JSON Bytes grammar. The nullable occurrence retains its exact parent non-null component reference, null branch, annotations and field presence; no inline re-sampling remains."
+    },
+    {
+      "probe": "occurrence-view",
+      "path": "gen/http/openapi.yaml",
+      "before": "84cea40fbad8409990486dda804b33a3c0983af71174464476b6d6bfd1cadaca",
+      "after": "b50babf1baa434c48f6f2678b451d4d62efceeae3fcb88c95ab50ef1b07ce333",
+      "reason": "OccurrenceBlob alone receives the built-in JSON Bytes grammar. The nullable occurrence retains its exact parent non-null component reference, null branch, annotations and field presence; no inline re-sampling remains."
+    },
+    {
+      "probe": "declaration-authority-bytes",
+      "path": "gen/http/openapi.json",
+      "before": "44d52ca9c5379124107e03d0a3a095147ae6bfaacda0460ec0d240f00262b962",
+      "after": "09e48c677f513f076cdd18b5d10a5e43d1f8c0d7d0c053c12115ee76ffb598ba",
+      "reason": "Exactly the previously reviewed 18 present non-null JSON Bytes sites gain the byte grammar (72 keyword differences); every parent annotation, its absence, reference edge and canonical component name remains unchanged."
+    },
+    {
+      "probe": "declaration-authority-bytes",
+      "path": "gen/http/openapi.yaml",
+      "before": "201c94775d16878c38f5ef669a1c10d2f7877d72439f1b57e77ffde7568f48cb",
+      "after": "9414f3487a83f36b1ffbfbd781bb02873a49b915600be41c6be0bf72de8a2993",
+      "reason": "Exactly the previously reviewed 18 present non-null JSON Bytes sites gain the byte grammar (72 keyword differences); every parent annotation, its absence, reference edge and canonical component name remains unchanged."
+    },
+    {
+      "probe": "http-mixedpayloadinbodydsl",
+      "path": "gen/http/openapi.json",
+      "before": "c28b547bf8756e308e882699468a18a067a32d1b02864c01dd9b020c7ff61848",
+      "after": "e27da9c142bb8e4e293794d0c3d9cb4b17dc0203d69fceb13055bfa7ef40e429",
+      "reason": "Built-in JSON request Bytes at /components/schemas/BPayload/properties/bytes receives exactly contentEncoding base64, three residue branches and the forbidden-character constraint, replacing default binary format. All other document fields, annotations, references and generated runtime artifacts remain parent-exact."
+    },
+    {
+      "probe": "http-mixedpayloadinbodydsl",
+      "path": "gen/http/openapi.yaml",
+      "before": "36f0520995a7e56e28db791ae955e5ea75ac7673dd6818e24662ab54259d58c5",
+      "after": "0d5d0875919134338f47715b337acac97e6fff8df631e1491c6dff738886773c",
+      "reason": "Built-in JSON request Bytes at /components/schemas/BPayload/properties/bytes receives exactly contentEncoding base64, three residue branches and the forbidden-character constraint, replacing default binary format. All other document fields, annotations, references and generated runtime artifacts remain parent-exact."
+    },
+    {
+      "probe": "http-multidsl",
+      "path": "gen/http/openapi.json",
+      "before": "5239373abc40e55f074f98438c3f28d71e1a12d260bd70028456e1128c9dee26",
+      "after": "19c2b0b734b55433593579c911f315d465ae5dac5cf972144b83d17b501b7801",
+      "reason": "Built-in JSON request Bytes at /components/schemas/UserType/properties/att11 receives exactly contentEncoding base64, three residue branches and the forbidden-character constraint, replacing default binary format. All other document fields, annotations, references and generated runtime artifacts remain parent-exact."
+    },
+    {
+      "probe": "http-multidsl",
+      "path": "gen/http/openapi.yaml",
+      "before": "5275a72237a5ba6f3b1dea3a62ba66569a86024e2877a2b67bd253ed2966be1d",
+      "after": "e16e8dce0ec2c4ea3ff639eea8a7b96e5cfa172a3f178a6a22d023ea54928492",
+      "reason": "Built-in JSON request Bytes at /components/schemas/UserType/properties/att11 receives exactly contentEncoding base64, three residue branches and the forbidden-character constraint, replacing default binary format. All other document fields, annotations, references and generated runtime artifacts remain parent-exact."
+    },
+    {
+      "probe": "http-selectedbodydefaultsdsl",
+      "path": "gen/http/openapi.json",
+      "before": "16dbac12932ea34d752aaa3301236614789a2553cf3a396121c3b7596e1a54c1",
+      "after": "dfba1f75dda027edac21fdd6b41b9a389b1570d6e13bb8ed1fe9b647e90c995e",
+      "reason": "Selected optional and required built-in JSON request Bytes bodies gain only base64 contentEncoding, three residue branches and forbidden-character constraint, replacing default binary format. Parent defaults/examples, required state, annotations, references and all runtime artifacts remain exact."
+    },
+    {
+      "probe": "http-selectedbodydefaultsdsl",
+      "path": "gen/http/openapi.yaml",
+      "before": "bfee55d9ff41360dadfd1eb188e3f761923cd67c2862061c001a43883b35b993",
+      "after": "797f5a9ffb579324a1d32dcd24e930a9848daf8e96d9284e783f6dd4c88803ac",
+      "reason": "Selected optional and required built-in JSON request Bytes bodies gain only base64 contentEncoding, three residue branches and forbidden-character constraint, replacing default binary format. Parent defaults/examples, required state, annotations, references and all runtime artifacts remain exact."
+    },
+    {
+      "probe": "http-sseresulttypesdsl",
+      "path": "gen/http/openapi.json",
+      "before": "357007cff8b684962d1f9c5a82a661b2316fbd2fd3397ae546a5f12527c81a33",
+      "after": "ab4c365ace8f862f1a31a5ef8f95b72d280f1a07311f05a916d5b53570204672",
+      "reason": "Whole-event SSE Bytes uses the existing EncodeSSEJSONData encoder. Its physical data contentSchema and logical outbound schema gain only base64 grammar, replacing default binary format; all other annotations, reference edges and generated runtime artifacts remain parent-exact."
+    },
+    {
+      "probe": "http-sseresulttypesdsl",
+      "path": "gen/http/openapi.yaml",
+      "before": "58c0bb1be32adbc0aae963f4a516274a89dac3b42d9b6454cb63f06a0a08c5b1",
+      "after": "27ddf0ba2351fccd167078023012ebc9897e9f99c79474577cfec94d3ac415d0",
+      "reason": "Whole-event SSE Bytes uses the existing EncodeSSEJSONData encoder. Its physical data contentSchema and logical outbound schema gain only base64 grammar, replacing default binary format; all other annotations, reference edges and generated runtime artifacts remain parent-exact."
+    }
+  ]
+}

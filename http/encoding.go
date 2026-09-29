@@ -9,10 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/httpcodec"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -82,36 +82,26 @@ const (
 //   - application/gob using package encoding/gob
 //   - text/html and text/plain for strings
 //
-// RequestDecoder defaults to the JSON decoder if the request "Content-Type"
-// header does not match any of the supported mime type or is missing
-// altogether.
+// RequestDecoder defaults to JSON when Content-Type is missing and rejects
+// unsupported media types.
 func RequestDecoder(r *http.Request) Decoder {
 	limit := RequestBodyLimit(r.Context())
-	contentType := r.Header.Get("Content-Type")
-	if contentType == "" {
-		// default to JSON
-		contentType = "application/json"
-	} else {
-		// sanitize
-		if mediaType, _, err := mime.ParseMediaType(contentType); err == nil {
-			contentType = mediaType
-		}
-	}
-	switch contentType {
-	case "application/json":
+	selected := httpcodec.RequestContentType(r.Header.Get("Content-Type"))
+	switch selected.Kind {
+	case httpcodec.JSON:
 		decode := decodeJSON
 		if rejectNull, _ := r.Context().Value(nonNullableBodyKey{}).(bool); rejectNull {
 			decode = decodeNonNullableJSON
 		}
 		return newLimitedDecoder(r.Body, decode, decodeRequest, limit)
-	case "application/gob":
+	case httpcodec.GOB:
 		return newLimitedDecoder(r.Body, decodeGOB, decodeRequest, limit)
-	case "application/xml":
+	case httpcodec.XML:
 		return newLimitedDecoder(r.Body, decodeXML, decodeRequest, limit)
-	case "text/html", "text/plain":
-		return newTextDecoder(r.Body, contentType, decodeRequest, limit)
+	case httpcodec.Text:
+		return newTextDecoder(r.Body, selected.Media, decodeRequest, limit)
 	default:
-		return newUnsupportedDecoder(contentType)
+		return newUnsupportedDecoder(selected.Media)
 	}
 }
 
@@ -131,7 +121,7 @@ func ResponseEncoder(ctx context.Context, w http.ResponseWriter) Encoder {
 	accept := stringContextValue(ctx, AcceptTypeKey)
 	ct := stringContextValue(ctx, ContentTypeKey)
 	if ct != "" {
-		enc := responseEncoderFromContentType(w, ct)
+		enc := selectedResponseEncoder(w, httpcodec.ResponseContentType(ct))
 		SetContentType(w, ct)
 		return enc
 	}
@@ -154,50 +144,23 @@ func requestAcceptHeader(req *http.Request) string {
 	return strings.Join(req.Header.Values("Accept"), ",")
 }
 
-func responseEncoderFromContentType(w http.ResponseWriter, ct string) Encoder {
-	mt, _, err := mime.ParseMediaType(ct)
-	if err != nil {
-		return nil
-	}
-	switch {
-	case mt == "application/json" || strings.HasSuffix(mt, "+json"):
-		return newJSONResponseEncoder(w)
-	case mt == "application/xml" || strings.HasSuffix(mt, "+xml"):
-		return xml.NewEncoder(w)
-	case mt == "application/gob" || strings.HasSuffix(mt, "+gob"):
-		return gob.NewEncoder(w)
-	case mt == "text/html" || mt == "text/plain" || strings.HasSuffix(mt, "+html") || strings.HasSuffix(mt, "+txt"):
-		return newTextEncoder(w, mt)
-	default:
-		return newJSONResponseEncoder(w)
-	}
-}
-
 func negotiatedResponseEncoder(w http.ResponseWriter, accept string) (Encoder, string) {
-	if enc, mt := responseEncoderByAccept(w, accept); enc != nil {
-		return enc, mt
-	}
-	mt, _, err := mime.ParseMediaType(accept)
-	if err == nil {
-		if enc, normalized := responseEncoderByAccept(w, mt); enc != nil {
-			return enc, normalized
-		}
-	}
-	return responseEncoderByAccept(w, "")
+	selected := httpcodec.ResponseAccept(accept)
+	return selectedResponseEncoder(w, selected), selected.Media
 }
 
-func responseEncoderByAccept(w http.ResponseWriter, accept string) (Encoder, string) {
-	switch accept {
-	case "", "application/json":
-		return newJSONResponseEncoder(w), "application/json"
-	case "application/xml":
-		return xml.NewEncoder(w), "application/xml"
-	case "application/gob":
-		return gob.NewEncoder(w), "application/gob"
-	case "text/html", "text/plain":
-		return newTextEncoder(w, accept), accept
+func selectedResponseEncoder(w http.ResponseWriter, selected httpcodec.Selection) Encoder {
+	switch selected.Kind {
+	case httpcodec.JSON:
+		return newJSONResponseEncoder(w)
+	case httpcodec.XML:
+		return xml.NewEncoder(w)
+	case httpcodec.GOB:
+		return gob.NewEncoder(w)
+	case httpcodec.Text:
+		return newTextEncoder(w, selected.Media)
 	default:
-		return nil, ""
+		return nil
 	}
 }
 
@@ -284,23 +247,14 @@ func (je *jsonEncoder) GetBody() (io.ReadCloser, error) {
 //   - application/gob using package encoding/gob
 //   - text/html and text/plain for strings
 func ResponseDecoder(resp *http.Response) Decoder {
-	ct := resp.Header.Get("Content-Type")
-	if ct == "" {
-		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse, DefaultMaxRequestBodyBytes)
-	}
-	if mediaType, _, err := mime.ParseMediaType(ct); err == nil {
-		ct = mediaType
-	}
-	switch {
-	case ct == "application/json" || strings.HasSuffix(ct, "+json"):
-		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse, DefaultMaxRequestBodyBytes)
-	case ct == "application/xml" || strings.HasSuffix(ct, "+xml"):
+	selected := httpcodec.ResponseDecode(resp.Header.Get("Content-Type"))
+	switch selected.Kind {
+	case httpcodec.XML:
 		return newLimitedDecoder(resp.Body, decodeXML, decodeResponse, DefaultMaxRequestBodyBytes)
-	case ct == "application/gob" || strings.HasSuffix(ct, "+gob"):
+	case httpcodec.GOB:
 		return newLimitedDecoder(resp.Body, decodeGOB, decodeResponse, DefaultMaxRequestBodyBytes)
-	case ct == "text/html" || ct == "text/plain" ||
-		strings.HasSuffix(ct, "+html") || strings.HasSuffix(ct, "+txt"):
-		return newTextDecoder(resp.Body, ct, decodeResponse, DefaultMaxRequestBodyBytes)
+	case httpcodec.Text:
+		return newTextDecoder(resp.Body, selected.Media, decodeResponse, DefaultMaxRequestBodyBytes)
 	default:
 		return newLimitedDecoder(resp.Body, decodeJSON, decodeResponse, DefaultMaxRequestBodyBytes)
 	}

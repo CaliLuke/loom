@@ -31,6 +31,9 @@ func rewriteOperationSchemaRefs(op *Operation, resolveRef func(string) string) {
 	if op == nil {
 		return
 	}
+	visitAsyncMessageSchemas(op, func(schema *openapi.Schema) {
+		rewriteSchemaRefs(schema, resolveRef)
+	})
 	for _, param := range op.Parameters {
 		if param != nil && param.Value != nil {
 			rewriteSchemaRefs(param.Value.Schema, resolveRef)
@@ -97,8 +100,8 @@ func rewriteSchemaRefs(schema *openapi.Schema, resolveRef func(string) string) {
 	}
 	if schema.Ref != "" {
 		schema.Ref = resolveRef(schema.Ref)
-		return
 	}
+	rewriteSchemaRefs(schema.Not, resolveRef)
 	rewriteSchemaRefs(schema.Items, resolveRef)
 	rewriteSchemaRefs(schema.ContentSchema, resolveRef)
 	for _, prop := range schema.Properties {
@@ -137,6 +140,9 @@ func collectOperationSchemaRefs(op *Operation, addRef func(string)) {
 	if op == nil {
 		return
 	}
+	visitAsyncMessageSchemas(op, func(schema *openapi.Schema) {
+		collectSchemaRefs(schema, addRef)
+	})
 	for _, param := range op.Parameters {
 		if param != nil && param.Value != nil {
 			collectSchemaRefs(param.Value.Schema, addRef)
@@ -165,8 +171,8 @@ func collectSchemaRefs(schema *openapi.Schema, addRef func(string)) {
 	}
 	if schema.Ref != "" {
 		addRef(schema.Ref)
-		return
 	}
+	collectSchemaRefs(schema.Not, addRef)
 	collectSchemaRefs(schema.Items, addRef)
 	collectSchemaRefs(schema.ContentSchema, addRef)
 	for _, prop := range schema.Properties {
@@ -246,6 +252,7 @@ func isPureRefSchema(schema *openapi.Schema) bool {
 		len(schema.Required) == 0 &&
 		schema.AdditionalProperties == nil &&
 		schema.UnevaluatedProperties == nil &&
+		schema.Not == nil &&
 		len(schema.AllOf) == 0 &&
 		len(schema.AnyOf) == 0 &&
 		len(schema.OneOf) == 0 &&

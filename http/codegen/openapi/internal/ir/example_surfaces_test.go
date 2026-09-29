@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
@@ -46,7 +47,12 @@ func TestSchemaExampleSurfacesUseOpenAPIValues(t *testing.T) {
 					headers := []*transportir.Header{{Name: "value", HTTPName: "X-Value", Attribute: attr}}
 					schema = headersFromIR(headers, rand, false)["X-Value"].Value.Schema
 				case "async":
-					schema = buildInlineAsyncSchema(attr, rand, false)
+					analyzer := NewAnalyzer(rand, false)
+					prepared := analyzeAsyncSchema(analyzer, attr, inlineAsyncTestEndpoint(t, attr), false, "example-surfaces")
+					analyzer.finalizeRepresentations()
+					materialized := materializeAsyncSchema(prepared, analyzer.schemas)
+					schema = materialized.schema
+					applyPreparedAsyncExamples(analyzer, schema, prepared, materialized.structures)
 				}
 				require.Equal(t, tc.want, schema.Example)
 			})
@@ -62,4 +68,20 @@ func TestAnalyzerExampleProjectionOverride(t *testing.T) {
 		return "custom", true
 	}))
 	require.Equal(t, "custom", analyzer.AnalyzeSchema(attr).Example)
+}
+
+func inlineAsyncTestEndpoint(t *testing.T, attribute *expr.AttributeExpr) *transportir.Endpoint {
+	t.Helper()
+	context := expr.NewValueContext()
+	occurrence, err := context.NewOccurrence(attribute)
+	require.NoError(t, err)
+	endpoint := &transportir.Endpoint{
+		Request: &transportir.Request{}, Response: &transportir.Response{},
+		Stream: &transportir.Stream{ResponseValue: &transportir.ValueTarget{
+			Source: &service.ValueData{Context: context, Occurrence: occurrence},
+			Codec:  expr.ValueCodecJSON,
+		}},
+	}
+	endpoint.Service = &transportir.Service{Endpoints: []*transportir.Endpoint{endpoint}}
+	return endpoint
 }

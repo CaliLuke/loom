@@ -28,6 +28,17 @@ type (
 		// Containers supplies actual runtime unknown-member policy for each
 		// object or union envelope, independently of schema acceptance.
 		Containers []ValueContainerPolicy
+		// Codecs records node-local encoding boundaries selected by the actual
+		// representation owner. Unspecified descendants inherit their parent codec.
+		Codecs []ValueCodecPolicy
+	}
+
+	// ValueCodecPolicy binds an encoding owner to one exact finalized target occurrence.
+	ValueCodecPolicy struct {
+		// Target identifies the occurrence before capture, not a type-name lookup.
+		Target *AttributeExpr
+		// Codec is the actual encoding owner for this node and its descendants.
+		Codec ValueCodec
 	}
 
 	// ValueFieldPolicy records the emitted representation of one target member.
@@ -75,6 +86,7 @@ type (
 	valuePlanNode struct {
 		id                  uint64
 		source              *valueOccurrenceNode
+		targetDeclarationID string
 		attribute           *AttributeExpr
 		kind                Kind
 		members             []valuePlanMember
@@ -82,8 +94,10 @@ type (
 		element             *valuePlanNode
 		key                 *valuePlanNode
 		alias               *valuePlanNode
+		aliasReusesSource   bool
 		codec               ValueCodec
 		documentary         bool
+		schemaOnly          bool
 		nullable            bool
 		nonNullableElements bool
 		untagged            bool
@@ -98,6 +112,7 @@ type (
 
 	valuePlanMember struct {
 		source          uint64
+		name            string
 		wire            string
 		required        bool
 		visible         bool
@@ -118,7 +133,7 @@ const (
 	ValueCodecJSON ValueCodec = iota + 1
 	// ValueCodecProtoJSON is the protobuf JSON codec.
 	ValueCodecProtoJSON
-	// ValueCodecText is the selected text codec for a location.
+	// ValueCodecText is the selected text codec for a body or transport location.
 	ValueCodecText
 	// ValueCodecRaw is an unencoded binary body.
 	ValueCodecRaw
@@ -135,6 +150,9 @@ const (
 	ValuePlanRuntime ValuePlanUse = iota + 1
 	// ValuePlanDocumentation requires schema/media validity without a decoder claim.
 	ValuePlanDocumentation
+	// ValuePlanSchema captures structure and owned constraint declarations only.
+	// It does not resolve enum values, select examples or authorize value projection.
+	ValuePlanSchema
 )
 
 const (

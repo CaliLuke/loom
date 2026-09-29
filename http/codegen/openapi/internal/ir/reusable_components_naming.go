@@ -180,7 +180,7 @@ func canonicalComponentSchemaName(name string, schemas map[string]*Schema) strin
 		return name
 	}
 	cache := map[string]string{}
-	if schemaHashByName(base, schemas, cache, map[string]struct{}{}) == schemaHashByName(name, schemas, cache, map[string]struct{}{}) {
+	if schemaHashByName(base, schemas, cache, map[string]struct{}{}, responseAllocationHash) == schemaHashByName(name, schemas, cache, map[string]struct{}{}, responseAllocationHash) {
 		return base
 	}
 	return name

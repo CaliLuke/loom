@@ -70,6 +70,8 @@ type (
 		// UnevaluatedProperties controls properties not covered by another keyword.
 		UnevaluatedProperties any `json:"unevaluatedProperties,omitzero" yaml:"unevaluatedProperties,omitempty"`
 
+		// Not rejects every value accepted by its child; an empty child rejects all values.
+		Not *Schema `json:"not,omitzero" yaml:"not,omitempty"`
 		// AllOf requires every listed schema to match.
 		AllOf []*Schema `json:"allOf,omitzero,omitempty" yaml:"allOf,omitempty"`
 		// AnyOf requires at least one listed schema to match.

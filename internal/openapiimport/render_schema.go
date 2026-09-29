@@ -310,7 +310,7 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		r.line("Meta(%q, %q)", "openapi:format", "")
 	}
-	if schema.Type == "string" && schema.Format == "byte" {
+	if schema.Type == "string" && (schema.Format == "byte" || schema.Format == "binary") {
 		r.line("Meta(%q, %q)", "openapi:format", schema.Format)
 	}
 	if schema.Format != "" && schema.Type == "string" && schema.Format != "byte" && schema.Format != "binary" {
@@ -422,7 +422,7 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 			return true
 		}
 	}
-	if schema.Type == "string" && schema.Format == "byte" {
+	if schema.Type == "string" && (schema.Format == "byte" || schema.Format == "binary") {
 		return true
 	}
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {

@@ -11,6 +11,20 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 )
 
+type (
+	responseIdentity struct {
+		semantic   string
+		allocation string
+	}
+
+	responseHashPurpose uint8
+)
+
+const (
+	responseSemanticHash responseHashPurpose = iota
+	responseAllocationHash
+)
+
 func orderedPathKeys(paths map[string]*PathItem) []string {
 	keys := make([]string, 0, len(paths))
 	for path := range paths {
@@ -151,12 +165,22 @@ func shouldForceComponentizeResponse(response *Response) bool {
 	return response != nil && strings.TrimSpace(response.ComponentName) != ""
 }
 
-func responseHash(ref *ResponseRef, schemas map[string]*Schema) (string, error) {
+// responseKeys keeps complete-contract equality separate from the historical
+// serialization that determines public response names. The allocation key must
+// never authorize sharing a response or dropping active reference siblings.
+func responseKeys(ref *ResponseRef, schemas map[string]*Schema) (responseIdentity, error) {
 	if ref == nil || ref.Value == nil {
-		return "", nil
+		return responseIdentity{}, nil
 	}
-	normalized := cloneResponseForHash(ref.Value, schemas)
-	return hashReusableValue(normalized)
+	semantic, err := hashReusableValue(cloneResponseForHash(ref.Value, schemas, responseSemanticHash))
+	if err != nil {
+		return responseIdentity{}, err
+	}
+	allocation, err := hashReusableValue(cloneResponseForHash(ref.Value, schemas, responseAllocationHash))
+	if err != nil {
+		return responseIdentity{}, err
+	}
+	return responseIdentity{semantic: semantic, allocation: allocation}, nil
 }
 
 func cloneResponseHeaderRefs(headers map[string]*HeaderRef) map[string]*HeaderRef {
@@ -200,7 +224,7 @@ func cloneResponseExtensions(values map[string]any) map[string]any {
 	return cloned
 }
 
-func cloneResponseForHash(response *Response, schemas map[string]*Schema) *Response {
+func cloneResponseForHash(response *Response, schemas map[string]*Schema, purpose responseHashPurpose) *Response {
 	if response == nil {
 		return nil
 	}
@@ -215,7 +239,7 @@ func cloneResponseForHash(response *Response, schemas map[string]*Schema) *Respo
 	if len(response.Content) > 0 {
 		cloned.Content = make(map[string]*MediaType, len(response.Content))
 		for contentType, mediaType := range response.Content {
-			cloned.Content[contentType] = cloneMediaTypeForHash(mediaType, schemas, map[string]string{}, map[string]struct{}{})
+			cloned.Content[contentType] = cloneMediaTypeForHash(mediaType, schemas, map[string]string{}, map[string]struct{}{}, purpose)
 		}
 	}
 	return cloned
@@ -247,12 +271,12 @@ func cloneResponseLinkRefs(links map[string]*ResponseLinkRef) map[string]*Respon
 	return cloned
 }
 
-func cloneMediaTypeForHash(mediaType *MediaType, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *MediaType {
+func cloneMediaTypeForHash(mediaType *MediaType, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}, purpose responseHashPurpose) *MediaType {
 	if mediaType == nil {
 		return nil
 	}
 	return &MediaType{
-		Schema:        normalizeSchemaForHash(mediaType.Schema, schemas, cache, stack),
+		Schema:        normalizeSchemaForHash(mediaType.Schema, schemas, cache, stack, purpose),
 		Example:       mediaType.Example,
 		Examples:      cloneResponseExampleRefs(mediaType.Examples),
 		ComponentName: mediaType.ComponentName,
@@ -272,60 +296,65 @@ func cloneStringSliceMap(values map[string][]string) map[string][]string {
 	return cloned
 }
 
-func normalizeSchemaForHash(schema *Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *Schema {
+func normalizeSchemaForHash(schema *Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}, purpose responseHashPurpose) *Schema {
 	if schema == nil {
 		return nil
 	}
-	if refName, ok := schemaComponentName(schema.Ref); ok {
-		return &Schema{Ref: canonicalResponseSchemaRef(refName, schemas, cache)}
-	}
-
 	cloned := *schema
-	cloned.Items = normalizeSchemaForHash(schema.Items, schemas, cache, stack)
-	cloned.ContentSchema = normalizeSchemaForHash(schema.ContentSchema, schemas, cache, stack)
-	cloned.Properties = normalizeSchemaMapForHash(schema.Properties, schemas, cache, stack)
-	cloned.Defs = normalizeSchemaMapForHash(schema.Defs, schemas, cache, stack)
-	cloned.AllOf = normalizeSchemaSliceForHash(schema.AllOf, schemas, cache, stack)
-	cloned.AnyOf = normalizeSchemaSliceForHash(schema.AnyOf, schemas, cache, stack)
-	cloned.OneOf = normalizeSchemaSliceForHash(schema.OneOf, schemas, cache, stack)
-	cloned.AdditionalProperties = normalizeBoolOrSchemaForHash(schema.AdditionalProperties, schemas, cache, stack)
-	cloned.UnevaluatedProperties = normalizeBoolOrSchemaForHash(schema.UnevaluatedProperties, schemas, cache, stack)
-	cloned.Discriminator = normalizeDiscriminatorForHash(schema.Discriminator, schemas, cache, stack)
+	if refName, ok := schemaComponentName(schema.Ref); ok {
+		cloned.Ref = canonicalResponseSchemaRef(refName, schemas, cache, purpose)
+		if purpose == responseAllocationHash {
+			// Preserve only the historical naming preimage. Complete semantic
+			// normalization below always keeps assertions and annotations.
+			return &Schema{Ref: cloned.Ref}
+		}
+	}
+	cloned.Items = normalizeSchemaForHash(schema.Items, schemas, cache, stack, purpose)
+	cloned.ContentSchema = normalizeSchemaForHash(schema.ContentSchema, schemas, cache, stack, purpose)
+	cloned.Properties = normalizeSchemaMapForHash(schema.Properties, schemas, cache, stack, purpose)
+	cloned.Defs = normalizeSchemaMapForHash(schema.Defs, schemas, cache, stack, purpose)
+	cloned.Not = normalizeSchemaForHash(schema.Not, schemas, cache, stack, purpose)
+	cloned.AllOf = normalizeSchemaSliceForHash(schema.AllOf, schemas, cache, stack, purpose)
+	cloned.AnyOf = normalizeSchemaSliceForHash(schema.AnyOf, schemas, cache, stack, purpose)
+	cloned.OneOf = normalizeSchemaSliceForHash(schema.OneOf, schemas, cache, stack, purpose)
+	cloned.AdditionalProperties = normalizeBoolOrSchemaForHash(schema.AdditionalProperties, schemas, cache, stack, purpose)
+	cloned.UnevaluatedProperties = normalizeBoolOrSchemaForHash(schema.UnevaluatedProperties, schemas, cache, stack, purpose)
+	cloned.Discriminator = normalizeDiscriminatorForHash(schema.Discriminator, schemas, cache, stack, purpose)
 	return &cloned
 }
 
-func normalizeSchemaMapForHash(schemasMap map[string]*Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) map[string]*Schema {
+func normalizeSchemaMapForHash(schemasMap map[string]*Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}, purpose responseHashPurpose) map[string]*Schema {
 	if len(schemasMap) == 0 {
 		return nil
 	}
 	cloned := make(map[string]*Schema, len(schemasMap))
 	for name, schema := range schemasMap {
-		cloned[name] = normalizeSchemaForHash(schema, schemas, cache, stack)
+		cloned[name] = normalizeSchemaForHash(schema, schemas, cache, stack, purpose)
 	}
 	return cloned
 }
 
-func normalizeSchemaSliceForHash(values []*Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) []*Schema {
+func normalizeSchemaSliceForHash(values []*Schema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}, purpose responseHashPurpose) []*Schema {
 	if len(values) == 0 {
 		return nil
 	}
 	cloned := make([]*Schema, len(values))
 	for i, schema := range values {
-		cloned[i] = normalizeSchemaForHash(schema, schemas, cache, stack)
+		cloned[i] = normalizeSchemaForHash(schema, schemas, cache, stack, purpose)
 	}
 	return cloned
 }
 
-func normalizeBoolOrSchemaForHash(value *BoolOrSchema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *BoolOrSchema {
+func normalizeBoolOrSchemaForHash(value *BoolOrSchema, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}, purpose responseHashPurpose) *BoolOrSchema {
 	if value == nil {
 		return nil
 	}
 	cloned := *value
-	cloned.Schema = normalizeSchemaForHash(value.Schema, schemas, cache, stack)
+	cloned.Schema = normalizeSchemaForHash(value.Schema, schemas, cache, stack, purpose)
 	return &cloned
 }
 
-func normalizeDiscriminatorForHash(discriminator *Discriminator, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) *Discriminator {
+func normalizeDiscriminatorForHash(discriminator *Discriminator, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}, purpose responseHashPurpose) *Discriminator {
 	if discriminator == nil {
 		return nil
 	}
@@ -334,7 +363,7 @@ func normalizeDiscriminatorForHash(discriminator *Discriminator, schemas map[str
 		cloned.Mapping = make(map[string]string, len(discriminator.Mapping))
 		for key, ref := range discriminator.Mapping {
 			if refName, ok := schemaComponentName(ref); ok {
-				cloned.Mapping[key] = "schema:" + schemaHashByName(refName, schemas, cache, stack)
+				cloned.Mapping[key] = "schema:" + schemaHashByName(refName, schemas, cache, stack, purpose)
 				continue
 			}
 			cloned.Mapping[key] = ref
@@ -343,7 +372,7 @@ func normalizeDiscriminatorForHash(discriminator *Discriminator, schemas map[str
 	return &cloned
 }
 
-func schemaHashByName(name string, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}) string {
+func schemaHashByName(name string, schemas map[string]*Schema, cache map[string]string, stack map[string]struct{}, purpose responseHashPurpose) string {
 	if name == "" {
 		return "missing"
 	}
@@ -358,7 +387,7 @@ func schemaHashByName(name string, schemas map[string]*Schema, cache map[string]
 		return "missing:" + name
 	}
 	stack[name] = struct{}{}
-	normalized := normalizeSchemaForHash(schema, schemas, cache, stack)
+	normalized := normalizeSchemaForHash(schema, schemas, cache, stack, purpose)
 	delete(stack, name)
 	hash, err := hashReusableValue(normalized)
 	if err != nil || hash == "" {
@@ -368,7 +397,7 @@ func schemaHashByName(name string, schemas map[string]*Schema, cache map[string]
 	return hash
 }
 
-func canonicalResponseSchemaRef(name string, schemas map[string]*Schema, cache map[string]string) string {
+func canonicalResponseSchemaRef(name string, schemas map[string]*Schema, cache map[string]string, purpose responseHashPurpose) string {
 	if name == "" {
 		return ""
 	}
@@ -376,7 +405,7 @@ func canonicalResponseSchemaRef(name string, schemas map[string]*Schema, cache m
 	if !ok || schemas[base] == nil || schemas[name] == nil {
 		return "#/components/schemas/" + name
 	}
-	if schemaHashByName(base, schemas, cache, map[string]struct{}{}) == schemaHashByName(name, schemas, cache, map[string]struct{}{}) {
+	if schemaHashByName(base, schemas, cache, map[string]struct{}{}, purpose) == schemaHashByName(name, schemas, cache, map[string]struct{}{}, purpose) {
 		return "#/components/schemas/" + base
 	}
 	return "#/components/schemas/" + name

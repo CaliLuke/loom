@@ -6,6 +6,7 @@ type (
 	valuePlanKey struct {
 		source *valueOccurrenceNode
 		target *valueOccurrenceNode
+		codec  ValueCodec
 	}
 	valuePlanBuilder struct {
 		request    ValuePlanRequest
@@ -14,6 +15,7 @@ type (
 		nodes      map[valuePlanKey]*valuePlanNode
 		used       []bool
 		containers []bool
+		codecs     []bool
 		next       uint64
 	}
 )
@@ -27,7 +29,7 @@ func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanReq
 		return ValuePlan{}, fmt.Errorf("value plan requires its source context")
 	}
 	if request.Codec < ValueCodecJSON || request.Codec > ValueCodecCustom ||
-		(request.Use != ValuePlanRuntime && request.Use != ValuePlanDocumentation) {
+		(request.Use != ValuePlanRuntime && request.Use != ValuePlanDocumentation && request.Use != ValuePlanSchema) {
 		return ValuePlan{}, fmt.Errorf("value plan requires an explicit codec and use")
 	}
 	selected := source.node
@@ -55,8 +57,8 @@ func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanReq
 	if err != nil {
 		return ValuePlan{}, fmt.Errorf("value plan target: %w", err)
 	}
-	builder := valuePlanBuilder{request: request, context: c, source: source, nodes: make(map[valuePlanKey]*valuePlanNode), used: make([]bool, len(request.Fields)), containers: make([]bool, len(request.Containers))}
-	root, err := builder.node(selected, target.node)
+	builder := valuePlanBuilder{request: request, context: c, source: source, nodes: make(map[valuePlanKey]*valuePlanNode), used: make([]bool, len(request.Fields)), containers: make([]bool, len(request.Containers)), codecs: make([]bool, len(request.Codecs))}
+	root, err := builder.node(selected, target.node, request.Codec)
 	if err != nil {
 		return ValuePlan{}, err
 	}
@@ -70,11 +72,17 @@ func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanReq
 			return ValuePlan{}, fmt.Errorf("value plan container policy %d does not identify a target container", i)
 		}
 	}
+	for i, used := range builder.codecs {
+		if !used {
+			return ValuePlan{}, fmt.Errorf("value plan codec policy %d does not identify a target node", i)
+		}
+	}
 	return ValuePlan{context: c.identity, source: source, root: root, selection: selection}, nil
 }
 
 func valueSameAncestry(left, right *AttributeExpr) bool {
-	return left != nil && right != nil && valueAttributeOrigin(left) == valueAttributeOrigin(right)
+	leftOrigin, rightOrigin := valueSemanticOrigin(left), valueSemanticOrigin(right)
+	return leftOrigin != nil && leftOrigin == rightOrigin
 }
 
 func valueUnderlyingOccurrence(node *valueOccurrenceNode) *valueOccurrenceNode {
@@ -84,19 +92,64 @@ func valueUnderlyingOccurrence(node *valueOccurrenceNode) *valueOccurrenceNode {
 	return node
 }
 
-func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode) (*valuePlanNode, error) {
-	if target.declaration.alias == nil {
-		source = valueUnderlyingOccurrence(source)
+// valuePlanAliasSource pairs a target edge with the nearest controlled source
+// ancestry. Additional target wrappers need not consume a source alias.
+func valuePlanAliasSource(source, target *valueOccurrenceNode) (*valueOccurrenceNode, bool, error) {
+	original := source
+	seen := make(map[*valueOccurrenceNode]bool)
+	for source != nil && !seen[source] {
+		if valueSameAncestry(source.origin, target.origin) {
+			return source, source == original, nil
+		}
+		seen[source] = true
+		source = source.declaration.alias
 	}
-	key := valuePlanKey{source: source, target: target}
+	// Structural target definitions can come from a separately authored body
+	// bound at the parent. Their fields/branches are checked against the exact
+	// semantic shape below; the definition itself need not be a source alias.
+	if target.declaration.alias == nil {
+		structural, err := valuePlanStructuralSource(original)
+		return structural, false, err
+	}
+	return nil, false, fmt.Errorf("value plan alias has no matching source ancestry")
+}
+
+// Structural copies can retain the outer attribute's ancestry while replacing
+// its named Type. Their member and branch identities still belong to the fully
+// unwrapped semantic declaration, independently of the incoming alias role.
+func valuePlanStructuralSource(source *valueOccurrenceNode) (*valueOccurrenceNode, error) {
+	seen := make(map[*valueOccurrenceNode]bool)
+	for source.declaration.alias != nil {
+		if seen[source] {
+			return nil, fmt.Errorf("value plan source has a cyclic alias chain")
+		}
+		seen[source] = true
+		source = source.declaration.alias
+	}
+	return source, nil
+}
+
+func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode, codec ValueCodec) (*valuePlanNode, error) {
+	if target.declaration.alias == nil {
+		var err error
+		source, err = valuePlanStructuralSource(source)
+		if err != nil {
+			return nil, err
+		}
+	}
+	codec, err := b.codecPolicy(target, codec)
+	if err != nil {
+		return nil, err
+	}
+	key := valuePlanKey{source: source, target: target, codec: codec}
 	if prior := b.nodes[key]; prior != nil {
 		return prior, nil
 	}
 	b.next++
 	decl := target.declaration
 	node := &valuePlanNode{
-		id: b.next, source: source, attribute: target.attribute, kind: decl.kind,
-		codec: b.request.Codec, documentary: b.request.Use == ValuePlanDocumentation,
+		id: b.next, source: source, targetDeclarationID: target.declarationID, attribute: target.attribute, kind: decl.kind,
+		codec: codec, documentary: b.request.Use == ValuePlanDocumentation, schemaOnly: b.request.Use == ValuePlanSchema,
 		nullable: target.attribute.Nullable, nonNullableElements: decl.nonNullableElements,
 		untagged: decl.untagged, typeKey: decl.typeKey, valueKey: decl.valueKey,
 		schemaUnknown: target.attribute.Meta["openapi:additionalProperties"] == nil,
@@ -108,13 +161,18 @@ func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode) (*valuePlan
 	if err := b.enums(node, source, target); err != nil {
 		return nil, err
 	}
+	return b.nodeChildren(node, source, target)
+}
+
+func (b *valuePlanBuilder) nodeChildren(node *valuePlanNode, source, target *valueOccurrenceNode) (*valuePlanNode, error) {
+	decl := target.declaration
 	if decl.alias != nil {
-		child := source
-		if source.declaration.alias != nil {
-			child = source.declaration.alias
+		child, reuses, err := valuePlanAliasSource(source, decl.alias)
+		if err != nil {
+			return nil, err
 		}
-		var err error
-		node.alias, err = b.node(child, decl.alias)
+		node.aliasReusesSource = reuses
+		node.alias, err = b.node(child, decl.alias, node.codec)
 		return node, err
 	}
 	if source.declaration.kind != decl.kind {
@@ -133,9 +191,9 @@ func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode) (*valuePlan
 	case ObjectKind:
 		err = b.object(node, source, target)
 	case ArrayKind, MapKind:
-		node.element, err = b.node(source.declaration.element, decl.element)
+		node.element, err = b.node(source.declaration.element, decl.element, node.codec)
 		if err == nil && decl.kind == MapKind {
-			node.key, err = b.node(source.declaration.key, decl.key)
+			node.key, err = b.node(source.declaration.key, decl.key, node.codec)
 		}
 	case UnionKind:
 		err = b.union(node, source, target)
@@ -170,12 +228,12 @@ func (b *valuePlanBuilder) object(node *valuePlanNode, source, target *valueOccu
 		if policy.Visible {
 			wires[policy.WireName] = true
 		}
-		child, err := b.node(matched.node, field.node)
+		child, err := b.node(matched.node, field.node, node.codec)
 		if err != nil {
 			return err
 		}
 		node.members = append(node.members, valuePlanMember{
-			source: matched.id, wire: policy.WireName, required: policy.Required,
+			source: matched.id, name: field.name, wire: policy.WireName, required: policy.Required,
 			visible: policy.Visible, presence: policy.Presence, implicitDefault: policy.ImplicitDefault, node: child,
 		})
 	}
@@ -249,6 +307,9 @@ func (b *valuePlanBuilder) containerPolicy(target *valueOccurrenceNode) (ValueCo
 
 func (b *valuePlanBuilder) enums(node *valuePlanNode, source, target *valueOccurrenceNode) error {
 	node.hasEnum = target.attribute.Validation != nil && target.attribute.Validation.Values != nil
+	if node.schemaOnly {
+		return nil
+	}
 	for _, snapshot := range target.enumValues {
 		if snapshot.err != nil {
 			return fmt.Errorf("value plan enum source: %w", snapshot.err)
@@ -280,11 +341,25 @@ func (b *valuePlanBuilder) union(node *valuePlanNode, source, target *valueOccur
 		if matched == nil {
 			return fmt.Errorf("value plan has unrelated branch %q", branch.name)
 		}
-		child, childErr := b.node(matched.node, branch.node)
+		child, childErr := b.node(matched.node, branch.node, node.codec)
 		if childErr != nil {
 			return childErr
 		}
 		node.branches = append(node.branches, valuePlanBranch{source: matched.id, tag: branch.tag, node: child})
 	}
 	return nil
+}
+
+func (b *valuePlanBuilder) codecPolicy(target *valueOccurrenceNode, inherited ValueCodec) (ValueCodec, error) {
+	matched := false
+	for i, policy := range b.request.Codecs {
+		if policy.Target != target.origin {
+			continue
+		}
+		if matched || policy.Codec < ValueCodecJSON || policy.Codec > ValueCodecCustom {
+			return 0, fmt.Errorf("value plan has conflicting or invalid node codec policy")
+		}
+		matched, b.codecs[i], inherited = true, true, policy.Codec
+	}
+	return inherited, nil
 }

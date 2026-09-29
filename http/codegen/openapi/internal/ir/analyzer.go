@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/internal/enumvalue"
@@ -22,6 +21,18 @@ type (
 
 	// Analyzer converts expr types into IR schemas and endpoint body models.
 	Analyzer struct {
+		declarationRoots     map[string]*Schema
+		asyncAcquisition     *asyncBaselineAcquisition
+		componentAnnotations map[componentAnnotationIdentity]map[componentAnnotationPosition]any
+		annotationOwner      map[componentAnnotationPosition]any
+		occurrences          []schemaOccurrenceAnalysis
+		registrations        []*Schema
+		plan                 expr.ValuePlanNode
+		constructingBaseline bool
+		constructions        map[*Schema]schemaConstruction
+		projectedSchemas     map[schemaProjectionKey]*Schema
+		projectedComponents  map[schemaProjectionKey]string
+		schemaNames          map[string]representationComponentName
 		schemas              map[string]*Schema
 		schemaFingerprints   map[string]string
 		schemaTypeIDs        map[string]string
@@ -76,6 +87,11 @@ func WithExampleGenerator(generator *expr.ExampleGenerator) AnalyzerOption {
 // overrides this projection when a caller needs another representation.
 func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...AnalyzerOption) *Analyzer {
 	a := &Analyzer{
+		declarationRoots:     make(map[string]*Schema),
+		constructions:        make(map[*Schema]schemaConstruction),
+		projectedSchemas:     make(map[schemaProjectionKey]*Schema),
+		projectedComponents:  make(map[schemaProjectionKey]string),
+		schemaNames:          make(map[string]representationComponentName),
 		schemas:              make(map[string]*Schema),
 		schemaFingerprints:   make(map[string]string),
 		schemaTypeIDs:        make(map[string]string),
@@ -131,11 +147,20 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 	if attr == nil || attr.Type == expr.Empty {
 		return nil
 	}
+	if a.plan.Valid() && byteSchemaExcluded(attr) {
+		return a.analyzeSchemaPlan(attr, context, expr.ValuePlanNode{}, noref...)
+	}
 	if t, ok := attr.Type.(expr.UserType); ok {
+		if a.asyncAcquisition != nil && a.asyncAcquisition.inline() {
+			// The inline consumer owns named shape, annotation overrides and
+			// null policy before ordinary result-view and occurrence handling.
+			// Its original plan remains intact for byte-only projection.
+			return a.analyzeUnderlyingSchema(componentAttribute(attr, t), context, true)
+		}
 		s := a.analyzeUserType(attr, t, context, len(noref) > 0)
 		if attr.Nullable && !expr.IsNullable(t.Attribute()) {
 			a.applySchemaExample(s, attr, context)
-			applyNullableSchema(s)
+			a.applyNullableSchema(s)
 		} else if expr.AllowsNull(t.Attribute()) && len(attr.UserExamples) > 0 {
 			a.applySchemaExample(s, attr, context)
 		}
@@ -145,7 +170,7 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 	s, note := a.analyzeInlineType(attr, context)
 	a.applySchemaAttributeDetails(s, attr, note, context)
 	if expr.IsNullable(attr) {
-		applyNullableSchema(s)
+		a.applyNullableSchema(s)
 	}
 	return s
 }
@@ -221,6 +246,7 @@ func (a *Analyzer) analyzeInlineType(attr *expr.AttributeExpr, context string) (
 	default:
 		panic(fmt.Sprintf("unknown type %T", t))
 	}
+	a.recordStructuralSchema(s, attr)
 	return s, ""
 }
 
@@ -266,7 +292,7 @@ func (a *Analyzer) analyzeInlineBytes(s *Schema, attr *expr.AttributeExpr, conte
 
 func (a *Analyzer) analyzeInlineArray(s *Schema, arr *expr.Array, context string) {
 	s.Type = string(openapi.Array)
-	s.Items = a.analyzeSchema(arr.ElemType, childExampleContext(context, "items"))
+	s.Items = a.analyzeSchemaPlan(arr.ElemType, childExampleContext(context, "items"), a.plan.Element())
 }
 
 func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj *expr.Object, context string) {
@@ -277,9 +303,9 @@ func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj 
 	for _, nat := range *obj {
 		name := expr.JSONFieldName(expr.ElementName(nat.Name), nat.Attribute)
 		if name != "-" && openapi.MustGenerate(nat.Attribute.Meta) {
-			s.Properties[name] = a.analyzeSchema(
+			s.Properties[name] = a.analyzeSchemaPlan(
 				nat.Attribute,
-				childExampleContext(context, "property", name),
+				childExampleContext(context, "property", name), a.memberPlan(nat.Name),
 			)
 		}
 	}
@@ -295,7 +321,7 @@ func (a *Analyzer) analyzeInlineMap(s *Schema, m *expr.Map, context string) {
 		return
 	}
 	s.AdditionalProperties = &BoolOrSchema{
-		Schema: a.analyzeSchema(m.ElemType, childExampleContext(context, "additional-properties")),
+		Schema: a.analyzeSchemaPlan(m.ElemType, childExampleContext(context, "additional-properties"), a.plan.Element()),
 	}
 }
 
@@ -303,9 +329,9 @@ func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union, context stri
 	values := sortedUnionValues(union)
 	if union.Untagged {
 		for _, val := range values {
-			s.OneOf = append(s.OneOf, a.analyzeSchema(
+			s.OneOf = append(s.OneOf, a.analyzeSchemaPlan(
 				val.Attribute,
-				childExampleContext(context, "branch", expr.UnionVariantTag(val)),
+				childExampleContext(context, "branch", expr.UnionVariantTag(val)), a.branchPlan(expr.UnionVariantTag(val)),
 			))
 		}
 		return
@@ -323,61 +349,6 @@ func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union, context stri
 		s.OneOf = append(s.OneOf, &Schema{Ref: ref})
 		s.Discriminator.Mapping[expr.UnionVariantTag(val)] = ref
 	}
-}
-
-func (a *Analyzer) analyzeUserType(attr *expr.AttributeExpr, t expr.UserType, context string, noRef bool) *Schema {
-	if schema, projected := a.analyzeProjectedResult(attr, t, context, noRef); projected {
-		return schema
-	}
-	if schema, overlaid := a.analyzeUserTypeOverlay(attr, t, context, noRef); overlaid {
-		return schema
-	}
-	metaName, canonical := schemaTypeNaming(attr, t)
-	if expr.IsAlias(t) && !canonical {
-		return a.analyzeSchema(t.Attribute(), context)
-	}
-
-	s := &Schema{}
-	fingerprint := a.componentFingerprint(attr, t)
-
-	refs, ok := a.schemasByFingerprint[fingerprint]
-	if !noRef && ok {
-		if ref := findMatchingSchemaRef(refs, metaName, canonical); ref != "" {
-			s.Ref = ref
-			return s
-		}
-	}
-
-	typeName := codegen.Goify(schemaTypeName(t, metaName), true)
-	if canonical {
-		if metaName != "" {
-			typeName = metaName
-		}
-		_, schemaExists := a.schemas[typeName]
-		existingTypeID, hasTypeID := a.schemaTypeIDs[typeName]
-		if schemaExists && hasTypeID && existingTypeID == t.ID() {
-			a.schemaTypeIDs[typeName] = t.ID()
-			s.Ref = toRef(typeName)
-			return s
-		}
-
-		if a.reuseEquivalentCanonicalSchema(s, attr, t, typeName, fingerprint, metaName) {
-			return s
-		}
-		typeName = a.ClaimExplicitName(typeName, fingerprint)
-	} else {
-		typeName = a.Uniquify(typeName, fingerprint)
-	}
-	s.Ref = toRef(typeName)
-	a.registerSchemaRef(fingerprint, s.Ref, metaName)
-	if _, ok := a.schemas[typeName]; !ok {
-		a.schemaFingerprints[typeName] = fingerprint
-		componentAttr := componentAttribute(attr, t)
-		componentContext := exampleContext("component", typeName)
-		a.schemaTypeIDs[typeName] = t.ID()
-		a.schemas[typeName] = a.analyzeSchema(componentAttr, componentContext, true)
-	}
-	return s
 }
 
 func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeExpr, note, context string) {
@@ -443,6 +414,16 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 }
 
 func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, context string) {
+	if a.annotationOwner != nil {
+		position := componentAnnotationPosition{context, fingerprintAttribute(attr, a.closeObjects)}
+		if example, found := a.annotationOwner[position]; found {
+			s.Example = copyComponentAnnotation(example)
+			return
+		}
+		defer func() {
+			a.annotationOwner[position] = copyComponentAnnotation(s.Example)
+		}()
+	}
 	suppress := false
 	if a.suppressExamples != nil {
 		suppress = a.suppressExamples(attr, a.closeObjects)
@@ -554,16 +535,29 @@ func metaBoolValue(value string) bool {
 }
 
 func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAttributeExpr) string {
-	key := a.unionBranchSchemaKey(union, val)
+	// Synthetic envelopes retain component annotation authority. Their payloads
+	// are not inline positions in the enclosing message's acquisition scope.
+	acquisition := a.asyncAcquisition
+	a.asyncAcquisition = nil
+	defer func() {
+		a.asyncAcquisition = acquisition
+	}()
+	logical := a.unionBranchSchemaKey(union, val)
+	projection := a.byteProjection(val.Attribute, a.branchPlan(expr.UnionVariantTag(val)))
+	key := logical + projection
 	if name, ok := a.unionBranchSchemas[key]; ok {
 		return toRef(name)
 	}
 
-	name := deterministicUnionBranchSchemaName(union, val)
+	desired := deterministicUnionBranchSchemaName(union, val)
+	name := desired
 	fingerprint := fingerprintString(key)
 	name = a.Uniquify(name, fingerprint)
 	a.unionBranchSchemas[key] = name
+	a.schemaNames[name] = representationComponentName{desired: desired, logical: logical, baseline: logical, json: projection != ""}
 
+	restore := a.componentAnnotationScope(logical, logical, exampleContext("component", desired))
+	defer restore()
 	branchSchema := &Schema{
 		Type:        string(openapi.Object),
 		Description: syntheticUnionBranchSchemaDescription(val),
@@ -572,13 +566,14 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 				Type: string(openapi.String),
 				Enum: []any{expr.UnionVariantTag(val)},
 			},
-			union.GetValueKey(): a.analyzeSchema(
+			union.GetValueKey(): a.analyzeSchemaPlan(
 				val.Attribute,
-				childExampleContext(exampleContext("component", name), "property", union.GetValueKey()),
+				childExampleContext(exampleContext("component", desired), "property", union.GetValueKey()), a.branchPlan(expr.UnionVariantTag(val)),
 			),
 		},
 		Required: []string{union.GetTypeKey(), union.GetValueKey()},
 	}
+	a.constructions[branchSchema] = schemaConstruction{slots: []schemaSlot{{location: schemaProperty, name: union.GetValueKey()}}}
 	a.schemaFingerprints[name] = fingerprint
 	a.schemas[name] = branchSchema
 	return toRef(name)

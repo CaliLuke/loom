@@ -4,6 +4,8 @@ protocol data and records observations; it contains no replacement semantic
 resolver, branch selector, schema checker or projector.
 -/
 import ValueContract.ReferenceCodecs
+import ValueContract.AliasLengthBounds
+import ValueContract.ByteLengthProjection
 
 open Lean
 
@@ -45,6 +47,8 @@ inductive Command where
   | evaluate (request : EvaluationRequest)
   | decode (request : DecoderRequest)
   | codecs (bytes : List (List UInt8)) (texts : List String) (decimals : List Decimal)
+  | aliasLengths (constraints : List LengthBounds) (lengths : List Nat)
+  | byteLengthSchema (bounds : LengthBounds)
   deriving ToJson, FromJson
 
 structure Request where
@@ -306,6 +310,12 @@ def execute (request : Request) : Except String Json := do
     | .selectContract reachable supplied => toJson (SourceSelection.selectContract reachable supplied)
     | .evaluate request => evaluate request
     | .decode request => decodeRequest request
+    | .aliasLengths constraints lengths =>
+        let effective := aliasLengthBounds constraints
+        Json.mkObj [("effective", toJson effective),
+          ("accepted", toJson (lengths.map (lengthAllowed effective)))]
+    | .byteLengthSchema bounds =>
+        toJson ([0, 1, 2].map (byteProjectedBranch bounds))
     | .codecs bytes texts decimals => Json.mkObj [
         ("encodedBytes", toJson (bytes.map encodeBytes)),
         ("decodedBytes", toJson (texts.map decodeBytes)),

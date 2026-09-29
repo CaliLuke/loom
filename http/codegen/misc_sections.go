@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 )
 
 func requestBuilderSection(endpoint *EndpointData) codegen.Section {
@@ -176,7 +177,7 @@ func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
 // tell null from a string. Other optional primitives stay pointers and encode
 // as JSON literals, null when nil.
 func writeSSEDataFieldPayload(b *sourceBuilder, data *SSEData, source string) {
-	if data.DataPointer && data.DataFieldTypeRef == "string" {
+	if representation.MappedSSEEncoding(data.DataFieldTypeRef, data.DataPointer).DereferenceString {
 		b.Add("\tpayload = \"\"\n")
 		b.Addf("\tif %s != nil {\n\t\tpayload = *%s\n\t}\n", source, source)
 		return

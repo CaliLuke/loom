@@ -17,6 +17,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | --- | --- |
 | Source selection/resolution, branch identity, presence, canonical wire construction and target preservation | [Lean value contract model and proofs](../../../../expr/lean/value_projection/README.md), [correspondence ledger](../../../../expr/lean/value_projection/correspondence.md), and [generated comparison harness](../../../../internal/valuecontract/README.md). The README maps executable stages to independent specifications and proof modules; the ledger distinguishes checked candidate claims, pending obligations and tested production boundaries |
 | Value source precedence, phase ordering, representation and cache ownership | [Value pipeline TLA model](../../../../expr/tla/value_projection/README.md); bounded ownership checks, not arbitrary value or generated-program correctness |
+| Source/target pairing, declaration identity, baseline acquisition and annotation paths | [Schema ownership models](../../../../expr/tla/schema_declaration/README.md); bounded checks reject incompatible baseline reuse, added samples and erased annotations; actual extraction, recursion, naming and projection remain Go test obligations |
 | Request-body analysis, method type ownership, inherited/default result views | [Expression lifecycle models](../../../../expr/tla/README.md); local README maps them to expression and generated transport tests |
 | Copying incomplete union branch occurrences, mutable metadata ownership, recursive expansion | [Union copy models](../../../../dsl/tla/union_copy/README.md) |
 | Promoted union identity, authored-name reservations and deterministic allocation | [Union naming model](../../../../dsl/tla/union_names/README.md) |
@@ -50,8 +51,10 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 | Code concern | Model |
 | --- | --- |
 | Nested synthesized union selection and occurrence-specific example caches | [Nested union examples](../../../../http/codegen/openapi/internal/ir/tla/nested_union_examples/README.md) |
+| Alias-bound intersection and decoded Bytes length projection into base64 schema branches | `AliasLengthBounds.lean` and `ByteLengthProjection.lean` in the [Lean value model](../../../../expr/lean/value_projection/README.md); [production owners and checks](../../../../internal/valuecontract/BYTE_SCHEMA.md) distinguish proved arithmetic from tested codec extraction and schema allocation |
 | One wire representation for byte/text branch comparison | [Byte example projection](../../../../http/codegen/openapi/internal/ir/tla/byte_examples/README.md) |
 | Security binding ownership, explicit reservations and deterministic component names | [Security bindings](../../../../http/codegen/openapi/internal/ir/tla/security_bindings/README.md) |
+| Complete recursive representation equivalence before component naming | [Representation equivalence](../../../../http/codegen/openapi/internal/ir/tla/representation_equivalence/README.md); bounded partition-refinement and quotient-fingerprint checks with legacy and overmerge counterexamples |
 
 The historical byte-example model's encoding and enum assumptions do not prove
 actual decoder uniqueness. Consult the current [value correspondence ledger](../../../../expr/lean/value_projection/correspondence.md)

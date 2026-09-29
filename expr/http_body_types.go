@@ -200,10 +200,11 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 	}
 
 	return &AttributeExpr{
-		Type:         ut,
-		valueOrigin:  valueAttributeOrigin(payload),
-		Validation:   att.Validation,
-		UserExamples: att.UserExamples,
+		Type:              ut,
+		valueOrigin:       valueAttributeOrigin(payload),
+		valueSourceOrigin: valueCopiedSourceOrigin(payload),
+		Validation:        att.Validation,
+		UserExamples:      att.UserExamples,
 	}
 }
 
@@ -267,10 +268,11 @@ func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 	}
 
 	return &AttributeExpr{
-		Type:         ut,
-		valueOrigin:  valueAttributeOrigin(att),
-		Validation:   att.Validation,
-		UserExamples: att.UserExamples,
+		Type:              ut,
+		valueOrigin:       valueAttributeOrigin(att),
+		valueSourceOrigin: valueCopiedSourceOrigin(att),
+		Validation:        att.Validation,
+		UserExamples:      att.UserExamples,
 	}
 }
 
@@ -345,10 +347,11 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 	rt, isrt := attr.Type.(*ResultTypeExpr)
 	if !isrt {
 		return &AttributeExpr{
-			Type:        userType,
-			valueOrigin: valueAttributeOrigin(attr),
-			Validation:  userType.Validation,
-			Meta:        attr.Meta,
+			Type:              userType,
+			valueOrigin:       valueAttributeOrigin(attr),
+			valueSourceOrigin: valueCopiedSourceOrigin(attr),
+			Validation:        userType.Validation,
+			Meta:              attr.Meta,
 		}
 	}
 	views := make([]*ViewExpr, len(rt.Views))
@@ -369,10 +372,11 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		v.Parent = nmt
 	}
 	return &AttributeExpr{
-		Type:        nmt,
-		valueOrigin: valueAttributeOrigin(attr),
-		Validation:  userType.Validation,
-		Meta:        attr.Meta,
+		Type:              nmt,
+		valueOrigin:       valueAttributeOrigin(attr),
+		valueSourceOrigin: valueCopiedSourceOrigin(attr),
+		Validation:        userType.Validation,
+		Meta:              attr.Meta,
 	}
 }
 

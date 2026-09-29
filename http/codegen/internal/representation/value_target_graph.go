@@ -1,4 +1,4 @@
-package codegen
+package representation
 
 import "github.com/CaliLuke/loom/expr"
 
@@ -14,7 +14,7 @@ type (
 	}
 )
 
-func httpValueTargetGraph(target *expr.AttributeExpr) *expr.AttributeExpr {
+func TargetGraph(target *expr.AttributeExpr) *expr.AttributeExpr {
 	// DupAtt establishes immutable source ancestry on every copied occurrence.
 	// The following shallow occurrence copies share only this owned snapshot's
 	// metadata; NewValuePlan captures that state before the graph is discarded.
