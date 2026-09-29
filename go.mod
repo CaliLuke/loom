@@ -15,7 +15,7 @@ require (
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/owenrumney/go-sarif/v3 v3.3.1
-	github.com/pb33f/libopenapi v0.38.7
+	github.com/pb33f/libopenapi v0.40.1
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
