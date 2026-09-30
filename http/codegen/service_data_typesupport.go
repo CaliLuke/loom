@@ -33,20 +33,21 @@ func makeHTTPMappedType(mapped, service *expr.AttributeExpr) *expr.AttributeExpr
 }
 
 func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *expr.AttributeExpr {
+	constraints := selectedTransportConstraints(att)
+	defaultValue, hasDefault := constraints.Default()
 	switch dt := att.Type.(type) {
 	case expr.UserType:
 		_, result := dt.(*expr.ResultTypeExpr)
 		alias := !result && !expr.IsObject(dt) && !expr.IsUnion(dt)
 		if alias {
 			att.Type = dt.Attribute().Type
-			if v := dt.Attribute().Validation; v != nil {
-				if att.Validation == nil {
-					att.Validation = v
-				} else {
-					att.Validation.Merge(v)
-				}
+			att.Validation = constraints.Validation().Lowered()
+			if att.Validation.HasRequiredOnly() && len(att.Validation.Required) == 0 {
+				att.Validation = nil
 			}
-			att.DefaultValue = dt.Attribute().DefaultValue
+			if hasDefault {
+				att.DefaultValue = defaultValue
+			}
 			att.UserExamples = dt.Attribute().UserExamples
 		}
 		if _, ok := seen[dt.ID()]; ok {
@@ -73,6 +74,14 @@ func makeHTTPTypeRecursive(att *expr.AttributeExpr, seen map[string]struct{}) *e
 	case *expr.Union:
 	}
 	return att
+}
+
+func selectedTransportConstraints(att *expr.AttributeExpr) expr.EffectiveConstraints {
+	constraints, err := expr.EffectiveConstraintsFor(att)
+	if err != nil {
+		panic(codegen.NewError(nil, att, err))
+	}
+	return constraints
 }
 
 // collectUserTypes calls cb once per generated user type in dt. Generated body

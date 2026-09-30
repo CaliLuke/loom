@@ -111,7 +111,7 @@ func TestBytesValidationExtractedValues(t *testing.T) {
 				typ = &expr.UserTypeExpr{TypeName: "Arbitrary", AttributeExpr: &expr.AttributeExpr{Type: expr.Any}}
 			}
 			ctx := NewAttributeContext(true, false, false, "", NewNameScope())
-			data := newValidationRenderData(&expr.AttributeExpr{Type: typ}, ctx, false, named, "value", "body")
+			data := newValidationRenderData(&expr.AttributeExpr{Type: typ}, ctx, false, named, false, "value", "body")
 			require.NotContains(t, data.TargetValue, "*")
 		})
 	}

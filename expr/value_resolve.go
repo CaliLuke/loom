@@ -8,17 +8,20 @@ import (
 )
 
 type valueResolver struct {
-	context    *ValueContext
-	occurrence ValueOccurrence
-	source     *valueSourceData
-	active     map[valueSnapshotVisit]bool
+	context      *ValueContext
+	occurrence   ValueOccurrence
+	source       *valueSourceData
+	active       map[valueSnapshotVisit]bool
+	admission    bool
+	shapeNodes   map[*valueOccurrenceNode]bool
+	ignoredEnums map[*valueOccurrenceNode]bool
 }
 
 // Resolve interprets one immutable source against its effective semantic
 // occurrence. It never receives a target, reselects an already selected branch,
 // or substitutes generated data for an authored failure.
 func (c *ValueContext) Resolve(occurrence ValueOccurrence, source ValueSource, role ValueRole) ValueResult {
-	if c == nil || occurrence.node == nil || source.data == nil || occurrence.context != c.identity || source.data.context != c.identity {
+	if !c.ownsValue(occurrence, source) {
 		return valueFailure(ValueInvalid, "ownership", "source and occurrence require the same value context")
 	}
 	if role < ValueRoleExample || role > ValueRoleDefault {
@@ -32,9 +35,12 @@ func (c *ValueContext) Resolve(occurrence ValueOccurrence, source ValueSource, r
 	}
 	resolver := valueResolver{context: c, occurrence: occurrence, source: source.data, active: make(map[valueSnapshotVisit]bool)}
 	var result ValueResult
-	if errors.Is(source.data.snapshot.err, errValueSourceOwnership) {
+	switch {
+	case errors.Is(source.data.snapshot.err, errValueSourceOwnership):
 		result = valueFailure(ValueInvalid, "ownership", source.data.snapshot.err.Error())
-	} else {
+	case errors.Is(source.data.snapshot.err, errValueSourcePointerCycle):
+		result = valueFailure(ValueInvalid, "source", source.data.snapshot.err.Error())
+	default:
 		result = resolver.resolve(occurrence.node, source.data.snapshot.raw, role != ValueRoleExample, occurrence.node, nil)
 	}
 	result.legacy = &source.data.snapshot
@@ -45,20 +51,89 @@ func (c *ValueContext) Resolve(occurrence ValueOccurrence, source ValueSource, r
 	return result
 }
 
+// ResolveDeclaredShape interprets one immutable source against its declared
+// shape without establishing that the source is admitted by the occurrence.
+// Validation and enum predicates are suppressed only for the root occurrence
+// and its named ancestry. Child and member constraints, required nested data,
+// and union branch selection remain enforced. Explicit opaque codec leaves may
+// be retained without invoking their codecs. The source and occurrence must
+// belong to this context. Shape resolutions do not read or populate Resolve's
+// semantic result cache.
+func (c *ValueContext) ResolveDeclaredShape(occurrence ValueOccurrence, source ValueSource) ValueResult {
+	if !c.ownsValue(occurrence, source) {
+		return valueFailure(ValueInvalid, "ownership", "source and occurrence require the same value context")
+	}
+	shapeNodes := make(map[*valueOccurrenceNode]bool)
+	for _, layer := range effectiveConstraintLayers(occurrence.node) {
+		shapeNodes[layer] = true
+	}
+	resolver := valueResolver{
+		context:      c,
+		occurrence:   occurrence,
+		source:       source.data,
+		active:       make(map[valueSnapshotVisit]bool),
+		admission:    true,
+		shapeNodes:   shapeNodes,
+		ignoredEnums: shapeNodes,
+	}
+	var result ValueResult
+	switch {
+	case errors.Is(source.data.snapshot.err, errValueSourceOwnership):
+		result = valueFailure(ValueInvalid, "ownership", source.data.snapshot.err.Error())
+	case errors.Is(source.data.snapshot.err, errValueSourcePointerCycle):
+		result = valueFailure(ValueInvalid, "source", source.data.snapshot.err.Error())
+	default:
+		result = resolver.resolve(occurrence.node, source.data.snapshot.raw, true, occurrence.node, nil)
+	}
+	result.legacy = &source.data.snapshot
+	result.role = ValueRoleEnum
+	result.source, result.occurrence = source.data, occurrence
+	result.customBoundary = result.outcome == ValueUnsupported && valueCustomSource(source.data.snapshot.raw)
+	return result
+}
+
+func (c *ValueContext) ownsValue(occurrence ValueOccurrence, source ValueSource) bool {
+	return c != nil && occurrence.node != nil && source.data != nil &&
+		occurrence.context == c.identity && source.data.context == c.identity
+}
+
 func (r *valueResolver) resolve(node *valueOccurrenceNode, raw any, complete bool, owner *valueOccurrenceNode, skipEnum *valueOccurrenceNode) ValueResult {
 	result := r.body(node, raw, complete, owner, skipEnum)
-	if result.outcome != ValueResolved && result.outcome != ValueIncomplete {
+	if result.outcome != ValueResolved && result.outcome != ValueIncomplete &&
+		!(r.admission && result.outcome == ValueUnsupported && !result.checkableFailure && result.value.node != nil) {
 		return result
 	}
-	if node == skipEnum || len(node.enumValues) == 0 {
-		return result
+	if !r.shapeNodes[node] && !r.ignoredEnums[node] && node != skipEnum && node.enumValues != nil {
+		result = r.applyEnumSet(node, result, node.enumValues, owner)
+		if result.outcome == ValueInvalid {
+			return result
+		}
 	}
-	for _, allowed := range node.enumValues {
+	if !r.shapeNodes[node] && node != skipEnum {
+		for _, clause := range node.enumClauses {
+			result = r.applyEnumSet(node, result, clause, owner)
+			if result.outcome == ValueInvalid {
+				return result
+			}
+		}
+	}
+	return result
+}
+
+func (r *valueResolver) applyEnumSet(
+	node *valueOccurrenceNode,
+	result ValueResult,
+	values []valueSourceSnapshot,
+	owner *valueOccurrenceNode,
+) ValueResult {
+	for _, allowed := range values {
 		if allowed.err != nil {
 			return valueFailure(ValueInvalid, "enum", "invalid authored enum member")
 		}
 		member := r.resolve(node, allowed.raw, true, owner, node)
-		if member.outcome == ValueResolved && resolvedEnumEqual(member.value, result.value) {
+		memberComparable := member.outcome == ValueResolved ||
+			(r.admission && member.outcome == ValueUnsupported && !member.checkableFailure)
+		if memberComparable && resolvedEnumEqual(member.value, result.value) {
 			return result
 		}
 	}
@@ -69,18 +144,15 @@ func (r *valueResolver) body(node *valueOccurrenceNode, raw any, complete bool, 
 	if valueNullInput(raw) && node.attribute.Nullable {
 		return r.success(node, ValueNull, 0, raw)
 	}
-	if valueCustomSource(raw) {
-		return valueFailure(ValueUnsupported, "custom", "custom values require their target codec")
-	}
 	declaration := node.declaration
 	if declaration.alias != nil {
-		result := r.resolve(declaration.alias, raw, complete, owner, skipEnum)
-		if result.outcome == ValueResolved || result.outcome == ValueIncomplete {
-			if !valueLocalRules(node.attribute, result.value) {
-				return valueFailure(ValueInvalid, "validation", "value violates occurrence constraints")
-			}
-		}
-		return result
+		return r.alias(node, declaration.alias, raw, complete, owner, skipEnum)
+	}
+	if declaration.kind != AnyKind {
+		raw = dereferencePlainValue(raw)
+	}
+	if valueOpaqueForDeclaration(declaration.kind, raw) {
+		return r.opaque(node, raw, "custom values require their target codec")
 	}
 	if declaration.kind != AnyKind && declaration.kind != UnionKind {
 		leave, entered := r.enter(raw)
@@ -89,29 +161,89 @@ func (r *valueResolver) body(node *valueOccurrenceNode, raw any, complete bool, 
 		}
 		defer leave()
 	}
-	var result ValueResult
+	result := r.resolveBodyKind(node, raw, complete, owner)
+	return r.applyBodyLocalRules(node, owner, result)
+}
+
+func (r *valueResolver) resolveBodyKind(
+	node *valueOccurrenceNode,
+	raw any,
+	complete bool,
+	owner *valueOccurrenceNode,
+) ValueResult {
+	declaration := node.declaration
 	switch declaration.kind {
 	case AnyKind:
-		result = r.raw(node, raw)
-		if result.outcome == ValueResolved {
-			wrapper := r.success(node, ValuePresent, ValueKindAny, raw)
-			wrapper.value.node.payload = result.value
-			result = wrapper
-		}
+		return r.resolveAnyBody(node, raw)
 	case ObjectKind:
-		result = r.object(node, owner, raw, complete)
+		return r.object(node, owner, raw, complete)
 	case ArrayKind:
-		result = r.array(node, raw, complete)
+		return r.array(node, raw, complete)
 	case MapKind:
-		result = r.mapping(node, raw, complete)
+		return r.mapping(node, raw, complete)
 	case UnionKind:
-		result = r.union(node, raw, complete)
+		return r.union(node, raw, complete)
 	default:
-		result = r.scalar(node, raw)
+		return r.scalar(node, raw)
 	}
-	if (result.outcome == ValueResolved || result.outcome == ValueIncomplete) && !valueLocalRules(node.attribute, result.value) {
+}
+
+func (r *valueResolver) resolveAnyBody(node *valueOccurrenceNode, raw any) ValueResult {
+	result := r.raw(node, raw)
+	if result.outcome != ValueResolved &&
+		!(r.admission && result.outcome == ValueUnsupported && !result.checkableFailure && result.value.node != nil) {
+		return result
+	}
+	wrapper := r.success(node, ValuePresent, ValueKindAny, raw)
+	wrapper.value.node.payload = result.value
+	if result.outcome == ValueUnsupported {
+		wrapper.outcome = ValueUnsupported
+		wrapper.diagnostics = result.diagnostics
+	}
+	return wrapper
+}
+
+func (r *valueResolver) applyBodyLocalRules(
+	node, owner *valueOccurrenceNode,
+	result ValueResult,
+) ValueResult {
+	checkLocal := result.outcome == ValueResolved || result.outcome == ValueIncomplete
+	if r.admission {
+		checkLocal = node == owner && (checkLocal ||
+			(result.outcome == ValueUnsupported && !result.checkableFailure && result.value.node != nil))
+	}
+	if !r.shapeNodes[node] && checkLocal && !valueLocalRules(node, result.value) {
 		return valueFailure(ValueInvalid, "validation", "value violates occurrence constraints")
 	}
+	if !r.shapeNodes[node] && !r.admission && result.outcome == ValueUnsupported && result.value.node != nil &&
+		!result.checkableFailure && !valueLocalRules(node, result.value) {
+		// Retain known validation failure privately for DeclaredJSONValue while
+		// preserving normal Resolve's established Unsupported outcome.
+		result.checkableFailure = true
+	}
+	return result
+}
+
+func (r *valueResolver) alias(node, underlying *valueOccurrenceNode, raw any, complete bool, owner *valueOccurrenceNode, skipEnum *valueOccurrenceNode) ValueResult {
+	result := r.resolve(underlying, raw, complete, owner, skipEnum)
+	if !r.shapeNodes[node] && (result.outcome == ValueResolved || result.outcome == ValueIncomplete ||
+		(r.admission && node == owner && result.outcome == ValueUnsupported && !result.checkableFailure && result.value.node != nil)) {
+		if !valueLocalRules(node, result.value) {
+			return valueFailure(ValueInvalid, "validation", "value violates occurrence constraints")
+		}
+	}
+	if !r.shapeNodes[node] && !r.admission && result.outcome == ValueUnsupported && result.value.node != nil &&
+		!result.checkableFailure && !valueLocalRules(node, result.value) {
+		result.checkableFailure = true
+	}
+	return result
+}
+
+func (r *valueResolver) opaque(node *valueOccurrenceNode, raw any, message string) ValueResult {
+	result := r.success(node, ValuePresent, 0, raw)
+	result.outcome = ValueUnsupported
+	result.diagnostics = []ValueDiagnostic{{Code: "custom", Message: message}}
+	result.value.node.opaque = true
 	return result
 }
 
@@ -125,6 +257,31 @@ func valueCustomSource(raw any) bool {
 	}
 	typ := reflect.TypeOf(raw)
 	return valueHasCustomCodec(typ) || typ.Kind() == reflect.Struct || typ.Kind() == reflect.Pointer
+}
+
+func valueOpaqueForDeclaration(kind Kind, raw any) bool {
+	if valueNullInput(raw) {
+		return false
+	}
+	typ := reflect.TypeOf(raw)
+	if valueHasCustomCodec(typ) {
+		return true
+	}
+	return kind == AnyKind && (typ.Kind() == reflect.Struct || typ.Kind() == reflect.Pointer)
+}
+
+func dereferencePlainValue(raw any) any {
+	value := reflect.ValueOf(raw)
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
+		if value.IsNil() || valueHasCustomCodec(value.Type()) {
+			return raw
+		}
+		value = value.Elem()
+	}
+	if !value.IsValid() {
+		return nil
+	}
+	return value.Interface()
 }
 
 func (r *valueResolver) enter(raw any) (func(), bool) {
@@ -238,7 +395,11 @@ func valueNullInput(raw any) bool {
 }
 
 func valueFailure(outcome ValueOutcome, code, message string) ValueResult {
-	return ValueResult{outcome: outcome, diagnostics: []ValueDiagnostic{{Code: code, Message: message}}}
+	return ValueResult{
+		outcome:          outcome,
+		checkableFailure: true,
+		diagnostics:      []ValueDiagnostic{{Code: code, Message: message}},
+	}
 }
 
 func valueErrorPriority(result ValueResult) int {
@@ -258,18 +419,49 @@ func valueErrorPriority(result ValueResult) int {
 	}
 }
 
-func valueCombine(parent ValueResult, children []ValueResult) ValueResult {
+func valueCombine(parent ValueResult, children []ValueResult, admission bool) ValueResult {
 	failure := parent
+	if !admission {
+		checkableFailure := parent.checkableFailure
+		privateMissing := false
+		for _, child := range children {
+			checkableFailure = checkableFailure || child.checkableFailure
+			privateMissing = privateMissing || len(child.missing) > 0
+			if valueErrorPriority(child) < valueErrorPriority(failure) {
+				failure = child
+			}
+		}
+		if valueErrorPriority(failure) != 99 {
+			// Aggregate parents already retain every child's private structural
+			// value. The absent parent used only to compare object-member source
+			// spellings does not, so preserve the selected opaque child there.
+			if parent.value.node != nil && parent.value.Presence() != ValueAbsent {
+				failure.value = parent.value
+			}
+			failure.checkableFailure = checkableFailure || privateMissing
+			return failure
+		}
+		for _, child := range children {
+			parent.missing = append(parent.missing, child.missing...)
+		}
+		if len(parent.missing) > 0 {
+			parent.outcome = ValueIncomplete
+		}
+		return parent
+	}
+	checkableFailure := parent.checkableFailure
 	for _, child := range children {
+		checkableFailure = checkableFailure || child.checkableFailure
+		parent.missing = append(parent.missing, child.missing...)
 		if valueErrorPriority(child) < valueErrorPriority(failure) {
 			failure = child
 		}
 	}
 	if valueErrorPriority(failure) != 99 {
+		failure.value = parent.value
+		failure.missing = parent.missing
+		failure.checkableFailure = checkableFailure || len(parent.missing) > 0
 		return failure
-	}
-	for _, child := range children {
-		parent.missing = append(parent.missing, child.missing...)
 	}
 	if len(parent.missing) > 0 {
 		parent.outcome = ValueIncomplete

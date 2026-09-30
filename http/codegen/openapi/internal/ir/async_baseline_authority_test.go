@@ -3,10 +3,11 @@ package ir
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 )
 
 func TestAsyncFreshBaselineKeepsSiblingAnnotations(t *testing.T) {

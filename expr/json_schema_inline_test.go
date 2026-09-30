@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/examplevalue"
 	"github.com/stretchr/testify/require"
 )
 
@@ -265,7 +266,10 @@ func TestInlineJSONSchema(t *testing.T) {
 			UserExamples: []*ExampleExpr{{Value: namedJSONMap{"design_name": "authored", "wire-name": "example", "ignored": "secret"}}},
 			Validation: &ValidationExpr{
 				Required: []string{"design_name", "ignored"},
-				Values:   []any{namedJSONMap{"design_name": "enum", "ignored": "secret"}},
+				Values: []any{
+					namedJSONMap{"design_name": "enum", "ignored": "secret"},
+					namedJSONMap{"design_name": "authored", "wire-name": "default", "ignored": "secret"},
+				},
 			},
 		}
 		data := mustInlineJSONSchema(t, attr)
@@ -277,7 +281,10 @@ func TestInlineJSONSchema(t *testing.T) {
 		require.Equal(t, []any{"wire-name"}, data["required"])
 		require.Equal(t, map[string]any{"wire-name": "default"}, data["default"])
 		require.Equal(t, map[string]any{"wire-name": "example"}, data["examples"].([]any)[0])
-		require.Equal(t, []any{map[string]any{"wire-name": "enum"}}, data["enum"])
+		require.Equal(t, []any{
+			map[string]any{"wire-name": "enum"},
+			map[string]any{"wire-name": "default"},
+		}, data["enum"])
 	})
 
 	t.Run("canonicalizes constrained tagged union enums", func(t *testing.T) {
@@ -376,7 +383,7 @@ func TestInlineJSONSchema(t *testing.T) {
 		}}
 		data := mustInlineJSONSchema(t, &AttributeExpr{
 			Type:       list,
-			Validation: &ValidationExpr{Values: []any{[]any{"value"}}},
+			Validation: &ValidationExpr{Values: []any{[]any{"one", "two", "three"}}},
 		})
 
 		base := data["allOf"].([]any)[0].(map[string]any)
@@ -482,6 +489,94 @@ func TestInlineJSONSchemaRepresentsNullableValues(t *testing.T) {
 	inherited := mustInlineJSONSchema(t, &AttributeExpr{Type: named})
 	require.Len(t, inherited["anyOf"], 2)
 }
+
+func TestInlineJSONSchemaConjoinsExplicitStringClauses(t *testing.T) {
+	data := mustInlineJSONSchema(t, &AttributeExpr{Type: String, Validation: &ValidationExpr{
+		PatternClauses: []string{"b$", "^a", "b$"},
+		FormatClauses:  []ValidationFormat{FormatIPv4, FormatIP, FormatIPv4},
+	}})
+	require.Equal(t, "b$", data["pattern"])
+	require.Equal(t, string(FormatIPv4), data["format"])
+	require.Equal(t, []any{
+		map[string]any{"pattern": "^a"},
+		map[string]any{"format": string(FormatIP)},
+	}, data["allOf"])
+
+	base := namedScalar("PatternBase", String, &ValidationExpr{Pattern: "^a", Format: FormatIP})
+	derived := namedScalar("PatternDerived", base, &ValidationExpr{Pattern: "b$", Format: FormatIPv4})
+	named := mustInlineJSONSchema(t, &AttributeExpr{Type: derived})
+	require.Equal(t, "b$", named["pattern"])
+	require.Equal(t, string(FormatIPv4), named["format"])
+	allOf := named["allOf"].([]any)
+	require.Equal(t, "^a", allOf[0].(map[string]any)["pattern"])
+	require.Equal(t, string(FormatIP), allOf[0].(map[string]any)["format"])
+}
+
+func TestInlineJSONSchemaConjoinsEnumClausesIncludingEmptyDomain(t *testing.T) {
+	data := mustInlineJSONSchema(t, &AttributeExpr{Type: Int, Validation: &ValidationExpr{
+		EnumClauses: [][]any{{1, 2}, {2, 3}},
+	}})
+	require.Equal(t, []any{float64(1), float64(2)}, data["enum"])
+	require.Equal(t, []any{map[string]any{"enum": []any{float64(2), float64(3)}}}, data["allOf"])
+
+	empty := mustInlineJSONSchema(t, &AttributeExpr{Type: Int, Validation: &ValidationExpr{
+		EnumClauses: [][]any{{}},
+	}})
+	require.Equal(t, map[string]any{}, empty["not"])
+}
+
+func TestInlineJSONSchemaUsesResolvedDeclaredJSONValues(t *testing.T) {
+	minimum := 1.5
+	base := namedScalar("FloatBase", Float32, &ValidationExpr{Values: []any{1.23456789, 2.0}})
+	derived := namedScalar("FloatDerived", base, &ValidationExpr{Minimum: &minimum})
+	constraints, err := EffectiveConstraintsFor(&AttributeExpr{Type: derived})
+	require.NoError(t, err)
+	candidates, present := constraints.EnumCandidates()
+	require.True(t, present)
+	require.Equal(t, []any{2.0}, candidates)
+
+	schema := mustInlineJSONSchema(t, &AttributeExpr{Type: derived})
+	require.Equal(t, []any{1.2345679, float64(2)}, schema["allOf"].([]any)[0].(map[string]any)["enum"])
+	lowered := mustInlineJSONSchema(t, &AttributeExpr{Type: Float32, Validation: constraints.Validation().Lowered()})
+	require.Equal(t, []any{1.2345679, float64(2)}, lowered["enum"])
+
+	untagged := &Union{Untagged: true, Values: []*NamedAttributeExpr{
+		{Name: "a", Attribute: &AttributeExpr{Type: String, Validation: &ValidationExpr{Pattern: "^a"}}},
+		{Name: "b", Attribute: &AttributeExpr{Type: String, Validation: &ValidationExpr{Pattern: "^b"}}},
+	}}
+	untaggedSchema := mustInlineJSONSchema(t, &AttributeExpr{
+		Type: untagged, Validation: &ValidationExpr{Values: []any{"apple"}},
+	})
+	require.Equal(t, []any{"apple"}, untaggedSchema["enum"])
+
+	choice := &Union{Values: []*NamedAttributeExpr{
+		{Name: "text", Attribute: &AttributeExpr{Type: String}},
+		{Name: "count", Attribute: &AttributeExpr{Type: Int}},
+	}}
+	object := &Object{
+		{Name: "score:rating", Attribute: &AttributeExpr{Type: Float32}},
+		{Name: "blob:data", Attribute: &AttributeExpr{Type: Bytes}},
+		{Name: "labels", Attribute: &AttributeExpr{Type: &Map{
+			KeyType: &AttributeExpr{Type: Int}, ElemType: &AttributeExpr{Type: String},
+		}}},
+		{Name: "choice", Attribute: &AttributeExpr{Type: choice}},
+	}
+	projected := mustInlineJSONSchema(t, &AttributeExpr{Type: object, DefaultValue: map[string]any{
+		"score:rating": 1.23456789,
+		"blob:data":    "hi",
+		"labels": map[int]string{
+			1: "one",
+		},
+		"choice": examplevalue.Union{Branch: 0, Value: "selected"},
+	}})
+	require.Equal(t, map[string]any{
+		"rating": 1.2345679,
+		"data":   "aGk=",
+		"labels": map[string]any{"1": "one"},
+		"choice": map[string]any{"type": "text", "value": "selected"},
+	}, projected["default"])
+}
+
 func TestInlineJSONSchemaUsesDeterministicObjectOrdering(t *testing.T) {
 	properties := &Object{
 		&NamedAttributeExpr{Name: "zulu", Attribute: &AttributeExpr{Type: String}},

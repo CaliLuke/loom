@@ -108,10 +108,8 @@ func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesDat
 			return ok
 		},
 		"underlyingType": func(dt expr.DataType) expr.DataType {
-			if ut, ok := dt.(expr.UserType); ok {
-				return ut.Attribute().Type
-			}
-			return dt
+			underlying, _ := transportUnderlyingType(dt)
+			return underlying
 		},
 	}
 }
@@ -174,10 +172,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 // typeConversionData produces the template data suitable for executing the
 // "header_conversion" template.
 func typeConversionData(dt, ft expr.DataType, varName, target string) map[string]any {
-	ut, isut := ft.(expr.UserType)
-	if isut {
-		ft = ut.Attribute().Type
-	}
+	ft, isut := transportUnderlyingType(ft)
 	return map[string]any{
 		"Type":      dt,
 		"FieldType": ft,
@@ -188,10 +183,7 @@ func typeConversionData(dt, ft expr.DataType, varName, target string) map[string
 }
 
 func mapConversionData(dt, ft expr.DataType, varName, sourceVar, sourceField string, newVar bool) map[string]any {
-	ut, isut := ft.(expr.UserType)
-	if isut {
-		ft = ut.Attribute().Type
-	}
+	ft, isut := transportUnderlyingType(ft)
 	return map[string]any{
 		"Type":        dt,
 		"FieldType":   ft,
@@ -214,11 +206,25 @@ func buildResponseData(data *ResponseData, serviceName string, method *service.M
 }
 
 func fieldType(ft expr.DataType) expr.DataType {
-	ut, isut := ft.(expr.UserType)
-	if isut {
-		return ut.Attribute().Type
+	underlying, _ := transportUnderlyingType(ft)
+	return underlying
+}
+
+func transportUnderlyingType(dt expr.DataType) (expr.DataType, bool) {
+	aliased := false
+	seen := make(map[string]struct{})
+	for {
+		ut, ok := dt.(expr.UserType)
+		if !ok {
+			return dt, aliased
+		}
+		aliased = true
+		if _, ok := seen[ut.ID()]; ok {
+			return dt, aliased
+		}
+		seen[ut.ID()] = struct{}{}
+		dt = ut.Attribute().Type
 	}
-	return ft
 }
 
 // isBearer returns true if the security scheme uses a Bearer scheme.

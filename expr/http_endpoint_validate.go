@@ -185,7 +185,10 @@ func (e *HTTPEndpointExpr) validateBodyAndPayload(verr *eval.ValidationErrors) {
 // names, so a body that requires "name:n" matches a payload that requires
 // "name".
 func (e *HTTPEndpointExpr) validateBodyRequiredPayloadAttributes(verr *eval.ValidationErrors) {
-	if e.Body == nil || e.Body.Validation == nil {
+	if e.Body == nil {
+		return
+	}
+	if _, selected := e.Body.Meta["origin:attribute"]; selected {
 		return
 	}
 	var preqs, missing []string
@@ -194,11 +197,12 @@ func (e *HTTPEndpointExpr) validateBodyRequiredPayloadAttributes(verr *eval.Vali
 			preqs = append(preqs, AttributeName(req))
 		}
 	}
-	for _, req := range e.Body.Validation.Required {
+	for _, req := range e.Body.AllRequired() {
 		if containsString(preqs, AttributeName(req)) {
 			continue
 		}
-		missing = append(missing, req)
+		authored, _ := requiredDiagnosticName(e.Body, req, make(map[*AttributeExpr]bool))
+		missing = append(missing, authored)
 	}
 	if len(missing) == 0 {
 		return
@@ -663,16 +667,5 @@ func (e *HTTPEndpointExpr) validateRoutes(verr *eval.ValidationErrors) {
 }
 
 func hasRequiredBodyAttributes(att *AttributeExpr) bool {
-	if att == nil {
-		return false
-	}
-	if att.Validation != nil && len(att.Validation.Required) > 0 {
-		return true
-	}
-	if ut, ok := att.Type.(UserType); ok {
-		if v := ut.Attribute().Validation; v != nil && len(v.Required) > 0 {
-			return true
-		}
-	}
-	return false
+	return att != nil && len(att.AllRequired()) > 0
 }

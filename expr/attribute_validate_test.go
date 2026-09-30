@@ -437,7 +437,7 @@ func TestAttributeExprValidate(t *testing.T) {
 			},
 			expected: &eval.ValidationErrors{
 				Errors: []error{
-					fmt.Errorf(`%sdefault value %#v is not one of the accepted values: %#v`, normalizedCtx, []string{"b", "c"}, []any{[]string{"a", "b"}}),
+					fmt.Errorf(`%sdefault value %#v declared by "array" violates the effective contract for "array"`, normalizedCtx, []string{"b", "c"}),
 				},
 			},
 		},

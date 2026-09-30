@@ -20,6 +20,38 @@ func TestAnalyzerEmitsURIReferenceFormat(t *testing.T) {
 	require.Equal(t, "uri-reference", schema.Format)
 }
 
+func TestAnalyzerConjoinsExplicitStringClauses(t *testing.T) {
+	t.Parallel()
+
+	schema := NewAnalyzer(expr.NewRandom("clauses"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type: expr.String,
+		Validation: &expr.ValidationExpr{
+			PatternClauses: []string{"b$", "^a", "b$"},
+			FormatClauses:  []expr.ValidationFormat{expr.FormatIPv4, expr.FormatIP, expr.FormatIPv4},
+		},
+	})
+	require.Equal(t, "b$", schema.Pattern)
+	require.Equal(t, string(expr.FormatIPv4), schema.Format)
+	require.Equal(t, []*Schema{{Pattern: "^a"}, {Format: string(expr.FormatIP)}}, schema.AllOf)
+}
+
+func TestAnalyzerConjoinsEnumClausesIncludingEmptyDomain(t *testing.T) {
+	t.Parallel()
+
+	schema := NewAnalyzer(expr.NewRandom("enum-clauses"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type:       expr.Int,
+		Validation: &expr.ValidationExpr{EnumClauses: [][]any{{1, 2}, {2, 3}}},
+	})
+	require.Equal(t, []any{1, 2}, schema.Enum)
+	require.Equal(t, []*Schema{{Enum: []any{2, 3}}}, schema.AllOf)
+
+	empty := NewAnalyzer(expr.NewRandom("empty-enum-clause"), false).AnalyzeSchema(&expr.AttributeExpr{
+		Type:       expr.Int,
+		Validation: &expr.ValidationExpr{EnumClauses: [][]any{{}}},
+	})
+	require.Equal(t, &Schema{}, empty.Not)
+}
+
 func TestAnalyzerKeepsExplicitTypenamesDistinct(t *testing.T) {
 	t.Parallel()
 
@@ -91,9 +123,10 @@ func TestAnalyzerUsesJSONWireNamesForObjectContracts(t *testing.T) {
 		}}},
 		Validation: &expr.ValidationExpr{
 			Required: []string{"design_name", "ignored", "suppressed"},
-			Values: []any{map[string]any{
-				"design_name": "enum", "ignored": "secret", "suppressed": "secret",
-			}},
+			Values: []any{
+				map[string]any{"design_name": "enum", "ignored": "secret", "suppressed": "secret"},
+				map[string]any{"design_name": "default", "ignored": "secret", "suppressed": "secret"},
+			},
 		},
 	}
 	analyzer := NewAnalyzer(expr.NewRandom("wire-names"), false, WithExampleValue(openAPIExampleValueForTest))
@@ -106,7 +139,10 @@ func TestAnalyzerUsesJSONWireNamesForObjectContracts(t *testing.T) {
 	require.Equal(t, []string{"wire_name"}, schema.Required)
 	require.Equal(t, map[string]any{"wire_name": "default"}, schema.DefaultValue)
 	require.Equal(t, map[string]any{"wire_name": "example"}, schema.Example)
-	require.Equal(t, []any{map[string]any{"wire_name": "enum"}}, schema.Enum)
+	require.Equal(t, []any{
+		map[string]any{"wire_name": "enum"},
+		map[string]any{"wire_name": "default"},
+	}, schema.Enum)
 }
 
 func TestAnalyzerNullableCanonicalAliasReferencesUnderlyingComponent(t *testing.T) {

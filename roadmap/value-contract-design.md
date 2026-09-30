@@ -355,6 +355,46 @@ constructors, accessors, supported bare JSON and wire tags remain unchanged.
 
 ### Coercion, presence, and naming
 
+Named-type constraints are refinements of their effective ancestor contract.
+An explicitly authored derived enum is valid only when every member belongs to
+the effective ancestor enum under the shared declared-type resolver and equality
+rules. Equal enums and proper subsets are valid. Partial overlap, disjoint sets,
+or any other outside member are path-qualified design errors that name the
+ancestor and offending member; Loom never silently intersects away an authored
+member or treats the derived declaration as an override. The accepted subset
+keeps its authored order and values for later projection.
+
+An inherited enum remains conjunctive with later predicates. For example,
+`Enum("ab", "ax")` followed by derived `Pattern("b$")` is a valid contract:
+runtime admission accepts `"ab"` and rejects `"ax"`. When the derived type
+explicitly authors an enum, each member must both refine the ancestor enum and
+satisfy the complete contract at that declaration.
+
+If a local default is declared, it replaces the inherited default and must
+satisfy the complete narrowed contract or design validation fails. When no local
+default is declared, the inherited default remains effective and must satisfy
+every derived refinement. Numeric and length bounds are
+conjunctive across the ancestry; a tighter endpoint wins and exclusivity wins an
+equal numeric endpoint. Pattern and format predicates are conjunctive in
+current-to-base order. Exact kind-and-value duplicates retain the current
+declaration provenance and execute once; no regex or format subsumption is
+inferred. Thus base `^a` plus derived `b$` admits `ab` and rejects `xb` and `ax`.
+Required object fields accumulate after resolving each authored name to the
+finalized member and wire identity. An empty accepted set, including
+contradictory inherited bounds or incompatible formats, is not by itself a new
+design error.
+`Reference` keeps its documented object field-template copying semantics; a
+restricted named type retains its own constraints.
+
+`EffectiveValidation` is the immutable provenance-bearing result. Its typed
+clauses preserve current-to-base interleaving. `Lowered` creates a detached,
+predicate-equivalent carrier for a physical attribute with explicit per-kind
+clause slices; enum membership becomes a clause and is not reclassified as a
+new authored enum. `EnumCandidates` is the separate filtered finite view and
+distinguishes no enum from an admitted empty domain. A later query correctly assigns that synthetic occurrence new
+physical provenance; consumers that need declaration provenance keep the
+original immutable snapshot.
+
 - Declared Bytes accepts the currently supported authored text and byte slices;
   semantic equality uses bytes, including the existing empty-byte equivalence.
   String and Any do not inherit that coercion.

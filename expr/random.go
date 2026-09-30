@@ -72,7 +72,11 @@ func NewRandom(seed string) *ExampleGenerator {
 type ExampleGenerator struct {
 	Randomizer
 	seen map[exampleTypeKey]*any
-	mu   sync.RWMutex
+	// effectiveConstraints records attributes already materialized by a value-
+	// synthesis graph. Recapturing them would discard or reject private branch-
+	// selection adapters owned by that graph.
+	effectiveConstraints map[*AttributeExpr]*EffectiveConstraints
+	mu                   sync.RWMutex
 }
 
 type exampleTypeKey struct {

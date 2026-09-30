@@ -33,6 +33,38 @@ func (a *AttributeExpr) IsRequiredNoDefault(attName string) bool {
 	return false
 }
 
+// requiredDiagnosticName retains the authored spelling for diagnostics after
+// AllRequired has resolved semantic identity to the finalized body field.
+func requiredDiagnosticName(attribute *AttributeExpr, finalized string, active map[*AttributeExpr]bool) (string, bool) {
+	if attribute == nil || active[attribute] {
+		return finalized, false
+	}
+	active[attribute] = true
+	defer delete(active, attribute)
+	if attribute.Validation != nil {
+		for _, authored := range attribute.Validation.Required {
+			if requiredNameMatches(finalized, authored) {
+				return authored, true
+			}
+		}
+	}
+	if named, ok := attribute.Type.(UserType); ok {
+		if authored, found := requiredDiagnosticName(named.Attribute(), finalized, active); found {
+			return authored, true
+		}
+	}
+	for _, parent := range append(slices.Clone(attribute.References), attribute.Bases...) {
+		parentAttribute := &AttributeExpr{Type: parent}
+		if named, ok := parent.(UserType); ok {
+			parentAttribute = named.Attribute()
+		}
+		if authored, found := requiredDiagnosticName(parentAttribute, finalized, active); found {
+			return authored, true
+		}
+	}
+	return finalized, false
+}
+
 // IsPrimitivePointer returns true if the field generated for the given
 // attribute should be a pointer to a primitive type. The receiver attribute must
 // be an object.
@@ -159,17 +191,34 @@ func (a *AttributeExpr) HasDefaultValue(attName string) bool {
 }
 
 // GetDefault gets the default value for the child attribute with the given
-// name. It returns nil if the child attribute with the given name does not
-// exist or if the child attribute does not have a default value.
+// name. Before design finalization it follows named-type ancestry without
+// validating the complete value graph. It returns nil if the child attribute
+// does not exist or if the child attribute does not have a default value.
 func (a *AttributeExpr) GetDefault(attName string) any {
 	if o := AsObject(a.Type); o != nil {
 		att := o.Attribute(attName)
-		if att.DefaultValue != nil {
-			return att.DefaultValue
+		if att == nil {
+			return nil
 		}
-		if ut, ok := att.Type.(UserType); ok && !IsObject(ut) {
-			return ut.Attribute().DefaultValue
-		}
+		return att.effectiveDefault()
+	}
+	return nil
+}
+
+func (a *AttributeExpr) effectiveDefault() any {
+	return selectedDefaultValue(a, make(map[*AttributeExpr]bool))
+}
+
+func selectedDefaultValue(attribute *AttributeExpr, active map[*AttributeExpr]bool) any {
+	if attribute == nil || active[attribute] {
+		return nil
+	}
+	active[attribute] = true
+	if attribute.DefaultValue != nil {
+		return attribute.DefaultValue
+	}
+	if named, ok := attribute.Type.(UserType); ok {
+		return selectedDefaultValue(named.Attribute(), active)
 	}
 	return nil
 }
@@ -193,20 +242,21 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 	}
 	active[a] = true
 	defer delete(active, a)
-	if u, ok := a.Type.(UserType); ok {
-		return u.Attribute().allRequired(active)
-	}
-	if len(a.References) == 0 && len(a.Bases) == 0 {
-		if a.Validation != nil {
-			return a.Validation.Required
-		}
-		return nil
-	}
+	object := AsObject(a.Type)
 	var required []string
 	if a.Validation != nil {
-		required = append(required, a.Validation.Required...)
+		for _, authored := range a.Validation.Required {
+			appendFinalizedRequired(&required, object, authored)
+		}
 	}
-	object := AsObject(a.Type)
+	if u, ok := a.Type.(UserType); ok {
+		for _, name := range u.Attribute().allRequired(active) {
+			appendFinalizedRequired(&required, object, name)
+		}
+	}
+	if len(a.References) == 0 && len(a.Bases) == 0 {
+		return required
+	}
 	inherit := func(dt DataType, extend bool) {
 		parent := &AttributeExpr{Type: dt}
 		if u, ok := dt.(UserType); ok {
@@ -223,9 +273,7 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 				}
 				key = name
 			}
-			if !slices.Contains(required, key) {
-				required = append(required, key)
-			}
+			appendFinalizedRequired(&required, object, key)
 		}
 	}
 	for _, ref := range a.References {
@@ -235,4 +283,30 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 		inherit(base, true)
 	}
 	return required
+}
+
+func appendFinalizedRequired(required *[]string, object *Object, authored string) {
+	name, found := finalizedRequiredName(object, authored)
+	if !found {
+		name = authored
+	}
+	if !slices.Contains(*required, name) {
+		*required = append(*required, name)
+	}
+}
+
+func finalizedRequiredName(object *Object, authored string) (string, bool) {
+	if object == nil {
+		return "", false
+	}
+	for _, member := range *object {
+		if requiredNameMatches(member.Name, authored) {
+			return member.Name, true
+		}
+	}
+	return "", false
+}
+
+func requiredNameMatches(member, authored string) bool {
+	return member == authored || AttributeName(member) == AttributeName(authored)
 }

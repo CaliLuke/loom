@@ -29,12 +29,15 @@ type (
 	valueOccurrenceNode struct {
 		id            uint64
 		declarationID string
+		ownerName     string
 		origin        *AttributeExpr
 		attribute     *AttributeExpr
 		declaration   *valueDeclarationNode
 		examples      []valueOccurrenceExample
 		defaultValue  *valueSourceSnapshot
 		enumValues    []valueSourceSnapshot
+		enumClauses   [][]valueSourceSnapshot
+		constraints   *EffectiveConstraints
 	}
 
 	valueOccurrenceExample struct {
@@ -84,8 +87,8 @@ type (
 
 // NewOccurrence captures an effective finalized attribute and returns a new
 // semantic root even when another root uses the same named type. It preserves
-// finite recursive declarations. Malformed declaration graphs fail construction;
-// invalid authored values remain deferred source failures until selected.
+// finite recursive declarations. Malformed graphs and invalid authored enums or
+// defaults fail construction; examples remain deferred sources until selected.
 func (c *ValueContext) NewOccurrence(finalized *AttributeExpr) (ValueOccurrence, error) {
 	if c == nil || c.identity == nil {
 		return ValueOccurrence{}, fmt.Errorf("value occurrence requires a value context")
@@ -97,6 +100,9 @@ func (c *ValueContext) NewOccurrence(finalized *AttributeExpr) (ValueOccurrence,
 	}
 	b.graph.root = root
 	if err := b.checkRanks(); err != nil {
+		return ValueOccurrence{}, err
+	}
+	if err := b.effectiveConstraints(c); err != nil {
 		return ValueOccurrence{}, err
 	}
 	return ValueOccurrence{context: c.identity, graph: b.graph, node: root}, nil
@@ -125,7 +131,15 @@ func valueSourceDeclarationID(source *AttributeExpr) string {
 }
 
 func valueMemberRequired(owner *valueOccurrenceNode, member valueOccurrenceMember) bool {
-	return owner != nil && owner.attribute.IsRequired(member.name)
+	if owner == nil || owner.constraints == nil {
+		return false
+	}
+	for _, required := range owner.constraints.required {
+		if required.Member.index == member.id {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *valueOccurrenceBuilder) identity() uint64 {
@@ -141,9 +155,29 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 	node := &valueOccurrenceNode{id: b.identity(), origin: source, attribute: attribute,
 		declarationID: valueSourceDeclarationID(source)}
 	b.graph.nodes = append(b.graph.nodes, node)
+	if err := b.captureOccurrenceExamples(node, source, attribute); err != nil {
+		return nil, err
+	}
+	b.captureOccurrenceConstraints(node, source, attribute)
+	declaration, err := b.declaration(source.Type)
+	if err != nil {
+		return nil, err
+	}
+	node.declaration = declaration
+	attribute.Type = declaration.typ
+	if err := b.captureOccurrenceAncestry(source, attribute); err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+func (b *valueOccurrenceBuilder) captureOccurrenceExamples(
+	node *valueOccurrenceNode,
+	source, attribute *AttributeExpr,
+) error {
 	for _, example := range source.UserExamples {
 		if example == nil {
-			return nil, fmt.Errorf("value occurrence contains a nil example descriptor")
+			return fmt.Errorf("value occurrence contains a nil example descriptor")
 		}
 		copy := *example
 		copy.Meta = copyValueMeta(example.Meta)
@@ -158,24 +192,42 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 		node.examples = append(node.examples, valueOccurrenceExample{origin: origin, example: &copy, source: snapshot})
 		attribute.UserExamples = append(attribute.UserExamples, &copy)
 	}
+	return nil
+}
+
+func (b *valueOccurrenceBuilder) captureOccurrenceConstraints(
+	node *valueOccurrenceNode,
+	source, attribute *AttributeExpr,
+) {
 	if source.DefaultValue != nil {
 		snapshot := snapshotValueSource(source.DefaultValue)
 		node.defaultValue = &snapshot
 		attribute.DefaultValue = snapshot.raw
 	}
 	if source.Validation != nil {
+		if source.Validation.Values != nil {
+			node.enumValues = make([]valueSourceSnapshot, 0, len(source.Validation.Values))
+		}
 		for _, value := range source.Validation.Values {
 			snapshot := snapshotValueSource(value)
 			node.enumValues = append(node.enumValues, snapshot)
 			attribute.Validation.Values = append(attribute.Validation.Values, snapshot.raw)
 		}
+		for clauseIndex, clause := range source.Validation.EnumClauses {
+			snapshots := make([]valueSourceSnapshot, 0, len(clause))
+			for _, value := range clause {
+				snapshot := snapshotValueSource(value)
+				snapshots = append(snapshots, snapshot)
+				attribute.Validation.EnumClauses[clauseIndex] = append(
+					attribute.Validation.EnumClauses[clauseIndex], snapshot.raw,
+				)
+			}
+			node.enumClauses = append(node.enumClauses, snapshots)
+		}
 	}
-	declaration, err := b.declaration(source.Type)
-	if err != nil {
-		return nil, err
-	}
-	node.declaration = declaration
-	attribute.Type = declaration.typ
+}
+
+func (b *valueOccurrenceBuilder) captureOccurrenceAncestry(source, attribute *AttributeExpr) error {
 	for _, entry := range []struct {
 		sources []DataType
 		target  *[]DataType
@@ -186,12 +238,12 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 		for _, typ := range entry.sources {
 			decl, err := b.declaration(typ)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			*entry.target = append(*entry.target, decl.typ)
 		}
 	}
-	return node, nil
+	return nil
 }
 
 func (b *valueOccurrenceBuilder) declaration(source DataType) (*valueDeclarationNode, error) {
@@ -321,6 +373,7 @@ func (b *valueOccurrenceBuilder) named(decl *valueDeclarationNode, actual UserTy
 	if err != nil {
 		return nil, fmt.Errorf("named declaration %q: %w", actual.ID(), err)
 	}
+	child.ownerName = actual.Name()
 	decl.alias = child
 	copy.SetAttribute(child.attribute)
 	if result, ok := copy.(*ResultTypeExpr); ok {

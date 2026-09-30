@@ -43,10 +43,14 @@ func (c *ValueContext) Synthesize(selection ExampleSelection, generator *Example
 	graph := valueSynthesisGraph{occurrence: selection.occurrence,
 		nodes: make(map[*valueOccurrenceNode]*AttributeExpr), declarations: make(map[*valueDeclarationNode]DataType)}
 	attribute := graph.attribute(selection.occurrence.node)
+	effectiveConstraints := make(map[*AttributeExpr]*EffectiveConstraints, len(graph.nodes))
+	for node, prepared := range graph.nodes {
+		effectiveConstraints[prepared] = node.constraints
+	}
 	// Raw memo entries from a different occurrence cannot own this occurrence's
 	// branch choices or constraints. The existing recursion memo still operates
 	// within this one synthesis graph; random draws use the original stream.
-	random := &ExampleGenerator{Randomizer: generator.Randomizer}
+	random := &ExampleGenerator{Randomizer: generator.Randomizer, effectiveConstraints: effectiveConstraints}
 	raw := attribute.Example(random)
 	if raw == nil {
 		result := ValueResult{outcome: ValueSuppressed, role: ValueRoleExample, synthesized: true}
@@ -67,6 +71,10 @@ func (g *valueSynthesisGraph) attribute(node *valueOccurrenceNode) *AttributeExp
 		return prior
 	}
 	copy := *node.attribute
+	copy.Validation = node.constraints.Validation().Lowered()
+	if copy.Validation.HasRequiredOnly() && len(copy.Validation.Required) == 0 {
+		copy.Validation = nil
+	}
 	g.nodes[node] = &copy
 	if node.declaration.kind == UnionKind {
 		union := *node.declaration.typ.(*Union)

@@ -146,9 +146,8 @@ var GRPCEndpointWithNamedUnionField = func() {
 	})
 }
 
-// GRPCEndpointWithUnionCollectionBranches uses named arrays, an inline array
-// and unions as union branches, which gRPC holds in messages of their own,
-// and a named map and an inline map as union branches, which it rejects.
+// GRPCEndpointWithUnionCollectionBranches uses named arrays, an inline array,
+// maps and unions as union branches, which gRPC holds in messages of their own.
 var GRPCEndpointWithUnionCollectionBranches = func() {
 	var Leaf = Type("Leaf", func() {
 		Field(1, "name", String)

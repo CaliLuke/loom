@@ -88,6 +88,7 @@ type (
 		source              *valueOccurrenceNode
 		targetDeclarationID string
 		attribute           *AttributeExpr
+		validation          *ValidationExpr
 		kind                Kind
 		members             []valuePlanMember
 		branches            []valuePlanBranch
@@ -107,7 +108,7 @@ type (
 		runtimeUnknown      bool
 		preserveAdditional  bool
 		hasEnum             bool
-		enumValues          []ResolvedValue
+		enumClauses         [][]ResolvedValue
 	}
 
 	valuePlanMember struct {

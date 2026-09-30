@@ -278,7 +278,7 @@ func TestTextUnmarshalerDecodeValidationPlacement(t *testing.T) {
 	t.Run("cookie text unmarshaler default path is generated", func(t *testing.T) {
 		code := decodeSectionCode(t, testdata.PayloadCookieCustomTextUnmarshalerDefaultDSL)
 
-		require.Contains(t, code, "idRaw = \"00000000-0000-0000-0000-000000000000\"")
+		require.Contains(t, code, "idRaw = \"550e8400-e29b-41d4-a716-446655440000\"")
 		require.Contains(t, code, "if err2 := id.UnmarshalText([]byte(idRaw)); err2 != nil")
 	})
 }

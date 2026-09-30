@@ -9,6 +9,55 @@ not fix it.
 The initial run's source identities, outcomes and verification limits are recorded
 in [BASELINE.md](BASELINE.md).
 
+The `effective-alias-contracts` reference group checks #571's effective named
+type contract. Its reference input is extracted from raw alias attributes and
+keeps absent declarations, duplicate enum entries, all four numeric fields and
+required-field provenance. It also retains typed Pattern and Format clauses,
+stable current-to-base order and the first/current provenance of exact
+duplicates. The reference-side semantic classes use a local
+declared-type normalizer and comparator; they do not call the production value
+resolver, `Attribute.IsRequired`, or the effective-constraint owner. Only the
+candidate comparison invokes `expr.EffectiveConstraintsFor`.
+
+This group exercises integer precision beyond the exact Float64 range,
+`uint64` maximum, Float32 rounding, Bytes text/byte equivalence, recursive Any
+equality, array nil/empty equality, unordered maps and nullable enum members.
+For declared Objects, it independently reflects codec-free structs and non-nil
+pointers through the reviewed finite host subset: exported fields, JSON names,
+exported anonymous embedding, nil embedded-pointer omission, equal-depth
+ambiguity omission, snapshot ownership and cycle rejection. Their children then
+use the ordinary declared coercions, including Float32 and Bytes. `Any` keeps
+the exact raw struct or pointer host shape. Types whose value or pointer method
+set implements a recognized JSON or text codec stay opaque; the adapter checks
+method-set membership but never invokes a method, and opaque equality requires
+the same Go type plus `reflect.DeepEqual`. Codec serialization, general Go JSON
+reflection, wire projection and callback behavior remain outside the adapter,
+as do union values, DSL finalization and diagnostics, and unmodeled default
+length/shape checks. This host extraction is executable correspondence, not a
+Lean theorem. Representative regular expressions, UUIDs and RFC3339 date-times
+are evaluated independently for enum/default admission. These named controls do
+not claim equivalence with every production regex or format engine.
+
+Two additional groups exercise boundaries excluded from that general adapter.
+`named-key-contracts` extracts raw scalar key ancestry independently, retaining
+enum absence, duplicates, defaults, all numeric fields, predicate provenance
+and length layers. It checks declaration-prefix admission against the alias and
+length references and compares whole-map resolution. Constrained key projection
+combines independent admission with the existing key codec reference; source
+`Any` host identity remains distinct from canonical names and native decoded
+keys. Concrete numeric target formats come from the authored key primitive,
+and codec requests are discharged using actual source and native decoder values.
+`effective-alias-lengths` compares String rune counts and Array/Map cardinalities
+through raw bounds, effective constraints, resolution and projection. The
+general graph adapter's unsupported-shape guards remain intact. All 18 registered
+groups pass; this bounded correspondence does not prove arbitrary Go extraction
+or generated programs.
+
+The present-empty key enum control found that occurrence capture erased an
+empty domain. Its regression now agrees with the reference: an empty enum admits
+no member, while an absent enum adds no membership restriction. Direct scalar,
+named-ancestry, map-key and snapshot controls protect the shared repair.
+
 The retained snapshots, generated artifacts and logs described below are temporary
 review evidence. After the ticket's validation and independent review finish,
 record concise findings and reproduction inputs in the repository, then delete

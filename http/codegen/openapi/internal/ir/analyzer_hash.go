@@ -297,18 +297,66 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr) {
 		return
 	}
 	e.writeString("validation")
-	e.writeValueSet(projectOpenAPIValues(att, validation.Values))
-	e.writeString(string(validation.Format))
-	e.writeString(validation.Pattern)
+	e.writeValidationEnums(att, validation)
+	e.writeValidationStrings(validation)
 	e.writeOptionalFloat(validation.ExclusiveMinimum)
 	e.writeOptionalFloat(validation.Minimum)
 	e.writeOptionalFloat(validation.Maximum)
 	e.writeOptionalFloat(validation.ExclusiveMaximum)
 	e.writeOptionalInt(validation.MinLength)
 	e.writeOptionalInt(validation.MaxLength)
+	e.writeValidationRequired(att, validation.Required)
+}
 
-	required := make([]string, 0, len(validation.Required))
-	for _, name := range validation.Required {
+func (e *canonicalSchemaEncoder) writeValidationEnums(att *expr.AttributeExpr, validation *expr.ValidationExpr) {
+	enums := validation.Enums()
+	if len(enums) == 0 {
+		e.writeValueSet(nil)
+	} else {
+		e.writeValueSet(projectOpenAPIValues(att, enums[0]))
+		if len(enums[0]) == 0 {
+			e.writeString("empty-enum-domain")
+		}
+	}
+	if len(enums) > 1 {
+		e.writeString("enum-clauses")
+		e.writeInt(len(enums) - 1)
+		for _, values := range enums[1:] {
+			e.writeValueSet(projectOpenAPIValues(att, values))
+		}
+	}
+}
+
+func (e *canonicalSchemaEncoder) writeValidationStrings(validation *expr.ValidationExpr) {
+	e.writeString(string(validation.Format))
+	e.writeString(validation.Pattern)
+	formats := validation.Formats()
+	if validation.Format != "" && len(formats) > 0 {
+		formats = formats[1:]
+	}
+	if len(formats) > 0 {
+		e.writeString("format-clauses")
+		e.writeInt(len(formats))
+		for _, format := range formats {
+			e.writeString(string(format))
+		}
+	}
+	patterns := validation.Patterns()
+	if validation.Pattern != "" && len(patterns) > 0 {
+		patterns = patterns[1:]
+	}
+	if len(patterns) > 0 {
+		e.writeString("pattern-clauses")
+		e.writeInt(len(patterns))
+		for _, pattern := range patterns {
+			e.writeString(pattern)
+		}
+	}
+}
+
+func (e *canonicalSchemaEncoder) writeValidationRequired(att *expr.AttributeExpr, names []string) {
+	required := make([]string, 0, len(names))
+	for _, name := range names {
 		if child := att.Find(name); child != nil {
 			if !openapi.MustGenerate(child.Meta) {
 				continue

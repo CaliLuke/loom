@@ -52,6 +52,14 @@ order.
 - Prefer concrete types over `Any`, especially when gRPC generation matters.
 - Put lengths, enums, formats, requiredness, and other validation in the DSL;
   do not duplicate it in service implementations.
+- Constraints on a derived named type refine its base. A derived enum must be
+  equal to or a subset of the ancestor enum. Bounds and required fields
+  accumulate, pattern and format rules are conjoined, and an inherited default
+  must satisfy the refined contract. A declared local default always replaces
+  it and must be valid or design validation fails. For example, base `^a` plus
+  derived `b$` admits `ab` and rejects `xb`.
+- `Reference` copies selected object field templates. It does not create named
+  type ancestry, and the copied fields keep their declared constraints.
 - Use `FormatURI` for absolute URI contracts that include a scheme. Use
   `FormatURIReference` for relative paths and other URI references.
 - Do not rely on nil versus empty slices or maps to encode presence. Generated

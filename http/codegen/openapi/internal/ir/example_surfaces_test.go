@@ -70,6 +70,24 @@ func TestAnalyzerExampleProjectionOverride(t *testing.T) {
 	require.Equal(t, "custom", analyzer.AnalyzeSchema(attr).Example)
 }
 
+func TestAnalyzerNilExampleProjectionKeepsDeclaredSynthesis(t *testing.T) {
+	attribute := &expr.AttributeExpr{Type: &expr.Union{Values: []*expr.NamedAttributeExpr{
+		{Name: "data", Attribute: &expr.AttributeExpr{Type: &expr.Object{
+			{Name: "data", Attribute: &expr.AttributeExpr{
+				Type: expr.Bytes, UserExamples: []*expr.ExampleExpr{{Value: "hi"}},
+			}},
+		}}},
+	}}}
+
+	schema := NewAnalyzer(expr.NewRandom("nil-projection"), false, WithExampleValue(nil)).AnalyzeSchema(attribute)
+	require.Equal(t, map[string]any{
+		"type": "data",
+		"value": map[string]any{
+			"data": []byte("hi"),
+		},
+	}, schema.Example)
+}
+
 func inlineAsyncTestEndpoint(t *testing.T, attribute *expr.AttributeExpr) *transportir.Endpoint {
 	t.Helper()
 	context := expr.NewValueContext()

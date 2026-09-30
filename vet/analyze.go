@@ -316,7 +316,7 @@ func analyzeAttributeDescription(path, name string, attribute *expr.AttributeExp
 	if kind := semanticStringKind(name, description); isString(attribute.Type) && kind != "" && !attributeSuppressed(attribute, RuleStringFormat) {
 		relativeKind := relativeURIReferenceKind(description)
 		switch {
-		case relativeKind != "" && effectiveStringFormat(attribute) == expr.FormatURI:
+		case relativeKind != "" && hasStringFormat(attribute, expr.FormatURI):
 			appendWarning(report, RuleStringFormat, path, fmt.Sprintf("%s string uses Format(FormatURI); use Format(FormatURIReference) for relative references", relativeKind))
 		case !hasStringValidation(attribute):
 			message := fmt.Sprintf("%s string has no Format or Pattern validation", kind)
@@ -406,19 +406,21 @@ func hasRange(attribute *expr.AttributeExpr, minimum, maximum float64) bool {
 func hasStringValidation(attribute *expr.AttributeExpr) bool {
 	return anyAttributeLayer(attribute, func(layer *expr.AttributeExpr) bool {
 		validation := layer.Validation
-		return validation != nil && (validation.Format != "" || validation.Pattern != "")
+		return validation != nil && (len(validation.Formats()) > 0 || len(validation.Patterns()) > 0)
 	})
 }
-func effectiveStringFormat(attribute *expr.AttributeExpr) expr.ValidationFormat {
-	var format expr.ValidationFormat
-	anyAttributeLayer(attribute, func(layer *expr.AttributeExpr) bool {
-		if layer.Validation == nil || layer.Validation.Format == "" {
+func hasStringFormat(attribute *expr.AttributeExpr, format expr.ValidationFormat) bool {
+	return anyAttributeLayer(attribute, func(layer *expr.AttributeExpr) bool {
+		if layer.Validation == nil {
 			return false
 		}
-		format = layer.Validation.Format
-		return true
+		for _, candidate := range layer.Validation.Formats() {
+			if candidate == format {
+				return true
+			}
+		}
+		return false
 	})
-	return format
 }
 
 func anyAttributeLayer(attribute *expr.AttributeExpr, predicate func(*expr.AttributeExpr) bool) bool {

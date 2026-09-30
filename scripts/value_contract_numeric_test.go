@@ -4,8 +4,9 @@ import (
 	"encoding/json/v2"
 	"testing"
 
-	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/stretchr/testify/require"
+
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // TestValueContractNumericWireCollision preserves the actual codec boundary that

@@ -4,9 +4,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/schematest"
-	"github.com/stretchr/testify/require"
 )
 
 // TestBaselineByteProjectionRenderedConstraints checks complete rendered graphs,

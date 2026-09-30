@@ -147,9 +147,11 @@ func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode, codec Value
 	}
 	b.next++
 	decl := target.declaration
+	validation := effectiveNodeValidation(target)
 	node := &valuePlanNode{
 		id: b.next, source: source, targetDeclarationID: target.declarationID, attribute: target.attribute, kind: decl.kind,
-		codec: codec, documentary: b.request.Use == ValuePlanDocumentation, schemaOnly: b.request.Use == ValuePlanSchema,
+		validation: cloneEffectiveValidation(validation),
+		codec:      codec, documentary: b.request.Use == ValuePlanDocumentation, schemaOnly: b.request.Use == ValuePlanSchema,
 		nullable: target.attribute.Nullable, nonNullableElements: decl.nonNullableElements,
 		untagged: decl.untagged, typeKey: decl.typeKey, valueKey: decl.valueKey,
 		schemaUnknown: target.attribute.Meta["openapi:additionalProperties"] == nil,
@@ -306,22 +308,30 @@ func (b *valuePlanBuilder) containerPolicy(target *valueOccurrenceNode) (ValueCo
 }
 
 func (b *valuePlanBuilder) enums(node *valuePlanNode, source, target *valueOccurrenceNode) error {
-	node.hasEnum = target.attribute.Validation != nil && target.attribute.Validation.Values != nil
+	var enums [][]any
+	if target.attribute.Validation != nil {
+		enums = target.attribute.Validation.Enums()
+	}
+	if target.constraints != nil {
+		enums = target.constraints.validation.rules.Enums()
+	}
+	node.hasEnum = len(enums) > 0
 	if node.schemaOnly {
 		return nil
 	}
-	for _, snapshot := range target.enumValues {
-		if snapshot.err != nil {
-			return fmt.Errorf("value plan enum source: %w", snapshot.err)
+	for _, values := range enums {
+		clause := make([]ResolvedValue, 0, len(values))
+		for _, raw := range values {
+			occurrence := ValueOccurrence{context: b.source.context, graph: b.source.graph, node: source}
+			input := b.context.SupplyValue(ValueInput{Raw: raw, ExplicitNull: raw == nil, Origin: "target enum"})
+			result := b.context.ResolveDeclaredShape(occurrence, input)
+			if result.Outcome() != ValueResolved {
+				return fmt.Errorf("value plan enum does not resolve against its declared shape: %v", result.Diagnostics())
+			}
+			value, _ := result.Value()
+			clause = append(clause, value)
 		}
-		occurrence := ValueOccurrence{context: b.source.context, graph: b.source.graph, node: source}
-		input := b.context.SupplyValue(ValueInput{Raw: snapshot.raw, ExplicitNull: snapshot.raw == nil, Origin: "target enum"})
-		result := b.context.Resolve(occurrence, input, ValueRoleEnum)
-		if result.Outcome() != ValueResolved {
-			return fmt.Errorf("value plan enum does not resolve against its semantic occurrence: %v", result.Diagnostics())
-		}
-		value, _ := result.Value()
-		node.enumValues = append(node.enumValues, value)
+		node.enumClauses = append(node.enumClauses, clause)
 	}
 	return nil
 }

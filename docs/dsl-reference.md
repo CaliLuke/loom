@@ -321,6 +321,10 @@ var Employee = Type("Employee", func() {
 })
 ```
 
+`Reference` copies the selected object field templates. It does not make the
+referencing object a derived named type. The copied fields retain their own
+declared constraints.
+
 #### Extend
 
 `Extend` creates a new type that automatically inherits all attributes:
@@ -372,6 +376,44 @@ into constraints on that string. See [Bytes in JSON bodies](http-guide.md#bytes-
 
 #### Generic Validations
 - `Enum(value1, value2)` - Restricts to enumerated values
+
+#### Constraints on Derived Named Types
+
+Constraints declared on a named type refine the constraints of its named base.
+Numeric and length bounds are combined, and required object fields accumulate
+by field identity. Loom continues to admit a contract whose inherited bounds
+describe an empty set.
+
+Pattern and format rules are also conjunctive. Each named layer adds a rule;
+none replaces an ancestor rule. For example, a base `Pattern("^a")` and a
+derived `Pattern("b$")` admit `"ab"` and reject both `"xb"` and `"ax"`.
+Distinct formats must all accept the value. Repeating the same pattern or format
+does not add a duplicate runtime or schema check.
+
+A derived `Enum` must be equal to or narrower than the effective ancestor
+enum. Every derived member must belong to that ancestor under the declared
+type's value rules. Adding an outside member, including a partial overlap,
+fails design validation at the attribute path.
+
+If a derived type declares a local default, it replaces the inherited default
+and must satisfy the complete refined contract or design validation fails. When
+no local default is declared, the inherited default remains effective and must
+satisfy every derived refinement.
+
+```go
+base := Type("Base", String, func() {
+    Pattern("^a")
+    Enum("ab", "ax")
+})
+derived := Type("Derived", base, func() {
+    Pattern("b$")
+})
+```
+
+This creates named ancestry. The inherited enum and derived pattern are
+conjunctive, so `derived` accepts `"ab"` and rejects `"ax"`. If `derived`
+explicitly declares an enum, every member must belong to the ancestor enum and
+must satisfy the complete derived contract.
 
 Combined example:
 

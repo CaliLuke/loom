@@ -155,11 +155,14 @@ func (h *HostExpr) Validate() error {
 			if !IsPrimitive(v.Attribute.Type) {
 				verr.Add(h, "invalid type for URI variable %q: type must be a primitive", v.Name)
 			}
-			if v.Attribute.Validation == nil {
-				if v.Attribute.DefaultValue == nil {
-					verr.Add(h, "URI variable %q must have a default value or an enum validation", v.Name)
-				}
-			} else if v.Attribute.DefaultValue == nil && len(v.Attribute.Validation.Values) == 0 {
+			constraints, err := EffectiveConstraintsFor(v.Attribute)
+			if err != nil {
+				verr.Add(h, "invalid URI variable %q: %s", v.Name, err)
+				continue
+			}
+			_, hasDefault := constraints.Default()
+			values, hasEnum := constraints.EnumCandidates()
+			if !hasDefault && (!hasEnum || len(values) == 0) {
 				verr.Add(h, "URI variable %q must have a default value or an enum validation", v.Name)
 			}
 		}
@@ -242,9 +245,17 @@ func (h *HostExpr) URIString(u URIExpr) (string, error) {
 	for _, p := range u.Params() {
 		for _, v := range *AsObject(h.Variables.Type) {
 			if p == v.Name {
-				def := v.Attribute.DefaultValue
-				if def == nil {
-					def = v.Attribute.Validation.Values[0]
+				constraints, err := EffectiveConstraintsFor(v.Attribute)
+				if err != nil {
+					return "", fmt.Errorf("invalid URI variable %q: %w", v.Name, err)
+				}
+				def, hasDefault := constraints.Default()
+				if !hasDefault {
+					values, hasEnum := constraints.EnumCandidates()
+					if !hasEnum || len(values) == 0 {
+						return "", fmt.Errorf("URI variable %q must have a default value or an enum validation", v.Name)
+					}
+					def = values[0]
 				}
 				uri = strings.ReplaceAll(uri, fmt.Sprintf("{%s}", p), fmt.Sprintf("%v", def))
 			}

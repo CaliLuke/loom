@@ -22,17 +22,24 @@ func schemaJSON(plan *valuePlanNode, wire jsontext.Value) bool {
 	if !plan.hasEnum {
 		return true
 	}
-	for _, member := range plan.enumValues {
-		observed, failure := observeJSON(plan, ValueRoleEnum, member)
-		if failure != nil {
-			continue
+	for _, values := range plan.enumClauses {
+		matched := false
+		for _, member := range values {
+			observed, failure := observeJSON(plan, ValueRoleEnum, member)
+			if failure != nil {
+				continue
+			}
+			expected, failure := constructJSON(plan, observed)
+			if failure == nil && loom.JSONValueEqual(wire, expected) {
+				matched = true
+				break
+			}
 		}
-		expected, failure := constructJSON(plan, observed)
-		if failure == nil && loom.JSONValueEqual(wire, expected) {
-			return true
+		if !matched {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func schemaJSONBody(plan *valuePlanNode, wire jsontext.Value) bool {
@@ -136,7 +143,7 @@ func schemaJSONUnion(plan *valuePlanNode, wire jsontext.Value) bool {
 }
 
 func schemaLocalRules(plan *valuePlanNode, wire jsontext.Value) bool {
-	rules := plan.attribute.Validation
+	rules := plan.validation
 	if wire.Kind() == 'n' {
 		return true
 	}
@@ -172,7 +179,7 @@ func schemaLocalRules(plan *valuePlanNode, wire jsontext.Value) bool {
 		if json.Unmarshal(wire, &text) != nil {
 			return false
 		}
-		return valueLocalRules(plan.attribute, ResolvedValue{node: &resolvedValueNode{presence: ValuePresent, kind: ValueKindScalar, scalar: text}})
+		return valueValidationRules(rules, ResolvedValue{node: &resolvedValueNode{presence: ValuePresent, kind: ValueKindScalar, scalar: text}})
 	}
 	return true
 }

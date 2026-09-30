@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math/big"
 	"reflect"
+	"strings"
 
 	"github.com/CaliLuke/loom/internal/examplevalue"
 	"github.com/CaliLuke/loom/internal/jsonkey"
@@ -271,19 +272,22 @@ func exampleMatchesKnownObjectField(attribute *AttributeExpr, example map[string
 
 func exampleMatchesValidation(attribute *AttributeExpr, value any) bool {
 	validation := attribute.Validation
-	if validation != nil && len(validation.Values) > 0 {
-		matched := false
-		for _, allowed := range validation.Values {
-			if exampleEnumValuesEqual(attribute.Type, allowed, value) {
-				matched = true
-				break
+	if validation != nil {
+		for _, values := range validation.Enums() {
+			matched := false
+			for _, allowed := range values {
+				if exampleEnumValuesEqual(attribute.Type, allowed, value) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				return false
 			}
 		}
-		if !matched {
-			return false
-		}
 	}
-	return checkLength(attribute, value) && checkPattern(attribute, value) && checkMinMaxValue(attribute, value)
+	return checkLength(attribute, value) && checkPattern(attribute, value) && checkFormat(attribute, value) &&
+		checkMinMaxValue(attribute, value)
 }
 
 func exampleEnumValuesEqual(datatype DataType, allowed, value any) bool {
@@ -387,7 +391,13 @@ func numericExampleRat(value any) (*big.Rat, bool) {
 
 func stringMapExample(value any) (map[string]any, bool) {
 	actual := reflect.ValueOf(value)
-	if !actual.IsValid() || actual.Kind() != reflect.Map {
+	if !actual.IsValid() {
+		return nil, false
+	}
+	if actual.Kind() == reflect.Struct {
+		return plainStructMap(actual)
+	}
+	if actual.Kind() != reflect.Map {
 		return nil, false
 	}
 	if actual.IsNil() {
@@ -409,6 +419,105 @@ func stringMapExample(value any) (map[string]any, bool) {
 		out[key.String()] = iterator.Value().Interface()
 	}
 	return out, true
+}
+
+type plainStructField struct {
+	value  reflect.Value
+	depth  int
+	tagged bool
+}
+
+func plainStructMap(value reflect.Value) (map[string]any, bool) {
+	if value.Kind() != reflect.Struct || valueHasCustomCodec(value.Type()) {
+		return nil, false
+	}
+	candidates := make(map[string][]plainStructField)
+	collectPlainStructFields(value, 0, candidates, make(map[uintptr]bool))
+	result := make(map[string]any, len(candidates))
+	for name, fields := range candidates {
+		bestDepth := fields[0].depth
+		for _, field := range fields[1:] {
+			if field.depth < bestDepth {
+				bestDepth = field.depth
+			}
+		}
+		var best []plainStructField
+		for _, field := range fields {
+			if field.depth == bestDepth {
+				best = append(best, field)
+			}
+		}
+		var tagged []plainStructField
+		for _, field := range best {
+			if field.tagged {
+				tagged = append(tagged, field)
+			}
+		}
+		if len(tagged) == 1 {
+			best = tagged
+		} else if len(tagged) > 1 || len(best) != 1 {
+			continue
+		}
+		result[name] = best[0].value.Interface()
+	}
+	return result, true
+}
+
+func collectPlainStructFields(
+	value reflect.Value,
+	depth int,
+	fields map[string][]plainStructField,
+	active map[uintptr]bool,
+) {
+	for index := range value.NumField() {
+		fieldType := value.Type().Field(index)
+		if !fieldType.IsExported() {
+			continue
+		}
+		fieldValue := value.Field(index)
+		name, _, _ := strings.Cut(fieldType.Tag.Get("json"), ",")
+		if name == "-" {
+			continue
+		}
+		tagged := name != ""
+		if fieldType.Anonymous && !tagged {
+			embedded := fieldValue
+			var pointer uintptr
+			for embedded.Kind() == reflect.Pointer && !valueHasCustomCodec(embedded.Type()) {
+				if embedded.IsNil() {
+					embedded = reflect.Value{}
+					break
+				}
+				pointer = embedded.Pointer()
+				if active[pointer] {
+					embedded = reflect.Value{}
+					break
+				}
+				active[pointer] = true
+				embedded = embedded.Elem()
+			}
+			if embedded.IsValid() && embedded.Kind() == reflect.Struct && !valueHasCustomCodec(embedded.Type()) {
+				collectPlainStructFields(embedded, depth+1, fields, active)
+				if pointer != 0 {
+					delete(active, pointer)
+				}
+				continue
+			}
+			if pointer != 0 {
+				delete(active, pointer)
+			}
+			if !embedded.IsValid() {
+				continue
+			}
+		}
+		if !fieldType.IsExported() {
+			continue
+		}
+		if name == "" {
+			name = fieldType.Name
+		}
+		fields[name] = append(fields[name], plainStructField{value: fieldValue, depth: depth, tagged: tagged})
+	}
 }
 
 // memberMapExample returns a copy of the map example value keyed by the JSON

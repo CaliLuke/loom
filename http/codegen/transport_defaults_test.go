@@ -61,3 +61,60 @@ func TestTransportMappingDefaults(t *testing.T) {
 		})
 	}
 }
+
+func TestTransportLocationsUseEffectiveNamedDefaults(t *testing.T) {
+	for _, location := range []string{"header", "query", "cookie"} {
+		t.Run(location, func(t *testing.T) {
+			root := RunHTTPDSL(t, func() {
+				base := Type("TransportDefaultBase", String, func() {
+					Default("base")
+				})
+				middle := Type("TransportDefaultMiddle", base)
+				override := Type("TransportDefaultOverride", middle, func() {
+					Default("override")
+				})
+				Service("defaults", func() {
+					Method("read", func() {
+						Payload(func() {
+							Attribute("inherited", middle)
+							Attribute("overridden", override)
+						})
+						HTTP(func() {
+							GET("/")
+							switch location {
+							case "header":
+								Header("inherited:X-Inherited")
+								Header("overridden:X-Overridden")
+							case "query":
+								Param("inherited")
+								Param("overridden")
+							case "cookie":
+								Cookie("inherited:inherited")
+								Cookie("overridden:overridden")
+							}
+						})
+					})
+				})
+			})
+			request := CreateHTTPServices(root).Get("defaults").Endpoint("read").Payload.Request
+			var attributes []*AttributeData
+			switch location {
+			case "header":
+				for _, header := range request.Headers {
+					attributes = append(attributes, header.AttributeData)
+				}
+			case "query":
+				for _, param := range request.QueryParams {
+					attributes = append(attributes, param.AttributeData)
+				}
+			case "cookie":
+				for _, cookie := range request.Cookies {
+					attributes = append(attributes, cookie.AttributeData)
+				}
+			}
+			require.Len(t, attributes, 2)
+			require.Equal(t, "base", attributes[0].DefaultValue)
+			require.Equal(t, "override", attributes[1].DefaultValue)
+		})
+	}
+}

@@ -4,8 +4,9 @@ import (
 	"encoding/json/v2"
 	"testing"
 
-	"github.com/CaliLuke/loom/expr"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
 // TestValueContractLegacyAliasOverlap keeps the current public adapter weakness

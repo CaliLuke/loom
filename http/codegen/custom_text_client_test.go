@@ -150,7 +150,7 @@ func TestCustomTextClientGeneratedModules(t *testing.T) {
  if err != nil {
   t.Fatal(err)
  }
- if empty.ID.String() != "00000000-0000-0000-0000-000000000000" {
+ if empty.ID.String() != "550e8400-e29b-41d4-a716-446655440000" {
   t.Errorf("default=%v", empty.ID)
  }`
 			}

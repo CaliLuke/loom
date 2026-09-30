@@ -151,6 +151,14 @@ func TestAnalyzeRecommendsURIReferenceForRelativeURL(t *testing.T) {
 			Description: "Relative URL.",
 			Validation:  &expr.ValidationExpr{Format: expr.FormatURIReference},
 		}},
+		&expr.NamedAttributeExpr{Name: "mixed_uri", Attribute: &expr.AttributeExpr{
+			Type:        expr.String,
+			Description: "Relative URI.",
+			Validation: &expr.ValidationExpr{FormatClauses: []expr.ValidationFormat{
+				expr.FormatURIReference,
+				expr.FormatURI,
+			}},
+		}},
 	}
 	root := &expr.RootExpr{Types: []expr.UserType{
 		uriType,
@@ -161,7 +169,7 @@ func TestAnalyzeRecommendsURIReferenceForRelativeURL(t *testing.T) {
 	analyzeAttributeSemantics(root, &report)
 
 	diagnostics := diagnosticsForRule(report.Diagnostics, RuleStringFormat)
-	require.Len(t, diagnostics, 3)
+	require.Len(t, diagnostics, 4)
 	messages := make(map[string]string, len(diagnostics))
 	for _, diagnostic := range diagnostics {
 		messages[diagnostic.Location.Path] = diagnostic.Message
@@ -169,10 +177,33 @@ func TestAnalyzeRecommendsURIReferenceForRelativeURL(t *testing.T) {
 	require.Equal(t, "relative URL string has no validation; use Format(FormatURIReference) or a Pattern", messages["type.Download.download_url"])
 	require.Equal(t, "relative URI string uses Format(FormatURI); use Format(FormatURIReference) for relative references", messages["type.Download.preview_uri"])
 	require.Equal(t, "relative URL string uses Format(FormatURI); use Format(FormatURIReference) for relative references", messages["type.Download.asset_url"])
+	require.Equal(t, "relative URI string uses Format(FormatURI); use Format(FormatURIReference) for relative references", messages["type.Download.mixed_uri"])
 
 	recommendation, ok := untypedScalarRecommendation("download_url", "relative local download url")
 	require.True(t, ok)
 	require.Equal(t, scalarRecommendation{"URI reference", "String with Format(FormatURIReference)"}, recommendation)
+}
+
+func TestStringValidationRecognizesExplicitClauseCarriers(t *testing.T) {
+	require.True(t, hasStringValidation(&expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{PatternClauses: []string{"^/"}},
+	}))
+	attribute := &expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{FormatClauses: []expr.ValidationFormat{expr.FormatURIReference, expr.FormatURI}},
+	}
+	require.True(t, hasStringValidation(attribute))
+	require.True(t, hasStringFormat(attribute, expr.FormatURI))
+	require.True(t, hasStringFormat(attribute, expr.FormatURIReference))
+	named := &expr.UserTypeExpr{TypeName: "URI", AttributeExpr: &expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{Format: expr.FormatURI},
+	}}
+	require.True(t, hasStringFormat(&expr.AttributeExpr{
+		Type:       named,
+		Validation: &expr.ValidationExpr{Format: expr.FormatURIReference},
+	}, expr.FormatURI))
 }
 
 func TestAnalyzeModuleFindsTypedMuxRoutes(t *testing.T) {

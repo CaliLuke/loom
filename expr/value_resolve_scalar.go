@@ -77,8 +77,11 @@ func valueLengthAllowed(rules *ValidationExpr, length int) bool {
 	return rules == nil || ((rules.MinLength == nil || length >= *rules.MinLength) && (rules.MaxLength == nil || length <= *rules.MaxLength))
 }
 
-func valueLocalRules(attribute *AttributeExpr, value ResolvedValue) bool {
-	rules := attribute.Validation
+func valueLocalRules(node *valueOccurrenceNode, value ResolvedValue) bool {
+	return valueValidationRules(effectiveNodeValidation(node), value)
+}
+
+func valueValidationRules(rules *ValidationExpr, value ResolvedValue) bool {
 	if rules == nil || value.Presence() == ValueNull {
 		return true
 	}
@@ -92,20 +95,34 @@ func valueLocalRules(attribute *AttributeExpr, value ResolvedValue) bool {
 		return true
 	}
 	raw := value.node.scalar
-	if !checkMinMaxValue(attribute, raw) {
+	if !checkValidationMinMaxValue(rules, raw) {
 		return false
 	}
 	text, textValue := raw.(string)
-	if rules.Pattern != "" && textValue {
-		pattern, err := regexp.Compile(rules.Pattern)
-		if err != nil || !pattern.MatchString(text) {
-			return false
+	if textValue {
+		for _, authored := range rules.Patterns() {
+			pattern, err := regexp.Compile(authored)
+			if err != nil || !pattern.MatchString(text) {
+				return false
+			}
+		}
+		for _, format := range rules.Formats() {
+			if loom.ValidateFormat("value", text, loom.Format(format)) != nil {
+				return false
+			}
 		}
 	}
-	if rules.Format != "" && textValue {
-		return loom.ValidateFormat("value", text, loom.Format(rules.Format)) == nil
-	}
 	return true
+}
+
+func effectiveNodeValidation(node *valueOccurrenceNode) *ValidationExpr {
+	if node == nil {
+		return nil
+	}
+	if node.constraints != nil {
+		return &node.constraints.validation.rules
+	}
+	return node.attribute.Validation
 }
 
 func resolvedLength(value ResolvedValue) (int, bool) {
@@ -126,6 +143,13 @@ func resolvedLength(value ResolvedValue) (int, bool) {
 }
 
 func resolvedEnumEqual(left, right ResolvedValue) bool {
+	if left.node == nil || right.node == nil {
+		return false
+	}
+	if (left.node != nil && left.node.opaque) || (right.node != nil && right.node.opaque) {
+		return left.node != nil && right.node != nil && left.node.opaque && right.node.opaque &&
+			exampleValuesEqual(left.node.raw, right.node.raw)
+	}
 	if left.Presence() != right.Presence() {
 		if !((left.Presence() == ValueNil || left.Presence() == ValuePresent) && (right.Presence() == ValueNil || right.Presence() == ValuePresent)) {
 			return false
@@ -134,7 +158,7 @@ func resolvedEnumEqual(left, right ResolvedValue) bool {
 	if left.Kind() != right.Kind() {
 		return false
 	}
-	if left.node == nil || right.node == nil || left.Presence() == ValueAbsent || left.Presence() == ValueNull {
+	if left.Presence() == ValueAbsent || left.Presence() == ValueNull {
 		return left.Presence() == right.Presence()
 	}
 	switch left.Kind() {
@@ -169,6 +193,10 @@ func resolvedFieldEqual(field, other ResolvedField) bool {
 }
 
 func resolvedKeyEqual(left, right ResolvedValue) bool {
+	if (left.node != nil && left.node.opaque) || (right.node != nil && right.node.opaque) {
+		return left.node != nil && right.node != nil && left.node.opaque && right.node.opaque &&
+			exampleValuesEqual(left.node.raw, right.node.raw)
+	}
 	leftName, leftValid := jsonkey.Name(reflect.ValueOf(left.node.scalar))
 	rightName, rightValid := jsonkey.Name(reflect.ValueOf(right.node.scalar))
 	return leftValid && rightValid && leftName == rightName

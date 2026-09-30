@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/CaliLuke/loom/internal/jsonkey"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 func (r *valueResolver) array(node *valueOccurrenceNode, raw any, complete bool) ValueResult {
@@ -13,7 +14,7 @@ func (r *valueResolver) array(node *valueOccurrenceNode, raw any, complete bool)
 	if !input.IsValid() || (input.Kind() != reflect.Array && input.Kind() != reflect.Slice) {
 		return valueFailure(ValueInvalid, "type", "expected an array")
 	}
-	if !valueLengthAllowed(node.attribute.Validation, input.Len()) {
+	if !r.admission && !valueLengthAllowed(effectiveNodeValidation(node), input.Len()) {
 		return valueFailure(ValueInvalid, "length", "array length violates constraints")
 	}
 	presence := ValuePresent
@@ -31,11 +32,11 @@ func (r *valueResolver) array(node *valueOccurrenceNode, raw any, complete bool)
 		children = append(children, valueAtPath(child, strconv.Itoa(index)))
 		result.value.node.elements = append(result.value.node.elements, child.value)
 	}
-	return valueCombine(result, children)
+	return valueCombine(result, children, r.admission)
 }
 
 func (r *valueResolver) object(node, owner *valueOccurrenceNode, raw any, complete bool) ValueResult {
-	entries, ok := stringMapExample(raw)
+	entries, ok := objectSourceEntries(node, raw)
 	if !ok || entries == nil {
 		return valueFailure(ValueInvalid, "type", "expected a non-nil object")
 	}
@@ -78,7 +79,42 @@ func (r *valueResolver) object(node, owner *valueOccurrenceNode, raw any, comple
 		children = append(children, child)
 		result.value.node.fields = append(result.value.node.fields, ResolvedField{Name: name, Value: child.value})
 	}
-	return valueCombine(result, children)
+	return valueCombine(result, children, r.admission)
+}
+
+func objectSourceEntries(node *valueOccurrenceNode, raw any) (map[string]any, bool) {
+	entries, ok := stringMapExample(raw)
+	if !ok {
+		return nil, false
+	}
+	value := reflect.ValueOf(raw)
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
+		if value.IsNil() || valueHasCustomCodec(value.Type()) {
+			return entries, true
+		}
+		value = value.Elem()
+	}
+	if !value.IsValid() || value.Kind() != reflect.Struct {
+		return entries, true
+	}
+	for _, member := range node.declaration.members {
+		if _, authored := entries[member.name]; authored {
+			continue
+		}
+		if _, wire := entries[member.wire]; wire {
+			continue
+		}
+		goName := naming.GoifyAttribute(member.name, member.node.attribute.Meta, true)
+		entry, found := entries[goName]
+		if !found {
+			continue
+		}
+		entries[member.name] = entry
+		if goName != member.name && goName != member.wire {
+			delete(entries, goName)
+		}
+	}
+	return entries, true
 }
 
 func (r *valueResolver) mapping(node *valueOccurrenceNode, raw any, complete bool) ValueResult {
@@ -86,7 +122,7 @@ func (r *valueResolver) mapping(node *valueOccurrenceNode, raw any, complete boo
 	if !input.IsValid() || input.Kind() != reflect.Map {
 		return valueFailure(ValueInvalid, "type", "expected a map")
 	}
-	if !valueLengthAllowed(node.attribute.Validation, input.Len()) {
+	if !r.admission && !valueLengthAllowed(effectiveNodeValidation(node), input.Len()) {
 		return valueFailure(ValueInvalid, "length", "map length violates constraints")
 	}
 	presence := ValuePresent
@@ -99,30 +135,36 @@ func (r *valueResolver) mapping(node *valueOccurrenceNode, raw any, complete boo
 	for _, entry := range entries {
 		keyResults = append(keyResults, r.resolve(node.declaration.key, entry.key.Interface(), true, node.declaration.key, nil))
 	}
-	checked := valueCombine(result, keyResults)
-	if valueErrorPriority(checked) != 99 {
+	checked := valueCombine(result, keyResults, r.admission)
+	if valueErrorPriority(checked) != 99 &&
+		!(checked.outcome == ValueUnsupported && !checked.checkableFailure && checked.value.node != nil) {
 		return checked
 	}
 	seen := make(map[string]bool)
-	var children []ValueResult
+	children := append([]ValueResult(nil), keyResults...)
 	for index, entry := range entries {
 		keyValue := keyResults[index].value
 		if keyValue.Kind() == ValueKindAny {
 			keyValue = keyValue.node.payload
 		}
-		if keyValue.Kind() != ValueKindScalar {
+		opaqueKey := keyValue.node != nil && keyValue.node.opaque
+		if keyValue.Kind() != ValueKindScalar && !opaqueKey {
 			return valueFailure(ValueInvalid, "key", "map key must be a builtin scalar")
 		}
-		name, valid := jsonkey.Name(reflect.ValueOf(keyValue.node.scalar))
-		if !valid || seen[name] {
-			return valueFailure(ValueInvalid, "key", "unsupported or colliding map key spelling")
+		name := valueKeyOrder(entry.key)
+		if !opaqueKey {
+			var valid bool
+			name, valid = jsonkey.Name(reflect.ValueOf(keyValue.node.scalar))
+			if !valid || seen[name] {
+				return valueFailure(ValueInvalid, "key", "unsupported or colliding map key spelling")
+			}
+			seen[name] = true
 		}
-		seen[name] = true
 		child := valueAtPath(r.resolve(node.declaration.element, entry.value.Interface(), complete, node.declaration.element, nil), name)
 		children = append(children, child)
 		result.value.node.entries = append(result.value.node.entries, ResolvedEntry{Key: keyValue, Value: child.value})
 	}
-	return valueCombine(result, children)
+	return valueCombine(result, children, r.admission)
 }
 
 func (r *valueResolver) raw(node *valueOccurrenceNode, raw any) ValueResult {
@@ -131,6 +173,9 @@ func (r *valueResolver) raw(node *valueOccurrenceNode, raw any) ValueResult {
 	}
 	input := reflect.ValueOf(raw)
 	if valueHasCustomCodec(input.Type()) {
+		if r.admission {
+			return r.opaque(node, raw, "custom value requires codec materialization")
+		}
 		return valueFailure(ValueUnsupported, "custom", "custom value requires codec materialization")
 	}
 	leave, entered := r.enter(raw)
@@ -170,7 +215,7 @@ func (r *valueResolver) raw(node *valueOccurrenceNode, raw any) ValueResult {
 			children = append(children, child)
 			result.value.node.elements = append(result.value.node.elements, child.value)
 		}
-		return valueCombine(result, children)
+		return valueCombine(result, children, r.admission)
 	case reflect.Map:
 		return r.rawMap(node, raw, input)
 	default:
@@ -187,20 +232,26 @@ func (r *valueResolver) rawMap(node *valueOccurrenceNode, raw any, input reflect
 	seen := make(map[string]bool)
 	var children []ValueResult
 	for _, entry := range valueSortedMapEntries(input) {
-		name, valid := jsonkey.Name(entry.key)
-		if !valid || seen[name] {
-			return valueFailure(ValueInvalid, "key", "unsupported or colliding map key spelling")
-		}
-		seen[name] = true
 		keyResult := r.raw(node, entry.key.Interface())
-		if keyResult.outcome != ValueResolved || keyResult.value.Kind() != ValueKindScalar {
+		opaqueKey := r.admission && keyResult.outcome == ValueUnsupported &&
+			!keyResult.checkableFailure && keyResult.value.node != nil && keyResult.value.node.opaque
+		if !opaqueKey && (keyResult.outcome != ValueResolved || keyResult.value.Kind() != ValueKindScalar) {
 			return valueFailure(ValueInvalid, "key", "map key must be a builtin scalar")
 		}
+		name := valueKeyOrder(entry.key)
+		if !opaqueKey {
+			var valid bool
+			name, valid = jsonkey.Name(entry.key)
+			if !valid || seen[name] {
+				return valueFailure(ValueInvalid, "key", "unsupported or colliding map key spelling")
+			}
+			seen[name] = true
+		}
 		child := valueAtPath(r.raw(node, entry.value.Interface()), name)
-		children = append(children, child)
+		children = append(children, keyResult, child)
 		result.value.node.entries = append(result.value.node.entries, ResolvedEntry{Key: keyResult.value, Value: child.value})
 	}
-	return valueCombine(result, children)
+	return valueCombine(result, children, r.admission)
 }
 
 func valueIsBytes(value reflect.Value) bool {
@@ -219,8 +270,9 @@ func (r *valueResolver) objectMember(owner *valueOccurrenceNode, member valueOcc
 		}
 	}
 	// Every spelling is checked before the winning wire spelling is chosen.
-	checked := valueCombine(r.success(member.node, ValueAbsent, 0, nil), supplied)
-	if valueErrorPriority(checked) != 99 {
+	checked := valueCombine(r.success(member.node, ValueAbsent, 0, nil), supplied, r.admission)
+	if valueErrorPriority(checked) != 99 &&
+		!(checked.outcome == ValueUnsupported && !checked.checkableFailure && checked.value.node != nil) {
 		return checked
 	}
 	value, present := entries[member.wire]
@@ -233,7 +285,7 @@ func (r *valueResolver) objectMember(owner *valueOccurrenceNode, member valueOcc
 		for index, path := range child.missing {
 			child.missing[index] = append([]ValueIdentity{identity}, path...)
 		}
-	} else if valueMemberRequired(owner, member) {
+	} else if !r.shapeNodes[owner] && valueMemberRequired(owner, member) {
 		if complete {
 			child = valueAtPath(valueFailure(ValueInvalid, "required", "required member is absent"), member.name)
 		} else {

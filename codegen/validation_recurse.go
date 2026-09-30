@@ -285,7 +285,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		if expr.IsArray(att.Type) || expr.IsMap(att.Type) {
 			return code
 		}
-		if !ctx.Pointer && (req || (att.DefaultValue != nil && ctx.UseDefault)) {
+		if !ctx.Pointer && (req || (effectiveValidationDefault(att) && ctx.UseDefault)) {
 			return code
 		}
 		cond := "if " + target + " != nil {\n"
@@ -307,7 +307,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 			return ""
 		}
 		// For optional pointer fields, wrap validation code in nil check
-		if !ctx.Pointer && (req || (att.DefaultValue != nil && ctx.UseDefault)) {
+		if !ctx.Pointer && (req || (effectiveValidationDefault(att) && ctx.UseDefault)) {
 			return code
 		}
 		cond := "if " + target + " != nil {\n"
@@ -316,10 +316,43 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		}
 		return cond + code + "\n}"
 	}
-	if !hasValidations(ctx, ut) {
-		return ""
+	return validateNamedOccurrence(ctx, att, ut, target, context, req)
+}
+
+func validateNamedOccurrence(
+	ctx *AttributeContext,
+	att *expr.AttributeExpr,
+	ut expr.UserType,
+	target string,
+	context string,
+	required bool,
+) string {
+	hasNamedValidator := hasValidations(ctx, ut)
+	constraints, err := expr.EffectiveConstraintsFor(att)
+	if err != nil {
+		panic(fmt.Sprintf("invalid effective constraints during generation: %v", err))
 	}
-	var buf bytes.Buffer
+	effective := constraints.Validation()
+	validation := validationRenderSnapshot{rules: effective.Lowered(), clauses: effective.Clauses()}
+	if hasNamedValidator {
+		intrinsic, intrinsicErr := expr.EffectiveConstraintsFor(ut.Attribute())
+		if intrinsicErr != nil {
+			panic(fmt.Sprintf("invalid named constraints during generation: %v", intrinsicErr))
+		}
+		validation = validationWithoutExactPredicates(effective, intrinsic.Validation())
+	}
+	_, hasDefault := constraints.Default()
+	inline := validationCodeFromSnapshot(att, validation, ctx, required, false, hasDefault, false, target, context)
+	var validations []string
+	if inline != "" {
+		validations = append(validations, inline)
+	}
+	if !hasNamedValidator {
+		if len(validations) == 0 {
+			return ""
+		}
+		return "if " + target + " != nil {\n" + indentCode(strings.Join(validations, "\n")) + "}"
+	}
 	name := ctx.Scope.Name(att, "", ctx.Pointer, ctx.UseDefault)
 	// Use the scoped type name directly to preserve identifiers such as
 	// protocol buffer-reserved names that include a trailing underscore
@@ -329,8 +362,17 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 	if prefix == "" {
 		prefix = "Validate"
 	}
-	fmt.Fprint(&buf, renderUserValidation(prefix+name, target))
-	return "if " + target + " != nil {\n\t" + buf.String() + "\n}"
+	validations = append(validations, renderUserValidation(prefix+name, target))
+	return "if " + target + " != nil {\n" + indentCode(strings.Join(validations, "\n")) + "}"
+}
+
+func effectiveValidationDefault(attribute *expr.AttributeExpr) bool {
+	constraints, err := expr.EffectiveConstraintsFor(attribute)
+	if err != nil {
+		panic(fmt.Sprintf("invalid effective constraints during generation: %v", err))
+	}
+	_, present := constraints.Default()
+	return present
 }
 
 // optionalUnionValidation returns the validation code of the union held by

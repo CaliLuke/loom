@@ -371,12 +371,23 @@ func TestProductionEnumAdmission(t *testing.T) {
 	}
 	t.Run("rejected enum remains present", func(t *testing.T) {
 		attribute := &expr.AttributeExpr{Type: expr.Int, Validation: &expr.ValidationExpr{Values: []any{int64(1)}}}
-		occurrence, err := expr.NewValueContext().NewOccurrence(attribute)
-		require.NoError(t, err)
-		graph := newProductionGraph(t, newProductionInput(t))
-		graph.capture(attribute, occurrence)
-		enumeration := graph.declarations[0].(map[string]any)["enumeration"]
-		require.Equal(t, []any{}, enumeration)
+		require.Equal(t, []any{int64(1)}, attribute.Validation.Values)
+		_, err := expr.EffectiveConstraintsFor(attribute)
+		require.EqualError(t, err, `enum member 1 declared by "int" violates the effective contract for "int"`)
+		require.Equal(t, []any{int64(1)}, attribute.Validation.Values,
+			"rejection must not erase the authored declaration")
+	})
+	t.Run("rejected map enum key remains present", func(t *testing.T) {
+		raw := map[int64]string{1: "x"}
+		attribute := &expr.AttributeExpr{
+			Type:       &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Int}, ElemType: &expr.AttributeExpr{Type: expr.String}},
+			Validation: &expr.ValidationExpr{Values: []any{raw}},
+		}
+		require.Equal(t, []any{raw}, attribute.Validation.Values)
+		_, err := expr.EffectiveConstraintsFor(attribute)
+		require.EqualError(t, err, `enum member map[int64]string{1:"x"} declared by "map" violates the effective contract for "map"`)
+		require.Equal(t, []any{raw}, attribute.Validation.Values,
+			"rejection must not erase the authored declaration")
 	})
 	t.Run("Any canonical values have no source tags", func(t *testing.T) {
 		graph := newProductionGraph(t, newProductionInput(t))

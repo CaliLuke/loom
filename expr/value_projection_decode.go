@@ -32,26 +32,34 @@ func decodeJSON(plan *valuePlanNode, wire jsontext.Value) (ResolvedValue, bool) 
 // All decoder entry paths apply the owning occurrence's constraints and enums
 // after their body, including aliases and object-member key decoding.
 func decodedJSONAllowed(plan *valuePlanNode, decoded ResolvedValue, domain valueJSONDomain) bool {
-	if !valueLocalRules(plan.attribute, decoded) {
+	if !valueValidationRules(plan.validation, decoded) {
 		return false
 	}
 	if !plan.hasEnum {
 		return true
 	}
-	for _, member := range plan.enumValues {
-		if domain == valueJSONKeyDomain {
-			observed, valid := observeJSONKey(plan, member)
-			if valid && projectionEquivalent(observed, decoded, true) {
-				return true
+	for _, values := range plan.enumClauses {
+		matched := false
+		for _, member := range values {
+			if domain == valueJSONKeyDomain {
+				observed, valid := observeJSONKey(plan, member)
+				if valid && projectionEquivalent(observed, decoded, true) {
+					matched = true
+					break
+				}
+				continue
 			}
-			continue
+			observed, failure := observeJSON(plan, ValueRoleEnum, member)
+			if failure == nil && projectionEquivalent(observed, decoded, true) {
+				matched = true
+				break
+			}
 		}
-		observed, failure := observeJSON(plan, ValueRoleEnum, member)
-		if failure == nil && projectionEquivalent(observed, decoded, true) {
-			return true
+		if !matched {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func decodeJSONBody(plan *valuePlanNode, wire jsontext.Value) (ResolvedValue, bool) {

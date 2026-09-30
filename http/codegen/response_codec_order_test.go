@@ -4,8 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CaliLuke/loom/dsl"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/dsl"
 )
 
 func TestResponseCodecSelectionPrecedesMappedHeader(t *testing.T) {

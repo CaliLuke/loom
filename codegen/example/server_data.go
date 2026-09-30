@@ -348,76 +348,62 @@ func populateHandlerArgs(sd *Data, root *expr.RootExpr) {
 func buildHostData(host *expr.HostExpr) *HostData {
 	uris := make([]*URIData, len(host.URIs))
 	for i, uv := range host.URIs {
-		var (
-			t      *TransportData
-			scheme string
-			port   string
-
-			ustr = string(uv)
-		)
-		// Did not use url package to find scheme because the url may
-		// contain params (i.e. http://{version}.example.com) which needs
-		// substition for url.Parse to succeed. Also URIs in host must have
-		// a scheme otherwise validations would have failed.
-		switch {
-		case strings.HasPrefix(ustr, "https"):
-			scheme = "https"
-			port = "443"
-			t = newHTTPTransport()
-		case strings.HasPrefix(ustr, "http"):
-			scheme = "http"
-			port = "80"
-			t = newHTTPTransport()
-		case strings.HasPrefix(ustr, "grpcs"):
-			scheme = "grpcs"
-			port = "8443"
-			t = newGRPCTransport()
-		case strings.HasPrefix(ustr, "grpc"):
-			scheme = "grpc"
-			port = "8080"
-			t = newGRPCTransport()
-
-			// No need for default case here because we only support the above
-			// possibilites for the scheme. Invalid scheme would have failed
-			// validations in the first place.
-		}
-		uris[i] = &URIData{
-			Scheme:    scheme,
-			URL:       ustr,
-			Port:      port,
-			Transport: t,
-		}
-	}
-
-	vars := expr.AsObject(host.Variables.Type)
-	var variables []*VariableData
-	if len(*vars) > 0 {
-		variables = make([]*VariableData, len(*vars))
-		for i, v := range *vars {
-			def := v.Attribute.DefaultValue
-			var values []string
-			if def == nil {
-				def = v.Attribute.Validation.Values[0]
-				// DSL ensures v.Attribute has either a
-				// default value or an enum validation
-				values = convertToString(v.Attribute.Validation.Values...)
-			}
-			variables[i] = &VariableData{
-				Name:         v.Name,
-				Description:  v.Attribute.Description,
-				VarName:      codegen.Goify(v.Name, false),
-				DefaultValue: convertToString(def)[0],
-				Values:       values,
-			}
-		}
+		uris[i] = buildURIData(string(uv))
 	}
 	return &HostData{
 		Name:        host.Name,
 		Description: host.Description,
 		Schemes:     host.Schemes(),
 		URIs:        uris,
-		Variables:   variables,
+		Variables:   buildHostVariables(host.Variables),
 	}
+}
+
+func buildURIData(raw string) *URIData {
+	var transport *TransportData
+	var scheme, port string
+	// url.Parse cannot read URI templates such as
+	// http://{version}.example.com until variables are substituted.
+	switch {
+	case strings.HasPrefix(raw, "https"):
+		scheme, port, transport = "https", "443", newHTTPTransport()
+	case strings.HasPrefix(raw, "http"):
+		scheme, port, transport = "http", "80", newHTTPTransport()
+	case strings.HasPrefix(raw, "grpcs"):
+		scheme, port, transport = "grpcs", "8443", newGRPCTransport()
+	case strings.HasPrefix(raw, "grpc"):
+		scheme, port, transport = "grpc", "8080", newGRPCTransport()
+	}
+	return &URIData{Scheme: scheme, URL: raw, Port: port, Transport: transport}
+}
+
+func buildHostVariables(attribute *expr.AttributeExpr) []*VariableData {
+	variables := expr.AsObject(attribute.Type)
+	if len(*variables) == 0 {
+		return nil
+	}
+	result := make([]*VariableData, len(*variables))
+	for index, variable := range *variables {
+		constraints, err := expr.EffectiveConstraintsFor(variable.Attribute)
+		if err != nil {
+			panic(fmt.Sprintf("invalid server variable %q constraints: %v", variable.Name, err))
+		}
+		value, hasDefault := constraints.Default()
+		enumValues, _ := constraints.EnumCandidates()
+		var values []string
+		if !hasDefault {
+			value = enumValues[0]
+			values = convertToString(enumValues...)
+		}
+		result[index] = &VariableData{
+			Name:         variable.Name,
+			Description:  variable.Attribute.Description,
+			VarName:      codegen.Goify(variable.Name, false),
+			DefaultValue: convertToString(value)[0],
+			Values:       values,
+		}
+	}
+	return result
 }
 
 // convertToString converts primitive type to a string.

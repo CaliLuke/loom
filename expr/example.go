@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 const maxAttempts = 500 // Max number of retries to generate valid example.
@@ -45,12 +47,38 @@ func (a *AttributeExpr) Example(r *ExampleGenerator) any {
 	if ok && value == "false" {
 		return nil
 	}
+	effective := effectiveExampleAttribute(a, r)
+	if effective == nil {
+		return nil
+	}
 
 	// enum should dominate, because the potential "examples" are fixed
-	if hasEnumValidation(a) {
-		return byEnum(a, r)
+	if hasEnumValidation(effective) {
+		return byEnum(effective, r)
 	}
-	return a.generatedExample(r)
+	return effective.generatedExample(r)
+}
+
+func effectiveExampleAttribute(attribute *AttributeExpr, generator *ExampleGenerator) *AttributeExpr {
+	constraints, prepared := generator.effectiveConstraints[attribute]
+	_, named := attribute.Type.(UserType)
+	if !prepared && !named && !hasEnumValidation(attribute) {
+		return attribute
+	}
+	if !prepared {
+		resolved, err := EffectiveConstraintsFor(attribute)
+		if err != nil {
+			return nil
+		}
+		constraints = &resolved
+	}
+	effective := *attribute
+	effective.Validation = constraints.Validation().Lowered()
+	if candidates, present := constraints.EnumCandidates(); present {
+		effective.Validation.Values = candidates
+		effective.Validation.EnumClauses = nil
+	}
+	return &effective
 }
 
 func (a *AttributeExpr) generatedExample(r *ExampleGenerator) any {
@@ -71,7 +99,7 @@ func (a *AttributeExpr) generatedExample(r *ExampleGenerator) any {
 		if example == nil {
 			return nil
 		}
-		if !checkLength(a, example) || !checkPattern(a, example) || !checkMinMaxValue(a, example) {
+		if !checkLength(a, example) || !checkPattern(a, example) || !checkFormat(a, example) || !checkMinMaxValue(a, example) {
 			continue
 		}
 		return example
@@ -103,15 +131,15 @@ func (a *AttributeExpr) generatedCandidate(
 }
 
 func hasEnumValidation(a *AttributeExpr) bool {
-	return a.Validation != nil && len(a.Validation.Values) > 0
+	return a.Validation != nil && len(a.Validation.Enums()) > 0
 }
 
 func hasFormatValidation(a *AttributeExpr) bool {
-	return a.Validation != nil && a.Validation.Format != ""
+	return a.Validation != nil && len(a.Validation.Formats()) > 0
 }
 
 func hasPatternValidation(a *AttributeExpr) bool {
-	return a.Validation != nil && a.Validation.Pattern != ""
+	return a.Validation != nil && len(a.Validation.Patterns()) > 0
 }
 
 func hasMinMaxValidation(a *AttributeExpr) bool {
@@ -129,7 +157,7 @@ func byFormat(a *AttributeExpr, r *ExampleGenerator) any {
 	if !hasFormatValidation(a) {
 		return nil
 	}
-	format := a.Validation.Format
+	format := a.Validation.Formats()[0]
 	if res, ok := map[ValidationFormat]any{
 		FormatEmail:        r.Email(),
 		FormatHostname:     r.Hostname(),
@@ -160,12 +188,13 @@ func byFormat(a *AttributeExpr, r *ExampleGenerator) any {
 
 // byPattern generates a random value that satisfies the pattern.
 //
-// Note: if multiple patterns are given, only one of them is used.
+// The first pattern proposes the candidate; generatedExample checks every
+// conjoined pattern before publishing it.
 func byPattern(a *AttributeExpr, r *ExampleGenerator) any {
 	if !hasPatternValidation(a) {
 		return false
 	}
-	pattern := a.Validation.Pattern
+	pattern := a.Validation.Patterns()[0]
 	re, err := syntax.Parse(pattern, syntax.Perl)
 	if err != nil {
 		return r.Name()
@@ -502,42 +531,69 @@ func checkPattern(a *AttributeExpr, example any) bool {
 	if !hasPatternValidation(a) {
 		return true
 	}
-	pattern := a.Validation.Pattern
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		panic("unreachable: invalid pattern '" + pattern + "' should have been caught by ValidationExpr.Validate")
+	for _, pattern := range a.Validation.Patterns() {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			panic("unreachable: invalid pattern '" + pattern + "' should have been caught by ValidationExpr.Validate")
+		}
+		if !re.MatchString(fmt.Sprint(example)) {
+			return false
+		}
 	}
-	if !re.MatchString(fmt.Sprint(example)) {
+	return true
+}
+
+func checkFormat(a *AttributeExpr, example any) bool {
+	if !hasFormatValidation(a) {
+		return true
+	}
+	text, ok := example.(string)
+	if !ok {
 		return false
+	}
+	for _, format := range a.Validation.Formats() {
+		if loom.ValidateFormat("example", text, loom.Format(format)) != nil {
+			return false
+		}
 	}
 	return true
 }
 
 func checkMinMaxValue(a *AttributeExpr, example any) bool {
-	if !hasMinMaxValidation(a) {
+	if a == nil {
+		return true
+	}
+	return checkValidationMinMaxValue(a.Validation, example)
+}
+
+func checkValidationMinMaxValue(validation *ValidationExpr, example any) bool {
+	if validation == nil || (validation.ExclusiveMinimum == nil && validation.Minimum == nil &&
+		validation.ExclusiveMaximum == nil && validation.Maximum == nil) {
 		return true
 	}
 	value, ok := numericExampleRat(example)
 	if !ok {
 		return true
 	}
-	if minimum := a.Validation.ExclusiveMinimum; minimum != nil {
+	if minimum := validation.ExclusiveMinimum; minimum != nil {
 		bound := new(big.Rat).SetFloat64(*minimum)
 		if bound != nil && value.Cmp(bound) <= 0 {
 			return false
 		}
-	} else if minimum := a.Validation.Minimum; minimum != nil {
+	}
+	if minimum := validation.Minimum; minimum != nil {
 		bound := new(big.Rat).SetFloat64(*minimum)
 		if bound != nil && value.Cmp(bound) < 0 {
 			return false
 		}
 	}
-	if maximum := a.Validation.ExclusiveMaximum; maximum != nil {
+	if maximum := validation.ExclusiveMaximum; maximum != nil {
 		bound := new(big.Rat).SetFloat64(*maximum)
 		if bound != nil && value.Cmp(bound) >= 0 {
 			return false
 		}
-	} else if maximum := a.Validation.Maximum; maximum != nil {
+	}
+	if maximum := validation.Maximum; maximum != nil {
 		bound := new(big.Rat).SetFloat64(*maximum)
 		if bound != nil && value.Cmp(bound) > 0 {
 			return false

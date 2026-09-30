@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -38,6 +39,41 @@ func TestAttributeExprAllRequired(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestAttributeExprAllRequiredAccumulatesNamedLayers(t *testing.T) {
+	base := &UserTypeExpr{AttributeExpr: &AttributeExpr{
+		Type: &Object{
+			{Name: "base", Attribute: &AttributeExpr{Type: String}},
+			{Name: "outer", Attribute: &AttributeExpr{Type: String}},
+		},
+		Validation: &ValidationExpr{Required: []string{"base"}},
+	}}
+	attribute := &AttributeExpr{
+		Type:       base,
+		Validation: &ValidationExpr{Required: []string{"outer"}},
+	}
+
+	if actual := attribute.AllRequired(); !slices.Equal(actual, []string{"outer", "base"}) {
+		t.Errorf("got required fields %#v", actual)
+	}
+}
+
+func TestAttributeExprAllRequiredUsesFinalizedFieldIdentity(t *testing.T) {
+	base := &UserTypeExpr{AttributeExpr: &AttributeExpr{
+		Type: &Object{
+			{Name: "name:n", Attribute: &AttributeExpr{Type: String}},
+		},
+		Validation: &ValidationExpr{Required: []string{"name:n"}},
+	}}
+	attribute := &AttributeExpr{
+		Type:       base,
+		Validation: &ValidationExpr{Required: []string{"name"}},
+	}
+
+	if actual := attribute.AllRequired(); !slices.Equal(actual, []string{"name:n"}) {
+		t.Errorf("got required fields %#v", actual)
 	}
 }
 

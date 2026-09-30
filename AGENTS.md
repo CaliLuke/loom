@@ -15,7 +15,7 @@
   - Fix every finding of medium or higher severity, rerun the affected gates, and get a re-review by an agent that did not implement the change; the original reviewer may do it. The re-review confirms each fix and checks the changed lines and their effect on the surrounding code; it does not re-audit the unchanged diff.
   - For a low-severity finding or a nit, make a mechanical fix and have the re-review confirm it, reject it with evidence that the re-review accepts, or file a GitHub issue and leave the code unchanged.
   - A commit is authorized when its latest review, or re-review, leaves no unresolved finding: every finding is fixed and confirmed, rejected with evidence that the re-review accepted, or, for a low finding or nit, filed as a GitHub issue. A rebase or conflict resolution that changes a reviewed diff needs a re-review of the change. Make no changes between that authorizing review and the commit.
-- **Formal models when they fit**: For work with complex interactions or hard-to-predict side effects, such as concurrency, ownership, ordering, retries, or protocol state, write a TLA+ or Lean model before or alongside the code. Use it to find bugs in the current design and to check a new design before implementing it. When a bug is known, first model the current behavior and confirm that the checker reproduces it. Then check each candidate design, and implement the one the model supports. Keep durable models and their configurations next to the code they describe, as in `pulse/pool/tla/`, and record how to run them and what they found in that directory's README. Formal models add to the tests; they never replace them.
+- **Formal models and proofs as design tools**: For work with complex interactions or hard-to-predict side effects, such as concurrency, ownership, ordering, retries, or protocol state, use TLA+ or Lean to explore the design before committing to an implementation. Make assumptions and invariants explicit, expose corner cases, and compare candidate designs against the intended contract. When a bug is known, first model the current behavior and confirm that the checker reproduces it. Use counterexamples and proof obligations to revise the design, then implement the supported design and keep the model aligned as implementation reveals new constraints. Keep durable models and their configurations next to the code they describe, as in `pulse/pool/tla/`, and record how to run them and what design decisions they informed in that directory's README. Proofs establish properties within the model's assumptions; tests check the implementation and its correspondence to the model, including behavior outside the model's scope.
 - **Loom naming only**: Do not introduce or keep legacy upstream-named aliases, env vars, scripts, targets, or compatibility shims in Loom-owned workflows. Use `loom` naming exclusively.
 - **Proof maintenance and cleanup**: Keep proof sources, model configurations, theorem manifests, pinned toolchain declarations, run instructions and concise findings beside the owning code. Link models to implementation seams, regression tests and known limitations; update those records and rerun affected checks when a weakness is discovered. Do not commit compiled proofs, checker state/trace output, raw logs or temporary probe/build directories. As soon as a task's validation and independent review finish, delete its temporary artifacts, including ignored Lean `.lake` output, after confirming no active task or process still needs them. Preserve durable reproduction inputs and summarized evidence first. This is an agent cleanup responsibility; do not add cleanup automation solely for this policy. Keep reusable installed toolchains and shared caches, and use the managed worktree tools for worktree lifecycle operations.
 
@@ -39,8 +39,11 @@
   Ask the user only when public behavior remains genuinely unresolved; make
   routine implementation choices autonomously. A heavyweight RFC or approval is
   not required for every change.
-- Use proofs and tests to verify the selected contract, not to select the
-  contract after implementation.
+- Use models and proofs during architectural reasoning to expose consequences,
+  compare alternatives, and establish invariants. Let that evidence inform the
+  design before implementation; it does not decide product intent or authorize
+  changes to the accepted public contract. Use tests to check the resulting
+  implementation against the design.
 
 ### Skill Routing
 

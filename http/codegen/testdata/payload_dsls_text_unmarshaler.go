@@ -149,7 +149,7 @@ var PayloadCookieCustomTextUnmarshalerDefaultDSL = func() {
 		Method("MethodCookieCustomTextUnmarshalerDefault", func() {
 			Payload(func() {
 				Attribute("id", String, func() {
-					Default("00000000-0000-0000-0000-000000000000")
+					Default("550e8400-e29b-41d4-a716-446655440000")
 					Format(FormatUUID)
 					Meta("struct:field:type", "uuid.UUID", "github.com/google/uuid")
 				})

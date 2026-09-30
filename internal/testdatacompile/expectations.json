@@ -74,6 +74,12 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
+  "expr/EndpointBodyAsUserType": {
+    "contains": "OpenAPI representation: value plan has unrelated member \"name\"",
+    "phase": "gen",
+    "reason": "known generator failure",
+    "issue": "https://github.com/CaliLuke/loom/issues/581"
+  },
   "expr/EndpointDuplicateResponseStatusCode": {
     "contains": "Multiple response definitions with status code 200",
     "phase": "gen",
@@ -189,6 +195,11 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
+  "expr/ExplicitAuthHeaderDSL": {
+    "contains": "OpenAPI OAuth2 security scheme \"authCode\" cannot describe header credential \"Token\" while preserving OAuth flows and scopes; use the Authorization header or exclude the endpoint from OpenAPI",
+    "phase": "gen",
+    "reason": "intentional validation failure"
+  },
   "expr/FilesIncompatibleDSL": {
     "contains": "invalid use of Files in API files-incompatile",
     "phase": "gen",
@@ -219,18 +230,13 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
-  "expr/GRPCEndpointWithUnionCollectionBranches": {
-    "contains": "service \"Service\" method \"Method\": union type IndexOrLeaf has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch",
-    "phase": "gen",
-    "reason": "intentional validation failure"
-  },
   "expr/GRPCEndpointWithUnionCollections": {
     "contains": "service \"Service\" method \"Method\": union type Choice is an array element, not supported by gRPC; wrap the union in a Type with one Field and use that type as the element",
     "phase": "gen",
     "reason": "intentional validation failure"
   },
   "expr/GRPCEndpointWithUnionContainingAny": {
-    "contains": "service \"Service\" method \"MethodUnion\": union type choice has map elements, not supported by gRPC; wrap the map in a Type with one Field and use that type as the branch",
+    "contains": "attribute \"value\" of protocol buffer message \"AnyAlias\" has no field number, use \"Field\" to define it",
     "phase": "gen",
     "reason": "intentional validation failure"
   },

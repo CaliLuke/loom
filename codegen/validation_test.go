@@ -755,7 +755,7 @@ func TestNewValidationRenderDataHandlesAliasPointersAndDefaults(t *testing.T) {
 
 	t.Run("optional primitive pointer uses dereference", func(t *testing.T) {
 		att := &expr.AttributeExpr{Type: expr.String}
-		data := newValidationRenderData(att, ctx, false, false, "target", "target")
+		data := newValidationRenderData(att, ctx, false, false, false, "target", "target")
 		if !data.IsPointer {
 			t.Fatal("expected optional primitive to be pointer-like")
 		}
@@ -766,7 +766,7 @@ func TestNewValidationRenderDataHandlesAliasPointersAndDefaults(t *testing.T) {
 
 	t.Run("alias uses underlying type cast", func(t *testing.T) {
 		att := &expr.AttributeExpr{Type: alias}
-		data := newValidationRenderData(att, ctx, true, true, "target", "target")
+		data := newValidationRenderData(att, ctx, true, true, false, "target", "target")
 		if data.TargetValue != "string(target)" {
 			t.Fatalf("expected alias cast target value, got %q", data.TargetValue)
 		}

@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/eval"
 )
 
@@ -320,4 +322,49 @@ func TestHostExprAttribute(t *testing.T) {
 			t.Errorf("%s: got %#v, expected %#v", k, actual, tc.expected)
 		}
 	}
+}
+
+func TestHostExprUsesEffectiveVariableConstraints(t *testing.T) {
+	variable := func(typ DataType) *HostExpr {
+		return &HostExpr{
+			URIs: []URIExpr{"https://{version}.example.com"},
+			Variables: &AttributeExpr{Type: &Object{
+				{Name: "version", Attribute: &AttributeExpr{Type: typ}},
+			}},
+		}
+	}
+
+	baseDefault := namedScalar("BaseDefault", String, nil)
+	baseDefault.Attribute().DefaultValue = "base"
+	inheritedDefault := namedScalar("InheritedDefault", baseDefault, nil)
+	overriddenDefault := namedScalar("OverriddenDefault", inheritedDefault, nil)
+	overriddenDefault.Attribute().DefaultValue = "override"
+	baseEnum := namedScalar("BaseEnum", String, &ValidationExpr{Values: []any{"v1", "v2"}})
+	inheritedEnum := namedScalar("InheritedEnum", baseEnum, nil)
+	narrowedEnum := namedScalar("NarrowedEnum", inheritedEnum, &ValidationExpr{Values: []any{"v2"}})
+
+	for _, test := range []struct {
+		name string
+		typ  DataType
+		want string
+	}{
+		{name: "inherited default", typ: inheritedDefault, want: "https://base.example.com"},
+		{name: "local override", typ: overriddenDefault, want: "https://override.example.com"},
+		{name: "inherited enum", typ: inheritedEnum, want: "https://v1.example.com"},
+		{name: "narrowed enum", typ: narrowedEnum, want: "https://v2.example.com"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			host := variable(test.typ)
+			requireNoValidationErrors(t, host.Validate())
+			actual, err := host.URIString(host.URIs[0])
+			require.NoError(t, err)
+			require.Equal(t, test.want, actual)
+		})
+	}
+
+	invalidBase := namedScalar("InvalidBase", String, &ValidationExpr{Values: []any{"v1", "v2"}})
+	invalidBase.Attribute().DefaultValue = "v1"
+	invalidDerived := namedScalar("InvalidDerived", invalidBase, &ValidationExpr{Values: []any{"v2"}})
+	err := variable(invalidDerived).Validate()
+	require.ErrorContains(t, err, "default value")
 }

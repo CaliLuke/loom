@@ -3,11 +3,12 @@ package ir
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	commontestdata "github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type annotationPathStep struct {

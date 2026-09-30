@@ -97,6 +97,9 @@ type (
 		source         *valueSourceData
 		occurrence     ValueOccurrence
 		customBoundary bool
+		// checkableFailure retains independently invalid builtin siblings when
+		// an unsupported custom value owns the aggregate outcome.
+		checkableFailure bool
 	}
 
 	valueSourceData struct {
@@ -120,6 +123,7 @@ type (
 		payload    ResolvedValue
 		raw        any
 		json       jsontext.Value
+		opaque     bool
 	}
 
 	valueResolutionKey struct {

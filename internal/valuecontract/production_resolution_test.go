@@ -51,6 +51,9 @@ func checkProductionSourceConformance(t *testing.T, executable string) {
 				require.True(t, source.ID() == result.SourceID())
 				require.True(t, occurrence.ID() == result.OccurrenceID())
 				require.Equal(t, role.value, result.Role())
+				if tc.name == "map enum integer host normalization" {
+					require.Equal(t, expr.ValueResolved, result.Outcome())
+				}
 				expected := graph.output(input, result, tc.raw)
 				// Canonicalize JSON syntax through jsontext values, never float64:
 				// arbitrary integer coefficients and all identity paths stay exact.
@@ -149,7 +152,7 @@ func productionNestedCases() []productionCase {
 		{"bounded cycle error priority", &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.Any}}, Validation: &expr.ValidationExpr{MaxLength: &maxZero}}, cyclic},
 		{"array enum valid", &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}, Validation: &expr.ValidationExpr{Values: []any{[]string{"allowed"}}}}, []string{"allowed"}},
 		{"map enum canonical spelling", &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Any}, ElemType: &expr.AttributeExpr{Type: expr.String}}, Validation: &expr.ValidationExpr{Values: []any{map[any]string{float32(.1): "value"}}}}, map[any]string{float64(float32(.1)): "value"}},
-		{"map enum integer host normalization", &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Int}, ElemType: &expr.AttributeExpr{Type: expr.String}}, Validation: &expr.ValidationExpr{Values: []any{map[int64]string{1: "value"}}}}, map[int]string{1: "value"}},
+		{"map enum integer host normalization", &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.Int}, ElemType: &expr.AttributeExpr{Type: expr.String}}, Validation: &expr.ValidationExpr{Values: []any{map[int32]string{1: "value"}}}}, map[int]string{1: "value"}},
 		{"Any nested dynamic host enum mismatch", &expr.AttributeExpr{Type: expr.Any, Validation: &expr.ValidationExpr{Values: []any{map[int]any{1: int(1)}}}}, map[int]any{1: int64(1)}},
 	}
 }

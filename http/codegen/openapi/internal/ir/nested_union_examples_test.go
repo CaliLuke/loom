@@ -96,8 +96,10 @@ func TestSynthesizedExamplePreservesOccurrenceSelections(t *testing.T) {
 	}}
 	var cached any = map[string]any{"name": "raw cached example"}
 	generator.HaveSeen(inner.ID(), &cached)
-	raw := synthesizedOpenAPIExample(attribute, generator)
-	value, ok := OpenAPIExampleValue(attribute, raw)
+	source := synthesizedOpenAPIExample(attribute, generator)
+	require.True(t, source.present)
+	require.True(t, source.declared)
+	value, ok := openAPIDeclaredExampleValue(attribute, source.value)
 	require.True(t, ok)
 	object := value.(map[string]any)
 	first := object["first"].(map[string]any)
@@ -140,8 +142,10 @@ func TestSynthesizedUnionRetainsBranchCoercion(t *testing.T) {
 					{Name: "data", Attribute: &expr.AttributeExpr{Type: test.kind, UserExamples: []*expr.ExampleExpr{{Value: "hi"}}}},
 				}}},
 			}}}
-			raw := synthesizedOpenAPIExample(attribute, expr.NewRandom("bytes"))
-			value, ok := OpenAPIExampleValue(attribute, raw)
+			source := synthesizedOpenAPIExample(attribute, expr.NewRandom("bytes"))
+			require.True(t, source.present)
+			require.True(t, source.declared)
+			value, ok := openAPIDeclaredExampleValue(attribute, source.value)
 			require.True(t, ok)
 			require.Equal(t, test.want, value)
 		})
@@ -157,8 +161,10 @@ func TestSynthesizedRecursiveUnionExample(t *testing.T) {
 		}}},
 	}}
 	attribute := &expr.AttributeExpr{Type: tree}
-	raw := synthesizedOpenAPIExample(attribute, expr.NewRandom("recursive"))
-	value, ok := OpenAPIExampleValue(attribute, raw)
+	source := synthesizedOpenAPIExample(attribute, expr.NewRandom("recursive"))
+	require.True(t, source.present)
+	require.True(t, source.declared)
+	value, ok := openAPIDeclaredExampleValue(attribute, source.value)
 	require.True(t, ok)
 	envelope := value.(map[string]any)
 	require.Equal(t, "node", envelope["type"])

@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	commontestdata "github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/stretchr/testify/require"
+
+	commontestdata "github.com/CaliLuke/loom/codegen/testdata"
 )
 
 func TestRenderedByteProjectionPreservesAnnotationPaths(t *testing.T) {

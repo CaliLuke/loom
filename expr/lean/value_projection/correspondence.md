@@ -1,10 +1,17 @@
 # Proof and production correspondence ledger
 
-Status: **M1, #569 and #570 are independently reviewed and pushed. #574 byte-schema migration is in progress; its current proof checkpoint is recorded below, without claiming completed schema correspondence.** The reviewed contract is
+Status: **M1, #569, #570 and #574 are independently reviewed and pushed. The #571 effective-alias implementation has passed its model and tested production-correspondence gates within the boundaries recorded below.** The reviewed contract is
 [value-contract-design.md](../../../roadmap/value-contract-design.md).
 The source-history reference is `f5b786b39675e2b5c1466f04f3301b7b337779b6`.
 The word “proved” below applies to the Lean statement, not to handwritten Go,
 generated programs, all JSON strings, or any codec implementation.
+
+The detailed #574 investigation checkpoints below preserve what each local
+review established. Their pending whole-ticket gates were subsequently completed
+in `9e6b9121`; the [final #574 evidence](../../../internal/valuecontract/BYTE_SCHEMA.md)
+records the repository gates, registered 72-probe comparison and final-source
+499-case comparison. That delivery does not discharge separately listed general
+alias/key extraction obligations or turn tested Go correspondence into a theorem.
 
 ## Established statements
 
@@ -16,7 +23,7 @@ the individual obligations, and the gate prints their transitive axiom sets.
 | `erasedBranchesIndistinguishable`, `legacyBranchLoss` | **Proved**: two concrete selected branches erase to one payload; first-branch reconstruction changes the second identity | `expr/types_union.go` source selection and `expr/example_canonicalization.go` reconstruction; #566 nested-branch probe supplies independent generated evidence |
 | `legacyByteReinterpretation`, `byteStringDecodes`, `byteEncodingWitness` | **Proved** for the concrete `hi`/`aGk=` specimen codec; literal `hi` does not decode as the original bytes | Historical OpenAPI byte conversion; current authored-byte CLI bug in `codegen/cli/conversion.go`; #566 actual generated builder/decoder probe |
 | `byteTextWireCollision` | **Proved**: the same `Wire.text "aGk="` decodes as Bytes and String | Untagged OpenAPI matching in `http/codegen/openapi/internal/ir/document_examples.go`; candidate same-wire uniqueness is proved below; actual-decoder correspondence remains #570 |
-| `legacyLengthRejectsValidBytes`, `legacyLengthAcceptsShortBytes` | **Proved** concrete mismatches between decoded byte count and ASCII wire-string length under `boundaryCodec`; neither direction can use copied length bounds | `expr/json_schema_inline.go`, OpenAPI IR `analyzer.go`, and generated decoded-length validation. #574 has independent generated-server/schema reproductions; repaired arithmetic and complete lexical equivalence remain pending |
+| `legacyLengthRejectsValidBytes`, `legacyLengthAcceptsShortBytes` | **Proved** concrete mismatches between decoded byte count and ASCII wire-string length under `boundaryCodec`; neither direction can use copied length bounds | `expr/json_schema_inline.go`, OpenAPI IR `analyzer.go`, and generated decoded-length validation. #574 delivered the repaired arithmetic, grammar and tested generated-server/schema correspondence; see the final byte-schema evidence below. This is not a theorem about arbitrary runtime codecs |
 | `canonicalByteEnumAgreement`, `aliasSchemaDecoderMismatch` | **Proved**: canonical `aGk=` meets both enum predicates, while String `aGl=` fails the canonical byte-schema enum but decodes to the allowed byte value `hi` | #569 separately requires emitted-schema validity and actual decoder branch/observation preservation. #570 tests real codecs and #574 corrects the length/grammar schema; no enum broadening or String normalization follows from this witness |
 | `legacyAuthoredReplacement`, `legacySourceReplacement` | **Proved**: concrete unconditional synthesis replaces value and source | `grpc/codegen/client_cli_example.go`, `service_data_analysis.go` and transport-copy source selection; #566 probes with and without unions |
 | `selectedBodyObservation`, `selectedBodyRepresentable`, `observationIsNotWholeService` | **Proved**: a body selection drops its service header, retains bytes, and remains representable under the specimen codec | `expr/http_body_types.go` and HTTP target plans; actual plan extraction remains a tested implementation boundary |
@@ -48,7 +55,7 @@ resolves, projects or decodes.
 
 | Weakness | Model/evidence now | Remaining owner and acceptance boundary |
 | --- | --- | --- |
-| Copying byte-count bounds onto base64 string length rejects valid values and accepts short decoded values | Two registered concrete Lean counterexamples above; actual generated HTTP server and inline/OpenAPI discrepancy reproduced for #574 | #575 specifies the policy; #569 proves the candidate semantic relations under explicit codec boundaries; #574 implements shared schema arithmetic/grammar. Production correspondence remains pending and cannot assume the correction landed |
+| Copying byte-count bounds onto base64 string length rejects valid values and accepts short decoded values | Two registered concrete Lean counterexamples above; actual generated HTTP server and inline/OpenAPI discrepancy reproduced for #574 | #575 specifies the policy; #569 proves the candidate semantic relations under explicit codec boundaries; #574 delivered shared schema arithmetic/grammar and the tested production correspondence recorded in BYTE_SCHEMA.md; the Lean witnesses alone do not establish that correspondence |
 | Schema enum membership can differ from actual decoder acceptance of a noncanonical pad-bit alias | Registered alias counterexample plus canonical control use a finite, explicit specimen codec. This is not a universal codec axiom or a proof about generated union routing | Candidate schema and decoder predicates are independent, and representability/preservation require both. #570 and consumer gates test canonical/alias/malformed values with actual schema validators and decoders; never infer runtime uniqueness from schema-only uniqueness |
 | Missing required fields and ambiguous nested unions affect complete-first branch ranking differently | M1 has no resolver or optional-field typing theorem. Existing Go complete matching excludes nested ambiguity; no M1 theorem establishes a broader candidate algorithm | #575 settles complete-first ranking, zero-complete fallback and ambiguity obstruction. Candidate full-outcome correspondence and competing controls now establish that rule; #570 preserves the public compatibility adapter |
 | One named schema/cache entry can be shared by incompatible JSON, multipart or location representations | M1 `Plan` is explicit vocabulary, not a derived representation identity or a schema-cache model. The shared `Blob` reference probe reproduces this integration weakness; current Lean witnesses make no naming/cache claim | #575 defines public-name/reference compatibility; #570 supplies durable representation/occurrence plans; #574 schema analysis consumes them before component registration. Reversed traversal, recursive references and excluded-context equivalence require independent generated tests |
@@ -60,7 +67,7 @@ resolves, projects or decodes.
 | Destination width and signedness change decoder acceptance independently of schema and source meaning | `internal/valuecontract/production_target_numeric_test.go` initially checked 420 scalar/map/untagged cases using JSON-v2 scalar and standalone numeric parsers. Independent native-map checks showed that standalone parsing is insufficient: numeric map keys `+1` and `01` are rejected and opposite signed-zero keys collide | Per-target integer and float policies, exact result/sign comparison, and fail-closed protocol controls passed the 510-theorem checkpoint and independent review. The corpus now uses actual typed-map decoding; 132 additional direct cases check native widths and cardinality. This correction and map identity passed the 522-theorem checkpoint and independent review. This correction changes codec evidence, not schema acceptance; the earlier standalone-parser checkpoint is not a generated-map guarantee |
 | Raw sequence shape, primitive eligibility and JSON encoding are independent | `expr/value_resolve_test.go:TestValueResolveByteHostShapes` and `expr/value_source_eligibility_test.go` cover native byte slices/arrays, named containers and defined byte elements. A named slice of native bytes encodes as base64 but fails declared Bytes admission; defined byte elements encode as an array and fail nonempty numeric-array admission; ArrayOf(Any) retains them | **Reviewed #570 checkpoint:** `SourceBytes` retains native slice/array/named-container evidence before branch matching; defined element types remain ordinary child inputs. Sequence children retain original host evidence; Any materialization preserves binary meaning, while declared Array consumes the original children. Empty arrays retain vacuous element compatibility. `SourceByteControls` retains the old scalar-erasure ambiguity counterexample. The integrated 567-theorem gate, fresh replay and 402 production source comparisons passed independent review |
 | Numerical equality is not source map-key identity, and source identity is not native decoded-key identity | Mixed-width equal-valued keys can have distinct canonical names; the new source differential comparison now retains both. Native typed numeric maps reject equal decoded keys, including opposite signed zeros, even when their wire names differ | `SameKey`/`keyEqual` and `AdmissibleKeys` now own source/enum map identity through the canonical encoder, with the same codec threaded through typing and strict equality. Raw Any equality stays separate. Runtime `mapDecoded` keeps homogeneous native numerical uniqueness. `MapIdentityControls` covers swapped values, heterogeneous collisions, raw-host separation, rounding collisions and signed-zero rejection. Decoded numeric spelling requests close the external boundary for postdecode enum/observation comparisons; the complete 522-theorem checkpoint and fresh replay passed independent review |
-| Specialized traversal paths can bypass occurrence-owned constraints | Independent review found map-key enum/alias rules and documentary alias-collection length gates missing. Shared body/local-constraint/enum ordering repairs and the subsequent positive Any-key enum correction pass direct tests and independent re-review | **Pending #574/#571 extraction correspondence:** Go key-domain observation is separate from ordinary Any value observation and its fixes passed independent review. Before #574 relies on alias schema/length claims, translate alias-local schema gates. Before #571 relies on enum/default claims, translate cumulative alias/key constraints and key-domain enums. The existing graph adapter rejects unsupported shapes explicitly; these cases are not counted as passing differential coverage |
+| Specialized traversal paths can bypass occurrence-owned constraints | Independent review found map-key enum/alias rules and documentary alias-collection length gates missing. Shared body/local-constraint/enum ordering repairs and the subsequent positive Any-key enum correction pass direct tests and independent re-review. The raw-key comparison subsequently exposed capture erasing a present-empty authored enum; preserving the empty snapshot repairs the shared path | **Tested #571 correspondence:** `named-key-contracts` independently extracts raw scalar key ancestry, checks enum/default admission at every prefix, and compares whole-map resolution. Constrained projection composes independent key admission with the key codec reference, keeping raw Any host identity separate from canonical names and native decoded keys. `effective-alias-lengths` compares String/Array/Map raw lengths, effective bounds, resolution and projection. All 18 groups pass independent review. These bounded adapters do not remove the general graph adapter's unsupported-shape guards or prove arbitrary Go extraction. #574's byte-schema evidence remains separately recorded |
 | Source graph traversal must preserve entries and terminate even for rejected input | Independent review reproduced a NaN map key silently erased by MapKeys/MapIndex, cyclic synthesized raw data traversed again without a guard, and custom defined-byte elements bypassing the raw child boundary | Shared MapRange key/value capture, cycle-aware owned copying and exact native-byte classification have red/green direct tests and passed independent re-review; finite builtin Lean inputs do not prove arbitrary Go graph traversal or custom callbacks |
 | Raw Go `any` decoding is not Loom's generated Any carrier | [Actual JSONValue controls](../../../scripts/value_contract_any_test.go) preserve exact large numeric text through `loom.JSONValue`; typed bytes and literal base64 text still materialize to the same JSON string | Candidate `Materializes` and `jsonSnapshot` record target JSON meaning independently of raw-source equality. Universal materializer correspondence is checked in `MaterializationProofs`; candidate projection composition is checked; #570 carrier correspondence passes for the registered corpus; later consumer coverage remains required |
 | Source candidate preference includes compatible non-object alternatives, and cross-member authored/wire aliases can conflict | [Preference/null controls](../../../scripts/value_contract_source_test.go) preserve current non-object ranking; [alias controls](../../../scripts/value_contract_alias_test.go) retain the actual wrong-type overlap witness | Candidate resolver validates every retained assignment and preserves supported name overlaps. Full resolver correspondence is checked; #570 source/alias regressions and registered correspondence pass; the public Go compatibility adapter remains a separately tested boundary |
@@ -70,7 +77,17 @@ resolves, projects or decodes.
 | A projected collection can inherit stale naming provenance from its source declaration | Required meal-planner output changed `RecipeResponseSummaryCollection` to `RecipeCollection` after copying source occurrence metadata | Shared view projection must preserve occurrence constraints while assigning naming provenance to the new derived declaration. Four direct view/canonical-name controls, race checks and unchanged meal-planner JSON/YAML goldens pass; independent scoped review passed. The final parent/candidate meal-planner comparison is byte-identical. This is DSL-to-plan naming evidence outside the semantic theorem, not grounds for a renderer exception or a new proof vocabulary |
 | A named Bytes type shared by nullable and non-null result occurrences can corrupt view representation planning | The retained #570 nullable-view regression is outside the Lean table validator: the model receives explicit occurrence/target identities and does not construct them from shared Go attributes | #570 isolates effective occurrence presence and physical representation. Direct tests and generated nullable-view/child-view probes pass, with the original parent failure retained in the comparison record. This is tested adapter/plan derivation, not a semantic theorem |
 | Initial Lean evaluator branch returns bypassed whole-node enum gates | Universal schema correspondence exposed a candidate defect before approval; independent spec rejected the empty enum while the initial array evaluator accepted. `ProjectionControls.legacyHoistedEnumCounterexample` retains the rejected do-block layering, and repaired controls cover array/object/map/union/Any gates | Schema, decoder and resolver now compute their bodies in separate helper functions before uniform enum validation. All affected component proofs/controls have been rebuilt; independent exact-diff review remains required; this is a candidate implementation repair, not an assumption narrowing representability |
-| Alias enum overrides disagree across existing consumers | An admitted Inner Int enum `{1,2}` with bounds `[0,9]`, then Outer enum `{2,3}` with bounds `[1,5]`, produces a validator accepting `3`; its actual OpenAPI schema and resolver example role reject `3`. The emitted example is also `3`. Parent `2f6bfbf7` emits the same schema. | **Pending #571 design decision:** preserve outer-enum override or require cumulative membership before migration. This is an effective-contract extraction boundary, not permission to change runtime acceptance. Evidence executes the emitted validator and validates the schema with Ajv; it does not claim an HTTP round trip or enum/default-role coverage. Bound intersection is a separate policy. |
+| Alias enum overrides disagree across existing consumers | An admitted Inner Int enum `{1,2}` with bounds `[0,9]`, then Outer enum `{2,3}` with bounds `[1,5]`, produces a validator accepting `3`; its actual OpenAPI schema and resolver example role reject `3`. The emitted example is also `3`. Parent `2f6bfbf7` emits the same schema. | **Accepted #571 policy:** an explicit descendant enum must equal or refine the effective ancestor enum. Any member outside it is a design error; no override or silent intersection is permitted. `AliasContracts` proves the raw-ancestry acceptance judgment and positive/rejected controls. The Go adapter independently normalizes exercised authored values before comparing the production snapshot. DSL extraction, diagnostics, codecs and unmodeled value shapes remain tested boundaries. |
+| Effective Pattern/Format selection can disagree with ordinary alias resolution and all-of schemas | The first effective owner retained only the nearest Pattern and Format, so a derived enum or default could pass construction while normal alias resolution rejected it against an ancestor clause. | **Accepted #571 policy:** exact typed clauses conjoin across the whole named ancestry. The owner reports stable current-to-base clauses, de-duplicates exact `(kind, value)` identities with first/current provenance, and admission checks every clause. `AliasContracts` proves this abstract conjunction for full `(kind, predicate)` identities and retains separate nearest-only Pattern and Format counterexamples. The Go adapter independently evaluates representative regex/UUID/date-time cases; arbitrary engine equivalence remains external. Direct Go controls require example synthesis to filter inherited enum candidates through every effective Format clause. Runtime and documentation plans retain every enum clause member in its declared shape; later predicates still govern projection and decoding. Generator choice, plan extraction and the concrete format engine remain tested correspondence boundaries, not Lean claims. |
+| A correct effective owner does not protect a sampler that bypasses it | The three-transport probe retained the inherited enum and derived UUID format in both service and protobuf attributes, but `AttributeExpr.Example` inspected only local validation and generated a UUID outside the enum. The generated gRPC validator rejected that example. Merely copying effective predicates still let an inherited object enum supply an example missing a newly required field: sampling must use the owner's filtered candidates. Re-capturing an already prepared synthesis graph also suppressed named union examples because the graph contains a private branch-selection adapter. | **#571 adapter obligation:** ordinary generated examples consume the complete effective constraints after authored-source and suppression selection. Enum sampling uses `EnumCandidates`, including its present-empty domain; runtime and schema validation retain the unfiltered clauses. `ValueContext.Synthesize` samples its already materialized graph without re-admission: only exact attribute pointers prepared by that graph may skip materialization, recorded privately on its own generator. Direct controls cover enum/format intersections, required-field narrowing, empty domains, inherited non-enum predicates and retained named-union choices; generated transport controls must accept the emitted example. This closes an implementation correspondence gap under the existing conjunction and source-selection design; it adds no theorem about Go sampling or codecs. |
+
+The same example re-admission defect also affects OpenAPI's private
+`selectedExampleUnion` wrapper. Its #571 generated-example repair uses shared
+source selection and synthesis, then `DeclaredJSONValue` as a semantic carrier into the existing
+OpenAPI conversion path. That carrier preserves declared bytes and precision and
+the selected tagged envelope; it is not checked target wire output. Carrying the
+original service result through target plans and removing the remaining OpenAPI
+re-synthesis and interpretation remain #572 obligations.
 
 These rows invalidate any broader inference from the old foundation approval;
 the original concrete lemmas remain unchanged. Counterexample/model and ledger
@@ -109,6 +126,7 @@ row nor the combined gate establishes the Go adapter.
 | `ObservationExecutionProofs`: `observeValue_iff` | Every finite independently observed value is produced by the executable phase, and every successful output has that observation; only well-formed graph/root lookup is required | This phase preserves visible union identity and legitimately drops excluded data. It does not derive target plans from mutable `expr` graphs |
 | `CanonicalConstructionProofs`: `construct_some_iff`, `construct_none_iff` | Canonical construction and explicit absence agree with the independent relation at a graph/value-derived budget | Required wire fields are checked after field-local observation and parent omission; codecs and plan extraction remain external |
 | `ProjectionCorrectness`: `project_sound`, `project_progress`, `project_runtime_preservation` | Every emitted wire has independent canonical/schema meaning; every independently representable finite value emits; runtime-backed targets decode that same wire to the target observation | No premise assumes projector success or preservation of excluded service fields. This proves the reference functions, not production Go or generated decoders |
+| `NumericBounds`: `effectiveNumericBounds_iff`; `AliasContracts`: `effectiveEnumeration_iff_raw_refinement`, `effectiveEnumeration_returns_last_explicit`, `validateAliasPrefixes_iff`, `evaluated_current_authored_enumeration_valid`, `evaluated_default_valid`, `numeric_layers_conjunction`, `predicate_clauses_conjunction`, `effectivePredicates_contains_raw`, `effectivePredicates_identities_nodup`, `effectivePredicates_first_identity`, `effectiveRequired_contains_raw`, `effectiveRequired_identities_nodup`, `effectiveRequired_first_identity` | Every finite raw alias ancestry enforces enum refinement, validates each locally authored enum under the non-enum contract at its declaration, validates the selected default at every base-to-current prefix under that prefix's full modeled contract, selects the final explicit enum/default, conjoins all four numeric bounds, stably unions exact typed Pattern/Format identities current-to-base with first provenance, and unions required identities with effective-first provenance. An inherited enum composes with later non-enum clauses as an intersection; it is not re-authored at the descendant | Semantic IDs and predicate acceptance facts are independent adapter inputs. Go extraction, exact float conversion, regex/format implementation, finalization/diagnostics, length/shape validation and codecs are executable boundaries. Primitive copied field templates are not named-type ancestry |
 
 The full `project` function is executable and its controls include lost fields,
 partial-source selected bodies, second equal-payload branches, finite recursive
@@ -123,10 +141,19 @@ fresh replay and independent review, together with 402 production source
 comparisons. The later no-callback control exposed over-eager reference codec
 requests; the corrected request collector passes all 13 registered assertion
 groups without failed or skipped events. These are groups, not input counts.
-Full integration gates and generation comparisons pass; final commit review is
-required. Alias-local schema mapping is due
-in #574 and cumulative key-constraint/enum mapping in #571. The old M1 gate alone does not establish candidate
-correctness. `Resolution.missing` preserves an ordered list of member-identity
+That #570 checkpoint was delivered in `2f6bfbf7`. #574 subsequently delivered
+byte-alias schema mapping. #571's 18-group comparison adds bounded raw
+scalar-key and String/Array/Map alias-length correspondence. Its integrated proof
+gate passes 634 registered claim audits, fresh kernel replay and five rejection
+controls. The parent/candidate corpus acceptance covers all 934 registered
+designs, with exact reviewed output differences, source-scoped evidence reuse
+and explicit linked pre-existing failures. The final retained-evidence check
+and its negative controls pass; the failures remain recorded as failures.
+Eight standalone fixtures also pass their paired generation and output checks.
+These checks establish the exercised production correspondence, not a theorem
+about arbitrary generated Go. The old M1 gate alone does not establish candidate
+correctness. `Resolution.missing`
+preserves an ordered list of member-identity
 paths; `Failure` carries classification only. Production array-index/map-key
 paths and rendered diagnostics remain separately tested adapter obligations.
 
@@ -240,6 +267,53 @@ and all 15 executed comparison groups.
 The `byte-alias-lengths` and `byte-schema-bounds` executable groups compare the
 actual shared helper and Go source/target behavior against these functions.
 They do not discharge general alias enums, key constraints or DSL lowering.
+
+**#571 checkpoint:** `NumericBounds` and `AliasContracts` consume raw authored
+layers, never a production-lowered effective interval or requiredness oracle.
+The universal statements cover the four-bound conjunction, open ties, valid
+empty intervals, enum refinement and selected declaration, validation of each
+enum where authored, selected-default validation at every base-to-current
+prefix, default replacement, current-to-base typed Pattern/Format clause
+conjunction and first provenance, and required identity inclusion, uniqueness
+and first provenance. Inherited enum members compose with later non-enum clauses
+as an intersection; they are not reasserted as locally authored values.
+The deliberate rejection files retain the old numeric-overwrite, closed-tie and
+enum-override defects plus nearest-only Pattern and Format selection as false
+obligations.
+The aggregate axiom audit covers 634 required theorem statements and admits
+only `propext`, `Classical.choice` and `Quot.sound`.
+
+The registered `effective-alias-contracts` Go group extracts raw ancestry,
+duplicates, absence and provenance independently. Its local semantic normalizer
+does not call `NewValueContext`, `NewOccurrence`, `Resolve`, `IsRequired`, or
+the production effective owner. The candidate owner is called only on the
+comparison side. Controls exercise exact large signed/unsigned integers,
+Float32 declared precision, Bytes text/byte normalization, recursive Any
+equality, arrays, maps and nullable enum members. Codec-free structs and non-nil
+pointers for declared Objects use an independent reflection adapter for the
+reviewed exported-field/JSON-name/embedding/ambiguity/snapshot/cycle subset;
+their children use the same independent declared coercions. Structs and
+pointers supplied to `Any`, plus recognized JSON/text codec method sets, retain
+raw host identity; method sets are detected without invocation. This host
+materialization is tested Go correspondence, not part of the Lean theorem.
+These controls establish the named cases, not a universal Go refinement. Union
+values, custom callbacks, general Go JSON reflection, all DSL graph finalization
+and diagnostic text, arbitrary float-to-decimal extraction, codecs, and default
+length/shape checks remain explicit Go/tested boundaries.
+The Pattern/Format adapter independently evaluates representative regular
+expressions, UUIDs and RFC3339 date-times, and compares exact typed clause text,
+current-to-base order and original provenance. It does not prove equivalence to
+the complete production regex or format engines.
+
+A read-only finalized-design audit registered default roots before DSL
+evaluation in both retained consumers. Auto-K at its pinned Loom v1.9.0 observed
+100,391 attributes including localized copies, with 100 Pattern and 570 Format
+layer observations; Drum at its pinned v1.9.0-alpha.15 observed 7,475 attributes,
+with 40 Pattern and 22 Format observations. Neither graph contained a named
+ancestry with Pattern or Format on more than one layer. The new conjunction is
+therefore required framework behavior, while these current consumer designs do
+not predict a Pattern/Format output delta. This audit does not replace their
+post-freeze generation and compilation probes.
 
 Independent review caught a production composition error: projecting an inner
 bound before intersecting the outer alias could overflow a redundant huge bound,
@@ -593,7 +667,8 @@ interval. Alias-required checks also share `IsRequired`; test declaration-derive
 requiredness independently. A constructed alias loses outer required fields,
 but the tested public DSL route finalizes their union correctly. Pattern/format
 alias discrepancies are likewise internal-graph witnesses; the tested DSL route
-rejects them. #571 owns these acceptance cases and the pending enum policy.
+rejects them. #571 now owns the accepted enum-refinement policy and these
+effective-contract acceptance cases.
 
 **Consumer migrations:** extend the registered corpus for each newly translated
 contract, discharge the explicitly assigned extraction boundaries above, validate

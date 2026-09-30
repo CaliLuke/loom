@@ -3,9 +3,10 @@ package generator
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 // Async inline contracts have an existing consumer-owned shape. View metadata
@@ -51,24 +52,24 @@ func TestAsyncConsumerViewAuthority(t *testing.T) {
 	}
 }
 
-// These assertions preserve the preexisting inline consumer contract; changing
-// alias validation or null policy belongs to their shared semantic migration.
+// These assertions preserve the inline consumer shape while using the shared
+// alias refinement and occurrence-nullability semantics.
 func TestAsyncConsumerOwnsAliasPolicy(t *testing.T) {
-	for _, policy := range []string{"enum override", "occurrence nullable"} {
+	for _, policy := range []string{"enum refinement", "occurrence nullable"} {
 		t.Run(policy, func(t *testing.T) {
 			fixture := func() {
 				primitive := dsl.String
-				if policy == "enum override" {
+				if policy == "enum refinement" {
 					primitive = dsl.Int
 				}
 				inner := dsl.Type("Inner", primitive, func() {
-					if policy == "enum override" {
+					if policy == "enum refinement" {
 						dsl.Enum(1, 2)
 					}
 				})
 				outer := dsl.Type("Outer", inner, func() {
-					if policy == "enum override" {
-						dsl.Enum(2, 3)
+					if policy == "enum refinement" {
+						dsl.Enum(2)
 					}
 				})
 				dsl.Service("consumer-alias-policy", func() {
@@ -92,8 +93,8 @@ func TestAsyncConsumerOwnsAliasPolicy(t *testing.T) {
 			value := asyncAnnotationMap(t, properties, "value")
 			require.NotContains(t, value, "allOf")
 			require.NotContains(t, value, "anyOf")
-			if policy == "enum override" {
-				require.Equal(t, []any{float64(2), float64(3)}, value["enum"])
+			if policy == "enum refinement" {
+				require.Equal(t, []any{float64(2)}, value["enum"])
 				require.Equal(t, "integer", value["type"])
 			} else {
 				require.Equal(t, "string", value["type"])
@@ -108,7 +109,7 @@ func TestAsyncConsumerCombinedPolicies(t *testing.T) {
 			dsl.Enum(1, 2)
 		})
 		outer := dsl.Type("Outer", inner, func() {
-			dsl.Enum(2, 3)
+			dsl.Enum(2)
 		})
 		result := dsl.ResultType("CombinedPolicyResult", func() {
 			dsl.Attributes(func() {
@@ -140,7 +141,7 @@ func TestAsyncConsumerCombinedPolicies(t *testing.T) {
 	require.Contains(t, properties, "extra", "inline shape does not inherit the ordinary tiny-view policy")
 	value := asyncAnnotationMap(t, properties, "value")
 	require.Equal(t, "integer", value["type"])
-	require.Equal(t, []any{float64(2), float64(3)}, value["enum"])
+	require.Equal(t, []any{float64(2)}, value["enum"])
 	require.NotContains(t, value, "allOf")
 	require.NotContains(t, value, "anyOf")
 }

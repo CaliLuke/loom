@@ -96,6 +96,24 @@ paths have already migrated. `PayloadEx`/`StreamingPayloadEx` declarations and
 implementations. The formatter search retains the same location-codec and CLI
 migration owners recorded above.
 
+## #571 effective-constraint checkpoint
+
+The accepted alias policy is refinement. `expr.EffectiveConstraints` owns the
+immutable enum, default, numeric/length, format/pattern, and finalized required
+field result for one occurrence and its declaration ancestry. Raw attribute
+queries enter through `EffectiveConstraintsFor`; consumers do not walk named
+aliases or choose precedence independently. Enum subset and default membership
+reuse declared-type value resolution and equality. `internal/enumvalue` remains
+only a JSON-shape projection boundary after semantic selection.
+
+Pattern and format predicates are ordered current-to-base and conjoined. The
+immutable result retains typed provenance; its detached lowered carrier keeps
+explicit per-kind clauses when HTTP removes named wrappers. Generated
+validators, value plans, inline schemas, OpenAPI analysis, examples, synthesis,
+and vet consume those clauses rather than the singular compatibility fields.
+Enum candidates are a separate presence-aware filtered view; physical lowering
+keeps the unfiltered enum clauses and does not turn them into authored values.
+
 ## Existing proof anchors
 
 - `http/codegen/testdata/mapped_names_dsls.go`: authored bytes, mapped keys,

@@ -3,8 +3,9 @@ package scripts_test
 import (
 	"testing"
 
-	"github.com/CaliLuke/loom/expr"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/expr"
 )
 
 // TestValueContractNonObjectPreference characterizes the actual complete-match

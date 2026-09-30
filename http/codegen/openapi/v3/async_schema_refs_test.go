@@ -4,8 +4,9 @@ import (
 	"encoding/json/v2"
 	"testing"
 
-	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/http/codegen/openapi"
 )
 
 func TestAsyncSchemaReferenceLifecycle(t *testing.T) {

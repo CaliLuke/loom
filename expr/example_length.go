@@ -51,8 +51,17 @@ func NewLength(a *AttributeExpr, r *ExampleGenerator) int {
 }
 
 func safeExampleLength(a *AttributeExpr, r *ExampleGenerator) (int, bool) {
-	if a.Validation != nil && a.Validation.MinLength != nil && *a.Validation.MinLength > maxGeneratedLength {
-		return 0, false
+	if a.Validation != nil {
+		minimum := 0
+		if a.Validation.MinLength != nil {
+			minimum = max(0, *a.Validation.MinLength)
+			if minimum > maxGeneratedLength {
+				return 0, false
+			}
+		}
+		if a.Validation.MaxLength != nil && *a.Validation.MaxLength < minimum {
+			return 0, false
+		}
 	}
 	count := NewLength(a, r)
 	return count, count <= maxGeneratedLength
@@ -118,12 +127,16 @@ func byEnum(a *AttributeExpr, r *ExampleGenerator) any {
 	if !hasEnumValidation(a) {
 		return nil
 	}
-	values := a.Validation.Values
+	enums := a.Validation.Enums()
+	if len(enums) == 0 || len(enums[0]) == 0 {
+		return nil
+	}
+	values := enums[0]
 	count := len(values)
 	start := r.Int() % count
 	for offset := range count {
 		candidate := values[(start+offset)%count]
-		if checkLength(a, candidate) && checkPattern(a, candidate) && checkMinMaxValue(a, candidate) {
+		if exampleMatchesValidation(a, candidate) {
 			return candidate
 		}
 	}

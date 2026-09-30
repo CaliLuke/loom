@@ -96,26 +96,57 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}, contex
 	}
 
 	context.encodingOverride = context.encodingOverride || encodingmeta.Replacement(attr.Meta) != "" || encodingmeta.SchemaOverride(attr.Meta)
-	if !context.encodingOverride && !context.byteLengthsHandled {
-		if bounds, applies := inlineByteBounds(attr); applies {
-			return buildInlineByteSchema(attr, visited, context, bounds)
-		}
+	if byteSchema, applies, err := inlineByteSchema(attr, visited, context); err != nil || applies {
+		return byteSchema, err
+	}
+	constraints, err := EffectiveConstraintsFor(attr)
+	if err != nil {
+		return nil, fmt.Errorf("effective constraints: %w", err)
 	}
 	schema := &InlineSchema{
 		Title:       attr.Title,
 		Description: attr.Description,
 	}
-	populateInlineSchemaMetadata(schema, attr)
+	populateInlineSchemaMetadata(schema, attr, constraints)
 	if context.byteLengthsHandled {
 		schema.MinLength, schema.MaxLength = nil, nil
 	}
 
+	schema, err = populateInlineJSONSchemaType(schema, attr, constraints, visited, context)
+	if err != nil {
+		return nil, err
+	}
+	if attr.Nullable && !inlineTypeAlreadyNullable(attr.Type) {
+		return nullableInlineJSONSchema(schema), nil
+	}
+	return schema, nil
+}
+
+func inlineByteSchema(attr *AttributeExpr, visited map[any]struct{}, context inlineSchemaContext) (*InlineSchema, bool, error) {
+	if context.encodingOverride || context.byteLengthsHandled {
+		return nil, false, nil
+	}
+	bounds, applies, err := inlineByteBounds(attr)
+	if err != nil || !applies {
+		return nil, false, err
+	}
+	schema, err := buildInlineByteSchema(attr, visited, context, bounds)
+	return schema, true, err
+}
+
+func populateInlineJSONSchemaType(
+	schema *InlineSchema,
+	attr *AttributeExpr,
+	constraints EffectiveConstraints,
+	visited map[any]struct{},
+	context inlineSchemaContext,
+) (*InlineSchema, error) {
 	switch dt := attr.Type.(type) {
 	case Primitive:
 		schema.Type = primitiveToInlineJSONType(dt)
 		applyInlinePrimitiveBounds(schema, dt)
 	case *Array:
-		if err := populateInlineArraySchema(schema, attr, dt, visited, context); err != nil {
+		if err := populateInlineArraySchema(schema, constraints, dt, visited, context); err != nil {
 			return nil, err
 		}
 	case *Map:
@@ -127,50 +158,46 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}, contex
 			return nil, err
 		}
 	case *Object:
-		if err := populateInlineObjectSchema(schema, attr, dt, visited, context); err != nil {
+		if err := populateInlineObjectSchema(schema, constraints, dt, visited, context); err != nil {
 			return nil, err
 		}
 	case UserType:
-		schema, err := inlineWrappedJSONSchema(attr, dt.Attribute(), visited, dt, dt.Name(), context)
+		wrapped, err := inlineWrappedJSONSchema(attr, dt.Attribute(), visited, dt, dt.Name(), context)
 		if err != nil {
 			return nil, err
 		}
-		if attr.Nullable && !IsNullable(dt.Attribute()) {
-			return nullableInlineJSONSchema(schema), nil
-		}
-		return schema, nil
+		schema = wrapped
 	default:
 		schema.Type = jsonTypeObject
 		schema.AdditionalProperties = false
 	}
-
-	if attr.Nullable {
-		return nullableInlineJSONSchema(schema), nil
-	}
 	return schema, nil
+}
+
+func inlineTypeAlreadyNullable(dataType DataType) bool {
+	named, ok := dataType.(UserType)
+	return ok && IsNullable(named.Attribute())
 }
 
 func nullableInlineJSONSchema(schema *InlineSchema) *InlineSchema {
 	return &InlineSchema{AnyOf: []*InlineSchema{schema, {Type: jsonTypeNull}}}
 }
 
-func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr) {
+func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr, constraints EffectiveConstraints) {
 	if examples := attr.ExtractUserExamples(); len(examples) > 0 {
 		schema.Examples = make([]any, 0, len(examples))
 		for _, example := range examples {
 			if example == nil {
 				continue
 			}
-			schema.Examples = append(schema.Examples, CanonicalizeExample(attr, example.Value))
+			schema.Examples = append(schema.Examples, inlineSemanticJSONValue(attr, example.Value, ValueRoleExample))
 		}
 	}
-	if attr.DefaultValue != nil {
-		schema.Default = CanonicalizeExample(attr, attr.DefaultValue)
+	if value, present := constraints.Default(); present {
+		schema.Default = inlineSemanticJSONValue(attr, value, ValueRoleDefault)
 	}
-	if v := attr.Validation; v != nil {
-		if len(v.Values) > 0 {
-			schema.Enum = canonicalizeInlineValues(attr, v.Values)
-		}
+	if v := constraints.Validation().Lowered(); v != nil {
+		applyInlineEnumValues(schema, constraints.validation.enumJSON)
 		if v.Minimum != nil {
 			schema.Minimum = v.Minimum
 		}
@@ -189,16 +216,11 @@ func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr) {
 		if v.MaxLength != nil {
 			schema.MaxLength = v.MaxLength
 		}
-		if v.Pattern != "" {
-			schema.Pattern = v.Pattern
-		}
-		if v.Format != "" {
-			schema.Format = string(v.Format)
-		}
+		applyInlineStringPredicates(schema, v)
 	}
 }
 
-func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Array, visited map[any]struct{}, context inlineSchemaContext) error {
+func populateInlineArraySchema(schema *InlineSchema, constraints EffectiveConstraints, dt *Array, visited map[any]struct{}, context inlineSchemaContext) error {
 	schema.Type = jsonTypeArray
 	if dt.ElemType != nil {
 		items, err := buildInlineJSONSchema(dt.ElemType, visited, context)
@@ -207,7 +229,7 @@ func populateInlineArraySchema(schema *InlineSchema, attr *AttributeExpr, dt *Ar
 		}
 		schema.Items = items
 	}
-	if v := attr.Validation; v != nil {
+	if v := constraints.Validation().Lowered(); v != nil {
 		if v.MinLength != nil {
 			schema.MinItems = v.MinLength
 			schema.MinLength = nil
@@ -272,7 +294,7 @@ func populateInlineUnionSchema(schema *InlineSchema, dt *Union, visited map[any]
 	return nil
 }
 
-func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *Object, visited map[any]struct{}, context inlineSchemaContext) error {
+func populateInlineObjectSchema(schema *InlineSchema, constraints EffectiveConstraints, dt *Object, visited map[any]struct{}, context inlineSchemaContext) error {
 	schema.Type = jsonTypeObject
 	schema.Properties = make(map[string]*InlineSchema, len(*dt))
 	designNames := make(map[string]struct{}, len(*dt))
@@ -298,7 +320,7 @@ func populateInlineObjectSchema(schema *InlineSchema, attr *AttributeExpr, dt *O
 			return fmt.Errorf("object field %q: %w", name, err)
 		}
 		schema.Properties[name] = property
-		if attr.IsRequired(nat.Name) {
+		if effectiveRequiredName(constraints, nat.Name) {
 			schema.Required = append(schema.Required, name)
 		}
 	}
@@ -341,24 +363,21 @@ func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) {
 		schema.Examples = make([]any, 0, len(examples))
 		for _, example := range examples {
 			if example != nil {
-				schema.Examples = append(schema.Examples, CanonicalizeExample(attr, example.Value))
+				schema.Examples = append(schema.Examples, inlineSemanticJSONValue(attr, example.Value, ValueRoleExample))
 			}
 		}
 	}
 	if attr.DefaultValue != nil {
-		schema.Default = CanonicalizeExample(attr, attr.DefaultValue)
+		schema.Default = inlineSemanticJSONValue(attr, attr.DefaultValue, ValueRoleDefault)
 	}
-	applyInlineValidation(schema, attr)
+	applyInlineValidation(schema, attr, attr.Validation)
 }
 
-func applyInlineValidation(schema *InlineSchema, attr *AttributeExpr) {
-	if attr.Validation == nil {
+func applyInlineValidation(schema *InlineSchema, attr *AttributeExpr, v *ValidationExpr) {
+	if v == nil {
 		return
 	}
-	v := attr.Validation
-	if len(v.Values) > 0 {
-		schema.Enum = canonicalizeInlineValues(attr, v.Values)
-	}
+	applyInlineEnums(schema, attr, v)
 	if v.Minimum != nil {
 		schema.Minimum = v.Minimum
 	}
@@ -388,15 +407,59 @@ func applyInlineValidation(schema *InlineSchema, attr *AttributeExpr) {
 			schema.MaxLength = v.MaxLength
 		}
 	}
-	if v.Pattern != "" {
-		schema.Pattern = v.Pattern
-	}
-	if v.Format != "" {
-		schema.Format = string(v.Format)
-	}
+	applyInlineStringPredicates(schema, v)
 	if len(v.Required) > 0 {
 		schema.Required = inlineRequiredNames(attr, v.Required)
 	}
+}
+
+func applyInlineEnums(schema *InlineSchema, attribute *AttributeExpr, validation *ValidationExpr) {
+	var clauses [][]any
+	if validation.Values != nil {
+		clauses = append(clauses, inlineSemanticEnumValues(attribute, validation.Values))
+	}
+	clauses = append(clauses, inlineDeclaredEnumValues(attribute, validation.EnumClauses)...)
+	applyInlineEnumValues(schema, clauses)
+}
+
+func applyInlineEnumValues(schema *InlineSchema, clauses [][]any) {
+	for _, values := range clauses {
+		if len(values) == 0 {
+			schema.Not = &InlineSchema{}
+			continue
+		}
+		if schema.Enum == nil {
+			schema.Enum = values
+		} else {
+			schema.AllOf = append(schema.AllOf, &InlineSchema{Enum: values})
+		}
+	}
+}
+
+func applyInlineStringPredicates(schema *InlineSchema, validation *ValidationExpr) {
+	for _, pattern := range validation.Patterns() {
+		if schema.Pattern == "" {
+			schema.Pattern = pattern
+		} else if schema.Pattern != pattern {
+			schema.AllOf = append(schema.AllOf, &InlineSchema{Pattern: pattern})
+		}
+	}
+	for _, format := range validation.Formats() {
+		if schema.Format == "" {
+			schema.Format = string(format)
+		} else if schema.Format != string(format) {
+			schema.AllOf = append(schema.AllOf, &InlineSchema{Format: string(format)})
+		}
+	}
+}
+
+func effectiveRequiredName(constraints EffectiveConstraints, name string) bool {
+	for _, required := range constraints.Required() {
+		if required.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func applyInlinePrimitiveBounds(schema *InlineSchema, primitive Primitive) {
@@ -508,10 +571,45 @@ func inlineRequiredNames(attribute *AttributeExpr, required []string) []string {
 	return names
 }
 
-func canonicalizeInlineValues(attribute *AttributeExpr, values []any) []any {
-	canonical := make([]any, len(values))
-	for index, value := range values {
-		canonical[index] = CanonicalizeExample(attribute, value)
+func inlineSemanticJSONValue(attribute *AttributeExpr, raw any, role ValueRole) any {
+	context := NewValueContext()
+	occurrence, err := context.NewOccurrence(attribute)
+	if err != nil {
+		return CanonicalizeExample(attribute, raw)
 	}
-	return canonical
+	result := context.Resolve(occurrence, context.SupplyValue(ValueInput{Raw: raw}), role)
+	if projected, ok := result.DeclaredJSONValue(); ok {
+		return projected
+	}
+	return CanonicalizeExample(attribute, raw)
+}
+
+func inlineDeclaredEnumValues(attribute *AttributeExpr, clauses [][]any) [][]any {
+	context := NewValueContext()
+	occurrence, err := context.NewOccurrence(attribute)
+	if err != nil {
+		return copyEnumClauseValues(clauses)
+	}
+	projected := make([][]any, len(clauses))
+	for clauseIndex, values := range clauses {
+		projected[clauseIndex] = make([]any, len(values))
+		for valueIndex, value := range values {
+			source := context.SupplyValue(ValueInput{Raw: value, Origin: "inline enum value"})
+			result := context.ResolveDeclaredShape(occurrence, source)
+			if normalized, ok := result.DeclaredJSONValue(); ok {
+				projected[clauseIndex][valueIndex] = normalized
+			} else {
+				projected[clauseIndex][valueIndex] = CanonicalizeExample(attribute, value)
+			}
+		}
+	}
+	return projected
+}
+
+func inlineSemanticEnumValues(attribute *AttributeExpr, values []any) []any {
+	projected := make([]any, len(values))
+	for index, value := range values {
+		projected[index] = inlineSemanticJSONValue(attribute, value, ValueRoleEnum)
+	}
+	return projected
 }

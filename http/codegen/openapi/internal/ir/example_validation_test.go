@@ -108,6 +108,10 @@ func TestValidationMatchesExactConstraints(t *testing.T) {
 	require.False(t, validationMatches(validation, int64(6)))
 	require.True(t, validationMatches(&expr.ValidationExpr{Pattern: "^[a-z]+$", MinLength: &minLength, MaxLength: &maxLength}, "loom"))
 	require.False(t, validationMatches(&expr.ValidationExpr{Pattern: "^[a-z]+$"}, "123"))
+	require.True(t, validationMatches(&expr.ValidationExpr{PatternClauses: []string{"^a", "b$"}}, "ab"))
+	require.False(t, validationMatches(&expr.ValidationExpr{PatternClauses: []string{"^a", "b$"}}, "xb"))
+	require.True(t, validationMatches(&expr.ValidationExpr{FormatClauses: []expr.ValidationFormat{expr.FormatIP, expr.FormatIPv4}}, "192.0.2.1"))
+	require.False(t, validationMatches(&expr.ValidationExpr{FormatClauses: []expr.ValidationFormat{expr.FormatEmail, expr.FormatHostname}}, "example.com"))
 	require.False(t, validationMatches(&expr.ValidationExpr{MinLength: &minLength}, "x"))
 	require.False(t, validationMatches(&expr.ValidationExpr{MaxLength: &maxLength}, "longer"))
 }

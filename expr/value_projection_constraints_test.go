@@ -85,6 +85,108 @@ func TestValueProjectionOccurrenceConstraints(t *testing.T) {
 	}
 }
 
+func TestValueProjectionUsesInheritedNamedConstraints(t *testing.T) {
+	minimum, maximum := 5.0, 10.0
+	minLength, maxLength := 2, 4
+	tests := []struct {
+		name         string
+		typ          DataType
+		raw          any
+		baseRules    *ValidationExpr
+		derivedRules *ValidationExpr
+	}{
+		{
+			name:         "numeric bounds",
+			typ:          Float64,
+			raw:          3.0,
+			baseRules:    &ValidationExpr{Minimum: &minimum},
+			derivedRules: &ValidationExpr{Maximum: &maximum},
+		},
+		{
+			name:         "string length",
+			typ:          String,
+			raw:          "x",
+			baseRules:    &ValidationExpr{MinLength: &minLength},
+			derivedRules: &ValidationExpr{MaxLength: &maxLength},
+		},
+		{
+			name:         "string patterns",
+			typ:          String,
+			raw:          "xb",
+			baseRules:    &ValidationExpr{Pattern: "^a"},
+			derivedRules: &ValidationExpr{Pattern: "b$"},
+		},
+		{
+			name:         "string formats",
+			typ:          String,
+			raw:          "2001:db8::1",
+			baseRules:    &ValidationExpr{Format: FormatIP},
+			derivedRules: &ValidationExpr{Format: FormatIPv4},
+		},
+		{
+			name:         "bytes length",
+			typ:          Bytes,
+			raw:          []byte("x"),
+			baseRules:    &ValidationExpr{MinLength: &minLength},
+			derivedRules: &ValidationExpr{MaxLength: &maxLength},
+		},
+		{
+			name:         "array length",
+			typ:          &Array{ElemType: &AttributeExpr{Type: String}},
+			raw:          []string{"x"},
+			baseRules:    &ValidationExpr{MinLength: &minLength},
+			derivedRules: &ValidationExpr{MaxLength: &maxLength},
+		},
+		{
+			name:         "map length",
+			typ:          &Map{KeyType: &AttributeExpr{Type: String}, ElemType: &AttributeExpr{Type: String}},
+			raw:          map[string]string{"x": "value"},
+			baseRules:    &ValidationExpr{MinLength: &minLength},
+			derivedRules: &ValidationExpr{MaxLength: &maxLength},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			base := namedScalar("ProjectionBase", test.typ, nil)
+			derived := namedScalar("ProjectionDerived", base, nil)
+			source := &AttributeExpr{Type: derived}
+			target := DupAtt(source)
+			targetDerived := target.Type.(UserType).Attribute()
+			targetBase := targetDerived.Type.(UserType).Attribute()
+			targetBase.Validation = test.baseRules
+			targetDerived.Validation = test.derivedRules
+
+			for _, use := range []ValuePlanUse{ValuePlanDocumentation, ValuePlanRuntime} {
+				checkProjectionOccurrenceRule(t, source, target, test.raw, use, ProjectionUnrepresentable)
+			}
+		})
+	}
+}
+
+func TestValueProjectionConjoinsEveryEnumClause(t *testing.T) {
+	tests := []struct {
+		name    string
+		clauses [][]any
+		raw     any
+		want    ProjectionOutcome
+	}{
+		{name: "overlap accepted", clauses: [][]any{{1, 2}, {2, 3}}, raw: 2, want: ProjectionEmitted},
+		{name: "overlap rejected", clauses: [][]any{{1, 2}, {2, 3}}, raw: 1, want: ProjectionUnrepresentable},
+		{name: "disjoint", clauses: [][]any{{1}, {2}}, raw: 1, want: ProjectionUnrepresentable},
+		{name: "explicit empty", clauses: [][]any{{}}, raw: 0, want: ProjectionUnrepresentable},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := &AttributeExpr{Type: Int}
+			target := DupAtt(source)
+			target.Validation = &ValidationExpr{EnumClauses: test.clauses}
+			for _, use := range []ValuePlanUse{ValuePlanDocumentation, ValuePlanRuntime} {
+				checkProjectionOccurrenceRule(t, source, target, test.raw, use, test.want)
+			}
+		})
+	}
+}
+
 func checkProjectionOccurrenceRule(t *testing.T, source, target *AttributeExpr, raw any, use ValuePlanUse, want ProjectionOutcome) {
 	t.Helper()
 	context := NewValueContext()

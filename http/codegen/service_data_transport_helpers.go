@@ -97,13 +97,14 @@ func isStringMetaType(attr *expr.AttributeExpr) bool {
 }
 
 func attributeWithoutFormatValidation(attr *expr.AttributeExpr) *expr.AttributeExpr {
-	if attr == nil || attr.Validation == nil || attr.Validation.Format == "" {
+	if attr == nil || attr.Validation == nil || len(attr.Validation.Formats()) == 0 {
 		return attr
 	}
 	copyAttr := *attr
-	copyValidation := *attr.Validation
+	copyValidation := attr.Validation.Dup()
 	copyValidation.Format = ""
-	copyAttr.Validation = &copyValidation
+	copyValidation.FormatClauses = nil
+	copyAttr.Validation = copyValidation
 	return &copyAttr
 }
 

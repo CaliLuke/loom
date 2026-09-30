@@ -13,11 +13,11 @@ import (
 var PayloadBodyUserInnerDefaultDSL = func() {
 	var InnerType = Type("InnerType", func() {
 		Attribute("a", String, func() {
-			Default("defaulta")
+			Default("patterna")
 			Pattern("patterna")
 		})
 		Attribute("b", String, func() {
-			Default("defaultb")
+			Default("patternb")
 			Pattern("patternb")
 		})
 		Required("a")

@@ -1,5 +1,6 @@
 import ValueContract.CandidateControls
 import ValueContract.AliasLengthBounds
+import ValueContract.AliasContracts
 import ValueContract.ByteLengthProjection
 import ValueContract.CanonicalConstructionProofs
 import ValueContract.CanonicalProofs
@@ -17,6 +18,7 @@ import ValueContract.Observation
 import ValueContract.ObservationExecutionProofs
 import ValueContract.ObservationProofs
 import ValueContract.NumericCoercionControls
+import ValueContract.NumericBounds
 import ValueContract.NumericRepresentationControls
 import ValueContract.NumericTargetControls
 import ValueContract.OmissionControls

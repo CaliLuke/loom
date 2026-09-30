@@ -49,3 +49,38 @@ func TestWrappedTypeExampleCacheOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestProtoWrappedNamedExampleUsesEffectiveConstraints(t *testing.T) {
+	const validUUID = "550e8400-e29b-41d4-a716-446655440000"
+	base := &expr.UserTypeExpr{
+		TypeName: "FormatBase",
+		UID:      "FormatBase",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:       expr.String,
+			Validation: &expr.ValidationExpr{Values: []any{"not-a-uuid", validUUID}},
+		},
+	}
+	derived := &expr.UserTypeExpr{
+		TypeName: "FormatDerived",
+		UID:      "FormatDerived",
+		AttributeExpr: &expr.AttributeExpr{
+			Type:       base,
+			Validation: &expr.ValidationExpr{Format: expr.FormatUUID},
+		},
+	}
+	payload := &expr.AttributeExpr{
+		Type: &expr.Object{{Name: "formatted", Attribute: &expr.AttributeExpr{Type: derived}}},
+		Validation: &expr.ValidationExpr{
+			Required: []string{"formatted"},
+		},
+	}
+
+	serviceExample, ok := payload.Example(expr.NewRandom("effective-proto-example")).(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, validUUID, serviceExample["formatted"])
+
+	message := makeProtoBufMessage(payload, "CheckRequest", &ServiceData{Name: "svc"})
+	protoExample, ok := protoJSONExample(message, expr.NewRandom("effective-proto-example")).(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, validUUID, protoExample["formatted"])
+}

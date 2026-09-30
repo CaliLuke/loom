@@ -15,6 +15,9 @@ import (
 )
 
 const proofFakeLake = `#!/bin/sh
+if [ -n "${LOOM_PROOF_COMMAND_LOG:-}" ]; then
+  printf '%s\n' "$*" >> "$LOOM_PROOF_COMMAND_LOG"
+fi
 case "$*" in
   'env lean --version')
     if [ "$LOOM_PROOF_TEST_MODE" = version ]; then
@@ -27,6 +30,22 @@ case "$*" in
       build-error) exit 1 ;;
       warning) echo 'warning: ignored proof obligation' ;;
     esac ;;
+	'env lean -DwarningAsError=true NegativeNearestPattern.lean'|\
+	'env lean -DwarningAsError=true NegativeNearestFormat.lean'|\
+	'env lean -DwarningAsError=true NegativeNumericOverwrite.lean'|\
+	'env lean -DwarningAsError=true NegativeNumericClosedTie.lean'|\
+	'env lean -DwarningAsError=true NegativeEnumOverride.lean')
+		if [ "${LOOM_PROOF_NEGATIVE_SUCCEEDS:-}" = "$4" ]; then exit 0; fi
+		if [ "$LOOM_PROOF_TEST_MODE" = negative-fails ] && [ "$4" = NegativeNearestPattern.lean ]; then
+			echo 'error: unknown identifier'; exit 1
+		fi
+		case "$4" in
+			NegativeNumericOverwrite.lean)
+				echo 'error: unsolved goals'; echo '⊢ False' ;;
+			*)
+				echo 'error: proved that the proposition'; echo 'is false' ;;
+		esac
+		exit 1 ;;
   'env lean -DwarningAsError=true ValueContract/AxiomAudit.lean')
     case "$LOOM_PROOF_TEST_MODE" in
       axiom) echo 'error: forbidden transitive axiom custom'; exit 1 ;;
@@ -51,13 +70,20 @@ func TestValueContractProofGate(t *testing.T) {
 		t.Skip("the proof gate is a Unix contributor command")
 	}
 	for _, tc := range []struct {
-		name string
-		mode string
-		want string
+		name           string
+		mode           string
+		negativeSource string
+		want           string
 	}{
 		{name: "success"},
 		{name: "build error", mode: "build-error", want: "proof build failed"},
 		{name: "warning", mode: "warning", want: "proof build emitted a warning"},
+		{name: "negative control unexpected failure", mode: "negative-fails", want: "negative proof control failed for an unexpected reason"},
+		{name: "nearest pattern control succeeds", negativeSource: "NegativeNearestPattern.lean", want: "negative proof control unexpectedly succeeded: NegativeNearestPattern.lean"},
+		{name: "nearest format control succeeds", negativeSource: "NegativeNearestFormat.lean", want: "negative proof control unexpectedly succeeded: NegativeNearestFormat.lean"},
+		{name: "numeric overwrite control succeeds", negativeSource: "NegativeNumericOverwrite.lean", want: "negative proof control unexpectedly succeeded: NegativeNumericOverwrite.lean"},
+		{name: "numeric closed tie control succeeds", negativeSource: "NegativeNumericClosedTie.lean", want: "negative proof control unexpectedly succeeded: NegativeNumericClosedTie.lean"},
+		{name: "enum override control succeeds", negativeSource: "NegativeEnumOverride.lean", want: "negative proof control unexpectedly succeeded: NegativeEnumOverride.lean"},
 		{name: "wrong toolchain", mode: "version", want: "expected Lean 4.34.1"},
 		{name: "axiom rejected", mode: "axiom", want: "forbidden transitive axiom"},
 		{name: "empty audit", mode: "empty-audit", want: "missing audit completion"},
@@ -69,9 +95,10 @@ func TestValueContractProofGate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := proofTestTree(t, false)
 			bin := filepath.Join(root, "bin")
+			commandLog := filepath.Join(root, "commands.log")
 			require.NoError(t, os.Mkdir(bin, 0o700))
 			require.NoError(t, os.WriteFile(filepath.Join(bin, "lake"), []byte(proofFakeLake), 0o700))
-			env := append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "LOOM_PROOF_TEST_MODE="+tc.mode)
+			env := append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "LOOM_PROOF_TEST_MODE="+tc.mode, "LOOM_PROOF_NEGATIVE_SUCCEEDS="+tc.negativeSource, "LOOM_PROOF_COMMAND_LOG="+commandLog)
 			if tc.mode == "missing-lake" {
 				env = append(os.Environ(), "PATH=/usr/bin:/bin")
 			}
@@ -83,6 +110,17 @@ func TestValueContractProofGate(t *testing.T) {
 			}
 			require.NoError(t, err, output)
 			require.Contains(t, output, "value contract proof gate passed")
+			commands, err := os.ReadFile(commandLog)
+			require.NoError(t, err)
+			for _, source := range []string{
+				"NegativeNearestPattern.lean",
+				"NegativeNearestFormat.lean",
+				"NegativeNumericOverwrite.lean",
+				"NegativeNumericClosedTie.lean",
+				"NegativeEnumOverride.lean",
+			} {
+				require.Contains(t, string(commands), "env lean -DwarningAsError=true "+source+"\n")
+			}
 		})
 	}
 }

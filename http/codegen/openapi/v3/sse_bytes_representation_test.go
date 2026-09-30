@@ -3,13 +3,14 @@ package openapiv3
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	loom "github.com/CaliLuke/loom/pkg"
-	"github.com/stretchr/testify/require"
 )
 
 type sseNamedBytes []byte

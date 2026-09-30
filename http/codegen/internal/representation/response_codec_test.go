@@ -3,10 +3,11 @@ package representation
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/stretchr/testify/require"
 )
 
 func TestResponseCodecAuthority(t *testing.T) {

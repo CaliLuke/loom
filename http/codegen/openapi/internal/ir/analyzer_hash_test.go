@@ -130,7 +130,9 @@ func TestAttributeFingerprintChangesForEveryValidationField(t *testing.T) {
 	}{
 		{name: "enum", validation: &expr.ValidationExpr{Values: []any{"admin"}}},
 		{name: "format", validation: &expr.ValidationExpr{Format: expr.FormatEmail}},
+		{name: "format clauses", validation: &expr.ValidationExpr{FormatClauses: []expr.ValidationFormat{expr.FormatIP, expr.FormatIPv4}}},
 		{name: "pattern", validation: &expr.ValidationExpr{Pattern: "^[a-z]+$"}},
+		{name: "pattern clauses", validation: &expr.ValidationExpr{PatternClauses: []string{"^a", "b$"}}},
 		{name: "exclusive minimum", validation: &expr.ValidationExpr{ExclusiveMinimum: float(1)}},
 		{name: "minimum", validation: &expr.ValidationExpr{Minimum: float(1)}},
 		{name: "maximum", validation: &expr.ValidationExpr{Maximum: float(1)}},

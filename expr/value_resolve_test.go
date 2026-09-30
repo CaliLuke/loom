@@ -53,6 +53,37 @@ func TestValueResolveSourceContract(t *testing.T) {
 	}
 }
 
+func TestValueResolvePreservesPresentEmptyAuthoredEnum(t *testing.T) {
+	attribute := &AttributeExpr{
+		Type:       String,
+		Validation: &ValidationExpr{Values: []any{}},
+	}
+	context := NewValueContext()
+	occurrence, err := context.NewOccurrence(attribute)
+	require.NoError(t, err)
+	require.NotNil(t, occurrence.node.enumValues)
+	require.NotNil(t, occurrence.node.attribute.Validation.Values)
+
+	attribute.Validation.Values = nil
+	for _, role := range []ValueRole{ValueRoleExample, ValueRoleEnum, ValueRoleDefault} {
+		result := context.Resolve(occurrence, context.SupplyValue(ValueInput{Raw: "value"}), role)
+		require.Equal(t, ValueInvalid, result.Outcome(), "%v: %v", role, result.Diagnostics())
+	}
+
+	mapAttribute := &AttributeExpr{Type: &Map{
+		KeyType:  &AttributeExpr{Type: String, Validation: &ValidationExpr{Values: []any{}}},
+		ElemType: &AttributeExpr{Type: String},
+	}}
+	mapOccurrence, err := context.NewOccurrence(mapAttribute)
+	require.NoError(t, err)
+	result := context.Resolve(
+		mapOccurrence,
+		context.SupplyValue(ValueInput{Raw: map[string]string{"key": "value"}}),
+		ValueRoleExample,
+	)
+	require.Equal(t, ValueInvalid, result.Outcome(), "%v", result.Diagnostics())
+}
+
 func TestValueResolveAliasesAndUnionRanking(t *testing.T) {
 	object := func(name string, typ DataType) *AttributeExpr {
 		return &AttributeExpr{Type: &Object{{Name: name, Attribute: &AttributeExpr{Type: typ}}}, Validation: &ValidationExpr{Required: []string{name}}}
@@ -133,6 +164,36 @@ func TestValueResolveValidatesEveryAliasAndRetainsMissingPaths(t *testing.T) {
 	copy := result.Missing()
 	copy[0][0] = ValueIdentity{}
 	require.False(t, result.Missing()[0][0] == ValueIdentity{})
+}
+
+func TestValueResolveInvalidExampleDoesNotExposeSiblingMissingPaths(t *testing.T) {
+	invalid := &NamedAttributeExpr{Name: "invalid", Attribute: &AttributeExpr{Type: String}}
+	required := &NamedAttributeExpr{Name: "required", Attribute: &AttributeExpr{Type: String}}
+	for _, invalidFirst := range []bool{true, false} {
+		name := "invalid last"
+		object := &Object{required, invalid}
+		if invalidFirst {
+			name = "invalid first"
+			object = &Object{invalid, required}
+		}
+		t.Run(name, func(t *testing.T) {
+			attribute := &AttributeExpr{
+				Type:       object,
+				Validation: &ValidationExpr{Required: []string{"required"}},
+			}
+			context := NewValueContext()
+			occurrence, err := context.NewOccurrence(attribute)
+			require.NoError(t, err)
+			result := context.Resolve(
+				occurrence,
+				context.SupplyValue(ValueInput{Raw: map[string]any{"invalid": 1}}),
+				ValueRoleExample,
+			)
+			require.Equal(t, ValueInvalid, result.Outcome())
+			require.Empty(t, result.Missing())
+			require.Equal(t, "type", result.Diagnostics()[0].Code)
+		})
+	}
 }
 
 func TestValueResolveDeclaredPrecisionAndLegacyRaw(t *testing.T) {

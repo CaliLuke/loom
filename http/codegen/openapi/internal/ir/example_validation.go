@@ -202,12 +202,17 @@ func primitiveTypeMatches(dataType expr.DataType, value any) bool {
 
 func attributeValidationMatches(attribute *expr.AttributeExpr, value any) bool {
 	validation := attribute.Validation
-	if validation != nil && len(validation.Values) > 0 {
+	if validation != nil && len(validation.Enums()) > 0 {
 		// Compare against the same enum representation emitted in the schema.
 		// Keep the authored validation intact for runtime and other transports.
-		projected := *validation
-		projected.Values = projectOpenAPIValues(attribute, validation.Values)
-		validation = &projected
+		projected := validation.Dup()
+		if projected.Values != nil {
+			projected.Values = projectOpenAPIValues(attribute, projected.Values)
+		}
+		for index, values := range projected.EnumClauses {
+			projected.EnumClauses[index] = projectOpenAPIValues(attribute, values)
+		}
+		validation = projected
 	}
 	return validationMatches(validation, value)
 }
@@ -216,9 +221,9 @@ func validationMatches(validation *expr.ValidationExpr, value any) bool {
 	if validation == nil {
 		return true
 	}
-	if len(validation.Values) > 0 {
+	for _, values := range validation.Enums() {
 		matched := false
-		for _, candidate := range validation.Values {
+		for _, candidate := range values {
 			if exampleValuesEqual(candidate, value) {
 				matched = true
 				break
@@ -229,11 +234,15 @@ func validationMatches(validation *expr.ValidationExpr, value any) bool {
 		}
 	}
 	if stringValue, ok := value.(string); ok {
-		if validation.Pattern != "" && loom.ValidatePattern("example", stringValue, validation.Pattern) != nil {
-			return false
+		for _, pattern := range validation.Patterns() {
+			if loom.ValidatePattern("example", stringValue, pattern) != nil {
+				return false
+			}
 		}
-		if validation.Format != "" && loom.ValidateFormat("example", stringValue, loom.Format(validation.Format)) != nil {
-			return false
+		for _, format := range validation.Formats() {
+			if loom.ValidateFormat("example", stringValue, loom.Format(format)) != nil {
+				return false
+			}
 		}
 		if validation.MinLength != nil && utf8.RuneCountInString(stringValue) < *validation.MinLength {
 			return false

@@ -373,6 +373,7 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 			}
 		}
 		varName, locals := b.vars.allocate(codegen.Goify(param.Name, false), isMapQueryLocal)
+		defaultValue, _ := selectedTransportConstraints(attr).Default()
 		return &ParamData{
 			MapQueryParams: param.MapQueryParams,
 			Map:            expr.AsMap(b.payload.Type) != nil,
@@ -388,7 +389,7 @@ func (b *payloadBuilder) buildMapQueryParam() *ParamData {
 					TypeName:     b.sd.Scope.GoTypeName(attr),
 					TypeRef:      b.sd.Scope.GoTypeRef(attr),
 					Validate:     codegen.AttributeValidationCode(attr, nil, b.httpsvrctx, param.Required, expr.IsAlias(attr.Type), varName, param.Name),
-					DefaultValue: attr.DefaultValue,
+					DefaultValue: defaultValue,
 					Example:      attr.Example(b.sds.examplesFor(b.sd)),
 					Locals:       locals,
 				},

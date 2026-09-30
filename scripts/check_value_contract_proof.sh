@@ -42,6 +42,36 @@ if ! grep -Fq "Lean (version $expected_version," "$proof_tmp/version"; then
 fi
 
 run_check 'proof build' "$proof_tmp/build" lake build
+
+run_negative() {
+  local source=$1
+  local output=$2
+  shift 2
+  if lake env lean -DwarningAsError=true "$source" >"$output" 2>&1; then
+    cat "$output" >&2
+    echo "negative proof control unexpectedly succeeded: $source" >&2
+    return 1
+  fi
+  local expected
+  for expected in "$@"; do
+    if ! grep -Fq "$expected" "$output"; then
+      cat "$output" >&2
+      echo "negative proof control failed for an unexpected reason: $source" >&2
+      return 1
+    fi
+  done
+}
+
+run_negative NegativeNearestPattern.lean "$proof_tmp/negative-pattern" \
+  'proved that the proposition' 'is false'
+run_negative NegativeNearestFormat.lean "$proof_tmp/negative-format" \
+  'proved that the proposition' 'is false'
+run_negative NegativeNumericOverwrite.lean "$proof_tmp/negative-numeric-overwrite" \
+  'error: unsolved goals' '⊢ False'
+run_negative NegativeNumericClosedTie.lean "$proof_tmp/negative-numeric-closed-tie" \
+  'proved that the proposition' 'is false'
+run_negative NegativeEnumOverride.lean "$proof_tmp/negative-enum-override" \
+  'proved that the proposition' 'is false'
 run_check 'transitive axiom audit' "$proof_tmp/audit" \
   lake env lean -DwarningAsError=true ValueContract/AxiomAudit.lean
 

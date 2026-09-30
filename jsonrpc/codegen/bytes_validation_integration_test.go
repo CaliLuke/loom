@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	codegentestdata "github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/schematest"
-	"github.com/stretchr/testify/require"
 )
 
 //go:embed testdata/bytes_validation_jsonrpc_test.go.txt

@@ -6,6 +6,7 @@ resolver, branch selector, schema checker or projector.
 import ValueContract.ReferenceCodecs
 import ValueContract.AliasLengthBounds
 import ValueContract.ByteLengthProjection
+import ValueContract.AliasContracts
 
 open Lean
 
@@ -49,6 +50,7 @@ inductive Command where
   | codecs (bytes : List (List UInt8)) (texts : List String) (decimals : List Decimal)
   | aliasLengths (constraints : List LengthBounds) (lengths : List Nat)
   | byteLengthSchema (bounds : LengthBounds)
+  | aliasContract (layers : List AliasContractLayer)
   deriving ToJson, FromJson
 
 structure Request where
@@ -316,6 +318,7 @@ def execute (request : Request) : Except String Json := do
           ("accepted", toJson (lengths.map (lengthAllowed effective)))]
     | .byteLengthSchema bounds =>
         toJson ([0, 1, 2].map (byteProjectedBranch bounds))
+    | .aliasContract layers => outcomeJson (evaluateAliasContract layers)
     | .codecs bytes texts decimals => Json.mkObj [
         ("encodedBytes", toJson (bytes.map encodeBytes)),
         ("decodedBytes", toJson (texts.map decodeBytes)),

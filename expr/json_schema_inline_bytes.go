@@ -50,25 +50,29 @@ func applyInlineByteConstraint(schema *InlineSchema, bounds byteschema.Bounds, n
 
 // inlineByteBounds collects one effective Bytes occurrence before emitting any
 // length keywords. Recursive aliases remain the existing builder's error path.
-func inlineByteBounds(attr *AttributeExpr) (byteschema.Bounds, bool) {
-	var bounds []byteschema.Bounds
+func inlineByteBounds(attr *AttributeExpr) (byteschema.Bounds, bool, error) {
 	visited := make(map[UserType]struct{})
-	for attr != nil {
-		if encodingmeta.Replacement(attr.Meta) != "" || encodingmeta.SchemaOverride(attr.Meta) {
-			return byteschema.Bounds{}, false
+	for current := attr; current != nil; {
+		if encodingmeta.Replacement(current.Meta) != "" || encodingmeta.SchemaOverride(current.Meta) {
+			return byteschema.Bounds{}, false, nil
 		}
-		if attr.Validation != nil {
-			bounds = append(bounds, byteschema.Bounds{Minimum: attr.Validation.MinLength, Maximum: attr.Validation.MaxLength})
-		}
-		alias, ok := attr.Type.(UserType)
+		alias, ok := current.Type.(UserType)
 		if !ok {
-			return byteschema.Intersect(bounds), attr.Type == Bytes
+			if current.Type != Bytes {
+				return byteschema.Bounds{}, false, nil
+			}
+			constraints, err := EffectiveConstraintsFor(attr)
+			if err != nil {
+				return byteschema.Bounds{}, false, err
+			}
+			validation := constraints.Validation().Lowered()
+			return byteschema.Bounds{Minimum: validation.MinLength, Maximum: validation.MaxLength}, true, nil
 		}
 		if _, exists := visited[alias]; exists {
-			return byteschema.Bounds{}, false
+			return byteschema.Bounds{}, false, nil
 		}
 		visited[alias] = struct{}{}
-		attr = alias.Attribute()
+		current = alias.Attribute()
 	}
-	return byteschema.Bounds{}, false
+	return byteschema.Bounds{}, false, nil
 }

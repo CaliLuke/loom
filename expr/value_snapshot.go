@@ -3,11 +3,14 @@ package expr
 import (
 	"encoding"
 	"encoding/json/v2"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
 )
+
+var errValueSourcePointerCycle = errors.New("plain pointer source contains a cycle")
 
 type (
 	// valueSourceSnapshot defers invalid authored data until its source is used.
@@ -54,55 +57,99 @@ func (s *valueSnapshotState) copy(value reflect.Value, path string) reflect.Valu
 	if !value.IsValid() {
 		return value
 	}
-	if selected, ok := value.Interface().(valueSelectedInput); ok {
-		if s.eraseSelections {
-			return s.copy(reflect.ValueOf(selected.payload), path)
-		}
-		payload := s.copy(reflect.ValueOf(selected.payload), path)
-		if payload.IsValid() {
-			selected.payload = payload.Interface()
-		}
-		return reflect.ValueOf(selected)
-	}
-	if value.Kind() == reflect.Interface {
-		if value.IsNil() {
-			return reflect.Zero(value.Type())
-		}
-		copied := reflect.New(value.Type()).Elem()
-		s.copyInto(copied, value.Elem(), path)
+	if copied, done := s.copySpecialValue(value, path); done {
 		return copied
 	}
-	// Custom values stay borrowed. No user method runs during source capture.
-	if valueHasCustomCodec(value.Type()) {
-		return value
-	}
-	var visit valueSnapshotVisit
-	switch value.Kind() {
-	case reflect.Map, reflect.Slice:
-		if value.IsNil() {
-			return reflect.Zero(value.Type())
-		}
-		visit = valueSnapshotVisit{value.Type(), value.Pointer(), value.Len()}
-		if prior, found := s.copies[visit]; found {
-			if s.active[visit] && s.err == nil {
-				s.err = fmt.Errorf("%s: cyclic value", path)
-			}
-			return prior
-		}
-		s.active[visit] = true
-		defer delete(s.active, visit)
+	if copied, done := s.copyTrackedValue(value, path); done {
+		return copied
 	}
 	switch value.Kind() {
-	case reflect.Map:
-		return s.copyMap(value, path, visit)
-	case reflect.Slice, reflect.Array:
-		return s.copyArray(value, path, visit)
+	case reflect.Array:
+		return s.copyArray(value, path, valueSnapshotVisit{})
+	case reflect.Struct:
+		return s.copyStruct(value, path)
 	default:
 		// Scalars copy by value. Other opaque host values are not interpreted by
 		// the builtin resolver. The graph copy retains cycles so traversal detects
 		// them only after body-local type/length checks, as the checked model does.
 		return value
 	}
+}
+
+func (s *valueSnapshotState) copySpecialValue(value reflect.Value, path string) (reflect.Value, bool) {
+	if selected, ok := value.Interface().(valueSelectedInput); ok {
+		if s.eraseSelections {
+			return s.copy(reflect.ValueOf(selected.payload), path), true
+		}
+		payload := s.copy(reflect.ValueOf(selected.payload), path)
+		if payload.IsValid() {
+			selected.payload = payload.Interface()
+		}
+		return reflect.ValueOf(selected), true
+	}
+	if value.Kind() == reflect.Interface {
+		if value.IsNil() {
+			return reflect.Zero(value.Type()), true
+		}
+		copied := reflect.New(value.Type()).Elem()
+		s.copyInto(copied, value.Elem(), path)
+		return copied, true
+	}
+	// Custom values stay borrowed. No user method runs during source capture.
+	if valueHasCustomCodec(value.Type()) {
+		return value, true
+	}
+	return reflect.Value{}, false
+}
+
+func (s *valueSnapshotState) copyTrackedValue(value reflect.Value, path string) (reflect.Value, bool) {
+	if value.Kind() != reflect.Map && value.Kind() != reflect.Slice && value.Kind() != reflect.Pointer {
+		return reflect.Value{}, false
+	}
+	if value.IsNil() {
+		return reflect.Zero(value.Type()), true
+	}
+	length := 0
+	if value.Kind() != reflect.Pointer {
+		length = value.Len()
+	}
+	visit := valueSnapshotVisit{value.Type(), value.Pointer(), length}
+	if prior, found := s.copies[visit]; found {
+		if s.active[visit] && s.err == nil {
+			if visit.typeOf.Kind() == reflect.Pointer {
+				s.err = fmt.Errorf("%w at %s", errValueSourcePointerCycle, path)
+			} else {
+				s.err = fmt.Errorf("%s: cyclic value", path)
+			}
+		}
+		return prior, true
+	}
+	s.active[visit] = true
+	defer delete(s.active, visit)
+	switch value.Kind() {
+	case reflect.Map:
+		return s.copyMap(value, path, visit), true
+	case reflect.Slice:
+		return s.copyArray(value, path, visit), true
+	case reflect.Pointer:
+		copied := reflect.New(value.Type().Elem())
+		s.copies[visit] = copied
+		s.copyInto(copied.Elem(), value.Elem(), path+"*")
+		return copied, true
+	default:
+		panic("unreachable tracked value kind")
+	}
+}
+
+func (s *valueSnapshotState) copyStruct(value reflect.Value, path string) reflect.Value {
+	copied := reflect.New(value.Type()).Elem()
+	copied.Set(value)
+	for index := range value.NumField() {
+		if value.Type().Field(index).IsExported() {
+			s.copyInto(copied.Field(index), value.Field(index), path+"."+value.Type().Field(index).Name)
+		}
+	}
+	return copied
 }
 
 func valueHasCustomCodec(typ reflect.Type) bool {

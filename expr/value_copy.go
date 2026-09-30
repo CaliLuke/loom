@@ -16,9 +16,18 @@ func copyValueOccurrenceAttribute(source *AttributeExpr) *AttributeExpr {
 	if source.Validation != nil {
 		validation := *source.Validation
 		validation.Values = nil
+		validation.EnumClauses = nil
 		if source.Validation.Values != nil {
 			validation.Values = make([]any, 0, len(source.Validation.Values))
 		}
+		if source.Validation.EnumClauses != nil {
+			validation.EnumClauses = make([][]any, len(source.Validation.EnumClauses))
+			for index, clause := range source.Validation.EnumClauses {
+				validation.EnumClauses[index] = make([]any, 0, len(clause))
+			}
+		}
+		validation.PatternClauses = append([]string(nil), source.Validation.PatternClauses...)
+		validation.FormatClauses = append([]ValidationFormat(nil), source.Validation.FormatClauses...)
 		validation.Required = append([]string(nil), source.Validation.Required...)
 		validation.Minimum = copyValuePointer(source.Validation.Minimum)
 		validation.Maximum = copyValuePointer(source.Validation.Maximum)
@@ -119,6 +128,13 @@ func copyValueAttribute(source *AttributeExpr) *AttributeExpr {
 	if source.Validation != nil {
 		for _, value := range source.Validation.Values {
 			copy.Validation.Values = append(copy.Validation.Values, copyValueRaw(value))
+		}
+		for clauseIndex, clause := range source.Validation.EnumClauses {
+			for _, value := range clause {
+				copy.Validation.EnumClauses[clauseIndex] = append(
+					copy.Validation.EnumClauses[clauseIndex], copyValueRaw(value),
+				)
+			}
 		}
 	}
 	return copy

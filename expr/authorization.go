@@ -143,9 +143,14 @@ func AuthorizationValues(att *AttributeExpr) ([]string, error) {
 		}
 		underlying = ut.Attribute().Type
 	}
-	if underlying == String && att.Validation != nil && len(att.Validation.Values) > 0 {
-		values := make([]string, len(att.Validation.Values))
-		for i, value := range att.Validation.Values {
+	constraints, err := EffectiveConstraintsFor(att)
+	if err != nil {
+		return nil, fmt.Errorf("authorization selector: %w", err)
+	}
+	enum, present := constraints.EnumCandidates()
+	if present && underlying == String && len(enum) > 0 {
+		values := make([]string, len(enum))
+		for i, value := range enum {
 			str, ok := value.(string)
 			if !ok {
 				return nil, fmt.Errorf("authorization selector must be a string enum or union")
@@ -153,6 +158,9 @@ func AuthorizationValues(att *AttributeExpr) ([]string, error) {
 			values[i] = str
 		}
 		return values, nil
+	}
+	if present {
+		return nil, fmt.Errorf("authorization selector must be a non-empty string enum or union")
 	}
 	if ut, ok := att.Type.(UserType); ok {
 		return AuthorizationValues(ut.Attribute())

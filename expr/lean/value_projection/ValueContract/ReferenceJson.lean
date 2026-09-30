@@ -8,6 +8,7 @@ import Lean
 import ValueContract.SourceSelection
 import ValueContract.Resolve
 import ValueContract.Projection
+import ValueContract.AliasContracts
 
 open Lean
 
@@ -42,6 +43,15 @@ deriving instance ToJson, FromJson for Candidate.Value
 deriving instance ToJson, FromJson for Candidate.NativeByteSequence
 deriving instance ToJson, FromJson for Candidate.Input
 deriving instance ToJson, FromJson for Candidate.Decimal
+deriving instance ToJson, FromJson for Candidate.AuthoredNumericBounds
+deriving instance ToJson, FromJson for Candidate.PredicateKind
+deriving instance ToJson, FromJson for Candidate.PredicateIdentity
+deriving instance ToJson, FromJson for Candidate.AuthoredPredicateClause
+deriving instance ToJson, FromJson for Candidate.AuthoredContractValue
+deriving instance ToJson, FromJson for Candidate.RequiredField
+deriving instance ToJson, FromJson for Candidate.AliasContractLayer
+deriving instance ToJson, FromJson for Candidate.EffectiveAliasContract
+deriving instance ToJson, FromJson for Candidate.AliasContractError
 deriving instance ToJson, FromJson for Candidate.ParsedDecimal
 deriving instance ToJson, FromJson for Candidate.LengthBounds
 deriving instance ToJson, FromJson for Candidate.NumericBounds

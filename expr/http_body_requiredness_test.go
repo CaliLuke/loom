@@ -94,3 +94,74 @@ func TestExplicitBodyReferencedRequiredness(t *testing.T) {
 		})
 	}
 }
+
+func TestExplicitBodyRequirednessConsistencyUsesNamedAncestry(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		body      func() any
+		wantError bool
+	}{
+		{
+			name: "inline",
+			body: func() any {
+				return func() {
+					Attribute("name", String)
+					Required("name")
+				}
+			},
+			wantError: true,
+		},
+		{
+			name: "named multi-hop",
+			body: func() any {
+				base := Type("RequiredBodyBase", func() {
+					Attribute("name", String)
+					Required("name")
+				})
+				middle := Type("RequiredBodyMiddle", base)
+				return Type("RequiredBody", middle)
+			},
+			wantError: true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			design := func() {
+				body := test.body()
+				Service("sender", func() {
+					Method("send", func() {
+						Payload(func() { Attribute("name", String) })
+						HTTP(func() {
+							POST("/")
+							Body(body)
+						})
+					})
+				})
+			}
+			err := expr.RunInvalidDSL(t, design)
+			if test.wantError {
+				require.ErrorContains(t, err, "corresponding method payload attribute is not")
+			}
+		})
+	}
+}
+
+func TestSelectedBodyRequirednessDoesNotCompareNestedFieldsToPayload(t *testing.T) {
+	expr.RunDSL(t, func() {
+		document := Type("SelectedDocument", func() {
+			Attribute("name", String)
+			Required("name")
+		})
+		Service("sender", func() {
+			Method("send", func() {
+				Payload(func() {
+					Attribute("document", document)
+					Required("document")
+				})
+				HTTP(func() {
+					POST("/")
+					Body("document")
+				})
+			})
+		})
+	})
+}

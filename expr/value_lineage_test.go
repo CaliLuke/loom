@@ -25,6 +25,30 @@ func TestValueCopyAncestryDoesNotAliasOccurrences(t *testing.T) {
 	require.Equal(t, 8, *right.node.attribute.Validation.MinLength)
 }
 
+func TestValuePlanOwnsValidationClauseSlices(t *testing.T) {
+	source := &AttributeExpr{Type: String, Validation: &ValidationExpr{
+		PatternClauses: []string{"^a"},
+		FormatClauses:  []ValidationFormat{FormatIP},
+	}}
+	context := NewValueContext()
+	occurrence, err := context.NewOccurrence(source)
+	require.NoError(t, err)
+	plan, err := context.NewValuePlan(occurrence, ValuePlanRequest{
+		Target: source,
+		Codec:  ValueCodecJSON,
+		Use:    ValuePlanSchema,
+	})
+	require.NoError(t, err)
+
+	source.Validation.PatternClauses[0] = "^b"
+	source.Validation.FormatClauses[0] = FormatEmail
+	require.Equal(t, []string{"^a"}, occurrence.node.attribute.Validation.PatternClauses)
+	require.Equal(t, []ValidationFormat{FormatIP}, occurrence.node.attribute.Validation.FormatClauses)
+	actual := plan.Root().Attribute().Validation
+	require.Equal(t, []string{"^a"}, actual.PatternClauses)
+	require.Equal(t, []ValidationFormat{FormatIP}, actual.FormatClauses)
+}
+
 func TestValueViewAncestry(t *testing.T) {
 	source := resultType("data", Bytes, view(DefaultView, "data", Bytes))
 	projected, err := Project(source, DefaultView)

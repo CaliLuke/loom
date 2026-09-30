@@ -56,8 +56,8 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- else }}
 			{
 			{{- end }}
-			v{{ if not (eq .Type.Name "string") }}raw{{ end }} := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
-			{{- if not (eq .Type.Name "string" ) }}
+			v{{ if or (not (eq .Type.Name "string")) (and (isAlias .FieldType) (not .IsTextUnmarshaler)) }}raw{{ end }} := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
+			{{- if or (not (eq .Type.Name "string")) (and (isAlias .FieldType) (not .IsTextUnmarshaler)) }}
 			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "v" "vraw") }}
 			{{- end }}
 			req.AddCookie(&http.Cookie{

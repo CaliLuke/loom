@@ -6,7 +6,7 @@ func BuildMethodCookieCustomTextUnmarshalerDefaultPayload(serviceCookieCustomTex
 	{
 		idRaw := serviceCookieCustomTextUnmarshalerDefaultMethodCookieCustomTextUnmarshalerDefaultID
 		if idRaw == "" {
-			idRaw = "00000000-0000-0000-0000-000000000000"
+			idRaw = "550e8400-e29b-41d4-a716-446655440000"
 		}
 		if idRaw != "" {
 			if err := id.UnmarshalText([]byte(idRaw)); err != nil {

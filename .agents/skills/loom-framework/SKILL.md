@@ -76,6 +76,19 @@ consumer validation.
 ## Architecture Boundaries
 
 - Design DSL is the source of truth; evaluated semantics belong in `expr`.
+- Effective named-type constraints have one immutable `expr` owner per value
+  occurrence. Derived enums refine ancestor enums, defaults are selected then
+  checked against the complete effective contract, numeric and length bounds
+  conjoin, pattern and format clauses conjoin in current-to-base order with
+  exact duplicates retaining current provenance, and required fields union by
+  finalized member identity. `EffectiveValidation` retains original provenance;
+  `Lowered` is a detached predicate-equivalent physical carrier whose later
+  query derives physical provenance. Lowering stores selected enum membership
+  as clauses rather than re-authoring `Values`; `EnumCandidates` separately
+  reports filtered representatives and distinguishes absence from a present
+  empty domain. Renderers may retain authored overlays for
+  schema composition, but must not select semantic precedence independently.
+  `Reference` remains object-template copying rather than named-type ancestry.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
 - Put design-semantic vet rules over the evaluated `expr` graph. Use Go source
@@ -222,13 +235,14 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   perturb output. API-level example omission must retain explicitly authored
   examples in both JSON and YAML without mutating the evaluated design.
 - OpenAPI synthesis must retain selected union branches through composition.
-  `internal/ir/example_generation.go` wraps unions only in a private expression
-  copy and keeps its memo separate from raw expression examples. The internal
-  `examplevalue.Union` carries a branch index and unprojected value through
-  canonicalization and scalar coercion; do not infer that selection again from
-  payload shape or cache a completed envelope by its leaf identity. Custom
-  example projectors keep receiving raw expression values. The bounded model
-  in `internal/ir/tla/nested_union_examples` checks selection ownership.
+  `internal/ir/example_generation.go` uses shared `ValueContext` source selection
+  and synthesis. Its `DeclaredJSONValue` carrier retains declared bytes,
+  precision and the selected tagged envelope; it is not target wire output.
+  Keep that carrier distinct from raw authored values so later conversion does
+  not infer a branch again or encode bytes twice. Custom example projectors
+  keep receiving raw expression values. The remaining per-target synthesis and
+  conversion path must migrate to shared target plans under #572. The bounded
+  model in `internal/ir/tla/nested_union_examples` checks selection ownership.
 - Select untagged example branches against one shared normalized JSON value, while
   retaining the typed value for projection and final encoding. In particular,
   coerced `[]byte` fields must be matched as base64 strings without replacing

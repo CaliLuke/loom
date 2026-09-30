@@ -146,3 +146,28 @@ func TestHTTPEndpointValidateHeadersAndCookies(t *testing.T) {
 		`Attribute "token" is mapped to "Authorization" header in the endpoint secured by BasicAuth which also sets "Authorization" header. Specify a different header to map attribute "token".`,
 	}, validationErrorMessages(verr.Errors))
 }
+
+func TestRequiredDiagnosticNameUsesEffectiveFirstAuthoredSpelling(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		local    string
+		ancestor string
+	}{
+		{name: "local plain", local: "name", ancestor: "name:n"},
+		{name: "local mapped", local: "name:n", ancestor: "name"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			object := &Object{{Name: "name:n", Attribute: &AttributeExpr{Type: String}}}
+			base := &UserTypeExpr{TypeName: "Base", UID: "Base", AttributeExpr: &AttributeExpr{
+				Type: object, Validation: &ValidationExpr{Required: []string{test.ancestor}},
+			}}
+			derived := &UserTypeExpr{TypeName: "Derived", UID: "Derived", AttributeExpr: &AttributeExpr{
+				Type: base, Validation: &ValidationExpr{Required: []string{test.local}},
+			}}
+
+			actual, found := requiredDiagnosticName(&AttributeExpr{Type: derived}, "name:n", make(map[*AttributeExpr]bool))
+			require.True(t, found)
+			require.Equal(t, test.local, actual)
+		})
+	}
+}

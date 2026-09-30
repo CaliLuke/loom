@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	codegentestdata "github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/stretchr/testify/require"
+
+	codegentestdata "github.com/CaliLuke/loom/codegen/testdata"
 )
 
 //go:embed testdata/bytes_default_form_test.go.txt

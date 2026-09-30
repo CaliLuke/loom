@@ -160,7 +160,7 @@ func Format(f expr.ValidationFormat) {
 		if !a.IsSupportedValidationFormat(f) {
 			eval.ReportError("invalid validation format %q", f)
 		}
-		if a.Type != nil && a.Type.Kind() != expr.StringKind {
+		if a.Type != nil && underlyingValidationKind(a.Type) != expr.StringKind {
 			incompatibleAttributeType("format", a.Type.Name(), "a string")
 		} else {
 			if a.Validation == nil {
@@ -181,7 +181,7 @@ func Format(f expr.ValidationFormat) {
 //	})
 func Pattern(p string) {
 	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
-		if a.Type != nil && a.Type.Kind() != expr.StringKind {
+		if a.Type != nil && underlyingValidationKind(a.Type) != expr.StringKind {
 			incompatibleAttributeType("pattern", a.Type.Name(), "a string")
 		} else {
 			_, err := regexp.Compile(p)
@@ -319,7 +319,7 @@ func parseNumericValidationValue(val any) (float64, bool) {
 func MinLength(val int) {
 	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
 		if a.Type != nil {
-			kind := a.Type.Kind()
+			kind := underlyingValidationKind(a.Type)
 			if kind != expr.BytesKind &&
 				kind != expr.StringKind &&
 				kind != expr.ArrayKind &&
@@ -349,7 +349,7 @@ func MinLength(val int) {
 func MaxLength(val int) {
 	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
 		if a.Type != nil {
-			kind := a.Type.Kind()
+			kind := underlyingValidationKind(a.Type)
 			if kind != expr.BytesKind &&
 				kind != expr.StringKind &&
 				kind != expr.ArrayKind &&

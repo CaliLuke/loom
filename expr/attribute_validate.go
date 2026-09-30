@@ -31,7 +31,7 @@ func (a *AttributeExpr) Validate(ctx string, parent eval.Expression) *eval.Valid
 	if ctx != "" {
 		ctx += " - "
 	}
-	verr.Merge(a.validateEnumDefault(ctx, parent))
+	verr.Merge(a.validateEffectiveConstraints(ctx, parent))
 	if v := a.Validation; v != nil {
 		verr.Merge(v.Validate(ctx, parent))
 		verr.Merge(a.validateNumericBounds(ctx, parent))
@@ -295,12 +295,12 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 		return verr
 	}
 	if ar := AsArray(a.Type); ar != nil {
-		verr.Merge(ar.ElemType.Validate(ctx, a))
+		verr.Merge(ar.ElemType.Validate(appendValidationContext(ctx, "[]"), a))
 		return verr
 	}
 	if mapping := AsMap(a.Type); mapping != nil {
-		verr.Merge(mapping.KeyType.Validate(ctx, a))
-		verr.Merge(mapping.ElemType.Validate(ctx, a))
+		verr.Merge(mapping.KeyType.Validate(appendValidationContext(ctx, "[key]"), a))
+		verr.Merge(mapping.ElemType.Validate(appendValidationContext(ctx, "[value]"), a))
 		return verr
 	}
 	if u := AsUnion(a.Type); u != nil {
@@ -338,7 +338,7 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 			verr.Merge(validateUnionWireKeys(ctx, parent, u))
 		}
 		for _, ut := range u.Values {
-			verr.Merge(ut.Attribute.Validate(ctx, parent))
+			verr.Merge(ut.Attribute.Validate(appendValidationContext(ctx, "<"+ut.Name+">"), parent))
 		}
 		if hasInlineUnionCycle(u) {
 			verr.Add(parent, "%srecursive OneOf branch cycle in %q is not supported; place the recursive reference inside an object field", ctx, u.Name())
@@ -399,7 +399,7 @@ func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expressio
 	}
 	for _, nat := range *obj {
 		verr.Merge(a.validatePkgPath(pkgPath, nat.Attribute.Type))
-		fieldCtx := fmt.Sprintf("field %s", nat.Name)
+		fieldCtx := appendValidationContext(ctx, nat.Name)
 		verr.Merge(nat.Attribute.Validate(fieldCtx, parent))
 		name := AttributeName(nat.Name)
 		wireName := JSONFieldName(name, nat.Attribute)
@@ -425,6 +425,23 @@ func (a *AttributeExpr) validateObjectChildren(ctx string, parent eval.Expressio
 		wireNames[wireName] = nat.Name
 	}
 	return verr
+}
+
+func appendValidationContext(ctx, segment string) string {
+	ctx = strings.TrimSuffix(ctx, " - ")
+	if ctx == "" {
+		if strings.HasPrefix(segment, "[") || strings.HasPrefix(segment, "<") {
+			return "attribute" + segment
+		}
+		return "field " + segment
+	}
+	if strings.HasPrefix(segment, "[") || strings.HasPrefix(segment, "<") {
+		return ctx + segment
+	}
+	if strings.HasPrefix(ctx, "field ") || strings.Contains(ctx, " - field ") {
+		return ctx + "." + segment
+	}
+	return ctx + " - field " + segment
 }
 
 func jsonTagHasOption(tag, option string) bool {

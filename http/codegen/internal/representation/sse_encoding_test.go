@@ -3,9 +3,10 @@ package representation
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/expr"
 	loomhttp "github.com/CaliLuke/loom/http"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMappedSSEEncodingMatchesNativeDispatch(t *testing.T) {

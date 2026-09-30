@@ -14,7 +14,12 @@ import (
 func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, scope, vars *codegen.NameScope, services ServicesData) []*MetadataData {
 	var metadata []*MetadataData
 	ctx := serviceTypeContext("", scope)
-	codegen.WalkMappedAttr(a, func(name, elem string, required bool, c *expr.AttributeExpr) error { // nolint: errcheck
+	err := codegen.WalkMappedAttr(a, func(name, elem string, required bool, c *expr.AttributeExpr) error {
+		constraints, err := expr.EffectiveConstraintsFor(c)
+		if err != nil {
+			return err
+		}
+		defaultValue, _ := constraints.Default()
 		arr := expr.AsArray(c.Type)
 		mp := expr.AsMap(c.Type)
 		typeRef := scope.GoTypeRef(unalias(c))
@@ -53,11 +58,14 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
 			Validate:     codegen.AttributeValidationCode(c, nil, ctx, required, false, varn, name),
-			DefaultValue: c.DefaultValue,
+			DefaultValue: defaultValue,
 			Example:      c.Example(services.Root.API.ExampleGenerator),
 		})
 		return nil
 	})
+	if err != nil {
+		panic(codegen.NewError(nil, a, err))
+	}
 	return metadata
 }
 

@@ -4,9 +4,10 @@ import (
 	"encoding/json/v2"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSchemaNotRoundTrip(t *testing.T) {

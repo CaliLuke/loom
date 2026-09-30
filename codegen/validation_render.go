@@ -4,6 +4,7 @@ package codegen
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
@@ -11,6 +12,11 @@ import (
 )
 
 type (
+	validationRenderSnapshot struct {
+		rules   *expr.ValidationExpr
+		clauses []expr.EffectiveValidationClause
+	}
+
 	validationRenderData struct {
 		Attribute    *expr.AttributeExpr
 		AttributeCtx *AttributeContext
@@ -62,25 +68,51 @@ type (
 //
 // context is used to produce helpful messages in case of error.
 func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alias bool, target, context string) string {
-	validation := mergedValidation(att)
+	constraints, err := expr.EffectiveConstraintsFor(att)
+	if err != nil {
+		panic(fmt.Sprintf("invalid effective constraints during generation: %v", err))
+	}
+	_, hasDefault := constraints.Default()
+	effective := constraints.Validation()
+	snapshot := validationRenderSnapshot{rules: effective.Lowered(), clauses: effective.Clauses()}
+	return validationCodeFromSnapshot(att, snapshot, attCtx, req, alias,
+		hasDefault, true, target, context)
+}
+
+func validationCodeFromSnapshot(
+	att *expr.AttributeExpr,
+	snapshot validationRenderSnapshot,
+	attCtx *AttributeContext,
+	req, alias, hasDefault, pointerGuard bool,
+	target, context string,
+) string {
+	validation := snapshot.rules
 	if validation == nil {
 		return ""
 	}
+	if validation.HasRequiredOnly() && len(validation.Required) == 0 {
+		return ""
+	}
 
-	data := newValidationRenderData(att, attCtx, req, alias, target, context)
+	data := newValidationRenderData(att, attCtx, req, alias, hasDefault, target, context)
+	if !pointerGuard {
+		data.IsPointer = false
+	}
 	res := make([]string, 0, 8) // preallocate with typical validation count
-	if values := validation.Values; values != nil {
+	for _, values := range validation.Enums() {
 		data.Values = values
 		appendRenderedValidation(&res, renderEnumValidation(data))
 	}
-	appendValidationString(&res, string(validation.Format), func(v string) string {
-		data.Format = v
-		return renderFormatValidation(data)
-	})
-	appendValidationString(&res, validation.Pattern, func(v string) string {
-		data.Pattern = v
-		return renderPatternValidation(data)
-	})
+	for _, clause := range snapshot.clauses {
+		switch clause.Kind {
+		case expr.EffectivePatternClause:
+			data.Pattern = clause.Value
+			appendRenderedValidation(&res, renderPatternValidation(data))
+		case expr.EffectiveFormatClause:
+			data.Format = clause.Value
+			appendRenderedValidation(&res, renderFormatValidation(data))
+		}
+	}
 	appendValidationNumber(&res, validation.ExclusiveMinimum, func(v any) string {
 		data.Number = v
 		data.NumberFlag = true
@@ -117,36 +149,85 @@ func validationCode(att *expr.AttributeExpr, attCtx *AttributeContext, req, alia
 	return strings.Join(res, "\n")
 }
 
-// mergedValidation returns the validation that applies to att, accumulating the
-// validations declared at every level of the user-type chain rooted at att's
-// type. Levels are combined with ValidationExpr.Merge, so numeric and length
-// bounds from every level are intersected (the tighter bound is kept) and
-// required fields are unioned, while for enum values, format, and pattern the
-// outermost level that declares one wins. Shared expr
-// validation state is never mutated: each level is merged into a fresh copy
-// (dup-before-merge), so the returned value is always safe to discard.
-func mergedValidation(att *expr.AttributeExpr) *expr.ValidationExpr {
-	validation := att.Validation
-	ut, ok := att.Type.(expr.UserType)
-	for ok {
-		if val := ut.Attribute().Validation; val != nil {
-			if validation == nil {
-				validation = val.Dup()
-			} else {
-				validation = validation.Dup()
-				validation.Merge(val)
-			}
+func validationWithoutExactPredicates(current, enforced expr.EffectiveValidation) validationRenderSnapshot {
+	currentRules := current.Lowered()
+	enforcedRules := enforced.Lowered()
+	result := currentRules.Dup()
+	result.Values = nil
+	result.EnumClauses = nil
+	for _, clause := range currentRules.Enums() {
+		if !slices.ContainsFunc(enforcedRules.Enums(), func(existing []any) bool {
+			return reflect.DeepEqual(existing, clause)
+		}) {
+			result.EnumClauses = append(result.EnumClauses, clause)
 		}
-		ut, ok = ut.Attribute().Type.(expr.UserType)
+	}
+	result.Pattern = ""
+	result.PatternClauses = nil
+	for _, pattern := range currentRules.Patterns() {
+		if !slices.Contains(enforcedRules.Patterns(), pattern) {
+			result.PatternClauses = append(result.PatternClauses, pattern)
+		}
+	}
+	result.Format = ""
+	result.FormatClauses = nil
+	for _, format := range currentRules.Formats() {
+		if !slices.Contains(enforcedRules.Formats(), format) {
+			result.FormatClauses = append(result.FormatClauses, format)
+		}
+	}
+	if reflect.DeepEqual(currentRules.ExclusiveMinimum, enforcedRules.ExclusiveMinimum) {
+		result.ExclusiveMinimum = nil
+	}
+	if reflect.DeepEqual(currentRules.Minimum, enforcedRules.Minimum) {
+		result.Minimum = nil
+	}
+	if reflect.DeepEqual(currentRules.ExclusiveMaximum, enforcedRules.ExclusiveMaximum) {
+		result.ExclusiveMaximum = nil
+	}
+	if reflect.DeepEqual(currentRules.Maximum, enforcedRules.Maximum) {
+		result.Maximum = nil
+	}
+	if reflect.DeepEqual(currentRules.MinLength, enforcedRules.MinLength) {
+		result.MinLength = nil
+	}
+	if reflect.DeepEqual(currentRules.MaxLength, enforcedRules.MaxLength) {
+		result.MaxLength = nil
+	}
+	result.Required = slices.DeleteFunc(result.Required, func(name string) bool {
+		return slices.Contains(enforcedRules.Required, name)
+	})
+	clauses := slices.DeleteFunc(current.Clauses(), func(clause expr.EffectiveValidationClause) bool {
+		return slices.ContainsFunc(enforced.Clauses(), func(existing expr.EffectiveValidationClause) bool {
+			return existing.Kind == clause.Kind && existing.Value == clause.Value
+		})
+	})
+	if result.HasRequiredOnly() && len(result.Required) == 0 {
+		return validationRenderSnapshot{}
+	}
+	return validationRenderSnapshot{rules: result, clauses: clauses}
+}
+
+// mergedValidation returns the expr-owned immutable effective validation for
+// att. Invalid declarations have already failed design validation; reaching one
+// while generating is an internal lifecycle error.
+func mergedValidation(att *expr.AttributeExpr) *expr.ValidationExpr {
+	constraints, err := expr.EffectiveConstraintsFor(att)
+	if err != nil {
+		panic(fmt.Sprintf("invalid effective constraints during generation: %v", err))
+	}
+	validation := constraints.Validation().Lowered()
+	if validation.HasRequiredOnly() && len(validation.Required) == 0 {
+		return nil
 	}
 	return validation
 }
 
-func newValidationRenderData(att *expr.AttributeExpr, attCtx *AttributeContext, req, alias bool, target, context string) validationRenderData {
+func newValidationRenderData(att *expr.AttributeExpr, attCtx *AttributeContext, req, alias, hasDefault bool, target, context string) validationRenderData {
 	kind := att.Type.Kind()
 	unaliased := unalias(att.Type)
 	isNativePointer := unaliased.Kind() == expr.BytesKind || unaliased.Kind() == expr.AnyKind
-	isPointer := attCtx.Pointer || (!req && (att.DefaultValue == nil || !attCtx.UseDefault))
+	isPointer := attCtx.Pointer || (!req && (!hasDefault || !attCtx.UseDefault))
 	// Forced-pointer contexts wrap named byte slices, but leave native byte
 	// slices and all Any values unchanged. Outside those contexts byte aliases
 	// remain slice values, including optional attributes without defaults.
@@ -170,13 +251,6 @@ func newValidationRenderData(att *expr.AttributeExpr, attCtx *AttributeContext, 
 		IsArray:      expr.IsArray(att.Type),
 		IsMap:        expr.IsMap(att.Type),
 	}
-}
-
-func appendValidationString(res *[]string, value string, render func(string) string) {
-	if value == "" {
-		return
-	}
-	appendRenderedValidation(res, render(value))
 }
 
 func appendValidationNumber(res *[]string, value any, render func(any) string) {
@@ -217,10 +291,13 @@ func renderEnumValidation(data validationRenderData) string {
 	if data.IsPointer {
 		b.Add("if " + data.Target + " != nil {\n")
 	}
-	predicate := oneof(data.TargetValue, data.Values)
-	if unalias(data.Attribute.Type).Kind() == expr.AnyKind {
+	predicate := "false"
+	if len(data.Values) > 0 {
+		predicate = oneof(data.TargetValue, data.Values)
+	}
+	if len(data.Values) > 0 && unalias(data.Attribute.Type).Kind() == expr.AnyKind {
 		predicate = jsonValueOneof(data.TargetValue, data.Values)
-	} else if data.IsArray || unalias(data.Attribute.Type).Kind() == expr.BytesKind {
+	} else if len(data.Values) > 0 && compositeEnumValidation(data.Attribute.Type) {
 		predicate = collectionEnumPredicate(data)
 	}
 	b.Add("if !(" + predicate + ") {\n")
@@ -230,6 +307,12 @@ func renderEnumValidation(data validationRenderData) string {
 		b.Add("\n}")
 	}
 	return strings.Trim(b.String(), "\n")
+}
+
+func compositeEnumValidation(datatype expr.DataType) bool {
+	kind := unalias(datatype).Kind()
+	return kind == expr.ObjectKind || kind == expr.ArrayKind || kind == expr.MapKind ||
+		kind == expr.UnionKind || kind == expr.BytesKind
 }
 
 // collectionEnumPredicate compares the JSON values represented by a collection.

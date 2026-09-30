@@ -403,7 +403,6 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 
 			var (
 				serverVariable   = make(map[string]*ServerVariable)
-				defaultValue     any
 				validationValues []any
 			)
 
@@ -423,12 +422,17 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 			// retrieve host variables
 			vars := expr.AsObject(host.Variables.Type)
 			for _, v := range *vars {
-				defaultValue = v.Attribute.DefaultValue
+				constraints, err := expr.EffectiveConstraintsFor(v.Attribute)
+				if err != nil {
+					panic(fmt.Sprintf("invalid server variable %q constraints: %v", v.Name, err))
+				}
+				defaultValue, hasDefault := constraints.Default()
+				values, _ := constraints.EnumCandidates()
 
-				if v.Attribute.Validation != nil && len(v.Attribute.Validation.Values) > 0 {
-					validationValues = append(validationValues, v.Attribute.Validation.Values...)
-					if defaultValue == nil {
-						defaultValue = v.Attribute.Validation.Values[0]
+				if len(values) > 0 {
+					validationValues = append(validationValues, values...)
+					if !hasDefault {
+						defaultValue = values[0]
 					}
 				}
 

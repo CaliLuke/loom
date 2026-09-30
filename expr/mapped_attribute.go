@@ -63,6 +63,13 @@ func NewMappedAttributeExpr(att *AttributeExpr) *MappedAttributeExpr {
 		reverseMap = make(map[string]string)
 		validation = inheritedAttributeValidation(att, make(map[string]struct{}))
 	)
+	required := att.AllRequired()
+	if len(required) > 0 {
+		if validation == nil {
+			validation = &ValidationExpr{}
+		}
+		validation.Required = required
+	}
 	attr := DupAtt(att)
 	attr.Nullable = IsNullable(att)
 	attr.Validation = validation

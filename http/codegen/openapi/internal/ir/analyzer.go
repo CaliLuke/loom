@@ -352,6 +352,15 @@ func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union, context stri
 }
 
 func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeExpr, note, context string) {
+	_, err := expr.EffectiveConstraintsFor(attr)
+	if err != nil {
+		panic(fmt.Sprintf("invalid effective constraints during OpenAPI analysis: %v", err))
+	}
+	a.applySchemaAnnotations(s, attr, note, context)
+	applySchemaValidation(s, attr, attr.Validation)
+}
+
+func (a *Analyzer) applySchemaAnnotations(s *Schema, attr *expr.AttributeExpr, note, context string) {
 	s.Title = attr.Title
 	s.Description = attr.Description
 	if note != "" {
@@ -369,47 +378,6 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 		if explicit, ok := ap.(bool); ok {
 			s.AdditionalProperties = &BoolOrSchema{Bool: boolPtr(explicit)}
 		}
-	}
-
-	val := attr.Validation
-	if val == nil {
-		return
-	}
-	s.Enum = projectOpenAPIValues(attr, val.Values)
-	if val.Format != "" {
-		s.Format = string(val.Format)
-	}
-	s.Pattern = val.Pattern
-	s.ExclusiveMinimum = val.ExclusiveMinimum
-	s.Minimum = val.Minimum
-	s.ExclusiveMaximum = val.ExclusiveMaximum
-	s.Maximum = val.Maximum
-	if val.MinLength != nil {
-		if expr.AsArray(attr.Type) != nil {
-			s.MinItems = val.MinLength
-		} else {
-			s.MinLength = val.MinLength
-		}
-	}
-	if val.MaxLength != nil {
-		if expr.AsArray(attr.Type) != nil {
-			s.MaxItems = val.MaxLength
-		} else {
-			s.MaxLength = val.MaxLength
-		}
-	}
-	for _, required := range val.Required {
-		child := attr.Find(required)
-		if child != nil {
-			if !openapi.MustGenerate(child.Meta) {
-				continue
-			}
-			required = expr.JSONFieldName(expr.ElementName(required), child)
-			if required == "-" {
-				continue
-			}
-		}
-		s.Required = append(s.Required, required)
 	}
 }
 
@@ -430,18 +398,33 @@ func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, conte
 	}
 	if !suppress {
 		generator := exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context)
-		var raw any
 		if a.customExampleValue {
-			raw = attr.Example(generator)
-		} else {
-			raw = synthesizedOpenAPIExample(attr, generator)
-		}
-		if a.exampleValue != nil {
+			raw := attr.Example(generator)
 			if example, ok := a.exampleValue(attr, raw); ok {
 				s.Example = example
 			}
-		} else if raw != nil {
-			s.Example = expr.CanonicalizeExample(attr, raw)
+			return
+		}
+		source := synthesizedOpenAPIExample(attr, generator)
+		if !source.present {
+			return
+		}
+		if a.exampleValue == nil {
+			if source.declared {
+				s.Example = source.value
+			} else {
+				s.Example = expr.CanonicalizeExample(attr, source.value)
+			}
+			return
+		}
+		if source.declared {
+			if example, ok := openAPIDeclaredExampleValue(attr, source.value); ok {
+				s.Example = example
+			}
+			return
+		}
+		if example, ok := a.exampleValue(attr, source.value); ok {
+			s.Example = example
 		}
 	}
 }

@@ -81,14 +81,29 @@ type (
 	ValidationExpr struct {
 		// Values represents an enum validation as described at
 		// http://json-schema.org/latest/json-schema-validation.html#anchor76.
+		// Values contains the enum authored at this declaration.
 		Values []any
+		// EnumClauses contains additional enum membership predicates. Each
+		// inner slice is conjoined with Values and the other clauses. A nil
+		// outer slice adds no predicate; an empty inner slice is an empty-domain
+		// predicate. EffectiveValidation.Lowered uses this field so a selected
+		// inherited enum remains distinct from a newly authored enum.
+		EnumClauses [][]any
 		// Format represents a format validation as described at
 		// http://json-schema.org/latest/json-schema-validation.html#anchor104.
 		Format ValidationFormat
-		// PatternValidationExpr represents a pattern validation as
+		// Pattern represents a pattern validation as
 		// described at
 		// http://json-schema.org/latest/json-schema-validation.html#anchor33
 		Pattern string
+		// PatternClauses contains additional pattern validations conjoined
+		// after Pattern in slice order. Exact duplicates are ignored by
+		// semantic consumers.
+		PatternClauses []string
+		// FormatClauses contains additional format validations conjoined after
+		// Format in slice order. Exact duplicates are ignored by semantic
+		// consumers.
+		FormatClauses []ValidationFormat
 		// ExclusiveMinimum represents an exclusiveMinimum value validation as described
 		// at
 		// http://json-schema.org/draft/2019-09/json-schema-validation.html#rfc.section.6.2.5.
@@ -306,6 +321,11 @@ func (a *AttributeExpr) Finalize() {
 		m := AsMap(a.Type)
 		m.ElemType.Finalize()
 		m.KeyType.Finalize()
+	}
+	if hasConstraintValueAncestry(a) {
+		if _, err := EffectiveConstraintsFor(a); err != nil {
+			eval.ReportError("%v", err)
+		}
 	}
 }
 

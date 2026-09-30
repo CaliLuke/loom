@@ -57,7 +57,11 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 func buildMethodPayloadData(m *expr.MethodExpr, payloadData methodAttributeProjection) MethodPayloadData {
 	var payloadDefault any
 	if m.Payload != nil {
-		payloadDefault = m.Payload.DefaultValue
+		constraints, err := expr.EffectiveConstraintsFor(m.Payload)
+		if err != nil {
+			panic(codegen.NewError(nil, m.Payload, err))
+		}
+		payloadDefault, _ = constraints.Default()
 	}
 	return MethodPayloadData{
 		Payload:        payloadData.Name,

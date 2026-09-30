@@ -188,6 +188,7 @@ func (p *valueViewPlan) plainType(source DataType) (DataType, error) {
 		child.attribute.UserExamples = local.UserExamples
 		if child.attribute.Validation != nil {
 			child.attribute.Validation.Values = local.Validation.Values
+			child.attribute.Validation.EnumClauses = local.Validation.EnumClauses
 		}
 	}
 	p.types[key] = node.attribute.Type

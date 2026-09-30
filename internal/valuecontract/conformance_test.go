@@ -34,6 +34,9 @@ func TestLeanConformance(t *testing.T) {
 	report.run(t, "production-policy-rejection", "negative-control", executable, checkProductionTargetPolicyRejection)
 	report.run(t, "byte-alias-lengths", "projection", executable, checkByteAliasLengthConformance)
 	report.run(t, "byte-schema-bounds", "projection", executable, checkByteSchemaConformance)
+	report.run(t, "effective-alias-contracts", "resolution", executable, checkEffectiveAliasContractConformance)
+	report.run(t, "named-key-contracts", "resolution", executable, checkNamedKeyContractConformance)
+	report.run(t, "effective-alias-lengths", "resolution", executable, checkEffectiveAliasLengthConformance)
 }
 
 func checkReferenceCodecInputs(t *testing.T, executable string) {

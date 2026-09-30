@@ -9,6 +9,15 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
+func TestBuildHostDataPreservesAbsentVariables(t *testing.T) {
+	host := &expr.HostExpr{
+		Name:      "local",
+		URIs:      []expr.URIExpr{"http://localhost:80"},
+		Variables: &expr.AttributeExpr{Type: &expr.Object{}},
+	}
+	require.Nil(t, buildHostData(host).Variables)
+}
+
 func TestComputeHandlerArgsJSONRPCOrdering(t *testing.T) {
 	method := &expr.MethodExpr{Name: "Run"}
 	httpSvc := &expr.HTTPServiceExpr{

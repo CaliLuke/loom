@@ -238,6 +238,43 @@ func TestAnalyzeResponseContractCasesSupportsSSE(t *testing.T) {
 	require.Nil(t, analysis.Cases[1].SSE)
 }
 
+func TestAnalyzeResponseContractCasesUsesEffectiveContentTypeEnums(t *testing.T) {
+	root := testcodegen.RunDSL(t, func() {
+		base := dsl.Type("ContentTypes", dsl.String, func() {
+			dsl.Enum("application/json", "application/problem+json")
+		})
+		inherited := dsl.Type("InheritedContentType", base)
+		narrowed := dsl.Type("NarrowedContentType", inherited, func() {
+			dsl.Enum("application/problem+json")
+		})
+		dsl.Service("content", func() {
+			dsl.Method("show", func() {
+				dsl.Result(func() {
+					dsl.Attribute("inherited", inherited)
+					dsl.Attribute("narrowed", narrowed)
+				})
+				dsl.HTTP(func() {
+					dsl.GET("/content")
+					dsl.Response(expr.StatusOK, func() {
+						dsl.Header("inherited:Content-Type")
+					})
+					dsl.Response(expr.StatusAccepted, func() {
+						dsl.Header("narrowed:Content-Type")
+					})
+				})
+			})
+		})
+	})
+
+	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])
+	analysis := transportir.AnalyzeResponseContractCases(endpoint)
+	require.True(t, analysis.Supported())
+	require.Empty(t, analysis.Limitations)
+	require.Len(t, analysis.Cases, 2)
+	require.Equal(t, []string{"application/json", "application/problem+json"}, analysis.Cases[0].ContentTypes)
+	require.Equal(t, []string{"application/problem+json"}, analysis.Cases[1].ContentTypes)
+}
+
 func TestAnalyzeResponseContractCasesSupportsWebSocket(t *testing.T) {
 	root := testcodegen.RunDSL(t, responseContractWebSocketDSL)
 	endpoint := transportir.BuildEndpoint(root.API.HTTP.Services[0].HTTPEndpoints[0])

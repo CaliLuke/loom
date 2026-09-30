@@ -28,7 +28,9 @@ func TestAnalyzerUsesElementNamesForSuffixedFields(t *testing.T) {
 			{Name: "tag:tg", Attribute: tagged},
 			{Name: "obj:o", Attribute: leaf},
 		},
-		DefaultValue: map[string]any{"n:m": "default", "req:r": 1, "obj:o": map[string]any{"count:c": 2}},
+		DefaultValue: map[string]any{
+			"n:m": "enum", "req:r": 5, "tag:tg": "e", "obj:o": map[string]any{"count:c": 6},
+		},
 		UserExamples: []*expr.ExampleExpr{{Value: map[string]any{
 			"n:m": "example", "req:r": 3, "tag:tg": "t", "obj:o": map[string]any{"count:c": 4},
 		}}},
@@ -47,7 +49,7 @@ func TestAnalyzerUsesElementNamesForSuffixedFields(t *testing.T) {
 	require.Contains(t, schema.Properties, "o")
 	assert.ElementsMatch(t, []string{"c"}, keys(schema.Properties["o"].Properties))
 	assert.Equal(t, []string{"c"}, schema.Properties["o"].Required)
-	assert.Equal(t, map[string]any{"m": "default", "r": 1, "o": map[string]any{"c": 2}}, schema.DefaultValue)
+	assert.Equal(t, map[string]any{"m": "enum", "r": 5, "jt": "e", "o": map[string]any{"c": 6}}, schema.DefaultValue)
 	assert.Equal(t, map[string]any{"m": "example", "r": 3, "jt": "t", "o": map[string]any{"c": 4}}, schema.Example)
 	assert.Equal(t, []any{map[string]any{"m": "enum", "r": 5, "jt": "e", "o": map[string]any{"c": 6}}}, schema.Enum)
 

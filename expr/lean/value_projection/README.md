@@ -20,12 +20,99 @@ including those 402 comparisons and missing-codec negative controls. Full lint,
 test, coverage and final generation comparisons passed. Final independent
 review authorized the atomic #570 commit, pushed as `2f6bfbf7`.
 Shared Go target-constraint and source-traversal repairs passed independent
-re-review. Alias-local and map-key constraints still lack complete formal
-correspondence; the adapter rejects unsupported shapes explicitly.
+re-review. Separate bounded adapters now check effective alias contracts, named
+scalar key contracts and alias lengths; the general graph adapter continues to
+reject unsupported shapes explicitly.
+The #571 effective-alias checkpoint passed the 634-theorem audit, fresh kernel
+replay and all five deliberate rejection controls. Its independent raw-layer
+adapters and all 18 registered conformance groups pass. Final production
+acceptance remains open; these checks do not certify generated Go.
 The gate targets the candidate `Proofs` entry point. #570 wires the same
 registered-corpus proof/conformance gate into local checks and CI.
-Alias-local schema lowering is due in #574; cumulative alias/key-constraint and
-key-enum lowering is due in #571, before those consumers rely on it.
+#574 delivered byte-alias length and schema lowering in `9e6b9121`; its
+[production evidence](../../../internal/valuecontract/BYTE_SCHEMA.md) records
+the generated comparisons and remaining representation boundaries. General
+alias/key extraction obligations are tracked separately in the correspondence
+ledger and must not be inferred from byte-length or effective-owner checks.
+
+## Effective alias contracts: #571
+
+[`NumericBounds.lean`](ValueContract/NumericBounds.lean) retains all four raw
+numeric bounds and proves that choosing the tightest lower and upper endpoints,
+with exclusive ties winning, is equivalent to their conjunction. Contradictory
+bounds remain valid empty-set contracts. Its controls reproduce the former
+inclusive/exclusive overwrite defects.
+
+[`AliasContracts.lean`](ValueContract/AliasContracts.lean) models a finite raw
+ancestry independently of the Go effective-constraint owner. Enumeration
+acceptance is equivalent to the recursive refinement judgment: equal and proper
+subsets succeed, while partial-overlap and disjoint declarations fail at their
+first offending semantic member. On success, the effective enumeration is the
+last explicit declaration. A present local default replaces an inherited one;
+an absent local default preserves it; every selected default must satisfy the
+effective enum and numeric contract. Required fields are unioned by finalized
+identity, contain every raw identity, contain no duplicate identity and retain
+the first provenance record in effective-to-ancestor order. Pattern and Format
+clauses form a separate typed identity domain. They are stably de-duplicated in
+current-to-base order with first/current provenance, and every remaining clause
+is conjoined when admitting enum members and defaults. Every base-to-current
+prefix validates an enum authored there under its modeled numeric and symbolic
+predicate contract, while its selected default must satisfy the full effective
+contract. A descendant cannot hide an invalid base declaration. An inherited
+enum composes with later non-enum constraints as an intersection and is not a
+new value assertion; a locally authored enum is. Valid explicit narrowing or
+default replacement is not checked retroactively against constraints authored
+later. The predicate IDs model
+independent acceptance facts; Lean does not interpret regex or format syntax.
+
+Authored enum and default values enter the model as independently resolved
+semantic-class IDs plus optional exact decimals. The Lean theorem therefore
+assumes correct declared-type resolution and equality; it does not compare raw
+literals or serialized JSON. The Go conformance adapter under
+[`internal/valuecontract`](../../../internal/valuecontract/) supplies an
+independent normalizer for the exercised primitive, Bytes, Any, array, object,
+map and nullable cases. It preserves raw declaration absence, duplicates and
+provenance and compares the candidate only after constructing the reference
+input. Exact signed/unsigned integers, Float32 normalization, Bytes text/byte
+equivalence, recursive Any equality, collection equality and null are explicit
+controls. Representative non-nil struct and pointer values are additional
+raw semantic atoms for `Any`, compared independently by exact Go type and deep
+equality through root, multi-hop and nested contracts. For declared Objects,
+the adapter independently reflects codec-free structs and non-nil pointers over
+the reviewed exported-field, JSON-name, anonymous-embedding, ambiguity,
+snapshot and cycle subset, then applies normal child coercion. Recognized JSON
+or text codec method sets stay opaque and no method is invoked. This Go host
+materialization boundary is tested correspondence, not a Lean theorem and not
+a claim about codec, serialization or projection correctness.
+
+The Go adapter independently evaluates representative RE2-compatible patterns,
+UUID and RFC3339 date-time values and compares the candidate's typed clause
+order, exact text and original declaration provenance. This establishes the
+named cases, not equivalence with every production regex or format validator.
+Go graph extraction, DSL finalization and diagnostics, arbitrary custom values,
+unions, codecs, float-to-decimal conversion, length and shape validation remain
+tested boundaries rather than Lean theorems. Primitive field-template copying is also outside the
+named-type ancestry judgment; a copied occurrence can author its own contract,
+while an actual restricted named ancestry must satisfy refinement.
+
+The `named-key-contracts` group independently extracts raw scalar key ancestry,
+including enum absence and duplicates, default provenance, all four numeric
+bounds, typed predicates and each length bound. It checks authored enum and
+selected default admission at every ancestry prefix and compares whole-map
+resolution. Source `Any` key equality retains Go host identity; canonical member
+names and native decoded-key identity are checked separately. Constrained
+projection controls compose independent key admission with the key codec
+reference. The `effective-alias-lengths` group compares raw String, Array and Map
+alias bounds with the existing length reference, effective constraints,
+resolution and projection. Rune counting and collection cardinality remain
+tested Go extraction boundaries.
+
+The key-domain comparison exposed a capture defect: a present-empty authored
+enum became absent and admitted a member. Shared capture now preserves its
+presence. Direct controls check scalar roles, named inheritance, widening
+rejection, map keys and detached snapshots. The existing model already
+distinguishes empty domains from absent constraints; this repair changes the
+implementation correspondence, not the accepted enum policy.
 
 ## Byte-schema migration: #574
 
@@ -34,8 +121,8 @@ intersecting every local decoded-length constraint on a finite alias chain
 preserves their conjunction. [`ByteLengthProjection.lean`](ValueContract/ByteLengthProjection.lean)
 proves residue bounds, clamping, empty-branch omission, encoded-length arithmetic
 and its composition with an independently stated base64 grammar. The 19 new
-statements bring the current audited manifest to 586 theorems; the axiom audit
-and fresh kernel replay pass. This checkpoint does not complete #574.
+statements brought the #574 checkpoint manifest to 586 theorems; the axiom audit
+and fresh kernel replay passed. The current #571 manifest contains 634 theorems.
 
 The executable reference exposes these same functions through `aliasLengths`
 and `byteLengthSchema`. The new Go conformance groups compare the real shared
@@ -45,9 +132,11 @@ this lowering; their existing rejection controls remain required.
 
 Actual JSON codec acceptance, ECMA-262 regex execution, schema adapter traversal,
 component identity and emitted Go are still tested boundaries. The generated
-HTTP/JSON-RPC and Ajv checks run in `make openapi-contract`. Full affected-output
-comparisons and independent #574 review remain open; a checked arithmetic
-model alone does not establish correctness of the emitted schemas.
+HTTP/JSON-RPC and Ajv checks run in `make openapi-contract`. #574's repository
+gates, registered 72-probe comparison, final-source 499-case comparison and
+independent review passed before `9e6b9121` was pushed. That tested production
+evidence is separate from the arithmetic proof; neither establishes universal
+correctness of emitted schemas.
 
 ## Architecture and navigation
 
@@ -178,6 +267,21 @@ these commands from this directory:
 lake env lean -DwarningAsError=true ValueContract/AxiomAudit.lean
 lake env leanchecker --fresh ValueContract.Proofs
 ```
+
+The #571 legacy controls are expected to fail because each asserts a rejected
+behavior as if it were valid:
+
+```sh
+lake env lean NegativeNumericOverwrite.lean
+lake env lean NegativeNumericClosedTie.lean
+lake env lean NegativeEnumOverride.lean
+lake env lean NegativeNearestPattern.lean
+lake env lean NegativeNearestFormat.lean
+```
+
+Each command must exit nonzero at its stated false obligation. A successful
+compile would mean the corresponding overwrite, closed-tie, enum-override or
+nearest-only predicate defect had returned.
 
 [`required-theorems.txt`](required-theorems.txt) is the reviewed claim manifest.
 `AxiomAudit` uses Lean's `collectAxioms` for each required theorem, including

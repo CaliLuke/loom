@@ -409,8 +409,11 @@ func initExamples(target interface {
 		}
 	default:
 		generator := exampleGeneratorForAttribute(rand, attr, closeObjects, context)
-		if val, ok := OpenAPIExampleValue(attr, synthesizedOpenAPIExample(attr, generator)); ok {
-			target.setExample(val)
+		source := synthesizedOpenAPIExample(attr, generator)
+		if source.present && source.declared {
+			if val, ok := openAPIDeclaredExampleValue(attr, source.value); ok {
+				target.setExample(val)
+			}
 		}
 	}
 }
@@ -466,7 +469,21 @@ func OpenAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 	if canonical != nil {
 		canonical = enumvalue.Normalize(attr, raw)
 	}
-	val := normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, canonical))
+	return projectCompleteOpenAPIExample(attr, canonical)
+}
+
+func openAPIDeclaredExampleValue(attr *expr.AttributeExpr, value any) (any, bool) {
+	if value == nil {
+		if expr.AllowsNull(attr) {
+			return NullExample{}, true
+		}
+		return nil, false
+	}
+	return projectCompleteOpenAPIExample(attr, value)
+}
+
+func projectCompleteOpenAPIExample(attr *expr.AttributeExpr, value any) (any, bool) {
+	val := normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, value))
 	if !isCompleteOpenAPIExample(attr, val) {
 		return nil, false
 	}

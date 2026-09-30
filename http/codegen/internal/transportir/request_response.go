@@ -213,10 +213,15 @@ func responseContentTypeHeaderEnums(resp *expr.HTTPResponseExpr) []string {
 	var contentTypes []string
 	seen := map[string]struct{}{}
 	for _, header := range buildHeaders(resp.Headers) {
-		if textproto.CanonicalMIMEHeaderKey(header.HTTPName) != "Content-Type" || header.Attribute == nil || header.Attribute.Validation == nil {
+		if textproto.CanonicalMIMEHeaderKey(header.HTTPName) != "Content-Type" || header.Attribute == nil {
 			continue
 		}
-		for _, raw := range header.Attribute.Validation.Values {
+		constraints, err := expr.EffectiveConstraintsFor(header.Attribute)
+		if err != nil {
+			panic(fmt.Sprintf("invalid response header %q constraints: %v", header.Name, err))
+		}
+		values, _ := constraints.EnumCandidates()
+		for _, raw := range values {
 			value, ok := raw.(string)
 			if !ok {
 				continue
@@ -352,30 +357,38 @@ func normalizeHTTPAttribute(attr *expr.AttributeExpr) *expr.AttributeExpr {
 }
 
 func normalizeHTTPAttributeRecursive(attr *expr.AttributeExpr, seen map[string]struct{}) *expr.AttributeExpr {
+	constraints, err := expr.EffectiveConstraintsFor(attr)
+	if err != nil {
+		panic(fmt.Sprintf("invalid HTTP attribute constraints: %v", err))
+	}
+	defaultValue, hasDefault := constraints.Default()
 	switch actual := attr.Type.(type) {
 	case expr.UserType:
 		if len(attr.UserExamples) == 0 {
 			attr.UserExamples = actual.Attribute().ExtractUserExamples()
 		}
-		if _, ok := actual.(*expr.ResultTypeExpr); !ok && !expr.IsObject(actual) &&
-			!hasCanonicalOpenAPITypeName(attr, actual) {
+		_, result := actual.(*expr.ResultTypeExpr)
+		flattened := !result && !expr.IsObject(actual) && !hasCanonicalOpenAPITypeName(attr, actual)
+		if flattened {
 			// Preserve inherited nullability before removing the named type.
 			attr.Nullable = expr.IsNullable(attr)
 			attr.Type = actual.Attribute().Type
-			if validation := actual.Attribute().Validation; validation != nil {
-				if attr.Validation == nil {
-					attr.Validation = validation
-				} else {
-					attr.Validation.Merge(validation)
-				}
+			attr.Validation = constraints.Validation().Lowered()
+			if attr.Validation.HasRequiredOnly() && len(attr.Validation.Required) == 0 {
+				attr.Validation = nil
 			}
-			attr.DefaultValue = actual.Attribute().DefaultValue
+			if hasDefault {
+				attr.DefaultValue = defaultValue
+			}
 		}
 		if _, ok := seen[actual.ID()]; ok {
 			return attr
 		}
 		seen[actual.ID()] = struct{}{}
 		actual.SetAttribute(normalizeHTTPAttributeRecursive(actual.Attribute(), seen))
+		if flattened {
+			attr.Type = actual.Attribute().Type
+		}
 	case *expr.Array:
 		actual.ElemType = normalizeHTTPAttributeRecursive(actual.ElemType, seen)
 	case *expr.Map:

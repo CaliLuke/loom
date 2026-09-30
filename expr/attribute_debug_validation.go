@@ -145,29 +145,34 @@ func debugNamedExprs(label string, values []DataType, tabs, tab string) {
 	}
 }
 
-// validateEnumDefault makes sure that the attribute default value is one of the
-// enum values.
-func (a *AttributeExpr) validateEnumDefault(ctx string, parent eval.Expression) *eval.ValidationErrors {
+// validateEffectiveConstraints validates authored enums and defaults against
+// the complete finalized named-type contract.
+func (a *AttributeExpr) validateEffectiveConstraints(ctx string, parent eval.Expression) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	if a.DefaultValue != nil && a.Validation != nil && a.Validation.Values != nil {
-		var found bool
-		for _, value := range a.Validation.Values {
-			if reflect.DeepEqual(value, a.DefaultValue) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			verr.Add(
-				parent,
-				"%sdefault value %#v is not one of the accepted values: %#v",
-				ctx,
-				a.DefaultValue,
-				a.Validation.Values,
-			)
-		}
+	if !hasConstraintValueAncestry(a) {
+		return verr
+	}
+	if _, err := EffectiveConstraintsFor(a); err != nil {
+		verr.Add(parent, "%s%s", ctx, err)
 	}
 	return verr
+}
+
+func hasConstraintValueAncestry(attribute *AttributeExpr) bool {
+	seen := make(map[UserType]bool)
+	for attribute != nil {
+		if attribute.DefaultValue != nil || (attribute.Validation != nil &&
+			(attribute.Validation.Values != nil || len(attribute.Validation.EnumClauses) > 0)) {
+			return true
+		}
+		named, ok := attribute.Type.(UserType)
+		if !ok || seen[named] {
+			return false
+		}
+		seen[named] = true
+		attribute = named.Attribute()
+	}
+	return false
 }
 
 // validateExamples makes sure that the attribute example values are compatible
@@ -326,9 +331,14 @@ func (v *ValidationExpr) Validate(ctx string, parent eval.Expression) *eval.Vali
 	if v.MinLength != nil && v.MaxLength != nil && *v.MinLength > *v.MaxLength {
 		verr.Add(parent, "%smin length is greater than max length", ctx)
 	}
-	if v.Pattern != "" {
-		if _, err := regexp.Compile(v.Pattern); err != nil {
-			verr.Add(parent, "%sinvalid pattern %q: %s", ctx, v.Pattern, err)
+	for _, pattern := range v.Patterns() {
+		if _, err := regexp.Compile(pattern); err != nil {
+			verr.Add(parent, "%sinvalid pattern %q: %s", ctx, pattern, err)
+		}
+	}
+	for _, format := range v.Formats() {
+		if !isSupportedValidationFormat(format) {
+			verr.Add(parent, "%sunsupported format %q", ctx, format)
 		}
 	}
 	return verr
@@ -337,20 +347,23 @@ func (v *ValidationExpr) Validate(ctx string, parent eval.Expression) *eval.Vali
 // Merge merges other into v so that v enforces the constraints of both: the
 // result accepts a value only if both v and other accept it. Numeric and length
 // bounds keep the tighter value (the larger lower bound and the smaller upper
-// bound), inclusive and exclusive bounds are kept independently, and required
-// fields are unioned. Enum values, format, and pattern are not intersected: v
-// keeps its own value and only adopts other's when v has none. Merge never
-// mutates other.
+// bound), inclusive and exclusive bounds are kept independently, pattern and
+// format clauses are conjoined with exact duplicates removed, and required
+// fields are unioned. When v has no enum predicate, other's authored enum is
+// adopted. Otherwise incoming authored values are added as a conjoined clause,
+// followed by the additional clauses. Existing receiver clauses retain their
+// order and authorship distinction. Merge never mutates other.
 func (v *ValidationExpr) Merge(other *ValidationExpr) {
-	if v.Values == nil {
-		v.Values = other.Values
+	if other.Values != nil {
+		if v.Values == nil && len(v.EnumClauses) == 0 {
+			v.Values = copyEnumValues(other.Values)
+		} else {
+			v.mergeEnumClauses([][]any{other.Values})
+		}
 	}
-	if v.Format == "" {
-		v.Format = other.Format
-	}
-	if v.Pattern == "" {
-		v.Pattern = other.Pattern
-	}
+	v.mergeEnumClauses(other.EnumClauses)
+	v.mergeFormats(other.Formats())
+	v.mergePatterns(other.Patterns())
 	v.ExclusiveMinimum = tighterBound(v.ExclusiveMinimum, other.ExclusiveMinimum, true)
 	v.Minimum = tighterBound(v.Minimum, other.Minimum, true)
 	v.ExclusiveMaximum = tighterBound(v.ExclusiveMaximum, other.ExclusiveMaximum, false)
@@ -358,6 +371,127 @@ func (v *ValidationExpr) Merge(other *ValidationExpr) {
 	v.MinLength = tighterBound(v.MinLength, other.MinLength, true)
 	v.MaxLength = tighterBound(v.MaxLength, other.MaxLength, false)
 	v.AddRequired(other.Required...)
+}
+
+func copyEnumValues(values []any) []any {
+	if values == nil {
+		return nil
+	}
+	copy := make([]any, len(values))
+	for index, value := range values {
+		copy[index] = copyValueRaw(value)
+	}
+	return copy
+}
+
+// Enums returns every enum membership predicate in authored-then-clause order.
+// The returned outer and inner slices are detached. Exact duplicate predicates
+// are returned once. An explicit empty predicate is preserved.
+func (v *ValidationExpr) Enums() [][]any {
+	if v == nil {
+		return nil
+	}
+	capacity := len(v.EnumClauses)
+	if v.Values != nil {
+		capacity++
+	}
+	result := make([][]any, 0, capacity)
+	if v.Values != nil {
+		result = append(result, slices.Clone(v.Values))
+	}
+	for _, clause := range v.EnumClauses {
+		duplicate := slices.ContainsFunc(result, func(existing []any) bool {
+			return reflect.DeepEqual(existing, clause)
+		})
+		if !duplicate {
+			result = append(result, slices.Clone(clause))
+		}
+	}
+	return result
+}
+
+// Patterns returns the conjoined pattern validations in current-then-clause
+// order with exact duplicates removed.
+func (v *ValidationExpr) Patterns() []string {
+	if v == nil {
+		return nil
+	}
+	patterns := make([]string, 0, 1+len(v.PatternClauses))
+	if v.Pattern != "" {
+		patterns = append(patterns, v.Pattern)
+	}
+	for _, pattern := range v.PatternClauses {
+		if pattern != "" && !slices.Contains(patterns, pattern) {
+			patterns = append(patterns, pattern)
+		}
+	}
+	return patterns
+}
+
+// Formats returns the conjoined format validations in current-then-clause
+// order with exact duplicates removed.
+func (v *ValidationExpr) Formats() []ValidationFormat {
+	if v == nil {
+		return nil
+	}
+	formats := make([]ValidationFormat, 0, 1+len(v.FormatClauses))
+	if v.Format != "" {
+		formats = append(formats, v.Format)
+	}
+	for _, format := range v.FormatClauses {
+		if format != "" && !slices.Contains(formats, format) {
+			formats = append(formats, format)
+		}
+	}
+	return formats
+}
+
+func (v *ValidationExpr) mergePatterns(patterns []string) {
+	for _, pattern := range patterns {
+		if pattern == "" || slices.Contains(v.Patterns(), pattern) {
+			continue
+		}
+		if len(v.Patterns()) == 0 {
+			v.Pattern = pattern
+		} else {
+			v.PatternClauses = append(v.PatternClauses, pattern)
+		}
+	}
+}
+
+func (v *ValidationExpr) mergeFormats(formats []ValidationFormat) {
+	for _, format := range formats {
+		if format == "" || slices.Contains(v.Formats(), format) {
+			continue
+		}
+		if len(v.Formats()) == 0 {
+			v.Format = format
+		} else {
+			v.FormatClauses = append(v.FormatClauses, format)
+		}
+	}
+}
+
+func (v *ValidationExpr) mergeEnumClauses(clauses [][]any) {
+	for _, clause := range clauses {
+		if slices.ContainsFunc(v.Enums(), func(existing []any) bool {
+			return reflect.DeepEqual(existing, clause)
+		}) {
+			continue
+		}
+		v.EnumClauses = append(v.EnumClauses, copyEnumValues(clause))
+	}
+}
+
+func cloneEnumClauses(clauses [][]any) [][]any {
+	if clauses == nil {
+		return nil
+	}
+	result := make([][]any, len(clauses))
+	for index, clause := range clauses {
+		result[index] = copyEnumValues(clause)
+	}
+	return result
 }
 
 // AddRequired merges the required fields into v.
@@ -383,10 +517,10 @@ func (v *ValidationExpr) RemoveRequired(required string) {
 // HasRequiredOnly returns true if the validation only has the Required field
 // with a non-zero value.
 func (v *ValidationExpr) HasRequiredOnly() bool {
-	if len(v.Values) > 0 {
+	if len(v.Enums()) > 0 {
 		return false
 	}
-	if v.Format != "" || v.Pattern != "" {
+	if len(v.Formats()) > 0 || len(v.Patterns()) > 0 {
 		return false
 	}
 	if (v.ExclusiveMinimum != nil) ||
@@ -409,8 +543,11 @@ func (v *ValidationExpr) Dup() *ValidationExpr {
 	}
 	return &ValidationExpr{
 		Values:           v.Values,
+		EnumClauses:      cloneEnumClauses(v.EnumClauses),
 		Format:           v.Format,
 		Pattern:          v.Pattern,
+		PatternClauses:   slices.Clone(v.PatternClauses),
+		FormatClauses:    slices.Clone(v.FormatClauses),
 		ExclusiveMinimum: v.ExclusiveMinimum,
 		Minimum:          v.Minimum,
 		ExclusiveMaximum: v.ExclusiveMaximum,
@@ -427,14 +564,14 @@ func (v *ValidationExpr) Debug(title, prefix, indent string) {
 		return
 	}
 	fmt.Printf("%s%svalidations\n", prefix, title)
-	if len(v.Values) > 0 {
-		fmt.Printf("%s%s- enum: %s\n", prefix, indent, fmt.Sprintf("%v", v.Values))
+	for _, values := range v.Enums() {
+		fmt.Printf("%s%s- enum: %s\n", prefix, indent, fmt.Sprintf("%v", values))
 	}
-	if v.Format != "" {
-		fmt.Printf("%s%s- format: %s\n", prefix, indent, v.Format)
+	for _, format := range v.Formats() {
+		fmt.Printf("%s%s- format: %s\n", prefix, indent, format)
 	}
-	if v.Pattern != "" {
-		fmt.Printf("%s%s- pattern: %s\n", prefix, indent, v.Pattern)
+	for _, pattern := range v.Patterns() {
+		fmt.Printf("%s%s- pattern: %s\n", prefix, indent, pattern)
 	}
 	if v.ExclusiveMinimum != nil {
 		fmt.Printf("%s%s- exclMin: %v\n", prefix, indent, *v.ExclusiveMinimum)
@@ -461,6 +598,10 @@ func (v *ValidationExpr) Debug(title, prefix, indent string) {
 
 // IsSupportedValidationFormat checks if the validation format is supported by Loom.
 func (*AttributeExpr) IsSupportedValidationFormat(vf ValidationFormat) bool {
+	return isSupportedValidationFormat(vf)
+}
+
+func isSupportedValidationFormat(vf ValidationFormat) bool {
 	switch vf {
 	case FormatDate:
 		return true
