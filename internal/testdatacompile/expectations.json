@@ -74,12 +74,6 @@
     "phase": "gen",
     "reason": "intentional validation failure"
   },
-  "expr/EndpointBodyAsUserType": {
-    "contains": "OpenAPI representation: value plan has unrelated member \"name\"",
-    "phase": "gen",
-    "reason": "known generator failure",
-    "issue": "https://github.com/CaliLuke/loom/issues/581"
-  },
   "expr/EndpointDuplicateResponseStatusCode": {
     "contains": "Multiple response definitions with status code 200",
     "phase": "gen",

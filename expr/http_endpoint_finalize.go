@@ -111,10 +111,11 @@ func (e *HTTPEndpointExpr) finalizeTransportBodies() {
 	initAttr(e.Headers, e.MethodExpr.Payload)
 	initAttr(e.Cookies, e.MethodExpr.Payload)
 
-	if e.Body != nil {
-		bindValueSource(e.Body, responseBodyAttribute(e.Body, e.MethodExpr.Payload))
-	}
+	explicitBody := e.Body != nil
 	e.Body = httpRequestBody(e)
+	if explicitBody {
+		bindExplicitHTTPRequestBody(e.Body, responseBodyAttribute(e.Body, e.MethodExpr.Payload))
+	}
 	e.Body.Finalize()
 	if e.OpenAPIRequestBody != nil {
 		e.OpenAPIRequestBody.Finalize()
@@ -123,6 +124,24 @@ func (e *HTTPEndpointExpr) finalizeTransportBodies() {
 	e.StreamingBody = httpStreamingBody(e)
 	if e.StreamingBody != nil {
 		e.StreamingBody.Finalize()
+	}
+}
+
+func bindExplicitHTTPRequestBody(body, source *AttributeExpr) {
+	bindValueSource(body, source)
+	if source == nil {
+		return
+	}
+	bodyObject := AsObject(body.Type)
+	sourceObject := AsObject(source.Type)
+	if bodyObject == nil || sourceObject == nil {
+		return
+	}
+	for _, named := range *bodyObject {
+		_, sourceMember := objectAttribute(sourceObject, named.Name)
+		if sourceMember != nil {
+			bindValueSource(named.Attribute, sourceMember)
+		}
 	}
 }
 

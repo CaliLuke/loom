@@ -7,8 +7,8 @@ M1–M2 core pushed. Migration status and delivery order:
 1. **#574 — complete:** Shared schema ownership preserves async policies and matches byte schemas to decoders.
 2. **#571 — complete:** Centralize effective enums, defaults, numeric/length bounds, pattern/format clauses, and required fields. Derived enums refine ancestor enums: equal/subset declarations are valid and any outside member is a design error.
 3. **#456 — complete:** Reject authored map-key collisions during design validation, preserving known witnesses across opaque or cyclic siblings without invoking custom codecs.
-4. **#581 — next:** Bind separately authored request-body members to their payload sources. Remove the linked corpus expectation and verify successful generation, build and vet before continuing to #572.
-5. **#572:** Remove private OpenAPI synthesis; validate rendered examples.
+4. **#581 — complete:** Bind separately authored request-body members to their payload sources on each endpoint's own body copy. The model, direct regressions, 45-design comparison and repository gates pass; the named-body fixture now generates, builds and vets successfully.
+5. **#572 — next:** Remove private OpenAPI synthesis; validate rendered examples.
 6. **#565:** Migrate transports/CLI; pass generated runtime and SSE tests.
 7. **#434 → #573:** Verify protobuf round trips; remove duplicate interpretation; complete inventory and CI.
 

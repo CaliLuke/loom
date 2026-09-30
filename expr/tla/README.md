@@ -30,6 +30,37 @@ map, and inline-object graphs, repeated derivation, source pointer identity, and
 names that already end in `RequestBody`. DSL and generated-module tests check
 union branches, shared constructor allocation, presence validation, and compile.
 
+## Explicit request-body member bindings
+
+`BodyMemberBindings.tla` models two endpoints reusing one authored body whose
+members map to distinct payload occurrences. Binding only the body root leaves
+independently authored members unrelated to their payload members. Binding the
+shared declaration instead makes finalization of the second endpoint change
+the first endpoint's mapping. The checked rule binds each endpoint's owned
+transport copy and leaves the authored declaration unchanged.
+
+```sh
+cd expr/tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config BodyMemberBindings_before.cfg BodyMemberBindings.tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config BodyMemberBindings_shared.cfg BodyMemberBindings.tla
+java -cp "$TLA_TOOLS_JAR" tlc2.TLC -config BodyMemberBindings_after.cfg BodyMemberBindings.tla
+```
+
+The before configuration violates `MemberCorrespondence` after one endpoint
+finalizes. The shared-declaration control violates it after the second endpoint
+finalizes. The after configuration passes all three invariants over four
+distinct states and both finalization orders. The member mapping is an input
+to this finite model; it does not prove Go graph copying or derive an HTTP
+mapping from names or shapes.
+
+`TestFinalizeExplicitHTTPRequestBodyBindsIndependentMembers` checks actual
+endpoint copies, distinct payload bindings, element names, authored metadata,
+constraints, examples and declaration identity. The selected-payload companion
+checks the explicit source selection. Finalization owns these bindings;
+`ValuePlan` must still reject unrelated targets. The checked-in
+`EndpointBodyAsUserType` fixture covers the separately declared named body at
+the generation boundary.
+
 ## Method type ownership
 
 `MethodTypeOwnership.tla` models a named type used for both a payload and a
