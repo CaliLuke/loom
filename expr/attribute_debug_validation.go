@@ -179,6 +179,13 @@ func hasConstraintValueAncestry(attribute *AttributeExpr) bool {
 // with the attribute type.
 func (a *AttributeExpr) validateExamples(ctx string, parent eval.Expression) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	var collisionContext *ValueContext
+	var collisionOccurrence ValueOccurrence
+	var collisionErr error
+	if len(a.UserExamples) > 0 {
+		collisionContext = NewValueContext()
+		collisionOccurrence, collisionErr = collisionContext.newCollisionOccurrence(a)
+	}
 	for _, ex := range a.UserExamples {
 		if ex.ExplicitNull {
 			if !AllowsNull(a) {
@@ -186,58 +193,35 @@ func (a *AttributeExpr) validateExamples(ctx string, parent eval.Expression) *ev
 			}
 			continue
 		}
-		if !exampleValueCompatible(a, ex.Value) { // DSL ensures a top-level ex.Value is not nil
+		compatibility := valueCollisionUnknown
+		var collisions []valueMapKeyCollision
+		if collisionContext != nil && collisionErr == nil {
+			result := collisionContext.mapKeyCollisionResult(collisionOccurrence,
+				collisionContext.SupplyValue(ValueInput{Raw: ex.Value}))
+			compatibility = result.compatibility
+			collisions = append(collisions, result.evidence.collisions...)
+			slices.SortFunc(collisions, compareValueMapKeyCollisions)
+		}
+		if len(collisions) > 0 {
+			collision := collisions[0]
+			location := strings.Join(collision.path, ".")
+			if location == "" {
+				location = "the example root"
+			}
+			if len(collision.branchNames) > 0 {
+				location += fmt.Sprintf(" in union branch %q", strings.Join(collision.branchNames, "/"))
+			}
+			verr.Add(parent, "%sexample map keys collide as JSON object member %q at %s", ctx, collision.name, location)
+			continue
+		}
+		if collisionErr != nil {
+			continue
+		}
+		if collisionErr == nil && compatibility == valueCollisionIncompatible {
 			verr.Add(parent, "%sexample value %#v is incompatible with type %s", ctx, ex.Value, a.Type.Name())
 		}
 	}
 	return verr
-}
-
-func exampleValueCompatible(attribute *AttributeExpr, value any) bool {
-	if attribute == nil || attribute.Type == nil {
-		return false
-	}
-	if value == nil {
-		return AllowsNull(attribute)
-	}
-	if userType, ok := attribute.Type.(UserType); ok {
-		return exampleValueCompatible(userType.Attribute(), value)
-	}
-	switch actual := attribute.Type.(type) {
-	case *Array:
-		kind := reflect.TypeOf(value).Kind()
-		if kind != reflect.Array && kind != reflect.Slice {
-			return false
-		}
-		items := reflect.ValueOf(value)
-		for index := 0; index < items.Len(); index++ {
-			if !exampleValueCompatible(actual.ElemType, items.Index(index).Interface()) {
-				return false
-			}
-		}
-		return true
-	case *Map:
-		if reflect.TypeOf(value).Kind() != reflect.Map {
-			return false
-		}
-		mapping := reflect.ValueOf(value)
-		for _, key := range mapping.MapKeys() {
-			if !exampleValueCompatible(actual.KeyType, key.Interface()) ||
-				!exampleValueCompatible(actual.ElemType, mapping.MapIndex(key).Interface()) {
-				return false
-			}
-		}
-		return true
-	case *Union:
-		for _, variant := range actual.Values {
-			if exampleValueCompatible(variant.Attribute, value) {
-				return true
-			}
-		}
-		return false
-	default:
-		return attribute.Type.IsCompatible(value)
-	}
 }
 
 func (a *AttributeExpr) inheritRecursive(parent *AttributeExpr, seen map[*AttributeExpr]struct{}) {

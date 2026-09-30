@@ -99,4 +99,34 @@ fi
 
 run_check 'fresh kernel replay' "$proof_tmp/kernel" \
   lake env leanchecker --fresh ValueContract.Proofs
-echo "value contract proof gate passed ($count required theorems)"
+
+run_check 'issue 456 proof build' "$proof_tmp/build-456" \
+  lake build ValueContract.Issue456CollisionDiagnostics
+run_check 'issue 456 transitive axiom audit' "$proof_tmp/audit-456" \
+  lake env lean -DwarningAsError=true ValueContract/AxiomAudit456.lean
+
+if ! grep -Eq '^ISSUE456_AUDIT_OK [1-9][0-9]*$' "$proof_tmp/audit-456"; then
+  echo 'missing audit completion for the issue 456 theorem manifest' >&2
+  exit 1
+fi
+
+issue456_count=0
+while IFS= read -r theorem || [[ -n "$theorem" ]]; do
+  if [[ -z "$theorem" ]]; then
+    continue
+  fi
+  if ! grep -Fq "ISSUE456_THEOREM $theorem axioms=" "$proof_tmp/audit-456"; then
+    echo "missing issue 456 theorem report: $theorem" >&2
+    exit 1
+  fi
+  issue456_count=$((issue456_count + 1))
+done < required-theorems-456.txt
+
+if [[ "$issue456_count" -eq 0 ]] || ! grep -Fxq "ISSUE456_AUDIT_OK $issue456_count" "$proof_tmp/audit-456"; then
+  echo 'missing audit completion for the issue 456 theorem manifest' >&2
+  exit 1
+fi
+
+run_check 'issue 456 fresh kernel replay' "$proof_tmp/kernel-456" \
+  lake env leanchecker --fresh ValueContract.Issue456CollisionDiagnostics
+echo "value contract proof gate passed ($count required theorems; $issue456_count issue 456 theorems)"

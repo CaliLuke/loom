@@ -17,6 +17,11 @@ type valueResolver struct {
 	ignoredEnums map[*valueOccurrenceNode]bool
 }
 
+type valueSelectedUnionSource struct {
+	branch  valueOccurrenceBranch
+	payload any
+}
+
 // Resolve interprets one immutable source against its effective semantic
 // occurrence. It never receives a target, reselects an already selected branch,
 // or substitutes generated data for an authored failure.
@@ -290,7 +295,7 @@ func (r *valueResolver) enter(raw any) (func(), bool) {
 		return func() {
 		}, true
 	}
-	visit := valueSnapshotVisit{value.Type(), value.Pointer(), value.Len()}
+	visit, _ := valueTrackedVisit(value)
 	if r.active[visit] {
 		return nil, false
 	}
@@ -478,26 +483,42 @@ func valueAtPath(result ValueResult, segment string) ValueResult {
 }
 
 func (r *valueResolver) selectedUnion(node *valueOccurrenceNode, raw any, complete bool) (bool, ValueResult) {
+	selected, handled, failure := selectedUnionSource(r.context.identity, r.occurrence, node, raw)
+	if !handled || failure.outcome != 0 {
+		return handled, failure
+	}
+	return true, r.wrapBranch(node, selected.branch,
+		r.resolve(selected.branch.node, selected.payload, complete, selected.branch.node, nil))
+}
+
+func selectedUnionSource(
+	context *valueContextIdentity,
+	occurrence ValueOccurrence,
+	node *valueOccurrenceNode,
+	raw any,
+) (valueSelectedUnionSource, bool, ValueResult) {
 	branches := node.declaration.branches
 	if selected, ok := raw.(valueSelectedInput); ok {
-		occurrence := r.occurrence
-		occurrence.node = node
-		if selected.occurrence != occurrence.ID() {
-			return true, valueFailure(ValueInvalid, "branch", "selected occurrence does not match semantic owner")
+		owner := occurrence
+		owner.node = node
+		if selected.occurrence != owner.ID() {
+			return valueSelectedUnionSource{}, true,
+				valueFailure(ValueInvalid, "branch", "selected occurrence does not match semantic owner")
 		}
 		for _, branch := range branches {
-			if selected.branch == (ValueIdentity{context: r.context.identity, graph: r.occurrence.graph, index: branch.id}) {
-				return true, r.wrapBranch(node, branch, r.resolve(branch.node, selected.payload, complete, branch.node, nil))
+			if selected.branch == (ValueIdentity{context: context, graph: occurrence.graph, index: branch.id}) {
+				return valueSelectedUnionSource{branch: branch, payload: selected.payload}, true, ValueResult{}
 			}
 		}
-		return true, valueFailure(ValueInvalid, "branch", "selected branch does not belong to occurrence")
+		return valueSelectedUnionSource{}, true,
+			valueFailure(ValueInvalid, "branch", "selected branch does not belong to occurrence")
 	}
 	if selected, ok := raw.(examplevalue.Union); ok {
 		if selected.Branch < 0 || selected.Branch >= len(branches) {
-			return true, valueFailure(ValueInvalid, "branch", "selected branch does not belong to occurrence")
+			return valueSelectedUnionSource{}, true,
+				valueFailure(ValueInvalid, "branch", "selected branch does not belong to occurrence")
 		}
-		branch := branches[selected.Branch]
-		return true, r.wrapBranch(node, branch, r.resolve(branch.node, selected.Value, complete, branch.node, nil))
+		return valueSelectedUnionSource{branch: branches[selected.Branch], payload: selected.Value}, true, ValueResult{}
 	}
-	return false, ValueResult{}
+	return valueSelectedUnionSource{}, false, ValueResult{}
 }

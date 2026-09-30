@@ -26,7 +26,10 @@ reject unsupported shapes explicitly.
 The #571 effective-alias checkpoint passed the 634-theorem audit, fresh kernel
 replay and all five deliberate rejection controls. Its independent raw-layer
 adapters and all 18 registered conformance groups pass. Final production
-acceptance remains open; these checks do not certify generated Go.
+acceptance, including the 934-design retained comparison and its negative
+controls, passed before #571 was committed and pushed as `1955dbc5`. The
+[correspondence ledger](correspondence.md) records the exercised boundaries;
+these checks do not certify arbitrary generated Go.
 The gate targets the candidate `Proofs` entry point. #570 wires the same
 registered-corpus proof/conformance gate into local checks and CI.
 #574 delivered byte-alias length and schema lowering in `9e6b9121`; its
@@ -113,6 +116,40 @@ presence. Direct controls check scalar roles, named inheritance, widening
 rejection, map keys and detached snapshots. The existing model already
 distinguishes empty domains from absent constraints; this repair changes the
 implementation correspondence, not the accepted enum policy.
+
+## Map collision diagnostics: #456
+
+[`Issue456CollisionDiagnostics.lean`](ValueContract/Issue456CollisionDiagnostics.lean)
+defines collision evidence as an unknown flag and a list of known witnesses.
+Combining child evidence preserves every witness, including when another child
+is opaque or recursive. Unknown evidence cannot justify rejecting a value, but
+it cannot erase an independently established collision either.
+
+The model identifies map collisions by duplicate declared member names after
+key conversion. Its Float32 control reproduces a collision that comparison of
+raw values or their original spellings misses. Its object control shows how
+right-biased insertion loses duplicate names; rejection must precede insertion.
+Length, requiredness and enum predicates do not participate in this diagnostic.
+
+For an implicit union, rejection requires known eligibility, at least one
+compatible alternative, and a collision in every compatible alternative.
+Unknown eligibility or a compatible alternative without a known collision
+prevents that universal claim. An explicitly selected branch remains
+authoritative. Witnesses retain structural paths and branch identities; bounded
+controls check presentation order without conflating dotted path components.
+
+The 29 claims in [`required-theorems-456.txt`](required-theorems-456.txt) guide
+the Go implementation; they do not prove its reflection or traversal code.
+Recognizing custom codecs without invoking them, detecting host cycles,
+extracting object members, and matching Go source compatibility remain tested
+correspondence obligations. The compatibility model proves equivalence with its
+finite judgment when supplied sufficient structural depth; it represents cycles
+and opaque leaves explicitly as unknown.
+
+The audited gate below checks the separate #456 manifest and replays
+`ValueContract.Issue456CollisionDiagnostics` with a fresh kernel. Production
+acceptance additionally requires the direct Go controls and generated-output
+comparisons; a successful proof gate alone does not establish delivery.
 
 ## Byte-schema migration: #574
 
@@ -266,6 +303,9 @@ these commands from this directory:
 ```sh
 lake env lean -DwarningAsError=true ValueContract/AxiomAudit.lean
 lake env leanchecker --fresh ValueContract.Proofs
+lake build ValueContract.Issue456CollisionDiagnostics
+lake env lean -DwarningAsError=true ValueContract/AxiomAudit456.lean
+lake env leanchecker --fresh ValueContract.Issue456CollisionDiagnostics
 ```
 
 The #571 legacy controls are expected to fail because each asserts a rejected

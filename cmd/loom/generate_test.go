@@ -125,6 +125,53 @@ var _ = Service("example", func() {
 	}
 }
 
+func TestGenerateRejectsCanonicalMapKeyCollisionExample(t *testing.T) {
+	repositoryRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err)
+	moduleDir := t.TempDir()
+	designDir := filepath.Join(moduleDir, "design")
+	require.NoError(t, os.MkdirAll(designDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(
+		"module example.com/map-key-collision\n\n"+
+			"go 1.27\n\n"+
+			"require github.com/CaliLuke/loom v0.0.0\n\n"+
+			"replace github.com/CaliLuke/loom => "+repositoryRoot+"\n",
+	), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(designDir, "design.go"), []byte(`package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = Service("example", func() {
+	Method("send", func() {
+		Payload(MapOf(Float32, String), func() {
+			Example(map[any]string{
+				float64(1.23456789): "wide",
+				float32(1.23456789): "narrow",
+			})
+		})
+	})
+})
+`), 0o644))
+
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = moduleDir
+	tidy.Env = append(os.Environ(), "GOWORK=off")
+	output, err := tidy.CombinedOutput()
+	require.NoError(t, err, string(output))
+	t.Chdir(moduleDir)
+
+	_, stderr, err := captureOutput(t, func() error {
+		return generate("gen", "example.com/map-key-collision/design", moduleDir, false)
+	})
+	require.Error(t, err)
+	diagnostic := err.Error() + "\n" + stderr
+	require.Contains(t, diagnostic, "stage eval.RunDSL")
+	require.NotContains(t, diagnostic, "PANIC")
+	require.Contains(t, diagnostic,
+		`example map keys collide as JSON object member "1.2345679"`)
+	require.NoDirExists(t, filepath.Join(moduleDir, "gen"))
+}
+
 func TestGenerateRemovesTempDirOnSuccessWithoutDebug(t *testing.T) {
 	t.Chdir(t.TempDir())
 	fake := &fakeGenerator{runFiles: []string{"gen/service.go"}}

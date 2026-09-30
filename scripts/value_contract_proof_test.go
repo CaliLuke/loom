@@ -30,6 +30,11 @@ case "$*" in
       build-error) exit 1 ;;
       warning) echo 'warning: ignored proof obligation' ;;
     esac ;;
+  'build ValueContract.Issue456CollisionDiagnostics')
+    case "$LOOM_PROOF_TEST_MODE" in
+      issue456-build-error) exit 1 ;;
+      issue456-warning) echo 'warning: ignored issue 456 proof obligation' ;;
+    esac ;;
 	'env lean -DwarningAsError=true NegativeNearestPattern.lean'|\
 	'env lean -DwarningAsError=true NegativeNearestFormat.lean'|\
 	'env lean -DwarningAsError=true NegativeNumericOverwrite.lean'|\
@@ -56,10 +61,25 @@ case "$*" in
       echo 'VALUE_CONTRACT_THEOREM ValueContract.Legacy.second axioms=[]'
     fi
     echo 'VALUE_CONTRACT_AUDIT_OK 2' ;;
+  'env lean -DwarningAsError=true ValueContract/AxiomAudit456.lean')
+    case "$LOOM_PROOF_TEST_MODE" in
+      issue456-axiom) echo 'error: forbidden transitive axiom custom'; exit 1 ;;
+      empty-issue456-audit) exit 0 ;;
+    esac
+    echo 'ISSUE456_THEOREM ValueContract.Candidate.Issue456CollisionDiagnostics.first axioms=[]'
+    if [ "$LOOM_PROOF_TEST_MODE" != missing-issue456-theorem ]; then
+      echo 'ISSUE456_THEOREM ValueContract.Candidate.Issue456CollisionDiagnostics.second axioms=[]'
+    fi
+    echo 'ISSUE456_AUDIT_OK 2' ;;
   'env leanchecker --fresh ValueContract.Proofs')
     case "$LOOM_PROOF_TEST_MODE" in
       kernel) exit 1 ;;
       missing-checker) echo 'leanchecker: command not found'; exit 127 ;;
+    esac ;;
+  'env leanchecker --fresh ValueContract.Issue456CollisionDiagnostics')
+    case "$LOOM_PROOF_TEST_MODE" in
+      issue456-kernel) exit 1 ;;
+      missing-issue456-checker) echo 'leanchecker: command not found'; exit 127 ;;
     esac ;;
   *) echo "unexpected command: $*"; exit 2 ;;
 esac
@@ -90,6 +110,13 @@ func TestValueContractProofGate(t *testing.T) {
 		{name: "missing theorem", mode: "missing-theorem", want: "missing theorem report"},
 		{name: "kernel failure", mode: "kernel", want: "fresh kernel replay failed"},
 		{name: "missing checker", mode: "missing-checker", want: "leanchecker: command not found"},
+		{name: "issue 456 build error", mode: "issue456-build-error", want: "issue 456 proof build failed"},
+		{name: "issue 456 build warning", mode: "issue456-warning", want: "issue 456 proof build emitted a warning"},
+		{name: "issue 456 axiom rejected", mode: "issue456-axiom", want: "forbidden transitive axiom"},
+		{name: "empty issue 456 audit", mode: "empty-issue456-audit", want: "missing audit completion for the issue 456 theorem manifest"},
+		{name: "missing issue 456 theorem", mode: "missing-issue456-theorem", want: "missing issue 456 theorem report"},
+		{name: "issue 456 kernel failure", mode: "issue456-kernel", want: "issue 456 fresh kernel replay failed"},
+		{name: "missing issue 456 checker", mode: "missing-issue456-checker", want: "leanchecker: command not found"},
 		{name: "missing lake", mode: "missing-lake", want: "missing lake"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -121,6 +148,9 @@ func TestValueContractProofGate(t *testing.T) {
 			} {
 				require.Contains(t, string(commands), "env lean -DwarningAsError=true "+source+"\n")
 			}
+			require.Contains(t, string(commands), "env lean -DwarningAsError=true ValueContract/AxiomAudit456.lean\n")
+			require.Contains(t, string(commands), "build ValueContract.Issue456CollisionDiagnostics\n")
+			require.Contains(t, string(commands), "env leanchecker --fresh ValueContract.Issue456CollisionDiagnostics\n")
 		})
 	}
 }
@@ -184,6 +214,60 @@ func TestValueContractProofAuditNegativeControls(t *testing.T) {
 	}
 }
 
+func TestValueContractProofIssue456AuditNegativeControls(t *testing.T) {
+	if os.Getenv("LOOM_VALUE_PROOF_TEST") != "1" {
+		t.Skip("set LOOM_VALUE_PROOF_TEST=1 to run actual Lean axiom rejection controls")
+	}
+	_, err := exec.LookPath("lake")
+	require.NoError(t, err, "enabled proof controls require the pinned Lean toolchain")
+	for _, tc := range []struct {
+		name    string
+		body    string
+		missing bool
+		want    string
+	}{
+		{
+			name: "admitted dependency",
+			body: "set_option warningAsError false in\ntheorem gateIssue456Dependency : False := by sorry\n",
+			want: "forbidden transitive axiom sorryAx",
+		},
+		{
+			name: "custom axiom dependency",
+			body: "axiom gateIssue456Correctness : False\ntheorem gateIssue456Dependency : False := gateIssue456Correctness\n",
+			want: "forbidden transitive axiom ValueContract.Candidate.Issue456CollisionDiagnostics.gateIssue456Correctness",
+		},
+		{
+			name:    "missing required theorem",
+			missing: true,
+			want:    "ValueContract.Candidate.Issue456CollisionDiagnostics.gateIssue456Required",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := proofTestTree(t, true)
+			project := filepath.Join(root, "expr", "lean", "value_projection")
+			source := filepath.Join(project, "ValueContract", "Issue456CollisionDiagnostics.lean")
+			original, err := os.ReadFile(source)
+			require.NoError(t, err)
+			injected := tc.body + "theorem gateIssue456Required : False := gateIssue456Dependency\n\nend ValueContract.Candidate.Issue456CollisionDiagnostics"
+			if tc.missing {
+				injected = "end ValueContract.Candidate.Issue456CollisionDiagnostics"
+			}
+			require.NoError(t, os.WriteFile(source, []byte(strings.Replace(string(original), "end ValueContract.Candidate.Issue456CollisionDiagnostics", injected, 1)), 0o600))
+			manifest := filepath.Join(project, "required-theorems-456.txt")
+			names, err := os.ReadFile(manifest)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(manifest, append(names, []byte("ValueContract.Candidate.Issue456CollisionDiagnostics.gateIssue456Required\n")...), 0o600))
+			output, err := proofRun(t, project, os.Environ(), "lake", "build", "ValueContract.Issue456CollisionDiagnostics")
+			require.NoError(t, err, output)
+			output, err = proofRun(t, project, os.Environ(), "lake", "env", "lean", "-DwarningAsError=true", "ValueContract/AxiomAudit456.lean")
+			require.Error(t, err, output)
+			require.Contains(t, output, tc.want)
+			output, err = proofRun(t, root, os.Environ(), "bash", filepath.Join(root, "scripts", "check_value_contract_proof.sh"))
+			require.Error(t, err, output)
+		})
+	}
+}
+
 func proofTestTree(t *testing.T, full bool) string {
 	t.Helper()
 	root := t.TempDir()
@@ -196,6 +280,7 @@ func proofTestTree(t *testing.T, full bool) string {
 	if !full {
 		require.NoError(t, os.WriteFile(filepath.Join(project, "lean-toolchain"), []byte("leanprover/lean4:v4.34.1\n"), 0o600))
 		require.NoError(t, os.WriteFile(filepath.Join(project, "required-theorems.txt"), []byte("ValueContract.Legacy.first\nValueContract.Legacy.second\n"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(project, "required-theorems-456.txt"), []byte("ValueContract.Candidate.Issue456CollisionDiagnostics.first\nValueContract.Candidate.Issue456CollisionDiagnostics.second\n"), 0o600))
 		return root
 	}
 	source := filepath.Join("..", "expr", "lean", "value_projection")

@@ -157,6 +157,33 @@ preserves an ordered list of member-identity
 paths; `Failure` carries classification only. Production array-index/map-key
 paths and rendered diagnostics remain separately tested adapter obligations.
 
+## Map collision diagnostics: #456
+
+The [diagnostic model](README.md#map-collision-diagnostics-456) guides rejection
+through known collision witnesses and explicit unknown evidence. Unknown or
+cyclic siblings preserve known witnesses. An implicit union is rejected only
+when eligibility is known, at least one alternative is compatible, and every
+compatible alternative has a known collision. An explicitly selected branch
+remains authoritative. The separate 29-claim audit and fresh kernel replay pass;
+Go reflection, declaration capture, compatibility and traversal remain tested
+implementation boundaries.
+
+Direct controls cover declared-key conversion, duplicate object spellings,
+finite compatibility, cycles, opaque codecs without invocation, independent
+design errors and deterministic structural diagnostic ordering. Integrated lint
+and tests pass. Two process-isolated generator attempts per revision reproduce
+the reported `Any`-key `1`/`"1"` collision: the parent fails during generation,
+while the candidate reports the collision during design validation and emits no
+artifacts. A collision-free `MapOf(String, String)` companion has identical
+parent/candidate artifacts and passes generation, example generation, module
+tidying, build and vet in both attempts.
+
+The collision-free `MapOf(Any, String)` companion also has identical artifacts,
+but both revisions generate an invalid `map[loom.JSONValue]string` key type and
+fail compilation; vet is skipped. This pre-existing transport defect remains
+unresolved. The successful concrete-key control does not establish compilation
+of arbitrary map key types.
+
 ## Trust and evidence boundaries
 
 - **Proved:** the registered M1 witnesses and candidate component statements

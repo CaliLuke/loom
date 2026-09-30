@@ -103,17 +103,13 @@ func (s *valueSnapshotState) copySpecialValue(value reflect.Value, path string) 
 }
 
 func (s *valueSnapshotState) copyTrackedValue(value reflect.Value, path string) (reflect.Value, bool) {
-	if value.Kind() != reflect.Map && value.Kind() != reflect.Slice && value.Kind() != reflect.Pointer {
+	visit, tracked := valueTrackedVisit(value)
+	if !tracked {
 		return reflect.Value{}, false
 	}
 	if value.IsNil() {
 		return reflect.Zero(value.Type()), true
 	}
-	length := 0
-	if value.Kind() != reflect.Pointer {
-		length = value.Len()
-	}
-	visit := valueSnapshotVisit{value.Type(), value.Pointer(), length}
 	if prior, found := s.copies[visit]; found {
 		if s.active[visit] && s.err == nil {
 			if visit.typeOf.Kind() == reflect.Pointer {
@@ -139,6 +135,17 @@ func (s *valueSnapshotState) copyTrackedValue(value reflect.Value, path string) 
 	default:
 		panic("unreachable tracked value kind")
 	}
+}
+
+func valueTrackedVisit(value reflect.Value) (valueSnapshotVisit, bool) {
+	if !value.IsValid() || (value.Kind() != reflect.Map && value.Kind() != reflect.Slice && value.Kind() != reflect.Pointer) {
+		return valueSnapshotVisit{}, false
+	}
+	length := 0
+	if value.Kind() != reflect.Pointer {
+		length = value.Len()
+	}
+	return valueSnapshotVisit{value.Type(), value.Pointer(), length}, true
 }
 
 func (s *valueSnapshotState) copyStruct(value reflect.Value, path string) reflect.Value {

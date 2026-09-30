@@ -80,8 +80,11 @@ type (
 		// capturedSources copies immutable descriptors as stored instead of
 		// rereading authored provenance. Only read-only plan queries use it.
 		capturedSources bool
-		graph           *valueOccurrenceGraph
-		types           map[DataType]*valueDeclarationNode
+		// structuralOnly builds the private declaration graph used by map-key
+		// collision diagnostics without semantic sources, constraints or views.
+		structuralOnly bool
+		graph          *valueOccurrenceGraph
+		types          map[DataType]*valueDeclarationNode
 	}
 )
 
@@ -90,10 +93,25 @@ type (
 // finite recursive declarations. Malformed graphs and invalid authored enums or
 // defaults fail construction; examples remain deferred sources until selected.
 func (c *ValueContext) NewOccurrence(finalized *AttributeExpr) (ValueOccurrence, error) {
+	return c.newOccurrence(finalized, false)
+}
+
+// newCollisionOccurrence captures declaration shape for validation-phase map
+// collision diagnostics. It is private because it deliberately omits semantic
+// sources and constraints that are owned by ordinary design validation.
+func (c *ValueContext) newCollisionOccurrence(attribute *AttributeExpr) (ValueOccurrence, error) {
+	return c.newOccurrence(attribute, true)
+}
+
+func (c *ValueContext) newOccurrence(finalized *AttributeExpr, structuralOnly bool) (ValueOccurrence, error) {
 	if c == nil || c.identity == nil {
 		return ValueOccurrence{}, fmt.Errorf("value occurrence requires a value context")
 	}
-	b := &valueOccurrenceBuilder{graph: &valueOccurrenceGraph{}, types: make(map[DataType]*valueDeclarationNode)}
+	b := &valueOccurrenceBuilder{
+		graph:          &valueOccurrenceGraph{},
+		types:          make(map[DataType]*valueDeclarationNode),
+		structuralOnly: structuralOnly,
+	}
 	root, err := b.occurrence(finalized)
 	if err != nil {
 		return ValueOccurrence{}, err
@@ -102,8 +120,10 @@ func (c *ValueContext) NewOccurrence(finalized *AttributeExpr) (ValueOccurrence,
 	if err := b.checkRanks(); err != nil {
 		return ValueOccurrence{}, err
 	}
-	if err := b.effectiveConstraints(c); err != nil {
-		return ValueOccurrence{}, err
+	if !structuralOnly {
+		if err := b.effectiveConstraints(c); err != nil {
+			return ValueOccurrence{}, err
+		}
 	}
 	return ValueOccurrence{context: c.identity, graph: b.graph, node: root}, nil
 }
@@ -152,13 +172,20 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 		return nil, fmt.Errorf("value occurrence has no finalized type")
 	}
 	attribute := copyValueOccurrenceAttribute(source)
+	if b.structuralOnly {
+		attribute.Validation = nil
+		attribute.DefaultValue = nil
+		attribute.UserExamples = nil
+	}
 	node := &valueOccurrenceNode{id: b.identity(), origin: source, attribute: attribute,
 		declarationID: valueSourceDeclarationID(source)}
 	b.graph.nodes = append(b.graph.nodes, node)
-	if err := b.captureOccurrenceExamples(node, source, attribute); err != nil {
-		return nil, err
+	if !b.structuralOnly {
+		if err := b.captureOccurrenceExamples(node, source, attribute); err != nil {
+			return nil, err
+		}
+		b.captureOccurrenceConstraints(node, source, attribute)
 	}
-	b.captureOccurrenceConstraints(node, source, attribute)
 	declaration, err := b.declaration(source.Type)
 	if err != nil {
 		return nil, err
@@ -367,7 +394,18 @@ func (b *valueOccurrenceBuilder) named(decl *valueDeclarationNode, actual UserTy
 	if reflect.ValueOf(actual).Kind() == reflect.Pointer && reflect.ValueOf(actual).IsNil() {
 		return nil, fmt.Errorf("value declaration contains a nil named type")
 	}
-	copy := actual.Dup(nil)
+	var copy UserType
+	if result, ok := actual.(*ResultTypeExpr); b.structuralOnly && ok {
+		if result.UserTypeExpr == nil {
+			return nil, fmt.Errorf("value declaration contains an incomplete result type")
+		}
+		copy = &ResultTypeExpr{
+			UserTypeExpr: result.UserTypeExpr.Dup(nil).(*UserTypeExpr),
+			Identifier:   result.Identifier,
+		}
+	} else {
+		copy = actual.Dup(nil)
+	}
 	decl.kind, decl.typ = actual.Kind(), copy
 	child, err := b.occurrence(actual.Attribute())
 	if err != nil {
@@ -376,7 +414,7 @@ func (b *valueOccurrenceBuilder) named(decl *valueDeclarationNode, actual UserTy
 	child.ownerName = actual.Name()
 	decl.alias = child
 	copy.SetAttribute(child.attribute)
-	if result, ok := copy.(*ResultTypeExpr); ok {
+	if result, ok := copy.(*ResultTypeExpr); ok && !b.structuralOnly {
 		for _, view := range result.Views {
 			viewNode, err := b.occurrence(view.AttributeExpr)
 			if err != nil {

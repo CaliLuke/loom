@@ -404,9 +404,8 @@ func stringMapExample(value any) (map[string]any, bool) {
 		return nil, true
 	}
 	out := make(map[string]any, actual.Len())
-	iterator := actual.MapRange()
-	for iterator.Next() {
-		key := iterator.Key()
+	for _, entry := range valueSortedMapEntries(actual) {
+		key := entry.key
 		for key.IsValid() && key.Kind() == reflect.Interface {
 			if key.IsNil() {
 				return nil, false
@@ -416,7 +415,11 @@ func stringMapExample(value any) (map[string]any, bool) {
 		if !key.IsValid() || key.Kind() != reflect.String {
 			return nil, false
 		}
-		out[key.String()] = iterator.Value().Interface()
+		name := key.String()
+		if _, exists := out[name]; exists {
+			return nil, false
+		}
+		out[name] = entry.value.Interface()
 	}
 	return out, true
 }
