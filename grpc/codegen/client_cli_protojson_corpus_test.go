@@ -16,13 +16,14 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 
+	"github.com/CaliLuke/loom/codegen/cli"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
 // TestClientCLIMessageExamplesDecodeWithProtoJSON checks, for every gRPC
-// test design, that protojson decodes the example of each request message
-// flag into the message that protoc compiles from the generated proto file.
+// test design, that protojson decodes each available request message example
+// into the message that protoc compiles from the generated proto file.
 // protojson rejects unknown fields, so the example must use the protocol
 // buffer names of the fields and set each oneof by the name of a oneof field.
 func TestClientCLIMessageExamplesDecodeWithProtoJSON(t *testing.T) {
@@ -107,6 +108,31 @@ func TestClientCLIMessageExamplesDecodeWithProtoJSON(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			if c.Name == "RecursiveArrayAliasDSL" {
+				command, diagnostics := clientCLICommandDataAndDiagnostics(t, c.DSL)
+				require.Len(t, command.Subcommands, 1)
+				subcommand := command.Subcommands[0]
+				assert.Equal(t, "walk", subcommand.Name)
+				assert.Empty(t, subcommand.Example)
+				require.Len(t, subcommand.Flags, 1)
+				assert.Equal(t, "message", subcommand.Flags[0].Name)
+				assert.Empty(t, subcommand.Flags[0].Example)
+				assert.Empty(t, command.Example)
+
+				commands := sectionCode(t, cli.UsageCommands([]*cli.CommandData{command}))
+				assert.Contains(t, commands, "recursivearray walk")
+				individual := sectionCode(t, cli.CommandUsage(command))
+				assert.NotContains(t, individual, "Example:")
+				aggregate := sectionCode(t, cli.UsageExamples([]*cli.CommandData{command}))
+				assert.NotContains(t, aggregate, "recursivearray walk")
+
+				assert.Contains(t, diagnostics, "omitting unusable gRPC CLI message example")
+				assert.Contains(t, diagnostics, `reason="invalid synthesized source"`)
+				assert.Contains(t, diagnostics, "Path:[next] Message:expected a non-nil object")
+				assert.Contains(t, diagnostics, "service=recursivearray")
+				assert.Contains(t, diagnostics, "method=walk")
+				return
+			}
 			root := RunGRPCDSL(t, c.DSL)
 			services := CreateGRPCServices(root)
 			files := compileProtoDescriptors(t, services)
@@ -122,6 +148,7 @@ func TestClientCLIMessageExamplesDecodeWithProtoJSON(t *testing.T) {
 						md := findMessageDescriptor(t, files, e.Request.PayloadMessage.Name)
 						msg := dynamicpb.NewMessage(md)
 						example := unquoteCLIExample(f)
+						require.NotEmpty(t, example, "%s %s example", svc.Name(), e.Method.Name)
 						assert.NoError(t, protojson.Unmarshal([]byte(example), msg), "%s %s example:\n%s", svc.Name(), e.Method.Name, example)
 					}
 				}
