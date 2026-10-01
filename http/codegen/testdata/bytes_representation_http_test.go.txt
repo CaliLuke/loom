@@ -1,0 +1,64 @@
+package bytesrepresentation_test
+
+import (
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	service "example.com/bytesrepresentation/gen/byte_representations"
+	client "example.com/bytesrepresentation/gen/http/byte_representations/client"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+func TestNamedBytesResponseValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, value, code, detail string
+		valid                           bool
+	}{
+		{"valid_hi", `"aGk="`, "hi", "", "", true},
+		{"valid_bye", `"Ynll"`, "bye", "", "", true},
+		{"empty", `""`, "", "", "length of body must be greater or equal than 1", false},
+		{"overlong", `"bG9uZw=="`, "", "", "length of body must be lesser or equal than 3", false},
+		{"not_enum_member", `"bm8="`, "", loom.InvalidEnumValue, "invalid value for \"body\"", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := io.WriteString(w, tc.body); err != nil {
+					t.Error(err)
+				}
+			}))
+			defer hs.Close()
+
+			transport := client.NewClient("http", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+			got, err := transport.StaticJSON()(t.Context(), nil)
+			if tc.valid {
+				if err != nil {
+					t.Fatal(err)
+				}
+				body, ok := got.(service.RepresentationBlob)
+				if !ok || string(body) != tc.value {
+					t.Errorf("decoded response=%T(%v), want %q", got, got, tc.value)
+				}
+				return
+			}
+			var clientErr *loomhttp.ClientError
+			if !errors.As(err, &clientErr) || clientErr.Name != "validation_error" {
+				t.Fatalf("error=%v, want validation_error", err)
+			}
+			if !strings.Contains(err.Error(), tc.detail) {
+				t.Errorf("error=%v, want detail %q", err, tc.detail)
+			}
+			if tc.code != "" {
+				var serviceErr *loom.ServiceError
+				if !errors.As(err, &serviceErr) || serviceErr.Name != tc.code {
+					t.Errorf("error=%v, want nested %s", err, tc.code)
+				}
+			}
+		})
+	}
+}

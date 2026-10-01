@@ -367,7 +367,13 @@ func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.Attrib
 	data.desc = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body.", data.varName, sd.Service.Name, endpointName)
 	serverRequestValidation := svr && sd.ServerRequestValidationTypes[ut.Hash()]
 	if allowValidateDef && (!svr || serverRequestValidation) {
-		data.validateDef = codegen.ValidationCode(body, ut, httpctx, true, expr.IsAlias(body.Type), false, "body")
+		bodyRef := bodyValueRef(sd.Scope, body, data.varName, httpctx)
+		validationContext := httpctx
+		if expr.IsPrimitive(ut) {
+			validationContext = httpctx.Dup()
+			validationContext.Pointer = data.ref != bodyRef
+		}
+		data.validateDef = codegen.ValidationCode(body, ut, validationContext, true, expr.IsAlias(body.Type), false, "body")
 		if data.validateDef == "" && serverRequestValidation {
 			data.validateDef = "// no validations"
 		}
@@ -375,7 +381,7 @@ func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.Attrib
 			return
 		}
 		target := "&body"
-		if expr.IsArray(ut) || expr.IsMap(ut) || expr.IsNullable(body) {
+		if data.ref == bodyRef {
 			target = "body"
 		}
 		data.validateRef = fmt.Sprintf("err = Validate%s(%s)", data.varName, target)

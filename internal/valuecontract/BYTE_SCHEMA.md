@@ -156,20 +156,25 @@ stay unchanged; every intended schema and reference difference needs an explicit
 record. Temporary outputs and compiled proofs are removed after validation and
 independent review, following `AGENTS.md`.
 
-The mixed `byte-representation-ownership` probe exposes an existing generated
+The historical mixed `byte-representation-ownership` probe exposed a generated
 HTTP client root-validator defect. Its named Bytes response validator signature
 takes a value, while its body and call assume a pointer. Parent `2f6bfbf7` and
 the #574 candidate use identical probe inputs and emit identical non-OpenAPI
 artifacts and build errors. The build diagnostic SHA-256 is
 `13482562680f9942f5524499b3952fe4f9c7e357de2a57b7543322839b1f8476`.
-The responsible response-analysis, type-reference and validator-section
-functions are unchanged from the parent. Keep this case as a precise known
-failure while comparing #574 schemas; it does not supply build or runtime
-success evidence. Milestone 5 / #565 owns alignment of the validator declaration,
-body and call with the shared physical body plan. That milestone cannot close
-until this probe builds, vets and passes its validation behavior matrix, and
-its failure expectation is removed. The existing pointer-field conversion
-repair remains required.
+Those historical build failures do not supply build or runtime success evidence.
+The same defect was reproduced at `d781f879` before the response-validator
+repair. `applyUserResponseBodyTypeData` now derives the validator call from the
+allocated type reference and body value reference, and uses that representation
+for primitive-root validation. It preserves the pointer context of nested object
+fields and the explicit representation of nullable bodies.
+
+`TestHTTPDirectBuilderSeams` checks declaration/body/call agreement, and
+`TestBytesRepresentationGeneratedHTTP` regenerates this retained design, builds
+and vets the module, and checks valid and invalid responses through the generated
+client. These tests establish the repaired Go boundary; no Lean byte-arithmetic
+claim changes. The manifest retains the failure expectations for its historical
+#574 comparison; the current regression requires successful compilation.
 
 ## Verification checkpoint
 

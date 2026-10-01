@@ -266,6 +266,61 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.Equal(t, "err = ValidateShowResponseBody(body)", bodyType.ValidateRef)
 	})
 
+	t.Run("buildResponseBodyType validates named primitive bodies by value", func(t *testing.T) {
+		for _, tc := range []struct {
+			name               string
+			dsl                func()
+			ref                string
+			validationFragment string
+		}{
+			{
+				name: "bytes",
+				dsl: namedPrimitiveResponseBodyDSL("NamedBytesResponseBody", Bytes, func() {
+					MinLength(1)
+				}),
+				ref:                "ShowResponseBody",
+				validationFragment: "len([]byte(body)) < 1",
+			},
+			{
+				name: "string",
+				dsl: namedPrimitiveResponseBodyDSL("NamedStringResponseBody", String, func() {
+					MinLength(1)
+				}),
+				ref:                "ShowResponseBody",
+				validationFragment: "utf8.RuneCountInString(string(body)) < 1",
+			},
+			{
+				name: "int",
+				dsl: namedPrimitiveResponseBodyDSL("NamedIntResponseBody", Int, func() {
+					Minimum(1)
+				}),
+				ref:                "ShowResponseBody",
+				validationFragment: "int(body) < 1",
+			},
+			{
+				name: "nullable bytes",
+				dsl: namedPrimitiveResponseBodyDSL("NullableNamedBytesResponseBody", Bytes, func() {
+					Nullable()
+					MinLength(1)
+				}),
+				ref:                "loom.Nullable[ShowResponseBody]",
+				validationFragment: "if actual, ok := body.Value(); ok {",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				services, endpointExpr, svcData := firstHTTPBuildContext(t, tc.dsl)
+				method := svcData.Service.Method(endpointExpr.Name())
+
+				bodyType := services.buildResponseBodyType(endpointExpr.Responses[0].Body, endpointExpr.MethodExpr.Result, method.ResultLoc, endpointExpr.Name(), false, nil, svcData, nil)
+				require.NotNil(t, bodyType)
+				require.Equal(t, tc.ref, bodyType.Ref)
+				require.Contains(t, bodyType.ValidateDef, tc.validationFragment)
+				require.NotContains(t, bodyType.ValidateDef, "*body")
+				require.Equal(t, "err = ValidateShowResponseBody(body)", bodyType.ValidateRef)
+			})
+		}
+	})
+
 	t.Run("mixed transport graph stays split across http and jsonrpc service data", func(t *testing.T) {
 		root := RunHTTPDSL(t, mixedTransportServiceDataDSL)
 
@@ -600,6 +655,21 @@ func namedMapResponseBodyDSL() {
 			})
 		})
 	})
+}
+
+func namedPrimitiveResponseBodyDSL(name string, typ expr.DataType, validation func()) func() {
+	return func() {
+		body := Type(name, typ, validation)
+
+		Service(name+"Service", func() {
+			Method("show", func() {
+				Result(body)
+				HTTP(func() {
+					GET("/")
+				})
+			})
+		})
+	}
 }
 
 func jsonrpcIDProjectionDSL() {

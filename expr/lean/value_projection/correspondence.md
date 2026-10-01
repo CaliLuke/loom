@@ -542,17 +542,23 @@ and paired sampling remain separate production obligations under this repair;
 neither follows from the byte arithmetic or graph fingerprint model.
 Collect the complete comparison inventory before changing this shared policy.
 
-The mixed representation probe also exposes a pre-existing named Bytes response
+The historical mixed representation probe exposed a named Bytes response
 root-validator mismatch: the generated signature takes a value, but the body
 and call assume a pointer. Parent and candidate inputs, non-OpenAPI artifacts
 and compiler diagnostics match exactly. Earlier field-layout regressions do not
 cover root declaration/body/call agreement. This is a tested counterexample at
 the generated-Go boundary, not a failure of the Lean byte arithmetic. Milestone
 5 / #565 originally carried this follow-up. Its CLI delivery did not establish
-response-validator agreement. Current response analysis still selects `&body`
-for the named Bytes case; [R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs)
-requires the exact signature/body/call and generated compile/runtime check before
-assigning a repair. The historical failure is never successful build evidence.
+response-validator agreement. The defect was reproduced again at `d781f879`.
+The repair derives the invocation from the allocated validator type reference
+and body value reference, and aligns primitive-root validation with that
+representation. `TestHTTPDirectBuilderSeams` checks that agreement, while
+`TestBytesRepresentationGeneratedHTTP` builds and vets the retained
+`BytesRepresentationDSL` and exercises valid and invalid generated-client
+responses. This closes the named Bytes item in
+[R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs).
+It does not change the Lean arithmetic or establish universal generated-Go
+correctness. The historical failure is never successful build evidence.
 
 Complete recursive schema identity is another allocation obligation outside the
 Lean value arithmetic. The mixed probe retained two identical completed schemas
