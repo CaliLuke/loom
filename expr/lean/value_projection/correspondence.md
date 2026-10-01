@@ -853,3 +853,44 @@ captured correctly and does not prove importer DSL emission.
 See the [model run instructions and bounds](../../tla/schema_declaration/README.md).
 Deterministic generation, fixture compilation, repository gates and independent
 final-diff review remain required before #572 delivery.
+
+## #565 CLI projection correspondence
+
+The existing `Legacy.legacyByteReinterpretation` witness reproduces the relevant
+design defect: text `hi` is not the JSON representation of bytes `[104, 105]`.
+`byteStringDecodes` and `byteEncodingWitness` establish the concrete `aGk=`
+control under the specimen codec. The accepted repair uses the existing retained
+source result and runtime projection; it does not add a new source-selection or
+wire-format policy.
+
+The same obligation applies to direct JSON body flags that do not need a payload
+builder. A collection routed through a query or header remains a location flag;
+its JSON-shaped CLI input alone does not make it a request-body projection.
+
+`ProjectionCorrectness.project_runtime_preservation` applies within the model
+when the target plan describes the actual decoder. For #565, the production
+boundary is the client body `TypeData.Value`: its plan is built after the emitted
+layout is known. Routing its `Source.Example` through that plan must preserve
+the selected branch and target-observable bytes. Generated HTTP and JSON-RPC
+builder tests must check the advertised text and decoded service value; the
+theorem does not prove emitted Go or command-line formatting.
+
+This routing applies to flags actually decoded as JSON. A native byte flag can
+use the plain `[]byte(text)` CLI conversion before the HTTP encoder runs; its
+text contract must not be replaced with a base64 JSON literal solely because
+the eventual HTTP body uses JSON. Missing or mismatched retained plans are
+generation errors, not grounds for silently omitting the hint.
+
+An unavailable serialized hint is distinct from a successful JSON `null` value.
+Omission must reach both JSON diagnostic constructors, individual and aggregate
+help, and the top-level example heading. Optional unavailable flags may be left
+out of sample invocations; an unavailable required flag prevents advertising a
+complete invocation. Commands and parsers remain available. These are consumer
+correspondence obligations checked by focused tests, not new semantic theorems.
+The generated HTTP and JSON-RPC regressions reproduce the previous rejection of
+`{"bytes":"hi"}` and now accept the advertised `{"bytes":"aGk="}`, retaining the
+`Data` branch and decoding `[]byte("hi")`. The affected CLI, example, HTTP and
+JSON-RPC package suites pass, including optional-body and collection-default
+controls. Direct tests cover omission, explicit null, numeric precision, both
+diagnostic constructors and help surfaces. Existing semantic proofs are reused;
+this adapter change does not alter their model.

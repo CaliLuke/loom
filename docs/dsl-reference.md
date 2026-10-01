@@ -523,6 +523,15 @@ var Address = Type("Address", func() {
 })
 ```
 
+HTTP and JSON-RPC CLI flags decoded as JSON use the JSON representation of the
+selected example. For example, authored text `"hi"` for a `Bytes` member appears
+as base64 `"aGk="` inside its JSON body; the selected union branch is preserved.
+Plain text flags keep their existing text representation. Incomplete, ambiguous
+or target-unrepresentable examples have no CLI hint; invalid authored values
+still fail generation. A missing required-flag example also omits the sample
+invocation, while the command remains available. An explicit JSON `null` example
+is a value, not a missing hint.
+
 When examples are omitted, Loom auto-generates them by default using a random seed.
 
 To generate deterministic examples, use the `Randomizer` function to ensure that the examples are consistent and predictable:

@@ -150,6 +150,13 @@ func flagType(tname string) string {
 	}
 }
 
+// IsJSONFlagType reports whether a CLI flag with the given Go type name is
+// decoded as JSON. Primitive byte flags intentionally use their existing raw
+// text codec.
+func IsJSONFlagType(typeName string) bool {
+	return flagType(typeName) == "JSON"
+}
+
 // jsonExample generates a json example
 func jsonExample(v any) string {
 	// In JSON, keys must be a string. But Loom allows map keys to be anything.

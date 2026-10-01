@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json/jsontext"
 	"strings"
 	"testing"
 
@@ -15,6 +16,43 @@ func TestJSONExampleHandlesEmptyMaps(t *testing.T) {
 	require.NotPanics(t, func() {
 		require.Equal(t, "{}", jsonExample(map[int]int{}))
 	})
+}
+
+func TestJSONFlagTypeClassification(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeName string
+		want     bool
+	}{
+		{"object", "WidgetPayload", true},
+		{"array", "[]string", true},
+		{"plain bytes", "[]byte", false},
+		{"string", "string", false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.want, IsJSONFlagType(test.typeName))
+		})
+	}
+}
+
+func TestPreparedJSONFlagExamplesPreserveTokens(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{"explicit null", "null", "null"},
+		{"precise number", `{"count":9007199254740993}`, `'{
+      "count": 9007199254740993
+   }'`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			flag := NewFlagData("storage", "create", "body", "WidgetPayload", "", true, jsontext.Value(test.raw), nil)
+			require.Equal(t, test.want, flag.Example)
+		})
+	}
 }
 
 func TestBuildCommandDataDefaultsDescriptionAndInterceptors(t *testing.T) {
@@ -63,9 +101,72 @@ func TestBuildSubcommandDataBuildsJSONConversionAndExample(t *testing.T) {
 	require.Contains(t, rendered, "var val WidgetPayload")
 	require.Contains(t, rendered, "json.Unmarshal")
 	require.Contains(t, rendered, "invalid JSON for storageCreateWidgetPayloadFlag")
+	require.Contains(t, rendered, "example of valid JSON")
 	require.Equal(t, "storage create-widget --payload {\"name\":\"demo\"}", sub.Example)
 	require.NotNil(t, sub.Interceptors)
 	require.Equal(t, "storageInter", sub.Interceptors.VarName)
+}
+
+func TestBuildSubcommandDataOmitsUnavailableJSONExample(t *testing.T) {
+	data := &service.Data{Name: "Storage", PkgName: "storage"}
+	method := &service.MethodData{
+		Name:    "Create Widget",
+		VarName: "CreateWidget",
+		MethodPayloadData: service.MethodPayloadData{
+			Payload: "WidgetPayload",
+		},
+	}
+	flags := []*FlagData{{
+		Name:     "payload",
+		FullName: "storageCreateWidgetPayload",
+		Type:     "JSON",
+		Required: true,
+	}}
+
+	sub := BuildSubcommandData(data, method, nil, flags)
+
+	require.Empty(t, sub.Example)
+	rendered := renderStatement(t, sub.Conversion)
+	require.Contains(t, rendered, "invalid JSON for storageCreateWidgetPayloadFlag")
+	require.NotContains(t, rendered, "example of valid JSON")
+}
+
+func TestGenerateExampleAvailability(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags []*FlagData
+		want  string
+	}{
+		{"present", []*FlagData{{Name: "body", Example: `{"name":"demo"}`, Required: true}}, `storage create --body {"name":"demo"}`},
+		{"explicit null", []*FlagData{{Name: "body", Example: "null", Required: true}}, "storage create --body null"},
+		{"optional unavailable", []*FlagData{{Name: "body"}, {Name: "query", Example: "kept", Required: true}}, "storage create --query kept"},
+		{"required unavailable", []*FlagData{{Name: "body", Required: true}, {Name: "query", Example: "kept", Required: true}}, ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			sub := &SubcommandData{Name: "create", Flags: test.flags}
+			generateExample(sub, "storage")
+			require.Equal(t, test.want, sub.Example)
+		})
+	}
+}
+
+func TestFieldLoadJSONDiagnosticExampleAvailability(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		example     string
+		wantExample bool
+	}{
+		{"present", `{"name":"demo"}`, true},
+		{"omitted", "", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			flag := &FlagData{FullName: "payloadFlag", Type: "JSON", Example: test.example, Required: true}
+			stmt, _ := FieldLoadCode(flag, "payload", "WidgetPayload", "", nil, &expr.Object{}, "*WidgetPayload")
+			rendered := renderStatement(t, stmt)
+			require.Equal(t, test.wantExample, strings.Contains(rendered, "example of valid JSON"))
+		})
+	}
 }
 
 func TestFlagsCodeIncludesServiceAndEndpointValidation(t *testing.T) {
@@ -130,6 +231,21 @@ func TestConversionCode(t *testing.T) {
 			},
 			wantNotContains: []string{
 				"Parse",
+				"json.Unmarshal",
+			},
+		},
+		{
+			name:         "bytes conversion uses plain flag text",
+			from:         "raw",
+			to:           "target",
+			typeName:     "[]byte",
+			pointer:      false,
+			wantDeclErr:  false,
+			wantCheckErr: false,
+			wantContains: []string{
+				"target = []byte(raw)",
+			},
+			wantNotContains: []string{
 				"json.Unmarshal",
 			},
 		},

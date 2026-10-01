@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
@@ -80,7 +81,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 
 	t.Run("buildEndpointData preserves mixed result assembly", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.MixedResultsDSL)
-		endpointIR := transportir.BuildEndpoint(endpointExpr)
+		endpointIR := preparedEndpointIR(t, endpointExpr, svcData)
 
 		endpoint := services.buildEndpointDataFromIR(endpointIR, svcData.Service, svcData, codegen.NewNameScope())
 		require.True(t, endpoint.HasMixedResults)
@@ -135,7 +136,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 
 	t.Run("buildPayloadData projects jsonrpc ids", func(t *testing.T) {
 		services, endpointExpr, svcData := firstJSONRPCBuildContext(t, jsonrpcIDProjectionDSL)
-		endpointIR := transportir.BuildEndpoint(endpointExpr)
+		endpointIR := preparedEndpointIR(t, endpointExpr, svcData)
 
 		payload := services.buildPayloadDataFromIR(endpointIR, svcData)
 		require.Equal(t, "ID", payload.IDAttribute)
@@ -147,7 +148,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 
 	t.Run("buildEndpointData wires multipart encoder and decoder helpers", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, testdata.PayloadMultipartPrimitiveDSL)
-		endpointIR := transportir.BuildEndpoint(endpointExpr)
+		endpointIR := preparedEndpointIR(t, endpointExpr, svcData)
 
 		endpoint := services.buildEndpointDataFromIR(endpointIR, svcData.Service, svcData, codegen.NewNameScope())
 		require.NotNil(t, endpoint.MultipartRequestDecoder)
@@ -433,6 +434,20 @@ func firstHTTPBuildContext(t *testing.T, dsl func()) (*ServicesData, *expr.HTTPE
 	svc := services.Get(httpSvc.Name())
 	require.NotNil(t, svc)
 	return services, httpSvc.HTTPEndpoints[0], svc
+}
+
+func preparedEndpointIR(t *testing.T, endpoint *expr.HTTPEndpointExpr, data *ServiceData) *transportir.Endpoint {
+	t.Helper()
+
+	prepared, err := representation.PrepareService(endpoint.Service, data.Service)
+	require.NoError(t, err)
+	for _, candidate := range prepared.Endpoints {
+		if candidate.MethodName == endpoint.Name() {
+			return candidate
+		}
+	}
+	t.Fatalf("prepared HTTP endpoint %q not found", endpoint.Name())
+	return nil
 }
 
 func firstJSONRPCEndpointData(t *testing.T, dsl func()) *EndpointData {

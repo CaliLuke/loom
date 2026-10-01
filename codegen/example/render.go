@@ -82,6 +82,7 @@ func renderUsage(apiName string, server *Data, hasJSONRPC, hasHTTP bool) string 
 	if hasJSONRPC {
 		fmt.Fprintf(&b, "\tusageCommands = append(usageCommands, jsonrpcUsageCommands()...)\n")
 	}
+	fmt.Fprintf(&b, "\tusageExamples := %sUsageExamples()\n", defaultUsage)
 	fmt.Fprintf(&b, "\tsort.Strings(usageCommands)\n")
 	fmt.Fprintf(&b, "\tusageCommands = slices.Compact(usageCommands)\n")
 	fmt.Fprintf(&b, "\tfmt.Fprintf(os.Stderr, `%s is a command line client for the %s API.\n\n", "%s", apiName)
@@ -101,7 +102,10 @@ func renderUsage(apiName string, server *Data, hasJSONRPC, hasHTTP bool) string 
 	for _, v := range server.Variables {
 		fmt.Fprintf(&b, "    -%s:    %s (%s)\n", v.Name, v.Description, v.DefaultValue)
 	}
-	fmt.Fprintf(&b, "\nCommands:\n%%s\nAdditional help:\n    %%s SERVICE [ENDPOINT] --help\n\nExample:\n%%s\n`, os.Args[0], os.Args[0], indent(strings.Join(usageCommands, \"\\n\")), os.Args[0], indent(%sUsageExamples()))\n", defaultUsage)
+	fmt.Fprintf(&b, "\nCommands:\n%%s\nAdditional help:\n    %%s SERVICE [ENDPOINT] --help\n`, os.Args[0], os.Args[0], indent(strings.Join(usageCommands, \"\\n\")), os.Args[0])\n")
+	fmt.Fprintf(&b, "\tif usageExamples != \"\" {\n")
+	fmt.Fprintf(&b, "\t\tfmt.Fprintf(os.Stderr, \"\\nExample:\\n%%s\\n\", indent(usageExamples))\n")
+	fmt.Fprintf(&b, "\t}\n")
 	fmt.Fprintf(&b, "}\n\n")
 	fmt.Fprintf(&b, "func indent(s string) string {\n")
 	fmt.Fprintf(&b, "\tif s == \"\" {\n")

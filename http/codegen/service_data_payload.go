@@ -272,15 +272,6 @@ func optionalBodyDefault(request *transportir.Request) any {
 	return request.Payload.GetDefault(request.BodyOriginKey)
 }
 
-// cliBodyDefault returns the flag input default in the client body's JSON shape.
-func cliBodyDefault(request *transportir.Request, body *expr.AttributeExpr) any {
-	if request != nil && request.BodyOrigin != "" && !request.MustHaveBody &&
-		(expr.IsArray(body.Type) || expr.IsMap(body.Type)) && !codegen.IsExplicitPresenceType(body) {
-		return expr.CanonicalizeExample(body, request.Payload.GetDefault(request.BodyOriginKey))
-	}
-	return optionalBodyDefault(request)
-}
-
 // isOptionalBodyAttribute reports whether the request body is selected with
 // Body from an optional payload attribute whose service field can be nil or
 // absent: a pointer, a slice, a map, a loom.Nullable value or a
@@ -510,7 +501,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 	} else {
 		name = fmt.Sprintf("New%s%s", n, p)
 	}
-	serverArgs, clientArgs := b.buildPayloadBodyArgs(argsCap)
+	serverArgs, clientArgs := b.buildPayloadBodyArgs(request, argsCap)
 	args := buildPayloadFieldArgs(request)
 	serverArgs = append(serverArgs, args...)
 	clientArgs = append(clientArgs, args...)
@@ -534,7 +525,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 	}
 }
 
-func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*InitArgData) {
+func (b *payloadBuilder) buildPayloadBodyArgs(request *RequestData, argsCap int) ([]*InitArgData, []*InitArgData) {
 	serverArgs := make([]*InitArgData, 0, argsCap+1)
 	clientArgs := make([]*InitArgData, 0, argsCap+1)
 	if b.body == expr.Empty {
@@ -595,7 +586,7 @@ func (b *payloadBuilder) buildPayloadBodyArgs(argsCap int) ([]*InitArgData, []*I
 			Type:         b.body,
 			Required:     !isOptionalBodyAttribute(b.endpointIR.Request) && defaultValue == nil,
 			DefaultValue: defaultValue,
-			Example:      expr.CanonicalizeExample(b.bodyAttr, b.bodyAttr.Example(b.sds.examplesFor(b.sd))),
+			Example:      b.clientCLIExample(request.ClientBody.Value),
 			Validate:     cvcode,
 		},
 	})

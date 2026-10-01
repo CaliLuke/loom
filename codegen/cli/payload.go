@@ -198,6 +198,15 @@ func buildFieldLoadConversionError(f *FlagData, argName, argTypeName string, pay
 
 func buildFieldLoadErrorReturn(f *FlagData, argName, argTypeName, nilVal string) *jen.Statement {
 	if flagType(argTypeName) == "JSON" {
+		if f.Example == "" {
+			return jen.Return(
+				codegen.Expr(nilVal),
+				jen.Qual("fmt", "Errorf").Call(
+					jen.Lit("invalid JSON for "+argName+", \nerror: %s"),
+					jen.Err(),
+				),
+			)
+		}
 		return jen.Return(
 			codegen.Expr(nilVal),
 			jen.Qual("fmt", "Errorf").Call(
@@ -242,6 +251,13 @@ func fieldLoadReturnZero(payload expr.DataType, payloadRef string) (nilVal, decl
 func generateExample(sub *SubcommandData, svc string) {
 	ex := codegen.KebabCase(svc) + " " + codegen.KebabCase(sub.Name)
 	for _, f := range sub.Flags {
+		if f.Example == "" {
+			if f.Required {
+				sub.Example = ""
+				return
+			}
+			continue
+		}
 		ex += " --" + f.Name + " " + f.Example
 	}
 	sub.Example = ex

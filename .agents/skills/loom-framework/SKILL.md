@@ -462,9 +462,19 @@ filter, and serialization rules belong here.
   server validates a request body that is an alias of a primitive, an array
   or a map by value: its `Validate` function reads the value without a nil
   check (`buildUserRequestBodyTypeDetails`), and the decoder passes it the
-  body, not its address (`requestBodyValidateRef`). Body flag examples go through
-  `expr.CanonicalizeExample` so that they match the JSON of the client body
-  type.
+  body, not its address (`requestBodyValidateRef`). Flags actually decoded as
+  JSON consume the retained `Source.Example` through the client body
+  `TypeData.Value` runtime plan. Preserve the projected JSON bytes through
+  formatting, including explicit null and numeric precision. Do not reselect or
+  synthesize examples at the CLI boundary. Plain byte/text flags keep their
+  location codec even when the eventual HTTP body uses JSON.
+- An empty serialized CLI example means no hint; JSON `null` remains a value.
+  Omit unavailable hints from both JSON error constructors and help. Leave an
+  optional flag out of a sample invocation when its example is unavailable;
+  omit the invocation when a required flag lacks a usable example. Individual,
+  aggregate and top-level help must not print empty Example sections. Keep the
+  command and parser available. Missing/mismatched retained plans are generation
+  errors, not an example-omission policy.
 - The HTTP and JSON-RPC client CLI command parsers never name a service type,
   because their package does not import the service packages. An object
   payload without flags, such as an object type without attributes, gets a
@@ -649,8 +659,8 @@ filter, and serialization rules belong here.
   `OneOf` block unions and of their promoted branch types, view attribute
   lists and validation error names use the attribute name. HTTP and
   JSON-RPC bodies use the suffix as the JSON, form and XML name of the
-  field, and so do the OpenAPI schemas and examples, `expr.CanonicalizeExample`
-  (the CLI body examples) and the JSON fields of the HTTP untagged union
+  field, and so do the OpenAPI schemas and examples, shared runtime projection
+  of JSON CLI body examples, and the JSON fields of the HTTP untagged union
   branches: they name the field with `expr.JSONFieldName(expr.ElementName(key),
   att)`. gRPC ignores it: the protocol buffer field and the Go fields of the
   service and pb types use the attribute name. The object validation checks

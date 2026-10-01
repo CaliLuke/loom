@@ -90,6 +90,16 @@ func subcommandConversionTarget(payload string) (target, prefix, suffix string) 
 
 func buildSubcommandConversionError(flag *FlagData, payload string) *jen.Statement {
 	if flagType(payload) == "JSON" {
+		if flag.Example == "" {
+			return jen.Return(
+				jen.Nil(),
+				jen.Nil(),
+				jen.Qual("fmt", "Errorf").Call(
+					jen.Lit("invalid JSON for "+flag.FullName+"Flag, \nerror: %s"),
+					jen.Err(),
+				),
+			)
+		}
 		return jen.Return(
 			jen.Nil(),
 			jen.Nil(),

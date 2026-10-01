@@ -39,7 +39,7 @@ func TestJSONRPCMappedNamesCLIBodyExamples(t *testing.T) {
 		cli += renderCodegenFile(t, file)
 	}
 
-	for _, want := range []string{`mappednames echo --body '{\n      \"ch\": {`, `\"m\": `, `\"dt\": `} {
+	for _, want := range []string{`mappednames echo --body '{\n      \"ch\": {`, `\"m\": `, `\"rs\": `} {
 		assert.Contains(t, cli, want)
 	}
 	assert.Empty(t, regexp.MustCompile(`\\"[a-z_]+:[a-z]+\\"`).FindAllString(cli, -1), "keys with an element name suffix")

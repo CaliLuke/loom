@@ -96,6 +96,21 @@ paths have already migrated. `PayloadEx`/`StreamingPayloadEx` declarations and
 implementations. The formatter search retains the same location-codec and CLI
 migration owners recorded above.
 
+## #565 execution boundary
+
+After #572, the immediate HTTP/JSON-RPC defect is the CLI body argument's
+independent `CanonicalizeExample(body.Example(...))` path. #565 replaces that
+advertised example with the retained result projected through the client
+`TypeData.Value` runtime plan. Shared CLI formatting carries availability through
+both JSON error constructors, sample invocations, individual and aggregate help,
+and the top-level example heading. It does not change command availability.
+
+The remaining `cliBodyDefault` canonicalization and `AttributeExpr.Example`
+calls in plain/location, response, type-data and WebSocket carriers are retained
+explicitly for #573's consumer reconciliation. Their existing codecs and default
+behavior remain protected by #565's focused controls. This allocation does not
+declare those consumers migrated or remove them from the migration goal.
+
 ## #571 effective-constraint checkpoint
 
 The accepted alias policy is refinement. `expr.EffectiveConstraints` owns the

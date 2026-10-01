@@ -194,7 +194,7 @@ func TestHTTPOptionalRequestBodyAssembly(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			services, endpointExpr, svcData := firstHTTPBuildContext(t, c.dsl)
-			endpointIR := transportir.BuildEndpoint(endpointExpr)
+			endpointIR := preparedEndpointIR(t, endpointExpr, svcData)
 			payload := services.buildPayloadDataFromIR(endpointIR, svcData)
 
 			require.True(t, endpointIR.Request.OptionalBody)

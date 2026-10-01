@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/dave/jennifer/jen"
@@ -52,4 +53,41 @@ func TestUsageExamplesEndEachExampleWithNewline(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUsageExamplesSkipUnavailableCommands(t *testing.T) {
+	data := []*CommandData{
+		{},
+		{},
+		{},
+		{},
+		{},
+		{Example: "svc send --body null"},
+	}
+	var buf bytes.Buffer
+	require.NoError(t, UsageExamples(data).Write(&buf))
+	source := buf.String()
+	require.Equal(t, 1, strings.Count(source, "os.Args"))
+	require.Contains(t, source, strconv.Quote(" svc send --body null\n"))
+}
+
+func TestCommandUsageOmitsUnavailableSubcommandExample(t *testing.T) {
+	data := &CommandData{
+		Name:    "svc",
+		VarName: "svc",
+		Subcommands: []*SubcommandData{
+			{Name: "hidden", FullName: "svcHidden"},
+			{Name: "shown", FullName: "svcShown", Example: "svc shown --body null"},
+		},
+	}
+	var buf bytes.Buffer
+	require.NoError(t, CommandUsage(data).Write(&buf))
+	source := buf.String()
+	hiddenStart := strings.Index(source, "func svcHiddenUsage")
+	shownStart := strings.Index(source, "func svcShownUsage")
+	require.NotEqual(t, -1, hiddenStart)
+	require.Greater(t, shownStart, hiddenStart)
+	require.NotContains(t, source[hiddenStart:shownStart], `"Example:"`)
+	require.Contains(t, source[shownStart:], `"Example:"`)
+	require.Contains(t, source[shownStart:], `"svc shown --body null"`)
 }

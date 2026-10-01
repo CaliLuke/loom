@@ -77,3 +77,18 @@ func TestServerFilesDoNotUseLegacyClueEndpointMiddleware(t *testing.T) {
 	require.NotContains(t, code, "LogPayloads()")
 	require.NotContains(t, code, "log.Endpoint")
 }
+
+func TestClientUsageOmitsEmptyAggregateExampleBlock(t *testing.T) {
+	server := &Data{
+		Hosts: []*HostData{{
+			Name: "dev",
+		}},
+		Transports: []*TransportData{{Type: TransportHTTP}},
+	}
+
+	source := renderUsage("Example", server, false, true)
+
+	require.Contains(t, source, `usageExamples := httpUsageExamples()`)
+	require.Contains(t, source, `if usageExamples != "" {`)
+	require.Contains(t, source, `"\nExample:\n%s\n"`)
+}

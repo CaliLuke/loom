@@ -44,9 +44,10 @@ func TestAnalyzePanicsOnIncompatibleRequestBody(t *testing.T) {
 	cases := []struct {
 		Name     string
 		BodyType expr.DataType
+		Want     string
 	}{
-		{"primitive-body-object-payload", expr.Int},
-		{"array-body-object-payload", &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}},
+		{"primitive-body-object-payload", expr.Int, "build HTTP server payload transform for MethodBodyUserInner"},
+		{"array-body-object-payload", &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}, "build HTTP CLI body example plan"},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -60,7 +61,7 @@ func TestAnalyzePanicsOnIncompatibleRequestBody(t *testing.T) {
 				services.Get("ServiceBodyUserInner")
 			})
 
-			require.ErrorContains(t, err, "build HTTP server payload transform for MethodBodyUserInner")
+			require.ErrorContains(t, err, c.Want)
 		})
 	}
 }

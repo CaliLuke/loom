@@ -44,9 +44,12 @@ func UsageCommands(data []*CommandData) codegen.Section {
 // a valid invocation of the CLI tool.
 func UsageExamples(data []*CommandData) codegen.Section {
 	var examples []string
-	for i, cmd := range data {
-		if i < 5 {
+	for _, cmd := range data {
+		if cmd.Example != "" {
 			examples = append(examples, cmd.Example)
+			if len(examples) == 5 {
+				break
+			}
 		}
 	}
 
@@ -105,10 +108,12 @@ func CommandUsage(data *CommandData) codegen.Section {
 				for _, flag := range sub.Flags {
 					group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("    -"+flag.Name+" "+flag.Type+": "+flag.Description))
 				}
-				group.Line()
-				group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"))
-				group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("Example:"))
-				group.Qual("fmt", "Fprintf").Call(jen.Qual("os", "Stderr"), jen.Lit("    %s %s\n"), jen.Qual("os", "Args").Index(jen.Lit(0)), jen.Lit(sub.Example))
+				if sub.Example != "" {
+					group.Line()
+					group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"))
+					group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("Example:"))
+					group.Qual("fmt", "Fprintf").Call(jen.Qual("os", "Stderr"), jen.Lit("    %s %s\n"), jen.Qual("os", "Args").Index(jen.Lit(0)), jen.Lit(sub.Example))
+				}
 			})
 			stmt.Line()
 		}

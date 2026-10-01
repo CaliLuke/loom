@@ -47,6 +47,13 @@ churn their values. Implicit server service lists use stable service-name
 ordering; an explicit `Server(... Services(...))` list preserves its authored
 order.
 
+HTTP and JSON-RPC CLI flags decoded as JSON retain the selected example's values
+and union branch in the decoder's JSON representation, including base64 for
+`Bytes`. Plain text flags retain their text syntax. An unavailable example omits
+the hint; if a required flag has no usable example, Loom omits the sample
+invocation while keeping the command available. Explicit JSON `null` remains
+a valid example where the declared type permits it.
+
 ## Design Rules
 
 - Prefer concrete types over `Any`, especially when gRPC generation matters.
