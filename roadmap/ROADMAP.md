@@ -14,6 +14,20 @@ Do not add compatibility work solely to preserve historical upstream behavior,
 runtime security policy better owned by applications, or speculative DSL
 surface without a current consumer.
 
+### Generator verification scope
+
+Grow determinism coverage around distinct ordering risks, such as import
+collection, emitted file order, and nested map serialization. Extend an existing
+representative regression when a reproduced defect or a new generator path
+exposes an uncovered risk. Compare exact output bytes across independent
+processes; reuse compilation evidence when those bytes and build inputs agree.
+
+Use the existing exported-design compile CI job for protoc validity. A repeated
+determinism scan of the entire design catalog is not a standing deliverable.
+Choose broader audits explicitly after major generator changes, with a named
+risk, bounded inputs, and a cost budget. The remaining testing proposals must
+justify their own scope against this rule.
+
 ## Active Designs
 
 - [Value meaning and transport projection](value-contract-design.md) defines the
