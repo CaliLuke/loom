@@ -7,9 +7,12 @@ contract migration. The reusable revision-comparison framework is in the
 
 The files under `testdata/session-source` preserve the original audit scripts,
 Go overlays and supporting inputs. The inventory records original paths and
-SHA-256 hashes. Keeping these historical inputs under `testdata` prevents them
-from becoming ordinary package tests. They are source material for the audit,
-not a new ticket-validation gate.
+SHA-256 hashes. Go overlays use `.go.txt` filenames because they are historical
+source fragments, not a compilable package. Their contents remain unchanged.
+To reconstruct an original run, copy each archived file to its `original_path`
+from the inventory, restoring the `.go` extension. Keeping these historical
+inputs under `testdata` prevents them from becoming ordinary package tests.
+They are source material for the audit, not a new ticket-validation gate.
 
 The original scripts use fixed snapshot paths, manifests and hashes. They are
 preserved without silently changing those identities. They require the original

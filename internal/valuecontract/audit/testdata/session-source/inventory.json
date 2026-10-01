@@ -8,25 +8,25 @@
     },
     {
       "original_path": "/tmp/loom572-full934-sharded-driver.go",
-      "repository_path": "internal/valuecontract/audit/testdata/session-source/loom572-full934-sharded-driver.go",
+      "repository_path": "internal/valuecontract/audit/testdata/session-source/loom572-full934-sharded-driver.go.txt",
       "bytes": 25944,
       "sha256": "8c6ac9b4d31d1c05f0d3bb6023fa93f70678b77274940823be7c5b2f977c67d3"
     },
     {
       "original_path": "/tmp/loom572-full934-support.go",
-      "repository_path": "internal/valuecontract/audit/testdata/session-source/loom572-full934-support.go",
+      "repository_path": "internal/valuecontract/audit/testdata/session-source/loom572-full934-support.go.txt",
       "bytes": 10179,
       "sha256": "1ad78f0ff07b4447353cb4300c6326cbd26b0102bc6c476c9759acc74164768f"
     },
     {
       "original_path": "/tmp/loom571-full934-diagnostic-continuation.go",
-      "repository_path": "internal/valuecontract/audit/testdata/session-source/loom571-full934-diagnostic-continuation.go",
+      "repository_path": "internal/valuecontract/audit/testdata/session-source/loom571-full934-diagnostic-continuation.go.txt",
       "bytes": 7137,
       "sha256": "520d5911251a099afe2f8526e35a59f515f582bccf0dc0d03331b75c1c1d420a"
     },
     {
       "original_path": "/tmp/loom574-acquisition-66-driver.go",
-      "repository_path": "internal/valuecontract/audit/testdata/session-source/loom574-acquisition-66-driver.go",
+      "repository_path": "internal/valuecontract/audit/testdata/session-source/loom574-acquisition-66-driver.go.txt",
       "bytes": 17159,
       "sha256": "cb04ea110c5093f55927141e5cc81c07b30c144c793064dcf5be10869f732718"
     },
