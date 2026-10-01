@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json/v2"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,6 +17,8 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/cli"
+	servicecodegen "github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
@@ -154,6 +157,244 @@ func TestClientCLIMessageExamplesProtoJSON(t *testing.T) {
 			assert.Equal(t, []string{"leaf_name", "message_"}, keysOf(leaf))
 		}
 	})
+}
+
+func TestClientCLIMessageExamplesPreserveRetainedSources(t *testing.T) {
+	design := func() {
+		choice := dsl.Type("Choice", dsl.OneOf(dsl.String, dsl.Int))
+		plain := dsl.Type("PlainRequest", func() {
+			dsl.Field(1, "id", dsl.String)
+			dsl.Example(map[string]any{"id": "root-plain"})
+		})
+		withUnion := dsl.Type("UnionRequest", func() {
+			dsl.Field(1, "id", dsl.String)
+			dsl.Field(2, "pick", choice)
+			dsl.Example(map[string]any{"id": "root-union"})
+		})
+		wire := dsl.Type("WireRequest", func() {
+			dsl.Field(1, "RequestID", dsl.String)
+			dsl.Field(2, "blob", dsl.Bytes)
+			dsl.Field(3, "big", dsl.Int64)
+			dsl.Example(map[string]any{
+				"RequestID": "wire",
+				"blob":      []byte("hi"),
+				"big":       int64(9007199254740993),
+			})
+		})
+		dsl.Service("authored", func() {
+			method := func(name string, payload expr.UserType, example map[string]any) {
+				dsl.Method(name, func() {
+					if example == nil {
+						dsl.Payload(payload)
+					} else {
+						dsl.Payload(payload, func() { dsl.Example(example) })
+					}
+					dsl.GRPC(func() {})
+				})
+			}
+			method("plain-root", plain, nil)
+			method("union-root", withUnion, nil)
+			method("plain-local", plain, map[string]any{"id": "local-plain"})
+			method("union-local", withUnion, map[string]any{"id": "local-union"})
+			method("union-selected", withUnion, map[string]any{"id": "selected", "pick": "branch"})
+			dsl.Method("wire", func() {
+				dsl.Payload(wire)
+				dsl.GRPC(func() {})
+			})
+		})
+	}
+
+	examples := clientCLIMessageExamples(t, design)
+	for method, expected := range map[string]map[string]any{
+		"plain-root":  {"id": "root-plain"},
+		"union-root":  {"id": "root-union"},
+		"plain-local": {"id": "local-plain"},
+		"union-local": {"id": "local-union"},
+	} {
+		var value map[string]any
+		require.NoError(t, json.Unmarshal([]byte(examples[method]), &value), method)
+		assert.Equal(t, expected, value, method)
+	}
+	var selected map[string]any
+	require.NoError(t, json.Unmarshal([]byte(examples["union-selected"]), &selected))
+	assert.Equal(t, map[string]any{"id": "selected", "string_": "branch"}, selected)
+	var wireValue map[string]any
+	require.NoError(t, json.Unmarshal([]byte(examples["wire"]), &wireValue))
+	assert.Equal(t, map[string]any{
+		"request_id": "wire",
+		"blob":       "aGk=",
+		"big":        "9007199254740993",
+	}, wireValue)
+}
+
+func TestClientCLIMessageExamplePreservesSelectedCollectionWrapper(t *testing.T) {
+	examples := clientCLIMessageExamples(t, collectionWrapperCLIExampleDSL)
+	var collection map[string]any
+	require.NoError(t, json.Unmarshal([]byte(examples["empty-collection-branch"]), &collection))
+	require.Len(t, collection, 1)
+	for _, branch := range collection {
+		assert.Equal(t, map[string]any{"field": []any{}}, branch)
+	}
+}
+
+func TestGeneratedClientCLIPreservesSelectedCollectionWrapper(t *testing.T) {
+	const modulePath = "example.com/grpcclinullwrapper"
+	root := RunGRPCDSL(t, collectionWrapperCLIExampleDSL)
+	examples := clientCLIMessageExamplesFromRoot(t, root)
+	dir := t.TempDir()
+	renderGRPCModule(t, dir, modulePath, root, resolveGRPCLoomSource(t))
+	for _, file := range ClientCLIFiles(modulePath+"/gen", CreateGRPCServices(root)) {
+		_, err := file.Render(dir)
+		require.NoError(t, err, file.Path)
+	}
+	harness := fmt.Sprintf(collectionWrapperCLIHarness, strconv.Quote(examples["empty-collection-branch"]))
+	testDir := filepath.Join(dir, "internal", "clitest")
+	require.NoError(t, os.MkdirAll(testDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(testDir, "cli_test.go"), []byte(harness), 0o600))
+	runGRPCGoCommand(t, dir, "mod", "tidy")
+	runGRPCGoCommand(t, dir, "build", "./...")
+	runGRPCGoCommand(t, dir, "test", "./internal/clitest")
+}
+
+func collectionWrapperCLIExampleDSL() {
+	textList := dsl.Type("TextList", dsl.ArrayOf(dsl.String))
+	collectionChoice := dsl.Type("CollectionChoice", dsl.OneOf(textList, dsl.Int))
+	dsl.Service("wrappednull", func() {
+		dsl.Method("empty-collection-branch", func() {
+			dsl.Payload(collectionChoice, func() { dsl.Example([]string{}) })
+			dsl.GRPC(func() {})
+		})
+	})
+}
+
+const collectionWrapperCLIHarness = `package clitest
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"example.com/grpcclinullwrapper/gen/grpc/wrappednull/client"
+)
+
+func TestRetainedCollectionWrapper(t *testing.T) {
+	collection, err := client.BuildEmptyCollectionBranchPayload(%s)
+	require.NoError(t, err)
+	require.NotZero(t, collection.Kind())
+}
+`
+
+func TestClientCLIUnavailableMessageExamplesAreOmitted(t *testing.T) {
+	design := func() {
+		first := dsl.Type("First", func() {
+			dsl.Field(1, "value", dsl.String)
+		})
+		second := dsl.Type("Second", func() {
+			dsl.Field(1, "value", dsl.String)
+		})
+		ambiguous := dsl.Type("Ambiguous", dsl.OneOf(first, second))
+		dsl.Service("availability", func() {
+			dsl.Method("incomplete", func() {
+				dsl.Payload(func() {
+					dsl.Field(1, "id", dsl.String)
+					dsl.Required("id")
+					dsl.Example(map[string]any{})
+				})
+				dsl.GRPC(func() {})
+			})
+			dsl.Method("ambiguous", func() {
+				dsl.Payload(ambiguous, func() {
+					dsl.Example(map[string]any{"value": "same"})
+				})
+				dsl.GRPC(func() {})
+			})
+			dsl.Method("unsupported", func() {
+				dsl.Payload(func() {
+					dsl.Field(1, "id", dsl.String)
+					dsl.Example(map[string]any{"id": unsupportedProtoJSONExample("opaque")})
+				})
+				dsl.GRPC(func() {})
+			})
+			dsl.Method("suppressed", func() {
+				dsl.Payload(func() {
+					dsl.Field(1, "id", dsl.String)
+					dsl.Meta("openapi:example", "false")
+				})
+				dsl.GRPC(func() {})
+			})
+			dsl.Method("available", func() {
+				dsl.Payload(func() {
+					dsl.Field(1, "id", dsl.String)
+					dsl.Example(map[string]any{"id": "kept"})
+				})
+				dsl.GRPC(func() {})
+			})
+		})
+	}
+
+	command, diagnostics := clientCLICommandDataAndDiagnostics(t, design)
+	require.Len(t, command.Subcommands, 5)
+	for _, subcommand := range command.Subcommands[:4] {
+		assert.Empty(t, subcommand.Example, subcommand.Name)
+		require.Len(t, subcommand.Flags, 1, subcommand.Name)
+		assert.Empty(t, subcommand.Flags[0].Example, subcommand.Name)
+	}
+	require.NotEmpty(t, command.Subcommands[4].Example)
+	assert.Equal(t, command.Subcommands[4].Example, command.Example)
+
+	commands := sectionCode(t, cli.UsageCommands([]*cli.CommandData{command}))
+	for _, name := range []string{"incomplete", "ambiguous", "unsupported", "suppressed", "available"} {
+		assert.Contains(t, commands, name)
+	}
+	individual := sectionCode(t, cli.CommandUsage(command))
+	assert.Equal(t, 1, strings.Count(individual, "Example:"))
+	assert.NotContains(t, individual, `--message null`)
+	aggregate := sectionCode(t, cli.UsageExamples([]*cli.CommandData{command}))
+	assert.Contains(t, aggregate, " availability available ")
+	assert.NotContains(t, aggregate, " availability incomplete")
+	assert.NotContains(t, aggregate, `--message null`)
+
+	assert.Equal(t, 3, strings.Count(diagnostics, "omitting unusable gRPC CLI message example"))
+	for _, method := range []string{"incomplete", "ambiguous", "unsupported"} {
+		assert.Contains(t, diagnostics, "method="+method)
+	}
+	assert.NotContains(t, diagnostics, "method=suppressed")
+}
+
+func TestClientCLIInvalidAuthoredMessageExampleFailsGeneration(t *testing.T) {
+	design := func() {
+		dsl.Service("invalid", func() {
+			dsl.Method("send", func() {
+				dsl.Payload(func() {
+					dsl.Field(1, "id", dsl.String)
+					dsl.Example(map[string]any{"id": 42})
+				})
+				dsl.GRPC(func() {})
+			})
+		})
+	}
+	root := RunGRPCDSL(t, design)
+	services := CreateGRPCServices(root)
+	assert.Panics(t, func() {
+		services.Get(root.API.GRPC.Services[0].Name())
+	})
+}
+
+type unsupportedProtoJSONExample string
+
+func (e unsupportedProtoJSONExample) MarshalText() ([]byte, error) {
+	return []byte(e), nil
+}
+
+func clientCLICommandDataAndDiagnostics(t *testing.T, design func()) (*cli.CommandData, string) {
+	t.Helper()
+	root := RunGRPCDSL(t, design)
+	var diagnostics bytes.Buffer
+	shared := servicecodegen.NewServicesData(root)
+	shared.Ctx = &codegen.Context{Logger: slog.New(slog.NewTextHandler(&diagnostics, nil))}
+	services := NewServicesData(shared)
+	data := services.Get(root.API.GRPC.Services[0].Name())
+	return buildCommandData(data), diagnostics.String()
 }
 
 // TestGeneratedClientCLIDecodesOneofs compiles generated modules with their

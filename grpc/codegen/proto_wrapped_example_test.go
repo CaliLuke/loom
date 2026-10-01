@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	codegenpkg "github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -23,7 +25,8 @@ func TestWrappedTypeExampleCacheOrder(t *testing.T) {
 			}
 			t.Run(tc.name+"/"+name, func(t *testing.T) {
 				named := &expr.UserTypeExpr{TypeName: "Named", UID: "Named", AttributeExpr: &expr.AttributeExpr{Type: tc.typ}}
-				wrapper := &expr.AttributeExpr{Type: named}
+				serviceAttribute := &expr.AttributeExpr{Type: named}
+				wrapper := expr.DupAtt(serviceAttribute)
 				wrapAttr(wrapper, "Wrapped", true, &ServiceData{Name: "svc"})
 				random := expr.NewRandom("cache-order")
 				var serviceExample, wrapperExample any
@@ -39,7 +42,7 @@ func TestWrappedTypeExampleCacheOrder(t *testing.T) {
 				require.True(t, ok, "wrapper example has type %T", wrapperExample)
 				require.Len(t, object, 1)
 				require.IsType(t, "", object["field"])
-				cli, ok := protoJSONExample(wrapper, random).(map[string]any)
+				cli, ok := retainedProtoJSONExampleForTest(t, serviceAttribute, wrapper, random).(map[string]any)
 				require.True(t, ok, "CLI must describe a protobuf message")
 				require.Len(t, cli, 1)
 				for _, value := range cli {
@@ -80,7 +83,28 @@ func TestProtoWrappedNamedExampleUsesEffectiveConstraints(t *testing.T) {
 	require.Equal(t, validUUID, serviceExample["formatted"])
 
 	message := makeProtoBufMessage(payload, "CheckRequest", &ServiceData{Name: "svc"})
-	protoExample, ok := protoJSONExample(message, expr.NewRandom("effective-proto-example")).(map[string]any)
+	protoExample, ok := retainedProtoJSONExampleForTest(t, payload, message,
+		expr.NewRandom("effective-proto-example")).(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, validUUID, protoExample["formatted"])
+}
+
+func retainedProtoJSONExampleForTest(
+	t *testing.T,
+	source, message *expr.AttributeExpr,
+	random *expr.ExampleGenerator,
+) any {
+	t.Helper()
+	context := expr.NewValueContext()
+	occurrence, err := context.NewOccurrence(source)
+	require.NoError(t, err)
+	selection := context.SelectExample(occurrence, expr.ExamplePolicy{Reachable: true})
+	var result expr.ValueResult
+	if selected, supplied := selection.Source(); supplied {
+		result = context.Resolve(occurrence, selected, expr.ValueRoleExample)
+	} else {
+		result = context.Synthesize(selection, random)
+	}
+	data := &service.ValueData{Context: context, Occurrence: occurrence, Example: result}
+	return protoJSONExample(codegenpkg.NewSilentContext(), data, source, message, "test", "example")
 }

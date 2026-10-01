@@ -403,6 +403,11 @@ filter, and serialization rules belong here.
   server-streaming cases are supported. A successful server stream terminates
   with clean EOF. Client-streaming and bidirectional completion contracts stay
   explicit generation limitations.
+- gRPC CLI message examples consume the service's retained semantic example.
+  Protobuf mapping owns field names, oneof allocation and message wrappers;
+  it must not synthesize values or reselect union branches. Preserve omitted
+  authored members. Diagnose and omit an unusable hint while keeping the
+  command available; never advertise an unavailable example as JSON `null`.
 - JSON-RPC response-contract cases own success result types, declared error
   codes, typed error-data names, and ID-less notification suppression. Unary
   and server-SSE cases are supported. Server-SSE requests with an ID retain a

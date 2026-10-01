@@ -53,10 +53,30 @@ func buildCommandData(sd *ServiceData) *cli.CommandData {
 	for _, e := range sd.Endpoints {
 		flags, buildFunction := buildFlags(e)
 		subcmd := cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags)
+		if hasUnavailableMessageExample(e) {
+			subcmd.Example = ""
+		}
 		command.Subcommands = append(command.Subcommands, subcmd)
 	}
-	command.Example = command.Subcommands[0].Example
+	for _, subcommand := range command.Subcommands {
+		if subcommand.Example != "" {
+			command.Example = subcommand.Example
+			break
+		}
+	}
 	return command
+}
+
+func hasUnavailableMessageExample(endpoint *EndpointData) bool {
+	if endpoint.Request == nil {
+		return false
+	}
+	for _, arg := range endpoint.Request.CLIArgs {
+		if arg.ProtoMessage {
+			return arg.Example == nil
+		}
+	}
+	return false
 }
 
 // endpointParser returns the file that implements the command line parser that
@@ -238,6 +258,9 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 		if arg.ProtoMessage {
 			// encoding/json/v2 cannot set the oneof fields of a message.
 			f.Unmarshal = "protojson.Unmarshal"
+			if arg.Example == nil {
+				f.Example = ""
+			}
 		}
 		flags[i] = f
 		params[i] = f.FullName

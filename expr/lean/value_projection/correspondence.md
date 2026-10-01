@@ -894,3 +894,55 @@ JSON-RPC package suites pass, including optional-body and collection-default
 controls. Direct tests cover omission, explicit null, numeric precision, both
 diagnostic constructors and help surfaces. Existing semantic proofs are reused;
 this adapter change does not alter their model.
+
+## #434 gRPC CLI source preservation
+
+`Legacy.legacyAuthoredReplacement` and `Legacy.legacySourceReplacement`
+establish the existing concrete source-replacement counterexamples. The bounded
+TLA+ `authored-replacement.cfg` fails `NoAuthoredResynthesis`; `checked.cfg`
+preserves source, selected branch and observed presence under its stated
+assumptions. These existing results support consuming the retained service
+example instead of synthesizing again from the protobuf message schema.
+
+The implementation obligation is to map `MethodData.PayloadValue` into the
+allocated protobuf request message. Semantic member and branch identities
+determine the retained value. Protobuf field names, oneof alternatives, message
+wrappers and metadata visibility determine its target representation. An absent
+optional union remains absent; its presence in the schema does not authorize
+inventing either its branch or a sibling field's value.
+
+This transport adapter is not proved by the shared JSON projector: that
+projector does not implement `ValueCodecProtoJSON`. Actual generated CLI builder
+and service conversion checks must establish field, branch, byte and numeric
+preservation for the exercised protobuf cases. Incomplete, ambiguous or
+unsupported examples require a diagnostic and omission, without removing the
+command or advertising `null`; invalid authored values remain generation errors.
+These are production correspondence obligations, not new theorem claims.
+
+The explicit-null probe exposed an existing gRPC converter limitation:
+an `Any` payload with `Nullable()` and `Example(Null())` generates assignments between
+`loom.JSONValue` and `loom.Nullable[loom.JSONValue]` and compares the nullable
+wrapper with `nil`. Those converters do not compile. #434 does not add nullable
+Any transport support; its example adapter must diagnose and omit that unsupported
+hint. Empty selected collection branches remain a separate supported case and
+must retain their oneof selection through a generated round trip. Typed-nil
+authored collection examples are rejected by existing DSL validation and do not
+establish an executable protobuf acceptance case.
+
+Focused #434 production checks pass: retained type/payload source precedence,
+absent and selected unions, renamed fields, bytes, exact Int64 values,
+unavailable-hint diagnostics and command availability. Existing generated
+oneof fixtures and a selected empty-collection wrapper pass compilation and
+CLI replay. The existing isolated-process CLI determinism check passes.
+
+The parent `4857a3f3` and candidate comparison reuses `CLIProtoJSONDSL` and the
+four existing `grpc-type-union`, `grpc-type-plain`, `grpc-payload-union` and
+`grpc-payload-plain` probes. All four reproduce authored-value replacement at
+the parent and decode exactly `{"id":"authored-id"}` with the candidate.
+Build and vet pass at both revisions. Literal comparisons change only embedded
+CLI example/help text; generated protobuf schemas, converters, types, endpoints
+and service/example application files remain byte-identical. The selected
+fixture's temporary module replacement path is the only non-generated metadata
+difference. Four checked-in CLI goldens record changed sample values and Int64
+spelling. These bounded results establish tested adapter correspondence, not
+arbitrary protobuf equivalence or a full-corpus audit.

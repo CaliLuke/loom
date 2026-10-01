@@ -1,269 +1,404 @@
 package codegen
 
 import (
+	"errors"
 	"fmt"
-	"reflect"
+	"math"
+	"strings"
 
+	codegenpkg "github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 )
 
-// protoJSONExample returns an example value of the protocol buffer message
-// att whose JSON encoding protojson decodes into the Go type of the message.
-// The command-line client decodes the value of the message flag with
-// protojson, since encoding/json/v2 cannot set oneof fields.
-//
-// The protocol buffer JSON mapping names each field after its protocol buffer
-// name and sets a oneof by the name of the selected oneof field, at the level
-// of the message that holds the oneof. A value of a type that holds no union
-// is the example that att generates, with its object keys renamed to the
-// protocol buffer names, so that the example of such a message and the
-// examples generated after it do not change. The examples of the types that
-// hold a union select a branch of each union, and omit a field whose type
-// refers to a type that is already being generated.
-func protoJSONExample(att *expr.AttributeExpr, r *expr.ExampleGenerator) any {
-	return protoJSONExampleR(att, r, make(map[string]struct{}))
+type (
+	protoJSONExampleProjector struct {
+		context *codegenpkg.Context
+		service string
+		method  string
+		payload *expr.AttributeExpr
+		message *expr.AttributeExpr
+	}
+
+	protoJSONUnavailableError struct {
+		message string
+	}
+)
+
+func (e *protoJSONUnavailableError) Error() string {
+	return e.message
 }
 
-// protoJSONExampleR is the recursive implementation of protoJSONExample.
-// seen holds the identifiers of the user types being generated.
-func protoJSONExampleR(att *expr.AttributeExpr, r *expr.ExampleGenerator, seen map[string]struct{}) any {
-	if _, ok := att.Meta["struct:field:proto"]; ok || !holdsUnion(att, make(map[string]struct{})) {
-		value, _ := protoJSONValue(att, att.Example(r))
-		return value
+// protoJSONExample projects the retained service payload example into the
+// protocol buffer JSON mapping of message. It never selects a source,
+// synthesizes a value or chooses a union branch.
+func protoJSONExample(
+	ctx *codegenpkg.Context,
+	value *service.ValueData,
+	payload, message *expr.AttributeExpr,
+	serviceName, methodName string,
+) any {
+	p := protoJSONExampleProjector{
+		context: ctx,
+		service: serviceName,
+		method:  methodName,
+		payload: payload,
+		message: message,
 	}
-	if ut, ok := att.Type.(expr.UserType); ok {
-		if _, ok := seen[ut.ID()]; ok {
-			return nil
+	return p.project(value)
+}
+
+func (p protoJSONExampleProjector) project(data *service.ValueData) any {
+	if data == nil || data.Context == nil {
+		panic(codegenpkg.NewError(p.context, p.payload, errors.New("build gRPC CLI message example: missing retained source owner")))
+	}
+	result := data.Example
+	switch result.Outcome() {
+	case expr.ValueInvalid:
+		if !result.Synthesized() {
+			panic(codegenpkg.NewError(p.context, p.payload,
+				protoJSONExampleError("invalid authored gRPC CLI message example", result.Diagnostics())))
 		}
-		seen[ut.ID()] = struct{}{}
-		defer delete(seen, ut.ID())
-		return protoJSONExampleR(ut.Attribute(), r, seen)
-	}
-	switch actual := att.Type.(type) {
-	case *expr.Object:
-		return protoJSONObjectExample(att, r, seen)
-	case *expr.Union:
-		return protoJSONUnionExample(att, actual, r, seen)
-	case *expr.Array:
-		return protoJSONArrayExample(att, actual, r, seen)
-	case *expr.Map:
-		return protoJSONMapExample(actual, r, seen)
+		p.warnOmitted("invalid synthesized source", result.Diagnostics(), nil)
+		return nil
+	case expr.ValueIncomplete, expr.ValueAmbiguous, expr.ValueUnsupported:
+		p.warnOmitted("source is not usable", result.Diagnostics(), nil)
+		return nil
+	case expr.ValueSuppressed:
+		return nil
+	case expr.ValueResolved:
 	default:
-		return att.Example(r)
+		panic(codegenpkg.NewError(p.context, p.payload,
+			fmt.Errorf("build gRPC CLI message example: invalid retained source outcome %d", result.Outcome())))
 	}
-}
-
-// protoJSONObjectExample returns the example of the message with the fields
-// obj. A union field is set by the name of the oneof field of its selected
-// branch.
-func protoJSONObjectExample(att *expr.AttributeExpr, r *expr.ExampleGenerator, seen map[string]struct{}) map[string]any {
-	obj := expr.AsObject(att.Type)
-	names := newProtoMessageNames(att)
-	res := make(map[string]any, len(*obj))
-	for _, nat := range *obj {
-		if union := expr.AsUnion(nat.Attribute.Type); union != nil {
-			if key, value := protoJSONOneofExample(union, names.oneofFields(nat.Name), r, seen); key != "" {
-				res[key] = value
-			}
-			continue
-		}
-		if value := protoJSONExampleR(nat.Attribute, r, seen); value != nil {
-			res[names.field(nat.Name)] = value
-		}
+	resolved, ok := result.Value()
+	if !ok {
+		panic(codegenpkg.NewError(p.context, p.payload, errors.New("build gRPC CLI message example: resolved source has no value")))
 	}
-	return res
-}
-
-// protoJSONUnionExample returns the example of the union att that is a
-// message on its own, such as array elements: the message with a single
-// oneof, see protoBufUnionMessageDef. It returns nil when no branch has an
-// example.
-func protoJSONUnionExample(att *expr.AttributeExpr, union *expr.Union, r *expr.ExampleGenerator, seen map[string]struct{}) any {
-	name := union.Name()
-	names := newProtoMessageNames(&expr.AttributeExpr{Type: &expr.Object{{Name: name, Attribute: att}}})
-	key, value := protoJSONOneofExample(union, names.oneofFields(name), r, seen)
-	if key == "" {
+	projected, err := projectProtoJSONValue(data.Occurrence, p.payload, p.message, resolved)
+	if err == nil {
+		return projected
+	}
+	var unavailable *protoJSONUnavailableError
+	if errors.As(err, &unavailable) {
+		p.warnOmitted("protobuf projection is not usable", nil, unavailable)
 		return nil
 	}
-	return map[string]any{key: value}
+	panic(codegenpkg.NewError(p.context, p.payload, fmt.Errorf("build gRPC CLI message example: %w", err)))
 }
 
-// protoJSONArrayExample returns the example of the repeated field att with
-// the elements of array.
-func protoJSONArrayExample(att *expr.AttributeExpr, array *expr.Array, r *expr.ExampleGenerator, seen map[string]struct{}) []any {
-	count := expr.NewLength(att, r)
-	res := make([]any, 0, count)
-	for range count {
-		if value := protoJSONExampleR(array.ElemType, r, seen); value != nil {
-			res = append(res, value)
-		}
+func (p protoJSONExampleProjector) warnOmitted(reason string, diagnostics []expr.ValueDiagnostic, err error) {
+	args := []any{
+		"service", p.service,
+		"method", p.method,
+		"reason", reason,
 	}
-	return res
+	if len(diagnostics) > 0 {
+		args = append(args, "diagnostics", diagnostics)
+	}
+	if err != nil {
+		args = append(args, "error", err)
+	}
+	p.context.Warn("omitting unusable gRPC CLI message example", args...)
 }
 
-// protoJSONMapExample returns the example of the map field m.
-func protoJSONMapExample(m *expr.Map, r *expr.ExampleGenerator, seen map[string]struct{}) map[string]any {
-	count := r.Int()%3 + 1
-	res := make(map[string]any, count)
-	for range count {
-		key := m.KeyType.Example(r)
-		value := protoJSONExampleR(m.ElemType, r, seen)
-		if key != nil && value != nil {
-			res[protoJSONMapKey(key)] = value
-		}
+func protoJSONExampleError(prefix string, diagnostics []expr.ValueDiagnostic) error {
+	if len(diagnostics) == 0 {
+		return errors.New(prefix)
 	}
-	return res
-}
-
-// protoJSONOneofExample returns the name of the oneof field of the selected
-// branch of union, whose oneof fields have the names fields, and the example
-// of the branch. It selects a branch at random and the next branch that has
-// an example when the branch refers to a type being generated. It returns an
-// empty name when no branch has an example.
-func protoJSONOneofExample(union *expr.Union, fields []string, r *expr.ExampleGenerator, seen map[string]struct{}) (string, any) {
-	if len(union.Values) == 0 {
-		return "", nil
-	}
-	start := r.Int() % len(union.Values)
-	for i := range union.Values {
-		branch := (start + i) % len(union.Values)
-		if value := protoJSONExampleR(union.Values[branch].Attribute, r, seen); value != nil {
-			return fields[branch], value
-		}
-	}
-	return "", nil
-}
-
-// protoJSONValue returns the value example of the attribute att with the keys
-// of the objects renamed to the protocol buffer field names and the keys that
-// name no field removed. It also returns whether the value changed, and
-// returns value itself when it did not, so that the example keeps its Go
-// types and its JSON encoding.
-func protoJSONValue(att *expr.AttributeExpr, value any) (any, bool) {
-	if value == nil {
-		return nil, false
-	}
-	if _, ok := att.Meta["struct:field:proto"]; ok {
-		return value, false
-	}
-	if ut, ok := att.Type.(expr.UserType); ok {
-		return protoJSONValue(ut.Attribute(), value)
-	}
-	switch actual := att.Type.(type) {
-	case *expr.Object:
-		return protoJSONObjectValue(att, value)
-	case *expr.Array:
-		return protoJSONArrayValue(actual, value)
-	case *expr.Map:
-		return protoJSONMapValue(actual, value)
-	default:
-		return value, false
-	}
-}
-
-// protoJSONObjectValue returns the object value of the message with the
-// fields obj with its keys renamed to the protocol buffer names, see
-// protoJSONValue.
-func protoJSONObjectValue(att *expr.AttributeExpr, value any) (any, bool) {
-	m, ok := value.(map[string]any)
-	if !ok {
-		return value, false
-	}
-	obj := expr.AsObject(att.Type)
-	names := newProtoMessageNames(att)
-	res := make(map[string]any, len(m))
-	changed := false
-	for _, nat := range *obj {
-		v, ok := m[nat.Name]
-		if !ok {
+	parts := make([]string, 0, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		path := strings.Join(diagnostic.Path, ".")
+		if path == "" {
+			parts = append(parts, diagnostic.Message)
 			continue
 		}
-		converted, c := protoJSONValue(nat.Attribute, v)
-		name := names.field(nat.Name)
-		changed = changed || c || name != nat.Name
-		res[name] = converted
+		parts = append(parts, path+": "+diagnostic.Message)
 	}
-	if !changed && len(res) == len(m) {
-		return value, false
-	}
-	return res, true
+	return fmt.Errorf("%s: %s", prefix, strings.Join(parts, "; "))
 }
 
-// protoJSONArrayValue returns the slice value with the elements of array
-// converted by protoJSONValue.
-func protoJSONArrayValue(array *expr.Array, value any) (any, bool) {
-	rv := reflect.ValueOf(value)
-	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
-		return value, false
+func projectProtoJSONValue(
+	occurrence expr.ValueOccurrence,
+	source, target *expr.AttributeExpr,
+	value expr.ResolvedValue,
+) (any, error) {
+	if len(target.Meta["struct:field:proto"]) > 0 {
+		return nil, &protoJSONUnavailableError{message: "opaque protobuf field mapping cannot project a retained service value"}
 	}
-	res := make([]any, rv.Len())
-	changed := false
-	for i := range rv.Len() {
-		converted, c := protoJSONValue(array.ElemType, rv.Index(i).Interface())
-		changed = changed || c
-		res[i] = converted
+	switch value.Presence() {
+	case expr.ValueAbsent:
+		return nil, errors.New("cannot project an absent retained value")
+	case expr.ValueNull:
+		return nil, &protoJSONUnavailableError{message: "explicit null has no protobuf message representation"}
+	case expr.ValueNil:
+		return nil, &protoJSONUnavailableError{message: "typed nil has no protobuf message representation"}
+	case expr.ValuePresent:
+	default:
+		return nil, fmt.Errorf("invalid retained value presence %d", value.Presence())
 	}
-	if !changed {
-		return value, false
+
+	if wrapper := protoJSONWrapperField(source, target, value.Kind()); wrapper != nil {
+		names := newProtoMessageNames(target)
+		if value.Kind() == expr.ValueKindUnion {
+			name, projected, err := projectProtoJSONUnion(occurrence, source, wrapper.Attribute, value,
+				names.oneofFields(wrapper.Name))
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{name: projected}, nil
+		}
+		projected, err := projectProtoJSONValue(occurrence, source, wrapper.Attribute, value)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{names.field(wrapper.Name): projected}, nil
 	}
-	return res, true
+
+	switch value.Kind() {
+	case expr.ValueKindScalar:
+		return projectProtoJSONScalar(source, value)
+	case expr.ValueKindArray:
+		return projectProtoJSONArray(occurrence, source, target, value)
+	case expr.ValueKindObject:
+		return projectProtoJSONObject(occurrence, source, target, value)
+	case expr.ValueKindMap:
+		return projectProtoJSONMap(occurrence, source, target, value)
+	case expr.ValueKindUnion:
+		return nil, errors.New("protobuf union value is missing its containing message allocation")
+	case expr.ValueKindAny:
+		raw, ok := value.RawAny()
+		if !ok {
+			return nil, errors.New("retained Any value has no raw value")
+		}
+		return raw, nil
+	default:
+		return nil, fmt.Errorf("unsupported retained value kind %d", value.Kind())
+	}
 }
 
-// protoJSONMapValue returns the map value with the values of m converted by
-// protoJSONValue.
-func protoJSONMapValue(m *expr.Map, value any) (any, bool) {
-	rv := reflect.ValueOf(value)
-	if rv.Kind() != reflect.Map {
-		return value, false
+func protoJSONWrapperField(source, target *expr.AttributeExpr, kind expr.ValueKind) *expr.NamedAttributeExpr {
+	if kind == expr.ValueKindObject {
+		return nil
 	}
-	res := make(map[string]any, rv.Len())
-	changed := false
-	iter := rv.MapRange()
-	for iter.Next() {
-		converted, c := protoJSONValue(m.ElemType, iter.Value().Interface())
-		changed = changed || c
-		res[protoJSONMapKey(iter.Key().Interface())] = converted
+	obj := expr.AsObject(target.Type)
+	if obj == nil || len(*obj) != 1 {
+		return nil
 	}
-	if !changed {
-		return value, false
+	wrapper := (*obj)[0]
+	if codegenpkg.IsCompatible(source.Type, wrapper.Attribute.Type, "retained source", "protobuf wrapper") != nil {
+		return nil
 	}
-	return res, true
+	return wrapper
+}
+
+func projectProtoJSONObject(
+	occurrence expr.ValueOccurrence,
+	source, target *expr.AttributeExpr,
+	value expr.ResolvedValue,
+) (any, error) {
+	if expr.AsObject(source.Type) == nil || expr.AsObject(target.Type) == nil {
+		return nil, errors.New("retained object does not match its protobuf message")
+	}
+	members := occurrence.Members()
+	membersByID := make(map[expr.ValueIdentity]expr.ValueMember, len(members))
+	for _, member := range members {
+		membersByID[member.ID] = member
+	}
+	names := newProtoMessageNames(target)
+	projected := make(map[string]any)
+	for _, field := range value.Fields() {
+		if field.Value.Presence() == expr.ValueAbsent {
+			continue
+		}
+		member, ok := membersByID[field.Member]
+		if !ok {
+			if field.Member == (expr.ValueIdentity{}) {
+				return nil, &protoJSONUnavailableError{message: fmt.Sprintf("additional field %q has no protobuf field", field.Name)}
+			}
+			return nil, fmt.Errorf("retained object field %q has no occurrence member", field.Name)
+		}
+		_, sourceField := source.FindAttribute(member.Name)
+		if sourceField == nil {
+			return nil, fmt.Errorf("retained object member %q is absent from its service payload", member.Name)
+		}
+		targetName, targetField := target.FindAttribute(member.Name)
+		if targetField == nil {
+			continue
+		}
+		if field.Value.Kind() == expr.ValueKindUnion {
+			branchName, branchValue, err := projectProtoJSONUnion(
+				member.Occurrence, sourceField, targetField, field.Value, names.oneofFields(targetName),
+			)
+			if err != nil {
+				return nil, err
+			}
+			projected[branchName] = branchValue
+			continue
+		}
+		fieldValue, err := projectProtoJSONValue(member.Occurrence, sourceField, targetField, field.Value)
+		if err != nil {
+			return nil, err
+		}
+		projected[names.field(targetName)] = fieldValue
+	}
+	return projected, nil
+}
+
+func projectProtoJSONUnion(
+	occurrence expr.ValueOccurrence,
+	source, target *expr.AttributeExpr,
+	value expr.ResolvedValue,
+	fieldNames []string,
+) (string, any, error) {
+	_, selectedID, payload, selected := value.Union()
+	if !selected {
+		return "", nil, errors.New("retained union has no selected branch")
+	}
+	branches := occurrence.Branches()
+	var sourceBranch expr.ValueBranch
+	found := false
+	for _, branch := range branches {
+		if branch.ID == selectedID {
+			sourceBranch = branch
+			found = true
+			break
+		}
+	}
+	if !found {
+		return "", nil, errors.New("retained union branch is not owned by its occurrence")
+	}
+	sourceUnion := expr.AsUnion(source.Type)
+	targetUnion := expr.AsUnion(target.Type)
+	if sourceUnion == nil || targetUnion == nil {
+		return "", nil, errors.New("retained union does not match its protobuf oneof")
+	}
+	var sourceAttribute *expr.AttributeExpr
+	for _, branch := range sourceUnion.Values {
+		if expr.AttributeName(branch.Name) == expr.AttributeName(sourceBranch.Name) {
+			sourceAttribute = branch.Attribute
+			break
+		}
+	}
+	if sourceAttribute == nil {
+		return "", nil, fmt.Errorf("retained union branch %q is absent from its service type", sourceBranch.Name)
+	}
+	for index, branch := range targetUnion.Values {
+		if expr.AttributeName(branch.Name) != expr.AttributeName(sourceBranch.Name) {
+			continue
+		}
+		if index >= len(fieldNames) {
+			return "", nil, fmt.Errorf("protobuf oneof branch %q has no allocated field name", branch.Name)
+		}
+		projected, err := projectProtoJSONValue(sourceBranch.Occurrence, sourceAttribute, branch.Attribute, payload)
+		return fieldNames[index], projected, err
+	}
+	return "", nil, fmt.Errorf("retained union branch %q is absent from its protobuf oneof", sourceBranch.Name)
+}
+
+func projectProtoJSONArray(
+	occurrence expr.ValueOccurrence,
+	source, target *expr.AttributeExpr,
+	value expr.ResolvedValue,
+) (any, error) {
+	sourceArray := expr.AsArray(source.Type)
+	targetArray := expr.AsArray(target.Type)
+	if sourceArray == nil || targetArray == nil {
+		return nil, errors.New("retained array does not match its protobuf repeated field")
+	}
+	elementOccurrence := occurrence.Element()
+	elements := value.Elements()
+	projected := make([]any, len(elements))
+	for index, element := range elements {
+		item, err := projectProtoJSONValue(elementOccurrence, sourceArray.ElemType, targetArray.ElemType, element)
+		if err != nil {
+			return nil, err
+		}
+		projected[index] = item
+	}
+	return projected, nil
+}
+
+func projectProtoJSONMap(
+	occurrence expr.ValueOccurrence,
+	source, target *expr.AttributeExpr,
+	value expr.ResolvedValue,
+) (any, error) {
+	sourceMap := expr.AsMap(source.Type)
+	targetMap := expr.AsMap(target.Type)
+	if sourceMap == nil || targetMap == nil {
+		return nil, errors.New("retained map does not match its protobuf map field")
+	}
+	elementOccurrence := occurrence.Element()
+	projected := make(map[string]any, len(value.Entries()))
+	for _, entry := range value.Entries() {
+		key, ok := entry.Key.Scalar()
+		if !ok {
+			return nil, errors.New("retained map entry has a non-scalar key")
+		}
+		item, err := projectProtoJSONValue(elementOccurrence, sourceMap.ElemType, targetMap.ElemType, entry.Value)
+		if err != nil {
+			return nil, err
+		}
+		projected[protoJSONMapKey(key)] = item
+	}
+	return projected, nil
+}
+
+func projectProtoJSONScalar(source *expr.AttributeExpr, value expr.ResolvedValue) (any, error) {
+	scalar, ok := value.Scalar()
+	if !ok {
+		return nil, errors.New("retained scalar has no scalar value")
+	}
+	switch protoJSONSourceKind(source) {
+	case expr.IntKind, expr.Int64Kind, expr.UIntKind, expr.UInt64Kind:
+		return fmt.Sprint(scalar), nil
+	case expr.Float32Kind:
+		if number, ok := scalar.(float32); ok {
+			return protoJSONFloat(float64(number), scalar), nil
+		}
+	case expr.Float64Kind:
+		if number, ok := scalar.(float64); ok {
+			return protoJSONFloat(number, scalar), nil
+		}
+	}
+	return scalar, nil
+}
+
+func protoJSONSourceKind(source *expr.AttributeExpr) expr.Kind {
+	seen := make(map[string]struct{})
+	for {
+		userType, ok := source.Type.(expr.UserType)
+		if !ok {
+			return source.Type.Kind()
+		}
+		if _, found := seen[userType.ID()]; found {
+			return source.Type.Kind()
+		}
+		seen[userType.ID()] = struct{}{}
+		source = userType.Attribute()
+	}
+}
+
+func protoJSONFloat(number float64, original any) any {
+	switch {
+	case math.IsNaN(number):
+		return "NaN"
+	case math.IsInf(number, 1):
+		return "Infinity"
+	case math.IsInf(number, -1):
+		return "-Infinity"
+	default:
+		return original
+	}
 }
 
 // protoJSONMapKey returns the JSON object key of the map key example key.
 // The protocol buffer JSON mapping encodes integer and boolean keys as their
 // decimal and literal text.
 func protoJSONMapKey(key any) string {
-	if s, ok := key.(string); ok {
-		return s
+	if text, ok := key.(string); ok {
+		return text
 	}
 	return fmt.Sprint(key)
-}
-
-// holdsUnion reports whether the type of att is a union or holds a union in
-// an object field, array element or map value. seen holds the identifiers of
-// the user types already visited.
-func holdsUnion(att *expr.AttributeExpr, seen map[string]struct{}) bool {
-	if ut, ok := att.Type.(expr.UserType); ok {
-		if _, ok := seen[ut.ID()]; ok {
-			return false
-		}
-		seen[ut.ID()] = struct{}{}
-		return holdsUnion(ut.Attribute(), seen)
-	}
-	switch actual := att.Type.(type) {
-	case *expr.Union:
-		return true
-	case *expr.Object:
-		for _, nat := range *actual {
-			if holdsUnion(nat.Attribute, seen) {
-				return true
-			}
-		}
-	case *expr.Array:
-		return holdsUnion(actual.ElemType, seen)
-	case *expr.Map:
-		return holdsUnion(actual.ElemType, seen)
-	}
-	return false
 }

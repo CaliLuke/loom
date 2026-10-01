@@ -22,7 +22,7 @@ func BuildEchoPayload(nestedunionEchoMessage string) (*nestedunion.Envelope, err
 		if nestedunionEchoMessage != "" {
 			err = protojson.Unmarshal([]byte(nestedunionEchoMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"choice\": {\n         \"other\": {\n            \"count\": 1719082120441533495\n         }\n      },\n      \"extra_or_other\": {\n         \"extra\": {\n            \"flag\": false\n         }\n      },\n      \"holder\": {\n         \"choice\": {\n            \"other\": {\n               \"count\": 1719082120441533495\n            }\n         },\n         \"leaf\": {\n            \"name\": \"Quia inventore et.\"\n         }\n      },\n      \"holders\": [\n         {\n            \"extra\": {\n               \"flag\": false\n            },\n            \"leaf\": {\n               \"name\": \"Quia inventore et.\"\n            }\n         },\n         {\n            \"choice\": {\n               \"other\": {\n                  \"count\": 1719082120441533495\n               }\n            },\n            \"leaf\": {\n               \"name\": \"Quia inventore et.\"\n            }\n         }\n      ],\n      \"id\": \"Neque nisi quibusdam nisi sint sunt.\",\n      \"text\": \"Maxime quo qui molestiae iure sit consequuntur.\"\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"extra\": {\n         \"flag\": false\n      },\n      \"holder\": {\n         \"extra\": {\n            \"flag\": false\n         },\n         \"other\": {\n            \"count\": \"6535101188414410037\"\n         }\n      },\n      \"holders\": [\n         {\n            \"extra\": {\n               \"flag\": false\n            },\n            \"other\": {\n               \"count\": \"6535101188414410037\"\n            }\n         },\n         {\n            \"extra\": {\n               \"flag\": false\n            },\n            \"other\": {\n               \"count\": \"6535101188414410037\"\n            }\n         }\n      ],\n      \"id\": \"Neque earum eum dolorem.\",\n      \"leaf\": {\n         \"name\": \"Numquam minus sit qui sit.\"\n      },\n      \"picked\": {\n         \"other\": {\n            \"count\": \"6535101188414410037\"\n         }\n      }\n   }'")
 			}
 		}
 	}
@@ -131,7 +131,7 @@ func BuildWrapPayload(nestedunionWrapMessage string) (*nestedunion.Outer, error)
 		if nestedunionWrapMessage != "" {
 			err = protojson.Unmarshal([]byte(nestedunionWrapMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"choice\": {\n         \"leaf\": {\n            \"name\": \"Quia inventore et.\"\n         }\n      }\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"choice\": {\n         \"other\": {\n            \"count\": \"1149262919402122419\"\n         }\n      }\n   }'")
 			}
 		}
 	}
@@ -163,7 +163,7 @@ func BuildPickPayload(nestedunionPickMessage string) (*nestedunion.Choice, error
 		if nestedunionPickMessage != "" {
 			err = protojson.Unmarshal([]byte(nestedunionPickMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": 1719082120441533495\n      }\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": \"877054411865586437\"\n      }\n   }'")
 			}
 		}
 	}

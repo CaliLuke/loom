@@ -76,7 +76,7 @@ func (d *ServicesData) buildEndpointDataWithContext(
 	resultDesc := service.BuildResultDescriptor(svc, md, endpointIR.Response.Result)
 	errors := d.buildErrorsData(endpointIR, sd)
 	collector.collectErrorMessages(endpointIR)
-	request := d.buildRequestData(endpointIR, svc, sd, collector)
+	request := d.buildRequestData(ctx, endpointIR, svc, sd, collector)
 	response := d.buildResponseData(endpointIR, svc, sd, collector)
 	msgSch, metSch := partitionSecuritySchemes(endpointIR, md)
 	ed := &EndpointData{
@@ -259,7 +259,13 @@ func prepareEndpointProtoMessages(endpoint *transportir.Endpoint, sd *ServiceDat
 	}
 }
 
-func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *service.Data, sd *ServiceData, collector *messageCollector) *RequestData {
+func (d *ServicesData) buildRequestData(
+	ctx *codegen.Context,
+	endpoint *transportir.Endpoint,
+	svc *service.Data,
+	sd *ServiceData,
+	collector *messageCollector,
+) *RequestData {
 	vars := metadataVarScope(sd, endpoint.Request.Payload)
 	reqMD := extractMetadata(endpoint.Request.Metadata, endpoint.Request.Payload, svc.Scope, vars, *d)
 	request := &RequestData{
@@ -270,12 +276,14 @@ func (d *ServicesData) buildRequestData(endpoint *transportir.Endpoint, svc *ser
 	}
 	hasRequestMessage := !isEmpty(endpoint.Request.Message.Type)
 	if obj := expr.AsObject(endpoint.Request.ProtoMessage.Type); (obj != nil && len(*obj) > 0) || expr.IsUnion(endpoint.Request.ProtoMessage.Type) {
+		method := svc.Method(endpoint.Name)
 		request.CLIArgs = append(request.CLIArgs, &InitArgData{
-			Name:         "message",
-			Ref:          "message",
-			TypeName:     protoBufGoFullTypeName(endpoint.Request.ProtoMessage, sd.PkgName, sd.Scope),
-			TypeRef:      protoBufGoFullTypeRef(endpoint.Request.ProtoMessage, sd.PkgName, sd.Scope),
-			Example:      protoJSONExample(endpoint.Request.ProtoMessage, d.Root.API.ExampleGenerator),
+			Name:     "message",
+			Ref:      "message",
+			TypeName: protoBufGoFullTypeName(endpoint.Request.ProtoMessage, sd.PkgName, sd.Scope),
+			TypeRef:  protoBufGoFullTypeRef(endpoint.Request.ProtoMessage, sd.PkgName, sd.Scope),
+			Example: protoJSONExample(ctx, method.PayloadValue, endpoint.Request.Payload,
+				endpoint.Request.ProtoMessage, svc.Name, method.Name),
 			ProtoMessage: true,
 		})
 	}
