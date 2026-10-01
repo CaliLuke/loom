@@ -1,6 +1,9 @@
 package expr
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 type (
 	valuePlanKey struct {
@@ -17,6 +20,8 @@ type (
 		containers []bool
 		codecs     []bool
 		next       uint64
+		nextAssoc  uint64
+		assocs     map[*valueOccurrenceNode][]*valuePlanAssociation
 	}
 )
 
@@ -25,30 +30,12 @@ type (
 // targets, ambiguous mappings and incomplete runtime field policies. It never
 // interns by type hash or takes ownership of a mutable caller attribute.
 func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanRequest) (ValuePlan, error) {
-	if c == nil || source.context != c.identity || source.node == nil {
-		return ValuePlan{}, fmt.Errorf("value plan requires its source context")
+	if err := validateValuePlanRequest(c, source, request); err != nil {
+		return ValuePlan{}, err
 	}
-	if request.Codec < ValueCodecJSON || request.Codec > ValueCodecCustom ||
-		(request.Use != ValuePlanRuntime && request.Use != ValuePlanDocumentation && request.Use != ValuePlanSchema) {
-		return ValuePlan{}, fmt.Errorf("value plan requires an explicit codec and use")
-	}
-	selected := source.node
-	var selection []uint64
-	for _, name := range request.Selection {
-		selected = valueUnderlyingOccurrence(selected)
-		var match *valueOccurrenceMember
-		for i := range selected.declaration.members {
-			member := &selected.declaration.members[i]
-			if member.name == name {
-				match = member
-				break
-			}
-		}
-		if match == nil {
-			return ValuePlan{}, fmt.Errorf("value plan selection has no authored member %q", name)
-		}
-		selection = append(selection, match.id)
-		selected = match.node
+	selected, selection, err := valuePlanSelection(source.node, request.Selection)
+	if err != nil {
+		return ValuePlan{}, err
 	}
 	if !valueSameAncestry(selected.origin, request.Target) {
 		return ValuePlan{}, fmt.Errorf("value plan target does not descend from the selected occurrence")
@@ -57,27 +44,90 @@ func (c *ValueContext) NewValuePlan(source ValueOccurrence, request ValuePlanReq
 	if err != nil {
 		return ValuePlan{}, fmt.Errorf("value plan target: %w", err)
 	}
-	builder := valuePlanBuilder{request: request, context: c, source: source, nodes: make(map[valuePlanKey]*valuePlanNode), used: make([]bool, len(request.Fields)), containers: make([]bool, len(request.Containers)), codecs: make([]bool, len(request.Codecs))}
+	builder := &valuePlanBuilder{request: request, context: c, source: source,
+		nodes: make(map[valuePlanKey]*valuePlanNode), assocs: make(map[*valueOccurrenceNode][]*valuePlanAssociation),
+		used: make([]bool, len(request.Fields)), containers: make([]bool, len(request.Containers)), codecs: make([]bool, len(request.Codecs))}
 	root, err := builder.node(selected, target.node, request.Codec)
 	if err != nil {
 		return ValuePlan{}, err
 	}
-	for i, used := range builder.used {
+	if err := builder.validatePolicies(); err != nil {
+		return ValuePlan{}, err
+	}
+	association := builder.associate(source.node, root, selection)
+	return ValuePlan{context: c.identity, source: source, root: root, selection: selection,
+		association: association, associations: builder.assocs}, nil
+}
+
+func validateValuePlanRequest(context *ValueContext, source ValueOccurrence, request ValuePlanRequest) error {
+	if context == nil || source.context != context.identity || source.node == nil {
+		return fmt.Errorf("value plan requires its source context")
+	}
+	if request.Codec < ValueCodecJSON || request.Codec > ValueCodecCustom ||
+		(request.Use != ValuePlanRuntime && request.Use != ValuePlanDocumentation && request.Use != ValuePlanSchema) {
+		return fmt.Errorf("value plan requires an explicit codec and use")
+	}
+	return nil
+}
+
+func valuePlanSelection(source *valueOccurrenceNode, names []string) (*valueOccurrenceNode, []uint64, error) {
+	selected := source
+	selection := make([]uint64, 0, len(names))
+	for _, name := range names {
+		selected = valueUnderlyingOccurrence(selected)
+		var match *valueOccurrenceMember
+		for index := range selected.declaration.members {
+			member := &selected.declaration.members[index]
+			if member.name == name {
+				match = member
+				break
+			}
+		}
+		if match == nil {
+			return nil, nil, fmt.Errorf("value plan selection has no authored member %q", name)
+		}
+		selection = append(selection, match.id)
+		selected = match.node
+	}
+	return selected, selection, nil
+}
+
+func (b *valuePlanBuilder) validatePolicies() error {
+	for index, used := range b.used {
 		if !used {
-			return ValuePlan{}, fmt.Errorf("value plan field policy %d does not identify a target member", i)
+			return fmt.Errorf("value plan field policy %d does not identify a target member", index)
 		}
 	}
-	for i, used := range builder.containers {
+	for index, used := range b.containers {
 		if !used {
-			return ValuePlan{}, fmt.Errorf("value plan container policy %d does not identify a target container", i)
+			return fmt.Errorf("value plan container policy %d does not identify a target container", index)
 		}
 	}
-	for i, used := range builder.codecs {
+	for index, used := range b.codecs {
 		if !used {
-			return ValuePlan{}, fmt.Errorf("value plan codec policy %d does not identify a target node", i)
+			return fmt.Errorf("value plan codec policy %d does not identify a target node", index)
 		}
 	}
-	return ValuePlan{context: c.identity, source: source, root: root, selection: selection}, nil
+	return nil
+}
+
+func (b *valuePlanBuilder) associate(source *valueOccurrenceNode, root *valuePlanNode, selection []uint64) *valuePlanAssociation {
+	if source == nil || root == nil {
+		return nil
+	}
+	if b.assocs == nil {
+		b.assocs = make(map[*valueOccurrenceNode][]*valuePlanAssociation)
+	}
+	for _, association := range b.assocs[source] {
+		if association.root == root && slices.Equal(association.selection, selection) {
+			return association
+		}
+	}
+	b.nextAssoc++
+	association := &valuePlanAssociation{id: b.nextAssoc, source: source, root: root,
+		selection: append([]uint64(nil), selection...)}
+	b.assocs[source] = append(b.assocs[source], association)
+	return association
 }
 
 func valueSameAncestry(left, right *AttributeExpr) bool {
@@ -109,7 +159,7 @@ func valuePlanAliasSource(source, target *valueOccurrenceNode) (*valueOccurrence
 	// semantic shape below; the definition itself need not be a source alias.
 	if target.declaration.alias == nil {
 		structural, err := valuePlanStructuralSource(original)
-		return structural, false, err
+		return structural, structural == original, err
 	}
 	return nil, false, fmt.Errorf("value plan alias has no matching source ancestry")
 }
@@ -130,6 +180,15 @@ func valuePlanStructuralSource(source *valueOccurrenceNode) (*valueOccurrenceNod
 }
 
 func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode, codec ValueCodec) (*valuePlanNode, error) {
+	return b.nodeAssociated(source, target, codec, true)
+}
+
+func (b *valuePlanBuilder) nodeAssociated(
+	source, target *valueOccurrenceNode,
+	codec ValueCodec,
+	associate bool,
+) (*valuePlanNode, error) {
+	owner := source
 	if target.declaration.alias == nil {
 		var err error
 		source, err = valuePlanStructuralSource(source)
@@ -143,6 +202,9 @@ func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode, codec Value
 	}
 	key := valuePlanKey{source: source, target: target, codec: codec}
 	if prior := b.nodes[key]; prior != nil {
+		if associate {
+			b.associate(owner, prior, nil)
+		}
 		return prior, nil
 	}
 	b.next++
@@ -160,6 +222,9 @@ func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode, codec Value
 		node.schemaUnknown = values[len(values)-1] != "false"
 	}
 	b.nodes[key] = node
+	if associate {
+		b.associate(owner, node, nil)
+	}
 	if err := b.enums(node, source, target); err != nil {
 		return nil, err
 	}
@@ -174,7 +239,7 @@ func (b *valuePlanBuilder) nodeChildren(node *valuePlanNode, source, target *val
 			return nil, err
 		}
 		node.aliasReusesSource = reuses
-		node.alias, err = b.node(child, decl.alias, node.codec)
+		node.alias, err = b.nodeAssociated(child, decl.alias, node.codec, !reuses)
 		return node, err
 	}
 	if source.declaration.kind != decl.kind {
@@ -325,6 +390,13 @@ func (b *valuePlanBuilder) enums(node *valuePlanNode, source, target *valueOccur
 			occurrence := ValueOccurrence{context: b.source.context, graph: b.source.graph, node: source}
 			input := b.context.SupplyValue(ValueInput{Raw: raw, ExplicitNull: raw == nil, Origin: "target enum"})
 			result := b.context.ResolveDeclaredShape(occurrence, input)
+			if result.Outcome() == ValueUnsupported && !result.checkableFailure && result.value.node != nil {
+				// Opaque candidates preserve the authored clause but cannot establish
+				// builtin checked membership. Never materialize their codecs or feed
+				// unresolved nodes into observation. Keeping an empty clause rejects
+				// every builtin projection instead of weakening the enum conjunction.
+				continue
+			}
 			if result.Outcome() != ValueResolved {
 				return fmt.Errorf("value plan enum does not resolve against its declared shape: %v", result.Diagnostics())
 			}

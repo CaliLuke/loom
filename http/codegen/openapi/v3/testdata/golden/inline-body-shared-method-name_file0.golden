@@ -1,40 +1,5 @@
 {
   "components": {
-    "parameters": {
-      "QueryQ": {
-        "allowEmptyValue": true,
-        "example": "Corrupti omnis ad.",
-        "in": "query",
-        "name": "q",
-        "schema": {
-          "type": "string"
-        }
-      }
-    },
-    "requestBodies": {
-      "FirstDoRequestBody": {
-        "content": {
-          "application/json": {
-            "example": {
-              "name": "Cupiditate et et ut ipsa laboriosam et."
-            },
-            "schema": {
-              "example": {
-                "name": "Incidunt exercitationem deleniti quo."
-              },
-              "properties": {
-                "name": {
-                  "example": "Fugit praesentium expedita illum unde.",
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            }
-          }
-        },
-        "required": true
-      }
-    },
     "responses": {
       "NoContentResponse": {
         "description": "No Content response."
@@ -53,11 +18,36 @@
         "operationId": "first.do",
         "parameters": [
           {
-            "$ref": "#/components/parameters/QueryQ"
+            "allowEmptyValue": true,
+            "example": "Dolorem quasi iste.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
-          "$ref": "#/components/requestBodies/FirstDoRequestBody"
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Non accusantium vitae incidunt."
+              },
+              "schema": {
+                "example": {
+                  "name": "Nobis optio sint necessitatibus."
+                },
+                "properties": {
+                  "name": {
+                    "example": "Placeat facere.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
         },
         "responses": {
           "204": {
@@ -75,11 +65,36 @@
         "operationId": "second.do",
         "parameters": [
           {
-            "$ref": "#/components/parameters/QueryQ"
+            "allowEmptyValue": true,
+            "example": "Totam odit eligendi.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
-          "$ref": "#/components/requestBodies/FirstDoRequestBody"
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Eaque tempore sequi hic natus."
+              },
+              "schema": {
+                "example": {
+                  "name": "Temporibus ipsa atque ut eum quod explicabo."
+                },
+                "properties": {
+                  "name": {
+                    "example": "Quia optio.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
         },
         "responses": {
           "204": {

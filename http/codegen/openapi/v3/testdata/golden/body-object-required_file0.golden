@@ -13,15 +13,15 @@
           "content": {
             "application/json": {
               "example": {
-                "b": "Quasi suscipit explicabo aspernatur."
+                "b": "Deleniti facere numquam."
               },
               "schema": {
                 "example": {
-                  "b": "Et dolorum repellat exercitationem."
+                  "b": "Eius fuga repellendus debitis rerum est."
                 },
                 "properties": {
                   "b": {
-                    "example": "Hic qui doloribus aliquam.",
+                    "example": "Eius dolore illum voluptate nihil.",
                     "type": "string"
                   }
                 },

@@ -80,7 +80,7 @@ func ValueTarget(source *service.ValueData, target *expr.AttributeExpr, selectio
 	if target == nil || target.Type == expr.Empty {
 		return nil
 	}
-	value := &transportir.ValueTarget{Source: source, Codec: codec}
+	value := &transportir.ValueTarget{Source: source, Anchor: source, Codec: codec}
 	if source == nil {
 		value.Error = fmt.Errorf("HTTP target has no effective service occurrence")
 		return value
@@ -101,16 +101,17 @@ func ValueTarget(source *service.ValueData, target *expr.AttributeExpr, selectio
 	if codec != expr.ValueCodecJSON {
 		value.Boundary = "target codec is outside the builtin JSON projection"
 	}
-	if schemaOnly || len(target.ExtractUserExamples()) == 0 {
-		return value
-	}
-	// Only a distinct authored source changes source authority. A derived copy
-	// keeps original authored provenance even when its legacy example was filtered.
 	occurrence, err := source.Context.NewOccurrence(target)
 	if err != nil {
 		value.Error = err
 		return value
 	}
+	value.ExampleOccurrence = occurrence
+	if schemaOnly || len(target.ExtractUserExamples()) == 0 {
+		return value
+	}
+	// Only a distinct authored source changes source authority. A derived copy
+	// keeps original authored provenance even when its legacy example was filtered.
 	chosen := source.Context.SelectExample(occurrence, expr.ExamplePolicy{Reachable: true})
 	if supplied, found := chosen.Source(); found && !source.Context.ContainsExampleSource(source.Occurrence, supplied) {
 		value.Source = &service.ValueData{Context: source.Context, Occurrence: occurrence,
@@ -124,36 +125,47 @@ func DocumentTarget(source *service.ValueData, target *expr.AttributeExpr, selec
 	if target == nil || target.Type == expr.Empty {
 		return nil
 	}
-	value := ValueTarget(source, target, selected, expr.ValueCodecJSON, schemaOnly)
 	if independent {
-		context := expr.NewValueContext()
-		if source != nil {
-			context = source.Context
-		}
-		occurrence, err := context.NewOccurrence(target)
-		if err != nil {
-			value.Error = err
-			return value
-		}
-		var result expr.ValueResult
-		if !schemaOnly {
-			selection := context.SelectExample(occurrence, expr.ExamplePolicy{Reachable: true})
-			if supplied, found := selection.Source(); found {
-				result = context.Resolve(occurrence, supplied, expr.ValueRoleExample)
-			} else {
-				// No new sampling is performed during carrier attachment. A later
-				// documentation consumer may synthesize through this same occurrence.
-				result = context.Synthesize(selection, nil)
-			}
-		}
-		value.Source = &service.ValueData{Context: context, Occurrence: occurrence, Example: result}
-		value.Error = nil
-		value.Selection = nil
+		return independentDocumentTarget(source, target, schemaOnly)
+	}
+	value := ValueTarget(source, target, selected, expr.ValueCodecJSON, schemaOnly)
+	if value == nil || value.Error != nil {
+		return value
 	}
 	value.Documentary = true
 	if !schemaOnly && value.Error == nil && value.Source != nil {
 		value.Plan, value.Error = value.Source.Context.NewValuePlan(value.Source.Occurrence, expr.ValuePlanRequest{
 			Target: target, Selection: value.Selection, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
+		})
+	}
+	return value
+}
+
+func independentDocumentTarget(source *service.ValueData, target *expr.AttributeExpr, schemaOnly bool) *transportir.ValueTarget {
+	context := expr.NewValueContext()
+	if source != nil {
+		context = source.Context
+	}
+	occurrence, err := context.NewOccurrence(target)
+	if err != nil {
+		return &transportir.ValueTarget{Codec: expr.ValueCodecJSON, Documentary: true, Error: err}
+	}
+	data := &service.ValueData{Context: context, Occurrence: occurrence}
+	value := &transportir.ValueTarget{
+		Source: data, Anchor: data, Codec: expr.ValueCodecJSON, Documentary: true,
+		ExampleOccurrence: occurrence,
+	}
+	if !schemaOnly {
+		selection := context.SelectExample(occurrence, expr.ExamplePolicy{Reachable: true})
+		if supplied, found := selection.Source(); found {
+			data.Example = context.Resolve(occurrence, supplied, expr.ValueRoleExample)
+		} else {
+			// Carrier attachment never supplies a generator. Explicit example
+			// preparation later synthesizes through this retained occurrence.
+			data.Example = context.Synthesize(selection, nil)
+		}
+		value.Plan, value.Error = context.NewValuePlan(occurrence, expr.ValuePlanRequest{
+			Target: target, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
 		})
 	}
 	return value

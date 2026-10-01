@@ -12,6 +12,7 @@ import (
 
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -206,6 +207,7 @@ func TestBodyTypeIdentityPreservesOpenAPIExample(t *testing.T) {
 			Method("other", func() {
 				Payload(choice, func() {
 					Meta("openapi:typename", "Choice")
+					Example(map[string]any{"value": "retained branch"})
 				})
 				Result(choice)
 				HTTP(func() {
@@ -217,10 +219,26 @@ func TestBodyTypeIdentityPreservesOpenAPIExample(t *testing.T) {
 	spec := renderOpenAPIJSON(t, openapiv3.Files, root)
 	parseOpenAPIV3Document(t, spec)
 	media := postRequestMediaTypeFromSpec(t, spec, "/", "application/json")
-	example, ok := media["example"].(map[string]any)
-	require.True(t, ok, "body identity must not suppress the generated example")
+	examples, ok := media["examples"].(map[string]any)
+	require.True(t, ok, "body identity must not suppress the authored example")
+	defaultExample, ok := examples["default"].(map[string]any)
+	require.True(t, ok)
+	example, ok := defaultExample["value"].(map[string]any)
+	require.True(t, ok)
+	prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil)
+	require.NoError(t, err)
+	require.NoError(t, representation.PrepareServiceExamples(
+		prepared,
+		root.API.HTTP.Services[0],
+		root.API.ExampleGenerator,
+	))
+	retained := prepared.Endpoints[0].Request.BodyValue.Anchor.Example
+	want, ok := retained.DeclaredJSONValue()
+	require.True(t, ok)
+	require.Equal(t, want, example,
+		"OpenAPI example must retain the prepared semantic source value")
 	require.Equal(t, "Svc#Other", example["type"])
 	value, ok := example["value"].(map[string]any)
 	require.True(t, ok)
-	require.IsType(t, "", value["value"])
+	require.Equal(t, "retained branch", value["value"])
 }

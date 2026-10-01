@@ -7,6 +7,21 @@ consumers.
 Loom does not include a diff engine. The consuming repository owns its oasdiff
 version, policy, severity overrides, and ignores.
 
+## Distinguish schema identity from automatic reuse
+
+Loom shares complete automatic request-body, response, parameter and header
+definitions only when their contents, including examples, agree. Operations can
+share a data schema while retaining different examples in their own definitions.
+Changing an example can therefore remove an automatic component and replace its
+references with inline definitions. These automatic references are not stable
+identifiers. Explicitly authored component names and schema names retain their
+existing contracts.
+
+Review both the OpenAPI diff and regenerated SDK and validator output when
+updating Loom. Moving an equivalent definition inline preserves its contract,
+but a client generator may produce different declarations or exports. Schema
+equivalence alone does not prove compatibility of the generated client API.
+
 ## Select the OpenAPI compatibility target
 
 Loom emits OpenAPI 3.2 by default. oasdiff `v1.29.1` reads 3.2 documents, but

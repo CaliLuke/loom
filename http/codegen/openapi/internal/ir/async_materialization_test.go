@@ -78,7 +78,9 @@ func TestAsyncMaterializationFinalizedDeclaredCut(t *testing.T) {
 	inbound := contract["messages"].(map[string]any)["inbound"].(map[string]any)
 	schema := materializationDecode(t, inbound["schema"])
 	require.NotEmpty(t, schema.Ref)
-	require.Nil(t, schema.Example)
+	example, ok := schema.Example.(map[string]any)
+	require.True(t, ok, "the retained target-plan position owns the referenced schema example")
+	require.Contains(t, example, "count")
 	name, ok := schemaComponentName(schema.Ref)
 	require.True(t, ok)
 	require.Contains(t, document.Components.Schemas, name)
@@ -166,7 +168,9 @@ func TestAsyncMaterializationReferenceSiblings(t *testing.T) {
 				require.Empty(t, result.AllOf)
 				materializationByteBounds(t, result.Properties["data"])
 				require.Equal(t, "aGk=", result.Properties["data"].Example)
-				legacy := NewAnalyzer(expr.NewRandom("materialization"), false).AnalyzeSchemaWithContext(attribute, "materialization")
+				legacyCalls := 0
+				legacy := materializationAnalyzer(&legacyCalls).AnalyzeSchemaWithContext(attribute, "materialization")
+				require.Equal(t, 3, legacyCalls)
 				require.Equal(t, materializationDecode(t, RenderSchema(legacy)).Properties["count"].Example, result.Properties["count"].Example, "inline occurrence seed must not become a component seed")
 			}
 			require.Empty(t, component.Description, "materialization must not mutate registered components")

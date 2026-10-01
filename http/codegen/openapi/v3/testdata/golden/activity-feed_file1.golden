@@ -178,6 +178,9 @@ components:
             content:
                 application/json:
                     schema:
+                        example:
+                            field: cursor
+                            message: cursor must be a base64 token
                         $ref: '#/components/schemas/ActivityValidationError'
                     example:
                         field: cursor

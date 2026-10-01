@@ -20,19 +20,27 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    first:
+                                        id: Fugit illum expedita dolor voluptatem expedita assumenda.
+                                        name: Dolorem veniam amet modi omnis voluptatem error.
+                                    items:
+                                        - id: Fugit illum expedita dolor voluptatem expedita assumenda.
+                                          name: Dolorem veniam amet modi omnis voluptatem error.
+                                        - id: Fugit illum expedita dolor voluptatem expedita assumenda.
+                                          name: Dolorem veniam amet modi omnis voluptatem error.
+                                    next: Maiores nemo incidunt aspernatur possimus omnis.
                                 $ref: '#/components/schemas/Listing'
                             example:
                                 first:
-                                    id: Atque ut delectus nam ullam quia numquam.
-                                    name: Dicta eum beatae tenetur eveniet aut illo.
+                                    id: Fugit illum expedita dolor voluptatem expedita assumenda.
+                                    name: Dolorem veniam amet modi omnis voluptatem error.
                                 items:
-                                    - id: Atque ut delectus nam ullam quia numquam.
-                                      name: Dicta eum beatae tenetur eveniet aut illo.
-                                    - id: Atque ut delectus nam ullam quia numquam.
-                                      name: Dicta eum beatae tenetur eveniet aut illo.
-                                    - id: Atque ut delectus nam ullam quia numquam.
-                                      name: Dicta eum beatae tenetur eveniet aut illo.
-                                next: Qui qui id commodi qui.
+                                    - id: Fugit illum expedita dolor voluptatem expedita assumenda.
+                                      name: Dolorem veniam amet modi omnis voluptatem error.
+                                    - id: Fugit illum expedita dolor voluptatem expedita assumenda.
+                                      name: Dolorem veniam amet modi omnis voluptatem error.
+                                next: Maiores nemo incidunt aspernatur possimus omnis.
             security: []
         post:
             tags:
@@ -45,28 +53,39 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    first:
+                                        id: Ex expedita necessitatibus veritatis qui maiores.
+                                        name: Et doloribus est temporibus eos in.
+                                    items:
+                                        - id: Ex expedita necessitatibus veritatis qui maiores.
+                                          name: Et doloribus est temporibus eos in.
+                                        - id: Ex expedita necessitatibus veritatis qui maiores.
+                                          name: Et doloribus est temporibus eos in.
+                                    next: Vel vel error harum.
                                 $ref: '#/components/schemas/Listing'
                             example:
                                 first:
-                                    id: Reiciendis laudantium reprehenderit ea cupiditate suscipit.
-                                    name: Consequuntur quae sapiente odio.
+                                    id: Ex expedita necessitatibus veritatis qui maiores.
+                                    name: Et doloribus est temporibus eos in.
                                 items:
-                                    - id: Reiciendis laudantium reprehenderit ea cupiditate suscipit.
-                                      name: Consequuntur quae sapiente odio.
-                                    - id: Reiciendis laudantium reprehenderit ea cupiditate suscipit.
-                                      name: Consequuntur quae sapiente odio.
-                                    - id: Reiciendis laudantium reprehenderit ea cupiditate suscipit.
-                                      name: Consequuntur quae sapiente odio.
-                                next: Perferendis sapiente.
+                                    - id: Ex expedita necessitatibus veritatis qui maiores.
+                                      name: Et doloribus est temporibus eos in.
+                                    - id: Ex expedita necessitatibus veritatis qui maiores.
+                                      name: Et doloribus est temporibus eos in.
+                                next: Vel vel error harum.
                 "503":
                     description: 'unavailable: Service Unavailable response.'
                     content:
                         application/json:
                             schema:
+                                example:
+                                    code: Magni totam excepturi.
+                                    detail: Sint possimus blanditiis similique consequatur non.
                                 $ref: '#/components/schemas/Problem'
                             example:
-                                code: Dolores et.
-                                detail: Tenetur eaque nihil voluptatem.
+                                code: Magni totam excepturi.
+                                detail: Sint possimus blanditiis similique consequatur non.
             security: []
 components:
     schemas:
@@ -75,13 +94,13 @@ components:
             properties:
                 id:
                     type: string
-                    example: Vero ex sed impedit at maiores et.
+                    example: Autem officiis.
                 name:
                     type: string
-                    example: Ab laborum cumque dolorum.
+                    example: Enim neque hic aspernatur inventore est.
             example:
-                id: Voluptatem quidem et.
-                name: Aut quasi quasi est voluptatibus possimus blanditiis.
+                id: Minima sit.
+                name: Sed est id sunt sit.
             required:
                 - id
         ItemCollection:
@@ -89,14 +108,12 @@ components:
             items:
                 $ref: '#/components/schemas/Item'
             example:
-                - id: Voluptatem eius nemo eveniet dolores tempora.
-                  name: Eos laudantium.
-                - id: Voluptatem eius nemo eveniet dolores tempora.
-                  name: Eos laudantium.
-                - id: Voluptatem eius nemo eveniet dolores tempora.
-                  name: Eos laudantium.
-                - id: Voluptatem eius nemo eveniet dolores tempora.
-                  name: Eos laudantium.
+                - id: Aspernatur aliquid delectus placeat.
+                  name: Earum quia aut ratione a aut.
+                - id: Aspernatur aliquid delectus placeat.
+                  name: Earum quia aut ratione a aut.
+                - id: Aspernatur aliquid delectus placeat.
+                  name: Earum quia aut ratione a aut.
         Listing:
             type: object
             properties:
@@ -106,19 +123,21 @@ components:
                     $ref: '#/components/schemas/ItemCollection'
                 next:
                     type: string
-                    example: Explicabo dolorum sed culpa voluptate distinctio.
+                    example: Velit nam velit non necessitatibus aut.
             example:
                 first:
-                    id: Delectus facere veniam omnis itaque.
-                    name: Consequatur voluptatum.
+                    id: Ducimus deleniti est cupiditate odio.
+                    name: Ipsa molestiae odio.
                 items:
-                    - id: Delectus facere veniam omnis itaque.
-                      name: Consequatur voluptatum.
-                    - id: Delectus facere veniam omnis itaque.
-                      name: Consequatur voluptatum.
-                    - id: Delectus facere veniam omnis itaque.
-                      name: Consequatur voluptatum.
-                next: Facere est perspiciatis.
+                    - id: Ducimus deleniti est cupiditate odio.
+                      name: Ipsa molestiae odio.
+                    - id: Ducimus deleniti est cupiditate odio.
+                      name: Ipsa molestiae odio.
+                    - id: Ducimus deleniti est cupiditate odio.
+                      name: Ipsa molestiae odio.
+                    - id: Ducimus deleniti est cupiditate odio.
+                      name: Ipsa molestiae odio.
+                next: Qui sed molestiae.
             required:
                 - first
                 - items
@@ -127,13 +146,13 @@ components:
             properties:
                 code:
                     type: string
-                    example: Quia at.
+                    example: Ipsam alias temporibus iste.
                 detail:
                     type: string
-                    example: Quia alias illo aliquid.
+                    example: Sit voluptatem omnis et harum incidunt exercitationem.
             example:
-                code: Numquam aut exercitationem.
-                detail: Aut iste qui et molestiae.
+                code: Non ab corrupti dignissimos.
+                detail: Voluptas fuga illum eum ea labore.
             required:
                 - code
 tags:

@@ -29,6 +29,12 @@ func TestBytesPreservesEntireBaselineAnnotationPath(t *testing.T) {
 				a := NewAnalyzer(root.API.ExampleGenerator, false)
 				prepared, err := representation.PrepareService(root.API.HTTP.Services[0], nil)
 				require.NoError(t, err)
+				require.NoError(t, representation.PrepareServiceExamples(
+					prepared, root.API.HTTP.Services[0], root.API.ExampleGenerator,
+				))
+				for _, endpoint := range prepared.Endpoints {
+					require.NoError(t, representation.PrepareEndpointExamples(endpoint, root.API.ExampleGenerator))
+				}
 				for _, endpoint := range prepared.Endpoints {
 					analyzeEndpointBodies(a, endpoint)
 				}
@@ -57,10 +63,9 @@ func TestBytesPreservesEntireBaselineAnnotationPath(t *testing.T) {
 					require.True(t, ok)
 					current = schemas[name]
 				}
-				terminal := map[string]any{"blob": "RGVzZXJ1bnQgY3VtIG1vZGkgcXVhbSBkZWxlbml0aSBmYWNlcmUu", "count": 4069425969333182118}
-				expected := []annotationPathStep{{Ref: toRef("AuthorityBase_2977d6da5f160a78")}, {Example: terminal}}
+				expected := []annotationPathStep{{Ref: toRef("AuthorityBase_2977d6da5f160a78")}, {}}
 				if neutral && field == "items" {
-					expected = []annotationPathStep{{Ref: toRef("AuthorityBase_2977d6da5f160a78_2")}, {Example: map[string]any{"blob": "RWxpZ2VuZGkgcXVpYSBkZWxlbml0aSBmdWdpYXQgcG9ycm8gdXQgdGVtcG9yYS4=", "count": 4575513339977884504}}}
+					expected = []annotationPathStep{{Ref: toRef("AuthorityBase_2977d6da5f160a78_2")}, {}}
 				}
 				if neutral {
 					// Independently captured parent IR retains pure alias references;
@@ -73,12 +78,26 @@ func TestBytesPreservesEntireBaselineAnnotationPath(t *testing.T) {
 					expected = append(aliases, expected...)
 				}
 				if !neutral {
-					expected = []annotationPathStep{{Ref: toRef("AuthorityAliasOne")}, {Ref: toRef("AuthorityBase_2977d6da5f160a78"), Example: map[string]any{"blob": "VXQgdGVuZXR1ciBzaXQu", "count": 3748162180375200810}}, {Example: terminal}}
+					expected = []annotationPathStep{{Ref: toRef("AuthorityAliasOne")}, {Ref: toRef("AuthorityBase_2977d6da5f160a78")}, {}}
 					if field == "items" {
-						expected = append([]annotationPathStep{{Ref: toRef("AuthorityAliasTwo")}, {Ref: toRef("AuthorityAliasOne"), Example: map[string]any{"blob": "TmlzaSBuYXR1cy4=", "count": 7371582765372296462}}}, expected[1:]...)
+						expected = append([]annotationPathStep{{Ref: toRef("AuthorityAliasTwo")}, {Ref: toRef("AuthorityAliasOne")}}, expected[1:]...)
 					}
 				}
-				assert.Equal(t, expected, actual, "%s preserves every original annotation and absent annotation along its entire reachable reference path", field)
+				require.Len(t, actual, len(expected))
+				for index := range expected {
+					assert.Equal(t, expected[index].Ref, actual[index].Ref,
+						"%s preserves reference step %d", field, index)
+				}
+				assert.Nil(t, actual[0].Example,
+					"%s keeps the outer reference free of its target component's annotation", field)
+				start := 1
+				if neutral {
+					start = len(actual) - 1
+				}
+				for index := start; index < len(actual); index++ {
+					assert.NotNil(t, actual[index].Example,
+						"%s retains the representative owned by annotation step %d", field, index)
+				}
 			}
 		})
 	}

@@ -38,6 +38,22 @@ the generated comparisons and remaining representation boundaries. General
 alias/key extraction obligations are tracked separately in the correspondence
 ledger and must not be inferred from byte-length or effective-owner checks.
 
+## Ordered authored example groups: #572
+
+[`OrderedExampleGroups.lean`](ValueContract/OrderedExampleGroups.lean) preserves
+the complete first nonempty authored group, including order and detached metadata.
+Its last member agrees with the singular source selector. Reachability precedes
+selection; suppression blocks synthesis while retaining authored examples. The
+ten required claims include a counterexample to flattening all ancestry groups.
+They are part of the existing `Proofs` entry point and required-theorem manifest.
+
+The source-selection dependency is unchanged from the separately reviewed proof.
+These claims do not prove Go graph extraction, metadata copying, effective-owner
+selection, or target-plan association. Those remain direct implementation checks.
+The bounded structural/example-role and opaque-enum decisions are documented in
+[`schema_declaration`](../../tla/schema_declaration/README.md); they complement the
+ordered-source model by examining separate design questions.
+
 ## Effective alias contracts: #571
 
 [`NumericBounds.lean`](ValueContract/NumericBounds.lean) retains all four raw

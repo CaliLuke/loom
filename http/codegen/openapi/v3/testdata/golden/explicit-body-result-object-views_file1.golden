@@ -21,16 +21,20 @@ paths:
                         Location:
                             schema:
                                 type: string
-                                example: A quae velit repudiandae quis ipsum est.
-                            example: A quae velit repudiandae quis ipsum est.
+                                example: Neque qui enim.
+                            example: Neque qui enim.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    a:
+                                        x: Cum molestias voluptatem sit corporis.
+                                        "y": 3374495964975741729
                                 $ref: '#/components/schemas/Resulttypemultipleviews_e30f7140cbd99e86'
                             example:
                                 a:
-                                    x: Excepturi at.
-                                    "y": 1668926359201162383
+                                    x: Cum molestias voluptatem sit corporis.
+                                    "y": 3374495964975741729
 components:
     schemas:
         Resulttypemultipleviews_e30f7140cbd99e86:
@@ -40,20 +44,20 @@ components:
                     $ref: '#/components/schemas/UserType'
             example:
                 a:
-                    x: Optio rerum fuga sit.
-                    "y": 8435905110803584754
+                    x: Facere consequatur.
+                    "y": 1347980918515260384
         UserType:
             type: object
             properties:
                 x:
                     type: string
-                    example: Illo molestiae accusantium consectetur eum.
+                    example: Quod nam voluptatum ut.
                 "y":
                     type: integer
-                    example: 2316163594086730582
+                    example: 3719491077729188980
                     format: int64
             example:
-                x: Inventore deleniti.
-                "y": 2793531410412585661
+                x: Qui mollitia laudantium iusto et.
+                "y": 4185855515957264914
 tags:
     - name: ServiceExplicitBodyUserResultObjectMultipleView

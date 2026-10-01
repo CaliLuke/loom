@@ -63,9 +63,9 @@
           "200": {
             "content": {
               "text/html": {
-                "example": "Eum quod est explicabo.",
+                "example": "Iusto facilis molestias culpa.",
                 "schema": {
-                  "example": "Autem rem beatae non.",
+                  "example": "Iusto facilis molestias culpa.",
                   "type": "string"
                 }
               }

@@ -19,6 +19,14 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                int_map:
+                                    "": 1
+                                type_map:
+                                    "":
+                                        string: ""
+                                uint_map:
+                                    "": 1
                             $ref: '#/components/schemas/TestEndpointRequestBody'
                         example:
                             int_map:
@@ -34,16 +42,23 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    resulttype_map:
+                                        "":
+                                            bar:
+                                                - {}
+                                                - {}
+                                    uint32_map:
+                                        "": 1
+                                    uint64_map:
+                                        "": 1
                                 $ref: '#/components/schemas/TestEndpointResponseBody'
                             example:
                                 resulttype_map:
                                     "":
                                         bar:
-                                            - string: ""
-                                            - string: ""
-                                            - string: ""
-                                            - string: ""
-                                        foo: ""
+                                            - {}
+                                            - {}
                                 uint32_map:
                                     "": 1
                                 uint64_map:
@@ -68,11 +83,13 @@ components:
                     example:
                         - string: ""
                         - string: ""
+                        - string: ""
                 foo:
                     type: string
                     example: ""
             example:
                 bar:
+                    - string: ""
                     - string: ""
                     - string: ""
                 foo: ""
@@ -118,11 +135,10 @@ components:
                     example:
                         "":
                             bar:
-                                - string: ""
-                                - string: ""
-                                - string: ""
-                                - string: ""
-                            foo: ""
+                                - {}
+                                - {}
+                                - {}
+                                - {}
                     additionalProperties:
                         $ref: '#/components/schemas/LoomFoobar'
                 uint32_map:
@@ -145,10 +161,9 @@ components:
                 resulttype_map:
                     "":
                         bar:
-                            - string: ""
-                            - string: ""
-                            - string: ""
-                        foo: ""
+                            - {}
+                            - {}
+                            - {}
                 uint32_map:
                     "": 1
                 uint64_map:

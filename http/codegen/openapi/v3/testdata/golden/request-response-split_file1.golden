@@ -19,9 +19,14 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                email: user@example.test
+                                id: acct_123
+                                password: hunter2
                             $ref: '#/components/schemas/CreateRequestBodyRequest'
                         example:
                             email: user@example.test
+                            id: acct_123
                             password: hunter2
             responses:
                 "201":
@@ -29,10 +34,15 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    email: user@example.test
+                                    id: acct_123
+                                    password: hunter2
                                 $ref: '#/components/schemas/CreateResponseBodyResponse'
                             example:
                                 email: user@example.test
                                 id: acct_123
+                                password: hunter2
 components:
     schemas:
         CreateRequestBodyRequest:
@@ -48,6 +58,7 @@ components:
                     writeOnly: true
             example:
                 email: user@example.test
+                id: acct_123
                 password: hunter2
             required:
                 - email
@@ -66,6 +77,7 @@ components:
             example:
                 email: user@example.test
                 id: acct_123
+                password: hunter2
             required:
                 - id
                 - email

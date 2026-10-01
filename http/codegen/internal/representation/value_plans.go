@@ -28,6 +28,13 @@ func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 	if result.Error != nil || result.Source == nil {
 		return &result
 	}
+	// Rebuilding the target plans invalidates only attachments keyed by their
+	// nodes. Source and anchor results remain available for preparation to bind
+	// again without selecting or synthesizing another value.
+	result.Examples = nil
+	result.Representative = nil
+	result.ExamplesPrepared = false
+	result.ExampleSets = nil
 	target = TargetGraph(target)
 	builder := httpValuePlanBuilder{
 		request: expr.ValuePlanRequest{Target: target, Selection: append([]string(nil), value.Selection...), Codec: value.Codec, Use: use},
@@ -47,6 +54,25 @@ func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 		result.Boundary = builder.boundary
 	}
 	result.Plan, result.Error = result.Source.Context.NewValuePlan(result.Source.Occurrence, builder.request)
+	if result.Error != nil || use != expr.ValuePlanSchema {
+		return &result
+	}
+	documentation := builder.request
+	// Documentation examples are JSON values attached to OpenAPI schemas even
+	// when the runtime target is text, multipart or raw. Node-local custom/SSE
+	// codec policies remain explicit boundaries in the copied request.
+	documentation.Codec = expr.ValueCodecJSON
+	documentation.Use = expr.ValuePlanDocumentation
+	if result.Anchor != nil {
+		result.AnchorPlan, result.Error = result.Anchor.Context.NewValuePlan(result.Anchor.Occurrence, documentation)
+		if result.Error != nil {
+			return &result
+		}
+	}
+	if result.ExampleOccurrence.ID() != (expr.ValueIdentity{}) {
+		documentation.Selection = nil
+		result.ExamplePlan, result.Error = result.Source.Context.NewValuePlan(result.ExampleOccurrence, documentation)
+	}
 	return &result
 }
 

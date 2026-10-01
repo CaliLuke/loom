@@ -3,6 +3,8 @@ package openapiimport
 import (
 	"fmt"
 	"go/token"
+
+	"github.com/CaliLuke/loom/codegen"
 )
 
 func (r *renderer) index() error {
@@ -59,7 +61,29 @@ func (r *renderer) index() error {
 			response.cloneErrorType = len(errorNames[name]) > 1 && object
 		}
 	}
+	r.assignErrorCloneNames()
 	return nil
+}
+
+func (r *renderer) assignErrorCloneNames() {
+	typeNames := codegen.NewNameScope()
+	used := make(map[string]int, len(r.schemas)+len(r.document.Components.SecuritySchemes))
+	for _, schema := range r.document.Components.Schemas {
+		typeNames.Unique(schema.GoName)
+		uniqueName("Imported"+schema.GoName, used)
+	}
+	for _, scheme := range r.document.Components.SecuritySchemes {
+		uniqueName(scheme.GoName, used)
+	}
+	for operationIndex := range r.operations {
+		for responseIndex := range r.operations[operationIndex].failures {
+			response := &r.operations[operationIndex].failures[responseIndex]
+			if response.cloneErrorType {
+				response.cloneErrorTypeName = typeNames.Unique(codegen.Goify(response.errorName, true))
+				response.cloneErrorGoName = uniqueName("Imported"+response.cloneErrorTypeName+"Error", used)
+			}
+		}
+	}
 }
 
 func (r *renderer) errorSchemaRendersAsObject(name string, visited map[string]struct{}) (bool, error) {

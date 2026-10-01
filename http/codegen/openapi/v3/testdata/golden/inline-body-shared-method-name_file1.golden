@@ -15,9 +15,26 @@ paths:
             summary: do First
             operationId: first.do
             parameters:
-                - $ref: '#/components/parameters/QueryQ'
+                - name: q
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                  example: Dolorem quasi iste.
             requestBody:
-                $ref: '#/components/requestBodies/FirstDoRequestBody'
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                    example: Placeat facere.
+                            example:
+                                name: Nobis optio sint necessitatibus.
+                        example:
+                            name: Non accusantium vitae incidunt.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -28,36 +45,30 @@ paths:
             summary: do Second
             operationId: second.do
             parameters:
-                - $ref: '#/components/parameters/QueryQ'
+                - name: q
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                  example: Totam odit eligendi.
             requestBody:
-                $ref: '#/components/requestBodies/FirstDoRequestBody'
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                name:
+                                    type: string
+                                    example: Quia optio.
+                            example:
+                                name: Temporibus ipsa atque ut eum quod explicabo.
+                        example:
+                            name: Eaque tempore sequi hic natus.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
 components:
-    parameters:
-        QueryQ:
-            name: q
-            in: query
-            allowEmptyValue: true
-            schema:
-                type: string
-            example: Corrupti omnis ad.
-    requestBodies:
-        FirstDoRequestBody:
-            required: true
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            name:
-                                type: string
-                                example: Fugit praesentium expedita illum unde.
-                        example:
-                            name: Incidunt exercitationem deleniti quo.
-                    example:
-                        name: Cupiditate et et ut ipsa laboriosam et.
     responses:
         NoContentResponse:
             description: No Content response.

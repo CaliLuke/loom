@@ -22,13 +22,23 @@ type representationComponentName struct {
 	json     bool
 }
 
-// analyzeSchemaPlan carries representation identity independently from example
-// seeds. Recursive calls select the actual child handle before entering here.
-func (a *Analyzer) analyzeSchemaPlan(attr *expr.AttributeExpr, context string, plan expr.ValuePlanNode, noRef ...bool) (result *Schema) {
-	restore := a.schemaPlanScope(plan)
+// analyzeSchemaPositions carries structural and prepared-example identities
+// independently. Recursive calls select both actual child handles before
+// entering here.
+func (a *Analyzer) analyzeSchemaPositions(
+	attr *expr.AttributeExpr,
+	context string,
+	plan expr.ValuePlanNode,
+	examplePlan expr.ValuePlanNode,
+	noRef ...bool,
+) (result *Schema) {
+	restore := a.schemaPlanScope(plan, examplePlan)
 	defer restore()
 	if acquisition := a.asyncAcquisition; acquisition != nil {
-		key := asyncBaselineKey{plan: plan, position: acquisition.shape.attribute, context: context, reference: acquisition.shape.reference, noRef: len(noRef) > 0}
+		key := asyncBaselineKey{
+			plan: plan, examplePlan: examplePlan, position: acquisition.shape.attribute,
+			context: context, reference: acquisition.shape.reference, noRef: len(noRef) > 0,
+		}
 		if cached := acquisition.schemas[key]; cached != nil {
 			return cached
 		}
@@ -60,17 +70,17 @@ func (a *Analyzer) analyzeSchemaPlan(attr *expr.AttributeExpr, context string, p
 }
 
 func (a *Analyzer) analyzeUnderlyingSchema(attr *expr.AttributeExpr, context string, noRef ...bool) *Schema {
-	restore := a.schemaPlanScope(a.plan.Underlying())
+	restore := a.schemaPlanScope(a.plan.Underlying(), a.examplePlan.Underlying())
 	defer restore()
 	return a.analyzeSchema(attr, context, noRef...)
 }
 
-func (a *Analyzer) schemaPlanScope(plan expr.ValuePlanNode) func() {
-	previous := a.plan
+func (a *Analyzer) schemaPlanScope(plan, examplePlan expr.ValuePlanNode) func() {
+	previous, previousExample := a.plan, a.examplePlan
 	restoreShape := a.asyncShapeScope(plan)
-	a.plan = plan
+	a.plan, a.examplePlan = plan, examplePlan
 	return func() {
-		a.plan = previous
+		a.plan, a.examplePlan = previous, previousExample
 		restoreShape()
 	}
 }
@@ -80,24 +90,6 @@ func (a *Analyzer) byteProjection(attr *expr.AttributeExpr, plan expr.ValuePlanN
 		return ""
 	}
 	return byteProjectionIdentity(attr, plan)
-}
-
-func (a *Analyzer) memberPlan(name string) expr.ValuePlanNode {
-	for _, member := range a.plan.Members() {
-		if member.Name == name {
-			return member.Node
-		}
-	}
-	return expr.ValuePlanNode{}
-}
-
-func (a *Analyzer) branchPlan(tag string) expr.ValuePlanNode {
-	for _, branch := range a.plan.Branches() {
-		if branch.Tag == tag {
-			return branch.Node
-		}
-	}
-	return expr.ValuePlanNode{}
 }
 
 func componentPublicName(attr *expr.AttributeExpr, typ expr.UserType) string {

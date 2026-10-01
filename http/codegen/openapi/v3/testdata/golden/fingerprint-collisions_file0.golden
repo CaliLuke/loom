@@ -41,10 +41,15 @@
         "content": {
           "application/json": {
             "example": {
+              "secret": "secret",
               "token": "token-123"
             },
             "schema": {
-              "$ref": "#/components/schemas/CreateResponseBodyResponse"
+              "$ref": "#/components/schemas/CreateResponseBodyResponse",
+              "example": {
+                "secret": "secret",
+                "token": "token-123"
+              }
             }
           }
         },
@@ -69,6 +74,7 @@
       },
       "CreateResponseBodyResponse": {
         "example": {
+          "secret": "secret",
           "token": "token-123"
         },
         "properties": {

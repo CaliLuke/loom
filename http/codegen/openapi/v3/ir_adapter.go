@@ -18,20 +18,6 @@ func reusableComponentsFromIR(components *openapiir.Components) reusableComponen
 	}
 }
 
-func endpointBodiesToIR(bodies *EndpointBodies) *openapiir.EndpointBodies {
-	if bodies == nil {
-		return nil
-	}
-	responseBodies := make(map[int][]*openapiir.Schema, len(bodies.ResponseBodies))
-	for status, schemas := range bodies.ResponseBodies {
-		responseBodies[status] = schemaSliceToIR(schemas)
-	}
-	return &openapiir.EndpointBodies{
-		RequestBody:    schemaToIR(bodies.RequestBody),
-		ResponseBodies: responseBodies,
-	}
-}
-
 func parameterComponentsFromIR(parameters map[string]*openapiir.ParameterRef) map[string]*ParameterRef {
 	if len(parameters) == 0 {
 		return nil

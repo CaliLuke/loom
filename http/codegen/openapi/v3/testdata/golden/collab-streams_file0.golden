@@ -90,7 +90,7 @@
               "bob"
             ],
             "items": {
-              "example": "Cum nihil repudiandae aut quia.",
+              "example": "Et rem maxime saepe aut.",
               "type": "string"
             },
             "type": "array"
@@ -195,7 +195,15 @@
                   "title": "Release freeze follow-up"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/ThreadSummary"
+                  "$ref": "#/components/schemas/ThreadSummary",
+                  "example": {
+                    "participants": [
+                      "alice",
+                      "bob"
+                    ],
+                    "thread_id": "thr_42",
+                    "title": "Release freeze follow-up"
+                  }
                 }
               }
             },
@@ -205,7 +213,16 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/Problem",
+                  "example": {
+                    "code": "bad_request",
+                    "detail": "parameter 'p' must be an integer",
+                    "instance": "urn:loom:error:123abc",
+                    "retry_hint": "Correct the payload and retry.",
+                    "status": 400,
+                    "title": "Bad Request",
+                    "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+                  }
                 }
               }
             },
@@ -246,7 +263,15 @@
                     "data": {
                       "contentMediaType": "application/json",
                       "contentSchema": {
-                        "$ref": "#/components/schemas/WatchThreadResponseBody"
+                        "$ref": "#/components/schemas/WatchThreadResponseBody",
+                        "example": {
+                          "data": {
+                            "author": "alice",
+                            "preview": "Shipping the OpenAPI cleanup next."
+                          },
+                          "event": "thread.message_posted",
+                          "id": "evt_8"
+                        }
                       },
                       "type": "string"
                     },
@@ -267,7 +292,16 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/Problem",
+                  "example": {
+                    "code": "bad_request",
+                    "detail": "parameter 'p' must be an integer",
+                    "instance": "urn:loom:error:123abc",
+                    "retry_hint": "Correct the payload and retry.",
+                    "status": 400,
+                    "title": "Bad Request",
+                    "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+                  }
                 }
               }
             },

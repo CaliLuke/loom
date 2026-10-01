@@ -16,7 +16,16 @@
         "content": {
           "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Problem"
+              "$ref": "#/components/schemas/Problem",
+              "example": {
+                "code": "bad_request",
+                "detail": "parameter 'p' must be an integer",
+                "instance": "urn:loom:error:123abc",
+                "retry_hint": "Correct the payload and retry.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+              }
             }
           }
         },
@@ -26,7 +35,16 @@
         "content": {
           "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Problem"
+              "$ref": "#/components/schemas/Problem",
+              "example": {
+                "code": "bad_request",
+                "detail": "parameter 'p' must be an integer",
+                "instance": "urn:loom:error:123abc",
+                "retry_hint": "Correct the payload and retry.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+              }
             }
           }
         },
@@ -40,7 +58,11 @@
               "watch_url": "https://api.contract-surfaces.example.test/threads/thr_42/events"
             },
             "schema": {
-              "$ref": "#/components/schemas/OpenAPIThreadAccepted"
+              "$ref": "#/components/schemas/OpenAPIThreadAccepted",
+              "example": {
+                "thread_id": "thr_42",
+                "watch_url": "https://api.contract-surfaces.example.test/threads/thr_42/events"
+              }
             }
           }
         },
@@ -64,7 +86,16 @@
         "content": {
           "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Problem"
+              "$ref": "#/components/schemas/Problem",
+              "example": {
+                "code": "bad_request",
+                "detail": "parameter 'p' must be an integer",
+                "instance": "urn:loom:error:123abc",
+                "retry_hint": "Correct the payload and retry.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+              }
             }
           }
         },
@@ -263,7 +294,10 @@
                 "title": "Release freeze follow-up"
               },
               "schema": {
-                "$ref": "#/components/schemas/CreateThreadRequestBody"
+                "$ref": "#/components/schemas/CreateThreadRequestBody",
+                "example": {
+                  "title": "Release freeze follow-up"
+                }
               }
             }
           },
@@ -307,7 +341,11 @@
                   "title": "Release freeze follow-up"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/OpenAPIThreadSummary"
+                  "$ref": "#/components/schemas/OpenAPIThreadSummary",
+                  "example": {
+                    "thread_id": "thr_42",
+                    "title": "Release freeze follow-up"
+                  }
                 }
               }
             },
@@ -386,7 +424,15 @@
                     "data": {
                       "contentMediaType": "application/json",
                       "contentSchema": {
-                        "$ref": "#/components/schemas/OpenAPIThreadEvent"
+                        "$ref": "#/components/schemas/OpenAPIThreadEvent",
+                        "example": {
+                          "data": {
+                            "author": "alice",
+                            "preview": "Shipping the OpenAPI cleanup next."
+                          },
+                          "event": "thread.message_posted",
+                          "id": "evt_8"
+                        }
                       },
                       "type": "string"
                     },

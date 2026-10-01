@@ -23,13 +23,13 @@ paths:
                             properties:
                                 b:
                                     type: string
-                                    example: Hic qui doloribus aliquam.
+                                    example: Eius dolore illum voluptate nihil.
                             example:
-                                b: Et dolorum repellat exercitationem.
+                                b: Eius fuga repellendus debitis rerum est.
                             required:
                                 - b
                         example:
-                            b: Quasi suscipit explicabo aspernatur.
+                            b: Deleniti facere numquam.
             responses:
                 "204":
                     description: No Content response.

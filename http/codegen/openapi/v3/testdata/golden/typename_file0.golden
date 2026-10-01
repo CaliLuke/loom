@@ -38,9 +38,7 @@
         "type": "object"
       },
       "BazResult": {
-        "example": {
-          "value": ""
-        },
+        "example": {},
         "properties": {
           "value": {
             "example": "",
@@ -62,9 +60,7 @@
         "type": "object"
       },
       "FooResult": {
-        "example": {
-          "value": ""
-        },
+        "example": {},
         "properties": {
           "value": {
             "example": "",
@@ -92,7 +88,10 @@
                 "value": ""
               },
               "schema": {
-                "$ref": "#/components/schemas/BarPayload"
+                "$ref": "#/components/schemas/BarPayload",
+                "example": {
+                  "value": ""
+                }
               }
             }
           },
@@ -102,11 +101,10 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "value": ""
-                },
+                "example": {},
                 "schema": {
-                  "$ref": "#/components/schemas/BarResult"
+                  "$ref": "#/components/schemas/BarResult",
+                  "example": {}
                 }
               }
             },
@@ -129,7 +127,10 @@
                 "value": ""
               },
               "schema": {
-                "$ref": "#/components/schemas/BazPayload"
+                "$ref": "#/components/schemas/BazPayload",
+                "example": {
+                  "value": ""
+                }
               }
             }
           },
@@ -139,11 +140,10 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "value": ""
-                },
+                "example": {},
                 "schema": {
-                  "$ref": "#/components/schemas/BazResult"
+                  "$ref": "#/components/schemas/BazResult",
+                  "example": {}
                 }
               }
             },
@@ -166,7 +166,10 @@
                 "value": ""
               },
               "schema": {
-                "$ref": "#/components/schemas/FooPayload"
+                "$ref": "#/components/schemas/FooPayload",
+                "example": {
+                  "value": ""
+                }
               }
             }
           },
@@ -176,11 +179,10 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "value": ""
-                },
+                "example": {},
                 "schema": {
-                  "$ref": "#/components/schemas/FooResult"
+                  "$ref": "#/components/schemas/FooResult",
+                  "example": {}
                 }
               }
             },

@@ -18,6 +18,8 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                value: ""
                             $ref: '#/components/schemas/BarPayload'
                         example:
                             value: ""
@@ -27,9 +29,9 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example: {}
                                 $ref: '#/components/schemas/BarResult'
-                            example:
-                                value: ""
+                            example: {}
     /baz:
         post:
             tags:
@@ -41,6 +43,8 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                value: ""
                             $ref: '#/components/schemas/BazPayload'
                         example:
                             value: ""
@@ -50,9 +54,9 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example: {}
                                 $ref: '#/components/schemas/BazResult'
-                            example:
-                                value: ""
+                            example: {}
     /foo:
         post:
             tags:
@@ -64,6 +68,8 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                value: ""
                             $ref: '#/components/schemas/FooPayload'
                         example:
                             value: ""
@@ -73,9 +79,9 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example: {}
                                 $ref: '#/components/schemas/FooResult'
-                            example:
-                                value: ""
+                            example: {}
 components:
     schemas:
         BarPayload:
@@ -108,8 +114,7 @@ components:
                 value:
                     type: string
                     example: ""
-            example:
-                value: ""
+            example: {}
         FooPayload:
             type: object
             properties:
@@ -124,7 +129,6 @@ components:
                 value:
                     type: string
                     example: ""
-            example:
-                value: ""
+            example: {}
 tags:
     - name: testService

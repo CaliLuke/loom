@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 )
 
 type selectionRandomizer struct {
@@ -96,11 +97,7 @@ func TestSynthesizedExamplePreservesOccurrenceSelections(t *testing.T) {
 	}}
 	var cached any = map[string]any{"name": "raw cached example"}
 	generator.HaveSeen(inner.ID(), &cached)
-	source := synthesizedOpenAPIExample(attribute, generator)
-	require.True(t, source.present)
-	require.True(t, source.declared)
-	value, ok := openAPIDeclaredExampleValue(attribute, source.value)
-	require.True(t, ok)
+	value := preparedStandaloneOpenAPIExample(t, attribute, generator)
 	object := value.(map[string]any)
 	first := object["first"].(map[string]any)
 	second := object["second"].(map[string]any)
@@ -142,11 +139,7 @@ func TestSynthesizedUnionRetainsBranchCoercion(t *testing.T) {
 					{Name: "data", Attribute: &expr.AttributeExpr{Type: test.kind, UserExamples: []*expr.ExampleExpr{{Value: "hi"}}}},
 				}}},
 			}}}
-			source := synthesizedOpenAPIExample(attribute, expr.NewRandom("bytes"))
-			require.True(t, source.present)
-			require.True(t, source.declared)
-			value, ok := openAPIDeclaredExampleValue(attribute, source.value)
-			require.True(t, ok)
+			value := preparedStandaloneOpenAPIExample(t, attribute, expr.NewRandom("bytes"))
 			require.Equal(t, test.want, value)
 		})
 	}
@@ -161,11 +154,7 @@ func TestSynthesizedRecursiveUnionExample(t *testing.T) {
 		}}},
 	}}
 	attribute := &expr.AttributeExpr{Type: tree}
-	source := synthesizedOpenAPIExample(attribute, expr.NewRandom("recursive"))
-	require.True(t, source.present)
-	require.True(t, source.declared)
-	value, ok := openAPIDeclaredExampleValue(attribute, source.value)
-	require.True(t, ok)
+	value := preparedStandaloneOpenAPIExample(t, attribute, expr.NewRandom("recursive"))
 	envelope := value.(map[string]any)
 	require.Equal(t, "node", envelope["type"])
 	node := envelope["value"].(map[string]any)
@@ -173,7 +162,25 @@ func TestSynthesizedRecursiveUnionExample(t *testing.T) {
 	require.NotContains(t, node, "child", "an in-progress recursive value is omitted")
 }
 
+func preparedStandaloneOpenAPIExample(
+	t *testing.T,
+	attribute *expr.AttributeExpr,
+	generator *expr.ExampleGenerator,
+) any {
+	t.Helper()
+	target, err := representation.PrepareStandaloneExamples(attribute, generator)
+	require.NoError(t, err)
+	require.True(t, target.ExamplesPrepared)
+	require.NotNil(t, target.Representative)
+	value, ok := preparedOpenAPIExampleValue(*target.Representative)
+	require.True(t, ok)
+	return value
+}
+
 func (random *selectionRandomizer) Int() int {
+	if random.next >= len(random.choices) {
+		return 0
+	}
 	value := random.choices[random.next]
 	random.next++
 	return value

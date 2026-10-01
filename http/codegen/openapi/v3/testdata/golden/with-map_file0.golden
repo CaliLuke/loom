@@ -21,6 +21,9 @@
             },
             {
               "string": ""
+            },
+            {
+              "string": ""
             }
           ],
           "foo": ""
@@ -28,6 +31,9 @@
         "properties": {
           "bar": {
             "example": [
+              {
+                "string": ""
+              },
               {
                 "string": ""
               },
@@ -103,17 +109,10 @@
           "resulttype_map": {
             "": {
               "bar": [
-                {
-                  "string": ""
-                },
-                {
-                  "string": ""
-                },
-                {
-                  "string": ""
-                }
-              ],
-              "foo": ""
+                {},
+                {},
+                {}
+              ]
             }
           },
           "uint32_map": {
@@ -131,20 +130,11 @@
             "example": {
               "": {
                 "bar": [
-                  {
-                    "string": ""
-                  },
-                  {
-                    "string": ""
-                  },
-                  {
-                    "string": ""
-                  },
-                  {
-                    "string": ""
-                  }
-                ],
-                "foo": ""
+                  {},
+                  {},
+                  {},
+                  {}
+                ]
               }
             },
             "type": "object"
@@ -203,7 +193,20 @@
                 }
               },
               "schema": {
-                "$ref": "#/components/schemas/TestEndpointRequestBody"
+                "$ref": "#/components/schemas/TestEndpointRequestBody",
+                "example": {
+                  "int_map": {
+                    "": 1
+                  },
+                  "type_map": {
+                    "": {
+                      "string": ""
+                    }
+                  },
+                  "uint_map": {
+                    "": 1
+                  }
+                }
               }
             }
           },
@@ -217,20 +220,9 @@
                   "resulttype_map": {
                     "": {
                       "bar": [
-                        {
-                          "string": ""
-                        },
-                        {
-                          "string": ""
-                        },
-                        {
-                          "string": ""
-                        },
-                        {
-                          "string": ""
-                        }
-                      ],
-                      "foo": ""
+                        {},
+                        {}
+                      ]
                     }
                   },
                   "uint32_map": {
@@ -241,7 +233,23 @@
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointResponseBody"
+                  "$ref": "#/components/schemas/TestEndpointResponseBody",
+                  "example": {
+                    "resulttype_map": {
+                      "": {
+                        "bar": [
+                          {},
+                          {}
+                        ]
+                      }
+                    },
+                    "uint32_map": {
+                      "": 1
+                    },
+                    "uint64_map": {
+                      "": 1
+                    }
+                  }
                 }
               }
             },

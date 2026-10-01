@@ -103,23 +103,23 @@ func TestFilesAreByteStableAcrossIndependentProcesses(t *testing.T) {
 		{
 			name:         "OpenAPI 3.2 default formatting",
 			wantVersion:  openapiv3.OpenAPIVersion,
-			wantJSONHash: "b423879a80566c3a25e49a3c5f9a306ec40d246cd8d3764193ee99de31c3ba0e",
-			wantYAMLHash: "21bd46034012dc8de7329178f9ec7bcf7ad3c66add8f41d337fc3e2c4732b614",
+			wantJSONHash: "c424b21ecd4f4a6563d4af4f5406ce197b91acb22fc8ee2a58f5efe62cc8b70a",
+			wantYAMLHash: "d1d45c323a539d611e98bd5fa949cde3ad400a8ff1768cbaba778e4b109b5104",
 		},
 		{
 			name:         "OpenAPI 3.1 compatibility",
 			target:       "3.1",
 			wantVersion:  openapiv3.OpenAPICompatibilityVersion,
-			wantJSONHash: "aa26b861cfecc45f7006c178f06a740956d97d2f628c0c07d3489d77e6ef7b72",
-			wantYAMLHash: "758bcec9135e92ad27e6861e7327670c3ac27d43536ee3a9fae40245ef1f3bee",
+			wantJSONHash: "f7bc3bae9cd33a6b5d0944c2936d601023d5b989cc71439855c8cda16c426673",
+			wantYAMLHash: "a45feb0261f1cbe4223cb86d7b40ebfc8b7ff5eb0f86d00e148a08a0ac36c590",
 		},
 		{
 			name:         "OpenAPI 3.2 configured formatting",
 			prefix:       " ",
 			indent:       "\t",
 			wantVersion:  openapiv3.OpenAPIVersion,
-			wantJSONHash: "9b18396f5c38f5d3c364fab25564b299fe1aca60b58c9d77e013075a9a4bda1f",
-			wantYAMLHash: "21bd46034012dc8de7329178f9ec7bcf7ad3c66add8f41d337fc3e2c4732b614",
+			wantJSONHash: "0a8ac167549214951bc9cd89941c8800f2ed4d30f0352062365c036e861b7d6d",
+			wantYAMLHash: "d1d45c323a539d611e98bd5fa949cde3ad400a8ff1768cbaba778e4b109b5104",
 		},
 	}
 

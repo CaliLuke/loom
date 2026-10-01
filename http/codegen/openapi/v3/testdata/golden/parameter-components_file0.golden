@@ -23,20 +23,6 @@
           "type": "integer"
         }
       }
-    },
-    "responses": {
-      "ComponentServiceListGadgetsStatus200Response": {
-        "content": {
-          "application/json": {
-            "example": "Repellat ducimus.",
-            "schema": {
-              "example": "Autem rem beatae non.",
-              "type": "string"
-            }
-          }
-        },
-        "description": "OK response."
-      }
     }
   },
   "info": {
@@ -59,7 +45,16 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/ComponentServiceListGadgetsStatus200Response"
+            "content": {
+              "application/json": {
+                "example": "Assumenda velit.",
+                "schema": {
+                  "example": "Assumenda velit.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK response."
           }
         },
         "summary": "listGadgets componentService",
@@ -81,7 +76,16 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/ComponentServiceListGadgetsStatus200Response"
+            "content": {
+              "application/json": {
+                "example": "Fugiat voluptatem repellendus.",
+                "schema": {
+                  "example": "Fugiat voluptatem repellendus.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK response."
           }
         },
         "summary": "listWidgets componentService",

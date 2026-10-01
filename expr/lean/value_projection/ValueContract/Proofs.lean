@@ -22,6 +22,7 @@ import ValueContract.NumericBounds
 import ValueContract.NumericRepresentationControls
 import ValueContract.NumericTargetControls
 import ValueContract.OmissionControls
+import ValueContract.OrderedExampleGroups
 import ValueContract.PresenceControls
 import ValueContract.ProjectionControls
 import ValueContract.ProjectionCorrectness

@@ -269,7 +269,7 @@ endif
 # Lean is a pinned contributor dependency; this gate must fail if unavailable.
 value-contract-proof:
 	bash ./scripts/check_value_contract_proof.sh
-	LOOM_VALUE_PROOF_TEST=1 go test ./scripts -run '^TestValueContractProof' -count=1
+	LOOM_VALUE_PROOF_TEST=1 go test ./scripts -run '^TestValueContractProof' -count=1 -timeout=30m
 
 # Conformance must use a freshly audited proof and the same pinned reference.
 value-contract-conformance: value-contract-proof

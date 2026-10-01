@@ -59,7 +59,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 		}
 	}
 
-	requestBody := buildRequestBody(endpointIR, bodies, rand, closeObjects)
+	requestBody := buildRequestBody(endpointIR, bodies, closeObjects)
 	responseMap := buildResponses(endpointIR, bodies, rand, closeObjects)
 	if routeIR.Method == "HEAD" {
 		for _, response := range responseMap {
@@ -121,16 +121,16 @@ func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerat
 func paramsFromPath(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool, prepared ...map[*expr.AttributeExpr]*Schema) []*ParameterRef {
 	var params []*ParameterRef
 	for _, parameter := range endpointIR.Request.PathParams {
-		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "path", true, rand, closeObjects, prepared...))
+		params = append(params, preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "path", true, rand, closeObjects, prepared...))
 	}
 	if endpointIR.Request.MapQueryParams != nil {
 		return params
 	}
 	for _, parameter := range endpointIR.Request.QueryParams {
-		if isSecurityParameter(endpointIR.Security, "query", parameter.HTTPName) {
+		if endpointIR.Security.IsParameter("query", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "query", parameter.Required, rand, closeObjects, prepared...))
+		params = append(params, preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "query", parameter.Required, rand, closeObjects, prepared...))
 	}
 	return params
 }
@@ -139,22 +139,39 @@ func paramsFromHeadersAndCookies(endpointIR *transportir.Endpoint, rand *expr.Ex
 	var params []*ParameterRef
 
 	for _, parameter := range endpointIR.Request.Headers {
-		if isSecurityParameter(endpointIR.Security, "header", parameter.HTTPName) {
+		if endpointIR.Security.IsParameter("header", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "header", parameter.Required, rand, closeObjects, prepared...))
+		params = append(params, preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "header", parameter.Required, rand, closeObjects, prepared...))
 	}
 	for _, parameter := range endpointIR.Request.Cookies {
-		if isSecurityParameter(endpointIR.Security, "cookie", parameter.HTTPName) {
+		if endpointIR.Security.IsParameter("cookie", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, paramFor(parameter.Attribute, parameter.HTTPName, "cookie", parameter.Required, rand, closeObjects, prepared...))
+		params = append(params, preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "cookie", parameter.Required, rand, closeObjects, prepared...))
 	}
 
 	return params
 }
 
-func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *expr.ExampleGenerator, closeObjects bool, prepared ...map[*expr.AttributeExpr]*Schema) *ParameterRef {
+func paramFor(
+	attr *expr.AttributeExpr,
+	value *transportir.ValueTarget,
+	name, in string,
+	rand *expr.ExampleGenerator,
+) *ParameterRef {
+	return preparedParamFor(attr, value, name, in, false, rand, false)
+}
+
+func preparedParamFor(
+	attr *expr.AttributeExpr,
+	value *transportir.ValueTarget,
+	name, in string,
+	required bool,
+	rand *expr.ExampleGenerator,
+	closeObjects bool,
+	prepared ...map[*expr.AttributeExpr]*Schema,
+) *ParameterRef {
 	allowEmptyValue := in == "query"
 	if value, ok := attr.Meta.Last("openapi:allowEmptyValue"); ok && in == "query" {
 		allowEmptyValue = value == "true"
@@ -178,7 +195,7 @@ func paramFor(attr *expr.AttributeExpr, name, in string, required bool, rand *ex
 			openapi.ScopedExtensionsFromExpr(attr.Meta, "parameter"),
 		),
 	}
-	initExamples(parameter, attr, rand, closeObjects, parameterContext)
+	initExamples(parameter, attr, closeObjects, value)
 	return &ParameterRef{Value: parameter}
 }
 
@@ -216,18 +233,6 @@ func buildOperationSecurity(endpointIR *transportir.Endpoint, bindings *security
 		return nil
 	}
 	return bindings.requirements(endpointIR.Security.Requirements)
-}
-
-func isSecurityParameter(security *transportir.Security, in, name string) bool {
-	if security == nil {
-		return false
-	}
-	for _, parameter := range security.Parameters {
-		if parameter.In == in && parameter.Name == name {
-			return true
-		}
-	}
-	return false
 }
 
 func operationTagNames(endpointMeta, methodMeta, serviceMeta expr.MetaExpr, serviceName string) []string {

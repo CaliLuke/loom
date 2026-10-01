@@ -17,8 +17,8 @@ paths:
                         application/json:
                             schema:
                                 type: string
-                                example: Aliquid iste aut dolor repellendus consequatur ut.
-                            example: Iure quo velit voluptate culpa.
+                                example: Quisquam aut maiores vitae dolore.
+                            example: Quisquam aut maiores vitae dolore.
 components: {}
 tags:
     - name: testService

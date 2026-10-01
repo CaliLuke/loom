@@ -84,3 +84,37 @@ func TestValueSourceContainsNestedAuthoredOrigin(t *testing.T) {
 	require.False(t, context.ContainsExampleSource(service, context.SupplyValue(ValueInput{Raw: "child"})))
 	require.False(t, NewValueContext().ContainsExampleSource(service, source))
 }
+
+func TestValueSourceEntriesPreserveSelectedGroup(t *testing.T) {
+	reference := &UserTypeExpr{TypeName: "Reference", AttributeExpr: &AttributeExpr{Type: String,
+		UserExamples: []*ExampleExpr{
+			{Summary: "first", Description: "one", Meta: MetaExpr{"x": {"a"}}, Value: "a"},
+			{Summary: "second", Description: "two", Meta: MetaExpr{"x": {"b"}}, Value: "b"},
+		}}}
+	attribute := &AttributeExpr{Type: String, References: []DataType{reference}}
+	context := NewValueContext()
+	occurrence, err := context.NewOccurrence(attribute)
+	require.NoError(t, err)
+	selection := context.SelectExample(occurrence, ExamplePolicy{Reachable: true})
+	entries := selection.Entries()
+	require.Len(t, entries, 2)
+	require.Equal(t, []string{"first", "second"}, []string{entries[0].Summary(), entries[1].Summary()})
+	require.Equal(t, []string{"one", "two"}, []string{entries[0].Description(), entries[1].Description()})
+	require.Equal(t, "a", entries[0].Source().data.snapshot.raw)
+	require.Equal(t, "b", entries[1].Source().data.snapshot.raw)
+	last, present := selection.Source()
+	require.True(t, present)
+	require.True(t, last.ID() == entries[1].Source().ID())
+
+	entries[0] = ExampleEntry{}
+	meta := entries[1].Meta()
+	meta["x"][0] = "changed"
+	again := selection.Entries()
+	require.Equal(t, "first", again[0].Summary())
+	require.Equal(t, MetaExpr{"x": {"b"}}, again[1].Meta())
+	for _, policy := range []ExamplePolicy{{}, {Reachable: true, SuppressGenerated: true}} {
+		empty, emptyErr := context.NewOccurrence(&AttributeExpr{Type: String})
+		require.NoError(t, emptyErr)
+		require.Empty(t, context.SelectExample(empty, policy).Entries())
+	}
+}

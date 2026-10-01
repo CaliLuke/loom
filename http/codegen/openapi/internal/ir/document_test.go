@@ -12,7 +12,6 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/openapi/v3/testdata/dsls"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -25,7 +24,7 @@ func TestBuildDocumentIncludesRequestBodyAndResponses(t *testing.T) {
 	)
 
 	root := codegen.RunDSL(t, dsls.RequestObjectBody(serviceName, methodName))
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 
 	path := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0].FullPaths()[0]
@@ -431,7 +430,7 @@ func TestBuildDocumentUsesExplicitRequestBodyDescriptionMeta(t *testing.T) {
 			})
 		})
 	})
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 
 	path := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0].FullPaths()[0]
@@ -444,7 +443,7 @@ func TestBuildDocumentUsesExplicitRequestBodyDescriptionMeta(t *testing.T) {
 
 func TestBuildDocumentPublishesDocumentedRawRequestBodies(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.RawRequestBodyOpenAPIDSL)
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 
 	binary := doc.Paths["/uploads/{id}"].Operations["POST"]
@@ -520,7 +519,7 @@ func TestBuildDocumentPublishesMultipleRawRequestBodyMediaTypes(t *testing.T) {
 
 func TestBuildDocumentOmitsUndocumentedRawRequestBody(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.SkipRequestBodyEncodeDecodeDSL)
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 
 	operation := doc.Paths["/"].Operations["POST"]
@@ -535,7 +534,7 @@ func TestBuildDocumentCarriesErrorRemedyDescriptions(t *testing.T) {
 	)
 
 	root := codegen.RunDSL(t, dsls.ErrorRemedyResponseBodyDSL(serviceName, methodName))
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 
 	path := root.API.HTTP.Services[0].HTTPEndpoints[0].Routes[0].FullPaths()[0]
@@ -565,7 +564,7 @@ func TestBuildDocumentCanPreserveExactErrorResponseDescription(t *testing.T) {
 		})
 	})
 
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 	operation := doc.Paths["/pets"].Operations["GET"]
 	require.NotNil(t, operation)
@@ -579,19 +578,9 @@ func TestBuildOperationAddsResponseCookieHeader(t *testing.T) {
 	)
 
 	root := codegen.RunDSL(t, dsls.MultiCookieResponseBodyDSL(serviceName, methodName))
-	bodyTypes := BuildBodyTypes(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
-
-	var endpoint *expr.HTTPEndpointExpr
-	for _, svc := range root.API.HTTP.Services {
-		if svc.Name() != serviceName {
-			continue
-		}
-		endpoint = svc.Endpoint("other")
-		break
-	}
-	require.NotNil(t, endpoint)
-
-	operation := buildOperation(transportir.BuildEndpoint(endpoint), bodyTypes.Services[serviceName]["other"], root.API.ExampleGenerator, false)
+	document, err := BuildDocument(root.API, root.Types, root.ResultTypes)
+	require.NoError(t, err)
+	operation := document.Paths["/cookie"].Operations["GET"]
 	require.NotNil(t, operation)
 	require.Contains(t, operation.Responses, "200")
 	require.NotNil(t, operation.Responses["200"])
@@ -609,19 +598,9 @@ func TestBuildOperationSuppressesStreamingResponseExamples(t *testing.T) {
 	)
 
 	root := codegen.RunDSL(t, dsls.ObjectStreamingResponseBodyDSL(serviceName, methodName))
-	bodyTypes := BuildBodyTypes(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
-
-	var endpoint *expr.HTTPEndpointExpr
-	for _, svc := range root.API.HTTP.Services {
-		if svc.Name() != serviceName {
-			continue
-		}
-		endpoint = svc.Endpoint(methodName)
-		break
-	}
-	require.NotNil(t, endpoint)
-
-	operation := buildOperation(transportir.BuildEndpoint(endpoint), bodyTypes.Services[serviceName][methodName], root.API.ExampleGenerator, false)
+	document, err := BuildDocument(root.API, root.Types, root.ResultTypes)
+	require.NoError(t, err)
+	operation := document.Paths["/"].Operations["GET"]
 	require.NotNil(t, operation)
 	require.Contains(t, operation.Responses, "101")
 	response := operation.Responses["101"]
@@ -633,7 +612,7 @@ func TestBuildOperationSuppressesStreamingResponseExamples(t *testing.T) {
 func TestBuildDocumentComponentizesRepeatedContractNodes(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.OpenAPIReusableComponentsDSL)
 
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 	require.NotNil(t, doc)
 	require.NotNil(t, doc.Components)
@@ -668,7 +647,7 @@ func TestBuildExampleUsesAuthoredOpenAPISummary(t *testing.T) {
 func TestBuildDocumentPublishesResponseLinksAndAsyncContracts(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.OpenAPIProblemLinksAsyncDSL)
 
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 	require.NotNil(t, doc)
 
@@ -712,7 +691,7 @@ func TestBuildDocumentPublishesResponseLinksAndAsyncContracts(t *testing.T) {
 
 func TestBuildDocumentPublishesSSEProjectionAlternatives(t *testing.T) {
 	root := codegen.RunDSL(t, testdata.SSEVariantProjectionDSL)
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 
 	watch := doc.Paths["/events"].Operations["GET"]
@@ -749,7 +728,7 @@ func TestBuildDocumentPublishesSSEProjectionAlternatives(t *testing.T) {
 func TestBuildDocumentMixedTransportContracts(t *testing.T) {
 	root := codegen.RunDSL(t, mixedTransportDocumentDSL)
 
-	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes, WithExampleValue(openAPIExampleValueForTest))
+	doc, err := BuildDocument(root.API, root.Types, root.ResultTypes)
 	require.NoError(t, err)
 	require.NotNil(t, doc)
 

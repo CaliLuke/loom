@@ -62,6 +62,9 @@ func Render(document *Document, options Options) ([]byte, error) {
 			return nil, err
 		}
 	}
+	if err := r.errorTypeClones(); err != nil {
+		return nil, err
+	}
 	if err := r.api(); err != nil {
 		return nil, err
 	}
@@ -338,13 +341,15 @@ type renderedBody struct {
 }
 
 type renderedResponse struct {
-	status         string
-	errorName      string
-	response       Response
-	headers        []renderedHeader
-	body           string
-	rawBody        bool
-	cloneErrorType bool
+	status             string
+	errorName          string
+	response           Response
+	headers            []renderedHeader
+	body               string
+	rawBody            bool
+	cloneErrorType     bool
+	cloneErrorTypeName string
+	cloneErrorGoName   string
 }
 
 type renderedHeader struct {
@@ -487,6 +492,34 @@ func (r *renderer) errorDefinition(response renderedResponse, path string) error
 	return r.responseType("Error", response.errorName, response, path)
 }
 
+func (r *renderer) errorTypeClones() error {
+	for operationIndex := range r.operations {
+		for responseIndex := range r.operations[operationIndex].failures {
+			response := r.operations[operationIndex].failures[responseIndex]
+			if !response.cloneErrorType {
+				continue
+			}
+			path := fmt.Sprintf("#/operations/%d/responses/%s/content/schema", operationIndex, response.status)
+			schema := schemaWithExamples(response.response.Schema, response.response.Examples)
+			expression, _, err := r.schemaExpression(schema, path)
+			if err != nil {
+				return err
+			}
+			r.open("var %s = Type(%q, func()", response.cloneErrorGoName, response.cloneErrorTypeName)
+			r.line("Extend(%s)", expression)
+			if err := r.emitNullableGoType(schema, path); err != nil {
+				return err
+			}
+			if err := r.schemaBlock(schema, path, true); err != nil {
+				return err
+			}
+			r.close()
+			r.line("")
+		}
+	}
+	return nil
+}
+
 func (r *renderer) responseType(call, name string, response renderedResponse, path string) error {
 	responseSchema := schemaWithExamples(response.response.Schema, response.response.Examples)
 	wrapUnconstrainedError := call == "Error" && r.effectiveUnconstrained(responseSchema)
@@ -495,13 +528,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		prefix += strconv.Quote(name) + ", "
 	}
 	if call == "Error" && response.cloneErrorType {
-		expression, _, err := r.schemaExpression(responseSchema, path+"/content/schema")
-		if err != nil {
-			return err
-		}
-		r.open("%sfunc()", prefix)
-		r.line("Extend(%s)", expression)
-		r.close()
+		r.line("%s%s)", prefix, response.cloneErrorGoName)
 		return nil
 	}
 	if len(response.headers) == 0 && !wrapUnconstrainedError {

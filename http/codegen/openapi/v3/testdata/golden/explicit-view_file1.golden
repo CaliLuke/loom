@@ -20,10 +20,11 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    int: 1
                                 $ref: '#/components/schemas/TestEndpointDefaultResponseBody'
                             example:
                                 int: 1
-                                string: ""
             security: []
     /customized:
         get:
@@ -37,6 +38,8 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    string: ""
                                 $ref: '#/components/schemas/TestEndpointCustomizedResponseBodyTiny'
                             example:
                                 string: ""
@@ -53,10 +56,11 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    int: 1
                                 $ref: '#/components/schemas/TestEndpointOverriddenResponseBodyOverridden'
                             example:
                                 int: 1
-                                string: ""
             security: []
     /tiny:
         get:
@@ -70,9 +74,9 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example: {}
                                 $ref: '#/components/schemas/TestEndpointTinyResponseBodyTiny'
-                            example:
-                                string: ""
+                            example: {}
             security: []
 components:
     schemas:
@@ -100,7 +104,6 @@ components:
             description: TestEndpointDefaultResponseBody result type (default view)
             example:
                 int: 1
-                string: ""
         TestEndpointOverriddenResponseBodyOverridden:
             type: object
             properties:
@@ -114,7 +117,6 @@ components:
             description: TestEndpointOverriddenResponseBody result type (overridden view)
             example:
                 int: 1
-                string: ""
             required:
                 - int
         TestEndpointTinyResponseBodyTiny:
@@ -124,7 +126,6 @@ components:
                     type: string
                     example: ""
             description: TestEndpointTinyResponseBody result type (tiny view)
-            example:
-                string: ""
+            example: {}
 tags:
     - name: testService

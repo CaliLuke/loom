@@ -736,3 +736,120 @@ real rendered schema instances and actual decoders, and compare generated
 build/vet results and bytes in isolated processes. This remains **tested
 correspondence**, not a proved Go refinement. Neither the M1 witness gate nor
 #570's fixed corpus establishes completion of these later obligations.
+
+
+## #572 prepared OpenAPI examples (implementation in progress)
+
+The ordered-source extension is part of the existing audited `Proofs` entry point.
+Its ten required claims preserve the first nonempty authored group, its order and
+metadata, agreement with the singular last-member selector, reachability and
+suppression. The flatten-all-groups counterexample distinguishes a different
+policy. The source-selection dependency matches the separately reviewed model.
+The integrated theorem audit and fresh kernel replay pass with 644 main claims
+and the unchanged 29 collision-diagnostic claims. The opt-in negative-test wrapper
+reached its ten-minute timeout during the final
+collision-audit group, after earlier checks completed without failure. That group
+passes separately with an explicit thirty-minute timeout; the Makefile now gives
+the opt-in group that bounded budget. Production acceptance is still pending;
+passing these proof checks does not complete the migration.
+
+The Go correspondence seams are `ExampleSelection.Entries`, per-entry retained
+occurrence/source/result records, and `ValuePlan.ForOccurrence`. Each subplan query
+must match the captured source occurrence and target node, preserving its original
+selection and policy. Foreign nodes, mismatches and genuine ambiguity must fail.
+Metadata detachment, alias-effective ownership and transport filtering remain
+executable checks, rather than conclusions of source-selection algebra.
+
+The refreshed prototype's ten independent IR failures exposed structural and
+example-plan roles being conflated. `PreparedExampleRoles.tla` checks separate
+roles through one bounded recursion: neutral standalone structure, actual
+transport projection authority, exact child example position and paired scope
+restoration. The paired policy passes; conflated, cleared, stale-child and leaky
+policies fail. Its root-codec extension also rejects inheriting a non-JSON runtime
+codec for a JSON-valued documentation observation; all three checked invariants
+pass over 290 states. Runtime codecs and node-local custom/SSE policies remain
+separate from this root observation choice. Existing construction/annotation and
+memo ownership obligations
+remain in force. The model assumes correct captured edges; it does not prove Go
+traversal, schema construction records or cache keys.
+
+`OpaqueEnumWitnesses.tla` checks the conservative projection boundary for opaque
+enum alternatives. Known members can witness membership. Every clause remains,
+including one with no semantically known candidates, so an opaque clause cannot
+silently disappear from the conjunction. The complete authored enum remains in
+schema output; plan building does not run its custom codecs. Invalid declarations
+still error. The bounded model passes, while deleting empty witness sets admits a
+counterexample. Direct tests must establish the resolver boundary, preservation
+of supported siblings, clause intersection and codec call counts.
+
+The ten retained IR regressions pass after separating these roles. A direct
+target-rebuild regression checks that new plan nodes receive new attachments
+while source, anchor and resolved results remain identical and preparation
+consumes no further random values. The rendered-instance matrix passes for
+JSON and YAML in OpenAPI 3.1 and 3.2, including named groups, async child bytes
+and explicit nulls, exact numeric values and rejection of a mutated tagged-union
+discriminator. These are concrete correspondence checks, not universal claims
+about all schemas or serializers.
+
+The complete expr, representation and IR suites and their vet checks pass after
+two further correspondence repairs. A target-only alias wrapper now reuses its
+source precisely when the captured structural source is the same node; consuming
+an authored alias remains a distinct edge. A retained whole-anchor result stays
+paired with the whole-anchor plan, whose selection identifies the target member.
+The context-owned `DeclaredJSONValue` observation follows those captured member
+identities before materializing declared values. This preserves cookie text and
+byte values without serializing the entire result object or running a JSON codec.
+Direct controls cover selected members, absence/null, ownership rejection and
+the existing opaque-value boundary. These changes implement the existing
+selection/edge assumptions; they do not add a theorem about Go traversal.
+
+The integration pass also exposed a traversal-domain mismatch: OpenAPI omits
+security credentials from ordinary query, header and cookie parameters, but
+example preparation tried to bind a synthetic session credential to a payload
+member. Preparation and emission must share the same exact location/name
+classification. Ordinary parameter binding errors must still fail; this is not
+permission to ignore missing source ownership. The finite role model starts
+after a documentation surface is selected, so it does not establish this
+classification. A direct synthetic-session regression and the existing security
+contract tests pass for the correction, along with the representation,
+transport-IR and OpenAPI-IR suites and vet checks. The endpoint-preparation
+helpers were moved to their own file to retain the repository's file-size limit;
+the affected suite and vet checks pass again after that mechanical split. These
+checks establish the exercised classification boundary, not a universal claim
+about all security designs.
+
+The accepted component reuse decision keeps occurrence-owned examples intact.
+Existing complete-content comparison may stop sharing automatic request-body,
+response, parameter and header definitions when their examples differ. No source
+selection, projection or reuse algorithm changes for this decision. The models
+do not prove component allocation or downstream client compatibility; exact
+rendered comparisons, explicit-name checks and consumer generation cover those
+implementation boundaries.
+
+The AutoK comparison exposed a renderer boundary failure despite intact retained
+metadata: the single-example fast path emitted a bare value even when its metadata
+requested an explicitly named reusable component. The repaired guard keeps such
+examples on the structured path. Direct IR cases cover named, unnamed and
+whitespace-only names; `TestRenderedSingletonExplicitExampleNameCreatesComponent`
+checks the component, reference, summary, description and value in OpenAPI 3.1/3.2
+JSON and YAML. The ordered-group claims preserve the metadata entering this
+boundary; they do not prove that the renderer uses it. No source-selection model
+or theorem changed for this guard restoration.
+
+The final repository batch also exposed an importer producer error. For a shared
+object error schema, the importer emitted `Error(name, func() { Extend(base) })`.
+With no explicit type, this selected the built-in problem type as the service
+source, while HTTP body construction merged the imported object's fields. The
+strict plan correctly rejected the unrelated member. Tracing confirmed a source
+with problem fields and a target with the imported `message` field, rather than
+lost copy ancestry. The repair gives each error an explicit object type clone,
+with `Extend` inside `Type`, while keeping its canonical `OpenAPIBody` reference.
+This restores the finalized-source-shape precondition at the importer. It does
+not weaken ancestry checks or add implicit base flattening to captured
+occurrences. Evaluated source-shape and generated-program tests must establish
+this producer correspondence; the alias-pairing model assumes those shapes are
+captured correctly and does not prove importer DSL emission.
+
+See the [model run instructions and bounds](../../tla/schema_declaration/README.md).
+Deterministic generation, fixture compilation, repository gates and independent
+final-diff review remain required before #572 delivery.

@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 func TestParamForDefaultsAllowEmptyValueByLocation(t *testing.T) {
@@ -21,13 +23,14 @@ func TestParamForDefaultsAllowEmptyValueByLocation(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.location, func(t *testing.T) {
+			attribute := &expr.AttributeExpr{Type: expr.String}
+			generator := expr.NewRandom("operation-metadata-test")
 			parameter := paramFor(
-				&expr.AttributeExpr{Type: expr.String},
+				attribute,
+				preparedOperationValue(t, attribute, generator),
 				"value",
 				test.location,
-				false,
-				expr.NewRandom("operation-metadata-test"),
-				false,
+				generator,
 			)
 
 			require.Equal(t, test.want, parameter.Value.AllowEmptyValue)
@@ -43,7 +46,9 @@ func TestParamForHonorsOpenAPIAllowEmptyValueMetadata(t *testing.T) {
 		},
 	}
 
-	parameter := paramFor(attribute, "value", "query", false, expr.NewRandom("operation-metadata-test"), false)
+	generator := expr.NewRandom("operation-metadata-test")
+	parameter := paramFor(attribute, preparedOperationValue(t, attribute, generator),
+		"value", "query", generator)
 
 	require.False(t, parameter.Value.AllowEmptyValue)
 }
@@ -56,7 +61,9 @@ func TestParamForIgnoresOpenAPIAllowEmptyValueMetadataOutsideQuery(t *testing.T)
 		},
 	}
 
-	parameter := paramFor(attribute, "value", "header", false, expr.NewRandom("operation-metadata-test"), false)
+	generator := expr.NewRandom("operation-metadata-test")
+	parameter := paramFor(attribute, preparedOperationValue(t, attribute, generator),
+		"value", "header", generator)
 
 	require.False(t, parameter.Value.AllowEmptyValue)
 }
@@ -71,12 +78,25 @@ func TestParamForKeepsPresentationMetadataOffSchema(t *testing.T) {
 		},
 	}
 
-	parameter := paramFor(attribute, "api-version", "header", false, expr.NewRandom("operation-metadata-test"), false)
+	generator := expr.NewRandom("operation-metadata-test")
+	parameter := paramFor(attribute, preparedOperationValue(t, attribute, generator),
+		"api-version", "header", generator)
 
 	require.Equal(t, "API version of the request.", parameter.Value.Description)
 	require.Equal(t, "1.0", parameter.Value.Example)
 	require.Empty(t, parameter.Value.Schema.Description)
 	require.Nil(t, parameter.Value.Schema.Example)
+}
+
+func preparedOperationValue(
+	t *testing.T,
+	attribute *expr.AttributeExpr,
+	generator *expr.ExampleGenerator,
+) *transportir.ValueTarget {
+	t.Helper()
+	target, err := representation.PrepareStandaloneExamples(attribute, generator)
+	require.NoError(t, err)
+	return target
 }
 
 func TestCanonicalOperationIDComponent(t *testing.T) {

@@ -41,12 +41,12 @@ paths:
                         schema:
                             description: Named manifest schema carried as an unparsed stream.
                             example:
-                                name: Incidunt accusamus.
-                                size: 18422362374783688
+                                name: Et quis officiis quis modi distinctio.
+                                size: 2491333080029964247
                             $ref: '#/components/schemas/RawUploadManifest'
                         example:
-                            name: Ipsa est in blanditiis ratione quae facere.
-                            size: 8005292687563674849
+                            name: Et quis officiis quis modi distinctio.
+                            size: 2491333080029964247
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -63,24 +63,24 @@ paths:
                   required: true
                   schema:
                     type: string
-                  example: Eligendi iste sed voluptatibus suscipit voluptas.
+                  example: Natus ducimus id qui illum et.
                 - name: filter
                   in: query
                   allowEmptyValue: true
                   schema:
                     type: string
-                  example: Harum laudantium vitae distinctio.
+                  example: Exercitationem neque necessitatibus earum enim.
                 - name: X-Checksum
                   in: header
                   required: true
                   schema:
                     type: string
-                  example: Vero dicta consequatur voluptatem eos repudiandae.
+                  example: Explicabo aut laboriosam.
                 - name: upload_session
                   in: cookie
                   schema:
                     type: string
-                  example: Et pariatur in.
+                  example: Est occaecati ut aperiam impedit.
             requestBody:
                 description: Binary archive streamed directly to the service.
                 required: true
@@ -104,14 +104,14 @@ components:
             properties:
                 name:
                     type: string
-                    example: Et iste aperiam blanditiis harum asperiores.
+                    example: Fuga doloribus magni eos rerum.
                 size:
                     type: integer
-                    example: 5663474586627500487
+                    example: 663373690153682594
                     format: int64
             example:
-                name: Qui culpa unde quia.
-                size: 5667425858078415856
+                name: Doloribus velit facilis.
+                size: 9108725260903456715
             required:
                 - name
                 - size

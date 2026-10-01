@@ -46,7 +46,8 @@ func analyzeComponentTypes(a *Analyzer, types []expr.UserType, resultTypes []*ex
 		if !mustGenerateType(t.Attribute().Meta) {
 			continue
 		}
-		schema := a.analyzeSchemaPlan(&expr.AttributeExpr{Type: t}, exampleContext("component-type", t.ID()), expr.ValuePlanNode{})
+		attribute := &expr.AttributeExpr{Type: t}
+		schema := a.analyzeStandaloneSchema(attribute, exampleContext("component-type", t.ID()))
 		a.declarationRoots[t.ID()] = schema
 		a.registrations = append(a.registrations, schema)
 	}
@@ -54,7 +55,8 @@ func analyzeComponentTypes(a *Analyzer, types []expr.UserType, resultTypes []*ex
 		if !mustGenerateType(t.Attribute().Meta) {
 			continue
 		}
-		schema := a.analyzeSchemaPlan(&expr.AttributeExpr{Type: t}, exampleContext("component-result-type", t.ID()), expr.ValuePlanNode{})
+		attribute := &expr.AttributeExpr{Type: t}
+		schema := a.analyzeStandaloneSchema(attribute, exampleContext("component-result-type", t.ID()))
 		a.declarationRoots[t.ID()] = schema
 		a.registrations = append(a.registrations, schema)
 	}
@@ -68,6 +70,16 @@ func analyzeServiceBodies(a *Analyzer, api *expr.APIExpr, bodies *BodyTypes) {
 		serviceIR, err := representation.PrepareService(svc, nil)
 		if err != nil {
 			panic(err)
+		}
+		if !a.customExampleValue {
+			if err := representation.PrepareServiceExamples(serviceIR, svc, a.rand); err != nil {
+				panic(err)
+			}
+			for _, endpoint := range serviceIR.Endpoints {
+				if err := representation.PrepareEndpointExamples(endpoint, a.rand); err != nil {
+					panic(err)
+				}
+			}
 		}
 		bodies.prepared[svc.Name()] = serviceIR
 		serviceBodies := make(map[string]*EndpointBodies, len(serviceIR.Endpoints))
@@ -127,14 +139,14 @@ func analyzeRequestBody(a *Analyzer, endpoint *transportir.Endpoint) *Schema {
 	}
 	var req *Schema
 	if len(endpoint.Request.DocumentValues) == 0 {
-		req = a.analyzeOccurrence(requestAttr, requestContext, representationRoot(requestAttr, target))
+		req = a.analyzePreparedOccurrence(requestAttr, requestContext, target)
 	}
 	if endpoint.Request.StreamingBody == nil {
 		return req
 	}
 	streamingAttr := attributeForSchemaUsage(endpoint.Request.StreamingBody, schemaUsageRequest)
 	streamingContext := attributeExampleContext(streamingAttr, a.closeObjects, "streaming-request-schema")
-	streaming := a.analyzeOccurrence(streamingAttr, streamingContext, representationRoot(streamingAttr, endpoint.Request.StreamingValue))
+	streaming := a.analyzePreparedOccurrence(streamingAttr, streamingContext, endpoint.Request.StreamingValue)
 	return mergeStreamingBodyNote(req, streaming)
 }
 
@@ -159,7 +171,7 @@ func analyzeResponseBodies(a *Analyzer, endpoint *transportir.Endpoint) map[int]
 			)
 			responseBodies[resp.StatusCode] = append(
 				responseBodies[resp.StatusCode],
-				a.analyzeOccurrence(body, context, representationRoot(body, resp.DocumentValue)),
+				a.analyzePreparedOccurrence(body, context, resp.DocumentValue),
 			)
 		}
 	}
@@ -176,9 +188,15 @@ func analyzeSSEProjectionSchema(a *Analyzer, endpoint *transportir.Endpoint) *Sc
 	schema := &Schema{OneOf: make([]*Schema, 0, len(attrs))}
 	for index, attr := range attrs {
 		context := endpointSchemaExampleContext(endpoint, "sse-projection", strconv.Itoa(index))
+		target := representation.PrepareStreamSchema(endpoint, attr, false)
+		if !a.customExampleValue {
+			if err := representation.PrepareTargetExamples(target, attr, exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context)); err != nil {
+				panic(err)
+			}
+		}
 		schema.OneOf = append(
 			schema.OneOf,
-			a.analyzeOccurrence(attributeForSchemaUsage(attr, schemaUsageResponse), context, representationRoot(attr, representation.PrepareStreamSchema(endpoint, attr, false))),
+			a.analyzePreparedOccurrence(attributeForSchemaUsage(attr, schemaUsageResponse), context, target),
 		)
 	}
 	return schema
@@ -204,18 +222,18 @@ func analyzeLocationSchemas(a *Analyzer, endpoint *transportir.Endpoint, locatio
 		{"path", endpoint.Request.PathParams}, {"query", endpoint.Request.QueryParams}, {"header", endpoint.Request.Headers}, {"cookie", endpoint.Request.Cookies},
 	} {
 		for _, parameter := range group.parameters {
-			if isSecurityParameter(endpoint.Security, group.location, parameter.HTTPName) {
+			if endpoint.Security.IsParameter(group.location, parameter.HTTPName) {
 				continue
 			}
 			context := attributeExampleContext(parameter.Attribute, a.closeObjects, "parameter", group.location, parameter.HTTPName)
-			locations[parameter.Attribute] = a.analyzeOccurrence(parameter.Attribute, context, representationRoot(parameter.Attribute, parameter.Value))
+			locations[parameter.Attribute] = a.analyzePreparedOccurrence(parameter.Attribute, context, parameter.Value)
 		}
 	}
 	for _, responses := range [][]*transportir.ResponseStatus{endpoint.Response.Responses, endpoint.Response.ErrorResponses} {
 		for _, response := range responses {
 			for _, header := range response.Headers {
 				context := attributeExampleContext(header.Attribute, a.closeObjects, "response-header", header.HTTPName)
-				locations[header.Attribute] = a.analyzeOccurrence(header.Attribute, context, representationRoot(header.Attribute, header.Value))
+				locations[header.Attribute] = a.analyzePreparedOccurrence(header.Attribute, context, header.Value)
 			}
 		}
 	}
@@ -229,7 +247,7 @@ func analyzeDocumentMedia(a *Analyzer, attribute *expr.AttributeExpr, targets ma
 	attribute = attributeForSchemaUsage(attribute, usage)
 	context := attributeExampleContext(attribute, a.closeObjects, contextParts...)
 	for _, media := range slices.Sorted(maps.Keys(targets)) {
-		result[media] = a.analyzeOccurrence(attribute, context, representationRoot(attribute, targets[media]))
+		result[media] = a.analyzePreparedOccurrence(attribute, context, targets[media])
 	}
 	return result
 }

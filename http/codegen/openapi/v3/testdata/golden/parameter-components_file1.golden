@@ -19,7 +19,13 @@ paths:
                 - $ref: '#/components/parameters/QueryLimit'
             responses:
                 "200":
-                    $ref: '#/components/responses/ComponentServiceListGadgetsStatus200Response'
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: string
+                                example: Assumenda velit.
+                            example: Assumenda velit.
     /widgets/{widgetID}:
         get:
             tags:
@@ -31,7 +37,13 @@ paths:
                 - $ref: '#/components/parameters/QueryLimit'
             responses:
                 "200":
-                    $ref: '#/components/responses/ComponentServiceListGadgetsStatus200Response'
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: string
+                                example: Fugiat voluptatem repellendus.
+                            example: Fugiat voluptatem repellendus.
 components:
     parameters:
         PathWidgetID:
@@ -52,14 +64,5 @@ components:
                 format: int64
                 minimum: 1
             example: 25
-    responses:
-        ComponentServiceListGadgetsStatus200Response:
-            description: OK response.
-            content:
-                application/json:
-                    schema:
-                        type: string
-                        example: Autem rem beatae non.
-                    example: Repellat ducimus.
 tags:
     - name: componentService

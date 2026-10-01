@@ -4,8 +4,8 @@
       "Resulttype_e30f7140cbd99e86": {
         "example": {
           "a": {
-            "x": "Et aspernatur est.",
-            "y": 4860587370606937558
+            "x": "Explicabo aliquam ipsa pariatur adipisci sed sit.",
+            "y": 11477963107682266
           }
         },
         "properties": {
@@ -17,16 +17,16 @@
       },
       "UserType": {
         "example": {
-          "x": "Inventore deleniti.",
-          "y": 2793531410412585661
+          "x": "Qui mollitia laudantium iusto et.",
+          "y": 4185855515957264914
         },
         "properties": {
           "x": {
-            "example": "Illo molestiae accusantium consectetur eum.",
+            "example": "Quod nam voluptatum ut.",
             "type": "string"
           },
           "y": {
-            "example": 2316163594086730582,
+            "example": 3719491077729188980,
             "format": "int64",
             "type": "integer"
           }
@@ -51,28 +51,34 @@
               "application/json": {
                 "example": {
                   "a": {
-                    "x": "Voluptatem pariatur cum et maxime non id.",
-                    "y": 5987335491323873760
+                    "x": "Vel molestias aut qui dolorum modi.",
+                    "y": 8935059987701087197
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/Resulttype_e30f7140cbd99e86"
+                  "$ref": "#/components/schemas/Resulttype_e30f7140cbd99e86",
+                  "example": {
+                    "a": {
+                      "x": "Vel molestias aut qui dolorum modi.",
+                      "y": 8935059987701087197
+                    }
+                  }
                 }
               }
             },
             "description": "OK response.",
             "headers": {
               "Content-Type": {
-                "example": "Non accusamus enim sunt id ad.",
+                "example": "Sed qui ullam exercitationem libero ex sit.",
                 "schema": {
-                  "example": "Non accusamus enim sunt id ad.",
+                  "example": "Sed qui ullam exercitationem libero ex sit.",
                   "type": "string"
                 }
               },
               "Location": {
-                "example": "A quae velit repudiandae quis ipsum est.",
+                "example": "Corporis at ea excepturi ut voluptates saepe.",
                 "schema": {
-                  "example": "A quae velit repudiandae quis ipsum est.",
+                  "example": "Corporis at ea excepturi ut voluptates saepe.",
                   "type": "string"
                 }
               }

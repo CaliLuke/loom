@@ -8,16 +8,16 @@
     "schemas": {
       "RawUploadManifest": {
         "example": {
-          "name": "Qui culpa unde quia.",
-          "size": 5667425858078415856
+          "name": "Doloribus velit facilis.",
+          "size": 9108725260903456715
         },
         "properties": {
           "name": {
-            "example": "Et iste aperiam blanditiis harum asperiores.",
+            "example": "Fuga doloribus magni eos rerum.",
             "type": "string"
           },
           "size": {
-            "example": 5663474586627500487,
+            "example": 663373690153682594,
             "format": "int64",
             "type": "integer"
           }
@@ -79,15 +79,15 @@
           "content": {
             "application/vnd.loom.manifest+json": {
               "example": {
-                "name": "Ipsa est in blanditiis ratione quae facere.",
-                "size": 8005292687563674849
+                "name": "Et quis officiis quis modi distinctio.",
+                "size": 2491333080029964247
               },
               "schema": {
                 "$ref": "#/components/schemas/RawUploadManifest",
                 "description": "Named manifest schema carried as an unparsed stream.",
                 "example": {
-                  "name": "Incidunt accusamus.",
-                  "size": 18422362374783688
+                  "name": "Et quis officiis quis modi distinctio.",
+                  "size": 2491333080029964247
                 }
               }
             }
@@ -112,7 +112,7 @@
         "operationId": "raw_upload.upload_binary",
         "parameters": [
           {
-            "example": "Eligendi iste sed voluptatibus suscipit voluptas.",
+            "example": "Natus ducimus id qui illum et.",
             "in": "path",
             "name": "id",
             "required": true,
@@ -122,7 +122,7 @@
           },
           {
             "allowEmptyValue": true,
-            "example": "Harum laudantium vitae distinctio.",
+            "example": "Exercitationem neque necessitatibus earum enim.",
             "in": "query",
             "name": "filter",
             "schema": {
@@ -130,7 +130,7 @@
             }
           },
           {
-            "example": "Vero dicta consequatur voluptatem eos repudiandae.",
+            "example": "Explicabo aut laboriosam.",
             "in": "header",
             "name": "X-Checksum",
             "required": true,
@@ -139,7 +139,7 @@
             }
           },
           {
-            "example": "Et pariatur in.",
+            "example": "Est occaecati ut aperiam impedit.",
             "in": "cookie",
             "name": "upload_session",
             "schema": {

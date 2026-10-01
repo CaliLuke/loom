@@ -378,3 +378,60 @@ and projection correspondence across shared transports. See the
 [correspondence ledger](../../lean/value_projection/correspondence.md).
 Keep only source/configuration/documentation; remove owned checker outputs after
 validation and independent review finish.
+
+
+## Prepared example and structural plan roles (#572)
+
+`PreparedExampleRoles.tla` separates the authority to project schema structure
+from the exact position used to attach a prepared example. A standalone schema
+has no transport projection authority even when its examples were prepared with
+a JSON plan. A transport occurrence has both roles. Both positions advance in
+the existing recursion and are restored together when a scope exits, including
+exception unwinding.
+
+Run from this directory with the TLA+ tools JAR available:
+
+```sh
+java -cp "$TLA2TOOLS_JAR" tlc2.TLC -config prepared-roles-checked.cfg PreparedExampleRoles.tla
+java -cp "$TLA2TOOLS_JAR" tlc2.TLC -config opaque-enums-checked.cfg OpaqueEnumWitnesses.tla
+```
+
+The paired policy passes all three invariants in 290 distinct states. The model
+explores two consumer kinds, five builtin root codec categories, two child edges,
+depth three and up to eight transitions.
+`prepared-roles-conflated.cfg` reproduces assigning example preparation authority
+to schema structure. `prepared-roles-clear-both.cfg` detects losing examples when
+neutralizing schema projection. `prepared-roles-stale-child.cfg` detects failure
+to advance the example position, and `prepared-roles-leaky-restore.cfg` detects
+failure to restore it. `prepared-roles-inherited-wire.cfg` detects reusing the
+runtime root codec for JSON-valued documentation examples. All five negative
+configurations fail the relevant authority invariant. Runtime codec inputs remain
+unchanged; this is documentation observation, not a runtime codec migration.
+
+The model abstracts captured edges as exact handles. It does not establish Go
+edge extraction, memoization, construction records, codec behavior or actual
+exception handling. Node-local custom codecs, mapped SSE policies, text
+formatters and raw-media serialization remain separate correspondence boundaries.
+Direct tests must check neutral standalone schemas, actual
+transport projections, distinct child examples, scope restoration, and existing
+annotation ownership. The earlier acquisition and annotation-path models remain
+applicable; this model does not replace their obligations.
+
+## Opaque enum alternatives (#572)
+
+`OpaqueEnumWitnesses.tla` checks conservative enum membership when a clause has
+both semantically known and opaque alternatives. A known matching alternative can
+establish membership. An all-opaque clause supplies no checked witness; retaining
+that empty set of known witnesses prevents accidental acceptance. Clauses remain
+intersected. This affects checked example projection only: the complete declared
+enum remains in the rendered schema, and no custom codec runs during plan building.
+Malformed enum values with independently checkable failures still reject the plan.
+
+The checked configuration passes in 128 states over two values and two nonempty
+declared clauses, with every subset of known witnesses. The `opaque-enums-drop-empty.cfg`
+negative control violates sound membership by dropping a clause with no known
+witness. These finite set properties do not prove the resolver identifies opaque
+values correctly. Direct tests cover that correspondence, preserved malformed
+input errors, mixed alternatives, clause intersection, supported siblings, and
+codec call counts. An opaque alternative alone is not a builtin semantic witness;
+the existing custom materialization boundary remains responsible for its codec.

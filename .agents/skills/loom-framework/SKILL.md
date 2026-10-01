@@ -234,15 +234,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   consume a shared traversal sequence that lets unrelated design changes
   perturb output. API-level example omission must retain explicitly authored
   examples in both JSON and YAML without mutating the evaluated design.
-- OpenAPI synthesis must retain selected union branches through composition.
-  `internal/ir/example_generation.go` uses shared `ValueContext` source selection
-  and synthesis. Its `DeclaredJSONValue` carrier retains declared bytes,
-  precision and the selected tagged envelope; it is not target wire output.
-  Keep that carrier distinct from raw authored values so later conversion does
-  not infer a branch again or encode bytes twice. Custom example projectors
-  keep receiving raw expression values. The remaining per-target synthesis and
-  conversion path must migrate to shared target plans under #572. The bounded
-  model in `internal/ir/tla/nested_union_examples` checks selection ownership.
+- Prepare builtin OpenAPI examples in `internal/representation` from retained
+  `ValueContext` selection and synthesis results. Preserve ordered authored
+  groups, metadata, explicit nulls, precision and selected union branches.
+  Project those results through documentation plans; consumers must not sample
+  again or infer a branch from the projected value. `DeclaredJSONValue` retains
+  declared bytes and is distinct from target JSON output. The bounded model in
+  `internal/ir/tla/nested_union_examples` checks selection ownership.
 - Select untagged example branches against one shared normalized JSON value, while
   retaining the typed value for projection and final encoding. In particular,
   coerced `[]byte` fields must be matched as base64 strings without replacing
@@ -250,13 +248,23 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   the same projected values emitted in the schema. Ambiguous wire shapes
   remain omitted. Never reinterpret typed bytes separately for a competing
   string branch; `internal/ir/tla/byte_examples` records that counterexample.
-- The IR analyzer defaults to `OpenAPIExampleValue` for every schema surface.
-  Keep byte encoding, completeness checks, and explicit nullable examples
-  consistent across bodies, nested parameters, response headers, and async
-  messages. Caller-specific example projections may override that default;
-  new analyzer construction sites must not bypass it accidentally.
-- Treat stable schema names, canonical `operationId`, reusable component
-  identity, and extension output as public framework contracts.
+- The IR analyzer consumes prepared examples for bodies, nested parameters,
+  response headers and async messages. Track the captured example position
+  separately from structural schema authority: a neutral reusable schema can
+  still own examples. Rebuilding a target plan invalidates its node-keyed
+  attachments; reprepare them from retained source results without resampling.
+  Documentation plans use JSON observation semantics while runtime plans keep
+  their actual codecs. Preserve node-specific custom and SSE policies.
+  `WithExampleValue` explicitly selects custom projection over original raw
+  values; a nil projector uses retained declared values, including byte slices.
+  The models in `expr/tla/schema_declaration` record these ownership boundaries.
+- Treat stable schema names, canonical `operationId`, explicitly authored
+  component names, and extension output as public framework contracts.
+  Automatic request-body, response, parameter and header reuse compares complete
+  contents, including retained examples. Different examples may prevent reuse
+  and leave equivalent definitions inline; do not resample or discard examples
+  to retain automatic references. Schema reuse remains separate. Compare
+  downstream generated clients when changing this document structure.
 - Canonical JSON member names for authored map keys come from
   `internal/jsonkey`. Expression examples and OpenAPI defaults share this
   conversion so integer widths, named scalar keys, and floating-point keys
@@ -980,6 +988,14 @@ filter, and serialization rules belong here.
   paths before conversion to service types.
 
 ## Verification Strategy
+
+Follow the validation scope rules in `AGENTS.md`. Ticket acceptance uses direct
+regressions, affected packages and a bounded selection of representative
+generated-output and transport cases. Keep the full exported-design corpus for
+separately chosen audits after major cross-cutting changes; it is not a ticket
+review or commit prerequisite. Preserve valid evidence and rerun only checks
+invalidated by later changes. Do not multiply every catalog entry across
+revisions and isolated runs as a routine ticket gate.
 
 Use the [formal model index](references/formal-models.md) alongside direct tests
 for ownership, ordering and semantic projection changes. New weaknesses require

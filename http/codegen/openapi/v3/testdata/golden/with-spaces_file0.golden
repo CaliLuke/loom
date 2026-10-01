@@ -21,6 +21,9 @@
             },
             {
               "string": ""
+            },
+            {
+              "string": ""
             }
           ],
           "foo": ""
@@ -28,6 +31,9 @@
         "properties": {
           "bar": {
             "example": [
+              {
+                "string": ""
+              },
               {
                 "string": ""
               },
@@ -66,7 +72,10 @@
                 "string": ""
               },
               "schema": {
-                "$ref": "#/components/schemas/Bar"
+                "$ref": "#/components/schemas/Bar",
+                "example": {
+                  "string": ""
+                }
               }
             }
           },
@@ -78,23 +87,22 @@
               "application/json": {
                 "example": {
                   "bar": [
-                    {
-                      "string": ""
-                    },
-                    {
-                      "string": ""
-                    },
-                    {
-                      "string": ""
-                    },
-                    {
-                      "string": ""
-                    }
-                  ],
-                  "foo": ""
+                    {},
+                    {},
+                    {},
+                    {}
+                  ]
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/LoomFoobar"
+                  "$ref": "#/components/schemas/LoomFoobar",
+                  "example": {
+                    "bar": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
                 }
               }
             },
@@ -105,23 +113,22 @@
               "application/json": {
                 "example": {
                   "bar": [
-                    {
-                      "string": ""
-                    },
-                    {
-                      "string": ""
-                    },
-                    {
-                      "string": ""
-                    },
-                    {
-                      "string": ""
-                    }
-                  ],
-                  "foo": ""
+                    {},
+                    {},
+                    {},
+                    {}
+                  ]
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/LoomFoobar"
+                  "$ref": "#/components/schemas/LoomFoobar",
+                  "example": {
+                    "bar": [
+                      {},
+                      {},
+                      {},
+                      {}
+                    ]
+                  }
                 }
               }
             },

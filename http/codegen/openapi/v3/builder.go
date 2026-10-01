@@ -122,16 +122,6 @@ func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) ma
 	return paths
 }
 
-// buildOperation builds the OpenAPI Operation object for the given path.
-func buildOperation(key string, r *expr.RouteExpr, bodies *EndpointBodies, rand *expr.ExampleGenerator, meta expr.MetaExpr) (*Operation, error) {
-	closeObjects := openapi.ClosedObjectModeFromExpr(meta)
-	operationIR, err := openapiir.BuildRouteOperation(r, key, endpointBodiesToIR(bodies), rand, meta, closeObjects)
-	if err != nil {
-		return nil, err
-	}
-	return buildOperationFromIR(operationIR), nil
-}
-
 func buildOperationFromIR(operationIR *openapiir.Operation) *Operation {
 	if operationIR == nil {
 		operationIR = &openapiir.Operation{}

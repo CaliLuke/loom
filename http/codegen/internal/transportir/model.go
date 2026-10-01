@@ -11,6 +11,9 @@ type (
 	ValueTarget struct {
 		// Source is the shared effective service occurrence and selected result.
 		Source *service.ValueData
+		// Anchor retains the original service occurrence when a transport-local
+		// authored group owns Source.
+		Anchor *service.ValueData
 		// Selection is an authored member path within Source.
 		Selection []string
 		// Codec is selected by actual transport behavior, never media labels.
@@ -20,12 +23,59 @@ type (
 		SSEDataField string
 		// Plan is populated only after actual emitter policies are available.
 		Plan expr.ValuePlan
+		// AnchorPlan projects values owned by Anchor through this target.
+		AnchorPlan expr.ValuePlan
+		// ExampleOccurrence is the independently captured effective target used
+		// only to own transport-local authored examples.
+		ExampleOccurrence expr.ValueOccurrence
+		// ExamplePlan projects values owned by ExampleOccurrence through this target.
+		ExamplePlan expr.ValuePlan
+		// Examples retains the selected authored group in declaration order.
+		Examples []ValueExample
+		// Representative retains the last entry of Examples when an authored
+		// group applies; otherwise it retains the selected or synthesized result.
+		Representative *ValueExample
+		// ExamplesPrepared reports that the explicit preparation stage ran, even
+		// when suppression or projection failure leaves no emitted value.
+		ExamplesPrepared bool
+		// ExampleSets binds each schema-plan node to the examples prepared for
+		// that exact documentation occurrence. Records retain their own semantic
+		// owners and projection plans; schema traversal never reselects a source.
+		ExampleSets map[expr.ValuePlanNode]*ValueExampleSet
 		// Error retains a plan construction failure for consuming analysis.
 		Error error
 		// Boundary records an external codec whose guarantees are not built-in JSON.
 		Boundary string
 		// Documentary excludes runtime decoding claims for a documentation-only target.
 		Documentary bool
+	}
+
+	// ValueExample is one semantic example and its exact target association.
+	// Authored remains opaque; consumers project Source.Example through Plan.
+	ValueExample struct {
+		// Source owns the occurrence and resolved or synthesized result.
+		Source *service.ValueData
+		// Authored is the opaque authored source, or zero for synthesis.
+		Authored expr.ValueSource
+		// Plan is the matching target representation for Source.Occurrence.
+		Plan expr.ValuePlan
+		// Summary is detached authored metadata.
+		Summary string
+		// Description is detached authored metadata.
+		Description string
+		// Meta is detached authored metadata.
+		Meta expr.MetaExpr
+	}
+
+	// ValueExampleSet is the complete prepared example state for one schema
+	// occurrence. An empty prepared set suppresses consumer-side fallback.
+	ValueExampleSet struct {
+		// Examples retains an authored group in declaration order.
+		Examples []ValueExample
+		// Representative is the selected authored entry or synthesized value.
+		Representative *ValueExample
+		// Prepared distinguishes an empty or suppressed set from missing analysis.
+		Prepared bool
 	}
 
 	Service struct {

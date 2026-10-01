@@ -85,7 +85,12 @@
                     "data": {
                       "contentMediaType": "application/json",
                       "contentSchema": {
-                        "$ref": "#/components/schemas/AsyncSessionRealtimeSSEEvent"
+                        "$ref": "#/components/schemas/AsyncSessionRealtimeSSEEvent",
+                        "example": {
+                          "event": "project.updated",
+                          "id": "evt_9",
+                          "project_id": "proj_42"
+                        }
                       },
                       "type": "string"
                     },
@@ -206,7 +211,7 @@
             "inbound": {
               "contentType": "application/json",
               "schema": {
-                "example": "Odio dignissimos qui ut.",
+                "example": "Esse enim.",
                 "type": "string"
               }
             },

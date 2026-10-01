@@ -23,16 +23,14 @@
         "summary": "current",
         "value": {
           "expiresAt": "2026-03-20T12:00:00Z",
-          "token": "token-123",
-          "traceID": "trace_123"
+          "token": "token-123"
         }
       },
       "AuthRefreshStatus200ResponseNextExample": {
         "summary": "next",
         "value": {
           "expiresAt": "2026-03-21T12:00:00Z",
-          "token": "token-456",
-          "traceID": "trace_456"
+          "token": "token-456"
         }
       },
       "XTraceIDHeaderTraceAExample": {
@@ -73,7 +71,13 @@
               }
             },
             "schema": {
-              "$ref": "#/components/schemas/Credentials"
+              "$ref": "#/components/schemas/Credentials",
+              "example": {
+                "legacyToken": "legacy-token-2",
+                "password": "swordfish",
+                "profile": "eyJyb2xlIjoiZWRpdG9yIn0=",
+                "username": "bob"
+              }
             }
           }
         },
@@ -96,7 +100,11 @@
               }
             },
             "schema": {
-              "$ref": "#/components/schemas/Session_cf64610497754895"
+              "$ref": "#/components/schemas/Session_cf64610497754895",
+              "example": {
+                "expiresAt": "2026-03-21T12:00:00Z",
+                "token": "token-456"
+              }
             }
           }
         },
@@ -147,8 +155,7 @@
       "Session_cf64610497754895": {
         "example": {
           "expiresAt": "2026-03-21T12:00:00Z",
-          "token": "token-456",
-          "traceID": "trace_456"
+          "token": "token-456"
         },
         "properties": {
           "expiresAt": {

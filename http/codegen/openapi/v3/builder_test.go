@@ -287,20 +287,9 @@ func TestBuildOperation(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			root := codegen.RunDSL(t, c.DSL)
-
-			var bodies *EndpointBodies
-			var types map[string]*openapi.Schema
-			{
-				var bds map[string]map[string]*EndpointBodies
-				bds, types = buildBodyTypes(root.API, root.Types, root.ResultTypes)
-				if svc, ok := bds[svcName]; ok {
-					bodies, ok = svc[c.Name]
-					if !ok {
-						t.Error("bodies does not contain method details")
-						return
-					}
-				}
-			}
+			document, err := buildDocument(root)
+			require.NoError(t, err)
+			types := document.Components.Schemas
 
 			var route *expr.RouteExpr
 			if len(root.API.HTTP.Services) == 0 {
@@ -324,8 +313,18 @@ func TestBuildOperation(t *testing.T) {
 				return
 			}
 
-			op, err := buildOperation(c.Name, route, bodies, expr.NewRandom(c.Name), root.API.Meta)
-			require.NoError(t, err)
+			path := document.Paths[normalizeOpenAPIPath(route.FullPaths()[0])]
+			require.NotNil(t, path)
+			var op *Operation
+			switch route.Method {
+			case "GET":
+				op = path.Get
+			case "POST":
+				op = path.Post
+			default:
+				t.Fatalf("unsupported test route method %q", route.Method)
+			}
+			require.NotNil(t, op)
 
 			if op.Description != c.ExpectedDescription {
 				t.Errorf("got description %q for method %q, expected %q", op.Description, c.Name, c.ExpectedDescription)

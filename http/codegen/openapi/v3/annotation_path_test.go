@@ -36,9 +36,9 @@ func TestRenderedByteProjectionPreservesAnnotationPaths(t *testing.T) {
 				name, component, blob string
 				count                 int64
 			}{
-				{"base", "AuthorityBase", "QXV0IGV0IGl0YXF1ZSBtb2xlc3RpYXMgZGljdGEu", 8644872746071626424},
-				{"entries", "AuthorityBase_2977d6da5f160a78", "RGVzZXJ1bnQgY3VtIG1vZGkgcXVhbSBkZWxlbml0aSBmYWNlcmUu", 4069425969333182118},
-				{"items", "AuthorityBase_2977d6da5f160a78_2", "RWxpZ2VuZGkgcXVpYSBkZWxlbml0aSBmdWdpYXQgcG9ycm8gdXQgdGVtcG9yYS4=", 4575513339977884504},
+				{"base", "AuthorityBase", "SWQgZmFjaWxpcy4=", 1698367705951450038},
+				{"entries", "AuthorityBase_2977d6da5f160a78", "SXBzdW0gYXV0IGFkIHF1aWJ1c2RhbS4=", 7317769671929827049},
+				{"items", "AuthorityBase_2977d6da5f160a78_2", "TWFnbmkgZHVjaW11cyBhdXQgcmVwZWxsZW5kdXMgZG9sb3Iu", 4929712490902895459},
 			} {
 				var component struct {
 					Type    string `json:"type"`

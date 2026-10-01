@@ -35,11 +35,11 @@ func TestSelectedBodyPreservesAllocatedAnnotationOwner(t *testing.T) {
 	}
 	require.NotNil(t, document)
 	components := document["components"].(map[string]any)["schemas"].(map[string]any)
-	// Literal parent outputs for this RunDSL seed; the selected occurrence owns
-	// its allocated context even when its declaration and shape match Body.
+	// The fixed-seed representative now comes from shared preparation; the
+	// selected occurrence still owns its allocated component context.
 	require.Contains(t, components, "Body_99e66af2c29e5c06")
 	body := components["Body_99e66af2c29e5c06"].(map[string]any)
-	require.Equal(t, map[string]any{"a": "Magni ad cum."}, body["example"])
-	require.Equal(t, "Ea id quo eum ea aut vitae.", body["properties"].(map[string]any)["a"].(map[string]any)["example"])
+	require.Equal(t, map[string]any{"a": "Dicta harum."}, body["example"])
+	require.Equal(t, "Libero aut et temporibus id officiis.", body["properties"].(map[string]any)["a"].(map[string]any)["example"])
 	require.Equal(t, "#/components/schemas/Body_99e66af2c29e5c06", components["body"].(map[string]any)["$ref"])
 }

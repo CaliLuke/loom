@@ -4,8 +4,8 @@
       "Resulttypemultipleviews_e30f7140cbd99e86": {
         "example": {
           "a": {
-            "x": "Optio rerum fuga sit.",
-            "y": 8435905110803584754
+            "x": "Facere consequatur.",
+            "y": 1347980918515260384
           }
         },
         "properties": {
@@ -17,16 +17,16 @@
       },
       "UserType": {
         "example": {
-          "x": "Inventore deleniti.",
-          "y": 2793531410412585661
+          "x": "Qui mollitia laudantium iusto et.",
+          "y": 4185855515957264914
         },
         "properties": {
           "x": {
-            "example": "Illo molestiae accusantium consectetur eum.",
+            "example": "Quod nam voluptatum ut.",
             "type": "string"
           },
           "y": {
-            "example": 2316163594086730582,
+            "example": 3719491077729188980,
             "format": "int64",
             "type": "integer"
           }
@@ -51,21 +51,27 @@
               "application/json": {
                 "example": {
                   "a": {
-                    "x": "Excepturi at.",
-                    "y": 1668926359201162383
+                    "x": "Cum molestias voluptatem sit corporis.",
+                    "y": 3374495964975741729
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/Resulttypemultipleviews_e30f7140cbd99e86"
+                  "$ref": "#/components/schemas/Resulttypemultipleviews_e30f7140cbd99e86",
+                  "example": {
+                    "a": {
+                      "x": "Cum molestias voluptatem sit corporis.",
+                      "y": 3374495964975741729
+                    }
+                  }
                 }
               }
             },
             "description": "OK response.",
             "headers": {
               "Location": {
-                "example": "A quae velit repudiandae quis ipsum est.",
+                "example": "Neque qui enim.",
                 "schema": {
-                  "example": "A quae velit repudiandae quis ipsum est.",
+                  "example": "Neque qui enim.",
                   "type": "string"
                 }
               }

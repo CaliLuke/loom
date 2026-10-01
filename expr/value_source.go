@@ -21,6 +21,17 @@ type (
 		state      ExampleState
 		occurrence ValueOccurrence
 		source     ValueSource
+		entries    []ExampleEntry
+	}
+
+	// ExampleEntry describes one captured source in the selected authored group.
+	// Its value remains opaque; callers resolve Source against their retained
+	// effective occurrence rather than inferring an owner from authored provenance.
+	ExampleEntry struct {
+		source      ValueSource
+		summary     string
+		description string
+		meta        MetaExpr
 	}
 )
 
@@ -53,10 +64,25 @@ func (c *ValueContext) SelectExample(occurrence ValueOccurrence, policy ExampleP
 		}
 		return selection
 	}
-	chosen := examples[len(examples)-1]
+	selection.state = ExampleSelected
+	selection.entries = make([]ExampleEntry, 0, len(examples))
+	for _, selected := range examples {
+		entry, found := c.exampleEntry(occurrence, selected)
+		if !found {
+			entry = ExampleEntry{source: ValueSource{data: &valueSourceData{context: c.identity,
+				snapshot: valueSourceSnapshot{err: errValueSourceOwnership}}}, summary: selected.Summary,
+				description: selected.Description, meta: copyValueMeta(selected.Meta)}
+		}
+		selection.entries = append(selection.entries, entry)
+	}
+	selection.source = selection.entries[len(selection.entries)-1].source
+	return selection
+}
+
+func (c *ValueContext) exampleEntry(occurrence ValueOccurrence, selected *ExampleExpr) (ExampleEntry, bool) {
 	for _, node := range occurrence.graph.nodes {
 		for _, example := range node.examples {
-			if example.example != chosen {
+			if example.example != selected {
 				continue
 			}
 			c.mu.Lock()
@@ -67,18 +93,11 @@ func (c *ValueContext) SelectExample(occurrence ValueOccurrence, policy ExampleP
 				c.examples[example.origin] = source
 			}
 			c.mu.Unlock()
-			selection.state = ExampleSelected
-			selection.source = ValueSource{data: source}
-			return selection
+			return ExampleEntry{source: ValueSource{data: source}, summary: example.example.Summary,
+				description: example.example.Description, meta: copyValueMeta(example.example.Meta)}, true
 		}
 	}
-	// Every extracted source belongs to the occurrence's owned graph. An
-	// unreachable descriptor indicates a malformed builder, never absence that
-	// could authorize a substitute synthetic example.
-	selection.state = ExampleSelected
-	selection.source = ValueSource{data: &valueSourceData{context: c.identity,
-		snapshot: valueSourceSnapshot{err: errValueSourceOwnership}}}
-	return selection
+	return ExampleEntry{}, false
 }
 
 // ContainsExampleSource reports whether a supplied authored example belongs to
@@ -108,4 +127,34 @@ func (s ExampleSelection) State() ExampleState {
 // Source returns the supplied source only for an authored selection.
 func (s ExampleSelection) Source() (ValueSource, bool) {
 	return s.source, s.state == ExampleSelected
+}
+
+// Entries returns the selected authored group in declaration order. The result
+// is empty for excluded, suppressed and absent selections. Editing the returned
+// slice or metadata cannot alter the captured selection.
+func (s ExampleSelection) Entries() []ExampleEntry {
+	if s.state != ExampleSelected {
+		return nil
+	}
+	return append([]ExampleEntry(nil), s.entries...)
+}
+
+// Source returns the opaque captured value source for this group entry.
+func (e ExampleEntry) Source() ValueSource {
+	return e.source
+}
+
+// Summary returns the authored short summary.
+func (e ExampleEntry) Summary() string {
+	return e.summary
+}
+
+// Description returns the authored long description.
+func (e ExampleEntry) Description() string {
+	return e.description
+}
+
+// Meta returns detached design-time metadata for this entry.
+func (e ExampleEntry) Meta() MetaExpr {
+	return copyValueMeta(e.meta)
 }

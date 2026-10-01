@@ -17,21 +17,18 @@
       },
       "Foobar": {
         "example": {
-          "bar": [
-            {
-              "string": ""
-            },
-            {
-              "string": ""
-            }
-          ],
+          "bar": [],
           "foo": [
-            "Earum est explicabo minima adipisci."
+            "Aperiam eos sequi."
           ]
         },
         "properties": {
           "bar": {
-            "example": [],
+            "example": [
+              {
+                "string": ""
+              }
+            ],
             "items": {
               "$ref": "#/components/schemas/Bar"
             },
@@ -41,10 +38,11 @@
           },
           "foo": {
             "example": [
-              "Molestiae hic inventore consectetur consequatur quia."
+              "Inventore et rem.",
+              "Voluptas nam et aperiam veritatis."
             ],
             "items": {
-              "example": "Itaque illo temporibus consequatur voluptate minus.",
+              "example": "Molestiae sed dolore officia saepe quis ea.",
               "type": "string"
             },
             "maxItems": 42,
@@ -76,10 +74,7 @@
                       "string": ""
                     }
                   ],
-                  "foo": [
-                    "Asperiores ad id et officiis accusamus repudiandae.",
-                    "Autem debitis temporibus adipisci expedita odit aut."
-                  ]
+                  "foo": []
                 },
                 {
                   "bar": [
@@ -87,22 +82,19 @@
                       "string": ""
                     }
                   ],
-                  "foo": [
-                    "Asperiores ad id et officiis accusamus repudiandae.",
-                    "Autem debitis temporibus adipisci expedita odit aut."
-                  ]
+                  "foo": []
+                },
+                {
+                  "bar": [
+                    {
+                      "string": ""
+                    }
+                  ],
+                  "foo": []
                 }
               ],
               "schema": {
                 "example": [
-                  {
-                    "bar": [
-                      {
-                        "string": ""
-                      }
-                    ],
-                    "foo": []
-                  },
                   {
                     "bar": [
                       {

@@ -19,10 +19,21 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                any: ""
+                                any_array:
+                                    - ""
+                                    - ""
+                                    - ""
+                                    - ""
+                                any_map:
+                                    "": ""
                             $ref: '#/components/schemas/TestEndpointRequestBody'
                         example:
                             any: ""
                             any_array:
+                                - ""
+                                - ""
                                 - ""
                                 - ""
                             any_map:
@@ -33,11 +44,18 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    any: ""
+                                    any_array:
+                                        - ""
+                                        - ""
+                                        - ""
+                                    any_map:
+                                        "": ""
                                 $ref: '#/components/schemas/TestEndpointRequestBody'
                             example:
                                 any: ""
                                 any_array:
-                                    - ""
                                     - ""
                                     - ""
                                     - ""
@@ -57,8 +75,6 @@ components:
                     example:
                         - ""
                         - ""
-                        - ""
-                        - ""
                 any_map:
                     type: object
                     example:
@@ -67,6 +83,7 @@ components:
             example:
                 any: ""
                 any_array:
+                    - ""
                     - ""
                     - ""
                 any_map:

@@ -8,15 +8,17 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	dsl "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 func TestFileResponseProtocolResponses(t *testing.T) {
 	root := codegen.RunDSL(t, fileResponseDocumentDSL)
-	endpoint := root.API.HTTP.Services[0].HTTPEndpoints[0]
+	endpoint := preparedFileResponseEndpoint(t, root)
 	bodyTypes := BuildBodyTypes(root.API, root.Types, root.ResultTypes)
 	operation := buildOperation(
-		transportir.BuildEndpoint(endpoint),
+		endpoint,
 		bodyTypes.Services["files"]["download"],
 		root.API.ExampleGenerator,
 		false,
@@ -42,10 +44,10 @@ func TestFileResponseProtocolResponses(t *testing.T) {
 
 func TestFileResponseRequestHeadersAndHeadResponse(t *testing.T) {
 	root := codegen.RunDSL(t, fileResponseDocumentDSL)
-	endpoint := root.API.HTTP.Services[0].HTTPEndpoints[0]
+	endpoint := preparedFileResponseEndpoint(t, root)
 	bodyTypes := BuildBodyTypes(root.API, root.Types, root.ResultTypes)
 	head := buildRouteOperationFromIR(
-		transportir.BuildEndpoint(endpoint),
+		endpoint,
 		&transportir.Route{Method: "HEAD"},
 		"/download",
 		bodyTypes.Services["files"]["download"],
@@ -62,6 +64,17 @@ func TestFileResponseRequestHeadersAndHeadResponse(t *testing.T) {
 	for _, response := range head.Responses {
 		require.Empty(t, response.Value.Content)
 	}
+}
+
+func preparedFileResponseEndpoint(t *testing.T, root *expr.RootExpr) *transportir.Endpoint {
+	t.Helper()
+	service := root.API.HTTP.Services[0]
+	prepared, err := representation.PrepareService(service, nil)
+	require.NoError(t, err)
+	require.NoError(t, representation.PrepareServiceExamples(prepared, service, root.API.ExampleGenerator))
+	require.Len(t, prepared.Endpoints, 1)
+	require.NoError(t, representation.PrepareEndpointExamples(prepared.Endpoints[0], root.API.ExampleGenerator))
+	return prepared.Endpoints[0]
 }
 
 func countHeaderParameters(params []*ParameterRef, name string) int {

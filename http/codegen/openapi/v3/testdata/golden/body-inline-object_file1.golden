@@ -23,11 +23,11 @@ paths:
                             properties:
                                 a:
                                     type: string
-                                    example: Ea placeat soluta non commodi ea consectetur.
+                                    example: Molestiae recusandae ut.
                             example:
-                                a: Aut enim sit.
+                                a: Voluptatibus et aut voluptatem numquam aut.
                         example:
-                            a: Enim illo laudantium.
+                            a: In voluptas ut voluptas quasi.
             responses:
                 "204":
                     description: No Content response.

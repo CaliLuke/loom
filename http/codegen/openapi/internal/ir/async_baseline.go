@@ -1,6 +1,9 @@
 package ir
 
-import "github.com/CaliLuke/loom/expr"
+import (
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+)
 
 type (
 	// asyncBaselineAcquisition owns inline annotation positions before any
@@ -11,15 +14,41 @@ type (
 	}
 
 	asyncBaselineKey struct {
-		plan      expr.ValuePlanNode
-		position  *expr.AttributeExpr
-		context   string
-		reference bool
-		noRef     bool
+		plan        expr.ValuePlanNode
+		examplePlan expr.ValuePlanNode
+		position    *expr.AttributeExpr
+		context     string
+		reference   bool
+		noRef       bool
 	}
 )
 
-func (a *Analyzer) acquireAsyncBaseline(attr *expr.AttributeExpr, plan expr.ValuePlanNode, sampler *expr.AttributeExpr, context string) *asyncSchema {
+func (a *Analyzer) acquireAsyncBaseline(
+	attr *expr.AttributeExpr,
+	plan expr.ValuePlanNode,
+	sampler *expr.AttributeExpr,
+	context string,
+) *asyncSchema {
+	return a.acquireAsyncPreparedBaseline(attr, plan, nil, sampler, context)
+}
+
+func (a *Analyzer) acquireAsyncTargetBaseline(
+	attr *expr.AttributeExpr,
+	target *transportir.ValueTarget,
+	sampler *expr.AttributeExpr,
+	context string,
+) *asyncSchema {
+	plan := representationRoot(attr, target)
+	return a.acquireAsyncPreparedBaseline(attr, plan, target, sampler, context)
+}
+
+func (a *Analyzer) acquireAsyncPreparedBaseline(
+	attr *expr.AttributeExpr,
+	plan expr.ValuePlanNode,
+	target *transportir.ValueTarget,
+	sampler *expr.AttributeExpr,
+	context string,
+) *asyncSchema {
 	prior, priorAcquisition := a.suppressExamples, a.asyncAcquisition
 	a.asyncAcquisition = &asyncBaselineAcquisition{shape: asyncInlineShape{attribute: sampler}, schemas: make(map[asyncBaselineKey]*Schema)}
 	a.suppressExamples = func(*expr.AttributeExpr, bool) bool {
@@ -28,7 +57,10 @@ func (a *Analyzer) acquireAsyncBaseline(attr *expr.AttributeExpr, plan expr.Valu
 	defer func() {
 		a.suppressExamples, a.asyncAcquisition = prior, priorAcquisition
 	}()
-	return &asyncSchema{schema: a.analyzeOccurrence(attr, context, plan), sampler: sampler, context: context, constructions: a.constructions}
+	return &asyncSchema{
+		schema: a.analyzeOccurrence(attr, context, plan), attribute: attr, sampler: sampler,
+		context: context, target: target, constructions: a.constructions,
+	}
 }
 
 func (a *Analyzer) analyzeAsyncNamedBaseline(attr *expr.AttributeExpr, typ expr.UserType, context string, noRef bool) *Schema {

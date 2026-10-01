@@ -3,11 +3,11 @@
     "schemas": {
       "MetadataResponseBody": {
         "example": {
-          "label": "Sint beatae occaecati."
+          "label": "Itaque deserunt dolorem ipsam velit magni vel."
         },
         "properties": {
           "label": {
-            "example": "Id ipsam voluptatibus dolores atque soluta.",
+            "example": "Suscipit incidunt reprehenderit fuga id laudantium.",
             "type": "string"
           }
         },
@@ -19,18 +19,18 @@
       "RealtimeSSEEvent": {
         "example": {
           "data": {
-            "message": "Qui tenetur."
+            "message": "Et culpa."
           },
           "event": "abc123"
         },
         "properties": {
           "data": {
             "example": {
-              "message": "Ut voluptate quis voluptas commodi suscipit et."
+              "message": "Architecto sint delectus hic voluptatem."
             },
             "properties": {
               "message": {
-                "example": "Quis quae voluptatum.",
+                "example": "Ut quo aspernatur et necessitatibus ipsum eos.",
                 "type": "string"
               }
             },
@@ -77,7 +77,13 @@
                     "data": {
                       "contentMediaType": "application/json",
                       "contentSchema": {
-                        "$ref": "#/components/schemas/RealtimeSSEEvent"
+                        "$ref": "#/components/schemas/RealtimeSSEEvent",
+                        "example": {
+                          "data": {
+                            "message": "Non et."
+                          },
+                          "event": "abc123"
+                        }
                       },
                       "type": "string"
                     }
@@ -115,18 +121,18 @@
               "schema": {
                 "example": {
                   "data": {
-                    "message": "Ipsa in nemo nihil quis nihil est."
+                    "message": "Dicta et est."
                   },
                   "event": "abc123"
                 },
                 "properties": {
                   "data": {
                     "example": {
-                      "message": "Non non et autem neque ipsam."
+                      "message": "Saepe impedit cum asperiores."
                     },
                     "properties": {
                       "message": {
-                        "example": "Reprehenderit alias.",
+                        "example": "Quia ut autem at.",
                         "type": "string"
                       }
                     },
@@ -185,10 +191,13 @@
             "content": {
               "application/json": {
                 "example": {
-                  "label": "Ipsam quia."
+                  "label": "Voluptas omnis officia ut eligendi repellendus aut."
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/MetadataResponseBody"
+                  "$ref": "#/components/schemas/MetadataResponseBody",
+                  "example": {
+                    "label": "Voluptas omnis officia ut eligendi repellendus aut."
+                  }
                 }
               }
             },
@@ -276,7 +285,7 @@
                     "type": "string"
                   },
                   "event": {
-                    "example": "Recusandae error sint.",
+                    "example": "Deserunt omnis tempora ut eos nihil.",
                     "type": "string"
                   },
                   "note": {

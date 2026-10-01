@@ -13,15 +13,15 @@
           "content": {
             "application/json": {
               "example": {
-                "a": "Enim illo laudantium."
+                "a": "In voluptas ut voluptas quasi."
               },
               "schema": {
                 "example": {
-                  "a": "Aut enim sit."
+                  "a": "Voluptatibus et aut voluptatem numquam aut."
                 },
                 "properties": {
                   "a": {
-                    "example": "Ea placeat soluta non commodi ea consectetur.",
+                    "example": "Molestiae recusandae ut.",
                     "type": "string"
                   }
                 },

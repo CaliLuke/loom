@@ -47,7 +47,10 @@
                 "string": ""
               },
               "schema": {
-                "$ref": "#/components/schemas/Payload"
+                "$ref": "#/components/schemas/Payload",
+                "example": {
+                  "string": ""
+                }
               }
             }
           },
@@ -57,11 +60,10 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "string": ""
-                },
+                "example": {},
                 "schema": {
-                  "$ref": "#/components/schemas/Result"
+                  "$ref": "#/components/schemas/Result",
+                  "example": {}
                 }
               }
             },

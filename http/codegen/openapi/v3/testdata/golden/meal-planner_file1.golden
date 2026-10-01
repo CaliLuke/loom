@@ -31,6 +31,10 @@ paths:
                                         type: string
                                         contentMediaType: application/json
                                         contentSchema:
+                                            example:
+                                                data:
+                                                    meal_plan_id: plan_12
+                                                event: plan.updated
                                             $ref: '#/components/schemas/WatchPlannerEventsResponseBody'
                                 required:
                                     - data
@@ -97,6 +101,9 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    checked_at: "2026-03-19T12:00:00Z"
+                                    status: ok
                                 $ref: '#/components/schemas/HealthResponseBody'
                             example:
                                 checked_at: "2026-03-19T12:00:00Z"
@@ -139,12 +146,30 @@ paths:
                                 - day: monday
                                   recipe_id: recipe_42
                                   slot: dinner
+                                - day: monday
+                                  recipe_id: recipe_42
+                                  slot: dinner
+                                - day: monday
+                                  recipe_id: recipe_42
+                                  slot: dinner
             responses:
                 "200":
                     description: OK response.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    meals:
+                                        - day: monday
+                                          recipe_id: recipe_42
+                                          slot: dinner
+                                        - day: monday
+                                          recipe_id: recipe_42
+                                          slot: dinner
+                                        - day: monday
+                                          recipe_id: recipe_42
+                                          slot: dinner
+                                    week_start: "2026-03-16"
                                 $ref: '#/components/schemas/MealPlan'
                             example:
                                 meals:
@@ -180,6 +205,10 @@ paths:
                 content:
                     application/x-www-form-urlencoded:
                         schema:
+                            example:
+                                email: friend@example.test
+                                include_shopping_list: true
+                                note: Dinner plan for next week.
                             $ref: '#/components/schemas/ShareMealPlanRequestBody'
                         example:
                             email: friend@example.test
@@ -215,11 +244,16 @@ paths:
                 content:
                     multipart/form-data:
                         schema:
+                            example:
+                                content_type: Quibusdam praesentium impedit.
+                                file: SXN0ZSBkb2xvcmVzIG1pbnVzIHNpbnQu
+                                filename: Ullam eius exercitationem nisi quae dolore.
+                                label: scan-weekly
                             $ref: '#/components/schemas/ImportPantryRequestBody'
                         example:
-                            content_type: Totam consequatur voluptas.
-                            file: Tm9uIGF1dCBkb2xvcmlidXMu
-                            filename: Dolorum nihil accusamus at distinctio quidem.
+                            content_type: Quibusdam praesentium impedit.
+                            file: SXN0ZSBkb2xvcmVzIG1pbnVzIHNpbnQu
+                            filename: Ullam eius exercitationem nisi quae dolore.
                             label: scan-weekly
             responses:
                 "202":
@@ -227,6 +261,9 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    accepted_items: 12
+                                    import_id: import_7
                                 $ref: '#/components/schemas/PantryImportReceipt'
                             example:
                                 accepted_items: 12
@@ -314,8 +351,29 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    - difficulty: easy
+                                      id: recipe_42
+                                      minutes: 30
+                                      title: Sheet Pan Gnocchi
+                                    - difficulty: easy
+                                      id: recipe_42
+                                      minutes: 30
+                                      title: Sheet Pan Gnocchi
+                                    - difficulty: easy
+                                      id: recipe_42
+                                      minutes: 30
+                                      title: Sheet Pan Gnocchi
+                                    - difficulty: easy
+                                      id: recipe_42
+                                      minutes: 30
+                                      title: Sheet Pan Gnocchi
                                 $ref: '#/components/schemas/RecipeResponseSummaryCollection'
                             example:
+                                - difficulty: easy
+                                  id: recipe_42
+                                  minutes: 30
+                                  title: Sheet Pan Gnocchi
                                 - difficulty: easy
                                   id: recipe_42
                                   minutes: 30
@@ -357,6 +415,18 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    difficulty: easy
+                                    id: recipe_42
+                                    ingredients:
+                                        - gnocchi
+                                        - tomatoes
+                                        - spinach
+                                    minutes: 30
+                                    tags:
+                                        - weeknight
+                                        - vegetarian
+                                    title: Sheet Pan Gnocchi
                                 $ref: '#/components/schemas/MealplannerRecipe'
                             example:
                                 difficulty: easy
@@ -379,6 +449,14 @@ paths:
                     content:
                         application/problem+json:
                             schema:
+                                example:
+                                    code: bad_request
+                                    detail: parameter 'p' must be an integer
+                                    instance: urn:loom:error:123abc
+                                    retry_hint: Correct the payload and retry.
+                                    status: 400
+                                    title: Bad Request
+                                    type: https://github.com/CaliLuke/loom/problems/bad-request
                                 $ref: '#/components/schemas/Problem'
             security:
                 - access_token: []
@@ -409,22 +487,22 @@ components:
             properties:
                 content_type:
                     type: string
-                    example: Repellat natus libero expedita facilis voluptatibus sed.
+                    example: Neque qui repellat distinctio a.
                 file:
                     type: string
-                    example: VGVtcG9yZSBmdWdpdCBleGVyY2l0YXRpb25lbSBpdXN0by4=
+                    example: RXN0IGFtZXQgb2ZmaWNpaXMgdm9sdXB0YXMgcXVhcyBhIGxhYm9yaW9zYW0u
                     format: binary
                 filename:
                     type: string
-                    example: Reprehenderit voluptatibus vitae odio non eos.
+                    example: Ducimus quasi voluptatem mollitia possimus.
                 label:
                     type: string
                     example: scan-weekly
                     pattern: ^scan-[a-z]+$
             example:
-                content_type: Quasi rerum.
-                file: Q29uc2VxdWF0dXIgZGViaXRpcyBldCBlc3QgbWF4aW1lIGV1bSBub24u
-                filename: Est rerum eum aperiam qui porro.
+                content_type: Quos facilis ea.
+                file: SW4gcHJvdmlkZW50IG5lY2Vzc2l0YXRpYnVzIHRlbXBvcmlidXMgZGlzdGluY3RpbyBvZmZpY2lhIGV4Lg==
+                filename: Aut unde est harum et quod.
                 label: scan-weekly
             required:
                 - file
@@ -444,6 +522,9 @@ components:
                         - day: monday
                           recipe_id: recipe_42
                           slot: dinner
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
                 week_start:
                     type: string
                     example: "2026-03-16"
@@ -451,9 +532,6 @@ components:
             description: A meal plan covering one planning week.
             example:
                 meals:
-                    - day: monday
-                      recipe_id: recipe_42
-                      slot: dinner
                     - day: monday
                       recipe_id: recipe_42
                       slot: dinner
@@ -514,6 +592,9 @@ components:
                         - day: monday
                           recipe_id: recipe_42
                           slot: dinner
+                        - day: monday
+                          recipe_id: recipe_42
+                          slot: dinner
             description: A partial meal plan update.
             example:
                 meals:
@@ -541,7 +622,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Aut deserunt molestiae quisquam.
+                        example: Consectetur quas sunt.
                     example:
                         - gnocchi
                         - tomatoes
@@ -555,7 +636,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Ullam vel.
+                        example: Est quae debitis quae.
                     example:
                         - weeknight
                         - vegetarian
@@ -842,12 +923,28 @@ components:
             content:
                 application/problem+json:
                     schema:
+                        example:
+                            code: bad_request
+                            detail: parameter 'p' must be an integer
+                            instance: urn:loom:error:123abc
+                            retry_hint: Correct the payload and retry.
+                            status: 400
+                            title: Bad Request
+                            type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
         ForbiddenError:
             description: 'forbidden: Access is forbidden.'
             content:
                 application/problem+json:
                     schema:
+                        example:
+                            code: bad_request
+                            detail: parameter 'p' must be an integer
+                            instance: urn:loom:error:123abc
+                            retry_hint: Correct the payload and retry.
+                            status: 400
+                            title: Bad Request
+                            type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
         NoContentResponse:
             description: No Content response.
@@ -856,12 +953,28 @@ components:
             content:
                 application/problem+json:
                     schema:
+                        example:
+                            code: bad_request
+                            detail: parameter 'p' must be an integer
+                            instance: urn:loom:error:123abc
+                            retry_hint: Correct the payload and retry.
+                            status: 400
+                            title: Bad Request
+                            type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
         UnauthorizedError:
             description: 'unauthorized: Authentication is required.'
             content:
                 application/problem+json:
                     schema:
+                        example:
+                            code: bad_request
+                            detail: parameter 'p' must be an integer
+                            instance: urn:loom:error:123abc
+                            retry_hint: Correct the payload and retry.
+                            status: 400
+                            title: Bad Request
+                            type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
     securitySchemes:
         access_token:

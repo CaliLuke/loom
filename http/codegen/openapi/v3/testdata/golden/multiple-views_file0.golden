@@ -21,9 +21,7 @@
       },
       "TestEndpointTinyResponseBodyTiny": {
         "description": "TestEndpointTinyResponseBody result type (tiny view)",
-        "example": {
-          "string": ""
-        },
+        "example": {},
         "properties": {
           "string": {
             "example": "",
@@ -49,11 +47,13 @@
             "content": {
               "application/custom+json": {
                 "example": {
-                  "int": 1,
-                  "string": ""
+                  "int": 1
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/JSON"
+                  "$ref": "#/components/schemas/JSON",
+                  "example": {
+                    "int": 1
+                  }
                 }
               }
             },
@@ -73,11 +73,10 @@
           "200": {
             "content": {
               "application/vnd.custom+json": {
-                "example": {
-                  "string": ""
-                },
+                "example": {},
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointTinyResponseBodyTiny"
+                  "$ref": "#/components/schemas/TestEndpointTinyResponseBodyTiny",
+                  "example": {}
                 }
               }
             },

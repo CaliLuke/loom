@@ -91,7 +91,6 @@ components:
             example:
                 expiresAt: "2026-03-21T12:00:00Z"
                 token: token-456
-                traceID: trace_456
             required:
                 - token
                 - expiresAt
@@ -111,6 +110,11 @@ components:
             content:
                 application/json:
                     schema:
+                        example:
+                            legacyToken: legacy-token-2
+                            password: swordfish
+                            profile: eyJyb2xlIjoiZWRpdG9yIn0=
+                            username: bob
                         $ref: '#/components/schemas/Credentials'
                     examples:
                         backup:
@@ -128,6 +132,9 @@ components:
             content:
                 application/json:
                     schema:
+                        example:
+                            expiresAt: "2026-03-21T12:00:00Z"
+                            token: token-456
                         $ref: '#/components/schemas/Session_cf64610497754895'
                     examples:
                         current:
@@ -154,13 +161,11 @@ components:
             value:
                 expiresAt: "2026-03-20T12:00:00Z"
                 token: token-123
-                traceID: trace_123
         AuthRefreshStatus200ResponseNextExample:
             summary: next
             value:
                 expiresAt: "2026-03-21T12:00:00Z"
                 token: token-456
-                traceID: trace_456
         XTraceIDHeaderTraceAExample:
             summary: trace-a
             value: trace_123

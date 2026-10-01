@@ -27,14 +27,18 @@ paths:
                             example: true
                         example:
                             - false
-                            - false
-                            - false
-                            - false
+                            - true
+                            - true
+                            - true
                   example:
                     "false":
                         - true
+                        - false
                         - true
+                    "true":
+                        - false
                         - true
+                        - false
                 - name: labels
                   in: query
                   allowEmptyValue: true
@@ -45,9 +49,10 @@ paths:
                         "true": "on"
                     additionalProperties:
                         type: string
-                        example: Sunt quae enim quis ea.
+                        example: Natus iste beatae itaque.
                   example:
-                    "false": Nihil ratione.
+                    "false": Ut est.
+                    "true": Similique earum est.
                 - name: groups
                   in: query
                   allowEmptyValue: true
@@ -56,14 +61,19 @@ paths:
                     additionalProperties:
                         type: object
                         example:
-                            "true": 8502003361035730206
+                            "true": 7551319913391425837
                         additionalProperties:
                             type: integer
-                            example: 2835445916999919775
+                            example: 9135328173533054652
                             format: int64
                   example:
-                    Rerum dolor voluptas.:
-                        "true": 2904695021514256195
+                    Autem maiores nulla earum distinctio animi.:
+                        "false": 8915706317955267537
+                        "true": 4780905263337237648
+                    Numquam nostrum consequatur qui quos.:
+                        "true": 4333032517208564965
+                    Voluptate voluptatem maiores.:
+                        "true": 6209769877611670744
             responses:
                 "200":
                     description: OK response.
@@ -76,7 +86,7 @@ paths:
                                     "20": twenty
                                 additionalProperties:
                                     type: string
-                                    example: Porro eos soluta excepturi qui et ad.
+                                    example: Laudantium omnis maiores qui non.
                             example:
                                 "1": one
                                 "20": twenty
@@ -91,9 +101,14 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                metadata: Sint maxime vero dolor qui quibusdam.
+                                rules:
+                                    "true":
+                                        maxCount: 3
                             $ref: '#/components/schemas/UpdateRequestBody'
                         example:
-                            metadata: Provident soluta.
+                            metadata: Sint maxime vero dolor qui quibusdam.
                             rules:
                                 "true":
                                     maxCount: 3
@@ -108,10 +123,10 @@ components:
             properties:
                 maxCount:
                     type: integer
-                    example: 4370867896863893535
+                    example: 8083868002614079068
                     format: int64
             example:
-                maxCount: 8809587863041828333
+                maxCount: 284586948460135450
             required:
                 - maxCount
         UpdateRequestBody:
@@ -122,7 +137,7 @@ components:
                         "18446744073709551615":
                             "1.2": nested
                         "7": seven
-                    example: Eum tempore illum.
+                    example: Vero qui sunt doloremque earum saepe laboriosam.
                 rules:
                     type: object
                     example:
@@ -131,7 +146,7 @@ components:
                     additionalProperties:
                         $ref: '#/components/schemas/Rule'
             example:
-                metadata: Accusamus rem expedita tempore nihil praesentium.
+                metadata: Ex eaque est id veritatis mollitia qui.
                 rules:
                     "true":
                         maxCount: 3

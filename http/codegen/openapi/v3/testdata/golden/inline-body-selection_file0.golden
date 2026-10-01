@@ -1,33 +1,13 @@
 {
   "components": {
-    "headers": {
-      "HHeader": {
-        "example": "Facilis quasi non.",
-        "schema": {
-          "example": "Facilis quasi non.",
-          "type": "string"
-        }
-      }
-    },
-    "parameters": {
-      "QueryQ": {
-        "allowEmptyValue": true,
-        "example": "Corrupti omnis ad.",
-        "in": "query",
-        "name": "q",
-        "schema": {
-          "type": "string"
-        }
-      }
-    },
     "schemas": {
       "InlineBodyinlineAttributeResponseBody": {
         "example": {
-          "y": "Omnis quia est."
+          "y": "Recusandae deleniti."
         },
         "properties": {
           "y": {
-            "example": "Ut error est omnis praesentium.",
+            "example": "Id consequatur vel sit ut voluptas.",
             "type": "string"
           }
         },
@@ -35,11 +15,11 @@
       },
       "InlineBodyprimitiveResponseBody": {
         "example": {
-          "name": "Rerum iusto inventore sequi saepe sint."
+          "name": "Commodi nulla fugiat consequatur et."
         },
         "properties": {
           "name": {
-            "example": "Consectetur doloribus.",
+            "example": "Fugit omnis ut saepe.",
             "type": "string"
           }
         },
@@ -48,7 +28,7 @@
       "InlineBodyrequiredResponseBody": {
         "example": {
           "item": {
-            "x": "Ea est expedita natus recusandae."
+            "x": "Minima soluta illum voluptatem at."
           }
         },
         "properties": {
@@ -64,17 +44,17 @@
       "InlineBodyseveralResponseBody": {
         "example": {
           "item": {
-            "x": "Voluptas ipsam hic magni eum."
+            "x": "Adipisci nobis."
           },
           "items": [
             {
-              "x": "Voluptas ipsam hic magni eum."
+              "x": "Adipisci nobis."
             },
             {
-              "x": "Voluptas ipsam hic magni eum."
+              "x": "Adipisci nobis."
             }
           ],
-          "name": "Qui eaque consequatur perspiciatis dolorem."
+          "name": "Rem incidunt in."
         },
         "properties": {
           "item": {
@@ -83,13 +63,13 @@
           "items": {
             "example": [
               {
-                "x": "Tenetur ipsam sunt."
+                "x": "A vel ullam vitae possimus."
               },
               {
-                "x": "Tenetur ipsam sunt."
+                "x": "A vel ullam vitae possimus."
               },
               {
-                "x": "Tenetur ipsam sunt."
+                "x": "A vel ullam vitae possimus."
               }
             ],
             "items": {
@@ -98,7 +78,7 @@
             "type": "array"
           },
           "name": {
-            "example": "Modi eligendi molestias temporibus.",
+            "example": "Veritatis fuga.",
             "type": "string"
           }
         },
@@ -110,7 +90,7 @@
       "InlineBodysingleResponseBody": {
         "example": {
           "item": {
-            "x": "Eos ut est est facere vel."
+            "x": "Quia sit dolores odio minima reprehenderit."
           }
         },
         "properties": {
@@ -122,11 +102,11 @@
       },
       "Item": {
         "example": {
-          "x": "Ab neque doloribus architecto dolorem aut."
+          "x": "Atque dolor debitis."
         },
         "properties": {
           "x": {
-            "example": "Qui architecto aut dolorum.",
+            "example": "Dignissimos vero beatae quis.",
             "type": "string"
           }
         },
@@ -146,22 +126,28 @@
         "operationId": "inline_body.inline_attribute",
         "parameters": [
           {
-            "$ref": "#/components/parameters/QueryQ"
+            "allowEmptyValue": true,
+            "example": "Eos voluptatem exercitationem dolores tempora optio dolores.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
-                "y": "Voluptatibus aut dolorem accusamus molestiae."
+                "y": "At omnis blanditiis consequatur."
               },
               "schema": {
                 "example": {
-                  "y": "Assumenda ad et."
+                  "y": "Ea nihil autem facilis."
                 },
                 "properties": {
                   "y": {
-                    "example": "Voluptatem rem aperiam similique ipsa deleniti.",
+                    "example": "Molestiae asperiores soluta aut pariatur qui sed.",
                     "type": "string"
                   }
                 },
@@ -175,17 +161,24 @@
             "content": {
               "application/json": {
                 "example": {
-                  "y": "Dicta ad corrupti sed qui at ut."
+                  "y": "Quas reprehenderit sint."
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/InlineBodyinlineAttributeResponseBody"
+                  "$ref": "#/components/schemas/InlineBodyinlineAttributeResponseBody",
+                  "example": {
+                    "y": "Quas reprehenderit sint."
+                  }
                 }
               }
             },
             "description": "OK response.",
             "headers": {
               "h": {
-                "$ref": "#/components/headers/HHeader"
+                "example": "Et earum modi sit eum consequatur quo.",
+                "schema": {
+                  "example": "Et earum modi sit eum consequatur quo.",
+                  "type": "string"
+                }
               }
             }
           }
@@ -201,22 +194,28 @@
         "operationId": "inline_body.primitive",
         "parameters": [
           {
-            "$ref": "#/components/parameters/QueryQ"
+            "allowEmptyValue": true,
+            "example": "Natus in.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
-                "name": "Velit occaecati error."
+                "name": "Occaecati error facere."
               },
               "schema": {
                 "example": {
-                  "name": "Est quia eius quas aliquid itaque."
+                  "name": "Earum fuga et nulla similique blanditiis adipisci."
                 },
                 "properties": {
                   "name": {
-                    "example": "Fuga voluptatem dolorem reiciendis vero id.",
+                    "example": "Et ratione ut vero accusamus veritatis animi.",
                     "type": "string"
                   }
                 },
@@ -234,17 +233,24 @@
             "content": {
               "application/json": {
                 "example": {
-                  "name": "Optio qui sit."
+                  "name": "Est dolores dolorem vitae saepe ea."
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/InlineBodyprimitiveResponseBody"
+                  "$ref": "#/components/schemas/InlineBodyprimitiveResponseBody",
+                  "example": {
+                    "name": "Est dolores dolorem vitae saepe ea."
+                  }
                 }
               }
             },
             "description": "OK response.",
             "headers": {
               "h": {
-                "$ref": "#/components/headers/HHeader"
+                "example": "Fuga ipsum officia ut natus.",
+                "schema": {
+                  "example": "Fuga ipsum officia ut natus.",
+                  "type": "string"
+                }
               }
             }
           }
@@ -261,7 +267,7 @@
         "parameters": [
           {
             "allowEmptyValue": true,
-            "example": "Corrupti omnis ad.",
+            "example": "Qui voluptate quidem dolorem expedita eius.",
             "in": "query",
             "name": "q",
             "required": true,
@@ -275,13 +281,13 @@
             "application/json": {
               "example": {
                 "item": {
-                  "x": "Repudiandae omnis cumque distinctio quis."
+                  "x": "Error rerum esse et corrupti."
                 }
               },
               "schema": {
                 "example": {
                   "item": {
-                    "x": "Doloremque ipsam id."
+                    "x": "Totam necessitatibus perferendis perspiciatis."
                   }
                 },
                 "properties": {
@@ -304,18 +310,27 @@
               "application/json": {
                 "example": {
                   "item": {
-                    "x": "Eos cum ut."
+                    "x": "Vel eius exercitationem qui et corrupti a."
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/InlineBodyrequiredResponseBody"
+                  "$ref": "#/components/schemas/InlineBodyrequiredResponseBody",
+                  "example": {
+                    "item": {
+                      "x": "Vel eius exercitationem qui et corrupti a."
+                    }
+                  }
                 }
               }
             },
             "description": "OK response.",
             "headers": {
               "h": {
-                "$ref": "#/components/headers/HHeader"
+                "example": "Nostrum quia natus eveniet delectus nobis.",
+                "schema": {
+                  "example": "Nostrum quia natus eveniet delectus nobis.",
+                  "type": "string"
+                }
               }
             }
           }
@@ -331,55 +346,55 @@
         "operationId": "inline_body.several",
         "parameters": [
           {
-            "$ref": "#/components/parameters/QueryQ"
+            "allowEmptyValue": true,
+            "example": "Accusamus nisi sed consequatur.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "example": {
-                "count": 8264074377063532431,
+                "count": 3887349582176772536,
                 "item": {
-                  "x": "Numquam necessitatibus quasi tenetur itaque odio laudantium."
+                  "x": "Magnam assumenda cupiditate praesentium consectetur aspernatur."
                 },
                 "items": [
                   {
-                    "x": "Numquam necessitatibus quasi tenetur itaque odio laudantium."
+                    "x": "Magnam assumenda cupiditate praesentium consectetur aspernatur."
                   },
                   {
-                    "x": "Numquam necessitatibus quasi tenetur itaque odio laudantium."
+                    "x": "Magnam assumenda cupiditate praesentium consectetur aspernatur."
                   },
                   {
-                    "x": "Numquam necessitatibus quasi tenetur itaque odio laudantium."
-                  },
-                  {
-                    "x": "Numquam necessitatibus quasi tenetur itaque odio laudantium."
+                    "x": "Magnam assumenda cupiditate praesentium consectetur aspernatur."
                   }
                 ],
-                "name": "Et voluptas non laudantium."
+                "name": "Nam ipsum."
               },
               "schema": {
                 "example": {
-                  "count": 804061765839840858,
+                  "count": 5588012325558585925,
                   "item": {
-                    "x": "Dolores voluptatibus sed quia dolor ea."
+                    "x": "Unde qui aperiam laboriosam distinctio sunt."
                   },
                   "items": [
                     {
-                      "x": "Dolores voluptatibus sed quia dolor ea."
+                      "x": "Unde qui aperiam laboriosam distinctio sunt."
                     },
                     {
-                      "x": "Dolores voluptatibus sed quia dolor ea."
-                    },
-                    {
-                      "x": "Dolores voluptatibus sed quia dolor ea."
+                      "x": "Unde qui aperiam laboriosam distinctio sunt."
                     }
                   ],
-                  "name": "Quia vel velit error repellendus est."
+                  "name": "Labore assumenda."
                 },
                 "properties": {
                   "count": {
-                    "example": 1029847291887334396,
+                    "example": 4112760733247613420,
                     "format": "int64",
                     "type": "integer"
                   },
@@ -389,13 +404,16 @@
                   "items": {
                     "example": [
                       {
-                        "x": "Et non ea in laboriosam ut."
+                        "x": "Consequatur consequatur."
                       },
                       {
-                        "x": "Et non ea in laboriosam ut."
+                        "x": "Consequatur consequatur."
                       },
                       {
-                        "x": "Et non ea in laboriosam ut."
+                        "x": "Consequatur consequatur."
+                      },
+                      {
+                        "x": "Consequatur consequatur."
                       }
                     ],
                     "items": {
@@ -404,7 +422,7 @@
                     "type": "array"
                   },
                   "name": {
-                    "example": "Labore iste similique.",
+                    "example": "Qui similique voluptatem dolor dicta voluptas.",
                     "type": "string"
                   }
                 },
@@ -423,33 +441,51 @@
               "application/json": {
                 "example": {
                   "item": {
-                    "x": "Corporis voluptas provident perspiciatis."
+                    "x": "Ea dolor sint aut."
                   },
                   "items": [
                     {
-                      "x": "Corporis voluptas provident perspiciatis."
+                      "x": "Ea dolor sint aut."
                     },
                     {
-                      "x": "Corporis voluptas provident perspiciatis."
+                      "x": "Ea dolor sint aut."
                     },
                     {
-                      "x": "Corporis voluptas provident perspiciatis."
-                    },
-                    {
-                      "x": "Corporis voluptas provident perspiciatis."
+                      "x": "Ea dolor sint aut."
                     }
                   ],
-                  "name": "Voluptas doloremque maiores impedit ut sint."
+                  "name": "Neque voluptates et reiciendis alias."
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/InlineBodyseveralResponseBody"
+                  "$ref": "#/components/schemas/InlineBodyseveralResponseBody",
+                  "example": {
+                    "item": {
+                      "x": "Ea dolor sint aut."
+                    },
+                    "items": [
+                      {
+                        "x": "Ea dolor sint aut."
+                      },
+                      {
+                        "x": "Ea dolor sint aut."
+                      },
+                      {
+                        "x": "Ea dolor sint aut."
+                      }
+                    ],
+                    "name": "Neque voluptates et reiciendis alias."
+                  }
                 }
               }
             },
             "description": "OK response.",
             "headers": {
               "h": {
-                "$ref": "#/components/headers/HHeader"
+                "example": "Odio aut perspiciatis.",
+                "schema": {
+                  "example": "Odio aut perspiciatis.",
+                  "type": "string"
+                }
               }
             }
           }
@@ -465,7 +501,13 @@
         "operationId": "inline_body.single",
         "parameters": [
           {
-            "$ref": "#/components/parameters/QueryQ"
+            "allowEmptyValue": true,
+            "example": "Odio vel et facilis ratione iste.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -473,13 +515,13 @@
             "application/json": {
               "example": {
                 "item": {
-                  "x": "Ipsa quos quidem quaerat molestias."
+                  "x": "Aperiam eveniet sint et voluptatibus expedita."
                 }
               },
               "schema": {
                 "example": {
                   "item": {
-                    "x": "Sit saepe dolore."
+                    "x": "Ipsa quia."
                   }
                 },
                 "properties": {
@@ -499,18 +541,27 @@
               "application/json": {
                 "example": {
                   "item": {
-                    "x": "Nesciunt ipsam autem."
+                    "x": "Numquam quibusdam ipsa quo."
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/InlineBodysingleResponseBody"
+                  "$ref": "#/components/schemas/InlineBodysingleResponseBody",
+                  "example": {
+                    "item": {
+                      "x": "Numquam quibusdam ipsa quo."
+                    }
+                  }
                 }
               }
             },
             "description": "OK response.",
             "headers": {
               "h": {
-                "$ref": "#/components/headers/HHeader"
+                "example": "Necessitatibus id velit dicta quos.",
+                "schema": {
+                  "example": "Necessitatibus id velit dicta quos.",
+                  "type": "string"
+                }
               }
             }
           }

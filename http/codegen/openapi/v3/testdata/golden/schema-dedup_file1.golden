@@ -19,9 +19,11 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                name: Voluptatem ratione culpa unde.
                             $ref: '#/components/schemas/FirstRequestBody'
                         example:
-                            name: Natus omnis minus eligendi.
+                            name: Voluptatem ratione culpa unde.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -36,9 +38,11 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                name: Occaecati provident qui.
                             $ref: '#/components/schemas/FirstRequestBody'
                         example:
-                            name: Iste at.
+                            name: Occaecati provident qui.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -49,7 +53,27 @@ paths:
             summary: union_first dedupService
             operationId: dedup_service.union_first
             requestBody:
-                $ref: '#/components/requestBodies/DedupServiceUnionFirstRequestBody'
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            example:
+                                type: AlphaSchemaDedup
+                                value:
+                                    alpha: Sunt ipsum adipisci quasi in.
+                            oneOf:
+                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                            discriminator:
+                                propertyName: type
+                                mapping:
+                                    AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                    BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                        example:
+                            type: AlphaSchemaDedup
+                            value:
+                                alpha: Sunt ipsum adipisci quasi in.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -60,7 +84,27 @@ paths:
             summary: union_second dedupService
             operationId: dedup_service.union_second
             requestBody:
-                $ref: '#/components/requestBodies/DedupServiceUnionFirstRequestBody'
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            example:
+                                type: BetaSchemaDedup
+                                value:
+                                    beta: Totam occaecati sequi autem debitis provident.
+                            oneOf:
+                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                            discriminator:
+                                propertyName: type
+                                mapping:
+                                    AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
+                                    BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
+                        example:
+                            type: BetaSchemaDedup
+                            value:
+                                beta: Totam occaecati sequi autem debitis provident.
             responses:
                 "204":
                     $ref: '#/components/responses/NoContentResponse'
@@ -71,9 +115,9 @@ components:
             properties:
                 alpha:
                     type: string
-                    example: Ducimus voluptatem et quia.
+                    example: Et veritatis et ea aut ratione.
             example:
-                alpha: Voluptates cumque tempore voluptas accusantium.
+                alpha: Quaerat optio odio qui expedita aut.
             required:
                 - alpha
         AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope:
@@ -85,7 +129,7 @@ components:
                         - AlphaSchemaDedup
                 value:
                     example:
-                        alpha: Amet eum id ipsum fugit.
+                        alpha: Illo unde neque ea non.
                     $ref: '#/components/schemas/AlphaSchemaDedup'
             description: Synthetic wrapper for union variant "AlphaSchemaDedup".
             required:
@@ -100,7 +144,7 @@ components:
                         - BetaSchemaDedup
                 value:
                     example:
-                        beta: Sed suscipit.
+                        beta: Sed omnis quos.
                     $ref: '#/components/schemas/BetaSchemaDedup'
             description: Synthetic wrapper for union variant "BetaSchemaDedup".
             required:
@@ -111,9 +155,9 @@ components:
             properties:
                 beta:
                     type: string
-                    example: Esse quam ut velit quia dolores iure.
+                    example: Voluptas dolorem facilis praesentium modi impedit nulla.
             example:
-                beta: Atque adipisci.
+                beta: Aut accusamus.
             required:
                 - beta
         FirstRequestBody:
@@ -121,34 +165,11 @@ components:
             properties:
                 name:
                     type: string
-                    example: Esse minima ipsa commodi recusandae.
+                    example: Et quibusdam voluptate repellat aut.
             example:
-                name: Dignissimos ut sint in quisquam expedita voluptas.
+                name: Rem debitis.
             required:
                 - name
-    requestBodies:
-        DedupServiceUnionFirstRequestBody:
-            required: true
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        example:
-                            type: AlphaSchemaDedup
-                            value:
-                                alpha: Quod molestias corporis.
-                        oneOf:
-                            - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
-                            - $ref: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
-                        discriminator:
-                            propertyName: type
-                            mapping:
-                                AlphaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupAlphaSchemaDedupEnvelope'
-                                BetaSchemaDedup: '#/components/schemas/AlphaSchemaDedupOrBetaSchemaDedupBetaSchemaDedupEnvelope'
-                    example:
-                        type: BetaSchemaDedup
-                        value:
-                            beta: Ducimus molestiae labore tenetur.
     responses:
         NoContentResponse:
             description: No Content response.

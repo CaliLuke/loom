@@ -8,8 +8,11 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/internal/enumvalue"
+	"github.com/CaliLuke/loom/internal/examplegen"
 	"github.com/CaliLuke/loom/internal/jsonkey"
 )
 
@@ -28,6 +31,7 @@ type (
 		occurrences          []schemaOccurrenceAnalysis
 		registrations        []*Schema
 		plan                 expr.ValuePlanNode
+		examplePlan          expr.ValuePlanNode
 		constructingBaseline bool
 		constructions        map[*Schema]schemaConstruction
 		projectedSchemas     map[schemaProjectionKey]*Schema
@@ -40,10 +44,12 @@ type (
 		unionBranchSchemas   map[string]string
 		closeObjects         bool
 		rand                 *expr.ExampleGenerator
+		preparedExamples     *transportir.ValueTarget
 
-		exampleValue       func(*expr.AttributeExpr, any) (any, bool)
-		customExampleValue bool
-		suppressExamples   func(*expr.AttributeExpr, bool) bool
+		exampleValue         func(*expr.AttributeExpr, any) (any, bool)
+		customExampleValue   bool
+		declaredExampleValue bool
+		suppressExamples     func(*expr.AttributeExpr, bool) bool
 	}
 
 	schemaRef struct {
@@ -60,11 +66,15 @@ const (
 
 const projectedResultMetaKey = "loom:openapi:projected-result"
 
-// WithExampleValue projects raw expr examples into OpenAPI-safe values.
+// WithExampleValue selects a custom projector over the original attribute and
+// raw example. A nil projector uses retained declared JSON-shaped values,
+// preserving Bytes as []byte. Custom projector output is the caller's
+// responsibility.
 func WithExampleValue(fn func(*expr.AttributeExpr, any) (any, bool)) AnalyzerOption {
 	return func(a *Analyzer) {
 		a.exampleValue = fn
 		a.customExampleValue = fn != nil
+		a.declaredExampleValue = fn == nil
 	}
 }
 
@@ -82,9 +92,9 @@ func WithExampleGenerator(generator *expr.ExampleGenerator) AnalyzerOption {
 	}
 }
 
-// NewAnalyzer creates a schema analyzer. Examples use OpenAPIExampleValue by
-// default, including byte encoding and completeness checks. WithExampleValue
-// overrides this projection when a caller needs another representation.
+// NewAnalyzer creates a schema analyzer. Builtin examples consume shared
+// prepared values and documentation plans. WithExampleValue selects an
+// explicit custom projection or retained declared values.
 func NewAnalyzer(rand *expr.ExampleGenerator, closeObjects bool, options ...AnalyzerOption) *Analyzer {
 	a := &Analyzer{
 		declarationRoots:     make(map[string]*Schema),
@@ -132,7 +142,7 @@ func (a *Analyzer) SchemaFingerprints() map[string]string {
 // AnalyzeSchema builds an IR schema for the given attribute.
 func (a *Analyzer) AnalyzeSchema(attr *expr.AttributeExpr, noref ...bool) *Schema {
 	context := exampleContext("schema", fingerprintAttribute(attr, a.closeObjects))
-	return a.analyzeSchema(attr, context, noref...)
+	return a.analyzeStandaloneSchema(attr, context, noref...)
 }
 
 // AnalyzeSchemaWithContext builds an IR schema using a stable example occurrence context.
@@ -140,7 +150,24 @@ func (a *Analyzer) AnalyzeSchemaWithContext(attr *expr.AttributeExpr, context st
 	if context == "" {
 		context = exampleContext("schema", fingerprintAttribute(attr, a.closeObjects))
 	}
-	return a.analyzeSchema(attr, context, noref...)
+	return a.analyzeStandaloneSchema(attr, context, noref...)
+}
+
+func (a *Analyzer) analyzeStandaloneSchema(attr *expr.AttributeExpr, context string, noref ...bool) *Schema {
+	if a.customExampleValue {
+		return a.analyzeSchema(attr, context, noref...)
+	}
+	target, err := representation.PrepareStandaloneExamples(
+		attr,
+		examplegen.ForScope(a.rand, "openapi-schema", context),
+	)
+	if err != nil {
+		panic(fmt.Errorf("prepare OpenAPI schema examples: %w", err))
+	}
+	if target == nil {
+		return a.analyzeSchema(attr, context, noref...)
+	}
+	return a.analyzePreparedSchemaPositions(attr, context, target, expr.ValuePlanNode{}, noref...)
 }
 
 func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref ...bool) *Schema {
@@ -148,7 +175,7 @@ func (a *Analyzer) analyzeSchema(attr *expr.AttributeExpr, context string, noref
 		return nil
 	}
 	if a.plan.Valid() && byteSchemaExcluded(attr) {
-		return a.analyzeSchemaPlan(attr, context, expr.ValuePlanNode{}, noref...)
+		return a.analyzeSchemaPositions(attr, context, expr.ValuePlanNode{}, a.examplePlan, noref...)
 	}
 	if t, ok := attr.Type.(expr.UserType); ok {
 		if a.asyncAcquisition != nil && a.asyncAcquisition.inline() {
@@ -292,7 +319,12 @@ func (a *Analyzer) analyzeInlineBytes(s *Schema, attr *expr.AttributeExpr, conte
 
 func (a *Analyzer) analyzeInlineArray(s *Schema, arr *expr.Array, context string) {
 	s.Type = string(openapi.Array)
-	s.Items = a.analyzeSchemaPlan(arr.ElemType, childExampleContext(context, "items"), a.plan.Element())
+	s.Items = a.analyzeSchemaPositions(
+		arr.ElemType,
+		childExampleContext(context, "items"),
+		a.plan.Element(),
+		a.examplePlan.Element(),
+	)
 }
 
 func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj *expr.Object, context string) {
@@ -303,9 +335,11 @@ func (a *Analyzer) analyzeInlineObject(s *Schema, attr *expr.AttributeExpr, obj 
 	for _, nat := range *obj {
 		name := expr.JSONFieldName(expr.ElementName(nat.Name), nat.Attribute)
 		if name != "-" && openapi.MustGenerate(nat.Attribute.Meta) {
-			s.Properties[name] = a.analyzeSchemaPlan(
+			s.Properties[name] = a.analyzeSchemaPositions(
 				nat.Attribute,
-				childExampleContext(context, "property", name), a.memberPlan(nat.Name),
+				childExampleContext(context, "property", name),
+				valuePlanMemberNode(a.plan, nat.Name),
+				valuePlanMemberNode(a.examplePlan, nat.Name),
 			)
 		}
 	}
@@ -321,7 +355,12 @@ func (a *Analyzer) analyzeInlineMap(s *Schema, m *expr.Map, context string) {
 		return
 	}
 	s.AdditionalProperties = &BoolOrSchema{
-		Schema: a.analyzeSchemaPlan(m.ElemType, childExampleContext(context, "additional-properties"), a.plan.Element()),
+		Schema: a.analyzeSchemaPositions(
+			m.ElemType,
+			childExampleContext(context, "additional-properties"),
+			a.plan.Element(),
+			a.examplePlan.Element(),
+		),
 	}
 }
 
@@ -329,9 +368,11 @@ func (a *Analyzer) analyzeInlineUnion(s *Schema, union *expr.Union, context stri
 	values := sortedUnionValues(union)
 	if union.Untagged {
 		for _, val := range values {
-			s.OneOf = append(s.OneOf, a.analyzeSchemaPlan(
+			s.OneOf = append(s.OneOf, a.analyzeSchemaPositions(
 				val.Attribute,
-				childExampleContext(context, "branch", expr.UnionVariantTag(val)), a.branchPlan(expr.UnionVariantTag(val)),
+				childExampleContext(context, "branch", expr.UnionVariantTag(val)),
+				valuePlanBranchNode(a.plan, expr.UnionVariantTag(val)),
+				valuePlanBranchNode(a.examplePlan, expr.UnionVariantTag(val)),
 			))
 		}
 		return
@@ -405,27 +446,26 @@ func (a *Analyzer) applySchemaExample(s *Schema, attr *expr.AttributeExpr, conte
 			}
 			return
 		}
-		source := synthesizedOpenAPIExample(attr, generator)
-		if !source.present {
+		if a.preparedExamples == nil {
 			return
 		}
-		if a.exampleValue == nil {
-			if source.declared {
-				s.Example = source.value
+		set, prepared := a.preparedExamples.ExampleSets[a.examplePlan]
+		if !prepared || set == nil || !set.Prepared {
+			return
+		}
+		if set.Representative != nil {
+			var example any
+			var ok bool
+			if a.declaredExampleValue {
+				example, ok = preparedDeclaredExampleValue(*set.Representative)
 			} else {
-				s.Example = expr.CanonicalizeExample(attr, source.value)
+				example, ok = preparedOpenAPIExampleValue(*set.Representative)
 			}
-			return
-		}
-		if source.declared {
-			if example, ok := openAPIDeclaredExampleValue(attr, source.value); ok {
+			if ok {
 				s.Example = example
 			}
-			return
 		}
-		if example, ok := a.exampleValue(attr, source.value); ok {
-			s.Example = example
-		}
+		return
 	}
 }
 
@@ -526,7 +566,7 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 		a.asyncAcquisition = acquisition
 	}()
 	logical := a.unionBranchSchemaKey(union, val)
-	projection := a.byteProjection(val.Attribute, a.branchPlan(expr.UnionVariantTag(val)))
+	projection := a.byteProjection(val.Attribute, valuePlanBranchNode(a.plan, expr.UnionVariantTag(val)))
 	key := logical + projection
 	if name, ok := a.unionBranchSchemas[key]; ok {
 		return toRef(name)
@@ -549,9 +589,11 @@ func (a *Analyzer) ensureUnionBranchSchema(union *expr.Union, val *expr.NamedAtt
 				Type: string(openapi.String),
 				Enum: []any{expr.UnionVariantTag(val)},
 			},
-			union.GetValueKey(): a.analyzeSchemaPlan(
+			union.GetValueKey(): a.analyzeSchemaPositions(
 				val.Attribute,
-				childExampleContext(exampleContext("component", desired), "property", union.GetValueKey()), a.branchPlan(expr.UnionVariantTag(val)),
+				childExampleContext(exampleContext("component", desired), "property", union.GetValueKey()),
+				valuePlanBranchNode(a.plan, expr.UnionVariantTag(val)),
+				valuePlanBranchNode(a.examplePlan, expr.UnionVariantTag(val)),
 			),
 		},
 		Required: []string{union.GetTypeKey(), union.GetValueKey()},

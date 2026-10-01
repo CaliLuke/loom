@@ -19,6 +19,8 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                title: Release freeze follow-up
                             $ref: '#/components/schemas/CreateThreadRequestBody'
                         example:
                             title: Release freeze follow-up
@@ -46,6 +48,9 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    thread_id: thr_42
+                                    title: Release freeze follow-up
                                 $ref: '#/components/schemas/OpenAPIThreadSummary'
                             example:
                                 thread_id: thr_42
@@ -98,6 +103,12 @@ paths:
                                         type: string
                                         contentMediaType: application/json
                                         contentSchema:
+                                            example:
+                                                data:
+                                                    author: alice
+                                                    preview: Shipping the OpenAPI cleanup next.
+                                                event: thread.message_posted
+                                                id: evt_8
                                             $ref: '#/components/schemas/OpenAPIThreadEvent'
                                     id:
                                         type: string
@@ -397,18 +408,37 @@ components:
             content:
                 application/problem+json:
                     schema:
+                        example:
+                            code: bad_request
+                            detail: parameter 'p' must be an integer
+                            instance: urn:loom:error:123abc
+                            retry_hint: Correct the payload and retry.
+                            status: 400
+                            title: Bad Request
+                            type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
         NotFoundError:
             description: 'not_found: Not Found response.'
             content:
                 application/problem+json:
                     schema:
+                        example:
+                            code: bad_request
+                            detail: parameter 'p' must be an integer
+                            instance: urn:loom:error:123abc
+                            retry_hint: Correct the payload and retry.
+                            status: 400
+                            title: Bad Request
+                            type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
         OpenAPIThreadAcceptedStatus202Response:
             description: Accepted response.
             content:
                 application/json:
                     schema:
+                        example:
+                            thread_id: thr_42
+                            watch_url: https://api.contract-surfaces.example.test/threads/thr_42/events
                         $ref: '#/components/schemas/OpenAPIThreadAccepted'
                     example:
                         thread_id: thr_42
@@ -427,6 +457,14 @@ components:
             content:
                 application/problem+json:
                     schema:
+                        example:
+                            code: bad_request
+                            detail: parameter 'p' must be an integer
+                            instance: urn:loom:error:123abc
+                            retry_hint: Correct the payload and retry.
+                            status: 400
+                            title: Bad Request
+                            type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
 tags:
     - name: opsSocket

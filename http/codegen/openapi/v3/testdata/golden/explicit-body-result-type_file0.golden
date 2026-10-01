@@ -3,16 +3,16 @@
     "schemas": {
       "Item": {
         "example": {
-          "id": "Voluptatem quidem et.",
-          "name": "Aut quasi quasi est voluptatibus possimus blanditiis."
+          "id": "Minima sit.",
+          "name": "Sed est id sunt sit."
         },
         "properties": {
           "id": {
-            "example": "Vero ex sed impedit at maiores et.",
+            "example": "Autem officiis.",
             "type": "string"
           },
           "name": {
-            "example": "Ab laborum cumque dolorum.",
+            "example": "Enim neque hic aspernatur inventore est.",
             "type": "string"
           }
         },
@@ -24,20 +24,16 @@
       "ItemCollection": {
         "example": [
           {
-            "id": "Voluptatem eius nemo eveniet dolores tempora.",
-            "name": "Eos laudantium."
+            "id": "Aspernatur aliquid delectus placeat.",
+            "name": "Earum quia aut ratione a aut."
           },
           {
-            "id": "Voluptatem eius nemo eveniet dolores tempora.",
-            "name": "Eos laudantium."
+            "id": "Aspernatur aliquid delectus placeat.",
+            "name": "Earum quia aut ratione a aut."
           },
           {
-            "id": "Voluptatem eius nemo eveniet dolores tempora.",
-            "name": "Eos laudantium."
-          },
-          {
-            "id": "Voluptatem eius nemo eveniet dolores tempora.",
-            "name": "Eos laudantium."
+            "id": "Aspernatur aliquid delectus placeat.",
+            "name": "Earum quia aut ratione a aut."
           }
         ],
         "items": {
@@ -48,24 +44,28 @@
       "Listing": {
         "example": {
           "first": {
-            "id": "Delectus facere veniam omnis itaque.",
-            "name": "Consequatur voluptatum."
+            "id": "Ducimus deleniti est cupiditate odio.",
+            "name": "Ipsa molestiae odio."
           },
           "items": [
             {
-              "id": "Delectus facere veniam omnis itaque.",
-              "name": "Consequatur voluptatum."
+              "id": "Ducimus deleniti est cupiditate odio.",
+              "name": "Ipsa molestiae odio."
             },
             {
-              "id": "Delectus facere veniam omnis itaque.",
-              "name": "Consequatur voluptatum."
+              "id": "Ducimus deleniti est cupiditate odio.",
+              "name": "Ipsa molestiae odio."
             },
             {
-              "id": "Delectus facere veniam omnis itaque.",
-              "name": "Consequatur voluptatum."
+              "id": "Ducimus deleniti est cupiditate odio.",
+              "name": "Ipsa molestiae odio."
+            },
+            {
+              "id": "Ducimus deleniti est cupiditate odio.",
+              "name": "Ipsa molestiae odio."
             }
           ],
-          "next": "Facere est perspiciatis."
+          "next": "Qui sed molestiae."
         },
         "properties": {
           "first": {
@@ -75,7 +75,7 @@
             "$ref": "#/components/schemas/ItemCollection"
           },
           "next": {
-            "example": "Explicabo dolorum sed culpa voluptate distinctio.",
+            "example": "Velit nam velit non necessitatibus aut.",
             "type": "string"
           }
         },
@@ -87,16 +87,16 @@
       },
       "Problem": {
         "example": {
-          "code": "Numquam aut exercitationem.",
-          "detail": "Aut iste qui et molestiae."
+          "code": "Non ab corrupti dignissimos.",
+          "detail": "Voluptas fuga illum eum ea labore."
         },
         "properties": {
           "code": {
-            "example": "Quia at.",
+            "example": "Ipsam alias temporibus iste.",
             "type": "string"
           },
           "detail": {
-            "example": "Quia alias illo aliquid.",
+            "example": "Sit voluptatem omnis et harum incidunt exercitationem.",
             "type": "string"
           }
         },
@@ -123,27 +123,40 @@
               "application/json": {
                 "example": {
                   "first": {
-                    "id": "Atque ut delectus nam ullam quia numquam.",
-                    "name": "Dicta eum beatae tenetur eveniet aut illo."
+                    "id": "Fugit illum expedita dolor voluptatem expedita assumenda.",
+                    "name": "Dolorem veniam amet modi omnis voluptatem error."
                   },
                   "items": [
                     {
-                      "id": "Atque ut delectus nam ullam quia numquam.",
-                      "name": "Dicta eum beatae tenetur eveniet aut illo."
+                      "id": "Fugit illum expedita dolor voluptatem expedita assumenda.",
+                      "name": "Dolorem veniam amet modi omnis voluptatem error."
                     },
                     {
-                      "id": "Atque ut delectus nam ullam quia numquam.",
-                      "name": "Dicta eum beatae tenetur eveniet aut illo."
-                    },
-                    {
-                      "id": "Atque ut delectus nam ullam quia numquam.",
-                      "name": "Dicta eum beatae tenetur eveniet aut illo."
+                      "id": "Fugit illum expedita dolor voluptatem expedita assumenda.",
+                      "name": "Dolorem veniam amet modi omnis voluptatem error."
                     }
                   ],
-                  "next": "Qui qui id commodi qui."
+                  "next": "Maiores nemo incidunt aspernatur possimus omnis."
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/Listing"
+                  "$ref": "#/components/schemas/Listing",
+                  "example": {
+                    "first": {
+                      "id": "Fugit illum expedita dolor voluptatem expedita assumenda.",
+                      "name": "Dolorem veniam amet modi omnis voluptatem error."
+                    },
+                    "items": [
+                      {
+                        "id": "Fugit illum expedita dolor voluptatem expedita assumenda.",
+                        "name": "Dolorem veniam amet modi omnis voluptatem error."
+                      },
+                      {
+                        "id": "Fugit illum expedita dolor voluptatem expedita assumenda.",
+                        "name": "Dolorem veniam amet modi omnis voluptatem error."
+                      }
+                    ],
+                    "next": "Maiores nemo incidunt aspernatur possimus omnis."
+                  }
                 }
               }
             },
@@ -164,27 +177,40 @@
               "application/json": {
                 "example": {
                   "first": {
-                    "id": "Reiciendis laudantium reprehenderit ea cupiditate suscipit.",
-                    "name": "Consequuntur quae sapiente odio."
+                    "id": "Ex expedita necessitatibus veritatis qui maiores.",
+                    "name": "Et doloribus est temporibus eos in."
                   },
                   "items": [
                     {
-                      "id": "Reiciendis laudantium reprehenderit ea cupiditate suscipit.",
-                      "name": "Consequuntur quae sapiente odio."
+                      "id": "Ex expedita necessitatibus veritatis qui maiores.",
+                      "name": "Et doloribus est temporibus eos in."
                     },
                     {
-                      "id": "Reiciendis laudantium reprehenderit ea cupiditate suscipit.",
-                      "name": "Consequuntur quae sapiente odio."
-                    },
-                    {
-                      "id": "Reiciendis laudantium reprehenderit ea cupiditate suscipit.",
-                      "name": "Consequuntur quae sapiente odio."
+                      "id": "Ex expedita necessitatibus veritatis qui maiores.",
+                      "name": "Et doloribus est temporibus eos in."
                     }
                   ],
-                  "next": "Perferendis sapiente."
+                  "next": "Vel vel error harum."
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/Listing"
+                  "$ref": "#/components/schemas/Listing",
+                  "example": {
+                    "first": {
+                      "id": "Ex expedita necessitatibus veritatis qui maiores.",
+                      "name": "Et doloribus est temporibus eos in."
+                    },
+                    "items": [
+                      {
+                        "id": "Ex expedita necessitatibus veritatis qui maiores.",
+                        "name": "Et doloribus est temporibus eos in."
+                      },
+                      {
+                        "id": "Ex expedita necessitatibus veritatis qui maiores.",
+                        "name": "Et doloribus est temporibus eos in."
+                      }
+                    ],
+                    "next": "Vel vel error harum."
+                  }
                 }
               }
             },
@@ -194,11 +220,15 @@
             "content": {
               "application/json": {
                 "example": {
-                  "code": "Dolores et.",
-                  "detail": "Tenetur eaque nihil voluptatem."
+                  "code": "Magni totam excepturi.",
+                  "detail": "Sint possimus blanditiis similique consequatur non."
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/Problem",
+                  "example": {
+                    "code": "Magni totam excepturi.",
+                    "detail": "Sint possimus blanditiis similique consequatur non."
+                  }
                 }
               }
             },

@@ -34,19 +34,65 @@ func TestResponsePublicIdentityPreservesReferenceAnnotations(t *testing.T) {
 		require.NoError(t, json.Unmarshal(data.Bytes(), &document))
 	}
 	require.NotNil(t, document)
-	components := document["components"].(map[string]any)["responses"].(map[string]any)
-	// Literal parent-generated identity; do not derive this oracle from current hashes.
-	require.Contains(t, components, "BadRequestError_fd4a3924")
-	badRequests := 0
-	for name := range components {
-		if strings.HasPrefix(name, "BadRequestError") {
-			badRequests++
-		}
-	}
-	require.Equal(t, 2, badRequests)
+	components := document["components"].(map[string]any)
+	componentSchemas := components["schemas"].(map[string]any)
+	require.Contains(t, componentSchemas, "NamedChoice")
+	require.Contains(t, componentSchemas, "NamedChoiceLeafEnvelope")
+	require.Contains(t, componentSchemas, "NamedChoiceOtherEnvelope")
+	require.NotContains(t, components, "responses", "responses with different retained examples must remain inline")
+
 	paths := document["paths"].(map[string]any)
+	var commonSchema map[string]any
+	examples := make(map[string]struct{})
 	for _, path := range []string{"/required_nullable", "/optional_nullable", "/required_named_nullable", "/optional_named_nullable"} {
 		response := paths[path].(map[string]any)["get"].(map[string]any)["responses"].(map[string]any)["400"].(map[string]any)
-		require.Equal(t, "#/components/responses/BadRequestError_fd4a3924", response["$ref"])
+		require.NotContains(t, response, "$ref")
+		media := response["content"].(map[string]any)["application/json"].(map[string]any)
+		schema := media["schema"].(map[string]any)
+		require.Equal(t, media["example"], schema["example"])
+
+		example := schema["example"].(map[string]any)
+		tag := example["type"].(string)
+		value := example["value"].(map[string]any)
+		switch tag {
+		case "Leaf":
+			require.IsType(t, "", value["name"])
+		case "Other":
+			require.IsType(t, float64(0), value["count"])
+		default:
+			t.Fatalf("unexpected union example tag %q", tag)
+		}
+		encoded, err := json.Marshal(example, json.Deterministic(true))
+		require.NoError(t, err)
+		examples[string(encoded)] = struct{}{}
+
+		withoutExample := make(map[string]any, len(schema)-1)
+		for key, value := range schema {
+			if key != "example" {
+				withoutExample[key] = value
+			}
+		}
+		if commonSchema == nil {
+			commonSchema = withoutExample
+		} else {
+			require.Equal(t, commonSchema, withoutExample)
+		}
 	}
+	require.Len(t, examples, 4, "each inline response retains its occurrence-specific example")
+
+	anyOf := commonSchema["anyOf"].([]any)
+	require.Len(t, anyOf, 2)
+	require.Equal(t, map[string]any{"type": "null"}, anyOf[1])
+	union := anyOf[0].(map[string]any)
+	require.Equal(t, []any{
+		map[string]any{"$ref": "#/components/schemas/NamedChoiceLeafEnvelope"},
+		map[string]any{"$ref": "#/components/schemas/NamedChoiceOtherEnvelope"},
+	}, union["oneOf"])
+	require.Equal(t, map[string]any{
+		"propertyName": "type",
+		"mapping": map[string]any{
+			"Leaf":  "#/components/schemas/NamedChoiceLeafEnvelope",
+			"Other": "#/components/schemas/NamedChoiceOtherEnvelope",
+		},
+	}, union["discriminator"])
 }

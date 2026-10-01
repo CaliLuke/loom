@@ -22,10 +22,11 @@ type (
 		message string
 	}
 	valueProjectionKey struct {
-		source     *valueSourceData
-		occurrence *valueOccurrenceNode
-		role       ValueRole
-		plan       *valuePlanNode
+		source      *valueSourceData
+		occurrence  *valueOccurrenceNode
+		role        ValueRole
+		plan        *valuePlanNode
+		association *valuePlanAssociation
 	}
 	valueProjectionSlot struct {
 		done   chan struct{}
@@ -65,7 +66,8 @@ func (c *ValueContext) ProjectJSON(result ValueResult, plan ValuePlan) Projectio
 	if result.source.context != c.identity || (result.occurrence.graph != plan.source.graph || result.occurrence.node != plan.source.node) {
 		return projectionFailure(ProjectionInvalidPlan, "value and plan have different semantic owners")
 	}
-	key := valueProjectionKey{source: result.source, occurrence: result.occurrence.node, role: result.role, plan: plan.root}
+	key := valueProjectionKey{source: result.source, occurrence: result.occurrence.node, role: result.role,
+		plan: plan.root, association: plan.association}
 	c.mu.Lock()
 	if prior := c.projected[key]; prior != nil {
 		c.mu.Unlock()

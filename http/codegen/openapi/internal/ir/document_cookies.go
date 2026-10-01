@@ -12,8 +12,6 @@ import (
 
 func responseCookieHeader(
 	cookies []*transportir.Cookie,
-	rand *expr.ExampleGenerator,
-	closeObjects bool,
 ) *Header {
 	if len(cookies) == 0 {
 		return nil
@@ -27,7 +25,7 @@ func responseCookieHeader(
 	if len(cookies) == 1 {
 		cookie := cookies[0]
 		header.Description = describeResponseCookie(cookie)
-		if example, ok := responseCookieExample(cookie, rand, closeObjects); ok {
+		if example, ok := responseCookieExample(cookie); ok {
 			header.Example = example
 		}
 		return header
@@ -35,7 +33,7 @@ func responseCookieHeader(
 	header.Description = describeResponseCookies(cookies)
 	examples := make(map[string]*ExampleRef, len(cookies))
 	for _, cookie := range cookies {
-		example, ok := responseCookieExample(cookie, rand, closeObjects)
+		example, ok := responseCookieExample(cookie)
 		if !ok {
 			continue
 		}
@@ -51,23 +49,19 @@ func responseCookieHeader(
 	return header
 }
 
-func responseCookieExample(
-	cookie *transportir.Cookie,
-	rand *expr.ExampleGenerator,
-	closeObjects bool,
-) (string, bool) {
+func responseCookieExample(cookie *transportir.Cookie) (string, bool) {
 	if cookie == nil || cookie.Attribute == nil {
 		return "", false
 	}
-	cookieContext := attributeExampleContext(
-		cookie.Attribute,
-		closeObjects,
-		"response-cookie",
-		cookie.HTTPName,
-	)
-	generator := exampleGeneratorForAttribute(rand, cookie.Attribute, closeObjects, cookieContext)
-	value := cookie.Attribute.Example(generator)
-	if value == nil {
+	if disabled, ok := cookie.Attribute.Meta.Last("openapi:example"); ok && disabled == "false" {
+		return "", false
+	}
+	requirePreparedExampleTarget(cookie.Value)
+	if cookie.Value.Representative == nil {
+		return "", false
+	}
+	value, ok := preparedDeclaredExampleValue(*cookie.Value.Representative)
+	if !ok {
 		return "", false
 	}
 	return serializeResponseCookieExample(cookie, value), true
@@ -118,7 +112,11 @@ func responseCookiePolicy(cookie *transportir.Cookie) string {
 }
 
 func serializeResponseCookieExample(cookie *transportir.Cookie, value any) string {
-	return buildResponseHTTPCookie(cookie, fmt.Sprintf("%v", value)).String()
+	formatted := fmt.Sprintf("%v", value)
+	if bytes, ok := value.([]byte); ok {
+		formatted = string(bytes)
+	}
+	return buildResponseHTTPCookie(cookie, formatted).String()
 }
 
 func buildResponseHTTPCookie(cookie *transportir.Cookie, value string) *http.Cookie {

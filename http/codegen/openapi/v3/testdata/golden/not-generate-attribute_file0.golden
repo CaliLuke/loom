@@ -2,10 +2,6 @@
   "components": {
     "schemas": {
       "Payload": {
-        "example": {
-          "required_string": "",
-          "string": ""
-        },
         "properties": {
           "required_string": {
             "example": "",
@@ -22,10 +18,6 @@
         "type": "object"
       },
       "Result": {
-        "example": {
-          "int": 0,
-          "required_int": 0
-        },
         "properties": {
           "int": {
             "example": 0,
@@ -58,10 +50,6 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "example": {
-                "required_string": "",
-                "string": ""
-              },
               "schema": {
                 "$ref": "#/components/schemas/Payload"
               }
@@ -73,10 +61,6 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "int": 0,
-                  "required_int": 0
-                },
                 "schema": {
                   "$ref": "#/components/schemas/Result"
                 }

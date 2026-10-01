@@ -52,6 +52,8 @@ components:
             content:
                 application/json:
                     schema:
+                        example:
+                            string: ""
                         $ref: '#/components/schemas/Payload'
                     example:
                         string: ""
@@ -61,9 +63,9 @@ components:
             content:
                 application/json:
                     schema:
+                        example: {}
                         $ref: '#/components/schemas/Result'
-                    example:
-                        string: ""
+                    example: {}
 tags:
     - name: anotherTestService
     - name: testService

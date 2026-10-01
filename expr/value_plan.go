@@ -4,10 +4,12 @@ type (
 	// ValuePlan is an immutable target representation of a semantic occurrence.
 	// Its zero value is invalid. Codec ownership is independent of media labels.
 	ValuePlan struct {
-		context   *valueContextIdentity
-		source    ValueOccurrence
-		root      *valuePlanNode
-		selection []uint64
+		context      *valueContextIdentity
+		source       ValueOccurrence
+		root         *valuePlanNode
+		selection    []uint64
+		association  *valuePlanAssociation
+		associations map[*valueOccurrenceNode][]*valuePlanAssociation
 	}
 
 	// ValuePlanRequest describes an already finalized effective target. It does
@@ -109,6 +111,13 @@ type (
 		preserveAdditional  bool
 		hasEnum             bool
 		enumClauses         [][]ResolvedValue
+	}
+
+	valuePlanAssociation struct {
+		id        uint64
+		source    *valueOccurrenceNode
+		root      *valuePlanNode
+		selection []uint64
 	}
 
 	valuePlanMember struct {

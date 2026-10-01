@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
@@ -42,9 +43,15 @@ func TestSchemaExampleSurfacesUseOpenAPIValues(t *testing.T) {
 						Type:         &expr.Array{ElemType: attr},
 						UserExamples: []*expr.ExampleExpr{{Value: []any{tc.attr.UserExamples[0].Value}}},
 					}
-					schema = paramFor(array, "values", "query", false, rand, false).Value.Schema.Items
+					value, err := representation.PrepareStandaloneExamples(array, rand)
+					require.NoError(t, err)
+					schema = paramFor(array, value, "values", "query", rand).Value.Schema.Items
 				case "response header":
-					headers := []*transportir.Header{{Name: "value", HTTPName: "X-Value", Attribute: attr}}
+					value, err := representation.PrepareStandaloneExamples(attr, rand)
+					require.NoError(t, err)
+					headers := []*transportir.Header{{
+						Name: "value", HTTPName: "X-Value", Attribute: attr, Value: value,
+					}}
 					schema = headersFromIR(headers, rand, false)["X-Value"].Value.Schema
 				case "async":
 					analyzer := NewAnalyzer(rand, false)
@@ -88,16 +95,28 @@ func TestAnalyzerNilExampleProjectionKeepsDeclaredSynthesis(t *testing.T) {
 	}, schema.Example)
 }
 
+func TestAnalyzerBuiltinPreparationIsStableAndContextScoped(t *testing.T) {
+	attribute := &expr.AttributeExpr{Type: expr.Int}
+	first := NewAnalyzer(expr.NewRandom("stable-preparation"), false).
+		AnalyzeSchemaWithContext(attribute, "first")
+	repeated := NewAnalyzer(expr.NewRandom("stable-preparation"), false).
+		AnalyzeSchemaWithContext(attribute, "first")
+	second := NewAnalyzer(expr.NewRandom("stable-preparation"), false).
+		AnalyzeSchemaWithContext(attribute, "second")
+	require.Equal(t, first.Example, repeated.Example)
+	require.NotEqual(t, first.Example, second.Example)
+}
+
 func inlineAsyncTestEndpoint(t *testing.T, attribute *expr.AttributeExpr) *transportir.Endpoint {
 	t.Helper()
 	context := expr.NewValueContext()
 	occurrence, err := context.NewOccurrence(attribute)
 	require.NoError(t, err)
+	value := &service.ValueData{Context: context, Occurrence: occurrence}
 	endpoint := &transportir.Endpoint{
 		Request: &transportir.Request{}, Response: &transportir.Response{},
 		Stream: &transportir.Stream{ResponseValue: &transportir.ValueTarget{
-			Source: &service.ValueData{Context: context, Occurrence: occurrence},
-			Codec:  expr.ValueCodecJSON,
+			Source: value, Anchor: value, Codec: expr.ValueCodecJSON, ExampleOccurrence: occurrence,
 		}},
 	}
 	endpoint.Service = &transportir.Service{Endpoints: []*transportir.Endpoint{endpoint}}

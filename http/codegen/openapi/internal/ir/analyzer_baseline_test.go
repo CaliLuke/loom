@@ -78,7 +78,7 @@ func TestBaselineConstructionRecordsDoNotGuessAssertionEdges(t *testing.T) {
 	require.NoError(t, err)
 	a.plan = plan.Root()
 	require.Panics(t, func() {
-		restore := a.schemaPlanScope(expr.ValuePlanNode{})
+		restore := a.schemaPlanScope(expr.ValuePlanNode{}, expr.ValuePlanNode{})
 		defer restore()
 		panic("invalid child")
 	})

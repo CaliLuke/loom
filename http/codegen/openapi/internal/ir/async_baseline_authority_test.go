@@ -77,10 +77,10 @@ func TestAsyncBaselineMemoKeepsOccurrenceOwnership(t *testing.T) {
 	analyzer.suppressExamples = func(*expr.AttributeExpr, bool) bool {
 		return true
 	}
-	first := analyzer.analyzeSchemaPlan(attribute, "one", plan)
-	second := analyzer.analyzeSchemaPlan(attribute, "one", plan)
+	first := analyzer.analyzeSchemaPositions(attribute, "one", plan, expr.ValuePlanNode{})
+	second := analyzer.analyzeSchemaPositions(attribute, "one", plan, expr.ValuePlanNode{})
 	require.Same(t, first, second, "same captured occurrence and usage context reuses its owned acquisition")
-	other := analyzer.analyzeSchemaPlan(attribute, "two", plan)
+	other := analyzer.analyzeSchemaPositions(attribute, "two", plan, expr.ValuePlanNode{})
 	require.NotSame(t, first, other, "another usage context cannot inherit this memo binding")
 	require.Zero(t, calls, "acquisition never invokes example materialization")
 	analyzer.asyncAcquisition, analyzer.suppressExamples = nil, nil
@@ -134,9 +134,9 @@ func TestAsyncBaselineMemoNoRefPresence(t *testing.T) {
 	attribute := &expr.AttributeExpr{Type: expr.String}
 	analyzer := NewAnalyzer(expr.NewRandom("no-ref-presence"), false)
 	analyzer.asyncAcquisition = &asyncBaselineAcquisition{shape: asyncInlineShape{attribute: attribute}, schemas: make(map[asyncBaselineKey]*Schema)}
-	omitted := analyzer.analyzeSchemaPlan(attribute, "same", expr.ValuePlanNode{})
-	explicitFalse := analyzer.analyzeSchemaPlan(attribute, "same", expr.ValuePlanNode{}, false)
-	explicitTrue := analyzer.analyzeSchemaPlan(attribute, "same", expr.ValuePlanNode{}, true)
+	omitted := analyzer.analyzeSchemaPositions(attribute, "same", expr.ValuePlanNode{}, expr.ValuePlanNode{})
+	explicitFalse := analyzer.analyzeSchemaPositions(attribute, "same", expr.ValuePlanNode{}, expr.ValuePlanNode{}, false)
+	explicitTrue := analyzer.analyzeSchemaPositions(attribute, "same", expr.ValuePlanNode{}, expr.ValuePlanNode{}, true)
 	require.NotSame(t, omitted, explicitFalse, "analyzeSchema treats any supplied variadic argument as noRef")
 	require.Same(t, explicitFalse, explicitTrue)
 }

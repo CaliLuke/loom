@@ -26,6 +26,10 @@ paths:
                                         type: string
                                         contentMediaType: application/json
                                         contentSchema:
+                                            example:
+                                                data:
+                                                    message: Non et.
+                                                event: abc123
                                             $ref: '#/components/schemas/RealtimeSSEEvent'
                                 required:
                                     - data
@@ -54,9 +58,9 @@ paths:
                                     properties:
                                         message:
                                             type: string
-                                            example: Reprehenderit alias.
+                                            example: Quia ut autem at.
                                     example:
-                                        message: Non non et autem neque ipsam.
+                                        message: Saepe impedit cum asperiores.
                                     required:
                                         - message
                                 event:
@@ -64,7 +68,7 @@ paths:
                                     example: abc123
                             example:
                                 data:
-                                    message: Ipsa in nemo nihil quis nihil est.
+                                    message: Dicta et est.
                                 event: abc123
                             required:
                                 - event
@@ -107,9 +111,11 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    label: Voluptas omnis officia ut eligendi repellendus aut.
                                 $ref: '#/components/schemas/MetadataResponseBody'
                             example:
-                                label: Ipsam quia.
+                                label: Voluptas omnis officia ut eligendi repellendus aut.
             security: []
     /ws/projects/{projectID}:
         get:
@@ -158,7 +164,7 @@ paths:
                                           minLength: 4
                                 event:
                                     type: string
-                                    example: Recusandae error sint.
+                                    example: Deserunt omnis tempora ut eos nihil.
                                 note:
                                     example: null
                                     anyOf:
@@ -179,9 +185,9 @@ components:
             properties:
                 label:
                     type: string
-                    example: Id ipsam voluptatibus dolores atque soluta.
+                    example: Suscipit incidunt reprehenderit fuga id laudantium.
             example:
-                label: Sint beatae occaecati.
+                label: Itaque deserunt dolorem ipsam velit magni vel.
             required:
                 - label
         RealtimeSSEEvent:
@@ -192,9 +198,9 @@ components:
                     properties:
                         message:
                             type: string
-                            example: Quis quae voluptatum.
+                            example: Ut quo aspernatur et necessitatibus ipsum eos.
                     example:
-                        message: Ut voluptate quis voluptas commodi suscipit et.
+                        message: Architecto sint delectus hic voluptatem.
                     required:
                         - message
                 event:
@@ -202,7 +208,7 @@ components:
                     example: abc123
             example:
                 data:
-                    message: Qui tenetur.
+                    message: Et culpa.
                 event: abc123
             required:
                 - event

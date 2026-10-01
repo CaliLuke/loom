@@ -31,20 +31,16 @@ paths:
                                 - bar:
                                     - string: ""
                                   foo: []
-                                - bar:
-                                    - string: ""
-                                  foo: []
                         example:
                             - bar:
                                 - string: ""
-                              foo:
-                                - Asperiores ad id et officiis accusamus repudiandae.
-                                - Autem debitis temporibus adipisci expedita odit aut.
+                              foo: []
                             - bar:
                                 - string: ""
-                              foo:
-                                - Asperiores ad id et officiis accusamus repudiandae.
-                                - Autem debitis temporibus adipisci expedita odit aut.
+                              foo: []
+                            - bar:
+                                - string: ""
+                              foo: []
             responses:
                 "200":
                     description: OK response.
@@ -75,23 +71,23 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/Bar'
-                    example: []
+                    example:
+                        - string: ""
                     minItems: 0
                     maxItems: 42
                 foo:
                     type: array
                     items:
                         type: string
-                        example: Itaque illo temporibus consequatur voluptate minus.
+                        example: Molestiae sed dolore officia saepe quis ea.
                     example:
-                        - Molestiae hic inventore consectetur consequatur quia.
+                        - Inventore et rem.
+                        - Voluptas nam et aperiam veritatis.
                     minItems: 0
                     maxItems: 42
             example:
-                bar:
-                    - string: ""
-                    - string: ""
+                bar: []
                 foo:
-                    - Earum est explicabo minima adipisci.
+                    - Aperiam eos sequi.
 tags:
     - name: testService

@@ -23,11 +23,11 @@ paths:
                             properties:
                                 b:
                                     type: string
-                                    example: Eius iure non.
+                                    example: Sit hic consequuntur.
                             example:
-                                b: Mollitia molestiae voluptas qui.
+                                b: Voluptatem ipsam et.
                         example:
-                            b: A accusamus praesentium suscipit est voluptas.
+                            b: Voluptatem asperiores et quia quibusdam repellat soluta.
             responses:
                 "204":
                     description: No Content response.

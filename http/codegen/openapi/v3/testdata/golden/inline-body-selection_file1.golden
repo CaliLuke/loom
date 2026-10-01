@@ -15,7 +15,12 @@ paths:
             summary: inline_attribute InlineBody
             operationId: inline_body.inline_attribute
             parameters:
-                - $ref: '#/components/parameters/QueryQ'
+                - name: q
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                  example: Eos voluptatem exercitationem dolores tempora optio dolores.
             requestBody:
                 content:
                     application/json:
@@ -24,23 +29,28 @@ paths:
                             properties:
                                 "y":
                                     type: string
-                                    example: Voluptatem rem aperiam similique ipsa deleniti.
+                                    example: Molestiae asperiores soluta aut pariatur qui sed.
                             example:
-                                "y": Assumenda ad et.
+                                "y": Ea nihil autem facilis.
                         example:
-                            "y": Voluptatibus aut dolorem accusamus molestiae.
+                            "y": At omnis blanditiis consequatur.
             responses:
                 "200":
                     description: OK response.
                     headers:
                         h:
-                            $ref: '#/components/headers/HHeader'
+                            schema:
+                                type: string
+                                example: Et earum modi sit eum consequatur quo.
+                            example: Et earum modi sit eum consequatur quo.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    "y": Quas reprehenderit sint.
                                 $ref: '#/components/schemas/InlineBodyinlineAttributeResponseBody'
                             example:
-                                "y": Dicta ad corrupti sed qui at ut.
+                                "y": Quas reprehenderit sint.
     /primitive:
         post:
             tags:
@@ -48,7 +58,12 @@ paths:
             summary: primitive InlineBody
             operationId: inline_body.primitive
             parameters:
-                - $ref: '#/components/parameters/QueryQ'
+                - name: q
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                  example: Natus in.
             requestBody:
                 required: true
                 content:
@@ -58,25 +73,30 @@ paths:
                             properties:
                                 name:
                                     type: string
-                                    example: Fuga voluptatem dolorem reiciendis vero id.
+                                    example: Et ratione ut vero accusamus veritatis animi.
                             example:
-                                name: Est quia eius quas aliquid itaque.
+                                name: Earum fuga et nulla similique blanditiis adipisci.
                             required:
                                 - name
                         example:
-                            name: Velit occaecati error.
+                            name: Occaecati error facere.
             responses:
                 "200":
                     description: OK response.
                     headers:
                         h:
-                            $ref: '#/components/headers/HHeader'
+                            schema:
+                                type: string
+                                example: Fuga ipsum officia ut natus.
+                            example: Fuga ipsum officia ut natus.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    name: Est dolores dolorem vitae saepe ea.
                                 $ref: '#/components/schemas/InlineBodyprimitiveResponseBody'
                             example:
-                                name: Optio qui sit.
+                                name: Est dolores dolorem vitae saepe ea.
     /required:
         post:
             tags:
@@ -90,7 +110,7 @@ paths:
                   required: true
                   schema:
                     type: string
-                  example: Corrupti omnis ad.
+                  example: Qui voluptate quidem dolorem expedita eius.
             requestBody:
                 required: true
                 content:
@@ -102,25 +122,31 @@ paths:
                                     $ref: '#/components/schemas/Item'
                             example:
                                 item:
-                                    x: Doloremque ipsam id.
+                                    x: Totam necessitatibus perferendis perspiciatis.
                             required:
                                 - item
                         example:
                             item:
-                                x: Repudiandae omnis cumque distinctio quis.
+                                x: Error rerum esse et corrupti.
             responses:
                 "200":
                     description: OK response.
                     headers:
                         h:
-                            $ref: '#/components/headers/HHeader'
+                            schema:
+                                type: string
+                                example: Nostrum quia natus eveniet delectus nobis.
+                            example: Nostrum quia natus eveniet delectus nobis.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    item:
+                                        x: Vel eius exercitationem qui et corrupti a.
                                 $ref: '#/components/schemas/InlineBodyrequiredResponseBody'
                             example:
                                 item:
-                                    x: Eos cum ut.
+                                    x: Vel eius exercitationem qui et corrupti a.
     /several:
         post:
             tags:
@@ -128,7 +154,12 @@ paths:
             summary: several InlineBody
             operationId: inline_body.several
             parameters:
-                - $ref: '#/components/parameters/QueryQ'
+                - name: q
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                  example: Accusamus nisi sed consequatur.
             requestBody:
                 required: true
                 content:
@@ -138,7 +169,7 @@ paths:
                             properties:
                                 count:
                                     type: integer
-                                    example: 1029847291887334396
+                                    example: 4112760733247613420
                                     format: int64
                                 item:
                                     $ref: '#/components/schemas/Item'
@@ -147,52 +178,61 @@ paths:
                                     items:
                                         $ref: '#/components/schemas/Item'
                                     example:
-                                        - x: Et non ea in laboriosam ut.
-                                        - x: Et non ea in laboriosam ut.
-                                        - x: Et non ea in laboriosam ut.
+                                        - x: Consequatur consequatur.
+                                        - x: Consequatur consequatur.
+                                        - x: Consequatur consequatur.
+                                        - x: Consequatur consequatur.
                                 name:
                                     type: string
-                                    example: Labore iste similique.
+                                    example: Qui similique voluptatem dolor dicta voluptas.
                             example:
-                                count: 804061765839840858
+                                count: 5588012325558585925
                                 item:
-                                    x: Dolores voluptatibus sed quia dolor ea.
+                                    x: Unde qui aperiam laboriosam distinctio sunt.
                                 items:
-                                    - x: Dolores voluptatibus sed quia dolor ea.
-                                    - x: Dolores voluptatibus sed quia dolor ea.
-                                    - x: Dolores voluptatibus sed quia dolor ea.
-                                name: Quia vel velit error repellendus est.
+                                    - x: Unde qui aperiam laboriosam distinctio sunt.
+                                    - x: Unde qui aperiam laboriosam distinctio sunt.
+                                name: Labore assumenda.
                             required:
                                 - name
                         example:
-                            count: 8264074377063532431
+                            count: 3887349582176772536
                             item:
-                                x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
+                                x: Magnam assumenda cupiditate praesentium consectetur aspernatur.
                             items:
-                                - x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
-                                - x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
-                                - x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
-                                - x: Numquam necessitatibus quasi tenetur itaque odio laudantium.
-                            name: Et voluptas non laudantium.
+                                - x: Magnam assumenda cupiditate praesentium consectetur aspernatur.
+                                - x: Magnam assumenda cupiditate praesentium consectetur aspernatur.
+                                - x: Magnam assumenda cupiditate praesentium consectetur aspernatur.
+                            name: Nam ipsum.
             responses:
                 "200":
                     description: OK response.
                     headers:
                         h:
-                            $ref: '#/components/headers/HHeader'
+                            schema:
+                                type: string
+                                example: Odio aut perspiciatis.
+                            example: Odio aut perspiciatis.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    item:
+                                        x: Ea dolor sint aut.
+                                    items:
+                                        - x: Ea dolor sint aut.
+                                        - x: Ea dolor sint aut.
+                                        - x: Ea dolor sint aut.
+                                    name: Neque voluptates et reiciendis alias.
                                 $ref: '#/components/schemas/InlineBodyseveralResponseBody'
                             example:
                                 item:
-                                    x: Corporis voluptas provident perspiciatis.
+                                    x: Ea dolor sint aut.
                                 items:
-                                    - x: Corporis voluptas provident perspiciatis.
-                                    - x: Corporis voluptas provident perspiciatis.
-                                    - x: Corporis voluptas provident perspiciatis.
-                                    - x: Corporis voluptas provident perspiciatis.
-                                name: Voluptas doloremque maiores impedit ut sint.
+                                    - x: Ea dolor sint aut.
+                                    - x: Ea dolor sint aut.
+                                    - x: Ea dolor sint aut.
+                                name: Neque voluptates et reiciendis alias.
     /single:
         post:
             tags:
@@ -200,7 +240,12 @@ paths:
             summary: single InlineBody
             operationId: inline_body.single
             parameters:
-                - $ref: '#/components/parameters/QueryQ'
+                - name: q
+                  in: query
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                  example: Odio vel et facilis ratione iste.
             requestBody:
                 required: true
                 content:
@@ -212,23 +257,29 @@ paths:
                                     $ref: '#/components/schemas/Item'
                             example:
                                 item:
-                                    x: Sit saepe dolore.
+                                    x: Ipsa quia.
                         example:
                             item:
-                                x: Ipsa quos quidem quaerat molestias.
+                                x: Aperiam eveniet sint et voluptatibus expedita.
             responses:
                 "200":
                     description: OK response.
                     headers:
                         h:
-                            $ref: '#/components/headers/HHeader'
+                            schema:
+                                type: string
+                                example: Necessitatibus id velit dicta quos.
+                            example: Necessitatibus id velit dicta quos.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    item:
+                                        x: Numquam quibusdam ipsa quo.
                                 $ref: '#/components/schemas/InlineBodysingleResponseBody'
                             example:
                                 item:
-                                    x: Nesciunt ipsam autem.
+                                    x: Numquam quibusdam ipsa quo.
 components:
     schemas:
         InlineBodyinlineAttributeResponseBody:
@@ -236,17 +287,17 @@ components:
             properties:
                 "y":
                     type: string
-                    example: Ut error est omnis praesentium.
+                    example: Id consequatur vel sit ut voluptas.
             example:
-                "y": Omnis quia est.
+                "y": Recusandae deleniti.
         InlineBodyprimitiveResponseBody:
             type: object
             properties:
                 name:
                     type: string
-                    example: Consectetur doloribus.
+                    example: Fugit omnis ut saepe.
             example:
-                name: Rerum iusto inventore sequi saepe sint.
+                name: Commodi nulla fugiat consequatur et.
         InlineBodyrequiredResponseBody:
             type: object
             properties:
@@ -254,7 +305,7 @@ components:
                     $ref: '#/components/schemas/Item'
             example:
                 item:
-                    x: Ea est expedita natus recusandae.
+                    x: Minima soluta illum voluptatem at.
             required:
                 - item
         InlineBodyseveralResponseBody:
@@ -267,19 +318,19 @@ components:
                     items:
                         $ref: '#/components/schemas/Item'
                     example:
-                        - x: Tenetur ipsam sunt.
-                        - x: Tenetur ipsam sunt.
-                        - x: Tenetur ipsam sunt.
+                        - x: A vel ullam vitae possimus.
+                        - x: A vel ullam vitae possimus.
+                        - x: A vel ullam vitae possimus.
                 name:
                     type: string
-                    example: Modi eligendi molestias temporibus.
+                    example: Veritatis fuga.
             example:
                 item:
-                    x: Voluptas ipsam hic magni eum.
+                    x: Adipisci nobis.
                 items:
-                    - x: Voluptas ipsam hic magni eum.
-                    - x: Voluptas ipsam hic magni eum.
-                name: Qui eaque consequatur perspiciatis dolorem.
+                    - x: Adipisci nobis.
+                    - x: Adipisci nobis.
+                name: Rem incidunt in.
             required:
                 - name
         InlineBodysingleResponseBody:
@@ -289,28 +340,14 @@ components:
                     $ref: '#/components/schemas/Item'
             example:
                 item:
-                    x: Eos ut est est facere vel.
+                    x: Quia sit dolores odio minima reprehenderit.
         Item:
             type: object
             properties:
                 x:
                     type: string
-                    example: Qui architecto aut dolorum.
+                    example: Dignissimos vero beatae quis.
             example:
-                x: Ab neque doloribus architecto dolorem aut.
-    parameters:
-        QueryQ:
-            name: q
-            in: query
-            allowEmptyValue: true
-            schema:
-                type: string
-            example: Corrupti omnis ad.
-    headers:
-        HHeader:
-            schema:
-                type: string
-                example: Facilis quasi non.
-            example: Facilis quasi non.
+                x: Atque dolor debitis.
 tags:
     - name: InlineBody

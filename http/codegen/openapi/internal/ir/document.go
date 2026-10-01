@@ -76,12 +76,12 @@ func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 		return nil
 	}
 	return &Operation{
-		RequestBody: wrapRequestBody(buildRequestBody(endpointIR, bodies, rand, closeObjects)),
+		RequestBody: wrapRequestBody(buildRequestBody(endpointIR, bodies, closeObjects)),
 		Responses:   wrapResponses(buildResponses(endpointIR, bodies, rand, closeObjects)),
 	}
 }
 
-func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *RequestBody {
+func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, closeObjects bool) *RequestBody {
 	if endpointIR == nil || endpointIR.Request == nil {
 		return nil
 	}
@@ -102,14 +102,18 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 	} else if endpointIR.Request.FormEncoded {
 		contentTypes = []string{"application/x-www-form-urlencoded"}
 	}
-	context := attributeExampleContext(bodyAttr, closeObjects, "request-media")
 	content := make(map[string]*MediaType, len(contentTypes))
 	for _, contentType := range contentTypes {
 		schema := bodies.RequestBody
+		target := endpointIR.Request.BodyValue
 		if prepared, exists := bodies.requestMedia[contentType]; exists {
 			schema = prepared
+			target = endpointIR.Request.DocumentValues[contentType]
+		} else if endpointIR.Request.DocumentBody != nil {
+			target = endpointIR.Request.DocumentValue
 		}
-		content[contentType] = buildMediaType(bodyAttr, schema, rand, closeObjects, context, endpointIR.Request.DocumentBody != nil)
+		content[contentType] = buildMediaType(bodyAttr, schema, closeObjects,
+			endpointIR.Request.DocumentBody != nil, target)
 	}
 	return &RequestBody{
 		Description:   requestBodyDescription(bodyAttr),
@@ -186,7 +190,7 @@ func buildResponse(
 	mediaSchemas map[string]*Schema,
 ) *Response {
 	headers := headersFromIR(resp.Headers, rand, closeObjects, prepared)
-	if cookieHeader := responseCookieHeader(resp.Cookies, rand, closeObjects); cookieHeader != nil {
+	if cookieHeader := responseCookieHeader(resp.Cookies); cookieHeader != nil {
 		if headers == nil {
 			headers = make(map[string]*HeaderRef)
 		}
@@ -203,7 +207,7 @@ func buildResponse(
 		OmitDescription: metaBool(resp.Meta, "openapi:description:omit"),
 		ComponentName:   metaValue(resp.Meta, "openapi:component:response"),
 		Headers:         headers,
-		Content:         buildResponseContent(resp, statusCode, bodies, rand, closeObjects, websocketHandshake, mediaSchemas),
+		Content:         buildResponseContent(resp, statusCode, bodies, closeObjects, websocketHandshake, mediaSchemas),
 		Links:           buildResponseLinks(resp.Links, currentService),
 		Extensions: openapi.MergeExtensions(
 			openapi.ExtensionsFromExpr(resp.Meta),
@@ -216,7 +220,6 @@ func buildResponseContent(
 	resp *transportir.ResponseStatus,
 	statusCode int,
 	bodies map[int][]*Schema,
-	rand *expr.ExampleGenerator,
 	closeObjects bool,
 	websocketHandshake bool,
 	mediaSchemas map[string]*Schema,
@@ -230,24 +233,22 @@ func buildResponseContent(
 	case body != nil && body.Type != expr.Empty:
 		content = make(map[string]*MediaType, len(contentTypes))
 		for _, contentType := range contentTypes {
-			mediaContext := attributeExampleContext(
-				body,
-				closeObjects,
-				"response-media",
-				strconv.Itoa(statusCode),
-				contentType,
-			)
 			schema := firstResponseBody(bodies[statusCode])
+			target := resp.BodyValue
 			if prepared, exists := mediaSchemas[contentType]; exists {
 				schema = prepared
+				target = resp.DocumentValues[contentType]
+			} else if prepared, exists := resp.BodyValues[contentType]; exists {
+				target = prepared
+			} else if resp.DocumentBody != nil {
+				target = resp.DocumentValue
 			}
 			content[contentType] = buildMediaType(
 				body,
 				schema,
-				rand,
 				closeObjects,
-				mediaContext,
 				resp.BinaryBody,
+				target,
 			)
 		}
 		if !resp.EmitExamples {
@@ -295,10 +296,9 @@ func trimSentence(text string) string {
 func buildMediaType(
 	attr *expr.AttributeExpr,
 	schema *Schema,
-	rand *expr.ExampleGenerator,
 	closeObjects bool,
-	context string,
 	rawBody bool,
+	prepared *transportir.ValueTarget,
 ) *MediaType {
 	mediaType := &MediaType{
 		Schema:        schema,
@@ -306,7 +306,7 @@ func buildMediaType(
 		Metadata:      cloneMeta(attr.Meta),
 		Extensions:    openapi.ScopedExtensionsFromExpr(attr.Meta, "mediaType"),
 	}
-	initExamples(mediaType, attr, rand, closeObjects, context)
+	initExamples(mediaType, attr, closeObjects, prepared)
 	if rawBody {
 		serializeBinaryMediaExamples(mediaType, attr)
 	}
@@ -347,7 +347,7 @@ func headersFromIR(
 			Schema:        preparedLocationSchema(child, headerContext, rand, closeObjects, prepared),
 			Extensions:    openapi.ScopedExtensionsFromExpr(child.Meta, "header"),
 		}
-		initExamples(header, child, rand, closeObjects, headerContext)
+		initExamples(header, child, closeObjects, headerIR.Value)
 		headers[headerIR.HTTPName] = &HeaderRef{Value: header}
 	}
 	return headers
@@ -363,7 +363,7 @@ func endpointServiceName(endpointIR *transportir.Endpoint) string {
 func initExamples(target interface {
 	setExample(any)
 	setExamples(map[string]*ExampleRef)
-}, attr *expr.AttributeExpr, rand *expr.ExampleGenerator, closeObjects bool, context string) {
+}, attr *expr.AttributeExpr, closeObjects bool, prepared *transportir.ValueTarget) {
 	if attr == nil {
 		return
 	}
@@ -379,53 +379,19 @@ func initExamples(target interface {
 	if closeObjects && isUnionType(attr.Type) {
 		return
 	}
-	examples := attr.ExtractUserExamples()
-	switch {
-	case len(examples) > 1:
-		refs := make(map[string]*ExampleRef, len(examples))
-		for _, example := range examples {
-			val, ok := authoredOpenAPIExampleValue(attr, example)
-			if !ok {
-				continue
-			}
-			refs[example.Summary] = &ExampleRef{Value: buildExample(example, val)}
-		}
-		if len(refs) > 0 {
-			target.setExamples(refs)
-		}
-	case len(examples) == 1:
-		if val, ok := authoredOpenAPIExampleValue(attr, examples[0]); ok {
-			if componentName := metaValue(examples[0].Meta, "openapi:component:example"); componentName != "" || hasStructuredExampleMetadata(examples[0].Meta) {
-				name := examples[0].Summary
-				if name == "" {
-					name = "default"
-				}
-				target.setExamples(map[string]*ExampleRef{
-					name: {Value: buildExample(examples[0], val)},
-				})
-				return
-			}
-			target.setExample(val)
-		}
-	default:
-		generator := exampleGeneratorForAttribute(rand, attr, closeObjects, context)
-		source := synthesizedOpenAPIExample(attr, generator)
-		if source.present && source.declared {
-			if val, ok := openAPIDeclaredExampleValue(attr, source.value); ok {
-				target.setExample(val)
-			}
-		}
+	requirePreparedExampleTarget(prepared)
+	if !initPreparedExamples(target, prepared) {
+		panic("OpenAPI example surface did not consume its prepared value target")
 	}
 }
 
-func authoredOpenAPIExampleValue(attr *expr.AttributeExpr, example *expr.ExampleExpr) (any, bool) {
-	if example != nil && example.ExplicitNull && expr.AllowsNull(attr) {
-		return NullExample{}, true
+func requirePreparedExampleTarget(prepared *transportir.ValueTarget) {
+	if prepared == nil {
+		panic("OpenAPI example surface is missing its prepared value target")
 	}
-	if example == nil {
-		return nil, false
+	if !prepared.ExamplesPrepared {
+		panic("OpenAPI example surface value target has not prepared examples")
 	}
-	return OpenAPIExampleValue(attr, example.Value)
 }
 
 func buildExample(example *expr.ExampleExpr, value any) *Example {
@@ -470,16 +436,6 @@ func OpenAPIExampleValue(attr *expr.AttributeExpr, raw any) (any, bool) {
 		canonical = enumvalue.Normalize(attr, raw)
 	}
 	return projectCompleteOpenAPIExample(attr, canonical)
-}
-
-func openAPIDeclaredExampleValue(attr *expr.AttributeExpr, value any) (any, bool) {
-	if value == nil {
-		if expr.AllowsNull(attr) {
-			return NullExample{}, true
-		}
-		return nil, false
-	}
-	return projectCompleteOpenAPIExample(attr, value)
 }
 
 func projectCompleteOpenAPIExample(attr *expr.AttributeExpr, value any) (any, bool) {

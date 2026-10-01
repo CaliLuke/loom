@@ -161,7 +161,14 @@ func TestAsyncRetainedDeclarationBindings(t *testing.T) {
 	require.Equal(t, "#/components/schemas/RecursiveAuthority", child["$ref"])
 	components := asyncAnnotationMap(t, asyncAnnotationMap(t, spec, "components"), "schemas")
 	require.Contains(t, components, "RecursiveAuthority")
-	require.NotContains(t, child, "example", "retained cuts do not acquire inline sampling authority")
+	example := asyncAnnotationMap(t, child, "example")
+	require.Contains(t, example, "label", "the retained target-plan position owns the reference annotation")
+	require.NotContains(t, example, "child", "the recursive cut must not synthesize another recursive value")
+	component := asyncAnnotationMap(t, components, "RecursiveAuthority")
+	properties := asyncAnnotationMap(t, component, "properties")
+	label := asyncAnnotationMap(t, properties, "label")
+	require.Equal(t, "string", label["type"])
+	require.IsType(t, "", example["label"])
 }
 
 func asyncAnnotationDocument(t *testing.T, fixture func(), serviceFirst bool) map[string]any {

@@ -20,13 +20,13 @@ paths:
                   schema:
                     type: integer
                     format: int64
-                  example: 4476268195445622072
+                  example: 1257238864042255703
                 - name: bar
                   in: header
                   schema:
                     type: integer
                     format: int64
-                  example: 1038581769608676139
+                  example: 8294148901037666768
             responses:
                 "204":
                     description: No Content response.

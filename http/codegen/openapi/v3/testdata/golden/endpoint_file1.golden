@@ -16,6 +16,8 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                string: ""
                             $ref: '#/components/schemas/Payload'
                         example:
                             string: ""
@@ -25,9 +27,9 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example: {}
                                 $ref: '#/components/schemas/Result'
-                            example:
-                                string: ""
+                            example: {}
             summary: testEndpoint testService
             tags:
                 - testService

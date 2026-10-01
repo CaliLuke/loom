@@ -53,8 +53,8 @@ paths:
                         text/html:
                             schema:
                                 type: string
-                                example: Autem rem beatae non.
-                            example: Eum quod est explicabo.
+                                example: Iusto facilis molestias culpa.
+                            example: Iusto facilis molestias culpa.
 components: {}
 tags:
     - name: testService

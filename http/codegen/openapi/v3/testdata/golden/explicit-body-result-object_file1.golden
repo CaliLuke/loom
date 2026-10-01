@@ -21,21 +21,25 @@ paths:
                         Content-Type:
                             schema:
                                 type: string
-                                example: Non accusamus enim sunt id ad.
-                            example: Non accusamus enim sunt id ad.
+                                example: Sed qui ullam exercitationem libero ex sit.
+                            example: Sed qui ullam exercitationem libero ex sit.
                         Location:
                             schema:
                                 type: string
-                                example: A quae velit repudiandae quis ipsum est.
-                            example: A quae velit repudiandae quis ipsum est.
+                                example: Corporis at ea excepturi ut voluptates saepe.
+                            example: Corporis at ea excepturi ut voluptates saepe.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    a:
+                                        x: Vel molestias aut qui dolorum modi.
+                                        "y": 8935059987701087197
                                 $ref: '#/components/schemas/Resulttype_e30f7140cbd99e86'
                             example:
                                 a:
-                                    x: Voluptatem pariatur cum et maxime non id.
-                                    "y": 5987335491323873760
+                                    x: Vel molestias aut qui dolorum modi.
+                                    "y": 8935059987701087197
 components:
     schemas:
         Resulttype_e30f7140cbd99e86:
@@ -45,20 +49,20 @@ components:
                     $ref: '#/components/schemas/UserType'
             example:
                 a:
-                    x: Et aspernatur est.
-                    "y": 4860587370606937558
+                    x: Explicabo aliquam ipsa pariatur adipisci sed sit.
+                    "y": 11477963107682266
         UserType:
             type: object
             properties:
                 x:
                     type: string
-                    example: Illo molestiae accusantium consectetur eum.
+                    example: Quod nam voluptatum ut.
                 "y":
                     type: integer
-                    example: 2316163594086730582
+                    example: 3719491077729188980
                     format: int64
             example:
-                x: Inventore deleniti.
-                "y": 2793531410412585661
+                x: Qui mollitia laudantium iusto et.
+                "y": 4185855515957264914
 tags:
     - name: ServiceExplicitBodyUserResultObject

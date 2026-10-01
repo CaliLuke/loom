@@ -20,8 +20,7 @@
       "TestEndpointDefaultResponseBody": {
         "description": "TestEndpointDefaultResponseBody result type (default view)",
         "example": {
-          "int": 1,
-          "string": ""
+          "int": 1
         },
         "properties": {
           "int": {
@@ -39,8 +38,7 @@
       "TestEndpointOverriddenResponseBodyOverridden": {
         "description": "TestEndpointOverriddenResponseBody result type (overridden view)",
         "example": {
-          "int": 1,
-          "string": ""
+          "int": 1
         },
         "properties": {
           "int": {
@@ -60,9 +58,7 @@
       },
       "TestEndpointTinyResponseBodyTiny": {
         "description": "TestEndpointTinyResponseBody result type (tiny view)",
-        "example": {
-          "string": ""
-        },
+        "example": {},
         "properties": {
           "string": {
             "example": "",
@@ -88,11 +84,13 @@
             "content": {
               "application/json": {
                 "example": {
-                  "int": 1,
-                  "string": ""
+                  "int": 1
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointDefaultResponseBody"
+                  "$ref": "#/components/schemas/TestEndpointDefaultResponseBody",
+                  "example": {
+                    "int": 1
+                  }
                 }
               }
             },
@@ -117,7 +115,10 @@
                   "string": ""
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointCustomizedResponseBodyTiny"
+                  "$ref": "#/components/schemas/TestEndpointCustomizedResponseBodyTiny",
+                  "example": {
+                    "string": ""
+                  }
                 }
               }
             },
@@ -139,11 +140,13 @@
             "content": {
               "application/json": {
                 "example": {
-                  "int": 1,
-                  "string": ""
+                  "int": 1
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointOverriddenResponseBodyOverridden"
+                  "$ref": "#/components/schemas/TestEndpointOverriddenResponseBodyOverridden",
+                  "example": {
+                    "int": 1
+                  }
                 }
               }
             },
@@ -164,11 +167,10 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {
-                  "string": ""
-                },
+                "example": {},
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointTinyResponseBodyTiny"
+                  "$ref": "#/components/schemas/TestEndpointTinyResponseBodyTiny",
+                  "example": {}
                 }
               }
             },

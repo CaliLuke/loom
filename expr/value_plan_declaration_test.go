@@ -50,11 +50,24 @@ func TestValuePlanDeclarationThroughStreamingWrapper(t *testing.T) {
 			require.NoError(t, err)
 			plan, err := context.NewValuePlan(occurrence, ValuePlanRequest{Target: target, Codec: ValueCodecJSON, Use: ValuePlanSchema})
 			require.NoError(t, err)
+			require.Len(t, plan.associations[occurrence.node], 1,
+				"the transport-only wrapper must not add a second semantic owner")
+			original, err := plan.ForOccurrence(occurrence, plan.Root())
+			require.NoError(t, err)
+			require.Same(t, plan.Root().node, original.Root().node)
 			node := plan.Root()
+			semantic := occurrence
 			for _, expected := range test.identities {
 				require.True(t, node.Valid())
 				require.Equal(t, expected, node.TargetDeclarationID(), "target authority follows the authored declaration sequence, not the independently advancing source cursor")
-				node = node.Underlying()
+				next := node.Underlying()
+				if next.Valid() && !node.UnderlyingReusesSource() {
+					semantic = semantic.Underlying()
+					associated, err := plan.ForOccurrence(semantic, next)
+					require.NoError(t, err)
+					require.Same(t, next.node, associated.Root().node)
+				}
+				node = next
 			}
 			require.False(t, node.Valid())
 		})

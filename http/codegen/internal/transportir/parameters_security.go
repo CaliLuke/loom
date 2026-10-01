@@ -2,6 +2,20 @@ package transportir
 
 import "github.com/CaliLuke/loom/expr"
 
+// IsParameter reports whether the exact HTTP location and name identify a
+// security credential parameter. A nil Security has no credential parameters.
+func (security *Security) IsParameter(in, name string) bool {
+	if security == nil {
+		return false
+	}
+	for _, parameter := range security.Parameters {
+		if parameter.In == in && parameter.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func buildPathParameters(endpoint *expr.HTTPEndpointExpr) []*Parameter {
 	return buildMappedParameters(endpoint, endpoint.PathParams(), "path")
 }

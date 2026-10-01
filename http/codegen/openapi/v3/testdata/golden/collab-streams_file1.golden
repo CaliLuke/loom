@@ -25,6 +25,12 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    participants:
+                                        - alice
+                                        - bob
+                                    thread_id: thr_42
+                                    title: Release freeze follow-up
                                 $ref: '#/components/schemas/ThreadSummary'
                             example:
                                 participants:
@@ -37,6 +43,14 @@ paths:
                     content:
                         application/problem+json:
                             schema:
+                                example:
+                                    code: bad_request
+                                    detail: parameter 'p' must be an integer
+                                    instance: urn:loom:error:123abc
+                                    retry_hint: Correct the payload and retry.
+                                    status: 400
+                                    title: Bad Request
+                                    type: https://github.com/CaliLuke/loom/problems/bad-request
                                 $ref: '#/components/schemas/Problem'
             security: []
     /threads/{thread_id}/events:
@@ -62,6 +76,12 @@ paths:
                                         type: string
                                         contentMediaType: application/json
                                         contentSchema:
+                                            example:
+                                                data:
+                                                    author: alice
+                                                    preview: Shipping the OpenAPI cleanup next.
+                                                event: thread.message_posted
+                                                id: evt_8
                                             $ref: '#/components/schemas/WatchThreadResponseBody'
                                     id:
                                         type: string
@@ -73,6 +93,14 @@ paths:
                     content:
                         application/problem+json:
                             schema:
+                                example:
+                                    code: bad_request
+                                    detail: parameter 'p' must be an integer
+                                    instance: urn:loom:error:123abc
+                                    retry_hint: Correct the payload and retry.
+                                    status: 400
+                                    title: Bad Request
+                                    type: https://github.com/CaliLuke/loom/problems/bad-request
                                 $ref: '#/components/schemas/Problem'
             security: []
             summary: watchThread collabStreams
@@ -191,7 +219,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Cum nihil repudiandae aut quia.
+                        example: Et rem maxime saepe aut.
                     example:
                         - alice
                         - bob

@@ -685,9 +685,11 @@ is deferred: changing unrelated examples is not necessary for this repair.
 
 The source of truth for every row is the evaluated DSL plus selected authored
 example/enum/default. Default routing is automatic; no metadata enables the
-repair and no deployment registration changes. Public schema/component/Go names
-and aliases stay unchanged. Unsupported shapes are rejected by existing design
-validation; widening them is deferred.
+repair and no deployment registration changes. Public schema and Go names,
+aliases, and explicitly authored component names stay unchanged. Automatic
+request-body, response, parameter and header components follow the reuse rule
+below. Unsupported shapes are rejected by existing design validation; widening
+them is deferred.
 
 | Surface | Placement and routing | Supported/default behavior | Rejection/omission | Equivalence proof |
 | --- | --- | --- | --- | --- |
@@ -703,12 +705,37 @@ validation; widening them is deferred.
 
 Unaffected generated Go, protobuf schemas, names, and protocol bytes must remain
 byte-for-byte identical. Enumerate changes to examples, help diagnostics, and
-new path-qualified rejection of invalid values. OpenAPI differences outside
-example/default/enum values require a separate design decision, not a golden
-update. The byte grammar, length constraints and JSON metadata above are the
+new path-qualified rejection of invalid values. The accepted #572 decision
+permits automatic request-body, response, parameter and header components to
+become inline definitions when retained examples make their complete contents
+different. All other OpenAPI differences outside example/default/enum values
+require a separate design decision, not a golden update. The byte grammar,
+length constraints and JSON metadata above are the
 explicit #575 decision for #574; other schema differences remain outside that
 authorization. A runtime/schema disagreement discovered by the proof matrix is a
 Design Blocker: do not silently broaden acceptance or normalize it away.
+
+### Accepted #572 component reuse decision
+
+Retain each occurrence's selected examples. Share a complete automatic
+request-body, response, parameter or header definition only when its complete
+contents, including examples, agree under the existing reuse comparison.
+Schema reuse remains separate. Do not discard examples, synthesize replacement
+examples, or ignore examples in the comparison to preserve an old reference.
+
+Automatic component references are generated packaging, not stable authored
+identities. A changed example can prevent reuse and move a definition inline.
+This migration preserves explicitly authored component names, schema and Go
+names, operation IDs, validation constraints and runtime contracts. It does not
+introduce stable per-operation component naming or change the reuse algorithm.
+
+Acceptance requires exact output comparison and classification of every changed
+reference, alongside example validation and independent-process determinism.
+Equivalent OpenAPI structures do not establish generated-client compatibility:
+compare AutoK and drum-meoh's generated clients with the parent revision using
+the same project inputs and tool versions. Any client API or runtime difference
+requires explicit assessment before delivery; it is not automatically accepted
+as an example-only change.
 
 Adopt the upstream branch-retention principle selectively. Copying current Goa
 wholesale would discard Loom-specific contracts and still retain observed

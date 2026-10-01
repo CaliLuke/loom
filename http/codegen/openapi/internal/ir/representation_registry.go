@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
 type (
@@ -29,9 +30,49 @@ func (a *Analyzer) analyzeOccurrence(attribute *expr.AttributeExpr, context stri
 	// Validate from the occurrence root so diagnostics retain structural paths.
 	// These paths never enter component fingerprints or example seed contexts.
 	byteProjectionIdentity(attribute, plan)
-	root := a.analyzeSchemaPlan(attribute, context, plan)
+	root := a.analyzeSchemaPositions(attribute, context, plan, expr.ValuePlanNode{})
 	a.occurrences = append(a.occurrences, schemaOccurrenceAnalysis{root, a})
 	return root
+}
+
+func (a *Analyzer) analyzePreparedOccurrence(
+	attribute *expr.AttributeExpr,
+	context string,
+	target *transportir.ValueTarget,
+) *Schema {
+	plan := representationRoot(attribute, target)
+	byteProjectionIdentity(attribute, plan)
+	root := a.analyzePreparedSchemaPositions(attribute, context, target, plan)
+	a.occurrences = append(a.occurrences, schemaOccurrenceAnalysis{root, a})
+	return root
+}
+
+func (a *Analyzer) analyzePreparedSchemaPositions(
+	attribute *expr.AttributeExpr,
+	context string,
+	target *transportir.ValueTarget,
+	plan expr.ValuePlanNode,
+	noRef ...bool,
+) *Schema {
+	if target == nil {
+		return a.analyzeSchemaPositions(attribute, context, expr.ValuePlanNode{}, expr.ValuePlanNode{}, noRef...)
+	}
+	if target.Error != nil {
+		panic(fmt.Errorf("OpenAPI representation: %w", target.Error))
+	}
+	previous := a.preparedExamples
+	a.preparedExamples = target
+	defer func() {
+		a.preparedExamples = previous
+	}()
+	examplePlan := representationRoot(attribute, target)
+	result := a.analyzeSchemaPositions(attribute, context, plan, examplePlan, noRef...)
+	if !a.customExampleValue && result != nil && result.Example == nil {
+		restore := a.schemaPlanScope(plan, examplePlan)
+		a.applySchemaExample(result, attribute, context)
+		restore()
+	}
+	return result
 }
 
 // finalizeRepresentations reserves every authored/public name before assigning

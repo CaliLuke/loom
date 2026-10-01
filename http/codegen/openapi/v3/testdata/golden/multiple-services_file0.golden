@@ -8,7 +8,10 @@
               "string": ""
             },
             "schema": {
-              "$ref": "#/components/schemas/Payload"
+              "$ref": "#/components/schemas/Payload",
+              "example": {
+                "string": ""
+              }
             }
           }
         },
@@ -19,11 +22,10 @@
       "ResultStatus200Response": {
         "content": {
           "application/json": {
-            "example": {
-              "string": ""
-            },
+            "example": {},
             "schema": {
-              "$ref": "#/components/schemas/Result"
+              "$ref": "#/components/schemas/Result",
+              "example": {}
             }
           }
         },

@@ -20,7 +20,11 @@
               "message": "cursor must be a base64 token"
             },
             "schema": {
-              "$ref": "#/components/schemas/ActivityValidationError"
+              "$ref": "#/components/schemas/ActivityValidationError",
+              "example": {
+                "field": "cursor",
+                "message": "cursor must be a base64 token"
+              }
             }
           }
         },

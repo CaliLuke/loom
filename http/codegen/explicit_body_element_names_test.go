@@ -75,7 +75,13 @@ func TestMappedExplicitBodyOpenAPI(t *testing.T) {
 		assert.Nil(t, request.Properties.GetOrZero(stale), stale)
 	}
 
-	response := create.Post.Responses.Codes.GetOrZero("200").Content.GetOrZero("application/json").Schema.Schema()
+	responseRef := create.Post.Responses.Codes.GetOrZero("200").Content.GetOrZero("application/json").Schema
+	require.True(t, responseRef.IsReference())
+	require.Equal(t, "#/components/schemas/MappedbodycreateResponseBody", responseRef.GetReference())
+	responseComponent := doc.Components.Schemas.GetOrZero("MappedbodycreateResponseBody")
+	require.NotNil(t, responseComponent)
+	response := responseComponent.Schema()
+	require.NotNil(t, response)
 	assert.Equal(t, []string{"n"}, response.Required)
 	assert.Equal(t, []string{"string"}, response.Properties.GetOrZero("n").Schema().Type)
 	assert.Equal(t, []string{"integer"}, response.Properties.GetOrZero("ag").Schema().Type)

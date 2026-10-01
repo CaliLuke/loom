@@ -17,11 +17,46 @@ import (
 // values are detached, opaque custom leaves remain borrowed, and no codec is
 // invoked. ProjectJSON remains the API for checked target wire emission.
 func (r ValueResult) DeclaredJSONValue() (any, bool) {
-	if r.outcome != ValueResolved && r.outcome != ValueIncomplete &&
-		!(r.outcome == ValueUnsupported && r.value.node != nil && !r.checkableFailure) {
+	value, ok := declaredResultValue(r)
+	if !ok {
 		return nil, false
 	}
-	return declaredResolvedJSONValue(r.value)
+	return declaredResolvedJSONValue(value)
+}
+
+// DeclaredJSONValue returns the retained declared value selected by a captured
+// plan. It checks context and semantic ownership, then follows the plan's
+// retained member identities without resolving or synthesizing again. Bytes
+// remain []byte and scalar precision is preserved; no target codec, field
+// renaming, presence filtering or wire validation is applied. Explicit null
+// returns nil with true; absent, invalid, suppressed, foreign or schema-only
+// inputs return false. Opaque leaves retain the same eligibility and borrowing
+// rules as ValueResult.DeclaredJSONValue. Use ProjectJSON for checked target
+// wire output.
+func (c *ValueContext) DeclaredJSONValue(result ValueResult, plan ValuePlan) (any, bool) {
+	if c == nil || plan.context != c.identity || plan.root == nil || plan.root.schemaOnly {
+		return nil, false
+	}
+	if result.source == nil || result.source.context != c.identity ||
+		result.occurrence.graph != plan.source.graph || result.occurrence.node != plan.source.node {
+		return nil, false
+	}
+	value, ok := declaredResultValue(result)
+	if !ok || value.node.context != c.identity || value.node.occurrence.graph != plan.source.graph {
+		return nil, false
+	}
+	for _, selected := range plan.selection {
+		value = projectionMember(value, selected)
+	}
+	return declaredResolvedJSONValue(value)
+}
+
+func declaredResultValue(result ValueResult) (ResolvedValue, bool) {
+	if result.outcome != ValueResolved && result.outcome != ValueIncomplete &&
+		!(result.outcome == ValueUnsupported && result.value.node != nil && !result.checkableFailure) {
+		return ResolvedValue{}, false
+	}
+	return result.value, true
 }
 
 func declaredResolvedJSONValue(value ResolvedValue) (any, bool) {

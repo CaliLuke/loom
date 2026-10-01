@@ -7,6 +7,7 @@ type (
 		declaration string
 		baseline    string
 		context     string
+		examplePlan expr.ValuePlanNode
 	}
 
 	componentAnnotationPosition struct {
@@ -20,7 +21,9 @@ type (
 // component's example source or sampling context. This is annotation reuse, not
 // a target-value projection cache; direct occurrence overlays remain outside it.
 func (a *Analyzer) componentAnnotationScope(declaration, baseline, context string) func() {
-	identity := componentAnnotationIdentity{declaration, baseline, context}
+	identity := componentAnnotationIdentity{
+		declaration: declaration, baseline: baseline, context: context, examplePlan: a.examplePlan,
+	}
 	if a.componentAnnotations == nil {
 		a.componentAnnotations = make(map[componentAnnotationIdentity]map[componentAnnotationPosition]any)
 	}

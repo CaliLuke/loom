@@ -29,7 +29,16 @@
         "content": {
           "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Problem"
+              "$ref": "#/components/schemas/Problem",
+              "example": {
+                "code": "bad_request",
+                "detail": "parameter 'p' must be an integer",
+                "instance": "urn:loom:error:123abc",
+                "retry_hint": "Correct the payload and retry.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+              }
             }
           }
         },
@@ -39,7 +48,16 @@
         "content": {
           "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Problem"
+              "$ref": "#/components/schemas/Problem",
+              "example": {
+                "code": "bad_request",
+                "detail": "parameter 'p' must be an integer",
+                "instance": "urn:loom:error:123abc",
+                "retry_hint": "Correct the payload and retry.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+              }
             }
           }
         },
@@ -52,7 +70,16 @@
         "content": {
           "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Problem"
+              "$ref": "#/components/schemas/Problem",
+              "example": {
+                "code": "bad_request",
+                "detail": "parameter 'p' must be an integer",
+                "instance": "urn:loom:error:123abc",
+                "retry_hint": "Correct the payload and retry.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+              }
             }
           }
         },
@@ -62,7 +89,16 @@
         "content": {
           "application/problem+json": {
             "schema": {
-              "$ref": "#/components/schemas/Problem"
+              "$ref": "#/components/schemas/Problem",
+              "example": {
+                "code": "bad_request",
+                "detail": "parameter 'p' must be an integer",
+                "instance": "urn:loom:error:123abc",
+                "retry_hint": "Correct the payload and retry.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+              }
             }
           }
         },
@@ -99,23 +135,23 @@
       "ImportPantryRequestBody": {
         "additionalProperties": false,
         "example": {
-          "content_type": "Quasi rerum.",
-          "file": "Q29uc2VxdWF0dXIgZGViaXRpcyBldCBlc3QgbWF4aW1lIGV1bSBub24u",
-          "filename": "Est rerum eum aperiam qui porro.",
+          "content_type": "Quos facilis ea.",
+          "file": "SW4gcHJvdmlkZW50IG5lY2Vzc2l0YXRpYnVzIHRlbXBvcmlidXMgZGlzdGluY3RpbyBvZmZpY2lhIGV4Lg==",
+          "filename": "Aut unde est harum et quod.",
           "label": "scan-weekly"
         },
         "properties": {
           "content_type": {
-            "example": "Repellat natus libero expedita facilis voluptatibus sed.",
+            "example": "Neque qui repellat distinctio a.",
             "type": "string"
           },
           "file": {
-            "example": "VGVtcG9yZSBmdWdpdCBleGVyY2l0YXRpb25lbSBpdXN0by4=",
+            "example": "RXN0IGFtZXQgb2ZmaWNpaXMgdm9sdXB0YXMgcXVhcyBhIGxhYm9yaW9zYW0u",
             "format": "binary",
             "type": "string"
           },
           "filename": {
-            "example": "Reprehenderit voluptatibus vitae odio non eos.",
+            "example": "Ducimus quasi voluptatem mollitia possimus.",
             "type": "string"
           },
           "label": {
@@ -144,11 +180,6 @@
               "day": "monday",
               "recipe_id": "recipe_42",
               "slot": "dinner"
-            },
-            {
-              "day": "monday",
-              "recipe_id": "recipe_42",
-              "slot": "dinner"
             }
           ],
           "week_start": "2026-03-16"
@@ -156,6 +187,11 @@
         "properties": {
           "meals": {
             "example": [
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
+              },
               {
                 "day": "monday",
                 "recipe_id": "recipe_42",
@@ -259,6 +295,11 @@
                 "day": "monday",
                 "recipe_id": "recipe_42",
                 "slot": "dinner"
+              },
+              {
+                "day": "monday",
+                "recipe_id": "recipe_42",
+                "slot": "dinner"
               }
             ],
             "items": {
@@ -308,7 +349,7 @@
               "spinach"
             ],
             "items": {
-              "example": "Aut deserunt molestiae quisquam.",
+              "example": "Consectetur quas sunt.",
               "type": "string"
             },
             "type": "array"
@@ -325,7 +366,7 @@
               "vegetarian"
             ],
             "items": {
-              "example": "Ullam vel.",
+              "example": "Est quae debitis quae.",
               "type": "string"
             },
             "type": "array"
@@ -718,7 +759,13 @@
                     "data": {
                       "contentMediaType": "application/json",
                       "contentSchema": {
-                        "$ref": "#/components/schemas/WatchPlannerEventsResponseBody"
+                        "$ref": "#/components/schemas/WatchPlannerEventsResponseBody",
+                        "example": {
+                          "data": {
+                            "meal_plan_id": "plan_12"
+                          },
+                          "event": "plan.updated"
+                        }
                       },
                       "type": "string"
                     }
@@ -817,7 +864,11 @@
                   "status": "ok"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/HealthResponseBody"
+                  "$ref": "#/components/schemas/HealthResponseBody",
+                  "example": {
+                    "checked_at": "2026-03-19T12:00:00Z",
+                    "status": "ok"
+                  }
                 }
               }
             },
@@ -847,6 +898,16 @@
             "application/json": {
               "example": {
                 "meals": [
+                  {
+                    "day": "monday",
+                    "recipe_id": "recipe_42",
+                    "slot": "dinner"
+                  },
+                  {
+                    "day": "monday",
+                    "recipe_id": "recipe_42",
+                    "slot": "dinner"
+                  },
                   {
                     "day": "monday",
                     "recipe_id": "recipe_42",
@@ -914,7 +975,27 @@
                   "week_start": "2026-03-16"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/MealPlan"
+                  "$ref": "#/components/schemas/MealPlan",
+                  "example": {
+                    "meals": [
+                      {
+                        "day": "monday",
+                        "recipe_id": "recipe_42",
+                        "slot": "dinner"
+                      },
+                      {
+                        "day": "monday",
+                        "recipe_id": "recipe_42",
+                        "slot": "dinner"
+                      },
+                      {
+                        "day": "monday",
+                        "recipe_id": "recipe_42",
+                        "slot": "dinner"
+                      }
+                    ],
+                    "week_start": "2026-03-16"
+                  }
                 }
               }
             },
@@ -961,7 +1042,12 @@
                 "note": "Dinner plan for next week."
               },
               "schema": {
-                "$ref": "#/components/schemas/ShareMealPlanRequestBody"
+                "$ref": "#/components/schemas/ShareMealPlanRequestBody",
+                "example": {
+                  "email": "friend@example.test",
+                  "include_shopping_list": true,
+                  "note": "Dinner plan for next week."
+                }
               }
             }
           },
@@ -1013,13 +1099,19 @@
           "content": {
             "multipart/form-data": {
               "example": {
-                "content_type": "Totam consequatur voluptas.",
-                "file": "Tm9uIGF1dCBkb2xvcmlidXMu",
-                "filename": "Dolorum nihil accusamus at distinctio quidem.",
+                "content_type": "Quibusdam praesentium impedit.",
+                "file": "SXN0ZSBkb2xvcmVzIG1pbnVzIHNpbnQu",
+                "filename": "Ullam eius exercitationem nisi quae dolore.",
                 "label": "scan-weekly"
               },
               "schema": {
-                "$ref": "#/components/schemas/ImportPantryRequestBody"
+                "$ref": "#/components/schemas/ImportPantryRequestBody",
+                "example": {
+                  "content_type": "Quibusdam praesentium impedit.",
+                  "file": "SXN0ZSBkb2xvcmVzIG1pbnVzIHNpbnQu",
+                  "filename": "Ullam eius exercitationem nisi quae dolore.",
+                  "label": "scan-weekly"
+                }
               }
             }
           },
@@ -1034,7 +1126,11 @@
                   "import_id": "import_7"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/PantryImportReceipt"
+                  "$ref": "#/components/schemas/PantryImportReceipt",
+                  "example": {
+                    "accepted_items": 12,
+                    "import_id": "import_7"
+                  }
                 }
               }
             },
@@ -1189,10 +1285,42 @@
                     "id": "recipe_42",
                     "minutes": 30,
                     "title": "Sheet Pan Gnocchi"
+                  },
+                  {
+                    "difficulty": "easy",
+                    "id": "recipe_42",
+                    "minutes": 30,
+                    "title": "Sheet Pan Gnocchi"
                   }
                 ],
                 "schema": {
-                  "$ref": "#/components/schemas/RecipeResponseSummaryCollection"
+                  "$ref": "#/components/schemas/RecipeResponseSummaryCollection",
+                  "example": [
+                    {
+                      "difficulty": "easy",
+                      "id": "recipe_42",
+                      "minutes": 30,
+                      "title": "Sheet Pan Gnocchi"
+                    },
+                    {
+                      "difficulty": "easy",
+                      "id": "recipe_42",
+                      "minutes": 30,
+                      "title": "Sheet Pan Gnocchi"
+                    },
+                    {
+                      "difficulty": "easy",
+                      "id": "recipe_42",
+                      "minutes": 30,
+                      "title": "Sheet Pan Gnocchi"
+                    },
+                    {
+                      "difficulty": "easy",
+                      "id": "recipe_42",
+                      "minutes": 30,
+                      "title": "Sheet Pan Gnocchi"
+                    }
+                  ]
                 }
               }
             },
@@ -1257,7 +1385,22 @@
                   "title": "Sheet Pan Gnocchi"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/MealplannerRecipe"
+                  "$ref": "#/components/schemas/MealplannerRecipe",
+                  "example": {
+                    "difficulty": "easy",
+                    "id": "recipe_42",
+                    "ingredients": [
+                      "gnocchi",
+                      "tomatoes",
+                      "spinach"
+                    ],
+                    "minutes": 30,
+                    "tags": [
+                      "weeknight",
+                      "vegetarian"
+                    ],
+                    "title": "Sheet Pan Gnocchi"
+                  }
                 }
               }
             },
@@ -1273,7 +1416,16 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/Problem",
+                  "example": {
+                    "code": "bad_request",
+                    "detail": "parameter 'p' must be an integer",
+                    "instance": "urn:loom:error:123abc",
+                    "retry_hint": "Correct the payload and retry.",
+                    "status": 400,
+                    "title": "Bad Request",
+                    "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+                  }
                 }
               }
             },

@@ -168,7 +168,14 @@ func analyzeAsyncSchemas(a *Analyzer, endpoint *transportir.Endpoint) map[string
 
 func analyzeAsyncSchema(a *Analyzer, attr *expr.AttributeExpr, endpoint *transportir.Endpoint, inbound bool, context string) *asyncSchema {
 	target := representation.PrepareStreamSchema(endpoint, attr, inbound)
-	return a.acquireAsyncBaseline(attr, representationRoot(attr, target), asyncSamplerAttribute(attr), context)
+	if a.customExampleValue {
+		return a.acquireAsyncBaseline(attr, representationRoot(attr, target), asyncSamplerAttribute(attr), context)
+	}
+	if err := representation.PrepareTargetExamples(target, attr,
+		exampleGeneratorForAttribute(a.rand, attr, a.closeObjects, context)); err != nil {
+		panic(err)
+	}
+	return a.acquireAsyncTargetBaseline(attr, target, asyncSamplerAttribute(attr), context)
 }
 
 func buildAsyncSSEContract(sse *transportir.SSE) map[string]any {

@@ -19,6 +19,8 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                string: ""
                             $ref: '#/components/schemas/Bar'
                         example:
                             string: ""
@@ -28,27 +30,37 @@ paths:
                     content:
                         application/json:
                             schema:
+                                example:
+                                    bar:
+                                        - {}
+                                        - {}
+                                        - {}
+                                        - {}
                                 $ref: '#/components/schemas/LoomFoobar'
                             example:
                                 bar:
-                                    - string: ""
-                                    - string: ""
-                                    - string: ""
-                                    - string: ""
-                                foo: ""
+                                    - {}
+                                    - {}
+                                    - {}
+                                    - {}
                 "404":
                     description: Not Found response.
                     content:
                         application/json:
                             schema:
+                                example:
+                                    bar:
+                                        - {}
+                                        - {}
+                                        - {}
+                                        - {}
                                 $ref: '#/components/schemas/LoomFoobar'
                             example:
                                 bar:
-                                    - string: ""
-                                    - string: ""
-                                    - string: ""
-                                    - string: ""
-                                foo: ""
+                                    - {}
+                                    - {}
+                                    - {}
+                                    - {}
 components:
     schemas:
         Bar:
@@ -69,11 +81,13 @@ components:
                     example:
                         - string: ""
                         - string: ""
+                        - string: ""
                 foo:
                     type: string
                     example: ""
             example:
                 bar:
+                    - string: ""
                     - string: ""
                     - string: ""
                 foo: ""

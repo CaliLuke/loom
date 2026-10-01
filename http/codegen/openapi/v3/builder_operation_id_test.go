@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/openapi/v3/testdata/dsls"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -83,7 +82,10 @@ func TestBuildOperationID(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			api := codegen.RunDSL(t, c.DSL).API
+			root := codegen.RunDSL(t, c.DSL)
+			api := root.API
+			document, err := buildDocument(root)
+			require.NoError(t, err)
 
 			if len(api.HTTP.Services) == 0 {
 				t.Error("no HTTP service created from DSL")
@@ -93,8 +95,18 @@ func TestBuildOperationID(t *testing.T) {
 				if s.Name() == c.Service {
 					for _, e := range s.HTTPEndpoints {
 						for i, r := range e.Routes {
-							op, err := buildOperation(c.Name, r, &EndpointBodies{}, expr.NewRandom(c.Name), api.Meta)
-							require.NoError(t, err)
+							path := document.Paths[normalizeOpenAPIPath(r.FullPaths()[0])]
+							require.NotNil(t, path)
+							var op *Operation
+							switch r.Method {
+							case "GET":
+								op = path.Get
+							case "POST":
+								op = path.Post
+							default:
+								t.Fatalf("unsupported test route method %q", r.Method)
+							}
+							require.NotNil(t, op)
 
 							if len(c.ExpectedOperationIDs) == 0 {
 								t.Error("no expected operation IDs")
@@ -120,23 +132,10 @@ func TestBuildOperationErrorRemedyDescription(t *testing.T) {
 	)
 
 	root := codegen.RunDSL(t, dsls.ErrorRemedyResponseBodyDSL(svcName, metName))
-	bodies, _ := buildBodyTypes(root.API, root.Types, root.ResultTypes)
-	endpointBodies := bodies[svcName][metName]
-
-	var route *expr.RouteExpr
-	for _, svc := range root.API.HTTP.Services {
-		if svc.Name() != svcName {
-			continue
-		}
-		route = svc.Endpoint(metName).Routes[0]
-		break
-	}
-	if route == nil {
-		t.Fatal("could not find route")
-	}
-
-	op, err := buildOperation(metName, route, endpointBodies, expr.NewRandom(metName), root.API.Meta)
+	doc, err := buildDocument(root)
 	require.NoError(t, err)
+	op := doc.Paths["/"].Post
+	require.NotNil(t, op)
 	resp := op.Responses["400"]
 	if resp == nil || resp.Value == nil || resp.Value.Description == nil {
 		t.Fatal("missing bad request response description")

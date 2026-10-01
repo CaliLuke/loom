@@ -1,6 +1,16 @@
 package expr
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	// ErrValuePlanAssociationNotFound reports that a valid occurrence and target
+	// node have no captured association in this plan. Callers that search exact
+	// captured ancestry may continue only for this error.
+	ErrValuePlanAssociationNotFound = errors.New("value plan association not found")
+)
 
 type (
 	// ValuePlanNode is an immutable representation node. Handles are comparable
@@ -38,6 +48,69 @@ type (
 // Root returns the target root after the plan's semantic member selection.
 func (p ValuePlan) Root() ValuePlanNode {
 	return ValuePlanNode{p.root}
+}
+
+// ForOccurrence returns the already-captured representation associated with an
+// exact semantic occurrence and target node. It never rebuilds a plan or infers
+// ownership from copied attributes. Foreign, missing and ambiguous pairs are
+// rejected.
+func (p ValuePlan) ForOccurrence(source ValueOccurrence, target ValuePlanNode) (ValuePlan, error) {
+	if p.context == nil || p.root == nil || source.context != p.context || source.graph != p.source.graph || source.node == nil {
+		return ValuePlan{}, fmt.Errorf("value plan occurrence does not belong to the plan source")
+	}
+	if target.node == nil {
+		return ValuePlan{}, fmt.Errorf("value plan target node is absent")
+	}
+	if !valuePlanContainsNode(p.root, target.node, make(map[*valuePlanNode]bool)) {
+		return ValuePlan{}, fmt.Errorf("value plan target node does not belong to the plan")
+	}
+	if p.association != nil && source.node == p.association.source && target.node == p.association.root {
+		return ValuePlan{context: p.context, source: source, root: p.association.root,
+			selection: append([]uint64(nil), p.association.selection...), association: p.association,
+			associations: p.associations}, nil
+	}
+	var matched []*valuePlanAssociation
+	for _, association := range p.associations[source.node] {
+		if association.root == target.node {
+			matched = append(matched, association)
+		}
+	}
+	if len(matched) == 0 {
+		return ValuePlan{}, fmt.Errorf("%w for the occurrence and target", ErrValuePlanAssociationNotFound)
+	}
+	if len(matched) != 1 {
+		return ValuePlan{}, fmt.Errorf("value plan has ambiguous representations for the occurrence and target")
+	}
+	association := matched[0]
+	return ValuePlan{context: p.context, source: source, root: association.root,
+		selection: append([]uint64(nil), association.selection...), association: association,
+		associations: p.associations}, nil
+}
+
+func valuePlanContainsNode(root, target *valuePlanNode, visited map[*valuePlanNode]bool) bool {
+	if root == nil || visited[root] {
+		return false
+	}
+	if root == target {
+		return true
+	}
+	visited[root] = true
+	if valuePlanContainsNode(root.alias, target, visited) ||
+		valuePlanContainsNode(root.element, target, visited) ||
+		valuePlanContainsNode(root.key, target, visited) {
+		return true
+	}
+	for _, member := range root.members {
+		if valuePlanContainsNode(member.node, target, visited) {
+			return true
+		}
+	}
+	for _, branch := range root.branches {
+		if valuePlanContainsNode(branch.node, target, visited) {
+			return true
+		}
+	}
+	return false
 }
 
 // Valid reports whether the handle denotes a captured target node.

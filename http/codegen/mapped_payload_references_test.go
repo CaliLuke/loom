@@ -77,7 +77,15 @@ func TestMappedPayloadReferencesOpenAPI(t *testing.T) {
 		params[param.Name] = param.In
 	}
 	assert.Equal(t, map[string]string{"id": "path", "tok": "header", "X-Version": "header", "q": "query", "sid": "cookie"}, params)
-	body := send.Post.RequestBody.Content.GetOrZero("application/json").Schema.Schema()
+	bodyRef := send.Post.RequestBody.Content.GetOrZero("application/json").Schema
+	require.True(t, bodyRef.IsReference())
+	require.Equal(t, "#/components/schemas/SendRequestBody", bodyRef.GetReference())
+	require.NotNil(t, doc.Components)
+	require.NotNil(t, doc.Components.Schemas)
+	bodyComponent := doc.Components.Schemas.GetOrZero("SendRequestBody")
+	require.NotNil(t, bodyComponent)
+	body := bodyComponent.Schema()
+	require.NotNil(t, body)
 	assert.NotNil(t, body.Properties.GetOrZero("nm"))
 	assert.Equal(t, 1, body.Properties.Len())
 	ok := send.Post.Responses.Codes.GetOrZero("200")

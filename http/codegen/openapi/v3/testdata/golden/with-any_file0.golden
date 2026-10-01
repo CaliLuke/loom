@@ -6,6 +6,7 @@
           "any": "",
           "any_array": [
             "",
+            "",
             ""
           ],
           "any_map": {
@@ -18,8 +19,6 @@
           },
           "any_array": {
             "example": [
-              "",
-              "",
               "",
               ""
             ],
@@ -57,6 +56,8 @@
                 "any": "",
                 "any_array": [
                   "",
+                  "",
+                  "",
                   ""
                 ],
                 "any_map": {
@@ -64,7 +65,19 @@
                 }
               },
               "schema": {
-                "$ref": "#/components/schemas/TestEndpointRequestBody"
+                "$ref": "#/components/schemas/TestEndpointRequestBody",
+                "example": {
+                  "any": "",
+                  "any_array": [
+                    "",
+                    "",
+                    "",
+                    ""
+                  ],
+                  "any_map": {
+                    "": ""
+                  }
+                }
               }
             }
           },
@@ -79,7 +92,6 @@
                   "any_array": [
                     "",
                     "",
-                    "",
                     ""
                   ],
                   "any_map": {
@@ -87,7 +99,18 @@
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/TestEndpointRequestBody"
+                  "$ref": "#/components/schemas/TestEndpointRequestBody",
+                  "example": {
+                    "any": "",
+                    "any_array": [
+                      "",
+                      "",
+                      ""
+                    ],
+                    "any_map": {
+                      "": ""
+                    }
+                  }
                 }
               }
             },

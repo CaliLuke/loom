@@ -28,12 +28,23 @@ paths:
                     content:
                         application/problem+json:
                             schema:
+                                example:
+                                    code: bad_request
+                                    detail: parameter 'p' must be an integer
+                                    instance: urn:loom:error:123abc
+                                    retry_hint: Correct the payload and retry.
+                                    status: 400
+                                    title: Bad Request
+                                    type: https://github.com/CaliLuke/loom/problems/bad-request
                                 $ref: '#/components/schemas/Problem'
                 "409":
                     description: 'custom: Conflict response.'
                     content:
                         application/vnd.loom.custom-error:
                             schema:
+                                example:
+                                    message: error message
+                                    name: custom
                                 $ref: '#/components/schemas/LoomCustomError'
                             example:
                                 message: error message

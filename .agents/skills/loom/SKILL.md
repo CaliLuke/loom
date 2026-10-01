@@ -107,6 +107,15 @@ only one format. Generation removes the stale sibling file when this setting
 changes. JSON output is deterministically ordered, two-space indented, and
 newline-terminated for reviewable diffs.
 
+Automatic request-body, response, parameter and header components share complete
+definitions only when their contents, including examples, agree. Changing an
+example can move a definition inline without changing its underlying schema.
+Do not depend on these automatic component references as stable identifiers.
+Explicitly authored component names and schema names retain their contracts.
+Review regenerated SDK and validator output when updating Loom; equivalent
+OpenAPI schemas can still produce different client declarations. See the
+[OpenAPI evolution guide](../../../docs/openapi-evolution.md).
+
 Schema examples use JSON representations, including base64 for `Bytes`, in
 both JSON and YAML, including byte fields inside untagged union branches.
 Author text or byte values as usual; examples encode them once. Incomplete
