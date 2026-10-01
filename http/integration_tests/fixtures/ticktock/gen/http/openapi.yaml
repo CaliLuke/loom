@@ -17,7 +17,7 @@ paths:
                   allowEmptyValue: true
                   schema:
                     type: string
-                  example: Veritatis excepturi deleniti laudantium.
+                  example: Nesciunt qui officiis libero et excepturi.
             responses:
                 "200":
                     $ref: '#/components/responses/TickTockEventTextEventStreamStatus200Response'
@@ -26,6 +26,14 @@ paths:
                     content:
                         application/problem+json:
                             schema:
+                                example:
+                                    code: bad_request
+                                    detail: parameter 'p' must be an integer
+                                    instance: urn:loom:error:123abc
+                                    retry_hint: Correct the payload and retry.
+                                    status: 400
+                                    title: Bad Request
+                                    type: https://github.com/CaliLuke/loom/problems/bad-request
                                 $ref: '#/components/schemas/Problem'
             summary: Guarded clock
             tags:
@@ -47,13 +55,9 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Hic ut in.
                                 event:
                                     type: string
-                                    example: Eaque occaecati vitae ut illo qui sint.
-                            example:
-                                data: Ut minima et aut corrupti.
-                                event: Enim veniam iste.
+                                    example: Id excepturi tenetur quis molestias aut ratione.
                             required:
                                 - event
                                 - data
@@ -90,13 +94,9 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Minus quos qui.
                                 event:
                                     type: string
-                                    example: Veritatis sint aut iste repellendus.
-                            example:
-                                data: Quis illum aliquam.
-                                event: Provident autem quibusdam.
+                                    example: Labore et dolorum illo rerum.
                             required:
                                 - event
                                 - data
@@ -133,13 +133,9 @@ paths:
                             properties:
                                 data:
                                     type: string
-                                    example: Ea incidunt eveniet.
                                 event:
                                     type: string
-                                    example: Magnam facere perferendis laboriosam doloribus.
-                            example:
-                                data: Sint accusamus et.
-                                event: Sit eos et perferendis maiores dolor.
+                                    example: Ex quasi dolores.
                             required:
                                 - event
                                 - data
@@ -205,13 +201,13 @@ components:
             properties:
                 data:
                     type: string
-                    example: Deserunt laudantium consectetur.
+                    example: Nulla eius porro ratione.
                 event:
                     type: string
-                    example: Dignissimos rerum quod illum.
+                    example: Et minima fugit voluptas.
             example:
-                data: Quidem laborum recusandae officia eaque nulla rerum.
-                event: Nisi provident accusamus rerum neque et quo.
+                data: Voluptatem placeat dolor voluptatibus et.
+                event: Quis incidunt necessitatibus eius amet.
             required:
                 - event
                 - data

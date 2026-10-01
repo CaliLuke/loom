@@ -28,7 +28,7 @@ func UsageCommands() []string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " clock initialize --body '{\n      \"id\": \"Eos quibusdam non eligendi.\"\n   }'\n"
+	return os.Args[0] + " clock initialize --body '{\n      \"id\": \"Saepe accusamus.\"\n   }'\n"
 }
 
 type commandLine struct {
@@ -125,7 +125,7 @@ func clockInitializeUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock initialize --body '{\n      \"id\": \"Eos quibusdam non eligendi.\"\n   }'")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock initialize --body '{\n      \"id\": \"Saepe accusamus.\"\n   }'")
 }
 func clockTickUsage() {
 	// Header with flags
@@ -142,5 +142,5 @@ func clockTickUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tick --body '{\n      \"id\": \"Sequi quia animi ullam repellat rerum.\"\n   }'")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tick --body '{\n      \"id\": \"Aliquam architecto sequi autem rerum rerum.\"\n   }'")
 }

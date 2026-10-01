@@ -24,7 +24,7 @@
             "schema": {
               "type": "string"
             },
-            "example": "Veritatis excepturi deleniti laudantium."
+            "example": "Nesciunt qui officiis libero et excepturi."
           }
         ],
         "responses": {
@@ -36,6 +36,15 @@
             "content": {
               "application/problem+json": {
                 "schema": {
+                  "example": {
+                    "code": "bad_request",
+                    "detail": "parameter 'p' must be an integer",
+                    "instance": "urn:loom:error:123abc",
+                    "retry_hint": "Correct the payload and retry.",
+                    "status": 400,
+                    "title": "Bad Request",
+                    "type": "https://github.com/CaliLuke/loom/problems/bad-request"
+                  },
                   "$ref": "#/components/schemas/Problem"
                 }
               }
@@ -65,17 +74,12 @@
                 "type": "object",
                 "properties": {
                   "data": {
-                    "type": "string",
-                    "example": "Hic ut in."
+                    "type": "string"
                   },
                   "event": {
                     "type": "string",
-                    "example": "Eaque occaecati vitae ut illo qui sint."
+                    "example": "Id excepturi tenetur quis molestias aut ratione."
                   }
-                },
-                "example": {
-                  "data": "Ut minima et aut corrupti.",
-                  "event": "Enim veniam iste."
                 },
                 "required": [
                   "event",
@@ -126,17 +130,12 @@
                 "type": "object",
                 "properties": {
                   "data": {
-                    "type": "string",
-                    "example": "Minus quos qui."
+                    "type": "string"
                   },
                   "event": {
                     "type": "string",
-                    "example": "Veritatis sint aut iste repellendus."
+                    "example": "Labore et dolorum illo rerum."
                   }
-                },
-                "example": {
-                  "data": "Quis illum aliquam.",
-                  "event": "Provident autem quibusdam."
                 },
                 "required": [
                   "event",
@@ -187,17 +186,12 @@
                 "type": "object",
                 "properties": {
                   "data": {
-                    "type": "string",
-                    "example": "Ea incidunt eveniet."
+                    "type": "string"
                   },
                   "event": {
                     "type": "string",
-                    "example": "Magnam facere perferendis laboriosam doloribus."
+                    "example": "Ex quasi dolores."
                   }
-                },
-                "example": {
-                  "data": "Sint accusamus et.",
-                  "event": "Sit eos et perferendis maiores dolor."
                 },
                 "required": [
                   "event",
@@ -284,16 +278,16 @@
         "properties": {
           "data": {
             "type": "string",
-            "example": "Deserunt laudantium consectetur."
+            "example": "Nulla eius porro ratione."
           },
           "event": {
             "type": "string",
-            "example": "Dignissimos rerum quod illum."
+            "example": "Et minima fugit voluptas."
           }
         },
         "example": {
-          "data": "Quidem laborum recusandae officia eaque nulla rerum.",
-          "event": "Nisi provident accusamus rerum neque et quo."
+          "data": "Voluptatem placeat dolor voluptatibus et.",
+          "event": "Quis incidunt necessitatibus eius amet."
         },
         "required": [
           "event",
