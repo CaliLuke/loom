@@ -9,6 +9,10 @@ not fix it.
 The initial run's source identities, outcomes and verification limits are recorded
 in [BASELINE.md](BASELINE.md).
 
+The additional full-corpus audit orchestration and its preservation boundary
+are recorded in [audit/README.md](audit/README.md). Full-corpus audits are
+optional major-change checks, not routine ticket acceptance gates.
+
 The `effective-alias-contracts` reference group checks #571's effective named
 type contract. Its reference input is extracted from raw alias attributes and
 keeps absent declarations, duplicate enum entries, all four numeric fields and

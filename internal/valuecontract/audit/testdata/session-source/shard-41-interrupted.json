@@ -1,0 +1,25 @@
+{
+  "active_partial_shard": 41,
+  "aggregate_log": {
+    "path": "/tmp/loom572-full934-freeze4-run.log",
+    "sha256_at_interruption": "bb5595ce54641753c1850b147095f1271abe0caabcfa99d9e2c9a34f6e58de60"
+  },
+  "catalog_cases": 934,
+  "completed_cases": 656,
+  "completed_shards": {
+    "count": 41,
+    "first": 0,
+    "last": 40
+  },
+  "interrupted_at": "2026-10-01T00:08:57.498052+00:00",
+  "normal_receipts": 41,
+  "partial_log": {
+    "path": "/tmp/loom572-full934-shard-41-generation-inflight.log",
+    "sha256": "e731a3c61327f9429192f4542b1c173bf960d46fdb4259233e9ec548005bd31d"
+  },
+  "partial_shard_counted_as_completed": false,
+  "quarantine_receipts": 0,
+  "reason": "user-requested stop of the full-corpus sweep",
+  "runner_exit_code": 130,
+  "status": "interrupted"
+}
