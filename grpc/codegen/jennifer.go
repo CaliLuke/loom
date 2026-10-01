@@ -486,7 +486,7 @@ func grpcParseEndpointSection(commands []*cli.CommandData) codegenpkg.Section {
 											case subcommand.BuildFunction != nil:
 												args := make([]jen.Code, 0, len(subcommand.BuildFunction.ActualParams))
 												for _, param := range subcommand.BuildFunction.ActualParams {
-													args = append(args, jen.Op("*").Id(param+"Flag"))
+													args = append(args, jen.Op("*").Id(grpcSubcommandFlagValueName(subcommand, param)))
 												}
 												scg.List(jen.Id("data"), jen.Err()).Op("=").Id(command.PkgName).Dot(subcommand.BuildFunction.Name).Call(args...)
 											case subcommand.Conversion != nil:
@@ -505,6 +505,15 @@ func grpcParseEndpointSection(commands []*cli.CommandData) codegenpkg.Section {
 				g.Return(jen.Id("endpoint"), jen.Id("data"), jen.Nil())
 			})
 	})
+}
+
+func grpcSubcommandFlagValueName(subcommand *cli.SubcommandData, fullName string) string {
+	for _, flag := range subcommand.Flags {
+		if flag.FullName == fullName {
+			return flag.ValueName
+		}
+	}
+	panic(fmt.Sprintf("missing allocated CLI flag %q", fullName))
 }
 
 // grpcParseEndpointParams returns the ParseEndpoint parameters: the client

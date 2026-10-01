@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	codegentestdata "github.com/CaliLuke/loom/codegen/testdata"
 	dsl "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
@@ -72,18 +73,9 @@ func TestExampleMixedTransportServicesCompile(t *testing.T) {
 			},
 		},
 	}
-	source := loomModuleSource(t)
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			codegen.RunDSL(t, c.Design.DSL)
-			dir := t.TempDir()
-			goMod := fmt.Sprintf("module example.com/mixed\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", source)
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
-
-			_, err := Generate(dir, "gen", false)
-			require.NoError(t, err)
-			_, err = Generate(dir, "example", false)
-			require.NoError(t, err)
+			dir := generateExampleModule(t, "example.com/mixed", c.Design.DSL)
 
 			cmdDir := filepath.Join(dir, "cmd", "mixed")
 			for _, name := range c.WantFiles {
@@ -97,15 +89,55 @@ func TestExampleMixedTransportServicesCompile(t *testing.T) {
 			for _, want := range c.WantSources {
 				assert.Contains(t, string(server), want)
 			}
-
-			_, err = testingx.RunCmd(dir, "go", "mod", "tidy")
-			require.NoError(t, err)
-			output, err := testingx.RunCmd(dir, "go", "build", "./...")
-			require.NoError(t, err, output)
-			output, err = testingx.RunCmd(dir, "go", "vet", "./...")
-			require.NoError(t, err, output)
 		})
 	}
+}
+
+func TestCLIIdentifierCollisionGeneratedExamplesCompile(t *testing.T) {
+	const modulePath = "example.com/cli-identifiers"
+	dir := generateExampleModule(t, modulePath, codegentestdata.CLIIdentifierCollisionDSL)
+	files := map[string][]string{
+		filepath.Join("gen", "http", "cli", "cli_identifiers", "cli.go"): {
+			`enc2 "` + modulePath + `/gen/http/en/client"`,
+			"hCkRawUsage2",
+		},
+		filepath.Join("gen", "jsonrpc", "cli", "cli_identifiers", "cli.go"): {
+			`dec2 "` + modulePath + `/gen/jsonrpc/de/client"`,
+			"jCkRawUsage2",
+		},
+		filepath.Join("gen", "grpc", "cli", "cli_identifiers", "cli.go"): {
+			`csvcc "` + modulePath + `/gen/grpc/c/client"`,
+			"gCkRawUsage2",
+			"gCkRawFlags2",
+		},
+		filepath.Join("gen", "main", "service.go"): {"package mainsvc"},
+	}
+	for name, expected := range files {
+		source, err := os.ReadFile(filepath.Join(dir, name))
+		require.NoError(t, err)
+		for _, want := range expected {
+			assert.Contains(t, string(source), want, name)
+		}
+	}
+}
+
+func generateExampleModule(t *testing.T, modulePath string, design func()) string {
+	t.Helper()
+	codegen.RunDSL(t, design)
+	dir := t.TempDir()
+	goMod := fmt.Sprintf("module %s\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", modulePath, loomModuleSource(t))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
+	_, err := Generate(dir, "gen", false)
+	require.NoError(t, err)
+	_, err = Generate(dir, "example", false)
+	require.NoError(t, err)
+	_, err = testingx.RunCmd(dir, "go", "mod", "tidy")
+	require.NoError(t, err)
+	output, err := testingx.RunCmd(dir, "go", "build", "./...")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(dir, "go", "vet", "./...")
+	require.NoError(t, err, output)
+	return dir
 }
 
 // mixedTransportsDesign selects the services declared next to the

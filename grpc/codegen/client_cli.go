@@ -85,6 +85,26 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 	pkg := naming.ServerDir(svr.Name)
 	fpath := filepath.Join(codegen.Gendir, "grpc", "cli", pkg, "cli.go")
 	title := svr.Name + " gRPC client CLI support package"
+	specs, clientPaths := grpcCLIImports(genpkg, services, data)
+	data = allocateGRPCCommandIdentifiers(data, specs)
+	for i, clientPath := range clientPaths {
+		specs = append(specs, &codegen.ImportSpec{Path: clientPath, Name: data[i].PkgName})
+	}
+
+	sections := make([]codegen.Section, 0, 4+len(data))
+	sections = append(sections,
+		codegen.Header(title, "cli", specs),
+		cli.UsageCommands(data),
+		cli.UsageExamples(data),
+		grpcParseEndpointSection(data),
+	)
+	for _, cmd := range data {
+		sections = append(sections, cli.CommandUsage(cmd))
+	}
+	return &codegen.File{Path: fpath, Sections: sections}
+}
+
+func grpcCLIImports(genpkg string, services *ServicesData, data []*cli.CommandData) ([]*codegen.ImportSpec, []string) {
 	specs := []*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "flag"},
@@ -114,14 +134,15 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 			&codegen.ImportSpec{Path: "google.golang.org/protobuf/types/known/structpb", Name: "structpb"},
 		)
 	}
+	clientPaths := make([]string, 0, len(data))
 	for _, svc := range services.Root.API.GRPC.Services {
 		sd := services.Get(svc.Name())
-		if sd == nil {
+		if sd == nil || len(sd.Endpoints) == 0 {
 			continue
 		}
 		svcName := sd.Service.PathName
+		clientPaths = append(clientPaths, path.Join(genpkg, "grpc", svcName, "client"))
 		specs = append(specs,
-			&codegen.ImportSpec{Path: path.Join(genpkg, "grpc", svcName, "client"), Name: sd.Service.PkgName + "c"},
 			&codegen.ImportSpec{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: sd.PkgName})
 		// Add interceptors import if service has client interceptors
 		if len(sd.Service.ClientInterceptors) > 0 {
@@ -131,18 +152,27 @@ func endpointParser(genpkg string, services *ServicesData, svr *expr.ServerExpr,
 			})
 		}
 	}
+	return specs, clientPaths
+}
 
-	sections := make([]codegen.Section, 0, 4+len(data))
-	sections = append(sections,
-		codegen.Header(title, "cli", specs),
-		cli.UsageCommands(data),
-		cli.UsageExamples(data),
-		grpcParseEndpointSection(data),
-	)
-	for _, cmd := range data {
-		sections = append(sections, cli.CommandUsage(cmd))
+func allocateGRPCCommandIdentifiers(data []*cli.CommandData, specs []*codegen.ImportSpec) []*cli.CommandData {
+	reserved := []string{
+		"UsageCommands", "UsageExamples", "ParseEndpoint",
+		"cc", "opts", "svcn", "svcf", "epn", "epf", "data", "endpoint", "err", "c",
 	}
-	return &codegen.File{Path: fpath, Sections: sections}
+	for _, spec := range specs {
+		name := spec.Name
+		if name == "" {
+			name = path.Base(spec.Path)
+		}
+		reserved = append(reserved, name)
+	}
+	for _, command := range data {
+		if command.Interceptors != nil {
+			reserved = append(reserved, command.Interceptors.VarName)
+		}
+	}
+	return cli.AllocateCommandIdentifiers(data, reserved)
 }
 
 // payloadBuilders returns the file that contains the payload constructors that

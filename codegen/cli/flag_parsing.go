@@ -33,7 +33,7 @@ func FlagsCodeStatement(data []*CommandData) *jen.Statement {
 func appendFlagDefinitions(stmt *jen.Statement, data []*CommandData) {
 	stmt.Var().DefsFunc(func(group *jen.Group) {
 		for _, cmd := range data {
-			group.Id(cmd.VarName+"Flags").Op("=").Qual("flag", "NewFlagSet").Call(jen.Lit(cmd.Name), jen.Qual("flag", "ContinueOnError"))
+			group.Id(commandFlagSetName(cmd)).Op("=").Qual("flag", "NewFlagSet").Call(jen.Lit(cmd.Name), jen.Qual("flag", "ContinueOnError"))
 			appendSubcommandFlagDefinitions(group, cmd.Subcommands)
 		}
 	}).Line()
@@ -41,9 +41,9 @@ func appendFlagDefinitions(stmt *jen.Statement, data []*CommandData) {
 
 func appendSubcommandFlagDefinitions(group *jen.Group, subcommands []*SubcommandData) {
 	for _, sub := range subcommands {
-		group.Id(sub.FullName+"Flags").Op("=").Qual("flag", "NewFlagSet").Call(jen.Lit(sub.Name), jen.Qual("flag", "ExitOnError"))
+		group.Id(subcommandFlagSetName(sub)).Op("=").Qual("flag", "NewFlagSet").Call(jen.Lit(sub.Name), jen.Qual("flag", "ExitOnError"))
 		for _, flag := range sub.Flags {
-			group.Id(flag.FullName+"Flag").Op("=").Id(sub.FullName+"Flags").Dot("String").Call(
+			group.Id(flagValueName(flag)).Op("=").Id(subcommandFlagSetName(sub)).Dot("String").Call(
 				jen.Lit(flag.Name),
 				jen.Lit(flagDefaultValue(flag)),
 				jen.Lit(flag.Description),
@@ -64,10 +64,10 @@ func flagDefaultValue(flag *FlagData) string {
 
 func appendUsageAssignments(stmt *jen.Statement, data []*CommandData) {
 	for _, cmd := range data {
-		stmt.Id(cmd.VarName + "Flags").Dot("Usage").Op("=").Id(cmd.VarName + "Usage")
+		stmt.Id(commandFlagSetName(cmd)).Dot("Usage").Op("=").Id(commandUsageName(cmd))
 		stmt.Line()
 		for _, sub := range cmd.Subcommands {
-			stmt.Id(sub.FullName + "Flags").Dot("Usage").Op("=").Id(sub.FullName + "Usage")
+			stmt.Id(subcommandFlagSetName(sub)).Dot("Usage").Op("=").Id(subcommandUsageName(sub))
 			stmt.Line()
 		}
 	}
@@ -112,7 +112,7 @@ func serviceSelectionSwitch(data []*CommandData) *jen.Statement {
 	return jen.Switch(jen.Id("svcn")).BlockFunc(func(group *jen.Group) {
 		for _, cmd := range data {
 			group.Case(jen.Lit(cmd.Name)).Block(
-				jen.Id("svcf").Op("=").Id(cmd.VarName + "Flags"),
+				jen.Id("svcf").Op("=").Id(commandFlagSetName(cmd)),
 			)
 		}
 		group.Default().Block(
@@ -152,7 +152,7 @@ func subcommandSelectionSwitch(subcommands []*SubcommandData) *jen.Statement {
 	return jen.Switch(jen.Id("epn")).BlockFunc(func(group *jen.Group) {
 		for _, sub := range subcommands {
 			group.Case(jen.Lit(sub.Name)).Block(
-				jen.Id("epf").Op("=").Id(sub.FullName + "Flags"),
+				jen.Id("epf").Op("=").Id(subcommandFlagSetName(sub)),
 			)
 		}
 	})

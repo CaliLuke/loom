@@ -30,6 +30,8 @@ func BuildCommandData(data *service.Data) *CommandData {
 		VarName:      codegen.Goify(data.Name, false),
 		Description:  description,
 		PkgName:      data.PkgName + "c",
+		UsageName:    codegen.Goify(data.Name, false) + "Usage",
+		FlagSetName:  codegen.Goify(data.Name, false) + "Flags",
 		Interceptors: interceptors,
 	}
 }
@@ -41,11 +43,14 @@ func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunctio
 	name := codegen.KebabCase(en)
 	fullName := goifyTerms(data.Name, en)
 	description := subcommandDescription(m)
-	conversion := buildSubcommandConversion(m, buildFunction, flags)
+	conversion := buildSubcommandConversion(m.Payload, buildFunction, flags)
 	interceptors := buildSubcommandInterceptors(data, m)
 	sub := &SubcommandData{
 		Name:          name,
 		FullName:      fullName,
+		PayloadType:   m.Payload,
+		UsageName:     fullName + "Usage",
+		FlagSetName:   fullName + "Flags",
 		Description:   description,
 		Flags:         flags,
 		MethodVarName: m.VarName,
@@ -65,19 +70,19 @@ func subcommandDescription(m *service.MethodData) string {
 	return fmt.Sprintf("Make request to the %q endpoint", m.Name)
 }
 
-func buildSubcommandConversion(m *service.MethodData, buildFunction *BuildFunctionData, flags []*FlagData) *jen.Statement {
-	if m.Payload == "" || buildFunction != nil || len(flags) == 0 {
+func buildSubcommandConversion(payload string, buildFunction *BuildFunctionData, flags []*FlagData) *jen.Statement {
+	if payload == "" || buildFunction != nil || len(flags) == 0 {
 		return nil
 	}
 	flag := flags[0]
-	target, prefix, suffix := subcommandConversionTarget(m.Payload)
-	conv, _, check := conversionCode("*"+flag.FullName+"Flag", target, m.Payload, flag.Unmarshal, false)
+	target, prefix, suffix := subcommandConversionTarget(payload)
+	conv, _, check := conversionCode("*"+flagValueName(flag), target, payload, flag.Unmarshal, false)
 	conversion := codegen.Expr(prefix).Add(conv).Add(codegen.Expr(suffix))
 	if !check {
 		return conversion
 	}
 	return codegen.Expr("var err error\n").Add(conversion).Line().If(jen.Err().Op("!=").Nil()).Block(
-		buildSubcommandConversionError(flag, m.Payload),
+		buildSubcommandConversionError(flag, payload),
 	)
 }
 

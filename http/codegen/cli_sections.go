@@ -114,7 +114,7 @@ func appendKongFlagVars(group *jen.Group, commands []*commandData) {
 	for _, cmd := range commands {
 		for _, sub := range cmd.Subcommands {
 			for _, flag := range sub.Flags {
-				group.Id(flag.FullName + "Flag").Op("*").String()
+				group.Id(flag.ValueName).Op("*").String()
 			}
 		}
 	}
@@ -132,9 +132,9 @@ func appendKongFlagAssignments(group *jen.Group, commands []*commandData) {
 						jen.Id("value").Op(":=").Lit(fmt.Sprint(flag.Default)),
 						field.Clone().Op("=").Op("&").Id("value"),
 					)
-					group.Id(flag.FullName + "Flag").Op("=").Add(field)
+					group.Id(flag.ValueName).Op("=").Add(field)
 				} else {
-					group.Id(flag.FullName + "Flag").Op("=").Op("&").Add(field)
+					group.Id(flag.ValueName).Op("=").Op("&").Add(field)
 				}
 			}
 		}
@@ -278,9 +278,18 @@ func appendHTTPBuildData(group *jen.Group, cmd *commandData, sub *subcommandData
 func httpBuildFunctionArgs(sub *subcommandData) []jen.Code {
 	args := make([]jen.Code, 0, len(sub.BuildFunction.ActualParams))
 	for _, param := range sub.BuildFunction.ActualParams {
-		args = append(args, jen.Op("*").Id(param+"Flag"))
+		args = append(args, jen.Op("*").Id(subcommandFlagValueName(sub, param)))
 	}
 	return args
+}
+
+func subcommandFlagValueName(sub *subcommandData, fullName string) string {
+	for _, flag := range sub.Flags {
+		if flag.FullName == fullName {
+			return flag.ValueName
+		}
+	}
+	panic(fmt.Sprintf("missing allocated CLI flag %q", fullName))
 }
 
 func appendHTTPBuildStreamPayload(group *jen.Group, cmd *commandData, sub *subcommandData) {
@@ -300,7 +309,7 @@ func httpStreamPayloadArgs(sub *subcommandData) []jen.Code {
 	if sub.BuildFunction != nil || sub.Conversion != nil {
 		streamArgs = append(streamArgs, jen.Id("data"))
 	}
-	streamArgs = append(streamArgs, jen.Op("*").Id(sub.StreamFlag.FullName+"Flag"))
+	streamArgs = append(streamArgs, jen.Op("*").Id(sub.StreamFlag.ValueName))
 	return streamArgs
 }
 

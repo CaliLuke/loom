@@ -40,6 +40,23 @@ func TestGRPCServiceImportAliases(t *testing.T) {
 	}
 }
 
+func TestGRPCServiceImportAliasAvoidsClientReceiver(t *testing.T) {
+	root := RunGRPCDSL(t, func() {
+		dsl.Service("c", func() {
+			dsl.Method("show", func() {
+				dsl.Payload(func() {
+					dsl.Field(1, "id", dsl.String)
+				})
+				dsl.GRPC(func() {})
+			})
+		})
+	})
+
+	data := CreateGRPCServices(root).Get("c")
+	require.Equal(t, "csvc", data.Service.PkgName)
+	require.Contains(t, data.Endpoint("show").PayloadRef, "csvc.")
+}
+
 func TestGRPCProtobufImportAvoidsFrameworkPackage(t *testing.T) {
 	root := RunGRPCDSL(t, testdata.GRPCServiceImportAliasesDSL)
 	data := CreateGRPCServices(root).Get("loom")

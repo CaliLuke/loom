@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json/jsontext"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -186,6 +187,54 @@ func TestFlagsCodeIncludesServiceAndEndpointValidation(t *testing.T) {
 	require.Contains(t, code, `flag.CommandLine.Parse(os.Args[1:])`)
 	require.Contains(t, code, `return nil, nil, fmt.Errorf("unknown service %q", svcn)`)
 	require.Contains(t, code, `return nil, nil, fmt.Errorf("unknown %q endpoint %q", svcn, epn)`)
+}
+
+func TestFlagsCodeIdentifiersDoNotCollide(t *testing.T) {
+	commands := []*CommandData{
+		{
+			Name:    "ck-raw",
+			VarName: "ckRaw",
+			PkgName: "ckrawc",
+			Subcommands: []*SubcommandData{
+				{Name: "show", FullName: "ckRawShow"},
+			},
+		},
+		{
+			Name:    "ck",
+			VarName: "ck",
+			PkgName: "ckc",
+			Subcommands: []*SubcommandData{
+				{Name: "raw", FullName: "ckRaw"},
+			},
+		},
+		{
+			Name:    "foo-bar",
+			VarName: "fooBar",
+			PkgName: "foobarc",
+			Subcommands: []*SubcommandData{
+				{Name: "baz", FullName: "fooBarBaz", Flags: []*FlagData{{Name: "value", FullName: "fooBarBazValue"}}},
+			},
+		},
+		{
+			Name:    "foo",
+			VarName: "foo",
+			PkgName: "fooc",
+			Subcommands: []*SubcommandData{
+				{Name: "bar-baz", FullName: "fooBarBaz", Flags: []*FlagData{{Name: "value", FullName: "fooBarBazValue"}}},
+			},
+		},
+	}
+	allocated := AllocateCommandIdentifiers(commands, []string{"enc", "ParseEndpoint"})
+	code := FlagsCode(allocated)
+
+	declarations := regexp.MustCompile(`(?m)^\s*ckRawFlags\s+= flag\.NewFlagSet`).FindAllString(code, -1)
+	require.Len(t, declarations, 1, code)
+	require.Contains(t, code, "ckRawFlags2")
+	valueDeclarations := regexp.MustCompile(`(?m)^\s*fooBarBazValueFlag\s+=`).FindAllString(code, -1)
+	require.Len(t, valueDeclarations, 1, code)
+	require.Contains(t, code, "fooBarBazValueFlag2")
+	require.Empty(t, commands[0].FlagSetName, "allocator mutated source command")
+	require.Empty(t, commands[2].Subcommands[0].Flags[0].ValueName, "allocator mutated source flag")
 }
 
 func TestConversionCode(t *testing.T) {

@@ -129,6 +129,12 @@ consumer validation.
   the client CLI tree and the transport packages of a service, which `expr`
   checks for a `cli` service; `TestCLIServiceTransportDirs` in
   `codegen/generator` fails when the generated layout drifts from them.
+- Allocate aggregate CLI imports, usage functions, flag sets and flag variables in
+  their shared output scope. Reserve fixed imports and parser locals, and carry
+  allocated names to references instead of recomputing suffixes. Keep allocation
+  data local to each server file. Generated service packages must be importable;
+  the canonical service package allocator reserves `main` while preserving the
+  authored service name and directory. See the [CLI identifier model](../../../codegen/cli/tla/identifiers/README.md).
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted
   Go type references. Never construct type syntax by string concatenation.
 - Let Loom determine pointer/value semantics except at explicit transport

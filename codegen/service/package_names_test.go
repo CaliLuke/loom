@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/mod/module"
 
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/naming"
 )
 
@@ -30,4 +31,10 @@ func TestServicePackageNames(t *testing.T) {
 			assert.Equal(t, c.ExpectedPkg, PackageBaseName(c.Service))
 		})
 	}
+}
+
+func TestServicePackageNameAvoidsMainPackage(t *testing.T) {
+	service := &expr.ServiceExpr{Name: "main"}
+
+	assert.Equal(t, "mainsvc", PackageName(nil, service))
 }

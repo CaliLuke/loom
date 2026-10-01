@@ -27,6 +27,10 @@ type (
 		// PkgName is the service HTTP client package import name,
 		// e.g. "storagec".
 		PkgName string
+		// UsageName is the allocated command usage function name.
+		UsageName string
+		// FlagSetName is the allocated command flag-set variable name.
+		FlagSetName string
 		// Interceptors contains the data for client interceptors if any.
 		Interceptors *InterceptorData
 	}
@@ -37,6 +41,12 @@ type (
 		Name string
 		// FullName is the sub-command full name e.g. "storageAdd"
 		FullName string
+		// PayloadType is the method payload type used by direct flag conversion.
+		PayloadType string
+		// UsageName is the allocated sub-command usage function name.
+		UsageName string
+		// FlagSetName is the allocated sub-command flag-set variable name.
+		FlagSetName string
 		// Description is the help text.
 		Description string
 		// Flags is the list of flags supported by the subcommand.
@@ -73,6 +83,8 @@ type (
 		Type string
 		// FullName is the flag full name e.g. "storageAddVintage"
 		FullName string
+		// ValueName is the allocated parser-local variable holding the flag value.
+		ValueName string
 		// Description is the flag help text.
 		Description string
 		// Required is true if the flag is required.

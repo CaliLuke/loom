@@ -78,8 +78,8 @@ func UsageExamples(data []*CommandData) codegen.Section {
 // endpoint command usage code.
 func CommandUsage(data *CommandData) codegen.Section {
 	return codegen.NewJenniferSection("cli-command-usage", func(stmt *jen.Statement) {
-		codegen.Doc(stmt, fmt.Sprintf("%sUsage displays the usage of the %s command and its subcommands.", data.VarName, data.Name))
-		stmt.Func().Id(data.VarName + "Usage").Params().BlockFunc(func(group *jen.Group) {
+		codegen.Doc(stmt, fmt.Sprintf("%s displays the usage of the %s command and its subcommands.", commandUsageName(data), data.Name))
+		stmt.Func().Id(commandUsageName(data)).Params().BlockFunc(func(group *jen.Group) {
 			group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit(printDescription(data.Description)))
 			group.Qual("fmt", "Fprintf").Call(jen.Qual("os", "Stderr"), jen.Lit("Usage:\n    %s [globalflags] "+data.Name+" COMMAND [flags]\n\n"), jen.Qual("os", "Args").Index(jen.Lit(0)))
 			group.Qual("fmt", "Fprintln").Call(jen.Qual("os", "Stderr"), jen.Lit("COMMAND:"))
@@ -92,7 +92,7 @@ func CommandUsage(data *CommandData) codegen.Section {
 		})
 		stmt.Line()
 		for _, sub := range data.Subcommands {
-			stmt.Func().Id(sub.FullName + "Usage").Params().BlockFunc(func(group *jen.Group) {
+			stmt.Func().Id(subcommandUsageName(sub)).Params().BlockFunc(func(group *jen.Group) {
 				group.Comment("Header with flags")
 				group.Qual("fmt", "Fprintf").Call(jen.Qual("os", "Stderr"), jen.Lit("%s [flags] "+data.Name+" "+sub.Name), jen.Qual("os", "Args").Index(jen.Lit(0)))
 				for _, flag := range sub.Flags {

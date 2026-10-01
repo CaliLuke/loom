@@ -84,6 +84,7 @@ func NewFlagData(svcn, en, name, typeName, description string, required bool, ex
 		VarName:     codegen.Goify(name, false),
 		Type:        flagType(typeName),
 		FullName:    fn,
+		ValueName:   fn + "Flag",
 		Description: description,
 		Required:    required,
 		Example:     ex,

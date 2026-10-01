@@ -195,16 +195,14 @@ func endpointParser(
 		codegen.LoomNamedImport("http/cli", "loomhttpcli"),
 		codegen.LoomNamedImport("http", "loomhttp"),
 	}
+	clientPaths := make([]string, 0, len(data))
 	for _, sv := range svr.Services {
 		svc := root.Service(sv)
 		sd := services.Get(svc.Name)
-		if sd == nil {
+		if sd == nil || len(sd.Endpoints) == 0 {
 			continue
 		}
-		specs = append(specs, &codegen.ImportSpec{
-			Path: genpkg + "/" + transport.PathName + "/" + sd.Service.PathName + "/client",
-			Name: sd.Service.PkgName + "c",
-		})
+		clientPaths = append(clientPaths, genpkg+"/"+transport.PathName+"/"+sd.Service.PathName+"/client")
 		// Add interceptors import if service has client interceptors
 		if len(sd.Service.ClientInterceptors) > 0 {
 			specs = append(specs, &codegen.ImportSpec{
@@ -212,6 +210,10 @@ func endpointParser(
 				Name: sd.Service.PkgName,
 			})
 		}
+	}
+	data = allocateHTTPCommandIdentifiers(data, specs, transport)
+	for i, clientPath := range clientPaths {
+		specs = append(specs, &codegen.ImportSpec{Path: clientPath, Name: data[i].PkgName})
 	}
 
 	cliData := make([]*cli.CommandData, len(data))
@@ -230,6 +232,58 @@ func endpointParser(
 		sections = append(sections, cli.CommandUsage(cmd))
 	}
 	return &codegen.File{Path: path, Sections: sections}
+}
+
+func allocateHTTPCommandIdentifiers(
+	commands []*commandData,
+	imports []*codegen.ImportSpec,
+	transport ClientCLITransport,
+) []*commandData {
+	reserved := []string{
+		"UsageCommands", "UsageExamples", "ParseEndpoint", "commandLine",
+		"scheme", "host", "doer", "enc", "dec", "restore", "dialer",
+		"command", "args", "svcn", "epn", "path", "err", "data", "endpoint", "c", "value",
+	}
+	for _, spec := range imports {
+		reserved = append(reserved, importName(spec))
+	}
+	common := make([]*cli.CommandData, len(commands))
+	for i, command := range commands {
+		common[i] = command.CommandData
+		if command.NeedDialer {
+			reserved = append(reserved, transport.StreamingConfigurerName(command.VarName))
+		}
+		if command.Interceptors != nil {
+			reserved = append(reserved, command.Interceptors.VarName)
+		}
+		for _, subcommand := range command.Subcommands {
+			if subcommand.MultipartVarName != "" {
+				reserved = append(reserved, subcommand.MultipartVarName)
+			}
+		}
+	}
+	allocated := cli.AllocateCommandIdentifiers(common, reserved)
+	out := make([]*commandData, len(commands))
+	for i, command := range commands {
+		copyCommand := *command
+		copyCommand.CommandData = allocated[i]
+		copyCommand.Subcommands = make([]*subcommandData, len(command.Subcommands))
+		for j, subcommand := range command.Subcommands {
+			copySubcommand := *subcommand
+			copySubcommand.SubcommandData = allocated[i].Subcommands[j]
+			if subcommand.StreamFlag != nil {
+				for _, flag := range copySubcommand.Flags {
+					if flag.FullName == subcommand.StreamFlag.FullName {
+						copySubcommand.StreamFlag = flag
+						break
+					}
+				}
+			}
+			copyCommand.Subcommands[j] = &copySubcommand
+		}
+		out[i] = &copyCommand
+	}
+	return out
 }
 
 // payloadBuilders returns the file that contains the payload constructors that

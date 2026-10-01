@@ -4,10 +4,11 @@ CONSTANTS Services, Legacy, ReserveLocals
 VARIABLES order, phase, position, protobuf, service, used, locals
 
 vars == <<order, phase, position, protobuf, service, used, locals>>
-Reserved == {"loom", "loompb", "protojson", "context"}
+Reserved == {"loom", "loompb", "protojson", "context", "c"}
 
 ProtobufChoices(name) ==
-  CASE name = "loom" -> <<"loompb", "loompb2", "loompb3">>
+  CASE name = "c" -> <<"cpb", "cpb2", "cpb3">>
+    [] name = "loom" -> <<"loompb", "loompb2", "loompb3">>
     [] name = "loompb" -> <<"loompbpb", "loompbpb2", "loompbpb3">>
     [] name = "loompb2" -> <<"loompb2pb", "loompb2pb2", "loompb2pb3">>
     [] name = "protojson" -> <<"protojsonpb", "protojsonpb2", "protojsonpb3">>
@@ -15,7 +16,8 @@ ProtobufChoices(name) ==
     [] name = "protojsonsvc2" -> <<"protojsonsvc2pb", "protojsonsvc2pb2", "protojsonsvc2pb3">>
 
 ServiceChoices(name) ==
-  CASE name = "loom" -> <<"loom", "loomsvc", "loomsvc2", "loomsvc3", "loomsvc4">>
+  CASE name = "c" -> <<"c", "csvc", "csvc2", "csvc3", "csvc4">>
+    [] name = "loom" -> <<"loom", "loomsvc", "loomsvc2", "loomsvc3", "loomsvc4">>
     [] name = "loompb" -> <<"loompb", "loompbsvc", "loompbsvc2", "loompbsvc3", "loompbsvc4">>
     [] name = "loompb2" -> <<"loompb2", "loompb2svc", "loompb2svc2", "loompb2svc3", "loompb2svc4">>
     [] name = "protojson" -> <<"protojson", "protojsonsvc", "protojsonsvc2", "protojsonsvc3", "protojsonsvc4">>

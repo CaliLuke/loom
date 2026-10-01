@@ -14,6 +14,8 @@ type transportImportAliases struct {
 	protobuf string
 }
 
+const grpcClientReceiverName = "c"
+
 // transportGeneratedImportNames reserves the fixed imports of generated gRPC
 // transport and example files before service aliases are allocated. Generated
 // import coverage keeps this list aligned with the rendered files.
@@ -29,6 +31,9 @@ func newImportAliases(root *expr.RootExpr) map[string]transportImportAliases {
 	for _, name := range transportGeneratedImportNames {
 		scope.Unique(name)
 	}
+	// Client methods use c as their receiver. Reserve it because selectors on
+	// that receiver are otherwise indistinguishable from import qualifiers.
+	scope.Unique(grpcClientReceiverName)
 	aliases := make(map[string]transportImportAliases, len(root.API.GRPC.Services))
 	// Reserve protocol buffer imports before service imports: every aggregate
 	// file can import both sets, regardless of the order of its services.

@@ -54,3 +54,26 @@ and does not model file-specific custom type aliases; generated Go regressions
 cover those bindings. Generation probes compile and vet services named
 after every fixed gRPC import. Exact-byte comparisons separately check that
 existing designs and protobuf/service declarations keep their output.
+
+## Fixed client receiver reservation
+
+The #486 combined CLI compile probe exposed a missing reservation for the
+generated client receiver `c`. An import also named `c` survives Go import
+cleanup because receiver selectors look like package selectors, leaving an
+unused import in a unary client. It can also shadow a service type reference.
+This was outside the original model's fixed-import reservation set.
+
+`Reserved` now includes this fixed receiver. `LegacyReceiver.cfg` isolates
+service `c` and reproduces the raw alias collision: `NamespaceSafe` fails after
+4 states at depth 4. `AllocatedReceiver.cfg` checks the corrected service alias
+`csvc`: both invariants and termination pass over 10 states at depth 10. Run
+either with the command above, substituting its configuration name. The four
+original configurations were rerun with unchanged outcomes and state counts.
+These runs used the [CLI model's pinned runtime](../../../../codegen/cli/tla/identifiers/README.md).
+
+Production `newImportAliases` reserves `grpcClientReceiverName` before service
+alias allocation. `TestGRPCServiceImportAliasAvoidsClientReceiver` checks the
+alias and retained payload reference. The combined
+`TestCLIIdentifierCollisionGeneratedExamplesCompile` regression compiles the
+service `c` with its allocated alias and CLI client import. The model checks
+name separation; the generated compile test covers import cleanup behavior.
