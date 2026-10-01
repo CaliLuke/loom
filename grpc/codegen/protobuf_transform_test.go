@@ -316,6 +316,29 @@ func TestProtoBufTransformNullableAnyObjectPreservesPresence(t *testing.T) {
 	require.Contains(t, fromProto, "loomgrpc.NewJSONValue(source.Data)")
 }
 
+func TestProtoBufTransformNullableAnyRootPreservesPresence(t *testing.T) {
+	nullable := &expr.AttributeExpr{Type: expr.Any, Nullable: true}
+	protobuf := &expr.AttributeExpr{Type: expr.Any}
+	scope := codegen.NewNameScope()
+	svcCtx := codegen.NewAttributeContext(false, false, true, "", scope)
+	pbCtx := protoBufTypeContext("", scope, false)
+
+	toProto, _, err := protoBufTransform(nullable, protobuf, "source", "target", svcCtx, pbCtx, true, false)
+	require.NoError(t, err)
+	require.Contains(t, toProto, "source.IsNull()")
+	require.Contains(t, toProto, "source.Value()")
+	require.Contains(t, toProto, "target = structpb.NewNullValue()")
+	require.Contains(t, toProto, "loomgrpc.NewProtoValue(actual)")
+
+	fromProto, _, err := protoBufTransform(protobuf, nullable, "source", "target", pbCtx, svcCtx, false, true)
+	require.NoError(t, err)
+	require.Contains(t, fromProto, "var target loom.Nullable[loom.JSONValue]")
+	require.Contains(t, fromProto, "source != nil")
+	require.Contains(t, fromProto, "target.SetNull()")
+	require.Contains(t, fromProto, "target.SetValue(")
+	require.Contains(t, fromProto, "loomgrpc.NewJSONValue(source)")
+}
+
 func TestProtoBufTransformSeams(t *testing.T) {
 	root := codegen.RunDSL(t, ctestdata.TestTypesDSL)
 	sd := &ServiceData{Name: "Service", Scope: codegen.NewNameScope()}

@@ -200,6 +200,9 @@ func transformAttributeByKind(source, target *expr.AttributeExpr, sourceVar, tar
 			return decl + code, err
 		}
 		return transformUnionFromProto(source, target, sourceVar, targetVar, false, ta)
+	case isNullableAnyTransform(source, target, ta):
+		code, _ := transformAnyPresence(sourceVar, targetVar, source, target, newVar, ta)
+		return code, nil
 	case source.Type.Kind() == expr.AnyKind || target.Type.Kind() == expr.AnyKind:
 		return transformScalarAssignment(source, target, sourceVar, targetVar, newVar, ta), nil
 	default:
@@ -269,7 +272,7 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 			srcFieldName = names.goField(n)
 		}
 		srcField := sourceVar + "." + srcFieldName
-		if presenceCode, handled := transformAnyPresenceObjectField(srcField, targetVar+"."+tgtField, srcc, tgtc, ta); handled {
+		if presenceCode, handled := transformAnyPresence(srcField, targetVar+"."+tgtField, srcc, tgtc, false, ta); handled {
 			postInitCode += presenceCode
 			return
 		}
@@ -291,27 +294,43 @@ func buildPrimitiveObjectInit(source, target *expr.AttributeExpr, sourceVar, tar
 	return initCode, postInitCode
 }
 
-func transformAnyPresenceObjectField(srcField, tgtField string, source, target *expr.AttributeExpr, ta *transformAttrs) (string, bool) {
+func isNullableAnyTransform(source, target *expr.AttributeExpr, ta *transformAttrs) bool {
+	sourceBase := unAlias(source)
+	targetBase := unAlias(target)
+	if sourceBase.Type.Kind() != expr.AnyKind || targetBase.Type.Kind() != expr.AnyKind {
+		return false
+	}
+	if ta.proto {
+		return expr.IsNullable(source)
+	}
+	return expr.IsNullable(target)
+}
+
+func transformAnyPresence(srcField, tgtField string, source, target *expr.AttributeExpr, newVar bool, ta *transformAttrs) (string, bool) {
 	sourceBase := unAlias(source)
 	targetBase := unAlias(target)
 	if sourceBase.Type.Kind() != expr.AnyKind || targetBase.Type.Kind() != expr.AnyKind {
 		return "", false
 	}
+	declaration := ""
+	if newVar {
+		declaration = "var " + tgtField + " " + ta.TargetCtx.Scope.Ref(target, ta.TargetCtx.Pkg(target)) + "\n"
+	}
 	if ta.proto {
 		if expr.IsNullable(source) {
 			converted := convertPrimitiveToProto(sourceBase, targetBase, false, false, "actual", ta)
-			return "if " + srcField + ".IsNull() {\n\t" + tgtField + " = structpb.NewNullValue()\n" +
+			return declaration + "if " + srcField + ".IsNull() {\n\t" + tgtField + " = structpb.NewNullValue()\n" +
 				"} else if actual, ok := " + srcField + ".Value(); ok {\n\t" + tgtField + " = " + converted + "\n}\n", true
 		}
 		converted := convertPrimitiveToProto(sourceBase, targetBase, false, false, srcField, ta)
-		return "if " + srcField + " != nil {\n\t" + tgtField + " = " + converted + "\n}\n", true
+		return declaration + "if " + srcField + " != nil {\n\t" + tgtField + " = " + converted + "\n}\n", true
 	}
 	converted := convertPrimitiveFromProto(sourceBase, targetBase, false, false, srcField, ta)
 	if expr.IsNullable(target) {
-		return "if " + srcField + " != nil {\n\tif _, isNull := " + srcField + ".GetKind().(*structpb.Value_NullValue); isNull {\n\t\t" +
+		return declaration + "if " + srcField + " != nil {\n\tif _, isNull := " + srcField + ".GetKind().(*structpb.Value_NullValue); isNull {\n\t\t" +
 			tgtField + ".SetNull()\n\t} else {\n\t\t" + tgtField + ".SetValue(" + converted + ")\n\t}\n}\n", true
 	}
-	return "if " + srcField + " != nil {\n\t" + tgtField + " = " + converted + "\n}\n", true
+	return declaration + "if " + srcField + " != nil {\n\t" + tgtField + " = " + converted + "\n}\n", true
 }
 
 // buildObjectFieldTransform returns the code that converts the field n of the

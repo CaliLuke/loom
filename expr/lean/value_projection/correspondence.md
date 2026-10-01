@@ -970,12 +970,20 @@ These are production correspondence obligations, not new theorem claims.
 The #434 explicit-null probe exposed a gRPC converter limitation at that revision:
 an `Any` payload with `Nullable()` and `Example(Null())` generates assignments between
 `loom.JSONValue` and `loom.Nullable[loom.JSONValue]` and compares the nullable
-wrapper with `nil`. Those generated converters failed compilation. #573 did not
-regenerate that specimen; current direct nullable-Any transform coverage does not
-establish its full-module outcome. [R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs)
-retains that revalidation obligation. #434 does not add nullable
-Any transport support; its example adapter must diagnose and omit that unsupported
-hint. Empty selected collection branches remain a separate supported case and
+wrapper with `nil`. Those generated converters failed compilation. Reconstructing
+that root-payload contract at `5c4702ac` reproduced the failure despite the existing
+nullable-Any object-field repair. The scalar transform now reuses that field
+conversion's absent/null/value mapping and declares the nullable target through
+the target scope. `TestProtoBufTransformNullableAnyRootPreservesPresence` checks
+the expressions; `TestGeneratedNullableAnyRootPayloadRoundTrip` runs generation
+including protoc, module build and vet, and generated converter round-trips for
+absence, null and a concrete JSON value, plus malformed JSON error propagation.
+This closes the compiler obligation in
+[R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs).
+The repair extends the existing implementation mapping to a missed occurrence;
+it does not add a Lean proof of protobuf conversion. The CLI adapter still
+diagnoses and omits the explicit-null hint; that policy is unchanged.
+Empty selected collection branches remain a separate supported case and
 must retain their oneof selection through a generated round trip. Typed-nil
 authored collection examples are rejected by existing DSL validation and do not
 establish an executable protobuf acceptance case.
