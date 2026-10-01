@@ -408,6 +408,10 @@ filter, and serialization rules belong here.
   and server-SSE cases are supported. Server-SSE requests with an ID retain a
   final response. ID-less streams suppress it. Other streaming completion
   shapes stay explicit generation limitations.
+- JSON-RPC WebSocket params use the request-body declarations. Shared HTTP
+  analysis must not also build or collect HTTP streaming-body declarations or
+  initializers for these endpoints. Preserve the live params, result and error
+  types, and ordinary HTTP WebSocket streaming bodies.
 - Viewed JSON-RPC WebSocket and SSE method streams select a view with
   `SetView`, unless the design fixes it. Connection-level sends and WebSocket
   streaming-payload methods that return one result use the fixed or default

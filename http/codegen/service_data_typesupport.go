@@ -144,7 +144,7 @@ func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints
 	seenUnionTypes := make(map[string]struct{})
 	for _, endpoint := range endpoints {
 		collectHTTPUnionTypes(endpoint.Request.Body, scope, unionByName, seenUnionTypes)
-		if payload := endpoint.Stream.RequestPayload; payload != nil && payload.Type != expr.Empty {
+		if hasHTTPStreamingBody(endpoint) {
 			collectHTTPUnionTypes(endpoint.Request.StreamingBody, scope, unionByName, seenUnionTypes)
 		}
 		if endpoint.Response.Result != nil {

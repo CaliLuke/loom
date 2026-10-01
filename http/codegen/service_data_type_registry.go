@@ -12,7 +12,7 @@ import (
 func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transportir.Endpoint, sd *ServiceData) {
 	unionBranchTypes := make(map[string]struct{})
 	collectUnionBranchUserTypes(endpointIR.Request.Body, unionBranchTypes)
-	if endpointIR.Stream.RequestPayload != nil && endpointIR.Stream.RequestPayload.Type != expr.Empty {
+	if hasHTTPStreamingBody(endpointIR) {
 		collectUnionBranchUserTypes(endpointIR.Request.StreamingBody, unionBranchTypes)
 	}
 	for _, response := range endpointIR.Response.Responses {
@@ -43,7 +43,7 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 	appendTypeData(endpointIR.Request.Body, true, true, requestJSONPresence, &sd.ServerBodyAttributeTypes)
 	appendTypeData(endpointIR.Request.Body, false, false, false, &sd.ClientBodyAttributeTypes)
 
-	if endpointIR.Stream.RequestPayload != nil && endpointIR.Stream.RequestPayload.Type != expr.Empty {
+	if hasHTTPStreamingBody(endpointIR) {
 		appendTypeData(endpointIR.Request.StreamingBody, true, true, true, &sd.ServerBodyAttributeTypes)
 		appendTypeData(endpointIR.Request.StreamingBody, false, false, false, &sd.ClientBodyAttributeTypes)
 	}
@@ -68,6 +68,10 @@ func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transport
 			}
 		})
 	}
+}
+
+func hasHTTPStreamingBody(endpoint *transportir.Endpoint) bool {
+	return !endpoint.IsJSONRPC && endpoint.Stream.RequestPayload != nil && endpoint.Stream.RequestPayload.Type != expr.Empty
 }
 
 func recordServiceTypeLayouts(endpoints []*transportir.Endpoint, sd *ServiceData) {

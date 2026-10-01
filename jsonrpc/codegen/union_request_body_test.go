@@ -35,6 +35,24 @@ func TestJSONRPCUnionRequestBodyDeclaration(t *testing.T) {
 	}
 }
 
+// TestJSONRPCWebSocketUnionUsesOnlyRequestBodyDeclarations checks that a
+// JSON-RPC WebSocket streaming request keeps the live JSON-RPC request body
+// declaration without also emitting the HTTP WebSocket streaming-body copy.
+func TestJSONRPCWebSocketUnionUsesOnlyRequestBodyDeclarations(t *testing.T) {
+	root := RunJSONRPCDSL(t, jsonrpcUnionRequestBodyDSL(true))
+	services := CreateJSONRPCServices(root)
+	endpoint := services.Get("Picker").Endpoint("Pick")
+	require.NotNil(t, endpoint)
+	require.NotNil(t, endpoint.ServerWebSocket)
+	require.NotNil(t, endpoint.ClientWebSocket)
+	require.Nil(t, endpoint.ServerWebSocket.Payload)
+	require.Nil(t, endpoint.ClientWebSocket.Payload)
+
+	code := jsonrpcGeneratedCode(t, ServerTypeFiles("", services))
+	assert.Contains(t, code, "type PickRequestBody struct")
+	assert.NotContains(t, code, "PickStreamingBody")
+}
+
 // TestJSONRPCUnionRequestBodyGeneratedModuleRoundTrip compiles and vets
 // JSON-RPC services whose params or WebSocket streaming payload are a
 // constructor OneOf union and round-trips every branch through the generated
