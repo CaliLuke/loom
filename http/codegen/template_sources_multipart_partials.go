@@ -267,7 +267,10 @@ var multipartRequestDecoderConversionPartials = []templateSource{
 		{{ .VarName }}[key{{ .Loop }}] = val{{ .Loop }}
 	{{- end }}`},
 	{name: "path_conversion", source: `	{{- if eq .Type.Name "array" }}
-		{{ .Locals.RawSlice }} := strings.Split({{ .Locals.Raw }}, ",")
+		{{ .Locals.RawSlice }}, err2 := loomhttp.DecodePathArray({{ .Locals.Raw }})
+		if err2 != nil {
+			err = loom.MergeErrors(err, loom.DecodePayloadError(err2.Error()))
+		}
 		{{ .VarName }} = make({{ goTypeRef .Type }}, len({{ .Locals.RawSlice }}))
 		for i, rv := range {{ .Locals.RawSlice }} {
 			{{- template "partial_slice_item_conversion" . }}

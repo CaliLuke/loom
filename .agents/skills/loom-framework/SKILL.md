@@ -525,8 +525,17 @@ filter, and serialization rules belong here.
   `http.EscapePathRemainder` for a catch-all value. Each value is formatted by
   the type of its own param. Clients build the request URL with
   `http.RequestURL`, which keeps the escaping in `URL.RawPath`; a route whose
-  builder returns an unescaped literal keeps `url.URL.Path`. The muxer routes
-  on the raw path and unescapes each captured value once.
+  builder returns an unescaped literal keeps `url.URL.Path`. The muxer matches
+  escaped route literals against the escaped request path and preserves the
+  authored pattern in request metadata. Honor a parent router's remaining path
+  without modifying the request URL or escaping that remainder twice.
+- `Muxer.RawVars` is a required raw-capture contract; `Vars` retains decoded
+  values. Generated array path decoders read raw captures and delegate to
+  `http.DecodePathArray`, which splits literal commas before unescaping each
+  element once. Normal and multipart decoders share this runtime operation.
+  Never reconstruct raw captures from decoded values or silently fall back to
+  decoded splitting for custom muxes. See the
+  [path decoding model](../../../http/tla/path_decoding/README.md).
 - Generated wildcard static-file routes delegate target resolution to
   `http.NewStaticFileServer`. Directory targets map the captured request suffix
   below the target, while file targets serve the same file for every matching

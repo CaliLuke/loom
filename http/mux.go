@@ -53,8 +53,12 @@ type (
 		ServeHTTP(http.ResponseWriter, *http.Request)
 
 		// Vars returns the path variables captured for the given
-		// request.
+		// request after URL path unescaping.
 		Vars(*http.Request) map[string]string
+
+		// RawVars returns the path variables captured for the given request
+		// with their URL path escaping preserved.
+		RawVars(*http.Request) map[string]string
 	}
 
 	// MiddlewareMuxer makes it possible to mount middlewares downstream of the
@@ -83,14 +87,17 @@ type (
 		middlewares []func(http.Handler) http.Handler
 		// routesRegistered reports whether Handle has mounted the middleware chain.
 		routesRegistered bool
-		// wildcards maps a method and a pattern to the name of the wildcard
-		// this is needed because chi does not expose the name of the wildcard
-		wildcards map[string]string
+		// patterns maps the escaped pattern registered with chi to the authored
+		// pattern exposed through request metadata.
+		patterns map[string]string
 		// patternBeforeMiddleware reports whether ServeHTTP must pre-match the
 		// route so mux-level middleware can read r.Pattern before chi dispatches
 		// the matched handler.
 		patternBeforeMiddleware bool
 	}
+
+	escapedRoutePathKey  struct{}
+	routePatternDepthKey struct{}
 )
 
 // NewMuxer returns a Muxer implementation based on a Chi router.
@@ -104,14 +111,19 @@ type (
 //	mux := loomhttp.NewMuxer()
 //	mux.Use(otelhttp.NewMiddleware("service"))
 func NewMuxer() ResolverMuxer {
+	router := chi.NewRouter()
+	router.Use(setEscapedRoutePath)
 	return &mux{
-		Router:      chi.NewRouter(),
+		Router:      router,
 		middlewares: make([]func(http.Handler) http.Handler, 0),
-		wildcards:   make(map[string]string),
+		patterns:    make(map[string]string),
 	}
 }
 
 var (
+	// routeWildcard matches a supported path segment or catch-all wildcard.
+	routeWildcard = regexp.MustCompile(`/{\*?([a-zA-Z0-9_]+)}`)
+
 	// wildPath matches a wildcard path segment.
 	wildPath = regexp.MustCompile(`/{\*([a-zA-Z0-9_]+)}`)
 
@@ -151,14 +163,16 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 	// Capture the registered pattern before wildcard rewriting so we can
 	// populate r.Pattern for downstream consumers.
 	reqPattern := method + " " + pattern
-	if start, name := catchAllWildcard(pattern); name != "" {
-		pattern = pattern[:start] + "/*"
-		m.wildcards[method+"::"+pattern] = name
+	escapedPattern := escapeRoutePattern(pattern)
+	if _, name := catchAllWildcard(pattern); name != "" {
+		suffix := "/{*" + name + "}"
+		escapedPattern = strings.TrimSuffix(escapedPattern, suffix) + "/*"
 	}
+	m.patterns[method+"::"+escapedPattern] = pattern
 	methodRegistrationMu.Lock()
 	defer methodRegistrationMu.Unlock()
 	chi.RegisterMethod(method)
-	m.Method(method, pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	m.Method(method, escapedPattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Pattern = reqPattern
 		handler(w, r)
 	}))
@@ -168,9 +182,17 @@ func (m *mux) Handle(method, pattern string, handler http.HandlerFunc) {
 // When mux middleware is registered, it pre-resolves the matched route so the
 // middleware can read r.Pattern before the matched handler runs.
 func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	routePath := requestRoutePath(r)
+	depth := 0
+	if rctx := chi.RouteContext(r.Context()); rctx != nil {
+		depth = len(rctx.RoutePatterns)
+		rctx.RoutePath = routePath
+	}
+	ctx := context.WithValue(r.Context(), escapedRoutePathKey{}, routePath)
+	r = r.WithContext(context.WithValue(ctx, routePatternDepthKey{}, depth))
 	if m.patternBeforeMiddleware {
-		if rctx := m.matchRoute(r); rctx != nil {
-			r.Pattern = r.Method + " " + m.resolveWildcard(r.Method, rctx.RoutePattern())
+		if rctx := m.matchRoutePath(r.Method, routePath); rctx != nil {
+			r.Pattern = r.Method + " " + m.resolvePattern(r.Method, localRoutePattern(rctx))
 		}
 	}
 	m.Router.ServeHTTP(w, r)
@@ -178,26 +200,29 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Vars extracts the path variables from the request context.
 func (m *mux) Vars(r *http.Request) map[string]string {
+	vars := m.RawVars(r)
+	for name, value := range vars {
+		vars[name] = unescapePathParam(value)
+	}
+	return vars
+}
+
+// RawVars extracts the escaped path variables captured for the given request.
+func (m *mux) RawVars(r *http.Request) map[string]string {
 	ctx := m.ensureContext(r)
 	if ctx == nil {
 		return nil
 	}
 	params := ctx.URLParams
-	if len(params.Keys) == 0 {
+	pattern := m.resolvePattern(r.Method, localRoutePattern(ctx))
+	wildcards := routeWildcard.FindAllStringSubmatch(pattern, -1)
+	if len(wildcards) == 0 || len(params.Values) < len(wildcards) {
 		return nil
 	}
-	vars := make(map[string]string, len(params.Keys))
-	for i, k := range params.Keys {
-		value := params.Values[i]
-		if r.URL.RawPath != "" {
-			value = unescapePathParam(value)
-		}
-		if k == "*" {
-			wildcard := m.wildcards[r.Method+"::"+ctx.RoutePattern()]
-			vars[wildcard] = value
-			continue
-		}
-		vars[k] = value
+	vars := make(map[string]string, len(wildcards))
+	start := len(params.Values) - len(wildcards)
+	for i, wildcard := range wildcards {
+		vars[wildcard[1]] = params.Values[start+i]
 	}
 	return vars
 }
@@ -254,16 +279,22 @@ func (m *mux) ResolvePattern(r *http.Request) string {
 	if ctx == nil {
 		return ""
 	}
-	return m.resolveWildcard(r.Method, ctx.RoutePattern())
+	return m.resolvePattern(r.Method, localRoutePattern(ctx))
 }
 
-// resolveWildcard returns the route pattern with the wildcard replaced by the
-// name of the wildcard.
-func (m *mux) resolveWildcard(method, pattern string) string {
-	if wildcard, ok := m.wildcards[method+"::"+pattern]; ok {
-		return pattern[:len(pattern)-2] + "/{*" + wildcard + "}"
+// resolvePattern returns the authored route pattern registered for pattern.
+func (m *mux) resolvePattern(method, pattern string) string {
+	if authored, ok := m.patterns[method+"::"+pattern]; ok {
+		return authored
 	}
 	return pattern
+}
+
+func localRoutePattern(ctx *chi.Context) string {
+	if len(ctx.RoutePatterns) > 0 {
+		return ctx.RoutePatterns[len(ctx.RoutePatterns)-1]
+	}
+	return ctx.RoutePattern()
 }
 
 // ensureContext returns the chi routing context for a request handled by
@@ -277,26 +308,69 @@ func (m *mux) ensureContext(r *http.Request) *chi.Context {
 	if ctx == nil {
 		return nil // request not handled by chi
 	}
-	if ctx.RoutePattern() != "" {
-		return ctx // already initialized
+	depth, _ := r.Context().Value(routePatternDepthKey{}).(int)
+	if len(ctx.RoutePatterns) > depth {
+		return ctx // already initialized for this mux
 	}
 	return m.matchRoute(r)
 }
 
-// matchRoute matches r into a new routing context using the same path chi
-// routes on: URL.RawPath when set, so an encoded slash stays inside one
-// segment, otherwise URL.Path. It returns nil when no route matches.
+// matchRoute matches r into a new routing context using the same escaped path
+// representation used by chi dispatch. It returns nil when no route matches.
 func (m *mux) matchRoute(r *http.Request) *chi.Context {
-	routePath := r.URL.Path
-	if r.URL.RawPath != "" {
-		routePath = r.URL.RawPath
-	}
+	routePath, _ := r.Context().Value(escapedRoutePathKey{}).(string)
 	if routePath == "" {
-		routePath = "/"
+		routePath = requestRoutePath(r)
 	}
+	return m.matchRoutePath(r.Method, routePath)
+}
+
+func (m *mux) matchRoutePath(method, routePath string) *chi.Context {
 	rctx := chi.NewRouteContext()
-	if !m.Match(rctx, r.Method, routePath) {
+	if !m.Match(rctx, method, routePath) {
 		return nil
 	}
 	return rctx
+}
+
+func setEscapedRoutePath(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if rctx := chi.RouteContext(r.Context()); rctx != nil {
+			rctx.RoutePath, _ = r.Context().Value(escapedRoutePathKey{}).(string)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func requestRoutePath(r *http.Request) string {
+	if rctx := chi.RouteContext(r.Context()); rctx != nil && rctx.RoutePath != "" {
+		if r.URL.RawPath != "" {
+			return rctx.RoutePath
+		}
+		return escapedPath(rctx.RoutePath)
+	}
+	path := r.URL.EscapedPath()
+	if path == "" {
+		return "/"
+	}
+	return path
+}
+
+func escapedPath(path string) string {
+	if path == "" {
+		return "/"
+	}
+	return (&url.URL{Path: path}).EscapedPath()
+}
+
+func escapeRoutePattern(pattern string) string {
+	var escaped strings.Builder
+	last := 0
+	for _, match := range routeWildcard.FindAllStringIndex(pattern, -1) {
+		escaped.WriteString((&url.URL{Path: pattern[last:match[0]]}).EscapedPath())
+		escaped.WriteString(pattern[match[0]:match[1]])
+		last = match[1]
+	}
+	escaped.WriteString((&url.URL{Path: pattern[last:]}).EscapedPath())
+	return escaped.String()
 }

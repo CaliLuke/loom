@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	chi "github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -262,6 +263,22 @@ func TestVars(t *testing.T) {
 			},
 		},
 		{
+			Name:    "escaped route literal with encoded slash",
+			Pattern: "/my files/{id}",
+			URL:     "/my%20files/hello%2Fworld",
+			Expected: map[string]string{
+				"id": "hello/world",
+			},
+		},
+		{
+			Name:    "non-ASCII route literal with encoded slash",
+			Pattern: "/文 件/{id}",
+			URL:     "/%E6%96%87%20%E4%BB%B6/hello%2Fworld",
+			Expected: map[string]string{
+				"id": "hello/world",
+			},
+		},
+		{
 			Name:     "no var",
 			Pattern:  "/users",
 			URL:      "/users",
@@ -301,6 +318,95 @@ func TestVarsRoundTripURLPath(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, u.String(), nil)
 			mux.ServeHTTP(httptest.NewRecorder(), req)
 			assert.True(t, called)
+		})
+	}
+}
+
+func TestRawVarsPreservesEscapedCapture(t *testing.T) {
+	var called bool
+	mux := NewMuxer().(*mux)
+	mux.Handle(http.MethodGet, "/tags/{tags}", func(_ http.ResponseWriter, r *http.Request) {
+		require.Equal(t, map[string]string{"tags": "a%2Cb,c"}, mux.RawVars(r))
+		require.Equal(t, map[string]string{"tags": "a,b,c"}, mux.Vars(r))
+		called = true
+	})
+
+	mux.ServeHTTP(
+		httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodGet, "/tags/a%2Cb,c", nil),
+	)
+	require.True(t, called)
+}
+
+func TestMuxMountedUnderChiRouter(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		pattern string
+		url     string
+		vars    map[string]string
+		rawVars map[string]string
+	}{
+		{
+			name:    "ordinary",
+			pattern: "/users/{id}",
+			url:     "/api/users/123",
+			vars:    map[string]string{"id": "123"},
+			rawVars: map[string]string{"id": "123"},
+		},
+		{
+			name:    "escaped literal and value",
+			pattern: "/my files/{id}",
+			url:     "/api/my%20files/a%2Fb",
+			vars:    map[string]string{"id": "a/b"},
+			rawVars: map[string]string{"id": "a%2Fb"},
+		},
+		{
+			name:    "escaped literal and catch-all",
+			pattern: "/my files/{*path}",
+			url:     "/api/my%20files/a%2Fb/c",
+			vars:    map[string]string{"path": "a/b/c"},
+			rawVars: map[string]string{"path": "a%2Fb/c"},
+		},
+		{
+			name:    "parent and local patterns match",
+			pattern: "/api/{*path}",
+			url:     "/api/api/a%2Fb",
+			vars:    map[string]string{"path": "a/b"},
+			rawVars: map[string]string{"path": "a%2Fb"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				called            bool
+				middlewarePattern string
+				middlewareVars    map[string]string
+				middlewareRawVars map[string]string
+			)
+			mux := NewMuxer()
+			mux.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					middlewarePattern = mux.ResolvePattern(r)
+					middlewareVars = mux.Vars(r)
+					middlewareRawVars = mux.RawVars(r)
+					next.ServeHTTP(w, r)
+				})
+			})
+			mux.Handle(http.MethodGet, tc.pattern, func(_ http.ResponseWriter, r *http.Request) {
+				require.Equal(t, tc.pattern, mux.ResolvePattern(r))
+				require.Equal(t, tc.vars, mux.Vars(r))
+				require.Equal(t, tc.rawVars, mux.RawVars(r))
+				called = true
+			})
+			parent := chi.NewRouter()
+			parent.Mount("/api", mux)
+			parent.ServeHTTP(
+				httptest.NewRecorder(),
+				httptest.NewRequest(http.MethodGet, tc.url, nil),
+			)
+			require.True(t, called)
+			require.Equal(t, tc.pattern, middlewarePattern)
+			require.Equal(t, tc.vars, middlewareVars)
+			require.Equal(t, tc.rawVars, middlewareRawVars)
 		})
 	}
 }
@@ -586,6 +692,20 @@ func TestMuxMiddlewareMatchesEscapedPathLikeChi(t *testing.T) {
 			url:      "/files/a%2Fb/c",
 			pattern:  "/files/{dir}/{name}",
 			vars:     map[string]string{"dir": "a/b", "name": "c"},
+		},
+		{
+			name:     "escaped literal with encoded slash",
+			patterns: []string{"/my files/{id}"},
+			url:      "/my%20files/a%2Fb",
+			pattern:  "/my files/{id}",
+			vars:     map[string]string{"id": "a/b"},
+		},
+		{
+			name:     "escaped literal with catch-all",
+			patterns: []string{"/my files/{*path}"},
+			url:      "/my%20files/a%2Fb/c",
+			pattern:  "/my files/{*path}",
+			vars:     map[string]string{"path": "a/b/c"},
 		},
 	}
 

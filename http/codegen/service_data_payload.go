@@ -19,6 +19,9 @@ type RequestDecodePlan struct {
 	HasElements bool
 	// HasPathParams is true when the request binds path parameters.
 	HasPathParams bool
+	// HasDecodedPathParams is true when at least one path parameter reads the
+	// decoded Vars map rather than the escaped RawVars map used by arrays.
+	HasDecodedPathParams bool
 	// HasQueryParams is true when the request binds query parameters.
 	HasQueryParams bool
 	// HasHeaders is true when the request binds headers.
@@ -182,27 +185,36 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 
 // requestNeedsServerErrorVar reports whether the generated server request
 // decoder declares the shared "err" accumulator variable. Multipart-generated
-// requests only need it when field or body validation runs; a required
-// multipart file field always produces a non-empty ServerBody.ValidateRef
-// (the generated Validate<Body> function treats the resulting nil field as
-// missing), so that condition alone is sufficient.
+// requests need it when field or body validation runs or an array path may
+// report malformed escaping. A required multipart file field always produces
+// a non-empty ServerBody.ValidateRef (the generated Validate<Body> function
+// treats the resulting nil field as missing).
 func requestNeedsServerErrorVar(request *RequestData) bool {
 	return !request.MultipartGenerated || request.MustValidate ||
-		(request.ServerBody != nil && request.ServerBody.ValidateRef != "")
+		(request.ServerBody != nil && request.ServerBody.ValidateRef != "") ||
+		requestHasPathArray(request)
 }
 
 func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 	hasPathParams := len(request.PathParams) > 0
+	hasDecodedPathParams := false
+	for _, param := range request.PathParams {
+		if !expr.IsArray(param.Type) {
+			hasDecodedPathParams = true
+			break
+		}
+	}
 	hasQueryParams := len(request.QueryParams) > 0
 	hasHeaders := len(request.Headers) > 0
 	hasCookies := len(request.Cookies) > 0
 	plan := &RequestDecodePlan{
-		HasElements:    hasPathParams || hasQueryParams || hasHeaders || hasCookies,
-		HasPathParams:  hasPathParams,
-		HasQueryParams: hasQueryParams,
-		HasHeaders:     hasHeaders,
-		HasCookies:     hasCookies,
-		MustValidate:   request.MustValidate,
+		HasElements:          hasPathParams || hasQueryParams || hasHeaders || hasCookies,
+		HasPathParams:        hasPathParams,
+		HasDecodedPathParams: hasDecodedPathParams,
+		HasQueryParams:       hasQueryParams,
+		HasHeaders:           hasHeaders,
+		HasCookies:           hasCookies,
+		MustValidate:         request.MustValidate || requestHasPathArray(request),
 	}
 	if !hasQueryParams {
 		return plan
@@ -224,6 +236,15 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 	plan.QueryValuesVar = scope.Unique("qp")
 	plan.QueryErrorVar = scope.Unique("queryErr")
 	return plan
+}
+
+func requestHasPathArray(request *RequestData) bool {
+	for _, param := range request.PathParams {
+		if expr.IsArray(param.Type) {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *payloadBuilder) buildRequestBodies() (*TypeData, *TypeData) {

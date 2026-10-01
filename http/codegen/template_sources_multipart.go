@@ -53,7 +53,7 @@ func {{ .InitName }}(mux loomhttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r 
 		{{- if .Cookies }}
 			c *http.Cookie
 		{{- end }}
-		{{- if .PathParams }}
+		{{- if .DecodePlan.HasDecodedPathParams }}
 
 			params = mux.Vars(r)
 		{{- end }}
@@ -65,7 +65,7 @@ func {{ .InitName }}(mux loomhttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r 
 
 	{{- else }}
 		{
-			{{ .Locals.Raw }} := params["{{ .HTTPName }}"]
+			{{ .Locals.Raw }} := {{ if eq .Type.Name "array" }}mux.RawVars(r){{ else }}params{{ end }}["{{ .HTTPName }}"]
 			{{- template "partial_path_conversion" . }}
 		}
 

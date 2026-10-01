@@ -168,10 +168,23 @@ which escapes it again, so `a b` becomes `a%2520b`. Build the URL with
 `loomhttp.RequestURL(scheme, host, path)`, or set the result as `RawPath` and
 its unescaped form as `Path`.
 
-When a value needs an escape such as an escaped `/`, the router matches the
-route against the escaped path. A route literal that needs escaping, such as
-`my files`, then does not match. Use route literals that need no escaping, such
-as ASCII letters, digits, and `-`.
+The router matches route literals and request paths in the same escaped form.
+Literals containing spaces or non-ASCII characters work with escaped parameter
+values, including an encoded `/`. Route metadata (`r.Pattern` and
+`ResolvePattern`) retains the authored pattern.
+
+Array path parameters use literal commas between escaped elements. For example,
+`a%2Cb,c` decodes to `["a,b", "c"]`. The generated decoder splits the raw capture
+before unescaping each element. A literal `%2C` value stays `%2C`; it is not
+decoded twice. A `+` in a path remains a plus sign.
+
+Custom implementations of `loomhttp.Muxer` must provide both `Vars` and
+`RawVars`. `Vars` returns decoded captures; `RawVars` preserves their original
+percent escapes and literal separators. Implement `RawVars` from the router's
+escaped captures, not by escaping values returned by `Vars`: decoding has
+already lost the distinction between `%2C` and a comma separator. Adding this
+method is required when upgrading a custom mux. `loomhttp.NewMuxer()` provides
+both methods.
 
 ### Service Relationships
 

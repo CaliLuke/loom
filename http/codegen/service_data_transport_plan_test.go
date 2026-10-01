@@ -18,6 +18,7 @@ func TestRequestDecodePlanSummarizesBoundElements(t *testing.T) {
 	require.NotNil(t, plan)
 	require.True(t, plan.HasElements)
 	require.True(t, plan.HasPathParams)
+	require.True(t, plan.HasDecodedPathParams)
 	require.True(t, plan.HasQueryParams)
 	require.False(t, plan.HasHeaders)
 	require.False(t, plan.HasCookies)

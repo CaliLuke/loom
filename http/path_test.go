@@ -79,6 +79,31 @@ func TestEscapePathRemainder(t *testing.T) {
 	}
 }
 
+func TestDecodePathArray(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want []string
+	}{
+		{name: "comma in element", raw: "a%2Cb,c", want: []string{"a,b", "c"}},
+		{name: "literal escaped comma", raw: "%252C", want: []string{"%2C"}},
+		{name: "plus", raw: "a+b,c%2Bd", want: []string{"a+b", "c+d"}},
+		{name: "empty element", raw: "a,,b", want: []string{"a", "", "b"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := DecodePathArray(tc.raw)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestDecodePathArrayRejectsMalformedEscape(t *testing.T) {
+	got, err := DecodePathArray("ok,%zz")
+	require.ErrorContains(t, err, `decode path array element 1 "%zz"`)
+	require.Nil(t, got)
+}
+
 func TestRequestURL(t *testing.T) {
 	cases := []struct {
 		Name, Path, WantPath, WantString string

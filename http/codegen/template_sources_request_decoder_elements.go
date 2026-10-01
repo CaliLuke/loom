@@ -23,7 +23,7 @@ var requestDecoderElementPartials = []templateSource{
 		{{- if and .MustValidate (not .ServerBody) }}
 			err error
 		{{- end }}
-		{{- if .DecodePlan.HasPathParams }}
+		{{- if .DecodePlan.HasDecodedPathParams }}
 
 			params = mux.Vars(r)
 		{{- end }}
@@ -32,7 +32,7 @@ var requestDecoderElementPartials = []templateSource{
 	{{- range .PathParams }}
 		{{- if .IsTextUnmarshaler }}
 			{
-				{{ .Locals.Raw }} := params["{{ .HTTPName }}"]
+				{{ .Locals.Raw }} := {{ if eq .Type.Name "array" }}mux.RawVars(r){{ else }}params{{ end }}["{{ .HTTPName }}"]
 				{{- template "partial_path_conversion" . }}
 				{{- if .Validate }}
 				{{ .Validate }}
@@ -44,7 +44,7 @@ var requestDecoderElementPartials = []templateSource{
 
 		{{- else }}{{/* not string and not any */}}
 			{
-				{{ .Locals.Raw }} := params["{{ .HTTPName }}"]
+				{{ .Locals.Raw }} := {{ if eq .Type.Name "array" }}mux.RawVars(r){{ else }}params{{ end }}["{{ .HTTPName }}"]
 				{{- template "partial_path_conversion" . }}
 			}
 

@@ -529,6 +529,12 @@ completion shapes are explicit generation limitations.
   and a catch-all value keeps its `/` separators. Build a URL from a path
   builder result with `loomhttp.RequestURL`, not `url.URL{Path: ...}`, which
   escapes it twice.
+- Custom `loomhttp.Muxer` implementations must provide `RawVars` alongside
+  decoded `Vars`. Preserve escaped captures directly from the router so array
+  elements containing commas remain distinct from comma separators. Do not
+  reconstruct raw values by escaping decoded ones. The built-in `NewMuxer`
+  already implements both methods; regenerate servers to adopt array decoding
+  that preserves escaped commas.
 - Percent-encode reserved query delimiters, such as `;`, in manually built
   URLs. Generated clients encode them. Generated servers return a
   `decode_payload` response with status 400 for malformed query strings.

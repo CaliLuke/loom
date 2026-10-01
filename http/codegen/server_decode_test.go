@@ -1,12 +1,14 @@
 package codegen
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -308,13 +310,38 @@ func TestRequestDecoderMapQueryPresenceIsScopedToMapParam(t *testing.T) {
 	require.NotContains(t, code, "if len(queryRaw) == 0 {")
 }
 
-func TestPathArrayDecodeUsesMuxNormalizedElements(t *testing.T) {
+func TestPathArrayDecodeSplitsBeforeUnescapingElements(t *testing.T) {
 	code := decodeSectionCode(t, testdata.PayloadPathArrayStringDSL)
 
-	split := `pRawSlice := strings.Split(pRaw, ",")`
-	unescape := "rvDecoded, err2 := url.PathUnescape(rv)"
-	require.Contains(t, code, split)
-	require.NotContains(t, code, unescape)
+	require.Contains(t, code, `pRaw := mux.RawVars(r)["p"]`)
+	require.Contains(t, code, "pRawSlice, err2 := loomhttp.DecodePathArray(pRaw)")
+	require.Contains(t, code, "err = loom.MergeErrors(err, loom.DecodePayloadError(err2.Error()))")
+	require.NotContains(t, code, "strings.Split(pRaw")
+	require.NotContains(t, code, "url.PathUnescape")
+	require.NotContains(t, code, "params = mux.Vars(r)")
+}
+
+func TestMultipartPathArrayDecodeUsesRawCapture(t *testing.T) {
+	code := serverCode(t, func() {
+		dsl.Service("multipartpaths", func() {
+			dsl.Method("upload", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("tags", dsl.ArrayOf(dsl.String))
+					dsl.Attribute("label", dsl.String)
+				})
+				dsl.HTTP(func() {
+					dsl.POST("/files/{tags}")
+					dsl.MultipartRequest()
+				})
+			})
+		})
+	})
+
+	require.Contains(t, code, `tagsRaw := mux.RawVars(r)["tags"]`)
+	require.Contains(t, code, "tagsRawSlice, err2 := loomhttp.DecodePathArray(tagsRaw)")
+	require.Contains(t, code, "err = loom.MergeErrors(err, loom.DecodePayloadError(err2.Error()))")
+	require.Contains(t, code, "err error")
+	require.NotContains(t, code, "params = mux.Vars(r)")
 }
 
 func TestRequestDecoderSkipsMapEntryAfterInvalidKeyParse(t *testing.T) {
@@ -342,4 +369,18 @@ func decodeSectionCode(t *testing.T, dsl func()) string {
 	sections := fs[1].AllSections()
 	require.Greater(t, len(sections), 2)
 	return codegen.SectionCode(t, sections[2])
+}
+
+func serverCode(t *testing.T, design func()) string {
+	t.Helper()
+	root := RunHTTPDSL(t, design)
+	services := CreateHTTPServices(root)
+	var source strings.Builder
+	for _, file := range ServerFiles("", services) {
+		sections := file.AllSections()
+		for _, section := range sections[1:] {
+			source.WriteString(codegen.SectionCode(t, section))
+		}
+	}
+	return source.String()
 }

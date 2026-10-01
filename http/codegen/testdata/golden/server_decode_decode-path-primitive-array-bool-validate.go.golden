@@ -7,12 +7,13 @@ func DecodeMethodPathPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, _ fun
 		var (
 			p   []bool
 			err error
-
-			params = mux.Vars(r)
 		)
 		{
-			pRaw := params["p"]
-			pRawSlice := strings.Split(pRaw, ",")
+			pRaw := mux.RawVars(r)["p"]
+			pRawSlice, err2 := loomhttp.DecodePathArray(pRaw)
+			if err2 != nil {
+				err = loom.MergeErrors(err, loom.DecodePayloadError(err2.Error()))
+			}
 			p = make([]bool, len(pRawSlice))
 			for i, rv := range pRawSlice {
 				v, err2 := strconv.ParseBool(rv)

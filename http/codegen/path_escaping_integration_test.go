@@ -223,13 +223,11 @@ func TestGeneratedPathsRoundTripAdversarialValues(t *testing.T) {
 }
 
 // TestGeneratedPathsRoundTripEscapedLiteral checks that the client sends the
-// escaped literal of a route with a space. It uses values whose escaped path
-// equals the default escaping of the path: the muxer matches a path with
-// other escapes, such as an escaped "/", against the unescaped route literal
-// and finds no route.
+// escaped literal of a route with a space while path values keep their segment
+// boundary.
 func TestGeneratedPathsRoundTripEscapedLiteral(t *testing.T) {
 	_, client, doer := newPathClient(t)
-	for _, value := range []string{"plain", "a b", "100%", "日本語", "%2F"} {
+	for _, value := range []string{"plain", "a/b", "a b", "100%", "日本語", "%2F"} {
 		t.Run(value, func(t *testing.T) {
 			got, err := client.Literal()(t.Context(), &pathesc.LiteralPayload{ID: value})
 			if err != nil {
@@ -265,7 +263,7 @@ func TestGeneratedPathsRoundTripCatchAllRemainders(t *testing.T) {
 
 func TestGeneratedPathsRoundTripArrayElements(t *testing.T) {
 	_, client, _ := newPathClient(t)
-	tags := []string{"a/b", "100%", "a b", "..", "日本"}
+	tags := []string{"a/b", "a,b", "%2C", "a+b", "100%", "a b", "..", "日本"}
 	got, err := client.Tags()(t.Context(), &pathesc.TagsPayload{Name: "x/y", Tags: tags})
 	if err != nil {
 		t.Fatalf("Tags: %v", err)

@@ -34,6 +34,20 @@ func EscapePathRemainder(value string) string {
 	return strings.Join(segments, "/")
 }
 
+// DecodePathArray splits a raw comma-separated path capture and URL-unescapes
+// each element exactly once. Escaped commas remain part of their element.
+func DecodePathArray(raw string) ([]string, error) {
+	values := strings.Split(raw, ",")
+	for i, value := range values {
+		decoded, err := url.PathUnescape(value)
+		if err != nil {
+			return nil, fmt.Errorf("decode path array element %d %q: %w", i, value, err)
+		}
+		values[i] = decoded
+	}
+	return values, nil
+}
+
 // RequestURL returns the URL of a request sent to host with scheme, whose
 // escaped path is path, as returned by a generated path builder. The URL keeps
 // the escaping of path, so an escaped "/" stays inside its segment. When path
