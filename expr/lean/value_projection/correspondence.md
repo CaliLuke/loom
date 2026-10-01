@@ -204,13 +204,20 @@ artifacts. A collision-free `MapOf(String, String)` companion has identical
 parent/candidate artifacts and passes generation, example generation, module
 tidying, build and vet in both attempts.
 
-The collision-free `MapOf(Any, String)` companion also has identical artifacts,
-but both compared revisions generated an invalid `map[loom.JSONValue]string` key
-type and failed compilation; vet was skipped. This is historical generated
-evidence, not a fresh result on current main. Current gRPC key validation and
-nullable conversion controls require revalidating the exact old specimens before
-assigning repairs; see [R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs). The successful concrete-key control does not establish compilation
-of arbitrary map key types.
+The collision-free `MapOf(Any, String)` HTTP companion also had identical
+artifacts, but both compared revisions generated an invalid
+`map[loom.JSONValue]string` key type and failed compilation; vet was skipped.
+Revalidation at `5c4702ac` reproduced the failure in a transform allocation even
+though the declarations already used `map[any]string`. The shared transform now
+uses the existing map-key type renderer for allocations, preserving the separate
+`loom.JSONValue` representation of Any values.
+`TestTransformMapRendersTargetKeyAndValueTypes` checks that distinction, and
+`TestGeneratedAnyMapKeyBuilds` regenerates, builds and vets the retained HTTP
+companion. This closes that compiler item in
+[R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs).
+It does not add gRPC Any-key support or establish arbitrary map-key codec
+behavior. The map-collision model and its assumptions are unchanged; Go type
+comparability and generated compilation remain tested implementation boundaries.
 
 ## Explicit request-body ownership: #581
 

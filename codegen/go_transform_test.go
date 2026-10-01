@@ -267,8 +267,8 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 			Meta: expr.MetaExpr{"struct:pkg:path": {"example.com/service"}},
 		},
 	}}}}
-	require.Contains(t, collectionElemTypeRef(locatedLocal, samePackageCtx), "LocalAlias")
-	require.NotContains(t, collectionElemTypeRef(locatedLocal, samePackageCtx), "service.LocalAlias")
+	require.Contains(t, collectionTypeRef(locatedLocal, samePackageCtx, false), "LocalAlias")
+	require.NotContains(t, collectionTypeRef(locatedLocal, samePackageCtx, false), "service.LocalAlias")
 }
 
 func TestGoTransformRendersTypedMapDefaultFromMapVal(t *testing.T) {
@@ -489,6 +489,40 @@ func TestTransformMapUnwrapsNonNullableJSONValues(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, code, "actual, ok := val.Value()")
 	require.Contains(t, code, "tv := make([]string, len(actual))")
+}
+
+func TestTransformMapRendersTargetKeyAndValueTypes(t *testing.T) {
+	scope := NewNameScope()
+	ctx := NewAttributeContext(false, false, true, "", scope)
+
+	for _, test := range []struct {
+		name      string
+		attribute *expr.AttributeExpr
+		want      string
+	}{
+		{
+			name: "Any key",
+			attribute: &expr.AttributeExpr{Type: &expr.Map{
+				KeyType:  &expr.AttributeExpr{Type: expr.Any},
+				ElemType: &expr.AttributeExpr{Type: expr.String},
+			}},
+			want: "target := make(map[any]string, len(source))",
+		},
+		{
+			name: "Any value",
+			attribute: &expr.AttributeExpr{Type: &expr.Map{
+				KeyType:  &expr.AttributeExpr{Type: expr.String},
+				ElemType: &expr.AttributeExpr{Type: expr.Any},
+			}},
+			want: "target := make(map[string]loom.JSONValue, len(source))",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			code, _, err := GoTransform(test.attribute, test.attribute, "source", "target", ctx, ctx, "convert", true)
+			require.NoError(t, err)
+			require.Contains(t, code, test.want)
+		})
+	}
 }
 
 func TestTransformNullableArrayUnwrapsNonNullableJSONElements(t *testing.T) {

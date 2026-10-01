@@ -279,7 +279,7 @@ func presenceValueTypeRef(attribute *expr.AttributeExpr, context *AttributeConte
 	if (expr.IsArray(concrete.Type) || expr.IsMap(concrete.Type)) && containsInlineObject(concrete) {
 		// Render the collection as its declaring type does so that element
 		// pointers, defaults and inline struct tags match.
-		return collectionElemTypeRef(concrete, context)
+		return collectionTypeRef(concrete, context, false)
 	}
 	return context.Scope.Name(concrete, context.Pkg(concrete), false, context.UseDefault)
 }

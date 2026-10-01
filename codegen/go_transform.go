@@ -405,7 +405,7 @@ func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.Attribut
 		group.Add(code)
 	})
 	if expr.IsArray(srcc.Type) && srcMatt.IsRequired(name) {
-		elemRef := collectionElemTypeRef(expr.AsArray(tgtc.Type).ElemType, ta.TargetCtx)
+		elemRef := collectionTypeRef(expr.AsArray(tgtc.Type).ElemType, ta.TargetCtx, false)
 		stmt.Else().BlockFunc(func(group *jen.Group) {
 			group.Add(Expr(tgtVar)).Op("=").Add(Expr("[]" + elemRef + "{}"))
 		})
@@ -487,7 +487,7 @@ func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar strin
 		return stmt
 	}
 
-	elemRef := collectionElemTypeRef(arr.ElemType, ta.TargetCtx)
+	elemRef := collectionTypeRef(arr.ElemType, ta.TargetCtx, false)
 	items, ok := aliasDefaultArrayItems(elemRef, tdef)
 	if !ok {
 		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))

@@ -16,7 +16,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		return nil, err
 	}
 	data := transformArrayRenderData{
-		ElemTypeRef:    collectionElemTypeRef(target.ElemType, ta.TargetCtx),
+		ElemTypeRef:    collectionTypeRef(target.ElemType, ta.TargetCtx, false),
 		SourceElem:     source.ElemType,
 		TargetElem:     target.ElemType,
 		SourceVar:      sourceVar,
@@ -31,7 +31,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 	return renderTransformGoArray(data)
 }
 
-func collectionElemTypeRef(attribute *expr.AttributeExpr, context *AttributeContext) string {
+func collectionTypeRef(attribute *expr.AttributeExpr, context *AttributeContext, mapKey bool) string {
 	pkg := ""
 	targetPkg := context.Pkg(attribute)
 	if context.SamePackageConversion {
@@ -41,7 +41,17 @@ func collectionElemTypeRef(attribute *expr.AttributeExpr, context *AttributeCont
 	if pkg == "" && containsInlineObject(attribute) {
 		return attributorCollectionElemTypeRef(attribute, context, targetPkg)
 	}
-	return context.Scope.Scope().collectionElemTypeDef(
+	scope := context.Scope.Scope()
+	if mapKey {
+		return scope.mapKeyTypeDef(
+			attribute,
+			context.Pointer,
+			context.UseDefault,
+			pkg,
+			targetPkg,
+		)
+	}
+	return scope.collectionElemTypeDef(
 		attribute,
 		context.Pointer,
 		context.UseDefault,
@@ -136,8 +146,8 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 		return nil, err
 	}
 	data := transformMapRenderData{
-		KeyTypeRef:     collectionElemTypeRef(target.KeyType, ta.TargetCtx),
-		ElemTypeRef:    collectionElemTypeRef(target.ElemType, ta.TargetCtx),
+		KeyTypeRef:     collectionTypeRef(target.KeyType, ta.TargetCtx, true),
+		ElemTypeRef:    collectionTypeRef(target.ElemType, ta.TargetCtx, false),
 		SourceKey:      source.KeyType,
 		TargetKey:      target.KeyType,
 		SourceElem:     source.ElemType,

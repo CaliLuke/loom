@@ -29,6 +29,35 @@ func TestGeneratedArbitraryJSONRoundTripPreservesNumbers(t *testing.T) {
 	runGoCommand(t, dir, "test", "./...")
 }
 
+func TestGeneratedAnyMapKeyBuilds(t *testing.T) {
+	const modulePath = "example.com/anymapkeyit"
+
+	root := RunHTTPDSL(t, anyMapKeyDSL)
+	dir := t.TempDir()
+	renderHTTPModule(t, dir, modulePath, root)
+
+	serverCode := readGeneratedGo(t, filepath.Join(dir, "gen", "http", "svc", "server"))
+	require.Contains(t, serverCode, "make(map[any]string, len(body))")
+	require.NotContains(t, serverCode, "map[loom.JSONValue]string")
+
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "build", "./...")
+	runGoCommand(t, dir, "vet", "./...")
+}
+
+func anyMapKeyDSL() {
+	Service("svc", func() {
+		Method("send", func() {
+			Payload(MapOf(Any, String), func() {
+				Example(map[any]any{1: "integer", "two": "text"})
+			})
+			HTTP(func() {
+				POST("/send")
+			})
+		})
+	})
+}
+
 func arbitraryJSONDSL() {
 	var ArbitraryPayload = Type("ArbitraryPayload", func() {
 		Attribute("value", Any)
