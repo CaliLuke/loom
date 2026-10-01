@@ -1,152 +1,224 @@
 # Value pipeline inventory
 
-Reference: `f5b786b39675e2b5c1466f04f3301b7b337779b6`. This is the initial
-migration inventory for [the contract](value-contract-design.md). A future
-implementation refreshes it before editing and reconciles every new match.
+Reconciled for #573 at `15a4c467`. The [accepted contract](value-contract-design.md)
+remains the semantic authority. This is a source and retained-evidence audit,
+not a new generator run or a claim that every consumer has migrated. The initial
+inventory was taken at `f5b786b39675e2b5c1466f04f3301b7b337779b6`.
 
-Search from the repository root:
+## Method and dispositions
+
+Both inventory searches were rerun, and example/default fields were traced to
+production readers. Test files are evidence, not additional production consumers.
 
 ```sh
 rg -n 'CanonicalizeExample|enumvalue\.Normalize|protoJSONExample|normalizeOpenAPIExample|PayloadEx|StreamingPayloadEx|\.Example\(' expr codegen http/codegen jsonrpc/codegen grpc/codegen internal --glob '*.go' --glob '!**/*_test.go' --glob '!**/testdata/**' --glob '!**/gen/**'
-rg -n 'jsonExample|flagDefault|NewFlagData|Example:|DefaultValue:' codegen/cli http/codegen/client_cli.go grpc/codegen/client_cli.go
+rg -n 'jsonExample|flagDefault|NewFlagData|Example:|DefaultValue:' codegen/cli http/codegen/client_cli.go grpc/codegen/client_cli.go --glob '!**/*_test.go'
 ```
 
-Each row classifies a production file returned by the first search. Multiple
-matches inside one file inherit its disposition; implementation records each
-migrated call or retained compatibility boundary. The second search records
-formatters/data carriers that do not invoke `.Example` themselves.
+- **Migrated:** the relevant built-in consumer uses the shared semantic owner.
+- **Intentional:** a compatibility API, sampler, location codec or renderer retains
+  its own documented responsibility; it is not an alternative semantic owner.
+- **Unresolved:** the row identifies a remaining ownership, contract or evidence
+  question and links it to the finite follow-up list below.
 
-| Existing file | Disposition |
+A file can contain more than one disposition. An unconsumed field does not prove
+that computing it is harmless: sampling can advance the scoped random generator
+or populate its cache and affect a later emitted example. Public data structures
+also need a compatibility assessment before fields are removed.
+
+## Semantic core and service carriers
+
+Paths in this table are repository-relative.
+
+| Production file or owner | Current disposition and evidence |
 | --- | --- |
-| `expr/example.go` | Semantic source: authored precedence, suppression, synthesis outcome |
-| `expr/example_length.go` | Synthesis internals: preserve size constraints and branch information |
-| `expr/types.go` | Semantic source: scalar, collection and union generation |
-| `expr/types_union.go` | Union generation/selection: preserve selected occurrence identity |
-| `expr/user_type.go` | Source identity and recursive memoization; no wire-value cache |
-| `expr/example_canonicalization.go` | Replace duplicate selection/coercion with resolver; retain public JSON-shape adapter |
-| `expr/json_schema_inline.go` | Migrate examples/defaults/enums to shared JSON value rules |
-| `expr/http_body_types.go` | Transport-derived expression examples: retain authored provenance |
-| `internal/enumvalue/value.go` | Retire semantic duplication after enum/default consumers migrate |
-| `codegen/validation_render.go` | Consume resolved enum semantics without changing valid runtime acceptance |
-| `codegen/service/service_data.go` | Data carriers: preserve semantic provenance across method/stream records |
-| `codegen/service/service_data_methods.go` | Source selection for payload, result, stream and error data |
-| `http/codegen/service_data_payload.go` | JSON body examples/defaults migrate; distinguish raw byte/text flags |
-| `http/codegen/service_data_init_args.go` | Plain auth/header/cookie flag codecs retained; source examples use common precedence |
-| `http/codegen/service_data_routes.go` | Path examples retain route codec; no JSON-base64 substitution |
-| `http/codegen/service_data_body_types.go` | Derived body expressions retain source identity |
-| `http/codegen/service_data_transport_helpers.go` | Location-specific examples retain codec; reconcile scalar rules |
-| `http/codegen/service_data_type_registry.go` | Type-analysis example data: source identity, no independent synthesis |
-| `http/codegen/websocket.go` | Streaming data: carry resolved source; retain framing and runtime |
-| `http/codegen/client_cli.go` | Flag routing and optional example outcome; body vs plain codec distinction |
-| `http/codegen/misc_sections.go` | Rendering consumer; no semantic decisions |
-| `http/codegen/openapi/internal/ir/analyzer.go` | Shared examples/defaults/enums, visibility and final schema checks |
-| `http/codegen/openapi/internal/ir/document.go` | Authored/synthesized examples, suppression and diagnostics |
-| `http/codegen/openapi/internal/ir/document_examples.go` | Shared JSON projection; remove coercion/reselection, retain visibility rules |
-| `http/codegen/openapi/internal/ir/example_generation.go` | Delete private graph-copy synthesis after common source migration |
-| `http/codegen/openapi/internal/ir/document_cookies.go` | Preserve cookie transport codec and correct schema example representation |
-| `http/codegen/openapi/v3/example.go` | Versioned rendering only; retain structured/external example metadata |
-| `grpc/codegen/service_data_analysis.go` | Preserve authored request-message source through transport copies |
-| `grpc/codegen/service_data_helpers.go` | Attribute analysis source identity; no replacement synthesis |
-| `grpc/codegen/service_data_convert.go` | Converted message examples retain source/projection identity |
-| `grpc/codegen/client_cli_example.go` | Replace resynthesis with protobuf-only projection of resolved values |
+| `expr/example.go` | **Migrated / intentional.** Shared source selection and effective constraints govern the sampler; public `AttributeExpr.Example` retains its raw-value contract. `example_effective_constraints_test.go` and `value_synthesis_test.go` check narrowed constraints and authored-source preservation. |
+| `expr/example_length.go`, `expr/types.go`, `expr/types_union.go`, `expr/user_type.go` | **Intentional sampler internals.** Recursive sampling and memoization remain behind the shared synthesis graph; these recursive `.Example` calls are not transport projection. `value_synthesis_test.go` checks retained union choice and absence of authored replacement; `recursive_length_example_test.go` covers recursion/length behavior. |
+| `expr/value_synthesis.go` (new inventory match) | **Migrated.** `ValueContext.Synthesize` samples its isolated prepared graph and retains union occurrence/branch identity. It cannot replace an authored failure. `TestValueSynthesisCannotReplaceAuthoredFailure` and `TestValueSynthesisNamedUnionRetainsChoice` are direct controls. |
+| `expr/example_canonicalization.go` | **Intentional public compatibility API.** `CanonicalizeExample` preserves legacy JSON-shape/pass-through behavior. `example_canonicalization_test.go` pins it. Its presence does not authorize built-in failure fallback; see R1 and R4 below. |
+| `expr/json_schema_inline.go` | **Migrated primary path / unresolved fallback (R4).** Examples/defaults resolve through `inlineSemanticJSONValue`; enum clauses use declared-shape resolution. `TestInlineJSONSchemaUsesResolvedDeclaredJSONValues` covers typed projection. Failed resolution still falls back to `CanonicalizeExample`, and `TestInlineJSONSchema/leaves_ambiguous_union_examples_unchanged` explicitly preserves an ambiguous raw example. |
+| `expr/http_body_types.go` | **Migrated body ownership / intentional compatibility helper.** Controlled body copies preserve semantic/source bindings; `http_body_identity_test.go` and `value_source_binding_test.go` cover them. Exported `UnionToObject` still samples/serializes a raw example, but has no production caller in this repository; `TestUnionToObjectUsesTaggedDiscriminators` protects that compatibility behavior. |
+| `internal/enumvalue/value.go` | **Migrated projection / intentional fallback boundary.** `Normalize` uses shared resolution, then declared-shape projection. Its documented opaque/invalid fallback is not semantic admission. `value_test.go` checks shared values, excluded root predicates, structs, and borrowed opaque/cycle boundaries. Callers must separately validate or omit fallback values. |
+| `codegen/validation_render.go` | **Migrated.** Effective enum clauses own admission; `enumvalue.Normalize` only supplies JSON comparison shape. `validation_collection_enum_test.go` and `validation_composite_enum_test.go` cover generated validation. |
+| `codegen/service/service_data.go`, `service_data_methods.go`, `value_data.go` | **Migrated owner / compatibility carriers.** `ValueData` selects and resolves service payload/result/error/stream sources. Raw `PayloadEx`, `ResultEx` and streaming fields come from `LegacyValue`; only `PayloadEx` has a production reader, in the HTTP plain/direct CLI fallback. `value_data_test.go` covers retained values, reanalysis, streams and errors. |
+| `expr/resolved_value.go`, `value_source.go`, `value_plan.go`, `value_projection.go` | **Migrated shared API.** These owners carry immutable source/occurrence identity, selection, representation plans and projection outcomes. `value_snapshot_test.go`, `value_resolve_test.go`, `value_occurrence_queries_test.go` and `value_projection_test.go` are direct anchors; [the correspondence ledger](../expr/lean/value_projection/correspondence.md) records the narrower formal claims. |
 
-Additional boundaries: `expr/random.go` memo ownership; `expr/attribute.go`
-example inheritance; `expr/attribute_validate.go` invalid authored values;
-`internal/examplevalue/union.go` existing temporary selection representation;
-`internal/jsonkey/key.go` shared member spelling; `codegen/cli/cli.go`,
-`payload.go`, `conversion.go`, `command_data.go` flag data/formatting/defaults;
-`grpc/codegen/client_cli.go` protojson routing. `codegen/cli/payload.go` owns `flagDefault`; `flag_parsing.go` renders the flag
-default value. `codegen/cli/usage.go` renders per-command and aggregate help;
-milestone 5 must propagate omission through both paths, with
-`codegen/cli/usage_test.go` and generated CLI tests. Test-only matches from the
-second search are regression anchors, not production consumers; retain and
-extend their assertions when their corresponding formatter changes.
+## HTTP, JSON-RPC and CLI consumers
 
-JSON-RPC reuses HTTP service analysis and CLI generation. Its lack of direct
-matches does not exempt it: compile and exercise the JSON-RPC output, including
-body defaults, errors and streaming-message surfaces. Generated service/client
-interfaces, body DTO pointer/presence wrappers, protobuf oneof wrappers, example
-service implementations and custom projector test doubles are compile-impact
-surfaces even when their public shape must stay unchanged.
+| Production file or owner | Current disposition and evidence |
+| --- | --- |
+| `http/codegen/service_data_payload.go` | **Migrated JSON examples / unresolved defaults and location samples (R1, R2).** JSON body arguments consume retained `ClientBody.Value`; map-query/location examples still sample independently. `default_body_test.go`, `optional_value_request_body_test.go`, and both transports' `collection_defaults_cli_test.go` protect existing body/default behavior. |
+| `http/codegen/service_data_cli_example.go` (new inventory match) | **Migrated `retainedJSON` / unresolved `cliBodyDefault` (R1).** Retained examples project through the actual body runtime plan with explicit outcomes. Collection body defaults still use `GetDefault` followed by `CanonicalizeExample`, and reach real flag defaults. The non-JSON branch preserves the plain codec; its selection remains part of R2. |
+| `http/codegen/service_data_init_args.go` | **Unresolved material auth examples (R2) / unconsumed response metadata (R3).** Basic-auth samples reach CLI flags; header/cookie examples copied into response/error constructors have no internal reader. Existing `client_cli_test.go` covers rendered CLI shapes. |
+| `http/codegen/service_data_routes.go` | **Intentional path codec / unresolved unused sampling (R3).** Path builders consume argument names/types/values, not `PathInit` example fields. Actual path-flag examples come from request element data. Path tests protect encoding; they do not establish that removing sampling leaves later random choices unchanged. |
+| `http/codegen/service_data_transport_helpers.go` | **Intentional location/default codecs / unresolved example source (R2, R3).** Request path/query/header/cookie examples flow to payload CLI arguments and remain independently sampled. Defaults arrive through effective transport copies. Response header/cookie example fields have no internal reader. `client_cli_test.go` and shared CLI default controls protect current codecs. |
+| `http/codegen/service_data_body_types.go` | **Migrated runtime plans / unresolved unused sampling (R3).** Request/response `TypeData.Value` carries the source and plan. `TypeData.Example` and transform `InitArgData.Example` have no internal reader. `value_plan_test.go` checks body/result/error ownership. |
+| `http/codegen/service_data_type_registry.go` | **Layout/validation owner / unresolved unused sampling (R3).** `attributeTypeData` still samples into `TypeData.Example`; no production code reads that field. Existing body/layout tests do not prove sampling-order neutrality. |
+| `http/codegen/websocket.go` | **Migrated stream plan / unresolved unused sampling (R3).** Stream body construction uses retained `StreamingValue`; the payload constructor's example field has no internal reader. `value_plan_test.go` covers streaming ownership. |
+| `http/codegen/client_cli.go` | **Migrated JSON routing/availability / intentional plain fallback.** JSON flags use retained plans, including the direct-body branch. Plain flags retain text/byte behavior; their material source-selection gap is R2. `codegen/cli/cli_test.go`, `usage_test.go` and the #565 generated controls protect diagnostics and omission. |
+| `http/codegen/misc_sections.go` | **Intentional renderer.** `renderPayloadExtraction` is a name match, not example selection. It renders supplied argument/type data. |
+| `http/codegen/internal/representation/value_carriers.go`, `value_plans.go`, `example_preparation*.go` | **Migrated infrastructure.** Service sources are paired with occurrence-specific runtime/documentation targets; prepared examples retain source selection. `http/codegen/value_plan_test.go` and OpenAPI prepared-example tests cover these edges. |
+| `codegen/cli/cli.go`, `payload.go`, `conversion.go`, `command_data.go`, `flag_parsing.go`, `usage.go` | **Intentional codecs/renderers; availability migrated.** `NewFlagData`, `jsonExample` and `flagDefault` format supplied values; they do not select semantic sources. Plain byte/text and JSON collection flag syntax remain distinct. Empty example text denotes an unavailable hint. `defaults_test.go`, `cli_test.go` and `usage_test.go` cover defaults, diagnostics and help. |
 
-## #570 ownership checkpoint
+JSON-RPC reuses HTTP service analysis and CLI generation, so R1–R3 apply to the
+corresponding shared paths. Its own `collection_defaults_cli_test.go` is a
+required control for any default change. JSON-RPC intentionally skips HTTP-only
+WebSocket body declarations; that is not a missing value consumer.
 
-The inventory searches were rerun for the #570 candidate against parent
-`cd6d2fb03afa2381d42819a9bd50e364b419b3c6`. Service method payloads, results,
-errors and streaming values now enter through `codegen/service/value_data.go`:
-one `ValueContext` selects the source, resolves or synthesizes it once, and
-publishes both the retained semantic result and its legacy raw example.
-Package reanalysis reuses that same result. HTTP transport carriers preserve the
-service source and add an occurrence-specific representation plan; their legacy
-rendering consumers are still assigned to the later milestones below.
+## gRPC consumers
 
-`expr/value_synthesis.go` is the new inventory match. Its calls into the existing
-`AttributeExpr.Example` sampler occur inside an isolated synthesis graph; its
-union adapter retains occurrence and branch identities before resolution. The
-existing scalar/length/collection sampling helpers and recursion memo remain the
-sampling engine, not a second transport projection owner. Public raw-value and
-canonicalization APIs remain compatibility paths during the staged migration.
+| Production file or owner | Current disposition and evidence |
+| --- | --- |
+| `grpc/codegen/service_data_analysis.go` | **Migrated message example / unresolved metadata example (R2).** `protoJSONExample` takes `MethodData.PayloadValue`; request metadata arguments still copy independently sampled examples into CLI flags. |
+| `grpc/codegen/service_data_helpers.go` | **Migrated effective defaults / unresolved metadata example (R2).** Metadata defaults use `EffectiveConstraintsFor`; `c.Example` still supplies the material request-flag example. `mapped_metadata_test.go` protects transport mappings, not retained example precedence. |
+| `grpc/codegen/service_data_convert.go` | **Unresolved unused sampling (R3).** Converter arguments copy metadata examples or sample source attributes. Renderers consume conversion names/types/code, not those example fields. Their random/cache effects remain to be checked. |
+| `grpc/codegen/client_cli_example.go` | **Migrated protobuf projection.** Retained source/member/branch identities flow through allocated protobuf names and wrappers without synthesis. `client_cli_protojson_test.go` covers source precedence, selected/absent unions, wrapper collections, invalid/unavailable outcomes and generated replay. Explicit-null support has a separate evidence boundary (R6). |
+| `grpc/codegen/client_cli.go` | **Migrated message codec and omission / intentional metadata codec.** The message flag uses protojson; metadata uses shared CLI formatting. `client_cli_protojson_corpus_test.go` checks descriptor-based decoding; `client_cli_determinism_test.go` checks isolated-process output. |
 
-The remaining inline-schema/enum/default matches belong to #571, OpenAPI matches
-to #572, HTTP/JSON-RPC/CLI matches to #565, and protobuf matches to #434. #573
-must rerun the inventory and retire duplicate built-in interpretation only after
-those consumers migrate. Adding carriers does not mean their old rendering
-paths have already migrated. `PayloadEx`/`StreamingPayloadEx` declarations and
-`renderPayloadExtraction` are carrier/name matches, not extra source-selection
-implementations. The formatter search retains the same location-codec and CLI
-migration owners recorded above.
+## OpenAPI consumers
 
-## #565 execution boundary
+| Production file or owner | Current disposition and evidence |
+| --- | --- |
+| `http/codegen/openapi/internal/ir/analyzer.go` | **Migrated built-in examples / intentional custom callback.** Raw `attr.Example` runs only for an explicitly installed `WithExampleValue` callback, not ordinary generation. Effective defaults use declared-value projection before target visibility/formatting. Prepared-example and default tests protect these separate paths. |
+| `http/codegen/openapi/internal/ir/document.go` | **Migrated built-in route / intentional adapter.** Built-in `initExamples` requires prepared targets. Exported `OpenAPIExampleValue` retains raw compatibility behavior; it is not the built-in source-selection route. |
+| `http/codegen/openapi/internal/ir/document_examples.go`, `analyzer_validation.go` | **Migrated effective admission / unresolved untagged enum/default interpretation (R7).** Visibility and wire formatting remain here, but untagged enum/default branches are matched again after declared/wire conversion. Prepared retained examples use their separate migrated path. `document_examples_test.go`, `map_defaults_test.go`, `map_defaults_encoding_test.go` and `untagged_byte_examples_test.go` cover the exercised boundaries. |
+| `http/codegen/openapi/internal/ir/example_generation.go` | **Migrated and deleted** in `489d93cf`. Shared `http/codegen/internal/representation/example_preparation*.go` and `ir/prepared_examples.go` replace the private synthesis path. |
+| `http/codegen/openapi/internal/ir/prepared_examples.go` (new owner) | **Migrated.** Projects prepared retained values and handles outcomes; no replacement source sampling. `prepared_builtin_examples_test.go` and v3 `shared_value_examples_test.go` protect the ordinary pipeline. |
+| `http/codegen/openapi/internal/ir/document_cookies.go` | **Migrated source / intentional cookie codec.** Prepared values retain member identity before cookie text formatting. `document_cookies_test.go` checks the emitted cookie examples. |
+| `http/codegen/openapi/v3/example.go` | **Built-in route migrated; old private helper has no production caller.** `initExamples` is exercised only by tests. Actual v3 generation goes through the shared IR and `ir_adapter.go`; `example_surfaces_test.go`, `shared_value_examples_test.go` and `singleton_named_example_test.go` cover rendering and metadata. |
 
-After #572, the immediate HTTP/JSON-RPC defect is the CLI body argument's
-independent `CanonicalizeExample(body.Example(...))` path. #565 replaces that
-advertised example with the retained result projected through the client
-`TypeData.Value` runtime plan. Shared CLI formatting carries availability through
-both JSON error constructors, sample invocations, individual and aggregate help,
-and the top-level example heading. It does not change command availability.
+The [#572 acceptance record](../internal/valuecontract/OPENAPI_EXAMPLES.md)
+preserves the delivered generated/consumer comparisons. R4 below concerns inline
+schemas, not reopening the completed OpenAPI example migration.
 
-The remaining `cliBodyDefault` canonicalization and `AttributeExpr.Example`
-calls in plain/location, response, type-data and WebSocket carriers are retained
-explicitly for #573's consumer reconciliation. Their existing codecs and default
-behavior remain protected by #565's focused controls. This allocation does not
-declare those consumers migrated or remove them from the migration goal.
+## Additional ownership boundaries
 
-## #571 effective-constraint checkpoint
+| Boundary | Current disposition / evidence |
+| --- | --- |
+| `expr/random.go` | **Intentional sampler memo.** Scope/cache effects of unused calls belong to R3; the bounded [value-projection model](../expr/tla/value_projection/README.md) does not prove PRNG sequence equivalence. |
+| `expr/attribute.go`, `attribute_validate.go` | **Migrated source/admission boundaries.** Inheritance and declaration validation feed the shared owner; `value_source_eligibility_test.go`, `value_source_binding_test.go` and effective-constraint tests cover actual Go extraction. |
+| `internal/examplevalue/union.go` | **Intentional compatibility carrier.** Retains an existing selected union at the legacy boundary; it is not permission for a target to reselect. `value_synthesis_test.go` and service `value_data_test.go` check retained choices. |
+| `internal/jsonkey/key.go` | **Intentional shared key codec.** Spelling and collisions remain codec responsibilities. #456's [diagnostic correspondence](../expr/lean/value_projection/correspondence.md#map-collision-diagnostics-456) distinguishes known witnesses from unknown/opaque inputs. |
+| `internal/valuecontract/production_graph_test.go` and specialized adapters | **Unresolved generalization, explicit tested bounds (R5).** The general adapter rejects duplicate wire aliases, alias-local constraints and named/key enums. Specialized #571 groups cover bounded scalar-key/alias cases; they do not remove those guards. |
 
-The accepted alias policy is refinement. `expr.EffectiveConstraints` owns the
-immutable enum, default, numeric/length, format/pattern, and finalized required
-field result for one occurrence and its declaration ancestry. Raw attribute
-queries enter through `EffectiveConstraintsFor`; consumers do not walk named
-aliases or choose precedence independently. Enum subset and default membership
-reuse declared-type value resolution and equality. `internal/enumvalue` remains
-only a JSON-shape projection boundary after semantic selection.
+## Remaining work
 
-Pattern and format predicates are ordered current-to-base and conjoined. The
-immutable result retains typed provenance; its detached lowered carrier keeps
-explicit per-kind clauses when HTTP removes named wrappers. Generated
-validators, value plans, inline schemas, OpenAPI analysis, examples, synthesis,
-and vet consume those clauses rather than the singular compatibility fields.
-Enum candidates are a separate presence-aware filtered view; physical lowering
-keeps the unfiltered enum clauses and does not turn them into authored values.
+These are follow-up scopes, not a batch implementation authorization. R1 and R2
+are visible ownership deviations; this audit does not claim an observed runtime
+failure for them. R3–R6 distinguish cleanup, compatibility and evidence questions; R7 records another source-level ownership gap without claiming a reproduced output failure.
 
-## Existing proof anchors
+### R1 — JSON CLI body default projection
 
-- `http/codegen/testdata/mapped_names_dsls.go`: authored bytes, mapped keys,
-  byte/text enums and untagged request/result bodies.
-- `http/codegen/testdata/type_identity_dsl.go`: nested union and shared-type
-  identity coverage through `TypeIdentityDSL`.
-- `grpc/codegen/testdata/dsls_15.go` and
-  `grpc/codegen/client_cli_protojson_{test,corpus_test}.go`: protojson output,
-  generated payload builders, nested oneofs and wrapped values.
-- `http/codegen/collection_defaults_cli_test.go` and
-  `jsonrpc/codegen/collection_defaults_cli_test.go`: generated default semantics.
-- `http/codegen/openapi/internal/ir/{byte_values_test.go,document_test.go,nested_union_examples_test.go,untagged_byte_examples_test.go}`:
-  Any/custom/null, branch identity and typed-byte regressions.
-- `internal/enumvalue/value_test.go`: Any values and wire-name precedence.
-- `internal/openapiimport/issue_302_test.go`: original untagged compatibility need.
-- `internal/testdatacompile/README.md`: discovered design corpus and explicit
-  expected-failure policy.
+`cliBodyDefault` selects a payload default and canonicalizes it independently,
+then `NewFlagData`/`flagDefault` turns it into the default accepted by a real JSON
+body flag. This bypasses the retained body representation owner even though the
+existing collection-default regressions pass.
 
-The temporary comparison in `/tmp/loom-goa-audit` is supporting discovery
-material, not a durable test gate. Historical sources are pinned in the design;
-implementation must turn applicable minimal cases into checked-in Loom tests.
+Start with one direct table for bytes, union and mapped-key defaults, plus the
+existing HTTP and JSON-RPC collection-default controls and a plain-byte default
+control. Establish the target representation and preserve absent/default semantics
+before selecting a repair. Keep this separate from ordinary location codecs.
+
+### R2 — Material location and metadata example sources
+
+HTTP request path/query/header/cookie/basic-auth, non-JSON/plain body, and gRPC
+request metadata examples still sample attributes independently before emitting
+CLI help/diagnostics.
+Their text, byte, numeric and collection codecs are intentional; their source
+selection has not migrated to the retained occurrence owner.
+
+Verify authored root-versus-member precedence and unchanged flag spelling at one
+HTTP and one gRPC shared seam, including a plain Bytes body example control.
+Select one bounded transport/position follow-up
+before implementation. Existing CLI renderer controls can be reused; a new
+transport matrix is not required merely to establish selection ownership.
+
+### R3 — Unconsumed example fields and sampling effects
+
+Body/type-registry, response constructor, path initializer, WebSocket constructor
+and gRPC converter example fields have no internal production reader. Their
+sampling calls can still affect later samples through generator/cache state.
+Exported carrier fields can also have external users.
+
+For one carrier class, identify public compatibility requirements and compare the
+later material examples with and without its sampling, including repeated and
+reordered construction. Only then decide whether to remove the call or populate
+the field from its retained owner. Reuse a relevant generated response/stream or
+converter fixture if that follow-up changes emitted code. This is cleanup and
+ordering evidence, not a demonstrated transport bug.
+
+### R4 — Inline schema failure outcomes versus compatibility
+
+`inlineSemanticJSONValue` and `inlineDeclaredEnumValues` can fall back to the raw
+compatibility adapter after semantic resolution fails. The existing inline-schema
+regression explicitly keeps an ambiguous union example unchanged, while the value
+contract prohibits built-in consumers from bypassing failure outcomes.
+
+Resolve this concrete contract discrepancy before changing public behavior:
+the exported `InlineJSONSchema` API has no other production caller in this
+repository. Identify which public compatibility guarantees require pass-through
+and which schema-generation outcomes must honor semantic failures. Use the existing ambiguous-example control alongside
+resolved bytes/union/default controls, then check the emitted example against its
+schema. Preserve opaque-codec and enum projection boundaries. This audit records
+the conflict; it does not authorize dropping a compatibility guarantee.
+
+### R5 — Reference adapter boundaries
+
+`productionGraph.capture` rejects duplicate source wire aliases and constrained
+alias/key shapes that it cannot independently lower. `TestProductionConstraintGuardFailsClosed`
+ensures those guards actually reject; `expr/value_alias_ownership_test.go` checks
+production alias/visibility behavior. The specialized `named-key-contracts` and
+`effective-alias-lengths` groups supply narrower independent comparisons.
+
+Start with the duplicate-alias shape already exercised by the rejection control
+and mapped-metadata tests: decide whether a separately scoped independent lowering
+is needed for that supported graph. Retain every unsupported-shape guard until
+its replacement has independent inputs and negative controls. Arbitrary Go
+reflection, codecs, DSL extraction and generated compilation remain tested/external
+boundaries; their exclusion is not evidence of a production bug or a mandate to
+formalize all of Go.
+
+### R6 — Revalidate historical compiler limitations before assigning repairs
+
+The ledger records earlier failures for collision-free `MapOf(Any, String)` keys,
+nullable `Any` in gRPC converters, and named Bytes response validation.
+They were not regenerated by #573. Current gRPC map-key validation rejects Any keys in supported gRPC positions, and
+`TestProtoBufTransformNullableAnyObjectPreservesPresence` now checks nullable
+conversion snippets. Neither fact establishes the current outcome of every
+historical generated module. For named Bytes responses,
+`applyUserResponseBodyTypeData` still chooses `&body` outside array/map/nullable
+cases; the current request-alias validation repair does not establish response
+signature/body/call agreement. The historical response failure remains plausible,
+not freshly reproduced.
+
+Recover each exact design and transport from the retained record, then run only
+that specimen through current validation/generation/compilation. Record rejected,
+repaired or still-failing outcomes before creating a fix ticket. Do not turn an
+old compiler diagnostic into a claim about current main, or treat a snippet test
+as proof that the complete generated application compiles.
+
+### R7 — Retained branch identity for OpenAPI enum/default projection
+
+OpenAPI defaults in `analyzer.go` and enum clauses in `analyzer_validation.go`
+pass through `enumvalue.Normalize` into `projectOpenAPIExample` and
+`normalizeOpenAPIExampleForAttribute`. Their untagged-union branches call
+`matchingUntaggedOpenAPIBranch` on converted values instead of carrying the
+resolved branch identity. A missing/ambiguous match returns the value without
+branch-specific projection. This is a source-level duplicate interpretation
+boundary; the audit has not reproduced a wrong emitted default or enum.
+
+Use one default and one enum control whose semantically selected untagged branch
+shares the declared/converted matcher input with another branch but has different
+field visibility. Branch-specific visibility projection happens after matching.
+Check retained identity, projected values and schema validity. Establish that
+boundary before deciding the repair; preserve the intentional raw compatibility
+adapter and the already migrated prepared-example path.
+
+## Evidence policy
+
+This reconciliation changes documentation only. It reuses the recorded delivery
+commits and tests above; it does not rerun proof/kernel checks, regenerate fixtures,
+or refresh historical artifact manifests. A future code change must select checks
+for the specific obligation it changes, preserve meaningful negative controls,
+and update this inventory and the correspondence ledger. Follow
+[the execution plan](value-contract-plan.md) and [repository validation rules](../AGENTS.md).

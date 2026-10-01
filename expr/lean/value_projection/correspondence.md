@@ -1,10 +1,36 @@
 # Proof and production correspondence ledger
 
-Status: **M1, #569, #570 and #574 are independently reviewed and pushed. The #571 effective-alias implementation has passed its model and tested production-correspondence gates within the boundaries recorded below.** The reviewed contract is
+Status at `15a4c467`: **M1 and #569–#572, #574, #565 and #434 are delivered.**
+Their proof and tested-correspondence claims retain the boundaries recorded below.
+The reviewed contract is
 [value-contract-design.md](../../../roadmap/value-contract-design.md).
 The source-history reference is `f5b786b39675e2b5c1466f04f3301b7b337779b6`.
 The word “proved” below applies to the Lean statement, not to handwritten Go,
 generated programs, all JSON strings, or any codec implementation.
+
+## Current delivery and remaining work
+
+The #573 reconciliation is a documentation audit of current owners and retained
+evidence. It adds no theorem, expands no adapter domain, and does not rerun or
+extend the historical gate results. The [current consumer inventory](../../../roadmap/value-contract-inventory.md)
+records the disposition of each consumer and the [remaining work](../../../roadmap/value-contract-inventory.md#remaining-work).
+Closing that audit does not complete those follow-ups.
+
+| Delivered scope | Commit / retained evidence |
+| --- | --- |
+| Comparison baseline, Lean foundation and bounded ownership model (#566–#568) | `3f18c742`, `f14c3e7d`, `8b70bce6`; [baseline](../../../internal/valuecontract/BASELINE.md), [proof instructions](README.md), [model record](../../tla/value_projection/README.md) |
+| Candidate proofs and shared production owners (#569–#570) | `cd6d2fb0`, `2f6bfbf7`; delivery record below and [occurrence comparisons](../../../internal/valuecontract/OCCURRENCES.md) |
+| Byte schemas and effective constraints (#574, #571) | `9e6b9121`, `1955dbc5`; [byte-schema evidence](../../../internal/valuecontract/BYTE_SCHEMA.md) and the bounded alias/key correspondence below |
+| Prepared OpenAPI examples (#572) | `489d93cf`; [final acceptance record](../../../internal/valuecontract/OPENAPI_EXAMPLES.md) |
+| HTTP/JSON-RPC and gRPC CLI examples (#565, #434) | `6f9276f4`, `aca6696b`; transport correspondence sections below |
+
+The investigation checkpoints below preserve intermediate findings and their
+assumptions. Statements that review or whole-ticket gates were pending describe
+those checkpoints; the delivery records above supersede their scheduling status.
+They do not discharge a separately excluded shape, codec, or extraction boundary.
+In particular, the general reference graph still rejects duplicate source wire
+aliases and certain alias/key constraints; bounded specialized comparisons do not
+silently enlarge that graph's domain.
 
 The detailed #574 investigation checkpoints below preserve what each local
 review established. Their pending whole-ticket gates were subsequently completed
@@ -21,7 +47,7 @@ the individual obligations, and the gate prints their transitive axiom sets.
 | Theorem names | Status and domain | Production seam / additional evidence |
 | --- | --- | --- |
 | `erasedBranchesIndistinguishable`, `legacyBranchLoss` | **Proved**: two concrete selected branches erase to one payload; first-branch reconstruction changes the second identity | `expr/types_union.go` source selection and `expr/example_canonicalization.go` reconstruction; #566 nested-branch probe supplies independent generated evidence |
-| `legacyByteReinterpretation`, `byteStringDecodes`, `byteEncodingWitness` | **Proved** for the concrete `hi`/`aGk=` specimen codec; literal `hi` does not decode as the original bytes | Historical OpenAPI byte conversion; current authored-byte CLI bug in `codegen/cli/conversion.go`; #566 actual generated builder/decoder probe |
+| `legacyByteReinterpretation`, `byteStringDecodes`, `byteEncodingWitness` | **Proved** for the concrete `hi`/`aGk=` specimen codec; literal `hi` does not decode as the original bytes | Historical OpenAPI byte conversion; historical authored-byte CLI failure, repaired by #565 (`6f9276f4`); #566 retains the original generated builder/decoder probe |
 | `byteTextWireCollision` | **Proved**: the same `Wire.text "aGk="` decodes as Bytes and String | Untagged OpenAPI matching in `http/codegen/openapi/internal/ir/document_examples.go`; candidate same-wire uniqueness is proved below; actual-decoder correspondence remains #570 |
 | `legacyLengthRejectsValidBytes`, `legacyLengthAcceptsShortBytes` | **Proved** concrete mismatches between decoded byte count and ASCII wire-string length under `boundaryCodec`; neither direction can use copied length bounds | `expr/json_schema_inline.go`, OpenAPI IR `analyzer.go`, and generated decoded-length validation. #574 delivered the repaired arithmetic, grammar and tested generated-server/schema correspondence; see the final byte-schema evidence below. This is not a theorem about arbitrary runtime codecs |
 | `canonicalByteEnumAgreement`, `aliasSchemaDecoderMismatch` | **Proved**: canonical `aGk=` meets both enum predicates, while String `aGl=` fails the canonical byte-schema enum but decodes to the allowed byte value `hi` | #569 separately requires emitted-schema validity and actual decoder branch/observation preservation. #570 tests real codecs and #574 corrects the length/grammar schema; no enum broadening or String normalization follows from this witness |
@@ -73,7 +99,7 @@ resolves, projects or decodes.
 | Source candidate preference includes compatible non-object alternatives, and cross-member authored/wire aliases can conflict | [Preference/null controls](../../../scripts/value_contract_source_test.go) preserve current non-object ranking; [alias controls](../../../scripts/value_contract_alias_test.go) retain the actual wrong-type overlap witness | Candidate resolver validates every retained assignment and preserves supported name overlaps. Full resolver correspondence is checked; #570 source/alias regressions and registered correspondence pass; the public Go compatibility adapter remains a separately tested boundary |
 | Schema acceptance, decoder unknown-member policy and semantic retention were conflated in one target flag | `TargetDeclaration` now separates schema openness, decoder rejection and target extra-member retention. `ProjectionControls` exercises a schema-unique wire with two runtime interpretations, rejection for runtime use and permitted documentation-only emission | #570 must derive all three policies from the actual occurrence/codec. The defaults match ordinary and generated tagged JSON decoding; no schema-only uniqueness inference is permitted |
 | Map key constraints and lexical key decoding differ from emitted map schemas | Current IR `analyzeInlineMap` emits an object value schema without key constraints. Candidate schema follows that shape; runtime decoding separately checks key parser acceptance, constraints and decoded-key collisions | Numeric key formatting shares `NumericCodec`; key-parser functions have a separate lexical boundary from JSON number-token parsing. #570 must test both, including aliases; canonical encoder membership never substitutes for decoder acceptance |
-| Logical service fields can share a JSON alias when their actual transport places them in different components | The required gRPC mapped-metadata matrix exposes the new occurrence builder imposing JSON wire uniqueness before a transport plan exists | Shared Go capture must preserve unique authored member identities; supplied duplicate wire aliases must be ambiguous, while existing cross-namespace authored/wire overlaps retain their validation and precedence. Target emitted-name uniqueness remains plan-owned. The Lean `WellFormedDeclarations` premise currently requires unique wire aliases: these additional Go graphs need explicit adapter rejection and direct/generated tests, not a false differential claim. #573 owns independent lowering, or an earlier migration if it needs that correspondence. `value_alias_ownership_test.go` verifies authored keys, ambiguous aliases, cross-namespace compatibility and target visibility; the actual adapter rejection subprocess and 16-service generated gRPC metadata round trips pass. Independent scoped review passed. The final parent/candidate comparison is byte-identical for mapped-metadata, and whole integration gates pass |
+| Logical service fields can share a JSON alias when their actual transport places them in different components | The required gRPC mapped-metadata matrix exposes the new occurrence builder imposing JSON wire uniqueness before a transport plan exists | Shared Go capture must preserve unique authored member identities; supplied duplicate wire aliases must be ambiguous, while existing cross-namespace authored/wire overlaps retain their validation and precedence. Target emitted-name uniqueness remains plan-owned. The Lean `WellFormedDeclarations` premise currently requires unique wire aliases: these additional Go graphs need explicit adapter rejection and direct/generated tests, not a false differential claim. The [reference-adapter follow-up](../../../roadmap/value-contract-inventory.md#r5--reference-adapter-boundaries) retains the independent-lowering obligation; #573 reconciles its status only. `value_alias_ownership_test.go` verifies authored keys, ambiguous aliases, cross-namespace compatibility and target visibility; the actual adapter rejection subprocess and 16-service generated gRPC metadata round trips pass. Independent scoped review passed. The final parent/candidate comparison is byte-identical for mapped-metadata, and whole integration gates pass |
 | A projected collection can inherit stale naming provenance from its source declaration | Required meal-planner output changed `RecipeResponseSummaryCollection` to `RecipeCollection` after copying source occurrence metadata | Shared view projection must preserve occurrence constraints while assigning naming provenance to the new derived declaration. Four direct view/canonical-name controls, race checks and unchanged meal-planner JSON/YAML goldens pass; independent scoped review passed. The final parent/candidate meal-planner comparison is byte-identical. This is DSL-to-plan naming evidence outside the semantic theorem, not grounds for a renderer exception or a new proof vocabulary |
 | A named Bytes type shared by nullable and non-null result occurrences can corrupt view representation planning | The retained #570 nullable-view regression is outside the Lean table validator: the model receives explicit occurrence/target identities and does not construct them from shared Go attributes | #570 isolates effective occurrence presence and physical representation. Direct tests and generated nullable-view/child-view probes pass, with the original parent failure retained in the comparison record. This is tested adapter/plan derivation, not a semantic theorem |
 | Initial Lean evaluator branch returns bypassed whole-node enum gates | Universal schema correspondence exposed a candidate defect before approval; independent spec rejected the empty enum while the initial array evaluator accepted. `ProjectionControls.legacyHoistedEnumCounterexample` retains the rejected do-block layering, and repaired controls cover array/object/map/union/Any gates | Schema, decoder and resolver now compute their bodies in separate helper functions before uniform enum validation. All affected component proofs/controls have been rebuilt; independent exact-diff review remains required; this is a candidate implementation repair, not an assumption narrowing representability |
@@ -87,7 +113,7 @@ source selection and synthesis, then `DeclaredJSONValue` as a semantic carrier i
 OpenAPI conversion path. That carrier preserves declared bytes and precision and
 the selected tagged envelope; it is not checked target wire output. Carrying the
 original service result through target plans and removing the remaining OpenAPI
-re-synthesis and interpretation remain #572 obligations.
+re-synthesis were delivered by #572; see its final evidence record below. Remaining enum/default interpretation is recorded separately in the [current inventory](../../../roadmap/value-contract-inventory.md#r7--retained-branch-identity-for-openapi-enumdefault-projection).
 
 These rows invalidate any broader inference from the old foundation approval;
 the original concrete lemmas remain unchanged. Counterexample/model and ledger
@@ -179,9 +205,11 @@ parent/candidate artifacts and passes generation, example generation, module
 tidying, build and vet in both attempts.
 
 The collision-free `MapOf(Any, String)` companion also has identical artifacts,
-but both revisions generate an invalid `map[loom.JSONValue]string` key type and
-fail compilation; vet is skipped. This pre-existing transport defect remains
-unresolved. The successful concrete-key control does not establish compilation
+but both compared revisions generated an invalid `map[loom.JSONValue]string` key
+type and failed compilation; vet was skipped. This is historical generated
+evidence, not a fresh result on current main. Current gRPC key validation and
+nullable conversion controls require revalidating the exact old specimens before
+assigning repairs; see [R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs). The successful concrete-key control does not establish compilation
 of arbitrary map key types.
 
 ## Explicit request-body ownership: #581
@@ -300,7 +328,7 @@ emptiness decision adequacy now has positive/negative unbounded equivalence in
 and combined progress against the unchanged independent representability
 relation. Final independent exact-diff review remains required.
 
-## Pending acceptance obligations
+## Delivery evidence and historical investigation checkpoints
 
 **#569:** the complete candidate functions and universal component/composition
 proofs are checked. The final static manifest covers every public theorem;
@@ -520,9 +548,11 @@ and call assume a pointer. Parent and candidate inputs, non-OpenAPI artifacts
 and compiler diagnostics match exactly. Earlier field-layout regressions do not
 cover root declaration/body/call agreement. This is a tested counterexample at
 the generated-Go boundary, not a failure of the Lean byte arithmetic. Milestone
-5 / #565 must derive all three uses from the same physical body plan and make
-the retained probe build, vet and pass accepted/rejected runtime validation.
-Until then it remains an explicit known failure, never successful build evidence.
+5 / #565 originally carried this follow-up. Its CLI delivery did not establish
+response-validator agreement. Current response analysis still selects `&body`
+for the named Bytes case; [R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs)
+requires the exact signature/body/call and generated compile/runtime check before
+assigning a repair. The historical failure is never successful build evidence.
 
 Complete recursive schema identity is another allocation obligation outside the
 Lean value arithmetic. The mixed probe retained two identical completed schemas
@@ -738,7 +768,12 @@ correspondence**, not a proved Go refinement. Neither the M1 witness gate nor
 #570's fixed corpus establishes completion of these later obligations.
 
 
-## #572 prepared OpenAPI examples (implementation in progress)
+## #572 prepared OpenAPI examples
+
+Delivered in `489d93cf`. The [final acceptance record](../../../internal/valuecontract/OPENAPI_EXAMPLES.md)
+records fixture differences, generated and consuming-application checks, final
+lint and independent review. The following paragraphs retain the intermediate
+proof and implementation findings, including the limits of each checkpoint.
 
 The ordered-source extension is part of the existing audited `Proofs` entry point.
 Its ten required claims preserve the first nonempty authored group, its order and
@@ -851,8 +886,8 @@ this producer correspondence; the alias-pairing model assumes those shapes are
 captured correctly and does not prove importer DSL emission.
 
 See the [model run instructions and bounds](../../tla/schema_declaration/README.md).
-Deterministic generation, fixture compilation, repository gates and independent
-final-diff review remain required before #572 delivery.
+The final acceptance record closes the delivery gates for #572. It does not
+prove arbitrary source/target extraction or enlarge the formal models' bounds.
 
 ## #565 CLI projection correspondence
 
@@ -919,10 +954,13 @@ unsupported examples require a diagnostic and omission, without removing the
 command or advertising `null`; invalid authored values remain generation errors.
 These are production correspondence obligations, not new theorem claims.
 
-The explicit-null probe exposed an existing gRPC converter limitation:
+The #434 explicit-null probe exposed a gRPC converter limitation at that revision:
 an `Any` payload with `Nullable()` and `Example(Null())` generates assignments between
 `loom.JSONValue` and `loom.Nullable[loom.JSONValue]` and compares the nullable
-wrapper with `nil`. Those converters do not compile. #434 does not add nullable
+wrapper with `nil`. Those generated converters failed compilation. #573 did not
+regenerate that specimen; current direct nullable-Any transform coverage does not
+establish its full-module outcome. [R6](../../../roadmap/value-contract-inventory.md#r6--revalidate-historical-compiler-limitations-before-assigning-repairs)
+retains that revalidation obligation. #434 does not add nullable
 Any transport support; its example adapter must diagnose and omit that unsupported
 hint. Empty selected collection branches remain a separate supported case and
 must retain their oneof selection through a generated round trip. Typed-nil
