@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
@@ -162,7 +163,8 @@ func jsonrpcServerTransportSections(data *httpcodegen.ServiceData, hasSSE, hasMi
 
 // lowerInitial returns the string with the first letter in lowercase.
 func lowerInitial(s string) string {
-	return strings.ToLower(s[:1]) + s[1:]
+	_, size := utf8.DecodeRuneInString(s)
+	return strings.ToLower(s[:size]) + s[size:]
 }
 
 // hasJSONRPCSSE returns true if the service uses SSE for JSON-RPC streaming.

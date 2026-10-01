@@ -104,6 +104,57 @@ func TestNonASCIINamesGeneratedModuleBuilds(t *testing.T) {
 	}
 }
 
+// TestAstralServiceGeneratedModuleBuilds covers a service name outside the
+// Basic Multilingual Plane across generated service error methods, a gRPC
+// client interceptor, and a JSON-RPC WebSocket stream.
+func TestAstralServiceGeneratedModuleBuilds(t *testing.T) {
+	generateExampleModule(t, "example.com/astral", astralServiceDSL)
+}
+
+func astralServiceDSL() {
+	var Frame = d.Type("Frame", func() {
+		d.Field(1, "text", d.String)
+	})
+	d.API("astral", func() {
+		d.JSONRPC(func() {})
+		d.Server("server", func() {
+			d.Services("𝒜streamer", "𝒜worker")
+			d.Host("local", func() {
+				d.URI("http://localhost:8000")
+				d.URI("grpc://localhost:8080")
+			})
+		})
+	})
+	d.Interceptor("trace")
+	d.Service("𝒜streamer", func() {
+		d.JSONRPC(func() {
+			d.GET("/rpc")
+		})
+		d.Error("bad", func() {
+			d.Field(1, "message", d.String)
+		})
+		d.Method("𐐀xchange", func() {
+			d.StreamingPayload(Frame)
+			d.StreamingResult(Frame)
+			d.JSONRPC(func() {})
+		})
+	})
+	d.Service("𝒜worker", func() {
+		d.Error("bad", func() {
+			d.Field(1, "message", d.String)
+		})
+		d.ClientInterceptor("trace")
+		d.Method("call", func() {
+			d.Payload(func() {
+				d.Field(1, "message", d.String)
+			})
+			d.Result(d.String)
+			d.Error("bad")
+			d.GRPC(func() {})
+		})
+	})
+}
+
 func nonASCIIHTTPGRPCDSL() {
 	d.API("Café", func() {
 		d.Server("サーバー", func() {
