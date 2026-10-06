@@ -67,6 +67,7 @@ Rendered schema validation and actual decoder behavior are separate obligations.
 | Code concern | Model |
 | --- | --- |
 | Escaped route literals and split-before-unescape path arrays | [Path decoding](../../../../http/tla/path_decoding/README.md); bounded operation-order checks, with raw capture preservation and actual dispatch checked in Go |
+| gRPC opening-send EOF and final status ownership | [Initial send model](../../../../grpc/codegen/tla/initial_send/README.md); bounded stream retention and receive-completion checks |
 | JSON-RPC WebSocket response routing, client closure/redial and closure error identity | [JSON-RPC connection models](../../../../jsonrpc/tla/README.md) |
 | Redis job ownership, fencing/resume, requeue replies, event acknowledgments and join reconciliation | [Pulse pool models](../../../../pulse/pool/tla/README.md) and their linked ownership design/action map |
 | Stream group creation/removal, per-stream map ownership and consumer rotation | [Pulse streaming models](../../../../pulse/streaming/tla/README.md) |

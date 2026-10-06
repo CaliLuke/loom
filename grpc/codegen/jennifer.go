@@ -569,9 +569,10 @@ func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {
 									jen.Return(jen.Nil(), jen.Err()),
 								)
 								g.If(jen.Id("reqpb").Op("!=").Nil()).Block(
+									jen.Comment("Recv or CloseAndRecv reports the final status after send EOF."),
 									jen.If(
 										jen.Err().Op(":=").Id("stream").Dot("Send").Call(jen.Id("reqpb").Assert(codegenpkg.Expr(endpoint.Request.Message.Ref))),
-										jen.Err().Op("!=").Nil(),
+										jen.Err().Op("!=").Nil().Op("&&").Op("!").Qual("errors", "Is").Call(jen.Err(), jen.Qual("io", "EOF")),
 									).Block(
 										jen.Return(jen.Nil(), jen.Err()),
 									),

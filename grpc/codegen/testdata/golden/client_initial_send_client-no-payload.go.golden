@@ -1,0 +1,13 @@
+// BuildMethodClientStreamingRPCFunc builds the remote method to invoke for
+// "ServiceClientStreamingRPC" service "MethodClientStreamingRPC" endpoint.
+func BuildMethodClientStreamingRPCFunc(grpccli service_client_streaming_rpcpb.ServiceClientStreamingRPCClient, cliopts ...grpc.CallOption) loomgrpc.RemoteFunc {
+	return func(ctx context.Context, reqpb any, opts ...grpc.CallOption) (any, error) {
+		for _, opt := range cliopts {
+			opts = append(opts, opt)
+		}
+		if reqpb != nil {
+			return grpccli.MethodClientStreamingRPC(ctx, opts...)
+		}
+		return grpccli.MethodClientStreamingRPC(ctx, opts...)
+	}
+}

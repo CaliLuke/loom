@@ -430,6 +430,12 @@ or another initial-payload frame returned from `Recv` is a validation error.
 This framing is generated protocol, not an application convention; external
 protobuf clients must follow the same ordering.
 
+If the opening send returns `io.EOF`, the generated client still returns the
+stream. Read `CloseAndRecv` for client streaming or `Recv` for bidirectional
+streaming to obtain the final server status or response. Opening-send EOF alone
+does not establish whether the RPC succeeded. Other send errors still fail the
+opening call. Regenerate clients to adopt this behavior.
+
 ### Server-Side Streaming
 
 Server sends multiple responses to a single client request:

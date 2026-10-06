@@ -633,6 +633,10 @@ requirement retain AND semantics.
 
 ## Streaming
 
+- gRPC clients retain the stream when sending its initial payload returns EOF.
+  Use `CloseAndRecv` for client streaming or `Recv` for bidirectional streaming
+  to read the final server status or response; EOF from the opening send alone
+  does not establish success. Regenerate clients to adopt this behavior.
 - SSE endpoints use normal HTTP success responses with
   `text/event-stream`.
 - Generated HTTP and JSON-RPC SSE streams expose `loomhttp.SSEControl`.
