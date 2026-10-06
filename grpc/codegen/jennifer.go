@@ -56,8 +56,7 @@ func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
 						Params(jen.Any(), jen.Error()).
 						BlockFunc(func(g *jen.Group) {
 							writeGRPCClientEndpointInvoker(g, endpoint)
-							writeGRPCClientEndpointErrorHandling(g, endpoint)
-							g.Return(jen.Id("res"), jen.Nil())
+							g.Return(jen.Id("inv").Dot("Invoke").Call(jen.Id("ctx"), jen.Id("v")))
 						}),
 				),
 			)
@@ -66,11 +65,18 @@ func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
 
 func writeGRPCClientEndpointInvoker(g *jen.Group, endpoint *EndpointData) {
 	g.Id("inv").Op(":=").Add(codegenpkg.Expr("loomgrpc.NewInvoker")).Call(
-		jen.Id("Build"+endpoint.Method.VarName+"Func").Call(jen.Id("c").Dot("grpccli"), jen.Id("c").Dot("opts").Op("...")),
+		jen.Func().Params(
+			jen.Id("ctx").Qual("context", "Context"),
+			jen.Id("reqpb").Any(),
+			jen.Id("opts").Op("...").Qual("google.golang.org/grpc", "CallOption"),
+		).Params(jen.Any(), jen.Error()).BlockFunc(func(rg *jen.Group) {
+			rg.List(jen.Id("res"), jen.Err()).Op(":=").Id("Build"+endpoint.Method.VarName+"Func").Call(jen.Id("c").Dot("grpccli"), jen.Id("c").Dot("opts").Op("...")).Call(jen.Id("ctx"), jen.Id("reqpb"), jen.Id("opts").Op("..."))
+			writeGRPCClientEndpointErrorHandling(rg, endpoint)
+			rg.Return(jen.Id("res"), jen.Nil())
+		}),
 		grpcClientEndpointEncodeFn(endpoint),
 		grpcClientEndpointDecodeFn(endpoint),
 	)
-	g.List(jen.Id("res"), jen.Err()).Op(":=").Id("inv").Dot("Invoke").Call(jen.Id("ctx"), jen.Id("v"))
 }
 
 func grpcClientEndpointEncodeFn(endpoint *EndpointData) *jen.Statement {

@@ -823,6 +823,9 @@ filter, and serialization rules belong here.
   `gen/http` keep their import paths.
 - Preserve the generated public `ServeHTTP` middleware and policy chain when
   adding JSON-RPC dispatch branches.
+- Generated gRPC clients decode remote errors inside the `RemoteFunc` callback
+  passed to `grpc.NewInvoker`. Keep request encoding and response validation
+  outside that mapping so their errors retain their identity and fields.
 - Keep gRPC request context, metadata application, status conversion,
   observation, and clean stream completion in `grpc.ServeUnary`,
   `grpc.ServeStream`, and `grpc.EncodeServerError`. Generated gRPC code supplies

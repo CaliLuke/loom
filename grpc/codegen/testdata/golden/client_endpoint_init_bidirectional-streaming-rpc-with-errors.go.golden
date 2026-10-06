@@ -4,17 +4,19 @@
 // interface.
 func (c *Client) MethodBidirectionalStreamingRPCWithErrors() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := loomgrpc.NewInvoker(BuildMethodBidirectionalStreamingRPCWithErrorsFunc(c.grpccli, c.opts...), nil, DecodeMethodBidirectionalStreamingRPCWithErrorsResponse)
-		res, err := inv.Invoke(ctx, v)
-		if err != nil {
-			resp := loomgrpc.DecodeError(err)
-			switch message := resp.(type) {
-			case *loompb.ErrorResponse:
-				return nil, loomgrpc.NewServiceError(message)
-			default:
-				return nil, loom.Fault("%s", err.Error())
+		inv := loomgrpc.NewInvoker(func(ctx context.Context, reqpb any, opts ...grpc.CallOption) (any, error) {
+			res, err := BuildMethodBidirectionalStreamingRPCWithErrorsFunc(c.grpccli, c.opts...)(ctx, reqpb, opts...)
+			if err != nil {
+				resp := loomgrpc.DecodeError(err)
+				switch message := resp.(type) {
+				case *loompb.ErrorResponse:
+					return nil, loomgrpc.NewServiceError(message)
+				default:
+					return nil, loom.Fault("%s", err.Error())
+				}
 			}
-		}
-		return res, nil
+			return res, nil
+		}, nil, DecodeMethodBidirectionalStreamingRPCWithErrorsResponse)
+		return inv.Invoke(ctx, v)
 	}
 }

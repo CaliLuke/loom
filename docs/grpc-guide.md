@@ -622,6 +622,12 @@ Common status code mappings:
 | `unauthenticated` | `CodeUnauthenticated` | Missing/invalid credentials |
 | `permission_denied` | `CodePermissionDenied` | Insufficient permissions |
 
+Generated clients preserve local request-encoding and response-validation errors,
+including their concrete types and validation fields. Use `errors.As` to inspect
+`grpc.ClientError` or `loom.ServiceError`. Only failures from the remote call use
+the declared or generic gRPC error mappings. Regenerate clients to adopt this
+behavior.
+
 ### Error Definitions
 
 Define errors at service or method level:

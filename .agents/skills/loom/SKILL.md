@@ -41,6 +41,9 @@ packages and removes stale `gen/http/*/client/` and `gen/http/cli/` directories.
 The gRPC client CLI takes the request message in `--message` as protocol
 buffer JSON (`protojson`): set a `oneof` by the name of its selected `oneof`
 field, not by the union attribute name.
+Generated gRPC clients preserve local encoding and validation errors. Inspect
+`grpc.ClientError` and `loom.ServiceError` with `errors.As`; remote failures use
+the transport error mappings. Regenerate clients to adopt this behavior.
 Synthesized service and HTTP CLI examples are scoped by stable service and
 method identity, so unrelated service edits or declaration reordering do not
 churn their values. Implicit server service lists use stable service-name

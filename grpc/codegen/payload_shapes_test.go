@@ -115,7 +115,7 @@ func TestClientErrorsSharedMessage(t *testing.T) {
 	code := sectionCode(t, ClientFiles("", services)[0].AllSections()[1:]...)
 
 	assert.Equal(t, 3, strings.Count(code, "case *shapespb.FaultProto:"), "one case in each of the fail and fail_stream endpoints and in the fail_stream Recv")
-	assert.Contains(t, code, "case *shapespb.FaultProto:\n\t\t\t\treturn nil, NewFailMissingError(message)\n\t\t\tcase *loompb.ErrorResponse:")
+	assert.Contains(t, code, "case *shapespb.FaultProto:\n\t\t\t\t\treturn nil, NewFailMissingError(message)\n\t\t\t\tcase *loompb.ErrorResponse:")
 	assert.Contains(t, code, "case *shapespb.FaultProto:\n\t\t\treturn res, NewFailStreamMissingError(message)\n\t\tcase *loompb.ErrorResponse:")
 }
 

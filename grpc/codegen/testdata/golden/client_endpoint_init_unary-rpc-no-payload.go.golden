@@ -2,16 +2,18 @@
 // service_unary_rpc_no_payloadpb.ServiceUnaryRPCNoPayloadClient interface.
 func (c *Client) MethodUnaryRPCNoPayload() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := loomgrpc.NewInvoker(BuildMethodUnaryRPCNoPayloadFunc(c.grpccli, c.opts...), nil, DecodeMethodUnaryRPCNoPayloadResponse)
-		res, err := inv.Invoke(ctx, v)
-		if err != nil {
-			resp := loomgrpc.DecodeError(err)
-			// Try to decode a Loom error response detail before falling back to Fault.
-			if eresp, ok := resp.(*loompb.ErrorResponse); ok {
-				return nil, loomgrpc.NewServiceError(eresp)
+		inv := loomgrpc.NewInvoker(func(ctx context.Context, reqpb any, opts ...grpc.CallOption) (any, error) {
+			res, err := BuildMethodUnaryRPCNoPayloadFunc(c.grpccli, c.opts...)(ctx, reqpb, opts...)
+			if err != nil {
+				resp := loomgrpc.DecodeError(err)
+				// Try to decode a Loom error response detail before falling back to Fault.
+				if eresp, ok := resp.(*loompb.ErrorResponse); ok {
+					return nil, loomgrpc.NewServiceError(eresp)
+				}
+				return nil, loom.Fault("%s", err.Error())
 			}
-			return nil, loom.Fault("%s", err.Error())
-		}
-		return res, nil
+			return res, nil
+		}, nil, DecodeMethodUnaryRPCNoPayloadResponse)
+		return inv.Invoke(ctx, v)
 	}
 }

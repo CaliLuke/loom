@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -54,4 +55,13 @@ func TestResponseDecoder(t *testing.T) {
 	assertGRPCSectionGolden(t, grpcCodecCases("response-decoder-", grpcResultCodecDSLs), func(services *ServicesData) []*codegen.File {
 		return ClientFiles("", services)
 	}, "response-decoder", "response_decoder_")
+}
+
+func TestClientEndpointDecodesOnlyRemoteErrors(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.UnaryRPCWithErrorsDSL)
+	services := CreateGRPCServices(root)
+	code := codegen.SectionsCode(t, ClientFiles("", services)[0].Section("client-endpoint-init"))
+	require.Contains(t, code, "loomgrpc.NewInvoker(func(ctx context.Context, reqpb any, opts ...grpc.CallOption)")
+	require.Contains(t, code, "return inv.Invoke(ctx, v)")
+	require.Less(t, strings.Index(code, "loomgrpc.DecodeError(err)"), strings.Index(code, "return inv.Invoke(ctx, v)"))
 }
