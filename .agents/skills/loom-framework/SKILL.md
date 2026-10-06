@@ -927,6 +927,10 @@ filter, and serialization rules belong here.
   `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the
   called names from the functions that name them
   (`projectedResultInitHelperBaseName`, `projectionHelperBaseName`).
+- The shared service-to-view constructor rejects a nil object result with a
+  Loom fault before projection. Keep this check in `buildViewedResultInit`
+  and its renderer so endpoints, interceptors and stream senders share the
+  boundary. Nil and empty result collections remain valid empty collections.
 - The JSON-RPC servers build the response body of a viewed result with the
   constructor of the body of its view (`viewedResultBodyInit` in
   `jsonrpc/codegen/stream_viewed_result.go`), as the HTTP response encoders

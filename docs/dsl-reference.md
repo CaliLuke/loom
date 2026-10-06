@@ -1003,6 +1003,11 @@ Method("updateUser", func() {
 
 ### Result Types
 
+Return a nonnil object when a method succeeds with a viewed `ResultType`.
+The generated service-to-view constructor returns `loom.Fault` for a nil object
+before projecting its fields. Nil and empty result collections remain valid
+empty collections. Regenerate service code to obtain this check.
+
 ```go
 // Simple result
 Method("count", func() {

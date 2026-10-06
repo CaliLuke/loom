@@ -268,10 +268,14 @@ func NewResultOneof(vres *resultwithoneoftypeviews.ResultOneof) (*ResultOneof, e
 }
 
 // NewViewedResultOneof initializes viewed result type ResultOneof from result
-// type ResultOneof using the given view.
+// type ResultOneof using the given view. It returns a fault error when res is
+// nil.
 func NewViewedResultOneof(res *ResultOneof, view string) (*resultwithoneoftypeviews.ResultOneof, error) {
 
 	var vres *resultwithoneoftypeviews.ResultOneof
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectResultOneof(res)
