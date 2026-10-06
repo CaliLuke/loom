@@ -43,7 +43,9 @@ buffer JSON (`protojson`): set a `oneof` by the name of its selected `oneof`
 field, not by the union attribute name.
 Generated gRPC clients preserve local encoding and validation errors. Inspect
 `grpc.ClientError` and `loom.ServiceError` with `errors.As`; remote failures use
-the transport error mappings. Regenerate clients to adopt this behavior.
+the transport error mappings. Generic remote service errors retain the RPC cause
+for `errors.Is`, `errors.As`, and `status.Code`. A remote cancellation alone does
+not imply local context cancellation. Regenerate clients to adopt this behavior.
 Synthesized service and HTTP CLI examples are scoped by stable service and
 method identity, so unrelated service edits or declaration reordering do not
 churn their values. Implicit server service lists use stable service-name

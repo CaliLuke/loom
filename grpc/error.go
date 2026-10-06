@@ -87,6 +87,19 @@ func NewServiceError(resp *loompb.ErrorResponse) *loom.ServiceError {
 	return loom.WithErrorHistory(err, history...)
 }
 
+// NewServiceErrorWithCause returns a Loom ServiceError for resp that unwraps to
+// cause. The response fields and history remain authoritative, including empty
+// fields. A nil cause behaves like NewServiceError. The response must not be nil.
+func NewServiceErrorWithCause(resp *loompb.ErrorResponse, cause error) *loom.ServiceError {
+	if cause == nil {
+		return NewServiceError(resp)
+	}
+	err := loom.NewServiceError(cause, resp.Name, resp.Timeout, resp.Temporary, resp.Fault)
+	err.ID = resp.Id
+	err.Message = resp.Msg
+	return loom.WithErrorHistory(err, serviceErrorHistory(resp.History)...)
+}
+
 func serviceErrorHistory(history []*loompb.ErrorField) []*loom.ServiceError {
 	entries := make([]*loom.ServiceError, 0, len(history))
 	for _, h := range history {

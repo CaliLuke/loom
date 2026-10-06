@@ -628,6 +628,14 @@ including their concrete types and validation fields. Use `errors.As` to inspect
 the declared or generic gRPC error mappings. Regenerate clients to adopt this
 behavior.
 
+When a remote failure carries a generic Loom error detail, generated unary and
+stream clients retain the original RPC error as the service error's cause.
+`errors.Is`, `errors.As`, and `status.Code` can inspect it while the received
+service fields and history stay intact. A remote canceled status does not imply
+that the local context was canceled. Custom adapters can use
+`grpc.NewServiceErrorWithCause(response, cause)`; the existing
+`grpc.NewServiceError(response)` remains available when there is no cause.
+
 ### Error Definitions
 
 Define errors at service or method level:

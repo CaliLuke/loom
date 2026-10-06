@@ -112,7 +112,7 @@ func writeGRPCClientEndpointTypedErrors(eg *jen.Group, endpoint *EndpointData) {
 		sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(
 			jen.Return(
 				jen.Nil(),
-				codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("message")),
+				codegenpkg.Expr("loomgrpc.NewServiceErrorWithCause").Call(jen.Id("message"), jen.Err()),
 			),
 		)
 		sg.Default().Block(
@@ -190,7 +190,7 @@ func writeGRPCClientEndpointFallbackError(eg *jen.Group) {
 	).Block(
 		jen.Return(
 			jen.Nil(),
-			codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("eresp")),
+			codegenpkg.Expr("loomgrpc.NewServiceErrorWithCause").Call(jen.Id("eresp"), jen.Err()),
 		),
 	)
 	eg.Return(

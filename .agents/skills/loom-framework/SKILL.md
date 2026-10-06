@@ -826,6 +826,10 @@ filter, and serialization rules belong here.
 - Generated gRPC clients decode remote errors inside the `RemoteFunc` callback
   passed to `grpc.NewInvoker`. Keep request encoding and response validation
   outside that mapping so their errors retain their identity and fields.
+  Decode generic error details with `grpc.NewServiceErrorWithCause` in unary
+  and stream clients so the original RPC error remains inspectable. Received
+  fields and history stay authoritative; preserve the first-decodable-detail
+  rule and existing custom-error mappings.
 - Keep gRPC request context, metadata application, status conversion,
   observation, and clean stream completion in `grpc.ServeUnary`,
   `grpc.ServeStream`, and `grpc.EncodeServerError`. Generated gRPC code supplies

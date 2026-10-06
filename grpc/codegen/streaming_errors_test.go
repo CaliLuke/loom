@@ -75,6 +75,8 @@ func TestStreamingWithErrors(t *testing.T) {
 			}
 			code := codeBuilder.String()
 
+			require.Contains(t, code, "loomgrpc.NewServiceErrorWithCause(message, err)")
+
 			// Run test-specific assertions
 			c.testFunc(t, code)
 		})

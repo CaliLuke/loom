@@ -20,7 +20,7 @@ func (c *Client) MethodUnaryRPCWithErrors() loom.Endpoint {
 				case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsCustomErrorError:
 					return nil, NewMethodUnaryRPCWithErrorsCustomErrorError(message)
 				case *loompb.ErrorResponse:
-					return nil, loomgrpc.NewServiceError(message)
+					return nil, loomgrpc.NewServiceErrorWithCause(message, err)
 				default:
 					return nil, loom.Fault("%s", err.Error())
 				}

@@ -8,7 +8,7 @@ func (c *Client) MethodServerStreamingRPC() loom.Endpoint {
 				resp := loomgrpc.DecodeError(err)
 				// Try to decode a Loom error response detail before falling back to Fault.
 				if eresp, ok := resp.(*loompb.ErrorResponse); ok {
-					return nil, loomgrpc.NewServiceError(eresp)
+					return nil, loomgrpc.NewServiceErrorWithCause(eresp, err)
 				}
 				return nil, loom.Fault("%s", err.Error())
 			}
