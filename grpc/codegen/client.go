@@ -91,7 +91,9 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 		svcName := data.Service.PathName
 		fpath = filepath.Join(codegen.Gendir, "grpc", svcName, "client", "encode_decode.go")
 		imports := append([]*codegen.ImportSpec{
+			{Path: "errors"},
 			{Path: "fmt"},
+			{Path: "io"},
 			{Path: "context"},
 			{Path: "strconv"},
 			{Path: "unicode/utf8"},

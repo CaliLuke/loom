@@ -60,10 +60,13 @@ func NewRT(vres *resultwithresulttypecollectionviews.RT) (*RT, error) {
 }
 
 // NewViewedRT initializes viewed result type RT from result type RT using the
-// given view.
+// given view. It returns a fault error when res is nil.
 func NewViewedRT(res *RT, view string) (*resultwithresulttypecollectionviews.RT, error) {
 
 	var vres *resultwithresulttypecollectionviews.RT
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectRT(res)

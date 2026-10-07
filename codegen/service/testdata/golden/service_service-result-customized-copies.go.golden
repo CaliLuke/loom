@@ -81,10 +81,14 @@ func NewMenuM1Result(vres *customizedresultcopiesviews.MenuM1Result) (*MenuM1Res
 }
 
 // NewViewedMenuM1Result initializes viewed result type MenuM1Result from
-// result type MenuM1Result using the given view.
+// result type MenuM1Result using the given view. It returns a fault error when
+// res is nil.
 func NewViewedMenuM1Result(res *MenuM1Result, view string) (*customizedresultcopiesviews.MenuM1Result, error) {
 
 	var vres *customizedresultcopiesviews.MenuM1Result
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectMenuM1Result(res)
@@ -135,10 +139,14 @@ func NewMenuM2Result(vres *customizedresultcopiesviews.MenuM2Result) (*MenuM2Res
 }
 
 // NewViewedMenuM2Result initializes viewed result type MenuM2Result from
-// result type MenuM2Result using the given view.
+// result type MenuM2Result using the given view. It returns a fault error when
+// res is nil.
 func NewViewedMenuM2Result(res *MenuM2Result, view string) (*customizedresultcopiesviews.MenuM2Result, error) {
 
 	var vres *customizedresultcopiesviews.MenuM2Result
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectMenuM2Result(res)
@@ -188,10 +196,13 @@ func NewMenu(vres *customizedresultcopiesviews.Menu) (*Menu, error) {
 }
 
 // NewViewedMenu initializes viewed result type Menu from result type Menu
-// using the given view.
+// using the given view. It returns a fault error when res is nil.
 func NewViewedMenu(res *Menu, view string) (*customizedresultcopiesviews.Menu, error) {
 
 	var vres *customizedresultcopiesviews.Menu
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectMenu(res)

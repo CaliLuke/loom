@@ -2,29 +2,31 @@
 // service_unary_rpc_with_errorspb.ServiceUnaryRPCWithErrorsClient interface.
 func (c *Client) MethodUnaryRPCWithErrors() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := loomgrpc.NewInvoker(BuildMethodUnaryRPCWithErrorsFunc(c.grpccli, c.opts...), EncodeMethodUnaryRPCWithErrorsRequest, DecodeMethodUnaryRPCWithErrorsResponse)
-		res, err := inv.Invoke(ctx, v)
-		if err != nil {
-			resp := loomgrpc.DecodeError(err)
-			switch message := resp.(type) {
-			case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsInternalError:
-				if err := ValidateMethodUnaryRPCWithErrorsInternalError(message); err != nil {
-					return nil, err
+		inv := loomgrpc.NewInvoker(func(ctx context.Context, reqpb any, opts ...grpc.CallOption) (any, error) {
+			res, err := BuildMethodUnaryRPCWithErrorsFunc(c.grpccli, c.opts...)(ctx, reqpb, opts...)
+			if err != nil {
+				resp := loomgrpc.DecodeError(err)
+				switch message := resp.(type) {
+				case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsInternalError:
+					if err := ValidateMethodUnaryRPCWithErrorsInternalError(message); err != nil {
+						return nil, err
+					}
+					return nil, NewMethodUnaryRPCWithErrorsInternalError(message)
+				case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsBadRequestError:
+					if err := ValidateMethodUnaryRPCWithErrorsBadRequestError(message); err != nil {
+						return nil, err
+					}
+					return nil, NewMethodUnaryRPCWithErrorsBadRequestError(message)
+				case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsCustomErrorError:
+					return nil, NewMethodUnaryRPCWithErrorsCustomErrorError(message)
+				case *loompb.ErrorResponse:
+					return nil, loomgrpc.NewServiceErrorWithCause(message, err)
+				default:
+					return nil, loom.Fault("%s", err.Error())
 				}
-				return nil, NewMethodUnaryRPCWithErrorsInternalError(message)
-			case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsBadRequestError:
-				if err := ValidateMethodUnaryRPCWithErrorsBadRequestError(message); err != nil {
-					return nil, err
-				}
-				return nil, NewMethodUnaryRPCWithErrorsBadRequestError(message)
-			case *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsCustomErrorError:
-				return nil, NewMethodUnaryRPCWithErrorsCustomErrorError(message)
-			case *loompb.ErrorResponse:
-				return nil, loomgrpc.NewServiceError(message)
-			default:
-				return nil, loom.Fault("%s", err.Error())
 			}
-		}
-		return res, nil
+			return res, nil
+		}, EncodeMethodUnaryRPCWithErrorsRequest, DecodeMethodUnaryRPCWithErrorsResponse)
+		return inv.Invoke(ctx, v)
 	}
 }

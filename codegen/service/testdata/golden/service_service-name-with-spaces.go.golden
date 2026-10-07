@@ -50,10 +50,14 @@ func NewResultWithSpace(vres *servicewithspacesviews.ResultWithSpace) (*ResultWi
 }
 
 // NewViewedResultWithSpace initializes viewed result type ResultWithSpace from
-// result type ResultWithSpace using the given view.
+// result type ResultWithSpace using the given view. It returns a fault error
+// when res is nil.
 func NewViewedResultWithSpace(res *ResultWithSpace, view string) (*servicewithspacesviews.ResultWithSpace, error) {
 
 	var vres *servicewithspacesviews.ResultWithSpace
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectResultWithSpace(res)

@@ -823,6 +823,18 @@ filter, and serialization rules belong here.
   `gen/http` keep their import paths.
 - Preserve the generated public `ServeHTTP` middleware and policy chain when
   adding JSON-RPC dispatch branches.
+- Generated gRPC clients decode remote errors inside the `RemoteFunc` callback
+  passed to `grpc.NewInvoker`. Keep request encoding and response validation
+  outside that mapping so their errors retain their identity and fields.
+  Decode generic error details with `grpc.NewServiceErrorWithCause` in unary
+  and stream clients so the original RPC error remains inspectable. Received
+  fields and history stay authoritative; preserve the first-decodable-detail
+  rule and existing custom-error mappings.
+- The gRPC remote-method builder retains a stream after initial-payload send
+  EOF (including wrapped EOF). Final status belongs to `Recv` or `CloseAndRecv`;
+  non-EOF send failures still terminate opening. Keep this in the common
+  stream-envelope branch, with the `grpc/codegen/tla/initial_send` model and
+  compiled client/bidirectional regressions aligned.
 - Keep gRPC request context, metadata application, status conversion,
   observation, and clean stream completion in `grpc.ServeUnary`,
   `grpc.ServeStream`, and `grpc.EncodeServerError`. Generated gRPC code supplies
@@ -927,6 +939,10 @@ filter, and serialization rules belong here.
   `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the
   called names from the functions that name them
   (`projectedResultInitHelperBaseName`, `projectionHelperBaseName`).
+- The shared service-to-view constructor rejects a nil object result with a
+  Loom fault before projection. Keep this check in `buildViewedResultInit`
+  and its renderer so endpoints, interceptors and stream senders share the
+  boundary. Nil and empty result collections remain valid empty collections.
 - The JSON-RPC servers build the response body of a viewed result with the
   constructor of the body of its view (`viewedResultBodyInit` in
   `jsonrpc/codegen/stream_viewed_result.go`), as the HTTP response encoders

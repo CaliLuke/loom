@@ -169,7 +169,7 @@ func appendGRPCStreamRecvErrorHandling(g *jen.Group, stream *StreamData) {
 					sg.Case(codegenpkg.Expr(errData.Response.ClientConvert.SrcRef)).Block(grpcStreamRecvErrorCase(errData)...)
 				}
 				sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(
-					jen.Return(jen.Id("res"), codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("message"))),
+					jen.Return(jen.Id("res"), codegenpkg.Expr("loomgrpc.NewServiceErrorWithCause").Call(jen.Id("message"), jen.Err())),
 				)
 				sg.Default().Block(
 					jen.Return(jen.Id("res"), jen.Err()),

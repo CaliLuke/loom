@@ -70,10 +70,14 @@ func NewMultipleViews(vres *multiplemethodsresultmultipleviewsviews.MultipleView
 }
 
 // NewViewedMultipleViews initializes viewed result type MultipleViews from
-// result type MultipleViews using the given view.
+// result type MultipleViews using the given view. It returns a fault error
+// when res is nil.
 func NewViewedMultipleViews(res *MultipleViews, view string) (*multiplemethodsresultmultipleviewsviews.MultipleViews, error) {
 
 	var vres *multiplemethodsresultmultipleviewsviews.MultipleViews
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectMultipleViews(res)
@@ -107,10 +111,14 @@ func NewSingleView(vres *multiplemethodsresultmultipleviewsviews.SingleView) (*S
 }
 
 // NewViewedSingleView initializes viewed result type SingleView from result
-// type SingleView using the given view.
+// type SingleView using the given view. It returns a fault error when res is
+// nil.
 func NewViewedSingleView(res *SingleView, view string) (*multiplemethodsresultmultipleviewsviews.SingleView, error) {
 
 	var vres *multiplemethodsresultmultipleviewsviews.SingleView
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectSingleView(res)

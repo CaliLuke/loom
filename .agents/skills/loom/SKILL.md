@@ -41,6 +41,11 @@ packages and removes stale `gen/http/*/client/` and `gen/http/cli/` directories.
 The gRPC client CLI takes the request message in `--message` as protocol
 buffer JSON (`protojson`): set a `oneof` by the name of its selected `oneof`
 field, not by the union attribute name.
+Generated gRPC clients preserve local encoding and validation errors. Inspect
+`grpc.ClientError` and `loom.ServiceError` with `errors.As`; remote failures use
+the transport error mappings. Generic remote service errors retain the RPC cause
+for `errors.Is`, `errors.As`, and `status.Code`. A remote cancellation alone does
+not imply local context cancellation. Regenerate clients to adopt this behavior.
 Synthesized service and HTTP CLI examples are scoped by stable service and
 method identity, so unrelated service edits or declaration reordering do not
 churn their values. Implicit server service lists use stable service-name
@@ -82,6 +87,9 @@ a valid example where the declared type permits it.
   the wire name while choosing a different Go field name.
 - Prefer a canonical `ResultType` with `View(...)` definitions over parallel
   hand-maintained DTOs for alternate public representations.
+- Return a nonnil object for a successful viewed result. After regeneration,
+  the service-to-view constructor returns `loom.Fault` for a nil object;
+  nil and empty result collections remain valid empty collections.
 - A type placed with `Meta("struct:pkg:path", "types")` keeps its Go name
   independently of service methods. A `Moved` type remains `types.Moved` even
   when a consuming service declares a `moved` method, including empty objects
@@ -625,6 +633,10 @@ requirement retain AND semantics.
 
 ## Streaming
 
+- gRPC clients retain the stream when sending its initial payload returns EOF.
+  Use `CloseAndRecv` for client streaming or `Recv` for bidirectional streaming
+  to read the final server status or response; EOF from the opening send alone
+  does not establish success. Regenerate clients to adopt this behavior.
 - SSE endpoints use normal HTTP success responses with
   `text/event-stream`.
 - Generated HTTP and JSON-RPC SSE streams expose `loomhttp.SSEControl`.

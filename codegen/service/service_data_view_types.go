@@ -27,6 +27,7 @@ type (
 		Views         []*ViewData
 		ReturnTypeRef string
 		IsCollection  bool
+		IsObject      bool
 		TargetType    string
 		InitName      string
 		ViewExpr      string

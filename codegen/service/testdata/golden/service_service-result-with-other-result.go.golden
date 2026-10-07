@@ -56,10 +56,14 @@ func NewMultipleViews(vres *resultwithotherresultviews.MultipleViews) (*Multiple
 }
 
 // NewViewedMultipleViews initializes viewed result type MultipleViews from
-// result type MultipleViews using the given view.
+// result type MultipleViews using the given view. It returns a fault error
+// when res is nil.
 func NewViewedMultipleViews(res *MultipleViews, view string) (*resultwithotherresultviews.MultipleViews, error) {
 
 	var vres *resultwithotherresultviews.MultipleViews
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectMultipleViews(res)

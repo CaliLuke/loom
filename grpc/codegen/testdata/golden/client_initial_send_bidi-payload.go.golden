@@ -1,0 +1,21 @@
+// BuildMethodBidirectionalStreamingRPCWithPayloadFunc builds the remote method
+// to invoke for "ServiceBidirectionalStreamingRPCWithPayload" service
+// "MethodBidirectionalStreamingRPCWithPayload" endpoint.
+func BuildMethodBidirectionalStreamingRPCWithPayloadFunc(grpccli service_bidirectional_streaming_rpc_with_payloadpb.ServiceBidirectionalStreamingRPCWithPayloadClient, cliopts ...grpc.CallOption) loomgrpc.RemoteFunc {
+	return func(ctx context.Context, reqpb any, opts ...grpc.CallOption) (any, error) {
+		for _, opt := range cliopts {
+			opts = append(opts, opt)
+		}
+		stream, err := grpccli.MethodBidirectionalStreamingRPCWithPayload(ctx, opts...)
+		if err != nil {
+			return nil, err
+		}
+		if reqpb != nil {
+			// Recv or CloseAndRecv reports the final status after send EOF.
+			if err := stream.Send(reqpb.(*service_bidirectional_streaming_rpc_with_payloadpb.MethodBidirectionalStreamingRPCWithPayloadStreamingRequest)); err != nil && !errors.Is(err, io.EOF) {
+				return nil, err
+			}
+		}
+		return stream, nil
+	}
+}

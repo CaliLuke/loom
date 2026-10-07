@@ -55,10 +55,13 @@ func NewApplicationDashedType(vres *resultwithdashedmimetypeviews.ApplicationDas
 
 // NewViewedApplicationDashedType initializes viewed result type
 // ApplicationDashedType from result type ApplicationDashedType using the given
-// view.
+// view. It returns a fault error when res is nil.
 func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) (*resultwithdashedmimetypeviews.ApplicationDashedType, error) {
 
 	var vres *resultwithdashedmimetypeviews.ApplicationDashedType
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectApplicationDashedType(res)

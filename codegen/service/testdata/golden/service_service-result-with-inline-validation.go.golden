@@ -55,10 +55,13 @@ func NewResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlin
 
 // NewViewedResultInlineValidation initializes viewed result type
 // ResultInlineValidation from result type ResultInlineValidation using the
-// given view.
+// given view. It returns a fault error when res is nil.
 func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) (*resultwithinlinevalidationviews.ResultInlineValidation, error) {
 
 	var vres *resultwithinlinevalidationviews.ResultInlineValidation
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectResultInlineValidation(res)
@@ -90,10 +93,13 @@ func NewResultInlineValidationBResult(vres *resultwithinlinevalidationviews.Resu
 
 // NewViewedResultInlineValidationBResult initializes viewed result type
 // ResultInlineValidationBResult from result type ResultInlineValidationBResult
-// using the given view.
+// using the given view. It returns a fault error when res is nil.
 func NewViewedResultInlineValidationBResult(res *ResultInlineValidationBResult, view string) (*resultwithinlinevalidationviews.ResultInlineValidationBResult, error) {
 
 	var vres *resultwithinlinevalidationviews.ResultInlineValidationBResult
+	if res == nil {
+		return vres, loom.Fault("missing result")
+	}
 	switch view {
 	case "default", "":
 		p := ProjectResultInlineValidationBResult(res)

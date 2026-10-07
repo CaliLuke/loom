@@ -56,8 +56,7 @@ func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
 						Params(jen.Any(), jen.Error()).
 						BlockFunc(func(g *jen.Group) {
 							writeGRPCClientEndpointInvoker(g, endpoint)
-							writeGRPCClientEndpointErrorHandling(g, endpoint)
-							g.Return(jen.Id("res"), jen.Nil())
+							g.Return(jen.Id("inv").Dot("Invoke").Call(jen.Id("ctx"), jen.Id("v")))
 						}),
 				),
 			)
@@ -66,11 +65,18 @@ func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
 
 func writeGRPCClientEndpointInvoker(g *jen.Group, endpoint *EndpointData) {
 	g.Id("inv").Op(":=").Add(codegenpkg.Expr("loomgrpc.NewInvoker")).Call(
-		jen.Id("Build"+endpoint.Method.VarName+"Func").Call(jen.Id("c").Dot("grpccli"), jen.Id("c").Dot("opts").Op("...")),
+		jen.Func().Params(
+			jen.Id("ctx").Qual("context", "Context"),
+			jen.Id("reqpb").Any(),
+			jen.Id("opts").Op("...").Qual("google.golang.org/grpc", "CallOption"),
+		).Params(jen.Any(), jen.Error()).BlockFunc(func(rg *jen.Group) {
+			rg.List(jen.Id("res"), jen.Err()).Op(":=").Id("Build"+endpoint.Method.VarName+"Func").Call(jen.Id("c").Dot("grpccli"), jen.Id("c").Dot("opts").Op("...")).Call(jen.Id("ctx"), jen.Id("reqpb"), jen.Id("opts").Op("..."))
+			writeGRPCClientEndpointErrorHandling(rg, endpoint)
+			rg.Return(jen.Id("res"), jen.Nil())
+		}),
 		grpcClientEndpointEncodeFn(endpoint),
 		grpcClientEndpointDecodeFn(endpoint),
 	)
-	g.List(jen.Id("res"), jen.Err()).Op(":=").Id("inv").Dot("Invoke").Call(jen.Id("ctx"), jen.Id("v"))
 }
 
 func grpcClientEndpointEncodeFn(endpoint *EndpointData) *jen.Statement {
@@ -106,7 +112,7 @@ func writeGRPCClientEndpointTypedErrors(eg *jen.Group, endpoint *EndpointData) {
 		sg.Case(jen.Op("*").Id("loompb").Dot("ErrorResponse")).Block(
 			jen.Return(
 				jen.Nil(),
-				codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("message")),
+				codegenpkg.Expr("loomgrpc.NewServiceErrorWithCause").Call(jen.Id("message"), jen.Err()),
 			),
 		)
 		sg.Default().Block(
@@ -184,7 +190,7 @@ func writeGRPCClientEndpointFallbackError(eg *jen.Group) {
 	).Block(
 		jen.Return(
 			jen.Nil(),
-			codegenpkg.Expr("loomgrpc.NewServiceError").Call(jen.Id("eresp")),
+			codegenpkg.Expr("loomgrpc.NewServiceErrorWithCause").Call(jen.Id("eresp"), jen.Err()),
 		),
 	)
 	eg.Return(
@@ -563,9 +569,10 @@ func grpcRemoteMethodBuilderSection(endpoint *EndpointData) codegenpkg.Section {
 									jen.Return(jen.Nil(), jen.Err()),
 								)
 								g.If(jen.Id("reqpb").Op("!=").Nil()).Block(
+									jen.Comment("Recv or CloseAndRecv reports the final status after send EOF."),
 									jen.If(
 										jen.Err().Op(":=").Id("stream").Dot("Send").Call(jen.Id("reqpb").Assert(codegenpkg.Expr(endpoint.Request.Message.Ref))),
-										jen.Err().Op("!=").Nil(),
+										jen.Err().Op("!=").Nil().Op("&&").Op("!").Qual("errors", "Is").Call(jen.Err(), jen.Qual("io", "EOF")),
 									).Block(
 										jen.Return(jen.Nil(), jen.Err()),
 									),

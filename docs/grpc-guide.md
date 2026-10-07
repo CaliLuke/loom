@@ -430,6 +430,12 @@ or another initial-payload frame returned from `Recv` is a validation error.
 This framing is generated protocol, not an application convention; external
 protobuf clients must follow the same ordering.
 
+If the opening send returns `io.EOF`, the generated client still returns the
+stream. Read `CloseAndRecv` for client streaming or `Recv` for bidirectional
+streaming to obtain the final server status or response. Opening-send EOF alone
+does not establish whether the RPC succeeded. Other send errors still fail the
+opening call. Regenerate clients to adopt this behavior.
+
 ### Server-Side Streaming
 
 Server sends multiple responses to a single client request:
@@ -621,6 +627,20 @@ Common status code mappings:
 | `internal_error` | `CodeInternal` | Server error |
 | `unauthenticated` | `CodeUnauthenticated` | Missing/invalid credentials |
 | `permission_denied` | `CodePermissionDenied` | Insufficient permissions |
+
+Generated clients preserve local request-encoding and response-validation errors,
+including their concrete types and validation fields. Use `errors.As` to inspect
+`grpc.ClientError` or `loom.ServiceError`. Only failures from the remote call use
+the declared or generic gRPC error mappings. Regenerate clients to adopt this
+behavior.
+
+When a remote failure carries a generic Loom error detail, generated unary and
+stream clients retain the original RPC error as the service error's cause.
+`errors.Is`, `errors.As`, and `status.Code` can inspect it while the received
+service fields and history stay intact. A remote canceled status does not imply
+that the local context was canceled. Custom adapters can use
+`grpc.NewServiceErrorWithCause(response, cause)`; the existing
+`grpc.NewServiceError(response)` remains available when there is no cause.
 
 ### Error Definitions
 

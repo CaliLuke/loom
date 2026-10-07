@@ -16,14 +16,19 @@ func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg 
 		Views:         views,
 		ReturnTypeRef: vresref,
 		IsCollection:  isarr,
+		IsObject:      expr.IsObject(att.Type),
 		TargetType:    scope.GoFullTypeName(att, viewspkg),
 		InitName:      projectionHelperBaseName(scope, att),
 		ViewExpr:      "view",
 	}
 	name := "NewViewed" + resvar
+	description := fmt.Sprintf("%s initializes viewed result type %s from result type %s using the given view.", name, resvar, resvar)
+	if initTData.IsObject {
+		description += " It returns a fault error when res is nil."
+	}
 	return &InitData{
 		Name:        name,
-		Description: fmt.Sprintf("%s initializes viewed result type %s from result type %s using the given view.", name, resvar, resvar),
+		Description: description,
 		Args: []*InitArgData{
 			{Name: "res", Ref: fullTypeRefForAttribute(scope, att, "")},
 			{Name: "view", Ref: "string"},
@@ -66,6 +71,13 @@ func renderInitTypeCode(data viewedResultInitTemplateData) string {
 	case data.ToResult || data.ToViewed:
 		lines = append(lines, "")
 		lines = append(lines, "var "+data.ReturnVar+" "+data.ReturnTypeRef)
+		if data.ToViewed && data.IsObject {
+			lines = append(lines,
+				"if "+data.ArgVar+" == nil {",
+				"\treturn "+data.ReturnVar+", loom.Fault(\"missing result\")",
+				"}",
+			)
+		}
 		lines = append(lines, "switch "+data.ViewExpr+" {")
 		for _, view := range data.Views {
 			lines = append(lines, "\tcase "+quotedViewCase(view.Name)+":")

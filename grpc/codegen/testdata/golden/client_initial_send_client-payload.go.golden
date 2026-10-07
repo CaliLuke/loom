@@ -1,0 +1,21 @@
+// BuildMethodClientStreamingRPCWithPayloadFunc builds the remote method to
+// invoke for "ServiceClientStreamingRPCWithPayload" service
+// "MethodClientStreamingRPCWithPayload" endpoint.
+func BuildMethodClientStreamingRPCWithPayloadFunc(grpccli service_client_streaming_rpc_with_payloadpb.ServiceClientStreamingRPCWithPayloadClient, cliopts ...grpc.CallOption) loomgrpc.RemoteFunc {
+	return func(ctx context.Context, reqpb any, opts ...grpc.CallOption) (any, error) {
+		for _, opt := range cliopts {
+			opts = append(opts, opt)
+		}
+		stream, err := grpccli.MethodClientStreamingRPCWithPayload(ctx, opts...)
+		if err != nil {
+			return nil, err
+		}
+		if reqpb != nil {
+			// Recv or CloseAndRecv reports the final status after send EOF.
+			if err := stream.Send(reqpb.(*service_client_streaming_rpc_with_payloadpb.MethodClientStreamingRPCWithPayloadStreamingRequest)); err != nil && !errors.Is(err, io.EOF) {
+				return nil, err
+			}
+		}
+		return stream, nil
+	}
+}

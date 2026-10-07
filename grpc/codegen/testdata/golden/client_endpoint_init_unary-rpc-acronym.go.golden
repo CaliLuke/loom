@@ -2,16 +2,18 @@
 // service_unary_rpc_acronympb.ServiceUnaryRPCAcronymClient interface.
 func (c *Client) MethodUnaryRPCAcronymJWT() loom.Endpoint {
 	return func(ctx context.Context, v any) (any, error) {
-		inv := loomgrpc.NewInvoker(BuildMethodUnaryRPCAcronymJWTFunc(c.grpccli, c.opts...), nil, nil)
-		res, err := inv.Invoke(ctx, v)
-		if err != nil {
-			resp := loomgrpc.DecodeError(err)
-			// Try to decode a Loom error response detail before falling back to Fault.
-			if eresp, ok := resp.(*loompb.ErrorResponse); ok {
-				return nil, loomgrpc.NewServiceError(eresp)
+		inv := loomgrpc.NewInvoker(func(ctx context.Context, reqpb any, opts ...grpc.CallOption) (any, error) {
+			res, err := BuildMethodUnaryRPCAcronymJWTFunc(c.grpccli, c.opts...)(ctx, reqpb, opts...)
+			if err != nil {
+				resp := loomgrpc.DecodeError(err)
+				// Try to decode a Loom error response detail before falling back to Fault.
+				if eresp, ok := resp.(*loompb.ErrorResponse); ok {
+					return nil, loomgrpc.NewServiceErrorWithCause(eresp, err)
+				}
+				return nil, loom.Fault("%s", err.Error())
 			}
-			return nil, loom.Fault("%s", err.Error())
-		}
-		return res, nil
+			return res, nil
+		}, nil, nil)
+		return inv.Invoke(ctx, v)
 	}
 }
