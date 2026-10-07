@@ -87,28 +87,12 @@ func ServeStream(ctx context.Context, spec StreamServerSpec) error {
 	return nil
 }
 
-// EncodeServerError converts an endpoint error to a gRPC status. Designed
-// mappings take precedence over Loom's general status conversion.
+// EncodeServerError converts an endpoint error to a gRPC status using the same
+// aggregate contract as EncodeError. A designed mapping at an explicit owner
+// takes precedence. For an independent join, designed branch mappings contribute
+// status codes but never substitute one branch's details for the whole failure.
 func EncodeServerError(err error, mapper ErrorMapper) error {
-	if err == nil {
-		return nil
-	}
-	if mapper != nil {
-		var named loom.LoomErrorNamer
-		if errors.As(err, &named) {
-			mapping, ok, mapErr := mapper(named.LoomErrorName(), err)
-			if mapErr != nil {
-				return EncodeError(mapErr)
-			}
-			if ok {
-				if mapping.Detail == nil {
-					return NewStatusError(mapping.Code, err)
-				}
-				return NewStatusError(mapping.Code, err, mapping.Detail)
-			}
-		}
-	}
-	return EncodeError(err)
+	return encodeError(err, mapper)
 }
 
 // ObserveStreamEncodeError classifies an error that prevented a typed stream

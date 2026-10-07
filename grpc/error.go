@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"errors"
 	"fmt"
 
 	"google.golang.org/grpc/codes"
@@ -33,40 +32,46 @@ type (
 	}
 )
 
-// NewErrorResponse creates a new ErrorResponse protocol buffer message from
-// the given error. If the given error is a Loom ServiceError, the ErrorResponse
-// message will be set with the corresponding Timeout, Temporary, and Fault
-// characteristics. If the error is not a Loom ServiceError, it creates an
-// ErrorResponse message with the Fault field set to true.
+// NewErrorResponse creates an ErrorResponse from the error's explicit contract,
+// following single-error wrappers. An independent join without an outer
+// ServiceError uses the full error message and Fault=true, with no branch's
+// name, history, timeout or temporary traits. A nil error returns nil.
 func NewErrorResponse(err error) *loompb.ErrorResponse {
-	var gerr *loom.ServiceError
-	if errors.As(err, &gerr) {
-		er := &loompb.ErrorResponse{
-			Name:      gerr.Name,
-			Id:        gerr.ID,
-			Msg:       gerr.Message,
-			Timeout:   gerr.Timeout,
-			Temporary: gerr.Temporary,
-			Fault:     gerr.Fault,
-		}
-		// Include history entries when available for richer client-side reconstruction.
-		// Only include history for merged errors (multiple entries)
-		history := gerr.History()
-		if len(history) > 1 {
-			for _, h := range history {
-				if h == nil {
-					continue
-				}
-				ef := &loompb.ErrorField{Name: h.Name, Msg: h.Message}
-				if h.Field != nil {
-					ef.Field = *h.Field
-				}
-				er.History = append(er.History, ef)
-			}
-		}
-		return er
+	if err == nil {
+		return nil
 	}
-	return NewErrorResponse(loom.Fault("%s", err.Error()))
+	contract := classifyError(err, nil)
+	return newErrorResponse(contract.err, contract.service)
+}
+
+func newErrorResponse(err error, gerr *loom.ServiceError) *loompb.ErrorResponse {
+	if gerr == nil {
+		gerr = loom.Fault("%s", err.Error())
+	}
+	er := &loompb.ErrorResponse{
+		Name:      gerr.Name,
+		Id:        gerr.ID,
+		Msg:       gerr.Message,
+		Timeout:   gerr.Timeout,
+		Temporary: gerr.Temporary,
+		Fault:     gerr.Fault,
+	}
+	// Include history entries when available for richer client-side reconstruction.
+	// Only include history for merged errors (multiple entries)
+	history := gerr.History()
+	if len(history) > 1 {
+		for _, h := range history {
+			if h == nil {
+				continue
+			}
+			ef := &loompb.ErrorField{Name: h.Name, Msg: h.Message}
+			if h.Field != nil {
+				ef.Field = *h.Field
+			}
+			er.History = append(er.History, ef)
+		}
+	}
+	return er
 }
 
 // NewServiceError returns a Loom ServiceError type for the given ErrorResponse
@@ -124,63 +129,21 @@ func serviceErrorHistory(history []*loompb.ErrorField) []*loom.ServiceError {
 // codes.Unknown: a status with code OK yields a nil error, which would
 // silently swallow err.
 func NewStatusError(code codes.Code, err error, details ...protoiface.MessageV1) error {
-	if code == codes.OK {
-		code = codes.Unknown
-	}
-	st := status.New(code, err.Error())
+	st := status.New(failureCode(code), err.Error())
 	if s, err := st.WithDetails(details...); err == nil {
 		return s.Err()
 	}
 	return st.Err()
 }
 
-// EncodeError returns a gRPC status error from the given error with the error
-// response encoded in the status details. If error is a Loom ServiceError type
-// it implements a heuristic to compute the status code from the Timeout,
-// Fault, and Temporary characteristics of the ServiceError. If error is not a
-// ServiceError or a gRPC status error it returns a gRPC status error with
-// Unknown code and Fault characteristic set.
+// EncodeError returns a gRPC status with the error's response details. An
+// explicit outer ServiceError or GRPCStatus owns the response. Transparent
+// wrappers preserve their underlying contract. Independent joined failures use
+// generic full-failure details and a unanimous branch status, or Unknown when
+// statuses disagree. Branch retry traits are not promoted to the aggregate.
+// A nil error returns nil; a nonnil error never produces an OK status.
 func EncodeError(err error) error {
-	if st, ok := status.FromError(err); ok {
-		if s, err := st.WithDetails(NewErrorResponse(err)); err == nil {
-			return s.Err()
-		}
-		return st.Err()
-	}
-	var gerr *loom.ServiceError
-	if errors.As(err, &gerr) {
-		// Loom service error type. Compute the status code from the service error
-		// characteristics and create a new detailed gRPC status error.
-		code := codes.Unknown
-		// Prefer well-known validation names for InvalidArgument mapping.
-		switch gerr.Name {
-		case loom.InvalidFieldType,
-			loom.MissingField,
-			loom.InvalidFormat,
-			loom.InvalidLength,
-			loom.InvalidRange,
-			loom.InvalidEnumValue,
-			loom.InvalidPattern:
-
-			code = codes.InvalidArgument
-		case loom.DecodePayload,
-			loom.MissingPayload:
-
-			code = codes.InvalidArgument
-		default:
-			switch {
-			case gerr.Timeout:
-				code = codes.DeadlineExceeded
-			case gerr.Fault:
-				code = codes.Internal
-			case gerr.Temporary:
-				code = codes.Unavailable
-			}
-		}
-		return NewStatusError(code, err, NewErrorResponse(err))
-	}
-	// Return an unknown gRPC status error with fault characteristic set.
-	return NewStatusError(codes.Unknown, err, NewErrorResponse(err))
+	return encodeError(err, nil)
 }
 
 // DecodeError returns the error message encoded in the status details if error

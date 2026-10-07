@@ -335,6 +335,10 @@ the other operand unchanged. `History()` returns detached original
 contributions, including copied field/remedy metadata. Cause objects keep their
 identity for `errors.Is` and `errors.As`. Use `errors.Join` for independent
 failures rather than assigning one validation contribution's contract to all.
+For gRPC joins, only a unanimous branch status is retained; conflicting codes
+become `Unknown`. Details describe the whole failure without promoting one
+branch's custom type or retry traits. To define an aggregate status or retry
+policy, return an explicit outer service or designed error contract.
 
 Loom's default HTTP errors are RFC 9457-style
 `application/problem+json` documents with a stable `code` field.

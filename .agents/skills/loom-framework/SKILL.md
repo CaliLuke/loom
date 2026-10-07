@@ -849,6 +849,15 @@ filter, and serialization rules belong here.
   `grpc.ServeStream`, and `grpc.EncodeServerError`. Generated gRPC code supplies
   protocol buffer adapters and typed `grpc.ErrorMapper` callbacks. Do not copy
   the status lifecycle into generated service methods.
+- gRPC error status and details share one runtime classification in
+  `grpc/error_contract.go`. Follow transparent single-cause wrappers, stop at
+  an explicit ServiceError, GRPCStatus or recognized designed contract, and
+  classify independent join branches separately. An aggregate keeps only a
+  unanimous status; otherwise it uses Unknown. Generic full-failure details
+  never borrow branch-specific names, history or retry traits. Do not use
+  tree-wide `errors.As` or `status.FromError` to select a response owner.
+  Keep `grpc/tla/error_contract` paired with direct runtime and compiled
+  unary/streaming declared-error tests.
 - Generated transport observability must remain dependency-free and must never
   emit bodies, params, tool arguments, credentials, or result payloads.
 - Keep HTTP, gRPC, and JSON-RPC semantics distinct unless a deliberately shared

@@ -51,6 +51,34 @@ while `abc` has history `[a, b, c]`. A call that discards the return value does
 not update either operand. This replaces the former mutation contract; there
 is no separate legacy merge API.
 
+### Independent joined failures over gRPC
+
+An `errors.Join(a, b)` with multiple nonnil branches represents the complete
+failure. gRPC evaluates each branch's explicit or designed status, retains the
+code only when every branch agrees, and otherwise uses `Unknown`. Reordering
+branches cannot change that decision. A join containing only one nonnil error
+is a transparent wrapper.
+
+The aggregate uses generic `ErrorResponse` details with the full joined error
+message, name `fault`, `Fault=true`, and `Timeout=false` and `Temporary=false`.
+It does not publish one branch's custom details, validation history or retry
+traits as if they described the whole failure. For example:
+
+| Failure | Status | Details |
+| --- | --- | --- |
+| Two independent `Unavailable` errors | `Unavailable` | Full generic failure; no inferred retry trait |
+| `Canceled` joined with `Unavailable` | `Unknown` | Both failures |
+| Designed validation error joined with an unclassified cleanup error | `Unknown` | Both failures, not the validation error's custom detail |
+
+An explicit outer `ServiceError`, `GRPCStatus`, or recognized designed error
+owns the whole response and takes precedence over its causes. Ordinary
+single-error wrappers preserve that contract. The runtime checks ownership
+before traversing causes; it does not use a tree-wide `errors.As` match to choose
+an independent branch. A nonnil error with an `OK` status becomes `Unknown`.
+Applications that want an aggregate retry policy must express it in an outer
+error contract. This replaces first-branch selection without a compatibility
+mode and applies equally to generated unary and streaming servers.
+
 ### API-Level Errors
 
 Define reusable errors at the API level with transport mappings:
