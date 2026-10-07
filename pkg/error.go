@@ -289,17 +289,16 @@ func NewErrorID() string {
 	return identifier.MustBase64(6)
 }
 
-// MergeErrors updates an error by merging another into it. It first converts
-// other into a ServiceError if not already one. The merge algorithm then:
+// MergeErrors combines two nonnil errors into a new ServiceError without
+// modifying either input. Its fields and original-contribution history are
+// snapshots, including Field and Remedy. The original errors remain reachable
+// through Unwrap; arbitrary cause objects are not copied.
 //
-// * uses the name of err if a ServiceError, the name of other otherwise.
-//
-// * appends both error messages.
-//
-// * computes Timeout and Temporary by "and"ing the fields of both errors.
-//
-// Merge returns the updated error. This makes it possible to return other when
-// err is nil.
+// The result keeps the first service error's name (or the second name when the
+// first is "error"), ID, Field and Remedy, joins messages with "; ", and ANDs
+// Timeout, Temporary and Fault. History preserves contribution order and
+// duplicates, without intermediate merges. Nil is the identity: if either
+// operand is nil, MergeErrors returns the other operand unchanged.
 func MergeErrors(err, other error) error {
 	if err == nil {
 		if other == nil {
@@ -310,18 +309,15 @@ func MergeErrors(err, other error) error {
 	if other == nil {
 		return err
 	}
-	e := asError(err)
+	first := asError(err)
+	e := cloneServiceErrorEntry(first)
 	o := asError(other)
 	if e.Name == "error" {
 		e.Name = o.Name
 	}
 
-	// Combine error lineage. We only ever put original errors into the history slice, so we
-	// don't need to worry about gaining intermediate merges.
-	//
-	// Do this before we modify ourselves, as History() may include us!
-	e.history = append(cloneServiceErrorHistory(e.History()), cloneServiceErrorHistory(o.History())...)
-	e.err = errors.Join(e.err, o.err)
+	e.history = append(first.History(), o.History()...)
+	e.err = errors.Join(err, other)
 
 	e.Message = e.Message + "; " + o.Message
 	e.Timeout = e.Timeout && o.Timeout
@@ -331,16 +327,22 @@ func MergeErrors(err, other error) error {
 	return e
 }
 
-// History returns the history of error revisions, ignoring the result of any merges.
+// History returns detached snapshots of the original error contributions in
+// order, retaining duplicates and omitting intermediate merges. Each call
+// copies entries, Field and Remedy; callers may modify them without changing
+// the error or later reads. Unwrap causes retain their original identity.
 func (e *ServiceError) History() []*ServiceError {
 	if len(e.history) > 0 {
-		return e.history
+		return cloneServiceErrorHistory(e.history)
 	}
 
-	return []*ServiceError{e}
+	return []*ServiceError{cloneServiceErrorEntry(e)}
 }
 
-// WithErrorHistory returns err with the provided original error history.
+// WithErrorHistory sets err's history to detached snapshots of the provided
+// original contributions and returns err. Merged entries are flattened in
+// order, duplicates are retained, and nil entries are ignored. It modifies
+// err, but never the supplied entries. A nil err returns nil.
 func WithErrorHistory(err *ServiceError, history ...*ServiceError) *ServiceError {
 	if err == nil {
 		return nil
@@ -358,14 +360,27 @@ func cloneServiceErrorHistory(history []*ServiceError) []*ServiceError {
 		if entry == nil {
 			continue
 		}
-		clone := *entry
-		if entry.Field != nil {
-			field := *entry.Field
-			clone.Field = &field
+		if len(entry.history) > 0 {
+			clones = append(clones, cloneServiceErrorHistory(entry.history)...)
+			continue
 		}
-		clones = append(clones, &clone)
+		clones = append(clones, cloneServiceErrorEntry(entry))
 	}
 	return clones
+}
+
+func cloneServiceErrorEntry(entry *ServiceError) *ServiceError {
+	clone := *entry
+	clone.history = nil
+	if entry.Field != nil {
+		field := *entry.Field
+		clone.Field = &field
+	}
+	if entry.Remedy != nil {
+		remedy := *entry.Remedy
+		clone.Remedy = &remedy
+	}
+	return &clone
 }
 
 // Error returns the error message.

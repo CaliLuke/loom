@@ -394,6 +394,15 @@ filter, and serialization rules belong here.
 
 ## Transport Invariants
 
+- `pkg.MergeErrors` owns immutable accumulation of related validation errors.
+  For two nonnil inputs it snapshots service fields and flattened original
+  contributions, including Field and Remedy, while retaining original error
+  causes. Nil is the identity. `History` snapshots on every read;
+  `WithErrorHistory` is an explicit mutating setter that snapshots its inputs.
+  Keep the ownership model in `pkg/tla/error_ownership` aligned with direct
+  runtime tests and protobuf history round trips. Independent joined failures
+  require aggregate transport classification, not validation-merge heuristics.
+
 - Response-contract manifests classify unary HTTP, supported multipart, SSE,
   and plain HTTP WebSocket success cases explicitly. Multipart cases expose flat primitive and bytes
   parts from prepared transport data. Multipart SSE combinations remain an

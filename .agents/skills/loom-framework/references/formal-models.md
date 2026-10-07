@@ -66,6 +66,7 @@ Rendered schema validation and actual decoder behavior are separate obligations.
 
 | Code concern | Model |
 | --- | --- |
+| Service-error merge and history snapshot ownership | [Error ownership](../../../../pkg/tla/error_ownership/README.md); bounded aliasing counterexamples, with repeated merges and protobuf reconstruction checked in Go |
 | Escaped route literals and split-before-unescape path arrays | [Path decoding](../../../../http/tla/path_decoding/README.md); bounded operation-order checks, with raw capture preservation and actual dispatch checked in Go |
 | gRPC opening-send EOF and final status ownership | [Initial send model](../../../../grpc/codegen/tla/initial_send/README.md); bounded stream retention and receive-completion checks |
 | JSON-RPC WebSocket response routing, client closure/redial and closure error identity | [JSON-RPC connection models](../../../../jsonrpc/tla/README.md) |

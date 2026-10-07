@@ -24,6 +24,33 @@ Key features:
 
 ## Defining Errors
 
+### Merging validation errors
+
+Use the return value of `loom.MergeErrors(first, second)`. When both operands
+are nonnil, it creates a new `ServiceError` and never changes either input or
+an earlier merge result. Nil is the identity: merging with nil returns the
+other operand unchanged, including its concrete type.
+
+The merge retains the first contribution's ID, field and remediation metadata,
+selects the second name only when the first name is `error`, joins messages
+with `; `, and ANDs the timeout, temporary and fault flags. This operation
+accumulates related validation errors; use `errors.Join` to represent independent
+failures without assigning one contribution's contract to the aggregate.
+
+`ServiceError.History()` returns detached original contributions in order,
+including duplicates. Editing the returned slice, entries, fields or remedies
+does not alter the source or later history reads. `WithErrorHistory` explicitly
+sets the receiver's history, snapshots its inputs, and flattens supplied merged
+entries. Original causes remain reachable through `errors.Is` and `errors.As`;
+the framework does not clone arbitrary cause objects or make mutable errors
+safe for concurrent application writes.
+
+For example, after `ab := loom.MergeErrors(a, b)` and
+`abc := loom.MergeErrors(ab, c)`, `a`, `b` and `ab` retain their original data,
+while `abc` has history `[a, b, c]`. A call that discards the return value does
+not update either operand. This replaces the former mutation contract; there
+is no separate legacy merge API.
+
 ### API-Level Errors
 
 Define reusable errors at the API level with transport mappings:

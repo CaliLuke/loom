@@ -329,6 +329,13 @@ Other important OpenAPI usage rules:
 
 ## Errors and Remediation
 
+Always retain the return value of `loom.MergeErrors`: two nonnil operands
+produce an independent `ServiceError`; neither input is updated. Nil returns
+the other operand unchanged. `History()` returns detached original
+contributions, including copied field/remedy metadata. Cause objects keep their
+identity for `errors.Is` and `errors.As`. Use `errors.Join` for independent
+failures rather than assigning one validation contribution's contract to all.
+
 Loom's default HTTP errors are RFC 9457-style
 `application/problem+json` documents with a stable `code` field.
 After routes are mounted, the default muxer's unmatched-path response carries

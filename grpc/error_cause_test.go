@@ -56,7 +56,8 @@ func TestNewServiceErrorWithCause(t *testing.T) {
 					require.NotNil(t, history[0].Field)
 					require.Equal(t, "name", *history[0].Field)
 				} else {
-					require.Same(t, got, history[0])
+					require.NotSame(t, got, history[0])
+					require.Equal(t, got, history[0])
 				}
 			})
 		}
