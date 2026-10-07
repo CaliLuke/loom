@@ -21,6 +21,20 @@
 
 ### Architecture Decisions
 
+- **Architectural fixes before workarounds.** Identify the abstraction,
+  representation, ownership boundary, or shared contract that causes the
+  problem and correct it there. Make dependent layers derive their behavior
+  from that owner. Do not compensate for a defective model with scattered
+  checks, duplicated policy, per-consumer exceptions, or downstream patches.
+  A local fix that passes its regression test is insufficient when the
+  architectural cause remains. Validation must establish the corrected
+  contract across the affected boundaries.
+- **Backward compatibility is not a goal in itself.** Prefer coherent framework
+  semantics over preserving defective behavior or a flawed API. Do not add
+  compatibility modes, legacy APIs, aliases, or shims merely to avoid a breaking
+  correction. Document the resulting behavior and required regeneration or
+  migration. Resolve genuinely unsettled public semantics with the user;
+  compatibility concerns alone do not justify retaining the defect.
 - Derive behavior from the documented DSL and accepted contract semantics. Do not
   privilege accidental runtime behavior, the easiest patch, or a passing test.
 - Favor predictable, compositional semantics and explicit author intent over
