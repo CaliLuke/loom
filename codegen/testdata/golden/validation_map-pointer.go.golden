@@ -5,10 +5,10 @@ func Validate() (err error) {
 		err = loom.MergeErrors(err, loom.MissingFieldError("required_map", "target"))
 	}
 	if len(target.RequiredMap) < 5 {
-		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_map", target.RequiredMap, len(target.RequiredMap), 5, true))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_map", len(target.RequiredMap), 5, true))
 	}
 	if len(target.DefaultMap) > 3 {
-		err = loom.MergeErrors(err, loom.InvalidLengthError("target.default_map", target.DefaultMap, len(target.DefaultMap), 3, false))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("target.default_map", len(target.DefaultMap), 3, false))
 	}
 	for k, v := range target.Map {
 		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.map.key", k, loomPatternTest0))

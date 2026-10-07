@@ -405,6 +405,11 @@ filter, and serialization rules belong here.
 
 ## Transport Invariants
 
+- Length diagnostics receive only field identity, actual length, bound and
+  comparison direction. `pkg.InvalidLengthError` owns their diagnostic contract;
+  `codegen.renderLengthValidation` supplies these facts without passing rejected
+  values. Keep classification, field metadata and the safe-message remedy intact.
+
 - `pkg.MergeErrors` owns immutable accumulation of related validation errors.
   For two nonnil inputs it snapshots service fields and flattened original
   contributions, including Field and Remedy, while retaining original error

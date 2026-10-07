@@ -3,22 +3,22 @@ import "regexp"
 func Validate() (err error) {
 	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.required_alias", string(target.RequiredAlias), loomPatternTest0))
 	if utf8.RuneCountInString(string(target.RequiredAlias)) < 1 {
-		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_alias", string(target.RequiredAlias), utf8.RuneCountInString(string(target.RequiredAlias)), 1, true))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_alias", utf8.RuneCountInString(string(target.RequiredAlias)), 1, true))
 	}
 	if utf8.RuneCountInString(string(target.RequiredAlias)) > 10 {
-		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_alias", string(target.RequiredAlias), utf8.RuneCountInString(string(target.RequiredAlias)), 10, false))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_alias", utf8.RuneCountInString(string(target.RequiredAlias)), 10, false))
 	}
 	if target.Alias != nil {
 		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.alias", string(*target.Alias), loomPatternTest0))
 	}
 	if target.Alias != nil {
 		if utf8.RuneCountInString(string(*target.Alias)) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("target.alias", string(*target.Alias), utf8.RuneCountInString(string(*target.Alias)), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("target.alias", utf8.RuneCountInString(string(*target.Alias)), 1, true))
 		}
 	}
 	if target.Alias != nil {
 		if utf8.RuneCountInString(string(*target.Alias)) > 10 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("target.alias", string(*target.Alias), utf8.RuneCountInString(string(*target.Alias)), 10, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("target.alias", utf8.RuneCountInString(string(*target.Alias)), 10, false))
 		}
 	}
 }

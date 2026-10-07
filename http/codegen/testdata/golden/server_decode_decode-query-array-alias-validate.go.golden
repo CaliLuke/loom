@@ -25,7 +25,7 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 			}
 		}
 		if len(array) < 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("array", array, len(array), 3, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("array", len(array), 3, true))
 		}
 		for _, e := range array {
 			if e < 10 {

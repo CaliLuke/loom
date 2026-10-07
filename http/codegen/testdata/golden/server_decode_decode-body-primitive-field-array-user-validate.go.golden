@@ -22,7 +22,7 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decod
 			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 		if len(body) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, len(body), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body", len(body), 1, true))
 		}
 		for i, e := range body {
 			if actual, ok := e.Value(); ok {

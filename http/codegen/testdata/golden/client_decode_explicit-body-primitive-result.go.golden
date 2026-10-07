@@ -28,7 +28,7 @@ func DecodeMethodExplicitBodyPrimitiveResultMultipleViewResponse(decoder func(*h
 				return nil, loomhttp.ErrDecodingError("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", err)
 			}
 			if utf8.RuneCountInString(body) < 5 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, utf8.RuneCountInString(body), 5, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("body", utf8.RuneCountInString(body), 5, true))
 			}
 			if err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", err)

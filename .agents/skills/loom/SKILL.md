@@ -329,6 +329,10 @@ Other important OpenAPI usage rules:
 
 ## Errors and Remediation
 
+Regenerate after upgrading the length-error API. `loom.InvalidLengthError`
+accepts `(name, actualLength, bound, minimum)` and never the rejected value.
+Length diagnostics retain field and bound information without echoing contents.
+
 Always retain the return value of `loom.MergeErrors`: two nonnil operands
 produce an independent `ServiceError`; neither input is updated. Nil returns
 the other operand unchanged. `History()` returns detached original

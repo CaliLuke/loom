@@ -13,7 +13,7 @@ func BuildMethodHeaderCustomTextUnmarshalerOptionalValidatePayload(serviceHeader
 				return zero, fmt.Errorf("invalid value for id: %w", err)
 			}
 			if utf8.RuneCountInString(idRaw) < 1 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("id", idRaw, utf8.RuneCountInString(idRaw), 1, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("id", utf8.RuneCountInString(idRaw), 1, true))
 			}
 			if err != nil {
 				var zero *serviceheadercustomtextunmarshaleroptionalvalidate.MethodHeaderCustomTextUnmarshalerOptionalValidatePayload

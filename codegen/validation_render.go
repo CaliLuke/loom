@@ -399,7 +399,7 @@ func renderLengthValidation(data validationRenderData) string {
 		bound = *data.MaxLength
 		flag = false
 	}
-	body := "if " + lengthExpr + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidLengthError(" + quoteString(data.Context) + ", " + targetExpr + ", " + lengthExpr + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
+	body := "if " + lengthExpr + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidLengthError(" + quoteString(data.Context) + ", " + lengthExpr + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
 	return renderSimplePointerWrappedValidation(data.IsPointer && data.IsString, data.Target, body)
 }
 

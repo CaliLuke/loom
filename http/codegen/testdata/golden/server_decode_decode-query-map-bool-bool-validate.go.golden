@@ -64,7 +64,7 @@ func DecodeMethodQueryMapBoolBoolValidateRequest(mux loomhttp.Muxer, _ func(*htt
 			}
 		}
 		if len(q) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
 		}
 		for k, v := range q {
 			if !(k == false) {

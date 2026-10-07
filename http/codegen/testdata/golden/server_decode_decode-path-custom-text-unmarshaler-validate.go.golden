@@ -16,7 +16,7 @@ func DecodeMethodPathCustomTextUnmarshalerValidateRequest(mux loomhttp.Muxer, _ 
 				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("id", idRaw, "uuid.UUID"))
 			}
 			if utf8.RuneCountInString(idRaw) < 1 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("id", idRaw, utf8.RuneCountInString(idRaw), 1, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("id", utf8.RuneCountInString(idRaw), 1, true))
 			}
 		}
 		if err != nil {

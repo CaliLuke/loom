@@ -23,7 +23,7 @@ func NewMethodResultTypeValidateResultTypeOK(body *MethodResultTypeValidateRespo
 func ValidateMethodResultTypeValidateResponseBody(body *MethodResultTypeValidateResponseBody) (err error) {
 	if actual, ok := body.A.Value(); ok {
 		if utf8.RuneCountInString(actual) < 5 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body.a", actual, utf8.RuneCountInString(actual), 5, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body.a", utf8.RuneCountInString(actual), 5, true))
 		}
 	}
 	return

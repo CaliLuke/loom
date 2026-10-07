@@ -46,10 +46,10 @@ func BuildMethodAPayload(payloadWithValidationMethodAMetadataInt string, payload
 		if payloadWithValidationMethodAMetadataString != "" {
 			metadataString = &payloadWithValidationMethodAMetadataString
 			if utf8.RuneCountInString(*metadataString) < 5 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("MetadataString", *metadataString, utf8.RuneCountInString(*metadataString), 5, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("MetadataString", utf8.RuneCountInString(*metadataString), 5, true))
 			}
 			if utf8.RuneCountInString(*metadataString) > 10 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("MetadataString", *metadataString, utf8.RuneCountInString(*metadataString), 10, false))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("MetadataString", utf8.RuneCountInString(*metadataString), 10, false))
 			}
 			if err != nil {
 				return nil, err

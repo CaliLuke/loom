@@ -60,14 +60,14 @@ func DecodeMethodQueryMapStringArrayBoolValidateRequest(mux loomhttp.Muxer, _ fu
 			}
 		}
 		if len(q) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
 		}
 		for k, v := range q {
 			if !(k == "key") {
 				err = loom.MergeErrors(err, loom.InvalidEnumValueError("q.key", k, []any{"key"}))
 			}
 			if len(v) < 2 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("q[key]", v, len(v), 2, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("q[key]", len(v), 2, true))
 			}
 		}
 		if err != nil {

@@ -53,7 +53,7 @@ func TestMappedPayloadReferencesCode(t *testing.T) {
 		"\tName *string `form:\"nm,omitempty\" json:\"nm,omitempty\" xml:\"nm,omitempty\"`\n",
 		"\tName *string `form:\"name,omitempty\" json:\"name,omitempty\" xml:\"name,omitempty\"`\n",
 		`loom.MissingFieldError("tok", "header")`,
-		`loom.InvalidLengthError("tok", tok, utf8.RuneCountInString(tok), 2, true)`,
+		`loom.InvalidLengthError("tok", utf8.RuneCountInString(tok), 2, true)`,
 	} {
 		assert.Contains(t, mapped, want)
 	}

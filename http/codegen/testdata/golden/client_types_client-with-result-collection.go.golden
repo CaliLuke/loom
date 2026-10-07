@@ -93,7 +93,7 @@ func ValidateRtCollectionResponseBody(body RtCollectionResponseBody) (err error)
 func ValidateRtResponseBody(body *RtResponseBody) (err error) {
 	if actual, ok := body.X.Value(); ok {
 		if utf8.RuneCountInString(actual) < 5 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body.x", actual, utf8.RuneCountInString(actual), 5, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("body.x", utf8.RuneCountInString(actual), 5, true))
 		}
 	}
 	return

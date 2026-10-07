@@ -121,6 +121,7 @@ const bytesValidationLayoutPrelude = `package validationlayout
 
 import (
  "reflect"
+ "strings"
  "testing"
  "unicode/utf8"
  loom "github.com/CaliLuke/loom/pkg"
@@ -153,8 +154,12 @@ func checkLayouts(t *testing.T, cases []layoutCase) {
     if tc.bytes {input=reflect.ValueOf([]byte(value))}
     field.Set(input.Convert(field.Type()))
     want:=len(value)>=2 && len(value)<=3
-    if err:=tc.validate(tc.value); (err==nil)!=want {
+    err:=tc.validate(tc.value)
+    if (err==nil)!=want {
      t.Errorf("value %q error=%v want valid=%t",value,err,want)
+    }
+    if err!=nil && !strings.Contains(err.Error(), "but got length") {
+     t.Errorf("unexpected length diagnostic: %v",err)
     }
    }
   })

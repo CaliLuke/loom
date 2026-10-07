@@ -45,7 +45,7 @@ func TestMappedExplicitBodyCode(t *testing.T) {
 		"\t// Account name\n\tName string `form:\"n\" json:\"n\" xml:\"n\"`\n",
 		"\tA *int               `form:\"x,omitempty\" json:\"x,omitempty\" xml:\"x,omitempty\"`\n",
 		"\tif body.Name == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"name\", \"body\"))\n\t}\n",
-		`loom.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 2, true)`,
+		`loom.InvalidLengthError("body.name", utf8.RuneCountInString(*body.Name), 2, true)`,
 		"\tif body.A == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"a\", \"body\"))\n\t}\n",
 	} {
 		assert.Contains(t, mapped, want)

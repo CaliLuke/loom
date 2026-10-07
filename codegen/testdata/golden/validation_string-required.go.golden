@@ -3,10 +3,10 @@ import "regexp"
 func Validate() (err error) {
 	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.required_string", target.RequiredString, loomPatternTest0))
 	if utf8.RuneCountInString(target.RequiredString) < 1 {
-		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", target.RequiredString, utf8.RuneCountInString(target.RequiredString), 1, true))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", utf8.RuneCountInString(target.RequiredString), 1, true))
 	}
 	if utf8.RuneCountInString(target.RequiredString) > 10 {
-		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", target.RequiredString, utf8.RuneCountInString(target.RequiredString), 10, false))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", utf8.RuneCountInString(target.RequiredString), 10, false))
 	}
 	if target.DefaultString != nil {
 		if !(*target.DefaultString == "foo" || *target.DefaultString == "bar") {

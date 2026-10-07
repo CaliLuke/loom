@@ -157,7 +157,7 @@ func DecodeMethodExplicitBodyPrimitiveResultMultipleViewResponse(decoder func(*h
 				return nil, loomhttp.ErrDecodingError("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", err)
 			}
 			if utf8.RuneCountInString(body) < 5 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("body", body, utf8.RuneCountInString(body), 5, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("body", utf8.RuneCountInString(body), 5, true))
 			}
 			if err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceExplicitBodyPrimitiveResultMultipleView", "MethodExplicitBodyPrimitiveResultMultipleView", err)
@@ -495,7 +495,7 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 			array = resp.Header["Array"]
 
 			if len(array) < 5 {
-				err = loom.MergeErrors(err, loom.InvalidLengthError("array", array, len(array), 5, true))
+				err = loom.MergeErrors(err, loom.InvalidLengthError("array", len(array), 5, true))
 			}
 			if err != nil {
 				return nil, loomhttp.ErrValidationError("ServiceHeaderStringArrayValidateResponse", "MethodA", err)

@@ -84,7 +84,7 @@ func TestNullableRequestBody(t *testing.T) {
 			Body:      "\t\t\tbody loom.Nullable[string]\n",
 			Nullable:  true,
 			Validate: []string{
-				"loom.InvalidLengthError(\"body\", actual, utf8.RuneCountInString(actual), 2, true)",
+				"loom.InvalidLengthError(\"body\", utf8.RuneCountInString(actual), 2, true)",
 			},
 		},
 		{

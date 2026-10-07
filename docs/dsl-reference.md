@@ -369,6 +369,12 @@ Payload(Employee, func() {
 
 ### Validation Rules
 
+Length-validation diagnostics report the field, actual length and allowed
+bound without including the rejected value. Regenerate service and transport
+code after upgrading. Handwritten calls to `loom.InvalidLengthError` now pass
+`(name, actualLength, bound, minimum)`; the rejected-value argument is removed.
+
+
 #### String Validations
 - `Pattern(regex)` - Validates against a regular expression
 - `MinLength(n)` - Minimum string length

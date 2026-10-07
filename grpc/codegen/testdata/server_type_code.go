@@ -436,7 +436,7 @@ func ValidateArrayOfString(val *service_elem_validationpb.ArrayOfString) (err er
 		err = loom.MergeErrors(err, loom.MissingFieldError("field", "val"))
 	}
 	if len(val.Field) < 1 {
-		err = loom.MergeErrors(err, loom.InvalidLengthError("val.field", val.Field, len(val.Field), 1, true))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("val.field", len(val.Field), 1, true))
 	}
 	return
 }

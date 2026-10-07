@@ -19,7 +19,7 @@ func DecodeMethodQueryBytesValidateRequest(mux loomhttp.Muxer, _ func(*http.Requ
 			q = []byte(qRaw)
 		}
 		if len(q) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("q", q, len(q), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
 		}
 		if err != nil {
 			return payload, err

@@ -9,12 +9,12 @@ func Validate() (err error) {
 	}
 	if target.RequiredString != nil {
 		if utf8.RuneCountInString(*target.RequiredString) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", *target.RequiredString, utf8.RuneCountInString(*target.RequiredString), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", utf8.RuneCountInString(*target.RequiredString), 1, true))
 		}
 	}
 	if target.RequiredString != nil {
 		if utf8.RuneCountInString(*target.RequiredString) > 10 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", *target.RequiredString, utf8.RuneCountInString(*target.RequiredString), 10, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_string", utf8.RuneCountInString(*target.RequiredString), 10, false))
 		}
 	}
 	if target.DefaultString != nil {

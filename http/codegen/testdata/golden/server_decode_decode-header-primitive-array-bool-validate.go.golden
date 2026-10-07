@@ -23,7 +23,7 @@ func DecodeMethodHeaderPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, _ f
 			}
 		}
 		if len(h) < 1 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("h", h, len(h), 1, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("h", len(h), 1, true))
 		}
 		for _, e := range h {
 			if !(e == true) {

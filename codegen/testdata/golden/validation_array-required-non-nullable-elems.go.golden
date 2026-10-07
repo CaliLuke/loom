@@ -3,7 +3,7 @@ func Validate() (err error) {
 		err = loom.MergeErrors(err, loom.MissingFieldError("required_array", "target"))
 	}
 	if len(target.RequiredArray) < 1 {
-		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_array", target.RequiredArray, len(target.RequiredArray), 1, true))
+		err = loom.MergeErrors(err, loom.InvalidLengthError("target.required_array", len(target.RequiredArray), 1, true))
 	}
 	for i, e := range target.RequiredArray {
 		if e == nil {

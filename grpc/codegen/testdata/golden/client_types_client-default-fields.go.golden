@@ -141,7 +141,7 @@ func ValidatePresenceBlob(message *default_fieldspb.PresenceBlob) (err error) {
 	}
 	if message.Field != nil {
 		if len(message.Field) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.field", message.Field, len(message.Field), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.field", len(message.Field), 3, false))
 		}
 	}
 	return
@@ -187,12 +187,12 @@ func ValidateScalarsRequest(message *default_fieldspb.ScalarsRequest) (err error
 	}
 	if message.Text != nil {
 		if utf8.RuneCountInString(*message.Text) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.text", *message.Text, utf8.RuneCountInString(*message.Text), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.text", utf8.RuneCountInString(*message.Text), 3, false))
 		}
 	}
 	if message.Bytes_ != nil {
 		if len(message.Bytes_) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.bytes", message.Bytes_, len(message.Bytes_), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.bytes", len(message.Bytes_), 3, false))
 		}
 	}
 	return
@@ -238,12 +238,12 @@ func ValidateScalarsResponse(message *default_fieldspb.ScalarsResponse) (err err
 	}
 	if message.Text != nil {
 		if utf8.RuneCountInString(*message.Text) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.text", *message.Text, utf8.RuneCountInString(*message.Text), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.text", utf8.RuneCountInString(*message.Text), 3, false))
 		}
 	}
 	if message.Bytes_ != nil {
 		if len(message.Bytes_) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.bytes", message.Bytes_, len(message.Bytes_), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.bytes", len(message.Bytes_), 3, false))
 		}
 	}
 	return
@@ -289,12 +289,12 @@ func ValidateStreamResponse(stream *default_fieldspb.StreamResponse) (err error)
 	}
 	if stream.Text != nil {
 		if utf8.RuneCountInString(*stream.Text) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("stream.text", *stream.Text, utf8.RuneCountInString(*stream.Text), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("stream.text", utf8.RuneCountInString(*stream.Text), 3, false))
 		}
 	}
 	if stream.Bytes_ != nil {
 		if len(stream.Bytes_) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("stream.bytes", stream.Bytes_, len(stream.Bytes_), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError("stream.bytes", len(stream.Bytes_), 3, false))
 		}
 	}
 	return

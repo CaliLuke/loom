@@ -260,14 +260,15 @@ func InvalidRangeError(name string, target, value any, min bool) error {
 
 // InvalidLengthError is the error produced by the generated code when the value
 // of a payload field does not match the length validation defined in the
-// design.
-func InvalidLengthError(name string, target any, ln, value int, min bool) error {
+// design. It reports the actual length and bound without retaining the rejected
+// value. min selects a minimum bound; otherwise value is a maximum bound.
+func InvalidLengthError(name string, ln, value int, min bool) error {
 	comp := "greater or equal"
 	if !min {
 		comp = "lesser or equal"
 	}
 	return validationError(withField(name, PermanentError(
-		InvalidLength, "length of %s must be %s than %d but got value %#v (len=%d)", name, comp, value, target, ln)))
+		InvalidLength, "length of %s must be %s than %d but got length %d", name, comp, value, ln)))
 }
 
 func validationError(err *ServiceError) *ServiceError {
