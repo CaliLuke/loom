@@ -178,11 +178,13 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	{{- end }}
 {{- end }}
 {{- if .BasicScheme }}{{ with .BasicScheme }}
-	user, pass, {{ if or .UsernameRequired .PasswordRequired }}ok{{ else }}_{{ end }} := r.BasicAuth()
-		{{- if or .UsernameRequired .PasswordRequired}}
+	user, pass, ok := r.BasicAuth()
+		{{- if .HeaderRequired}}
 	if !ok {
 		return payload, loom.MissingFieldError("Authorization", "header")
 	}
+		{{- else }}
+	if ok {
 		{{- end }}
 	{{- if isAliased .UsernameType }}
  userValue := {{ credentialTypeRef .UsernameType $.ServicePkgName }}(user)
@@ -192,6 +194,9 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
  {{- end }}
  payload.{{ .UsernameField }} = {{ if .UsernamePointer }}&{{ end }}{{ if isAliased .UsernameType }}userValue{{ else }}user{{ end }}
 	payload.{{ .PasswordField }} = {{ if .PasswordPointer }}&{{ end }}{{ if isAliased .PasswordType }}passValue{{ else }}pass{{ end }}
+	{{- if not .HeaderRequired }}
+	}
+	{{- end }}
 {{- end }}{{ end }}
 {{- range .HeaderSchemes }}
 	{{- if not .CredRequired }}

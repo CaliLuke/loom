@@ -184,6 +184,14 @@ consumer validation.
   separately from the service field type and uses `InitStructFields` for the
   constructor assignments, including pointer presence.
 
+- HTTP Basic header presence is analyzed once in `BasicAuthData`. Renderers
+  send if either component is required or represented as present, and assign
+  decoded fields only after a valid Basic header. An absent optional counterpart
+  encodes as an empty component; it never suppresses its supplied counterpart.
+  Missing/invalid headers require an error if either component is required;
+  otherwise absent optional pointers remain nil. See the
+  [presence model](../../../http/codegen/tla/basic_auth/README.md).
+
 - `expr/authorization.go` owns strict coverage, typed bindings, and exhaustive
   enum/union classification. Authentication requirements remain independent.
 - `codegen/service/authorization*.go` projects these expressions into typed

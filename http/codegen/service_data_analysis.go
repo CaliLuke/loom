@@ -216,7 +216,7 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 		HeaderSchemes:             hsch,
 		BodySchemes:               bosch,
 		QuerySchemes:              qsch,
-		BasicScheme:               basch,
+		BasicScheme:               buildBasicAuthData(basch),
 		Routes:                    routes,
 		MountHandler:              fmt.Sprintf("Mount%sHandler", method.VarName),
 		HandlerInit:               fmt.Sprintf("New%sHandler", method.VarName),

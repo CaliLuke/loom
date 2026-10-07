@@ -123,7 +123,7 @@ type (
 		// Routes describes the possible routes for this endpoint.
 		Routes []*RouteData
 		// BasicScheme is the basic auth security scheme if any.
-		BasicScheme *service.SchemeData
+		BasicScheme *BasicAuthData
 		// HeaderSchemes lists all the security requirement schemes that
 		// apply to the method and are encoded in the request header.
 		HeaderSchemes service.SchemesData

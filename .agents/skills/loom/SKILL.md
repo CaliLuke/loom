@@ -628,6 +628,14 @@ that type; authentication callbacks receive strings. Non-string, nullable and
 `struct:field:type` credential overrides are rejected during DSL validation.
 Basic-auth CLI values are plain strings, including for named credential types.
 
+Basic-auth header presence is independent of its two components. The client
+sends the header if either component is required or present; an absent optional
+counterpart becomes an empty component. When both are optional, a missing or
+invalid Basic header leaves their pointers nil. A valid header supplies both
+components, including empty values. If either is required, a missing or invalid
+header fails decoding. Regenerate clients and servers to adopt this behavior.
+
+
 Prefer Loom's first-class session DSL:
 
 - `SessionAuth(name, fn)`

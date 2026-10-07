@@ -207,17 +207,32 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		{{- end }}
 	{{- end }}
 	{{- if .BasicScheme }}{{ with .BasicScheme }}
-		{{- if not .UsernameRequired }}
-		if p.{{ .UsernameField }} != nil {
+		{{- if not .AlwaysSend }}
+		if p.{{ .UsernameField }} != nil || p.{{ .PasswordField }} != nil {
 		{{- end }}
-		{{- if not .PasswordRequired }}
-		if p.{{ .PasswordField }} != nil {
-		{{- end }}
-		req.SetBasicAuth({{ if isAlias .UsernameType }}string({{ end }}{{ if .UsernamePointer }}*{{ end }}p.{{ .UsernameField }}{{ if isAlias .UsernameType }}){{ end }}, {{ if isAlias .PasswordType }}string({{ end }}{{ if .PasswordPointer }}*{{ end }}p.{{ .PasswordField }}{{ if isAlias .PasswordType }}){{ end }})
-		{{- if not .UsernameRequired }}
+		{{- if or .UsernamePointer .PasswordPointer }}
+		{
+			var user, pass string
+			{{- if .UsernamePointer }}
+			if p.{{ .UsernameField }} != nil {
+			{{- end }}
+			user = {{ if isAlias .UsernameType }}string({{ end }}{{ if .UsernamePointer }}*{{ end }}p.{{ .UsernameField }}{{ if isAlias .UsernameType }}){{ end }}
+			{{- if .UsernamePointer }}
+			}
+			{{- end }}
+			{{- if .PasswordPointer }}
+			if p.{{ .PasswordField }} != nil {
+			{{- end }}
+			pass = {{ if isAlias .PasswordType }}string({{ end }}{{ if .PasswordPointer }}*{{ end }}p.{{ .PasswordField }}{{ if isAlias .PasswordType }}){{ end }}
+			{{- if .PasswordPointer }}
+			}
+			{{- end }}
+			req.SetBasicAuth(user, pass)
 		}
+		{{- else }}
+		req.SetBasicAuth({{ if isAlias .UsernameType }}string({{ end }}p.{{ .UsernameField }}{{ if isAlias .UsernameType }}){{ end }}, {{ if isAlias .PasswordType }}string({{ end }}p.{{ .PasswordField }}{{ if isAlias .PasswordType }}){{ end }})
 		{{- end }}
-		{{- if not .PasswordRequired }}
+		{{- if not .AlwaysSend }}
 		}
 		{{- end }}
 	{{- end }}{{ end }}

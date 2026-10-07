@@ -2092,6 +2092,14 @@ types, while authentication callbacks receive strings. Non-string, nullable and
 custom Go type overrides on credentials are rejected at design validation.
 Basic-auth CLI flags accept plain string values even for named credential types.
 
+Basic-auth header presence is independent of its two components. The client
+sends the header if either component is required or present; an absent optional
+counterpart becomes an empty component. When both are optional, a missing or
+invalid Basic header leaves their pointers nil. A valid header supplies both
+components, including empty values. If either is required, a missing or invalid
+header fails decoding. Regenerate clients and servers to adopt this behavior.
+
+
 ### Security Schemes
 
 #### JWT (JSON Web Token)
