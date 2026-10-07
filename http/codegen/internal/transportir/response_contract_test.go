@@ -256,6 +256,7 @@ func TestAnalyzeResponseContractCasesUsesEffectiveContentTypeEnums(t *testing.T)
 				dsl.HTTP(func() {
 					dsl.GET("/content")
 					dsl.Response(expr.StatusOK, func() {
+						dsl.Tag("inherited", "application/json")
 						dsl.Header("inherited:Content-Type")
 					})
 					dsl.Response(expr.StatusAccepted, func() {

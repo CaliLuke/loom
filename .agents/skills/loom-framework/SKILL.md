@@ -405,6 +405,10 @@ filter, and serialization rules belong here.
 
 ## Transport Invariants
 
+- `expr.HTTPEndpointExpr.validateResponses` owns the unique untagged application
+  response requirement. Generators must not discard ambiguous authored responses;
+  transport and OpenAPI analysis consume the same validated expression set.
+
 - Length diagnostics receive only field identity, actual length, bound and
   comparison direction. `pkg.InvalidLengthError` owns their diagnostic contract;
   `codegen.renderLengthValidation` supplies these facts without passing rejected

@@ -1757,6 +1757,18 @@ track the presence of optional fields. The design is rejected; remove the tag,
 or leave the attribute out of the body with an explicit `Body` or map it to a
 header, param or cookie.
 
+### Response Selection
+
+An HTTP method has exactly one untagged application response, used when no
+`Tag` matches the result. Loom supplies an implicit default if no responses are
+authored. Each additional response must select a result value with `Tag`;
+different status codes alone cannot select a response. Multiple untagged
+responses are rejected during design validation. Replace any formerly ignored
+response with an explicit tag or remove it, then regenerate.
+
+Designed error responses and FileResponse's protocol-owned statuses are separate
+from this application-response selection rule.
+
 ### Response Headers
 
 Declare response headers inside a `Response` block. The mapped attribute comes

@@ -511,6 +511,11 @@ completion shapes are explicit generation limitations.
 
 ## HTTP Bodies and Parameters
 
+HTTP methods require one untagged application response. Use `Tag` on every
+additional response; multiple untagged declarations are rejected instead of
+silently ignored. Designed errors and FileResponse protocol statuses remain
+separate. Update ambiguous designs before regenerating.
+
 - A method may share its name with a type nested in its object or union body.
   Loom allocates distinct transport type names, including WebSocket bodies;
   a numeric suffix on a generated body type does not change schema names or

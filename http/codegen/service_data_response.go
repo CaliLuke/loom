@@ -108,9 +108,6 @@ func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, 
 		notag := -1
 		for i, resp := range endpointIR.Response.Responses {
 			if resp.TagName == "" {
-				if notag > -1 {
-					continue
-				}
 				notag = i
 			}
 			responses = append(responses, sds.buildSingleResponseData(endpointIR, resp, result, viewed, md, pkg, httpclictx, scope, svcctx, sd))

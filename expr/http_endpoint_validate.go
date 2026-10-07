@@ -104,7 +104,7 @@ func validateNullableHTTPResponse(response *HTTPResponseExpr, verr *eval.Validat
 
 func (e *HTTPEndpointExpr) validateResponses(verr *eval.ValidationErrors) {
 	hasTags := false
-	allTagged := true
+	untagged := 0
 	successResp := false
 	statusCounts := make(map[int]int, len(e.Responses))
 	for _, r := range e.Responses {
@@ -119,7 +119,7 @@ func (e *HTTPEndpointExpr) validateResponses(verr *eval.ValidationErrors) {
 		}
 
 		if r.Tag[0] == "" {
-			allTagged = false
+			untagged++
 		} else {
 			hasTags = true
 		}
@@ -135,8 +135,11 @@ func (e *HTTPEndpointExpr) validateResponses(verr *eval.ValidationErrors) {
 			successResp = true
 		}
 	}
-	if hasTags && allTagged {
+	if hasTags && untagged == 0 {
 		verr.Add(e, "All responses define a Tag, at least one response must define no Tag.")
+	}
+	if untagged > 1 {
+		verr.Add(e, "exactly one response must define no Tag; found %d", untagged)
 	}
 	if hasTags && !IsObject(e.MethodExpr.Result.Type) {
 		verr.Add(e, "Some responses define a Tag but the method Result type is not an object.")
