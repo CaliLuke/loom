@@ -415,9 +415,11 @@ func BuildSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr) *SchemeData {
 	switch s.Kind {
 	case expr.BasicAuthKind:
 		userAtt := expr.TaggedAttribute(m.Payload, "security:username")
-		user := codegen.Goify(userAtt, true)
+		_, userAttribute := m.Payload.FindAttribute(userAtt)
+		user := codegen.GoifyAtt(userAttribute, userAtt, true)
 		passAtt := expr.TaggedAttribute(m.Payload, "security:password")
-		pass := codegen.Goify(passAtt, true)
+		_, passAttribute := m.Payload.FindAttribute(passAtt)
+		pass := codegen.GoifyAtt(passAttribute, passAtt, true)
 		return &SchemeData{
 			Type:             s.Kind.String(),
 			SchemeName:       s.SchemeName,
@@ -471,11 +473,12 @@ func buildCredentialSchemeData(s *expr.SchemeExpr, m *expr.MethodExpr, tag strin
 		}
 		return nil
 	}
+	_, credential := m.Payload.FindAttribute(keyAtt)
 	return &SchemeData{
 		Type:         s.Kind.String(),
 		Name:         s.Name,
 		SchemeName:   s.SchemeName,
-		CredField:    codegen.Goify(keyAtt, true),
+		CredField:    codegen.GoifyAtt(credential, keyAtt, true),
 		CredPointer:  m.Payload.IsPrimitivePointer(keyAtt, true),
 		CredRequired: m.Payload.IsRequired(keyAtt),
 		KeyAttr:      keyAtt,

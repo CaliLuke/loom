@@ -619,6 +619,10 @@ Declare credentials with plain attribute names: `Token("token", String)`,
 then map them in the transport DSL, such as `Header("token:Authorization")`.
 Mapping suffixes on `Token`, `AccessToken`, `APIKey`, `Username`, `Password`,
 or their numbered `Field` declarations are rejected during validation.
+Use `Meta("struct:field:name", "AuthToken")` on a credential to rename its Go
+field; authentication and transport generation use that same field. Transport
+header/query names remain independently authored. Regenerate after upgrading
+to pick up corrected credential selectors.
 
 Prefer Loom's first-class session DSL:
 

@@ -2083,6 +2083,11 @@ streaming patterns.
 
 Loom provides DSL constructs for authentication and authorization.
 
+Credential attributes honor `Meta("struct:field:name", "AuthToken")` for their
+generated Go fields and authentication selectors. This does not rename their
+transport headers or parameters. Regenerate clients and servers after upgrading
+to pick up corrected credential selectors.
+
 ### Security Schemes
 
 #### JWT (JSON Web Token)

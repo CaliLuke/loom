@@ -171,6 +171,11 @@ consumer validation.
 
 ## Authorization Ownership
 
+- Shared security analysis resolves credential selectors with `GoifyAtt` from
+  the actual payload attribute. Basic username/password and API-key, JWT and
+  OAuth credentials must use the same field identity as payload declarations;
+  transport renderers consume that resolved selector.
+
 - `expr/authorization.go` owns strict coverage, typed bindings, and exhaustive
   enum/union classification. Authentication requirements remain independent.
 - `codegen/service/authorization*.go` projects these expressions into typed
