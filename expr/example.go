@@ -414,14 +414,17 @@ func byMinMax(a *AttributeExpr, r *ExampleGenerator) any {
 	if !hasMinMaxValidation(a) {
 		return nil
 	}
+	// Bounds belong to the effective occurrence; representation belongs to the
+	// underlying numeric type, just as it does for length-based synthesis.
+	kind := unalias(a.Type).Kind()
 	minimum, maximum, sign := minMaxBounds(a)
 	if math.IsInf(maximum, 1) {
-		return randomMinOnlyValue(a.Type.Kind(), r, minimum, sign)
+		return randomMinOnlyValue(kind, r, minimum, sign)
 	}
 	if minimum < maximum {
-		return randomBoundedValue(a.Type.Kind(), r, minimum, maximum)
+		return randomBoundedValue(kind, r, minimum, maximum)
 	}
-	return minValueForKind(a.Type.Kind(), minimum)
+	return minValueForKind(kind, minimum)
 }
 
 func minMaxBounds(a *AttributeExpr) (float64, float64, int) {

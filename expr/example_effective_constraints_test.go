@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -94,6 +95,48 @@ func TestValueSynthesisUsesFilteredEffectiveEnumCandidates(t *testing.T) {
 			require.Equal(t, test.value, legacy)
 		})
 	}
+}
+
+func TestNumericAliasExamplesRetainPrimitiveRepresentation(t *testing.T) {
+	for _, primitive := range []Primitive{Int, Int32, Int64, UInt, UInt32, UInt64, Float32, Float64} {
+		for _, tc := range []struct {
+			name                      string
+			base, derived, occurrence *ValidationExpr
+			minimum, maximum          float64
+		}{
+			{"minimum", &ValidationExpr{Minimum: new(1.0)}, nil, nil, 1, 1e30},
+			{"inherited bounds", &ValidationExpr{Minimum: new(1.0)}, &ValidationExpr{Maximum: new(8.0)}, &ValidationExpr{Minimum: new(3.0), Maximum: new(6.0)}, 3, 6},
+			{"exact", &ValidationExpr{Minimum: new(4.0)}, &ValidationExpr{Maximum: new(4.0)}, nil, 4, 4},
+			{"exclusive", &ValidationExpr{ExclusiveMinimum: new(1.0)}, &ValidationExpr{ExclusiveMaximum: new(3.0)}, nil, 1, 3},
+		} {
+			t.Run(primitive.Name()+"/"+tc.name, func(t *testing.T) {
+				base := namedScalar("NumericBase", primitive, tc.base)
+				derived := namedScalar("NumericDerived", base, tc.derived)
+				attribute := &AttributeExpr{Type: derived, Validation: tc.occurrence}
+				example := attribute.Example(NewRandom("numeric-alias"))
+				require.IsType(t, primitive.Example(NewRandom("type")), example)
+				value := reflect.ValueOf(example).Convert(reflect.TypeFor[float64]()).Float()
+				if tc.name == "exclusive" {
+					require.Greater(t, value, tc.minimum)
+					require.Less(t, value, tc.maximum)
+				} else {
+					require.GreaterOrEqual(t, value, tc.minimum)
+					require.LessOrEqual(t, value, tc.maximum)
+				}
+				require.Equal(t, example, attribute.Example(NewRandom("numeric-alias")))
+				require.Same(t, derived, attribute.Type, "synthesis must retain the authored alias")
+				require.Same(t, base, derived.Type)
+			})
+		}
+	}
+}
+
+func TestNumericAliasArrayExample(t *testing.T) {
+	count := namedScalar("Count", Int, &ValidationExpr{Minimum: new(1.0)})
+	counts := namedScalar("Counts", &Array{ElemType: &AttributeExpr{Type: count}}, nil)
+	attribute := &AttributeExpr{Type: counts}
+	generator := &ExampleGenerator{Randomizer: NewDeterministicRandomizer()}
+	require.Equal(t, []int{2}, attribute.Example(generator))
 }
 
 func requiredObjectEnumAttribute(prefix string, empty bool) *AttributeExpr {

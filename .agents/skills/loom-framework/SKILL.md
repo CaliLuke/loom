@@ -89,6 +89,12 @@ consumer validation.
   empty domain. Renderers may retain authored overlays for
   schema composition, but must not select semantic precedence independently.
   `Reference` remains object-template copying rather than named-type ancestry.
+- Numeric example synthesis selects the concrete representation with `unalias`
+  while retaining the occurrence's effective bounds. Named integer and Float32
+  aliases must not enter the Float64 path merely because their outer kind is
+  `UserTypeKind`. Keep this in `expr.byMinMax`; collection construction must not
+  coerce wrongly typed examples. The direct numeric-alias tests cover all numeric
+  kinds, inherited/occurrence bounds, exact and exclusive bounds, and typed arrays.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
 - Put design-semantic vet rules over the evaluated `expr` graph. Use Go source
