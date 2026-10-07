@@ -30,9 +30,9 @@ func grpcResponseEncoderSection(endpoint *EndpointData) codegen.Section {
 	})
 }
 
-func grpcRequestDecoderSection(endpoint *EndpointData) codegen.Section {
+func grpcRequestDecoderSection(endpoint *EndpointData, scope *codegen.NameScope) codegen.Section {
 	return codegen.NewJenniferSection("request-decoder", func(stmt *jen.Statement) {
-		stmt.Add(codegen.Expr(renderGRPCRequestDecoder(endpoint)))
+		stmt.Add(codegen.Expr(renderGRPCRequestDecoder(endpoint, scope)))
 	})
 }
 
@@ -105,7 +105,7 @@ func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 	return b.String()
 }
 
-func renderGRPCRequestDecoder(endpoint *EndpointData) string {
+func renderGRPCRequestDecoder(endpoint *EndpointData, scope *codegen.NameScope) string {
 	var b sourceBuilder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(`Decode`+endpoint.Method.VarName+`Request decodes requests sent to "`+endpoint.ServiceName+`" service "`+endpoint.Method.Name+`" endpoint.`))
 	fmt.Fprintf(&b, "func Decode%sRequest(ctx context.Context, v any, md metadata.MD) (any, error) {\n", endpoint.Method.VarName)
@@ -116,7 +116,7 @@ func renderGRPCRequestDecoder(endpoint *EndpointData) string {
 	fmt.Fprintf(&b, "\tvar payload %s\n", endpoint.PayloadRef)
 	b.Add("\t{\n")
 	addGRPCPayloadInit(&b, endpoint)
-	addGRPCMetadataSchemeNormalization(&b, endpoint)
+	addGRPCMetadataSchemeNormalization(&b, endpoint, scope)
 	b.Add("\t}\n")
 	b.Add("\treturn payload, nil\n")
 	b.Add("}\n")
@@ -278,7 +278,7 @@ func addGRPCPayloadInit(b *sourceBuilder, endpoint *EndpointData) {
 	}
 }
 
-func addGRPCMetadataSchemeNormalization(b *sourceBuilder, endpoint *EndpointData) {
+func addGRPCMetadataSchemeNormalization(b *sourceBuilder, endpoint *EndpointData, scope *codegen.NameScope) {
 	for _, scheme := range endpoint.MetadataSchemes {
 		if scheme.Type == "Basic" {
 			continue
@@ -286,9 +286,17 @@ func addGRPCMetadataSchemeNormalization(b *sourceBuilder, endpoint *EndpointData
 		if !scheme.CredRequired {
 			fmt.Fprintf(b, "\t\tif payload.%s != nil {\n", scheme.CredField)
 		}
-		fmt.Fprintf(b, "\t\tif strings.Contains(%spayload.%s, \" \") {\n", pointerPrefix(scheme.CredPointer), scheme.CredField)
+		value := pointerPrefix(scheme.CredPointer) + "payload." + scheme.CredField
+		if expr.IsAlias(scheme.CredType) {
+			value = "string(" + value + ")"
+		}
+		fmt.Fprintf(b, "\t\tif strings.Contains(%s, \" \") {\n", value)
 		b.Add("\t\t\t// Remove authorization scheme prefix (e.g. \"Bearer\")\n")
-		fmt.Fprintf(b, "\t\t\tcred := strings.SplitN(%spayload.%s, \" \", 2)[1]\n", pointerPrefix(scheme.CredPointer), scheme.CredField)
+		conversion := fmt.Sprintf("strings.SplitN(%s, \" \", 2)[1]", value)
+		if expr.IsAlias(scheme.CredType) {
+			conversion = scope.GoFullTypeRef(&expr.AttributeExpr{Type: scheme.CredType}, endpoint.ServicePkgName) + "(" + conversion + ")"
+		}
+		fmt.Fprintf(b, "\t\t\tcred := %s\n", conversion)
 		fmt.Fprintf(b, "\t\t\tpayload.%s = %scred\n", scheme.CredField, addrPrefix(scheme.CredPointer))
 		b.Add("\t\t}\n")
 		if !scheme.CredRequired {

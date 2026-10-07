@@ -34,3 +34,31 @@ func TestCredentialFieldNames(t *testing.T) {
 		})
 	}
 }
+
+func TestNamedCredentialConversions(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.NamedCredentialFieldsDSL)
+	data := endpointData(NewServicesData(root).Get("credentials"))
+	for _, method := range data.Methods {
+		if method.Name == "ordinary" {
+			continue
+		}
+		for _, scheme := range method.Schemes {
+			if scheme.Type == "Basic" {
+				require.Equal(t, "Credential", scheme.UsernameType.Name())
+				require.Equal(t, "Credential", scheme.PasswordType.Name())
+				require.Equal(t, scheme.UsernameType, scheme.Dup().UsernameType)
+			} else {
+				require.Equal(t, "Credential", scheme.CredType.Name())
+				require.Equal(t, scheme.CredType, scheme.Dup().CredType)
+			}
+		}
+		rendered := codegen.SectionCode(t, endpointMethodSection(method))
+		for _, field := range []string{"Login", "Secret", "AccessKey", "JWTValue", "OAuthValue"} {
+			value := "p." + field
+			if method.Name == "optional" {
+				value = "*" + value
+			}
+			require.Contains(t, rendered, "string("+value+")")
+		}
+	}
+}

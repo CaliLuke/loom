@@ -265,9 +265,13 @@ func transDecoderTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[
 }
 
 func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]any {
+	svc := services.ServicesData.Get(s.Name())
 	return map[string]any{
 		"goTypeRef": func(dt expr.DataType) string {
 			return services.ServicesData.Get(s.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
+		},
+		"credentialTypeRef": func(dt expr.DataType, pkg string) string {
+			return svc.Scope.GoFullTypeRef(&expr.AttributeExpr{Type: dt}, pkg)
 		},
 		"isAliased": func(dt expr.DataType) bool {
 			_, ok := dt.(expr.UserType)

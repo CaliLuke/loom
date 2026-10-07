@@ -6,6 +6,7 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func endpointMethodSection(method *EndpointMethodData) codegen.Section {
@@ -128,10 +129,10 @@ func buildSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData,
 
 func buildBasicSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar string) {
 	buildSchemeStruct(group, "BasicScheme", scheme.SchemeName, scheme.Scopes, req.Scopes, nil)
-	buildPointerStringBinding(group, "user", payload, scheme.UsernameField, scheme.UsernamePointer)
-	buildPointerStringBinding(group, "pass", payload, scheme.PasswordField, scheme.PasswordPointer)
-	userExpr := payloadFieldExpr(payload, scheme.UsernameField, scheme.UsernamePointer, "user")
-	passExpr := payloadFieldExpr(payload, scheme.PasswordField, scheme.PasswordPointer, "pass")
+	buildPointerStringBinding(group, "user", payload, scheme.UsernameField, scheme.UsernamePointer, expr.IsAlias(scheme.UsernameType))
+	buildPointerStringBinding(group, "pass", payload, scheme.PasswordField, scheme.PasswordPointer, expr.IsAlias(scheme.PasswordType))
+	userExpr := payloadFieldExpr(payload, scheme.UsernameField, scheme.UsernamePointer, "user", expr.IsAlias(scheme.UsernameType))
+	passExpr := payloadFieldExpr(payload, scheme.PasswordField, scheme.PasswordPointer, "pass", expr.IsAlias(scheme.PasswordType))
 	group.List(jen.Id(contextVar), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
 		jen.Id(contextVar),
 		userExpr,
@@ -150,8 +151,8 @@ func buildCredentialSchemeAuth(group *jen.Group, req *RequirementData, scheme *S
 		)
 		return
 	}
-	buildPointerStringBinding(group, tempVar, payload, scheme.CredField, scheme.CredPointer)
-	expr := payloadFieldExpr(payload, scheme.CredField, scheme.CredPointer, tempVar)
+	buildPointerStringBinding(group, tempVar, payload, scheme.CredField, scheme.CredPointer, expr.IsAlias(scheme.CredType))
+	expr := payloadFieldExpr(payload, scheme.CredField, scheme.CredPointer, tempVar, expr.IsAlias(scheme.CredType))
 	group.List(jen.Id(contextVar), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
 		jen.Id(contextVar),
 		expr,
@@ -181,8 +182,8 @@ func buildOAuth2SchemeAuth(group *jen.Group, req *RequirementData, scheme *Schem
 			}
 		})
 	})
-	buildPointerStringBinding(group, "token", payload, scheme.CredField, scheme.CredPointer)
-	expr := payloadFieldExpr(payload, scheme.CredField, scheme.CredPointer, "token")
+	buildPointerStringBinding(group, "token", payload, scheme.CredField, scheme.CredPointer, expr.IsAlias(scheme.CredType))
+	expr := payloadFieldExpr(payload, scheme.CredField, scheme.CredPointer, "token", expr.IsAlias(scheme.CredType))
 	group.List(jen.Id(contextVar), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
 		jen.Id(contextVar),
 		expr,
@@ -209,21 +210,29 @@ func buildSchemeStruct(group *jen.Group, schemeType, schemeName string, scopes, 
 	})
 }
 
-func buildPointerStringBinding(group *jen.Group, tempVar, payload, field string, isPointer bool) {
+func buildPointerStringBinding(group *jen.Group, tempVar, payload, field string, isPointer, named bool) {
 	if !isPointer {
 		return
 	}
 	group.Var().Id(tempVar).String()
+	value := jen.Op("*").Add(codegen.Expr(payload)).Dot(field)
+	if named {
+		value = jen.String().Call(value)
+	}
 	group.If(jen.Add(codegen.Expr(payload)).Dot(field).Op("!=").Nil()).Block(
-		jen.Id(tempVar).Op("=").Op("*").Add(codegen.Expr(payload)).Dot(field),
+		jen.Id(tempVar).Op("=").Add(value),
 	)
 }
 
-func payloadFieldExpr(payload, field string, isPointer bool, tempVar string) *jen.Statement {
+func payloadFieldExpr(payload, field string, isPointer bool, tempVar string, named bool) *jen.Statement {
 	if isPointer {
 		return jen.Id(tempVar)
 	}
-	return jen.Add(codegen.Expr(payload)).Dot(field)
+	value := jen.Add(codegen.Expr(payload)).Dot(field)
+	if named {
+		return jen.String().Call(value)
+	}
+	return value
 }
 
 func buildStreamingEndpointInvocation(group *jen.Group, method *EndpointMethodData, payload string) {

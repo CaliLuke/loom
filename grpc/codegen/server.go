@@ -130,7 +130,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 				sections = append(sections, grpcResponseEncoderSection(e))
 			}
 			if e.PayloadRef != "" {
-				sections = append(sections, grpcRequestDecoderSection(e))
+				sections = append(sections, grpcRequestDecoderSection(e, data.Service.Scope))
 			}
 		}
 	}

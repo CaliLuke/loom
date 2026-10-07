@@ -32,19 +32,20 @@ func buildPayloadFieldArgs(request *RequestData) []*InitArgData {
 	return args
 }
 
-func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, svc *service.Data, httpsvrctx *codegen.AttributeContext, generator *expr.ExampleGenerator) []*InitArgData {
+func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, svc *service.Data, generator *expr.ExampleGenerator) []*InitArgData {
+	cliCtx := serviceContext("", svc.Scope)
 	for _, requirement := range ep.Requirements {
 		for _, scheme := range requirement.Schemes {
 			if scheme.Type != "Basic" {
 				continue
 			}
 			uatt := payload.Find(scheme.UsernameAttr)
-			uref := svc.Scope.GoTypeRef(uatt)
+			uref := svc.Scope.GoTypeRef(&expr.AttributeExpr{Type: expr.String})
 			if scheme.UsernamePointer {
 				uref = "*" + uref
 			}
 			patt := payload.Find(scheme.PasswordAttr)
-			pref := svc.Scope.GoTypeRef(patt)
+			pref := svc.Scope.GoTypeRef(&expr.AttributeExpr{Type: expr.String})
 			if scheme.PasswordPointer {
 				pref = "*" + pref
 			}
@@ -59,11 +60,11 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 						FieldType:    uatt.Type,
 						Description:  uatt.Description,
 						Required:     scheme.UsernameRequired,
-						TypeName:     svc.Scope.GoTypeName(uatt),
+						TypeName:     svc.Scope.GoTypeName(&expr.AttributeExpr{Type: expr.String}),
 						TypeRef:      uref,
-						Type:         uatt.Type,
+						Type:         expr.String,
 						Pointer:      scheme.UsernamePointer,
-						Validate:     codegen.ValidationCode(uatt, nil, httpsvrctx, scheme.UsernameRequired, expr.IsAlias(uatt.Type), false, scheme.UsernameAttr),
+						Validate:     codegen.ValidationCode(uatt, nil, cliCtx, scheme.UsernameRequired, expr.IsAlias(uatt.Type), false, scheme.UsernameAttr),
 						Example:      uatt.Example(generator),
 					},
 				},
@@ -77,11 +78,11 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 						FieldType:    patt.Type,
 						Description:  patt.Description,
 						Required:     scheme.PasswordRequired,
-						TypeName:     svc.Scope.GoTypeName(patt),
+						TypeName:     svc.Scope.GoTypeName(&expr.AttributeExpr{Type: expr.String}),
 						TypeRef:      pref,
-						Type:         patt.Type,
+						Type:         expr.String,
 						Pointer:      scheme.PasswordPointer,
-						Validate:     codegen.ValidationCode(patt, nil, httpsvrctx, scheme.PasswordRequired, expr.IsAlias(patt.Type), false, scheme.PasswordAttr),
+						Validate:     codegen.ValidationCode(patt, nil, cliCtx, scheme.PasswordRequired, expr.IsAlias(patt.Type), false, scheme.PasswordAttr),
 						Example:      patt.Example(generator),
 					},
 				},

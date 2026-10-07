@@ -110,10 +110,34 @@ func (m *MethodExpr) validateAPIKeyTags(s *SchemeExpr) *eval.ValidationErrors {
 
 func (m *MethodExpr) validateSecurityTag(tag, msg string) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	if !hasTag(m.Payload, tag) {
+	name := TaggedAttribute(m.Payload, tag)
+	if name == "" {
 		verr.Add(m, msg, m.Name, m.Service.Name)
+		return verr
+	}
+	_, att := m.Payload.FindAttribute(name)
+	if !validCredentialType(att) {
+		verr.Add(m, "security credential attribute %q must use String or a named string type without nullability or a custom Go type", name)
 	}
 	return verr
+}
+
+// validCredentialType checks every named layer because the callback and wire
+// boundaries use strings while the service retains its declared string type.
+func validCredentialType(att *AttributeExpr) bool {
+	for {
+		if IsNullable(att) {
+			return false
+		}
+		if _, custom := att.Meta["struct:field:type"]; custom {
+			return false
+		}
+		if named, ok := att.Type.(UserType); ok {
+			att = named.Attribute()
+			continue
+		}
+		return att.Type == String
+	}
 }
 
 func (m *MethodExpr) validateRequirementScopes(r *SecurityExpr) *eval.ValidationErrors {

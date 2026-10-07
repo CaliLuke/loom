@@ -96,6 +96,10 @@ func TestTaggedAttribute(t *testing.T) {
 			if actual := TaggedAttribute(tc.a, "foo"); tc.expected != actual {
 				t.Errorf("got %#v, expected %#v", actual, tc.expected)
 			}
+			wrapped := &AttributeExpr{Type: &UserTypeExpr{TypeName: "Wrapped", AttributeExpr: tc.a}}
+			if actual := TaggedAttribute(wrapped, "foo"); tc.expected != actual {
+				t.Errorf("named wrapper: got %#v, expected %#v", actual, tc.expected)
+			}
 		})
 	}
 }

@@ -3,6 +3,7 @@ package codegen
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -127,6 +128,15 @@ func TestCredentials(t *testing.T) {
 				if !reflect.DeepEqual(decoded, tc.payload) {
 					t.Errorf("payload = %#v, want %#v", decoded, tc.payload)
 				}
+				req.Header.Set("X-Token", "Bearer token")
+    req.Header.Set("X-Access", "Bearer access")
+    decoded, err = tc.decode(req)
+    if err != nil {
+     t.Fatal(err)
+    }
+    if !reflect.DeepEqual(decoded, tc.payload) {
+     t.Errorf("prefixed payload = %#v, want %#v", decoded, tc.payload)
+    }
 				result, err := tc.endpoint(context.Background(), decoded)
 				if reject {
 					if !errors.Is(err, failure) || calls != before {
@@ -139,6 +149,23 @@ func TestCredentials(t *testing.T) {
 		}
 	}
 }
+
+func TestCredentialCLI(t *testing.T) {
+	required, err := client.BuildRequiredPayload("key", "token", "access", "user", "pass")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(required.Login) != "user" || string(required.Secret) != "pass" || string(required.AccessKey) != "key" || string(required.JWTValue) != "token" || string(required.OAuthValue) != "access" {
+		t.Errorf("required CLI payload = %#v", required)
+	}
+	optional, err := client.BuildOptionalPayload("", "", "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if optional.Login != nil || optional.Secret != nil || optional.AccessKey != nil || optional.JWTValue != nil || optional.OAuthValue != nil {
+		t.Errorf("omitted CLI values became present: %#v", optional)
+	}
+}
 `
 
 func TestCredentialFieldNamesGenerated(t *testing.T) {
@@ -146,6 +173,21 @@ func TestCredentialFieldNamesGenerated(t *testing.T) {
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, "example.com/credentials", root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "credentials_test.go"), []byte(credentialFieldsHarness), 0o600))
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "test", "-count=1", "./...")
+}
+
+func TestNamedCredentialFieldsGenerated(t *testing.T) {
+	root := RunHTTPDSL(t, servicedata.NamedCredentialFieldsDSL)
+	dir := t.TempDir()
+	renderHTTPModule(t, dir, "example.com/credentials", root)
+	harness := strings.Replace(credentialFieldsHarness,
+		`user, pass, k, token, access := "user", "pass", "key", "token", "access"`,
+		`user, pass, k, token, access := svc.Credential("user"), svc.Credential("pass"), svc.Credential("key"), svc.Credential("token"), svc.Credential("access")`, 1)
+	harness = strings.Replace(harness,
+		`&svc.OrdinaryPayload{User: user, Pass: pass, Key: k, Token: token, Access: access}`,
+		`&svc.OrdinaryPayload{User: string(user), Pass: string(pass), Key: string(k), Token: string(token), Access: string(access)}`, 1)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "credentials_test.go"), []byte(harness), 0o600))
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "test", "-count=1", "./...")
 }

@@ -14,6 +14,41 @@ import (
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
+const namedMetadataHarness = `package namedmetadata_test
+
+import (
+ "context"
+ "testing"
+
+ "github.com/stretchr/testify/require"
+ "google.golang.org/grpc/metadata"
+
+ svc "example.com/namedmetadata/gen/named_metadata"
+ client "example.com/namedmetadata/gen/grpc/named_metadata/client"
+ server "example.com/namedmetadata/gen/grpc/named_metadata/server"
+)
+
+func TestNamedMetadata(t *testing.T) {
+ optional := svc.Label("optional")
+ for _, value := range []*svc.Label{nil, &optional} {
+  input := &svc.Value{Body:"body", Label:"label", Optional:value}
+  ctx := context.Background()
+  requestMetadata := metadata.MD{}
+  request, err := client.EncodeEchoRequest(ctx, input, &requestMetadata)
+  require.NoError(t, err)
+  decoded, err := server.DecodeEchoRequest(ctx, request, requestMetadata)
+  require.NoError(t, err)
+  require.Equal(t, input, decoded)
+  headers, trailers := metadata.MD{}, metadata.MD{}
+  response, err := server.EncodeEchoResponse(ctx, input, &headers, &trailers)
+  require.NoError(t, err)
+  result, err := client.DecodeEchoResponse(ctx, response, headers, trailers)
+  require.NoError(t, err)
+  require.Equal(t, input, result)
+ }
+}
+`
+
 func TestMappedMetadata(t *testing.T) {
 	for _, suffix := range []string{"", ":json_name"} {
 		for _, required := range []bool{false, true} {
@@ -195,4 +230,13 @@ import (
 	}
 	source.WriteString("}\n")
 	return source.String()
+}
+
+func TestNamedMetadataGeneratedModule(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.NamedMetadataDSL)
+	dir := t.TempDir()
+	renderGRPCResponseContractModule(t, dir, "example.com/namedmetadata", root)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "metadata_test.go"), []byte(namedMetadataHarness), 0o600))
+	runGRPCGoCommand(t, dir, "mod", "tidy")
+	runGRPCGoCommand(t, dir, "test", "-run", "^TestNamedMetadata$", "./...")
 }

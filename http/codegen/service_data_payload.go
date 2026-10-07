@@ -442,7 +442,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		Description:              fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, b.svc.Name, b.endpointIR.Name),
 		ServerArgs:               serverArgs,
 		ClientArgs:               clientArgs,
-		CLIArgs:                  buildBasicAuthCLIArgs(b.ep, b.endpointIR.Request.Payload, b.svc, b.httpsvrctx, b.sds.examplesFor(b.sd)),
+		CLIArgs:                  buildBasicAuthCLIArgs(b.ep, b.endpointIR.Request.Payload, b.svc, b.sds.examplesFor(b.sd)),
 		ReturnTypeName:           b.svc.Scope.GoFullTypeName(b.payload, b.pkg),
 		ReturnTypeRef:            b.svc.Scope.GoFullTypeRef(b.payload, b.pkg),
 		ReturnIsStruct:           expr.IsObject(b.payload.Type),

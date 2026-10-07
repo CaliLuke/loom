@@ -278,10 +278,12 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 	)
 	for i, arg := range args {
 		pInitArgs[i] = &codegen.InitArgData{
-			Name:      arg.Name,
-			FieldName: arg.FieldName,
-			FieldType: arg.FieldType,
-			Type:      arg.Type,
+			Name:         arg.Name,
+			Pointer:      arg.Pointer,
+			FieldPointer: arg.FieldPointer,
+			FieldName:    arg.FieldName,
+			FieldType:    arg.FieldType,
+			Type:         arg.Type,
 		}
 
 		f := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.Name, arg.TypeName, arg.Description, arg.Required, arg.Example, arg.DefaultValue)

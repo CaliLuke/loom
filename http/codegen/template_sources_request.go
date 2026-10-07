@@ -24,8 +24,8 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- end }}
 			head := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
 			{{- if (and (eq .HTTPName "Authorization") (isBearer $.HeaderSchemes)) }}
-		if !strings.Contains(head, " ") {
-			req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+head)
+		if !strings.Contains({{ if isAlias .FieldType }}string(head){{ else }}head{{ end }}, " ") {
+			req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+{{ if isAlias .FieldType }}string(head){{ else }}head{{ end }})
 		} else {
 			{{- end }}
 			{{- if eq .Type.Name "array" }}
@@ -213,7 +213,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		{{- if not .PasswordRequired }}
 		if p.{{ .PasswordField }} != nil {
 		{{- end }}
-		req.SetBasicAuth({{ if .UsernamePointer }}*{{ end }}p.{{ .UsernameField }}, {{ if .PasswordPointer }}*{{ end }}p.{{ .PasswordField }})
+		req.SetBasicAuth({{ if isAlias .UsernameType }}string({{ end }}{{ if .UsernamePointer }}*{{ end }}p.{{ .UsernameField }}{{ if isAlias .UsernameType }}){{ end }}, {{ if isAlias .PasswordType }}string({{ end }}{{ if .PasswordPointer }}*{{ end }}p.{{ .PasswordField }}{{ if isAlias .PasswordType }}){{ end }})
 		{{- if not .UsernameRequired }}
 		}
 		{{- end }}

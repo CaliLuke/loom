@@ -184,17 +184,23 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		return payload, loom.MissingFieldError("Authorization", "header")
 	}
 		{{- end }}
-	payload.{{ .UsernameField }} = {{ if .UsernamePointer }}&{{ end }}user
-	payload.{{ .PasswordField }} = {{ if .PasswordPointer }}&{{ end }}pass
+	{{- if isAliased .UsernameType }}
+ userValue := {{ credentialTypeRef .UsernameType $.ServicePkgName }}(user)
+ {{- end }}
+ {{- if isAliased .PasswordType }}
+ passValue := {{ credentialTypeRef .PasswordType $.ServicePkgName }}(pass)
+ {{- end }}
+ payload.{{ .UsernameField }} = {{ if .UsernamePointer }}&{{ end }}{{ if isAliased .UsernameType }}userValue{{ else }}user{{ end }}
+	payload.{{ .PasswordField }} = {{ if .PasswordPointer }}&{{ end }}{{ if isAliased .PasswordType }}passValue{{ else }}pass{{ end }}
 {{- end }}{{ end }}
 {{- range .HeaderSchemes }}
 	{{- if not .CredRequired }}
 	if payload.{{ .CredField }} != nil {
 	{{- end }}
 	{{- if ne .Type "APIKey" }}
-	if strings.Contains({{ if .CredPointer }}*{{ end }}payload.{{ .CredField }}, " ") {
+	if strings.Contains({{ if isAliased .CredType }}string({{ end }}{{ if .CredPointer }}*{{ end }}payload.{{ .CredField }}{{ if isAliased .CredType }}){{ end }}, " ") {
 		// Remove authorization scheme prefix (e.g. "Bearer")
-		cred := strings.SplitN({{ if .CredPointer }}*{{ end }}payload.{{ .CredField }}, " ", 2)[1]
+		cred := {{ if isAliased .CredType }}{{ credentialTypeRef .CredType $.ServicePkgName }}({{ end }}strings.SplitN({{ if isAliased .CredType }}string({{ end }}{{ if .CredPointer }}*{{ end }}payload.{{ .CredField }}{{ if isAliased .CredType }}){{ end }}, " ", 2)[1]{{ if isAliased .CredType }}){{ end }}
 		payload.{{ .CredField }} = {{ if .CredPointer }}&{{ end }}cred
 	}
 	{{- end }}

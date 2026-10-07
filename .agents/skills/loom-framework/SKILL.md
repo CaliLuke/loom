@@ -174,7 +174,15 @@ consumer validation.
 - Shared security analysis resolves credential selectors with `GoifyAtt` from
   the actual payload attribute. Basic username/password and API-key, JWT and
   OAuth credentials must use the same field identity as payload declarations;
-  transport renderers consume that resolved selector.
+  transport renderers consume that resolved selector. Scheme data also retains
+  each credential's validated string type. `TaggedAttribute` resolves inherited
+  tags through named payload layers before finalization. Cast named strings at callback and
+  wire boundaries, and use NameScope to qualify conversions back to service
+  types. `expr` rejects non-string, nullable and custom-Go credential types.
+  Basic CLI arguments use physical strings; the shared field initializer owns
+  conversion to service aliases. gRPC metadata records its physical decoded type
+  separately from the service field type and uses `InitStructFields` for the
+  constructor assignments, including pointer presence.
 
 - `expr/authorization.go` owns strict coverage, typed bindings, and exhaustive
   enum/union classification. Authentication requirements remain independent.

@@ -22,7 +22,7 @@ func grpcTypeFile(
 	fpath := filepath.Join(codegen.Gendir, "grpc", svcName, side, "types.go")
 	sections := []codegen.Section{codegen.Header(svc.Name()+" gRPC "+side+" types", side, imports)}
 	for _, init := range initData {
-		sections = append(sections, grpcTypeInitSection(init, sd.Service.Scope))
+		sections = append(sections, grpcTypeInitSection(init))
 	}
 	for _, data := range sd.validations {
 		if data.Kind == skipKind {

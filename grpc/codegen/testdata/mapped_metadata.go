@@ -69,3 +69,35 @@ func MappedMetadataCaseDSL(name, suffix string, required, defaults, explicit boo
 		})
 	})
 }
+
+// NamedMetadataDSL exercises alias conversion in request metadata and response
+// headers/trailers, retaining required and optional service fields.
+func NamedMetadataDSL() {
+	label := Type("Label", String)
+	value := Type("Value", func() {
+		Field(1, "body", String)
+		Attribute("label", label)
+		Attribute("optional", label)
+		Required("body", "label")
+	})
+	Service("named_metadata", func() {
+		Method("echo", func() {
+			Payload(value)
+			Result(value)
+			GRPC(func() {
+				Metadata(func() {
+					Attribute("label:x-label")
+					Attribute("optional:x-optional")
+				})
+				Response(CodeOK, func() {
+					Headers(func() {
+						Attribute("label:x-label")
+					})
+					Trailers(func() {
+						Attribute("optional:x-optional")
+					})
+				})
+			})
+		})
+	})
+}

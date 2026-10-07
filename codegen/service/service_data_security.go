@@ -33,6 +33,8 @@ type (
 		// UsernameField is the name of the payload field that should be
 		// initialized with the basic auth username if any.
 		UsernameField string
+		// UsernameType retains the validated string representation of the credential.
+		UsernameType expr.DataType
 		// UsernamePointer is true if the username field is a pointer.
 		UsernamePointer bool
 		// UsernameAttr is the name of the attribute that contains the
@@ -44,6 +46,8 @@ type (
 		// PasswordField is the name of the payload field that should be
 		// initialized with the basic auth password if any.
 		PasswordField string
+		// PasswordType retains the validated string representation of the credential.
+		PasswordType expr.DataType
 		// PasswordPointer is true if the password field is a pointer.
 		PasswordPointer bool
 		// PasswordAttr is the name of the attribute that contains the
@@ -56,6 +60,9 @@ type (
 		// be initialized with the API key, the JWT token or the OAuth2
 		// access token.
 		CredField string
+		// CredType retains the validated string representation of the credential.
+		// It is nil when the transport owns the credential.
+		CredType expr.DataType
 		// CredPointer is true if the credential field is a pointer.
 		CredPointer bool
 		// CredRequired specifies if the key is a required attribute.
@@ -94,14 +101,17 @@ func (s *SchemeData) Dup() *SchemeData {
 		SchemeName:       s.SchemeName,
 		Name:             s.Name,
 		UsernameField:    s.UsernameField,
+		UsernameType:     s.UsernameType,
 		UsernamePointer:  s.UsernamePointer,
 		UsernameAttr:     s.UsernameAttr,
 		UsernameRequired: s.UsernameRequired,
 		PasswordField:    s.PasswordField,
+		PasswordType:     s.PasswordType,
 		PasswordPointer:  s.PasswordPointer,
 		PasswordAttr:     s.PasswordAttr,
 		PasswordRequired: s.PasswordRequired,
 		CredField:        s.CredField,
+		CredType:         s.CredType,
 		CredPointer:      s.CredPointer,
 		CredRequired:     s.CredRequired,
 		KeyAttr:          s.KeyAttr,

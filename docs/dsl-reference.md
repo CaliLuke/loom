@@ -2086,7 +2086,11 @@ Loom provides DSL constructs for authentication and authorization.
 Credential attributes honor `Meta("struct:field:name", "AuthToken")` for their
 generated Go fields and authentication selectors. This does not rename their
 transport headers or parameters. Regenerate clients and servers after upgrading
-to pick up corrected credential selectors.
+to pick up corrected credential selectors and named-string conversions.
+Use `String` or a named string type for credentials. Payload fields retain named
+types, while authentication callbacks receive strings. Non-string, nullable and
+custom Go type overrides on credentials are rejected at design validation.
+Basic-auth CLI flags accept plain string values even for named credential types.
 
 ### Security Schemes
 

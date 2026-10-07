@@ -387,6 +387,8 @@ type (
 		ReturnIsStruct bool
 		// Code is the transformation code.
 		Code string
+		// FieldCode initializes service fields from physical metadata arguments.
+		FieldCode string
 		// ErrorAware is true when the constructor can fail during conversion.
 		ErrorAware bool
 	}

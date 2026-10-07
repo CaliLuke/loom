@@ -6,10 +6,9 @@ import (
 	"github.com/dave/jennifer/jen"
 
 	codegenpkg "github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/expr"
 )
 
-func grpcTypeInitSection(init *InitData, scope *codegenpkg.NameScope) codegenpkg.Section {
+func grpcTypeInitSection(init *InitData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("type-init", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, init.Description)
 		params := make([]jen.Code, 0, len(init.Args))
@@ -28,23 +27,8 @@ func grpcTypeInitSection(init *InitData, scope *codegenpkg.NameScope) codegenpkg
 					g.Id("transformErr").Op(":=").New(jen.Error())
 				}
 				g.Add(codegenpkg.Expr(init.Code))
-				if init.ReturnIsStruct {
-					for _, arg := range init.Args {
-						if arg.FieldName == "" {
-							continue
-						}
-						fieldValue := arg.Name
-						if expr.IsAlias(arg.FieldType) {
-							fieldValue = fullTypeName(scope, arg.FieldType) + "(" + fieldValue + ")"
-						}
-						if !arg.Pointer && arg.FieldPointer && expr.IsPrimitive(arg.FieldType) {
-							fieldValueVar := codegenpkg.Goify(arg.FieldName+"Value", false)
-							g.Id(fieldValueVar).Op(":=").Add(codegenpkg.Expr(fieldValue))
-							g.Id(init.ReturnVarName).Dot(arg.FieldName).Op("=").Op("&").Id(fieldValueVar)
-							continue
-						}
-						g.Id(init.ReturnVarName).Dot(arg.FieldName).Op("=").Add(codegenpkg.Expr(fieldValue))
-					}
+				if init.FieldCode != "" {
+					g.Add(codegenpkg.Expr(init.FieldCode))
 				}
 				if init.ErrorAware {
 					g.If(jen.Op("*").Id("transformErr").Op("!=").Nil()).Block(
@@ -90,13 +74,4 @@ func grpcTransformHelperSection(data *codegenpkg.TransformFunctionData) codegenp
 			)
 		stmt.Line()
 	})
-}
-
-// fullTypeName returns the name of the type dt qualified with the name that
-// scope gives its struct:pkg:path package if any.
-func fullTypeName(scope *codegenpkg.NameScope, dt expr.DataType) string {
-	if loc := codegenpkg.UserTypeLocation(dt); loc != nil {
-		return scope.PackageName(loc) + "." + dt.Name()
-	}
-	return dt.Name()
 }

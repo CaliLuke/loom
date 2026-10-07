@@ -59,6 +59,7 @@ func (d *ServicesData) buildRequestConvertData(endpoint *transportir.Endpoint, m
 				Example:      m.Example,
 			})
 		}
+		buildMetadataFieldInit(data, sd, svr)
 		return &ConvertData{
 			SrcName:    protoBufGoFullTypeName(request, sd.PkgName, sd.Scope),
 			SrcRef:     protoBufGoFullTypeRef(request, sd.PkgName, sd.Scope),
@@ -133,6 +134,7 @@ func (d *ServicesData) buildResponseConvertData(endpoint *transportir.Endpoint, 
 		})
 	}
 
+	buildMetadataFieldInit(data, sd, svr)
 	return &ConvertData{
 		SrcName:    protoBufGoFullTypeName(response, sd.PkgName, sd.Scope),
 		SrcRef:     protoBufGoFullTypeRef(response, sd.PkgName, sd.Scope),
@@ -200,6 +202,30 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 		Args:           args,
 		ErrorAware:     containsAny(source) || containsAny(target),
 	}
+}
+
+// buildMetadataFieldInit converts physical metadata locals to service fields
+// through the shared initializer, including qualified aliases and pointers.
+func buildMetadataFieldInit(init *InitData, sd *ServiceData, svr bool) {
+	if !init.ReturnIsStruct {
+		return
+	}
+	args := make([]*codegen.InitArgData, 0, len(init.Args))
+	for _, arg := range init.Args {
+		if arg.FieldName == "" {
+			continue
+		}
+		args = append(args, &codegen.InitArgData{
+			Name: arg.Name, Pointer: arg.Pointer, Type: arg.Type,
+			FieldName: arg.FieldName, FieldPointer: arg.FieldPointer, FieldType: arg.FieldType,
+		})
+	}
+	code, helpers, err := codegen.InitStructFields(args, init.ReturnVarName, "", init.ReturnTypePkg, sd.Service.Scope)
+	if err != nil {
+		panic(fmt.Errorf("build metadata fields for %s: %w", init.Name, err))
+	}
+	init.FieldCode = code
+	sd.transformHelpers = appendTransformHelpers(sd.transformHelpers, helpers, svr)
 }
 
 func appendTransformHelpers(oldH []*TransformHelperData, newH []*codegen.TransformFunctionData, svr bool) []*TransformHelperData {

@@ -46,7 +46,7 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 			FieldType:     ft,
 			VarName:       varn,
 			Required:      required,
-			Type:          c.Type,
+			Type:          unalias(c).Type,
 			TypeName:      scope.GoTypeName(unalias(c)),
 			TypeRef:       typeRef,
 			Pointer:       pointer,

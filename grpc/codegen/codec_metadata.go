@@ -28,8 +28,8 @@ func renderGRPCMetadataAppend(md *MetadataData, root string, schemes []*service.
 			fmt.Fprintf(&b, "\tif %s != nil {\n", value)
 		}
 		if md.Name == "Authorization" && isBearer(schemes) {
-			fmt.Fprintf(&b, "\t\tif !strings.Contains(%s%s, \" \") {\n", pointerPrefix(md.Pointer), value)
-			fmt.Fprintf(&b, "\t\t\t(*md).Append(%q, \"Bearer \"+%s%s)\n", md.Name, pointerPrefix(md.Pointer), value)
+			fmt.Fprintf(&b, "\t\tif !strings.Contains(%s, \" \") {\n", renderMetadataSingleValue(md, value))
+			fmt.Fprintf(&b, "\t\t\t(*md).Append(%q, \"Bearer \"+%s)\n", md.Name, renderMetadataSingleValue(md, value))
 			b.Add("\t\t} else {\n")
 			fmt.Fprintf(&b, "\t\t\t(*md).Append(%q, %s)\n", md.Name, renderMetadataSingleValue(md, value))
 			b.Add("\t\t}\n")
@@ -199,6 +199,9 @@ func renderMetadataSingleValue(md *MetadataData, value string) string {
 	case "bytes":
 		return "string(" + pointerPrefix(md.Pointer) + value + ")"
 	case "string":
+		if expr.IsAlias(md.FieldType) {
+			return "string(" + pointerPrefix(md.Pointer) + value + ")"
+		}
 		return pointerPrefix(md.Pointer) + value
 	default:
 		return renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), exprCode(pointerPrefix(md.Pointer)+value)))

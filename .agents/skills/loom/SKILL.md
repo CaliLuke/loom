@@ -622,7 +622,11 @@ or their numbered `Field` declarations are rejected during validation.
 Use `Meta("struct:field:name", "AuthToken")` on a credential to rename its Go
 field; authentication and transport generation use that same field. Transport
 header/query names remain independently authored. Regenerate after upgrading
-to pick up corrected credential selectors.
+to pick up corrected credential selectors and named-string conversions.
+Credentials may use `String` or a named string type. Their payload fields retain
+that type; authentication callbacks receive strings. Non-string, nullable and
+`struct:field:type` credential overrides are rejected during DSL validation.
+Basic-auth CLI values are plain strings, including for named credential types.
 
 Prefer Loom's first-class session DSL:
 
