@@ -1,51 +1,21 @@
 func transform() {
 	target := &proto.WithDefaults{
-		Int:            int64(source.Int),
-		RawJson:        string(source.RawJSON),
-		RequiredInt:    int64(source.RequiredInt),
-		String_:        source.String,
-		RequiredString: source.RequiredString,
+		String_:        &source.String,
+		RequiredString: &source.RequiredString,
 		Bytes_:         source.Bytes,
 		RequiredBytes:  source.RequiredBytes,
-		Any:            source.Any,
-		RequiredAny:    source.RequiredAny,
+		Any:            &source.Any,
+		RequiredAny:    &source.RequiredAny,
 	}
-	{
-		var zero int64
-		if target.Int == zero {
-			target.Int = 100
-		}
-	}
-	{
-		var zero string
-		if target.RawJson == zero {
-			target.RawJson = jsontext.Value{0x66, 0x6f, 0x6f}
-		}
-	}
-	{
-		var zero string
-		if target.String_ == zero {
-			target.String_ = "foo"
-		}
-	}
-	{
-		var zero []byte
-		if target.Bytes_ == zero {
-			target.Bytes_ = []byte{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72}
-		}
-	}
-	{
-		var zero string
-		if target.Any == zero {
-			target.Any = "something"
-		}
-	}
+	int_ := int64(source.Int)
+	target.Int = &int_
+	rawJSON := string(source.RawJSON)
+	target.RawJson = &rawJSON
+	requiredInt := int64(source.RequiredInt)
+	target.RequiredInt = &requiredInt
 	if source.Array != nil {
 		target.Array = make([]string, len(source.Array))
 		copy(target.Array, source.Array)
-	}
-	if source.Array == nil {
-		target.Array = []string{"foo", "bar"}
 	}
 	if source.RequiredArray != nil {
 		target.RequiredArray = make([]string, len(source.RequiredArray))
@@ -57,9 +27,6 @@ func transform() {
 			tk := int64(key)
 			target.Map_[tk] = val
 		}
-	}
-	if source.Map == nil {
-		target.Map_ = map[int64]string{1: "foo"}
 	}
 	if source.RequiredMap != nil {
 		target.RequiredMap = make(map[int64]string, len(source.RequiredMap))

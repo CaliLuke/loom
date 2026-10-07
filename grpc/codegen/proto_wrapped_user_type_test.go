@@ -66,11 +66,11 @@ func TestNamedPrimitiveMessage(t *testing.T) {
 	require.NoError(t, generationError(func() {
 		code = protoFileCode(t, namedPrimitiveMessageDSL)
 	}))
-	assert.Contains(t, code, "message UID {\n\tstring field = 1;\n}")
+	assert.Contains(t, code, "message UID {\n\toptional string field = 1;\n}")
 	assert.Contains(t, code, "rpc A (UID) returns (AResponse);")
 	assert.Contains(t, code, "rpc B (BRequest) returns (UID);")
 	assert.Contains(t, code, "rpc C (CRequest) returns (stream UID);")
-	assert.Contains(t, code, "message AResponse {\n\tstring id = 1;\n\trepeated string ids = 2;\n\tmap<string, string> by_key = 3;\n}")
+	assert.Contains(t, code, "message AResponse {\n\toptional string id = 1;\n\trepeated string ids = 2;\n\tmap<string, string> by_key = 3;\n}")
 	fpath := codegen.CreateTempFile(t, code)
 	assert.NoError(t, protoc(defaultProtocCmd, fpath, nil), "compile proto file %q", fpath)
 	runGeneratedRoundTrip(t, "example.com/namedprimitive", namedPrimitiveMessageDSL, namedPrimitiveRoundTripHarness)
@@ -233,6 +233,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+ "google.golang.org/protobuf/proto"
 
 	"%[1]s/gen/grpc/svc/client"
 	pb "%[1]s/gen/grpc/svc/pb"
@@ -260,13 +261,13 @@ func TestHolderRoundTrip(t *testing.T) {
 }
 
 func TestValidation(t *testing.T) {
-	require.NoError(t, server.ValidateUID(&pb.UID{Field: "ab"}))
-	require.Error(t, server.ValidateUID(&pb.UID{Field: "a"}))
-	require.NoError(t, client.ValidateUID(&pb.UID{Field: "ab"}))
-	require.Error(t, client.ValidateUID(&pb.UID{Field: "a"}))
-	require.NoError(t, server.ValidateBRequest(&pb.BRequest{Id: "ab", Ids: []string{"cd"}}))
-	require.Error(t, server.ValidateBRequest(&pb.BRequest{Id: "a"}))
-	require.Error(t, server.ValidateBRequest(&pb.BRequest{Id: "ab", Ids: []string{"c"}}))
+	require.NoError(t, server.ValidateUID(&pb.UID{Field: proto.String("ab")}))
+	require.Error(t, server.ValidateUID(&pb.UID{Field: proto.String("a")}))
+	require.NoError(t, client.ValidateUID(&pb.UID{Field: proto.String("ab")}))
+	require.Error(t, client.ValidateUID(&pb.UID{Field: proto.String("a")}))
+	require.NoError(t, server.ValidateBRequest(&pb.BRequest{Id: proto.String("ab"), Ids: []string{"cd"}}))
+	require.Error(t, server.ValidateBRequest(&pb.BRequest{Id: proto.String("a")}))
+	require.Error(t, server.ValidateBRequest(&pb.BRequest{Id: proto.String("ab"), Ids: []string{"c"}}))
 }
 
 func TestNamedMapValueValidation(t *testing.T) {
@@ -275,13 +276,13 @@ func TestNamedMapValueValidation(t *testing.T) {
 		validate func(map[string]string) error
 	}{
 		{"unary request", func(values map[string]string) error {
-			return server.ValidateBRequest(&pb.BRequest{Id: "ok", Ids: []string{"ok"}, ByKey: values})
+			return server.ValidateBRequest(&pb.BRequest{Id: proto.String("ok"), Ids: []string{"ok"}, ByKey: values})
 		}},
 		{"streaming request", func(values map[string]string) error {
-			return server.ValidateCRequest(&pb.CRequest{Id: "ok", Ids: []string{"ok"}, ByKey: values})
+			return server.ValidateCRequest(&pb.CRequest{Id: proto.String("ok"), Ids: []string{"ok"}, ByKey: values})
 		}},
 		{"client response", func(values map[string]string) error {
-			return client.ValidateAResponse(&pb.AResponse{Id: "ok", Ids: []string{"ok"}, ByKey: values})
+			return client.ValidateAResponse(&pb.AResponse{Id: proto.String("ok"), Ids: []string{"ok"}, ByKey: values})
 		}},
 	} {
 		t.Run(path.name, func(t *testing.T) {

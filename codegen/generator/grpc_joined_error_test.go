@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+ "google.golang.org/protobuf/proto"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -71,8 +72,8 @@ func TestGeneratedServerAggregation(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			client := pb.NewBoundaryClient(conn)
-			_, unaryErr := client.Declared(ctx, &pb.DeclaredRequest{Name: "ok"})
-			stream, err := client.Watch(ctx, &pb.WatchRequest{Name: "ok"})
+			_, unaryErr := client.Declared(ctx, &pb.DeclaredRequest{Name: proto.String("ok")})
+			stream, err := client.Watch(ctx, &pb.WatchRequest{Name: proto.String("ok")})
 			require.NoError(t, err)
 			_, streamErr := stream.Recv()
 			for _, got := range []error{unaryErr, streamErr} {

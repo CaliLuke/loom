@@ -1,20 +1,315 @@
+// NewProtoPresenceBlob builds the gRPC request type from the payload of the
+// "Blob" endpoint of the "DefaultFields" service.
+func NewProtoPresenceBlob(payload defaultfields.PresenceBlob) *default_fieldspb.PresenceBlob {
+	message := &default_fieldspb.PresenceBlob{}
+	message.Field = []byte(payload)
+	return message
+}
+
+// NewBlobResult builds the result type of the "Blob" endpoint of the
+// "DefaultFields" service from the gRPC response type.
+func NewBlobResult(message *default_fieldspb.PresenceBlob) defaultfields.PresenceBlob {
+	result := defaultfields.PresenceBlob(message.Field)
+	return result
+}
+
+// NewProtoScalarsRequest builds the gRPC request type from the payload of the
+// "Scalars" endpoint of the "DefaultFields" service.
+func NewProtoScalarsRequest(payload *defaultfields.PresenceScalars) *default_fieldspb.ScalarsRequest {
+	message := &default_fieldspb.ScalarsRequest{
+		Flag:            &payload.Flag,
+		Integer32:       &payload.Integer32,
+		Integer64:       &payload.Integer64,
+		Unsigned32:      &payload.Unsigned32,
+		Unsigned64:      &payload.Unsigned64,
+		Float32:         &payload.Float32,
+		Float64:         &payload.Float64,
+		Bytes_:          []byte(payload.Bytes),
+		RequiredDefault: &payload.RequiredDefault,
+		OptionalDefault: &payload.OptionalDefault,
+		Optional:        payload.Optional,
+	}
+	text := string(payload.Text)
+	message.Text = &text
+	integer := int64(payload.Integer)
+	message.Integer = &integer
+	unsigned := uint64(payload.Unsigned)
+	message.Unsigned = &unsigned
+	return message
+}
+
+// NewScalarsResult builds the result type of the "Scalars" endpoint of the
+// "DefaultFields" service from the gRPC response type.
+func NewScalarsResult(message *default_fieldspb.ScalarsResponse) *defaultfields.PresenceScalars {
+	result := &defaultfields.PresenceScalars{
+		Text:            defaultfields.PresenceText(*message.Text),
+		Flag:            *message.Flag,
+		Integer:         int(*message.Integer),
+		Integer32:       *message.Integer32,
+		Integer64:       *message.Integer64,
+		Unsigned:        uint(*message.Unsigned),
+		Unsigned32:      *message.Unsigned32,
+		Unsigned64:      *message.Unsigned64,
+		Float32:         *message.Float32,
+		Float64:         *message.Float64,
+		Bytes:           defaultfields.PresenceBytes(message.Bytes_),
+		RequiredDefault: *message.RequiredDefault,
+		Optional:        message.Optional,
+	}
+	if message.OptionalDefault != nil {
+		result.OptionalDefault = *message.OptionalDefault
+	}
+	if message.OptionalDefault == nil {
+		result.OptionalDefault = "fallback"
+	}
+	return result
+}
+
+func NewStreamResponsePresenceScalars(v *default_fieldspb.StreamResponse) *defaultfields.PresenceScalars {
+	result := &defaultfields.PresenceScalars{
+		Text:            defaultfields.PresenceText(*v.Text),
+		Flag:            *v.Flag,
+		Integer:         int(*v.Integer),
+		Integer32:       *v.Integer32,
+		Integer64:       *v.Integer64,
+		Unsigned:        uint(*v.Unsigned),
+		Unsigned32:      *v.Unsigned32,
+		Unsigned64:      *v.Unsigned64,
+		Float32:         *v.Float32,
+		Float64:         *v.Float64,
+		Bytes:           defaultfields.PresenceBytes(v.Bytes_),
+		RequiredDefault: *v.RequiredDefault,
+		Optional:        v.Optional,
+	}
+	if v.OptionalDefault != nil {
+		result.OptionalDefault = *v.OptionalDefault
+	}
+	if v.OptionalDefault == nil {
+		result.OptionalDefault = "fallback"
+	}
+	return result
+}
+
+func NewProtoPresenceScalarsStreamStreamingRequest(spayload *defaultfields.PresenceScalars) *default_fieldspb.StreamStreamingRequest {
+	v := &default_fieldspb.StreamStreamingRequest{
+		Flag:            &spayload.Flag,
+		Integer32:       &spayload.Integer32,
+		Integer64:       &spayload.Integer64,
+		Unsigned32:      &spayload.Unsigned32,
+		Unsigned64:      &spayload.Unsigned64,
+		Float32:         &spayload.Float32,
+		Float64:         &spayload.Float64,
+		Bytes_:          []byte(spayload.Bytes),
+		RequiredDefault: &spayload.RequiredDefault,
+		OptionalDefault: &spayload.OptionalDefault,
+		Optional:        spayload.Optional,
+	}
+	text := string(spayload.Text)
+	v.Text = &text
+	integer := int64(spayload.Integer)
+	v.Integer = &integer
+	unsigned := uint64(spayload.Unsigned)
+	v.Unsigned = &unsigned
+	return v
+}
+
 // NewProtoMethodRequest builds the gRPC request type from the payload of the
 // "Method" endpoint of the "DefaultFields" service.
 func NewProtoMethodRequest(payload *defaultfields.MethodPayload) *default_fieldspb.MethodRequest {
 	message := &default_fieldspb.MethodRequest{
-		Req:  payload.Req,
+		Req:  &payload.Req,
 		Opt:  payload.Opt,
 		Def0: &payload.Def0,
 		Def1: &payload.Def1,
 		Def2: &payload.Def2,
-		Reqs: payload.Reqs,
+		Reqs: &payload.Reqs,
 		Opts: payload.Opts,
 		Defs: &payload.Defs,
 		Defe: &payload.Defe,
-		Rat:  payload.Rat,
+		Rat:  &payload.Rat,
 		Flt:  payload.Flt,
 		Flt0: &payload.Flt0,
 		Flt1: &payload.Flt1,
 	}
 	return message
+}
+
+// ValidatePresenceBlob runs the validations defined on PresenceBlob.
+func ValidatePresenceBlob(message *default_fieldspb.PresenceBlob) (err error) {
+	if message.Field == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+	}
+	if message.Field != nil {
+		if len(message.Field) > 3 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.field", message.Field, len(message.Field), 3, false))
+		}
+	}
+	return
+}
+
+// ValidateScalarsRequest runs the validations defined on ScalarsRequest.
+func ValidateScalarsRequest(message *default_fieldspb.ScalarsRequest) (err error) {
+	if message.Text == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("text", "message"))
+	}
+	if message.Flag == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("flag", "message"))
+	}
+	if message.Integer == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer", "message"))
+	}
+	if message.Integer32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", "message"))
+	}
+	if message.Integer64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", "message"))
+	}
+	if message.Unsigned == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", "message"))
+	}
+	if message.Unsigned32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", "message"))
+	}
+	if message.Unsigned64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", "message"))
+	}
+	if message.Float32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("float32", "message"))
+	}
+	if message.Float64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("float64", "message"))
+	}
+	if message.Bytes_ == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", "message"))
+	}
+	if message.RequiredDefault == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", "message"))
+	}
+	if message.Text != nil {
+		if utf8.RuneCountInString(*message.Text) > 3 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.text", *message.Text, utf8.RuneCountInString(*message.Text), 3, false))
+		}
+	}
+	if message.Bytes_ != nil {
+		if len(message.Bytes_) > 3 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.bytes", message.Bytes_, len(message.Bytes_), 3, false))
+		}
+	}
+	return
+}
+
+// ValidateScalarsResponse runs the validations defined on ScalarsResponse.
+func ValidateScalarsResponse(message *default_fieldspb.ScalarsResponse) (err error) {
+	if message.Text == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("text", "message"))
+	}
+	if message.Flag == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("flag", "message"))
+	}
+	if message.Integer == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer", "message"))
+	}
+	if message.Integer32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", "message"))
+	}
+	if message.Integer64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", "message"))
+	}
+	if message.Unsigned == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", "message"))
+	}
+	if message.Unsigned32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", "message"))
+	}
+	if message.Unsigned64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", "message"))
+	}
+	if message.Float32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("float32", "message"))
+	}
+	if message.Float64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("float64", "message"))
+	}
+	if message.Bytes_ == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", "message"))
+	}
+	if message.RequiredDefault == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", "message"))
+	}
+	if message.Text != nil {
+		if utf8.RuneCountInString(*message.Text) > 3 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.text", *message.Text, utf8.RuneCountInString(*message.Text), 3, false))
+		}
+	}
+	if message.Bytes_ != nil {
+		if len(message.Bytes_) > 3 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("message.bytes", message.Bytes_, len(message.Bytes_), 3, false))
+		}
+	}
+	return
+}
+
+// ValidateStreamResponse runs the validations defined on StreamResponse.
+func ValidateStreamResponse(stream *default_fieldspb.StreamResponse) (err error) {
+	if stream.Text == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("text", "stream"))
+	}
+	if stream.Flag == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("flag", "stream"))
+	}
+	if stream.Integer == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer", "stream"))
+	}
+	if stream.Integer32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", "stream"))
+	}
+	if stream.Integer64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", "stream"))
+	}
+	if stream.Unsigned == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", "stream"))
+	}
+	if stream.Unsigned32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", "stream"))
+	}
+	if stream.Unsigned64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", "stream"))
+	}
+	if stream.Float32 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("float32", "stream"))
+	}
+	if stream.Float64 == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("float64", "stream"))
+	}
+	if stream.Bytes_ == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", "stream"))
+	}
+	if stream.RequiredDefault == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", "stream"))
+	}
+	if stream.Text != nil {
+		if utf8.RuneCountInString(*stream.Text) > 3 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("stream.text", *stream.Text, utf8.RuneCountInString(*stream.Text), 3, false))
+		}
+	}
+	if stream.Bytes_ != nil {
+		if len(stream.Bytes_) > 3 {
+			err = loom.MergeErrors(err, loom.InvalidLengthError("stream.bytes", stream.Bytes_, len(stream.Bytes_), 3, false))
+		}
+	}
+	return
+}
+
+// ValidateMethodRequest runs the validations defined on MethodRequest.
+func ValidateMethodRequest(message *default_fieldspb.MethodRequest) (err error) {
+	if message.Req == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("req", "message"))
+	}
+	if message.Reqs == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("reqs", "message"))
+	}
+	if message.Rat == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("rat", "message"))
+	}
+	return
 }

@@ -12,7 +12,7 @@ service ServiceBidirectionalStreamingRPC {
 }
 
 message MethodBidirectionalStreamingRPCStreamingRequest {
-	sint64 field = 1;
+	optional sint64 field = 1;
 }
 
 message MethodBidirectionalStreamingRPCResponse {

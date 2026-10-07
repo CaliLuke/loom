@@ -276,6 +276,9 @@ func (d *ServicesData) buildRequestData(
 	}
 	hasRequestMessage := !isEmpty(endpoint.Request.Message.Type)
 	if obj := expr.AsObject(endpoint.Request.ProtoMessage.Type); (obj != nil && len(*obj) > 0) || expr.IsUnion(endpoint.Request.ProtoMessage.Type) {
+		// CLI payload builders decode the same protobuf message as the server.
+		// Register its validator and dependencies for the client package too.
+		addValidation(endpoint.Request.ProtoMessage, "message", sd, false)
 		method := svc.Method(endpoint.Name)
 		request.CLIArgs = append(request.CLIArgs, &InitArgData{
 			Name:     "message",

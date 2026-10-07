@@ -2,7 +2,7 @@
 // "MethodPayloadDuplicateA" endpoint of the "ServicePayloadWithNestedTypes"
 // service from the gRPC request type.
 func NewMethodPayloadDuplicateAPayload(message *service_payload_with_nested_typespb.DupePayload) servicepayloadwithnestedtypes.DupePayload {
-	v := servicepayloadwithnestedtypes.DupePayload(message.Field)
+	v := servicepayloadwithnestedtypes.DupePayload(*message.Field)
 	return v
 }
 
@@ -18,7 +18,7 @@ func NewProtoMethodPayloadDuplicateAResponse() *service_payload_with_nested_type
 // "MethodPayloadDuplicateB" endpoint of the "ServicePayloadWithNestedTypes"
 // service from the gRPC request type.
 func NewMethodPayloadDuplicateBPayload(message *service_payload_with_nested_typespb.DupePayload) servicepayloadwithnestedtypes.DupePayload {
-	v := servicepayloadwithnestedtypes.DupePayload(message.Field)
+	v := servicepayloadwithnestedtypes.DupePayload(*message.Field)
 	return v
 }
 
@@ -28,4 +28,12 @@ func NewMethodPayloadDuplicateBPayload(message *service_payload_with_nested_type
 func NewProtoMethodPayloadDuplicateBResponse() *service_payload_with_nested_typespb.MethodPayloadDuplicateBResponse {
 	message := &service_payload_with_nested_typespb.MethodPayloadDuplicateBResponse{}
 	return message
+}
+
+// ValidateDupePayload runs the validations defined on DupePayload.
+func ValidateDupePayload(message *service_payload_with_nested_typespb.DupePayload) (err error) {
+	if message.Field == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+	}
+	return
 }

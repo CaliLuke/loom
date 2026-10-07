@@ -294,7 +294,7 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 		}
 		flags[i] = f
 		params[i] = f.FullName
-		code, chek := cli.FieldLoadCode(f, arg.Name, arg.TypeName, arg.Validate, arg.DefaultValue, e.PayloadType, e.PayloadRef)
+		code, chek := cliMessageFieldLoadCode(f, arg, e)
 		check = check || chek
 		tn := arg.TypeRef
 		if f.Type == "JSON" {
@@ -338,4 +338,19 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 		PayloadInit:  pinit,
 		CheckErr:     check,
 	}
+}
+
+// cliMessageFieldLoadCode validates decoded protobuf messages before service
+// conversion, including when an empty flag skips JSON loading.
+func cliMessageFieldLoadCode(f *cli.FlagData, arg *InitArgData, e *EndpointData) (*jen.Statement, bool) {
+	code, check := cli.FieldLoadCode(f, arg.Name, arg.TypeName, arg.Validate, arg.DefaultValue, e.PayloadType, e.PayloadRef)
+	if arg.ProtoMessage && e.Request.ServerConvert.Validation != nil {
+		validation := e.Request.ServerConvert.Validation
+		code.Line().If(jen.Err().Op("=").Id(validation.Name).Call(jen.Op("&").Id(arg.Name)), jen.Err().Op("!=").Nil()).Block(
+			jen.Var().Id("zero").Add(codegen.TypeRef(e.PayloadRef)),
+			jen.Return(jen.Id("zero"), jen.Err()),
+		)
+		check = true
+	}
+	return code, check
 }

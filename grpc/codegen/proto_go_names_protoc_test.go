@@ -98,7 +98,7 @@ func protoNamesOracle(t *testing.T, att *expr.AttributeExpr, names *protoMessage
 			source.WriteString("}\n")
 			continue
 		}
-		typ := protoBufOptionalField(att, nat) + "string"
+		typ := protoBufOptionalField(nat) + "string"
 		if expr.IsMap(nat.Attribute.Type) {
 			typ = "map<string, string>"
 		}

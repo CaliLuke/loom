@@ -2,7 +2,7 @@
 // "MethodElemValidation" endpoint of the "ServiceElemValidation" service from
 // the gRPC request type.
 func NewMethodElemValidationPayload(message *service_elem_validationpb.UUID) serviceelemvalidation.UUID {
-	v := serviceelemvalidation.UUID(message.Field)
+	v := serviceelemvalidation.UUID(*message.Field)
 	return v
 }
 
@@ -16,6 +16,11 @@ func NewProtoMethodElemValidationResponse() *service_elem_validationpb.MethodEle
 
 // ValidateUUID runs the validations defined on UUID.
 func ValidateUUID(message *service_elem_validationpb.UUID) (err error) {
-	err = loom.MergeErrors(err, loom.ValidateFormat("message.field", message.Field, loom.FormatUUID))
+	if message.Field == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+	}
+	if message.Field != nil {
+		err = loom.MergeErrors(err, loom.ValidateFormat("message.field", *message.Field, loom.FormatUUID))
+	}
 	return
 }

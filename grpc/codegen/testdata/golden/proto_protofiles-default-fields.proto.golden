@@ -7,21 +7,99 @@ option go_package = "/default_fieldspb";
 
 // Service is the DefaultFields service interface.
 service DefaultFields {
+	// Blob implements Blob.
+	rpc Blob (PresenceBlob) returns (PresenceBlob);
+	// Scalars implements Scalars.
+	rpc Scalars (ScalarsRequest) returns (ScalarsResponse);
+	// Stream implements Stream.
+	rpc Stream (stream StreamStreamingRequest) returns (stream StreamResponse);
 	// Method implements Method.
 	rpc Method (MethodRequest) returns (MethodResponse);
 }
 
+message PresenceBlob {
+	optional bytes field = 1;
+}
+
+message ScalarsRequest {
+	optional string text = 1;
+	optional bool flag = 2;
+	optional sint64 integer = 3;
+	optional sint32 integer32 = 4;
+	optional sint64 integer64 = 5;
+	optional uint64 unsigned = 6;
+	optional uint32 unsigned32 = 7;
+	optional uint64 unsigned64 = 8;
+	optional float float32 = 9;
+	optional double float64 = 10;
+	optional bytes bytes_ = 11;
+	optional string required_default = 12;
+	optional string optional_default = 13;
+	optional string optional = 14;
+}
+
+message ScalarsResponse {
+	optional string text = 1;
+	optional bool flag = 2;
+	optional sint64 integer = 3;
+	optional sint32 integer32 = 4;
+	optional sint64 integer64 = 5;
+	optional uint64 unsigned = 6;
+	optional uint32 unsigned32 = 7;
+	optional uint64 unsigned64 = 8;
+	optional float float32 = 9;
+	optional double float64 = 10;
+	optional bytes bytes_ = 11;
+	optional string required_default = 12;
+	optional string optional_default = 13;
+	optional string optional = 14;
+}
+
+message StreamStreamingRequest {
+	optional string text = 1;
+	optional bool flag = 2;
+	optional sint64 integer = 3;
+	optional sint32 integer32 = 4;
+	optional sint64 integer64 = 5;
+	optional uint64 unsigned = 6;
+	optional uint32 unsigned32 = 7;
+	optional uint64 unsigned64 = 8;
+	optional float float32 = 9;
+	optional double float64 = 10;
+	optional bytes bytes_ = 11;
+	optional string required_default = 12;
+	optional string optional_default = 13;
+	optional string optional = 14;
+}
+
+message StreamResponse {
+	optional string text = 1;
+	optional bool flag = 2;
+	optional sint64 integer = 3;
+	optional sint32 integer32 = 4;
+	optional sint64 integer64 = 5;
+	optional uint64 unsigned = 6;
+	optional uint32 unsigned32 = 7;
+	optional uint64 unsigned64 = 8;
+	optional float float32 = 9;
+	optional double float64 = 10;
+	optional bytes bytes_ = 11;
+	optional string required_default = 12;
+	optional string optional_default = 13;
+	optional string optional = 14;
+}
+
 message MethodRequest {
-	sint64 req = 1;
+	optional sint64 req = 1;
 	optional sint64 opt = 2;
 	optional sint64 def0 = 3;
 	optional sint64 def1 = 4;
 	optional sint64 def2 = 5;
-	string reqs = 6;
+	optional string reqs = 6;
 	optional string opts = 7;
 	optional string defs = 8;
 	optional string defe = 9;
-	double rat = 10;
+	optional double rat = 10;
 	optional double flt = 11;
 	optional double flt0 = 12;
 	optional double flt1 = 13;

@@ -34,17 +34,17 @@ message FlSsResponse {
 }
 
 message Get3DRequest {
-	string field = 1;
+	optional string field = 1;
 }
 
 message Get3DResponse {
-	string field = 1;
+	optional string field = 1;
 }
 
 message MessageRequest {
-	string field = 1;
+	optional string field = 1;
 }
 
 message MessageResponse {
-	string field = 1;
+	optional string field = 1;
 }

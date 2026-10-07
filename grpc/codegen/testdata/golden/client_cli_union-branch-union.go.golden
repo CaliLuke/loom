@@ -25,6 +25,10 @@ func BuildEchoPayload(nestedunionEchoMessage string) (*nestedunion.Envelope, err
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"extra\": {\n         \"flag\": false\n      },\n      \"holder\": {\n         \"extra\": {\n            \"flag\": false\n         },\n         \"other\": {\n            \"count\": \"6535101188414410037\"\n         }\n      },\n      \"holders\": [\n         {\n            \"extra\": {\n               \"flag\": false\n            },\n            \"other\": {\n               \"count\": \"6535101188414410037\"\n            }\n         },\n         {\n            \"extra\": {\n               \"flag\": false\n            },\n            \"other\": {\n               \"count\": \"6535101188414410037\"\n            }\n         }\n      ],\n      \"id\": \"Neque earum eum dolorem.\",\n      \"leaf\": {\n         \"name\": \"Numquam minus sit qui sit.\"\n      },\n      \"picked\": {\n         \"other\": {\n            \"count\": \"6535101188414410037\"\n         }\n      }\n   }'")
 			}
 		}
+		if err = ValidateEchoRequest(&message); err != nil {
+			var zero *nestedunion.Envelope
+			return zero, err
+		}
 	}
 	v := &nestedunion.Envelope{
 		ID: message.Id,
@@ -134,6 +138,10 @@ func BuildWrapPayload(nestedunionWrapMessage string) (*nestedunion.Outer, error)
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"choice\": {\n         \"other\": {\n            \"count\": \"1149262919402122419\"\n         }\n      }\n   }'")
 			}
 		}
+		if err = ValidateOuter(&message); err != nil {
+			var zero *nestedunion.Outer
+			return zero, err
+		}
 	}
 	var v *nestedunion.Outer
 	switch val := message.Field.(type) {
@@ -165,6 +173,10 @@ func BuildPickPayload(nestedunionPickMessage string) (*nestedunion.Choice, error
 			if err != nil {
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": \"877054411865586437\"\n      }\n   }'")
 			}
+		}
+		if err = ValidateChoice(&message); err != nil {
+			var zero *nestedunion.Choice
+			return zero, err
 		}
 	}
 	var v *nestedunion.Choice

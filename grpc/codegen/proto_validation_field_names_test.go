@@ -31,8 +31,8 @@ func TestValidationUsesProtobufField(t *testing.T) {
 			value := &probe.Value{Custom: tc.name}
 			request := client.NewProtoEchoRequest(value)
 			response := server.NewProtoEchoResponse(value)
-			require.Equal(t, tc.name, request.Name)
-			require.Equal(t, tc.name, response.Name)
+			require.Equal(t, tc.name, request.GetName())
+			require.Equal(t, tc.name, response.GetName())
 			require.Equal(t, value, server.NewEchoPayload(request))
 			require.Equal(t, value, client.NewEchoResult(response))
 			for _, err := range []error{server.ValidateEchoRequest(request), client.ValidateEchoResponse(response)} {

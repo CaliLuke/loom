@@ -68,6 +68,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+ "google.golang.org/protobuf/proto"
 )
 
 func TestLocalAndRemoteErrors(t *testing.T) {
@@ -81,7 +82,7 @@ func TestLocalAndRemoteErrors(t *testing.T) {
 			if remoteErr != nil {
 				return remoteErr
 			}
-			reply.(*pb.Reply).State = state
+			reply.(*pb.Reply).State = proto.String(state)
 			return nil
 		}),
 		std.WithStreamInterceptor(func(_ context.Context, _ *std.StreamDesc, _ *std.ClientConn, _ string, _ std.Streamer, _ ...std.CallOption) (std.ClientStream, error) {
@@ -130,7 +131,7 @@ func TestLocalAndRemoteErrors(t *testing.T) {
 		require.Equal(t, "remote-id", serviceErr.ID)
 		require.True(t, serviceErr.Temporary)
 	}
-	st, err = status.New(codes.InvalidArgument, "declared failure").WithDetails(&pb.Problem{Reason: "declared"})
+	st, err = status.New(codes.InvalidArgument, "declared failure").WithDetails(&pb.Problem{Reason: proto.String("declared")})
 	require.NoError(t, err)
 	remoteErr = st.Err()
 	for _, endpoint := range []loom.Endpoint{c.Declared(), c.Watch()} {

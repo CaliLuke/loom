@@ -247,7 +247,14 @@ func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCt
 		if i < len(attCtx.oneofFields) {
 			fieldName = attCtx.oneofFields[i]
 		}
-		val := validateAttribute(branchCtx, vatt, put, "v."+fieldName, context+".value", true, view, seen)
+		valueCtx := branchCtx
+		if expr.IsPrimitive(vatt.Type) && branchCtx.Pointer {
+			// A protobuf oneof wrapper carries presence; its scalar field is a
+			// value even when ordinary message fields use scalar pointers.
+			valueCtx = branchCtx.Dup()
+			valueCtx.Pointer = false
+		}
+		val := validateAttribute(valueCtx, vatt, put, "v."+fieldName, context+".value", true, view, seen)
 		if val != "" {
 			tref := attCtx.Scope.Ref(&expr.AttributeExpr{Type: put}, attCtx.DefaultPkg)
 			typeName := fieldName

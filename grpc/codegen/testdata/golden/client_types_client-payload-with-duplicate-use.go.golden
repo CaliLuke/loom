@@ -3,6 +3,15 @@
 // service.
 func NewProtoDupePayload(payload servicepayloadwithnestedtypes.DupePayload) *service_payload_with_nested_typespb.DupePayload {
 	message := &service_payload_with_nested_typespb.DupePayload{}
-	message.Field = string(payload)
+	field := string(payload)
+	message.Field = &field
 	return message
+}
+
+// ValidateDupePayload runs the validations defined on DupePayload.
+func ValidateDupePayload(message *service_payload_with_nested_typespb.DupePayload) (err error) {
+	if message.Field == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+	}
+	return
 }

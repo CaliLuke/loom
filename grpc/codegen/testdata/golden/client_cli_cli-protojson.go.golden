@@ -27,10 +27,14 @@ func BuildPlainPayload(pbjsonPlainMessage string) (*pbjson.PlainPayload, error) 
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"anything\": \"Enim nulla corporis id.\",\n      \"big\": \"2700954221996933372\",\n      \"blob\": \"TW9sbGl0aWEgZGViaXRpcyBkaXN0aW5jdGlvIG1vbGVzdGlhZSBxdWFzaS4=\",\n      \"by_id\": {\n         \"1941745454451434855\": \"Ab aperiam sed voluptas ipsa.\",\n         \"7143569782510229573\": \"Libero quis non iste.\",\n         \"97187607000592669\": \"Quisquam tempora.\"\n      },\n      \"by_name\": {\n         \"Accusamus fugiat veritatis dolores et in velit.\": {\n            \"leaf_name\": \"Libero et non porro.\",\n            \"message_\": \"Dolores sunt unde voluptas fuga eveniet distinctio.\"\n         },\n         \"Enim maxime.\": {\n            \"leaf_name\": \"Libero et non porro.\",\n            \"message_\": \"Dolores sunt unde voluptas fuga eveniet distinctio.\"\n         },\n         \"Eveniet similique maiores.\": {\n            \"leaf_name\": \"Libero et non porro.\",\n            \"message_\": \"Dolores sunt unde voluptas fuga eveniet distinctio.\"\n         }\n      },\n      \"ratio\": 0.5445891,\n      \"request_id\": \"Labore perferendis animi vel voluptatibus consectetur.\",\n      \"tags\": [\n         {\n            \"field\": [\n               \"Voluptatum voluptas cumque ipsam hic.\",\n               \"Non omnis.\",\n               \"Nihil ad sed.\"\n            ]\n         },\n         {\n            \"field\": [\n               \"Quia et odit.\",\n               \"Minima aut inventore voluptatibus est illo.\",\n               \"Fugiat occaecati voluptate.\"\n            ]\n         }\n      ]\n   }'")
 			}
 		}
+		if err = ValidatePlainRequest(&message); err != nil {
+			var zero *pbjson.PlainPayload
+			return zero, err
+		}
 	}
 	transformErr := new(error)
 	v := &pbjson.PlainPayload{
-		RequestID: message.RequestId,
+		RequestID: *message.RequestId,
 		Blob:      message.Blob,
 		Big:       message.Big,
 		Ratio:     message.Ratio,
@@ -56,7 +60,7 @@ func BuildPlainPayload(pbjsonPlainMessage string) (*pbjson.PlainPayload, error) 
 		v.ByName = make(map[string]*pbjson.Leaf, len(message.ByName))
 		for key, val := range message.ByName {
 			tv := &pbjson.Leaf{
-				LeafName: val.LeafName,
+				LeafName: *val.LeafName,
 				Message:  val.Message_,
 			}
 			v.ByName[key] = tv
@@ -89,9 +93,13 @@ func BuildSendPayload(pbjsonSendMessage string) (*pbjson.SendPayload, error) {
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"choice_map\": {\n         \"Distinctio sed pariatur unde non.\": {\n            \"leaf\": {\n               \"leaf_name\": \"Sed quia molestiae ratione.\",\n               \"message_\": \"Ut odio ipsum ut.\"\n            }\n         },\n         \"Doloribus saepe sed nulla ab.\": {\n            \"leaf\": {\n               \"leaf_name\": \"Sed quia molestiae ratione.\",\n               \"message_\": \"Ut odio ipsum ut.\"\n            }\n         }\n      },\n      \"choices\": [\n         {\n            \"leaf\": {\n               \"leaf_name\": \"Sed quia molestiae ratione.\",\n               \"message_\": \"Ut odio ipsum ut.\"\n            }\n         },\n         {\n            \"leaf\": {\n               \"leaf_name\": \"Sed quia molestiae ratione.\",\n               \"message_\": \"Ut odio ipsum ut.\"\n            }\n         }\n      ],\n      \"leaf\": {\n         \"leaf_name\": \"Sed quia molestiae ratione.\",\n         \"message_\": \"Ut odio ipsum ut.\"\n      },\n      \"leaves\": [\n         {\n            \"leaf_name\": \"Sed quia molestiae ratione.\",\n            \"message_\": \"Ut odio ipsum ut.\"\n         },\n         {\n            \"leaf_name\": \"Sed quia molestiae ratione.\",\n            \"message_\": \"Ut odio ipsum ut.\"\n         }\n      ],\n      \"request_id\": \"Dolore et qui perspiciatis distinctio.\"\n   }'")
 			}
 		}
+		if err = ValidateSendRequest(&message); err != nil {
+			var zero *pbjson.SendPayload
+			return zero, err
+		}
 	}
 	v := &pbjson.SendPayload{
-		RequestID: message.RequestId,
+		RequestID: *message.RequestId,
 	}
 	if message.Pick != nil {
 		switch val := message.Pick.(type) {
@@ -158,7 +166,7 @@ func BuildSendPayload(pbjsonSendMessage string) (*pbjson.SendPayload, error) {
 		v.Leaves = make([]*pbjson.Leaf, len(message.Leaves))
 		for i, val := range message.Leaves {
 			v.Leaves[i] = &pbjson.Leaf{
-				LeafName: val.LeafName,
+				LeafName: *val.LeafName,
 				Message:  val.Message_,
 			}
 		}
@@ -178,6 +186,10 @@ func BuildUnionPayload(pbjsonUnionMessage string) (*pbjson.Choice, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"leaf\": {\n         \"leaf_name\": \"Ut enim eius.\",\n         \"message_\": \"Et aut error itaque non delectus.\"\n      }\n   }'")
 			}
+		}
+		if err = ValidateChoice(&message); err != nil {
+			var zero *pbjson.Choice
+			return zero, err
 		}
 	}
 	var v *pbjson.Choice
@@ -212,8 +224,12 @@ func BuildScalarPayload(pbjsonScalarMessage string) (string, error) {
 				return zero, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"field\": \"Consequatur aut quo qui et et sit.\"\n   }'")
 			}
 		}
+		if err = ValidateScalarRequest(&message); err != nil {
+			var zero string
+			return zero, err
+		}
 	}
-	v := message.Field
+	v := *message.Field
 	return v, nil
 }
 
@@ -229,11 +245,15 @@ func BuildListPayload(pbjsonListMessage string) ([]*pbjson.Leaf, error) {
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"field\": [\n         {\n            \"leaf_name\": \"Aperiam rerum ducimus qui nihil labore quam.\",\n            \"message_\": \"Voluptates unde aut natus.\"\n         },\n         {\n            \"leaf_name\": \"Aperiam rerum ducimus qui nihil labore quam.\",\n            \"message_\": \"Voluptates unde aut natus.\"\n         }\n      ]\n   }'")
 			}
 		}
+		if err = ValidateListRequest(&message); err != nil {
+			var zero []*pbjson.Leaf
+			return zero, err
+		}
 	}
 	v := make([]*pbjson.Leaf, len(message.Field))
 	for i, val := range message.Field {
 		v[i] = &pbjson.Leaf{
-			LeafName: val.LeafName,
+			LeafName: *val.LeafName,
 			Message:  val.Message_,
 		}
 	}
@@ -244,7 +264,7 @@ func BuildListPayload(pbjsonListMessage string) ([]*pbjson.Leaf, error) {
 // value of type *pbjsonpb.Leaf.
 func protobufPbjsonpbLeafToPbjsonLeaf(v *pbjsonpb.Leaf) *pbjson.Leaf {
 	res := &pbjson.Leaf{
-		LeafName: v.LeafName,
+		LeafName: *v.LeafName,
 		Message:  v.Message_,
 	}
 

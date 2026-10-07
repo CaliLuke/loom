@@ -52,7 +52,7 @@ func TestGenericErrorsRetainTransportCause(t *testing.T) {
 	for _, code := range []codes.Code{codes.Canceled, codes.DeadlineExceeded, codes.Unavailable} {
 		for _, wrapped := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/wrapped=%t", code, wrapped), func(t *testing.T) {
-				st, err := status.New(code, "transport message").WithDetails(detail, &pb.Problem{Reason: "extra detail"})
+				st, err := status.New(code, "transport message").WithDetails(detail, &pb.Problem{Reason: proto.String("extra detail")})
 				require.NoError(t, err)
 				original := st.Err()
 				cause := original

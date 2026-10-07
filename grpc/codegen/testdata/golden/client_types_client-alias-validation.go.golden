@@ -10,12 +10,17 @@ func NewProtoMethodResultWithAliasValidationRequest() *service_result_with_alias
 // "MethodResultWithAliasValidation" endpoint of the
 // "ServiceResultWithAliasValidation" service from the gRPC response type.
 func NewMethodResultWithAliasValidationResult(message *service_result_with_alias_validationpb.UUID) serviceresultwithaliasvalidation.UUID {
-	result := serviceresultwithaliasvalidation.UUID(message.Field)
+	result := serviceresultwithaliasvalidation.UUID(*message.Field)
 	return result
 }
 
 // ValidateUUID runs the validations defined on UUID.
 func ValidateUUID(message *service_result_with_alias_validationpb.UUID) (err error) {
-	err = loom.MergeErrors(err, loom.ValidateFormat("message.field", message.Field, loom.FormatUUID))
+	if message.Field == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+	}
+	if message.Field != nil {
+		err = loom.MergeErrors(err, loom.ValidateFormat("message.field", *message.Field, loom.FormatUUID))
+	}
 	return
 }

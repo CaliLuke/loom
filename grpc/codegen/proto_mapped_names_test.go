@@ -15,9 +15,9 @@ import (
 func TestProtoFilesMappedNames(t *testing.T) {
 	code := protoFileCode(t, testdata.MappedNamesDSL)
 
-	assert.Contains(t, code, "message EchoRequest {\n\toptional string n = 1;\n\tsint64 req = 2;\n\toptional sint64 def = 3;\n\toneof pick {\n\t\tstring string_ = 4;\n\t\tsint64 int = 5;\n\t}\n\tLeaf obj = 6;\n\trepeated string list = 7;\n\tmap<string, Leaf> index = 8;\n\toneof choice {\n\t\tstring text = 9;\n\t\tLeaf leaf_branch = 10;\n\t}\n}")
-	assert.Contains(t, code, "message Leaf {\n\toptional string leaf = 1;\n\tsint64 count = 2;\n}")
-	assert.Contains(t, code, "message StreamRequest {\n\tstring id = 1;\n}")
+	assert.Contains(t, code, "message EchoRequest {\n\toptional string n = 1;\n\toptional sint64 req = 2;\n\toptional sint64 def = 3;\n\toneof pick {\n\t\tstring string_ = 4;\n\t\tsint64 int = 5;\n\t}\n\tLeaf obj = 6;\n\trepeated string list = 7;\n\tmap<string, Leaf> index = 8;\n\toneof choice {\n\t\tstring text = 9;\n\t\tLeaf leaf_branch = 10;\n\t}\n}")
+	assert.Contains(t, code, "message Leaf {\n\toptional string leaf = 1;\n\toptional sint64 count = 2;\n}")
+	assert.Contains(t, code, "message StreamRequest {\n\toptional string id = 1;\n}")
 	assert.NotContains(t, code, ":")
 	fpath := codegen.CreateTempFile(t, code)
 	assert.NoError(t, protoc(defaultProtocCmd, fpath, nil), "compile proto file %q", fpath)
@@ -26,8 +26,8 @@ func TestProtoFilesMappedNames(t *testing.T) {
 // TestGeneratedMappedNamesRoundTrip compiles a generated module whose
 // messages, nested types, unions and streaming messages have attributes
 // declared with a mapping suffix. It round-trips the service values through
-// the generated protobuf conversions, checks that required attributes are
-// values and optional ones pointers, that defaults apply and that the
+// the generated protobuf conversions, checks that scalar attributes retain
+// presence, that defaults apply and that the
 // generated validation reports missing and invalid fields.
 func TestGeneratedMappedNamesRoundTrip(t *testing.T) {
 	runGeneratedRoundTrip(t, "example.com/grpcmappednames", testdata.MappedNamesDSL, mappedNamesRoundTripHarness)
@@ -39,6 +39,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+ "google.golang.org/protobuf/proto"
 
 	"%[1]s/gen/grpc/mappednames/client"
 	pb "%[1]s/gen/grpc/mappednames/pb"
@@ -103,7 +104,7 @@ func TestProtoMessage(t *testing.T) {
 	name := "name"
 	message := client.NewProtoEchoRequest(envelopes()["full"])
 	require.Equal(t, &name, message.N)
-	require.Equal(t, int64(7), message.Req)
+	require.Equal(t, int64(7), message.GetReq())
 	require.Equal(t, int64(5), message.GetDef())
 	require.Equal(t, "picked", message.GetString_())
 	require.Equal(t, int64(2), message.GetObj().GetCount())
@@ -111,15 +112,15 @@ func TestProtoMessage(t *testing.T) {
 	require.Equal(t, int64(3), message.GetIndex()["k"].GetCount())
 	require.Equal(t, "text", message.GetText())
 
-	payload := server.NewEchoPayload(&pb.EchoRequest{Pick: &pb.EchoRequest_Int{Int: 1}, Obj: &pb.Leaf{}})
+	payload := server.NewEchoPayload(&pb.EchoRequest{Req: proto.Int64(0), Pick: &pb.EchoRequest_Int{Int: 1}, Obj: &pb.Leaf{Count: proto.Int64(0)}})
 	require.Equal(t, 3, payload.Def, "the default applies to an unset field")
 }
 
 func TestValidation(t *testing.T) {
 	short := "x"
-	require.Error(t, server.ValidateEchoRequest(&pb.EchoRequest{Obj: &pb.Leaf{}}), "pick is required")
-	require.Error(t, server.ValidateEchoRequest(&pb.EchoRequest{Pick: &pb.EchoRequest_Int{Int: 1}}), "obj is required")
-	require.Error(t, server.ValidateEchoRequest(&pb.EchoRequest{Pick: &pb.EchoRequest_Int{Int: 1}, Obj: &pb.Leaf{}, N: &short}), "n is too short")
-	require.NoError(t, server.ValidateEchoRequest(&pb.EchoRequest{Pick: &pb.EchoRequest_Int{Int: 1}, Obj: &pb.Leaf{}}))
+	require.Error(t, server.ValidateEchoRequest(&pb.EchoRequest{Req: proto.Int64(0), Obj: &pb.Leaf{Count: proto.Int64(0)}}), "pick is required")
+	require.Error(t, server.ValidateEchoRequest(&pb.EchoRequest{Req: proto.Int64(0), Pick: &pb.EchoRequest_Int{Int: 1}}), "obj is required")
+	require.Error(t, server.ValidateEchoRequest(&pb.EchoRequest{Req: proto.Int64(0), Pick: &pb.EchoRequest_Int{Int: 1}, Obj: &pb.Leaf{Count: proto.Int64(0)}, N: &short}), "n is too short")
+	require.NoError(t, server.ValidateEchoRequest(&pb.EchoRequest{Req: proto.Int64(0), Pick: &pb.EchoRequest_Int{Int: 1}, Obj: &pb.Leaf{Count: proto.Int64(0)}}))
 }
 `

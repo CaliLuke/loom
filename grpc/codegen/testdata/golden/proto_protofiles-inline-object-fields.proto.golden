@@ -43,7 +43,7 @@ message UnaryRequestOuter {
 }
 
 message UnaryRequestOuterInner2 {
-	sint64 depth = 1;
+	optional sint64 depth = 1;
 }
 
 message UnaryRequestItems {
@@ -113,7 +113,7 @@ message UnaryResponseOuter {
 }
 
 message UnaryResponseOuterInner {
-	sint64 depth = 1;
+	optional sint64 depth = 1;
 }
 
 message UnaryResponseItems {

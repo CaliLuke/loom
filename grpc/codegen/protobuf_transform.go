@@ -130,8 +130,9 @@ func removeMeta(att *expr.AttributeExpr) {
 // different type).
 func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, error) {
 	var (
-		initCode string
-		err      error
+		initCode             string
+		err                  error
+		wrappedScalarPointer bool
 	)
 
 	// The message that holds a union names the Go wrapper types of its oneof
@@ -157,16 +158,26 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 			targetVar += "." + wrapperGoFieldName(target)
 			newVar = false
 			target = unwrapAttr(expr.DupAtt(target))
+			wrappedScalarPointer = expr.IsPrimitive(target.Type) && target.Type != expr.Bytes && !expr.IsAny(target.Type)
 		} else {
 			ta = wrappedUnionTransformAttrs(source, ta)
 			sourceVar += "." + wrapperGoFieldName(source)
 			source = unwrapAttr(expr.DupAtt(source))
+			if expr.IsPrimitive(source.Type) && source.Type != expr.Bytes && !expr.IsAny(source.Type) {
+				sourceVar = "*" + sourceVar
+			}
 		}
 		if err = codegen.IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
 			return "", err
 		}
 	}
 
+	if wrappedScalarPointer {
+		// The wrapper field has presence, while a root service scalar is a
+		// value. Convert first so aliases and protobuf numeric widths match.
+		code := transformScalarAssignment(source, target, sourceVar, "field", true, ta)
+		return initCode + code + targetVar + " = &field\n", nil
+	}
 	code, err := transformAttributeByKind(source, target, sourceVar, targetVar, newVar, ta)
 	if err != nil {
 		return "", err

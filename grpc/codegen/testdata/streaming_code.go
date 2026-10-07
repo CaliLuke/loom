@@ -219,6 +219,9 @@ func (s *MethodServerStreamingRPCClientStream) Recv() (string, error) {
 	if err != nil {
 		return res, err
 	}
+	if err = ValidateMethodServerStreamingRPCResponse(v); err != nil {
+		return res, err
+	}
 	return NewMethodServerStreamingRPCResponseMethodServerStreamingRPCResponse(v), nil
 }
 
@@ -374,6 +377,9 @@ func (s *MethodClientStreamingRPCServerStream) Recv() (int, error) {
 	if err != nil {
 		return res, loomgrpc.ObserveStreamDecodeError(s.ctx, err)
 	}
+	if err = ValidateMethodClientStreamingRPCStreamingRequest(v); err != nil {
+		return res, loomgrpc.ObserveStreamDecodeError(s.ctx, err)
+	}
 	return NewMethodClientStreamingRPCStreamingRequestMethodClientStreamingRPCStreamingRequest(v), nil
 }
 
@@ -415,6 +421,9 @@ func (s *MethodClientStreamingRPCClientStream) CloseAndRecv() (string, error) {
 	var res string
 	v, err := s.stream.CloseAndRecv()
 	if err != nil {
+		return res, err
+	}
+	if err = ValidateMethodClientStreamingRPCResponse(v); err != nil {
 		return res, err
 	}
 	return NewMethodClientStreamingRPCResponseMethodClientStreamingRPCResponse(v), nil
@@ -478,6 +487,9 @@ func (s *MethodBidirectionalStreamingRPCServerStream) Recv() (int, error) {
 	var res int
 	v, err := s.stream.Recv()
 	if err != nil {
+		return res, loomgrpc.ObserveStreamDecodeError(s.ctx, err)
+	}
+	if err = ValidateMethodBidirectionalStreamingRPCStreamingRequest(v); err != nil {
 		return res, loomgrpc.ObserveStreamDecodeError(s.ctx, err)
 	}
 	return NewMethodBidirectionalStreamingRPCStreamingRequestMethodBidirectionalStreamingRPCStreamingRequest(v), nil

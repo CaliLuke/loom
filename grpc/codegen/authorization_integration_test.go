@@ -75,6 +75,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 	"testing"
+ "google.golang.org/protobuf/proto"
 )
 
 type resourceService struct {
@@ -117,7 +118,7 @@ func TestGeneratedGRPCStreamAccess(t *testing.T) {
 	e := resources.NewEndpoints(s, &accessEvaluator{})
 	server := resourcessvr.New(e, nil, nil)
 	stream := &testStream{}
-	err := server.Watch(&resourcespb.WatchRequest{Id: "denied"}, stream)
+	err := server.Watch(&resourcespb.WatchRequest{Id: proto.String("denied")}, stream)
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
 	require.Zero(t, s.calls)
 	require.Zero(t, stream.sent)
@@ -126,7 +127,7 @@ func TestGeneratedGRPCStreamAccess(t *testing.T) {
 		require.Error(t, err)
 	}
 	require.Zero(t, s.calls)
-	err = server.Watch(&resourcespb.WatchRequest{Id: "allowed"}, stream)
+	err = server.Watch(&resourcespb.WatchRequest{Id: proto.String("allowed")}, stream)
 	require.NoError(t, err)
 	require.Equal(t, 1, s.calls)
 	require.Equal(t, 1, stream.sent)
@@ -135,10 +136,10 @@ func TestGeneratedGRPCStreamAccess(t *testing.T) {
 func TestGeneratedGRPCAccess(t *testing.T) {
 	s := &resourceService{}
 	server := resourcessvr.New(resources.NewEndpoints(s, &accessEvaluator{}), nil, nil)
-	_, err := server.Edit(context.Background(), &resourcespb.EditRequest{Id: "denied"})
+	_, err := server.Edit(context.Background(), &resourcespb.EditRequest{Id: proto.String("denied")})
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
 	require.Zero(t, s.calls)
-	_, err = server.Edit(context.Background(), &resourcespb.EditRequest{Id: "allowed"})
+	_, err = server.Edit(context.Background(), &resourcespb.EditRequest{Id: proto.String("allowed")})
 	require.NoError(t, err)
 	require.Equal(t, 1, s.calls)
 }

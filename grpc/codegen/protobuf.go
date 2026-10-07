@@ -50,9 +50,11 @@ func (p *protoBufScope) Scope() *codegen.NameScope {
 	return p.scope
 }
 
-// protoBufTypeContext returns a contextual attribute for the protocol buffer type.
+// protoBufTypeContext describes protoc Go fields: scalar message fields retain
+// presence independently of requiredness and defaults. Collection elements and
+// explicit oneof branches use their own value contexts.
 func protoBufTypeContext(pkg string, scope *codegen.NameScope, useDefault bool) *codegen.AttributeContext {
-	ctx := codegen.NewAttributeContext(false, true, useDefault, pkg, scope)
+	ctx := codegen.NewAttributeContext(true, false, useDefault, pkg, scope)
 	ctx.Scope = &protoBufScope{scope: scope}
 	return ctx
 }
@@ -83,7 +85,6 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 		return att
 	case expr.IsPrimitive(att.Type):
 		wrapAttr(att, tname, true, sd)
-		return att
 	case isut:
 		switch {
 		case expr.IsArray(ut) || expr.IsMap(ut):
@@ -116,6 +117,9 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 // messages generated for anonymous objects nested in att.
 func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceData, seen map[string]expr.UserType, scope messageScope) {
 	wrapCollectionUserType(att)
+	if lowerProtoScalar(att) {
+		return
+	}
 	ut, isut := att.Type.(expr.UserType)
 
 	// Reuse the canonical message on recursive references. Naming an inline
@@ -152,8 +156,6 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 	}
 
 	switch {
-	case expr.IsPrimitive(att.Type):
-		return
 	case isut:
 		makeProtoBufMessageR(ut.Attribute(), tname, sd, seen, messageScope{name: ut.Name(), path: strconv.Quote(ut.Name())})
 	case expr.IsArray(att.Type):
@@ -178,6 +180,24 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 			makeProtoBufMessageField(nat, tname, sd, seen, scope)
 		}
 	}
+}
+
+// lowerProtoScalar gives aliases their protobuf physical type while retaining
+// the complete effective contract. It reports whether att is a scalar.
+func lowerProtoScalar(att *expr.AttributeExpr) bool {
+	if !expr.IsPrimitive(att.Type) {
+		return false
+	}
+	if primitive := getPrimitive(att); primitive != nil {
+		constraints, err := expr.EffectiveConstraintsFor(att)
+		if err != nil {
+			panic(fmt.Sprintf("invalid protobuf scalar constraints: %v", err))
+		}
+		att.Type = primitive.Type
+		att.Validation = constraints.Validation().Lowered()
+		att.DefaultValue, _ = constraints.Default()
+	}
+	return true
 }
 
 // protoBufMessageName returns the protocol buffer message name of the given
@@ -320,7 +340,7 @@ func protoBufObjectMessageDef(att *expr.AttributeExpr, actual *expr.Object, sd *
 	lines = append(lines, " {")
 	names := newProtoMessageNames(att)
 	for _, nat := range *actual {
-		lines = append(lines, protoBufObjectFieldLine(att, nat, names, sd))
+		lines = append(lines, protoBufObjectFieldLine(nat, names, sd))
 	}
 	lines = append(lines, "}")
 	return strings.Join(lines, "\n")
@@ -330,11 +350,11 @@ func protoBufObjectMessageDef(att *expr.AttributeExpr, actual *expr.Object, sd *
 // message with the object attribute att, whose fields, oneofs and oneof fields
 // take the names in names. A union field, constructor or named, is a oneof of
 // the message.
-func protoBufObjectFieldLine(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr, names *protoMessageNames, sd *ServiceData) string {
+func protoBufObjectFieldLine(nat *expr.NamedAttributeExpr, names *protoMessageNames, sd *ServiceData) string {
 	if expr.IsUnion(nat.Attribute.Type) {
 		return protoBufOneofDef(names.field(nat.Name), names.oneofFields(nat.Name), nat.Attribute, sd)
 	}
-	field := protoBufObjectField(att, nat, names.field(nat.Name), sd)
+	field := protoBufObjectField(nat, names.field(nat.Name), sd)
 	return fmt.Sprintf("\t%s%s%s %s = %d%s;", field.Description, field.Optional, field.TypeName, field.Name, field.Number, field.JSONOption)
 }
 
@@ -347,12 +367,12 @@ type protoBufFieldData struct {
 	JSONOption  string
 }
 
-func protoBufObjectField(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr, name string, sd *ServiceData) protoBufFieldData {
+func protoBufObjectField(nat *expr.NamedAttributeExpr, name string, sd *ServiceData) protoBufFieldData {
 	return protoBufFieldData{
 		Name:        name,
 		Number:      rpcTag(nat.Attribute),
 		TypeName:    protoTypeForAttribute(nat.Attribute, sd),
-		Optional:    protoBufOptionalField(att, nat),
+		Optional:    protoBufOptionalField(nat),
 		Description: protoCommentPrefix(nat.Attribute.Description),
 		JSONOption:  protoJSONOption(nat.Attribute),
 	}
@@ -365,8 +385,8 @@ func protoTypeForAttribute(att *expr.AttributeExpr, sd *ServiceData) string {
 	return protoType(att, sd)
 }
 
-func protoBufOptionalField(att *expr.AttributeExpr, nat *expr.NamedAttributeExpr) string {
-	if att.IsRequired(nat.Name) || !expr.IsPrimitive(nat.Attribute.Type) {
+func protoBufOptionalField(nat *expr.NamedAttributeExpr) string {
+	if !expr.IsPrimitive(nat.Attribute.Type) {
 		return ""
 	}
 	return "optional "

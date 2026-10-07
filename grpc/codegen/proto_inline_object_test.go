@@ -88,7 +88,7 @@ func TestInlineObjectRoundTrip(t *testing.T) {
 	request := &pb.UnaryRequest{
 		Id:    str("id"),
 		Name:  &pb.UnaryRequestName{Choice: &pb.UnaryRequestName_Pair{Pair: &pb.ChoicePair{Key: str("k"), Value: str("v")}}},
-		Outer: &pb.UnaryRequestOuter{Label: str("label"), Inner: &pb.UnaryRequestOuterInner2{Depth: 4}},
+		Outer: &pb.UnaryRequestOuter{Label: str("label"), Inner: &pb.UnaryRequestOuterInner2{Depth: proto.Int64(4)}},
 		Items: []*pb.UnaryRequestItems{{Key: str("a")}, {Key: str("b")}},
 		Index: map[string]*pb.UnaryRequestIndex{"x": {Count: &count}},
 		OuterInner: &pb.UnaryRequestOuterInner3{Q: str("q")},

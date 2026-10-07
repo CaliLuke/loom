@@ -20,7 +20,7 @@ func TestProtoStreamingRootValidation(t *testing.T) {
 	require.Contains(t, rendered, "len(stream.Field) < 2")
 	require.Contains(t, rendered, "len(stream.Field) > 3")
 	require.Contains(t, rendered, "utf8.RuneCountInString(e) < 1")
-	require.Contains(t, rendered, "utf8.RuneCountInString(stream.Field) < 2")
+	require.Contains(t, rendered, "utf8.RuneCountInString(*stream.Field) < 2")
 }
 
 func TestGeneratedStreamingRootValidation(t *testing.T) {
@@ -41,6 +41,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
+ "google.golang.org/protobuf/proto"
 
 	pb "%[1]s/gen/grpc/validated/pb"
 	"%[1]s/gen/grpc/validated/server"
@@ -105,7 +106,7 @@ func TestCollectionValidation(t *testing.T) {
 		require.Equal(t, size >= 2 && size <= 3, err == nil)
 	}
 	for _, value := range []string{"", "a", "ab", "abc", "abcd", "é界"} {
-		err := server.ValidateTextStreamingRequest(&pb.TextStreamingRequest{Field: value})
+		err := server.ValidateTextStreamingRequest(&pb.TextStreamingRequest{Field: proto.String(value)})
 		size := len([]rune(value))
 		require.Equal(t, size >= 2 && size <= 3, err == nil)
 	}
@@ -141,7 +142,7 @@ func TestStreamReceiveValidation(t *testing.T) {
 		response, err := stream.CloseAndRecv()
 		if valid {
 			require.NoError(t, err)
-			require.EqualValues(t, len(value), response.Field)
+			require.EqualValues(t, len(value), response.GetField())
 		} else {
 			require.Equal(t, codes.InvalidArgument, status.Code(err))
 		}
@@ -149,12 +150,12 @@ func TestStreamReceiveValidation(t *testing.T) {
 		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		envelope, err := client.Envelope(ctx)
 		require.NoError(t, err)
-		require.NoError(t, envelope.Send(&pb.EnvelopeStreamingRequest{Body: &pb.EnvelopeStreamingRequest_InitialPayload{InitialPayload: &pb.EnvelopeRequest{Label: "batch"}}}))
+		require.NoError(t, envelope.Send(&pb.EnvelopeStreamingRequest{Body: &pb.EnvelopeStreamingRequest_InitialPayload{InitialPayload: &pb.EnvelopeRequest{Label: proto.String("batch")}}}))
 		require.NoError(t, envelope.Send(&pb.EnvelopeStreamingRequest{Body: &pb.EnvelopeStreamingRequest_StreamItem{StreamItem: &pb.EnvelopeStreamItem{Field: value}}}))
 		result, err := envelope.CloseAndRecv()
 		if valid {
 			require.NoError(t, err)
-			require.EqualValues(t, len(value), result.Field)
+			require.EqualValues(t, len(value), result.GetField())
 		} else {
 			require.Equal(t, codes.InvalidArgument, status.Code(err))
 		}

@@ -72,7 +72,7 @@ func (n *protoMessageNames) allocateGoNames(att *expr.AttributeExpr) bool {
 			continue
 		}
 		n.goNames[wire] = reserveProtoGoName(protoGoName(wire), true, used)
-		if protoBufOptionalField(att, nat) != "" {
+		if protoBufOptionalField(nat) != "" {
 			// Loom wire names start with a letter, so the parser's leading
 			// underscore cannot collide with another field or explicit oneof.
 			reserveProtoGoName(protoGoName("_"+wire), false, used)

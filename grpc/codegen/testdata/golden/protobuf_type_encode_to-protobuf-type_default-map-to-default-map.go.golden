@@ -7,7 +7,4 @@ func transform() {
 			target.Simple[key] = tv
 		}
 	}
-	if source.Simple == nil {
-		target.Simple = map[string]int64{"foo": 1}
-	}
 }

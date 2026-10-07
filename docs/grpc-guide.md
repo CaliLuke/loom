@@ -73,6 +73,29 @@ writes a gRPC message. Protobuf represents JSON numbers as `double`, so gRPC
 cannot retain number spellings or integer precision beyond that wire type. Prefer
 a concrete Loom type whenever the value has a stable contract.
 
+### Scalar Presence and Defaults
+
+All scalar message fields use explicit protobuf presence, including fields
+marked `Required` and fields in scalar payload/result wrappers. The generated
+Go protobuf fields are pointers for strings, booleans, and numbers; bytes remain
+slices. An explicit zero, `false`, empty string, or present empty byte slice is
+accepted when the authored constraints allow it. An omitted required field is
+rejected before conversion to the service value, in requests, responses, and
+stream items. `Required("name")` still requires presence when that field declares a `Default`:
+a default does not relax requiredness.
+
+An absent optional field with a default receives that default during decoding.
+An explicitly supplied zero overrides the default. Encoding a service value
+preserves that value, including zero; it does not replace zero with a default.
+Array/map elements remain values. A scalar oneof branch uses its wrapper for
+presence rather than another pointer inside it.
+
+Regenerate clients and servers with `loom gen`. Code that constructs protobuf
+messages directly must set scalar pointers, for example `proto.String("")`.
+Clients generated from the old schema omit zero-valued required scalars and
+cannot express their presence; regenerate and deploy those clients with the
+corrected schema. There is no compatibility mode for accepting those omissions.
+
 ---
 
 ## Service Design

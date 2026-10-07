@@ -647,6 +647,16 @@ filter, and serialization rules belong here.
   packages. The bounded model under `grpc/codegen/tla/import_aliases`
   reproduces the original import and metadata collisions and checks safety and
   termination across all orders of its adversarial names.
+- `makeProtoBufMessageR` lowers scalar aliases to their native protobuf types
+  while retaining effective constraints and defaults. Root scalar wrappers must
+  traverse this same lowering before validation or conversion. The protobuf scope,
+  renderer and `protoBufTypeContext` own physical presence: all scalar message
+  fields use explicit presence independent of requiredness or defaults.
+  Validation must see that layout before conversion. Scalar wrappers convert
+  pointer fields to/from service values; collection elements and scalar oneof
+  branches remain values. Defaults apply only to absent optional fields.
+  Required fields with defaults still require presence, and service encoding
+  must preserve explicit zero values. See `grpc/codegen/tla/scalar_presence`.
 - gRPC streaming request finalization must merge the validation of the
   unwrapped payload attribute into the prepared message validation. The
   prepared validation is already non-nil, so `initAttrFromDesign` alone drops
@@ -656,9 +666,8 @@ filter, and serialization rules belong here.
   `newProtoMessageNames` (`grpc/codegen/protobuf_message_names.go`) allocates
   their names per message, and the proto renderer, `checkMessageFields`, the
   Go transforms and the validation code (through the `messageFieldScope`
-  interface in `codegen`) all use it. Pass the containing attribute, including
-  requiredness: optional primitives add synthetic oneofs to protoc's Go-name
-  reservations. `FieldNames` supplies field selectors, branch selectors, and
+  interface in `codegen`) all use it. Pass the containing attribute: all scalar fields add synthetic oneofs
+  to protoc's Go-name reservations. `FieldNames` supplies field selectors, branch selectors, and
   separate wrapper type suffixes. `protoGoName` is only the unallocated base;
   never derive a message selector from it or from `Scope.Field` alone.
   Go allocation follows descriptor order and reserves generated methods and

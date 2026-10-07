@@ -286,7 +286,7 @@ func TestProtoFilesStructMeta(t *testing.T) {
 		"rpc Relay (stream RelayStreamingRequest) returns (stream RelayResponse);",
 		"rpc Watch (InnerProto) returns (stream MenuProto);",
 		"message FaultProto {",
-		"message MenuProto {\n\tstring name = 1;\n\tInner inner = 2;\n\trepeated Inner inners = 3;\n\tmap<string, Inner> inner_index = 4;\n" +
+		"message MenuProto {\n\toptional string name = 1;\n\tInner inner = 2;\n\trepeated Inner inners = 3;\n\tmap<string, Inner> inner_index = 4;\n" +
 			"\toneof choice {\n\t\tLeaf leaf = 5;\n\t\tOther other = 6;\n\t}\n\tTags tags = 7;\n\tNode tree = 8;\n}",
 		"message InnerProto {",
 		"message Inner {",

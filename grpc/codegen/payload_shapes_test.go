@@ -32,9 +32,9 @@ func TestProtoFilesRPCNamedMessages(t *testing.T) {
 		"rpc Upload (stream UploadStreamingRequest) returns (UploadResponse);",
 		"message Tags {\n\trepeated string field = 1;\n}",
 		"message Index {\n\tmap<string, Leaf> field = 1;\n}",
-		"message ID {\n\tstring field = 1;\n}",
+		"message ID {\n\toptional string field = 1;\n}",
 		"message EmptyRequest {\n}",
-		"message FaultProto {\n\toptional string msg = 1;\n\tstring name = 2;\n}",
+		"message FaultProto {\n\toptional string msg = 1;\n\toptional string name = 2;\n}",
 	} {
 		assert.Contains(t, code, want)
 	}
@@ -115,8 +115,8 @@ func TestClientErrorsSharedMessage(t *testing.T) {
 	code := sectionCode(t, ClientFiles("", services)[0].AllSections()[1:]...)
 
 	assert.Equal(t, 3, strings.Count(code, "case *shapespb.FaultProto:"), "one case in each of the fail and fail_stream endpoints and in the fail_stream Recv")
-	assert.Contains(t, code, "case *shapespb.FaultProto:\n\t\t\t\t\treturn nil, NewFailMissingError(message)\n\t\t\t\tcase *loompb.ErrorResponse:")
-	assert.Contains(t, code, "case *shapespb.FaultProto:\n\t\t\treturn res, NewFailStreamMissingError(message)\n\t\tcase *loompb.ErrorResponse:")
+	assert.Contains(t, code, "case *shapespb.FaultProto:\n\t\t\t\t\tif err := ValidateFaultProto(message); err != nil {\n\t\t\t\t\t\treturn nil, err\n\t\t\t\t\t}\n\t\t\t\t\treturn nil, NewFailMissingError(message)\n\t\t\t\tcase *loompb.ErrorResponse:")
+	assert.Contains(t, code, "case *shapespb.FaultProto:\n\t\t\tif err := ValidateFaultProto(message); err != nil {\n\t\t\t\treturn res, err\n\t\t\t}\n\t\t\treturn res, NewFailStreamMissingError(message)\n\t\tcase *loompb.ErrorResponse:")
 }
 
 // TestSharedErrorMessageDifferentTypes checks that generation fails when two

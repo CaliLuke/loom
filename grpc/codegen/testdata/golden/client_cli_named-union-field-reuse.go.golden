@@ -25,6 +25,10 @@ func BuildEchoPayload(reuseEchoMessage string) (*reuse.Envelope, error) {
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"holder\": {\n         \"label\": \"Sit rerum et.\",\n         \"other\": {\n            \"count\": \"1490658650290523164\"\n         }\n      },\n      \"holders\": [\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         }\n      ],\n      \"id\": \"Quibusdam ipsam error.\",\n      \"other\": {\n         \"count\": \"1490658650290523164\"\n      }\n   }'")
 			}
 		}
+		if err = ValidateEchoRequest(&message); err != nil {
+			var zero *reuse.Envelope
+			return zero, err
+		}
 	}
 	v := &reuse.Envelope{
 		ID: message.Id,
@@ -87,6 +91,10 @@ func BuildNamedPayload(reuseNamedMessage string) (*reuse.Choice, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": \"6733869203967304118\"\n      }\n   }'")
 			}
+		}
+		if err = ValidateChoice(&message); err != nil {
+			var zero *reuse.Choice
+			return zero, err
 		}
 	}
 	var v *reuse.Choice

@@ -4,7 +4,4 @@ func transform() {
 		target.StringArray = make([]string, len(source.StringArray))
 		copy(target.StringArray, source.StringArray)
 	}
-	if source.StringArray == nil {
-		target.StringArray = []string{"foo", "bar"}
-	}
 }

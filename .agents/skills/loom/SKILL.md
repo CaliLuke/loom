@@ -454,6 +454,15 @@ completion shapes are explicit generation limitations.
   nested messages. A shared message requires identical fields, numbers, and
   requiredness. Distinct protobuf names must also have distinct generated Go
   names; `node_tree` and `NodeTree` cannot coexist in one service.
+- gRPC scalar message fields retain explicit presence, including required
+  fields and scalar payload/result wrappers. Omitted required values fail in
+  requests, responses, and stream items, even when the field has a default.
+  Explicit zero values are accepted subject to constraints. Defaults fill
+  absent optional fields; encoding preserves the supplied service value.
+  Regenerate both clients and servers. Direct protobuf Go callers must set
+  scalar pointers (for example `proto.String("")`); old clients omit required
+  zeros and cannot satisfy this contract. Bytes remain slices and scalar
+  oneof branches retain their wrapper-based presence.
 - gRPC map keys must be `Boolean`, `String`, or integer types, including
   aliases. `Any` is supported as a map value, but cannot be a map key.
 - gRPC rejects a union used as an array element or map value. Wrap the

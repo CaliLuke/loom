@@ -70,7 +70,7 @@ func hasValidations(attCtx *AttributeContext, ut expr.UserType) bool {
 		if a.Validation == nil {
 			return nil
 		}
-		if attCtx.Pointer || !a.Validation.HasRequiredOnly() {
+		if !a.Validation.HasRequiredOnly() {
 			res = true
 			return done
 		}
