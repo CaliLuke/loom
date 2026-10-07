@@ -8,6 +8,8 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/unionjson"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 func TestCollectUnionTypesDeterministicAcrossObjectOrder(t *testing.T) {
@@ -148,9 +150,13 @@ func TestUntaggedUnionMetadataUsesEffectiveJSONNames(t *testing.T) {
 
 	data := NewServicesData(root).Get("JSONNameService")
 	require.Len(t, data.unions, 1)
-	require.Equal(t, []string{"wire_name"}, data.unions[0].Fields[0].RequiredFields)
-	require.Equal(t, []string{"wire_name"}, data.unions[0].Fields[0].NonNullableFields)
-	require.Equal(t, []string{"wire_name"}, data.unions[0].Fields[0].JSONFields)
+	shape := data.unions[0].JSON.Branches[0].Schema
+	matched, err := shape.Match([]byte(`{"wire_name":"ok"}`))
+	require.NoError(t, err)
+	require.True(t, matched)
+	matched, err = shape.Match([]byte(`{"authored":"ok"}`))
+	require.NoError(t, err)
+	require.False(t, matched)
 }
 
 func TestBuildViewUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
@@ -212,44 +218,18 @@ func TestRenderUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 }
 
 func TestRenderUntaggedUnionJSONUsesBareValidatedBranches(t *testing.T) {
-	data := &UnionTypeData{
-		Name:     "Outcome",
-		KindName: "OutcomeKind",
-		Untagged: true,
-		Fields: []*UnionFieldData{
-			{
-				Name:                    "OK",
-				FieldName:               "OK",
-				FieldType:               "*OK",
-				KindConst:               "OutcomeKindOK",
-				ValidateCode:            "if v == nil {\n\terr = loom.MissingFieldError(\"ok\", \"v\")\n}",
-				RequiredFields:          []string{"wire_name"},
-				NonNullableFields:       []string{"wire_name"},
-				JSONFields:              []string{"wire_name"},
-				RejectUnknownJSONFields: true,
-			},
-			{
-				Name:         "Failure",
-				FieldName:    "Failure",
-				FieldType:    "*Failure",
-				KindConst:    "OutcomeKindFailure",
-				ValidateCode: "if v == nil {\n\terr = loom.MissingFieldError(\"failure\", \"v\")\n}",
-			},
-		},
-	}
-
+	shape := &loom.JSONShape{Kind: "object", Fields: []loom.JSONShapeField{{Name: "wire_name", Required: true, Shape: &loom.JSONShape{Kind: "string"}}}}
+	data := &UnionTypeData{Name: "Outcome", Untagged: true, JSON: &unionjson.Union{Name: "Outcome", Branches: []*unionjson.Branch{
+		{Type: "*OK", Field: "OK", Kind: "OutcomeKindOK", Schema: shape, Runtime: shape},
+	}}}
 	marshal := renderUnionMarshalJSONBody(data)
-	require.Contains(t, marshal, "return json.Marshal(u.OK, loom.JSONOptions(), json.Deterministic(true))")
-	require.NotContains(t, marshal, "Type  string")
-
-	unmarshal := renderUnionUnmarshalJSONBody(data)
-	require.Contains(t, unmarshal, "json.Unmarshal(candidateData, &v, loom.JSONOptions())")
-	require.Contains(t, unmarshal, "if branchErr == nil")
-	require.Contains(t, unmarshal, "if matches != 1")
-	require.Contains(t, unmarshal, "untagged union matched %d branches")
-	require.Contains(t, unmarshal, `filtered["wire_name"] = value`)
-	require.Contains(t, unmarshal, "matched.kind = OutcomeKindOK")
-	require.Contains(t, unmarshal, "*u = matched")
+	require.Contains(t, marshal, "json.Marshal(u.OK, loom.JSONOptions(), json.Deterministic(true))")
+	require.Contains(t, marshal, "if matched != selected")
+	unmarshal := renderUnionUnmarshalJSONBody(data) + data.JSON.Matcher()
+	require.Contains(t, unmarshal, "loom.MatchUntaggedJSON")
+	require.Contains(t, unmarshal, "loom.DecodeJSONCandidate")
+	require.Contains(t, unmarshal, `Name: "wire_name", Required: true`)
+	require.Contains(t, unmarshal, "return Outcome{kind: OutcomeKindOK, OK: value0}, matched, nil")
 	require.NotContains(t, unmarshal, "u.kind = OutcomeKindOK")
 }
 

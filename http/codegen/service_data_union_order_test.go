@@ -8,6 +8,8 @@ import (
 	cg "github.com/CaliLuke/loom/codegen"
 	svc "github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/unionjson"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 func TestCollectHTTPUnionTypesDeterministicAcrossObjectOrder(t *testing.T) {
@@ -63,7 +65,7 @@ func TestCollectHTTPUnionTypesDeterministicAcrossObjectOrder(t *testing.T) {
 func TestBuildHTTPUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
 	scope := cg.NewNameScope()
 
-	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, false)
 
 	require.Len(t, data.Fields, 2)
 	require.Equal(t, "single", data.Fields[0].TypeTag)
@@ -73,7 +75,7 @@ func TestBuildHTTPUnionTypeDataUsesExplicitVariantTags(t *testing.T) {
 func TestBuildHTTPUnionTypeDataAllowsEmptyOptionalObjectBranches(t *testing.T) {
 	scope := cg.NewNameScope()
 
-	data := buildHTTPUnionTypeData(makeOptionalObjectUnionForFormTest(), scope)
+	data := buildHTTPUnionTypeData(makeOptionalObjectUnionForFormTest(), scope, false)
 
 	require.Len(t, data.Fields, 2)
 	require.True(t, data.Fields[0].FlatFormObject)
@@ -89,57 +91,35 @@ func TestNeedInitSupportsRootUnion(t *testing.T) {
 	require.True(t, needInit(&expr.AttributeExpr{Type: union}))
 }
 
-func TestRenderHTTPUntaggedUnionUsesExactFilteredMatch(t *testing.T) {
-	data := &svc.UnionTypeData{
-		Name:     "Outcome",
-		Untagged: true,
-		Fields: []*svc.UnionFieldData{
-			{
-				FieldName:               "OK",
-				FieldType:               "*OK",
-				KindConst:               "OutcomeKindOK",
-				RequiredFields:          []string{"wire_name"},
-				NonNullableFields:       []string{"wire_name"},
-				JSONFields:              []string{"wire_name"},
-				RejectUnknownJSONFields: true,
-				ValidateRef:             "ValidateOK(v)",
-			},
-		},
-	}
-
-	body := renderHTTPUnionUnmarshalJSONBody(data)
-	require.Contains(t, body, `rawObject["wire_name"]`)
-	require.Contains(t, body, `filtered["wire_name"] = value`)
-	require.Contains(t, body, "for name := range rawObject")
-	require.Contains(t, body, "matched.kind = OutcomeKindOK")
-	require.Contains(t, body, "*u = matched")
-	require.Contains(t, body, "json.Unmarshal(candidateData, &v, loom.JSONOptions())")
+func TestRenderHTTPUntaggedUnionUsesSharedMatcher(t *testing.T) {
+	shape := &loom.JSONShape{Kind: "object", Fields: []loom.JSONShapeField{{Name: "wire_name", Required: true, Shape: &loom.JSONShape{Kind: "string"}}}}
+	data := &svc.UnionTypeData{Name: "Outcome", Untagged: true, JSON: &unionjson.Union{Name: "Outcome", Branches: []*unionjson.Branch{
+		{Type: "*OK", Field: "OK", Kind: "OutcomeKindOK", Schema: shape, Runtime: shape, Validate: "err = ValidateOK(v)"},
+	}}}
+	body := renderHTTPUnionUnmarshalJSONBody(data) + data.JSON.Matcher()
+	require.Contains(t, body, `Name: "wire_name", Required: true`)
+	require.Contains(t, body, "loom.MatchUntaggedJSON")
+	require.Contains(t, body, "err = ValidateOK(v)")
+	require.Contains(t, body, "return Outcome{kind: OutcomeKindOK, OK: value0}, matched, nil")
 	require.NotContains(t, body, "u.kind = OutcomeKindOK")
 }
 
 func TestRenderHTTPUnionMarshalJSONPreservesDeterministicNestedOrdering(t *testing.T) {
 	scope := cg.NewNameScope()
-	tagged := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
+	tagged := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, false)
 
 	require.Contains(t, renderHTTPUnionMarshalJSONBody(tagged), "}, loom.JSONOptions(), json.Deterministic(true))")
 
-	untagged := &svc.UnionTypeData{
-		Name:     "Outcome",
-		Untagged: true,
-		Fields: []*svc.UnionFieldData{
-			{FieldName: "OK", KindConst: "OutcomeKindOK"},
-		},
-	}
-	require.Contains(
-		t,
-		renderHTTPUnionMarshalJSONBody(untagged),
-		"return json.Marshal(u.OK, loom.JSONOptions(), json.Deterministic(true))",
-	)
+	shape := &loom.JSONShape{Kind: "object"}
+	untagged := &svc.UnionTypeData{Name: "Outcome", Untagged: true, JSON: &unionjson.Union{Name: "Outcome", Branches: []*unionjson.Branch{
+		{Type: "*OK", Field: "OK", Kind: "OutcomeKindOK", Schema: shape, Runtime: shape},
+	}}}
+	require.Contains(t, renderHTTPUnionMarshalJSONBody(untagged), "json.Marshal(u.OK, loom.JSONOptions(), json.Deterministic(true))")
 }
 
 func TestRenderHTTPUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 	scope := cg.NewNameScope()
-	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, false)
 
 	body := renderHTTPUnionUnmarshalJSONBody(data)
 
@@ -152,7 +132,7 @@ func TestRenderHTTPUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 
 func TestRenderHTTPUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
 	scope := cg.NewNameScope()
-	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope)
+	data := buildHTTPUnionTypeData(makeTaggedUnionForTagTest(), scope, false)
 
 	body := renderHTTPUnionUnmarshalFormBody(data)
 
@@ -164,7 +144,7 @@ func collectHTTPUnionTypeNames(att *expr.AttributeExpr) map[string]string {
 	scope := cg.NewNameScope()
 	seen := make(map[string]struct{})
 	unionByName := make(map[string]*svc.UnionTypeData)
-	collectHTTPUnionTypes(att, scope, unionByName, seen)
+	collectHTTPUnionTypes(att, scope, unionByName, seen, false)
 
 	names := make(map[string]string, len(unionByName))
 	for _, data := range unionByName {

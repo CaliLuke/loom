@@ -14,14 +14,6 @@ var BooleanMapUnionDSL = func() {
 		Attribute("marker", String)
 		Required("marker")
 	})
-	other := Type("Other", func() {
-		Attribute("text", String)
-		Required("text")
-	})
-	wrapped := Type("Wrapped", func() {
-		Attribute("payload", nested)
-		Required("payload")
-	})
 	choice := func() {
 		OneOf("choice", func() {
 			Attribute("flags", MapOf(Boolean, String))
@@ -37,11 +29,6 @@ var BooleanMapUnionDSL = func() {
 		choice()
 		Required("choice")
 	})
-	untagged := Type("Untagged", func() {
-		Attribute("choice", OneOf(wrapped, other), func() {
-			Untagged()
-		})
-	})
 	Service("probe", func() {
 		Method("required", func() {
 			Payload(required)
@@ -55,17 +42,6 @@ var BooleanMapUnionDSL = func() {
 			Result(tagged)
 			HTTP(func() {
 				POST("/tagged")
-				Body("choice")
-				Response(StatusOK, func() {
-					Body("choice")
-				})
-			})
-		})
-		Method("untagged", func() {
-			Payload(untagged)
-			Result(untagged)
-			HTTP(func() {
-				POST("/untagged")
 				Body("choice")
 				Response(StatusOK, func() {
 					Body("choice")

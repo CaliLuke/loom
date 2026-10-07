@@ -166,14 +166,14 @@ Use `Present`, `IsNull`, and `Value` when handling generated service types.
 A two-member `oneOf` with one bare `null` branch and one local component
 reference imports as the same nullable named type when the referenced schema
 explicitly excludes null. Regenerated OpenAPI uses the equivalent `anyOf`
-representation. A `oneOf` of two or more object schemas in a JSON request or
-success response body imports as an untagged typed union when every branch is a
-flat object whose fields are primitives, concrete named objects, or arrays of
-either. Inline branches become deterministic named components, generated Go
-retains sum-type constructors and accessors, and JSON decoding requires exactly
-one fully valid branch. Inline nested objects, scalar unions, discriminated
-source unions, declared error unions, and untagged unions in string-encoded
-transport locations remain strict import errors.
+representation. A `oneOf` of named object or array components in a JSON request
+or success response imports as an untagged typed union. Recursive contents may
+be primitives, named objects, and arrays of these shapes. Inline object branches
+become deterministic named components; inline array branches remain unsupported.
+Generated Go retains sum-type constructors and accessors. Encoding and decoding
+require the same unique schema and Go branch. Inline nested objects, maps,
+nested unions, scalar unions, discriminated source unions, declared error unions,
+and untagged unions in string-encoded transport locations remain strict import errors.
 
 A scalar JSON Schema `const` without a sibling `enum` imports as an equivalent
 one-member enum. Regenerated OpenAPI emits `enum`. Structured constants and

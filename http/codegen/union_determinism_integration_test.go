@@ -38,37 +38,12 @@ func unionDeterminismDSL() {
 			Attribute("fallback", String)
 		})
 	})
-	nestedMap := Type("NestedMap", func() {
-		Attribute("values", MapOf(String, String))
-		Required("values")
-	})
-	untaggedMap := Type("UntaggedMap", func() {
-		Attribute("payload", nestedMap)
-		Required("payload")
-	})
-	untaggedFallback := Type("UntaggedFallback", func() {
-		Attribute("message", String)
-		Required("message")
-	})
-	untaggedEnvelope := Type("UntaggedEnvelope", func() {
-		Attribute("choice", OneOf(untaggedMap, untaggedFallback), func() {
-			Untagged()
-		})
-		Required("choice")
-	})
 
 	Service("UnionDeterminism", func() {
 		Method("Tagged", func() {
 			Result(tagged)
 			HTTP(func() {
 				GET("/tagged")
-				Response(StatusOK)
-			})
-		})
-		Method("Untagged", func() {
-			Result(untaggedEnvelope)
-			HTTP(func() {
-				GET("/untagged")
 				Response(StatusOK)
 			})
 		})
@@ -94,12 +69,6 @@ func TestServiceUnionDeterminism(t *testing.T) {
 			input:  "{\"value\":{\"type\":\"mapping\",\"value\":{\"zulu\":\"last\",\"alpha\":\"first\"}}}",
 			target: new(TaggedChoice),
 			want:   "{\"value\":{\"type\":\"mapping\",\"value\":{\"alpha\":\"first\",\"zulu\":\"last\"}}}",
-		},
-		{
-			name:   "untagged",
-			input:  "{\"choice\":{\"payload\":{\"values\":{\"zulu\":\"last\",\"alpha\":\"first\"}}}}",
-			target: new(UntaggedEnvelope),
-			want:   "{\"choice\":{\"payload\":{\"values\":{\"alpha\":\"first\",\"zulu\":\"last\"}}}}",
 		},
 	}
 	for _, test := range tests {
@@ -145,12 +114,6 @@ func TestHTTPUnionDeterminism(t *testing.T) {
 			input:  "{\"value\":{\"type\":\"mapping\",\"value\":{\"zulu\":\"last\",\"alpha\":\"first\"}}}",
 			target: new(TaggedResponseBody),
 			want:   "{\"value\":{\"type\":\"mapping\",\"value\":{\"alpha\":\"first\",\"zulu\":\"last\"}}}",
-		},
-		{
-			name:   "untagged",
-			input:  "{\"choice\":{\"payload\":{\"values\":{\"zulu\":\"last\",\"alpha\":\"first\"}}}}",
-			target: new(UntaggedResponseBody),
-			want:   "{\"choice\":{\"payload\":{\"values\":{\"alpha\":\"first\",\"zulu\":\"last\"}}}}",
 		},
 	}
 	for _, test := range tests {

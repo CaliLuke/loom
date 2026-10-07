@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/unionjson"
 )
 
 func collectServiceUnions(service *expr.ServiceExpr, types, errTypes []*UserTypeData, scope *codegen.NameScope) []*UnionTypeData {
@@ -187,7 +188,6 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		}
 		if u.Untagged {
 			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, scope)
-			fields[i].RequiredFields, fields[i].NonNullableFields, fields[i].JSONFields, fields[i].RejectUnknownJSONFields = unionBranchJSONFields(nat.Attribute)
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
@@ -200,6 +200,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 		TypeKey:             u.GetTypeKey(),
 		ValueKey:            u.GetValueKey(),
 		Untagged:            u.Untagged,
+		JSON:                analyzeUnionJSON(name, u, fields),
 		HasScalarFormBranch: hasScalarFormBranch,
 		validations:         buildUntaggedUnionValidations(u, scope, loc),
 	}
@@ -243,7 +244,6 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 		}
 		if u.Untagged {
 			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, scope)
-			fields[i].RequiredFields, fields[i].NonNullableFields, fields[i].JSONFields, fields[i].RejectUnknownJSONFields = unionBranchJSONFields(nat.Attribute)
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
@@ -256,6 +256,7 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 		TypeKey:             u.GetTypeKey(),
 		ValueKey:            u.GetValueKey(),
 		Untagged:            u.Untagged,
+		JSON:                analyzeUnionJSON(name, u, fields),
 		HasScalarFormBranch: hasScalarFormBranch,
 	}
 }
@@ -272,7 +273,7 @@ func buildUntaggedUnionValidations(union *expr.Union, scope *codegen.NameScope, 
 	types := collectTypes(&expr.AttributeExpr{Type: union}, scope, make(map[string]struct{}), loc)
 	validations := make([]*unionValidationData, 0, len(types))
 	for _, data := range types {
-		if !expr.IsObject(data.Type) || expr.IsAlias(data.Type) {
+		if !expr.IsObject(data.Type) && !expr.IsArray(data.Type) {
 			continue
 		}
 		validations = append(validations, &unionValidationData{
@@ -286,30 +287,6 @@ func buildUntaggedUnionValidations(union *expr.Union, scope *codegen.NameScope, 
 		})
 	}
 	return validations
-}
-
-func unionBranchJSONFields(att *expr.AttributeExpr) ([]string, []string, []string, bool) {
-	ut := att.Type.(expr.UserType)
-	parent := ut.Attribute()
-	object := expr.AsObject(ut.Attribute().Type)
-	required := make([]string, 0, len(parent.AllRequired()))
-	nonNullable := make([]string, 0, len(*object))
-	fields := make([]string, 0, len(*object))
-	for _, field := range *object {
-		name := codegen.JSONFieldName(expr.AttributeName(field.Name), field.Attribute)
-		fields = append(fields, name)
-		if parent.IsRequired(field.Name) {
-			required = append(required, name)
-		}
-		if !expr.AllowsNull(field.Attribute) {
-			nonNullable = append(nonNullable, name)
-		}
-	}
-	sort.Strings(required)
-	sort.Strings(nonNullable)
-	sort.Strings(fields)
-	closed, _ := parent.Meta.Last("openapi:additionalProperties")
-	return required, nonNullable, fields, closed == "false"
 }
 
 // sortedNamedAttributes returns object fields sorted by attribute name.
@@ -437,4 +414,15 @@ func hasResultType(att *expr.AttributeExpr, seens ...map[string]struct{}) bool {
 		}
 	}
 	return false
+}
+
+func analyzeUnionJSON(name string, u *expr.Union, fields []*UnionFieldData) *unionjson.Union {
+	if !u.Untagged {
+		return nil
+	}
+	branches := make([]*unionjson.Branch, len(fields))
+	for i, field := range fields {
+		branches[i] = &unionjson.Branch{Type: field.FieldType, Field: field.FieldName, Kind: field.KindConst, Validate: field.ValidateCode}
+	}
+	return unionjson.Analyze(name, u, branches, expr.AttributeName, false)
 }

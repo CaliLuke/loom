@@ -110,13 +110,13 @@ The following constructs are conditional:
   null. Regeneration uses the equivalent nullable `anyOf` form.
 - A scalar `const` without a sibling `enum` maps to a one-member enum.
   Regeneration uses the semantically equivalent `enum` representation.
-- A `oneOf` containing two or more object branches in a JSON request or success
-  response body maps to an untagged typed union when every branch is a flat
-  object whose fields are primitives, concrete named objects, or arrays of
-  either. Inline object branches are promoted to deterministic components.
-  Generated decoding validates exact JSON member names, presence, nullability,
-  closed-object membership, and nested Loom value constraints for every branch,
-  then accepts exactly one match.
+- A `oneOf` of named object or array components in a JSON request or success
+  response maps to an untagged typed union. Recursive contents may be primitives,
+  named objects, and arrays of these shapes. Inline object branches are promoted
+  to deterministic components; inline array branches remain unsupported.
+  Both encoding and decoding require one schema match and one valid Go candidate
+  with the same identity. Exact member names, presence, nullability, closed-object
+  membership, element constraints, and inherited constraints participate.
 - `additionalProperties: true` maps to
   `map[string]loom.JSONValue` only when the object has no declared properties.
 - A form request whose object has only schema-valued `additionalProperties`

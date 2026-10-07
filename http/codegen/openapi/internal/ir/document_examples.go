@@ -561,15 +561,11 @@ func matchingUntaggedOpenAPIBranch(union *expr.Union, value any) *expr.Attribute
 	// Every branch must see the same wire value. Branch-specific conversion
 	// could reinterpret []byte as text for a competing string branch.
 	wire := normalizeOpenAPIExample(value)
-	_, objectValue := wire.(map[string]any)
 	for _, branch := range union.Values {
 		if branch == nil || branch.Attribute == nil {
 			continue
 		}
-		matches := primitiveExampleMatches(branch.Attribute, wire)
-		if objectValue {
-			matches = untaggedBranchExampleMatches(branch.Attribute, wire)
-		}
+		matches := untaggedBranchExampleMatches(branch.Attribute, wire)
 		if !matches {
 			continue
 		}

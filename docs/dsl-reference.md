@@ -205,29 +205,47 @@ not distinguish nil maps from empty maps. Map key and value restrictions still
 apply: keys must be booleans, strings, or integers, and a union cannot be a map
 value or array element unless it is wrapped in an object with a `Field`.
 
-Use `Untagged()` when an existing JSON contract encodes each named object
-branch directly instead of using Loom's discriminator/value envelope:
+Use `Untagged()` when a JSON contract encodes a named object or array
+branch directly:
 
 ```go
+var Items = Type("Items", ArrayOf(Item))
+var Page = Type("Page", func() {
+    Attribute("items", ArrayOf(Item))
+    Attribute("total", Int)
+    Required("total")
+})
+
 Method("lookup", func() {
-    Result(OneOf(DataResult, ErrorResult), func() {
+    Result(OneOf(Items, Page), func() {
         Untagged()
     })
 })
 ```
 
 Generated Go keeps the same sum-type constructors, `Kind`, and `As...`
-accessors. JSON marshaling emits only the selected branch object. Decoding
-validates every candidate and succeeds only when exactly one branch matches.
-Untagged branches must be concrete named flat object types whose fields are
-primitive values, concrete named objects, or arrays of either. This strict
-boundary lets decoding preserve case-sensitive JSON member names, nullability,
-required fields, and explicitly closed objects before it applies normal Loom
-value validation, including validation in nested named objects. Inline nested
-objects, maps, and union fields are rejected. OpenAPI renders branch component
-references directly under `oneOf` and omits the discriminator. This encoding is
-for JSON bodies; string-encoded parameters, headers, cookies, forms, and
-multipart bodies do not support it.
+accessors. JSON contains the selected array or object without an envelope.
+Both encoding and decoding require exactly one schema match and one valid Go
+candidate, with the same branch identity. Overlapping schemas are rejected even
+if numeric widths let Go decode only one candidate. Encoding also rejects values
+whose JSON would be ambiguous; constructors select a branch but do not guarantee
+that its value is valid on the wire. Failed decoding leaves the destination unchanged.
+
+Branches must be concrete named objects or arrays. Their recursive contents may
+be primitives, named objects, and arrays of these shapes. Inline object leaves,
+maps, nested unions, opaque custom codecs, and schema encoding overrides are
+rejected throughout the branch. Matching preserves exact JSON names, required
+membership before defaults, nullability, closed-object policy, and effective
+value constraints. A selected nil slice encodes as `[]`; a nil object branch is
+invalid. Multiple array branches that accept `[]` make that value ambiguous.
+Declare nullability on the enclosing union occurrence, not on a branch.
+
+OpenAPI renders branch component references directly under `oneOf` and omits
+the discriminator. This encoding is for JSON bodies; string-encoded parameters,
+headers, cookies, forms, and multipart bodies do not support it. Protobuf keeps
+its existing explicitly numbered `oneof` alternatives and collection wrappers.
+Regenerate consumers to adopt these checks; previously emitted ambiguous objects
+and nested-map branches are no longer accepted.
 
 #### Result View Requiredness
 

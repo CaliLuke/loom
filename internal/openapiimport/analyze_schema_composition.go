@@ -87,7 +87,7 @@ func (a *analyzer) schemaUntaggedOneOf(schema *Schema, source *base.Schema, path
 	}
 	branches := make([]*Schema, 0, len(source.OneOf))
 	for index, proxy := range source.OneOf {
-		if proxy == nil || !isObjectSchemaProxy(proxy) {
+		if proxy == nil || !isObjectSchemaProxy(proxy) && !isArraySchemaProxy(proxy) {
 			return false
 		}
 		branch := a.schema(proxy, fmt.Sprintf("%s/oneOf/%d", path, index))
@@ -98,6 +98,14 @@ func (a *analyzer) schemaUntaggedOneOf(schema *Schema, source *base.Schema, path
 	}
 	schema.OneOf = branches
 	return true
+}
+
+func isArraySchemaProxy(proxy *base.SchemaProxy) bool {
+	if proxy == nil || !proxy.IsReference() || !isNonNullableLocalReference(proxy) {
+		return false
+	}
+	resolved := proxy.Schema()
+	return len(resolved.Type) == 1 && resolved.Type[0] == "array"
 }
 
 func isObjectSchemaProxy(proxy *base.SchemaProxy) bool {

@@ -57,8 +57,9 @@ func OneOf(arg any, args ...any) expr.DataType {
 
 // Untagged configures the current OneOf attribute to encode its selected JSON
 // branch directly, without the canonical discriminator/value wrapper. Every
-// branch must be a named flat object type with primitive fields so generated
-// decoders can validate all candidates and require exactly one match.
+// branch must be a concrete named object or array containing primitives, named
+// objects, or arrays of these shapes. Encoding and decoding require the same
+// unique branch in both the JSON schema and the generated Go representation.
 func Untagged() {
 	attribute, ok := eval.Current().(*expr.AttributeExpr)
 	if !ok {

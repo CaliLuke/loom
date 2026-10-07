@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/unionjson"
 )
 
 type (
@@ -511,6 +512,8 @@ type (
 		// Untagged reports whether JSON marshaling emits the selected branch value
 		// directly instead of the canonical discriminator/value wrapper.
 		Untagged bool
+		// JSON holds shared untagged JSON analysis; nil for tagged unions.
+		JSON *unionjson.Union
 		// HasScalarFormBranch is true when at least one branch keeps canonical
 		// type/value form encoding.
 		HasScalarFormBranch bool
@@ -531,15 +534,6 @@ type (
 		ValidateCode string
 		// ValidateRef is the Go expression that validates a decoded branch.
 		ValidateRef string
-		// RequiredFields lists JSON object members that must be present.
-		RequiredFields []string
-		// NonNullableFields lists present JSON object members that reject null.
-		NonNullableFields []string
-		// JSONFields lists the exact JSON object members decoded by this branch.
-		JSONFields []string
-		// RejectUnknownJSONFields reports whether undeclared object members make
-		// this branch ineligible.
-		RejectUnknownJSONFields bool
 		// FlatFormObject is true when the branch value is object-shaped and form
 		// encoding should flatten its fields under the current prefix.
 		FlatFormObject bool

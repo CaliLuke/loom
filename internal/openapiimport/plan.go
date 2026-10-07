@@ -356,17 +356,17 @@ func (p *documentPlanner) schema(schema *Schema, path string) {
 	if schema != nil && len(schema.OneOf) > 0 {
 		for index, branch := range schema.OneOf {
 			if branch == nil || branch.Ref == "" {
-				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object components")
+				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object or array components")
 				continue
 			}
 			name := strings.TrimPrefix(branch.Ref, "#/components/schemas/")
 			named, ok := p.schemas[name]
-			if name == branch.Ref || !ok || named.Schema == nil || named.Schema.Ref != "" || named.Schema.Type != "object" {
-				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object components")
+			if name == branch.Ref || !ok || named.Schema == nil || named.Schema.Ref != "" || named.Schema.Type != "object" && named.Schema.Type != "array" {
+				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object or array components")
 				continue
 			}
-			if !p.schemaIsFlatUntaggedObject(named.Schema) {
-				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must be flat objects with primitive or named object properties, or arrays of either")
+			if !p.schemaIsUntaggedBranch(named.Schema) {
+				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must be named objects or arrays containing primitives, named objects, or arrays of these shapes")
 			}
 		}
 	}
@@ -380,47 +380,42 @@ func (p *documentPlanner) schema(schema *Schema, path string) {
 	}
 }
 
-func (p *documentPlanner) schemaIsFlatUntaggedObject(schema *Schema) bool {
-	if schema == nil || schema.Type != "object" || len(schema.Bases) > 0 || schema.Items != nil || len(schema.OneOf) > 0 {
-		return false
-	}
-	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
-		return false
-	}
-	for _, property := range schema.Properties {
-		if !p.schemaIsUntaggedProperty(property.Schema, make(map[string]struct{})) {
-			return false
-		}
-	}
-	return true
+func (p *documentPlanner) schemaIsUntaggedBranch(schema *Schema) bool {
+	return p.schemaIsUntaggedShape(schema, true, make(map[string]bool))
 }
 
-func (p *documentPlanner) schemaIsUntaggedProperty(schema *Schema, seen map[string]struct{}) bool {
-	if schema == nil || schema.Ref == "" {
-		if schema != nil && schema.Type == "array" && schema.Items != nil {
-			return p.schemaIsUntaggedProperty(schema.Items, seen)
+func (p *documentPlanner) schemaIsUntaggedShape(schema *Schema, named bool, active map[string]bool) bool {
+	if schema == nil || len(schema.Bases) > 0 || len(schema.OneOf) > 0 {
+		return false
+	}
+	if schema.Ref != "" {
+		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		declaration, exists := p.schemas[name]
+		if name == schema.Ref || !exists || declaration.Schema == nil {
+			return false
 		}
-		return p.schemaIsPrimitive(schema, seen)
+		if active[name] {
+			return declaration.Schema.Type == "object"
+		}
+		active[name] = true
+		defer delete(active, name)
+		return p.schemaIsUntaggedShape(declaration.Schema, true, active)
 	}
-	name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-	if name == schema.Ref {
-		return false
+	if schema.Type == "array" {
+		return schema.Items != nil && p.schemaIsUntaggedShape(schema.Items, false, active)
 	}
-	if _, ok := seen[name]; ok {
-		return false
-	}
-	seen[name] = struct{}{}
-	named, ok := p.schemas[name]
-	if !ok || named.Schema == nil {
-		return false
-	}
-	if named.Schema.Ref != "" {
-		return p.schemaIsUntaggedProperty(named.Schema, seen)
-	}
-	if named.Schema.Type == "object" && len(named.Schema.Bases) == 0 && len(named.Schema.OneOf) == 0 && named.Schema.Items == nil && named.Schema.AdditionalProperties == nil {
+	if schema.Type == "object" {
+		if !named || schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
+			return false
+		}
+		for _, property := range schema.Properties {
+			if !p.schemaIsUntaggedShape(property.Schema, false, active) {
+				return false
+			}
+		}
 		return true
 	}
-	return p.schemaIsPrimitive(named.Schema, seen)
+	return p.schemaIsPrimitive(schema, make(map[string]struct{}))
 }
 
 func (p *documentPlanner) schemaIsPrimitive(schema *Schema, seen map[string]struct{}) bool {

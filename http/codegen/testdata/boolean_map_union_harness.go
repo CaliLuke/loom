@@ -1,7 +1,7 @@
 package testdata
 
 // BooleanMapUnionHarness checks CLI parsing and bidirectional generated HTTP
-// codecs, including nested nullable maps and untagged branch selection.
+// codecs, including nested nullable maps in tagged union branches.
 const BooleanMapUnionHarness = `package unionkeys_test
 
 import (
@@ -30,7 +30,7 @@ func TestBooleanMapUnionRoundTrips(t *testing.T) {
 		return value, nil
 	}
 	mux := loomhttp.NewMuxer()
-	server.Mount(mux, server.New(&svc.Endpoints{Tagged: echo, Untagged: echo}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	server.Mount(mux, server.New(&svc.Endpoints{Tagged: echo}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
 	host := httptest.NewServer(mux)
 	defer host.Close()
 	address, err := url.Parse(host.URL)
@@ -47,9 +47,7 @@ func TestBooleanMapUnionRoundTrips(t *testing.T) {
 		{"tagged nested", "{\"type\":\"nested\",\"value\":{\"marker\":\"present\",\"flags\":{\"false\":true,\"true\":false}}}", func(body string) (any, error) {
 			return client.BuildTaggedPayload(body)
 		}, c.Tagged()},
-		{"untagged nested", "{\"payload\":{\"marker\":\"present\",\"flags\":{\"false\":true,\"true\":false}}}", func(body string) (any, error) {
-			return client.BuildUntaggedPayload(body)
-		}, c.Untagged()},
+
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			payload, err := tc.build(tc.body)

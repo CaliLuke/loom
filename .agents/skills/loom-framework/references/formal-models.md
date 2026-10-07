@@ -21,6 +21,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | Request-body analysis, method type ownership, inherited/default result views | [Expression lifecycle models](../../../../expr/tla/README.md); local README maps them to expression and generated transport tests |
 | Copying incomplete union branch occurrences, mutable metadata ownership, recursive expansion | [Union copy models](../../../../dsl/tla/union_copy/README.md) |
 | Promoted union identity, authored-name reservations and deterministic allocation | [Union naming model](../../../../dsl/tla/union_names/README.md) |
+| Untagged JSON schema/decoder agreement, selected identity and transactional assignment | [Untagged matching model](../../../../pkg/tla/untagged_json/README.md) |
 | JSON options at nested union/optional/nullable codec boundaries | [JSON options model](../../../../pkg/tla/json_options/README.md) |
 
 ## Generated declarations and transport mappings

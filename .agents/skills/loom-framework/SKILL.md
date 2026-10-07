@@ -354,14 +354,19 @@ filter, and serialization rules belong here.
   when the local referenced schema explicitly excludes null. Regeneration may
   use nullable `anyOf`; reject already-nullable targets because the two
   applicators are not equivalent in that case.
-- Normalize JSON request and success-response `oneOf` object branches to an
-  explicit untagged Loom union when every branch is a flat object whose fields
-  are primitives, concrete named objects, or arrays of either. Promote inline
-  branches to deterministic named components, retain the generated sum-type
-  API, and select a decoded branch only after exact JSON-shape and generated
-  value validation succeeds. Generate every nested named-type validator used
-  by a branch. Reject zero or multiple matches, inline nested object fields,
-  and string-encoded transport locations.
+- Normalize JSON request and success-response `oneOf` named object/array branches
+  to an explicit untagged union. Recursively admit primitives, named objects and
+  arrays; reject maps, nested unions, inline object leaves and opaque codecs.
+  Promote inline object branches to deterministic components; inline array
+  branches remain unsupported. `expr.ValuePlan.JSONShape` lowers captured
+  effective predicates. `internal/unionjson` projects service or HTTP member
+  layouts and renders typed adapters; `pkg.MatchUntaggedJSON` owns orchestration.
+  Independently require unique schema and actual Go matches with the same identity
+  in both directions. Do not use numeric widths as schema discriminators, select
+  the first successful branch, or mutate a destination before matching succeeds.
+  Preserve API-level closed-object policy in the HTTP schema projection. See the
+  [matching design](../../../internal/unionjson/README.md) and its bounded model.
+
 - Normalize a scalar JSON Schema `const` without a sibling `enum` to a
   one-member Loom enum. Keep structured constants and combined `const` plus
   `enum` schemas rejected.

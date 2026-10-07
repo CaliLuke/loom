@@ -188,13 +188,13 @@ because `Any` discards its assertions. The equivalent
 A two-member `oneOf` with a bare `null` branch and a local `$ref` to a schema
 that explicitly excludes null imports as a nullable named type. Regeneration
 uses the equivalent nullable `anyOf` form. A JSON request or success response
-body `oneOf` with two or more object branches imports as an untagged typed
-union when every branch is a flat object whose fields are primitives, concrete
-named objects, or arrays of either: generated Go retains constructors and
-accessors, JSON uses the bare selected object, and decoding requires exactly
-one fully valid branch. Inline branches become deterministic components.
-Inline nested objects, scalar unions, and untagged unions in string-encoded
-transport locations remain blocked.
+body `oneOf` with named object or array branches imports as an untagged typed
+union. Recursive contents may be primitives, named objects, and arrays of these
+shapes. Generated Go retains constructors and accessors; JSON uses the bare
+selected array or object. Encoding and decoding require the same unique schema
+and Go branch. Inline object branches become deterministic components; inline
+array branches, inline nested objects, maps, nested unions, scalar unions, and
+untagged unions in string-encoded transport locations remain blocked.
 
 A scalar JSON Schema `const` without a sibling `enum` imports as the equivalent
 one-value `Enum(...)` validation. Regenerated OpenAPI uses `enum` because Loom's
@@ -482,8 +482,11 @@ completion shapes are explicit generation limitations.
   A selected nil or empty map keeps its branch through protobuf serialization;
   nil and empty map entries are equivalent on the wire.
 - Add `Untagged()` in the union attribute, payload, or result block only when
-  JSON must encode the selected concrete named object branch directly. Decoding
-  tests every branch and requires exactly one match.
+  JSON must encode a concrete named object or array branch directly. Both encoding
+  and decoding require the same unique schema and Go branch; overlapping schemas
+  fail even when Go numeric widths distinguish them. Nil slices encode as `[]`,
+  which is ambiguous if multiple array branches admit empty arrays. Put nullability
+  on the enclosing union, not a branch. Opaque codecs and nested maps are rejected.
 - Explicit discriminator tags control wire values independently of schema and
   Go type names.
 - Optional object unions generate as pointers; required unions remain values.

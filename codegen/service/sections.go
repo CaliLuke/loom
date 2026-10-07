@@ -378,6 +378,9 @@ func addUnionUnmarshalJSONMethod(stmt *jen.Statement, data *UnionTypeData) {
 			addRawUnionBlock(group, renderUnionUnmarshalJSONBody(data))
 		})
 	stmt.Line()
+	if data.Untagged {
+		stmt.Add(codegen.Expr(data.JSON.Matcher())).Line()
+	}
 }
 
 func renderUnionValidateBody(data *UnionTypeData) string {
@@ -403,7 +406,7 @@ func renderUnionValidateBody(data *UnionTypeData) string {
 
 func renderUnionMarshalJSONBody(data *UnionTypeData) string {
 	if data.Untagged {
-		return renderUntaggedUnionMarshalJSONBody(data)
+		return data.JSON.Marshal()
 	}
 	var b sourceBuilder
 	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
@@ -415,22 +418,6 @@ func renderUnionMarshalJSONBody(data *UnionTypeData) string {
 	fmt.Fprintf(&b, "\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
 	fmt.Fprintf(&b, "return json.Marshal(struct {\n\tType  string%s\n\tValue any   %s\n}{\n", codegen.StructTag(map[string]string{"json": data.TypeKey}), codegen.StructTag(map[string]string{"json": data.ValueKey}))
 	b.Add("\tType:  string(u.kind),\n\tValue: value,\n}, loom.JSONOptions(), json.Deterministic(true))")
-	return b.String()
-}
-
-func renderUntaggedUnionMarshalJSONBody(data *UnionTypeData) string {
-	var b sourceBuilder
-	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
-	b.Add("switch u.kind {\n")
-	for _, field := range data.Fields {
-		fmt.Fprintf(
-			&b,
-			"\tcase %s:\n\t\treturn json.Marshal(u.%s, loom.JSONOptions(), json.Deterministic(true))\n",
-			field.KindConst,
-			field.FieldName,
-		)
-	}
-	fmt.Fprintf(&b, "\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}", data.Name)
 	return b.String()
 }
 
@@ -490,7 +477,7 @@ func renderUnionUnmarshalFormBody(data *UnionTypeData) string {
 
 func renderUnionUnmarshalJSONBody(data *UnionTypeData) string {
 	if data.Untagged {
-		return renderUntaggedUnionUnmarshalJSONBody(data)
+		return data.JSON.Unmarshal()
 	}
 	var b sourceBuilder
 	fmt.Fprintf(&b, "var raw struct {\n\tType  string        %s\n\tValue jsontext.Value%s\n}\n", codegen.StructTag(map[string]string{"json": data.TypeKey}), codegen.StructTag(map[string]string{"json": data.ValueKey}))
@@ -509,63 +496,6 @@ func renderUnionUnmarshalJSONBody(data *UnionTypeData) string {
 		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
 	b.Add("\t\t})\n\t}\nreturn nil")
-	return b.String()
-}
-
-func renderUntaggedUnionUnmarshalJSONBody(data *UnionTypeData) string {
-	var b sourceBuilder
-	b.Add("var rawObject map[string]jsontext.Value\n")
-	b.Add("if err := json.Unmarshal(data, &rawObject); err != nil {\n\treturn err\n}\n")
-	fmt.Fprintf(&b, "if rawObject == nil {\n\treturn fmt.Errorf(\"decode %s: untagged union matched 0 branches\")\n}\n", data.Name)
-	b.Add("matches := 0\n")
-	fmt.Fprintf(&b, "var matched %s\n", data.Name)
-	for _, field := range data.Fields {
-		fmt.Fprintf(&b, "{\n\teligible := true\n\tvar v %s\n", field.FieldType)
-		for _, name := range field.RequiredFields {
-			fmt.Fprintf(&b, "\tif _, ok := rawObject[%q]; !ok {\n\t\teligible = false\n\t}\n", name)
-		}
-		for _, name := range field.NonNullableFields {
-			fmt.Fprintf(&b, "\tif value, ok := rawObject[%q]; ok {\n\t\tvar decoded any\n\t\tif err := json.Unmarshal(value, &decoded); err != nil || decoded == nil {\n\t\t\teligible = false\n\t\t}\n\t}\n", name)
-		}
-		if field.RejectUnknownJSONFields {
-			b.Add("\tfor name := range rawObject {\n\t\tswitch name {\n")
-			for _, name := range field.JSONFields {
-				fmt.Fprintf(&b, "\t\tcase %q:\n", name)
-			}
-			b.Add("\t\tdefault:\n\t\t\teligible = false\n\t\t}\n\t}\n")
-		}
-		b.Add("\tfiltered := make(map[string]jsontext.Value)\n")
-		for _, name := range field.JSONFields {
-			fmt.Fprintf(&b, "\tif value, ok := rawObject[%q]; ok {\n\t\tfiltered[%q] = value\n\t}\n", name, name)
-		}
-		b.Add("\tif eligible {\n")
-		b.Add("\tcandidateData, marshalErr := json.Marshal(filtered)\n")
-		b.Add("\tif marshalErr == nil {\n")
-		b.Add("\tif err := json.Unmarshal(candidateData, &v, loom.JSONOptions()); err == nil {\n")
-		validated := false
-		if field.ValidateCode != "" {
-			b.Add("\t\tbranchErr := func() (err error) {\n")
-			b.Add(codegen.Indent(field.ValidateCode, "\t\t\t"))
-			b.Add("\n")
-			b.Add("\t\t\treturn\n\t\t}()\n")
-			b.Add("\t\tif branchErr == nil {\n")
-			validated = true
-		} else if field.ValidateRef != "" {
-			fmt.Fprintf(&b, "\t\tif err := %s; err == nil {\n", field.ValidateRef)
-			validated = true
-		}
-		indent := "\t\t"
-		if validated {
-			indent = "\t\t\t"
-		}
-		fmt.Fprintf(&b, "%smatches++\n%smatched.kind = %s\n%smatched.%s = v\n", indent, indent, field.KindConst, indent, field.FieldName)
-		if validated {
-			b.Add("\t\t}\n")
-		}
-		b.Add("\t}\n\t}\n\t}\n}\n")
-	}
-	fmt.Fprintf(&b, "if matches != 1 {\n\treturn fmt.Errorf(\"decode %s: untagged union matched %%d branches\", matches)\n}\n", data.Name)
-	b.Add("*u = matched\nreturn nil")
 	return b.String()
 }
 

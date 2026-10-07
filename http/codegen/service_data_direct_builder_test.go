@@ -42,8 +42,12 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.NotEmpty(t, svcData.UnionTypes)
 		for _, union := range svcData.UnionTypes {
 			require.Len(t, union.Fields, 2)
-			require.Equal(t, []string{"start"}, union.Fields[0].RequiredFields, union.Name)
-			require.Equal(t, []string{"stop"}, union.Fields[1].RequiredFields, union.Name)
+			matched, err := union.JSON.Branches[0].Runtime.Match([]byte(`{"start":"ok"}`))
+			require.NoError(t, err)
+			require.True(t, matched, union.Name)
+			matched, err = union.JSON.Branches[1].Runtime.Match([]byte(`{"start":"ok"}`))
+			require.NoError(t, err)
+			require.False(t, matched, union.Name)
 		}
 	})
 

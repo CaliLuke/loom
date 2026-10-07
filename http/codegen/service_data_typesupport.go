@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/unionjson"
 )
 
 // makeHTTPType traverses the attribute recursively and performs these actions:
@@ -142,20 +143,21 @@ func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, hashes, seen map[s
 func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints []*transportir.Endpoint, scope *codegen.NameScope) []*service.UnionTypeData {
 	unionByName := make(map[string]*service.UnionTypeData)
 	seenUnionTypes := make(map[string]struct{})
+	closed, _ := sds.ServicesData.Root.API.Meta.Last("openapi:closed-objects")
 	for _, endpoint := range endpoints {
-		collectHTTPUnionTypes(endpoint.Request.Body, scope, unionByName, seenUnionTypes)
+		collectHTTPUnionTypes(endpoint.Request.Body, scope, unionByName, seenUnionTypes, closed == "true")
 		if hasHTTPStreamingBody(endpoint) {
-			collectHTTPUnionTypes(endpoint.Request.StreamingBody, scope, unionByName, seenUnionTypes)
+			collectHTTPUnionTypes(endpoint.Request.StreamingBody, scope, unionByName, seenUnionTypes, closed == "true")
 		}
 		if endpoint.Response.Result != nil {
 			md := sds.ServicesData.Get(serviceName).Method(endpoint.MethodName)
 			for _, response := range endpoint.Response.Responses {
 				body := effectiveClientResponseBody(response.Body, endpoint.Response.Result, md)
-				collectHTTPUnionTypes(body, scope, unionByName, seenUnionTypes)
+				collectHTTPUnionTypes(body, scope, unionByName, seenUnionTypes, closed == "true")
 			}
 		}
 		for _, response := range endpoint.Response.ErrorResponses {
-			collectHTTPUnionTypes(response.Body, scope, unionByName, seenUnionTypes)
+			collectHTTPUnionTypes(response.Body, scope, unionByName, seenUnionTypes, closed == "true")
 		}
 	}
 	unions := make([]*service.UnionTypeData, 0, len(unionByName))
@@ -168,7 +170,7 @@ func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints
 	return unions
 }
 
-func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, unions map[string]*service.UnionTypeData, seen map[string]struct{}) {
+func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, unions map[string]*service.UnionTypeData, seen map[string]struct{}, closedObjects bool) {
 	if att == nil || att.Type == expr.Empty {
 		return
 	}
@@ -188,35 +190,35 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 			// be the deduplication key.
 			name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
 			if _, ok := unions[name]; !ok {
-				unions[name] = buildHTTPUnionTypeData(union, scope, name)
+				unions[name] = buildHTTPUnionTypeData(union, scope, closedObjects, name)
 			}
 			for _, nat := range union.Values {
-				collectHTTPUnionTypes(nat.Attribute, scope, unions, seen)
+				collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects)
 			}
 			return
 		}
-		collectHTTPUnionTypes(dt.Attribute(), scope, unions, seen)
+		collectHTTPUnionTypes(dt.Attribute(), scope, unions, seen, closedObjects)
 	case *expr.Object:
 		for _, nat := range sortedNamedAttributes(*dt) {
-			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen)
+			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects)
 		}
 	case *expr.Array:
-		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen)
+		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen, closedObjects)
 	case *expr.Map:
-		collectHTTPUnionTypes(dt.KeyType, scope, unions, seen)
-		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen)
+		collectHTTPUnionTypes(dt.KeyType, scope, unions, seen, closedObjects)
+		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen, closedObjects)
 	case *expr.Union:
 		name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
 		if _, ok := unions[name]; !ok {
-			unions[name] = buildHTTPUnionTypeData(dt, scope, name)
+			unions[name] = buildHTTPUnionTypeData(dt, scope, closedObjects, name)
 		}
 		for _, nat := range dt.Values {
-			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen)
+			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects)
 		}
 	}
 }
 
-func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, names ...string) *service.UnionTypeData {
+func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjects bool, names ...string) *service.UnionTypeData {
 	att := &expr.AttributeExpr{Type: u}
 	name := scope.GoTypeName(att)
 	if len(names) > 0 {
@@ -243,9 +245,17 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, names ...st
 		}
 		if u.Untagged {
 			fields[i].ValidateRef = unionBranchValidateRef(fieldType)
-			fields[i].RequiredFields, fields[i].NonNullableFields, fields[i].JSONFields, fields[i].RejectUnknownJSONFields = serviceUnionBranchJSONFields(nat.Attribute)
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
+	}
+
+	var jsonUnion *unionjson.Union
+	if u.Untagged {
+		branches := make([]*unionjson.Branch, len(fields))
+		for i, field := range fields {
+			branches[i] = &unionjson.Branch{Type: field.FieldType, Field: field.FieldName, Kind: field.KindConst, Validate: "err = " + field.ValidateRef}
+		}
+		jsonUnion = unionjson.Analyze(name, u, branches, expr.ElementName, closedObjects)
 	}
 
 	return &service.UnionTypeData{
@@ -255,6 +265,7 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, names ...st
 		TypeKey:             u.GetTypeKey(),
 		ValueKey:            u.GetValueKey(),
 		Untagged:            u.Untagged,
+		JSON:                jsonUnion,
 		HasScalarFormBranch: hasScalarFormBranch,
 	}
 }
@@ -262,34 +273,6 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, names ...st
 func unionBranchValidateRef(fieldType string) string {
 	typeName := strings.TrimPrefix(fieldType, "*")
 	return "Validate" + typeName + "(v)"
-}
-
-// serviceUnionBranchJSONFields returns the sorted required, non-nullable and
-// all JSON field names of the untagged union branch att in HTTP and JSON-RPC
-// bodies, which name a field declared as "n:m" after its element name "m", and
-// whether the branch rejects unknown fields.
-func serviceUnionBranchJSONFields(att *expr.AttributeExpr) ([]string, []string, []string, bool) {
-	ut := att.Type.(expr.UserType)
-	parent := ut.Attribute()
-	object := expr.AsObject(ut.Attribute().Type)
-	required := make([]string, 0, len(parent.AllRequired()))
-	nonNullable := make([]string, 0, len(*object))
-	fields := make([]string, 0, len(*object))
-	for _, field := range *object {
-		name := codegen.JSONFieldName(expr.ElementName(field.Name), field.Attribute)
-		fields = append(fields, name)
-		if parent.IsRequired(field.Name) {
-			required = append(required, name)
-		}
-		if !expr.AllowsNull(field.Attribute) {
-			nonNullable = append(nonNullable, name)
-		}
-	}
-	sort.Strings(required)
-	sort.Strings(nonNullable)
-	sort.Strings(fields)
-	closed, _ := parent.Meta.Last("openapi:additionalProperties")
-	return required, nonNullable, fields, closed == "false"
 }
 
 func sortedNamedAttributes(attrs []*expr.NamedAttributeExpr) []*expr.NamedAttributeExpr {

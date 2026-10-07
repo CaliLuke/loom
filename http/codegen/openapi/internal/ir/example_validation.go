@@ -1,13 +1,13 @@
 package ir
 
 import (
+	"encoding/json/v2"
 	"math/big"
 	"reflect"
 	"unicode/utf8"
 
-	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/internal/unionjson"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -22,53 +22,16 @@ func untaggedUnionExampleMatches(union *expr.Union, value any) bool {
 }
 
 func untaggedBranchExampleMatches(branch *expr.AttributeExpr, value any) bool {
-	objectValue, ok := value.(map[string]any)
-	if !ok {
+	plan, err := unionjson.Plan(branch, expr.ElementName, true, false)
+	if err != nil {
 		return false
 	}
-	branch = unwrapExampleAttribute(branch)
-	if branch == nil {
+	wire, err := json.Marshal(normalizeOpenAPIExample(value), loom.JSONOptions(), json.Deterministic(true))
+	if err != nil {
 		return false
 	}
-	object := expr.AsObject(branch.Type)
-	if object == nil {
-		return false
-	}
-	fields := make(map[string]*expr.AttributeExpr, len(*object))
-	suppressed := make(map[string]struct{})
-	for _, field := range *object {
-		if field == nil || field.Attribute == nil {
-			continue
-		}
-		name := codegen.JSONFieldName(expr.ElementName(field.Name), field.Attribute)
-		if !openapi.MustGenerate(field.Attribute.Meta) {
-			suppressed[name] = struct{}{}
-			continue
-		}
-		fields[name] = field.Attribute
-		if branch.IsRequired(field.Name) {
-			if _, present := objectValue[name]; !present {
-				return false
-			}
-		}
-	}
-	closed, _ := branch.Meta.Last("openapi:additionalProperties")
-	for name, fieldValue := range objectValue {
-		if _, ignored := suppressed[name]; ignored {
-			continue
-		}
-		field, defined := fields[name]
-		if !defined {
-			if closed == "false" {
-				return false
-			}
-			continue
-		}
-		if !openAPIFieldExampleMatches(field, fieldValue) {
-			return false
-		}
-	}
-	return true
+	matched, err := plan.MatchJSONSchema(wire)
+	return err == nil && matched
 }
 
 func openAPIFieldExampleMatches(attribute *expr.AttributeExpr, value any) bool {
@@ -142,22 +105,6 @@ func containerLengthMatches(validation *expr.ValidationExpr, length int) bool {
 		return false
 	}
 	return validation.MaxLength == nil || length <= *validation.MaxLength
-}
-
-func unwrapExampleAttribute(attribute *expr.AttributeExpr) *expr.AttributeExpr {
-	seen := make(map[string]struct{})
-	for attribute != nil {
-		userType, ok := attribute.Type.(expr.UserType)
-		if !ok {
-			return attribute
-		}
-		if _, exists := seen[userType.ID()]; exists {
-			return nil
-		}
-		seen[userType.ID()] = struct{}{}
-		attribute = userType.Attribute()
-	}
-	return nil
 }
 
 func primitiveExampleMatches(attribute *expr.AttributeExpr, value any) bool {

@@ -36,6 +36,9 @@ belong in the `loom` skill and the canonical guides under `docs/`.
 - `internal/`: repository-private support packages and release/source tooling
 - `internal/httpcodec`: role-specific built-in HTTP codec selection shared by
   runtime dispatch and representation preparation
+- `internal/unionjson`: shared untagged JSON occurrence projection and typed
+  adapter generation; `expr` lowers semantic predicates and `pkg/json_union.go`
+  owns runtime matching over the generated descriptions
 - `internal/byteschema`: alias-bound intersection and checked base64 grammar
   and decoded-length schema projection
 - `internal/naming`: the Go identifiers and generated directory names derived
