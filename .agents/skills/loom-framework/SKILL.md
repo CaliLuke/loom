@@ -408,6 +408,10 @@ filter, and serialization rules belong here.
 - `expr.HTTPEndpointExpr.validateResponses` owns the unique untagged application
   response requirement. Generators must not discard ambiguous authored responses;
   transport and OpenAPI analysis consume the same validated expression set.
+  `transportir.buildResponse` stably places tagged alternatives before the
+  default; renderers consume that order without reordering or swapping entries.
+  The [response-order model](../../../http/codegen/internal/transportir/tla/response_order/README.md)
+  checks priority preservation and selection; generated wire tests check Go.
 
 - Length diagnostics receive only field identity, actual length, bound and
   comparison direction. `pkg.InvalidLengthError` owns their diagnostic contract;

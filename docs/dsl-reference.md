@@ -1766,6 +1766,11 @@ different status codes alone cannot select a response. Multiple untagged
 responses are rejected during design validation. Replace any formerly ignored
 response with an explicit tag or remove it, then regenerate.
 
+Tagged responses are tested in authored order; the first matching tag wins.
+The untagged default is always tested last, wherever its declaration appears.
+Regenerate to correct servers that previously changed priority when the default
+was declared before tagged alternatives.
+
 Designed error responses and FileResponse's protocol-owned statuses are separate
 from this application-response selection rule.
 

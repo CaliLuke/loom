@@ -1,0 +1,89 @@
+// EncodeDefaultFirstResponse returns an encoder for responses returned by the
+// selection default_first endpoint.
+func EncodeDefaultFirstResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, ok := v.(*selection.SelectionResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("selection", "default_first", "*selection.SelectionResult", v)
+		}
+		if res.First == "yes" {
+			enc := encoder(ctx, w)
+			body := res.Message
+			w.Header().Set("X-Trace", res.Trace)
+			w.WriteHeader(http.StatusCreated)
+			return enc.Encode(body)
+		}
+		if res.Second == "yes" {
+			enc := encoder(ctx, w)
+			body := res.Message
+			w.Header().Set("X-Trace", res.Trace)
+			w.WriteHeader(http.StatusAccepted)
+			return enc.Encode(body)
+		}
+		enc := encoder(ctx, w)
+		body := res.Message
+		w.Header().Set("X-Trace", res.Trace)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// EncodeDefaultMiddleResponse returns an encoder for responses returned by the
+// selection default_middle endpoint.
+func EncodeDefaultMiddleResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, ok := v.(*selection.SelectionResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("selection", "default_middle", "*selection.SelectionResult", v)
+		}
+		if res.First == "yes" {
+			enc := encoder(ctx, w)
+			body := res.Message
+			w.Header().Set("X-Trace", res.Trace)
+			w.WriteHeader(http.StatusCreated)
+			return enc.Encode(body)
+		}
+		if res.Second == "yes" {
+			enc := encoder(ctx, w)
+			body := res.Message
+			w.Header().Set("X-Trace", res.Trace)
+			w.WriteHeader(http.StatusAccepted)
+			return enc.Encode(body)
+		}
+		enc := encoder(ctx, w)
+		body := res.Message
+		w.Header().Set("X-Trace", res.Trace)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// EncodeDefaultLastResponse returns an encoder for responses returned by the
+// selection default_last endpoint.
+func EncodeDefaultLastResponse(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, ok := v.(*selection.SelectionResult)
+		if !ok {
+			return loomhttp.ErrInvalidType("selection", "default_last", "*selection.SelectionResult", v)
+		}
+		if res.First == "yes" {
+			enc := encoder(ctx, w)
+			body := res.Message
+			w.Header().Set("X-Trace", res.Trace)
+			w.WriteHeader(http.StatusCreated)
+			return enc.Encode(body)
+		}
+		if res.Second == "yes" {
+			enc := encoder(ctx, w)
+			body := res.Message
+			w.Header().Set("X-Trace", res.Trace)
+			w.WriteHeader(http.StatusAccepted)
+			return enc.Encode(body)
+		}
+		enc := encoder(ctx, w)
+		body := res.Message
+		w.Header().Set("X-Trace", res.Trace)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}

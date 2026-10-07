@@ -100,22 +100,12 @@ func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, 
 		svcctx     = serviceContext(pkg, sd.Service.Scope)
 	)
 	httpclictx.JSONPresence = true
-	{
-		if viewed {
-			scope = svc.ViewScope
-			svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
-		}
-		notag := -1
-		for i, resp := range endpointIR.Response.Responses {
-			if resp.TagName == "" {
-				notag = i
-			}
-			responses = append(responses, sds.buildSingleResponseData(endpointIR, resp, result, viewed, md, pkg, httpclictx, scope, svcctx, sd))
-		}
-		count := len(responses)
-		if notag >= 0 && notag < count-1 {
-			responses[notag], responses[count-1] = responses[count-1], responses[notag]
-		}
+	if viewed {
+		scope = svc.ViewScope
+		svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
+	}
+	for _, resp := range endpointIR.Response.Responses {
+		responses = append(responses, sds.buildSingleResponseData(endpointIR, resp, result, viewed, md, pkg, httpclictx, scope, svcctx, sd))
 	}
 	return responses
 }

@@ -149,8 +149,10 @@ type (
 	}
 
 	Response struct {
-		Result              *expr.AttributeExpr
-		StreamingResult     *expr.AttributeExpr
+		Result          *expr.AttributeExpr
+		StreamingResult *expr.AttributeExpr
+		// Responses holds tagged responses in authored priority order, followed by
+		// the unique untagged application response checked by expression validation.
 		Responses           []*ResponseStatus
 		ErrorResponses      []*ResponseStatus
 		HasMixedResults     bool

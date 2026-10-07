@@ -514,7 +514,9 @@ completion shapes are explicit generation limitations.
 HTTP methods require one untagged application response. Use `Tag` on every
 additional response; multiple untagged declarations are rejected instead of
 silently ignored. Designed errors and FileResponse protocol statuses remain
-separate. Update ambiguous designs before regenerating.
+separate. Update ambiguous designs before regenerating. Tagged responses retain
+authored first-match priority; default placement never changes it. Regenerate
+servers to adopt this ordering correction.
 
 - A method may share its name with a type nested in its object or union body.
   Loom allocates distinct transport type names, including WebSocket bodies;

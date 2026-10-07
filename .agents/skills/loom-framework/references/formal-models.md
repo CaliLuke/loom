@@ -32,6 +32,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | View union allocation before conversion references | [View union names](../../../../codegen/service/tla/view_union_names/README.md) |
 | Relocated type declarations, local reservations and union helpers | [External type names](../../../../codegen/tla/external_type_names/README.md) |
 | Final client-streaming result interception and selected views | [Final result interception](../../../../codegen/service/tla/README.md) |
+| HTTP response first-match priority and default placement | [Response order](../../../../http/codegen/internal/transportir/tla/response_order/README.md) |
 | HTTP body wrapper copy/example identity and generated type names | [Body type names](../../../../http/codegen/tla/body_type_names/README.md) |
 | HTTP type collection, validator eligibility and multipart cycle identity | [HTTP type identity](../../../../http/codegen/tla/type_identity/README.md) |
 | HTTP union declarations matching allocated references | [HTTP union declarations](../../../../http/codegen/tla/union_declarations/README.md) |
