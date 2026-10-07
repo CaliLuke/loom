@@ -24,6 +24,9 @@ func validateStructMeta(ctx string, meta MetaExpr, parent eval.Expression) *eval
 			verr.Add(parent, "%smetadata %q value %q is not a valid relative Go import path: %s", ctx, "struct:pkg:path", value, reason)
 		}
 	}
+	if names, present := meta["struct:name:proto"]; present && len(names) != 1 {
+		verr.Add(parent, "%smetadata %q must contain exactly one message name", ctx, "struct:name:proto")
+	}
 	for _, value := range meta["struct:name:proto"] {
 		if !validProtoMessageName(value) {
 			verr.Add(parent, "%smetadata %q value %q is not a valid protocol buffer message name: use ASCII letters, digits and underscores, starting with a letter or underscore", ctx, "struct:name:proto", value)

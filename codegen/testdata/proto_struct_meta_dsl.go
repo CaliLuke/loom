@@ -2,18 +2,9 @@ package testdata
 
 import . "github.com/CaliLuke/loom/dsl"
 
-// ProtoStructMetaDSL declares gRPC types generated in the "menu" package with
-// struct:pkg:path metadata, most of which also name their protocol buffer
-// message with struct:name:proto. The types are used directly as payloads,
-// results, streaming results, stream items and errors, where Loom names
-// their messages after the struct:name:proto metadata, and nested as message
-// fields, array elements, map values and union branches, where their
-// messages keep the names of the types. Choice is a named union and Tags a
-// named array, whose wrapper messages keep the names of the types. Node is
-// recursive, and its struct:name:proto name "node_tree" is not the Go name
-// protoc-gen-go generates. Event stays in the service package because the
-// service code of streaming payloads of relocated types does not compile yet
-// (#372).
+// ProtoStructMetaDSL covers explicit protobuf names at root and nested message
+// positions, including recursion, collections, aliases, unions, errors and streams.
+// Relocated service types retain their Go package; protobuf types belong to pb.
 var ProtoStructMetaDSL = func() {
 	inner := Type("Inner", func() {
 		Meta("struct:pkg:path", "menu")
@@ -37,6 +28,14 @@ var ProtoStructMetaDSL = func() {
 		Meta("struct:pkg:path", "menu")
 		Meta("struct:name:proto", "TagList")
 	})
+	index := Type("Index", MapOf(String, inner), func() {
+		Meta("struct:pkg:path", "menu")
+		Meta("struct:name:proto", "InnerLookup")
+	})
+	alias := Type("IndexAlias", index, func() {
+		Meta("struct:pkg:path", "menu")
+		Meta("struct:name:proto", "AliasLookup")
+	})
 	node := Type("Node", func() {
 		Meta("struct:pkg:path", "menu")
 		Meta("struct:name:proto", "node_tree")
@@ -57,6 +56,8 @@ var ProtoStructMetaDSL = func() {
 		Field(5, "choice", choice)
 		Field(7, "tags", tags)
 		Field(8, "tree", node)
+		Field(9, "lookup", index)
+		Field(10, "alias_lookup", alias)
 		Required("name")
 	})
 	fault := Type("Fault", func() {

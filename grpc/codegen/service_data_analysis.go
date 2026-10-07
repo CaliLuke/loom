@@ -418,7 +418,8 @@ func registerProtoMessage(sd *ServiceData, att *expr.AttributeExpr, method strin
 
 // protoAttributeShape returns a hash of the fields of the message with the
 // attribute att and of every message reachable from it, including the numbers
-// and requiredness of the fields at every depth. The name of the message is
+// and requiredness of the fields and the names of referenced messages at every
+// depth. The name of the message itself is
 // left out, because messages are registered by their protocol buffer name and
 // a user type may be the message of a single method that a struct:name:proto
 // name shares.
@@ -430,10 +431,15 @@ func protoAttributeShape(att *expr.AttributeExpr) string {
 }
 
 // writeProtoFieldShapes writes the name, number and requiredness of the
-// fields of every object reachable from att to b.
+// fields and each referenced message name reachable from att to b.
 func writeProtoFieldShapes(b *strings.Builder, att *expr.AttributeExpr, seen map[expr.UserType]struct{}) {
 	switch dt := att.Type.(type) {
 	case expr.UserType:
+		// Each edge names its declaration, including a repeated or recursive
+		// reference whose definition has already been visited.
+		if name, explicit := protoMetaName(att.Meta); explicit {
+			fmt.Fprintf(b, "|message=%q", name)
+		}
 		if _, ok := seen[dt]; ok {
 			return
 		}

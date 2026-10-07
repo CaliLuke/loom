@@ -874,32 +874,37 @@ Server names are escaped the same way in the example command and client CLI
 directories, so a `サーバー` server is under `cmd/valu30b5u30fcu30d0u30fc`, and
 the API package of the example files of a `Café` API is `cafu00e9`.
 
-`Meta("struct:name:proto", "MenuProto")` on a `Type` or `ResultType` names the
-message generated for the type used directly as a method payload, result,
-error, streaming payload or streaming result. Where the type is nested, such
-as in a message field, an array element, a map value or a union branch, its
-message keeps the name of the type, and so do the messages that wrap a named
-union or a named array. Generated Go code refers to messages from the pb
-package of the service, never from the `struct:pkg:path` package of the
-service types, so a type can set both metadata keys. It uses the Go type
-name that protoc-gen-go generates for the message, such as `NodeTree` for
-`node_tree`.
+`Meta("struct:name:proto", "MenuProto")` on a `Type` or `ResultType` names
+every message generated for that type: payloads, results, errors, stream items,
+nested fields, array elements, map values, and union branches. Messages wrapping
+named primitives, unions, arrays, and maps also keep the explicit name. A named
+primitive used as a field remains a scalar, and a named union used as a field
+remains a `oneof`; neither position introduces a separate message.
 
-The methods of a service that use the type directly share its message, and
-so do customized copies of the type, such as `Payload(Menu, func() {
-Required("name") })`: each service type gets its own converter to the shared
-message. A message has one definition, so all the uses that share it must map
-the same fields with the same numbers and requiredness. A copy that makes an
-optional field required, or a method that moves a field to gRPC metadata,
-changes the fields of its message, and code generation then fails with an
-error that names the methods.
+Generated Go code refers to messages from the service's pb package, independently
+of the service type's `struct:pkg:path`. Go references use protoc-gen-go's name,
+such as `NodeTree` for the protobuf name `node_tree`.
 
-This compatibility check also applies when an explicit message name matches a
-nested type's message. Choose a different `struct:name:proto` value when their
-fields differ. Distinct protobuf names must also produce distinct Go type names:
-for example, `node_tree` and `NodeTree` both produce `NodeTree` and cannot coexist
-in one service. Generated nested collection wrappers receive separate names
-when their default names conflict with design types.
+The metadata must contain exactly one message name. Empty or multi-valued
+declarations fail design validation, including repeated names. An explicit name
+is authoritative. Loom never substitutes the service type name,
+a numbered name, or a compatibility mode when explicit declarations conflict.
+Every use sharing a message must have the same fields, numbers, requiredness,
+and referenced message names. Compatible customized service types get separate
+converters to their shared message. A copy that changes requiredness, or moves a
+field to metadata, headers, or trailers, conflicts with an unmodified use under
+the same message name and fails generation. Give different contracts distinct named types and explicit names. Distinct protobuf names must also produce distinct Go type names:
+`node_tree` and `NodeTree` cannot coexist in one service.
+
+For example, a `Menu` named `MenuProto` used both as a payload and as a nested
+field produces one `MenuProto` declaration. If a method removes `Menu.name` from
+that message by mapping it to metadata, the reduced shape cannot also be called
+`MenuProto` alongside the full nested shape; generation reports the conflict.
+
+Regenerate clients and servers after adopting this naming behavior. Nested
+messages and wrappers that previously ignored the metadata now use it, and
+redundant declarations disappear. Update direct protobuf Go references,
+descriptor lookups, and stored `Any` type URLs that use the old message names.
 
 A client tells the errors of a method apart by the type of the message in the
 status details. Two errors of a method can use one type that has a

@@ -76,3 +76,50 @@ func structMetaDSL(key, value string, onField bool) func() {
 		})
 	}
 }
+
+func TestProtoMessageNameRequiresSingleValue(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		values []string
+	}{
+		{"missing", nil},
+		{"different names", []string{"First", "Last"}},
+		{"repeated name", []string{"Same", "Same"}},
+	} {
+		for _, onField := range []bool{false, true} {
+			position := "type"
+			if onField {
+				position = "field"
+			}
+			t.Run(tc.name+"/"+position, func(t *testing.T) {
+				err := expr.RunInvalidDSL(t, func() {
+					leaf := Type("Leaf", func() {
+						if !onField {
+							Meta("struct:name:proto", tc.values...)
+						}
+						Field(1, "value", String)
+					})
+					Service("svc", func() {
+						Method("m", func() {
+							Payload(leaf)
+							Result(func() {
+								Field(1, "leaf", leaf, func() {
+									if onField {
+										Meta("struct:name:proto", tc.values...)
+									}
+								})
+							})
+							GRPC(func() {
+								Message(func() {
+									Attribute("value")
+									Meta("unrelated", "value")
+								})
+							})
+						})
+					})
+				})
+				require.ErrorContains(t, err, `metadata "struct:name:proto" must contain exactly one message name`)
+			})
+		}
+	}
+}

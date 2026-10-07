@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -113,6 +114,17 @@ func protoBufIdentifier(str string, firstUpper, acronym bool) string {
 	}
 
 	return str
+}
+
+// copyProtoMessageName retains an authored message name across physical lowering.
+// Only message naming is copied; other service metadata has separate ownership.
+func copyProtoMessageName(att *expr.AttributeExpr, meta expr.MetaExpr) {
+	if names, ok := meta["struct:name:proto"]; ok {
+		if att.Meta == nil {
+			att.Meta = make(expr.MetaExpr)
+		}
+		att.Meta["struct:name:proto"] = slices.Clone(names)
+	}
 }
 
 // protoMetaName returns the protocol buffer message name that the

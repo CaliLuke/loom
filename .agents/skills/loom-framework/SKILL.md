@@ -735,8 +735,14 @@ filter, and serialization rules belong here.
   of a mapped param is rejected.
 - Protocol buffer messages always live in the pb package of the service.
   `makeProtoBufMessage` strips `struct:pkg:path` from the message attribute as
-  well as from its user types. `struct:name:proto` names only the top-level
-  messages of a type; Go references apply `protoGoName` to the metadata name.
+  well as from its user types. `makeProtoBufMessageR` resolves explicit message
+  names onto normalized occurrences, including nested references; wrapper
+  construction retains the name across physical lowering. Declarations,
+  references, converters and response contracts consume that normalized name.
+  `expr.validateStructMeta` rejects missing or multiple names before lowering;
+  no consumer may choose first or last among competing names. Go references
+  apply `protoGoName` to the single name. Never add renderer-specific name
+  recovery or a fallback for conflicting explicit names.
 - The messages that wrap a named primitive, union, array or map (`wrapAttr`,
   `wrapUnionBranch`, `wrapCollectionUserType`) are new user types with their
   own identifiers. Copies and examples share user types by identifier, so a
@@ -769,7 +775,8 @@ filter, and serialization rules belong here.
 - Nested collection wrappers reserve names with stable collection-shape owners
   in the same registry as endpoint and anonymous messages. Collection keys
   emitted declarations by their generated Go name and checks the protobuf name
-  and field shape before reusing one. This catches explicit-name conflicts at
+  and field shape before reusing one. Shape comparison retains each referenced
+  message name, even on repeated or recursive edges. This catches explicit-name conflicts at
   every depth and rejects distinct protobuf names that map to one Go type.
   Recursive normalization rebinds repeated canonical type IDs to the first
   message, so copied inline-object graphs cannot retain unnormalized aliases.

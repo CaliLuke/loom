@@ -3,56 +3,51 @@ package codegen
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/CaliLuke/loom/codegen"
 	. "github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
 )
 
-// TestNestedStructMetaCompatibility checks designs whose struct:name:proto
-// metadata applies to types used in nested positions, next to other uses of
-// the type or to other messages with the same name, and designs with
-// customized copies of such types. Loom names only the top-level messages of
-// a type after its struct:name:proto metadata, so these designs generate,
-// protoc accepts them and the generated modules compile and vet. When the
-// metadata only appears on types in nested positions, the generated
-// protocol buffer file is the one generated without the metadata.
-func TestNestedStructMetaCompatibility(t *testing.T) {
+// TestNestedStructMetaNames checks explicit naming at every message position.
+// Conflicting declarations fail rather than discarding authored names.
+func TestNestedStructMetaNames(t *testing.T) {
 	cases := []struct {
-		Name       string
-		DSL        func(proto func(string) string)
-		NestedOnly bool
+		Name  string
+		DSL   func(proto func(string) string)
+		Error string
 	}{
-		{"payload fields in metadata next to a nested use", payloadMetadataNestedDSL, false},
-		{"customized payload next to a nested use", customizedPayloadNestedDSL, false},
-		{"nested types sharing a name", nestedSharedNameDSL, true},
-		{"nested type named like another type", nestedTypeNameDSL, true},
-		{"nested type named like a generated message", nestedGeneratedNameDSL, true},
-		{"nested type with the Go name of another type", nestedGoNameDSL, true},
-		{"named union field and union branch", nestedUnionDSL, true},
-		{"customized payload and result", sharedCustomizedPayloadResultDSL, false},
-		{"customized payload and streaming payload", sharedCustomizedStreamingDSL, false},
-		{"customized result type payload and result", sharedCustomizedResultTypeDSL, false},
-		{"customized payload and result with an error and another method", sharedCustomizedErrorDSL, false},
+		{"payload fields in metadata next to a nested use", payloadMetadataNestedDSL, "conflicting fields"},
+		{"customized payload next to a nested use", customizedPayloadNestedDSL, "conflicting fields"},
+		{"explicitly named derived payload", distinctDerivedPayloadDSL, ""},
+		{"nested types sharing a name", nestedSharedNameDSL, "conflicting fields"},
+		{"nested type named like another type", nestedTypeNameDSL, "conflicting fields"},
+		{"nested type named like a generated message", nestedGeneratedNameDSL, "conflicting fields"},
+		{"nested type with the Go name of another type", nestedGoNameDSL, "both map to Go type"},
+		{"named union field and union branch", nestedUnionDSL, ""},
+		{"customized payload and result", sharedCustomizedPayloadResultDSL, ""},
+		{"customized payload and streaming payload", sharedCustomizedStreamingDSL, ""},
+		{"customized result type payload and result", sharedCustomizedResultTypeDSL, ""},
+		{"customized payload and result with an error and another method", sharedCustomizedErrorDSL, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			dsl := func() {
-				c.DSL(func(name string) string { return name })
-			}
-			code := protoFileCode(t, dsl)
-			fpath := codegen.CreateTempFile(t, code)
-			require.NoError(t, protoc(defaultProtocCmd, fpath, nil), "compile proto file %q", fpath)
-			if c.NestedOnly {
-				withoutMeta := protoFileCode(t, func() {
-					c.DSL(func(string) string { return "" })
+				c.DSL(func(name string) string {
+					return name
 				})
-				assert.Equal(t, withoutMeta, code)
 			}
+			root := RunGRPCDSL(t, dsl)
+			err := generationError(func() {
+				ProtoFiles("gen", CreateGRPCServices(root))
+			})
+			if c.Error != "" {
+				require.ErrorContains(t, err, c.Error)
+				return
+			}
+			require.NoError(t, err)
 			dir := t.TempDir()
-			renderGRPCModule(t, dir, "example.com/nestedmeta", RunGRPCDSL(t, dsl), resolveGRPCLoomSource(t))
+			renderGRPCModule(t, dir, "example.com/nestedmeta", root, resolveGRPCLoomSource(t))
 			runGRPCGoCommand(t, dir, "mod", "tidy")
 			runGRPCGoCommand(t, dir, "vet", "./...")
 		})
@@ -278,6 +273,25 @@ func sharedCustomizedErrorDSL(proto func(string) string) {
 		Method("m2", func() {
 			Payload(String)
 			Result(String)
+			GRPC(func() {})
+		})
+	})
+}
+
+// distinctDerivedPayloadDSL gives an intentionally distinct contract its own
+// explicit name while retaining the original type's nested declaration.
+func distinctDerivedPayloadDSL(proto func(string) string) {
+	a := metaType("A", proto("AProto"), xyFields)
+	required := Type("RequiredA", a, func() {
+		Meta("struct:name:proto", proto("RequiredAProto"))
+		Required("y")
+	})
+	Service("svc", func() {
+		Method("m", func() {
+			Payload(required)
+			Result(func() {
+				Field(1, "a", a)
+			})
 			GRPC(func() {})
 		})
 	})

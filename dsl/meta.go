@@ -128,13 +128,16 @@ const DefaultProtoc = expr.DefaultProtoc
 //	})
 //
 // - "struct:name:proto" overrides the generated protobuf message name.
-// Applicable to Type and ResultType only. The name applies to the message
-// generated for the type used directly as a method payload, result, error or
-// stream message; nested uses of the type keep the name of the type. The
-// direct uses of the type and of its customized copies in the methods of a
-// service share the message, so they must map the same fields with the same
-// numbers and requiredness; code generation fails otherwise. The ASCII runes of the value must be letters, digits or underscores, and an
-// ASCII value must start with a letter or underscore; any other value is a
+// Applicable to Type and ResultType. It requires exactly one name, which applies
+// to every message generated for the type, including nested uses and wrappers
+// for named scalars, collections and unions. Scalar fields and inlined oneof
+// fields do not generate separate messages. Direct uses, nested uses and
+// customized copies share a declaration only when their fields, numbers,
+// requiredness and referenced message names agree. Conflicting declarations or
+// protobuf names that map to the same Go name fail generation; Loom never
+// substitutes another name. The ASCII runes of the value must be letters,
+// digits or underscores, and an ASCII value must start with a letter or
+// underscore; any other value is a
 // design validation error. Protocol buffer identifiers are ASCII only, so
 // code generation treats the non-ASCII runes of a value as word separators,
 // as it does for design names: "EntréeProto" names the "EntrEProto" message.

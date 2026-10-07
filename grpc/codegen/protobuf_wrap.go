@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"strconv"
+
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -45,6 +47,7 @@ func collectionMessageAttribute(ut expr.UserType) *expr.AttributeExpr {
 	}
 	message := wrapperAttribute(collection, false)
 	message.Meta = expr.MetaExpr{collectionMessageMeta: []string{"true"}}
+	copyProtoMessageName(message, ut.Attribute().Meta)
 	return message
 }
 
@@ -66,6 +69,30 @@ func markCollectionMessage(ut expr.UserType) {
 		att.Meta = expr.MetaExpr{}
 	}
 	att.Meta[collectionMessageMeta] = []string{"true"}
+}
+
+// wrapNestedCollection gives an unnamed collection element its own message.
+// Equal shapes share a wrapper; other positions reserve separate names.
+func wrapNestedCollection(att *expr.AttributeExpr, tname string, sd *ServiceData) {
+	var name string
+	switch {
+	case expr.IsArray(att.Type):
+		name = "ArrayOf" + tname +
+			protoBufify(protoBufMessageDef(expr.AsArray(att.Type).ElemType, sd), true, true)
+	case expr.IsMap(att.Type):
+		m := expr.AsMap(att.Type)
+		name = tname + "MapOf" +
+			protoBufify(protoBufMessageDef(m.KeyType, sd), true, true) +
+			protoBufify(protoBufMessageDef(m.ElemType, sd), true, true)
+	default:
+		return
+	}
+	// Equal collection shapes share a wrapper, while different shapes and
+	// other generated positions reserve separate names.
+	owner := "collection:" + strconv.Quote(name) + ":" + protoAttributeShape(wrapperAttribute(att, true))
+	name = sd.anonymousMessageName(messageScope{name: name, path: owner})
+	wrapAttr(att, name, true, sd)
+	markCollectionMessage(att.Type.(expr.UserType))
 }
 
 // wrapUnionBranch makes the union held by the union branch att the message
@@ -145,6 +172,7 @@ func wrapperAttribute(attr *expr.AttributeExpr, req bool) *expr.AttributeExpr {
 			},
 		},
 	}
+	copyProtoMessageName(res, attr.Meta)
 	if req {
 		res.Validation = &expr.ValidationExpr{
 			Required: []string{name},

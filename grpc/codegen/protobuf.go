@@ -126,33 +126,16 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 	// object copies its graph, so merely stopping at a seen identifier can
 	// leave a reference pointing to an unnormalized copy of that message.
 	if isut {
+		// Resolve authored naming once on the normalized message occurrence.
+		// All declarations, references and response contracts read this metadata.
+		if _, explicit := att.Meta["struct:name:proto"]; !explicit {
+			copyProtoMessageName(att, ut.Attribute().Meta)
+		}
 		if canonical, ok := seen[ut.ID()]; ok {
 			att.Type = canonical
 			return
 		}
 		seen[ut.ID()] = ut
-	}
-
-	wrap := func(att *expr.AttributeExpr, tname string) {
-		var name string
-		switch {
-		case expr.IsArray(att.Type):
-			name = "ArrayOf" + tname +
-				protoBufify(protoBufMessageDef(expr.AsArray(att.Type).ElemType, sd), true, true)
-		case expr.IsMap(att.Type):
-			m := expr.AsMap(att.Type)
-			name = tname + "MapOf" +
-				protoBufify(protoBufMessageDef(m.KeyType, sd), true, true) +
-				protoBufify(protoBufMessageDef(m.ElemType, sd), true, true)
-		default:
-			return
-		}
-		// Equal collection shapes share a wrapper, while different shapes and
-		// other generated positions reserve separate names.
-		owner := "collection:" + strconv.Quote(name) + ":" + protoAttributeShape(wrapperAttribute(att, true))
-		name = sd.anonymousMessageName(messageScope{name: name, path: owner})
-		wrapAttr(att, name, true, sd)
-		markCollectionMessage(att.Type.(expr.UserType))
 	}
 
 	switch {
@@ -163,13 +146,13 @@ func makeProtoBufMessageR(att *expr.AttributeExpr, tname *string, sd *ServiceDat
 		scope.path += "/[]"
 		nameAnonymousMessage(ar.ElemType, scope, sd)
 		makeProtoBufMessageR(ar.ElemType, tname, sd, seen, scope)
-		wrap(ar.ElemType, *tname)
+		wrapNestedCollection(ar.ElemType, *tname, sd)
 	case expr.IsMap(att.Type):
 		m := expr.AsMap(att.Type)
 		scope.path += "/{}"
 		nameAnonymousMessage(m.ElemType, scope, sd)
 		makeProtoBufMessageR(m.ElemType, tname, sd, seen, scope)
-		wrap(m.ElemType, *tname)
+		wrapNestedCollection(m.ElemType, *tname, sd)
 	case expr.IsUnion(att.Type):
 		for _, nat := range expr.AsUnion(att.Type).Values {
 			wrapUnionBranch(nat.Attribute, sd)

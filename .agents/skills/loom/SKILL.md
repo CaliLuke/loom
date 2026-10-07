@@ -450,10 +450,16 @@ completion shapes are explicit generation limitations.
 - gRPC transport files alias service imports that collide with framework
   imports, such as `protojson` or `strconv`. Keep the service name; its package
   path and protocol buffer names do not change.
-- Choose `struct:name:proto` values that do not conflict with incompatible
-  nested messages. A shared message requires identical fields, numbers, and
-  requiredness. Distinct protobuf names must also have distinct generated Go
-  names; `node_tree` and `NodeTree` cannot coexist in one service.
+- `struct:name:proto` requires exactly one name and applies to every message
+  generated for a named type,
+  including nested references and scalar, collection and union wrappers. Scalar
+  fields and inlined union fields still produce no separate message. Names are
+  authoritative: conflicting shapes or protobuf-to-Go names fail generation,
+  with no fallback names or compatibility mode. Shared messages require the
+  same fields, numbers, requiredness and referenced message names. Use distinct
+  explicit names for distinct contracts. Regenerate clients and servers and
+  update direct protobuf references, descriptors and `Any` type URLs after
+  migrating from the former root-only naming behavior.
 - gRPC scalar message fields retain explicit presence, including required
   fields and scalar payload/result wrappers. Omitted required values fail in
   requests, responses, and stream items, even when the field has a default.

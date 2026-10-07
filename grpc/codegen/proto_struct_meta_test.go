@@ -36,22 +36,18 @@ import (
 )
 
 // The protocol buffer messages live in the pb package, not in the
-// struct:pkg:path package of the service types. The top-level messages of a
-// type take its struct:name:proto name, converted by protoc-gen-go for
-// node_tree, and nested messages keep the name of the type.
+// struct:pkg:path package of the service types. Root and nested messages share
+// the explicit name, converted by protoc-gen-go for node_tree.
 var (
 	_ *pb.MenuProto
 	_ *pb.InnerProto
-	_ *pb.Inner
-	_ *pb.Leaf
-	_ *pb.Choice
+	_ *pb.LeafProto
+	_ *pb.ChoiceProto
 	_ *pb.FaultProto
 	_ *pb.Other
-	_ *pb.Tags
+	_ *pb.TagList
 	_ *pb.NodeTree
-	_ *pb.Node
 	_ *pb.EventProto
-	_ *pb.Event
 	_ *pb.BidiStreamingRequest_StreamItem
 	_ *pb.RelayResponse
 )
@@ -171,13 +167,15 @@ func TestRoundTrip(t *testing.T) {
 
 	t.Run("show", func(t *testing.T) {
 		want := &menu.Menu{
-			Name:       "lunch",
-			Inner:      inner,
-			Inners:     []*menu.Inner{inner, {}},
-			InnerIndex: map[string]*menu.Inner{"a": inner},
-			Choice:     leafChoice,
-			Tags:       menu.Tags{"a", "b"},
-			Tree:       tree,
+			Name:        "lunch",
+			Inner:       inner,
+			Inners:      []*menu.Inner{inner, {}},
+			InnerIndex:  map[string]*menu.Inner{"a": inner},
+			Choice:      leafChoice,
+			Tags:        menu.Tags{"a", "b"},
+			Tree:        tree,
+			Lookup:      menu.Index{"k": inner},
+			AliasLookup: menu.IndexAlias{"a": inner},
 		}
 		got, err := c.Show()(ctx, want)
 		require.NoError(t, err)
@@ -267,39 +265,33 @@ func TestRoundTrip(t *testing.T) {
 }
 `, "example.com/grpcstructmeta")
 
-// TestProtoFilesStructMeta checks the protocol buffer messages of types with
-// struct:pkg:path and struct:name:proto metadata. The messages generated for
-// a type used directly as a payload, result, error, stream or stream item
-// take its struct:name:proto name, as before. The messages of the type in
-// nested positions, such as message fields, array elements, map values and
-// union branches, and the messages that wrap a named union or a named array
-// keep the name of the type. No message refers to the struct:pkg:path
-// package. protoc must accept the result.
+// TestProtoFilesStructMeta checks that declarations and every reference preserve
+// explicit names, including nested messages and wrappers. protoc validates them.
 func TestProtoFilesStructMeta(t *testing.T) {
 	code := protoFileCode(t, codegentestdata.ProtoStructMetaDSL)
 	for _, want := range []string{
 		"rpc Show (MenuProto) returns (MenuProto);",
-		"rpc Pick (Choice) returns (Choice);",
+		"rpc Pick (ChoiceProto) returns (ChoiceProto);",
 		"rpc Tree (node_tree) returns (node_tree);",
-		"rpc TagsEndpoint (Tags) returns (TagsResponse);",
+		"rpc TagsEndpoint (TagList) returns (TagsResponse);",
 		"rpc Bidi (stream BidiStreamingRequest) returns (stream EventProto);",
 		"rpc Relay (stream RelayStreamingRequest) returns (stream RelayResponse);",
 		"rpc Watch (InnerProto) returns (stream MenuProto);",
 		"message FaultProto {",
-		"message MenuProto {\n\toptional string name = 1;\n\tInner inner = 2;\n\trepeated Inner inners = 3;\n\tmap<string, Inner> inner_index = 4;\n" +
-			"\toneof choice {\n\t\tLeaf leaf = 5;\n\t\tOther other = 6;\n\t}\n\tTags tags = 7;\n\tNode tree = 8;\n}",
+		"message MenuProto {\n\toptional string name = 1;\n\tInnerProto inner = 2;\n\trepeated InnerProto inners = 3;\n\tmap<string, InnerProto> inner_index = 4;\n" +
+			"\toneof choice {\n\t\tLeafProto leaf = 5;\n\t\tOther other = 6;\n\t}\n\tTagList tags = 7;\n\tnode_tree tree = 8;\n\tInnerLookup lookup = 9;\n\tAliasLookup alias_lookup = 10;\n}",
 		"message InnerProto {",
-		"message Inner {",
-		"message Choice {\n\toneof field {\n\t\tLeaf leaf = 1;",
-		"message BranchRequest {\n\toneof field {\n\t\tChoice choice = 1;\n\t\tInner inner = 2;",
-		"message node_tree {\n\toptional string label = 1;\n\trepeated Node children = 2;\n}",
-		"message Node {\n\toptional string label = 1;\n\trepeated Node children = 2;\n}",
+		"message InnerLookup {\n\tmap<string, InnerProto> field = 1;\n}",
+		"message AliasLookup {\n\tmap<string, InnerProto> field = 1;\n}",
+		"message ChoiceProto {\n\toneof field {\n\t\tLeafProto leaf = 1;",
+		"message BranchRequest {\n\toneof field {\n\t\tChoiceProto choice = 1;\n\t\tInnerProto inner = 2;",
+		"message node_tree {\n\toptional string label = 1;\n\trepeated node_tree children = 2;\n}",
 		"message BidiStreamingRequest {\n\toneof body {\n\t\tBidiRequest initial_payload = 1;\n\t\tEventProto stream_item = 2;\n\t}\n}",
-		"message RelayResponse {\n\tEvent event = 1;\n}",
+		"message RelayResponse {\n\tEventProto event = 1;\n}",
 	} {
 		assert.Contains(t, code, want)
 	}
-	for _, unwanted := range []string{"LeafProto", "ChoiceProto", "TagList", "menu."} {
+	for _, unwanted := range []string{"message Inner {", "message Choice {", "message Tags {", "message Node {", "menu."} {
 		assert.NotContains(t, code, unwanted)
 	}
 	fpath := codegen.CreateTempFile(t, code)
@@ -323,21 +315,20 @@ func TestStructMetaProtoTypeRefs(t *testing.T) {
 	assert.Equal(t, map[string]string{
 		"MenuProto":             "*menusvcpb.MenuProto",
 		"InnerProto":            "*menusvcpb.InnerProto",
-		"Inner":                 "*menusvcpb.Inner",
-		"Leaf":                  "*menusvcpb.Leaf",
+		"InnerLookup":           "*menusvcpb.InnerLookup",
+		"AliasLookup":           "*menusvcpb.AliasLookup",
+		"LeafProto":             "*menusvcpb.LeafProto",
 		"Other":                 "*menusvcpb.Other",
-		"Choice":                "*menusvcpb.Choice",
+		"ChoiceProto":           "*menusvcpb.ChoiceProto",
 		"FaultProto":            "*menusvcpb.FaultProto",
 		"BranchRequest":         "*menusvcpb.BranchRequest",
 		"BranchResponse":        "*menusvcpb.BranchResponse",
-		"Tags":                  "*menusvcpb.Tags",
+		"TagList":               "*menusvcpb.TagList",
 		"node_tree":             "*menusvcpb.NodeTree",
-		"Node":                  "*menusvcpb.Node",
 		"TagsResponse":          "*menusvcpb.TagsResponse",
 		"BidiStreamingRequest":  "*menusvcpb.BidiStreamingRequest",
 		"BidiRequest":           "*menusvcpb.BidiRequest",
 		"EventProto":            "*menusvcpb.EventProto",
-		"Event":                 "*menusvcpb.Event",
 		"RelayStreamingRequest": "*menusvcpb.RelayStreamingRequest",
 		"RelayRequest":          "*menusvcpb.RelayRequest",
 		"RelayResponse":         "*menusvcpb.RelayResponse",
@@ -355,7 +346,7 @@ func TestStructMetaProtoTypeRefs(t *testing.T) {
 	assert.Equal(t, map[string][2]string{
 		"menusvc.show.success.0":       {"menusvc.MenuProto", ""},
 		"menusvc.show.error.invalid.3": {"", "menusvc.FaultProto"},
-		"menusvc.pick.success.0":       {"menusvc.Choice", ""},
+		"menusvc.pick.success.0":       {"menusvc.ChoiceProto", ""},
 		"menusvc.branch.success.0":     {"menusvc.BranchResponse", ""},
 		"menusvc.tags.success.0":       {"menusvc.TagsResponse", ""},
 		"menusvc.tree.success.0":       {"menusvc.node_tree", ""},
@@ -443,10 +434,10 @@ func TestGeneratedStructMetaRoundTrip(t *testing.T) {
 func protoRequestMessageName(method string) string {
 	return map[string]string{
 		"show":   "MenuProto",
-		"pick":   "Choice",
+		"pick":   "ChoiceProto",
 		"branch": "BranchRequest",
 		"tree":   "NodeTree",
-		"tags":   "Tags",
+		"tags":   "TagList",
 		"bidi":   "BidiRequest",
 		"relay":  "RelayRequest",
 		"watch":  "InnerProto",
