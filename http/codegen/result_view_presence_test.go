@@ -34,6 +34,7 @@ import (
 	"strings"
 	"testing"
 
+	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/gorilla/websocket"
 
 	client "example.com/viewpresence/gen/http/presence/client"
@@ -43,7 +44,8 @@ import (
 
 type responseCase struct {
 	name, view, body, missing string
-	valid bool
+	nullPointer               string
+	valid                     bool
 }
 
 func responseCases(t *testing.T) []responseCase {
@@ -76,7 +78,22 @@ func responseCases(t *testing.T) []responseCase {
 		}
 		cases = append(cases, responseCase{name: "null_" + field, view: "default", body: string(body), missing: field})
 	}
+	for _, tc := range []struct {
+		name, extra, pointer string
+	}{
+		{"named_array", ` + "`" + `,"aliases":[null]` + "`" + `, "/aliases/0"},
+		{"nested_map", ` + "`" + `,"groups":{"one":[null]}` + "`" + `, "/groups/one/0"},
+		{"nested_map_null", ` + "`" + `,"groups":{"one":null}` + "`" + `, "/groups/one"},
+		{"object_element", ` + "`" + `,"profiles":[null]` + "`" + `, "/profiles/0"},
+	} {
+		cases = append(cases, responseCase{name: tc.name, view: "default", body: strings.TrimSuffix(full, "}") + tc.extra + "}", nullPointer: tc.pointer})
+	}
+	cases = append(cases, responseCase{name: "nested_values", view: "default", body: strings.TrimSuffix(full, "}") + ` + "`" + `,"aliases":["alias"],"groups":{"group":["entry"]},"profiles":[{"name":"Bob"}]}` + "`" + `, valid: true})
+	cases = append(cases, responseCase{name: "nullable_elements", view: "default", body: strings.TrimSuffix(full, "}") + " ,\"maybe_tags\":[null,\"ok\"]}", valid: true})
 	cases = append(cases,
+		responseCase{name: "null_array_element", view: "default", body: strings.Replace(full, "[\"one\"]", "[null]", 1), nullPointer: "/tags/0"},
+		responseCase{name: "null_map_value", view: "default", body: strings.Replace(full, "{\"one\":1}", "{\"one\":null}", 1), nullPointer: "/counts/one"},
+		responseCase{name: "unselected_null_element", view: "tiny", body: "{\"id\":\"abc\",\"tags\":[null]}", nullPointer: "/tags/0"},
 		responseCase{name: "missing_inline_name", view: "default", body: strings.Replace(full, "\"name\":\"Ada\"", "", 1), missing: "name"},
 		responseCase{name: "missing_named_name", view: "default", body: strings.Replace(full, "\"name\":\"Lin\"", "", 1), missing: "name"},
 	)
@@ -85,6 +102,19 @@ func responseCases(t *testing.T) []responseCase {
 
 func checkResult(t *testing.T, c responseCase, result *presence.Record, err error) {
 	t.Helper()
+	if c.nullPointer != "" {
+		if !errors.Is(err, loom.ErrNullOptional) {
+			t.Errorf("error = %v, want null rejected during decoding", err)
+		}
+		var semantic *json.SemanticError
+		if !errors.As(err, &semantic) || string(semantic.JSONPointer) != c.nullPointer {
+			t.Errorf("error = %v, want JSON pointer %s", err, c.nullPointer)
+		}
+		if result != nil {
+			t.Errorf("invalid response returned result: %#v", result)
+		}
+		return
+	}
 	if !c.valid {
 		var validation *loomhttp.ClientError
 		if !errors.As(err, &validation) || validation.Name != "validation_error" || !strings.Contains(validation.Message, c.missing) {
@@ -98,6 +128,18 @@ func checkResult(t *testing.T, c responseCase, result *presence.Record, err erro
 	if err != nil || result == nil {
 		t.Errorf("result=%#v error=%v", result, err)
 		return
+	}
+	if c.name == "nested_values" {
+		if len(result.Aliases) != 1 || result.Aliases[0] != "alias" || len(result.Groups["group"]) != 1 || result.Groups["group"][0] != "entry" || len(result.Profiles) != 1 || result.Profiles[0] == nil || result.Profiles[0].Name != "Bob" {
+			t.Errorf("lost nested values: %#v", result)
+		}
+	}
+	if c.name == "nullable_elements" {
+		if len(result.MaybeTags) != 2 || !result.MaybeTags[0].IsNull() {
+			t.Errorf("lost nullable elements: %#v", result.MaybeTags)
+		} else if value, ok := result.MaybeTags[1].Value(); !ok || value != "ok" {
+			t.Errorf("lost nullable concrete element: %#v", result.MaybeTags)
+		}
 	}
 	if result.ID != "abc" {
 		t.Errorf("id=%q", result.ID)
@@ -132,6 +174,22 @@ func TestHTTPViews(t *testing.T) {
 				result = raw.(*presence.Record)
 			}
 			checkResult(t, c, result, err)
+		})
+	}
+}
+
+func TestHTTPCollectionNull(t *testing.T) {
+	for _, body := range []string{"[]", "[null]"} {
+		t.Run(body, func(t *testing.T) {
+			resp := &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}
+			result, err := client.DecodeListResponse(loomhttp.ResponseDecoder, false)(resp)
+			if body == "[null]" {
+				if !errors.Is(err, loom.ErrNullOptional) || result != nil {
+					t.Errorf("result=%#v error=%v, want null rejected", result, err)
+				}
+			} else if err != nil || len(result.(presence.RecordCollection)) != 0 {
+				t.Errorf("result=%#v error=%v, want empty collection", result, err)
+			}
 		})
 	}
 }

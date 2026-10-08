@@ -5,7 +5,7 @@ func DecodeMethodBodyPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, decod
 	return func(r *http.Request) ([]bool, error) {
 		var payload []bool
 		var (
-			body []loom.Nullable[bool]
+			body []loom.Optional[bool]
 			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)

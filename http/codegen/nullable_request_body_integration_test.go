@@ -338,7 +338,7 @@ func TestOptionalNullableArrayBody(t *testing.T) {
 		{"null", "null", http.StatusNoContent, "", "", "null"},
 		{"empty array", "[]", http.StatusNoContent, "", "", "[]"},
 		{"concrete", ` + "`" + `[{"name":"b"}]` + "`" + `, http.StatusNoContent, "", "", ` + "`" + `[{"name":"b"}]` + "`" + `},
-		{"null element", "[null]", http.StatusBadRequest, "invalid_field_type", ` + "`" + `invalid null value for "body[0]"; array element must be non-null` + "`" + `, ""},
+		{"null element", "[null]", http.StatusBadRequest, "decode_payload", "invalid request body", ""},
 		{"invalid element", "[{}]", http.StatusBadRequest, "missing_field", "Missing required field: name", ""},
 		{"malformed", "[x]", http.StatusBadRequest, "decode_payload", "invalid request body", ""},
 		{"truncated", "[", http.StatusBadRequest, "decode_payload", "invalid request body", ""},

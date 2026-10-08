@@ -236,7 +236,7 @@ func TestServerBodies(t *testing.T) {
 		{"/strs", "null", "null", http.StatusBadRequest, "decode_payload", "invalid request body", nil},
 		{"/strs", "valid", ` + "`" + `["a"]` + "`" + `, ok, "", "", []string{"a"}},
 		{"/strs", "empty array", "[]", bad, "invalid_length", invalid, nil},
-		{"/strs", "null element", "[null]", bad, "invalid_field_type", "invalid null value for \"body[0]\"; array element must be non-null", nil},
+		{"/strs", "null element", "[null]", bad, "decode_payload", "invalid request body", nil},
 		{"/strs", "truncated", ` + "`" + `["a"` + "`" + `, bad, "decode_payload", malformed, nil},
 		{"/leaves", "empty", "", ok, "", "", []*values.Leaf(nil)},
 		{"/leaves", "empty array", "[]", ok, "", "", []*values.Leaf{}},

@@ -25,8 +25,8 @@ func TestWebSocketNamedPayloadRecv(t *testing.T) {
 		{service: "token", contains: []string{"msg *string", "return NewTalkToken(*msg), nil"}, excludes: []string{"ValidateToken("}},
 		{service: "count", contains: []string{"msg *int", "return NewTalkN(*msg), nil"}, excludes: []string{"ValidateN("}},
 		{service: "param", contains: []string{"return NewTalkToken(*msg), nil"}},
-		{service: "list", contains: []string{"body []loom.Nullable[*Item]", "return NewTalkL(body), nil"}, excludes: []string{"ValidateL("}},
-		{service: "index", contains: []string{"body map[string]loom.Nullable[*Item]", "return NewTalkM(body), nil"}, excludes: []string{"ValidateM("}},
+		{service: "list", contains: []string{"body []loom.Optional[*Item]", "return NewTalkL(body), nil"}, excludes: []string{"ValidateL("}},
+		{service: "index", contains: []string{"body map[string]loom.Optional[*Item]", "return NewTalkM(body), nil"}, excludes: []string{"ValidateM("}},
 	}
 	root := RunHTTPDSL(t, webSocketNamedPayloadDSL)
 	services := CreateHTTPServices(root)

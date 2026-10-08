@@ -18,9 +18,9 @@ func TestRecursivePresenceNullabilityMatrix(t *testing.T) {
 
 	clientCode := readGeneratedGo(t, filepath.Join(dir, "gen", "http", "recursive_presence", "client"))
 	serverCode := readGeneratedGo(t, filepath.Join(dir, "gen", "http", "recursive_presence", "server"))
-	require.Contains(t, serverCode, "body []loom.Nullable[string]")
-	require.Contains(t, clientCode, "body map[string]loom.Nullable[[]loom.Nullable[string]]")
-	require.Contains(t, clientCode, "body map[string]loom.Nullable[[]loom.Nullable[map[string]loom.Nullable[[]loom.Nullable[string]]]]")
+	require.Contains(t, serverCode, "body []loom.Optional[string]")
+	require.Contains(t, clientCode, "body map[string]loom.Optional[[]loom.Optional[string]]")
+	require.Contains(t, clientCode, "body map[string]loom.Optional[[]loom.Optional[map[string]loom.Optional[[]loom.Optional[string]]]]")
 	require.Contains(t, clientCode, `loom.InvalidNullElementError("body[key]", i)`)
 	require.Contains(t, clientCode, `loom.InvalidNullElementError("body[key][*][key]", i)`)
 
@@ -303,7 +303,7 @@ func TestRecursivePresenceNullabilityBehavior(t *testing.T) {
 			name: "#324 request rejects null direct-array member",
 			body: "[null]",
 			decode: decodeIssue324Request,
-			wantErrorPath: "body[0]",
+			wantErrorPath: "invalid request body",
 		},
 		{
 			name: "#324 request retains empty direct array",
@@ -354,7 +354,7 @@ func TestRecursivePresenceNullabilityBehavior(t *testing.T) {
 			name: "#327 success rejects null map-array member",
 			body: "{\"field\":[null]}",
 			decode: decodeIssue327Success,
-			wantErrorPath: "body[key][0]",
+			wantErrorPath: "/field/0",
 		},
 		{
 			name: "#327 success retains empty map",
@@ -378,25 +378,25 @@ func TestRecursivePresenceNullabilityBehavior(t *testing.T) {
 			name: "nested success rejects null outer map value",
 			body: "{\"outer\":null}",
 			decode: decodeNestedSuccess,
-			wantErrorPath: "body[key]",
+			wantErrorPath: "/outer",
 		},
 		{
 			name: "nested success rejects null array map member",
 			body: "{\"outer\":[null]}",
 			decode: decodeNestedSuccess,
-			wantErrorPath: "body[key][0]",
+			wantErrorPath: "/outer/0",
 		},
 		{
 			name: "nested success rejects null inner map value",
 			body: "{\"outer\":[{\"inner\":null}]}",
 			decode: decodeNestedSuccess,
-			wantErrorPath: "body[key][*][key]",
+			wantErrorPath: "/outer/0/inner",
 		},
 		{
 			name: "nested success rejects null inner array member",
 			body: "{\"outer\":[{\"inner\":[null]}]}",
 			decode: decodeNestedSuccess,
-			wantErrorPath: "body[key][*][key][0]",
+			wantErrorPath: "/outer/0/inner/0",
 		},
 		{
 			name: "nested success retains concrete value",
@@ -408,7 +408,7 @@ func TestRecursivePresenceNullabilityBehavior(t *testing.T) {
 			name: "declared error rejects null named-alias member",
 			body: "{\"field\":[null]}",
 			decode: decodeDeclaredError,
-			wantErrorPath: "body[key][0]",
+			wantErrorPath: "/field/0",
 		},
 		{
 			name: "declared error accepts concrete named-alias member",
@@ -493,8 +493,15 @@ func TestIssue324GeneratedHandlerRejectsNullBeforeServiceInvocation(t *testing.T
 	if response.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d: %s", response.StatusCode, http.StatusBadRequest, body)
 	}
-	if !strings.Contains(string(body), "body[0]") {
-		t.Fatalf("response body = %s, want indexed validation path", body)
+	var problem struct {
+		Code   string ` + "`" + `json:"code"` + "`" + `
+		Detail string ` + "`" + `json:"detail"` + "`" + `
+	}
+	if err := json.Unmarshal(body, &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "decode_payload" || problem.Detail != "invalid request body" {
+		t.Errorf("problem = %#v, want safe decode_payload error", problem)
 	}
 	if got := calls.Load(); got != 0 {
 		t.Fatalf("service invocation count = %d, want 0", got)

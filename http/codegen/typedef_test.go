@@ -153,7 +153,7 @@ func TestGoTypeDefUsesJSONPresenceWrappers(t *testing.T) {
 	got := goTypeDef(codegen.NewNameScope(), attribute, true, false, true)
 	require.Contains(t, got, "Required *string")
 	require.Contains(t, got, "Optional loom.Optional[string]")
-	require.Contains(t, got, "Empty loom.Optional[[]loom.Nullable[string]]")
+	require.Contains(t, got, "Empty loom.Optional[[]loom.Optional[string]]")
 	require.Contains(t, got, "Nullable loom.Nullable[int]")
 	require.Contains(t, got, "Anything loom.JSONValue")
 	require.Contains(t, got, `json:"optional,omitzero"`)
@@ -185,9 +185,9 @@ func TestGoTypeDefUsesJSONPresenceForArrayElements(t *testing.T) {
 	scope := codegen.NewNameScope()
 
 	require.Equal(t, "[]string", goTypeDef(scope, nonNullable, true, false, false))
-	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nonNullable, true, false, true))
+	require.Equal(t, "[]loom.Optional[string]", goTypeDef(scope, nonNullable, true, false, true))
 	require.Equal(t, "[]loom.Nullable[string]", goTypeDef(scope, nullable, true, false, true))
-	require.Equal(t, "[]loom.Nullable[loom.JSONValue]", goTypeDef(scope, requiredAny, true, false, true))
+	require.Equal(t, "[]loom.Optional[loom.JSONValue]", goTypeDef(scope, requiredAny, true, false, true))
 }
 
 func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
@@ -204,7 +204,7 @@ func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
 			attribute: &expr.AttributeExpr{Type: &expr.Array{
 				ElemType: &expr.AttributeExpr{Type: expr.String},
 			}},
-			want: "[]loom.Nullable[string]",
+			want: "[]loom.Optional[string]",
 		},
 		{
 			name: "map array value",
@@ -214,7 +214,7 @@ func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
 					ElemType: &expr.AttributeExpr{Type: expr.String},
 				}},
 			}},
-			want: "map[string]loom.Nullable[[]loom.Nullable[string]]",
+			want: "map[string]loom.Optional[[]loom.Optional[string]]",
 		},
 		{
 			name: "plain map",
@@ -222,7 +222,7 @@ func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
 				KeyType:  &expr.AttributeExpr{Type: expr.String},
 				ElemType: &expr.AttributeExpr{Type: expr.String},
 			}},
-			want: "map[string]loom.Nullable[string]",
+			want: "map[string]loom.Optional[string]",
 		},
 		{
 			name: "nullable map array value",
@@ -233,7 +233,7 @@ func TestGoBodyTypeRefUsesJSONPresenceForNestedArrayElements(t *testing.T) {
 					Nullable: true,
 				},
 			}},
-			want: "map[string]loom.Nullable[[]loom.Nullable[string]]",
+			want: "map[string]loom.Nullable[[]loom.Optional[string]]",
 		},
 	}
 

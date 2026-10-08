@@ -29,6 +29,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | Code concern | Model |
 | --- | --- |
 | Service/view union references and declaration identity | [Service union declarations](../../../../codegen/service/tla/union_declarations/README.md) |
+| Collection element nullability before lossy conversion | [Collection decoding](../../../../http/codegen/tla/collection_decode/README.md); bounded decoding/conversion/view ordering and generated HTTP/WebSocket/request matrices |
 | Preservation of absent fields before selected-view validation | [Projected presence](../../../../codegen/tla/projected_presence/README.md); bounded object/scalar panic and collection-presence controls, with generated HTTP/WebSocket tests |
 | View union allocation before conversion references | [View union names](../../../../codegen/service/tla/view_union_names/README.md) |
 | Relocated type declarations, local reservations and union helpers | [External type names](../../../../codegen/tla/external_type_names/README.md) |

@@ -26,7 +26,7 @@ func DecodeListResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBo
 
 			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
 			var (
-				body []loom.Nullable[string]
+				body []loom.Optional[string]
 				err  error
 			)
 			err = decoder(resp).Decode(&body)

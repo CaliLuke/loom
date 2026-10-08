@@ -26,7 +26,7 @@ func DecodeIndexResponse(decoder func(*http.Response) loomhttp.Decoder, restoreB
 
 			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
 			var (
-				body map[string]loom.Nullable[int]
+				body map[string]loom.Optional[int]
 				err  error
 			)
 			err = decoder(resp).Decode(&body)

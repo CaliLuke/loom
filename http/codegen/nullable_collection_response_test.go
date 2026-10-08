@@ -18,10 +18,10 @@ func TestNullableCollectionResponseBodyReferences(t *testing.T) {
 	}{
 		{"array", func() expr.DataType {
 			return ArrayOf(String)
-		}, "loom.Nullable[[]loom.Nullable[string]]", "loom.Nullable[[]string]"},
+		}, "loom.Nullable[[]loom.Optional[string]]", "loom.Nullable[[]string]"},
 		{"map", func() expr.DataType {
 			return MapOf(String, String)
-		}, "loom.Nullable[map[string]loom.Nullable[string]]", "loom.Nullable[map[string]string]"},
+		}, "loom.Nullable[map[string]loom.Optional[string]]", "loom.Nullable[map[string]string]"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, streaming := range []bool{false, true} {

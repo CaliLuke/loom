@@ -293,9 +293,20 @@ var Team = Type("Team", func() {
 })
 ```
 
-Array elements are non-null by default. A JSON `null` member is rejected with
-an error path that includes its zero-based index, such as `body.members[2]`.
-Use `Nullable()` in the element definition when `null` is part of the contract:
+Typed array elements and map values are non-null by default; unconstrained
+`Any` retains its JSON domain, including null. JSON `null` in a
+non-null element is rejected during decoding, before result conversion or view
+validation. A known field in the decoded wire type must satisfy this rule even
+if the selected view excludes it, just as it must have the right JSON kind.
+Fields absent from that wire type follow the decoder's unknown-field policy.
+Missing fields are still checked against the selected view.
+
+HTTP clients return `decoding_error` with the underlying `json.SemanticError`
+and JSON pointer (for example, `/members/2`). WebSocket receivers preserve the
+decoder error. HTTP requests return 400 `decode_payload` with the safe detail
+`invalid request body`, and do not invoke the service. This replaces the earlier
+`invalid_field_type` collection validation error; successful wire values are
+unchanged. Use `Nullable()` when null is part of the element contract:
 
 ```go
 var OptionalNames = ArrayOf(String, func() {

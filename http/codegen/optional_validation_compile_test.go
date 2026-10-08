@@ -221,7 +221,7 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 		require.NoError(t, readErr)
 		clientTypes.Write(contents)
 	}
-	require.Contains(t, clientTypes.String(), "Labels loom.Optional[[]loom.Nullable[string]]")
+	require.Contains(t, clientTypes.String(), "Labels loom.Optional[[]loom.Optional[string]]")
 	require.Contains(t, clientTypes.String(), "body.Labels.Value()")
 	serverTypeFiles, err := filepath.Glob(filepath.Join(dir, "gen", "http", "optional_union_validation", "server", "types*.go"))
 	require.NoError(t, err)
@@ -231,12 +231,12 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 		require.NoError(t, readErr)
 		serverTypes.Write(contents)
 	}
-	require.Contains(t, serverTypes.String(), "Values loom.Optional[[]loom.Nullable[string]]")
-	require.Contains(t, serverTypes.String(), "[]loom.Nullable[string]")
-	require.Contains(t, serverTypes.String(), "[]loom.Nullable[*ServerDetailsRequestBody]")
+	require.Contains(t, serverTypes.String(), "Values loom.Optional[[]loom.Optional[string]]")
+	require.Contains(t, serverTypes.String(), "[]loom.Optional[string]")
+	require.Contains(t, serverTypes.String(), "[]loom.Optional[*ServerDetailsRequestBody]")
 	require.Contains(t, serverTypes.String(), "[]loom.Nullable[ServerDetailsRequestBody]")
 	require.Contains(t, serverTypes.String(), "AnyItems")
-	require.Contains(t, serverTypes.String(), "loom.Optional[[]loom.Nullable[loom.JSONValue]]")
+	require.Contains(t, serverTypes.String(), "loom.Optional[[]loom.Optional[loom.JSONValue]]")
 	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.string_items", i)`)
 	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.object_items", i)`)
 	require.Contains(t, serverTypes.String(), `loom.InvalidNullElementError("body.any_items", i)`)
@@ -250,12 +250,10 @@ func TestGeneratedOptionalUnionObjectValidationCompiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "presence_regression_test.go"), []byte(`package optionalunionvalidation_test
 
 import (
-	"context"
 	json "encoding/json/v2"
 	"strings"
 	"testing"
 
-	loomhttp "github.com/CaliLuke/loom/http"
 	server "example.com/optionalunionvalidation/gen/http/optional_union_validation/server"
 )
 
@@ -283,17 +281,17 @@ func TestArrayItemNullability(t *testing.T) {
 		{
 			name: "null scalar",
 			body: `+"`"+`{"string_items":[null],"object_items":[{"code":"ok"}],"nullable_items":[null],"required_value":"ok"}`+"`"+`,
-			wantErrorPath: "body.string_items[0]",
+			wantErrorPath: "/string_items/0",
 		},
 		{
 			name: "null object",
 			body: `+"`"+`{"string_items":["ok"],"object_items":[null],"nullable_items":[null],"required_value":"ok"}`+"`"+`,
-			wantErrorPath: "body.object_items[0]",
+			wantErrorPath: "/object_items/0",
 		},
 		{
 			name: "null required any",
 			body: `+"`"+`{"string_items":["ok"],"object_items":[{"code":"ok"}],"any_items":[null],"nullable_items":[null],"required_value":"ok"}`+"`"+`,
-			wantErrorPath: "body.any_items[0]",
+			wantErrorPath: "/any_items/0",
 		},
 		{
 			name: "nullable object",
@@ -303,21 +301,18 @@ func TestArrayItemNullability(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var body server.ServerSharedNestedRequestBody
-			if err := json.Unmarshal([]byte(test.body), &body); err != nil {
-				t.Fatalf("decode body: %v", err)
-			}
-			err := server.ValidateServerSharedNestedRequestBody(&body)
-			if test.wantErrorPath == "" {
-				if err != nil {
-					t.Fatalf("validate nullable item: %v", err)
+			err := json.Unmarshal([]byte(test.body), &body)
+			if test.wantErrorPath != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantErrorPath) {
+					t.Fatalf("decoding error = %v, want path %s", err, test.wantErrorPath)
 				}
 				return
 			}
-			if err == nil || !strings.Contains(err.Error(), test.wantErrorPath) {
-				t.Fatalf("validation error = %v, want path %s", err, test.wantErrorPath)
+			if err != nil {
+				t.Fatalf("decode nullable item: %v", err)
 			}
-			if status := loomhttp.NewErrorResponse(context.Background(), err).StatusCode(); status != 400 {
-				t.Fatalf("status = %d, want 400", status)
+			if err := server.ValidateServerSharedNestedRequestBody(&body); err != nil {
+				t.Fatalf("validate nullable item: %v", err)
 			}
 		})
 	}

@@ -53,7 +53,7 @@ func TestNullableRequestBody(t *testing.T) {
 		{
 			Name:      "array",
 			Attribute: func(leaf any) { Attribute("b", ArrayOf(leaf), func() { Nullable() }) },
-			Body:      "\t\t\tbody loom.Nullable[[]loom.Nullable[*LeafRequestBody]]\n",
+			Body:      "\t\t\tbody loom.Nullable[[]loom.Optional[*LeafRequestBody]]\n",
 			Nullable:  true,
 			Validate: []string{
 				"loom.InvalidNullElementError(\"body\", i)",
@@ -63,7 +63,7 @@ func TestNullableRequestBody(t *testing.T) {
 		{
 			Name:      "string array",
 			Attribute: func(any) { Attribute("b", ArrayOf(String), func() { Nullable() }) },
-			Body:      "\t\t\tbody loom.Nullable[[]loom.Nullable[string]]\n",
+			Body:      "\t\t\tbody loom.Nullable[[]loom.Optional[string]]\n",
 			Nullable:  true,
 			Validate: []string{
 				"loom.InvalidNullElementError(\"body\", i)",
@@ -72,7 +72,7 @@ func TestNullableRequestBody(t *testing.T) {
 		{
 			Name:      "map",
 			Attribute: func(leaf any) { Attribute("b", MapOf(String, leaf), func() { Nullable() }) },
-			Body:      "\t\t\tbody loom.Nullable[map[string]loom.Nullable[*LeafRequestBody]]\n",
+			Body:      "\t\t\tbody loom.Nullable[map[string]loom.Optional[*LeafRequestBody]]\n",
 			Nullable:  true,
 			Validate: []string{
 				"ValidateLeafRequestBody(actual)",

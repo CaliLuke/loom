@@ -26,14 +26,12 @@ func TestNullableNamedCollectionBodyRoundTrip(t *testing.T) {
 		{
 			"array", func() expr.DataType {
 				return ArrayOf(String)
-			}, "[]", `["a","b"]`, `[null]`, "invalid_field_type",
-			`invalid null value for "body[0]"; array element must be non-null`,
+			}, "[]", `["a","b"]`, `[null]`, "decode_payload", "invalid request body",
 		},
 		{
 			"map", func() expr.DataType {
 				return MapOf(String, Int)
-			}, "{}", `{"a":7}`, `{"a":null}`, "invalid_field_type",
-			`invalid null value for "body[key]"; map value must be non-null`,
+			}, "{}", `{"a":7}`, `{"a":null}`, "decode_payload", "invalid request body",
 		},
 		{
 			"array nullable elements", func() expr.DataType {

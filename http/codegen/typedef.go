@@ -69,7 +69,7 @@ func goMapTypeDef(scope *codegen.NameScope, actual *expr.Map, ptr, useDefault, j
 	keyDef := goMapKeyTypeDef(scope, actual.KeyType, ptr, useDefault, jsonPresence)
 	elemDef := goCollectionElemTypeDef(scope, actual.ElemType, ptr, useDefault, jsonPresence)
 	if jsonPresence && !expr.MapValuesAllowNull(actual) {
-		elemDef = "loom.Nullable[" + elemDef + "]"
+		elemDef = "loom.Optional[" + elemDef + "]"
 	}
 	return fmt.Sprintf("map[%s]%s", keyDef, elemDef)
 }
@@ -94,7 +94,7 @@ func goCollectionElemTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, 
 func goArrayElemTypeDef(scope *codegen.NameScope, array *expr.Array, ptr, useDefault, jsonPresence bool) string {
 	def := goCollectionElemTypeDef(scope, array.ElemType, ptr, useDefault, jsonPresence)
 	if jsonPresence && !expr.ArrayElementsAllowNull(array) {
-		def = "loom.Nullable[" + def + "]"
+		def = "loom.Optional[" + def + "]"
 	}
 	return def
 }

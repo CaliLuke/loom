@@ -85,6 +85,10 @@ a valid example where the declared type permits it.
 - `FormatHostname` accepts ASCII labels of 1–63 bytes, letters/digits at the
   edges and interior hyphens, up to 253 bytes excluding an optional terminal
   root dot. It validates syntax without DNS lookup or Unicode/IDNA conversion.
+- Non-null array elements and map values reject JSON null during decoding,
+  including viewed responses. HTTP clients report `decoding_error` with a JSON
+  semantic cause; HTTP requests return 400 `decode_payload`. Declare `Nullable()` on
+  elements when null is valid. Missing fields still follow the selected view.
 - Do not rely on nil versus empty slices or maps to encode presence. Generated
   JSON uses `omitempty`, so both serialize as missing.
 - For each non-`Extend` type, payload, or result, start literal field tags at

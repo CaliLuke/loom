@@ -1177,9 +1177,14 @@ filter, and serialization rules belong here.
 - Projected collection view validation checks nil elements before calling the
   element validator. Reject non-nullable elements with an indexed error and
   skip validation of nullable nil elements.
-- JSON decoding types use `loom.Nullable[T]` for non-null array elements and
-  map values so validation can reject explicit `null` with stable collection
-  paths before conversion to service types.
+- JSON decoding types use the existing `loom.Optional[T]` carrier for non-null
+  array elements and map values. Its decoder rejects null before conversion can
+  erase it, including viewed HTTP/WebSocket responses. Authored nullable elements
+  retain `loom.Nullable[T]`. Invalid null elements are decoding errors: HTTP
+  clients preserve the JSON semantic cause, HTTP requests use the safe `decode_payload`
+  problem contract, and WebSocket receivers preserve the decoder error. Keep
+  selected-view requiredness in view validation; do not add parallel per-view
+  null scanners. See the [collection decoding model](../../../http/codegen/tla/collection_decode/README.md).
 
 ## Verification Strategy
 

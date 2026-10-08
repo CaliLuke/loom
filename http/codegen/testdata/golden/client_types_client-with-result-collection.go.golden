@@ -11,7 +11,7 @@ type ResulttypeResponseBody struct {
 }
 
 // RtCollectionResponseBody is used to define fields on response body types.
-type RtCollectionResponseBody []loom.Nullable[*RtResponseBody]
+type RtCollectionResponseBody []loom.Optional[*RtResponseBody]
 
 // RtResponseBody is used to define fields on response body types.
 type RtResponseBody struct {

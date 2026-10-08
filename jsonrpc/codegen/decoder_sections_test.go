@@ -114,7 +114,7 @@ func TestJSONRPCResponseDecoderSectionGolden(t *testing.T) {
 				})
 			},
 			contains: []string{
-				"body map[string]loom.Nullable[int]",
+				"body map[string]loom.Optional[int]",
 				`loom.InvalidNullMapValueError("body[key]")`,
 			},
 		},

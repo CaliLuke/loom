@@ -2,7 +2,7 @@
 // "MethodA" endpoint HTTP request body.
 type MethodARequestBody struct {
 	Any    loom.JSONValue                         `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"`
-	Array  []loom.Nullable[float32]               `form:"array,omitempty" json:"array,omitempty" xml:"array,omitempty"`
+	Array  []loom.Optional[float32]               `form:"array,omitempty" json:"array,omitempty" xml:"array,omitempty"`
 	Map    loom.Optional[map[uint]loom.JSONValue] `form:"map,omitempty" json:"map,omitzero" xml:"map,omitempty"`
 	Object *BPayloadRequestBody                   `form:"object,omitempty" json:"object,omitempty" xml:"object,omitempty"`
 	DupObj loom.Optional[BPayloadRequestBody]     `form:"dup_obj,omitempty" json:"dup_obj,omitzero" xml:"dup_obj,omitempty"`

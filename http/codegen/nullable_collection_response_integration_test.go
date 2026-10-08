@@ -21,10 +21,10 @@ func TestNullableCollectionResponsesGenerated(t *testing.T) {
 	}{
 		{"array", func() expr.DataType {
 			return ArrayOf(String)
-		}, "[]", `["a","b"]`, `[null]`, "invalid null value", ""},
+		}, "[]", `["a","b"]`, `[null]`, "Optional does not allow null", "/0"},
 		{"map", func() expr.DataType {
 			return MapOf(String, String)
-		}, "{}", `{"a":"b"}`, `{"a":null}`, "invalid null value", ""},
+		}, "{}", `{"a":"b"}`, `{"a":null}`, "Optional does not allow null", "/a"},
 		{"array nullable elements", func() expr.DataType {
 			return ArrayOf(String, func() {
 				Nullable()
@@ -39,10 +39,10 @@ func TestNullableCollectionResponsesGenerated(t *testing.T) {
 		}, "{}", `{"a":null,"b":"c"}`, `{"a":1}`, "", "/a"},
 		{"nested array", func() expr.DataType {
 			return ArrayOf(ArrayOf(String))
-		}, "[]", `[["a"],[]]`, `[[null]]`, "invalid null value", ""},
+		}, "[]", `[["a"],[]]`, `[[null]]`, "Optional does not allow null", "/0/0"},
 		{"aliased map", func() expr.DataType {
 			return Type("Inner", MapOf(String, String))
-		}, "{}", `{"a":"b"}`, `{"a":null}`, "invalid null value", ""},
+		}, "{}", `{"a":"b"}`, `{"a":null}`, "Optional does not allow null", "/a"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -200,12 +200,6 @@ func requireInvalidCollection(t *testing.T, transport string, err error) {
   t.Errorf("%s client accepted an invalid collection", transport)
   return
  }
- if INVALID_DETAIL != "" {
-  if !strings.Contains(err.Error(), INVALID_DETAIL) {
-   t.Errorf("%s client invalid collection: %v", transport, err)
-  }
-  return
- }
  if transport == "HTTP" {
   var clientError *loomhttp.ClientError
   if !errors.As(err, &clientError) || clientError.Name != "decoding_error" {
@@ -215,6 +209,12 @@ func requireInvalidCollection(t *testing.T, transport string, err error) {
  var semantic *json.SemanticError
  if !errors.As(err, &semantic) {
   t.Errorf("%s client did not preserve the JSON semantic error: %v", transport, err)
+  return
+ }
+ if INVALID_DETAIL != "" {
+  if !errors.Is(err, loom.ErrNullOptional) || !strings.Contains(err.Error(), INVALID_DETAIL) || string(semantic.JSONPointer) != INVALID_POINTER {
+   t.Errorf("%s client wrong null rejection: %v", transport, err)
+  }
   return
  }
  if semantic.JSONKind != '0' || semantic.GoType != reflect.TypeFor[string]() ||

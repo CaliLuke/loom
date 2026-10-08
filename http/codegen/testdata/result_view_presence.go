@@ -15,6 +15,7 @@ var ResultViewPresenceDSL = func() {
 		})
 	})
 	label := Type("Label", String)
+	tags := Type("Tags", ArrayOf(String))
 	profile := Type("Profile", func() {
 		Attribute("name", String, func() {
 			MinLength(3)
@@ -33,7 +34,13 @@ var ResultViewPresenceDSL = func() {
 			})
 			Attribute("label", label)
 			Attribute("tags", ArrayOf(String))
+			Attribute("aliases", tags)
 			Attribute("counts", MapOf(String, Int))
+			Attribute("maybe_tags", ArrayOf(String, func() {
+				Nullable()
+			}))
+			Attribute("groups", MapOf(String, ArrayOf(String)))
+			Attribute("profiles", ArrayOf(profile))
 			Attribute("profile", profile)
 			Required("id", "details", "label", "tags", "counts", "profile")
 		})
@@ -42,7 +49,11 @@ var ResultViewPresenceDSL = func() {
 			Attribute("details")
 			Attribute("label")
 			Attribute("tags")
+			Attribute("aliases")
 			Attribute("counts")
+			Attribute("maybe_tags")
+			Attribute("groups")
+			Attribute("profiles")
 			Attribute("profile")
 		})
 		View("tiny", func() {
