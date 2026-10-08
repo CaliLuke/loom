@@ -158,34 +158,32 @@ func writeJSONRPCWebSocketEndpointBody(g *jen.Group, ed *httpcodegen.EndpointDat
 
 func writeJSONRPCSSEEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {
 	writeJSONRPCDoRequest(g, ed)
-	g.If(jen.Id("resp").Dot("StatusCode").Op("!=").Qual("net/http", "StatusOK")).Block(
-		jen.List(jen.Id("body"), jen.Id("_")).Op(":=").Qual("io", "ReadAll").Call(jen.Id("resp").Dot("Body")),
-		jen.Id("resp").Dot("Body").Dot("Close").Call(),
-		jen.Return(
-			jen.Nil(),
-			jen.Id("loomhttp").Dot("ErrInvalidResponse").Call(
-				jen.Lit(ed.ServiceName),
-				jen.Lit(ed.Method.Name),
-				jen.Id("resp").Dot("StatusCode"),
-				jen.String().Call(jen.Id("body")),
-			),
-		),
-	)
-	g.Line()
-	g.Id("contentType").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("Content-Type"))
-	g.If(
-		jen.Id("contentType").Op("!=").Lit("").Op("&&").
-			Op("!").Qual("strings", "HasPrefix").Call(jen.Id("contentType"), jen.Lit("text/event-stream")),
-	).Block(
-		jen.Id("resp").Dot("Body").Dot("Close").Call(),
-		jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("unexpected content type: %s (expected text/event-stream)"), jen.Id("contentType"))),
-	)
-	g.Line()
-	g.Id("stream").Op(":=").Op("&").Id(ed.Method.VarName + "ClientStream").Values(jen.Dict{
-		jen.Id("reader"):  jen.Add(codegen.Expr("loomhttp.NewSSEStreamReader")).Call(jen.Id("resp").Dot("Body")),
-		jen.Id("decoder"): jen.Id("c").Dot("decoder"),
-	})
-	g.Return(jen.Id("stream"), jen.Nil())
+	g.Return(jen.Id("loomhttp").Dot("DecodeResponse").Call(
+		jen.Id("resp"), jen.False(), jen.True(),
+		jen.Func().Params(jen.Id("resp").Op("*").Qual("net/http", "Response")).Params(jen.Any(), jen.Error()).BlockFunc(func(decode *jen.Group) {
+			decode.If(jen.Id("resp").Dot("StatusCode").Op("!=").Qual("net/http", "StatusOK")).Block(
+				jen.List(jen.Id("body"), jen.Err()).Op(":=").Id("loomhttp").Dot("ReadUnexpectedResponseBody").Call(jen.Id("resp")),
+				jen.If(jen.Err().Op("!=").Nil()).Block(
+					jen.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrDecodingError").Call(jen.Lit(ed.ServiceName), jen.Lit(ed.Method.Name), jen.Err())),
+				),
+				jen.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrInvalidResponse").Call(
+					jen.Lit(ed.ServiceName), jen.Lit(ed.Method.Name), jen.Id("resp").Dot("StatusCode"), jen.Id("body"),
+				)),
+			)
+			decode.Id("contentType").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("Content-Type"))
+			decode.If(
+				jen.Id("contentType").Op("!=").Lit("").Op("&&").
+					Op("!").Qual("strings", "HasPrefix").Call(jen.Id("contentType"), jen.Lit("text/event-stream")),
+			).Block(
+				jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("unexpected content type: %s (expected text/event-stream)"), jen.Id("contentType"))),
+			)
+			decode.Id("stream").Op(":=").Op("&").Id(ed.Method.VarName + "ClientStream").Values(jen.Dict{
+				jen.Id("reader"):  jen.Add(codegen.Expr("loomhttp.NewSSEStreamReader")).Call(jen.Id("resp").Dot("Body")),
+				jen.Id("decoder"): jen.Id("c").Dot("decoder"),
+			})
+			decode.Return(jen.Id("stream"), jen.Nil())
+		}),
+	))
 }
 
 func writeJSONRPCUnaryEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {

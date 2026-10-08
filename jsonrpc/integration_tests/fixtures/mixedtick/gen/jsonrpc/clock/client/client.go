@@ -10,7 +10,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -98,22 +97,23 @@ func (c *Client) Tick() loom.Endpoint {
 			return nil, loomhttp.ErrRequestError("clock", "Tick", err)
 		}
 
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
-		}
-
-		contentType := resp.Header.Get("Content-Type")
-		if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
-		}
-
-		stream := &TickClientStream{
-			decoder: c.decoder,
-			reader:  loomhttp.NewSSEStreamReader(resp.Body),
-		}
-		return stream, nil
+		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
+			if resp.StatusCode != http.StatusOK {
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
+				}
+				return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, body)
+			}
+			contentType := resp.Header.Get("Content-Type")
+			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
+				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+			}
+			stream := &TickClientStream{
+				decoder: c.decoder,
+				reader:  loomhttp.NewSSEStreamReader(resp.Body),
+			}
+			return stream, nil
+		})
 	}
 }

@@ -19,22 +19,23 @@ func (c *Client) EventsStream() loom.Endpoint {
 			return nil, loomhttp.ErrRequestError("JSONRPCSSEEventsStreamService", "events/stream", err)
 		}
 
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			return nil, loomhttp.ErrInvalidResponse("JSONRPCSSEEventsStreamService", "events/stream", resp.StatusCode, string(body))
-		}
-
-		contentType := resp.Header.Get("Content-Type")
-		if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
-		}
-
-		stream := &EventsStreamClientStream{
-			decoder: c.decoder,
-			reader:  loomhttp.NewSSEStreamReader(resp.Body),
-		}
-		return stream, nil
+		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
+			if resp.StatusCode != http.StatusOK {
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("JSONRPCSSEEventsStreamService", "events/stream", err)
+				}
+				return nil, loomhttp.ErrInvalidResponse("JSONRPCSSEEventsStreamService", "events/stream", resp.StatusCode, body)
+			}
+			contentType := resp.Header.Get("Content-Type")
+			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
+				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+			}
+			stream := &EventsStreamClientStream{
+				decoder: c.decoder,
+				reader:  loomhttp.NewSSEStreamReader(resp.Body),
+			}
+			return stream, nil
+		})
 	}
 }

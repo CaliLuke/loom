@@ -53,6 +53,11 @@ failures do not satisfy a negative control. Remove checker output after review.
   accepted empty content type, and successful transfer, with and without close
   failures (#632). `LegacyFailures` still fails and `Checked` passes 96 states;
   the model abstracts handshake validation as metadata decoding.
+- JSON-RPC SSE handshakes also use the shared owner (#634). Their non-200
+  diagnostic reader is bounded and propagates read errors. The JSON-RPC
+  ticktock `TestGeneratedSSEResponseOwnership` checks partial read and close
+  failures, bounded diagnostics, content-type rejection, and open-body
+  transfer. The model covers ownership and error causes, not the byte limit.
 - `http.TestDecodeResponseOwnership` checks metadata failure, transfer,
   restoration and error composition. The existing response-limit test checks
   bounded reading. `jsonrpc.TestNotificationResponseCleanupErrors` checks
