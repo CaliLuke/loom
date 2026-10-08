@@ -2,9 +2,7 @@
 // that writes the key, so the write and its expiry are one atomic step.
 //
 // A fixed TTL is set only when the key has no TTL, the semantics of
-// `EXPIRE key seconds NX`. The NX flag needs Redis 7.0, so the script checks
-// `TTL key` instead, which works on Redis 6.2 and later and on miniredis. A
-// sliding TTL is reset by every write.
+// `EXPIRE key seconds NX`. A sliding TTL is reset by every write.
 package keyttl
 
 import "time"
@@ -20,8 +18,10 @@ local function apply_ttl(key, seconds, sliding)
    if seconds <= 0 then
       return
    end
-   if sliding == "1" or redis.call("TTL", key) == -1 then
+   if sliding == "1" then
       redis.call("EXPIRE", key, seconds)
+   else
+      redis.call("EXPIRE", key, seconds, "NX")
    end
 end
 `

@@ -217,7 +217,7 @@ make ci-local      # Run all meaningful direct-main GitHub CI gates locally, exc
 ./check.sh         # Thin wrapper: make lint + make test
 ./check.sh --fix   # Auto-fix imports/formatting, then check
 ./check.sh --full  # Stable wrapper for make ci-local (slow)
-make test-pulse-redis  # Pulse suites against real Redis 6.2 and 7.4 (Docker, opt-in). FLUSHES DBs 1-3 of LOOM_PULSE_REDIS_ADDR; loopback only unless LOOM_PULSE_REDIS_ALLOW_REMOTE=1
+make test-pulse-redis  # Pulse suites against the latest stable Redis (pinned in scripts/test_pulse_redis.sh) (Docker, opt-in). FLUSHES DBs 1-3 of LOOM_PULSE_REDIS_ADDR; loopback only unless LOOM_PULSE_REDIS_ALLOW_REMOTE=1
 cd cmd/loom && go install .  # Install CLI locally
 ```
 

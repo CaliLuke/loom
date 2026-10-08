@@ -1272,11 +1272,11 @@ does, and accepts commands that older servers reject. Changes to pulse Lua
 scripts, stream, consumer-group, or expiry commands require the real-Redis
 tier:
 
-- `make test-pulse-redis` starts `redis:6.2` and `redis:7.4` containers with
-  Docker and runs `./pulse/...` with `-race` against each. With
-  `LOOM_PULSE_REDIS_ADDR=host:port` set, it runs once against that server, as
-  the `pulse-redis` CI job does with a service container.
-  `LOOM_PULSE_REDIS_VERSIONS` overrides the container versions.
+- Pulse supports only the latest stable Redis release, currently 8.10.2.
+  `make test-pulse-redis` starts the image pinned in `scripts/test_pulse_redis.sh`
+  with Docker and runs `./pulse/...` with `-race`. GitHub CI uses this same
+  runner and pin. Update the pin and public guidance when adopting a newer
+  stable release. `LOOM_PULSE_REDIS_ADDR=host:port` selects an existing server.
 - The shared helper is `pulse/internal/redistest`. Each package uses its own
   database and flushes it per test, so point the tier at a disposable server
   only. It refuses a non-loopback address unless
@@ -1284,11 +1284,9 @@ tier:
   `LOOM_PULSE_REDIS_ADDR` for every other target. Pub/sub is server-wide, so
   packages run with `-p 1`. `ci-local` excludes this tier because pre-push must
   not need Docker.
-- Where Redis versions differ, assert the version-specific behavior with
-  `Server.MajorVersion()` instead of skipping. A test that fails on 6.2
-  because of a filed product bug calls `Server.SkipOnRedis6(t, "#issue")`;
-  remove the call with the fix. Tests that need miniredis-only
-  control, such as its clock, need a wall-clock path on a real server.
+- Keep miniredis limitations explicit with `Server.Real()` assertions. They
+  do not represent support for older Redis versions. Tests that need miniredis
+  clock control need a wall-clock path on the supported real server.
 - Pool protocol 2 ownership lives in plain Redis hashes (`owners` and
   `owner-epochs`). Claim and release scripts update ownership, job indexes,
   and payloads together with rmap revision notifications. Never perform a
@@ -1330,7 +1328,7 @@ make openapi-contract          # OpenAPI work
 make generated-code-quality    # generated Go/output work
 make test-testdata-compile     # all exported design fixtures: gen, example, build, vet
 make integration-test          # transport behavior
-make test-pulse-redis          # pulse work, real Redis 6.2 and 7.4 (Docker)
+make test-pulse-redis          # pulse work, pinned latest stable Redis (Docker)
 ./check.sh --full              # full repository verification
 ```
 

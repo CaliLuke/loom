@@ -43,8 +43,7 @@ func TestMajorVersion(t *testing.T) {
 		want    int
 		wantErr bool
 	}{
-		{name: "6.2", info: "# Server\r\nredis_version:6.2.24\r\nredis_mode:standalone\r\n", want: 6},
-		{name: "7.4", info: "# Server\r\nredis_version:7.4.11\r\n", want: 7},
+		{name: "stable", info: "# Server\r\nredis_version:8.10.2\r\nredis_mode:standalone\r\n", want: 8},
 		{name: "missing", info: "# Server\r\nredis_mode:standalone\r\n", wantErr: true},
 		{name: "malformed", info: "redis_version:x.y\r\n", wantErr: true},
 	}

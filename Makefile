@@ -195,11 +195,10 @@ else
 endif
 
 # Opt-in real-Redis tier for the pulse suites (issue #383). `make test` runs
-# them against miniredis only. This target starts one Docker container per
-# LOOM_PULSE_REDIS_VERSIONS entry (default "6.2 7.4") and runs the suites with
-# -race against each, or runs them once against LOOM_PULSE_REDIS_ADDR when it
-# is set, as CI does with a service container. The tests flush Redis
-# databases 1 to 3 of that server, which must be on a loopback address unless
+# them against miniredis only. This target starts the latest stable Redis
+# image pinned in scripts/test_pulse_redis.sh and runs the suites with -race.
+# CI uses this same runner. LOOM_PULSE_REDIS_ADDR selects an existing server.
+# The tests flush Redis databases 1 to 3 of that server, which must be on a loopback address unless
 # LOOM_PULSE_REDIS_ALLOW_REMOTE=1.
 test-pulse-redis:
 ifneq ($(GOOS),windows)

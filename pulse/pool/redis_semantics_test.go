@@ -12,10 +12,9 @@ import (
 
 // The tests in this file pin the Redis stream behaviours that the pool
 // scripts rely on. They run against miniredis by default and against real
-// Redis in the opt-in tier (`make test-pulse-redis`, issue #383). Where Redis
-// versions differ, the expected behaviour depends on the server version.
-// miniredis follows Redis 6.2 where the pool depends on it, such as keeping
-// pending entries of deleted ids, though some replies use the Redis 7 shape.
+// Redis in the opt-in tier (`make test-pulse-redis`, issue #383). Miniredis
+// retains pending entries of deleted ids; the supported Redis release purges
+// them. Keep this test-double distinction explicit.
 
 // luaSingleIDPending runs the single-id XPENDING form that in_flight uses and
 // returns the number of entries and the id of the first one, or the error
@@ -89,7 +88,7 @@ func TestRedisSingleIDPending(t *testing.T) {
 
 // TestRedisXInfoGroups checks the XINFO GROUPS reply that in_flight parses in
 // Lua and that go-redis parses: name, pending and last-delivered-id on every
-// version, plus entries-read and lag on Redis 7 and later.
+// supported server, including entries-read and lag on real Redis.
 func TestRedisXInfoGroups(t *testing.T) {
 	srv := startTestServer(t)
 	rdb := srv.Client
@@ -115,15 +114,11 @@ func TestRedisXInfoGroups(t *testing.T) {
 	require.Equal(t, lastDelivered, fields["last-delivered-id"])
 	_, hasEntriesRead := fields["entries-read"]
 	_, hasLag := fields["lag"]
-	if srv.MajorVersion() >= 7 {
+	if srv.Real() {
 		require.True(t, hasEntriesRead, "entries-read on Redis %d", srv.MajorVersion())
 		require.True(t, hasLag, "lag on Redis %d", srv.MajorVersion())
 		require.Equal(t, int64(2), fields["entries-read"])
 		require.Equal(t, int64(3), fields["lag"])
-	}
-	if srv.Real() && srv.MajorVersion() < 7 {
-		require.False(t, hasEntriesRead, "entries-read on Redis %d", srv.MajorVersion())
-		require.False(t, hasLag, "lag on Redis %d", srv.MajorVersion())
 	}
 
 	groups, err := rdb.XInfoGroups(ctx, stream).Result()
@@ -161,10 +156,8 @@ func TestRedisClaimDispatchApproxMaxLen(t *testing.T) {
 
 // TestRedisAutoClaimDeletedEntries checks how XAUTOCLAIM treats pending
 // entries whose ids were deleted from the stream, by XDEL or by a trim. Redis
-// 6.2 keeps them in the pending list, claims them and replies with a null
-// entry for each; Redis 7 and later purge them and report their ids in a
-// third reply element. miniredis keeps them as Redis 6.2 does. Issue #385
-// hinges on this difference.
+// purges them and reports their ids in a third reply element. Miniredis keeps
+// them in the pending list. Issue #385 hinges on this test-double difference.
 func TestRedisAutoClaimDeletedEntries(t *testing.T) {
 	srv := startTestServer(t)
 	rdb := srv.Client
@@ -173,7 +166,7 @@ func TestRedisAutoClaimDeletedEntries(t *testing.T) {
 	ids := deliverEntries(t, rdb, stream, group, "c1", 3)
 	require.NoError(t, rdb.XDel(ctx, stream, ids[0]).Err())
 	require.NoError(t, rdb.XTrimMinID(ctx, stream, ids[2]).Err())
-	purges := srv.MajorVersion() >= 7
+	purges := srv.Real()
 
 	raw, err := rdb.Do(ctx, "XAUTOCLAIM", stream, group, "c2", 0, "0-0").Slice()
 	require.NoError(t, err)
@@ -181,11 +174,8 @@ func TestRedisAutoClaimDeletedEntries(t *testing.T) {
 	case purges:
 		require.Len(t, raw, 3)
 		require.ElementsMatch(t, []any{ids[0], ids[1]}, raw[2], "deleted ids")
-	case srv.Real():
-		require.Len(t, raw, 2, "Redis 6.2 reports no deleted ids")
 	default:
-		// miniredis replies in the Redis 7 shape but reports no deleted
-		// ids, as it keeps their pending entries like Redis 6.2.
+		// miniredis reports no deleted ids and keeps their pending entries.
 		require.Len(t, raw, 3)
 		require.Empty(t, raw[2], "deleted ids")
 	}
@@ -198,13 +188,8 @@ func TestRedisAutoClaimDeletedEntries(t *testing.T) {
 	}
 	require.Equal(t, "c2", got[ids[2]], "the live entry is claimed")
 	for _, id := range ids[:2] {
-		owner, kept := got[id]
+		_, kept := got[id]
 		require.Equal(t, !purges, kept, "pending entry of deleted id %s kept on Redis %d (0 is miniredis)", id, srv.MajorVersion())
-		if kept && srv.Real() {
-			// Redis 6.2 claims the entry. miniredis leaves it with its
-			// owner, which the pool does not rely on.
-			require.Equal(t, "c2", owner, "owner of deleted id %s", id)
-		}
 	}
 }
 
@@ -212,10 +197,10 @@ func TestRedisAutoClaimDeletedEntries(t *testing.T) {
 // guard of a start event that was delivered, trimmed while unacked, and then
 // reached by XAUTOCLAIM, as after ackGracePeriod on a busy pool stream.
 //
-// On Redis 6.2 (and miniredis) the pending entry survives XAUTOCLAIM. On
-// Redis 7 and later XAUTOCLAIM purges it, although the start may still be
-// queued on a worker stream. The guard must stay on every version (issue
-// #385): in_flight counts a delivered event that is gone from both the
+// In miniredis the pending entry survives XAUTOCLAIM. Real Redis purges it,
+// although the start may still be queued on a worker stream. The guard must
+// stay in both cases (issue #385): in_flight counts a delivered event gone
+// from both the
 // stream and the pending list.
 func TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart(t *testing.T) {
 	srv := startTestServer(t)
@@ -228,8 +213,7 @@ func TestRedisDispatchGuardAfterAutoClaimOfTrimmedStart(t *testing.T) {
 	guard := staleUntil + ":" + id
 	setGuard(t, node, "k2", guard)
 
-	// The raw command, because go-redis XAutoClaim cannot parse the Redis
-	// 6.2 reply for a deleted id (issue #408).
+	// Only the pending-list effect matters here, not the claim reply.
 	require.NoError(t, rdb.Do(ctx, "XAUTOCLAIM", stream, poolSinkName, "c2", 0, "0-0").Err())
 	status, err := node.runReleaseDispatch(ctx, "k2", guard)
 	require.NoError(t, err)

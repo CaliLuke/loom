@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Runs the pulse test suites against real Redis servers (issue #383).
+# Runs the pulse test suites against the supported stable Redis release.
 #
 # With LOOM_PULSE_REDIS_ADDR set, the suites run once against that server.
-# CI uses this mode with a service container. Otherwise the script starts one
-# Docker container per version in LOOM_PULSE_REDIS_VERSIONS, runs the suites
-# against it and removes it.
+# Otherwise the script starts a Docker container for the pinned latest
+# stable release, runs the suites,
+# and removes it. GitHub CI uses this same pin and runner.
 #
 # The tests flush Redis databases 1 to 3, so point LOOM_PULSE_REDIS_ADDR at a
 # disposable server only. The tests refuse a non-loopback address unless
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSIONS="${LOOM_PULSE_REDIS_VERSIONS:-6.2 7.4}"
+REDIS_IMAGE="redis:8.10.2"
 PACKAGES=(./pulse/...)
 
 CONTAINER=""
@@ -62,32 +62,22 @@ command -v docker >/dev/null 2>&1 || {
   exit 1
 }
 
-failed=()
-for version in $VERSIONS; do
-  CONTAINER="$(docker run -d --rm -p 127.0.0.1::6379 "redis:$version")"
-  ready=""
-  for _ in $(seq 1 50); do
-    if docker exec "$CONTAINER" redis-cli ping 2>/dev/null | grep -q PONG; then
-      ready=1
-      break
-    fi
-    sleep 0.2
-  done
-  if [[ -z "$ready" ]]; then
-    echo "test-pulse-redis: redis:$version not ready" >&2
-    exit 1
+CONTAINER="$(docker run -d --rm -p 127.0.0.1::6379 "$REDIS_IMAGE")"
+ready=""
+for _ in $(seq 1 50); do
+  if docker exec "$CONTAINER" redis-cli ping 2>/dev/null | grep -q PONG; then
+    ready=1
+    break
   fi
-  port="$(docker port "$CONTAINER" 6379/tcp | head -n 1 | sed 's/.*://')"
-  echo "▶ redis:$version ($(docker exec "$CONTAINER" redis-server --version | sed -E 's/.* v=([^ ]+).*/\1/'))"
-  if ! run_suites "127.0.0.1:$port"; then
-    failed+=("$version")
-  fi
-  docker rm -f "$CONTAINER" >/dev/null
-  CONTAINER=""
+  sleep 0.2
 done
-
-if ((${#failed[@]} > 0)); then
-  echo "test-pulse-redis: failed against Redis ${failed[*]}" >&2
+if [[ -z "$ready" ]]; then
+  echo "test-pulse-redis: $REDIS_IMAGE not ready" >&2
   exit 1
 fi
-echo "test-pulse-redis: passed against Redis $VERSIONS"
+port="$(docker port "$CONTAINER" 6379/tcp | head -n 1 | sed 's/.*://')"
+echo "▶ $REDIS_IMAGE ($(docker exec "$CONTAINER" redis-server --version | sed -E 's/.* v=([^ ]+).*/\1/'))"
+run_suites "127.0.0.1:$port"
+docker rm -f "$CONTAINER" >/dev/null
+CONTAINER=""
+echo "test-pulse-redis: passed against $REDIS_IMAGE"

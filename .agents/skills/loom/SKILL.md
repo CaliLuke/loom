@@ -938,7 +938,8 @@ loom vet <module-import-path>/design
 
 ## Canonical Guides
 
-For Pulse applications, read `docs/pulse.md`. Pool protocol 2 requires closing
+For Pulse applications, read `docs/pulse.md`. Use the latest stable Redis
+release, currently 8.10.2; older releases are unsupported. Pool protocol 2 requires closing
 all protocol 1 nodes before upgrading or rolling back; mixed versions are not
 supported. `Node.Health(ctx)` reports incompatible live members. `Job.Epoch`
 identifies ownership; external stores must enforce fencing themselves. Pool

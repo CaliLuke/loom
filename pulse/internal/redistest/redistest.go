@@ -137,17 +137,6 @@ func (s *Server) MajorVersion() int {
 	return s.major
 }
 
-// SkipOnRedis6 skips test t on a real Redis 6 server because of the known
-// product bug tracked by issue, for example "#408". The test still runs on
-// miniredis and on Redis 7 and later. Remove the call when the issue is
-// fixed.
-func (s *Server) SkipOnRedis6(t testing.TB, issue string) {
-	t.Helper()
-	if s.Real() && s.major < 7 {
-		t.Skipf("known Redis 6.2 bug, see %s", issue)
-	}
-}
-
 // DialHook implements redis.Hook.
 func (structShimHook) DialHook(next redis.DialHook) redis.DialHook {
 	return next

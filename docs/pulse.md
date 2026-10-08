@@ -11,6 +11,13 @@ workers, schedulers, and tickers under `github.com/CaliLuke/loom/pulse`. These
 packages start background subscriptions or polling loops, so ownership and
 shutdown are part of their public contract.
 
+## Supported Redis
+
+Pulse supports only the latest stable Redis release, currently **8.10.2**.
+Older Redis releases are not supported. The real-Redis CI and local test runner
+share the version pin in `scripts/test_pulse_redis.sh`; update that pin and this
+guidance when adopting a newer stable release.
+
 ## Shared Prerequisite and Ownership
 
 Create and health-check a `*redis.Client` before constructing Pulse objects.
