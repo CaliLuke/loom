@@ -188,6 +188,8 @@ func TestClientEndpointSectionsMixedResults(t *testing.T) {
 	require.NotContains(t, standard, `req.Header.Set("Accept", "text/event-stream")`)
 	require.Contains(t, stream, "func (c *Client) CreateStream() loom.Endpoint")
 	require.Contains(t, stream, `req.Header.Set("Accept", "text/event-stream")`)
+	require.Contains(t, stream, "return loomhttp.DecodeResponse(resp, false, true,")
+	require.NotContains(t, stream, "resp.Body.Close()")
 }
 
 func TestClientEndpointSectionSSEDecodesTypedErrorResponses(t *testing.T) {
@@ -213,6 +215,8 @@ func TestClientEndpointSectionSSEDecodesTypedErrorResponses(t *testing.T) {
 	require.Contains(t, code, "decodeResponse = DecodeSSEErrorMethodResponse(c.decoder, c.RestoreResponseBody)")
 	require.Contains(t, code, "return decodeResponse(resp)")
 	require.NotContains(t, code, "unexpected status from SSE endpoint")
+	require.Contains(t, code, "return loomhttp.DecodeResponse(resp, false, true,")
+	require.NotContains(t, code, "resp.Body.Close()")
 }
 
 func TestClientWebSocketServerStreamingEndpointDoesNotLeakContextWatcher(t *testing.T) {

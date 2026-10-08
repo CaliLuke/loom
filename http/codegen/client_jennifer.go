@@ -261,35 +261,40 @@ func renderClientSSEEndpoint(group *jen.Group, endpoint *EndpointData) {
 		),
 	)
 
-	group.If(jen.Id("resp").Dot("StatusCode").Op("!=").Id("http").Dot("StatusOK")).BlockFunc(func(status *jen.Group) {
-		if len(endpoint.Errors) > 0 {
-			status.Return(jen.Id("decodeResponse").Call(jen.Id("resp")))
-			return
-		}
-		status.Id("resp").Dot("Body").Dot("Close").Call()
-		status.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(
-			jen.Lit("unexpected status from SSE endpoint: %d"),
-			jen.Id("resp").Dot("StatusCode"),
-		))
-	})
+	if len(endpoint.Errors) > 0 {
+		group.If(jen.Id("resp").Dot("StatusCode").Op("!=").Id("http").Dot("StatusOK")).Block(
+			jen.Return(jen.Id("decodeResponse").Call(jen.Id("resp"))),
+		)
+	}
 
-	group.Id("contentType").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("Content-Type"))
-	group.If(
-		jen.Id("contentType").Op("!=").Lit("").
-			Op("&&").
-			Op("!").Qual("strings", "HasPrefix").Call(jen.Id("contentType"), jen.Lit("text/event-stream")),
-	).Block(
-		jen.Id("resp").Dot("Body").Dot("Close").Call(),
-		jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(
-			jen.Lit("unexpected content type: %s (expected text/event-stream)"),
-			jen.Id("contentType"),
-		)),
-	)
-
-	group.Return(
-		jen.Id("New"+endpoint.Method.VarName+"Stream").Call(jen.Id("resp"), jen.Id("c").Dot("decoder")),
-		jen.Nil(),
-	)
+	group.Return(jen.Id("loomhttp").Dot("DecodeResponse").Call(
+		jen.Id("resp"), jen.False(), jen.True(),
+		jen.Func().Params(jen.Id("resp").Op("*").Id("http").Dot("Response")).Params(jen.Any(), jen.Error()).BlockFunc(func(decode *jen.Group) {
+			if len(endpoint.Errors) == 0 {
+				decode.If(jen.Id("resp").Dot("StatusCode").Op("!=").Id("http").Dot("StatusOK")).Block(
+					jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(
+						jen.Lit("unexpected status from SSE endpoint: %d"),
+						jen.Id("resp").Dot("StatusCode"),
+					)),
+				)
+			}
+			decode.Id("contentType").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("Content-Type"))
+			decode.If(
+				jen.Id("contentType").Op("!=").Lit("").
+					Op("&&").
+					Op("!").Qual("strings", "HasPrefix").Call(jen.Id("contentType"), jen.Lit("text/event-stream")),
+			).Block(
+				jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(
+					jen.Lit("unexpected content type: %s (expected text/event-stream)"),
+					jen.Id("contentType"),
+				)),
+			)
+			decode.Return(
+				jen.Id("New"+endpoint.Method.VarName+"Stream").Call(jen.Id("resp"), jen.Id("c").Dot("decoder")),
+				jen.Nil(),
+			)
+		}),
+	))
 }
 
 func renderClientHTTPEndpoint(group *jen.Group, endpoint *EndpointData) {

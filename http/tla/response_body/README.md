@@ -44,6 +44,15 @@ failures do not satisfy a negative control. Remove checker output after review.
   decode logic. HTTP raw endpoint code no longer closes a decoder-owned failure
   a second time. JSON-RPC unexpected-status reads propagate errors and use the
   shared diagnostic bound. Notification responses use the same operation.
+- HTTP SSE handshakes use the same owner with `streamBody=true`: rejected
+  status or content type closes once and retains cleanup errors; successful
+  validation transfers the open body to the stream. Non-200 declared-error
+  responses remain exclusively owned by their typed response decoder.
+  `TestGeneratedSSEResponseOwnership` in the HTTP ticktock fixture reproduces
+  the former ignored-close failures and checks rejection, typed errors,
+  accepted empty content type, and successful transfer, with and without close
+  failures (#632). `LegacyFailures` still fails and `Checked` passes 96 states;
+  the model abstracts handshake validation as metadata decoding.
 - `http.TestDecodeResponseOwnership` checks metadata failure, transfer,
   restoration and error composition. The existing response-limit test checks
   bounded reading. `jsonrpc.TestNotificationResponseCleanupErrors` checks

@@ -54,16 +54,16 @@ func (c *Client) Tick() loom.Endpoint {
 		if err != nil {
 			return nil, loomhttp.ErrRequestError("clock", "Tick", err)
 		}
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unexpected status from SSE endpoint: %d", resp.StatusCode)
-		}
-		contentType := resp.Header.Get("Content-Type")
-		if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
-		}
-		return NewTickStream(resp, c.decoder), nil
+		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
+			if resp.StatusCode != http.StatusOK {
+				return nil, fmt.Errorf("unexpected status from SSE endpoint: %d", resp.StatusCode)
+			}
+			contentType := resp.Header.Get("Content-Type")
+			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
+				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+			}
+			return NewTickStream(resp, c.decoder), nil
+		})
 	}
 }
 
@@ -80,16 +80,16 @@ func (c *Client) Tock() loom.Endpoint {
 		if err != nil {
 			return nil, loomhttp.ErrRequestError("clock", "Tock", err)
 		}
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unexpected status from SSE endpoint: %d", resp.StatusCode)
-		}
-		contentType := resp.Header.Get("Content-Type")
-		if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
-		}
-		return NewTockStream(resp, c.decoder), nil
+		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
+			if resp.StatusCode != http.StatusOK {
+				return nil, fmt.Errorf("unexpected status from SSE endpoint: %d", resp.StatusCode)
+			}
+			contentType := resp.Header.Get("Content-Type")
+			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
+				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+			}
+			return NewTockStream(resp, c.decoder), nil
+		})
 	}
 }
 
@@ -117,11 +117,12 @@ func (c *Client) Guarded() loom.Endpoint {
 		if resp.StatusCode != http.StatusOK {
 			return decodeResponse(resp)
 		}
-		contentType := resp.Header.Get("Content-Type")
-		if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
-		}
-		return NewGuardedStream(resp, c.decoder), nil
+		return loomhttp.DecodeResponse(resp, false, true, func(resp *http.Response) (any, error) {
+			contentType := resp.Header.Get("Content-Type")
+			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
+				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
+			}
+			return NewGuardedStream(resp, c.decoder), nil
+		})
 	}
 }
