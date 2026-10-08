@@ -41,7 +41,50 @@ Use this skill when publishing a Loom release from this repo.
 - The same workflow also supports manual backfill for an existing `v*` tag when a release entry needs repair.
 - Do not call the release done until the tag exists on GitHub and the GitHub Releases page shows that version.
 
-## Preflight environment
+## Reuse verification evidence
+
+Green CI for the exact source commit is release evidence. Do not repeat the
+full test, coverage, integration, OpenAPI, or generated-code suites locally
+merely because a release is being cut.
+
+Before starting publication:
+
+1. Resolve the clean, pushed `main` SHA after all preparation commits. Inspect
+   GitHub Actions runs for that SHA, not the latest run on the branch or a PR's
+   synthetic merge commit. For example:
+   `gh run list --repo CaliLuke/loom --commit <sha> --json databaseId,headSha,workflowName,status,conclusion,url`.
+2. Inspect the latest applicable run attempt and its jobs against the workflow
+   definitions at that SHA, including matrix jobs and CodeQL. Record the SHA,
+   run URLs, conclusions, and dependency/toolchain inputs. A pending, missing,
+   skipped, cancelled, or failed required job is not passing evidence; resolve
+   it before publication. Do not substitute an older successful attempt for a
+   newer failure.
+3. Reuse those results for unchanged source and inputs. A new preparation
+   commit needs evidence for its own SHA; do not call an ancestor's CI green
+   for the new commit. Reuse valid local results for unaffected checks during
+   iteration, and rerun only checks invalidated by changes. Documentation-only
+   or linter-configuration edits do not justify another local framework suite.
+4. Treat the staged release diff separately from its verified parent. Require
+   only the intended version constants, maintained documentation pins, and
+   fixture `loom_version` stamps to change. Preserve fixture design digests and
+   generated code. Run focused version/docs consistency checks (including
+   `go run ./scripts/docscheck` in the staged tree), `git diff --cached --check`,
+   and the independent exact-diff review required by `AGENTS.md`. Any change
+   beyond version metadata returns to normal implementation validation before
+   release preparation.
+
+**Current implementation gap:** `internal/release/release.go` unconditionally
+runs `make release-preflight`; it has no CI-evidence reuse option. Inspect the
+current implementation before invoking it. While this gap remains, update the
+release command to verify the evidence above and validate the staged version
+diff before starting another release. Do not launch an hours-long duplicate
+preflight simply because the command currently does so. Do not invent a skip
+flag, replace a check with a no-op, or manually bypass the transactional
+publisher. Keep `make release VERSION=...`, independent review, atomic
+publication, and remote release verification as the release contract. A
+skill-only edit does not implement this command change.
+
+## Preflight environment (current implementation)
 
 `make release` runs `release-preflight` (`lint test-release coverage-ratchet
 integration-test openapi-contract generated-code-quality`) in an isolated detached worktree
@@ -79,12 +122,15 @@ falls back to a working tree in ordinary development checks either.
    - Breaking changes or required regeneration.
    - Upgrade notes for generated clients, servers, docs, or downstream repos.
    - The full changelog comparison link.
-   Exclude routine verification details and CI command lists.
+   Use a `Highlights` or `What's Changed` heading: the current release validator
+   requires one of those phrases as well as substantive prose. Exclude routine
+   verification details and CI command lists.
 4. Review release-facing commit messages. If a message frames the work as a port from another framework or otherwise undersells the Loom change, reword it before release so the history describes what was actually done.
 5. Choose the exact target version and pass it explicitly as `VERSION=vX.Y.Z`
-   or `VERSION=vX.Y.Z-prerelease`.
-6. Arrange independent review of the exact staged release diff after preflight
-   succeeds and before the automatic commit, as required by `AGENTS.md`. A
+   or `VERSION=vX.Y.Z-prerelease`. Apply **Reuse verification evidence** above
+   before invoking the publisher; resolve its implementation gap first.
+6. Arrange independent review of the exact staged release diff after the
+   applicable verification succeeds and before the automatic commit, as required by `AGENTS.md`. A
    temporary repository-local pre-commit hook can pause the isolated release
    worktree at that boundary; preserve existing hooks and remove only the
    temporary hook after publication. Do not change the reviewed diff before
@@ -127,10 +173,12 @@ falls back to a working tree in ordinary development checks either.
 
 - If the tag exists but the GitHub Release is missing, use the manual `workflow_dispatch` path in `.github/workflows/release.yml` with that tag before cutting another release.
 - If `make release` is attempted without `VERSION=...`, stop and rerun with an explicit version instead of editing files by hand.
-- If `release-preflight` fails, `make release` removes the isolated worktree and
+- If verification fails before publication, `make release` removes the isolated worktree and
   leaves the caller checkout, local tags, and remote refs untouched. Fix the
-  real failure, commit and push it to `main`, then rerun the same release
-  command.
+  real failure and commit and push it to `main`. Reassess the evidence for that
+  SHA and rerun affected checks only; do not restart every passing suite after
+  an unrelated tool or environment failure. Apply **Reuse verification
+  evidence** before retrying the release command.
 - If atomic push succeeds but GitHub Release verification times out — including
   the expected case where the tag-triggered workflow published only
   auto-generated notes and the substantive edit did not land within the poll
@@ -147,4 +195,9 @@ falls back to a working tree in ordinary development checks either.
   changelog-only notes outside this exact flow, treat it the same way: inspect
   the commits, write meaningful notes, update the GitHub Release with
   `gh release edit`, then verify the published body.
-- `mismatched file loom.json` from an integration test means a version-stamped fixture is out of sync with `pkg/version.go`. `loom.json` contains only `{"loom_version": "vX.Y.Z"}`; confirm that is the *only* diff (the fixture-compare stops at the first mismatch, so regenerate and diff the whole tree to be sure real generated code did not also change), then let `make release` bump the fixtures. If other generated files also differ, the release contains a codegen change and the fixtures need a genuine regeneration, not just a version bump.
+- `mismatched file loom.json` from an integration test can mean a fixture's
+  `loom_version` is out of sync with `pkg/version.go`. Compare the complete
+  generated-tree diff: the comparison stops at the first mismatch. If the only
+  change is the version stamp, let the publisher update it and preserve the
+  design digest. Other differences require investigation and affected codegen
+  validation; a version bump must not conceal them.
