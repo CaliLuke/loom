@@ -53,7 +53,9 @@ HTTP and JSON-RPC decoders close consumed response bodies once and retain
 cleanup errors with read/decode errors; use `errors.Is` to inspect each cause.
 Body restoration is bounded and preserves captured bytes. Successful raw/file
 responses stay open and caller-owned even with restoration enabled; close them
-when done. Regenerate clients to adopt this behavior.
+when done. SSE handshake failures use the same cleanup owner; successful
+streams retain their open bodies, and JSON-RPC error-body diagnostics are bounded.
+Regenerate clients to adopt this behavior.
 Synthesized service and HTTP CLI examples are scoped by stable service and
 method identity, so unrelated service edits or declaration reordering do not
 churn their values. Implicit server service lists use stable service-name
@@ -65,7 +67,9 @@ and union branch in the decoder's JSON representation, including base64 for
 `Bytes`. Plain text flags retain their text syntax. An unavailable example omits
 the hint; if a required flag has no usable example, Loom omits the sample
 invocation while keeping the command available. Explicit JSON `null` remains
-a valid example where the declared type permits it.
+a valid example where the declared type permits it. JSON decoding failures in
+generated CLI payload builders preserve their underlying cause for `errors.Is`
+and `errors.As`, including when the message contains an example.
 
 ## Design Rules
 

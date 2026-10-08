@@ -43,8 +43,8 @@ Use this skill when publishing a Loom release from this repo.
 
 ## Preflight environment
 
-`make release` runs `release-preflight` (`lint test-release integration-test
-openapi-contract generated-code-quality`) in an isolated detached worktree
+`make release` runs `release-preflight` (`lint test-release coverage-ratchet
+integration-test openapi-contract generated-code-quality`) in an isolated detached worktree
 before it creates a release commit or tag. That gate needs real tools on
 `PATH`, or it fails on environmental gaps that look like release bugs:
 
@@ -52,13 +52,13 @@ before it creates a release commit or tag. That gate needs real tools on
   that exact toolchain automatically when it is not installed locally.
 - `golangci-lint` — `make depend` installs the pinned version to
   `$(go env GOPATH)/bin`; make sure that bin directory is on `PATH`.
-- `staticcheck` — Go 1.27 requires the separately pinned Staticcheck RC
-  installed by `make depend`; golangci-lint's bundled analyzer remains disabled
-  until its Go 1.27-compatible release is available.
-- `protoc` 35.1, `protoc-gen-go` v1.36.12, and
+- Staticcheck runs through the pinned stable golangci-lint bundle for both
+  handwritten and generated source; no separate installation is required.
+- `protoc` 36.2, `protoc-gen-go` v1.36.12, and
   `protoc-gen-go-grpc` v1.6.2 — `make depend` installs the exact supported
   toolchain. Do not substitute `@latest`.
-- `node`/`npx` — the OpenAPI contract tests run Redocly and generate a Hey API client; without Node they fail with `npx: executable file not found`.
+- `node`/`npx` — use the stable Node version pinned in `.github/workflows/test.yml`.
+  OpenAPI contract tests run Redocly and generate a Hey API client.
 - `gh` authenticated for `CaliLuke/loom` — release completion polls the
   published GitHub Release and validates its tag, state, and notes.
 
@@ -83,7 +83,12 @@ falls back to a working tree in ordinary development checks either.
 4. Review release-facing commit messages. If a message frames the work as a port from another framework or otherwise undersells the Loom change, reword it before release so the history describes what was actually done.
 5. Choose the exact target version and pass it explicitly as `VERSION=vX.Y.Z`
    or `VERSION=vX.Y.Z-prerelease`.
-6. Run `make release VERSION=<version>`. The command stages version changes in a
+6. Arrange independent review of the exact staged release diff after preflight
+   succeeds and before the automatic commit, as required by `AGENTS.md`. A
+   temporary repository-local pre-commit hook can pause the isolated release
+   worktree at that boundary; preserve existing hooks and remove only the
+   temporary hook after publication. Do not change the reviewed diff before
+   allowing the commit. Run `make release VERSION=<version>`. The command stages version changes in a
    detached worktree, runs preflight, rejects unexpected mutations, commits and
    tags only after success, atomically pushes `main` plus the annotated tag,
    and verifies both remote refs. Pushing the tag triggers
