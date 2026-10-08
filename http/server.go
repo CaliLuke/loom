@@ -3,9 +3,6 @@ package http
 import (
 	"context"
 	"net/http"
-
-	loomtransport "github.com/CaliLuke/loom/observability/transport"
-	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type (
@@ -87,85 +84,24 @@ func MountHandler(mux Muxer, method, pattern string, handler http.Handler) {
 // owns the request context, observation, and failure sequence.
 func NewUnaryHandler[Payload, Result any](spec UnaryHandlerSpec[Payload, Result]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), AcceptTypeKey, requestAcceptHeader(r))
-		ctx = context.WithValue(ctx, loom.MethodKey, spec.Method)
-		ctx = context.WithValue(ctx, loom.ServiceKey, spec.Service)
-		observer, observedWriter := loomtransport.BeginHTTPRequest(ctx, w, spec.Service, spec.Method, r)
-		defer observer.End()
-
+		lifecycle := NewHandlerLifecycle(w, r, spec.Service, spec.Method)
+		defer lifecycle.End()
 		var payload Payload
 		if spec.Decode != nil {
 			var err error
 			payload, err = spec.Decode(r)
 			if err != nil {
-				observer.Fail(loomtransport.ReasonRequestDecodeFailed)
-				encodeUnaryError(ctx, observedWriter, err, spec.EncodeError, spec.HandleFailure)
+				lifecycle.DecodeFailed(err, spec.EncodeError, spec.HandleFailure)
 				return
 			}
 		}
-		result, err := spec.Invoke(ctx, payload)
+		result, err := spec.Invoke(lifecycle.Context(), payload)
 		if err != nil {
-			observer.Fail(loomtransport.ReasonHandlerError)
-			encodeUnaryError(ctx, observedWriter, err, spec.EncodeError, spec.HandleFailure)
+			lifecycle.HandlerFailed(err, false, spec.EncodeError, spec.HandleFailure)
 			return
 		}
-		initialHeaders := observedWriter.Header().Clone()
-		if err := spec.EncodeResponse(ctx, observedWriter, result); err != nil {
-			observer.Fail(loomtransport.ReasonResponseWriteFailed)
-			if responseWriterCommitted(observedWriter) {
-				if spec.HandleFailure != nil {
-					spec.HandleFailure(ctx, observedWriter, err)
-				}
-				return
-			}
-			replaceHeaders(observedWriter.Header(), initialHeaders)
-			encodeUnaryError(ctx, observedWriter, err, spec.EncodeError, spec.HandleFailure)
-		}
+		lifecycle.EncodeResponse(func(ctx context.Context, w http.ResponseWriter) error {
+			return spec.EncodeResponse(ctx, w, result)
+		}, spec.EncodeError, spec.HandleFailure)
 	})
-}
-
-func responseWriterCommitted(w http.ResponseWriter) bool {
-	capture, ok := w.(interface{ StatusCode() int })
-	return ok && capture.StatusCode() != 0
-}
-
-func encodeUnaryError(
-	ctx context.Context,
-	w http.ResponseWriter,
-	err error,
-	encode func(context.Context, http.ResponseWriter, error) error,
-	handleFailure func(context.Context, http.ResponseWriter, error),
-) {
-	encodeErrorWithFallback(ctx, w, err, encode, handleFailure)
-}
-
-func encodeErrorWithFallback(
-	ctx context.Context,
-	w http.ResponseWriter,
-	err error,
-	encode func(context.Context, http.ResponseWriter, error) error,
-	handleFailure func(context.Context, http.ResponseWriter, error),
-) {
-	initialHeaders := w.Header().Clone()
-	encodeErr := encode(ctx, w, err)
-	if encodeErr == nil {
-		return
-	}
-	if responseWriterCommitted(w) {
-		if handleFailure != nil {
-			handleFailure(ctx, w, encodeErr)
-		}
-		return
-	}
-	replaceHeaders(w.Header(), initialHeaders)
-	fallbackErr := encode(ctx, w, encodeErr)
-	if fallbackErr == nil {
-		return
-	}
-	if !responseWriterCommitted(w) {
-		replaceHeaders(w.Header(), initialHeaders)
-	}
-	if handleFailure != nil {
-		handleFailure(ctx, w, fallbackErr)
-	}
 }

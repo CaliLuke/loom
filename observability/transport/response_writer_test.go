@@ -15,9 +15,9 @@ import (
 func TestCaptureResponseWriterRecordsStatusAndBytes(t *testing.T) {
 	t.Parallel()
 	rec := httptest.NewRecorder()
-	c := transport.NewCaptureResponseWriter(rec)
-	c.WriteHeader(http.StatusCreated)
-	n, err := c.Write([]byte("hello"))
+	w, c := transport.CaptureResponse(rec)
+	w.WriteHeader(http.StatusCreated)
+	n, err := w.Write([]byte("hello"))
 	require.NoError(t, err)
 	require.Equal(t, 5, n)
 	require.Equal(t, http.StatusCreated, c.StatusCode())
@@ -29,8 +29,8 @@ func TestCaptureResponseWriterRecordsStatusAndBytes(t *testing.T) {
 func TestCaptureResponseWriterImplicitOK(t *testing.T) {
 	t.Parallel()
 	rec := httptest.NewRecorder()
-	c := transport.NewCaptureResponseWriter(rec)
-	_, err := c.Write([]byte("abc"))
+	w, c := transport.CaptureResponse(rec)
+	_, err := w.Write([]byte("abc"))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, c.StatusCode())
 	require.EqualValues(t, 3, c.BytesWritten())
@@ -39,9 +39,9 @@ func TestCaptureResponseWriterImplicitOK(t *testing.T) {
 func TestCaptureResponseWriterFirstStatusWins(t *testing.T) {
 	t.Parallel()
 	rec := httptest.NewRecorder()
-	c := transport.NewCaptureResponseWriter(rec)
-	c.WriteHeader(http.StatusAccepted)
-	c.WriteHeader(http.StatusInternalServerError)
+	w, c := transport.CaptureResponse(rec)
+	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusInternalServerError)
 	require.Equal(t, http.StatusAccepted, c.StatusCode())
 }
 
@@ -58,10 +58,25 @@ func (h *hijackableRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func TestCaptureResponseWriterForwardsHijack(t *testing.T) {
 	t.Parallel()
 	h := &hijackableRecorder{ResponseRecorder: httptest.NewRecorder()}
-	c := transport.NewCaptureResponseWriter(h)
-	hijacker, ok := any(c).(http.Hijacker)
+	w, _ := transport.CaptureResponse(h)
+	hijacker, ok := any(w).(http.Hijacker)
 	require.True(t, ok)
 	_, _, err := hijacker.Hijack()
 	require.ErrorIs(t, err, http.ErrNotSupported)
 	require.True(t, h.hijacked)
+}
+
+func TestCaptureResponseWriterInformationalStatus(t *testing.T) {
+	w, c := transport.CaptureResponse(httptest.NewRecorder())
+	w.WriteHeader(http.StatusEarlyHints)
+	w.WriteHeader(http.StatusOK)
+	require.Equal(t, http.StatusOK, c.StatusCode())
+}
+
+func TestCaptureResponseWriterCapabilities(t *testing.T) {
+	w, _ := transport.CaptureResponse(httptest.NewRecorder())
+	_, hijacker := any(w).(http.Hijacker)
+	require.False(t, hijacker)
+	_, flusher := any(w).(http.Flusher)
+	require.True(t, flusher)
 }

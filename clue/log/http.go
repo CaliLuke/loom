@@ -1,17 +1,15 @@
 package log
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"regexp"
 
 	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/observability/transport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -40,14 +38,6 @@ type (
 	client struct {
 		http.RoundTripper
 		options *httpClientOptions
-	}
-
-	// responseCapture is a http.ResponseWriter which captures the response status
-	// code and content length.
-	responseCapture struct {
-		http.ResponseWriter
-		StatusCode    int
-		ContentLength int
 	}
 
 	errorReader struct {
@@ -101,13 +91,13 @@ func HTTP(logCtx context.Context, opts ...HTTPLogOption) func(http.Handler) http
 			fromKV := KV{K: HTTPFromKey, V: from(req)}
 			logFunc(ctx, KV{K: MessageKey, V: "start"}, methKV, urlKV, fromKV)
 
-			rw := &responseCapture{ResponseWriter: w}
+			rw, capture := transport.CaptureResponse(w)
 			started := timeNow()
 			h.ServeHTTP(rw, req.WithContext(ctx))
 
-			statusKV := KV{K: HTTPStatusKey, V: rw.StatusCode}
+			statusKV := KV{K: HTTPStatusKey, V: capture.StatusCode()}
 			durKV := KV{K: HTTPDurationKey, V: timeSince(started).Milliseconds()}
-			bytesKV := KV{K: HTTPBytesKey, V: rw.ContentLength}
+			bytesKV := KV{K: HTTPBytesKey, V: capture.BytesWritten()}
 			logFunc(ctx, KV{K: MessageKey, V: "end"}, methKV, urlKV, statusKV, durKV, bytesKV)
 		})
 	}
@@ -225,54 +215,8 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	return resp, nil
 }
 
-// WriteHeader records the value of the status code before writing it.
-func (w *responseCapture) WriteHeader(code int) {
-	if w.StatusCode == 0 {
-		w.StatusCode = code
-	}
-	w.ResponseWriter.WriteHeader(code)
-}
-
-// Write computes the written len and stores it in ContentLength.
-func (w *responseCapture) Write(b []byte) (int, error) {
-	if w.StatusCode == 0 {
-		w.StatusCode = http.StatusOK
-	}
-	n, err := w.ResponseWriter.Write(b)
-	w.ContentLength += n
-	return n, err
-}
-
-// Flush implements the http.Flusher interface if the underlying response
-// writer supports it.
-func (w *responseCapture) Flush() {
-	if w.StatusCode == 0 {
-		w.StatusCode = http.StatusOK
-	}
-	if f, ok := w.ResponseWriter.(http.Flusher); ok {
-		f.Flush()
-	}
-}
-
 func (r errorReader) Read([]byte) (int, error) {
 	return 0, r.err
-}
-
-// Push implements the http.Pusher interface if the underlying response
-// writer supports it.
-func (w *responseCapture) Push(target string, opts *http.PushOptions) error {
-	if p, ok := w.ResponseWriter.(http.Pusher); ok {
-		return p.Push(target, opts)
-	}
-	return errors.New("push not supported")
-}
-
-// Hijack supports the http.Hijacker interface.
-func (w *responseCapture) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if h, ok := w.ResponseWriter.(http.Hijacker); ok {
-		return h.Hijack()
-	}
-	return nil, nil, fmt.Errorf("response writer does not support hijacking: %T", w.ResponseWriter)
 }
 
 // from returns the client address from the request.

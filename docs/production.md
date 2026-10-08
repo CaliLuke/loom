@@ -138,7 +138,7 @@ the official OpenTelemetry HTTP and gRPC instrumentation.
 
 Generated HTTP, JSON-RPC, and Loom-MCP servers emit safe, classified events
 at decode, dispatch, handler, panic, response-write, and stream-write
-boundaries through the dependency-free
+boundaries through the
 `github.com/CaliLuke/loom/observability/transport` contract. Enablement is
 context-based, so generated constructor signatures stay unchanged — turning
 observability on or off is purely a wiring choice at the application
@@ -169,6 +169,12 @@ func main() {
 context; span/trace setup, propagation, and metric recording remain in
 `observability/otel`. The two are composable — stack them in any order;
 neither package depends on the other.
+
+HTTP capture and `clue/log.HTTP` preserve the writer's supported streaming,
+hijacking, push and I/O interfaces through `httpsnoop`. Informational responses
+such as `103` do not replace the final status; `101` commits an upgrade. Writes
+and flushes record an implicit `200`. Status remains zero before a response is
+committed, and bytes written directly to a hijacked connection are not counted.
 
 `Event.Reason` is a stable enumeration suitable for metric labels:
 `ok`, `request_decode_failed`, `invalid_jsonrpc_envelope`,

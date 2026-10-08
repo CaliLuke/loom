@@ -229,7 +229,24 @@ func (l *HandlerLifecycle) encodeError(
 	encode func(context.Context, http.ResponseWriter, error) error,
 	handleFailure func(context.Context, http.ResponseWriter, error),
 ) {
-	encodeErrorWithFallback(l.ctx, l.writer, err, encode, handleFailure)
+	initialHeaders := l.writer.Header().Clone()
+	encodeErr := encode(l.ctx, l.writer, err)
+	if encodeErr == nil {
+		return
+	}
+	if l.responseCommitted() {
+		l.handleFailure(encodeErr, handleFailure)
+		return
+	}
+	replaceHeaders(l.writer.Header(), initialHeaders)
+	fallbackErr := encode(l.ctx, l.writer, encodeErr)
+	if fallbackErr == nil {
+		return
+	}
+	if !l.responseCommitted() {
+		replaceHeaders(l.writer.Header(), initialHeaders)
+	}
+	l.handleFailure(fallbackErr, handleFailure)
 }
 
 func (l *HandlerLifecycle) handleFailure(
@@ -251,8 +268,7 @@ func (l *HandlerLifecycle) abortLateWrite(
 }
 
 func (l *HandlerLifecycle) responseCommitted() bool {
-	capture, ok := l.writer.(interface{ StatusCode() int })
-	return ok && capture.StatusCode() != 0
+	return l.observer.ResponseCommitted()
 }
 
 func (w *stagedResponseWriter) Header() http.Header {

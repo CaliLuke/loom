@@ -1417,3 +1417,10 @@ consumer skill with contributor detail.
 - repository `AGENTS.md`
 - `roadmap/`
 - `docs/`
+
+Response observation and clue HTTP logging share `transport.CaptureResponse`.
+Capture state is separate from the writer; `httpsnoop.Wrap` owns conditional
+interface forwarding. Loom hooks own status commit and byte-count policy,
+including informational responses, upgrades, flushes and I/O fast paths. Do not
+add transport-local forwarding wrappers. The callback-scoped httpsnoop metrics
+API does not match the independently started/ended request observer lifecycle.

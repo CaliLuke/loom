@@ -30,7 +30,7 @@ type RequestObserver struct {
 	route     string
 	httpVerb  string
 	start     time.Time
-	capture   *CaptureResponseWriter
+	capture   *ResponseCapture
 
 	reason          Reason
 	failed          bool
@@ -43,13 +43,13 @@ type RequestObserver struct {
 	sessionID       string
 }
 
-// BeginHTTPRequest wraps w with a [CaptureResponseWriter], records the
+// BeginHTTPRequest wraps w with a captured response writer, records the
 // request start time, emits an EventKindRequestStart event, and returns the
 // observer together with the wrapped writer. Generated HTTP handlers
 // reassign their response writer parameter to the returned writer so all
 // subsequent writes are captured.
 func BeginHTTPRequest(ctx context.Context, w http.ResponseWriter, service, method string, r *http.Request) (*RequestObserver, http.ResponseWriter) {
-	capture := NewCaptureResponseWriter(w)
+	writer, capture := CaptureResponse(w)
 	obs := &RequestObserver{
 		ctx:       ctx,
 		transport: TransportHTTP,
@@ -61,10 +61,10 @@ func BeginHTTPRequest(ctx context.Context, w http.ResponseWriter, service, metho
 		capture:   capture,
 	}
 	obs.emit(EventKindRequestStart, "")
-	return obs, capture
+	return obs, writer
 }
 
-// BeginJSONRPCRequest wraps w with a [CaptureResponseWriter] and starts a
+// BeginJSONRPCRequest wraps w with a captured response writer and starts a
 // request lifecycle classified as [TransportJSONRPC]. service identifies
 // the Loom service; the JSON-RPC envelope's method, id, batch count, and
 // notification flag are filled in later through
@@ -72,7 +72,7 @@ func BeginHTTPRequest(ctx context.Context, w http.ResponseWriter, service, metho
 // decode rejection events therefore leave the JSON-RPC fields empty as the
 // plan requires.
 func BeginJSONRPCRequest(ctx context.Context, w http.ResponseWriter, service string, r *http.Request) (*RequestObserver, http.ResponseWriter) {
-	capture := NewCaptureResponseWriter(w)
+	writer, capture := CaptureResponse(w)
 	obs := &RequestObserver{
 		ctx:       ctx,
 		transport: TransportJSONRPC,
@@ -83,7 +83,7 @@ func BeginJSONRPCRequest(ctx context.Context, w http.ResponseWriter, service str
 		capture:   capture,
 	}
 	obs.emit(EventKindRequestStart, "")
-	return obs, capture
+	return obs, writer
 }
 
 // BeginRequest starts a transport request lifecycle without an HTTP
@@ -101,6 +101,12 @@ func BeginRequest(ctx context.Context, kind TransportKind, service, method strin
 	}
 	obs.emit(EventKindRequestStart, "")
 	return obs
+}
+
+// ResponseCommitted reports whether the captured HTTP writer has committed
+// a final status. It is false for an observer without an HTTP writer.
+func (o *RequestObserver) ResponseCommitted() bool {
+	return o != nil && o.capture != nil && o.capture.StatusCode() != 0
 }
 
 // Fail records reason as the terminal classification for the request. The

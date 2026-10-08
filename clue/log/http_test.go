@@ -1,12 +1,10 @@
 package log
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -44,28 +42,6 @@ func (b *partialFailingBody) Read(p []byte) (int, error) {
 
 func (*partialFailingBody) Close() error {
 	return nil
-}
-
-// pusherRecorder is a response writer that records http.Pusher calls.
-type pusherRecorder struct {
-	http.ResponseWriter
-	target string
-}
-
-func (p *pusherRecorder) Push(target string, opts *http.PushOptions) error {
-	p.target = target
-	return nil
-}
-
-// hijackerRecorder is a response writer that records http.Hijacker calls.
-type hijackerRecorder struct {
-	http.ResponseWriter
-	hijacked bool
-}
-
-func (h *hijackerRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	h.hijacked = true
-	return nil, nil, nil
 }
 
 // noFlushResponseWriter implements only http.ResponseWriter.
@@ -353,47 +329,6 @@ func TestClientLogBodyOnErrorKeepsBodyReadable(t *testing.T) {
 	require.Equal(t, 1, original.closes)
 }
 
-func TestResponseCaptureWriteAndHeader(t *testing.T) {
-	rec := httptest.NewRecorder()
-	rw := &responseCapture{ResponseWriter: rec}
-
-	rw.WriteHeader(http.StatusCreated)
-	n, err := rw.Write([]byte("hello"))
-	require.NoError(t, err)
-	require.Equal(t, 5, n)
-
-	assert.Equal(t, http.StatusCreated, rw.StatusCode)
-	assert.Equal(t, 5, rw.ContentLength)
-	assert.Equal(t, http.StatusCreated, rec.Code)
-	assert.Equal(t, "hello", rec.Body.String())
-}
-
-func TestResponseCaptureImplicitStatusOK(t *testing.T) {
-	rec := httptest.NewRecorder()
-	rw := &responseCapture{ResponseWriter: rec}
-
-	n, err := rw.Write([]byte("hello"))
-	require.NoError(t, err)
-	require.Equal(t, 5, n)
-	require.Equal(t, http.StatusOK, rw.StatusCode)
-
-	rw = &responseCapture{ResponseWriter: httptest.NewRecorder()}
-	rw.Flush()
-	require.Equal(t, http.StatusOK, rw.StatusCode)
-}
-
-func TestResponseCaptureFlush(t *testing.T) {
-	rec := httptest.NewRecorder()
-	rw := &responseCapture{ResponseWriter: rec}
-	rw.Flush()
-	require.True(t, rec.Flushed)
-
-	// Flushing a non-flusher writer must not panic.
-	require.NotPanics(t, func() {
-		(&responseCapture{ResponseWriter: &noFlushResponseWriter{}}).Flush()
-	})
-}
-
 func TestClientLogBodyOnErrorReadFailure(t *testing.T) {
 	stubTimeSince(t, time.Millisecond)
 	var buf bytes.Buffer
@@ -416,36 +351,6 @@ func TestClientLogBodyOnErrorReadFailure(t *testing.T) {
 	require.EqualError(t, readErr, "read failed")
 	require.NoError(t, resp.Body.Close())
 	require.Contains(t, buf.String(), `err="read failed"`)
-}
-
-func TestResponseCapturePush(t *testing.T) {
-	rw := &responseCapture{ResponseWriter: httptest.NewRecorder()}
-	err := rw.Push("/asset", nil)
-	require.EqualError(t, err, "push not supported")
-
-	p := &pusherRecorder{ResponseWriter: httptest.NewRecorder()}
-	rw = &responseCapture{ResponseWriter: p}
-	require.NoError(t, rw.Push("/asset", nil))
-	require.Equal(t, "/asset", p.target)
-}
-
-func TestResponseCaptureHijack(t *testing.T) {
-	h := &hijackerRecorder{ResponseWriter: httptest.NewRecorder()}
-	rw := &responseCapture{ResponseWriter: h}
-	conn, brw, err := rw.Hijack()
-	require.NoError(t, err)
-	require.Nil(t, conn)
-	require.Nil(t, brw)
-	require.True(t, h.hijacked)
-}
-
-func TestResponseCaptureHijackUnsupported(t *testing.T) {
-	rw := &responseCapture{ResponseWriter: &noFlushResponseWriter{}}
-	conn, brw, err := rw.Hijack()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "does not support hijacking")
-	require.Nil(t, conn)
-	require.Nil(t, brw)
 }
 
 func TestFrom(t *testing.T) {
@@ -498,4 +403,23 @@ type loggingResponseBody struct {
 func (b *loggingResponseBody) Close() error {
 	b.closes++
 	return b.closeErr
+}
+
+func TestHTTPMiddlewareCapture(t *testing.T) {
+	var buf bytes.Buffer
+	HTTP(newTestContext(&buf))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, flusher := w.(http.Flusher)
+		_, hijacker := w.(http.Hijacker)
+		_, pusher := w.(http.Pusher)
+		require.False(t, flusher)
+		require.False(t, hijacker)
+		require.False(t, pusher)
+		w.WriteHeader(103)
+		w.WriteHeader(200)
+		n, err := w.Write([]byte("body"))
+		require.NoError(t, err)
+		require.Equal(t, 4, n)
+	})).ServeHTTP(&noFlushResponseWriter{}, httptest.NewRequest("GET", "/", nil))
+	require.Contains(t, buf.String(), "http.status=200")
+	require.Contains(t, buf.String(), "http.bytes=4")
 }

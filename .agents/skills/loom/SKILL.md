@@ -821,6 +821,12 @@ For HTTP clients, wrap `*http.Client` with `otel.WrapHTTPClient(...)`. For HTTP
 servers, use `loomhttp.NewMuxer()` with `otel.HTTPMiddleware(...)`. For gRPC,
 use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`.
 
+Transport observation and clue HTTP logging preserve supported writer interfaces
+for streaming, upgrades and optimized I/O. Captured HTTP status ignores interim
+responses such as 103, retains terminal 101, and records implicit 200 on writes
+or flushes. Before commit the status is zero; hijacked connection I/O is outside
+the capture.
+
 `observability/transport.Event.Reason` is a stable, low-cardinality value for
 metrics and routing. Handle these values rather than parsing error messages:
 
