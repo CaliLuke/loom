@@ -12,7 +12,7 @@ func (c *Client) MethodBidirectionalStreamingRPCWithErrors() loom.Endpoint {
 				case *loompb.ErrorResponse:
 					return nil, loomgrpc.NewServiceErrorWithCause(message, err)
 				default:
-					return nil, loom.Fault("%s", err.Error())
+					return nil, err
 				}
 			}
 			return res, nil

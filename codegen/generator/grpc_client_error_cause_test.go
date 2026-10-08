@@ -3,7 +3,7 @@ package generator
 import "testing"
 
 func TestGRPCClientErrorCause(t *testing.T) {
-	runDesignHarness(t, "example.com/clientboundary", grpcClientErrorBoundaryDSL, grpcClientErrorCauseHarness)
+	runDesignHarness(t, "example.com/clientboundary", grpcClientErrorBoundaryDSL, grpcClientErrorCauseHarness+grpcNativeContextHarness)
 }
 
 const grpcClientErrorCauseHarness = `package clientboundary
@@ -107,6 +107,61 @@ func TestGenericErrorsRetainTransportCause(t *testing.T) {
 					require.Equal(t, "missing", history[2].Name)
 				}
 			})
+		}
+	}
+}
+`
+
+const grpcNativeContextHarness = `
+func TestNativeContextStatus(t *testing.T) {
+	for _, code := range []codes.Code{codes.Canceled, codes.DeadlineExceeded} {
+		for _, ended := range []bool{false, true} {
+			for _, details := range []bool{false, true} {
+				for _, opening := range []bool{false, true} {
+					st := status.New(code, "remote stop")
+					if details {
+						var err error
+						st, err = st.WithDetails(&pb.Reply{State: proto.String("ok")})
+						require.NoError(t, err)
+					}
+					original := st.Err()
+					for _, cause := range []error{original, fmt.Errorf("outer: %w", original)} {
+						conn, err := std.NewClient("passthrough:///unused", std.WithTransportCredentials(insecure.NewCredentials()),
+							std.WithUnaryInterceptor(func(context.Context, string, any, any, *std.ClientConn, std.UnaryInvoker, ...std.CallOption) error {
+								return cause
+							}),
+							std.WithStreamInterceptor(func(context.Context, *std.StreamDesc, *std.ClientConn, string, std.Streamer, ...std.CallOption) (std.ClientStream, error) {
+								if opening {
+									return nil, cause
+								}
+								return failedStream{err: cause}, nil
+							}))
+						require.NoError(t, err)
+						c := client.NewClient(conn)
+						receive := func(ctx context.Context, payload any) (any, error) {
+							result, err := c.Watch()(ctx, payload)
+							if err != nil {
+								return nil, err
+							}
+							return result.(svc.WatchClientStream).Recv()
+						}
+						ctx, cancel := context.WithCancel(context.Background())
+						if ended {
+							cancel()
+						}
+						for _, endpoint := range []loom.Endpoint{c.Plain(), c.Declared(), receive} {
+							_, err := endpoint(ctx, &svc.Request{Name: "valid"})
+							require.ErrorIs(t, err, original)
+							require.Equal(t, code, status.Code(err))
+							require.False(t, errors.Is(err, context.Canceled))
+							require.False(t, errors.Is(err, context.DeadlineExceeded))
+							require.Equal(t, st.Details(), status.Convert(err).Details())
+						}
+						cancel()
+						require.NoError(t, conn.Close())
+					}
+				}
+			}
 		}
 	}
 }

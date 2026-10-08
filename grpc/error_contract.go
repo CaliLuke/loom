@@ -1,6 +1,8 @@
 package grpc
 
 import (
+	"context"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -12,12 +14,13 @@ type (
 	// errorContract is the single resolved owner of a failure's wire response.
 	// A join without an explicit owner has only an aggregate code and message.
 	errorContract struct {
-		err     error
-		code    codes.Code
-		service *loom.ServiceError
-		status  *status.Status
-		mapped  bool
-		detail  protoiface.MessageV1
+		err         error
+		code        codes.Code
+		service     *loom.ServiceError
+		status      *status.Status
+		mapped      bool
+		termination bool
+		detail      protoiface.MessageV1
 	}
 
 	grpcStatuser interface {
@@ -65,6 +68,16 @@ func classifyError(err error, mapper ErrorMapper) errorContract {
 			}
 			return result
 		}
+		switch node {
+		case context.Canceled:
+			result.code = codes.Canceled
+			result.termination = true
+			return result
+		case context.DeadlineExceeded:
+			result.code = codes.DeadlineExceeded
+			result.termination = true
+			return result
+		}
 		switch wrapped := node.(type) {
 		case interface{ Unwrap() []error }:
 			var children []error
@@ -104,6 +117,9 @@ func encodeError(err error, mapper ErrorMapper) error {
 		return nil
 	}
 	contract := classifyError(err, mapper)
+	if contract.termination {
+		return NewStatusError(contract.code, contract.err)
+	}
 	if contract.mapped {
 		if contract.detail == nil {
 			return NewStatusError(contract.code, contract.err)

@@ -27,17 +27,20 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
- "google.golang.org/protobuf/proto"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestGeneratedServerAggregation(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		err error
-		code codes.Code
+		name   string
+		err    error
+		code   codes.Code
 		custom bool
 	}{
+		{"canceled", context.Canceled, codes.Canceled, false},
+		{"deadline", fmt.Errorf("operation: %w", context.DeadlineExceeded), codes.DeadlineExceeded, false},
+		{"context plus cleanup", errors.Join(context.Canceled, errors.New("cleanup")), codes.Unknown, false},
 		{"single custom", &svc.Problem{Reason: "bad input"}, codes.InvalidArgument, true},
 		{"wrapped custom", fmt.Errorf("context: %w", &svc.Problem{Reason: "bad input"}), codes.InvalidArgument, true},
 		{"same custom", errors.Join(&svc.Problem{Reason: "one"}, &svc.Problem{Reason: "two"}), codes.InvalidArgument, false},
@@ -79,7 +82,9 @@ func TestGeneratedServerAggregation(t *testing.T) {
 			for _, got := range []error{unaryErr, streamErr} {
 				require.Equal(t, tc.code, status.Code(got))
 				detail := lg.DecodeError(got)
-				if tc.custom {
+				if tc.name == "canceled" || tc.name == "deadline" {
+					require.Nil(t, detail)
+				} else if tc.custom {
 					require.IsType(t, &pb.Problem{}, detail)
 				} else {
 					require.IsType(t, &loompb.ErrorResponse{}, detail)

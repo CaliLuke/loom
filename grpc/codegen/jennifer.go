@@ -96,11 +96,7 @@ func grpcClientEndpointDecodeFn(endpoint *EndpointData) *jen.Statement {
 func writeGRPCClientEndpointErrorHandling(g *jen.Group, endpoint *EndpointData) {
 	g.If(jen.Err().Op("!=").Nil()).BlockFunc(func(eg *jen.Group) {
 		eg.Id("resp").Op(":=").Add(codegenpkg.Expr("loomgrpc.DecodeError")).Call(jen.Err())
-		if len(endpoint.Errors) > 0 {
-			writeGRPCClientEndpointTypedErrors(eg, endpoint)
-			return
-		}
-		writeGRPCClientEndpointFallbackError(eg)
+		writeGRPCClientEndpointTypedErrors(eg, endpoint)
 	})
 }
 
@@ -118,7 +114,7 @@ func writeGRPCClientEndpointTypedErrors(eg *jen.Group, endpoint *EndpointData) {
 		sg.Default().Block(
 			jen.Return(
 				jen.Nil(),
-				codegenpkg.Expr("loom.Fault").Call(jen.Lit("%s"), jen.Err().Dot("Error").Call()),
+				jen.Err(),
 			),
 		)
 	})
@@ -180,23 +176,6 @@ func grpcClientEndpointInitArgs(errData *ErrorData) []jen.Code {
 		initArgs = append(initArgs, codegenpkg.Expr(arg.Name))
 	}
 	return initArgs
-}
-
-func writeGRPCClientEndpointFallbackError(eg *jen.Group) {
-	eg.Comment(codegenpkg.Comment("Try to decode a Loom error response detail before falling back to Fault."))
-	eg.If(
-		jen.List(jen.Id("eresp"), jen.Id("ok")).Op(":=").Id("resp").Assert(jen.Op("*").Id("loompb").Dot("ErrorResponse")),
-		jen.Id("ok"),
-	).Block(
-		jen.Return(
-			jen.Nil(),
-			codegenpkg.Expr("loomgrpc.NewServiceErrorWithCause").Call(jen.Id("eresp"), jen.Err()),
-		),
-	)
-	eg.Return(
-		jen.Nil(),
-		codegenpkg.Expr("loom.Fault").Call(jen.Lit("%s"), jen.Err().Dot("Error").Call()),
-	)
 }
 
 func grpcServerStructSection(data *ServiceData) codegenpkg.Section {

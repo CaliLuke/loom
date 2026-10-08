@@ -68,7 +68,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
- "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestLocalAndRemoteErrors(t *testing.T) {
@@ -143,9 +143,8 @@ func TestLocalAndRemoteErrors(t *testing.T) {
 	remoteErr = status.Error(codes.Internal, "no detail")
 	for _, endpoint := range []loom.Endpoint{c.Plain(), c.Declared(), c.Watch()} {
 		_, err := endpoint(context.Background(), &svc.Request{Name: "valid"})
-		var fault *loom.ServiceError
-		require.ErrorAs(t, err, &fault)
-		require.True(t, fault.Fault)
+		require.Same(t, remoteErr, err)
+		require.Equal(t, codes.Internal, status.Code(err))
 	}
 }
 `

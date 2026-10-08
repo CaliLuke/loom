@@ -8,11 +8,12 @@ func (c *Client) MethodBidirectionalStreamingRPC() loom.Endpoint {
 			res, err := BuildMethodBidirectionalStreamingRPCFunc(c.grpccli, c.opts...)(ctx, reqpb, opts...)
 			if err != nil {
 				resp := loomgrpc.DecodeError(err)
-				// Try to decode a Loom error response detail before falling back to Fault.
-				if eresp, ok := resp.(*loompb.ErrorResponse); ok {
-					return nil, loomgrpc.NewServiceErrorWithCause(eresp, err)
+				switch message := resp.(type) {
+				case *loompb.ErrorResponse:
+					return nil, loomgrpc.NewServiceErrorWithCause(message, err)
+				default:
+					return nil, err
 				}
-				return nil, loom.Fault("%s", err.Error())
 			}
 			return res, nil
 		}, nil, DecodeMethodBidirectionalStreamingRPCResponse)

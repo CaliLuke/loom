@@ -933,7 +933,11 @@ filter, and serialization rules belong here.
   never borrow branch-specific names, history or retry traits. Do not use
   tree-wide `errors.As` or `status.FromError` to select a response owner.
   Keep `grpc/tla/error_contract` paired with direct runtime and compiled
-  unary/streaming declared-error tests.
+  unary/streaming declared-error tests. Raw context cancellation/deadline
+  sentinels are native termination outcomes after explicit owners, producing
+  statuses without fabricated fault details. Clients decode recognized details
+  and otherwise preserve the received error; never replace it with a synthetic
+  fault or the local context's error.
 - Generated transport observability must remain dependency-free and must never
   emit bodies, params, tool arguments, credentials, or result payloads.
 - Keep HTTP, gRPC, and JSON-RPC semantics distinct unless a deliberately shared

@@ -665,6 +665,18 @@ that the local context was canceled. Custom adapters can use
 `grpc.NewServiceErrorWithCause(response, cause)`; the existing
 `grpc.NewServiceError(response)` remains available when there is no cause.
 
+Services returning `context.Canceled` or `context.DeadlineExceeded` (including
+ordinary wrappers) produce the corresponding native gRPC status. Explicit
+service errors and designed mappings retain priority. Independent joined errors
+use the shared unanimous-status rule; cancellation plus a different cleanup
+failure is `Unknown`.
+
+Clients return remote errors without recognized Loom or declared error details
+unchanged. Their original status, message and details remain available; Loom does
+not manufacture a fault or substitute `ctx.Err()`. This applies to unary calls,
+stream opening and stream receives, even when the caller context has ended.
+Regenerate clients to adopt this correction.
+
 ### Error Definitions
 
 Define errors at service or method level:
