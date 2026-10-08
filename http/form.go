@@ -57,7 +57,7 @@ func EncodeFormValue(values url.Values, prefix string, v any) (bool, error) {
 	if v == nil {
 		return false, nil
 	}
-	return encodeFormValue(values, prefix, reflect.ValueOf(v))
+	return encodeFormValue(values, prefix, reflect.ValueOf(v), prefix != "")
 }
 
 // DecodeFormValues decodes application/x-www-form-urlencoded values into
@@ -113,7 +113,9 @@ func ParseFormWithLimit(req *http.Request, maxBytes int64) error {
 	return NormalizeRequestBodyDecodeError(req.ParseForm())
 }
 
-func encodeFormValue(values url.Values, prefix string, v reflect.Value) (bool, error) {
+// encodeFormValue distinguishes an unnamed root from a named map entry whose
+// key is empty. Child values always have a name, independently of its bytes.
+func encodeFormValue(values url.Values, prefix string, v reflect.Value, named bool) (bool, error) {
 	normalized, handled, err := normalizeFormEncodeValue(values, prefix, v)
 	if err != nil {
 		return false, err
@@ -131,9 +133,9 @@ func encodeFormValue(values url.Values, prefix string, v reflect.Value) (bool, e
 	case reflect.Map:
 		return encodeMapEntries(values, prefix, normalized)
 	case reflect.Slice, reflect.Array:
-		return encodeSequenceValue(values, prefix, normalized)
+		return encodeSequenceValue(values, prefix, normalized, named)
 	default:
-		return encodeScalarFormValue(values, prefix, normalized)
+		return encodeScalarFormValue(values, prefix, normalized, named)
 	}
 }
 
@@ -208,7 +210,7 @@ func encodeStructFields(values url.Values, prefix string, v reflect.Value) (bool
 		if !ok {
 			continue
 		}
-		fieldSeen, err := encodeFormValue(values, FormChildKey(prefix, name), v.Field(i))
+		fieldSeen, err := encodeFormValue(values, FormChildKey(prefix, name), v.Field(i), true)
 		if err != nil {
 			return seen, err
 		}
@@ -228,7 +230,7 @@ func encodeMapEntries(values url.Values, prefix string, v reflect.Value) (bool, 
 		if err != nil {
 			return seen, err
 		}
-		fieldSeen, err := encodeFormValue(values, FormChildKey(prefix, key), iter.Value())
+		fieldSeen, err := encodeFormValue(values, FormChildKey(prefix, key), iter.Value(), true)
 		if err != nil {
 			return seen, err
 		}
@@ -237,12 +239,12 @@ func encodeMapEntries(values url.Values, prefix string, v reflect.Value) (bool, 
 	return seen, nil
 }
 
-func encodeSequenceValue(values url.Values, prefix string, v reflect.Value) (bool, error) {
+func encodeSequenceValue(values url.Values, prefix string, v reflect.Value, named bool) (bool, error) {
 	if v.Kind() == reflect.Slice && v.IsNil() {
 		return false, nil
 	}
 	if v.Type().Elem().Kind() == reflect.Uint8 {
-		if prefix == "" {
+		if !named {
 			return false, fmt.Errorf("form encoding requires a field name for bytes values")
 		}
 		values.Add(prefix, string(v.Bytes()))
@@ -261,8 +263,8 @@ func encodeSequenceValue(values url.Values, prefix string, v reflect.Value) (boo
 	return v.Len() > 0, nil
 }
 
-func encodeScalarFormValue(values url.Values, prefix string, v reflect.Value) (bool, error) {
-	if prefix == "" {
+func encodeScalarFormValue(values url.Values, prefix string, v reflect.Value, named bool) (bool, error) {
+	if !named {
 		return false, fmt.Errorf("form encoding requires a field name for %s", v.Type())
 	}
 	raw, err := scalarToString(v)
