@@ -1,4 +1,7 @@
 version: "2"
+run:
+  # Wait for other local or release checks while retaining the linter lock.
+  allow-serial-runners: true
 linters:
   default: none
   enable:
