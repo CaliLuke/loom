@@ -1,31 +1,14 @@
-//go:build !windows
+//go:build unix
 
 package testdatacompile
 
 import (
 	"context"
-	"errors"
-	"os"
-	"os/exec"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
-
-// cancelProcessGroup ends the CLI's compiler/generator descendants too. Killing
-// only the CLI leaves those children running with inherited stdout pipes.
-func cancelProcessGroup(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		if errors.Is(err, syscall.ESRCH) {
-			return os.ErrProcessDone
-		}
-		return err
-	}
-}
 
 // TestCommandTimeoutEndsDescendants proves that cancellation closes child pipes.
 func TestCommandTimeoutEndsDescendants(t *testing.T) {

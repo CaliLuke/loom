@@ -28,6 +28,13 @@ removed at the end of its subtest. Allow several GB of free disk for Go's
 compiled artifacts. A command timeout or disk exhaustion aborts the suite and
 fails the gate; infrastructure failures must never become design expectations.
 
+Commands use `internal/testprocess`, the shared subprocess lifecycle owner.
+On Unix, its guardian ends compiler and generator descendants on cancellation
+or parent termination; other platforms retain standard `os/exec` cancellation.
+The [process ownership model](../testprocess/tla/README.md) records the protocol
+and its assumptions. The harness timeout regression checks this integration
+without running the full design corpus.
+
 Examples:
 
 ```sh

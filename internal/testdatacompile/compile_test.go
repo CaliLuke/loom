@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/internal/loomsource"
+	"github.com/CaliLuke/loom/internal/testprocess"
 )
 
 type (
@@ -178,9 +179,8 @@ func recordObservation(t *testing.T, got observation) {
 }
 
 func runCommand(ctx context.Context, dir string, extra []string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd := testprocess.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = dir
-	cancelProcessGroup(cmd)
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod", "GOMAXPROCS=2")
 	cmd.Env = append(cmd.Env, extra...)
 	return cmd.CombinedOutput()

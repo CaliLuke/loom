@@ -1320,8 +1320,9 @@ issue. A fixed case must have its stale expectation removed.
 
 ## Integration Process Ownership
 
-HTTP and JSON-RPC harness subprocesses use `internal/testprocess`. On Unix, a
-separate process-group guardian observes a parent-owned pipe, so test timeout
+HTTP, JSON-RPC and exported-design compile harness subprocesses use
+`internal/testprocess`. On Unix, a separate process-group guardian observes a
+parent-owned pipe, so test timeout
 panics and parent termination clean up servers, CLIs and build subprocesses.
 Do not bypass the wrapper execution methods or detach descendants from their
 process group. JSON-RPC CLI calls also enforce a 30-second deadline. The
