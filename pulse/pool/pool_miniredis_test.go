@@ -105,6 +105,19 @@ func addTestNode(t *testing.T, rdb *redis.Client, pool string, opts ...NodeOptio
 	return node
 }
 
+// loadTolerantNodeOptions returns node options for tests that do not depend
+// on keep-alive or ack expiry. A 2s worker TTL keeps a loaded test host from
+// making a live worker look dead, and a 10s ack grace period gives
+// DispatchJob a 20s timeout. Node close waits up to workerTTL/2 for the
+// worker reader, and the orphan sweep grace is max(2*workerTTL,
+// ackGracePeriod), so neither is larger.
+func loadTolerantNodeOptions() []NodeOption {
+	return []NodeOption{
+		WithWorkerTTL(2 * time.Second),
+		WithAckGracePeriod(10 * time.Second),
+	}
+}
+
 func TestDispatchJobLifecycle(t *testing.T) {
 	rdb := startTestRedis(t)
 	ctx := t.Context()

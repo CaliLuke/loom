@@ -115,19 +115,6 @@ func countStartEvents(t *testing.T, messages []redis.XMessage) map[string]int {
 	return counts
 }
 
-// loadTolerantNodeOptions returns node options for tests that do not depend
-// on keep-alive or ack expiry. A 2s worker TTL keeps a loaded test host from
-// making a live worker look dead, and a 10s ack grace period gives
-// DispatchJob a 20s timeout. Node close waits up to workerTTL/2 for the
-// worker reader, and the orphan sweep grace is max(2*workerTTL,
-// ackGracePeriod), so neither is larger.
-func loadTolerantNodeOptions() []NodeOption {
-	return []NodeOption{
-		WithWorkerTTL(2 * time.Second),
-		WithAckGracePeriod(10 * time.Second),
-	}
-}
-
 // keysHashedTo returns count job keys that the node's hash assigns to bucket
 // out of buckets workers.
 func keysHashedTo(node *Node, bucket, buckets int64, count int) []string {

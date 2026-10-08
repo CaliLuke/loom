@@ -70,16 +70,14 @@ func TestMalformedEventsDoNotStopEventLoops(t *testing.T) {
 			rdb := startTestRedis(t)
 			ctx := t.Context()
 			pool := "malformed-" + string(rune('a'+i))
-			node := addTestNode(t, rdb, pool)
+			node := addTestNode(t, rdb, pool, loadTolerantNodeOptions()...)
 			handler := newRecordingHandler()
 			worker, err := node.AddWorker(ctx, handler)
 			require.NoError(t, err)
 
 			acked := tc.inject(t, ctx, node, worker)
 
-			dispatchCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-			defer cancel()
-			require.NoError(t, node.DispatchJob(dispatchCtx, "valid", []byte("payload")))
+			require.NoError(t, node.DispatchJob(ctx, "valid", []byte("payload")))
 			payload, ok := handler.startedPayload("valid")
 			require.True(t, ok)
 			require.Equal(t, []byte("payload"), payload)
