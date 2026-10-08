@@ -44,11 +44,11 @@ func EncodeSumResponse(encoder func(context.Context, http.ResponseWriter) loomht
 // endpoint.
 func DecodeSumRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*calc.SumPayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*calc.SumPayload, error) {
-		params := req.Params
-		if len(params) == 0 {
-			params = []byte("{}")
+		rpcParams := req.Params
+		if len(rpcParams) == 0 {
+			rpcParams = []byte("{}")
 		}
-		r.Body = io.NopCloser(bytes.NewReader(params))
+		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *calc.SumPayload
 		var (
 			body SumRequestBody

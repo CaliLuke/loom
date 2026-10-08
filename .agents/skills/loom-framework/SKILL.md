@@ -1104,6 +1104,10 @@ filter, and serialization rules belong here.
   parse raw flags with UnmarshalText, validate the raw text, and retain optional
   pointer semantics. Request encoders format custom values consistently with
   path builders through fmt.Sprint; custom types own their wire representation.
+- `RequestDecodePlan` allocates distinct URL-capture, JSON-RPC params-byte and
+  query locals after authored field names. HTTP, multipart and JSON-RPC decoder
+  renderers consume those names; never reuse a protocol local for another wire
+  representation or bypass typed path bindings to avoid a collision.
 - Generated request decoders derive root nullability from the evaluated body
   and pass `http.WithNonNullableBody` to decoder factories for non-nullable
   bodies. The built-in JSON decoder rejects root null before unmarshalling;

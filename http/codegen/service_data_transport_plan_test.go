@@ -50,3 +50,22 @@ func firstHTTPEndpoint(t *testing.T, root *expr.RootExpr) *EndpointData {
 	require.NotEmpty(t, service.Endpoints)
 	return service.Endpoints[0]
 }
+
+func TestRequestDecodePlanKeepsProtocolLocalsDistinct(t *testing.T) {
+	for _, bound := range []bool{false, true} {
+		request := &RequestData{}
+		if bound {
+			request.PathParams = []*ParamData{{Element: &Element{AttributeData: &AttributeData{VarName: "params", Type: expr.String}}}}
+			request.QueryParams = []*ParamData{{Element: &Element{AttributeData: &AttributeData{VarName: "rpcParams", Type: expr.String}}}}
+		}
+		plan := newRequestDecodePlan(request)
+		require.NotEmpty(t, plan.PathValuesVar)
+		require.NotEmpty(t, plan.JSONRPCParamsVar)
+		require.NotEqual(t, plan.PathValuesVar, plan.JSONRPCParamsVar)
+		if bound {
+			for _, name := range []string{plan.PathValuesVar, plan.JSONRPCParamsVar, plan.QueryValuesVar, plan.QueryErrorVar} {
+				require.NotContains(t, []string{"params", "rpcParams"}, name)
+			}
+		}
+	}
+}

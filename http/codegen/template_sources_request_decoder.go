@@ -6,13 +6,13 @@ var (
 func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ else }}_{{ end }} func(*http.Request) loomhttp.Decoder) func(*http.Request{{ if .Method.IsJSONRPC }}, *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
 	return func(r *http.Request{{ if .Method.IsJSONRPC }}, req *jsonrpc.RawRequest{{ end }}) ({{ .Payload.Ref }}, error) {
 	{{- if .Method.IsJSONRPC }}
-		params := req.Params
+		{{ .Payload.Request.DecodePlan.JSONRPCParamsVar }} := req.Params
 		{{- if not (or .Payload.Request.OptionalBodyAttribute .Payload.Request.ExplicitPresenceBody (ne .Payload.Request.BodyDefaultValue nil)) }}
-		if len(params) == 0 {
-			params = []byte("{}")
+		if len({{ .Payload.Request.DecodePlan.JSONRPCParamsVar }}) == 0 {
+			{{ .Payload.Request.DecodePlan.JSONRPCParamsVar }} = []byte("{}")
 		}
 		{{- end }}
-		r.Body = io.NopCloser(bytes.NewReader(params))
+		r.Body = io.NopCloser(bytes.NewReader({{ .Payload.Request.DecodePlan.JSONRPCParamsVar }}))
 	{{- end }}
 		var payload {{ .Payload.Ref }}
 {{- if .MultipartRequestDecoder }}

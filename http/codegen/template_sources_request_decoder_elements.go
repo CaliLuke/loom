@@ -25,14 +25,15 @@ var requestDecoderElementPartials = []templateSource{
 		{{- end }}
 		{{- if .DecodePlan.HasDecodedPathParams }}
 
-			params = mux.Vars(r)
+			{{ .DecodePlan.PathValuesVar }} = mux.Vars(r)
 		{{- end }}
 		)
 
+	{{- $pathValues := .DecodePlan.PathValuesVar }}
 	{{- range .PathParams }}
 		{{- if .IsTextUnmarshaler }}
 			{
-				{{ .Locals.Raw }} := {{ if eq .Type.Name "array" }}mux.RawVars(r){{ else }}params{{ end }}["{{ .HTTPName }}"]
+				{{ .Locals.Raw }} := {{ if eq .Type.Name "array" }}mux.RawVars(r){{ else }}{{ $pathValues }}{{ end }}["{{ .HTTPName }}"]
 				{{- template "partial_path_conversion" . }}
 				{{- if .Validate }}
 				{{ .Validate }}
@@ -40,11 +41,11 @@ var requestDecoderElementPartials = []templateSource{
 			}
 
 	{{- else if and (or (eq .Type.Name "string") (eq .Type.Name "any")) }}
-		{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ end }}params["{{ .HTTPName }}"]{{ if eq .Type.Name "any" }}){{ end }}
+		{{ .VarName }} = {{ if eq .Type.Name "any" }}loom.JSONValueFromString({{ end }}{{ $pathValues }}["{{ .HTTPName }}"]{{ if eq .Type.Name "any" }}){{ end }}
 
 		{{- else }}{{/* not string and not any */}}
 			{
-				{{ .Locals.Raw }} := {{ if eq .Type.Name "array" }}mux.RawVars(r){{ else }}params{{ end }}["{{ .HTTPName }}"]
+				{{ .Locals.Raw }} := {{ if eq .Type.Name "array" }}mux.RawVars(r){{ else }}{{ $pathValues }}{{ end }}["{{ .HTTPName }}"]
 				{{- template "partial_path_conversion" . }}
 			}
 

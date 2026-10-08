@@ -32,7 +32,7 @@ func TestSharedServerGeneratorEmitsJSONRPCRequestDecoder(t *testing.T) {
 	require.NotNil(t, file)
 	code := sectionSourceByName(t, file, "request-decoder")
 	assert.Contains(t, code, `func(r *http.Request, req *jsonrpc.RawRequest)`)
-	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(params))`)
+	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(rpcParams))`)
 }
 
 func TestJSONRPCClientEncodeDecodeFile(t *testing.T) {
@@ -74,7 +74,7 @@ func TestJSONRPCServerEncodeDecodeFile(t *testing.T) {
 	assert.NotContains(t, sectionNames, "error-encoder")
 
 	code := renderCodegenFile(t, file)
-	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(params))`)
+	assert.Contains(t, code, `r.Body = io.NopCloser(bytes.NewReader(rpcParams))`)
 	assert.NotContains(t, code, `bytes.NewReader(req.Params)`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-server-encode-decode.golden"), code)
 }

@@ -22,6 +22,11 @@ type RequestDecodePlan struct {
 	HasHeaders bool
 	// HasCookies is true when the request binds cookies.
 	HasCookies bool
+	// PathValuesVar is the local variable containing decoded URL captures.
+	PathValuesVar string
+	// JSONRPCParamsVar is the local variable containing JSON-RPC params bytes.
+	// It is distinct from URL captures and all authored request locals.
+	JSONRPCParamsVar string
 	// QueryValuesVar is the local variable containing parsed query values.
 	QueryValuesVar string
 	// QueryErrorVar is the local variable containing a query parse error.
@@ -64,10 +69,6 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 		HasCookies:           hasCookies,
 		MustValidate:         request.MustValidate || requestHasPathArray(request),
 	}
-	if !hasQueryParams {
-		return plan
-	}
-
 	scope := codegen.NewNameScope()
 	for _, param := range request.PathParams {
 		scope.Unique(param.VarName)
@@ -81,8 +82,12 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 	for _, cookie := range request.Cookies {
 		scope.Unique(cookie.VarName)
 	}
-	plan.QueryValuesVar = scope.Unique("qp")
-	plan.QueryErrorVar = scope.Unique("queryErr")
+	plan.PathValuesVar = scope.Unique("params")
+	plan.JSONRPCParamsVar = scope.Unique("rpcParams")
+	if hasQueryParams {
+		plan.QueryValuesVar = scope.Unique("qp")
+		plan.QueryErrorVar = scope.Unique("queryErr")
+	}
 	return plan
 }
 

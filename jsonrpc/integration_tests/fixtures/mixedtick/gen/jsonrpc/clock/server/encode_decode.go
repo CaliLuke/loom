@@ -39,11 +39,11 @@ func EncodeInitializeResponse(encoder func(context.Context, http.ResponseWriter)
 // Initialize endpoint.
 func DecodeInitializeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.InitializePayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.InitializePayload, error) {
-		params := req.Params
-		if len(params) == 0 {
-			params = []byte("{}")
+		rpcParams := req.Params
+		if len(rpcParams) == 0 {
+			rpcParams = []byte("{}")
 		}
-		r.Body = io.NopCloser(bytes.NewReader(params))
+		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *clock.InitializePayload
 		var (
 			body InitializeRequestBody
@@ -85,11 +85,11 @@ func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomh
 // endpoint.
 func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.TickPayload, error) {
-		params := req.Params
-		if len(params) == 0 {
-			params = []byte("{}")
+		rpcParams := req.Params
+		if len(rpcParams) == 0 {
+			rpcParams = []byte("{}")
 		}
-		r.Body = io.NopCloser(bytes.NewReader(params))
+		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *clock.TickPayload
 		var (
 			body TickRequestBody

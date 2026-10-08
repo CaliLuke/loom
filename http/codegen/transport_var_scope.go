@@ -34,7 +34,7 @@ var transportFunctionImportNames = []string{
 var requestLocalNames = []string{
 	"body", "closeIdx", "decoder", "err", "err2", "i", "keyRaw", "mr", "multipartErr",
 	"multipartForm", "mux", "ok", "openIdx", "params", "pass", "passValue", "payload", "present", "pv", "r", "raw",
-	"rawValues", "req", "res", "rv", "user", "userValue", "v", "val", "valRaw",
+	"rawValues", "req", "res", "rpcParams", "rv", "user", "userValue", "v", "val", "valRaw",
 }
 
 // cookieLocalNames lists the identifiers that the generated server request

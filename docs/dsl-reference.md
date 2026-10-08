@@ -1973,7 +1973,10 @@ single-value settings retain their documented replacement behavior.
 The `JSONRPC` DSL exposes service methods through JSON-RPC 2.0. It can appear
 at API, service, and method scope. Service-level `JSONRPC` defines the shared
 endpoint path; method-level `JSONRPC` opts a method into JSON-RPC and maps IDs
-and errors.
+and errors. URL captures retain their DSL types and may use `Param("field:wire")`
+mappings alongside JSON-RPC body parameters. A method whose payload is entirely
+path-bound omits `params` from its request. Regenerate after upgrading to pick
+up corrected path/body decoder local allocation.
 
 `CORS` or `RuntimeCORS()` may be declared in API-level or service-level
 `JSONRPC` scope. Without a policy, generated JSON-RPC servers retain Go's
