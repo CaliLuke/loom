@@ -19,6 +19,7 @@ func TestParseSSEEventsPreservesEventTypes(t *testing.T) {
 		"event: message",
 		`data: {"jsonrpc":"2.0","id":"oops","error":{"code":-32601,"message":"Method not found"}}`,
 		"",
+		"", // The final event must end with a blank line before EOF.
 	}, "\n"))
 
 	events, err := client.parseSSEEvents(raw)
