@@ -22,7 +22,7 @@ func BuildEchoPayload(reuseEchoMessage string) (*reuse.Envelope, error) {
 		if reuseEchoMessage != "" {
 			err = protojson.Unmarshal([]byte(reuseEchoMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"holder\": {\n         \"label\": \"Sit rerum et.\",\n         \"other\": {\n            \"count\": \"1490658650290523164\"\n         }\n      },\n      \"holders\": [\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         }\n      ],\n      \"id\": \"Quibusdam ipsam error.\",\n      \"other\": {\n         \"count\": \"1490658650290523164\"\n      }\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"holder\": {\n         \"label\": \"Sit rerum et.\",\n         \"other\": {\n            \"count\": \"1490658650290523164\"\n         }\n      },\n      \"holders\": [\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         },\n         {\n            \"label\": \"Sit rerum et.\",\n            \"other\": {\n               \"count\": \"1490658650290523164\"\n            }\n         }\n      ],\n      \"id\": \"Quibusdam ipsam error.\",\n      \"other\": {\n         \"count\": \"1490658650290523164\"\n      }\n   }'")
 			}
 		}
 		if err = ValidateEchoRequest(&message); err != nil {
@@ -89,7 +89,7 @@ func BuildNamedPayload(reuseNamedMessage string) (*reuse.Choice, error) {
 		if reuseNamedMessage != "" {
 			err = protojson.Unmarshal([]byte(reuseNamedMessage), &message)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for message, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": \"6733869203967304118\"\n      }\n   }'")
+				return nil, fmt.Errorf("invalid JSON for message, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"other\": {\n         \"count\": \"6733869203967304118\"\n      }\n   }'")
 			}
 		}
 		if err = ValidateChoice(&message); err != nil {

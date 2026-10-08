@@ -100,7 +100,7 @@ func buildSubcommandConversionError(flag *FlagData, payload string) *jen.Stateme
 				jen.Nil(),
 				jen.Nil(),
 				jen.Qual("fmt", "Errorf").Call(
-					jen.Lit("invalid JSON for "+flag.FullName+"Flag, \nerror: %s"),
+					jen.Lit("invalid JSON for "+flag.FullName+"Flag, \nerror: %w"),
 					jen.Err(),
 				),
 			)
@@ -109,7 +109,7 @@ func buildSubcommandConversionError(flag *FlagData, payload string) *jen.Stateme
 			jen.Nil(),
 			jen.Nil(),
 			jen.Qual("fmt", "Errorf").Call(
-				jen.Lit("invalid JSON for "+flag.FullName+"Flag, \nerror: %s, \nexample of valid JSON:\n%s"),
+				jen.Lit("invalid JSON for "+flag.FullName+"Flag, \nerror: %w, \nexample of valid JSON:\n%s"),
 				jen.Err(),
 				jen.Lit(flag.Example),
 			),

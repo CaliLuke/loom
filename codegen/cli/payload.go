@@ -203,7 +203,7 @@ func buildFieldLoadErrorReturn(f *FlagData, argName, argTypeName, nilVal string)
 			return jen.Return(
 				codegen.Expr(nilVal),
 				jen.Qual("fmt", "Errorf").Call(
-					jen.Lit("invalid JSON for "+argName+", \nerror: %s"),
+					jen.Lit("invalid JSON for "+argName+", \nerror: %w"),
 					jen.Err(),
 				),
 			)
@@ -211,7 +211,7 @@ func buildFieldLoadErrorReturn(f *FlagData, argName, argTypeName, nilVal string)
 		return jen.Return(
 			codegen.Expr(nilVal),
 			jen.Qual("fmt", "Errorf").Call(
-				jen.Lit("invalid JSON for "+argName+", \nerror: %s, \nexample of valid JSON:\n%s"),
+				jen.Lit("invalid JSON for "+argName+", \nerror: %w, \nexample of valid JSON:\n%s"),
 				jen.Err(),
 				jen.Lit(f.Example),
 			),

@@ -50,7 +50,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 				err = json.Unmarshal([]byte(*serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayPFlag), &val)
 				data = val
 				if err != nil {
-					return nil, nil, fmt.Errorf("invalid JSON for serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayPFlag, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"Et deleniti voluptatem ut tenetur in.\": [\n         5805107403515913448,\n         12359581858283870858,\n         3416710123428893383\n      ],\n      \"Facere pariatur voluptatem magni veritatis repellendus et.\": [\n         1567753014214923634,\n         572742604660497315,\n         2379143460542193346,\n         15291122553235630465\n      ],\n      \"Quam nulla nisi mollitia quibusdam.\": [\n         9561777611282593923,\n         15572950045258501170,\n         15868709832286975485\n      ]\n   }'")
+					return nil, nil, fmt.Errorf("invalid JSON for serviceMapQueryPrimitiveArrayMapQueryPrimitiveArrayPFlag, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"Et deleniti voluptatem ut tenetur in.\": [\n         5805107403515913448,\n         12359581858283870858,\n         3416710123428893383\n      ],\n      \"Facere pariatur voluptatem magni veritatis repellendus et.\": [\n         1567753014214923634,\n         572742604660497315,\n         2379143460542193346,\n         15291122553235630465\n      ],\n      \"Quam nulla nisi mollitia quibusdam.\": [\n         9561777611282593923,\n         15572950045258501170,\n         15868709832286975485\n      ]\n   }'")
 				}
 			}
 		}

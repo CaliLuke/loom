@@ -8,7 +8,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 	{
 		err = json.Unmarshal([]byte(serviceMapQueryObjectMethodMapQueryObjectBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b\": \"patternb\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"b\": \"patternb\"\n   }'")
 		}
 		if body.B != nil {
 			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", *body.B, loomPatternTest0))
@@ -29,7 +29,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 	{
 		err = json.Unmarshal([]byte(serviceMapQueryObjectMethodMapQueryObjectC), &c)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for c, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"7742300366591757019\": [\n         \"Provident et.\",\n         \"Sit animi quos accusamus nam vitae rerum.\",\n         \"Ullam reprehenderit recusandae et.\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for c, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"7742300366591757019\": [\n         \"Provident et.\",\n         \"Sit animi quos accusamus nam vitae rerum.\",\n         \"Ullam reprehenderit recusandae et.\"\n      ]\n   }'")
 		}
 	}
 	v := &servicemapqueryobject.PayloadType{

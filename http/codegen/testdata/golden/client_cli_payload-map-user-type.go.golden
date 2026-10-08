@@ -6,7 +6,7 @@ func BuildMethodBodyInlineMapUserPayload(serviceBodyInlineMapUserMethodBodyInlin
 	{
 		err = json.Unmarshal([]byte(serviceBodyInlineMapUserMethodBodyInlineMapUserBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s", err)
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w", err)
 		}
 	}
 	v := make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
