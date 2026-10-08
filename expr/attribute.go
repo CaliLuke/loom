@@ -155,7 +155,8 @@ const (
 	// FormatEmail describes RFC5322 email addresses.
 	FormatEmail = "email"
 
-	// FormatHostname describes RFC1035 Internet hostnames.
+	// FormatHostname describes ASCII Internet hostnames with RFC1035 size limits
+	// and RFC1123 letters/digits at label boundaries. A terminal root dot is allowed.
 	FormatHostname = "hostname"
 
 	// FormatIPv4 describes RFC2373 IPv4 address values.

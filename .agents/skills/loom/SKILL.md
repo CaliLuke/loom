@@ -82,6 +82,9 @@ a valid example where the declared type permits it.
   type ancestry, and the copied fields keep their declared constraints.
 - Use `FormatURI` for absolute URI contracts that include a scheme. Use
   `FormatURIReference` for relative paths and other URI references.
+- `FormatHostname` accepts ASCII labels of 1–63 bytes, letters/digits at the
+  edges and interior hyphens, up to 253 bytes excluding an optional terminal
+  root dot. It validates syntax without DNS lookup or Unicode/IDNA conversion.
 - Do not rely on nil versus empty slices or maps to encode presence. Generated
   JSON uses `omitempty`, so both serialize as missing.
 - For each non-`Extend` type, payload, or result, start literal field tags at

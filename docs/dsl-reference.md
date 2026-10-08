@@ -479,7 +479,7 @@ Loom includes predefined formats for common data patterns:
 | `FormatDateTime` | RFC3339 date time values |
 | `FormatUUID` | RFC4122 UUID values |
 | `FormatEmail` | RFC5322 email addresses |
-| `FormatHostname` | RFC1035 Internet hostnames |
+| `FormatHostname` | ASCII Internet hostnames, with an optional terminal root dot |
 | `FormatIPv4` | RFC2373 IPv4 address values |
 | `FormatIPv6` | RFC2373 IPv6 address values |
 | `FormatIP` | RFC2373 IPv4 or IPv6 address values |
@@ -490,6 +490,19 @@ Loom includes predefined formats for common data patterns:
 | `FormatRegexp` | RE2 regular expression syntax |
 | `FormatJSON` | JSON text |
 | `FormatRFC1123` | RFC1123 date time values |
+
+`FormatHostname` validates ASCII hostname syntax without DNS lookup or IDNA
+conversion. Each nonempty label contains at most 63 bytes: letters, digits and
+interior hyphens. Text has at most 253 bytes excluding an optional terminal root
+dot. These limits follow [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035#section-3.1);
+leading digits follow [RFC 1123](https://www.rfc-editor.org/rfc/rfc1123#section-2.1).
+
+Both `example.com` and `example.com.` are accepted: the terminal dot explicitly
+marks the root and does not create an empty host label. Rejecting all terminal
+dots would exclude that standard spelling. `a`, `1`, `a-b.example` and ASCII
+Punycode spellings are accepted; `.`, `a..b`, `a-.b`, `a_b`, raw Unicode and
+labels or names exceeding the limits are rejected. Validation preserves the
+original spelling and does not check IDNA meaning or whether a host exists.
 
 ### Attribute vs Field DSL
 

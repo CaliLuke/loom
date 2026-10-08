@@ -6,6 +6,7 @@ import (
 	"net"
 	"regexp"
 	"regexp/syntax"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,7 +75,7 @@ func TestValidateFormat(t *testing.T) {
 		// "invalid email":      {"invalidEmail", invalidEmail, FormatEmail, InvalidFormatError("invalidEmail", invalidEmail, FormatEmail, errors.New("mail: missing '@' or angle-addr"))},
 
 		"valid hostname":               {"validHostname", validHostname, FormatHostname, nil},
-		"invalid hostname":             {"invalidHostname", invalidHostname, FormatHostname, InvalidFormatError("invalidHostname", invalidHostname, FormatHostname, fmt.Errorf("hostname value '%s' does not match %s", invalidHostname, `^[[:alnum:]][[:alnum:]\-]{0,61}[[:alnum:]]|[[:alpha:]]$`))},
+		"invalid hostname":             {"invalidHostname", invalidHostname, FormatHostname, InvalidFormatError("invalidHostname", invalidHostname, FormatHostname, fmt.Errorf("%q is not a valid ASCII hostname", invalidHostname))},
 		"valid ipv4":                   {"validIPv4", validIPv4, FormatIPv4, nil},
 		"valid ipv6 as ipv4":           {"validIPv6", validIPv6, FormatIPv4, InvalidFormatError("validIPv6", validIPv6, FormatIPv4, fmt.Errorf("\"%s\" is an invalid %s value", validIPv6, FormatIPv4))},
 		"invalid ipv4":                 {"invalidIPv4", invalidIPv4, FormatIPv4, InvalidFormatError("invalidIPv4", invalidIPv4, FormatIPv4, fmt.Errorf("\"%s\" is an invalid %s value", invalidIPv4, FormatIPv4))},
@@ -248,5 +249,54 @@ func TestJSONValueHelpers(t *testing.T) {
 	}
 	if JSONValueEqual(JSONValue(`"true"`), true) {
 		t.Fatal("JSONValueEqual accepted a JSON string as a boolean")
+	}
+}
+
+func TestValidateHostname(t *testing.T) {
+	maxLabel := strings.Repeat("a", 63)
+	maxName := strings.Repeat(maxLabel+".", 3) + strings.Repeat("b", 61)
+	for _, tc := range []struct {
+		name, value string
+		valid       bool
+	}{
+		{"single letter", "a", true},
+		{"single digit", "1", true},
+		{"single character labels", "a.b.1", true},
+		{"mixed case and hyphen", "Ab-9.Example", true},
+		{"absolute", "example.com.", true},
+		{"ASCII punycode syntax", "xn--bcher-kva.example", true},
+		{"maximum label", maxLabel + ".example", true},
+		{"maximum name", maxName, true},
+		{"maximum absolute name", maxName + ".", true},
+		{"empty", "", false},
+		{"root only", ".", false},
+		{"leading dot", ".example", false},
+		{"empty interior label", "ab..cd", false},
+		{"extra root dot", "example.com..", false},
+		{"leading hyphen", "-ab.cd", false},
+		{"trailing hyphen", "ab-.cd", false},
+		{"punctuation suffix", "ab!", false},
+		{"punctuation prefix", "!ab", false},
+		{"underscore", "ab_cd", false},
+		{"Unicode", "bücher.example", false},
+		{"Unicode dot", "ab。cd", false},
+		{"space", "ab cd", false},
+		{"newline", "ab\n", false},
+		{"NUL", "ab\x00", false},
+		{"overlong label", maxLabel + "a.example", false},
+		{"overlong last label", "example." + maxLabel + "a", false},
+		{"overlong name", maxName + "b", false},
+		{"overlong absolute name", maxName + "b.", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateFormat("host", tc.value, FormatHostname)
+			if tc.valid {
+				require.NoError(t, err)
+			} else {
+				var validation *ServiceError
+				require.ErrorAs(t, err, &validation)
+				require.Equal(t, "invalid_format", validation.Name)
+			}
+		})
 	}
 }

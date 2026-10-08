@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/mail"
 	"regexp"
+	"strings"
 	"time"
 	"uuid"
 )
@@ -26,7 +27,8 @@ const (
 	// FormatEmail describes RFC5322 email addresses.
 	FormatEmail = "email"
 
-	// FormatHostname describes RFC1035 Internet hostnames.
+	// FormatHostname describes ASCII Internet hostnames with RFC1035 size limits
+	// and RFC1123 letters/digits at label boundaries. A terminal root dot is allowed.
 	FormatHostname = "hostname"
 
 	// FormatIPv4 describes RFC2373 IPv4 address values.
@@ -61,7 +63,9 @@ const (
 )
 
 var (
-	hostnameRegex = regexp.MustCompile(`^[[:alnum:]][[:alnum:]\-]{0,61}[[:alnum:]]|[[:alpha:]]$`)
+	// A hostname is a sequence of ASCII labels, optionally rooted by one dot.
+	// Each label starts and ends with a letter or digit and contains at most 63 bytes.
+	hostnameRegex = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.?$`)
 	ipv4Regex     = regexp.MustCompile(`^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$`)
 )
 
@@ -75,7 +79,7 @@ var (
 //   - "date": RFC3339 date value
 //   - "date-time": RFC3339 date time value
 //   - "email": RFC5322 email address
-//   - "hostname": RFC1035 Internet host name
+//   - "hostname": ASCII Internet hostname with an optional terminal root dot
 //   - "ipv4", "ipv6", "ip": RFC2673 and RFC2373 IP address values
 //   - "uri": absolute RFC3986 URI value with a scheme
 //   - "uri-reference": RFC3986 URI-reference value
@@ -95,9 +99,10 @@ func ValidateFormat(name string, val string, f Format) error {
 	case FormatEmail:
 		_, err = mail.ParseAddress(val)
 	case FormatHostname:
-		if !hostnameRegex.MatchString(val) {
-			err = fmt.Errorf("hostname value '%s' does not match %s",
-				val, hostnameRegex.String())
+		// The DNS wire limit is 255 bytes including label lengths and the root.
+		// Text without the optional root dot therefore has at most 253 bytes.
+		if len(strings.TrimSuffix(val, ".")) > 253 || !hostnameRegex.MatchString(val) {
+			err = fmt.Errorf("%q is not a valid ASCII hostname", val)
 		}
 	case FormatIPv4, FormatIPv6, FormatIP:
 		ip := net.ParseIP(val)

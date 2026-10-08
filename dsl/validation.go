@@ -22,7 +22,8 @@ const (
 	// FormatEmail describes RFC5322 email addresses.
 	FormatEmail = expr.FormatEmail
 
-	// FormatHostname describes RFC1035 Internet hostnames.
+	// FormatHostname describes ASCII Internet hostnames with RFC1035 size limits
+	// and RFC1123 letters/digits at label boundaries. A terminal root dot is allowed.
 	FormatHostname = expr.FormatHostname
 
 	// FormatIPv4 describes RFC2373 IPv4 address values.
@@ -132,7 +133,7 @@ func Enum(vals ...any) {
 //
 // FormatEmail: RFC5322 email address
 //
-// FormatHostname: RFC1035 internet host name
+// FormatHostname: ASCII Internet hostname with an optional terminal root dot
 //
 // FormatIPv4, FormatIPv6, FormatIP: RFC2373 IPv4, IPv6 address or either
 //

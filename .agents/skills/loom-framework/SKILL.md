@@ -75,6 +75,13 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `pkg.ValidateFormat` owns hostname validation: complete ASCII label syntax,
+  63-byte labels, 253-byte text excluding an optional terminal root dot. Keep
+  this shared by generated transports and design validation. The existing
+  gojsonschema v1.2.0 checker rejects root dots and allows overlong 254/255-byte
+  unrooted text; IDNA conversion has different Unicode/Punycode semantics.
+  Use the bounded standard-library regex here instead of adding either policy
+  as a runtime dependency. Host existence and IDNA processing stay caller-owned.
 - Design DSL is the source of truth; evaluated semantics belong in `expr`.
 - Effective named-type constraints have one immutable `expr` owner per value
   occurrence. Derived enums refine ancestor enums, defaults are selected then
