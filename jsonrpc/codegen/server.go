@@ -135,6 +135,7 @@ func jsonrpcServerBaseSections(data *httpcodegen.ServiceData, hasSSE, hasMixed b
 		jsonrpcServerStructSection(data),
 		jsonrpcServerInitSection(data, hasSSE, hasMixed),
 		jsonrpcServerServiceSection(data),
+		jsonrpcServerDispatchSection(data),
 		jsonrpcServerUseSection(data),
 		jsonrpcServerMethodNamesSection(data),
 	}

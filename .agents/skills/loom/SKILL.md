@@ -613,6 +613,12 @@ servers to adopt this ordering correction.
 If a body shape is unsupported, use the documented custom encoder/decoder seam
 rather than modifying generated files.
 
+For generated JSON-RPC servers, route requests through `Server.ServeHTTP`.
+Middleware installed with `Server.Use` is honored whether installed before or
+after `Mount`. Complete configuration before requests start; do not change the
+chain concurrently with requests. Regenerate clients and servers when adopting
+this corrected dispatch behavior.
+
 ## Authentication and Sessions
 
 Declare credentials with plain attribute names: `Token("token", String)`,

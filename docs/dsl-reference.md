@@ -1991,6 +1991,9 @@ actual requests: it includes the configured CORS or secure-default origin
 policy and middleware installed with `Server.Use`. Custom mounts and transport
 extensions should route actual requests through `ServeHTTP`; generated
 `OPTIONS` routes terminate in the route-local preflight handler.
+`Server.Use` may run before or after `Mount`, but all middleware configuration
+must finish before serving requests. Concurrent reconfiguration is unsupported.
+Regenerate to make already-mounted routes honor later setup-time `Use` calls.
 
 For JSON-RPC SSE methods, use
 `SSENotificationMethod("notifications/progress")` inside

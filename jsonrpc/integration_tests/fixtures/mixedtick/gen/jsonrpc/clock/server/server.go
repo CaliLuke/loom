@@ -64,7 +64,16 @@ func (s *Server) Service() string {
 	return "clock"
 }
 
-// Use wraps the server handlers with the given middleware.
+// ServeHTTP dispatches requests through the server's configured handler chain.
+// Mounted routes retain the server, so middleware installed before serving
+// starts is honored regardless of mount order.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.Handler.ServeHTTP(w, r)
+}
+
+// Use wraps the server handler chain with the given middleware. It may run
+// before or after Mount, but must finish before requests begin; concurrent
+// reconfiguration is not supported.
 func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.Handler = m(s.Handler)
 }

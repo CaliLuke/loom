@@ -1104,6 +1104,11 @@ filter, and serialization rules belong here.
   parse raw flags with UnmarshalText, validate the raw text, and retain optional
   pointer semantics. Request encoders format custom values consistently with
   path builders through fmt.Sprint; custom types own their wire representation.
+- JSON-RPC `Server.ServeHTTP` is an explicit dispatch method that consults the
+  configured handler chain at request time. Mount must bind that server method,
+  not a promoted method on the embedded handler. `Use` may run before or after
+  mounting, but configuration must finish before serving requests. See the
+  [handler dispatch model](../../../jsonrpc/codegen/tla/handler_dispatch/README.md).
 - `RequestDecodePlan` allocates distinct URL-capture, JSON-RPC params-byte and
   query locals after authored field names. HTTP, multipart and JSON-RPC decoder
   renderers consume those names; never reuse a protocol local for another wire

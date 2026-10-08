@@ -172,9 +172,19 @@ func jsonrpcServerServiceSection(data *httpcodegen.ServiceData) codegen.Section 
 	})
 }
 
+func jsonrpcServerDispatchSection(data *httpcodegen.ServiceData) codegen.Section {
+	return codegen.NewJenniferSection("jsonrpc-server-dispatch", func(stmt *jen.Statement) {
+		codegen.Doc(stmt, "ServeHTTP dispatches requests through the server's configured handler chain. Mounted routes retain the server, so middleware installed before serving starts is honored regardless of mount order.")
+		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
+			Id("ServeHTTP").Params(jen.Id("w").Qual("net/http", "ResponseWriter"), jen.Id("r").Op("*").Qual("net/http", "Request")).
+			Block(jen.Id("s").Dot("Handler").Dot("ServeHTTP").Call(jen.Id("w"), jen.Id("r")))
+		stmt.Line()
+	})
+}
+
 func jsonrpcServerUseSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.NewJenniferSection("jsonrpc-server-use", func(stmt *jen.Statement) {
-		codegen.Doc(stmt, "Use wraps the server handlers with the given middleware.")
+		codegen.Doc(stmt, "Use wraps the server handler chain with the given middleware. It may run before or after Mount, but must finish before requests begin; concurrent reconfiguration is not supported.")
 		stmt.Func().Params(jen.Id("s").Op("*").Id(data.ServerStruct)).
 			Id("Use").
 			Params(jen.Id("m").Func().Params(jen.Qual("net/http", "Handler")).Qual("net/http", "Handler")).
