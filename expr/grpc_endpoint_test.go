@@ -131,7 +131,7 @@ service "Service" method "Method": union type Choice is an array element, not su
 		},
 		"endpoint-union-containing-any": {
 			DSL:    testdata.GRPCEndpointWithUnionContainingAny,
-			Errors: []string{},
+			Errors: []string{`service "Service" gRPC endpoint "MethodUnion": attribute "value" does not have "rpc:tag" defined in the meta, use "Field" to define the attribute of a type used in a gRPC method`},
 		},
 		"endpoint-union-collection-branches": {
 			DSL:    testdata.GRPCEndpointWithUnionCollectionBranches,

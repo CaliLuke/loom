@@ -230,7 +230,7 @@
     "reason": "intentional validation failure"
   },
   "expr/GRPCEndpointWithUnionContainingAny": {
-    "contains": "attribute \"value\" of protocol buffer message \"AnyAlias\" has no field number, use \"Field\" to define it",
+    "contains": "attribute \"value\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method",
     "phase": "gen",
     "reason": "intentional validation failure"
   },

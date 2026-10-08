@@ -12,6 +12,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
@@ -110,8 +111,8 @@ func TestProtoFilesDuplicateUnionBranchNames(t *testing.T) {
 	}
 }
 
-// TestProtoFilesNestedFieldNumbers checks that generation fails with an
-// error naming the message and the fields when a message reached from a
+// TestProtoFilesNestedFieldNumbers checks that DSL validation names the
+// invalid fields when a message reached from a
 // request message, a user type or an inline object, has a field or union
 // branch without a field number or two fields with the same number, and that
 // valid nested messages still generate.
@@ -126,27 +127,27 @@ func TestProtoFilesNestedFieldNumbers(t *testing.T) {
 		{"constructor union branch and field", func(leaf, other any) {
 			Field(2, "inner", OneOf(leaf, other))
 			Field(3, "x", String)
-		}, nil, `field number 3 in attribute "x" of protocol buffer message "Holder" already exists for attribute "inner.Other"` + hint},
+		}, nil, `field number 3 in attribute "x" already exists for attribute "inner.Other"` + hint},
 		{"two fields", func(_, _ any) {
 			Field(1, "a", String)
 			Field(1, "b", String)
-		}, nil, `field number 1 in attribute "b" of protocol buffer message "Holder" already exists for attribute "a"`},
+		}, nil, `field number 1 in attribute "b" already exists for attribute "a"`},
 		{"untagged block branch", func(leaf, other any) {
 			OneOf("inner", func() {
 				Attribute("Leaf", leaf)
 				Field(3, "Other", other)
 			})
-		}, nil, `union branch "Leaf" of attribute "inner" of protocol buffer message "Holder" has no field number`},
+		}, nil, `union branch "Leaf" of attribute "inner" does not have "rpc:tag" defined`},
 		{"untagged field", func(_, _ any) {
 			Field(1, "a", String)
 			Attribute("b", String)
-		}, nil, `attribute "b" of protocol buffer message "Holder" has no field number`},
+		}, nil, `attribute "b" does not have "rpc:tag" defined`},
 		{"inline object", nil, func(_ any) {
 			Field(1, "prefs", func() {
 				Field(1, "a", String)
 				Field(1, "b", String)
 			})
-		}, `field number 1 in attribute "b" of protocol buffer message "EchoRequestPrefs" already exists for attribute "a"`},
+		}, `field number 1 in attribute "b" already exists for attribute "a"`},
 		{"valid", func(leaf, other any) {
 			Field(1, "label", String)
 			Field(2, "inner", OneOf(leaf, other))
@@ -166,7 +167,7 @@ func TestProtoFilesNestedFieldNumbers(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			root := RunGRPCDSL(t, func() {
+			design := func() {
 				leaf := Type("Leaf", func() {
 					Field(1, "name", String)
 				})
@@ -192,18 +193,18 @@ func TestProtoFilesNestedFieldNumbers(t *testing.T) {
 						GRPC(func() {})
 					})
 				})
-			})
+			}
+			if c.expected != "" {
+				require.ErrorContains(t, expr.RunInvalidDSL(t, design), c.expected)
+				return
+			}
+			root := RunGRPCDSL(t, design)
 			var code string
 			err := generationError(func() {
 				fs := ProtoFiles("", CreateGRPCServices(root))
 				require.Len(t, fs, 1)
 				code = sectionCode(t, fs[0].AllSections()[1:]...)
 			})
-			if c.expected != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), c.expected)
-				return
-			}
 			require.NoError(t, err)
 			assert.NotContains(t, code, "= 0;")
 			fpath := codegen.CreateTempFile(t, code)

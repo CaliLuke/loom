@@ -12,6 +12,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/testdata"
 )
 
@@ -51,8 +52,8 @@ func TestProtoFilesNamedUnionFieldReuse(t *testing.T) {
 	assert.NoError(t, protoc(defaultProtocCmd, fpath, nil), "compile proto file %q", fpath)
 }
 
-// TestProtoFilesNamedUnionFieldErrors checks that generation fails with an
-// error naming the message and the fields when the branches of a named union
+// TestProtoFilesNamedUnionFieldErrors checks that DSL validation names the
+// invalid fields when the branches of a named union
 // passed to Field collide by number with another field of a nested message,
 // that the branches of the same named union used twice in a message take
 // unique names, and that a named union wrapped in a type is valid as array
@@ -68,7 +69,7 @@ func TestProtoFilesNamedUnionFieldErrors(t *testing.T) {
 		{"branch number and field", func(choice any) {
 			Field(2, "choice", choice)
 			Field(3, "x", String)
-		}, nil, "", `field number 3 in attribute "x" of protocol buffer message "Holder" already exists for attribute "choice.Leaf"; a OneOf passed to Field numbers its branches consecutively from the field number`},
+		}, nil, "", `field number 3 in attribute "x" already exists for attribute "choice.Leaf"; a OneOf passed to Field numbers its branches consecutively from the field number`},
 		{"same union twice", func(choice any) {
 			Field(1, "first", choice)
 			Field(3, "second", choice)
@@ -82,7 +83,7 @@ func TestProtoFilesNamedUnionFieldErrors(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			root := RunGRPCDSL(t, func() {
+			design := func() {
 				leaf := Type("Leaf", func() {
 					Field(1, "name", String)
 				})
@@ -105,18 +106,18 @@ func TestProtoFilesNamedUnionFieldErrors(t *testing.T) {
 						GRPC(func() {})
 					})
 				})
-			})
+			}
+			if c.expected != "" {
+				require.ErrorContains(t, expr.RunInvalidDSL(t, design), c.expected)
+				return
+			}
+			root := RunGRPCDSL(t, design)
 			var code string
 			err := generationError(func() {
 				fs := ProtoFiles("", CreateGRPCServices(root))
 				require.Len(t, fs, 1)
 				code = sectionCode(t, fs[0].AllSections()[1:]...)
 			})
-			if c.expected != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), c.expected)
-				return
-			}
 			require.NoError(t, err)
 			assert.Contains(t, code, c.contains)
 			fpath := codegen.CreateTempFile(t, code)

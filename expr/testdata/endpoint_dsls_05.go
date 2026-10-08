@@ -4,9 +4,24 @@ import (
 	. "github.com/CaliLuke/loom/dsl"
 )
 
+// GRPCEndpointWithUnionContainingAny omits the nested protobuf field number.
 var GRPCEndpointWithUnionContainingAny = func() {
+	grpcUnionContainingAny(false)
+}
+
+// GRPCEndpointWithTaggedUnionContainingAny uses numbered Any fields inside
+// object, array and map union branches.
+var GRPCEndpointWithTaggedUnionContainingAny = func() {
+	grpcUnionContainingAny(true)
+}
+
+func grpcUnionContainingAny(tagged bool) {
 	var AnyAlias = Type("AnyAlias", func() {
-		Attribute("value", Any)
+		if tagged {
+			Field(1, "value", Any)
+		} else {
+			Attribute("value", Any)
+		}
 	})
 
 	var U = Type("U", func() {

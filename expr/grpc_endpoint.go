@@ -2,7 +2,6 @@ package expr
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/CaliLuke/loom/eval"
 )
@@ -96,6 +95,7 @@ func (e *GRPCEndpointExpr) Validate() error {
 	verr.Merge(e.validateRequestShape())
 	verr.Merge(e.Response.Validate(e))
 	verr.Merge(e.validateGRPCErrors())
+	verr.Merge(e.validateMessageFieldTags())
 	return verr
 }
 
@@ -262,7 +262,9 @@ func (e *GRPCEndpointExpr) validateRequestShape() *eval.ValidationErrors {
 		}
 		return verr
 	}
-	verr.Merge(e.validateRequestObjectUsage(payloadObj, hasMessage, hasMetadata))
+	if hasMessage && hasMetadata {
+		verr.Merge(e.validateDistinctRequestMessageAndMetadata())
+	}
 	return verr
 }
 
@@ -280,17 +282,6 @@ func (e *GRPCEndpointExpr) validateRequestComponents(verr *eval.ValidationErrors
 	return hasMessage, hasMetadata
 }
 
-func (e *GRPCEndpointExpr) validateRequestObjectUsage(payloadObj *Object, hasMessage, hasMetadata bool) *eval.ValidationErrors {
-	verr := new(eval.ValidationErrors)
-	switch {
-	case hasMessage && hasMetadata:
-		verr.Merge(e.validateDistinctRequestMessageAndMetadata())
-	case !hasMessage && !hasMetadata:
-		verr.Merge(e.validateImplicitRequestRPCTags(payloadObj))
-	}
-	return verr
-}
-
 func (e *GRPCEndpointExpr) validateDistinctRequestMessageAndMetadata() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	msgObj := AsObject(e.Request.Type)
@@ -304,28 +295,6 @@ func (e *GRPCEndpointExpr) validateDistinctRequestMessageAndMetadata() *eval.Val
 		}
 	}
 	return verr
-}
-
-func (e *GRPCEndpointExpr) validateImplicitRequestRPCTags(payloadObj *Object) *eval.ValidationErrors {
-	verr := new(eval.ValidationErrors)
-	msgFields := nonSecurityRPCFields(payloadObj, getSecurityAttributes(e.MethodExpr))
-	if len(*msgFields) > 0 {
-		verr.Merge(validateRPCTags(msgFields, e))
-	}
-	return verr
-}
-
-func nonSecurityRPCFields(payloadObj *Object, securityAttrs []string) *Object {
-	if len(securityAttrs) == 0 {
-		return payloadObj
-	}
-	msgFields := &Object{}
-	for _, nat := range *payloadObj {
-		if !slices.Contains(securityAttrs, nat.Name) {
-			msgFields.Set(nat.Name, nat.Attribute)
-		}
-	}
-	return msgFields
 }
 
 func (e *GRPCEndpointExpr) validateGRPCErrors() *eval.ValidationErrors {
@@ -458,61 +427,12 @@ func validateMessage(msgAtt, serviceAtt *AttributeExpr, e *GRPCEndpointExpr, req
 	} else {
 		// service type is an object. Verify the attributes defined in the
 		// message are found in the service type.
-		// msgFields will contain the attributes from the service type that has the
-		// same name as the message attributes so that we can validate the
-		// rpc:tag in the meta.
-		msgFields := &Object{}
 		for _, nat := range *AsObject(msgAtt.Type) {
 			if _, a := serviceAtt.FindAttribute(nat.Name); a != nil {
-				msgFields.Set(nat.Name, a)
 				continue
 			}
 			verr.Add(e, "%s message attribute %q is not found in %s", msgKind, nat.Name, serviceKind)
 		}
-		// validate rpc:tag in meta for the message fields
-		verr.Merge(validateRPCTags(msgFields, e))
-	}
-	return verr
-}
-
-// validateRPCTags verifies whether every attribute in the object type and
-// every branch of its union attributes has a field tag and the tag numbers
-// are unique. Branches of a union passed to Field take the tags that
-// UnionFieldTags derives from the field tag.
-func validateRPCTags(fields *Object, e *GRPCEndpointExpr) *eval.ValidationErrors {
-	verr := new(eval.ValidationErrors)
-	owners := make(map[string]rpcTagOwner)
-	claim := func(tag, name string, derived bool) {
-		owner, ok := owners[tag]
-		if !ok {
-			owners[tag] = rpcTagOwner{name: name, derived: derived}
-			return
-		}
-		hint := ""
-		if derived || owner.derived {
-			hint = "; a OneOf passed to Field numbers its branches consecutively from the field number"
-		}
-		verr.Add(e, "field number %s in attribute %q already exists for attribute %q%s", tag, name, owner.name, hint)
-	}
-	for _, nat := range *fields {
-		if union := AsUnion(nat.Attribute.Type); union != nil {
-			for i, tag := range nat.Attribute.UnionFieldTags() {
-				branch := union.Values[i]
-				if tag == "" {
-					verr.Add(e, "union branch %q of attribute %q does not have \"rpc:tag\" defined in the meta, use \"Field\" to define each branch of a OneOf block or pass the OneOf to \"Field\" to number its branches", branch.Name, nat.Name)
-					continue
-				}
-				_, explicit := branch.Attribute.FieldTag()
-				claim(tag, nat.Name+"."+branch.Name, !explicit)
-			}
-			continue
-		}
-		tag, ok := nat.Attribute.FieldTag()
-		if !ok {
-			verr.Add(e, "attribute %q does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method", nat.Name)
-			continue
-		}
-		claim(tag, nat.Name, false)
 	}
 	return verr
 }

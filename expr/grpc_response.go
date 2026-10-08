@@ -104,14 +104,14 @@ func (r *GRPCResponseExpr) validateResponseComponents(verr *eval.ValidationError
 func (r *GRPCResponseExpr) validateResponseShape(e *GRPCEndpointExpr, hasMessage, hasHeaders, hasTrailers bool) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	if robj := AsObject(e.MethodExpr.Result.Type); robj != nil {
-		verr.Merge(r.validateObjectResponseShape(e, robj, hasMessage, hasHeaders, hasTrailers))
+		verr.Merge(r.validateObjectResponseShape(e, hasMessage, hasHeaders, hasTrailers))
 		return verr
 	}
 	verr.Merge(r.validateScalarResponseShape(e, hasMessage, hasHeaders, hasTrailers))
 	return verr
 }
 
-func (r *GRPCResponseExpr) validateObjectResponseShape(e *GRPCEndpointExpr, robj *Object, hasMessage, hasHeaders, hasTrailers bool) *eval.ValidationErrors {
+func (r *GRPCResponseExpr) validateObjectResponseShape(e *GRPCEndpointExpr, hasMessage, hasHeaders, hasTrailers bool) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
 	if hasMessage && hasHeaders {
 		verr.Merge(validateDistinctResponseObjects(e, AsObject(r.Message.Type), AsObject(r.Headers.Type), "response message", "header metadata"))
@@ -121,9 +121,6 @@ func (r *GRPCResponseExpr) validateObjectResponseShape(e *GRPCEndpointExpr, robj
 	}
 	if hasHeaders && hasTrailers {
 		verr.Merge(validateDistinctResponseObjects(e, AsObject(r.Trailers.Type), AsObject(r.Headers.Type), "response trailer metadata", "header metadata"))
-	}
-	if !hasMessage && !hasHeaders && !hasTrailers {
-		verr.Merge(validateRPCTags(robj, e))
 	}
 	return verr
 }
