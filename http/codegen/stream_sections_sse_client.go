@@ -33,11 +33,7 @@ func sseParseAssignmentNeedsDecoder(typeRef string, pointer bool) bool {
 
 func renderSSEClientProcessEvent(implName string, ed *EndpointData) string {
 	var b sourceBuilder
-	b.Addf("// processEvent processes a raw SSE event into the expected type\nfunc (s *%s) processEvent(eventData []byte) (event %s, err error) {\n", implName, ed.SSE.EventTypeRef)
-	b.Add("\tparsed, err := loomhttp.ParseSSEEvent(eventData)\n")
-	b.Add("\tif err != nil {\n")
-	b.Add("\t\treturn event, err\n")
-	b.Add("\t}\n")
+	b.Addf("// processEvent converts a parsed SSE event into the expected type\nfunc (s *%s) processEvent(parsed loomhttp.SSEEvent) (event %s, err error) {\n", implName, ed.SSE.EventTypeRef)
 	if len(ed.SSE.Projections) > 0 {
 		renderSSEProjectionClientDecode(&b, ed)
 		b.Add("\treturn\n")
@@ -96,7 +92,7 @@ func renderSSEProjectionClientDecode(b *sourceBuilder, ed *EndpointData) {
 }
 
 // renderSSEClientEventFields assigns the parsed SSE id and event type to the
-// mapped event fields.
+// mapped event fields. The ID is the library's persistent last-event-ID buffer.
 func renderSSEClientEventFields(b *sourceBuilder, ed *EndpointData) {
 	if ed.SSE.IDField != "" {
 		renderSSEClientStringField(b, "event."+ed.SSE.IDField, "parsed.ID", "id", ed.SSE.IDPointer, ed.SSE.IDDefault)
@@ -107,8 +103,8 @@ func renderSSEClientEventFields(b *sourceBuilder, ed *EndpointData) {
 }
 
 // renderSSEClientStringField assigns the parsed SSE string field source to
-// target. A pointer target stays nil when the event omits the field. A target
-// with a default value receives the default literal def instead.
+// target. When source is empty, a pointer target stays nil and a target with
+// a default value receives the default literal def instead.
 func renderSSEClientStringField(b *sourceBuilder, target, source, local string, pointer bool, def string) {
 	switch {
 	case pointer:

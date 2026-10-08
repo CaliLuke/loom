@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -127,11 +126,11 @@ func TestSSEStreamReader(t *testing.T) {
 
 	first, err := reader.ReadEvent(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, "event: one\ndata: first\n\n", string(first))
+	require.Equal(t, SSEEvent{Type: "one", Data: "first"}, first)
 
 	second, err := reader.ReadEvent(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, "event: two\ndata: second\n\n", string(second))
+	require.Equal(t, SSEEvent{Type: "two", Data: "second"}, second)
 
 	_, err = reader.ReadEvent(context.Background())
 	require.ErrorIs(t, err, io.EOF)
@@ -151,33 +150,33 @@ func TestSSEStreamReaderNoBufferAliasing(t *testing.T) {
 	cases := []struct {
 		name   string
 		chunks []string
-		want   []string
+		want   []SSEEvent
 	}{
 		{
 			name:   "two complete events in one read chunk",
 			chunks: []string{eventOne + eventTwo},
-			want:   []string{eventOne, eventTwo},
+			want:   []SSEEvent{{Type: "one", Data: "first"}, {Type: "two", Data: "second"}},
 		},
 		{
 			name:   "two complete events plus partial third in one chunk",
 			chunks: []string{eventOne + eventTwo + partial},
-			want:   []string{eventOne, eventTwo},
+			want:   []SSEEvent{{Type: "one", Data: "first"}, {Type: "two", Data: "second"}},
 		},
 		{
 			name:   "event split across multiple small reads",
 			chunks: []string{eventOne, partialTwo, restTwo},
-			want:   []string{eventOne, eventTwo},
+			want:   []SSEEvent{{Type: "one", Data: "first"}, {Type: "two", Data: "second"}},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := NewSSEStreamReader(io.NopCloser(&chunkedReader{chunks: tc.chunks}))
-			got := make([]string, 0, len(tc.want))
+			got := make([]SSEEvent, 0, len(tc.want))
 			for range tc.want {
 				event, err := reader.ReadEvent(context.Background())
 				require.NoError(t, err)
-				got = append(got, string(event))
+				got = append(got, event)
 			}
 			require.Equal(t, tc.want, got)
 			require.NoError(t, reader.Close())
@@ -221,6 +220,7 @@ func TestParseSSEEvent(t *testing.T) {
 			"data: line-1",
 			"data: line-2",
 			"",
+			"",
 		}, "\n")))
 		require.NoError(t, err)
 		require.Equal(t, SSEEvent{
@@ -238,6 +238,7 @@ func TestParseSSEEvent(t *testing.T) {
 			"event: two",
 			"data: second",
 			"",
+			"",
 		}, "\n")))
 		require.Error(t, err)
 	})
@@ -250,6 +251,7 @@ func TestParseSSEStream(t *testing.T) {
 		"",
 		"event: response",
 		`data: {"step":2}`,
+		"",
 		"",
 	}, "\n")))
 	require.NoError(t, err)
@@ -297,13 +299,11 @@ func TestSSEStreamReaderSkipsBlocksWithoutEvents(t *testing.T) {
 			reader := NewSSEStreamReader(io.NopCloser(strings.NewReader(tc.input)))
 			got := make([]SSEEvent, 0, len(tc.want))
 			for {
-				frame, err := reader.ReadEvent(context.Background())
+				event, err := reader.ReadEvent(context.Background())
 				if errors.Is(err, io.EOF) {
 					break
 				}
 				require.NoError(t, err)
-				event, err := ParseSSEEvent(frame)
-				require.NoError(t, err, "frame %q", frame)
 				got = append(got, event)
 			}
 			require.Equal(t, tc.want, got)
@@ -349,13 +349,11 @@ func TestSSEStreamReaderLineTerminators(t *testing.T) {
 			reader := NewSSEStreamReader(io.NopCloser(&chunkedReader{chunks: tc.chunks}))
 			got := make([]SSEEvent, 0, len(tc.want))
 			for {
-				frame, err := reader.ReadEvent(context.Background())
+				event, err := reader.ReadEvent(context.Background())
 				if errors.Is(err, io.EOF) {
 					break
 				}
 				require.NoError(t, err)
-				event, err := ParseSSEEvent(frame)
-				require.NoError(t, err, "frame %q", frame)
 				got = append(got, event)
 			}
 			require.Equal(t, tc.want, got)
@@ -374,11 +372,12 @@ func TestSSEStreamReaderLineTerminators(t *testing.T) {
 			}
 		}()
 		reader := NewSSEStreamReader(pr)
+		t.Cleanup(func() {
+			require.NoError(t, reader.Close())
+		})
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		frame, err := reader.ReadEvent(ctx)
-		require.NoError(t, err)
-		event, err := ParseSSEEvent(frame)
+		event, err := reader.ReadEvent(ctx)
 		require.NoError(t, err)
 		require.Equal(t, SSEEvent{Data: "live"}, event)
 	})
@@ -398,6 +397,9 @@ func TestSSEStreamReaderBoundsEventSize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			body := &repeatingReader{unit: []byte(tc.unit), limit: 8 << 20}
 			reader := NewSSEStreamReader(io.NopCloser(body))
+			t.Cleanup(func() {
+				require.NoError(t, reader.Close())
+			})
 			_, err := reader.ReadEvent(context.Background())
 			require.ErrorIs(t, err, bufio.ErrTooLong)
 			require.Less(t, body.read, int64(bufio.MaxScanTokenSize+16<<10), "reader buffered past the event limit")
@@ -413,114 +415,16 @@ func TestSSEStreamReaderBoundsEventSize(t *testing.T) {
 		payload := strings.Repeat("x", bufio.MaxScanTokenSize-len(prefix)-len(suffix))
 		input := prefix + payload + suffix + "data: next\n\n"
 		reader := NewSSEStreamReader(io.NopCloser(strings.NewReader(input)))
-		frame, err := reader.ReadEvent(context.Background())
-		require.NoError(t, err)
-		event, err := ParseSSEEvent(frame)
+		t.Cleanup(func() {
+			require.NoError(t, reader.Close())
+		})
+		event, err := reader.ReadEvent(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, payload, event.Data)
-		frame, err = reader.ReadEvent(context.Background())
+		event, err = reader.ReadEvent(context.Background())
 		require.NoError(t, err)
-		require.Equal(t, "data: next\n\n", string(frame))
+		require.Equal(t, SSEEvent{Data: "next"}, event)
 	})
-}
-
-func TestSSEFrameDispatchesMatchesParser(t *testing.T) {
-	cases := []string{
-		"",
-		"\n",
-		"\r\n\r\n",
-		": keepalive\n\n",
-		":\r\r",
-		"data: x\n\n",
-		"data\n\n",
-		"data:\n\n",
-		"data:\r\r",
-		"event\n\n",
-		"event: tick\r\n\r\n",
-		"id\n\n",
-		"id: 1\n\n",
-		"id: a\x00b\n\n",
-		"id\x00\n\n",
-		"retry: 1000\n\n",
-		"retry: abc\n\n",
-		"retry\n\n",
-		"unknown: field\n\n",
-		"0\n\n",
-		"Data: x\n\n",
-		"data : x\n\n",
-		" data: x\n\n",
-		"dataa: x\n\n",
-		"datax\n\n",
-		"\xEF\xBB\xBFdata: x\n\n",
-		"\xEF\xBB\xBF: comment\n\n",
-		"\xEF\xBB\xBF\n\n",
-		"\n\xEF\xBB\xBFdata: x\n\n",
-		": c\n\xEF\xBB\xBFdata: x\n\n",
-		"\xEF\xBB\xBF\xEF\xBB\xBFdata: x\n\n",
-		"retry: 1\r: c\rid: 2\r\r",
-		"retry: 1\r\nunknown\r\n\r\n",
-		"data: no terminator",
-		": comment no terminator",
-		"retry: 1\n: trailing",
-		"\n\n: ping\n\ndata: second\n\n",
-		": a\n\n: b\n\n",
-	}
-	for _, input := range cases {
-		t.Run(strconvQuote(input), func(t *testing.T) {
-			events, err := ParseSSEStream(strings.NewReader(input))
-			want := err != nil || len(events) > 0
-			require.Equal(t, want, sseFrameDispatches([]byte(input)), "events %v, err %v", events, err)
-		})
-	}
-}
-
-func TestSSEStreamReaderKeepalivesDoNotAllocatePerBlock(t *testing.T) {
-	const (
-		keepalives = 200
-		runs       = 20
-	)
-	group := strings.Repeat(": keepalive\n\n", keepalives) + "data: x\n\n"
-	reader := NewSSEStreamReader(io.NopCloser(strings.NewReader(strings.Repeat(group, runs+1))))
-	allocs := testing.AllocsPerRun(runs, func() {
-		frame, err := reader.ReadEvent(context.Background())
-		if err != nil || string(frame) != "data: x\n\n" {
-			t.Errorf("ReadEvent = %q, %v", frame, err)
-		}
-	})
-	// Each ReadEvent skips 200 keepalive blocks; only the returned frame and
-	// the per-read goroutine bookkeeping may allocate.
-	require.Less(t, allocs, float64(keepalives)/10, "allocations per ReadEvent")
-}
-
-func TestSSEStreamReaderKeepalivesDoNotAllocatePerByte(t *testing.T) {
-	const (
-		keepalives = 200
-		warmup     = 100
-		reads      = 2000
-	)
-	group := strings.Repeat(": keepalive\n\n", keepalives) + "data: x\n\n"
-	body := &repeatingReader{unit: []byte(group), limit: int64(len(group)) * (warmup + reads + 10)}
-	reader := NewSSEStreamReader(io.NopCloser(body))
-	readEvent := func() {
-		frame, err := reader.ReadEvent(context.Background())
-		if err != nil || string(frame) != "data: x\n\n" {
-			t.Fatalf("ReadEvent = %q, %v", frame, err)
-		}
-	}
-	for range warmup {
-		readEvent()
-	}
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	for range reads {
-		readEvent()
-	}
-	runtime.ReadMemStats(&after)
-	perRead := float64(after.TotalAlloc-before.TotalAlloc) / reads
-	// Each ReadEvent consumes len(group) bytes of input. The scanner buffer
-	// must be reused rather than reallocated as the window slides forward, so
-	// allocation per event stays far below the bytes read.
-	require.Less(t, perRead, float64(len(group))/8, "bytes allocated per ReadEvent (input %d bytes)", len(group))
 }
 
 // strconvQuote names subtests after inputs with control bytes.

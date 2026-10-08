@@ -8,7 +8,6 @@
 package client
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json/jsontext"
@@ -16,7 +15,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 
 	clock "example.com/mixedtick/gen/clock"
@@ -27,77 +25,13 @@ import (
 // TickClientStream implements the clock.TickClientStream interface using
 // Server-Sent Events.
 type TickClientStream struct {
-	resp     *http.Response
-	reader   *bufio.Reader
+	reader   *loomhttp.SSEStreamReader
 	decoder  func(*http.Response) loomhttp.Decoder
 	closed   bool
 	lock     sync.Mutex
 	readLock sync.Mutex
 }
 
-func (s *TickClientStream) readSSEEvent(ctx context.Context) ([]byte, error) {
-	var event bytes.Buffer
-
-	s.lock.Lock()
-	if s.closed {
-		s.lock.Unlock()
-		return nil, io.EOF
-	}
-	reader := s.reader
-	s.lock.Unlock()
-
-	for {
-		line, err := s.readSSELine(ctx, reader)
-		if err != nil {
-			if err == io.EOF && event.Len() > 0 {
-				return event.Bytes(), nil
-			}
-			return nil, err
-		}
-
-		event.WriteString(line)
-
-		line = strings.TrimRight(line, "\r\n")
-		if line == "" {
-			if event.Len() > 0 {
-				return event.Bytes(), nil
-			}
-			continue
-		}
-	}
-}
-func (s *TickClientStream) readSSELine(ctx context.Context, reader *bufio.Reader) (string, error) {
-	type readLineResult struct {
-		line string
-		err  error
-	}
-
-	if err := ctx.Err(); err != nil {
-		return "", err
-	}
-
-	readc := make(chan readLineResult, 1)
-	go func() {
-		line, err := reader.ReadString(byte(0xa))
-		readc <- readLineResult{
-			err:  err,
-			line: line,
-		}
-	}()
-
-	var result readLineResult
-	select {
-	case result = <-readc:
-	case <-ctx.Done():
-		select {
-		case result = <-readc:
-		default:
-			_ = s.Close()
-			return "", ctx.Err()
-		}
-	}
-	return result.line, result.err
-}
 func (s *TickClientStream) markClosed() {
 	s.lock.Lock()
 	s.closed = true
@@ -119,13 +53,7 @@ func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) 
 	s.lock.Unlock()
 
 	for {
-		rawEvent, err := s.readSSEEvent(ctx)
-		if err != nil {
-			s.markClosed()
-			return zero, err
-		}
-
-		parsedEvent, err := loomhttp.ParseSSEEvent(rawEvent)
+		parsedEvent, err := s.reader.ReadEvent(ctx)
 		if err != nil {
 			s.markClosed()
 			return zero, err
@@ -255,21 +183,6 @@ func (s *TickClientStream) decodeResult(data jsontext.Value) (*clock.TickResult,
 
 // Close closes the stream.
 func (s *TickClientStream) Close() error {
-	var body io.Closer
-
-	s.lock.Lock()
-	if s.closed {
-		s.lock.Unlock()
-		return nil
-	}
-	s.closed = true
-	if s.resp != nil {
-		body = s.resp.Body
-	}
-	s.lock.Unlock()
-
-	if body != nil {
-		return body.Close()
-	}
-	return nil
+	s.markClosed()
+	return s.reader.Close()
 }

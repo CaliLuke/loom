@@ -981,6 +981,11 @@ SSE provides one-way server-to-client streaming over HTTP. It's ideal for:
 - Progress updates
 - Event streaming
 
+Generated HTTP and JSON-RPC SSE clients return only events terminated by a
+blank line. If the connection ends inside an event, they discard that unfinished
+event and return `io.EOF` after delivering any preceding complete events. LF,
+CR, and CRLF line endings have the same framing behavior.
+
 ### SSE Design
 
 ```go
@@ -1038,12 +1043,21 @@ be required, optional, or optional with a default value:
   never writes one, so an empty id cannot reset it. An empty `event:` field
   means the default `message` type, the same as an absent field, and the
   generated client decodes it as unset.
-- The generated client sets an optional `id` or `event` attribute only when the
-  event carries that field, and leaves it nil otherwise. A defaulted attribute
-  receives its default value when the field is absent. A required attribute
-  receives the empty string.
+- The generated client maps `id` to SSE's persistent last-event-ID buffer.
+  After `id: c1`, subsequent events that omit `id:` still receive `c1`.
+  An explicit empty `id:` from a peer resets the buffer. When the buffer is
+  empty, an optional ID is nil, a defaulted ID receives its default, and a
+  required ID receives the empty string. Use a payload attribute for an
+  identifier that must describe only the current event.
+- Event types are per-event: an optional `event` attribute is nil when no type
+  is supplied, a defaulted attribute receives its default, and a required
+  attribute receives the empty string.
 - The generated client does not decode `retry:`. It is a reconnection hint for
   the SSE connection, not a value of the streamed result.
+
+The persistent ID behavior follows the SSE library and replaces the old
+per-event ID mapping. Keeping per-event presence would require a separate
+library API; Loom uses the standard resume-cursor semantics instead.
 
 ### Event Data Encoding
 

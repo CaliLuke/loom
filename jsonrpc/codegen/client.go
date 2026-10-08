@@ -32,7 +32,6 @@ func ClientFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 
 func clientEncodeDecodeFile(genpkg string, svc *expr.HTTPServiceExpr, data *httpcodegen.ServicesData) *codegen.File {
 	f := httpcodegen.ClientEncodeDecodeFile(genpkg, svc, data,
-		&codegen.ImportSpec{Path: "bufio"},
 		&codegen.ImportSpec{Path: "bytes"},
 		&codegen.ImportSpec{Path: "encoding/json/jsontext"},
 		&codegen.ImportSpec{Path: "sync"},
@@ -83,7 +82,6 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 	path := filepath.Join(codegen.Gendir, "jsonrpc", svcName, "client", "client.go")
 	title := fmt.Sprintf("%s client JSON-RPC transport", svc.Name())
 	data, imports := services.FileData(svc.Name(), append([]*codegen.ImportSpec{
-		{Path: "bufio"},
 		{Path: "bytes"},
 		{Path: "context"},
 		{Path: "fmt"},

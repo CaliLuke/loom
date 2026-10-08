@@ -1179,6 +1179,22 @@ Keep SSE request-ID names in DSL form in the transport IR. Resolve
 `SSEData.RequestIDField` with `GoifyAtt` at the Go generator boundary, using the
 payload attribute metadata; retain the separately evaluated pointer semantics.
 
+The SSE library owns framing, parsing, event limits and event memory. Shared
+`http.SSEStreamReader` adapts its iterator with serialized reads, context-triggered
+body closure and serialized iterator release. HTTP and JSON-RPC clients consume
+parsed events directly; do not reintroduce framing or reparsing in generators.
+EOF discards an incomplete block after delivering preceding complete events.
+See the [framing and lifecycle models](../../../http/tla/sse_framing/README.md).
+
+Temporarily use `github.com/CaliLuke/go-sse` at the pinned version in `go.mod`.
+It contains [upstream PR #61](https://github.com/tmaxmax/go-sse/pull/61) plus only
+the module/import path changes needed for transitive Go consumers. The upstream
+PR branch remains separate from the packaging branch. When an upstream revision
+contains the correction, switch runtime imports and module requirements back to
+`github.com/tmaxmax/go-sse`, tidy affected fixture modules and rerun the focused
+SSE reader/transport checks. Do not use a transitive `replace`, vendor a parser
+patch, or add local EOF filters.
+
 SSE changes require coverage for:
 
 - happy paths

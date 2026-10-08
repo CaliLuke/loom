@@ -33,8 +33,7 @@ func (c *Client) EventsStream() loom.Endpoint {
 
 		stream := &EventsStreamClientStream{
 			decoder: c.decoder,
-			reader:  bufio.NewReader(resp.Body),
-			resp:    resp,
+			reader:  loomhttp.NewSSEStreamReader(resp.Body),
 		}
 		return stream, nil
 	}

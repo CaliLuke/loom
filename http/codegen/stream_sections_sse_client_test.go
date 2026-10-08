@@ -73,11 +73,11 @@ func TestSSEClientEmitterDelegatesCoreReader(t *testing.T) {
 
 	require.Contains(t, code, "SSEStreamReader")
 	require.Contains(t, code, "reader:  loomhttp.NewSSEStreamReader(resp.Body)")
-	require.Contains(t, code, "byts, err = s.reader.ReadEvent(ctx)")
+	require.Contains(t, code, "parsed, err = s.reader.ReadEvent(ctx)")
 	require.Contains(t, code, "return s.reader.Close()")
 	require.NotContains(t, code, "func (s *SSEObjectMethodStreamImpl) readEvent")
 	require.NotContains(t, code, "func (s *SSEObjectMethodStreamImpl) checkBuffer")
-	require.Contains(t, code, "func (s *SSEObjectMethodStreamImpl) processEvent(eventData []byte)")
+	require.Contains(t, code, "func (s *SSEObjectMethodStreamImpl) processEvent(parsed loomhttp.SSEEvent)")
 }
 
 func TestSSEClientEmitterDoesNotEmitBlockingReadLoop(t *testing.T) {

@@ -42,8 +42,8 @@ func NewTickStream(resp *http.Response, decoder func(*http.Response) loomhttp.De
 // Recv reads and returns the next event from the SSE stream, respecting
 // context cancellation.
 func (s *TickStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
-	var byts []byte
-	byts, err = s.reader.ReadEvent(ctx)
+	var parsed loomhttp.SSEEvent
+	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			if closeErr := s.Close(); closeErr != nil {
@@ -58,7 +58,7 @@ func (s *TickStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, 
 		}
 		return
 	}
-	return s.processEvent(byts)
+	return s.processEvent(parsed)
 }
 
 // Close closes the SSE stream and releases any associated resources.
@@ -66,12 +66,8 @@ func (s *TickStreamImpl) Close() error {
 	return s.reader.Close()
 }
 
-// processEvent processes a raw SSE event into the expected type
-func (s *TickStreamImpl) processEvent(eventData []byte) (event *clock.TickTockEvent, err error) {
-	parsed, err := loomhttp.ParseSSEEvent(eventData)
-	if err != nil {
-		return event, err
-	}
+// processEvent converts a parsed SSE event into the expected type
+func (s *TickStreamImpl) processEvent(parsed loomhttp.SSEEvent) (event *clock.TickTockEvent, err error) {
 	event = new(clock.TickTockEvent)
 	event.Event = parsed.Type
 	dataContent := parsed.Data
@@ -104,8 +100,8 @@ func NewTockStream(resp *http.Response, decoder func(*http.Response) loomhttp.De
 // Recv reads and returns the next event from the SSE stream, respecting
 // context cancellation.
 func (s *TockStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
-	var byts []byte
-	byts, err = s.reader.ReadEvent(ctx)
+	var parsed loomhttp.SSEEvent
+	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			if closeErr := s.Close(); closeErr != nil {
@@ -120,7 +116,7 @@ func (s *TockStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, 
 		}
 		return
 	}
-	return s.processEvent(byts)
+	return s.processEvent(parsed)
 }
 
 // Close closes the SSE stream and releases any associated resources.
@@ -128,12 +124,8 @@ func (s *TockStreamImpl) Close() error {
 	return s.reader.Close()
 }
 
-// processEvent processes a raw SSE event into the expected type
-func (s *TockStreamImpl) processEvent(eventData []byte) (event *clock.TickTockEvent, err error) {
-	parsed, err := loomhttp.ParseSSEEvent(eventData)
-	if err != nil {
-		return event, err
-	}
+// processEvent converts a parsed SSE event into the expected type
+func (s *TockStreamImpl) processEvent(parsed loomhttp.SSEEvent) (event *clock.TickTockEvent, err error) {
 	event = new(clock.TickTockEvent)
 	event.Event = parsed.Type
 	dataContent := parsed.Data
@@ -166,8 +158,8 @@ func NewGuardedStream(resp *http.Response, decoder func(*http.Response) loomhttp
 // Recv reads and returns the next event from the SSE stream, respecting
 // context cancellation.
 func (s *GuardedStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
-	var byts []byte
-	byts, err = s.reader.ReadEvent(ctx)
+	var parsed loomhttp.SSEEvent
+	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			if closeErr := s.Close(); closeErr != nil {
@@ -182,7 +174,7 @@ func (s *GuardedStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEven
 		}
 		return
 	}
-	return s.processEvent(byts)
+	return s.processEvent(parsed)
 }
 
 // Close closes the SSE stream and releases any associated resources.
@@ -190,12 +182,8 @@ func (s *GuardedStreamImpl) Close() error {
 	return s.reader.Close()
 }
 
-// processEvent processes a raw SSE event into the expected type
-func (s *GuardedStreamImpl) processEvent(eventData []byte) (event *clock.TickTockEvent, err error) {
-	parsed, err := loomhttp.ParseSSEEvent(eventData)
-	if err != nil {
-		return event, err
-	}
+// processEvent converts a parsed SSE event into the expected type
+func (s *GuardedStreamImpl) processEvent(parsed loomhttp.SSEEvent) (event *clock.TickTockEvent, err error) {
 	event = new(clock.TickTockEvent)
 	event.Event = parsed.Type
 	dataContent := parsed.Data

@@ -8,7 +8,6 @@
 package client
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -86,8 +85,7 @@ func (c *Client) Tick() loom.Endpoint {
 
 		stream := &TickClientStream{
 			decoder: c.decoder,
-			reader:  bufio.NewReader(resp.Body),
-			resp:    resp,
+			reader:  loomhttp.NewSSEStreamReader(resp.Body),
 		}
 		return stream, nil
 	}
@@ -128,8 +126,7 @@ func (c *Client) Tock() loom.Endpoint {
 
 		stream := &TockClientStream{
 			decoder: c.decoder,
-			reader:  bufio.NewReader(resp.Body),
-			resp:    resp,
+			reader:  loomhttp.NewSSEStreamReader(resp.Body),
 		}
 		return stream, nil
 	}

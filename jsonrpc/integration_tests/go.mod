@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e // indirect
 	github.com/dave/jennifer v1.7.1 // indirect
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598 // indirect
 	github.com/go-chi/chi/v5 v5.3.2 // indirect

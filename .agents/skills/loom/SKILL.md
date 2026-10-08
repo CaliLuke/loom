@@ -700,7 +700,12 @@ requirement retain AND semantics.
   to read the final server status or response; EOF from the opening send alone
   does not establish success. Regenerate clients to adopt this behavior.
 - SSE endpoints use normal HTTP success responses with
-  `text/event-stream`.
+  `text/event-stream`. Regenerate HTTP and JSON-RPC clients to use the shared
+  library reader. An incomplete final event is discarded at EOF. Always close
+  the stream; canceling an active receive closes it too. Direct runtime callers
+  receive an `SSEEvent` from `SSEStreamReader.ReadEvent`, rather than raw bytes.
+  Mapped event IDs retain the last ID when a later event omits `id:`; an
+  explicit empty `id:` resets it. Put a per-event identifier in the payload.
 - Generated HTTP and JSON-RPC SSE streams expose `loomhttp.SSEControl`.
   Use `Open(ctx)` for explicit readiness and `SendComment(ctx, text)` for
   heartbeat frames.

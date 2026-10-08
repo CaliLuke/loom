@@ -1,3 +1,5 @@
+github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e h1:8ikgsAY/zoRUd/7kLCrBjEVTKxNc99TA647E+Jcke8k=
+github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e/go.mod h1:lXdhhI7K/QSTmuy5OiNyu32AQ/bUZ8aE8wj8taCn3QE=
 github.com/dave/jennifer v1.7.1 h1:B4jJJDHelWcDhlRQxWeo0Npa/pYKBLrirAQoTN45txo=
 github.com/dave/jennifer v1.7.1/go.mod h1:nXbxhEmQfOZhWml3D1cDK5M1FLnMSozpbFN/m3RmGZc=
 github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598 h1:MGKhKyiYrvMDZsmLR/+RGffQSXwEkXgfLSA08qDn9AI=

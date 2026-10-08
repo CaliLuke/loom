@@ -27,8 +27,8 @@ func NewCreateStream(resp *http.Response, decoder func(*http.Response) loomhttp.
 // Recv reads and returns the next event from the SSE stream, respecting
 // context cancellation.
 func (s *CreateStreamImpl) Recv(ctx context.Context) (event *mixedresultsservice.Event, err error) {
-	var byts []byte
-	byts, err = s.reader.ReadEvent(ctx)
+	var parsed loomhttp.SSEEvent
+	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			if closeErr := s.Close(); closeErr != nil {
@@ -43,7 +43,7 @@ func (s *CreateStreamImpl) Recv(ctx context.Context) (event *mixedresultsservice
 		}
 		return
 	}
-	return s.processEvent(byts)
+	return s.processEvent(parsed)
 }
 
 // Close closes the SSE stream and releases any associated resources.
@@ -51,12 +51,8 @@ func (s *CreateStreamImpl) Close() error {
 	return s.reader.Close()
 }
 
-// processEvent processes a raw SSE event into the expected type
-func (s *CreateStreamImpl) processEvent(eventData []byte) (event *mixedresultsservice.Event, err error) {
-	parsed, err := loomhttp.ParseSSEEvent(eventData)
-	if err != nil {
-		return event, err
-	}
+// processEvent converts a parsed SSE event into the expected type
+func (s *CreateStreamImpl) processEvent(parsed loomhttp.SSEEvent) (event *mixedresultsservice.Event, err error) {
 	event = new(mixedresultsservice.Event)
 	dataContent := parsed.Data
 	// Decode JSON into the struct pointer directly

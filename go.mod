@@ -3,6 +3,7 @@ module github.com/CaliLuke/loom
 go 1.27.0
 
 require (
+	github.com/CaliLuke/go-sse v0.11.1-0.20261008010800-b29b33ae1a1e
 	github.com/alecthomas/kong v1.16.1
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/aws/smithy-go v1.28.1
@@ -19,7 +20,6 @@ require (
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
-	github.com/tmaxmax/go-sse v0.11.0
 	go.opentelemetry.io/contrib/bridges/otellogrus v0.20.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.71.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0

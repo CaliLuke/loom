@@ -1,333 +1,114 @@
 package http
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json/v2"
-	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"sync"
 	"time"
 
-	sse "github.com/tmaxmax/go-sse"
+	sse "github.com/CaliLuke/go-sse"
 )
 
 type (
-	// SSEEvent represents a parsed server-sent event frame.
+	// SSEEvent represents a parsed server-sent event.
 	SSEEvent struct {
-		ID   string
+		// ID is the last event ID received on the stream, including an empty reset.
+		ID string
+		// Type is the event type, or empty when no type was specified.
 		Type string
+		// Data is the event payload, with multiple data lines joined by newlines.
 		Data string
 	}
 
 	// SSEMessage describes an SSE frame to write to an output stream.
 	SSEMessage struct {
-		ID          string
-		Type        string
-		Data        string
+		// ID is the event identifier to write.
+		ID string
+		// Type is the event type to write.
+		Type string
+		// Data is the event payload; newlines produce separate data fields.
+		Data string
+		// RetryMillis is the reconnection delay in milliseconds.
 		RetryMillis int64
 	}
 
-	// SSEStreamReader reads framed Server-Sent Events from a response body.
-	// Lines may end in LF, CR, or CRLF as defined by the WHATWG event-stream
-	// format, and a block ends at the first blank line. A block longer than
-	// bufio.MaxScanTokenSize bytes, the largest frame ParseSSEEvent accepts,
-	// fails the stream with an error wrapping bufio.ErrTooLong instead of
-	// being buffered without bound.
+	// SSEStreamReader adapts the SSE library iterator to context-aware reads.
+	// The library owns framing, parsing, event limits, and event memory. Reads
+	// are serialized. Closing the response body must unblock an active Read,
+	// as required by net/http.Response.Body.
 	SSEStreamReader struct {
-		body   io.ReadCloser
-		frames sseFrameScanner
-		// readBuf is the reused body read buffer, guarded by readLock. A read
-		// abandoned on cancellation may still write into it, which is safe
-		// because cancellation closes the reader and no later read uses it.
-		readBuf  []byte
-		eof      bool
-		readLock sync.Mutex
-		lock     sync.Mutex
-		closed   bool
-	}
-
-	sseReadResult struct {
-		n   int
-		err error
-	}
-
-	// sseFrameScanner splits buffered event-stream bytes into blocks. Its state
-	// survives across reads so a line terminator split between two reads, such
-	// as CR in one read and LF in the next, is interpreted exactly as if the
-	// bytes had arrived together.
-	sseFrameScanner struct {
-		// buf holds unconsumed stream bytes starting at the current block.
-		buf []byte
-		// base is the backing array buf is compacted into so the window does
-		// not slide into a reallocation on every read.
-		base []byte
-		// pos is the number of bytes of buf already scanned.
-		pos int
-		// lineLen is the length of the line being scanned.
-		lineLen int
-		// lines counts the non-blank lines of the current block.
-		lines int
-		// skipLF reports that the previous byte was a CR, so an LF that
-		// follows completes the same CRLF terminator.
-		skipLF bool
-		// err is the sticky error recorded once a block exceeds
-		// sseMaxFrameBytes.
-		err error
+		body      io.ReadCloser
+		next      func() (sse.Event, error, bool)
+		stop      func()
+		readLock  sync.Mutex
+		readErr   error
+		closeOnce sync.Once
+		closed    chan struct{}
+		closeErr  error
 	}
 )
 
-// sseMaxFrameBytes is the largest block SSEStreamReader buffers. It matches
-// the bufio.Scanner token limit ParseSSEEvent parses frames with.
-const sseMaxFrameBytes = bufio.MaxScanTokenSize
-
-// sseUTF8BOM is the byte order mark go-sse strips from the first block.
-const sseUTF8BOM = "\xEF\xBB\xBF"
-
-// NewSSEStreamReader returns a reader for framed Server-Sent Events.
+// NewSSEStreamReader returns a stream reader with the library's default 64 KiB
+// event limit. The caller must call Close to release the body and iterator.
 func NewSSEStreamReader(body io.ReadCloser) *SSEStreamReader {
-	return &SSEStreamReader{
-		body:    body,
-		frames:  newSSEFrameScanner(),
-		readBuf: make([]byte, 4096),
-	}
+	next, stop := iter.Pull2(sse.Read(body, nil))
+	return &SSEStreamReader{body: body, next: next, stop: stop, closed: make(chan struct{})}
 }
 
-// ReadEvent reads the next raw SSE event frame. Blocks that dispatch no event,
-// such as keepalive comments, runs of blank lines, and blocks holding only
-// retry or unknown fields, are consumed and skipped so every returned frame is
-// accepted by ParseSSEEvent or reports why it is malformed.
-func (r *SSEStreamReader) ReadEvent(ctx context.Context) ([]byte, error) {
+// ReadEvent returns the next parsed SSE event. EOF discards an incomplete final
+// event. Canceling ctx closes the stream and returns ctx.Err unless a complete
+// event was already obtained. Subsequent reads of a closed stream return EOF.
+func (r *SSEStreamReader) ReadEvent(ctx context.Context) (SSEEvent, error) {
 	r.readLock.Lock()
 	defer r.readLock.Unlock()
-
-	for {
-		frame, err := r.readFrame(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if sseFrameDispatches(frame) {
-			// frame aliases the scanner buffer; hand the caller its own copy.
-			return append([]byte(nil), frame...), nil
-		}
+	if err := ctx.Err(); err != nil {
+		return SSEEvent{}, err
 	}
-}
-
-// Close closes the SSE stream body.
-func (r *SSEStreamReader) Close() error {
-	r.lock.Lock()
-	if r.closed {
-		r.lock.Unlock()
-		return nil
-	}
-	r.closed = true
-	body := r.body
-	r.lock.Unlock()
-	return body.Close()
-}
-
-// newSSEFrameScanner returns an empty scanner with a 4 KiB buffer.
-func newSSEFrameScanner() sseFrameScanner {
-	base := make([]byte, 0, 4096)
-	return sseFrameScanner{buf: base, base: base}
-}
-
-// sseFrameDispatches reports whether ParseSSEEvent yields an event or an error
-// for frame, as opposed to a block that dispatches nothing, without parsing
-// it. It mirrors go-sse v0.11.0: leading blank lines are skipped and a BOM
-// that follows them is ignored; a data or event field, or an id field whose
-// value has no NUL, dispatches (a line without a colon is a field with an
-// empty value); retry, comment, and unknown lines do not; and an
-// unterminated final line is an error that ParseSSEEvent reports.
-func sseFrameDispatches(frame []byte) bool {
-	rest := bytes.TrimLeft(frame, "\r\n")
-	rest = bytes.TrimPrefix(rest, []byte(sseUTF8BOM))
-	for len(rest) > 0 {
-		end := bytes.IndexAny(rest, "\r\n")
-		if end < 0 {
-			return true
-		}
-		line := rest[:end]
-		next := end + 1
-		if rest[end] == '\r' && next < len(rest) && rest[next] == '\n' {
-			next++
-		}
-		rest = rest[next:]
-		name, value, _ := bytes.Cut(line, []byte(":"))
-		switch string(name) {
-		case "data", "event":
-			return true
-		case "id":
-			if bytes.IndexByte(value, 0) < 0 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// readFrame returns the next complete block. At the end of the stream it
-// returns any trailing incomplete block once, then io.EOF. The returned slice
-// aliases scanner memory and is valid only until the next readFrame call.
-func (r *SSEStreamReader) readFrame(ctx context.Context) ([]byte, error) {
-	buf := r.readBuf
-	for {
-		frame, ok, err := r.frames.next()
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			return frame, nil
-		}
-		if r.eof {
-			return r.frames.rest()
-		}
-
-		body, err := r.currentBody(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if body == nil {
-			r.eof = true
-			continue
-		}
-
-		n, err := r.readChunk(ctx, body, buf)
-		if err != nil && !errors.Is(err, io.EOF) {
-			return nil, err
-		}
-		r.frames.reserve(n)
-		r.frames.buf = append(r.frames.buf, buf[:n]...)
-		if errors.Is(err, io.EOF) {
-			r.eof = true
-		}
-	}
-}
-
-// currentBody returns the body to read from, or nil once the reader has been
-// closed.
-func (r *SSEStreamReader) currentBody(ctx context.Context) (io.ReadCloser, error) {
 	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	case <-r.closed:
+		return SSEEvent{}, io.EOF
 	default:
 	}
-
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	if r.closed {
-		return nil, nil
+	if r.readErr != nil {
+		return SSEEvent{}, r.readErr
 	}
-	return r.body, nil
+	stopCancellation := context.AfterFunc(ctx, r.close)
+	event, err, ok := r.next()
+	stopCancellation()
+	if err == nil && ok {
+		return SSEEvent{ID: event.LastEventID, Type: event.Type, Data: event.Data}, nil
+	}
+	r.stop()
+	if ctx.Err() != nil {
+		err = ctx.Err()
+	} else if err == nil {
+		err = io.EOF
+	}
+	r.readErr = err
+	return SSEEvent{}, err
 }
 
-func (r *SSEStreamReader) readChunk(ctx context.Context, body io.Reader, buf []byte) (int, error) {
-	readc := make(chan sseReadResult, 1)
-	go func() {
-		n, err := body.Read(buf)
-		readc <- sseReadResult{n: n, err: err}
-	}()
-
-	select {
-	case result := <-readc:
-		return result.n, result.err
-	case <-ctx.Done():
-		select {
-		case result := <-readc:
-			return result.n, result.err
-		default:
-			if err := r.Close(); err != nil {
-				// Preserve the client contract: cancellation is the
-				// observable cause even when closing the body fails.
-				return 0, ctx.Err()
-			}
-			return 0, ctx.Err()
-		}
-	}
+// Close closes the response body once and releases the library iterator. It
+// waits for any active read to finish and returns the body's close error.
+func (r *SSEStreamReader) Close() error {
+	r.close()
+	return r.closeErr
 }
 
-// next returns the next complete block from the buffered bytes, including its
-// terminating blank line. Blank lines that precede a block are discarded. It
-// reports false when more bytes are needed, and an error once the current
-// block exceeds sseMaxFrameBytes. The returned block aliases buf: appends only
-// write past the consumed region, so it stays intact until the caller reads
-// more input.
-func (s *sseFrameScanner) next() ([]byte, bool, error) {
-	for s.err == nil && s.pos < len(s.buf) {
-		b := s.buf[s.pos]
-		s.pos++
-		if s.pos > sseMaxFrameBytes {
-			s.err = fmt.Errorf("loom http: SSE event exceeds %d bytes: %w", sseMaxFrameBytes, bufio.ErrTooLong)
-			s.buf = nil
-			break
-		}
-		if s.skipLF {
-			s.skipLF = false
-			if b == '\n' {
-				if s.lines == 0 && s.lineLen == 0 {
-					s.consume()
-				}
-				continue
-			}
-		}
-		if b != '\r' && b != '\n' {
-			s.lineLen++
-			continue
-		}
-		s.skipLF = b == '\r'
-		if s.lineLen > 0 {
-			s.lines++
-			s.lineLen = 0
-			continue
-		}
-		if s.lines == 0 {
-			s.consume()
-			continue
-		}
-		frame := s.buf[:s.pos]
-		s.consume()
-		s.lines = 0
-		return frame, true, nil
-	}
-	return nil, false, s.err
-}
-
-// rest returns the buffered bytes of a trailing incomplete block, or io.EOF
-// when none remain.
-func (s *sseFrameScanner) rest() ([]byte, error) {
-	if len(s.buf) == 0 {
-		return nil, io.EOF
-	}
-	frame := s.buf
-	s.buf = nil
-	s.pos, s.lineLen, s.lines = 0, 0, 0
-	return frame, nil
-}
-
-// reserve makes room to append n bytes to buf. When the spare capacity after
-// buf is too small, it moves the live bytes to the front of base, growing base
-// only when they do not fit; live data never exceeds sseMaxFrameBytes plus one
-// read, which bounds base. Moving overwrites memory that blocks returned by
-// next may alias. That is safe because a returned block is valid only until
-// the next readFrame call, and ReadEvent copies any block it returns before
-// reading again.
-func (s *sseFrameScanner) reserve(n int) {
-	if cap(s.buf)-len(s.buf) >= n {
-		return
-	}
-	live := len(s.buf)
-	if cap(s.base) < live+n {
-		s.base = make([]byte, 0, max(min(2*cap(s.base), sseMaxFrameBytes+n), live+n))
-	}
-	s.buf = s.base[:copy(s.base[:live], s.buf)]
-}
-
-// consume discards the scanned bytes of buf.
-func (s *sseFrameScanner) consume() {
-	s.buf = s.buf[s.pos:]
-	s.pos = 0
+// close also serves as the cancellation callback. Record the body error for
+// Close while ReadEvent preserves context cancellation as its primary cause.
+func (r *SSEStreamReader) close() {
+	r.closeOnce.Do(func() {
+		close(r.closed)
+		r.closeErr = r.body.Close()
+	})
+	r.readLock.Lock()
+	defer r.readLock.Unlock()
+	r.stop()
 }
 
 // ParseSSEEvent parses a single SSE event frame.

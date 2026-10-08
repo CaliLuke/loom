@@ -175,8 +175,8 @@ func addSSEClientConstructor(stmt *jen.Statement, ed *EndpointData, streamName, 
 
 func renderSSEClientRecvBody() string {
 	var b sourceBuilder
-	b.Add("var byts []byte\n")
-	b.Add("byts, err = s.reader.ReadEvent(ctx)\n")
+	b.Add("var parsed loomhttp.SSEEvent\n")
+	b.Add("parsed, err = s.reader.ReadEvent(ctx)\n")
 	b.Add("if err != nil {\n")
 	b.Add("\tif errors.Is(err, io.EOF) {\n")
 	b.Add("\t\tif closeErr := s.Close(); closeErr != nil {\n")
@@ -191,7 +191,7 @@ func renderSSEClientRecvBody() string {
 	b.Add("\t}\n")
 	b.Add("\treturn\n")
 	b.Add("}\n")
-	b.Add("return s.processEvent(byts)")
+	b.Add("return s.processEvent(parsed)")
 	return b.String()
 }
 

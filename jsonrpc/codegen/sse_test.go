@@ -87,6 +87,10 @@ func TestJSONRPCSSE(t *testing.T) {
 
 			clientCode := codegen.SectionCode(t, clientSection)
 			require.Contains(t, clientCode, `case "", "message":`)
+			require.Contains(t, clientCode, `*loomhttp.SSEStreamReader`)
+			require.Contains(t, clientCode, `s.reader.ReadEvent(ctx)`)
+			require.NotContains(t, clientCode, `ParseSSEEvent`)
+			require.NotContains(t, clientCode, `readSSELine`)
 			clientGolden := filepath.Join("testdata", "golden", "jsonrpc-sse-client-"+c.Name+".golden")
 			testutil.AssertGo(t, clientGolden, clientCode)
 		})

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,8 +12,7 @@ import (
 
 type (
 	// sseReadOutcome records what a generated SSE client observes for one
-	// frame returned by SSEStreamReader.ReadEvent: either the parsed event or
-	// the parse error text.
+	// parsed event returned by SSEStreamReader.ReadEvent, or the read error.
 	sseReadOutcome struct {
 		Event SSEEvent
 		Err   string
@@ -33,8 +31,8 @@ const sseBOM = "\xEF\xBB\xBF"
 
 // FuzzSSEStreamReader checks that the events a generated client observes from
 // SSEStreamReader do not depend on how the byte stream is split into reads,
-// and that complete streams produce exactly the events of an independent
-// WHATWG event-stream reference parser.
+// including incomplete tails. Protocol interpretation belongs to the library;
+// these cases exercise the adapter with representative wire inputs.
 func FuzzSSEStreamReader(f *testing.F) {
 	seeds := []string{
 		"event: one\ndata: first\n\nevent: two\ndata: second\n\n",
@@ -75,17 +73,6 @@ func FuzzSSEStreamReader(f *testing.F) {
 		oneByte := readSSEOutcomes(t, &sseChunkReader{data: input, sizes: []byte{0}})
 		require.Equal(t, whole, oneByte, "one-byte reads changed the observed events")
 
-		// Terminate the stream so every block is complete, then compare with
-		// the reference parser.
-		complete := append(append([]byte(nil), input...), "\n\n"...)
-		got := readSSEOutcomes(t, &sseChunkReader{data: complete, sizes: sizes})
-		events := referenceSSEFrameEvents(complete)
-		want := make([]sseReadOutcome, 0, len(events))
-		for _, event := range events {
-			want = append(want, sseReadOutcome{Event: event})
-		}
-		require.Equal(t, want, got, "reader events differ from the reference parser")
-
 		_, err := ParseSSEStream(bytes.NewReader(input))
 		if err != nil {
 			require.NotEmpty(t, err.Error())
@@ -94,15 +81,15 @@ func FuzzSSEStreamReader(f *testing.F) {
 }
 
 // readSSEOutcomes drains an SSEStreamReader the way generated HTTP clients do:
-// every frame returned by ReadEvent is handed to ParseSSEEvent.
+// ReadEvent returns parsed events directly from the library iterator.
 func readSSEOutcomes(t *testing.T, body io.Reader) []sseReadOutcome {
 	t.Helper()
 	reader := NewSSEStreamReader(io.NopCloser(body))
 	outcomes := make([]sseReadOutcome, 0)
 	for range 10_000 {
-		frame, err := reader.ReadEvent(context.Background())
+		event, err := reader.ReadEvent(context.Background())
 		if errors.Is(err, io.EOF) {
-			require.Empty(t, frame)
+			require.Empty(t, event)
 			require.NoError(t, reader.Close())
 			return outcomes
 		}
@@ -111,104 +98,10 @@ func readSSEOutcomes(t *testing.T, body io.Reader) []sseReadOutcome {
 			require.NoError(t, reader.Close())
 			return outcomes
 		}
-		event, err := ParseSSEEvent(frame)
-		if err != nil {
-			outcomes = append(outcomes, sseReadOutcome{Err: err.Error()})
-			continue
-		}
 		outcomes = append(outcomes, sseReadOutcome{Event: event})
 	}
 	t.Fatalf("SSEStreamReader did not reach EOF")
 	return nil
-}
-
-// referenceSSEFrameEvents interprets an event stream following the WHATWG
-// "Interpreting an event stream" algorithm, resolved to the per-frame contract
-// Loom exposes through ReadEvent and ParseSSEEvent:
-//
-//   - Lines end at CRLF, LF, or CR. A trailing unterminated line and a trailing
-//     incomplete block are discarded.
-//   - SSEEvent.ID is the id field of the frame itself (ParseSSEEvent sees one
-//     frame), not the stream-wide last event ID buffer.
-//   - A block dispatches when it has a data, event, or valid id field. The
-//     spec dispatches only when the data buffer is non-empty; Loom inherits the
-//     broader rule from go-sse.
-//   - A UTF-8 BOM is ignored at the start of each block, which is what
-//     go-sse does when it parses each frame. The spec ignores it only at the
-//     start of the stream.
-func referenceSSEFrameEvents(input []byte) []SSEEvent {
-	var (
-		events     []SSEEvent
-		data       strings.Builder
-		id, typ    string
-		dirty      bool
-		blockStart = true
-	)
-	for line := range referenceSSELines(input) {
-		if blockStart {
-			line = strings.TrimPrefix(line, sseBOM)
-		}
-		if line == "" {
-			if dirty {
-				payload := data.String()
-				events = append(events, SSEEvent{ID: id, Type: typ, Data: strings.TrimSuffix(payload, "\n")})
-			}
-			data.Reset()
-			id, typ, dirty, blockStart = "", "", false, true
-			continue
-		}
-		blockStart = false
-		if line[0] == ':' {
-			continue
-		}
-		name, value, found := strings.Cut(line, ":")
-		if found {
-			value = strings.TrimPrefix(value, " ")
-		}
-		switch name {
-		case "data":
-			data.WriteString(value)
-			data.WriteByte('\n')
-			dirty = true
-		case "event":
-			typ = value
-			dirty = true
-		case "id":
-			if !strings.ContainsRune(value, 0) {
-				id = value
-				dirty = true
-			}
-		}
-	}
-	return events
-}
-
-// referenceSSELines yields every terminated line of input, splitting on CRLF,
-// LF, and CR.
-func referenceSSELines(input []byte) func(func(string) bool) {
-	return func(yield func(string) bool) {
-		start := 0
-		for i := 0; i < len(input); i++ {
-			switch input[i] {
-			case '\n':
-			case '\r':
-				if i+1 < len(input) && input[i+1] == '\n' {
-					if !yield(string(input[start:i])) {
-						return
-					}
-					i++
-					start = i + 1
-					continue
-				}
-			default:
-				continue
-			}
-			if !yield(string(input[start:i])) {
-				return
-			}
-			start = i + 1
-		}
-	}
 }
 
 func (r *sseChunkReader) Read(p []byte) (int, error) {

@@ -113,8 +113,8 @@ func TestProjectionClientDecodesMixedStream(t *testing.T) {
 	if string(updated.Event.Kind()) != "updated" || updated.Payload != nil {
 		t.Fatalf("unexpected updated projection fields: %#v", updated)
 	}
-	if updated.Cursor != nil {
-		t.Fatalf("expected nil cursor for an event without an SSE id, got %q", *updated.Cursor)
+	if updated.Cursor == nil || *updated.Cursor != "c1" {
+		t.Fatalf("expected inherited SSE cursor c1, got %v", updated.Cursor)
 	}
 }
 

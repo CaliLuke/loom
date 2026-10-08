@@ -137,7 +137,7 @@ func TestSSEFieldPresenceRoundTrip(t *testing.T) {
 	gotRequired := receiveAll[*svc.StreamRequiredResult](t, "required", c.StreamRequired(), len(requiredEvents))
 	wantRequired := []*svc.StreamRequiredResult{
 		{ID: "r1", Event: "tick", Text: "a"},
-		{Text: "b"},
+		{ID: "r1", Text: "b"},
 	}
 	if !reflect.DeepEqual(gotRequired, wantRequired) {
 		t.Errorf("required: got %s, want %s", dump(gotRequired), dump(wantRequired))
@@ -146,8 +146,8 @@ func TestSSEFieldPresenceRoundTrip(t *testing.T) {
 	gotOptional := receiveAll[*svc.StreamOptionalResult](t, "optional", c.StreamOptional(), len(optionalEvents))
 	wantOptional := []*svc.StreamOptionalResult{
 		{ID: ptr("o1"), Event: ptr("tock"), Text: "a"},
-		{Text: "b"},
-		{Text: "c"},
+		{ID: ptr("o1"), Text: "b"},
+		{ID: ptr("o1"), Text: "c"},
 	}
 	if !reflect.DeepEqual(gotOptional, wantOptional) {
 		t.Errorf("optional: got %s, want %s", dump(gotOptional), dump(wantOptional))
@@ -156,11 +156,45 @@ func TestSSEFieldPresenceRoundTrip(t *testing.T) {
 	gotDefaulted := receiveAll[*svc.StreamDefaultedResult](t, "defaulted", c.StreamDefaulted(), len(defaultedEvents))
 	wantDefaulted := []*svc.StreamDefaultedResult{
 		{ID: "d1", Event: "custom", Text: "a"},
-		{ID: "default-id", Event: "default-event", Text: "b"},
+		{ID: "d1", Event: "default-event", Text: "b"},
 	}
 	if !reflect.DeepEqual(gotDefaulted, wantDefaulted) {
 		t.Errorf("defaulted: got %s, want %s", dump(gotDefaulted), dump(wantDefaulted))
 	}
+}
+
+func TestSSEClientIDReset(t *testing.T) {
+ frames := "data: initial\n\nid: c1\ndata: first\n\ndata: inherited\n\nid:\ndata: reset\n\ndata: still-reset\n\n"
+ stream := client.NewStreamOptionalStream(&http.Response{Body: io.NopCloser(strings.NewReader(frames))}, nil)
+ defer func() {
+  if err := stream.Close(); err != nil {
+   t.Errorf("close: %v", err)
+  }
+ }()
+ for i, want := range []*string{nil, ptr("c1"), ptr("c1"), nil, nil} {
+  event, err := stream.Recv(context.Background())
+  if err != nil {
+   t.Fatalf("event %d: %v", i, err)
+  }
+  if !reflect.DeepEqual(event.ID, want) {
+   t.Errorf("event %d: got ID %v, want %v", i, event.ID, want)
+  }
+ }
+ defaulted := client.NewStreamDefaultedStream(&http.Response{Body: io.NopCloser(strings.NewReader(frames))}, nil)
+ defer func() {
+  if err := defaulted.Close(); err != nil {
+   t.Errorf("close defaulted: %v", err)
+  }
+ }()
+ for i, want := range []string{"default-id", "c1", "c1", "default-id", "default-id"} {
+  event, err := defaulted.Recv(context.Background())
+  if err != nil {
+   t.Fatalf("defaulted event %d: %v", i, err)
+  }
+  if event.ID != want {
+   t.Errorf("defaulted event %d: got ID %q, want %q", i, event.ID, want)
+  }
+ }
 }
 
 type frame struct {
