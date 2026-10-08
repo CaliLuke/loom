@@ -43,24 +43,6 @@ paths:
                                     - {}
                                     - {}
                                     - {}
-                "404":
-                    description: Not Found response.
-                    content:
-                        application/json:
-                            schema:
-                                example:
-                                    bar:
-                                        - {}
-                                        - {}
-                                        - {}
-                                        - {}
-                                $ref: '#/components/schemas/LoomFoobar'
-                            example:
-                                bar:
-                                    - {}
-                                    - {}
-                                    - {}
-                                    - {}
 components:
     schemas:
         Bar:

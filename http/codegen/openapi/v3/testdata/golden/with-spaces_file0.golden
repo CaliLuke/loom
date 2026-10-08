@@ -107,32 +107,6 @@
               }
             },
             "description": "OK response."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "bar": [
-                    {},
-                    {},
-                    {},
-                    {}
-                  ]
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/LoomFoobar",
-                  "example": {
-                    "bar": [
-                      {},
-                      {},
-                      {},
-                      {}
-                    ]
-                  }
-                }
-              }
-            },
-            "description": "Not Found response."
           }
         },
         "summary": "test endpoint test service",

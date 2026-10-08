@@ -476,7 +476,6 @@ var WithSpacesDSL = func() {
 			HTTP(func() {
 				POST("/")
 				Response(StatusOK)
-				Response(StatusNotFound)
 			})
 		})
 	})
