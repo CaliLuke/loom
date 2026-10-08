@@ -8,7 +8,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg string, scope *codegen.NameScope, resvar, vresref string, isarr bool) *InitData {
+func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg string, scope *codegen.NameScope, resvar, vresref string, isarr bool, validateName string) *InitData {
 	initTData := viewedResultInitTemplateData{
 		ToViewed:      true,
 		ArgVar:        "res",
@@ -19,10 +19,11 @@ func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg 
 		IsObject:      expr.IsObject(att.Type),
 		TargetType:    scope.GoFullTypeName(att, viewspkg),
 		InitName:      projectionHelperBaseName(scope, att),
+		ValidateName:  validateName,
 		ViewExpr:      "view",
 	}
 	name := "NewViewed" + resvar
-	description := fmt.Sprintf("%s initializes viewed result type %s from result type %s using the given view.", name, resvar, resvar)
+	description := fmt.Sprintf("%s projects result type %s to viewed result type %s and validates the selected view. Invalid views and result constraints return a fault that wraps the validation error.", name, resvar, resvar)
 	if initTData.IsObject {
 		description += " It returns a fault error when res is nil."
 	}
@@ -97,12 +98,25 @@ func renderInitTypeCode(data viewedResultInitTemplateData) string {
 			}
 		}
 		lines = append(lines, "\tdefault:")
-		lines = append(lines, "\t\treturn "+data.ReturnVar+", loom.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
+		lines = append(lines, "\t\terr := loom.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
 		for _, value := range quotedViews(data.Views) {
 			lines = append(lines, "\t\t\t"+value+",")
 		}
 		lines = append(lines, "\t\t})")
+		if data.ToViewed {
+			lines = append(lines, "\t\treturn "+data.ReturnVar+", loom.NewServiceError(err, \"fault\", false, false, true)")
+		} else {
+			lines = append(lines, "\t\treturn "+data.ReturnVar+", err")
+		}
 		lines = append(lines, "}")
+		if data.ToViewed {
+			lines = append(lines,
+				"if err := "+data.ValidateName+"("+data.ReturnVar+"); err != nil {",
+				"\tvar zero "+data.ReturnTypeRef,
+				"\treturn zero, loom.NewServiceError(err, \"fault\", false, false, true)",
+				"}",
+			)
+		}
 		lines = append(lines, "return "+data.ReturnVar+", nil")
 	case data.IsCollection:
 		lines = append(lines, data.ReturnVar+" := make("+data.TargetType+", len("+data.ArgVar+"))")
@@ -111,6 +125,9 @@ func renderInitTypeCode(data viewedResultInitTemplateData) string {
 		lines = append(lines, "}")
 		lines = append(lines, "return "+data.ReturnVar)
 	default:
+		if data.IsObject {
+			lines = append(lines, "if "+data.ArgVar+" == nil {", "\treturn nil", "}")
+		}
 		if data.Code != "" {
 			lines = append(lines, data.Code)
 		}
@@ -317,6 +334,7 @@ func buildConstructorCode(src, tgt *expr.AttributeExpr, sourceVar, targetVar str
 		ArgVar:       sourceVar,
 		ReturnVar:    targetVar,
 		IsCollection: arr != nil,
+		IsObject:     expr.IsObject(src.Type),
 		TargetType:   targetCtx.Scope.Name(tgt, targetCtx.Pkg(tgt), targetCtx.Pointer, targetCtx.UseDefault),
 	}
 

@@ -89,17 +89,19 @@ func NewMultipleViews(vres *bidirectionalstreamingresultwithviewsserviceviews.Mu
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedMultipleViews initializes viewed result type MultipleViews from
-// result type MultipleViews using the given view. It returns a fault error
-// when res is nil.
+// NewViewedMultipleViews projects result type MultipleViews to viewed result
+// type MultipleViews and validates the selected view. Invalid views and result
+// constraints return a fault that wraps the validation error. It returns a
+// fault error when res is nil.
 func NewViewedMultipleViews(res *MultipleViews, view string) (*bidirectionalstreamingresultwithviewsserviceviews.MultipleViews, error) {
 
 	var vres *bidirectionalstreamingresultwithviewsserviceviews.MultipleViews
@@ -114,10 +116,15 @@ func NewViewedMultipleViews(res *MultipleViews, view string) (*bidirectionalstre
 		p := ProjectMultipleViewsTiny(res)
 		vres = &bidirectionalstreamingresultwithviewsserviceviews.MultipleViews{Projected: p, View: "tiny"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := bidirectionalstreamingresultwithviewsserviceviews.ValidateMultipleViews(vres); err != nil {
+		var zero *bidirectionalstreamingresultwithviewsserviceviews.MultipleViews
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -125,6 +132,9 @@ func NewViewedMultipleViews(res *MultipleViews, view string) (*bidirectionalstre
 // NewMultipleViewsFromMultipleViewsView converts projected type
 // MultipleViewsView to service type MultipleViews.
 func NewMultipleViewsFromMultipleViewsView(vres *bidirectionalstreamingresultwithviewsserviceviews.MultipleViewsView) *MultipleViews {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews{
 		A: vres.A,
 		B: vres.B,
@@ -135,6 +145,9 @@ func NewMultipleViewsFromMultipleViewsView(vres *bidirectionalstreamingresultwit
 // NewMultipleViewsFromMultipleViewsViewTiny converts projected type
 // MultipleViewsView to service type MultipleViews.
 func NewMultipleViewsFromMultipleViewsViewTiny(vres *bidirectionalstreamingresultwithviewsserviceviews.MultipleViewsView) *MultipleViews {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews{
 		A: vres.A,
 	}
@@ -144,6 +157,9 @@ func NewMultipleViewsFromMultipleViewsViewTiny(vres *bidirectionalstreamingresul
 // ProjectMultipleViews projects result type MultipleViews to projected type
 // MultipleViewsView using the "default" view.
 func ProjectMultipleViews(res *MultipleViews) *bidirectionalstreamingresultwithviewsserviceviews.MultipleViewsView {
+	if res == nil {
+		return nil
+	}
 	vres := &bidirectionalstreamingresultwithviewsserviceviews.MultipleViewsView{
 		A: res.A,
 		B: res.B,
@@ -154,6 +170,9 @@ func ProjectMultipleViews(res *MultipleViews) *bidirectionalstreamingresultwithv
 // ProjectMultipleViewsTiny projects result type MultipleViews to projected
 // type MultipleViewsView using the "tiny" view.
 func ProjectMultipleViewsTiny(res *MultipleViews) *bidirectionalstreamingresultwithviewsserviceviews.MultipleViewsView {
+	if res == nil {
+		return nil
+	}
 	vres := &bidirectionalstreamingresultwithviewsserviceviews.MultipleViewsView{
 		A: res.A,
 	}

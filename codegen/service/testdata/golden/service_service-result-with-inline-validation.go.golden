@@ -46,16 +46,18 @@ func NewResultInlineValidation(vres *resultwithinlinevalidationviews.ResultInlin
 	case "default", "":
 		res = NewResultInlineValidationFromResultInlineValidationView(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedResultInlineValidation initializes viewed result type
-// ResultInlineValidation from result type ResultInlineValidation using the
-// given view. It returns a fault error when res is nil.
+// NewViewedResultInlineValidation projects result type ResultInlineValidation
+// to viewed result type ResultInlineValidation and validates the selected
+// view. Invalid views and result constraints return a fault that wraps the
+// validation error. It returns a fault error when res is nil.
 func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) (*resultwithinlinevalidationviews.ResultInlineValidation, error) {
 
 	var vres *resultwithinlinevalidationviews.ResultInlineValidation
@@ -67,9 +69,14 @@ func NewViewedResultInlineValidation(res *ResultInlineValidation, view string) (
 		p := ProjectResultInlineValidation(res)
 		vres = &resultwithinlinevalidationviews.ResultInlineValidation{Projected: p, View: "default"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := resultwithinlinevalidationviews.ValidateResultInlineValidation(vres); err != nil {
+		var zero *resultwithinlinevalidationviews.ResultInlineValidation
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -84,16 +91,19 @@ func NewResultInlineValidationBResult(vres *resultwithinlinevalidationviews.Resu
 	case "default", "":
 		res = NewResultInlineValidationBResultFromResultInlineValidationBResultView(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedResultInlineValidationBResult initializes viewed result type
-// ResultInlineValidationBResult from result type ResultInlineValidationBResult
-// using the given view. It returns a fault error when res is nil.
+// NewViewedResultInlineValidationBResult projects result type
+// ResultInlineValidationBResult to viewed result type
+// ResultInlineValidationBResult and validates the selected view. Invalid views
+// and result constraints return a fault that wraps the validation error. It
+// returns a fault error when res is nil.
 func NewViewedResultInlineValidationBResult(res *ResultInlineValidationBResult, view string) (*resultwithinlinevalidationviews.ResultInlineValidationBResult, error) {
 
 	var vres *resultwithinlinevalidationviews.ResultInlineValidationBResult
@@ -105,9 +115,14 @@ func NewViewedResultInlineValidationBResult(res *ResultInlineValidationBResult, 
 		p := ProjectResultInlineValidationBResult(res)
 		vres = &resultwithinlinevalidationviews.ResultInlineValidationBResult{Projected: p, View: "default"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := resultwithinlinevalidationviews.ValidateResultInlineValidationBResult(vres); err != nil {
+		var zero *resultwithinlinevalidationviews.ResultInlineValidationBResult
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -115,6 +130,9 @@ func NewViewedResultInlineValidationBResult(res *ResultInlineValidationBResult, 
 // NewResultInlineValidationFromResultInlineValidationView converts projected
 // type ResultInlineValidationView to service type ResultInlineValidation.
 func NewResultInlineValidationFromResultInlineValidationView(vres *resultwithinlinevalidationviews.ResultInlineValidationView) *ResultInlineValidation {
+	if vres == nil {
+		return nil
+	}
 	res := &ResultInlineValidation{
 		A: vres.A,
 		B: vres.B,
@@ -125,6 +143,9 @@ func NewResultInlineValidationFromResultInlineValidationView(vres *resultwithinl
 // ProjectResultInlineValidation projects result type ResultInlineValidation to
 // projected type ResultInlineValidationView using the "default" view.
 func ProjectResultInlineValidation(res *ResultInlineValidation) *resultwithinlinevalidationviews.ResultInlineValidationView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithinlinevalidationviews.ResultInlineValidationView{
 		A: res.A,
 		B: res.B,
@@ -136,6 +157,9 @@ func ProjectResultInlineValidation(res *ResultInlineValidation) *resultwithinlin
 // converts projected type ResultInlineValidationBResultView to service type
 // ResultInlineValidationBResult.
 func NewResultInlineValidationBResultFromResultInlineValidationBResultView(vres *resultwithinlinevalidationviews.ResultInlineValidationBResultView) *ResultInlineValidationBResult {
+	if vres == nil {
+		return nil
+	}
 	res := &ResultInlineValidationBResult{
 		B: vres.B,
 	}
@@ -149,6 +173,9 @@ func NewResultInlineValidationBResultFromResultInlineValidationBResultView(vres 
 // ResultInlineValidationBResult to projected type
 // ResultInlineValidationBResultView using the "default" view.
 func ProjectResultInlineValidationBResult(res *ResultInlineValidationBResult) *resultwithinlinevalidationviews.ResultInlineValidationBResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithinlinevalidationviews.ResultInlineValidationBResultView{
 		A: &res.A,
 		B: res.B,

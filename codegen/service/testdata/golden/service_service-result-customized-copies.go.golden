@@ -70,19 +70,21 @@ func NewMenuM1Result(vres *customizedresultcopiesviews.MenuM1Result) (*MenuM1Res
 	case "required":
 		res = NewMenuM1ResultFromMenuM1ResultViewRequired(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 			"optional",
 			"required",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedMenuM1Result initializes viewed result type MenuM1Result from
-// result type MenuM1Result using the given view. It returns a fault error when
-// res is nil.
+// NewViewedMenuM1Result projects result type MenuM1Result to viewed result
+// type MenuM1Result and validates the selected view. Invalid views and result
+// constraints return a fault that wraps the validation error. It returns a
+// fault error when res is nil.
 func NewViewedMenuM1Result(res *MenuM1Result, view string) (*customizedresultcopiesviews.MenuM1Result, error) {
 
 	var vres *customizedresultcopiesviews.MenuM1Result
@@ -103,12 +105,17 @@ func NewViewedMenuM1Result(res *MenuM1Result, view string) (*customizedresultcop
 		p := ProjectMenuM1ResultRequired(res)
 		vres = &customizedresultcopiesviews.MenuM1Result{Projected: p, View: "required"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 			"optional",
 			"required",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := customizedresultcopiesviews.ValidateMenuM1Result(vres); err != nil {
+		var zero *customizedresultcopiesviews.MenuM1Result
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -128,19 +135,21 @@ func NewMenuM2Result(vres *customizedresultcopiesviews.MenuM2Result) (*MenuM2Res
 	case "required":
 		res = NewMenuM2ResultFromMenuM2ResultViewRequired(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 			"optional",
 			"required",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedMenuM2Result initializes viewed result type MenuM2Result from
-// result type MenuM2Result using the given view. It returns a fault error when
-// res is nil.
+// NewViewedMenuM2Result projects result type MenuM2Result to viewed result
+// type MenuM2Result and validates the selected view. Invalid views and result
+// constraints return a fault that wraps the validation error. It returns a
+// fault error when res is nil.
 func NewViewedMenuM2Result(res *MenuM2Result, view string) (*customizedresultcopiesviews.MenuM2Result, error) {
 
 	var vres *customizedresultcopiesviews.MenuM2Result
@@ -161,12 +170,17 @@ func NewViewedMenuM2Result(res *MenuM2Result, view string) (*customizedresultcop
 		p := ProjectMenuM2ResultRequired(res)
 		vres = &customizedresultcopiesviews.MenuM2Result{Projected: p, View: "required"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 			"optional",
 			"required",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := customizedresultcopiesviews.ValidateMenuM2Result(vres); err != nil {
+		var zero *customizedresultcopiesviews.MenuM2Result
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -185,18 +199,21 @@ func NewMenu(vres *customizedresultcopiesviews.Menu) (*Menu, error) {
 	case "required":
 		res = NewMenuFromMenuViewRequired(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 			"optional",
 			"required",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedMenu initializes viewed result type Menu from result type Menu
-// using the given view. It returns a fault error when res is nil.
+// NewViewedMenu projects result type Menu to viewed result type Menu and
+// validates the selected view. Invalid views and result constraints return a
+// fault that wraps the validation error. It returns a fault error when res is
+// nil.
 func NewViewedMenu(res *Menu, view string) (*customizedresultcopiesviews.Menu, error) {
 
 	var vres *customizedresultcopiesviews.Menu
@@ -217,12 +234,17 @@ func NewViewedMenu(res *Menu, view string) (*customizedresultcopiesviews.Menu, e
 		p := ProjectMenuRequired(res)
 		vres = &customizedresultcopiesviews.Menu{Projected: p, View: "required"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 			"optional",
 			"required",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := customizedresultcopiesviews.ValidateMenu(vres); err != nil {
+		var zero *customizedresultcopiesviews.Menu
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -230,6 +252,9 @@ func NewViewedMenu(res *Menu, view string) (*customizedresultcopiesviews.Menu, e
 // NewMenuM1ResultFromMenuM1ResultView converts projected type MenuM1ResultView
 // to service type MenuM1Result.
 func NewMenuM1ResultFromMenuM1ResultView(vres *customizedresultcopiesviews.MenuM1ResultView) *MenuM1Result {
+	if vres == nil {
+		return nil
+	}
 	res := &MenuM1Result{
 		Y: vres.Y,
 	}
@@ -242,6 +267,9 @@ func NewMenuM1ResultFromMenuM1ResultView(vres *customizedresultcopiesviews.MenuM
 // NewMenuM1ResultFromMenuM1ResultViewTiny converts projected type
 // MenuM1ResultView to service type MenuM1Result.
 func NewMenuM1ResultFromMenuM1ResultViewTiny(vres *customizedresultcopiesviews.MenuM1ResultView) *MenuM1Result {
+	if vres == nil {
+		return nil
+	}
 	res := &MenuM1Result{}
 	if vres.X != nil {
 		res.X = *vres.X
@@ -252,6 +280,9 @@ func NewMenuM1ResultFromMenuM1ResultViewTiny(vres *customizedresultcopiesviews.M
 // NewMenuM1ResultFromMenuM1ResultViewOptional converts projected type
 // MenuM1ResultView to service type MenuM1Result.
 func NewMenuM1ResultFromMenuM1ResultViewOptional(vres *customizedresultcopiesviews.MenuM1ResultView) *MenuM1Result {
+	if vres == nil {
+		return nil
+	}
 	res := &MenuM1Result{}
 	if vres.X != nil {
 		res.X = *vres.X
@@ -262,6 +293,9 @@ func NewMenuM1ResultFromMenuM1ResultViewOptional(vres *customizedresultcopiesvie
 // NewMenuM1ResultFromMenuM1ResultViewRequired converts projected type
 // MenuM1ResultView to service type MenuM1Result.
 func NewMenuM1ResultFromMenuM1ResultViewRequired(vres *customizedresultcopiesviews.MenuM1ResultView) *MenuM1Result {
+	if vres == nil {
+		return nil
+	}
 	res := &MenuM1Result{
 		Y: vres.Y,
 	}
@@ -274,6 +308,9 @@ func NewMenuM1ResultFromMenuM1ResultViewRequired(vres *customizedresultcopiesvie
 // ProjectMenuM1Result projects result type MenuM1Result to projected type
 // MenuM1ResultView using the "default" view.
 func ProjectMenuM1Result(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuM1ResultView{
 		X: &res.X,
 		Y: res.Y,
@@ -284,6 +321,9 @@ func ProjectMenuM1Result(res *MenuM1Result) *customizedresultcopiesviews.MenuM1R
 // ProjectMenuM1ResultTiny projects result type MenuM1Result to projected type
 // MenuM1ResultView using the "tiny" view.
 func ProjectMenuM1ResultTiny(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuM1ResultView{
 		X: &res.X,
 	}
@@ -293,6 +333,9 @@ func ProjectMenuM1ResultTiny(res *MenuM1Result) *customizedresultcopiesviews.Men
 // ProjectMenuM1ResultOptional projects result type MenuM1Result to projected
 // type MenuM1ResultView using the "optional" view.
 func ProjectMenuM1ResultOptional(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuM1ResultView{
 		X: &res.X,
 	}
@@ -302,6 +345,9 @@ func ProjectMenuM1ResultOptional(res *MenuM1Result) *customizedresultcopiesviews
 // ProjectMenuM1ResultRequired projects result type MenuM1Result to projected
 // type MenuM1ResultView using the "required" view.
 func ProjectMenuM1ResultRequired(res *MenuM1Result) *customizedresultcopiesviews.MenuM1ResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuM1ResultView{
 		X: &res.X,
 		Y: res.Y,
@@ -312,6 +358,9 @@ func ProjectMenuM1ResultRequired(res *MenuM1Result) *customizedresultcopiesviews
 // NewMenuM2ResultFromMenuM2ResultView converts projected type MenuM2ResultView
 // to service type MenuM2Result.
 func NewMenuM2ResultFromMenuM2ResultView(vres *customizedresultcopiesviews.MenuM2ResultView) *MenuM2Result {
+	if vres == nil {
+		return nil
+	}
 	res := &MenuM2Result{
 		Y: vres.Y,
 	}
@@ -324,6 +373,9 @@ func NewMenuM2ResultFromMenuM2ResultView(vres *customizedresultcopiesviews.MenuM
 // NewMenuM2ResultFromMenuM2ResultViewTiny converts projected type
 // MenuM2ResultView to service type MenuM2Result.
 func NewMenuM2ResultFromMenuM2ResultViewTiny(vres *customizedresultcopiesviews.MenuM2ResultView) *MenuM2Result {
+	if vres == nil {
+		return nil
+	}
 	res := &MenuM2Result{}
 	if vres.X != nil {
 		res.X = *vres.X
@@ -334,6 +386,9 @@ func NewMenuM2ResultFromMenuM2ResultViewTiny(vres *customizedresultcopiesviews.M
 // NewMenuM2ResultFromMenuM2ResultViewOptional converts projected type
 // MenuM2ResultView to service type MenuM2Result.
 func NewMenuM2ResultFromMenuM2ResultViewOptional(vres *customizedresultcopiesviews.MenuM2ResultView) *MenuM2Result {
+	if vres == nil {
+		return nil
+	}
 	res := &MenuM2Result{}
 	if vres.X != nil {
 		res.X = *vres.X
@@ -344,6 +399,9 @@ func NewMenuM2ResultFromMenuM2ResultViewOptional(vres *customizedresultcopiesvie
 // NewMenuM2ResultFromMenuM2ResultViewRequired converts projected type
 // MenuM2ResultView to service type MenuM2Result.
 func NewMenuM2ResultFromMenuM2ResultViewRequired(vres *customizedresultcopiesviews.MenuM2ResultView) *MenuM2Result {
+	if vres == nil {
+		return nil
+	}
 	res := &MenuM2Result{
 		Y: vres.Y,
 	}
@@ -356,6 +414,9 @@ func NewMenuM2ResultFromMenuM2ResultViewRequired(vres *customizedresultcopiesvie
 // ProjectMenuM2Result projects result type MenuM2Result to projected type
 // MenuM2ResultView using the "default" view.
 func ProjectMenuM2Result(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuM2ResultView{
 		X: &res.X,
 		Y: res.Y,
@@ -366,6 +427,9 @@ func ProjectMenuM2Result(res *MenuM2Result) *customizedresultcopiesviews.MenuM2R
 // ProjectMenuM2ResultTiny projects result type MenuM2Result to projected type
 // MenuM2ResultView using the "tiny" view.
 func ProjectMenuM2ResultTiny(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuM2ResultView{
 		X: &res.X,
 	}
@@ -375,6 +439,9 @@ func ProjectMenuM2ResultTiny(res *MenuM2Result) *customizedresultcopiesviews.Men
 // ProjectMenuM2ResultOptional projects result type MenuM2Result to projected
 // type MenuM2ResultView using the "optional" view.
 func ProjectMenuM2ResultOptional(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuM2ResultView{
 		X: &res.X,
 	}
@@ -384,6 +451,9 @@ func ProjectMenuM2ResultOptional(res *MenuM2Result) *customizedresultcopiesviews
 // ProjectMenuM2ResultRequired projects result type MenuM2Result to projected
 // type MenuM2ResultView using the "required" view.
 func ProjectMenuM2ResultRequired(res *MenuM2Result) *customizedresultcopiesviews.MenuM2ResultView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuM2ResultView{
 		X: &res.X,
 		Y: res.Y,
@@ -393,6 +463,9 @@ func ProjectMenuM2ResultRequired(res *MenuM2Result) *customizedresultcopiesviews
 
 // NewMenuFromMenuView converts projected type MenuView to service type Menu.
 func NewMenuFromMenuView(vres *customizedresultcopiesviews.MenuView) *Menu {
+	if vres == nil {
+		return nil
+	}
 	res := &Menu{
 		X: vres.X,
 		Y: vres.Y,
@@ -403,6 +476,9 @@ func NewMenuFromMenuView(vres *customizedresultcopiesviews.MenuView) *Menu {
 // NewMenuFromMenuViewTiny converts projected type MenuView to service type
 // Menu.
 func NewMenuFromMenuViewTiny(vres *customizedresultcopiesviews.MenuView) *Menu {
+	if vres == nil {
+		return nil
+	}
 	res := &Menu{
 		X: vres.X,
 	}
@@ -412,6 +488,9 @@ func NewMenuFromMenuViewTiny(vres *customizedresultcopiesviews.MenuView) *Menu {
 // NewMenuFromMenuViewOptional converts projected type MenuView to service type
 // Menu.
 func NewMenuFromMenuViewOptional(vres *customizedresultcopiesviews.MenuView) *Menu {
+	if vres == nil {
+		return nil
+	}
 	res := &Menu{
 		X: vres.X,
 	}
@@ -421,6 +500,9 @@ func NewMenuFromMenuViewOptional(vres *customizedresultcopiesviews.MenuView) *Me
 // NewMenuFromMenuViewRequired converts projected type MenuView to service type
 // Menu.
 func NewMenuFromMenuViewRequired(vres *customizedresultcopiesviews.MenuView) *Menu {
+	if vres == nil {
+		return nil
+	}
 	res := &Menu{
 		X: vres.X,
 		Y: vres.Y,
@@ -431,6 +513,9 @@ func NewMenuFromMenuViewRequired(vres *customizedresultcopiesviews.MenuView) *Me
 // ProjectMenu projects result type Menu to projected type MenuView using the
 // "default" view.
 func ProjectMenu(res *Menu) *customizedresultcopiesviews.MenuView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuView{
 		X: res.X,
 		Y: res.Y,
@@ -441,6 +526,9 @@ func ProjectMenu(res *Menu) *customizedresultcopiesviews.MenuView {
 // ProjectMenuTiny projects result type Menu to projected type MenuView using
 // the "tiny" view.
 func ProjectMenuTiny(res *Menu) *customizedresultcopiesviews.MenuView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuView{
 		X: res.X,
 	}
@@ -450,6 +538,9 @@ func ProjectMenuTiny(res *Menu) *customizedresultcopiesviews.MenuView {
 // ProjectMenuOptional projects result type Menu to projected type MenuView
 // using the "optional" view.
 func ProjectMenuOptional(res *Menu) *customizedresultcopiesviews.MenuView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuView{
 		X: res.X,
 	}
@@ -459,6 +550,9 @@ func ProjectMenuOptional(res *Menu) *customizedresultcopiesviews.MenuView {
 // ProjectMenuRequired projects result type Menu to projected type MenuView
 // using the "required" view.
 func ProjectMenuRequired(res *Menu) *customizedresultcopiesviews.MenuView {
+	if res == nil {
+		return nil
+	}
 	vres := &customizedresultcopiesviews.MenuView{
 		X: res.X,
 		Y: res.Y,

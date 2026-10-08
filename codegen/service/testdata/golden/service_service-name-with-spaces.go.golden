@@ -42,16 +42,18 @@ func NewResultWithSpace(vres *servicewithspacesviews.ResultWithSpace) (*ResultWi
 	case "default", "":
 		res = NewResultWithSpaceFromResultWithSpaceView(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedResultWithSpace initializes viewed result type ResultWithSpace from
-// result type ResultWithSpace using the given view. It returns a fault error
-// when res is nil.
+// NewViewedResultWithSpace projects result type ResultWithSpace to viewed
+// result type ResultWithSpace and validates the selected view. Invalid views
+// and result constraints return a fault that wraps the validation error. It
+// returns a fault error when res is nil.
 func NewViewedResultWithSpace(res *ResultWithSpace, view string) (*servicewithspacesviews.ResultWithSpace, error) {
 
 	var vres *servicewithspacesviews.ResultWithSpace
@@ -63,9 +65,14 @@ func NewViewedResultWithSpace(res *ResultWithSpace, view string) (*servicewithsp
 		p := ProjectResultWithSpace(res)
 		vres = &servicewithspacesviews.ResultWithSpace{Projected: p, View: "default"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := servicewithspacesviews.ValidateResultWithSpace(vres); err != nil {
+		var zero *servicewithspacesviews.ResultWithSpace
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -73,6 +80,9 @@ func NewViewedResultWithSpace(res *ResultWithSpace, view string) (*servicewithsp
 // NewResultWithSpaceFromResultWithSpaceView converts projected type
 // ResultWithSpaceView to service type ResultWithSpace.
 func NewResultWithSpaceFromResultWithSpaceView(vres *servicewithspacesviews.ResultWithSpaceView) *ResultWithSpace {
+	if vres == nil {
+		return nil
+	}
 	res := &ResultWithSpace{
 		Int: vres.Int,
 	}
@@ -82,6 +92,9 @@ func NewResultWithSpaceFromResultWithSpaceView(vres *servicewithspacesviews.Resu
 // ProjectResultWithSpace projects result type ResultWithSpace to projected
 // type ResultWithSpaceView using the "default" view.
 func ProjectResultWithSpace(res *ResultWithSpace) *servicewithspacesviews.ResultWithSpaceView {
+	if res == nil {
+		return nil
+	}
 	vres := &servicewithspacesviews.ResultWithSpaceView{
 		Int: res.Int,
 	}

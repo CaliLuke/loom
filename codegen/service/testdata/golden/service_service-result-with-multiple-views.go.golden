@@ -61,17 +61,19 @@ func NewMultipleViews(vres *multiplemethodsresultmultipleviewsviews.MultipleView
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedMultipleViews initializes viewed result type MultipleViews from
-// result type MultipleViews using the given view. It returns a fault error
-// when res is nil.
+// NewViewedMultipleViews projects result type MultipleViews to viewed result
+// type MultipleViews and validates the selected view. Invalid views and result
+// constraints return a fault that wraps the validation error. It returns a
+// fault error when res is nil.
 func NewViewedMultipleViews(res *MultipleViews, view string) (*multiplemethodsresultmultipleviewsviews.MultipleViews, error) {
 
 	var vres *multiplemethodsresultmultipleviewsviews.MultipleViews
@@ -86,10 +88,15 @@ func NewViewedMultipleViews(res *MultipleViews, view string) (*multiplemethodsre
 		p := ProjectMultipleViewsTiny(res)
 		vres = &multiplemethodsresultmultipleviewsviews.MultipleViews{Projected: p, View: "tiny"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := multiplemethodsresultmultipleviewsviews.ValidateMultipleViews(vres); err != nil {
+		var zero *multiplemethodsresultmultipleviewsviews.MultipleViews
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -103,16 +110,18 @@ func NewSingleView(vres *multiplemethodsresultmultipleviewsviews.SingleView) (*S
 	case "default", "":
 		res = NewSingleViewFromSingleViewView(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedSingleView initializes viewed result type SingleView from result
-// type SingleView using the given view. It returns a fault error when res is
-// nil.
+// NewViewedSingleView projects result type SingleView to viewed result type
+// SingleView and validates the selected view. Invalid views and result
+// constraints return a fault that wraps the validation error. It returns a
+// fault error when res is nil.
 func NewViewedSingleView(res *SingleView, view string) (*multiplemethodsresultmultipleviewsviews.SingleView, error) {
 
 	var vres *multiplemethodsresultmultipleviewsviews.SingleView
@@ -124,9 +133,14 @@ func NewViewedSingleView(res *SingleView, view string) (*multiplemethodsresultmu
 		p := ProjectSingleView(res)
 		vres = &multiplemethodsresultmultipleviewsviews.SingleView{Projected: p, View: "default"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := multiplemethodsresultmultipleviewsviews.ValidateSingleView(vres); err != nil {
+		var zero *multiplemethodsresultmultipleviewsviews.SingleView
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -134,6 +148,9 @@ func NewViewedSingleView(res *SingleView, view string) (*multiplemethodsresultmu
 // NewMultipleViewsFromMultipleViewsView converts projected type
 // MultipleViewsView to service type MultipleViews.
 func NewMultipleViewsFromMultipleViewsView(vres *multiplemethodsresultmultipleviewsviews.MultipleViewsView) *MultipleViews {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews{
 		A: vres.A,
 		B: vres.B,
@@ -144,6 +161,9 @@ func NewMultipleViewsFromMultipleViewsView(vres *multiplemethodsresultmultiplevi
 // NewMultipleViewsFromMultipleViewsViewTiny converts projected type
 // MultipleViewsView to service type MultipleViews.
 func NewMultipleViewsFromMultipleViewsViewTiny(vres *multiplemethodsresultmultipleviewsviews.MultipleViewsView) *MultipleViews {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews{
 		A: vres.A,
 	}
@@ -153,6 +173,9 @@ func NewMultipleViewsFromMultipleViewsViewTiny(vres *multiplemethodsresultmultip
 // ProjectMultipleViews projects result type MultipleViews to projected type
 // MultipleViewsView using the "default" view.
 func ProjectMultipleViews(res *MultipleViews) *multiplemethodsresultmultipleviewsviews.MultipleViewsView {
+	if res == nil {
+		return nil
+	}
 	vres := &multiplemethodsresultmultipleviewsviews.MultipleViewsView{
 		A: res.A,
 		B: res.B,
@@ -163,6 +186,9 @@ func ProjectMultipleViews(res *MultipleViews) *multiplemethodsresultmultipleview
 // ProjectMultipleViewsTiny projects result type MultipleViews to projected
 // type MultipleViewsView using the "tiny" view.
 func ProjectMultipleViewsTiny(res *MultipleViews) *multiplemethodsresultmultipleviewsviews.MultipleViewsView {
+	if res == nil {
+		return nil
+	}
 	vres := &multiplemethodsresultmultipleviewsviews.MultipleViewsView{
 		A: res.A,
 	}
@@ -172,6 +198,9 @@ func ProjectMultipleViewsTiny(res *MultipleViews) *multiplemethodsresultmultiple
 // NewSingleViewFromSingleViewView converts projected type SingleViewView to
 // service type SingleView.
 func NewSingleViewFromSingleViewView(vres *multiplemethodsresultmultipleviewsviews.SingleViewView) *SingleView {
+	if vres == nil {
+		return nil
+	}
 	res := &SingleView{
 		A: vres.A,
 		B: vres.B,
@@ -182,6 +211,9 @@ func NewSingleViewFromSingleViewView(vres *multiplemethodsresultmultipleviewsvie
 // ProjectSingleView projects result type SingleView to projected type
 // SingleViewView using the "default" view.
 func ProjectSingleView(res *SingleView) *multiplemethodsresultmultipleviewsviews.SingleViewView {
+	if res == nil {
+		return nil
+	}
 	vres := &multiplemethodsresultmultipleviewsviews.SingleViewView{
 		A: res.A,
 		B: res.B,

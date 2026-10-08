@@ -46,16 +46,18 @@ func NewApplicationDashedType(vres *resultwithdashedmimetypeviews.ApplicationDas
 	case "default", "":
 		res = NewApplicationDashedTypeFromApplicationDashedTypeView(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedApplicationDashedType initializes viewed result type
-// ApplicationDashedType from result type ApplicationDashedType using the given
-// view. It returns a fault error when res is nil.
+// NewViewedApplicationDashedType projects result type ApplicationDashedType to
+// viewed result type ApplicationDashedType and validates the selected view.
+// Invalid views and result constraints return a fault that wraps the
+// validation error. It returns a fault error when res is nil.
 func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) (*resultwithdashedmimetypeviews.ApplicationDashedType, error) {
 
 	var vres *resultwithdashedmimetypeviews.ApplicationDashedType
@@ -67,9 +69,14 @@ func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) (*r
 		p := ProjectApplicationDashedType(res)
 		vres = &resultwithdashedmimetypeviews.ApplicationDashedType{Projected: p, View: "default"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := resultwithdashedmimetypeviews.ValidateApplicationDashedType(vres); err != nil {
+		var zero *resultwithdashedmimetypeviews.ApplicationDashedType
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -77,6 +84,9 @@ func NewViewedApplicationDashedType(res *ApplicationDashedType, view string) (*r
 // NewApplicationDashedTypeFromApplicationDashedTypeView converts projected
 // type ApplicationDashedTypeView to service type ApplicationDashedType.
 func NewApplicationDashedTypeFromApplicationDashedTypeView(vres *resultwithdashedmimetypeviews.ApplicationDashedTypeView) *ApplicationDashedType {
+	if vres == nil {
+		return nil
+	}
 	res := &ApplicationDashedType{
 		Name: vres.Name,
 	}
@@ -86,6 +96,9 @@ func NewApplicationDashedTypeFromApplicationDashedTypeView(vres *resultwithdashe
 // ProjectApplicationDashedType projects result type ApplicationDashedType to
 // projected type ApplicationDashedTypeView using the "default" view.
 func ProjectApplicationDashedType(res *ApplicationDashedType) *resultwithdashedmimetypeviews.ApplicationDashedTypeView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithdashedmimetypeviews.ApplicationDashedTypeView{
 		Name: res.Name,
 	}

@@ -47,17 +47,19 @@ func NewMultipleViews(vres *resultwithotherresultviews.MultipleViews) (*Multiple
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedMultipleViews initializes viewed result type MultipleViews from
-// result type MultipleViews using the given view. It returns a fault error
-// when res is nil.
+// NewViewedMultipleViews projects result type MultipleViews to viewed result
+// type MultipleViews and validates the selected view. Invalid views and result
+// constraints return a fault that wraps the validation error. It returns a
+// fault error when res is nil.
 func NewViewedMultipleViews(res *MultipleViews, view string) (*resultwithotherresultviews.MultipleViews, error) {
 
 	var vres *resultwithotherresultviews.MultipleViews
@@ -72,10 +74,15 @@ func NewViewedMultipleViews(res *MultipleViews, view string) (*resultwithotherre
 		p := ProjectMultipleViewsTiny(res)
 		vres = &resultwithotherresultviews.MultipleViews{Projected: p, View: "tiny"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := resultwithotherresultviews.ValidateMultipleViews(vres); err != nil {
+		var zero *resultwithotherresultviews.MultipleViews
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -83,6 +90,9 @@ func NewViewedMultipleViews(res *MultipleViews, view string) (*resultwithotherre
 // NewMultipleViewsFromMultipleViewsView converts projected type
 // MultipleViewsView to service type MultipleViews.
 func NewMultipleViewsFromMultipleViewsView(vres *resultwithotherresultviews.MultipleViewsView) *MultipleViews {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews{}
 	if vres.A != nil {
 		res.A = *vres.A
@@ -96,6 +106,9 @@ func NewMultipleViewsFromMultipleViewsView(vres *resultwithotherresultviews.Mult
 // NewMultipleViewsFromMultipleViewsViewTiny converts projected type
 // MultipleViewsView to service type MultipleViews.
 func NewMultipleViewsFromMultipleViewsViewTiny(vres *resultwithotherresultviews.MultipleViewsView) *MultipleViews {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews{}
 	if vres.A != nil {
 		res.A = *vres.A
@@ -109,6 +122,9 @@ func NewMultipleViewsFromMultipleViewsViewTiny(vres *resultwithotherresultviews.
 // ProjectMultipleViews projects result type MultipleViews to projected type
 // MultipleViewsView using the "default" view.
 func ProjectMultipleViews(res *MultipleViews) *resultwithotherresultviews.MultipleViewsView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithotherresultviews.MultipleViewsView{
 		A: &res.A,
 	}
@@ -121,6 +137,9 @@ func ProjectMultipleViews(res *MultipleViews) *resultwithotherresultviews.Multip
 // ProjectMultipleViewsTiny projects result type MultipleViews to projected
 // type MultipleViewsView using the "tiny" view.
 func ProjectMultipleViewsTiny(res *MultipleViews) *resultwithotherresultviews.MultipleViewsView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithotherresultviews.MultipleViewsView{
 		A: &res.A,
 	}
@@ -130,6 +149,9 @@ func ProjectMultipleViewsTiny(res *MultipleViews) *resultwithotherresultviews.Mu
 // NewMultipleViews2FromMultipleViews2View converts projected type
 // MultipleViews2View to service type MultipleViews2.
 func NewMultipleViews2FromMultipleViews2View(vres *resultwithotherresultviews.MultipleViews2View) *MultipleViews2 {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews2{
 		B: vres.B,
 	}
@@ -142,6 +164,9 @@ func NewMultipleViews2FromMultipleViews2View(vres *resultwithotherresultviews.Mu
 // NewMultipleViews2FromMultipleViews2ViewTiny converts projected type
 // MultipleViews2View to service type MultipleViews2.
 func NewMultipleViews2FromMultipleViews2ViewTiny(vres *resultwithotherresultviews.MultipleViews2View) *MultipleViews2 {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews2{}
 	if vres.A != nil {
 		res.A = *vres.A
@@ -152,6 +177,9 @@ func NewMultipleViews2FromMultipleViews2ViewTiny(vres *resultwithotherresultview
 // ProjectMultipleViews2 projects result type MultipleViews2 to projected type
 // MultipleViews2View using the "default" view.
 func ProjectMultipleViews2(res *MultipleViews2) *resultwithotherresultviews.MultipleViews2View {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithotherresultviews.MultipleViews2View{
 		A: &res.A,
 		B: res.B,
@@ -162,6 +190,9 @@ func ProjectMultipleViews2(res *MultipleViews2) *resultwithotherresultviews.Mult
 // ProjectMultipleViews2Tiny projects result type MultipleViews2 to projected
 // type MultipleViews2View using the "tiny" view.
 func ProjectMultipleViews2Tiny(res *MultipleViews2) *resultwithotherresultviews.MultipleViews2View {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithotherresultviews.MultipleViews2View{
 		A: &res.A,
 	}

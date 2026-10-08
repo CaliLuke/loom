@@ -260,16 +260,18 @@ func NewResultOneof(vres *resultwithoneoftypeviews.ResultOneof) (*ResultOneof, e
 	case "default", "":
 		res = NewResultOneofFromResultOneofView(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedResultOneof initializes viewed result type ResultOneof from result
-// type ResultOneof using the given view. It returns a fault error when res is
-// nil.
+// NewViewedResultOneof projects result type ResultOneof to viewed result type
+// ResultOneof and validates the selected view. Invalid views and result
+// constraints return a fault that wraps the validation error. It returns a
+// fault error when res is nil.
 func NewViewedResultOneof(res *ResultOneof, view string) (*resultwithoneoftypeviews.ResultOneof, error) {
 
 	var vres *resultwithoneoftypeviews.ResultOneof
@@ -281,9 +283,14 @@ func NewViewedResultOneof(res *ResultOneof, view string) (*resultwithoneoftypevi
 		p := ProjectResultOneof(res)
 		vres = &resultwithoneoftypeviews.ResultOneof{Projected: p, View: "default"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := resultwithoneoftypeviews.ValidateResultOneof(vres); err != nil {
+		var zero *resultwithoneoftypeviews.ResultOneof
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -291,6 +298,9 @@ func NewViewedResultOneof(res *ResultOneof, view string) (*resultwithoneoftypevi
 // NewResultOneofFromResultOneofView converts projected type ResultOneofView to
 // service type ResultOneof.
 func NewResultOneofFromResultOneofView(vres *resultwithoneoftypeviews.ResultOneofView) *ResultOneof {
+	if vres == nil {
+		return nil
+	}
 	res := &ResultOneof{}
 	if vres.Result != nil && vres.Result.Kind() != "" {
 
@@ -323,6 +333,9 @@ func NewResultOneofFromResultOneofView(vres *resultwithoneoftypeviews.ResultOneo
 // ProjectResultOneof projects result type ResultOneof to projected type
 // ResultOneofView using the "default" view.
 func ProjectResultOneof(res *ResultOneof) *resultwithoneoftypeviews.ResultOneofView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithoneoftypeviews.ResultOneofView{}
 	if res.Result != nil && res.Result.Kind() != "" {
 

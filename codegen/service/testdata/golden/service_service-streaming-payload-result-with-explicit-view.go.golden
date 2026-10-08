@@ -71,17 +71,19 @@ func NewMultipleViews(vres *streamingpayloadresultwithexplicitviewserviceviews.M
 	case "tiny":
 		res = NewMultipleViewsFromMultipleViewsViewTiny(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"tiny",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedMultipleViews initializes viewed result type MultipleViews from
-// result type MultipleViews using the given view. It returns a fault error
-// when res is nil.
+// NewViewedMultipleViews projects result type MultipleViews to viewed result
+// type MultipleViews and validates the selected view. Invalid views and result
+// constraints return a fault that wraps the validation error. It returns a
+// fault error when res is nil.
 func NewViewedMultipleViews(res *MultipleViews, view string) (*streamingpayloadresultwithexplicitviewserviceviews.MultipleViews, error) {
 
 	var vres *streamingpayloadresultwithexplicitviewserviceviews.MultipleViews
@@ -96,10 +98,15 @@ func NewViewedMultipleViews(res *MultipleViews, view string) (*streamingpayloadr
 		p := ProjectMultipleViewsTiny(res)
 		vres = &streamingpayloadresultwithexplicitviewserviceviews.MultipleViews{Projected: p, View: "tiny"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"tiny",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := streamingpayloadresultwithexplicitviewserviceviews.ValidateMultipleViews(vres); err != nil {
+		var zero *streamingpayloadresultwithexplicitviewserviceviews.MultipleViews
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
@@ -107,6 +114,9 @@ func NewViewedMultipleViews(res *MultipleViews, view string) (*streamingpayloadr
 // NewMultipleViewsFromMultipleViewsView converts projected type
 // MultipleViewsView to service type MultipleViews.
 func NewMultipleViewsFromMultipleViewsView(vres *streamingpayloadresultwithexplicitviewserviceviews.MultipleViewsView) *MultipleViews {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews{
 		A: vres.A,
 		B: vres.B,
@@ -117,6 +127,9 @@ func NewMultipleViewsFromMultipleViewsView(vres *streamingpayloadresultwithexpli
 // NewMultipleViewsFromMultipleViewsViewTiny converts projected type
 // MultipleViewsView to service type MultipleViews.
 func NewMultipleViewsFromMultipleViewsViewTiny(vres *streamingpayloadresultwithexplicitviewserviceviews.MultipleViewsView) *MultipleViews {
+	if vres == nil {
+		return nil
+	}
 	res := &MultipleViews{
 		A: vres.A,
 	}
@@ -126,6 +139,9 @@ func NewMultipleViewsFromMultipleViewsViewTiny(vres *streamingpayloadresultwithe
 // ProjectMultipleViews projects result type MultipleViews to projected type
 // MultipleViewsView using the "default" view.
 func ProjectMultipleViews(res *MultipleViews) *streamingpayloadresultwithexplicitviewserviceviews.MultipleViewsView {
+	if res == nil {
+		return nil
+	}
 	vres := &streamingpayloadresultwithexplicitviewserviceviews.MultipleViewsView{
 		A: res.A,
 		B: res.B,
@@ -136,6 +152,9 @@ func ProjectMultipleViews(res *MultipleViews) *streamingpayloadresultwithexplici
 // ProjectMultipleViewsTiny projects result type MultipleViews to projected
 // type MultipleViewsView using the "tiny" view.
 func ProjectMultipleViewsTiny(res *MultipleViews) *streamingpayloadresultwithexplicitviewserviceviews.MultipleViewsView {
+	if res == nil {
+		return nil
+	}
 	vres := &streamingpayloadresultwithexplicitviewserviceviews.MultipleViewsView{
 		A: res.A,
 	}

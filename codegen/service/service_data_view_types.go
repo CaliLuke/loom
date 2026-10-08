@@ -30,6 +30,7 @@ type (
 		IsObject      bool
 		TargetType    string
 		InitName      string
+		ValidateName  string
 		ViewExpr      string
 		Source        string
 		Target        string

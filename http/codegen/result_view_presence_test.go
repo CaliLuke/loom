@@ -15,6 +15,7 @@ func TestResultViewPresenceGeneratedIntegration(t *testing.T) {
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, "example.com/viewpresence", root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "presence_test.go"), []byte(resultViewPresenceHarness), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "output_test.go"), []byte(resultViewOutputHarness), 0o600))
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "vet", "./...")
 	runGoCommand(t, dir, "test", "-race", "-count=1", "./...")

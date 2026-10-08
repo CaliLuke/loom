@@ -1129,9 +1129,22 @@ Views control how result types are rendered in responses.
 
 ### Server-Side Response
 
-1. Viewed result type is marshalled
-2. Nil attributes are omitted
-3. View name is passed in "loom-view" header
+1. The service result is projected into the selected view
+2. The projected result is validated against that view
+3. The valid result is marshalled, omitting nil attributes
+4. The view name is passed in the "loom-view" header
+
+An unknown service-selected view or a violated result constraint is a server
+fault. Unary transports report HTTP 500, gRPC `Internal`, or JSON-RPC internal
+error. Stream senders return the fault before emitting the invalid result;
+a stream that has already started cannot change its initial HTTP status.
+The fault wraps the original validation error. Errors returned by the service
+itself retain their classification.
+
+Only the selected view is validated: an invalid field excluded by a tiny view
+does not invalidate that response. A nil object result is a fault; nil and empty
+result collections remain valid empty collections, while non-nullable nil
+collection elements are rejected. Regenerate services to adopt these checks.
 
 ### Client-Side Response
 
@@ -1155,7 +1168,10 @@ types and view values back to canonical result types. They are used by generated
 wrappers such as `NewViewed...` and by transport encoders/decoders, which keeps
 HTTP, gRPC, and JSON-RPC projections aligned with the canonical result model.
 Projection generation is recursive across nested structs, slices, maps, unions,
-collections, and optional fields.
+collections, and optional fields. Object projection helpers preserve nil values;
+they perform conversion, not validation. The generated `NewViewed...`
+constructor owns selected-view validation for endpoints, interceptors and stream
+senders.
 
 View fields inherit canonical requiredness unless the view uses
 `ViewRequired(...)` or `ViewOptional(...)`. Those overrides drive projected

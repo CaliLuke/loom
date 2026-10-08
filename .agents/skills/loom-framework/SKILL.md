@@ -1033,10 +1033,16 @@ filter, and serialization rules belong here.
   `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the
   called names from the functions that name them
   (`projectedResultInitHelperBaseName`, `projectionHelperBaseName`).
-- The shared service-to-view constructor rejects a nil object result with a
-  Loom fault before projection. Keep this check in `buildViewedResultInit`
-  and its renderer so endpoints, interceptors and stream senders share the
-  boundary. Nil and empty result collections remain valid empty collections.
+- The shared service-to-view constructor owns the output contract: reject a nil
+  object, select and project the view, then run its generated validator before
+  returning a result. Unknown views and violated constraints become Loom faults
+  wrapping the validation cause. Keep this in `buildViewedResultInit` and its
+  renderer so endpoints, interceptors and stream senders share the boundary.
+  Object projection helpers preserve nil so collection validation can reject
+  non-nullable nil elements without a panic. Nil and empty result collections
+  remain valid empty collections. Do not validate excluded fields or reclassify
+  errors returned by services or client-side conversion. See the
+  [output contract model](../../../codegen/service/tla/result_output/README.md).
 - The JSON-RPC servers build the response body of a viewed result with the
   constructor of the body of its view (`viewedResultBodyInit` in
   `jsonrpc/codegen/stream_viewed_result.go`), as the HTTP response encoders

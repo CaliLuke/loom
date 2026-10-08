@@ -87,9 +87,12 @@ a valid example where the declared type permits it.
   the wire name while choosing a different Go field name.
 - Prefer a canonical `ResultType` with `View(...)` definitions over parallel
   hand-maintained DTOs for alternate public representations.
-- Return a nonnil object for a successful viewed result. After regeneration,
-  the service-to-view constructor returns `loom.Fault` for a nil object;
-  nil and empty result collections remain valid empty collections.
+- Return a nonnil object satisfying the selected view's constraints for a
+  successful viewed result. After regeneration, an unknown service-selected view
+  or an invalid selected result returns a server fault, wrapping the validation
+  cause. Excluded fields are not validated. Nil and empty result collections
+  remain valid empty collections; non-nullable nil elements are rejected.
+  Stream senders return the fault before emitting the invalid result.
 - A type placed with `Meta("struct:pkg:path", "types")` keeps its Go name
   independently of service methods. A `Moved` type remains `types.Moved` even
   when a consuming service declares a `moved` method, including empty objects

@@ -50,17 +50,19 @@ func NewRT(vres *resultwithresulttypecollectionviews.RT) (*RT, error) {
 	case "tiny":
 		res = NewRTFromRTViewTiny(vres.Projected)
 	default:
-		return res, loom.InvalidEnumValueError("view", vres.View, []any{
+		err := loom.InvalidEnumValueError("view", vres.View, []any{
 			"default",
 			"extended",
 			"tiny",
 		})
+		return res, err
 	}
 	return res, nil
 }
 
-// NewViewedRT initializes viewed result type RT from result type RT using the
-// given view. It returns a fault error when res is nil.
+// NewViewedRT projects result type RT to viewed result type RT and validates
+// the selected view. Invalid views and result constraints return a fault that
+// wraps the validation error. It returns a fault error when res is nil.
 func NewViewedRT(res *RT, view string) (*resultwithresulttypecollectionviews.RT, error) {
 
 	var vres *resultwithresulttypecollectionviews.RT
@@ -78,17 +80,25 @@ func NewViewedRT(res *RT, view string) (*resultwithresulttypecollectionviews.RT,
 		p := ProjectRTTiny(res)
 		vres = &resultwithresulttypecollectionviews.RT{Projected: p, View: "tiny"}
 	default:
-		return vres, loom.InvalidEnumValueError("view", view, []any{
+		err := loom.InvalidEnumValueError("view", view, []any{
 			"default",
 			"extended",
 			"tiny",
 		})
+		return vres, loom.NewServiceError(err, "fault", false, false, true)
+	}
+	if err := resultwithresulttypecollectionviews.ValidateRT(vres); err != nil {
+		var zero *resultwithresulttypecollectionviews.RT
+		return zero, loom.NewServiceError(err, "fault", false, false, true)
 	}
 	return vres, nil
 }
 
 // NewRTFromRTView converts projected type RTView to service type RT.
 func NewRTFromRTView(vres *resultwithresulttypecollectionviews.RTView) *RT {
+	if vres == nil {
+		return nil
+	}
 	res := &RT{}
 	if vres.A != nil {
 		res.A = NewRT2CollectionFromRT2CollectionView(vres.A)
@@ -98,6 +108,9 @@ func NewRTFromRTView(vres *resultwithresulttypecollectionviews.RTView) *RT {
 
 // NewRTFromRTViewExtended converts projected type RTView to service type RT.
 func NewRTFromRTViewExtended(vres *resultwithresulttypecollectionviews.RTView) *RT {
+	if vres == nil {
+		return nil
+	}
 	res := &RT{}
 	if vres.A != nil {
 		res.A = NewRT2CollectionFromRT2CollectionViewExtended(vres.A)
@@ -107,6 +120,9 @@ func NewRTFromRTViewExtended(vres *resultwithresulttypecollectionviews.RTView) *
 
 // NewRTFromRTViewTiny converts projected type RTView to service type RT.
 func NewRTFromRTViewTiny(vres *resultwithresulttypecollectionviews.RTView) *RT {
+	if vres == nil {
+		return nil
+	}
 	res := &RT{}
 	if vres.A != nil {
 		res.A = NewRT2CollectionFromRT2CollectionViewTiny(vres.A)
@@ -117,6 +133,9 @@ func NewRTFromRTViewTiny(vres *resultwithresulttypecollectionviews.RTView) *RT {
 // ProjectRT projects result type RT to projected type RTView using the
 // "default" view.
 func ProjectRT(res *RT) *resultwithresulttypecollectionviews.RTView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
 		vres.A = ProjectRT2Collection(res.A)
@@ -127,6 +146,9 @@ func ProjectRT(res *RT) *resultwithresulttypecollectionviews.RTView {
 // ProjectRTExtended projects result type RT to projected type RTView using the
 // "extended" view.
 func ProjectRTExtended(res *RT) *resultwithresulttypecollectionviews.RTView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
 		vres.A = ProjectRT2CollectionExtended(res.A)
@@ -137,6 +159,9 @@ func ProjectRTExtended(res *RT) *resultwithresulttypecollectionviews.RTView {
 // ProjectRTTiny projects result type RT to projected type RTView using the
 // "tiny" view.
 func ProjectRTTiny(res *RT) *resultwithresulttypecollectionviews.RTView {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
 		vres.A = ProjectRT2CollectionTiny(res.A)
@@ -206,6 +231,9 @@ func ProjectRT2CollectionTiny(res RT2Collection) resultwithresulttypecollectionv
 
 // NewRT2FromRT2View converts projected type RT2View to service type RT2.
 func NewRT2FromRT2View(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if vres == nil {
+		return nil
+	}
 	res := &RT2{}
 	if vres.C != nil {
 		res.C = *vres.C
@@ -219,6 +247,9 @@ func NewRT2FromRT2View(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
 // NewRT2FromRT2ViewExtended converts projected type RT2View to service type
 // RT2.
 func NewRT2FromRT2ViewExtended(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if vres == nil {
+		return nil
+	}
 	res := &RT2{
 		E: vres.E,
 	}
@@ -233,6 +264,9 @@ func NewRT2FromRT2ViewExtended(vres *resultwithresulttypecollectionviews.RT2View
 
 // NewRT2FromRT2ViewTiny converts projected type RT2View to service type RT2.
 func NewRT2FromRT2ViewTiny(vres *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if vres == nil {
+		return nil
+	}
 	res := &RT2{}
 	if vres.D != nil {
 		res.D = *vres.D
@@ -243,6 +277,9 @@ func NewRT2FromRT2ViewTiny(vres *resultwithresulttypecollectionviews.RT2View) *R
 // ProjectRT2 projects result type RT2 to projected type RT2View using the
 // "default" view.
 func ProjectRT2(res *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithresulttypecollectionviews.RT2View{
 		C: &res.C,
 		D: &res.D,
@@ -253,6 +290,9 @@ func ProjectRT2(res *RT2) *resultwithresulttypecollectionviews.RT2View {
 // ProjectRT2Extended projects result type RT2 to projected type RT2View using
 // the "extended" view.
 func ProjectRT2Extended(res *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithresulttypecollectionviews.RT2View{
 		C: &res.C,
 		D: &res.D,
@@ -264,6 +304,9 @@ func ProjectRT2Extended(res *RT2) *resultwithresulttypecollectionviews.RT2View {
 // ProjectRT2Tiny projects result type RT2 to projected type RT2View using the
 // "tiny" view.
 func ProjectRT2Tiny(res *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if res == nil {
+		return nil
+	}
 	vres := &resultwithresulttypecollectionviews.RT2View{
 		D: &res.D,
 	}

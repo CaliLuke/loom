@@ -209,7 +209,7 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	resvar := scope.GoTypeName(att)
 	vresref := viewScope.GoFullTypeRef(att, viewspkg)
 	validate := buildViewedResultValidation(projected, views, scope, att, resvar)
-	init := buildViewedResultInit(att, views, viewspkg, scope, resvar, vresref, isarr)
+	init := buildViewedResultInit(att, views, viewspkg, scope, resvar, vresref, isarr, viewspkg+"."+validate.Name)
 	resinit, resref := buildViewedResultResultInit(att, projected, views, viewspkg, scope, viewScope, resvar)
 	projT := wrapProjected(projected.Type.(expr.UserType))
 	return &ViewedResultTypeData{
