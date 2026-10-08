@@ -3,31 +3,45 @@ package loom
 import (
 	"fmt"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 )
 
-const (
-	// Major version number
-	Major = 1
-	// Minor version number
-	Minor = 10
-	// Build number
-	Build = 0
-	// Suffix is the semantic version prerelease identifier, or empty for a stable release.
-	Suffix = "alpha.5"
-)
+// Major is the Go module's major API namespace. It is independent of release tags.
+const Major = 1
 
 var (
 	// Version format
 	versionFormat = regexp.MustCompile(`v(\d+?)\.(\d+?)\.(\d+?)(?:-.+)?`)
 )
 
-// Version returns the complete version number.
+// Version returns the Loom module version recorded by the Go toolchain.
+// Local checkouts and unversioned replacements report "(devel)".
 func Version() string {
-	if Suffix != "" {
-		return fmt.Sprintf("v%d.%d.%d-%s", Major, Minor, Build, Suffix)
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "(devel)"
 	}
-	return fmt.Sprintf("v%d.%d.%d", Major, Minor, Build)
+	return buildVersion(info)
+}
+
+func buildVersion(info *debug.BuildInfo) string {
+	if info != nil {
+		modules := append([]*debug.Module{&info.Main}, info.Deps...)
+		for _, module := range modules {
+			if module.Path != "github.com/CaliLuke/loom" {
+				continue
+			}
+			if module.Replace != nil {
+				module = module.Replace
+			}
+			if module.Version != "" {
+				return module.Version
+			}
+			return "(devel)"
+		}
+	}
+	return "(devel)"
 }
 
 // Compatible returns true if Major matches the major version of the given version string.

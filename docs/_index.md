@@ -10,7 +10,8 @@ aliases:
 > **Recommended release: `v1.10.0-alpha.5`.** These checked-in guides track Loom
 > `main`; when read from a release tag, they describe that tagged snapshot.
 > Consult the [release notes](https://github.com/CaliLuke/loom/releases) when a
-> documented capability is not available in the recommended tag.
+> documented capability is not available in the recommended tag. This recommendation
+> is curated; daily alphas do not rewrite these guides.
 
 Feature sections may include a **Since: `vX.Y.Z`** note recording the first
 release that contains the capability. These notes are added prospectively;

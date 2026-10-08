@@ -32,7 +32,7 @@ PROTOC_GEN_GO_GRPC_VERSION?=v1.6.2
 PROTOC_BIN=protoc
 PROTOC_DEST=$(GOBIN_DIR)/$(PROTOC_BIN)
 
-.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-race test-release test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-preflight
+.PHONY: all all-tests ci ci-local clean coverage-baseline coverage-ratchet depend fmt install-hooks lint lint-docs lint-filesize lint-gofmt lint-json-v2 lint-legacy-middleware lint-namescope lint-test-sources lint-toolchain test test-race test-pulse-redis test-testdata-compile integration-test integration-test-fast generated-code-quality openapi-contract value-contract-proof value-contract-conformance build-loom build-loom-cached loom-local loom-remote loom-status release release-promote
 .NOTPARALLEL: release ci-local
 
 # Only list test and build dependencies
@@ -160,13 +160,6 @@ ifneq ($(GOOS),windows)
 	PATH="$(GOBIN_DIR):$$PATH" go test -timeout=$(LOOM_TEST_TIMEOUT) ./... --coverprofile=cover.out
 else
 	go test -timeout=$(LOOM_TEST_TIMEOUT) ./... --coverprofile=cover.out
-endif
-
-test-release:
-ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" go test -count=1 -timeout=$(LOOM_TEST_TIMEOUT) ./...
-else
-	go test -count=1 -timeout=$(LOOM_TEST_TIMEOUT) ./...
 endif
 
 coverage-ratchet:
@@ -297,7 +290,10 @@ $(GOBIN_DIR)/loom: $(CODEGEN_SOURCES)
 	@echo "rebuilding loom (codegen/cli source changed)"
 	cd cmd/loom && GOBIN="$(GOBIN_DIR)" go install .
 
-release-preflight: lint test-release coverage-ratchet integration-test openapi-contract generated-code-quality
+export SOURCE VERSION ALPHA
 
 release:
-	@go run ./internal/cmd/release --version "$(VERSION)"
+	@go run ./internal/cmd/release --mode alpha --source "$$SOURCE" --version "$$VERSION"
+
+release-promote:
+	@go run ./internal/cmd/release --mode promote --alpha "$$ALPHA" --version "$$VERSION"

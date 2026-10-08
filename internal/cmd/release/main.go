@@ -1,19 +1,34 @@
-// Command release publishes a verified Loom release.
+// Command release dispatches publication, or runs the publisher inside GitHub Actions.
 package main
 
 import (
 	"context"
 	"flag"
 	"log"
+	"os"
 
-	loomrelease "github.com/CaliLuke/loom/internal/release"
+	"github.com/CaliLuke/loom/internal/release"
 )
 
 func main() {
-	version := flag.String("version", "", "stable release version in vX.Y.Z form")
+	var config release.Config
+	flag.StringVar(&config.Mode, "mode", "alpha", "alpha, daily, or promote")
+	flag.StringVar(&config.Source, "source", "", "exact source commit SHA")
+	flag.StringVar(&config.Alpha, "alpha", "", "published alpha to promote")
+	flag.StringVar(&config.Version, "version", "", "target version (required for promotion)")
+	publish := flag.Bool("publish", false, "publish inside the trusted GitHub workflow")
 	flag.Parse()
-	if err := loomrelease.Run(context.Background(), loomrelease.Config{Version: *version}); err != nil {
-		log.Fatalf("release failed: %v", err)
+	ctx := context.Background()
+	var err error
+	if *publish {
+		if os.Getenv("GITHUB_ACTIONS") != "true" || os.Getenv("GITHUB_REPOSITORY") != "CaliLuke/loom" || os.Getenv("GITHUB_REF") != "refs/heads/main" {
+			log.Fatal("publication requires the main-branch GitHub workflow")
+		}
+		err = release.Run(ctx, config)
+	} else {
+		err = release.Dispatch(ctx, config)
 	}
-	log.Printf("Release %s is published and verified", *version)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

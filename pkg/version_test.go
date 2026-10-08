@@ -6,20 +6,9 @@ import (
 	"testing"
 )
 
-func TestVersion(t *testing.T) {
-	expected := fmt.Sprintf("v%d.%d.%d", Major, Minor, Build)
-	if Suffix != "" {
-		expected += "-" + Suffix
-	}
-	if got := Version(); got != expected {
-		t.Errorf("invalid version format, %s", got)
-	}
-}
-
 func TestCompatible(t *testing.T) {
 	t.Run("well-formed", func(t *testing.T) {
 		testdata := []string{
-			Version(),
 			fmt.Sprintf("v%d.0.0", Major),
 			fmt.Sprintf("v%d.1.2", Major),
 			fmt.Sprintf("v%d.10.10", Major),

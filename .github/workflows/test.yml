@@ -139,3 +139,14 @@ jobs:
           go-version-file: go.mod
       - name: Pulse suites against supported Redis
         run: make test-pulse-redis
+
+  release-ready:
+    name: Release eligibility
+    if: always()
+    needs: [ci, race, openapi-contract, value-contract, generated-code-quality, testdata-compile, pulse-redis]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation job to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'length > 0 and all(.[]; .result == "success")' <<< "$RESULTS"

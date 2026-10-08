@@ -21,6 +21,15 @@ returns a Loom fault until the application replaces it.
 go install github.com/CaliLuke/loom/cmd/loom@v1.10.0-alpha.5
 ```
 
+`loom version` reports the installed Go module version. A local checkout or
+local module replacement reports `(devel)`. The generation manifest records
+the Loom dependency used to compile the generator, which may differ from the
+installed CLI launcher. Prefer pinning both to the same release.
+
+Programmatic callers should use `pkg.Version()` instead of the removed `Minor`,
+`Build`, and `Suffix` release constants. `Major` remains the Go module API
+namespace.
+
 ### Pinning the Generator in a Module
 
 Applications that want reproducible generation can record the Loom command as

@@ -170,7 +170,13 @@ No commented-out code—delete dead code.
 ### Releases
 
 - For Loom release work, use the repo-local [`release` skill](.agents/skills/release/SKILL.md).
-- Cut releases with `make release VERSION=vX.Y.Z`. Do not rely on implicit or hardcoded version defaults.
+- Publish alphas with `make release SOURCE=<full-main-sha>`; optionally provide
+  `VERSION=vX.Y.Z-alpha.N` to assert the allocated version. Promote with
+  `make release-promote ALPHA=vX.Y.Z-alpha.N VERSION=vX.Y.Z`.
+- The GitHub publisher owns selection, exact-source CI verification, tag and
+  Release creation. Reuse green CI; do not rerun the framework suites or create
+  version-only commits during publication. Never publish another alpha without
+  new source commits. Promotion preserves the alpha's source commit.
 - Treat the GitHub Release object as part of the release contract, not an optional follow-up after tag push.
 - If a `v*` tag does not result in a matching GitHub Release entry, stop and fix the automation before cutting another release.
 

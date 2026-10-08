@@ -1460,3 +1460,20 @@ interface forwarding. Loom hooks own status commit and byte-count policy,
 including informational responses, upgrades, flushes and I/O fast paths. Do not
 add transport-local forwarding wrappers. The callback-scoped httpsnoop metrics
 API does not match the independently started/ended request observer lifecycle.
+
+## Release Ownership
+
+`internal/release` owns immutable-source publication through
+`.github/workflows/release.yml`. The workflow has manual alpha, scheduled alpha,
+and explicit stable-promotion entry points sharing one concurrency group.
+`make release` only dispatches it. Exact-source CI and the aggregate release
+eligibility job replace local release preflight; publication never edits source
+or main. See the release skill for retries and completion requirements.
+
+`pkg.Version` derives the Loom module version from Go build metadata; local
+checkouts and replacements have the explicit `(devel)` identity. `Major` is the
+module API namespace, not a mutable release stamp. Fixture manifests record the
+locally built generator identity and retain their design digests. Documentation
+pins are curated together against the recommendation in `docs/_index.md`,
+independently of release tags. Change `internal/release/train.json` deliberately
+when starting the next train after stable promotion.

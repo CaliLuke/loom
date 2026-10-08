@@ -926,8 +926,10 @@ result boundary; the new final-response streaming accessors do not apply.
 The repository skill tracks Loom `main`; a copy read from a release tag
 describes that tagged snapshot. Use the current recommended release for
 consuming services unless intentionally testing an unreleased checkout. Loom's
-release workflow stamps this recommendation and the public installation guides
-together so their version pins remain aligned.
+documentation recommendation is curated separately from daily alpha publication.
+Select an explicit published tag from the release notes when adopting a newer
+alpha, and pin the CLI and module together. `loom version` reports the installed
+Go module version; local checkouts and local replacements report `(devel)`.
 
 `loom vet` is available in `v1.9.0-alpha.1` and later releases.
 

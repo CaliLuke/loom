@@ -9,47 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRecommendedVersionLifecycle(t *testing.T) {
-	t.Parallel()
-
+func TestRecommendedVersion(t *testing.T) {
 	root := t.TempDir()
-	writeVersionFixture(t, root, "v1.7.1")
-	writeTestFile(t, filepath.Join(root, "pkg/version.go"), `package loom
-
-const (
-	Major = 1
-	Minor = 8
-	Build = 0
-	Suffix = "alpha.1"
-)
-`)
-
-	current, err := ReadPackageVersion(filepath.Join(root, "pkg/version.go"))
+	writeVersionFixture(t, root, "v1.10.0-alpha.5")
+	version, err := RecommendedVersion(root)
 	require.NoError(t, err)
-	require.Equal(t, "v1.8.0-alpha.1", current)
-	require.Len(t, CheckRecommendedVersion(root, current), 9)
-
-	changed, err := UpdateVersionMetadata(root, current)
-	require.NoError(t, err)
-	require.Equal(t, []string{
-		".agents/skills/loom/SKILL.md",
-		"README.md",
-		"docs/_index.md",
-		"docs/code-generation.md",
-		"docs/dsl-reference.md",
-		"docs/quickstart.md",
-	}, changed)
-	require.Empty(t, CheckRecommendedVersion(root, current))
-
-	for _, target := range documentationVersionTargets {
-		contents, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(target.path)))
-		require.NoError(t, readErr)
-		require.NotContains(t, string(contents), "v1.7.1", target.path)
-	}
-	since, err := os.ReadFile(filepath.Join(root, "docs/dsl-reference.md"))
-	require.NoError(t, err)
-	require.Contains(t, string(since), "**Since: `v1.8.0-alpha.1`.**")
-	require.NotContains(t, string(since), "Since: unreleased")
+	require.Equal(t, "v1.10.0-alpha.5", version)
+	require.Empty(t, CheckRecommendedVersion(root, version))
 }
 
 func TestCheckRecommendedVersionRequiresEveryMarker(t *testing.T) {
@@ -65,13 +31,6 @@ func TestCheckRecommendedVersionRequiresEveryMarker(t *testing.T) {
 	require.Equal(t, []string{
 		"docs/quickstart.md: expected 2 recommended-version markers, found 1",
 	}, issues)
-}
-
-func TestUpdateVersionMetadataRejectsInvalidVersion(t *testing.T) {
-	t.Parallel()
-
-	_, err := UpdateVersionMetadata(t.TempDir(), "next")
-	require.ErrorContains(t, err, "invalid semantic version")
 }
 
 func writeVersionFixture(t *testing.T, root, version string) {

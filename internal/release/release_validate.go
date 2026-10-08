@@ -4,244 +4,126 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"regexp"
-	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/mod/semver"
-
-	"github.com/CaliLuke/loom/internal/docsmeta"
 )
 
-func validateVersion(version string) error {
-	if !versionPattern.MatchString(version) || !semver.IsValid(version) {
-		return fmt.Errorf("VERSION %q must match vX.Y.Z or vX.Y.Z-prerelease", version)
-	}
-	return nil
-}
+var (
+	shaPattern   = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	alphaPattern = regexp.MustCompile(`^(v[0-9]+\.[0-9]+\.[0-9]+)-alpha\.([1-9][0-9]*)$`)
+)
 
-func validateRepository(ctx context.Context, config Config) (string, error) {
-	status, err := gitCommandOutput(ctx, config.Root, "status", "--porcelain", "--untracked-files=all")
-	if err != nil {
-		return "", fmt.Errorf("inspect repository status: %w", err)
+func chooseAlpha(base, source string, tags []tag) (string, error) {
+	if !semver.IsValid(base) || semver.Canonical(base) != base || semver.Prerelease(base) != "" {
+		return "", errors.New("release train must be a canonical stable version")
 	}
-	if status != "" {
-		return "", fmt.Errorf("loom repository has uncommitted changes:\n%s", status)
-	}
-	branch, err := gitCommandOutput(ctx, config.Root, "branch", "--show-current")
-	if err != nil {
-		return "", fmt.Errorf("inspect current branch: %w", err)
-	}
-	if branch != "main" {
-		return "", fmt.Errorf("release must run from main, found %q", branch)
-	}
-	remote, err := gitCommandOutput(ctx, config.Root, "remote", "get-url", "origin")
-	if err != nil {
-		return "", fmt.Errorf("inspect origin: %w", err)
-	}
-	if !sameRemote(remote, config.CanonicalRemote) {
-		return "", fmt.Errorf("origin %q is not canonical Loom remote %q", remote, config.CanonicalRemote)
-	}
-	head, err := gitCommandOutput(ctx, config.Root, "rev-parse", "HEAD")
-	if err != nil {
-		return "", fmt.Errorf("resolve HEAD: %w", err)
-	}
-	remoteMain, err := remoteRef(ctx, config.Root, "refs/heads/main")
-	if err != nil {
-		return "", fmt.Errorf("resolve origin/main: %w", err)
-	}
-	if head != remoteMain {
-		return "", fmt.Errorf("main HEAD %s does not match origin/main %s", head, remoteMain)
-	}
-	currentVersion, err := readCurrentVersion(filepath.Join(config.Root, "pkg", "version.go"))
-	if err != nil {
-		return "", err
-	}
-	if err := validateVersionAdvance(currentVersion, config.Version); err != nil {
-		return "", err
-	}
-	localTag, err := gitCommandOutput(ctx, config.Root, "tag", "--list", config.Version)
-	if err != nil {
-		return "", fmt.Errorf("inspect local release tag: %w", err)
-	}
-	if localTag != "" {
-		return "", fmt.Errorf("release tag %s already exists locally", config.Version)
-	}
-	remoteTag, err := gitCommandOutput(ctx, config.Root, "ls-remote", "--tags", "origin", "refs/tags/"+config.Version)
-	if err != nil {
-		return "", fmt.Errorf("inspect remote release tag: %w", err)
-	}
-	if remoteTag != "" {
-		return "", fmt.Errorf("release tag %s already exists on origin", config.Version)
-	}
-	return head, nil
-}
-
-func validateVersionAdvance(current, target string) error {
-	if err := validateVersion(current); err != nil {
-		return fmt.Errorf("compare release versions: invalid current %q or target %q", current, target)
-	}
-	if err := validateVersion(target); err != nil {
-		return fmt.Errorf("compare release versions: invalid current %q or target %q", current, target)
-	}
-	if semver.Compare(target, current) > 0 {
-		return nil
-	}
-	return fmt.Errorf("release VERSION %s must be greater than current version %s", target, current)
-}
-
-func sameRemote(actual, canonical string) bool {
-	if filepath.IsAbs(canonical) {
-		actualPath, actualErr := filepath.Abs(actual)
-		canonicalPath, canonicalErr := filepath.Abs(canonical)
-		return actualErr == nil && canonicalErr == nil && filepath.Clean(actualPath) == filepath.Clean(canonicalPath)
-	}
-	normalize := func(value string) string {
-		value = strings.TrimSpace(value)
-		value = strings.TrimSuffix(value, ".git")
-		value = strings.TrimPrefix(value, "https://")
-		value = strings.TrimPrefix(value, "ssh://git@")
-		value = strings.TrimPrefix(value, "git@")
-		value = strings.Replace(value, "github.com:", "github.com/", 1)
-		return value
-	}
-	return normalize(actual) == normalize(canonical)
-}
-
-func readCurrentVersion(path string) (string, error) {
-	return docsmeta.ReadPackageVersion(path)
-}
-
-func updateVersionFiles(root, version string) ([]string, error) {
-	matches := versionPattern.FindStringSubmatch(version)
-	if len(matches) != 5 {
-		return nil, fmt.Errorf("VERSION %q must match vX.Y.Z or vX.Y.Z-prerelease", version)
-	}
-	if err := updatePackageVersion(root, matches[1:4], matches[4]); err != nil {
-		return nil, err
-	}
-	documentation, err := docsmeta.UpdateVersionMetadata(root, version)
-	if err != nil {
-		return nil, err
-	}
-	fixtures, err := updateFixtureVersions(root, version)
-	if err != nil {
-		return nil, err
-	}
-	changed := append([]string{"pkg/version.go"}, documentation...)
-	changed = append(changed, fixtures...)
-	sort.Strings(changed)
-	return changed, nil
-}
-
-func updatePackageVersion(root string, parts []string, suffix string) error {
-	versionPath := filepath.Join(root, "pkg", "version.go")
-	contents, mode, err := readFile(versionPath)
-	if err != nil {
-		return err
-	}
-	for index, name := range []string{"Major", "Minor", "Build"} {
-		contents, err = replaceExactlyOne(contents, versionFields[name], "${1}"+parts[index], versionPath)
-		if err != nil {
-			return err
+	next := 1
+	existing := ""
+	for _, t := range tags {
+		if t.version == base {
+			return "", nil
 		}
-	}
-	contents, err = replaceExactlyOne(contents, versionSuffixPattern, `${1}"`+suffix+`"`, versionPath)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(versionPath, contents, mode); err != nil {
-		return fmt.Errorf("write %s: %w", versionPath, err)
-	}
-	return nil
-}
-
-func updateFixtureVersions(root, version string) ([]string, error) {
-	fixtures := make([]string, 0, 4)
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+		if t.sha == source && semver.Prerelease(t.version) == "" {
+			return "", nil
 		}
-		if entry.IsDir() && entry.Name() == ".git" {
-			return filepath.SkipDir
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		relative, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		slashed := filepath.ToSlash(relative)
-		if !strings.Contains(slashed, "/integration_tests/fixtures/") || !strings.HasSuffix(slashed, "/gen/loom.json") {
-			return nil
-		}
-		contents, mode, err := readFile(path)
-		if err != nil {
-			return err
-		}
-		contents, err = replaceExactlyOne(contents, fixtureVersionPattern,
-			`"loom_version": "`+version+`"`, path)
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(path, contents, mode); err != nil {
-			return fmt.Errorf("write %s: %w", path, err)
-		}
-		fixtures = append(fixtures, slashed)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("update integration fixture versions: %w", err)
-	}
-	if len(fixtures) == 0 {
-		return nil, errors.New("update integration fixture versions: no loom.json fixtures found")
-	}
-	return fixtures, nil
-}
-
-func readFile(path string) ([]byte, fs.FileMode, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, 0, fmt.Errorf("inspect %s: %w", path, err)
-	}
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		return nil, 0, fmt.Errorf("read %s: %w", path, err)
-	}
-	return contents, info.Mode().Perm(), nil
-}
-
-func replaceExactlyOne(contents []byte, pattern *regexp.Regexp, replacement, path string) ([]byte, error) {
-	if count := len(pattern.FindAll(contents, -1)); count != 1 {
-		return nil, fmt.Errorf("update %s: expected exactly one version marker, found %d", path, count)
-	}
-	return pattern.ReplaceAll(contents, []byte(replacement)), nil
-}
-
-func validateStagedChanges(ctx context.Context, root string, expected []string) error {
-	output, err := runCommand(ctx, root, nil, "git", "status", "--porcelain", "--untracked-files=all")
-	if err != nil {
-		return fmt.Errorf("inspect staged release changes: %w", err)
-	}
-	status := strings.TrimSuffix(string(output), "\n")
-	actual := make([]string, 0, len(expected))
-	for line := range strings.SplitSeq(status, "\n") {
-		if line == "" {
+		match := alphaPattern.FindStringSubmatch(t.version)
+		if len(match) != 3 || match[1] != base {
+			if t.sha == source {
+				return "", nil
+			}
 			continue
 		}
-		if len(line) < 4 {
-			return fmt.Errorf("inspect staged release changes: malformed git status line %q", line)
+		number, err := strconv.Atoi(match[2])
+		if err != nil {
+			return "", err
 		}
-		actual = append(actual, filepath.ToSlash(strings.TrimSpace(line[3:])))
+		if number >= next {
+			next = number + 1
+		}
+		if t.sha == source && (existing == "" || semver.Compare(t.version, existing) > 0) {
+			existing = t.version
+		}
 	}
-	sort.Strings(actual)
-	if strings.Join(actual, "\n") != strings.Join(expected, "\n") {
-		return fmt.Errorf("release preflight changed unexpected files:\nexpected:\n%s\nactual:\n%s",
-			strings.Join(expected, "\n"), strings.Join(actual, "\n"))
+	if existing != "" {
+		return existing, nil
+	}
+	return fmt.Sprintf("%s-alpha.%d", base, next), nil
+}
+
+func validatePromotion(alpha, stable string) error {
+	match := alphaPattern.FindStringSubmatch(alpha)
+	if len(match) != 3 || !semver.IsValid(alpha) || match[1] != stable {
+		return errors.New("promotion must map vX.Y.Z-alpha.N to vX.Y.Z")
 	}
 	return nil
+}
+
+func findTag(tags []tag, version string) string {
+	for _, t := range tags {
+		if t.version == version {
+			return t.sha
+		}
+	}
+	return ""
+}
+
+func (p publisher) tags(ctx context.Context) ([]tag, error) {
+	output, err := p.git(ctx, "for-each-ref", "--format=%(refname:short) %(objecttype) %(objectname) %(*objectname)", "refs/tags/v*")
+	if err != nil {
+		return nil, err
+	}
+	var tags []tag
+	for line := range strings.SplitSeq(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 || !semver.IsValid(fields[0]) {
+			continue
+		}
+		sha := fields[2]
+		if fields[1] == "tag" {
+			if len(fields) != 4 {
+				return nil, fmt.Errorf("invalid annotated tag %q", line)
+			}
+			sha = fields[3]
+		} else if fields[1] != "commit" {
+			return nil, fmt.Errorf("release tag does not identify commit: %q", line)
+		}
+		tags = append(tags, tag{fields[0], sha})
+	}
+	return tags, nil
+}
+
+func (p publisher) notes(ctx context.Context, version, source string, tags []tag) (string, error) {
+	stable := !strings.Contains(version, "-alpha.")
+	base := ""
+	for _, t := range tags {
+		if t.version == version || semver.Compare(t.version, version) >= 0 || (stable && strings.Contains(t.version, "-")) {
+			continue
+		}
+		if base == "" || semver.Compare(t.version, base) > 0 {
+			base = t.version
+		}
+	}
+	selection := source
+	if base != "" {
+		selection = base + ".." + source
+	}
+	changes, err := p.git(ctx, "log", "--first-parent", "--format=- %s (%h)", selection)
+	if err != nil {
+		return "", err
+	}
+	if changes == "" {
+		return "", errors.New("release has no source commits since previous version")
+	}
+	status := "This alpha is a development snapshot. Generated APIs may change."
+	if stable {
+		status = "This stable release promotes " + p.config.Alpha + " without changing its source."
+	}
+	notes := fmt.Sprintf("## Highlights\n\n%s\n\n%s\n\n## Upgrade\n\nInstall the CLI and module at `%s`, then regenerate services with `loom gen <module-import-path>/design`.\n", status, changes, version)
+	if base != "" {
+		notes += fmt.Sprintf("\n[Full changelog](https://github.com/%s/compare/%s...%s)\n", repository, base, version)
+	}
+	return notes, nil
 }

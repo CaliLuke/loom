@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/CaliLuke/loom/codegen"
-	loom "github.com/CaliLuke/loom/pkg"
+	"golang.org/x/mod/semver"
 )
 
 type (
@@ -118,13 +118,10 @@ func (t *generationTransaction) validate(outputs []string) error {
 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
 		return fmt.Errorf("decode staged generation manifest %s: %w", manifestPath, err)
 	}
-	if manifest.LoomVersion != loom.Version() {
-		return fmt.Errorf(
-			"staged generation manifest %s has Loom version %q, expected %q",
-			manifestPath,
-			manifest.LoomVersion,
-			loom.Version(),
-		)
+	// The generator is built from the consuming module's Loom dependency, which
+	// may differ from the launcher. Its manifest records that dependency's version.
+	if manifest.LoomVersion != "(devel)" && !semver.IsValid(manifest.LoomVersion) {
+		return fmt.Errorf("staged generation manifest %s has Loom version %q: expected a module version or (devel)", manifestPath, manifest.LoomVersion)
 	}
 	if manifest.DesignDigest == "" {
 		return fmt.Errorf("staged generation manifest %s has no design digest", manifestPath)

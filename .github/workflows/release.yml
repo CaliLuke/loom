@@ -1,52 +1,63 @@
-name: Publish GitHub Release
+name: Publish Loom Release
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: Existing semantic version tag to publish or repair
+      mode:
+        description: Publish an alpha or promote an existing alpha
         required: true
+        type: choice
+        options: [alpha, promote]
+        default: alpha
+      source:
+        description: Exact main commit SHA for an alpha
         type: string
+      alpha:
+        description: Existing alpha tag to promote
+        type: string
+      version:
+        description: Stable version for promotion; optional explicit alpha version
+        type: string
+  schedule:
+    - cron: '47 23 * * *'
+      timezone: America/Los_Angeles
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: loom-publication
   cancel-in-progress: false
 
 jobs:
   publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
+    timeout-minutes: 60
     steps:
-      - name: Check out code
+      - name: Check out trusted publisher
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Publish GitHub Release
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Publish verified source
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_MODE: ${{ inputs.mode }}
+          RELEASE_SOURCE: ${{ inputs.source }}
+          RELEASE_ALPHA: ${{ inputs.alpha }}
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-            tag="${{ inputs.tag }}"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            RELEASE_MODE=daily
+            RELEASE_SOURCE="$GITHUB_SHA"
           fi
-          if ! printf '%s\n' "$tag" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
-            echo "invalid tag: $tag"
-            exit 1
-          fi
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "GitHub Release $tag already exists"
-            exit 0
-          fi
-          release_kind=(--latest)
-          if [[ "$tag" == *-* ]]; then
-            release_kind=(--prerelease)
-          fi
-          gh release create "$tag" --verify-tag --generate-notes "${release_kind[@]}"
+          go run ./internal/cmd/release --publish --mode "$RELEASE_MODE" \
+            --source "$RELEASE_SOURCE" --alpha "$RELEASE_ALPHA" --version "$RELEASE_VERSION"

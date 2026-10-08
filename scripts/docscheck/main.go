@@ -55,7 +55,7 @@ func main() {
 }
 
 func checkRecommendedVersion(root string) []string {
-	version, err := docsmeta.ReadPackageVersion(filepath.Join(root, "pkg", "version.go"))
+	version, err := docsmeta.RecommendedVersion(root)
 	if err != nil {
 		return []string{err.Error()}
 	}
