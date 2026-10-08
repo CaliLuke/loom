@@ -1,0 +1,91 @@
+package integration
+
+import (
+	"fmt"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	tokenclient "example.com/formunionit/gen/http/token/client"
+	tokenserver "example.com/formunionit/gen/http/token/server"
+	token "example.com/formunionit/gen/token"
+	loomhttp "github.com/CaliLuke/loom/http"
+	form "github.com/go-playground/form/v4"
+	"github.com/stretchr/testify/require"
+)
+
+type authCodeForm struct {
+	ClientID    string `form:"client_id"`
+	Code        string `form:"code"`
+	RedirectURI string `form:"redirect_uri"`
+}
+
+// These functions prototype the typed union boundary, not a replacement runtime.
+// The library owns branch field traversal; the adapter owns the discriminator.
+func encodeGrant(p *token.Grant) (url.Values, error) {
+	if err := p.Grant.Validate(); err != nil {
+		return nil, err
+	}
+	var body any
+	if v, ok := p.Grant.AsAuthorizationCode(); ok {
+		body = authCodeForm{v.ClientID, v.Code, v.RedirectURI}
+	} else {
+		body = struct{}{}
+	}
+	values, err := form.NewEncoder().Encode(body)
+	if err != nil {
+		return nil, err
+	}
+	values.Set("grant_type", string(p.Grant.Kind()))
+	return values, nil
+}
+
+func decodeGrant(values url.Values) (*token.Grant, error) {
+	var branch token.Grant2
+	switch values.Get("grant_type") {
+	case "authorization_code":
+		var body authCodeForm
+		if err := form.NewDecoder().Decode(&body, values); err != nil {
+			return nil, err
+		}
+		branch = token.NewGrant2AuthorizationCode(&token.AuthorizationCodeGrant{
+			ClientID: body.ClientID, Code: body.Code, RedirectURI: body.RedirectURI,
+		})
+	case "refresh_token":
+		branch = token.NewGrant2RefreshToken(&token.RefreshTokenGrant{})
+	default:
+		return nil, fmt.Errorf("invalid grant_type %q", values.Get("grant_type"))
+	}
+	return &token.Grant{Grant: &branch}, nil
+}
+
+func TestLibraryUnionAdapterInteroperability(t *testing.T) {
+	auth := token.NewGrant2AuthorizationCode(&token.AuthorizationCodeGrant{
+		ClientID: "client-123", Code: "code-123", RedirectURI: "https://client.example/callback",
+	})
+	refresh := token.NewGrant2RefreshToken(&token.RefreshTokenGrant{})
+	for _, branch := range []*token.Grant2{&auth, &refresh} {
+		t.Run(string(branch.Kind()), func(t *testing.T) {
+			input := &token.Grant{Grant: branch}
+			// Library + typed adapter -> unchanged generated server decoder.
+			values, err := encodeGrant(input)
+			require.NoError(t, err)
+			req := httptest.NewRequest("POST", "/token", strings.NewReader(values.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			decode := tokenserver.DecodeExchangeRequest(loomhttp.NewMuxer(), loomhttp.RequestDecoder)
+			got, err := decode(req)
+			require.NoError(t, err)
+			require.Equal(t, input, got)
+			// Unchanged generated client encoder -> library + typed adapter.
+			request := httptest.NewRequest("POST", "/token", nil)
+			encode := tokenclient.EncodeExchangeRequest(loomhttp.RequestEncoder)
+			require.NoError(t, encode(request, input))
+			require.NoError(t, request.ParseForm())
+			result, err := decodeGrant(request.PostForm)
+			require.NoError(t, err)
+			require.Equal(t, input, result)
+			require.Equal(t, values, request.PostForm)
+		})
+	}
+}
