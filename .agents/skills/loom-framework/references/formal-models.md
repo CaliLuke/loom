@@ -84,7 +84,7 @@ Rendered schema validation and actual decoder behavior are separate obligations.
 | SSE complete-event dispatch, EOF tail discard and iterator lifecycle | [SSE framing](../../../../http/tla/sse_framing/README.md); bounded framing and read/stop exclusion models paired with shared-reader and generated-client tests |
 | JSON-RPC mount/Use order and configured handler dispatch | [Handler dispatch](../../../../jsonrpc/codegen/tla/handler_dispatch/README.md); configuration-before-requests contract with mount-order counterexample |
 | JSON-RPC WebSocket response routing, client closure/redial and closure error identity | [JSON-RPC connection models](../../../../jsonrpc/tla/README.md) |
-| Redis job ownership, fencing/resume, requeue replies, event acknowledgments and join reconciliation | [Pulse pool models](../../../../pulse/pool/tla/README.md) and their linked ownership design/action map |
+| Redis job ownership, fencing/resume, requeue replies, event acknowledgments, join reconciliation and shutdown watcher startup | [Pulse pool models](../../../../pulse/pool/tla/README.md) and their linked ownership design/action map |
 | Stream group creation/removal, per-stream map ownership and consumer rotation | [Pulse streaming models](../../../../pulse/streaming/tla/README.md) |
 | Integration child-process ownership, parent death and launch races | [Process lease model](../../../../internal/testprocess/tla/README.md) |
 

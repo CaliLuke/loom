@@ -905,3 +905,41 @@ fairness supplies those eventual steps and periodic passes; the model does
 not establish a wall-clock bound. It abstracts Redis failures, stream loss,
 churn, fencing, and ownership scripts. Existing ownership models and runtime
 tests remain necessary; this check proves only the finite trigger model.
+
+## Shutdown watcher startup
+
+`ShutdownWatch.tla` models the ordering between committing a shutdown request,
+subscribing to replicated-map notifications, and reading the current replica.
+The notification-only design can miss a request committed before subscription.
+`cfg/shutdown_notification.cfg` reproduces the liveness failure in nine distinct
+states. `cfg/shutdown_state.cfg` checks subscribe-then-read reconciliation and
+passes both eventual closure and no unrequested closure.
+
+```sh
+java -cp /tmp/tla2tools.jar tlc2.TLC \
+  -workers 1 -deadlock -metadir /tmp/loom-shutdown-states \
+  -config cfg/shutdown_state.cfg ShutdownWatch.tla
+```
+
+Run from this directory after installing TLC as described above (or replace
+the jar path with your shared installation). The notification configuration is an expected
+failure. `node_lifecycle.go:watchShutdown` subscribes before checking the
+`shutdown` entry on each pass and starts one close operation. Notifications are
+hints to reconcile, not durable commands. `watchShutdown` records shutdown monotonically before releasing its wait-group
+slot. `node_jobs.go:close` joins that watcher before publishing completion,
+including when a local Close already owns cleanup. The asynchronous shutdown
+closer never writes the flag, so it cannot publish the flag after completion.
+`TestShutdownWatcherReconcilesExistingRequest` controls the late-subscriber
+ordering; `TestShutdownPropagatesAcrossNodes` exercises actual node propagation.
+
+The model assumes eventual replica delivery and fair local scheduling, collapses
+replication into Request, and treats local close as terminating. It does not prove
+Redis availability, handler termination, pool cleanup coordination, or new-node
+admission during shutdown. `ShutdownClose.tla` separately models a local Close acquiring cleanup before
+a shutdown request is observed. `cfg/shutdown_overwrite.cfg` reproduces lost
+shutdown state when the winning closer publishes its own close kind;
+`cfg/shutdown_monotonic.cfg` preserves the observed request. Run it with the
+same TLC command and its module/config names.
+`TestShutdownRecordedDuringConcurrentClose` checks that interleaving at the Go
+seam. The model does not decide whether an already-running local Close should
+requeue jobs: the existing first-closer cleanup policy remains in effect.

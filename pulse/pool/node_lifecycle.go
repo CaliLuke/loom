@@ -16,6 +16,18 @@ func (node *Node) watchShutdown(ctx context.Context) {
 	updates := node.nodeShutdownMap.Subscribe()
 	defer node.nodeShutdownMap.Unsubscribe(updates)
 	for {
+		// Subscribe before reading state so a request arriving during startup
+		// is either visible here or leaves a notification for the next pass.
+		if requestingNode, ok := node.nodeShutdownMap.Get("shutdown"); ok {
+			// Publish while this watcher still owns its wait-group slot. A
+			// concurrent local Close must join us before signaling completion.
+			node.lock.Lock()
+			node.shutdown = true
+			node.lock.Unlock()
+			// Closing waits for this watcher, so finish it before joining close.
+			pulse.Go(node.logger, func() { node.handleShutdown(ctx, requestingNode) })
+			return
+		}
 		select {
 		case <-node.stop:
 			return
@@ -23,24 +35,12 @@ func (node *Node) watchShutdown(ctx context.Context) {
 			if !ok {
 				return
 			}
-			node.logger.Debug("watchShutdown: shutdown map updated")
-			// Handle shutdown in a separate goroutine to allow this one to exit
-			pulse.Go(node.logger, func() { node.handleShutdown(ctx) })
 		}
 	}
 }
 
 // handleShutdown closes the node.
-func (node *Node) handleShutdown(ctx context.Context) {
-	if node.IsClosed() {
-		return
-	}
-	sm := node.nodeShutdownMap.Map()
-	var requestingNode string
-	for _, node := range sm {
-		// There is only one value in the map
-		requestingNode = node
-	}
+func (node *Node) handleShutdown(ctx context.Context, requestingNode string) {
 	node.logger.Debug("handleShutdown: shutting down", "requested-by", requestingNode)
 	closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), node.workerShutdownTTL)
 	defer cancel()
@@ -48,9 +48,6 @@ func (node *Node) handleShutdown(ctx context.Context) {
 		node.logger.Error(fmt.Errorf("handleShutdown: failed to close node: %w", err))
 	}
 
-	node.lock.Lock()
-	node.shutdown = true
-	node.lock.Unlock()
 	node.logger.Info("shutdown", "requested-by", requestingNode)
 }
 
