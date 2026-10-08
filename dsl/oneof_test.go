@@ -190,7 +190,7 @@ func TestTypeNamesWrappedOneOfWithoutMutatingSource(t *testing.T) {
 	require.NotSame(t, expr.AsUnion(command.Attribute().Type), expr.AsUnion(instruction.Attribute().Type))
 }
 
-func TestUntaggedRejectsNonObjectBranches(t *testing.T) {
+func TestUntaggedRejectsScalarBranches(t *testing.T) {
 	err := expr.RunInvalidDSL(t, func() {
 		Service("untagged", func() {
 			Method("show", func() {
@@ -202,7 +202,9 @@ func TestUntaggedRejectsNonObjectBranches(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), `untagged OneOf branch "String" must be a concrete named object type`)
+	for _, branch := range []string{"String", "Int"} {
+		require.Contains(t, err.Error(), `untagged OneOf branch "`+branch+`" must be a concrete named object or array type`)
+	}
 }
 
 func TestUntaggedRejectsNestedBranchFields(t *testing.T) {
