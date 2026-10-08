@@ -3,7 +3,7 @@
 // clock JSON-RPC client encoders and decoders
 //
 // Command:
-// $ loom gen example.com/mixedtick/design
+// $ loom gen example.com/mixedtick/design -o .
 
 package client
 

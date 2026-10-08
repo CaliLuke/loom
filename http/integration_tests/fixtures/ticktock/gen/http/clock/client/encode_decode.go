@@ -3,7 +3,7 @@
 // clock HTTP client encoders and decoders
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design
+// $ loom gen example.com/http-ticktock/design -o .
 
 package client
 

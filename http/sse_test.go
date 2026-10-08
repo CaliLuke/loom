@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -425,11 +424,6 @@ func TestSSEStreamReaderBoundsEventSize(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, SSEEvent{Data: "next"}, event)
 	})
-}
-
-// strconvQuote names subtests after inputs with control bytes.
-func strconvQuote(s string) string {
-	return strings.ReplaceAll(strconv.Quote(s), "/", "_")
 }
 
 // repeatingReader yields unit forever, failing once limit bytes were read so a

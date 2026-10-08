@@ -3,7 +3,7 @@
 // clock JSON-RPC client encoders and decoders
 //
 // Command:
-// $ loom gen example.com/ticktock/design
+// $ loom gen example.com/ticktock/design -o .
 
 package client
 
