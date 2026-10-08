@@ -3,7 +3,7 @@
 // clock JSON-RPC client encoders and decoders
 //
 // Command:
-// $ loom gen example.com/mixedtick/design -o .
+// $ loom gen example.com/mixedtick/design
 
 package client
 
@@ -64,46 +64,39 @@ func EncodeInitializeRequest(encoder func(*http.Request) loomhttp.Encoder) func(
 // response body should be restored after having been read.
 func DecodeInitializeResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := io.ReadAll(resp.Body)
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			if resp.StatusCode != http.StatusOK {
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("clock", "Initialize", resp.StatusCode, string(body))
+			}
+
+			var jresp jsonrpc.RawResponse
+			if err := decoder(resp).Decode(&jresp); err != nil {
+				return nil, loomhttp.ErrDecodingError("clock", "Initialize", err)
+			}
+
+			if jresp.Error != nil {
+				switch jresp.Error.Code {
+				default:
+					return nil, jresp.Error
+				}
+			}
+
+			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
+			var (
+				body InitializeResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, err
+				return nil, loomhttp.ErrDecodingError("clock", "Initialize", err)
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, loomhttp.ErrInvalidResponse("clock", "Initialize", resp.StatusCode, string(body))
-		}
-
-		var jresp jsonrpc.RawResponse
-		if err := decoder(resp).Decode(&jresp); err != nil {
-			return nil, loomhttp.ErrDecodingError("clock", "Initialize", err)
-		}
-
-		if jresp.Error != nil {
-			switch jresp.Error.Code {
-			default:
-				return nil, jresp.Error
-			}
-		}
-
-		resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
-		var (
-			body InitializeResponseBody
-			err  error
-		)
-		err = decoder(resp).Decode(&body)
-		if err != nil {
-			return nil, loomhttp.ErrDecodingError("clock", "Initialize", err)
-		}
-		res := NewInitializeResultOK(&body)
-		return res, nil
+			res := NewInitializeResultOK(&body)
+			return res, nil
+		})
 	}
 }
 
@@ -152,45 +145,38 @@ func EncodeTickRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.
 // should be restored after having been read.
 func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := io.ReadAll(resp.Body)
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			if resp.StatusCode != http.StatusOK {
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
+			}
+
+			var jresp jsonrpc.RawResponse
+			if err := decoder(resp).Decode(&jresp); err != nil {
+				return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
+			}
+
+			if jresp.Error != nil {
+				switch jresp.Error.Code {
+				default:
+					return nil, jresp.Error
+				}
+			}
+
+			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
+			var (
+				body TickResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, err
+				return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
-		}
-
-		var jresp jsonrpc.RawResponse
-		if err := decoder(resp).Decode(&jresp); err != nil {
-			return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
-		}
-
-		if jresp.Error != nil {
-			switch jresp.Error.Code {
-			default:
-				return nil, jresp.Error
-			}
-		}
-
-		resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
-		var (
-			body TickResponseBody
-			err  error
-		)
-		err = decoder(resp).Decode(&body)
-		if err != nil {
-			return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
-		}
-		res := NewTickResultOK(&body)
-		return res, nil
+			res := NewTickResultOK(&body)
+			return res, nil
+		})
 	}
 }

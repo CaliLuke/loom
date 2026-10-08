@@ -6,83 +6,73 @@
 //   - error: internal error
 func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusOK:
-			var (
-				required int
-				err      error
-			)
-			{
-				requiredRaw := resp.Header.Get("X-Request-Id")
-				if requiredRaw == "" {
-					return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", loom.MissingFieldError("required", "header"))
-				}
-				v, err2 := strconv.ParseInt(requiredRaw, 10, strconv.IntSize)
-				if err2 != nil {
-					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("required", requiredRaw, "integer"))
-				}
-				required = int(v)
-			}
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
-			}
-			p := NewMethodAAResultOK(required)
-			view := "default"
-			vres := &validateerrorresponsetypeviews.AResult{Projected: p, View: view}
-			res, err := validateerrorresponsetype.NewAResult(vres)
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
-			}
-			return res, nil
-		case http.StatusBadRequest:
-			var (
-				error_   string
-				numOccur *int
-				err      error
-			)
-			error_Raw := resp.Header.Get("X-Application-Error")
-			if error_Raw == "" {
-				err = loom.MergeErrors(err, loom.MissingFieldError("error", "header"))
-			}
-			error_ = error_Raw
-			{
-				numOccurRaw := resp.Header.Get("X-Occur")
-				if numOccurRaw != "" {
-					v, err2 := strconv.ParseInt(numOccurRaw, 10, strconv.IntSize)
-					if err2 != nil {
-						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("num_occur", numOccurRaw, "integer"))
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				var (
+					required int
+					err      error
+				)
+				{
+					requiredRaw := resp.Header.Get("X-Request-Id")
+					if requiredRaw == "" {
+						return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", loom.MissingFieldError("required", "header"))
 					}
-					pv := int(v)
-					numOccur = &pv
+					v, err2 := strconv.ParseInt(requiredRaw, 10, strconv.IntSize)
+					if err2 != nil {
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("required", requiredRaw, "integer"))
+					}
+					required = int(v)
 				}
-			}
-			if numOccur != nil {
-				if *numOccur < 1 {
-					err = loom.MergeErrors(err, loom.InvalidRangeError("num_occur", *numOccur, 1, true))
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
 				}
+				p := NewMethodAAResultOK(required)
+				view := "default"
+				vres := &validateerrorresponsetypeviews.AResult{Projected: p, View: view}
+				res, err := validateerrorresponsetype.NewAResult(vres)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
+				}
+				return res, nil
+			case http.StatusBadRequest:
+				var (
+					error_   string
+					numOccur *int
+					err      error
+				)
+				error_Raw := resp.Header.Get("X-Application-Error")
+				if error_Raw == "" {
+					err = loom.MergeErrors(err, loom.MissingFieldError("error", "header"))
+				}
+				error_ = error_Raw
+				{
+					numOccurRaw := resp.Header.Get("X-Occur")
+					if numOccurRaw != "" {
+						v, err2 := strconv.ParseInt(numOccurRaw, 10, strconv.IntSize)
+						if err2 != nil {
+							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("num_occur", numOccurRaw, "integer"))
+						}
+						pv := int(v)
+						numOccur = &pv
+					}
+				}
+				if numOccur != nil {
+					if *numOccur < 1 {
+						err = loom.MergeErrors(err, loom.InvalidRangeError("num_occur", *numOccur, 1, true))
+					}
+				}
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
+				}
+				return nil, NewMethodASomeError(error_, numOccur)
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("ValidateErrorResponseType", "MethodA", resp.StatusCode, string(body))
 			}
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("ValidateErrorResponseType", "MethodA", err)
-			}
-			return nil, NewMethodASomeError(error_, numOccur)
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("ValidateErrorResponseType", "MethodA", resp.StatusCode, string(body))
-		}
+		})
 	}
 }

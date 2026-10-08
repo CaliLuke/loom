@@ -4,74 +4,64 @@
 // having been read.
 func DecodeMethodTagMultipleViewsResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusAccepted:
+				var (
+					body MethodTagMultipleViewsAcceptedResponseBody
+					err  error
+				)
+				err = decoder(resp).Decode(&body)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
+				}
+				var (
+					c *string
+				)
+				cRaw := resp.Header.Get("C")
+				if cRaw != "" {
+					c = &cRaw
+				}
+				p := NewMethodTagMultipleViewsResulttypemultipleviewsAccepted(&body, c)
+				tmp := "value"
+				p.B = &tmp
+				view := resp.Header.Get("loom-view")
+				vres := &servicetagmultipleviewsviews.Resulttypemultipleviews{Projected: p, View: view}
+				if err = servicetagmultipleviewsviews.ValidateResulttypemultipleviews(vres); err != nil {
+					return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
+				}
+				res, err := servicetagmultipleviews.NewResulttypemultipleviews(vres)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
+				}
+				return res, nil
+			case http.StatusOK:
+				var (
+					body MethodTagMultipleViewsOKResponseBody
+					err  error
+				)
+				err = decoder(resp).Decode(&body)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
+				}
+				p := NewMethodTagMultipleViewsResulttypemultipleviewsOK(&body)
+				view := resp.Header.Get("loom-view")
+				vres := &servicetagmultipleviewsviews.Resulttypemultipleviews{Projected: p, View: view}
+				if err = servicetagmultipleviewsviews.ValidateResulttypemultipleviews(vres); err != nil {
+					return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
+				}
+				res, err := servicetagmultipleviews.NewResulttypemultipleviews(vres)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
+				}
+				return res, nil
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("ServiceTagMultipleViews", "MethodTagMultipleViews", resp.StatusCode, string(body))
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusAccepted:
-			var (
-				body MethodTagMultipleViewsAcceptedResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, loomhttp.ErrDecodingError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
-			}
-			var (
-				c *string
-			)
-			cRaw := resp.Header.Get("C")
-			if cRaw != "" {
-				c = &cRaw
-			}
-			p := NewMethodTagMultipleViewsResulttypemultipleviewsAccepted(&body, c)
-			tmp := "value"
-			p.B = &tmp
-			view := resp.Header.Get("loom-view")
-			vres := &servicetagmultipleviewsviews.Resulttypemultipleviews{Projected: p, View: view}
-			if err = servicetagmultipleviewsviews.ValidateResulttypemultipleviews(vres); err != nil {
-				return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
-			}
-			res, err := servicetagmultipleviews.NewResulttypemultipleviews(vres)
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
-			}
-			return res, nil
-		case http.StatusOK:
-			var (
-				body MethodTagMultipleViewsOKResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, loomhttp.ErrDecodingError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
-			}
-			p := NewMethodTagMultipleViewsResulttypemultipleviewsOK(&body)
-			view := resp.Header.Get("loom-view")
-			vres := &servicetagmultipleviewsviews.Resulttypemultipleviews{Projected: p, View: view}
-			if err = servicetagmultipleviewsviews.ValidateResulttypemultipleviews(vres); err != nil {
-				return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
-			}
-			res, err := servicetagmultipleviews.NewResulttypemultipleviews(vres)
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("ServiceTagMultipleViews", "MethodTagMultipleViews", err)
-			}
-			return res, nil
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("ServiceTagMultipleViews", "MethodTagMultipleViews", resp.StatusCode, string(body))
-		}
+		})
 	}
 }

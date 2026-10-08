@@ -4,39 +4,29 @@
 // after having been read.
 func DecodeMethodHeaderStringImplicitResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				var (
+					h   string
+					err error
+				)
+				hRaw := resp.Header.Get("H")
+				if hRaw == "" {
+					err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
+				}
+				h = hRaw
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ServiceHeaderStringImplicit", "MethodHeaderStringImplicit", err)
+				}
+				return h, nil
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("ServiceHeaderStringImplicit", "MethodHeaderStringImplicit", resp.StatusCode, string(body))
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusOK:
-			var (
-				h   string
-				err error
-			)
-			hRaw := resp.Header.Get("H")
-			if hRaw == "" {
-				err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
-			}
-			h = hRaw
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("ServiceHeaderStringImplicit", "MethodHeaderStringImplicit", err)
-			}
-			return h, nil
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("ServiceHeaderStringImplicit", "MethodHeaderStringImplicit", resp.StatusCode, string(body))
-		}
+		})
 	}
 }

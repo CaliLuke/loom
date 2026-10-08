@@ -312,7 +312,6 @@ func renderClientHTTPEndpoint(group *jen.Group, endpoint *EndpointData) {
 			group.List(jen.Id("_"), jen.Err()).Op("=").Id("decodeResponse").Call(jen.Id("resp"))
 		}
 		group.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Id("resp").Dot("Body").Dot("Close").Call(),
 			jen.Return(jen.Nil(), jen.Err()),
 		)
 

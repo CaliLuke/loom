@@ -4,28 +4,18 @@
 // after having been read.
 func DecodeMethodEmptyServerResponseResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				res := NewMethodEmptyServerResponseResultOK()
+				return res, nil
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("ServiceEmptyServerResponse", "MethodEmptyServerResponse", resp.StatusCode, string(body))
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusOK:
-			res := NewMethodEmptyServerResponseResultOK()
-			return res, nil
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("ServiceEmptyServerResponse", "MethodEmptyServerResponse", resp.StatusCode, string(body))
-		}
+		})
 	}
 }

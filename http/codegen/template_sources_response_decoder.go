@@ -29,19 +29,7 @@ var (
 {{- end }}
 func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		{{- if not (or .Method.SkipResponseBodyEncodeDecode .Method.FileResponse) }} } else {
-			defer resp.Body.Close()
-		{{- end }}
-		}
+        return loomhttp.DecodeResponse(resp, restoreBody, {{ if or .Method.SkipResponseBodyEncodeDecode .Method.FileResponse }}false{{ range .Result.Responses }} || resp.StatusCode == {{ .StatusCode }}{{ if and $.Method.FileResponse (eq .Code 200) }} || resp.StatusCode == http.StatusPartialContent || resp.StatusCode == http.StatusNotModified{{ end }}{{ end }}{{ else }}false{{ end }}, func(resp *http.Response) (any, error) {
 		switch resp.StatusCode {
 	{{- range .Result.Responses }}
 		case {{ .StatusCode }}{{ if and $.Method.FileResponse (eq .Code 200) }}, http.StatusPartialContent, http.StatusNotModified{{ end }}:
@@ -135,6 +123,7 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			}
 			return nil, loomhttp.ErrInvalidResponse({{ printf "%q" .ServiceName }}, {{ printf "%q" .Method.Name }}, resp.StatusCode, string(body))
 		}
+        })
 	}
 }
 `,

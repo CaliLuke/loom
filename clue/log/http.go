@@ -54,7 +54,7 @@ type (
 		err error
 	}
 
-	replayErrorBody struct {
+	replayBody struct {
 		io.Reader
 		io.Closer
 	}
@@ -206,15 +206,15 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	if c.options.iserr(resp.StatusCode) {
 		if c.options.logErrBody {
 			body, readErr := io.ReadAll(resp.Body)
+			var replay io.Reader = bytes.NewReader(body)
 			if readErr != nil {
-				resp.Body = &replayErrorBody{
-					Reader: io.MultiReader(bytes.NewReader(body), errorReader{err: readErr}),
-					Closer: resp.Body,
-				}
+				replay = io.MultiReader(replay, errorReader{err: readErr})
+			}
+			resp.Body = &replayBody{Reader: replay, Closer: resp.Body}
+			if readErr != nil {
 				Error(req.Context(), readErr, msgKV, methKV, urlKV, statusKV, durKV)
 				return resp, nil
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(body))
 			Error(req.Context(), errors.New(resp.Status), msgKV, methKV, urlKV, statusKV, durKV, KV{K: HTTPBodyKey, V: string(body)})
 		} else {
 			Error(req.Context(), errors.New(resp.Status), msgKV, methKV, urlKV, statusKV, durKV)

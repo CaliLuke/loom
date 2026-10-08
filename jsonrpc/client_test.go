@@ -74,3 +74,34 @@ func TestDecodeNotificationResponseReadError(t *testing.T) {
 type errReader struct{ err error }
 
 func (r errReader) Read([]byte) (int, error) { return 0, r.err }
+
+type notificationBody struct {
+	io.Reader
+	closes   int
+	closeErr error
+}
+
+func (b *notificationBody) Close() error {
+	b.closes++
+	return b.closeErr
+}
+
+func TestNotificationResponseCleanupErrors(t *testing.T) {
+	readErr, closeErr := errors.New("read"), errors.New("close")
+	for _, failRead := range []bool{false, true} {
+		b := &notificationBody{Reader: strings.NewReader(" "), closeErr: closeErr}
+		if failRead {
+			b.Reader = io.MultiReader(b.Reader, errReader{readErr})
+		}
+		resp := &http.Response{StatusCode: http.StatusNoContent, Body: b}
+		err := DecodeNotificationResponse("svc", "notify", resp)
+		require.ErrorIs(t, err, closeErr)
+		if failRead {
+			require.ErrorIs(t, err, readErr)
+		}
+		require.Equal(t, 1, b.closes)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, " ", string(body))
+	}
+}

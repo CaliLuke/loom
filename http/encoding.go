@@ -297,7 +297,8 @@ func ReadUnexpectedResponseBody(resp *http.Response) (string, error) {
 }
 
 // ReadResponseBody reads the bounded response body used when generated clients
-// restore the response body after decoding.
+// restore the response body after decoding. Read failures return any captured
+// prefix along with the error; oversized bodies return no bytes.
 func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	if resp == nil || resp.Body == nil {
 		return nil, nil
@@ -442,7 +443,7 @@ func readAllLimited(r io.Reader, limit int64) ([]byte, error) {
 	limited := io.LimitReader(r, limit+1)
 	b, err := io.ReadAll(limited)
 	if err != nil {
-		return nil, err
+		return b, err
 	}
 	if int64(len(b)) > limit {
 		return nil, errRequestBodyTooLarge

@@ -3,49 +3,39 @@
 // the response body should be restored after having been read.
 func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusOK:
-			var (
-				array []uint
-				err   error
-			)
-			{
-				arrayRaw := resp.Header["Array"]
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				var (
+					array []uint
+					err   error
+				)
+				{
+					arrayRaw := resp.Header["Array"]
 
-				if arrayRaw != nil {
-					array = make([]uint, len(arrayRaw))
-					for i, rv := range arrayRaw {
-						v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
-						if err2 != nil {
-							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("array", arrayRaw, "array of unsigned integers"))
+					if arrayRaw != nil {
+						array = make([]uint, len(arrayRaw))
+						for i, rv := range arrayRaw {
+							v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
+							if err2 != nil {
+								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("array", arrayRaw, "array of unsigned integers"))
+							}
+							array[i] = uint(v)
 						}
-						array[i] = uint(v)
 					}
 				}
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ServiceHeaderArrayResponse", "MethodA", err)
+				}
+				res := NewMethodAResultOK(array)
+				return res, nil
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("ServiceHeaderArrayResponse", "MethodA", resp.StatusCode, string(body))
 			}
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("ServiceHeaderArrayResponse", "MethodA", err)
-			}
-			res := NewMethodAResultOK(array)
-			return res, nil
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("ServiceHeaderArrayResponse", "MethodA", resp.StatusCode, string(body))
-		}
+		})
 	}
 }

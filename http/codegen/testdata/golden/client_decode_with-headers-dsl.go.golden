@@ -3,70 +3,60 @@
 // response body should be restored after having been read.
 func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusOK:
-			var (
-				required            int
-				optional            *float32
-				optionalButRequired uint
-				err                 error
-			)
-			{
-				requiredRaw := resp.Header.Get("X-Request-Id")
-				if requiredRaw == "" {
-					return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlock", "MethodA", loom.MissingFieldError("required", "header"))
-				}
-				v, err2 := strconv.ParseInt(requiredRaw, 10, strconv.IntSize)
-				if err2 != nil {
-					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("required", requiredRaw, "integer"))
-				}
-				required = int(v)
-			}
-			{
-				optionalRaw := resp.Header.Get("Authorization")
-				if optionalRaw != "" {
-					v, err2 := strconv.ParseFloat(optionalRaw, 32)
-					if err2 != nil {
-						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("optional", optionalRaw, "float"))
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				var (
+					required            int
+					optional            *float32
+					optionalButRequired uint
+					err                 error
+				)
+				{
+					requiredRaw := resp.Header.Get("X-Request-Id")
+					if requiredRaw == "" {
+						return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlock", "MethodA", loom.MissingFieldError("required", "header"))
 					}
-					pv := float32(v)
-					optional = &pv
+					v, err2 := strconv.ParseInt(requiredRaw, 10, strconv.IntSize)
+					if err2 != nil {
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("required", requiredRaw, "integer"))
+					}
+					required = int(v)
 				}
-			}
-			{
-				optionalButRequiredRaw := resp.Header.Get("Location")
-				if optionalButRequiredRaw == "" {
-					return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlock", "MethodA", loom.MissingFieldError("optional_but_required", "header"))
+				{
+					optionalRaw := resp.Header.Get("Authorization")
+					if optionalRaw != "" {
+						v, err2 := strconv.ParseFloat(optionalRaw, 32)
+						if err2 != nil {
+							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("optional", optionalRaw, "float"))
+						}
+						pv := float32(v)
+						optional = &pv
+					}
 				}
-				v, err2 := strconv.ParseUint(optionalButRequiredRaw, 10, strconv.IntSize)
-				if err2 != nil {
-					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("optional_but_required", optionalButRequiredRaw, "unsigned integer"))
+				{
+					optionalButRequiredRaw := resp.Header.Get("Location")
+					if optionalButRequiredRaw == "" {
+						return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlock", "MethodA", loom.MissingFieldError("optional_but_required", "header"))
+					}
+					v, err2 := strconv.ParseUint(optionalButRequiredRaw, 10, strconv.IntSize)
+					if err2 != nil {
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("optional_but_required", optionalButRequiredRaw, "unsigned integer"))
+					}
+					optionalButRequired = uint(v)
 				}
-				optionalButRequired = uint(v)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlock", "MethodA", err)
+				}
+				res := NewMethodAResultOK(required, optional, optionalButRequired)
+				return res, nil
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("ServiceWithHeadersBlock", "MethodA", resp.StatusCode, string(body))
 			}
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("ServiceWithHeadersBlock", "MethodA", err)
-			}
-			res := NewMethodAResultOK(required, optional, optionalButRequired)
-			return res, nil
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("ServiceWithHeadersBlock", "MethodA", resp.StatusCode, string(body))
-		}
+		})
 	}
 }

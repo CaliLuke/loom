@@ -49,6 +49,11 @@ not imply local context cancellation. Native remote errors without recognized
 error details remain unchanged, including cancellation/deadline statuses. Service
 context termination maps to its native gRPC status. Regenerate clients to adopt
 this behavior.
+HTTP and JSON-RPC decoders close consumed response bodies once and retain
+cleanup errors with read/decode errors; use `errors.Is` to inspect each cause.
+Body restoration is bounded and preserves captured bytes. Successful raw/file
+responses stay open and caller-owned even with restoration enabled; close them
+when done. Regenerate clients to adopt this behavior.
 Synthesized service and HTTP CLI examples are scoped by stable service and
 method identity, so unrelated service edits or declaration reordering do not
 churn their values. Implicit server service lists use stable service-name

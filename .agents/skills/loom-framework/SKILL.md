@@ -940,6 +940,12 @@ filter, and serialization rules belong here.
   fault or the local context's error.
 - Generated transport observability must remain dependency-free and must never
   emit bodies, params, tool arguments, credentials, or result payloads.
+- `http.DecodeResponse` owns original response-body cleanup, bounded restoration
+  and error composition for generated HTTP/JSON-RPC decoders and notification
+  responses. Generated callbacks own typed/status decoding only. Raw/file success
+  transfers the original body; failed metadata validation closes it. Never add a
+  second endpoint close or discard a close/read error. The response-body model
+  under `http/tla/response_body` records ownership and joined-error invariants.
 - Keep HTTP, gRPC, and JSON-RPC semantics distinct unless a deliberately shared
   transport core owns the behavior.
 - Keep deployment-owned HTTP policies composable at generated method fields.

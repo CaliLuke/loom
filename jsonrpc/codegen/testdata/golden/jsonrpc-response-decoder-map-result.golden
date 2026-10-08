@@ -3,53 +3,46 @@
 // body should be restored after having been read.
 func DecodeIndexResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := io.ReadAll(resp.Body)
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			if resp.StatusCode != http.StatusOK {
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("calc", "index", resp.StatusCode, string(body))
+			}
+
+			var jresp jsonrpc.RawResponse
+			if err := decoder(resp).Decode(&jresp); err != nil {
+				return nil, loomhttp.ErrDecodingError("calc", "index", err)
+			}
+
+			if jresp.Error != nil {
+				switch jresp.Error.Code {
+				default:
+					return nil, jresp.Error
+				}
+			}
+
+			resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
+			var (
+				body map[string]loom.Nullable[int]
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, err
+				return nil, loomhttp.ErrDecodingError("calc", "index", err)
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, loomhttp.ErrInvalidResponse("calc", "index", resp.StatusCode, string(body))
-		}
-
-		var jresp jsonrpc.RawResponse
-		if err := decoder(resp).Decode(&jresp); err != nil {
-			return nil, loomhttp.ErrDecodingError("calc", "index", err)
-		}
-
-		if jresp.Error != nil {
-			switch jresp.Error.Code {
-			default:
-				return nil, jresp.Error
+			for _, v := range body {
+				if _, ok := v.Value(); !ok {
+					err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+				}
 			}
-		}
-
-		resp.Body = io.NopCloser(bytes.NewBuffer(jresp.Result))
-		var (
-			body map[string]loom.Nullable[int]
-			err  error
-		)
-		err = decoder(resp).Decode(&body)
-		if err != nil {
-			return nil, loomhttp.ErrDecodingError("calc", "index", err)
-		}
-		for _, v := range body {
-			if _, ok := v.Value(); !ok {
-				err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+			if err != nil {
+				return nil, loomhttp.ErrValidationError("calc", "index", err)
 			}
-		}
-		if err != nil {
-			return nil, loomhttp.ErrValidationError("calc", "index", err)
-		}
-		res := NewIndexMapStringIntOK(body)
-		return res, nil
+			res := NewIndexMapStringIntOK(body)
+			return res, nil
+		})
 	}
 }

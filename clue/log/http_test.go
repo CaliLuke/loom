@@ -331,11 +331,13 @@ func TestClientLogBodyOnErrorKeepsBodyReadable(t *testing.T) {
 	stubTimeSince(t, time.Millisecond)
 	var buf bytes.Buffer
 	ctx := newTestContext(&buf)
+	closeErr := errors.New("close failed")
+	original := &loggingResponseBody{Reader: bytes.NewBufferString("oops"), closeErr: closeErr}
 	rt := Client(roundTripperFunc(func(*http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusBadRequest,
 			Status:     "400 Bad Request",
-			Body:       io.NopCloser(bytes.NewBufferString("oops")),
+			Body:       original,
 		}, nil
 	}), WithLogBodyOnError())
 
@@ -346,7 +348,9 @@ func TestClientLogBodyOnErrorKeepsBodyReadable(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.Equal(t, "oops", string(body))
-	require.NoError(t, resp.Body.Close())
+	require.Zero(t, original.closes)
+	require.ErrorIs(t, resp.Body.Close(), closeErr)
+	require.Equal(t, 1, original.closes)
 }
 
 func TestResponseCaptureWriteAndHeader(t *testing.T) {
@@ -483,4 +487,15 @@ func TestFrom(t *testing.T) {
 
 		require.Equal(t, "198.51.100.7", got)
 	})
+}
+
+type loggingResponseBody struct {
+	io.Reader
+	closes   int
+	closeErr error
+}
+
+func (b *loggingResponseBody) Close() error {
+	b.closes++
+	return b.closeErr
 }

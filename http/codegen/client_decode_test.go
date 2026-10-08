@@ -59,7 +59,7 @@ func TestClientDecodeUnexpectedResponseBodyIsBounded(t *testing.T) {
 func TestClientDecodeRestoreBodyIsBounded(t *testing.T) {
 	code := clientDecodeSectionCode(t, testdata.EmptyServerResponseDSL)
 
-	require.Contains(t, code, "b, err := loomhttp.ReadResponseBody(resp)")
+	require.Contains(t, code, "loomhttp.DecodeResponse(resp, restoreBody, false,")
 	require.NotContains(t, code, "b, err := io.ReadAll(resp.Body)")
 }
 

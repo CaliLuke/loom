@@ -3,14 +3,12 @@
 // clock HTTP client encoders and decoders
 //
 // Command:
-// $ loom gen example.com/http-ticktock/design -o .
+// $ loom gen example.com/http-ticktock/design
 
 package client
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"net/http"
 	"net/url"
 
@@ -38,41 +36,31 @@ func (c *Client) BuildTickRequest(ctx context.Context, v any) (*http.Request, er
 // restored after having been read.
 func DecodeTickResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				var (
+					body TickResponseBody
+					err  error
+				)
+				err = decoder(resp).Decode(&body)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
+				}
+				err = ValidateTickResponseBody(&body)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("clock", "Tick", err)
+				}
+				res := NewTickTockEventOK(&body)
+				return res, nil
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusOK:
-			var (
-				body TickResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, loomhttp.ErrDecodingError("clock", "Tick", err)
-			}
-			err = ValidateTickResponseBody(&body)
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("clock", "Tick", err)
-			}
-			res := NewTickTockEventOK(&body)
-			return res, nil
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("clock", "Tick", resp.StatusCode, string(body))
-		}
+		})
 	}
 }
 
@@ -96,41 +84,31 @@ func (c *Client) BuildTockRequest(ctx context.Context, v any) (*http.Request, er
 // restored after having been read.
 func DecodeTockResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				var (
+					body TockResponseBody
+					err  error
+				)
+				err = decoder(resp).Decode(&body)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("clock", "Tock", err)
+				}
+				err = ValidateTockResponseBody(&body)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("clock", "Tock", err)
+				}
+				res := NewTockTickTockEventOK(&body)
+				return res, nil
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("clock", "Tock", resp.StatusCode, string(body))
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusOK:
-			var (
-				body TockResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, loomhttp.ErrDecodingError("clock", "Tock", err)
-			}
-			err = ValidateTockResponseBody(&body)
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("clock", "Tock", err)
-			}
-			res := NewTockTickTockEventOK(&body)
-			return res, nil
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("clock", "Tock", resp.StatusCode, string(body))
-		}
+		})
 	}
 }
 
@@ -174,54 +152,44 @@ func EncodeGuardedRequest(encoder func(*http.Request) loomhttp.Encoder) func(*ht
 //   - error: internal error
 func DecodeGuardedResponse(decoder func(*http.Response) loomhttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
-		if restoreBody {
-			b, err := loomhttp.ReadResponseBody(resp)
-			if err != nil {
-				return nil, err
+		return loomhttp.DecodeResponse(resp, restoreBody, false, func(resp *http.Response) (any, error) {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				var (
+					body GuardedResponseBody
+					err  error
+				)
+				err = decoder(resp).Decode(&body)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("clock", "Guarded", err)
+				}
+				err = ValidateGuardedResponseBody(&body)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("clock", "Guarded", err)
+				}
+				res := NewGuardedTickTockEventOK(&body)
+				return res, nil
+			case http.StatusUnauthorized:
+				var (
+					body GuardedUnauthorizedResponseBody
+					err  error
+				)
+				err = decoder(resp).Decode(&body)
+				if err != nil {
+					return nil, loomhttp.ErrDecodingError("clock", "Guarded", err)
+				}
+				err = ValidateGuardedUnauthorizedResponseBody(&body)
+				if err != nil {
+					return nil, loomhttp.ErrValidationError("clock", "Guarded", err)
+				}
+				return nil, NewGuardedUnauthorized(&body)
+			default:
+				body, err := loomhttp.ReadUnexpectedResponseBody(resp)
+				if err != nil {
+					return nil, err
+				}
+				return nil, loomhttp.ErrInvalidResponse("clock", "Guarded", resp.StatusCode, string(body))
 			}
-			resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			defer func() {
-				resp.Body = io.NopCloser(bytes.NewBuffer(b))
-			}()
-		} else {
-			defer resp.Body.Close()
-		}
-		switch resp.StatusCode {
-		case http.StatusOK:
-			var (
-				body GuardedResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, loomhttp.ErrDecodingError("clock", "Guarded", err)
-			}
-			err = ValidateGuardedResponseBody(&body)
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("clock", "Guarded", err)
-			}
-			res := NewGuardedTickTockEventOK(&body)
-			return res, nil
-		case http.StatusUnauthorized:
-			var (
-				body GuardedUnauthorizedResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, loomhttp.ErrDecodingError("clock", "Guarded", err)
-			}
-			err = ValidateGuardedUnauthorizedResponseBody(&body)
-			if err != nil {
-				return nil, loomhttp.ErrValidationError("clock", "Guarded", err)
-			}
-			return nil, NewGuardedUnauthorized(&body)
-		default:
-			body, err := loomhttp.ReadUnexpectedResponseBody(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, loomhttp.ErrInvalidResponse("clock", "Guarded", resp.StatusCode, string(body))
-		}
+		})
 	}
 }

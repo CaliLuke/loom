@@ -32,7 +32,12 @@ func jsonrpcResponseDecoderSection(e *httpcodegen.EndpointData) codegen.Section 
 						Params(jen.Id("resp").Op("*").Qual("net/http", "Response")).
 						Params(jen.Any(), jen.Error()).
 						BlockFunc(func(g *jen.Group) {
-							writeJSONRPCResponseDecoderBody(g, e)
+							g.Return(jen.Id("loomhttp").Dot("DecodeResponse").Call(
+								jen.Id("resp"), jen.Id("restoreBody"), jen.False(),
+								jen.Func().Params(jen.Id("resp").Op("*").Qual("net/http", "Response")).Params(jen.Any(), jen.Error()).BlockFunc(func(body *jen.Group) {
+									writeJSONRPCResponseDecoderBody(body, e)
+								}),
+							))
 						}),
 				),
 			)
@@ -40,31 +45,16 @@ func jsonrpcResponseDecoderSection(e *httpcodegen.EndpointData) codegen.Section 
 }
 
 func writeJSONRPCResponseDecoderBody(g *jen.Group, e *httpcodegen.EndpointData) {
-	writeJSONRPCResponseRestoreBody(g)
 	writeJSONRPCResponseStatusCheck(g, e)
 	writeJSONRPCResponseDecodeEnvelope(g, e)
 	writeJSONRPCResponseErrorHandling(g, e)
 	writeJSONRPCResponseSuccessHandling(g, e)
 }
 
-func writeJSONRPCResponseRestoreBody(g *jen.Group) {
-	g.If(jen.Id("restoreBody")).Block(
-		jen.List(jen.Id("b"), jen.Id("err")).Op(":=").Qual("io", "ReadAll").Call(jen.Id("resp").Dot("Body")),
-		jen.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Nil(), jen.Id("err")),
-		),
-		jen.Id("resp").Dot("Body").Op("=").Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewBuffer").Call(jen.Id("b"))),
-		jen.Defer().Func().Params().Block(
-			jen.Id("resp").Dot("Body").Op("=").Qual("io", "NopCloser").Call(jen.Qual("bytes", "NewBuffer").Call(jen.Id("b"))),
-		).Call(),
-	)
-	g.Add(codegen.Expr("defer resp.Body.Close()"))
-	g.Line()
-}
-
 func writeJSONRPCResponseStatusCheck(g *jen.Group, e *httpcodegen.EndpointData) {
 	g.If(jen.Id("resp").Dot("StatusCode").Op("!=").Qual("net/http", "StatusOK")).Block(
-		jen.List(jen.Id("body"), jen.Id("_")).Op(":=").Qual("io", "ReadAll").Call(jen.Id("resp").Dot("Body")),
+		jen.List(jen.Id("body"), jen.Err()).Op(":=").Id("loomhttp").Dot("ReadUnexpectedResponseBody").Call(jen.Id("resp")),
+		jen.If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Nil(), jen.Err())),
 		jen.Return(
 			jen.Nil(),
 			errInvalidResponseExpr(e.ServiceName, e.Method.Name, jen.Id("resp").Dot("StatusCode"), jen.String().Call(jen.Id("body"))),

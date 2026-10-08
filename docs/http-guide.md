@@ -659,7 +659,18 @@ condition to an `InvalidRequest` error: code `-32600`, null `id`, message
 `request body too large`, and error data name `request_too_large`. A
 POST-initiated SSE request receives that envelope as a `message` event.
 
-Generated clients also cap buffered response-body restoration at 32 MiB.
+Generated HTTP and JSON-RPC clients cap buffered response-body restoration at
+32 MiB. The decoder owns consumed bodies: it closes the original once, including
+on decode/read failure, and preserves close failures alongside other errors for
+`errors.Is`. Restoration retains the captured bytes after decoding, including a
+partial prefix on read failure; oversized bodies are rejected without restoration.
+A cleanup failure returns no successful result.
+
+Successful raw-body and file-response methods transfer the original open body to
+the caller, who must close it. `RestoreResponseBody` does not buffer or replace
+those streams. Failed responses remain decoder-owned. JSON-RPC notification
+responses use the same bounded consumption and cleanup operation. Regenerate
+clients to adopt this ownership correction.
 
 Unexpected response bodies included in generated client errors are capped at
 64 KiB so an invalid upstream response cannot create an unbounded diagnostic.
