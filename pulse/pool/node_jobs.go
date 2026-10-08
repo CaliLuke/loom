@@ -335,7 +335,8 @@ func (node *Node) NotifyWorker(ctx context.Context, key string, payload []byte) 
 // from creating new workers and the pool workers from accepting new jobs. After
 // Shutdown returns, the node object cannot be used anymore and should be
 // discarded. One of Shutdown or Close should be called before the node is
-// garbage collected unless it is client-only.
+// garbage collected unless it is client-only. If publishing the shutdown
+// request fails, Shutdown returns that error without waiting for node closure.
 func (node *Node) Shutdown(ctx context.Context) error {
 	if node.IsClosed() {
 		return nil
@@ -346,7 +347,7 @@ func (node *Node) Shutdown(ctx context.Context) error {
 
 	// Signal all nodes to shutdown.
 	if _, err := node.nodeShutdownMap.Set(ctx, "shutdown", node.ID); err != nil {
-		node.logger.Error(fmt.Errorf("Shutdown: failed to set shutdown status in shutdown map: %w", err))
+		return fmt.Errorf("Shutdown: failed to set shutdown status in shutdown map: %w", err)
 	}
 	<-node.closed // Wait for this node to be closed
 	node.cleanupPool(ctx)
