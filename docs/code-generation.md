@@ -1141,6 +1141,12 @@ Views control how result types are rendered in responses.
 4. View-specific validation performed
 5. Converted back to service result type
 
+Fields omitted by the selected view stay absent during conversion, even when
+the full result type requires them. Missing fields required by that view and
+unknown view names return validation errors. An absent `loom-view` header selects
+the default view. HTTP and WebSocket clients share this conversion behavior;
+regenerate existing clients to pick up generator fixes.
+
 ### Projection Helpers
 
 For `ResultType` and `View` designs, Loom generates exported projection helpers

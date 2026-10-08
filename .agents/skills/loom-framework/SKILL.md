@@ -1073,6 +1073,16 @@ filter, and serialization rules belong here.
   (`viewObjectAttribute`) that requires only the unions that the projected
   type requires, so that the transforms use the union fields as declared and
   still check the other fields for nil.
+- Shared `GoTransform` conversion into pointer carriers preserves absent object
+  fields, named scalar pointers and collections independently of full-type
+  requiredness. A selected view may legitimately omit them, and its validator
+  runs after transport-to-view conversion. Do not materialize missing required
+  collections in that carrier or dereference required named scalar pointers.
+  Value-target default application and required-array encoding remain separate.
+  Keep this decision in the shared transformer, used by unary and WebSocket
+  response constructors, rather than adding transport-local guards. The bounded
+  [presence model](../../../codegen/tla/projected_presence/README.md) records the
+  panic and collection-presence counterexamples and its assumptions.
 - Shared service analysis collects custom error types from evaluated HTTP and
   JSON-RPC endpoint mappings as well as service/method declarations. Inherited
   mappings can retain an API error type even when the local error uses the

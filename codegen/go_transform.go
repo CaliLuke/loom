@@ -102,6 +102,10 @@ type (
 // sourceCtx and targetCtx are the attribute contexts for the source and target
 // attributes
 //
+// A pointer target retains field presence for later validation or projection:
+// requiredness alone never justifies dereferencing or materializing an absent
+// field in that carrier. Defaults are applied when converting to value storage.
+//
 // prefix is the transformation helper function prefix
 //
 // newVar if true initializes a target variable with the generated Go code
@@ -296,7 +300,7 @@ func transformObjectPrimitiveInitExpression(srcMatt, tgtMatt *expr.MappedAttribu
 			baseExpr = "*" + srcField
 		}
 		exp := Expr(ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)) + "(" + baseExpr + ")")
-		if srcPtr && !srcMatt.IsRequired(name) {
+		if srcPtr && (tgtPtr || !srcMatt.IsRequired(name)) {
 			return nil, buildConditionalPrimitiveAssignmentStmt(srcField, targetVar, tgtField, exp, tgtPtr, Goify(name, false))
 		}
 		if tgtPtr {
@@ -404,7 +408,7 @@ func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.Attribut
 	stmt.If(condition).BlockFunc(func(group *jen.Group) {
 		group.Add(code)
 	})
-	if expr.IsArray(srcc.Type) && srcMatt.IsRequired(name) {
+	if expr.IsArray(srcc.Type) && srcMatt.IsRequired(name) && !ta.TargetCtx.Pointer {
 		elemRef := collectionTypeRef(expr.AsArray(tgtc.Type).ElemType, ta.TargetCtx, false)
 		stmt.Else().BlockFunc(func(group *jen.Group) {
 			group.Add(Expr(tgtVar)).Op("=").Add(Expr("[]" + elemRef + "{}"))
@@ -414,9 +418,13 @@ func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.Attribut
 }
 
 func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.MappedAttributeExpr, name string, ta *TransformAttrs) bool {
-	isRef := !expr.IsPrimitive(srcc.Type) && !srcMatt.IsRequired(name) || ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) && expr.IsPrimitive(srcc.Type)
-	marshalNonPrimitive := !expr.IsPrimitive(srcc.Type) && ta.SourceCtx.UseDefault && ta.TargetCtx.UseDefault
-	return isRef || marshalNonPrimitive
+	// A pointer carrier may be validated against a selected view after this
+	// conversion. Preserve absent objects and collections regardless of the
+	// full type's requiredness, just as primitive pointer fields do.
+	if expr.IsPrimitive(srcc.Type) {
+		return ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr)
+	}
+	return !srcMatt.IsRequired(name) || ta.TargetCtx.Pointer || ta.SourceCtx.UseDefault && ta.TargetCtx.UseDefault
 }
 
 func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) *jen.Statement {
