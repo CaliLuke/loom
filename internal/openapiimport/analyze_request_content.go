@@ -3,9 +3,9 @@ package openapiimport
 import (
 	"reflect"
 
+	"github.com/pb33f/go-yaml"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	yaml4 "go.yaml.in/yaml/v4"
 )
 
 func (a *analyzer) requestContent(
@@ -59,7 +59,7 @@ func (a *analyzer) mediaTypeParserGapDiagnostics(media *v3.MediaType, path strin
 		return
 	}
 	root := media.GoLow().GetRootNode()
-	if root == nil || root.Kind != yaml4.MappingNode {
+	if root == nil || root.Kind != yaml.MappingNode {
 		return
 	}
 	for index := 0; index+1 < len(root.Content); index += 2 {

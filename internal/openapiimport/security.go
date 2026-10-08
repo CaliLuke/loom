@@ -6,10 +6,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	yaml4 "go.yaml.in/yaml/v4"
 
 	"github.com/CaliLuke/loom/codegen"
 )
@@ -153,7 +153,7 @@ func oauthDeviceAuthorizationPresent(flows *v3.OAuthFlows) bool {
 		return false
 	}
 	root := flows.GoLow().GetRootNode()
-	if root == nil || root.Kind != yaml4.MappingNode {
+	if root == nil || root.Kind != yaml.MappingNode {
 		return false
 	}
 	for index := 0; index+1 < len(root.Content); index += 2 {

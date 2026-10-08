@@ -24,7 +24,7 @@ equivalence alone does not prove compatibility of the generated client API.
 
 ## Select the OpenAPI compatibility target
 
-Loom emits OpenAPI 3.2 by default. oasdiff `v1.29.1` reads 3.2 documents, but
+Loom emits OpenAPI 3.2 by default. oasdiff `v1.33.0` reads 3.2 documents, but
 its documentation says that 3.2 coverage remains under development.
 
 Use Loom's 3.1 compatibility target for this conservative baseline:
@@ -44,14 +44,14 @@ before changing this target.
 
 This guide uses these tested versions:
 
-- oasdiff CLI `v1.29.1`
-- oasdiff action `v0.1.13`, commit
-  `2649ebe137aeb72a95707671204e829f86e091fc`
+- oasdiff CLI `v1.33.0`
+- oasdiff action `v0.1.18`, commit
+  `b9325c9e0a27ab65b0da3b766522cedec6be81dc`
 
 Install the pinned CLI without adding it to the service module:
 
 ```bash
-go install github.com/oasdiff/oasdiff@v1.29.1
+go install github.com/oasdiff/oasdiff@v1.33.0
 ```
 
 Pin the action to its full commit SHA in CI. Keep the release tag in a comment

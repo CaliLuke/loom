@@ -4,11 +4,11 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/orderedmap"
-	yaml4 "go.yaml.in/yaml/v4"
 )
 
-func (a *analyzer) extensions(path string, extensions *orderedmap.Map[string, *yaml4.Node]) map[string]any {
+func (a *analyzer) extensions(path string, extensions *orderedmap.Map[string, *yaml.Node]) map[string]any {
 	if orderedmap.Len(extensions) == 0 {
 		return nil
 	}
@@ -35,7 +35,7 @@ func (a *analyzer) extensions(path string, extensions *orderedmap.Map[string, *y
 	return result
 }
 
-func (a *analyzer) unsupportedExtensions(path string, extensions *orderedmap.Map[string, *yaml4.Node]) {
+func (a *analyzer) unsupportedExtensions(path string, extensions *orderedmap.Map[string, *yaml.Node]) {
 	if orderedmap.Len(extensions) > 0 {
 		a.unsupported("vendor-extension", path, "vendor extensions at this location are not in the strict import subset")
 	}

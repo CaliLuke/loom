@@ -10,23 +10,18 @@
 # Generated gen/ trees are excluded everywhere for the same reason. Nested
 # Git checkouts are independent repositories and are excluded from discovery.
 #
-# Each target is checked with the root .golangci.yml and the same staticcheck
-# checks as the root-module lint.
+# Each target uses the root .golangci.yml, including its Staticcheck checks.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GOLANGCI_LINT="${GOLANGCI_LINT:-$(go env GOPATH)/bin/golangci-lint}"
-STATICCHECK="${STATICCHECK:-$(go env GOPATH)/bin/staticcheck}"
-STATICCHECK_CHECKS="${STATICCHECK_CHECKS:-all,-S*,-ST*,-QF*}"
 CONFIG="$ROOT/.golangci.yml"
 
-for tool in "$GOLANGCI_LINT" "$STATICCHECK"; do
-  if [ ! -x "$tool" ]; then
-    echo "missing lint tool: $tool" >&2
-    echo "run: make depend" >&2
-    exit 1
-  fi
-done
+if [ ! -x "$GOLANGCI_LINT" ]; then
+  echo "missing lint tool: $GOLANGCI_LINT" >&2
+  echo "run: make depend" >&2
+  exit 1
+fi
 
 cd "$ROOT"
 
@@ -76,9 +71,6 @@ while IFS= read -r module; do
   fi
 
   echo "==> test sources in module ${module#./}"
-  if ! (cd "$module" && "$STATICCHECK" -checks="$STATICCHECK_CHECKS" "${targets[@]}"); then
-    status=1
-  fi
   if ! (cd "$module" && "$GOLANGCI_LINT" run --config "$CONFIG" "${targets[@]}"); then
     status=1
   fi

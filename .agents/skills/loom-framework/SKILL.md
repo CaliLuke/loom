@@ -1186,6 +1186,24 @@ filter, and serialization rules belong here.
   selected-view requiredness in view validation; do not add parallel per-view
   null scanners. See the [collection decoding model](../../../http/codegen/tla/collection_decode/README.md).
 
+## Dependency Baseline
+
+Follow the latest-stable dependency policy in `AGENTS.md`. The root `go.mod`
+selects Go and library versions; `Makefile` owns the linter and protobuf-tool
+pins; the Node contract job pins Node in `.github/workflows/test.yml`.
+Use the stable golangci-lint bundle for Staticcheck in both handwritten and
+generated code; `.golangci-generated.yml` enables analysis of generated files.
+Do not restore a separate Staticcheck installation or old-Go analyzer workaround.
+Keep nested fixture modules and documented external-tool recipes aligned when
+updating these owners. Do not reintroduce old-version matrices or compatibility
+flags such as `go mod tidy -compat=1.17`.
+
+Use `go.yaml.in/yaml/v3` for Loom-owned YAML serialization. The OpenAPI importer
+uses `github.com/pb33f/go-yaml`, the native node API of the current stable
+libopenapi release, for both source inspection and parser model nodes. Do not
+convert through abandoned YAML modules or retain the YAML v4 release candidate.
+The SSE correctness pin and its upstream return condition are documented below.
+
 ## Verification Strategy
 
 Follow the validation scope rules in `AGENTS.md`. Ticket acceptance uses direct

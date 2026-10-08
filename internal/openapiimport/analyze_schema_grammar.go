@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
-	yaml4 "go.yaml.in/yaml/v4"
 )
 
 var knownSchemaKeywords = schemaKeywordSet()
@@ -16,7 +16,7 @@ func (a *analyzer) schemaUnknownKeywordDiagnostics(proxy *base.SchemaProxy, path
 		return
 	}
 	node := proxy.GetValueNode()
-	if node == nil || node.Kind != yaml4.MappingNode {
+	if node == nil || node.Kind != yaml.MappingNode {
 		return
 	}
 	for index := 0; index+1 < len(node.Content); index += 2 {

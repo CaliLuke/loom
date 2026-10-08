@@ -1,6 +1,6 @@
 module github.com/CaliLuke/loom/http/integration_tests
 
-go 1.27.0
+go 1.27.2
 
 require (
 	github.com/CaliLuke/loom v1.7.1

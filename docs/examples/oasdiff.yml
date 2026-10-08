@@ -39,7 +39,7 @@ jobs:
           fi
 
       - name: Create the review changelog
-        uses: oasdiff/oasdiff-action/changelog@2649ebe137aeb72a95707671204e829f86e091fc # v0.1.13
+        uses: oasdiff/oasdiff-action/changelog@b9325c9e0a27ab65b0da3b766522cedec6be81dc # v0.1.18
         with:
           base: origin/${{ github.base_ref }}:${{ env.OPENAPI_SPEC }}
           revision: ${{ env.OPENAPI_SPEC }}
@@ -53,7 +53,7 @@ jobs:
         run: cat oasdiff-changelog.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Block breaking changes
-        uses: oasdiff/oasdiff-action/breaking@2649ebe137aeb72a95707671204e829f86e091fc # v0.1.13
+        uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc # v0.1.18
         with:
           base: origin/${{ github.base_ref }}:${{ env.OPENAPI_SPEC }}
           revision: ${{ env.OPENAPI_SPEC }}

@@ -85,9 +85,25 @@
 - For releases, use the [`release` skill](.agents/skills/release/SKILL.md) in
   addition to `loom-framework`.
 
+### Dependency Support
+
+- Support only the latest stable releases of database servers, language runtimes,
+  build tools, and libraries. Pin the verified versions for reproducible builds
+  and update the owning pins together with CI, fixtures, and documentation.
+- Remove older-version matrices, compatibility flags, aliases, and fallback
+  implementations when adopting the current dependency API. Do not preserve
+  obsolete dependency support merely for backward compatibility.
+- Verify upstream release metadata when updating dependencies. Prefer released
+  versions over release candidates and branch snapshots. A required unreleased
+  correctness fix must have an explicit upstream issue or PR, an exact pin, and
+  a documented condition for returning to the released dependency.
+- Distinguish dependency versions from authored protocol formats and historical
+  regression evidence. Do not delete supported contracts or weaken tests simply
+  because their names contain “legacy” or “compatibility”.
+
 ### Go Code Style
 
-- **Go 1.27+**. Format with `go fmt ./...`.
+- **Go**: Use the stable release pinned in the root `go.mod`. Format with `go fmt ./...`.
 - **Imports**: Group stdlib separate from external. Let gofmt manage ordering.
 - **Files**: Use `lower_snake_case.go`. Keep ≤1000 lines; split proactively.
 - **Naming**: Packages are lowercase and short. Exported identifiers need GoDoc. Avoid stutter.

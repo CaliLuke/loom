@@ -19,14 +19,14 @@ import (
 )
 
 const (
-	redoclyCLIVersion        = "2.46.1"
+	redoclyCLIVersion        = "2.60.0"
 	heyAPIOpenAPIVersion     = "0.99.0"
 	heyAPIClientFetchVersion = "0.13.1"
 	typeScriptAPIVersion     = "6.0.2"
 	typeScriptVersion        = "7.0.2"
-	tanStackQueryVersion     = "5.101.4"
-	zodVersion               = "4.4.3"
-	reactVersion             = "19.2.8"
+	tanStackQueryVersion     = "5.104.1"
+	zodVersion               = "4.6.5"
+	reactVersion             = "19.3.0"
 	oapiCodegenVersion       = "v2.8.0"
 	openAPIAsyncExtension    = "x-loom-async"
 )

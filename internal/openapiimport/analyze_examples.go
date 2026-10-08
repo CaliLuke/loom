@@ -5,10 +5,10 @@ import (
 	"reflect"
 	"unicode/utf8"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	yaml4 "go.yaml.in/yaml/v4"
 
 	loom "github.com/CaliLuke/loom/pkg"
 )
@@ -149,7 +149,7 @@ func (a *analyzer) schemaExamples(schema *Schema, source *base.Schema, path stri
 	}
 }
 
-func (a *analyzer) exampleValue(node *yaml4.Node, schema *Schema, path string) (any, bool) {
+func (a *analyzer) exampleValue(node *yaml.Node, schema *Schema, path string) (any, bool) {
 	if node == nil {
 		return nil, false
 	}

@@ -1,6 +1,6 @@
 module github.com/CaliLuke/loom/http/testdata/form_comparison
 
-go 1.27.0
+go 1.27.2
 
 require (
 	github.com/CaliLuke/loom v1.10.0-alpha.4.0.20261008072015-bd83a10dfccc

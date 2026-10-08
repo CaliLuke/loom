@@ -46,7 +46,7 @@ Install TypeScript 7 and the runtime packages in the frontend application:
 ```bash
 npm install --save-dev --save-exact typescript@7.0.2
 npm install --save-exact \
-  @hey-api/client-fetch@0.13.1 @tanstack/react-query@5.101.4 zod@4.4.3
+  @hey-api/client-fetch@0.13.1 @tanstack/react-query@5.104.1 zod@4.6.5
 ```
 
 Hey API uses the TypeScript programmatic API during generation. TypeScript 7

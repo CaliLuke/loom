@@ -1,10 +1,7 @@
 version: "2"
 linters:
-  disable:
-    # golangci-lint v2.12.2 bundles Staticcheck 0.7, whose IR crashes on
-    # Go 1.27 Linux sources. Makefile runs the compatible pinned RC directly.
-    - staticcheck
   enable:
+    - staticcheck   # Current stable bundle supports the pinned Go release
     - errorlint     # Better error handling patterns for Go 1.13+
     - errcheck      # Check for unchecked errors
     - dupl          # Detect duplicated code blocks
@@ -36,6 +33,8 @@ linters:
         linters:
           - maintidx
   settings:
+    staticcheck:
+      checks: ["SA*"]
     dupl:
       threshold: 150
     gocyclo:

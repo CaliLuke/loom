@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	yaml3 "gopkg.in/yaml.v3"
 )
 
 // ErrUnsupportedVersion indicates that the input is not an OpenAPI 3.0, 3.1, or 3.2
@@ -98,8 +98,8 @@ func (a *analyzer) openAPI32() bool {
 }
 
 func externalReferenceDiagnostics(source []byte) (Diagnostics, error) {
-	var root yaml3.Node
-	if err := yaml3.Unmarshal(source, &root); err != nil {
+	var root yaml.Node
+	if err := yaml.Unmarshal(source, &root); err != nil {
 		return nil, err
 	}
 	var diagnostics Diagnostics
@@ -107,19 +107,19 @@ func externalReferenceDiagnostics(source []byte) (Diagnostics, error) {
 	return diagnostics, nil
 }
 
-func walkReferences(node *yaml3.Node, path string, diagnostics *Diagnostics) {
+func walkReferences(node *yaml.Node, path string, diagnostics *Diagnostics) {
 	if node == nil {
 		return
 	}
-	if node.Kind == yaml3.DocumentNode && len(node.Content) > 0 {
+	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 		walkReferences(node.Content[0], path, diagnostics)
 		return
 	}
-	if node.Kind == yaml3.MappingNode {
+	if node.Kind == yaml.MappingNode {
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key, value := node.Content[i], node.Content[i+1]
 			childPath := path + "/" + escapeJSONPointer(key.Value)
-			if key.Value == "$ref" && value.Kind == yaml3.ScalarNode && !strings.HasPrefix(value.Value, "#/") {
+			if key.Value == "$ref" && value.Kind == yaml.ScalarNode && !strings.HasPrefix(value.Value, "#/") {
 				diagnostics.add("external-reference", childPath, fmt.Sprintf("external reference %q is not supported", value.Value))
 			}
 			walkReferences(value, childPath, diagnostics)

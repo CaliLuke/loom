@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"testing"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
-	otelglobal "go.opentelemetry.io/otel/log/global"
 
 	"github.com/CaliLuke/loom/observability/otel/internal/testkit"
 	"github.com/CaliLuke/loom/observability/otel/logrusbridge"
@@ -18,11 +18,11 @@ func TestAutoKStyleCompatibilityContract(t *testing.T) {
 	traceHarness := testkit.NewTraceHarness(t)
 	metricHarness := testkit.NewMetricHarness(t)
 	logHarness := testkit.NewLogHarness(t)
-	lpBefore := otelglobal.GetLoggerProvider()
+	lpBefore := otel.GetLoggerProvider()
 	t.Cleanup(func() {
-		otelglobal.SetLoggerProvider(lpBefore)
+		otel.SetLoggerProvider(lpBefore)
 	})
-	otelglobal.SetLoggerProvider(logHarness.Provider)
+	otel.SetLoggerProvider(logHarness.Provider)
 
 	recorder := testkit.NewHTTPMetricsRecorder()
 	logger, err := logrusbridge.New(logrusbridge.Config{
@@ -54,7 +54,7 @@ func TestAutoKStyleCompatibilityContract(t *testing.T) {
 		AddHTTPAttributes(r.Context(), attribute.String("operation.kind", "request"))
 		record := log.Record{}
 		record.SetBody(attribute.StringValue("handler log"))
-		otelglobal.Logger("autok.handler").Emit(r.Context(), record)
+		otel.Logger("autok.handler").Emit(r.Context(), record)
 		w.WriteHeader(http.StatusOK)
 	})
 

@@ -1,0 +1,16 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - unused
+    - errorlint
+    - staticcheck
+  exclusions:
+    # This gate intentionally analyzes freshly generated source.
+    generated: disable
+  settings:
+    staticcheck:
+      checks: ["SA*"]
