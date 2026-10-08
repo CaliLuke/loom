@@ -57,7 +57,7 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
-			Validate:     codegen.AttributeValidationCode(c, nil, ctx, required, false, varn, name),
+			Validate:     codegen.AttributeValidationCode(c, nil, ctx, required, expr.IsAlias(c.Type), varn, name),
 			DefaultValue: defaultValue,
 			Example:      c.Example(services.Root.API.ExampleGenerator),
 		})

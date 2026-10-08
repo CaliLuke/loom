@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/examplegen"
+	"github.com/CaliLuke/loom/internal/securitygen"
 )
 
 // analyze creates the data necessary to render the code of the given service.
@@ -201,6 +202,10 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 	routes := sds.buildEndpointRoutes(endpointIR, method, svc, sd)
 	payload := sds.buildPayloadDataFromIR(endpointIR, sd)
 	reqs, hsch, bosch, qsch, basch := sds.buildRequirementSchemes(endpointIR)
+	for _, header := range payload.Request.Headers {
+		header.Bearer = securitygen.IsBearer(header.HTTPName, header.AttributeName, hsch)
+	}
+
 	requestInit := sds.buildClientRequestInit(endpointIR, method, svc, routes)
 	responseContractCases, responseContractWarnings := buildResponseContractCaseData(endpointIR)
 

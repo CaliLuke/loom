@@ -24,7 +24,7 @@ type transportVarScope struct {
 // aligned with the import lists of those files.
 var transportFunctionImportNames = []string{
 	"bytes", "context", "errors", "fmt", "http", "io", "json", "jsontext", "loom", "loomhttp",
-	"loomhttpcli", "multipart", "os", "strconv", "strings", "url", "utf8",
+	"loomhttpcli", "multipart", "os", "security", "strconv", "strings", "url", "utf8",
 }
 
 // requestLocalNames lists the identifiers that the generated server request

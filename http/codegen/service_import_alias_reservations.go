@@ -28,6 +28,7 @@ var transportGeneratedImportNames = []string{
 	"multipart",
 	"os",
 	"path",
+	"security",
 	"strconv",
 	"strings",
 	"sync",

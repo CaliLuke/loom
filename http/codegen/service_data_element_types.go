@@ -78,6 +78,8 @@ type (
 		*Element
 		// CanonicalName is the canonical header key.
 		CanonicalName string
+		// Bearer identifies a JWT/OAuth Authorization credential requiring protocol extraction.
+		Bearer bool
 	}
 
 	// CookieData describes a HTTP request or response cookie.

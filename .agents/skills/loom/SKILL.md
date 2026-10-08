@@ -968,3 +968,10 @@ adding a stream resumes polling.
 Open the guide closest to the task before searching framework source. If using
 Loom correctly still leaves repeated application glue, report the boundary and
 route a separate framework task through `loom-framework`.
+
+JWT/OAuth service payloads contain the token without `Bearer `. HTTP and gRPC
+Authorization mappings add/remove bearer framing before applying token constraints.
+Malformed Authorization is rejected, including a raw token or another scheme.
+Optional credentials may be absent. Custom mappings and API keys carry raw values;
+do not add a prefix to custom headers. See the credential mapping contract in
+`docs/dsl-reference.md`.

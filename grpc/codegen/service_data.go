@@ -187,6 +187,8 @@ type (
 
 	// MetadataData describes a gRPC metadata field.
 	MetadataData struct {
+		// Bearer identifies a JWT/OAuth Authorization credential requiring protocol extraction.
+		Bearer bool
 		// Name is the name of the metadata key.
 		Name string
 		// AttributeName is the name of the corresponding attribute.

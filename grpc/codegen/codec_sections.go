@@ -30,9 +30,9 @@ func grpcResponseEncoderSection(endpoint *EndpointData) codegen.Section {
 	})
 }
 
-func grpcRequestDecoderSection(endpoint *EndpointData, scope *codegen.NameScope) codegen.Section {
+func grpcRequestDecoderSection(endpoint *EndpointData) codegen.Section {
 	return codegen.NewJenniferSection("request-decoder", func(stmt *jen.Statement) {
-		stmt.Add(codegen.Expr(renderGRPCRequestDecoder(endpoint, scope)))
+		stmt.Add(codegen.Expr(renderGRPCRequestDecoder(endpoint)))
 	})
 }
 
@@ -46,7 +46,7 @@ func renderGRPCRequestEncoder(endpoint *EndpointData) string {
 	fmt.Fprintf(&b, "\t\treturn nil, loomgrpc.ErrInvalidType(%q, %q, %q, v)\n", endpoint.ServiceName, endpoint.Method.Name, endpoint.PayloadRef)
 	b.WriteString("\t}\n")
 	for _, md := range endpoint.Request.Metadata {
-		b.WriteString(renderGRPCMetadataAppend(md, "payload", endpoint.MetadataSchemes))
+		b.WriteString(renderGRPCMetadataAppend(md, "payload"))
 	}
 	if endpoint.Request.ClientConvert != nil {
 		if endpoint.Request.StreamEnvelope != nil {
@@ -105,7 +105,7 @@ func renderGRPCResponseDecoder(endpoint *EndpointData) string {
 	return b.String()
 }
 
-func renderGRPCRequestDecoder(endpoint *EndpointData, scope *codegen.NameScope) string {
+func renderGRPCRequestDecoder(endpoint *EndpointData) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", codegen.Comment(`Decode`+endpoint.Method.VarName+`Request decodes requests sent to "`+endpoint.ServiceName+`" service "`+endpoint.Method.Name+`" endpoint.`))
 	fmt.Fprintf(&b, "func Decode%sRequest(ctx context.Context, v any, md metadata.MD) (any, error) {\n", endpoint.Method.VarName)
@@ -116,7 +116,6 @@ func renderGRPCRequestDecoder(endpoint *EndpointData, scope *codegen.NameScope) 
 	fmt.Fprintf(&b, "\tvar payload %s\n", endpoint.PayloadRef)
 	b.WriteString("\t{\n")
 	addGRPCPayloadInit(&b, endpoint)
-	addGRPCMetadataSchemeNormalization(&b, endpoint, scope)
 	b.WriteString("\t}\n")
 	b.WriteString("\treturn payload, nil\n")
 	b.WriteString("}\n")
@@ -211,7 +210,7 @@ func addGRPCRequestMetadataDecode(b *strings.Builder, endpoint *EndpointData) {
 	b.WriteString("\t)\n")
 	b.WriteString("\t{\n")
 	for _, md := range endpoint.Request.Metadata {
-		b.WriteString(renderGRPCRequestMetadataDecode(md))
+		b.WriteString(renderGRPCMetadataDecode(md, "md"))
 		if md.Validate != "" {
 			fmt.Fprintf(b, "\t\t%s\n", md.Validate)
 		}
@@ -275,33 +274,6 @@ func addGRPCPayloadInit(b *strings.Builder, endpoint *EndpointData) {
 	}
 	if len(endpoint.Request.Metadata) > 0 {
 		fmt.Fprintf(b, "\t\tpayload = %s\n", endpoint.Request.Metadata[0].VarName)
-	}
-}
-
-func addGRPCMetadataSchemeNormalization(b *strings.Builder, endpoint *EndpointData, scope *codegen.NameScope) {
-	for _, scheme := range endpoint.MetadataSchemes {
-		if scheme.Type == "Basic" {
-			continue
-		}
-		if !scheme.CredRequired {
-			fmt.Fprintf(b, "\t\tif payload.%s != nil {\n", scheme.CredField)
-		}
-		value := pointerPrefix(scheme.CredPointer) + "payload." + scheme.CredField
-		if expr.IsAlias(scheme.CredType) {
-			value = "string(" + value + ")"
-		}
-		fmt.Fprintf(b, "\t\tif strings.Contains(%s, \" \") {\n", value)
-		b.WriteString("\t\t\t// Remove authorization scheme prefix (e.g. \"Bearer\")\n")
-		conversion := fmt.Sprintf("strings.SplitN(%s, \" \", 2)[1]", value)
-		if expr.IsAlias(scheme.CredType) {
-			conversion = scope.GoFullTypeRef(&expr.AttributeExpr{Type: scheme.CredType}, endpoint.ServicePkgName) + "(" + conversion + ")"
-		}
-		fmt.Fprintf(b, "\t\t\tcred := %s\n", conversion)
-		fmt.Fprintf(b, "\t\t\tpayload.%s = %scred\n", scheme.CredField, addrPrefix(scheme.CredPointer))
-		b.WriteString("\t\t}\n")
-		if !scheme.CredRequired {
-			b.WriteString("\t\t}\n")
-		}
 	}
 }
 

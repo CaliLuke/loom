@@ -120,6 +120,7 @@ func serverImports(genpkg, svcName string, data *ServiceData) []*codegen.ImportS
 		{Path: "github.com/gorilla/websocket"},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
+		codegen.LoomImport("security"),
 		codegen.LoomNamedImport("observability/transport", "loomtransport"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
@@ -210,6 +211,7 @@ func serverEncodeDecodeImports(genpkg, svcName string, data *ServiceData) []*cod
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
+		codegen.LoomImport("security"),
 		{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 		{Path: genpkg + "/" + svcName + "/" + "views", Name: data.Service.ViewsPkg},
 	}

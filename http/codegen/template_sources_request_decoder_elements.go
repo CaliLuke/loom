@@ -338,7 +338,19 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 	{{- end }}
 
 {{- range .Headers }}
-	{{- if .IsTextUnmarshaler }}
+ {{- if .Bearer }}
+ {
+  if {{ .Locals.Raw }} := r.Header.Values("{{ .HTTPName }}"); {{ if .Required }}len({{ .Locals.Raw }}) == 0 {
+   err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
+  } else { {{ else }}len({{ .Locals.Raw }}) > 0 { {{ end }}
+   {{ .Locals.Val }}, ok := security.DecodeBearer({{ .Locals.Raw }}[0])
+   if !ok {
+    return payload, loom.DecodePayloadError("invalid Authorization bearer credential")
+   }
+   {{ .VarName }} = {{ if .Pointer }}&{{ end }}{{ .Locals.Val }}
+  }
+ }
+ {{- else if .IsTextUnmarshaler }}
 		{{ .Locals.Raw }} := r.Header.Get("{{ .HTTPName }}")
 		{{- if .Required }}
 		if {{ .Locals.Raw }} == "" {

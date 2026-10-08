@@ -42,6 +42,7 @@ func serverFile(genpkg string, svc *expr.GRPCServiceExpr, services *ServicesData
 			{Path: "io"},
 			codegen.LoomImport(""),
 			codegen.LoomNamedImport("grpc", "loomgrpc"),
+			codegen.LoomImport("security"),
 			{Path: "google.golang.org/grpc/codes"},
 			{Path: path.Join(genpkg, svcName), Name: data.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
@@ -118,6 +119,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			{Path: "google.golang.org/grpc/metadata"},
 			codegen.LoomImport(""),
 			codegen.LoomNamedImport("grpc", "loomgrpc"),
+			codegen.LoomImport("security"),
 			{Path: path.Join(genpkg, svcName), Name: data.Service.PkgName},
 			{Path: path.Join(genpkg, svcName, "views"), Name: data.Service.ViewsPkg},
 			{Path: path.Join(genpkg, "grpc", svcName, pbPkgName), Name: data.PkgName},
@@ -130,7 +132,7 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 				sections = append(sections, grpcResponseEncoderSection(e))
 			}
 			if e.PayloadRef != "" {
-				sections = append(sections, grpcRequestDecoderSection(e, data.Service.Scope))
+				sections = append(sections, grpcRequestDecoderSection(e))
 			}
 		}
 	}

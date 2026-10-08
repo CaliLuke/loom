@@ -10,7 +10,11 @@ func DecodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md metad
 	)
 	{
 		if vals := md.Get("authorization"); len(vals) > 0 {
-			token = &vals[0]
+			value, ok := security.DecodeBearer(vals[0])
+			if !ok {
+				return nil, loom.DecodePayloadError("invalid Authorization bearer credential")
+			}
+			token = &value
 		}
 		if vals := md.Get("authorization"); len(vals) > 0 {
 			key = &vals[0]
@@ -37,20 +41,6 @@ func DecodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md metad
 	var payload *servicemessagewithsecurity.RequestUT
 	{
 		payload = NewMethodMessageWithSecurityPayload(message, token, key, username, password)
-		if payload.Token != nil {
-			if strings.Contains(*payload.Token, " ") {
-				// Remove authorization scheme prefix (e.g. "Bearer")
-				cred := strings.SplitN(*payload.Token, " ", 2)[1]
-				payload.Token = &cred
-			}
-		}
-		if payload.Key != nil {
-			if strings.Contains(*payload.Key, " ") {
-				// Remove authorization scheme prefix (e.g. "Bearer")
-				cred := strings.SplitN(*payload.Key, " ", 2)[1]
-				payload.Key = &cred
-			}
-		}
 	}
 	return payload, nil
 }

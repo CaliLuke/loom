@@ -23,11 +23,9 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{
 			{{- end }}
 			head := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
-			{{- if (and (eq .HTTPName "Authorization") (isBearer $.HeaderSchemes)) }}
-		if !strings.Contains({{ if isAlias .FieldType }}string(head){{ else }}head{{ end }}, " ") {
-			req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+{{ if isAlias .FieldType }}string(head){{ else }}head{{ end }})
-		} else {
-			{{- end }}
+   {{- if .Bearer }}
+   req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+{{ if isAlias .FieldType }}string(head){{ else }}head{{ end }})
+   {{- else }}
 			{{- if eq .Type.Name "array" }}
 			for _, val := range head {
 				{{- if and (eq .Type.ElemType.Type.Name "string") (not (isAlias (aliasedType .FieldType).ElemType.Type)) }}
@@ -45,8 +43,6 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "headStr" "head") }}
 			req.Header.Set({{ printf "%q" .HTTPName }}, headStr)
 			{{- end }}
-			{{- if (and (eq .HTTPName "Authorization") (isBearer $.HeaderSchemes)) }}
-		}
 			{{- end }}
 		}
 	{{- end }}

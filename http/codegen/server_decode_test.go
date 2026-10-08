@@ -17,6 +17,9 @@ func TestDecode(t *testing.T) {
 		Name string
 		DSL  func()
 	}{
+		{"decode-jwt-authorization", testdata.PayloadJWTAuthorizationHeaderDSL},
+		{"decode-jwt-custom-header", testdata.PayloadJWTAuthorizationCustomHeaderDSL},
+		{"decode-jwt-query", testdata.PayloadJWTAuthorizationQueryDSL},
 		{"decode-path-custom-float32", testdata.PayloadPathCustomFloat32DSL},
 		{"decode-path-custom-float64", testdata.PayloadPathCustomFloat64DSL},
 		{"decode-path-custom-int", testdata.PayloadPathCustomIntDSL},

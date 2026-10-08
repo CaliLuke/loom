@@ -128,15 +128,6 @@ func TestCredentials(t *testing.T) {
 				if !reflect.DeepEqual(decoded, tc.payload) {
 					t.Errorf("payload = %#v, want %#v", decoded, tc.payload)
 				}
-				req.Header.Set("X-Token", "Bearer token")
-    req.Header.Set("X-Access", "Bearer access")
-    decoded, err = tc.decode(req)
-    if err != nil {
-     t.Fatal(err)
-    }
-    if !reflect.DeepEqual(decoded, tc.payload) {
-     t.Errorf("prefixed payload = %#v, want %#v", decoded, tc.payload)
-    }
 				result, err := tc.endpoint(context.Background(), decoded)
 				if reject {
 					if !errors.Is(err, failure) || calls != before {

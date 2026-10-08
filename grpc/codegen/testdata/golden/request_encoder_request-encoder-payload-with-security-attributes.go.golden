@@ -6,7 +6,7 @@ func EncodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md *meta
 		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithSecurity", "MethodMessageWithSecurity", "*servicemessagewithsecurity.RequestUT", v)
 	}
 	if payload.Token != nil {
-		(*md).Append("authorization", *payload.Token)
+		(*md).Append("authorization", "Bearer "+*payload.Token)
 	}
 	if payload.Key != nil {
 		(*md).Append("authorization", *payload.Key)

@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -118,17 +117,4 @@ func clientEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 		}
 	}
 	return &codegen.File{Path: fpath, Sections: sections}
-}
-
-// isBearer returns true if the security scheme uses a Bearer scheme.
-func isBearer(schemes []*service.SchemeData) bool {
-	for _, s := range schemes {
-		if s.Name != "Authorization" {
-			continue
-		}
-		if s.Type == "JWT" || s.Type == "OAuth2" {
-			return true
-		}
-	}
-	return false
 }

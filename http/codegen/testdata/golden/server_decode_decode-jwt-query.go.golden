@@ -1,0 +1,28 @@
+// DecodeMethodHeaderPrimitiveStringDefaultRequest returns a decoder for
+// requests sent to the ServiceHeaderPrimitiveStringDefault
+// MethodHeaderPrimitiveStringDefault endpoint.
+func DecodeMethodHeaderPrimitiveStringDefaultRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload, error) {
+	return func(r *http.Request) (*serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload, error) {
+		var payload *serviceheaderprimitivestringdefault.MethodHeaderPrimitiveStringDefaultPayload
+		var (
+			token *string
+		)
+		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
+		if queryErr != nil {
+			return payload, loom.DecodePayloadError("invalid query string")
+		}
+		{
+			rawValues, present := qp["token"]
+			if present {
+				raw := ""
+				if len(rawValues) > 0 {
+					raw = rawValues[0]
+				}
+				token = &raw
+			}
+		}
+		payload = NewMethodHeaderPrimitiveStringDefaultPayload(token)
+
+		return payload, nil
+	}
+}

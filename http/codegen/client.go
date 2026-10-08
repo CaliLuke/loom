@@ -101,7 +101,6 @@ func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesDat
 		"goTypeRef": func(dt expr.DataType) string {
 			return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
 		},
-		"isBearer":    isBearer,
 		"aliasedType": fieldType,
 		"isAlias": func(dt expr.DataType) bool {
 			_, ok := dt.(expr.UserType)
@@ -225,17 +224,4 @@ func transportUnderlyingType(dt expr.DataType) (expr.DataType, bool) {
 		seen[ut.ID()] = struct{}{}
 		dt = ut.Attribute().Type
 	}
-}
-
-// isBearer returns true if the security scheme uses a Bearer scheme.
-func isBearer(schemes []*service.SchemeData) bool {
-	for _, s := range schemes {
-		if s.Name != "Authorization" {
-			continue
-		}
-		if s.Type == "JWT" || s.Type == "OAuth2" {
-			return true
-		}
-	}
-	return false
 }

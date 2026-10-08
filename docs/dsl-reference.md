@@ -745,6 +745,21 @@ its own binding. API-level defaults use the Authorization header or the declared
 session-cookie name; endpoint mappings override those defaults. Component names
 can change when a scheme acquires another credential location.
 
+Credential constraints apply to the extracted credential value. HTTP headers and
+gRPC metadata named `Authorization` (case-insensitive) carry JWT/OAuth values as
+`Bearer <token>`; generated clients add that framing to the service value, and
+servers remove it before validating the token. Scheme names are case-insensitive.
+Raw tokens, other schemes and empty bearer credentials in Authorization are
+rejected. Optional credentials may be omitted; a present malformed header is an
+error. Custom headers, query parameters, cookies and other metadata carry raw
+values; API keys are opaque even in Authorization.
+
+For example, `Pattern("^[a-z]+$")` accepts `Bearer valid` in Authorization and
+`valid` in a custom token header. It rejects `Bearer UPPER` and a custom-header
+value `Bearer valid`. Supply `valid`, not a prefixed value, to generated clients.
+This replaces permissive prefix guessing with the documented mapping contract:
+framing belongs to Authorization, while custom mappings preserve authored values.
+
 OpenAPI generation rejects path credentials and OAuth2 credentials outside the
 Authorization header. These mappings cannot be represented by standard security
 schemes while preserving OAuth flows and scopes. The HTTP transport still supports

@@ -9,11 +9,7 @@ func EncodeMethodHeaderPrimitiveStringDefaultRequest(encoder func(*http.Request)
 		}
 		if p.Token != nil {
 			head := *p.Token
-			if !strings.Contains(head, " ") {
-				req.Header.Set("Authorization", "Bearer "+head)
-			} else {
-				req.Header.Set("Authorization", head)
-			}
+			req.Header.Set("Authorization", "Bearer "+head)
 		}
 		return nil
 	}

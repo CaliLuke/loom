@@ -194,6 +194,14 @@ consumer validation.
   separately from the service field type and uses `InitStructFields` for the
   constructor assignments, including pointer presence.
 
+- `internal/securitygen.IsBearer` classifies JWT/OAuth Authorization mappings
+  using each transport's actual wire name and credential attribute. Encoders
+  add framing once; decoders call `security.DecodeBearer` before DSL validation
+  and typed construction. Other locations and API keys preserve raw values.
+  Do not normalize a constructed payload or guess prefixes from spaces.
+  Metadata validators must pass the alias representation flag so optional named
+  strings retain nil guards and Unicode length semantics.
+
 - HTTP Basic header presence is analyzed once in `BasicAuthData`. Renderers
   send if either component is required or represented as present, and assign
   decoded fields only after a valid Basic header. An absent optional counterpart

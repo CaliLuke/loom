@@ -22,7 +22,7 @@ const grpcClientReceiverName = "c"
 var transportGeneratedImportNames = []string{
 	"codes", "context", "debug", "errors", "flag", "fmt", "grpc", "insecure",
 	"io", "json", "log", "loom", "loomgrpc", "loompb", "metadata", "net", "os",
-	"protojson", "reflection", "strconv", "strings", "structpb", "sync", "testing",
+	"protojson", "reflection", "security", "strconv", "strings", "structpb", "sync", "testing",
 	"time", "url", "utf8",
 }
 
@@ -61,6 +61,9 @@ func metadataVarScope(sd *ServiceData, att *expr.AttributeExpr) *codegen.NameSco
 		}
 	}
 	for _, name := range transportGeneratedImportNames {
+		reserve(name)
+	}
+	for _, name := range []string{"ctx", "v", "md", "err", "vals", "value", "ok", "payload", "message", "result", "res", "hdr", "trlr"} {
 		reserve(name)
 	}
 	reserve(sd.Service.PkgName)

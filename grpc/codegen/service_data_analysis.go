@@ -8,6 +8,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/grpc/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/securitygen"
 )
 
 // analyze creates the data necessary to render the code of the given service.
@@ -79,6 +80,10 @@ func (d *ServicesData) buildEndpointDataWithContext(
 	request := d.buildRequestData(ctx, endpointIR, svc, sd, collector)
 	response := d.buildResponseData(endpointIR, svc, sd, collector)
 	msgSch, metSch := partitionSecuritySchemes(endpointIR, md)
+	for _, metadata := range request.Metadata {
+		metadata.Bearer = securitygen.IsBearer(metadata.Name, metadata.AttributeName, metSch)
+	}
+
 	ed := &EndpointData{
 		ServiceName:               svc.Name,
 		RPCName:                   protoServiceName(md.VarName),
