@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -93,32 +94,32 @@ func multipartRequestEncoderTypeSection(data *MultipartData) codegen.Section {
 }
 
 func renderWebSocketCloseBody(ws *WebSocketData) string {
-	var b sourceBuilder
-	b.Add("var err error\n")
+	var b strings.Builder
+	b.WriteString("var err error\n")
 	if ws.Type == "client" && ws.SendName == "" {
-		b.Add("s.closeOnce.Do(func() {\n\tif s.done != nil {\n\t\tclose(s.done)\n\t}\n})\n")
+		b.WriteString("s.closeOnce.Do(func() {\n\tif s.done != nil {\n\t\tclose(s.done)\n\t}\n})\n")
 	}
 	if ws.Type == "server" {
-		b.Add("if s.conn == nil {\n\treturn nil\n}\n")
-		b.Add("if err = s.conn.WriteClose(\"server closing connection\"); err != nil {\n\treturn err\n}\n")
+		b.WriteString("if s.conn == nil {\n\treturn nil\n}\n")
+		b.WriteString("if err = s.conn.WriteClose(\"server closing connection\"); err != nil {\n\treturn err\n}\n")
 	} else {
-		b.Add("// Send a nil payload to the server implying client closing connection.\n")
-		b.Add("if err = s.conn.WriteJSON(context.Background(), nil); err != nil {\n\treturn err\n}\n")
+		b.WriteString("// Send a nil payload to the server implying client closing connection.\n")
+		b.WriteString("if err = s.conn.WriteJSON(context.Background(), nil); err != nil {\n\treturn err\n}\n")
 	}
-	b.Add("return s.conn.Close()")
+	b.WriteString("return s.conn.Close()")
 	return b.String()
 }
 
 func renderBuildStreamRequestBody(endpoint *EndpointData) string {
-	var b sourceBuilder
-	b.Add("f, err := os.Open(fpath)\n")
-	b.Add("if err != nil {\n\treturn nil, err\n}\n")
-	b.Addf("return &%s.%s{\n", endpoint.ServicePkgName, endpoint.Method.RequestStruct)
+	var b strings.Builder
+	b.WriteString("f, err := os.Open(fpath)\n")
+	b.WriteString("if err != nil {\n\treturn nil, err\n}\n")
+	fmt.Fprintf(&b, "return &%s.%s{\n", endpoint.ServicePkgName, endpoint.Method.RequestStruct)
 	if endpoint.Payload.Ref != "" {
-		b.Addf("\tPayload: payload.(%s),\n", endpoint.Payload.Ref)
+		fmt.Fprintf(&b, "\tPayload: payload.(%s),\n", endpoint.Payload.Ref)
 	}
-	b.Add("\tBody: f,\n")
-	b.Add("}, nil")
+	b.WriteString("\tBody: f,\n")
+	b.WriteString("}, nil")
 	return b.String()
 }
 
@@ -174,24 +175,24 @@ func addSSEClientConstructor(stmt *jen.Statement, ed *EndpointData, streamName, 
 }
 
 func renderSSEClientRecvBody() string {
-	var b sourceBuilder
-	b.Add("var parsed loomhttp.SSEEvent\n")
-	b.Add("parsed, err = s.reader.ReadEvent(ctx)\n")
-	b.Add("if err != nil {\n")
-	b.Add("\tif errors.Is(err, io.EOF) {\n")
-	b.Add("\t\tif closeErr := s.Close(); closeErr != nil {\n")
-	b.Add("\t\t\treturn event, errors.Join(io.EOF, closeErr)\n")
-	b.Add("\t\t}\n")
-	b.Add("\t\treturn event, io.EOF\n")
-	b.Add("\t}\n")
-	b.Add("\tif errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {\n")
-	b.Add("\t\tif closeErr := s.Close(); closeErr != nil {\n")
-	b.Add("\t\t\treturn event, err\n")
-	b.Add("\t\t}\n")
-	b.Add("\t}\n")
-	b.Add("\treturn\n")
-	b.Add("}\n")
-	b.Add("return s.processEvent(parsed)")
+	var b strings.Builder
+	b.WriteString("var parsed loomhttp.SSEEvent\n")
+	b.WriteString("parsed, err = s.reader.ReadEvent(ctx)\n")
+	b.WriteString("if err != nil {\n")
+	b.WriteString("\tif errors.Is(err, io.EOF) {\n")
+	b.WriteString("\t\tif closeErr := s.Close(); closeErr != nil {\n")
+	b.WriteString("\t\t\treturn event, errors.Join(io.EOF, closeErr)\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t\treturn event, io.EOF\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\tif errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {\n")
+	b.WriteString("\t\tif closeErr := s.Close(); closeErr != nil {\n")
+	b.WriteString("\t\t\treturn event, err\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\treturn\n")
+	b.WriteString("}\n")
+	b.WriteString("return s.processEvent(parsed)")
 	return b.String()
 }
 

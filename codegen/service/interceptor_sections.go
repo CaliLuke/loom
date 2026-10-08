@@ -494,7 +494,7 @@ func interceptorWrapperMeta(service string, interceptor *InterceptorData, method
 }
 
 func renderServerInterceptorWrapperBody(service string, interceptor *InterceptorData, method *MethodInterceptorData) string {
-	var b sourceBuilder
+	var b strings.Builder
 	if interceptor.HasStreamingPayloadAccess || interceptor.HasStreamingResultAccess {
 		fmt.Fprintf(&b, "stream := req.(*%s).Stream\n", method.ServerStream.EndpointStruct)
 		fmt.Fprintf(&b, "req.(*%s).Stream = &wrapped%s{\n\tctx:     ctx,\n", method.ServerStream.EndpointStruct, method.ServerStream.Interface)
@@ -515,13 +515,13 @@ func renderServerInterceptorWrapperBody(service string, interceptor *Interceptor
 			fmt.Fprintf(&b, "info := &%sInfo{\n\tservice:    %q,\n\tmethod:     %q,\n\tcallType:   loom.InterceptorUnary,\n\trawPayload: req,\n}\n", interceptor.Name, service, method.MethodName)
 			fmt.Fprintf(&b, "return i.%s(ctx, info, endpoint)", interceptor.Name)
 		} else {
-			b.Add("return endpoint(ctx, req)")
+			b.WriteString("return endpoint(ctx, req)")
 		}
 		return b.String()
 	}
 	fmt.Fprintf(&b, "info := &%sInfo{\n\tservice:    %q,\n\tmethod:     %q,\n\tcallType:   loom.InterceptorUnary,\n\trawPayload: req,\n}\n", interceptor.Name, service, method.MethodName)
 	if interceptor.HasResultAccess && method.ViewedResult != nil {
-		b.Add(renderViewedResultInterception(interceptor, method))
+		b.WriteString(renderViewedResultInterception(interceptor, method))
 		return b.String()
 	}
 	fmt.Fprintf(&b, "return i.%s(ctx, info, endpoint)", interceptor.Name)
@@ -529,15 +529,15 @@ func renderServerInterceptorWrapperBody(service string, interceptor *Interceptor
 }
 
 func renderClientInterceptorWrapperBody(service string, interceptor *InterceptorData, method *MethodInterceptorData) string {
-	var b sourceBuilder
+	var b strings.Builder
 	if interceptor.HasStreamingPayloadAccess || interceptor.HasStreamingResultAccess {
 		if interceptor.HasPayloadAccess {
 			fmt.Fprintf(&b, "info := &%sInfo{\n\tservice:    %q,\n\tmethod:     %q,\n\tcallType:   loom.InterceptorUnary,\n\trawPayload: req,\n}\n", interceptor.Name, service, method.MethodName)
 			fmt.Fprintf(&b, "res, err := i.%s(ctx, info, endpoint)\n", interceptor.Name)
 		} else {
-			b.Add("res, err := endpoint(ctx, req)\n")
+			b.WriteString("res, err := endpoint(ctx, req)\n")
 		}
-		b.Add("if err != nil {\n\treturn res, err\n}\n")
+		b.WriteString("if err != nil {\n\treturn res, err\n}\n")
 		fmt.Fprintf(&b, "stream := res.(%s)\n", method.ClientStream.Interface)
 		fmt.Fprintf(&b, "return &wrapped%s{\n\tctx: ctx,\n", method.ClientStream.Interface)
 		if interceptor.HasStreamingPayloadAccess {

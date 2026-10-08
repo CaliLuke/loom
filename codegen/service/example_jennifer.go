@@ -126,18 +126,18 @@ func jsonrpcHandleStreamSection(data *Data) codegen.Section {
 }
 
 func renderExampleEndpointBody(data *basicEndpointData) string {
-	var body sourceBuilder
+	var body strings.Builder
 	if data.SkipRequestBodyEncodeDecode {
-		body.Add("// req is the HTTP request body stream.\n")
-		body.Add("defer func() {\nerr = errors.Join(err, req.Close())\n}()\n")
+		body.WriteString("// req is the HTTP request body stream.\n")
+		body.WriteString("defer func() {\nerr = errors.Join(err, req.Close())\n}()\n")
 	}
-	body.Add(`log.Printf(ctx, "`)
-	body.Add(data.ServiceVarName)
-	body.Add(".")
-	body.Add(data.Name)
-	body.Add("\")\n")
-	body.Add(fmt.Sprintf("err = loom.Fault(%q)\n", data.ServiceVarName+"."+data.VarName+" is not implemented"))
-	body.Add("return\n")
+	body.WriteString(`log.Printf(ctx, "`)
+	body.WriteString(data.ServiceVarName)
+	body.WriteString(".")
+	body.WriteString(data.Name)
+	body.WriteString("\")\n")
+	body.WriteString(fmt.Sprintf("err = loom.Fault(%q)\n", data.ServiceVarName+"."+data.VarName+" is not implemented"))
+	body.WriteString("return\n")
 	return body.String()
 }
 

@@ -97,8 +97,8 @@ func unionTypeSection(name string, data *UnionTypeData) codegen.Section {
 }
 
 func renderErrorMethods(data *UserTypeData) string {
-	var b sourceBuilder
-	b.Add("// Error returns an error description.\n")
+	var b strings.Builder
+	b.WriteString("// Error returns an error description.\n")
 	fmt.Fprintf(&b, "func (e %s) Error() string {\n", data.Ref)
 	for _, field := range errorMessageFields(data) {
 		accessor := "e." + field.Name
@@ -119,16 +119,16 @@ func renderErrorMethods(data *UserTypeData) string {
 		fmt.Fprintf(&b, "\tif %s {\n\t\treturn %s\n\t}\n", condition, value)
 	}
 	fmt.Fprintf(&b, "\treturn %q\n}\n\n", data.Description)
-	b.Add("// LoomErrorName returns the error name.\n")
+	b.WriteString("// LoomErrorName returns the error name.\n")
 	fmt.Fprintf(&b, "func (e %s) LoomErrorName() string {\n\treturn %s\n}\n", data.Ref, errorName(data))
 	if data.RemedyCode != "" || data.SafeMessage != "" || data.RetryHint != "" {
-		b.Add("\n// LoomErrorRemedy returns the remediation guidance for the error.\n")
+		b.WriteString("\n// LoomErrorRemedy returns the remediation guidance for the error.\n")
 		fmt.Fprintf(&b, "func (e %s) LoomErrorRemedy() *loom.ErrorRemedy {\n", data.Ref)
-		b.Add("\treturn &loom.ErrorRemedy{\n")
+		b.WriteString("\treturn &loom.ErrorRemedy{\n")
 		fmt.Fprintf(&b, "\t\tCode:        %q,\n", data.RemedyCode)
 		fmt.Fprintf(&b, "\t\tSafeMessage: %q,\n", data.SafeMessage)
 		fmt.Fprintf(&b, "\t\tRetryHint:   %q,\n", data.RetryHint)
-		b.Add("\t}\n}\n")
+		b.WriteString("\t}\n}\n")
 	}
 	return b.String()
 }
@@ -171,22 +171,22 @@ func isStringType(dataType expr.DataType) bool {
 }
 
 func renderViewedTypeMap(rtdata []*viewedType) string {
-	var b sourceBuilder
-	b.Add("var (\n")
+	var b strings.Builder
+	b.WriteString("var (\n")
 	for _, vt := range rtdata {
-		b.Add(codegen.Indent(codegen.Comment(fmt.Sprintf("%sMap is a map indexing the attribute names of %s by view name.", vt.Name, vt.Name)), "\t"))
-		b.Add("\n")
+		b.WriteString(codegen.Indent(codegen.Comment(fmt.Sprintf("%sMap is a map indexing the attribute names of %s by view name.", vt.Name, vt.Name)), "\t"))
+		b.WriteString("\n")
 		fmt.Fprintf(&b, "\t%sMap = map[string][]string{\n", vt.Name)
 		for _, view := range vt.Views {
 			fmt.Fprintf(&b, "\t\t%q: {\n", view.Name)
 			for _, attr := range view.Attributes {
 				fmt.Fprintf(&b, "\t\t\t%q,\n", attr)
 			}
-			b.Add("\t\t},\n")
+			b.WriteString("\t\t},\n")
 		}
-		b.Add("\t}\n")
+		b.WriteString("\t}\n")
 	}
-	b.Add(")\n")
+	b.WriteString(")\n")
 	return b.String()
 }
 
@@ -384,23 +384,23 @@ func addUnionUnmarshalJSONMethod(stmt *jen.Statement, data *UnionTypeData) {
 }
 
 func renderUnionValidateBody(data *UnionTypeData) string {
-	var b sourceBuilder
-	b.Add("switch u.kind {\n")
+	var b strings.Builder
+	b.WriteString("switch u.kind {\n")
 	fmt.Fprintf(&b, "\tcase %q:\n", "")
 	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, %q, []any{\n", data.TypeKey, "")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
-	b.Add("\t\t})\n")
+	b.WriteString("\t\t})\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase %s:\n\t\treturn nil\n", field.KindConst)
 	}
-	b.Add("\tdefault:\n")
+	b.WriteString("\tdefault:\n")
 	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, u.kind, []any{\n", data.TypeKey)
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
-	b.Add("\t\t})\n\t}")
+	b.WriteString("\t\t})\n\t}")
 	return b.String()
 }
 
@@ -408,24 +408,24 @@ func renderUnionMarshalJSONBody(data *UnionTypeData) string {
 	if data.Untagged {
 		return data.JSON.Marshal()
 	}
-	var b sourceBuilder
-	b.Add("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
-	b.Add("var (\n\tvalue any\n)\n")
-	b.Add("switch u.kind {\n")
+	var b strings.Builder
+	b.WriteString("if err := u.Validate(); err != nil {\n\treturn nil, err\n}\n")
+	b.WriteString("var (\n\tvalue any\n)\n")
+	b.WriteString("switch u.kind {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase %s:\n\t\tvalue = u.%s\n", field.KindConst, field.FieldName)
 	}
 	fmt.Fprintf(&b, "\tdefault:\n\t\treturn nil, fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}\n", data.Name)
 	fmt.Fprintf(&b, "return json.Marshal(struct {\n\tType  string%s\n\tValue any   %s\n}{\n", codegen.StructTag(map[string]string{"json": data.TypeKey}), codegen.StructTag(map[string]string{"json": data.ValueKey}))
-	b.Add("\tType:  string(u.kind),\n\tValue: value,\n}, loom.JSONOptions(), json.Deterministic(true))")
+	b.WriteString("\tType:  string(u.kind),\n\tValue: value,\n}, loom.JSONOptions(), json.Deterministic(true))")
 	return b.String()
 }
 
 func renderUnionMarshalFormBody(data *UnionTypeData) string {
-	var b sourceBuilder
-	b.Add("if err := u.Validate(); err != nil {\n\treturn err\n}\n")
+	var b strings.Builder
+	b.WriteString("if err := u.Validate(); err != nil {\n\treturn err\n}\n")
 	fmt.Fprintf(&b, "values.Set(loomhttp.FormChildKey(prefix, %q), string(u.kind))\n", data.TypeKey)
-	b.Add("switch u.kind {\n")
+	b.WriteString("switch u.kind {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase %s:\n", field.KindConst)
 		if field.FlatFormObject {
@@ -433,45 +433,45 @@ func renderUnionMarshalFormBody(data *UnionTypeData) string {
 		} else {
 			fmt.Fprintf(&b, "\t\t_, err := loomhttp.EncodeFormValue(values, loomhttp.FormChildKey(prefix, %q), u.%s)\n", data.ValueKey, field.FieldName)
 		}
-		b.Add("\t\treturn err\n")
+		b.WriteString("\t\treturn err\n")
 	}
 	fmt.Fprintf(&b, "\tdefault:\n\t\treturn fmt.Errorf(\"unexpected %s discriminant %%q\", u.kind)\n\t}", data.Name)
 	return b.String()
 }
 
 func renderUnionUnmarshalFormBody(data *UnionTypeData) string {
-	var b sourceBuilder
+	var b strings.Builder
 	fmt.Fprintf(&b, "typeKey := loomhttp.FormChildKey(prefix, %q)\n", data.TypeKey)
 	if data.HasScalarFormBranch {
 		fmt.Fprintf(&b, "valueKey := loomhttp.FormChildKey(prefix, %q)\n", data.ValueKey)
 	}
-	b.Add("rawType := values.Get(typeKey)\n")
-	b.Add("if rawType == \"\" {\n")
+	b.WriteString("rawType := values.Get(typeKey)\n")
+	b.WriteString("if rawType == \"\" {\n")
 	fmt.Fprintf(&b, "\treturn loom.MissingFieldError(%q, \"body\")\n}\n", data.TypeKey)
-	b.Add("switch rawType {\n")
+	b.WriteString("switch rawType {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
 		if field.FlatFormObject {
-			b.Add("\t\tseen, err := loomhttp.DecodeFormValue(values, prefix, &v)\n")
+			b.WriteString("\t\tseen, err := loomhttp.DecodeFormValue(values, prefix, &v)\n")
 		} else {
-			b.Add("\t\tseen, err := loomhttp.DecodeFormValue(values, valueKey, &v)\n")
+			b.WriteString("\t\tseen, err := loomhttp.DecodeFormValue(values, valueKey, &v)\n")
 		}
-		b.Add("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
-		b.Add("\t\tif !seen {\n")
+		b.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
+		b.WriteString("\t\tif !seen {\n")
 		if field.FlatFormObjectAllowsEmpty {
 			fmt.Fprintf(&b, "\t\t\tv = %s\n", field.EmptyValueExpr)
 		} else {
 			fmt.Fprintf(&b, "\t\t\treturn loom.MissingFieldError(%q, \"body\")\n", data.ValueKey)
 		}
-		b.Add("\t\t}\n")
+		b.WriteString("\t\t}\n")
 		fmt.Fprintf(&b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
 	}
-	b.Add("\tdefault:\n")
+	b.WriteString("\tdefault:\n")
 	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, rawType, []any{\n", data.TypeKey)
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
-	b.Add("\t\t})\n\t}\nreturn nil")
+	b.WriteString("\t\t})\n\t}\nreturn nil")
 	return b.String()
 }
 
@@ -479,23 +479,23 @@ func renderUnionUnmarshalJSONBody(data *UnionTypeData) string {
 	if data.Untagged {
 		return data.JSON.Unmarshal()
 	}
-	var b sourceBuilder
+	var b strings.Builder
 	fmt.Fprintf(&b, "var raw struct {\n\tType  string        %s\n\tValue jsontext.Value%s\n}\n", codegen.StructTag(map[string]string{"json": data.TypeKey}), codegen.StructTag(map[string]string{"json": data.ValueKey}))
-	b.Add("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
-	b.Add("switch raw.Type {\n")
+	b.WriteString("if err := json.Unmarshal(data, &raw); err != nil {\n\treturn err\n}\n")
+	b.WriteString("switch raw.Type {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
-		b.Add("\t\tif len(raw.Value) == 0 || string(raw.Value) == \"null\" {\n")
+		b.WriteString("\t\tif len(raw.Value) == 0 || string(raw.Value) == \"null\" {\n")
 		fmt.Fprintf(&b, "\t\t\treturn loom.MissingFieldError(%q, \"body\")\n\t\t}\n", data.ValueKey)
-		b.Add("\t\tif err := json.Unmarshal(raw.Value, &v, loom.JSONOptions()); err != nil {\n\t\t\treturn err\n\t\t}\n")
+		b.WriteString("\t\tif err := json.Unmarshal(raw.Value, &v, loom.JSONOptions()); err != nil {\n\t\t\treturn err\n\t\t}\n")
 		fmt.Fprintf(&b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)
 	}
-	b.Add("\tdefault:\n")
+	b.WriteString("\tdefault:\n")
 	fmt.Fprintf(&b, "\t\treturn loom.InvalidEnumValueError(%q, raw.Type, []any{\n", data.TypeKey)
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\t\t\tstring(%s),\n", field.KindConst)
 	}
-	b.Add("\t\t})\n\t}\nreturn nil")
+	b.WriteString("\t\t})\n\t}\nreturn nil")
 	return b.String()
 }
 

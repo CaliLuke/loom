@@ -287,9 +287,9 @@ func appendRenderedValidation(res *[]string, validation string) {
 }
 
 func renderEnumValidation(data validationRenderData) string {
-	var b sourceBuilder
+	var b strings.Builder
 	if data.IsPointer {
-		b.Add("if " + data.Target + " != nil {\n")
+		b.WriteString("if " + data.Target + " != nil {\n")
 	}
 	predicate := "false"
 	if len(data.Values) > 0 {
@@ -300,11 +300,11 @@ func renderEnumValidation(data validationRenderData) string {
 	} else if len(data.Values) > 0 && compositeEnumValidation(data.Attribute.Type) {
 		predicate = collectionEnumPredicate(data)
 	}
-	b.Add("if !(" + predicate + ") {\n")
-	b.Add("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + toSlice(data.Values) + "))\n")
-	b.Add("}")
+	b.WriteString("if !(" + predicate + ") {\n")
+	b.WriteString("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + toSlice(data.Values) + "))\n")
+	b.WriteString("}")
 	if data.IsPointer {
-		b.Add("\n}")
+		b.WriteString("\n}")
 	}
 	return strings.Trim(b.String(), "\n")
 }
@@ -424,37 +424,37 @@ func renderRequiredValidation(data validationRenderData) string {
 }
 
 func renderArrayValidation(target, validation string, rejectNativeNil, jsonPresence bool, context string) string {
-	var b sourceBuilder
+	var b strings.Builder
 	index := "_"
 	if rejectNativeNil || jsonPresence {
 		index = "i"
 	}
-	b.Add("for " + index + ", e := range " + target + " {\n")
+	b.WriteString("for " + index + ", e := range " + target + " {\n")
 	if jsonPresence {
 		if validation == "" {
-			b.Add("\tif _, ok := e.Value(); !ok {\n")
-			b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
-			b.Add("\t}\n")
-			b.Add("}")
+			b.WriteString("\tif _, ok := e.Value(); !ok {\n")
+			b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
+			b.WriteString("\t}\n")
+			b.WriteString("}")
 			return b.String()
 		}
-		b.Add("\tif actual, ok := e.Value(); ok {\n")
-		b.Add(indentCode(indentCode(validation)))
-		b.Add("\t} else {\n")
-		b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
-		b.Add("\t}\n")
-		b.Add("}")
+		b.WriteString("\tif actual, ok := e.Value(); ok {\n")
+		b.WriteString(indentCode(indentCode(validation)))
+		b.WriteString("\t} else {\n")
+		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
+		b.WriteString("\t}\n")
+		b.WriteString("}")
 		return b.String()
 	}
 	if rejectNativeNil {
-		b.Add("\tif e == nil {\n")
-		b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
-		b.Add("\t}\n")
+		b.WriteString("\tif e == nil {\n")
+		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
+		b.WriteString("\t}\n")
 	}
 	if validation != "" {
-		b.Add(indentCode(validation))
+		b.WriteString(indentCode(validation))
 	}
-	b.Add("}")
+	b.WriteString("}")
 	return b.String()
 }
 
@@ -467,44 +467,44 @@ func renderMapValidation(target, keyValidation, valueValidation string, jsonPres
 	if valueValidation != "" || jsonPresence {
 		valueVar = "v"
 	}
-	var b sourceBuilder
+	var b strings.Builder
 	fmt.Fprintf(&b, "for %s, %s := range %s {\n", keyVar, valueVar, target)
 	if keyValidation != "" {
-		b.Add(indentCode(strings.TrimPrefix(keyValidation, "\n")))
+		b.WriteString(indentCode(strings.TrimPrefix(keyValidation, "\n")))
 	}
 	if jsonPresence {
 		if valueValidation == "" {
-			b.Add("\tif _, ok := " + valueVar + ".Value(); !ok {\n")
-			b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + quoteString(context+"[key]") + "))\n")
-			b.Add("\t}\n")
-			b.Add("}")
+			b.WriteString("\tif _, ok := " + valueVar + ".Value(); !ok {\n")
+			b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + quoteString(context+"[key]") + "))\n")
+			b.WriteString("\t}\n")
+			b.WriteString("}")
 			return b.String()
 		}
-		b.Add("\tif actual, ok := " + valueVar + ".Value(); ok {\n")
-		b.Add(indentCode(indentCode(strings.TrimPrefix(valueValidation, "\n"))))
-		b.Add("\t} else {\n")
-		b.Add("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + quoteString(context+"[key]") + "))\n")
-		b.Add("\t}\n")
+		b.WriteString("\tif actual, ok := " + valueVar + ".Value(); ok {\n")
+		b.WriteString(indentCode(indentCode(strings.TrimPrefix(valueValidation, "\n"))))
+		b.WriteString("\t} else {\n")
+		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + quoteString(context+"[key]") + "))\n")
+		b.WriteString("\t}\n")
 	} else if valueValidation != "" {
-		b.Add(indentCode(strings.TrimPrefix(valueValidation, "\n")))
+		b.WriteString(indentCode(strings.TrimPrefix(valueValidation, "\n")))
 	}
-	b.Add("}")
+	b.WriteString("}")
 	return b.String()
 }
 
 func renderUnionValidation(target string, types, values []string) string {
-	var b sourceBuilder
+	var b strings.Builder
 	fmt.Fprintf(&b, "switch v := %s.(type) {\n", target)
 	for i, val := range values {
 		fmt.Fprintf(&b, "case %s:\n", types[i])
-		b.Add(indentCode(val))
+		b.WriteString(indentCode(val))
 	}
 	fmt.Fprintf(&b, "}")
 	return b.String()
 }
 
 func renderUnionSumValidation(target string, cases []unionValidationCase) string {
-	var b sourceBuilder
+	var b strings.Builder
 	fmt.Fprintf(&b, "switch string(%s.Kind()) {\n", target)
 	for _, c := range cases {
 		fmt.Fprintf(&b, "case %q:\n", c.TypeTag)
@@ -515,7 +515,7 @@ func renderUnionSumValidation(target string, cases []unionValidationCase) string
 			fmt.Fprintf(&b, "\t\tbreak\n")
 			fmt.Fprintf(&b, "\t}\n")
 		}
-		b.Add(indentCode(c.Validation))
+		b.WriteString(indentCode(c.Validation))
 	}
 	fmt.Fprintf(&b, "}")
 	return b.String()

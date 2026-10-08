@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -96,14 +97,14 @@ func websocketConnConfigurerInitSection(data *ServiceData, client bool) codegen.
 			Params(jen.Id("fn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc"))).
 			Op("*").Id("ConnConfigurer").
 			BlockFunc(func(group *jen.Group) {
-				var b sourceBuilder
-				b.Add("return &ConnConfigurer{\n")
+				var b strings.Builder
+				b.WriteString("return &ConnConfigurer{\n")
 				for _, endpoint := range data.Endpoints {
 					if IsWebSocketEndpoint(endpoint) {
-						b.Addf("\t%sFn: fn,\n", endpoint.Method.VarName)
+						fmt.Fprintf(&b, "\t%sFn: fn,\n", endpoint.Method.VarName)
 					}
 				}
-				b.Add("}")
+				b.WriteString("}")
 				appendHTTPRawBlock(group, b.String())
 			})
 		stmt.Line()

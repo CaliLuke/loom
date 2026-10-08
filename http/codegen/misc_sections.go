@@ -116,43 +116,43 @@ func serverSSESection(ed *EndpointData) codegen.Section {
 	})
 }
 
-func writeSSEResultSetup(b *sourceBuilder, ed *EndpointData) {
+func writeSSEResultSetup(b *strings.Builder, ed *EndpointData) {
 	if ed.Method.ViewedResult != nil {
 		if len(ed.SSE.Projections) > 0 {
-			b.Add("\tvar view string\n")
-			b.Addf("\tswitch v.%s {\n", ed.SSE.EventField)
+			b.WriteString("\tvar view string\n")
+			fmt.Fprintf(b, "\tswitch v.%s {\n", ed.SSE.EventField)
 			for _, projection := range ed.SSE.Projections {
-				b.Addf("\tcase %q:\n\t\tview = %q\n", projection.EventType, projection.View)
+				fmt.Fprintf(b, "\tcase %q:\n\t\tview = %q\n", projection.EventType, projection.View)
 			}
-			b.Addf("\tdefault:\n\t\treturn fmt.Errorf(\"invalid SSE projection discriminator %%q\", v.%s)\n\t}\n", ed.SSE.EventField)
-			b.Addf("\tres, err := %s.%s(v, view)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name)
-			b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
+			fmt.Fprintf(b, "\tdefault:\n\t\treturn fmt.Errorf(\"invalid SSE projection discriminator %%q\", v.%s)\n\t}\n", ed.SSE.EventField)
+			fmt.Fprintf(b, "\tres, err := %s.%s(v, view)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name)
+			b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
 			return
 		}
 		viewName := ed.Method.ViewedResult.ViewName
 		if viewName == "" {
-			b.Addf("\tres, err := %s.%s(v, s.view)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name)
-			b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
+			fmt.Fprintf(b, "\tres, err := %s.%s(v, s.view)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name)
+			b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
 			return
 		}
-		b.Addf("\tres, err := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, viewName)
-		b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
+		fmt.Fprintf(b, "\tres, err := %s.%s(v, %q)\n", ed.ServicePkgName, ed.Method.ViewedResult.Init.Name, viewName)
+		b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
 		return
 	}
-	b.Add("\tres := v\n")
+	b.WriteString("\tres := v\n")
 }
 
-func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
-	b.Add("\n\tvar payload any\n")
+func writeSSEPayloadSetup(b *strings.Builder, ed *EndpointData) {
+	b.WriteString("\n\tvar payload any\n")
 	if len(ed.SSE.Projections) > 0 {
 		response := sseProjectionResponse(ed)
-		b.Add("\tswitch view {\n")
+		b.WriteString("\tswitch view {\n")
 		for _, projection := range ed.SSE.Projections {
-			b.Addf("\tcase %q:\n", projection.View)
+			fmt.Fprintf(b, "\tcase %q:\n", projection.View)
 			body := viewedServerBody(response.ServerBody, projection.View)
 			writeServerBodyInitCall(b, body, "\t\tpayload = ")
 		}
-		b.Add("\t}\n")
+		b.WriteString("\t}\n")
 		return
 	}
 	if ed.SSE.ResponseBody != nil {
@@ -161,14 +161,14 @@ func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
 			writeSSEDataFieldPayload(b, ed.SSE, "body."+ed.SSE.DataField)
 			return
 		}
-		b.Add("\tpayload = body\n")
+		b.WriteString("\tpayload = body\n")
 		return
 	}
 	if ed.SSE.DataField != "" {
 		writeSSEDataFieldPayload(b, ed.SSE, "res."+ed.SSE.DataField)
 		return
 	}
-	b.Add("\tpayload = res\n")
+	b.WriteString("\tpayload = res\n")
 }
 
 // writeSSEDataFieldPayload assigns the mapped data field source to payload.
@@ -176,13 +176,13 @@ func writeSSEPayloadSetup(b *sourceBuilder, ed *EndpointData) {
 // its dereferenced value, or empty data when it is nil, since raw text cannot
 // tell null from a string. Other optional primitives stay pointers and encode
 // as JSON literals, null when nil.
-func writeSSEDataFieldPayload(b *sourceBuilder, data *SSEData, source string) {
+func writeSSEDataFieldPayload(b *strings.Builder, data *SSEData, source string) {
 	if representation.MappedSSEEncoding(data.DataFieldTypeRef, data.DataPointer).DereferenceString {
-		b.Add("\tpayload = \"\"\n")
-		b.Addf("\tif %s != nil {\n\t\tpayload = *%s\n\t}\n", source, source)
+		b.WriteString("\tpayload = \"\"\n")
+		fmt.Fprintf(b, "\tif %s != nil {\n\t\tpayload = *%s\n\t}\n", source, source)
 		return
 	}
-	b.Addf("\tpayload = %s\n", source)
+	fmt.Fprintf(b, "\tpayload = %s\n", source)
 }
 
 func sseProjectionResponse(ed *EndpointData) *ResponseData {
@@ -198,24 +198,24 @@ func sseProjectionResponse(ed *EndpointData) *ResponseData {
 // collection results are always JSON so that strings and bytes survive SSE
 // framing exactly; struct results already encode as JSON, and field-level data
 // mappings keep their raw-text encoding.
-func writeSSEPayloadEncoding(b *sourceBuilder, ed *EndpointData) {
+func writeSSEPayloadEncoding(b *strings.Builder, ed *EndpointData) {
 	if ed.SSE.DataField == "" && !ed.SSE.EventIsStruct {
-		b.Add("\tdata, err := loomhttp.EncodeSSEJSONData(payload)\n")
-		b.Add("\tif err != nil {\n\t\treturn err\n\t}\n\n")
+		b.WriteString("\tdata, err := loomhttp.EncodeSSEJSONData(payload)\n")
+		b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n\n")
 		return
 	}
-	b.Add("\tdata, err := loomhttp.EncodeSSEData(payload)\n")
-	b.Add("\tif err != nil {\n\t\treturn err\n\t}\n\n")
+	b.WriteString("\tdata, err := loomhttp.EncodeSSEData(payload)\n")
+	b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n\n")
 }
 
-func writeSSEMessageSetup(b *sourceBuilder, ed *EndpointData) {
-	b.Add("\tmsg := loomhttp.SSEMessage{Data: data}\n")
+func writeSSEMessageSetup(b *strings.Builder, ed *EndpointData) {
+	b.WriteString("\tmsg := loomhttp.SSEMessage{Data: data}\n")
 	resultVar := "res"
 	if ed.Method.ViewedResult != nil {
 		resultVar = "v"
 	}
 	if ed.SSE.IDField != "" {
-		b.Add("\n")
+		b.WriteString("\n")
 		writeSSEMessageField(b, "id", resultVar+"."+ed.SSE.IDField, ed.SSE.IDPointer, `%s != ""`, "msg.ID = %s")
 	}
 	if ed.SSE.EventField != "" {
@@ -224,7 +224,7 @@ func writeSSEMessageSetup(b *sourceBuilder, ed *EndpointData) {
 	if ed.SSE.RetryField != "" {
 		writeSSEMessageField(b, "retry", resultVar+"."+ed.SSE.RetryField, ed.SSE.RetryPointer, "%s > 0", "msg.RetryMillis = int64(%s)")
 	}
-	b.Add("\n")
+	b.WriteString("\n")
 }
 
 // writeSSEMessageField copies the result field source into the SSE message
@@ -232,14 +232,14 @@ func writeSSEMessageSetup(b *sourceBuilder, ed *EndpointData) {
 // event and a non-positive retry are omitted. A pointer field is also omitted
 // when nil and dereferenced otherwise. cond and assign are format strings
 // applied to the field value expression.
-func writeSSEMessageField(b *sourceBuilder, local, source string, pointer bool, cond, assign string) {
+func writeSSEMessageField(b *strings.Builder, local, source string, pointer bool, cond, assign string) {
 	value := local
 	check := fmt.Sprintf(cond, value)
 	if pointer {
 		value = "*" + local
 		check = local + " != nil && " + fmt.Sprintf(cond, value)
 	}
-	b.Addf("\tif %s := %s; %s {\n\t\t%s\n\t}\n", local, source, check, fmt.Sprintf(assign, value))
+	fmt.Fprintf(b, "\tif %s := %s; %s {\n\t\t%s\n\t}\n", local, source, check, fmt.Sprintf(assign, value))
 }
 
 func addServerSSESection(stmt *jen.Statement, ed *EndpointData) {
@@ -331,13 +331,13 @@ func serverSSEUsesDynamicView(ed *EndpointData) bool {
 }
 
 func renderServerSSESendWithContextBody(ed *EndpointData) string {
-	var b sourceBuilder
-	b.Add("if err := ctx.Err(); err != nil {\n\treturn err\n}\n")
+	var b strings.Builder
+	b.WriteString("if err := ctx.Err(); err != nil {\n\treturn err\n}\n")
 	writeSSEResultSetup(&b, ed)
 	writeSSEPayloadSetup(&b, ed)
 	writeSSEPayloadEncoding(&b, ed)
 	writeSSEMessageSetup(&b, ed)
-	b.Add("return s.writer.WriteEvent(ctx, func(w io.Writer) error {\n\treturn loomhttp.WriteSSEEvent(w, msg)\n})")
+	b.WriteString("return s.writer.WriteEvent(ctx, func(w io.Writer) error {\n\treturn loomhttp.WriteSSEEvent(w, msg)\n})")
 	return b.String()
 }
 
@@ -369,7 +369,7 @@ func renderQuerySliceConversion(dt expr.DataType) string {
 }
 
 func renderRequestInitCode(payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, route *RouteData, isWebSocket bool, requestStruct string) string {
-	var b sourceBuilder
+	var b strings.Builder
 	renderRequestInitVars(&b, args, requestStruct)
 	renderRequestPayloadSetup(&b, payloadRef, hasFields, serviceName, endpointName, args, requestStruct)
 	renderRequestURLSetup(&b, serviceName, endpointName, route, args, isWebSocket)
@@ -379,7 +379,7 @@ func renderRequestInitCode(payloadRef string, hasFields bool, serviceName, endpo
 	return b.String()
 }
 
-func renderRequestPayloadSetup(b *sourceBuilder, payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, requestStruct string) {
+func renderRequestPayloadSetup(b *strings.Builder, payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, requestStruct string) {
 	if payloadRef != "" && len(args) > 0 {
 		renderPayloadExtraction(b, payloadRef, hasFields, serviceName, endpointName, args, requestStruct)
 		return
@@ -387,16 +387,16 @@ func renderRequestPayloadSetup(b *sourceBuilder, payloadRef string, hasFields bo
 	if requestStruct == "" {
 		return
 	}
-	b.Addf("\trd, ok := v.(*%s)\n", requestStruct)
+	fmt.Fprintf(b, "\trd, ok := v.(*%s)\n", requestStruct)
 	ifTypeErr(b, serviceName, endpointName, requestStruct)
-	b.Add("\tbody = rd.Body\n")
+	b.WriteString("\tbody = rd.Body\n")
 }
 
 // renderRequestURLSetup writes the statements that declare the URL u of the
 // request to the route. The path builder of a route with wildcards, or with
 // literal parts that need escaping, returns an escaped path, which
 // loomhttp.RequestURL keeps so that an escaped "/" stays inside its segment.
-func renderRequestURLSetup(b *sourceBuilder, serviceName, endpointName string, route *RouteData, args []*InitArgData, isWebSocket bool) {
+func renderRequestURLSetup(b *strings.Builder, serviceName, endpointName string, route *RouteData, args []*InitArgData, isWebSocket bool) {
 	renderRequestScheme(b, isWebSocket)
 	scheme := "c.scheme"
 	if isWebSocket {
@@ -408,123 +408,123 @@ func renderRequestURLSetup(b *sourceBuilder, serviceName, endpointName string, r
 	}
 	call += ")"
 	if len(route.PathInit.ClientArgs) == 0 && escapeRouteLiteral(route.Path) == route.Path {
-		b.Addf("\tu := &url.URL{Scheme: %s, Host: c.host, Path: %s}\n", scheme, call)
+		fmt.Fprintf(b, "\tu := &url.URL{Scheme: %s, Host: c.host, Path: %s}\n", scheme, call)
 		return
 	}
-	b.Addf("\tu, err := loomhttp.RequestURL(%s, c.host, %s)\n", scheme, call)
-	b.Add("\tif err != nil {\n")
-	b.Addf("\t\treturn nil, loomhttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
-	b.Add("\t}\n")
+	fmt.Fprintf(b, "\tu, err := loomhttp.RequestURL(%s, c.host, %s)\n", scheme, call)
+	b.WriteString("\tif err != nil {\n")
+	fmt.Fprintf(b, "\t\treturn nil, loomhttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
+	b.WriteString("\t}\n")
 }
 
-func renderRequestScheme(b *sourceBuilder, isWebSocket bool) {
+func renderRequestScheme(b *strings.Builder, isWebSocket bool) {
 	if !isWebSocket {
 		return
 	}
-	b.Add("\tscheme := c.scheme\n")
-	b.Add("\tswitch c.scheme {\n")
-	b.Add("\tcase \"http\":\n\t\tscheme = \"ws\"\n")
-	b.Add("\tcase \"https\":\n\t\tscheme = \"wss\"\n")
-	b.Add("\t}\n")
+	b.WriteString("\tscheme := c.scheme\n")
+	b.WriteString("\tswitch c.scheme {\n")
+	b.WriteString("\tcase \"http\":\n\t\tscheme = \"ws\"\n")
+	b.WriteString("\tcase \"https\":\n\t\tscheme = \"wss\"\n")
+	b.WriteString("\t}\n")
 }
 
-func renderRequestCreation(b *sourceBuilder, serviceName, endpointName, requestStruct, verb string) {
+func renderRequestCreation(b *strings.Builder, serviceName, endpointName, requestStruct, verb string) {
 	bodyRef := "nil"
 	if requestStruct != "" {
 		bodyRef = "body"
 	}
-	b.Addf("\treq, err := http.NewRequest(%q, u.String(), %s)\n", verb, bodyRef)
-	b.Add("\tif err != nil {\n")
-	b.Addf("\t\treturn nil, loomhttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
-	b.Add("\t}\n")
+	fmt.Fprintf(b, "\treq, err := http.NewRequest(%q, u.String(), %s)\n", verb, bodyRef)
+	b.WriteString("\tif err != nil {\n")
+	fmt.Fprintf(b, "\t\treturn nil, loomhttp.ErrInvalidURL(%q, %q, u.String(), err)\n", serviceName, endpointName)
+	b.WriteString("\t}\n")
 }
 
-func renderRequestContextBinding(b *sourceBuilder) {
-	b.Add("\tif ctx != nil {\n\t\treq = req.WithContext(ctx)\n\t}\n\n")
+func renderRequestContextBinding(b *strings.Builder) {
+	b.WriteString("\tif ctx != nil {\n\t\treq = req.WithContext(ctx)\n\t}\n\n")
 }
 
-func renderRequestReturn(b *sourceBuilder) {
-	b.Add("\treturn req, nil\n")
+func renderRequestReturn(b *strings.Builder) {
+	b.WriteString("\treturn req, nil\n")
 }
 
-func renderRequestInitVars(b *sourceBuilder, args []*InitArgData, requestStruct string) {
+func renderRequestInitVars(b *strings.Builder, args []*InitArgData, requestStruct string) {
 	if len(args) == 0 && requestStruct == "" {
 		return
 	}
-	b.Add("\tvar (\n")
+	b.WriteString("\tvar (\n")
 	for _, arg := range args {
-		b.Addf("\t\t%s %s\n", arg.VarName, arg.TypeRef)
+		fmt.Fprintf(b, "\t\t%s %s\n", arg.VarName, arg.TypeRef)
 	}
 	if requestStruct != "" {
-		b.Add("\t\tbody io.Reader\n")
+		b.WriteString("\t\tbody io.Reader\n")
 	}
-	b.Add("\t)\n")
+	b.WriteString("\t)\n")
 }
 
-func renderPayloadExtraction(b *sourceBuilder, payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, requestStruct string) {
-	b.Add("\t{\n")
+func renderPayloadExtraction(b *strings.Builder, payloadRef string, hasFields bool, serviceName, endpointName string, args []*InitArgData, requestStruct string) {
+	b.WriteString("\t{\n")
 	if requestStruct != "" {
-		b.Addf("\t\trd, ok := v.(*%s)\n", requestStruct)
+		fmt.Fprintf(b, "\t\trd, ok := v.(*%s)\n", requestStruct)
 		ifTypeErr(b, serviceName, endpointName, requestStruct)
-		b.Add("\t\tp := rd.Payload\n")
-		b.Add("\t\tbody = rd.Body\n")
+		b.WriteString("\t\tp := rd.Payload\n")
+		b.WriteString("\t\tbody = rd.Body\n")
 	} else {
-		b.Addf("\t\tp, ok := v.(%s)\n", payloadRef)
+		fmt.Fprintf(b, "\t\tp, ok := v.(%s)\n", payloadRef)
 		ifTypeErr(b, serviceName, endpointName, payloadRef)
 	}
 	for _, arg := range args {
 		renderPayloadAssignment(b, hasFields, arg)
 	}
-	b.Add("\t}\n")
+	b.WriteString("\t}\n")
 }
 
-func renderPayloadAssignment(b *sourceBuilder, hasFields bool, arg *InitArgData) {
+func renderPayloadAssignment(b *strings.Builder, hasFields bool, arg *InitArgData) {
 	if arg.Pointer {
 		if hasFields {
-			b.Addf("\t\tif p.%s != nil {\n", arg.FieldName)
+			fmt.Fprintf(b, "\t\tif p.%s != nil {\n", arg.FieldName)
 		} else {
-			b.Add("\t\tif p != nil {\n")
+			b.WriteString("\t\tif p != nil {\n")
 		}
 	}
 	switch {
 	case arg.TransformCode != "":
-		b.Add(arg.TransformCode + "\n")
+		b.WriteString(arg.TransformCode + "\n")
 	case arg.IsAliased:
 		renderAliasedPayloadAssignment(b, hasFields, arg)
 	default:
 		renderDirectPayloadAssignment(b, hasFields, arg)
 	}
 	if arg.Pointer {
-		b.Add("\t\t}\n")
+		b.WriteString("\t\t}\n")
 	}
 }
 
-func renderAliasedPayloadAssignment(b *sourceBuilder, hasFields bool, arg *InitArgData) {
-	b.Addf("\t\t\t%s = %s(", arg.VarName, arg.ServiceTypeRef)
+func renderAliasedPayloadAssignment(b *strings.Builder, hasFields bool, arg *InitArgData) {
+	fmt.Fprintf(b, "\t\t\t%s = %s(", arg.VarName, arg.ServiceTypeRef)
 	if arg.Pointer {
-		b.Add("*")
+		b.WriteString("*")
 	}
 	if hasFields {
-		b.Addf("p.%s)\n", arg.FieldName)
+		fmt.Fprintf(b, "p.%s)\n", arg.FieldName)
 		return
 	}
-	b.Add("p)\n")
+	b.WriteString("p)\n")
 }
 
-func renderDirectPayloadAssignment(b *sourceBuilder, hasFields bool, arg *InitArgData) {
-	b.Addf("\t\t\t%s = ", arg.VarName)
+func renderDirectPayloadAssignment(b *strings.Builder, hasFields bool, arg *InitArgData) {
+	fmt.Fprintf(b, "\t\t\t%s = ", arg.VarName)
 	if arg.Pointer {
-		b.Add("*")
+		b.WriteString("*")
 	}
 	if hasFields {
-		b.Addf("p.%s\n", arg.FieldName)
+		fmt.Fprintf(b, "p.%s\n", arg.FieldName)
 		return
 	}
-	b.Add("p\n")
+	b.WriteString("p\n")
 }
 
-func ifTypeErr(b *sourceBuilder, serviceName, endpointName, typeRef string) {
-	b.Add("\t\tif !ok {\n")
-	b.Addf("\t\t\treturn nil, loomhttp.ErrInvalidType(%q, %q, %q, v)\n", serviceName, endpointName, typeRef)
-	b.Add("\t\t}\n")
+func ifTypeErr(b *strings.Builder, serviceName, endpointName, typeRef string) {
+	b.WriteString("\t\tif !ok {\n")
+	fmt.Fprintf(b, "\t\t\treturn nil, loomhttp.ErrInvalidType(%q, %q, %q, v)\n", serviceName, endpointName, typeRef)
+	b.WriteString("\t\t}\n")
 }

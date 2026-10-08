@@ -3,6 +3,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 )
 
 func renderPayloadAccessSwitch(interceptor *InterceptorData, server bool) string {
@@ -13,8 +14,8 @@ func renderPayloadAccessSwitch(interceptor *InterceptorData, server bool) string
 		}
 		return "\treturn &" + method.PayloadAccess + "{payload: info.RawPayload().(" + method.PayloadRef + ")}\n"
 	}
-	var b sourceBuilder
-	b.Add("\tswitch info.Method() {\n")
+	var b strings.Builder
+	b.WriteString("\tswitch info.Method() {\n")
 	for _, method := range interceptor.Methods {
 		fmt.Fprintf(&b, "\tcase %q:\n", method.MethodName)
 		if server && hasEndpointStruct(true)(method) {
@@ -23,7 +24,7 @@ func renderPayloadAccessSwitch(interceptor *InterceptorData, server bool) string
 			fmt.Fprintf(&b, "\t\treturn &%s{payload: info.RawPayload().(%s)}\n", method.PayloadAccess, method.PayloadRef)
 		}
 	}
-	b.Add("\tdefault:\n\t\treturn nil\n\t}\n")
+	b.WriteString("\tdefault:\n\t\treturn nil\n\t}\n")
 	return b.String()
 }
 
@@ -32,12 +33,12 @@ func renderResultAccessSwitch(interceptor *InterceptorData) string {
 		method := interceptor.Methods[0]
 		return "\treturn &" + method.ResultAccess + "{result: res.(" + method.ResultRef + ")}\n"
 	}
-	var b sourceBuilder
-	b.Add("\tswitch info.Method() {\n")
+	var b strings.Builder
+	b.WriteString("\tswitch info.Method() {\n")
 	for _, method := range interceptor.Methods {
 		fmt.Fprintf(&b, "\tcase %q:\n\t\treturn &%s{result: res.(%s)}\n", method.MethodName, method.ResultAccess, method.ResultRef)
 	}
-	b.Add("\tdefault:\n\t\treturn nil\n\t}\n")
+	b.WriteString("\tdefault:\n\t\treturn nil\n\t}\n")
 	return b.String()
 }
 
@@ -51,13 +52,13 @@ func renderResultAccessSwitch(interceptor *InterceptorData) string {
 // another type or a nil pointer fails with a fault error instead of a panic.
 func renderViewedResultInterception(interceptor *InterceptorData, method *MethodInterceptorData) string {
 	viewed := method.ViewedResult
-	var b sourceBuilder
+	var b strings.Builder
 	fmt.Fprintf(&b, "view := %q\n", viewed.ViewName)
 	fmt.Fprintf(&b, "res, err := i.%s(ctx, info, func(ctx context.Context, req any) (any, error) {\n", interceptor.Name)
-	b.Add("\tres, err := endpoint(ctx, req)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n")
+	b.WriteString("\tres, err := endpoint(ctx, req)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n")
 	fmt.Fprintf(&b, "\tvres, ok := res.(%s)\n\tif !ok || vres == nil {\n\t\treturn nil, %s\n\t}\n", viewed.FullRef, invalidResultFault(viewed.FullRef))
 	fmt.Fprintf(&b, "\tview = vres.View\n\treturn %s(vres)\n})\n", viewed.ResultInit.Name)
-	b.Add("if err != nil {\n\treturn nil, err\n}\n")
+	b.WriteString("if err != nil {\n\treturn nil, err\n}\n")
 	// Interceptors access only object results, which are pointers.
 	fmt.Fprintf(&b, "result, ok := res.(%s)\nif !ok || result == nil {\n\treturn nil, %s\n}\n", method.ResultRef, invalidResultFault(method.ResultRef))
 	fmt.Fprintf(&b, "return %s(result, view)", viewed.Init.Name)
@@ -79,8 +80,8 @@ func renderStreamingPayloadAccess(interceptor *InterceptorData, client bool) str
 		}
 		return "\treturn &" + method.StreamingPayloadAccess + "{payload: " + arg + ".(" + method.StreamingPayloadRef + ")}\n"
 	}
-	var b sourceBuilder
-	b.Add("\tswitch info.Method() {\n")
+	var b strings.Builder
+	b.WriteString("\tswitch info.Method() {\n")
 	for _, method := range interceptor.Methods {
 		arg := "info.RawPayload()"
 		if !client {
@@ -88,7 +89,7 @@ func renderStreamingPayloadAccess(interceptor *InterceptorData, client bool) str
 		}
 		fmt.Fprintf(&b, "\tcase %q:\n\t\treturn &%s{payload: %s.(%s)}\n", method.MethodName, method.StreamingPayloadAccess, arg, method.StreamingPayloadRef)
 	}
-	b.Add("\tdefault:\n\t\treturn nil\n\t}\n")
+	b.WriteString("\tdefault:\n\t\treturn nil\n\t}\n")
 	return b.String()
 }
 
@@ -100,8 +101,8 @@ func renderStreamingResultAccess(interceptor *InterceptorData, client bool) stri
 		}
 		return "\treturn &" + method.StreamingResultAccess + "{result: info.RawPayload().(" + method.StreamingResultRef + ")}\n"
 	}
-	var b sourceBuilder
-	b.Add("\tswitch info.Method() {\n")
+	var b strings.Builder
+	b.WriteString("\tswitch info.Method() {\n")
 	for _, method := range interceptor.Methods {
 		if client {
 			fmt.Fprintf(&b, "\tcase %q:\n\t\treturn &%s{result: res.(%s)}\n", method.MethodName, method.StreamingResultAccess, method.StreamingResultRef)
@@ -109,6 +110,6 @@ func renderStreamingResultAccess(interceptor *InterceptorData, client bool) stri
 			fmt.Fprintf(&b, "\tcase %q:\n\t\treturn &%s{result: info.RawPayload().(%s)}\n", method.MethodName, method.StreamingResultAccess, method.StreamingResultRef)
 		}
 	}
-	b.Add("\tdefault:\n\t\treturn nil\n\t}\n")
+	b.WriteString("\tdefault:\n\t\treturn nil\n\t}\n")
 	return b.String()
 }

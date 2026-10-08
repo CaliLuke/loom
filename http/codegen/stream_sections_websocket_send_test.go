@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,7 +47,7 @@ func TestWriteServerWebSocketBodyInitSwitchesViews(t *testing.T) {
 		},
 	}
 
-	var b sourceBuilder
+	var b strings.Builder
 	writeServerWebSocketBodyInit(&b, ws, ws.Response.ServerBody[0])
 
 	require.Equal(t, "\tvar body any\n\tswitch s.view {\n\tcase \"default\", \"\":\n\t\tbody = newDefaultBody(res, )\n\tcase \"tiny\":\n\t\tbody = newTinyBody(res, )\n\t}\n", b.String())

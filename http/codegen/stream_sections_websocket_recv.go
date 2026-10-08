@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -15,58 +16,58 @@ func websocketRecvSection(ws *WebSocketData) codegen.Section {
 	})
 }
 
-func writeWebsocketRecvVars(b *sourceBuilder, ws *WebSocketData) {
-	b.Add("\tvar (\n")
-	b.Addf("\t\trv %s\n", ws.RecvTypeRef)
+func writeWebsocketRecvVars(b *strings.Builder, ws *WebSocketData) {
+	b.WriteString("\tvar (\n")
+	fmt.Fprintf(b, "\t\trv %s\n", ws.RecvTypeRef)
 	if ws.Type == "server" {
 		if ws.RecvTypeIsPointer {
-			b.Addf("\t\tbody %s\n", ws.Payload.VarName)
+			fmt.Fprintf(b, "\t\tbody %s\n", ws.Payload.VarName)
 		} else {
-			b.Addf("\t\tmsg *%s\n", ws.Payload.VarName)
+			fmt.Fprintf(b, "\t\tmsg *%s\n", ws.Payload.VarName)
 		}
 	} else {
 		bodyTypeRef := ws.RecvTypeRef
 		if ws.Response != nil && ws.Response.ClientBody != nil {
 			bodyTypeRef = ws.Response.ClientBody.ValueRef
 		}
-		b.Addf("\t\tbody %s\n", bodyTypeRef)
+		fmt.Fprintf(b, "\t\tbody %s\n", bodyTypeRef)
 	}
-	b.Add("\t\terr error\n")
-	b.Add("\t)\n")
+	b.WriteString("\t\terr error\n")
+	b.WriteString("\t)\n")
 }
 
-func writeServerWebsocketRecvBody(b *sourceBuilder, ws *WebSocketData, withContext bool) {
-	b.Add(renderWebsocketUpgrade(ws.Endpoint, ws.RecvName, true, withContext))
+func writeServerWebsocketRecvBody(b *strings.Builder, ws *WebSocketData, withContext bool) {
+	b.WriteString(renderWebsocketUpgrade(ws.Endpoint, ws.RecvName, true, withContext))
 	if ws.RecvTypeIsPointer {
-		b.Add("\tif err = s.conn.ReadJSON(ctx, &body); err != nil {\n")
+		b.WriteString("\tif err = s.conn.ReadJSON(ctx, &body); err != nil {\n")
 	} else {
-		b.Add("\tif err = s.conn.ReadJSON(ctx, &msg); err != nil {\n")
+		b.WriteString("\tif err = s.conn.ReadJSON(ctx, &msg); err != nil {\n")
 	}
-	b.Add("\t\treturn rv, err\n")
-	b.Add("\t}\n")
+	b.WriteString("\t\treturn rv, err\n")
+	b.WriteString("\t}\n")
 	if ws.RecvTypeIsPointer {
-		b.Add("\tif body == nil {\n")
+		b.WriteString("\tif body == nil {\n")
 	} else {
-		b.Add("\tif msg == nil {\n")
+		b.WriteString("\tif msg == nil {\n")
 	}
-	b.Add("\t\treturn rv, io.EOF\n")
-	b.Add("\t}\n")
+	b.WriteString("\t\treturn rv, io.EOF\n")
+	b.WriteString("\t}\n")
 	writeServerWebsocketRecvValidation(b, ws)
 	writeServerWebsocketRecvReturn(b, ws)
 }
 
-func writeServerWebsocketRecvValidation(b *sourceBuilder, ws *WebSocketData) {
+func writeServerWebsocketRecvValidation(b *strings.Builder, ws *WebSocketData) {
 	validate := serverWebSocketPayloadValidation(ws)
 	if validate == "" {
 		return
 	}
 	if !ws.RecvTypeIsPointer {
-		b.Add("\tbody := *msg\n")
+		b.WriteString("\tbody := *msg\n")
 	}
-	b.Addf("\t%s\n", validate)
-	b.Add("\tif err != nil {\n")
-	b.Add("\t\treturn rv, err\n")
-	b.Add("\t}\n")
+	fmt.Fprintf(b, "\t%s\n", validate)
+	b.WriteString("\tif err != nil {\n")
+	b.WriteString("\t\treturn rv, err\n")
+	b.WriteString("\t}\n")
 }
 
 func serverWebSocketPayloadValidation(ws *WebSocketData) string {
@@ -87,21 +88,21 @@ func serverWebSocketPayloadValidation(ws *WebSocketData) string {
 // writeServerWebsocketRecvReturn writes the statement that returns the
 // received payload. The constructor of a payload takes a primitive body, such
 // as the body of a named primitive type, by value.
-func writeServerWebsocketRecvReturn(b *sourceBuilder, ws *WebSocketData) {
+func writeServerWebsocketRecvReturn(b *strings.Builder, ws *WebSocketData) {
 	switch {
 	case ws.Payload != nil && ws.Payload.Init != nil:
 		switch {
 		case ws.RecvTypeIsPointer:
-			b.Addf("\treturn %s(body), nil\n", ws.Payload.Init.Name)
+			fmt.Fprintf(b, "\treturn %s(body), nil\n", ws.Payload.Init.Name)
 		case websocketPayloadIsPrimitive(ws):
-			b.Addf("\treturn %s(*msg), nil\n", ws.Payload.Init.Name)
+			fmt.Fprintf(b, "\treturn %s(*msg), nil\n", ws.Payload.Init.Name)
 		default:
-			b.Addf("\treturn %s(msg), nil\n", ws.Payload.Init.Name)
+			fmt.Fprintf(b, "\treturn %s(msg), nil\n", ws.Payload.Init.Name)
 		}
 	case ws.RecvTypeIsPointer:
-		b.Add("\treturn body, nil\n")
+		b.WriteString("\treturn body, nil\n")
 	default:
-		b.Add("\treturn *msg, nil\n")
+		b.WriteString("\treturn *msg, nil\n")
 	}
 }
 
@@ -112,60 +113,60 @@ func websocketPayloadIsPrimitive(ws *WebSocketData) bool {
 	return len(args) == 1 && args[0].AttributeData != nil && expr.IsPrimitive(args[0].AttributeData.Type)
 }
 
-func writeClientWebsocketRecvBody(b *sourceBuilder, ws *WebSocketData, ctxExpr string) {
+func writeClientWebsocketRecvBody(b *strings.Builder, ws *WebSocketData, ctxExpr string) {
 	if ws.RecvName == "CloseAndRecv" {
-		b.Add("\tdefer s.conn.Close()\n")
-		b.Add("\t// Send a nil payload to the server implying end of message\n")
-		b.Addf("\tif err = s.conn.WriteJSON(%s, nil); err != nil {\n", ctxExpr)
-		b.Add("\t\treturn rv, err\n")
-		b.Add("\t}\n")
+		b.WriteString("\tdefer s.conn.Close()\n")
+		b.WriteString("\t// Send a nil payload to the server implying end of message\n")
+		fmt.Fprintf(b, "\tif err = s.conn.WriteJSON(%s, nil); err != nil {\n", ctxExpr)
+		b.WriteString("\t\treturn rv, err\n")
+		b.WriteString("\t}\n")
 	}
-	b.Addf("\terr = s.conn.ReadJSON(%s, &body)\n", ctxExpr)
-	b.Add("\tif websocket.IsCloseError(err, websocket.CloseNormalClosure) {\n")
+	fmt.Fprintf(b, "\terr = s.conn.ReadJSON(%s, &body)\n", ctxExpr)
+	b.WriteString("\tif websocket.IsCloseError(err, websocket.CloseNormalClosure) {\n")
 	if ws.Type == "client" && ws.SendName == "" {
-		b.Add("\t\ts.closeOnce.Do(func() {\n\t\t\tif s.done != nil {\n\t\t\t\tclose(s.done)\n\t\t\t}\n\t\t})\n")
-		b.Add("\t\tif closeErr := s.conn.Close(); closeErr != nil {\n\t\t\treturn rv, closeErr\n\t\t}\n")
+		b.WriteString("\t\ts.closeOnce.Do(func() {\n\t\t\tif s.done != nil {\n\t\t\t\tclose(s.done)\n\t\t\t}\n\t\t})\n")
+		b.WriteString("\t\tif closeErr := s.conn.Close(); closeErr != nil {\n\t\t\treturn rv, closeErr\n\t\t}\n")
 	} else if !ws.MustClose {
-		b.Add("\t\ts.conn.Close()\n")
+		b.WriteString("\t\ts.conn.Close()\n")
 	}
-	b.Add("\t\treturn rv, io.EOF\n")
-	b.Add("\t}\n")
-	b.Add("\tif err != nil {\n")
-	b.Add("\t\treturn rv, err\n")
-	b.Add("\t}\n")
+	b.WriteString("\t\treturn rv, io.EOF\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\tif err != nil {\n")
+	b.WriteString("\t\treturn rv, err\n")
+	b.WriteString("\t}\n")
 	writeClientWebsocketRecvValidation(b, ws)
 	writeClientWebsocketRecvReturn(b, ws)
 }
 
-func writeClientWebsocketRecvValidation(b *sourceBuilder, ws *WebSocketData) {
+func writeClientWebsocketRecvValidation(b *strings.Builder, ws *WebSocketData) {
 	if ws.Response.ClientBody == nil || ws.Response.ClientBody.ValidateRef == "" || ws.Endpoint.Method.ViewedResult != nil {
 		return
 	}
-	b.Addf("\t%s\n", ws.Response.ClientBody.ValidateRef)
-	b.Add("\tif err != nil {\n")
-	b.Add("\t\treturn rv, err\n")
-	b.Add("\t}\n")
+	fmt.Fprintf(b, "\t%s\n", ws.Response.ClientBody.ValidateRef)
+	b.WriteString("\tif err != nil {\n")
+	b.WriteString("\t\treturn rv, err\n")
+	b.WriteString("\t}\n")
 }
 
-func writeClientWebsocketRecvReturn(b *sourceBuilder, ws *WebSocketData) {
+func writeClientWebsocketRecvReturn(b *strings.Builder, ws *WebSocketData) {
 	if ws.Response.ResultInit == nil {
-		b.Add("\treturn body, nil\n")
+		b.WriteString("\treturn body, nil\n")
 		return
 	}
-	b.Add("\tres := ")
-	b.Addf("%s(", ws.Response.ResultInit.Name)
+	b.WriteString("\tres := ")
+	fmt.Fprintf(b, "%s(", ws.Response.ResultInit.Name)
 	for _, arg := range ws.Response.ResultInit.ClientArgs {
-		b.Addf("%s,", arg.Ref)
+		fmt.Fprintf(b, "%s,", arg.Ref)
 	}
-	b.Add(")\n")
+	b.WriteString(")\n")
 	if ws.Endpoint.Method.ViewedResult == nil {
-		b.Add("\treturn res, nil\n")
+		b.WriteString("\treturn res, nil\n")
 		return
 	}
 	writeClientWebsocketViewedResultReturn(b, ws)
 }
 
-func writeClientWebsocketViewedResultReturn(b *sourceBuilder, ws *WebSocketData) {
+func writeClientWebsocketViewedResultReturn(b *strings.Builder, ws *WebSocketData) {
 	view := ws.Endpoint.Method.ViewedResult
 	prefix := ""
 	if !view.IsCollection {
@@ -175,25 +176,25 @@ func writeClientWebsocketViewedResultReturn(b *sourceBuilder, ws *WebSocketData)
 	if view.ViewName == "" {
 		viewArg = "s.view"
 	}
-	b.Addf("\tvres := %s%s{Projected: res, View: %s}\n", prefix, view.FullName, viewArg)
-	b.Addf("\tif err := %s.Validate%s(vres); err != nil {\n", view.ViewsPkg, ws.Endpoint.Method.Result)
-	b.Addf("\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
-	b.Add("\t}\n")
-	b.Addf("\tresult, err := %s.%s(vres)\n", ws.PkgName, view.ResultInit.Name)
-	b.Add("\tif err != nil {\n")
-	b.Addf("\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
-	b.Add("\t}\n")
-	b.Add("\treturn result, nil\n")
+	fmt.Fprintf(b, "\tvres := %s%s{Projected: res, View: %s}\n", prefix, view.FullName, viewArg)
+	fmt.Fprintf(b, "\tif err := %s.Validate%s(vres); err != nil {\n", view.ViewsPkg, ws.Endpoint.Method.Result)
+	fmt.Fprintf(b, "\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
+	b.WriteString("\t}\n")
+	fmt.Fprintf(b, "\tresult, err := %s.%s(vres)\n", ws.PkgName, view.ResultInit.Name)
+	b.WriteString("\tif err != nil {\n")
+	fmt.Fprintf(b, "\t\treturn rv, loomhttp.ErrValidationError(%q, %q, err)\n", ws.Endpoint.ServiceName, ws.Endpoint.Method.Name)
+	b.WriteString("\t}\n")
+	b.WriteString("\treturn result, nil\n")
 }
 
-func writeWebSocketContextGuard(b *sourceBuilder, returnValue string) {
-	b.Add("\tif err := ctx.Err(); err != nil {\n")
+func writeWebSocketContextGuard(b *strings.Builder, returnValue string) {
+	b.WriteString("\tif err := ctx.Err(); err != nil {\n")
 	if returnValue != "" {
-		b.Addf("\t\treturn %s, err\n", returnValue)
+		fmt.Fprintf(b, "\t\treturn %s, err\n", returnValue)
 	} else {
-		b.Add("\t\treturn err\n")
+		b.WriteString("\t\treturn err\n")
 	}
-	b.Add("\t}\n")
+	b.WriteString("\t}\n")
 }
 
 func addWebsocketRecvSection(stmt *jen.Statement, ws *WebSocketData) {
@@ -209,7 +210,7 @@ func addWebsocketRecvSection(stmt *jen.Statement, ws *WebSocketData) {
 				group.Return(jen.Id("s").Dot(ws.RecvWithContextName).Call(jen.Id("s").Dot("r").Dot("Context").Call()))
 				return
 			}
-			var b sourceBuilder
+			var b strings.Builder
 			writeWebsocketRecvVars(&b, ws)
 			writeClientWebsocketRecvBody(&b, ws, "context.Background()")
 			addRawWebSocketGroup(group, b.String())
@@ -222,7 +223,7 @@ func addWebsocketRecvSection(stmt *jen.Statement, ws *WebSocketData) {
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(codegen.TypeRef(ws.RecvTypeRef), jen.Error()).
 		BlockFunc(func(group *jen.Group) {
-			var b sourceBuilder
+			var b strings.Builder
 			if ws.Type == "server" {
 				writeWebsocketRecvVars(&b, ws)
 				writeWebSocketContextGuard(&b, "rv")

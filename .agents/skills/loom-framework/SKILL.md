@@ -150,6 +150,8 @@ consumer validation.
 - Let Loom determine pointer/value semantics except at explicit transport
   validation boundaries.
 - Collapse pass-through wrappers that add no behavior.
+- Accumulate generated source with standard-library `strings.Builder` and
+  formatted writes. Pass populated builders by pointer; never copy them.
 - Keep generated transport code declarative. Move stable protocol execution to
   handwritten runtime packages, and pass typed handlers or callbacks from
   generated code without broad reflection.

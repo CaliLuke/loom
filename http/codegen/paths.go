@@ -84,7 +84,7 @@ func renderPathInitCode(args []*InitArgData, path string) string {
 		return "\treturn " + renderJen(jen.Lit(escapeRouteLiteral(path))) + "\n"
 	}
 	var (
-		b      sourceBuilder
+		b      strings.Builder
 		format strings.Builder
 		values = make([]string, len(args))
 		last   int
@@ -100,11 +100,11 @@ func renderPathInitCode(args []*InitArgData, path string) string {
 		values[i] = renderPathValue(&b, args[i], escape)
 	}
 	format.WriteString(pathFormatLiteral(path[last:]))
-	b.Add("\treturn " + renderJen(jen.Qual("fmt", "Sprintf")) + "(" + renderJen(jen.Lit(format.String())))
+	b.WriteString("\treturn " + renderJen(jen.Qual("fmt", "Sprintf")) + "(" + renderJen(jen.Lit(format.String())))
 	for _, value := range values {
-		b.Add(", " + value)
+		b.WriteString(", " + value)
 	}
-	b.Add(")\n")
+	b.WriteString(")\n")
 	return b.String()
 }
 
@@ -124,13 +124,13 @@ func pathFormatLiteral(literal string) string {
 // parameter arg as escaped path text with the runtime function escape, and
 // writes to b the statements that the expression needs. Numbers and booleans
 // never need escaping and are formatted as they are.
-func renderPathValue(b *sourceBuilder, arg *InitArgData, escape string) string {
+func renderPathValue(b *strings.Builder, arg *InitArgData, escape string) string {
 	typ := arg.FieldType
 	if expr.IsArray(typ) {
-		b.Addf("\t%s := make([]string, len(%s))\n", arg.Locals.Slice, arg.VarName)
-		b.Addf("\tfor i, v := range %s {\n", arg.VarName)
-		b.Addf("\t\t%s[i] = %s\n", arg.Locals.Slice, renderPathSliceConversion(expr.AsArray(typ).ElemType.Type, escape))
-		b.Add("\t}\n")
+		fmt.Fprintf(b, "\t%s := make([]string, len(%s))\n", arg.Locals.Slice, arg.VarName)
+		fmt.Fprintf(b, "\tfor i, v := range %s {\n", arg.VarName)
+		fmt.Fprintf(b, "\t\t%s[i] = %s\n", arg.Locals.Slice, renderPathSliceConversion(expr.AsArray(typ).ElemType.Type, escape))
+		b.WriteString("\t}\n")
 		return "strings.Join(" + arg.Locals.Slice + ", \",\")"
 	}
 	if expr.IsAny(typ) {

@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -20,23 +21,23 @@ func exampleCLIStartSection(
 }
 
 func renderExampleCLIStart(services []exampleCLIServiceData, interceptorsPkg, functionName string) string {
-	var b sourceBuilder
-	b.Addf("func %s(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, error) {\n", functionName)
-	b.Add("\tvar (\n")
-	b.Add("\t\tdoer loomhttp.Doer\n")
+	var b strings.Builder
+	fmt.Fprintf(&b, "func %s(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, error) {\n", functionName)
+	b.WriteString("\tvar (\n")
+	b.WriteString("\t\tdoer loomhttp.Doer\n")
 	for _, svc := range cliServicesWithClientInterceptors(services) {
-		b.Addf("\t\t%sInterceptors %s.ClientInterceptors\n", svc.Data.Service.VarName, svc.ServiceImport)
+		fmt.Fprintf(&b, "\t\t%sInterceptors %s.ClientInterceptors\n", svc.Data.Service.VarName, svc.ServiceImport)
 	}
-	b.Add("\t)\n")
-	b.Add("\t{\n")
-	b.Add("\t\tdoer = &http.Client{Timeout: time.Duration(timeout) * time.Second}\n")
-	b.Add("\t\tif debug {\n")
-	b.Add("\t\t\tdoer = loomhttp.NewDebugDoer(doer)\n")
-	b.Add("\t\t}\n")
+	b.WriteString("\t)\n")
+	b.WriteString("\t{\n")
+	b.WriteString("\t\tdoer = &http.Client{Timeout: time.Duration(timeout) * time.Second}\n")
+	b.WriteString("\t\tif debug {\n")
+	b.WriteString("\t\t\tdoer = loomhttp.NewDebugDoer(doer)\n")
+	b.WriteString("\t\t}\n")
 	for _, svc := range cliServicesWithClientInterceptors(services) {
-		b.Addf("\t\t%sInterceptors = %s.New%sClientInterceptors()\n", svc.Data.Service.VarName, interceptorsPkg, svc.Data.Service.StructName)
+		fmt.Fprintf(&b, "\t\t%sInterceptors = %s.New%sClientInterceptors()\n", svc.Data.Service.VarName, interceptorsPkg, svc.Data.Service.StructName)
 	}
-	b.Add("\t}\n")
+	b.WriteString("\t}\n")
 	return b.String()
 }
 
@@ -60,38 +61,38 @@ func exampleCLIEndSection(services []exampleCLIServiceData, apiPkg string) codeg
 }
 
 func renderExampleCLIEnd(services []exampleCLIServiceData, apiPkg string) string {
-	var b sourceBuilder
-	b.Add("\nendpoint, payload, err := cli.ParseEndpoint(\n")
-	b.Add("\t\tscheme,\n")
-	b.Add("\t\thost,\n")
-	b.Add("\t\tdoer,\n")
-	b.Add("\t\tloomhttp.RequestEncoder,\n")
-	b.Add("\t\tloomhttp.ResponseDecoder,\n")
-	b.Add("\t\tdebug,\n")
+	var b strings.Builder
+	b.WriteString("\nendpoint, payload, err := cli.ParseEndpoint(\n")
+	b.WriteString("\t\tscheme,\n")
+	b.WriteString("\t\thost,\n")
+	b.WriteString("\t\tdoer,\n")
+	b.WriteString("\t\tloomhttp.RequestEncoder,\n")
+	b.WriteString("\t\tloomhttp.ResponseDecoder,\n")
+	b.WriteString("\t\tdebug,\n")
 	if exampleCLINeedsDialer(services) {
-		b.Add("\t\tdialer,\n")
+		b.WriteString("\t\tdialer,\n")
 		for _, svc := range services {
 			if HasWebSocket(svc.Data) {
-				b.Add("\t\tnil,\n")
+				b.WriteString("\t\tnil,\n")
 			}
 		}
 	}
 	for _, svc := range services {
 		for _, endpoint := range svc.Data.Endpoints {
 			if endpoint.MultipartRequestEncoder != nil {
-				b.Addf("\t\t%s.%s,\n", apiPkg, endpoint.MultipartRequestEncoder.FuncName)
+				fmt.Fprintf(&b, "\t\t%s.%s,\n", apiPkg, endpoint.MultipartRequestEncoder.FuncName)
 			}
 		}
 	}
 	for _, svc := range cliServicesWithClientInterceptors(services) {
-		b.Addf("\t\t%sInterceptors,\n", svc.Data.Service.VarName)
+		fmt.Fprintf(&b, "\t\t%sInterceptors,\n", svc.Data.Service.VarName)
 	}
-	b.Add("\t)\n")
-	b.Add("\tif err != nil {\n")
-	b.Add("\t\treturn nil, nil, fmt.Errorf(\"parse endpoint: %w\", err)\n")
-	b.Add("\t}\n")
-	b.Add("\treturn endpoint, payload, nil\n")
-	b.Add("}\n")
+	b.WriteString("\t)\n")
+	b.WriteString("\tif err != nil {\n")
+	b.WriteString("\t\treturn nil, nil, fmt.Errorf(\"parse endpoint: %w\", err)\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\treturn endpoint, payload, nil\n")
+	b.WriteString("}\n")
 	return b.String()
 }
 
@@ -135,35 +136,35 @@ func exampleServerConfigureSection(services []exampleServerServiceData, apiPkg s
 }
 
 func renderExampleServerConfigure(services []exampleServerServiceData, apiPkg string) string {
-	var b sourceBuilder
-	b.Add("\n\t// Wrap the endpoints with the transport specific layers. The generated\n")
-	b.Add("\t// server packages contains code generated from the design which maps\n")
-	b.Add("\t// the service input and output data structures to HTTP requests and\n")
-	b.Add("\t// responses.\n")
-	b.Add("\tvar (\n")
+	var b strings.Builder
+	b.WriteString("\n\t// Wrap the endpoints with the transport specific layers. The generated\n")
+	b.WriteString("\t// server packages contains code generated from the design which maps\n")
+	b.WriteString("\t// the service input and output data structures to HTTP requests and\n")
+	b.WriteString("\t// responses.\n")
+	b.WriteString("\tvar (\n")
 	for _, svc := range services {
-		b.Addf("\t\t%sServer *%s.Server\n", svc.Data.Service.VarName, svc.ServerImport)
+		fmt.Fprintf(&b, "\t\t%sServer *%s.Server\n", svc.Data.Service.VarName, svc.ServerImport)
 	}
-	b.Add("\t)\n")
-	b.Add("\t{\n")
-	b.Add("\t\teh := errorHandler(ctx)\n")
+	b.WriteString("\t)\n")
+	b.WriteString("\t{\n")
+	b.WriteString("\t\teh := errorHandler(ctx)\n")
 	if hasRuntimeCORS(services) {
-		b.Add("\t\t// Replace this same-origin default with the deployment-configured browser origins.\n")
-		b.Add("\t\truntimeCORSPolicy, err := loomhttp.NewRuntimeCORSPolicy(loomhttp.CORSPolicy{\n")
-		b.Add("\t\t\tOrigins: []loomhttp.CORSOrigin{{Pattern: u.Scheme + \"://\" + u.Host}},\n")
-		b.Add("\t\t})\n")
-		b.Add("\t\tif err != nil {\n\t\t\tpanic(err)\n\t\t}\n")
+		b.WriteString("\t\t// Replace this same-origin default with the deployment-configured browser origins.\n")
+		b.WriteString("\t\truntimeCORSPolicy, err := loomhttp.NewRuntimeCORSPolicy(loomhttp.CORSPolicy{\n")
+		b.WriteString("\t\t\tOrigins: []loomhttp.CORSOrigin{{Pattern: u.Scheme + \"://\" + u.Host}},\n")
+		b.WriteString("\t\t})\n")
+		b.WriteString("\t\tif err != nil {\n\t\t\tpanic(err)\n\t\t}\n")
 	}
 	if exampleServerNeedsDialer(services) {
-		b.Add("\t\tupgrader := &websocket.Upgrader{}\n")
+		b.WriteString("\t\tupgrader := &websocket.Upgrader{}\n")
 	}
 	for _, svc := range services {
-		b.Addf("\t\t%s\n", exampleServerConstructorCall(svc, apiPkg))
+		fmt.Fprintf(&b, "\t\t%s\n", exampleServerConstructorCall(svc, apiPkg))
 	}
-	b.Add("\t}\n\n")
-	b.Add("\t// Configure the mux.\n")
+	b.WriteString("\t}\n\n")
+	b.WriteString("\t// Configure the mux.\n")
 	for _, svc := range services {
-		b.Addf("\t%s.Mount(mux, %sServer)\n", svc.ServerImport, svc.Data.Service.VarName)
+		fmt.Fprintf(&b, "\t%s.Mount(mux, %sServer)\n", svc.ServerImport, svc.Data.Service.VarName)
 	}
 	return b.String()
 }
@@ -181,64 +182,64 @@ func exampleServerEndSection(services []exampleServerServiceData) codegen.Sectio
 }
 
 func renderExampleServerStart(services []exampleServerServiceData) string {
-	var b sourceBuilder
-	b.Add("\n")
-	b.Add(codegen.Comment("handleHTTPServer starts configures and starts a HTTP server on the given URL. It shuts down the server if any error is received in the error channel."))
-	b.Add("\n")
-	b.Add("func handleHTTPServer(ctx context.Context, u *url.URL")
+	var b strings.Builder
+	b.WriteString("\n")
+	b.WriteString(codegen.Comment("handleHTTPServer starts configures and starts a HTTP server on the given URL. It shuts down the server if any error is received in the error channel."))
+	b.WriteString("\n")
+	b.WriteString("func handleHTTPServer(ctx context.Context, u *url.URL")
 	for _, svc := range services {
 		if len(svc.Data.Service.Methods) > 0 {
-			b.Addf(", %sEndpoints *%s.Endpoints", svc.Data.Service.VarName, svc.ServiceImport)
+			fmt.Fprintf(&b, ", %sEndpoints *%s.Endpoints", svc.Data.Service.VarName, svc.ServiceImport)
 		}
 	}
-	b.Add(", wg *sync.WaitGroup, errc chan error, dbg bool) {\n")
+	b.WriteString(", wg *sync.WaitGroup, errc chan error, dbg bool) {\n")
 	return b.String()
 }
 
 func renderExampleServerEnd(services []exampleServerServiceData) string {
-	var b sourceBuilder
-	b.Add("\n\t// Start HTTP server using default configuration, change the code to\n")
-	b.Add("\t// configure the server as required by your service.\n")
-	b.Add("\tsrv := &http.Server{\n")
-	b.Add("\t\tAddr:              u.Host,\n")
-	b.Add("\t\tHandler:           handler,\n")
-	b.Add("\t\tReadHeaderTimeout: time.Second * 60,\n")
-	b.Add("\t\tMaxHeaderValueCount: http.DefaultMaxHeaderValueCount,\n")
-	b.Add("\t\tReadTimeout:       time.Second * 15,\n")
+	var b strings.Builder
+	b.WriteString("\n\t// Start HTTP server using default configuration, change the code to\n")
+	b.WriteString("\t// configure the server as required by your service.\n")
+	b.WriteString("\tsrv := &http.Server{\n")
+	b.WriteString("\t\tAddr:              u.Host,\n")
+	b.WriteString("\t\tHandler:           handler,\n")
+	b.WriteString("\t\tReadHeaderTimeout: time.Second * 60,\n")
+	b.WriteString("\t\tMaxHeaderValueCount: http.DefaultMaxHeaderValueCount,\n")
+	b.WriteString("\t\tReadTimeout:       time.Second * 15,\n")
 	if exampleServerHasStreamingEndpoint(services) {
-		b.Add("\t\tWriteTimeout:      0,\n")
+		b.WriteString("\t\tWriteTimeout:      0,\n")
 	} else {
-		b.Add("\t\tWriteTimeout:      time.Second * 30,\n")
+		b.WriteString("\t\tWriteTimeout:      time.Second * 30,\n")
 	}
-	b.Add("\t\tIdleTimeout:       time.Second * 60,\n")
-	b.Add("\t}\n")
+	b.WriteString("\t\tIdleTimeout:       time.Second * 60,\n")
+	b.WriteString("\t}\n")
 	for _, svc := range services {
-		b.Addf("\tfor _, m := range %sServer.Mounts {\n", svc.Data.Service.VarName)
-		b.Add("\t\tlog.Printf(ctx, \"HTTP %q mounted on %s %s\", m.Method, m.Verb, m.Pattern)\n")
-		b.Add("\t}\n")
+		fmt.Fprintf(&b, "\tfor _, m := range %sServer.Mounts {\n", svc.Data.Service.VarName)
+		b.WriteString("\t\tlog.Printf(ctx, \"HTTP %q mounted on %s %s\", m.Method, m.Verb, m.Pattern)\n")
+		b.WriteString("\t}\n")
 	}
-	b.Add("\n\t(*wg).Add(1)\n")
-	b.Add("\tgo func() {\n")
-	b.Add("\t\tdefer (*wg).Done()\n\n")
-	b.Add("\t\t")
-	b.Add(codegen.Comment("Start HTTP server in a separate goroutine."))
-	b.Add("\n")
-	b.Add("\t\tgo func() {\n")
-	b.Add("\t\t\tlog.Printf(ctx, \"HTTP server listening on %q\", u.Host)\n")
-	b.Add("\t\t\terrc <- srv.ListenAndServe()\n")
-	b.Add("\t\t}()\n\n")
-	b.Add("\t\t<-ctx.Done()\n")
-	b.Add("\t\tlog.Printf(ctx, \"shutting down HTTP server at %q\", u.Host)\n\n")
-	b.Add("\t\t")
-	b.Add(codegen.Comment("Shutdown gracefully with a 30s timeout."))
-	b.Add("\n")
-	b.Add("\t\tshutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)\n")
-	b.Add("\t\tdefer cancel()\n\n")
-	b.Add("\t\terr := srv.Shutdown(shutdownCtx)\n")
-	b.Add("\t\tif err != nil {\n")
-	b.Add("\t\t\tlog.Printf(shutdownCtx, \"failed to shutdown: %v\", err)\n")
-	b.Add("\t\t}\n")
-	b.Add("\t}()\n}\n")
+	b.WriteString("\n\t(*wg).Add(1)\n")
+	b.WriteString("\tgo func() {\n")
+	b.WriteString("\t\tdefer (*wg).Done()\n\n")
+	b.WriteString("\t\t")
+	b.WriteString(codegen.Comment("Start HTTP server in a separate goroutine."))
+	b.WriteString("\n")
+	b.WriteString("\t\tgo func() {\n")
+	b.WriteString("\t\t\tlog.Printf(ctx, \"HTTP server listening on %q\", u.Host)\n")
+	b.WriteString("\t\t\terrc <- srv.ListenAndServe()\n")
+	b.WriteString("\t\t}()\n\n")
+	b.WriteString("\t\t<-ctx.Done()\n")
+	b.WriteString("\t\tlog.Printf(ctx, \"shutting down HTTP server at %q\", u.Host)\n\n")
+	b.WriteString("\t\t")
+	b.WriteString(codegen.Comment("Shutdown gracefully with a 30s timeout."))
+	b.WriteString("\n")
+	b.WriteString("\t\tshutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)\n")
+	b.WriteString("\t\tdefer cancel()\n\n")
+	b.WriteString("\t\terr := srv.Shutdown(shutdownCtx)\n")
+	b.WriteString("\t\tif err != nil {\n")
+	b.WriteString("\t\t\tlog.Printf(shutdownCtx, \"failed to shutdown: %v\", err)\n")
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t}()\n}\n")
 	return b.String()
 }
 
@@ -331,29 +332,29 @@ func exampleCLINeedsDialer(services []exampleCLIServiceData) bool {
 }
 
 func exampleServerConstructorCall(svc exampleServerServiceData, apiPkg string) string {
-	var b sourceBuilder
-	b.Addf("%sServer = %s.New(", svc.Data.Service.VarName, svc.ServerImport)
+	var b strings.Builder
+	fmt.Fprintf(&b, "%sServer = %s.New(", svc.Data.Service.VarName, svc.ServerImport)
 	if len(svc.Data.Endpoints) > 0 {
-		b.Addf("%sEndpoints", svc.Data.Service.VarName)
+		fmt.Fprintf(&b, "%sEndpoints", svc.Data.Service.VarName)
 	} else {
-		b.Add("nil")
+		b.WriteString("nil")
 	}
-	b.Add(", mux, dec, enc, eh, nil")
+	b.WriteString(", mux, dec, enc, eh, nil")
 	if svc.Data.CORS != nil && svc.Data.CORS.Runtime {
-		b.Add(", runtimeCORSPolicy")
+		b.WriteString(", runtimeCORSPolicy")
 	}
 	if HasWebSocket(svc.Data) {
-		b.Add(", upgrader, nil")
+		b.WriteString(", upgrader, nil")
 	}
 	for _, endpoint := range svc.Data.Endpoints {
 		if endpoint.MultipartRequestDecoder != nil {
-			b.Addf(", %s.%s", apiPkg, endpoint.MultipartRequestDecoder.FuncName)
+			fmt.Fprintf(&b, ", %s.%s", apiPkg, endpoint.MultipartRequestDecoder.FuncName)
 		}
 	}
 	for range svc.Data.FileServers {
-		b.Add(", nil")
+		b.WriteString(", nil")
 	}
-	b.Add(")")
+	b.WriteString(")")
 	return b.String()
 }
 

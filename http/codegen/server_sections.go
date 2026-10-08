@@ -96,54 +96,54 @@ func serverInitSection(data *ServiceData) codegen.Section {
 }
 
 func renderServerInitBody(data *ServiceData) string {
-	var b sourceBuilder
+	var b strings.Builder
 	if HasWebSocket(data) {
-		b.Add("\tif configurer == nil {\n\t\tconfigurer = &ConnConfigurer{}\n\t}\n")
+		b.WriteString("\tif configurer == nil {\n\t\tconfigurer = &ConnConfigurer{}\n\t}\n")
 	}
 	for _, fs := range data.FileServers {
-		b.Addf("\tif %s == nil {\n\t\t%s = http.Dir(\".\")\n\t}\n", fs.ArgName, fs.ArgName)
+		fmt.Fprintf(&b, "\tif %s == nil {\n\t\t%s = http.Dir(\".\")\n\t}\n", fs.ArgName, fs.ArgName)
 		if fs.IsDir {
 			continue
 		}
 		prefix := addLeadingSlash(fs.FilePath)
 		prefix = path.Dir(prefix)
-		b.Addf("\t%s = appendPrefix(%s, %q)\n", fs.ArgName, fs.ArgName, prefix)
+		fmt.Fprintf(&b, "\t%s = appendPrefix(%s, %q)\n", fs.ArgName, fs.ArgName, prefix)
 	}
-	b.Addf("\treturn &%s{\n", data.ServerStruct)
+	fmt.Fprintf(&b, "\treturn &%s{\n", data.ServerStruct)
 	if data.CORS != nil && data.CORS.Runtime {
-		b.Add("\t\tcorsPolicy: corsPolicy,\n")
+		b.WriteString("\t\tcorsPolicy: corsPolicy,\n")
 	}
-	b.Addf("\t\tMounts: []*%s{\n", data.MountPointStruct)
+	fmt.Fprintf(&b, "\t\tMounts: []*%s{\n", data.MountPointStruct)
 	for _, endpoint := range data.Endpoints {
 		for _, route := range endpoint.Routes {
-			b.Addf("\t\t\t{%q, %q, %q},\n", endpoint.Method.VarName, route.Verb, route.Path)
+			fmt.Fprintf(&b, "\t\t\t{%q, %q, %q},\n", endpoint.Method.VarName, route.Verb, route.Path)
 		}
 	}
 	for _, fs := range data.FileServers {
 		for _, requestPath := range fs.RequestPaths {
-			b.Addf("\t\t\t{%q, %q, %q},\n", "Serve "+fs.FilePath, "GET", requestPath)
+			fmt.Fprintf(&b, "\t\t\t{%q, %q, %q},\n", "Serve "+fs.FilePath, "GET", requestPath)
 		}
 	}
-	b.Add("\t\t},\n")
+	b.WriteString("\t\t},\n")
 	for _, endpoint := range data.Endpoints {
-		b.Addf("\t\t%s: %s(e.%s, mux, ", endpoint.Method.VarName, endpoint.HandlerInit, endpoint.Method.VarName)
+		fmt.Fprintf(&b, "\t\t%s: %s(e.%s, mux, ", endpoint.Method.VarName, endpoint.HandlerInit, endpoint.Method.VarName)
 		if endpoint.MultipartRequestDecoder != nil {
-			b.Addf("%s(mux, %s)", endpoint.MultipartRequestDecoder.InitName, endpoint.MultipartRequestDecoder.VarName)
+			fmt.Fprintf(&b, "%s(mux, %s)", endpoint.MultipartRequestDecoder.InitName, endpoint.MultipartRequestDecoder.VarName)
 		} else {
-			b.Add("decoder")
+			b.WriteString("decoder")
 		}
-		b.Add(", encoder, errhandler, formatter")
+		b.WriteString(", encoder, errhandler, formatter")
 		if IsWebSocketEndpoint(endpoint) {
-			b.Addf(", upgrader, configurer.%sFn", endpoint.Method.VarName)
+			fmt.Fprintf(&b, ", upgrader, configurer.%sFn", endpoint.Method.VarName)
 		}
 		if IsWebSocketEndpoint(endpoint) || IsSSEEndpoint(endpoint) {
-			b.Add(", streamWritePolicy...")
+			b.WriteString(", streamWritePolicy...")
 		}
-		b.Add("),\n")
+		b.WriteString("),\n")
 	}
 	for _, fs := range data.FileServers {
 		if fs.IsDir {
-			b.Addf(
+			fmt.Fprintf(&b,
 				"\t\t%s: loomhttp.NewStaticFileServer(%s, %q),\n",
 				fs.VarName,
 				fs.ArgName,
@@ -151,9 +151,9 @@ func renderServerInitBody(data *ServiceData) string {
 			)
 			continue
 		}
-		b.Addf("\t\t%s: http.FileServer(%s),\n", fs.VarName, fs.ArgName)
+		fmt.Fprintf(&b, "\t\t%s: http.FileServer(%s),\n", fs.VarName, fs.ArgName)
 	}
-	b.Add("\t}\n")
+	b.WriteString("\t}\n")
 	return b.String()
 }
 
@@ -231,9 +231,9 @@ func serverMountSection(data *ServiceData) codegen.Section {
 }
 
 func renderServerMountBody(data *ServiceData, standalone bool) string {
-	var b sourceBuilder
+	var b strings.Builder
 	if !standalone {
-		b.Addf("\t%s(mux, s)\n", data.MountServer)
+		fmt.Fprintf(&b, "\t%s(mux, s)\n", data.MountServer)
 		return b.String()
 	}
 	renderCORSPreflightMounts(&b, data)
@@ -242,7 +242,7 @@ func renderServerMountBody(data *ServiceData, standalone bool) string {
 	return b.String()
 }
 
-func renderCORSPreflightMounts(b *sourceBuilder, data *ServiceData) {
+func renderCORSPreflightMounts(b *strings.Builder, data *ServiceData) {
 	if data.CORS == nil {
 		return
 	}
@@ -251,57 +251,57 @@ func renderCORSPreflightMounts(b *sourceBuilder, data *ServiceData) {
 			renderCORSOptionsMount(b, data, route)
 			continue
 		}
-		b.Addf("\tmux.Handle(%q, %q, func(w http.ResponseWriter, r *http.Request) {\n", "OPTIONS", route.Path)
+		fmt.Fprintf(b, "\tmux.Handle(%q, %q, func(w http.ResponseWriter, r *http.Request) {\n", "OPTIONS", route.Path)
 		if data.CORS.Runtime {
-			b.Addf("\t\th.corsPolicy.HandlePreflight(w, r, []string{%s})\n", quotedStringList(route.Methods))
+			fmt.Fprintf(b, "\t\th.corsPolicy.HandlePreflight(w, r, []string{%s})\n", quotedStringList(route.Methods))
 		} else {
-			b.Addf("\t\tloomhttp.HandleCORSPreflight(w, r, %s, []string{%s})\n", renderCORSPolicy(data.CORS), quotedStringList(route.Methods))
+			fmt.Fprintf(b, "\t\tloomhttp.HandleCORSPreflight(w, r, %s, []string{%s})\n", renderCORSPolicy(data.CORS), quotedStringList(route.Methods))
 		}
-		b.Add("\t})\n")
+		b.WriteString("\t})\n")
 	}
 }
 
-func renderCORSOptionsMount(b *sourceBuilder, data *ServiceData, route corsPreflightRoute) {
+func renderCORSOptionsMount(b *strings.Builder, data *ServiceData, route corsPreflightRoute) {
 	if data.CORS.Runtime {
-		b.Addf("\tmux.Handle(%q, %q, h.corsPolicy.OptionsHandler(loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, route.OptionsEndpoint.Method.VarName, quotedStringList(route.Methods))
+		fmt.Fprintf(b, "\tmux.Handle(%q, %q, h.corsPolicy.OptionsHandler(loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, route.OptionsEndpoint.Method.VarName, quotedStringList(route.Methods))
 		return
 	}
-	b.Addf("\tmux.Handle(%q, %q, loomhttp.CORSOptionsHandler(%s, loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, renderCORSPolicy(data.CORS), route.OptionsEndpoint.Method.VarName, quotedStringList(route.Methods))
+	fmt.Fprintf(b, "\tmux.Handle(%q, %q, loomhttp.CORSOptionsHandler(%s, loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, renderCORSPolicy(data.CORS), route.OptionsEndpoint.Method.VarName, quotedStringList(route.Methods))
 }
 
-func renderEndpointMounts(b *sourceBuilder, data *ServiceData) {
+func renderEndpointMounts(b *strings.Builder, data *ServiceData) {
 	for _, endpoint := range data.Endpoints {
 		if data.CORS != nil && endpointHasOptionsRoute(endpoint) {
 			renderNonOptionsEndpointMounts(b, data, endpoint)
 			continue
 		}
 		if data.CORS != nil && data.CORS.Runtime {
-			b.Addf("\t%s(mux, h.%s, h.corsPolicy)\n", endpoint.MountHandler, endpoint.Method.VarName)
+			fmt.Fprintf(b, "\t%s(mux, h.%s, h.corsPolicy)\n", endpoint.MountHandler, endpoint.Method.VarName)
 		} else {
-			b.Addf("\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
+			fmt.Fprintf(b, "\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
 		}
 	}
 }
 
-func renderNonOptionsEndpointMounts(b *sourceBuilder, data *ServiceData, endpoint *EndpointData) {
+func renderNonOptionsEndpointMounts(b *strings.Builder, data *ServiceData, endpoint *EndpointData) {
 	for _, route := range endpoint.Routes {
 		if route.Verb == "OPTIONS" {
 			continue
 		}
 		if data.CORS.Runtime {
-			b.Addf("\tloomhttp.MountHandler(mux, %q, %q, h.corsPolicy.Handler(loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, endpoint.Method.VarName)
+			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, h.corsPolicy.Handler(loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, endpoint.Method.VarName)
 		} else {
-			b.Addf("\tloomhttp.MountHandler(mux, %q, %q, loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, renderCORSPolicy(data.CORS), endpoint.Method.VarName)
+			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, renderCORSPolicy(data.CORS), endpoint.Method.VarName)
 		}
 	}
 }
 
-func renderFileServerMounts(b *sourceBuilder, data *ServiceData) {
+func renderFileServerMounts(b *strings.Builder, data *ServiceData) {
 	for _, fs := range data.FileServers {
 		if fs.Redirect != nil {
-			b.Addf("\t%s(mux, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n", fs.MountHandler)
-			b.Addf("\t\thttp.Redirect(w, r, %q, %s)\n", fs.Redirect.URL, fs.Redirect.StatusCode)
-			b.Add("\t}))\n")
+			fmt.Fprintf(b, "\t%s(mux, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n", fs.MountHandler)
+			fmt.Fprintf(b, "\t\thttp.Redirect(w, r, %q, %s)\n", fs.Redirect.URL, fs.Redirect.StatusCode)
+			b.WriteString("\t}))\n")
 			continue
 		}
 		for _, requestPath := range fs.RequestPaths {
@@ -310,9 +310,9 @@ func renderFileServerMounts(b *sourceBuilder, data *ServiceData) {
 				stripped = path.Dir(stripped)
 			}
 			if stripped == "/" {
-				b.Addf("\t%s(mux, h.%s)\n", fs.MountHandler, fs.VarName)
+				fmt.Fprintf(b, "\t%s(mux, h.%s)\n", fs.MountHandler, fs.VarName)
 			} else {
-				b.Addf("\t%s(mux, http.StripPrefix(%q, h.%s))\n", fs.MountHandler, stripped, fs.VarName)
+				fmt.Fprintf(b, "\t%s(mux, http.StripPrefix(%q, h.%s))\n", fs.MountHandler, stripped, fs.VarName)
 			}
 		}
 	}
@@ -338,14 +338,14 @@ func serverHandlerSection(data *EndpointData) codegen.Section {
 }
 
 func renderServerHandlerBody(data *EndpointData) string {
-	var b sourceBuilder
+	var b strings.Builder
 	if data.CORS != nil && data.CORS.Runtime {
-		b.Add("\th = corsPolicy.Handler(loomhttp.AsHandlerFunc(h))\n")
+		b.WriteString("\th = corsPolicy.Handler(loomhttp.AsHandlerFunc(h))\n")
 	} else if data.CORS != nil {
-		b.Addf("\th = loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h))\n", renderCORSPolicy(data.CORS))
+		fmt.Fprintf(&b, "\th = loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h))\n", renderCORSPolicy(data.CORS))
 	}
 	for _, route := range data.Routes {
-		b.Addf("\tloomhttp.MountHandler(mux, %q, %q, h)\n", route.Verb, route.Path)
+		fmt.Fprintf(&b, "\tloomhttp.MountHandler(mux, %q, %q, h)\n", route.Verb, route.Path)
 	}
 	return b.String()
 }
@@ -403,32 +403,32 @@ func endpointHasOptionsRoute(endpoint *EndpointData) bool {
 }
 
 func renderCORSPolicy(cors *CORSData) string {
-	var b sourceBuilder
-	b.Add("loomhttp.CORSPolicy{Origins: []loomhttp.CORSOrigin{")
+	var b strings.Builder
+	b.WriteString("loomhttp.CORSPolicy{Origins: []loomhttp.CORSOrigin{")
 	for _, origin := range cors.Origins {
-		b.Add("{")
-		b.Addf("Pattern: %q,", origin.Pattern)
+		b.WriteString("{")
+		fmt.Fprintf(&b, "Pattern: %q,", origin.Pattern)
 		if origin.Regex {
-			b.Add("Regex: true,")
+			b.WriteString("Regex: true,")
 		}
 		if len(origin.Methods) > 0 {
-			b.Addf("Methods: []string{%s},", quotedStringList(origin.Methods))
+			fmt.Fprintf(&b, "Methods: []string{%s},", quotedStringList(origin.Methods))
 		}
 		if len(origin.Headers) > 0 {
-			b.Addf("Headers: []string{%s},", quotedStringList(origin.Headers))
+			fmt.Fprintf(&b, "Headers: []string{%s},", quotedStringList(origin.Headers))
 		}
 		if len(origin.Expose) > 0 {
-			b.Addf("Expose: []string{%s},", quotedStringList(origin.Expose))
+			fmt.Fprintf(&b, "Expose: []string{%s},", quotedStringList(origin.Expose))
 		}
 		if origin.MaxAge > 0 {
-			b.Addf("MaxAge: %d,", origin.MaxAge)
+			fmt.Fprintf(&b, "MaxAge: %d,", origin.MaxAge)
 		}
 		if origin.Credentials {
-			b.Add("Credentials: true,")
+			b.WriteString("Credentials: true,")
 		}
-		b.Add("},")
+		b.WriteString("},")
 	}
-	b.Add("}}")
+	b.WriteString("}}")
 	return b.String()
 }
 
@@ -471,8 +471,8 @@ func appendFSSection(mappedFiles map[string]string) codegen.Section {
 }
 
 func renderAppendFSOpenBody(mappedFiles map[string]string) string {
-	var b sourceBuilder
-	b.Add("\tswitch name {\n")
+	var b strings.Builder
+	b.WriteString("\tswitch name {\n")
 	requestedPaths := make([]string, 0, len(mappedFiles))
 	for requested := range mappedFiles {
 		requestedPaths = append(requestedPaths, requested)
@@ -480,10 +480,10 @@ func renderAppendFSOpenBody(mappedFiles map[string]string) string {
 	sort.Strings(requestedPaths)
 	for _, requested := range requestedPaths {
 		embedded := mappedFiles[requested]
-		b.Addf("\tcase %q:\n\t\tname = %q\n", requested, embedded)
+		fmt.Fprintf(&b, "\tcase %q:\n\t\tname = %q\n", requested, embedded)
 	}
-	b.Add("\t}\n")
-	b.Add("\treturn s.fs.Open(path.Join(s.prefix, name))\n")
+	b.WriteString("\t}\n")
+	b.WriteString("\treturn s.fs.Open(path.Join(s.prefix, name))\n")
 	return b.String()
 }
 
@@ -501,19 +501,19 @@ func fileServerSection(data *FileServerData) codegen.Section {
 }
 
 func renderFileServerBody(data *FileServerData) string {
-	var b sourceBuilder
+	var b strings.Builder
 	if data.IsDir {
 		for _, requestPath := range data.RequestPaths {
 			suffix := ""
 			if requestPath != "/" {
 				suffix = "/"
 			}
-			b.Addf("\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath+suffix)
-			b.Addf("\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath+suffix+"{*"+data.PathParam+"}")
+			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath+suffix)
+			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath+suffix+"{*"+data.PathParam+"}")
 		}
 	} else {
 		for _, requestPath := range data.RequestPaths {
-			b.Addf("\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath)
+			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath)
 		}
 	}
 	return b.String()

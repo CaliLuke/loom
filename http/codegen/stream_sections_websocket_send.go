@@ -1,7 +1,9 @@
 package codegen
 
 import (
+	"fmt"
 	"github.com/dave/jennifer/jen"
+	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 )
@@ -12,47 +14,47 @@ func websocketSendSection(ws *WebSocketData) codegen.Section {
 	})
 }
 
-func writeClientWebSocketSend(b *sourceBuilder, ws *WebSocketData) {
+func writeClientWebSocketSend(b *strings.Builder, ws *WebSocketData) {
 	if ws.Payload != nil && ws.Payload.Init != nil {
-		b.Addf("\tbody := %s(v)\n", ws.Payload.Init.Name)
-		b.Add("\treturn s.conn.WriteJSON(ctx, body)\n")
+		fmt.Fprintf(b, "\tbody := %s(v)\n", ws.Payload.Init.Name)
+		b.WriteString("\treturn s.conn.WriteJSON(ctx, body)\n")
 	} else {
-		b.Add("\treturn s.conn.WriteJSON(ctx, v)\n")
+		b.WriteString("\treturn s.conn.WriteJSON(ctx, v)\n")
 	}
 }
 
-func writeServerWebSocketSend(b *sourceBuilder, ws *WebSocketData) {
+func writeServerWebSocketSend(b *strings.Builder, ws *WebSocketData) {
 	writeServerWebSocketSendPreamble(b, ws)
 	writeServerWebSocketSendResult(b, ws)
 	if !writeServerWebSocketResponseBody(b, ws) {
-		b.Add("\treturn s.conn.WriteJSON(ctx, res)\n")
+		b.WriteString("\treturn s.conn.WriteJSON(ctx, res)\n")
 	}
 }
 
-func writeServerWebSocketSendPreamble(b *sourceBuilder, ws *WebSocketData) {
+func writeServerWebSocketSendPreamble(b *strings.Builder, ws *WebSocketData) {
 	if ws.SendName == "Send" {
-		b.Add("\tvar err error\n")
-		b.Add(renderWebsocketUpgrade(ws.Endpoint, ws.SendName, false, true))
+		b.WriteString("\tvar err error\n")
+		b.WriteString(renderWebsocketUpgrade(ws.Endpoint, ws.SendName, false, true))
 		return
 	}
-	b.Add("\tdefer s.conn.Close()\n")
+	b.WriteString("\tdefer s.conn.Close()\n")
 }
 
-func writeServerWebSocketSendResult(b *sourceBuilder, ws *WebSocketData) {
+func writeServerWebSocketSendResult(b *strings.Builder, ws *WebSocketData) {
 	if ws.Endpoint.Method.ViewedResult == nil {
-		b.Add("\tres := v\n")
+		b.WriteString("\tres := v\n")
 		return
 	}
 	if ws.Endpoint.Method.ViewedResult.ViewName != "" {
-		b.Addf("\tres, err := %s.%s(v, %q)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name, ws.Endpoint.Method.ViewedResult.ViewName)
-		b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
+		fmt.Fprintf(b, "\tres, err := %s.%s(v, %q)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name, ws.Endpoint.Method.ViewedResult.ViewName)
+		b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
 		return
 	}
-	b.Addf("\tres, err := %s.%s(v, s.view)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name)
-	b.Add("\tif err != nil {\n\t\treturn err\n\t}\n")
+	fmt.Fprintf(b, "\tres, err := %s.%s(v, s.view)\n", ws.PkgName, ws.Endpoint.Method.ViewedResult.Init.Name)
+	b.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
 }
 
-func writeServerWebSocketResponseBody(b *sourceBuilder, ws *WebSocketData) bool {
+func writeServerWebSocketResponseBody(b *strings.Builder, ws *WebSocketData) bool {
 	if len(ws.Response.ServerBody) == 0 {
 		return false
 	}
@@ -61,11 +63,11 @@ func writeServerWebSocketResponseBody(b *sourceBuilder, ws *WebSocketData) bool 
 		return false
 	}
 	writeServerWebSocketBodyInit(b, ws, body)
-	b.Add("\treturn s.conn.WriteJSON(ctx, body)\n")
+	b.WriteString("\treturn s.conn.WriteJSON(ctx, body)\n")
 	return true
 }
 
-func writeServerWebSocketBodyInit(b *sourceBuilder, ws *WebSocketData, body *TypeData) {
+func writeServerWebSocketBodyInit(b *strings.Builder, ws *WebSocketData, body *TypeData) {
 	if ws.Endpoint.Method.ViewedResult == nil {
 		writeServerBodyInitCall(b, body, "\tbody := ")
 		return
@@ -76,31 +78,31 @@ func writeServerWebSocketBodyInit(b *sourceBuilder, ws *WebSocketData, body *Typ
 		}
 		return
 	}
-	b.Add("\tvar body any\n")
-	b.Add("\tswitch s.view {\n")
+	b.WriteString("\tvar body any\n")
+	b.WriteString("\tswitch s.view {\n")
 	for _, view := range ws.Endpoint.Method.ViewedResult.Views {
 		writeViewedServerBodyCase(b, ws, view.Name)
 	}
-	b.Add("\t}\n")
+	b.WriteString("\t}\n")
 }
 
-func writeViewedServerBodyCase(b *sourceBuilder, ws *WebSocketData, viewName string) {
+func writeViewedServerBodyCase(b *strings.Builder, ws *WebSocketData, viewName string) {
 	if viewName == "default" {
-		b.Addf("\tcase %q, \"\":\n", viewName)
+		fmt.Fprintf(b, "\tcase %q, \"\":\n", viewName)
 	} else {
-		b.Addf("\tcase %q:\n", viewName)
+		fmt.Fprintf(b, "\tcase %q:\n", viewName)
 	}
 	if vsb := viewedServerBody(ws.Response.ServerBody, viewName); vsb != nil {
 		writeServerBodyInitCall(b, vsb, "\t\tbody = ")
 	}
 }
 
-func writeServerBodyInitCall(b *sourceBuilder, body *TypeData, prefix string) {
-	b.Addf("%s%s(", prefix, body.Init.Name)
+func writeServerBodyInitCall(b *strings.Builder, body *TypeData, prefix string) {
+	fmt.Fprintf(b, "%s%s(", prefix, body.Init.Name)
 	for _, arg := range body.Init.ServerArgs {
-		b.Addf("%s, ", arg.Ref)
+		fmt.Fprintf(b, "%s, ", arg.Ref)
 	}
-	b.Add(")\n")
+	b.WriteString(")\n")
 }
 
 func addWebsocketSendSection(stmt *jen.Statement, ws *WebSocketData) {
@@ -115,29 +117,29 @@ func addWebsocketSendSection(stmt *jen.Statement, ws *WebSocketData) {
 		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
 		Error().
 		BlockFunc(func(group *jen.Group) {
-			var b sourceBuilder
+			var b strings.Builder
 			writeWebSocketContextGuard(&b, "")
-			b.Add("\terr := func() error {\n")
+			b.WriteString("\terr := func() error {\n")
 			if ws.Type != "server" {
 				writeClientWebSocketSend(&b, ws)
-				b.Add("\t}()\n")
-				b.Add("\tif err != nil {\n")
-				b.Add("\t\tif ctxErr := ctx.Err(); ctxErr != nil {\n")
-				b.Add("\t\t\treturn ctxErr\n")
-				b.Add("\t\t}\n")
-				b.Add("\t}\n")
-				b.Add("\treturn err\n")
+				b.WriteString("\t}()\n")
+				b.WriteString("\tif err != nil {\n")
+				b.WriteString("\t\tif ctxErr := ctx.Err(); ctxErr != nil {\n")
+				b.WriteString("\t\t\treturn ctxErr\n")
+				b.WriteString("\t\t}\n")
+				b.WriteString("\t}\n")
+				b.WriteString("\treturn err\n")
 				addRawWebSocketGroup(group, b.String())
 				return
 			}
 			writeServerWebSocketSend(&b, ws)
-			b.Add("\t}()\n")
-			b.Add("\tif err != nil {\n")
-			b.Add("\t\tif ctxErr := ctx.Err(); ctxErr != nil {\n")
-			b.Add("\t\t\treturn ctxErr\n")
-			b.Add("\t\t}\n")
-			b.Add("\t}\n")
-			b.Add("\treturn err\n")
+			b.WriteString("\t}()\n")
+			b.WriteString("\tif err != nil {\n")
+			b.WriteString("\t\tif ctxErr := ctx.Err(); ctxErr != nil {\n")
+			b.WriteString("\t\t\treturn ctxErr\n")
+			b.WriteString("\t\t}\n")
+			b.WriteString("\t}\n")
+			b.WriteString("\treturn err\n")
 			addRawWebSocketGroup(group, b.String())
 		})
 	stmt.Line()
