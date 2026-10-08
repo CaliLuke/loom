@@ -21,6 +21,14 @@
 
 ### Architecture Decisions
 
+- **Prioritize architectural fixes for actual bugs.** Choose work by the
+  correctness problems it resolves, not by how easy it is to finish. Do not
+  substitute cosmetic cleanup or mechanical refactoring for known bugs because
+  the bugs are harder. Investigate related failures together and prefer a
+  simpler, centralized rewrite of their shared owner when it eliminates a class
+  of defects. Delete superseded paths instead of layering fixes over them.
+  Establish the common cause with evidence and verify the corrected contract
+  across its consumers; do not bundle unrelated changes under architecture.
 - **Architectural fixes before workarounds.** Identify the abstraction,
   representation, ownership boundary, or shared contract that causes the
   problem and correct it there. Make dependent layers derive their behavior
