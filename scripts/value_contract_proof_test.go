@@ -127,7 +127,14 @@ func TestValueContractProofGate(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(bin, "lake"), []byte(proofFakeLake), 0o700))
 			env := append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "LOOM_PROOF_TEST_MODE="+tc.mode, "LOOM_PROOF_NEGATIVE_SUCCEEDS="+tc.negativeSource, "LOOM_PROOF_COMMAND_LOG="+commandLog)
 			if tc.mode == "missing-lake" {
-				env = append(os.Environ(), "PATH=/usr/bin:/bin")
+				// Use an allowlist, not host system paths: distro elan installs
+				// lake in /usr/bin. dirname is the only external command the
+				// script needs before checking whether lake is available.
+				require.NoError(t, os.Remove(filepath.Join(bin, "lake")))
+				dirname, err := exec.LookPath("dirname")
+				require.NoError(t, err)
+				require.NoError(t, os.Symlink(dirname, filepath.Join(bin, "dirname")))
+				env = append(os.Environ(), "PATH="+bin)
 			}
 			output, err := proofRun(t, root, env, "bash", filepath.Join(root, "scripts", "check_value_contract_proof.sh"))
 			if tc.want != "" {
