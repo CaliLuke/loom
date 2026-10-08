@@ -5,7 +5,7 @@ var BidirectionalStreamingPrimitiveArrayClientStreamRecvCode = `// Recv reads in
 func (s *BidirectionalStreamingPrimitiveArrayMethodClientStream) Recv() ([]string, error) {
 	var (
 		rv   []string
-		body []loom.Nullable[string]
+		body []loom.Optional[string]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -33,7 +33,7 @@ func (s *BidirectionalStreamingPrimitiveArrayMethodClientStream) Recv() ([]strin
 func (s *BidirectionalStreamingPrimitiveArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]string, error) {
 	var (
 		rv   []string
-		body []loom.Nullable[string]
+		body []loom.Optional[string]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

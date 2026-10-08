@@ -6,7 +6,7 @@ var StreamingPayloadUserTypeMapClientStreamRecvCode = `// CloseAndRecv stops sen
 func (s *StreamingPayloadUserTypeMapMethodClientStream) CloseAndRecv() ([]string, error) {
 	var (
 		rv   []string
-		body []loom.Nullable[string]
+		body []loom.Optional[string]
 		err  error
 	)
 	defer s.conn.Close()
@@ -40,7 +40,7 @@ func (s *StreamingPayloadUserTypeMapMethodClientStream) CloseAndRecv() ([]string
 func (s *StreamingPayloadUserTypeMapMethodClientStream) CloseAndRecvWithContext(ctx context.Context) ([]string, error) {
 	var (
 		rv   []string
-		body []loom.Nullable[string]
+		body []loom.Optional[string]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

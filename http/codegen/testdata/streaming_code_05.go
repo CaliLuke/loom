@@ -5,7 +5,7 @@ var StreamingResultUserTypeArrayClientStreamRecvCode = `// Recv reads instances 
 func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingresultusertypearrayservice.UserType, error) {
 	var (
 		rv   []*streamingresultusertypearrayservice.UserType
-		body []loom.Nullable[*UserTypeResponse]
+		body []loom.Optional[*UserTypeResponse]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -42,7 +42,7 @@ func (s *StreamingResultUserTypeArrayMethodClientStream) Recv() ([]*streamingres
 func (s *StreamingResultUserTypeArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]*streamingresultusertypearrayservice.UserType, error) {
 	var (
 		rv   []*streamingresultusertypearrayservice.UserType
-		body []loom.Nullable[*UserTypeResponse]
+		body []loom.Optional[*UserTypeResponse]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

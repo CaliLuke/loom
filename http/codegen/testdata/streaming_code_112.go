@@ -14,7 +14,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) Recv() ([]*bidir
 func (s *BidirectionalStreamingUserTypeArrayMethodServerStream) RecvWithContext(ctx context.Context) ([]*bidirectionalstreamingusertypearrayservice.RequestType, error) {
 	var (
 		rv   []*bidirectionalstreamingusertypearrayservice.RequestType
-		body []loom.Nullable[*RequestType]
+		body []loom.Optional[*RequestType]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

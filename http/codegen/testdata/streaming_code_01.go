@@ -1299,7 +1299,7 @@ var StreamingResultPrimitiveArrayClientStreamRecvCode = `// Recv reads instances
 func (s *StreamingResultPrimitiveArrayMethodClientStream) Recv() ([]int32, error) {
 	var (
 		rv   []int32
-		body []loom.Nullable[int32]
+		body []loom.Optional[int32]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -1335,7 +1335,7 @@ func (s *StreamingResultPrimitiveArrayMethodClientStream) Recv() ([]int32, error
 func (s *StreamingResultPrimitiveArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]int32, error) {
 	var (
 		rv   []int32
-		body []loom.Nullable[int32]
+		body []loom.Optional[int32]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

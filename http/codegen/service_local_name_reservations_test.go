@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,7 +47,7 @@ func TestTransportLocalNameReservationsCoverGeneratedLocals(t *testing.T) {
 }
 
 // TestServicePackageNamedLikeLocalCompiles checks that services named after
-// every reserved local name import their packages under an alias and that
+// every reserved local name alias actual package-name collisions and that
 // the generated module and example compile.
 func TestServicePackageNamedLikeLocalCompiles(t *testing.T) {
 	for _, c := range localNameDesigns {
@@ -56,8 +57,11 @@ func TestServicePackageNamedLikeLocalCompiles(t *testing.T) {
 			})
 			services := CreateHTTPServices(root)
 			for _, name := range transportGeneratedLocalNames {
-				require.Equal(t, name, services.ServicesData.Get(name).PkgName)
-				assert.NotEqual(t, name, services.Get(name).Service.PkgName)
+				pkgName := services.ServicesData.Get(name).PkgName
+				require.Equal(t, strings.ToLower(name), pkgName)
+				if slices.Contains(transportGeneratedLocalNames, pkgName) {
+					assert.NotEqual(t, pkgName, services.Get(name).Service.PkgName)
+				}
 			}
 
 			dir := renderLocalNameModule(t, "example.com/localnamesweep", c.Design, transportGeneratedLocalNames...)

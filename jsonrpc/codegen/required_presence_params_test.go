@@ -22,7 +22,7 @@ func TestJSONRPCRequiredPresenceParams(t *testing.T) {
 	root := RunJSONRPCDSL(t, jsonrpcRequiredPresenceParamsDSL)
 	services := CreateJSONRPCServices(root)
 	decoders := requireEncodeDecodeFile(t, ServerFiles("", services), "server")
-	substitute := "\t\tif len(params) == 0 {\n\t\t\tparams = []byte(\"{}\")\n\t\t}\n"
+	substitute := "\t\tif len(rpcParams) == 0 {\n\t\t\trpcParams = []byte(\"{}\")\n\t\t}\n"
 	missing := "\t\t\tif errors.Is(err, io.EOF) {\n\t\t\t\treturn payload, loom.MissingPayloadError()\n\t\t\t}\n"
 	for _, c := range []struct {
 		Method     string

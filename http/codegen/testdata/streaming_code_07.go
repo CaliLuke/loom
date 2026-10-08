@@ -6,7 +6,7 @@ var StreamingResultUserTypeMapClientStreamRecvCode = `// Recv reads instances of
 func (s *StreamingResultUserTypeMapMethodClientStream) Recv() (map[string]*streamingresultusertypemapservice.UserType, error) {
 	var (
 		rv   map[string]*streamingresultusertypemapservice.UserType
-		body map[string]loom.Nullable[*UserTypeResponse]
+		body map[string]loom.Optional[*UserTypeResponse]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -43,7 +43,7 @@ func (s *StreamingResultUserTypeMapMethodClientStream) Recv() (map[string]*strea
 func (s *StreamingResultUserTypeMapMethodClientStream) RecvWithContext(ctx context.Context) (map[string]*streamingresultusertypemapservice.UserType, error) {
 	var (
 		rv   map[string]*streamingresultusertypemapservice.UserType
-		body map[string]loom.Nullable[*UserTypeResponse]
+		body map[string]loom.Optional[*UserTypeResponse]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

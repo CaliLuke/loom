@@ -14,7 +14,7 @@ func (s *StreamingPayloadUserTypeArrayMethodServerStream) Recv() ([]*streamingpa
 func (s *StreamingPayloadUserTypeArrayMethodServerStream) RecvWithContext(ctx context.Context) ([]*streamingpayloadusertypearrayservice.RequestType, error) {
 	var (
 		rv   []*streamingpayloadusertypearrayservice.RequestType
-		body []loom.Nullable[*RequestType]
+		body []loom.Optional[*RequestType]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

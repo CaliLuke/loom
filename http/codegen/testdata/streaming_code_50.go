@@ -6,7 +6,7 @@ var StreamingPayloadPrimitiveArrayClientStreamRecvCode = `// CloseAndRecv stops 
 func (s *StreamingPayloadPrimitiveArrayMethodClientStream) CloseAndRecv() ([]string, error) {
 	var (
 		rv   []string
-		body []loom.Nullable[string]
+		body []loom.Optional[string]
 		err  error
 	)
 	defer s.conn.Close()
@@ -40,7 +40,7 @@ func (s *StreamingPayloadPrimitiveArrayMethodClientStream) CloseAndRecv() ([]str
 func (s *StreamingPayloadPrimitiveArrayMethodClientStream) CloseAndRecvWithContext(ctx context.Context) ([]string, error) {
 	var (
 		rv   []string
-		body []loom.Nullable[string]
+		body []loom.Optional[string]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

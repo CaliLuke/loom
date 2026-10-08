@@ -359,6 +359,7 @@ import (
 	"unicode/utf8"
 	loom "github.com/CaliLuke/loom/pkg"
 	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/security"
 	jsonrpcsseobjectservice "/jsonrpcsse_object_service"
 	jsonrpcsseobjectserviceviews "/jsonrpcsse_object_service/views"
 	"bytes"
@@ -409,6 +410,7 @@ func DecodeStreamRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhtt
 			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
 	payload = NewStreamPayload(&body, )
+
 
 	return payload, nil
 	}

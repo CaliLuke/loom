@@ -128,6 +128,7 @@ const webSocketNamedPayloadHarness = `package namedpayloadws
 
 import (
 	"context"
+	"encoding/json/v2"
 	"errors"
 	"io"
 	"net/http/httptest"
@@ -151,6 +152,7 @@ import (
 	list "example.com/namedpayloadws/gen/list"
 	token "example.com/namedpayloadws/gen/token"
 	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type bidi[T any] interface {
@@ -346,7 +348,7 @@ func TestRejectsInvalidMessages(t *testing.T) {
 		{"/count", ` + "`" + `0` + "`" + `, "body", func(s *server) chan error { return s.count.done }},
 		{"/list", ` + "`" + `[{}]` + "`" + `, "name", func(s *server) chan error { return s.list.done }},
 		{"/list", ` + "`" + `[{"name":""}]` + "`" + `, "length", func(s *server) chan error { return s.list.done }},
-		{"/list", ` + "`" + `[null]` + "`" + `, "body[0]", func(s *server) chan error { return s.list.done }},
+		{"/list", ` + "`" + `[null]` + "`" + `, "/0", func(s *server) chan error { return s.list.done }},
 		{"/index", ` + "`" + `{"k":{}}` + "`" + `, "name", func(s *server) chan error { return s.index.done }},
 	}
 	for _, c := range cases {
@@ -361,6 +363,12 @@ func TestRejectsInvalidMessages(t *testing.T) {
 				t.Fatalf("write: %v", err)
 			}
 			err = wait(t, c.done(s))
+			if c.message == "[null]" {
+				var semantic *json.SemanticError
+				if !errors.Is(err, loom.ErrNullOptional) || !errors.As(err, &semantic) || string(semantic.JSONPointer) != "/0" {
+					t.Errorf("got %v, want null rejection at /0", err)
+				}
+			}
 			if err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Errorf("got %v, want an error containing %q", err, c.want)
 			}

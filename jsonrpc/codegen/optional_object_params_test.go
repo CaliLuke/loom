@@ -34,7 +34,7 @@ func TestJSONRPCOptionalObjectParams(t *testing.T) {
 				"\t\t\tbody.Params = NewFindRequestBody(p)\n" +
 				"\t\t}\n",
 			Decode: []string{
-				"\t\tparams := req.Params\n\t\tr.Body = io.NopCloser(bytes.NewReader(params))\n",
+				"\t\trpcParams := req.Params\n\t\tr.Body = io.NopCloser(bytes.NewReader(rpcParams))\n",
 				"\t\t\tbody = &FindRequestBody{}\n",
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\t\tbody = nil\n",
@@ -53,7 +53,7 @@ func TestJSONRPCOptionalObjectParams(t *testing.T) {
 				"\t\t\tParams:  b,\n" +
 				"\t\t}\n",
 			Decode: []string{
-				"\t\tif len(params) == 0 {\n\t\t\tparams = []byte(\"{}\")\n\t\t}\n",
+				"\t\tif len(rpcParams) == 0 {\n\t\t\trpcParams = []byte(\"{}\")\n\t\t}\n",
 				"\t\t\tbody FindRequestBody\n",
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 				"\t\terr = ValidateFindRequestBody(&body)\n",
@@ -82,7 +82,7 @@ func TestJSONRPCOptionalObjectParams(t *testing.T) {
 				assert.Contains(t, decoder, want)
 			}
 			if !c.Required {
-				assert.NotContains(t, decoder, "params = []byte(\"{}\")")
+				assert.NotContains(t, decoder, "rpcParams = []byte(\"{}\")")
 			}
 		})
 	}

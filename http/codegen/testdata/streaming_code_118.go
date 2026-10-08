@@ -6,7 +6,7 @@ var BidirectionalStreamingUserTypeMapClientStreamRecvCode = `// Recv reads insta
 func (s *BidirectionalStreamingUserTypeMapMethodClientStream) Recv() (map[string]*bidirectionalstreamingusertypemapservice.ResultType, error) {
 	var (
 		rv   map[string]*bidirectionalstreamingusertypemapservice.ResultType
-		body map[string]loom.Nullable[*ResultTypeResponse]
+		body map[string]loom.Optional[*ResultTypeResponse]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -35,7 +35,7 @@ func (s *BidirectionalStreamingUserTypeMapMethodClientStream) Recv() (map[string
 func (s *BidirectionalStreamingUserTypeMapMethodClientStream) RecvWithContext(ctx context.Context) (map[string]*bidirectionalstreamingusertypemapservice.ResultType, error) {
 	var (
 		rv   map[string]*bidirectionalstreamingusertypemapservice.ResultType
-		body map[string]loom.Nullable[*ResultTypeResponse]
+		body map[string]loom.Optional[*ResultTypeResponse]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

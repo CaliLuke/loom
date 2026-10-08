@@ -1,6 +1,6 @@
 // NewMethodBodyInlineMapUserMapKeyTypeElemType builds a
 // ServiceBodyInlineMapUser service MethodBodyInlineMapUser endpoint payload.
-func NewMethodBodyInlineMapUserMapKeyTypeElemType(body map[*KeyTypeRequestBody]loom.Nullable[*ElemTypeRequestBody]) map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType {
+func NewMethodBodyInlineMapUserMapKeyTypeElemType(body map[*KeyTypeRequestBody]loom.Optional[*ElemTypeRequestBody]) map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType {
 	v := make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
 	for key, val := range body {
 		actual, ok := val.Value()

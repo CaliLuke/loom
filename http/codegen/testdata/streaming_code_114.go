@@ -6,7 +6,7 @@ var BidirectionalStreamingUserTypeArrayClientStreamRecvCode = `// Recv reads ins
 func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) Recv() ([]*bidirectionalstreamingusertypearrayservice.ResultType, error) {
 	var (
 		rv   []*bidirectionalstreamingusertypearrayservice.ResultType
-		body []loom.Nullable[*ResultTypeResponse]
+		body []loom.Optional[*ResultTypeResponse]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -35,7 +35,7 @@ func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) Recv() ([]*bidir
 func (s *BidirectionalStreamingUserTypeArrayMethodClientStream) RecvWithContext(ctx context.Context) ([]*bidirectionalstreamingusertypearrayservice.ResultType, error) {
 	var (
 		rv   []*bidirectionalstreamingusertypearrayservice.ResultType
-		body []loom.Nullable[*ResultTypeResponse]
+		body []loom.Optional[*ResultTypeResponse]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

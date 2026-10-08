@@ -61,12 +61,12 @@ func TestJSONRPCOptionalUnionParamsClientEncoder(t *testing.T) {
 			}
 
 			decoder := sectionSourceByName(t, requireEncodeDecodeFile(t, ServerFiles("", services), "server"), "jsonrpc-request-decoder")
-			substitute := "\t\tif len(params) == 0 {\n\t\t\tparams = []byte(\"{}\")\n\t\t}\n"
+			substitute := "\t\tif len(rpcParams) == 0 {\n\t\t\trpcParams = []byte(\"{}\")\n\t\t}\n"
 			if c.Required {
 				assert.Contains(t, decoder, substitute)
 				return
 			}
-			assert.Contains(t, decoder, "\t\tparams := req.Params\n\t\tr.Body = io.NopCloser(bytes.NewReader(params))\n")
+			assert.Contains(t, decoder, "\t\trpcParams := req.Params\n\t\tr.Body = io.NopCloser(bytes.NewReader(rpcParams))\n")
 			assert.NotContains(t, decoder, substitute)
 		})
 	}

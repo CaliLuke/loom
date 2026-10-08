@@ -12,7 +12,7 @@ func (s *StreamingPayloadPrimitiveArrayMethodServerStream) Recv() ([]int32, erro
 func (s *StreamingPayloadPrimitiveArrayMethodServerStream) RecvWithContext(ctx context.Context) ([]int32, error) {
 	var (
 		rv   []int32
-		body []loom.Nullable[int32]
+		body []loom.Optional[int32]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

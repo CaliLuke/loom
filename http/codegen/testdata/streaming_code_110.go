@@ -5,7 +5,7 @@ var BidirectionalStreamingPrimitiveMapClientStreamRecvCode = `// Recv reads inst
 func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) Recv() (map[int]int, error) {
 	var (
 		rv   map[int]int
-		body map[int]loom.Nullable[int]
+		body map[int]loom.Optional[int]
 		err  error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
@@ -33,7 +33,7 @@ func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) Recv() (map[int]i
 func (s *BidirectionalStreamingPrimitiveMapMethodClientStream) RecvWithContext(ctx context.Context) (map[int]int, error) {
 	var (
 		rv   map[int]int
-		body map[int]loom.Nullable[int]
+		body map[int]loom.Optional[int]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

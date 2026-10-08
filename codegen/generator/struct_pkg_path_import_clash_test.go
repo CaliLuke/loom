@@ -79,12 +79,10 @@ func TestStructPkgPathFrameworkImportNamesCompile(t *testing.T) {
 		{
 			Name: "security",
 			Files: map[string][]string{
-				"gen/shop/service.go":   {`"github.com/CaliLuke/loom/security"`, `security2 "example.com/probe/gen/types/security"`, "Put(context.Context, *PutPayload) (res *security2.Item, err error)"},
-				"gen/shop/endpoints.go": {`"github.com/CaliLuke/loom/security"`, `security2 "example.com/probe/gen/types/security"`},
-				"gen/rpc/service.go":    {`security2 "example.com/probe/gen/types/security"`},
-			},
-			Absent: map[string][]string{
-				"gen/http/shop/server/encode_decode.go": {"security2"},
+				"gen/shop/service.go":                   {`"github.com/CaliLuke/loom/security"`, `security2 "example.com/probe/gen/types/security"`, "Put(context.Context, *PutPayload) (res *security2.Item, err error)"},
+				"gen/shop/endpoints.go":                 {`"github.com/CaliLuke/loom/security"`, `security2 "example.com/probe/gen/types/security"`},
+				"gen/rpc/service.go":                    {`security2 "example.com/probe/gen/types/security"`},
+				"gen/http/shop/server/encode_decode.go": {`"github.com/CaliLuke/loom/security"`, `security2 "example.com/probe/gen/types/security"`, "security.DecodeBearer", "*security2.Item"},
 			},
 		},
 		{Name: "security-interceptors", Interceptors: true},

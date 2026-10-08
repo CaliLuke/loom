@@ -14,7 +14,7 @@ func (s *BidirectionalStreamingUserTypeMapMethodServerStream) Recv() (map[string
 func (s *BidirectionalStreamingUserTypeMapMethodServerStream) RecvWithContext(ctx context.Context) (map[string]*bidirectionalstreamingusertypemapservice.RequestType, error) {
 	var (
 		rv   map[string]*bidirectionalstreamingusertypemapservice.RequestType
-		body map[string]loom.Nullable[*RequestType]
+		body map[string]loom.Optional[*RequestType]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

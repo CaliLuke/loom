@@ -18,6 +18,7 @@ import (
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
 	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/CaliLuke/loom/security"
 	"io"
 	"net/http"
 	"strconv"

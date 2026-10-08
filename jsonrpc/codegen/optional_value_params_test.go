@@ -59,7 +59,7 @@ func TestJSONRPCOptionalValueParams(t *testing.T) {
 			Attribute: func() { dsl.Attribute("v", dsl.String, func() { dsl.Default("d") }) },
 		},
 	}
-	substitute := "\t\tif len(params) == 0 {\n\t\t\tparams = []byte(\"{}\")\n\t\t}\n"
+	substitute := "\t\tif len(rpcParams) == 0 {\n\t\t\trpcParams = []byte(\"{}\")\n\t\t}\n"
 	for _, c := range cases {
 		for _, required := range []bool{false, true} {
 			name := c.Name + "/optional"

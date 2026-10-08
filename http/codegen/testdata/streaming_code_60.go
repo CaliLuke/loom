@@ -14,7 +14,7 @@ func (s *StreamingPayloadUserTypeMapMethodServerStream) Recv() (map[string]*stre
 func (s *StreamingPayloadUserTypeMapMethodServerStream) RecvWithContext(ctx context.Context) (map[string]*streamingpayloadusertypemapservice.RequestType, error) {
 	var (
 		rv   map[string]*streamingpayloadusertypemapservice.RequestType
-		body map[string]loom.Nullable[*RequestType]
+		body map[string]loom.Optional[*RequestType]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

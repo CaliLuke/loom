@@ -12,7 +12,7 @@ func (s *StreamingPayloadPrimitiveMapMethodServerStream) Recv() (map[string]int3
 func (s *StreamingPayloadPrimitiveMapMethodServerStream) RecvWithContext(ctx context.Context) (map[string]int32, error) {
 	var (
 		rv   map[string]int32
-		body map[string]loom.Nullable[int32]
+		body map[string]loom.Optional[int32]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {

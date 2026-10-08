@@ -71,6 +71,7 @@ const requiredUnionViewsHarness = `package requiredunionviews
 
 import (
 	"context"
+	"errors"
 	"net/http/httptest"
 	"reflect"
 	"strings"
@@ -81,6 +82,7 @@ import (
 	svc "example.com/requiredunionviews/gen/svc"
 	"example.com/requiredunionviews/gen/svc/views"
 	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type service struct {
@@ -150,11 +152,13 @@ func TestViews(t *testing.T) {
 	}
 
 	missing, err := svc.NewViewedRT(&svc.RT{ID: "a"}, "default")
-	if err != nil {
-		t.Fatal(err)
+	var fault *loom.ServiceError
+	if missing != nil || !errors.As(err, &fault) || !fault.Fault || fault.Name != "fault" {
+		t.Fatalf("missing union: result=%v, error=%v, want nil and output fault", missing, err)
 	}
-	if err := views.ValidateRT(missing); err == nil || !strings.Contains(err.Error(), "\"c\"") {
-		t.Errorf("missing union: got %v, want a missing c error", err)
+	var cause *loom.ServiceError
+	if !errors.As(errors.Unwrap(fault), &cause) || cause.Name != loom.MissingField || !strings.Contains(cause.Error(), "\"c\"") {
+		t.Errorf("missing union: cause=%v, want a missing c error", errors.Unwrap(fault))
 	}
 
 	parent := &svc.Parent{Name: ptr("p"), Child: other()}

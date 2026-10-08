@@ -73,7 +73,11 @@ func TestValidObjectsAndInvalidViews(t *testing.T) {
 	_, err := svc.NewViewedMenuM1Result(&svc.MenuM1Result{X: "one"}, "unknown")
 	var invalid *loom.ServiceError
 	require.ErrorAs(t, err, &invalid)
-	require.Equal(t, loom.InvalidEnumValue, invalid.Name)
+	require.True(t, invalid.Fault)
+	require.Equal(t, "fault", invalid.Name)
+	var cause *loom.ServiceError
+	require.ErrorAs(t, errors.Unwrap(invalid), &cause)
+	require.Equal(t, loom.InvalidEnumValue, cause.Name)
 }
 
 func TestMissingObjectEndpoints(t *testing.T) {

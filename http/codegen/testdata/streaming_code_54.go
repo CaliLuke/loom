@@ -6,7 +6,7 @@ var StreamingPayloadPrimitiveMapClientStreamRecvCode = `// CloseAndRecv stops se
 func (s *StreamingPayloadPrimitiveMapMethodClientStream) CloseAndRecv() (map[int]int, error) {
 	var (
 		rv   map[int]int
-		body map[int]loom.Nullable[int]
+		body map[int]loom.Optional[int]
 		err  error
 	)
 	defer s.conn.Close()
@@ -40,7 +40,7 @@ func (s *StreamingPayloadPrimitiveMapMethodClientStream) CloseAndRecv() (map[int
 func (s *StreamingPayloadPrimitiveMapMethodClientStream) CloseAndRecvWithContext(ctx context.Context) (map[int]int, error) {
 	var (
 		rv   map[int]int
-		body map[int]loom.Nullable[int]
+		body map[int]loom.Optional[int]
 		err  error
 	)
 	if err := ctx.Err(); err != nil {
