@@ -283,31 +283,11 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 			Type:         arg.Type,
 		}
 
-		f := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.Name, arg.TypeName, arg.Description, arg.Required, arg.Example, arg.DefaultValue)
-		if arg.ProtoMessage {
-			// encoding/json/v2 cannot set the oneof fields of a message.
-			f.Unmarshal = "protojson.Unmarshal"
-			if arg.Example == nil {
-				f.Example = ""
-			}
-		}
-		flags[i] = f
-		params[i] = f.FullName
-		code, chek := cliMessageFieldLoadCode(f, arg, e)
-		check = check || chek
-		tn := arg.TypeRef
-		if f.Type == "JSON" {
-			// We need to declare the variable without
-			// a pointer to be able to unmarshal the JSON
-			// using its address.
-			tn = arg.TypeName
-		}
-		fdata = append(fdata, &cli.FieldData{
-			Name:    arg.Name,
-			VarName: arg.Name,
-			TypeRef: tn,
-			Init:    code,
-		})
+		flag, field, needsError := cliMessageFlag(e, arg)
+		flags[i] = flag
+		params[i] = flag.FullName
+		fdata = append(fdata, field)
+		check = check || needsError
 	}
 	if e.Method.PayloadRef == "" {
 		return flags, nil
@@ -337,6 +317,32 @@ func makeFlags(e *EndpointData, args []*InitArgData) ([]*cli.FlagData, *cli.Buil
 		PayloadInit:  pinit,
 		CheckErr:     check,
 	}
+}
+
+// cliMessageFlag pairs a flag's decoder with the local variable receiving it.
+func cliMessageFlag(e *EndpointData, arg *InitArgData) (*cli.FlagData, *cli.FieldData, bool) {
+	f := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.Name, arg.TypeName, arg.Description, arg.Required, arg.Example, arg.DefaultValue)
+	if arg.ProtoMessage {
+		// encoding/json/v2 cannot set the oneof fields of a message.
+		f.Unmarshal = "protojson.Unmarshal"
+		if arg.Example == nil {
+			f.Example = ""
+		}
+	}
+	code, check := cliMessageFieldLoadCode(f, arg, e)
+	tn := arg.TypeRef
+	if f.Type == "JSON" {
+		// We need to declare the variable without
+		// a pointer to be able to unmarshal the JSON
+		// using its address.
+		tn = arg.TypeName
+	}
+	return f, &cli.FieldData{
+		Name:    arg.Name,
+		VarName: arg.Name,
+		TypeRef: tn,
+		Init:    code,
+	}, check
 }
 
 // cliMessageFieldLoadCode validates decoded protobuf messages before service

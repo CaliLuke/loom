@@ -90,7 +90,7 @@ func buildResultIDData(response *transportir.Response, result *expr.AttributeExp
 
 func (sds *ServicesData) buildResponsesFromIR(endpointIR *transportir.Endpoint, result *expr.AttributeExpr, viewed bool, sd *ServiceData) []*ResponseData {
 	var (
-		responses []*ResponseData
+		responses = make([]*ResponseData, 0, len(endpointIR.Response.Responses))
 
 		svc        = sd.Service
 		md         = svc.Method(endpointIR.Name)

@@ -55,18 +55,7 @@ func classifyError(err error, mapper ErrorMapper) errorContract {
 			return result
 		}
 		if provider, ok := node.(grpcStatuser); ok {
-			if st := provider.GRPCStatus(); st != nil {
-				result.code = failureCode(st.Code())
-				wire := st.Proto()
-				wire.Code = int32(result.code)
-				// Preserve the original status message for a direct provider;
-				// transparent wrappers contribute their full error message.
-				if !direct {
-					wire.Message = err.Error()
-				}
-				result.status = status.FromProto(wire)
-			}
-			return result
+			return statusErrorContract(result, provider.GRPCStatus(), direct)
 		}
 		switch node {
 		case context.Canceled:
@@ -109,6 +98,22 @@ func classifyError(err error, mapper ErrorMapper) errorContract {
 			return result
 		}
 	}
+	return result
+}
+
+// statusErrorContract preserves direct status messages; a transparent wrapper
+// contributes its complete message without discarding the status details.
+func statusErrorContract(result errorContract, st *status.Status, direct bool) errorContract {
+	if st == nil {
+		return result
+	}
+	result.code = failureCode(st.Code())
+	wire := st.Proto()
+	wire.Code = int32(result.code)
+	if !direct {
+		wire.Message = result.err.Error()
+	}
+	result.status = status.FromProto(wire)
 	return result
 }
 

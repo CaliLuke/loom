@@ -19,7 +19,7 @@ func TestResponseSelectionOrder(t *testing.T) {
 				authored[i] = response.StatusCode
 			}
 			plan := transportir.BuildEndpoint(endpoint).Response
-			var codes []int
+			codes := make([]int, 0, len(plan.Responses))
 			for _, response := range plan.Responses {
 				codes = append(codes, response.StatusCode)
 				require.Equal(t, "message", response.BodyOrigin)

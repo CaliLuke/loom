@@ -26,3 +26,14 @@ if grep -Eq 'honnef\.co/go/tools/cmd/staticcheck@latest' "$makefile"; then
   echo "$makefile: staticcheck must use a pinned version, not @latest" >&2
   exit 1
 fi
+
+# The same executable must be checked and run locally and in CI. A newer
+# installed binary can silently miss diagnostics from the pinned release.
+if [[ -n "${GOLANGCI_LINT:-}" ]]; then
+  expected="${GOLANGCI_LINT_VERSION:?missing pinned golangci-lint version}"
+  actual="$("$GOLANGCI_LINT" version --short)"
+  if [[ "$actual" != "${expected#v}" ]]; then
+    echo "golangci-lint version $actual does not match $expected; run make depend" >&2
+    exit 1
+  fi
+fi

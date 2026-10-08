@@ -36,7 +36,7 @@ func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg 
 		},
 		ReturnTypeRef: vresref,
 		ReturnsError:  true,
-		Code:          executeInitTypeTemplate(initTData),
+		Code:          renderInitTypeCode(initTData),
 	}
 }
 
@@ -58,66 +58,16 @@ func buildViewedResultResultInit(att, projected *expr.AttributeExpr, views []*Vi
 		Args:          []*InitArgData{{Name: "vres", Ref: scope.GoFullTypeRef(att, viewspkg)}},
 		ReturnTypeRef: resref,
 		ReturnsError:  true,
-		Code:          executeInitTypeTemplate(resultInitTData),
+		Code:          renderInitTypeCode(resultInitTData),
 	}, resref
 }
 
-func executeInitTypeTemplate(data viewedResultInitTemplateData) string {
-	return renderInitTypeCode(data)
-}
-
 func renderInitTypeCode(data viewedResultInitTemplateData) string {
+	if data.ToResult || data.ToViewed {
+		return renderViewedResultInit(data)
+	}
 	var lines []string
 	switch {
-	case data.ToResult || data.ToViewed:
-		lines = append(lines, "")
-		lines = append(lines, "var "+data.ReturnVar+" "+data.ReturnTypeRef)
-		if data.ToViewed && data.IsObject {
-			lines = append(lines,
-				"if "+data.ArgVar+" == nil {",
-				"\treturn "+data.ReturnVar+", loom.Fault(\"missing result\")",
-				"}",
-			)
-		}
-		lines = append(lines, "switch "+data.ViewExpr+" {")
-		for _, view := range data.Views {
-			lines = append(lines, "\tcase "+quotedViewCase(view.Name)+":")
-			initName := data.InitName
-			if view.Name != expr.DefaultView {
-				initName += codegen.Goify(view.Name, true)
-			}
-			if data.ToViewed {
-				lines = append(lines, "\t\tp := "+initName+"("+data.ArgVar+")")
-				prefix := ""
-				if !data.IsCollection {
-					prefix = "&"
-				}
-				lines = append(lines, "\t\t"+data.ReturnVar+" = "+prefix+data.TargetType+"{Projected: p, View: "+fmt.Sprintf("%q", view.Name)+" }")
-			} else {
-				lines = append(lines, "\t\t"+data.ReturnVar+" = "+initName+"("+data.ArgVar+".Projected)")
-			}
-		}
-		lines = append(lines, "\tdefault:")
-		lines = append(lines, "\t\terr := loom.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
-		for _, value := range quotedViews(data.Views) {
-			lines = append(lines, "\t\t\t"+value+",")
-		}
-		lines = append(lines, "\t\t})")
-		if data.ToViewed {
-			lines = append(lines, "\t\treturn "+data.ReturnVar+", loom.NewServiceError(err, \"fault\", false, false, true)")
-		} else {
-			lines = append(lines, "\t\treturn "+data.ReturnVar+", err")
-		}
-		lines = append(lines, "}")
-		if data.ToViewed {
-			lines = append(lines,
-				"if err := "+data.ValidateName+"("+data.ReturnVar+"); err != nil {",
-				"\tvar zero "+data.ReturnTypeRef,
-				"\treturn zero, loom.NewServiceError(err, \"fault\", false, false, true)",
-				"}",
-			)
-		}
-		lines = append(lines, "return "+data.ReturnVar+", nil")
 	case data.IsCollection:
 		lines = append(lines, data.ReturnVar+" := make("+data.TargetType+", len("+data.ArgVar+"))")
 		lines = append(lines, "for i, n := range "+data.ArgVar+" {")
@@ -138,6 +88,59 @@ func renderInitTypeCode(data viewedResultInitTemplateData) string {
 		}
 		lines = append(lines, "return "+data.ReturnVar)
 	}
+	return strings.Join(lines, "\n")
+}
+
+func renderViewedResultInit(data viewedResultInitTemplateData) string {
+	var lines []string
+	lines = append(lines, "")
+	lines = append(lines, "var "+data.ReturnVar+" "+data.ReturnTypeRef)
+	if data.ToViewed && data.IsObject {
+		lines = append(lines,
+			"if "+data.ArgVar+" == nil {",
+			"\treturn "+data.ReturnVar+", loom.Fault(\"missing result\")",
+			"}",
+		)
+	}
+	lines = append(lines, "switch "+data.ViewExpr+" {")
+	for _, view := range data.Views {
+		lines = append(lines, "\tcase "+quotedViewCase(view.Name)+":")
+		initName := data.InitName
+		if view.Name != expr.DefaultView {
+			initName += codegen.Goify(view.Name, true)
+		}
+		if data.ToViewed {
+			lines = append(lines, "\t\tp := "+initName+"("+data.ArgVar+")")
+			prefix := ""
+			if !data.IsCollection {
+				prefix = "&"
+			}
+			lines = append(lines, "\t\t"+data.ReturnVar+" = "+prefix+data.TargetType+"{Projected: p, View: "+fmt.Sprintf("%q", view.Name)+" }")
+		} else {
+			lines = append(lines, "\t\t"+data.ReturnVar+" = "+initName+"("+data.ArgVar+".Projected)")
+		}
+	}
+	lines = append(lines, "\tdefault:")
+	lines = append(lines, "\t\terr := loom.InvalidEnumValueError(\"view\", "+data.ViewExpr+", []any{")
+	for _, value := range quotedViews(data.Views) {
+		lines = append(lines, "\t\t\t"+value+",")
+	}
+	lines = append(lines, "\t\t})")
+	if data.ToViewed {
+		lines = append(lines, "\t\treturn "+data.ReturnVar+", loom.NewServiceError(err, \"fault\", false, false, true)")
+	} else {
+		lines = append(lines, "\t\treturn "+data.ReturnVar+", err")
+	}
+	lines = append(lines, "}")
+	if data.ToViewed {
+		lines = append(lines,
+			"if err := "+data.ValidateName+"("+data.ReturnVar+"); err != nil {",
+			"\tvar zero "+data.ReturnTypeRef,
+			"\treturn zero, loom.NewServiceError(err, \"fault\", false, false, true)",
+			"}",
+		)
+	}
+	lines = append(lines, "return "+data.ReturnVar+", nil")
 	return strings.Join(lines, "\n")
 }
 

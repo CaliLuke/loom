@@ -122,7 +122,7 @@ ifneq ($(GOOS),windows)
 	@bash ./scripts/lint_json_v2.sh || (echo "^ - JSON v2 lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_legacy_middleware.sh || (echo "^ - legacy middleware lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_name_scope.sh || (echo "^ - name-scope lint errors!" && echo && exit 1)
-	@bash ./scripts/lint_toolchain.sh || (echo "^ - toolchain lint errors!" && echo && exit 1)
+	@GOLANGCI_LINT="$(GOLANGCI_LINT)" GOLANGCI_LINT_VERSION="$(GOLANGCI_LINT_VERSION)" bash ./scripts/lint_toolchain.sh || (echo "^ - toolchain lint errors!" && echo && exit 1)
 	@bash ./scripts/lint_ci_contract.sh || (echo "^ - CI contract lint errors!" && echo && exit 1)
 	@go run ./scripts/docscheck || (echo "^ - documentation lint errors!" && echo && exit 1)
 	@$(STATICCHECK) -checks='$(STATICCHECK_CHECKS)' ./... || (echo "^ - staticcheck errors!" && echo && exit 1)
@@ -152,7 +152,7 @@ lint-namescope:
 	@bash ./scripts/lint_name_scope.sh
 
 lint-toolchain:
-	@bash ./scripts/lint_toolchain.sh
+	@GOLANGCI_LINT="$(GOLANGCI_LINT)" GOLANGCI_LINT_VERSION="$(GOLANGCI_LINT_VERSION)" bash ./scripts/lint_toolchain.sh
 
 lint-test-sources:
 	@GOLANGCI_LINT="$(GOLANGCI_LINT)" STATICCHECK="$(STATICCHECK)" STATICCHECK_CHECKS='$(STATICCHECK_CHECKS)' \
