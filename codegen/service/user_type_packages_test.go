@@ -35,6 +35,14 @@ func TestUserTypePackagesAliasClashingNames(t *testing.T) {
 			WantName: "multipart2",
 		},
 		{
+			Name:     "clash-with-versioned-import",
+			Reserved: []*codegen.ImportSpec{{Path: "gopkg.in/yaml.v3"}},
+			Imports:  []*codegen.ImportSpec{{Name: "yaml", Path: "example.com/app/gen/types/yaml"}},
+			Loc:      &codegen.Location{RelImportPath: "types/yaml"},
+			Want:     []*codegen.ImportSpec{{Name: "yaml2", Path: "example.com/app/gen/types/yaml"}},
+			WantName: "yaml2",
+		},
+		{
 			Name:     "clash-with-explicit-name",
 			Reserved: []*codegen.ImportSpec{codegen.LoomImport("")},
 			Imports: []*codegen.ImportSpec{

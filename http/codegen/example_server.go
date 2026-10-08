@@ -11,6 +11,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/example"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 type exampleServerServiceData struct {
@@ -133,10 +134,7 @@ func reserveExampleImportNames(scope *codegen.NameScope, specs []*codegen.Import
 		if spec == nil || spec.Name == "_" || spec.Name == "." {
 			continue
 		}
-		name := spec.Name
-		if name == "" {
-			name = path.Base(spec.Path)
-		}
+		name := naming.ImportName(spec.Path, spec.Name)
 		if name != "" {
 			scope.Unique(name)
 		}

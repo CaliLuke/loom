@@ -1,11 +1,11 @@
 package service
 
 import (
-	"path"
 	"slices"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 type (
@@ -64,10 +64,12 @@ func (p *UserTypePackages) PackageName(loc *codegen.Location) string {
 // their packages.
 func reserveImportNames(scope *codegen.NameScope, specs []*codegen.ImportSpec) {
 	for _, spec := range specs {
-		name := spec.Name
-		if name == "" {
-			name = path.Base(spec.Path)
+		if spec == nil || spec.Name == "_" || spec.Name == "." {
+			continue
 		}
-		scope.Unique(name)
+		name := naming.ImportName(spec.Path, spec.Name)
+		if name != "" {
+			scope.Unique(name)
+		}
 	}
 }

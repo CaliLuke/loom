@@ -14,6 +14,7 @@ import (
 	cg "github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // transportVarNameCollisionDSL declares HTTP path params, query params,
@@ -361,7 +362,7 @@ func TestTransportFunctionImportNamesCoverFileImports(t *testing.T) {
 			if strings.HasPrefix(spec.Path, genpkg) {
 				continue
 			}
-			name := importName(spec)
+			name := naming.ImportName(spec.Path, spec.Name)
 			if !slices.Contains(transportFunctionImportNames, name) {
 				t.Errorf("%s imports %q as %q, which transportFunctionImportNames does not reserve", file, spec.Path, name)
 			}

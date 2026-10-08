@@ -19,6 +19,8 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
+
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // Gendir is the name of the subdirectory of the output directory that contains
@@ -348,7 +350,7 @@ func regexpImportName(file *ast.File, used map[string]struct{}) string {
 	names := make(map[string]struct{}, len(file.Imports))
 	for _, imp := range file.Imports {
 		path := strings.Trim(imp.Path.Value, `"`)
-		name := inferPackageName(path)
+		name := naming.ImportName(path, "")
 		if imp.Name != nil {
 			name = imp.Name.Name
 		}

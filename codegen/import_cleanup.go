@@ -7,6 +7,8 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
+
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 type (
@@ -50,7 +52,7 @@ func buildImportMap(file *ast.File) map[importKey]*importInfo {
 			}
 		} else {
 			// Standard import: infer package name from path
-			localName := inferPackageName(path)
+			localName := naming.ImportName(path, "")
 			imports[importKey{localName: localName, path: path}] = &importInfo{
 				spec:      impDecl,
 				path:      path,
@@ -116,33 +118,4 @@ func removeUnusedImports(fset *token.FileSet, file *ast.File, imports map[import
 			}
 		}
 	}
-}
-
-// inferPackageName extracts the package name from an import path.
-//
-// Examples:
-//   - "fmt" -> "fmt"
-//   - "github.com/foo/bar" -> "bar"
-//   - "gopkg.in/yaml.v2" -> "yaml"
-func inferPackageName(path string) string {
-	// Get the last component of the path
-	if _, name, ok := strings.CutLast(path, "/"); ok {
-		path = name
-	}
-
-	// Remove version suffixes like .v2, .v3, etc.
-	if idx := strings.Index(path, ".v"); idx >= 0 {
-		path = path[:idx]
-	}
-
-	// Remove other suffixes after dots (less common)
-	if idx := strings.Index(path, "."); idx >= 0 {
-		// Only if it looks like a version or special suffix
-		suffix := path[idx:]
-		if len(suffix) > 1 && (suffix[1] >= '0' && suffix[1] <= '9' || suffix[1] == 'v') {
-			path = path[:idx]
-		}
-	}
-
-	return path
 }

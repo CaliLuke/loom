@@ -4,13 +4,14 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 func TestTransportImportAliasReservationsCoverGeneratedImports(t *testing.T) {
@@ -128,10 +129,7 @@ func literalImportSpecName(literal *ast.CompositeLit) (string, bool) {
 	if importPath == "" {
 		return "", false
 	}
-	if explicitName != "" {
-		return explicitName, true
-	}
-	return path.Base(importPath), true
+	return naming.ImportName(importPath, explicitName), true
 }
 
 func literalLoomImportName(call *ast.CallExpr) (string, bool) {
@@ -156,7 +154,7 @@ func literalLoomImportName(call *ast.CallExpr) (string, bool) {
 		if rel == "" {
 			return "loom", true
 		}
-		return path.Base(rel), true
+		return naming.ImportName(rel, ""), true
 	default:
 		return "", false
 	}

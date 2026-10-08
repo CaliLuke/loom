@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // serverMainLocalNames lists the locals that the example server main
@@ -156,11 +157,13 @@ func mustInitServices(data []*service.Data) bool {
 func serverMainImportScope(specs []*codegen.ImportSpec) *codegen.NameScope {
 	scope := codegen.NewNameScope()
 	for _, spec := range specs {
-		name := spec.Name
-		if name == "" {
-			name = path.Base(spec.Path)
+		if spec == nil || spec.Name == "_" || spec.Name == "." {
+			continue
 		}
-		scope.Unique(name)
+		name := naming.ImportName(spec.Path, spec.Name)
+		if name != "" {
+			scope.Unique(name)
+		}
 	}
 	for _, name := range serverMainLocalNames {
 		scope.Unique(name)

@@ -245,7 +245,7 @@ func allocateHTTPCommandIdentifiers(
 		"command", "args", "svcn", "epn", "path", "err", "data", "endpoint", "c", "value",
 	}
 	for _, spec := range imports {
-		reserved = append(reserved, importName(spec))
+		reserved = append(reserved, naming.ImportName(spec.Path, spec.Name))
 	}
 	common := make([]*cli.CommandData, len(commands))
 	for i, command := range commands {

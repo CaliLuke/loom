@@ -10,6 +10,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/example"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // ExampleServerFiles returns an example gRPC server implementation for each
@@ -102,11 +103,13 @@ func exampleServer(genpkg string, services *ServicesData, svr *expr.ServerExpr, 
 func exampleServerImportScope(specs []*codegen.ImportSpec) *codegen.NameScope {
 	scope := codegen.NewNameScope()
 	for _, spec := range specs {
-		name := spec.Name
-		if name == "" {
-			name = path.Base(spec.Path)
+		if spec == nil || spec.Name == "_" || spec.Name == "." {
+			continue
 		}
-		scope.Unique(name)
+		name := naming.ImportName(spec.Path, spec.Name)
+		if name != "" {
+			scope.Unique(name)
+		}
 	}
 	return scope
 }

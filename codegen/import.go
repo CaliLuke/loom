@@ -94,7 +94,7 @@ func AliasClashingImports(imports []*ImportSpec, paths []string) map[string]stri
 			continue
 		}
 		if _, ok := names[spec.Path]; !ok {
-			reserve(importName(spec))
+			reserve(naming.ImportName(spec.Path, spec.Name))
 		}
 	}
 	var clashing []string
@@ -103,7 +103,7 @@ func AliasClashingImports(imports []*ImportSpec, paths []string) map[string]stri
 		if spec == nil || names[path] != "" {
 			continue
 		}
-		names[path] = importName(spec)
+		names[path] = naming.ImportName(spec.Path, spec.Name)
 		if !reserve(names[path]) {
 			clashing = append(clashing, path)
 		}
@@ -321,14 +321,6 @@ func sortImportSpecs(imports []*ImportSpec) {
 		}
 		return imports[i].Name < imports[j].Name
 	})
-}
-
-// importName returns the name under which spec imports its package.
-func importName(spec *ImportSpec) string {
-	if spec.Name != "" {
-		return spec.Name
-	}
-	return inferPackageName(spec.Path)
 }
 
 // findImport returns the import of imports at path, nil if there is none.

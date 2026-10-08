@@ -161,10 +161,7 @@ func allocateGRPCCommandIdentifiers(data []*cli.CommandData, specs []*codegen.Im
 		"cc", "opts", "svcn", "svcf", "epn", "epf", "data", "endpoint", "err", "c",
 	}
 	for _, spec := range specs {
-		name := spec.Name
-		if name == "" {
-			name = path.Base(spec.Path)
-		}
+		name := naming.ImportName(spec.Path, spec.Name)
 		reserved = append(reserved, name)
 	}
 	for _, command := range data {

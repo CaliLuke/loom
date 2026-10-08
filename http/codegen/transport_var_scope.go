@@ -1,10 +1,10 @@
 package codegen
 
 import (
-	"path"
 	"regexp"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/naming"
 )
 
 // transportVarScope allocates the variables that the generated functions of
@@ -112,18 +112,10 @@ func newTransportVarScope(sd *ServiceData, locals []string, derive func(*codegen
 	s.reserve(transportFunctionImportNames...)
 	s.reserve(sd.Service.PkgName, sd.Service.ViewsPkg)
 	for _, spec := range sd.Service.UserTypeImports {
-		s.reserve(importName(spec))
+		s.reserve(naming.ImportName(spec.Path, spec.Name))
 	}
 	s.reserve(locals...)
 	return s
-}
-
-// importName returns the local name that the generated file uses for spec.
-func importName(spec *codegen.ImportSpec) string {
-	if spec.Name != "" {
-		return spec.Name
-	}
-	return path.Base(spec.Path)
 }
 
 // reserve prevents later variables from using the given names.

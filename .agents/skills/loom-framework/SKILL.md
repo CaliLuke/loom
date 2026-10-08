@@ -141,6 +141,10 @@ consumer validation.
   data local to each server file. Generated service packages must be importable;
   the canonical service package allocator reserves `main` while preserving the
   authored service name and directory. See the [CLI identifier model](../../../codegen/cli/tla/identifiers/README.md).
+- Resolve imported package identifiers with `internal/naming.ImportName` in
+  import pruning, alias allocation and generator name reservation. Explicit aliases
+  take precedence; unusual package declarations require an explicit alias. Keep
+  file-specific local-name reservations in the owning generator.
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted
   Go type references. Never construct type syntax by string concatenation.
 - Let Loom determine pointer/value semantics except at explicit transport
