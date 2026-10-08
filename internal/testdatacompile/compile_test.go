@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -25,6 +26,7 @@ type (
 		Contains string `json:"contains"`
 		Reason   string `json:"reason"`
 		Issue    string `json:"issue,omitempty"`
+		Stage    string `json:"stage,omitempty"`
 	}
 	observation struct {
 		ID     string `json:"id"`
@@ -135,12 +137,7 @@ func init() {
 				require.Empty(t, got.Phase, "%s failed:\n%s", got.Phase, got.Output)
 				return
 			}
-			require.NotEmpty(t, got.Phase, "unexpected pass: remove the stale expectation for %s (%s)", d.id, want.Issue)
-			require.Equal(t, want.Phase, got.Phase, "%s", got.Output)
-			require.Contains(t, got.Output, want.Contains)
-			if want.Issue == "" {
-				require.Regexp(t, `stage eval\.(Context\.Errors|RunDSL)`, got.Output)
-			}
+			require.NoError(t, checkExpectedFailure(want, got))
 			t.Logf("verified expected failure: %s %s", want.Reason, want.Issue)
 		})
 	}
@@ -160,11 +157,49 @@ func validateExpectations(t *testing.T, path string, designs map[string]bool) ma
 		if want.Issue == "" {
 			require.Equal(t, "intentional validation failure", want.Reason, "%s requires a tracking issue", id)
 			require.Equal(t, "gen", want.Phase)
+			require.Contains(t, []string{"dsl", "openapi-analysis"}, want.Stage)
 		} else {
+			require.Empty(t, want.Stage, "tracked defects are not intentional rejections")
 			require.Regexp(t, `^https://github.com/CaliLuke/loom/issues/[0-9]+$`, want.Issue)
 		}
 	}
 	return expected
+}
+
+// checkExpectedFailure keeps diagnostic matching separate from rejection stage
+// classification. A generator panic can contain the expected diagnostic too.
+func checkExpectedFailure(want expectation, got observation) error {
+	if got.Phase == "" {
+		return fmt.Errorf("unexpected pass: remove stale expectation for %s", got.ID)
+	}
+	if got.Phase != want.Phase {
+		return fmt.Errorf("phase %q, want %q: %s", got.Phase, want.Phase, got.Output)
+	}
+	if !strings.Contains(got.Output, want.Contains) {
+		return fmt.Errorf("missing diagnostic %q: %s", want.Contains, got.Output)
+	}
+	for _, marker := range []string{"panic:", "runtime error:", "no space left on device", "context deadline exceeded"} {
+		if strings.Contains(got.Output, marker) {
+			return fmt.Errorf("unexpected failure %q: %s", marker, got.Output)
+		}
+	}
+	if want.Issue != "" {
+		return nil
+	}
+
+	var stage string
+	switch want.Stage {
+	case "dsl":
+		stage = `stage eval\.(Context\.Errors|RunDSL)`
+	case "openapi-analysis":
+		stage = `stage generator\.Generate: stage generate-initial-files path generator\[2\]: OpenAPI `
+	default:
+		return fmt.Errorf("unknown rejection stage %q", want.Stage)
+	}
+	if !regexp.MustCompile(stage).MatchString(got.Output) {
+		return fmt.Errorf("expected %s rejection: %s", want.Stage, got.Output)
+	}
+	return nil
 }
 
 func recordObservation(t *testing.T, got observation) {

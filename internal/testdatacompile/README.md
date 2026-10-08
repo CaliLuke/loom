@@ -53,8 +53,12 @@ Make, `ci-local`, and the dedicated CI matrix run the complete compile tier.
 
 `expectations.json` lists exact design IDs, failing phase, required diagnostic,
 and reason. Intentionally invalid DSL fixtures use the reason
-`intentional validation failure` and must fail during `gen`. Every other known
-failure requires a linked Loom GitHub issue with a reproduction. Do not add
+`intentional validation failure`, an explicit rejection stage, and must fail
+during `gen`. Stage `dsl` requires an evaluator diagnostic. Stage
+`openapi-analysis` requires an OpenAPI diagnostic from the OpenAPI generator's
+initial analysis; for example, a valid OAuth credential mapping can be
+unrepresentable in OpenAPI. Both stages still require the exact case diagnostic
+and reject panics or infrastructure failures. Every other known failure requires a linked Loom GitHub issue with a reproduction. Do not add
 blanket domain exclusions, silently skip designs, or automatically accept a
 failed run as a new baseline.
 

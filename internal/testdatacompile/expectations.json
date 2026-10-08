@@ -2,386 +2,463 @@
   "codegen/service/StreamingInterceptorsWithReadResultDSL": {
     "contains": "use ReadStreamingResult or WriteStreamingResult",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "codegen/service/StreamingResultInterceptorDSL": {
     "contains": "cannot be applied because the method result is streaming",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/APICollidingInterceptorsDSL": {
     "contains": "service \"Service\": interceptors \"Audit\", \"audit\" all generate the Go name \"Audit\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/CaseCollidingInterceptorsDSL": {
     "contains": "service \"Service\": interceptors \"Audit\", \"audit\" all generate the Go name \"Audit\"; rename them so that each interceptor has a distinct Go name",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/ConstructorUnionResultViewDSL": {
     "contains": "service \"ConstructorUnionResultViewService\" method \"Show\": result -  uses view \"tiny\" but \"AOrB\" is not a result type",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/DisallowResponseBodyHeadDSL": {
     "contains": "route HEAD \"/\" of service \"DisallowResponseBody\" HTTP endpoint \"Method\": HTTP status 200: Response body defined for HEAD method which does not allow response body.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/DuplicateResponseCookieNameDSL": {
     "contains": "response defines duplicate cookie \"ak\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/DuplicateResultTypeNamesDSL": {
     "contains": "result type \"A\" defined twice",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/DuplicateUserTypeNamesDSL": {
     "contains": "type \"P\" defined twice",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/DuplicateWCRouteDSL": {
     "contains": "route POST \"/{id}\" of service \"DuplicateWCRoute\" HTTP endpoint \"Method\": Wildcard \"id\" appears multiple times in full path \"/{id}/{id}\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EmptyExampleDSL": {
     "contains": "too few arguments given to Example in attribute",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EmptyInterceptorNameDSL": {
     "contains": "ServerInterceptor: interceptor name cannot be empty",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointArrayPayloadBodyConflict": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is array but HTTP endpoint body is not.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointArrayPayloadSkipRequestBodyWithoutTransport": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is array but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers or params.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointBodyAsMissedPayloadProp": {
     "contains": "Request type does not have an attribute named \"name\" in service \"Service\" HTTP endpoint \"Method\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointDuplicateResponseStatusCode": {
     "contains": "Multiple response definitions with status code 200",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointHasSkipEncodeAndGRPC": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipRequestBodyEncodeDecode and define a gRPC transport.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointHasSkipRequestEncodeAndFormWithBody": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": HTTP endpoint cannot use FormRequest with SkipRequestBodyEncodeDecode.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointHasSkipRequestEncodeAndMultipartWithBody": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Cannot define a request body when using SkipRequestBodyEncodeDecode.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointHasSkipRequestEncodeAndPayloadStreaming": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipRequestBodyEncodeDecode when method defines a StreamingPayload.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointHasSkipRequestEncodeAndResultStreaming": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipRequestBodyEncodeDecode when method defines a StreamingResult. Use SkipResponseBodyEncodeDecode instead.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointHasSkipResponseEncodeAndPayloadStreaming": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipResponseBodyEncodeDecode when method defines a StreamingPayload. Use SkipRequestBodyEncodeDecode instead.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointHasSkipResponseEncodeAndResultStreaming": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Endpoint cannot use SkipResponseBodyEncodeDecode when method defines a StreamingResult.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointMapPayloadBodyConflict": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is map but HTTP endpoint body is not.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointMapPayloadSkipRequestBodyWithoutTransport": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Payload type is map but HTTP endpoint uses SkipRequestBodyEncodeDecode and does not define headers.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointMissingToken": {
     "contains": "service \"Service\" method \"Method\": payload of method \"Method\" of service \"Service\" does not define a JWT attribute, use Token to define one",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointMissingTokenPayload": {
     "contains": "service \"Service\" method \"Method\": payload of method \"Method\" of service \"Service\" does not define a JWT attribute, use Token to define one",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointMultipartConstructorUnion": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": MultipartRequest requires an object payload, constructor unions are not supported",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointObjectPayloadBodyConflict": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": Body \"value\" is not found in Payload.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointOptionalRequestBodyMissingBody": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": HTTP endpoint uses OptionalRequestBody but does not define a request body.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointOptionalRequestBodyRequiredAttribute": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": OptionalRequestBody requires the request body to have no required attributes.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointOptionalRequestBodyRequiredOriginAttribute": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": OptionalRequestBody requires the payload attribute mapped to the request body to be optional.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointOptionalRequestBodyWithMultipart": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": HTTP endpoint cannot use OptionalRequestBody with MultipartRequest.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointPayloadMissingRequired": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": The following HTTP request body attribute is required but the corresponding method payload attribute is not: nonreq. Use 'Required' to make the attribute required in the method payload as well.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointRecursiveParentDSL": {
     "contains": "service \"Parent\": Parent service Child is also child",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointUnionCookie": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": cookie \"filter\" must be primitive",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointUnionHeader": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": header \"filter\" must be primitive or array",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/EndpointUnionQueryParam": {
     "contains": "service \"Service\" HTTP endpoint \"Method\": path parameter filter cannot be an object, path parameter types must be primitive, array or map (query string only)",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/ExplicitAuthHeaderDSL": {
     "contains": "OpenAPI OAuth2 security scheme \"authCode\" cannot describe header credential \"Token\" while preserving OAuth flows and scopes; use the Authorization header or exclude the endpoint from OpenAPI",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "openapi-analysis"
   },
   "expr/FilesIncompatibleDSL": {
     "contains": "invalid use of Files in API files-incompatile",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/FilesTooManyArgErrorDSL": {
     "contains": "too many arguments given to Files in API files-too-many-arg-error",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCEndpointWithAnyType": {
     "contains": "gRPC map keys must be Boolean, String, or integer types (including aliases); got any",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCEndpointWithConstructorUnionFieldCollision": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": field number 3 in attribute \"next\" already exists for attribute \"pick.Other\"; a OneOf passed to Field numbers its branches consecutively from the field number",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCEndpointWithMixedResults": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": gRPC methods cannot define both Result and StreamingResult with different types because a gRPC server stream sends only the streaming result",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCEndpointWithRepeatedFieldTags": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": field number 1 in attribute \"key_dup_id\" already exists for attribute \"key\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCEndpointWithUnionCollections": {
     "contains": "service \"Service\" method \"Method\": union type Choice is an array element, not supported by gRPC; wrap the union in a Type with one Field and use that type as the element",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCEndpointWithUnionContainingAny": {
     "contains": "attribute \"value\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCEndpointWithUntaggedFields": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": attribute \"req_not_field\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCEndpointWithUntaggedUnionBranches": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": union branch \"Leaf\" of attribute \"pick\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define each branch of a OneOf block or pass the OneOf to \"Field\" to number its branches",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCRequestMessageWithDuplicateSecondTag": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": field number 1 in attribute \"second\" already exists for attribute \"first\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCRequestMessageWithMissingSecondAttribute": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": Request message attribute \"missing\" is not found in Payload",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCRequestMessageWithUntaggedSecondAttribute": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": attribute \"second\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCResponseMessageWithDuplicateSecondTag": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": field number 1 in attribute \"second\" already exists for attribute \"first\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCResponseMessageWithMissingSecondAttribute": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": Response message attribute \"missing\" is not found in Result",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/GRPCResponseMessageWithUntaggedSecondAttribute": {
     "contains": "service \"Service\" gRPC endpoint \"Method\": attribute \"second\" does not have \"rpc:tag\" defined in the meta, use \"Field\" to define the attribute of a type used in a gRPC method",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidAuthErrorResponsesPlacementDSL": {
     "contains": "invalid use of AuthErrorResponses",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidCookieInsecurePlacementDSL": {
     "contains": "cookie attributes must be declared after Cookie or SessionCookie in an HTTP response",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidCookieSetterPlacementDSL": {
     "contains": "cookie attributes must be declared after Cookie or SessionCookie in an HTTP response",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidEmptyErrorRemedyDSL": {
     "contains": "error remedy: error remedy must define at least one of code, safe message, or retry hint",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidEmptyErrorTypeDSL": {
     "contains": "attribute: error type \"bodyless\" must not be Empty. Omit the type and map Body(Empty) on a bodyless HTTP response",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidErrorRemedyPlacementDSL": {
     "contains": "invalid use of RemedyCode",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidExampleTypeDSL": {
     "contains": "service \"InvalidExampleType\" method \"Method\": payload - example value map[int]int{1:1} is incompatible with type map",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidMixedWebSocketAPI": {
     "contains": "JSON-RPC service \"InvalidService\" cannot mix WebSocket with other transports",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidRouteDSL": {
     "contains": "routes at the service level are only allowed for JSON-RPC services. Use method-level routes instead. in service \"InvalidRoute\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidSecuritySchemesDSL": {
     "contains": "payload of method \"SecureMethod\" of service \"InvalidSecuritySchemesService\" does not define a username attribute, use Username to define one",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidSessionCookiePlacementDSL": {
     "contains": "invalid use of SessionCookie",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidSessionSecurityDuplicateTransportDSL": {
     "contains": "session auth \"duplicate_transport_session\": session auth \"duplicate_transport_session\" defines duplicate bearer transport",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidSessionSecurityPayloadConflictDSL": {
     "contains": "service \"InvalidSessionSecurityPayloadConflictService\" method \"SecureMethod\": payload of method \"SecureMethod\" of service \"InvalidSessionSecurityPayloadConflictService\" defines field \"auth\" which conflicts with session auth \"conflict_session\" bearer transport",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidSessionSecurityTransportDSL": {
     "contains": "session auth \"invalid_session\": cookie transport must use an API key security scheme",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/InvalidStructErrorNameDSL": {
     "contains": "attribute: error name \"a\" must be required in type \"ServiceError\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/SeparatorCollidingInterceptorsDSL": {
     "contains": "service \"Service\": interceptors \"audit-log\", \"audit_log\" all generate the Go name \"AuditLog\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/ServiceErrorDSL": {
     "contains": "attribute: error name \"a\" must be required in type \"ServiceError\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/StreamingEndpointRequestBody": {
     "contains": "service \"Service\" HTTP endpoint \"MethodA\": HTTP endpoint request body must be empty when the endpoint uses streaming. Payload attributes must be mapped to headers and/or params.",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/ThreeCollidingInterceptorsDSL": {
     "contains": "service \"Service\": interceptors \"AuditLog\", \"audit-log\", \"audit_log\" all generate the Go name \"AuditLog\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/UndefinedInterceptorDSL": {
     "contains": "ServerInterceptor: interceptor \"undefined\" not found in service \"Service\" method \"Method\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "expr/UnionBranchSecurityAttributeDSL": {
     "contains": "service \"UnionBranchSecurityService\" method \"SecureMethod\": payload of method \"SecureMethod\" of service \"UnionBranchSecurityService\" does not define a JWT attribute, use Token to define one",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   },
   "http/codegen/InvalidDSL": {
     "contains": "malformed URI \"http://[::1]:namedport\"",
     "phase": "gen",
-    "reason": "intentional validation failure"
+    "reason": "intentional validation failure",
+    "stage": "dsl"
   }
 }
