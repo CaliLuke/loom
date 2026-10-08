@@ -5,6 +5,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 type (
@@ -91,7 +92,7 @@ type (
 		ClientTransformHelpers []*codegen.TransformFunctionData
 		// UnionTypes lists the sum-type unions referenced by the HTTP request and
 		// response body types.
-		UnionTypes []*service.UnionTypeData
+		UnionTypes []*uniongen.Type
 		// CORS contains the generated service CORS policy, if any.
 		CORS *CORSData
 		// Scope initialized with all the server and client types.

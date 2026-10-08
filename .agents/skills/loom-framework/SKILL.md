@@ -97,6 +97,10 @@ consumer validation.
   kinds, inherited/occurrence bounds, exact and exclusive bounds, and typed arrays.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
+- `internal/uniongen` owns the common Go union declaration and codec emitter.
+  Service and HTTP analysis supply that model; service-only validation helpers
+  stay in service analysis. Keep untagged occurrence matching in
+  `internal/unionjson`, and do not fork emitted union methods by transport.
 - Put design-semantic vet rules over the evaluated `expr` graph. Use Go source
   analysis only for module adoption facts that the graph cannot contain. A
   source analyzer must report when an active target-module package lacks

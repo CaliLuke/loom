@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/testutil"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 func TestTypeInitSectionStructuredDeclaration(t *testing.T) {
@@ -295,28 +296,30 @@ func TestExampleInterceptorSectionStructuredDeclaration(t *testing.T) {
 
 func TestUnionSectionStructuredDeclarations(t *testing.T) {
 	code := codegen.SectionCode(t, unionTypeSection("service-union-type", &UnionTypeData{
-		Name:     "Selection",
-		KindName: "SelectionKind",
-		TypeKey:  "type",
-		ValueKey: "value",
-		Fields: []*UnionFieldData{
-			{
-				Name:               "text",
-				KindConst:          "SelectionKindText",
-				FieldName:          "Text",
-				FieldType:          "SelectionText",
-				EmitPrimitiveAlias: true,
-				PrimitiveAliasType: "string",
-				TypeTag:            "text",
-			},
-			{
-				Name:               "count",
-				KindConst:          "SelectionKindCount",
-				FieldName:          "Count",
-				FieldType:          "SelectionCount",
-				EmitPrimitiveAlias: true,
-				PrimitiveAliasType: "int",
-				TypeTag:            "count",
+		Type: uniongen.Type{
+			Name:     "Selection",
+			KindName: "SelectionKind",
+			TypeKey:  "type",
+			ValueKey: "value",
+			Fields: []*uniongen.Field{
+				{
+					Name:               "text",
+					KindConst:          "SelectionKindText",
+					FieldName:          "Text",
+					FieldType:          "SelectionText",
+					EmitPrimitiveAlias: true,
+					PrimitiveAliasType: "string",
+					TypeTag:            "text",
+				},
+				{
+					Name:               "count",
+					KindConst:          "SelectionKindCount",
+					FieldName:          "Count",
+					FieldType:          "SelectionCount",
+					EmitPrimitiveAlias: true,
+					PrimitiveAliasType: "int",
+					TypeTag:            "count",
+				},
 			},
 		},
 	}))
@@ -332,11 +335,16 @@ func TestUnionSectionAliasesAnyAsRawJSONValue(t *testing.T) {
 	require.Equal(t, "loom.JSONValue", aliasType)
 
 	code := codegen.SectionCode(t, unionTypeSection("service-union-type", &UnionTypeData{
-		Name: "Selection", KindName: "SelectionKind", TypeKey: "type", ValueKey: "value",
-		Fields: []*UnionFieldData{{
-			Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", FieldType: "SelectionRaw",
-			EmitPrimitiveAlias: true, PrimitiveAliasType: "loom.JSONValue", TypeTag: "raw",
-		}},
+		Type: uniongen.Type{
+			Name:     "Selection",
+			KindName: "SelectionKind",
+			TypeKey:  "type",
+			ValueKey: "value",
+			Fields: []*uniongen.Field{{
+				Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", FieldType: "SelectionRaw",
+				EmitPrimitiveAlias: true, PrimitiveAliasType: "loom.JSONValue", TypeTag: "raw",
+			}},
+		},
 	}))
 
 	require.Contains(t, code, "type SelectionRaw = loom.JSONValue")

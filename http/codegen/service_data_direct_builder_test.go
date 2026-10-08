@@ -12,6 +12,7 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
+	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 func TestHTTPDirectBuilderSeams(t *testing.T) {
@@ -583,7 +584,7 @@ func bodyViews(types []*TypeData) []string {
 	return views
 }
 
-func httpUnionTypeNames(types []*service.UnionTypeData) []string {
+func httpUnionTypeNames(types []*uniongen.Type) []string {
 	names := make([]string, len(types))
 	for i, union := range types {
 		names[i] = union.Name

@@ -36,6 +36,8 @@ belong in the `loom` skill and the canonical guides under `docs/`.
 - `internal/`: repository-private support packages and release/source tooling
 - `internal/httpcodec`: role-specific built-in HTTP codec selection shared by
   runtime dispatch and representation preparation
+- `internal/uniongen`: shared Go union model and declaration/JSON/form method
+  emitter consumed by service and HTTP codegen
 - `internal/unionjson`: shared untagged JSON occurrence projection and typed
   adapter generation; `expr` lowers semantic predicates and `pkg/json_union.go`
   owns runtime matching over the generated descriptions

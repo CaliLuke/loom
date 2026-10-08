@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cg "github.com/CaliLuke/loom/codegen"
-	svc "github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 func TestHTTPUnionDeclarationsCoverAllocatedNames(t *testing.T) {
@@ -28,14 +28,14 @@ func TestHTTPUnionDeclarationsCoverAllocatedNames(t *testing.T) {
 				for _, index := range allocation {
 					scope.GoTypeName(types[index])
 				}
-				declarations := make(map[string]*svc.UnionTypeData)
+				declarations := make(map[string]*uniongen.Type)
 				seen := make(map[string]struct{})
 				for range 2 {
 					for _, index := range collection {
 						collectHTTPUnionTypes(types[index], scope, declarations, seen, false)
 					}
 				}
-				byName := make(map[string]*svc.UnionTypeData)
+				byName := make(map[string]*uniongen.Type)
 				for _, declaration := range declarations {
 					require.NotContains(t, byName, declaration.Name)
 					byName[declaration.Name] = declaration

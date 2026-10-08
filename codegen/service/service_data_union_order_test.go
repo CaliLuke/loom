@@ -8,6 +8,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/uniongen"
 	"github.com/CaliLuke/loom/internal/unionjson"
 	loom "github.com/CaliLuke/loom/pkg"
 )
@@ -209,7 +210,7 @@ func TestRenderUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 	}
 	data := buildUnionTypeData(makeTaggedUnionForTagTest(), scope, loc)
 
-	body := renderUnionUnmarshalJSONBody(data)
+	body := uniongen.UnmarshalJSONBody(&data.Type)
 
 	require.Contains(t, body, `return loom.MissingFieldError("value", "body")`)
 	require.Contains(t, body, `len(raw.Value) == 0 || string(raw.Value) == "null"`)
@@ -219,13 +220,19 @@ func TestRenderUnionUnmarshalJSONReturnsStructuredErrors(t *testing.T) {
 
 func TestRenderUntaggedUnionJSONUsesBareValidatedBranches(t *testing.T) {
 	shape := &loom.JSONShape{Kind: "object", Fields: []loom.JSONShapeField{{Name: "wire_name", Required: true, Shape: &loom.JSONShape{Kind: "string"}}}}
-	data := &UnionTypeData{Name: "Outcome", Untagged: true, JSON: &unionjson.Union{Name: "Outcome", Branches: []*unionjson.Branch{
-		{Type: "*OK", Field: "OK", Kind: "OutcomeKindOK", Schema: shape, Runtime: shape},
-	}}}
-	marshal := renderUnionMarshalJSONBody(data)
+	data := &UnionTypeData{
+		Type: uniongen.Type{
+			Name:     "Outcome",
+			Untagged: true,
+			JSON: &unionjson.Union{Name: "Outcome", Branches: []*unionjson.Branch{
+				{Type: "*OK", Field: "OK", Kind: "OutcomeKindOK", Schema: shape, Runtime: shape},
+			}},
+		},
+	}
+	marshal := uniongen.MarshalJSONBody(&data.Type)
 	require.Contains(t, marshal, "json.Marshal(u.OK, loom.JSONOptions(), json.Deterministic(true))")
 	require.Contains(t, marshal, "if matched != selected")
-	unmarshal := renderUnionUnmarshalJSONBody(data) + data.JSON.Matcher()
+	unmarshal := uniongen.UnmarshalJSONBody(&data.Type) + data.JSON.Matcher()
 	require.Contains(t, unmarshal, "loom.MatchUntaggedJSON")
 	require.Contains(t, unmarshal, "loom.DecodeJSONCandidate")
 	require.Contains(t, unmarshal, `Name: "wire_name", Required: true`)
@@ -240,9 +247,9 @@ func TestRenderTaggedUnionJSONPreservesDeterministicNestedOrdering(t *testing.T)
 	}
 	data := buildUnionTypeData(makeTaggedUnionForTagTest(), scope, loc)
 
-	marshal := renderUnionMarshalJSONBody(data)
+	marshal := uniongen.MarshalJSONBody(&data.Type)
 	require.Contains(t, marshal, "}, loom.JSONOptions(), json.Deterministic(true))")
-	require.Contains(t, renderUnionUnmarshalJSONBody(data), "json.Unmarshal(raw.Value, &v, loom.JSONOptions())")
+	require.Contains(t, uniongen.UnmarshalJSONBody(&data.Type), "json.Unmarshal(raw.Value, &v, loom.JSONOptions())")
 }
 
 func TestRenderUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
@@ -252,7 +259,7 @@ func TestRenderUnionUnmarshalFormReturnsStructuredEnumError(t *testing.T) {
 	}
 	data := buildUnionTypeData(makeTaggedUnionForTagTest(), scope, loc)
 
-	body := renderUnionUnmarshalFormBody(data)
+	body := uniongen.UnmarshalFormBody(&data.Type)
 
 	require.Contains(t, body, `return loom.InvalidEnumValueError("type", rawType, []any{`)
 	require.NotContains(t, body, `unexpected Selection type`)

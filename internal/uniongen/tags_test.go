@@ -1,4 +1,4 @@
-package service
+package uniongen
 
 import (
 	json "encoding/json/v2"
@@ -24,10 +24,10 @@ func TestUnionJSONBodiesQuoteDiscriminatorKeys(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			data := &UnionTypeData{Name: "U", KindName: "UKind", TypeKey: tc.typeKey, ValueKey: tc.valueKey}
-			for body, render := range map[string]func(*UnionTypeData) string{
-				"marshal":   renderUnionMarshalJSONBody,
-				"unmarshal": renderUnionUnmarshalJSONBody,
+			data := &Type{Name: "U", KindName: "UKind", TypeKey: tc.typeKey, ValueKey: tc.valueKey}
+			for body, render := range map[string]func(*Type) string{
+				"marshal":   MarshalJSONBody,
+				"unmarshal": UnmarshalJSONBody,
 			} {
 				tags := parseStructTagsInBody(t, render(data))
 				require.Len(t, tags, 2, body)
@@ -54,10 +54,10 @@ func TestUnionJSONBodiesDiscriminatorRoundTrip(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			data := &UnionTypeData{Name: "U", KindName: "UKind", TypeKey: tc.typeKey, ValueKey: tc.valueKey}
-			for body, render := range map[string]func(*UnionTypeData) string{
-				"marshal":   renderUnionMarshalJSONBody,
-				"unmarshal": renderUnionUnmarshalJSONBody,
+			data := &Type{Name: "U", KindName: "UKind", TypeKey: tc.typeKey, ValueKey: tc.valueKey}
+			for body, render := range map[string]func(*Type) string{
+				"marshal":   MarshalJSONBody,
+				"unmarshal": UnmarshalJSONBody,
 			} {
 				tags := parseStructTagsInBody(t, render(data))
 				require.Len(t, tags, 2, body)

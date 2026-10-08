@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
-	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/uniongen"
 	"github.com/CaliLuke/loom/internal/unionjson"
 )
 
@@ -140,8 +140,8 @@ func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, hashes, seen map[s
 	}
 }
 
-func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints []*transportir.Endpoint, scope *codegen.NameScope) []*service.UnionTypeData {
-	unionByName := make(map[string]*service.UnionTypeData)
+func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints []*transportir.Endpoint, scope *codegen.NameScope) []*uniongen.Type {
+	unionByName := make(map[string]*uniongen.Type)
 	seenUnionTypes := make(map[string]struct{})
 	closed, _ := sds.ServicesData.Root.API.Meta.Last("openapi:closed-objects")
 	for _, endpoint := range endpoints {
@@ -160,7 +160,7 @@ func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints
 			collectHTTPUnionTypes(response.Body, scope, unionByName, seenUnionTypes, closed == "true")
 		}
 	}
-	unions := make([]*service.UnionTypeData, 0, len(unionByName))
+	unions := make([]*uniongen.Type, 0, len(unionByName))
 	for _, union := range unionByName {
 		unions = append(unions, union)
 	}
@@ -170,7 +170,7 @@ func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints
 	return unions
 }
 
-func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, unions map[string]*service.UnionTypeData, seen map[string]struct{}, closedObjects bool) {
+func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, unions map[string]*uniongen.Type, seen map[string]struct{}, closedObjects bool) {
 	if att == nil || att.Type == expr.Empty {
 		return
 	}
@@ -218,7 +218,7 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 	}
 }
 
-func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjects bool, names ...string) *service.UnionTypeData {
+func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjects bool, names ...string) *uniongen.Type {
 	att := &expr.AttributeExpr{Type: u}
 	name := scope.GoTypeName(att)
 	if len(names) > 0 {
@@ -226,13 +226,13 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjec
 	}
 	kindName := scope.Unique(name + "Kind")
 
-	fields := make([]*service.UnionFieldData, len(u.Values))
+	fields := make([]*uniongen.Field, len(u.Values))
 	hasScalarFormBranch := false
 	for i, nat := range u.Values {
 		fieldName := codegen.Goify(nat.Name, true)
 		fieldType := scope.GoTypeRef(nat.Attribute)
 		kindConst := kindName + fieldName
-		fields[i] = &service.UnionFieldData{
+		fields[i] = &uniongen.Field{
 			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
@@ -258,7 +258,7 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjec
 		jsonUnion = unionjson.Analyze(name, u, branches, expr.ElementName, closedObjects)
 	}
 
-	return &service.UnionTypeData{
+	return &uniongen.Type{
 		Name:                name,
 		KindName:            kindName,
 		Fields:              fields,

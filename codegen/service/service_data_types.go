@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/uniongen"
 	"github.com/CaliLuke/loom/internal/unionjson"
 )
 
@@ -153,7 +154,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 	kindName := scope.Unique(name + "Kind")
 	unionPkg := scope.PackageName(loc)
 
-	fields := make([]*UnionFieldData, len(u.Values))
+	fields := make([]*uniongen.Field, len(u.Values))
 	hasScalarFormBranch := false
 	for i, nat := range u.Values {
 		fieldName := codegen.Goify(nat.Name, true)
@@ -174,7 +175,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 			fieldType = scope.Unique(name + fieldName)
 		}
 		kindConst := kindName + codegen.Goify(nat.Name, true)
-		fields[i] = &UnionFieldData{
+		fields[i] = &uniongen.Field{
 			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
@@ -193,16 +194,18 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 	}
 
 	return &UnionTypeData{
-		Name:                name,
-		KindName:            kindName,
-		Fields:              fields,
-		Loc:                 loc,
-		TypeKey:             u.GetTypeKey(),
-		ValueKey:            u.GetValueKey(),
-		Untagged:            u.Untagged,
-		JSON:                analyzeUnionJSON(name, u, fields),
-		HasScalarFormBranch: hasScalarFormBranch,
-		validations:         buildUntaggedUnionValidations(u, scope, loc),
+		Type: uniongen.Type{
+			Name:                name,
+			KindName:            kindName,
+			Fields:              fields,
+			Loc:                 loc,
+			TypeKey:             u.GetTypeKey(),
+			ValueKey:            u.GetValueKey(),
+			Untagged:            u.Untagged,
+			JSON:                analyzeUnionJSON(name, u, fields),
+			HasScalarFormBranch: hasScalarFormBranch,
+		},
+		validations: buildUntaggedUnionValidations(u, scope, loc),
 	}
 }
 
@@ -218,7 +221,7 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 	}
 	kindName := scope.Unique(name + "Kind")
 
-	fields := make([]*UnionFieldData, len(u.Values))
+	fields := make([]*uniongen.Field, len(u.Values))
 	hasScalarFormBranch := false
 	for i, nat := range u.Values {
 		fieldName := codegen.Goify(nat.Name, true)
@@ -230,7 +233,7 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 			fieldType = scope.Unique(name + fieldName)
 		}
 		kindConst := kindName + codegen.Goify(nat.Name, true)
-		fields[i] = &UnionFieldData{
+		fields[i] = &uniongen.Field{
 			Name:                      expr.AttributeName(nat.Name),
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
@@ -249,15 +252,17 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 	}
 
 	return &UnionTypeData{
-		Name:                name,
-		KindName:            kindName,
-		Fields:              fields,
-		Loc:                 loc,
-		TypeKey:             u.GetTypeKey(),
-		ValueKey:            u.GetValueKey(),
-		Untagged:            u.Untagged,
-		JSON:                analyzeUnionJSON(name, u, fields),
-		HasScalarFormBranch: hasScalarFormBranch,
+		Type: uniongen.Type{
+			Name:                name,
+			KindName:            kindName,
+			Fields:              fields,
+			Loc:                 loc,
+			TypeKey:             u.GetTypeKey(),
+			ValueKey:            u.GetValueKey(),
+			Untagged:            u.Untagged,
+			JSON:                analyzeUnionJSON(name, u, fields),
+			HasScalarFormBranch: hasScalarFormBranch,
+		},
 	}
 }
 
@@ -416,7 +421,7 @@ func hasResultType(att *expr.AttributeExpr, seens ...map[string]struct{}) bool {
 	return false
 }
 
-func analyzeUnionJSON(name string, u *expr.Union, fields []*UnionFieldData) *unionjson.Union {
+func analyzeUnionJSON(name string, u *expr.Union, fields []*uniongen.Field) *unionjson.Union {
 	if !u.Untagged {
 		return nil
 	}

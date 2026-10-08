@@ -7,17 +7,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
-	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/codegen/testutil"
+	"github.com/CaliLuke/loom/internal/uniongen"
 )
 
 func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {
-	code := codegen.SectionCode(t, unionTypeSection("server-union-type", &servicecodegen.UnionTypeData{
+	code := codegen.SectionCode(t, unionTypeSection("server-union-type", &uniongen.Type{
 		Name:     "Selection",
 		KindName: "SelectionKind",
 		TypeKey:  "type",
 		ValueKey: "value",
-		Fields: []*servicecodegen.UnionFieldData{
+		Fields: []*uniongen.Field{
 			{
 				Name:               "text",
 				KindConst:          "SelectionKindText",
@@ -46,9 +46,9 @@ func TestHTTPUnionSectionStructuredDeclarations(t *testing.T) {
 }
 
 func TestHTTPUnionSectionAliasesAnyAsRawJSONValue(t *testing.T) {
-	code := codegen.SectionCode(t, unionTypeSection("server-union-type", &servicecodegen.UnionTypeData{
+	code := codegen.SectionCode(t, unionTypeSection("server-union-type", &uniongen.Type{
 		Name: "Selection", KindName: "SelectionKind", TypeKey: "type", ValueKey: "value",
-		Fields: []*servicecodegen.UnionFieldData{{
+		Fields: []*uniongen.Field{{
 			Name: "raw", KindConst: "SelectionKindRaw", FieldName: "Raw", FieldType: "SelectionRaw",
 			EmitPrimitiveAlias: true, PrimitiveAliasType: "loom.JSONValue", TypeTag: "raw",
 		}},
