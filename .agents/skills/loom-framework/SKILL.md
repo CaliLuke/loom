@@ -320,6 +320,11 @@ filter, and serialization rules belong here.
 
 ## OpenAPI Importer Invariants
 
+- Use `encoding/json/jsontext.Pointer` for JSON Pointer token escaping,
+  validation and decoding in both import and export paths. Keep the URI-fragment
+  `#` and component-kind policy at the OpenAPI boundary. An invalid diagnostic
+  owner path must retain its blocker rather than silently discard it during
+  selection.
 - Keep a field-level grammar ledger for each OpenAPI object the importer reads.
   Classify every parser field as preserved, conditional, lossy, rejected, or
   parser-only, and name the test or diagnostic that proves the classification.

@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"encoding/json/jsontext"
 	"fmt"
 	"reflect"
 	"slices"
@@ -624,9 +625,7 @@ func (a *Analyzer) registerSchemaRef(fingerprint, ref, explicitName string) {
 }
 
 func toRef(name string) string {
-	name = strings.ReplaceAll(name, "~", "~0")
-	name = strings.ReplaceAll(name, "/", "~1")
-	return fmt.Sprintf("#/components/schemas/%s", name)
+	return "#" + string(jsontext.Pointer("/components/schemas").AppendToken(name))
 }
 
 func mustGenerateType(meta expr.MetaExpr) bool {

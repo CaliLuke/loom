@@ -1,6 +1,7 @@
 package openapiimport
 
 import (
+	"encoding/json/jsontext"
 	"fmt"
 	"go/token"
 	"strings"
@@ -487,32 +488,9 @@ func localComponentReferenceName(ref, prefix string) (string, error) {
 	if segment == ref || segment == "" || strings.Contains(segment, "/") {
 		return "", fmt.Errorf("has the wrong kind")
 	}
-	name, err := unescapeJSONPointerSegment(segment)
-	if err != nil {
+	pointer := jsontext.Pointer("/" + segment)
+	if !pointer.IsValid() {
 		return "", fmt.Errorf("has invalid JSON Pointer escaping")
 	}
-	return name, nil
-}
-
-func unescapeJSONPointerSegment(value string) (string, error) {
-	var builder strings.Builder
-	for index := 0; index < len(value); index++ {
-		if value[index] != '~' {
-			builder.WriteByte(value[index])
-			continue
-		}
-		if index+1 == len(value) {
-			return "", fmt.Errorf("trailing '~'")
-		}
-		index++
-		switch value[index] {
-		case '0':
-			builder.WriteByte('~')
-		case '1':
-			builder.WriteByte('/')
-		default:
-			return "", fmt.Errorf("invalid escape")
-		}
-	}
-	return builder.String(), nil
+	return pointer.LastToken(), nil
 }

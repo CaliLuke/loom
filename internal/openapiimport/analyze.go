@@ -1,6 +1,7 @@
 package openapiimport
 
 import (
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"regexp"
@@ -131,7 +132,7 @@ func walkReferences(node *yaml3.Node, path string, diagnostics *Diagnostics) {
 }
 
 func escapeJSONPointer(value string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(value, "~", "~0"), "/", "~1")
+	return string(jsontext.Pointer("").AppendToken(value))[1:]
 }
 
 func (a *analyzer) document(source *v3.Document) *Document {

@@ -1,6 +1,7 @@
 package openapiimport
 
 import (
+	"encoding/json/jsontext"
 	"fmt"
 	pathpkg "path"
 	"sort"
@@ -397,8 +398,13 @@ func componentDiagnosticRetained(path, prefix string, retained map[string]struct
 	}
 	remainder := strings.TrimPrefix(path, prefix)
 	segment := strings.SplitN(remainder, "/", 2)[0]
-	name := strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~")
-	_, ok := retained[name]
+	pointer := jsontext.Pointer("/" + segment)
+	if !pointer.IsValid() {
+		// An invalid path cannot establish unselected ownership. Keep the
+		// diagnostic instead of silently dropping an unresolved blocker.
+		return true
+	}
+	_, ok := retained[pointer.LastToken()]
 	return ok
 }
 

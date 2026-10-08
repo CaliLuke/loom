@@ -1,12 +1,12 @@
 package ir
 
 import (
+	"encoding/json/jsontext"
 	"fmt"
 	"maps"
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
@@ -196,7 +196,7 @@ func mapSchemaReferences(source *Schema, reference func(string, string) string, 
 			if value.Mapping != nil {
 				value.Mapping = make(map[string]string, len(source.Discriminator.Mapping))
 				for _, name := range slices.Sorted(maps.Keys(source.Discriminator.Mapping)) {
-					referencePath := path + "/Discriminator/Mapping/" + strings.ReplaceAll(strings.ReplaceAll(name, "~", "~0"), "/", "~1")
+					referencePath := string(jsontext.Pointer(path + "/Discriminator/Mapping").AppendToken(name))
 					value.Mapping[name] = reference(source.Discriminator.Mapping[name], referencePath)
 				}
 			}
@@ -221,7 +221,7 @@ func mapSchemaReferenceMaps(source, result *Schema, path string, visit func(*Sch
 		}
 		*pair.output = make(map[string]*Schema, len(pair.input))
 		for _, name := range slices.Sorted(maps.Keys(pair.input)) {
-			childPath := path + "/" + pair.key + "/" + strings.ReplaceAll(strings.ReplaceAll(name, "~", "~0"), "/", "~1")
+			childPath := string(jsontext.Pointer(path + "/" + pair.key).AppendToken(name))
 			(*pair.output)[name] = visit(pair.input[name], childPath)
 		}
 	}
