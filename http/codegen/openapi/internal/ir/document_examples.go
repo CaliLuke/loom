@@ -171,9 +171,8 @@ func projectOpenAPIUnionExample(union *expr.Union, value any) any {
 }
 
 func projectOpenAPIValues(attribute *expr.AttributeExpr, values []any) []any {
-	projected := make([]any, len(values))
-	for index, value := range values {
-		canonical := enumvalue.Normalize(attribute, value)
+	projected := enumvalue.NormalizeAll(attribute, values)
+	for index, canonical := range projected {
 		projected[index] = normalizeOpenAPIExampleForAttribute(attribute, projectOpenAPIExample(attribute, canonical))
 	}
 	return projected
