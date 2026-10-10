@@ -19,6 +19,9 @@ a repeated publish does not change the tag. The implementation seams are
 allocation, no-change retries, CI job completeness, conflicting refs and
 promotion. The model does not prove GitHub API availability, token security,
 CI test coverage, version parsing or the behavior of external administrators.
+`TestPublicationValidatesEffectivePushDestinations` separately exercises real
+Git URL resolution, including multiple push URLs and URL rewrites, and checks
+that noncanonical destinations are rejected before publication starts.
 
 No source commit is created by publication. Promotion uses the same selected
 source as its alpha and therefore has the same source-identity invariant.

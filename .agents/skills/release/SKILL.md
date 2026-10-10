@@ -29,6 +29,9 @@ dispatch that workflow; they never create release commits or publish tags.
 
 Run from the canonical repository. The workflow runs on trusted main and
 serializes all publication modes with one repository-wide concurrency group.
+The publisher validates the fetch URL and every effective push URL of `origin`
+before fetching or publishing. Git URL rewrites and separate push destinations
+must still resolve to the canonical Loom repository.
 Inputs are passed through environment variables, not interpolated into shell
 source. Do not publish from PR workflows or add credentials to untrusted jobs.
 

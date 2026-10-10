@@ -88,12 +88,8 @@ func (p publisher) publish(ctx context.Context) error {
 	if p.config.Mode != "alpha" && p.config.Mode != "daily" && p.config.Mode != "promote" {
 		return errors.New("invalid release mode")
 	}
-	remote, err := p.git(ctx, "remote", "get-url", "origin")
-	if err != nil {
+	if err := p.validateOrigin(ctx); err != nil {
 		return err
-	}
-	if remote != "https://github.com/"+repository+".git" && remote != "https://github.com/"+repository && remote != "git@github.com:"+repository+".git" {
-		return errors.New("origin is not canonical Loom")
 	}
 	if _, err := p.git(ctx, "fetch", "origin", "main", "--tags"); err != nil {
 		return err
@@ -140,6 +136,27 @@ func (p publisher) publish(ctx context.Context) error {
 		return err
 	}
 	return p.publishRelease(ctx, source, version, tags, existing, evidence)
+}
+
+func (p publisher) validateOrigin(ctx context.Context) error {
+	for _, query := range []struct {
+		name string
+		args []string
+	}{
+		{"origin", []string{"remote", "get-url", "origin"}},
+		{"origin push destination", []string{"remote", "get-url", "--push", "--all", "origin"}},
+	} {
+		urls, err := p.git(ctx, query.args...)
+		if err != nil {
+			return err
+		}
+		for _, remote := range strings.Split(urls, "\n") {
+			if remote != "https://github.com/"+repository+".git" && remote != "https://github.com/"+repository && remote != "git@github.com:"+repository+".git" {
+				return fmt.Errorf("%s is not canonical Loom", query.name)
+			}
+		}
+	}
+	return nil
 }
 
 func (p publisher) git(ctx context.Context, args ...string) (string, error) {
