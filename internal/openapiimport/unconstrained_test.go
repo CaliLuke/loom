@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v3"
 )
 
 const unconstrainedSchemaSource = `openapi: 3.1.1
@@ -197,7 +199,7 @@ func TestRenderRoundTripsAndRunsUnconstrainedSchemas(t *testing.T) {
 	require.NoError(t, err)
 	parsed, err := libopenapi.NewDocument(generated)
 	require.NoError(t, err)
-	_, err = parsed.BuildV3Model()
+	model, err := parsed.BuildV3Model()
 	require.NoError(t, err)
 
 	var contract map[string]any
@@ -216,35 +218,39 @@ func TestRenderRoundTripsAndRunsUnconstrainedSchemas(t *testing.T) {
 	requestContent := requireUnconstrainedMap(t, requestBody["content"], "request content")
 	requestJSON := requireUnconstrainedMap(t, requestContent["application/json"], "request JSON media")
 	require.Empty(t, requireUnconstrainedMap(t, requestJSON["schema"], "request schema"))
-	responses := requireUnconstrainedMap(t, operation["responses"], "responses")
-	success := requireUnconstrainedMap(t, responses["200"], "success response")
-	responseContent := requireUnconstrainedMap(t, success["content"], "response content")
-	responseJSON := requireUnconstrainedMap(t, responseContent["application/json"], "response JSON media")
-	require.Empty(t, requireUnconstrainedMap(t, responseJSON["schema"], "response schema"))
+	require.Empty(t, requireUnconstrainedResponseSchema(t, &model.Model, "/echo", "post", "200"))
 
 	direct := operationFromImportedSpec(t, contract, "/direct", "post")
 	directRequest := requireUnconstrainedMap(t, direct["requestBody"], "direct request body")
 	directRequestContent := requireUnconstrainedMap(t, directRequest["content"], "direct request content")
 	directRequestJSON := requireUnconstrainedMap(t, directRequestContent["application/json"], "direct request JSON media")
 	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedMap(t, directRequestJSON["schema"], "direct request schema")["$ref"])
-	directResponses := requireUnconstrainedMap(t, direct["responses"], "direct responses")
-	directSuccess := requireUnconstrainedMap(t, directResponses["200"], "direct success response")
-	directResponseContent := requireUnconstrainedMap(t, directSuccess["content"], "direct response content")
-	directResponseJSON := requireUnconstrainedMap(t, directResponseContent["application/json"], "direct response JSON media")
-	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedMap(t, directResponseJSON["schema"], "direct response schema")["$ref"])
-
-	failure := operationFromImportedSpec(t, contract, "/failure", "get")
-	failureResponses := requireUnconstrainedMap(t, failure["responses"], "failure responses")
-	badRequest := requireUnconstrainedMap(t, failureResponses["400"], "bad request response")
-	badRequestContent := requireUnconstrainedMap(t, badRequest["content"], "bad request content")
-	badRequestJSON := requireUnconstrainedMap(t, badRequestContent["application/json"], "bad request JSON media")
-	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedMap(t, badRequestJSON["schema"], "bad request schema")["$ref"])
-	unprocessable := requireUnconstrainedMap(t, failureResponses["422"], "unprocessable response")
-	unprocessableContent := requireUnconstrainedMap(t, unprocessable["content"], "unprocessable content")
-	unprocessableJSON := requireUnconstrainedMap(t, unprocessableContent["application/json"], "unprocessable JSON media")
-	require.Equal(t, "#/components/schemas/Container", requireUnconstrainedMap(t, unprocessableJSON["schema"], "unprocessable schema")["$ref"])
+	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedResponseSchema(t, &model.Model, "/direct", "post", "200")["$ref"])
+	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedResponseSchema(t, &model.Model, "/failure", "get", "400")["$ref"])
+	require.Equal(t, "#/components/schemas/Container", requireUnconstrainedResponseSchema(t, &model.Model, "/failure", "get", "422")["$ref"])
 
 	runUnconstrainedRuntimeTests(t, moduleDir)
+}
+
+// requireUnconstrainedResponseSchema follows response references through the
+// parser while retaining the schema's own reference or empty-object shape.
+func requireUnconstrainedResponseSchema(t *testing.T, document *v3.Document, path, method, status string) map[string]any {
+	t.Helper()
+	item, ok := document.Paths.PathItems.Get(path)
+	require.True(t, ok)
+	operation, ok := item.GetOperations().Get(method)
+	require.True(t, ok)
+	response, ok := operation.Responses.Codes.Get(status)
+	require.True(t, ok)
+	media, ok := response.Content.Get("application/json")
+	require.True(t, ok)
+	require.NotNil(t, media.Schema)
+	encoded, err := media.Schema.Render()
+	require.NoError(t, err)
+	var schema map[string]any
+	require.NoError(t, yaml.Unmarshal(encoded, &schema))
+	require.NotNil(t, schema)
+	return schema
 }
 
 func requireUnconstrainedMap(t *testing.T, value any, name string) map[string]any {

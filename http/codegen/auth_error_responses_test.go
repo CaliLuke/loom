@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"bytes"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -75,25 +76,37 @@ func TestAuthErrorResponses(t *testing.T) {
 				require.Contains(t, spec.Components.Responses, "ForbiddenError")
 				require.NotNil(t, spec.Components.Responses["UnauthorizedError"].Value.Description)
 				require.NotNil(t, spec.Components.Responses["ForbiddenError"].Value.Description)
-				require.Equal(t, tc.wantUnauthorizedDesc, *spec.Components.Responses["UnauthorizedError"].Value.Description)
-				require.Equal(t, tc.wantForbiddenDesc, *spec.Components.Responses["ForbiddenError"].Value.Description)
+				require.Equal(t, "Unauthorized response.", *spec.Components.Responses["UnauthorizedError"].Value.Description)
+				require.Equal(t, "Forbidden response.", *spec.Components.Responses["ForbiddenError"].Value.Description)
 				require.Equal(t, "#/components/responses/UnauthorizedError", spec.Paths[tc.path1].Get.Responses["401"].Ref)
 				require.Equal(t, "#/components/responses/UnauthorizedError", spec.Paths[tc.path2].Get.Responses["401"].Ref)
 				require.Equal(t, "#/components/responses/ForbiddenError", spec.Paths[tc.path1].Get.Responses["403"].Ref)
 				require.Equal(t, "#/components/responses/ForbiddenError", spec.Paths[tc.path2].Get.Responses["403"].Ref)
 
-				v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
-				doc := parseOpenAPIV3Document(t, v3JSON)
 				for _, path := range []string{tc.path1, tc.path2} {
-					pathItem, ok := doc.Paths.PathItems.Get(path)
-					require.True(t, ok)
-					require.NotNil(t, pathItem.Get)
-					unauthorized, ok := pathItem.Get.Responses.Codes.Get("401")
-					require.True(t, ok)
-					require.Equal(t, tc.wantUnauthorizedDesc, unauthorized.Description)
-					forbidden, ok := pathItem.Get.Responses.Codes.Get("403")
-					require.True(t, ok)
-					require.Equal(t, tc.wantForbiddenDesc, forbidden.Description)
+					unauthorized := spec.Paths[path].Get.Responses["401"]
+					forbidden := spec.Paths[path].Get.Responses["403"]
+					require.NotNil(t, unauthorized.Description)
+					require.NotNil(t, forbidden.Description)
+					require.Equal(t, tc.wantUnauthorizedDesc, *unauthorized.Description)
+					require.Equal(t, tc.wantForbiddenDesc, *forbidden.Description)
+				}
+
+				v3JSON := renderOpenAPIJSON(t, openapiv3.Files, root)
+				parseOpenAPIV3Document(t, v3JSON)
+				var rendered openapiv3.OpenAPI
+				require.NoError(t, json.Unmarshal(v3JSON, &rendered))
+				// Read the Reference Objects themselves: libopenapi's high-level
+				// model exposes the target description without applying overrides.
+				for _, path := range []string{tc.path1, tc.path2} {
+					unauthorized := rendered.Paths[path].Get.Responses["401"]
+					forbidden := rendered.Paths[path].Get.Responses["403"]
+					require.Equal(t, "#/components/responses/UnauthorizedError", unauthorized.Ref)
+					require.Equal(t, "#/components/responses/ForbiddenError", forbidden.Ref)
+					require.NotNil(t, unauthorized.Description)
+					require.NotNil(t, forbidden.Description)
+					require.Equal(t, tc.wantUnauthorizedDesc, *unauthorized.Description)
+					require.Equal(t, tc.wantForbiddenDesc, *forbidden.Description)
 				}
 			})
 		}
