@@ -153,8 +153,13 @@ only one format. Generation removes the stale sibling file when this setting
 changes. JSON output is deterministically ordered, two-space indented, and
 newline-terminated for reviewable diffs.
 
-Automatic request-body, response, parameter and header components share complete
-definitions only when their contents, including examples, agree. Changing an
+Automatic request-body, parameter and header components share complete
+definitions only when their contents, including examples, agree. Responses share
+by HTTP status and complete shape except the top-level description: in both 3.1
+and 3.2, operation descriptions override a neutral component description beside
+`$ref`. Description-only changes do not split or rename components. Other
+metadata and examples still distinguish responses; explicit names stay separate.
+Read the reference's description override before the component description. Changing an
 example can move a definition inline without changing its underlying schema.
 Do not depend on these automatic component references as stable identifiers.
 Explicitly authored component names and schema names retain their contracts.

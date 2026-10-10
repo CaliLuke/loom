@@ -91,8 +91,10 @@ type (
 
 	// ResponseRef is a response reference or value.
 	ResponseRef struct {
-		Ref   string
-		Value *Response
+		Ref string
+		// Description overrides the component description, including an explicit empty string.
+		Description *string
+		Value       *Response
 	}
 
 	// Response describes an IR response.

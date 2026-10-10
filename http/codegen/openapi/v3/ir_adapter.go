@@ -95,7 +95,7 @@ func responseRefFromIR(response *openapiir.ResponseRef) *ResponseRef {
 		return nil
 	}
 	if response.Ref != "" {
-		return &ResponseRef{Ref: response.Ref}
+		return &ResponseRef{Ref: response.Ref, Description: response.Description}
 	}
 	return &ResponseRef{Value: responseFromIR(response.Value)}
 }

@@ -34,9 +34,9 @@ func TestResponseKeysPreserveReferenceSiblingSemantics(t *testing.T) {
 			left := responseSchemaValue(&Schema{Ref: "#/components/schemas/Shared"})
 			right := responseSchemaValue(&Schema{Ref: "#/components/schemas/Shared"})
 			test.change(right.Value.Content["application/json"].Schema)
-			a, err := responseKeys(left, schemas)
+			a, err := responseKeys(left, "200", schemas)
 			require.NoError(t, err)
-			b, err := responseKeys(right, schemas)
+			b, err := responseKeys(right, "200", schemas)
 			require.NoError(t, err)
 			require.Equal(t, a.allocation, b.allocation, "historical naming erased these siblings")
 			require.NotEqual(t, a.semantic, b.semantic, "naming identity must not permit semantic sharing")
@@ -57,9 +57,9 @@ func TestResponsePreferredBasesUseHistoricalIdentityOnly(t *testing.T) {
 	media := &MediaType{Schema: &Schema{Ref: "#/components/schemas/Shared_2"}}
 	require.Equal(t, "SharedStatus200Response", reusableResponseComponentBase(&ResponseRef{Value: &Response{Content: map[string]*MediaType{"application/json": media}}}, "200", schemas))
 	require.Equal(t, "SharedRequestBody", reusableRequestBodyComponentBase(&RequestBodyRef{Value: &RequestBody{Content: map[string]*MediaType{"application/json": media}}}, schemas))
-	a, err := responseKeys(responseSchemaValue(&Schema{Ref: "#/components/schemas/Shared"}), schemas)
+	a, err := responseKeys(responseSchemaValue(&Schema{Ref: "#/components/schemas/Shared"}), "200", schemas)
 	require.NoError(t, err)
-	b, err := responseKeys(responseSchemaValue(&Schema{Ref: "#/components/schemas/Shared_2"}), schemas)
+	b, err := responseKeys(responseSchemaValue(&Schema{Ref: "#/components/schemas/Shared_2"}), "200", schemas)
 	require.NoError(t, err)
 	require.Equal(t, a.allocation, b.allocation)
 	require.NotEqual(t, a.semantic, b.semantic)
@@ -77,9 +77,9 @@ func TestResponseKeysKeepRecursivePurposeCachesIsolated(t *testing.T) {
 				Discriminator: &Discriminator{Mapping: map[string]string{"again": "#/components/schemas/Recursive"}},
 			},
 		}
-		first, err := responseKeys(input, schemas)
+		first, err := responseKeys(input, "200", schemas)
 		require.NoError(t, err)
-		repeat, err := responseKeys(input, schemas)
+		repeat, err := responseKeys(input, "200", schemas)
 		require.NoError(t, err)
 		require.Equal(t, first, repeat)
 		require.Equal(t, example, schemas["Recursive"].Properties["value"].Example)

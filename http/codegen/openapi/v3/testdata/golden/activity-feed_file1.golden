@@ -36,6 +36,7 @@ paths:
                                     $ref: '#/components/schemas/ActivityEnvelope'
                 "400":
                     $ref: '#/components/responses/BadRequestError'
+                    description: 'bad_request: Bad Request response.'
             security: []
     /projects/{project_id}/activities/{activity_id}:
         get:
@@ -60,6 +61,7 @@ paths:
                                 $ref: '#/components/schemas/ActivityEnvelope'
                 "400":
                     $ref: '#/components/responses/BadRequestError'
+                    description: 'bad_request: Bad Request response.'
             security: []
 components:
     schemas:
@@ -174,7 +176,7 @@ components:
             example: proj_9
     responses:
         BadRequestError:
-            description: 'bad_request: Bad Request response.'
+            description: Bad Request response.
             content:
                 application/json:
                     schema:

@@ -29,10 +29,13 @@ paths:
                     $ref: '#/components/responses/OpenAPIThreadAcceptedStatus202Response'
                 "404":
                     $ref: '#/components/responses/NotFoundError'
+                    description: 'not_found: Not Found response.'
                 "409":
                     $ref: '#/components/responses/ConflictError'
+                    description: 'conflict: Conflict response.'
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
+                    description: 'busy: Too Many Requests response.'
             security: []
     /threads/{thread_id}:
         get:
@@ -57,10 +60,13 @@ paths:
                                 title: Release freeze follow-up
                 "404":
                     $ref: '#/components/responses/NotFoundError'
+                    description: 'not_found: Not Found response.'
                 "409":
                     $ref: '#/components/responses/ConflictError'
+                    description: 'conflict: Conflict response.'
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
+                    description: 'busy: Too Many Requests response.'
             security: []
     /threads/{thread_id}/archive:
         post:
@@ -75,10 +81,13 @@ paths:
                     description: No Content response.
                 "404":
                     $ref: '#/components/responses/NotFoundError'
+                    description: 'not_found: Not Found response.'
                 "409":
                     $ref: '#/components/responses/ConflictError'
+                    description: 'conflict: Conflict response.'
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
+                    description: 'busy: Too Many Requests response.'
             security: []
     /threads/{thread_id}/events:
         get:
@@ -117,10 +126,13 @@ paths:
                                 additionalProperties: false
                 "404":
                     $ref: '#/components/responses/NotFoundError'
+                    description: 'not_found: Not Found response.'
                 "409":
                     $ref: '#/components/responses/ConflictError'
+                    description: 'conflict: Conflict response.'
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
+                    description: 'busy: Too Many Requests response.'
             security: []
             summary: watchThread threadOps
             tags:
@@ -193,10 +205,13 @@ paths:
                     $ref: '#/components/responses/OpenAPIThreadAcceptedStatus202Response'
                 "404":
                     $ref: '#/components/responses/NotFoundError'
+                    description: 'not_found: Not Found response.'
                 "409":
                     $ref: '#/components/responses/ConflictError'
+                    description: 'conflict: Conflict response.'
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
+                    description: 'busy: Too Many Requests response.'
             security: []
     /ws/ops/{channel}:
         get:
@@ -404,7 +419,7 @@ components:
             example: thr_42
     responses:
         ConflictError:
-            description: 'conflict: Conflict response.'
+            description: Conflict response.
             content:
                 application/problem+json:
                     schema:
@@ -418,7 +433,7 @@ components:
                             type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
         NotFoundError:
-            description: 'not_found: Not Found response.'
+            description: Not Found response.
             content:
                 application/problem+json:
                     schema:
@@ -453,7 +468,7 @@ components:
                     parameters:
                         thread_id: $response.body#/thread_id
         TooManyRequestsError:
-            description: 'busy: Too Many Requests response.'
+            description: Too Many Requests response.
             content:
                 application/problem+json:
                     schema:

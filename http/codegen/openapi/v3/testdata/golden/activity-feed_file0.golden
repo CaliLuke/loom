@@ -28,7 +28,7 @@
             }
           }
         },
-        "description": "bad_request: Bad Request response."
+        "description": "Bad Request response."
       }
     },
     "schemas": {
@@ -222,7 +222,8 @@
             "description": "OK response."
           },
           "400": {
-            "$ref": "#/components/responses/BadRequestError"
+            "$ref": "#/components/responses/BadRequestError",
+            "description": "bad_request: Bad Request response."
           }
         },
         "security": [],
@@ -261,7 +262,8 @@
             "description": "OK response."
           },
           "400": {
-            "$ref": "#/components/responses/BadRequestError"
+            "$ref": "#/components/responses/BadRequestError",
+            "description": "bad_request: Bad Request response."
           }
         },
         "security": [],

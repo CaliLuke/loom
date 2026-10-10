@@ -17,7 +17,7 @@ func TestResponseRetainsHistoricalSlotAfterSemanticSplit(t *testing.T) {
 	add("/d", nil, "later")
 	components := componentizeResponses(paths, map[string]*Schema{"Shared": {Type: "string"}})
 	require.NotEmpty(t, components)
-	// Independently recorded from the parent pass before semantic-class splitting.
-	require.Equal(t, "#/components/responses/SharedStatus200Response_3a38f3ed", paths["/c"].Operations["GET"].Responses["200"].Ref)
+	// Status/shape naming still reserves the slot before semantic-class splitting.
+	require.Equal(t, "#/components/responses/SharedStatus200Response_b630d408", paths["/c"].Operations["GET"].Responses["200"].Ref)
 	require.Equal(t, paths["/c"].Operations["GET"].Responses["200"].Ref, paths["/d"].Operations["GET"].Responses["200"].Ref)
 }

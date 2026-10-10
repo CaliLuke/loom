@@ -78,14 +78,17 @@ independent review under the repository's cleanup process.
 
 ## Response public identities
 
-`ResponseAllocation.tla` separates complete response equality from the historical
-serialized key used for public names. Retaining reference-sibling examples
+`ResponseAllocation.tla` separates response shape equality from the naming-only
+serialized key. Since #644 both projections include HTTP status and explicit
+component ownership and exclude present top-level descriptions, which live on
+references. See [description sharing](../response_media/README.md). The old
+literal suffixes changed deliberately when that extraction contract changed. Retaining reference-sibling examples
 changed a non-Bytes response suffix even though its emitted schema was unchanged.
 The naming-only projection cannot authorize semantic sharing.
 
 The complete parent ordered pass reserves every historical slot before semantic
 eligibility filtering. Each eligible original representative keeps its slot and
-per-use references, including multiple public names for one complete contract.
+per-use references, including multiple names for one equivalent shape.
 Retired slots and authored-only names remain reserved. Split classes use checked
 fallback names; genuinely unassigned equal uses reuse the earliest binding.
 `reusable_components{,_helpers,_naming}.go` owns this separation.
@@ -105,8 +108,7 @@ recursive hash extraction, hash collision resistance, parent suffix collisions,
 or arbitrary allocation-order invariance. Integer fallback candidates abstract
 hex-prefix extension and checked numeric suffixes. Direct response allocation
 tests cover three historical contexts, exact producer preservation and occupied
-prefixes. `TestResponsePublicIdentityPreservesReferenceAnnotations` uses the
-literal parent-generated suffix; `TestResponseRetainsHistoricalSlotAfterSemanticSplit`
-checks an independently recorded later name. Full isolated artifact comparisons
-remain required. Keep checker output outside the repository and remove owned
+prefixes. `TestResponseRetainsHistoricalSlotAfterSemanticSplit` checks the reserved later
+name under the status/shape projection. Bounded isolated artifact comparisons
+check the production boundary. Keep checker output outside the repository and remove owned
 state after review; retain sources, configs and concise findings here.

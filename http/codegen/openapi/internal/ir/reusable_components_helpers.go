@@ -165,18 +165,29 @@ func shouldForceComponentizeResponse(response *Response) bool {
 	return response != nil && strings.TrimSpace(response.ComponentName) != ""
 }
 
-// responseKeys keeps complete-contract equality separate from the historical
-// serialization that determines public response names. The allocation key must
-// never authorize sharing a response or dropping active reference siblings.
-func responseKeys(ref *ResponseRef, schemas map[string]*Schema) (responseIdentity, error) {
+// responseKeys compares status and complete response shape, excluding only the
+// description carried by each reference. The naming-only projection must never
+// authorize sharing a response or dropping active schema reference siblings.
+func responseKeys(ref *ResponseRef, status string, schemas map[string]*Schema) (responseIdentity, error) {
 	if ref == nil || ref.Value == nil {
 		return responseIdentity{}, nil
 	}
-	semantic, err := hashReusableValue(cloneResponseForHash(ref.Value, schemas, responseSemanticHash))
+	value := *ref.Value
+	if !value.OmitDescription {
+		value.Description = ""
+	}
+	hash := func(purpose responseHashPurpose) (string, error) {
+		return hashReusableValue(struct {
+			Status   string
+			Name     string
+			Response *Response
+		}{status, strings.TrimSpace(value.ComponentName), cloneResponseForHash(&value, schemas, purpose)})
+	}
+	semantic, err := hash(responseSemanticHash)
 	if err != nil {
 		return responseIdentity{}, err
 	}
-	allocation, err := hashReusableValue(cloneResponseForHash(ref.Value, schemas, responseAllocationHash))
+	allocation, err := hash(responseAllocationHash)
 	if err != nil {
 		return responseIdentity{}, err
 	}

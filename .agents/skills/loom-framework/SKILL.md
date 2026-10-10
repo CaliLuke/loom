@@ -332,8 +332,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   The models in `expr/tla/schema_declaration` record these ownership boundaries.
 - Treat stable schema names, canonical `operationId`, explicitly authored
   component names, and extension output as public framework contracts.
-  Automatic request-body, response, parameter and header reuse compares complete
-  contents, including retained examples. Different examples may prevent reuse
+  Automatic request-body, parameter and header reuse compares complete contents,
+  including retained examples. Response reuse is owned by `responseKeys` in the
+  IR: compare status, explicit component name and complete shape, excluding only
+  a present top-level description. Carry that description on `ResponseRef` and
+  give the shared component neutral status text. Keep omitted-description policy
+  and its 3.1 fallback together. Automatic names must not depend on error text;
+  JSON/YAML codecs preserve absent versus empty description overrides. Different examples may prevent reuse
   and leave equivalent definitions inline; do not resample or discard examples
   to retain automatic references. Schema reuse remains separate. Compare
   downstream generated clients when changing this document structure.

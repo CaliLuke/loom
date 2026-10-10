@@ -17,6 +17,7 @@ var OpenAPISharedErrorHeaderDSL = func() {
 	})
 
 	API("shared-error-responses", func() {
+		Meta("openapi:example", "false")
 		Title("Shared Error Responses API")
 		Description("Exercises repeated error responses whose routing field is carried by a header.")
 		Version("1.0.0")
@@ -37,12 +38,18 @@ var OpenAPISharedErrorHeaderDSL = func() {
 			Method(methodName, func() {
 				NoSecurity()
 				Error("bad_request", ExceptionResponse)
+				Error("invalid_input", ExceptionResponse)
 				Error("unauthorized", ExceptionResponse)
 				Error("forbidden", ExceptionResponse)
 				HTTP(func() {
 					GET("/" + methodName)
 					Response(StatusNoContent)
 					Response("bad_request", StatusBadRequest, func() {
+						Description("Invalid request for " + methodName + ".")
+						Header("loomError:loom-error")
+					})
+					Response("invalid_input", StatusBadRequest, func() {
+						Description("Invalid input for " + methodName + ".")
 						Header("loomError:loom-error")
 					})
 					Response("unauthorized", StatusUnauthorized, func() {

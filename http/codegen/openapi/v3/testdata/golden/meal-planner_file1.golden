@@ -41,6 +41,7 @@ paths:
                                 additionalProperties: false
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
+                    description: 'rate_limited: Too Many Requests response.'
             security: []
             summary: watchPlannerEvents mealPlanner
             tags:
@@ -110,6 +111,7 @@ paths:
                                 status: ok
                 "429":
                     $ref: '#/components/responses/TooManyRequestsError'
+                    description: 'rate_limited: Too Many Requests response.'
             security: []
     /meal-plans/{week_start}:
         patch:
@@ -185,10 +187,13 @@ paths:
                                 week_start: "2026-03-16"
                 "400":
                     $ref: '#/components/responses/BadRequestError'
+                    description: 'bad_request: Bad Request response.'
                 "401":
                     $ref: '#/components/responses/UnauthorizedError'
+                    description: 'unauthorized: Authentication is required.'
                 "403":
                     $ref: '#/components/responses/ForbiddenError'
+                    description: 'forbidden: Access is forbidden.'
             security:
                 - access_token: []
                 - browser_session: []
@@ -219,10 +224,13 @@ paths:
                     $ref: '#/components/responses/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequestError'
+                    description: 'bad_request: Bad Request response.'
                 "401":
                     $ref: '#/components/responses/UnauthorizedError'
+                    description: 'unauthorized: Authentication is required.'
                 "403":
                     $ref: '#/components/responses/ForbiddenError'
+                    description: 'forbidden: Access is forbidden.'
             security:
                 - access_token: []
                 - browser_session: []
@@ -270,10 +278,13 @@ paths:
                                 import_id: import_7
                 "400":
                     $ref: '#/components/responses/BadRequestError'
+                    description: 'bad_request: Bad Request response.'
                 "401":
                     $ref: '#/components/responses/UnauthorizedError'
+                    description: 'unauthorized: Authentication is required.'
                 "403":
                     $ref: '#/components/responses/ForbiddenError'
+                    description: 'forbidden: Access is forbidden.'
             security:
                 - access_token: []
                 - browser_session: []
@@ -290,10 +301,13 @@ paths:
                     $ref: '#/components/responses/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequestError'
+                    description: 'bad_request: Bad Request response.'
                 "401":
                     $ref: '#/components/responses/UnauthorizedError'
+                    description: 'unauthorized: Authentication is required.'
                 "403":
                     $ref: '#/components/responses/ForbiddenError'
+                    description: 'forbidden: Access is forbidden.'
             security:
                 - access_token: []
                 - browser_session: []
@@ -310,10 +324,13 @@ paths:
                     $ref: '#/components/responses/NoContentResponse'
                 "400":
                     $ref: '#/components/responses/BadRequestError'
+                    description: 'bad_request: Bad Request response.'
                 "401":
                     $ref: '#/components/responses/UnauthorizedError'
+                    description: 'unauthorized: Authentication is required.'
                 "403":
                     $ref: '#/components/responses/ForbiddenError'
+                    description: 'forbidden: Access is forbidden.'
             security:
                 - access_token: []
                 - browser_session: []
@@ -388,10 +405,13 @@ paths:
                                   title: Sheet Pan Gnocchi
                 "400":
                     $ref: '#/components/responses/BadRequestError'
+                    description: 'bad_request: Bad Request response.'
                 "401":
                     $ref: '#/components/responses/UnauthorizedError'
+                    description: 'unauthorized: Authentication is required.'
                 "403":
                     $ref: '#/components/responses/ForbiddenError'
+                    description: 'forbidden: Access is forbidden.'
             security:
                 - access_token: []
                 - browser_session: []
@@ -442,8 +462,10 @@ paths:
                                 title: Sheet Pan Gnocchi
                 "401":
                     $ref: '#/components/responses/UnauthorizedError'
+                    description: 'unauthorized: Authentication is required.'
                 "403":
                     $ref: '#/components/responses/ForbiddenError'
+                    description: 'forbidden: Access is forbidden.'
                 "404":
                     description: 'not_found: Not Found response.'
                     content:
@@ -919,7 +941,7 @@ components:
                         $ref: '#/components/schemas/PreviewSelectionRequestBody'
     responses:
         BadRequestError:
-            description: 'bad_request: Bad Request response.'
+            description: Bad Request response.
             content:
                 application/problem+json:
                     schema:
@@ -933,7 +955,7 @@ components:
                             type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
         ForbiddenError:
-            description: 'forbidden: Access is forbidden.'
+            description: Forbidden response.
             content:
                 application/problem+json:
                     schema:
@@ -949,7 +971,7 @@ components:
         NoContentResponse:
             description: No Content response.
         TooManyRequestsError:
-            description: 'rate_limited: Too Many Requests response.'
+            description: Too Many Requests response.
             content:
                 application/problem+json:
                     schema:
@@ -963,7 +985,7 @@ components:
                             type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
         UnauthorizedError:
-            description: 'unauthorized: Authentication is required.'
+            description: Unauthorized response.
             content:
                 application/problem+json:
                     schema:

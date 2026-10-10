@@ -180,8 +180,12 @@ func TestFilesPreserveBuiltInProblemDescriptionForAllTargets(t *testing.T) {
 					require.Equal(t, "Problem response result type", problem["description"])
 
 					responses := requireMap(t, components["responses"], "component responses")
-					require.Equal(t, "invalid_request: Bad Request response.", requireMap(t, responses["InvalidRequestError"], "invalid request response")["description"])
-					require.Equal(t, "internal_error: Internal Server Error response.", requireMap(t, responses["InternalError"], "internal error response")["description"])
+					require.Equal(t, "Bad Request response.", requireMap(t, responses["InvalidRequestError"], "invalid request response")["description"])
+					require.Equal(t, "Internal Server Error response.", requireMap(t, responses["InternalError"], "internal error response")["description"])
+					operation := requireOperation(t, spec, "/problems", "get")
+					uses := requireMap(t, operation["responses"], "operation responses")
+					require.Equal(t, "invalid_request: Bad Request response.", requireMap(t, uses["400"], "400 reference")["description"])
+					require.Equal(t, "internal_error: Internal Server Error response.", requireMap(t, uses["500"], "500 reference")["description"])
 				})
 			}
 		})

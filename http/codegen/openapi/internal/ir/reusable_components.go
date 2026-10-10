@@ -40,6 +40,7 @@ type (
 	responseComponentUse struct {
 		ref    *ResponseRef
 		base   string
+		status string
 		keys   responseIdentity
 		forced bool
 	}
@@ -207,7 +208,17 @@ func componentizeResponses(paths map[string]*PathItem, schemas map[string]*Schem
 			continue
 		}
 		name := allocator.name(use)
-		components[name] = &ResponseRef{Value: allocator.values[name]}
+		if components[name] == nil {
+			value := *allocator.values[name]
+			if !value.OmitDescription {
+				value.Description = responseComponentDescription(use.status)
+			}
+			components[name] = &ResponseRef{Value: &value}
+		}
+		if !use.ref.Value.OmitDescription && use.ref.Value.Description != components[name].Value.Description {
+			description := use.ref.Value.Description
+			use.ref.Description = &description
+		}
 		use.ref.Ref = ResponseComponentRefPrefix + name
 		use.ref.Value = nil
 	}
@@ -224,7 +235,7 @@ func collectResponseComponentUses(paths map[string]*PathItem, schemas map[string
 		if usage.ref == nil || usage.ref.Value == nil || usage.ref.Ref != "" {
 			continue
 		}
-		keys, err := responseKeys(usage.ref, schemas)
+		keys, err := responseKeys(usage.ref, usage.status, schemas)
 		if err != nil || keys.semantic == "" || keys.allocation == "" {
 			continue
 		}
@@ -233,7 +244,7 @@ func collectResponseComponentUses(paths map[string]*PathItem, schemas map[string
 			base = inferred
 		}
 		uses = append(uses, responseComponentUse{
-			ref: usage.ref, base: base, keys: keys,
+			ref: usage.ref, base: base, status: usage.status, keys: keys,
 			forced: shouldForceComponentizeResponse(usage.ref.Value),
 		})
 	}

@@ -12,10 +12,14 @@ type (
 		Value *Parameter
 	}
 
-	// ResponseRef represents an OpenAPI reference to a Response object as defined in
-	// https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#referenceObject
+	// ResponseRef holds an inline response or an OpenAPI 3.1/3.2 Reference Object.
 	ResponseRef struct {
-		Ref   string
+		// Ref identifies the response component; when set it takes precedence over Value.
+		Ref string
+		// Description overrides the referenced description. Nil inherits it; a pointer
+		// to an empty string explicitly clears it. It is ignored for inline responses.
+		Description *string
+		// Value holds an inline response when Ref is empty.
 		Value *Response
 	}
 
@@ -72,7 +76,6 @@ type (
 )
 
 func (r *ParameterRef) MarshalJSON() ([]byte, error)      { return marshalJSONRef(r.Ref, r.Value) }
-func (r *ResponseRef) MarshalJSON() ([]byte, error)       { return marshalJSONRef(r.Ref, r.Value) }
 func (r *HeaderRef) MarshalJSON() ([]byte, error)         { return marshalJSONRef(r.Ref, r.Value) }
 func (r *CallbackRef) MarshalJSON() ([]byte, error)       { return marshalJSONRef(r.Ref, r.Value) }
 func (r *ExampleRef) MarshalJSON() ([]byte, error)        { return marshalJSONRef(r.Ref, r.Value) }
@@ -82,7 +85,6 @@ func (r *SecuritySchemeRef) MarshalJSON() ([]byte, error) { return marshalJSONRe
 func (r *MediaTypeRef) MarshalJSON() ([]byte, error)      { return marshalJSONRef(r.Ref, r.Value) }
 
 func (r *ParameterRef) MarshalYAML() (any, error)      { return marshalYAMLRef(r.Ref, r.Value) }
-func (r *ResponseRef) MarshalYAML() (any, error)       { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *HeaderRef) MarshalYAML() (any, error)         { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *CallbackRef) MarshalYAML() (any, error)       { return marshalYAMLRef(r.Ref, r.Value) }
 func (r *ExampleRef) MarshalYAML() (any, error)        { return marshalYAMLRef(r.Ref, r.Value) }
@@ -92,7 +94,6 @@ func (r *SecuritySchemeRef) MarshalYAML() (any, error) { return marshalYAMLRef(r
 func (r *MediaTypeRef) MarshalYAML() (any, error)      { return marshalYAMLRef(r.Ref, r.Value) }
 
 func (r *ParameterRef) UnmarshalJSON(d []byte) error   { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
-func (r *ResponseRef) UnmarshalJSON(d []byte) error    { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
 func (r *HeaderRef) UnmarshalJSON(d []byte) error      { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
 func (r *CallbackRef) UnmarshalJSON(d []byte) error    { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
 func (r *ExampleRef) UnmarshalJSON(d []byte) error     { return unmarshalJSONRef(d, &r.Ref, &r.Value) }
@@ -106,9 +107,6 @@ func (r *MediaTypeRef) UnmarshalJSON(d []byte) error {
 }
 
 func (r *ParameterRef) UnmarshalYAML(u func(any) error) error {
-	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
-}
-func (r *ResponseRef) UnmarshalYAML(u func(any) error) error {
 	return unmarshalYAMLRef(u, &r.Ref, &r.Value)
 }
 func (r *HeaderRef) UnmarshalYAML(u func(any) error) error {

@@ -29,7 +29,7 @@
             }
           }
         },
-        "description": "conflict: Conflict response."
+        "description": "Conflict response."
       },
       "NotFoundError": {
         "content": {
@@ -48,7 +48,7 @@
             }
           }
         },
-        "description": "not_found: Not Found response."
+        "description": "Not Found response."
       },
       "OpenAPIThreadAcceptedStatus202Response": {
         "content": {
@@ -99,7 +99,7 @@
             }
           }
         },
-        "description": "busy: Too Many Requests response."
+        "description": "Too Many Requests response."
       }
     },
     "schemas": {
@@ -308,13 +308,16 @@
             "$ref": "#/components/responses/OpenAPIThreadAcceptedStatus202Response"
           },
           "404": {
-            "$ref": "#/components/responses/NotFoundError"
+            "$ref": "#/components/responses/NotFoundError",
+            "description": "not_found: Not Found response."
           },
           "409": {
-            "$ref": "#/components/responses/ConflictError"
+            "$ref": "#/components/responses/ConflictError",
+            "description": "conflict: Conflict response."
           },
           "429": {
-            "$ref": "#/components/responses/TooManyRequestsError"
+            "$ref": "#/components/responses/TooManyRequestsError",
+            "description": "busy: Too Many Requests response."
           }
         },
         "security": [],
@@ -352,13 +355,16 @@
             "description": "OK response."
           },
           "404": {
-            "$ref": "#/components/responses/NotFoundError"
+            "$ref": "#/components/responses/NotFoundError",
+            "description": "not_found: Not Found response."
           },
           "409": {
-            "$ref": "#/components/responses/ConflictError"
+            "$ref": "#/components/responses/ConflictError",
+            "description": "conflict: Conflict response."
           },
           "429": {
-            "$ref": "#/components/responses/TooManyRequestsError"
+            "$ref": "#/components/responses/TooManyRequestsError",
+            "description": "busy: Too Many Requests response."
           }
         },
         "security": [],
@@ -381,13 +387,16 @@
             "description": "No Content response."
           },
           "404": {
-            "$ref": "#/components/responses/NotFoundError"
+            "$ref": "#/components/responses/NotFoundError",
+            "description": "not_found: Not Found response."
           },
           "409": {
-            "$ref": "#/components/responses/ConflictError"
+            "$ref": "#/components/responses/ConflictError",
+            "description": "conflict: Conflict response."
           },
           "429": {
-            "$ref": "#/components/responses/TooManyRequestsError"
+            "$ref": "#/components/responses/TooManyRequestsError",
+            "description": "busy: Too Many Requests response."
           }
         },
         "security": [],
@@ -450,13 +459,16 @@
             "description": "OK response."
           },
           "404": {
-            "$ref": "#/components/responses/NotFoundError"
+            "$ref": "#/components/responses/NotFoundError",
+            "description": "not_found: Not Found response."
           },
           "409": {
-            "$ref": "#/components/responses/ConflictError"
+            "$ref": "#/components/responses/ConflictError",
+            "description": "conflict: Conflict response."
           },
           "429": {
-            "$ref": "#/components/responses/TooManyRequestsError"
+            "$ref": "#/components/responses/TooManyRequestsError",
+            "description": "busy: Too Many Requests response."
           }
         },
         "security": [],
@@ -554,13 +566,16 @@
             "$ref": "#/components/responses/OpenAPIThreadAcceptedStatus202Response"
           },
           "404": {
-            "$ref": "#/components/responses/NotFoundError"
+            "$ref": "#/components/responses/NotFoundError",
+            "description": "not_found: Not Found response."
           },
           "409": {
-            "$ref": "#/components/responses/ConflictError"
+            "$ref": "#/components/responses/ConflictError",
+            "description": "conflict: Conflict response."
           },
           "429": {
-            "$ref": "#/components/responses/TooManyRequestsError"
+            "$ref": "#/components/responses/TooManyRequestsError",
+            "description": "busy: Too Many Requests response."
           }
         },
         "security": [],

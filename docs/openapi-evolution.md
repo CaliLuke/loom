@@ -9,13 +9,40 @@ version, policy, severity overrides, and ignores.
 
 ## Distinguish schema identity from automatic reuse
 
-Loom shares complete automatic request-body, response, parameter and header
-definitions only when their contents, including examples, agree. Operations can
+Loom shares automatic request-body, parameter and header definitions only when
+their contents, including examples, agree. Response components compare the HTTP
+status and complete response shape, except for the top-level description. Operations can
 share a data schema while retaining different examples in their own definitions.
 Changing an example can therefore remove an automatic component and replace its
 references with inline definitions. These automatic references are not stable
 identifiers. Explicitly authored component names and schema names retain their
 existing contracts.
+
+For both OpenAPI 3.1 and 3.2, operation-specific response descriptions appear
+beside `$ref`. The shared component has a neutral status description:
+
+```yaml
+responses:
+  "400":
+    $ref: '#/components/responses/BadRequestError'
+    description: |-
+      invalid_account: Account is invalid.
+
+      invalid_metadata: Metadata is invalid.
+```
+
+Changing only that description does not create another component or change its
+automatic name. Different schemas, headers, media types, links, summaries,
+extensions or examples still prevent sharing. Explicit component names remain
+separate. An explicitly omitted 3.2 description retains its omission policy and
+3.1 fallback text. Unnamed single-use responses can remain inline.
+
+Regenerate OpenAPI after upgrading. Tools that read response descriptions must
+apply Reference Object description overrides, including an explicit empty string,
+instead of reading only `components.responses`. This is standard
+[OpenAPI 3.1 Reference Object behavior](https://spec.openapis.org/oas/v3.1.1.html#reference-object),
+also supported by OpenAPI 3.2. Existing automatic component names and hash
+suffixes can change during this migration; there is no legacy allocation mode.
 
 Review both the OpenAPI diff and regenerated SDK and validator output when
 updating Loom. Moving an equivalent definition inline preserves its contract,
