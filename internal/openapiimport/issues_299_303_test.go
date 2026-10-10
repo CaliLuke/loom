@@ -426,16 +426,36 @@ components:
 		operation := operationFromImportedSpec(t, contract, path, "patch")
 		require.NotNil(t, operation["requestBody"], path)
 	}
-	required := operationFromImportedSpec(t, contract, "/required", "patch")["requestBody"].(map[string]any)
+	required := patchRequestBodyFromImportedSpec(t, contract, "/required")
 	require.Equal(t, true, required["required"])
 	require.Equal(t, "#/components/schemas/Config", required["content"].(map[string]any)["application/x-www-form-urlencoded"].(map[string]any)["schema"].(map[string]any)["$ref"])
-	envelope := operationFromImportedSpec(t, contract, "/envelope/{id}", "patch")["requestBody"].(map[string]any)
+	envelope := patchRequestBodyFromImportedSpec(t, contract, "/envelope/{id}")
 	require.Equal(t, true, envelope["required"])
 	require.Equal(t, "#/components/schemas/Config", envelope["content"].(map[string]any)["application/x-www-form-urlencoded"].(map[string]any)["schema"].(map[string]any)["$ref"])
-	multi := operationFromImportedSpec(t, contract, "/multi/{id}", "patch")["requestBody"].(map[string]any)
+	multi := patchRequestBodyFromImportedSpec(t, contract, "/multi/{id}")
+	require.NotEqual(t, true, multi["required"])
 	require.ElementsMatch(t, []string{"application/json", "application/x-www-form-urlencoded", "multipart/form-data"}, mapKeysAny(multi["content"].(map[string]any)))
-	optionalMultipart := operationFromImportedSpec(t, contract, "/multipart-optional", "patch")["requestBody"].(map[string]any)
+	requiredMultipart := patchRequestBodyFromImportedSpec(t, contract, "/multipart-required")
+	require.Equal(t, true, requiredMultipart["required"])
+	optionalMultipart := patchRequestBodyFromImportedSpec(t, contract, "/multipart-optional")
 	require.NotEqual(t, true, optionalMultipart["required"])
+}
+
+func patchRequestBodyFromImportedSpec(t *testing.T, contract map[string]any, path string) map[string]any {
+	t.Helper()
+	body, ok := operationFromImportedSpec(t, contract, path, "patch")["requestBody"].(map[string]any)
+	require.True(t, ok, "request body for PATCH %s", path)
+	if ref, ok := body["$ref"].(string); ok {
+		const prefix = "#/components/requestBodies/"
+		require.True(t, strings.HasPrefix(ref, prefix), "request body reference %q", ref)
+		components, ok := contract["components"].(map[string]any)
+		require.True(t, ok)
+		bodies, ok := components["requestBodies"].(map[string]any)
+		require.True(t, ok)
+		body, ok = bodies[strings.TrimPrefix(ref, prefix)].(map[string]any)
+		require.True(t, ok, "request body component %q", ref)
+	}
+	return body
 }
 
 func mapKeysAny(values map[string]any) []string {
