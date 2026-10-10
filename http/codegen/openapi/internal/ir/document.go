@@ -2,7 +2,9 @@ package ir
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -13,7 +15,8 @@ import (
 )
 
 // BuildDocument analyzes HTTP operations, schemas and security bindings. It
-// returns an error when OpenAPI cannot represent a credential location.
+// returns an error when OpenAPI cannot represent a credential location or
+// reconcile response metadata for alternatives sharing a status.
 func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr.ResultTypeExpr, options ...AnalyzerOption) (*Document, error) {
 	if api == nil || api.HTTP == nil {
 		return nil, nil
@@ -57,7 +60,10 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 			}
 			for _, route := range endpoint.Routes {
 				key := expr.HTTPWildcardRegex.ReplaceAllString(route.Path, "/{$1}")
-				operation := buildRouteOperationFromIR(endpoint, route, key, serviceBodies[endpoint.Name], exampleGenerator, api.Meta, closeObjects, bindings)
+				operation, err := buildRouteOperationFromIR(endpoint, route, key, serviceBodies[endpoint.Name], exampleGenerator, api.Meta, closeObjects, bindings)
+				if err != nil {
+					return nil, err
+				}
 				pathItem := doc.Paths[key]
 				if pathItem == nil {
 					pathItem = &PathItem{Operations: make(map[string]*Operation)}
@@ -71,14 +77,18 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 	return doc, nil
 }
 
-func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) *Operation {
+func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) (*Operation, error) {
 	if endpointIR == nil {
-		return nil
+		return nil, nil
+	}
+	responses, err := buildResponses(endpointIR, bodies, rand, closeObjects)
+	if err != nil {
+		return nil, err
 	}
 	return &Operation{
 		RequestBody: wrapRequestBody(buildRequestBody(endpointIR, bodies, closeObjects)),
-		Responses:   wrapResponses(buildResponses(endpointIR, bodies, rand, closeObjects)),
-	}
+		Responses:   wrapResponses(responses),
+	}, nil
 }
 
 func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, closeObjects bool) *RequestBody {
@@ -140,10 +150,11 @@ func requestBodyDescription(bodyAttr *expr.AttributeExpr) string {
 	return ""
 }
 
-func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) map[string]*Response {
+func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) (map[string]*Response, error) {
 	responses := make(map[string]*Response, len(endpointIR.Response.Responses)+len(endpointIR.Response.ErrorResponses))
+	alternatives := make(map[string][]responseAlternative)
 	statusBodies := cloneResponseBodies(bodies)
-	for _, resp := range endpointIR.Response.Responses {
+	for index, resp := range endpointIR.Response.Responses {
 		statusCode := resp.StatusCode
 		if endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE {
 			if _, ok := responses[strconv.Itoa(expr.StatusSwitchingProtocols)]; !ok {
@@ -153,7 +164,10 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 			}
 		}
 		websocketHandshake := endpointIR.Stream.IsStreaming && !endpointIR.Stream.IsSSE && statusCode == expr.StatusSwitchingProtocols
-		responses[strconv.Itoa(statusCode)] = buildResponse(resp, statusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake, bodies.locations, bodies.responseMedia[resp])
+		response := buildResponse(resp, statusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), websocketHandshake, bodies.locations, bodies.responseMedia[resp])
+		status := strconv.Itoa(statusCode)
+		alternatives[status] = append(alternatives[status], responseAlternative{fmt.Sprintf("success-%d", index), response})
+		responses[status] = response
 	}
 	for _, errResp := range endpointIR.Response.ErrorResponses {
 		resp := buildResponse(errResp, errResp.StatusCode, statusBodies, rand, closeObjects, endpointServiceName(endpointIR), false, bodies.locations, bodies.responseMedia[errResp])
@@ -172,10 +186,19 @@ func buildResponses(endpointIR *transportir.Endpoint, bodies *EndpointBodies, ra
 				content.Examples = nil
 			}
 		}
-		responses[strconv.Itoa(errResp.StatusCode)] = resp
+		status := strconv.Itoa(errResp.StatusCode)
+		alternatives[status] = append(alternatives[status], responseAlternative{errResp.Error.Name, resp})
+	}
+	for _, status := range slices.Sorted(maps.Keys(alternatives)) {
+		variants := alternatives[status]
+		response, err := mergeResponseAlternatives(variants)
+		if err != nil {
+			return nil, fmt.Errorf("OpenAPI response %s for %s.%s: %w", status, endpointServiceName(endpointIR), endpointIR.Name, err)
+		}
+		responses[status] = response
 	}
 	addFileResponseProtocolResponses(endpointIR, responses)
-	return responses
+	return responses, nil
 }
 
 func buildResponse(
@@ -303,7 +326,7 @@ func buildMediaType(
 	mediaType := &MediaType{
 		Schema:        schema,
 		ComponentName: componentMetaValue(attr, "openapi:component:mediaType"),
-		Metadata:      cloneMeta(attr.Meta),
+		Metadata:      mediaTypeMetadata(attr.Meta),
 		Extensions:    openapi.ScopedExtensionsFromExpr(attr.Meta, "mediaType"),
 	}
 	initExamples(mediaType, attr, closeObjects, prepared)
@@ -313,15 +336,21 @@ func buildMediaType(
 	return mediaType
 }
 
-func cloneMeta(meta expr.MetaExpr) map[string][]string {
-	if len(meta) == 0 {
-		return nil
-	}
-	cloned := make(map[string][]string, len(meta))
+// mediaTypeMetadata captures only annotations lowered on the media object.
+// Body naming and schema annotations belong to the selected schema, not to
+// compatibility checks between media objects that can contain several schemas.
+func mediaTypeMetadata(meta expr.MetaExpr) map[string][]string {
+	var selected map[string][]string
 	for key, values := range meta {
-		cloned[key] = append([]string(nil), values...)
+		if key == "openapi:itemSchema" || strings.HasPrefix(key, "openapi:encoding:") ||
+			strings.HasPrefix(key, "openapi:prefixEncoding:") || strings.HasPrefix(key, "openapi:itemEncoding:") {
+			if selected == nil {
+				selected = make(map[string][]string)
+			}
+			selected[key] = slices.Clone(values)
+		}
 	}
-	return cloned
+	return selected
 }
 
 func headersFromIR(

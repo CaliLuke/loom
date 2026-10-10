@@ -305,6 +305,7 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "collection-examples", dsl: testdata.CollectionExamplesDSL},
 		{name: "byte-enums", dsl: testdata.CollectionEnumDSL},
 		{name: "large-nested-enum", dsl: testdata.LargeEnumResponseDSL},
+		{name: "error-media-alternatives", dsl: testdata.ErrorMediaDSL},
 		{name: "explicit-body-result-type", dsl: testdata.ExplicitBodyResultTypeDSL},
 	}
 	for _, tc := range lintCases {

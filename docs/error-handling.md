@@ -220,6 +220,19 @@ field from it, and the field is omitted from the response body and OpenAPI
 schema. This supports several named errors with one unchanged payload shape,
 including multiple errors that use the same HTTP status.
 
+OpenAPI combines responses that share a status. Distinct media types retain
+their own schemas; alternatives within one media type use `anyOf`, since error
+shapes may overlap. Header schemas also use `anyOf` when they differ. A header
+is required only when every alternative requires it. Descriptions and examples
+are retained in deterministic order, with examples named by their response.
+The generated server, client, and response contract manifest continue to select
+the individual designed error.
+
+Conflicting response component names, links, extension values, description
+omission settings, or non-schema media/header metadata stop OpenAPI generation
+with the endpoint and status in the diagnostic. Give these alternatives
+compatible metadata. Regenerate the OpenAPI files to include all alternatives.
+
 Use `Body("field")` to send one field of a custom error as the entire response
 body. For example, a string field can carry an HTML error page:
 

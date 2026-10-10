@@ -31,6 +31,12 @@ so manual changes are both temporary and misleading.
 Generation, example, and vet helpers honor the active Go workspace's modules
 and replacements. Set `GOWORK=off` to use only the design module's `go.mod`.
 
+HTTP errors may share a status and use distinct media types. OpenAPI retains
+all representations and uses `anyOf` for overlapping body or header schemas.
+Headers are required only across all alternatives. Keep response links,
+extensions and explicit component names compatible; conflicting metadata
+produces a generation diagnostic identifying the endpoint and status.
+
 Use Go import paths, not filesystem paths:
 
 ```bash

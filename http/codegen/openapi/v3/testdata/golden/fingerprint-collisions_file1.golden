@@ -26,7 +26,7 @@ paths:
             summary: alternate collision
             operationId: collision.alternate
             requestBody:
-                $ref: '#/components/requestBodies/CollisionRequestBody_f349b76e'
+                $ref: '#/components/requestBodies/CollisionRequestBody_a2e829bd'
             responses:
                 "201":
                     $ref: '#/components/responses/CreateResponseBodyResponseStatus201Response'
@@ -93,7 +93,7 @@ components:
                     example:
                         accountID: account-123
                         username: alice
-        CollisionRequestBody_f349b76e:
+        CollisionRequestBody_a2e829bd:
             required: true
             content:
                 application/json:

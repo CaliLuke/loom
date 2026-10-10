@@ -59,6 +59,10 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 
 ## OpenAPI contracts
 
+- [Responses sharing a status](../../../../http/codegen/openapi/internal/ir/tla/response_media/README.md):
+  bounded media/schema preservation, declaration-order independence and rejection
+  of incompatible metadata; rendered and runtime tests cover concrete extraction.
+
 | Code concern | Model |
 | --- | --- |
 | Nested synthesized union selection and occurrence-specific example caches | [Nested union examples](../../../../http/codegen/openapi/internal/ir/tla/nested_union_examples/README.md) |

@@ -104,6 +104,12 @@ consumer validation.
   kinds, inherited/occurrence bounds, exact and exclusive bounds, and typed arrays.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
+- OpenAPI response accumulation belongs in `openapi/internal/ir`: collect every
+  alternative before projecting one response per status. Merge media maps and
+  schema alternatives, intersect header requiredness, and reject conflicting
+  metadata rather than selecting the last declaration. Runtime response order
+  and individual response contract cases remain transport-owned. See the
+  [response media model](../../../http/codegen/openapi/internal/ir/tla/response_media/README.md).
 - `internal/uniongen` owns the common Go union declaration and codec emitter.
   Service and HTTP analysis supply that model; service-only validation helpers
   stay in service analysis. Keep untagged occurrence matching in

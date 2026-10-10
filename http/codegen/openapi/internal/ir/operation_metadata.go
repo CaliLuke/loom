@@ -22,7 +22,7 @@ var (
 
 // BuildRouteOperation analyzes one route-scoped HTTP operation including
 // parameters and OpenAPI metadata. It returns an error for a credential
-// location that OpenAPI cannot represent.
+// location or conflicting response metadata that OpenAPI cannot represent.
 func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool) (*Operation, error) {
 	if route == nil || route.Endpoint == nil {
 		return nil, nil
@@ -35,10 +35,10 @@ func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBod
 	if err != nil {
 		return nil, err
 	}
-	return buildRouteOperationFromIR(endpointIR, transportir.RouteForExpr(endpointIR, route, path), path, bodies, rand, apiMeta, closeObjects, bindings), nil
+	return buildRouteOperationFromIR(endpointIR, transportir.RouteForExpr(endpointIR, route, path), path, bodies, rand, apiMeta, closeObjects, bindings)
 }
 
-func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transportir.Route, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool, bindings *securityBindings) *Operation {
+func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transportir.Route, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool, bindings *securityBindings) (*Operation, error) {
 	service := endpointIR.Service
 
 	summary := fmt.Sprintf("%s %s", endpointIR.Name, service.Name)
@@ -60,7 +60,10 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 	}
 
 	requestBody := buildRequestBody(endpointIR, bodies, closeObjects)
-	responseMap := buildResponses(endpointIR, bodies, rand, closeObjects)
+	responseMap, err := buildResponses(endpointIR, bodies, rand, closeObjects)
+	if err != nil {
+		return nil, err
+	}
 	if routeIR.Method == "HEAD" {
 		for _, response := range responseMap {
 			response.Content = nil
@@ -87,7 +90,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 		Security:     buildOperationSecurity(endpointIR, bindings),
 		ExternalDocs: externalDocs(endpointIR.MethodDocs),
 		Extensions:   extensions,
-	}
+	}, nil
 }
 
 func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerator, closeObjects bool, prepared ...map[*expr.AttributeExpr]*Schema) []*ParameterRef {

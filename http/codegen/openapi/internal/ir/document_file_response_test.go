@@ -17,13 +17,14 @@ func TestFileResponseProtocolResponses(t *testing.T) {
 	root := codegen.RunDSL(t, fileResponseDocumentDSL)
 	endpoint := preparedFileResponseEndpoint(t, root)
 	bodyTypes := BuildBodyTypes(root.API, root.Types, root.ResultTypes)
-	operation := buildOperation(
+	operation, err := buildOperation(
 		endpoint,
 		bodyTypes.Services["files"]["download"],
 		root.API.ExampleGenerator,
 		false,
 	)
 
+	require.NoError(t, err)
 	require.Equal(t, []string{"200", "206", "304", "412", "416"}, responseStatuses(operation.Responses))
 	assertFileBinaryResponse(t, operation.Responses["200"].Value)
 	assertFileBinaryResponse(t, operation.Responses["206"].Value)
@@ -46,7 +47,7 @@ func TestFileResponseRequestHeadersAndHeadResponse(t *testing.T) {
 	root := codegen.RunDSL(t, fileResponseDocumentDSL)
 	endpoint := preparedFileResponseEndpoint(t, root)
 	bodyTypes := BuildBodyTypes(root.API, root.Types, root.ResultTypes)
-	head := buildRouteOperationFromIR(
+	head, err := buildRouteOperationFromIR(
 		endpoint,
 		&transportir.Route{Method: "HEAD"},
 		"/download",
@@ -57,6 +58,7 @@ func TestFileResponseRequestHeadersAndHeadResponse(t *testing.T) {
 		nil,
 	)
 
+	require.NoError(t, err)
 	wantHeaders := []string{"Range", "If-Range", "If-Match", "If-None-Match", "If-Modified-Since", "If-Unmodified-Since"}
 	for _, name := range wantHeaders {
 		require.Equal(t, 1, countHeaderParameters(head.Parameters, name), name)
