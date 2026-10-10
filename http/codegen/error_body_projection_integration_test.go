@@ -65,7 +65,15 @@ func TestErrorBodyProjection(t *testing.T) {
 			require.Equal(t, http.StatusInternalServerError, response.StatusCode)
 			require.Equal(t, tc.contentType, response.Header.Get("Content-Type"))
 			require.Equal(t, tc.method, response.Header.Get("loom-error"))
-			require.Equal(t, tc.wire, string(body))
+			if tc.method == "map" {
+				// JSON object member order is unspecified. Decode only the map
+				// envelope so JSONValue retains exact nested numbers and values.
+				var got map[string]loom.JSONValue
+				require.NoError(t, json.Unmarshal(body, &got))
+				require.Equal(t, nestedMap, got)
+			} else {
+				require.Equal(t, tc.wire, string(body))
+			}
 
 			serverURL, err := url.Parse(httpServer.URL)
 			require.NoError(t, err)
