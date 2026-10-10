@@ -132,6 +132,10 @@ consumer validation.
   from Loom version skew.
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
+- `internal/enumvalue` normalizes already canonical builtin scalars without
+  reconstructing their enum occurrence. Normalization is not admission;
+  validation remains with `expr`. Do not cache schema fingerprints across
+  authored occurrences or bypass value resolution for collections and codecs.
 - CLI helpers live under the design module. Resolve the caller's workspace
   before loading and compiling the helper, and share that environment between
   both steps. Workspace mode must not receive module-only build flags; isolated

@@ -185,3 +185,34 @@ func TestNormalizeKeepsOpaqueAndInvalidRawBoundaries(t *testing.T) {
 	require.NotEqual(t, reflect.ValueOf(invalidWithOpaque).Pointer(), reflect.ValueOf(fallback).Pointer(),
 		"the invalid semantic fallback still uses the shared structural projection")
 }
+
+func TestNormalizeCanonicalScalarsMatchSemanticProjection(t *testing.T) {
+	for _, tc := range []struct {
+		datatype expr.DataType
+		value    any
+	}{
+		{expr.Boolean, true}, {expr.String, "category"},
+		{expr.Int, -42}, {expr.Int32, int32(-42)}, {expr.Int64, int64(-9007199254740993)},
+		{expr.UInt, uint(42)}, {expr.UInt32, uint32(42)}, {expr.UInt64, uint64(math.MaxUint64)},
+		{expr.Float32, float32(0.1)}, {expr.Float64, 0.1},
+	} {
+		t.Run(tc.datatype.Name(), func(t *testing.T) {
+			for _, excluded := range []bool{false, true} {
+				attribute := &expr.AttributeExpr{Type: tc.datatype}
+				if excluded {
+					attribute.Validation = &expr.ValidationExpr{EnumClauses: [][]any{{}}}
+				}
+				context := expr.NewValueContext()
+				occurrence, err := context.NewOccurrence(attribute)
+				require.NoError(t, err)
+				source := context.SupplyValue(expr.ValueInput{Raw: tc.value})
+				declared, ok := context.Resolve(occurrence, source, expr.ValueRoleEnum).DeclaredJSONValue()
+				if !ok {
+					declared, ok = context.ResolveDeclaredShape(occurrence, source).DeclaredJSONValue()
+				}
+				require.True(t, ok)
+				require.Equal(t, declared, Normalize(attribute, tc.value))
+			}
+		})
+	}
+}
