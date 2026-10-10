@@ -103,10 +103,10 @@ func (h *HTTPExpr) Finalize() {
 	}
 }
 
-// validateHTTPPathWildcards reports the wildcard mistakes in the full request
-// path that the muxer would reject at route registration: a wildcard that
-// appears twice, a "{*name}" catch-all that does not terminate the path, and
-// a bare "*" outside the "{*name}" syntax.
+// validateHTTPPathWildcards checks the full request path against the parameter
+// grammar shared by extraction, path generation, and routing. Parameters start
+// a segment, names contain ASCII letters, digits, or underscores, and catch-alls
+// terminate the path. Unmatched braces, duplicate names, and bare stars are invalid.
 func validateHTTPPathWildcards(verr *eval.ValidationErrors, e eval.Expression, path string) {
 	matches := HTTPWildcardRegex.FindAllStringSubmatchIndex(path, -1)
 	wcs := make(map[string]struct{}, len(matches))
@@ -125,6 +125,9 @@ func validateHTTPPathWildcards(verr *eval.ValidationErrors, e eval.Expression, p
 		last = match[1]
 	}
 	rest.WriteString(path[last:])
+	if strings.ContainsAny(rest.String(), "{}") {
+		verr.Add(e, "Path %q uses unsupported path parameter syntax; use one {name} parameter at the start of each segment, with only letters, digits, or underscores in names", path)
+	}
 	if strings.Contains(rest.String(), "*") {
 		verr.Add(e, "Path %q uses a bare \"*\"; use a trailing \"/{*name}\" catch-all wildcard instead", path)
 	}

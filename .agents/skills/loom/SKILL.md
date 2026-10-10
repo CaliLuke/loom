@@ -606,6 +606,11 @@ servers to adopt this ordering correction.
   CLI flags accept raw text through the same parser; omitted optional fields
   remain absent and declared defaults apply. Implement `fmt.Stringer` on the
   custom type to supply the wire text used by generated HTTP clients.
+- Start each path parameter at the beginning of its segment, using ASCII letters,
+  digits, or underscores in its name. `/{prefix}/{number}` and `/{name}.json`
+  are supported; `/{prefix}-{number}` and `/item-{name}` fail DSL validation.
+  Use a single parameter for a composite value, or split the parameters into
+  separate segments. A `{*name}` catch-all must terminate the path.
 - Let generated clients and routers handle path escaping exactly once. Do not
   add app-local `url.PathEscape` or `url.PathUnescape` layers. Generated path
   builders return escaped paths: a value such as `a/b` stays in its segment,

@@ -109,6 +109,46 @@ func TestHTTPRouteCatchAllWildcardValidation(t *testing.T) {
 	}
 }
 
+func TestHTTPRouteParameterSyntax(t *testing.T) {
+	cases := map[string]struct {
+		apiPath  string
+		basePath string
+		route    string
+		invalid  bool
+	}{
+		"separate segments": {route: "/items/{a}/{b}"},
+		"static suffix":     {route: "/items/{a}.json"},
+		"catch-all":         {route: "/items/{a}/{*b}"},
+		"composite":         {route: "/items/{a}-{b}", invalid: true},
+		"adjacent":          {route: "/items/{a}{b}", invalid: true},
+		"static prefix":     {route: "/items/item-{a}", invalid: true},
+		"service prefix":    {basePath: "/items/{a}-{b}", route: "/show", invalid: true},
+		"API prefix":        {apiPath: "/items/{a}-{b}", route: "/show", invalid: true},
+		"missing close":     {route: "/items/{a", invalid: true},
+		"missing open":      {route: "/items/a}", invalid: true},
+		"empty name":        {route: "/items/{}", invalid: true},
+		"invalid name":      {route: "/items/{a-b}", invalid: true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			dsl := func() {
+				API("parameter-syntax", func() {
+					HTTP(func() {
+						Path(tc.apiPath)
+					})
+				})
+				catchAllRouteDSL(tc.basePath, tc.route)()
+			}
+			if !tc.invalid {
+				expr.RunDSL(t, dsl)
+				return
+			}
+			err := expr.RunInvalidDSL(t, dsl)
+			require.Contains(t, err.Error(), "unsupported path parameter syntax")
+		})
+	}
+}
+
 func catchAllRouteDSL(basePath, route string) func() {
 	return func() {
 		Service("CatchAll", func() {

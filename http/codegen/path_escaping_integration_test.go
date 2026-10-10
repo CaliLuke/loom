@@ -93,7 +93,7 @@ func pathEscapingRoundTripDSL() {
 			})
 			Result(String)
 			HTTP(func() {
-				GET("/my files/{id}")
+				GET("/my files/{id}.json")
 			})
 		})
 	})
@@ -223,8 +223,8 @@ func TestGeneratedPathsRoundTripAdversarialValues(t *testing.T) {
 }
 
 // TestGeneratedPathsRoundTripEscapedLiteral checks that the client sends the
-// escaped literal of a route with a space while path values keep their segment
-// boundary.
+// escaped literal of a route with a space and a static suffix while path values
+// keep their segment boundary.
 func TestGeneratedPathsRoundTripEscapedLiteral(t *testing.T) {
 	_, client, doer := newPathClient(t)
 	for _, value := range []string{"plain", "a/b", "a b", "100%", "日本語", "%2F"} {
@@ -236,7 +236,7 @@ func TestGeneratedPathsRoundTripEscapedLiteral(t *testing.T) {
 			if got != value {
 				t.Errorf("Literal(%q) decoded %q", value, got)
 			}
-			if want := "/my%20files/" + loomhttp.EscapePathSegment(value); doer.escapedPath != want {
+			if want := "/my%20files/" + loomhttp.EscapePathSegment(value) + ".json"; doer.escapedPath != want {
 				t.Errorf("Literal(%q) sent path %q, want %q", value, doer.escapedPath, want)
 			}
 		})

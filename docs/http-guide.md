@@ -139,6 +139,16 @@ such as `;`, in query values. Generated clients apply this encoding. Repeated
 query keys retain their order.
 
 ### Wildcards
+
+Each path parameter must start a segment and use a name containing only ASCII
+letters, digits, or underscores. Use separate segments for separate parameters,
+such as `/items/{prefix}/{number}`. A static suffix such as `/{name}.json` is
+supported. Composite segments such as `/{prefix}-{number}`, prefixed parameters
+such as `/item-{name}`, and unmatched braces are rejected during DSL validation.
+Move composite values into a single parameter, or use separate path segments,
+then regenerate the service.
+
+Catch-all parameters use `{*name}` and must terminate the path.
 Capture all remaining path segments:
 
 ```go

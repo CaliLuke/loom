@@ -625,6 +625,11 @@ filter, and serialization rules belong here.
   observation, and commit-aware failure routing. File and raw-body branches
   also delegate writes and cleanup. Generated code retains typed result and
   stream adapters.
+- `expr.validateHTTPPathWildcards` validates the complete inherited route for
+  endpoints and Files before generation. Parameters must start a segment;
+  static suffixes are allowed, composite or embedded parameters are rejected,
+  and catch-alls must terminate the path. Keep this grammar aligned with
+  `ExtractHTTPWildcards`, path construction, and mux matching.
 - Generated HTTP path builders return escaped paths (`renderPathInitCode` in
   `http/codegen/paths.go`). They escape route literals at generation time and
   string-like values at run time with `http.EscapePathSegment`, or

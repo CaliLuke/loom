@@ -172,6 +172,40 @@ var _ = Service("example", func() {
 	require.NoDirExists(t, filepath.Join(moduleDir, "gen"))
 }
 
+func TestGenerateRejectsCompositePathParameters(t *testing.T) {
+	t.Setenv("GOWORK", "off")
+	moduleDir := writeTidyVetConsumer(t, `package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = Service("Items", func() {
+	Method("show", func() {
+		Payload(func() {
+			Attribute("prefix", String)
+			Attribute("number", String)
+			Required("prefix", "number")
+		})
+		Result(String)
+		HTTP(func() {
+			GET("/items/{prefix}-{number}")
+			Param("prefix")
+			Param("number")
+		})
+	})
+})
+`)
+	t.Chdir(moduleDir)
+	_, stderr, err := captureOutput(t, func() error {
+		return generate("gen", "example.com/service/design", moduleDir, false)
+	})
+	require.Error(t, err)
+	diagnostic := err.Error() + "\n" + stderr
+	require.Contains(t, diagnostic, "stage eval.RunDSL")
+	require.Contains(t, diagnostic, `Path "/items/{prefix}-{number}" uses unsupported path parameter syntax`)
+	require.NotContains(t, diagnostic, "PANIC")
+	require.NoDirExists(t, filepath.Join(moduleDir, "gen"))
+}
+
 func TestGenerateRemovesTempDirOnSuccessWithoutDebug(t *testing.T) {
 	t.Chdir(t.TempDir())
 	fake := &fakeGenerator{runFiles: []string{"gen/service.go"}}

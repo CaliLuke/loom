@@ -19,6 +19,8 @@ func TestFilesCatchAllWildcardValidation(t *testing.T) {
 	}{
 		"trailing catch-all":    {files: "/ui/{*filepath}"},
 		"catch-all under base":  {basePath: "/{id}", files: "/ui/{*filepath}"},
+		"composite parameter":   {files: "/{a}-{b}/ui/{*filepath}", errors: []string{"unsupported path parameter syntax"}},
+		"composite base":        {basePath: "/{a}-{b}", files: "/ui/{*filepath}", errors: []string{"unsupported path parameter syntax"}},
 		"catch-all in base":     {basePath: "/{*a}", files: "/x/{*p}", errors: []string{`Catch-all wildcard "a" must terminate full path "/{*a}/x/{*p}"`}},
 		"non trailing":          {files: "/{*p}/tail", errors: []string{`Catch-all wildcard "p" must terminate full path "/{*p}/tail"`}},
 		"absolute non trailing": {basePath: "/svc", files: "//{*p}/tail", errors: []string{`Catch-all wildcard "p" must terminate full path "/{*p}/tail"`}},
