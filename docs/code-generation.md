@@ -45,6 +45,11 @@ This records the command's complete dependency graph in the application's
 record command-only dependencies such as the code generator's source-emission
 packages.
 
+The `gen`, `example`, and `vet` helpers use the caller's active Go workspace,
+including its `use` modules and `replace` directives. An explicit `GOWORK`
+selection and automatic `go.work` discovery follow Go's normal rules. With
+`GOWORK=off`, helpers use the design module's `go.mod` replacements.
+
 `loom gen` intentionally regenerates the complete `gen/` tree. Repeating it
 with the same design and output path is byte-stable. Loom orders implicit
 service collections by service name, so Go's dependency-driven package

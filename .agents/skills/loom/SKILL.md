@@ -28,6 +28,9 @@ renderer, or framework tests, use the `loom-framework` skill.
 Never edit `gen/` directly. `loom gen` deletes and recreates it transactionally,
 so manual changes are both temporary and misleading.
 
+Generation, example, and vet helpers honor the active Go workspace's modules
+and replacements. Set `GOWORK=off` to use only the design module's `go.mod`.
+
 Use Go import paths, not filesystem paths:
 
 ```bash

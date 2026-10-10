@@ -123,7 +123,7 @@ func (g *Generator) Write(_ bool) error {
 	var tmpDir string
 	{
 		wd := "."
-		if g.Command == "vet" && g.moduleDir != "" {
+		if g.moduleDir != "" {
 			wd = g.moduleDir
 		} else if cwd, err := getwd(); err == nil {
 			wd = cwd
@@ -182,7 +182,19 @@ func (g *Generator) Write(_ bool) error {
 
 // Compile compiles the generator.
 func (g *Generator) Compile(debug bool) error {
-	buildFlags, err := g.moduleBuildFlags()
+	// Resolve automatic workspace discovery in the caller's directory before
+	// building in the design module. Both Go invocations must use that workspace.
+	workspace, err := exec.Command("go", "env", "GOWORK").Output()
+	if err != nil {
+		return fmt.Errorf("resolve caller workspace: %w", err)
+	}
+	workFile := strings.TrimSpace(string(workspace))
+	activeWorkspace := workFile != "" && workFile != "off"
+	if !activeWorkspace {
+		workFile = "off"
+	}
+	env := append(os.Environ(), "GO111MODULE=on", "GOWORK="+workFile, "GOFLAGS=", "PWD="+g.tmpDir)
+	buildFlags, err := g.moduleBuildFlags(activeWorkspace)
 	if err != nil {
 		return err
 	}
@@ -192,13 +204,9 @@ func (g *Generator) Compile(debug bool) error {
 	pkgs, err := packages.Load(&packages.Config{
 		Mode:       packages.NeedName,
 		BuildFlags: buildFlags,
-		Env: append(
-			os.Environ(),
-			"GO111MODULE=on",
-			"GOWORK=off",
-			"GOFLAGS=",
-		),
-	}, fmt.Sprintf(".%c%s", filepath.Separator, g.tmpDir))
+		Env:        env,
+		Dir:        g.tmpDir,
+	}, ".")
 	if err != nil {
 		return err
 	}
@@ -208,7 +216,7 @@ func (g *Generator) Compile(debug bool) error {
 	debugStage(debug, "temp-package-load", startLoad, "tmpDir=%s packages=%d", g.tmpDir, len(pkgs))
 
 	startBuild := time.Now()
-	err = g.runGoCmd(buildFlags, "build", "-o", g.bin)
+	err = g.runGoCmd(env, buildFlags, "build", "-o", g.bin)
 	debugStage(debug, "go-build", startBuild, "binary=%s", g.bin)
 
 	// If we're in vendor context we check the error string to see if it's an issue of unsatisfied dependencies
@@ -280,7 +288,7 @@ func (g *Generator) Remove() error {
 	return nil
 }
 
-func (g *Generator) runGoCmd(buildFlags []string, args ...string) error {
+func (g *Generator) runGoCmd(env, buildFlags []string, args ...string) error {
 	gobin, err := exec.LookPath("go")
 	if err != nil {
 		return fmt.Errorf(`failed to find a go compiler, looked in "%s"`, os.Getenv("PATH"))
@@ -289,12 +297,7 @@ func (g *Generator) runGoCmd(buildFlags []string, args ...string) error {
 		Path: gobin,
 		Args: append(append([]string{gobin, args[0]}, buildFlags...), args[1:]...),
 		Dir:  g.tmpDir,
-		Env: append(
-			os.Environ(),
-			"GO111MODULE=on",
-			"GOWORK=off",
-			"GOFLAGS=",
-		),
+		Env:  env,
 	}
 	out, err := c.CombinedOutput()
 	if err != nil {
@@ -306,7 +309,12 @@ func (g *Generator) runGoCmd(buildFlags []string, args ...string) error {
 	return nil
 }
 
-func (g *Generator) moduleBuildFlags() ([]string, error) {
+func (g *Generator) moduleBuildFlags(activeWorkspace bool) ([]string, error) {
+	if activeWorkspace {
+		// Workspace builds resolve all used modules and replacements together;
+		// Go forbids both -mod=mod and an alternate -modfile in this mode.
+		return nil, nil
+	}
 	if g.Command != "vet" || g.moduleDir == "" {
 		return []string{"-mod=mod"}, nil
 	}

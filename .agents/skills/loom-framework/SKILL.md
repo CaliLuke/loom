@@ -132,6 +132,10 @@ consumer validation.
   from Loom version skew.
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
+- CLI helpers live under the design module. Resolve the caller's workspace
+  before loading and compiling the helper, and share that environment between
+  both steps. Workspace mode must not receive module-only build flags; isolated
+  vet module files remain the non-workspace path.
 - Derive identifiers and generated directory names from design names with
   `internal/naming`. Generators call `naming.ServerDir` and
   `naming.ServiceDir` directly, the public `codegen` case functions such as
