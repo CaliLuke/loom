@@ -456,6 +456,14 @@ filter, and serialization rules belong here.
 
 ## Transport Invariants
 
+- HTTP error response analysis retains the selected `Body` field in
+  `ResponseData.ResultAttr`. Resolve its Go selector and client constructor
+  pointer semantics through `transportFieldBinding`, just like other service
+  field mappings. The shared response renderer consumes that selection when
+  no body constructor is needed; explicit object bodies keep their constructor.
+  `TestErrorBodyProjectionGenerated` covers exact wire bytes and typed client
+  reconstruction, including raw JSON precision, renamed fields and pointers.
+
 - `expr.HTTPEndpointExpr.validateResponses` owns the unique untagged application
   response requirement. Generators must not discard ambiguous authored responses;
   transport and OpenAPI analysis consume the same validated expression set.

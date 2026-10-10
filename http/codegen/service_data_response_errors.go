@@ -94,19 +94,21 @@ func (b *errorBuilder) buildResultInit(errorResponse *transportir.ResponseStatus
 	args = append(args, buildHeaderInitArgs(headers)...)
 	args = append(args, buildCookieInitArgs(cookies)...)
 	code, origin, skipFieldInit := b.buildResultInitCode(errorResponse, errctx, args)
+	fieldName, _, fieldPointer := transportFieldBinding(origin, httpError.Attribute, httpError.Attribute, errctx)
 	name := fmt.Sprintf("New%s%s", codegen.Goify(b.method.Name, true), codegen.Goify(httpError.Name, true))
 	return &InitData{
-		Name:                name,
-		Description:         fmt.Sprintf("%s builds a %s service %s endpoint %s error.", name, b.svc.Name, b.endpoint.Name, httpError.Name),
-		ClientArgs:          args,
-		ReturnTypeName:      b.svc.Scope.GoFullTypeName(httpError.Attribute, pkg),
-		ReturnTypeRef:       b.svc.Scope.GoFullTypeRef(httpError.Attribute, pkg),
-		ReturnIsStruct:      expr.IsObject(httpError.Type),
-		ReturnIsUnionValue:  bodyFieldIsUnionValue(httpError.Attribute, origin),
-		ReturnTypeAttribute: codegen.Goify(origin, true),
-		ReturnTypePkg:       pkg,
-		ClientCode:          code,
-		SkipFieldInit:       skipFieldInit,
+		Name:                     name,
+		Description:              fmt.Sprintf("%s builds a %s service %s endpoint %s error.", name, b.svc.Name, b.endpoint.Name, httpError.Name),
+		ClientArgs:               args,
+		ReturnTypeName:           b.svc.Scope.GoFullTypeName(httpError.Attribute, pkg),
+		ReturnTypeRef:            b.svc.Scope.GoFullTypeRef(httpError.Attribute, pkg),
+		ReturnIsStruct:           expr.IsObject(httpError.Type),
+		ReturnIsUnionValue:       bodyFieldIsUnionValue(httpError.Attribute, origin),
+		ReturnTypeAttribute:      fieldName,
+		ReturnIsPrimitivePointer: fieldPointer,
+		ReturnTypePkg:            pkg,
+		ClientCode:               code,
+		SkipFieldInit:            skipFieldInit,
 	}
 }
 
@@ -137,6 +139,8 @@ func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStat
 	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope, vars, b.sds.examplesFor(b.sd))
 	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope, vars, b.sds.examplesFor(b.sd))
 	contentType := errorResponse.ContentType
+	origin, _ := responseOriginAttribute(errorResponse, httpError.Attribute)
+	fieldName, _, _ := transportFieldBinding(origin, httpError.Attribute, httpError.Attribute, errctx)
 	headerSourceVar := "res"
 	problemTypeOverride := ""
 	problemTitleOverride := ""
@@ -157,6 +161,7 @@ func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStat
 			ServerBody:           serverBodyData,
 			ClientBody:           clientBodyData,
 			ResultInit:           init,
+			ResultAttr:           fieldName,
 			MustValidate:         responseFieldsNeedValidation(headers, cookies),
 			HeaderSourceVar:      headerSourceVar,
 			ProblemTypeOverride:  problemTypeOverride,

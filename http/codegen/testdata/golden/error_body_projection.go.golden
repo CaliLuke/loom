@@ -1,0 +1,233 @@
+// EncodeHTMLError returns an encoder for errors returned by the html
+// projection endpoint.
+func EncodeHTMLError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en loom.LoomErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.LoomErrorName() {
+		case "html":
+			var res *projection.HTMLError
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/html; charset=utf-8")
+			enc := encoder(ctx, w)
+			body := res.Body
+			w.Header().Set("X-Kind", res.Kind)
+			w.Header().Set("loom-error", res.LoomErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodePlainError returns an encoder for errors returned by the plain
+// projection endpoint.
+func EncodePlainError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en loom.LoomErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.LoomErrorName() {
+		case "plain":
+			var res *projection.PlainError
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
+			enc := encoder(ctx, w)
+			body := res.Body
+			w.Header().Set("X-Kind", res.Kind)
+			w.Header().Set("loom-error", res.LoomErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeAnyError returns an encoder for errors returned by the any projection
+// endpoint.
+func EncodeAnyError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en loom.LoomErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.LoomErrorName() {
+		case "any":
+			var res *projection.AnyError
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
+			enc := encoder(ctx, w)
+			body := res.Body
+			w.Header().Set("X-Kind", res.Kind)
+			w.Header().Set("loom-error", res.LoomErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeMapError returns an encoder for errors returned by the map projection
+// endpoint.
+func EncodeMapError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en loom.LoomErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.LoomErrorName() {
+		case "map":
+			var res *projection.MapError
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
+			enc := encoder(ctx, w)
+			body := res.Body
+			w.Header().Set("X-Kind", res.Kind)
+			w.Header().Set("loom-error", res.LoomErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeObjectError returns an encoder for errors returned by the object
+// projection endpoint.
+func EncodeObjectError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en loom.LoomErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.LoomErrorName() {
+		case "object":
+			var res *projection.ObjectError
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewProjectionobjectResponseBody(res)
+			}
+			w.Header().Set("X-Kind", res.Kind)
+			w.Header().Set("loom-error", res.LoomErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeExplicitError returns an encoder for errors returned by the explicit
+// projection endpoint.
+func EncodeExplicitError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en loom.LoomErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.LoomErrorName() {
+		case "explicit":
+			var res *projection.ExplicitError
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewProjectionexplicitResponseBody(res)
+			}
+			w.Header().Set("X-Kind", res.Kind)
+			w.Header().Set("loom-error", res.LoomErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeRenamedError returns an encoder for errors returned by the renamed
+// projection endpoint.
+func EncodeRenamedError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en loom.LoomErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.LoomErrorName() {
+		case "renamed":
+			var res *projection.RenamedError
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
+			enc := encoder(ctx, w)
+			body := res.Content
+			w.Header().Set("X-Kind", res.Kind)
+			w.Header().Set("loom-error", res.LoomErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeOptionalError returns an encoder for errors returned by the optional
+// projection endpoint.
+func EncodeOptionalError(encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, formatter func(ctx context.Context, err error) loomhttp.StatusCoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := loomhttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en loom.LoomErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.LoomErrorName() {
+		case "optional":
+			var res *projection.OptionalError
+			if !errors.As(v, &res) {
+				return encodeError(ctx, w, v)
+			}
+			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
+			enc := encoder(ctx, w)
+			body := res.Body
+			w.Header().Set("X-Kind", res.Kind)
+			w.Header().Set("loom-error", res.LoomErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}

@@ -387,6 +387,10 @@ receive status `404` and the public message `404 page not found`.
 - For a shared custom error type, use `ErrorName` for routing. Map that field
   with `Header("field:loom-error")` on each HTTP error response when routing
   metadata must stay out of the response body and OpenAPI schema.
+- Use `Body("field")` on a custom HTTP error response to encode that field as
+  the entire body and restore it in generated clients. String fields support
+  `text/plain` and `text/html`; JSON `Any` and map fields have no extra envelope.
+  Regenerate both transports after updating Loom for selected error body fixes.
 
 Do not duplicate these contracts in handwritten transport code.
 

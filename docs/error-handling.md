@@ -220,6 +220,23 @@ field from it, and the field is omitted from the response body and OpenAPI
 schema. This supports several named errors with one unchanged payload shape,
 including multiple errors that use the same HTTP status.
 
+Use `Body("field")` to send one field of a custom error as the entire response
+body. For example, a string field can carry an HTML error page:
+
+```go
+Response("render_error", StatusInternalServerError, func() {
+    ContentType("text/html; charset=utf-8")
+    Body("body")
+})
+```
+
+The server encodes the selected field, and the generated client restores that
+field on the custom error. With `application/json`, an `Any` or map field is
+encoded directly without an extra object containing the field name. `Any`
+values retain their JSON numeric precision. An explicit `Body(func() { ... })`
+continues to describe an object body. Regenerate servers and clients to pick up
+corrections to selected error bodies.
+
 The generated `Error()` method returns the first non-empty string field with one of these names:
 
 1. `message`
