@@ -296,6 +296,12 @@ There is one DSL parser, one shared semantic IR, and one renderer.
 - OpenAPI JSON uses Go 1.27 `encoding/json/v2` with deterministic ordering.
   Preserve two-space indentation, the final newline added by `codegen.File`,
   and configured prefix/indent behavior.
+- Normalize each OpenAPI enum domain through `enumvalue.NormalizeAll`, which
+  builds one immutable value occurrence and supplies separate source identities
+  for its members. Do not rebuild the complete enum contract for every member;
+  the 433-value regression benchmark covers this repeated-work failure. Keep
+  the context local to the batch and preserve semantic resolution, declared
+  shape projection, and structural fallback in their existing order.
 - All Loom-owned runtime, generator, test, fixture, and example JSON uses Go
   1.27 `encoding/json/v2` and `encoding/json/jsontext`. Generated code must use
   the same packages; do not emit or retain the legacy JSON package.

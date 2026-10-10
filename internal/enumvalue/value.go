@@ -32,6 +32,35 @@ func Normalize(attribute *expr.AttributeExpr, value any) any {
 	if err != nil {
 		return expr.CanonicalizeExample(attribute, value)
 	}
+	return normalize(context, occurrence, attribute, value)
+}
+
+// NormalizeAll normalizes independent values against one immutable occurrence.
+// It preserves Normalize's resolution and fallback semantics while constructing
+// the declaration snapshot only once for the entire enum domain. Each value
+// receives its own source identity; no state is retained between calls.
+func NormalizeAll(attribute *expr.AttributeExpr, values []any) []any {
+	result := make([]any, len(values))
+	if len(values) == 0 || attribute == nil || attribute.Type == nil {
+		copy(result, values)
+		return result
+	}
+	context := expr.NewValueContext()
+	occurrence, err := context.NewOccurrence(attribute)
+	for index, value := range values {
+		if value == nil {
+			continue
+		}
+		if err != nil {
+			result[index] = expr.CanonicalizeExample(attribute, value)
+			continue
+		}
+		result[index] = normalize(context, occurrence, attribute, value)
+	}
+	return result
+}
+
+func normalize(context *expr.ValueContext, occurrence expr.ValueOccurrence, attribute *expr.AttributeExpr, value any) any {
 	source := context.SupplyValue(expr.ValueInput{Raw: value, Origin: "enum value normalization"})
 	result := context.Resolve(occurrence, source, expr.ValueRoleEnum)
 	declared, ok := result.DeclaredJSONValue()
