@@ -221,6 +221,14 @@ schema that has constraints with `Any`. The importer rejects this contract
 because `Any` discards its assertions. The equivalent
 `anyOf: [{}, {type: "null"}]` form also imports as `Any`.
 
+OpenAPI 3.1 and 3.2 boolean `true` schemas also import as `Any`. Boolean
+`false` schemas and typeless `properties` are blocked because the DSL cannot
+preserve their accepted values. Use an explicit object type only when the
+source contract intends to reject non-object values. The legacy `nullable`
+keyword is supported only in OpenAPI 3.0; modern documents must use a supported
+null type union or a bare null composition branch. Assertions or annotations
+on that branch remain blocked, including with `--allow-lossy`.
+
 A two-member `oneOf` with a bare `null` branch and a local `$ref` to a schema
 that explicitly excludes null imports as a nullable named type. Regeneration
 uses the equivalent nullable `anyOf` form. A JSON request or success response

@@ -304,12 +304,21 @@ type Header struct {
 type Schema struct {
 	// Ref is the authored local schema component reference.
 	Ref string
+	// Boolean retains an authored boolean schema. False has no DSL representation;
+	// true is equivalent to an unconstrained schema in OpenAPI 3.1 and 3.2.
+	Boolean *bool
 	// Unconstrained reports that the schema accepts every JSON value.
 	Unconstrained bool
 	// Type is the single JSON Schema type.
 	Type string
+	// TypeUnion retains an authored multi-member type array. The supported
+	// two-member null union requires the OpenAPI 3.1 or 3.2 schema dialect.
+	TypeUnion []string
 	// Nullable reports that the schema also accepts the JSON null value.
 	Nullable bool
+	// LegacyNullable retains the OpenAPI 3.0 nullable keyword, including false.
+	// Other dialects reject this keyword instead of applying OpenAPI 3.0 semantics.
+	LegacyNullable *bool
 	// OneOf contains the branches of a supported untagged object union.
 	OneOf []*Schema
 	// Format is the authored schema format.

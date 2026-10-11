@@ -350,8 +350,7 @@ func normalizedMediaType(contentType string) string {
 }
 
 func (p *documentPlanner) schema(schema *Schema, path string) {
-	if schema != nil && schema.unsupportedComposition {
-		p.unsupported("schema-composition", path, "allOf, oneOf, anyOf, and not are not in the strict import subset")
+	if !p.schemaAdmission(schema, path) {
 		return
 	}
 	if schema != nil && len(schema.OneOf) > 0 {
@@ -379,6 +378,54 @@ func (p *documentPlanner) schema(schema *Schema, path string) {
 	if err != nil {
 		p.unsupported("schema", path, strings.TrimPrefix(err.Error(), "render OpenAPI design: "))
 	}
+}
+
+// schemaAdmission checks retained source distinctions before rendering can
+// reduce them. It also visits inline occurrences that the renderer would
+// otherwise turn into attributes or collection elements.
+func (p *documentPlanner) schemaAdmission(schema *Schema, path string) bool {
+	if schema == nil {
+		return true
+	}
+	admitted := true
+	if schema.Boolean != nil && (!*schema.Boolean || strings.HasPrefix(p.document.OpenAPIVersion, "3.0.")) {
+		p.unsupported("schema-boolean", path, "only true boolean schemas in OpenAPI 3.1 and 3.2 are in the strict import subset")
+		admitted = false
+	}
+	if schema.LegacyNullable != nil && !strings.HasPrefix(p.document.OpenAPIVersion, "3.0.") {
+		p.unsupported("schema-nullable-version", path+"/nullable", "nullable is an OpenAPI 3.0 keyword; use a supported null type union in OpenAPI 3.1 and 3.2")
+		admitted = false
+	}
+	if len(schema.TypeUnion) > 0 && strings.HasPrefix(p.document.OpenAPIVersion, "3.0.") {
+		p.unsupported("schema-type-union", path+"/type", "type arrays require the OpenAPI 3.1 or 3.2 schema dialect")
+		admitted = false
+	}
+	if schema.unsupportedComposition {
+		p.unsupported("schema-composition", path, "this composition cannot be normalized without losing schema information")
+		admitted = false
+	}
+	for _, property := range schema.Properties {
+		if !p.schemaAdmission(property.Schema, path+"/properties/"+escapeJSONPointer(property.Name)) {
+			admitted = false
+		}
+	}
+	if !p.schemaAdmission(schema.Items, path+"/items") {
+		admitted = false
+	}
+	if schema.AdditionalProperties != nil && !p.schemaAdmission(schema.AdditionalProperties.Schema, path+"/additionalProperties") {
+		admitted = false
+	}
+	for index, branch := range schema.OneOf {
+		if !p.schemaAdmission(branch, fmt.Sprintf("%s/oneOf/%d", path, index)) {
+			admitted = false
+		}
+	}
+	for index, base := range schema.Bases {
+		if !p.schemaAdmission(base, fmt.Sprintf("%s/bases/%d", path, index)) {
+			admitted = false
+		}
+	}
+	return admitted
 }
 
 func (p *documentPlanner) schemaIsUntaggedBranch(schema *Schema) bool {

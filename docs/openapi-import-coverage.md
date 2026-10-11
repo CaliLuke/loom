@@ -82,7 +82,9 @@ the following closed import subset.
 
 Loom preserves supported forms of:
 
-- `type`, including OpenAPI 3.0 `nullable` and a two-member nullable type union
+- explicit `type`, including OpenAPI 3.0 `nullable` and an OpenAPI 3.1 or 3.2
+  two-member nullable type union
+- unconstrained `{}` schemas and OpenAPI 3.1 or 3.2 boolean `true` schemas
 - `properties`, `required`, and supported `additionalProperties`
 - `items`, `minItems`, and `maxItems`
 - `minimum`, `maximum`, `exclusiveMinimum`, and `exclusiveMaximum`
@@ -102,7 +104,8 @@ The following constructs are conditional:
 - A `$ref` plus inline-object `allOf` requires `--allow-lossy`.
 - An inline object used as array items requires `--allow-lossy`. Loom promotes
   it to a deterministic component.
-- A two-member `anyOf` that only adds `null` maps to `Nullable()`. When the
+- A two-member `anyOf` with a bare `{type: null}` branch maps to `Nullable()`.
+  Assertions or annotations on the null branch remain unsupported. When the
   value branch is `{}`, it normalizes to `Any` because the empty schema already
   accepts null.
 - A two-member `oneOf` containing one bare `null` schema and one local `$ref`
@@ -130,6 +133,12 @@ The following constructs are conditional:
   cannot reconstruct JSON-valued data.
 - An optional form object with required members also stays raw so an absent
   body does not spuriously fail nested required-field validation.
+
+Loom rejects boolean `false` schemas, constrained schemas without an explicit
+type (including typeless `properties`), and the legacy `nullable` keyword in
+OpenAPI 3.1 or 3.2. These are blocking diagnostics even with `--allow-lossy`.
+Analysis and rendering retain the same admission rules for selected operations
+and their component closure.
 
 Loom rejects other composition and structural keywords, including unsupported
 `oneOf` locations or branch shapes, unsupported `anyOf` and `allOf` forms,

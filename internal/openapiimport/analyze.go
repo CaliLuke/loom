@@ -516,6 +516,14 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		}
 		return &Schema{Ref: proxy.GetReference()}
 	}
+	if node := proxy.GetValueNode(); node != nil && node.Kind == yaml.ScalarNode && node.Tag == "!!bool" {
+		var value bool
+		if err := node.Decode(&value); err != nil {
+			a.unsupported("schema-boolean", path, fmt.Sprintf("boolean schema could not be decoded: %v", err))
+			return &Schema{}
+		}
+		return &Schema{Boolean: &value, Unconstrained: value}
+	}
 	source := proxy.Schema()
 	if source == nil {
 		a.unsupported("empty-schema", path, "schema could not be resolved")
@@ -570,6 +578,7 @@ func (a *analyzer) schemaTypeAndProperties(schema *Schema, source *base.Schema, 
 			schema.Type = source.Type[0]
 		}
 	} else if len(source.Type) > 1 {
+		schema.TypeUnion = append([]string(nil), source.Type...)
 		if nullableType, ok := nullableUnionType(source.Type); ok {
 			schema.Type = nullableType
 			schema.Nullable = true
@@ -577,11 +586,12 @@ func (a *analyzer) schemaTypeAndProperties(schema *Schema, source *base.Schema, 
 			a.unsupported("schema-type-union", path+"/type", "only a two-member union containing one concrete type and null is supported")
 		}
 	}
-	if source.Nullable != nil && *source.Nullable {
-		schema.Nullable = true
-	}
-	if schema.Type == "" && orderedmap.Len(source.Properties) > 0 {
-		schema.Type = "object"
+	if source.Nullable != nil {
+		value := *source.Nullable
+		schema.LegacyNullable = &value
+		if strings.HasPrefix(a.version, "3.0.") && value {
+			schema.Nullable = true
+		}
 	}
 	if schema.Type != "" && schema.Type != "object" && schema.Type != "array" && schema.Type != "string" &&
 		schema.Type != "integer" && schema.Type != "number" && schema.Type != "boolean" {

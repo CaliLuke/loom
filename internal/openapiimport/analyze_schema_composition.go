@@ -30,11 +30,8 @@ func (a *analyzer) schemaNullableAnyOf(schema *Schema, source *base.Schema, path
 		if proxy == nil {
 			return false
 		}
-		if !proxy.IsReference() {
-			candidate := proxy.Schema()
-			if candidate != nil && len(candidate.Type) == 1 && candidate.Type[0] == "null" {
-				continue
-			}
+		if isNullOnlySchema(proxy) {
+			continue
 		}
 		if value != nil {
 			return false

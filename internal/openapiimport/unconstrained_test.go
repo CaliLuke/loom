@@ -180,7 +180,12 @@ components:
 }
 
 func TestRenderRoundTripsAndRunsUnconstrainedSchemas(t *testing.T) {
-	document, diagnostics, err := Analyze([]byte(unconstrainedSchemaSource))
+	requireUnconstrainedRoundTripAndRuntime(t, []byte(unconstrainedSchemaSource))
+}
+
+func requireUnconstrainedRoundTripAndRuntime(t *testing.T, source []byte) {
+	t.Helper()
+	document, diagnostics, err := Analyze(source)
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
 	rendered, err := Render(document, Options{PackageName: "design"})

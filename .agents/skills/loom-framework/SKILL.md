@@ -423,6 +423,13 @@ filter, and serialization rules belong here.
   assertions or applicators. Map that state to `Any`; do not infer `Any` from a
   missing type alone, because typeless constraints must continue to fail
   closed.
+- Retain boolean schema values, authored type unions and the legacy `nullable`
+  keyword until the shared import planner admits them. Reject false schemas,
+  typeless properties and modern uses of `nullable`; do not infer an object
+  assertion or apply OpenAPI 3.0 nullability in a modern dialect. Visit inline
+  properties, array items, map values and union branches before rendering.
+- Collapse a nullable composition only when its null branch is bare. Constraints
+  and annotations on that branch must not disappear during normalization.
 - Normalize `anyOf: [{}, {type: "null"}]` to unconstrained `Any`. The empty
   schema already accepts null, so the explicit null branch adds no contract
   semantics and must not force a nullable wrapper.
