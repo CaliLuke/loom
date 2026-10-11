@@ -1,22 +1,27 @@
 package ir
 
 import (
+	"fmt"
+
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 )
 
-func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr) {
+func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr) error {
 	if val == nil {
-		return
+		return nil
 	}
 	applySchemaEnums(s, attr, val.Enums())
-	applySchemaStringClauses(s, val)
+	if err := applySchemaStringClauses(s, val); err != nil {
+		return err
+	}
 	s.ExclusiveMinimum = val.ExclusiveMinimum
 	s.Minimum = val.Minimum
 	s.ExclusiveMaximum = val.ExclusiveMaximum
 	s.Maximum = val.Maximum
 	applySchemaLengths(s, attr, val)
 	applySchemaRequired(s, attr, val.Required)
+	return nil
 }
 
 func applySchemaEnums(s *Schema, attr *expr.AttributeExpr, enums [][]any) {
@@ -34,8 +39,12 @@ func applySchemaEnums(s *Schema, attr *expr.AttributeExpr, enums [][]any) {
 	}
 }
 
-func applySchemaStringClauses(s *Schema, val *expr.ValidationExpr) {
-	for _, pattern := range val.Patterns() {
+func applySchemaStringClauses(s *Schema, val *expr.ValidationExpr) error {
+	for _, authored := range val.Patterns() {
+		pattern, err := projectPattern(authored)
+		if err != nil {
+			return fmt.Errorf("OpenAPI pattern %q cannot preserve Go validation: %w", authored, err)
+		}
 		if s.Pattern == "" {
 			s.Pattern = pattern
 		} else if s.Pattern != pattern {
@@ -49,6 +58,7 @@ func applySchemaStringClauses(s *Schema, val *expr.ValidationExpr) {
 			s.AllOf = append(s.AllOf, &Schema{Format: string(format)})
 		}
 	}
+	return nil
 }
 
 func applySchemaLengths(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr) {

@@ -180,6 +180,8 @@ type (
 
 	// BodyTypes groups endpoint bodies and component schemas.
 	BodyTypes struct {
+		// Err reports an unsupported schema projection; no output may be rendered when set.
+		Err        error
 		prepared   map[string]*transportir.Service
 		locations  map[*expr.AttributeExpr]*Schema
 		Services   map[string]map[string]*EndpointBodies

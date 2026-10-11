@@ -235,7 +235,7 @@ func TestFilesPatternExamplesArePrintable(t *testing.T) {
 
 	example := requireMap(t, responseExample(t, spec, "/pattern"), "pattern response example")
 	value := requireString(t, example["value"], "pattern value example")
-	require.Regexp(t, regexp.MustCompile(`^\S+$`), value)
+	require.Regexp(t, regexp.MustCompile(`^[!-~]+$`), value)
 	for _, candidate := range value {
 		require.True(t, unicode.IsPrint(candidate), "example contains non-printable rune %U", candidate)
 		require.False(t, unicode.IsControl(candidate), "example contains control rune %U", candidate)
@@ -365,7 +365,7 @@ func patternExampleDSL() {
 		Method("Show", func() {
 			Result(func() {
 				Attribute("value", String, func() {
-					Pattern(`^\S+$`)
+					Pattern(`^[!-~]+$`)
 				})
 			})
 			HTTP(func() {

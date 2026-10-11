@@ -1,0 +1,3 @@
+legacy_anchor_counterexample
+legacy_whitespace_counterexample
+bounded_projection_preserves

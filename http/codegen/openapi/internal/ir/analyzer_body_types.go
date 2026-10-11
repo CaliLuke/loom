@@ -32,6 +32,7 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 	}
 	a.finalizeRepresentations()
 
+	bodies.Err = a.Err()
 	bodies.Components = a.schemas
 	for _, endpoints := range bodies.Services {
 		for _, endpoint := range endpoints {

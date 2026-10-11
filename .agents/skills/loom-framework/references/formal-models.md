@@ -59,6 +59,10 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 
 ## OpenAPI contracts
 
+- [Pattern projection](../../../../http/codegen/openapi/internal/ir/lean/pattern_projection/README.md):
+  finite anchor/whitespace mismatch witnesses and target acceptance table;
+  Go/Node tests establish actual engine agreement for the admitted boundary.
+
 - [Document identities and explicit component claims](../../../../http/codegen/openapi/internal/ir/tla/document_identity/README.md):
   finite duplicate operation, equivalent path-template and conflicting media
   name counterexamples; accepted controls retain multiple methods on one path

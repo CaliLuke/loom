@@ -25,6 +25,7 @@ type (
 
 	// Analyzer converts expr types into IR schemas and endpoint body models.
 	Analyzer struct {
+		err                  error
 		declarationRoots     map[string]*Schema
 		asyncAcquisition     *asyncBaselineAcquisition
 		componentAnnotations map[componentAnnotationIdentity]map[componentAnnotationPosition]any
@@ -128,6 +129,11 @@ func exampleGeneratorWithOptions(
 		option(settings)
 	}
 	return settings.rand
+}
+
+// Err returns the first unsupported schema projection encountered by this analyzer.
+func (a *Analyzer) Err() error {
+	return a.err
 }
 
 // Components returns the analyzed component schemas.
@@ -414,7 +420,9 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 		panic(fmt.Sprintf("invalid effective constraints during OpenAPI analysis: %v", err))
 	}
 	a.applySchemaAnnotations(s, attr, note, context)
-	applySchemaValidation(s, attr, attr.Validation)
+	if err := applySchemaValidation(s, attr, attr.Validation); err != nil && a.err == nil {
+		a.err = fmt.Errorf("%s: %w", context, err)
+	}
 }
 
 func (a *Analyzer) applySchemaAnnotations(s *Schema, attr *expr.AttributeExpr, note, context string) {

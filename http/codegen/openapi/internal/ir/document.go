@@ -28,6 +28,9 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 	}
 	exampleGenerator := exampleGeneratorWithOptions(api.ExampleGenerator, options...)
 	bodyTypes := BuildBodyTypes(api, types, resultTypes, options...)
+	if bodyTypes.Err != nil {
+		return nil, bodyTypes.Err
+	}
 	doc := &Document{
 		Paths: make(map[string]*PathItem),
 		Components: &Components{
@@ -621,5 +624,10 @@ func preparedLocationSchema(attribute *expr.AttributeExpr, context string, rando
 		copy := *schema
 		return &copy
 	}
-	return NewAnalyzer(random, closeObjects).AnalyzeSchemaWithContext(attribute, context)
+	analyzer := NewAnalyzer(random, closeObjects)
+	schema := analyzer.AnalyzeSchemaWithContext(attribute, context)
+	if err := analyzer.Err(); err != nil {
+		panic(err)
+	}
+	return schema
 }

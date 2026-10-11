@@ -271,6 +271,11 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   members.
 - Start OpenAPI contract changes in `http/codegen/openapi/internal/ir`; keep the
   `v3` package focused on rendering IR-owned decisions.
+- `ir.projectPattern` owns the portable Go-to-ECMA pattern boundary. Project
+  before schema reuse and rendering; carry unsupported projections through
+  `Analyzer.Err` and `BodyTypes.Err` to the document generator. Runtime Go
+  patterns stay unchanged. The bounded model and engine comparisons live in
+  `ir/lean/pattern_projection` and `pattern_projection_test.go`.
 - Prepare actual occurrence, codec and physical layout plans in
   `http/codegen/internal/representation` before sharing schema components.
   Built-in HTTP dispatch belongs to `internal/httpcodec`; SSE classification

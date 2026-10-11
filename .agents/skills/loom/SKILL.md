@@ -85,6 +85,12 @@ and `errors.As`, including when the message contains an example.
 - Prefer concrete types over `Any`, especially when gRPC generation matters.
 - Put lengths, enums, formats, requiredness, and other validation in the DSL;
   do not duplicate it in service implementations.
+- `Pattern` keeps Go runtime semantics. OpenAPI exports a portable ECMA subset:
+  ordinary BMP literals/classes, ASCII digit/word classes, boundaries, grouping
+  and quantifiers; absolute anchors and ASCII whitespace are translated.
+  Wildcards, broad Unicode/negated classes, flags and Go-only syntax without a
+  faithful projection fail generation. See `docs/dsl-reference.md` before
+  changing a rejected pattern; do not weaken application validation to export it.
 - Constraints on a derived named type refine its base. A derived enum must be
   equal to or a subset of the ancestor enum. Bounds and required fields
   accumulate, pattern and format rules are conjoined, and an inherited default

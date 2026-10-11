@@ -6,7 +6,7 @@ var OpenAPIProblemLinksAsyncDSL = func() {
 	var ThreadSummary = Type("OpenAPIThreadSummary", func() {
 		Attribute("thread_id", String, func() {
 			Example("thr_42")
-			Pattern("^thr_[0-9]+$")
+			Pattern(`\Athr_[0-9]+\z`)
 		})
 		Attribute("title", String, func() {
 			Example("Release freeze follow-up")

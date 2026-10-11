@@ -392,6 +392,22 @@ code after upgrading. Handwritten calls to `loom.InvalidLengthError` now pass
 - `MaxLength(n)` - Maximum string length
 - `Format(format)` - Validates against predefined formats
 
+`Pattern` uses Go regular expressions at runtime. OpenAPI export accepts a
+portable subset for ECMA-262 matching without flags: BMP literals and positive
+classes excluding surrogate ranges, ASCII `\d` and `\w`, word boundaries,
+grouping, alternatives, and quantifiers. It translates `\A`/`\z` to `^`/`$`,
+`\s` to Go's ASCII whitespace set, and `\a` to Unicode-escaped BEL.
+Export renders the parsed pattern; equivalent canonical spelling can differ.
+
+Export fails with a diagnostic for wildcards, non-BMP or surrogate character
+sets (including ordinary negated classes and `\S`, `\D`, `\W`), inline flags,
+named captures, POSIX classes, Unicode properties, quoted literals, octal and
+braced hex escapes. For example, `Pattern("^[a-z]+$")` and
+``Pattern(`\Afoo\z`)`` export faithfully; `Pattern("^.$")` is rejected
+because Go and ECMA engines differ on newline and Unicode handling. Regenerate
+OpenAPI after upgrading. Change a rejected pattern only when the replacement
+expresses the intended application contract; runtime validation is unchanged.
+
 #### Numeric Validations
 - `Minimum(n)` - Minimum value (inclusive)
 - `Maximum(n)` - Maximum value (inclusive)

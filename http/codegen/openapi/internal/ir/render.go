@@ -85,6 +85,9 @@ func RenderBodyTypes(bodyTypes *BodyTypes) (map[string]map[string]*RenderedEndpo
 	if bodyTypes == nil {
 		return nil, nil
 	}
+	if bodyTypes.Err != nil {
+		panic(bodyTypes.Err)
+	}
 	services := make(map[string]map[string]*RenderedEndpointBodies, len(bodyTypes.Services))
 	for serviceName, methods := range bodyTypes.Services {
 		renderedMethods := make(map[string]*RenderedEndpointBodies, len(methods))

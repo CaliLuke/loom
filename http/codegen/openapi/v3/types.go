@@ -75,6 +75,9 @@ func buildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 
 func (sf *schemafier) schemafy(attr *expr.AttributeExpr, noref ...bool) *openapi.Schema {
 	rendered := openapiir.RenderSchema(sf.analyzer.AnalyzeSchema(attr, noref...))
+	if err := sf.analyzer.Err(); err != nil {
+		panic(err)
+	}
 	sf.sync()
 	return rendered
 }
