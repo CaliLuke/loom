@@ -367,6 +367,11 @@ OpenAPI 3.2 capabilities available from the DSL include:
 Use the metadata table and examples in `docs/dsl-reference.md` instead of
 patching generated OpenAPI.
 
+Optional discriminator metadata requires an explicit fallback: a known component
+name or local component reference, or an external URI reference (use `./` for a
+relative path). Invalid combinations fail export for both targets. The 3.1
+projection requires the discriminator property and removes the fallback field.
+
 Other important OpenAPI usage rules:
 
 - Use `Meta("openapi:typename", "...")` when a public schema component needs a

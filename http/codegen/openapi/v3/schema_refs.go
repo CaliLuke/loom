@@ -101,6 +101,9 @@ func rewriteSchemaRefs(schema *openapi.Schema, resolveRef func(string) string) {
 	if schema.Ref != "" {
 		schema.Ref = resolveRef(schema.Ref)
 	}
+	if schema.Discriminator != nil && schema.Discriminator.DefaultMapping != "" {
+		schema.Discriminator.DefaultMapping = resolveRef(schema.Discriminator.DefaultMapping)
+	}
 	rewriteSchemaRefs(schema.Not, resolveRef)
 	rewriteSchemaRefs(schema.Items, resolveRef)
 	rewriteSchemaRefs(schema.ContentSchema, resolveRef)
@@ -171,6 +174,9 @@ func collectSchemaRefs(schema *openapi.Schema, addRef func(string)) {
 	}
 	if schema.Ref != "" {
 		addRef(schema.Ref)
+	}
+	if schema.Discriminator != nil && schema.Discriminator.DefaultMapping != "" {
+		addRef(schema.Discriminator.DefaultMapping)
 	}
 	collectSchemaRefs(schema.Not, addRef)
 	collectSchemaRefs(schema.Items, addRef)

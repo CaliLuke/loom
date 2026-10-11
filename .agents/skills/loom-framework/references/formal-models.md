@@ -159,3 +159,7 @@ do not remove proof sources, another task's artifacts, shared toolchains or
 shared Go caches. Existing repository restrictions on Git cleanup and cache
 clearing remain in force. This index records the lifecycle rule, not permission
 to delete an unknown directory.
+
+The [discriminator admission model](../../../../http/codegen/openapi/internal/ir/lean/discriminator_metadata/README.md)
+records optional/fallback admission and 3.1 projection. Go tests cover reference
+resolution and graph retention outside its Boolean assumptions.

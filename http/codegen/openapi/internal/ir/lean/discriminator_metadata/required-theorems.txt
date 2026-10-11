@@ -1,0 +1,5 @@
+legacy_missing_fallback
+rejects_missing_fallback
+admits_valid_fallback
+preserves_required_control
+projection31_requires_property

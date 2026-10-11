@@ -79,6 +79,8 @@ func (a *Analyzer) analyzePreparedSchemaPositions(
 // variants. The compared identities are complete effective schemas, including
 // recursive child representations; codec labels are not schema equivalence.
 func (a *Analyzer) finalizeRepresentations() {
+	a.err = a.Err()
+	a.discriminatorReferences = nil
 	a.discardRegistrationOnlyVariants()
 	components, reserved := a.representationComponents()
 	allocated, names := allocateRepresentations(components, reserved)
@@ -193,6 +195,7 @@ func mapSchemaReferences(source *Schema, reference func(string, string) string, 
 		mapSchemaReferenceAdditional(source, &result, path, visit)
 		if source.Discriminator != nil {
 			value := *source.Discriminator
+			value.DefaultMapping = reference(source.Discriminator.DefaultMapping, path+"/Discriminator/DefaultMapping")
 			if value.Mapping != nil {
 				value.Mapping = make(map[string]string, len(source.Discriminator.Mapping))
 				for _, name := range slices.Sorted(maps.Keys(source.Discriminator.Mapping)) {

@@ -4,7 +4,6 @@ import (
 	"encoding/json/jsontext"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -25,28 +24,29 @@ type (
 
 	// Analyzer converts expr types into IR schemas and endpoint body models.
 	Analyzer struct {
-		err                  error
-		declarationRoots     map[string]*Schema
-		asyncAcquisition     *asyncBaselineAcquisition
-		componentAnnotations map[componentAnnotationIdentity]map[componentAnnotationPosition]any
-		annotationOwner      map[componentAnnotationPosition]any
-		occurrences          []schemaOccurrenceAnalysis
-		registrations        []*Schema
-		plan                 expr.ValuePlanNode
-		examplePlan          expr.ValuePlanNode
-		constructingBaseline bool
-		constructions        map[*Schema]schemaConstruction
-		projectedSchemas     map[schemaProjectionKey]*Schema
-		projectedComponents  map[schemaProjectionKey]string
-		schemaNames          map[string]representationComponentName
-		schemas              map[string]*Schema
-		schemaFingerprints   map[string]string
-		schemaTypeIDs        map[string]string
-		schemasByFingerprint map[string][]schemaRef
-		unionBranchSchemas   map[string]string
-		closeObjects         bool
-		rand                 *expr.ExampleGenerator
-		preparedExamples     *transportir.ValueTarget
+		err                     error
+		discriminatorReferences []discriminatorReference
+		declarationRoots        map[string]*Schema
+		asyncAcquisition        *asyncBaselineAcquisition
+		componentAnnotations    map[componentAnnotationIdentity]map[componentAnnotationPosition]any
+		annotationOwner         map[componentAnnotationPosition]any
+		occurrences             []schemaOccurrenceAnalysis
+		registrations           []*Schema
+		plan                    expr.ValuePlanNode
+		examplePlan             expr.ValuePlanNode
+		constructingBaseline    bool
+		constructions           map[*Schema]schemaConstruction
+		projectedSchemas        map[schemaProjectionKey]*Schema
+		projectedComponents     map[schemaProjectionKey]string
+		schemaNames             map[string]representationComponentName
+		schemas                 map[string]*Schema
+		schemaFingerprints      map[string]string
+		schemaTypeIDs           map[string]string
+		schemasByFingerprint    map[string][]schemaRef
+		unionBranchSchemas      map[string]string
+		closeObjects            bool
+		rand                    *expr.ExampleGenerator
+		preparedExamples        *transportir.ValueTarget
 
 		exampleValue         func(*expr.AttributeExpr, any) (any, bool)
 		customExampleValue   bool
@@ -133,7 +133,15 @@ func exampleGeneratorWithOptions(
 
 // Err returns the first unsupported schema projection encountered by this analyzer.
 func (a *Analyzer) Err() error {
-	return a.err
+	if a.err != nil {
+		return a.err
+	}
+	for _, reference := range a.discriminatorReferences {
+		if a.schemas[reference.name] == nil {
+			return fmt.Errorf("%s: OpenAPI discriminator defaultMapping %q does not resolve to an emitted component schema", reference.context, reference.name)
+		}
+	}
+	return nil
 }
 
 // Components returns the analyzed component schemas.
@@ -438,6 +446,7 @@ func (a *Analyzer) applySchemaAnnotations(s *Schema, attr *expr.AttributeExpr, n
 		openapi.ExtensionsFromExpr(attr.Meta),
 		openapi.ScopedExtensionsFromExpr(attr.Meta, "schema"),
 	)
+	a.applyDiscriminatorMetadata(s, attr.Meta, context)
 	applySchemaOpenAPIMetadata(s, attr.Meta)
 	if ap := openapi.AdditionalPropertiesFromExpr(attr.Meta); ap != nil {
 		if explicit, ok := ap.(bool); ok {
@@ -545,15 +554,6 @@ func applySchemaOpenAPIMetadata(s *Schema, meta expr.MetaExpr) {
 	}
 	if value, ok := meta.Last("openapi:format"); ok {
 		s.Format = value
-	}
-	if value, ok := meta.Last("openapi:discriminator:defaultMapping"); ok && s.Discriminator != nil {
-		s.Discriminator.DefaultMapping = value
-	}
-	if value, ok := meta.Last("openapi:discriminator:optional"); ok && metaBoolValue(value) && s.Discriminator != nil {
-		s.Discriminator.Optional = true
-		s.Required = slices.DeleteFunc(s.Required, func(name string) bool {
-			return name == s.Discriminator.PropertyName
-		})
 	}
 	for key, assign := range map[string]func(*XML, string){
 		"openapi:xml:name":      func(xml *XML, value string) { xml.Name = value },

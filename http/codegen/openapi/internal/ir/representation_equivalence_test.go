@@ -115,7 +115,7 @@ func TestRepresentationGraphReferenceSlotsPreserveAnnotations(t *testing.T) {
 		OneOf:                 []*Schema{{Ref: toRef("target")}},
 		AdditionalProperties:  &BoolOrSchema{Schema: &Schema{Ref: toRef("target")}},
 		UnevaluatedProperties: &BoolOrSchema{Schema: &Schema{Ref: toRef("target")}},
-		Discriminator:         &Discriminator{Mapping: map[string]string{"escaped/~tag": toRef("target")}},
+		Discriminator:         &Discriminator{DefaultMapping: toRef("target"), Mapping: map[string]string{"escaped/~tag": toRef("target")}},
 	}
 	graph := captureRepresentationGraph(map[string]*Schema{"root": schema, "target": {Type: "string"}})
 	node := graph["root"]
@@ -124,7 +124,7 @@ func TestRepresentationGraphReferenceSlotsPreserveAnnotations(t *testing.T) {
 		"/Properties/escaped~1~0field/Ref", "/Defs/local/Ref",
 		"/AllOf/0/Ref", "/AnyOf/0/Ref", "/OneOf/0/Ref",
 		"/AdditionalProperties/Schema/Ref", "/UnevaluatedProperties/Schema/Ref",
-		"/Discriminator/Mapping/escaped~1~0tag",
+		"/Discriminator/DefaultMapping", "/Discriminator/Mapping/escaped~1~0tag",
 	}, node.paths)
 	encoded, err := json.Marshal(schema, json.Deterministic(true))
 	require.NoError(t, err)

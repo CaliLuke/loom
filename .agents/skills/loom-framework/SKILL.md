@@ -271,6 +271,10 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   members.
 - Start OpenAPI contract changes in `http/codegen/openapi/internal/ir`; keep the
   `v3` package focused on rendering IR-owned decisions.
+- `ir.decodeDiscriminatorMetadata` owns cross-field admission before schema
+  mutation. Validate local fallbacks before representation allocation; include
+  fallback references in identity, rewriting and pruning. Keep version projection
+  in the existing router. See `ir/lean/discriminator_metadata` for the bounded model.
 - `ir.projectPattern` owns the portable Go-to-ECMA pattern boundary. Project
   before schema reuse and rendering; carry unsupported projections through
   `Analyzer.Err` and `BodyTypes.Err` to the document generator. Runtime Go

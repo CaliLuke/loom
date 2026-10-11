@@ -706,6 +706,16 @@ All OpenAPI 3.2 additions use the same design and renderer:
 | Reserved characters and cookie serialization | `openapi:allowReserved` on parameters or headers and `openapi:style` set to `cookie` on cookies |
 | Server names | The DSL `Server(...)` name is emitted as the OpenAPI Server Object `name` |
 
+Optional discriminator metadata requires an explicit `defaultMapping`. Export
+rejects missing or blank fallbacks, malformed URI references, unknown local
+components, non-boolean optional values, and discriminator metadata on non-unions.
+A bare fallback names a schema component; `#/components/schemas/Name` is also
+accepted. Use `./schemas.json#/$defs/Fallback` or an absolute URI for an external
+schema; export preserves that reference without fetching it. In the 3.1 target,
+Loom requires the discriminator property and omits `defaultMapping`. Metadata is
+validated before selecting either target, so changing the target cannot hide an
+invalid authored combination.
+
 Encoding metadata fields may be `contentType`, `style`, `explode`, or
 `allowReserved`. Nest another `encoding:<property>`,
 `prefixEncoding:<index>`, or `itemEncoding` segment before the field to describe
