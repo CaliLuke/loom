@@ -27,7 +27,13 @@ func buildDocument(root *expr.RootExpr) (*OpenAPI, error) {
 	if err != nil {
 		return nil, err
 	}
-	paths := buildPaths(root.API.HTTP, doc, root.API)
+	paths, err := buildPaths(root.API.HTTP, doc, root.API)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateOpenAPIIdentities(paths); err != nil {
+		return nil, err
+	}
 	reusable := reusableComponentsFromIR(doc.Components)
 	schemas := openapiir.RenderSchemaMap(doc.Components.Schemas)
 	cleanupComponentSchemas(paths, schemas, reusable)
@@ -44,4 +50,36 @@ func buildDocument(root *expr.RootExpr) (*OpenAPI, error) {
 		ExternalDocs:      openapi.DocsFromExpr(root.API.Docs),
 		Extensions:        openapi.ScopedExtensionsFromExpr(root.API.Meta, "document"),
 	}, nil
+}
+
+func validateOpenAPIIdentities(paths map[string]*PathItem) error {
+	var claims []openapiir.OperationIdentity
+	for path, item := range paths {
+		if item == nil {
+			continue
+		}
+		for method, operation := range pathItemOperationEntries(item) {
+			if operation == nil {
+				continue
+			}
+			claims = append(claims, openapiir.OperationIdentity{
+				Path:        path,
+				Method:      method,
+				OperationID: operation.OperationID,
+			})
+		}
+	}
+	return openapiir.ValidateOperationIdentities(claims)
+}
+
+func pathItemOperationEntries(item *PathItem) map[string]*Operation {
+	operations := map[string]*Operation{
+		"GET": item.Get, "PUT": item.Put, "POST": item.Post, "DELETE": item.Delete,
+		"OPTIONS": item.Options, "HEAD": item.Head, "PATCH": item.Patch,
+		"TRACE": item.Trace, "QUERY": item.Query,
+	}
+	for method, operation := range item.AdditionalOperations {
+		operations[method] = operation
+	}
+	return operations
 }

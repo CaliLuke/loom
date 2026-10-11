@@ -1,13 +1,24 @@
 package openapiv3
 
 import (
+	json "encoding/json/v2"
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	openapiir "github.com/CaliLuke/loom/http/codegen/openapi/internal/ir"
 )
 
 const openAPIAsyncExtension = "x-loom-async"
+
+type pendingMediaTypeComponent struct {
+	mediaType *MediaType
+	name      string
+	value     MediaType
+	encoded   string
+}
 
 func renderOpenAPI(root *expr.RootExpr, spec *OpenAPI, target openAPIVersion) ([]string, error) {
 	if spec == nil {
@@ -22,48 +33,66 @@ func renderOpenAPI(root *expr.RootExpr, spec *OpenAPI, target openAPIVersion) ([
 	router.runPasses(
 		versionedPass{
 			versions: versionRange{through: openAPIVersion31},
-			apply: func() []string {
-				return filterOpenAPI31(spec)
+			apply: func() ([]string, error) {
+				return filterOpenAPI31(spec), nil
 			},
 		},
 		versionedPass{
 			versions: versionRange{from: openAPIVersion32},
-			apply: func() []string {
-				applyOpenAPI32(root, spec)
-				return nil
+			apply: func() ([]string, error) {
+				return nil, applyOpenAPI32(root, spec)
 			},
 		},
 	)
+	if err := router.err(); err != nil {
+		return nil, err
+	}
 	return router.warnings(), nil
 }
 
-func applyOpenAPI32(root *expr.RootExpr, spec *OpenAPI) {
+func applyOpenAPI32(root *expr.RootExpr, spec *OpenAPI) error {
 	if self, ok := root.API.Meta.Last("openapi:self"); ok {
 		spec.Self = self
 	}
 	promoteConfiguredItemSchemas(spec)
-	for _, path := range spec.Paths {
-		promoteQueryStringParameters(path.Parameters)
-		for _, operation := range pathItemOperations(path) {
-			if operation == nil {
-				continue
-			}
-			promoteSSEMediaTypes(operation.Responses, sseFieldMappings(operation.Extensions), spec.Components)
-			promoteQueryStringParameters(operation.Parameters)
-		}
-	}
-	if spec.Components != nil {
-		for _, parameter := range spec.Components.Parameters {
-			promoteQueryStringParameters([]*ParameterRef{parameter})
-		}
-		for _, response := range spec.Components.Responses {
-			if response != nil && response.Value != nil {
-				promoteSSEMediaType(response.Value.Content["text/event-stream"], nil, spec.Components)
-			}
-		}
-	}
+	promoteOpenAPI32PathValues(spec)
+	promoteOpenAPI32ComponentValues(spec)
 	applySecuritySchemeURIs(spec)
-	componentizeMediaTypes(spec)
+	return componentizeMediaTypes(spec)
+}
+
+func promoteOpenAPI32PathValues(spec *OpenAPI) {
+	for _, pathKey := range sortedStringMapKeys(spec.Paths) {
+		path := spec.Paths[pathKey]
+		promoteQueryStringParameters(path.Parameters)
+		promoteOpenAPI32PathOperations(path, spec.Components)
+	}
+}
+
+func promoteOpenAPI32PathOperations(path *PathItem, components *Components) {
+	for _, operation := range pathItemOperations(path) {
+		if operation == nil {
+			continue
+		}
+		promoteSSEMediaTypes(operation.Responses, sseFieldMappings(operation.Extensions), components)
+		promoteQueryStringParameters(operation.Parameters)
+	}
+}
+
+func promoteOpenAPI32ComponentValues(spec *OpenAPI) {
+	if spec.Components == nil {
+		return
+	}
+	for _, name := range sortedStringMapKeys(spec.Components.Parameters) {
+		parameter := spec.Components.Parameters[name]
+		promoteQueryStringParameters([]*ParameterRef{parameter})
+	}
+	for _, name := range sortedStringMapKeys(spec.Components.Responses) {
+		response := spec.Components.Responses[name]
+		if response != nil && response.Value != nil {
+			promoteSSEMediaType(response.Value.Content["text/event-stream"], nil, spec.Components)
+		}
+	}
 }
 
 func promoteConfiguredItemSchemas(spec *OpenAPI) {
@@ -77,32 +106,102 @@ func promoteConfiguredItemSchemas(spec *OpenAPI) {
 	})
 }
 
-func componentizeMediaTypes(spec *OpenAPI) {
+func componentizeMediaTypes(spec *OpenAPI) error {
 	if spec == nil || spec.Components == nil {
-		return
+		return nil
 	}
+	pending, err := collectPendingMediaTypeComponents(spec)
+	if err != nil {
+		return err
+	}
+	claims, err := collectExistingMediaTypeComponentClaims(spec)
+	if err != nil {
+		return err
+	}
+	for _, component := range pending {
+		claims = append(claims, openapiir.ComponentIdentity{
+			Kind: "mediaTypes", Name: component.name, Value: component.encoded,
+		})
+	}
+	if err := openapiir.ValidateComponentIdentities(claims); err != nil {
+		return err
+	}
+	publishMediaTypeComponents(spec, pending)
+	return nil
+}
+
+func collectPendingMediaTypeComponents(spec *OpenAPI) ([]pendingMediaTypeComponent, error) {
+	var pending []pendingMediaTypeComponent
+	var marshalErr error
 	visitMediaTypes(spec, func(mediaTypes map[string]*MediaType) {
-		for _, mediaType := range mediaTypes {
+		keys := make([]string, 0, len(mediaTypes))
+		for key := range mediaTypes {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			mediaType := mediaTypes[key]
 			if mediaType == nil || mediaType.ComponentName == "" {
 				continue
 			}
-			name := mediaType.ComponentName
 			component := *mediaType
 			component.ComponentName = ""
-			if spec.Components.MediaTypes == nil {
-				spec.Components.MediaTypes = make(map[string]*MediaTypeRef)
+			encoded, err := json.Marshal(component, json.Deterministic(true))
+			if err != nil {
+				marshalErr = err
+				return
 			}
-			spec.Components.MediaTypes[name] = &MediaTypeRef{Value: &component}
-			*mediaType = MediaType{Ref: "#/components/mediaTypes/" + name}
+			pending = append(pending, pendingMediaTypeComponent{mediaType: mediaType, name: mediaType.ComponentName, value: component, encoded: string(encoded)})
 		}
 	})
+	if marshalErr != nil {
+		return nil, fmt.Errorf("marshal OpenAPI media type component claim: %w", marshalErr)
+	}
+	return pending, nil
+}
+
+func collectExistingMediaTypeComponentClaims(spec *OpenAPI) ([]openapiir.ComponentIdentity, error) {
+	claims := make([]openapiir.ComponentIdentity, 0, len(spec.Components.MediaTypes))
+	for _, name := range sortedStringMapKeys(spec.Components.MediaTypes) {
+		ref := spec.Components.MediaTypes[name]
+		if ref == nil || ref.Value == nil {
+			continue
+		}
+		component := *ref.Value
+		component.ComponentName = ""
+		encoded, err := json.Marshal(component, json.Deterministic(true))
+		if err != nil {
+			return nil, fmt.Errorf("marshal existing OpenAPI media type component %q: %w", name, err)
+		}
+		claims = append(claims, openapiir.ComponentIdentity{
+			Kind: "mediaTypes", Name: name, Value: string(encoded), Source: "existing component",
+		})
+	}
+	return claims, nil
+}
+
+func publishMediaTypeComponents(spec *OpenAPI, pending []pendingMediaTypeComponent) {
+	if len(pending) == 0 {
+		return
+	}
+	if spec.Components.MediaTypes == nil {
+		spec.Components.MediaTypes = make(map[string]*MediaTypeRef)
+	}
+	for _, component := range pending {
+		if _, exists := spec.Components.MediaTypes[component.name]; !exists {
+			value := component.value
+			spec.Components.MediaTypes[component.name] = &MediaTypeRef{Value: &value}
+		}
+		*component.mediaType = MediaType{Ref: "#/components/mediaTypes/" + component.name}
+	}
 }
 
 func visitMediaTypes(spec *OpenAPI, visit func(map[string]*MediaType)) {
 	if spec == nil || visit == nil {
 		return
 	}
-	for _, path := range spec.Paths {
+	for _, pathKey := range sortedStringMapKeys(spec.Paths) {
+		path := spec.Paths[pathKey]
 		if path == nil {
 			continue
 		}
@@ -115,7 +214,8 @@ func visitMediaTypes(spec *OpenAPI, visit func(map[string]*MediaType)) {
 			if operation.RequestBody != nil && operation.RequestBody.Value != nil {
 				visit(operation.RequestBody.Value.Content)
 			}
-			for _, response := range operation.Responses {
+			for _, status := range sortedStringMapKeys(operation.Responses) {
+				response := operation.Responses[status]
 				if response != nil && response.Value != nil {
 					visit(response.Value.Content)
 				}
@@ -125,17 +225,20 @@ func visitMediaTypes(spec *OpenAPI, visit func(map[string]*MediaType)) {
 	if spec.Components == nil {
 		return
 	}
-	for _, parameter := range spec.Components.Parameters {
+	for _, name := range sortedStringMapKeys(spec.Components.Parameters) {
+		parameter := spec.Components.Parameters[name]
 		if parameter != nil && parameter.Value != nil {
 			visit(parameter.Value.Content)
 		}
 	}
-	for _, body := range spec.Components.RequestBodies {
+	for _, name := range sortedStringMapKeys(spec.Components.RequestBodies) {
+		body := spec.Components.RequestBodies[name]
 		if body != nil && body.Value != nil {
 			visit(body.Value.Content)
 		}
 	}
-	for _, response := range spec.Components.Responses {
+	for _, name := range sortedStringMapKeys(spec.Components.Responses) {
+		response := spec.Components.Responses[name]
 		if response != nil && response.Value != nil {
 			visit(response.Value.Content)
 		}
@@ -148,6 +251,15 @@ func visitParameterMediaTypes(parameters []*ParameterRef, visit func(map[string]
 			visit(parameter.Value.Content)
 		}
 	}
+}
+
+func sortedStringMapKeys[V any](values map[string]V) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func promoteQueryStringParameters(parameters []*ParameterRef) {
@@ -221,8 +333,8 @@ func pathItemOperations(path *PathItem) []*Operation {
 		path.Trace,
 		path.Query,
 	}
-	for _, operation := range path.AdditionalOperations {
-		operations = append(operations, operation)
+	for _, method := range sortedStringMapKeys(path.AdditionalOperations) {
+		operations = append(operations, path.AdditionalOperations[method])
 	}
 	return operations
 }

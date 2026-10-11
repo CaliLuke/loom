@@ -110,16 +110,20 @@ func buildComponents(schemes map[string]*expr.SchemeExpr, types map[string]*open
 
 // buildPaths builds the OpenAPI Paths map with key as the HTTP path string and
 // the value as the corresponding PathItem object.
-func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) map[string]*PathItem {
+func buildPaths(h *expr.HTTPExpr, doc *openapiir.Document, api *expr.APIExpr) (map[string]*PathItem, error) {
 	var paths = make(map[string]*PathItem)
 	for _, svc := range h.Services {
 		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
 			continue
 		}
-		buildServiceEndpointPaths(paths, doc, svc, openapi.ExtensionsFromExpr(svc.Meta))
-		buildServiceFileServerPaths(paths, api, svc, doc.Security)
+		if err := buildServiceEndpointPaths(paths, doc, svc, openapi.ExtensionsFromExpr(svc.Meta)); err != nil {
+			return nil, err
+		}
+		if err := buildServiceFileServerPaths(paths, api, svc, doc.Security); err != nil {
+			return nil, err
+		}
 	}
-	return paths
+	return paths, nil
 }
 
 func buildOperationFromIR(operationIR *openapiir.Operation) *Operation {
@@ -171,7 +175,7 @@ func buildFileServerOperation(key string, fs *expr.HTTPFileServerExpr, api *expr
 	}
 }
 
-func buildServiceEndpointPaths(paths map[string]*PathItem, doc *openapiir.Document, svc *expr.HTTPServiceExpr, exts map[string]any) {
+func buildServiceEndpointPaths(paths map[string]*PathItem, doc *openapiir.Document, svc *expr.HTTPServiceExpr, exts map[string]any) error {
 	corsExt := corsExtension(effectiveCORS(svc))
 	for _, endpoint := range svc.HTTPEndpoints {
 		if !openapi.MustGenerate(endpoint.Meta) || !openapi.MustGenerate(endpoint.MethodExpr.Meta) {
@@ -180,12 +184,16 @@ func buildServiceEndpointPaths(paths map[string]*PathItem, doc *openapiir.Docume
 		for _, route := range endpoint.Routes {
 			for _, key := range route.FullPaths() {
 				normalizedKey := normalizeOpenAPIPath(key)
+				if pathOperation(paths[normalizedKey], route.Method) != nil {
+					return fmt.Errorf("OpenAPI operation %s %s is claimed more than once", route.Method, normalizedKey)
+				}
 				assignPathOperation(paths, normalizedKey, route.Method, buildOperationFromIR(irOperation(doc, normalizedKey, route.Method)))
 				assignPathExtensions(paths[normalizedKey], route.Endpoint.Meta, exts)
 				assignCORSExtension(paths[normalizedKey], corsExt)
 			}
 		}
 	}
+	return nil
 }
 
 func effectiveCORS(svc *expr.HTTPServiceExpr) *expr.HTTPCORSExpr {
@@ -238,15 +246,47 @@ func assignCORSExtension(path *PathItem, cors map[string]any) {
 	path.Extensions["x-loom-cors"] = cors
 }
 
-func buildServiceFileServerPaths(paths map[string]*PathItem, api *expr.APIExpr, svc *expr.HTTPServiceExpr, security []map[string][]string) {
+func buildServiceFileServerPaths(paths map[string]*PathItem, api *expr.APIExpr, svc *expr.HTTPServiceExpr, security []map[string][]string) error {
 	for _, fileServer := range svc.FileServers {
 		if !openapi.MustGenerate(fileServer.Meta) || !openapi.MustGenerate(fileServer.Service.Meta) {
 			continue
 		}
 		for _, key := range fileServer.RequestPaths {
 			normalizedKey := normalizeOpenAPIPath(key)
+			if pathOperation(paths[normalizedKey], "GET") != nil {
+				return fmt.Errorf("OpenAPI operation GET %s is claimed more than once", normalizedKey)
+			}
 			assignPathOperation(paths, normalizedKey, "GET", buildFileServerOperation(normalizedKey, fileServer, api, security))
 		}
+	}
+	return nil
+}
+
+func pathOperation(path *PathItem, method string) *Operation {
+	if path == nil {
+		return nil
+	}
+	switch method {
+	case "GET":
+		return path.Get
+	case "PUT":
+		return path.Put
+	case "POST":
+		return path.Post
+	case "DELETE":
+		return path.Delete
+	case "OPTIONS":
+		return path.Options
+	case "HEAD":
+		return path.Head
+	case "PATCH":
+		return path.Patch
+	case "TRACE":
+		return path.Trace
+	case "QUERY":
+		return path.Query
+	default:
+		return path.AdditionalOperations[method]
 	}
 }
 

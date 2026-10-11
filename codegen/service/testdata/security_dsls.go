@@ -402,7 +402,7 @@ var MultipleServicesDSL = func() {
 				Token("token", String)
 			})
 			HTTP(func() {
-				GET("/")
+				GET("/jwt")
 			})
 		})
 	})

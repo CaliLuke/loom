@@ -138,23 +138,23 @@ func TestVersionRouterRunsMatchingPassesInOrderAndAccumulatesWarnings(t *testing
 	router.runPasses(
 		versionedPass{
 			versions: versionRange{through: openAPIVersion31},
-			apply: func() []string {
+			apply: func() ([]string, error) {
 				order = append(order, "skipped")
-				return []string{"skipped warning"}
+				return []string{"skipped warning"}, nil
 			},
 		},
 		versionedPass{
 			versions: versionRange{from: openAPIVersion31},
-			apply: func() []string {
+			apply: func() ([]string, error) {
 				order = append(order, "first")
-				return []string{"first pass warning"}
+				return []string{"first pass warning"}, nil
 			},
 		},
 		versionedPass{
 			versions: versionRange{from: openAPIVersion32, through: openAPIVersion32},
-			apply: func() []string {
+			apply: func() ([]string, error) {
 				order = append(order, "second")
-				return []string{"second pass warning"}
+				return []string{"second pass warning"}, nil
 			},
 		},
 	)

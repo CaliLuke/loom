@@ -18,6 +18,18 @@ references with inline definitions. These automatic references are not stable
 identifiers. Explicitly authored component names and schema names retain their
 existing contracts.
 
+Generation rejects duplicate `operationId` values and duplicate method/path
+slots, including collisions with file servers. Different parameter names do
+not distinguish path templates, even across methods: `/items/{id}.json` and
+`/items/{slug}.json` collide. Use one spelling for a shared template; different
+methods on that same path remain valid.
+
+For OpenAPI 3.2, an explicit `openapi:component:mediaType` name can be shared
+only when the complete projected media definitions agree, including schemas,
+examples, encodings and extensions. Conflicting definitions produce a
+generation error instead of overwriting one another. Regenerate after
+upgrading, and resolve any identity diagnostics before publishing the contract.
+
 For both OpenAPI 3.1 and 3.2, operation-specific response descriptions appear
 beside `$ref`. The shared component has a neutral status description:
 

@@ -307,7 +307,7 @@ var ServerMultipleFilesDSL = func() {
 	Service("ServiceFileServer", func() {
 		Files("/file.json", "/path/to/file.json")
 		Files("/", "/path/to/file.json")
-		Files("/file.json", "file.json")
+		Files("/relative-file.json", "file.json")
 		Files("/{wildcard}", "/path/to/folder")
 	})
 }
@@ -319,7 +319,7 @@ var ServerMultipleFilesWithPrefixPathDSL = func() {
 		})
 		Files("/file.json", "/path/to/file.json")
 		Files("/", "/path/to/file.json")
-		Files("/file.json", "file.json")
+		Files("/relative-file.json", "file.json")
 		Files("/{wildcard}", "/path/to/folder")
 	})
 }
@@ -330,7 +330,7 @@ var ServerMultipleFilesWithRedirectDSL = func() {
 			Redirect("/redirect/dest", StatusMovedPermanently)
 		})
 		Files("/", "/path/to/file.json")
-		Files("/file.json", "file.json")
+		Files("/relative-file.json", "file.json")
 		Files("/{wildcard}", "/path/to/folder")
 	})
 }

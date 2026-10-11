@@ -59,6 +59,12 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 
 ## OpenAPI contracts
 
+- [Document identities and explicit component claims](../../../../http/codegen/openapi/internal/ir/tla/document_identity/README.md):
+  finite duplicate operation, equivalent path-template and conflicting media
+  name counterexamples; accepted controls retain multiple methods on one path
+  and equal component claims. Concrete extraction, serialization and Go
+  refinement remain test obligations.
+
 - [Strict import schema normalization](../../../../internal/openapiimport/lean/schema_normalization/README.md):
   finite acceptance counterexamples for boolean schemas, typeless properties,
   constrained null compositions and dialect-dependent nullability; admitted
