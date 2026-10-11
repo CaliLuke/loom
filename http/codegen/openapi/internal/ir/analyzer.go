@@ -64,9 +64,8 @@ const (
 	schemaUsageNeutral schemaUsage = iota
 	schemaUsageRequest
 	schemaUsageResponse
+	projectedResultMetaKey = "loom:openapi:projected-result"
 )
-
-const projectedResultMetaKey = "loom:openapi:projected-result"
 
 // WithExampleValue selects a custom projector over the original attribute and
 // raw example. A nil projector uses retained declared JSON-shaped values,
