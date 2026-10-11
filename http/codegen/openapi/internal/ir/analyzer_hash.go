@@ -213,24 +213,11 @@ func (e *canonicalSchemaEncoder) writeTypeShape(att *expr.AttributeExpr, t expr.
 }
 
 func (e *canonicalSchemaEncoder) writePrimitiveType(kind expr.Kind) bool {
-	switch kind {
-	case expr.BooleanKind:
-		e.writePrimitive("boolean", "")
-	case expr.IntKind, expr.UIntKind, expr.Int64Kind, expr.UInt64Kind:
-		e.writePrimitive("integer", "int64")
-	case expr.Int32Kind, expr.UInt32Kind:
-		e.writePrimitive("integer", "int32")
-	case expr.Float32Kind:
-		e.writePrimitive("number", "float")
-	case expr.Float64Kind:
-		e.writePrimitive("number", "double")
-	case expr.StringKind:
-		e.writePrimitive("string", "")
-	case expr.AnyKind:
-		e.writePrimitive("", "")
-	default:
+	schemaType, format, ok := primitiveSchemaTypeFormat(kind)
+	if !ok {
 		return false
 	}
+	e.writePrimitive(schemaType, format)
 	return true
 }
 

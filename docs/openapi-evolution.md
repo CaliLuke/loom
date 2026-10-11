@@ -73,6 +73,14 @@ Regenerate contracts after upgrading the map projection. Earlier versions
 emitted string-length keywords for maps, which JSON Schema validators ignore
 for object values. Review validator behavior at the declared map boundaries.
 
+Loom uses the registered [unsigned integer formats](https://spec.openapis.org/registry/format/):
+`UInt32` emits `uint32`, while `UInt64` and native `UInt` emit `uint64`.
+Signed integer formats and authored numeric bounds retain their behavior.
+Regenerate contracts and review generated clients after upgrading from the
+earlier signed annotations. Formats are annotations with optional validator
+support; this correction does not change the JSON numeric representation or
+replace explicit numeric assertions.
+
 Loom emits OpenAPI 3.2 by default. oasdiff `v1.33.0` reads 3.2 documents, but
 its documentation says that 3.2 coverage remains under development.
 

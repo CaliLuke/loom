@@ -196,6 +196,11 @@ For maps, `MinLength` and `MaxLength` count entries and export as
 `minProperties` and `maxProperties`, including named map types. Regenerate
 contracts after upgrading so schema validators enforce the declared map bounds.
 
+Unsigned integer schemas use `uint32` for `UInt32` and `uint64` for `UInt64`
+and `UInt`. Regenerate after upgrading and review generated clients. These
+format annotations describe the domain; validator format support is optional.
+The JSON representation and authored numeric bounds stay the same.
+
 OpenAPI security follows each endpoint's credential location. JWTs mapped to
 query parameters, cookies, or custom headers use API-key schemes; Authorization
 header JWTs use HTTP bearer. One scheme used at several locations gets separate
