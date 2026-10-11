@@ -70,6 +70,10 @@ at those supported scopes produce diagnostics. Document, schema, parameter,
 request-body, and response extensions preserve JSON-compatible `x-*` values,
 and regenerated OpenAPI emits each value at the scope it came from.
 
+Cookie parameters require primitive schemas, including through component
+references. Array and object cookies produce a blocking
+`cookie-parameter-shape` diagnostic, even with `--allow-lossy`.
+
 An extension at an unsupported scope is a `vendor-extension` diagnostic. Strict
 import fails before it writes output. With `--allow-lossy`, the importer omits
 the extension and reports it as a warning.

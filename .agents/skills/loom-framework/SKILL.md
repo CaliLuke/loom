@@ -418,6 +418,9 @@ filter, and serialization rules belong here.
   payloads when body-only, selected `Body(...)` attributes when transport
   fields coexist, and raw contracts for multi-media or optional multipart
   bodies.
+- The shared import planner admits cookie schemas only when they are primitive,
+  resolving component schemas before checking. Array and object cookies fail
+  with a blocking location-specific diagnostic before rendering.
 - Generated HTTP request code currently reserves the local name `body`. Until
   function-local names have an independent allocator, fail an imported
   request-body operation closed when a parameter or security field Goifies to

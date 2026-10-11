@@ -217,6 +217,8 @@ TODO placeholders, and never overwrites an existing target. Schema `title`,
 import without a flag. Unformatted integers and numbers also import without a
 flag. String schemas with `format: byte` or `format: binary` import as `Bytes`.
 Regeneration preserves the selected format.
+Cookie parameters require primitive schemas. Array and object cookies are
+blocked before rendering, including schemas reached through references.
 Representable media examples map to `Example(...)`.
 Use `docs/openapi-import-coverage.md` for the complete field and schema-keyword
 matrix. It distinguishes preserved, conditional, lossy, and rejected input.

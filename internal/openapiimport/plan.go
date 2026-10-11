@@ -174,6 +174,9 @@ func (p *documentPlanner) parameter(parameter Parameter, path string) {
 			p.unsupported("schema-oneof-location", path+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
 		p.schema(resolved.Schema, path+"/schema")
+		if resolved.In == "cookie" && !p.schemaIsPrimitive(resolved.Schema, make(map[string]struct{})) {
+			p.unsupported("cookie-parameter-shape", path+"/schema", "cookie parameters must have primitive schemas; array and object cookies are not supported by the HTTP DSL")
+		}
 	}
 	if resolved.In != "query" && resolved.AllowEmptyValue {
 		p.unsupported("parameter-allow-empty-value", path, "allowEmptyValue is only supported for query parameters")
