@@ -63,6 +63,10 @@ type (
 		MinItems *int `json:"minItems,omitzero" yaml:"minItems,omitempty"`
 		// MaxItems is the maximum array length.
 		MaxItems *int `json:"maxItems,omitzero" yaml:"maxItems,omitempty"`
+		// MinProperties is the minimum number of object properties.
+		MinProperties *int `json:"minProperties,omitzero" yaml:"minProperties,omitempty"`
+		// MaxProperties is the maximum number of object properties.
+		MaxProperties *int `json:"maxProperties,omitzero" yaml:"maxProperties,omitempty"`
 		// Required lists required object property names.
 		Required []string `json:"required,omitzero,omitempty" yaml:"required,omitempty"`
 		// AdditionalProperties controls values for otherwise unnamed properties.

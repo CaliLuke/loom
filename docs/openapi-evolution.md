@@ -51,6 +51,16 @@ equivalence alone does not prove compatibility of the generated client API.
 
 ## Select the OpenAPI compatibility target
 
+For both targets, Loom projects `MinLength` and `MaxLength` according to the
+value on the wire: string bounds use `minLength` and `maxLength`, array bounds
+use `minItems` and `maxItems`, and map entry counts use `minProperties` and
+`maxProperties`. Named and aliased maps keep their effective bounds. Byte
+lengths use the separate binary or base64 representation rules.
+
+Regenerate contracts after upgrading the map projection. Earlier versions
+emitted string-length keywords for maps, which JSON Schema validators ignore
+for object values. Review validator behavior at the declared map boundaries.
+
 Loom emits OpenAPI 3.2 by default. oasdiff `v1.33.0` reads 3.2 documents, but
 its documentation says that 3.2 coverage remains under development.
 

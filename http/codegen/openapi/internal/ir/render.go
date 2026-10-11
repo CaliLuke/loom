@@ -53,6 +53,8 @@ func RenderSchema(schema *Schema) *openapi.Schema {
 	out.MaxLength = schema.MaxLength
 	out.MinItems = schema.MinItems
 	out.MaxItems = schema.MaxItems
+	out.MinProperties = schema.MinProperties
+	out.MaxProperties = schema.MaxProperties
 	out.Required = append([]string(nil), schema.Required...)
 	out.AdditionalProperties = renderBoolOrSchema(schema.AdditionalProperties)
 	out.UnevaluatedProperties = renderBoolOrSchema(schema.UnevaluatedProperties)
