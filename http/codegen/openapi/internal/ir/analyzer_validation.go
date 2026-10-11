@@ -53,16 +53,22 @@ func applySchemaStringClauses(s *Schema, val *expr.ValidationExpr) {
 
 func applySchemaLengths(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr) {
 	if val.MinLength != nil {
-		if expr.AsArray(attr.Type) != nil {
+		switch {
+		case expr.AsArray(attr.Type) != nil:
 			s.MinItems = val.MinLength
-		} else {
+		case expr.AsMap(attr.Type) != nil:
+			s.MinProperties = val.MinLength
+		default:
 			s.MinLength = val.MinLength
 		}
 	}
 	if val.MaxLength != nil {
-		if expr.AsArray(attr.Type) != nil {
+		switch {
+		case expr.AsArray(attr.Type) != nil:
 			s.MaxItems = val.MaxLength
-		} else {
+		case expr.AsMap(attr.Type) != nil:
+			s.MaxProperties = val.MaxLength
+		default:
 			s.MaxLength = val.MaxLength
 		}
 	}

@@ -219,16 +219,20 @@ type (
 		ContentMediaType string
 		ContentSchema    *Schema
 
-		Enum                  []any
-		Pattern               string
-		ExclusiveMinimum      *float64
-		Minimum               *float64
-		ExclusiveMaximum      *float64
-		Maximum               *float64
-		MinLength             *int
-		MaxLength             *int
-		MinItems              *int
-		MaxItems              *int
+		Enum             []any
+		Pattern          string
+		ExclusiveMinimum *float64
+		Minimum          *float64
+		ExclusiveMaximum *float64
+		Maximum          *float64
+		MinLength        *int
+		MaxLength        *int
+		MinItems         *int
+		MaxItems         *int
+		// MinProperties is the minimum object property count.
+		MinProperties *int
+		// MaxProperties is the maximum object property count.
+		MaxProperties         *int
 		Required              []string
 		AdditionalProperties  *BoolOrSchema
 		UnevaluatedProperties *BoolOrSchema
@@ -288,16 +292,20 @@ type (
 		PathStart        string
 		Links            []any
 
-		Enum                  []any
-		Pattern               string
-		ExclusiveMinimum      *float64
-		Minimum               *float64
-		ExclusiveMaximum      *float64
-		Maximum               *float64
-		MinLength             *int
-		MaxLength             *int
-		MinItems              *int
-		MaxItems              *int
+		Enum             []any
+		Pattern          string
+		ExclusiveMinimum *float64
+		Minimum          *float64
+		ExclusiveMaximum *float64
+		Maximum          *float64
+		MinLength        *int
+		MaxLength        *int
+		MinItems         *int
+		MaxItems         *int
+		// MinProperties is omitted when absent to preserve legacy schema fingerprints.
+		MinProperties *int `json:",omitzero"`
+		// MaxProperties is omitted when absent to preserve legacy schema fingerprints.
+		MaxProperties         *int `json:",omitzero"`
 		Required              []string
 		AdditionalProperties  *BoolOrSchema
 		UnevaluatedProperties *BoolOrSchema
@@ -346,6 +354,8 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		MaxLength:             s.MaxLength,
 		MinItems:              s.MinItems,
 		MaxItems:              s.MaxItems,
+		MinProperties:         s.MinProperties,
+		MaxProperties:         s.MaxProperties,
 		Required:              s.Required,
 		AdditionalProperties:  s.AdditionalProperties,
 		UnevaluatedProperties: s.UnevaluatedProperties,

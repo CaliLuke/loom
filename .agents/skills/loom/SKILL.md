@@ -183,6 +183,10 @@ the grammar and decoded bounds; `contentEncoding` alone is only an annotation.
 Raw/text bodies, multipart/form fields, custom codecs and explicit schema
 overrides retain their contracts. See the [HTTP guide](../../../docs/http-guide.md).
 
+For maps, `MinLength` and `MaxLength` count entries and export as
+`minProperties` and `maxProperties`, including named map types. Regenerate
+contracts after upgrading so schema validators enforce the declared map bounds.
+
 OpenAPI security follows each endpoint's credential location. JWTs mapped to
 query parameters, cookies, or custom headers use API-key schemes; Authorization
 header JWTs use HTTP bearer. One scheme used at several locations gets separate

@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -366,6 +367,73 @@ func TestAnalyzerUsesArrayLengthKeywordsForNamedArrayOccurrence(t *testing.T) {
 	require.NotEmpty(t, schema.Ref)
 	require.Equal(t, &minimum, schema.MinItems)
 	require.Nil(t, schema.MinLength)
+}
+
+func TestAnalyzerProjectsMapLengthAsPropertyCardinality(t *testing.T) {
+	t.Parallel()
+
+	minimum, maximum := 2, 7
+	mapType := func() *expr.Map {
+		return &expr.Map{
+			KeyType:  &expr.AttributeExpr{Type: expr.String},
+			ElemType: &expr.AttributeExpr{Type: expr.String},
+		}
+	}
+	for _, tc := range []struct {
+		name string
+		attr *expr.AttributeExpr
+	}{
+		{
+			name: "inline map",
+			attr: &expr.AttributeExpr{
+				Type: mapType(),
+				Validation: &expr.ValidationExpr{
+					MinLength: &minimum,
+					MaxLength: &maximum,
+				},
+			},
+		},
+		{
+			name: "named map alias",
+			attr: &expr.AttributeExpr{Type: &expr.UserTypeExpr{
+				TypeName: "NamedMap",
+				UID:      "NamedMap",
+				AttributeExpr: &expr.AttributeExpr{
+					Type: mapType(),
+					Meta: expr.MetaExpr{"openapi:typename:canonical": {"true"}},
+					Validation: &expr.ValidationExpr{
+						MinLength: &minimum,
+						MaxLength: &maximum,
+					},
+				},
+			}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			analyzer := NewAnalyzer(expr.NewRandom("map-cardinality"), false)
+			schema := analyzer.AnalyzeSchema(tc.attr)
+			if schema.Ref != "" {
+				schema = analyzer.Components()["NamedMap"]
+			}
+			require.Equal(t, &minimum, schema.MinProperties)
+			require.Equal(t, &maximum, schema.MaxProperties)
+			require.Nil(t, schema.MinLength)
+			require.Nil(t, schema.MaxLength)
+
+			rendered := RenderSchema(schema)
+			require.Equal(t, &minimum, rendered.MinProperties)
+			require.Equal(t, &maximum, rendered.MaxProperties)
+			raw, err := json.Marshal(rendered)
+			require.NoError(t, err)
+			var document map[string]any
+			require.NoError(t, json.Unmarshal(raw, &document))
+			require.Equal(t, float64(2), document["minProperties"])
+			require.Equal(t, float64(7), document["maxProperties"])
+			require.NotContains(t, document, "minLength")
+			require.NotContains(t, document, "maxLength")
+		})
+	}
 }
 
 func TestAnalyzerOccurrenceOverlayPreservesCanonicalName(t *testing.T) {
