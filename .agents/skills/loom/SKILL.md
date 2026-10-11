@@ -163,6 +163,15 @@ Read the reference's description override before the component description. Chan
 example can move a definition inline without changing its underlying schema.
 Do not depend on these automatic component references as stable identifiers.
 Explicitly authored component names and schema names retain their contracts.
+Keep `openapi:operationId` values unique across the document. Use the same
+parameter names when multiple methods share one path template: `/items/{id}`
+and `/items/{slug}` collide, including templates with the same static suffix.
+The default `{routeIndex}` distinguishes emitted paths when a method expands
+through multiple service base paths; static operation IDs remain literal and
+generation rejects duplicates.
+In 3.2, reuse an explicit `openapi:component:mediaType` name only for identical
+projected media definitions, including examples and encodings. Conflicts cause
+OpenAPI generation errors.
 Review regenerated SDK and validator output when updating Loom; equivalent
 OpenAPI schemas can still produce different client declarations. See the
 [OpenAPI evolution guide](../../../docs/openapi-evolution.md).

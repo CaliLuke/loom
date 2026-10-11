@@ -43,7 +43,7 @@ func TestOpenAPI32MediaTypePassesVisitParameterContent(t *testing.T) {
 			require.Nil(t, mediaType.Schema)
 			require.NotNil(t, mediaType.ItemSchema)
 
-			componentizeMediaTypes(spec)
+			require.NoError(t, componentizeMediaTypes(spec))
 			require.Equal(t, "#/components/mediaTypes/WidgetFilter", mediaType.Ref)
 			require.Contains(t, spec.Components.MediaTypes, "WidgetFilter")
 			component := spec.Components.MediaTypes["WidgetFilter"].Value

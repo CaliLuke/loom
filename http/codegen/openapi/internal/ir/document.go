@@ -22,18 +22,7 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 		return nil, nil
 	}
 	apiRequirements := apiSecurityRequirements(api)
-	requirements := [][]*expr.SecurityExpr{apiRequirements}
-	for _, svc := range api.HTTP.Services {
-		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
-			continue
-		}
-		for _, endpoint := range svc.HTTPEndpoints {
-			if openapi.MustGenerate(endpoint.Meta) && openapi.MustGenerate(endpoint.MethodExpr.Meta) {
-				requirements = append(requirements, endpoint.Requirements)
-			}
-		}
-	}
-	bindings, err := newSecurityBindings(requirements...)
+	bindings, err := newSecurityBindings(documentSecurityRequirements(api, apiRequirements)...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,33 +37,103 @@ func BuildDocument(api *expr.APIExpr, types []expr.UserType, resultTypes []*expr
 		Security: bindings.requirements(apiRequirements),
 	}
 	closeObjects := openapi.ClosedObjectModeFromExpr(api.Meta)
+	if err := buildDocumentPaths(doc, api, bodyTypes, exampleGenerator, closeObjects, bindings); err != nil {
+		return nil, err
+	}
+	componentizeDocument(doc)
+	return doc, nil
+}
+
+func documentSecurityRequirements(api *expr.APIExpr, apiRequirements []*expr.SecurityExpr) [][]*expr.SecurityExpr {
+	requirements := [][]*expr.SecurityExpr{apiRequirements}
+	for _, svc := range api.HTTP.Services {
+		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
+			continue
+		}
+		for _, endpoint := range svc.HTTPEndpoints {
+			if openapi.MustGenerate(endpoint.Meta) && openapi.MustGenerate(endpoint.MethodExpr.Meta) {
+				requirements = append(requirements, endpoint.Requirements)
+			}
+		}
+	}
+	return requirements
+}
+
+func buildDocumentPaths(
+	doc *Document,
+	api *expr.APIExpr,
+	bodyTypes *BodyTypes,
+	exampleGenerator *expr.ExampleGenerator,
+	closeObjects bool,
+	bindings *securityBindings,
+) error {
+	var identities []OperationIdentity
 	for _, svc := range api.HTTP.Services {
 		if !openapi.MustGenerate(svc.Meta) || !openapi.MustGenerate(svc.ServiceExpr.Meta) {
 			continue
 		}
 		irService := bodyTypes.prepared[svc.Name()]
 		serviceBodies := bodyTypes.Services[svc.Name()]
-		for _, endpoint := range irService.Endpoints {
-			if !endpoint.Generate || !endpoint.MethodGenerate {
-				continue
-			}
-			for _, route := range endpoint.Routes {
-				key := expr.HTTPWildcardRegex.ReplaceAllString(route.Path, "/{$1}")
-				operation, err := buildRouteOperationFromIR(endpoint, route, key, serviceBodies[endpoint.Name], exampleGenerator, api.Meta, closeObjects, bindings)
-				if err != nil {
-					return nil, err
-				}
-				pathItem := doc.Paths[key]
-				if pathItem == nil {
-					pathItem = &PathItem{Operations: make(map[string]*Operation)}
-					doc.Paths[key] = pathItem
-				}
-				pathItem.Operations[route.Method] = operation
-			}
+		if err := appendServiceOperations(doc, svc, irService, serviceBodies, exampleGenerator, api.Meta, closeObjects, bindings, &identities); err != nil {
+			return err
 		}
 	}
-	componentizeDocument(doc)
-	return doc, nil
+	return ValidateOperationIdentities(identities)
+}
+
+func appendServiceOperations(
+	doc *Document,
+	svc *expr.HTTPServiceExpr,
+	irService *transportir.Service,
+	serviceBodies map[string]*EndpointBodies,
+	exampleGenerator *expr.ExampleGenerator,
+	apiMeta expr.MetaExpr,
+	closeObjects bool,
+	bindings *securityBindings,
+	identities *[]OperationIdentity,
+) error {
+	for _, endpoint := range irService.Endpoints {
+		if !endpoint.Generate || !endpoint.MethodGenerate {
+			continue
+		}
+		if err := appendEndpointOperations(doc, svc.Name(), endpoint, serviceBodies[endpoint.Name], exampleGenerator, apiMeta, closeObjects, bindings, identities); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func appendEndpointOperations(
+	doc *Document,
+	serviceName string,
+	endpoint *transportir.Endpoint,
+	bodies *EndpointBodies,
+	exampleGenerator *expr.ExampleGenerator,
+	apiMeta expr.MetaExpr,
+	closeObjects bool,
+	bindings *securityBindings,
+	identities *[]OperationIdentity,
+) error {
+	for _, route := range endpoint.Routes {
+		key := expr.HTTPWildcardRegex.ReplaceAllString(route.Path, "/{$1}")
+		operation, err := buildRouteOperationFromIR(endpoint, route, key, bodies, exampleGenerator, apiMeta, closeObjects, bindings)
+		if err != nil {
+			return err
+		}
+		*identities = append(*identities, OperationIdentity{
+			Path:        key,
+			Method:      route.Method,
+			OperationID: operation.OperationID,
+			Source:      serviceName + "." + endpoint.Name,
+		})
+		pathItem := doc.Paths[key]
+		if pathItem == nil {
+			pathItem = &PathItem{Operations: make(map[string]*Operation)}
+			doc.Paths[key] = pathItem
+		}
+		pathItem.Operations[route.Method] = operation
+	}
+	return nil
 }
 
 func buildOperation(endpointIR *transportir.Endpoint, bodies *EndpointBodies, rand *expr.ExampleGenerator, closeObjects bool) (*Operation, error) {

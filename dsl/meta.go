@@ -304,13 +304,14 @@ const DefaultProtoc = expr.DefaultProtoc
 //
 //	"{method}" is replaced with the name of the method
 //
-//	"(.{routeIndex})" is replaced with the index of the path in cases where a
-//	 method has more than one route associated with it. The index will never be added
-//	 when only one route exists. The "." characters may be swapped for any content you
-//	 wish to use as a spacer between the preceding content and the route index.
+//	"(.{routeIndex})" is replaced with the index of each emitted path when a
+//	 method expands to multiple paths, including through multiple service base
+//	 paths. The index is omitted when only one path is emitted. The "." characters
+//	 may be swapped for any content you wish to use as a spacer before the index.
 //
 // If you wish to specify a static operationId, omitting any of the above special values
-// will render the operationId as a literal.
+// will render the operationId as a literal. Static values repeated by path expansion
+// are rejected because operation IDs must be unique in the OpenAPI document.
 //
 // Defaults to "{service}.{method}(.{routeIndex})". Applicable to methods, services, or
 // to API.

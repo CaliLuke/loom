@@ -59,7 +59,11 @@ var MultipleServicesInterceptorsExampleDSL = func() {
 	var _ = Service("MultipleServicesInterceptorsService2", func() {
 		ServerInterceptor("test", SInterceptor)
 		ClientInterceptor("test2", CInterceptor)
-		Method("Method", func() { HTTP(func() { GET("/") }) })
+		Method("Method", func() {
+			HTTP(func() {
+				GET("/service2")
+			})
+		})
 	})
 }
 

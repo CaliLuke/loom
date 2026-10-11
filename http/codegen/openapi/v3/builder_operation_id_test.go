@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/dsl"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 	"github.com/CaliLuke/loom/http/codegen/openapi/v3/testdata/dsls"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
@@ -123,6 +124,38 @@ func TestBuildOperationID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildOperationIDAcrossServiceBasePaths(t *testing.T) {
+	root := codegen.RunDSL(t, testdata.ServerMultiBasesDSL)
+	document, err := buildDocument(root)
+	require.NoError(t, err)
+
+	first := document.Paths["/base_1/{id}"].Get
+	second := document.Paths["/base_2/{id}"].Get
+	require.NotNil(t, first)
+	require.NotNil(t, second)
+	require.Equal(t, "service_multi_bases.method_multi_bases", first.OperationID)
+	require.Equal(t, "service_multi_bases.method_multi_bases.1", second.OperationID)
+}
+
+func TestBuildOperationIDKeepsStaticMetadataLiteralAcrossBasePaths(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		dsl.Service("widgets", func() {
+			dsl.HTTP(func() {
+				dsl.Path("/v1")
+				dsl.Path("/v2")
+			})
+			dsl.Method("list", func() {
+				dsl.Meta("openapi:operationId", "widgets-list")
+				dsl.HTTP(func() {
+					dsl.GET("/")
+				})
+			})
+		})
+	})
+	_, err := buildDocument(root)
+	require.ErrorContains(t, err, `operationId "widgets-list"`)
 }
 
 func TestBuildOperationErrorRemedyDescription(t *testing.T) {

@@ -13,6 +13,7 @@ type (
 	versionRouter struct {
 		target      openAPIVersion
 		diagnostics []string
+		failure     error
 	}
 
 	versionRange struct {
@@ -27,7 +28,7 @@ type (
 
 	versionedPass struct {
 		versions versionRange
-		apply    func() []string
+		apply    func() ([]string, error)
 	}
 )
 
@@ -122,8 +123,17 @@ func (r *versionRouter) runPasses(passes ...versionedPass) {
 		if pass.apply == nil || !pass.versions.contains(r.target) {
 			continue
 		}
-		r.diagnostics = append(r.diagnostics, pass.apply()...)
+		diagnostics, err := pass.apply()
+		if err != nil {
+			r.failure = err
+			return
+		}
+		r.diagnostics = append(r.diagnostics, diagnostics...)
 	}
+}
+
+func (r *versionRouter) err() error {
+	return r.failure
 }
 
 func (r *versionRouter) warnings() []string {

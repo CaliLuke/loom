@@ -15,7 +15,7 @@ var MixedEndpointsDSL = func() {
 		Method("Streaming", func() {
 			StreamingResult(Int)
 			HTTP(func() {
-				GET("/")
+				GET("/stream")
 				Response(StatusOK)
 			})
 		})
@@ -106,7 +106,7 @@ var StreamingMultipleServicesDSL = func() {
 		Method("Method", func() {
 			StreamingPayload(Int)
 			HTTP(func() {
-				GET("/")
+				GET("/upload")
 				Response(StatusOK)
 			})
 		})

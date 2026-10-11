@@ -196,11 +196,14 @@ type (
 	}
 
 	Route struct {
-		Index      int
-		Method     string
-		Path       string
-		SourcePath string
-		Wildcards  []string
+		// Index is the zero-based index of the authored endpoint route.
+		Index int
+		// OperationIndex is the zero-based index of the emitted route after service base expansion.
+		OperationIndex int
+		Method         string
+		Path           string
+		SourcePath     string
+		Wildcards      []string
 	}
 
 	Stream struct {

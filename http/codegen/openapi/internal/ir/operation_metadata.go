@@ -35,7 +35,11 @@ func BuildRouteOperation(route *expr.RouteExpr, path string, bodies *EndpointBod
 	if err != nil {
 		return nil, err
 	}
-	return buildRouteOperationFromIR(endpointIR, transportir.RouteForExpr(endpointIR, route, path), path, bodies, rand, apiMeta, closeObjects, bindings)
+	routeIR := transportir.RouteForExpr(endpointIR, route, path)
+	if routeIR == nil {
+		return nil, fmt.Errorf("HTTP path %q is not emitted by endpoint %s", path, endpointIR.Name)
+	}
+	return buildRouteOperationFromIR(endpointIR, routeIR, path, bodies, rand, apiMeta, closeObjects, bindings)
 }
 
 func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transportir.Route, path string, bodies *EndpointBodies, rand *expr.ExampleGenerator, apiMeta expr.MetaExpr, closeObjects bool, bindings *securityBindings) (*Operation, error) {
@@ -74,7 +78,7 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 		responses[status] = &ResponseRef{Value: response}
 	}
 
-	operationID := ParseOperationIDTemplate(operationIDFormat, service.Name, endpointIR.Name, routeIR.Index)
+	operationID := ParseOperationIDTemplate(operationIDFormat, service.Name, endpointIR.Name, routeIR.OperationIndex)
 	extensions := mergeExtensions(openapi.ExtensionsFromExpr(endpointIR.MethodMeta), buildAsyncOperationExtension(endpointIR, path, bodies))
 
 	_, deprecated := endpointIR.Meta.Last("openapi:deprecated")
@@ -258,11 +262,13 @@ func operationTagNames(endpointMeta, methodMeta, serviceMeta expr.MetaExpr, serv
 // ParseOperationIDTemplate renders an OpenAPI operationId template. It
 // replaces {service} and {method} with canonical snake_case components and
 // expands or removes the optional (...{routeIndex}) group. A route index
-// greater than zero is appended as "#<index>" when the template has no such
-// group. A template without placeholders and route index zero is returned
-// unchanged.
+// greater than zero is appended as "#<index>" when the template uses service
+// or method placeholders but has no such group. A template without recognized
+// placeholders is returned unchanged.
 func ParseOperationIDTemplate(template, service, method string, routeIndex int) string {
-	if !strings.Contains(template, "{") && routeIndex == 0 {
+	if !strings.Contains(template, "{service}") &&
+		!strings.Contains(template, "{method}") &&
+		!routeIndexReplacementRegExp.MatchString(template) {
 		return template
 	}
 	replacer := strings.NewReplacer(

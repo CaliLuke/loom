@@ -612,7 +612,7 @@ The most commonly used metadata keys are:
 | `openapi:version` | API | Select `"3.1"` compatibility output; 3.2 is the default |
 | `openapi:output` | API | Select `"json"`, `"yaml"`, or `"both"`; both is the default |
 | `openapi:self` | API | Set the OpenAPI 3.2 `$self` document URI |
-| `openapi:operationId` | API, service, method | Customize generated operation IDs |
+| `openapi:operationId` | API, service, method | Customize generated operation IDs; `{routeIndex}` counts emitted method paths, including service base-path expansion, while static IDs remain literal and must be unique |
 | `openapi:summary` | Method | Set operation summary |
 | `openapi:tag:<name>` | HTTP service or method | Define or assign OpenAPI tags |
 | `openapi:extension:<x-name>` | API, service, method, route, param, response, security | Add OpenAPI extension JSON. At API scope it lands on the `info` object |

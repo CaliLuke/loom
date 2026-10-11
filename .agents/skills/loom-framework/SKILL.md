@@ -296,6 +296,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
 - OpenAPI JSON uses Go 1.27 `encoding/json/v2` with deterministic ordering.
   Preserve two-space indentation, the final newline added by `codegen.File`,
   and configured prefix/indent behavior.
+- Keep document identities at `internal/ir/document_identity.go`. Validate
+  source operation claims before insertion into path maps, and final assembled
+  operations after file-server and custom-method projection. Path templates
+  ignore parameter names but retain static suffixes; exact method/path slots
+  and nonempty operation IDs must be unique. For 3.2 media components, compare
+  complete deterministic projected values before replacing inline values with
+  references. Equal explicit claims may share; conflicting claims must fail.
 - Project effective length bounds by the concrete wire value domain in the IR:
   strings use `minLength`/`maxLength`, arrays use `minItems`/`maxItems`, and maps
   use `minProperties`/`maxProperties`. Named and aliased maps retain their

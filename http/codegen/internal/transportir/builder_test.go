@@ -318,6 +318,74 @@ func TestRouteForExprPrefersRouteIdentity(t *testing.T) {
 	require.Equal(t, "/widgets/by-id/{id}", route.SourcePath)
 }
 
+func TestRouteForExprRejectsAnotherAuthoredRoutePath(t *testing.T) {
+	root := testcodegen.RunDSL(t, func() {
+		dsl.Service("widgets", func() {
+			dsl.Method("show", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("id", dsl.String)
+					dsl.Required("id")
+				})
+				dsl.Result(dsl.String)
+				dsl.HTTP(func() {
+					dsl.GET("/widgets/{id}")
+					dsl.GET("/widgets/by-id/{id}")
+				})
+			})
+		})
+	})
+
+	endpointExpr := root.API.HTTP.Services[0].HTTPEndpoints[0]
+	endpoint := transportir.BuildEndpoint(endpointExpr)
+	require.Nil(t, transportir.RouteForExpr(endpoint, endpointExpr.Routes[1], "/widgets/{id}"))
+}
+
+func TestRouteForExprMatchesExpandedServiceBasePath(t *testing.T) {
+	root := testcodegen.RunDSL(t, http_testdata.ServerMultiBasesDSL)
+	endpointExpr := root.API.HTTP.Services[0].HTTPEndpoints[0]
+	endpoint := transportir.BuildEndpoint(endpointExpr)
+
+	route := transportir.RouteForExpr(endpoint, endpointExpr.Routes[0], "/base_2/{id}")
+	require.NotNil(t, route)
+	require.Equal(t, "/base_2/{id}", route.Path)
+	require.Equal(t, 0, route.Index)
+	require.Equal(t, 1, route.OperationIndex)
+}
+
+func TestRouteForExprMatchesNormalizedExpandedWildcardPath(t *testing.T) {
+	root := testcodegen.RunDSL(t, func() {
+		dsl.Service("files", func() {
+			dsl.HTTP(func() {
+				dsl.Path("/base_1")
+				dsl.Path("/base_2")
+			})
+			dsl.Method("get", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("filepath", dsl.String)
+					dsl.Required("filepath")
+				})
+				dsl.HTTP(func() {
+					dsl.GET("/assets/{*filepath}")
+					dsl.Param("filepath")
+				})
+			})
+		})
+	})
+	endpointExpr := root.API.HTTP.Services[0].HTTPEndpoints[0]
+	endpoint := transportir.BuildEndpoint(endpointExpr)
+
+	for _, renderedPath := range []string{
+		"/base_2/assets/{filepath}",
+		"/base_2/assets/{*filepath}",
+	} {
+		route := transportir.RouteForExpr(endpoint, endpointExpr.Routes[0], renderedPath)
+		require.NotNil(t, route)
+		require.Equal(t, "/base_2/assets/{*filepath}", route.Path)
+		require.Equal(t, 0, route.Index)
+		require.Equal(t, 1, route.OperationIndex)
+	}
+}
+
 func firstJSONRPCEndpoint(t *testing.T, dslFn func()) *transportir.Endpoint {
 	t.Helper()
 	root := testcodegen.RunDSL(t, dslFn)
