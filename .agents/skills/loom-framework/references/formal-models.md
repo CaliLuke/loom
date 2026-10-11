@@ -59,6 +59,12 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 
 ## OpenAPI contracts
 
+- [Strict import schema normalization](../../../../internal/openapiimport/lean/schema_normalization/README.md):
+  finite acceptance counterexamples for boolean schemas, typeless properties,
+  constrained null compositions and dialect-dependent nullability; admitted
+  candidate forms preserve the modeled acceptance domain. Go tests establish
+  the concrete admission and rendering correspondence within the stated scope.
+
 - [Responses sharing a status](../../../../http/codegen/openapi/internal/ir/tla/response_media/README.md):
   bounded media/schema preservation, declaration-order independence and rejection
   of incompatible metadata; rendered and runtime tests cover concrete extraction.
