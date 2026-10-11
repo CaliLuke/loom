@@ -93,7 +93,7 @@
           "uint_map": {
             "additionalProperties": {
               "example": 1,
-              "format": "int64",
+              "format": "uint64",
               "type": "integer"
             },
             "example": {
@@ -142,7 +142,7 @@
           "uint32_map": {
             "additionalProperties": {
               "example": 1,
-              "format": "int32",
+              "format": "uint32",
               "type": "integer"
             },
             "example": {
@@ -153,7 +153,7 @@
           "uint64_map": {
             "additionalProperties": {
               "example": 1,
-              "format": "int64",
+              "format": "uint64",
               "type": "integer"
             },
             "example": {

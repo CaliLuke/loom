@@ -308,6 +308,11 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   use `minProperties`/`maxProperties`. Named and aliased maps retain their
   effective bounds. Bytes continue through the existing decoded-length and
   base64 representation owner rather than the generic string-length path.
+- Primitive schema rendering and canonical fingerprints share
+  `primitiveSchemaTypeFormat`; keep signedness and width decisions there.
+  UInt32 uses `uint32`, and UInt64/native UInt use `uint64` under the existing
+  native-width annotation convention. Preserve authored numeric bounds;
+  format annotations do not replace runtime or JSON Schema assertions.
 - All Loom-owned runtime, generator, test, fixture, and example JSON uses Go
   1.27 `encoding/json/v2` and `encoding/json/jsontext`. Generated code must use
   the same packages; do not emit or retain the legacy JSON package.

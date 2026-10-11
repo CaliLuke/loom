@@ -284,25 +284,40 @@ func (a *Analyzer) analyzeInlinePrimitive(
 	primitive expr.Primitive,
 	context string,
 ) {
-	switch primitive.Kind() {
-	case expr.IntKind, expr.UIntKind, expr.Int64Kind, expr.UInt64Kind:
-		s.Type = "integer"
-		s.Format = "int64"
-	case expr.Int32Kind, expr.UInt32Kind:
-		s.Type = "integer"
-		s.Format = "int32"
-	case expr.Float32Kind:
-		s.Type = "number"
-		s.Format = "float"
-	case expr.Float64Kind:
-		s.Type = "number"
-		s.Format = "double"
-	case expr.BytesKind:
+	if primitive.Kind() == expr.BytesKind {
 		a.analyzeInlineBytes(s, attr, context)
+		return
+	}
+	if schemaType, format, ok := primitiveSchemaTypeFormat(primitive.Kind()); ok {
+		s.Type = schemaType
+		s.Format = format
+		return
+	}
+	s.Type = primitive.Name()
+}
+
+func primitiveSchemaTypeFormat(kind expr.Kind) (schemaType, format string, ok bool) {
+	switch kind {
+	case expr.BooleanKind:
+		return "boolean", "", true
+	case expr.IntKind, expr.Int64Kind:
+		return "integer", "int64", true
+	case expr.UIntKind, expr.UInt64Kind:
+		return "integer", "uint64", true
+	case expr.Int32Kind:
+		return "integer", "int32", true
+	case expr.UInt32Kind:
+		return "integer", "uint32", true
+	case expr.Float32Kind:
+		return "number", "float", true
+	case expr.Float64Kind:
+		return "number", "double", true
+	case expr.StringKind:
+		return "string", "", true
 	case expr.AnyKind:
-		s.Type = ""
+		return "", "", true
 	default:
-		s.Type = primitive.Name()
+		return "", "", false
 	}
 }
 

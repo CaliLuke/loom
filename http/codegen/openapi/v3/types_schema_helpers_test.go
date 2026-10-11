@@ -298,18 +298,25 @@ func TestFingerprintAttribute(t *testing.T) {
 				{name: "any", att: &expr.AttributeExpr{Type: expr.Any}},
 			},
 		}, {
-			name:     "Equivalent OpenAPI integer types",
+			name:     "Equivalent OpenAPI signed 64-bit types",
 			behavior: identicalFingerprints,
 			attrs: []testAttr{
 				{name: "int", att: &expr.AttributeExpr{Type: expr.Int}},
 				{name: "int64", att: &expr.AttributeExpr{Type: expr.Int64}},
+			},
+		}, {
+			name:     "Equivalent OpenAPI unsigned 64-bit types",
+			behavior: identicalFingerprints,
+			attrs: []testAttr{
 				{name: "uint", att: &expr.AttributeExpr{Type: expr.UInt}},
 				{name: "uint64", att: &expr.AttributeExpr{Type: expr.UInt64}},
 			},
 		}, {
-			name:     "Equivalent OpenAPI int32 types",
-			behavior: identicalFingerprints,
+			name:     "Distinct OpenAPI signed and unsigned integer formats",
+			behavior: uniqueFingerprints,
 			attrs: []testAttr{
+				{name: "int", att: &expr.AttributeExpr{Type: expr.Int}},
+				{name: "uint", att: &expr.AttributeExpr{Type: expr.UInt}},
 				{name: "int32", att: &expr.AttributeExpr{Type: expr.Int32}},
 				{name: "uint32", att: &expr.AttributeExpr{Type: expr.UInt32}},
 			},
