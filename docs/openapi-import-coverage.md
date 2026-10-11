@@ -74,6 +74,11 @@ Cookie parameters require primitive schemas, including through component
 references. Array and object cookies produce a blocking
 `cookie-parameter-shape` diagnostic, even with `--allow-lossy`.
 
+In OpenAPI 3.1 and 3.2, a parameter reference's `description` overrides the
+component description for that occurrence, including an explicitly empty
+string. Other occurrences retain the component description. Regeneration may
+use separate parameter components to preserve these effective descriptions.
+
 An extension at an unsupported scope is a `vendor-extension` diagnostic. Strict
 import fails before it writes output. With `--allow-lossy`, the importer omits
 the extension and reports it as a warning.

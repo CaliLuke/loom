@@ -219,6 +219,8 @@ flag. String schemas with `format: byte` or `format: binary` import as `Bytes`.
 Regeneration preserves the selected format.
 Cookie parameters require primitive schemas. Array and object cookies are
 blocked before rendering, including schemas reached through references.
+Parameter reference description overrides in OpenAPI 3.1 and 3.2 survive
+import and regeneration independently of the shared component description.
 Representable media examples map to `Example(...)`.
 Use `docs/openapi-import-coverage.md` for the complete field and schema-keyword
 matrix. It distinguishes preserved, conditional, lossy, and rejected input.

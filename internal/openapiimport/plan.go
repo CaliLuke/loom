@@ -528,7 +528,11 @@ func resolveParameterReference(parameter Parameter, components Components) (Para
 		if named.Parameter.Ref != "" {
 			return Parameter{}, "", fmt.Errorf("parameter reference %q is nested and not renderable", parameter.Ref)
 		}
-		return named.Parameter, name, nil
+		resolved := named.Parameter
+		if parameter.ReferenceDescription != nil {
+			resolved.Description = *parameter.ReferenceDescription
+		}
+		return resolved, name, nil
 	}
 	return Parameter{}, "", fmt.Errorf("parameter reference %q does not resolve", parameter.Ref)
 }

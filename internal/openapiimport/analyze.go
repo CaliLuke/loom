@@ -346,10 +346,10 @@ func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 		return Parameter{}
 	}
 	if reference := source.Reference; reference != "" {
-		return Parameter{Ref: reference}
+		return a.parameterReference(source, reference)
 	}
 	if low := source.GoLow(); low != nil && low.IsReference() {
-		return Parameter{Ref: low.GetReference()}
+		return a.parameterReference(source, low.GetReference())
 	}
 	parameter := Parameter{
 		Name: source.Name, In: source.In, Description: source.Description,

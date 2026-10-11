@@ -207,10 +207,13 @@ type Operation struct {
 }
 
 // Parameter describes a path, query, header, or cookie parameter. Ref is set
-// instead of the remaining fields for a component reference.
+// instead of the value fields for a component reference.
 type Parameter struct {
 	// Ref is the authored local component reference, when retained as a reference.
 	Ref string
+	// ReferenceDescription overrides the referenced parameter's description.
+	// A nonnil empty string explicitly removes the component description.
+	ReferenceDescription *string
 	// Name is the wire parameter name.
 	Name string
 	// In is path, query, header, or cookie.

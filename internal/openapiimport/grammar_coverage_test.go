@@ -494,7 +494,7 @@ func openAPIGrammarCoverage() []grammarObjectCoverage {
 			model: v3.Parameter{},
 			groups: []grammarFieldGroup{
 				group(grammarConditional, "analyzer.parameter and render planner", "Reference", "Name", "In", "Required", "AllowEmptyValue", "Style", "AllowReserved", "Schema", "Extensions"),
-				group(grammarPreserved, "analyzer.parameter", "Description"),
+				group(grammarPreserved, "analyzer.parameterReference and TestParameterReferenceDescriptions", "Description"),
 				group(grammarLossy, "parameter-deprecated and examples diagnostics", "Deprecated", "Example", "Examples"),
 				group(grammarRejected, "parameter serialization and content diagnostics", "Explode", "Content"),
 			},

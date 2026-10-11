@@ -421,6 +421,9 @@ filter, and serialization rules belong here.
 - The shared import planner admits cookie schemas only when they are primitive,
   resolving component schemas before checking. Array and object cookies fail
   with a blocking location-specific diagnostic before rendering.
+- Parameter reference descriptions retain occurrence presence separately from
+  the resolved component. Resolve by copying the parameter value and applying
+  the override; never mutate the component or infer presence from nonempty text.
 - Generated HTTP request code currently reserves the local name `body`. Until
   function-local names have an independent allocator, fail an imported
   request-body operation closed when a parameter or security field Goifies to
