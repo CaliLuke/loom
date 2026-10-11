@@ -411,6 +411,9 @@ filter, and serialization rules belong here.
 - Test a newly supported schema construct in every legal component and
   operation location. Test shared response and naming policies as matrices,
   not only through the issue specimen that exposed the gap.
+- Use the [bounded OpenAPI validation ledger](references/openapi-validation.md)
+  to distinguish instance semantics, runtime behavior, compilation, structural
+  linting and independent-process determinism.
 - A strict import must render and evaluate. Forward generation must complete,
   and the generated Go code must compile. The generated OpenAPI contract must
   preserve the accepted source semantics.

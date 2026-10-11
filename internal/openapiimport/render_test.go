@@ -625,7 +625,21 @@ components:
 	rendered, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)
 	requireRenderedDesignEvaluates(t, rendered, 1)
-	requireRenderedDesignGenerates(t, rendered)
+	moduleDir := requireRenderedDesignGenerates(t, rendered)
+	requireTypeNullAcceptance(t, source, moduleDir, "Record", []struct {
+		value any
+		valid bool
+	}{
+		{map[string]any{"required_note": nil, "required_child": nil}, true},
+		{map[string]any{"required_note": "note", "required_child": map[string]any{"name": "child"}, "optional_count": nil, "optional_tags": nil, "nullable_items": []any{"value", nil}, "nullable_values": map[string]any{"value": nil}}, true},
+		{nil, false},
+		{"record", false},
+		{map[string]any{"required_note": nil}, false},
+		{map[string]any{"required_note": 1, "required_child": nil}, false},
+		{map[string]any{"required_note": nil, "required_child": "child"}, false},
+		{map[string]any{"required_note": nil, "required_child": nil, "nullable_items": []any{1}}, false},
+	})
+	requireIndependentRegeneration(t, moduleDir)
 	design := string(rendered)
 	require.GreaterOrEqual(t, strings.Count(design, "Nullable()"), 5)
 	require.NotContains(t, design, `Meta("openapi:nullable"`)

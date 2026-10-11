@@ -234,6 +234,13 @@ func requireUnconstrainedRoundTripAndRuntime(t *testing.T, source []byte) {
 	require.Equal(t, "#/components/schemas/Anything", requireUnconstrainedResponseSchema(t, &model.Model, "/failure", "get", "400")["$ref"])
 	require.Equal(t, "#/components/schemas/Container", requireUnconstrainedResponseSchema(t, &model.Model, "/failure", "get", "422")["$ref"])
 
+	requireTypeNullAcceptance(t, source, moduleDir, "Anything", []struct {
+		value any
+		valid bool
+	}{
+		{nil, true}, {"value", true}, {1, true}, {false, true},
+		{[]any{"value", nil}, true}, {map[string]any{"value": nil}, true},
+	})
 	runUnconstrainedRuntimeTests(t, moduleDir)
 }
 
