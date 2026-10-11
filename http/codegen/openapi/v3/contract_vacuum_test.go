@@ -17,13 +17,25 @@ type contractVacuum struct {
 	ruleset string
 }
 
-const vacuumVersion = "v0.33.0"
+const (
+	vacuumVersion = "v0.33.0"
+	// Remove this override when a released Vacuum includes the fix in
+	// https://github.com/pb33f/libopenapi/pull/656 and passes the enum controls.
+	vacuumLibopenAPIVersion = "v0.41.7-0.20261011180705-d696afb9dc03"
+)
 
 func installContractVacuum(t *testing.T) contractVacuum {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("GOBIN", dir)
-	_, err := testingx.RunCmd(dir, "go", "install", "github.com/daveshanley/vacuum@"+vacuumVersion)
+	_, err := testingx.RunCmd(dir, "go", "mod", "init", "loom-openapi-contract")
+	require.NoError(t, err)
+	_, err = testingx.RunCmd(dir, "go", "mod", "edit",
+		"-require=github.com/daveshanley/vacuum@"+vacuumVersion,
+		"-replace=github.com/pb33f/libopenapi=github.com/CaliLuke/libopenapi@"+vacuumLibopenAPIVersion)
+	require.NoError(t, err)
+	// Installing without @version honors the isolated module's dependency pin.
+	_, err = testingx.RunCmd(dir, "go", "install", "-mod=mod", "github.com/daveshanley/vacuum")
 	require.NoError(t, err)
 	ruleset, err := filepath.Abs("testdata/vacuum.yaml")
 	require.NoError(t, err)

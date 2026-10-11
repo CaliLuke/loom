@@ -316,6 +316,9 @@ func TestRepresentativeSpecsPassVacuumLintAndConsumerSmoke(t *testing.T) {
 	t.Run("vacuum-invalid-controls", func(t *testing.T) {
 		checkVacuumInvalidContracts(t, vacuum)
 	})
+	t.Run("vacuum-enum-controls", func(t *testing.T) {
+		checkVacuumEnumValues(t, vacuum)
+	})
 
 	// The downstream generators reject the 3.2 version string, so exercise
 	// the renderer's 3.1 target with the existing non-trivial raw-body specimen.

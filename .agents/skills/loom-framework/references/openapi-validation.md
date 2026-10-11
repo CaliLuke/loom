@@ -33,15 +33,23 @@ external linting and process determinism explicit in the acceptance record.
 ## External lint gate
 
 `make openapi-contract` installs [Vacuum v0.33.0](https://github.com/daveshanley/vacuum/releases/tag/v0.33.0)
-into a temporary directory with the repository Go toolchain. The module pin lives
-in `v3/contract_vacuum_test.go`; this is a contributor tool, not a runtime dependency.
+into a temporary directory with the repository Go toolchain. An isolated module
+replaces its libopenapi dependency with
+`github.com/CaliLuke/libopenapi v0.41.7-0.20261011180705-d696afb9dc03`, the exact
+commit proposed in [libopenapi PR #656](https://github.com/pb33f/libopenapi/pull/656).
+This fixes enum value comparison for arrays, objects and numeric representations.
+Both pins live in `v3/contract_vacuum_test.go`; this is a contributor tool, not a
+runtime dependency. Remove the override when a released Vacuum includes that
+fix and passes the enum controls. Install without an `@version` suffix so Go
+honors the isolated module's dependency replacement.
 `v3/testdata/vacuum.yaml` extends the recommended rules. API descriptions are
-optional in fixtures. The advisory duplicate-enum rule is disabled because Vacuum's scalar-value
-comparison incorrectly reports distinct array enum values as duplicates.
-JSON Schema recommends unique enum elements but does not require them. The
-existing collection-enum specimen must still pass, and the framework's direct
-collection/byte enum semantic tests remain in place. No structural schema rule
-is disabled.
+optional in fixtures. The duplicate-enum rule is enabled; JSON Schema recommends
+unique enum elements but does not require them. Enum controls verify acceptance
+of distinct arrays, objects, scalar types and large numbers, and rejection of
+equal values, including equivalent numeric representations. Literal properties
+named `enum` inside an enum value remain data. The existing collection-enum
+specimen must still pass, and the framework's direct collection/byte enum semantic
+tests remain in place. No structural schema rule is disabled.
 Other controls remove required document and device-flow fields, introduce an
 invalid parameter location or schema type, and reintroduce conflicting nested
 encodings. Assertions require the relevant rule diagnostic, not just process failure.
