@@ -13,7 +13,8 @@ Use the existing suites and fixtures; do not default to the exported-design corp
 | Regex engine agreement | `ir/pattern_projection_test.go` compares Go regexp and unflagged Node ECMA matching on anchors, ASCII whitespace, literal classes/braces and quantified assertions. Unsupported syntax must return diagnostics. |
 | Discriminator semantics | `ir/discriminator_metadata_test.go` checks admission and URI references; v3 discriminator tests cover both targets, required controls, nested/reusable occurrences and fallback-only graph edges. The bounded Lean model records the cross-field rule, not URI or engine correctness. |
 | Independent-process determinism | `requireIndependentRegeneration` invokes a new CLI process and compares exact JSON/YAML bytes for the nullable import. Export fixture snapshots are likewise compared across separate generator processes. |
-| Structural conformance | Libopenapi parses rendered JSON/YAML. [Redocly 2.62.1](https://redocly.com/docs/cli/changelog) validates the portable 3.2 fixtures, but crashes with `Unknown type name found: string` on the existing 3.2 feature specimen. Retain this limitation and direct rule assertions; do not count the crash or parser model construction as full 3.2 conformance. |
+| Structural conformance | Libopenapi parses rendered JSON/YAML. Vacuum v0.33.0 lints both formats for all 20 representative specimens, including the full 3.2 fixture. The gate requires success and verifies rejection of malformed documents; no crash is counted as a pass. |
+| Encoding admission | Shared IR rejects named `encoding` combined with positional `prefixEncoding` or `itemEncoding` at the same object. Direct metadata tests cover nested scopes and index aliases; rendered tests cover requests, successful responses and errors in both targets. |
 
 The existing `gojsonschema` dependency is used for the specimens' shared
 Draft 7/2020-12 vocabulary only (type, null, properties, required, anyOf and
@@ -28,3 +29,34 @@ go test ./internal/openapiimport ./http/codegen/openapi/internal/ir ./http/codeg
 
 For faster iteration, select the changed tests. Keep runtime compilation,
 external linting and process determinism explicit in the acceptance record.
+
+## External lint gate
+
+`make openapi-contract` installs [Vacuum v0.33.0](https://github.com/daveshanley/vacuum/releases/tag/v0.33.0)
+into a temporary directory with the repository Go toolchain. The module pin lives
+in `v3/contract_vacuum_test.go`; this is a contributor tool, not a runtime dependency.
+`v3/testdata/vacuum.yaml` extends the recommended rules. API descriptions are
+optional in fixtures. The advisory duplicate-enum rule is disabled because Vacuum's scalar-value
+comparison incorrectly reports distinct array enum values as duplicates.
+JSON Schema recommends unique enum elements but does not require them. The
+existing collection-enum specimen must still pass, and the framework's direct
+collection/byte enum semantic tests remain in place. No structural schema rule
+is disabled.
+Other controls remove required document and device-flow fields, introduce an
+invalid parameter location or schema type, and reintroduce conflicting nested
+encodings. Assertions require the relevant rule diagnostic, not just process failure.
+
+Redocly 2.62.1 crashed on the full 3.2 specimen before linting. The replacement
+exposed an invalid combination of named and positional nested encodings in that
+specimen; its named encoding now occupies a separate prefix object. This keeps
+all feature families exercised. Generator comparisons cover both targets and
+formats; only that fixture's encoding metadata changes.
+
+The Python `openapi-spec-validator` 0.9.0 trial passed 19 of 20 original specimens.
+Besides the encoding conflict, it rejected `allowReserved` placements and
+`defaultMapping` under the advertised dialect. It is not part of this gate:
+the normative 3.2 prose identifies the 3.1 dialect URI, while the Python tool
+uses different 3.2 schema resources. Do not change authored contracts just to
+match a validator's interpretation. Vacuum shares the libopenapi ecosystem, so
+these checks supplement direct semantic and runtime tests; they are not an
+independent proof of all OpenAPI semantics.

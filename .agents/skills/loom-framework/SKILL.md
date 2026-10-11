@@ -1318,7 +1318,7 @@ OpenAPI changes require:
 - JSON v2 lint coverage that rejects direct `json.Marshal` calls inside
   `MarshalJSON` methods unless they pass `json.Deterministic(true)`
 - `libopenapi` parsing
-- Redocly linting
+- Vacuum linting with the pinned contract rules and invalid-spec controls
 - downstream consumer smoke generation where applicable
 
 Serialization migrations must preserve error identity as well as successful

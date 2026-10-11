@@ -9,10 +9,13 @@ import (
 
 	openapiv3 "github.com/CaliLuke/loom/http/codegen/openapi/v3"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
-	"github.com/CaliLuke/loom/internal/testingx"
 )
 
 func TestUntaggedArrayObjectContract(t *testing.T) {
+	var vacuum contractVacuum
+	if os.Getenv("LOOM_OPENAPI_CONTRACT") != "" {
+		vacuum = installContractVacuum(t)
+	}
 	for _, version := range []struct{ target, want string }{
 		{"3.1", openapiv3.OpenAPICompatibilityVersion}, {"3.2", openapiv3.OpenAPIVersion},
 	} {
@@ -46,8 +49,7 @@ func TestUntaggedArrayObjectContract(t *testing.T) {
 				dir := t.TempDir()
 				path := filepath.Join(dir, "openapi.yaml")
 				require.NoError(t, os.WriteFile(path, artifacts.YAML, 0o600))
-				_, err := testingx.RunCmd(dir, "npx", "--yes", "@redocly/cli@"+redoclyCLIVersion, "lint", path)
-				require.NoError(t, err)
+				require.NoError(t, vacuum.lint(path))
 			}
 		})
 	}

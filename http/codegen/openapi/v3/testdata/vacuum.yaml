@@ -1,0 +1,8 @@
+extends: [[spectral:oas, recommended]]
+rules:
+  # Fixture APIs need not have editorial descriptions.
+  info-description: off
+  # Vacuum 0.33.0 compares enum YAML scalar values, so distinct arrays/objects
+  # compare as empty strings. This advisory check is not a conformance rule:
+  # JSON Schema recommends, but does not require, unique enum elements.
+  duplicated-entry-in-enum: off

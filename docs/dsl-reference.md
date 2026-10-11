@@ -720,7 +720,11 @@ Encoding metadata fields may be `contentType`, `style`, `explode`, or
 `allowReserved`. Nest another `encoding:<property>`,
 `prefixEncoding:<index>`, or `itemEncoding` segment before the field to describe
 nested content, for example
-`openapi:itemEncoding:encoding:id:style`.
+`openapi:itemEncoding:encoding:id:style`. At each media or nested encoding
+object, choose either named `encoding` entries or positional `prefixEncoding`
+and `itemEncoding` entries. Prefix and item encodings may coexist. Named and
+positional entries in the same object cause a generation error for both OpenAPI
+targets. Put independent encoding choices in separate child objects.
 
 Loom prefixes error-response descriptions with the error name by default. Set
 `Meta("openapi:description:errorName", "false")` inside an HTTP error

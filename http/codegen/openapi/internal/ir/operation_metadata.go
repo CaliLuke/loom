@@ -68,6 +68,9 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 	if err != nil {
 		return nil, err
 	}
+	if err := validateOperationEncodings(requestBody, responseMap); err != nil {
+		return nil, fmt.Errorf("OpenAPI encoding for %s.%s: %w", service.Name, endpointIR.Name, err)
+	}
 	if routeIR.Method == "HEAD" {
 		for _, response := range responseMap {
 			response.Content = nil

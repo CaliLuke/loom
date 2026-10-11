@@ -178,6 +178,10 @@ generation rejects duplicates.
 In 3.2, reuse an explicit `openapi:component:mediaType` name only for identical
 projected media definitions, including examples and encodings. Conflicts cause
 OpenAPI generation errors.
+At each media or nested encoding object, named `openapi:encoding` entries cannot
+coexist with positional `openapi:prefixEncoding` or `openapi:itemEncoding`
+entries. Prefix and item entries can coexist. Generation rejects conflicts for
+both targets; move independent choices into separate child objects.
 Review regenerated SDK and validator output when updating Loom; equivalent
 OpenAPI schemas can still produce different client declarations. See the
 [OpenAPI evolution guide](../../../docs/openapi-evolution.md).

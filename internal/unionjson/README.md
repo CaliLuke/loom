@@ -284,7 +284,7 @@ and rejected-shape controls.
 Compare affected generated outputs against the base and between isolated generation
 processes. Intended differences are the shared typed adapters/matcher calls and
 new array branches/schema components; existing tagged controls must remain
-byte-identical. Validate both rendered OpenAPI targets with libopenapi and Redocly.
+byte-identical. Validate both rendered OpenAPI targets with libopenapi and Vacuum.
 No exhaustive exported-design corpus or new pairwise test system is required.
 
 ## Implementation and verification

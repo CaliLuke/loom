@@ -243,7 +243,7 @@ endif
 
 openapi-contract:
 ifneq ($(GOOS),windows)
-	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run 'Test(RenderedSpecsPassContractLint|RepresentativeSpecsPassRedoclyLintAndConsumerSmoke)$$' ./http/codegen/openapi/v3
+	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run 'Test(RenderedSpecsPassContractLint|RepresentativeSpecsPassVacuumLintAndConsumerSmoke)$$' ./http/codegen/openapi/v3
 	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run 'TestOpenAPIImportSemanticRoundTrip$$' ./cmd/loom
 	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run '^TestBytesSchemaGeneratedHTTP$$' ./http/codegen
 	PATH="$(GOBIN_DIR):$$PATH" LOOM_OPENAPI_CONTRACT=1 go test -count=1 -run '^TestBytesValidationGeneratedJSONRPC$$' ./jsonrpc/codegen

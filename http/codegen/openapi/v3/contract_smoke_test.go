@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	redoclyCLIVersion        = "2.62.1"
 	heyAPIOpenAPIVersion     = "0.99.0"
 	heyAPIClientFetchVersion = "0.13.1"
 	typeScriptAPIVersion     = "6.0.2"
@@ -274,24 +273,20 @@ func TestRenderedSpecsPassContractLint(t *testing.T) {
 	}
 }
 
-func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
+func TestRepresentativeSpecsPassVacuumLintAndConsumerSmoke(t *testing.T) {
 	if os.Getenv("LOOM_OPENAPI_CONTRACT") == "" {
 		t.Skip("consumer smoke needs node/npx and network access; run via 'make openapi-contract'")
 	}
+	vacuum := installContractVacuum(t)
 	lintCases := []struct {
-		name                       string
-		dsl                        func()
-		unsupportedOAS32Diagnostic string
+		name string
+		dsl  func()
 	}{
 		{name: "meal-planner", dsl: testdata.MealPlannerDSL},
 		{name: "security-locations", dsl: testdata.SecurityDSL},
 		{name: "streaming-example-surfaces", dsl: testdata.StreamingPartialExamplesDSL},
 		{name: "constrained-response-cookie", dsl: synthesizedExampleStabilityDSL(false, false)},
-		{
-			name:                       "openapi-3.2-features",
-			dsl:                        testdata.OpenAPI32FeaturesDSL,
-			unsupportedOAS32Diagnostic: "Unknown type name found: string",
-		},
+		{name: "openapi-3.2-features", dsl: testdata.OpenAPI32FeaturesDSL},
 		{name: "file-response", dsl: fileResponseOpenAPIDSL},
 		{name: "raw-request-bodies", dsl: testdata.RawRequestBodyOpenAPIDSL},
 		{name: "problem-links-async", dsl: testdata.OpenAPIProblemLinksAsyncDSL},
@@ -309,30 +304,21 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 		{name: "explicit-body-result-type", dsl: testdata.ExplicitBodyResultTypeDSL},
 	}
 	for _, tc := range lintCases {
-		t.Run("redocly-"+tc.name, func(t *testing.T) {
+		t.Run("vacuum-"+tc.name, func(t *testing.T) {
 			artifacts := renderOpenAPIArtifacts(t, tc.dsl)
-			workDir := filepath.Join(t.TempDir(), tc.name)
-			require.NoError(t, os.MkdirAll(workDir, 0o750))
-			yamlPath := filepath.Join(workDir, "openapi.yaml")
-			require.NoError(t, os.WriteFile(yamlPath, artifacts.YAML, 0o600))
-			_, err := testingx.RunCmd(workDir, "npx", "--yes", "@redocly/cli@"+redoclyCLIVersion, "lint", yamlPath)
-			if tc.unsupportedOAS32Diagnostic != "" {
-				// Libopenapi has parsed both artifacts, but that alone does not
-				// establish conformance. Redocly fails on this 3.2 feature specimen;
-				// retain the exact diagnostic until it can lint the specimen.
-				require.ErrorContains(t, err, tc.unsupportedOAS32Diagnostic)
-				return
+			for ext, data := range map[string][]byte{"json": artifacts.JSON, "yaml": artifacts.YAML} {
+				path := filepath.Join(t.TempDir(), "openapi."+ext)
+				require.NoError(t, os.WriteFile(path, data, 0o600))
+				require.NoError(t, vacuum.lint(path))
 			}
-			require.NoError(t, err)
 		})
 	}
+	t.Run("vacuum-invalid-controls", func(t *testing.T) {
+		checkVacuumInvalidContracts(t, vacuum)
+	})
 
-	// The pinned Redocly CLI above rejects the canonical 3.2 feature specimen
-	// before linting it; keep asserting that exact limitation so the specimen is
-	// not silently omitted. The pinned downstream generators below likewise
-	// reject the 3.2 version string before processing the otherwise compatible
-	// document, so exercise the renderer's 3.1 compatibility target with the
-	// existing non-trivial raw-body specimen.
+	// The downstream generators reject the 3.2 version string, so exercise
+	// the renderer's 3.1 target with the existing non-trivial raw-body specimen.
 	artifacts := renderOpenAPIArtifactsForVersion(
 		t,
 		testdata.RawRequestBodyOpenAPIDSL,

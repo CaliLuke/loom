@@ -93,9 +93,9 @@ var OpenAPI32FeaturesDSL = func() {
 			Result(ArrayOf(Event), func() {
 				Meta("openapi:itemSchema", "true")
 				Meta("openapi:component:mediaType", "CatalogEventStream")
-				Meta("openapi:prefixEncoding:0:contentType", "application/json")
-				Meta("openapi:itemEncoding:contentType", "application/json")
-				Meta("openapi:itemEncoding:encoding:id:style", "form")
+				Meta("openapi:prefixEncoding:0:contentType", "multipart/form-data")
+				Meta("openapi:prefixEncoding:0:encoding:id:style", "form")
+				Meta("openapi:itemEncoding:contentType", "multipart/mixed")
 				Meta("openapi:itemEncoding:prefixEncoding:0:contentType", "application/json")
 				Meta("openapi:itemEncoding:itemEncoding:contentType", "application/json")
 			})
