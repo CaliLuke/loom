@@ -13,7 +13,7 @@ Use the existing suites and fixtures; do not default to the exported-design corp
 | Regex engine agreement | `ir/pattern_projection_test.go` compares Go regexp and unflagged Node ECMA matching on anchors, ASCII whitespace, literal classes/braces and quantified assertions. Unsupported syntax must return diagnostics. |
 | Discriminator semantics | `ir/discriminator_metadata_test.go` checks admission and URI references; v3 discriminator tests cover both targets, required controls, nested/reusable occurrences and fallback-only graph edges. The bounded Lean model records the cross-field rule, not URI or engine correctness. |
 | Independent-process determinism | `requireIndependentRegeneration` invokes a new CLI process and compares exact JSON/YAML bytes for the nullable import. Export fixture snapshots are likewise compared across separate generator processes. |
-| Structural conformance | Libopenapi parses rendered JSON/YAML. Redocly 2.60.0 validates the selected 3.1 fixtures and portable 3.2 fixtures, but crashes with `Unknown type name found: string` on the existing 3.2 feature specimen. Retain this limitation and direct rule assertions; do not count the crash or parser model construction as full 3.2 conformance. |
+| Structural conformance | Libopenapi parses rendered JSON/YAML. [Redocly 2.62.1](https://redocly.com/docs/cli/changelog) validates the portable 3.2 fixtures, but crashes with `Unknown type name found: string` on the existing 3.2 feature specimen. Retain this limitation and direct rule assertions; do not count the crash or parser model construction as full 3.2 conformance. |
 
 The existing `gojsonschema` dependency is used for the specimens' shared
 Draft 7/2020-12 vocabulary only (type, null, properties, required, anyOf and

@@ -22,8 +22,9 @@ This keeps metadata meaning independent of the selected output version.
 
 Validation: shared IR and v3 suites pass; the existing OpenAPI32FeaturesDSL
 compiles after generation. Its 3.1/3.2 JSON and YAML bytes are unchanged from the
-baseline and identical across independent generations. Redocly 2.60.0 validates
-the 3.1 specimen but crashes on the unchanged 3.2 feature specimen with
+baseline and identical across independent generations. The original Redocly
+2.60.0 run validated the 3.1 specimen. Rechecking with 2.62.1 still crashes on
+the unchanged 3.2 feature specimen with
 `Unknown type name found: string`. Libopenapi parses both; direct tests assert
 the changed discriminator rules. Neither parser construction nor the known lint
 failure is treated as full 3.2 conformance certification.

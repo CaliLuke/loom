@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	redoclyCLIVersion        = "2.60.0"
+	redoclyCLIVersion        = "2.62.1"
 	heyAPIOpenAPIVersion     = "0.99.0"
 	heyAPIClientFetchVersion = "0.13.1"
 	typeScriptAPIVersion     = "6.0.2"
@@ -317,9 +317,9 @@ func TestRepresentativeSpecsPassRedoclyLintAndConsumerSmoke(t *testing.T) {
 			require.NoError(t, os.WriteFile(yamlPath, artifacts.YAML, 0o600))
 			_, err := testingx.RunCmd(workDir, "npx", "--yes", "@redocly/cli@"+redoclyCLIVersion, "lint", yamlPath)
 			if tc.unsupportedOAS32Diagnostic != "" {
-				// renderOpenAPIArtifacts has already parsed and built both valid
-				// artifacts with libopenapi. This diagnostic is Redocly's current
-				// lack of OpenAPI 3.2 support, not a Loom rendering failure.
+				// Libopenapi has parsed both artifacts, but that alone does not
+				// establish conformance. Redocly fails on this 3.2 feature specimen;
+				// retain the exact diagnostic until it can lint the specimen.
 				require.ErrorContains(t, err, tc.unsupportedOAS32Diagnostic)
 				return
 			}
