@@ -431,10 +431,7 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 				description = svr.Description
 			}
 
-			var (
-				serverVariable   = make(map[string]*ServerVariable)
-				validationValues []any
-			)
+			serverVariable := make(map[string]*ServerVariable)
 
 			// Get the first URL expression in the host by default.
 			// Host expression must have at least one URI (validations would have failed
@@ -460,7 +457,6 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 				values, _ := constraints.EnumCandidates()
 
 				if len(values) > 0 {
-					validationValues = append(validationValues, values...)
 					if !hasDefault {
 						defaultValue = values[0]
 					}
@@ -468,7 +464,7 @@ func buildServers(servers []*expr.ServerExpr) []*Server {
 
 				if defaultValue != nil {
 					serverVariable[v.Name] = &ServerVariable{
-						Enum:        validationValues,
+						Enum:        values,
 						Default:     defaultValue,
 						Description: v.Attribute.Description,
 					}
