@@ -4,9 +4,9 @@
 func DecodeMethodCookieStringDefaultValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiestringdefaultvalidate.MethodCookieStringDefaultValidatePayload, error) {
 	return func(r *http.Request) (*servicecookiestringdefaultvalidate.MethodCookieStringDefaultValidatePayload, error) {
 		var payload *servicecookiestringdefaultvalidate.MethodCookieStringDefaultValidatePayload
+		var err error
 		var (
-			c2  string
-			err error
+			c2 string
 		)
 		{
 			c, cookieErr := r.Cookie("c")

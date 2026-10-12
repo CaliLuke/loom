@@ -4,9 +4,9 @@
 func DecodeMethodCookieCustomTextUnmarshalerDefaultRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload, error) {
 	return func(r *http.Request) (*servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload, error) {
 		var payload *servicecookiecustomtextunmarshalerdefault.MethodCookieCustomTextUnmarshalerDefaultPayload
+		var err error
 		var (
-			id  uuid.UUID
-			err error
+			id uuid.UUID
 		)
 		{
 			c, cookieErr := r.Cookie("id")

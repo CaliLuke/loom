@@ -63,8 +63,12 @@ func credentialAlternativePayload(name string, credential expr.DataType) {
 			Pattern("^[a-z]+$")
 		})
 		if name == "either" || name == "reverse" || name == "required" {
-			Username("user", credential)
-			Password("pass", credential)
+			Username("user", credential, func() {
+				MinLength(2)
+			})
+			Password("pass", credential, func() {
+				MinLength(2)
+			})
 		}
 		if name == "key" || name == "and" || name == "required_token" {
 			APIKey("key", "key", credential)

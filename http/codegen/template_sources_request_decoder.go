@@ -15,6 +15,9 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		r.Body = io.NopCloser(bytes.NewReader({{ .Payload.Request.DecodePlan.JSONRPCParamsVar }}))
 	{{- end }}
 		var payload {{ .Payload.Ref }}
+ {{- if .Payload.Request.DecodePlan.NeedsErrorVar }}
+ var err error
+ {{- end }}
 {{- if .MultipartRequestDecoder }}
 		if err := decoder(r).Decode(&payload); err != nil {
 			var gerr *loom.ServiceError
@@ -33,9 +36,6 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 			body = {{ .Payload.Request.ServerBody.ValueRef }}({{ printf "%#v" .Payload.Request.BodyDefaultValue }})
 		{{- else }}
 			body {{ .Payload.Request.ServerBody.ValueRef }}
-		{{- end }}
-		{{- if .Payload.Request.NeedsServerErrorVar }}
-			err  error
 		{{- end }}
 		)
 	{{- if .Payload.Request.MultipartGenerated }}
@@ -164,11 +164,27 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	{{- if .Payload.Request.DecodePlan.HasElements }}
 		{{- template "partial_request_elements" .Payload.Request }}
 	{{- end }}
+{{- end }}
+{{- if .BasicScheme }}{{ with .BasicScheme }}
+ user, pass, ok := r.BasicAuth()
+ {{- if .HeaderRequired }}
+ if !ok {
+  err = loom.MergeErrors(err, loom.MissingFieldError("Authorization", "header"))
+ }
+ {{- end }}
+ {{- if or .UsernameValidate .PasswordValidate }}
+ if ok {
+  {{ .UsernameValidate }}
+  {{ .PasswordValidate }}
+ }
+ {{- end }}
+{{- end }}{{ end }}
 	{{- if .Payload.Request.DecodePlan.MustValidate }}
 		if err != nil {
 			return payload, err
 		}
 	{{- end }}
+{{- if not .MultipartRequestDecoder }}
 	{{- if .Payload.Request.PayloadInit }}
 	payload = {{ .Payload.Request.PayloadInit.Name }}({{ range .Payload.Request.PayloadInit.ServerArgs }}{{ .Ref }}, {{ end }})
 	{{- else if .Payload.DecoderReturnValue }}
@@ -178,14 +194,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 	{{- end }}
 {{- end }}
 {{- if .BasicScheme }}{{ with .BasicScheme }}
-	user, pass, ok := r.BasicAuth()
-		{{- if .HeaderRequired}}
-	if !ok {
-		return payload, loom.MissingFieldError("Authorization", "header")
-	}
-		{{- else }}
-	if ok {
-		{{- end }}
+ if ok {
 	{{- if isAliased .UsernameType }}
  userValue := {{ credentialTypeRef .UsernameType $.ServicePkgName }}(user)
  {{- end }}
@@ -194,9 +203,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
  {{- end }}
  payload.{{ .UsernameField }} = {{ if .UsernamePointer }}&{{ end }}{{ if isAliased .UsernameType }}userValue{{ else }}user{{ end }}
 	payload.{{ .PasswordField }} = {{ if .PasswordPointer }}&{{ end }}{{ if isAliased .PasswordType }}passValue{{ else }}pass{{ end }}
-	{{- if not .HeaderRequired }}
-	}
-	{{- end }}
+ }
 {{- end }}{{ end }}
 
 

@@ -4,9 +4,9 @@
 func DecodeMethodQueryMapStringMapIntStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string]map[int]string, error) {
 	return func(r *http.Request) (map[string]map[int]string, error) {
 		var payload map[string]map[int]string
+		var err error
 		var (
-			q   map[string]map[int]string
-			err error
+			q map[string]map[int]string
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

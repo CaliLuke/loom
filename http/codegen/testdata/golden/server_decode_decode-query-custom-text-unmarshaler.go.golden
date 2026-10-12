@@ -4,9 +4,9 @@
 func DecodeMethodQueryCustomTextUnmarshalerRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload, error) {
 	return func(r *http.Request) (*servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload, error) {
 		var payload *servicequerycustomtextunmarshaler.MethodQueryCustomTextUnmarshalerPayload
+		var err error
 		var (
-			id  uuid.UUID
-			err error
+			id uuid.UUID
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

@@ -3,9 +3,9 @@
 func DecodeMethodPathStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathstringvalidate.MethodPathStringValidatePayload, error) {
 	return func(r *http.Request) (*servicepathstringvalidate.MethodPathStringValidatePayload, error) {
 		var payload *servicepathstringvalidate.MethodPathStringValidatePayload
+		var err error
 		var (
-			p   string
-			err error
+			p string
 
 			params = mux.Vars(r)
 		)

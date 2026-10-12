@@ -3,9 +3,9 @@
 func DecodeMethodFormBodyInvalidRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceformbodyinvalid.MethodFormBodyInvalidPayload, error) {
 	return func(r *http.Request) (*serviceformbodyinvalid.MethodFormBodyInvalidPayload, error) {
 		var payload *serviceformbodyinvalid.MethodFormBodyInvalidPayload
+		var err error
 		var (
 			body MethodFormBodyInvalidRequestBody
-			err  error
 		)
 		if err = loomhttp.ParseFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context())); err != nil {
 			var gerr *loom.ServiceError

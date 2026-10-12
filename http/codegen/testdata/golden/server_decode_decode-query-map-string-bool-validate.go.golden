@@ -4,9 +4,9 @@
 func DecodeMethodQueryMapStringBoolValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload, error) {
 	return func(r *http.Request) (*servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload, error) {
 		var payload *servicequerymapstringboolvalidate.MethodQueryMapStringBoolValidatePayload
+		var err error
 		var (
-			q   map[string]bool
-			err error
+			q map[string]bool
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

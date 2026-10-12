@@ -3,9 +3,9 @@
 func DecodeMethodPathArrayStringRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepatharraystring.MethodPathArrayStringPayload, error) {
 	return func(r *http.Request) (*servicepatharraystring.MethodPathArrayStringPayload, error) {
 		var payload *servicepatharraystring.MethodPathArrayStringPayload
+		var err error
 		var (
-			p   []string
-			err error
+			p []string
 		)
 		{
 			pRaw := mux.RawVars(r)["p"]

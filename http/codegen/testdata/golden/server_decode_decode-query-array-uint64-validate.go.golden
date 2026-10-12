@@ -4,9 +4,9 @@
 func DecodeMethodQueryArrayUInt64ValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload, error) {
 		var payload *servicequeryarrayuint64validate.MethodQueryArrayUInt64ValidatePayload
+		var err error
 		var (
-			q   []uint64
-			err error
+			q []uint64
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

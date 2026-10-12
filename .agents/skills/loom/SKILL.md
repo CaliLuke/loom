@@ -753,8 +753,10 @@ sends the header if either component is required or present; an absent optional
 counterpart becomes an empty component. When both are optional, a missing or
 invalid Basic header leaves their pointers nil. A valid header supplies both
 components, including empty values. If either is required, a missing or invalid
-header fails decoding. Regenerate clients and servers to adopt this behavior.
-
+header fails decoding. Generated HTTP and JSON-RPC servers enforce authored
+Username and Password constraints before authentication, including on supplied
+empty values. Security alternatives do not remove payload constraints.
+Regenerate clients and servers to adopt this behavior.
 
 Optional bearer credentials can coexist with Basic or other security alternatives.
 A foreign Authorization scheme leaves an optional bearer field absent only when

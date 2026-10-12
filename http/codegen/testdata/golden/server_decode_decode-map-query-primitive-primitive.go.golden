@@ -3,9 +3,9 @@
 func DecodeMapQueryPrimitivePrimitiveRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string]string, error) {
 	return func(r *http.Request) (map[string]string, error) {
 		var payload map[string]string
+		var err error
 		var (
 			query map[string]string
-			err   error
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

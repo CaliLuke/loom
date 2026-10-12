@@ -3,9 +3,9 @@
 func DecodeMethodBodyQueryUserRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyqueryuser.PayloadType, error) {
 	return func(r *http.Request) (*servicebodyqueryuser.PayloadType, error) {
 		var payload *servicebodyqueryuser.PayloadType
+		var err error
 		var (
 			body MethodBodyQueryUserRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

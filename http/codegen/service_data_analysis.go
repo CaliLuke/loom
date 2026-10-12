@@ -200,8 +200,9 @@ func (sds *ServicesData) buildFileServersData(httpSvc *expr.HTTPServiceExpr, sco
 func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoint, svc *service.Data, sd *ServiceData, scope *codegen.NameScope) *EndpointData {
 	method := svc.Method(endpointIR.MethodName)
 	routes := sds.buildEndpointRoutes(endpointIR, method, svc, sd)
-	payload := sds.buildPayloadDataFromIR(endpointIR, sd)
 	reqs, hsch, bosch, qsch, basch := sds.buildRequirementSchemes(endpointIR)
+	basic := buildBasicAuthData(basch, endpointIR.Request.Payload, sd.Scope)
+	payload := sds.buildPayloadDataFromIR(endpointIR, sd, basic)
 	for _, header := range payload.Request.Headers {
 		header.Bearer = securitygen.PlanBearer(header.HTTPName, header.AttributeName, header.Required, hsch, reqs)
 	}
@@ -221,7 +222,7 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 		HeaderSchemes:             hsch,
 		BodySchemes:               bosch,
 		QuerySchemes:              qsch,
-		BasicScheme:               buildBasicAuthData(basch),
+		BasicScheme:               basic,
 		Routes:                    routes,
 		MountHandler:              fmt.Sprintf("Mount%sHandler", method.VarName),
 		HandlerInit:               fmt.Sprintf("New%sHandler", method.VarName),

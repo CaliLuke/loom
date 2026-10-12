@@ -3,9 +3,9 @@
 func DecodeMethodBodyCustomNameRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodycustomname.MethodBodyCustomNamePayload, error) {
 	return func(r *http.Request) (*servicebodycustomname.MethodBodyCustomNamePayload, error) {
 		var payload *servicebodycustomname.MethodBodyCustomNamePayload
+		var err error
 		var (
 			body MethodBodyCustomNameRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

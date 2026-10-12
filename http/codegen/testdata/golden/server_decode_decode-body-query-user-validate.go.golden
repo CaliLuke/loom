@@ -5,9 +5,9 @@ import "regexp"
 func DecodeMethodBodyQueryUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyqueryuservalidate.PayloadType, error) {
 	return func(r *http.Request) (*servicebodyqueryuservalidate.PayloadType, error) {
 		var payload *servicebodyqueryuservalidate.PayloadType
+		var err error
 		var (
 			body MethodBodyQueryUserValidateRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

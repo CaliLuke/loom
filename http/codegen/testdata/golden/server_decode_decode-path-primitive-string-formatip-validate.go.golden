@@ -4,9 +4,9 @@
 func DecodeMethodPathPrimitiveStringFormatIPValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (string, error) {
 	return func(r *http.Request) (string, error) {
 		var payload string
+		var err error
 		var (
-			ip  string
-			err error
+			ip string
 
 			params = mux.Vars(r)
 		)

@@ -4,9 +4,9 @@
 func DecodeMethodHeaderArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload, error) {
 	return func(r *http.Request) (*serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload, error) {
 		var payload *serviceheaderarraystringvalidate.MethodHeaderArrayStringValidatePayload
+		var err error
 		var (
-			h   []string
-			err error
+			h []string
 		)
 		h = r.Header["H"]
 		for _, e := range h {

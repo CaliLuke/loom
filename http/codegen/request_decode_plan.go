@@ -31,24 +31,14 @@ type RequestDecodePlan struct {
 	QueryValuesVar string
 	// QueryErrorVar is the local variable containing a query parse error.
 	QueryErrorVar string
-	// MustValidate is true when decoded request elements may accumulate
-	// validation errors.
+	// MustValidate is true when decoded request elements or Basic credentials
+	// may accumulate validation errors in the outer request decoder.
 	MustValidate bool
+	// NeedsErrorVar declares the decoder's shared validation/decode accumulator.
+	NeedsErrorVar bool
 }
 
-// requestNeedsServerErrorVar reports whether the generated server request
-// decoder declares the shared "err" accumulator variable. Multipart-generated
-// requests need it when field or body validation runs or an array path may
-// report malformed escaping. A required multipart file field always produces
-// a non-empty ServerBody.ValidateRef (the generated Validate<Body> function
-// treats the resulting nil field as missing).
-func requestNeedsServerErrorVar(request *RequestData) bool {
-	return !request.MultipartGenerated || request.MustValidate ||
-		(request.ServerBody != nil && request.ServerBody.ValidateRef != "") ||
-		requestHasPathArray(request)
-}
-
-func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
+func newRequestDecodePlan(request *RequestData, basic *BasicAuthData) *RequestDecodePlan {
 	hasPathParams := len(request.PathParams) > 0
 	hasDecodedPathParams := false
 	for _, param := range request.PathParams {
@@ -69,6 +59,17 @@ func newRequestDecodePlan(request *RequestData) *RequestDecodePlan {
 		HasCookies:           hasCookies,
 		MustValidate:         request.MustValidate || requestHasPathArray(request),
 	}
+	customMultipart := request.Multipart && !request.MultipartGenerated
+	if customMultipart {
+		// The custom multipart adapter already validates its ordinary bound elements.
+		plan.MustValidate = false
+	}
+	if basic != nil {
+		plan.MustValidate = plan.MustValidate || basic.HeaderRequired || basic.UsernameValidate != "" || basic.PasswordValidate != ""
+	}
+	bodyError := request.ServerBody != nil && !customMultipart &&
+		(!request.MultipartGenerated || request.ServerBody.ValidateRef != "")
+	plan.NeedsErrorVar = plan.MustValidate || bodyError
 	scope := codegen.NewNameScope()
 	for _, param := range request.PathParams {
 		scope.Unique(param.VarName)

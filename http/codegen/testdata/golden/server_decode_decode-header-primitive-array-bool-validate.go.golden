@@ -4,9 +4,9 @@
 func DecodeMethodHeaderPrimitiveArrayBoolValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) ([]bool, error) {
 	return func(r *http.Request) ([]bool, error) {
 		var payload []bool
+		var err error
 		var (
-			h   []bool
-			err error
+			h []bool
 		)
 		{
 			hRaw := r.Header["H"]

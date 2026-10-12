@@ -7,9 +7,9 @@ import "regexp"
 func DecodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (map[string][]string, error) {
 	return func(r *http.Request) (map[string][]string, error) {
 		var payload map[string][]string
+		var err error
 		var (
-			q   map[string][]string
-			err error
+			q map[string][]string
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

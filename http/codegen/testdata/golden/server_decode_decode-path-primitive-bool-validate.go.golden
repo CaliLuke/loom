@@ -4,9 +4,9 @@
 func DecodeMethodPathPrimitiveBoolValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (bool, error) {
 	return func(r *http.Request) (bool, error) {
 		var payload bool
+		var err error
 		var (
-			p   bool
-			err error
+			p bool
 
 			params = mux.Vars(r)
 		)

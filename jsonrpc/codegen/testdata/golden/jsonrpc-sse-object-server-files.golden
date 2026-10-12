@@ -394,9 +394,9 @@ func DecodeStreamRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhtt
 		}
 		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *jsonrpcsseobjectservice.StreamPayload
+ var err error
 		var (
 			body StreamRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

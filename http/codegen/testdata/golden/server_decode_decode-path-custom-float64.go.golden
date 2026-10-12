@@ -3,9 +3,9 @@
 func DecodeMethodPathCustomFloat64Request(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomfloat64.MethodPathCustomFloat64Payload, error) {
 	return func(r *http.Request) (*servicepathcustomfloat64.MethodPathCustomFloat64Payload, error) {
 		var payload *servicepathcustomfloat64.MethodPathCustomFloat64Payload
+		var err error
 		var (
-			p   custom.Float64
-			err error
+			p custom.Float64
 
 			params = mux.Vars(r)
 		)

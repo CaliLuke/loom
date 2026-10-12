@@ -375,8 +375,8 @@ type (
 		// BodyAllowsNull reports whether the DSL body accepts top-level JSON null.
 		// Requiredness is independent of this flag.
 		BodyAllowsNull bool
-		// MustValidate is true if the request body or at least one
-		// parameter or header requires validation.
+		// MustValidate is true if an ordinary bound request element requires
+		// validation. DecodePlan also accounts for Basic credentials.
 		MustValidate bool
 		// Multipart if true indicates the request is a multipart
 		// request.
@@ -387,9 +387,6 @@ type (
 		// MultipartFileFields describes multipart file parts that need explicit
 		// handling during generated request decoding.
 		MultipartFileFields []*MultipartFileFieldData
-		// NeedsServerErrorVar indicates whether the generated server request
-		// decoder uses the shared error accumulator.
-		NeedsServerErrorVar bool
 		// FormEncoded if true indicates the request uses
 		// application/x-www-form-urlencoded.
 		FormEncoded bool

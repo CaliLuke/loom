@@ -3,9 +3,9 @@
 func DecodeMethodBodyStringValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodystringvalidate.MethodBodyStringValidatePayload, error) {
 	return func(r *http.Request) (*servicebodystringvalidate.MethodBodyStringValidatePayload, error) {
 		var payload *servicebodystringvalidate.MethodBodyStringValidatePayload
+		var err error
 		var (
 			body MethodBodyStringValidateRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

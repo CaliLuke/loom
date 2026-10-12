@@ -3,9 +3,9 @@
 func DecodeMethodBodyMapUserValidateRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodymapuservalidate.MethodBodyMapUserValidatePayload, error) {
 	return func(r *http.Request) (*servicebodymapuservalidate.MethodBodyMapUserValidatePayload, error) {
 		var payload *servicebodymapuservalidate.MethodBodyMapUserValidatePayload
+		var err error
 		var (
 			body MethodBodyMapUserValidateRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

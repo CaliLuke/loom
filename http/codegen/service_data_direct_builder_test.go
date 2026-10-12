@@ -143,7 +143,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		services, endpointExpr, svcData := firstJSONRPCBuildContext(t, jsonrpcIDProjectionDSL)
 		endpointIR := preparedEndpointIR(t, endpointExpr, svcData)
 
-		payload := services.buildPayloadDataFromIR(endpointIR, svcData)
+		payload := services.buildPayloadDataFromIR(endpointIR, svcData, nil)
 		require.Equal(t, "ID", payload.IDAttribute)
 		require.True(t, payload.IDAttributeRequired)
 		require.NotNil(t, payload.Request)

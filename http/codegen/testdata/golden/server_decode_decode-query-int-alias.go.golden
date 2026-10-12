@@ -3,11 +3,11 @@
 func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryintalias.MethodAPayload, error) {
 	return func(r *http.Request) (*servicequeryintalias.MethodAPayload, error) {
 		var payload *servicequeryintalias.MethodAPayload
+		var err error
 		var (
 			int_   *int
 			int32_ *int32
 			int64_ *int64
-			err    error
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

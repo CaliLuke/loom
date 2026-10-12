@@ -93,6 +93,59 @@ func TestConstrainedCredentialsGenerated(t *testing.T) {
 		_, err := file.Render(dir)
 		require.NoError(t, err)
 	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "basic_constraints_test.go"), []byte(basicMetadataConstraintsHarness), 0o600))
 	runGRPCGoCommand(t, dir, "mod", "tidy")
-	runGRPCGoCommand(t, dir, "test", "-run", "^$", "./...")
+	runGRPCGoCommand(t, dir, "test", "-run", "^TestBasicMetadataConstraints$", "./...")
 }
+
+const basicMetadataConstraintsHarness = `package credentials_test
+import (
+ "context"
+ "errors"
+ "testing"
+ server "example.com/credentials/gen/grpc/user/server"
+ svc "example.com/credentials/gen/user"
+ loom "github.com/CaliLuke/loom/pkg"
+ "google.golang.org/grpc/metadata"
+ "github.com/stretchr/testify/require"
+)
+func TestBasicMetadataConstraints(t *testing.T) {
+ for _, tc := range []struct {name, user, pass, code string; absent bool}{
+  {name:"valid", user:"alice", pass:"secret"},
+  {name:"short user", user:"x", pass:"secret", code:"invalid_length"},
+  {name:"short pass", user:"alice", pass:"x", code:"invalid_length"},
+  {name:"bad user", user:"UPPER", pass:"secret", code:"invalid_pattern"},
+  {name:"bad pass", user:"alice", pass:"UPPER", code:"invalid_pattern"},
+  {name:"absent", absent:true},
+ } {
+  for _, required := range []bool{true,false} {
+   md := metadata.MD{}
+   if !tc.absent {
+    md.Set("user",tc.user)
+    md.Set("pass",tc.pass)
+   }
+   decode := server.DecodeOptionalRequest
+   if required {
+    decode = server.DecodeRequiredRequest
+   }
+   result, err := decode(context.Background(), nil, md)
+   code := tc.code
+   if tc.absent && required {
+    code = "missing_field"
+   }
+   if code != "" {
+    var serr *loom.ServiceError
+    require.True(t, errors.As(err, &serr), "%s required=%v: %v",tc.name,required,err)
+    require.Equal(t, code, serr.Name)
+   } else {
+    require.NoError(t, err)
+    if tc.absent {
+     p := result.(*svc.OptionalPayload)
+     require.Nil(t, p.User)
+     require.Nil(t, p.Pass)
+    }
+   }
+  }
+ }
+}
+`

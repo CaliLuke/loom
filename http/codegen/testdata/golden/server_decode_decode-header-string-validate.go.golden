@@ -5,9 +5,9 @@ import "regexp"
 func DecodeMethodHeaderStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstringvalidate.MethodHeaderStringValidatePayload, error) {
 	return func(r *http.Request) (*serviceheaderstringvalidate.MethodHeaderStringValidatePayload, error) {
 		var payload *serviceheaderstringvalidate.MethodHeaderStringValidatePayload
+		var err error
 		var (
-			h   *string
-			err error
+			h *string
 		)
 		hRaw := r.Header.Get("h")
 		if hRaw != "" {

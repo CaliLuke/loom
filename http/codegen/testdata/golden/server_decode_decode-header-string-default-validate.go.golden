@@ -4,9 +4,9 @@
 func DecodeMethodHeaderStringDefaultValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderstringdefaultvalidate.MethodHeaderStringDefaultValidatePayload, error) {
 	return func(r *http.Request) (*serviceheaderstringdefaultvalidate.MethodHeaderStringDefaultValidatePayload, error) {
 		var payload *serviceheaderstringdefaultvalidate.MethodHeaderStringDefaultValidatePayload
+		var err error
 		var (
-			h   string
-			err error
+			h string
 		)
 		hRaw := r.Header.Get("h")
 		if hRaw != "" {

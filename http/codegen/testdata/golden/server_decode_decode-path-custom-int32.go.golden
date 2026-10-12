@@ -3,9 +3,9 @@
 func DecodeMethodPathCustomInt32Request(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomint32.MethodPathCustomInt32Payload, error) {
 	return func(r *http.Request) (*servicepathcustomint32.MethodPathCustomInt32Payload, error) {
 		var payload *servicepathcustomint32.MethodPathCustomInt32Payload
+		var err error
 		var (
-			p   hide.Int32
-			err error
+			p hide.Int32
 
 			params = mux.Vars(r)
 		)

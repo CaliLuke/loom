@@ -4,9 +4,9 @@
 func DecodeMethodPathCustomTextUnmarshalerValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepathcustomtextunmarshalervalidate.MethodPathCustomTextUnmarshalerValidatePayload, error) {
 	return func(r *http.Request) (*servicepathcustomtextunmarshalervalidate.MethodPathCustomTextUnmarshalerValidatePayload, error) {
 		var payload *servicepathcustomtextunmarshalervalidate.MethodPathCustomTextUnmarshalerValidatePayload
+		var err error
 		var (
-			id  uuid.UUID
-			err error
+			id uuid.UUID
 
 			params = mux.Vars(r)
 		)

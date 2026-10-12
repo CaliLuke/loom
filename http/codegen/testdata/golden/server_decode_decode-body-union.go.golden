@@ -3,9 +3,9 @@
 func DecodeMethodBodyUnionRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyunion.Union, error) {
 	return func(r *http.Request) (*servicebodyunion.Union, error) {
 		var payload *servicebodyunion.Union
+		var err error
 		var (
 			body MethodBodyUnionRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

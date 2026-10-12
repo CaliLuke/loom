@@ -4,9 +4,9 @@
 func DecodeMethodQueryPrimitiveArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) ([]string, error) {
 	return func(r *http.Request) ([]string, error) {
 		var payload []string
+		var err error
 		var (
-			q   []string
-			err error
+			q []string
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

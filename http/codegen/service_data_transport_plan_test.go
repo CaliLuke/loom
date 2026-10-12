@@ -58,7 +58,7 @@ func TestRequestDecodePlanKeepsProtocolLocalsDistinct(t *testing.T) {
 			request.PathParams = []*ParamData{{Element: &Element{AttributeData: &AttributeData{VarName: "params", Type: expr.String}}}}
 			request.QueryParams = []*ParamData{{Element: &Element{AttributeData: &AttributeData{VarName: "rpcParams", Type: expr.String}}}}
 		}
-		plan := newRequestDecodePlan(request)
+		plan := newRequestDecodePlan(request, nil)
 		require.NotEmpty(t, plan.PathValuesVar)
 		require.NotEmpty(t, plan.JSONRPCParamsVar)
 		require.NotEqual(t, plan.PathValuesVar, plan.JSONRPCParamsVar)

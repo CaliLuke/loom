@@ -3,11 +3,11 @@
 func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheaderintalias.MethodAPayload, error) {
 	return func(r *http.Request) (*serviceheaderintalias.MethodAPayload, error) {
 		var payload *serviceheaderintalias.MethodAPayload
+		var err error
 		var (
 			int_   *int
 			int32_ *int32
 			int64_ *int64
-			err    error
 		)
 		{
 			int_Raw := r.Header.Get("int")

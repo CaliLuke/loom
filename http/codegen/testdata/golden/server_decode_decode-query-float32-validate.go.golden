@@ -3,9 +3,9 @@
 func DecodeMethodQueryFloat32ValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryfloat32validate.MethodQueryFloat32ValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryfloat32validate.MethodQueryFloat32ValidatePayload, error) {
 		var payload *servicequeryfloat32validate.MethodQueryFloat32ValidatePayload
+		var err error
 		var (
-			q   float32
-			err error
+			q float32
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

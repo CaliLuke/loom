@@ -3,9 +3,9 @@
 func DecodeMethodQueryAnyValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryanyvalidate.MethodQueryAnyValidatePayload, error) {
 	return func(r *http.Request) (*servicequeryanyvalidate.MethodQueryAnyValidatePayload, error) {
 		var payload *servicequeryanyvalidate.MethodQueryAnyValidatePayload
+		var err error
 		var (
-			q   loom.JSONValue
-			err error
+			q loom.JSONValue
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

@@ -6,9 +6,9 @@ import "regexp"
 func DecodeMethodHeaderPrimitiveArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) ([]string, error) {
 	return func(r *http.Request) ([]string, error) {
 		var payload []string
+		var err error
 		var (
-			h   []string
-			err error
+			h []string
 		)
 		h = r.Header["H"]
 		if h == nil {

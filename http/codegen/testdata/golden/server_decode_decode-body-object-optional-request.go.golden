@@ -4,9 +4,9 @@
 func DecodeMethodBodyObjectOptionalRequestRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicebodyobjectoptionalrequest.LinkStart, error) {
 	return func(r *http.Request) (*servicebodyobjectoptionalrequest.LinkStart, error) {
 		var payload *servicebodyobjectoptionalrequest.LinkStart
+		var err error
 		var (
 			body MethodBodyObjectOptionalRequestRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

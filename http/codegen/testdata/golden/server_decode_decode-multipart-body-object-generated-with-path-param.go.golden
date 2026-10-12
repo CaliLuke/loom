@@ -6,9 +6,9 @@ import "regexp"
 func DecodeMethodMultipartObjectGeneratedWithPathParamRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartobjectgeneratedwithpathparam.MethodMultipartObjectGeneratedWithPathParamPayload, error) {
 	return func(r *http.Request) (*servicemultipartobjectgeneratedwithpathparam.MethodMultipartObjectGeneratedWithPathParamPayload, error) {
 		var payload *servicemultipartobjectgeneratedwithpathparam.MethodMultipartObjectGeneratedWithPathParamPayload
+		var err error
 		var (
 			body MethodMultipartObjectGeneratedWithPathParamRequestBody
-			err  error
 		)
 		mr, multipartErr := r.MultipartReader()
 		if multipartErr != nil {

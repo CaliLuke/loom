@@ -3,9 +3,9 @@
 func DecodeMethodQueryArrayUIntRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequeryarrayuint.MethodQueryArrayUIntPayload, error) {
 	return func(r *http.Request) (*servicequeryarrayuint.MethodQueryArrayUIntPayload, error) {
 		var payload *servicequeryarrayuint.MethodQueryArrayUIntPayload
+		var err error
 		var (
-			q   []uint
-			err error
+			q []uint
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

@@ -3,9 +3,9 @@
 func DecodeMethodQueryMapStringStringRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicequerymapstringstring.MethodQueryMapStringStringPayload, error) {
 	return func(r *http.Request) (*servicequerymapstringstring.MethodQueryMapStringStringPayload, error) {
 		var payload *servicequerymapstringstring.MethodQueryMapStringStringPayload
+		var err error
 		var (
-			q   map[string]string
-			err error
+			q map[string]string
 		)
 		qp, queryErr := url.ParseQuery(r.URL.RawQuery)
 		if queryErr != nil {

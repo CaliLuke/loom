@@ -94,6 +94,8 @@ func TestCredentialAlternatives(t *testing.T) {
 	}{
 		{"either", "Basic dXNlcjpwYXNz", "", "", "B", "B", true, false},
 		{"reverse", "Basic dXNlcjpwYXNz", "", "", "JB", "B", true, false},
+        {"either", "Basic dTpw", "", "invalid_length", "", nil, false, false},
+        {"reverse", "Basic dTpw", "", "invalid_length", "", nil, false, false},
 		{"either", "bAsIc dXNlcjpwYXNz", "", "", "B", "B", true, false},
 		{"either", "Bearer good", "", "", "BJ", "J", true, true},
 		{"key", "Basic dXNlcjpwYXNz", "key", "", "JK", "K", true, false},

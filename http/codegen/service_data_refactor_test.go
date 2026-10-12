@@ -195,7 +195,7 @@ func TestHTTPOptionalRequestBodyAssembly(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			services, endpointExpr, svcData := firstHTTPBuildContext(t, c.dsl)
 			endpointIR := preparedEndpointIR(t, endpointExpr, svcData)
-			payload := services.buildPayloadDataFromIR(endpointIR, svcData)
+			payload := services.buildPayloadDataFromIR(endpointIR, svcData, nil)
 
 			require.True(t, endpointIR.Request.OptionalBody)
 			require.False(t, endpointIR.Request.MustHaveBody)
@@ -233,7 +233,7 @@ func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 			expectDecoder:      true,
 			expectGenerated:    false,
 			expectFileFieldLen: 0,
-			expectErrorVar:     true,
+			expectErrorVar:     false,
 		},
 		{
 			name:               "generated multipart object",
@@ -264,7 +264,7 @@ func TestHTTPMultipartEncoderDecoderGating(t *testing.T) {
 			}
 			require.Equal(t, c.expectGenerated, endpoint.Payload.Request.MultipartGenerated)
 			require.Len(t, endpoint.Payload.Request.MultipartFileFields, c.expectFileFieldLen)
-			require.Equal(t, c.expectErrorVar, endpoint.Payload.Request.NeedsServerErrorVar)
+			require.Equal(t, c.expectErrorVar, endpoint.Payload.Request.DecodePlan.NeedsErrorVar)
 		})
 	}
 }

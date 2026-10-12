@@ -4,9 +4,9 @@
 func DecodeMethodFormBodyObjectOptionalRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload, error) {
 	return func(r *http.Request) (*serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload, error) {
 		var payload *serviceformbodyobjectoptional.MethodFormBodyObjectOptionalPayload
+		var err error
 		var (
 			body MethodFormBodyObjectOptionalRequestBody
-			err  error
 		)
 		if err = loomhttp.ParseFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context())); err != nil {
 			var gerr *loom.ServiceError

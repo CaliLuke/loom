@@ -20,9 +20,6 @@ var requestDecoderElementPartials = []templateSource{
 		{{- range .Cookies }}
 			{{ .VarName }} {{ .TypeRef }}
 		{{- end }}
-		{{- if and .MustValidate (not .ServerBody) }}
-			err error
-		{{- end }}
 		{{- if .DecodePlan.HasDecodedPathParams }}
 
 			{{ .DecodePlan.PathValuesVar }} = mux.Vars(r)

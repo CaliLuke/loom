@@ -3,9 +3,9 @@
 func DecodeMethodFormBodyUnionRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceformbodyunion.FormGrant, error) {
 	return func(r *http.Request) (*serviceformbodyunion.FormGrant, error) {
 		var payload *serviceformbodyunion.FormGrant
+		var err error
 		var (
 			body MethodFormBodyUnionRequestBody
-			err  error
 		)
 		if err = loomhttp.ParseFormWithLimit(r, loomhttp.RequestBodyLimit(r.Context())); err != nil {
 			var gerr *loom.ServiceError

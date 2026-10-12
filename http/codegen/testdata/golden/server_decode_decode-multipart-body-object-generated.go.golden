@@ -4,9 +4,9 @@
 func DecodeMethodMultipartObjectGeneratedRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemultipartobjectgenerated.MethodMultipartObjectGeneratedPayload, error) {
 	return func(r *http.Request) (*servicemultipartobjectgenerated.MethodMultipartObjectGeneratedPayload, error) {
 		var payload *servicemultipartobjectgenerated.MethodMultipartObjectGeneratedPayload
+		var err error
 		var (
 			body MethodMultipartObjectGeneratedRequestBody
-			err  error
 		)
 		mr, multipartErr := r.MultipartReader()
 		if multipartErr != nil {

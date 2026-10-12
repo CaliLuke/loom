@@ -261,7 +261,13 @@ consumer validation.
   decoded fields only after a valid Basic header. An absent optional counterpart
   encodes as an empty component; it never suppresses its supplied counterpart.
   Missing/invalid headers require an error if either component is required;
-  otherwise absent optional pointers remain nil. See the
+  otherwise absent optional pointers remain nil. Basic analysis derives effective
+  predicates from the actual credential occurrences against physical extracted
+  strings. `RequestDecodePlan` owns the outer decoder's single error accumulator
+  and validation barrier; Basic presence and supplied-value errors join ordinary
+  errors before payload construction or authentication. Custom multipart keeps
+  ordinary binding in its adapter. HTTP and JSON-RPC consume this same decoder.
+  See the
   [presence model](../../../http/codegen/tla/basic_auth/README.md).
 
 - `expr/authorization.go` owns strict coverage, typed bindings, and exhaustive

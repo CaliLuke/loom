@@ -5,9 +5,9 @@
 func DecodeMethodHeaderCustomTextUnmarshalerOptionalValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*serviceheadercustomtextunmarshaleroptionalvalidate.MethodHeaderCustomTextUnmarshalerOptionalValidatePayload, error) {
 	return func(r *http.Request) (*serviceheadercustomtextunmarshaleroptionalvalidate.MethodHeaderCustomTextUnmarshalerOptionalValidatePayload, error) {
 		var payload *serviceheadercustomtextunmarshaleroptionalvalidate.MethodHeaderCustomTextUnmarshalerOptionalValidatePayload
+		var err error
 		var (
-			id  *uuid.UUID
-			err error
+			id *uuid.UUID
 		)
 		idRaw := r.Header.Get("id")
 		if idRaw != "" {

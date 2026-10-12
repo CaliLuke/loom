@@ -5,9 +5,9 @@ import "regexp"
 func DecodeMethodMapQueryObjectRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicemapqueryobject.PayloadType, error) {
 	return func(r *http.Request) (*servicemapqueryobject.PayloadType, error) {
 		var payload *servicemapqueryobject.PayloadType
+		var err error
 		var (
 			body MethodMapQueryObjectRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {

@@ -2229,7 +2229,12 @@ sends the header if either component is required or present; an absent optional
 counterpart becomes an empty component. When both are optional, a missing or
 invalid Basic header leaves their pointers nil. A valid header supplies both
 components, including empty values. If either is required, a missing or invalid
-header fails decoding. Regenerate clients and servers to adopt this behavior.
+header fails decoding. The server validates supplied username and password values
+against their complete DSL constraints, including named-type and occurrence
+constraints, before authentication runs. This applies to HTTP and JSON-RPC POST;
+gRPC metadata uses the same attribute validation rules. A supplied empty component
+is a value to validate, not an absent credential. Regenerate clients and servers
+to adopt this behavior.
 
 An optional Authorization bearer credential can coexist with other `Security`
 alternatives. If another requirement does not use that credential, a header

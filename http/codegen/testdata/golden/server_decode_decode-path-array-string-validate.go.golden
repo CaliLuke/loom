@@ -4,9 +4,9 @@
 func DecodeMethodPathArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request) (*servicepatharraystringvalidate.MethodPathArrayStringValidatePayload, error) {
 	return func(r *http.Request) (*servicepatharraystringvalidate.MethodPathArrayStringValidatePayload, error) {
 		var payload *servicepatharraystringvalidate.MethodPathArrayStringValidatePayload
+		var err error
 		var (
-			p   []string
-			err error
+			p []string
 		)
 		{
 			pRaw := mux.RawVars(r)["p"]

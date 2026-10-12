@@ -25,13 +25,14 @@ type payloadBuilder struct {
 	svcctx     *codegen.AttributeContext
 	vars       *transportVarScope
 	pkg        string
+	basic      *BasicAuthData
 }
 
-func (sds *ServicesData) buildPayloadDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData) *PayloadData {
-	return newPayloadBuilder(sds, endpointIR, sd).build()
+func (sds *ServicesData) buildPayloadDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData, basic *BasicAuthData) *PayloadData {
+	return newPayloadBuilder(sds, endpointIR, sd, basic).build()
 }
 
-func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData) *payloadBuilder {
+func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *ServiceData, basic *BasicAuthData) *payloadBuilder {
 	payload := endpointIR.Request.Payload
 	svc := sd.Service
 	ep := svc.Method(endpointIR.MethodName)
@@ -55,6 +56,7 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 		svcctx:     serviceContext(pkg, sd.Service.Scope),
 		vars:       newRequestVarScope(sd),
 		pkg:        pkg,
+		basic:      basic,
 	}
 	builder.httpsvrctx.JSONPresence = bodyAttr != nil && !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
 	return builder
@@ -152,8 +154,7 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		MultipartFileFields:   multipartFiles,
 		FormEncoded:           b.endpointIR.Request.FormEncoded,
 	}
-	request.NeedsServerErrorVar = requestNeedsServerErrorVar(request)
-	request.DecodePlan = newRequestDecodePlan(request)
+	request.DecodePlan = newRequestDecodePlan(request, b.basic)
 	return request, mapQueryParam
 }
 
