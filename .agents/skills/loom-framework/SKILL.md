@@ -1189,6 +1189,10 @@ filter, and serialization rules belong here.
   selects its authored view or its own default independently of its parent.
   `projection_conversion.go` binds detached selected graphs to complete physical
   carriers; never prune shared physical declarations or invent Go type names.
+  Lower projected carrier package placement before allocating names or taking
+  detached conversion snapshots. Canonical service types retain authored package
+  locations. Keep the carrier-location model, recursive reference tests and
+  custom-package compilation checks aligned with that preparation order.
   Keep one `GoTransform` renderer. Its helper allocator must retain semantic
   source/target identity through `DupAtt` and use the same name for calls,
   declarations and recursion memoization. Preserve the different physical

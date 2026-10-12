@@ -137,6 +137,9 @@ func collectProjectedTypes(projected, att *expr.AttributeExpr, viewspkg string, 
 //
 // viewspkg is the name of the views package
 func buildProjectedType(projected, att *expr.AttributeExpr, viewspkg string, scope, viewScope *codegen.NameScope) *ProjectedTypeData {
+	// View carriers own their package before names and detached conversion
+	// graphs capture it. Canonical service locations remain on att.
+	removeMeta(projected)
 	var (
 		projections []*InitData
 		typeInits   []*InitData
@@ -151,7 +154,6 @@ func buildProjectedType(projected, att *expr.AttributeExpr, viewspkg string, sco
 		views = buildViews(att.Type.(*expr.ResultTypeExpr), viewScope)
 	}
 	validations := buildValidations(projected, viewScope)
-	removeMeta(projected)
 	return &ProjectedTypeData{
 		UserTypeData: &UserTypeData{
 			Name:        varname,
@@ -291,9 +293,9 @@ func walkViewAttrs(obj *expr.Object, view *expr.ViewExpr, walker func(name strin
 	}
 }
 
-// removeMeta removes the meta attributes from the given attribute. This is
-// needed to make sure that any field name overriding is removed when
-// generating protobuf types (as protogen itself won't honor these overrides).
+// removeMeta removes canonical package placement from the projected graph.
+// Every projected carrier belongs to the service views package; field naming
+// and other representation metadata remain intact.
 func removeMeta(att *expr.AttributeExpr) {
 	_ = codegen.Walk(att, func(a *expr.AttributeExpr) error {
 		delete(a.Meta, "struct:pkg:path")
