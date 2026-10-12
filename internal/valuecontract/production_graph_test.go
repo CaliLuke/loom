@@ -65,7 +65,7 @@ func productionRules(validation *expr.ValidationExpr, kind expr.Kind) map[string
 			numeric["maximum"], numeric["exclusiveMaximum"] = boundDecimal(validation.ExclusiveMaximum), true
 		}
 	}
-	return map[string]any{"sourcePrimitive": productionSourcePrimitive(kind), "numericFormat": format, "integerFormat": "mathematical", "enumeration": nil, "length": productionLength(validation), "numeric": numeric, "externalChecks": []any{}}
+	return map[string]any{"sourcePrimitive": productionSourcePrimitive(kind), "numericFormat": format, "integerFormat": productionSourceIntegerFormat(kind, strconv.IntSize), "enumeration": nil, "length": productionLength(validation), "numeric": numeric, "externalChecks": []any{}}
 }
 
 func productionSourcePrimitive(kind expr.Kind) any {

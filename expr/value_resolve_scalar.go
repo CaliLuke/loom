@@ -1,11 +1,9 @@
 package expr
 
 import (
-	"fmt"
 	"reflect"
 	"regexp"
 	"slices"
-	"strconv"
 	"unicode/utf8"
 
 	"github.com/CaliLuke/loom/internal/jsonkey"
@@ -13,60 +11,13 @@ import (
 )
 
 func (r *valueResolver) scalar(node *valueOccurrenceNode, raw any) ValueResult {
-	// Admission precedes normalization: reflect.Kind and numeric equivalence
-	// erase concrete host distinctions retained by the authored DSL contract.
 	primitive, ok := node.declaration.typ.(Primitive)
-	if !ok || !primitive.IsCompatible(raw) {
+	if !ok {
 		return valueFailure(ValueInvalid, "type", "value has an incompatible scalar type")
 	}
-	input := reflect.ValueOf(raw)
-	if !input.IsValid() {
-		return valueFailure(ValueInvalid, "type", "scalar does not admit null")
-	}
-	var normalized any
-	switch node.declaration.kind {
-	case BooleanKind:
-		if input.Kind() == reflect.Bool {
-			normalized = input.Bool()
-		}
-	case StringKind:
-		if input.Kind() == reflect.String {
-			normalized = input.String()
-		}
-	case BytesKind:
-		if input.Kind() == reflect.String {
-			normalized = []byte(input.String())
-		} else if valueIsBytes(input) {
-			bytes := make([]byte, input.Len())
-			reflect.Copy(reflect.ValueOf(bytes), input)
-			normalized = bytes
-		}
-	case IntKind, Int32Kind, Int64Kind, UIntKind, UInt32Kind, UInt64Kind:
-		switch input.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			normalized = raw
-		}
-	case Float32Kind, Float64Kind:
-		if _, finite := numericExampleRat(raw); finite {
-			bits := 64
-			if node.declaration.kind == Float32Kind {
-				bits = 32
-			}
-			// Match declared literal normalization, not binary widening. Raw Any
-			// bypasses this conversion and keeps concrete host precision.
-			number, err := strconv.ParseFloat(fmt.Sprint(raw), bits)
-			if err == nil {
-				if bits == 32 {
-					normalized = float32(number)
-				} else {
-					normalized = number
-				}
-			}
-		}
-	}
-	if normalized == nil {
-		return valueFailure(ValueInvalid, "type", "value has an incompatible scalar kind")
+	normalized, admitted := primitiveValue(primitive, raw)
+	if !admitted {
+		return valueFailure(ValueInvalid, "type", "value has an incompatible scalar type or is outside its numeric carrier")
 	}
 	result := r.success(node, ValuePresent, ValueKindScalar, normalized)
 	result.value.node.scalar = normalized

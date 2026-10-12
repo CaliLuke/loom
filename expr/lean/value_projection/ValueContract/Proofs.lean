@@ -65,3 +65,5 @@ import ValueContract.WireEquality
 
 /- Audited entry point: independent relations, executable correspondence,
    universal obligations and retained failure/control witnesses. -/
+
+import ValueContract.NumericValueAdmission

@@ -17,8 +17,8 @@ type (
 		Kind() Kind
 		// Name returns the type name.
 		Name() string
-		// IsCompatible checks whether val has a Go type that is compatible with the data
-		// type.
+		// IsCompatible checks source-type compatibility, including numeric carrier
+		// admission for primitives. It does not enforce authored validations.
 		IsCompatible(any) bool
 		// Example generates a pseudo-random value using the given random generator.
 		Example(*ExampleGenerator) any
@@ -223,28 +223,12 @@ func (p Primitive) Name() string {
 	}
 }
 
-// IsCompatible returns true if val is compatible with p.
+// IsCompatible reports whether val has an admitted concrete source type and,
+// for numeric primitives, can inhabit the declared carrier after its established
+// literal normalization. It does not check authored validation predicates.
 func (p Primitive) IsCompatible(val any) bool {
-	if p == Any {
-		return true
-	}
-	switch val.(type) {
-	case bool:
-		return p == Boolean
-	case int, int8, int16, int32, uint, uint8, uint16, uint32:
-		return p == Int || p == Int32 || p == Int64 ||
-			p == UInt || p == UInt32 || p == UInt64 ||
-			p == Float32 || p == Float64
-	case int64, uint64:
-		return p == Int64 || p == UInt64 || p == Float32 || p == Float64
-	case float32, float64:
-		return p == Float32 || p == Float64
-	case string:
-		return p == String || p == Bytes
-	case []byte:
-		return p == Bytes
-	}
-	return false
+	_, compatible := primitiveValue(p, val)
+	return compatible
 }
 
 // Example generates a pseudo-random primitive value using the given random

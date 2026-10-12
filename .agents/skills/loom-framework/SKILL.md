@@ -130,6 +130,13 @@ consumer validation.
   through nested refinement. Keep known builtin checks even beside opaque codecs.
   The value-contract Lean model and extraction/conformance tests state the limits
   of the proof; cross-language token checks establish exact wire preservation.
+- `expr.primitiveValue` owns primitive source admission and normalization for
+  both `IsCompatible` and typed value resolution. Integer values must fit the
+  declared carrier using exact limits; preserve concrete source-type eligibility
+  and existing float literal rounding/underflow. Do not add renderer range guards
+  or reject redundant numeric predicates merely because the bound is outside the
+  carrier. Required defaults/enums recurse through the value owner; optional
+  examples retain their existing partial-shape contract.
 - Numeric example synthesis selects the concrete representation with `unalias`
   while retaining the occurrence's effective bounds. Named integer and Float32
   aliases must not enter the Float64 path merely because their outer kind is

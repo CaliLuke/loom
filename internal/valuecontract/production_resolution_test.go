@@ -125,7 +125,7 @@ func productionResolutionCases() []productionCase {
 		{"Any host map enum self", &expr.AttributeExpr{Type: expr.Any, Validation: &expr.ValidationExpr{Values: []any{map[int]string{1: "one"}}}}, map[int]string{1: "one"}},
 		{"Any host map enum mismatch", &expr.AttributeExpr{Type: expr.Any, Validation: &expr.ValidationExpr{Values: []any{map[int]string{1: "one"}}}}, map[int64]string{1: "one"}},
 	}
-	return slices.Concat(cases, productionNestedCases(), productionNativeByteCases())
+	return slices.Concat(cases, productionNestedCases(), productionNativeByteCases(), productionNumericCarrierCases())
 }
 
 func productionNestedCases() []productionCase {

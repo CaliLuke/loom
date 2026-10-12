@@ -223,6 +223,12 @@ schema without widening it. Regenerate clients, servers and OpenAPI after
 upgrading. See the [numeric validation contract](../../../docs/dsl-reference.md#numeric-validations)
 for native decoding, exact JSON numbers and inherited enum refinements.
 
+Numeric defaults and enum members must fit their declared type, including nested
+values: an Int32 default above 2147483647 and a negative unsigned enum member
+fail design evaluation. Float32 values can round or underflow, but cannot overflow
+or be nonfinite. A wider bound such as `Maximum(1e12)` on Int32 remains valid;
+constraints describe allowed values rather than stored numeric fields.
+
 OpenAPI security follows each endpoint's credential location. JWTs mapped to
 query parameters, cookies, or custom headers use API-key schemes; Authorization
 header JWTs use HTTP bearer. One scheme used at several locations gets separate

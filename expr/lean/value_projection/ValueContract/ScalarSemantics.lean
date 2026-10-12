@@ -194,19 +194,35 @@ theorem coercion_progress {codec format kind input output}
   | floating precision spelling parsed =>
       simp [coerceScalar, precision, (numericLiteral_iff ..).mpr spelling, parsed]
 
-/-- Source eligibility is a concrete host-type check before normalization.
-The abstract policy is explicit and used only by normalized model controls. -/
+/-- Source carrier membership is independent of authored numeric predicates.
+The mathematical format is reserved for abstract controls. Concrete extraction
+supplies signedness and width, including the generation host's machine width. -/
+def integerCarrierAllows (format : IntegerFormat) (value : Int) : Bool :=
+  match format with
+  | .mathematical => true
+  | .signed bits => -(2 ^ (bits - 1) : Int) ≤ value && value < (2 ^ (bits - 1) : Int)
+  | .unsigned bits => 0 ≤ value && value < (2 ^ bits : Int)
+
+def sourceCarrierAllows (rules : ScalarRules) (kind : ScalarKind) (source : Scalar) : Bool :=
+  match kind, source with
+  | .integer, .integer value _ => integerCarrierAllows rules.integerFormat value
+  | _, _ => true
+
+/-- Concrete eligibility precedes normalization. Integer carrier membership
+is checked independently; decimal normalization retains its codec boundary. -/
 def coerceSourceScalar (codec : NumericCodec) (rules : ScalarRules)
     (kind : ScalarKind) (source : SourceScalar) : Option Scalar :=
-  if sourceAdmits (rules.sourcePrimitive.getD (.abstract kind)) source.primitive then
+  if sourceAdmits (rules.sourcePrimitive.getD (.abstract kind)) source.primitive &&
+      sourceCarrierAllows rules kind source.value then
     coerceScalar codec rules.numericFormat kind source.value
   else none
 
-/-- Independent source coercion requires both original-host admission and
-normalization; a successful numeric parse alone cannot establish eligibility. -/
+/-- Independent source coercion requires original-host admission, declared
+carrier membership and normalization. Parsing alone cannot prove eligibility. -/
 def SourceCoerces (codec : NumericCodec) (rules : ScalarRules)
     (kind : ScalarKind) (source : SourceScalar) (value : Scalar) : Prop :=
   SourceAdmits (rules.sourcePrimitive.getD (.abstract kind)) source.primitive ∧
+    sourceCarrierAllows rules kind source.value = true ∧
     Coerces codec rules.numericFormat kind source.value value
 
 theorem sourceCoercion_iff (codec : NumericCodec) (rules : ScalarRules)
@@ -215,8 +231,11 @@ theorem sourceCoercion_iff (codec : NumericCodec) (rules : ScalarRules)
       SourceCoerces codec rules kind source value := by
   unfold coerceSourceScalar SourceCoerces
   by_cases admitted : sourceAdmits (rules.sourcePrimitive.getD (.abstract kind)) source.primitive = true
-  · simp only [admitted, ↓reduceIte, (sourceAdmits_iff ..).mp admitted, true_and]
-    exact ⟨coercion_sound, coercion_progress⟩
+  · by_cases carrier : sourceCarrierAllows rules kind source.value = true
+    · simp only [admitted, carrier, Bool.and_self, ↓reduceIte,
+        (sourceAdmits_iff ..).mp admitted, true_and]
+      exact ⟨coercion_sound, coercion_progress⟩
+    · simp [admitted, carrier]
   · have rejected := mt (sourceAdmits_iff ..).mpr admitted
     simp [admitted, rejected]
 

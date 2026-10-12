@@ -1,0 +1,51 @@
+// Reuse the existing numeric specimen across each transport. An optional
+// LOOM_NUMERIC_INVALID=1 replaces it with an invalid Int32 default.
+package design
+
+import (
+	"os"
+
+	data "github.com/CaliLuke/loom/codegen/testdata"
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+var _ = API("numericvalues", func() {
+	if os.Getenv("LOOM_NUMERIC_TRANSPORT") == "jsonrpc" {
+		JSONRPC(func() {
+		})
+	}
+})
+var numeric = data.ExactNumericPayload()
+
+var _ = Service("numbers", func() {
+	if os.Getenv("LOOM_NUMERIC_TRANSPORT") == "jsonrpc" {
+		JSONRPC(func() {
+			POST("/rpc")
+		})
+	}
+	Method("read", func() {
+		if os.Getenv("LOOM_NUMERIC_INVALID") == "1" {
+			Payload(func() {
+				Field(1, "n", Int32, func() {
+					Default(uint32(1 << 31))
+				})
+			})
+		} else {
+			Payload(numeric)
+		}
+		switch os.Getenv("LOOM_NUMERIC_TRANSPORT") {
+		case "http":
+			HTTP(func() {
+				POST("/numbers")
+			})
+		case "jsonrpc":
+			JSONRPC(func() {
+			})
+		case "grpc":
+			GRPC(func() {
+			})
+		default:
+			panic("unknown LOOM_NUMERIC_TRANSPORT")
+		}
+	})
+})

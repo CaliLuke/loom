@@ -76,6 +76,8 @@ run_negative NegativeNumericExtraction.lean "$proof_tmp/negative-numeric-extract
   'proved that the proposition' 'is false'
 run_negative NegativeNumericIntervalGuess.lean "$proof_tmp/negative-numeric-interval-guess" \
   'proved that the proposition' 'is false'
+run_negative NegativeNumericValueAdmission.lean "$proof_tmp/negative-numeric-value-admission" \
+  'proved that the proposition' 'is false'
 run_check 'transitive axiom audit' "$proof_tmp/audit" \
   lake env lean -DwarningAsError=true ValueContract/AxiomAudit.lean
 

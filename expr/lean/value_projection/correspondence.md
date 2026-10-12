@@ -1,5 +1,37 @@
 # Proof and production correspondence ledger
 
+## Typed numeric admission: #685
+
+`ScalarSemantics.coerceSourceScalar` now conjoins concrete source eligibility
+with `sourceCarrierAllows` before normalization; `SourceCoerces` states the same
+independent obligations. `sourceCoercion_iff` and the existing resolver proofs
+carry this premise through typed resolution. `NumericValueAdmission.lean`
+retains the former source-only counterexample and seven registered claims. It
+uses the actual shared coercion function, not a parallel candidate resolver.
+
+The Go owner is `expr/primitive_value.go`, shared by `Primitive.IsCompatible`
+and `valueResolver.scalar`. Integer range derives from the existing exactnum
+native domain. Float normalization retains finite authored-literal formatting
+and destination parsing, including rounding just above the exact Float32 maximum
+and underflow to zero. Source type rejection precedes either normalization.
+Builtin bytes preserve the old detached non-nil empty representation.
+
+Independent graph extraction supplies signed/unsigned widths in
+`productionSourceIntegerFormat`; 15 boundary cases across three roles extend the
+existing production-resolution reference group. Native Int/UInt extraction is
+checked for both 32 and 64-bit hosts; the actual run uses Darwin/arm64. Direct
+expr/dsl tests cover recursive aliases, arrays, objects, map values and keys,
+deferred defaults, declaration attribution, opaque sibling failures and partial
+optional examples. The latter retain shape-only admission and must not be
+inferred to satisfy full typed membership.
+
+The proof assumes correct concrete source tags and carrier extraction; it does
+not prove Go reflection, exactnum implementation, host-width extraction, float
+parsing, custom codecs, diagnostics or rendering. Target JSON Schema integer
+membership remains independent of native carrier width. The bounded generated
+transport and exact-parent evidence lives in the
+[acceptance record](../../../roadmap/numeric-value-admission-readiness.md).
+
 ## Exact extraction correction: #681
 
 `NumericBounds.effectiveNumericBounds_iff` assumes exact Decimal endpoints. The

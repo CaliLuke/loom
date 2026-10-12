@@ -489,6 +489,17 @@ custom encoders retain their external codec boundary; known builtin values are
 still checked. Optional examples retain their existing omission and partial-value
 contracts.
 
+Authored numeric values must fit their declared type. For example, `Int32`
+rejects `Default(uint32(2147483648))`, and unsigned types reject `Enum(-1, 2)`.
+Defaults and enum members are checked recursively through aliases and collections.
+Float values use the declared destination precision: Float32 permits rounding
+and underflow to zero but rejects overflow and nonfinite inputs. The concrete
+Go source-type rules still apply; equal numeric values do not make named Go
+scalars or otherwise unsupported source types eligible. Primitive example
+compatibility uses the same checks; optional object examples retain their partial
+shape contract. A redundant bound such as `Maximum(1e12)` on Int32 stays valid,
+because a bound describes a predicate rather than a stored Int32 value.
+
 Regenerate clients, servers and OpenAPI after upgrading: large bounds no longer
 round through Float64, and exclusive bounds use the nearest accepted value of
 the declared native type. Service implementations still own values returned at

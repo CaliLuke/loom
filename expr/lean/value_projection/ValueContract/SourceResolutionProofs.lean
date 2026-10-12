@@ -26,7 +26,7 @@ theorem ScalarResolution_typed {declarations : Declarations} {checks : ExternalS
   have scalarKind : scalar.kind = kind := by
     rcases shape with ⟨_, _, coercion⟩ | ⟨_, sameKind, sameValue⟩ |
         ⟨_, bytes, _, sameKind, _, _, sameValue⟩
-    · exact Coerces_kind coercion.2
+    · exact Coerces_kind coercion.2.2
     · subst kind; subst scalar; rfl
     · subst kind; subst scalar; rfl
   subst result

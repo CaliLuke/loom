@@ -1,0 +1,46 @@
+// Copy to a temporary module's design/design.go. LOOM_NUMERIC_CASE selects
+// int32-default, uint-default, int32-enum, uint-enum or boundary-control.
+package design
+
+import (
+	"os"
+
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+var _ = API("numericvalues", func() {
+})
+var _ = Service("numbers", func() {
+	Method("read", func() {
+		Payload(func() {
+			switch os.Getenv("LOOM_NUMERIC_CASE") {
+			case "int32-default":
+				Attribute("n", Int32, func() {
+					Default(1 << 40)
+				})
+			case "uint-default":
+				Attribute("n", UInt, func() {
+					Default(-5)
+				})
+			case "int32-enum":
+				Attribute("n", Int32, func() {
+					Enum(1 << 40, 2)
+				})
+			case "uint-enum":
+				Attribute("n", UInt, func() {
+					Enum(-5, 2)
+				})
+			case "boundary-control":
+				Attribute("n", Int32, func() {
+					Default(2147483647)
+					Maximum(1e12)
+				})
+			default:
+				panic("unknown LOOM_NUMERIC_CASE")
+			}
+		})
+		HTTP(func() {
+			POST("/numbers")
+		})
+	})
+})
