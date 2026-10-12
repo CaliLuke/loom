@@ -77,36 +77,50 @@ func NewListSomethingWentWrong(body *ListSomethingWentWrongResponseBody) *loom.S
 }
 
 // ValidateListResponseBody runs the validations defined on ListResponseBody
-func ValidateListResponseBody(body *ListResponseBody) (err error) {
+func ValidateListResponseBody(body *ListResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.ID == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("id", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("id", validationPath))
 	}
 	if body.Name == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("name", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("name", validationPath))
 	}
 	return
 }
 
 // ValidateListSomethingWentWrongResponseBody runs the validations defined on
 // list_something_went_wrong_response_body
-func ValidateListSomethingWentWrongResponseBody(body *ListSomethingWentWrongResponseBody) (err error) {
+func ValidateListSomethingWentWrongResponseBody(body *ListSomethingWentWrongResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.Type == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("type", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("type", validationPath))
 	}
 	if body.Title == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("title", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("title", validationPath))
 	}
 	if body.Status == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("status", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("status", validationPath))
 	}
 	if body.Detail == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("detail", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("detail", validationPath))
 	}
 	if body.Instance == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("instance", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("instance", validationPath))
 	}
 	if body.Code == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("code", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("code", validationPath))
 	}
 	return
 }

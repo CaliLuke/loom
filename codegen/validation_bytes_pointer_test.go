@@ -96,11 +96,7 @@ func TestBytesValidationExtractedValues(t *testing.T) {
 			ctx.JSONPresence = true
 			code := ValidationCode(parent, nil, ctx, true, false, false, "body")
 			require.Contains(t, code, "body.Data.Value()")
-			if nullable {
-				require.Contains(t, code, "len([]byte(actual))")
-			} else {
-				require.Contains(t, code, "len(actual)")
-			}
+			require.Contains(t, code, "len([]byte(actual))")
 			require.NotContains(t, code, "[]byte(*actual)")
 		})
 	}

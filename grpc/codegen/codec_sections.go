@@ -183,7 +183,7 @@ func addGRPCClientResponseValidation(b *strings.Builder, endpoint *EndpointData)
 	if len(endpoint.Response.Headers) > 0 || len(endpoint.Response.Trailers) > 0 {
 		assign = "="
 	}
-	fmt.Fprintf(b, "\tif err %s %s(message); err != nil {\n\t\treturn nil, err\n\t}\n", assign, endpoint.Response.ClientConvert.Validation.Name)
+	fmt.Fprintf(b, "\tif err %s %s; err != nil {\n\t\treturn nil, err\n\t}\n", assign, (codegen.ValidationFunction{Name: endpoint.Response.ClientConvert.Validation.Name}).Call("message", ""))
 }
 
 func addGRPCViewedResponseReturn(b *strings.Builder, endpoint *EndpointData) {
@@ -192,7 +192,7 @@ func addGRPCViewedResponseReturn(b *strings.Builder, endpoint *EndpointData) {
 		prefix = "&"
 	}
 	fmt.Fprintf(b, "\tvres := %s%s{Projected: res, View: view}\n", prefix, endpoint.Method.ViewedResult.FullName)
-	fmt.Fprintf(b, "\tif err := %s.Validate%s(vres); err != nil {\n\t\treturn nil, err\n\t}\n", endpoint.Method.ViewedResult.ViewsPkg, endpoint.Method.Result)
+	fmt.Fprintf(b, "\tif err := %s; err != nil {\n\t\treturn nil, err\n\t}\n", (codegen.ValidationFunction{Name: endpoint.Method.ViewedResult.ViewsPkg + ".Validate" + endpoint.Method.Result}).Call("vres", ""))
 	fmt.Fprintf(b, "\tout, err := %s.%s(%s)\n", endpoint.ServicePkgName, endpoint.Method.ViewedResult.ResultInit.Name, renderServiceInitArgList(endpoint.Method.ViewedResult.ResultInit.Args))
 	b.WriteString("\tif err != nil {\n\t\treturn nil, err\n\t}\n")
 	b.WriteString("\treturn out, nil\n")
@@ -260,7 +260,7 @@ func addGRPCRequestMessageDecode(b *strings.Builder, endpoint *EndpointData) {
 		if len(endpoint.Request.Metadata) > 0 {
 			assign = "="
 		}
-		fmt.Fprintf(b, "\t\tif err %s %s(message); err != nil {\n\t\t\treturn nil, err\n\t\t}\n", assign, endpoint.Request.ServerConvert.Validation.Name)
+		fmt.Fprintf(b, "\t\tif err %s %s; err != nil {\n\t\t\treturn nil, err\n\t\t}\n", assign, (codegen.ValidationFunction{Name: endpoint.Request.ServerConvert.Validation.Name}).Call("message", ""))
 	}
 	b.WriteString("\t}\n")
 }

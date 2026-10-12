@@ -10,7 +10,7 @@ func Validate() (err error) {
 			err = loom.MergeErrors(err, loom.InvalidNullElementError("target.required_array", i))
 		}
 		if e != nil {
-			if err2 := ValidateInteger(e); err2 != nil {
+			if err2 := ValidateInteger(e, "target.required_array[*]"); err2 != nil {
 				err = loom.MergeErrors(err, err2)
 			}
 		}

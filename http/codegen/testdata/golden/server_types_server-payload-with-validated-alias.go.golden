@@ -21,11 +21,18 @@ func NewMethodStreamingBody(body *MethodStreamingBody) *servicepayloadvalidateda
 
 // ValidateMethodStreamingBody runs the validations defined on
 // MethodStreamingBody
-func ValidateMethodStreamingBody(body *MethodStreamingBody) (err error) {
+func ValidateMethodStreamingBody(body *MethodStreamingBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if actual, ok := body.Name.Value(); ok {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.name", actual, loomPatternTest0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".name", actual, loomPatternTest0))
 		if utf8.RuneCountInString(actual) < 10 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body.name", utf8.RuneCountInString(actual), 10, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".name", utf8.RuneCountInString(actual), 10, true))
 		}
 	}
 	return

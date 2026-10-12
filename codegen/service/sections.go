@@ -68,18 +68,8 @@ func errorSection(data *UserTypeData) codegen.Section {
 func validateSection(name string, data *ValidateData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		codegen.Doc(stmt, data.Description)
-		stmt.Func().
-			Id(data.Name).
-			Params(jen.Id("result").Add(codegen.TypeRef(data.Ref))).
-			Params(jen.Id("err").Error()).
-			BlockFunc(func(group *jen.Group) {
-				if data.Validate != "" {
-					group.Add(codegen.Expr(strings.TrimRight(codegen.Indent(data.Validate, "\t"), "\n")))
-				} else {
-					group.Line()
-				}
-				group.Return()
-			})
+		function := codegen.ValidationFunction{Name: data.Name, Argument: "result", Ref: data.Ref}
+		stmt.Add(codegen.Expr(function.Definition(data.Validate)))
 		stmt.Line()
 	})
 }

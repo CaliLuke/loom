@@ -110,7 +110,7 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 				}
 				if stream.RecvConvert.Validation != nil {
 					g.If(
-						jen.Err().Op("=").Id(stream.RecvConvert.Validation.Name).Call(jen.Id("v")),
+						jen.Err().Op("=").Add(codegenpkg.Expr((codegenpkg.ValidationFunction{Name: stream.RecvConvert.Validation.Name}).Call("v", ""))),
 						jen.Err().Op("!=").Nil(),
 					).Block(
 						jen.Return(jen.Id("res"), grpcStreamDecodeError(stream, jen.Err())),
@@ -200,7 +200,7 @@ func grpcStreamRecvErrorCase(errData *ErrorData) []jen.Code {
 	if errData.Response.ClientConvert.Validation != nil {
 		caseBody = append(caseBody,
 			jen.If(
-				jen.Err().Op(":=").Id(errData.Response.ClientConvert.Validation.Name).Call(jen.Id("message")),
+				jen.Err().Op(":=").Add(codegenpkg.Expr((codegenpkg.ValidationFunction{Name: errData.Response.ClientConvert.Validation.Name}).Call("message", ""))),
 				jen.Err().Op("!=").Nil(),
 			).Block(
 				jen.Return(jen.Id("res"), jen.Err()),
@@ -246,7 +246,7 @@ func appendGRPCStreamRecvViewedResult(g *jen.Group, stream *StreamData) bool {
 		g.Add(codegenpkg.Expr("vres := " + stream.Endpoint.Method.ViewedResult.FullName + "{Projected: proj, View: " + viewArg + "}"))
 	}
 	g.If(
-		jen.Err().Op(":=").Add(codegenpkg.PkgQual(stream.Endpoint.Method.ViewedResult.ViewsPkg, "Validate"+stream.Endpoint.Method.Result)).Call(jen.Id("vres")),
+		jen.Err().Op(":=").Add(codegenpkg.Expr((codegenpkg.ValidationFunction{Name: stream.Endpoint.Method.ViewedResult.ViewsPkg + ".Validate" + stream.Endpoint.Method.Result}).Call("vres", ""))),
 		jen.Err().Op("!=").Nil(),
 	).Block(
 		jen.Return(jen.Nil(), jen.Err()),

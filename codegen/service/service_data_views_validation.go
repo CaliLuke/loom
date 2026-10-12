@@ -32,6 +32,7 @@ func executeValidateTypeTemplate(data viewedResultValidateTemplateData) string {
 
 func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 	var lines []string
+	function := codegen.ValidationFunction{Argument: data.ArgVar}
 	if data.IsViewed {
 		lines = append(lines, "switch "+data.ArgVar+".View {")
 		for _, view := range data.Views {
@@ -41,7 +42,7 @@ func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 			if view.Name != expr.DefaultView {
 				validateName += codegen.Goify(view.Name, true)
 			}
-			lines = append(lines, "\t\terr = "+validateName+"("+data.ArgVar+".Projected)")
+			lines = append(lines, "\t\terr = "+(codegen.ValidationFunction{Name: validateName}).Call(data.ArgVar+".Projected", function.Path("")))
 		}
 		lines = append(lines, "\tdefault:")
 		lines = append(lines, "\t\terr = loom.InvalidEnumValueError(\"view\", "+data.Source+".View, []any{ "+strings.Join(quotedViews(data.Views), ", ")+" })")
@@ -58,11 +59,11 @@ func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 		if data.NilableElement {
 			lines = append(lines, "\tif "+data.Source+" == nil {")
 			if !data.NullableElement {
-				lines = append(lines, "\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError("+fmt.Sprintf("%q", data.ArgVar)+", i))")
+				lines = append(lines, "\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError("+function.Path("")+", i))")
 			}
 			lines = append(lines, "\t\tcontinue", "\t}")
 		}
-		lines = append(lines, "\tif err2 := "+data.ValidateVar+"("+data.Source+"); err2 != nil {")
+		lines = append(lines, "\tif err2 := "+(codegen.ValidationFunction{Name: data.ValidateVar}).Call(data.Source, function.Path("[*]"))+"; err2 != nil {")
 		lines = append(lines, "\t\terr = loom.MergeErrors(err, err2)")
 		lines = append(lines, "\t}")
 		lines = append(lines, "}")
@@ -78,11 +79,11 @@ func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 		fieldName := codegen.Goify(field.Name, true)
 		if field.IsRequired {
 			lines = append(lines, "if "+data.Source+"."+fieldName+" == nil {")
-			lines = append(lines, "\terr = loom.MergeErrors(err, loom.MissingFieldError("+fmt.Sprintf("%q", field.Name)+", "+fmt.Sprintf("%q", data.Source)+"))")
+			lines = append(lines, "\terr = loom.MergeErrors(err, loom.MissingFieldError("+fmt.Sprintf("%q", field.Name)+", "+function.Path("")+"))")
 			lines = append(lines, "}")
 		}
 		lines = append(lines, "if "+data.Source+"."+fieldName+" != nil {")
-		lines = append(lines, "\tif err2 := "+field.ValidateVar+"("+data.Source+"."+fieldName+"); err2 != nil {")
+		lines = append(lines, "\tif err2 := "+(codegen.ValidationFunction{Name: field.ValidateVar}).Call(data.Source+"."+fieldName, function.Path("."+field.Name))+"; err2 != nil {")
 		lines = append(lines, "\t\terr = loom.MergeErrors(err, err2)")
 		lines = append(lines, "\t}")
 		lines = append(lines, "}")
@@ -143,11 +144,12 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 	} else {
 		name := "Validate" + tname
 		ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
+		function := codegen.NamedValidationFunction(projected, ctx, "result")
 		validations = append(validations, &ValidateData{
 			Name:        name,
 			Description: fmt.Sprintf("%s runs the validations defined on %s.", name, tname),
-			Ref:         scope.GoTypeRef(projected),
-			Validate:    codegen.ValidationCode(ut.Attribute(), ut, ctx, true, expr.IsAlias(ut), true, "result"),
+			Ref:         function.Ref,
+			Validate:    codegen.ValidationCode(ut.Attribute(), ut, function.Context(ctx), true, expr.IsAlias(ut), true, "result"),
 		})
 	}
 	return validations
@@ -173,6 +175,6 @@ func buildViewObjectValidation(projected *expr.AttributeExpr, rt *expr.ResultTyp
 		}
 	})
 	ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
-	validate := codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: view.Validation}, rt, ctx, true, false, true, "result")
+	validate := codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: view.Validation}, rt, (codegen.ValidationFunction{Argument: "result"}).Context(ctx), true, false, true, "result")
 	return validate, fields
 }

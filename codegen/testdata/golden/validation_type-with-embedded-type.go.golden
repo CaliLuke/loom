@@ -1,7 +1,7 @@
 func Validate() (err error) {
 	if target.Deep != nil {
 		if target.Deep.Integer != nil {
-			if err2 := ValidateInteger(target.Deep.Integer); err2 != nil {
+			if err2 := ValidateInteger(target.Deep.Integer, "target.deep.integer"); err2 != nil {
 				err = loom.MergeErrors(err, err2)
 			}
 		}

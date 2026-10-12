@@ -55,7 +55,7 @@ func TestNestedNamedObjectRendersOccurrenceAndIntrinsicValidation(t *testing.T) 
 			code := ValidationCode(parent, nil, ctx, true, false, false, "body")
 
 			require.Equal(t, test.wantEnumCount, strings.Count(code, "InvalidEnumValueError"), code)
-			require.Equal(t, test.wantCall, strings.Contains(code, "ValidateInner(body.Inner)"), code)
+			require.Equal(t, test.wantCall, strings.Contains(code, `ValidateInner(body.Inner, "body.inner")`), code)
 			require.Equal(t, test.wantRequired, strings.Contains(code, "MissingFieldError"), code)
 			if test.wantEnumCount > 0 {
 				require.Contains(t, code, "loom.JSONValueFrom(body.Inner)")

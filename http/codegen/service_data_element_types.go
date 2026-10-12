@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/securitygen"
 )
@@ -122,6 +123,8 @@ type (
 		// ValueRef is the Go type used for a transport body value. It differs
 		// from VarName when the declared body type has semantic presence.
 		ValueRef string
+		// validationFunction is the resolved callable for the complete definition.
+		validationFunction codegen.ValidationFunction
 		// ValidateDef contains the validation code.
 		ValidateDef string
 		// ValidateRef contains the call to the validation code.

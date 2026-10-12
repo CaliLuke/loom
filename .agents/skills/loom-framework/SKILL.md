@@ -143,6 +143,14 @@ consumer validation.
   `UserTypeKind`. Keep this in `expr.byMinMax`; collection construction must not
   coerce wrongly typed examples. The direct numeric-alias tests cover all numeric
   kinds, inherited/occurrence bounds, exact and exclusive bounds, and typed arrays.
+- Shared validation distinguishes complete named definitions from occurrences.
+  `NamedValidationFunction` resolves the callable identifier, physical carrier
+  and static field mode; consumers must use that same owner for declarations and
+  calls. Intrinsically nullable named types retain their wrapper when called,
+  while occurrence predicates inspect the unwrapped value. Recursive occurrences
+  call complete definitions with their diagnostic path, never copy an in-progress
+  buffer or impose an artificial traversal depth. Keep the recursive-validation
+  model and finite generated-tree/nullable-carrier controls aligned.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
 - OpenAPI response accumulation belongs in `openapi/internal/ir`: collect every

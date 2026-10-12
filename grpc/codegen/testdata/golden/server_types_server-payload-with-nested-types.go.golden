@@ -22,9 +22,16 @@ func NewProtoMethodPayloadWithNestedTypesResponse() *service_payload_with_nested
 
 // ValidateMethodPayloadWithNestedTypesRequest runs the validations defined on
 // MethodPayloadWithNestedTypesRequest.
-func ValidateMethodPayloadWithNestedTypesRequest(message *service_payload_with_nested_typespb.MethodPayloadWithNestedTypesRequest) (err error) {
+func ValidateMethodPayloadWithNestedTypesRequest(message *service_payload_with_nested_typespb.MethodPayloadWithNestedTypesRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.AParams != nil {
-		if err2 := ValidateAParams(message.AParams); err2 != nil {
+		if err2 := ValidateAParams(message.AParams, validationPath+".a_params"); err2 != nil {
 			err = loom.MergeErrors(err, err2)
 		}
 	}
@@ -32,10 +39,17 @@ func ValidateMethodPayloadWithNestedTypesRequest(message *service_payload_with_n
 }
 
 // ValidateAParams runs the validations defined on AParams.
-func ValidateAParams(aParams *service_payload_with_nested_typespb.AParams) (err error) {
+func ValidateAParams(aParams *service_payload_with_nested_typespb.AParams, validationContext ...string) (err error) {
+	validationPath := "a_params"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	for _, v := range aParams.A {
 		if v != nil {
-			if err2 := ValidateArrayOfString(v); err2 != nil {
+			if err2 := ValidateArrayOfString(v, validationPath+".a[key]"); err2 != nil {
 				err = loom.MergeErrors(err, err2)
 			}
 		}
@@ -44,9 +58,16 @@ func ValidateAParams(aParams *service_payload_with_nested_typespb.AParams) (err 
 }
 
 // ValidateArrayOfString runs the validations defined on ArrayOfString.
-func ValidateArrayOfString(val *service_payload_with_nested_typespb.ArrayOfString) (err error) {
+func ValidateArrayOfString(val *service_payload_with_nested_typespb.ArrayOfString, validationContext ...string) (err error) {
+	validationPath := "val"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if val.Field == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("field", "val"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", validationPath))
 	}
 	return
 }

@@ -47,13 +47,8 @@ func grpcTypeInitSection(init *InitData) codegenpkg.Section {
 func grpcValidateSection(data *ValidationData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("validate", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s runs the validations defined on %s.", data.Name, data.SrcName))
-		stmt.Func().Id(data.Name).
-			Params(jen.Id(data.ArgName).Add(codegenpkg.TypeRef(data.SrcRef))).
-			Params(jen.Err().Error()).
-			Block(
-				codegenpkg.Expr(data.Def),
-				jen.Return(),
-			)
+		function := codegenpkg.ValidationFunction{Name: data.Name, Argument: data.ArgName, Root: data.Context, Ref: data.SrcRef}
+		stmt.Add(codegenpkg.Expr(function.Definition(data.Def)))
 		stmt.Line()
 	})
 }

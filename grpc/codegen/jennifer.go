@@ -147,7 +147,7 @@ func grpcClientEndpointErrorCaseBody(errData *ErrorData) []jen.Code {
 	if errData.Response.ClientConvert.Validation != nil {
 		caseBody = append(caseBody,
 			jen.If(
-				jen.Err().Op(":=").Id(errData.Response.ClientConvert.Validation.Name).Call(jen.Id("message")),
+				jen.Err().Op(":=").Add(codegenpkg.Expr((codegenpkg.ValidationFunction{Name: errData.Response.ClientConvert.Validation.Name}).Call("message", ""))),
 				jen.Err().Op("!=").Nil(),
 			).Block(
 				jen.Return(jen.Nil(), jen.Err()),

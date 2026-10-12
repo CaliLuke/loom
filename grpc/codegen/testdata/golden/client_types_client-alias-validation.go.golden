@@ -15,12 +15,19 @@ func NewMethodResultWithAliasValidationResult(message *service_result_with_alias
 }
 
 // ValidateUUID runs the validations defined on UUID.
-func ValidateUUID(message *service_result_with_alias_validationpb.UUID) (err error) {
+func ValidateUUID(message *service_result_with_alias_validationpb.UUID, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Field == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", validationPath))
 	}
 	if message.Field != nil {
-		err = loom.MergeErrors(err, loom.ValidateFormat("message.field", *message.Field, loom.FormatUUID))
+		err = loom.MergeErrors(err, loom.ValidateFormat(validationPath+".field", *message.Field, loom.FormatUUID))
 	}
 	return
 }

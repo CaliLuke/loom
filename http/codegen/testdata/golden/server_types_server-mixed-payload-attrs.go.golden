@@ -49,26 +49,33 @@ func NewMethodAAPayload(body *MethodARequestBody) *servicemixedpayloadinbody.APa
 }
 
 // ValidateMethodARequestBody runs the validations defined on MethodARequestBody
-func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
+func ValidateMethodARequestBody(body *MethodARequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.Array == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("array", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("array", validationPath))
 	}
 	if body.Object == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("object", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("object", validationPath))
 	}
 	for i, e := range body.Array {
 		if _, ok := e.Value(); !ok {
-			err = loom.MergeErrors(err, loom.InvalidNullElementError("body.array", i))
+			err = loom.MergeErrors(err, loom.InvalidNullElementError(validationPath+".array", i))
 		}
 	}
 	if body.Object != nil {
-		if err2 := ValidateBPayloadRequestBody(body.Object); err2 != nil {
+		if err2 := ValidateBPayloadRequestBody(body.Object, validationPath+".object"); err2 != nil {
 			err = loom.MergeErrors(err, err2)
 		}
 	}
 	if actual, ok := body.DupObj.Value(); ok {
-		if actual.Int == nil {
-			err = loom.MergeErrors(err, loom.MissingFieldError("int", "body.dup_obj"))
+		if err2 := ValidateBPayloadRequestBody(&actual, validationPath+".dup_obj"); err2 != nil {
+			err = loom.MergeErrors(err, err2)
 		}
 	}
 	return
@@ -76,9 +83,16 @@ func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
 
 // ValidateBPayloadRequestBody runs the validations defined on
 // BPayloadRequestBody
-func ValidateBPayloadRequestBody(body *BPayloadRequestBody) (err error) {
+func ValidateBPayloadRequestBody(body *BPayloadRequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.Int == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("int", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("int", validationPath))
 	}
 	return
 }

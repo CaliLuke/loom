@@ -9,35 +9,14 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *AttributeContext, req, alias, view bool, target, context string, seen map[string]*bytes.Buffer) *bytes.Buffer {
-	if seen == nil {
-		seen = make(map[string]*bytes.Buffer)
-	}
+func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *AttributeContext, req, alias, view bool, target, context string) *bytes.Buffer {
 	var (
 		buf      = new(bytes.Buffer)
 		first    = true
 		ut, isUT = att.Type.(expr.UserType)
 	)
-	// Break infinite recursions before presence wrappers recurse into their
-	// concrete named value. Keep wrapped and concrete states distinct.
-	if isUT && !alias {
-		key := ut.ID()
-		if expr.IsUnion(ut) {
-			// The code that validates a named union inline refers to the
-			// value that holds it, so two fields of the same union need
-			// their own code.
-			key += "@" + target
-		}
-		if isNullableAttribute(att) {
-			key += ":nullable"
-		}
-		if existing, ok := seen[key]; ok {
-			return existing
-		}
-		seen[key] = buf
-	}
 	if isNullableAttribute(att) {
-		fmt.Fprint(buf, validateNullableAttribute(attCtx, att, put, target, context, req, alias, view, seen))
+		fmt.Fprint(buf, validateNullableAttribute(attCtx, att, put, target, context, req, alias, view, true))
 		return buf
 	}
 
@@ -51,13 +30,13 @@ func recurseValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *A
 	// Recurse down depending on attribute type.
 	switch {
 	case expr.IsObject(att.Type):
-		renderObjectValidation(buf, &first, att, put, ut, isUT, attCtx, view, target, context, seen)
+		renderObjectValidation(buf, &first, att, put, ut, isUT, attCtx, view, target, context)
 	case expr.IsArray(att.Type):
-		renderArrayValidationCode(buf, &first, expr.AsArray(att.Type), put, attCtx, view, target, context, seen)
+		renderArrayValidationCode(buf, &first, expr.AsArray(att.Type), put, attCtx, view, target, context)
 	case expr.IsMap(att.Type):
-		renderMapValidationCode(buf, &first, expr.AsMap(att.Type), put, attCtx, view, target, context, seen)
+		renderMapValidationCode(buf, &first, expr.AsMap(att.Type), put, attCtx, view, target, context)
 	case expr.IsUnion(att.Type):
-		renderUnionValidationCode(buf, &first, expr.AsUnion(att.Type), put, attCtx, view, target, context, seen)
+		renderUnionValidationCode(buf, &first, expr.AsUnion(att.Type), put, attCtx, view, target, context)
 	}
 
 	return buf
@@ -75,7 +54,7 @@ func appendValidationBlock(buf *bytes.Buffer, first *bool, val string) {
 	fmt.Fprint(buf, val)
 }
 
-func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeExpr, put, ut expr.UserType, isUT bool, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
+func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeExpr, put, ut expr.UserType, isUT bool, attCtx *AttributeContext, view bool, target, context string) {
 	if isUT {
 		put = ut
 	}
@@ -84,9 +63,9 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 	messageScope, isMessage := attCtx.Scope.(messageFieldScope)
 	for _, nat := range *(expr.AsObject(att.Type)) {
 		field := attCtx.Scope.Field(nat.Attribute, nat.Name, true)
-		fieldCtx := attCtx
+		fieldCtx := attCtx.Dup()
+		fieldCtx.validationValue = false
 		if isMessage {
-			fieldCtx = attCtx.Dup()
 			field, fieldCtx.oneofFields, fieldCtx.oneofTypes = messageScope.FieldNames(att, nat.Name)
 		}
 		tgt := target + "." + field
@@ -94,13 +73,13 @@ func renderObjectValidation(buf *bytes.Buffer, first *bool, att *expr.AttributeE
 		var val string
 		switch attCtx.FieldPresence(mapped, expr.AttributeName(nat.Name), nat.Attribute) {
 		case OptionalPresence:
-			val = validateOptionalAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, view, seen)
+			val = validateOptionalAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, view)
 		case NullablePresence:
 			_, requiredByParent := parentRequired[nat.Name]
 			required := att.IsRequired(nat.Name) && !requiredByParent
-			val = validateNullableAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, required, expr.IsAlias(nat.Attribute.Type), view, seen)
+			val = validateNullableAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, required, expr.IsAlias(nat.Attribute.Type), view, false)
 		default:
-			val = validateAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view, seen)
+			val = validateAttribute(fieldCtx, nat.Attribute, put, tgt, ctx, att.IsRequired(nat.Name), view)
 		}
 		appendValidationBlock(buf, first, val)
 	}
@@ -119,7 +98,7 @@ func parentRequiredValidationFields(att *expr.AttributeExpr, attCtx *AttributeCo
 	return result
 }
 
-func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
+func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, put expr.UserType, attCtx *AttributeContext, view bool, target, context string) {
 	ctx := attCtx
 	if ctx.Pointer && expr.IsPrimitive(arr.ElemType.Type) {
 		ctx = attCtx.Dup()
@@ -131,10 +110,10 @@ func renderArrayValidationCode(buf *bytes.Buffer, first *bool, arr *expr.Array, 
 	if jsonPresence {
 		elementTarget = "actual"
 	}
-	val := validateAttribute(ctx, arr.ElemType, put, elementTarget, context+"[*]", true, view, seen)
+	val := validateAttribute(ctx, arr.ElemType, put, elementTarget, context+"[*]", true, view)
 	rejectNativeNil := rejectNull && !jsonPresence && arrayElementCanBeNil(arr.ElemType)
 	if val != "" || rejectNativeNil || jsonPresence {
-		appendValidationBlock(buf, first, renderArrayValidation(target, val, rejectNativeNil, jsonPresence, context))
+		appendValidationBlock(buf, first, renderArrayValidation(target, val, rejectNativeNil, jsonPresence, validationContextExpr(attCtx, context)))
 	}
 }
 
@@ -150,7 +129,7 @@ func codegenPresenceType(attribute *expr.AttributeExpr) bool {
 	return expr.IsNullable(attribute) || IsExplicitPresenceType(attribute)
 }
 
-func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
+func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put expr.UserType, attCtx *AttributeContext, view bool, target, context string) {
 	keyCtx := attCtx.Dup()
 	keyCtx.Pointer = false
 	valueCtx := attCtx
@@ -163,28 +142,28 @@ func renderMapValidationCode(buf *bytes.Buffer, first *bool, m *expr.Map, put ex
 	if jsonPresence {
 		valueTarget = "actual"
 	}
-	keyVal := prefixedValidation(validateAttribute(keyCtx, m.KeyType, put, "k", context+".key", true, view, seen))
-	valueVal := prefixedValidation(validateAttribute(valueCtx, m.ElemType, put, valueTarget, context+"[key]", true, view, seen))
+	keyVal := prefixedValidation(validateAttribute(keyCtx, m.KeyType, put, "k", context+".key", true, view))
+	valueVal := prefixedValidation(validateAttribute(valueCtx, m.ElemType, put, valueTarget, context+"[key]", true, view))
 	if keyVal != "" || valueVal != "" || jsonPresence {
-		appendValidationBlock(buf, first, renderMapValidation(target, keyVal, valueVal, jsonPresence, context))
+		appendValidationBlock(buf, first, renderMapValidation(target, keyVal, valueVal, jsonPresence, validationContextExpr(attCtx, context+"[key]")))
 	}
 }
 
-func renderUnionValidationCode(buf *bytes.Buffer, first *bool, u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, target, context string, seen map[string]*bytes.Buffer) {
+func renderUnionValidationCode(buf *bytes.Buffer, first *bool, u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, target, context string) {
 	if _, ok := attCtx.Scope.(sumTypeUnionScope); ok {
-		cases := renderUnionSumValidationCases(u, put, attCtx, view, context, seen)
+		cases := renderUnionSumValidationCases(u, put, attCtx, view, context)
 		if len(cases) > 0 {
 			appendValidationBlock(buf, first, renderUnionSumValidation(target, cases))
 		}
 		return
 	}
-	types, vals := renderUnionInterfaceValidationCases(u, put, attCtx, view, context, seen)
+	types, vals := renderUnionInterfaceValidationCases(u, put, attCtx, view, context)
 	if len(vals) > 0 {
 		appendValidationBlock(buf, first, renderUnionValidation(target, types, vals))
 	}
 }
 
-func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string, seen map[string]*bytes.Buffer) []unionValidationCase {
+func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string) []unionValidationCase {
 	cases := make([]unionValidationCase, 0, len(u.Values))
 	for _, v := range u.Values {
 		// Sum-type unions (struct-based, with Kind/AsX accessors) store each
@@ -205,7 +184,7 @@ func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *Att
 		} else {
 			unionCtx.Pointer = unionCtx.Pointer && expr.IsObject(v.Attribute.Type)
 		}
-		val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view, seen)
+		val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view)
 		if val == "" {
 			continue
 		}
@@ -213,14 +192,14 @@ func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *Att
 			TypeTag:       expr.UnionVariantTag(v),
 			FieldName:     Goify(v.Name, true),
 			RequiresValue: strings.HasPrefix(strings.TrimSpace(val), "if actual != nil {"),
-			Context:       context + ".value",
+			Context:       validationContextExpr(attCtx, context+".value"),
 			Validation:    val,
 		})
 	}
 	return cases
 }
 
-func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string, seen map[string]*bytes.Buffer) ([]string, []string) {
+func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string) ([]string, []string) {
 	var (
 		vals  []string
 		types []string
@@ -236,7 +215,7 @@ func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCt
 		if view {
 			unionCtx := attCtx.Dup()
 			unionCtx.Pointer = false
-			val := validateAttribute(unionCtx, vatt, put, "v", context+".value", true, view, seen)
+			val := validateAttribute(unionCtx, vatt, put, "v", context+".value", true, view)
 			if val != "" {
 				types = append(types, attCtx.Scope.Ref(vatt, attCtx.DefaultPkg))
 				vals = append(vals, val)
@@ -254,7 +233,7 @@ func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCt
 			valueCtx = branchCtx.Dup()
 			valueCtx.Pointer = false
 		}
-		val := validateAttribute(valueCtx, vatt, put, "v."+fieldName, context+".value", true, view, seen)
+		val := validateAttribute(valueCtx, vatt, put, "v."+fieldName, context+".value", true, view)
 		if val != "" {
 			tref := attCtx.Scope.Ref(&expr.AttributeExpr{Type: put}, attCtx.DefaultPkg)
 			typeName := fieldName
@@ -275,17 +254,17 @@ func prefixedValidation(val string) string {
 	return "\n" + val
 }
 
-func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.UserType, target, context string, req, view bool, seen map[string]*bytes.Buffer) string {
+func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.UserType, target, context string, req, view bool) string {
 	if isNullableAttribute(att) {
-		return validateNullableAttribute(ctx, att, put, target, context, req, expr.IsAlias(att.Type), view, seen)
+		return validateNullableAttribute(ctx, att, put, target, context, req, expr.IsAlias(att.Type), view, false)
 	}
 	if expr.IsUnion(att.Type) {
-		code := recurseValidationCode(att, put, ctx, req, false, view, target, context, seen).String()
+		code := recurseValidationCode(att, put, ctx, req, false, view, target, context).String()
 		return optionalUnionValidation(ctx, target, code, req)
 	}
 	ut, isUT := att.Type.(expr.UserType)
 	if !isUT {
-		code := recurseValidationCode(att, put, ctx, req, false, view, target, context, seen).String()
+		code := recurseValidationCode(att, put, ctx, req, false, view, target, context).String()
 		if code == "" {
 			return ""
 		}
@@ -309,7 +288,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		// validating alias user types against their underlying base. Passing
 		// the original attribute with alias=true ensures validations operate
 		// on the correct value type without dropping field defaults.
-		code := recurseValidationCode(att, put, ctx, req, true, view, target, context, seen).String()
+		code := recurseValidationCode(att, put, ctx, req, true, view, target, context).String()
 		if code == "" {
 			return ""
 		}
@@ -323,7 +302,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		}
 		return cond + code + "\n}"
 	}
-	return validateNamedOccurrence(ctx, att, ut, target, context, req)
+	return validateNamedOccurrence(ctx, att, ut, target, "", context, req)
 }
 
 func validateNamedOccurrence(
@@ -331,6 +310,7 @@ func validateNamedOccurrence(
 	att *expr.AttributeExpr,
 	ut expr.UserType,
 	target string,
+	carrier string,
 	context string,
 	required bool,
 ) string {
@@ -355,21 +335,34 @@ func validateNamedOccurrence(
 		validations = append(validations, inline)
 	}
 	if !hasNamedValidator {
+		if carrier != "" && inline != "" {
+			return "if actual, ok := " + carrier + ".Value(); ok {\n" + indentCode(inline) + "}"
+		}
+		if ctx.validationValue {
+			return strings.Join(validations, "\n")
+		}
 		if len(validations) == 0 {
 			return ""
 		}
 		return "if " + target + " != nil {\n" + indentCode(strings.Join(validations, "\n")) + "}"
 	}
-	name := ctx.Scope.Name(att, "", ctx.Pointer, ctx.UseDefault)
-	// Use the scoped type name directly to preserve identifiers such as
-	// protocol buffer-reserved names that include a trailing underscore
-	// (e.g., Message_). Applying Goify here would drop underscores and
-	// cause mismatches between function declarations and call sites.
-	prefix := ctx.ValidationPrefix
-	if prefix == "" {
-		prefix = "Validate"
+	function := NamedValidationFunction(&expr.AttributeExpr{Type: ut}, ctx, "")
+	callTarget := function.valueTarget(target, carrier, ctx.validationValue)
+	call := renderUserValidation(function.Name, callTarget, validationContextExpr(ctx, context))
+	if carrier != "" {
+		// Local predicates inspect the concrete value, but the complete named
+		// definition receives its original carrier. Null and absence never run
+		// value predicates, and optional absence does not invoke a required root.
+		if inline != "" {
+			validations = []string{"if actual, ok := " + carrier + ".Value(); ok {\n" + indentCode(inline) + "}"}
+		}
+		validations = append(validations, "if "+carrier+".Present() {\n"+indentCode(call)+"}")
+		return strings.Join(validations, "\n")
 	}
-	validations = append(validations, renderUserValidation(prefix+name, target))
+	validations = append(validations, call)
+	if ctx.validationValue {
+		return strings.Join(validations, "\n")
+	}
 	return "if " + target + " != nil {\n" + indentCode(strings.Join(validations, "\n")) + "}"
 }
 
@@ -423,7 +416,7 @@ func validateNullableAttribute(
 	required bool,
 	alias bool,
 	view bool,
-	seen map[string]*bytes.Buffer,
+	definition bool,
 ) string {
 	underlying := concretePresenceAttribute(att)
 	underlying.Meta = make(expr.MetaExpr, len(att.Meta))
@@ -435,13 +428,27 @@ func validateNullableAttribute(
 	}
 
 	valueCtx := presenceValueContext(ctx, underlying)
-	validation := recurseValidationCode(underlying, put, valueCtx, true, alias || expr.IsAlias(underlying.Type), view, "actual", context, seen).String()
+	intrinsicCarrier := false
+	if ut, ok := att.Type.(expr.UserType); ok {
+		intrinsicCarrier = !definition && isNullableAttribute(ut.Attribute()) && !expr.IsAlias(ut) && !expr.IsUnion(ut)
+	}
+	var validation string
+	switch {
+	case intrinsicCarrier:
+		validation = validateNamedOccurrence(valueCtx, underlying, att.Type.(expr.UserType), "actual", target, context, true)
+	case definition:
+		validation = recurseValidationCode(underlying, put, valueCtx, true, alias || expr.IsAlias(underlying.Type), view, "actual", context).String()
+	default:
+		validation = validateAttribute(valueCtx, underlying, put, "actual", context, true, view)
+	}
 	var lines []string
 	if required {
 		field, parent := nullableValidationContext(context)
-		lines = append(lines, "if !"+target+".Present() {\n\terr = loom.MergeErrors(err, loom.MissingFieldError("+quoteString(field)+", "+quoteString(parent)+"))\n}")
+		lines = append(lines, "if !"+target+".Present() {\n\terr = loom.MergeErrors(err, loom.MissingFieldError("+quoteString(field)+", "+validationContextExpr(ctx, parent)+"))\n}")
 	}
-	if validation != "" {
+	if intrinsicCarrier {
+		lines = append(lines, validation)
+	} else if validation != "" {
 		lines = append(lines, "if actual, ok := "+target+".Value(); ok {\n"+indentCode(validation)+"}")
 	}
 	return strings.Join(lines, "\n")
@@ -454,11 +461,10 @@ func validateOptionalAttribute(
 	target string,
 	context string,
 	view bool,
-	seen map[string]*bytes.Buffer,
 ) string {
 	underlying := concretePresenceAttribute(att)
 	valueCtx := presenceValueContext(ctx, underlying)
-	validation := recurseValidationCode(underlying, put, valueCtx, true, false, view, "actual", context, seen).String()
+	validation := validateAttribute(valueCtx, underlying, put, "actual", context, true, view)
 	if validation == "" {
 		return ""
 	}
@@ -467,6 +473,7 @@ func validateOptionalAttribute(
 
 func presenceValueContext(ctx *AttributeContext, underlying *expr.AttributeExpr) *AttributeContext {
 	valueCtx := ctx.Dup()
+	valueCtx.validationValue = expr.IsObject(underlying.Type)
 	primitive := expr.IsPrimitive(underlying.Type)
 	if primitive {
 		valueCtx.Pointer = false

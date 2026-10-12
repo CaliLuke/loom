@@ -54,24 +54,38 @@ func NewStreamingMethodStreamingRequestAPayload(v *service_payload_with_mixed_at
 
 // ValidateUnaryMethodRequest runs the validations defined on
 // UnaryMethodRequest.
-func ValidateUnaryMethodRequest(message *service_payload_with_mixed_attributespb.UnaryMethodRequest) (err error) {
+func ValidateUnaryMethodRequest(message *service_payload_with_mixed_attributespb.UnaryMethodRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Required == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("required", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("required", validationPath))
 	}
 	if message.RequiredDefault == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", validationPath))
 	}
 	return
 }
 
 // ValidateStreamingMethodStreamingRequest runs the validations defined on
 // StreamingMethodStreamingRequest.
-func ValidateStreamingMethodStreamingRequest(stream *service_payload_with_mixed_attributespb.StreamingMethodStreamingRequest) (err error) {
+func ValidateStreamingMethodStreamingRequest(stream *service_payload_with_mixed_attributespb.StreamingMethodStreamingRequest, validationContext ...string) (err error) {
+	validationPath := "stream"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if stream.Required == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("required", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("required", validationPath))
 	}
 	if stream.RequiredDefault == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", validationPath))
 	}
 	return
 }

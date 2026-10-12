@@ -75,7 +75,7 @@ func writeAuthorizationCheck(b *strings.Builder, m *EndpointMethodData) {
 	fmt.Fprintf(b, "ctx = context.WithValue(ctx, loom.ServiceKey, %q)\nctx = context.WithValue(ctx, loom.MethodKey, %q)\n", m.ServiceName, m.Name)
 	payload := writeAuthorizationPayload(b, m)
 	if payload != "" {
-		validation := authorizationValidationCode(a.expr.Payload, a.scope, payload)
+		validation := authorizationValidationCode(a.expr.Payload, typeContext(a.scope), payload)
 		if validation != "" {
 			fmt.Fprintf(b, "{\nvar err error\n%s\nif err != nil {\nreturn nil, err\n}\n}\n", validation)
 		}
@@ -207,7 +207,7 @@ func writeAuthorizationRequirement(b *strings.Builder, m *EndpointMethodData, us
 			}
 			fmt.Fprintf(b, "input.%s = %s\n", codegen.GoifyAtt(input, binding.Input, true), target)
 		}
-		validation := authorizationValidationCode(r.expr.Input, m.Authorization.scope, "input")
+		validation := authorizationValidationCode(r.expr.Input, typeContext(m.Authorization.scope), "input")
 		if validation != "" {
 			fmt.Fprintf(b, "var err error\n%s\nif err != nil {\nreturn nil, err\n}\n", validation)
 		}
@@ -249,8 +249,7 @@ func writeAuthorizationNilCheck(b *strings.Builder, target, path string) {
 	fmt.Fprintf(b, "if %s == nil {\nreturn nil, loom.MissingFieldError(%q, \"authorization\")\n}\n", target, path)
 }
 
-func authorizationValidationCode(att *expr.AttributeExpr, scope *codegen.NameScope, target string) string {
-	ctx := typeContext(scope)
+func authorizationValidationCode(att *expr.AttributeExpr, ctx *codegen.AttributeContext, target string) string {
 	ctx.ValidationPrefix = "validateAccess"
 	if ut, ok := att.Type.(expr.UserType); ok {
 		if expr.IsAlias(ut) {
@@ -268,15 +267,19 @@ func writeAuthorizationValidators(b *strings.Builder, svc *Data) {
 		if !needed[ut.Type.ID()] || (!expr.IsObject(ut.Type) && !expr.IsArray(ut.Type) && !expr.IsMap(ut.Type)) {
 			continue
 		}
-		validation := authorizationValidationCode(&expr.AttributeExpr{Type: ut.Type}, svc.Scope, "value")
+		ctx := typeContext(svc.Scope)
+		ctx.DefaultPkg = svc.Scope.PackageName(ut.Loc)
+		ctx.ValidationPrefix = "validateAccess"
+		function := codegen.NamedValidationFunction(&expr.AttributeExpr{Type: ut.Type}, ctx, "value")
+		validation := authorizationValidationCode(&expr.AttributeExpr{Type: ut.Type}, function.Context(ctx), "value")
 		if validation == "" {
 			continue
 		}
-		fmt.Fprintf(b, "// %s checks the authored constraints before authorization.\nfunc %s(value %s) error {\n", name, name, svc.Scope.GoFullTypeRef(&expr.AttributeExpr{Type: ut.Type}, svc.Scope.PackageName(ut.Loc)))
+		fmt.Fprintf(b, "// %s checks the authored constraints before authorization.\n", name)
 		if expr.IsObject(ut.Type) {
-			b.WriteString("if value == nil {\nreturn loom.MissingFieldError(\"value\", \"authorization\")\n}\n")
+			validation = "if value == nil {\nreturn loom.MissingFieldError(\"value\", \"authorization\")\n}\n" + validation
 		}
-		fmt.Fprintf(b, "var err error\n%s\nreturn err\n}\n", validation)
+		b.WriteString(function.Definition(validation))
 	}
 }
 

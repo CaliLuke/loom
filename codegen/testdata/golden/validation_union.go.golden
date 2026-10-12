@@ -10,7 +10,7 @@ func Validate() (err error) {
 			break
 		}
 		if actual != nil {
-			if err2 := ValidateInteger(actual); err2 != nil {
+			if err2 := ValidateInteger(actual, "target.required_union.value"); err2 != nil {
 				err = loom.MergeErrors(err, err2)
 			}
 		}
@@ -21,7 +21,7 @@ func Validate() (err error) {
 			break
 		}
 		if actual != nil {
-			if err2 := ValidateFloat(actual); err2 != nil {
+			if err2 := ValidateFloat(actual, "target.required_union.value"); err2 != nil {
 				err = loom.MergeErrors(err, err2)
 			}
 		}
@@ -32,7 +32,7 @@ func Validate() (err error) {
 			break
 		}
 		if actual != nil {
-			if err2 := ValidateString(actual); err2 != nil {
+			if err2 := ValidateString(actual, "target.required_union.value"); err2 != nil {
 				err = loom.MergeErrors(err, err2)
 			}
 		}
@@ -46,7 +46,7 @@ func Validate() (err error) {
 				break
 			}
 			if actual != nil {
-				if err2 := ValidateInteger(actual); err2 != nil {
+				if err2 := ValidateInteger(actual, "target.union.value"); err2 != nil {
 					err = loom.MergeErrors(err, err2)
 				}
 			}
@@ -57,7 +57,7 @@ func Validate() (err error) {
 				break
 			}
 			if actual != nil {
-				if err2 := ValidateFloat(actual); err2 != nil {
+				if err2 := ValidateFloat(actual, "target.union.value"); err2 != nil {
 					err = loom.MergeErrors(err, err2)
 				}
 			}
@@ -68,7 +68,7 @@ func Validate() (err error) {
 				break
 			}
 			if actual != nil {
-				if err2 := ValidateString(actual); err2 != nil {
+				if err2 := ValidateString(actual, "target.union.value"); err2 != nil {
 					err = loom.MergeErrors(err, err2)
 				}
 			}

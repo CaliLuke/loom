@@ -25,7 +25,7 @@ func DecodeMethodBodyPrimitiveArrayUserValidateRequest(mux loomhttp.Muxer, decod
 		for i, e := range body {
 			if actual, ok := e.Value(); ok {
 				if actual != nil {
-					if err2 := ValidatePayloadTypeRequestBody(actual); err2 != nil {
+					if err2 := ValidatePayloadTypeRequestBody(actual, "body[*]"); err2 != nil {
 						err = loom.MergeErrors(err, err2)
 					}
 				}

@@ -1,6 +1,6 @@
 func Validate() (err error) {
 	if target.Collection != nil {
-		if err2 := ValidateResultCollection(target.Collection); err2 != nil {
+		if err2 := ValidateResultCollection(target.Collection, "target.collection"); err2 != nil {
 			err = loom.MergeErrors(err, err2)
 		}
 	}

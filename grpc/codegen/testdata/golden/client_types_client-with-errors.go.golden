@@ -50,13 +50,20 @@ func NewMethodUnaryRPCWithErrorsCustomErrorError(message *service_unary_rpc_with
 
 // ValidateMethodUnaryRPCWithErrorsInternalError runs the validations defined
 // on MethodUnaryRPCWithErrorsInternalError.
-func ValidateMethodUnaryRPCWithErrorsInternalError(errmsg *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsInternalError) (err error) {
+func ValidateMethodUnaryRPCWithErrorsInternalError(errmsg *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsInternalError, validationContext ...string) (err error) {
+	validationPath := "errmsg"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if errmsg.Name == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("name", "errmsg"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("name", validationPath))
 	}
 	if errmsg.Name != nil {
 		if !(*errmsg.Name == "this" || *errmsg.Name == "that") {
-			err = loom.MergeErrors(err, loom.InvalidEnumValueError("errmsg.name", *errmsg.Name, []any{"this", "that"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError(validationPath+".name", *errmsg.Name, []any{"this", "that"}))
 		}
 	}
 	return
@@ -64,13 +71,20 @@ func ValidateMethodUnaryRPCWithErrorsInternalError(errmsg *service_unary_rpc_wit
 
 // ValidateMethodUnaryRPCWithErrorsBadRequestError runs the validations defined
 // on MethodUnaryRPCWithErrorsBadRequestError.
-func ValidateMethodUnaryRPCWithErrorsBadRequestError(errmsg *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsBadRequestError) (err error) {
+func ValidateMethodUnaryRPCWithErrorsBadRequestError(errmsg *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsBadRequestError, validationContext ...string) (err error) {
+	validationPath := "errmsg"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if errmsg.Name == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("name", "errmsg"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("name", validationPath))
 	}
 	if errmsg.Name != nil {
 		if !(*errmsg.Name == "this" || *errmsg.Name == "that") {
-			err = loom.MergeErrors(err, loom.InvalidEnumValueError("errmsg.name", *errmsg.Name, []any{"this", "that"}))
+			err = loom.MergeErrors(err, loom.InvalidEnumValueError(validationPath+".name", *errmsg.Name, []any{"this", "that"}))
 		}
 	}
 	return
@@ -78,18 +92,32 @@ func ValidateMethodUnaryRPCWithErrorsBadRequestError(errmsg *service_unary_rpc_w
 
 // ValidateMethodUnaryRPCWithErrorsRequest runs the validations defined on
 // MethodUnaryRPCWithErrorsRequest.
-func ValidateMethodUnaryRPCWithErrorsRequest(message *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsRequest) (err error) {
+func ValidateMethodUnaryRPCWithErrorsRequest(message *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Field == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", validationPath))
 	}
 	return
 }
 
 // ValidateMethodUnaryRPCWithErrorsResponse runs the validations defined on
 // MethodUnaryRPCWithErrorsResponse.
-func ValidateMethodUnaryRPCWithErrorsResponse(message *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsResponse) (err error) {
+func ValidateMethodUnaryRPCWithErrorsResponse(message *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsResponse, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Field == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", validationPath))
 	}
 	return
 }

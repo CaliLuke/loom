@@ -20,9 +20,16 @@ func NewMethodQueryStringExtendedValidatePayloadPayload(body *MethodQueryStringE
 
 // ValidateMethodQueryStringExtendedValidatePayloadRequestBody runs the
 // validations defined on MethodQueryStringExtendedValidatePayloadRequestBody
-func ValidateMethodQueryStringExtendedValidatePayloadRequestBody(body *MethodQueryStringExtendedValidatePayloadRequestBody) (err error) {
+func ValidateMethodQueryStringExtendedValidatePayloadRequestBody(body *MethodQueryStringExtendedValidatePayloadRequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.Body == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("body", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("body", validationPath))
 	}
 	return
 }

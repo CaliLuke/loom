@@ -43,9 +43,16 @@ func NewMethodBRequestBody(p *servicemultiplemethods.PayloadType) *MethodBReques
 
 // ValidateAPayloadRequestBody runs the validations defined on
 // APayloadRequestBody
-func ValidateAPayloadRequestBody(body *APayloadRequestBody) (err error) {
+func ValidateAPayloadRequestBody(body *APayloadRequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".a", *body.A, loomPatternTest0))
 	}
 	return
 }

@@ -70,8 +70,8 @@ func TestViewValidationRequiresNestedResultTypeFields(t *testing.T) {
 	require.NoError(t, err, buf.String())
 	code := strings.ReplaceAll(string(bs), "\r\n", "\n")
 
-	require.Contains(t, code, "if result.B == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"b\", \"result\"))")
-	require.Contains(t, code, "if result.C == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"c\", \"result\"))")
+	require.Contains(t, code, "if result.B == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"b\", validationPath))")
+	require.Contains(t, code, "if result.C == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"c\", validationPath))")
 }
 
 func TestViewValidationUsesViewRequirednessOverrides(t *testing.T) {
@@ -88,10 +88,10 @@ func TestViewValidationUsesViewRequirednessOverrides(t *testing.T) {
 
 	inherited := generatedFunction(t, code, "ValidateViewRequirednessViewInherited")
 	overridden := generatedFunction(t, code, "ValidateViewRequirednessViewOverridden")
-	require.Contains(t, inherited, `MissingFieldError("canonical_required", "result")`)
-	require.NotContains(t, inherited, `MissingFieldError("canonical_optional", "result")`)
-	require.NotContains(t, overridden, `MissingFieldError("canonical_required", "result")`)
-	require.Contains(t, overridden, `MissingFieldError("canonical_optional", "result")`)
+	require.Contains(t, inherited, `MissingFieldError("canonical_required", validationPath)`)
+	require.NotContains(t, inherited, `MissingFieldError("canonical_optional", validationPath)`)
+	require.NotContains(t, overridden, `MissingFieldError("canonical_required", validationPath)`)
+	require.Contains(t, overridden, `MissingFieldError("canonical_optional", validationPath)`)
 }
 
 func generatedFunction(t *testing.T, code, name string) string {
@@ -164,7 +164,7 @@ func TestViewCollectionValidationRejectsNullElements(t *testing.T) {
 	for _, name := range []string{"ValidateResultTypeCollectionView", "ValidateResultTypeCollectionViewTiny"} {
 		body := generatedFunction(t, code, name)
 		require.Contains(t, body, "if item == nil {")
-		require.Contains(t, body, `loom.InvalidNullElementError("result", i)`)
+		require.Contains(t, body, `loom.InvalidNullElementError(validationPath, i)`)
 		require.Contains(t, body, "continue")
 	}
 }

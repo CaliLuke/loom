@@ -135,181 +135,216 @@ func NewProtoMethodRequest(payload *defaultfields.MethodPayload) *default_fields
 }
 
 // ValidatePresenceBlob runs the validations defined on PresenceBlob.
-func ValidatePresenceBlob(message *default_fieldspb.PresenceBlob) (err error) {
+func ValidatePresenceBlob(message *default_fieldspb.PresenceBlob, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Field == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", validationPath))
 	}
 	if message.Field != nil {
 		if len(message.Field) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.field", len(message.Field), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".field", len(message.Field), 3, false))
 		}
 	}
 	return
 }
 
 // ValidateScalarsRequest runs the validations defined on ScalarsRequest.
-func ValidateScalarsRequest(message *default_fieldspb.ScalarsRequest) (err error) {
+func ValidateScalarsRequest(message *default_fieldspb.ScalarsRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Text == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("text", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("text", validationPath))
 	}
 	if message.Flag == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("flag", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("flag", validationPath))
 	}
 	if message.Integer == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer", validationPath))
 	}
 	if message.Integer32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", validationPath))
 	}
 	if message.Integer64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", validationPath))
 	}
 	if message.Unsigned == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", validationPath))
 	}
 	if message.Unsigned32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", validationPath))
 	}
 	if message.Unsigned64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", validationPath))
 	}
 	if message.Float32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("float32", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("float32", validationPath))
 	}
 	if message.Float64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("float64", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("float64", validationPath))
 	}
 	if message.Bytes_ == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", validationPath))
 	}
 	if message.RequiredDefault == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", validationPath))
 	}
 	if message.Text != nil {
 		if utf8.RuneCountInString(*message.Text) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.text", utf8.RuneCountInString(*message.Text), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".text", utf8.RuneCountInString(*message.Text), 3, false))
 		}
 	}
 	if message.Bytes_ != nil {
 		if len(message.Bytes_) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.bytes", len(message.Bytes_), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".bytes", len(message.Bytes_), 3, false))
 		}
 	}
 	return
 }
 
 // ValidateScalarsResponse runs the validations defined on ScalarsResponse.
-func ValidateScalarsResponse(message *default_fieldspb.ScalarsResponse) (err error) {
+func ValidateScalarsResponse(message *default_fieldspb.ScalarsResponse, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Text == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("text", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("text", validationPath))
 	}
 	if message.Flag == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("flag", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("flag", validationPath))
 	}
 	if message.Integer == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer", validationPath))
 	}
 	if message.Integer32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", validationPath))
 	}
 	if message.Integer64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", validationPath))
 	}
 	if message.Unsigned == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", validationPath))
 	}
 	if message.Unsigned32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", validationPath))
 	}
 	if message.Unsigned64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", validationPath))
 	}
 	if message.Float32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("float32", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("float32", validationPath))
 	}
 	if message.Float64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("float64", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("float64", validationPath))
 	}
 	if message.Bytes_ == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", validationPath))
 	}
 	if message.RequiredDefault == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", validationPath))
 	}
 	if message.Text != nil {
 		if utf8.RuneCountInString(*message.Text) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.text", utf8.RuneCountInString(*message.Text), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".text", utf8.RuneCountInString(*message.Text), 3, false))
 		}
 	}
 	if message.Bytes_ != nil {
 		if len(message.Bytes_) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("message.bytes", len(message.Bytes_), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".bytes", len(message.Bytes_), 3, false))
 		}
 	}
 	return
 }
 
 // ValidateStreamResponse runs the validations defined on StreamResponse.
-func ValidateStreamResponse(stream *default_fieldspb.StreamResponse) (err error) {
+func ValidateStreamResponse(stream *default_fieldspb.StreamResponse, validationContext ...string) (err error) {
+	validationPath := "stream"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if stream.Text == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("text", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("text", validationPath))
 	}
 	if stream.Flag == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("flag", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("flag", validationPath))
 	}
 	if stream.Integer == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer", validationPath))
 	}
 	if stream.Integer32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer32", validationPath))
 	}
 	if stream.Integer64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("integer64", validationPath))
 	}
 	if stream.Unsigned == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned", validationPath))
 	}
 	if stream.Unsigned32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned32", validationPath))
 	}
 	if stream.Unsigned64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("unsigned64", validationPath))
 	}
 	if stream.Float32 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("float32", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("float32", validationPath))
 	}
 	if stream.Float64 == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("float64", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("float64", validationPath))
 	}
 	if stream.Bytes_ == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("bytes", validationPath))
 	}
 	if stream.RequiredDefault == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", "stream"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("required_default", validationPath))
 	}
 	if stream.Text != nil {
 		if utf8.RuneCountInString(*stream.Text) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("stream.text", utf8.RuneCountInString(*stream.Text), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".text", utf8.RuneCountInString(*stream.Text), 3, false))
 		}
 	}
 	if stream.Bytes_ != nil {
 		if len(stream.Bytes_) > 3 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("stream.bytes", len(stream.Bytes_), 3, false))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".bytes", len(stream.Bytes_), 3, false))
 		}
 	}
 	return
 }
 
 // ValidateMethodRequest runs the validations defined on MethodRequest.
-func ValidateMethodRequest(message *default_fieldspb.MethodRequest) (err error) {
+func ValidateMethodRequest(message *default_fieldspb.MethodRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Req == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("req", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("req", validationPath))
 	}
 	if message.Reqs == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("reqs", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("reqs", validationPath))
 	}
 	if message.Rat == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("rat", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("rat", validationPath))
 	}
 	return
 }

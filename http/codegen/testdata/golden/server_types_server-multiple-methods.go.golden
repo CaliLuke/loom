@@ -49,29 +49,43 @@ func NewMethodBPayloadType(body *MethodBRequestBody) *servicemultiplemethods.Pay
 }
 
 // ValidateMethodARequestBody runs the validations defined on MethodARequestBody
-func ValidateMethodARequestBody(body *MethodARequestBody) (err error) {
+func ValidateMethodARequestBody(body *MethodARequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if actual, ok := body.A.Value(); ok {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", actual, loomPatternTest0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".a", actual, loomPatternTest0))
 	}
 	return
 }
 
 // ValidateMethodBRequestBody runs the validations defined on MethodBRequestBody
-func ValidateMethodBRequestBody(body *MethodBRequestBody) (err error) {
+func ValidateMethodBRequestBody(body *MethodBRequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.A == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("a", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("a", validationPath))
 	}
 	if body.C == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("c", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("c", validationPath))
 	}
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".a", *body.A, loomPatternTest0))
 	}
 	if actual, ok := body.B.Value(); ok {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", actual, loomPatternTest1))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".b", actual, loomPatternTest1))
 	}
 	if body.C != nil {
-		if err2 := ValidateAPayloadRequestBody(body.C); err2 != nil {
+		if err2 := ValidateAPayloadRequestBody(body.C, validationPath+".c"); err2 != nil {
 			err = loom.MergeErrors(err, err2)
 		}
 	}
@@ -80,9 +94,16 @@ func ValidateMethodBRequestBody(body *MethodBRequestBody) (err error) {
 
 // ValidateAPayloadRequestBody runs the validations defined on
 // APayloadRequestBody
-func ValidateAPayloadRequestBody(body *APayloadRequestBody) (err error) {
+func ValidateAPayloadRequestBody(body *APayloadRequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if actual, ok := body.A.Value(); ok {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", actual, loomPatternTest0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".a", actual, loomPatternTest0))
 	}
 	return
 }

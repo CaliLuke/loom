@@ -31,9 +31,16 @@ func NewProtoMethodPayloadDuplicateBResponse() *service_payload_with_nested_type
 }
 
 // ValidateDupePayload runs the validations defined on DupePayload.
-func ValidateDupePayload(message *service_payload_with_nested_typespb.DupePayload) (err error) {
+func ValidateDupePayload(message *service_payload_with_nested_typespb.DupePayload, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Field == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", validationPath))
 	}
 	return
 }

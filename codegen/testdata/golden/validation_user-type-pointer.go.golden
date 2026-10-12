@@ -3,17 +3,17 @@ func Validate() (err error) {
 		err = loom.MergeErrors(err, loom.MissingFieldError("required_integer", "target"))
 	}
 	if target.RequiredInteger != nil {
-		if err2 := ValidateInteger(target.RequiredInteger); err2 != nil {
+		if err2 := ValidateInteger(target.RequiredInteger, "target.required_integer"); err2 != nil {
 			err = loom.MergeErrors(err, err2)
 		}
 	}
 	if target.DefaultString != nil {
-		if err2 := ValidateString(target.DefaultString); err2 != nil {
+		if err2 := ValidateString(target.DefaultString, "target.default_string"); err2 != nil {
 			err = loom.MergeErrors(err, err2)
 		}
 	}
 	if target.Float != nil {
-		if err2 := ValidateFloat(target.Float); err2 != nil {
+		if err2 := ValidateFloat(target.Float, "target.float"); err2 != nil {
 			err = loom.MergeErrors(err, err2)
 		}
 	}

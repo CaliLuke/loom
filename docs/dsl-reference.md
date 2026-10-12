@@ -431,6 +431,19 @@ The existing named-alias policy for empty domains is unchanged; the structural
 
 ### Validation Rules
 
+Generated validation follows every present occurrence in a finite recursive
+value. Optional fields are validated when present; a nullable field's concrete
+value is validated while an allowed null remains valid. These rules also apply
+through named types, arrays and maps. Field declaration order does not limit
+validation depth.
+
+Nested named validators retain the caller's diagnostic path. For example, an
+invalid value two nodes down a request tree reports `body.next.next.value`;
+array and map paths retain the existing `[*]` and `[key]` notation. Transport
+error classification and safe public error messages are unchanged. Regenerate
+service and transport code after upgrading to adopt complete recursive
+validation and corrected nested diagnostic paths.
+
 Length-validation diagnostics report the field, actual length and allowed
 bound without including the rejected value. Regenerate service and transport
 code after upgrading. Handwritten calls to `loom.InvalidLengthError` now pass

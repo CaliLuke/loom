@@ -281,12 +281,14 @@ func buildUntaggedUnionValidations(union *expr.Union, scope *codegen.NameScope, 
 		if !expr.IsObject(data.Type) && !expr.IsArray(data.Type) {
 			continue
 		}
+		ctx := typeContext(scope)
+		function := codegen.NamedValidationFunction(&expr.AttributeExpr{Type: data.Type}, ctx, "result")
 		validations = append(validations, &unionValidationData{
 			data: &ValidateData{
-				Name:        "Validate" + data.VarName,
-				Ref:         data.Ref,
+				Name:        function.Name,
+				Ref:         function.Ref,
 				Description: "runs the validations defined on " + data.VarName + ".",
-				Validate:    codegen.ValidationCode(data.Type.Attribute(), data.Type, typeContext(scope), true, false, false, "result"),
+				Validate:    codegen.ValidationCode(data.Type.Attribute(), data.Type, function.Context(ctx), true, false, false, "result"),
 			},
 			loc: data.Loc,
 		})

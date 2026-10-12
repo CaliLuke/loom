@@ -20,10 +20,17 @@ func NewMethodResultTypeValidateResultTypeOK(body *MethodResultTypeValidateRespo
 
 // ValidateMethodResultTypeValidateResponseBody runs the validations defined on
 // MethodResultTypeValidateResponseBody
-func ValidateMethodResultTypeValidateResponseBody(body *MethodResultTypeValidateResponseBody) (err error) {
+func ValidateMethodResultTypeValidateResponseBody(body *MethodResultTypeValidateResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if actual, ok := body.A.Value(); ok {
 		if utf8.RuneCountInString(actual) < 5 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body.a", utf8.RuneCountInString(actual), 5, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".a", utf8.RuneCountInString(actual), 5, true))
 		}
 	}
 	return

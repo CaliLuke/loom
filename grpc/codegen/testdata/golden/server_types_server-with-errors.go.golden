@@ -50,9 +50,16 @@ func NewMethodUnaryRPCWithErrorsCustomErrorError(er *serviceunaryrpcwitherrors.E
 
 // ValidateMethodUnaryRPCWithErrorsRequest runs the validations defined on
 // MethodUnaryRPCWithErrorsRequest.
-func ValidateMethodUnaryRPCWithErrorsRequest(message *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsRequest) (err error) {
+func ValidateMethodUnaryRPCWithErrorsRequest(message *service_unary_rpc_with_errorspb.MethodUnaryRPCWithErrorsRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.Field == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("field", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("field", validationPath))
 	}
 	return
 }

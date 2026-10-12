@@ -351,8 +351,10 @@ type (
 		Name string
 		// Def is the validation function definition.
 		Def string
-		// VarName is the name of the argument.
+		// ArgName is the Go name of the argument.
 		ArgName string
+		// Context is the authored diagnostic root before Go identifier mapping.
+		Context string
 		// SrcName is the fully qualified name of the type being validated.
 		SrcName string
 		// SrcRef is the fully qualified reference to the type being validated.

@@ -42,7 +42,7 @@ func TestServiceFilesMappedNames(t *testing.T) {
 		"\t// ChoiceKindText identifies the text branch of the union.\n\tChoiceKindText ChoiceKind = \"text\"\n",
 		"\tChoiceKindLeafBranch ChoiceKind = \"leaf_branch\"\n",
 		"\t\t\"default\": {\n\t\t\t\"n\",\n\t\t\t\"req\",\n\t\t},\n\t\t\"tiny\": {\n\t\t\t\"req\",\n\t\t},\n",
-		"loom.MissingFieldError(\"req\", \"result\")",
+		"loom.MissingFieldError(\"req\", validationPath)",
 	} {
 		assert.Contains(t, code, want)
 	}

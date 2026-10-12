@@ -382,6 +382,8 @@ func TestOptionalObjectValidationPreservesNestedJSONPresence(t *testing.T) {
 	code := ValidationCode(attribute, nil, ctx, true, false, false, "body")
 
 	require.Contains(t, code, "body.Scores.Value()")
+	require.Contains(t, code, `ValidateScores(&actual, "body.scores")`)
+	code = ValidationCode(scores.Attribute(), scores, presenceValueContext(ctx, &expr.AttributeExpr{Type: scores}), true, false, false, "actual")
 	require.Contains(t, code, "actual.Code.Value()")
 	require.Contains(t, code, "actual.Confidence.Value()")
 	require.Contains(t, code, "actual.Details.Value()")
@@ -477,6 +479,8 @@ func TestOptionalUnionInlineObjectValidationUsesNativePresence(t *testing.T) {
 	require.Contains(t, code, "*e.ArrayCode")
 	require.NotContains(t, code, "e.ArrayCode.Value()")
 	require.Contains(t, code, "e.Value()")
+	require.Contains(t, code, `ValidateDetails(&actual, "body.choice.value[*]")`)
+	code = ValidationCode(details.Attribute(), details, presenceValueContext(ctx, &expr.AttributeExpr{Type: details}), true, false, false, "actual")
 	require.Contains(t, code, "actual.Code != nil")
 	require.Contains(t, code, "*actual.Code")
 }
@@ -854,10 +858,10 @@ func TestUnionValidationPreservesValueContextForRequiredOnlyObjectBranches(t *te
 
 	valueCtx := NewAttributeContext(false, false, false, "", scope)
 	valueCode := ValidationCode(att, nil, valueCtx, true, false, false, "target")
-	if strings.Contains(valueCode, "ValidateSomeType(actual)") {
+	if strings.Contains(valueCode, `ValidateSomeType(actual, "target.value")`) {
 		t.Errorf("value context must not pointer-wrap ValidateSomeType call:\n%s", valueCode)
 	}
-	if strings.Contains(valueCode, "ValidateSomeOtherType(actual)") {
+	if strings.Contains(valueCode, `ValidateSomeOtherType(actual, "target.value")`) {
 		t.Errorf("value context must not pointer-wrap ValidateSomeOtherType call:\n%s", valueCode)
 	}
 	if strings.Contains(valueCode, "if actual != nil") {
@@ -866,10 +870,10 @@ func TestUnionValidationPreservesValueContextForRequiredOnlyObjectBranches(t *te
 
 	pointerCtx := NewAttributeContext(true, false, false, "", scope)
 	pointerCode := ValidationCode(att, nil, pointerCtx, true, false, false, "target")
-	if !strings.Contains(pointerCode, "ValidateSomeType(actual)") {
+	if !strings.Contains(pointerCode, `ValidateSomeType(actual, "target.value")`) {
 		t.Errorf("pointer context must emit ValidateSomeType call:\n%s", pointerCode)
 	}
-	if !strings.Contains(pointerCode, "ValidateSomeOtherType(actual)") {
+	if !strings.Contains(pointerCode, `ValidateSomeOtherType(actual, "target.value")`) {
 		t.Errorf("pointer context must emit ValidateSomeOtherType call:\n%s", pointerCode)
 	}
 }

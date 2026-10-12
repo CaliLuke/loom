@@ -188,16 +188,8 @@ func validateSection(name string, data *TypeData) codegen.Section {
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
 		stmt.Line()
 		codegen.Doc(stmt, fmt.Sprintf("Validate%s runs the validations defined on %s", data.VarName, data.Name))
-		stmt.Func().
-			Id("Validate" + data.VarName).
-			Params(jen.Id("body").Add(codegen.TypeRef(data.Ref))).
-			Params(jen.Id("err").Error()).
-			BlockFunc(func(group *jen.Group) {
-				if data.ValidateDef != "" {
-					appendHTTPRawBlock(group, data.ValidateDef)
-				}
-				group.Return()
-			})
+		function := data.validationFunction
+		stmt.Add(codegen.Expr(function.Definition(data.ValidateDef)))
 		stmt.Line()
 	})
 }

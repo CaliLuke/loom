@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"strings"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 )
@@ -21,8 +23,9 @@ func addValidation(att *expr.AttributeExpr, attName string, sd *ServiceData, req
 	// scope used by the validation templates so that function declarations
 	// and call sites (e.g. Message_) stay in sync regardless of traversal
 	// order or reserved-name handling.
-	name := vtx.Scope.Name(att, "", vtx.Pointer, vtx.UseDefault)
-	ref := protoBufGoFullTypeRef(att, sd.PkgName, sd.Scope)
+	function := codegen.NamedValidationFunction(att, vtx, attName)
+	name := strings.TrimPrefix(function.Name, "Validate")
+	ref := function.Ref
 	kind := validateClient
 	if req {
 		kind = validateServer
@@ -38,12 +41,12 @@ func addValidation(att *expr.AttributeExpr, attName string, sd *ServiceData, req
 		}
 	}
 	removeMeta(att)
-	if def := codegen.ValidationCode(att, ut, vtx, true, expr.IsAlias(att.Type), false, attName); def != "" {
+	if def := codegen.ValidationCode(att, ut, function.Context(vtx), true, expr.IsAlias(att.Type), false, attName); def != "" {
 		v := &ValidationData{
 			// Validation function names must match the identifiers used by
 			// validation templates. The template uses the scoped type name
 			// directly (no Goify) to preserve proto-reserved names like Message_.
-			Name:    "Validate" + name,
+			Name:    function.Name,
 			Def:     def,
 			ArgName: attName,
 			SrcName: name,
@@ -117,11 +120,13 @@ func collectValidationsR(att *expr.AttributeExpr, attName string, req bool, sd *
 func addUserTypeValidation(att *expr.AttributeExpr, dt expr.UserType, attName string, req bool, sd *ServiceData) bool {
 	gattName := codegen.Goify(attName, false)
 	vtx := protoBufTypeContext(sd.PkgName, sd.Scope, false)
-	def := codegen.AttributeValidationCode(att, dt, vtx, true, false, gattName, attName)
+	function := codegen.NamedValidationFunction(att, vtx, gattName)
+	function.Root = attName
+	def := codegen.AttributeValidationCode(att, dt, function.Context(vtx), true, false, gattName, attName)
 	// Match helper function identifiers with validation template calls by
 	// using the same protobuf-aware scope for the type name. This keeps
 	// names like Message_ consistent between declarations and call sites.
-	name := vtx.Scope.Name(att, "", vtx.Pointer, vtx.UseDefault)
+	name := strings.TrimPrefix(function.Name, "Validate")
 	kind := validateClient
 	if req {
 		kind = validateServer
@@ -140,11 +145,12 @@ func addUserTypeValidation(att *expr.AttributeExpr, dt expr.UserType, attName st
 			// Match helper function identifiers with validation template
 			// calls. The template uses the scoped type name directly (no
 			// Goify) to preserve proto-reserved names like Message_.
-			Name:    "Validate" + name,
+			Name:    function.Name,
 			Def:     def,
 			ArgName: gattName,
+			Context: attName,
 			SrcName: name,
-			SrcRef:  protoBufGoFullTypeRef(att, sd.PkgName, sd.Scope),
+			SrcRef:  function.Ref,
 			Kind:    kind,
 		})
 	}

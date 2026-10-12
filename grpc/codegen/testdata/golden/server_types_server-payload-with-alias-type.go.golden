@@ -28,9 +28,16 @@ func NewProtoMethodMessageUserTypeWithAliasResponse(result *servicemessageuserty
 
 // ValidateMethodMessageUserTypeWithAliasRequest runs the validations defined
 // on MethodMessageUserTypeWithAliasRequest.
-func ValidateMethodMessageUserTypeWithAliasRequest(message *service_message_user_type_with_aliaspb.MethodMessageUserTypeWithAliasRequest) (err error) {
+func ValidateMethodMessageUserTypeWithAliasRequest(message *service_message_user_type_with_aliaspb.MethodMessageUserTypeWithAliasRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.IntAliasField == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("IntAliasField", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("IntAliasField", validationPath))
 	}
 	return
 }

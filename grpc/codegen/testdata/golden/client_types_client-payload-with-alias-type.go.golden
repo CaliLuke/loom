@@ -28,18 +28,32 @@ func NewMethodMessageUserTypeWithAliasResult(message *service_message_user_type_
 
 // ValidateMethodMessageUserTypeWithAliasRequest runs the validations defined
 // on MethodMessageUserTypeWithAliasRequest.
-func ValidateMethodMessageUserTypeWithAliasRequest(message *service_message_user_type_with_aliaspb.MethodMessageUserTypeWithAliasRequest) (err error) {
+func ValidateMethodMessageUserTypeWithAliasRequest(message *service_message_user_type_with_aliaspb.MethodMessageUserTypeWithAliasRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.IntAliasField == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("IntAliasField", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("IntAliasField", validationPath))
 	}
 	return
 }
 
 // ValidateMethodMessageUserTypeWithAliasResponse runs the validations defined
 // on MethodMessageUserTypeWithAliasResponse.
-func ValidateMethodMessageUserTypeWithAliasResponse(message *service_message_user_type_with_aliaspb.MethodMessageUserTypeWithAliasResponse) (err error) {
+func ValidateMethodMessageUserTypeWithAliasResponse(message *service_message_user_type_with_aliaspb.MethodMessageUserTypeWithAliasResponse, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.IntAliasField == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("IntAliasField", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("IntAliasField", validationPath))
 	}
 	return
 }

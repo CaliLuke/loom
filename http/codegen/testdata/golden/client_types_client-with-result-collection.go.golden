@@ -34,20 +34,17 @@ func NewMethodResultWithResultCollectionResultOK(body *MethodResultWithResultCol
 
 // ValidateMethodResultWithResultCollectionResponseBody runs the validations
 // defined on MethodResultWithResultCollectionResponseBody
-func ValidateMethodResultWithResultCollectionResponseBody(body *MethodResultWithResultCollectionResponseBody) (err error) {
+func ValidateMethodResultWithResultCollectionResponseBody(body *MethodResultWithResultCollectionResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if actual, ok := body.A.Value(); ok {
-		if actual, ok := actual.X.Value(); ok {
-			for i, e := range actual {
-				if actual, ok := e.Value(); ok {
-					if actual != nil {
-						if err2 := ValidateRtResponseBody(actual); err2 != nil {
-							err = loom.MergeErrors(err, err2)
-						}
-					}
-				} else {
-					err = loom.MergeErrors(err, loom.InvalidNullElementError("body.a.x", i))
-				}
-			}
+		if err2 := ValidateResulttypeResponseBody(&actual, validationPath+".a"); err2 != nil {
+			err = loom.MergeErrors(err, err2)
 		}
 	}
 	return
@@ -55,17 +52,18 @@ func ValidateMethodResultWithResultCollectionResponseBody(body *MethodResultWith
 
 // ValidateResulttypeResponseBody runs the validations defined on
 // ResulttypeResponseBody
-func ValidateResulttypeResponseBody(body *ResulttypeResponseBody) (err error) {
+func ValidateResulttypeResponseBody(body *ResulttypeResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if actual, ok := body.X.Value(); ok {
-		for i, e := range actual {
-			if actual, ok := e.Value(); ok {
-				if actual != nil {
-					if err2 := ValidateRtResponseBody(actual); err2 != nil {
-						err = loom.MergeErrors(err, err2)
-					}
-				}
-			} else {
-				err = loom.MergeErrors(err, loom.InvalidNullElementError("body.x", i))
+		if actual != nil {
+			if err2 := ValidateRtCollectionResponseBody(actual, validationPath+".x"); err2 != nil {
+				err = loom.MergeErrors(err, err2)
 			}
 		}
 	}
@@ -74,26 +72,40 @@ func ValidateResulttypeResponseBody(body *ResulttypeResponseBody) (err error) {
 
 // ValidateRtCollectionResponseBody runs the validations defined on
 // RtCollectionResponseBody
-func ValidateRtCollectionResponseBody(body RtCollectionResponseBody) (err error) {
+func ValidateRtCollectionResponseBody(body RtCollectionResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	for i, e := range body {
 		if actual, ok := e.Value(); ok {
 			if actual != nil {
-				if err2 := ValidateRtResponseBody(actual); err2 != nil {
+				if err2 := ValidateRtResponseBody(actual, validationPath+"[*]"); err2 != nil {
 					err = loom.MergeErrors(err, err2)
 				}
 			}
 		} else {
-			err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+			err = loom.MergeErrors(err, loom.InvalidNullElementError(validationPath, i))
 		}
 	}
 	return
 }
 
 // ValidateRtResponseBody runs the validations defined on RtResponseBody
-func ValidateRtResponseBody(body *RtResponseBody) (err error) {
+func ValidateRtResponseBody(body *RtResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if actual, ok := body.X.Value(); ok {
 		if utf8.RuneCountInString(actual) < 5 {
-			err = loom.MergeErrors(err, loom.InvalidLengthError("body.x", utf8.RuneCountInString(actual), 5, true))
+			err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".x", utf8.RuneCountInString(actual), 5, true))
 		}
 	}
 	return

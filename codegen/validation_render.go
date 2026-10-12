@@ -279,7 +279,7 @@ func renderEnumValidation(data validationRenderData) string {
 		predicate = collectionEnumPredicate(data)
 	}
 	b.WriteString("if !(" + predicate + ") {\n")
-	b.WriteString("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + toSlice(data.Values) + "))\n")
+	b.WriteString("\terr = loom.MergeErrors(err, loom.InvalidEnumValueError(" + validationContextExpr(data.AttributeCtx, data.Context) + ", " + data.TargetValue + ", " + toSlice(data.Values) + "))\n")
 	b.WriteString("}")
 	if data.IsPointer {
 		b.WriteString("\n}")
@@ -308,12 +308,12 @@ func collectionEnumPredicate(data validationRenderData) string {
 
 func renderFormatValidation(data validationRenderData) string {
 	return renderSimplePointerWrappedValidation(data.IsPointer, data.Target,
-		"err = loom.MergeErrors(err, loom.ValidateFormat("+quoteString(data.Context)+", "+data.TargetValue+", "+constant(data.Format, data.Attribute)+"))")
+		"err = loom.MergeErrors(err, loom.ValidateFormat("+validationContextExpr(data.AttributeCtx, data.Context)+", "+data.TargetValue+", "+constant(data.Format, data.Attribute)+"))")
 }
 
 func renderPatternValidation(data validationRenderData) string {
 	return renderSimplePointerWrappedValidation(data.IsPointer, data.Target,
-		"err = loom.MergeErrors(err, loom.ValidatePattern("+quoteString(data.Context)+", "+data.TargetValue+", "+quoteString(data.Pattern)+"))")
+		"err = loom.MergeErrors(err, loom.ValidatePattern("+validationContextExpr(data.AttributeCtx, data.Context)+", "+data.TargetValue+", "+quoteString(data.Pattern)+"))")
 }
 
 func renderNumericValidation(data validationRenderData, bound expr.NumericBound, lower, exclusive bool) string {
@@ -328,7 +328,7 @@ func renderNumericValidation(data validationRenderData, bound expr.NumericBound,
 	}
 	// The error reports the exact authored endpoint rather than a rounded native
 	// threshold. A string literal cannot overflow an untyped Go integer argument.
-	body := "if " + condition + " {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + quoteString(bound.String()) + ", " + validationGoLiteral(lower) + "))\n}"
+	body := "if " + condition + " {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(" + validationContextExpr(data.AttributeCtx, data.Context) + ", " + data.TargetValue + ", " + quoteString(bound.String()) + ", " + validationGoLiteral(lower) + "))\n}"
 	return renderSimplePointerWrappedValidation(data.IsPointer, data.Target, body)
 }
 
@@ -355,7 +355,7 @@ func renderLengthValidation(data validationRenderData) string {
 		bound = *data.MaxLength
 		flag = false
 	}
-	body := "if " + lengthExpr + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidLengthError(" + quoteString(data.Context) + ", " + lengthExpr + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
+	body := "if " + lengthExpr + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidLengthError(" + validationContextExpr(data.AttributeCtx, data.Context) + ", " + lengthExpr + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
 	return renderSimplePointerWrappedValidation(data.IsPointer && data.IsString, data.Target, body)
 }
 
@@ -365,7 +365,7 @@ func renderRequiredValidation(data validationRenderData) string {
 		field, _, _ = scope.FieldNames(data.Attribute, data.RequiredName)
 	}
 	name := expr.AttributeName(data.RequiredName)
-	missing := "\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(name) + ", " + quoteString(data.Context) + "))\n}"
+	missing := "\n\terr = loom.MergeErrors(err, loom.MissingFieldError(" + quoteString(name) + ", " + validationContextExpr(data.AttributeCtx, data.Context) + "))\n}"
 	mapped := expr.NewMappedAttributeExpr(data.Attribute)
 	presence := data.AttributeCtx.FieldPresence(mapped, name, data.RequiredAttr)
 	if presence == OptionalPresence || presence == NullablePresence {
@@ -389,7 +389,7 @@ func renderArrayValidation(target, validation string, rejectNativeNil, jsonPrese
 	if jsonPresence {
 		if validation == "" {
 			b.WriteString("\tif _, ok := e.Value(); !ok {\n")
-			b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
+			b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + context + ", i))\n")
 			b.WriteString("\t}\n")
 			b.WriteString("}")
 			return b.String()
@@ -397,14 +397,14 @@ func renderArrayValidation(target, validation string, rejectNativeNil, jsonPrese
 		b.WriteString("\tif actual, ok := e.Value(); ok {\n")
 		b.WriteString(indentCode(indentCode(validation)))
 		b.WriteString("\t} else {\n")
-		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
+		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + context + ", i))\n")
 		b.WriteString("\t}\n")
 		b.WriteString("}")
 		return b.String()
 	}
 	if rejectNativeNil {
 		b.WriteString("\tif e == nil {\n")
-		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + quoteString(context) + ", i))\n")
+		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError(" + context + ", i))\n")
 		b.WriteString("\t}\n")
 	}
 	if validation != "" {
@@ -431,7 +431,7 @@ func renderMapValidation(target, keyValidation, valueValidation string, jsonPres
 	if jsonPresence {
 		if valueValidation == "" {
 			b.WriteString("\tif _, ok := " + valueVar + ".Value(); !ok {\n")
-			b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + quoteString(context+"[key]") + "))\n")
+			b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + context + "))\n")
 			b.WriteString("\t}\n")
 			b.WriteString("}")
 			return b.String()
@@ -439,7 +439,7 @@ func renderMapValidation(target, keyValidation, valueValidation string, jsonPres
 		b.WriteString("\tif actual, ok := " + valueVar + ".Value(); ok {\n")
 		b.WriteString(indentCode(indentCode(strings.TrimPrefix(valueValidation, "\n"))))
 		b.WriteString("\t} else {\n")
-		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + quoteString(context+"[key]") + "))\n")
+		b.WriteString("\t\terr = loom.MergeErrors(err, loom.InvalidNullMapValueError(" + context + "))\n")
 		b.WriteString("\t}\n")
 	} else if valueValidation != "" {
 		b.WriteString(indentCode(strings.TrimPrefix(valueValidation, "\n")))
@@ -467,7 +467,7 @@ func renderUnionSumValidation(target string, cases []unionValidationCase) string
 		fmt.Fprintf(&b, "\tactual, _ := %s.As%s()\n", target, c.FieldName)
 		if c.RequiresValue {
 			fmt.Fprintf(&b, "\tif actual == nil {\n")
-			fmt.Fprintf(&b, "\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"value\", %q))\n", c.Context)
+			fmt.Fprintf(&b, "\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"value\", %s))\n", c.Context)
 			fmt.Fprintf(&b, "\t\tbreak\n")
 			fmt.Fprintf(&b, "\t}\n")
 		}
@@ -477,6 +477,6 @@ func renderUnionSumValidation(target string, cases []unionValidationCase) string
 	return b.String()
 }
 
-func renderUserValidation(name, target string) string {
-	return "if err2 := " + name + "(" + target + "); err2 != nil {\n\terr = loom.MergeErrors(err, err2)\n}"
+func renderUserValidation(name, target, context string) string {
+	return "if err2 := " + (ValidationFunction{Name: name}).Call(target, context) + "; err2 != nil {\n\terr = loom.MergeErrors(err, err2)\n}"
 }

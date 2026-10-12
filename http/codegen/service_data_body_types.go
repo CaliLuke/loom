@@ -67,6 +67,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		ValueRef:             valueRef,
 		Init:                 init,
 		ValidateDef:          details.validateDefinition,
+		validationFunction:   codegen.NamedValidationFunction(body, httpctx, "body"),
 		ValidateRef:          details.validateReference,
 		Example:              body.Example(sds.examplesFor(sd)),
 		Value:                value,
@@ -141,7 +142,7 @@ func buildUserRequestBodyTypeDetails(
 			validationContext = httpctx.Dup()
 			validationContext.Pointer = false
 		}
-		details.validateDefinition = codegen.ValidationCode(body, userType, validationContext, true, expr.IsAlias(body.Type), false, "body")
+		details.validateDefinition = codegen.ValidationCode(body, userType, codegen.NamedValidationFunction(body, validationContext, "body").Context(validationContext), true, expr.IsAlias(body.Type), false, "body")
 		if details.validateDefinition != "" {
 			// Only an object body is validated through its address.
 			details.validateReference = requestBodyValidateRef(varName, !expr.IsObject(userType))
@@ -171,7 +172,7 @@ func buildExplicitPresenceRequestBodyTypeDetails(
 		details := buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
 		details.valueRef = sd.Scope.GoTypeRef(body)
 		if svr {
-			details.validateDefinition = codegen.ValidationCode(body, userType, httpctx, required, expr.IsAlias(body.Type), false, "body")
+			details.validateDefinition = codegen.ValidationCode(body, userType, codegen.NamedValidationFunction(body, httpctx, "body").Context(httpctx), required, expr.IsAlias(body.Type), false, "body")
 			details.validateReference = ""
 			if details.validateDefinition != "" {
 				details.validateReference = requestBodyValidateRef(details.varName, true)
@@ -298,18 +299,19 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	}
 	init := sds.buildResponseBodyInit(body, att, pkg, endpointName, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
 	return &TypeData{
-		Name:        data.name,
-		VarName:     data.varName,
-		Description: data.desc,
-		Def:         data.def,
-		Ref:         data.ref,
-		ValueRef:    bodyValueRef(sd.Scope, body, data.varName, httpctx),
-		Init:        init,
-		ValidateDef: data.validateDef,
-		ValidateRef: data.validateRef,
-		Example:     body.Example(sds.examplesFor(sd)),
-		Value:       value,
-		View:        viewName,
+		Name:               data.name,
+		VarName:            data.varName,
+		Description:        data.desc,
+		Def:                data.def,
+		Ref:                data.ref,
+		ValueRef:           bodyValueRef(sd.Scope, body, data.varName, httpctx),
+		Init:               init,
+		ValidateDef:        data.validateDef,
+		validationFunction: codegen.NamedValidationFunction(body, httpctx, "body"),
+		ValidateRef:        data.validateRef,
+		Example:            body.Example(sds.examplesFor(sd)),
+		Value:              value,
+		View:               viewName,
 	}
 }
 
@@ -375,7 +377,7 @@ func applyUserResponseBodyTypeData(data *responseBodyTypeData, body *expr.Attrib
 			validationContext = httpctx.Dup()
 			validationContext.Pointer = data.ref != bodyRef
 		}
-		data.validateDef = codegen.ValidationCode(body, ut, validationContext, true, expr.IsAlias(body.Type), false, "body")
+		data.validateDef = codegen.ValidationCode(body, ut, codegen.NamedValidationFunction(body, validationContext, "body").Context(validationContext), true, expr.IsAlias(body.Type), false, "body")
 		if data.validateDef == "" && serverRequestValidation {
 			data.validateDef = "// no validations"
 		}

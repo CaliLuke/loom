@@ -41,6 +41,10 @@ type (
 		// ValidationPrefix overrides the default "Validate" prefix of named
 		// validation helpers. It does not affect type references.
 		ValidationPrefix string
+		validationRoot   string
+		validationPath   string
+		// validationValue marks an unwrapped object value, not its field layout.
+		validationValue bool
 		// Scope is the attribute scope.
 		Scope Attributor
 		// DefaultPkg is the default package name where the attribute
@@ -356,6 +360,9 @@ func (a *AttributeContext) Dup() *AttributeContext {
 		UseDefault:                a.UseDefault,
 		Scope:                     a.Scope,
 		ValidationPrefix:          a.ValidationPrefix,
+		validationRoot:            a.validationRoot,
+		validationPath:            a.validationPath,
+		validationValue:           a.validationValue,
 		DefaultPkg:                a.DefaultPkg,
 		SamePackageConversion:     a.SamePackageConversion,
 		JSONPresence:              a.JSONPresence,

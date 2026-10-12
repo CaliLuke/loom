@@ -15,7 +15,7 @@ import (
 //
 // See ValidationCode for a description of the arguments.
 func AttributeValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *AttributeContext, req, alias bool, target, attName string) string {
-	return recurseValidationCode(att, put, attCtx, req, alias, false, target, attName, nil).String()
+	return recurseValidationCode(att, put, attCtx, req, alias, false, target, attName).String()
 }
 
 // ValidationCode produces Go code that runs the validations defined in the
@@ -39,7 +39,7 @@ func AttributeValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx 
 //
 // context is used to produce helpful messages in case of error.
 func ValidationCode(att *expr.AttributeExpr, put expr.UserType, attCtx *AttributeContext, req, alias, view bool, target string) string {
-	return recurseValidationCode(att, put, attCtx, req, alias, view, target, target, nil).String()
+	return recurseValidationCode(att, put, attCtx, req, alias, view, target, target).String()
 }
 
 func renderSimplePointerWrappedValidation(isPointer bool, target, body string) string {

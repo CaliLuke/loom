@@ -166,14 +166,15 @@ func (sds *ServicesData) attributeTypeData(ut expr.UserType, req, ptr, server, j
 		example = att.Example(sds.examplesFor(rd))
 	}
 	return &TypeData{
-		Name:        ut.Name(),
-		VarName:     name,
-		Description: desc,
-		Def:         goValueTypeDef(rd.Scope, ut.Attribute(), hctx.Pointer, hctx.UseDefault, hctx.JSONPresence),
-		Ref:         rd.Scope.GoTypeRef(att),
-		ValidateDef: validate,
-		ValidateRef: validateRef,
-		Example:     example,
+		Name:               ut.Name(),
+		VarName:            name,
+		Description:        desc,
+		Def:                goValueTypeDef(rd.Scope, ut.Attribute(), hctx.Pointer, hctx.UseDefault, hctx.JSONPresence),
+		Ref:                rd.Scope.GoTypeRef(att),
+		ValidateDef:        validate,
+		validationFunction: codegen.NamedValidationFunction(att, hctx, "body"),
+		ValidateRef:        validateRef,
+		Example:            example,
 	}
 }
 
@@ -183,7 +184,7 @@ func attributeValidationDefinition(ut expr.UserType, req, server bool, rd *Servi
 	}
 	// Generate validations for responses client-side and for requests
 	// server-side and CLI. Alias types are validated inline in the parent type.
-	validate := codegen.ValidationCode(ut.Attribute(), ut, hctx, true, expr.IsAlias(ut), false, "body")
+	validate := codegen.ValidationCode(ut.Attribute(), ut, codegen.NamedValidationFunction(&expr.AttributeExpr{Type: ut}, hctx, "body").Context(hctx), true, expr.IsAlias(ut), false, "body")
 	serverUnionBranch := server && rd.ServerRequestValidationTypes[ut.Hash()]
 	clientRequestStub := req && !server && needsClientRequestBodyValidatorStub(ut)
 	if validate == "" && (serverUnionBranch || clientRequestStub) {

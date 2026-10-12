@@ -29,17 +29,31 @@ func NewMethodResult(message *using_meta_typespb.MethodResponse) *usingmetatypes
 }
 
 // ValidateMethodRequest runs the validations defined on MethodRequest.
-func ValidateMethodRequest(message *using_meta_typespb.MethodRequest) (err error) {
+func ValidateMethodRequest(message *using_meta_typespb.MethodRequest, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.B == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("b", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("b", validationPath))
 	}
 	return
 }
 
 // ValidateMethodResponse runs the validations defined on MethodResponse.
-func ValidateMethodResponse(message *using_meta_typespb.MethodResponse) (err error) {
+func ValidateMethodResponse(message *using_meta_typespb.MethodResponse, validationContext ...string) (err error) {
+	validationPath := "message"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if message.B == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("b", "message"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("b", validationPath))
 	}
 	return
 }

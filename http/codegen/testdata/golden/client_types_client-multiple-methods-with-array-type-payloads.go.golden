@@ -41,18 +41,32 @@ func NewPayloadBRequestBody(p []*servicemultiplemethods.PayloadB) []*PayloadBReq
 
 // ValidatePayloadARequestBody runs the validations defined on
 // PayloadARequestBody
-func ValidatePayloadARequestBody(body *PayloadARequestBody) (err error) {
+func ValidatePayloadARequestBody(body *PayloadARequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.A != nil {
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", *body.A, loomPatternTest0))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".a", *body.A, loomPatternTest0))
 	}
 	return
 }
 
 // ValidatePayloadBRequestBody runs the validations defined on
 // PayloadBRequestBody
-func ValidatePayloadBRequestBody(body *PayloadBRequestBody) (err error) {
-	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.a", body.A, loomPatternTest0))
-	err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", body.B, loomPatternTest1))
+func ValidatePayloadBRequestBody(body *PayloadBRequestBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
+	err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".a", body.A, loomPatternTest0))
+	err = loom.MergeErrors(err, loom.ValidatePatternCompiled(validationPath+".b", body.B, loomPatternTest1))
 	return
 }
 
