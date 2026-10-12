@@ -1,7 +1,8 @@
 # Example interceptor ownership readiness
 
 Status: independently approved by `/root/review_artifacts` on 2026-10-12;
-implementation complete; integrated review pending. Owning ticket: #741.
+delivered as `23f2af5d` after independent integrated review and pushed to main.
+Owning ticket: #741.
 Parent: `41b4a8a35d5effc908f3533da4a2df40e013b59f`, which delivers
 #670. Worktree: `/Users/luca/.codex/worktrees/example-interceptor-ownership/loom`.
 Root prepared this record from the live issue,
@@ -48,7 +49,7 @@ with Go 1.27.2 on main parent `096a793b` plus the staged #670 candidate
 Both server/client existing output files were overwritten; both cwd-only files
 suppressed the output declaration. The interceptor source is unchanged from the
 parent, SHA-256 `48c3e6778cefa987670b997c017f1c1883368b9b2b354de34132b0de7eac3665`.
-The retained probe is
+The temporary probe was
 `/var/folders/v7/x61rxqvx60q5w_p9jwgc9t_m0000gn/T/loom-741-readiness-izaek4i2/probe_test.go`
 (SHA-256 `3bae95637fcee8ab8d7bb754fb3824db9da1d31b518f7b27b27f8b9cf0e54789`).
 Command: `go test -overlay <probe-directory>/overlay.json ./codegen/service -run '^TestReadinessExampleInterceptorOwnership$' -count=1`.
@@ -84,7 +85,7 @@ missing user-facing detail. No shared skill change is expected.
 Freeze exact files and hashes after checks. A fresh reviewer must approve the
 integrated diff against its intended parent before the single #741 commit.
 Root updates the master tracker, pushes, then removes temporary comparison
-outputs once no reviewer needs them. Delivery is pending.
+outputs once no reviewer needs them. Delivery and cleanup are complete.
 
 ## Implementation evidence
 
@@ -149,7 +150,7 @@ limits remain unchanged.
 
 `go vet ./codegen/service`, `make lint-namescope lint-gofmt`, and
 `git diff --check` pass. `make lint-json-v2` is blocked by the existing
-`jsonrpc/codegen/recursive_projection_test.go` import of `encoding/json` at line
+`jsonrpc/codegen/recursive_projection_test.go` import of the legacy JSON package at line
 45 and use of `json.RawMessage` at line 99. `git grep` at the exact parent
 confirms both, and candidate/archived-parent file SHA-256 is identical:
 `4607ff91ef6508858594283b57cab88a9ca6246f0977752ced0f180afff2f766`.
@@ -161,11 +162,11 @@ the comparison parent and integration parent, only roadmap records and that
 unrelated test harness changed; interceptor generator/runtime inputs remain
 identical, so the bounded #741 output evidence remains applicable.
 
-Review scratch is
+Review scratch was
 `/var/folders/v7/x61rxqvx60q5w_p9jwgc9t_m0000gn/T/loom-741-compare.0s9puy_n`.
 It contains `compare.py` (the exact commands and assertions), `receipts.json`
 (every CLI/build/vet command, working directory, exit code and output), three
 output hash manifests, `summary.json`, and `red.log`. These temporary inputs
-and checker receipts are retained only until review and then removed; the
+and checker receipts were removed after review and delivery; the
 reproduction inputs and concise results above remain durable. No #670 scratch
 or previous worktree was reused or changed.

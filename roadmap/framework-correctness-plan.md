@@ -84,6 +84,8 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 - 2026-10-12 — Completed #741 comparison and readiness-probe scratch was removed after independent review, delivery and an active-process check. Managed archive of `/Users/luca/.codex/worktrees/example-interceptor-ownership/loom` was refused as protected by a pinned task or workspace; its source stays attached. Durable reproduction and results remain in the committed readiness record.
 
+- 2026-10-12 — User explicitly set the goal to work through the entire tracked backlog without stopping at status updates. Root verified GitHub state: owning #724, #713, #788, #670 and #741 were already closed by their pushed commits; root closed resolved witnesses #725, #730 and #779 as completed. Recovery checkpoint `4c7bd8d7` is pushed. All eight delivered reports are now closed. #716 and #708 candidates are frozen for integration/review; #755 continues final validation. A historical JSON-package reference in #741 evidence triggered the Markdown lint scan; its wording is corrected without changing the evidence, and delivery/cleanup status is made current.
+
 ## Recovery and delivery
 
 Read this entire file, repository `AGENTS.md`, `.agents/skills/loom-framework/SKILL.md`, and the applicable model README before resuming. Inspect `git status`, `git log`, attached managed worktrees, and agent status before assigning work. Never assume a running agent or uncommitted diff is abandoned. Do not use git clean, stash, reset, or checkout.
