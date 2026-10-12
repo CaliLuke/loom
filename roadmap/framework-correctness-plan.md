@@ -42,6 +42,28 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 - 2026-10-12 — WebSocket readiness approved for models/regressions only. Root requested the public overload contract (explicit close/cancel at configurable buffer bound, recommended, versus backpressure with delayed disconnect detection). #716 is a separately scoped proposed prerequisite using the existing HTTP 32 MiB individual-message bound and configurable policy; no lifecycle source edits until contract/dependency readiness is settled.
 
+- 2026-10-12 — Recovery checkpoint committed and pushed as `096a793b`, independently reviewed by `/root/review_auth`. Completed projection scratch outputs were removed; its managed worktree could not be archived because it is protected by a pinned task or workspace.
+
+- 2026-10-12 — #670 candidate integrated and staged on `096a793b`. `/root/review_artifacts` found a P1 in the exact 28-file diff: a stable live symlink such as `alias -> gen` bypasses lexical create-only admission, so replacing `gen/` can destroy the supposedly protected file. **No commit authorized.** `/root/artifact_ownership` is repairing shared live-path admission and adding the counterexample in its existing worktree. Re-review is required; root must preserve its integrated shared documentation deltas when copying repairs.
+
+- 2026-10-12 — Milestone 6 readiness assigned to `/root/effective_design` in `/Users/luca/.codex/worktrees/effective-design-validation/loom` at `ce3f6a73`. Proposed owner #755 with #757 as a shared composition-order witness. Existing effective-constraint analysis must own refinement; multiple-base precedence and phase dependencies require concrete readiness review. No implementation released.
+
+- 2026-10-12 — #716 prerequisite exploration now covers the decompressed message size as well as Gorilla's framing limit. Root accepted a configurable, symmetric 32 MiB default concept for HTTP/JSON-RPC clients and servers, with protocol close 1009 for oversized messages. Exact attachment/configuration API readiness remains pending before production edits. #722 overload semantics still await the user's answer; legacy models and direct/generated red regressions are available in the WebSocket worktree.
+
+- 2026-10-12 — #716 concrete API approved: immutable `http.WebSocketConfig` owns the message cap and existing configuration hook; an unattached `WebSocketStream` configures and adopts the socket through one `SetConn` path. HTTP per-endpoint configuration and JSON-RPC configuration pass the same value. Context-carried limits were rejected during design because JSON-RPC shares connections across calls. Agent may implement this separate prerequisite after red tests/models, updating its readiness record first. #722 pump/overload behavior remains gated.
+
+- 2026-10-12 — #755/#757 readiness independently reviewed by root; models and failing regressions released. Explicit nullable overlay provenance and identity/codec metadata classifications must be recorded before production changes. #741 follow-up readiness is drafted in `roadmap/example-interceptor-ownership-readiness.md`; root reproduced both server/client overwrites and cwd-only suppression with an overlay probe. That follow-up still awaits independent readiness approval and a post-#670 parent.
+
+- 2026-10-12 — #755/#757 production implementation released after root reviewed the completed nullable/metadata readiness delta and model correspondence. Ten red cases reproduce the intended defects; three preservation controls pass. Four model controls fail as expected and the corrected bounded model passes five invariants across 246 states. These are design/reproduction results, not final implementation acceptance. Agent `/root/effective_design` continues in its recorded worktree.
+
+- 2026-10-12 — **User accepted the WebSocket overload contract:** close the connection and cancel its context when the configurable buffer limit is exceeded. Agent `/root/websocket_lifetime` notified. #716 remains the separate message-size prerequisite; #722 follows with bounded raw-message accounting and explicit overload termination. The previous pending public-policy question is resolved; implementation and final validation are still outstanding.
+
+- 2026-10-12 — #670 alias repair integrated and staged on `096a793b`; `/root/review_artifacts` owns re-review of the 31-file final diff (SHA-256 `5ae6031981d106005daa9579ae499a3e77212e99dde68ebff2b4f1349b2e78b6`). Original reproduction now passes; live parent resolution, absent descendants, filesystem identity and reserved case variants are covered. Agent validation and refined model pass, but commit remains gated on re-review. #741 readiness is being reviewed separately and is excluded from this staged candidate.
+
+- 2026-10-12 — **Delivered #670:** commit `41b4a8a3` on parent `096a793b`, pushed to `origin/main`. `/root/review_artifacts` confirmed the P1 alias finding fixed and authorized the exact 31-file diff above with no unresolved findings. Independent original-reproduction, policy/renderer/generator/CLI, real-plugin, vet and whitespace checks pass; filesystem-identity tests ran without skips. Durable evidence: `cmd/loom/tla/artifact_write_intent/README.md`. Update the CLI and design-module dependency together. #741 and cross-device #751 remain separate.
+
+- 2026-10-12 — #741 readiness independently approved by `/root/review_artifacts`. Follow-up worktree created at `41b4a8a3`: `/Users/luca/.codex/worktrees/example-interceptor-ownership/loom`. Its declaration-only correction reuses #670's ownership machinery; source implementation is next after this recovery checkpoint. Root retains the red overlay probe until its regression is incorporated.
+
 ## Recovery and delivery
 
 Read this entire file, repository `AGENTS.md`, `.agents/skills/loom-framework/SKILL.md`, and the applicable model README before resuming. Inspect `git status`, `git log`, attached managed worktrees, and agent status before assigning work. Never assume a running agent or uncommitted diff is abandoned. Do not use git clean, stash, reset, or checkout.
@@ -63,6 +85,7 @@ Use direct regressions and affected packages, then bounded generated comparisons
 - Unknown service errors disclose a generic public message while retaining their cause for server-side diagnosis. Designed public errors and native protocol termination keep their contracts.
 - Defaults fill absence and never replace explicit zero. Presence is independent of value. Explicit empty scalars survive encoding. Explicitly present empty arrays/maps must survive as empty values, distinct from absence. This supersedes the old nil/empty policy when Milestone 7 is implemented; model presence explicitly rather than infer it from length.
 - Runtime owners control resource lifetime; generators provide typed adapters. Worker publication must not expose an unready worker. Lost replies require reconciliation rather than assuming rollback.
+- WebSocket buffer overload is terminal: close the connection and cancel its context when its configured buffer budget is exceeded. Do not silently discard a message and continue. Bound raw-message storage explicitly and document memory outside that bound; the independently configured per-message limit remains a separate check.
 - Local scheduler cancellation is provisionally intended to stop local participation, not delete the global schedule. Consumer evidence and a recorded contract decision are required before changing that behavior.
 - `Extend` same-type redeclarations refine inherited constraints without weakening guarantees. For example, an inherited minimum 0 plus derived maximum 100 admits 0–100; incompatible types, contradictory constraints, or weakening inherited requiredness fail design validation. Preserve authored intent and document the exact composition of defaults/metadata in slice readiness.
 - `gen/` is wholly framework-owned and regenerated. Reject create-only (`SkipExist`) declarations inside it before live mutation. Outside it, create-only files preserve any existing destination and create an absent destination atomically.
@@ -260,6 +283,7 @@ Acceptance Criteria
 
 Checklist
 
+- [x] Deliver promoted #670 artifact write-intent ownership; independent review, commit `41b4a8a3`, push and integration complete. Evidence: `cmd/loom/tla/artifact_write_intent/README.md`.
 - [ ] Reconcile inventory residuals, including #670/#741 file ownership and #708 proxy trust, against final integrated source; promote each supported defect to a separately reviewed bounded task.
 - [ ] Run targeted adversarial review of repaired owners and their consumers; record new counterexamples and update task acceptance before implementation.
 - [ ] Run `make lint`, `make test` and integration checks selected by actual changed behavior; record exact source and outstanding blockers. Do not start a full exported-design audit without a named purpose and cost budget.

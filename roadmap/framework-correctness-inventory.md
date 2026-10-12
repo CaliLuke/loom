@@ -6,7 +6,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 
 | Finding | Candidate owner | Disposition |
 | --- | --- | --- |
-| [#670: [P1] loom gen overwrites existing plugin files marked SkipExist](https://github.com/CaliLuke/loom/issues/670) | File generation ownership (next after first wave) | Implementation/validation in progress; accepted gen-tree rejection and external create-only ownership |
+| [#670: [P1] loom gen overwrites existing plugin files marked SkipExist](https://github.com/CaliLuke/loom/issues/670) | File generation ownership | Delivered `41b4a8a3`: intent-preserving installation and shared admission, including stable gen-tree aliases; reviewed and pushed |
 | [#679: [P2] http/middleware: Debug wrapper hides Flush/Unwrap, breaking SSE and streaming](https://github.com/CaliLuke/loom/issues/679) | Logging / observation (M11) | Pending detailed reconciliation |
 | [#680: [P2] http/middleware: Debug replaces failed request body with its own error text](https://github.com/CaliLuke/loom/issues/680) | Logging / observation (M11) | Pending detailed reconciliation |
 | [#681: [P2] codegen: integer Minimum/Maximum bounds lose precision and MaxInt64 generates uncompilable code](https://github.com/CaliLuke/loom/issues/681) | Value representation (M7) | Pending detailed reconciliation |
@@ -69,7 +69,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#738: [P3] pulse/pool: NewTicker leaks its map subscription and context when SetAndWait fails](https://github.com/CaliLuke/loom/issues/738) | Resource construction / publication (M10) | Pending detailed reconciliation |
 | [#739: [P2] jsonrpc: WebSocket client Recv drops an already received response as a timeout](https://github.com/CaliLuke/loom/issues/739) | Stream lifetime (M5) | Pending detailed reconciliation |
 | [#740: [P3] grpc codegen: nil collection elements in a service result or payload panic the generated conversion](https://github.com/CaliLuke/loom/issues/740) | Value representation (M7) | Pending detailed reconciliation |
-| [#741: [P2] codegen/service: example interceptor files are guarded by a cwd-relative stat and overwrite files in the output directory](https://github.com/CaliLuke/loom/issues/741) | File generation ownership (M11) | Pending detailed reconciliation |
+| [#741: [P2] codegen/service: example interceptor files are guarded by a cwd-relative stat and overwrite files in the output directory](https://github.com/CaliLuke/loom/issues/741) | File generation ownership (next after #670) | Readiness independently approved; both overwrite and cwd-only suppression reproduced for server/client declarations; implementation pending |
 | [#742: [P3] vet: generated-design-skew compares every manifest in the module against one design](https://github.com/CaliLuke/loom/issues/742) | Generation manifest identity (M11) | Pending detailed reconciliation |
 | [#743: [P2] grpc: client-streaming server waits for the first frame before authenticating, so unauthenticated clients can hold the RPC open](https://github.com/CaliLuke/loom/issues/743) | Authentication (M2) | Pending detailed reconciliation |
 | [#744: [P2] clue/debug: per-request debug middleware mutates logger options shared across requests (data race)](https://github.com/CaliLuke/loom/issues/744) | Logging / observation (M11) | Pending detailed reconciliation |
