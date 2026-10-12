@@ -6,7 +6,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 
 | Finding | Candidate owner | Disposition |
 | --- | --- | --- |
-| [#670: [P1] loom gen overwrites existing plugin files marked SkipExist](https://github.com/CaliLuke/loom/issues/670) | File generation ownership (M11) | Pending detailed reconciliation |
+| [#670: [P1] loom gen overwrites existing plugin files marked SkipExist](https://github.com/CaliLuke/loom/issues/670) | File generation ownership (next after first wave) | Readiness in progress: preserve artifact write intent through installation |
 | [#679: [P2] http/middleware: Debug wrapper hides Flush/Unwrap, breaking SSE and streaming](https://github.com/CaliLuke/loom/issues/679) | Logging / observation (M11) | Pending detailed reconciliation |
 | [#680: [P2] http/middleware: Debug replaces failed request body with its own error text](https://github.com/CaliLuke/loom/issues/680) | Logging / observation (M11) | Pending detailed reconciliation |
 | [#681: [P2] codegen: integer Minimum/Maximum bounds lose precision and MaxInt64 generates uncompilable code](https://github.com/CaliLuke/loom/issues/681) | Value representation (M7) | Pending detailed reconciliation |
@@ -41,7 +41,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#710: [P3] expr: HTTP header and cookie names are not validated as tokens](https://github.com/CaliLuke/loom/issues/710) | Effective design validation (M6) | Pending detailed reconciliation |
 | [#711: [P2] http/codegen: generated WebSocket Close skips conn.Close when the close frame write fails, leaking the socket](https://github.com/CaliLuke/loom/issues/711) | Stream lifetime (M5) | Pending detailed reconciliation |
 | [#712: [P2] http/codegen: server-streaming WebSocket client leaks its goroutine and socket after a non-normal read error](https://github.com/CaliLuke/loom/issues/712) | Stream lifetime (M5) | Pending detailed reconciliation |
-| [#713: [P2] grpc, jsonrpc: unclassified service errors expose raw error text that HTTP hides](https://github.com/CaliLuke/loom/issues/713) | Safe error disclosure (M4) | Pending detailed reconciliation |
+| [#713: [P2] grpc, jsonrpc: unclassified service errors expose raw error text that HTTP hides](https://github.com/CaliLuke/loom/issues/713) | Safe error disclosure (M4) | In progress: shared public-message owner; final evidence pending |
 | [#714: [P2] http/codegen: WebSocket handler leaves the hijacked connection open when the service returns](https://github.com/CaliLuke/loom/issues/714) | Stream lifetime (M5) | Pending detailed reconciliation |
 | [#715: [P2] http: generated client silently mutates request cookie values that net/http sanitizes](https://github.com/CaliLuke/loom/issues/715) | Wire contracts / importer (M9) | Pending detailed reconciliation |
 | [#716: [P2] http: WebSocket inbound messages have no default size limit](https://github.com/CaliLuke/loom/issues/716) | Stream lifetime (M5) | Pending detailed reconciliation |
@@ -52,13 +52,13 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#721: [P3] clue/log: HTTP request and client logging record query-string credentials](https://github.com/CaliLuke/loom/issues/721) | Logging / observation (M11) | Pending detailed reconciliation |
 | [#722: [P2] websocket: service method context is never canceled when the client disconnects while the method is not reading](https://github.com/CaliLuke/loom/issues/722) | Stream lifetime (M5) | Pending detailed reconciliation |
 | [#723: [P3] jsonrpc: generated server panics on a failed notification when errhandler is nil](https://github.com/CaliLuke/loom/issues/723) | JSON-RPC / error contracts (M11) | Pending detailed reconciliation |
-| [#724: [P1] expr: method-level Security does not replace inherited SessionSecurity, widening accepted credentials](https://github.com/CaliLuke/loom/issues/724) | Authentication (M2) | Pending detailed reconciliation |
-| [#725: [P3] expr: Security combined with NoSecurity on one method is accepted and silently left unauthenticated](https://github.com/CaliLuke/loom/issues/725) | Authentication (M2) | Pending detailed reconciliation |
+| [#724: [P1] expr: method-level Security does not replace inherited SessionSecurity, widening accepted credentials](https://github.com/CaliLuke/loom/issues/724) | Authentication (M2) | Delivered in `544c57f3`; nearest-scope ownership, independently reviewed and pushed |
+| [#725: [P3] expr: Security combined with NoSecurity on one method is accepted and silently left unauthenticated](https://github.com/CaliLuke/loom/issues/725) | Authentication (M2) | Verified contradiction witness in `544c57f3`; both declaration orders and ordinary/session cases |
 | [#726: [P2] grpc codegen: stream *WithContext methods ignore their context](https://github.com/CaliLuke/loom/issues/726) | Stream lifetime (M5) | Pending detailed reconciliation |
 | [#727: [P2] http/codegen: SSE SetView projects the selected view but always encodes the default view's body](https://github.com/CaliLuke/loom/issues/727) | Projection (M3) | Pending detailed reconciliation |
 | [#728: [P2] jsonrpc: Security with a payload token on a WebSocket method panics instead of failing validation](https://github.com/CaliLuke/loom/issues/728) | Authentication (M2) | Pending detailed reconciliation |
 | [#729: [P2] expr: two unmapped credentials in one method both map to the Authorization header](https://github.com/CaliLuke/loom/issues/729) | Authentication (M2) | Pending detailed reconciliation |
-| [#730: [P2] codegen/service: adjacent result-type fields skip the view-aware conversion and the client panics with a nil dereference](https://github.com/CaliLuke/loom/issues/730) | Projection (M3) | Pending detailed reconciliation |
+| [#730: [P2] codegen/service: adjacent result-type fields skip the view-aware conversion and the client panics with a nil dereference](https://github.com/CaliLuke/loom/issues/730) | Projection (M3) | Candidate regression witness for #788; final reconciliation pending |
 | [#731: [P2] http: constraints on Basic-auth Username and Password are not validated by the generated decoder](https://github.com/CaliLuke/loom/issues/731) | Authentication (M2) | Pending detailed reconciliation |
 | [#732: [P2] http: Basic-or-Bearer security alternatives reject valid Basic credentials with 400](https://github.com/CaliLuke/loom/issues/732) | Authentication (M2) | Pending detailed reconciliation |
 | [#733: [P2] http/codegen: renamed user types are referenced by their unrenamed name in array and map element conversions](https://github.com/CaliLuke/loom/issues/733) | Generated identity (M8) | Pending detailed reconciliation |
@@ -106,16 +106,16 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#776: [P2] OpenAPI import: inline object schemas without properties are imported as strings](https://github.com/CaliLuke/loom/issues/776) | Wire contracts / importer (M9) | Pending detailed reconciliation |
 | [#777: [P2] OpenAPI import: null enum members and const null render a design that fails to evaluate](https://github.com/CaliLuke/loom/issues/777) | Wire contracts / importer (M9) | Pending detailed reconciliation |
 | [#778: [P3] OpenAPI import: a nullable enum that excludes null is imported as one that accepts null](https://github.com/CaliLuke/loom/issues/778) | Wire contracts / importer (M9) | Pending detailed reconciliation |
-| [#779: [P2] codegen/service: result types in OneOf branches ignore views, leaking omitted attributes and breaking compilation](https://github.com/CaliLuke/loom/issues/779) | Projection (M3) | Pending detailed reconciliation |
+| [#779: [P2] codegen/service: result types in OneOf branches ignore views, leaking omitted attributes and breaking compilation](https://github.com/CaliLuke/loom/issues/779) | Projection (M3) | Candidate regression witness for #788; final reconciliation pending |
 | [#780: [P3] expr: a required payload or error attribute that no HTTP mapping binds is accepted and arrives as the zero value](https://github.com/CaliLuke/loom/issues/780) | Effective design validation (M6) | Pending detailed reconciliation |
 | [#781: [P2] expr: endpoints with the same method and path are accepted and later Mount silently shadows earlier ones](https://github.com/CaliLuke/loom/issues/781) | Effective design validation (M6) | Pending detailed reconciliation |
 | [#782: [P2] codegen/service: an interceptor used on the client for a method it does not cover on the server panics in its typed accessors](https://github.com/CaliLuke/loom/issues/782) | Interceptor / client generation (M11) | Pending detailed reconciliation |
 | [#783: [P2] OpenAPI import: descriptions of non-object schemas are dropped without a diagnostic](https://github.com/CaliLuke/loom/issues/783) | Wire contracts / importer (M9) | Pending detailed reconciliation |
-| [#784: [P2] http/codegen: union attributes excluded by every view still emit a union type whose branch types are undefined](https://github.com/CaliLuke/loom/issues/784) | Projection (M3) | Pending detailed reconciliation |
+| [#784: [P2] http/codegen: union attributes excluded by every view still emit a union type whose branch types are undefined](https://github.com/CaliLuke/loom/issues/784) | Projection (M3) | Reproduced residual after #788: separate HTTP client/server union declaration ownership; excluded from #788 |
 | [#785: [P2] codegen/service: streaming interceptors on JSON-RPC SSE and WebSocket methods generate uncompilable wrappers or fail loom gen](https://github.com/CaliLuke/loom/issues/785) | Interceptor / client generation (M11) | Pending detailed reconciliation |
 | [#786: [P3] codegen/service: interceptor wrapper names concatenate method and interceptor names and can collide](https://github.com/CaliLuke/loom/issues/786) | Generated identity (M8) | Pending detailed reconciliation |
 | [#787: [P2] OpenAPI import: a single +json request media type is rewritten to application/json](https://github.com/CaliLuke/loom/issues/787) | Wire contracts / importer (M9) | Pending detailed reconciliation |
-| [#788: [P2] codegen/service: ArrayOf and MapOf result-type elements skip view projection, so gRPC sends attributes the view omits](https://github.com/CaliLuke/loom/issues/788) | Projection (M3) | Pending detailed reconciliation |
+| [#788: [P2] codegen/service: ArrayOf and MapOf result-type elements skip view projection, so gRPC sends attributes the view omits](https://github.com/CaliLuke/loom/issues/788) | Projection (M3) | In progress: #788 projection owner; final evidence pending |
 | [#789: [P2] OpenAPI import: schema properties that map to the same Go field render a design that fails to evaluate](https://github.com/CaliLuke/loom/issues/789) | Generated identity (M8) | Pending detailed reconciliation |
 | [#790: [P2] jsonrpc: ID attribute constraints are checked on params.id, not on the envelope id the service receives](https://github.com/CaliLuke/loom/issues/790) | JSON-RPC / error contracts (M11) | Pending detailed reconciliation |
 | [#791: [P2] OpenAPI import: object and nested-array query, header and path parameters render a design that fails to evaluate](https://github.com/CaliLuke/loom/issues/791) | Wire contracts / importer (M9) | Pending detailed reconciliation |
@@ -127,3 +127,7 @@ Inventory count: 115 reports (114 in the requested open range, plus #670).
 ## Structural delivery tickets
 
 Initial owning-ticket candidates are #724 for authentication scope and #788 for recursive projection. Reviewed slice records must settle scope, linked witnesses and acceptance before implementation. Distinct causes remain separate tasks; no family-wide closure by inference.
+
+## Newly observed residuals
+
+- Session injection with no payload: authentication agent reproduced a separate panic in `expr/method_session.go` while building the #724 matrix. Exact reproduction and baseline evidence are being preserved by that agent. It is not included in the scope-selection repair.

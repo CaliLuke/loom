@@ -10,6 +10,22 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 - 2026-10-12 — Auth owner: agent `/root/auth`, worktree `/Users/luca/.codex/worktrees/auth-contract/loom`. Projection owner: agent `/root/projection`, worktree `/Users/luca/.codex/worktrees/recursive-projection/loom`. Both are inventory-only pending slice readiness. Root recited and adopted the test-first, model-first, bounded-evidence, independent-review and atomic-delivery workflow.
 - 2026-10-12 — Inventory contains all 114 open reports in #679–#793 plus #670. Independent reviewer requested exact per-slice readiness records and full unary/stream error-disclosure inventory; corrections are being applied.
 
+- 2026-10-12 — Planning artifacts independently reviewed by `/root/plan_review`, committed as `eb5a169b`, and pushed to `origin/main`. Auth readiness: `/Users/luca/.codex/worktrees/auth-contract/loom/roadmap/auth-contract-readiness.md`; projection readiness: `/Users/luca/.codex/worktrees/recursive-projection/loom/roadmap/recursive-projection-readiness.md`. Both await final scoped readiness approval.
+
+- 2026-10-12 — Authentication #724 readiness approved independently; implementation released. #725 is its declaration-resolution witness. Decoder alternatives, constraints and stream admission remain separate tasks. Pristine baseline worktree: `/Users/luca/.codex/worktrees/correctness-baseline/loom`; do not mutate it. Error-disclosure preparation assigned to `/root/plan_review` in `/Users/luca/.codex/worktrees/safe-error-disclosure/loom`.
+
+- 2026-10-12 — Projection #788 readiness approved independently and implementation released. Auth baseline tests and two legacy TLA controls reproduced #724/#725; corrected model checks 2048 states and direct expr/security/service suites pass during implementation. Final generated evidence and exact-diff review are still pending. Public decisions on Extend redeclaration and collection presence were requested asynchronously; dependent changes remain gated.
+
+- 2026-10-12 — Error disclosure #713 readiness independently approved by root; implementation released. Legacy public-message model and direct tests reproduce leaks; corrected model and direct regressions pass during implementation. Generated unary/SSE/WebSocket evidence and final review remain pending. Auth generated security checks and bounded output/determinism comparisons pass; its final evidence record is being prepared.
+
+- 2026-10-12 — **Delivered #724 / #725 witness:** commit `544c57f3` on parent `eb5a169b`, pushed to `origin/main`. `/root/review_auth` approved the exact 19-file integrated diff (SHA-256 `c40b9ae4c7279e9013b35811702995c441a6cfe28ce787dcccace4e89f79571e`) with no findings. Reviewer independently reran expr/security/service, focused three-transport security tests, both failing legacy models and the passing 2,048-state model. Paths, failing baseline, intended generated differences and commands are recorded in `roadmap/auth-contract-readiness.md` and `expr/tla/authentication_scope/README.md`. Regenerate consuming adapters. Remaining authentication tasks stay open.
+
+- 2026-10-12 — Projection #788 passes generated HTTP/gRPC wire checks during implementation. #784 reproduces after the shared projection fix: HTTP client/server union declaration registries need separate ownership; it is excluded from #788, as is SSE body selection #727. Error #713 passes direct runtime and generated gRPC/HTTP/JSON-RPC unary/SSE/WebSocket regressions; bounded baseline/output comparisons remain in progress.
+
+- 2026-10-12 — Priority refinement: promote P1 file-overwrite #670 from residual reconciliation to the next integration slot after the first wave, before Milestone 5. Agent `/root/artifact_ownership` owns readiness preparation in `/Users/luca/.codex/worktrees/artifact-write-intent/loom` at `eb5a169b`. The scope must preserve write intent through rendering and transactional installation; #741 is being reconciled as a consumer-policy witness, while cross-device #751 stays separate. No source implementation is released until readiness approval.
+
+- 2026-10-12 — #724 validation scratch/model output was removed after review and delivery. Managed archive of `/Users/luca/.codex/worktrees/auth-contract/loom` was refused because the checkout is protected by a pinned task or workspace; it remains attached and is no longer needed for implementation. Durable evidence is committed.
+
 ## Recovery and delivery
 
 Read this entire file, repository `AGENTS.md`, `.agents/skills/loom-framework/SKILL.md`, and the applicable model README before resuming. Inspect `git status`, `git log`, attached managed worktrees, and agent status before assigning work. Never assume a running agent or uncommitted diff is abandoned. Do not use git clean, stash, reset, or checkout.
@@ -50,8 +66,8 @@ Checklist
 
 - [x] Read this plan and the framework skill; recite milestone order, exit criteria, named commands, test-first procedure, independent-review gate, commit/push handoff, and repository constraints before editing implementation.
 - [x] Fetch reports with `gh issue list --repo CaliLuke/loom --state open --label code-review --limit 200 --json number,title,body,labels,url`; reconcile their owners in `roadmap/framework-correctness-inventory.md`.
-- [ ] Review first-wave loci with `rg -n 'EffectiveRequirements|inheritedRequirements|inheritedSessionAuths|buildConstructorCode|ErrorSafeMessage|newErrorResponse' expr codegen security http grpc jsonrpc pkg` and map every relevant consumer to acceptance coverage.
-- [ ] Obtain independent readiness and exact-diff review of the planning artifact; run `git diff --check`; commit and push the initial recovery plan.
+- [x] Review first-wave loci with `rg -n 'EffectiveRequirements|inheritedRequirements|inheritedSessionAuths|buildConstructorCode|ErrorSafeMessage|newErrorResponse' expr codegen security http grpc jsonrpc pkg` and map every relevant consumer to acceptance coverage.
+- [x] Obtain independent readiness and exact-diff review of the planning artifact; run `git diff --check`; commit and push the initial recovery plan.
 
 ### Milestone 2: One effective authentication contract
 
@@ -65,9 +81,10 @@ Acceptance Criteria
 
 Checklist
 
+- [x] Deliver #724 nearest-scope ownership with #725 contradiction witness; independent review, commit `544c57f3`, push and integration complete. Evidence: `expr/tla/authentication_scope/README.md`.
 - [ ] Inventory `rg -n 'EffectiveRequirements|SessionAuths|Requirements|DecodeBearer|BasicAuth|writeGRPCStreamInputDecode' expr security codegen/service http/codegen grpc/codegen jsonrpc/codegen`; reconcile #724, #725, #729, #731, #732, #743, #752 and #728 by exact cause, splitting distinct structural tasks before implementation.
 - [ ] Add failing direct regressions at `expr/method_test.go` and relevant transport security tests; record the failing commands and scope-selection model before implementation.
-- [ ] Replace independent security inheritance in `expr/method.go` with one effective owner; derive consumer behavior from it and delete superseded selection paths.
+- [x] Replace independent security inheritance in `expr/method.go` with one effective owner; derive consumer behavior from it and delete superseded selection paths.
 - [ ] Run `go test ./expr ./security ./codegen/service -count=1`; run bounded security tests in `./http/codegen`, `./grpc/codegen`, `./jsonrpc/codegen`, recording exact filters and generated fixtures.
 - [ ] Complete credential-alternative and stream-admission tasks only after their own test-first, model, generated comparison and independent-review obligations are ready; keep payload-dependent authorization at its valid boundary.
 - [ ] Update `docs/dsl-reference.md`, relevant authentication guides and consumer skill; obtain exact-diff review, commit each owning structural ticket atomically, push and integrate.
