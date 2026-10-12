@@ -142,7 +142,7 @@ func snapshotRequestMetadata(r *http.Request, policy RequestMetadataPolicy) Requ
 	if !isTrustedProxy(peerIP, policy.trustedProxies) {
 		return metadata
 	}
-	if client := forwardedClient(r.Header.Values("X-Forwarded-For"), peerIP, policy.trustedProxies); client.IsValid() {
+	if client := forwardedClient(r.Header.Values("X-Forwarded-For"), policy.trustedProxies); client.IsValid() {
 		metadata.ClientAddr = client.String()
 	}
 	if host := lastForwardedValue(r.Header.Get("X-Forwarded-Host")); host != "" {
@@ -185,20 +185,20 @@ func isTrustedProxy(addr netip.Addr, proxies []netip.Prefix) bool {
 	return false
 }
 
-func forwardedClient(values []string, peer netip.Addr, proxies []netip.Prefix) netip.Addr {
-	hops := make([]netip.Addr, 0, len(values)+1)
-	for _, value := range values {
-		for _, raw := range strings.Split(value, ",") {
+// forwardedClient walks nearest hops first. An invalid entry is an opaque
+// boundary: it cannot be skipped to trust an address farther from the peer.
+// The caller has already verified the direct peer and retains it on fallback.
+func forwardedClient(values []string, proxies []netip.Prefix) netip.Addr {
+	for _, value := range slices.Backward(values) {
+		for _, raw := range slices.Backward(strings.Split(value, ",")) {
 			addr, err := netip.ParseAddr(strings.TrimSpace(raw))
-			if err == nil {
-				hops = append(hops, addr.Unmap())
+			if err != nil {
+				return netip.Addr{}
 			}
-		}
-	}
-	hops = append(hops, peer)
-	for _, hop := range slices.Backward(hops) {
-		if !isTrustedProxy(hop, proxies) {
-			return hop
+			addr = addr.Unmap()
+			if !isTrustedProxy(addr, proxies) {
+				return addr
+			}
 		}
 	}
 	return netip.Addr{}

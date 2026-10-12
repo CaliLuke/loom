@@ -1251,7 +1251,19 @@ srv.Use(loomhttp.RequestMetadataMiddleware(metadataPolicy))
 The direct peer must match a trusted CIDR before Loom accepts
 `X-Forwarded-For`, `X-Forwarded-Host`, or `X-Forwarded-Proto`. Client selection
 walks `X-Forwarded-For` from the nearest hop on the right and selects the first
-untrusted address. `PeerAddr` always remains the direct peer.
+untrusted address. Repeated header lines are read in the same order as one
+comma-separated list. If an empty or invalid IP entry is reached first, Loom
+stops and keeps the direct peer as `ClientAddr`; it never skips that boundary
+to select an address farther left. Entries must be bare IP addresses: values
+such as `unknown`, `_hidden`, or `198.51.100.7:1234` are invalid. An absent header
+or a chain containing only trusted addresses also retains the direct peer.
+`PeerAddr` always remains the direct peer.
+
+For example, with trusted peer `10.0.0.2` and trusted CIDR `10.0.0.0/8`,
+`6.6.6.6, unknown, 10.0.0.1` keeps `ClientAddr` at `10.0.0.2`. In contrast,
+`unknown, 198.51.100.7, 10.0.0.1` selects `198.51.100.7`: the untrusted address
+establishes the boundary before the invalid entry is reached. Upgrade the
+framework runtime to adopt this correction; generated code does not change.
 
 Endpoint and security implementations use the typed accessor:
 

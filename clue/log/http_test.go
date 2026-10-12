@@ -375,23 +375,32 @@ func TestFrom(t *testing.T) {
 		})
 	}
 
-	t.Run("trusted metadata selects forwarded client", func(t *testing.T) {
-		policy, err := loomhttp.NewRequestMetadataPolicy(nil, []netip.Prefix{
-			netip.MustParsePrefix("10.0.0.0/8"),
+	for _, tc := range []struct {
+		name      string
+		forwarded string
+		want      string
+	}{
+		{"trusted metadata selects forwarded client", "198.51.100.7, 10.0.0.1", "198.51.100.7"},
+		{"invalid boundary retains direct peer", "6.6.6.6, unknown, 10.0.0.1", "10.0.0.2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			policy, err := loomhttp.NewRequestMetadataPolicy(nil, []netip.Prefix{
+				netip.MustParsePrefix("10.0.0.0/8"),
+			})
+			require.NoError(t, err)
+
+			var got string
+			handler := loomhttp.RequestMetadataMiddleware(policy)(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+				got = from(req)
+			}))
+			req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+			req.RemoteAddr = "10.0.0.2:1234"
+			req.Header.Set("X-Forwarded-For", tc.forwarded)
+			handler.ServeHTTP(httptest.NewRecorder(), req)
+
+			require.Equal(t, tc.want, got)
 		})
-		require.NoError(t, err)
-
-		var got string
-		handler := loomhttp.RequestMetadataMiddleware(policy)(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
-			got = from(req)
-		}))
-		req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
-		req.RemoteAddr = "10.0.0.2:1234"
-		req.Header.Set("X-Forwarded-For", "198.51.100.7, 10.0.0.1")
-		handler.ServeHTTP(httptest.NewRecorder(), req)
-
-		require.Equal(t, "198.51.100.7", got)
-	})
+	}
 }
 
 type loggingResponseBody struct {

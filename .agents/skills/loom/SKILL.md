@@ -908,6 +908,9 @@ JSON-RPC is a first-class transport, not an HTTP behavior alias.
   `Use` method and read `loomhttp.RequestMetadataFromContext`.
 - Configure retained headers and trusted proxies with
   `NewRequestMetadataPolicy`. Sensitive headers require explicit opt-in.
+- With a trusted peer, the nearest untrusted `X-Forwarded-For` IP selects the
+  client; an invalid or empty entry encountered first keeps the direct peer.
+  Proxy entries must be bare IP addresses.
 - Use `loomhttp.EffectiveClientAddress` instead of interpreting forwarding
   headers in application code.
 

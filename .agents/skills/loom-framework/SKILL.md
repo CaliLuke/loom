@@ -533,6 +533,12 @@ filter, and serialization rules belong here.
 
 ## Transport Invariants
 
+- `RequestMetadataPolicy` owns forwarding trust. Verify the direct peer, then
+  walk raw `X-Forwarded-For` header lines and comma entries right to left.
+  Invalid or empty entries terminate with direct-peer fallback; never filter
+  entries before selection or reinterpret headers in logging/security consumers.
+  Keep `http/tla/forwarded_client` aligned with metadata, accessor and log tests.
+
 - HTTP error response analysis retains the selected `Body` field in
   `ResponseData.ResultAttr`. Resolve its Go selector and client constructor
   pointer semantics through `transportFieldBinding`, just like other service
