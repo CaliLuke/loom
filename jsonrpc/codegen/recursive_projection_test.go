@@ -42,7 +42,8 @@ const recursiveProjectionJSONRPCHarness = `package projection_test
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -96,9 +97,9 @@ func TestSelectedWire(t *testing.T) {
 		// The envelope currently uses a map with unstable key order. Compare the
 		// exact encoded selected value, without decoding or re-encoding that value.
 		var envelope struct {
-			Params  json.RawMessage
-			JSONRPC string
-			Method  string
+			Params  jsontext.Value "json:\"params\""
+			JSONRPC string         "json:\"jsonrpc\""
+			Method  string         "json:\"method\""
 		}
 		parts := strings.SplitN(streamWire, "data: ", 2)
 		if len(parts) != 2 {
