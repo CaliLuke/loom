@@ -65,6 +65,15 @@ policies for a normalized destination are rejected before rendering in both
 orders; equal policies still coalesce sections. Those concrete cases are outside
 the finite contents abstraction above.
 
+`service.ExampleInterceptorsFiles` declares both server and client example
+implementations as create-only (#741). Declaration does not inspect the working
+directory; the shared renderer decides against its actual destination.
+`TestExampleInterceptorsFiles` checks policy across the existing design matrix,
+and `TestExampleInterceptorsOwnership` covers distinct working/output roots,
+existing user bytes and file identity, cwd-only names, fresh creation and repeat
+rendering. These are declaration-to-writer correspondence checks; they reuse the
+atomic-write model and do not add a second filesystem protocol.
+
 ## Accepted gen-tree admission policy
 
 The user explicitly chose to reject create-only files inside `gen/`, whose

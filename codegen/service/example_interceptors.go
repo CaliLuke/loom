@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -14,6 +13,7 @@ import (
 )
 
 // ExampleInterceptorsFiles returns the files for the example server and client interceptors.
+// The files are create-only so rendering preserves application-owned implementations.
 func ExampleInterceptorsFiles(genpkg string, r *expr.RootExpr, services *ServicesData) []*codegen.File {
 	var fw []*codegen.File
 	for _, svc := range r.Services {
@@ -38,34 +38,30 @@ func exampleInterceptorsFile(genpkg string, svc *expr.ServiceExpr, services *Ser
 
 	var files []*codegen.File
 
-	// Generate server interceptor if needed and file doesn't exist
 	if len(sdata.ServerInterceptors) > 0 {
 		serverPath := filepath.Join("interceptors", sdata.PathName+"_server.go")
-		if _, err := os.Stat(serverPath); os.IsNotExist(err) {
-			serverImports := slices.Clone(imports)
-			files = append(files, &codegen.File{
-				Path: serverPath,
-				Sections: []codegen.Section{
-					codegen.Header(fmt.Sprintf("%s example server interceptors", sdata.Name), "interceptors", serverImports),
-					exampleInterceptorSection("example-server-interceptor", data, true),
-				},
-			})
-		}
+		serverImports := slices.Clone(imports)
+		files = append(files, &codegen.File{
+			Path:      serverPath,
+			SkipExist: true,
+			Sections: []codegen.Section{
+				codegen.Header(fmt.Sprintf("%s example server interceptors", sdata.Name), "interceptors", serverImports),
+				exampleInterceptorSection("example-server-interceptor", data, true),
+			},
+		})
 	}
 
-	// Generate client interceptor if needed and file doesn't exist
 	if len(sdata.ClientInterceptors) > 0 {
 		clientPath := filepath.Join("interceptors", sdata.PathName+"_client.go")
-		if _, err := os.Stat(clientPath); os.IsNotExist(err) {
-			clientImports := slices.Clone(imports)
-			files = append(files, &codegen.File{
-				Path: clientPath,
-				Sections: []codegen.Section{
-					codegen.Header(fmt.Sprintf("%s example client interceptors", sdata.Name), "interceptors", clientImports),
-					exampleInterceptorSection("example-client-interceptor", data, false),
-				},
-			})
-		}
+		clientImports := slices.Clone(imports)
+		files = append(files, &codegen.File{
+			Path:      clientPath,
+			SkipExist: true,
+			Sections: []codegen.Section{
+				codegen.Header(fmt.Sprintf("%s example client interceptors", sdata.Name), "interceptors", clientImports),
+				exampleInterceptorSection("example-client-interceptor", data, false),
+			},
+		})
 	}
 
 	return files
