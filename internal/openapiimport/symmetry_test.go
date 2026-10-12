@@ -201,7 +201,7 @@ func TestImportKeepsNonInvertibleExporterShapesRejected(t *testing.T) {
 		fragment string
 		code     string
 	}{
-		{name: "parameter explode", fragment: "parameters: [{name: q, in: query, explode: true, schema: {type: string}}]", code: "parameter-serialization"},
+		{name: "parameter explode", fragment: "parameters: [{name: q, in: query, explode: false, schema: {type: array, items: {type: string}}}]", code: "parameter-serialization"},
 		{name: "bearer format", fragment: "security: [{Auth: []}]\n      x-test: true", code: "security-scheme"},
 		{name: "device authorization", code: "security-scheme"},
 		{name: "missing OAuth token URL", code: "security-scheme"},

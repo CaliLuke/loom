@@ -154,6 +154,17 @@ func transformAttribute(source, target *expr.AttributeExpr, sourceVar, targetVar
 }
 
 func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *TransformAttrs) (*jen.Statement, error) {
+	if attributeUsesJSONPresence(source, ta.SourceCtx) || attributeUsesJSONPresence(target, ta.TargetCtx) {
+		nested := *ta
+		nested.SourceCtx, nested.TargetCtx = ta.SourceCtx.Dup(), ta.TargetCtx.Dup()
+		if attributeUsesJSONPresence(source, ta.SourceCtx) {
+			nested.SourceCtx.JSONPresence, nested.SourceCtx.CollectionElementPresence = true, true
+		}
+		if attributeUsesJSONPresence(target, ta.TargetCtx) {
+			nested.TargetCtx.JSONPresence, nested.TargetCtx.CollectionElementPresence = true, true
+		}
+		ta = &nested
+	}
 	if err := IsCompatible(source.Type, target.Type, sourceVar, targetVar); err != nil {
 		return nil, err
 	}
@@ -384,10 +395,8 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 func transformObjectFieldAssignment(srcc, tgtc *expr.AttributeExpr, srcVar, tgtVar string, ta *TransformAttrs) (*jen.Statement, error) {
 	_, isUserType := srcc.Type.(expr.UserType)
 	switch {
-	case expr.IsArray(srcc.Type):
-		return transformArray(expr.AsArray(srcc.Type), expr.AsArray(tgtc.Type), srcVar, tgtVar, false, ta)
-	case expr.IsMap(srcc.Type):
-		return transformMap(expr.AsMap(srcc.Type), expr.AsMap(tgtc.Type), srcVar, tgtVar, false, ta)
+	case expr.IsArray(srcc.Type), expr.IsMap(srcc.Type):
+		return transformAttributeStmt(srcc, tgtc, srcVar, tgtVar, false, ta)
 	case expr.IsUnion(srcc.Type):
 		return transformUnion(srcc, tgtc, srcVar, tgtVar, false, nil, ta)
 	case isUserType && expr.IsPrimitive(srcc.Type):

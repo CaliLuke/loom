@@ -17,63 +17,66 @@ paths:
             parameters:
                 - name: enabled
                   in: query
-                  allowEmptyValue: true
-                  schema:
-                    type: object
-                    additionalProperties:
-                        type: array
-                        items:
-                            type: boolean
-                            example: true
+                  content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties:
+                                type: array
+                                items:
+                                    type: boolean
+                                    example: true
+                                example:
+                                    - false
+                                    - true
+                                    - true
+                                    - true
                         example:
-                            - false
-                            - true
-                            - true
-                            - true
-                  example:
-                    "false":
-                        - true
-                        - false
-                        - true
-                    "true":
-                        - false
-                        - true
-                        - false
+                            "false":
+                                - true
+                                - false
+                                - true
+                            "true":
+                                - false
+                                - true
+                                - false
                 - name: labels
                   in: query
-                  allowEmptyValue: true
-                  schema:
-                    type: object
-                    default:
-                        "false": "off"
-                        "true": "on"
-                    additionalProperties:
-                        type: string
-                        example: Natus iste beatae itaque.
-                  example:
-                    "false": Ut est.
-                    "true": Similique earum est.
+                  content:
+                    application/json:
+                        schema:
+                            type: object
+                            default:
+                                "false": "off"
+                                "true": "on"
+                            additionalProperties:
+                                type: string
+                                example: Natus iste beatae itaque.
+                        example:
+                            "false": Ut est.
+                            "true": Similique earum est.
                 - name: groups
                   in: query
-                  allowEmptyValue: true
-                  schema:
-                    type: object
-                    additionalProperties:
-                        type: object
+                  content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties:
+                                type: object
+                                example:
+                                    "true": 7551319913391425837
+                                additionalProperties:
+                                    type: integer
+                                    example: 9135328173533054652
+                                    format: int64
                         example:
-                            "true": 7551319913391425837
-                        additionalProperties:
-                            type: integer
-                            example: 9135328173533054652
-                            format: int64
-                  example:
-                    Autem maiores nulla earum distinctio animi.:
-                        "false": 8915706317955267537
-                        "true": 4780905263337237648
-                    Numquam nostrum consequatur qui quos.:
-                        "true": 4333032517208564965
-                    Voluptate voluptatem maiores.:
-                        "true": 6209769877611670744
+                            Autem maiores nulla earum distinctio animi.:
+                                "false": 8915706317955267537
+                                "true": 4780905263337237648
+                            Numquam nostrum consequatur qui quos.:
+                                "true": 4333032517208564965
+                            Voluptate voluptatem maiores.:
+                                "true": 6209769877611670744
             responses:
                 "200":
                     description: OK response.

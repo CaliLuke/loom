@@ -21,7 +21,7 @@ type (
 	}
 
 	testFormItem struct {
-		Sub string `form:"sub"`
+		Sub string `form:"sub" json:"sub"`
 	}
 
 	testFormMapPayload struct {
@@ -126,7 +126,7 @@ func TestFormValuesRoundTripMapOfObject(t *testing.T) {
 	}
 	values, err := EncodeFormValues(in)
 	require.NoError(t, err)
-	require.Equal(t, "hello", values.Get("items[k][sub]"))
+	require.Equal(t, `{"k":{"sub":"hello"}}`, values.Get("items"))
 
 	var out testFormMapPayload
 	err = DecodeFormValues(values, &out)
@@ -312,8 +312,7 @@ func BenchmarkEncodeNestedFormValues(b *testing.B) {
 
 func BenchmarkDecodeNestedFormValues(b *testing.B) {
 	values := url.Values{
-		"items[first][sub]":  {"hello"},
-		"items[second][sub]": {"world"},
+		"items": {`{"first":{"sub":"hello"},"second":{"sub":"world"}}`},
 	}
 
 	b.ReportAllocs()

@@ -67,88 +67,97 @@
         "operationId": "flags.list",
         "parameters": [
           {
-            "allowEmptyValue": true,
-            "example": {
-              "false": [
-                true,
-                false,
-                true
-              ],
-              "true": [
-                false,
-                true,
-                false
-              ]
-            },
-            "in": "query",
-            "name": "enabled",
-            "schema": {
-              "additionalProperties": {
-                "example": [
-                  false,
-                  true,
-                  true,
-                  true
-                ],
-                "items": {
-                  "example": true,
-                  "type": "boolean"
+            "content": {
+              "application/json": {
+                "example": {
+                  "false": [
+                    true,
+                    false,
+                    true
+                  ],
+                  "true": [
+                    false,
+                    true,
+                    false
+                  ]
                 },
-                "type": "array"
-              },
-              "type": "object"
-            }
-          },
-          {
-            "allowEmptyValue": true,
-            "example": {
-              "false": "Ut est.",
-              "true": "Similique earum est."
-            },
-            "in": "query",
-            "name": "labels",
-            "schema": {
-              "additionalProperties": {
-                "example": "Natus iste beatae itaque.",
-                "type": "string"
-              },
-              "default": {
-                "false": "off",
-                "true": "on"
-              },
-              "type": "object"
-            }
-          },
-          {
-            "allowEmptyValue": true,
-            "example": {
-              "Autem maiores nulla earum distinctio animi.": {
-                "false": 8915706317955267537,
-                "true": 4780905263337237648
-              },
-              "Numquam nostrum consequatur qui quos.": {
-                "true": 4333032517208564965
-              },
-              "Voluptate voluptatem maiores.": {
-                "true": 6209769877611670744
+                "schema": {
+                  "additionalProperties": {
+                    "example": [
+                      false,
+                      true,
+                      true,
+                      true
+                    ],
+                    "items": {
+                      "example": true,
+                      "type": "boolean"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                }
               }
             },
             "in": "query",
-            "name": "groups",
-            "schema": {
-              "additionalProperties": {
-                "additionalProperties": {
-                  "example": 9135328173533054652,
-                  "format": "int64",
-                  "type": "integer"
-                },
+            "name": "enabled"
+          },
+          {
+            "content": {
+              "application/json": {
                 "example": {
-                  "true": 7551319913391425837
+                  "false": "Ut est.",
+                  "true": "Similique earum est."
                 },
-                "type": "object"
-              },
-              "type": "object"
-            }
+                "schema": {
+                  "additionalProperties": {
+                    "example": "Natus iste beatae itaque.",
+                    "type": "string"
+                  },
+                  "default": {
+                    "false": "off",
+                    "true": "on"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "in": "query",
+            "name": "labels"
+          },
+          {
+            "content": {
+              "application/json": {
+                "example": {
+                  "Autem maiores nulla earum distinctio animi.": {
+                    "false": 8915706317955267537,
+                    "true": 4780905263337237648
+                  },
+                  "Numquam nostrum consequatur qui quos.": {
+                    "true": 4333032517208564965
+                  },
+                  "Voluptate voluptatem maiores.": {
+                    "true": 6209769877611670744
+                  }
+                },
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": {
+                      "example": 9135328173533054652,
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "example": {
+                      "true": 7551319913391425837
+                    },
+                    "type": "object"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "in": "query",
+            "name": "groups"
           }
         ],
         "responses": {

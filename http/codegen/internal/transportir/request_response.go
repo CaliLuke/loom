@@ -44,6 +44,7 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 		MapQueryParams:       endpoint.MapQueryParams,
 		Multipart:            endpoint.MultipartRequest,
 		FormEncoded:          endpoint.FormRequest,
+		FormFieldModes:       formFieldModes(body, endpoint.FormRequest),
 		OptionalBody:         endpoint.OptionalRequestBody,
 		MustHaveBody:         mustHaveBody,
 		SkipBodyEncode:       endpoint.SkipRequestBodyEncodeDecode,

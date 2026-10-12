@@ -24,6 +24,7 @@ func collectReusableComponentSchemaRefs(reusable reusableComponents, addRef func
 			continue
 		}
 		collectSchemaRefs(parameter.Value.Schema, addRef)
+		collectMediaTypeSchemaRefs(parameter.Value.Content, addRef)
 	}
 	for _, header := range reusable.Headers {
 		if header == nil || header.Value == nil {

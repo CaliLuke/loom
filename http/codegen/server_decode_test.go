@@ -306,12 +306,13 @@ func TestRequestDecoderReportsQueryParseErrors(t *testing.T) {
 }
 
 func TestRequestDecoderMapQueryPresenceIsScopedToMapParam(t *testing.T) {
-	code := decodeSectionCode(t, testdata.PayloadMapQueryPrimitivePrimitiveDSL)
-
-	require.Contains(t, code, "queryHasValues := false")
-	require.Contains(t, code, "if strings.HasPrefix(keyRaw, \"query[\") {")
-	require.Contains(t, code, "if !queryHasValues {")
-	require.NotContains(t, code, "if len(queryRaw) == 0 {")
+	code := decodeSectionCode(t, testdata.PayloadQueryMapStringStringDSL)
+	require.Contains(t, code, `loomhttp.DecodeJSONField(qp, "q", &q)`)
+	require.NotContains(t, code, "strings.HasPrefix")
+	root := decodeSectionCode(t, testdata.PayloadMapQueryPrimitivePrimitiveDSL)
+	require.Contains(t, root, "queryRaw := qp")
+	require.NotContains(t, root, "loomhttp.DecodeJSONField")
+	require.NotContains(t, root, "strings.HasPrefix")
 }
 
 func TestPathArrayDecodeSplitsBeforeUnescapingElements(t *testing.T) {
@@ -350,12 +351,9 @@ func TestMultipartPathArrayDecodeUsesRawCapture(t *testing.T) {
 
 func TestRequestDecoderSkipsMapEntryAfterInvalidKeyParse(t *testing.T) {
 	code := decodeSectionCode(t, testdata.PayloadQueryMapBoolBoolDSL)
-
-	require.Contains(t, code, "var keyaErr error")
-	require.Contains(t, code, "err = loom.MergeErrors(err, keyaErr)")
-	require.Contains(t, code, "if keyaErr != nil {")
-	require.Contains(t, code, "continue")
-	require.NotContains(t, code, "beforeKeyaErr")
+	require.Contains(t, code, "loomhttp.DecodeJSONField")
+	require.Contains(t, code, "loomhttp.SafeDecodePayloadMessage(decodeErr)")
+	require.NotContains(t, code, "var keyaErr error")
 
 	directCode := decodeSectionCode(t, testdata.PayloadMapQueryObjectDSL)
 	require.Contains(t, directCode, "var keyErr error")

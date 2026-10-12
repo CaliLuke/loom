@@ -2,7 +2,10 @@
 // transport-neutral model suitable for later Loom design generation.
 package openapiimport
 
-import "github.com/CaliLuke/loom/internal/exactnum"
+import (
+	"github.com/CaliLuke/loom/internal/exactnum"
+	"github.com/CaliLuke/loom/internal/httpencoding"
+)
 
 // Document is the normalized subset of an OpenAPI document understood by the
 // importer.
@@ -234,6 +237,8 @@ type Parameter struct {
 	AllowReserved bool
 	// Extensions contains parameter-level vendor extensions.
 	Extensions map[string]any
+	// Serialization retains the named query wire contract for admission and rendering.
+	Serialization httpencoding.Serialization
 	// Schema describes the parameter value.
 	Schema *Schema
 }
@@ -251,6 +256,8 @@ type RequestBody struct {
 	ContentTypes []string
 	// Schema describes the request body.
 	Schema *Schema
+	// FormEncoding retains URL-encoded property serialization keyed by property name.
+	FormEncoding map[string]httpencoding.Serialization
 	// Examples contains examples declared on the request media type.
 	Examples []Example
 	// Extensions contains request-body-level vendor extensions.

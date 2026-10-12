@@ -29,7 +29,7 @@ func (a *analyzer) requestContent(
 			if media.ItemSchema != nil {
 				a.unsupported("media-item-schema", mediaPath+"/itemSchema", "item schemas are not in the strict import subset")
 			}
-			if orderedmap.Len(media.Encoding) > 0 || orderedmap.Len(media.ItemEncoding) > 0 {
+			if orderedmap.Len(media.Encoding) > 0 && !isFormMediaType(contentType) || orderedmap.Len(media.ItemEncoding) > 0 {
 				a.unsupported("media-encoding", mediaPath, "media encodings are not in the strict import subset")
 			}
 			schema = a.schema(media.Schema, mediaPath+"/schema")

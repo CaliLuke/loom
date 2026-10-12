@@ -6,6 +6,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
 // attachTargets binds finalized transport occurrences to existing
@@ -25,7 +26,11 @@ func attachTargets(endpoint *transportir.Endpoint, method *service.MethodData, e
 	request.StreamingValue = ValueTarget(method.StreamingPayloadValue, request.StreamingBody, "", expr.ValueCodecJSON, schemaOnly)
 	for _, group := range [][]*transportir.Parameter{request.PathParams, request.QueryParams, request.Headers, request.Cookies} {
 		for _, parameter := range group {
-			parameter.Value = ValueTarget(method.PayloadValue, parameter.Attribute, parameter.Name, expr.ValueCodecText, schemaOnly)
+			codec := expr.ValueCodecText
+			if parameter.Encoding == httpencoding.JSON {
+				codec = expr.ValueCodecJSON
+			}
+			parameter.Value = ValueTarget(method.PayloadValue, parameter.Attribute, parameter.Name, codec, schemaOnly)
 		}
 	}
 	if request.DocumentBody != nil {

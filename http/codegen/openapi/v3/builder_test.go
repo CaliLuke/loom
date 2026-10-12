@@ -251,7 +251,7 @@ func TestBuildOperation(t *testing.T) {
 		DSL:  dsls.RequestMapParams(svcName, "request_map_params"),
 
 		ExpectedDeprecated: false,
-		ExpectedParameters: []param{{Name: "param", In: "query", Description: "Query parameters", Style: "deepObject", Type: tobj()}},
+		ExpectedParameters: []param{{Name: "param", In: "query", Description: "Query parameters", Style: "form", Type: tobj()}},
 		ExpectedResponses:  responses{"204": {Description: "No Content response."}},
 	}, {
 		Name: "response_array_of_string",

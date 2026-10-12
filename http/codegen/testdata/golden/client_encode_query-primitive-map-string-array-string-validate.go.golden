@@ -9,9 +9,8 @@ func EncodeMethodQueryPrimitiveMapStringArrayStringValidateRequest(encoder func(
 			return loomhttp.ErrInvalidType("ServiceQueryPrimitiveMapStringArrayStringValidate", "MethodQueryPrimitiveMapStringArrayStringValidate", "map[string][]string", v)
 		}
 		values := req.URL.Query()
-		for k, value := range p {
-			key := fmt.Sprintf("q[%s]", k)
-			values[key] = value
+		if _, err := loomhttp.EncodeJSONField(values, "q", p); err != nil {
+			return err
 		}
 		req.URL.RawQuery = values.Encode()
 		return nil

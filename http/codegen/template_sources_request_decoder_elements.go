@@ -146,36 +146,23 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 		{{- end }}
 	}
 
-	{{- else if .Map }}
+	{{- else if .JSONField }}
 	{
-		{{ .Locals.Raw }} := {{$qpVar}}
-		{{ .Locals.HasValues }} := false
-		for keyRaw := range {{ .Locals.Raw }} {
-			if strings.HasPrefix(keyRaw, "{{ .HTTPName }}[") {
-				{{ .Locals.HasValues }} = true
-				break
-			}
+		var decoded {{ .JSONDecodeType }}
+		present, decodeErr := loomhttp.DecodeJSONField({{$qpVar}}, {{ printf "%q" .HTTPName }}, &decoded)
+		if decodeErr != nil {
+			{{ requestErrorReturn "loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))" }}
+		}
+		if present {
+			{{ .JSONDecodeCode }}
 		}
 		{{- if .Required }}
-		if !{{ .Locals.HasValues }} {
+		if !present {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "query string"))
 		}
 		{{- else if .DefaultValue }}
-		if !{{ .Locals.HasValues }} {
+		if !present {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
-		}
-		{{- end }}
-
-		{{- if .DefaultValue }}else {
-		{{- else if not .Required }}
-		if {{ .Locals.HasValues }} {
-		{{- end }}
-		for keyRaw, valRaw := range {{ .Locals.Raw }} {
-			if strings.HasPrefix(keyRaw, "{{ .HTTPName }}[") {
-				{{- template "partial_query_map_conversion" (mapQueryDecodeData .Type .VarName 0) }}
-			}
-		}
-		{{- if or .DefaultValue (not .Required) }}
 		}
 		{{- end }}
 	}

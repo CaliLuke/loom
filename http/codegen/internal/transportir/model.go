@@ -3,6 +3,7 @@ package transportir
 import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
 type (
@@ -135,14 +136,16 @@ type (
 		// BodyOriginKey is the object key of the payload attribute that
 		// BodyOrigin names, such as "v:x" for "v". Requiredness, defaults
 		// and pointer semantics of the attribute are looked up by this key.
-		BodyOriginKey       string
-		PathParams          []*Parameter
-		QueryParams         []*Parameter
-		Headers             []*Parameter
-		Cookies             []*Parameter
-		MapQueryParams      *string
-		Multipart           bool
-		FormEncoded         bool
+		BodyOriginKey  string
+		PathParams     []*Parameter
+		QueryParams    []*Parameter
+		Headers        []*Parameter
+		Cookies        []*Parameter
+		MapQueryParams *string
+		Multipart      bool
+		FormEncoded    bool
+		// FormFieldModes is the selected codec for each named form property.
+		FormFieldModes      map[string]httpencoding.Mode
 		OptionalBody        bool
 		MustHaveBody        bool
 		SkipBodyEncode      bool
@@ -246,7 +249,9 @@ type (
 	}
 
 	Parameter struct {
-		// Value shares the selected service member and its actual text codec.
+		// Encoding is the shared URL field serialization mode.
+		Encoding httpencoding.Mode
+		// Value shares the selected service member and its actual field codec.
 		Value            *ValueTarget
 		Name             string
 		HTTPName         string
@@ -286,7 +291,7 @@ type (
 	}
 
 	Header struct {
-		// Value shares the selected service member and its actual text codec.
+		// Value shares the selected service member and its actual field codec.
 		Value            *ValueTarget
 		Name             string
 		HTTPName         string
@@ -296,7 +301,7 @@ type (
 	}
 
 	Cookie struct {
-		// Value shares the selected service member and its actual text codec.
+		// Value shares the selected service member and its actual field codec.
 		Value            *ValueTarget
 		Name             string
 		HTTPName         string

@@ -13,75 +13,41 @@ func DecodeMethodQueryMapIntMapStringArrayIntValidateRequest(mux loomhttp.Muxer,
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
 		{
-			qRaw := qp
-			qHasValues := false
-			for keyRaw := range qRaw {
-				if strings.HasPrefix(keyRaw, "q[") {
-					qHasValues = true
-					break
+			var decoded map[int]loom.Optional[map[string]loom.Optional[[]loom.Optional[int]]]
+			present, decodeErr := loomhttp.DecodeJSONField(qp, "q", &decoded)
+			if decodeErr != nil {
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
+			}
+			if present {
+				q = make(map[int]map[string][]int, len(decoded))
+				for key, val := range decoded {
+					actual, ok := val.Value()
+					if !ok {
+						continue
+					}
+					tk := key
+					tvb := make(map[string][]int, len(actual))
+					for key, val := range actual {
+						actual, ok := val.Value()
+						if !ok {
+							continue
+						}
+						tk := key
+						tv := make([]int, len(actual))
+						for i, val := range actual {
+							actual, ok := val.Value()
+							if !ok {
+								continue
+							}
+							tv[i] = actual
+						}
+						tvb[tk] = tv
+					}
+					q[tk] = tvb
 				}
 			}
-			if !qHasValues {
+			if !present {
 				err = loom.MergeErrors(err, loom.MissingFieldError("q", "query string"))
-			}
-			for keyRaw, valRaw := range qRaw {
-				if strings.HasPrefix(keyRaw, "q[") {
-					if q == nil {
-						q = make(map[int]map[string][]int)
-					}
-					var keya int
-					var keyaErr error
-					{
-						openIdx := strings.IndexRune(keyRaw, '[')
-						closeIdx := strings.IndexRune(keyRaw, ']')
-						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							keyaErr = loom.DecodePayloadError("invalid query string: malformed brackets")
-							err = loom.MergeErrors(err, keyaErr)
-						} else {
-							keyaRaw := keyRaw[openIdx+1 : closeIdx]
-							v, err2 := strconv.ParseInt(keyaRaw, 10, strconv.IntSize)
-							if err2 != nil {
-								keyaErr = loom.InvalidFieldTypeError("query", keyaRaw, "integer")
-								err = loom.MergeErrors(err, keyaErr)
-							}
-							keya = int(v)
-							keyRaw = keyRaw[closeIdx+1:]
-						}
-					}
-					if keyaErr != nil {
-						continue
-					}
-					if q[keya] == nil {
-						q[keya] = make(map[string][]int)
-					}
-					var keyb string
-					var keybErr error
-					{
-						openIdx := strings.IndexRune(keyRaw, '[')
-						closeIdx := strings.IndexRune(keyRaw, ']')
-						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							keybErr = loom.DecodePayloadError("invalid query string: malformed brackets")
-							err = loom.MergeErrors(err, keybErr)
-						} else {
-							keyb = keyRaw[openIdx+1 : closeIdx]
-						}
-					}
-					if keybErr != nil {
-						continue
-					}
-					var val []int
-					{
-						val = make([]int, len(valRaw))
-						for i, rv := range valRaw {
-							v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
-							if err2 != nil {
-								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valRaw, "array of integers"))
-							}
-							val[i] = int(v)
-						}
-					}
-					q[keya][keyb] = val
-				}
 			}
 		}
 		for k, _ := range q {

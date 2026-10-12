@@ -138,6 +138,21 @@ a `decode_payload` response with status 400. Percent-encode reserved delimiters,
 such as `;`, in query values. Generated clients apply this encoding. Repeated
 query keys retain their order.
 
+Named query maps use one JSON document per parameter value. For example,
+`Param("filter")` with `MapOf(String, String)` sends
+`filter=%7B%22status%22%3A%22active%22%7D`, whose decoded value is
+`{"status":"active"}`. Nested maps and arrays inside the map use the same JSON
+representation. Clients in any language should JSON-encode the map, then pass
+that string to their URL query encoder. Scalar parameters and repeated scalar
+arrays keep their ordinary query representation.
+
+Regenerate clients and servers together when migrating from bracketed map keys
+such as `filter[status]=active`; those keys no longer populate the named map.
+`MapParams()` remains an unprefixed whole-query map, for example
+`status=active&region=west`. Its contract differs from a named `Param("filter")`.
+OpenAPI describes named maps with parameter `content: application/json` and a
+typed schema. Fixed object query parameters remain unsupported.
+
 ### Wildcards
 
 Each path parameter must start a segment and use a name containing only ASCII
@@ -296,6 +311,16 @@ element name mapping. For constructor unions, scalar branches use the canonical
 discriminator/value fields, while object branches are flattened onto standard
 top-level form fields. This supports OAuth-style token requests such as
 `grant_type=refresh_token` without app-local parser hooks.
+
+A named object or map form field also holds one JSON document. For example,
+`address={"street":"Main"}` and `labels={"region":"west"}` are the decoded
+form values; the form encoder percent-encodes the JSON strings on the wire.
+This applies at every nesting depth. JSON tags and custom JSON codecs determine
+member names inside these values; form tags determine the outer field name.
+OpenAPI marks these fields with `contentType: application/json`, without a
+serialization style. Scalars and repeated scalar arrays retain their form
+encoding. Update external clients that previously sent bracketed nested keys;
+there is no alternate bracket decoder for named objects or maps.
 
 When a dynamic form map must coexist with path, query, header, cookie, or
 security attributes, put the map in an object payload and select it with

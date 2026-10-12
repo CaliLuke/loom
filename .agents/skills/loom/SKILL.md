@@ -670,6 +670,17 @@ servers to adopt this ordering correction.
 - Use `FormRequest()` for typed object, map, or constructor-union
   `application/x-www-form-urlencoded` payloads. Put a map in an object payload
   and select it with `Body(...)` when other transport fields must coexist.
+- Named query maps and named form object/map fields encode one JSON document,
+  for example `filter={"color":"red"}` before URL escaping. This also applies
+  to shallow maps. Scalars and repeated scalar arrays retain their formats;
+  whole-query maps and root-form maps retain their unwrapped outer layout.
+  Fixed-object query parameters and composite form arrays remain unsupported.
+  Regenerate clients and servers together and update handwritten bracket-style
+  requests when adopting this contract. OpenAPI query parameters describe JSON
+  through `content`; form properties use `encoding.contentType: application/json`.
+  Import rejects incompatible deepObject/style/explode contracts, including with
+  `--allow-lossy`. JSON-compatible form serialization and JSON query map content
+  can round-trip through import and generation.
 - Use `MultipartRequest()` for supported multipart object payloads.
 - Use `OptionalRequestBody()` for optional JSON object bodies and optional
   typed form object/map bodies. An object or union selected with `Body("name")`

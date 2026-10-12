@@ -8,12 +8,8 @@ func EncodeMethodQueryMapStringArrayBoolValidateRequest(encoder func(*http.Reque
 			return loomhttp.ErrInvalidType("ServiceQueryMapStringArrayBoolValidate", "MethodQueryMapStringArrayBoolValidate", "*servicequerymapstringarrayboolvalidate.MethodQueryMapStringArrayBoolValidatePayload", v)
 		}
 		values := req.URL.Query()
-		for k, value := range p.Q {
-			key := fmt.Sprintf("q[%s]", k)
-			for _, val := range value {
-				valStr := strconv.FormatBool(val)
-				values.Add(key, valStr)
-			}
+		if _, err := loomhttp.EncodeJSONField(values, "q", p.Q); err != nil {
+			return err
 		}
 		req.URL.RawQuery = values.Encode()
 		return nil

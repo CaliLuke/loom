@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
 type (
@@ -77,7 +79,7 @@ func DecodeFormValue(values url.Values, prefix string, target any) (bool, error)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return false, fmt.Errorf("form decode target must be a non-nil pointer")
 	}
-	return decodeFormValue(values, prefix, rv)
+	return decodeFormValue(values, prefix, rv, prefix != "")
 }
 
 // SetFormRequest encodes body as application/x-www-form-urlencoded and stores
@@ -116,6 +118,9 @@ func ParseFormWithLimit(req *http.Request, maxBytes int64) error {
 // encodeFormValue distinguishes an unnamed root from a named map entry whose
 // key is empty. Child values always have a name, independently of its bytes.
 func encodeFormValue(values url.Values, prefix string, v reflect.Value, named bool) (bool, error) {
+	if named && httpencoding.Select(httpencoding.FormField, formValueShape(v)) == httpencoding.JSON {
+		return EncodeJSONField(values, prefix, v.Interface())
+	}
 	normalized, handled, err := normalizeFormEncodeValue(values, prefix, v)
 	if err != nil {
 		return false, err
@@ -139,9 +144,12 @@ func encodeFormValue(values url.Values, prefix string, v reflect.Value, named bo
 	}
 }
 
-func decodeFormValue(values url.Values, prefix string, target reflect.Value) (bool, error) {
+func decodeFormValue(values url.Values, prefix string, target reflect.Value, named bool) (bool, error) {
 	if target.Kind() != reflect.Pointer || target.IsNil() {
 		return false, fmt.Errorf("form decode target must be a non-nil pointer")
+	}
+	if named && httpencoding.Select(httpencoding.FormField, formValueShape(target)) == httpencoding.JSON {
+		return DecodeJSONField(values, prefix, target.Interface())
 	}
 	if !hasFormPrefix(values, prefix) {
 		return false, nil
@@ -155,7 +163,7 @@ func decodeFormValue(values url.Values, prefix string, target reflect.Value) (bo
 	case reflect.Interface:
 		return false, fmt.Errorf("unsupported form interface target %s", elem.Type())
 	case reflect.Pointer:
-		return decodePointerTarget(values, prefix, elem)
+		return decodePointerTarget(values, prefix, elem, named)
 	case reflect.Struct:
 		return decodeStructFields(values, prefix, elem)
 	case reflect.Map:
@@ -275,9 +283,9 @@ func encodeScalarFormValue(values url.Values, prefix string, v reflect.Value, na
 	return true, nil
 }
 
-func decodePointerTarget(values url.Values, prefix string, elem reflect.Value) (bool, error) {
+func decodePointerTarget(values url.Values, prefix string, elem reflect.Value, named bool) (bool, error) {
 	child := reflect.New(elem.Type().Elem())
-	seen, err := decodeFormValue(values, prefix, child)
+	seen, err := decodeFormValue(values, prefix, child, named)
 	if !seen || err != nil {
 		return seen, err
 	}
@@ -331,14 +339,14 @@ func decodeIntoField(values url.Values, prefix string, field reflect.Value) (boo
 	}
 	if field.Kind() == reflect.Pointer {
 		child := reflect.New(field.Type().Elem())
-		seen, err := decodeFormValue(values, prefix, child)
+		seen, err := decodeFormValue(values, prefix, child, true)
 		if !seen || err != nil {
 			return seen, err
 		}
 		field.Set(child)
 		return true, nil
 	}
-	return decodeFormValue(values, prefix, field.Addr())
+	return decodeFormValue(values, prefix, field.Addr(), true)
 }
 
 func decodeFormMap(values url.Values, prefix string, target reflect.Value) (bool, error) {
@@ -540,4 +548,40 @@ func setScalarValue(target reflect.Value, raw string) error {
 		}
 	}
 	return fmt.Errorf("unsupported form target type %s", target.Type())
+}
+
+// formValueShape inspects physical shape without invoking either codec.
+func formValueShape(value reflect.Value) httpencoding.Shape {
+	for value.IsValid() && (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) {
+		if value.IsNil() {
+			if value.Kind() == reflect.Pointer {
+				return formTypeShape(value.Type().Elem())
+			}
+			return httpencoding.UnsupportedShape
+		}
+		value = value.Elem()
+	}
+	if !value.IsValid() {
+		return httpencoding.UnsupportedShape
+	}
+	return formTypeShape(value.Type())
+}
+
+func formTypeShape(t reflect.Type) httpencoding.Shape {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Map:
+		return httpencoding.Map
+	case reflect.Struct:
+		return httpencoding.Object
+	case reflect.Array, reflect.Slice:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return httpencoding.Scalar
+		}
+		return httpencoding.Sequence
+	default:
+		return httpencoding.Scalar
+	}
 }

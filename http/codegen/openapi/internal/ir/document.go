@@ -186,6 +186,7 @@ func buildRequestBody(endpointIR *transportir.Endpoint, bodies *EndpointBodies, 
 		}
 		content[contentType] = buildMediaType(bodyAttr, schema, closeObjects,
 			endpointIR.Request.DocumentBody != nil, target)
+		applyFormFieldEncoding(endpointIR.Request, content[contentType])
 	}
 	return &RequestBody{
 		Description:   requestBodyDescription(bodyAttr),

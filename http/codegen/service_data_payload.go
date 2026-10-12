@@ -9,6 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
 type payloadBuilder struct {
@@ -59,6 +60,7 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 		basic:      basic,
 	}
 	builder.httpsvrctx.JSONPresence = bodyAttr != nil && !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
+	builder.httpsvrctx.JSONPresenceTypes, builder.httpsvrctx.PresencePointerTypes, builder.httpsvrctx.PresenceUseDefaultTypes = typeLayoutMaps(sd, true)
 	return builder
 }
 
@@ -112,8 +114,9 @@ func buildPayloadIDData(request *transportir.Request, payload *expr.AttributeExp
 
 func (b *payloadBuilder) buildInit(request *RequestData) *InitData {
 	needsServiceInit := needInit(b.payload)
-	needsPresenceInit := b.httpsvrctx.JSONPresence && expr.ContainsNonNullableCollectionElement(b.bodyAttr)
-	if !needsServiceInit && !needsPresenceInit {
+	needsCarrierInit := b.httpsvrctx.JSONPresence && expr.ContainsNonNullableCollectionElement(b.bodyAttr) ||
+		b.endpointIR.Request.FormEncoded && needInit(b.bodyAttr)
+	if !needsServiceInit && !needsCarrierInit {
 		return nil
 	}
 	init := b.buildInitData(request)
@@ -350,13 +353,15 @@ func (b *payloadBuilder) buildQueryParams(params []*transportir.Parameter) []*Pa
 		stringSlice := transportStringSlice(rawServiceField(b.payload, param.Name, param.Attribute))
 		fieldName, fieldType, fieldPointer := transportFieldBinding(param.Name, attr, b.payload, nil)
 		data = append(data, &ParamData{
-			Map: mp != nil,
+			Map:       mp != nil,
+			JSONField: param.Encoding == httpencoding.JSON,
 			MapStringSlice: mp != nil &&
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
 			Element: b.sds.buildTransportElement(param.Name, param.HTTPName, attr, stringSlice, param.Required, param.PrimitivePointer, fieldName, fieldType, fieldPointer, ctx, b.sd.Scope, b.vars, b.sds.examplesFor(b.sd)),
 		})
+		b.jsonQueryCarrier(data[len(data)-1], attr)
 	}
 	return data
 }

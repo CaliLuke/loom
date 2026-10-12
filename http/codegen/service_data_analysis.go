@@ -37,6 +37,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	nameBodyTypes(irService.Endpoints)
 	svc, scope := newHTTPAnalysisService(svc, sds.serviceImportAliases[httpSvc.Name()])
 	sd = newHTTPServiceData(svc, scope)
+	nameJSONFormCarriers(irService.Endpoints)
 	sd.exampleGenerator = examplegen.ForScope(sds.Root.API.ExampleGenerator, "http", httpSvc.Name())
 	sd.CORS = buildCORSData(httpSvc)
 	sd.FileServers = sds.buildFileServersData(httpSvc, scope)

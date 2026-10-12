@@ -1,0 +1,33 @@
+package codegen
+
+import (
+	"testing"
+
+	"github.com/CaliLuke/loom/expr"
+	"github.com/stretchr/testify/require"
+)
+
+func TestTransformNamedJSONCollectionBoundary(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		value expr.DataType
+	}{
+		{"map", &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: expr.String}}},
+		{"array", &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			named := &expr.UserTypeExpr{TypeName: "JSONField", AttributeExpr: &expr.AttributeExpr{Type: test.value}}
+			source := &expr.AttributeExpr{Type: &expr.Object{{Name: "field", Attribute: &expr.AttributeExpr{Type: named}}}}
+			target := &expr.AttributeExpr{Type: &expr.Object{{Name: "field", Attribute: &expr.AttributeExpr{Type: test.value}}}}
+			scope := NewNameScope()
+			sourceContext := NewAttributeContext(true, false, false, "", scope)
+			sourceContext.JSONPresenceTypes = map[string]bool{named.Hash(): true}
+			targetContext := NewAttributeContext(false, false, true, "", scope)
+			code, _, err := GoTransform(source, target, "body", "payload", sourceContext, targetContext, "unmarshal", true)
+			require.NoError(t, err)
+			require.Contains(t, code, ".Value()", "named JSON carriers must be unwrapped beneath a native form root")
+			require.False(t, sourceContext.JSONPresence)
+			require.False(t, sourceContext.CollectionElementPresence)
+		})
+	}
+}

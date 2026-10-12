@@ -1,6 +1,9 @@
 package transportir
 
-import "github.com/CaliLuke/loom/expr"
+import (
+	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/httpencoding"
+)
 
 // IsParameter reports whether the exact HTTP location and name identify a
 // security credential parameter. A nil Security has no credential parameters.
@@ -42,6 +45,7 @@ func buildQueryParameters(endpoint *expr.HTTPEndpointExpr) []*Parameter {
 		Required:       required,
 		Map:            expr.AsMap(attr.Type) != nil,
 		MapQueryParams: endpoint.MapQueryParams,
+		Encoding:       httpencoding.Root,
 	})
 	return params
 }
@@ -60,7 +64,12 @@ func buildMappedParameters(endpoint *expr.HTTPEndpointExpr, mapped *expr.MappedA
 	}
 	var params []*Parameter
 	expr.WalkMappedAttr(mapped, func(name, element string, attr *expr.AttributeExpr) error { // nolint: errcheck
+		mode := httpencoding.Text
+		if in == "query" {
+			mode = httpencoding.Select(httpencoding.NamedQuery, URLShape(attr))
+		}
 		params = append(params, &Parameter{
+			Encoding:         mode,
 			Name:             name,
 			HTTPName:         element,
 			In:               in,

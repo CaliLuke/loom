@@ -197,6 +197,9 @@ func (p *documentPlanner) parameter(parameter Parameter, path string) {
 			p.unsupported("cookie-parameter-shape", path+"/schema", "cookie parameters must have primitive schemas; array and object cookies are not supported by the HTTP DSL")
 		}
 	}
+	if resolved.In == "query" {
+		p.querySerialization(resolved, path)
+	}
 	if resolved.In != "query" && resolved.AllowEmptyValue {
 		p.unsupported("parameter-allow-empty-value", path, "allowEmptyValue is only supported for query parameters")
 	}
@@ -239,6 +242,9 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 			p.unsupported("schema-oneof-location", contentPath+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
 		p.schema(body.Schema, contentPath+"/schema")
+		if isFormMediaType(contentType) {
+			p.formSerialization(body, contentPath)
+		}
 	}
 }
 

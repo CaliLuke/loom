@@ -7,11 +7,8 @@ func EncodeMethodARequest(encoder func(*http.Request) loomhttp.Encoder) func(*ht
 			return loomhttp.ErrInvalidType("ServiceQueryMapAliasValidate", "MethodA", "*servicequerymapaliasvalidate.MethodAPayload", v)
 		}
 		values := req.URL.Query()
-		for kRaw, value := range p.Map {
-			k := strconv.FormatFloat(float64(kRaw), 'f', -1, 32)
-			key := fmt.Sprintf("map[%s]", k)
-			valueStr := strconv.FormatBool(value)
-			values.Add(key, valueStr)
+		if _, err := loomhttp.EncodeJSONField(values, "map", p.Map); err != nil {
+			return err
 		}
 		req.URL.RawQuery = values.Encode()
 		return nil

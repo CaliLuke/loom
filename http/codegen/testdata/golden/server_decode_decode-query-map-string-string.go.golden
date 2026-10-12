@@ -12,37 +12,21 @@ func DecodeMethodQueryMapStringStringRequest(mux loomhttp.Muxer, _ func(*http.Re
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
 		{
-			qRaw := qp
-			qHasValues := false
-			for keyRaw := range qRaw {
-				if strings.HasPrefix(keyRaw, "q[") {
-					qHasValues = true
-					break
-				}
+			var decoded map[string]loom.Optional[string]
+			present, decodeErr := loomhttp.DecodeJSONField(qp, "q", &decoded)
+			if decodeErr != nil {
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
-			if qHasValues {
-				for keyRaw, valRaw := range qRaw {
-					if strings.HasPrefix(keyRaw, "q[") {
-						if q == nil {
-							q = make(map[string]string)
-						}
-						var keya string
-						var keyaErr error
-						{
-							openIdx := strings.IndexRune(keyRaw, '[')
-							closeIdx := strings.IndexRune(keyRaw, ']')
-							if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-								keyaErr = loom.DecodePayloadError("invalid query string: malformed brackets")
-								err = loom.MergeErrors(err, keyaErr)
-							} else {
-								keya = keyRaw[openIdx+1 : closeIdx]
-							}
-						}
-						if keyaErr != nil {
-							continue
-						}
-						q[keya] = valRaw[0]
+			if present {
+				q = make(map[string]string, len(decoded))
+				for key, val := range decoded {
+					actual, ok := val.Value()
+					if !ok {
+						continue
 					}
+					tk := key
+					tv := actual
+					q[tk] = tv
 				}
 			}
 		}

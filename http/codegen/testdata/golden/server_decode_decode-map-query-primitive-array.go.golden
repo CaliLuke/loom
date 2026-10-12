@@ -13,49 +13,31 @@ func DecodeMapQueryPrimitiveArrayRequest(mux loomhttp.Muxer, _ func(*http.Reques
 		}
 		{
 			queryRaw := qp
-			queryHasValues := false
-			for keyRaw := range queryRaw {
-				if strings.HasPrefix(keyRaw, "query[") {
-					queryHasValues = true
-					break
-				}
-			}
-			if !queryHasValues {
+			if len(queryRaw) == 0 {
 				err = loom.MergeErrors(err, loom.MissingFieldError("query", "query string"))
 			}
+			if query == nil {
+				query = make(map[string][]uint)
+			}
 			for keyRaw, valRaw := range queryRaw {
-				if strings.HasPrefix(keyRaw, "query[") {
-					if query == nil {
-						query = make(map[string][]uint)
-					}
-					var keya string
-					var keyaErr error
-					{
-						openIdx := strings.IndexRune(keyRaw, '[')
-						closeIdx := strings.IndexRune(keyRaw, ']')
-						if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-							keyaErr = loom.DecodePayloadError("invalid query string: malformed brackets")
-							err = loom.MergeErrors(err, keyaErr)
-						} else {
-							keya = keyRaw[openIdx+1 : closeIdx]
-						}
-					}
-					if keyaErr != nil {
-						continue
-					}
-					var val []uint
-					{
-						val = make([]uint, len(valRaw))
-						for i, rv := range valRaw {
-							v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
-							if err2 != nil {
-								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valRaw, "array of unsigned integers"))
-							}
-							val[i] = uint(v)
-						}
-					}
-					query[keya] = val
+				var key string
+				var keyErr error
+				key = keyRaw
+				if keyErr != nil {
+					continue
 				}
+				var val []uint
+				{
+					val = make([]uint, len(valRaw))
+					for i, rv := range valRaw {
+						v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
+						if err2 != nil {
+							err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valRaw, "array of unsigned integers"))
+						}
+						val[i] = uint(v)
+					}
+				}
+				query[key] = val
 			}
 		}
 		if err != nil {

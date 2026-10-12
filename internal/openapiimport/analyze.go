@@ -372,10 +372,21 @@ func (a *analyzer) parameter(source *v3.Parameter, path string) Parameter {
 	if source.In != "path" && source.In != "query" && source.In != "header" && source.In != "cookie" {
 		a.unsupported("parameter-location", path+"/in", fmt.Sprintf("parameter location %q is not supported", source.In))
 	}
-	if orderedmap.Len(source.Content) > 0 {
-		a.unsupported("parameter-content", path+"/content", "content-based parameters are not in the strict import subset")
+	parameter.Serialization.Style, parameter.Serialization.Explode = source.Style, source.Explode
+	if source.AllowReserved || source.GoLow() != nil && !source.GoLow().AllowReserved.IsEmpty() {
+		parameter.Serialization.AllowReserved = &source.AllowReserved
 	}
-	if (source.Style != "" && !supportedParameterStyle(source.In, source.Style)) || source.Explode != nil {
+	if orderedmap.Len(source.Content) > 0 {
+		if source.In != "query" || source.Schema != nil {
+			a.unsupported("parameter-content", path+"/content", "content is supported only for named JSON query objects, without schema siblings")
+		}
+		media, schema, examples := a.content(source.Content, path+"/content")
+		if len(examples) > 0 {
+			a.unsupported("examples", path+"/content", "parameter content examples are not in the strict import subset")
+		}
+		parameter.Serialization.MediaType, parameter.Schema = media, schema
+	}
+	if source.In != "query" && ((source.Style != "" && !supportedParameterStyle(source.In, source.Style)) || source.Explode != nil) {
 		a.unsupported("parameter-serialization", path, "custom parameter serialization is not in the strict import subset")
 	}
 	if source.Example != nil || orderedmap.Len(source.Examples) > 0 {
@@ -401,7 +412,8 @@ func (a *analyzer) requestBody(source *v3.RequestBody, path string) RequestBody 
 	body := RequestBody{
 		Description: source.Description, Required: source.Required != nil && *source.Required,
 		ContentTypes: contentTypes, Schema: schema, Examples: examples,
-		Extensions: a.extensions(path, source.Extensions),
+		Extensions:   a.extensions(path, source.Extensions),
+		FormEncoding: formSerialization(source.Content),
 	}
 	return body
 }

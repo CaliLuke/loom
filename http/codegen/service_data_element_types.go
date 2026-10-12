@@ -66,6 +66,12 @@ type (
 	// parameter).
 	ParamData struct {
 		*Element
+		// JSONField selects one JSON document for a named query value.
+		JSONField bool
+		// JSONDecodeType is the existing JSON physical carrier for the field.
+		JSONDecodeType string
+		// JSONDecodeCode converts the JSON carrier to the native parameter.
+		JSONDecodeCode string
 		// MapStringSlice is true if the param type is a map of string
 		// slice.
 		MapStringSlice bool

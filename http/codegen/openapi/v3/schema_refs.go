@@ -37,6 +37,7 @@ func rewriteOperationSchemaRefs(op *Operation, resolveRef func(string) string) {
 	for _, param := range op.Parameters {
 		if param != nil && param.Value != nil {
 			rewriteSchemaRefs(param.Value.Schema, resolveRef)
+			rewriteMediaTypeSchemaRefs(param.Value.Content, resolveRef)
 		}
 	}
 	if op.RequestBody != nil && op.RequestBody.Value != nil {
@@ -64,6 +65,7 @@ func rewriteReusableSchemaRefs(reusable reusableComponents, resolveRef func(stri
 	for _, parameter := range reusable.Parameters {
 		if parameter != nil && parameter.Value != nil {
 			rewriteSchemaRefs(parameter.Value.Schema, resolveRef)
+			rewriteMediaTypeSchemaRefs(parameter.Value.Content, resolveRef)
 		}
 	}
 	for _, header := range reusable.Headers {
@@ -149,6 +151,7 @@ func collectOperationSchemaRefs(op *Operation, addRef func(string)) {
 	for _, param := range op.Parameters {
 		if param != nil && param.Value != nil {
 			collectSchemaRefs(param.Value.Schema, addRef)
+			collectMediaTypeSchemaRefs(param.Value.Content, addRef)
 		}
 	}
 	if op.RequestBody != nil && op.RequestBody.Value != nil {

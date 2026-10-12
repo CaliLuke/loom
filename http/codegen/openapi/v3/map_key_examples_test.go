@@ -32,9 +32,10 @@ func TestFilesRenderBoolKeyedQueryMapExamplesWithStringKeys(t *testing.T) {
 			} {
 				parameter := parameterByName(t, requireOperation(t, spec, "/", "get"), "q")
 				require.Equal(t, "query", parameter["in"], format)
-				schema := requireMap(t, parameter["schema"], format+" q schema")
+				media := jsonParameterMedia(t, parameter)
+				schema := requireMap(t, media["schema"], format+" q schema")
 				for label, example := range map[string]any{
-					"parameter example": parameter["example"],
+					"parameter example": media["example"],
 					"schema example":    schema["example"],
 				} {
 					if example == nil {
@@ -58,15 +59,15 @@ func TestFilesRenderScalarMapKeysAsJSONMemberNames(t *testing.T) {
 		"yaml": decodeOpenAPIExampleYAML(t, artifacts.YAML),
 	} {
 		list := requireOperation(t, spec, "/flags", "get")
-		enabled := parameterByName(t, list, "enabled")
+		enabled := jsonParameterMedia(t, parameterByName(t, list, "enabled"))
 		for key, value := range requireMap(t, enabled["example"], format+" enabled example") {
 			require.Contains(t, []string{"true", "false"}, key, format)
 			require.NotEmpty(t, requireSlice(t, value, format+" enabled example value"), format)
 		}
-		labels := parameterByName(t, list, "labels")
+		labels := jsonParameterMedia(t, parameterByName(t, list, "labels"))
 		labelsSchema := requireMap(t, labels["schema"], format+" labels schema")
 		require.Equal(t, map[string]any{"true": "on", "false": "off"}, labelsSchema["default"], format)
-		groups := parameterByName(t, list, "groups")
+		groups := jsonParameterMedia(t, parameterByName(t, list, "groups"))
 		groupsSchema := requireMap(t, groups["schema"], format+" groups schema")
 		groupSchema := requireMap(t, groupsSchema["additionalProperties"], format+" group schema")
 		groupsExample := requireMap(t, groups["example"], format+" groups example")
@@ -103,4 +104,11 @@ func TestFilesRenderScalarMapKeysAsJSONMemberNames(t *testing.T) {
 		require.Len(t, rule, 1, format)
 		require.EqualValues(t, 3, rule["maxCount"], format)
 	}
+}
+
+func jsonParameterMedia(t *testing.T, parameter map[string]any) map[string]any {
+	t.Helper()
+	content := requireMap(t, parameter["content"], "parameter content")
+	require.NotContains(t, parameter, "schema")
+	return requireMap(t, content["application/json"], "parameter JSON media")
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/internal/httpencoding"
 )
 
 const defaultOperationIDFormat = "{service}.{method}(.{routeIndex})"
@@ -63,6 +64,9 @@ func buildRouteOperationFromIR(endpointIR *transportir.Endpoint, routeIR *transp
 		}
 	}
 
+	if err := validateURLFieldEncoding(endpointIR); err != nil {
+		return nil, fmt.Errorf("OpenAPI encoding for %s.%s: %w", service.Name, endpointIR.Name, err)
+	}
 	requestBody := buildRequestBody(endpointIR, bodies, closeObjects)
 	responseMap, err := buildResponses(endpointIR, bodies, rand, closeObjects)
 	if err != nil {
@@ -120,7 +124,7 @@ func buildParameters(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerat
 						Bool: boolPtr(true),
 					},
 				},
-				Style:            "deepObject",
+				Style:            "form",
 				WholeQueryString: true,
 			},
 		})
@@ -140,7 +144,14 @@ func paramsFromPath(endpointIR *transportir.Endpoint, rand *expr.ExampleGenerato
 		if endpointIR.Security.IsParameter("query", parameter.HTTPName) {
 			continue
 		}
-		params = append(params, preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "query", parameter.Required, rand, closeObjects, prepared...))
+		ref := preparedParamFor(parameter.Attribute, parameter.Value, parameter.HTTPName, "query", parameter.Required, rand, closeObjects, prepared...)
+		if parameter.Encoding == httpencoding.JSON {
+			p := ref.Value
+			p.Content = map[string]*MediaType{"application/json": {Schema: p.Schema, Example: p.Example, Examples: p.Examples}}
+			p.Schema, p.Example, p.Examples = nil, nil, nil
+			p.Style, p.Explode, p.AllowReserved, p.AllowEmptyValue = "", nil, false, false
+		}
+		params = append(params, ref)
 	}
 	return params
 }

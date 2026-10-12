@@ -97,7 +97,6 @@ func clientRequestEncoderSection(svc *expr.HTTPServiceExpr, services *ServicesDa
 func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesData) map[string]any {
 	return map[string]any{
 		"typeConversionData": typeConversionData,
-		"mapConversionData":  mapConversionData,
 		"goTypeRef": func(dt expr.DataType) string {
 			return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
 		},
@@ -178,19 +177,6 @@ func typeConversionData(dt, ft expr.DataType, varName, target string) map[string
 		"VarName":   varName,
 		"Target":    target,
 		"IsAliased": isut,
-	}
-}
-
-func mapConversionData(dt, ft expr.DataType, varName, sourceVar, sourceField string, newVar bool) map[string]any {
-	ft, isut := transportUnderlyingType(ft)
-	return map[string]any{
-		"Type":        dt,
-		"FieldType":   ft,
-		"VarName":     varName,
-		"SourceVar":   sourceVar,
-		"SourceField": sourceField,
-		"NewVar":      newVar,
-		"IsAliased":   isut,
 	}
 }
 

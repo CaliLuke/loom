@@ -605,14 +605,6 @@ func generateHelper(source, target *expr.AttributeExpr, req bool, ta *TransformA
 	nested := *ta
 	nested.SourceCtx = ta.SourceCtx.Dup()
 	nested.TargetCtx = ta.TargetCtx.Dup()
-	if attributeUsesJSONPresence(source, nested.SourceCtx) {
-		nested.SourceCtx.JSONPresence = true
-		nested.SourceCtx.CollectionElementPresence = true
-	}
-	if attributeUsesJSONPresence(target, nested.TargetCtx) {
-		nested.TargetCtx.JSONPresence = true
-		nested.TargetCtx.CollectionElementPresence = true
-	}
 	ta = &nested
 
 	// When transforming into a user type defined in an external package, assume

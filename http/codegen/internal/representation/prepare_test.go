@@ -234,3 +234,25 @@ func TestBuildValuePlanRebindsPreparedExamplesToRebuiltNodes(t *testing.T) {
 	require.NotContains(t, target.ExampleSets, oldRoot)
 	require.Same(t, oldSource, target.Representative.Source)
 }
+
+func TestNamedJSONQueryValueUsesSelectedCodec(t *testing.T) {
+	root := codegen.RunDSL(t, func() {
+		dsl.Service("values", func() {
+			dsl.Method("read", func() {
+				dsl.Payload(func() {
+					dsl.Attribute("map", dsl.MapOf(dsl.String, dsl.Bytes))
+					dsl.Attribute("scalar", dsl.Bytes)
+				})
+				dsl.HTTP(func() { dsl.GET("/"); dsl.Param("map"); dsl.Param("scalar") })
+			})
+		})
+	})
+	prepared, err := PrepareService(root.API.HTTP.Services[0], nil)
+	require.NoError(t, err)
+	parameters := prepared.Endpoints[0].Request.QueryParams
+	require.Len(t, parameters, 2)
+	require.Equal(t, expr.ValueCodecJSON, parameters[0].Value.Codec)
+	require.Equal(t, expr.ValueCodecJSON, parameters[0].Value.Plan.Root().Codec())
+	require.Empty(t, parameters[0].Value.Boundary)
+	require.Equal(t, expr.ValueCodecText, parameters[1].Value.Codec)
+}

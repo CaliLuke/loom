@@ -40,6 +40,9 @@ func recordServiceTypeLayouts(endpoints []*transportir.Endpoint, sd *ServiceData
 		return
 	}
 	server, client := representation.ServiceLayouts(endpoints)
+	for _, endpoint := range endpoints {
+		recordJSONFormCarriers(endpoint.Request, server)
+	}
 	sd.ServerJSONPresenceTypes, sd.ServerPresencePointerTypes, sd.ServerPresenceUseDefaultTypes = server.JSONPresence, server.Pointer, server.UseDefault
 	sd.ClientJSONPresenceTypes, sd.ClientPresencePointerTypes, sd.ClientPresenceUseDefaultTypes = client.JSONPresence, client.Pointer, client.UseDefault
 	for _, endpoint := range endpoints {

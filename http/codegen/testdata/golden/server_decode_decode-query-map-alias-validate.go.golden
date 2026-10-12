@@ -12,52 +12,21 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 			return payload, loom.DecodePayloadError("invalid query string")
 		}
 		{
-			map_Raw := qp
-			map_HasValues := false
-			for keyRaw := range map_Raw {
-				if strings.HasPrefix(keyRaw, "map[") {
-					map_HasValues = true
-					break
-				}
+			var decoded map[float32]loom.Optional[bool]
+			present, decodeErr := loomhttp.DecodeJSONField(qp, "map", &decoded)
+			if decodeErr != nil {
+				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
-			if map_HasValues {
-				for keyRaw, valRaw := range map_Raw {
-					if strings.HasPrefix(keyRaw, "map[") {
-						if map_ == nil {
-							map_ = make(map[float32]bool)
-						}
-						var keya float32
-						var keyaErr error
-						{
-							openIdx := strings.IndexRune(keyRaw, '[')
-							closeIdx := strings.IndexRune(keyRaw, ']')
-							if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
-								keyaErr = loom.DecodePayloadError("invalid query string: malformed brackets")
-								err = loom.MergeErrors(err, keyaErr)
-							} else {
-								keyaRaw := keyRaw[openIdx+1 : closeIdx]
-								v, err2 := strconv.ParseFloat(keyaRaw, 32)
-								if err2 != nil {
-									keyaErr = loom.InvalidFieldTypeError("query", keyaRaw, "float")
-									err = loom.MergeErrors(err, keyaErr)
-								}
-								keya = float32(v)
-							}
-						}
-						if keyaErr != nil {
-							continue
-						}
-						var vala bool
-						{
-							valaRaw := valRaw[0]
-							v, err2 := strconv.ParseBool(valaRaw)
-							if err2 != nil {
-								err = loom.MergeErrors(err, loom.InvalidFieldTypeError("query", valaRaw, "boolean"))
-							}
-							vala = v
-						}
-						map_[keya] = vala
+			if present {
+				map_ = make(map[float32]bool, len(decoded))
+				for key, val := range decoded {
+					actual, ok := val.Value()
+					if !ok {
+						continue
 					}
+					tk := key
+					tv := actual
+					map_[tk] = tv
 				}
 			}
 		}

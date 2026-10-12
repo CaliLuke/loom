@@ -56,9 +56,9 @@ reads. Specification extensions are patterns, not fixed fields.
 | Path Item | Standard methods, `QUERY`, additional methods, `parameters` | `summary`, `description` | `$ref`, `servers`, `x-*` |
 | Operation | `tags`, `summary`, `description`, `operationId`, `parameters`, `requestBody`, `responses`, `deprecated`, `security`, supported `x-*` | `externalDocs` | `callbacks`, `servers` |
 | Components | Supported schemas, parameters, request bodies, responses, headers, security schemes, and examples | None | Links, callbacks, path items, media types, and `x-*` component entries |
-| Parameter | Identity, location, requiredness, schema, description, supported style, `allowReserved`, and supported `x-*` | `deprecated`, unsupported examples | `explode`, unsupported styles, and `content` |
+| Parameter | Identity, location, requiredness, schema, description, supported style, equivalent `explode` defaults, `allowReserved`, named query-map JSON `content`, and supported `x-*` | `deprecated`, unsupported examples | Incompatible serialization or content |
 | Request Body | `description`, `required`, supported content, and supported `x-*` | None | direct `$ref` plans that cannot retain component identity |
-| Media Type | Supported schema and examples | OpenAPI 3.2 `description` | `itemSchema`, encoding fields, `prefixEncoding`, and `x-*` |
+| Media Type | Supported schema, examples, and equivalent URL-encoded field encoding | OpenAPI 3.2 `description` | `itemSchema`, unsupported encoding fields, `prefixEncoding`, and `x-*` |
 | Responses | Concrete status-code entries | None | `default` and `x-*` |
 | Response | `summary`, `description`, supported headers and content, and supported `x-*` | None | Direct `$ref` plans and links |
 | Header | `description`, `required`, schema, `style: simple`, and `allowReserved` | `deprecated`, unsupported examples | Other serialization, content, direct `$ref`, and `x-*` |
@@ -69,6 +69,21 @@ Path and operation extensions use a documented allowlist. Unknown extensions
 at those supported scopes produce diagnostics. Document, schema, parameter,
 request-body, and response extensions preserve JSON-compatible `x-*` values,
 and regenerated OpenAPI emits each value at the scope it came from.
+
+Named query maps require `content: {application/json: {schema: ...}}`, including
+nested maps and maps whose values are arrays. Their schemas remain typed through
+component references. Fixed object query parameters remain unsupported. Scalar
+and repeated scalar-array query parameters accept equivalent explicit `form`
+defaults. A named map declared with `deepObject`, flattened `form`, or an implicit
+query-object style is a blocking wire-contract mismatch, even with
+`--allow-lossy`.
+
+Named object/map properties of URL-encoded forms use JSON. Both the standard
+implicit JSON media encoding and explicit `contentType: application/json` are
+accepted. Do not add `style`, `explode`, or `allowReserved` to those encoding
+objects: those fields select a different serialization. Regeneration emits the
+explicit JSON media type. Existing root form maps and raw-body imports retain
+their separate contracts.
 
 Cookie parameters require primitive schemas, including through component
 references. Array and object cookies produce a blocking
