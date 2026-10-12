@@ -40,8 +40,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 				})
 			})
 		})
-		require.NotEmpty(t, svcData.UnionTypes)
-		for _, union := range svcData.UnionTypes {
+		require.NotEmpty(t, svcData.ClientUnionTypes)
+		for _, union := range svcData.ClientUnionTypes {
 			require.Len(t, union.Fields, 2)
 			matched, err := union.JSON.Branches[0].Runtime.Match([]byte(`{"start":"ok"}`))
 			require.NoError(t, err)
@@ -366,7 +366,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 			"RequestChoice",
 			"ResponseChoice",
 			"StreamChoice",
-		}, httpUnionTypeNames(svc.UnionTypes))
+		}, httpUnionTypeNames(svc.ClientUnionTypes))
 	})
 
 	t.Run("buildErrorsData uses IR-owned error responses", func(t *testing.T) {

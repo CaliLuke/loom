@@ -136,8 +136,8 @@ func TestUnionBodyTypeNames(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			root := RunHTTPDSL(t, c.DSL)
 			sd := CreateHTTPServices(root).Get("svc")
-			unions := make(map[string][]string, len(sd.UnionTypes))
-			for _, union := range sd.UnionTypes {
+			unions := make(map[string][]string, len(sd.ClientUnionTypes))
+			for _, union := range sd.ClientUnionTypes {
 				fields := make([]string, 0, len(union.Fields))
 				for _, field := range union.Fields {
 					fields = append(fields, field.FieldType)

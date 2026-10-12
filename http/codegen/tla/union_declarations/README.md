@@ -39,3 +39,81 @@ including required, optional, and nullable fields). Run them with:
 ```sh
 LOOM_DIR="$PWD" go test ./http/codegen -run 'TestHTTPUnionDeclarationsCoverAllocatedNames|TestUnionResponseBodyGeneratedHTTP' -count=1
 ```
+
+## Package reachability
+
+Model for #784; the implementation correspondence is recorded below.
+
+`PackageReachability.tla` separates a client's full response carrier from a
+server's selected-view carrier. Both can also need the union for a request.
+`BodyTypes` abstracts the already prepared body graph and its branch dependency.
+The current shared registry chooses client-reachable unions for both packages;
+its counterexample emits a server union without its branch declaration.
+Package-specific collection from the same body graph used for declarations
+passes the bounded obligations.
+
+Run from this directory with Java 25 and the existing pinned TLC tool:
+
+```sh
+java -XX:+UseParallelGC -cp /Users/luca/.cache/loom-tools/tla2tools-1.7.4.jar tlc2.TLC -workers 1 -metadir /tmp/loom-union-declarations-states -config package-checked.cfg PackageReachability.tla
+```
+
+Use distinct metadirs per check. Tool JAR SHA-256:
+`936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`.
+Release 1.7.4 reports TLC 2.19.
+
+- `package-legacy.cfg`: expected `DependenciesDeclared` failure; nine generated/distinct
+  states. Client selects union, server excludes it, no request union. The server
+  emits the union but its branch is absent.
+- `package-checked.cfg`: all three invariants pass; twelve generated/distinct states.
+  Reachable declarations remain complete, unreachable unions are omitted and
+  every emitted union has its branch declaration.
+
+The model has one union and one branch, and treats complete prepared body
+reachability as input. It does not prove Go graph traversal, recursion, views,
+name allocation, type identity, validators or wire behavior. Actual HTTP and
+JSON-RPC module compilation reproduce the missing `KindCircleResponseBody` and
+`KindNameResponseBody` declarations. Correspondence seams are
+`registerBodyRoot`, `collectBodyUnionTypes`, `projectResponseBodyView`,
+`collectServerResponseBodyTypes`, and the client/server type renderers.
+
+Direct tests cover included/excluded views and shared request usage. The owner must retain prepared graph identity; a second
+canonical traversal or unused-branch generation would not implement the model.
+
+The final controls include tagged and explicitly untagged unions, nested maps,
+and an omitted response union also used by a request. Included array/map and
+untagged cases compile and vet; all three excluded parent cases fail with undefined
+response branches and now compile after the registry repair. Existing HTTP allocated-name/order, nested-body, error and
+recursive-projection controls pass. JSON-RPC independently reproduces the
+omitted branch failure while its recursive-projection controls remain valid.
+
+Independent reruns reproduce the legacy nine-state failure and candidate
+twelve-state success. The implementation composes both models: allocate
+each physical union once using the existing declaration identity, then retain
+independent client/server membership and visited sets. Sharing allocation must
+not suppress a second package's membership; separating membership must not call
+the allocating builder twice. Branch declarations and required validators derive
+from the actual prepared roots registered by the body declaration owner.
+`roadmap/view-union-declarations-readiness.md` records the concrete seams and
+bounded acceptance plan. Final acceptance and independent review evidence are recorded there.
+
+
+`registerBodyRoot` captures the actual prepared package graph. It records server
+validation requirements before response type construction; ordinary branch
+collection and union collection consume the same roots. `orderedBodyRoots`
+preserves endpoint/request/stream/response/error order. `collectBodyUnionTypes`
+uses one declaration map and fresh per-package visited/member maps. Renderers
+consume `ServerUnionTypes` or `ClientUnionTypes`, never the other package's list.
+`TestViewedUnionPackageMembership` binds package reachability;
+`TestPreparedBodyUnionAllocationAndMembership` binds repeated registration,
+shared allocation and independent membership;
+`TestViewedUntaggedUnionValidatorDependencies` binds actual untagged validators.
+HTTP/JSON-RPC compile tests and selected-view wire tests cover behavior outside
+this finite model. Existing allocation/order proofs and tests remain intact.
+
+The initial readiness option labeled untagged did not call `Untagged()`; its
+result established only tagged object-branch behavior. That claim is superseded
+by corrected, explicitly asserted untagged tests. `required_untagged_probe.go.txt`
+retains a separate parent-reproduced service-view validation defect exposed by
+the correction; the roadmap records reproduction and scope. The final fixture
+uses optional constrained fields to exercise real branch validators independently.

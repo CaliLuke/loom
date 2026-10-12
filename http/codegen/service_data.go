@@ -90,9 +90,11 @@ type (
 		// ClientTransformHelpers is the list of transform functions
 		// required by the various client side constructors.
 		ClientTransformHelpers []*codegen.TransformFunctionData
-		// UnionTypes lists the sum-type unions referenced by the HTTP request and
-		// response body types.
-		UnionTypes []*uniongen.Type
+		// ServerUnionTypes contains declarations reachable from prepared server bodies.
+		ServerUnionTypes []*uniongen.Type
+		// ClientUnionTypes contains declarations reachable from prepared client bodies.
+		ClientUnionTypes []*uniongen.Type
+		bodyRoots        []httpBodyRoot
 		// CORS contains the generated service CORS policy, if any.
 		CORS *CORSData
 		// Scope initialized with all the server and client types.

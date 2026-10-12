@@ -65,7 +65,7 @@ func clientType(genpkg string, svc *expr.HTTPServiceExpr, seen map[string]struct
 
 	sections.appendBodyAttributeTypes(data.ClientBodyAttributeTypes, seen)
 
-	for _, u := range data.UnionTypes {
+	for _, u := range data.ClientUnionTypes {
 		sections.sections = append(sections.sections, unionTypeSection("client-union-type", u))
 	}
 

@@ -32,7 +32,7 @@ func TestHTTPUnionDeclarationsCoverAllocatedNames(t *testing.T) {
 				seen := make(map[string]struct{})
 				for range 2 {
 					for _, index := range collection {
-						collectHTTPUnionTypes(types[index], scope, declarations, seen, false)
+						collectHTTPUnionTypes(types[index], scope, declarations, seen, false, declarations)
 					}
 				}
 				byName := make(map[string]*uniongen.Type)

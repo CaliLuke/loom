@@ -144,7 +144,7 @@ func collectHTTPUnionTypeNames(att *expr.AttributeExpr) map[string]string {
 	scope := cg.NewNameScope()
 	seen := make(map[string]struct{})
 	unionByName := make(map[string]*uniongen.Type)
-	collectHTTPUnionTypes(att, scope, unionByName, seen, false)
+	collectHTTPUnionTypes(att, scope, unionByName, seen, false, unionByName)
 
 	names := make(map[string]string, len(unionByName))
 	for _, data := range unionByName {

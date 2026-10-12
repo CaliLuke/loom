@@ -20,8 +20,8 @@ import (
 func TestNestedUnionBodyFieldTypes(t *testing.T) {
 	root := RunHTTPDSL(t, nestedUnionBodyDSL)
 	sd := CreateHTTPServices(root).Get("nested")
-	branches := make(map[string][]string, len(sd.UnionTypes))
-	for _, union := range sd.UnionTypes {
+	branches := make(map[string][]string, len(sd.ClientUnionTypes))
+	for _, union := range sd.ClientUnionTypes {
 		for _, field := range union.Fields {
 			branches[union.Name] = append(branches[union.Name], field.FieldType)
 		}

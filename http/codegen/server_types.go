@@ -66,7 +66,7 @@ func serverType(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 		sections.appendTypeData("server-body-attributes", tdata, false, data)
 	}
 
-	for _, u := range data.UnionTypes {
+	for _, u := range data.ServerUnionTypes {
 		sections.sections = append(sections.sections, unionTypeSection("server-union-type", u))
 	}
 

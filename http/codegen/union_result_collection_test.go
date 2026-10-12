@@ -17,8 +17,8 @@ import (
 func TestResultCollectionUnionTypes(t *testing.T) {
 	root := RunHTTPDSL(t, resultCollectionUnionDSL)
 	sd := CreateHTTPServices(root).Get("svc")
-	branches := make(map[string][]string, len(sd.UnionTypes))
-	for _, union := range sd.UnionTypes {
+	branches := make(map[string][]string, len(sd.ClientUnionTypes))
+	for _, union := range sd.ClientUnionTypes {
 		for _, field := range union.Fields {
 			branches[union.Name] = append(branches[union.Name], field.FieldType)
 		}

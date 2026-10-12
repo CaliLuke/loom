@@ -53,10 +53,9 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 		)
 		sd.Endpoints = append(sd.Endpoints, sds.buildEndpointDataWithContext(epCtx, httpEndpoint, svc, sd, scope))
 	}
-	for _, endpointIR := range irService.Endpoints {
-		sds.collectEndpointBodyAttributeTypes(endpointIR, sd)
-	}
-	sd.UnionTypes = sds.collectEndpointUnionTypes(httpSvc.ServiceExpr.Name, irService.Endpoints, sd.Scope)
+	sds.collectBodyAttributeTypes(sd)
+	closed, _ := sds.ServicesData.Root.API.Meta.Last("openapi:closed-objects")
+	sd.collectBodyUnionTypes(closed == "true")
 
 	return sd
 }

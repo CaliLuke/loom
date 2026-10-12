@@ -44,7 +44,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | HTTP response first-match priority and default placement | [Response order](../../../../http/codegen/internal/transportir/tla/response_order/README.md) |
 | HTTP body wrapper copy/example identity and generated type names | [Body type names](../../../../http/codegen/tla/body_type_names/README.md) |
 | HTTP type collection, validator eligibility and multipart cycle identity | [HTTP type identity](../../../../http/codegen/tla/type_identity/README.md) |
-| HTTP union declarations matching allocated references | [HTTP union declarations](../../../../http/codegen/tla/union_declarations/README.md) |
+| HTTP union allocated identity and prepared-body package reachability | [HTTP union declarations](../../../../http/codegen/tla/union_declarations/README.md) |
 | HTTP WebSocket payload null versus end-of-input framing | [WebSocket payload nullability](../../../../http/codegen/tla/README.md) |
 | Protobuf endpoint/anonymous message name reservations | [Message names](../../../../grpc/codegen/tla/message_names/README.md) |
 | Protobuf explicit names, collection wrappers, compatible declarations and recursive normalization | [Message declarations](../../../../grpc/codegen/tla/message_declarations/README.md) |

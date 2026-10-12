@@ -8,7 +8,6 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
-	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/internal/uniongen"
 	"github.com/CaliLuke/loom/internal/unionjson"
 )
@@ -85,10 +84,6 @@ func selectedTransportConstraints(att *expr.AttributeExpr) expr.EffectiveConstra
 	return constraints
 }
 
-// collectUserTypes calls cb once per generated user type in dt. Generated body
-// variants can share a design identifier, so traversal uses the same type hashes
-// as NameScope and the physical layout registry.
-
 func collectUnionBranchUserTypes(att *expr.AttributeExpr, hashes map[string]struct{}) {
 	collectUnionBranchUserTypesSeen(att, hashes, make(map[string]struct{}))
 }
@@ -140,37 +135,7 @@ func collectUnionBranchUserTypesSeen(att *expr.AttributeExpr, hashes, seen map[s
 	}
 }
 
-func (sds *ServicesData) collectEndpointUnionTypes(serviceName string, endpoints []*transportir.Endpoint, scope *codegen.NameScope) []*uniongen.Type {
-	unionByName := make(map[string]*uniongen.Type)
-	seenUnionTypes := make(map[string]struct{})
-	closed, _ := sds.ServicesData.Root.API.Meta.Last("openapi:closed-objects")
-	for _, endpoint := range endpoints {
-		collectHTTPUnionTypes(endpoint.Request.Body, scope, unionByName, seenUnionTypes, closed == "true")
-		if hasHTTPStreamingBody(endpoint) {
-			collectHTTPUnionTypes(endpoint.Request.StreamingBody, scope, unionByName, seenUnionTypes, closed == "true")
-		}
-		if endpoint.Response.Result != nil {
-			md := sds.ServicesData.Get(serviceName).Method(endpoint.MethodName)
-			for _, response := range endpoint.Response.Responses {
-				body := effectiveClientResponseBody(response.Body, endpoint.Response.Result, md)
-				collectHTTPUnionTypes(body, scope, unionByName, seenUnionTypes, closed == "true")
-			}
-		}
-		for _, response := range endpoint.Response.ErrorResponses {
-			collectHTTPUnionTypes(response.Body, scope, unionByName, seenUnionTypes, closed == "true")
-		}
-	}
-	unions := make([]*uniongen.Type, 0, len(unionByName))
-	for _, union := range unionByName {
-		unions = append(unions, union)
-	}
-	sort.Slice(unions, func(i, j int) bool {
-		return unions[i].Name < unions[j].Name
-	})
-	return unions
-}
-
-func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, unions map[string]*uniongen.Type, seen map[string]struct{}, closedObjects bool) {
+func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, unions map[string]*uniongen.Type, seen map[string]struct{}, closedObjects bool, allocated map[string]*uniongen.Type) {
 	if att == nil || att.Type == expr.Empty {
 		return
 	}
@@ -190,30 +155,36 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 			// be the deduplication key.
 			name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
 			if _, ok := unions[name]; !ok {
-				unions[name] = buildHTTPUnionTypeData(union, scope, closedObjects, name)
+				if allocated[name] == nil {
+					allocated[name] = buildHTTPUnionTypeData(union, scope, closedObjects, name)
+				}
+				unions[name] = allocated[name]
 			}
 			for _, nat := range union.Values {
-				collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects)
+				collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects, allocated)
 			}
 			return
 		}
-		collectHTTPUnionTypes(dt.Attribute(), scope, unions, seen, closedObjects)
+		collectHTTPUnionTypes(dt.Attribute(), scope, unions, seen, closedObjects, allocated)
 	case *expr.Object:
 		for _, nat := range sortedNamedAttributes(*dt) {
-			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects)
+			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects, allocated)
 		}
 	case *expr.Array:
-		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen, closedObjects)
+		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen, closedObjects, allocated)
 	case *expr.Map:
-		collectHTTPUnionTypes(dt.KeyType, scope, unions, seen, closedObjects)
-		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen, closedObjects)
+		collectHTTPUnionTypes(dt.KeyType, scope, unions, seen, closedObjects, allocated)
+		collectHTTPUnionTypes(dt.ElemType, scope, unions, seen, closedObjects, allocated)
 	case *expr.Union:
 		name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
 		if _, ok := unions[name]; !ok {
-			unions[name] = buildHTTPUnionTypeData(dt, scope, closedObjects, name)
+			if allocated[name] == nil {
+				allocated[name] = buildHTTPUnionTypeData(dt, scope, closedObjects, name)
+			}
+			unions[name] = allocated[name]
 		}
 		for _, nat := range dt.Values {
-			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects)
+			collectHTTPUnionTypes(nat.Attribute, scope, unions, seen, closedObjects, allocated)
 		}
 	}
 }

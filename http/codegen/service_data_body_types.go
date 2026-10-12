@@ -47,6 +47,7 @@ func (sds *ServicesData) buildRequestBodyType(body, att *expr.AttributeExpr, end
 		httpctx.PresencePointerTypes = sd.ClientPresencePointerTypes
 		httpctx.PresenceUseDefaultTypes = sd.ClientPresenceUseDefaultTypes
 	}
+	sd.registerBodyRoot(body, endpointName, true, svr, httpctx.JSONPresence)
 	applyUserTypeLayout(httpctx, sd, body, svr)
 	addMarshalTags(body)
 	value = representation.BuildValuePlan(value, body, httpctx, expr.ValuePlanRuntime)
@@ -267,6 +268,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	pkg := sd.Service.LocationPackageName(loc)
 	svcctx := serviceContext(pkg, sd.Service.Scope)
 	body, viewName := projectResponseBodyView(body, view, svr, sd)
+	sd.registerBodyRoot(body, endpointName, false, svr, httpctx.JSONPresence)
 	if svr {
 		recordRootTypeLayout(sd, body, true, false, false, true)
 		recordAttributeTypeLayouts(sd, body, true, false, false, true)

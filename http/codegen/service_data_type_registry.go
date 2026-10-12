@@ -9,69 +9,30 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 )
 
-func (sds *ServicesData) collectEndpointBodyAttributeTypes(endpointIR *transportir.Endpoint, sd *ServiceData) {
-	unionBranchTypes := make(map[string]struct{})
-	collectUnionBranchUserTypes(endpointIR.Request.Body, unionBranchTypes)
-	if hasHTTPStreamingBody(endpointIR) {
-		collectUnionBranchUserTypes(endpointIR.Request.StreamingBody, unionBranchTypes)
-	}
-	for _, response := range endpointIR.Response.Responses {
-		collectUnionBranchUserTypes(response.Body, unionBranchTypes)
-	}
-	for _, response := range endpointIR.Response.ErrorResponses {
-		collectUnionBranchUserTypes(response.Body, unionBranchTypes)
-	}
-	ensureUnionBranchValidator := func(data *TypeData, userType expr.UserType) {
-		if data == nil || data.ValidateDef != "" {
-			return
+func (sds *ServicesData) collectBodyAttributeTypes(sd *ServiceData) {
+	for _, root := range sd.orderedBodyRoots() {
+		// Server responses are collected while building their projected type.
+		if root.server && !root.request {
+			continue
 		}
-		if _, ok := unionBranchTypes[userType.Hash()]; ok {
-			data.ValidateDef = "// no validations"
-			data.ValidateRef = fmt.Sprintf("err = Validate%s(v)", data.VarName)
+		branches := make(map[string]struct{})
+		collectUnionBranchUserTypes(root.attribute, branches)
+		target := &sd.ClientBodyAttributeTypes
+		if root.server {
+			target = &sd.ServerBodyAttributeTypes
 		}
-	}
-
-	appendTypeData := func(att *expr.AttributeExpr, ptr, server, jsonPresence bool, target *[]*TypeData) {
-		representation.WalkUserTypes(att.Type, func(ut expr.UserType) {
-			if d := sds.attributeTypeData(ut, true, ptr, server, jsonPresence, sd); d != nil {
-				ensureUnionBranchValidator(d, ut)
-				*target = append(*target, d)
+		representation.WalkUserTypes(root.attribute.Type, func(ut expr.UserType) {
+			data := sds.attributeTypeData(ut, root.request, root.request == root.server, root.server, root.jsonPresence, sd)
+			if data == nil {
+				return
 			}
+			if _, branch := branches[ut.Hash()]; branch && data.ValidateDef == "" {
+				data.ValidateDef = "// no validations"
+				data.ValidateRef = fmt.Sprintf("err = Validate%s(v)", data.VarName)
+			}
+			*target = append(*target, data)
 		})
 	}
-	requestJSONPresence := !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
-	appendTypeData(endpointIR.Request.Body, true, true, requestJSONPresence, &sd.ServerBodyAttributeTypes)
-	appendTypeData(endpointIR.Request.Body, false, false, false, &sd.ClientBodyAttributeTypes)
-
-	if hasHTTPStreamingBody(endpointIR) {
-		appendTypeData(endpointIR.Request.StreamingBody, true, true, true, &sd.ServerBodyAttributeTypes)
-		appendTypeData(endpointIR.Request.StreamingBody, false, false, false, &sd.ClientBodyAttributeTypes)
-	}
-
-	if endpointIR.Response.Result != nil {
-		md := sd.Service.Method(endpointIR.MethodName)
-		for _, response := range endpointIR.Response.Responses {
-			body := effectiveClientResponseBody(response.Body, endpointIR.Response.Result, md)
-			representation.WalkUserTypes(body.Type, func(ut expr.UserType) {
-				if d := sds.attributeTypeData(ut, false, true, false, true, sd); d != nil {
-					ensureUnionBranchValidator(d, ut)
-					sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
-				}
-			})
-		}
-	}
-	for _, httpError := range endpointIR.Response.ErrorResponses {
-		representation.WalkUserTypes(httpError.Body.Type, func(ut expr.UserType) {
-			if d := sds.attributeTypeData(ut, false, true, false, true, sd); d != nil {
-				ensureUnionBranchValidator(d, ut)
-				sd.ClientBodyAttributeTypes = append(sd.ClientBodyAttributeTypes, d)
-			}
-		})
-	}
-}
-
-func hasHTTPStreamingBody(endpoint *transportir.Endpoint) bool {
-	return !endpoint.IsJSONRPC && endpoint.Stream.RequestPayload != nil && endpoint.Stream.RequestPayload.Type != expr.Empty
 }
 
 func recordServiceTypeLayouts(endpoints []*transportir.Endpoint, sd *ServiceData) {
@@ -84,11 +45,6 @@ func recordServiceTypeLayouts(endpoints []*transportir.Endpoint, sd *ServiceData
 	for _, endpoint := range endpoints {
 		recordServerRequestValidationTypes(sd, endpoint.Request.Body)
 		recordServerRequestValidationTypes(sd, endpoint.Request.StreamingBody)
-		for _, response := range append(append([]*transportir.ResponseStatus(nil), endpoint.Response.Responses...), endpoint.Response.ErrorResponses...) {
-			if containsUntaggedUnion(response.Body) {
-				recordServerRequestValidationTypes(sd, response.Body)
-			}
-		}
 	}
 }
 

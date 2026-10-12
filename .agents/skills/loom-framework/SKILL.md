@@ -133,6 +133,14 @@ consumer validation.
   metadata rather than selecting the last declaration. Runtime response order
   and individual response contract cases remain transport-owned. See the
   [response media model](../../../http/codegen/openapi/internal/ir/tla/response_media/README.md).
+- HTTP and JSON-RPC body declarations derive from registered prepared body roots.
+  Register server response roots after view projection; declaration membership
+  and branch validator requirements consume that same graph. Allocate each union
+  once by its existing physical Go identity, then retain separate client/server
+  membership and visited sets. Discover client roots in established endpoint order
+  before server-only roots to preserve allocated names. Never emit a client-only
+  union in a server package or add unreachable branches to satisfy it. Keep
+  `http/codegen/tla/union_declarations` and its projection controls aligned.
 - `internal/uniongen` owns the common Go union declaration and codec emitter.
   Service and HTTP analysis supply that model; service-only validation helpers
   stay in service analysis. Keep untagged occurrence matching in
