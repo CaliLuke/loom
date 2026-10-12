@@ -253,7 +253,10 @@ consumer validation.
   wire boundaries, and use NameScope to qualify conversions back to service
   types. `expr` rejects non-string, nullable and custom-Go credential types.
   Basic CLI arguments use physical strings; the shared field initializer owns
-  conversion to service aliases. gRPC metadata records its physical decoded type
+  conversion to service aliases. Their argument records retain each credential's
+  effective default independently so flag metadata, field loading and physical
+  pointer/value representation agree across HTTP and JSON-RPC. gRPC metadata
+  records its physical decoded type
   separately from the service field type and uses `InitStructFields` for the
   constructor assignments, including pointer presence.
 

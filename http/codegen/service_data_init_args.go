@@ -40,11 +40,13 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 				continue
 			}
 			uatt := payload.Find(scheme.UsernameAttr)
+			udefault, _ := selectedTransportConstraints(uatt).Default()
 			uref := svc.Scope.GoTypeRef(&expr.AttributeExpr{Type: expr.String})
 			if scheme.UsernamePointer {
 				uref = "*" + uref
 			}
 			patt := payload.Find(scheme.PasswordAttr)
+			pdefault, _ := selectedTransportConstraints(patt).Default()
 			pref := svc.Scope.GoTypeRef(&expr.AttributeExpr{Type: expr.String})
 			if scheme.PasswordPointer {
 				pref = "*" + pref
@@ -59,6 +61,7 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 						FieldPointer: scheme.UsernamePointer,
 						FieldType:    uatt.Type,
 						Description:  uatt.Description,
+						DefaultValue: udefault,
 						Required:     scheme.UsernameRequired,
 						TypeName:     svc.Scope.GoTypeName(&expr.AttributeExpr{Type: expr.String}),
 						TypeRef:      uref,
@@ -77,6 +80,7 @@ func buildBasicAuthCLIArgs(ep *service.MethodData, payload *expr.AttributeExpr, 
 						FieldPointer: scheme.PasswordPointer,
 						FieldType:    patt.Type,
 						Description:  patt.Description,
+						DefaultValue: pdefault,
 						Required:     scheme.PasswordRequired,
 						TypeName:     svc.Scope.GoTypeName(&expr.AttributeExpr{Type: expr.String}),
 						TypeRef:      pref,
