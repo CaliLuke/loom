@@ -1,0 +1,37 @@
+package codegen
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/expr"
+)
+
+// This witness classifies #709; it is not acceptance for the #796 context repair.
+func TestOptionalRecursiveValidationReadiness(t *testing.T) {
+	for _, recursiveFirst := range []bool{false, true} {
+		for _, jsonPresence := range []bool{false, true} {
+			t.Run(fmt.Sprintf("recursiveFirst=%t/jsonPresence=%t", recursiveFirst, jsonPresence), func(t *testing.T) {
+				node := &expr.UserTypeExpr{TypeName: "Node", UID: "Node"}
+				fields := expr.Object{
+					{Name: "value", Attribute: &expr.AttributeExpr{Type: expr.String, Validation: &expr.ValidationExpr{Pattern: "^[a-z]+$"}}},
+					{Name: "next", Attribute: &expr.AttributeExpr{Type: node}},
+				}
+				if recursiveFirst {
+					fields[0], fields[1] = fields[1], fields[0]
+				}
+				node.AttributeExpr = &expr.AttributeExpr{Type: &fields, Validation: &expr.ValidationExpr{Required: []string{"value"}}}
+				ctx := NewAttributeContext(true, false, false, "", NewNameScope())
+				ctx.JSONPresence = jsonPresence
+				code := ValidationCode(node.Attribute(), node, ctx, true, false, false, "body")
+				if jsonPresence {
+					require.Contains(t, code, "ValidateNode(actual)", "optional recursion must call its named validator: %s", code)
+				} else {
+					require.Contains(t, code, "ValidateNode(body.Next)")
+				}
+			})
+		}
+	}
+}

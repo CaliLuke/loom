@@ -188,7 +188,7 @@ func buildUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codegen.Lo
 			TypeTag:                   expr.UnionVariantTag(nat),
 		}
 		if u.Untagged {
-			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, scope)
+			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, typeContext(scope), false)
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
@@ -246,7 +246,7 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 			TypeTag:                   expr.UnionVariantTag(nat),
 		}
 		if u.Untagged {
-			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, scope)
+			fields[i].ValidateCode = unionBranchValidationCode(nat.Attribute, projectedTypeContext("", !expr.IsPrimitive(nat.Attribute.Type), scope), true)
 		}
 		hasScalarFormBranch = hasScalarFormBranch || !fields[i].FlatFormObject
 	}
@@ -266,9 +266,9 @@ func buildViewUnionTypeData(u *expr.Union, scope *codegen.NameScope, loc *codege
 	}
 }
 
-func unionBranchValidationCode(att *expr.AttributeExpr, scope *codegen.NameScope) string {
+func unionBranchValidationCode(att *expr.AttributeExpr, ctx *codegen.AttributeContext, view bool) string {
 	ut := att.Type.(expr.UserType)
-	return codegen.ValidationCode(ut.Attribute(), ut, typeContext(scope), true, false, false, "v")
+	return codegen.ValidationCode(ut.Attribute(), ut, ctx, true, false, view, "v")
 }
 
 func buildUntaggedUnionValidations(union *expr.Union, scope *codegen.NameScope, loc *codegen.Location) []*unionValidationData {

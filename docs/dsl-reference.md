@@ -231,6 +231,11 @@ if numeric widths let Go decode only one candidate. Encoding also rejects values
 whose JSON would be ambiguous; constructors select a branch but do not guarantee
 that its value is valid on the wire. Failed decoding leaves the destination unchanged.
 
+For viewed results, generated branch validators use the projected field storage:
+required and defaulted scalar fields are checked for absence before their values
+are validated. Regenerate affected clients and servers to pick up this correction.
+Selected-view validation remains separate from full union-branch matching.
+
 Branches must be concrete named objects or arrays. Their recursive contents may
 be primitives, named objects, and arrays of these shapes. Inline object leaves,
 maps, nested unions, opaque custom codecs, and schema encoding overrides are

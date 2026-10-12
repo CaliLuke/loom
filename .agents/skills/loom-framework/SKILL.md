@@ -1309,6 +1309,13 @@ filter, and serialization rules belong here.
   the nil endpoint return as a viewed result or buffer final sends. Check the
   lifecycle model in `codegen/service/tla/FinalResultInterceptor.tla` and pair it
   with compiled server/client tests of normal, blocked and failed operations.
+- Untagged branch validation receives the actual physical attribute context and
+  view mode from its ordinary or projected builder. `codegen.ValidationCode`
+  owns nil guards, dereferences and requiredness; never construct an ordinary
+  context inside the shared branch helper or add predicate-specific patches.
+  Keep `codegen/service/tla/union_validation_context` aligned with ordinary,
+  projected, defaulted and selected-view controls. Optional recursive traversal
+  is a separate owner and is not established by this context model.
 - Named projected object carriers keep required unions as values and other
   fields as pointers or collections. `projectionCarrierValidation` normalizes
   requiredness in the detached conversion graph to match that physical layout,
