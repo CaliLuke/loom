@@ -1,0 +1,232 @@
+# Framework correctness recovery plan
+
+Implement the architectural direction accepted in the Codex discussion on 2026-10-12. Repair shared contracts and ownership boundaries; use review findings as regression witnesses. Authentication is resolved before transport execution, and results are recursively projected before transport encoding. This file is the recovery entry point and progress source of truth.
+
+## Status
+
+- 2026-10-12 — Baseline: `4535a403048510f055fc59ec3dfed41e3769ad58` on `main`; initial checkout clean. Plan drafted; independent readiness review pending. No implementation is complete.
+- 2026-10-12 — Root orchestrates and owns this tracker. Authentication and projection agents may inventory isolated worktrees while readiness review runs. Implementation starts only after their milestone is ready.
+
+- 2026-10-12 — Auth owner: agent `/root/auth`, worktree `/Users/luca/.codex/worktrees/auth-contract/loom`. Projection owner: agent `/root/projection`, worktree `/Users/luca/.codex/worktrees/recursive-projection/loom`. Both are inventory-only pending slice readiness. Root recited and adopted the test-first, model-first, bounded-evidence, independent-review and atomic-delivery workflow.
+- 2026-10-12 — Inventory contains all 114 open reports in #679–#793 plus #670. Independent reviewer requested exact per-slice readiness records and full unary/stream error-disclosure inventory; corrections are being applied.
+
+## Recovery and delivery
+
+Read this entire file, repository `AGENTS.md`, `.agents/skills/loom-framework/SKILL.md`, and the applicable model README before resuming. Inspect `git status`, `git log`, attached managed worktrees, and agent status before assigning work. Never assume a running agent or uncommitted diff is abandoned. Do not use git clean, stash, reset, or checkout.
+
+Milestones are ordered by priority and integration dependency. Milestones 2 and 3 may be implemented concurrently in isolated managed worktrees; integration remains sequential. Milestone 4 can start when a slot becomes available. Later milestones require a bounded readiness review of their concrete inventory and acceptance matrix before implementation. Do not turn the whole issue list into an undifferentiated rewrite.
+
+One structural task has one owning ticket and one atomic commit. Before implementing a family, root selects one existing owning structural ticket and records related reports as regression witnesses in a readiness record; do not combine unrelated tickets in one commit. Record the ticket, parent SHA, worktree, changed paths, failing baseline, passing commands, intended generated-output differences, review verdict, commit SHA and push status in this file's Status section. Findings are not complete merely because code is written. A checked delivery item means reviewed, committed, pushed, and integrated.
+
+Before any implementation edit, the task owner writes a readiness record under `roadmap/` naming the owning ticket, intended parent, included and excluded reports, exact file/test/model loci and checker commands, accepted/rejected fixture cases, baseline/current byte-comparison method, compile commands and intended output differences. An independent reviewer must approve that concrete slice. The broad milestone checklist alone never releases implementation. Record deeper public-policy blockers separately and continue independent ready tasks.
+
+Before every commit, an agent that did not implement the change reviews the exact final diff against its intended parent. State the acceptance rule and run its checks first. Resolve every finding according to AGENTS.md, obtain re-review, and make no changes between authorization and commit. Integration that changes a reviewed diff requires re-review. Root alone updates this tracker and `roadmap/ROADMAP.md`; implementation agents hand back documentation deltas affecting shared skills for coordinated integration.
+
+Use direct regressions and affected packages, then bounded generated comparisons against the baseline: compare exact bytes, list intended differences, compile generated Go, and repeat generation in independent processes for determinism. Use existing harnesses and representative fixtures; the full exported-design corpus is not a task gate. Set `LOOM_DIR` to the implementing worktree for local temp-module tests. Preserve model sources and summarized evidence; remove task-owned temporary output only after review and after checking active users.
+
+## Accepted contracts and decision boundaries
+
+- Nearest scope declaring `Security`, `SessionSecurity`, or `NoSecurity` owns the complete authentication declaration. Same-scope alternatives retain documented OR/AND composition; contradictory anonymous-only and authenticated declarations fail validation.
+- Projection recursively preserves only the selected view through objects, collections, unions, and supported recursive references. Excluded-field changes cannot alter serialized output. Transport encoders consume this projection.
+- Unknown service errors disclose a generic public message while retaining their cause for server-side diagnosis. Designed public errors and native protocol termination keep their contracts.
+- Defaults fill absence and never replace explicit zero. Presence is independent of value. Explicit empty scalars survive encoding. Collection presence remains a separately recorded public decision before changing the currently documented nil/empty rule.
+- Runtime owners control resource lifetime; generators provide typed adapters. Worker publication must not expose an unready worker. Lost replies require reconciliation rather than assuming rollback.
+- Local scheduler cancellation is provisionally intended to stop local participation, not delete the global schedule. Consumer evidence and a recorded contract decision are required before changing that behavior.
+- `Extend` field redeclaration precedence is not settled by the accepted discussion. Record alternatives and resolve public semantics before changing it; uniqueness checks over effective fields can proceed without inventing precedence.
+
+## Milestones
+
+### Milestone 1: Durable inventory and execution readiness
+
+Goal: Establish recoverable ownership and a reviewed first implementation wave.
+
+Acceptance Criteria
+
+- An independent reviewer approves this plan's first-wave milestones against current code; later work remains explicitly gated on its scoped readiness review.
+- Every open code-review finding #679–#793, excluding closed duplicate #775, has a recorded family or residual disposition in `roadmap/framework-correctness-inventory.md`. Include referenced older #670. Dispositions do not assert unverified fixes.
+- Worktree paths and owners are recorded in Status before implementation.
+
+Checklist
+
+- [x] Read this plan and the framework skill; recite milestone order, exit criteria, named commands, test-first procedure, independent-review gate, commit/push handoff, and repository constraints before editing implementation.
+- [x] Fetch reports with `gh issue list --repo CaliLuke/loom --state open --label code-review --limit 200 --json number,title,body,labels,url`; reconcile their owners in `roadmap/framework-correctness-inventory.md`.
+- [ ] Review first-wave loci with `rg -n 'EffectiveRequirements|inheritedRequirements|inheritedSessionAuths|buildConstructorCode|ErrorSafeMessage|newErrorResponse' expr codegen security http grpc jsonrpc pkg` and map every relevant consumer to acceptance coverage.
+- [ ] Obtain independent readiness and exact-diff review of the planning artifact; run `git diff --check`; commit and push the initial recovery plan.
+
+### Milestone 2: One effective authentication contract
+
+Goal: Resolve authentication once and preserve it across extraction, validation and execution.
+
+Acceptance Criteria
+
+- `expr/method_test.go` and security tests prove API/service/method overrides in both session/ordinary directions, same-scope alternatives, anonymous alternatives, and rejection of contradictory NoSecurity declarations.
+- Generated HTTP, gRPC and JSON-RPC security tests prove usable Basic/Bearer alternatives, credential constraints and matching effective OpenAPI requirements. Metadata-only authentication runs before blocking gRPC reads; message-carried credentials retain explicit ordering constraints.
+- Models reproduce the old scope/ordering failures and check the corrected invariants; exact baseline/output comparisons cover selected security fixtures and compile emitted adapters.
+
+Checklist
+
+- [ ] Inventory `rg -n 'EffectiveRequirements|SessionAuths|Requirements|DecodeBearer|BasicAuth|writeGRPCStreamInputDecode' expr security codegen/service http/codegen grpc/codegen jsonrpc/codegen`; reconcile #724, #725, #729, #731, #732, #743, #752 and #728 by exact cause, splitting distinct structural tasks before implementation.
+- [ ] Add failing direct regressions at `expr/method_test.go` and relevant transport security tests; record the failing commands and scope-selection model before implementation.
+- [ ] Replace independent security inheritance in `expr/method.go` with one effective owner; derive consumer behavior from it and delete superseded selection paths.
+- [ ] Run `go test ./expr ./security ./codegen/service -count=1`; run bounded security tests in `./http/codegen`, `./grpc/codegen`, `./jsonrpc/codegen`, recording exact filters and generated fixtures.
+- [ ] Complete credential-alternative and stream-admission tasks only after their own test-first, model, generated comparison and independent-review obligations are ready; keep payload-dependent authorization at its valid boundary.
+- [ ] Update `docs/dsl-reference.md`, relevant authentication guides and consumer skill; obtain exact-diff review, commit each owning structural ticket atomically, push and integrate.
+
+### Milestone 3: Recursive view projection
+
+Goal: Make selected views authoritative for every nested output shape and transport.
+
+Acceptance Criteria
+
+- Direct service conversion tests prove arrays, maps, unions, adjacent result fields and recursive supported objects use the same selected-view semantics in both conversion directions.
+- Generated HTTP, JSON-RPC and gRPC tests prove excluded secrets never appear, including streaming results; declaration order cannot change projection or produce inconsistent body declarations.
+- Selected normal and adversarial fixtures generate deterministically and compile; excluded-field perturbation leaves wire output unchanged.
+
+Checklist
+
+- [ ] Inventory `rg -n 'buildConstructorCode|ViewScope|Project|viewedResultBodyInit|collectHTTPUnionTypes' codegen/service http/codegen grpc/codegen jsonrpc/codegen`; reconcile #730, #779, #788, #784 and #727, recording distinct causes before grouping.
+- [ ] Add failing direct tests beside `codegen/service/views_test.go` and generated wire regressions using existing view fixtures; record baseline failures and a projection ownership model before changing conversions.
+- [ ] Replace direct-field special handling and generic semantic fallback in `codegen/service/service_data_views_init.go` with one recursive view-aware conversion owner; align view/body declaration collection with the selected projection.
+- [ ] Run `go test ./codegen/service -count=1`; run bounded viewed-result tests in `./http/codegen`, `./grpc/codegen` and `./jsonrpc/codegen`, recording exact filters and fixtures.
+- [ ] Compare selected baseline/current generated bytes, compile them, repeat generation in separate processes and record every intended difference in durable evidence beside the owner.
+- [ ] Update `docs/code-generation.md` and affected consumer guidance; obtain exact-diff review, commit the structural ticket atomically, push and integrate.
+
+### Milestone 4: Safe public error disclosure
+
+Goal: Apply one public-disclosure policy while preserving each protocol's error classification.
+
+Acceptance Criteria
+
+- A plain internal error containing a sentinel secret never exposes that text in HTTP bodies, gRPC status/details or JSON-RPC envelopes; the server retains the cause.
+- Designed errors, safe-message overrides, wrapped errors, joins, context cancellation and deadlines retain their explicitly tested classification and public contracts. Unary and stream paths are covered separately where their renderers differ. `grpc/error_contract.go` retains classification ownership; tree-wide errors.As must not select one joined branch as aggregate disclosure policy.
+
+Checklist
+
+- [ ] Inventory `rg -n 'ErrorSafeMessage|newErrorResponse|EncodeServerError|InternalError|err.Error' pkg/error_remedy.go pkg/error* http/error* http/codegen/error* http/codegen/service_data_response_errors.go grpc/error.go grpc/error_contract.go grpc/error* jsonrpc/codegen/handler_sections.go jsonrpc/codegen/stream_sections_websocket.go`; reconcile #713 without replacing protocol classification with a generic status policy.
+- [ ] Add failing disclosure regressions to runtime error tests and generated transport tests; inspect existing error-ownership models before implementing the common public-message decision.
+- [ ] Implement the shared disclosure owner in `pkg` and make the three transport error boundaries consume it.
+- [ ] Run `go test ./pkg ./http ./grpc ./jsonrpc -count=1` and bounded generated error tests in `./http/codegen`, `./grpc/codegen`, `./jsonrpc/codegen`; record exact filters, baseline comparison and compile evidence.
+- [ ] Update `docs/error-handling.md`; obtain exact-diff review, commit #713 atomically, push and integrate.
+
+### Milestone 5: Complete stream lifetime ownership
+
+Goal: Make runtime owners authoritative for connection closure, cancellation and serialized operations.
+
+Acceptance Criteria
+
+- WebSocket close always releases the socket even when protocol writes fail; peer failure and handler exit terminate owned resources under the documented policy.
+- Bounded message handling and disconnect detection have explicit backpressure and cancellation contracts; no second reader is introduced accidentally.
+- gRPC send serialization and operation-context behavior are proven in their own protocol owner and compiled adapters.
+
+Checklist
+
+- [ ] Inventory `rg -n 'WriteClose|ReadMessage|SetReadLimit|WithContext|WebSocketStream|conn.Close' http jsonrpc grpc/codegen`; reconcile #711, #712, #714, #716, #722, #726, #758 and #739 into protocol-specific structural tickets.
+- [ ] Record exact lifetime states, resource owners and bounded acceptance cases beside `http/websocket.go`; obtain scoped readiness review before implementation.
+- [ ] Extend the owning TLA models with current-failure controls; run their README commands; add failing socket/race and generated-handler regressions.
+- [ ] Move remaining generated lifecycle decisions into `http.WebSocketStream` and the appropriate JSON-RPC/gRPC runtime owners; delete duplicated protocol execution.
+- [ ] Run `go test -race ./http ./jsonrpc ./grpc -count=1` plus bounded generated stream tests and compile comparisons; record selected cases and exact commands.
+- [ ] Update stream guides and consumer skill; review, commit, push and integrate each structural ticket separately.
+
+### Milestone 6: Validate the effective design
+
+Goal: Ensure generators receive a fully resolved, validated semantic contract.
+
+Acceptance Criteria
+
+- Inherited field-number and mapped-name collisions fail as source-attributed design errors, before generator panics or silent overwrites.
+- Valid effective shapes retain deterministic output; validation does not silently discard authored declarations or mutate shared bases.
+
+Checklist
+
+- [ ] Inventory `rg -n 'PrepareValidateFinalize|Finalize|Merge|validateRPCObjectTags|ElemName' eval expr`; reconcile #755, #757, #756, #701, #702, #703, #699, #710, #760, #780 and #781 by actual validation owner.
+- [ ] Record phase dependencies and the unresolved Extend redeclaration decision in the owning design documentation; obtain scoped readiness review before implementation.
+- [ ] Add failing effective-shape tests and model existing phase-order counterexamples; move composition before the checks that require it without globally swapping unsafe evaluator phases.
+- [ ] Run `go test ./eval ./expr ./dsl -count=1`, affected generator packages and bounded generated accepted/rejected fixtures; record byte differences and compilation results.
+- [ ] Update DSL documentation; review, commit, push and integrate each owning structural ticket separately.
+
+### Milestone 7: Exact values and explicit presence
+
+Goal: Preserve authored numeric meaning and explicit values through shared conversion contracts.
+
+Acceptance Criteria
+
+- Bounds above 2^53 and integer extrema preserve their exact meaning; invalid defaults and enum members fail at design time; accepted collection literals compile using their declared types.
+- Absent/default/zero/empty/null cases follow the accepted scalar contract across supported transports. Collection behavior changes only after its explicit decision is recorded.
+
+Checklist
+
+- [ ] Inventory `rg -n 'Minimum|Maximum|typedDefaultValueLiteral|UseDefault|omitempty|omitzero' expr codegen http/codegen grpc/codegen jsonrpc/codegen`; reconcile #681, #685, #692, #693, #695, #696, #690 and existing `roadmap/value-contract-inventory.md` obligations.
+- [ ] Record the exact numeric domain and presence matrix beside the existing value-contract design; obtain scoped readiness review before implementation.
+- [ ] Add failing exact-bound, target-literal and scalar presence regressions; update relevant Lean/TLA source and correspondence before replacing lossy representations.
+- [ ] Run `go test ./expr ./codegen ./codegen/service -count=1` and selected transport presence/default tests; run the affected proof README commands and bounded generated comparisons.
+- [ ] Document regeneration and scalar contract changes; review, commit, push and integrate each structural ticket separately.
+
+### Milestone 8: Generated identities share real scopes
+
+Goal: Allocate generated declarations and references together without hiding authored identity.
+
+Acceptance Criteria
+
+- Adversarial authored names cannot collide with framework declarations, helper names or imports; references use the allocated declaration identity.
+- Declaration ordering and existing numbered suffixes cannot change correctness; supported names compile across the affected generators.
+
+Checklist
+
+- [ ] Inventory `rg -n 'NameScope|Unique|Goify|TypeName|ImportName' internal/naming codegen/service http/codegen grpc/codegen internal/openapiimport`; reconcile #691, #694, #700, #733, #734, #735, #736, #770, #786 and #688 to real output scopes.
+- [ ] Record each scope's declaration/reference owner and collision fixture; obtain readiness review and add failing tests plus bounded allocation-model controls.
+- [ ] Route each selected scope through its shared allocator; remove recomputed names and suffix-based references.
+- [ ] Run `go test ./internal/naming ./codegen ./codegen/service -count=1` and scoped generator/importer tests; compare and compile adversarial generated fixtures across independent generations.
+- [ ] Review, commit, push and integrate each structural ticket separately.
+
+### Milestone 9: Shared parameter wire contracts
+
+Goal: Make runtime codecs and OpenAPI admission/export agree on accepted parameter serialization.
+
+Acceptance Criteria
+
+- Accepted location/style/explode/shape combinations round-trip through import, generation and real request decoding without changed meaning.
+- Unsupported combinations fail with source-specific diagnostics; recursive component imports compile and preserve graph references under a separately scoped importer task.
+
+Checklist
+
+- [ ] Inventory `rg -n 'deepObject|supportedParameterStyle|Explode|Style|Encoding' internal/openapiimport http/codegen http`; reconcile #706, #719, #793, #791 and separate importer recursion #792.
+- [ ] Record the shared serialization capability table and recursion rendering scope; obtain readiness review and add failing import/export/runtime fixtures.
+- [ ] Implement the common parameter contract and make import, export and codecs derive from it; implement recursive reference rendering only under its own reviewed task.
+- [ ] Run `go test ./internal/openapiimport ./http/codegen/openapi/... -count=1`, selected HTTP codec tests, `make openapi-contract`, and bounded import-to-generated compile/semantic round trips.
+- [ ] Update OpenAPI/HTTP guides; review, commit, push and integrate each structural ticket separately.
+
+### Milestone 10: Transactional resource construction and publication
+
+Goal: Prevent failed construction from leaking resources or publishing unusable distributed participants.
+
+Acceptance Criteria
+
+- Every injected local acquisition failure releases resources once; retries do not accumulate subscriptions or goroutines.
+- Only ready workers receive jobs; lost publication replies, retries and cleanup converge under explicit ownership rules on real Redis.
+- Scheduler cancellation and job bookkeeping match the recorded local/global lifetime decision.
+
+Checklist
+
+- [ ] Inventory `rg -n 'AddNode|newWorker|SetAndWait|initialWorkerHeartbeat|Schedule|ErrJobExists' pulse/pool`; reconcile #687, #704, #738 and #737, keeping observability constructor rollback #763 as a separate owner.
+- [ ] Record acquisition/publication states and scheduler consumer evidence beside owning code; obtain readiness review before changing lifecycle contracts.
+- [ ] Model failure and lost-reply counterexamples; add table-driven fault injection and real-Redis regressions before implementing local cleanup and distributed publication changes.
+- [ ] Run `go test -race ./pulse/pool ./pulse/rmap ./pulse/streaming -count=1`, affected model README commands and `make test-pulse-redis`; distinguish miniredis evidence from real Redis behavior.
+- [ ] Update Pulse guidance; review, commit, push and integrate each structural ticket separately.
+
+### Milestone 11: Residual findings and final reconciliation
+
+Goal: Leave every report with an evidence-backed disposition and no hidden unfinished architectural work.
+
+Acceptance Criteria
+
+- The inventory distinguishes delivered fixes, reproduced residual defects, duplicates, unsupported cases and public decisions; no issue is closed solely by similarity to a repaired family.
+- File overwrite safety, proxy-address trust, logging/debug wrappers and uncovered protocol paths have explicit owners and bounded next actions.
+- Integrated validation passes and temporary worktrees/output are cleaned only after all active users finish.
+
+Checklist
+
+- [ ] Reconcile inventory residuals, including #670/#741 file ownership and #708 proxy trust, against final integrated source; promote each supported defect to a separately reviewed bounded task.
+- [ ] Run targeted adversarial review of repaired owners and their consumers; record new counterexamples and update task acceptance before implementation.
+- [ ] Run `make lint`, `make test` and integration checks selected by actual changed behavior; record exact source and outstanding blockers. Do not start a full exported-design audit without a named purpose and cost budget.
+- [ ] Confirm every delivery commit was independently reviewed and pushed; update `roadmap/ROADMAP.md` and this tracker to reflect remaining active work.
+- [ ] Preserve durable evidence and archive completed managed worktrees; remove task-owned model/compiler output after checking active processes.

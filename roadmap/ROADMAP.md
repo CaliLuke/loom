@@ -30,6 +30,10 @@ justify their own scope against this rule.
 
 ## Active Designs
 
+- [Framework correctness recovery plan](framework-correctness-plan.md) sequences
+  the shared-contract and resource-ownership repairs from the deep review. Its
+  [issue inventory](framework-correctness-inventory.md) records each finding's
+  candidate owner and current disposition.
 - [Value meaning and transport projection](value-contract-design.md) defines the
   root-cause repair for inconsistent examples, enums, and defaults. The
   [execution plan](value-contract-plan.md) sequences the work against a
