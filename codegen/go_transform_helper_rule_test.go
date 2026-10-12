@@ -92,3 +92,54 @@ func nullable(att *expr.AttributeExpr) *expr.AttributeExpr {
 	dup.Nullable = true
 	return &dup
 }
+
+func TestGoTransformSemanticHelperIdentity(t *testing.T) {
+	for _, reversed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("reversed=%t", reversed), func(t *testing.T) {
+			carrier := func(name, identity string, full bool) *expr.AttributeExpr {
+				fields := &expr.Object{{Name: "id", Attribute: &expr.AttributeExpr{Type: expr.String}}}
+				if full {
+					fields.Set("secret", &expr.AttributeExpr{Type: expr.String})
+				}
+				return &expr.AttributeExpr{Type: &expr.UserTypeExpr{
+					TypeName: name, UID: name + identity,
+					AttributeExpr: &expr.AttributeExpr{Type: fields, Meta: expr.MetaExpr{"conversion": {identity}}},
+				}}
+			}
+			object := func(name string) *expr.AttributeExpr {
+				fields := &expr.Object{
+					{Name: "small", Attribute: carrier(name, "Small", false)},
+					{Name: "full", Attribute: carrier(name, "Full", true)},
+				}
+				if reversed {
+					(*fields)[0], (*fields)[1] = (*fields)[1], (*fields)[0]
+				}
+				return &expr.AttributeExpr{Type: fields}
+			}
+			context := NewAttributeContext(true, false, true, "", NewNameScope())
+			code, helpers, err := GoTransform(object("Source"), object("Target"), "source", "target", context, context, "", true, TransformOptions{
+				HelperName: func(source, target *expr.AttributeExpr) string {
+					user, ok := source.Type.(expr.UserType)
+					if !ok {
+						return ""
+					}
+					identity, ok := user.Attribute().Meta.Last("conversion")
+					require.True(t, ok, "mapped copies retain semantic identity")
+					return "transform" + identity
+				},
+			})
+			require.NoError(t, err)
+			require.Len(t, helpers, 2)
+			require.Contains(t, code, "transformSmall(source.Small)")
+			require.Contains(t, code, "transformFull(source.Full)")
+			for _, helper := range helpers {
+				if helper.Name == "transformSmall" {
+					require.NotContains(t, helper.Code, "Secret")
+				} else {
+					require.Equal(t, "transformFull", helper.Name)
+					require.Contains(t, helper.Code, "Secret")
+				}
+			}
+		})
+	}
+}

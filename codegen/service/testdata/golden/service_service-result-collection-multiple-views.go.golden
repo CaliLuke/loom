@@ -84,9 +84,13 @@ func NewViewedMultipleViewsCollection(res MultipleViewsCollection, view string) 
 // NewMultipleViewsCollectionFromMultipleViewsCollectionView converts projected
 // type MultipleViewsCollectionView to service type MultipleViewsCollection.
 func NewMultipleViewsCollectionFromMultipleViewsCollectionView(vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView) MultipleViewsCollection {
-	res := make(MultipleViewsCollection, len(vres))
-	for i, n := range vres {
-		res[i] = NewMultipleViewsFromMultipleViewsView(n)
+	res := make([]*MultipleViews, len(vres))
+	for i, val := range vres {
+		if val == nil {
+			res[i] = nil
+			continue
+		}
+		res[i] = transformNewMultipleViewsCollectionFromMultipleViewsCollectionViewResultcollectionmultipleviewsmethodviewsMultipleViewsViewToMultipleViews(val)
 	}
 	return res
 }
@@ -95,9 +99,13 @@ func NewMultipleViewsCollectionFromMultipleViewsCollectionView(vres resultcollec
 // projected type MultipleViewsCollectionView to service type
 // MultipleViewsCollection.
 func NewMultipleViewsCollectionFromMultipleViewsCollectionViewTiny(vres resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView) MultipleViewsCollection {
-	res := make(MultipleViewsCollection, len(vres))
-	for i, n := range vres {
-		res[i] = NewMultipleViewsFromMultipleViewsViewTiny(n)
+	res := make([]*MultipleViews, len(vres))
+	for i, val := range vres {
+		if val == nil {
+			res[i] = nil
+			continue
+		}
+		res[i] = transformNewMultipleViewsCollectionFromMultipleViewsCollectionViewTinyResultcollectionmultipleviewsmethodviewsMultipleViewsViewToMultipleViews(val)
 	}
 	return res
 }
@@ -105,9 +113,13 @@ func NewMultipleViewsCollectionFromMultipleViewsCollectionViewTiny(vres resultco
 // ProjectMultipleViewsCollection projects result type MultipleViewsCollection
 // to projected type MultipleViewsCollectionView using the "default" view.
 func ProjectMultipleViewsCollection(res MultipleViewsCollection) resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView {
-	vres := make(resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView, len(res))
-	for i, n := range res {
-		vres[i] = ProjectMultipleViews(n)
+	vres := make([]*resultcollectionmultipleviewsmethodviews.MultipleViewsView, len(res))
+	for i, val := range res {
+		if val == nil {
+			vres[i] = nil
+			continue
+		}
+		vres[i] = transformProjectMultipleViewsCollectionMultipleViewsToResultcollectionmultipleviewsmethodviewsMultipleViewsView(val)
 	}
 	return vres
 }
@@ -116,9 +128,13 @@ func ProjectMultipleViewsCollection(res MultipleViewsCollection) resultcollectio
 // MultipleViewsCollection to projected type MultipleViewsCollectionView using
 // the "tiny" view.
 func ProjectMultipleViewsCollectionTiny(res MultipleViewsCollection) resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView {
-	vres := make(resultcollectionmultipleviewsmethodviews.MultipleViewsCollectionView, len(res))
-	for i, n := range res {
-		vres[i] = ProjectMultipleViewsTiny(n)
+	vres := make([]*resultcollectionmultipleviewsmethodviews.MultipleViewsView, len(res))
+	for i, val := range res {
+		if val == nil {
+			vres[i] = nil
+			continue
+		}
+		vres[i] = transformProjectMultipleViewsCollectionTinyMultipleViewsToResultcollectionmultipleviewsmethodviewsMultipleViewsView(val)
 	}
 	return vres
 }
@@ -175,4 +191,62 @@ func ProjectMultipleViewsTiny(res *MultipleViews) *resultcollectionmultipleviews
 		A: &res.A,
 	}
 	return vres
+}
+
+// transformNewMultipleViewsCollectionFromMultipleViewsCollectionViewResultcollectionmultipleviewsmethodviewsMultipleViewsViewToMultipleViews
+// builds a value of type *MultipleViews from a value of type
+// *resultcollectionmultipleviewsmethodviews.MultipleViewsView.
+func transformNewMultipleViewsCollectionFromMultipleViewsCollectionViewResultcollectionmultipleviewsmethodviewsMultipleViewsViewToMultipleViews(v *resultcollectionmultipleviewsmethodviews.MultipleViewsView) *MultipleViews {
+	if v == nil {
+		return nil
+	}
+	res := &MultipleViews{}
+	if v.A != nil {
+		res.A = *v.A
+	}
+	if v.B != nil {
+		res.B = *v.B
+	}
+
+	return res
+}
+
+// transformNewMultipleViewsCollectionFromMultipleViewsCollectionViewTinyResultcollectionmultipleviewsmethodviewsMultipleViewsViewToMultipleViews
+// builds a value of type *MultipleViews from a value of type
+// *resultcollectionmultipleviewsmethodviews.MultipleViewsView.
+func transformNewMultipleViewsCollectionFromMultipleViewsCollectionViewTinyResultcollectionmultipleviewsmethodviewsMultipleViewsViewToMultipleViews(v *resultcollectionmultipleviewsmethodviews.MultipleViewsView) *MultipleViews {
+	if v == nil {
+		return nil
+	}
+	res := &MultipleViews{}
+	if v.A != nil {
+		res.A = *v.A
+	}
+
+	return res
+}
+
+// transformProjectMultipleViewsCollectionMultipleViewsToResultcollectionmultipleviewsmethodviewsMultipleViewsView
+// builds a value of type
+// *resultcollectionmultipleviewsmethodviews.MultipleViewsView from a value of
+// type *MultipleViews.
+func transformProjectMultipleViewsCollectionMultipleViewsToResultcollectionmultipleviewsmethodviewsMultipleViewsView(v *MultipleViews) *resultcollectionmultipleviewsmethodviews.MultipleViewsView {
+	res := &resultcollectionmultipleviewsmethodviews.MultipleViewsView{
+		A: &v.A,
+		B: &v.B,
+	}
+
+	return res
+}
+
+// transformProjectMultipleViewsCollectionTinyMultipleViewsToResultcollectionmultipleviewsmethodviewsMultipleViewsView
+// builds a value of type
+// *resultcollectionmultipleviewsmethodviews.MultipleViewsView from a value of
+// type *MultipleViews.
+func transformProjectMultipleViewsCollectionTinyMultipleViewsToResultcollectionmultipleviewsmethodviewsMultipleViewsView(v *MultipleViews) *resultcollectionmultipleviewsmethodviews.MultipleViewsView {
+	res := &resultcollectionmultipleviewsmethodviews.MultipleViewsView{
+		A: &v.A,
+	}
+
+	return res
 }

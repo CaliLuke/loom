@@ -1005,3 +1005,22 @@ fixture's temporary module replacement path is the only non-generated metadata
 difference. Four checked-in CLI goldens record changed sample values and Int64
 spelling. These bounded results establish tested adapter correspondence, not
 arbitrary protobuf equivalence or a full-corpus audit.
+
+
+## Recursive result selection (#788)
+
+The baseline `4535a403` DSL-to-selection adapter preserved canonical children
+through maps and unions, while service conversion bypassed selection through
+collections and ordinary wrappers. `TestRecursiveResultProjection` and
+`TestRecursiveProjectionExcludesFields` reproduce that gap; these are production
+adapter failures outside the Lean Plan/Field/Branch assumptions above.
+
+`expr.Project` now recursively selects each result occurrence. The service
+conversion owner binds that selection to complete physical carriers and gives
+`GoTransform` semantic helper identity. The finite models and correspondence in
+[`codegen/service/tla/recursive_projection`](../../../codegen/service/tla/recursive_projection/README.md)
+cover child selection, excluded reads, semantic helper reuse and ordering;
+they do not prove Go pointer layouts or arbitrary graph extraction. Generated
+HTTP, gRPC and JSON-RPC unary/stream tests verify excluded-field noninterference,
+explicit child views and compiled physical carriers. No Lean statement or
+canonical value-resolution policy changes.

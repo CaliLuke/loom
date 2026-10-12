@@ -594,6 +594,10 @@ completion shapes are explicit generation limitations.
   take precedence; the original result type and other methods are unchanged.
 - Generated projection helpers convert between canonical results and view
   types. Use them instead of maintaining app-local conversion copies.
+- Nested result types use their explicitly selected child view or their own
+  default view, including through arrays, maps, objects and union branches.
+  A parent's non-default view does not select the same view on its children.
+  Regenerate adapters after upgrading to apply recursive projection fixes.
 - `Extend(...)` inside a named `Payload`, `Result`, `StreamingPayload`, or
   `StreamingResult` customization creates a method-specific type with the
   inherited fields and requiredness. Plain uses of the named type are unchanged.

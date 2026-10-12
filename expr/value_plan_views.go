@@ -58,6 +58,10 @@ func (p *valueViewPlan) project(rt *ResultTypeExpr, name string) (*ResultTypeExp
 			},
 		},
 	}
+	viewAttribute := copyValueAttribute(view.AttributeExpr)
+	viewAttribute.Type = object
+	projected.UserExamples = viewAttribute.UserExamples
+	projected.Views = []*ViewExpr{{Name: DefaultView, AttributeExpr: viewAttribute, Parent: projected}}
 	p.types[key] = projected
 	source := AsObject(rt.Type)
 	for _, field := range *AsObject(view.Type) {
@@ -71,10 +75,6 @@ func (p *valueViewPlan) project(rt *ResultTypeExpr, name string) (*ResultTypeExp
 		}
 		*object = append(*object, &NamedAttributeExpr{Name: field.Name, Attribute: copy})
 	}
-	viewAttribute := copyValueAttribute(view.AttributeExpr)
-	viewAttribute.Type = object
-	projected.UserExamples = viewAttribute.UserExamples
-	projected.Views = []*ViewExpr{{Name: DefaultView, AttributeExpr: viewAttribute, Parent: projected}}
 	return projected, nil
 }
 
@@ -162,57 +162,43 @@ func (p *valueViewPlan) projectType(source DataType, selection *AttributeExpr, v
 		}
 		copy.ElemType = child
 		return copy, nil
-	case *Map, *Union:
-		return p.plainType(source)
+	case *Map:
+		copy := &Map{}
+		p.types[key] = copy
+		var err error
+		copy.KeyType, err = p.attribute(actual.KeyType, actual.KeyType, DefaultView)
+		if err != nil {
+			return nil, err
+		}
+		copy.ElemType, err = p.attribute(actual.ElemType, selection, view)
+		return copy, err
+	case *Union:
+		copy := *actual
+		copy.Values = make([]*NamedAttributeExpr, len(actual.Values))
+		p.types[key] = &copy
+		for i, branch := range actual.Values {
+			attribute, err := p.attribute(branch.Attribute, branch.Attribute, DefaultView)
+			if err != nil {
+				return nil, err
+			}
+			copy.Values[i] = &NamedAttributeExpr{Name: branch.Name, Attribute: attribute}
+		}
+		return &copy, nil
 	default:
 		return nil, fmt.Errorf("cannot project declaration %T", source)
 	}
 }
 
-func (p *valueViewPlan) plainType(source DataType) (DataType, error) {
-	key := valueViewKey{source: source}
-	if prior, ok := p.types[key]; ok {
-		return prior, nil
-	}
-	b := &valueOccurrenceBuilder{graph: &valueOccurrenceGraph{}, types: make(map[DataType]*valueDeclarationNode)}
-	node, err := b.occurrence(&AttributeExpr{Type: source})
-	if err != nil {
-		return nil, err
-	}
-	for _, child := range b.graph.nodes {
-		// The semantic capture follows authored source ancestry. Structural
-		// views retain the copy's possibly transport-filtered legacy examples,
-		// but own their mutable builtin values just like other view fields.
-		local := copyValueAttribute(child.origin)
-		child.attribute.DefaultValue = local.DefaultValue
-		child.attribute.UserExamples = local.UserExamples
-		if child.attribute.Validation != nil {
-			child.attribute.Validation.Values = local.Validation.Values
-			child.attribute.Validation.EnumClauses = local.Validation.EnumClauses
-		}
-	}
-	p.types[key] = node.attribute.Type
-	return node.attribute.Type, nil
-}
-
 func (p *valueViewPlan) object(actual *Object, selection *AttributeExpr, view string, key valueViewKey) (DataType, error) {
 	selected := AsObject(selection.Type)
-	if selected == nil {
-		return p.plainType(actual)
-	}
 	copy := &Object{}
 	p.types[key] = copy
 	for _, field := range *actual {
-		choice := selected.Attribute(field.Name)
-		if choice == nil {
-			attribute := copyValueAttribute(field.Attribute)
-			typ, err := p.plainType(field.Attribute.Type)
-			if err != nil {
-				return nil, err
+		choice := field.Attribute
+		if selected != nil {
+			if selectedField := selected.Attribute(field.Name); selectedField != nil {
+				choice = selectedField
 			}
-			attribute.Type = typ
-			*copy = append(*copy, &NamedAttributeExpr{Name: field.Name, Attribute: attribute})
-			continue
 		}
 		attribute, err := p.attribute(field.Attribute, choice, view)
 		if err != nil {

@@ -101,7 +101,14 @@ func NewRTFromRTView(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	}
 	res := &RT{}
 	if vres.A != nil {
-		res.A = NewRT2CollectionFromRT2CollectionView(vres.A)
+		res.A = make([]*RT2, len(vres.A))
+		for i, val := range vres.A {
+			if val == nil {
+				res.A[i] = nil
+				continue
+			}
+			res.A[i] = transformNewRTFromRTViewResultwithresulttypecollectionviewsRT2ViewToRT2(val)
+		}
 	}
 	return res
 }
@@ -113,7 +120,14 @@ func NewRTFromRTViewExtended(vres *resultwithresulttypecollectionviews.RTView) *
 	}
 	res := &RT{}
 	if vres.A != nil {
-		res.A = NewRT2CollectionFromRT2CollectionViewExtended(vres.A)
+		res.A = make([]*RT2, len(vres.A))
+		for i, val := range vres.A {
+			if val == nil {
+				res.A[i] = nil
+				continue
+			}
+			res.A[i] = transformNewRTFromRTViewExtendedResultwithresulttypecollectionviewsRT2ViewToRT2(val)
+		}
 	}
 	return res
 }
@@ -125,7 +139,14 @@ func NewRTFromRTViewTiny(vres *resultwithresulttypecollectionviews.RTView) *RT {
 	}
 	res := &RT{}
 	if vres.A != nil {
-		res.A = NewRT2CollectionFromRT2CollectionViewTiny(vres.A)
+		res.A = make([]*RT2, len(vres.A))
+		for i, val := range vres.A {
+			if val == nil {
+				res.A[i] = nil
+				continue
+			}
+			res.A[i] = transformNewRTFromRTViewTinyResultwithresulttypecollectionviewsRT2ViewToRT2(val)
+		}
 	}
 	return res
 }
@@ -138,7 +159,14 @@ func ProjectRT(res *RT) *resultwithresulttypecollectionviews.RTView {
 	}
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
-		vres.A = ProjectRT2Collection(res.A)
+		vres.A = make([]*resultwithresulttypecollectionviews.RT2View, len(res.A))
+		for i, val := range res.A {
+			if val == nil {
+				vres.A[i] = nil
+				continue
+			}
+			vres.A[i] = transformProjectRTRT2ToResultwithresulttypecollectionviewsRT2View(val)
+		}
 	}
 	return vres
 }
@@ -151,7 +179,14 @@ func ProjectRTExtended(res *RT) *resultwithresulttypecollectionviews.RTView {
 	}
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
-		vres.A = ProjectRT2CollectionExtended(res.A)
+		vres.A = make([]*resultwithresulttypecollectionviews.RT2View, len(res.A))
+		for i, val := range res.A {
+			if val == nil {
+				vres.A[i] = nil
+				continue
+			}
+			vres.A[i] = transformProjectRTExtendedRT2ToResultwithresulttypecollectionviewsRT2View(val)
+		}
 	}
 	return vres
 }
@@ -164,7 +199,14 @@ func ProjectRTTiny(res *RT) *resultwithresulttypecollectionviews.RTView {
 	}
 	vres := &resultwithresulttypecollectionviews.RTView{}
 	if res.A != nil {
-		vres.A = ProjectRT2CollectionTiny(res.A)
+		vres.A = make([]*resultwithresulttypecollectionviews.RT2View, len(res.A))
+		for i, val := range res.A {
+			if val == nil {
+				vres.A[i] = nil
+				continue
+			}
+			vres.A[i] = transformProjectRTTinyRT2ToResultwithresulttypecollectionviewsRT2View(val)
+		}
 	}
 	return vres
 }
@@ -172,9 +214,13 @@ func ProjectRTTiny(res *RT) *resultwithresulttypecollectionviews.RTView {
 // NewRT2CollectionFromRT2CollectionView converts projected type
 // RT2CollectionView to service type RT2Collection.
 func NewRT2CollectionFromRT2CollectionView(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
-	res := make(RT2Collection, len(vres))
-	for i, n := range vres {
-		res[i] = NewRT2FromRT2View(n)
+	res := make([]*RT2, len(vres))
+	for i, val := range vres {
+		if val == nil {
+			res[i] = nil
+			continue
+		}
+		res[i] = transformNewRT2CollectionFromRT2CollectionViewResultwithresulttypecollectionviewsRT2ViewToRT2(val)
 	}
 	return res
 }
@@ -182,9 +228,13 @@ func NewRT2CollectionFromRT2CollectionView(vres resultwithresulttypecollectionvi
 // NewRT2CollectionFromRT2CollectionViewExtended converts projected type
 // RT2CollectionView to service type RT2Collection.
 func NewRT2CollectionFromRT2CollectionViewExtended(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
-	res := make(RT2Collection, len(vres))
-	for i, n := range vres {
-		res[i] = NewRT2FromRT2ViewExtended(n)
+	res := make([]*RT2, len(vres))
+	for i, val := range vres {
+		if val == nil {
+			res[i] = nil
+			continue
+		}
+		res[i] = transformNewRT2CollectionFromRT2CollectionViewExtendedResultwithresulttypecollectionviewsRT2ViewToRT2(val)
 	}
 	return res
 }
@@ -192,9 +242,13 @@ func NewRT2CollectionFromRT2CollectionViewExtended(vres resultwithresulttypecoll
 // NewRT2CollectionFromRT2CollectionViewTiny converts projected type
 // RT2CollectionView to service type RT2Collection.
 func NewRT2CollectionFromRT2CollectionViewTiny(vres resultwithresulttypecollectionviews.RT2CollectionView) RT2Collection {
-	res := make(RT2Collection, len(vres))
-	for i, n := range vres {
-		res[i] = NewRT2FromRT2ViewTiny(n)
+	res := make([]*RT2, len(vres))
+	for i, val := range vres {
+		if val == nil {
+			res[i] = nil
+			continue
+		}
+		res[i] = transformNewRT2CollectionFromRT2CollectionViewTinyResultwithresulttypecollectionviewsRT2ViewToRT2(val)
 	}
 	return res
 }
@@ -202,9 +256,13 @@ func NewRT2CollectionFromRT2CollectionViewTiny(vres resultwithresulttypecollecti
 // ProjectRT2Collection projects result type RT2Collection to projected type
 // RT2CollectionView using the "default" view.
 func ProjectRT2Collection(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
-	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
-	for i, n := range res {
-		vres[i] = ProjectRT2(n)
+	vres := make([]*resultwithresulttypecollectionviews.RT2View, len(res))
+	for i, val := range res {
+		if val == nil {
+			vres[i] = nil
+			continue
+		}
+		vres[i] = transformProjectRT2CollectionRT2ToResultwithresulttypecollectionviewsRT2View(val)
 	}
 	return vres
 }
@@ -212,9 +270,13 @@ func ProjectRT2Collection(res RT2Collection) resultwithresulttypecollectionviews
 // ProjectRT2CollectionExtended projects result type RT2Collection to projected
 // type RT2CollectionView using the "extended" view.
 func ProjectRT2CollectionExtended(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
-	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
-	for i, n := range res {
-		vres[i] = ProjectRT2Extended(n)
+	vres := make([]*resultwithresulttypecollectionviews.RT2View, len(res))
+	for i, val := range res {
+		if val == nil {
+			vres[i] = nil
+			continue
+		}
+		vres[i] = transformProjectRT2CollectionExtendedRT2ToResultwithresulttypecollectionviewsRT2View(val)
 	}
 	return vres
 }
@@ -222,9 +284,13 @@ func ProjectRT2CollectionExtended(res RT2Collection) resultwithresulttypecollect
 // ProjectRT2CollectionTiny projects result type RT2Collection to projected
 // type RT2CollectionView using the "tiny" view.
 func ProjectRT2CollectionTiny(res RT2Collection) resultwithresulttypecollectionviews.RT2CollectionView {
-	vres := make(resultwithresulttypecollectionviews.RT2CollectionView, len(res))
-	for i, n := range res {
-		vres[i] = ProjectRT2Tiny(n)
+	vres := make([]*resultwithresulttypecollectionviews.RT2View, len(res))
+	for i, val := range res {
+		if val == nil {
+			vres[i] = nil
+			continue
+		}
+		vres[i] = transformProjectRT2CollectionTinyRT2ToResultwithresulttypecollectionviewsRT2View(val)
 	}
 	return vres
 }
@@ -311,4 +377,191 @@ func ProjectRT2Tiny(res *RT2) *resultwithresulttypecollectionviews.RT2View {
 		D: &res.D,
 	}
 	return vres
+}
+
+// transformNewRTFromRTViewResultwithresulttypecollectionviewsRT2ViewToRT2
+// builds a value of type *RT2 from a value of type
+// *resultwithresulttypecollectionviews.RT2View.
+func transformNewRTFromRTViewResultwithresulttypecollectionviewsRT2ViewToRT2(v *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if v == nil {
+		return nil
+	}
+	res := &RT2{}
+	if v.C != nil {
+		res.C = *v.C
+	}
+	if v.D != nil {
+		res.D = *v.D
+	}
+
+	return res
+}
+
+// transformNewRTFromRTViewExtendedResultwithresulttypecollectionviewsRT2ViewToRT2
+// builds a value of type *RT2 from a value of type
+// *resultwithresulttypecollectionviews.RT2View.
+func transformNewRTFromRTViewExtendedResultwithresulttypecollectionviewsRT2ViewToRT2(v *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if v == nil {
+		return nil
+	}
+	res := &RT2{
+		E: v.E,
+	}
+	if v.C != nil {
+		res.C = *v.C
+	}
+	if v.D != nil {
+		res.D = *v.D
+	}
+
+	return res
+}
+
+// transformNewRTFromRTViewTinyResultwithresulttypecollectionviewsRT2ViewToRT2
+// builds a value of type *RT2 from a value of type
+// *resultwithresulttypecollectionviews.RT2View.
+func transformNewRTFromRTViewTinyResultwithresulttypecollectionviewsRT2ViewToRT2(v *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if v == nil {
+		return nil
+	}
+	res := &RT2{}
+	if v.D != nil {
+		res.D = *v.D
+	}
+
+	return res
+}
+
+// transformProjectRTRT2ToResultwithresulttypecollectionviewsRT2View builds a
+// value of type *resultwithresulttypecollectionviews.RT2View from a value of
+// type *RT2.
+func transformProjectRTRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if v == nil {
+		return nil
+	}
+	res := &resultwithresulttypecollectionviews.RT2View{
+		C: &v.C,
+		D: &v.D,
+	}
+
+	return res
+}
+
+// transformProjectRTExtendedRT2ToResultwithresulttypecollectionviewsRT2View
+// builds a value of type *resultwithresulttypecollectionviews.RT2View from a
+// value of type *RT2.
+func transformProjectRTExtendedRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if v == nil {
+		return nil
+	}
+	res := &resultwithresulttypecollectionviews.RT2View{
+		C: &v.C,
+		D: &v.D,
+		E: v.E,
+	}
+
+	return res
+}
+
+// transformProjectRTTinyRT2ToResultwithresulttypecollectionviewsRT2View builds
+// a value of type *resultwithresulttypecollectionviews.RT2View from a value of
+// type *RT2.
+func transformProjectRTTinyRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	if v == nil {
+		return nil
+	}
+	res := &resultwithresulttypecollectionviews.RT2View{
+		D: &v.D,
+	}
+
+	return res
+}
+
+// transformNewRT2CollectionFromRT2CollectionViewResultwithresulttypecollectionviewsRT2ViewToRT2
+// builds a value of type *RT2 from a value of type
+// *resultwithresulttypecollectionviews.RT2View.
+func transformNewRT2CollectionFromRT2CollectionViewResultwithresulttypecollectionviewsRT2ViewToRT2(v *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if v == nil {
+		return nil
+	}
+	res := &RT2{}
+	if v.C != nil {
+		res.C = *v.C
+	}
+	if v.D != nil {
+		res.D = *v.D
+	}
+
+	return res
+}
+
+// transformNewRT2CollectionFromRT2CollectionViewExtendedResultwithresulttypecollectionviewsRT2ViewToRT2
+// builds a value of type *RT2 from a value of type
+// *resultwithresulttypecollectionviews.RT2View.
+func transformNewRT2CollectionFromRT2CollectionViewExtendedResultwithresulttypecollectionviewsRT2ViewToRT2(v *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if v == nil {
+		return nil
+	}
+	res := &RT2{
+		E: v.E,
+	}
+	if v.C != nil {
+		res.C = *v.C
+	}
+	if v.D != nil {
+		res.D = *v.D
+	}
+
+	return res
+}
+
+// transformNewRT2CollectionFromRT2CollectionViewTinyResultwithresulttypecollectionviewsRT2ViewToRT2
+// builds a value of type *RT2 from a value of type
+// *resultwithresulttypecollectionviews.RT2View.
+func transformNewRT2CollectionFromRT2CollectionViewTinyResultwithresulttypecollectionviewsRT2ViewToRT2(v *resultwithresulttypecollectionviews.RT2View) *RT2 {
+	if v == nil {
+		return nil
+	}
+	res := &RT2{}
+	if v.D != nil {
+		res.D = *v.D
+	}
+
+	return res
+}
+
+// transformProjectRT2CollectionRT2ToResultwithresulttypecollectionviewsRT2View
+// builds a value of type *resultwithresulttypecollectionviews.RT2View from a
+// value of type *RT2.
+func transformProjectRT2CollectionRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	res := &resultwithresulttypecollectionviews.RT2View{
+		C: &v.C,
+		D: &v.D,
+	}
+
+	return res
+}
+
+// transformProjectRT2CollectionExtendedRT2ToResultwithresulttypecollectionviewsRT2View
+// builds a value of type *resultwithresulttypecollectionviews.RT2View from a
+// value of type *RT2.
+func transformProjectRT2CollectionExtendedRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	res := &resultwithresulttypecollectionviews.RT2View{
+		C: &v.C,
+		D: &v.D,
+		E: v.E,
+	}
+
+	return res
+}
+
+// transformProjectRT2CollectionTinyRT2ToResultwithresulttypecollectionviewsRT2View
+// builds a value of type *resultwithresulttypecollectionviews.RT2View from a
+// value of type *RT2.
+func transformProjectRT2CollectionTinyRT2ToResultwithresulttypecollectionviewsRT2View(v *RT2) *resultwithresulttypecollectionviews.RT2View {
+	res := &resultwithresulttypecollectionviews.RT2View{
+		D: &v.D,
+	}
+
+	return res
 }

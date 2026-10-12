@@ -1187,6 +1187,14 @@ they perform conversion, not validation. The generated `NewViewed...`
 constructor owns selected-view validation for endpoints, interceptors and stream
 senders.
 
+Every nested result selects its own default view unless the design explicitly
+selects a nested view. A parent view does not implicitly select the same view
+for its children. This rule applies through ordinary type wrappers, arrays,
+maps, collections and union branches. Fields excluded by a nested view are
+neither copied into outgoing values nor read during reverse conversion, even
+when the canonical result requires those fields. Regenerate existing services
+to apply this selection consistently to every container.
+
 View fields inherit canonical requiredness unless the view uses
 `ViewRequired(...)` or `ViewOptional(...)`. Those overrides drive projected
 validation, HTTP field pointers and JSON tags, and OpenAPI `required` arrays;

@@ -1148,11 +1148,16 @@ filter, and serialization rules belong here.
   through object fields remains supported. The bounded copy and expansion
   models under `dsl/tla/union_copy` reproduce both failures and check the copy
   ownership and cycle-rejection rules.
-- The view conversions of a collection element or of a nested result type
-  call the conversions generated for that result type,
-  `New<Type>From<Type>View[<View>]` and `Project<Type>[<View>]`. Derive the
-  called names from the functions that name them
-  (`projectedResultInitHelperBaseName`, `projectionHelperBaseName`).
+- `expr.Project` owns recursive selected-view semantics through ordinary
+  wrappers, arrays/maps, collections and union branches. Each nested result
+  selects its authored view or its own default independently of its parent.
+  `projection_conversion.go` binds detached selected graphs to complete physical
+  carriers; never prune shared physical declarations or invent Go type names.
+  Keep one `GoTransform` renderer. Its helper allocator must retain semantic
+  source/target identity through `DupAtt` and use the same name for calls,
+  declarations and recursion memoization. Preserve the different physical
+  layouts of named pointer carriers and anonymous objects. Keep
+  `codegen/service/tla/recursive_projection` aligned with these boundaries.
 - The shared service-to-view constructor owns the output contract: reject a nil
   object, select and project the view, then run its generated validator before
   returning a result. Unknown views and violated constraints become Loom faults
@@ -1193,12 +1198,11 @@ filter, and serialization rules belong here.
   the nil endpoint return as a viewed result or buffer final sends. Check the
   lifecycle model in `codegen/service/tla/FinalResultInterceptor.tla` and pair it
   with compiled server/client tests of normal, blocked and failed operations.
-- A projected type declares the field of a required union as a value and
-  every other field as a pointer or a collection. The view conversions
-  transform through an object of the attributes of the view
-  (`viewObjectAttribute`) that requires only the unions that the projected
-  type requires, so that the transforms use the union fields as declared and
-  still check the other fields for nil.
+- Named projected object carriers keep required unions as values and other
+  fields as pointers or collections. `projectionCarrierValidation` normalizes
+  requiredness in the detached conversion graph to match that physical layout,
+  so union access stays direct and other reads stay guarded. Anonymous objects
+  retain physical requiredness and tags because those affect Go type identity.
 - Shared `GoTransform` conversion into pointer carriers preserves absent object
   fields, named scalar pointers and collections independently of full-type
   requiredness. A selected view may legitimately omit them, and its validator

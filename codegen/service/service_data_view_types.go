@@ -32,21 +32,12 @@ type (
 		InitName      string
 		ValidateName  string
 		ViewExpr      string
-		Source        string
-		Target        string
-		Code          string
-		Fields        []initFieldTemplateData
 	}
 
 	validateFieldTemplateData struct {
 		Name        string
 		ValidateVar string
 		IsRequired  bool
-	}
-
-	initFieldTemplateData struct {
-		VarName   string
-		FieldInit string
 	}
 
 	// ViewedResultTypeData contains the data used to generate a viewed result type

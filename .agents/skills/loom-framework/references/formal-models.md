@@ -29,6 +29,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | Code concern | Model |
 | --- | --- |
 | Nearest authentication scope, session lowering and contradictory declarations | [Authentication scope ownership](../../../../expr/tla/authentication_scope/README.md) |
+| Recursive view selection, excluded-field preservation and semantic conversion helper identity | [Recursive selected-view ownership](../../../../codegen/service/tla/recursive_projection/README.md); bounded selection/order models paired with generated unary and streaming wire regressions |
 | Service/view union references and declaration identity | [Service union declarations](../../../../codegen/service/tla/union_declarations/README.md) |
 | Collection element nullability before lossy conversion | [Collection decoding](../../../../http/codegen/tla/collection_decode/README.md); bounded decoding/conversion/view ordering and generated HTTP/WebSocket/request matrices |
 | Preservation of absent fields before selected-view validation | [Projected presence](../../../../codegen/tla/projected_presence/README.md); bounded object/scalar panic and collection-presence controls, with generated HTTP/WebSocket tests |

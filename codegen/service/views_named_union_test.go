@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"go/format"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -51,26 +52,34 @@ func TestViewsNamedUnion(t *testing.T) {
 	assert.NotContains(t, code, "type ChoiceView Choice")
 }
 
-// TestViewedResultNestedHelperNames checks that the conversions of a
-// collection of result types with views and of a result type that holds
-// another one call the conversions generated for the element and the nested
-// result type, in each view.
+// TestViewedResultNestedHelperNames checks that calls and declarations share
+// selected conversion identity, including tiny children of default parents.
 func TestViewedResultNestedHelperNames(t *testing.T) {
 	root := codegen.RunDSL(t, namedUnionViewsDSL)
 	code := renderServiceFile(t, root, NewServicesData(root))
 	cases := []struct {
-		function string
-		call     string
+		function   string
+		assignment string
+		tiny       bool
 	}{
-		{"NewRTCollectionFromRTCollectionView", "res[i] = NewRTFromRTView(n)"},
-		{"NewRTCollectionFromRTCollectionViewTiny", "res[i] = NewRTFromRTViewTiny(n)"},
-		{"ProjectRTCollection", "vres[i] = ProjectRT(n)"},
-		{"ProjectRTCollectionTiny", "vres[i] = ProjectRTTiny(n)"},
-		{"NewParentFromParentView", "res.Child = NewRTFromRTViewTiny(vres.Child)"},
-		{"ProjectParent", "vres.Child = ProjectRTTiny(res.Child)"},
+		{"NewRTCollectionFromRTCollectionView", "res[i]", false},
+		{"NewRTCollectionFromRTCollectionViewTiny", "res[i]", true},
+		{"ProjectRTCollection", "vres[i]", false},
+		{"ProjectRTCollectionTiny", "vres[i]", true},
+		{"NewParentFromParentView", "res.Child", true},
+		{"ProjectParent", "vres.Child", true},
 	}
 	for _, c := range cases {
-		assert.Contains(t, generatedFunction(t, code, c.function), c.call, c.function)
+		body := generatedFunction(t, code, c.function)
+		call := regexp.MustCompile(regexp.QuoteMeta(c.assignment) + ` = ([A-Za-z0-9_]+)\(`).FindStringSubmatch(body)
+		require.Len(t, call, 2, c.function)
+		helper := generatedFunction(t, code, call[1])
+		assert.Contains(t, helper, "ID", c.function)
+		if c.tiny {
+			assert.NotContains(t, helper, ".C", c.function)
+		} else {
+			assert.Contains(t, helper, ".C", c.function)
+		}
 	}
 	assert.NotRegexp(t, `\bnew[A-Z]\w*\(`, code)
 }

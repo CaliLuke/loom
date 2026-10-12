@@ -111,11 +111,22 @@ type (
 // newVar if true initializes a target variable with the generated Go code
 // using `:=` operator. If false, it assigns Go code to the target variable
 // using `=`.
-func GoTransform(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *AttributeContext, prefix string, newVar bool) (string, []*TransformFunctionData, error) {
+//
+// At most one options value may override helper naming. The same callback names
+// helper declarations, recursive references and calls; an empty name uses the
+// default physical-type naming rule.
+func GoTransform(source, target *expr.AttributeExpr, sourceVar, targetVar string, sourceCtx, targetCtx *AttributeContext, prefix string, newVar bool, options ...TransformOptions) (string, []*TransformFunctionData, error) {
 	ta := &TransformAttrs{
 		SourceCtx: sourceCtx,
 		TargetCtx: targetCtx,
 		Prefix:    prefix,
+	}
+
+	if len(options) > 1 {
+		return "", nil, fmt.Errorf("GoTransform accepts at most one options value")
+	}
+	if len(options) == 1 {
+		ta.Options = options[0]
 	}
 
 	code, err := transformAttribute(source, target, sourceVar, targetVar, newVar, ta)

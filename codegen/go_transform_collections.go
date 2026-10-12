@@ -675,6 +675,11 @@ func walkMatches(source, target *expr.AttributeExpr, walker func(src, tgt *expr.
 // transformHelperName returns the transformation function name to initialize a
 // target user type from an instance of a source user type.
 func transformHelperName(source, target *expr.AttributeExpr, ta *TransformAttrs) string {
+	if ta.Options.HelperName != nil {
+		if name := ta.Options.HelperName(source, target); name != "" {
+			return name
+		}
+	}
 	var (
 		sname  string
 		tname  string

@@ -105,12 +105,24 @@ type (
 		FieldNames(obj *expr.AttributeExpr, name string) (string, []string, []string)
 	}
 
+	// TransformOptions configures helper allocation independently of the physical
+	// Go type names. The caller owns semantic conversion identity.
+	TransformOptions struct {
+		// HelperName returns the allocated helper name for a source/target pair.
+		// It must return the same name for semantically equivalent copies and
+		// distinct names when the same Go types need different conversions.
+		// An empty name uses the standard type-derived name.
+		HelperName func(source, target *expr.AttributeExpr) string
+	}
+
 	// TransformAttrs are the attributes that help in the transformation.
 	TransformAttrs struct {
 		// SourceCtx and TargetCtx are the source and target attribute context.
 		SourceCtx, TargetCtx *AttributeContext
 		// Prefix is the transform function helper prefix.
 		Prefix string
+		// Options controls semantic helper identity.
+		Options TransformOptions
 	}
 
 	// TransformFunctionData describes a helper function used to transform

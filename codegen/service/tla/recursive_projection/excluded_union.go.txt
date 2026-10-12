@@ -1,0 +1,50 @@
+package design
+
+import "github.com/CaliLuke/loom/dsl"
+
+func init() {
+	shape := dsl.Type("Shape", func() {
+		dsl.OneOf("kind", func() {
+			dsl.Field(1, "circle", dsl.Int)
+			dsl.Field(2, "name", dsl.String)
+		})
+	})
+	item := dsl.ResultType("application/vnd.excluded.item", func() {
+		dsl.TypeName("Item")
+		dsl.Attributes(func() {
+			dsl.Field(1, "id", dsl.String)
+			dsl.Field(2, "shape", shape)
+			dsl.Required("id")
+		})
+		dsl.View("default", func() {
+			dsl.Attribute("id")
+		})
+		dsl.View("shaped", func() {
+			dsl.Attribute("id")
+			dsl.Attribute("shape")
+		})
+	})
+	wrap := dsl.ResultType("application/vnd.excluded.wrap", func() {
+		dsl.TypeName("Wrap")
+		dsl.Attributes(func() {
+			dsl.Field(1, "id", dsl.String)
+			dsl.Field(2, "items", dsl.ArrayOf(item))
+			dsl.Required("id")
+		})
+		dsl.View("default", func() {
+			dsl.Attribute("id")
+			dsl.Attribute("items")
+		})
+		dsl.View("tiny", func() {
+			dsl.Attribute("id")
+		})
+	})
+	dsl.Service("projection", func() {
+		dsl.Method("show", func() {
+			dsl.Result(wrap)
+			dsl.HTTP(func() {
+				dsl.GET("/show")
+			})
+		})
+	})
+}
