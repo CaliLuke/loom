@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/eval"
 )
 
 // TestHTTPRequestBodyAnalysisPreservesSource checks that validation may derive
@@ -47,6 +49,11 @@ func TestHTTPRequestBodyAnalysisPreservesSource(t *testing.T) {
 // TestHTTPRequestBodyPreparationPreservesInheritedExamples checks that the
 // prepared body retains examples when composition removes its bases.
 func TestHTTPRequestBodyPreparationPreservesInheritedExamples(t *testing.T) {
+	previous := eval.Context
+	eval.Context = eval.NewContext()
+	t.Cleanup(func() {
+		eval.Context = previous
+	})
 	base := &UserTypeExpr{TypeName: "Base", AttributeExpr: &AttributeExpr{
 		Type:         &Object{},
 		UserExamples: []*ExampleExpr{{Summary: "authored", Value: map[string]any{}}},
