@@ -878,6 +878,9 @@ requirement retain AND semantics.
   (1000 on success, generic 1011 on failure or panic). No upgrade is forced for
   a handler that never uses its stream. `CloseAndRecv` still half-closes input
   and receives the result; it does not terminally close before the response.
+  HTTP client `Close` gives the peer a best-effort interval to finish after its
+  final null marker. One second bounds the write and wait together; return does
+  not acknowledge service processing. Direct runtime `Close` remains immediate.
 - Connection read failures are terminal. Live-context readers may consume
   previously admitted messages before the recorded natural read error; explicit
   close and overload discard queued work. Return from the receive loop on a

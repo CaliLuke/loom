@@ -1022,7 +1022,11 @@ filter, and serialization rules belong here.
   readers; overload and explicit close discard it. Preserve raw Close's
   immediate-release contract. Shared handler cleanup, status close and final
   JSON close bound terminal writes independently of application writes, always
-  release the socket, and preserve the original handler error/panic. Keep
+  release the socket, and preserve the original handler error/panic. Final JSON
+  close shares one second across writer acquisition, final write and best-effort
+  peer termination. Its sole pump discards bounded late frames while cleanup waits;
+  local closed state must not masquerade as peer termination. Deadline expiration
+  after a successful write adds no cleanup error or delivery guarantee. Keep
   CloseAndRecv's null half-close nonterminal. Align both message-admission and
   lifecycle models with real-socket and generated transport regressions.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,

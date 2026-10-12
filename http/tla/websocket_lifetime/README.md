@@ -163,3 +163,46 @@ application configuration hook. It models bounded terminal I/O as timeout
 availability; tests must establish the actual deadline and locking protocol.
 The inherited terminal-cause model under `../websocket_message_limit` remains a
 separate control and must continue to match the implementation.
+
+## Final input and disconnect composition (#795)
+
+`WebSocketInputFinish.tla` fills a correspondence gap exposed by generated
+nested-collection and union tests after #722: `CloseWithFinalJSON(nil)` wrote the
+null marker and immediately released TCP. The receiving pump could admit data
+and null, observe EOF, and cancel the service before its reads consumed either.
+The older FIFO invariant covered only live operation contexts; modeling input
+half-close separately did not exercise this composition.
+
+Run this module with `cfg/input_finish_<name>.cfg` using the command above.
+The old `immediate` configuration fails `OrderlyInputPreserved` after 17 generated
+states (12 distinct): data/null are queued, local release occurs, and disconnect
+cancels before consumption. The corrected `bounded` configuration passes 23/17
+states; `final` (both sides final-close) passes 9/7; `abrupt` passes 37/24. All
+corrected configurations check FIFO and eventual close completion.
+
+The candidate waits for peer termination after the final write, sharing the
+existing one-second budget across writer acquisition, write and wait. Deadline
+expiration permits abort; the invariant promises ordered consumption only for a
+cooperating handler when the deadline did not expire. The model abstracts time
+as a fair timeout action; it does not guarantee scheduling or completion within
+one second. A peer termination is not a service-processing acknowledgement.
+Simultaneous final closers do not acknowledge each other's JSON null: timeout
+still guarantees release. Abrupt peer termination still cancels the service.
+
+`releaseConnection` implements the wait on the existing sole reader's `pumpDone`.
+`readPump` discards bounded frames during local terminal cleanup and continues
+until a physical read/protocol-limit failure, so an ordinary late message cannot
+falsely complete the wait. No additional inbox admission occurs after shutdown.
+The existing aggregate byte/count model continues to own admission bounds;
+this small ordering model does not model allocations, writer errors or attach
+races. `WebSocketShutdown` still checks first-owner publication, forced release,
+writer-lock timeout and attachment cancellation separately.
+
+`TestWebSocketFinalJSONPreservesQueuedInput` gates service decoding and the final
+write, then uses a following ping to prove null admission before releasing the
+service. `TestWebSocketFinalJSONCloseWaitsForPeer` sends late data and a ping to
+prove the reader does not exit on local closed state. Stalled-peer, simultaneous
+close and blocked-writer tests check bounded physical release. The existing
+generated nested-collection/union tests remain unchanged; generated lifecycle
+coverage retains the nonterminal CloseAndRecv final reply and real disconnect
+cancellation. Raw Close remains immediate when it owns the terminal transition.

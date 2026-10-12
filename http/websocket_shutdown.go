@@ -42,11 +42,14 @@ func (s *WebSocketStream) CloseWithStatus(code int, reason string) error {
 	return s.closeResult()
 }
 
-// CloseWithFinalJSON terminally writes value and closes the connection. Its
-// one-second deadline covers write-lock acquisition and the write, independently
-// of the normal write policy. Physical release is unconditional. HTTP client
-// Close uses a nil value to retain its final JSON-null framing; CloseAndRecv
-// must instead write null without terminally closing the connection.
+// CloseWithFinalJSON terminally writes value, waits best effort for peer
+// termination, and releases the connection. Its one-second deadline covers
+// write-lock acquisition, the write and the wait, independently of the normal
+// write policy. Physical release is unconditional. A successful write followed
+// by wait expiration or a peer read failure adds no cleanup error; this is not
+// an acknowledgement of service processing. HTTP client Close uses nil for its
+// final JSON-null framing. CloseAndRecv instead writes null nonterminally so it
+// can receive the final service reply.
 func (s *WebSocketStream) CloseWithFinalJSON(value any) error {
 	s.stop(nil, webSocketFinalJSON, value, false)
 	return s.closeResult()
@@ -136,6 +139,12 @@ func (s *WebSocketStream) releaseConnection(conn *websocket.Conn, code int, fina
 		if writeErr = s.acquireWrite(ctx); writeErr == nil {
 			writeErr = s.writeJSONWithDeadline(ctx, conn, final)
 			s.releaseWrite()
+		}
+		if writeErr == nil {
+			select {
+			case <-s.pumpDone:
+			case <-ctx.Done():
+			}
 		}
 		stop()
 	case code > 0:

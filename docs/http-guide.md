@@ -1009,10 +1009,15 @@ connection is owned rejects and closes the incoming connection. A connection
 attached after terminal close is closed immediately without invoking the hook.
 Raw runtime `Close` releases immediately. `CloseWithStatus(code, reason)` owns a
 bounded close-control attempt and unconditional release; replace the old
-`WriteClose` then `Close` sequence with it. `CloseWithFinalJSON(value)` also
-bounds waiting behind an existing writer and always releases the socket.
-Generated HTTP client `Close` uses this operation with JSON null. It is terminal;
-use the generated `CloseAndRecv` for input half-close with a final response.
+`WriteClose` then `Close` sequence with it. `CloseWithFinalJSON(value)` uses one
+second for writer acquisition, the final write and a best-effort wait for peer
+termination, then always releases the socket. This lets a cooperating server
+consume queued input and its end marker before the client disconnects. It does
+not acknowledge service processing; a stalled peer or two simultaneous final
+closers exhaust that same deadline. Successful writing followed by wait
+expiration adds no close error. Generated HTTP client `Close` uses this terminal
+operation with JSON null; use `CloseAndRecv` for input half-close with a final
+response.
 
 Generated HTTP and JSON-RPC server constructors accept an optional final
 `loomhttp.StreamWritePolicy`. Constructing the policy validates the timeout;

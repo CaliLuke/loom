@@ -82,7 +82,9 @@ func (s *WebSocketStream) readPump(conn *websocket.Conn) {
 		s.connLock.Lock()
 		if s.closed {
 			s.connLock.Unlock()
-			return
+			// Final-JSON cleanup may still be waiting for peer termination.
+			// Discard bounded frames, but keep the sole physical reader alive.
+			continue
 		}
 		budget := s.config.MaxBufferedBytes() - s.config.MaxMessageBytes()
 		if int64(len(data)) > budget-s.bufferedBytes || s.bufferedMessages >= s.config.MaxBufferedMessages() {
