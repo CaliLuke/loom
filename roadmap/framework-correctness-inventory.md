@@ -1,6 +1,6 @@
 # Framework correctness issue inventory
 
-Source: live GitHub open `code-review` issues #679–#793, plus referenced #670, read on 2026-10-12. Baseline `4535a403048510f055fc59ec3dfed41e3769ad58`. See [execution plan](framework-correctness-plan.md).
+Source: live GitHub open `code-review` issues #679–#793, plus referenced #670, read on 2026-10-12, with subsequently reproduced follow-ups recorded below. Baseline `4535a403048510f055fc59ec3dfed41e3769ad58`. See [execution plan](framework-correctness-plan.md).
 
 Grouping is provisional ownership triage from issue titles and selected detailed reports. It is not independent confirmation or evidence that all reports in a family share a cause. Each implementation task must reconcile its detailed reports before grouping fixes. Existing reports remain open until their own acceptance evidence is satisfied; #775 is an already-closed duplicate of #774.
 
@@ -9,7 +9,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#670: [P1] loom gen overwrites existing plugin files marked SkipExist](https://github.com/CaliLuke/loom/issues/670) | File generation ownership | Delivered `41b4a8a3`: intent-preserving installation and shared admission, including stable gen-tree aliases; reviewed and pushed |
 | [#679: [P2] http/middleware: Debug wrapper hides Flush/Unwrap, breaking SSE and streaming](https://github.com/CaliLuke/loom/issues/679) | Logging / observation (M11) | Pending detailed reconciliation |
 | [#680: [P2] http/middleware: Debug replaces failed request body with its own error text](https://github.com/CaliLuke/loom/issues/680) | Logging / observation (M11) | Pending detailed reconciliation |
-| [#681: [P2] codegen: integer Minimum/Maximum bounds lose precision and MaxInt64 generates uncompilable code](https://github.com/CaliLuke/loom/issues/681) | Value representation (M7) | Thirty-two DSL/import precision regressions reproduced; exact representation/model readiness under investigation; no decimal-only policy accepted |
+| [#681: [P2] codegen: integer Minimum/Maximum bounds lose precision and MaxInt64 generates uncompilable code](https://github.com/CaliLuke/loom/issues/681) | Value representation (M7) | Readiness v3 independently approved; 66 red regressions across DSL, import and runtime schemas; shared exact owner implementation authorized on parent `27da0247`; not delivered; existing finite hex strings retained |
 | [#682: [P2] jsonrpc: WebSocket streaming method closes the connection on a notification with invalid params](https://github.com/CaliLuke/loom/issues/682) | JSON-RPC / error contracts (M11) | Pending detailed reconciliation |
 | [#683: [P3] pulse/streaming: Subscribe after Close returns a channel that is never closed](https://github.com/CaliLuke/loom/issues/683) | Pulse stream / map state (M11) | Pending detailed reconciliation |
 | [#684: [P2] grpc codegen: empty inner array/map of a nested collection is rejected as a missing field](https://github.com/CaliLuke/loom/issues/684) | Value representation (M7) | Pending detailed reconciliation |
@@ -59,7 +59,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#728: [P2] jsonrpc: Security with a payload token on a WebSocket method panics instead of failing validation](https://github.com/CaliLuke/loom/issues/728) | Authentication (M2) | Pending detailed reconciliation |
 | [#729: [P2] expr: two unmapped credentials in one method both map to the Authorization header](https://github.com/CaliLuke/loom/issues/729) | Authentication (M2) | Pending detailed reconciliation |
 | [#730: [P2] codegen/service: adjacent result-type fields skip the view-aware conversion and the client panics with a nil dereference](https://github.com/CaliLuke/loom/issues/730) | Projection (M3) | Verified regression witness in `ce3f6a73`; recursive selection and conversion repair |
-| [#731: [P2] http: constraints on Basic-auth Username and Password are not validated by the generated decoder](https://github.com/CaliLuke/loom/issues/731) | Authentication (M2) | Readiness independently approved; implementing shared request validation on #732 parent |
+| [#731: [P2] http: constraints on Basic-auth Username and Password are not validated by the generated decoder](https://github.com/CaliLuke/loom/issues/731) | Authentication (M2) | Delivered in `601a4338b`; independently reviewed, pushed and closed; separate defaulted CLI defect tracked as #794 |
 | [#732: [P2] http: Basic-or-Bearer security alternatives reject valid Basic credentials with 400](https://github.com/CaliLuke/loom/issues/732) | Authentication (M2) | Delivered in `433d2e74`; independently reviewed, pushed and closed |
 | [#733: [P2] http/codegen: renamed user types are referenced by their unrenamed name in array and map element conversions](https://github.com/CaliLuke/loom/issues/733) | Generated identity (M8) | Pending detailed reconciliation |
 | [#734: [P3] codegen/service: errors whose names Goify identically generate duplicate Make<Name> constructors](https://github.com/CaliLuke/loom/issues/734) | Generated identity (M8) | Pending detailed reconciliation |
@@ -71,7 +71,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#740: [P3] grpc codegen: nil collection elements in a service result or payload panic the generated conversion](https://github.com/CaliLuke/loom/issues/740) | Value representation (M7) | Pending detailed reconciliation |
 | [#741: [P2] codegen/service: example interceptor files are guarded by a cwd-relative stat and overwrite files in the output directory](https://github.com/CaliLuke/loom/issues/741) | File generation ownership | Delivered `23f2af5d`: server/client example declarations use the shared create-only writer; reviewed and pushed |
 | [#742: [P3] vet: generated-design-skew compares every manifest in the module against one design](https://github.com/CaliLuke/loom/issues/742) | Generation manifest identity (M11) | Pending detailed reconciliation |
-| [#743: [P2] grpc: client-streaming server waits for the first frame before authenticating, so unauthenticated clients can hold the RPC open](https://github.com/CaliLuke/loom/issues/743) | Authentication (M2) | Readiness independently approved; implementing metadata-only pre-frame admission in isolated worktree |
+| [#743: [P2] grpc: client-streaming server waits for the first frame before authenticating, so unauthenticated clients can hold the RPC open](https://github.com/CaliLuke/loom/issues/743) | Authentication (M2) | Delivered `d8ccf0ee`: shared metadata admission before initial receive with complete-request rechecks; independently reviewed, pushed and closed |
 | [#744: [P2] clue/debug: per-request debug middleware mutates logger options shared across requests (data race)](https://github.com/CaliLuke/loom/issues/744) | Logging / observation (M11) | Pending detailed reconciliation |
 | [#745: [P2] clue/log: log.With copies the debug buffer, so error flushes duplicate or lose buffered entries](https://github.com/CaliLuke/loom/issues/745) | Logging / observation (M11) | Pending detailed reconciliation |
 | [#746: [P3] clue/log: disabling request IDs makes all requests share one log buffer that grows until an error](https://github.com/CaliLuke/loom/issues/746) | Logging / observation (M11) | Pending detailed reconciliation |
@@ -119,10 +119,12 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#789: [P2] OpenAPI import: schema properties that map to the same Go field render a design that fails to evaluate](https://github.com/CaliLuke/loom/issues/789) | Generated identity (M8) | Pending detailed reconciliation |
 | [#790: [P2] jsonrpc: ID attribute constraints are checked on params.id, not on the envelope id the service receives](https://github.com/CaliLuke/loom/issues/790) | JSON-RPC / error contracts (M11) | Pending detailed reconciliation |
 | [#791: [P2] OpenAPI import: object and nested-array query, header and path parameters render a design that fails to evaluate](https://github.com/CaliLuke/loom/issues/791) | Wire contracts / importer (M9) | Pending detailed reconciliation |
-| [#792: [P1] OpenAPI import: recursive component schemas render a design that does not compile](https://github.com/CaliLuke/loom/issues/792) | Wire contracts / importer (M9) | Pending detailed reconciliation |
+| [#792: [P1] OpenAPI import: recursive component schemas render a design that does not compile](https://github.com/CaliLuke/loom/issues/792) | Wire contracts / importer (M9) | Reference-context readiness and graph models saved in isolated worktree; production not released; owner temporarily repairing #795 |
 | [#793: [P2] OpenAPI import: form-style object query parameters are accepted while the deepObject form Loom decodes is rejected](https://github.com/CaliLuke/loom/issues/793) | Wire contracts / importer (M9) | Pending detailed reconciliation |
+| [#794: [P2] http: defaulted Basic credentials generate uncompilable CLI pointer assignments](https://github.com/CaliLuke/loom/issues/794) | CLI argument representation (M11) | Reproduced at parent/current during #731; separate shared argument-metadata repair pending |
+| [#795: [P2] http: orderly WebSocket close cancels queued stream delivery](https://github.com/CaliLuke/loom/issues/795) | Connection lifecycle (M5) | Reproduced normal-close regression after #722; model reproduces cancellation before queued messages/null are consumed; root-approved bounded closing handshake implementation in progress |
 
-Inventory count: 115 reports (114 in the requested open range, plus #670).
+Inventory count: 117 reports (114 in the requested open range, plus #670 and follow-ups #794–#795).
 
 ## Structural delivery tickets
 
