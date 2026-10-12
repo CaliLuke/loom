@@ -4,11 +4,12 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- Delivered and pushed: authentication scope #724 (#725 witness), public error disclosure #713, recursive projection #788 (#730/#779 witnesses), artifact write intent #670, and example interceptor ownership #741.
-- Implementing: WebSocket message limits #716 and effective Extend composition #755 (#757 witness). Proxy-address trust #708 is implementing in its own worktree after independent readiness approval. Worktrees and owners are recorded below; these changes are not yet delivered.
-- Next stream task: #722 connection lifetime after #716. The user approved closing and canceling on configurable buffer overload.
+- Seventeen reports are delivered, pushed and confirmed closed: #670, #708, #711, #712, #713, #714, #716, #722, #724, #725, #730, #732, #741, #755, #757, #779 and #788. Latest delivery: WebSocket lifetime `56bc7eae`.
+- Active implementation: #731 Basic credential validation in `/Users/luca/.codex/worktrees/basic-credential-validation/loom` by `/root/basic_credential_design`; #743 gRPC pre-frame admission in `/Users/luca/.codex/worktrees/grpc-stream-admission/loom` by `/root/grpc_admission_design`. Both start from pushed `433d2e74` and have independently approved readiness.
+- #681 exact numeric bounds remains in design investigation in `/Users/luca/.codex/worktrees/exact-numeric-bounds/loom` by `/root/exact_numeric_design`. The user rejected Go-only reasoning for narrowing string syntax; decimal-only strings are not an accepted policy. Preserve existing hexadecimal-string support in the investigation and assess exact language-neutral normalization and resource costs before production.
 - Later accepted semantics: explicit empty collections survive encoding, and defaults fill absence without replacing explicit zero. Milestone 7 implementation remains outstanding.
-- Recovery checkpoint after #670 delivery: `6183551e`. Inspect the latest Git log, uncommitted tracker updates and live agents before resuming.
+- Latest committed tracker checkpoint before this update: `26f252ef`. This update records subsequent deliveries through `56bc7eae`. On recovery, inspect the latest Git log, uncommitted tracker updates and live agents before resuming. Main retains an untracked #743 readiness copy; its implementation owner has the approved handoff.
+- Remote CI for `433d2e74` remains in progress; CodeQL passed. The projected-package CI failure has a delivered local repair at `c735c636`; no overall CI pass is claimed yet.
 
 ## Delivery log
 
@@ -86,6 +87,76 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 - 2026-10-12 — User explicitly set the goal to work through the entire tracked backlog without stopping at status updates. Root verified GitHub state: owning #724, #713, #788, #670 and #741 were already closed by their pushed commits; root closed resolved witnesses #725, #730 and #779 as completed. Recovery checkpoint `4c7bd8d7` is pushed. All eight delivered reports are now closed. #716 and #708 candidates are frozen for integration/review; #755 continues final validation. A historical JSON-package reference in #741 evidence triggered the Markdown lint scan; its wording is corrected without changing the evidence, and delivery/cleanup status is made current.
 
+- 2026-10-12 — **Delivered #708:** commit `9880865a` on parent `26f252ef`, pushed to `origin/main`; GitHub confirms closure. `/root/review_artifacts` authorized the exact 12-file integrated diff (SHA-256 `20cfa227f31d7ebc41599a83bac44be89b1e8f0ca3d0e3a554dbd2915a2a566e`) with no findings. Root and reviewer independently passed affected race suites; vet, JSON lint and whitespace checks pass. Evidence: `http/tla/forwarded_client/README.md`. Runtime upgrade suffices. Task-owned scratch was removed after review/process check; managed worktree archival was refused as protected/pinned.
+
+- 2026-10-12 — #716 frozen 124-file patch integrated onto `9880865a` without conflicts. Source hashes match the agent candidate except the HTTP guide retains newer #708 text. Agent `/root/websocket_lifetime` is validating the three selected designs against this immediate parent before fresh independent review. Root owns shared guidance and final integration; the 19 pending #722 files remain excluded. Next authentication readiness is prepared by `/root/auth_readiness`; no production work is released.
+
+- 2026-10-12 — #732 readiness independently accepted by root; implementation released to `/root/auth_readiness` in `/Users/luca/.codex/worktrees/auth-credential-alternatives/loom`, parent `9880865a1c2873cf455fbae979dc7de3a533071f`. Shared alternative-aware extraction must preserve payload-wide Required and malformed-matching-credential rejection; #731, #743, #729, #752 and #728 remain separate. Readiness: `roadmap/auth-credential-readiness.md`.
+
+- 2026-10-12 - #716 current-parent comparison passes for all three selected designs (68 output files) and generated limit/error/projection controls. `/root/review_websocket` reviewed staged 128-file hash `2dd9446272195b7bb1ee85884864d8537bf954ae5cfb7933f55b5bcb02649e66` and found one medium cancellation-cause regression: later reads returned a low-level socket error instead of the documented closed sentinel. No commit authorized. `/root/websocket_lifetime` is repairing the common terminal transition in its worktree, with model and deterministic regressions before re-review.
+
+- 2026-10-12 - #755/#757 candidate frozen in its recorded worktree: 43 files, manifest `/tmp/loom-effective-final-manifest.json` SHA-256 `dd83997cce82eb51e72d4d818379a82aaf2d0997a7913256a08271d840541bcc`, base `ce3f6a73`. Its six specimens compile/vet and 151 output files match independent repeats. Integration and current-parent comparison follow #716 and its required CI-maintenance follow-up; no delivery claimed.
+
+- 2026-10-12 - Remote CI for `9880865a` failed its `ci` job with three maintainability-index violations (`codegen/generator.Generate`, `codegen/service.projectionConversion.typ`, `internal/artifactpolicy.Validate`) and two test-slice preallocation warnings. These are required follow-up repairs to earlier deliveries. Managed worktree `/Users/luca/.codex/worktrees/correctness-ci-gates/loom` at `9880865a` is owned by `/root/ci_gates`; private helper extraction and test preallocation are implemented and validating. Root full golangci on integrated #716 reproduced exactly those five baseline diagnostics and no new #716 diagnostics. #743 admission readiness investigation is assigned to `/root/grpc_admission`; source implementation remains unreleased; its readiness checkpoint is saved in `roadmap/grpc-stream-admission-readiness.md` and will resume after CI repair capacity is available.
+
+- 2026-10-12 - #716 medium terminal-cause finding fixed and independently re-reviewed by `/root/review_websocket`; exact final 133-file diff SHA-256 `369ec8cbdd0c36340a251f8a3039abbdc41281cc66428d299299b929be204b8a` approved with no unresolved findings. Committed locally as `46b627ef`; push follows CI cleanup. Main runtime race tests and vet pass. CI cleanup seven-file candidate is staged for `/root/review_ci_cleanup` on this parent; integrated `make lint` is running. #732 frozen 23-file candidate is under independent review by `/root/review_auth_alternatives`.
+
+- 2026-10-12 - #722 refreshed readiness assigned to `/root/websocket_lifecycle` in `/Users/luca/.codex/worktrees/websocket-lifecycle/loom` at `46b627ef`. Carry only the old lifecycle models/red witnesses from the previous worktree. Concrete buffer API and accounting must handle zero-length messages without unbounded queue metadata; production remains gated on refreshed readiness.
+
+- 2026-10-12 - **Delivered #716:** `46b627ef` pushed with CI cleanup `651372ce`; GitHub confirms closure. CI cleanup independently approved by `/root/review_ci_cleanup`, exact seven-file staged hash `34102545cdf15df78a45cb10563c5c611e7761ddd1694edf52e53332b79923f8`. Full lint in the isolated source and bounded byte comparison passed; root integrated lint also exited zero, but overlapped the next integration and is not independent acceptance evidence. #755 integrated 43 frozen files with exact parent/candidate hash verification; `/root/effective_integration` owns six-specimen validation against `651372ce`.
+
+- 2026-10-12 - #722 refreshed readiness approved for production after current-parent red witnesses and refined models. Explicit message count bounds empty frames; shared terminal owner covers attachment, handler completion/panic and bounded final writes. `/root/websocket_lifecycle` implements in its recorded new worktree. #755 integration exposed three maintainability-index failures; `/root/effective_integration` is performing cohesive private extractions and revalidating unchanged output before final review.
+
+- 2026-10-12 - Completed remote race job at `9880865a` additionally failed custom-package projected-carrier references (`common.CardView` and framework-name variants). Root reproduced the existing generator witness on `651372ce` and prepared a separate ordering repair in `/Users/luca/.codex/worktrees/projection-carrier-packages/loom`; readiness and four-state failing/passing carrier-location model are saved there. Production remains gated on independent readiness review. This is separate from #733 and #784. CI maintenance scratch was cleaned after delivery/review; worktree archival was refused as protected/pinned.
+
+- 2026-10-12 - #755 final staged 46-file diff `970388e34ca9eaa56ec482d65c54b2d225ff593977f49d77e62304fda2664f9d` is under `/root/review_effective_design`. Reviewer reproduced a medium blocker: mixed recursive field/inheritance paths are mistaken for inheritance cycles. No commit authorized; full findings and repair/re-review follow. Root custom-package follow-up is frozen as seven files, manifest `/tmp/loom-projection-packages-final-manifest.json`, SHA-256 `71a015da22ecda29218ca83a45c724aaa342c4495868c2e1f36077c67cdf9553`; 279 generated files match independent repeats and selected compilation/wire/lint checks pass. #732 low stale-readiness finding corrected in the root draft; final integration re-review still required.
+
+- 2026-10-12 - #755 independent review completed with two medium findings: valid mixed recursive field/Extend graphs fail in either declaration order (false cycle or incomplete copied graph), and conflicting peer JSON identities evade admission when declared through different metadata keys. `/root/effective_integration` is repairing both shared owners with reviewer repros, model/test updates and focused revalidation; `/root/review_effective_design` will re-review. No commit authorized. #743 design now favors shared pre-frame authentication admission plus preserved normal endpoint rechecks; an exactly-once callback assumption was rejected because the public authorization contract permits repeats.
+
+- 2026-10-12 - `/root/grpc_admission_design` approved the seven-file custom-package follow-up against `651372ce`, manifest `71a015da22ecda29218ca83a45c724aaa342c4495868c2e1f36077c67cdf9553`, with no findings. Independent direct/model/279-file byte checks passed; final main integration review still required. CI at `651372ce` clears lint but both ci/race jobs fail the same projected-package matrix; no other test failure was observed. Root approved #743 revised readiness and copied it into the main draft; assignment waits for #732. Completed #716 scratch and old lifecycle repro modules were removed after the #722 owner confirmed they were superseded and active-process checks passed.
+
+- 2026-10-12 - #731 readiness/red-only preparation assigned to `/root/basic_credential_design` in `/Users/luca/.codex/worktrees/basic-credential-validation/loom` at `651372ce`. Coordinate with frozen #732 alternatives; no production changes until scoped readiness approval and a stable dependency parent.
+
+- 2026-10-12 - During #755 repair root identified an additional metadata comparison concern: raw `attributeJSONTag` strings do not include the name-only tag default `omitempty` applied by the renderer. New compatibility controls currently invert optional full/name-only equivalence. Implementer must align the rule with the actual tag owner and inherited/effective requiredness before freezing; this is not authorization for a separate transport policy.
+
+
+- 2026-10-12 - Root confirmed the #755 metadata repair uses effective rendered JSON identity/options, following the accepted readiness rule. Optional full `one` versus name-only `one` conflicts; optional full `one,omitempty` versus name-only `one` is compatible; effective Required makes full `one` and name-only `one` compatible. Normalization belongs in `internal/encodingmeta`, with unchanged codegen delegation and existing requiredness/presence facts. The authored-partial-contract alternative was rejected. Both peer orders and local/inherited comparisons require rendered controls before re-review.
+
+- 2026-10-12 - #731 readiness checkpoint is frozen with ten failing HTTP wire cases and two failing request-plan cases; valid/absent HTTP controls and twelve gRPC metadata controls pass. `/root/review_basic_readiness` is independently reviewing the scoped proposal. Production remains dependent on #732 integration. #722 bounded comparison passes: five parent/candidate designs compile and vet, independent candidate generations are identical, and differences are confined to expected WebSocket adapters; adversarial validation continues.
+
+- 2026-10-12 - #731 readiness independently approved by `/root/review_basic_readiness` with no findings; reviewer reproduced HTTP failures and passing gRPC controls. Implementation awaits #732 integration. #755 resolved-tag tests also exposed inherited Required disappearing after intermediate composition consumed Bases; the existing AllRequired owner now traverses retained parent constraints, with multilevel red/green controls. Final repair gates are running.
+
+
+- 2026-10-12 - Root began #681 inventory/red-only preparation in managed worktree `/Users/luca/.codex/worktrees/exact-numeric-bounds/loom` at `651372ce`. Twenty direct bound-preservation cases fail above float64's exact integer range; four small-number controls pass. The draft identifies DSL/effective representation as the shared owner and keeps #685 value-range admission and #692 target array literals separate. Exact representation, model evidence and readiness review remain outstanding; no production change is authorized.
+
+
+- 2026-10-12 - #722 froze 145 implementation paths, then root added three shared guidance files in its isolated worktree. Combined 148-file manifest `/tmp/loom-ws-722-with-guidance-manifest.json`, SHA-256 `112cab2db6ea0a6971e3ab08c489e6e892d6b563a557dcab10844b79a335212a`, awaits `/root/review_effective_repair`'s separate verdict against `46b627ef`; final main integration remains pending. Independent runtime race, shutdown model and all fifteen retained generation manifests pass review so far. The full HTTP package timeout remains explicitly recorded.
+
+- 2026-10-12 - #732 root guidance and the previously requested stale-readiness correction are now frozen in the auth worktree. New 26-file manifest `/tmp/loom-auth-with-guidance-manifest.json`, SHA-256 `de893d9595419757c6d180b3f7c70262b45dcb88924dc01d147e27a0aaeddcae`; original implementation is unchanged, but these documentation deltas require final integration review. #681 readiness/model investigation delegated to `/root/exact_numeric_design` in the recorded worktree, without production authorization.
+
+
+- 2026-10-12 - `/root/review_effective_repair` approved the frozen #722 148-file worktree with no findings, independently passing runtime races, generated lifecycle wire checks and the 252-state shutdown model. The same reviewer separately approved the #732 documentation correction/new guides against its unchanged implementation and the carrier follow-up's one-paragraph guide addition; the latter is now eight files, manifest `/tmp/loom-projection-packages-with-guidance-manifest.json`, SHA-256 `7ae367742687c24fd2c6a20c3a2ce919a749a0a01b9b095f30e12d44ee257c45`. Each still needs final integrated-diff authorization before its own commit. #755 canonical named-owner binding now passes direct self/mutual recursion and snapshot mutation checks; final generated/schema comparison is running.
+
+
+- 2026-10-12 - **Delivered #755 / #757 witness:** `4f7892a2b6b351786616a69fe7bbc3bee9202375` pushed to `origin/main`; GitHub confirms both closed (twelve delivered reports total). `/root/review_effective_repair` authorized the exact 59-file staged diff `b59d7c2abf66832bdb298623a450b8682e492a182550ecde9bde9aee5e5a8249`, final manifest `f138d283f484d04eb352da73b296c3afbff209c6a8a82a9f22ad5e5e0b4407c5`, with no unresolved findings. Original recursion and JSON identity findings, requiredness and structural binding follow-ups, and both low documentation/style corrections were confirmed. Durable evidence: `roadmap/effective-design-readiness.md` and `expr/tla/effective_design/README.md`. Completed task scratch removed after reviewer completion and active-process check; source/tests/models are committed.
+
+
+- 2026-10-12 - **Delivered projected-package follow-up:** `c735c6360047dd964a3fe309de31ed3b3d065973` pushed to `origin/main`. `/root/review_effective_repair` authorized the exact eight-file diff `0c2eb151864e44e6b62220c1f227c5852feb63437342cd00f6b47fa3da3bba2b` against `4f7892a2`, with no findings. All 279 integrated generated files match both the previously compiled candidate and a new independent repeat; direct regression and three existing package-name compile/build/vet cases pass. This repairs the known CI failure family; remote CI outcome is not yet claimed. #732 has now integrated cleanly and is running three-transport wire and bounded output checks.
+
+
+- 2026-10-12 - **Delivered #732:** `433d2e741b43b35783d293d0de60cabeca0be6a2` pushed to `origin/main`; GitHub confirms closure (thirteen reports total). `/root/review_effective_repair` authorized the exact 26-file diff `ec42f77572914b68257e97438d6f39cad2158d74ec510dc2d83f90e2c584fcff` against `c735c636`, no findings. All 108 artifacts match independent repeats; three-transport wire/race tests, affected units and scoped lint pass. Evidence: `roadmap/auth-credential-readiness.md`. #731 production released to its existing worktree after safe fast-forward to this parent. #722 all 148 frozen files integrated cleanly; its agent owns final bounded validation, with a verified pushed module pin replacing the old temporary v0.0.0 input. #743 managed worktree creation is pending operation `43a7a4ce-31e8-467e-a680-8b330be348d8` at this parent.
+
+- 2026-10-12 - #681 readiness froze eleven non-production files in its worktree, manifest `/tmp/loom-exact-numeric-readiness-manifest.json`, SHA-256 `065c1ac3379e2a1e35d063be4b2a8aa0bbd919d0fec12a7faf32bfe8f202d769`. Thirty-two DSL/import precision cases reproduce; source-admission/raw-node controls and nine bounded Lean claims pass. Root requested the genuinely unresolved public numeric-string syntax decision: exact decimal strings with hexadecimal strings rejected (recommended), or preserving hexadecimal strings with further cost/limit investigation. This question remains pending; no dependent parser policy or production is authorized.
+
+
+- 2026-10-12 — **Delivered #722 / #711, #712 and #714 witnesses:** `56bc7eae` pushed to `origin/main`; all four reports are confirmed closed (seventeen total). `/root/review_effective_repair` authorized the exact 148-file integrated diff `1fe7645447eb6b09672e7f08f8ccbfe3b551aac8d4af43a5b30f822ccf19e8b8` against `433d2e74`, with no unresolved findings. Five designs produce 114 files identical to the reviewed candidate and independent repeat; focused runtime race and generated real-socket checks pass. Evidence: `roadmap/websocket-lifetime-readiness.md` and `http/tla/websocket_lifetime/README.md`. Regenerate adapters for the new shared configuration and context attachment contract. #739 and other protocol-specific findings remain open.
+
+- 2026-10-12 — Completed #732 and #722 temporary comparison/checker outputs were removed after final review and active-process checks; durable evidence is committed. Managed archival of both worktrees was refused because they are protected by a pinned task or workspace. Their source remains attached; no manual worktree deletion was attempted.
+
+- 2026-10-12 — #743 managed worktree creation completed at `/Users/luca/.codex/worktrees/grpc-stream-admission/loom`, parent `433d2e74`; approved production implementation released to `/root/grpc_admission_design`. Metadata snapshots and the shared authentication runner must preserve cancellation, callback context, declaration ordering and normal endpoint rechecks. #731 implementation has expanded its red HTTP/JSON-RPC cases; an existing defaulted-Basic CLI compile defect is retained separately, outside this decoder-validation repair.
+
+- 2026-10-12 — #681 policy response: the user emphasized cross-language interoperability and did not accept decimal-only strings. Root withdrew the Go-literal justification and resumed readiness investigation with existing hexadecimal-string support retained as the candidate. No parser narrowing, new numeric complexity limit or production implementation is authorized. The earlier pending choice is superseded by this investigation.
+
 ## Recovery and delivery
 
 Read this entire file, repository `AGENTS.md`, `.agents/skills/loom-framework/SKILL.md`, and the applicable model README before resuming. Inspect `git status`, `git log`, attached managed worktrees, and agent status before assigning work. Never assume a running agent or uncommitted diff is abandoned. Do not use git clean, stash, reset, or checkout.
@@ -143,6 +214,7 @@ Acceptance Criteria
 
 Checklist
 
+- [x] Deliver #732 credential-alternative extraction through shared security analysis; reviewed, pushed and closed at `433d2e74`. Evidence: `roadmap/auth-credential-readiness.md`.
 - [x] Deliver #724 nearest-scope ownership with #725 contradiction witness; independent review, commit `544c57f3`, push and integration complete. Evidence: `expr/tla/authentication_scope/README.md`.
 - [ ] Inventory `rg -n 'EffectiveRequirements|SessionAuths|Requirements|DecodeBearer|BasicAuth|writeGRPCStreamInputDecode' expr security codegen/service http/codegen grpc/codegen jsonrpc/codegen`; reconcile #724, #725, #729, #731, #732, #743, #752 and #728 by exact cause, splitting distinct structural tasks before implementation.
 - [ ] Add failing direct regressions at `expr/method_test.go` and relevant transport security tests; record the failing commands and scope-selection model before implementation.
@@ -163,6 +235,7 @@ Acceptance Criteria
 
 Checklist
 
+- [x] Deliver projected-package ownership follow-up `c735c636`; reviewed and pushed, with 279 deterministic generated artifacts and existing package-name compilation controls. Evidence: `roadmap/projection-carrier-packages-readiness.md`.
 - [x] Deliver #788 recursive selection and conversion ownership with #730/#779 witnesses; independent review, commit `ce3f6a73`, push and integration complete. Evidence: `codegen/service/tla/recursive_projection/README.md`.
 - [ ] Inventory `rg -n 'buildConstructorCode|ViewScope|Project|viewedResultBodyInit|collectHTTPUnionTypes' codegen/service http/codegen grpc/codegen jsonrpc/codegen`; reconcile #730, #779, #788, #784 and #727, recording distinct causes before grouping.
 - [ ] Add failing direct tests beside `codegen/service/views_test.go` and generated wire regressions using existing view fixtures; record baseline failures and a projection ownership model before changing conversions.
@@ -200,6 +273,7 @@ Acceptance Criteria
 
 Checklist
 
+- [x] Deliver #716 message admission at `46b627ef` and #722 lifetime ownership at `56bc7eae`, with #711/#712/#714 witnesses; independently reviewed, pushed and closed. Evidence: `http/tla/websocket_message_limit/README.md` and `http/tla/websocket_lifetime/README.md`.
 - [ ] Inventory `rg -n 'WriteClose|ReadMessage|SetReadLimit|WithContext|WebSocketStream|conn.Close' http jsonrpc grpc/codegen`; reconcile #711, #712, #714, #716, #722, #726, #758 and #739 into protocol-specific structural tickets.
 - [ ] Record exact lifetime states, resource owners and bounded acceptance cases beside `http/websocket.go`; obtain scoped readiness review before implementation.
 - [ ] Extend the owning TLA models with current-failure controls; run their README commands; add failing socket/race and generated-handler regressions.
@@ -218,6 +292,7 @@ Acceptance Criteria
 
 Checklist
 
+- [x] Deliver #755 effective Extend composition with #757 witness at `4f7892a2`; independently reviewed, pushed and closed. Evidence: `roadmap/effective-design-readiness.md`. Remaining validation reports require separate scope reconciliation.
 - [ ] Inventory `rg -n 'PrepareValidateFinalize|Finalize|Merge|validateRPCObjectTags|ElemName' eval expr`; reconcile #755, #757, #756, #701, #702, #703, #699, #710, #760, #780 and #781 by actual validation owner.
 - [ ] Record phase dependencies and the accepted constraint-refinement contract for Extend redeclarations in the owning design documentation; obtain scoped readiness review before implementation.
 - [ ] Add failing effective-shape tests and model existing phase-order counterexamples; move composition before the checks that require it without globally swapping unsafe evaluator phases.
@@ -305,6 +380,7 @@ Acceptance Criteria
 
 Checklist
 
+- [x] Deliver #708 proxy-address trust at `9880865a`; independently reviewed, pushed and closed. Evidence: `http/tla/forwarded_client/README.md`.
 - [x] Deliver promoted #670 artifact write-intent ownership; independent review, commit `41b4a8a3`, push and integration complete. Evidence: `cmd/loom/tla/artifact_write_intent/README.md`.
 - [x] Deliver #741 example interceptor declarations through that shared writer; independent review, commit `23f2af5d`, push and integration complete. Evidence: `roadmap/example-interceptor-ownership-readiness.md`.
 - [ ] Reconcile inventory residuals, including #670/#741 file ownership and #708 proxy trust, against final integrated source; promote each supported defect to a separately reviewed bounded task.
