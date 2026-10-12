@@ -198,7 +198,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		require.Nil(t, serverBodyType.Init)
 	})
 
-	t.Run("explicit presence request bodies use their meta type directly", func(t *testing.T) {
+	t.Run("nullable named request bodies separate declarations from values", func(t *testing.T) {
 		services, endpointExpr, svcData := firstHTTPBuildContext(t, anyPresenceHTTPDSL)
 
 		bodyType := services.buildRequestBodyType(
@@ -214,8 +214,9 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		)
 
 		require.NotNil(t, bodyType)
-		require.Equal(t, "loom.Nullable[any]", bodyType.VarName)
-		require.Empty(t, bodyType.Def)
+		require.Equal(t, "DirectRequestBody", bodyType.VarName)
+		require.Equal(t, "loom.Nullable[any]", bodyType.ValueRef)
+		require.Equal(t, "loom.JSONValue", bodyType.Def)
 	})
 
 	t.Run("result data identifies Any aliases", func(t *testing.T) {
