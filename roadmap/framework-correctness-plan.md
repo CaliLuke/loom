@@ -2,7 +2,15 @@
 
 Implement the architectural direction accepted in the Codex discussion on 2026-10-12. Repair shared contracts and ownership boundaries; use review findings as regression witnesses. Authentication is resolved before transport execution, and results are recursively projected before transport encoding. This file is the recovery entry point and progress source of truth.
 
-## Status
+## Current state
+
+- Delivered and pushed: authentication scope #724 (#725 witness), public error disclosure #713, recursive projection #788 (#730/#779 witnesses), artifact write intent #670, and example interceptor ownership #741.
+- Implementing: WebSocket message limits #716 and effective Extend composition #755 (#757 witness). Proxy-address trust #708 is implementing in its own worktree after independent readiness approval. Worktrees and owners are recorded below; these changes are not yet delivered.
+- Next stream task: #722 connection lifetime after #716. The user approved closing and canceling on configurable buffer overload.
+- Later accepted semantics: explicit empty collections survive encoding, and defaults fill absence without replacing explicit zero. Milestone 7 implementation remains outstanding.
+- Recovery checkpoint after #670 delivery: `6183551e`. Inspect the latest Git log, uncommitted tracker updates and live agents before resuming.
+
+## Delivery log
 
 - 2026-10-12 — Baseline: `4535a403048510f055fc59ec3dfed41e3769ad58` on `main`; initial checkout clean. Plan drafted; independent readiness review pending. No implementation is complete.
 - 2026-10-12 — Root orchestrates and owns this tracker. Authentication and projection agents may inventory isolated worktrees while readiness review runs. Implementation starts only after their milestone is ready.
@@ -63,6 +71,18 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 - 2026-10-12 — **Delivered #670:** commit `41b4a8a3` on parent `096a793b`, pushed to `origin/main`. `/root/review_artifacts` confirmed the P1 alias finding fixed and authorized the exact 31-file diff above with no unresolved findings. Independent original-reproduction, policy/renderer/generator/CLI, real-plugin, vet and whitespace checks pass; filesystem-identity tests ran without skips. Durable evidence: `cmd/loom/tla/artifact_write_intent/README.md`. Update the CLI and design-module dependency together. #741 and cross-device #751 remain separate.
 
 - 2026-10-12 — #741 readiness independently approved by `/root/review_artifacts`. Follow-up worktree created at `41b4a8a3`: `/Users/luca/.codex/worktrees/example-interceptor-ownership/loom`. Its declaration-only correction reuses #670's ownership machinery; source implementation is next after this recovery checkpoint. Root retains the red overlay probe until its regression is incorporated.
+
+- 2026-10-12 — Recovery checkpoint independently reviewed, committed and pushed as `6183551e`. Agent `/root/artifact_ownership` is implementing #741 in the new worktree above; the old #670 worktree is frozen. Completed #670 comparison, checker, integration and reviewer scratch directories were removed after checking active processes. Managed archival was refused because the old worktree is protected by a pinned task or workspace; its source remains attached.
+
+- 2026-10-12 — #741 is frozen: direct/service tests and unchanged goldens pass; 26 generated/example files match its immediate parent and an independent repeat; real CLI probes preserve edited files and no longer suppress fresh output because of cwd files. Validation exposed a separate inherited JSON v1 lint violation in the recursive projection wire-test harness. Root reproduced the lint failure, switched only that harness to JSON v2 with explicit envelope tags and raw-value retention, and reran lint plus both generated wire cases successfully. `/root/review_artifacts` is reviewing that one-file maintenance change before #741 integration. #708 proxy-trust readiness is separately drafted for review; source is untouched.
+
+- 2026-10-12 — Test-maintenance correction independently reviewed with no findings and delivered as `93f513be`, pushed to `origin/main`. `/root/review_artifacts` approved exact one-file diff `c057e2e3727be1c85cc3d640161625d6f6e1e491e68a23be646cc9645b5a72a2`; JSON v2 lint and both recursive projection wire cases pass. No production behavior or generated output changed.
+
+- 2026-10-12 — **Delivered #741:** commit `23f2af5d` on parent `93f513be`, pushed to `origin/main`. `/root/review_artifacts` approved the exact four-file diff (SHA-256 `2ce00171da55e3602d5f42a029ad2dced8c0d8c0b4bccee1997a3500e1b641db`) with no findings, independently checked regressions and all 26 output comparisons/CLI receipts. Evidence: `roadmap/example-interceptor-ownership-readiness.md`. Example interceptor declarations now use the shared create-only writer. #708 readiness was also independently approved; its implementation is the next available assignment.
+
+- 2026-10-12 — #708 implementation assigned to `/root/forwarded_client` in `/Users/luca/.codex/worktrees/forwarded-client-trust/loom`, parent `23f2af5d2e4ad9c9b659309839af4f3b25b3f8e3`. Independently approved readiness is copied into that worktree. The shared request-metadata owner must stop at invalid forwarding hops; test/model-first implementation is released. No generator sweep is required for this handwritten runtime correction.
+
+- 2026-10-12 — Completed #741 comparison and readiness-probe scratch was removed after independent review, delivery and an active-process check. Managed archive of `/Users/luca/.codex/worktrees/example-interceptor-ownership/loom` was refused as protected by a pinned task or workspace; its source stays attached. Durable reproduction and results remain in the committed readiness record.
 
 ## Recovery and delivery
 
@@ -284,6 +304,7 @@ Acceptance Criteria
 Checklist
 
 - [x] Deliver promoted #670 artifact write-intent ownership; independent review, commit `41b4a8a3`, push and integration complete. Evidence: `cmd/loom/tla/artifact_write_intent/README.md`.
+- [x] Deliver #741 example interceptor declarations through that shared writer; independent review, commit `23f2af5d`, push and integration complete. Evidence: `roadmap/example-interceptor-ownership-readiness.md`.
 - [ ] Reconcile inventory residuals, including #670/#741 file ownership and #708 proxy trust, against final integrated source; promote each supported defect to a separately reviewed bounded task.
 - [ ] Run targeted adversarial review of repaired owners and their consumers; record new counterexamples and update task acceptance before implementation.
 - [ ] Run `make lint`, `make test` and integration checks selected by actual changed behavior; record exact source and outstanding blockers. Do not start a full exported-design audit without a named purpose and cost budget.
