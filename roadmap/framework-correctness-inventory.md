@@ -13,7 +13,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#682: [P2] jsonrpc: WebSocket streaming method closes the connection on a notification with invalid params](https://github.com/CaliLuke/loom/issues/682) | JSON-RPC / error contracts (M11) | Pending detailed reconciliation |
 | [#683: [P3] pulse/streaming: Subscribe after Close returns a channel that is never closed](https://github.com/CaliLuke/loom/issues/683) | Pulse stream / map state (M11) | Pending detailed reconciliation |
 | [#684: [P2] grpc codegen: empty inner array/map of a nested collection is rejected as a missing field](https://github.com/CaliLuke/loom/issues/684) | Value representation (M7) | Pending detailed reconciliation |
-| [#685: [P2] expr: integer defaults, enums and bounds outside the kind's range are accepted and generate non-compiling Go](https://github.com/CaliLuke/loom/issues/685) | Value representation (M7) | Shared typed-value admission implemented and independently reviewed; exact production integrated, final delivery pending |
+| [#685: [P2] expr: integer defaults, enums and bounds outside the kind's range are accepted and generate non-compiling Go](https://github.com/CaliLuke/loom/issues/685) | Value representation (M7) | Delivered/pushed `1168ec6c1`; confirmed closed. Shared primitive admission rejects unrepresentable authored values while preserving redundant bounds |
 | [#686: [P2] OpenAPI import: byte string length limits are applied as decoded byte limits](https://github.com/CaliLuke/loom/issues/686) | Wire contracts / importer (M9) | Pending detailed reconciliation |
 | [#687: [P2] pulse/pool: failed AddNode leaks joined maps, sink and reader](https://github.com/CaliLuke/loom/issues/687) | Resource construction / publication (M10) | Node acquisition owner readiness found blocking prerequisite #800 active sink-read shutdown; no production fix claimed |
 | [#688: [P3] OpenAPI import: suffix-based unique names collide with existing numbered names](https://github.com/CaliLuke/loom/issues/688) | Generated identity (M8) | Pending detailed reconciliation |
@@ -128,8 +128,10 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#798: [P2] jsonrpc/codegen: object enum validator compares a value struct to nil](https://github.com/CaliLuke/loom/issues/798) | Validation representation (M7) | Exact-parent generation succeeds but vet fails; minimal durable probe retained with numeric evidence; separate from #681 |
 | [#799: [P2] expr: prepared HTTP bodies reject inherited object enums after valid nested refinements](https://github.com/CaliLuke/loom/issues/799) | Prepared body declaration provenance (M6) | Exact-parent DSL evaluation failure under nested refinement; separate from #681 annotation repair |
 | [#800: [P2] pulse/streaming: Sink.Close waits for a new event when its active read uses BLOCK 0](https://github.com/CaliLuke/loom/issues/800) | Streaming read/close ownership (M4 prerequisite) | Independently and root reproduced; supported indefinite read survives local cancellation; separate prerequisite for #687 |
+| [#801: [P2] OpenAPI import emits conflicting credential fields for Bearer and OAuth alternatives](https://github.com/CaliLuke/loom/issues/801) | Imported credential representation / shared wire binding (M9) | Existing security symmetry regression independently fails on main `1168ec6c1`; source contract is valid, repair pending |
+| [#802: [P2] pulse/streaming: an old read rewinds the cursor after RemoveStream and re-add](https://github.com/CaliLuke/loom/issues/802) | Reader registration identity (M10 prerequisite) | Independently reproduced on main `1168ec6c1` under race detection; separate atomic follow-up after #761 in the same registration/cursor owner |
 
-Inventory count: 122 reports (114 in the requested open range, plus #670 and follow-ups #794–#800).
+Inventory count: 124 reports (114 in the requested open range, plus #670 and follow-ups #794–#802).
 
 ## Structural delivery tickets
 
