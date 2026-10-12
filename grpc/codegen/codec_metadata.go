@@ -39,9 +39,9 @@ func renderGRPCMetadataAppend(md *MetadataData, root string) string {
 	return b.String()
 }
 
-func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
+func renderGRPCMetadataDecode(md *MetadataData, mdVar string, namedResults bool) string {
 	if md.Bearer.Framed {
-		return renderGRPCBearerMetadataDecode(md, mdVar)
+		return renderGRPCBearerMetadataDecode(md, mdVar, namedResults)
 	}
 	var b strings.Builder
 	name := renderJen(jen.Lit(md.Name))
@@ -106,7 +106,7 @@ func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
 	return b.String()
 }
 
-func renderGRPCBearerMetadataDecode(md *MetadataData, mdVar string) string {
+func renderGRPCBearerMetadataDecode(md *MetadataData, mdVar string, namedResults bool) string {
 	var b strings.Builder
 	name := renderJen(jen.Lit(md.Name))
 
@@ -121,7 +121,13 @@ func renderGRPCBearerMetadataDecode(md *MetadataData, mdVar string) string {
 	if md.Bearer.AllowOtherScheme {
 		b.WriteString(" && !security.IsOtherAuthorizationScheme(vals[0], \"Bearer\")")
 	}
-	b.WriteString(" {\n\t\t\t\treturn nil, loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n\t\t\t}\n")
+	b.WriteString(" {\n")
+	if namedResults {
+		b.WriteString("\t\t\t\terr = loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n\t\t\t\treturn\n")
+	} else {
+		b.WriteString("\t\t\t\treturn nil, loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n")
+	}
+	b.WriteString("\t\t\t}\n")
 	if md.Bearer.AllowOtherScheme {
 		b.WriteString("\t\t\tif ok {\n")
 	}

@@ -21,6 +21,9 @@ func endpointsStructSection(data *EndpointsData) codegen.Section {
 		stmt.Type().Id(data.VarName).StructFunc(func(group *jen.Group) {
 			for _, method := range data.Methods {
 				group.Id(method.VarName).Add(codegen.Expr("loom.Endpoint"))
+				if method.Authentication != nil {
+					group.Id(method.Authentication.FieldName).Add(codegen.TypeRef("security.EndpointCheck"))
+				}
 				if method.Authorization != nil {
 					group.Id(method.Authorization.fieldName).Add(codegen.TypeRef("security.EndpointCheck"))
 				}
@@ -153,6 +156,9 @@ func multilineEndpointsLiteral(data *EndpointsData, pointer bool) *jen.Statement
 	lit := jen.Id(data.VarName).CustomFunc(multilineValues, func(group *jen.Group) {
 		for _, method := range data.Methods {
 			group.Id(method.VarName).Op(":").Add(newEndpointCall(method))
+			if method.Authentication != nil {
+				group.Id(method.Authentication.FieldName).Op(":").Add(authenticationFactoryCall(method, true))
+			}
 		}
 	})
 	if pointer {

@@ -108,6 +108,7 @@ func (d *ServicesData) buildEndpointDataWithContext(
 		ClientStruct:              sd.ClientStruct,
 		ClientInterface:           sd.ClientInterface,
 	}
+	request.Admission = buildStreamAdmission(ed, sd, payloadDesc.Name)
 	sd.Endpoints = append(sd.Endpoints, ed)
 	if endpointIR.Stream.IsStreaming {
 		ed.ServerStream = d.buildStreamData(endpointIR, sd, true)

@@ -133,6 +133,9 @@ func serverEncodeDecode(genpkg string, svc *expr.GRPCServiceExpr, services *Serv
 			}
 			if e.PayloadRef != "" {
 				sections = append(sections, grpcRequestDecoderSection(e))
+				if e.Request.Admission != nil {
+					sections = append(sections, grpcAdmissionDecoderSection(e))
+				}
 			}
 		}
 	}

@@ -155,6 +155,14 @@ protected endpoints; this feature does not automatically wrap those calls.
 Direct Go service calls, replacing exported endpoint fields, and middleware
 installed outside the protected boundary remain application-owned escape hatches.
 
+For gRPC client-streaming and bidirectional methods with an initial payload frame,
+Loom can authenticate metadata before waiting for that frame. This happens only
+when every declared security alternative is completely available in metadata.
+The ordinary endpoint still validates and checks the complete payload afterward;
+application access and middleware never receive the partial admission payload.
+Mixed metadata/message alternatives retain the initial-frame wait and declared
+selection order. See [gRPC streaming](grpc-guide.md#streaming-patterns) for details.
+
 Access checks apply to the initial invocation, including the initial payload of
 a streaming operation. They do not authorize individual stream messages or
 promise continuing access after a grant is revoked. Applications own per-message

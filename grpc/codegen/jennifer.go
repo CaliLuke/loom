@@ -188,6 +188,9 @@ func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 				handlerType = "StreamHandler"
 			}
 			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Add(codegenpkg.TypeRef("loomgrpc."+handlerType)))
+			if admission := endpoint.Request.Admission; admission != nil {
+				fields = append(fields, jen.Id(admission.CheckField).Add(codegenpkg.TypeRef("security.EndpointCheck")))
+			}
 		}
 		fields = append(fields, codegenpkg.TypeRef(data.PkgName+".Unimplemented"+data.ServerInterface))
 		stmt.Type().Id(data.ServerStruct).Struct(fields...)
@@ -206,6 +209,9 @@ func grpcServerInitSection(data *ServiceData) codegenpkg.Section {
 		}
 		dict := jen.Dict{}
 		for _, endpoint := range data.Endpoints {
+			if admission := endpoint.Request.Admission; admission != nil {
+				dict[jen.Id(admission.CheckField)] = jen.Id("e").Dot(endpoint.Method.Authentication.MethodName)
+			}
 			handlerCtor := "New" + endpoint.Method.VarName + "Handler"
 			handlerArg := jen.Id("uh")
 			if endpoint.ServerStream != nil {
@@ -314,6 +320,9 @@ func writeGRPCUnaryServerMethod(g *jen.Group, endpoint *EndpointData) {
 
 func writeGRPCStreamServerMethod(g *jen.Group, endpoint *EndpointData) {
 	fields := grpcServerSpecFields(endpoint)
+	if admission := endpoint.Request.Admission; admission != nil {
+		fields[jen.Id("Admit")] = jen.Func().Params(jen.Id("ctx").Qual("context", "Context")).Params(jen.Qual("context", "Context"), jen.Error()).Block(jen.Return(codegenpkg.Expr("loomgrpc.AdmitStream").Call(jen.Id("ctx"), jen.Id(admission.DecoderName), jen.Id("s").Dot(admission.CheckField))))
+	}
 	fields[jen.Id("Decode")] = jen.Func().
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.Any(), jen.Error()).

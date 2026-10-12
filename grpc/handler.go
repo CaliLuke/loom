@@ -154,13 +154,7 @@ func (h *streamHandler) Decode(ctx context.Context, reqpb any) (any, error) {
 		if h.decoder != nil {
 			md, _ := metadata.FromIncomingContext(ctx)
 			if req, err = h.decoder(ctx, reqpb, md); err != nil {
-				loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonRequestDecodeFailed)
-				var e *loom.ServiceError
-				if errors.As(err, &e) {
-					return nil, err
-				}
-				gerr := loom.DecodePayloadError(err.Error())
-				return nil, NewStatusError(codes.InvalidArgument, gerr, NewErrorResponse(gerr))
+				return nil, requestDecodeError(ctx, err)
 			}
 		}
 	}

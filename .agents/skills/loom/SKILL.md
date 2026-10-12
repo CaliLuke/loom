@@ -826,6 +826,14 @@ requirement retain AND semantics.
 
 ## Streaming
 
+- For gRPC client-streaming or bidirectional methods with an initial payload
+  frame, Loom authenticates before waiting only when all declared alternatives
+  use metadata credentials. It authenticates again after complete decoding, so
+  hooks must be read-only and safe to repeat. Mixed metadata/message alternatives
+  wait for the initial frame in declared order. Application access checks and
+  middleware receive complete payloads. Regenerate service and gRPC packages
+  together; endpoint fields and constructor signatures stay unchanged. See
+  [gRPC streaming](../../../docs/grpc-guide.md#streaming-patterns).
 - gRPC clients retain the stream when sending its initial payload returns EOF.
   Use `CloseAndRecv` for client streaming or `Recv` for bidirectional streaming
   to read the final server status or response; EOF from the opening send alone

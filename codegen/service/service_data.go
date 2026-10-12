@@ -170,6 +170,8 @@ type (
 		// ErrorLocs lists the file and Go package of the error type
 		// if overridden via Meta indexed by error name.
 		ErrorLocs map[string]*codegen.Location
+		// Authentication describes the shared streaming authentication entrypoints.
+		Authentication *AuthenticationData
 		// Requirements contains the security requirements for the
 		// method.
 		Requirements RequirementsData

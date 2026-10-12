@@ -121,6 +121,9 @@ func EndpointFile(genpkg string, service *expr.ServiceExpr, services *ServicesDa
 		sections = append(sections, endpointsInitSection(data), endpointsUseSection(data))
 		for _, m := range data.Methods {
 			sections = append(sections, endpointMethodSection(m))
+			if m.Authentication != nil {
+				sections = append(sections, authenticationSection(m))
+			}
 		}
 	}
 

@@ -145,7 +145,7 @@ func addGRPCResponseMetadataDecode(b *strings.Builder, endpoint *EndpointData) {
 func addGRPCMetadataDecodeBlocks(b *strings.Builder, metadata []*MetadataData, source string) {
 	for _, md := range metadata {
 		b.WriteString("\n")
-		b.WriteString(renderGRPCMetadataDecode(md, source))
+		b.WriteString(renderGRPCMetadataDecode(md, source, false))
 		if md.Validate != "" {
 			fmt.Fprintf(b, "\t\t%s\n", md.Validate)
 		}
@@ -199,6 +199,10 @@ func addGRPCViewedResponseReturn(b *strings.Builder, endpoint *EndpointData) {
 }
 
 func addGRPCRequestMetadataDecode(b *strings.Builder, endpoint *EndpointData) {
+	if endpoint.Request.Admission != nil {
+		writeAdmissionMetadataCall(b, endpoint)
+		return
+	}
 	if len(endpoint.Request.Metadata) == 0 {
 		return
 	}
@@ -210,7 +214,7 @@ func addGRPCRequestMetadataDecode(b *strings.Builder, endpoint *EndpointData) {
 	b.WriteString("\t)\n")
 	b.WriteString("\t{\n")
 	for _, md := range endpoint.Request.Metadata {
-		b.WriteString(renderGRPCMetadataDecode(md, "md"))
+		b.WriteString(renderGRPCMetadataDecode(md, "md", false))
 		if md.Validate != "" {
 			fmt.Fprintf(b, "\t\t%s\n", md.Validate)
 		}

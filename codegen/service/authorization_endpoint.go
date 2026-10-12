@@ -60,6 +60,9 @@ func authorizationEndpointInit(g *jen.Group, data *EndpointsData) {
 	g.Id("endpoints").Op(":=").Op("&").Id(data.VarName).Values()
 	for _, m := range data.Methods {
 		g.Id("endpoints").Dot(m.VarName).Op("=").Add(newEndpointCall(m))
+		if m.Authentication != nil {
+			g.Id("endpoints").Dot(m.Authentication.FieldName).Op("=").Add(authenticationFactoryCall(m, true))
+		}
 		if m.Authorization != nil {
 			g.Id("endpoints").Dot(m.Authorization.fieldName).Op("=").Id(m.Authorization.checkName).Call(codegen.Expr(authorizationCheckArgs(m, true)))
 		} else if len(m.ServerInterceptors) > 0 {

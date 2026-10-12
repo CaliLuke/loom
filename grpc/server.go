@@ -43,6 +43,9 @@ type (
 		Service string
 		// Method is the Loom method name.
 		Method string
+		// Admit optionally authenticates metadata before a blocking initial receive.
+		// Its successful context is used by Decode and Handle.
+		Admit func(context.Context) (context.Context, error)
 		// Decode creates the typed endpoint stream input.
 		Decode func(context.Context) (any, error)
 		// Handle invokes the typed streaming endpoint.
@@ -73,6 +76,16 @@ func ServeStream(ctx context.Context, spec StreamServerSpec) error {
 	defer observer.End()
 	observer.EmitStreamOpen()
 
+	if spec.Admit != nil {
+		admitted, err := spec.Admit(ctx)
+		if err != nil {
+			observer.Fail(loomtransport.ReasonHandlerError)
+			return EncodeServerError(err, spec.MapError)
+		}
+		ctx = context.WithValue(admitted, loom.MethodKey, spec.Method)
+		ctx = context.WithValue(ctx, loom.ServiceKey, spec.Service)
+		ctx = loomtransport.WithRequestObserver(ctx, observer)
+	}
 	input, err := spec.Decode(ctx)
 	if err != nil {
 		observer.Fail(loomtransport.ReasonRequestDecodeFailed)

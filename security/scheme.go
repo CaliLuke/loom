@@ -80,18 +80,26 @@ type (
 
 	// AuthBasicFunc is the function type that implements the basic auth
 	// scheme of using username and password.
+	// Checks must be read-only and safe to repeat within one invocation, including
+	// stream admission, the complete endpoint, and protected middleware boundaries.
 	AuthBasicFunc func(ctx context.Context, user, pass string, s *BasicScheme) (context.Context, error)
 
 	// AuthAPIKeyFunc is the function type that implements the API key
 	// scheme of using an API key.
+	// Checks must be read-only and safe to repeat within one invocation, including
+	// stream admission, the complete endpoint, and protected middleware boundaries.
 	AuthAPIKeyFunc func(ctx context.Context, key string, s *APIKeyScheme) (context.Context, error)
 
 	// AuthOAuth2Func is the function type that implements the OAuth2
 	// scheme of using an OAuth2 token.
+	// Checks must be read-only and safe to repeat within one invocation, including
+	// stream admission, the complete endpoint, and protected middleware boundaries.
 	AuthOAuth2Func func(ctx context.Context, token string, s *OAuth2Scheme) (context.Context, error)
 
 	// AuthJWTFunc is the function type that implements the JWT
 	// scheme of using a JWT token.
+	// Checks must be read-only and safe to repeat within one invocation, including
+	// stream admission, the complete endpoint, and protected middleware boundaries.
 	AuthJWTFunc func(ctx context.Context, token string, s *JWTScheme) (context.Context, error)
 )
 

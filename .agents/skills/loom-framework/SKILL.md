@@ -225,6 +225,19 @@ consumer validation.
 
 ## Authorization Ownership
 
+- `codegen/service/authentication.go` emits one bound authentication factory for
+  secured streaming methods. Endpoints, authorization checks and allocated
+  aggregate authentication accessors share its ordered AND/OR policy.
+  `security.RunCheck` owns original cancellation, replacement/nil contexts and
+  error precedence for both admission and Protect; it carries no success cache.
+  gRPC enables admission only for an initial envelope whose every security
+  alternative is fully metadata-resolvable. `grpc.AdmitStream` retains the
+  original metadata snapshot; `ServeStream` retains observation and method/service
+  identity after callback context replacement. Full payload validation and
+  ordinary endpoint security follow admission; mixed alternatives retain frame
+  waiting and order. Keep `security/tla/stream_admission` and its runtime and
+  generated regressions aligned.
+
 - `expr.MethodExpr.selectedSecurity` selects ordinary and session declarations
   together before lowering. Validation, credential injection, finalized methods
   and transport mapping share that owner. Do not add transport-specific

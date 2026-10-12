@@ -260,6 +260,8 @@ type (
 		// the transport must carry both the one-shot payload and streaming
 		// payload items through the same streamed protobuf message.
 		StreamEnvelope *StreamEnvelopeData
+		// Admission describes authentication before an initial envelope receive.
+		Admission *StreamAdmissionData
 		// Metadata is the request metadata.
 		Metadata []*MetadataData
 		// ServerConvert is the request data with constructor function to

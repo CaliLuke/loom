@@ -68,6 +68,9 @@ func writeAuthorizationCheck(b *strings.Builder, m *EndpointMethodData) {
 	for _, scheme := range m.Schemes.DedupeByType() {
 		fmt.Fprintf(b, "security.RequireAuthorizer(auth%sFn)\n", scheme.Type)
 	}
+	if m.Authentication != nil {
+		fmt.Fprintf(b, "%#v\n", authenticationBinding(m))
+	}
 	b.WriteString("return func(ctx context.Context, req any) (context.Context, error) {\n")
 	fmt.Fprintf(b, "ctx = context.WithValue(ctx, loom.ServiceKey, %q)\nctx = context.WithValue(ctx, loom.MethodKey, %q)\n", m.ServiceName, m.Name)
 	payload := writeAuthorizationPayload(b, m)
@@ -81,7 +84,7 @@ func writeAuthorizationCheck(b *strings.Builder, m *EndpointMethodData) {
 		b.WriteString("requestCtx := ctx\n")
 		stmt := jen.Empty()
 		stmt.BlockFunc(func(g *jen.Group) {
-			buildEndpointAuth(g, m, payload)
+			buildMethodAuthentication(g, m, payload)
 		})
 		fmt.Fprintf(b, "%#v\n", stmt)
 		b.WriteString("if err := requestCtx.Err(); err != nil {\nreturn nil, err\n}\nif ctx == nil {\nreturn nil, loom.Fault(\"authentication returned a nil context\")\n}\nif err := ctx.Err(); err != nil {\nreturn nil, err\n}\n")

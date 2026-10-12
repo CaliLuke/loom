@@ -446,6 +446,27 @@ a typed `oneof` envelope with two branches:
 - `initial_payload` carries the one-shot method payload in the first frame.
 - `stream_item` carries every later value sent through the generated stream.
 
+When every authentication alternative obtains all its credentials from metadata,
+the generated server authenticates before waiting for this first frame. Missing
+or invalid required metadata and rejected credentials therefore close the RPC
+without waiting for a client message. This admission check uses the declared
+security requirements in order, including AND requirements and anonymous
+alternatives. It does not run application access checks or invoke the service.
+
+After the initial frame arrives, Loom decodes and validates the complete payload
+and authenticates again at the ordinary endpoint boundary. Authentication hooks
+must be read-only and safe to repeat; permissions or credentials may change while
+a stream waits for its initial frame. The successful hook context reaches the
+endpoint, while the original RPC cancellation and incoming metadata remain
+authoritative. Application access checks and endpoint middleware receive only
+the complete payload.
+
+If any alternative requires a message credential, authentication waits for the
+initial frame so declaration order and principal selection remain unchanged.
+Unary methods, server-streaming methods and streams without an initial payload
+frame keep their existing invocation sequence. Regenerate the service and gRPC
+packages together to adopt metadata admission.
+
 Generated clients send the initial frame before returning the stream wrapper,
 then wrap each `Send` value as a stream item. Generated servers require that
 ordering: a missing first frame, a stream item in place of the initial payload,

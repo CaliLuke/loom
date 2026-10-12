@@ -7,9 +7,11 @@ import (
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
-// EndpointCheck validates and authenticates the typed request and evaluates
-// its application authorization requirements. A nil error permits execution
-// using the returned context; every error prevents execution.
+// EndpointCheck checks a typed request at an invocation boundary. Complete
+// endpoint checks validate, authenticate, and evaluate application access;
+// stream admission checks authenticate a metadata-derived partial payload.
+// A nil error permits the next phase using the returned context; every error
+// prevents execution.
 type (
 	EndpointCheck func(context.Context, any) (context.Context, error)
 
@@ -52,39 +54,54 @@ func RequireAuthorizer(authorizer any) {
 	}
 }
 
+// RunCheck executes a request check while retaining original request cancellation.
+// The check may replace its context, but a successful nil or canceled context is
+// rejected. Repeated checks retain the original cancellation boundary. Callback
+// errors take precedence over cancellation observed after the callback.
+func RunCheck(ctx context.Context, req any, check EndpointCheck) (context.Context, error) {
+	if check == nil {
+		panic("authorization requires a check")
+	}
+	original, ok := ctx.Value(authorizationOriginKey{}).(context.Context)
+	if !ok {
+		original = ctx
+	}
+	if err := original.Err(); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	requestCtx := ctx
+	ctx, err := check(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if err := original.Err(); err != nil {
+		return nil, err
+	}
+	if err := requestCtx.Err(); err != nil {
+		return nil, err
+	}
+	if ctx == nil {
+		return nil, loom.Fault("authorization check returned a nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return context.WithValue(ctx, authorizationOriginKey{}, original), nil
+}
+
 func protectedEndpoint(check EndpointCheck, next loom.Endpoint) loom.Endpoint {
 	if check == nil || next == nil {
 		panic("authorization requires a check and endpoint")
 	}
 	return func(ctx context.Context, req any) (any, error) {
-		original, ok := ctx.Value(authorizationOriginKey{}).(context.Context)
-		if !ok {
-			original = ctx
-		}
-		if err := original.Err(); err != nil {
-			return nil, err
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		requestCtx := ctx
-		ctx, err := check(ctx, req)
+		ctx, err := RunCheck(ctx, req, check)
 		if err != nil {
 			return nil, err
 		}
-		if err := original.Err(); err != nil {
-			return nil, err
-		}
-		if err := requestCtx.Err(); err != nil {
-			return nil, err
-		}
-		if ctx == nil {
-			return nil, loom.Fault("authorization check returned a nil context")
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		return next(context.WithValue(ctx, authorizationOriginKey{}, original), req)
+		return next(ctx, req)
 	}
 }
 
