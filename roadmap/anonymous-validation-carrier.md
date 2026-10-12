@@ -19,8 +19,9 @@ No DSL admission, default application, nullability or presence policy changes.
   HTTP and JSON-RPC specimens, preserve named/bytes/collection controls.
 - [x] Compare bounded parent/candidate outputs and independent candidate generations;
   list intended differences, retain rejection and absence/null tests.
-- [ ] Independent exact-diff review; resolve findings; integrate, commit, push,
-  close #803 and clean task-owned temporary output.
+- [x] Independent exact-diff review; resolve findings; integrate, commit, push,
+  close #803.
+- [ ] Clean task-owned temporary output after preserving reviewed receipts.
 
 ## Evidence and limits
 
@@ -43,21 +44,25 @@ compile/runtime tests remain the implementation evidence.
   and applicable detail, JSON-RPC error code/message, absence/null and nested
   named/anonymous/array/map predicates.
 - 88 generated Go files compared at parent/candidate/repeated independent process:
-  exactly eight server `types.go` validators change; all other80 files unchanged,
-  all88 repeat byte-for-byte. Intended differences remove invalid nil guards from
+  exactly eight server `types.go` validators change; all other 80 files unchanged,
+  all 88 repeat byte-for-byte. Intended differences remove invalid nil guards from
   unwrapped anonymous objects and their enums; native child/collection guards
   and named calls retain their carriers. Receipt `/tmp/loom-803-output-comparison.json`.
-- Full shared-codegen package passes21.366s. Bounded named/nullable/recursive/bytes
+- Full shared-codegen package passes in 21.366s. Bounded named/nullable/recursive/bytes
   regression set passes shared1.753s, HTTP42.924s, JSON-RPC20.172s, gRPC6.891s.
-  Shared/HTTP/JSON-RPC `go vet` passes. Existing HTTP server-type goldens pass0.425s unchanged; no checked-in generated
+  Shared/HTTP/JSON-RPC `go vet` passes. Existing HTTP server-type goldens pass in 0.425s unchanged; no checked-in generated
   fixture requires a byte change for the sampled existing contracts.
 - Carrier model: current TypedGuard and clear-layout FieldLayout controls each
-  fail13 distinct states; scoped candidate passes14. Java25, pinned TLC2.19.
+  fail at 13 distinct states; scoped candidate passes 14. Java25, pinned TLC2.19.
 - No public semantics or authoring changes. Regenerate affected services to replace
   invalid validators. Separate gRPC Nullable conversion bug #804 reproduced without
   defaults; its transform ownership is outside this validator repair.
 
 The affected shared/HTTP/JSON-RPC golangci-lint run reports zero issues.
 
-Independent review and delivery are pending. Temporary modules, logs and checker
-states remain available until review; durable inputs and models are in this diff.
+Independent review approved the final 15-file diff against `0dfab0ccd`, patch
+`01f13117241e621b887f525ee23abe742f4d045d4c1c29a9a9c1bd233de501a8`,
+after confirming one low import-grouping correction. Delivered as `090427558`,
+pushed to main and #803 confirmed closed. Reviewer independently reran the direct
+and eight generated cases and scoped model. Temporary cleanup is the remaining
+local housekeeping step; durable reproduction inputs and models are committed.
