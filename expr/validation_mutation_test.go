@@ -68,7 +68,7 @@ func TestMethodValidateDoesNotMergeInheritedInterceptors(t *testing.T) {
 	requireInterceptorNames(t, method.ServerInterceptors, "method-server", "service-server", "api-server")
 }
 
-func TestHTTPEndpointValidateDoesNotInferSessionCookieMappings(t *testing.T) {
+func TestHTTPEndpointValidationResolvesDetachedSessionCookieMappings(t *testing.T) {
 	root := SetupTestDSL(t)
 	root.API.HTTP.Headers = NewEmptyMappedAttributeExpr()
 	root.API.HTTP.Cookies = NewEmptyMappedAttributeExpr()
@@ -112,11 +112,21 @@ func TestHTTPEndpointValidateDoesNotInferSessionCookieMappings(t *testing.T) {
 	method.Prepare()
 	endpoint.Prepare()
 
-	require.Nil(t, endpoint.Cookies.Find("browser_session_key"))
+	authoredCookies := endpoint.Cookies
+	require.Nil(t, authoredCookies.Find("browser_session_key"))
 	requireNoValidationErrors(t, endpoint.Validate())
-	require.Nil(t, endpoint.Cookies.Find("browser_session_key"))
+	require.Nil(t, authoredCookies.Find("browser_session_key"))
+	require.Nil(t, httpService.Cookies.Find("browser_session_key"))
+	require.NotNil(t, endpoint.Cookies.Find("browser_session_key"))
+	plan := endpoint.wireBindings
+	mapping := endpoint.Cookies
+	requireNoValidationErrors(t, endpoint.Validate())
+	require.Same(t, plan, endpoint.wireBindings)
+	require.Same(t, mapping, endpoint.Cookies)
 
 	endpoint.Finalize()
+	require.Same(t, plan, endpoint.wireBindings)
+	require.Same(t, mapping, endpoint.Cookies)
 	require.NotNil(t, endpoint.Cookies.Find("browser_session_key"))
 }
 

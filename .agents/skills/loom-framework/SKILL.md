@@ -258,6 +258,15 @@ consumer validation.
   inheritance or separately inherit `SessionAuths`. Keep
   `expr/tla/authentication_scope` and its direct/generated regressions aligned.
 
+- `expr` effective HTTP wire bindings own complete detached request, response and
+  error mappings before validation. One plan retains physical slots, source field
+  tuples, raw/Basic/Bearer codecs and security requirement membership. Coalesce the
+  same source/codec; distinct sources may share a slot only as disjoint-framed,
+  mutually exclusive auth alternatives. Derive credential body exclusions from
+  selected bindings. Do not restore late auth/session/error mapping inference or
+  independently walk API/service security scopes. Keep
+  `expr/tla/http_wire_bindings` and generated HTTP/JSON-RPC/OpenAPI checks aligned.
+
 - Shared security analysis resolves credential selectors with `GoifyAtt` from
   the actual payload attribute. Basic username/password and API-key, JWT and
   OAuth credentials must use the same field identity as payload declarations;

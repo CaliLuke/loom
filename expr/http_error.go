@@ -51,6 +51,8 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 		return verr
 	}
 
+	e.Response.prepareErrorWireBindings(ee.AttributeExpr)
+	e.Response.validateWireBindings(verr)
 	if len(e.Response.Cookies) > 0 {
 		e.Response.validateCookieSecurity(verr)
 		e.Response.validateCookies(
@@ -113,8 +115,6 @@ func (e *HTTPErrorExpr) Finalize(a *HTTPEndpointExpr) {
 		e.Response.Body = httpErrorResponseBody(a, e)
 		e.Response.Body.Finalize()
 	}
-	// map any unmapped attributes in ErrorResult type to response headers
-	e.Response.mapUnmappedAttrs(e.AttributeExpr)
 
 	// Initialize response content type if result is media type.
 	if e.Response.Body.Type == Empty {

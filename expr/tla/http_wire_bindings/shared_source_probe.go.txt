@@ -1,0 +1,34 @@
+package codegen
+
+import (
+	"testing"
+
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+func TestWireBindingSharedBasicSourceProbe(t *testing.T) {
+	root := RunHTTPDSL(t, func() {
+		basic := BasicAuthSecurity("basic")
+		jwt := JWTSecurity("jwt")
+		Service("shared", func() {
+			Method("read", func() {
+				Security(basic)
+				Security(jwt)
+				Payload(func() {
+					Token("token", String, func() {
+						Meta("security:username")
+					})
+					Password("password", String)
+				})
+				HTTP(func() {
+					GET("/")
+				})
+			})
+		})
+	})
+	dir := t.TempDir()
+	renderHTTPModule(t, dir, "example.com/shared", root)
+	runGoCommand(t, dir, "mod", "edit", "-require=github.com/CaliLuke/loom@v1.10.0-alpha.9.0.20261012201303-8c7d8d711b9e")
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "build", "./...")
+}

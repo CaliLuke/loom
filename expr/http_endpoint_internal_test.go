@@ -143,7 +143,6 @@ func TestHTTPEndpointValidateHeadersAndCookies(t *testing.T) {
 	require.NotNil(t, verr)
 	require.Equal(t, []string{
 		`cookie "session" must be primitive`,
-		`Attribute "token" is mapped to "Authorization" header in the endpoint secured by BasicAuth which also sets "Authorization" header. Specify a different header to map attribute "token".`,
 	}, validationErrorMessages(verr.Errors))
 }
 

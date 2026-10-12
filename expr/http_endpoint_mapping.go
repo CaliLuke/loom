@@ -183,14 +183,7 @@ func (e *HTTPEndpointExpr) validateCookieTypes(verr *eval.ValidationErrors, cook
 func (e *HTTPEndpointExpr) validatePayloadHeaderCookieCompatibility(verr *eval.ValidationErrors, headers, cookies *MappedAttributeExpr) {
 	switch e.MethodExpr.Payload.Type.(type) {
 	case *Object, UserType:
-		hasBasicAuth := TaggedAttribute(e.MethodExpr.Payload, "security:username") != ""
 		e.validateMappedAttributesExist(verr, headers, `header %q not found in payload.`)
-		WalkMappedAttr(headers, func(name, elem string, _ *AttributeExpr) error { // nolint: errcheck
-			if elem == "Authorization" && hasBasicAuth {
-				verr.Add(e, "Attribute %q is mapped to \"Authorization\" header in the endpoint secured by BasicAuth which also sets \"Authorization\" header. Specify a different header to map attribute %q.", name, name)
-			}
-			return nil
-		})
 		WalkMappedAttr(cookies, func(name, _ string, _ *AttributeExpr) error { // nolint: errcheck
 			if e.isTransportOnlySessionCookie(name) {
 				return nil

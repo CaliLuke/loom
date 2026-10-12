@@ -57,7 +57,8 @@ var OpenAPI32FeaturesDSL = func() {
 	})
 	Service("catalog", func() {
 		Method("search", func() {
-			Security(DeviceAuth, ExternalAuth, func() {
+			Security(ExternalAuth)
+			Security(DeviceAuth, func() {
 				Scope("catalog:read")
 			})
 			Payload(func() {

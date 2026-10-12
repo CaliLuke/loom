@@ -11,6 +11,7 @@ import (
 // Validate validates the endpoint expression.
 func (e *HTTPEndpointExpr) Validate() error {
 	verr := new(eval.ValidationErrors)
+	e.ensureWireBindings().validate(e, verr)
 	if e.Name() == "" {
 		verr.Add(e, "Endpoint name cannot be empty")
 	}

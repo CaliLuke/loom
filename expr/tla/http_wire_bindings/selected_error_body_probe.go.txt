@@ -1,0 +1,29 @@
+package codegen
+
+import (
+	"testing"
+
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+// This separate generator defect is unchanged by the wire-binding owner.
+func TestWireBindingSelectedErrorBodyProbe(t *testing.T) {
+	root := RunHTTPDSL(t, func() {
+		Service("problems", func() {
+			Method("selected", func() {
+				Error("oops")
+				HTTP(func() {
+					GET("/selected")
+					Response("oops", StatusBadRequest, func() {
+						Body("detail")
+					})
+				})
+			})
+		})
+	})
+	dir := t.TempDir()
+	renderHTTPModule(t, dir, "example.com/problems", root)
+	runGoCommand(t, dir, "mod", "edit", "-require=github.com/CaliLuke/loom@v1.10.0-alpha.9.0.20261012201303-8c7d8d711b9e")
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "build", "./...")
+}

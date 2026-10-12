@@ -99,6 +99,8 @@ type (
 		// prepared is true if Prepare has been run. This field is required to
 		// avoid infinite recursions.
 		prepared bool
+		// wireBindings owns the resolved request mappings before validation.
+		wireBindings *httpWireBindingPlan
 	}
 
 	// RouteExpr represents an endpoint route (HTTP endpoint).

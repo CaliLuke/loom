@@ -755,6 +755,14 @@ that type; authentication callbacks receive strings. Non-string, nullable and
 `struct:field:type` credential overrides are rejected during DSL validation.
 Basic-auth CLI values are plain strings, including for named credential types.
 
+HTTP mappings reject different fields sharing a header, query or cookie name;
+headers compare case-insensitively. This includes inferred Authorization mappings.
+Map independent credentials to distinct locations, for example
+`Header("key:X-API-Key")` beside a JWT in Authorization. Basic OR Bearer may share
+Authorization with optional payload credentials; their framing distinguishes them.
+The same source and encoding may be reused. Correct collisions and regenerate.
+Only selected security credentials are implicitly excluded from the request body.
+
 Basic-auth header presence is independent of its two components. The client
 sends the header if either component is required or present; an absent optional
 counterpart becomes an empty component. When both are optional, a missing or

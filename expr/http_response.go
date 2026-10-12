@@ -92,6 +92,8 @@ type (
 		Description string
 		// Headers describe the HTTP response headers.
 		Headers *MappedAttributeExpr
+		// wireBindings retains the validated response mapping operations.
+		wireBindings *httpWireBindingPlan
 		// Cookies describe the HTTP response cookies.
 		Cookies []*HTTPResponseCookieExpr
 		// Response body if any
@@ -140,6 +142,7 @@ func (r *HTTPResponseExpr) Prepare() {
 // and the result type definition if any is valid.
 func (r *HTTPResponseExpr) Validate(e *HTTPEndpointExpr) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	r.validateWireBindings(verr)
 	resultType := newHTTPResponseResultType(e)
 
 	r.validateStatusAndBody(e, verr)
@@ -553,55 +556,6 @@ func (r *HTTPResponseExpr) AddCookie(cookie *HTTPResponseCookieExpr) {
 // CurrentCookie returns the cookie currently configured by the DSL.
 func (r *HTTPResponseExpr) CurrentCookie() *HTTPResponseCookieExpr {
 	return r.currentCookie
-}
-
-// mapUnmappedAttrs maps any unmapped attributes in ErrorResult type to the
-// response headers. Unmapped attributes refer to the attributes in ErrorResult
-// type that are not mapped to response body or headers. Such unmapped
-// attributes are mapped to special Loom headers in the form of
-// "Loom-Attribute(-<Attribute Name>)".
-func (r *HTTPResponseExpr) mapUnmappedAttrs(svcAtt *AttributeExpr) {
-	if svcAtt.Type != ErrorResult {
-		return
-	}
-
-	// map attributes to headers that are not explicitly mapped
-	switch {
-	case IsObject(svcAtt.Type):
-		// map the attribute names in the service type to response headers if
-		// not mapped explicitly.
-
-		var originAttr string
-		if r.Body != nil {
-			if o, ok := r.Body.Meta["origin:attribute"]; ok {
-				originAttr = o[0]
-			}
-		}
-		// if response body was mapped explicitly using Body(<attribute name>) then
-		// we must make sure we map all the other unmapped attributes to headers.
-		if r.Body == nil || r.Body.Type == Empty || originAttr != "" {
-			for _, nat := range *(AsObject(svcAtt.Type)) {
-				if originAttr == nat.Name {
-					continue
-				}
-				if _, ok := r.Headers.FindKey(nat.Name); ok {
-					continue
-				}
-				r.Headers.Type.(*Object).Set(nat.Name, nat.Attribute)
-				r.Headers.Map("loom-attribute-"+nat.Name, nat.Name)
-				if svcAtt.IsRequired(nat.Name) {
-					if r.Headers.Validation == nil {
-						r.Headers.Validation = &ValidationExpr{}
-					}
-					r.Headers.Validation.AddRequired(nat.Name)
-				}
-			}
-		}
-	default:
-		if r.Headers.IsEmpty() && (r.Body == nil || r.Body.Type == Empty) {
-			r.Headers.Type.(*Object).Set("loom-attribute", svcAtt)
-		}
-	}
 }
 
 // bodyAllowedForStatus reports whether a given response status code

@@ -95,64 +95,6 @@ func UnwrapInlineHTTPBody(att *AttributeExpr) *AttributeExpr {
 	return &unwrapped
 }
 
-// defaultRequestHeaderAttributes returns a map keyed by the names of the
-// payload attributes that should come from the request HTTP headers by default.
-// This includes mapping done for certain authorization schemes (basic auth,
-// JWT, OAuth). The corresponding boolean value indicates whether the value maps
-// directly to a payload attribute (true) or whether the value is used to
-// compute the payload attribute (false). The only case where the value is
-// computed by the generated code at this point is for basic authorization (the
-// single "Authorization" header is used to compute both the username and
-// password attributes).
-func defaultRequestHeaderAttributes(e *HTTPEndpointExpr) map[string]bool {
-	var requirements []*SecurityExpr
-	if e.MethodExpr.Requirements != nil {
-		requirements = e.MethodExpr.Requirements
-	}
-	if e.Service.ServiceExpr.Requirements != nil {
-		requirements = append(requirements, e.Service.ServiceExpr.Requirements...)
-	}
-	if Root.API.Requirements != nil {
-		requirements = append(requirements, Root.API.Requirements...)
-	}
-	if len(requirements) == 0 {
-		return nil
-	}
-	headers := make(map[string]bool)
-	for _, req := range requirements {
-		for _, sch := range req.Schemes {
-			var field string
-			switch sch.Kind {
-			case NoKind:
-				continue
-			case BasicAuthKind:
-				user := TaggedAttribute(e.MethodExpr.Payload, "security:username")
-				if name, _ := findKey(e, user); name == "" {
-					// No explicit mapping, use HTTP header by default
-					headers[user] = false
-				}
-				pass := TaggedAttribute(e.MethodExpr.Payload, "security:password")
-				if name, _ := findKey(e, pass); name == "" {
-					// No explicit mapping, use HTTP header by default
-					headers[pass] = false
-				}
-				continue
-			case APIKeyKind:
-				field = TaggedAttribute(e.MethodExpr.Payload, "security:apikey:"+sch.SchemeName)
-			case JWTKind:
-				field = TaggedAttribute(e.MethodExpr.Payload, "security:token")
-			case OAuth2Kind:
-				field = TaggedAttribute(e.MethodExpr.Payload, "security:accesstoken")
-			}
-			if name, _ := findKey(e, field); name == "" {
-				// No explicit mapping, use HTTP header by default
-				headers[field] = true
-			}
-		}
-	}
-	return headers
-}
-
 // httpRequestBody returns an attribute describing the HTTP request body of the
 // given endpoint. If the DSL defines a body explicitly via the Body function
 // then the corresponding attribute is used. Otherwise the attribute is computed
@@ -239,7 +181,7 @@ func objectHTTPBody(a *HTTPEndpointExpr, payload *AttributeExpr) *MappedAttribut
 	if a.MapQueryParams != nil && *a.MapQueryParams != "" {
 		removeAttribute(body, *a.MapQueryParams)
 	}
-	for att := range defaultRequestHeaderAttributes(a) {
+	for att := range a.ensureWireBindings().bodyExclusions {
 		removeAttribute(body, att)
 	}
 	return body

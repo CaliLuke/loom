@@ -845,6 +845,23 @@ its own binding. API-level defaults use the Authorization header or the declared
 session-cookie name; endpoint mappings override those defaults. Component names
 can change when a scheme acquires another credential location.
 
+HTTP request and response mappings must identify one source per wire location.
+Header names compare case-insensitively; query and cookie names compare exactly.
+Mapping different attributes to the same name is a design error, including
+inherited mappings and implicit credential headers. Repeated bindings of the same
+source with the same encoding are allowed. Basic and Bearer may share
+Authorization as separate security alternatives because their framing distinguishes
+them; their payload requiredness and validation constraints still apply.
+
+For example, `Security(JWT, KeyAuth)` with separate token and key fields needs a
+distinct mapping such as `Header("key:X-API-Key")`; leaving both implicit, or using
+them as unframed alternatives in Authorization, is rejected. Basic OR Bearer with
+optional credential fields remains supported, including an explicit Authorization
+mapping for the token. A narrower security declaration excludes only its selected
+credentials from the request body: overridden inherited credentials remain ordinary
+payload fields unless explicitly mapped. Correct colliding mappings and regenerate
+clients, servers and OpenAPI when upgrading.
+
 Credential constraints apply to the extracted credential value. HTTP headers and
 gRPC metadata named `Authorization` (case-insensitive) carry JWT/OAuth values as
 `Bearer <token>`; generated clients add that framing to the service value, and
