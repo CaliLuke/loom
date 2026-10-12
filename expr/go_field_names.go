@@ -40,33 +40,6 @@ func (r *RootExpr) validateGoFieldNames() *eval.ValidationErrors {
 	return v.errors
 }
 
-// effectiveGoFields follows the same exact-key replacement order as Extend.
-// Reference fields and their metadata are selected during DSL evaluation;
-// finalization does not merge unselected reference fields into the object.
-func effectiveGoFields(att *AttributeExpr, active map[*AttributeExpr]bool) *Object {
-	fields := &Object{}
-	if att == nil || active[att] {
-		return fields
-	}
-	active[att] = true
-	defer delete(active, att)
-	merge := func(other *Object) {
-		for _, field := range *other {
-			fields.Set(field.Name, field.Attribute)
-		}
-	}
-	switch dt := att.Type.(type) {
-	case UserType:
-		merge(effectiveGoFields(dt.Attribute(), active))
-	case *Object:
-		merge(dt)
-	}
-	for _, base := range att.Bases {
-		merge(effectiveGoFields(&AttributeExpr{Type: base}, active))
-	}
-	return fields
-}
-
 func (v *goFieldNameValidator) walk(att *AttributeExpr, parent eval.Expression, path string) {
 	if att == nil || v.seen[att] {
 		return
@@ -94,7 +67,7 @@ func (v *goFieldNameValidator) walk(att *AttributeExpr, parent eval.Expression, 
 }
 
 func (v *goFieldNameValidator) walkObject(att *AttributeExpr, parent eval.Expression, path string) {
-	fields := effectiveGoFields(att, make(map[*AttributeExpr]bool))
+	fields := AsObject(att.Type)
 	owners := make(map[string]string, len(*fields))
 	for _, field := range *fields {
 		goName := naming.GoifyAttribute(field.Name, field.Attribute.Meta, true)

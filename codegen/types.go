@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
 // GoNativeTypeName returns the Go built-in type corresponding to the given
@@ -65,8 +66,11 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 	if att == nil {
 		return ""
 	}
-	tags, jsonName := attributeTagValues(att)
-	normalizeAttributeJSONTag(tags, jsonName, parent, fieldName, att)
+	tags := attributeTagValues(att)
+	optional := parent != nil && fieldName != "" && !parent.IsRequired(fieldName)
+	if tag, present := encodingmeta.JSONTag(att.Meta, expr.AttributeName(fieldName), optional, IsExplicitPresenceType(att) || expr.AllowsNull(att)); present {
+		tags["json"] = tag
+	}
 	return StructTag(tags)
 }
 
@@ -107,76 +111,12 @@ func StructTag(tags map[string]string) string {
 	return " " + strconv.Quote(tag)
 }
 
-func attributeTagValues(att *expr.AttributeExpr) (map[string]string, string) {
+func attributeTagValues(att *expr.AttributeExpr) map[string]string {
 	tags := make(map[string]string)
-	var jsonName string
-	keys := make([]string, 0, len(att.Meta))
-	for k := range att.Meta {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		val := att.Meta[key]
-		if !strings.HasPrefix(key, "struct:tag:") {
-			continue
-		}
-		if key == "struct:tag:json:name" {
-			if jsonName == "" && len(val) > 0 {
-				jsonName = strings.Join(val, ",")
-			}
-			continue
-		}
-		name := key[11:]
-		value := strings.Join(val, ",")
-		tags[name] = value
-		if name == "json" {
-			jsonName = ""
+	for key, values := range att.Meta {
+		if strings.HasPrefix(key, "struct:tag:") && key != "struct:tag:json:name" {
+			tags[key[11:]] = strings.Join(values, ",")
 		}
 	}
-	return tags, jsonName
-}
-
-func normalizeAttributeJSONTag(tags map[string]string, jsonName string, parent *expr.AttributeExpr, fieldName string, att *expr.AttributeExpr) {
-	jsonTag, hasJSONTag := tags["json"]
-	if !hasJSONTag {
-		if jsonName == "" {
-			jsonName = expr.AttributeName(fieldName)
-		}
-		if jsonName == "" {
-			return
-		}
-		if parent != nil && fieldName != "" && !parent.IsRequired(fieldName) {
-			jsonName = appendJSONOmitOption(jsonName, att)
-		}
-		tags["json"] = jsonName
-		return
-	}
-	if parent != nil && fieldName != "" && !parent.IsRequired(fieldName) &&
-		(IsExplicitPresenceType(att) || expr.AllowsNull(att)) {
-		tags["json"] = appendJSONOmitOption(jsonTag, att)
-	}
-}
-
-func appendJSONOmitOption(tag string, att *expr.AttributeExpr) string {
-	option := "omitempty"
-	if IsExplicitPresenceType(att) || expr.AllowsNull(att) {
-		option = "omitzero"
-	}
-	parts := strings.Split(tag, ",")
-	options := make([]string, 0, len(parts))
-	seen := false
-	for _, part := range parts[1:] {
-		if part == "omitempty" || part == "omitzero" {
-			if !seen {
-				options = append(options, option)
-				seen = true
-			}
-			continue
-		}
-		options = append(options, part)
-	}
-	if !seen {
-		options = append(options, option)
-	}
-	return strings.Join(append([]string{parts[0]}, options...), ",")
+	return tags
 }

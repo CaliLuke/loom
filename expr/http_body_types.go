@@ -232,7 +232,7 @@ func httpBodyOnly(a *HTTPEndpointExpr) bool {
 func objectHTTPBody(a *HTTPEndpointExpr, payload *AttributeExpr) *MappedAttributeExpr {
 	body := NewMappedAttributeExpr(payload)
 	RemovePkgPath(body.AttributeExpr)
-	extendBodyAttribute(body)
+	inheritBodyReferences(body)
 	removeAttributes(body, a.Headers)
 	removeAttributes(body, a.Cookies)
 	removeAttributes(body, a.Params)
@@ -385,7 +385,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 func responseBodyObject(attr *AttributeExpr, resp *HTTPResponseExpr) *MappedAttributeExpr {
 	body := NewMappedAttributeExpr(attr)
 	RemovePkgPath(body.AttributeExpr)
-	extendBodyAttribute(body)
+	inheritBodyReferences(body)
 	removeAttributes(body, resp.Headers)
 	removeResponseCookieAttributes(body, resp.Cookies)
 	return body
@@ -621,11 +621,9 @@ func removeAttribute(attr *MappedAttributeExpr, name string) {
 	}
 }
 
-// extendBodyAttribute returns an attribute describing the HTTP
-// request/response body type by merging any Bases and References to the parent
-// attribute. This must be invoked during validation or to determine the actual
-// body type by removing any headers/params/cookies.
-func extendBodyAttribute(body *MappedAttributeExpr) {
+// inheritBodyReferences applies selected Reference templates to a body.
+// Extend shape has already been composed before transport preparation.
+func inheritBodyReferences(body *MappedAttributeExpr) {
 	att := body.AttributeExpr
 	if isEmpty(att) {
 		return
@@ -640,16 +638,7 @@ func extendBodyAttribute(body *MappedAttributeExpr) {
 	// unset references so that they don't get added back to the body type during
 	// finalize
 	att.References = nil
-	for _, base := range att.Bases {
-		ru, ok := base.(UserType)
-		if !ok {
-			continue
-		}
-		att.Merge(ru.Attribute())
-	}
-	// unset bases so that they don't get added back to the body type during
-	// finalize
-	att.Bases = nil
+
 	att.UserExamples = att.ExtractUserExamples()
 }
 

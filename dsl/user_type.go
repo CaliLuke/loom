@@ -121,6 +121,7 @@ func Type(name string, args ...any) expr.UserType {
 		},
 	}
 	t.DSLFunc = typeDSL(t, fn)
+	t.SetDSLSource(fn)
 	expr.Root.Types = append(expr.Root.Types, t)
 	return t
 }

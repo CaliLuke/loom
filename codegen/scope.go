@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 	"github.com/CaliLuke/loom/internal/naming"
 )
 
@@ -498,12 +499,7 @@ func IsExplicitPresenceType(att *expr.AttributeExpr) bool {
 	if att == nil {
 		return false
 	}
-	if expr.IsNullable(att) || att.Type == expr.Any {
-		return true
-	}
-	value, ok := att.Meta.Last("openapi:nullable")
-	typeName, _ := GetMetaType(att)
-	return typeName != "" && (ok && value != "false" || strings.HasPrefix(typeName, "loom.Nullable["))
+	return encodingmeta.ExplicitPresence(att.Meta, expr.IsNullable(att), att.Type == expr.Any)
 }
 
 // attributePkgName returns the name of the package that defines the type of

@@ -337,8 +337,13 @@ func Reference(t expr.DataType) {
 	}
 }
 
-// Extend adds the parameter type attributes to the type using Extend. The
-// parameter type must be an object.
+// Extend composes the parameter's object fields into the current type before
+// validation. A redeclared field refines the inherited contract: constraints
+// conjoin, requiredness survives, and incompatible types or identity metadata
+// fail evaluation. Field declarations and Extend may appear in either order.
+// Different inherited defaults require an explicit local Default that satisfies
+// the complete contract. Each use owns its inherited fields.
+// The parameter type must be an object.
 //
 // Extend may be used in Type or ResultType. Extend accepts a single argument:
 // the type or result type containing the attributes to be copied.

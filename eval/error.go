@@ -142,6 +142,11 @@ func ExpressionLocation(expr Expression) (file string, line int, ok bool) {
 // callers that predate [ExpressionLocation]. New code should call the exported
 // form.
 func validationErrorLocation(expr Expression) (file string, line int, ok bool) {
+	if declaration, ok := expr.(interface{ DSLSource() func() }); ok {
+		if fn := declaration.DSLSource(); fn != nil {
+			return dslFuncLocation(fn)
+		}
+	}
 	source, ok := expr.(Source)
 	if !ok {
 		return "", 0, false

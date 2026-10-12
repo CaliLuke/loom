@@ -378,6 +378,52 @@ Payload(Employee, func() {
 })
 ```
 
+Redeclaring an inherited field refines its contract. The order of `Extend` and
+an explicitly typed `Attribute` or `Field` does not change the result. All
+inherited constraints remain in force: minimum 0 plus a local maximum 100
+accepts 0 through 100, and an inherited required field stays required. Patterns,
+formats, collection-element constraints and enum predicates also conjoin.
+Incompatible types, conflicting field numbers or wire/codec identities, and
+statically detectable empty numeric, length or enum intersections are design
+errors. General regular-expression satisfiability is not checked.
+
+A named type can refine an inherited named type only through explicit ancestry.
+Two unrelated named types are incompatible even when both represent strings.
+Omitting `Nullable()` inherits presence. Adding it cannot widen an inherited
+non-null contract. A nullable named descendant of a non-null type is likewise
+rejected because its named representation cannot express the non-null
+intersection. Ordinary nullable inheritance remains supported.
+
+With multiple bases, equal defaults coalesce. Different inherited defaults need
+an explicit local `Default`, including when the chosen value equals one base's
+default. The chosen default must satisfy every inherited and local constraint.
+Local descriptions, documentation and examples take precedence; conflicting peer
+documentation without a local choice is diagnosed. Metadata that controls field
+identity, codecs or security roles must preserve inherited guarantees. Custom
+metadata retains its ordered append/removal operations; ambiguous inherited
+custom values require an explicit removal and replacement.
+
+JSON tag compatibility uses the complete effective tag, including omission
+options, with the derived field's requiredness and presence representation.
+For an optional ordinary string, a full `struct:tag:json` value of `"one"`
+conflicts with `struct:tag:json:name` of `"one"`: the latter renders
+`"one,omitempty"`. A full `"one,omitempty"` and name-only `"one"` are
+compatible. If the field is required, including through an inherited
+`Required`, full `"one"` and name-only `"one"` are compatible instead.
+Nullable fields retain Loom's normal `omitzero` normalization. The same check
+applies between bases and between a local redeclaration and its inherited field.
+Previously accepted conflicting tags must be made consistent before regeneration.
+
+Inheritance diamonds are supported. Recursive object members are supported, but
+cycles in `Extend` ancestry are rejected. Composition owns inherited fields, so
+method customizations cannot mutate a shared base or another method. Automatic
+views and transport validation use the complete composed shape.
+
+Regenerate code after upgrading. Designs that relied on the former last-base
+field overwrite must express compatible refinements or resolve their conflicts.
+The existing named-alias policy for empty domains is unchanged; the structural
+`Extend` checks above are a separate admission boundary.
+
 ### Validation Rules
 
 Length-validation diagnostics report the field, actual length and allowed

@@ -607,6 +607,14 @@ completion shapes are explicit generation limitations.
   inherited fields and requiredness. Plain uses of the named type are unchanged.
   Automatic result views include inherited fields; explicit views keep their
   authored field selection.
+- `Extend` redeclarations refine inherited contracts. Base `Minimum(0)` plus
+  local `Maximum(100)` admits 0 through 100; inherited requiredness and
+  non-nullability remain enforced. Incompatible types, contradictory constraints
+  and conflicting explicit wire identities fail design validation. Named types
+  must retain the inherited nominal ancestry. A local default may select among
+  inherited defaults only if it satisfies the complete refined contract; unequal
+  peer defaults without a local selection are rejected. Omitted `Nullable`
+  inherits the base contract. Regenerate adapters after upgrading.
 - For typed SSE projections, use `SSEProjection(eventType, view)` with
   `SSEEventType(...)`.
 

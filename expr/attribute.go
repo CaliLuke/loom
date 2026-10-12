@@ -14,6 +14,7 @@ type (
 	AttributeExpr struct {
 		// DSLFunc contains the DSL used to initialize the expression.
 		eval.DSLFunc
+		declarationDSL func()
 		// Attribute type
 		Type DataType
 		// Base types if any
@@ -40,6 +41,13 @@ type (
 		// finalized is true if the attribute has been finalized - only
 		// applies if attribute type is an object
 		finalized bool
+		// constraintParents retains authored Extend layers. The public validation
+		// carrier is lowered only after this source graph has been checked.
+		compositionBases  []DataType
+		constraintParents []*AttributeExpr
+		constraintLocal   *AttributeExpr
+		compositionName   string
+		removedMeta       map[string]bool
 		// valueOrigin records structural copy ancestry, never a semantic value
 		// context or resolution. Effective occurrences always receive fresh IDs.
 		valueOrigin *AttributeExpr
@@ -299,18 +307,6 @@ func (a *AttributeExpr) Finalize() {
 			}
 			a.Inherit(ru.Attribute())
 		}
-		for _, base := range a.Bases {
-			ru, ok := base.(UserType)
-			if !ok {
-				continue
-			}
-			a.Merge(ru.Attribute())
-		}
-
-		// Now that we've merged the bases, we can clear them.  This
-		// avoids issues where the bases are dupped and modifications
-		// made to the originals are not reflected in the dups.
-		a.Bases = nil
 
 		for _, nat := range *AsObject(a.Type) {
 			nat.Attribute.Finalize()
@@ -535,6 +531,10 @@ func (a *AttributeExpr) AddMeta(name string, vals ...string) {
 
 // DeleteMeta removes the metadata entry with the given name.
 func (a *AttributeExpr) DeleteMeta(name string) {
+	if a.removedMeta == nil {
+		a.removedMeta = make(map[string]bool)
+	}
+	a.removedMeta[name] = true
 	delete(a.Meta, name)
 }
 

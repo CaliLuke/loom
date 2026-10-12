@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 
 	"github.com/CaliLuke/loom/codegen"
 )
@@ -226,10 +227,10 @@ func protoBufGoTypeName(att *expr.AttributeExpr, s *codegen.NameScope) string {
 // the given package name for the given attribute generated after compiling
 // the proto file (in *.pb.go).
 func protoBufGoFullTypeName(att *expr.AttributeExpr, pkg string, s *codegen.NameScope) string {
-	if proto := att.Meta["struct:field:proto"]; len(proto) > 2 {
-		typ := proto[2]
-		if len(att.Meta["struct:field:proto"]) > 3 {
-			elems := strings.Split(att.Meta["struct:field:proto"][3], "/")
+	if proto := encodingmeta.ProtoType(att.Meta); proto.Count > 2 {
+		typ := proto.GoName
+		if proto.Count > 3 {
+			elems := strings.Split(proto.GoImport, "/")
 			typ = elems[len(elems)-1] + "." + typ
 		}
 		return typ
@@ -254,8 +255,8 @@ func protoBufGoFullTypeName(att *expr.AttributeExpr, pkg string, s *codegen.Name
 
 // protoType returns the protocol buffer type name for the given attribute.
 func protoType(att *expr.AttributeExpr, sd *ServiceData) string {
-	if protos := att.Meta["struct:field:proto"]; len(protos) > 0 {
-		return protos[0]
+	if proto := encodingmeta.ProtoType(att.Meta); proto.Count > 0 {
+		return proto.Name
 	}
 	return protoBufMessageDef(att, sd)
 }
@@ -386,8 +387,8 @@ func protoJSONOption(att *expr.AttributeExpr) string {
 	if att == nil || att.Meta == nil {
 		return ""
 	}
-	if names := att.Meta["proto:tag:json"]; len(names) > 0 && names[0] != "" {
-		return fmt.Sprintf(" [json_name = %q]", names[0])
+	if name, present := att.Meta.First("proto:tag:json"); present && name != "" {
+		return fmt.Sprintf(" [json_name = %q]", name)
 	}
 	return ""
 }

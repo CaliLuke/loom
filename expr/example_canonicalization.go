@@ -213,8 +213,7 @@ func exampleMatchesObject(attribute *AttributeExpr, object *Object, example map[
 		fields[field.Name] = field.Attribute
 		fields[wireName] = field.Attribute
 	}
-	additionalProperties, explicitAdditionalProperties := attribute.Meta.Last("openapi:additionalProperties")
-	allowsUnknown := !explicitAdditionalProperties || additionalProperties != "false"
+	allowsUnknown := allowsAdditionalProperties(attribute)
 	if len(fields) == 0 {
 		return len(example) == 0 || allowsUnknown
 	}

@@ -45,7 +45,7 @@ func TestHTTPRequestBodyAnalysisPreservesSource(t *testing.T) {
 }
 
 // TestHTTPRequestBodyPreparationPreservesInheritedExamples checks that the
-// prepared body retains examples before type finalization removes its bases.
+// prepared body retains examples when composition removes its bases.
 func TestHTTPRequestBodyPreparationPreservesInheritedExamples(t *testing.T) {
 	base := &UserTypeExpr{TypeName: "Base", AttributeExpr: &AttributeExpr{
 		Type:         &Object{},
@@ -59,6 +59,8 @@ func TestHTTPRequestBodyPreparationPreservesInheritedExamples(t *testing.T) {
 		Service:    &HTTPServiceExpr{ServiceExpr: &ServiceExpr{Name: "Items"}},
 		Body:       &AttributeExpr{Type: wrapper},
 	}
+	root := &RootExpr{Types: []UserType{base, wrapper}}
+	root.Prepare()
 	endpoint.initTransportAttributes()
 	wrapper.Finalize()
 	require.Empty(t, wrapper.Bases)

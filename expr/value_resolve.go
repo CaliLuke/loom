@@ -109,14 +109,30 @@ func (r *valueResolver) resolve(node *valueOccurrenceNode, raw any, complete boo
 		return result
 	}
 	if !r.shapeNodes[node] && !r.ignoredEnums[node] && node != skipEnum && node.enumValues != nil {
-		result = r.applyEnumSet(node, result, node.enumValues, owner)
+		result = r.applyEnumSet(node, result, node.enumValues, owner, false)
 		if result.outcome == ValueInvalid {
 			return result
 		}
 	}
 	if !r.shapeNodes[node] && node != skipEnum {
 		for _, clause := range node.enumClauses {
-			result = r.applyEnumSet(node, result, clause, owner)
+			result = r.applyEnumSet(node, result, clause, owner, false)
+			if result.outcome == ValueInvalid {
+				return result
+			}
+		}
+	}
+	for _, parent := range node.constraintParents {
+		for _, layer := range effectiveConstraintLayers(parent) {
+			if r.shapeNodes[layer] || r.ignoredEnums[layer] || layer == skipEnum {
+				continue
+			}
+			if layer.enumValues != nil {
+				result = r.applyEnumSet(node, result, layer.enumValues, owner, true)
+			}
+			for _, clause := range layer.enumClauses {
+				result = r.applyEnumSet(node, result, clause, owner, true)
+			}
 			if result.outcome == ValueInvalid {
 				return result
 			}
@@ -130,12 +146,23 @@ func (r *valueResolver) applyEnumSet(
 	result ValueResult,
 	values []valueSourceSnapshot,
 	owner *valueOccurrenceNode,
+	inherited bool,
 ) ValueResult {
 	for _, allowed := range values {
 		if allowed.err != nil {
 			return valueFailure(ValueInvalid, "enum", "invalid authored enum member")
 		}
-		member := r.resolve(node, allowed.raw, true, owner, node)
+		candidate := *r
+		if inherited {
+			candidate.ignoredEnums = make(map[*valueOccurrenceNode]bool)
+			for ignored, value := range r.ignoredEnums {
+				candidate.ignoredEnums[ignored] = value
+			}
+			for _, layer := range effectiveConstraintLayers(node) {
+				candidate.ignoredEnums[layer] = true
+			}
+		}
+		member := candidate.resolve(node, allowed.raw, true, owner, node)
 		memberComparable := member.outcome == ValueResolved ||
 			(r.admission && member.outcome == ValueUnsupported && !member.checkableFailure)
 		if memberComparable && resolvedEnumEqual(member.value, result.value) {

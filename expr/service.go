@@ -226,7 +226,11 @@ func (s *ServiceExpr) validateInterceptorNames(verr *eval.ValidationErrors) {
 // Nested objects are ordinary data and do not share this method namespace.
 func (e *ErrorExpr) validateGoFieldNames() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	for _, field := range *effectiveGoFields(e.AttributeExpr, make(map[*AttributeExpr]bool)) {
+	fields := AsObject(e.AttributeExpr.Type)
+	if fields == nil {
+		return verr
+	}
+	for _, field := range *fields {
 		goName := naming.GoifyAttribute(field.Name, field.Attribute.Meta, true)
 		if goName == "Error" || goName == "LoomErrorName" || (goName == "LoomErrorRemedy" && e.Remedy != nil) {
 			verr.Add(e, "attribute %q conflicts with generated error method %q; rename it or set distinct struct:field:name metadata", field.Name, goName)

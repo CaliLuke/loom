@@ -277,11 +277,18 @@ func buildEffectiveConstraints(context *ValueContext, graph *valueOccurrenceGrap
 		if layer.enumValues == nil {
 			continue
 		}
-		constraints.enumValues = cloneValueSnapshots(layer.enumValues)
-		constraints.validation.rules.Values = rawSnapshotValues(constraints.enumValues)
-		constraints.enumSource = constraintSource(context, graph, layer)
-		enumValueSource = layer
-		break
+		if enumValueSource == nil {
+			constraints.enumValues = cloneValueSnapshots(layer.enumValues)
+			constraints.validation.rules.Values = rawSnapshotValues(constraints.enumValues)
+			constraints.enumSource = constraintSource(context, graph, layer)
+			enumValueSource = layer
+		} else {
+			constraints.validation.rules.EnumClauses = append(constraints.validation.rules.EnumClauses, rawSnapshotValues(layer.enumValues))
+			enumClauseSources = append(enumClauseSources, layer)
+		}
+		if len(node.constraintParents) == 0 {
+			break
+		}
 	}
 	if constraints.validation.rules.Values == nil && firstEnumClauseSource != nil {
 		constraints.enumValues = cloneValueSnapshots(firstEnumClause)
@@ -377,37 +384,22 @@ func validateEffectiveEnums(context *ValueContext, graph *valueOccurrenceGraph, 
 	return nil
 }
 
-func selectEffectiveDefault(context *ValueContext, graph *valueOccurrenceGraph, node *valueOccurrenceNode) error {
-	constraints := node.constraints
-	for _, layer := range effectiveConstraintLayers(node) {
-		if layer.defaultValue == nil {
-			continue
-		}
-		if layer.defaultValue.err != nil {
-			return fmt.Errorf("%sinvalid authored default: %w", effectiveConstraintPrefix(node), layer.defaultValue.err)
-		}
-		result := resolveConstraintValue(context, graph, node, *layer.defaultValue, nil, false)
-		if !constraintValueAdmitted(result) {
-			return fmt.Errorf("%sdefault value %#v declared by %q violates the effective contract for %q",
-				effectiveConstraintPrefix(node), layer.defaultValue.raw, effectiveLayerName(layer), effectiveLayerName(node))
-		}
-		copy := *layer.defaultValue
-		copy.raw = copyValueRaw(copy.raw)
-		constraints.defaultValue = &copy
-		constraints.defaultSource = constraintSource(context, graph, layer)
-		return nil
-	}
-	return nil
-}
-
 func effectiveConstraintLayers(node *valueOccurrenceNode) []*valueOccurrenceNode {
 	var layers []*valueOccurrenceNode
 	seen := make(map[*valueOccurrenceNode]bool)
-	for node != nil && !seen[node] {
-		seen[node] = true
-		layers = append(layers, node)
-		node = node.declaration.alias
+	var visit func(*valueOccurrenceNode)
+	visit = func(current *valueOccurrenceNode) {
+		if current == nil || seen[current] {
+			return
+		}
+		seen[current] = true
+		layers = append(layers, current)
+		visit(current.declaration.alias)
+		for _, parent := range current.constraintParents {
+			visit(parent)
+		}
 	}
+	visit(node)
 	return layers
 }
 
@@ -610,11 +602,10 @@ func effectiveLayerName(node *valueOccurrenceNode) string {
 }
 
 func effectiveEnumAncestor(node *valueOccurrenceNode) *valueOccurrenceNode {
-	seen := make(map[*valueOccurrenceNode]bool)
-	for node = node.declaration.alias; node != nil && !seen[node]; node = node.declaration.alias {
-		seen[node] = true
-		if node.enumValues != nil || len(node.enumClauses) > 0 {
-			return node
+	layers := effectiveConstraintLayers(node)
+	for _, ancestor := range layers[1:] {
+		if ancestor.enumValues != nil || len(ancestor.enumClauses) > 0 {
+			return ancestor
 		}
 	}
 	return nil

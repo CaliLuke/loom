@@ -144,9 +144,7 @@ func Attribute(name string, args ...any) {
 
 	var attr *expr.AttributeExpr
 	{
-		if _, ref := parent.FindAttribute(name); ref != nil {
-			attr = expr.DupAtt(ref)
-		}
+		attr = attributeTemplate(parent, name)
 
 		dataType, description, fn := parseAttributeArgs(attr, args...)
 		if attr != nil {
@@ -163,8 +161,12 @@ func Attribute(name string, args ...any) {
 			}
 		}
 		if fn != nil {
+			attr.SetDSLSource(fn)
 			localizeAttribute(attr, parent)
 			eval.Execute(fn, attr)
+		}
+		if attr.DSLSource() == nil {
+			attr.SetDSLSource(parent.DSLSource())
 		}
 		applyUnionMetaFromAttribute(attr)
 		if attr.Type == nil {
@@ -178,6 +180,19 @@ func Attribute(name string, args ...any) {
 		return
 	}
 	appendUnionBranch(parent.Type.(*expr.Union), name, attr)
+}
+
+func attributeTemplate(parent *expr.AttributeExpr, name string) *expr.AttributeExpr {
+	// Reference selects a template. Extend contributes constraints later;
+	// copying it here would confuse inherited values with authored choices.
+	template := *parent
+	template.Bases = nil
+	if _, ref := template.FindAttribute(name); ref != nil {
+		return expr.DupAtt(ref)
+	} else if _, base := parent.FindAttribute(name); base != nil {
+		return &expr.AttributeExpr{Type: base.Type}
+	}
+	return nil
 }
 
 // appendUnionBranch adds attr to union as the branch name. It promotes an

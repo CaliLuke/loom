@@ -70,8 +70,7 @@ func (r *valueResolver) object(node, owner *valueOccurrenceNode, raw any, comple
 		}
 	}
 	sort.Strings(extraNames)
-	additional, specified := owner.attribute.Meta.Last("openapi:additionalProperties")
-	if len(extraNames) > 0 && specified && additional == "false" {
+	if len(extraNames) > 0 && !allowsAdditionalProperties(owner.attribute) {
 		return valueFailure(ValueInvalid, "additional", "undeclared object members are not allowed")
 	}
 	for _, name := range extraNames {
@@ -293,4 +292,11 @@ func (r *valueResolver) objectMember(owner *valueOccurrenceNode, member valueOcc
 		}
 	}
 	return child
+}
+
+// allowsAdditionalProperties is the authored object-domain predicate shared by
+// value admission and Extend composition. Absence leaves the object open.
+func allowsAdditionalProperties(attribute *AttributeExpr) bool {
+	value, specified := attribute.Meta.Last("openapi:additionalProperties")
+	return !specified || value != "false"
 }

@@ -93,6 +93,19 @@ consumer validation.
   Use the bounded standard-library regex here instead of adding either policy
   as a runtime dependency. Host existence and IDNA processing stay caller-owned.
 - Design DSL is the source of truth; evaluated semantics belong in `expr`.
+- `RootExpr.Prepare` composes `Extend` after promoted union naming and before
+  dependent transport preparation or validation. Preserve authored overlays and
+  source provenance during DSL execution; compose detached occurrence graphs
+  through the existing effective-constraint owner. Finalizers and consumers
+  must not reselect inherited fields or simulate a separate base precedence.
+  Defaults compare resolved values against the complete effective contract;
+  `internal/encodingmeta` owns the shared custom-type representation tuple,
+  JSON tag normalization and explicit-presence override facts. Composition and
+  codegen consume those owners; JSON identity/options compare under effective
+  containing requiredness, including retained Extend parent constraints. Named
+  field recursion is valid; reject inheritance cycles separately and detach
+  snapshots only after referenced effective shapes are complete.
+  Keep `expr/tla/effective_design` and its ownership/transport regressions aligned.
 - Effective named-type constraints have one immutable `expr` owner per value
   occurrence. Derived enums refine ancestor enums, defaults are selected then
   checked against the complete effective contract, numeric and length bounds
@@ -1269,8 +1282,8 @@ filter, and serialization rules belong here.
   positions, must give the copied type its own name. Store inherited bases on
   the copied user type attribute so emitted fields and requiredness share an
   owner. Plain uses must retain their original shape in either traversal order.
-  Finalize inheritance before creating an automatic default result view so
-  projection sees the full shape. Preserve explicit view field selection.
+  Compose inheritance before validation; create automatic default result views
+  from the effective shape during finalization. Preserve explicit view selection.
 - Keep requiredness and nullability orthogonal. `expr` owns semantic
   nullability; shared service models use `loom.Nullable[T]` for null-admitting
   object fields; JSON decoding boundaries alone use `loom.Optional[T]` for

@@ -27,17 +27,18 @@ type (
 	}
 
 	valueOccurrenceNode struct {
-		id            uint64
-		declarationID string
-		ownerName     string
-		origin        *AttributeExpr
-		attribute     *AttributeExpr
-		declaration   *valueDeclarationNode
-		examples      []valueOccurrenceExample
-		defaultValue  *valueSourceSnapshot
-		enumValues    []valueSourceSnapshot
-		enumClauses   [][]valueSourceSnapshot
-		constraints   *EffectiveConstraints
+		id                uint64
+		declarationID     string
+		ownerName         string
+		origin            *AttributeExpr
+		attribute         *AttributeExpr
+		declaration       *valueDeclarationNode
+		examples          []valueOccurrenceExample
+		defaultValue      *valueSourceSnapshot
+		enumValues        []valueSourceSnapshot
+		enumClauses       [][]valueSourceSnapshot
+		constraints       *EffectiveConstraints
+		constraintParents []*valueOccurrenceNode
 	}
 
 	valueOccurrenceExample struct {
@@ -171,7 +172,11 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 	if source == nil || source.Type == nil {
 		return nil, fmt.Errorf("value occurrence has no finalized type")
 	}
-	attribute := copyValueOccurrenceAttribute(source)
+	contract := source
+	if source.constraintLocal != nil {
+		contract = source.constraintLocal
+	}
+	attribute := copyValueOccurrenceAttribute(contract)
 	if b.structuralOnly {
 		attribute.Validation = nil
 		attribute.DefaultValue = nil
@@ -179,12 +184,15 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 	}
 	node := &valueOccurrenceNode{id: b.identity(), origin: source, attribute: attribute,
 		declarationID: valueSourceDeclarationID(source)}
+	if _, named := source.Type.(UserType); !named || source.constraintLocal != nil {
+		node.ownerName = source.compositionName
+	}
 	b.graph.nodes = append(b.graph.nodes, node)
 	if !b.structuralOnly {
 		if err := b.captureOccurrenceExamples(node, source, attribute); err != nil {
 			return nil, err
 		}
-		b.captureOccurrenceConstraints(node, source, attribute)
+		b.captureOccurrenceConstraints(node, contract, attribute)
 	}
 	declaration, err := b.declaration(source.Type)
 	if err != nil {
@@ -192,6 +200,16 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 	}
 	node.declaration = declaration
 	attribute.Type = declaration.typ
+	if !b.structuralOnly {
+		for _, parent := range source.constraintParents {
+			inherited, err := b.occurrence(parent)
+			if err != nil {
+				return nil, err
+			}
+			node.constraintParents = append(node.constraintParents, inherited)
+			attribute.constraintParents = append(attribute.constraintParents, inherited.attribute)
+		}
+	}
 	if err := b.captureOccurrenceAncestry(source, attribute); err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ func copyValueOccurrenceAttribute(source *AttributeExpr) *AttributeExpr {
 	copy.valueOrigin = valueAttributeOrigin(source)
 	copy.valueSourceOrigin = valueCopiedSourceOrigin(source)
 	copy.Type, copy.Bases, copy.References = nil, nil, nil
+	copy.constraintParents, copy.constraintLocal = nil, nil
 	copy.DefaultValue, copy.UserExamples = nil, nil
 	copy.Meta = copyValueMeta(source.Meta)
 	if source.Docs != nil {
@@ -117,6 +118,8 @@ func valueSemanticOrigin(attribute *AttributeExpr) *AttributeExpr {
 func copyValueAttribute(source *AttributeExpr) *AttributeExpr {
 	copy := copyValueOccurrenceAttribute(source)
 	copy.Type = source.Type
+	copy.constraintParents = append([]*AttributeExpr(nil), source.constraintParents...)
+	copy.constraintLocal = source.constraintLocal
 	copy.Bases = append([]DataType(nil), source.Bases...)
 	copy.References = append([]DataType(nil), source.References...)
 	if source.DefaultValue != nil {

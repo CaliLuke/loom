@@ -305,8 +305,7 @@ func applyUnionMetaFromAttribute(attr *expr.AttributeExpr) {
 	if union == nil || attr.Meta == nil {
 		return
 	}
-	if typeNames, ok := attr.Meta["oneof:typename"]; ok && len(typeNames) > 0 {
-		typeName := typeNames[0]
+	if typeName, ok := attr.Meta.First("oneof:typename"); ok {
 		if typeName == "" {
 			eval.ReportError("oneof:typename meta cannot be empty")
 			return
@@ -314,16 +313,14 @@ func applyUnionMetaFromAttribute(attr *expr.AttributeExpr) {
 		union.TypeName = typeName
 		union.ExplicitTypeName = true
 	}
-	if typeKeys, ok := attr.Meta["oneof:type:field"]; ok && len(typeKeys) > 0 {
-		typeKey := typeKeys[0]
+	if typeKey, ok := attr.Meta.First("oneof:type:field"); ok {
 		if typeKey == "" {
 			eval.ReportError("oneof:type:field meta cannot be empty")
 			return
 		}
 		union.TypeKey = typeKey
 	}
-	if valueKeys, ok := attr.Meta["oneof:value:field"]; ok && len(valueKeys) > 0 {
-		valueKey := valueKeys[0]
+	if valueKey, ok := attr.Meta.First("oneof:value:field"); ok {
 		if valueKey == "" {
 			eval.ReportError("oneof:value:field meta cannot be empty")
 			return

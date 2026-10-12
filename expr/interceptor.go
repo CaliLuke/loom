@@ -122,17 +122,7 @@ func (i *InterceptorExpr) objectAccessTarget(m *MethodExpr, verr *eval.Validatio
 		verr.Add(m, "interceptor %q cannot be applied because the method %s", i.Name, objectErr)
 		return nil
 	}
-	return mergeAttributeBases(att)
-}
-
-func mergeAttributeBases(att *AttributeExpr) *AttributeExpr {
-	merged := DupAtt(att)
-	for _, base := range att.Bases {
-		if ut, ok := base.(UserType); ok {
-			merged.Merge(ut.Attribute())
-		}
-	}
-	return merged
+	return att
 }
 
 func (i *InterceptorExpr) validateAccessPair(m *MethodExpr, verr *eval.ValidationErrors, target *AttributeExpr, suffix string, readAttr, writeAttr *AttributeExpr) {

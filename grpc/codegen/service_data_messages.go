@@ -8,6 +8,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
 // collectedMessage records the declaration already emitted for a Go type
@@ -53,17 +54,17 @@ func collectMessages(at *expr.AttributeExpr, sd *ServiceData, seen map[string]co
 }
 
 func collectProtoImports(at *expr.AttributeExpr, sd *ServiceData) []string {
-	proto := at.Meta["struct:field:proto"]
-	if len(proto) <= 1 {
+	proto := encodingmeta.ProtoType(at.Meta)
+	if proto.Count <= 1 {
 		return nil
 	}
-	imp := proto[1]
+	imp := proto.Import
 	if protoImportExists(sd.ProtoGoImports, imp) {
 		return nil
 	}
-	if len(proto) > 3 {
-		elems := strings.Split(proto[3], "/")
-		sd.ProtoGoImports = append(sd.ProtoGoImports, &codegen.ImportSpec{Path: proto[3], Name: elems[len(elems)-1]})
+	if proto.Count > 3 {
+		elems := strings.Split(proto.GoImport, "/")
+		sd.ProtoGoImports = append(sd.ProtoGoImports, &codegen.ImportSpec{Path: proto.GoImport, Name: elems[len(elems)-1]})
 	}
 	return []string{imp}
 }

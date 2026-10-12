@@ -40,8 +40,8 @@ func (u *UserTypeExpr) Name() string {
 	if u.AttributeExpr == nil {
 		return u.TypeName
 	}
-	if n, ok := u.Meta["struct:type:name"]; ok {
-		return n[0]
+	if name, ok := u.Meta.First("struct:type:name"); ok {
+		return name
 	}
 	return u.TypeName
 }

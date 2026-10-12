@@ -468,3 +468,11 @@ func (m MetaExpr) Last(key string) (string, bool) {
 
 	return v[l-1], true
 }
+
+// First returns the first authored value of key and whether it is present.
+func (m MetaExpr) First(key string) (string, bool) {
+	if values := m[key]; len(values) > 0 {
+		return values[0], true
+	}
+	return "", false
+}

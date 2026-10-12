@@ -47,6 +47,11 @@ func (r *RootExpr) NewUnionBranch(name string, attribute *AttributeExpr) *UserTy
 // Prepare gives automatically promoted union branches stable, distinct names
 // before identity-based transport preparation and validation run.
 func (r *RootExpr) Prepare() {
+	r.prepareUnionBranchNames()
+	r.composeDesign()
+}
+
+func (r *RootExpr) prepareUnionBranchNames() {
 	if r.unionBranchesPrepared == r.unionBranchSequence {
 		return
 	}

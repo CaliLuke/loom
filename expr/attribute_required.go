@@ -218,7 +218,14 @@ func selectedDefaultValue(attribute *AttributeExpr, active map[*AttributeExpr]bo
 		return attribute.DefaultValue
 	}
 	if named, ok := attribute.Type.(UserType); ok {
-		return selectedDefaultValue(named.Attribute(), active)
+		if value := selectedDefaultValue(named.Attribute(), active); value != nil {
+			return value
+		}
+	}
+	for _, parent := range attribute.constraintParents {
+		if value := selectedDefaultValue(parent, active); value != nil {
+			return value
+		}
 	}
 	return nil
 }
@@ -251,6 +258,11 @@ func (a *AttributeExpr) allRequired(active map[*AttributeExpr]bool) []string {
 	}
 	if u, ok := a.Type.(UserType); ok {
 		for _, name := range u.Attribute().allRequired(active) {
+			appendFinalizedRequired(&required, object, name)
+		}
+	}
+	for _, parent := range a.constraintParents {
+		for _, name := range parent.allRequired(active) {
 			appendFinalizedRequired(&required, object, name)
 		}
 	}

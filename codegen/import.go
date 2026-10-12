@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 	"github.com/CaliLuke/loom/internal/naming"
 	loom "github.com/CaliLuke/loom/pkg"
 )
@@ -171,16 +172,10 @@ func GetMetaType(att *expr.AttributeExpr) (typeName string, importS *ImportSpec)
 	if att == nil {
 		return
 	}
-	if args, ok := att.Meta["struct:field:type"]; ok {
-		if len(args) > 0 {
-			typeName = args[0]
-		}
-		if len(args) > 1 {
-			importS = &ImportSpec{Path: args[1]}
-		}
-		if len(args) > 2 {
-			importS.Name = args[2]
-		}
+	meta := encodingmeta.GoType(att.Meta)
+	typeName = meta.Name
+	if meta.HasImport {
+		importS = &ImportSpec{Path: meta.Import, Name: meta.Alias}
 	}
 	return
 }
