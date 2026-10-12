@@ -388,7 +388,11 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 		return nil, err
 	}
 	code = wrapTransformObjectFieldCode(code, srcc, tgtc, srcMatt, srcFieldVar, tgtFieldVar, name, ta)
-	code = appendTransformStatements(code, transformObjectDefaultValueCode(srcc, tgtc, srcMatt, tgtMatt, srcFieldVar, tgtFieldVar, name, ta))
+	defaultCode, err := transformObjectDefaultValueCode(srcc, tgtc, srcMatt, tgtMatt, srcFieldVar, tgtFieldVar, name, ta)
+	if err != nil {
+		return nil, err
+	}
+	code = appendTransformStatements(code, defaultCode)
 	return code, nil
 }
 
@@ -447,13 +451,16 @@ func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.Mapp
 	return !srcMatt.IsRequired(name) || ta.TargetCtx.Pointer || ta.SourceCtx.UseDefault && ta.TargetCtx.UseDefault
 }
 
-func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) *jen.Statement {
+func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
 	tdef := tgtMatt.GetDefault(name)
 	if tdef == nil || !ta.TargetCtx.UseDefault || ta.TargetCtx.Pointer || srcMatt.IsRequired(name) {
-		return nil
+		return nil, nil
 	}
 
-	defaultLiteral := defaultValueLiteral(tgtc, tdef, ta)
+	defaultLiteral, err := ta.TargetCtx.DefaultValue(tgtc, tdef)
+	if err != nil {
+		return nil, err
+	}
 
 	switch {
 	case ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type) || defaultValueUsesNil(srcc):
@@ -467,7 +474,7 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 				group.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
 			}
 		})
-		return stmt
+		return stmt, nil
 	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(name) && ta.SourceCtx.UseDefault:
 		stmt := &jen.Statement{}
 		stmt.BlockFunc(func(group *jen.Group) {
@@ -493,9 +500,9 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
 			})
 		})
-		return stmt
+		return stmt, nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 

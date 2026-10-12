@@ -374,7 +374,7 @@ func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *ex
 		return "", err
 	}
 	code = wrapObjectFieldNilCheck(code, srcValue, srcMatt, compatibleSource, n, ta)
-	return applyObjectFieldDefaults(code, srcValue, tgtValue, srcMatt, tgtMatt, compatibleSource, compatibleTarget, n, ta), nil
+	return applyObjectFieldDefaults(code, srcValue, tgtValue, srcMatt, tgtMatt, compatibleSource, compatibleTarget, n, ta)
 }
 
 func compatibleTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
@@ -443,10 +443,14 @@ func wrapObjectFieldNilCheck(code, srcVar string, srcMatt *expr.MappedAttributeE
 	return cond + "\t" + code + "}\n"
 }
 
-func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) string {
+func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
 	tdef := tgtMatt.GetDefault(n)
 	if tdef == nil || !ta.TargetCtx.UseDefault || ta.TargetCtx.Pointer || srcMatt.IsRequired(n) {
-		return code
+		return code, nil
+	}
+	literal, err := ta.TargetCtx.DefaultValue(tgtc, tdef)
+	if err != nil {
+		return "", err
 	}
 	switch {
 	case ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type):
@@ -456,18 +460,18 @@ func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *exp
 			if ta.proto {
 				nativeTypeName = protoBufNativeGoTypeName(tgtc.Type)
 			}
-			code += "var tmp " + nativeTypeName + " = " + protobufDefaultLiteral(tgtc, tdef, ta) + "\n\t" + tgtVar + " = &tmp\n"
+			code += "var tmp " + nativeTypeName + " = " + literal + "\n\t" + tgtVar + " = &tmp\n"
 		} else {
-			code += tgtVar + " = " + protobufDefaultLiteral(tgtc, tdef, ta) + "\n"
+			code += tgtVar + " = " + literal + "\n"
 		}
 		code += "}\n"
 	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(n) && ta.SourceCtx.UseDefault:
 		code += "{\n\t"
 		code += objectFieldZeroValueDecl(tgtc, ta)
-		code += "if " + tgtVar + " == zero {\n\t" + tgtVar + " = " + protobufDefaultLiteral(tgtc, tdef, ta) + "\n}\n"
+		code += "if " + tgtVar + " == zero {\n\t" + tgtVar + " = " + literal + "\n}\n"
 		code += "}\n"
 	}
-	return code
+	return code, nil
 }
 
 func objectFieldZeroValueDecl(tgtc *expr.AttributeExpr, ta *transformAttrs) string {

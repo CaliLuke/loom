@@ -274,6 +274,19 @@ func (v ResolvedValue) Scalar() (any, bool) {
 	return snapshotValueSource(v.node.scalar).raw, true
 }
 
+// SourceValue returns the retained input of a present resolved node without
+// applying a target codec. Primitive inputs already carry source normalization.
+// Builtin containers are detached; opaque custom values retain the same borrowing
+// contract as SupplyValue. Absence returns false.
+// Use Scalar, Fields, Elements and Entries for normalized semantic traversal;
+// source values are for an explicit target-owned custom representation boundary.
+func (v ResolvedValue) SourceValue() (any, bool) {
+	if v.node == nil || v.node.presence == ValueAbsent {
+		return nil, false
+	}
+	return copyValueRaw(v.node.raw), true
+}
+
 // Elements returns copied handles in array order.
 func (v ResolvedValue) Elements() []ResolvedValue {
 	if v.node == nil {
@@ -342,6 +355,15 @@ func (r ValueResult) Synthesized() bool {
 // Value returns retained complete or incomplete semantic data.
 func (r ValueResult) Value() (ResolvedValue, bool) {
 	return r.value, r.outcome == ValueResolved || r.outcome == ValueIncomplete
+}
+
+// RepresentationValue returns the retained semantic tree for target-owned
+// materialization. Unlike Value, it also exposes structurally retained opaque
+// codec leaves when no independently checkable constraint failed. The target
+// must handle those leaves through their explicit codec; this is not admission
+// or permission to reinterpret them as builtin values.
+func (r ValueResult) RepresentationValue() (ResolvedValue, bool) {
+	return declaredResultValue(r)
 }
 
 // Diagnostics returns an owned copy of all diagnostic records and paths.

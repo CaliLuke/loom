@@ -79,7 +79,11 @@ func transformOptionalToNative(
 	// conversion of the view to its result type assigns the default.
 	defaultValue := targetParent.GetDefault(name)
 	if defaultValue != nil && ta.TargetCtx.UseDefault && !ta.TargetCtx.Pointer {
-		stmt.Else().Block(Expr(targetVar + " = " + defaultValueLiteral(targetValue, defaultValue, ta)))
+		literal, err := ta.TargetCtx.DefaultValue(targetValue, defaultValue)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Else().Block(Expr(targetVar + " = " + literal))
 	}
 	return stmt, nil
 }
@@ -179,7 +183,13 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		group.Add(presenceValueAssignment(targetValue, temp, targetVar, "NullableValue", userObject, ta.TargetCtx))
 	})
 	if defaultValue != nil && ta.TargetCtx.UseDefault && !ta.TargetCtx.Pointer {
-		value := defaultValueLiteral(targetValue, defaultValue, ta)
+		value, err := ta.TargetCtx.DefaultValue(targetValue, defaultValue)
+		if err != nil {
+			return nil, err
+		}
+		if expr.IsObject(targetValue.Type) {
+			value = "*(" + value + ")"
+		}
 		// The declared wrapper owns its value type. Generic constructor inference
 		// would turn a named Bytes default into Nullable[[]byte].
 		stmt.Else().Block(Expr(targetVar + ".SetValue(" + value + ")"))

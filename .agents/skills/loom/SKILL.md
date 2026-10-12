@@ -229,6 +229,14 @@ fail design evaluation. Float32 values can round or underflow, but cannot overfl
 or be nonfinite. A wider bound such as `Maximum(1e12)` on Int32 remains valid;
 constraints describe allowed values rather than stored numeric fields.
 
+Object defaults, including objects inside arrays and maps, use the generated
+native type. Within an authored default, missing nested members use applicable
+member defaults while supplied members keep their values. Every authored member
+needs declared native storage; unknown default members fail generation with a
+member path. This does not change unknown-member admission on incoming wire
+objects or the rules for when defaults apply. Regenerate affected clients and
+servers; no handwritten literal replacement or JSON round trip is needed.
+
 OpenAPI security follows each endpoint's credential location. JWTs mapped to
 query parameters, cookies, or custom headers use API-key schemes; Authorization
 header JWTs use HTTP bearer. One scheme used at several locations gets separate

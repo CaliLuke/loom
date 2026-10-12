@@ -1,0 +1,30 @@
+package codegen
+
+import (
+	"testing"
+
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+func TestGRPCNullableObjectWithoutDefaultProbe(t *testing.T) {
+	root := RunGRPCDSL(t, func() {
+		leaf := Type("Leaf", func() {
+			Field(1, "x", Int)
+		})
+		Service("nullable", func() {
+			Method("send", func() {
+				Payload(func() {
+					Field(1, "maybe", leaf, func() {
+						Nullable()
+					})
+				})
+				GRPC(func() {})
+			})
+		})
+	})
+	dir := t.TempDir()
+	renderGRPCModule(t, dir, "example.com/nullable", root, resolveGRPCLoomSource(t))
+	runGRPCGoCommand(t, dir, "mod", "edit", "-require=github.com/CaliLuke/loom@v1.10.0-alpha.9.0.20261012214204-66a9dc9090a0")
+	runGRPCGoCommand(t, dir, "mod", "tidy")
+	runGRPCGoCommand(t, dir, "build", "./...")
+}

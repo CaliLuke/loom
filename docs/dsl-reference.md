@@ -518,6 +518,17 @@ round through Float64, and exclusive bounds use the nearest accepted value of
 the declared native type. Service implementations still own values returned at
 runtime, including their chosen numeric carrier and serialization precision.
 
+#### Object and Collection Defaults
+
+Object defaults are checked against the complete declared contract and generated
+in the service's native representation, including objects inside arrays and maps.
+Within an authored default, missing nested members use their own defaults when
+the target applies defaults; supplied members retain their values. Every authored
+member needs declared native storage. An unknown default member fails generation
+with its member path, even when incoming wire objects permit unknown members.
+Regenerate affected clients and servers after upgrading. Existing rules for when
+a default applies are unchanged by this representation correction.
+
 #### Collection Validations
 - `MinLength(n)` - Minimum number of elements
 - `MaxLength(n)` - Maximum number of elements

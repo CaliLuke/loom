@@ -307,10 +307,14 @@ func TestGoTransformAnyDefaultsCompileAndEncodeStrings(t *testing.T) {
 	}}
 
 	type namedJSONMap map[string]any
-	direct := defaultValueLiteral(anyAttribute, "direct", ta)
-	array := defaultValueLiteral(arrayAttribute, []any{"array"}, ta)
-	mapped := defaultValueLiteral(mapAttribute, map[string]any{"key": "map"}, ta)
-	named := defaultValueLiteral(anyAttribute, namedJSONMap{"exact": uint64(9007199254740993)}, ta)
+	direct, err := ta.TargetCtx.DefaultValue(anyAttribute, "direct")
+	require.NoError(t, err)
+	array, err := ta.TargetCtx.DefaultValue(arrayAttribute, []any{"array"})
+	require.NoError(t, err)
+	mapped, err := ta.TargetCtx.DefaultValue(mapAttribute, map[string]any{"key": "map"})
+	require.NoError(t, err)
+	named, err := ta.TargetCtx.DefaultValue(anyAttribute, namedJSONMap{"exact": uint64(9007199254740993)})
+	require.NoError(t, err)
 	require.Equal(t, `loom.JSONValue("\"direct\"")`, direct)
 	require.Equal(t, `[]loom.JSONValue{loom.JSONValue("\"array\"")}`, array)
 	require.Equal(t, `map[string]loom.JSONValue{"key": loom.JSONValue("\"map\"")}`, mapped)
@@ -338,7 +342,7 @@ func TestEncodedDefaults(t *testing.T) {
 }
 `, direct, array, mapped, named, `"direct"`, `"array"`, `"map"`, `{"exact":9007199254740993}`)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "defaults_test.go"), []byte(source), 0o600))
-	_, err := testingx.RunCmd(dir, "go", "mod", "tidy")
+	_, err = testingx.RunCmd(dir, "go", "mod", "tidy")
 	require.NoError(t, err)
 	output, err := testingx.RunCmd(dir, "go", "test", "./...")
 	require.NoError(t, err, output)

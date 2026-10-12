@@ -50,7 +50,8 @@ func TestTypedCollectionDefaultRepresentation(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := NewAttributeContext(false, false, true, "", NewNameScope())
-			got := defaultValueLiteral(tc.target, tc.value, &TransformAttrs{SourceCtx: ctx, TargetCtx: ctx})
+			got, err := ctx.DefaultValue(tc.target, tc.value)
+			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
 		})
 		t.Run(tc.name+"/transform", func(t *testing.T) {

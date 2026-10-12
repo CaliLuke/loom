@@ -143,6 +143,13 @@ consumer validation.
   `UserTypeKind`. Keep this in `expr.byMinMax`; collection construction must not
   coerce wrongly typed examples. The direct numeric-alias tests cover all numeric
   kinds, inherited/occurrence bounds, exact and exclusive bounds, and typed arrays.
+- `AttributeContext.DefaultValue` owns native default materialization from the
+  resolved `expr` value graph and target field layout. Shared and protobuf
+  transforms use it after their existing application gates. Preserve member
+  identity, registered named layouts and explicit custom/raw codec boundaries;
+  reject authored members without native storage instead of discarding them.
+  Nested default expansion tracks active value identities and rejects cycles.
+  Keep the default-representation models and generated transport controls aligned.
 - Shared validation distinguishes complete named definitions from occurrences.
   `NamedValidationFunction` resolves the callable identifier, physical carrier
   and static field mode; consumers must use that same owner for declarations and

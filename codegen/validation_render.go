@@ -300,7 +300,11 @@ func collectionEnumPredicate(data validationRenderData) string {
 	values := make([]string, len(data.Values))
 	for index, value := range data.Values {
 		canonical := enumvalue.Normalize(data.Attribute, value)
-		values[index] = "loom.JSONValueEqual(encoded, " + formatRawJSONLiteral(canonical) + ")"
+		literal, err := formatRawJSONLiteral(canonical)
+		if err != nil {
+			panic(err)
+		}
+		values[index] = "loom.JSONValueEqual(encoded, " + literal + ")"
 	}
 	return "func() bool {\nencoded, encodeErr := loom.JSONValueFrom(" + data.TargetValue + ")\n" +
 		"return encodeErr == nil && (" + strings.Join(values, " || ") + ")\n}()"

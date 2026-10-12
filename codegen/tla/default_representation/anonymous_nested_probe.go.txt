@@ -1,0 +1,33 @@
+package codegen
+
+import (
+	"testing"
+
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+func TestAnonymousNestedObjectWithoutDefaultProbe(t *testing.T) {
+	root := RunHTTPDSL(t, func() {
+		leaf := Type("Leaf", func() {
+			Attribute("x", Int)
+		})
+		Service("defaults", func() {
+			Method("send", func() {
+				Payload(func() {
+					Attribute("value", func() {
+						Attribute("child", leaf)
+						Attribute("children", ArrayOf(leaf))
+					})
+				})
+				HTTP(func() {
+					POST("/send")
+				})
+			})
+		})
+	})
+	dir := t.TempDir()
+	renderHTTPModule(t, dir, "example.com/objectdefaults", root)
+	runGoCommand(t, dir, "mod", "edit", "-require=github.com/CaliLuke/loom@v1.10.0-alpha.9.0.20261012214204-66a9dc9090a0")
+	runGoCommand(t, dir, "mod", "tidy")
+	runGoCommand(t, dir, "build", "./...")
+}
