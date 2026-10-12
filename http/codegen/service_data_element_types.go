@@ -1,6 +1,9 @@
 package codegen
 
-import "github.com/CaliLuke/loom/http/codegen/internal/transportir"
+import (
+	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/securitygen"
+)
 
 type (
 	// RouteData describes a route.
@@ -79,7 +82,7 @@ type (
 		// CanonicalName is the canonical header key.
 		CanonicalName string
 		// Bearer identifies a JWT/OAuth Authorization credential requiring protocol extraction.
-		Bearer bool
+		Bearer securitygen.BearerData
 	}
 
 	// CookieData describes a HTTP request or response cookie.

@@ -4,6 +4,7 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/securitygen"
 )
 
 type (
@@ -188,7 +189,7 @@ type (
 	// MetadataData describes a gRPC metadata field.
 	MetadataData struct {
 		// Bearer identifies a JWT/OAuth Authorization credential requiring protocol extraction.
-		Bearer bool
+		Bearer securitygen.BearerData
 		// Name is the name of the metadata key.
 		Name string
 		// AttributeName is the name of the corresponding attribute.

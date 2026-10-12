@@ -31,3 +31,20 @@ func TestDecodeBearer(t *testing.T) {
 		})
 	}
 }
+
+func TestOtherAuthorizationScheme(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		other bool
+	}{
+		{"Basic dTpw", true}, {"bAsIc dTpw", true}, {"Digest a=b", true},
+		{"Custom+Scheme value", true}, {"Bearer good", false}, {"bearer bad value", false},
+		{"Bearer", false}, {"Bearer ", false}, {"Basic", false}, {"Basic ", false},
+		{"Basic\tvalue", false}, {" Basic value", false}, {"Básic value", false},
+		{"Basic: value", false}, {"raw-token", false}, {"", false},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			require.Equal(t, tc.other, IsOtherAuthorizationScheme(tc.input, "Bearer"))
+		})
+	}
+}

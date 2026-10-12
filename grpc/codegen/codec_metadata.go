@@ -27,7 +27,7 @@ func renderGRPCMetadataAppend(md *MetadataData, root string) string {
 		if md.Pointer {
 			fmt.Fprintf(&b, "\tif %s != nil {\n", value)
 		}
-		if md.Bearer {
+		if md.Bearer.Framed {
 			fmt.Fprintf(&b, "\t\t(*md).Append(%q, \"Bearer \"+%s)\n", md.Name, renderMetadataSingleValue(md, value))
 		} else {
 			fmt.Fprintf(&b, "\t\t(*md).Append(%q, %s)\n", md.Name, renderMetadataSingleValue(md, value))
@@ -40,7 +40,7 @@ func renderGRPCMetadataAppend(md *MetadataData, root string) string {
 }
 
 func renderGRPCMetadataDecode(md *MetadataData, mdVar string) string {
-	if md.Bearer {
+	if md.Bearer.Framed {
 		return renderGRPCBearerMetadataDecode(md, mdVar)
 	}
 	var b strings.Builder
@@ -117,8 +117,18 @@ func renderGRPCBearerMetadataDecode(md *MetadataData, mdVar string) string {
 	} else {
 		fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
 	}
-	b.WriteString("\t\t\tvalue, ok := security.DecodeBearer(vals[0])\n\t\t\tif !ok {\n\t\t\t\treturn nil, loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n\t\t\t}\n")
+	b.WriteString("\t\t\tvalue, ok := security.DecodeBearer(vals[0])\n\t\t\tif !ok")
+	if md.Bearer.AllowOtherScheme {
+		b.WriteString(" && !security.IsOtherAuthorizationScheme(vals[0], \"Bearer\")")
+	}
+	b.WriteString(" {\n\t\t\t\treturn nil, loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n\t\t\t}\n")
+	if md.Bearer.AllowOtherScheme {
+		b.WriteString("\t\t\tif ok {\n")
+	}
 	fmt.Fprintf(&b, "\t\t\t%s = %svalue\n", md.VarName, addrPrefix(md.Pointer))
+	if md.Bearer.AllowOtherScheme {
+		b.WriteString("\t\t\t}\n")
+	}
 	b.WriteString("\t\t}\n")
 
 	return b.String()

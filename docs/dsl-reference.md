@@ -2231,6 +2231,18 @@ invalid Basic header leaves their pointers nil. A valid header supplies both
 components, including empty values. If either is required, a missing or invalid
 header fails decoding. Regenerate clients and servers to adopt this behavior.
 
+An optional Authorization bearer credential can coexist with other `Security`
+alternatives. If another requirement does not use that credential, a header
+using another scheme (such as `Basic`) leaves the bearer field absent instead
+of failing bearer decoding. This applies to HTTP, JSON-RPC POST and gRPC
+metadata. The authentication callbacks still decide whether an alternative
+succeeds; failed alternatives do not pass their modified context to the next.
+Explicit payload `Required` constraints remain unconditional. Malformed Bearer
+framing and authored credential validation failures still reject the request,
+even when another alternative is available. A bearer-only requirement retains
+strict bearer decoding. Regenerate clients and servers to adopt this correction.
+
+
 
 ### Security Schemes
 

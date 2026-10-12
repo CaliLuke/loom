@@ -23,7 +23,7 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{
 			{{- end }}
 			head := {{ if .IsTextUnmarshaler }}fmt.Sprint({{ end }}{{ if .FieldPointer }}*{{ end }}p{{ if .FieldName }}.{{ .FieldName }}{{ end }}{{ if .IsTextUnmarshaler }}){{ end }}
-   {{- if .Bearer }}
+   {{- if .Bearer.Framed }}
    req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+{{ if isAlias .FieldType }}string(head){{ else }}head{{ end }})
    {{- else }}
 			{{- if eq .Type.Name "array" }}

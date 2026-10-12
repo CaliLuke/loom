@@ -81,7 +81,7 @@ func (d *ServicesData) buildEndpointDataWithContext(
 	response := d.buildResponseData(endpointIR, svc, sd, collector)
 	msgSch, metSch := partitionSecuritySchemes(endpointIR, md)
 	for _, metadata := range request.Metadata {
-		metadata.Bearer = securitygen.IsBearer(metadata.Name, metadata.AttributeName, metSch)
+		metadata.Bearer = securitygen.PlanBearer(metadata.Name, metadata.AttributeName, metadata.Required, metSch, md.Requirements)
 	}
 
 	ed := &EndpointData{

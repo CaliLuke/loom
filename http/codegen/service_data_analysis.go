@@ -203,7 +203,7 @@ func (sds *ServicesData) buildEndpointDataFromIR(endpointIR *transportir.Endpoin
 	payload := sds.buildPayloadDataFromIR(endpointIR, sd)
 	reqs, hsch, bosch, qsch, basch := sds.buildRequirementSchemes(endpointIR)
 	for _, header := range payload.Request.Headers {
-		header.Bearer = securitygen.IsBearer(header.HTTPName, header.AttributeName, hsch)
+		header.Bearer = securitygen.PlanBearer(header.HTTPName, header.AttributeName, header.Required, hsch, reqs)
 	}
 
 	requestInit := sds.buildClientRequestInit(endpointIR, method, svc, routes)

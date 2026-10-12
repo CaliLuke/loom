@@ -756,6 +756,13 @@ components, including empty values. If either is required, a missing or invalid
 header fails decoding. Regenerate clients and servers to adopt this behavior.
 
 
+Optional bearer credentials can coexist with Basic or other security alternatives.
+A foreign Authorization scheme leaves an optional bearer field absent only when
+another requirement does not use it. Authentication callbacks decide which
+alternative succeeds. Payload Required, malformed Bearer framing and supplied
+credential constraints still apply unconditionally. This applies to HTTP,
+JSON-RPC POST and gRPC metadata; regenerate transports after upgrading.
+
 Prefer Loom's first-class session DSL:
 
 - `SessionAuth(name, fn)`

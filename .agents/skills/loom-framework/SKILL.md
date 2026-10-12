@@ -244,13 +244,17 @@ consumer validation.
   separately from the service field type and uses `InitStructFields` for the
   constructor assignments, including pointer presence.
 
-- `internal/securitygen.IsBearer` classifies JWT/OAuth Authorization mappings
-  using each transport's actual wire name and credential attribute. Encoders
-  add framing once; decoders call `security.DecodeBearer` before DSL validation
-  and typed construction. Other locations and API keys preserve raw values.
-  Do not normalize a constructed payload or guess prefixes from spaces.
-  Metadata validators must pass the alias representation flag so optional named
-  strings retain nil guards and Unicode length semantics.
+- `internal/securitygen.PlanBearer` resolves JWT/OAuth Authorization framing
+  together with payload Required and authentication requirement membership.
+  Only an optional credential omitted by another requirement may remain absent
+  for a foreign Authorization scheme. Encoders frame once; decoders use the
+  strict `security.DecodeBearer` before DSL validation and typed construction.
+  `security.IsOtherAuthorizationScheme` owns foreign framing classification;
+  malformed matching Bearer, singleton/AND-only credentials and global Required
+  retain strict rejection. Authentication callbacks still select alternatives
+  in declaration order and isolate failed contexts. Other mappings preserve raw
+  values. Never normalize a constructed payload or guess prefixes from spaces.
+  Metadata validators retain alias representation, nil guards and Unicode length.
 
 - HTTP Basic header presence is analyzed once in `BasicAuthData`. Renderers
   send if either component is required or represented as present, and assign
