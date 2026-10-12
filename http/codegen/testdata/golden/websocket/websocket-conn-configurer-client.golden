@@ -32,10 +32,6 @@ type ConnConfigurer struct {
 type ConfigurableStreamClientStream struct {
 	// conn owns the websocket connection lifecycle.
 	conn *loomhttp.WebSocketStream
-	// done is closed when the client stream is closed.
-	done chan struct{}
-	// closeOnce closes done at most once.
-	closeOnce sync.Once
 }
 
 // NewConnConfigurer initializes the websocket connection configuration with
@@ -56,14 +52,6 @@ func (s *ConfigurableStreamClientStream) Recv() (string, error) {
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -85,14 +73,6 @@ func (s *ConfigurableStreamClientStream) RecvWithContext(ctx context.Context) (s
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {

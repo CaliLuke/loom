@@ -62,7 +62,7 @@ func TestWebSocketMessageLimit(t *testing.T) {
 				}
 				var config loomhttp.WebSocketConfig
 				if tc.limit > 0 {
-					config, err = loomhttp.NewWebSocketConfig(tc.limit, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn {
+					config, err = loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: tc.limit}, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn {
 						if tc.hookLimit > 0 {
 							conn.SetReadLimit(tc.hookLimit)
 						}
@@ -77,7 +77,7 @@ func TestWebSocketMessageLimit(t *testing.T) {
 					conn.SetReadLimit(tc.priorLimit)
 				}
 				stream := loomhttp.NewWebSocketStream(config)
-				if err := stream.SetConn(conn, nil); err != nil {
+				if err := stream.SetConn(context.Background(), conn, nil); err != nil {
 					t.Errorf("attach: %v", err)
 					return
 				}

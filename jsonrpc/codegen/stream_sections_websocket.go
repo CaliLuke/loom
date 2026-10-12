@@ -308,17 +308,7 @@ func jsonrpcWebSocketServerCloseSection(data *httpcodegen.ServiceData) codegen.S
 			Params().
 			Error().
 			Block(
-				jen.Var().Id("err").Error(),
-				jen.If(jen.Id("s").Dot("conn").Op("==").Nil()).Block(
-					jen.Return(jen.Nil()),
-				),
-				jen.If(
-					jen.Id("err").Op("=").Id("s").Dot("conn").Dot("WriteClose").Call(jen.Lit("server closing connection")),
-					jen.Id("err").Op("!=").Nil(),
-				).Block(
-					jen.Return(jen.Id("err")),
-				),
-				jen.Return(jen.Id("s").Dot("conn").Dot("Close").Call()),
+				jen.Return(jen.Id("s").Dot("conn").Dot("CloseWithStatus").Call(jen.Lit(1000), jen.Lit(""))),
 			)
 	})
 }

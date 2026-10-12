@@ -34,17 +34,25 @@ func NewBidirectionalStreamingMethodHandler(
 		}
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+		r = r.WithContext(ctx)
+		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
 		v := &bidirectionalstreamingservice.BidirectionalStreamingMethodEndpointInput{
 			Stream: &BidirectionalStreamingMethodServerStream{
 				upgrader: upgrader,
 				cancel:   cancel,
 				w:        w,
 				r:        r,
-				conn:     loomhttp.NewWebSocketStream(configurer, writePolicy),
+				conn:     stream,
 			},
 			Payload: payload,
 		}
-		_, err = endpoint(ctx, v)
+		err = stream.RunHandler(func() error {
+			_, err := endpoint(ctx, v)
+			return err
+		}, func(closeErr error) {
+			lifecycle.ResponseFailed(closeErr, errhandler)
+		})
 		if err != nil {
 			var stream *BidirectionalStreamingMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {

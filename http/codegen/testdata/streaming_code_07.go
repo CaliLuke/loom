@@ -11,14 +11,6 @@ func (s *StreamingResultUserTypeMapMethodClientStream) Recv() (map[string]*strea
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -51,14 +43,6 @@ func (s *StreamingResultUserTypeMapMethodClientStream) RecvWithContext(ctx conte
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {

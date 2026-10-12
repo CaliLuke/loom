@@ -15,7 +15,7 @@ OverflowCleanup ==
     /\ phase = "failed" /\ kind = "limit" /\ phase' = "cleaned"
     /\ closed' = TRUE
     /\ owner' = IF closed THEN owner ELSE "limit"
-    /\ readErr' = IF ~closed /\ Design = "revised" THEN "limit" ELSE readErr
+    /\ readErr' = IF ~closed /\ Design \in {"revised", "lifecycle"} THEN "limit" ELSE readErr
     /\ UNCHANGED <<kind, localUsed>>
 
 RecordFailure ==
@@ -23,7 +23,10 @@ RecordFailure ==
     /\ phase' = "done"
     /\ readErr' = IF readErr = "none" /\ (Design = "old" \/ ~closed)
                    THEN kind ELSE readErr
-    /\ UNCHANGED <<closed, owner, kind, localUsed>>
+    /\ IF Design = "lifecycle" /\ kind = "network" /\ ~closed
+           THEN /\ closed' = TRUE /\ owner' = "network"
+           ELSE UNCHANGED <<closed, owner>>
+    /\ UNCHANGED <<kind, localUsed>>
 
 LocalClose ==
     /\ ~localUsed
@@ -32,12 +35,13 @@ LocalClose ==
         \/ (CloseOrder = "after" /\ phase = "done" /\ kind = "network")
     /\ localUsed' = TRUE /\ closed' = TRUE
     /\ owner' = IF closed THEN owner ELSE "local"
-    /\ readErr' = IF ~closed /\ Design = "revised" THEN "none" ELSE readErr
+    /\ readErr' = IF ~closed /\ Design \in {"revised", "lifecycle"} THEN "none" ELSE readErr
     /\ UNCHANGED <<phase, kind>>
 
 Next == ReadFailure \/ OverflowCleanup \/ RecordFailure \/ LocalClose
 Spec == Init /\ [][Next]_vars
 LocalCloseOwnsCause == owner = "local" => readErr = "none"
 OverflowOwnsCause == owner = "limit" /\ phase = "done" => readErr = "limit"
+NetworkOwnsCause == owner = "network" => readErr = "network"
 OwnerIsTerminal == (owner # "none") = closed
 =============================================================================

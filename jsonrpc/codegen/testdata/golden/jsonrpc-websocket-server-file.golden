@@ -150,12 +150,5 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) processRequest(ctx context.Contex
 
 // Close closes the JSONRPCWebSocketRuntimeService service websocket connection.
 func (s *jSONRPCWebSocketRuntimeServiceStream) Close() error {
-	var err error
-	if s.conn == nil {
-		return nil
-	}
-	if err = s.conn.WriteClose("server closing connection"); err != nil {
-		return err
-	}
-	return s.conn.Close()
+	return s.conn.CloseWithStatus(1000, "")
 }

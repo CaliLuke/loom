@@ -94,20 +94,10 @@ func multipartRequestEncoderTypeSection(data *MultipartData) codegen.Section {
 }
 
 func renderWebSocketCloseBody(ws *WebSocketData) string {
-	var b strings.Builder
-	b.WriteString("var err error\n")
-	if ws.Type == "client" && ws.SendName == "" {
-		b.WriteString("s.closeOnce.Do(func() {\n\tif s.done != nil {\n\t\tclose(s.done)\n\t}\n})\n")
-	}
 	if ws.Type == "server" {
-		b.WriteString("if s.conn == nil {\n\treturn nil\n}\n")
-		b.WriteString("if err = s.conn.WriteClose(\"server closing connection\"); err != nil {\n\treturn err\n}\n")
-	} else {
-		b.WriteString("// Send a nil payload to the server implying client closing connection.\n")
-		b.WriteString("if err = s.conn.WriteJSON(context.Background(), nil); err != nil {\n\treturn err\n}\n")
+		return "return s.conn.CloseWithStatus(websocket.CloseNormalClosure, \"\")"
 	}
-	b.WriteString("return s.conn.Close()")
-	return b.String()
+	return "return s.conn.CloseWithFinalJSON(nil)"
 }
 
 func renderBuildStreamRequestBody(endpoint *EndpointData) string {

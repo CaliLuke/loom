@@ -16,7 +16,6 @@ func (s *StreamingPayloadUserTypeMapMethodClientStream) CloseAndRecv() ([]string
 	}
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.conn.Close()
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -53,7 +52,6 @@ func (s *StreamingPayloadUserTypeMapMethodClientStream) CloseAndRecvWithContext(
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.conn.Close()
 		return rv, io.EOF
 	}
 	if err != nil {

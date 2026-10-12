@@ -15,16 +15,28 @@ import (
 )
 
 func TestWebSocketConfigValidation(t *testing.T) {
-	require.EqualValues(t, loomhttp.DefaultMaxRequestBodyBytes, (loomhttp.WebSocketConfig{}).MaxMessageBytes())
-	for _, limit := range []int64{-1, 0, math.MaxInt64} {
-		_, err := loomhttp.NewWebSocketConfig(limit, nil)
+	for _, limits := range []loomhttp.WebSocketLimits{
+		{}, {MaxMessageBytes: 1}, {MaxMessageBytes: math.MaxInt64 / 2},
+		{MaxMessageBytes: 10, MaxBufferedBytes: 20, MaxBufferedMessages: 1},
+	} {
+		config, err := loomhttp.NewWebSocketConfig(limits, nil)
+		require.NoError(t, err)
+		require.Positive(t, config.MaxMessageBytes())
+		require.GreaterOrEqual(t, config.MaxBufferedBytes(), 2*config.MaxMessageBytes())
+		require.Positive(t, config.MaxBufferedMessages())
+	}
+	for _, limits := range []loomhttp.WebSocketLimits{
+		{MaxMessageBytes: -1}, {MaxMessageBytes: math.MaxInt64/2 + 1},
+		{MaxBufferedBytes: -1}, {MaxBufferedMessages: -1},
+		{MaxMessageBytes: 10, MaxBufferedBytes: 19},
+	} {
+		_, err := loomhttp.NewWebSocketConfig(limits, nil)
 		require.Error(t, err)
 	}
-	for _, limit := range []int64{1, 1024, math.MaxInt64 - 1} {
-		config, err := loomhttp.NewWebSocketConfig(limit, nil)
-		require.NoError(t, err)
-		require.Equal(t, limit, config.MaxMessageBytes())
-	}
+	config := loomhttp.WebSocketConfig{}
+	require.EqualValues(t, loomhttp.DefaultMaxRequestBodyBytes, config.MaxMessageBytes())
+	require.EqualValues(t, 2*loomhttp.DefaultMaxRequestBodyBytes, config.MaxBufferedBytes())
+	require.Equal(t, 256, config.MaxBufferedMessages())
 }
 
 func TestWebSocketSetConnOwnsAttachment(t *testing.T) {
@@ -33,7 +45,7 @@ func TestWebSocketSetConnOwnsAttachment(t *testing.T) {
 	second, cleanupSecond := newIdleWebSocketConn(t)
 	defer cleanupSecond()
 	var calls atomic.Int32
-	config, err := loomhttp.NewWebSocketConfig(1024, func(conn *websocket.Conn, cancel context.CancelFunc) *websocket.Conn {
+	config, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: 1024}, func(conn *websocket.Conn, cancel context.CancelFunc) *websocket.Conn {
 		calls.Add(1)
 		require.NotNil(t, cancel)
 		return conn
@@ -43,13 +55,13 @@ func TestWebSocketSetConnOwnsAttachment(t *testing.T) {
 	defer func() {
 		require.NoError(t, stream.Close())
 	}()
-	require.Error(t, stream.SetConn(nil, nil))
+	require.Error(t, stream.SetConn(context.Background(), nil, nil))
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	require.NoError(t, stream.SetConn(first, cancel))
-	require.NoError(t, stream.SetConn(first, nil))
+	require.NoError(t, stream.SetConn(context.Background(), first, cancel))
+	require.NoError(t, stream.SetConn(context.Background(), first, nil))
 	require.EqualValues(t, 1, calls.Load())
-	require.Error(t, stream.SetConn(second, nil))
+	require.Error(t, stream.SetConn(context.Background(), second, nil))
 	require.Same(t, first, stream.Conn())
 	require.ErrorIs(t, second.NetConn().SetDeadline(time.Now()), net.ErrClosed)
 }
@@ -69,7 +81,7 @@ func TestWebSocketSetConnHookOwnership(t *testing.T) {
 				output, cleanupOutput = newIdleWebSocketConn(t)
 				defer cleanupOutput()
 			}
-			config, err := loomhttp.NewWebSocketConfig(1024, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn {
+			config, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: 1024}, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn {
 				if replacement {
 					require.NoError(t, conn.Close())
 				}
@@ -77,7 +89,7 @@ func TestWebSocketSetConnHookOwnership(t *testing.T) {
 			})
 			require.NoError(t, err)
 			stream := loomhttp.NewWebSocketStream(config)
-			err = stream.SetConn(input, nil)
+			err = stream.SetConn(context.Background(), input, nil)
 			if replacement {
 				require.NoError(t, err)
 				require.Same(t, output, stream.Conn())
@@ -97,7 +109,7 @@ func TestWebSocketSetConnCloseDuringHook(t *testing.T) {
 	defer cleanup()
 	entered := make(chan struct{})
 	resume := make(chan struct{})
-	config, err := loomhttp.NewWebSocketConfig(1024, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn {
+	config, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: 1024}, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn {
 		close(entered)
 		<-resume
 		return conn
@@ -106,7 +118,7 @@ func TestWebSocketSetConnCloseDuringHook(t *testing.T) {
 	stream := loomhttp.NewWebSocketStream(config)
 	attached := make(chan error, 1)
 	go func() {
-		attached <- stream.SetConn(conn, nil)
+		attached <- stream.SetConn(context.Background(), conn, nil)
 	}()
 	<-entered
 	require.NoError(t, stream.Close())

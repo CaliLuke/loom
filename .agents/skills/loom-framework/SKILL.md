@@ -988,15 +988,24 @@ filter, and serialization rules belong here.
   `isEmpty` only for messages without fields. The converter of such a message
   takes no argument, so the codecs discard the value that they assert
   (`valueVar`), while the stream converters always take the stream item.
-- Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
-  endpoints should not grow independent read/write/close loops.
-  `WebSocketConfig` owns the connection-level message limit and configuration
-  hook; `WebSocketStream.SetConn` is the sole configuration/attachment path.
-  Bound both Gorilla framing and expanded message bytes before decoding;
-  overflow sends 1009 and physically closes even when the control write fails.
-  Hooks own retiring replaced inputs, and a nil result retains terminal
-  attachment state so an upgraded HTTP response never falls back to HTTP error
-  encoding. Keep `http/tla/websocket_message_limit` and real-socket tests aligned.
+- `http.WebSocketStream` owns attachment, one physical reader, bounded inbound
+  admission and terminal publication. Generated endpoints supply typed adapters,
+  not independent watcher/done/closeOnce state. `WebSocketConfig` owns byte/count
+  limits and the hook; `SetConn(ctx, conn, cancel)` configures before adoption and
+  binds physical lifetime there. Hook replacements own retiring their inputs;
+  nil results retain terminal attachment state after an HTTP upgrade.
+  Queue and current-decode reservations share the byte/count budgets; reserve
+  space for one in-flight maximum message and count empty messages. Release a
+  decode reservation only after its callback returns. JSON-RPC uses that seam
+  for envelope parsing and retains its own logical dispatch/demultiplexing.
+  The first terminal transition publishes cause and cancellation and releases
+  the socket. Natural read failure retains admitted FIFO work for live-context
+  readers; overload and explicit close discard it. Preserve raw Close's
+  immediate-release contract. Shared handler cleanup, status close and final
+  JSON close bound terminal writes independently of application writes, always
+  release the socket, and preserve the original handler error/panic. Keep
+  CloseAndRecv's null half-close nonterminal. Align both message-admission and
+  lifecycle models with real-socket and generated transport regressions.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,
   HTTP/SSE negotiation, WebSocket setup, and final stream-response decisions
   in `jsonrpc`. Generated JSON-RPC code supplies typed dispatch, error, and

@@ -52,7 +52,7 @@ func TestGeneratedMessageLimit(t *testing.T) {
 	for _, receiver := range []string{"server", "client"} {
 		for _, size := range []int{128, 129} {
 			t.Run(fmt.Sprintf("%s/%d", receiver, size), func(t *testing.T) {
-				config, err := loomhttp.NewWebSocketConfig(128, nil)
+				config, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: 128}, nil)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -142,7 +142,13 @@ func TestGeneratedMessageLimit(t *testing.T) {
 				select {
 				case got := <-result:
 					if size > 128 {
-						if !errors.Is(got.err, websocket.ErrReadLimit) || got.msg != nil {
+						wantErr := websocket.ErrReadLimit
+						if receiver == "server" {
+							// The shared owner cancels the service lifetime on overflow;
+							// an operation using that context observes cancellation.
+							wantErr = context.Canceled
+						}
+						if !errors.Is(got.err, wantErr) || got.msg != nil {
 							t.Errorf("oversize decoded: %#v, %v", got.msg, got.err)
 						}
 					} else if got.err != nil || got.msg == nil || got.msg.Text != strings.Repeat("x", size-11) {
@@ -158,7 +164,7 @@ func TestGeneratedMessageLimit(t *testing.T) {
 func TestGeneratedNilHookRetainsUpgradeState(t *testing.T) {
 	calls := make(chan string, 2)
 	result := make(chan observation, 1)
-	config, err := loomhttp.NewWebSocketConfig(128, func(*websocket.Conn, context.CancelFunc) *websocket.Conn {
+	config, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: 128}, func(*websocket.Conn, context.CancelFunc) *websocket.Conn {
 		return nil
 	})
 	if err != nil {

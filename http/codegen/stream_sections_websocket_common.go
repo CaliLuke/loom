@@ -28,7 +28,7 @@ func renderWebsocketUpgrade(endpoint *EndpointData, function string, recv bool, 
 	b.WriteString("\t\t\ts.upgradeErr = err\n")
 	b.WriteString("\t\t\treturn\n")
 	b.WriteString("\t\t}\n")
-	b.WriteString("\t\tif err = s.conn.SetConn(conn, s.cancel); err != nil {\n\t\t\ts.upgradeErr = err\n\t\t\treturn\n\t\t}\n")
+	b.WriteString("\t\tif err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {\n\t\t\ts.upgradeErr = err\n\t\t\treturn\n\t\t}\n")
 	if withContext {
 		b.WriteString("\t\tif err = ctx.Err(); err != nil {\n")
 		b.WriteString("\t\t\tif closeErr := s.conn.Close(); closeErr != nil {\n")

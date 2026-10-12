@@ -903,8 +903,13 @@ Method("echo", func() {
 Generated WebSocket streams keep the public typed `Send`, `Recv`, `Close`,
 and `*WithContext` methods, while the socket lifecycle is owned by
 `loomhttp.WebSocketStream`. That runtime wrapper handles idempotent close,
-context-cancel unblocking, close-control frames, and JSON frame read/write
-coordination so generated endpoint wrappers stay thin.
+context cancellation, one physical reader, bounded inbound admission, and
+terminal close. It keeps detecting disconnects while a service is running or
+waiting without calling `Recv`. A handler that returns releases its upgraded
+connection: success sends close 1000, and error or panic sends 1011 with a generic
+reason. A panic still propagates. Returning before upgrade leaves normal HTTP
+error handling intact. Applications do not need a deferred close to make handler
+completion safe.
 
 `Close` is terminal. After a stream is closed, including a server stream
 closed before its lazy upgrade, later `Send` and `Recv` calls return
@@ -915,8 +920,10 @@ close is closed immediately. Only one goroutine may call `Recv` at a time.
 
 - A failed connection read (a close frame, an abrupt disconnect, or a read
   deadline expiry) is terminal. Later `Recv` calls return the same error
-  without reading the socket again, so return from your receive loop on
-  such an error.
+  without reading the socket again. The socket is released and the service
+  context is canceled immediately. Already admitted messages remain FIFO for
+  readers whose operation context is still live, followed by that terminal
+  error. Return from your receive loop on a connection error.
 - A context canceled during a read returns the context error and closes the
   stream, so later calls return `loomhttp.ErrWebSocketStreamClosed`. A
   context that is already done returns its error without reading, and a
@@ -946,20 +953,46 @@ code 1009, releases the connection, and returns an error wrapping
 Set the policy once for each physical connection:
 
 ```go
-config, err := loomhttp.NewWebSocketConfig(8 << 20, configure)
+config, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{
+    MaxMessageBytes:     8 << 20,
+    MaxBufferedBytes:   16 << 20,
+    MaxBufferedMessages: 128,
+}, configure)
 if err != nil {
     return err
 }
 ```
 
 The optional `configure` hook has type `loomhttp.ConnConfigureFunc`; pass `nil`
-when no hook is needed. A zero `loomhttp.WebSocketConfig{}` selects the default.
+when no hook is needed. A zero `loomhttp.WebSocketConfig{}` selects 32 MiB per
+message, 64 MiB total raw admission and 256 queued/currently decoding messages.
+Zero fields in `WebSocketLimits` select defaults: 32 MiB per message, twice the
+resolved message size for the total byte budget, and 256 messages. Negative
+values reject. The message size cannot exceed MaxInt64/2 and the byte budget
+must hold at least two maximum-size messages.
+
+The runtime reserves one maximum-size message for its physical reader. Queued
+messages and the raw message being decoded share the remaining byte budget and
+the message-count limit. Empty messages count too. If either limit is exceeded,
+Loom attempts close 1013, releases the socket, cancels the service context and
+returns an error matching `loomhttp.ErrWebSocketBufferFull`. It never drops input
+and continues. This protects connections whose service stops consuming; clients
+that send too far ahead of a slow service must reconnect after rejection.
+
+These are raw payload and queue-record bounds, not a total Go heap bound.
+Decoded objects, compression/allocator overhead, and values retained by caller
+code are outside the budget. `ReadJSON` holds its reservation through decoding;
+`ReadMessage` transfers the bytes to its caller on return. One extra byte probes
+an individual message for overflow. HTTP null input half-close remains distinct
+from disconnection and permits `CloseAndRecv` to receive the final result.
 Generated HTTP `NewConnConfigurer(config)` applies it to every streaming
 endpoint; individual `<Method>Config` fields can select different policies.
 JSON-RPC client and server constructors accept the config in the former raw
 configure-function argument position. A shared JSON-RPC client keeps this
 policy for its physical connection across calls. Regenerate transport code and
-update constructor calls when adopting this API.
+update constructor calls from `NewWebSocketConfig(maxBytes, hook)` to
+`NewWebSocketConfig(WebSocketLimits{MaxMessageBytes: maxBytes}, hook)` when
+adopting this API.
 
 The runtime installs its framing limit before invoking the hook. A hook may
 lower that limit; increasing it does not bypass the expanded-byte limit. If the
@@ -968,10 +1001,18 @@ invalidating the returned connection and configure the replacement's framing
 limit. Returning `nil` fails attachment and closes the input.
 
 For direct runtime use, allocate `NewWebSocketStream(config)` and then call
-`SetConn(conn, cancel)`, checking its error. Attachment is the sole configuration
-path. Reattaching the same connection does nothing; attaching another while a
+`SetConn(ctx, conn, cancel)`, checking its error. The connection lifetime context
+controls idle cancellation; it is not a per-message context. Attachment is the
+sole configuration path and starts the reader after the hook. Configure reader
+handlers and deadlines inside that hook, before the physical reader starts. Reattaching the same connection does nothing; attaching another while a
 connection is owned rejects and closes the incoming connection. A connection
 attached after terminal close is closed immediately without invoking the hook.
+Raw runtime `Close` releases immediately. `CloseWithStatus(code, reason)` owns a
+bounded close-control attempt and unconditional release; replace the old
+`WriteClose` then `Close` sequence with it. `CloseWithFinalJSON(value)` also
+bounds waiting behind an existing writer and always releases the socket.
+Generated HTTP client `Close` uses this operation with JSON null. It is terminal;
+use the generated `CloseAndRecv` for input half-close with a final response.
 
 Generated HTTP and JSON-RPC server constructors accept an optional final
 `loomhttp.StreamWritePolicy`. Constructing the policy validates the timeout;

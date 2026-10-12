@@ -22,7 +22,7 @@ Use a distinct temporary metadir for each run. `message_old.cfg` and
 OverflowReleased and ValidAccepted in 18 distinct states. These runs used Java
 25.0.4.1 on 2026-10-12.
 
-`Read` corresponds to `http.WebSocketStream.ReadMessage`: Gorilla's framing
+`Read` corresponds to `http.WebSocketStream.readPump`: Gorilla's framing
 limit rejects wire overflow; a max-plus-one expanded read detects compressed
 expansion, sends a bounded 1009 close control and releases the socket.
 `TestWebSocketMessageLimit` tests exact, exceeded, compressed, default, framing
@@ -31,8 +31,8 @@ the default and compressed-expansion controls accepted oversized messages,
 and the framing-only rejection left the local socket open.
 
 `TestWebSocketConfigValidation` and `TestWebSocketSetConn*` cover configuration
-and attachment outside this abstract model. Lifetime and inbox ownership are
-separate pending #722 work, outside the #716 correction.
+and attachment outside this abstract model. Lifetime and inbox ownership are modeled separately in
+[`../websocket_lifetime`](../websocket_lifetime/README.md).
 
 ## Terminal read cause
 
@@ -50,30 +50,37 @@ controls violate `LocalCloseOwnsCause` in 11 and 7 distinct states respectively.
 The revised model passes all three invariants in 16 distinct states (20 states
 generated). These runs used the same pinned TLC and Java versions on 2026-10-12.
 
-The first physical-close transition owns the terminal read cause. An explicit
-or context Close clears a prior nonclosing read failure and selects the closed
-sentinel. Read-driven overflow cleanup selects the limit failure. Later closes
-and read errors caused by closing cannot replace either cause. Cancellation may
-still override the result of the active operation with its context error; it
-does not override an already selected connection-terminal cause.
+The #716 revised model records first physical-close ownership. Local close
+selects the closed sentinel; overflow selects the limit failure. In that earlier
+runtime a non-limit network failure was recorded without closing, so a later
+local close superseded it. `terminal_revised.cfg` preserves that historical
+control; it is not the complete current lifecycle contract.
 
-`LocalClose` and `OverflowCleanup` correspond to the shared
-`WebSocketStream.close(readCause)` transition under `connLock`.
-`RecordFailure` corresponds to `recordReadErr`, which records only while open.
-The model explores local close before and after failure detection, before and
-after overflow cleanup, and before and after read-error recording. The bounded
-1009 control write precedes overflow cleanup; a concurrent local close can win
-during that write. The model abstracts that interval as scheduling before
-`OverflowCleanup`. Physical Close and error publication are atomic under the
-lock; syscall failures, attachment and payload decoding remain outside this
-model. The invariants concern subsequent reads, not the low-level error returned
-to an operation already in progress, and make no liveness claim.
+`cfg/terminal_lifecycle.cfg` adds automatic network-failure closure. It passes
+`LocalCloseOwnsCause`, `OverflowOwnsCause`, `NetworkOwnsCause` and
+`OwnerIsTerminal` in 17 distinct states (20 generated). Network failure,
+expanded overflow and local close now all compete for the same first terminal
+publication. A later transition cannot replace that cause. Cancellation may
+still override the active operation's result with its context error; it cannot
+replace an already selected connection cause. The original network error object
+is preserved when physical cleanup succeeds, retaining Gorilla's close-error
+classification behavior.
 
-`TestWebSocketStreamLocalCloseOwnsTerminalCause` synchronizes on the underlying
-socket read before canceling or closing, and separately closes after a completed
-deadline read failure. All three cases failed before the correction.
-`TestWebSocketStreamAlreadyCanceledReadPreservesConnection` checks that a context
-already done neither reads nor closes the socket; a subsequent valid message
-still succeeds. `TestWebSocketStreamOverflowOwnsTerminalCause` checks that a
-later explicit Close preserves the limit cause. These tests check the modeled
-ordering against real Gorilla sockets; race-detector runs check shared state.
+`LocalClose`, `OverflowCleanup` and lifecycle `RecordFailure` correspond to
+`WebSocketStream.stop` publishing `closed` and `readErr` under `connLock`.
+Publication precedes bounded terminal I/O and physical release. The separate
+shutdown model explores that non-atomic interval and attachment races; this
+small cause model abstracts it and makes no liveness claim. Syscall failures,
+payload decoding and operation-context precedence are outside its state space.
+
+`TestWebSocketStreamLocalCloseOwnsTerminalCause` synchronizes on operation
+preflight before cancellation or explicit close. Synchronizing on the socket
+read is insufficient now that the physical pump starts at attachment.
+`TestWebSocketStreamAlreadyCanceledReadPreservesConnection` checks that an
+already-done operation neither reads nor closes; a later valid message succeeds.
+`TestWebSocketStreamOverflowOwnsTerminalCause` preserves overflow through later
+close. `TestWebSocketInboxNaturalClosePreservesFIFO` checks admitted delivery
+followed by the exact stable natural cause, including after explicit close.
+`TestWebSocketStreamTerminalReadReleasesSocket` covers normal, abrupt and deadline
+read failures. Real-socket race-detector tests establish implementation evidence
+beyond the model's finite assumptions.

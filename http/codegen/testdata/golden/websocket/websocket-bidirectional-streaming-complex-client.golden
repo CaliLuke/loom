@@ -117,10 +117,5 @@ func (s *BidirectionalComplexClientStream) Send(v *testservice.Request) error {
 
 // Close closes the "BidirectionalComplex" endpoint websocket connection.
 func (s *BidirectionalComplexClientStream) Close() error {
-	var err error
-	// Send a nil payload to the server implying client closing connection.
-	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
-		return err
-	}
-	return s.conn.Close()
+	return s.conn.CloseWithFinalJSON(nil)
 }

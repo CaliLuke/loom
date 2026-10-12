@@ -448,7 +448,7 @@ func newClient(t *testing.T, svc *service, conn *gatedConn, cfn loomhttp.ConnCon
 		conn.Conn = c
 		return conn, nil
 	}}
-	config, err := loomhttp.NewWebSocketConfig(loomhttp.DefaultMaxRequestBodyBytes, cfn)
+	config, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: loomhttp.DefaultMaxRequestBodyBytes}, cfn)
 	if err != nil {
 		t.Fatal(err)
 	}

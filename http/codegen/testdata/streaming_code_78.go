@@ -28,7 +28,7 @@ func (s *BidirectionalStreamingResultWithViewsMethodServerStream) RecvWithContex
 			s.upgradeErr = err
 			return
 		}
-		if err = s.conn.SetConn(conn, s.cancel); err != nil {
+		if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 			s.upgradeErr = err
 			return
 		}

@@ -106,10 +106,5 @@ func (s *BidirectionalPrimitiveClientStream) Send(v string) error {
 
 // Close closes the "BidirectionalPrimitive" endpoint websocket connection.
 func (s *BidirectionalPrimitiveClientStream) Close() error {
-	var err error
-	// Send a nil payload to the server implying client closing connection.
-	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
-		return err
-	}
-	return s.conn.Close()
+	return s.conn.CloseWithFinalJSON(nil)
 }

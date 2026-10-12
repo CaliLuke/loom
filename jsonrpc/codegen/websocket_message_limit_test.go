@@ -43,11 +43,11 @@ func TestGeneratedMessageLimit(t *testing.T) {
 				}
 				serverConn := make(chan *websocket.Conn, 1)
 				clientConn := make(chan *websocket.Conn, 1)
-				serverConfig, err := loomhttp.NewWebSocketConfig(serverLimit, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn { serverConn <- conn; return conn })
+				serverConfig, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: serverLimit}, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn { serverConn <- conn; return conn })
 				if err != nil {
 					t.Fatal(err)
 				}
-				clientConfig, err := loomhttp.NewWebSocketConfig(clientLimit, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn { clientConn <- conn; return conn })
+				clientConfig, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: clientLimit}, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn { clientConn <- conn; return conn })
 				if err != nil {
 					t.Fatal(err)
 				}

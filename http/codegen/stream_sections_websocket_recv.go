@@ -123,12 +123,6 @@ func writeClientWebsocketRecvBody(b *strings.Builder, ws *WebSocketData, ctxExpr
 	}
 	fmt.Fprintf(b, "\terr = s.conn.ReadJSON(%s, &body)\n", ctxExpr)
 	b.WriteString("\tif websocket.IsCloseError(err, websocket.CloseNormalClosure) {\n")
-	if ws.Type == "client" && ws.SendName == "" {
-		b.WriteString("\t\ts.closeOnce.Do(func() {\n\t\t\tif s.done != nil {\n\t\t\t\tclose(s.done)\n\t\t\t}\n\t\t})\n")
-		b.WriteString("\t\tif closeErr := s.conn.Close(); closeErr != nil {\n\t\t\treturn rv, closeErr\n\t\t}\n")
-	} else if !ws.MustClose {
-		b.WriteString("\t\ts.conn.Close()\n")
-	}
 	b.WriteString("\t\treturn rv, io.EOF\n")
 	b.WriteString("\t}\n")
 	b.WriteString("\tif err != nil {\n")

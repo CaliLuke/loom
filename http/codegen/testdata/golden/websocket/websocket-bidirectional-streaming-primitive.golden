@@ -71,7 +71,7 @@ func (s *BidirectionalPrimitiveServerStream) SendWithContext(ctx context.Context
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -131,7 +131,7 @@ func (s *BidirectionalPrimitiveServerStream) RecvWithContext(ctx context.Context
 			s.upgradeErr = err
 			return
 		}
-		if err = s.conn.SetConn(conn, s.cancel); err != nil {
+		if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 			s.upgradeErr = err
 			return
 		}
@@ -158,12 +158,5 @@ func (s *BidirectionalPrimitiveServerStream) RecvWithContext(ctx context.Context
 
 // Close closes the "BidirectionalPrimitive" endpoint websocket connection.
 func (s *BidirectionalPrimitiveServerStream) Close() error {
-	var err error
-	if s.conn == nil {
-		return nil
-	}
-	if err = s.conn.WriteClose("server closing connection"); err != nil {
-		return err
-	}
-	return s.conn.Close()
+	return s.conn.CloseWithStatus(websocket.CloseNormalClosure, "")
 }

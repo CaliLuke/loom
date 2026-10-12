@@ -604,7 +604,12 @@ compression. Configure a physical connection with `loomhttp.WebSocketConfig` in
 the generated client or server constructor's connection-configuration argument.
 A shared client uses that configuration across its logical streams. See the
 [WebSocket configuration contract](../docs/http-guide.md#websocket-implementation)
-for custom limits, hook ownership, close code 1009, and regeneration steps.
+for custom limits, hook ownership, close codes 1009/1013, and regeneration steps.
+The default connection inbox admits 256 queued/currently decoding messages and
+64 MiB total raw payload bytes, including one in-flight message. Empty messages
+count. Overload closes the connection and cancels service lifetime rather than
+silently dropping requests. Dispatch remains sequential; disconnect detection
+continues while a method is running.
 
 Full-duplex, persistent connections for real-time communication. Ideal for:
 - Chat applications
@@ -721,9 +726,11 @@ func (s *chatSvc) Echo(ctx context.Context, p *chat.EchoPayload,
   - Generated client and server streams wrap the raw Gorilla socket in
     `loomhttp.WebSocketStream`, which owns context-bound JSON frame I/O,
     close-control writes, and idempotent close behavior.
-  - Your `HandleStream` should defer `stream.Close()` and typically loop on
-    `stream.Recv(ctx)`, which reads a JSON-RPC message and dispatches it to
-    the appropriate generated handler based on its `method`.
+  - Your `HandleStream` typically loops on `stream.Recv(ctx)`, which reads a
+    JSON-RPC message and dispatches it to the appropriate generated handler.
+    The runtime closes on handler return: 1000 on success, 1011 with a generic
+    reason on error or panic. Panics still propagate. A deferred application
+    close is not needed for connection cleanup.
 - Dispatch and method invocation:
   - For non-streaming methods, `Recv` decodes the payload, invokes your
     method, and sends the typed JSON-RPC success response via the stream.

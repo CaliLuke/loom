@@ -434,6 +434,6 @@ func (r *recordedErrors) kindsSeen() []StreamErrorType {
 func newRuntimeWebSocketStream(t *testing.T, conn *websocket.Conn) *loomhttp.WebSocketStream {
 	t.Helper()
 	stream := loomhttp.NewWebSocketStream(loomhttp.WebSocketConfig{})
-	require.NoError(t, stream.SetConn(conn, nil))
+	require.NoError(t, stream.SetConn(context.Background(), conn, nil))
 	return stream
 }

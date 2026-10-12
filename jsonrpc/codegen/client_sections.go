@@ -287,7 +287,7 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 				)
 				g.Line()
 				g.Id("stream").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("c").Dot("webSocketConfig"))
-				g.If(jen.Id("err").Op(":=").Id("stream").Dot("SetConn").Call(jen.Id("ws"), jen.Nil()), jen.Id("err").Op("!=").Nil()).Block(
+				g.If(jen.Id("err").Op(":=").Id("stream").Dot("SetConn").Call(jen.Qual("context", "Background").Call(), jen.Id("ws"), jen.Nil()), jen.Id("err").Op("!=").Nil()).Block(
 					jen.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrRequestError").Call(jen.Lit(data.Service.Name), jen.Lit("connect"), jen.Id("err"))),
 				)
 				g.Id("conn").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "NewWebSocketClientConn").Call(

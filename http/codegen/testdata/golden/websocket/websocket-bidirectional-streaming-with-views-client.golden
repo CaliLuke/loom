@@ -127,12 +127,7 @@ func (s *BidirectionalWithViewsClientStream) Send(v *testservice.Request) error 
 
 // Close closes the "BidirectionalWithViews" endpoint websocket connection.
 func (s *BidirectionalWithViewsClientStream) Close() error {
-	var err error
-	// Send a nil payload to the server implying client closing connection.
-	if err = s.conn.WriteJSON(context.Background(), nil); err != nil {
-		return err
-	}
-	return s.conn.Close()
+	return s.conn.CloseWithFinalJSON(nil)
 }
 
 // SetView sets the view used to validate testservice.Response results received

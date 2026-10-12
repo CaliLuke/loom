@@ -30,16 +30,24 @@ func NewBidirectionalStreamingNoPayloadMethodHandler(
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+		r = r.WithContext(ctx)
+		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
 		v := &bidirectionalstreamingnopayloadservice.BidirectionalStreamingNoPayloadMethodEndpointInput{
 			Stream: &BidirectionalStreamingNoPayloadMethodServerStream{
 				upgrader: upgrader,
 				cancel:   cancel,
 				w:        w,
 				r:        r,
-				conn:     loomhttp.NewWebSocketStream(configurer, writePolicy),
+				conn:     stream,
 			},
 		}
-		_, err = endpoint(ctx, v)
+		err = stream.RunHandler(func() error {
+			_, err := endpoint(ctx, v)
+			return err
+		}, func(closeErr error) {
+			lifecycle.ResponseFailed(closeErr, errhandler)
+		})
 		if err != nil {
 			var stream *BidirectionalStreamingNoPayloadMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {

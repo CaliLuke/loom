@@ -226,9 +226,9 @@ func TestClientWebSocketServerStreamingEndpointDoesNotLeakContextWatcher(t *test
 
 	code := codegen.SectionCode(t, clientEndpointSection(endpoint))
 
-	require.Contains(t, code, "done := make(chan struct{})")
-	require.Contains(t, code, "case <-done:")
-	require.Contains(t, code, "done: done")
+	require.NotContains(t, code, "done := make(chan struct{})")
+	require.NotContains(t, code, "go func()")
+	require.Contains(t, code, "wsconn.SetConn(ctx, conn, cancel)")
 	require.Contains(t, code, "wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultMethodConfig)")
 	require.Contains(t, code, "conn: wsconn")
 	require.NotContains(t, code, "<-ctx.Done()\n\t\t\tconn.WriteControl")

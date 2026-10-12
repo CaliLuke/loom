@@ -67,7 +67,7 @@ type (
 	WebSocketHandlerSpec struct {
 		// Upgrader upgrades the HTTP connection.
 		Upgrader loomhttp.Upgrader
-		// Config defines the message limit and hook for the upgraded connection.
+		// Config defines inbound message/buffer limits and the attachment hook.
 		Config loomhttp.WebSocketConfig
 		// WritePolicy bounds WebSocket writes.
 		WritePolicy loomhttp.StreamWritePolicy
@@ -169,16 +169,15 @@ func ServeWebSocket(w http.ResponseWriter, r *http.Request, spec WebSocketHandle
 		return
 	}
 	stream := loomhttp.NewWebSocketStream(spec.Config, spec.WritePolicy)
-	if err := stream.SetConn(conn, cancel); err != nil {
+	if err := stream.SetConn(ctx, conn, cancel); err != nil {
 		handleHTTPFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to configure WebSocket: %w", err))
 		return
 	}
-	defer func() {
-		if closeErr := stream.Close(); closeErr != nil {
-			handleHTTPFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to close WebSocket: %w", closeErr))
-		}
-	}()
-	if err := spec.Run(ctx, cancel, r, w, stream); err != nil {
+	if err := stream.RunHandler(func() error {
+		return spec.Run(ctx, cancel, r.WithContext(ctx), w, stream)
+	}, func(closeErr error) {
+		handleHTTPFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to close WebSocket: %w", closeErr))
+	}); err != nil {
 		handleHTTPFailure(ctx, w, spec.HandleFailure, err)
 	}
 }
@@ -201,15 +200,19 @@ func ReceiveWebSocketRequest(
 	dispatch WebSocketDispatch,
 	sendError WebSocketErrorSender,
 ) error {
-	data, err := stream.ReadMessage(ctx)
+	var request RawRequest
+	var decodeErr error
+	err := stream.DecodeMessage(ctx, func(data []byte) error {
+		decodeErr = json.Unmarshal(data, &request)
+		return nil
+	})
 	if err != nil {
 		if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 			return io.EOF
 		}
 		return err
 	}
-	var request RawRequest
-	if err := json.Unmarshal(data, &request); err != nil {
+	if decodeErr != nil {
 		if sendErr := sendError(ctx, nil, ParseError, "Parse error", nil); sendErr != nil {
 			return fmt.Errorf("failed to send parse error: %w", sendErr)
 		}

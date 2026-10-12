@@ -133,12 +133,6 @@ func websocketStructTypeSection(ws *WebSocketData) codegen.Section {
 			}
 			group.Comment("conn owns the websocket connection lifecycle.")
 			group.Id("conn").Op("*").Add(codegen.TypeRef("loomhttp.WebSocketStream"))
-			if ws.Type == "client" && ws.SendName == "" {
-				group.Comment("done is closed when the client stream is closed.")
-				group.Id("done").Chan().Struct()
-				group.Comment("closeOnce closes done at most once.")
-				group.Id("closeOnce").Qual("sync", "Once")
-			}
 			if ws.Endpoint.Method.ViewedResult != nil && ws.Endpoint.Method.ViewedResult.ViewName == "" {
 				doc := fmt.Sprintf("view is the view to render %s result type before sending to the websocket connection.", ws.SendTypeName)
 				if ws.Type == "client" {

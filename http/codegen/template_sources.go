@@ -190,19 +190,27 @@ func {{ .HandlerInit }}(
 	{{- if isWebSocketEndpoint . }}
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+		r = r.WithContext(ctx)
+		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
 		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 			Stream: &{{ .ServerWebSocket.VarName }}{
 				upgrader: upgrader,
 				cancel: cancel,
 				w: w,
 				r: r,
-				conn: loomhttp.NewWebSocketStream(configurer, writePolicy),
+				conn: stream,
 			},
 		{{- if .Payload.Ref }}
 			Payload: payload,
 		{{- end }}
 		}
-		_, err = endpoint(ctx, v)
+		err = stream.RunHandler(func() error {
+			_, err := endpoint(ctx, v)
+			return err
+		}, func(closeErr error) {
+			lifecycle.ResponseFailed(closeErr, errhandler)
+		})
 	{{- else if and (isSSEEndpoint .) (not .HasMixedResults) }}
 		{{- if .SSE.RequestIDField }}
 		if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {

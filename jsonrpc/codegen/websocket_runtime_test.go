@@ -54,7 +54,7 @@ func TestJSONRPCWebSocketUsesSharedRuntimeStream(t *testing.T) {
 	require.Equal(t, 1, strings.Count(clientEndpointCode, "NewWebSocketStream("))
 	// A configure function returning nil must not leave a wrapper around a nil
 	// connection for the next getConn to ping.
-	require.Contains(t, clientEndpointCode, "stream.SetConn(ws, nil)")
+	require.Contains(t, clientEndpointCode, "stream.SetConn(context.Background(), ws, nil)")
 	require.NotContains(t, clientEndpointCode, "if configured == nil {")
 }
 

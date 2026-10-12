@@ -76,7 +76,7 @@ func (s *BidirectionalWithViewsServerStream) SendWithContext(ctx context.Context
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -146,7 +146,7 @@ func (s *BidirectionalWithViewsServerStream) RecvWithContext(ctx context.Context
 			s.upgradeErr = err
 			return
 		}
-		if err = s.conn.SetConn(conn, s.cancel); err != nil {
+		if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 			s.upgradeErr = err
 			return
 		}
@@ -178,14 +178,7 @@ func (s *BidirectionalWithViewsServerStream) RecvWithContext(ctx context.Context
 
 // Close closes the "BidirectionalWithViews" endpoint websocket connection.
 func (s *BidirectionalWithViewsServerStream) Close() error {
-	var err error
-	if s.conn == nil {
-		return nil
-	}
-	if err = s.conn.WriteClose("server closing connection"); err != nil {
-		return err
-	}
-	return s.conn.Close()
+	return s.conn.CloseWithStatus(websocket.CloseNormalClosure, "")
 }
 
 // SetView sets the view to render the testservice.Response type before sending

@@ -23,8 +23,10 @@ func (c *Client) StreamingPayloadMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingPayloadService", "StreamingPayloadMethod", err)
 		}
+		ctx, cancel := context.WithCancel(ctx)
 		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingPayloadMethodConfig)
-		if err := wsconn.SetConn(conn, nil); err != nil {
+		if err := wsconn.SetConn(ctx, conn, cancel); err != nil {
+			cancel()
 			return nil, loomhttp.ErrRequestError("StreamingPayloadService", "StreamingPayloadMethod", err)
 		}
 		stream := &StreamingPayloadMethodClientStream{conn: wsconn}

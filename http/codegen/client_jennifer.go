@@ -202,42 +202,15 @@ func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
 		)
 	})
 
-	cancel := jen.Nil()
-	if endpoint.ClientWebSocket.SendName == "" {
-		group.Var().Id("cancel").Qual("context", "CancelFunc")
-		group.List(jen.Id("ctx"), jen.Id("cancel")).Op("=").Qual("context", "WithCancel").Call(jen.Id("ctx"))
-		cancel = jen.Id("cancel")
-	}
+	group.List(jen.Id("ctx"), jen.Id("cancel")).Op(":=").Qual("context", "WithCancel").Call(jen.Id("ctx"))
 	group.Id("wsconn").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("c").Dot("configurer").Dot(endpoint.Method.VarName + "Config"))
-	group.If(jen.Err().Op(":=").Id("wsconn").Dot("SetConn").Call(jen.Id("conn"), cancel), jen.Err().Op("!=").Nil()).BlockFunc(func(failure *jen.Group) {
-		if endpoint.ClientWebSocket.SendName == "" {
-			failure.Id("cancel").Call()
-		}
-		failure.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrRequestError").Call(jen.Lit(endpoint.ServiceName), jen.Lit(endpoint.Method.Name), jen.Err()))
-	})
-
-	if endpoint.ClientWebSocket.SendName == "" {
-		group.Id("done").Op(":=").Make(jen.Chan().Struct())
-		addRawWebSocketGroup(group, `go func() {
-	defer cancel()
-	select {
-	case <-ctx.Done():
-		if err := wsconn.WriteClose("client closing connection"); err != nil {
-			return
-		}
-		if err := wsconn.Close(); err != nil {
-			return
-		}
-	case <-done:
-	}
-}()`)
-	}
+	group.If(jen.Err().Op(":=").Id("wsconn").Dot("SetConn").Call(jen.Id("ctx"), jen.Id("conn"), jen.Id("cancel")), jen.Err().Op("!=").Nil()).Block(
+		jen.Id("cancel").Call(),
+		jen.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrRequestError").Call(jen.Lit(endpoint.ServiceName), jen.Lit(endpoint.Method.Name), jen.Err())),
+	)
 
 	group.Id("stream").Op(":=").Op("&").Id(endpoint.ClientWebSocket.VarName).ValuesFunc(func(values *jen.Group) {
 		values.Id("conn").Op(":").Id("wsconn")
-		if endpoint.ClientWebSocket.SendName == "" {
-			values.Id("done").Op(":").Id("done")
-		}
 	})
 	if endpoint.Method.ViewedResult != nil && endpoint.Method.ViewedResult.ViewName == "" {
 		group.Id("view").Op(":=").Id("resp").Dot("Header").Dot("Get").Call(jen.Lit("loom-view"))

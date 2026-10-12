@@ -120,7 +120,7 @@ func TestWebSocketStreamCloseAfterContextCancellation(t *testing.T) {
 func TestWebSocketStreamNilConnection(t *testing.T) {
 	stream := loomhttp.NewWebSocketStream(loomhttp.WebSocketConfig{})
 	require.NoError(t, stream.Close())
-	require.NoError(t, stream.WriteClose("not upgraded"))
+	require.NoError(t, stream.CloseWithStatus(websocket.CloseNormalClosure, "not upgraded"))
 
 	var msg map[string]string
 	err := stream.ReadJSON(context.Background(), &msg)
@@ -141,13 +141,13 @@ func TestWebSocketStreamCloseIsTerminal(t *testing.T) {
 			if tc.attachFirst {
 				first, cleanup := newIdleWebSocketConn(t)
 				defer cleanup()
-				require.NoError(t, stream.SetConn(first, nil))
+				require.NoError(t, stream.SetConn(context.Background(), first, nil))
 			}
 			require.NoError(t, stream.Close())
 
 			late, cleanup := newIdleWebSocketConn(t)
 			defer cleanup()
-			require.ErrorIs(t, stream.SetConn(late, nil), loomhttp.ErrWebSocketStreamClosed)
+			require.ErrorIs(t, stream.SetConn(context.Background(), late, nil), loomhttp.ErrWebSocketStreamClosed)
 
 			require.Same(t, late, stream.Conn(), "SetConn after Close must still expose the upgraded connection")
 			require.ErrorIs(t, late.ReadJSON(new(map[string]string)), net.ErrClosed, "SetConn after Close must close the incoming connection")
@@ -205,11 +205,11 @@ func TestWebSocketStreamReadMessage(t *testing.T) {
 func TestWebSocketStreamFailedReadIsTerminal(t *testing.T) {
 	conn, cleanup := newIdleWebSocketConn(t)
 	defer cleanup()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
 	stream := newConfiguredWebSocketStream(t, conn)
 	defer func() {
 		require.NoError(t, stream.Close())
 	}()
-	require.NoError(t, conn.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
 
 	// gorilla/websocket panics after 1000 reads of a failed connection, so
 	// the stream must stop reading the connection after the first failure.
@@ -227,11 +227,11 @@ func TestWebSocketStreamFailedReadIsTerminal(t *testing.T) {
 func TestWebSocketStreamFailedReadJSONIsTerminal(t *testing.T) {
 	conn, cleanup := newIdleWebSocketConn(t)
 	defer cleanup()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
 	stream := newConfiguredWebSocketStream(t, conn)
 	defer func() {
 		require.NoError(t, stream.Close())
 	}()
-	require.NoError(t, conn.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
 
 	// gorilla/websocket panics after 1000 reads of a failed connection, so
 	// ReadJSON must stop reading the connection after the first failure.
@@ -410,6 +410,6 @@ func newIdleWebSocketConn(t *testing.T) (*websocket.Conn, func()) {
 func newConfiguredWebSocketStream(t *testing.T, conn *websocket.Conn, policies ...loomhttp.StreamWritePolicy) *loomhttp.WebSocketStream {
 	t.Helper()
 	stream := loomhttp.NewWebSocketStream(loomhttp.WebSocketConfig{}, policies...)
-	require.NoError(t, stream.SetConn(conn, nil))
+	require.NoError(t, stream.SetConn(context.Background(), conn, nil))
 	return stream
 }

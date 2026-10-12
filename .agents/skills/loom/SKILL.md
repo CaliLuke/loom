@@ -849,25 +849,34 @@ requirement retain AND semantics.
   interface rather than adding parallel socket lifecycle code. `Close` is
   terminal, even before the lazy server upgrade: later `Send`/`Recv` return
   `loomhttp.ErrWebSocketStreamClosed`. Call `Recv` from one goroutine only.
-- HTTP and JSON-RPC WebSocket clients and servers limit each inbound message
-  to 32 MiB after decompression by default. Use
-  `loomhttp.NewWebSocketConfig(maxBytes, configure)` to choose the cap and hook;
-  zero config uses the default. Oversize messages close the connection with
-  code 1009 and a matchable `websocket.ErrReadLimit`. Regenerate adapters and
-  replace raw-hook constructor arguments with configs. HTTP uses generated
-  `NewConnConfigurer(config)` and per-method config fields; JSON-RPC passes the
-  config directly. A hook returning a replacement owns releasing the input
-  without invalidating its replacement. Direct runtime callers allocate with
-  `NewWebSocketStream(config)` then check `SetConn(conn, cancel)`.
-- A failed WebSocket connection read is terminal: later `Recv` calls return
-  the same error, so return from the receive loop. A context canceled during a
-  read closes the stream, so later calls return
-  `loomhttp.ErrWebSocketStreamClosed`; an already-done context returns its
-  error without reading. A decode error (including
-  `io.ErrUnexpectedEOF` for an empty message) leaves the stream readable.
-  Messages decode with strict `encoding/json/v2`. JSON-RPC WebSocket `Recv`
-  returns `io.EOF` on a normal closure and answers invalid JSON with a Parse
-  error frame itself.
+- HTTP and JSON-RPC WebSocket clients and servers default to 32 MiB per
+  decompressed message, a 64 MiB raw buffer budget, and 256 queued/decoding
+  messages. Use `loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{...},
+  configure)` to choose limits and a hook; zero fields select defaults. The
+  byte budget must hold at least two maximum messages. Decoded objects,
+  allocation overhead and raw bytes retained by callers are outside that budget.
+  Oversize messages close with 1009; buffer overload closes with 1013 and
+  cancels the connection context. Empty messages count toward the message limit.
+  Regenerate adapters and replace the old numeric constructor argument with
+  `WebSocketLimits{MaxMessageBytes: maxBytes}`. HTTP uses generated
+  `NewConnConfigurer(config)` and per-method fields; JSON-RPC passes config
+  directly. A replacement hook owns releasing its input without invalidating
+  the replacement. Direct runtime callers allocate `NewWebSocketStream(config)`
+  and check `SetConn(ctx, conn, cancel)`.
+- The shared reader detects disconnects even while the service is not receiving.
+  Generated HTTP handlers close attached connections when the service returns
+  (1000 on success, generic 1011 on failure or panic). No upgrade is forced for
+  a handler that never uses its stream. `CloseAndRecv` still half-closes input
+  and receives the result; it does not terminally close before the response.
+- Connection read failures are terminal. Live-context readers may consume
+  previously admitted messages before the recorded natural read error; explicit
+  close and overload discard queued work. Return from the receive loop on a
+  terminal error. Cancellation during an operation closes the connection;
+  already-done contexts return their error without touching the stream. A decode
+  error, including `io.ErrUnexpectedEOF` for empty input, leaves it readable.
+  Messages use strict `encoding/json/v2`. JSON-RPC maps normal closure to io.EOF
+  and answers invalid JSON with a Parse error frame. A canceled service context
+  may return context.Canceled instead of the connection's recorded cause.
 - JSON-RPC WebSocket client streams opened on one generated client share its
   connection safely: each stream receives only its own responses. Closing a
   stream or canceling its context ends that stream alone; the connection

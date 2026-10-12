@@ -51,17 +51,25 @@ func NewStreamingResultMethodHandler(
 		}
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+		r = r.WithContext(ctx)
+		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
 		v := &streamingresultservice.StreamingResultMethodEndpointInput{
 			Stream: &StreamingResultMethodServerStream{
 				upgrader: upgrader,
 				cancel:   cancel,
 				w:        w,
 				r:        r,
-				conn:     loomhttp.NewWebSocketStream(configurer, writePolicy),
+				conn:     stream,
 			},
 			Payload: payload,
 		}
-		_, err = endpoint(ctx, v)
+		err = stream.RunHandler(func() error {
+			_, err := endpoint(ctx, v)
+			return err
+		}, func(closeErr error) {
+			lifecycle.ResponseFailed(closeErr, errhandler)
+		})
 		if err != nil {
 			var stream *StreamingResultMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
@@ -188,7 +196,7 @@ func (s *StreamingResultMethodServerStream) SendWithContext(ctx context.Context,
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -225,14 +233,7 @@ func (s *StreamingResultMethodServerStream) Send(v *streamingresultservice.UserT
 
 var StreamingResultServerStreamCloseCode = `// Close closes the "StreamingResultMethod" endpoint websocket connection.
 func (s *StreamingResultMethodServerStream) Close() error {
-	var err error
-	if s.conn == nil {
-		return nil
-	}
-	if err = s.conn.WriteClose("server closing connection"); err != nil {
-		return err
-	}
-	return s.conn.Close()
+	return s.conn.CloseWithStatus(websocket.CloseNormalClosure, "")
 }
 `
 
@@ -257,7 +258,7 @@ func (s *StreamingResultWithViewsMethodServerStream) SendWithContext(ctx context
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -340,16 +341,24 @@ func NewStreamingResultNoPayloadMethodHandler(
 		var err error
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+		r = r.WithContext(ctx)
+		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
 		v := &streamingresultnopayloadservice.StreamingResultNoPayloadMethodEndpointInput{
 			Stream: &StreamingResultNoPayloadMethodServerStream{
 				upgrader: upgrader,
 				cancel:   cancel,
 				w:        w,
 				r:        r,
-				conn:     loomhttp.NewWebSocketStream(configurer, writePolicy),
+				conn:     stream,
 			},
 		}
-		_, err = endpoint(ctx, v)
+		err = stream.RunHandler(func() error {
+			_, err := endpoint(ctx, v)
+			return err
+		}, func(closeErr error) {
+			lifecycle.ResponseFailed(closeErr, errhandler)
+		})
 		if err != nil {
 			var stream *StreamingResultNoPayloadMethodServerStream
 			if wrapper, ok := v.Stream.(interface{ Unwrap() any }); ok {
@@ -382,28 +391,13 @@ func (c *Client) StreamingResultMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultService", "StreamingResultMethod", err)
 		}
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(ctx)
 		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultMethodConfig)
-		if err := wsconn.SetConn(conn, cancel); err != nil {
+		if err := wsconn.SetConn(ctx, conn, cancel); err != nil {
 			cancel()
 			return nil, loomhttp.ErrRequestError("StreamingResultService", "StreamingResultMethod", err)
 		}
-		done := make(chan struct{})
-		go func() {
-			defer cancel()
-			select {
-			case <-ctx.Done():
-				if err := wsconn.WriteClose("client closing connection"); err != nil {
-					return
-				}
-				if err := wsconn.Close(); err != nil {
-					return
-				}
-			case <-done:
-			}
-		}()
-		stream := &StreamingResultMethodClientStream{conn: wsconn, done: done}
+		stream := &StreamingResultMethodClientStream{conn: wsconn}
 		return stream, nil
 	}
 }
@@ -412,14 +406,7 @@ func (c *Client) StreamingResultMethod() loom.Endpoint {
 var StreamingResultWithViewsServerStreamCloseCode = `// Close closes the "StreamingResultWithViewsMethod" endpoint websocket
 // connection.
 func (s *StreamingResultWithViewsMethodServerStream) Close() error {
-	var err error
-	if s.conn == nil {
-		return nil
-	}
-	if err = s.conn.WriteClose("server closing connection"); err != nil {
-		return err
-	}
-	return s.conn.Close()
+	return s.conn.CloseWithStatus(websocket.CloseNormalClosure, "")
 }
 `
 
@@ -433,14 +420,6 @@ func (s *StreamingResultMethodClientStream) Recv() (*streamingresultservice.User
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -463,14 +442,6 @@ func (s *StreamingResultMethodClientStream) RecvWithContext(ctx context.Context)
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -500,28 +471,13 @@ func (c *Client) StreamingResultWithViewsMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 		}
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(ctx)
 		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultWithViewsMethodConfig)
-		if err := wsconn.SetConn(conn, cancel); err != nil {
+		if err := wsconn.SetConn(ctx, conn, cancel); err != nil {
 			cancel()
 			return nil, loomhttp.ErrRequestError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 		}
-		done := make(chan struct{})
-		go func() {
-			defer cancel()
-			select {
-			case <-ctx.Done():
-				if err := wsconn.WriteClose("client closing connection"); err != nil {
-					return
-				}
-				if err := wsconn.Close(); err != nil {
-					return
-				}
-			case <-done:
-			}
-		}()
-		stream := &StreamingResultWithViewsMethodClientStream{conn: wsconn, done: done}
+		stream := &StreamingResultWithViewsMethodClientStream{conn: wsconn}
 		view := resp.Header.Get("loom-view")
 		stream.SetView(view)
 		return stream, nil
@@ -539,14 +495,6 @@ func (s *StreamingResultWithViewsMethodClientStream) Recv() (*streamingresultwit
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -578,14 +526,6 @@ func (s *StreamingResultWithViewsMethodClientStream) RecvWithContext(ctx context
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -631,28 +571,13 @@ func (c *Client) StreamingResultWithExplicitViewMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 		}
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(ctx)
 		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultWithExplicitViewMethodConfig)
-		if err := wsconn.SetConn(conn, cancel); err != nil {
+		if err := wsconn.SetConn(ctx, conn, cancel); err != nil {
 			cancel()
 			return nil, loomhttp.ErrRequestError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 		}
-		done := make(chan struct{})
-		go func() {
-			defer cancel()
-			select {
-			case <-ctx.Done():
-				if err := wsconn.WriteClose("client closing connection"); err != nil {
-					return
-				}
-				if err := wsconn.Close(); err != nil {
-					return
-				}
-			case <-done:
-			}
-		}()
-		stream := &StreamingResultWithExplicitViewMethodClientStream{conn: wsconn, done: done}
+		stream := &StreamingResultWithExplicitViewMethodClientStream{conn: wsconn}
 		return stream, nil
 	}
 }
@@ -669,14 +594,6 @@ func (s *StreamingResultWithExplicitViewMethodClientStream) Recv() (*streamingre
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -709,14 +626,6 @@ func (s *StreamingResultWithExplicitViewMethodClientStream) RecvWithContext(ctx 
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -755,7 +664,7 @@ func (s *StreamingResultWithExplicitViewMethodServerStream) SendWithContext(ctx 
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -815,7 +724,7 @@ func (s *StreamingResultCollectionWithViewsMethodServerStream) SendWithContext(c
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -882,14 +791,6 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) Recv() (streaming
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -922,14 +823,6 @@ func (s *StreamingResultCollectionWithViewsMethodClientStream) RecvWithContext(c
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -977,7 +870,7 @@ func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithCo
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -1035,28 +928,13 @@ func (c *Client) StreamingResultCollectionWithExplicitViewMethod() loom.Endpoint
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 		}
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(ctx)
 		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultCollectionWithExplicitViewMethodConfig)
-		if err := wsconn.SetConn(conn, cancel); err != nil {
+		if err := wsconn.SetConn(ctx, conn, cancel); err != nil {
 			cancel()
 			return nil, loomhttp.ErrRequestError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 		}
-		done := make(chan struct{})
-		go func() {
-			defer cancel()
-			select {
-			case <-ctx.Done():
-				if err := wsconn.WriteClose("client closing connection"); err != nil {
-					return
-				}
-				if err := wsconn.Close(); err != nil {
-					return
-				}
-			case <-done:
-			}
-		}()
-		stream := &StreamingResultCollectionWithExplicitViewMethodClientStream{conn: wsconn, done: done}
+		stream := &StreamingResultCollectionWithExplicitViewMethodClientStream{conn: wsconn}
 		return stream, nil
 	}
 }
@@ -1074,14 +952,6 @@ func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) Recv() (st
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -1114,14 +984,6 @@ func (s *StreamingResultCollectionWithExplicitViewMethodClientStream) RecvWithCo
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -1158,7 +1020,7 @@ func (s *StreamingResultPrimitiveMethodServerStream) SendWithContext(ctx context
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -1202,14 +1064,6 @@ func (s *StreamingResultPrimitiveMethodClientStream) Recv() (string, error) {
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -1231,14 +1085,6 @@ func (s *StreamingResultPrimitiveMethodClientStream) RecvWithContext(ctx context
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -1267,7 +1113,7 @@ func (s *StreamingResultPrimitiveArrayMethodServerStream) SendWithContext(ctx co
 				s.upgradeErr = err
 				return
 			}
-			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+			if err = s.conn.SetConn(s.r.Context(), conn, s.cancel); err != nil {
 				s.upgradeErr = err
 				return
 			}
@@ -1311,14 +1157,6 @@ func (s *StreamingResultPrimitiveArrayMethodClientStream) Recv() ([]int32, error
 	)
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -1350,14 +1188,6 @@ func (s *StreamingResultPrimitiveArrayMethodClientStream) RecvWithContext(ctx co
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.closeOnce.Do(func() {
-			if s.done != nil {
-				close(s.done)
-			}
-		})
-		if closeErr := s.conn.Close(); closeErr != nil {
-			return rv, closeErr
-		}
 		return rv, io.EOF
 	}
 	if err != nil {

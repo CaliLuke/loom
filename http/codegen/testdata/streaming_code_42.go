@@ -18,7 +18,6 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodClientStream) Clo
 	}
 	err = s.conn.ReadJSON(context.Background(), &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.conn.Close()
 		return rv, io.EOF
 	}
 	if err != nil {
@@ -57,7 +56,6 @@ func (s *StreamingPayloadResultCollectionWithExplicitViewMethodClientStream) Clo
 	}
 	err = s.conn.ReadJSON(ctx, &body)
 	if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		s.conn.Close()
 		return rv, io.EOF
 	}
 	if err != nil {
