@@ -54,6 +54,8 @@ const streamAdmissionWireTest = `package contracttest
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net"
 	"sync/atomic"
 	"testing"
@@ -125,6 +127,7 @@ func TestAdmission(t *testing.T) {
 		access, middleware                int32
 		code                              codes.Code
 		wait, replace, revoke, nilContext bool
+		rejectBeforeSend                 bool
 		auth, service                     int32
 		received                          bool
 	}{
@@ -133,6 +136,7 @@ func TestAdmission(t *testing.T) {
 		{name: "valid-without-frame", key: "secret", wait: true, auth: 1, received: true},
 		{name: "replacement-context-without-frame", key: "secret", wait: true, replace: true, auth: 1, received: true},
 		{name: "wrong-with-frame", code: codes.Unknown, problem: "unauthorized", key: "wrong", frame: "valid", auth: 1},
+		{name: "rejection-before-send", code: codes.Unknown, problem: "unauthorized", key: "wrong", frame: "valid", auth: 1, rejectBeforeSend: true},
 		{name: "valid-with-frame", key: "secret", frame: "valid", auth: 2, service: 1, received: true},
 		{name: "replacement-context-with-frame", key: "secret", frame: "valid", replace: true, auth: 2, service: 1, received: true},
 		{name: "revocation-while-waiting", code: codes.Unknown, problem: "unauthorized", key: "secret", frame: "valid", revoke: true, auth: 2, received: true},
@@ -179,6 +183,11 @@ func TestAdmission(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if tc.rejectBeforeSend {
+				if _, err := stream.Header(); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if tc.frame != "" {
 				if tc.frame == "eof" {
 					if err := stream.CloseSend(); err != nil {
@@ -193,7 +202,9 @@ func TestAdmission(t *testing.T) {
 					if tc.frame == "wrong-kind" {
 						frame.Body = nil
 					}
-					if err := stream.Send(frame); err != nil {
+					// A server rejection may arrive before the first send. gRPC reports
+					// EOF here; RecvMsg below still owns the final status assertions.
+					if err := stream.Send(frame); err != nil && !errors.Is(err, io.EOF) {
 						t.Fatal(err)
 					}
 				}
