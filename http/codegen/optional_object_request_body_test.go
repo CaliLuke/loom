@@ -34,7 +34,8 @@ func TestOptionalObjectRequestBody(t *testing.T) {
 			Optional: true,
 			Encode:   "err := encoder(req).Encode(&body)",
 			Decode: []string{
-				"\t\tvar (\n\t\t\tbody = &FindRequestBody{}\n\t\t\terr  error\n\t\t)\n",
+				"\t\tvar (\n\t\t\tbody = &FindRequestBody{}\n\t\t)\n",
+				"\t\tvar err error\n",
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\tif errors.Is(err, io.EOF) {\n\t\t\t\tbody = nil\n\t\t\t\terr = nil\n\t\t\t} else {\n",
 			},
@@ -75,7 +76,8 @@ func TestOptionalObjectRequestBody(t *testing.T) {
 			DSL:    optionalObjectRequestBodyDSL(true, false, false, true),
 			Encode: "err := encoder(req).Encode(&body)",
 			Decode: []string{
-				"\t\tvar (\n\t\t\tbody FindRequestBody\n\t\t\terr  error\n\t\t)\n",
+				"\t\tvar (\n\t\t\tbody FindRequestBody\n\t\t)\n",
+				"\t\tvar err error\n",
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 			},
 			Validate: "\t\terr = ValidateFindRequestBody(&body)\n\t\tif err != nil {\n\t\t\treturn payload, err\n\t\t}\n",

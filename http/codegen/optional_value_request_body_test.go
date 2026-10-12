@@ -43,7 +43,8 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			Primitive: true,
 			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
 			Decode: []string{
-				"\t\tvar (\n\t\t\tbody = new(string)\n\t\t\terr  error\n\t\t)\n",
+				"\t\tvar (\n\t\t\tbody = new(string)\n\t\t)\n",
+				"\t\tvar err error\n",
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(body)\n",
 				"\t\t\tif errors.Is(err, io.EOF) {\n\t\t\t\tbody = nil\n\t\t\t\terr = nil\n\t\t\t} else {\n",
 				"\t\tif body != nil {\n\t\t\tif utf8.RuneCountInString(*body) < 2 {\n",
