@@ -55,7 +55,7 @@ var requestDecoderElementPartials = []templateSource{
 {{- if .QueryParams }}
 {{ .DecodePlan.QueryValuesVar }}, {{ .DecodePlan.QueryErrorVar }} := url.ParseQuery(r.URL.RawQuery)
 if {{ .DecodePlan.QueryErrorVar }} != nil {
-	return payload, loom.DecodePayloadError("invalid query string")
+	{{ requestErrorReturn "loom.DecodePayloadError(\"invalid query string\")" }}
 }
 {{- end }}
 {{- $qpVar := .DecodePlan.QueryValuesVar }}
@@ -342,7 +342,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
   } else { {{ else }}len({{ .Locals.Raw }}) > 0 { {{ end }}
    {{ .Locals.Val }}, ok := security.DecodeBearer({{ .Locals.Raw }}[0])
    if !ok{{ if .Bearer.AllowOtherScheme }} && !security.IsOtherAuthorizationScheme({{ .Locals.Raw }}[0], "Bearer"){{ end }} {
-    return payload, loom.DecodePayloadError("invalid Authorization bearer credential")
+    {{ requestErrorReturn "loom.DecodePayloadError(\"invalid Authorization bearer credential\")" }}
    }
    {{- if .Bearer.AllowOtherScheme }}
    if ok {
@@ -466,7 +466,7 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 					err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "cookie"))
 					{{- end }}
 				} else {
-					return payload, cookieErr
+					{{ requestErrorReturn "cookieErr" }}
 				}
 			}
 		{{- if .IsTextUnmarshaler }}

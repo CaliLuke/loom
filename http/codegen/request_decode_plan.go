@@ -31,6 +31,9 @@ type RequestDecodePlan struct {
 	QueryValuesVar string
 	// QueryErrorVar is the local variable containing a query parse error.
 	QueryErrorVar string
+	// ElementsMustValidate is true when bound elements may accumulate errors.
+	// Each enclosing decoder owns its local accumulator and validation barrier.
+	ElementsMustValidate bool
 	// MustValidate is true when decoded request elements or Basic credentials
 	// may accumulate validation errors in the outer request decoder.
 	MustValidate bool
@@ -57,8 +60,9 @@ func newRequestDecodePlan(request *RequestData, basic *BasicAuthData) *RequestDe
 		HasQueryParams:       hasQueryParams,
 		HasHeaders:           hasHeaders,
 		HasCookies:           hasCookies,
-		MustValidate:         request.MustValidate || requestHasPathArray(request),
+		ElementsMustValidate: request.MustValidate || requestHasPathArray(request),
 	}
+	plan.MustValidate = plan.ElementsMustValidate
 	customMultipart := request.Multipart && !request.MultipartGenerated
 	if customMultipart {
 		// The custom multipart adapter already validates its ordinary bound elements.

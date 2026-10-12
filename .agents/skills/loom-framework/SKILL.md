@@ -1382,6 +1382,14 @@ filter, and serialization rules belong here.
   not a promoted method on the embedded handler. `Use` may run before or after
   mounting, but configuration must finish before serving requests. See the
   [handler dispatch model](../../../jsonrpc/codegen/tla/handler_dispatch/README.md).
+- Ordinary and custom multipart request decoders share `requestDecoderPartials`.
+  `RequestDecodePlan.ElementsMustValidate` owns bound-field error requirements;
+  each enclosing wrapper declares its accumulator and barrier. The outer custom
+  path retains its body-error and Basic responsibilities. Section construction
+  supplies error-return arity; partials must not assume a payload return or add
+  a second mapping/conversion policy. Keep callback-before-elements-before-Basic
+  ordering and `http/codegen/tla/multipart_decode` aligned with generated wire
+  tests, including optional, collection, credential and custom-scalar bindings.
 - `RequestDecodePlan` allocates distinct URL-capture, JSON-RPC params-byte and
   query locals after authored field names. HTTP, multipart and JSON-RPC decoder
   renderers consume those names; never reuse a protocol local for another wire

@@ -41,6 +41,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | Service-selected views, output validation and fault classification | [Result output boundary](../../../../codegen/service/tla/result_output/README.md); bounded legacy classification, unchecked-content and nil-element counterexamples |
 | Final client-streaming result interception and selected views | [Final result interception](../../../../codegen/service/tla/README.md) |
 | Credential extraction before constraints and typed construction | [Bearer protocol boundary](../../../../security/tla/bearer/README.md); bounded valid-frame rejection control |
+| Custom multipart accumulator, error-return signature and callback/validation barriers | [Multipart decode ownership](../../../../http/codegen/tla/multipart_decode/README.md); shared partials with wrapper-local control flow |
 | HTTP captured final status and implicit commits | [Response capture](../../../../observability/transport/tla/response_capture/README.md); bounded informational/final/flush ordering |
 | Consumed response-body ownership, restoration and cleanup errors | [Response body lifecycle](../../../../http/tla/response_body/README.md); bounded ownership and error-preservation controls |
 | HTTP response first-match priority and default placement | [Response order](../../../../http/codegen/internal/transportir/tla/response_order/README.md) |

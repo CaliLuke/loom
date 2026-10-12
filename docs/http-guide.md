@@ -344,6 +344,14 @@ request-body constructor and normal validation path. Multipart request client
 encoding still accepts a generated hook so applications can control how files
 are read and written.
 
+Unsupported body shapes, such as arrays of file bytes, use the generated custom
+decoder callback. That callback owns body decoding and must construct the payload
+on success. The generated adapter then decodes and validates mapped path, query,
+header and cookie fields, followed by ordinary Basic credential checks. A failed
+callback or field validation prevents the endpoint from running. Regenerate after
+upgrading to pick up corrected custom adapters, including their shared credential
+framing and custom text-scalar decoding.
+
 `MultipartRequest` does not support constructor union payloads. Use form
 requests for union-shaped OAuth-style payloads.
 

@@ -301,7 +301,8 @@ func TestRequestDecoderReportsQueryParseErrors(t *testing.T) {
 	require.Contains(t, code, "qp, queryErr := url.ParseQuery(r.URL.RawQuery)")
 	require.Contains(t, code, "return payload, loom.DecodePayloadError(\"invalid query string\")")
 	require.NotContains(t, code, "r.URL.Query()")
-	require.Contains(t, multipartRequestDecoderSource, "return loom.DecodePayloadError(\"invalid query string\")")
+	multipartCode := serverCode(t, testdata.CustomMultipartBindingsDSL("query"))
+	require.Contains(t, multipartCode, "return loom.DecodePayloadError(\"invalid query string\")")
 }
 
 func TestRequestDecoderMapQueryPresenceIsScopedToMapParam(t *testing.T) {

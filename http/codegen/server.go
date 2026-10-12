@@ -248,10 +248,16 @@ func serverEncodeDecodeSections(svc *expr.HTTPServiceExpr, services *ServicesDat
 	}
 	if mustDecodeRequest(e) {
 		fm := transDecoderTmplFuncs(svc, services)
+		fm["requestErrorReturn"] = func(expression string) string {
+			return "return payload, " + expression
+		}
 		sections = append(sections, codegen.NewTextTemplateSection("request-decoder", requestDecoderSource, fm, e))
 	}
 	if e.MultipartRequestDecoder != nil {
 		fm := transDecoderTmplFuncs(svc, services)
+		fm["requestErrorReturn"] = func(expression string) string {
+			return "return " + expression
+		}
 		sections = append(sections, codegen.NewTextTemplateSection("multipart-request-decoder", multipartRequestDecoderSource, fm, e.MultipartRequestDecoder))
 	}
 	if len(e.Errors) > 0 {
