@@ -1451,8 +1451,17 @@ var _ = Service("accounts", func() {
 })
 ```
 
-`SessionSecurity` may appear at API, service, or method scope. The transports
-inside a `SessionAuth` are alternatives: generated OpenAPI security uses OR
+`SessionSecurity` may appear at API, service, or method scope. The nearest scope
+that declares `Security`, `SessionSecurity`, or method-level `NoSecurity` supplies
+the complete authentication declaration. Outer declarations are replaced, even
+when they use a different authentication DSL. For example, a method with
+`Security(Basic)` inside a service with `SessionSecurity(AppSession)` accepts only
+Basic credentials. A method with `SessionSecurity(AppSession)` inside a service
+with `Security(Basic)` accepts only that session's transports. To accept both,
+declare both at the same scope. Regenerate services after changing or upgrading
+these declarations; previously generated adapters may retain inherited schemes.
+
+The transports inside a `SessionAuth` are alternatives: generated OpenAPI security uses OR
 semantics, and generated payload/binding code injects the required credential
 fields when the design has not already modeled them. `CookieTransport(..., "")`
 keeps browser-cookie auth transport-owned: Loom emits OpenAPI cookie security,
@@ -1476,7 +1485,9 @@ scheme adds an anonymous alternative, so callers may satisfy the endpoint
 without credentials while the other alternatives remain available. This maps
 to an empty OpenAPI Security Requirement Object (`{}`). Use `NoSecurity()` on a
 method to replace inherited requirements with an explicit empty security list
-(`security: []`).
+(`security: []`). Combining `NoSecurity()` with authenticated `Security(...)` or
+`SessionSecurity(...)` at the same method scope is a design error, regardless of
+declaration order. Use `Security()` for an anonymous OR alternative instead.
 
 Inherited API HTTP error mappings retain the custom type declared by the API,
 including mappings reused by `AuthErrorResponses()`. Return that generated

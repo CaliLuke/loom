@@ -202,6 +202,12 @@ consumer validation.
 
 ## Authorization Ownership
 
+- `expr.MethodExpr.selectedSecurity` selects ordinary and session declarations
+  together before lowering. Validation, credential injection, finalized methods
+  and transport mapping share that owner. Do not add transport-specific
+  inheritance or separately inherit `SessionAuths`. Keep
+  `expr/tla/authentication_scope` and its direct/generated regressions aligned.
+
 - Shared security analysis resolves credential selectors with `GoifyAtt` from
   the actual payload attribute. Basic username/password and API-key, JWT and
   OAuth credentials must use the same field identity as payload declarations;

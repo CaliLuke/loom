@@ -742,6 +742,14 @@ Prefer Loom's first-class session DSL:
 - `SessionCookie(...)`
 - `CookieInsecure()` for plain-HTTP local development only
 
+The nearest API, service or method scope declaring `Security`, `SessionSecurity`,
+or method `NoSecurity` supplies the complete authentication declaration. Local
+ordinary security replaces inherited sessions; local sessions replace inherited
+ordinary security. Declare both at the same scope to accept both. Combining
+`NoSecurity` with authenticated `Security` or `SessionSecurity` at one method is
+rejected. Use `Security()` to add an anonymous alternative. Regenerate adapters
+after upgrading to apply this scope rule.
+
 `CookieTransport(scheme, "", fn...)` is the transport-owned browser-cookie
 mode. It emits the security contract without synthesizing a payload field or
 CLI flag, allowing the application to resolve the cookie from request metadata.

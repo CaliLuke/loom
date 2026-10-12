@@ -10,6 +10,20 @@ import (
 // validateRequirements validates the security requirements.
 func (m *MethodExpr) validateRequirements() *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
+	if m.hasNoSecurityRequirement() {
+		conflict := len(m.SessionAuths) > 0
+		for _, requirement := range m.Requirements {
+			for _, scheme := range requirement.Schemes {
+				if scheme.Kind != NoKind {
+					conflict = true
+				}
+			}
+		}
+		if conflict {
+			verr.Add(m, "NoSecurity cannot be combined with Security or SessionSecurity at the same method scope")
+			return verr
+		}
+	}
 	if err := validateCredentialNames(m.Payload); err != nil {
 		verr.Add(m, "%s", err)
 	}

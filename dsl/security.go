@@ -241,7 +241,9 @@ func CookieName(name string) {
 // in the same scope in which case the client may validate any one of the
 // requirements for the request to be authorized.
 //
-// Security must appear in an API, Service or Method expression.
+// Security must appear in an API, Service or Method expression. The nearest
+// scope declaring Security, SessionSecurity or NoSecurity supplies the complete
+// authentication requirements; declarations in enclosing scopes are replaced.
 //
 // Security accepts an arbitrary number of security schemes as argument
 // specified by name or by reference and an optional DSL function as last
@@ -342,7 +344,10 @@ func Security(args ...any) {
 }
 
 // SessionSecurity defines authentication requirements using a named
-// multi-transport session auth contract.
+// multi-transport session auth contract. It may appear in API, Service or Method.
+// The nearest scope declaring Security, SessionSecurity or NoSecurity supplies
+// the complete authentication declaration. Session transports and Security calls
+// in that selected scope are alternatives; enclosing declarations are replaced.
 func SessionSecurity(arg any) {
 	sessionAuth := lookupSessionAuth(arg)
 	if sessionAuth == nil {
@@ -393,7 +398,10 @@ func AuthErrorResponses() {
 
 // NoSecurity removes the need for an endpoint to perform authorization.
 //
-// NoSecurity must appear in Method.
+// NoSecurity must appear in Method. It replaces all inherited ordinary and
+// session authentication and cannot be combined with an authenticated Security
+// or SessionSecurity declaration at the same method scope. To retain authenticated
+// alternatives while allowing anonymous access, add Security() instead.
 func NoSecurity() {
 	security := &expr.SecurityExpr{
 		Schemes: []*expr.SchemeExpr{{Kind: expr.NoKind}},

@@ -309,13 +309,9 @@ func (m *MethodExpr) Finalize() {
 	m.finalizeInterceptors()
 	m.Errors = m.effectiveErrors()
 	m.finalizeErrors()
-	if m.hasNoSecurityRequirement() {
-		m.Requirements = nil
-		m.SessionAuths = nil
-		return
-	}
-	m.inheritSecurityRequirements()
-	m.Requirements = mergeRequirements(m.Requirements, sessionRequirements(m.SessionAuths))
+	requirements, sessions := m.selectedSecurity()
+	m.Requirements = mergeRequirements(requirements, sessionRequirements(sessions))
+	m.SessionAuths = sessions
 }
 
 func (m *MethodExpr) finalizeInterceptors() {
@@ -383,15 +379,6 @@ func (m *MethodExpr) finalizeErrors() {
 	}
 }
 
-func (m *MethodExpr) inheritSecurityRequirements() {
-	if len(m.Requirements) == 0 {
-		m.Requirements = m.inheritedRequirements()
-	}
-	if len(m.SessionAuths) == 0 {
-		m.SessionAuths = m.inheritedSessionAuths()
-	}
-}
-
 // IsStreaming determines whether the method streams payload or result.
 func (m *MethodExpr) IsStreaming() bool {
 	return m.IsPayloadStreaming() || m.IsResultStreaming()
@@ -416,6 +403,9 @@ func (m *MethodExpr) HasMixedResults() bool {
 // helper function that duplicates just enough of a security expression so that
 // its scheme names can be overridden without affecting the original.
 func copyReqs(reqs []*SecurityExpr) []*SecurityExpr {
+	if len(reqs) == 0 {
+		return nil
+	}
 	reqs2 := make([]*SecurityExpr, len(reqs))
 	for i, req := range reqs {
 		req2 := &SecurityExpr{Scopes: req.Scopes}
@@ -447,63 +437,46 @@ func copySessionAuths(sessionAuths []*SessionAuthExpr) []*SessionAuthExpr {
 	return dups
 }
 
-// EffectiveRequirements returns the method security requirements after applying
-// no-security overrides, inherited service/API requirements, and derived
-// session-auth transports.
+// EffectiveRequirements returns the complete requirements from the nearest scope
+// declaring Security, SessionSecurity or NoSecurity, lowering session transports
+// to alternatives. Scheme names and transport bindings in the returned
+// requirements can be changed without changing the selected declarations.
 func (m *MethodExpr) EffectiveRequirements() []*SecurityExpr {
 	return m.validationRequirements()
 }
 
 func (m *MethodExpr) validationRequirements() []*SecurityExpr {
-	if m.hasNoSecurityRequirement() {
-		return nil
-	}
-	requirements := copyReqs(m.Requirements)
-	if len(requirements) == 0 {
-		requirements = m.inheritedRequirements()
-	}
-	sessionAuths := m.validationSessionAuths()
-	return mergeRequirements(requirements, sessionRequirements(sessionAuths))
+	requirements, sessions := m.selectedSecurity()
+	return mergeRequirements(requirements, sessionRequirements(sessions))
 }
 
-// EffectiveSessionAuths returns the session auth contracts that apply to the
-// method after honoring no-security overrides and inherited service/API
-// session-auth declarations.
+// EffectiveSessionAuths returns the session contracts from the same nearest
+// authentication scope as EffectiveRequirements. An ordinary Security declaration
+// therefore replaces inherited session contracts as well as ordinary security.
 func (m *MethodExpr) EffectiveSessionAuths() []*SessionAuthExpr {
 	return m.validationSessionAuths()
 }
 
 func (m *MethodExpr) validationSessionAuths() []*SessionAuthExpr {
+	_, sessions := m.selectedSecurity()
+	return sessions
+}
+
+// selectedSecurity chooses a complete declaration before lowering any session
+// alternatives. Validation, credential injection and finalization must select the
+// same owner; selecting each kind independently can widen a local restriction.
+func (m *MethodExpr) selectedSecurity() ([]*SecurityExpr, []*SessionAuthExpr) {
 	if m.hasNoSecurityRequirement() {
-		return nil
+		return nil, nil
 	}
-	sessionAuths := copySessionAuths(m.SessionAuths)
-	if len(sessionAuths) == 0 {
-		sessionAuths = m.inheritedSessionAuths()
+	requirements, sessions := m.Requirements, m.SessionAuths
+	if len(requirements) == 0 && len(sessions) == 0 && m.Service != nil {
+		requirements, sessions = m.Service.Requirements, m.Service.SessionAuths
 	}
-	return sessionAuths
-}
-
-func (m *MethodExpr) inheritedRequirements() []*SecurityExpr {
-	switch {
-	case m.Service != nil && len(m.Service.Requirements) > 0:
-		return copyReqs(m.Service.Requirements)
-	case Root.API != nil && len(Root.API.Requirements) > 0:
-		return copyReqs(Root.API.Requirements)
-	default:
-		return nil
+	if len(requirements) == 0 && len(sessions) == 0 && Root.API != nil {
+		requirements, sessions = Root.API.Requirements, Root.API.SessionAuths
 	}
-}
-
-func (m *MethodExpr) inheritedSessionAuths() []*SessionAuthExpr {
-	switch {
-	case m.Service != nil && len(m.Service.SessionAuths) > 0:
-		return copySessionAuths(m.Service.SessionAuths)
-	case Root.API != nil && len(Root.API.SessionAuths) > 0:
-		return copySessionAuths(Root.API.SessionAuths)
-	default:
-		return nil
-	}
+	return copyReqs(requirements), copySessionAuths(sessions)
 }
 
 func sessionRequirements(sessionAuths []*SessionAuthExpr) []*SecurityExpr {
