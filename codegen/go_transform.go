@@ -454,10 +454,6 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 			case ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type):
 				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + defaultLiteral))
 				group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
-			case expr.IsArray(tgtc.Type):
-				group.Add(transformObjectArrayDefaultValueCode(tgtc, tgtVar, tdef, ta))
-			case expr.IsMap(tgtc.Type):
-				group.Add(transformObjectMapDefaultValueCode(tgtc, tgtVar, tdef, ta))
 			default:
 				group.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
 			}
@@ -492,90 +488,6 @@ func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tg
 	default:
 		return nil
 	}
-}
-
-func transformObjectArrayDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar string, tdef any, ta *TransformAttrs) *jen.Statement {
-	arr := expr.AsArray(tgtc.Type)
-	stmt := &jen.Statement{}
-	if containsRawJSONValue(tgtc) {
-		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultValueLiteral(tgtc, tdef, ta)))
-		return stmt
-	}
-	if !expr.IsAlias(arr.ElemType.Type) {
-		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
-		return stmt
-	}
-
-	elemRef := collectionTypeRef(arr.ElemType, ta.TargetCtx, false)
-	items, ok := aliasDefaultArrayItems(elemRef, tdef)
-	if !ok {
-		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
-		return stmt
-	}
-
-	if len(items) == 0 {
-		return nil
-	}
-	stmt.Add(Expr(tgtVar)).Op("=").Add(Expr("[]" + elemRef + "{" + strings.Join(items, ", ") + "}"))
-	return stmt
-}
-
-func transformObjectMapDefaultValueCode(tgtc *expr.AttributeExpr, tgtVar string, tdef any, ta *TransformAttrs) *jen.Statement {
-	literal, ok := typedDefaultLiteral(tgtc, tdef, ta)
-	stmt := &jen.Statement{}
-	if !ok {
-		stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(formatGoLiteral(tdef)))
-		return stmt
-	}
-	stmt.Add(Expr(tgtVar)).Op("=").Add(Expr(literal))
-	return stmt
-}
-
-func aliasDefaultArrayItems(elemRef string, tdef any) ([]string, bool) {
-	switch dv := tdef.(type) {
-	case expr.ArrayVal:
-		return formatAliasArrayItems(elemRef, []any(dv)), true
-	case []any:
-		return formatAliasArrayItems(elemRef, dv), true
-	case []string:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []int:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []int32:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []int64:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []uint:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []uint32:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []uint64:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []float32:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []float64:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	case []bool:
-		return formatAliasTypedArrayItems(elemRef, dv), true
-	default:
-		return nil, false
-	}
-}
-
-func formatAliasArrayItems(elemRef string, values []any) []string {
-	items := make([]string, 0, len(values))
-	for _, value := range values {
-		items = append(items, elemRef+"("+formatGoLiteral(value)+")")
-	}
-	return items
-}
-
-func formatAliasTypedArrayItems[T any](elemRef string, values []T) []string {
-	items := make([]string, 0, len(values))
-	for _, value := range values {
-		items = append(items, elemRef+"("+formatGoLiteral(value)+")")
-	}
-	return items
 }
 
 func buildConditionalPrimitiveAssignmentStmt(sourceField, targetVar, targetField string, expression *jen.Statement, targetPointer bool, tempVar string) *jen.Statement {

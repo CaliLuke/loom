@@ -35,16 +35,20 @@ func formatAttributeGoLiteral(att *expr.AttributeExpr, value any) string {
 	return formatGoLiteral(value)
 }
 
-func typedDefaultLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
-	return typedDefaultValueLiteral(att, value, ta)
-}
-
+// defaultValueLiteral renders a validated default in its target representation.
+// Collection values retain their target identity at every nesting level.
 func defaultValueLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) string {
-	literal, ok := typedDefaultLiteral(att, value, ta)
-	if !ok {
+	if isRawJSONValue(att) {
+		return formatRawJSONLiteral(value)
+	}
+	switch actual := unalias(att.Type).(type) {
+	case *expr.Array:
+		return typedArrayDefaultLiteral(att, actual, value, ta)
+	case *expr.Map:
+		return typedMapDefaultLiteral(att, actual, value, ta)
+	default:
 		return formatAttributeGoLiteral(att, value)
 	}
-	return literal
 }
 
 func isRawJSONValue(att *expr.AttributeExpr) bool {
@@ -54,54 +58,30 @@ func isRawJSONValue(att *expr.AttributeExpr) bool {
 	return unalias(att.Type).Kind() == expr.AnyKind
 }
 
-func containsRawJSONValue(att *expr.AttributeExpr) bool {
-	if isRawJSONValue(att) {
-		return true
-	}
-	switch actual := unalias(att.Type).(type) {
-	case *expr.Array:
-		return containsRawJSONValue(actual.ElemType)
-	case *expr.Map:
-		return containsRawJSONValue(actual.KeyType) || containsRawJSONValue(actual.ElemType)
-	default:
-		return false
-	}
-}
-
-func typedArrayDefaultLiteral(a *expr.Array, value any, ta *TransformAttrs) (string, bool) {
+func typedArrayDefaultLiteral(att *expr.AttributeExpr, array *expr.Array, value any, ta *TransformAttrs) string {
 	actual := reflect.ValueOf(value)
 	if !actual.IsValid() || (actual.Kind() != reflect.Array && actual.Kind() != reflect.Slice) {
-		return "", false
+		panic(NewError(nil, att, fmt.Errorf("render validated array default: unexpected value %T", value)))
 	}
-	items := make([]string, 0, actual.Len())
+	typeRef := ta.TargetCtx.Scope.Ref(att, ta.TargetCtx.Pkg(att))
+	if actual.Kind() == reflect.Slice && actual.IsNil() {
+		return typeRef + "(nil)"
+	}
+	items := make([]string, actual.Len())
 	for index := range actual.Len() {
-		literal, ok := typedDefaultValueLiteral(a.ElemType, actual.Index(index).Interface(), ta)
-		if !ok {
-			return "", false
-		}
-		items = append(items, literal)
+		items[index] = defaultValueLiteral(array.ElemType, actual.Index(index).Interface(), ta)
 	}
-	elemRef := ta.TargetCtx.Scope.Ref(a.ElemType, ta.TargetCtx.Pkg(a.ElemType))
-	return "[]" + elemRef + "{" + strings.Join(items, ", ") + "}", true
+	return typeRef + "{" + strings.Join(items, ", ") + "}"
 }
 
-func typedMapDefaultLiteral(m *expr.Map, value any, ta *TransformAttrs) (string, bool) {
-	items, ok := mapDefaultLiteralItems(m, value, ta)
-	if !ok {
-		return "", false
-	}
-	keyRef := ta.TargetCtx.Scope.Ref(m.KeyType, ta.TargetCtx.Pkg(m.KeyType))
-	if isRawJSONValue(m.KeyType) {
-		keyRef = "any"
-	}
-	elemRef := ta.TargetCtx.Scope.Ref(m.ElemType, ta.TargetCtx.Pkg(m.ElemType))
-	return "map[" + keyRef + "]" + elemRef + "{" + strings.Join(items, ", ") + "}", true
-}
-
-func mapDefaultLiteralItems(m *expr.Map, value any, ta *TransformAttrs) ([]string, bool) {
+func typedMapDefaultLiteral(att *expr.AttributeExpr, mapping *expr.Map, value any, ta *TransformAttrs) string {
 	actual := reflect.ValueOf(value)
 	if !actual.IsValid() || actual.Kind() != reflect.Map {
-		return nil, false
+		panic(NewError(nil, att, fmt.Errorf("render validated map default: unexpected value %T", value)))
+	}
+	typeRef := ta.TargetCtx.Scope.Ref(att, ta.TargetCtx.Pkg(att))
+	if actual.IsNil() {
+		return typeRef + "(nil)"
 	}
 	keys := actual.MapKeys()
 	sort.Slice(keys, func(i, j int) bool {
@@ -109,37 +89,12 @@ func mapDefaultLiteralItems(m *expr.Map, value any, ta *TransformAttrs) ([]strin
 	})
 	items := make([]string, 0, len(keys))
 	for _, key := range keys {
-		keyLiteral, ok := typedDefaultMapKeyLiteral(m.KeyType, key.Interface(), ta)
-		if !ok {
-			return nil, false
+		keyLiteral := formatAttributeGoLiteral(mapping.KeyType, key.Interface())
+		if !isRawJSONValue(mapping.KeyType) {
+			keyLiteral = defaultValueLiteral(mapping.KeyType, key.Interface(), ta)
 		}
-		elemLiteral, ok := typedDefaultValueLiteral(m.ElemType, actual.MapIndex(key).Interface(), ta)
-		if !ok {
-			return nil, false
-		}
+		elemLiteral := defaultValueLiteral(mapping.ElemType, actual.MapIndex(key).Interface(), ta)
 		items = append(items, keyLiteral+": "+elemLiteral)
 	}
-	return items, true
-}
-
-func typedDefaultMapKeyLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
-	if isRawJSONValue(att) {
-		return formatAttributeGoLiteral(att, value), true
-	}
-	return typedDefaultValueLiteral(att, value, ta)
-}
-
-func typedDefaultValueLiteral(att *expr.AttributeExpr, value any, ta *TransformAttrs) (string, bool) {
-	if isRawJSONValue(att) {
-		return formatRawJSONLiteral(value), true
-	}
-	switch actual := unalias(att.Type).(type) {
-	case *expr.Array:
-		if containsRawJSONValue(att) {
-			return typedArrayDefaultLiteral(actual, value, ta)
-		}
-	case *expr.Map:
-		return typedMapDefaultLiteral(actual, value, ta)
-	}
-	return formatAttributeGoLiteral(att, value), true
+	return typeRef + "{" + strings.Join(items, ", ") + "}"
 }

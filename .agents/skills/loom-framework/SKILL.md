@@ -203,6 +203,12 @@ consumer validation.
   file-specific local-name reservations in the owning generator.
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted
   Go type references. Never construct type syntax by string concatenation.
+- Shared default literal construction uses the target attribute and NameScope
+  recursively for arrays and maps, including named outer containers and located
+  elements. Ordinary assignments and explicit-presence conversions consume this
+  same owner; never render a collection from the authored Go container type or
+  maintain a separate alias formatter. Preserve typed nil versus empty literals,
+  raw-JSON key/value representation and the existing default-application gates.
 - Let Loom determine pointer/value semantics except at explicit transport
   validation boundaries.
 - Collapse pass-through wrappers that add no behavior.
