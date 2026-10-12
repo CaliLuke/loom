@@ -7,45 +7,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
-func TestBuildProblemServerResponseBodyCodeTrimsPointerRefForLiteral(t *testing.T) {
-	code := buildProblemServerResponseBodyCode("*MethodUnauthorizedResponseBody", &transportir.ResponseStatus{
-		StatusCode: 401,
-		Error: &transportir.Error{
-			Attribute: &expr.AttributeExpr{},
-		},
-	})
-
-	if !strings.Contains(code, "body := &MethodUnauthorizedResponseBody{") {
-		t.Fatalf("expected pointer type ref to be trimmed in composite literal, got:\n%s", code)
-	}
-	if strings.Contains(code, "body := &*MethodUnauthorizedResponseBody{") {
-		t.Fatalf("unexpected invalid pointer composite literal, got:\n%s", code)
-	}
-}
-
-func TestBuildProblemClientResultTransformCodeDereferencesOptionalBodyFields(t *testing.T) {
-	code := buildProblemClientResultTransformCode(&transportir.ResponseStatus{StatusCode: 401}, true, nil)
-
-	for _, want := range []string{
-		"if body.Code != nil {",
-		"code = *body.Code",
-		"if body.Detail != nil {",
-		"detail = *body.Detail",
-		"if body.Instance != nil {",
-		"instance = *body.Instance",
-		"var retryHint *string",
-		"if actual, ok := body.RetryHint.Value(); ok {",
-		"retryHint = &actual",
-		"v := loomhttp.ProblemErrorFromBody(code, 401, detail, instance, retryHint)",
-	} {
-		if !strings.Contains(code, want) {
-			t.Fatalf("expected generated transform to contain %q, got:\n%s", want, code)
-		}
-	}
+func TestProblemResponseUsesNativeRepresentation(t *testing.T) {
+	endpoint := firstEndpointData(t, testdata.DefaultErrorResponseDSL)
+	response := endpoint.Errors[0].Errors[0].Response
+	require.Equal(t, "problem", response.SourceVar)
+	require.True(t, response.EncodePlan.NeedsProblemSource)
+	require.Equal(t, "*loomhttp.ProblemResponse", response.ServerBody[0].Init.ServerArgs[0].TypeRef)
+	require.NotContains(t, response.ServerBody[0].Init.ServerCode, "&*")
+	code := response.ResultInit.ClientCode
+	require.Contains(t, code, "loomhttp.ProblemResponse{")
+	require.Contains(t, code, "body.RetryHint.Value()")
+	require.Contains(t, code, "loomhttp.ProblemErrorFromBody(problem.Code,")
 }
 
 func TestClientResponseValidationEmitsOneRequiredNullablePresenceCheck(t *testing.T) {

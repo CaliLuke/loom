@@ -184,6 +184,25 @@ func MakeServiceUnavailable(err error) *loom.ServiceError {
 }
 ```
 
+### Selecting Built-in Problem Fields
+
+A response for a built-in error may select a public problem field, for example
+`Body("detail")`, or map fields to headers and cookies. Loom first converts the
+service error into its public problem representation, including safe-message
+selection, instance URI, retry guidance and explicit type/title metadata. The
+body and mapped fields all use that representation. Generated clients reconstruct
+the error from the fields actually present in the body and their wire mappings.
+
+A scalar selection uses the ordinary response media type, usually
+`application/json`; it is not a complete `application/problem+json` document.
+The existing body-selection rules still map other attributes to automatic
+headers. To author a body with only listed fields, use an explicit
+`Body(func() { Attribute("detail") })` shape. A custom error formatter receives
+the whole error and replaces the body, including for a selected scalar. Its
+output must agree with the intended client contract.
+
+Regenerate HTTP clients and servers to adopt these projection corrections.
+
 ### Custom Error Types
 
 For more detailed error information, define custom error types:

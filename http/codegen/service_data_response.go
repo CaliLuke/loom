@@ -487,7 +487,7 @@ func newResponseEncodePlan(response *ResponseData) *ResponseEncodePlan {
 		HasMultipleBodies: bodyCount > 1,
 		UseViewedBodySwitch: bodyCount > 1 &&
 			response.ViewedResult != nil,
-		NeedsProblemSource: response.HeaderSourceVar == "problem" &&
-			(len(response.Headers) > 0 || len(response.Cookies) > 0),
+		NeedsProblemSource: response.SourceVar == "problem" &&
+			(bodyCount > 0 || len(response.Headers) > 0 || len(response.Cookies) > 0),
 	}
 }

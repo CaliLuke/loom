@@ -107,12 +107,13 @@ func EncodeGuardedError(encoder func(context.Context, http.ResponseWriter) loomh
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
+			problem := loomhttp.NewProblemResponse(ctx, res, 401, "", "")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewGuardedUnauthorizedResponseBody(res)
+				body = NewGuardedUnauthorizedResponseBody(problem)
 			}
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusUnauthorized)

@@ -15,7 +15,12 @@ func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.
 				return encodeError(ctx, w, v)
 			}
 			enc := encoder(ctx, w)
-			body := res
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res
+			}
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
@@ -25,7 +30,12 @@ func EncodeMethodPrimitiveErrorResponseError(encoder func(context.Context, http.
 				return encodeError(ctx, w, v)
 			}
 			enc := encoder(ctx, w)
-			body := res
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res
+			}
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)

@@ -1,14 +1,12 @@
 package codegen
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
-	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -382,16 +380,6 @@ func TestHTTPErrorResponseContentTypeDefaulting(t *testing.T) {
 			require.Equal(t, c.want, endpoint.Errors[0].Errors[0].Response.ContentType)
 		})
 	}
-}
-
-func TestBuildProblemClientResultTransformCodeWithoutBody(t *testing.T) {
-	args := []*InitArgData{
-		{AttributeData: &AttributeData{Name: "code", VarName: "code"}},
-	}
-
-	got := buildProblemClientResultTransformCode(&transportir.ResponseStatus{StatusCode: http.StatusInternalServerError}, false, args)
-
-	require.Equal(t, `v := loomhttp.ProblemErrorFromBody(code, 500, "", "", nil)`, got)
 }
 
 func TestHTTPResultAndErrorInitArgAssembly(t *testing.T) {

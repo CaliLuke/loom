@@ -1,0 +1,4 @@
+package design
+import . "github.com/CaliLuke/loom/dsl"
+var _=API("compare",func(){})
+var _=Service("problems",func(){Method("custom",func(){Error("oops",func(){Attribute("detail",String);Required("detail")});HTTP(func(){GET("/custom");Response("oops",StatusBadRequest,func(){Body("detail");ContentType("text/plain")})})})})

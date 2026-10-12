@@ -15,12 +15,13 @@ func EncodeMethodAPIPrimitiveErrorResponseError(encoder func(context.Context, ht
 				return encodeError(ctx, w, v)
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/problem+json")
+			problem := loomhttp.NewProblemResponse(ctx, res, 500, "", "")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewMethodAPIPrimitiveErrorResponseInternalErrorResponseBody(res)
+				body = NewMethodAPIPrimitiveErrorResponseInternalErrorResponseBody(problem)
 			}
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -31,7 +32,12 @@ func EncodeMethodAPIPrimitiveErrorResponseError(encoder func(context.Context, ht
 				return encodeError(ctx, w, v)
 			}
 			enc := encoder(ctx, w)
-			body := res
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res
+			}
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)

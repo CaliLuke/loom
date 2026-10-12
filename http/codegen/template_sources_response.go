@@ -99,53 +99,55 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		responseEncoderPartials...,
 	)
 	responseEncoderPartials = []templateSource{
-		{name: "response", source: `	{{- if .EncodePlan.HasBody }}
+		{name: "response", source: `	{{- if .EncodePlan.NeedsProblemSource }}
+	problem := loomhttp.NewProblemResponse(ctx, res, {{ .Code }}, {{ .ProblemTypeOverride }}, {{ .ProblemTitleOverride }})
+	{{- end }}
+	{{- if .EncodePlan.HasBody }}
 	enc := encoder(ctx, w)
-		{{- if .EncodePlan.UseViewedBodySwitch }}
+		{{- if .ErrorHeader }}
 	var body any
+	if formatter != nil {
+		body = formatter(ctx, res)
+	} else {
+		{{- end }}
+		{{- if .EncodePlan.UseViewedBodySwitch }}
+			{{- if not .ErrorHeader }}
+	var body any
+			{{- end }}
 	switch res.View	{
 			{{- range $.ViewedResult.Views }}
 	case {{ printf "%q" .Name }}{{ if eq .Name "default" }}, ""{{ end }}:
-		{{- $vsb := (viewedServerBody $.ServerBody .Name) }}
+			{{- $vsb := (viewedServerBody $.ServerBody .Name) }}
 		body = {{ $vsb.Init.Name }}({{ range $vsb.Init.ServerArgs }}{{ .Ref }}, {{ end }})
 			{{- end }}
 	}
 		{{- else if .EncodePlan.FirstBody.Init }}
-			{{- if .ErrorHeader }}
-	var body any
-	if formatter != nil {
-		body = formatter(ctx, {{ (index .EncodePlan.FirstBody.Init.ServerArgs 0).Ref }})
-	} else {
-			{{- end }}
 	body {{ if not .ErrorHeader}}:{{ end }}= {{ .EncodePlan.FirstBody.Init.Name }}({{ range .EncodePlan.FirstBody.Init.ServerArgs }}{{ .Ref }}, {{ end }})
-			{{- if .ErrorHeader }}
-	}
-			{{- end }}
 		{{- else }}
-	body := res{{ if $.ViewedResult }}.Projected{{ end }}{{ if .ResultAttr }}.{{ .ResultAttr }}{{ end }}
+	body {{ if not .ErrorHeader}}:{{ end }}= {{ if eq .SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .ResultAttr }}.{{ .ResultAttr }}{{ end }}
 		{{- end }}
-	{{- end }}
-	{{- if .EncodePlan.NeedsProblemSource }}
-	problem := loomhttp.NewProblemResponse(ctx, res, {{ .Code }}, {{ .ProblemTypeOverride }}, {{ .ProblemTitleOverride }})
+		{{- if .ErrorHeader }}
+	}
+		{{- end }}
 	{{- end }}
 	{{- range .Headers }}
 		{{- $initDef := and (or .FieldPointer .Slice) .DefaultValue (not $.TagName) }}
 		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) (not $.TagName) }}
 		{{- if $checkNil }}
-	if {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
+	if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
 		{{- end }}
 
 		{{- if and (eq .Type.Name "string") (not (isAliased .FieldType)) }}
-	w.Header().Set("{{ .CanonicalName }}", {{ if or .FieldPointer $.ViewedResult }}*{{ end }}{{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
+	w.Header().Set("{{ .CanonicalName }}", {{ if or .FieldPointer $.ViewedResult }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
 		{{- else }}
 {{- if not $checkNil }}
 {
 {{- end }}
 			{{- if isAliased .FieldType }}
-	val := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
+	val := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
 	{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice true "val") }}
 			{{- else }}
-	val := {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
+	val := {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
 	{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice (not .FieldPointer) "val") }}
 			{{- end }}
 	w.Header().Set("{{ .CanonicalName }}", {{ .Locals.Encoded }})
@@ -155,7 +157,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- end }}
 
 		{{- if $initDef }}
-	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
+	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
 		w.Header().Set("{{ .CanonicalName }}", "{{ printValue .Type .DefaultValue }}")
 		{{- end }}
 
@@ -169,23 +171,23 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- $initDef := and (or .FieldPointer .Slice) .DefaultValue }}
 		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) }}
 		{{- if $checkNil }}
-	if {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} != nil {
+	if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} != nil {
 		{{- end }}
 
 		{{- if and (eq .Type.Name "string") (not (isAliased .FieldType)) }}
-	{{ .VarName }} := {{ if or .FieldPointer $.ViewedResult }}*{{ end }}{{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
+	{{ .VarName }} := {{ if or .FieldPointer $.ViewedResult }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
 		{{- else }}
 			{{- if isAliased .FieldType }}
-	{{ .Locals.EncodedRaw }} := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
+	{{ .Locals.EncodedRaw }} := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
 	{{ template "partial_header_conversion" (headerConversionData .Type .VarName .Locals.Slice true .Locals.EncodedRaw) }}
 			{{- else }}
-	{{ .Locals.EncodedRaw }} := {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
+	{{ .Locals.EncodedRaw }} := {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
 	{{ template "partial_header_conversion" (headerConversionData .Type .VarName .Locals.Slice (not .FieldPointer) .Locals.EncodedRaw) }}
 			{{- end }}
 		{{- end }}
 
 		{{- if $initDef }}
-	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.HeaderSourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
+	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
 		{{ .VarName }} := "{{ printValue .Type .DefaultValue }}"
 		{{- end }}
 		if err := loomhttp.SetResponseCookie(ctx, w, &http.Cookie{

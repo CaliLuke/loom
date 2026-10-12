@@ -266,8 +266,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		httpctx.PresencePointerTypes = sd.ClientPresencePointerTypes
 		httpctx.PresenceUseDefaultTypes = sd.ClientPresenceUseDefaultTypes
 	}
-	pkg := sd.Service.LocationPackageName(loc)
-	svcctx := serviceContext(pkg, sd.Service.Scope)
+	att, svcctx, sourceVar := responseBodySource(att, loc, svr, sd)
 	body, viewName := projectResponseBodyView(body, view, svr, sd)
 	sd.registerBodyRoot(body, endpointName, false, svr, httpctx.JSONPresence)
 	if svr {
@@ -297,7 +296,7 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 	if svr {
 		collectServerResponseBodyTypes(sds, body, data.name, sd)
 	}
-	init := sds.buildResponseBodyInit(body, att, pkg, endpointName, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
+	init := sds.buildResponseBodyInit(body, att, svcctx.DefaultPkg, sourceVar, endpointName, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
 	return &TypeData{
 		Name:               data.name,
 		VarName:            data.varName,
@@ -480,7 +479,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 
 func (sds *ServicesData) buildResponseBodyInit(
 	body, att *expr.AttributeExpr,
-	pkg string,
+	pkg, sourceVar string,
 	endpointName string,
 	view *string,
 	mustInit bool,
@@ -492,8 +491,6 @@ func (sds *ServicesData) buildResponseBodyInit(
 	if !svr || !mustInit {
 		return nil
 	}
-
-	const sourceVar = "res"
 
 	rtname := codegen.Goify(sd.Scope.GoValueTypeName(body), true)
 	rtref := goBodyTypeRef(sd.Scope, body, httpctx)
@@ -516,7 +513,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 	sd.ServerTransformHelpers = codegen.AppendHelpers(sd.ServerTransformHelpers, helpers)
 
 	argRef := sourceVar
-	argTypeRef := sd.Service.Scope.GoFullTypeRef(att, pkg)
+	argTypeRef := svcctx.Scope.Ref(att, pkg)
 	if view != nil {
 		argRef += ".Projected"
 		argTypeRef = sd.Service.ViewScope.GoFullTypeRef(att, sd.Service.ViewsPkg)

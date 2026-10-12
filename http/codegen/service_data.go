@@ -460,14 +460,14 @@ type (
 		TagPointer bool
 		// MustValidate is true if at least one header requires validation.
 		MustValidate bool
-		// HeaderSourceVar selects the source variable used when rendering
-		// response headers and cookies. It defaults to "res".
-		HeaderSourceVar string
+		// SourceVar selects the source variable used when rendering
+		// response body, headers and cookies. It defaults to "res".
+		SourceVar string
 		// ProblemTypeOverride carries the explicit RFC 9457 problem type override
-		// used when HeaderSourceVar is "problem".
+		// used when SourceVar is "problem".
 		ProblemTypeOverride string
 		// ProblemTitleOverride carries the explicit RFC 9457 problem title
-		// override used when HeaderSourceVar is "problem".
+		// override used when SourceVar is "problem".
 		ProblemTitleOverride string
 		// ResultAttr sets the response body from the specified result
 		// type attribute. This field is set when the design uses
@@ -500,7 +500,7 @@ type (
 		// UseViewedBodySwitch is true when the response selects a body variant
 		// from the requested result view.
 		UseViewedBodySwitch bool
-		// NeedsProblemSource is true when generated headers or cookies need a
+		// NeedsProblemSource is true when the generated body, headers or cookies need a
 		// problem response adapter.
 		NeedsProblemSource bool
 	}

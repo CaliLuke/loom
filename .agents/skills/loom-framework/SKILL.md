@@ -651,6 +651,15 @@ filter, and serialization rules belong here.
   `TestErrorBodyProjectionGenerated` covers exact wire bytes and typed client
   reconstruction, including raw JSON precision, renamed fields and pointers.
 
+- Built-in HTTP errors have a public `ProblemResponse` representation distinct
+  from `ServiceError` and from the selected transport body. The package-private
+  `problemRepresentation` and `responseBodySource` owners select the source before
+  generic body projection. Body, header and cookie fields read the same public
+  document; client reconstruction uses shared transforms and field assignments
+  before `ProblemErrorFromBody`. Keep complete, pruned, scalar and empty bodies
+  on this path, and pass the whole error to custom formatters. The projection
+  model and generated wire tests cover representation and member availability.
+
 - `expr.HTTPEndpointExpr.validateResponses` owns the unique untagged application
   response requirement. Generators must not discard ambiguous authored responses;
   transport and OpenAPI analysis consume the same validated expression set.

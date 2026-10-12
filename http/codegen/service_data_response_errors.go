@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
@@ -117,7 +116,7 @@ func (b *errorBuilder) buildResultInitCode(errorResponse *transportir.ResponseSt
 	httpError := errorResponse.Error
 	body := responseStatusBody(errorResponse)
 	if expr.IsDefaultErrorResult(httpError.Attribute.Type) {
-		return buildProblemClientResultTransformCode(errorResponse, body.Type != expr.Empty, args), "", true
+		return b.buildProblemClientResult(errorResponse, args), "", true
 	}
 	errAtt := httpError.Attribute
 	if o, ok := body.Meta["origin:attribute"]; ok {
@@ -163,7 +162,7 @@ func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStat
 			ResultInit:           init,
 			ResultAttr:           fieldName,
 			MustValidate:         responseFieldsNeedValidation(headers, cookies),
-			HeaderSourceVar:      headerSourceVar,
+			SourceVar:            headerSourceVar,
 			ProblemTypeOverride:  problemTypeOverride,
 			ProblemTitleOverride: problemTitleOverride,
 		},
@@ -174,85 +173,12 @@ func (b *errorBuilder) buildResponseBodyData(errorResponse *transportir.Response
 	httpError := errorResponse.Error
 	errorLoc := codegen.UserTypeLocation(httpError.Attribute.Type)
 	serverBodyData, clientBodyData := b.sds.buildResponseBodyPair(responseStatusBody(errorResponse), httpError.Attribute, errorLoc, b.endpoint.Name, b.sd, errorResponse.BodyValue)
-	if expr.IsDefaultErrorResult(httpError.Attribute.Type) && len(serverBodyData) > 0 && serverBodyData[0] != nil && serverBodyData[0].Init != nil {
-		serverBodyData[0].Init.ServerCode = buildProblemServerResponseBodyCode(serverBodyData[0].Ref, errorResponse)
-	}
+
 	if clientBodyData != nil {
 		clientBodyData.Description = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body for the %q error.", clientBodyData.VarName, b.svc.Name, b.endpoint.Name, httpError.Name)
 		serverBodyData[0].Description = fmt.Sprintf("%s is the type of the %q service %q endpoint HTTP response body for the %q error.", serverBodyData[0].VarName, b.svc.Name, b.endpoint.Name, httpError.Name)
 	}
 	return serverBodyData, clientBodyData
-}
-
-func buildProblemServerResponseBodyCode(responseBodyRef string, errorResponse *transportir.ResponseStatus) string {
-	problemType := quotedMetaValue(errorResponse.Error.Attribute.Meta, "http:problem:type")
-	problemTitle := quotedMetaValue(errorResponse.Error.Attribute.Meta, "http:problem:title")
-	responseBodyLiteralType := strings.TrimPrefix(responseBodyRef, "*")
-	return fmt.Sprintf(`problemType, problemTitle := loomhttp.ResolveProblemTypeAndTitle(res.Name, %d, %s, %s)
-body := &%s{
-	Type:     problemType,
-	Title:    problemTitle,
-	Status:   %d,
-	Detail:   loom.ErrorSafeMessage(res),
-	Instance: loomhttp.ProblemInstanceURI(res.ID),
-	Code:     res.Name,
-}
-if retryHint := loom.ErrorRetryHint(res); retryHint != "" {
-	body.RetryHint = &retryHint
-}`, errorResponse.StatusCode, problemType, problemTitle, responseBodyLiteralType, errorResponse.StatusCode)
-}
-
-func buildProblemClientResultTransformCode(errorResponse *transportir.ResponseStatus, hasBody bool, args []*InitArgData) string {
-	codeExpr := `""`
-	detailExpr := `""`
-	instanceExpr := `""`
-	retryHintExpr := `nil`
-	if hasBody {
-		return fmt.Sprintf(`code := ""
-if body.Code != nil {
-	code = *body.Code
-}
-detail := ""
-if body.Detail != nil {
-	detail = *body.Detail
-}
-instance := ""
-if body.Instance != nil {
-	instance = *body.Instance
-}
-var retryHint *string
-if actual, ok := body.RetryHint.Value(); ok {
-	retryHint = &actual
-}
-v := loomhttp.ProblemErrorFromBody(code, %d, detail, instance, retryHint)`, errorResponse.StatusCode)
-	} else {
-		if v, ok := findInitArgVar(args, "code"); ok {
-			codeExpr = v
-		}
-		if v, ok := findInitArgVar(args, "detail"); ok {
-			detailExpr = v
-		}
-		if v, ok := findInitArgVar(args, "instance"); ok {
-			instanceExpr = v
-		}
-		if v, ok := findInitArgVar(args, "retry_hint"); ok {
-			retryHintExpr = v
-		}
-	}
-	return fmt.Sprintf(`v := loomhttp.ProblemErrorFromBody(%s, %d, %s, %s, %s)`, codeExpr, errorResponse.StatusCode, detailExpr, instanceExpr, retryHintExpr)
-}
-
-func findInitArgVar(args []*InitArgData, names ...string) (string, bool) {
-	for _, arg := range args {
-		for _, name := range names {
-			goName := codegen.Goify(name, false)
-			goField := codegen.Goify(name, true)
-			if arg.Name == name || arg.VarName == name || arg.VarName == goName || arg.FieldName == goField {
-				return arg.VarName, true
-			}
-		}
-	}
-	return "", false
 }
 
 func quotedMetaValue(meta expr.MetaExpr, key string) string {

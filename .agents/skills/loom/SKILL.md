@@ -484,6 +484,13 @@ receive status `404` and the public message `404 page not found`.
   `text/plain` and `text/html`; JSON `Any` and map fields have no extra envelope.
   Regenerate both transports after updating Loom for selected error body fixes.
 
+Built-in HTTP errors also support `Body("detail")` and other public problem
+fields, explicit shaped bodies, and header/cookie mappings. They expose the
+public safe-message and retry-hint representation. Generated clients reconstruct
+only fields available in those bindings; unmapped fields cannot be recovered.
+Custom formatters receive the whole service error even for a selected scalar.
+Regenerate server and client transports when adopting this projection repair.
+
 Do not duplicate these contracts in handwritten transport code.
 
 Generated HTTP server packages expose per-method response contract functions

@@ -55,23 +55,20 @@ func NewListResultOK(body *ListResponseBody) *servicea.ListResult {
 // NewListSomethingWentWrong builds a ServiceA service list endpoint
 // something_went_wrong error.
 func NewListSomethingWentWrong(body *ListSomethingWentWrongResponseBody) *loom.ServiceError {
-	code := ""
-	if body.Code != nil {
-		code = *body.Code
+	problem := &loomhttp.ProblemResponse{
+		Type:     *body.Type,
+		Title:    *body.Title,
+		Status:   *body.Status,
+		Detail:   *body.Detail,
+		Instance: *body.Instance,
+		Code:     *body.Code,
 	}
-	detail := ""
-	if body.Detail != nil {
-		detail = *body.Detail
-	}
-	instance := ""
-	if body.Instance != nil {
-		instance = *body.Instance
-	}
-	var retryHint *string
 	if actual, ok := body.RetryHint.Value(); ok {
-		retryHint = &actual
+		problemRetryHintValue := actual
+
+		problem.RetryHint = &problemRetryHintValue
 	}
-	v := loomhttp.ProblemErrorFromBody(code, 500, detail, instance, retryHint)
+	v := loomhttp.ProblemErrorFromBody(problem.Code, 500, problem.Detail, problem.Instance, problem.RetryHint)
 
 	return v
 }

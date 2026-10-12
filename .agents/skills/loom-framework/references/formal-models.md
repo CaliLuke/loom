@@ -47,6 +47,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | Custom multipart accumulator, error-return signature and callback/validation barriers | [Multipart decode ownership](../../../../http/codegen/tla/multipart_decode/README.md); shared partials with wrapper-local control flow |
 | HTTP captured final status and implicit commits | [Response capture](../../../../observability/transport/tla/response_capture/README.md); bounded informational/final/flush ordering |
 | Consumed response-body ownership, restoration and cleanup errors | [Response body lifecycle](../../../../http/tla/response_body/README.md); bounded ownership and error-preservation controls |
+| Built-in HTTP error public representation and projected field membership | [Problem response projection](../../../../http/codegen/tla/problem_response_projection/README.md); bounded full-body assumption counterexamples paired with generated scalar/object/header/cookie wire tests |
 | HTTP response first-match priority and default placement | [Response order](../../../../http/codegen/internal/transportir/tla/response_order/README.md) |
 | HTTP body wrapper copy/example identity and generated type names | [Body type names](../../../../http/codegen/tla/body_type_names/README.md) |
 | HTTP type collection, validator eligibility and multipart cycle identity | [HTTP type identity](../../../../http/codegen/tla/type_identity/README.md) |

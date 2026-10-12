@@ -91,81 +91,106 @@ func NewGuardedTickTockEventOK(body *GuardedResponseBody) *clock.TickTockEvent {
 // NewGuardedUnauthorized builds a clock service Guarded endpoint unauthorized
 // error.
 func NewGuardedUnauthorized(body *GuardedUnauthorizedResponseBody) *loom.ServiceError {
-	code := ""
-	if body.Code != nil {
-		code = *body.Code
+	problem := &loomhttp.ProblemResponse{
+		Type:     *body.Type,
+		Title:    *body.Title,
+		Status:   *body.Status,
+		Detail:   *body.Detail,
+		Instance: *body.Instance,
+		Code:     *body.Code,
 	}
-	detail := ""
-	if body.Detail != nil {
-		detail = *body.Detail
-	}
-	instance := ""
-	if body.Instance != nil {
-		instance = *body.Instance
-	}
-	var retryHint *string
 	if actual, ok := body.RetryHint.Value(); ok {
-		retryHint = &actual
+		problemRetryHintValue := actual
+
+		problem.RetryHint = &problemRetryHintValue
 	}
-	v := loomhttp.ProblemErrorFromBody(code, 401, detail, instance, retryHint)
+	v := loomhttp.ProblemErrorFromBody(problem.Code, 401, problem.Detail, problem.Instance, problem.RetryHint)
 
 	return v
 }
 
 // ValidateTickResponseBody runs the validations defined on TickResponseBody
-func ValidateTickResponseBody(body *TickResponseBody) (err error) {
+func ValidateTickResponseBody(body *TickResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.Event == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("event", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("event", validationPath))
 	}
 	if body.Data == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("data", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("data", validationPath))
 	}
 	return
 }
 
 // ValidateTockResponseBody runs the validations defined on TockResponseBody
-func ValidateTockResponseBody(body *TockResponseBody) (err error) {
+func ValidateTockResponseBody(body *TockResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.Event == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("event", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("event", validationPath))
 	}
 	if body.Data == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("data", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("data", validationPath))
 	}
 	return
 }
 
 // ValidateGuardedResponseBody runs the validations defined on
 // GuardedResponseBody
-func ValidateGuardedResponseBody(body *GuardedResponseBody) (err error) {
+func ValidateGuardedResponseBody(body *GuardedResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.Event == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("event", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("event", validationPath))
 	}
 	if body.Data == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("data", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("data", validationPath))
 	}
 	return
 }
 
 // ValidateGuardedUnauthorizedResponseBody runs the validations defined on
 // Guarded_unauthorized_Response_Body
-func ValidateGuardedUnauthorizedResponseBody(body *GuardedUnauthorizedResponseBody) (err error) {
+func ValidateGuardedUnauthorizedResponseBody(body *GuardedUnauthorizedResponseBody, validationContext ...string) (err error) {
+	validationPath := "body"
+	if len(validationContext) > 0 {
+		validationPath = ""
+		for _, validationPart := range validationContext {
+			validationPath += validationPart
+		}
+	}
 	if body.Type == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("type", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("type", validationPath))
 	}
 	if body.Title == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("title", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("title", validationPath))
 	}
 	if body.Status == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("status", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("status", validationPath))
 	}
 	if body.Detail == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("detail", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("detail", validationPath))
 	}
 	if body.Instance == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("instance", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("instance", validationPath))
 	}
 	if body.Code == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("code", "body"))
+		err = loom.MergeErrors(err, loom.MissingFieldError("code", validationPath))
 	}
 	return
 }

@@ -10,7 +10,6 @@ package server
 import (
 	clock "example.com/http-ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
-	loom "github.com/CaliLuke/loom/pkg"
 )
 
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
@@ -87,18 +86,15 @@ func NewGuardedResponseBody(res *clock.TickTockEvent) *GuardedResponseBody {
 
 // NewGuardedUnauthorizedResponseBody builds the HTTP response body from the
 // result of the "Guarded" endpoint of the "clock" service.
-func NewGuardedUnauthorizedResponseBody(res *loom.ServiceError) *GuardedUnauthorizedResponseBody {
-	problemType, problemTitle := loomhttp.ResolveProblemTypeAndTitle(res.Name, 401, "", "")
+func NewGuardedUnauthorizedResponseBody(problem *loomhttp.ProblemResponse) *GuardedUnauthorizedResponseBody {
 	body := &GuardedUnauthorizedResponseBody{
-		Type:     problemType,
-		Title:    problemTitle,
-		Status:   401,
-		Detail:   loom.ErrorSafeMessage(res),
-		Instance: loomhttp.ProblemInstanceURI(res.ID),
-		Code:     res.Name,
-	}
-	if retryHint := loom.ErrorRetryHint(res); retryHint != "" {
-		body.RetryHint = &retryHint
+		Type:      problem.Type,
+		Title:     problem.Title,
+		Status:    problem.Status,
+		Detail:    problem.Detail,
+		Instance:  problem.Instance,
+		Code:      problem.Code,
+		RetryHint: problem.RetryHint,
 	}
 	return body
 }

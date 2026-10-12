@@ -1,0 +1,16 @@
+package design
+import . "github.com/CaliLuke/loom/dsl"
+var _=API("compare",func(){})
+var _=Service("problem",func(){
+Method("type",func(){Error("oops");HTTP(func(){GET("/type");Response("oops",StatusBadRequest,func(){Body("type")})})})
+Method("title",func(){Error("oops");HTTP(func(){GET("/title");Response("oops",StatusBadRequest,func(){Body("title")})})})
+Method("status",func(){Error("oops");HTTP(func(){GET("/status");Response("oops",StatusBadRequest,func(){Body("status")})})})
+Method("detail",func(){Error("oops");HTTP(func(){GET("/detail");Response("oops",StatusBadRequest,func(){Body("detail")})})})
+Method("instance",func(){Error("oops");HTTP(func(){GET("/instance");Response("oops",StatusBadRequest,func(){Body("instance")})})})
+Method("code",func(){Error("oops");HTTP(func(){GET("/code");Response("oops",StatusBadRequest,func(){Body("code")})})})
+Method("retry_hint",func(){Error("oops");HTTP(func(){GET("/retry_hint");Response("oops",StatusBadRequest,func(){Body("retry_hint")})})})
+Method("header",func(){Error("oops");HTTP(func(){GET("/header");Response("oops",StatusBadRequest,func(){Header("code:X-Code")})})})
+Method("cookie",func(){Error("oops");HTTP(func(){GET("/cookie");Response("oops",StatusBadRequest,func(){Cookie("code:error_code")})})})
+Method("shaped",func(){Error("oops");HTTP(func(){GET("/shaped");Response("oops",StatusBadRequest,func(){Body(func(){Attribute("detail")})})})})
+Method("empty",func(){Error("oops");HTTP(func(){GET("/empty");Response("oops",StatusBadRequest,func(){Body(Empty)})})})
+})

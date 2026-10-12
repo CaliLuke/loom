@@ -2,7 +2,15 @@
 // ServiceEmptyErrorResponseBody service MethodEmptyErrorResponseBody endpoint
 // internal_error error.
 func NewMethodEmptyErrorResponseBodyInternalError(code string, type_ string, title string, status int, detail string, instance string, retryHint *string) *loom.ServiceError {
-	v := loomhttp.ProblemErrorFromBody(code, 500, detail, instance, retryHint)
+	problem := &loomhttp.ProblemResponse{}
+	problem.Code = code
+	problem.Type = type_
+	problem.Title = title
+	problem.Status = status
+	problem.Detail = detail
+	problem.Instance = instance
+	problem.RetryHint = retryHint
+	v := loomhttp.ProblemErrorFromBody(problem.Code, 500, problem.Detail, problem.Instance, problem.RetryHint)
 
 	return v
 }

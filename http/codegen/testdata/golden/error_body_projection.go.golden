@@ -15,7 +15,12 @@ func EncodeHTMLError(encoder func(context.Context, http.ResponseWriter) loomhttp
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/html; charset=utf-8")
 			enc := encoder(ctx, w)
-			body := res.Body
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res.Body
+			}
 			w.Header().Set("X-Kind", res.Kind)
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -43,7 +48,12 @@ func EncodePlainError(encoder func(context.Context, http.ResponseWriter) loomhtt
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
 			enc := encoder(ctx, w)
-			body := res.Body
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res.Body
+			}
 			w.Header().Set("X-Kind", res.Kind)
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -71,7 +81,12 @@ func EncodeAnyError(encoder func(context.Context, http.ResponseWriter) loomhttp.
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
 			enc := encoder(ctx, w)
-			body := res.Body
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res.Body
+			}
 			w.Header().Set("X-Kind", res.Kind)
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -99,7 +114,12 @@ func EncodeMapError(encoder func(context.Context, http.ResponseWriter) loomhttp.
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "application/json")
 			enc := encoder(ctx, w)
-			body := res.Body
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res.Body
+			}
 			w.Header().Set("X-Kind", res.Kind)
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -193,7 +213,12 @@ func EncodeRenamedError(encoder func(context.Context, http.ResponseWriter) loomh
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
 			enc := encoder(ctx, w)
-			body := res.Content
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res.Content
+			}
 			w.Header().Set("X-Kind", res.Kind)
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -221,7 +246,12 @@ func EncodeOptionalError(encoder func(context.Context, http.ResponseWriter) loom
 			}
 			ctx = context.WithValue(ctx, loomhttp.ContentTypeKey, "text/plain")
 			enc := encoder(ctx, w)
-			body := res.Body
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = res.Body
+			}
 			w.Header().Set("X-Kind", res.Kind)
 			w.Header().Set("loom-error", res.LoomErrorName())
 			w.WriteHeader(http.StatusInternalServerError)

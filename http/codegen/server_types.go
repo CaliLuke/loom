@@ -194,6 +194,10 @@ func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) string {
 	if typ == "client" {
 		args = init.ClientArgs
 	}
+	return initFieldAssignments(args, varn, init.ReturnTypePkg, pkgs)
+}
+
+func initFieldAssignments(args []*InitArgData, targetVar, targetPkg string, pkgs *codegen.NameScope) string {
 	initArgs := make([]*codegen.InitArgData, len(args))
 	for i, arg := range args {
 		initArgs[i] = &codegen.InitArgData{
@@ -207,9 +211,9 @@ func fieldCode(init *InitData, typ string, pkgs *codegen.NameScope) string {
 	}
 	// We can ignore the transform helpers as there won't be any generated
 	// because the headers and params cannot be user types.
-	c, _, err := codegen.InitStructFields(initArgs, varn, "", init.ReturnTypePkg, pkgs)
+	c, _, err := codegen.InitStructFields(initArgs, targetVar, "", targetPkg, pkgs)
 	if err != nil {
-		panic(fmt.Errorf("build HTTP field init for %s: %w", init.Name, err))
+		panic(fmt.Errorf("build HTTP field init for %s: %w", targetVar, err))
 	}
 	return c
 }
