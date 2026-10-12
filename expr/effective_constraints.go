@@ -70,7 +70,7 @@ type (
 	// declaration provenance. Present distinguishes an absent endpoint from zero.
 	EffectiveNumericBound struct {
 		// Value is the lowered endpoint value.
-		Value float64
+		Value NumericBound
 		// Exclusive reports whether values equal to the endpoint are excluded.
 		Exclusive bool
 		// Present reports whether an endpoint was authored.
@@ -80,7 +80,7 @@ type (
 	}
 
 	effectiveNumericBound struct {
-		value     float64
+		value     NumericBound
 		exclusive bool
 		set       bool
 		source    EffectiveConstraintSource
@@ -459,12 +459,12 @@ func (v *EffectiveValidation) addClause(clause EffectiveValidationClause) {
 	}
 }
 
-func tighterEffectiveBound(current effectiveNumericBound, candidate *float64, exclusive, minimum bool, source EffectiveConstraintSource) effectiveNumericBound {
+func tighterEffectiveBound(current effectiveNumericBound, candidate *NumericBound, exclusive, minimum bool, source EffectiveConstraintSource) effectiveNumericBound {
 	if candidate == nil {
 		return current
 	}
-	if !current.set || (minimum && *candidate > current.value) || (!minimum && *candidate < current.value) ||
-		(*candidate == current.value && exclusive && !current.exclusive) {
+	if !current.set || (minimum && candidate.Cmp(current.value) > 0) || (!minimum && candidate.Cmp(current.value) < 0) ||
+		(candidate.Cmp(current.value) == 0 && exclusive && !current.exclusive) {
 		return effectiveNumericBound{value: *candidate, exclusive: exclusive, set: true, source: source}
 	}
 	return current
@@ -559,7 +559,10 @@ func resolveConstraintValue(
 		admission:    true,
 		ignoredEnums: ignoredEnums,
 	}
-	return resolver.resolve(node, snapshot.raw, true, node, nil)
+	result := resolver.resolve(node, snapshot.raw, true, node, nil)
+	result.source, result.occurrence, result.legacy = source, resolver.occurrence, &source.snapshot
+	result.customBoundary = result.outcome == ValueUnsupported && valueCustomSource(snapshot.raw)
+	return result
 }
 
 func resolveConstraintShape(

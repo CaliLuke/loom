@@ -1,6 +1,6 @@
 func Validate() (err error) {
 	if target.RequiredFloat < 1 {
-		err = loom.MergeErrors(err, loom.InvalidRangeError("target.required_float", target.RequiredFloat, 1, true))
+		err = loom.MergeErrors(err, loom.InvalidRangeError("target.required_float", target.RequiredFloat, "1", true))
 	}
 	if target.DefaultInteger != nil {
 		if !(*target.DefaultInteger == 1.2 || *target.DefaultInteger == 5 || *target.DefaultInteger == 10 || *target.DefaultInteger == 100.8) {
@@ -9,17 +9,17 @@ func Validate() (err error) {
 	}
 	if target.Float64 != nil {
 		if *target.Float64 > 100.1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("target.float64", *target.Float64, 100.1, false))
+			err = loom.MergeErrors(err, loom.InvalidRangeError("target.float64", *target.Float64, "100.099999999999994315658113919198513031005859375", false))
 		}
 	}
 	if target.ExclusiveFloat64 != nil {
-		if *target.ExclusiveFloat64 <= 1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive_float64", *target.ExclusiveFloat64, 1, true))
+		if *target.ExclusiveFloat64 < 1.0000000000000002 {
+			err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive_float64", *target.ExclusiveFloat64, "1", true))
 		}
 	}
 	if target.ExclusiveFloat64 != nil {
-		if *target.ExclusiveFloat64 >= 100.1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive_float64", *target.ExclusiveFloat64, 100.1, false))
+		if *target.ExclusiveFloat64 > 100.09999999999998 {
+			err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive_float64", *target.ExclusiveFloat64, "100.099999999999994315658113919198513031005859375", false))
 		}
 	}
 }

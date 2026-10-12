@@ -127,7 +127,7 @@ func TestEffectiveConstraintsDistinguishLocalContractFailureFromEnumWidening(t *
 	minimum := 5.0
 	base := namedScalar("Base", Int, nil)
 	derived := namedScalar("Derived", base, &ValidationExpr{
-		Minimum: &minimum,
+		Minimum: boundForTest(minimum),
 		Values:  []any{1},
 	})
 
@@ -178,7 +178,7 @@ func TestResolveAccumulatesNamedObjectRequirements(t *testing.T) {
 func TestResolveConjoinsAllNumericPredicates(t *testing.T) {
 	minimum, exclusiveMinimum := 5.0, 1.0
 	attribute := &AttributeExpr{Type: Float64, Validation: &ValidationExpr{
-		Minimum: &minimum, ExclusiveMinimum: &exclusiveMinimum,
+		Minimum: boundForTest(minimum), ExclusiveMinimum: boundForTest(exclusiveMinimum),
 	}}
 	context := NewValueContext()
 	occurrence, err := context.NewOccurrence(attribute)
@@ -244,18 +244,18 @@ func TestPreFinalDefaultSelectionMatchesEffectiveConstraints(t *testing.T) {
 
 func TestEffectiveConstraintsConjoinBoundsAndRequiredFields(t *testing.T) {
 	min, exclusiveMin, max, exclusiveMax := 1.0, 1.0, 10.0, 8.0
-	baseNumber := namedScalar("BaseNumber", Float64, &ValidationExpr{Minimum: &min, Maximum: &max})
+	baseNumber := namedScalar("BaseNumber", Float64, &ValidationExpr{Minimum: boundForTest(min), Maximum: boundForTest(max)})
 	derivedNumber := namedScalar("DerivedNumber", baseNumber, &ValidationExpr{
-		ExclusiveMinimum: &exclusiveMin,
-		ExclusiveMaximum: &exclusiveMax,
+		ExclusiveMinimum: boundForTest(exclusiveMin),
+		ExclusiveMaximum: boundForTest(exclusiveMax),
 	})
 	numberConstraints, err := EffectiveConstraintsFor(&AttributeExpr{Type: derivedNumber})
 	require.NoError(t, err)
 	numberValidation := numberConstraints.Validation().Lowered()
 	require.Nil(t, numberValidation.Minimum)
-	require.Equal(t, exclusiveMin, *numberValidation.ExclusiveMinimum)
+	require.Equal(t, *boundForTest(exclusiveMin), *numberValidation.ExclusiveMinimum)
 	require.Nil(t, numberValidation.Maximum)
-	require.Equal(t, exclusiveMax, *numberValidation.ExclusiveMaximum)
+	require.Equal(t, *boundForTest(exclusiveMax), *numberValidation.ExclusiveMaximum)
 
 	object := &Object{
 		{Name: "first:one", Attribute: &AttributeExpr{Type: String}},
@@ -323,7 +323,7 @@ func TestEffectiveConstraintsDoNotHideObjectFailuresBehindCustomCodecs(t *testin
 		raw   any
 	}{
 		{name: "missing required", field: &AttributeExpr{Type: String}},
-		{name: "numeric", field: &AttributeExpr{Type: Float64, Validation: &ValidationExpr{Minimum: &minimum}}, raw: 1.0},
+		{name: "numeric", field: &AttributeExpr{Type: Float64, Validation: &ValidationExpr{Minimum: boundForTest(minimum)}}, raw: 1.0},
 		{name: "string", field: &AttributeExpr{Type: String, Validation: &ValidationExpr{MinLength: &minLength}}, raw: "x"},
 		{name: "enum", field: &AttributeExpr{Type: String, Validation: &ValidationExpr{Values: []any{"allowed"}}}, raw: "rejected"},
 		{name: "unsupported", field: &AttributeExpr{Type: Any}, raw: make(chan int)},

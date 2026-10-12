@@ -215,6 +215,14 @@ and `UInt`. Regenerate after upgrading and review generated clients. These
 format annotations describe the domain; validator format support is optional.
 The JSON representation and authored numeric bounds stay the same.
 
+Numeric bounds retain exact integer and string values. Use decimal strings such
+as `Minimum("0.1")` for decimal contracts; finite hexadecimal strings are also
+accepted. Native Go floats keep their actual binary value, which can differ from
+that decimal. Defaults and enum members must project into the required generated
+schema without widening it. Regenerate clients, servers and OpenAPI after
+upgrading. See the [numeric validation contract](../../../docs/dsl-reference.md#numeric-validations)
+for native decoding, exact JSON numbers and inherited enum refinements.
+
 OpenAPI security follows each endpoint's credential location. JWTs mapped to
 query parameters, cookies, or custom headers use API-key schemes; Authorization
 header JWTs use HTTP bearer. One scheme used at several locations gets separate

@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/exactnum"
 	"github.com/CaliLuke/loom/internal/unionjson"
 	loom "github.com/CaliLuke/loom/pkg"
 )
@@ -198,20 +199,20 @@ func validationMatches(validation *expr.ValidationExpr, value any) bool {
 			return false
 		}
 	}
-	number, numeric := numericExampleValue(value)
+	number, numeric := exactnum.FromScalar(value)
 	if !numeric {
 		return true
 	}
-	if validation.Minimum != nil && number.Cmp(new(big.Rat).SetFloat64(*validation.Minimum)) < 0 {
+	if validation.Minimum != nil && number.Cmp(*validation.Minimum) < 0 {
 		return false
 	}
-	if validation.ExclusiveMinimum != nil && number.Cmp(new(big.Rat).SetFloat64(*validation.ExclusiveMinimum)) <= 0 {
+	if validation.ExclusiveMinimum != nil && number.Cmp(*validation.ExclusiveMinimum) <= 0 {
 		return false
 	}
-	if validation.Maximum != nil && number.Cmp(new(big.Rat).SetFloat64(*validation.Maximum)) > 0 {
+	if validation.Maximum != nil && number.Cmp(*validation.Maximum) > 0 {
 		return false
 	}
-	return validation.ExclusiveMaximum == nil || number.Cmp(new(big.Rat).SetFloat64(*validation.ExclusiveMaximum)) < 0
+	return validation.ExclusiveMaximum == nil || number.Cmp(*validation.ExclusiveMaximum) < 0
 }
 
 func exampleValuesEqual(left, right any) bool {

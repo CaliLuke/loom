@@ -57,8 +57,8 @@ func (r *RootExpr) composeDesign() {
 			continue
 		}
 		lower, upper := constraints.LowerBound(), constraints.UpperBound()
-		if lower.Present && upper.Present && (lower.Value > upper.Value ||
-			(lower.Value == upper.Value && (lower.Exclusive || upper.Exclusive))) {
+		if lower.Present && upper.Present && (lower.Value.Cmp(upper.Value) > 0 ||
+			(lower.Value.Cmp(upper.Value) == 0 && (lower.Exclusive || upper.Exclusive))) {
 			compositionError(attribute, "%s: contradictory Extend bounds from %q and %q", attribute.compositionName, lower.Provenance.Declaration, upper.Provenance.Declaration)
 			continue
 		}

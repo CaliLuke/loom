@@ -119,7 +119,13 @@ func (c *ValueContext) projectJSON(result ValueResult, plan ValuePlan) Projectio
 	if len(wire) == 0 {
 		return projectionFailure(ProjectionIncomplete, "selected value is absent")
 	}
-	if !schemaJSON(plan.root, wire) {
+	matched, schemaErr := schemaJSON(plan.root, wire)
+	if schemaErr != nil {
+		failure := projectionFailure(ProjectionInvalidPlan, "JSON schema evaluation failed: "+schemaErr.Error())
+		failure.err = schemaErr
+		return failure
+	}
+	if !matched {
 		return projectionFailure(ProjectionUnrepresentable, "canonical JSON does not satisfy the target schema")
 	}
 	if !plan.root.documentary {
@@ -158,7 +164,13 @@ func projectCustomJSON(result ValueResult, plan ValuePlan) ProjectionResult {
 		}
 		return failure
 	}
-	if !schemaJSON(plan.root, wire) {
+	matched, schemaErr := schemaJSON(plan.root, wire)
+	if schemaErr != nil {
+		failure := projectionFailure(ProjectionInvalidPlan, "JSON schema evaluation failed: "+schemaErr.Error())
+		failure.err = schemaErr
+		return failure
+	}
+	if !matched {
 		return projectionFailure(ProjectionUnrepresentable, "custom snapshot does not satisfy target schema")
 	}
 	if !plan.root.documentary {
@@ -222,7 +234,8 @@ func (r ProjectionResult) Diagnostics() []ValueDiagnostic {
 	return (ValueResult{diagnostics: r.diagnostics}).Diagnostics()
 }
 
-// Err reports an authored custom materialization error when one occurred.
+// Err reports fatal schema-evaluation and authored custom materialization errors.
+// Ordinary nonmembership is described by Outcome and Diagnostics.
 func (r ProjectionResult) Err() error {
 	return r.err
 }

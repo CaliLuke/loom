@@ -95,13 +95,13 @@ type (
 func TestIndependentAliasContractExtractionPreservesRawLayers(t *testing.T) {
 	minimum, exclusiveMinimum := 5.0, 1.0
 	base := aliasNamed("Base", expr.Float64, &expr.ValidationExpr{
-		Values: []any{1.0, 2.0}, Minimum: &minimum, Pattern: "base", Format: expr.FormatUUID,
+		Values: []any{1.0, 2.0}, Minimum: boundForTest(minimum), Pattern: "base", Format: expr.FormatUUID,
 		PatternClauses: []string{"base", "base-carrier"},
 		FormatClauses:  []expr.ValidationFormat{expr.FormatUUID, expr.FormatDateTime},
 		Required:       []string{"missing"},
 	})
 	derived := aliasNamed("Derived", base, &expr.ValidationExpr{
-		Values: []any{2.0, 2.0}, ExclusiveMinimum: &exclusiveMinimum, Pattern: "derived",
+		Values: []any{2.0, 2.0}, ExclusiveMinimum: boundForTest(exclusiveMinimum), Pattern: "derived",
 		PatternClauses: []string{"derived", "derived-carrier"},
 		FormatClauses:  []expr.ValidationFormat{expr.FormatUUID},
 	})
@@ -273,15 +273,38 @@ func checkEffectiveAliasContractConformance(t *testing.T, executable string) {
 	t.Run("declared equality subset default and numeric", func(t *testing.T) {
 		minimum, exclusiveMinimum, maximum, exclusiveMaximum := 0.0, 1.0, 10.0, 8.0
 		base := aliasNamed("Base", expr.Float64, &expr.ValidationExpr{
-			Values: []any{1.0, 2.0}, Minimum: &minimum, Maximum: &maximum,
+			Values: []any{1.0, 2.0}, Minimum: boundForTest(minimum), Maximum: boundForTest(maximum),
 		})
 		base.Attribute().DefaultValue = 1.0
 		derived := aliasNamed("Derived", base, &expr.ValidationExpr{
-			Values: []any{2.0}, ExclusiveMinimum: &exclusiveMinimum,
-			ExclusiveMaximum: &exclusiveMaximum,
+			Values: []any{2.0}, ExclusiveMinimum: boundForTest(exclusiveMinimum),
+			ExclusiveMaximum: boundForTest(exclusiveMaximum),
 		})
 		derived.Attribute().DefaultValue = 2.0
 		checkAliasSuccess(t, executable, &expr.AttributeExpr{Type: derived})
+	})
+
+	t.Run("exact numeric endpoints", func(t *testing.T) {
+		for _, tc := range []struct {
+			name           string
+			primitive      expr.Primitive
+			lower, upper   string
+			valid, invalid any
+		}{
+			{"signed", expr.Int64, "9007199254740993", "9223372036854775807", int64(9007199254740993), int64(9007199254740992)},
+			{"unsigned", expr.UInt64, "18446744073709551614", "18446744073709551615", uint64(math.MaxUint64), uint64(math.MaxUint64 - 2)},
+			{"decimal", expr.Float64, "0", "0.1", math.Nextafter(0.1, 0), 0.1},
+			{"tiny", expr.Float64, "1e-400", "1", math.SmallestNonzeroFloat64, 0.0},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				base := aliasNamed(tc.name+"BoundBase", tc.primitive, &expr.ValidationExpr{Minimum: boundForTest(tc.lower)})
+				child := aliasNamed(tc.name+"BoundChild", base, &expr.ValidationExpr{Maximum: boundForTest(tc.upper)})
+				attribute := &expr.AttributeExpr{Type: child}
+				checkAliasSuccess(t, executable, attribute)
+				checkAliasResolutionOutcome(t, attribute, tc.valid, expr.ValueResolved)
+				checkAliasResolutionOutcome(t, attribute, tc.invalid, expr.ValueInvalid)
+			})
+		}
 	})
 
 	t.Run("inherited default fallback", func(t *testing.T) {
@@ -507,10 +530,10 @@ func checkEffectiveAliasContractConformance(t *testing.T, executable string) {
 
 	t.Run("inherited default rejected by tighter numeric contract", func(t *testing.T) {
 		baseMinimum := 0.0
-		base := aliasNamed("NumericDefaultBase", expr.Float64, &expr.ValidationExpr{Minimum: &baseMinimum})
+		base := aliasNamed("NumericDefaultBase", expr.Float64, &expr.ValidationExpr{Minimum: boundForTest(baseMinimum)})
 		base.Attribute().DefaultValue = 1.0
 		derivedMinimum := 2.0
-		derived := aliasNamed("NumericDefaultDerived", base, &expr.ValidationExpr{Minimum: &derivedMinimum})
+		derived := aliasNamed("NumericDefaultDerived", base, &expr.ValidationExpr{Minimum: boundForTest(derivedMinimum)})
 		checkAliasRejection(t, executable, &expr.AttributeExpr{Type: derived}, "invalidDefault", "default value 1")
 	})
 }
@@ -815,8 +838,8 @@ func decimalFromUnsigned(value uint64) *referenceDecimal {
 
 func rawNumeric(validation *expr.ValidationExpr) referenceAliasNumeric {
 	return referenceAliasNumeric{
-		Minimum: decimalPointer(validation.Minimum), ExclusiveMinimum: decimalPointer(validation.ExclusiveMinimum),
-		Maximum: decimalPointer(validation.Maximum), ExclusiveMaximum: decimalPointer(validation.ExclusiveMaximum),
+		Minimum: boundDecimal(validation.Minimum), ExclusiveMinimum: boundDecimal(validation.ExclusiveMinimum),
+		Maximum: boundDecimal(validation.Maximum), ExclusiveMaximum: boundDecimal(validation.ExclusiveMaximum),
 	}
 }
 
@@ -836,7 +859,7 @@ func independentEffectiveBounds(attribute *expr.AttributeExpr) (expr.EffectiveNu
 			continue
 		}
 		for _, bound := range []struct {
-			value     *float64
+			value     *expr.NumericBound
 			exclusive bool
 			minimum   bool
 		}{{validation.Minimum, false, true}, {validation.ExclusiveMinimum, true, true},
@@ -848,9 +871,9 @@ func independentEffectiveBounds(attribute *expr.AttributeExpr) (expr.EffectiveNu
 			if bound.minimum {
 				target = &lower
 			}
-			if !target.Present || (bound.minimum && *bound.value > target.Value) ||
-				(!bound.minimum && *bound.value < target.Value) ||
-				(*bound.value == target.Value && bound.exclusive && !target.Exclusive) {
+			if !target.Present || (bound.minimum && bound.value.Cmp(target.Value) > 0) ||
+				(!bound.minimum && bound.value.Cmp(target.Value) < 0) ||
+				(bound.value.Cmp(target.Value) == 0 && bound.exclusive && !target.Exclusive) {
 				*target = expr.EffectiveNumericBound{
 					Value: *bound.value, Exclusive: bound.exclusive, Present: true,
 					Provenance: expr.EffectiveConstraintSource{Declaration: layer.name},

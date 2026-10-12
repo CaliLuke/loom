@@ -30,8 +30,8 @@ func DecodeMethodQueryArrayUIntValidateRequest(mux loomhttp.Muxer, _ func(*http.
 			err = loom.MergeErrors(err, loom.InvalidLengthError("q", len(q), 1, true))
 		}
 		for _, e := range q {
-			if e < 1 {
-				err = loom.MergeErrors(err, loom.InvalidRangeError("q[*]", e, 1, true))
+			if e < 0x1 {
+				err = loom.MergeErrors(err, loom.InvalidRangeError("q[*]", e, "1", true))
 			}
 		}
 		if err != nil {

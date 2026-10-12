@@ -97,7 +97,8 @@ func TestValueProjectionRuntimeScalarAndAnyMatrix(t *testing.T) {
 	}{
 		{"bytes", &AttributeExpr{Type: Bytes}, []byte("hi"), ProjectionEmitted, `"aGk="`},
 		{"named bytes occurrence length", &AttributeExpr{Type: alias, Validation: &ValidationExpr{MinLength: &length, MaxLength: &length}}, []byte("hi"), ProjectionEmitted, `"aGk="`},
-		{"decimal bound", &AttributeExpr{Type: Float64, Validation: &ValidationExpr{Minimum: &minimum}}, .1, ProjectionEmitted, `0.1`},
+		{"binary bound rejects shorter decimal token", &AttributeExpr{Type: Float64, Validation: &ValidationExpr{Minimum: boundForTest(minimum)}}, .1, ProjectionUnrepresentable, ""},
+		{"decimal bound admits exact decimal token", &AttributeExpr{Type: Float64, Validation: &ValidationExpr{Minimum: boundForTest("0.1")}}, .1, ProjectionEmitted, `0.1`},
 		{"integer overflow", &AttributeExpr{Type: Int32}, uint32(1 << 31), ProjectionUnrepresentable, ""},
 		{"Any exact integer", &AttributeExpr{Type: Any}, uint64(9007199254740993), ProjectionEmitted, `9007199254740993`},
 		{"Any bytes", &AttributeExpr{Type: Any}, []byte("hi"), ProjectionEmitted, `"aGk="`},

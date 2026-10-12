@@ -10,6 +10,7 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 
+	"github.com/CaliLuke/loom/internal/exactnum"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -311,20 +312,20 @@ func normalizedExampleValidationMatches(schema *Schema, value any) bool {
 			return false
 		}
 	}
-	number, numeric := normalizedExampleNumber(value)
+	number, numeric := exactnum.FromScalar(value)
 	if !numeric {
 		return true
 	}
-	if schema.Minimum != nil && number < *schema.Minimum {
+	if schema.Minimum != nil && number.Cmp(*schema.Minimum) < 0 {
 		return false
 	}
-	if schema.ExclusiveMinimum != nil && number <= *schema.ExclusiveMinimum {
+	if schema.ExclusiveMinimum != nil && number.Cmp(*schema.ExclusiveMinimum) <= 0 {
 		return false
 	}
-	if schema.Maximum != nil && number > *schema.Maximum {
+	if schema.Maximum != nil && number.Cmp(*schema.Maximum) > 0 {
 		return false
 	}
-	return schema.ExclusiveMaximum == nil || number < *schema.ExclusiveMaximum
+	return schema.ExclusiveMaximum == nil || number.Cmp(*schema.ExclusiveMaximum) < 0
 }
 
 func normalizedExampleValuesEqual(left, right any) bool {

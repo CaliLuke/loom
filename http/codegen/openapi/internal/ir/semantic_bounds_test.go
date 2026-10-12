@@ -26,9 +26,9 @@ func TestEmittedBoundsMatchGeneratedValidation(t *testing.T) {
 		valid, invalid []string
 	}{
 		{name: "map", attribute: &expr.AttributeExpr{Type: &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: expr.String}}, Validation: &expr.ValidationExpr{MinLength: &minLength, MaxLength: &maxLength}}, valid: []string{`{"a":"a","b":"b"}`, `{"a":"a","b":"b","c":"c"}`}, invalid: []string{`{"a":"a"}`, `{"a":"a","b":"b","c":"c","d":"d"}`}},
-		{name: "uint32", attribute: &expr.AttributeExpr{Type: expr.UInt32, Validation: &expr.ValidationExpr{Minimum: &minimum, Maximum: &maximum}}, valid: []string{"2", "17"}, invalid: []string{"1", "18"}},
-		{name: "uint64", attribute: &expr.AttributeExpr{Type: expr.UInt64, Validation: &expr.ValidationExpr{Minimum: &minimum, Maximum: &maximum}}, valid: []string{"2", "17"}, invalid: []string{"1", "18"}},
-		{name: "float64", attribute: &expr.AttributeExpr{Type: expr.Float64, Validation: &expr.ValidationExpr{Minimum: &minimum, Maximum: &maximum}}, valid: []string{"2", "2.5", "17"}, invalid: []string{"1.5", "17.5"}},
+		{name: "uint32", attribute: &expr.AttributeExpr{Type: expr.UInt32, Validation: &expr.ValidationExpr{Minimum: boundForTest(minimum), Maximum: boundForTest(maximum)}}, valid: []string{"2", "17"}, invalid: []string{"1", "18"}},
+		{name: "uint64", attribute: &expr.AttributeExpr{Type: expr.UInt64, Validation: &expr.ValidationExpr{Minimum: boundForTest(minimum), Maximum: boundForTest(maximum)}}, valid: []string{"2", "17"}, invalid: []string{"1", "18"}},
+		{name: "float64", attribute: &expr.AttributeExpr{Type: expr.Float64, Validation: &expr.ValidationExpr{Minimum: boundForTest(minimum), Maximum: boundForTest(maximum)}}, valid: []string{"2", "2.5", "17"}, invalid: []string{"1.5", "17.5"}},
 	}
 	var source strings.Builder
 	source.WriteString("package bounds\nimport (\n\"encoding/json/v2\"\n\"testing\"\nloom \"github.com/CaliLuke/loom/pkg\"\n)\n")

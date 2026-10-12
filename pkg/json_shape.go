@@ -4,10 +4,11 @@ import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"fmt"
-	"math/big"
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/CaliLuke/loom/internal/exactnum"
 )
 
 type (
@@ -60,7 +61,7 @@ var jsonShapeBase64 = regexp.MustCompile(`\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/
 
 // Match checks one complete JSON value without invoking application codecs.
 // False is an ordinary contract mismatch; errors indicate invalid descriptions
-// or values beyond the exact predicate evaluator's capacity.
+// or failures of the exact predicate evaluator.
 func (s *JSONShape) Match(wire jsontext.Value) (bool, error) {
 	if err := s.validate(make(map[*JSONShape]bool)); err != nil {
 		return false, err
@@ -114,7 +115,7 @@ func (s *JSONShape) validate(seen map[*JSONShape]bool) error {
 func (r JSONShapeRules) validate() error {
 	for _, bound := range []string{r.Minimum, r.Maximum, r.ExclusiveMinimum, r.ExclusiveMaximum} {
 		if bound != "" {
-			if _, valid := new(big.Rat).SetString(bound); !valid {
+			if _, err := exactnum.ParseJSON(bound); err != nil {
 				return fmt.Errorf("invalid JSON numeric bound %q", bound)
 			}
 		}
@@ -175,9 +176,9 @@ func (s *JSONShape) match(wire jsontext.Value, depth int) (bool, error) {
 		if wire.Kind() != '0' {
 			return false, nil
 		}
-		number, valid := new(big.Rat).SetString(string(wire))
-		if !valid {
-			return false, fmt.Errorf("JSON number exceeds exact matching capacity")
+		number, err := exactnum.ParseJSON(string(wire))
+		if err != nil {
+			return false, err
 		}
 		if s.Kind == "integer" && !number.IsInt() {
 			return false, nil
@@ -294,9 +295,9 @@ func (s *JSONShape) rules(wire jsontext.Value, length int) (bool, error) {
 }
 
 func (r JSONShapeRules) number(wire jsontext.Value) (bool, error) {
-	number, valid := new(big.Rat).SetString(string(wire))
-	if !valid {
-		return false, fmt.Errorf("JSON number exceeds exact matching capacity")
+	number, err := exactnum.ParseJSON(string(wire))
+	if err != nil {
+		return false, err
 	}
 	for _, bound := range []struct {
 		value            string
@@ -308,8 +309,8 @@ func (r JSONShapeRules) number(wire jsontext.Value) (bool, error) {
 		if bound.value == "" {
 			continue
 		}
-		limit, valid := new(big.Rat).SetString(bound.value)
-		if !valid {
+		limit, err := exactnum.ParseJSON(bound.value)
+		if err != nil {
 			return false, fmt.Errorf("invalid JSON numeric bound %q", bound.value)
 		}
 		comparison := number.Cmp(limit)

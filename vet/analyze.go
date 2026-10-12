@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/exactnum"
 )
 
 type scalarRecommendation struct {
@@ -361,41 +362,57 @@ func attributeSuppressed(attribute *expr.AttributeExpr, rule string) bool {
 }
 
 func hasLowerBound(attribute *expr.AttributeExpr, minimum float64, integer bool) bool {
+	lower, err := exactnum.FromFloat64(minimum)
+	if err != nil {
+		return false
+	}
+	previous, err := exactnum.FromFloat64(minimum - 1)
+	if err != nil {
+		return false
+	}
 	return anyAttributeLayer(attribute, func(layer *expr.AttributeExpr) bool {
 		validation := layer.Validation
 		if validation == nil {
 			return false
 		}
-		if validation.Minimum != nil && *validation.Minimum >= minimum {
+		if validation.Minimum != nil && validation.Minimum.Cmp(lower) >= 0 {
 			return true
 		}
 		if validation.ExclusiveMinimum == nil {
 			return false
 		}
 		if integer {
-			return *validation.ExclusiveMinimum >= minimum-1
+			return validation.ExclusiveMinimum.Cmp(previous) >= 0
 		}
-		return *validation.ExclusiveMinimum >= minimum
+		return validation.ExclusiveMinimum.Cmp(lower) >= 0
 	})
 }
 
 func hasRange(attribute *expr.AttributeExpr, minimum, maximum float64) bool {
+	lowerBound, err := exactnum.FromFloat64(minimum)
+	if err != nil {
+		return false
+	}
+	upperBound, err := exactnum.FromFloat64(maximum)
+	if err != nil {
+		return false
+	}
 	var lower, upper bool
 	anyAttributeLayer(attribute, func(layer *expr.AttributeExpr) bool {
 		validation := layer.Validation
 		if validation == nil {
 			return false
 		}
-		if validation.Minimum != nil && *validation.Minimum >= minimum {
+		if validation.Minimum != nil && validation.Minimum.Cmp(lowerBound) >= 0 {
 			lower = true
 		}
-		if validation.ExclusiveMinimum != nil && *validation.ExclusiveMinimum >= minimum {
+		if validation.ExclusiveMinimum != nil && validation.ExclusiveMinimum.Cmp(lowerBound) >= 0 {
 			lower = true
 		}
-		if validation.Maximum != nil && *validation.Maximum <= maximum {
+		if validation.Maximum != nil && validation.Maximum.Cmp(upperBound) <= 0 {
 			upper = true
 		}
-		if validation.ExclusiveMaximum != nil && *validation.ExclusiveMaximum <= maximum {
+		if validation.ExclusiveMaximum != nil && validation.ExclusiveMaximum.Cmp(upperBound) <= 0 {
 			upper = true
 		}
 		return lower && upper

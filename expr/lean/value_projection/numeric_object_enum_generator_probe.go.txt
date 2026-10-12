@@ -1,0 +1,32 @@
+// Standalone design reproducing a pre-existing object-enum Go validator defect.
+// Copy to design/design.go in a temporary module, generate JSON-RPC code, and vet.
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("objectenum", func() {
+	JSONRPC(func() {
+	})
+})
+var base = Type("EnumBase", func() {
+	Attribute("n", Int)
+	Enum(map[string]any{"n": 1}, map[string]any{"n": 2})
+})
+var refined = Type("EnumRefined", func() {
+	Extend(base)
+	Attribute("n", Int, func() {
+		Minimum(0)
+	})
+})
+var _ = Service("numbers", func() {
+	JSONRPC(func() {
+		POST("/rpc")
+	})
+	Method("read", func() {
+		Payload(func() {
+			Attribute("refined", refined)
+		})
+		JSONRPC(func() {
+	})
+	})
+})

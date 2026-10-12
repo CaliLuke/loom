@@ -38,19 +38,20 @@ func decodedJSONAllowed(plan *valuePlanNode, decoded ResolvedValue, domain value
 	if !plan.hasEnum {
 		return true
 	}
-	for _, values := range plan.enumClauses {
+	for clauseIndex, values := range plan.enumClauses {
+		projection := plan.enumProjection(clauseIndex)
 		matched := false
 		for _, member := range values {
 			if domain == valueJSONKeyDomain {
-				observed, valid := observeJSONKey(plan, member)
+				observed, valid := observeJSONKey(projection, member)
 				if valid && projectionEquivalent(observed, decoded, true) {
 					matched = true
 					break
 				}
 				continue
 			}
-			observed, failure := observeJSON(plan, ValueRoleEnum, member)
-			if failure == nil && projectionEquivalent(observed, decoded, true) {
+			observed, valid := decodedEnumConstant(plan, projection, member)
+			if valid && projectionEquivalent(observed, decoded, true) {
 				matched = true
 				break
 			}
@@ -60,6 +61,23 @@ func decodedJSONAllowed(plan *valuePlanNode, decoded ResolvedValue, domain value
 		}
 	}
 	return true
+}
+
+// decodedEnumConstant uses the actual target decoder to translate a retained
+// ancestor constant into target member identities. Constants excluded by child
+// refinements cannot match any accepted runtime value. Root enum checks are
+// suppressed only during this translation to avoid checking a clause against
+// itself; ordinary value decoding still applies the full conjunction.
+func decodedEnumConstant(plan, projection *valuePlanNode, member ResolvedValue) (ResolvedValue, bool) {
+	observed, failure := observeJSON(projection, ValueRoleEnum, member)
+	if failure != nil || projection == plan {
+		return observed, failure == nil
+	}
+	wire, failure := constructJSON(projection, observed)
+	if failure != nil {
+		return ResolvedValue{}, false
+	}
+	return decodeJSONBody(enumRootPlan(plan, false), wire)
 }
 
 func decodeJSONBody(plan *valuePlanNode, wire jsontext.Value) (ResolvedValue, bool) {

@@ -12,8 +12,8 @@ func Validate() (err error) {
 	}
 	for k, v := range target.Map {
 		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("target.map.key", k, loomPatternTest0))
-		if v > 5 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("target.map[key]", v, 5, false))
+		if v > 0x5 {
+			err = loom.MergeErrors(err, loom.InvalidRangeError("target.map[key]", v, "5", false))
 		}
 	}
 }

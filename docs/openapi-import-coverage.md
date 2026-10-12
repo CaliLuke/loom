@@ -103,6 +103,16 @@ Loom preserves supported forms of:
   `readOnly`, and `writeOnly`
 - JSON-compatible `x-*` extensions
 
+Numeric bounds retain the original JSON numeric tokens and YAML numeric scalar
+values, including hexadecimal, octal and binary integer spellings. Quoted
+numbers are not numeric constraints. Imported bounds are normalized exactly into
+DSL string arguments so compiling a design cannot round them through an untyped
+Go floating-point constant. A valid source number outside the DSL's finite
+admission range, such as `1e309`, produces a diagnostic at the bound's source
+path; `--allow-lossy` does not drop that constraint. Native floating-point
+precision remains separate from the exact schema number (see
+[numeric validations](dsl-reference.md#numeric-validations)).
+
 The following constructs are conditional:
 
 - Recursive local component references through object fields, arrays, and maps

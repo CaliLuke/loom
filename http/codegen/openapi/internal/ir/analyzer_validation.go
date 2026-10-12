@@ -7,11 +7,11 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/openapi"
 )
 
-func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr) error {
+func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr, enums [][]any) error {
 	if val == nil {
 		return nil
 	}
-	applySchemaEnums(s, attr, val.Enums())
+	applySchemaEnums(s, enums)
 	if err := applySchemaStringClauses(s, val); err != nil {
 		return err
 	}
@@ -24,17 +24,16 @@ func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.Valida
 	return nil
 }
 
-func applySchemaEnums(s *Schema, attr *expr.AttributeExpr, enums [][]any) {
+func applySchemaEnums(s *Schema, enums [][]any) {
 	for _, values := range enums {
 		if len(values) == 0 {
 			s.Not = &Schema{}
 			continue
 		}
-		projected := projectOpenAPIValues(attr, values)
 		if s.Enum == nil {
-			s.Enum = projected
+			s.Enum = values
 		} else {
-			s.AllOf = append(s.AllOf, &Schema{Enum: projected})
+			s.AllOf = append(s.AllOf, &Schema{Enum: values})
 		}
 	}
 }

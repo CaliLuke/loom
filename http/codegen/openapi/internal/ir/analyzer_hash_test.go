@@ -117,9 +117,7 @@ func TestAttributeFingerprintIsStableForRecursiveAttributes(t *testing.T) {
 func TestAttributeFingerprintChangesForEveryValidationField(t *testing.T) {
 	t.Parallel()
 
-	float := func(value float64) *float64 {
-		return &value
-	}
+	bound := boundForTest
 	integer := func(value int) *int {
 		return &value
 	}
@@ -133,10 +131,10 @@ func TestAttributeFingerprintChangesForEveryValidationField(t *testing.T) {
 		{name: "format clauses", validation: &expr.ValidationExpr{FormatClauses: []expr.ValidationFormat{expr.FormatIP, expr.FormatIPv4}}},
 		{name: "pattern", validation: &expr.ValidationExpr{Pattern: "^[a-z]+$"}},
 		{name: "pattern clauses", validation: &expr.ValidationExpr{PatternClauses: []string{"^a", "b$"}}},
-		{name: "exclusive minimum", validation: &expr.ValidationExpr{ExclusiveMinimum: float(1)}},
-		{name: "minimum", validation: &expr.ValidationExpr{Minimum: float(1)}},
-		{name: "maximum", validation: &expr.ValidationExpr{Maximum: float(1)}},
-		{name: "exclusive maximum", validation: &expr.ValidationExpr{ExclusiveMaximum: float(1)}},
+		{name: "exclusive minimum", validation: &expr.ValidationExpr{ExclusiveMinimum: bound(1)}},
+		{name: "minimum", validation: &expr.ValidationExpr{Minimum: bound(1)}},
+		{name: "maximum", validation: &expr.ValidationExpr{Maximum: bound(1)}},
+		{name: "exclusive maximum", validation: &expr.ValidationExpr{ExclusiveMaximum: bound(1)}},
 		{name: "minimum length", validation: &expr.ValidationExpr{MinLength: integer(1)}},
 		{name: "maximum length", validation: &expr.ValidationExpr{MaxLength: integer(1)}},
 		{name: "required", validation: &expr.ValidationExpr{Required: []string{"value"}}},

@@ -167,10 +167,10 @@ func TestValidationExprHasRequiredOnly(t *testing.T) {
 	var (
 		values           = []any{"foo"}
 		pattern          = "^foo$"
-		exclusiveMinimum = 1.1
-		minimum          = 1.1
-		exclusiveMaximum = 2.2
-		maximum          = 2.2
+		exclusiveMinimum = *boundForTest(1.1)
+		minimum          = *boundForTest(1.1)
+		exclusiveMaximum = *boundForTest(2.2)
+		maximum          = *boundForTest(2.2)
 		minLength        = 2
 		maxLength        = 3
 	)
@@ -178,10 +178,10 @@ func TestValidationExprHasRequiredOnly(t *testing.T) {
 		values           []any
 		format           ValidationFormat
 		pattern          string
-		exclusiveMinimum *float64
-		minimum          *float64
-		exclusiveMaximum *float64
-		maximum          *float64
+		exclusiveMinimum *NumericBound
+		minimum          *NumericBound
+		exclusiveMaximum *NumericBound
+		maximum          *NumericBound
 		minLength        *int
 		maxLength        *int
 		expected         bool
@@ -273,10 +273,10 @@ func TestAttributeExprEvalName(t *testing.T) {
 
 func TestAttributeExprValidationValidate(t *testing.T) {
 	var (
-		max       = 1.0
-		exclMax   = 2.0
-		min       = 3.0
-		ExclMin   = 4.0
+		max       = *boundForTest(1.0)
+		exclMax   = *boundForTest(2.0)
+		min       = *boundForTest(3.0)
+		ExclMin   = *boundForTest(4.0)
 		MaxLength = 5
 		MinLength = 6
 		parent    = &UserTypeExpr{
@@ -285,7 +285,7 @@ func TestAttributeExprValidationValidate(t *testing.T) {
 		}
 	)
 	cases := map[string]struct {
-		min, max, exclMin, exclMax *float64
+		min, max, exclMin, exclMax *NumericBound
 		minLen, maxLen             *int
 		pattern                    string
 		expected                   string

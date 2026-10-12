@@ -1,9 +1,7 @@
 package dsl
 
 import (
-	"reflect"
 	"regexp"
-	"strconv"
 
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
@@ -207,7 +205,7 @@ func Pattern(p string) {
 //	    ExclusiveMinimum(100)
 //	})
 func ExclusiveMinimum(val any) {
-	setNumericValidation("exclusiveMinimum", "a number", val, func(validation *expr.ValidationExpr, value float64) {
+	setNumericValidation("exclusiveMinimum", "a number", val, func(validation *expr.ValidationExpr, value expr.NumericBound) {
 		validation.ExclusiveMinimum = &value
 	})
 }
@@ -221,7 +219,7 @@ func ExclusiveMinimum(val any) {
 //	    Minimum(100)
 //	})
 func Minimum(val any) {
-	setNumericValidation("minimum", "a number", val, func(validation *expr.ValidationExpr, value float64) {
+	setNumericValidation("minimum", "a number", val, func(validation *expr.ValidationExpr, value expr.NumericBound) {
 		validation.Minimum = &value
 	})
 }
@@ -235,7 +233,7 @@ func Minimum(val any) {
 //	    ExclusiveMaximum(100)
 //	})
 func ExclusiveMaximum(val any) {
-	setNumericValidation("exclusiveMaximum", "a number", val, func(validation *expr.ValidationExpr, value float64) {
+	setNumericValidation("exclusiveMaximum", "a number", val, func(validation *expr.ValidationExpr, value expr.NumericBound) {
 		validation.ExclusiveMaximum = &value
 	})
 }
@@ -249,12 +247,12 @@ func ExclusiveMaximum(val any) {
 //	    Maximum(100)
 //	})
 func Maximum(val any) {
-	setNumericValidation("maximum", "an integer or a number", val, func(validation *expr.ValidationExpr, value float64) {
+	setNumericValidation("maximum", "an integer or a number", val, func(validation *expr.ValidationExpr, value expr.NumericBound) {
 		validation.Maximum = &value
 	})
 }
 
-func setNumericValidation(name, expectedType string, val any, apply func(*expr.ValidationExpr, float64)) {
+func setNumericValidation(name, expectedType string, val any, apply func(*expr.ValidationExpr, expr.NumericBound)) {
 	if a, ok := eval.Current().(*expr.AttributeExpr); ok {
 		kind := underlyingValidationKind(a.Type)
 		if a.Type != nil &&
@@ -286,21 +284,13 @@ func underlyingValidationKind(dataType expr.DataType) expr.Kind {
 	return dataType.Kind()
 }
 
-func parseNumericValidationValue(val any) (float64, bool) {
-	switch v := val.(type) {
-	case float32, float64, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
-		return reflect.ValueOf(v).Convert(reflect.TypeOf(float64(0.0))).Float(), true
-	case string:
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			eval.ReportError("invalid number value %#v", v)
-			return 0, false
-		}
-		return f, true
-	default:
-		eval.ReportError("invalid number value %#v", v)
-		return 0, false
+func parseNumericValidationValue(val any) (expr.NumericBound, bool) {
+	number, err := expr.NewNumericBound(val)
+	if err != nil {
+		eval.ReportError("invalid number value %#v", val)
+		return expr.NumericBound{}, false
 	}
+	return number, true
 }
 
 // MinLength adds a "minItems" validation to the attribute.

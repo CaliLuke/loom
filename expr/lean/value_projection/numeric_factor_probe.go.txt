@@ -1,0 +1,343 @@
+// Readiness prototype only. Copy to a temporary .go file; run with the root Go
+// toolchain. No framework production package imports or uses this implementation.
+package main
+
+import (
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
+	"fmt"
+	"math"
+	"math/big"
+	"math/rand/v2"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+type (
+	// number is sign * c * 2^e2 * 5^e5, with c positive and prime to 10.
+	// Zero has sign 0. This prototype treats all fields as immutable by convention.
+	number struct {
+		sign      int
+		c, e2, e5 *big.Int
+	}
+	// interval contains every real value from lo*2^scale through hi*2^scale.
+	// lo/hi have bounded mantissa size; scale is an arbitrary signed integer.
+	interval struct {
+		lo, hi, scale *big.Int
+	}
+	comparison struct {
+		Order     int `json:"order"`
+		Rounds    int `json:"rounds"`
+		Precision int `json:"precision"`
+	}
+)
+
+func main() {
+	if len(os.Args) != 2 {
+		panic("pass a task-owned output directory")
+	}
+	if err := os.MkdirAll(os.Args[1], 0o700); err != nil {
+		panic(err)
+	}
+	start := time.Now()
+	random := rand.New(rand.NewPCG(681, 755))
+	for i := 0; i < 10000; i++ {
+		left := canonical(big.NewInt(int64(random.IntN(200001)-100000)), big.NewInt(int64(random.IntN(801)-400)), big.NewInt(int64(random.IntN(801)-400)))
+		right := canonical(big.NewInt(int64(random.IntN(200001)-100000)), big.NewInt(int64(random.IntN(801)-400)), big.NewInt(int64(random.IntN(801)-400)))
+		got := compare(left, right)
+		want := rational(left).Cmp(rational(right))
+		if got.Order != want {
+			panic(fmt.Sprintf("bounded rational mismatch at %d: %+v != %d", i, got, want))
+		}
+	}
+	fmt.Printf("bounded_rational_comparisons=10000 elapsed=%s\n", time.Since(start))
+
+	// These inputs are parsed independently of strconv.ParseFloat. Separate
+	// source-admission controls determine which spellings currently enter Loom.
+	cases := []struct {
+		name, left, right string
+		want              int
+	}{
+		{"same radix alias", "0x1.4p0", "1.25", 0},
+		{"negative alias", "-0x1p-2", "-.25", 0},
+		{"signed zero", "-0x0p-999999999999999999999999999999", "0", 0},
+		{"large integer", "0x20000000000001p0", "9007199254740992", 1},
+		{"decimal underflow", "1e-1000001", "0", 1},
+		{"hex underflow", "0x1p-1000001", "0", 1},
+		{"huge cross radix", "0x1p-1000000000000000000000000000000", "1e-1000000000000000000000000000000", 1},
+		{"huge opposite", "1e-1000000000000000000000000000000", "0x1p-1000000000000000000000000000000", -1},
+		{"huge decimal alias", "10e-1000000000000000000000000000001", "1e-1000000000000000000000000000000", 0},
+	}
+	for _, test := range cases {
+		start := time.Now()
+		got := compare(parse(test.left), parse(test.right))
+		if got.Order != test.want {
+			panic(fmt.Sprintf("%s: %+v", test.name, got))
+		}
+		fmt.Printf("%s: %+v elapsed=%s\n", test.name, got, time.Since(start))
+	}
+	// At initial precision these almost equal exact integers overlap. Refinement
+	// must continue, not guess from rounded mantissas.
+	close := new(big.Int).Exp(big.NewInt(10), big.NewInt(1000), nil)
+	close.Add(close, big.NewInt(1))
+	refined := compare(canonical(close, big.NewInt(0), big.NewInt(0)), parse("1e1000"))
+	if refined.Order != 1 || refined.Rounds < 2 {
+		panic(fmt.Sprintf("refinement control failed: %+v", refined))
+	}
+	fmt.Printf("near-equal integers: %+v\n", refined)
+
+	// Comparing this pair against a materialized oracle is affordable for the
+	// selected input, though production comparison does not need that expansion.
+	left, right := parse("1e-1000001"), parse("0x1p-3321932")
+	got := compare(left, right)
+	if got.Order != rational(left).Cmp(rational(right)) {
+		panic("large mixed-radix oracle mismatch")
+	}
+	fmt.Printf("large mixed-radix oracle: %+v\n", got)
+
+	emissions := []struct{ name, source string }{
+		{"integer", "9007199254740993"},
+		{"hex_quarter", "0x1p-2"},
+		{"decimal_tiny", "1e-1000001"},
+		{"hex_tiny", "0x1p-1000001"},
+		{"float64_point_one", "0x1.999999999999ap-4"},
+		{"float32_point_one", "0x1.99999ap-4"},
+	}
+	for _, test := range emissions {
+		start := time.Now()
+		token := decimalToken(parse(test.source))
+		if !jsontext.Value(token).IsValid() {
+			panic("invalid decimal JSON token")
+		}
+		// Native parsers must not silently become the exactness oracle.
+		var decoded float64
+		err := json.Unmarshal([]byte(token), &decoded)
+		fmt.Printf("emit %s: bytes=%d elapsed=%s native_float=%g error=%v\n", test.name, len(token), time.Since(start), decoded, err)
+		if err := os.WriteFile(filepath.Join(os.Args[1], test.name+".json"), []byte(token), 0o600); err != nil {
+			panic(err)
+		}
+	}
+	if math.Float64bits(0.1) == math.Float64bits(float64(float32(0.1))) {
+		panic("invalid width control")
+	}
+}
+
+func canonical(coefficient, exponent2, exponent5 *big.Int) number {
+	n := number{sign: coefficient.Sign(), c: new(big.Int).Abs(coefficient), e2: new(big.Int).Set(exponent2), e5: new(big.Int).Set(exponent5)}
+	if n.sign == 0 {
+		n.e2.SetInt64(0)
+		n.e5.SetInt64(0)
+		return n
+	}
+	for _, factor := range []struct {
+		prime    int64
+		exponent *big.Int
+	}{{2, n.e2}, {5, n.e5}} {
+		prime := big.NewInt(factor.prime)
+		for {
+			quotient, remainder := new(big.Int), new(big.Int)
+			quotient.QuoRem(n.c, prime, remainder)
+			if remainder.Sign() != 0 {
+				break
+			}
+			n.c = quotient
+			factor.exponent.Add(factor.exponent, big.NewInt(1))
+		}
+	}
+	return n
+}
+
+// parse consumes the finite accepted numeric spellings exercised by this
+// prototype. It is not a complete source grammar validator; production must
+// retain a separately tested source-admission owner.
+func parse(source string) number {
+	source = strings.ReplaceAll(source, "_", "")
+	sign := 1
+	if strings.HasPrefix(source, "-") {
+		sign = -1
+		source = source[1:]
+	} else {
+		source = strings.TrimPrefix(source, "+")
+	}
+	base, exponentSymbol, places := 10, "eE", int64(1)
+	if strings.HasPrefix(strings.ToLower(source), "0x") {
+		base, exponentSymbol, places = 16, "pP", 4
+		source = source[2:]
+	}
+	exponent := big.NewInt(0)
+	if at := strings.IndexAny(source, exponentSymbol); at >= 0 {
+		var ok bool
+		exponent, ok = new(big.Int).SetString(source[at+1:], 10)
+		if !ok {
+			panic("invalid exponent in prototype specimen")
+		}
+		source = source[:at]
+	}
+	if at := strings.IndexByte(source, '.'); at >= 0 {
+		exponent.Sub(exponent, big.NewInt(int64(len(source)-at-1)*places))
+		source = source[:at] + source[at+1:]
+	}
+	coefficient, ok := new(big.Int).SetString(source, base)
+	if !ok {
+		panic("invalid coefficient in prototype specimen")
+	}
+	if sign < 0 {
+		coefficient.Neg(coefficient)
+	}
+	if base == 16 {
+		return canonical(coefficient, exponent, big.NewInt(0))
+	}
+	return canonical(coefficient, exponent, exponent)
+}
+
+func compare(left, right number) comparison {
+	if left.sign != right.sign {
+		return comparison{Order: sign(left.sign - right.sign)}
+	}
+	if left.sign == 0 || left.c.Cmp(right.c) == 0 && left.e2.Cmp(right.e2) == 0 && left.e5.Cmp(right.e5) == 0 {
+		return comparison{}
+	}
+	d2 := new(big.Int).Sub(left.e2, right.e2)
+	d5 := new(big.Int).Sub(left.e5, right.e5)
+	precision := 64 + max(d2.BitLen(), d5.BitLen())
+	for rounds := 1; ; rounds++ {
+		l, r := exact(left.c, precision), exact(right.c, precision)
+		if d5.Sign() > 0 {
+			l = multiply(l, power5(d5, precision), precision)
+		} else if d5.Sign() < 0 {
+			r = multiply(r, power5(new(big.Int).Neg(d5), precision), precision)
+		}
+		l.scale.Add(l.scale, d2)
+		order := 0
+		if scaledCmp(l.hi, l.scale, r.lo, r.scale) < 0 {
+			order = -1
+		} else if scaledCmp(l.lo, l.scale, r.hi, r.scale) > 0 {
+			order = 1
+		}
+		if order != 0 {
+			return comparison{Order: order * left.sign, Rounds: rounds, Precision: precision}
+		}
+		precision *= 2
+	}
+}
+
+func exact(value *big.Int, precision int) interval {
+	return normalize(interval{new(big.Int).Set(value), new(big.Int).Set(value), big.NewInt(0)}, precision)
+}
+
+func normalize(value interval, precision int) interval {
+	for value.hi.BitLen() > precision {
+		shift := value.hi.BitLen() - precision
+		divisor := new(big.Int).Lsh(big.NewInt(1), uint(shift))
+		quotient, remainder := new(big.Int), new(big.Int)
+		quotient.QuoRem(value.hi, divisor, remainder)
+		if remainder.Sign() != 0 {
+			quotient.Add(quotient, big.NewInt(1))
+		}
+		value.hi = quotient
+		value.lo.Rsh(value.lo, uint(shift))
+		value.scale.Add(value.scale, big.NewInt(int64(shift)))
+	}
+	return value
+}
+
+func multiply(left, right interval, precision int) interval {
+	return normalize(interval{
+		new(big.Int).Mul(left.lo, right.lo), new(big.Int).Mul(left.hi, right.hi),
+		new(big.Int).Add(left.scale, right.scale),
+	}, precision)
+}
+
+func power5(exponent *big.Int, precision int) interval {
+	result, base := exact(big.NewInt(1), precision), exact(big.NewInt(5), precision)
+	remaining := new(big.Int).Set(exponent)
+	for remaining.Sign() != 0 {
+		if remaining.Bit(0) != 0 {
+			result = multiply(result, base, precision)
+		}
+		remaining.Rsh(remaining, 1)
+		if remaining.Sign() != 0 {
+			base = multiply(base, base, precision)
+		}
+	}
+	return result
+}
+
+func scaledCmp(left, leftScale, right, rightScale *big.Int) int {
+	if left.Sign() == 0 || right.Sign() == 0 {
+		return sign(left.Sign() - right.Sign())
+	}
+	leftMagnitude := new(big.Int).Add(leftScale, big.NewInt(int64(left.BitLen())))
+	rightMagnitude := new(big.Int).Add(rightScale, big.NewInt(int64(right.BitLen())))
+	if result := leftMagnitude.Cmp(rightMagnitude); result != 0 {
+		return result
+	}
+	// Equal magnitudes imply alignment depends only on bounded mantissa lengths.
+	l, r := new(big.Int).Set(left), new(big.Int).Set(right)
+	if left.BitLen() < right.BitLen() {
+		l.Lsh(l, uint(right.BitLen()-left.BitLen()))
+	} else {
+		r.Lsh(r, uint(left.BitLen()-right.BitLen()))
+	}
+	return l.Cmp(r)
+}
+
+func rational(value number) *big.Rat {
+	numerator := new(big.Int).Set(value.c)
+	denominator := big.NewInt(1)
+	for _, factor := range []struct {
+		base     int64
+		exponent *big.Int
+	}{{2, value.e2}, {5, value.e5}} {
+		power := new(big.Int).Exp(big.NewInt(factor.base), new(big.Int).Abs(factor.exponent), nil)
+		if factor.exponent.Sign() >= 0 {
+			numerator.Mul(numerator, power)
+		} else {
+			denominator.Mul(denominator, power)
+		}
+	}
+	if value.sign < 0 {
+		numerator.Neg(numerator)
+	}
+	return new(big.Rat).SetFrac(numerator, denominator)
+}
+
+// decimalToken materializes exact output. The driver deliberately selects
+// bounded specimens: some accepted inputs intrinsically require huge output.
+// This function adds no arbitrary input rejection and offers no cheap-output claim.
+func decimalToken(value number) string {
+	if value.sign == 0 {
+		return "0"
+	}
+	exponent := new(big.Int).Set(value.e2)
+	if value.e5.Cmp(exponent) < 0 {
+		exponent.Set(value.e5)
+	}
+	coefficient := new(big.Int).Set(value.c)
+	for _, factor := range []struct {
+		base     int64
+		exponent *big.Int
+	}{{2, value.e2}, {5, value.e5}} {
+		difference := new(big.Int).Sub(factor.exponent, exponent)
+		coefficient.Mul(coefficient, new(big.Int).Exp(big.NewInt(factor.base), difference, nil))
+	}
+	if value.sign < 0 {
+		coefficient.Neg(coefficient)
+	}
+	if exponent.Sign() == 0 {
+		return coefficient.String()
+	}
+	return coefficient.String() + "e" + exponent.String()
+}
+
+func sign(value int) int {
+	if value < 0 {
+		return -1
+	}
+	if value > 0 {
+		return 1
+	}
+	return 0
+}

@@ -99,8 +99,8 @@ func TestValueProjectionUsesInheritedNamedConstraints(t *testing.T) {
 			name:         "numeric bounds",
 			typ:          Float64,
 			raw:          3.0,
-			baseRules:    &ValidationExpr{Minimum: &minimum},
-			derivedRules: &ValidationExpr{Maximum: &maximum},
+			baseRules:    &ValidationExpr{Minimum: boundForTest(minimum)},
+			derivedRules: &ValidationExpr{Maximum: boundForTest(maximum)},
 		},
 		{
 			name:         "string length",

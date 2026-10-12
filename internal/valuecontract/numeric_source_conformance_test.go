@@ -33,7 +33,7 @@ func checkReferenceNumericSources(t *testing.T, executable string) {
 				attribute := &expr.AttributeExpr{Type: expr.Float64}
 				minimum := 0.1000000005
 				if constrained {
-					attribute.Validation = &expr.ValidationExpr{Minimum: &minimum}
+					attribute.Validation = &expr.ValidationExpr{Minimum: boundForTest(minimum)}
 				}
 				context := expr.NewValueContext()
 				occurrence, err := context.NewOccurrence(attribute)

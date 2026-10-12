@@ -72,7 +72,10 @@ func TestNormalizeHTTPAttributeUsesCompleteEffectiveValidation(t *testing.T) {
 	require.Equal(t, 2, *normalized.Validation.MinLength)
 	require.Equal(t, 12, *normalized.Validation.MaxLength)
 
-	minimum, maximum := 1.0, 10.0
+	minimum, err := expr.NewNumericBound(1)
+	require.NoError(t, err)
+	maximum, err := expr.NewNumericBound(10)
+	require.NoError(t, err)
 	numericBase := &expr.UserTypeExpr{TypeName: "NumericBase", UID: "NumericBase", AttributeExpr: &expr.AttributeExpr{
 		Type: expr.Int, Validation: &expr.ValidationExpr{Minimum: &minimum, Maximum: &maximum},
 	}}

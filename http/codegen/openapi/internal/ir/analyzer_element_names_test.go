@@ -49,9 +49,9 @@ func TestAnalyzerUsesElementNamesForSuffixedFields(t *testing.T) {
 	require.Contains(t, schema.Properties, "o")
 	assert.ElementsMatch(t, []string{"c"}, keys(schema.Properties["o"].Properties))
 	assert.Equal(t, []string{"c"}, schema.Properties["o"].Required)
-	assert.Equal(t, map[string]any{"m": "enum", "r": 5, "jt": "e", "o": map[string]any{"c": 6}}, schema.DefaultValue)
+	assert.Equal(t, map[string]any{"m": "enum", "r": openAPIJSONNumber("5"), "jt": "e", "o": map[string]any{"c": openAPIJSONNumber("6")}}, schema.DefaultValue)
 	assert.Equal(t, map[string]any{"m": "example", "r": 3, "jt": "t", "o": map[string]any{"c": 4}}, schema.Example)
-	assert.Equal(t, []any{map[string]any{"m": "enum", "r": 5, "jt": "e", "o": map[string]any{"c": 6}}}, schema.Enum)
+	assert.Equal(t, []any{map[string]any{"m": "enum", "r": openAPIJSONNumber("5"), "jt": "e", "o": map[string]any{"c": openAPIJSONNumber("6")}}}, schema.Enum)
 
 	plain := &expr.AttributeExpr{
 		Type: &expr.Object{

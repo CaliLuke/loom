@@ -13,7 +13,7 @@ func TestCompositionRecursiveConstraintSnapshots(t *testing.T) {
 		for _, nodeFirst := range []bool{false, true} {
 			t.Run(map[bool]string{false: "self", true: "mutual"}[mutual]+map[bool]string{false: "/base first", true: "/node first"}[nodeFirst], func(t *testing.T) {
 				eval.Reset()
-				minimum := 0.0
+				minimum := *boundForTest(0.0)
 				node := &UserTypeExpr{TypeName: "Node", AttributeExpr: &AttributeExpr{Type: &Object{
 					{Name: "n", Attribute: &AttributeExpr{Type: Int, Validation: &ValidationExpr{Minimum: &minimum}, Meta: MetaExpr{"source": {"authored"}}}},
 				}}}
@@ -49,9 +49,9 @@ func TestCompositionRecursiveConstraintSnapshots(t *testing.T) {
 					}
 					require.NotSame(t, node, copied)
 					field := AsObject(copied).Attribute("n")
-					*node.Find("n").Validation.Minimum = 9
+					*node.Find("n").Validation.Minimum = *boundForTest(9)
 					node.Find("n").Meta["source"][0] = "changed"
-					require.Equal(t, 0.0, *field.Validation.Minimum)
+					require.Equal(t, "0", field.Validation.Minimum.String())
 					require.Equal(t, "authored", field.Meta["source"][0])
 				}
 			})

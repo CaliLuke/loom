@@ -59,7 +59,7 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 				}
 				if numOccur != nil {
 					if *numOccur < 1 {
-						err = loom.MergeErrors(err, loom.InvalidRangeError("num_occur", *numOccur, 1, true))
+						err = loom.MergeErrors(err, loom.InvalidRangeError("num_occur", *numOccur, "1", true))
 					}
 				}
 				if err != nil {

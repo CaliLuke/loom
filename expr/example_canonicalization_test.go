@@ -189,8 +189,8 @@ func TestCanonicalizeExample(t *testing.T) {
 				TypeKey:  "kind",
 				ValueKey: "value",
 				Values: []*expr.NamedAttributeExpr{
-					{Name: "NonPositive", Attribute: &expr.AttributeExpr{Type: expr.Int64, Validation: &expr.ValidationExpr{Maximum: &zero}}},
-					{Name: "Positive", Attribute: &expr.AttributeExpr{Type: expr.Int64, Validation: &expr.ValidationExpr{ExclusiveMinimum: &zero}}},
+					{Name: "NonPositive", Attribute: &expr.AttributeExpr{Type: expr.Int64, Validation: &expr.ValidationExpr{Maximum: boundForTest(zero)}}},
+					{Name: "Positive", Attribute: &expr.AttributeExpr{Type: expr.Int64, Validation: &expr.ValidationExpr{ExclusiveMinimum: boundForTest(zero)}}},
 				},
 			}},
 			example:  int64(2),

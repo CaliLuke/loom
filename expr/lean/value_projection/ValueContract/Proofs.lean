@@ -18,6 +18,8 @@ import ValueContract.Observation
 import ValueContract.ObservationExecutionProofs
 import ValueContract.ObservationProofs
 import ValueContract.NumericCoercionControls
+import ValueContract.NumericExtraction
+import ValueContract.NumericIntervals
 import ValueContract.NumericBounds
 import ValueContract.NumericRepresentationControls
 import ValueContract.NumericTargetControls

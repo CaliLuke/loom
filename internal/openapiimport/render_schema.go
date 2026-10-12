@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/CaliLuke/loom/internal/exactnum"
 )
 
 func (r *renderer) attribute(name string, schema *Schema, description, path string, metadata ...renderedMetadata) error {
@@ -650,9 +652,9 @@ func collectionLength(schemaType string, stringValue, itemValue *int64, path, ki
 	return stringValue, nil
 }
 
-func (r *renderer) numericValidation(name string, value *float64) {
+func (r *renderer) numericValidation(name string, value *exactnum.Number) {
 	if value != nil {
-		r.line("%s(%s)", name, strconv.FormatFloat(*value, 'g', -1, 64))
+		r.line("%s(%q)", name, value.String())
 	}
 }
 

@@ -81,7 +81,7 @@ func TestAnalyzeAttributeSemantics(t *testing.T) {
 		&expr.NamedAttributeExpr{Name: "bounded", Attribute: &expr.AttributeExpr{
 			Type:        expr.Int,
 			Description: "Value from 2 to 4.",
-			Validation:  &expr.ValidationExpr{Minimum: new(2.0), Maximum: new(4.0)},
+			Validation:  &expr.ValidationExpr{Minimum: boundForTest(2.0), Maximum: boundForTest(4.0)},
 		}},
 		&expr.NamedAttributeExpr{Name: "ignored_url", Attribute: &expr.AttributeExpr{
 			Type:        expr.String,

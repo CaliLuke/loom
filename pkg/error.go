@@ -248,14 +248,14 @@ func InvalidPatternError(name, target, pattern string) error {
 
 // InvalidRangeError is the error produced by the generated code when the value
 // of a payload field does not match the range validation defined in the design.
-// value may be an int or a float64.
+// value is a native numeric bound or its exact canonical numeric text.
 func InvalidRangeError(name string, target, value any, min bool) error {
 	comp := "greater or equal"
 	if !min {
 		comp = "lesser or equal"
 	}
 	return validationError(withField(name, PermanentError(
-		InvalidRange, "%s must be %s than %d but got value %#v", name, comp, value, target)))
+		InvalidRange, "%s must be %s than %v but got value %#v", name, comp, value, target)))
 }
 
 // InvalidLengthError is the error produced by the generated code when the value

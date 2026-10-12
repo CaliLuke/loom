@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	numericdata "github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/stretchr/testify/require"
 
 	"github.com/CaliLuke/loom/dsl"
@@ -34,7 +35,13 @@ func TestEffectiveConstraintsGeneratedGRPCModule(t *testing.T) {
 		patternDerived := dsl.Type("PatternDerived", patternBase, func() { dsl.Pattern("b$") })
 		formatBase := dsl.Type("FormatBase", dsl.String, func() { dsl.Format(dsl.FormatIP) })
 		formatDerived := dsl.Type("FormatDerived", formatBase, func() { dsl.Format(dsl.FormatIPv4) })
+		numeric := numericdata.ExactNumericPayload()
 		dsl.Service("constraints", func() {
+			dsl.Method("numeric", func() {
+				dsl.Payload(numeric)
+				dsl.GRPC(func() {})
+			})
+
 			dsl.Method("defaults", func() {
 				dsl.Payload(func() {
 					dsl.Field(1, "inherited", inherited)
@@ -70,9 +77,10 @@ func TestEffectiveConstraintsGeneratedGRPCModule(t *testing.T) {
 	require.Contains(t, generated, `"^a"`)
 	require.Contains(t, generated, `loom.FormatIPv4`)
 	require.Contains(t, generated, `loom.FormatIP`)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "numeric_test.go"), []byte(exactNumericHarness), 0o600))
 	runGRPCGoCommand(t, dir, "mod", "tidy")
 	runGRPCGoCommand(t, dir, "vet", "./gen/...")
-	runGRPCGoCommand(t, dir, "test", "./gen/...")
+	runGRPCGoCommand(t, dir, "test", ".", "./gen/...")
 }
 
 func TestGRPCMetadataUsesEffectiveNamedDefaults(t *testing.T) {
@@ -126,3 +134,56 @@ func readGeneratedGRPCGo(t *testing.T, root string) string {
 	require.NoError(t, err)
 	return source.String()
 }
+
+const exactNumericHarness = `package effectiveconstraints_test
+import (
+ "context"
+ "encoding/json/v2"
+ "testing"
+ "github.com/stretchr/testify/require"
+ "google.golang.org/grpc/codes"
+ "google.golang.org/grpc/status"
+ constraints "example.com/effectiveconstraints/gen/constraints"
+ pb "example.com/effectiveconstraints/gen/grpc/constraints/pb"
+ server "example.com/effectiveconstraints/gen/grpc/constraints/server"
+)
+func TestExactNumericBounds(t *testing.T) {
+ calls := 0
+ endpoints := &constraints.Endpoints{Numeric: func(context.Context, any) (any, error) { calls++; return nil, nil }}
+ handler := server.New(endpoints, nil)
+ for _, tc := range []struct { wire string; valid bool }{
+{"{}",true},
+{"{\"signed\":9007199254740993}",true},
+{"{\"signed\":9007199254740992}",false},
+{"{\"signed\":9223372036854775807}",true},
+{"{\"unsigned\":18446744073709551615}",true},
+{"{\"unsigned\":18446744073709551614}",false},
+{"{\"negative\":-9223372036854775808}",false},
+{"{\"negative\":-9223372036854775807}",true},
+{"{\"upper\":9007199254740992}",true},
+{"{\"upper\":9007199254740993}",false},
+{"{\"decimal\":0.09999999999999999}",true},
+{"{\"decimal\":0.1}",false},
+{"{\"decimal32\":0.099999994}",true},
+{"{\"decimal32\":0.1}",false},
+{"{\"tiny\":5e-324}",true},
+{"{\"tiny\":0}",false},
+{"{\"control\":2}",true},
+{"{\"control\":1}",false},
+} {
+
+  before := calls
+  var request pb.NumericRequest
+  require.NoError(t, json.Unmarshal([]byte(tc.wire), &request))
+  _, err := handler.Numeric(context.Background(), &request)
+  if tc.valid {
+   require.NoError(t, err, tc.wire)
+   require.Equal(t, before+1, calls)
+  } else {
+   require.Equal(t, codes.InvalidArgument, status.Code(err), tc.wire)
+   require.Equal(t, "validation error", status.Convert(err).Message())
+   require.Equal(t, before, calls)
+  }
+ }
+}
+`

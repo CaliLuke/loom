@@ -97,10 +97,10 @@ func TestValidationMatchesExactConstraints(t *testing.T) {
 	maximum, exclusiveMaximum := 5.0, 6.0
 	validation := &expr.ValidationExpr{
 		Values:           []any{2, 3, 4, 5},
-		Minimum:          &minimum,
-		ExclusiveMinimum: &exclusiveMinimum,
-		Maximum:          &maximum,
-		ExclusiveMaximum: &exclusiveMaximum,
+		Minimum:          boundForTest(minimum),
+		ExclusiveMinimum: boundForTest(exclusiveMinimum),
+		Maximum:          boundForTest(maximum),
+		ExclusiveMaximum: boundForTest(exclusiveMaximum),
 	}
 
 	require.True(t, validationMatches(validation, int64(2)))
@@ -114,4 +114,28 @@ func TestValidationMatchesExactConstraints(t *testing.T) {
 	require.False(t, validationMatches(&expr.ValidationExpr{FormatClauses: []expr.ValidationFormat{expr.FormatEmail, expr.FormatHostname}}, "example.com"))
 	require.False(t, validationMatches(&expr.ValidationExpr{MinLength: &minLength}, "x"))
 	require.False(t, validationMatches(&expr.ValidationExpr{MaxLength: &maxLength}, "longer"))
+}
+
+func TestExactBinaryBoundArtifactProjection(t *testing.T) {
+	for _, role := range []string{"example", "default", "enum"} {
+		t.Run(role, func(t *testing.T) {
+			attribute := &expr.AttributeExpr{Type: expr.Float64, Validation: &expr.ValidationExpr{Minimum: boundForTest(0.1)}}
+			switch role {
+			case "example":
+				attribute.UserExamples = []*expr.ExampleExpr{{Value: 0.1}}
+			case "default":
+				attribute.DefaultValue = 0.1
+			case "enum":
+				attribute.Validation.Values = []any{0.1}
+			}
+			analyzer := NewAnalyzer(expr.NewRandom("binary-bound"), false)
+			schema := analyzer.AnalyzeSchema(attribute)
+			if role == "example" {
+				require.NoError(t, analyzer.Err())
+				require.Empty(t, schema.Example)
+			} else {
+				require.Error(t, analyzer.Err(), "required contract artifact must not be silently dropped")
+			}
+		})
+	}
 }

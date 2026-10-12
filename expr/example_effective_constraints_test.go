@@ -25,8 +25,8 @@ func TestAttributeExampleUsesEffectiveNamedConstraints(t *testing.T) {
 	})
 	t.Run("numeric bounds", func(t *testing.T) {
 		minimum, maximum := 100.0, 200.0
-		base := namedScalar("ExampleNumberBase", Float64, &ValidationExpr{Minimum: &minimum})
-		derived := namedScalar("ExampleNumberDerived", base, &ValidationExpr{Maximum: &maximum})
+		base := namedScalar("ExampleNumberBase", Float64, &ValidationExpr{Minimum: boundForTest(minimum)})
+		derived := namedScalar("ExampleNumberDerived", base, &ValidationExpr{Maximum: boundForTest(maximum)})
 
 		example, ok := (&AttributeExpr{Type: derived}).Example(NewRandom("reviewer")).(float64)
 		require.True(t, ok)
@@ -104,10 +104,10 @@ func TestNumericAliasExamplesRetainPrimitiveRepresentation(t *testing.T) {
 			base, derived, occurrence *ValidationExpr
 			minimum, maximum          float64
 		}{
-			{"minimum", &ValidationExpr{Minimum: new(1.0)}, nil, nil, 1, 1e30},
-			{"inherited bounds", &ValidationExpr{Minimum: new(1.0)}, &ValidationExpr{Maximum: new(8.0)}, &ValidationExpr{Minimum: new(3.0), Maximum: new(6.0)}, 3, 6},
-			{"exact", &ValidationExpr{Minimum: new(4.0)}, &ValidationExpr{Maximum: new(4.0)}, nil, 4, 4},
-			{"exclusive", &ValidationExpr{ExclusiveMinimum: new(1.0)}, &ValidationExpr{ExclusiveMaximum: new(3.0)}, nil, 1, 3},
+			{"minimum", &ValidationExpr{Minimum: boundForTest(1.0)}, nil, nil, 1, 1e30},
+			{"inherited bounds", &ValidationExpr{Minimum: boundForTest(1.0)}, &ValidationExpr{Maximum: boundForTest(8.0)}, &ValidationExpr{Minimum: boundForTest(3.0), Maximum: boundForTest(6.0)}, 3, 6},
+			{"exact", &ValidationExpr{Minimum: boundForTest(4.0)}, &ValidationExpr{Maximum: boundForTest(4.0)}, nil, 4, 4},
+			{"exclusive", &ValidationExpr{ExclusiveMinimum: boundForTest(1.0)}, &ValidationExpr{ExclusiveMaximum: boundForTest(3.0)}, nil, 1, 3},
 		} {
 			t.Run(primitive.Name()+"/"+tc.name, func(t *testing.T) {
 				base := namedScalar("NumericBase", primitive, tc.base)
@@ -132,7 +132,7 @@ func TestNumericAliasExamplesRetainPrimitiveRepresentation(t *testing.T) {
 }
 
 func TestNumericAliasArrayExample(t *testing.T) {
-	count := namedScalar("Count", Int, &ValidationExpr{Minimum: new(1.0)})
+	count := namedScalar("Count", Int, &ValidationExpr{Minimum: boundForTest(1.0)})
 	counts := namedScalar("Counts", &Array{ElemType: &AttributeExpr{Type: count}}, nil)
 	attribute := &AttributeExpr{Type: counts}
 	generator := &ExampleGenerator{Randomizer: NewDeterministicRandomizer()}

@@ -3,7 +3,6 @@ package ir
 import (
 	"encoding/json/jsontext"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
-	"github.com/CaliLuke/loom/internal/enumvalue"
 	"github.com/CaliLuke/loom/internal/examplegen"
 	"github.com/CaliLuke/loom/internal/jsonkey"
 )
@@ -176,7 +174,8 @@ func (a *Analyzer) analyzeStandaloneSchema(attr *expr.AttributeExpr, context str
 		examplegen.ForScope(a.rand, "openapi-schema", context),
 	)
 	if err != nil {
-		panic(fmt.Errorf("prepare OpenAPI schema examples: %w", err))
+		a.err = fmt.Errorf("%s: prepare OpenAPI schema values: %w", context, err)
+		return nil
 	}
 	if target == nil {
 		return a.analyzeSchema(attr, context, noref...)
@@ -426,8 +425,18 @@ func (a *Analyzer) applySchemaAttributeDetails(s *Schema, attr *expr.AttributeEx
 	if err != nil {
 		panic(fmt.Sprintf("invalid effective constraints during OpenAPI analysis: %v", err))
 	}
+	annotations, err := a.schemaValueAnnotations(attr)
+	if err != nil {
+		if a.err == nil {
+			a.err = fmt.Errorf("%s: %w", context, err)
+		}
+		return
+	}
+	if annotations.HasDefault {
+		s.DefaultValue = schemaAnnotationValue(annotations.Default)
+	}
 	a.applySchemaAnnotations(s, attr, note, context)
-	if err := applySchemaValidation(s, attr, attr.Validation); err != nil && a.err == nil {
+	if err := applySchemaValidation(s, attr, attr.Validation, schemaAnnotationEnums(annotations.Enums)); err != nil && a.err == nil {
 		a.err = fmt.Errorf("%s: %w", context, err)
 	}
 }
@@ -438,7 +447,6 @@ func (a *Analyzer) applySchemaAnnotations(s *Schema, attr *expr.AttributeExpr, n
 	if note != "" {
 		s.Description += "\n" + note
 	}
-	s.DefaultValue = toStringMap(normalizeOpenAPIExampleForAttribute(attr, projectOpenAPIExample(attr, enumvalue.Normalize(attr, attr.DefaultValue))))
 
 	a.applySchemaExample(s, attr, context)
 	s.Extensions = openapi.MergeExtensions(
@@ -663,38 +671,45 @@ func mustGenerateType(meta expr.MetaExpr) bool {
 // toStringMap recursively canonicalizes map keys using the same member names
 // as authored examples. Byte slices retain their JSON encoding semantics.
 func toStringMap(val any) any {
-	actual := reflect.ValueOf(val)
-	if !actual.IsValid() {
-		return nil
+	value, err := jsonkey.Value(val)
+	if err != nil {
+		panic(fmt.Errorf("openapi: %w", err))
 	}
-	if jsonkey.HasCustomEncoding(actual.Type()) {
-		return val
+	return value
+}
+
+func (a *Analyzer) schemaValueAnnotations(attr *expr.AttributeExpr) (expr.JSONSchemaAnnotations, error) {
+	if a.preparedExamples != nil {
+		if annotations, found := a.preparedExamples.Annotations[a.examplePlan]; found {
+			return annotations, nil
+		}
 	}
-	switch actual.Kind() {
-	case reflect.Map:
-		out := make(map[string]any, actual.Len())
-		iterator := actual.MapRange()
-		for iterator.Next() {
-			if jsonkey.HasCustomEncoding(reflect.TypeOf(iterator.Key().Interface())) {
-				return val
-			}
-			name, ok := jsonkey.Name(iterator.Key())
-			if !ok {
-				panic(fmt.Sprintf("openapi: unsupported map key %T", iterator.Key().Interface()))
-			}
-			out[name] = toStringMap(iterator.Value().Interface())
-		}
-		return out
-	case reflect.Slice, reflect.Array:
-		if actual.Kind() == reflect.Slice && actual.Type().Elem().Kind() == reflect.Uint8 {
-			return val
-		}
-		out := make([]any, actual.Len())
-		for index := range out {
-			out[index] = toStringMap(actual.Index(index).Interface())
-		}
-		return out
-	default:
-		return val
+	context := expr.NewValueContext()
+	occurrence, err := context.NewOccurrence(attr)
+	if err != nil {
+		return expr.JSONSchemaAnnotations{}, err
 	}
+	plan, err := context.NewValuePlan(occurrence, representation.DocumentationPlanRequest(expr.ValuePlanRequest{Target: attr}))
+	if err != nil {
+		return expr.JSONSchemaAnnotations{}, err
+	}
+	return context.PrepareJSONSchemaAnnotations(occurrence, plan)
+}
+
+func schemaAnnotationValue(value expr.JSONSchemaValue) any {
+	if wire, emitted := value.Projection().JSON(); emitted {
+		return materializeOpenAPIRawJSON(jsontext.Value(wire))
+	}
+	return toStringMap(value.DeclaredValue())
+}
+
+func schemaAnnotationEnums(clauses [][]expr.JSONSchemaValue) [][]any {
+	values := make([][]any, len(clauses))
+	for index, clause := range clauses {
+		values[index] = make([]any, len(clause))
+		for member, value := range clause {
+			values[index][member] = schemaAnnotationValue(value)
+		}
+	}
+	return values
 }

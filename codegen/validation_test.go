@@ -40,6 +40,7 @@ func TestRecursiveValidationCode(t *testing.T) {
 		UseDefault bool
 	}{
 		{"integer-required", integerT, true, false, false},
+		{"exact-numbers", root.UserType("ExactNumbers"), true, false, false},
 		{"integer-pointer", integerT, false, true, false},
 		{"integer-use-default", integerT, false, false, true},
 		{"float-required", floatT, true, false, false},
@@ -348,7 +349,7 @@ func TestOptionalObjectValidationPreservesNestedJSONPresence(t *testing.T) {
 					Name: "confidence",
 					Attribute: &expr.AttributeExpr{
 						Type:       expr.Float64,
-						Validation: &expr.ValidationExpr{Minimum: &minimum},
+						Validation: &expr.ValidationExpr{Minimum: boundForTest(minimum)},
 					},
 				},
 				{Name: "details", Attribute: &expr.AttributeExpr{Type: details}},
@@ -786,21 +787,21 @@ func TestValidationCodeEmitsExclusiveMaximumWithExclusiveMinimum(t *testing.T) {
 	att := &expr.AttributeExpr{
 		Type: expr.Int,
 		Validation: &expr.ValidationExpr{
-			ExclusiveMinimum: &min,
-			ExclusiveMaximum: &max,
+			ExclusiveMinimum: boundForTest(min),
+			ExclusiveMaximum: boundForTest(max),
 		},
 	}
 
 	code := validationCode(att, ctx, false, false, "target", "target")
 	expected := strings.Join([]string{
 		"if target != nil {",
-		"\tif *target <= 1 {",
-		"\t\terr = loom.MergeErrors(err, loom.InvalidRangeError(\"target\", *target, 1, true))",
+		"\tif *target < 2 {",
+		"\t\terr = loom.MergeErrors(err, loom.InvalidRangeError(\"target\", *target, \"1\", true))",
 		"\t}",
 		"}",
 		"if target != nil {",
-		"\tif *target >= 100 {",
-		"\t\terr = loom.MergeErrors(err, loom.InvalidRangeError(\"target\", *target, 100, false))",
+		"\tif *target > 99 {",
+		"\t\terr = loom.MergeErrors(err, loom.InvalidRangeError(\"target\", *target, \"100\", false))",
 		"\t}",
 		"}",
 	}, "\n")

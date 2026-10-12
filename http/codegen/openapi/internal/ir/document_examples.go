@@ -170,15 +170,6 @@ func projectOpenAPIUnionExample(union *expr.Union, value any) any {
 	return projected
 }
 
-func projectOpenAPIValues(attribute *expr.AttributeExpr, values []any) []any {
-	projected := make([]any, len(values))
-	for index, value := range values {
-		canonical := enumvalue.Normalize(attribute, value)
-		projected[index] = normalizeOpenAPIExampleForAttribute(attribute, projectOpenAPIExample(attribute, canonical))
-	}
-	return projected
-}
-
 func isCompleteOpenAPIExample(attr *expr.AttributeExpr, val any) bool {
 	if attr == nil {
 		return val != nil
@@ -687,4 +678,13 @@ func unwrapExampleDataType(dt expr.DataType, seen map[string]struct{}) expr.Data
 		}
 		dt = attr.Type
 	}
+}
+
+func projectOpenAPIValues(attribute *expr.AttributeExpr, values []any) []any {
+	projected := make([]any, len(values))
+	for index, value := range values {
+		canonical := enumvalue.Normalize(attribute, value)
+		projected[index] = normalizeOpenAPIExampleForAttribute(attribute, projectOpenAPIExample(attribute, canonical))
+	}
+	return projected
 }

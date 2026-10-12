@@ -12,16 +12,17 @@ type (
 		codec  ValueCodec
 	}
 	valuePlanBuilder struct {
-		request    ValuePlanRequest
-		context    *ValueContext
-		source     ValueOccurrence
-		nodes      map[valuePlanKey]*valuePlanNode
-		used       []bool
-		containers []bool
-		codecs     []bool
-		next       uint64
-		nextAssoc  uint64
-		assocs     map[*valueOccurrenceNode][]*valuePlanAssociation
+		enumConstant bool
+		request      ValuePlanRequest
+		context      *ValueContext
+		source       ValueOccurrence
+		nodes        map[valuePlanKey]*valuePlanNode
+		used         []bool
+		containers   []bool
+		codecs       []bool
+		next         uint64
+		nextAssoc    uint64
+		assocs       map[*valueOccurrenceNode][]*valuePlanAssociation
 	}
 )
 
@@ -225,7 +226,9 @@ func (b *valuePlanBuilder) nodeAssociated(
 	if associate {
 		b.associate(owner, node, nil)
 	}
-	if err := b.enums(node, source, target); err != nil {
+	if b.enumConstant {
+		node.validation = nil
+	} else if err := b.enums(node, source, target); err != nil {
 		return nil, err
 	}
 	return b.nodeChildren(node, source, target)
@@ -235,6 +238,11 @@ func (b *valuePlanBuilder) nodeChildren(node *valuePlanNode, source, target *val
 	decl := target.declaration
 	if decl.alias != nil {
 		child, reuses, err := valuePlanAliasSource(source, decl.alias)
+		if err != nil && b.enumConstant {
+			// Inherited constants retain the declaration source while traversing
+			// wrappers introduced by the refined target.
+			child, reuses, err = source, true, nil
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +282,13 @@ func (b *valuePlanBuilder) object(node *valuePlanNode, source, target *valueOccu
 		var matched *valueOccurrenceMember
 		for i := range source.declaration.members {
 			candidate := &source.declaration.members[i]
-			if !valueSameAncestry(candidate.node.origin, field.node.origin) {
+			matches := valueSameAncestry(candidate.node.origin, field.node.origin)
+			if b.enumConstant {
+				// Extend retains logical fields but gives refinements new origins.
+				// This mode is only entered with a captured ancestor clause.
+				matches = candidate.name == field.name
+			}
+			if !matches {
 				continue
 			}
 			if matched != nil {
@@ -283,11 +297,18 @@ func (b *valuePlanBuilder) object(node *valuePlanNode, source, target *valueOccu
 			matched = candidate
 		}
 		if matched == nil {
+			if b.enumConstant {
+				// A refinement may add a field absent from an inherited constant.
+				continue
+			}
 			return fmt.Errorf("value plan has unrelated member %q", field.name)
 		}
 		policy, err := b.fieldPolicy(target, field)
 		if err != nil {
 			return err
+		}
+		if b.enumConstant {
+			policy.Required = false
 		}
 		if policy.Visible && wires[policy.WireName] {
 			return fmt.Errorf("value plan has duplicate emitted member %q", policy.WireName)
@@ -385,9 +406,19 @@ func (b *valuePlanBuilder) enums(node *valuePlanNode, source, target *valueOccur
 		return nil
 	}
 	for _, values := range enums {
+		occurrence := ValueOccurrence{context: b.source.context, graph: b.source.graph, node: source}
+		declaration := enumClauseDeclaration(occurrence, values)
+		projection := node
+		if declaration.node != nil && declaration.node != source {
+			occurrence = declaration
+			var err error
+			projection, err = b.enumConstantPlan(declaration, target, node.codec)
+			if err != nil {
+				return err
+			}
+		}
 		clause := make([]ResolvedValue, 0, len(values))
 		for _, raw := range values {
-			occurrence := ValueOccurrence{context: b.source.context, graph: b.source.graph, node: source}
 			input := b.context.SupplyValue(ValueInput{Raw: raw, ExplicitNull: raw == nil, Origin: "target enum"})
 			result := b.context.ResolveDeclaredShape(occurrence, input)
 			if result.Outcome() == ValueUnsupported && !result.checkableFailure && result.value.node != nil {
@@ -404,6 +435,7 @@ func (b *valuePlanBuilder) enums(node *valuePlanNode, source, target *valueOccur
 			clause = append(clause, value)
 		}
 		node.enumClauses = append(node.enumClauses, clause)
+		node.enumPlans = append(node.enumPlans, projection)
 	}
 	return nil
 }

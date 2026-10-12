@@ -1,0 +1,104 @@
+// Readiness-only protocol adapter probe. Copy to a temporary .go file and run
+// from the repository root with the numeric_factor_probe output directory.
+package main
+
+import (
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/pb33f/libopenapi"
+)
+
+func main() {
+	for _, name := range []string{"integer", "hex_quarter", "decimal_tiny", "hex_tiny", "float64_point_one", "float32_point_one"} {
+		token, err := os.ReadFile(filepath.Join(os.Args[1], name+".json"))
+		if err != nil {
+			panic(err)
+		}
+		source := []byte(`{"openapi":"3.1.1","info":{"title":"Exact","version":"1"},"paths":{},"components":{"schemas":{"Value":{"type":"number","minimum":` + string(token) + `}}}}`)
+		check(name, source, string(token))
+		if name == "hex_tiny" {
+			yamlSource := []byte("openapi: 3.1.1\ninfo: {title: Exact, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Value:\n      type: number\n      minimum: " + string(token) + "\n")
+			check("YAML emitted hex_tiny", yamlSource, string(token))
+		}
+	}
+	for _, token := range []string{"0x20000000000001", "0o377", "077", "0b101", "1_000", "0x1.4p0", "1e-400", `"42"`, `!!str 42`, `!!float "42"`, `"0x10"`} {
+		source := []byte("openapi: 3.1.1\ninfo: {title: Exact, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Value:\n      type: number\n      minimum: " + token + "\n")
+		check("YAML "+token, source, token)
+	}
+	check("JSON quoted numeric string", []byte(`{"openapi":"3.1.1","info":{"title":"Exact","version":"1"},"paths":{},"components":{"schemas":{"Value":{"type":"number","minimum":"42"}}}}`), `"42"`)
+}
+
+func check(name string, source []byte, token string) {
+	start := time.Now()
+	var original struct {
+		Components struct {
+			Schemas map[string]struct {
+				Minimum jsontext.Value `json:"minimum"`
+			} `json:"schemas"`
+		} `json:"components"`
+	}
+	originalKind := "not JSON"
+	if err := json.Unmarshal(source, &original); err == nil {
+		originalKind = string(original.Components.Schemas["Value"].Minimum.Kind())
+		if name == "JSON quoted numeric string" && originalKind != `"` {
+			panic("quoted source was not retained as a string")
+		}
+		if name != "JSON quoted numeric string" && originalKind != "0" {
+			panic("numeric JSON source token was not retained exactly")
+		}
+	}
+	parsed, err := libopenapi.NewDocument(source)
+	if err != nil {
+		fmt.Printf("%s parse error: %v\n", name, err)
+		return
+	}
+	model, err := parsed.BuildV3Model()
+	if err != nil {
+		fmt.Printf("%s build error: %v\n", name, err)
+		return
+	}
+	proxy, ok := model.Model.Components.Schemas.Get("Value")
+	if !ok {
+		panic("missing Value schema")
+	}
+	schema := proxy.Schema()
+	if schema == nil {
+		fmt.Printf("%s schema missing; error=%v\n", name, proxy.GetBuildError())
+		return
+	}
+	raw, tag, style := "", "", 0
+	root := proxy.GetValueNode()
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Value == "minimum" {
+			raw, tag, style = root.Content[i+1].Value, root.Content[i+1].Tag, int(root.Content[i+1].Style)
+		}
+	}
+	var high any
+	if schema.Minimum != nil {
+		high = *schema.Minimum
+	}
+	// This is a source-boundary control, not a complete YAML grammar adapter.
+	// JSON has an independently recovered token kind. The selected YAML cases
+	// use their original quote/explicit-tag distinctions, never ParseFloat(text).
+	recoverable := originalKind == "0"
+	if originalKind == "not JSON" {
+		recoverable = tag == "!!int" || tag == "!!float"
+		// JSON's decimal number grammar is a safe subset for these plain YAML
+		// specimens; quote/explicit-string style prevents reinterpretation.
+		if style == 0 && jsontext.Value(raw).Kind() == '0' && jsontext.Value(raw).IsValid() {
+			recoverable = true
+		}
+	}
+	shouldRecover := !strings.Contains(name, "quoted") && name != `YAML "42"` &&
+		name != "YAML !!str 42" && name != `YAML "0x10"` && name != "YAML 0x1.4p0"
+	if recoverable != shouldRecover {
+		panic("source kind/quote distinction changed: " + name)
+	}
+	fmt.Printf("%s raw_preserved=%t tag=%s style=%d original_json_kind=%s low_reference_present=%t value=%v error=%v elapsed=%s\n", name, raw == token, tag, style, originalKind, schema.GoLow().Minimum.ValueNode != nil, high, proxy.GetBuildError(), time.Since(start))
+}

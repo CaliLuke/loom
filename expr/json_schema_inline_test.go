@@ -328,7 +328,7 @@ func TestInlineJSONSchema(t *testing.T) {
 		exclusiveMaximum := float64(10)
 		schema, err := InlineJSONSchema(&AttributeExpr{Type: &Object{
 			&NamedAttributeExpr{Name: "signed", Attribute: &AttributeExpr{Type: Int32, Validation: &ValidationExpr{
-				Minimum: &minimum, ExclusiveMaximum: &exclusiveMaximum,
+				Minimum: boundForTest(minimum), ExclusiveMaximum: boundForTest(exclusiveMaximum),
 			}}},
 			&NamedAttributeExpr{Name: "unsigned", Attribute: &AttributeExpr{Type: UInt64}},
 		}})
@@ -343,7 +343,7 @@ func TestInlineJSONSchema(t *testing.T) {
 		signed := &UserTypeExpr{TypeName: "Signed", AttributeExpr: &AttributeExpr{Type: Int32}}
 		unsigned := &UserTypeExpr{TypeName: "Unsigned", AttributeExpr: &AttributeExpr{Type: UInt64}}
 		schema, err := InlineJSONSchema(&AttributeExpr{Type: &Object{
-			&NamedAttributeExpr{Name: "signed", Attribute: &AttributeExpr{Type: signed, Validation: &ValidationExpr{Minimum: &minimum}}},
+			&NamedAttributeExpr{Name: "signed", Attribute: &AttributeExpr{Type: signed, Validation: &ValidationExpr{Minimum: boundForTest(minimum)}}},
 			&NamedAttributeExpr{Name: "unsigned", Attribute: &AttributeExpr{Type: unsigned, Validation: &ValidationExpr{Values: []any{uint64(1)}}}},
 		}})
 
@@ -366,8 +366,8 @@ func TestInlineJSONSchema(t *testing.T) {
 		negative := float64(-5)
 		oversized := float64(1 << 40)
 		schema, err := InlineJSONSchema(&AttributeExpr{Type: &Object{
-			&NamedAttributeExpr{Name: "unsigned", Attribute: &AttributeExpr{Type: UInt64, Validation: &ValidationExpr{Minimum: &negative}}},
-			&NamedAttributeExpr{Name: "signed", Attribute: &AttributeExpr{Type: Int32, Validation: &ValidationExpr{Maximum: &oversized}}},
+			&NamedAttributeExpr{Name: "unsigned", Attribute: &AttributeExpr{Type: UInt64, Validation: &ValidationExpr{Minimum: boundForTest(negative)}}},
+			&NamedAttributeExpr{Name: "signed", Attribute: &AttributeExpr{Type: Int32, Validation: &ValidationExpr{Maximum: boundForTest(oversized)}}},
 		}})
 
 		require.NoError(t, err)
@@ -396,11 +396,11 @@ func TestInlineJSONSchema(t *testing.T) {
 		occurrenceMinimum := float64(5)
 		alias := &UserTypeExpr{TypeName: "Bounded", AttributeExpr: &AttributeExpr{
 			Type:       Int,
-			Validation: &ValidationExpr{Minimum: &baseMinimum},
+			Validation: &ValidationExpr{Minimum: boundForTest(baseMinimum)},
 		}}
 		data := mustInlineJSONSchema(t, &AttributeExpr{
 			Type:       alias,
-			Validation: &ValidationExpr{Minimum: &occurrenceMinimum},
+			Validation: &ValidationExpr{Minimum: boundForTest(occurrenceMinimum)},
 		})
 
 		require.Equal(t, float64(5), data["minimum"])
@@ -528,7 +528,7 @@ func TestInlineJSONSchemaConjoinsEnumClausesIncludingEmptyDomain(t *testing.T) {
 func TestInlineJSONSchemaUsesResolvedDeclaredJSONValues(t *testing.T) {
 	minimum := 1.5
 	base := namedScalar("FloatBase", Float32, &ValidationExpr{Values: []any{1.23456789, 2.0}})
-	derived := namedScalar("FloatDerived", base, &ValidationExpr{Minimum: &minimum})
+	derived := namedScalar("FloatDerived", base, &ValidationExpr{Minimum: boundForTest(minimum)})
 	constraints, err := EffectiveConstraintsFor(&AttributeExpr{Type: derived})
 	require.NoError(t, err)
 	candidates, present := constraints.EnumCandidates()

@@ -3,11 +3,11 @@ package expr
 import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
-	"math/big"
+	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/exactnum"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -15,46 +15,55 @@ var valueBase64Language = regexp.MustCompile(`\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0
 
 // The body and enum gate are deliberately separate: returning from a body
 // branch must never bypass whole-array/object/map/union enum constraints.
-func schemaJSON(plan *valuePlanNode, wire jsontext.Value) bool {
-	if !schemaJSONBody(plan, wire) || !schemaLocalRules(plan, wire) {
-		return false
+func schemaJSON(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
+	if plan == nil {
+		return false, fmt.Errorf("missing JSON schema plan")
+	}
+	matched, err := schemaJSONBody(plan, wire)
+	if err != nil || !matched {
+		return matched, err
+	}
+	matched, err = schemaLocalRules(plan, wire)
+	if err != nil || !matched {
+		return matched, err
 	}
 	if !plan.hasEnum {
-		return true
+		return true, nil
 	}
-	for _, values := range plan.enumClauses {
+	for clauseIndex, values := range plan.enumClauses {
+		projection := plan.enumProjection(clauseIndex)
 		matched := false
 		for _, member := range values {
-			observed, failure := observeJSON(plan, ValueRoleEnum, member)
+			observed, failure := observeJSON(projection, ValueRoleEnum, member)
 			if failure != nil {
 				continue
 			}
-			expected, failure := constructJSON(plan, observed)
+			expected, failure := constructJSON(projection, observed)
 			if failure == nil && loom.JSONValueEqual(wire, expected) {
 				matched = true
 				break
 			}
 		}
 		if !matched {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
-func schemaJSONBody(plan *valuePlanNode, wire jsontext.Value) bool {
+func schemaJSONBody(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	if !wire.IsValid() {
-		return false
+		return false, nil
 	}
 	if wire.Kind() == 'n' && plan.nullable {
-		return true
+		return true, nil
 	}
 	if plan.alias != nil {
 		return schemaJSON(plan.alias, wire)
 	}
 	switch plan.kind {
 	case AnyKind:
-		return true
+		return true, nil
 	case ArrayKind:
 		return schemaJSONArray(plan, wire)
 	case ObjectKind:
@@ -65,26 +74,34 @@ func schemaJSONBody(plan *valuePlanNode, wire jsontext.Value) bool {
 		return schemaJSONUnion(plan, wire)
 	case StringKind, BytesKind:
 		if wire.Kind() != '"' {
-			return false
+			return false, nil
 		}
 	case BooleanKind:
-		return wire.Kind() == 't' || wire.Kind() == 'f'
-	default:
+		return wire.Kind() == 't' || wire.Kind() == 'f', nil
+	case IntKind, Int32Kind, Int64Kind, UIntKind, UInt32Kind, UInt64Kind, Float32Kind, Float64Kind:
 		if wire.Kind() != '0' {
-			return false
+			return false, nil
 		}
-		number, valid := new(big.Rat).SetString(string(wire))
-		if !valid || (plan.kind >= IntKind && plan.kind <= UInt64Kind && !number.IsInt()) {
-			return false
+		number, err := exactnum.ParseJSON(string(wire))
+		if err != nil {
+			return false, err
 		}
+		if plan.kind >= IntKind && plan.kind <= UInt64Kind && !number.IsInt() {
+			return false, nil
+		}
+	default:
+		return false, fmt.Errorf("unsupported JSON schema kind %d", plan.kind)
 	}
-	return true
+	return true, nil
 }
 
-func schemaJSONObject(plan *valuePlanNode, wire jsontext.Value) bool {
+func schemaJSONObject(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	var entries map[string]jsontext.Value
-	if wire.Kind() != '{' || json.Unmarshal(wire, &entries) != nil {
-		return false
+	if wire.Kind() != '{' {
+		return false, nil
+	}
+	if err := json.Unmarshal(wire, &entries); err != nil {
+		return false, err
 	}
 	known := make(map[string]bool)
 	for _, member := range plan.members {
@@ -95,57 +112,68 @@ func schemaJSONObject(plan *valuePlanNode, wire jsontext.Value) bool {
 		child, present := entries[member.wire]
 		if !present {
 			if member.required {
-				return false
+				return false, nil
 			}
 			continue
 		}
-		if !schemaJSON(member.node, child) {
-			return false
+		matched, err := schemaJSON(member.node, child)
+		if err != nil || !matched {
+			return matched, err
 		}
 	}
 	if !plan.schemaUnknown {
 		for name := range entries {
 			if !known[name] {
-				return false
+				return false, nil
 			}
 		}
 	}
-	return true
+	return true, nil
 }
 
-func schemaJSONUnion(plan *valuePlanNode, wire jsontext.Value) bool {
+func schemaJSONUnion(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	if plan.untagged {
 		matches := 0
 		for _, branch := range plan.branches {
-			if schemaJSON(branch.node, wire) {
+			matched, err := schemaJSON(branch.node, wire)
+			if err != nil {
+				return false, err
+			}
+			if matched {
 				matches++
 			}
 		}
-		return matches == 1
+		return matches == 1, nil
 	}
 	var envelope map[string]jsontext.Value
-	if wire.Kind() != '{' || json.Unmarshal(wire, &envelope) != nil {
-		return false
+	if wire.Kind() != '{' {
+		return false, nil
+	}
+	if err := json.Unmarshal(wire, &envelope); err != nil {
+		return false, err
 	}
 	var tag string
-	if json.Unmarshal(envelope[plan.typeKey], &tag) != nil {
-		return false
+	if envelope[plan.typeKey].Kind() != '"' {
+		return false, nil
+	}
+	if err := json.Unmarshal(envelope[plan.typeKey], &tag); err != nil {
+		return false, err
 	}
 	if !plan.schemaUnknown && len(envelope) != 2 {
-		return false
+		return false, nil
 	}
 	for _, branch := range plan.branches {
 		if branch.tag == tag {
 			return schemaJSON(branch.node, envelope[plan.valueKey])
 		}
 	}
-	return false
+	return false, nil
 }
 
-func schemaLocalRules(plan *valuePlanNode, wire jsontext.Value) bool {
+func schemaLocalRules(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	rules := plan.validation
 	if wire.Kind() == 'n' {
-		return true
+		return true, nil
 	}
 	effective := plan
 	for effective.alias != nil {
@@ -153,42 +181,53 @@ func schemaLocalRules(plan *valuePlanNode, wire jsontext.Value) bool {
 	}
 	if effective.kind == BytesKind {
 		var text string
-		if json.Unmarshal(wire, &text) != nil || !valueBase64Language.MatchString(text) {
-			return false
+		if err := json.Unmarshal(wire, &text); err != nil {
+			return false, err
+		}
+		if !valueBase64Language.MatchString(text) {
+			return false, nil
 		}
 		padding := len(text) - len(strings.TrimRight(text, "="))
-		return valueLengthAllowed(rules, len(text)/4*3-padding)
+		return valueLengthAllowed(rules, len(text)/4*3-padding), nil
 	}
 	if effective.kind == ArrayKind {
 		var items []jsontext.Value
-		return json.Unmarshal(wire, &items) == nil && valueLengthAllowed(rules, len(items))
+		if err := json.Unmarshal(wire, &items); err != nil {
+			return false, err
+		}
+		return valueLengthAllowed(rules, len(items)), nil
 	}
 	if effective.kind == MapKind {
 		var entries map[string]jsontext.Value
-		return json.Unmarshal(wire, &entries) == nil && valueLengthAllowed(rules, len(entries))
+		if err := json.Unmarshal(wire, &entries); err != nil {
+			return false, err
+		}
+		return valueLengthAllowed(rules, len(entries)), nil
 	}
 	if rules == nil {
-		return true
+		return true, nil
 	}
 	if wire.Kind() == '0' {
-		number, valid := new(big.Rat).SetString(string(wire))
-		return valid && schemaNumberRules(rules, number)
+		number, err := exactnum.ParseJSON(string(wire))
+		if err != nil {
+			return false, err
+		}
+		return schemaNumberRules(rules, number), nil
 	}
 	if wire.Kind() == '"' {
 		var text string
-		if json.Unmarshal(wire, &text) != nil {
-			return false
+		if err := json.Unmarshal(wire, &text); err != nil {
+			return false, err
 		}
-		return valueValidationRules(rules, ResolvedValue{node: &resolvedValueNode{presence: ValuePresent, kind: ValueKindScalar, scalar: text}})
+		return valueValidationRules(rules, ResolvedValue{node: &resolvedValueNode{presence: ValuePresent, kind: ValueKindScalar, scalar: text}}), nil
 	}
-	return true
+	return true, nil
 }
 
-func schemaNumberRules(rules *ValidationExpr, number *big.Rat) bool {
+func schemaNumberRules(rules *ValidationExpr, number NumericBound) bool {
 	for _, bound := range []struct {
-		value     *float64
-		lower     bool
-		exclusive bool
+		value            *NumericBound
+		lower, exclusive bool
 	}{
 		{rules.Minimum, true, false}, {rules.ExclusiveMinimum, true, true},
 		{rules.Maximum, false, false}, {rules.ExclusiveMaximum, false, true},
@@ -196,42 +235,49 @@ func schemaNumberRules(rules *ValidationExpr, number *big.Rat) bool {
 		if bound.value == nil {
 			continue
 		}
-		limit, valid := new(big.Rat).SetString(strconv.FormatFloat(*bound.value, 'g', -1, 64))
-		if !valid {
-			return false
-		}
-		comparison := number.Cmp(limit)
-		if bound.lower && (comparison < 0 || comparison == 0 && bound.exclusive) || !bound.lower && (comparison > 0 || comparison == 0 && bound.exclusive) {
+		order := number.Cmp(*bound.value)
+		if bound.lower && (order < 0 || order == 0 && bound.exclusive) || !bound.lower && (order > 0 || order == 0 && bound.exclusive) {
 			return false
 		}
 	}
 	return true
 }
 
-func schemaJSONArray(plan *valuePlanNode, wire jsontext.Value) bool {
+func schemaJSONArray(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	var items []jsontext.Value
-	if wire.Kind() != '[' || json.Unmarshal(wire, &items) != nil {
-		return false
+	if wire.Kind() != '[' {
+		return false, nil
+	}
+	if err := json.Unmarshal(wire, &items); err != nil {
+		return false, err
 	}
 	for _, child := range items {
-		if plan.nonNullableElements && child.Kind() == 'n' || !schemaJSON(plan.element, child) {
-			return false
+		if plan.nonNullableElements && child.Kind() == 'n' {
+			return false, nil
+		}
+		matched, err := schemaJSON(plan.element, child)
+		if err != nil || !matched {
+			return matched, err
 		}
 	}
-	return true
+	return true, nil
 }
 
-func schemaJSONMap(plan *valuePlanNode, wire jsontext.Value) bool {
+func schemaJSONMap(plan *valuePlanNode, wire jsontext.Value) (bool, error) {
 	var entries map[string]jsontext.Value
-	if wire.Kind() != '{' || json.Unmarshal(wire, &entries) != nil {
-		return false
+	if wire.Kind() != '{' {
+		return false, nil
+	}
+	if err := json.Unmarshal(wire, &entries); err != nil {
+		return false, err
 	}
 	for _, child := range entries {
 		// Current map schemas constrain values, not object-member spelling.
 		// Runtime key parsing is an independent decoder obligation.
-		if !schemaJSON(plan.element, child) {
-			return false
+		matched, err := schemaJSON(plan.element, child)
+		if err != nil || !matched {
+			return matched, err
 		}
 	}
-	return true
+	return true, nil
 }

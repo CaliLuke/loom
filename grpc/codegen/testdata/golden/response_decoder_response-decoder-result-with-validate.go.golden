@@ -20,7 +20,7 @@ func DecodeMethodMessageWithValidateResponse(ctx context.Context, v any, hdr, tr
 		}
 		if inHeader != nil {
 			if *inHeader < 1 {
-				err = loom.MergeErrors(err, loom.InvalidRangeError("InHeader", *inHeader, 1, true))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("InHeader", *inHeader, "1", true))
 			}
 		}
 

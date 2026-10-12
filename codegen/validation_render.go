@@ -30,8 +30,6 @@ type (
 		Values       []any
 		Format       string
 		Pattern      string
-		Number       any
-		NumberFlag   bool
 		MinLength    *int
 		MaxLength    *int
 		IsMinLength  bool
@@ -113,26 +111,17 @@ func validationCodeFromSnapshot(
 			appendRenderedValidation(&res, renderFormatValidation(data))
 		}
 	}
-	appendValidationNumber(&res, validation.ExclusiveMinimum, func(v any) string {
-		data.Number = v
-		data.NumberFlag = true
-		return renderExclMinMaxValidation(data)
-	})
-	appendValidationNumber(&res, validation.Minimum, func(v any) string {
-		data.Number = v
-		data.NumberFlag = true
-		return renderMinMaxValidation(data)
-	})
-	appendValidationNumber(&res, validation.ExclusiveMaximum, func(v any) string {
-		data.Number = v
-		data.NumberFlag = false
-		return renderExclMinMaxValidation(data)
-	})
-	appendValidationNumber(&res, validation.Maximum, func(v any) string {
-		data.Number = v
-		data.NumberFlag = false
-		return renderMinMaxValidation(data)
-	})
+	for _, endpoint := range []struct {
+		bound            *expr.NumericBound
+		lower, exclusive bool
+	}{
+		{validation.ExclusiveMinimum, true, true}, {validation.Minimum, true, false},
+		{validation.ExclusiveMaximum, false, true}, {validation.Maximum, false, false},
+	} {
+		if endpoint.bound != nil {
+			appendRenderedValidation(&res, renderNumericValidation(data, *endpoint.bound, endpoint.lower, endpoint.exclusive))
+		}
+	}
 	appendValidationLength(&res, validation.MinLength, func(v *int) string {
 		data.MinLength = v
 		data.MaxLength = nil
@@ -253,17 +242,6 @@ func newValidationRenderData(att *expr.AttributeExpr, attCtx *AttributeContext, 
 	}
 }
 
-func appendValidationNumber(res *[]string, value any, render func(any) string) {
-	if value == nil {
-		return
-	}
-	v := reflect.ValueOf(value)
-	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
-		return
-	}
-	appendRenderedValidation(res, render(v.Elem().Interface()))
-}
-
 func appendValidationLength(res *[]string, value *int, render func(*int) string) {
 	if value == nil {
 		return
@@ -338,41 +316,19 @@ func renderPatternValidation(data validationRenderData) string {
 		"err = loom.MergeErrors(err, loom.ValidatePattern("+quoteString(data.Context)+", "+data.TargetValue+", "+quoteString(data.Pattern)+"))")
 }
 
-func renderExclMinMaxValidation(data validationRenderData) string {
-	var (
-		op    string
-		bound any
-		flag  bool
-	)
-	if data.NumberFlag {
-		op = "<="
-		bound = data.Number
-		flag = true
-	} else {
-		op = ">="
-		bound = data.Number
-		flag = false
+func renderNumericValidation(data validationRenderData, bound expr.NumericBound, lower, exclusive bool) string {
+	projection := expr.ProjectNumericBound(unalias(data.Attribute.Type).Kind(), bound, lower, exclusive)
+	condition := "true"
+	if !projection.Empty {
+		op := ">"
+		if lower {
+			op = "<"
+		}
+		condition = data.TargetValue + " " + op + " " + validationGoLiteral(projection.Value)
 	}
-	body := "if " + data.TargetValue + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
-	return renderSimplePointerWrappedValidation(data.IsPointer, data.Target, body)
-}
-
-func renderMinMaxValidation(data validationRenderData) string {
-	var (
-		op    string
-		bound any
-		flag  bool
-	)
-	if data.NumberFlag {
-		op = "<"
-		bound = data.Number
-		flag = true
-	} else {
-		op = ">"
-		bound = data.Number
-		flag = false
-	}
-	body := "if " + data.TargetValue + " " + op + " " + validationGoLiteral(bound) + " {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + validationGoLiteral(bound) + ", " + validationGoLiteral(flag) + "))\n}"
+	// The error reports the exact authored endpoint rather than a rounded native
+	// threshold. A string literal cannot overflow an untyped Go integer argument.
+	body := "if " + condition + " {\n\terr = loom.MergeErrors(err, loom.InvalidRangeError(" + quoteString(data.Context) + ", " + data.TargetValue + ", " + quoteString(bound.String()) + ", " + validationGoLiteral(lower) + "))\n}"
 	return renderSimplePointerWrappedValidation(data.IsPointer, data.Target, body)
 }
 

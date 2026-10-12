@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"strconv"
@@ -21,7 +22,15 @@ func BuildBodyTypes(api *expr.APIExpr, types []expr.UserType, resultTypes []*exp
 	}
 
 	analyzeComponentTypes(a, types, resultTypes)
+	if a.Err() != nil {
+		bodies.Err = a.Err()
+		return bodies
+	}
 	analyzeServiceBodies(a, api, bodies)
+	if a.Err() != nil {
+		bodies.Err = a.Err()
+		return bodies
+	}
 	for _, service := range orderedStringKeys(bodies.Services) {
 		endpoints := bodies.Services[service]
 		for _, method := range orderedStringKeys(endpoints) {
@@ -49,6 +58,9 @@ func analyzeComponentTypes(a *Analyzer, types []expr.UserType, resultTypes []*ex
 		}
 		attribute := &expr.AttributeExpr{Type: t}
 		schema := a.analyzeStandaloneSchema(attribute, exampleContext("component-type", t.ID()))
+		if a.Err() != nil {
+			return
+		}
 		a.declarationRoots[t.ID()] = schema
 		a.registrations = append(a.registrations, schema)
 	}
@@ -58,6 +70,9 @@ func analyzeComponentTypes(a *Analyzer, types []expr.UserType, resultTypes []*ex
 		}
 		attribute := &expr.AttributeExpr{Type: t}
 		schema := a.analyzeStandaloneSchema(attribute, exampleContext("component-result-type", t.ID()))
+		if a.Err() != nil {
+			return
+		}
 		a.declarationRoots[t.ID()] = schema
 		a.registrations = append(a.registrations, schema)
 	}
@@ -78,7 +93,8 @@ func analyzeServiceBodies(a *Analyzer, api *expr.APIExpr, bodies *BodyTypes) {
 			}
 			for _, endpoint := range serviceIR.Endpoints {
 				if err := representation.PrepareEndpointExamples(endpoint, a.rand); err != nil {
-					panic(err)
+					a.err = fmt.Errorf("service %q method %q: %w", svc.Name(), endpoint.MethodName, err)
+					return
 				}
 			}
 		}

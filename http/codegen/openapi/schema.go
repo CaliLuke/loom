@@ -1,5 +1,7 @@
 package openapi
 
+import "github.com/CaliLuke/loom/expr"
+
 type (
 	// Schema represents the JSON Schema vocabulary used by generated OpenAPI
 	// documents.
@@ -48,13 +50,13 @@ type (
 		// Pattern constrains string values with a regular expression.
 		Pattern string `json:"pattern,omitzero" yaml:"pattern,omitempty"`
 		// ExclusiveMinimum is the exclusive numeric lower bound.
-		ExclusiveMinimum *float64 `json:"exclusiveMinimum,omitzero" yaml:"exclusiveMinimum,omitempty"`
+		ExclusiveMinimum *expr.NumericBound `json:"exclusiveMinimum,omitzero" yaml:"exclusiveMinimum,omitempty"`
 		// Minimum is the inclusive numeric lower bound.
-		Minimum *float64 `json:"minimum,omitzero" yaml:"minimum,omitempty"`
+		Minimum *expr.NumericBound `json:"minimum,omitzero" yaml:"minimum,omitempty"`
 		// ExclusiveMaximum is the exclusive numeric upper bound.
-		ExclusiveMaximum *float64 `json:"exclusiveMaximum,omitzero" yaml:"exclusiveMaximum,omitempty"`
+		ExclusiveMaximum *expr.NumericBound `json:"exclusiveMaximum,omitzero" yaml:"exclusiveMaximum,omitempty"`
 		// Maximum is the inclusive numeric upper bound.
-		Maximum *float64 `json:"maximum,omitzero" yaml:"maximum,omitempty"`
+		Maximum *expr.NumericBound `json:"maximum,omitzero" yaml:"maximum,omitempty"`
 		// MinLength is the minimum string length.
 		MinLength *int `json:"minLength,omitzero" yaml:"minLength,omitempty"`
 		// MaxLength is the maximum string length.

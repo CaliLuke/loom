@@ -131,4 +131,25 @@ func TestHTTPCodecs(t *testing.T) {
 		}
 	}
 }
+
+func TestExactNumericUnionDescriptors(t *testing.T) {
+ for _, wire := range []string{"[5e-324]", "[1]", "[\"text\"]"} {
+  var first svc.ExactUnion
+  var second svc.ReverseExactUnion
+  require.NoError(t, json.Unmarshal([]byte(wire), &first), wire)
+  require.NoError(t, json.Unmarshal([]byte(wire), &second), wire)
+  firstWire, err := json.Marshal(first, json.Deterministic(true))
+  require.NoError(t, err)
+  secondWire, err := json.Marshal(second, json.Deterministic(true))
+  require.NoError(t, err)
+  require.Equal(t, wire, string(firstWire))
+  require.Equal(t, wire, string(secondWire))
+ }
+ for _, wire := range []string{"[0]", "[-1]", "[1e-1000001]", "[]"} {
+  var first svc.ExactUnion
+  var second svc.ReverseExactUnion
+  require.Error(t, json.Unmarshal([]byte(wire), &first), wire)
+  require.Error(t, json.Unmarshal([]byte(wire), &second), wire)
+ }
+}
 `

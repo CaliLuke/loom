@@ -286,10 +286,10 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr) {
 	e.writeString("validation")
 	e.writeValidationEnums(att, validation)
 	e.writeValidationStrings(validation)
-	e.writeOptionalFloat(validation.ExclusiveMinimum)
-	e.writeOptionalFloat(validation.Minimum)
-	e.writeOptionalFloat(validation.Maximum)
-	e.writeOptionalFloat(validation.ExclusiveMaximum)
+	e.writeOptionalBound(validation.ExclusiveMinimum)
+	e.writeOptionalBound(validation.Minimum)
+	e.writeOptionalBound(validation.Maximum)
+	e.writeOptionalBound(validation.ExclusiveMaximum)
 	e.writeOptionalInt(validation.MinLength)
 	e.writeOptionalInt(validation.MaxLength)
 	e.writeValidationRequired(att, validation.Required)
@@ -388,13 +388,13 @@ func canonicalSetValues(values []any) ([]string, []any) {
 	return encoded, canonical
 }
 
-func (e *canonicalSchemaEncoder) writeOptionalFloat(value *float64) {
+func (e *canonicalSchemaEncoder) writeOptionalBound(value *expr.NumericBound) {
 	if value == nil {
 		e.writeBool(false)
 		return
 	}
 	e.writeBool(true)
-	e.writeString(strconv.FormatFloat(*value, 'g', -1, 64))
+	e.writeString(value.Key())
 }
 
 func (e *canonicalSchemaEncoder) writeOptionalInt(value *int) {

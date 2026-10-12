@@ -119,6 +119,17 @@ consumer validation.
   empty domain. Renderers may retain authored overlays for
   schema composition, but must not select semantic precedence independently.
   `Reference` remains object-template copying rather than named-type ancestry.
+- `internal/exactnum.Number` owns immutable exact numeric values across DSL,
+  source import, expressions, native thresholds and JSON Schema. Preserve native
+  float values and original JSON/YAML numeric kinds; source adapters own grammar,
+  aliases and merge precedence before handing off exact values. Consumers must
+  not round through Float64 or reinterpret a number's textual spelling. Generated
+  validators derive directed thresholds for their concrete native type.
+  Required schema defaults/enums consume checked value-plan projections; defaults
+  use the final contract, while enum clauses retain their declaring occurrence
+  through nested refinement. Keep known builtin checks even beside opaque codecs.
+  The value-contract Lean model and extraction/conformance tests state the limits
+  of the proof; cross-language token checks establish exact wire preservation.
 - Numeric example synthesis selects the concrete representation with `unalias`
   while retaining the occurrence's effective bounds. Named integer and Float32
   aliases must not enter the Float64 path merely because their outer kind is

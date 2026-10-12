@@ -372,7 +372,7 @@ func promoteSSEMediaType(mediaType *MediaType, fields map[string]string, compone
 		properties["id"] = &openapi.Schema{Type: openapi.String}
 	}
 	if fields["retryField"] != "" {
-		zero := 0.0
+		zero := expr.NumericBound{}
 		properties["retry"] = &openapi.Schema{Type: openapi.Integer, Minimum: &zero}
 	}
 	mediaType.Schema = nil

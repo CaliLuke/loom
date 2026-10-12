@@ -1,0 +1,26 @@
+// Standalone design: HTTP body preparation loses inherited enum provenance.
+// Copy to a temporary module's design/design.go and run loom gen.
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("objectenum", func() {
+})
+var base = Type("EnumBase", func() {
+	Attribute("n", Int)
+	Enum(map[string]any{"n": 1}, map[string]any{"n": 2})
+})
+var refined = Type("EnumRefined", func() {
+	Extend(base)
+	Attribute("n", Int, func() {
+		Minimum(2)
+	})
+})
+var _ = Service("numbers", func() {
+	Method("read", func() {
+		Payload(refined)
+		HTTP(func() {
+			POST("/numbers")
+		})
+	})
+})

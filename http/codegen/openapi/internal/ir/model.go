@@ -223,10 +223,10 @@ type (
 
 		Enum             []any
 		Pattern          string
-		ExclusiveMinimum *float64
-		Minimum          *float64
-		ExclusiveMaximum *float64
-		Maximum          *float64
+		ExclusiveMinimum *expr.NumericBound
+		Minimum          *expr.NumericBound
+		ExclusiveMaximum *expr.NumericBound
+		Maximum          *expr.NumericBound
 		MinLength        *int
 		MaxLength        *int
 		MinItems         *int
@@ -296,10 +296,10 @@ type (
 
 		Enum             []any
 		Pattern          string
-		ExclusiveMinimum *float64
-		Minimum          *float64
-		ExclusiveMaximum *float64
-		Maximum          *float64
+		ExclusiveMinimum *expr.NumericBound
+		Minimum          *expr.NumericBound
+		ExclusiveMaximum *expr.NumericBound
+		Maximum          *expr.NumericBound
 		MinLength        *int
 		MaxLength        *int
 		MinItems         *int

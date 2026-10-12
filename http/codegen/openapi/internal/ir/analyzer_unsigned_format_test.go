@@ -68,15 +68,15 @@ func TestAnalyzerAssignsUnsignedIntegerFormats(t *testing.T) {
 			schema := NewAnalyzer(expr.NewRandom(test.name), false).AnalyzeSchema(&expr.AttributeExpr{
 				Type: test.type_,
 				Validation: &expr.ValidationExpr{
-					Minimum: &minimum,
-					Maximum: &maximum,
+					Minimum: boundForTest(minimum),
+					Maximum: boundForTest(maximum),
 				},
 			})
 
 			require.Equal(t, "integer", schema.Type)
 			require.Equal(t, test.format, schema.Format)
-			require.Equal(t, &minimum, schema.Minimum)
-			require.Equal(t, &maximum, schema.Maximum)
+			require.Equal(t, boundForTest(minimum), schema.Minimum)
+			require.Equal(t, boundForTest(maximum), schema.Maximum)
 		})
 	}
 }
@@ -105,7 +105,7 @@ func TestAnalyzerPreservesUnsignedFormatsAndInheritedBoundsAcrossAliases(t *test
 				AttributeExpr: &expr.AttributeExpr{
 					Type:       test.type_,
 					Meta:       expr.MetaExpr{"openapi:typename:canonical": {"true"}},
-					Validation: &expr.ValidationExpr{Minimum: &minimum},
+					Validation: &expr.ValidationExpr{Minimum: boundForTest(minimum)},
 				},
 			}
 			alias := &expr.UserTypeExpr{
@@ -114,7 +114,7 @@ func TestAnalyzerPreservesUnsignedFormatsAndInheritedBoundsAcrossAliases(t *test
 				AttributeExpr: &expr.AttributeExpr{
 					Type:       base,
 					Meta:       expr.MetaExpr{"openapi:typename:canonical": {"true"}},
-					Validation: &expr.ValidationExpr{Maximum: &maximum},
+					Validation: &expr.ValidationExpr{Maximum: boundForTest(maximum)},
 				},
 			}
 
@@ -125,11 +125,11 @@ func TestAnalyzerPreservesUnsignedFormatsAndInheritedBoundsAcrossAliases(t *test
 			baseSchema := analyzer.Components()["UnsignedBase"]
 			require.Equal(t, "integer", baseSchema.Type)
 			require.Equal(t, test.format, baseSchema.Format)
-			require.Equal(t, &minimum, baseSchema.Minimum)
+			require.Equal(t, boundForTest(minimum), baseSchema.Minimum)
 
 			aliasSchema := analyzer.Components()["UnsignedAlias"]
 			require.Equal(t, "#/components/schemas/UnsignedBase", aliasSchema.Ref)
-			require.Equal(t, &maximum, aliasSchema.Maximum)
+			require.Equal(t, boundForTest(maximum), aliasSchema.Maximum)
 		})
 	}
 }

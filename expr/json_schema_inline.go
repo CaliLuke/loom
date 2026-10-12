@@ -1,9 +1,12 @@
 package expr
 
 import (
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"fmt"
 	"reflect"
+
+	"github.com/CaliLuke/loom/internal/exactnum"
 
 	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
@@ -107,7 +110,9 @@ func buildInlineJSONSchema(attr *AttributeExpr, visited map[any]struct{}, contex
 		Title:       attr.Title,
 		Description: attr.Description,
 	}
-	populateInlineSchemaMetadata(schema, attr, constraints)
+	if err := populateInlineSchemaMetadata(schema, attr, constraints); err != nil {
+		return nil, err
+	}
 	if context.byteLengthsHandled {
 		schema.MinLength, schema.MaxLength = nil, nil
 	}
@@ -183,7 +188,11 @@ func nullableInlineJSONSchema(schema *InlineSchema) *InlineSchema {
 	return &InlineSchema{AnyOf: []*InlineSchema{schema, {Type: jsonTypeNull}}}
 }
 
-func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr, constraints EffectiveConstraints) {
+func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr, constraints EffectiveConstraints) error {
+	annotations, err := inlineSchemaAnnotations(attr)
+	if err != nil {
+		return err
+	}
 	if examples := attr.ExtractUserExamples(); len(examples) > 0 {
 		schema.Examples = make([]any, 0, len(examples))
 		for _, example := range examples {
@@ -193,11 +202,11 @@ func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr, con
 			schema.Examples = append(schema.Examples, inlineSemanticJSONValue(attr, example.Value, ValueRoleExample))
 		}
 	}
-	if value, present := constraints.Default(); present {
-		schema.Default = inlineSemanticJSONValue(attr, value, ValueRoleDefault)
+	if annotations.HasDefault {
+		schema.Default = inlineSchemaValue(annotations.Default)
 	}
 	if v := constraints.Validation().Lowered(); v != nil {
-		applyInlineEnumValues(schema, constraints.validation.enumJSON)
+		applyInlineEnumValues(schema, inlineSchemaEnumValues(annotations.Enums))
 		if v.Minimum != nil {
 			schema.Minimum = v.Minimum
 		}
@@ -218,6 +227,7 @@ func populateInlineSchemaMetadata(schema *InlineSchema, attr *AttributeExpr, con
 		}
 		applyInlineStringPredicates(schema, v)
 	}
+	return nil
 }
 
 func populateInlineArraySchema(schema *InlineSchema, constraints EffectiveConstraints, dt *Array, visited map[any]struct{}, context inlineSchemaContext) error {
@@ -342,16 +352,22 @@ func inlineWrappedJSONSchema(wrapper *AttributeExpr, inner *AttributeExpr, visit
 	if wrapper.Validation != nil && !reflect.DeepEqual(wrapper.Validation, inner.Validation) {
 		schema = &InlineSchema{Type: schema.Type, AllOf: []*InlineSchema{schema}}
 	}
-	applyInlineWrapperMetadata(schema, wrapper)
+	if err := applyInlineWrapperMetadata(schema, wrapper); err != nil {
+		return nil, err
+	}
 	if context.byteLengthsHandled {
 		schema.MinLength, schema.MaxLength = nil, nil
 	}
 	return schema, nil
 }
 
-func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) {
+func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) error {
 	if schema == nil || attr == nil {
-		return
+		return nil
+	}
+	annotations, err := inlineSchemaAnnotations(attr)
+	if err != nil {
+		return err
 	}
 	if attr.Description != "" {
 		schema.Description = attr.Description
@@ -368,16 +384,19 @@ func applyInlineWrapperMetadata(schema *InlineSchema, attr *AttributeExpr) {
 		}
 	}
 	if attr.DefaultValue != nil {
-		schema.Default = inlineSemanticJSONValue(attr, attr.DefaultValue, ValueRoleDefault)
+		schema.Default = inlineSchemaValue(annotations.Default)
+	}
+	if err := applyInlineEnums(schema, attr, annotations); err != nil {
+		return err
 	}
 	applyInlineValidation(schema, attr, attr.Validation)
+	return nil
 }
 
 func applyInlineValidation(schema *InlineSchema, attr *AttributeExpr, v *ValidationExpr) {
 	if v == nil {
 		return
 	}
-	applyInlineEnums(schema, attr, v)
 	if v.Minimum != nil {
 		schema.Minimum = v.Minimum
 	}
@@ -413,13 +432,30 @@ func applyInlineValidation(schema *InlineSchema, attr *AttributeExpr, v *Validat
 	}
 }
 
-func applyInlineEnums(schema *InlineSchema, attribute *AttributeExpr, validation *ValidationExpr) {
-	var clauses [][]any
-	if validation.Values != nil {
-		clauses = append(clauses, inlineSemanticEnumValues(attribute, validation.Values))
+func applyInlineEnums(schema *InlineSchema, attribute *AttributeExpr, annotations JSONSchemaAnnotations) error {
+	if attribute.Validation == nil {
+		return nil
 	}
-	clauses = append(clauses, inlineDeclaredEnumValues(attribute, validation.EnumClauses)...)
+	constraints, err := EffectiveConstraintsFor(attribute)
+	if err != nil {
+		return err
+	}
+	var clauses [][]any
+	for _, clause := range attribute.Validation.Enums() {
+		found := false
+		for index, effective := range constraints.validation.rules.Enums() {
+			if reflect.DeepEqual(clause, effective) {
+				clauses = append(clauses, inlineSchemaEnumValues(annotations.Enums[index : index+1])[0])
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("inline enum annotation lacks its effective clause")
+		}
+	}
 	applyInlineEnumValues(schema, clauses)
+	return nil
 }
 
 func applyInlineEnumValues(schema *InlineSchema, clauses [][]any) {
@@ -490,43 +526,25 @@ func inlineBoundOutsideMinimum(current, domain any) bool {
 	if current == nil {
 		return true
 	}
-	currentNumber, currentOK := inlineBoundFloat64(current)
-	domainNumber, domainOK := inlineBoundFloat64(domain)
-	return !currentOK || !domainOK || currentNumber <= domainNumber
+	currentNumber, currentOK := inlineBoundNumber(current)
+	domainNumber, domainOK := inlineBoundNumber(domain)
+	return !currentOK || !domainOK || currentNumber.Cmp(domainNumber) <= 0
 }
 
 func inlineBoundOutsideMaximum(current, domain any) bool {
 	if current == nil {
 		return true
 	}
-	currentNumber, currentOK := inlineBoundFloat64(current)
-	domainNumber, domainOK := inlineBoundFloat64(domain)
-	return !currentOK || !domainOK || currentNumber >= domainNumber
+	currentNumber, currentOK := inlineBoundNumber(current)
+	domainNumber, domainOK := inlineBoundNumber(domain)
+	return !currentOK || !domainOK || currentNumber.Cmp(domainNumber) >= 0
 }
 
-func inlineBoundFloat64(value any) (float64, bool) {
-	switch actual := value.(type) {
-	case *float64:
-		return *actual, true
-	case float64:
-		return actual, true
-	case float32:
-		return float64(actual), true
-	case int:
-		return float64(actual), true
-	case int32:
-		return float64(actual), true
-	case int64:
-		return float64(actual), true
-	case uint:
-		return float64(actual), true
-	case uint32:
-		return float64(actual), true
-	case uint64:
-		return float64(actual), true
-	default:
-		return 0, false
+func inlineBoundNumber(value any) (NumericBound, bool) {
+	if bound, ok := value.(*NumericBound); ok && bound != nil {
+		return *bound, true
 	}
+	return exactnum.FromScalar(value)
 }
 
 func primitiveToInlineJSONType(p Primitive) string {
@@ -584,32 +602,33 @@ func inlineSemanticJSONValue(attribute *AttributeExpr, raw any, role ValueRole) 
 	return CanonicalizeExample(attribute, raw)
 }
 
-func inlineDeclaredEnumValues(attribute *AttributeExpr, clauses [][]any) [][]any {
+func inlineSchemaAnnotations(attribute *AttributeExpr) (JSONSchemaAnnotations, error) {
 	context := NewValueContext()
 	occurrence, err := context.NewOccurrence(attribute)
 	if err != nil {
-		return copyEnumClauseValues(clauses)
+		return JSONSchemaAnnotations{}, err
 	}
-	projected := make([][]any, len(clauses))
-	for clauseIndex, values := range clauses {
-		projected[clauseIndex] = make([]any, len(values))
-		for valueIndex, value := range values {
-			source := context.SupplyValue(ValueInput{Raw: value, Origin: "inline enum value"})
-			result := context.ResolveDeclaredShape(occurrence, source)
-			if normalized, ok := result.DeclaredJSONValue(); ok {
-				projected[clauseIndex][valueIndex] = normalized
-			} else {
-				projected[clauseIndex][valueIndex] = CanonicalizeExample(attribute, value)
-			}
-		}
+	plan, err := context.NewValuePlan(occurrence, ValuePlanRequest{Target: attribute, Codec: ValueCodecJSON, Use: ValuePlanDocumentation})
+	if err != nil {
+		return JSONSchemaAnnotations{}, err
 	}
-	return projected
+	return context.PrepareJSONSchemaAnnotations(occurrence, plan)
 }
 
-func inlineSemanticEnumValues(attribute *AttributeExpr, values []any) []any {
-	projected := make([]any, len(values))
-	for index, value := range values {
-		projected[index] = inlineSemanticJSONValue(attribute, value, ValueRoleEnum)
+func inlineSchemaValue(value JSONSchemaValue) any {
+	if wire, emitted := value.Projection().JSON(); emitted {
+		return jsontext.Value(wire)
 	}
-	return projected
+	return value.DeclaredValue()
+}
+
+func inlineSchemaEnumValues(clauses [][]JSONSchemaValue) [][]any {
+	values := make([][]any, len(clauses))
+	for index, clause := range clauses {
+		values[index] = make([]any, len(clause))
+		for member, value := range clause {
+			values[index][member] = inlineSchemaValue(value)
+		}
+	}
+	return values
 }

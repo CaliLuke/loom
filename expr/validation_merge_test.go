@@ -8,9 +8,7 @@ import (
 )
 
 func TestValidationExprMergeKeepsTighterBounds(t *testing.T) {
-	f := func(v float64) *float64 {
-		return &v
-	}
+	f := boundForTest
 	i := func(v int) *int {
 		return &v
 	}
@@ -66,12 +64,11 @@ func TestValidationExprMergeKeepsTighterBounds(t *testing.T) {
 func TestValidationExprMergeIsConstraintIntersection(t *testing.T) {
 	// A deterministic grid of optional bounds; -1 encodes "unset".
 	bounds := []int{-1, 0, 2, 3, 5, 7}
-	opt := func(b int) *float64 {
+	opt := func(b int) *NumericBound {
 		if b < 0 {
 			return nil
 		}
-		v := float64(b)
-		return &v
+		return boundForTest(b)
 	}
 	optInt := func(b int) *int {
 		if b < 0 {
@@ -91,10 +88,10 @@ func TestValidationExprMergeIsConstraintIntersection(t *testing.T) {
 		}
 	}
 	acceptsNumber := func(v *ValidationExpr, x float64) bool {
-		return (v.ExclusiveMinimum == nil || x > *v.ExclusiveMinimum) &&
-			(v.Minimum == nil || x >= *v.Minimum) &&
-			(v.ExclusiveMaximum == nil || x < *v.ExclusiveMaximum) &&
-			(v.Maximum == nil || x <= *v.Maximum)
+		return (v.ExclusiveMinimum == nil || boundForTest(x).Cmp(*v.ExclusiveMinimum) > 0) &&
+			(v.Minimum == nil || boundForTest(x).Cmp(*v.Minimum) >= 0) &&
+			(v.ExclusiveMaximum == nil || boundForTest(x).Cmp(*v.ExclusiveMaximum) < 0) &&
+			(v.Maximum == nil || boundForTest(x).Cmp(*v.Maximum) <= 0)
 	}
 	acceptsLength := func(v *ValidationExpr, l int) bool {
 		return (v.MinLength == nil || l >= *v.MinLength) &&
@@ -122,7 +119,7 @@ func TestValidationExprMergeIsConstraintIntersection(t *testing.T) {
 }
 
 func describeBounds(v *ValidationExpr) string {
-	f := func(p *float64) string {
+	f := func(p *NumericBound) string {
 		if p == nil {
 			return "-"
 		}

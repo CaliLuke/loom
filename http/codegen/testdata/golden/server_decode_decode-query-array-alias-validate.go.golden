@@ -28,8 +28,8 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 			err = loom.MergeErrors(err, loom.InvalidLengthError("array", len(array), 3, true))
 		}
 		for _, e := range array {
-			if e < 10 {
-				err = loom.MergeErrors(err, loom.InvalidRangeError("array[*]", e, 10, true))
+			if e < 0xa {
+				err = loom.MergeErrors(err, loom.InvalidRangeError("array[*]", e, "10", true))
 			}
 		}
 		if err != nil {

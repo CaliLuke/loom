@@ -22,8 +22,8 @@ func DecodeMethodQueryUIntValidateRequest(mux loomhttp.Muxer, _ func(*http.Reque
 			}
 			q = uint(v)
 		}
-		if q < 1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("q", q, 1, true))
+		if q < 0x1 {
+			err = loom.MergeErrors(err, loom.InvalidRangeError("q", q, "1", true))
 		}
 		if err != nil {
 			return payload, err

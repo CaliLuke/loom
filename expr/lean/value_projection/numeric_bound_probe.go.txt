@@ -1,0 +1,47 @@
+// Copy to a temporary .go file and run with the root go.mod toolchain.
+// This is an independent extraction/codec probe, not the proposed implementation.
+package main
+
+import (
+	json "encoding/json/v2"
+	"fmt"
+	"math"
+	"math/big"
+	"strconv"
+)
+
+func main() {
+	for _, value := range []float64{0.1, float64(float32(0.1)), 100.1} {
+		exact := new(big.Rat).SetFloat64(value)
+		short := strconv.FormatFloat(value, 'g', -1, 64)
+		decimal, ok := new(big.Rat).SetString(short)
+		if !ok {
+			panic("finite formatted decimal must parse")
+		}
+		fmt.Printf("source=%s exact=%s compare-to-short=%d previous=%s next=%s\n",
+			short, exact.FloatString(60), exact.Cmp(decimal),
+			strconv.FormatFloat(math.Nextafter(value, math.Inf(-1)), 'g', -1, 64),
+			strconv.FormatFloat(math.Nextafter(value, math.Inf(1)), 'g', -1, 64))
+		fmt.Printf("same source: exact-maximum=%t short-maximum=%t exact-exclusive-maximum=%t short-exclusive-maximum=%t\n",
+			exact.Cmp(exact) <= 0, exact.Cmp(decimal) <= 0,
+			exact.Cmp(exact) < 0, exact.Cmp(decimal) < 0)
+	}
+	value32 := float32(0.1)
+	fmt.Printf("Float32: previous=%s boundary=%s next=%s\n",
+		strconv.FormatFloat(float64(math.Nextafter32(value32, float32(math.Inf(-1)))), 'g', -1, 32),
+		strconv.FormatFloat(float64(value32), 'g', -1, 32),
+		strconv.FormatFloat(float64(math.Nextafter32(value32, float32(math.Inf(1)))), 'g', -1, 32))
+	var decoded float64
+	if err := json.Unmarshal([]byte("0.1"), &decoded); err != nil {
+		panic(err)
+	}
+	binary := new(big.Rat).SetFloat64(decoded)
+	decimal := big.NewRat(1, 10)
+	fmt.Printf("JSON 0.1: raw >= binary-bound=%t; decoded >= binary-bound=%t; decoded <= decimal-bound=%t\n",
+		decimal.Cmp(binary) >= 0, decoded >= 0.1, binary.Cmp(decimal) <= 0)
+	for _, text := range []string{"1e-400", "1e-1000001", "0x1p-1000001", "1e309", "NaN", "+Inf"} {
+		value, err := strconv.ParseFloat(text, 64)
+		_, exactOK := new(big.Rat).SetString(text)
+		fmt.Printf("text=%s float=%v float-error=%v rational-accepted=%t\n", text, value, err, exactOK)
+	}
+}

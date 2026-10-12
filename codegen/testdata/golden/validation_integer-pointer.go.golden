@@ -4,7 +4,7 @@ func Validate() (err error) {
 	}
 	if target.RequiredInteger != nil {
 		if *target.RequiredInteger < 1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("target.required_integer", *target.RequiredInteger, 1, true))
+			err = loom.MergeErrors(err, loom.InvalidRangeError("target.required_integer", *target.RequiredInteger, "1", true))
 		}
 	}
 	if target.DefaultInteger != nil {
@@ -14,17 +14,17 @@ func Validate() (err error) {
 	}
 	if target.Integer != nil {
 		if *target.Integer > 100 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("target.integer", *target.Integer, 100, false))
+			err = loom.MergeErrors(err, loom.InvalidRangeError("target.integer", *target.Integer, "100", false))
 		}
 	}
 	if target.ExclusiveInteger != nil {
-		if *target.ExclusiveInteger <= 1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive_integer", *target.ExclusiveInteger, 1, true))
+		if *target.ExclusiveInteger < 2 {
+			err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive_integer", *target.ExclusiveInteger, "1", true))
 		}
 	}
 	if target.ExclusiveInteger != nil {
-		if *target.ExclusiveInteger >= 100 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive_integer", *target.ExclusiveInteger, 100, false))
+		if *target.ExclusiveInteger > 99 {
+			err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive_integer", *target.ExclusiveInteger, "100", false))
 		}
 	}
 }

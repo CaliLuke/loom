@@ -99,9 +99,9 @@ func PrepareStandaloneExamples(
 	if err != nil {
 		return nil, err
 	}
-	documentation, err := context.NewValuePlan(occurrence, expr.ValuePlanRequest{
-		Target: attribute, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanDocumentation,
-	})
+	documentation, err := context.NewValuePlan(occurrence, DocumentationPlanRequest(expr.ValuePlanRequest{
+		Target: attribute,
+	}))
 	if err != nil {
 		return nil, err
 	}
@@ -156,6 +156,7 @@ func PrepareTargetExamples(
 		example: target.ExampleOccurrence, anchor: anchor,
 	}
 	target.ExampleSets = make(map[expr.ValuePlanNode]*transportir.ValueExampleSet)
+	target.Annotations = make(map[expr.ValuePlanNode]expr.JSONSchemaAnnotations)
 	if err := prepareTargetExamplePosition(target, position, attribute, generator,
 		make(map[expr.ValuePlanNode]bool), nil); err != nil {
 		return err
@@ -196,6 +197,11 @@ func prepareTargetExamplePosition(
 		return nil
 	}
 	visited[position.schema] = true
+	annotations, err := target.Anchor.Context.PrepareJSONSchemaAnnotations(position.anchor, position.anchorProjection)
+	if err != nil {
+		return err
+	}
+	target.Annotations[position.schema] = annotations
 	set, err := prepareTargetExampleSet(target, position, attribute,
 		examplegen.ForScope(generator, append([]string{"occurrence"}, path...)...))
 	if err != nil {

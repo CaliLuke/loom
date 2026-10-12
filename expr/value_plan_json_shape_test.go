@@ -11,7 +11,7 @@ func TestJSONShapeLoweringMatchesPreparedSchema(t *testing.T) {
 		Type: &Object{
 			{Name: "name", Attribute: &AttributeExpr{Type: String, Validation: &ValidationExpr{MinLength: new(2), Pattern: "^a"}}},
 			{Name: "blob", Attribute: &AttributeExpr{Type: Bytes, Validation: &ValidationExpr{Values: []any{"hi"}}}},
-			{Name: "number", Attribute: &AttributeExpr{Type: UInt32, Validation: &ValidationExpr{ExclusiveMinimum: new(1.0)}}},
+			{Name: "number", Attribute: &AttributeExpr{Type: UInt32, Validation: &ValidationExpr{ExclusiveMinimum: boundForTest(1.0)}}},
 		},
 		Validation: &ValidationExpr{Required: []string{"name"}},
 		Meta:       MetaExpr{"openapi:additionalProperties": {"false"}},

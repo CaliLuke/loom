@@ -23,7 +23,7 @@ func DecodeMethodQueryFloat32ValidateRequest(mux loomhttp.Muxer, _ func(*http.Re
 			q = float32(v)
 		}
 		if q < 1 {
-			err = loom.MergeErrors(err, loom.InvalidRangeError("q", q, 1, true))
+			err = loom.MergeErrors(err, loom.InvalidRangeError("q", q, "1", true))
 		}
 		if err != nil {
 			return payload, err

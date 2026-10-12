@@ -210,7 +210,10 @@ func TestHTTPTypeUsesCompleteEffectiveStringValidation(t *testing.T) {
 	require.Equal(t, 2, *output.Validation.MinLength)
 	require.Equal(t, 12, *output.Validation.MaxLength)
 
-	minimum, maximum := 1.0, 10.0
+	minimum, err := expr.NewNumericBound(1)
+	require.NoError(t, err)
+	maximum, err := expr.NewNumericBound(10)
+	require.NoError(t, err)
 	numericBase := &expr.UserTypeExpr{TypeName: "NumericBase", UID: "NumericBase", AttributeExpr: &expr.AttributeExpr{
 		Type: expr.Int, Validation: &expr.ValidationExpr{Minimum: &minimum, Maximum: &maximum},
 	}}

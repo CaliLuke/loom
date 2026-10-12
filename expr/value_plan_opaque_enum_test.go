@@ -31,7 +31,7 @@ func TestValuePlanDocumentationPreservesOpaqueEnumClause(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, plan.root.hasEnum)
 	require.Equal(t, [][]ResolvedValue{{}}, plan.root.enumClauses)
-	require.False(t, schemaJSON(plan.root, jsontext.Value(`"ordinary"`)))
+	require.False(t, matchSchemaForTest(t, plan.root, jsontext.Value(`"ordinary"`)))
 	_, accepted := decodeJSON(plan.root, jsontext.Value(`"ordinary"`))
 	require.False(t, accepted)
 	ordinary := context.ResolveDeclaredShape(occurrence,
@@ -69,10 +69,10 @@ func TestValuePlanDocumentationConjoinsKnownAndOpaqueEnumCandidates(t *testing.T
 				Target: attribute, Codec: ValueCodecJSON, Use: ValuePlanDocumentation,
 			})
 			require.NoError(t, err)
-			require.Equal(t, test.known, schemaJSON(plan.root, jsontext.Value(`"known"`)))
+			require.Equal(t, test.known, matchSchemaForTest(t, plan.root, jsontext.Value(`"known"`)))
 			_, accepted := decodeJSON(plan.root, jsontext.Value(`"known"`))
 			require.Equal(t, test.known, accepted)
-			require.False(t, schemaJSON(plan.root, jsontext.Value(`"other"`)))
+			require.False(t, matchSchemaForTest(t, plan.root, jsontext.Value(`"other"`)))
 			_, accepted = decodeJSON(plan.root, jsontext.Value(`"other"`))
 			require.False(t, accepted)
 

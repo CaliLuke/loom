@@ -173,7 +173,7 @@ func TestExtendCompositionRepeatedPreparation(t *testing.T) {
 	require.True(t, derived.Attribute().IsRequired("n"))
 	constraints, err := expr.EffectiveConstraintsFor(field)
 	require.NoError(t, err)
-	require.Equal(t, 0.0, constraints.LowerBound().Value)
-	require.Equal(t, 100.0, constraints.UpperBound().Value)
+	require.Equal(t, *boundForTest(0.0), constraints.LowerBound().Value)
+	require.Equal(t, *boundForTest(100.0), constraints.UpperBound().Value)
 	require.Nil(t, base.Attribute().Find("n").Validation.Maximum)
 }

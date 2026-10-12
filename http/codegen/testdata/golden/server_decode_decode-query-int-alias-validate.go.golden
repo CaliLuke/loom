@@ -26,7 +26,7 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 		}
 		if int_ != nil {
 			if *int_ < 10 {
-				err = loom.MergeErrors(err, loom.InvalidRangeError("int", *int_, 10, true))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("int", *int_, "10", true))
 			}
 		}
 		{
@@ -42,7 +42,7 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 		}
 		if int32_ != nil {
 			if *int32_ > 100 {
-				err = loom.MergeErrors(err, loom.InvalidRangeError("int32", *int32_, 100, false))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("int32", *int32_, "100", false))
 			}
 		}
 		{
@@ -57,7 +57,7 @@ func DecodeMethodARequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Dec
 		}
 		if int64_ != nil {
 			if *int64_ < 0 {
-				err = loom.MergeErrors(err, loom.InvalidRangeError("int64", *int64_, 0, true))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("int64", *int64_, "0", true))
 			}
 		}
 		if err != nil {

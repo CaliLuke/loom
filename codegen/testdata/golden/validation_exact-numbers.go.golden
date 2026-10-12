@@ -1,0 +1,20 @@
+func Validate() (err error) {
+	if target.Signed < 9007199254740993 {
+		err = loom.MergeErrors(err, loom.InvalidRangeError("target.signed", target.Signed, "9007199254740993", true))
+	}
+	if target.Unsigned > 0xffffffffffffffff {
+		err = loom.MergeErrors(err, loom.InvalidRangeError("target.unsigned", target.Unsigned, "18446744073709551615", false))
+	}
+	if target.Exclusive > 9007199254740992 {
+		err = loom.MergeErrors(err, loom.InvalidRangeError("target.exclusive", target.Exclusive, "9007199254740993", false))
+	}
+	if target.Decimal > 0.09999999999999999 {
+		err = loom.MergeErrors(err, loom.InvalidRangeError("target.decimal", target.Decimal, "0.1", false))
+	}
+	if target.Decimal32 > 0.099999994 {
+		err = loom.MergeErrors(err, loom.InvalidRangeError("target.decimal32", target.Decimal32, "0.1", false))
+	}
+	if target.Tiny < 5e-324 {
+		err = loom.MergeErrors(err, loom.InvalidRangeError("target.tiny", target.Tiny, "1e-1000001", true))
+	}
+}

@@ -59,6 +59,10 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 		return nil, diagnostics.sorted(), SelectionReport{}, nil
 	}
 
+	numbers, err := numericSources(source)
+	if err != nil {
+		return nil, nil, SelectionReport{}, fmt.Errorf("inspect numeric source: %w", err)
+	}
 	model, err := parsed.BuildV3Model()
 	if err != nil {
 		return nil, nil, SelectionReport{}, fmt.Errorf("build OpenAPI %s model: %w", version, err)
@@ -69,6 +73,7 @@ func analyzeSelectedDocument(source []byte, selection Selection) (*Document, Dia
 		examples:    make(map[string]Example),
 		schemas:     make(map[string]*Schema),
 		version:     version,
+		numbers:     numbers,
 	}
 	document := analyzer.document(&model.Model)
 	if selection.Active() {
@@ -85,6 +90,7 @@ type analyzer struct {
 	examples    map[string]Example
 	schemas     map[string]*Schema
 	version     string
+	numbers     map[string]numericSource
 }
 
 var concreteHTTPStatus = regexp.MustCompile(`^[1-5][0-9]{2}$`)
@@ -530,6 +536,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 		return &Schema{}
 	}
 	schema := newNormalizedSchema(source)
+	a.schemaNumericBounds(schema, path)
 	supportedNullableComposition := a.schemaNullableAnyOf(schema, source, path)
 	supportedNullableOneOf := schemaNullableReferenceOneOf(schema, source)
 	supportedUntaggedOneOf := false
@@ -540,7 +547,6 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	a.schemaTypeAndProperties(schema, source, path)
 	a.schemaCollections(schema, source, path)
 	a.schemaEnum(schema, source, path)
-	a.schemaExclusiveBounds(schema, source)
 	a.schemaDefault(schema, source, path)
 	a.schemaExamples(schema, source, path)
 	a.schemaFormat(schema, path)
@@ -560,7 +566,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 func newNormalizedSchema(source *base.Schema) *Schema {
 	return &Schema{
 		Title: source.Title, Description: source.Description, Format: source.Format,
-		Pattern: source.Pattern, Minimum: source.Minimum, Maximum: source.Maximum,
+		Pattern:   source.Pattern,
 		MinLength: source.MinLength, MaxLength: source.MaxLength,
 		MinItems: source.MinItems, MaxItems: source.MaxItems,
 		Required:   append([]string(nil), source.Required...),
@@ -651,29 +657,6 @@ func (a *analyzer) schemaEnum(schema *Schema, source *base.Schema, path string) 
 		return
 	}
 	schema.Enum = append(schema.Enum, decoded)
-}
-
-func (a *analyzer) schemaExclusiveBounds(schema *Schema, source *base.Schema) {
-	if source.ExclusiveMinimum != nil {
-		if source.ExclusiveMinimum.IsB() {
-			value := source.ExclusiveMinimum.B
-			schema.ExclusiveMinimum = &value
-		} else if source.ExclusiveMinimum.A && source.Minimum != nil {
-			value := *source.Minimum
-			schema.ExclusiveMinimum = &value
-			schema.Minimum = nil
-		}
-	}
-	if source.ExclusiveMaximum != nil {
-		if source.ExclusiveMaximum.IsB() {
-			value := source.ExclusiveMaximum.B
-			schema.ExclusiveMaximum = &value
-		} else if source.ExclusiveMaximum.A && source.Maximum != nil {
-			value := *source.Maximum
-			schema.ExclusiveMaximum = &value
-			schema.Maximum = nil
-		}
-	}
 }
 
 func (a *analyzer) unsupported(code, path, message string) {

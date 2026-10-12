@@ -475,17 +475,17 @@ func TestAttributeExprValidate(t *testing.T) {
 func TestAttributeExprValidateRejectsFractionalIntegerBounds(t *testing.T) {
 	cases := map[string]struct {
 		kind       DataType
-		validation func(*float64, *float64) *ValidationExpr
+		validation func(*NumericBound, *NumericBound) *ValidationExpr
 	}{
 		"int minimum maximum": {
 			kind: Int,
-			validation: func(minimum, maximum *float64) *ValidationExpr {
+			validation: func(minimum, maximum *NumericBound) *ValidationExpr {
 				return &ValidationExpr{Minimum: minimum, Maximum: maximum}
 			},
 		},
 		"uint exclusive minimum maximum": {
 			kind: UInt,
-			validation: func(minimum, maximum *float64) *ValidationExpr {
+			validation: func(minimum, maximum *NumericBound) *ValidationExpr {
 				return &ValidationExpr{ExclusiveMinimum: minimum, ExclusiveMaximum: maximum}
 			},
 		},
@@ -497,7 +497,7 @@ func TestAttributeExprValidateRejectsFractionalIntegerBounds(t *testing.T) {
 			maximum := 0.7
 			attribute := AttributeExpr{
 				Type:       tc.kind,
-				Validation: tc.validation(&minimum, &maximum),
+				Validation: tc.validation(boundForTest(minimum), boundForTest(maximum)),
 			}
 
 			actual := attribute.Validate("ctx", nil)
@@ -517,8 +517,8 @@ func TestAttributeExprValidateAllowsFractionalFloatBounds(t *testing.T) {
 	attribute := AttributeExpr{
 		Type: Float64,
 		Validation: &ValidationExpr{
-			Minimum: &minimum,
-			Maximum: &maximum,
+			Minimum: boundForTest(minimum),
+			Maximum: boundForTest(maximum),
 		},
 	}
 

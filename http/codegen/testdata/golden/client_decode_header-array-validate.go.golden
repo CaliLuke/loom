@@ -26,7 +26,7 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 				}
 				for _, e := range array {
 					if e < 5 {
-						err = loom.MergeErrors(err, loom.InvalidRangeError("array[*]", e, 5, true))
+						err = loom.MergeErrors(err, loom.InvalidRangeError("array[*]", e, "5", true))
 					}
 				}
 				if err != nil {

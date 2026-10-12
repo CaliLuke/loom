@@ -465,6 +465,35 @@ expresses the intended application contract; runtime validation is unchanged.
 - `ExclusiveMinimum(n)` - Minimum value (exclusive)
 - `ExclusiveMaximum(n)` - Maximum value (exclusive)
 
+Numeric bounds preserve exact values. Integers retain all their digits; strings
+such as `Minimum("9007199254740993")` and `Maximum("0.1")` express exact
+mathematical integers and decimals. Finite hexadecimal strings such as
+`Minimum("0x1.4p0")` express the same language-neutral number as `Minimum("1.25")`.
+OpenAPI emits numeric tokens, never strings containing numbers. Integer attributes
+require whole-number bounds. Nonfinite bounds and strings that overflow Float64
+admission are rejected; underflowing strings remain exact nonzero bounds.
+
+Use decimal strings for decimal contracts shared with other languages. A Go
+floating-point argument retains its actual binary value: `Minimum(0.1)` is
+slightly greater than `Minimum("0.1")`. Float32 and Float64 also have different
+sets of representable values. Generated validators compare the decoded native
+value against the exact bound. JSON Schema compares the raw JSON number;
+decoding can round it, so those judgments are distinct. For example, the Float64
+value `0.1` satisfies `Minimum(0.1)`, but its shortest JSON encoding `0.1` falls
+below that exact binary bound. Loom rejects a default or enum member that cannot be projected into its required
+generated schema artifact; it does not widen the schema to make that encoding
+fit. A default must satisfy the final effective contract. Inherited enum clauses
+remain predicates, so their constants are checked at their declaring occurrence
+and can remain in the schema after a later refinement excludes them. Opaque
+custom encoders retain their external codec boundary; known builtin values are
+still checked. Optional examples retain their existing omission and partial-value
+contracts.
+
+Regenerate clients, servers and OpenAPI after upgrading: large bounds no longer
+round through Float64, and exclusive bounds use the nearest accepted value of
+the declared native type. Service implementations still own values returned at
+runtime, including their chosen numeric carrier and serialization precision.
+
 #### Collection Validations
 - `MinLength(n)` - Minimum number of elements
 - `MaxLength(n)` - Maximum number of elements

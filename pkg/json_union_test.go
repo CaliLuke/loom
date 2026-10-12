@@ -147,10 +147,12 @@ func TestJSONShapePredicates(t *testing.T) {
 	}
 }
 
-func TestJSONShapeNumericCapacityFailureIsFatal(t *testing.T) {
-	for _, kind := range []string{"integer", "number"} {
-		shape := &JSONShape{Kind: kind}
-		_, err := shape.Match([]byte("1e1000001"))
-		require.ErrorContains(t, err, "exact matching capacity")
+func TestJSONShapeEvaluatorFailureIsFatal(t *testing.T) {
+	valid := JSONUnionBranch{Schema: &JSONShape{Kind: "number"}, Decode: func(jsontext.Value) (bool, error) { return true, nil }}
+	broken := JSONUnionBranch{Schema: &JSONShape{Kind: "number", Rules: JSONShapeRules{Minimum: "not a number"}}, Decode: valid.Decode}
+	for _, branches := range [][]JSONUnionBranch{{broken, valid}, {valid, broken}, {valid, valid, broken}} {
+		index, err := MatchUntaggedJSON("BrokenNumber", []byte("1"), branches)
+		require.ErrorContains(t, err, "invalid JSON numeric bound")
+		require.Equal(t, -1, index, "a fatal schema error cannot become a later match or ordinary ambiguity")
 	}
 }

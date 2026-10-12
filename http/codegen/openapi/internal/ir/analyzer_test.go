@@ -43,8 +43,8 @@ func TestAnalyzerConjoinsEnumClausesIncludingEmptyDomain(t *testing.T) {
 		Type:       expr.Int,
 		Validation: &expr.ValidationExpr{EnumClauses: [][]any{{1, 2}, {2, 3}}},
 	})
-	require.Equal(t, []any{1, 2}, schema.Enum)
-	require.Equal(t, []*Schema{{Enum: []any{2, 3}}}, schema.AllOf)
+	require.Equal(t, []any{openAPIJSONNumber("1"), openAPIJSONNumber("2")}, schema.Enum)
+	require.Equal(t, []*Schema{{Enum: []any{openAPIJSONNumber("2"), openAPIJSONNumber("3")}}}, schema.AllOf)
 
 	empty := NewAnalyzer(expr.NewRandom("empty-enum-clause"), false).AnalyzeSchema(&expr.AttributeExpr{
 		Type:       expr.Int,
@@ -258,17 +258,17 @@ func TestAnalyzerPreservesNamedAliasConstraintOverlay(t *testing.T) {
 			"openapi:allOf:reference": []string{"true"},
 		},
 		Validation: &expr.ValidationExpr{
-			Minimum: &minimum,
-			Maximum: &maximum,
+			Minimum: boundForTest(minimum),
+			Maximum: boundForTest(maximum),
 		},
 	})
 
 	require.Len(t, schema.AllOf, 1)
 	require.Equal(t, "#/components/schemas/Status", schema.AllOf[0].Ref)
-	require.Equal(t, &minimum, schema.Minimum)
-	require.Equal(t, &maximum, schema.Maximum)
-	require.Equal(t, 1, schema.DefaultValue)
-	require.Equal(t, []any{0, 1}, analyzer.Components()["Status"].Enum)
+	require.Equal(t, boundForTest(minimum), schema.Minimum)
+	require.Equal(t, boundForTest(maximum), schema.Maximum)
+	require.Equal(t, openAPIJSONNumber("1"), schema.DefaultValue)
+	require.Equal(t, []any{openAPIJSONNumber("0"), openAPIJSONNumber("1")}, analyzer.Components()["Status"].Enum)
 }
 
 func TestAnalyzerKeepsUserTypeOccurrenceMetadataOutsideSharedComponent(t *testing.T) {
@@ -487,17 +487,17 @@ func TestAnalyzerOccurrenceOverlayComposesInlineAliasConstraints(t *testing.T) {
 		UID:      "Bounded",
 		AttributeExpr: &expr.AttributeExpr{
 			Type:       expr.Int,
-			Validation: &expr.ValidationExpr{Minimum: &baseMinimum},
+			Validation: &expr.ValidationExpr{Minimum: boundForTest(baseMinimum)},
 		},
 	}
 	schema := NewAnalyzer(expr.NewRandom("ir"), false).AnalyzeSchema(&expr.AttributeExpr{
 		Type:       bounded,
-		Validation: &expr.ValidationExpr{Minimum: &occurrenceMinimum},
+		Validation: &expr.ValidationExpr{Minimum: boundForTest(occurrenceMinimum)},
 	})
 
 	require.Len(t, schema.AllOf, 1)
-	require.Equal(t, &baseMinimum, schema.AllOf[0].Minimum)
-	require.Equal(t, &occurrenceMinimum, schema.Minimum)
+	require.Equal(t, boundForTest(baseMinimum), schema.AllOf[0].Minimum)
+	require.Equal(t, boundForTest(occurrenceMinimum), schema.Minimum)
 }
 
 func TestAnalyzerPreservesCanonicalNamesThatShareAGoIdentifier(t *testing.T) {

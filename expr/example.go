@@ -3,13 +3,13 @@ package expr
 import (
 	"fmt"
 	"math"
-	"math/big"
 	"regexp"
 	"regexp/syntax"
 	"strings"
 	"time"
 	"unicode"
 
+	"github.com/CaliLuke/loom/internal/exactnum"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -414,119 +414,109 @@ func byMinMax(a *AttributeExpr, r *ExampleGenerator) any {
 	if !hasMinMaxValidation(a) {
 		return nil
 	}
-	// Bounds belong to the effective occurrence; representation belongs to the
-	// underlying numeric type, just as it does for length-based synthesis.
 	kind := unalias(a.Type).Kind()
-	minimum, maximum, sign := minMaxBounds(a)
-	if math.IsInf(maximum, 1) {
-		return randomMinOnlyValue(kind, r, minimum, sign)
+	domain := numericDomain(kind)
+	low, high := domain.Limits()
+	lowerPresent, upperPresent := false, false
+	for _, endpoint := range []struct {
+		bound            *NumericBound
+		lower, exclusive bool
+	}{
+		{a.Validation.Minimum, true, false}, {a.Validation.ExclusiveMinimum, true, true},
+		{a.Validation.Maximum, false, false}, {a.Validation.ExclusiveMaximum, false, true},
+	} {
+		if endpoint.bound == nil {
+			continue
+		}
+		projected := ProjectNumericBound(kind, *endpoint.bound, endpoint.lower, endpoint.exclusive)
+		if projected.Empty {
+			return nil
+		}
+		value, ok := exactnum.FromScalar(projected.Value)
+		if !ok {
+			panic("invalid numeric projection")
+		}
+		if endpoint.lower {
+			current, ok := exactnum.FromScalar(low)
+			if !ok {
+				panic("invalid numeric domain")
+			}
+			if value.Cmp(current) > 0 {
+				low = projected.Value
+			}
+			lowerPresent = true
+		} else {
+			current, ok := exactnum.FromScalar(high)
+			if !ok {
+				panic("invalid numeric domain")
+			}
+			if value.Cmp(current) < 0 {
+				high = projected.Value
+			}
+			upperPresent = true
+		}
 	}
-	if minimum < maximum {
-		return randomBoundedValue(kind, r, minimum, maximum)
+	lower, lowOK := exactnum.FromScalar(low)
+	upper, highOK := exactnum.FromScalar(high)
+	if !lowOK || !highOK {
+		panic("invalid numeric example interval")
 	}
-	return minValueForKind(kind, minimum)
+	if lower.Cmp(upper) > 0 {
+		return nil
+	}
+	if !domain.Float {
+		return sampleNumericInteger(kind, domain.Unsigned, low, high, r)
+	}
+	return sampleNumericFloat(domain.Bits, low, high, lowerPresent, upperPresent, r)
 }
 
-func minMaxBounds(a *AttributeExpr) (float64, float64, int) {
-	minimum := readMinimum(a)
-	maximum := readMaximum(a)
-	sign := 1
-	if a.Validation.ExclusiveMinimum == nil && a.Validation.Minimum == nil {
-		sign = -1
-		minimum = maximum
-		maximum = math.Inf(1)
+func sampleNumericFloat(bits int, low, high any, lowerPresent, upperPresent bool, r *ExampleGenerator) any {
+	var minimum, maximum float64
+	if bits == 32 {
+		minimum, maximum = float64(low.(float32)), float64(high.(float32))
+	} else {
+		minimum, maximum = low.(float64), high.(float64)
 	}
-	return minimum, maximum, sign
+	fraction := min(1.0, max(0.0, r.Float64()))
+	value := minimum*(1-fraction) + maximum*fraction
+	if !upperPresent {
+		value = minimum + fraction
+	} else if !lowerPresent {
+		value = maximum - fraction
+	}
+	value = min(maximum, max(minimum, value))
+	if bits == 32 {
+		return float32(value)
+	}
+	return value
 }
 
-func readMaximum(a *AttributeExpr) float64 {
-	if a.Validation.ExclusiveMaximum != nil {
-		return *a.Validation.ExclusiveMaximum
+func sampleNumericInteger(kind Kind, unsigned bool, low, high any, r *ExampleGenerator) any {
+	var first, last uint64
+	if unsigned {
+		first, last = low.(uint64), high.(uint64)
+	} else {
+		first, last = uint64(low.(int64)), uint64(high.(int64))
 	}
-	if a.Validation.Maximum != nil {
-		return *a.Validation.Maximum
+	offset := r.UInt64()
+	span := last - first
+	if span != math.MaxUint64 {
+		offset %= span + 1
 	}
-	return math.Inf(1)
-}
-
-func readMinimum(a *AttributeExpr) float64 {
-	if a.Validation.ExclusiveMinimum != nil {
-		return *a.Validation.ExclusiveMinimum
-	}
-	if a.Validation.Minimum != nil {
-		return *a.Validation.Minimum
-	}
-	return 0
-}
-
-func randomMinOnlyValue(kind Kind, r *ExampleGenerator, minimum float64, sign int) any {
+	value := first + offset
 	switch kind {
 	case IntKind:
-		return sign * (r.Int() + int(minimum))
+		return int(int64(value))
 	case Int32Kind:
-		return int32(sign) * (r.Int32() + int32(minimum))
+		return int32(int64(value))
 	case Int64Kind:
-		return int64(sign) * (r.Int64() + int64(minimum))
+		return int64(value)
 	case UIntKind:
-		return r.UInt() + uint(minimum)
+		return uint(value)
 	case UInt32Kind:
-		return r.UInt32() + uint32(minimum)
-	case UInt64Kind:
-		return r.UInt64() + uint64(minimum)
-	case Float32Kind:
-		return float32(sign) * (r.Float32() + float32(minimum))
+		return uint32(value)
 	default:
-		return float64(sign) * (r.Float64() + minimum)
-	}
-}
-
-func randomBoundedValue(kind Kind, r *ExampleGenerator, minimum, maximum float64) any {
-	delta := maximum - minimum
-	switch kind {
-	case IntKind:
-		return r.Int()%positiveIntDelta(delta) + int(minimum)
-	case Int32Kind:
-		return r.Int32()%int32(positiveIntDelta(delta)) + int32(minimum)
-	case Int64Kind:
-		return r.Int64()%int64(positiveIntDelta(delta)) + int64(minimum)
-	case UIntKind:
-		return r.UInt()%uint(positiveIntDelta(delta)) + uint(minimum)
-	case UInt32Kind:
-		return r.UInt32()%uint32(positiveIntDelta(delta)) + uint32(minimum)
-	case UInt64Kind:
-		return r.UInt64()%uint64(positiveIntDelta(delta)) + uint64(minimum)
-	case Float32Kind:
-		return r.Float32()*float32(delta) + float32(minimum)
-	default:
-		return r.Float64()*delta + minimum
-	}
-}
-
-func positiveIntDelta(delta float64) int {
-	if delta < 1 {
-		return 1
-	}
-	return int(delta)
-}
-
-func minValueForKind(kind Kind, minimum float64) any {
-	switch kind {
-	case IntKind:
-		return int(minimum)
-	case Int32Kind:
-		return int32(minimum)
-	case Int64Kind:
-		return int64(minimum)
-	case UIntKind:
-		return uint(minimum)
-	case UInt32Kind:
-		return uint32(minimum)
-	case UInt64Kind:
-		return uint64(minimum)
-	case Float32Kind:
-		return float32(minimum)
-	default:
-		return minimum
+		return value
 	}
 }
 
@@ -574,31 +564,27 @@ func checkValidationMinMaxValue(validation *ValidationExpr, example any) bool {
 		validation.ExclusiveMaximum == nil && validation.Maximum == nil) {
 		return true
 	}
-	value, ok := numericExampleRat(example)
+	value, ok := exactnum.FromScalar(example)
 	if !ok {
 		return true
 	}
 	if minimum := validation.ExclusiveMinimum; minimum != nil {
-		bound := new(big.Rat).SetFloat64(*minimum)
-		if bound != nil && value.Cmp(bound) <= 0 {
+		if value.Cmp(*minimum) <= 0 {
 			return false
 		}
 	}
 	if minimum := validation.Minimum; minimum != nil {
-		bound := new(big.Rat).SetFloat64(*minimum)
-		if bound != nil && value.Cmp(bound) < 0 {
+		if value.Cmp(*minimum) < 0 {
 			return false
 		}
 	}
 	if maximum := validation.ExclusiveMaximum; maximum != nil {
-		bound := new(big.Rat).SetFloat64(*maximum)
-		if bound != nil && value.Cmp(bound) >= 0 {
+		if value.Cmp(*maximum) >= 0 {
 			return false
 		}
 	}
 	if maximum := validation.Maximum; maximum != nil {
-		bound := new(big.Rat).SetFloat64(*maximum)
-		if bound != nil && value.Cmp(bound) > 0 {
+		if value.Cmp(*maximum) > 0 {
 			return false
 		}
 	}

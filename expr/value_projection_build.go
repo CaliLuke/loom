@@ -35,7 +35,15 @@ func observeJSON(plan *valuePlanNode, role ValueRole, value ResolvedValue) (Reso
 		if value.Kind() != ValueKindAny {
 			return ResolvedValue{}, projectionBuildFailure(ProjectionUnrepresentable, "Any target requires an Any source")
 		}
-		wire, err := json.Marshal(value.node.raw, json.Deterministic(true))
+		raw := value.node.raw
+		if plan.documentary {
+			var err error
+			raw, err = jsonkey.Value(raw)
+			if err != nil {
+				return ResolvedValue{}, projectionBuildFailure(ProjectionUnrepresentable, "Any map keys: %v", err)
+			}
+		}
+		wire, err := json.Marshal(raw, json.Deterministic(true))
 		if err != nil {
 			return ResolvedValue{}, projectionBuildFailure(ProjectionUnrepresentable, "Any materialization: %v", err)
 		}

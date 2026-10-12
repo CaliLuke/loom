@@ -73,7 +73,7 @@ func TestMapDefaultsPreserveNestedTypedValues(t *testing.T) {
 	attr := &expr.AttributeExpr{Type: expr.Any, DefaultValue: value}
 	schema := NewAnalyzer(expr.NewRandom("nested-defaults"), false).AnalyzeSchema(attr)
 	expected := map[string]any{
-		"18446744073709551615": []any{map[string]any{"-3": []byte{0, 255}}},
+		"18446744073709551615": []any{map[string]any{"-3": "AP8="}},
 	}
 	require.Equal(t, expected, schema.DefaultValue)
 	encoded, err := json.Marshal(schema.DefaultValue, json.Deterministic(true))

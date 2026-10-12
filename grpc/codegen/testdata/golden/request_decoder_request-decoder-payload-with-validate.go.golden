@@ -18,7 +18,7 @@ func DecodeMethodMessageWithValidateRequest(ctx context.Context, v any, md metad
 		}
 		if inMetadata != nil {
 			if *inMetadata > 100 {
-				err = loom.MergeErrors(err, loom.InvalidRangeError("InMetadata", *inMetadata, 100, false))
+				err = loom.MergeErrors(err, loom.InvalidRangeError("InMetadata", *inMetadata, "100", false))
 			}
 		}
 	}

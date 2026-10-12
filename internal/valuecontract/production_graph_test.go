@@ -53,16 +53,16 @@ func productionRules(validation *expr.ValidationExpr, kind expr.Kind) map[string
 	numeric := map[string]any{"minimum": nil, "maximum": nil, "exclusiveMinimum": false, "exclusiveMaximum": false}
 	if validation != nil {
 		if validation.Minimum != nil {
-			numeric["minimum"] = referenceBinaryDecimal(*validation.Minimum)
+			numeric["minimum"] = boundDecimal(validation.Minimum)
 		}
 		if validation.Maximum != nil {
-			numeric["maximum"] = referenceBinaryDecimal(*validation.Maximum)
+			numeric["maximum"] = boundDecimal(validation.Maximum)
 		}
 		if validation.ExclusiveMinimum != nil {
-			numeric["minimum"], numeric["exclusiveMinimum"] = referenceBinaryDecimal(*validation.ExclusiveMinimum), true
+			numeric["minimum"], numeric["exclusiveMinimum"] = boundDecimal(validation.ExclusiveMinimum), true
 		}
 		if validation.ExclusiveMaximum != nil {
-			numeric["maximum"], numeric["exclusiveMaximum"] = referenceBinaryDecimal(*validation.ExclusiveMaximum), true
+			numeric["maximum"], numeric["exclusiveMaximum"] = boundDecimal(validation.ExclusiveMaximum), true
 		}
 	}
 	return map[string]any{"sourcePrimitive": productionSourcePrimitive(kind), "numericFormat": format, "integerFormat": "mathematical", "enumeration": nil, "length": productionLength(validation), "numeric": numeric, "externalChecks": []any{}}

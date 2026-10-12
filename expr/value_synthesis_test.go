@@ -73,8 +73,8 @@ func TestValueSynthesisNamedUnionRetainsChoice(t *testing.T) {
 
 func TestValueSynthesisUsesEffectiveNamedBounds(t *testing.T) {
 	minimum, maximum := 100.0, 200.0
-	base := namedScalar("SynthesisBase", Float64, &ValidationExpr{Minimum: &minimum})
-	derived := namedScalar("SynthesisDerived", base, &ValidationExpr{Maximum: &maximum})
+	base := namedScalar("SynthesisBase", Float64, &ValidationExpr{Minimum: boundForTest(minimum)})
+	derived := namedScalar("SynthesisDerived", base, &ValidationExpr{Maximum: boundForTest(maximum)})
 	context := NewValueContext()
 	occurrence, err := context.NewOccurrence(&AttributeExpr{Type: derived})
 	require.NoError(t, err)
@@ -205,8 +205,8 @@ func TestValueSynthesisSuppressesEmptyEffectiveLengthContracts(t *testing.T) {
 
 func TestValueSynthesisSuppressesEqualExclusiveNumericContract(t *testing.T) {
 	bound := 5.0
-	base := namedScalar("SynthesisNumericBase", Float64, &ValidationExpr{Minimum: &bound})
-	derived := namedScalar("SynthesisNumericDerived", base, &ValidationExpr{ExclusiveMaximum: &bound})
+	base := namedScalar("SynthesisNumericBase", Float64, &ValidationExpr{Minimum: boundForTest(bound)})
+	derived := namedScalar("SynthesisNumericDerived", base, &ValidationExpr{ExclusiveMaximum: boundForTest(bound)})
 	context := NewValueContext()
 	occurrence, err := context.NewOccurrence(&AttributeExpr{Type: derived})
 	require.NoError(t, err)

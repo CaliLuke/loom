@@ -1,5 +1,75 @@
 # Proof and production correspondence ledger
 
+## Exact extraction correction: #681
+
+`NumericBounds.effectiveNumericBounds_iff` assumes exact Decimal endpoints. The
+parent converted DSL and OpenAPI integers into Float64 before this owner saw
+them. `NumericExtraction.lean` reproduces that lost premise and proves contract
+preservation under an explicit extraction-equality assumption. The production
+owner now lives in `internal/exactnum`: immutable canonical factors preserve
+integers, decimal/hex strings and actual finite binary float values. Source
+adapters keep DSL, JSON and original YAML scalar admission distinct.
+
+Concrete correspondence checks include 20 DSL boundary regressions, original
+numeric token recovery through all four imported bound keywords, YAML radix
+integers, finite-admission diagnostics, runtime descriptor integrality/membership,
+and prepared-schema fatal error propagation. `Number.Cmp` uses outward scaled
+mantissa intervals, decides only disjoint enclosures and doubles precision after
+overlap. Its 10,000 bounded rational-oracle comparisons and close-value refinement
+control test the handwritten implementation independently. `Boundary` searches
+the ordered finite native carrier, comparing exact represented values with the
+common owner; directed 32/64-bit float and signed/unsigned edge tests cover it.
+
+`NumericIntervals.lean` proves enclosure safety and eventual separation for
+abstract finite multiplication trees. It does not mechanically extract the Go
+normalizer, prove canonical factor uniqueness or give a universal practical cost.
+Go's compact exponent storage avoids powers proportional to arbitrary exponent
+magnitude during comparison. Decimal emission can inherently require that much
+output for a hexadecimal source. JSONShape and prepared schema errors propagate
+as errors rather than branch nonmembership; Go tests establish that error routing.
+
+Float64 `Minimum(0.1)` is strictly above raw JSON `0.1`, although decoding that
+JSON as Float64 reaches the authored binary boundary. The prepared artifact
+projection rejects the shortest-decimal example as unrepresentable. This is an
+explicit source/schema/decoder distinction, not a claim that raw-token membership
+and postdecode acceptance coincide. Exact decimal strings express decimal intent
+across languages. No decoder-preimage schema or rounded compatibility policy is
+introduced. Final generation, transport, and review evidence is recorded in the
+[implementation acceptance record](../../../roadmap/exact-numeric-bounds-readiness.md).
+
+The required-annotation correction adds three bounded controls in
+`NumericExtraction.lean`: a native binary boundary whose shortest JSON fails
+membership, an inherited enum constant excluded by a later refinement, and an
+external-codec fallback that masks a known builtin failure. The production seams
+are `value_schema_annotations.go`, `value_schema_annotation_known.go` and the
+existing representation preparation traversal. Direct tests check declaration
+provenance, detached snapshots, final default projection, opaque sibling failures
+and decimal-string controls. These controls do not prove the concrete Go graph
+traversal, source association, visibility policy or custom codecs. A retained
+external-codec result is explicitly Unsupported, not an emitted builtin proof.
+
+Independent implementation review found that scalar refinement controls did not
+cover nested member identities. Two further bounded Lean controls retain the
+complete object clause under a child minimum and expose declaration/target
+identity mismatch. `value_plan_enum.go` uses the existing plan builder to bind
+captured declaration members to actual target field policies; predicate constants
+do not inherit later child validations. Runtime enum comparison decodes the same
+projected constant into target identities before comparing native values. Root
+and descendant predicates still constrain actual input values. The direct
+`TestNumericEnumNestedRefinement` checks raw schema membership, runtime JSONShape,
+renamed-field wire projection, declaration provenance and native decode equality.
+The OpenAPI specimen preserves both object constants and passes pinned Vacuum.
+These bounded theorems do not prove Go graph extraction, member-name binding,
+YAML merge precedence or source grammar; direct source/import tests cover shallow
+mapping replacement, first-wins merges and leading-zero YAML floats.
+
+Two independently reproduced parent defects remain outside this ticket:
+`numeric_nested_enum_http_probe.go.txt` fails HTTP body preparation because its
+root clause has lost declaration provenance; `numeric_object_enum_generator_probe.go.txt`
+generates a value-struct comparison with nil. The readiness record gives the
+exact parent, commands, diagnostics and limits. Passing the standalone/shared
+owners does not establish those failing generated application paths.
+
 Status at `15a4c467`: **M1 and #569–#572, #574, #565 and #434 are delivered.**
 Their proof and tested-correspondence claims retain the boundaries recorded below.
 The reviewed contract is

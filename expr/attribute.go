@@ -115,18 +115,18 @@ type (
 		// ExclusiveMinimum represents an exclusiveMinimum value validation as described
 		// at
 		// http://json-schema.org/draft/2019-09/json-schema-validation.html#rfc.section.6.2.5.
-		ExclusiveMinimum *float64
+		ExclusiveMinimum *NumericBound
 		// Minimum represents an minimum value validation as described
 		// at
 		// http://json-schema.org/latest/json-schema-validation.html#anchor21.
-		Minimum *float64
+		Minimum *NumericBound
 		// Maximum represents a maximum value validation as described at
 		// http://json-schema.org/latest/json-schema-validation.html#anchor17.
-		Maximum *float64
+		Maximum *NumericBound
 		// ExclusiveMaximum represents an exclusiveMaximum value validation as described
 		// at
 		// http://json-schema.org/draft/2019-09/json-schema-validation.html#rfc.section.6.2.3.
-		ExclusiveMaximum *float64
+		ExclusiveMaximum *NumericBound
 		// MinLength represents an minimum length validation as
 		// described at
 		// http://json-schema.org/latest/json-schema-validation.html#anchor29.

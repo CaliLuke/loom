@@ -2,7 +2,6 @@ package expr
 
 import (
 	"fmt"
-	"math"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -103,13 +102,13 @@ func (a *AttributeExpr) validateNumericBounds(ctx string, parent eval.Expression
 	if !isIntegerKind(a.Type.Kind()) {
 		return verr
 	}
-	for _, bound := range []*float64{
+	for _, bound := range []*NumericBound{
 		a.Validation.Minimum,
 		a.Validation.Maximum,
 		a.Validation.ExclusiveMinimum,
 		a.Validation.ExclusiveMaximum,
 	} {
-		if bound != nil && math.Trunc(*bound) != *bound {
+		if bound != nil && !bound.IsInt() {
 			verr.Add(parent, "%sinteger bounds must be whole numbers", ctx)
 			return verr
 		}

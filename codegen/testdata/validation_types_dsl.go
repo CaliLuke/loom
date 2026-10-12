@@ -40,6 +40,16 @@ var ValidationTypesDSL = func() {
 			Required("required_float")
 		})
 
+		_ = Type("ExactNumbers", func() {
+			Attribute("signed", Int64, func() { Minimum("9007199254740993") })
+			Attribute("unsigned", UInt64, func() { Maximum("18446744073709551615") })
+			Attribute("exclusive", Int64, func() { ExclusiveMaximum("9007199254740993") })
+			Attribute("decimal", Float64, func() { Maximum("0.1") })
+			Attribute("decimal32", Float32, func() { Maximum("0.1") })
+			Attribute("tiny", Float64, func() { Minimum("1e-1000001") })
+			Required("signed", "unsigned", "exclusive", "decimal", "decimal32", "tiny")
+		})
+
 		StringT = Type("String", func() {
 			Attribute("required_string", String, func() {
 				MinLength(1)

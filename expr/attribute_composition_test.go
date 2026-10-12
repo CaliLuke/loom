@@ -50,13 +50,13 @@ func TestExtendCompositionRefinement(t *testing.T) {
 			if field.Description != "local" {
 				t.Errorf("description = %q, want local authored description", field.Description)
 			}
-			if bound := constraints.UpperBound(); !bound.Present || bound.Value != 100 {
+			if bound := constraints.UpperBound(); !bound.Present || bound.Value.String() != "100" {
 				t.Errorf("effective upper bound = %#v, want 100", bound)
 			}
 			value, present := constraints.Default()
 			require.True(t, present)
 			require.Equal(t, 5, value)
-			require.Equal(t, 0.0, constraints.LowerBound().Value)
+			require.Equal(t, *boundForTest(0.0), constraints.LowerBound().Value)
 			require.True(t, derived.Attribute().IsRequired("n"))
 			require.Equal(t, 2, base.Attribute().Find("n").DefaultValue)
 		})
@@ -413,8 +413,8 @@ func TestExtendCompositionNestedConstraints(t *testing.T) {
 	constraints, err := expr.EffectiveConstraintsFor(expr.AsArray(derived.Attribute().Find("ns").Type).ElemType)
 	require.NoError(t, err)
 	require.True(t, constraints.LowerBound().Present)
-	require.Equal(t, 0.0, constraints.LowerBound().Value)
-	require.Equal(t, 100.0, constraints.UpperBound().Value)
+	require.Equal(t, *boundForTest(0.0), constraints.LowerBound().Value)
+	require.Equal(t, *boundForTest(100.0), constraints.UpperBound().Value)
 }
 
 func TestExtendCompositionPeerEnumIntersection(t *testing.T) {
@@ -495,10 +495,10 @@ func TestExtendCompositionOwnsConstraintSources(t *testing.T) {
 			})
 		})
 	})
-	*base.Attribute().Find("n").Validation.Minimum = 20
+	*base.Attribute().Find("n").Validation.Minimum = *boundForTest(20)
 	constraints, err := expr.EffectiveConstraintsFor(derived.Attribute().Find("n"))
 	require.NoError(t, err)
-	require.Equal(t, 0.0, constraints.LowerBound().Value)
+	require.Equal(t, *boundForTest(0.0), constraints.LowerBound().Value)
 }
 
 func TestExtendCompositionCoalescesEquivalentDefaults(t *testing.T) {

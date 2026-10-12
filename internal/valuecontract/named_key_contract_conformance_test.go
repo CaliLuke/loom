@@ -85,10 +85,10 @@ func checkNamedKeyContractConformance(t *testing.T, executable string) {
 
 		minimum, exclusiveMinimum, maximum, exclusiveMaximum := 0.0, 1.0, 10.0, 9.0
 		numericBase := aliasNamed("RawNumericBase", expr.Float64, &expr.ValidationExpr{
-			Minimum: &minimum, Maximum: &maximum,
+			Minimum: boundForTest(minimum), Maximum: boundForTest(maximum),
 		})
 		numericDerived := aliasNamed("RawNumericDerived", numericBase, &expr.ValidationExpr{
-			ExclusiveMinimum: &exclusiveMinimum, ExclusiveMaximum: &exclusiveMaximum,
+			ExclusiveMinimum: boundForTest(exclusiveMinimum), ExclusiveMaximum: boundForTest(exclusiveMaximum),
 		})
 		numeric, err := captureIndependentKeyContract(t, &expr.AttributeExpr{Type: numericDerived})
 		require.NoError(t, err)
@@ -209,12 +209,12 @@ func checkNamedKeyContractConformance(t *testing.T, executable string) {
 		minimum, maximum := 0.0, 10.0
 		exclusiveMinimum, exclusiveMaximum := 1.0, 9.0
 		base := aliasNamed("NumericKeyBase", expr.Float64, &expr.ValidationExpr{
-			Minimum: &minimum,
-			Maximum: &maximum,
+			Minimum: boundForTest(minimum),
+			Maximum: boundForTest(maximum),
 		})
 		derived := aliasNamed("NumericKeyDerived", base, &expr.ValidationExpr{
-			ExclusiveMinimum: &exclusiveMinimum,
-			ExclusiveMaximum: &exclusiveMaximum,
+			ExclusiveMinimum: boundForTest(exclusiveMinimum),
+			ExclusiveMaximum: boundForTest(exclusiveMaximum),
 		})
 		checkKeyQueries(t, executable, &expr.AttributeExpr{Type: derived}, []keyQueryCase{
 			{name: "closed minimum independently admitted", key: float64(0), accepted: false},
@@ -225,7 +225,7 @@ func checkNamedKeyContractConformance(t *testing.T, executable string) {
 		})
 
 		closed := aliasNamed("ClosedNumericKey", expr.Float64, &expr.ValidationExpr{
-			Minimum: &minimum, Maximum: &maximum,
+			Minimum: boundForTest(minimum), Maximum: boundForTest(maximum),
 		})
 		checkKeyQueries(t, executable, &expr.AttributeExpr{Type: closed}, []keyQueryCase{
 			{name: "ordinary minimum", key: float64(0), accepted: true},
@@ -235,16 +235,16 @@ func checkNamedKeyContractConformance(t *testing.T, executable string) {
 		})
 
 		tie := 1.0
-		openTieBase := aliasNamed("OpenTieBase", expr.Float64, &expr.ValidationExpr{Minimum: &tie})
-		openTie := aliasNamed("OpenTieDerived", openTieBase, &expr.ValidationExpr{ExclusiveMinimum: &tie})
+		openTieBase := aliasNamed("OpenTieBase", expr.Float64, &expr.ValidationExpr{Minimum: boundForTest(tie)})
+		openTie := aliasNamed("OpenTieDerived", openTieBase, &expr.ValidationExpr{ExclusiveMinimum: boundForTest(tie)})
 		checkKeyQueries(t, executable, &expr.AttributeExpr{Type: openTie}, []keyQueryCase{
 			{name: "open tie rejects endpoint", key: float64(1)},
 			{name: "open tie admits above", key: float64(2), accepted: true},
 		})
 
 		emptyMinimum, emptyMaximum := 2.0, 1.0
-		emptyBase := aliasNamed("EmptyNumericBase", expr.Float64, &expr.ValidationExpr{Minimum: &emptyMinimum})
-		empty := aliasNamed("EmptyNumericDerived", emptyBase, &expr.ValidationExpr{Maximum: &emptyMaximum})
+		emptyBase := aliasNamed("EmptyNumericBase", expr.Float64, &expr.ValidationExpr{Minimum: boundForTest(emptyMinimum)})
+		empty := aliasNamed("EmptyNumericDerived", emptyBase, &expr.ValidationExpr{Maximum: boundForTest(emptyMaximum)})
 		emptyKey := &expr.AttributeExpr{Type: empty}
 		emptyContract, err := captureIndependentKeyContract(t, emptyKey)
 		require.NoError(t, err)

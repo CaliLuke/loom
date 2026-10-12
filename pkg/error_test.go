@@ -2,6 +2,7 @@ package loom
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -246,4 +247,15 @@ func TestExtractErrorRemedy(t *testing.T) {
 			t.Errorf("got unexpected status (%d, %t)", got, ok)
 		}
 	})
+}
+
+func TestInvalidRangeErrorPreservesExactBoundText(t *testing.T) {
+	for _, bound := range []any{"18446744073709551615", "1e-1000001", 0.125} {
+		err := InvalidRangeError("value", 0, bound, true)
+		var serviceErr *ServiceError
+		require.ErrorAs(t, err, &serviceErr)
+		require.Equal(t, InvalidRange, serviceErr.Name)
+		require.Contains(t, serviceErr.Message, fmt.Sprint(bound))
+		require.NotContains(t, serviceErr.Message, "%!")
+	}
 }

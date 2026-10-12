@@ -1,5 +1,32 @@
 # Value contract model and proofs
 
+## Exact bound extraction: #681
+
+`NumericExtraction.lean` models the former Float64 extraction loss with integer,
+underflow, Float32/Float64 and 100.1 controls, and reuses the numeric conjunction
+owner under an explicit exact-extraction premise. `NumericIntervals.lean` proves
+outward enclosure, separated-interval ordering and eventual precision doubling
+for finite multiplication trees. Twenty-one claims, including required-annotation boundary, inherited-enum
+and declaration-identity
+controls, are registered in
+`required-theorems.txt`, imported by `Proofs.lean`, audited by the existing
+`AxiomAudit.lean` and included in fresh kernel replay. The normal proof gate also
+requires both `NegativeNumericExtraction.lean` and
+`NegativeNumericIntervalGuess.lean` to fail at their false assertions.
+
+The shared production owner is `internal/exactnum`. DSL and raw JSON/YAML import
+adapters retain source meaning; expr effective constraints, native thresholds,
+examples, schema projection and runtime JSONShape matching consume that owner.
+The [correspondence ledger](correspondence.md) records concrete tests and model
+limits. These proofs do not establish the Go parser, canonical factor uniqueness,
+scaled-mantissa implementation, serializers or a universal practical resource
+bound. Independent rational-oracle and generated runtime checks cover selected
+concrete cases. The factor/schema/cross-language probe sources retain the
+readiness experiments; they are not a second production arithmetic authority.
+
+Final implementation acceptance remains tracked in the
+[readiness record](../../../roadmap/exact-numeric-bounds-readiness.md).
+
 This directory owns the formal source-value and target-projection model for the
 [value-contract design](../../../roadmap/value-contract-design.md) and
 [implementation plan](../../../roadmap/value-contract-plan.md). Start with the

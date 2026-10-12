@@ -111,6 +111,7 @@ type (
 		preserveAdditional  bool
 		hasEnum             bool
 		enumClauses         [][]ResolvedValue
+		enumPlans           []*valuePlanNode
 	}
 
 	valuePlanAssociation struct {

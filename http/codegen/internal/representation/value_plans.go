@@ -35,6 +35,7 @@ func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 	result.Representative = nil
 	result.ExamplesPrepared = false
 	result.ExampleSets = nil
+	result.Annotations = nil
 	target = TargetGraph(target)
 	builder := httpValuePlanBuilder{
 		request: expr.ValuePlanRequest{Target: target, Selection: append([]string(nil), value.Selection...), Codec: value.Codec, Use: use},
@@ -61,8 +62,7 @@ func BuildValuePlan(value *transportir.ValueTarget, target *expr.AttributeExpr, 
 	// Documentation examples are JSON values attached to OpenAPI schemas even
 	// when the runtime target is text, multipart or raw. Node-local custom/SSE
 	// codec policies remain explicit boundaries in the copied request.
-	documentation.Codec = expr.ValueCodecJSON
-	documentation.Use = expr.ValuePlanDocumentation
+	documentation = DocumentationPlanRequest(documentation)
 	if result.Anchor != nil {
 		result.AnchorPlan, result.Error = result.Anchor.Context.NewValuePlan(result.Anchor.Occurrence, documentation)
 		if result.Error != nil {

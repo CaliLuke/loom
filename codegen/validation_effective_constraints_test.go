@@ -49,15 +49,15 @@ func TestEffectiveNumericAliasConjunction(t *testing.T) {
 			code := ValidationCode(attribute, nil, NewAttributeContext(false, false, true, "", NewNameScope()), true, false, false, "value")
 			require.NotEmpty(t, code)
 			if test.name == "lower" {
-				require.Equal(t, test.minimum, *validation.Minimum)
+				require.Equal(t, *boundForTest(test.minimum), *validation.Minimum)
 				require.Nil(t, validation.ExclusiveMinimum)
-				require.Equal(t, test.maximum, *validation.Maximum)
+				require.Equal(t, *boundForTest(test.maximum), *validation.Maximum)
 				require.Nil(t, validation.ExclusiveMaximum)
 				require.Contains(t, code, "if value < 5")
 				require.Contains(t, code, "if value > 8")
 			} else {
-				require.Equal(t, test.minimum, *validation.Minimum)
-				require.Equal(t, test.maximum, *validation.Maximum)
+				require.Equal(t, *boundForTest(test.minimum), *validation.Minimum)
+				require.Equal(t, *boundForTest(test.maximum), *validation.Maximum)
 				require.Contains(t, code, "if value < -2")
 				require.Contains(t, code, "if value > 1")
 			}
@@ -168,8 +168,8 @@ func TestEffectiveNumericAliasContradictionRemainsAdmitted(t *testing.T) {
 	constraints, err := expr.EffectiveConstraintsFor(attribute)
 	require.NoError(t, err)
 	validation := constraints.Validation().Lowered()
-	require.Equal(t, 5.0, *validation.Minimum)
-	require.Equal(t, 3.0, *validation.Maximum)
+	require.Equal(t, *boundForTest(5), *validation.Minimum)
+	require.Equal(t, *boundForTest(3), *validation.Maximum)
 	for _, value := range []int{2, 4, 6} {
 		context := expr.NewValueContext()
 		occurrence, err := context.NewOccurrence(attribute)

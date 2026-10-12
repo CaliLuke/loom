@@ -72,7 +72,9 @@ func TestMapDefaultsPreserveCustomEncoders(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			attribute := &expr.AttributeExpr{Type: expr.Any, DefaultValue: tc.value}
-			schema := NewAnalyzer(expr.NewRandom("custom-defaults"), false).AnalyzeSchema(attribute)
+			analyzer := NewAnalyzer(expr.NewRandom("custom-defaults"), false)
+			schema := analyzer.AnalyzeSchema(attribute)
+			require.NoError(t, analyzer.Err())
 			encoded, err := json.Marshal(schema.DefaultValue, json.Deterministic(true))
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, string(encoded))

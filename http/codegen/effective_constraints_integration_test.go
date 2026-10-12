@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	numericdata "github.com/CaliLuke/loom/codegen/testdata"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/CaliLuke/loom/dsl"
@@ -67,7 +68,13 @@ func TestEffectiveConstraintsGeneratedHTTPModule(t *testing.T) {
 			Attribute("ip", formatDerived)
 			Required("pattern", "ip")
 		})
+		numeric := numericdata.ExactNumericPayload()
 		Service("constraints", func() {
+			Method("numeric", func() {
+				Payload(numeric)
+				HTTP(func() { POST("/numeric") })
+			})
+
 			Method("defaults", func() {
 				Payload(defaults)
 				HTTP(func() {
@@ -140,6 +147,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+"strings"
 
 	constraints "example.com/effectiveconstraints/gen/constraints"
 	server "example.com/effectiveconstraints/gen/http/constraints/server"
@@ -151,6 +159,7 @@ type service struct {
 	required *constraints.DerivedRequired
 	parameters []byte
 	clauses int
+	numeric int
 	err error
 }
 
@@ -175,6 +184,11 @@ func (s *service) Response(context.Context) (*constraints.TransportResponse, err
 		OverriddenNumberHeader: constraints.OverriddenNumber(11),
 		InheritedBytesCookie: constraints.InheritedBytes("response-bytes"),
 	}, nil
+}
+
+func (s *service) Numeric(context.Context, *constraints.ExactNumericPayload) error {
+ s.numeric++
+ return nil
 }
 
 func (s *service) Clauses(context.Context, *constraints.ClausePayload) error {
@@ -310,5 +324,43 @@ func TestEffectiveDefaultsAndRequiredFields(t *testing.T) {
 		}
 	}
 	t.Error("response bytes cookie missing")
+}
+
+func TestExactNumericBounds(t *testing.T) {
+ svc := &service{}
+ mux := loomhttp.NewMuxer()
+ server.Mount(mux, server.New(constraints.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+ for _, tc := range []struct { wire string; valid bool }{
+{"{}",true},
+{"{\"signed\":9007199254740993}",true},
+{"{\"signed\":9007199254740992}",false},
+{"{\"signed\":9223372036854775807}",true},
+{"{\"unsigned\":18446744073709551615}",true},
+{"{\"unsigned\":18446744073709551614}",false},
+{"{\"negative\":-9223372036854775808}",false},
+{"{\"negative\":-9223372036854775807}",true},
+{"{\"upper\":9007199254740992}",true},
+{"{\"upper\":9007199254740993}",false},
+{"{\"decimal\":0.09999999999999999}",true},
+{"{\"decimal\":0.1}",false},
+{"{\"decimal32\":0.099999994}",true},
+{"{\"decimal32\":0.1}",false},
+{"{\"tiny\":5e-324}",true},
+{"{\"tiny\":0}",false},
+{"{\"control\":2}",true},
+{"{\"control\":1}",false},
+} {
+
+  before := svc.numeric
+  request := httptest.NewRequest(http.MethodPost, "/numeric", strings.NewReader(tc.wire))
+  request.Header.Set("Content-Type", "application/json")
+  response := httptest.NewRecorder()
+  mux.ServeHTTP(response, request)
+  if tc.valid {
+   if response.Code != 204 || svc.numeric != before+1 { t.Errorf("%s: status %d calls %d: %s", tc.wire, response.Code, svc.numeric-before, response.Body.String()) }
+  } else if response.Code != 400 || svc.numeric != before || !strings.Contains(response.Body.String(), "invalid_range") {
+   t.Errorf("%s: status %d calls %d: %s", tc.wire, response.Code, svc.numeric-before, response.Body.String())
+  }
+ }
 }
 `

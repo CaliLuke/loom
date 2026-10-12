@@ -102,8 +102,8 @@ func TestExampleOmitsUnsatisfiableFractionalIntegerBounds(t *testing.T) {
 	attribute := expr.AttributeExpr{
 		Type: expr.Int,
 		Validation: &expr.ValidationExpr{
-			Minimum: &minimum,
-			Maximum: &maximum,
+			Minimum: boundForTest(minimum),
+			Maximum: boundForTest(maximum),
 		},
 	}
 

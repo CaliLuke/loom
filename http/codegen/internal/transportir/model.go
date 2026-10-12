@@ -42,6 +42,8 @@ type (
 		// that exact documentation occurrence. Records retain their own semantic
 		// owners and projection plans; schema traversal never reselects a source.
 		ExampleSets map[expr.ValuePlanNode]*ValueExampleSet
+		// Annotations retains checked required values for each exact schema node.
+		Annotations map[expr.ValuePlanNode]expr.JSONSchemaAnnotations
 		// Error retains a plan construction failure for consuming analysis.
 		Error error
 		// Boundary records an external codec whose guarantees are not built-in JSON.

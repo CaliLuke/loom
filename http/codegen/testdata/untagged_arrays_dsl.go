@@ -41,7 +41,25 @@ var UntaggedArraysDSL = func() {
 	overlap := Type("Overlap", OneOf(left, right), func() {
 		Untagged()
 	})
+	positive := Type("ExactPositive", ArrayOf(Float64), func() {
+		Elem(func() { Minimum("1e-1000001") })
+	})
+	text := Type("ExactText", ArrayOf(String))
+	exact := Type("ExactUnion", OneOf(positive, text), func() {
+		Untagged()
+	})
+	reverse := Type("ReverseExactUnion", OneOf(text, positive), func() {
+		Untagged()
+	})
 	Service("listing", func() {
+		Method("exact", func() {
+			Result(exact)
+			HTTP(func() { GET("/exact") })
+		})
+		Method("reverse_exact", func() {
+			Result(reverse)
+			HTTP(func() { GET("/reverse-exact") })
+		})
 		Method("echo", func() {
 			NoSecurity()
 			Payload(result)

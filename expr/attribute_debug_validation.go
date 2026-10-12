@@ -300,16 +300,16 @@ func (v *ValidationExpr) Validate(ctx string, parent eval.Expression) *eval.Vali
 	if hasMax && hasExclusiveMax {
 		verr.Add(parent, "%sboth maximum and exclusive maximum are defined", ctx)
 	}
-	if hasMin && hasMax && *v.Minimum > *v.Maximum {
+	if hasMin && hasMax && v.Minimum.Cmp(*v.Maximum) > 0 {
 		verr.Add(parent, "%sminimum is greater than maximum", ctx)
 	}
-	if hasMin && hasExclusiveMax && *v.Minimum >= *v.ExclusiveMaximum {
+	if hasMin && hasExclusiveMax && v.Minimum.Cmp(*v.ExclusiveMaximum) >= 0 {
 		verr.Add(parent, "%sminimum is greater than or equal to exclusive maximum", ctx)
 	}
-	if hasExclusiveMin && hasExclusiveMax && *v.ExclusiveMinimum > *v.ExclusiveMaximum {
+	if hasExclusiveMin && hasExclusiveMax && v.ExclusiveMinimum.Cmp(*v.ExclusiveMaximum) > 0 {
 		verr.Add(parent, "%sexclusive minimum is greater than exclusive maximum", ctx)
 	}
-	if hasExclusiveMin && hasMax && *v.ExclusiveMinimum >= *v.Maximum {
+	if hasExclusiveMin && hasMax && v.ExclusiveMinimum.Cmp(*v.Maximum) >= 0 {
 		verr.Add(parent, "%sexclusive minimum is greater than or equal to maximum", ctx)
 	}
 	if v.MinLength != nil && v.MaxLength != nil && *v.MinLength > *v.MaxLength {
@@ -348,10 +348,10 @@ func (v *ValidationExpr) Merge(other *ValidationExpr) {
 	v.mergeEnumClauses(other.EnumClauses)
 	v.mergeFormats(other.Formats())
 	v.mergePatterns(other.Patterns())
-	v.ExclusiveMinimum = tighterBound(v.ExclusiveMinimum, other.ExclusiveMinimum, true)
-	v.Minimum = tighterBound(v.Minimum, other.Minimum, true)
-	v.ExclusiveMaximum = tighterBound(v.ExclusiveMaximum, other.ExclusiveMaximum, false)
-	v.Maximum = tighterBound(v.Maximum, other.Maximum, false)
+	v.ExclusiveMinimum = tighterNumericBound(v.ExclusiveMinimum, other.ExclusiveMinimum, true)
+	v.Minimum = tighterNumericBound(v.Minimum, other.Minimum, true)
+	v.ExclusiveMaximum = tighterNumericBound(v.ExclusiveMaximum, other.ExclusiveMaximum, false)
+	v.Maximum = tighterNumericBound(v.Maximum, other.Maximum, false)
 	v.MinLength = tighterBound(v.MinLength, other.MinLength, true)
 	v.MaxLength = tighterBound(v.MaxLength, other.MaxLength, false)
 	v.AddRequired(other.Required...)
@@ -633,6 +633,20 @@ func tighterBound[T cmp.Ordered](a, b *T, lower bool) *T {
 		return a
 	}
 	if (lower && *b > *a) || (!lower && *b < *a) {
+		return b
+	}
+	return a
+}
+
+func tighterNumericBound(a, b *NumericBound, lower bool) *NumericBound {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	order := b.Cmp(*a)
+	if lower && order > 0 || !lower && order < 0 {
 		return b
 	}
 	return a

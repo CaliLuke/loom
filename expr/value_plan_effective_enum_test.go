@@ -24,8 +24,8 @@ func TestValuePlanKeepsInheritedEnumExcludedByLaterPredicate(t *testing.T) {
 		require.NoError(t, planErr)
 		require.Len(t, plan.root.enumClauses, 1)
 		require.Len(t, plan.root.enumClauses[0], 2)
-		require.True(t, schemaJSON(plan.root, jsontext.Value(`"ab"`)))
-		require.False(t, schemaJSON(plan.root, jsontext.Value(`"ax"`)))
+		require.True(t, matchSchemaForTest(t, plan.root, jsontext.Value(`"ab"`)))
+		require.False(t, matchSchemaForTest(t, plan.root, jsontext.Value(`"ax"`)))
 		excluded := context.ResolveDeclaredShape(occurrence,
 			context.SupplyValue(ValueInput{Raw: "ax", Origin: "excluded inherited enum member"}))
 		require.Equal(t, ValueResolved, excluded.Outcome())

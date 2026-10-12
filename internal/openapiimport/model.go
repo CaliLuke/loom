@@ -2,6 +2,8 @@
 // transport-neutral model suitable for later Loom design generation.
 package openapiimport
 
+import "github.com/CaliLuke/loom/internal/exactnum"
+
 // Document is the normalized subset of an OpenAPI document understood by the
 // importer.
 type Document struct {
@@ -345,13 +347,13 @@ type Schema struct {
 	// Pattern is the string validation pattern.
 	Pattern string
 	// Minimum is the inclusive numeric lower bound.
-	Minimum *float64
+	Minimum *exactnum.Number
 	// Maximum is the inclusive numeric upper bound.
-	Maximum *float64
+	Maximum *exactnum.Number
 	// ExclusiveMinimum is the exclusive numeric lower bound.
-	ExclusiveMinimum *float64
+	ExclusiveMinimum *exactnum.Number
 	// ExclusiveMaximum is the exclusive numeric upper bound.
-	ExclusiveMaximum *float64
+	ExclusiveMaximum *exactnum.Number
 	// MinLength is the minimum string or collection length.
 	MinLength *int64
 	// MaxLength is the maximum string or collection length.

@@ -78,10 +78,10 @@ func TestNumericBoundsOnNamedScalarAlias(t *testing.T) {
 	if status == nil || status.Validation == nil {
 		t.Fatal("missing status validation")
 	}
-	if status.Validation.Minimum == nil || *status.Validation.Minimum != 0 {
+	if status.Validation.Minimum == nil || status.Validation.Minimum.String() != "0" {
 		t.Fatalf("unexpected minimum: %#v", status.Validation.Minimum)
 	}
-	if status.Validation.Maximum == nil || *status.Validation.Maximum != 1 {
+	if status.Validation.Maximum == nil || status.Validation.Maximum.String() != "1" {
 		t.Fatalf("unexpected maximum: %#v", status.Validation.Maximum)
 	}
 }

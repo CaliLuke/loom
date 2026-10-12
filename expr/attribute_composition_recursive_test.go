@@ -43,18 +43,18 @@ func TestExtendCompositionRecursiveBase(t *testing.T) {
 				count := expr.AsObject(next.Type).Attribute("count")
 				constraints, err := expr.EffectiveConstraintsFor(count)
 				require.NoError(t, err)
-				require.Equal(t, 0.0, constraints.LowerBound().Value)
-				require.Equal(t, 100.0, constraints.UpperBound().Value)
+				require.Equal(t, *boundForTest(0.0), constraints.LowerBound().Value)
+				require.Equal(t, *boundForTest(100.0), constraints.UpperBound().Value)
 			}
 			require.Same(t, node, node.Attribute().Find("next").Type,
 				"a structural self-reference must bind to its owning declaration")
 			// Inherited recursive fields and retained constraints own their data.
 			require.NotSame(t, base.Attribute().Find("next"), node.Attribute().Find("next"))
-			*base.Attribute().Find("count").Validation.Minimum = 7
+			*base.Attribute().Find("count").Validation.Minimum = *boundForTest(7)
 			nestedCount := expr.AsObject(node.Attribute().Find("next").Type).Attribute("count")
 			constraints, err := expr.EffectiveConstraintsFor(nestedCount)
 			require.NoError(t, err)
-			require.Equal(t, 0.0, constraints.LowerBound().Value)
+			require.Equal(t, *boundForTest(0.0), constraints.LowerBound().Value)
 		})
 	}
 }

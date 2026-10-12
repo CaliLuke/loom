@@ -3,7 +3,6 @@ package expr
 import (
 	"encoding/json/jsontext"
 	"fmt"
-	"strconv"
 
 	loom "github.com/CaliLuke/loom/pkg"
 )
@@ -14,7 +13,7 @@ func (p ValuePlan) MatchJSONSchema(wire jsontext.Value) (bool, error) {
 	if p.root == nil || p.root.schemaOnly || p.root.codec != ValueCodecJSON {
 		return false, fmt.Errorf("JSON schema matching requires a prepared JSON value plan")
 	}
-	return schemaJSON(p.root, wire), nil
+	return schemaJSON(p.root, wire)
 }
 
 // JSONShape lowers the captured JSON representation into a detached matching
@@ -81,11 +80,11 @@ func lowerJSONShape(node *valuePlanNode, seen map[*valuePlanNode]*loom.JSONShape
 	return shape, err
 }
 
-func jsonShapeBound(value *float64) string {
+func jsonShapeBound(value *NumericBound) string {
 	if value == nil {
 		return ""
 	}
-	return strconv.FormatFloat(*value, 'g', -1, 64)
+	return value.String()
 }
 
 func lowerJSONShapeRules(node *valuePlanNode) (loom.JSONShapeRules, error) {
@@ -108,14 +107,15 @@ func lowerJSONShapeRules(node *valuePlanNode) (loom.JSONShapeRules, error) {
 			result.Formats = append(result.Formats, loom.Format(format))
 		}
 	}
-	for _, clause := range node.enumClauses {
+	for clauseIndex, clause := range node.enumClauses {
+		projection := node.enumProjection(clauseIndex)
 		values := make([]jsontext.Value, 0, len(clause))
 		for _, member := range clause {
-			observed, failure := observeJSON(node, ValueRoleEnum, member)
+			observed, failure := observeJSON(projection, ValueRoleEnum, member)
 			if failure != nil {
 				return loom.JSONShapeRules{}, fmt.Errorf("JSON matching cannot project enum: %s", failure.message)
 			}
-			wire, failure := constructJSON(node, observed)
+			wire, failure := constructJSON(projection, observed)
 			if failure != nil {
 				return loom.JSONShapeRules{}, fmt.Errorf("JSON matching cannot encode enum: %s", failure.message)
 			}

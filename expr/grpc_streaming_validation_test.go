@@ -69,7 +69,7 @@ func TestGRPCStreamingRequestPreservesOtherConstraints(t *testing.T) {
 		typ        DataType
 		validation *ValidationExpr
 	}{
-		{"numeric", Int, &ValidationExpr{Minimum: &minimum, ExclusiveMaximum: &maximum}},
+		{"numeric", Int, &ValidationExpr{Minimum: boundForTest(minimum), ExclusiveMaximum: boundForTest(maximum)}},
 		{"pattern", String, &ValidationExpr{Pattern: "^[a-z]+$"}},
 		{"enum", String, &ValidationExpr{Values: []any{"yes", "no"}}},
 		{"unconstrained", String, nil},
