@@ -108,7 +108,7 @@ func TestSinkDoesNotArmReadAfterCloseStarts(t *testing.T) {
 
 func TestReaderAddStreamDeduplicatesByStreamKey(t *testing.T) {
 	stream := &Stream{Name: "events", key: streamKeyPrefix + "events", rootLogger: pulse.NoopLogger()}
-	reader, err := newReader(t.Context(), stream)
+	reader, err := newReader(t.Context(), stream, options.WithReaderStartAtOldest())
 	require.NoError(t, err)
 
 	require.NoError(t, reader.AddStream(t.Context(), stream))
@@ -119,7 +119,7 @@ func TestReaderAddStreamDeduplicatesByStreamKey(t *testing.T) {
 
 func TestReaderAddStreamAfterCloseReturnsError(t *testing.T) {
 	stream := &Stream{Name: "events", key: streamKeyPrefix + "events", rootLogger: pulse.NoopLogger()}
-	reader, err := newReader(t.Context(), stream)
+	reader, err := newReader(t.Context(), stream, options.WithReaderStartAtOldest())
 	require.NoError(t, err)
 	reader.Close()
 

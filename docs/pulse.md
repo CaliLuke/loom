@@ -74,6 +74,15 @@ event with `Sink.Ack` only after its side effects are durable. Closing a sink
 leaves consumer metadata available so another instance can claim pending
 messages.
 
+A default reader captures the newest event ID once during `NewReader`. It skips
+history present at that snapshot and retains events added afterward, including
+before the first `Subscribe` or between polls. Adding a stream with a newest start
+mode captures that stream's own newest ID once. Empty or missing streams start
+at `0-0`. The lookup can return a Redis connectivity, permission or type error;
+a failed addition leaves the reader's existing streams unchanged. Explicit oldest,
+timestamp and event-ID positions require no new lookup. `AddStream` inherits the
+reader's authored start mode unless its options override it.
+
 `Reader.Close` and `Sink.Close` stop local polling and close subscriber
 channels. `Stream.Destroy` is different: it deletes the shared stream and sink
 membership state. Reserve it for intentional teardown, tests, or coordinated

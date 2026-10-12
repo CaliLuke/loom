@@ -113,12 +113,16 @@ func newReader(ctx context.Context, stream *Stream, opts ...options.Reader) (*Re
 		eventFilter = func(e *Event) bool { return topicPatternRegexp.MatchString(e.Topic) }
 	}
 
+	cursor, err := prepareReaderCursor(ctx, stream.rdb, stream.key, o.LastEventID)
+	if err != nil {
+		return nil, err
+	}
 	runtimeCtx, runtimeCancel := context.WithCancel(context.WithoutCancel(ctx))
 	reader := &Reader{
 		startID:       o.LastEventID,
 		streams:       []*Stream{stream},
 		streamKeys:    []string{stream.key},
-		streamCursors: []string{o.LastEventID},
+		streamCursors: []string{cursor},
 		blockDuration: o.BlockDuration,
 		maxPolled:     o.MaxPolled,
 		bufferSize:    o.BufferSize,
@@ -161,28 +165,36 @@ func (r *Reader) Unsubscribe(c <-chan *Event) {
 	}
 }
 
-// AddStream adds the stream to the sink. By default the stream cursor starts at
-// the same timestamp as the sink main stream cursor.  This can be overridden
-// with opts. AddStream does nothing if the stream is already part of the sink.
+// AddStream adds a stream using the reader's authored start position unless opts
+// overrides it. Newest is resolved once when the stream is added. Explicit IDs
+// are reused unchanged. Adding an already registered stream is a no-op. A failed
+// newest lookup leaves existing registrations and active reads unchanged.
 func (r *Reader) AddStream(ctx context.Context, stream *Stream, opts ...options.AddStream) error {
 	r.lock.Lock()
-	defer r.lock.Unlock()
-	if r.closing {
-		return fmt.Errorf("reader is closing")
-	}
-	for _, key := range r.streamKeys {
-		if key == stream.key {
-			return nil
-		}
-	}
+	allowed, err := r.canAddStream(stream.key)
 	startID := r.startID
+	r.lock.Unlock()
+	if !allowed {
+		return err
+	}
 	o := options.ParseAddStreamOptions(opts...)
 	if o.LastEventID != "" {
 		startID = o.LastEventID
 	}
+	cursor, err := prepareReaderCursor(ctx, r.rdb, stream.key, startID)
+	if err != nil {
+		return err
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	allowed, err = r.canAddStream(stream.key)
+	if !allowed {
+		return err
+	}
 	r.streams = append(r.streams, stream)
 	r.streamKeys = append(r.streamKeys, stream.key)
-	r.streamCursors = append(r.streamCursors, startID)
+	r.streamCursors = append(r.streamCursors, cursor)
 	r.cancelActiveRead()
 	r.logger.Info("added", "stream", stream.Name)
 	return nil

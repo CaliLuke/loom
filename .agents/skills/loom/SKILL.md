@@ -1132,6 +1132,11 @@ a failed Redis requeue reply does not restart it on the old worker because
 the write may already have succeeded. If it did not, orphan recovery waits
 for `max(2 * workerTTL, ackGracePeriod)` without a worker and a subsequent
 sweep. Account for that recovery delay when choosing these settings.
+A default Reader snapshots the newest cursor when `NewReader` succeeds; events
+added after that snapshot remain eligible even before `Subscribe`. `AddStream`
+snapshots each new stream independently. These operations can return Redis
+lookup errors. Explicit oldest, timestamp and event-ID options retain their
+positions without a new lookup.
 Retry failed `Sink.RemoveStream` calls: membership errors retain the local
 stream, while group-cleanup errors stop polling and retain cleanup ownership.
 `AddStream` can resume a stream with pending group cleanup; `Close` releases all

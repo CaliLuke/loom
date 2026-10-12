@@ -151,6 +151,13 @@ consumer validation.
   call complete definitions with their diagnostic path, never copy an in-progress
   buffer or impose an artificial traversal depth. Keep the recursive-validation
   model and finite generated-tree/nullable-carrier controls aligned.
+- `pulse/streaming.prepareReaderCursor` owns one-time newest snapshots for Reader
+  construction and stream addition. Keep the authored start mode separate from
+  concrete per-stream cursors. Perform lookup before publication, outside the
+  Reader mutex, then recheck duplicate/closing state before attachment. Preserve
+  explicit positions without lookup and propagate lookup failures without
+  changing active reads. Registration identity and shutdown termination remain
+  separate obligations; the cursor snapshot model does not prove either.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
 - OpenAPI response accumulation belongs in `openapi/internal/ir`: collect every

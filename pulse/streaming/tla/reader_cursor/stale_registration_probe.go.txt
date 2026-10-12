@@ -1,0 +1,85 @@
+package streaming
+
+import (
+	"context"
+	"fmt"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/pulse/streaming/options"
+)
+
+type staleRegistrationProbeHook struct {
+	reads  atomic.Int32
+	first  chan struct{}
+	second chan struct{}
+}
+
+// An actual XREAD reply is admitted before RemoveStream/re-add and finishes
+// fanout afterward. No newest ('$') cursor or identity-equivalent Stream is used.
+func TestReaderStaleRegistrationReadiness(t *testing.T) {
+	rdb := startTestRedis(t)
+	hook := &staleRegistrationProbeHook{first: make(chan struct{}), second: make(chan struct{})}
+	rdb.AddHook(hook)
+	stream := newTestStream(t, rdb, "cursor-replaced")
+	id, err := stream.Add(t.Context(), "old", []byte("payload"))
+	require.NoError(t, err)
+	reader, err := stream.NewReader(t.Context(), options.WithReaderStartAtOldest(),
+		options.WithReaderBufferSize(0), options.WithReaderBlockDuration(5*time.Millisecond))
+	require.NoError(t, err)
+	t.Cleanup(reader.Close)
+	sub := reader.Subscribe()
+	select {
+	case <-hook.first:
+	case <-time.After(time.Second):
+		t.Fatal("first actual XREAD did not finish")
+	}
+	// The old event cannot complete fanout until the unbuffered receive below.
+	require.NoError(t, reader.RemoveStream(t.Context(), stream))
+	replacement := fmt.Sprintf("%d-0", time.Now().Add(time.Hour).UnixMilli())
+	require.NoError(t, reader.AddStream(t.Context(), stream, options.WithAddStreamStartAfter(replacement)))
+	select {
+	case event := <-sub:
+		require.NotNil(t, event)
+		require.Equal(t, id, event.ID)
+	case <-time.After(time.Second):
+		t.Fatal("old event did not finish its admitted fanout")
+	}
+	// The next completed poll establishes the old fanout's cursor update ran.
+	select {
+	case <-hook.second:
+	case <-time.After(time.Second):
+		t.Fatal("second actual XREAD did not finish")
+	}
+	reader.lock.Lock()
+	actual := reader.streamCursors[0]
+	reader.lock.Unlock()
+	require.Equal(t, replacement, actual, "old registration's reply rewound the replacement cursor")
+}
+
+func (h *staleRegistrationProbeHook) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+
+func (h *staleRegistrationProbeHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		err := next(ctx, cmd)
+		if cmd.Name() == "xread" {
+			switch h.reads.Add(1) {
+			case 1:
+				close(h.first)
+			case 2:
+				close(h.second)
+			}
+		}
+		return err
+	}
+}
+
+func (h *staleRegistrationProbeHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return next
+}

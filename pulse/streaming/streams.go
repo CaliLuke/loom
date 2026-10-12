@@ -127,13 +127,17 @@ func NewStream(name string, rdb *redis.Client, opts ...options.Stream) (*Stream,
 
 // NewReader creates a new stream reader. All reader instances get all the
 // events in the stream. Events are read starting:
-//   - from the last event by default
+//   - after the newest event captured during construction by default
 //   - from the oldest event stored in the stream if the
 //     WithReaderStartAtOldest option is used
 //   - after the event with the ID provided via WithReaderLastEventID if the
 //     event is still in the stream, oldest event otherwise
 //   - from the event added on or after the timestamp provided via
 //     WithReaderStartAt if still in the stream, oldest event otherwise
+//
+// The default newest position requires one Redis lookup and may return its error.
+// Events appended after that snapshot remain eligible before Subscribe is called.
+// Explicit oldest, timestamp and event-ID positions require no startup lookup.
 func (s *Stream) NewReader(ctx context.Context, opts ...options.Reader) (*Reader, error) {
 	reader, err := newReader(ctx, s, opts...)
 	if err != nil {

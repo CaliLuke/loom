@@ -60,10 +60,10 @@ func WithReaderBufferSize(size int) Reader {
 	}
 }
 
-// WithReaderStartAtNewest sets the reader start position to the newest event,
-// this is the default. Only one of WithReaderStartAtNewest,
-// WithReaderStartAtOldest, WithReaderStartAfter or WithReaderStartAt can be
-// used.
+// WithReaderStartAtNewest starts after the newest event captured once during
+// NewReader. This is the default; events added before Subscribe remain eligible.
+// Only one of WithReaderStartAtNewest, WithReaderStartAtOldest,
+// WithReaderStartAfter or WithReaderStartAt can be used.
 func WithReaderStartAtNewest() Reader {
 	return func(o *ReaderOptions) {
 		o.LastEventID = "$"
