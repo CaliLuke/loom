@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -8,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"sync"
 	"time"
 
@@ -17,11 +17,14 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/artifactpolicy"
 	"github.com/CaliLuke/loom/internal/designfingerprint"
 )
 
-// Generate runs the code generation algorithms.
-func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
+// Generate renders the command output and returns each written artifact with
+// its write intent. Callers installing staged output must apply SkipExist to the
+// live destination rather than treating every rendered path as replaceable.
+func Generate(dir, cmd string, debug bool) (outputs []codegen.Artifact, err1 error) {
 	startGenerate := time.Now()
 	registry := codegen.DefaultRegistrySnapshot()
 
@@ -58,6 +61,9 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := normalizeFilePolicies(dir, genfiles); err != nil {
+		return nil, wrapStageError("file-policies", "", err)
+	}
 	removePaths := collectRemovePaths(genfiles)
 
 	// 7. Merge files that target the same path to avoid overwriting content when
@@ -85,7 +91,9 @@ func Generate(dir, cmd string, debug bool) (outputs []string, err1 error) {
 	}
 
 	outputs = computeOutputs(written, debug)
-	sort.Strings(outputs)
+	slices.SortFunc(outputs, func(a, b codegen.Artifact) int {
+		return cmp.Compare(a.Path, b.Path)
+	})
 
 	debugStage(debug, "total", startGenerate, "outputs=%d", len(outputs))
 	return outputs, nil
@@ -238,12 +246,13 @@ type fileRenderWorkItem struct {
 type fileRenderResult struct {
 	index         int
 	filename      string
+	skipExist     bool
 	requestedPath string
 	duration      time.Duration
 	err           error
 }
 
-func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]struct{}, error) {
+func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]codegen.Artifact, error) {
 	start := time.Now()
 	numWorkers := runtime.NumCPU()
 
@@ -261,6 +270,7 @@ func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]st
 				resultChan <- fileRenderResult{
 					index:         work.index,
 					filename:      filename,
+					skipExist:     work.file.SkipExist,
 					requestedPath: work.file.Path,
 					duration:      time.Since(renderStart),
 					err:           err,
@@ -279,7 +289,7 @@ func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]st
 		close(resultChan)
 	}()
 
-	written := make(map[string]struct{})
+	written := make(map[string]codegen.Artifact)
 	firstErr := collectWriteResults(written, resultChan)
 	if firstErr != nil {
 		return nil, firstErr
@@ -288,7 +298,7 @@ func writeFiles(dir string, genfiles []*codegen.File, debug bool) (map[string]st
 	return written, nil
 }
 
-func collectWriteResults(written map[string]struct{}, resultChan <-chan fileRenderResult) error {
+func collectWriteResults(written map[string]codegen.Artifact, resultChan <-chan fileRenderResult) error {
 	var firstErr error
 	for res := range resultChan {
 		if res.err != nil && firstErr == nil {
@@ -299,7 +309,7 @@ func collectWriteResults(written map[string]struct{}, resultChan <-chan fileRend
 			firstErr = wrapStageError("write-files", path, res.err)
 		}
 		if res.filename != "" {
-			written[res.filename] = struct{}{}
+			written[res.filename] = codegen.Artifact{Path: res.filename, SkipExist: res.skipExist}
 		}
 	}
 	return firstErr
@@ -318,7 +328,7 @@ func collectRemovePaths(files []*codegen.File) []string {
 	return slices.Sorted(maps.Keys(paths))
 }
 
-func removeGeneratedPaths(dir string, paths []string, written map[string]struct{}) (err error) {
+func removeGeneratedPaths(dir string, paths []string, written map[string]codegen.Artifact) (err error) {
 	if len(paths) == 0 {
 		return nil
 	}
@@ -361,7 +371,7 @@ func removeGeneratedPaths(dir string, paths []string, written map[string]struct{
 	return nil
 }
 
-func removeWrittenPaths(written map[string]struct{}, target string, recursive bool) {
+func removeWrittenPaths(written map[string]codegen.Artifact, target string, recursive bool) {
 	for path := range written {
 		if path == target {
 			delete(written, path)
@@ -384,19 +394,20 @@ func generatedRemovalPath(base, path string) (string, error) {
 	return filepath.Join(base, filepath.Clean(path)), nil
 }
 
-func computeOutputs(written map[string]struct{}, debug bool) []string {
+func computeOutputs(written map[string]codegen.Artifact, debug bool) []codegen.Artifact {
 	start := time.Now()
-	outputs := make([]string, 0, len(written))
+	outputs := make([]codegen.Artifact, 0, len(written))
 	cwd, err := os.Getwd()
 	if err != nil {
 		cwd = "."
 	}
-	for output := range written {
+	for output, artifact := range written {
 		rel, err := filepath.Rel(cwd, output)
 		if err != nil {
 			rel = output
 		}
-		outputs = append(outputs, rel)
+		artifact.Path = rel
+		outputs = append(outputs, artifact)
 	}
 	debugStage(debug, "compute-outputs", start, "outputs=%d", len(outputs))
 	return outputs
@@ -576,4 +587,24 @@ func debugStage(debug bool, stage string, start time.Time, format string, args .
 		msg = " " + fmt.Sprintf(format, args...)
 	}
 	fmt.Fprintf(os.Stderr, "[loom-debug] stage=%s duration=%s%s\n", stage, time.Since(start), msg)
+}
+
+// normalizeFilePolicies resolves aliases before parallel rendering and refuses
+// competing ownership declarations instead of depending on generator order.
+func normalizeFilePolicies(dir string, files []*codegen.File) error {
+	policies := make(map[string]bool)
+	for _, file := range files {
+		if file == nil {
+			continue
+		}
+		file.Path = filepath.Clean(file.Path)
+		if err := artifactpolicy.Validate(dir, file.Path, file.SkipExist); err != nil {
+			return err
+		}
+		if policy, ok := policies[file.Path]; ok && policy != file.SkipExist {
+			return fmt.Errorf("conflicting write policies for %s", file.Path)
+		}
+		policies[file.Path] = file.SkipExist
+	}
+	return nil
 }

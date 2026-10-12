@@ -42,7 +42,7 @@ func TestGenerateRemovesPathsAfterAllWrites(t *testing.T) {
 	require.FileExists(t, filepath.Join(dir, jsonPath))
 	require.NoFileExists(t, filepath.Join(dir, yamlPath))
 	for _, output := range outputs {
-		require.NotEqual(t, filepath.Join(dir, yamlPath), absoluteOutputPath(t, output))
+		require.NotEqual(t, filepath.Join(dir, yamlPath), absoluteOutputPath(t, output.Path))
 	}
 }
 
@@ -83,7 +83,7 @@ func TestGenerateRemovesDirectoriesAfterAllWrites(t *testing.T) {
 	require.FileExists(t, filepath.Join(dir, serverPath))
 	require.NoDirExists(t, filepath.Join(dir, clientDir))
 	for _, output := range outputs {
-		absolute := absoluteOutputPath(t, output)
+		absolute := absoluteOutputPath(t, output.Path)
 		require.NotEqual(t, filepath.Join(dir, clientPath), absolute)
 		require.NotEqual(t, filepath.Join(dir, clientTypesPath), absolute)
 	}

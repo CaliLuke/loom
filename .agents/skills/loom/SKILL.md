@@ -28,6 +28,10 @@ renderer, or framework tests, use the `loom-framework` skill.
 Never edit `gen/` directly. `loom gen` deletes and recreates it transactionally,
 so manual changes are both temporary and misleading.
 
+User-editable plugin files belong outside `gen/` and should declare create-only
+behavior. Loom rejects create-only files inside the regenerated tree. Upgrade
+the CLI launcher and the design module's Loom dependency together.
+
 Generation, example, and vet helpers honor the active Go workspace's modules
 and replacements. Set `GOWORK=off` to use only the design module's `go.mod`.
 

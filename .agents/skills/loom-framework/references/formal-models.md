@@ -98,6 +98,7 @@ Rendered schema validation and actual decoder behavior are separate obligations.
 
 | Code concern | Model |
 | --- | --- |
+| Artifact write intent, atomic create-only installation, rollback ownership and gen-tree admission | [Artifact write intent](../../../../cmd/loom/tla/artifact_write_intent/README.md); bounded intent-loss/race controls paired with real filesystem and registered-plugin CLI tests |
 | Service-error merge and history snapshot ownership | [Error ownership](../../../../pkg/tla/error_ownership/README.md); bounded aliasing counterexamples, with repeated merges and protobuf reconstruction checked in Go |
 | Public message ownership, history masking, diagnostic exclusion, transparent wrappers and independent joins | [Public disclosure](../../../../pkg/tla/error_disclosure/README.md); finite owner/message model, with HTTP/gRPC/JSON-RPC unary/SSE/WebSocket wire tests |
 | gRPC aggregate error status and detail ownership | [Error contracts](../../../../grpc/tla/error_contract/README.md); bounded branch-order and complete-failure checks, with wrappers and generated unary/streaming mappings tested in Go |

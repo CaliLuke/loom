@@ -318,7 +318,7 @@ func TestGenerateParallelSingleFile(t *testing.T) {
 
 // assertManifestFile checks that loom.json was emitted with the correct version
 // and design digest, then returns the remaining outputs for further assertions.
-func assertManifestFile(t *testing.T, dir string, outputs []string) []string {
+func assertManifestFile(t *testing.T, dir string, outputs []codegen.Artifact) []codegen.Artifact {
 	t.Helper()
 
 	versionPath := filepath.Join(codegen.Gendir, "loom.json")
@@ -343,9 +343,9 @@ func assertManifestFile(t *testing.T, dir string, outputs []string) []string {
 	}
 
 	// Filter loom.json out of outputs.
-	var rest []string
+	var rest []codegen.Artifact
 	for _, o := range outputs {
-		if filepath.Base(o) != "loom.json" {
+		if filepath.Base(o.Path) != "loom.json" {
 			rest = append(rest, o)
 		}
 	}

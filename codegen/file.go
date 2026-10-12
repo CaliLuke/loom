@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -20,6 +21,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
 
+	"github.com/CaliLuke/loom/internal/artifactpolicy"
 	"github.com/CaliLuke/loom/internal/naming"
 )
 
@@ -47,8 +49,9 @@ type (
 		SectionTemplates []*SectionTemplate
 		// Path returns the file path relative to the output directory.
 		Path string
-		// SkipExist indicates whether the file should be skipped if one
-		// already exists at the given path.
+		// SkipExist preserves any existing filesystem entry at the destination,
+		// including symlinks. Absent destinations are created exclusively.
+		// Create-only files must be outside the regenerated gen tree.
 		SkipExist bool
 		// FinalizeFunc is called after the file has been generated. It
 		// is given the absolute path to the file as argument.
@@ -126,18 +129,24 @@ func (f *File) HeaderSection() Section {
 
 // Render executes the file section templates and writes the resulting bytes to
 // an output file. The path of the output file is computed by appending the file
-// path to dir. If SkipExist is true and a file already exists with the computed
-// path, Render skips writing and returns an empty path. Otherwise, Render
-// overwrites the computed path and returns it.
+// path to dir. If SkipExist is true and an entry already exists with the computed
+// path, Render skips writing and returns an empty path. An entry created during
+// rendering is also skipped. Otherwise, Render writes the computed path and
+// returns it; existing entries are replaced only when SkipExist is false.
 func (f *File) Render(dir string) (string, error) {
+	if err := artifactpolicy.Validate(dir, f.Path, f.SkipExist); err != nil {
+		return "", err
+	}
 	base, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
 	}
 	path := filepath.Join(base, f.Path)
 	if f.SkipExist {
-		if _, err = os.Stat(path); err == nil {
+		if _, err = os.Lstat(path); err == nil {
 			return "", nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
 		}
 	}
 
@@ -166,7 +175,19 @@ func (f *File) Render(dir string) (string, error) {
 	}
 
 	// Write the final content exactly once
-	if err := os.WriteFile(path, content, 0644); err != nil {
+	flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	if f.SkipExist {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	}
+	output, err := os.OpenFile(path, flags, 0o644)
+	if f.SkipExist && errors.Is(err, os.ErrExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	_, writeErr := output.Write(content)
+	if err := errors.Join(writeErr, output.Close()); err != nil {
 		return "", err
 	}
 

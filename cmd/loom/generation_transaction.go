@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/artifactpolicy"
 	"golang.org/x/mod/semver"
 )
 
@@ -30,6 +31,8 @@ type (
 		destination string
 		backup      string
 		installed   bool
+		skipExist   bool
+		identity    os.FileInfo
 	}
 
 	generationManifest struct {
@@ -76,11 +79,15 @@ func newGenerationTransaction(output string) (*generationTransaction, error) {
 
 func finishGenerationTransaction(
 	transaction *generationTransaction,
-	outputs []string,
+	outputs []codegen.Artifact,
 	debug bool,
 ) ([]string, error) {
 	if transaction == nil {
-		return outputs, nil
+		paths := make([]string, len(outputs))
+		for i, output := range outputs {
+			paths[i] = output.Path
+		}
+		return paths, nil
 	}
 	startValidate := time.Now()
 	if err := transaction.validate(outputs); err != nil {
@@ -100,7 +107,7 @@ func (t *generationTransaction) stagePath() string {
 	return t.stage
 }
 
-func (t *generationTransaction) validate(outputs []string) error {
+func (t *generationTransaction) validate(outputs []codegen.Artifact) error {
 	stagedGen := filepath.Join(t.stage, codegen.Gendir)
 	info, err := os.Stat(stagedGen)
 	if err != nil {
@@ -126,8 +133,11 @@ func (t *generationTransaction) validate(outputs []string) error {
 	if manifest.DesignDigest == "" {
 		return fmt.Errorf("staged generation manifest %s has no design digest", manifestPath)
 	}
+	if err := t.validateWritePolicies(outputs); err != nil {
+		return err
+	}
 	for _, output := range outputs {
-		rel, err := t.stagedRelativePath(output)
+		rel, err := t.stagedRelativePath(output.Path)
 		if err != nil {
 			return err
 		}
@@ -143,13 +153,13 @@ func (t *generationTransaction) validate(outputs []string) error {
 	return nil
 }
 
-func (t *generationTransaction) commit(outputs []string) ([]string, error) {
-	if err := os.MkdirAll(t.output, 0o750); err != nil {
-		return nil, fmt.Errorf("create output directory %s: %w", t.output, err)
-	}
+func (t *generationTransaction) commit(outputs []codegen.Artifact) ([]string, error) {
 	external, err := t.prepareExternalOutputs(outputs)
 	if err != nil {
 		return nil, err
+	}
+	if err := os.MkdirAll(t.output, 0o750); err != nil {
+		return nil, fmt.Errorf("create output directory %s: %w", t.output, err)
 	}
 
 	liveGen := filepath.Join(t.output, codegen.Gendir)
@@ -183,11 +193,18 @@ func (t *generationTransaction) commit(outputs []string) ([]string, error) {
 		return nil, err
 	}
 
+	installed := make(map[string]bool, len(external))
+	for _, output := range external {
+		installed[output.rel] = output.installed
+	}
 	committed := make([]string, 0, len(outputs))
 	for _, output := range outputs {
-		rel, err := t.stagedRelativePath(output)
+		rel, err := t.stagedRelativePath(output.Path)
 		if err != nil {
 			return nil, err
+		}
+		if firstPathElement(rel) != codegen.Gendir && !installed[rel] {
+			continue
 		}
 		path := filepath.Join(t.output, rel)
 		if display, err := filepath.Rel(currentDirectory(), path); err == nil {
@@ -224,11 +241,14 @@ func (t *generationTransaction) cleanup() error {
 	return cleanupErr
 }
 
-func (t *generationTransaction) prepareExternalOutputs(outputs []string) ([]*externalGenerationOutput, error) {
+func (t *generationTransaction) prepareExternalOutputs(outputs []codegen.Artifact) ([]*externalGenerationOutput, error) {
+	if err := t.validateWritePolicies(outputs); err != nil {
+		return nil, err
+	}
 	seen := make(map[string]struct{}, len(outputs))
 	external := make([]*externalGenerationOutput, 0, len(outputs))
 	for _, output := range outputs {
-		rel, err := t.stagedRelativePath(output)
+		rel, err := t.stagedRelativePath(output.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +264,7 @@ func (t *generationTransaction) prepareExternalOutputs(outputs []string) ([]*ext
 			return nil, fmt.Errorf("create generated output directory %s: %w", filepath.Dir(destination), err)
 		}
 		if info, err := os.Lstat(destination); err == nil {
-			if !info.Mode().IsRegular() {
+			if !output.SkipExist && !info.Mode().IsRegular() {
 				return nil, fmt.Errorf("generated output destination %s is not a regular file", destination)
 			}
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -254,6 +274,7 @@ func (t *generationTransaction) prepareExternalOutputs(outputs []string) ([]*ext
 			rel:         rel,
 			staged:      filepath.Join(t.stage, rel),
 			destination: destination,
+			skipExist:   output.SkipExist,
 		})
 	}
 	return external, nil
@@ -261,6 +282,22 @@ func (t *generationTransaction) prepareExternalOutputs(outputs []string) ([]*ext
 
 func (t *generationTransaction) installExternalOutputs(outputs []*externalGenerationOutput) error {
 	for _, output := range outputs {
+		if output.skipExist {
+			// Link publishes the fully rendered file only if the live name is absent.
+			// Unlike Stat followed by Rename, it cannot replace a concurrent creator.
+			info, err := os.Lstat(output.staged)
+			if err != nil {
+				return fmt.Errorf("inspect generated output %s: %w", output.staged, err)
+			}
+			if err := os.Link(output.staged, output.destination); errors.Is(err, os.ErrExist) {
+				continue
+			} else if err != nil {
+				return fmt.Errorf("create generated output %s: %w", output.destination, err)
+			}
+			output.identity = info
+			output.installed = true
+			continue
+		}
 		if _, err := os.Lstat(output.destination); err == nil {
 			backup, err := reserveRenamePath(filepath.Dir(output.destination))
 			if err != nil {
@@ -304,6 +341,17 @@ func (t *generationTransaction) rollbackInstalledOutputs(
 	var rollbackErr error
 	for _, output := range slices.Backward(outputs) {
 		if output.installed {
+			if output.skipExist {
+				info, err := os.Lstat(output.destination)
+				if err == nil && !os.SameFile(output.identity, info) {
+					// Another owner replaced our entry. Rollback must not remove theirs.
+					continue
+				}
+				if err != nil && !errors.Is(err, os.ErrNotExist) {
+					rollbackErr = errors.Join(rollbackErr, fmt.Errorf("inspect generated output during rollback %s: %w", output.destination, err))
+					continue
+				}
+			}
 			if err := os.Remove(output.destination); err != nil && !errors.Is(err, os.ErrNotExist) {
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("remove generated output %s: %w", output.destination, err))
 			}
@@ -452,4 +500,19 @@ func findModuleRoot(path string) (string, error) {
 		}
 		path = parent
 	}
+}
+
+// validateWritePolicies admits the complete batch against the live filesystem
+// before preparation creates directories or commit swaps the generated tree.
+func (t *generationTransaction) validateWritePolicies(outputs []codegen.Artifact) error {
+	for _, output := range outputs {
+		relative, err := t.stagedRelativePath(output.Path)
+		if err != nil {
+			return err
+		}
+		if err := artifactpolicy.Validate(t.output, relative, output.SkipExist); err != nil {
+			return err
+		}
+	}
+	return nil
 }

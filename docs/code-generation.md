@@ -57,6 +57,26 @@ initialization order cannot move unrelated services through aggregate clients,
 CLIs, or transport contracts. An explicit `Server(... Services(...))` list
 keeps the order authored by the application.
 
+Plugin files outside `gen/` can set `codegen.File.SkipExist` to keep existing
+user-owned files. Create-only artifacts inside `gen/` are rejected: that tree
+is owned by regeneration and is always replaced. Put user-editable plugin files
+outside `gen/`. All case variants of the top-level `gen` name are reserved.
+Stable parent-directory aliases into that tree are rejected too, including
+aliases whose descendants do not exist yet. This policy applies to the live
+output directory even when `loom gen` renders into a staging directory. An
+existing file, directory, or symlink is preserved; an absent destination is
+created without replacing a concurrent creator. Skipped files are omitted from
+the command's output paths.
+Generators contributing to one output path must agree on `SkipExist`; conflicting
+policies fail before rendering.
+
+Programmatic `generator.Generate` callers receive `[]codegen.Artifact` with
+`Path` and `SkipExist` fields. Use `artifact.Path` when only a rendered path is
+needed. A caller installing staged files must retain and enforce `SkipExist` at
+the live destination. The CLI launcher and design module dependency should be
+updated together because their private helper protocol now carries these
+artifact records. The public CLI still prints one installed path per line.
+
 For an existing `//go:generate` or script that intentionally uses `go run`, add
 the command package—not only the root module—before invoking it:
 

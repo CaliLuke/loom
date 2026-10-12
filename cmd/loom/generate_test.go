@@ -14,21 +14,24 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/internal/testingx"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type fakeGenerator struct {
-	writeErr   error
-	compileErr error
-	runErr     error
-	runFiles   []string
-	removed    bool
-	writeDebug bool
-	compileDbg bool
-	runDebug   bool
-	output     string
-	runFunc    func(string) error
+	writeErr     error
+	compileErr   error
+	runErr       error
+	runFiles     []string
+	runArtifacts []codegen.Artifact
+	runResult    []byte
+	removed      bool
+	writeDebug   bool
+	compileDbg   bool
+	runDebug     bool
+	output       string
+	runFunc      func(string) error
 }
 
 func (f *fakeGenerator) Write(debug bool) error {
@@ -41,7 +44,7 @@ func (f *fakeGenerator) Compile(debug bool) error {
 	return f.compileErr
 }
 
-func (f *fakeGenerator) Run(debug bool) ([]string, error) {
+func (f *fakeGenerator) Run(debug bool) ([]byte, error) {
 	f.runDebug = debug
 	if f.runFunc != nil {
 		if err := f.runFunc(f.output); err != nil {
@@ -67,7 +70,13 @@ func (f *fakeGenerator) Run(debug bool) ([]string, error) {
 			}
 		}
 	}
-	return f.runFiles, f.runErr
+	if f.runErr != nil {
+		return nil, f.runErr
+	}
+	if f.runResult != nil {
+		return f.runResult, nil
+	}
+	return json.Marshal(append(artifactPaths(f.runFiles), f.runArtifacts...))
 }
 
 func (f *fakeGenerator) Remove() error {

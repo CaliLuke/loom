@@ -75,6 +75,16 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Generated artifacts retain their write intent from rendering to live
+  installation through `codegen.Artifact`. `internal/artifactpolicy` owns
+  admission, including rejection of create-only files inside `gen/`, stable live
+  aliases into it, and case variants of its reserved top-level name. External
+  create-only writes use exclusive creation or atomic no-replace installation;
+  skipped destinations are never acquired for rollback or reported as installed.
+  Preserve intent across the helper JSON protocol. `Generator.Run` returns raw
+  bytes shared by generation and vet, whose callers decode their own result.
+  Keep the model under `cmd/loom/tla/artifact_write_intent` aligned with real
+  plugin/CLI, creator-race and rollback regressions.
 - `pkg.ValidateFormat` owns hostname validation: complete ASCII label syntax,
   63-byte labels, 253-byte text excluding an optional terminal root dot. Keep
   this shared by generated transports and design validation. The existing

@@ -147,6 +147,8 @@ func (g *Generator) Write(_ bool) error {
 		}
 		imports := []*codegen.ImportSpec{
 			codegen.SimpleImport("flag"),
+			codegen.SimpleImport("encoding/json/jsontext"),
+			codegen.NewImport("json", "encoding/json/v2"),
 			codegen.SimpleImport("fmt"),
 			codegen.SimpleImport("os"),
 			codegen.SimpleImport("filepath"),
@@ -162,8 +164,6 @@ func (g *Generator) Write(_ bool) error {
 		}
 		if isVet {
 			imports = append(imports,
-				codegen.SimpleImport("encoding/json/jsontext"),
-				codegen.NewImport("json", "encoding/json/v2"),
 				codegen.NewImport("loomvet", "github.com/CaliLuke/loom/vet"),
 			)
 		} else {
@@ -229,8 +229,8 @@ func (g *Generator) Compile(debug bool) error {
 	return err
 }
 
-// Run runs the compiled binary and return the output lines.
-func (g *Generator) Run(debug bool) ([]string, error) {
+// Run runs the compiled binary and returns its private JSON result.
+func (g *Generator) Run(debug bool) ([]byte, error) {
 	var cmdl string
 	{
 		args := make([]string, len(os.Args)-1)
@@ -270,11 +270,7 @@ func (g *Generator) Run(debug bool) ([]string, error) {
 		}
 		return nil, err
 	}
-	res := strings.Split(stdout.String(), "\n")
-	for (len(res) > 0) && (res[len(res)-1] == "") {
-		res = res[:len(res)-1]
-	}
-	return res, nil
+	return stdout.Bytes(), nil
 }
 
 // Remove deletes the package files.
@@ -415,7 +411,9 @@ const mainT = `func main() {
 	}
 	debugStage(*debug, "generator.Generate", startGenerate, "outputs=%d", len(outputs))
 	debugStage(*debug, "total", startBinary, "outputs=%d", len(outputs))
-	fmt.Println(strings.Join(outputs, "\n"))
+	if err := json.MarshalEncode(jsontext.NewEncoder(os.Stdout), outputs); err != nil {
+		failStage("generator.Encode", err)
+	}
 {{- end }}
 }
 

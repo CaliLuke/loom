@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json/v2"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/internal/openapiimport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
@@ -17,7 +19,7 @@ import (
 type generatorRunner interface {
 	Write(bool) error
 	Compile(bool) error
-	Run(bool) ([]string, error)
+	Run(bool) ([]byte, error)
 	Remove() error
 }
 
@@ -371,11 +373,16 @@ func generate(cmd, path, output string, debug bool) (returnErr error) {
 	debugStage(debug, "Compile", startCompile, "command=%s", cmd)
 
 	startRun = time.Now()
-	if files, err = tmp.Run(debug); err != nil {
+	result, err := tmp.Run(debug)
+	if err != nil {
 		return cleanupGenerator(tmp, debug, wrapStageError("Run", err))
 	}
-	debugStage(debug, "Run", startRun, "files=%d", len(files))
-	if files, err = finishGenerationTransaction(transaction, files, debug); err != nil {
+	var artifacts []codegen.Artifact
+	if err := json.Unmarshal(result, &artifacts); err != nil {
+		return cleanupGenerator(tmp, debug, wrapStageError("Run", fmt.Errorf("decode generated artifacts: %w", err)))
+	}
+	debugStage(debug, "Run", startRun, "files=%d", len(artifacts))
+	if files, err = finishGenerationTransaction(transaction, artifacts, debug); err != nil {
 		return cleanupGenerator(tmp, debug, err)
 	}
 	debugStage(debug, "total", startTotal, "command=%s output=%s", cmd, requestedOutput)

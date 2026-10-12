@@ -114,11 +114,11 @@ func vetDesign(path string, debug bool) (report loomvet.Report, returnErr error)
 	if err := generator.Compile(debug); err != nil {
 		return report, wrapStageError("Compile", err)
 	}
-	lines, err := generator.Run(debug)
+	result, err := generator.Run(debug)
 	if err != nil {
 		return report, wrapStageError("Run", err)
 	}
-	if err := json.Unmarshal([]byte(strings.Join(lines, "\n")), &report); err != nil {
+	if err := json.Unmarshal(result, &report); err != nil {
 		return report, fmt.Errorf("decode vet report: %w", err)
 	}
 	return report, nil
