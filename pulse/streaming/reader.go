@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,14 +27,8 @@ type (
 		startID string
 		// lock is the reader mutex.
 		lock sync.Mutex
-		// streams are the streams the reader consumes events from.
-		streams []*Stream
-		// streamKeys is the stream names used to read events in
-		// the same order as streamCursors
-		streamKeys []string
-		// streamCursors is the stream cursors used to read events in
-		// the same order as streamNames
-		streamCursors []string
+		// registrations own each installed stream's identity and cursor.
+		registrations []*readerRegistration
 		// blockDuration is the XREADBLOCK timeout.
 		blockDuration time.Duration
 		// maxPolled is the maximum number of events to read in one
@@ -68,6 +63,25 @@ type (
 	// Acker is the interface used by events to acknowledge themselves.
 	Acker interface {
 		XAck(ctx context.Context, streamKey, sinkName string, ids ...string) *redis.IntCmd
+	}
+
+	// readerRegistration identifies one installation, even if its Stream is
+	// removed and later added again. cursor is protected by Reader.lock.
+	readerRegistration struct {
+		stream *Stream
+		cursor string
+	}
+
+	// readerRead retains the registration identities and physical arguments
+	// captured together at admission, independently of later membership changes.
+	readerRead struct {
+		registrations []*readerRegistration
+		args          []string
+	}
+
+	readerBatch struct {
+		registration *readerRegistration
+		messages     []redis.XMessage
 	}
 
 	eventSubscriber struct {
@@ -120,9 +134,7 @@ func newReader(ctx context.Context, stream *Stream, opts ...options.Reader) (*Re
 	runtimeCtx, runtimeCancel := context.WithCancel(context.WithoutCancel(ctx))
 	reader := &Reader{
 		startID:       o.LastEventID,
-		streams:       []*Stream{stream},
-		streamKeys:    []string{stream.key},
-		streamCursors: []string{cursor},
+		registrations: []*readerRegistration{{stream: stream, cursor: cursor}},
 		blockDuration: o.BlockDuration,
 		maxPolled:     o.MaxPolled,
 		bufferSize:    o.BufferSize,
@@ -192,26 +204,24 @@ func (r *Reader) AddStream(ctx context.Context, stream *Stream, opts ...options.
 	if !allowed {
 		return err
 	}
-	r.streams = append(r.streams, stream)
-	r.streamKeys = append(r.streamKeys, stream.key)
-	r.streamCursors = append(r.streamCursors, cursor)
+	r.registrations = append(r.registrations, &readerRegistration{stream: stream, cursor: cursor})
 	r.cancelActiveRead()
 	r.logger.Info("added", "stream", stream.Name)
 	return nil
 }
 
-// RemoveStream removes the stream from the sink, it is idempotent.
+// RemoveStream removes the stream from the reader; it is idempotent. Events
+// from an already-admitted read may still reach subscribers. If the stream is
+// added again, those earlier reads cannot advance the new registration's cursor.
 func (r *Reader) RemoveStream(ctx context.Context, stream *Stream) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	if r.closing {
 		return fmt.Errorf("reader is closing")
 	}
-	for i, st := range r.streams {
-		if st == stream {
-			r.streams = append(r.streams[:i], r.streams[i+1:]...)
-			r.streamKeys = append(r.streamKeys[:i], r.streamKeys[i+1:]...)
-			r.streamCursors = append(r.streamCursors[:i], r.streamCursors[i+1:]...)
+	for i, registration := range r.registrations {
+		if registration.stream == stream {
+			r.registrations = slices.Delete(r.registrations, i, i+1)
 			r.cancelActiveRead()
 			break
 		}
@@ -286,20 +296,17 @@ func (r *Reader) read(ctx context.Context) {
 			continue
 		}
 
-		r.fanOutStreams(ctx, streamsEvents)
+		for _, batch := range streamsEvents {
+			r.fanOut(ctx, batch.registration, batch.messages)
+		}
 	}
 }
 
-func (r *Reader) fanOutStreams(ctx context.Context, streamsEvents []redis.XStream) {
-	for _, events := range streamsEvents {
-		r.fanOut(ctx, events.Stream, events.Messages)
-	}
-}
-
-func (r *Reader) fanOut(ctx context.Context, streamKey string, messages []redis.XMessage) {
+func (r *Reader) fanOut(ctx context.Context, registration *readerRegistration, messages []redis.XMessage) {
 	if len(messages) == 0 {
 		return
 	}
+	streamKey := registration.stream.key
 	streamName := streamKey[len(streamKeyPrefix):]
 	subscribers, filter := r.snapshotFanOut()
 	streamEvents(ctx, streamName, streamKey, "", messages, filter, subscribers, r.rdb, r.logger, r.donechan)
@@ -310,11 +317,8 @@ func (r *Reader) fanOut(ctx context.Context, streamKey string, messages []redis.
 	if r.closing {
 		return
 	}
-	for i := range r.streamKeys {
-		if r.streamKeys[i] == streamKey {
-			r.streamCursors[i] = lastID
-			break
-		}
+	if slices.Contains(r.registrations, registration) {
+		registration.cursor = lastID
 	}
 }
 
@@ -326,34 +330,53 @@ func (r *Reader) snapshotFanOut() ([]*eventSubscriber, eventFilterFunc) {
 	return subscribers, r.eventFilter
 }
 
-func (r *Reader) xread(ctx context.Context) ([]redis.XStream, error) {
-	readCtx, readStreams, armed := r.armRead(ctx)
+func (r *Reader) xread(ctx context.Context) ([]readerBatch, error) {
+	readCtx, admitted, armed := r.armRead(ctx)
 	if !armed {
 		return nil, context.Canceled
 	}
 	defer r.clearActiveRead()
 
-	r.logger.Debug("reading", "streams", readStreams, "max", r.maxPolled, "block", r.blockDuration)
-	return r.rdb.XRead(readCtx, &redis.XReadArgs{
-		Streams: readStreams,
+	r.logger.Debug("reading", "streams", admitted.args, "max", r.maxPolled, "block", r.blockDuration)
+	streams, err := r.rdb.XRead(readCtx, &redis.XReadArgs{
+		Streams: admitted.args,
 		Count:   r.maxPolled,
 		Block:   r.blockDuration,
 	}).Result()
+	if err != nil {
+		return nil, err
+	}
+	batches := make([]readerBatch, len(streams))
+	for i, stream := range streams {
+		index := slices.IndexFunc(admitted.registrations, func(registration *readerRegistration) bool {
+			return registration.stream.key == stream.Stream
+		})
+		if index < 0 {
+			return nil, fmt.Errorf("read returned unrequested stream %q", stream.Stream)
+		}
+		batches[i] = readerBatch{registration: admitted.registrations[index], messages: stream.Messages}
+	}
+	return batches, nil
 }
 
-func (r *Reader) armRead(ctx context.Context) (context.Context, []string, bool) {
+func (r *Reader) armRead(ctx context.Context) (context.Context, readerRead, bool) {
 	readCtx, cancel := context.WithCancel(ctx)
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	if r.closing {
 		cancel()
-		return readCtx, nil, false
+		return readCtx, readerRead{}, false
 	}
-	readStreams := make([]string, 0, len(r.streamKeys)+len(r.streamCursors))
-	readStreams = append(readStreams, r.streamKeys...)
-	readStreams = append(readStreams, r.streamCursors...)
+	admitted := readerRead{
+		registrations: slices.Clone(r.registrations),
+		args:          make([]string, 2*len(r.registrations)),
+	}
+	for i, registration := range admitted.registrations {
+		admitted.args[i] = registration.stream.key
+		admitted.args[len(admitted.registrations)+i] = registration.cursor
+	}
 	r.readCancel = cancel
-	return readCtx, readStreams, true
+	return readCtx, admitted, true
 }
 
 func (r *Reader) cancelActiveRead() {

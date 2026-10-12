@@ -31,7 +31,7 @@ func TestReaderCursorReadinessSnapshot(t *testing.T) {
 			reader, err := stream.NewReader(t.Context())
 			require.NoError(t, err)
 			t.Cleanup(reader.Close)
-			require.Equal(t, want, reader.streamCursors[0], "newest must become one concrete position before publication")
+			require.Equal(t, want, reader.registrations[0].cursor, "newest must become one concrete position before publication")
 		})
 	}
 }
@@ -69,8 +69,8 @@ func TestReaderCursorReadinessBetweenPolls(t *testing.T) {
 			messages, err := reader.xread(t.Context())
 			require.NoError(t, err, "event inserted between polls must survive")
 			require.Len(t, messages, 1)
-			require.Len(t, messages[0].Messages, 1)
-			require.Equal(t, id, messages[0].Messages[0].ID)
+			require.Len(t, messages[0].messages, 1)
+			require.Equal(t, id, messages[0].messages[0].ID)
 		})
 	}
 }
@@ -146,7 +146,8 @@ func TestReaderCursorReadinessFailedLookup(t *testing.T) {
 			t.Cleanup(reader.Close)
 			err = reader.AddStream(t.Context(), bad, options.WithAddStreamStartAtNewest())
 			require.Error(t, err)
-			require.Equal(t, []string{main.key}, reader.streamKeys)
+			require.Len(t, reader.registrations, 1)
+			require.Same(t, main, reader.registrations[0].stream)
 		})
 	}
 }
@@ -159,12 +160,12 @@ func TestReaderCursorReadinessExplicitAndDuplicateControls(t *testing.T) {
 			reader, err := stream.NewReader(t.Context(), options.WithReaderStartAfter(id))
 			require.NoError(t, err)
 			t.Cleanup(reader.Close)
-			require.Equal(t, []string{id}, reader.streamCursors)
+			require.Equal(t, []*readerRegistration{{stream: stream, cursor: id}}, reader.registrations)
 			// Duplicate registration remains a no-op even when a new newest
 			// lookup would fail; preserve the already selected cursor.
 			require.NoError(t, rdb.Set(t.Context(), stream.key, "not a stream", 0).Err())
 			require.NoError(t, reader.AddStream(t.Context(), stream, options.WithAddStreamStartAtNewest()))
-			require.Equal(t, []string{id}, reader.streamCursors)
+			require.Equal(t, []*readerRegistration{{stream: stream, cursor: id}}, reader.registrations)
 			reader.Close()
 			require.ErrorContains(t, reader.AddStream(t.Context(), stream), "reader is closing")
 		})

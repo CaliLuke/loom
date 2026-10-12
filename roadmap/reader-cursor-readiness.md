@@ -130,15 +130,18 @@ and passes 358 distinct states (782 generated). Close and failed preparation are
 also explored. These obligations are implemented by the shared lookup and repeated admission
 check; the old serialized AddStream did not perform lookup I/O.
 
-A distinct parent defect is reproduced in `stale_registration_probe.go.txt`:
+A distinct parent defect was reproduced by `stale_registration_probe.go.txt`,
+now promoted to `pulse/streaming/reader_registration_readiness_test.go` for #802:
 a real XREAD reply is held by an unbuffered subscriber while the stream is removed
 and re-added at an explicit future ID. Receiving that old event lets fanOut rewind
 the replacement to the old event ID. ProcessHook signals after the first and
 second actual replies establish ordering; no sleep or direct fanOut invocation
 is needed. This requires neither `$` nor an equivalent-but-different Stream
 pointer (#773). It reproduces with race detection and remains separately scoped;
-root independently reproduced and filed [#802](https://github.com/CaliLuke/loom/issues/802). The standalone input can be copied into pulse/streaming as a test file or
-run with a Go overlay; `/tmp/loom-reader-stale-registration-overlay.json` maps it
+root independently reproduced and filed [#802](https://github.com/CaliLuke/loom/issues/802).
+The original standalone input at parent `af05fa8aa` could be copied into
+pulse/streaming or run with a Go overlay;
+`/tmp/loom-reader-stale-registration-overlay.json` maps it
 to the package, and `/tmp/loom-reader-stale-registration-parent.log` is the red
 result.
 

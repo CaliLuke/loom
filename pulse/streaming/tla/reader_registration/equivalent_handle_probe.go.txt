@@ -1,0 +1,22 @@
+package streaming
+
+import (
+	"testing"
+
+	"github.com/CaliLuke/loom/pulse/streaming/options"
+	"github.com/stretchr/testify/require"
+)
+
+// #773 has no read, reply, or replacement registration. It is separately scoped.
+func TestReaderEquivalentHandleReadiness(t *testing.T) {
+	rdb := startTestRedis(t)
+	stream := newTestStream(t, rdb, "same-name")
+	equivalent := newTestStream(t, rdb, "same-name")
+	reader, err := stream.NewReader(t.Context(), options.WithReaderStartAtOldest())
+	require.NoError(t, err)
+	t.Cleanup(reader.Close)
+	require.NoError(t, reader.AddStream(t.Context(), equivalent))
+	require.Len(t, reader.registrations, 1, "addition already uses key identity")
+	require.NoError(t, reader.RemoveStream(t.Context(), equivalent))
+	require.Empty(t, reader.registrations, "equivalent handle should remove the same stream")
+}

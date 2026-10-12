@@ -1,7 +1,6 @@
 # Reader newest cursor preparation
 
-Design and implementation correspondence for #761. Readiness was independently
-approved; the implementation awaits exact final review.
+Design and implementation correspondence for #761, committed in `af05fa8aa`.
 
 `ReaderCursor.tla` explores two streams and up to two appended events per stream.
 Preparation snapshots the newest ID once. Events after that snapshot are owed;
@@ -51,12 +50,12 @@ Boolean-assignment precedence error was corrected before these runs.
 lookup cannot reset the committed winner after that winner consumes events.
 This model still does not include remove/re-add registration epochs.
 
-`stale_registration_probe.go.txt` independently reproduces that existing epoch
-hole at the parent with explicit IDs: an old reply rewinds a replacement cursor.
-The probe uses real command replies and unbuffered fanout to reproduce the race
-without sleeps. It is not needed to reproduce #761 and remains separately scoped
-as [#802](https://github.com/CaliLuke/loom/issues/802) in the
-[readiness plan](../../../../roadmap/reader-cursor-readiness.md).
+The original stale-registration probe was promoted to
+`../../reader_registration_readiness_test.go` for #802. Its parent failure uses
+explicit IDs and real command replies. The separate
+[registration identity model](../reader_registration/README.md) now covers
+admission through fanout completion; this newest-cursor model still makes no
+registration-epoch claim.
 
 ## Implementation correspondence
 

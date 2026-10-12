@@ -158,6 +158,13 @@ consumer validation.
   explicit positions without lookup and propagate lookup failures without
   changing active reads. Registration identity and shutdown termination remain
   separate obligations; the cursor snapshot model does not prove either.
+- Reader registrations own stream identity and cursor together. Snapshot ordered
+  registration references and detached Redis arguments at read admission, retain
+  those references through reply/fanout, and advance only the identical installed
+  registration under the Reader lock. Remove/re-add cannot receive an old read's
+  cursor. Already-admitted events may still be delivered; this is not a drain
+  guarantee or a shutdown-termination fix. Keep the reader-registration model
+  and synchronized reply/fanout regressions aligned.
 - Shared analysis belongs in a shared IR rather than being independently
   rediscovered by transport renderers.
 - OpenAPI response accumulation belongs in `openapi/internal/ir`: collect every

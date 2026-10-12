@@ -88,7 +88,8 @@ func TestReaderCursorPublicationCloseDuringLookup(t *testing.T) {
 	}
 	gate.unblock()
 	require.ErrorContains(t, <-result, "reader is closing")
-	require.Equal(t, []string{main.key}, reader.streamKeys)
+	require.Len(t, reader.registrations, 1)
+	require.Same(t, main, reader.registrations[0].stream)
 }
 
 func TestReaderCursorPublicationDuplicateWinner(t *testing.T) {
@@ -110,8 +111,7 @@ func TestReaderCursorPublicationDuplicateWinner(t *testing.T) {
 	require.NoError(t, reader.AddStream(t.Context(), added, options.WithAddStreamStartAtNewest()))
 	gate.unblock()
 	require.NoError(t, <-result)
-	require.Equal(t, []string{main.key, added.key}, reader.streamKeys)
-	require.Equal(t, []string{"0", winnerID}, reader.streamCursors, "slow snapshot must not overwrite the installed winner")
+	require.Equal(t, []*readerRegistration{{stream: main, cursor: "0"}, {stream: added, cursor: winnerID}}, reader.registrations, "slow snapshot must not overwrite the installed winner")
 }
 
 func TestReaderCursorPublicationCanceledLookup(t *testing.T) {
@@ -132,7 +132,8 @@ func TestReaderCursorPublicationCanceledLookup(t *testing.T) {
 	awaitCursorLookup(t, gate)
 	cancel()
 	require.ErrorIs(t, <-result, context.Canceled)
-	require.Equal(t, []string{main.key}, reader.streamKeys)
+	require.Len(t, reader.registrations, 1)
+	require.Same(t, main, reader.registrations[0].stream)
 	failed, err := added.NewReader(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 	require.Nil(t, failed)
@@ -153,7 +154,8 @@ func TestReaderCursorFailedAdditionPreservesActiveRead(t *testing.T) {
 	require.ErrorContains(t, err, bad.key)
 	require.ErrorContains(t, err, "WRONGTYPE")
 	require.NoError(t, readCtx.Err(), "failed addition must not cancel the existing read")
-	require.Equal(t, []string{main.key}, reader.streamKeys)
+	require.Len(t, reader.registrations, 1)
+	require.Same(t, main, reader.registrations[0].stream)
 }
 
 func TestReaderCursorLookupOnlyForNewNewestRegistration(t *testing.T) {
@@ -181,7 +183,7 @@ func TestReaderCursorLookupOnlyForNewNewestRegistration(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(explicit.Close)
 	require.NoError(t, explicit.AddStream(t.Context(), added))
-	require.Equal(t, []string{"123-4", "123-4"}, explicit.streamCursors)
+	require.Equal(t, []*readerRegistration{{stream: main, cursor: "123-4"}, {stream: added, cursor: "123-4"}}, explicit.registrations)
 	require.EqualValues(t, 2, hook.lookups.Load(), "explicit positions require no lookup")
 }
 

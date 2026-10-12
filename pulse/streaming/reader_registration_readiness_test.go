@@ -56,7 +56,7 @@ func TestReaderStaleRegistrationReadiness(t *testing.T) {
 		t.Fatal("second actual XREAD did not finish")
 	}
 	reader.lock.Lock()
-	actual := reader.streamCursors[0]
+	actual := reader.registrations[0].cursor
 	reader.lock.Unlock()
 	require.Equal(t, replacement, actual, "old registration's reply rewound the replacement cursor")
 }

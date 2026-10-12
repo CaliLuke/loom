@@ -113,8 +113,8 @@ func TestReaderAddStreamDeduplicatesByStreamKey(t *testing.T) {
 
 	require.NoError(t, reader.AddStream(t.Context(), stream))
 
-	require.Len(t, reader.streams, 1)
-	require.Equal(t, []string{stream.key}, reader.streamKeys)
+	require.Len(t, reader.registrations, 1)
+	require.Same(t, stream, reader.registrations[0].stream)
 }
 
 func TestReaderAddStreamAfterCloseReturnsError(t *testing.T) {
@@ -171,7 +171,7 @@ func TestStreamEventsDoesNotHoldReaderLockWhileSubscriberIsBackpressured(t *test
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		reader.fanOut(t.Context(), streamKeyPrefix+"events", []redis.XMessage{message})
+		reader.fanOut(t.Context(), &readerRegistration{stream: &Stream{key: streamKeyPrefix + "events"}}, []redis.XMessage{message})
 	}()
 
 	require.Eventually(t, func() bool {
@@ -210,7 +210,7 @@ func TestReaderUnsubscribeDuringBackpressuredFanOutDoesNotPanic(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		reader.fanOut(t.Context(), streamKeyPrefix+"events", []redis.XMessage{message})
+		reader.fanOut(t.Context(), &readerRegistration{stream: &Stream{key: streamKeyPrefix + "events"}}, []redis.XMessage{message})
 	}()
 
 	reader.Unsubscribe(reader.subscribers[0].ch)

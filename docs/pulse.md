@@ -83,6 +83,10 @@ a failed addition leaves the reader's existing streams unchanged. Explicit oldes
 timestamp and event-ID positions require no new lookup. `AddStream` inherits the
 reader's authored start mode unless its options override it.
 
+`Reader.RemoveStream` stops future reads for that registration. An already-admitted
+batch may still reach subscribers. Re-adding the stream installs its selected start
+position independently: completion of an earlier read cannot move that new cursor.
+
 `Reader.Close` and `Sink.Close` stop local polling and close subscriber
 channels. `Stream.Destroy` is different: it deletes the shared stream and sink
 membership state. Reserve it for intentional teardown, tests, or coordinated

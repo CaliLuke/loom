@@ -36,5 +36,7 @@ func (r *Reader) canAddStream(key string) (bool, error) {
 	if r.closing {
 		return false, fmt.Errorf("reader is closing")
 	}
-	return !slices.Contains(r.streamKeys, key), nil
+	return !slices.ContainsFunc(r.registrations, func(registration *readerRegistration) bool {
+		return registration.stream.key == key
+	}), nil
 }
