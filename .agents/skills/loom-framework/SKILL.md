@@ -147,7 +147,10 @@ consumer validation.
   `NamedValidationFunction` resolves the callable identifier, physical carrier
   and static field mode; consumers must use that same owner for declarations and
   calls. Intrinsically nullable named types retain their wrapper when called,
-  while occurrence predicates inspect the unwrapped value. Recursive occurrences
+  while occurrence predicates inspect the unwrapped value. Anonymous object and
+  enum guards use the same occurrence carrier fact without clearing child field
+  layout; reset that fact when traversing a child. Keep the validation-carrier
+  model and generated anonymous-object controls aligned. Recursive occurrences
   call complete definitions with their diagnostic path, never copy an in-progress
   buffer or impose an artificial traversal depth. Keep the recursive-validation
   model and finite generated-tree/nullable-carrier controls aligned.

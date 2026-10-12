@@ -271,7 +271,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 		if expr.IsArray(att.Type) || expr.IsMap(att.Type) {
 			return code
 		}
-		if !ctx.Pointer && (req || (effectiveValidationDefault(att) && ctx.UseDefault)) {
+		if !ctx.validationTargetIsPointer(req, effectiveValidationDefault(att)) {
 			return code
 		}
 		cond := "if " + target + " != nil {\n"
@@ -293,7 +293,7 @@ func validateAttribute(ctx *AttributeContext, att *expr.AttributeExpr, put expr.
 			return ""
 		}
 		// For optional pointer fields, wrap validation code in nil check
-		if !ctx.Pointer && (req || (effectiveValidationDefault(att) && ctx.UseDefault)) {
+		if !ctx.validationTargetIsPointer(req, effectiveValidationDefault(att)) {
 			return code
 		}
 		cond := "if " + target + " != nil {\n"
