@@ -126,7 +126,7 @@ func TestArtifactWriteIntentRollback(t *testing.T) {
 		require.NoError(t, tx.cleanup())
 	})
 	require.NoError(t, os.MkdirAll(filepath.Join(tx.stage, "gen"), 0o750))
-	var outputs []codegen.Artifact
+	outputs := make([]codegen.Artifact, 0, 4)
 	for _, name := range []string{"protected.txt", "created.txt", "replace.txt", "missing.txt"} {
 		path := filepath.Join(tx.stage, name)
 		if name != "missing.txt" {

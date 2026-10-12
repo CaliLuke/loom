@@ -61,6 +61,18 @@ func Generate(dir, cmd string, debug bool) (outputs []codegen.Artifact, err1 err
 	if err != nil {
 		return nil, err
 	}
+	outputs, err = renderGeneratedFiles(dir, cmd, designDigest, genfiles, debug)
+	if err != nil {
+		return nil, err
+	}
+
+	debugStage(debug, "total", startGenerate, "outputs=%d", len(outputs))
+	return outputs, nil
+}
+
+// renderGeneratedFiles admits and merges output before installing files and
+// applying removals. Admission must precede all rendering side effects.
+func renderGeneratedFiles(dir, cmd, designDigest string, genfiles []*codegen.File, debug bool) ([]codegen.Artifact, error) {
 	if err := normalizeFilePolicies(dir, genfiles); err != nil {
 		return nil, wrapStageError("file-policies", "", err)
 	}
@@ -90,12 +102,11 @@ func Generate(dir, cmd string, debug bool) (outputs []codegen.Artifact, err1 err
 		return nil, wrapStageError("remove-files", "", err)
 	}
 
-	outputs = computeOutputs(written, debug)
+	outputs := computeOutputs(written, debug)
 	slices.SortFunc(outputs, func(a, b codegen.Artifact) int {
 		return cmp.Compare(a.Path, b.Path)
 	})
 
-	debugStage(debug, "total", startGenerate, "outputs=%d", len(outputs))
 	return outputs, nil
 }
 

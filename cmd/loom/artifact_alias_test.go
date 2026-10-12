@@ -67,7 +67,7 @@ func TestArtifactWriteIntentRejectsAliasBeforePreparingBatch(t *testing.T) {
 	t.Cleanup(func() {
 		require.NoError(t, tx.cleanup())
 	})
-	var artifacts []codegen.Artifact
+	artifacts := make([]codegen.Artifact, 0, 2)
 	for _, path := range []string{"new-dir/new.txt", "alias/custom.txt"} {
 		file := &codegen.File{
 			Path:      path,

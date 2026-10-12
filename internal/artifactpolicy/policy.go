@@ -48,6 +48,12 @@ func Validate(dir, path string, skipExist bool) error {
 	if err == nil && (relative == "." || filepath.IsLocal(relative)) {
 		return rejected
 	}
+	return validateAncestorAliases(parent, generated, resolvedBase, rejected)
+}
+
+// validateAncestorAliases rejects filesystem identities that path spelling
+// alone cannot distinguish, including case aliases and directory mounts.
+func validateAncestorAliases(parent, generated, resolvedBase string, rejected error) error {
 	// SameFile recognizes filesystem aliases whose spelling survives resolution,
 	// such as case aliases and directory mounts exposing the same inode.
 	generatedInfo, err := os.Stat(generated)

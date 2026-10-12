@@ -92,29 +92,7 @@ func (p *projectionConversion) typ(semantic, physical expr.DataType) expr.DataTy
 		return prior
 	}
 	if user, ok := physical.(expr.UserType); ok {
-		selected := semantic.(expr.UserType)
-		attribute := *user.Attribute()
-		if p.pointer && expr.IsObject(physical) {
-			attribute.Validation = projectionCarrierValidation(user.Attribute())
-		}
-		attribute.Meta = maps.Clone(attribute.Meta)
-		if attribute.Meta == nil {
-			attribute.Meta = make(expr.MetaExpr)
-		}
-		identity := fmt.Sprintf("%x", sha256.Sum256([]byte(expr.Hash(semantic, false, false, false)+"\x00"+expr.Hash(physical, false, false, false))))
-		attribute.Meta[projectionConversionIdentity] = []string{identity}
-		copy := user.Dup(&attribute)
-		// DupAtt memoizes by declaration ID. Distinct selected shapes sharing
-		// a physical name must not collapse when the transformer copies them.
-		switch actual := copy.(type) {
-		case *expr.ResultTypeExpr:
-			actual.Identifier = identity
-		case *expr.UserTypeExpr:
-			actual.UID = identity
-		}
-		p.types[key] = copy
-		attribute.Type = p.typ(selected.Attribute().Type, user.Attribute().Type)
-		return copy
+		return p.namedType(semantic.(expr.UserType), user)
 	}
 	switch actual := physical.(type) {
 	case *expr.Object:
@@ -154,6 +132,33 @@ func (p *projectionConversion) typ(semantic, physical expr.DataType) expr.DataTy
 	default:
 		return physical
 	}
+}
+
+// namedType detaches conversion identity from the physical declaration and
+// publishes the copied carrier before recursively binding its selected shape.
+func (p *projectionConversion) namedType(semantic, user expr.UserType) expr.DataType {
+	attribute := *user.Attribute()
+	if p.pointer && expr.IsObject(user) {
+		attribute.Validation = projectionCarrierValidation(user.Attribute())
+	}
+	attribute.Meta = maps.Clone(attribute.Meta)
+	if attribute.Meta == nil {
+		attribute.Meta = make(expr.MetaExpr)
+	}
+	identity := fmt.Sprintf("%x", sha256.Sum256([]byte(expr.Hash(semantic, false, false, false)+"\x00"+expr.Hash(user, false, false, false))))
+	attribute.Meta[projectionConversionIdentity] = []string{identity}
+	copy := user.Dup(&attribute)
+	// DupAtt memoizes by declaration ID. Distinct selected shapes sharing
+	// a physical name must not collapse when the transformer copies them.
+	switch actual := copy.(type) {
+	case *expr.ResultTypeExpr:
+		actual.Identifier = identity
+	case *expr.UserTypeExpr:
+		actual.UID = identity
+	}
+	p.types[projectionConversionKey{semantic: semantic, physical: user}] = copy
+	attribute.Type = p.typ(semantic.Attribute().Type, user.Attribute().Type)
+	return copy
 }
 
 // projectionCarrierValidation retains required union value layout in named
