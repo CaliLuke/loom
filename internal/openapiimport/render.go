@@ -40,12 +40,10 @@ func Render(document *Document, options Options) ([]byte, error) {
 	}
 	r := renderer{
 		document:     document,
-		schemas:      make(map[string]NamedSchema),
-		errorSchemas: make(map[string]struct{}),
+		schemas:      plan.schemas,
+		errorSchemas: plan.errorSchemas,
 		operations:   plan.operations,
-	}
-	if err := r.index(); err != nil {
-		return nil, err
+		references:   plan.references,
 	}
 
 	r.line("package %s", packageName)
@@ -86,10 +84,25 @@ type renderer struct {
 	operations   []operationPlan
 	builder      strings.Builder
 	indent       int
+	references   *schemaReferencePlan
+	declaration  string
+}
+
+// childRenderer retains reference ownership while starting an independent
+// expression buffer. Inline constructor callbacks consume the same frozen plan.
+func (r *renderer) childRenderer() renderer {
+	return renderer{
+		document: r.document, schemas: r.schemas, errorSchemas: r.errorSchemas,
+		references: r.references, declaration: r.declaration,
+	}
 }
 
 func (r *renderer) namedSchema(named NamedSchema) error {
 	path := "#/components/schemas/" + escapeJSONPointer(named.Name)
+	r.declaration = componentDeclaration(named.Name)
+	defer func() {
+		r.declaration = ""
+	}()
 	expression, object, err := r.schemaExpression(named.Schema, path)
 	if err != nil {
 		return err
@@ -499,7 +512,8 @@ func (r *renderer) errorTypeClones() error {
 			if !response.cloneErrorType {
 				continue
 			}
-			path := fmt.Sprintf("#/operations/%d/responses/%s/content/schema", operationIndex, response.status)
+			path := errorCloneSchemaPath(operationIndex, response.status)
+			r.declaration = errorCloneDeclaration(operationIndex, response.status)
 			schema := schemaWithExamples(response.response.Schema, response.response.Examples)
 			expression, _, err := r.schemaExpression(schema, path)
 			if err != nil {
@@ -515,6 +529,7 @@ func (r *renderer) errorTypeClones() error {
 			}
 			r.close()
 			r.line("")
+			r.declaration = ""
 		}
 	}
 	return nil

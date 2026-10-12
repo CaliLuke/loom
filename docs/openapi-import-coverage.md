@@ -105,6 +105,14 @@ Loom preserves supported forms of:
 
 The following constructs are conditional:
 
+- Recursive local component references through object fields, arrays, and maps
+  retain their named targets. This includes aliases anchored in an object graph
+  and recursive schemas reused by error responses. Import rejects a cycle made
+  entirely from immediate type constructors, such as an array whose items refer
+  to that same array, with `schema-reference-initialization`. The diagnostic is
+  blocking even with `--allow-lossy`; it describes the current import subset,
+  not a restriction on JSON Schema itself. Pure alias cycles remain rejected
+  by reference resolution.
 - `format` supports known Loom formats. An unknown format requires
   `--allow-lossy`.
 - A one-member `allOf` with a local reference is lossless. Numeric bounds and

@@ -1,0 +1,183 @@
+package openapiimport
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+	"github.com/stretchr/testify/require"
+)
+
+func TestReferenceConstructorReadiness(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		define     func()
+		diagnostic string
+	}{
+		{"array_forward", func() {
+			dsl.Type("Node", dsl.ArrayOf("Later"))
+			dsl.Type("Later", dsl.String)
+		}, "invalid ArrayOf argument"},
+		{"map_forward", func() {
+			dsl.Type("Node", dsl.MapOf(dsl.String, "Later"))
+			dsl.Type("Later", dsl.String)
+		}, "invalid MapOf value argument"},
+		{"type_string_base", func() {
+			dsl.Type("Node", "Later")
+			dsl.Type("Later", dsl.String)
+		}, `cannot use "Later"`},
+		{"array_self", func() {
+			dsl.Type("Node", dsl.ArrayOf("Node"))
+		}, "invalid ArrayOf argument"},
+		{"map_self", func() {
+			dsl.Type("Node", dsl.MapOf(dsl.String, "Node"))
+		}, "invalid MapOf value argument"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := expr.RunInvalidDSL(t, tc.define)
+			require.Error(t, err)
+			t.Log(err)
+			require.Contains(t, err.Error(), tc.diagnostic)
+		})
+	}
+	t.Run("oneof_forward", func(t *testing.T) {
+		root := expr.RunDSL(t, func() {
+			dsl.Type("Node", dsl.OneOf("Nodes", "Leaf"))
+			dsl.Type("Leaf", func() {
+				dsl.Attribute("value", dsl.String)
+			})
+			dsl.Type("Nodes", dsl.ArrayOf("Leaf"))
+		})
+		union := expr.AsUnion(root.UserType("Node"))
+		require.NotNil(t, union)
+		require.Same(t, root.UserType("Nodes"), union.Values[0].Attribute.Type)
+	})
+}
+
+func TestImportedReferenceContextReadiness(t *testing.T) {
+	cases := []struct {
+		name, schemas string
+		replacements  []string
+		failures      bool
+	}{
+		{"top_array_object", `Node: {type: array, items: {$ref: '#/components/schemas/Branch'}}
+    Branch: {type: object, properties: {child: {$ref: '#/components/schemas/Node'}}}`, []string{`Attribute("child", ImportedNode)`, `Attribute("child", "Node")`}, false},
+		{"top_map_object", `Node: {type: object, additionalProperties: {$ref: '#/components/schemas/Branch'}}
+    Branch: {type: object, properties: {child: {$ref: '#/components/schemas/Node'}}}`, []string{`Attribute("child", ImportedNode)`, `Attribute("child", "Node")`}, false},
+		{"alias_object", `Node: {$ref: '#/components/schemas/Branch'}
+    Branch: {type: object, properties: {child: {$ref: '#/components/schemas/Node'}}}`, []string{`Attribute("child", ImportedNode)`, `Attribute("child", "Node")`}, false},
+		{"nested_promoted", `Node:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, minLength: 2}
+        children:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: array
+              minItems: 1
+              items: {anyOf: [{$ref: '#/components/schemas/Node'}, {type: 'null'}]}`, []string{`ArrayOf(ImportedNodeChildrenItem)`, `ArrayOf("NodeChildrenItem")`}, false},
+		{"nested_annotated", `Node:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, minLength: 2}
+        children:
+          type: array
+          items:
+            type: array
+            minItems: 1
+            items: {anyOf: [{$ref: '#/components/schemas/Node'}, {type: 'null'}]}`, []string{`ArrayOf(ImportedNode,`, `ArrayOf("Node",`}, false},
+		{"error_clones", `Node: {type: object, properties: {message: {type: string}, child: {$ref: '#/components/schemas/Node'}}}`, []string{`Attribute("child", ImportedNode)`, `Attribute("child", "Node")`}, true},
+		{"union_forward_array", `Node: {oneOf: [{$ref: '#/components/schemas/Branches'}, {$ref: '#/components/schemas/Leaf'}]}
+    Branches: {type: array, items: {$ref: '#/components/schemas/Leaf'}}
+    Leaf: {type: object, properties: {child: {$ref: '#/components/schemas/Leaf'}}}`, []string{`Attribute("child", ImportedLeaf)`, `Attribute("child", "Leaf")`, `OneOf(ImportedBranches, ImportedLeaf)`, `OneOf("Branches", "Leaf")`}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			failures := ""
+			if tc.failures {
+				failures = `
+        "400": {description: bad request, content: {application/json: {schema: {$ref: '#/components/schemas/Node'}}}}
+        "500": {description: failure, content: {application/json: {schema: {$ref: '#/components/schemas/Node'}}}}`
+			}
+			source := []byte(`openapi: 3.1.1
+info: {title: Recursive, version: "1"}
+paths:
+  /nodes:
+    get:
+      operationId: getNodes
+      responses:
+        "200": {description: ok, content: {application/json: {schema: {$ref: '#/components/schemas/Node'}}}}` + failures + `
+components:
+  schemas:
+    ` + tc.schemas + "\n")
+			doc, diagnostics, err := Analyze(source)
+			require.NoError(t, err)
+			if tc.name == "nested_promoted" {
+				require.Len(t, diagnostics, 1)
+				requireDiagnosticCode(t, diagnostics, "schema-inline-array-item-promoted")
+			} else {
+				require.Empty(t, diagnostics)
+			}
+			rendered, err := Render(doc, Options{PackageName: "design"})
+			require.NoError(t, err)
+			candidate := string(rendered)
+			for i := 0; i < len(tc.replacements); i += 2 {
+				require.Contains(t, candidate, tc.replacements[i])
+				candidate = strings.ReplaceAll(candidate, tc.replacements[i], tc.replacements[i+1])
+			}
+			if tc.failures {
+				require.Contains(t, candidate, "Extend(ImportedNode)")
+			}
+			requireRenderedDesignEvaluates(t, []byte(candidate), 1)
+		})
+	}
+}
+
+func TestEagerCycleAdmissionReadiness(t *testing.T) {
+	for _, tc := range []struct{ name, schemas string }{
+		{"self_alias", `Node: {$ref: '#/components/schemas/Node'}`},
+		{"mutual_alias", `Node: {$ref: '#/components/schemas/Other'}
+    Other: {$ref: '#/components/schemas/Node'}`},
+		{"array_self", `Node: {type: array, items: {$ref: '#/components/schemas/Node'}}`},
+		{"map_self", `Node: {type: object, additionalProperties: {$ref: '#/components/schemas/Node'}}`},
+		{"union_array_cycle", `Node: {oneOf: [{$ref: '#/components/schemas/Nodes'}, {$ref: '#/components/schemas/Leaf'}]}
+    Nodes: {type: array, items: {$ref: '#/components/schemas/Node'}}
+    Leaf: {type: object, properties: {value: {type: string}}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := []byte(`openapi: 3.1.1
+info: {title: Recursive, version: "1"}
+paths:
+  /nodes:
+    get:
+      operationId: getNodes
+      responses:
+        "200": {description: ok, content: {application/json: {schema: {$ref: '#/components/schemas/Node'}}}}
+components:
+  schemas:
+    ` + tc.schemas + "\n")
+			doc, ds, err := Analyze(source)
+			switch tc.name {
+			case "self_alias", "mutual_alias":
+				require.ErrorContains(t, err, "infinite circular reference")
+			case "union_array_cycle":
+				require.NoError(t, err)
+				requireDiagnosticCode(t, ds, "schema-oneof-branch")
+				_, renderErr := Render(doc, Options{})
+				require.ErrorContains(t, renderErr, "schema-oneof-branch")
+			default:
+				require.NoError(t, err)
+				require.Empty(t, ds)
+				source, renderErr := Render(doc, Options{})
+				require.NoError(t, renderErr)
+				require.Contains(t, string(source), "ImportedNode), func()")
+			}
+			t.Logf("Analyze: err=%v diagnostics=%v", err, ds)
+		})
+	}
+}

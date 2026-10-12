@@ -62,6 +62,13 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 
 ## OpenAPI contracts
 
+- [Imported recursive schema references](../../../../internal/openapiimport/tla/schema_references/README.md):
+  bounded initializer graphs and per-occurrence constructor classification retain
+  mandatory edges and lower eligible recursive references. The independent graph
+  oracle, evaluated JSON/YAML constructor cases and generated schema/build checks
+  establish concrete correspondence; the models do not prove Go initialization,
+  naming or schema extraction.
+
 - [Pattern projection](../../../../http/codegen/openapi/internal/ir/lean/pattern_projection/README.md):
   finite anchor/whitespace mismatch witnesses and target acceptance table;
   Go/Node tests establish actual engine agreement for the admitted boundary.

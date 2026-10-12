@@ -17,8 +17,11 @@ const (
 
 // documentPlan is the render-ready result of applying the importer subset.
 type documentPlan struct {
-	operations  []operationPlan
-	diagnostics Diagnostics
+	operations   []operationPlan
+	diagnostics  Diagnostics
+	schemas      map[string]NamedSchema
+	errorSchemas map[string]struct{}
+	references   *schemaReferencePlan
 }
 
 // planDocument applies the importer subset once for both Analyze and Render.
@@ -61,21 +64,37 @@ func planDocument(document *Document) documentPlan {
 	for _, named := range document.Components.Headers {
 		planner.unsupported("component-header", "#/components/headers/"+escapeJSONPointer(named.Name), "reusable header components are not in the strict import subset")
 	}
-	planner.diagnostics = planner.diagnostics.sorted()
-	plan := documentPlan{diagnostics: planner.diagnostics}
-	if len(plan.diagnostics) > 0 {
-		return plan
+	if len(planner.diagnostics) > 0 {
+		return documentPlan{diagnostics: planner.diagnostics.sorted()}
 	}
-	renderer := renderer{document: document, schemas: planner.schemas}
-	for index := range document.Operations {
-		operation, err := renderer.planOperation(&document.Operations[index], fmt.Sprintf("#/operations/%d", index))
+	return planner.renderPlan()
+}
+
+// renderPlan freezes names and reference decisions after subset admission.
+// Error clones depend on final operation names; reference occurrences depend on
+// those clones, so neither can be independently rediscovered during rendering.
+func (p *documentPlanner) renderPlan() documentPlan {
+	plan := documentPlan{}
+	operationRenderer := renderer{document: p.document, schemas: p.schemas}
+	for index := range p.document.Operations {
+		operation, err := operationRenderer.planOperation(&p.document.Operations[index], fmt.Sprintf("#/operations/%d", index))
 		if err != nil {
 			plan.diagnostics = Diagnostics{{Code: "render-plan", Path: fmt.Sprintf("#/operations/%d", index), Message: strings.TrimPrefix(err.Error(), "render OpenAPI design: ")}}
 			return plan
 		}
 		plan.operations = append(plan.operations, operation)
 	}
-	disambiguateSharedErrorStatuses(document.Operations, plan.operations)
+	disambiguateSharedErrorStatuses(p.document.Operations, plan.operations)
+	declarations := renderer{
+		document: p.document, schemas: p.schemas,
+		errorSchemas: make(map[string]struct{}), operations: plan.operations,
+	}
+	if err := declarations.indexErrors(); err != nil {
+		plan.diagnostics = Diagnostics{{Code: "render-plan", Path: "#", Message: err.Error()}}
+		return plan
+	}
+	plan.schemas, plan.errorSchemas = declarations.schemas, declarations.errorSchemas
+	plan.references, plan.diagnostics = planSchemaReferences(p.document, plan.schemas, plan.operations)
 	return plan
 }
 

@@ -16,7 +16,7 @@ func (r *renderer) openAPIRequestBody(body RequestBody, path string) error {
 	}
 	bodyArg := expression
 	if object {
-		child := renderer{document: r.document, schemas: r.schemas}
+		child := r.childRenderer()
 		child.open("func()")
 		if err := child.schemaBlock(schema, path+"/content/schema", false); err != nil {
 			return err

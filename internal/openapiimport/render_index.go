@@ -2,25 +2,13 @@ package openapiimport
 
 import (
 	"fmt"
-	"go/token"
 
 	"github.com/CaliLuke/loom/codegen"
 )
 
-func (r *renderer) index() error {
-	for _, schema := range r.document.Components.Schemas {
-		if schema.Name == "" || schema.GoName == "" {
-			return fmt.Errorf("render OpenAPI design: component schema names must not be empty")
-		}
-		identifier := "Imported" + schema.GoName
-		if !token.IsIdentifier(identifier) || token.Lookup(identifier).IsKeyword() {
-			return fmt.Errorf("render OpenAPI design: component schema %q has invalid Go name %q", schema.Name, schema.GoName)
-		}
-		if _, exists := r.schemas[schema.Name]; exists {
-			return fmt.Errorf("render OpenAPI design: component schema %q is defined more than once", schema.Name)
-		}
-		r.schemas[schema.Name] = schema
-	}
+// indexErrors completes declaration planning after operation names are final.
+// Component identity comes from the admitted index shared with the renderer.
+func (r *renderer) indexErrors() error {
 	errorNames := make(map[string]map[string]struct{})
 	for operationIndex := range r.operations {
 		for responseIndex := range r.operations[operationIndex].failures {

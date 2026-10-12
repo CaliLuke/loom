@@ -445,6 +445,15 @@ filter, and serialization rules belong here.
 
 ## OpenAPI Importer Invariants
 
+- Plan imported schema references once after component promotion and final error
+  declaration allocation in `internal/openapiimport`. Retain declaration owner
+  and source-path occurrence identity; resolve source component names separately
+  from allocated Go names. Only eligible occurrences in a cyclic component become
+  exact DSL-name lookups. Concrete constructor edges remain concrete, and residual
+  initializer cycles receive a blocking subset diagnostic. Child renderers consume
+  the same frozen plan. Keep the schema-reference models and direct/generated
+  graph checks aligned with constructor behavior and metadata preservation.
+
 - Use `encoding/json/jsontext.Pointer` for JSON Pointer token escaping,
   validation and decoding in both import and export paths. Keep the URI-fragment
   `#` and component-kind policy at the OpenAPI boundary. An invalid diagnostic

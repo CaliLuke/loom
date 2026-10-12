@@ -312,6 +312,13 @@ warnings. Unsupported `allOf`, `oneOf`, `anyOf`, and `not` shapes remain blocked
 A Schema Object with `$ref` siblings is also blocked. Wrap the reference in a
 supported `allOf` shape so the importer does not discard sibling constraints.
 
+Ordinary recursive component references import through named DSL references,
+including recursion through object fields and their arrays or maps. Cycles made
+only of eager alias, array or map constructors remain outside the import subset
+and receive a blocking diagnostic before a design is written. See
+[OpenAPI import coverage](../../../docs/openapi-import-coverage.md) for supported
+recursive shapes and limitations.
+
 OpenAPI 3.2 Media Type `description` requires `--allow-lossy`.
 `prefixEncoding` remains a strict import error.
 

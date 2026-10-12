@@ -119,13 +119,18 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 }
 
 func (r *renderer) schemaReferenceExpression(ref, path string) (string, bool, error) {
-	name := strings.TrimPrefix(ref, "#/components/schemas/")
-	if name == ref || name == "" {
-		return "", false, fmt.Errorf("render OpenAPI design: %s schema reference %q is not a local component schema", path, ref)
+	name, err := localComponentReferenceName(ref, "#/components/schemas/")
+	if err != nil {
+		return "", false, fmt.Errorf("render OpenAPI design: %s schema reference %q: %w", path, ref, err)
 	}
 	named, ok := r.schemas[name]
 	if !ok {
 		return "", false, fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, ref)
+	}
+	if r.references != nil {
+		if lookup, selected := r.references.lookups[referenceOccurrenceKey{owner: r.declaration, path: path}]; selected {
+			return strconv.Quote(lookup), false, nil
+		}
 	}
 	return "Imported" + named.GoName, false, nil
 }
@@ -151,7 +156,7 @@ func (r *renderer) objectSchemaExpression(schema *Schema, path string) (string, 
 	if !r.hasSchemaBlock(valueSchema) && !r.effectiveNullable(valueSchema) {
 		return "MapOf(String, " + value + ")", false, nil
 	}
-	child := renderer{document: r.document, schemas: r.schemas}
+	child := r.childRenderer()
 	child.open("MapOf(String, %s, func()", value)
 	child.open("Elem(func()")
 	if err := child.emitNullableGoType(valueSchema, path+"/additionalProperties"); err != nil {
@@ -179,7 +184,7 @@ func (r *renderer) arraySchemaExpression(schema *Schema, path string) (string, b
 	if !r.hasSchemaBlock(schema.Items) && !r.effectiveNullable(schema.Items) {
 		return "ArrayOf(" + item + ")", false, nil
 	}
-	child := renderer{document: r.document, schemas: r.schemas}
+	child := r.childRenderer()
 	child.open("ArrayOf(%s, func()", item)
 	if err := child.emitNullableGoType(schema.Items, path+"/items"); err != nil {
 		return "", false, err
@@ -259,7 +264,10 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 		if err != nil {
 			return err
 		}
-		name := strings.TrimPrefix(base.Ref, "#/components/schemas/")
+		name, err := localComponentReferenceName(base.Ref, "#/components/schemas/")
+		if err != nil {
+			return fmt.Errorf("render OpenAPI design: %s: %w", basePath, err)
+		}
 		named := r.schemas[name]
 		if named.Schema == nil || named.Schema.Type != "object" {
 			return fmt.Errorf("render OpenAPI design: %s object base %q is not an object schema", basePath, base.Ref)

@@ -367,7 +367,7 @@ func requireRenderedDesignGenerates(t *testing.T, source []byte) string {
 	t.Helper()
 	moduleDir := t.TempDir()
 	repoRoot := repositoryRoot(t)
-	goMod := "module example.com/imported\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\n" +
+	goMod := "module example.com/imported\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261012181439-651372ce6ff0\n\n" +
 		"replace github.com/CaliLuke/loom => " + repoRoot + "\n"
 	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(goMod), 0o600))
 	designDir := filepath.Join(moduleDir, "design")
@@ -665,11 +665,11 @@ func TestExampleLiteralKeepsNestedNullAsGoNil(t *testing.T) {
 	require.Equal(t, "Null()", literal)
 }
 
-func requireRenderedDesignEvaluates(t *testing.T, source []byte, wantMethods int) {
+func requireRenderedDesignEvaluates(t *testing.T, source []byte, wantMethods int, checks ...string) {
 	t.Helper()
 	moduleDir := t.TempDir()
 	repoRoot := repositoryRoot(t)
-	goMod := "module example.com/imported\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\n" +
+	goMod := "module example.com/imported\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261012181439-651372ce6ff0\n\n" +
 		"replace github.com/CaliLuke/loom => " + repoRoot + "\n"
 	require.NoError(t, os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(goMod), 0o600))
 	designDir := filepath.Join(moduleDir, "design")
@@ -697,8 +697,9 @@ func TestEvaluateImportedDesign(t *testing.T) {
 	if got := len(expr.Root.Services[0].Methods); got != %d {
 		t.Fatalf("got %%d methods, want %d", got)
 	}
+	%s
 }
-`, wantMethods, wantMethods)
+`, wantMethods, wantMethods, strings.Join(checks, "\n"))
 	require.NoError(t, os.WriteFile(filepath.Join(designDir, "design_test.go"), []byte(testSource), 0o600))
 
 	cmd := exec.Command("go", "test", "-mod=mod", "./design")
