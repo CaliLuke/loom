@@ -32,7 +32,15 @@ func TestContextErrorContract(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, got := range []error{EncodeError(tc.err), EncodeServerError(tc.err, nil)} {
 				require.Equal(t, tc.code, status.Code(got))
-				require.Equal(t, tc.err.Error(), status.Convert(got).Message())
+				wantMessage := loom.ErrorSafeMessage(tc.err)
+				if tc.native {
+					if tc.code == codes.Canceled {
+						wantMessage = context.Canceled.Error()
+					} else {
+						wantMessage = context.DeadlineExceeded.Error()
+					}
+				}
+				require.Equal(t, wantMessage, status.Convert(got).Message())
 				if tc.native {
 					require.Empty(t, status.Convert(got).Details())
 				}

@@ -34,7 +34,7 @@ type (
 
 // NewErrorResponse creates an ErrorResponse from the error's explicit contract,
 // following single-error wrappers. An independent join without an outer
-// ServiceError uses the full error message and Fault=true, with no branch's
+// ServiceError uses a generic public message and Fault=true, with no branch's
 // name, history, timeout or temporary traits. A nil error returns nil.
 func NewErrorResponse(err error) *loompb.ErrorResponse {
 	if err == nil {
@@ -45,13 +45,14 @@ func NewErrorResponse(err error) *loompb.ErrorResponse {
 }
 
 func newErrorResponse(err error, gerr *loom.ServiceError) *loompb.ErrorResponse {
+	message, safeOverride := loom.ResolveErrorMessage(err)
 	if gerr == nil {
-		gerr = loom.Fault("%s", err.Error())
+		gerr = loom.Fault("%s", message)
 	}
 	er := &loompb.ErrorResponse{
 		Name:      gerr.Name,
 		Id:        gerr.ID,
-		Msg:       gerr.Message,
+		Msg:       message,
 		Timeout:   gerr.Timeout,
 		Temporary: gerr.Temporary,
 		Fault:     gerr.Fault,
@@ -64,7 +65,11 @@ func newErrorResponse(err error, gerr *loom.ServiceError) *loompb.ErrorResponse 
 			if h == nil {
 				continue
 			}
-			ef := &loompb.ErrorField{Name: h.Name, Msg: h.Message}
+			message, entrySafeOverride := loom.ResolveErrorMessage(h)
+			if safeOverride && !entrySafeOverride {
+				message = er.Msg
+			}
+			ef := &loompb.ErrorField{Name: h.Name, Msg: message}
 			if h.Field != nil {
 				ef.Field = *h.Field
 			}
@@ -129,17 +134,13 @@ func serviceErrorHistory(history []*loompb.ErrorField) []*loom.ServiceError {
 // codes.Unknown: a status with code OK yields a nil error, which would
 // silently swallow err.
 func NewStatusError(code codes.Code, err error, details ...protoiface.MessageV1) error {
-	st := status.New(failureCode(code), err.Error())
-	if s, err := st.WithDetails(details...); err == nil {
-		return s.Err()
-	}
-	return st.Err()
+	return newStatusError(code, err.Error(), details...)
 }
 
 // EncodeError returns a gRPC status with the error's response details. An
 // explicit outer ServiceError or GRPCStatus owns the response. Transparent
 // wrappers preserve their underlying contract. Independent joined failures use
-// generic full-failure details and a unanimous branch status, or Unknown when
+// generic public details and a unanimous branch status, or Unknown when
 // statuses disagree. Branch retry traits are not promoted to the aggregate.
 // A nil error returns nil; a nonnil error never produces an OK status.
 func EncodeError(err error) error {
@@ -179,4 +180,12 @@ func ErrInvalidType(svc, m, expected string, actual any) error {
 // Error builds an error message.
 func (c *ClientError) Error() string {
 	return fmt.Sprintf("[%s %s]: %s", c.Service, c.Method, c.Message)
+}
+
+func newStatusError(code codes.Code, message string, details ...protoiface.MessageV1) error {
+	st := status.New(failureCode(code), message)
+	if s, err := st.WithDetails(details...); err == nil {
+		return s.Err()
+	}
+	return st.Err()
 }

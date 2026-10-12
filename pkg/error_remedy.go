@@ -33,16 +33,58 @@ func ErrorRemedyCode(err error) string {
 	return ""
 }
 
-// ErrorSafeMessage returns the safe, user-facing message associated with err.
-// It falls back to err.Error when no safe message was declared.
+// ErrorSafeMessage returns the public message selected by ResolveErrorMessage.
+// It is the message-only form for transport encoders that do not emit history.
 func ErrorSafeMessage(err error) string {
-	if remedy := ExtractErrorRemedy(err); remedy != nil && remedy.SafeMessage != "" {
-		return remedy.SafeMessage
-	}
+	message, _ := ResolveErrorMessage(err)
+	return message
+}
+
+// ResolveErrorMessage returns the public message owned by err and whether it
+// selected an explicit, nonempty SafeMessage override. The flag is false for a
+// named error's own message, the generic fallback, or nil. Encoders use it to
+// mask diagnostic history while preserving entries with their own safe override.
+//
+// An explicit safe remedy takes precedence over a named service or generated
+// error's message. Single-cause wrappers are transparent: their diagnostic text
+// is not public. Unknown errors and independent joins without an explicit outer
+// owner return "internal server error". A nil error returns an empty string.
+// The original error and its causes are never modified.
+//
+//nolint:errorlint // Public ownership stops at joins; tree-wide matching selects a branch.
+func ResolveErrorMessage(err error) (message string, safeOverride bool) {
 	if err == nil {
-		return ""
+		return "", false
 	}
-	return err.Error()
+	for node := err; node != nil; {
+		if remedier, ok := node.(LoomErrorRemedier); ok {
+			if remedy := remedier.LoomErrorRemedy(); remedy != nil && remedy.SafeMessage != "" {
+				return remedy.SafeMessage, true
+			}
+		}
+		if _, ok := node.(LoomErrorNamer); ok {
+			return node.Error(), false
+		}
+		switch wrapped := node.(type) {
+		case interface{ Unwrap() []error }:
+			var child error
+			for _, candidate := range wrapped.Unwrap() {
+				if candidate == nil {
+					continue
+				}
+				if child != nil {
+					return "internal server error", false
+				}
+				child = candidate
+			}
+			node = child
+		case interface{ Unwrap() error }:
+			node = wrapped.Unwrap()
+		default:
+			return "internal server error", false
+		}
+	}
+	return "internal server error", false
 }
 
 // ErrorRetryHint returns retry or correction guidance associated with err.

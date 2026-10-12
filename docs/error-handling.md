@@ -517,6 +517,25 @@ custom error type when that public body must expose them. Keep internal causes
 in wrapped errors and logs. Do not place credentials, queries, or stack traces
 in any remediation field.
 
+Default transport messages for unknown service errors are `internal server
+error`. A `ServiceError` or generated error owns its public message; `SafeMessage`
+overrides that message. Ordinary wrappers contribute server-side diagnostic
+context but do not add text to the public message. Independent joined failures
+have a generic public message unless an explicit outer error owns the failure.
+Encoding leaves the original error and its cause unchanged for server-side
+diagnosis.
+
+gRPC applies this policy to both the default status message and error detail,
+including safe messages in validation history. Its status codes and designed
+typed details retain their protocol contracts. Native cancellation and deadline
+errors use canonical context messages with no synthetic service detail. An
+explicit gRPC status remains an authored public response. Custom error bodies
+remain public data chosen by the design.
+
+This correction is in shared runtime code; existing generated default error
+encoders receive it when the application upgrades Loom. Regeneration is not
+required for this message change.
+
 ---
 
 ## Default HTTP Problem Documents

@@ -22,15 +22,15 @@ func TestErrorHistoryOwnershipRoundTrip(t *testing.T) {
 	got := NewServiceError(&decoded)
 	history := got.History()
 	require.Len(t, history, 3)
-	require.Equal(t, first.Error(), history[0].Message)
-	require.Equal(t, second.Error(), history[1].Message)
-	require.Equal(t, first.Error(), history[2].Message)
+	require.Equal(t, loom.ErrorSafeMessage(first), history[0].Message)
+	require.Equal(t, loom.ErrorSafeMessage(second), history[1].Message)
+	require.Equal(t, loom.ErrorSafeMessage(first), history[2].Message)
 	require.Equal(t, "name", *history[0].Field)
 	history[0].Message = "changed"
 	*history[0].Field = "changed"
 	decoded.History[1].Msg = "changed"
 	fresh := got.History()
-	require.Equal(t, first.Error(), fresh[0].Message)
+	require.Equal(t, loom.ErrorSafeMessage(first), fresh[0].Message)
 	require.Equal(t, "name", *fresh[0].Field)
-	require.Equal(t, second.Error(), fresh[1].Message)
+	require.Equal(t, loom.ErrorSafeMessage(second), fresh[1].Message)
 }

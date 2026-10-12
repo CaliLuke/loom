@@ -227,7 +227,7 @@ func TestExtractErrorRemedy(t *testing.T) {
 		if remedy := ExtractErrorRemedy(err); remedy != nil {
 			t.Fatalf("expected nil remedy, got %#v", remedy)
 		}
-		if got := ErrorSafeMessage(err); got != "raw detail" {
+		if got := ErrorSafeMessage(err); got != "internal server error" {
 			t.Errorf("got safe message %q", got)
 		}
 		if got := ErrorRetryHint(err); got != "" {

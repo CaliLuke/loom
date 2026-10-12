@@ -410,6 +410,14 @@ Other important OpenAPI usage rules:
 
 ## Errors and Remediation
 
+Unknown service errors return `internal server error`. Explicit `ServiceError`
+and generated error messages are public unless `SafeMessage` overrides them.
+Single-cause wrappers keep their diagnostic text private; independent joins use
+the generic message unless an explicit outer error owns the public contract.
+Designed error bodies remain public authored data. Native gRPC cancellation
+and deadline errors use canonical context messages. This message policy takes
+effect on runtime upgrade without regenerating adapters.
+
 Regenerate after upgrading the length-error API. `loom.InvalidLengthError`
 accepts `(name, actualLength, bound, minimum)` and never the rejected value.
 Length diagnostics retain field and bound information without echoing contents.

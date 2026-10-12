@@ -61,10 +61,12 @@ func classifyError(err error, mapper ErrorMapper) errorContract {
 		case context.Canceled:
 			result.code = codes.Canceled
 			result.termination = true
+			result.err = node
 			return result
 		case context.DeadlineExceeded:
 			result.code = codes.DeadlineExceeded
 			result.termination = true
+			result.err = node
 			return result
 		}
 		switch wrapped := node.(type) {
@@ -127,9 +129,9 @@ func encodeError(err error, mapper ErrorMapper) error {
 	}
 	if contract.mapped {
 		if contract.detail == nil {
-			return NewStatusError(contract.code, contract.err)
+			return newStatusError(contract.code, loom.ErrorSafeMessage(contract.err))
 		}
-		return NewStatusError(contract.code, contract.err, contract.detail)
+		return newStatusError(contract.code, loom.ErrorSafeMessage(contract.err), contract.detail)
 	}
 	detail := newErrorResponse(contract.err, contract.service)
 	if contract.status != nil {
@@ -138,7 +140,7 @@ func encodeError(err error, mapper ErrorMapper) error {
 		}
 		return contract.status.Err()
 	}
-	return NewStatusError(contract.code, contract.err, detail)
+	return newStatusError(contract.code, loom.ErrorSafeMessage(contract.err), detail)
 }
 
 func failureCode(code codes.Code) codes.Code {

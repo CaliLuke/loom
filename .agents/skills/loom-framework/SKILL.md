@@ -1024,15 +1024,30 @@ filter, and serialization rules belong here.
   `grpc/error_contract.go`. Follow transparent single-cause wrappers, stop at
   an explicit ServiceError, GRPCStatus or recognized designed contract, and
   classify independent join branches separately. An aggregate keeps only a
-  unanimous status; otherwise it uses Unknown. Generic full-failure details
+  unanimous status; otherwise it uses Unknown. Generic public fault details
   never borrow branch-specific names, history or retry traits. Do not use
   tree-wide `errors.As` or `status.FromError` to select a response owner.
   Keep `grpc/tla/error_contract` paired with direct runtime and compiled
   unary/streaming declared-error tests. Raw context cancellation/deadline
   sentinels are native termination outcomes after explicit owners, producing
-  statuses without fabricated fault details. Clients decode recognized details
+  canonical context messages without fabricated fault details. Clients decode recognized details
   and otherwise preserve the received error; never replace it with a synthetic
   fault or the local context's error.
+- `pkg.ResolveErrorMessage` owns default public message selection and reports
+  whether an explicit safe override selected it. `pkg.ErrorSafeMessage` exposes
+  the message alone for transport emitters.
+  A direct `SafeMessage` overrides named public error text; transparent
+  single-cause wrappers add no message. Independent joins without an explicit
+  outer owner use `internal server error`. HTTP detail and gRPC default
+  status/detail/history consume this owner; history masking uses the returned
+  override flag, never a separate remedy traversal or message-text comparison.
+  Nil, empty, or code-only outer remedies do not hide an intermediate safe
+  owner. JSON-RPC emitters already
+  use the message projection.
+  Preserve the original diagnostic error and cause. `grpc.NewStatusError` and
+  explicit `GRPCStatus` remain author-owned protocol messages; designed typed
+  bodies remain public authored data. Keep `pkg/tla/error_disclosure` aligned
+  with runtime and generated wire regressions.
 - Generated transport observability must remain dependency-free and must never
   emit bodies, params, tool arguments, credentials, or result payloads.
 - `http.DecodeResponse` owns original response-body cleanup, bounded restoration

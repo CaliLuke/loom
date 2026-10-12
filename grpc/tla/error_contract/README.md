@@ -6,7 +6,9 @@ and details, rather than running unrelated tree-wide searches for each.
 
 The model enumerates two branches with Unknown, Canceled or Unavailable codes,
 in every order, with or without an explicit outer owner. `CompleteFailure`
-requires both contributions in aggregate details. `OrderIndependentStatus`
+requires one aggregate detail without branch ownership. The original #589 model
+represented the full diagnostic message as both contributions; #713 replaces
+that wire text with generic safe aggregate disclosure. `OrderIndependentStatus`
 requires unanimous codes or Unknown. `ExplicitOwner` requires an authored
 outer contract to win over its causes. The abstraction treats ordinary wrappers
 as transparent and assumes branch codes have already been resolved. It does
@@ -21,7 +23,7 @@ assumed, as with ordinary Go error traversal.
 | Aggregate | All three invariants pass, exit 0 | 36 | 2 |
 
 The supported policy keeps unanimous statuses, uses Unknown for conflicts, and
-uses generic full-message fault details without inferring branch retry traits.
+uses generic public fault details without inferring branch retry traits.
 Picking the first branch was rejected because order would control callers'
 retry decisions. Always discarding statuses was rejected because unanimous
 branch contracts can be preserved. A direct outer ServiceError, GRPCStatus or
@@ -95,4 +97,23 @@ through real generated unary and streaming servers.
 
 The bounded model does not prove protobuf detail retention, arbitrary error
 traversal, real RPC delivery or context races. Those remain runtime obligations.
-No retry traits are inferred from a termination status.
+No retry traits are inferred from a termination status. #713 uses the canonical
+underlying context message rather than diagnostic wrapper text, preserving code,
+absence of fabricated details and client cause. The context model abstracts
+messages away; `TestServerErrorDisclosure` checks this wire-message boundary.
+
+## Public disclosure (#713)
+
+`pkg.ErrorSafeMessage` owns ordinary public message selection. gRPC continues to
+own protocol status, mapped typed details and native termination. Unknown errors
+and independent joins use `internal server error` in default status/detail
+messages. Transparent wrappers do not add diagnostic text to a ServiceError or
+generated error's public message. Explicit GRPCStatus values remain public
+protocol contracts; the explicit `NewStatusError` constructor retains its own
+caller-authored message contract.
+
+Default protobuf history messages use their entry's safe message. An enclosing
+safe remedy substitutes for entries that have no safe remedy of their own;
+source histories remain unchanged. Generated custom detail schemas remain
+author-owned. The [public disclosure model](../../../pkg/tla/error_disclosure/README.md)
+and runtime/generated regressions establish the changed message contract.

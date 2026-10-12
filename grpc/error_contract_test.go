@@ -51,11 +51,11 @@ func TestJoinedErrorContract(t *testing.T) {
 				for _, err := range []error{joined, fmt.Errorf("context: %w", joined)} {
 					for _, encoded := range []error{EncodeError(err), EncodeServerError(err, nil)} {
 						require.Equal(t, tc.code, status.Code(encoded))
-						require.Equal(t, err.Error(), status.Convert(encoded).Message())
+						require.Equal(t, "internal server error", status.Convert(encoded).Message())
 						detail := DecodeError(encoded).(*loompb.ErrorResponse)
-						assertAggregateResponse(t, err, detail)
+						assertAggregateResponse(t, detail)
 					}
-					assertAggregateResponse(t, err, NewErrorResponse(err))
+					assertAggregateResponse(t, NewErrorResponse(err))
 				}
 			}
 		})
@@ -113,7 +113,7 @@ func TestJoinedDesignedErrorMappings(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			encoded := EncodeServerError(tc.err, mapper)
 			require.Equal(t, tc.code, status.Code(encoded))
-			assertAggregateResponse(t, tc.err, DecodeError(encoded).(*loompb.ErrorResponse))
+			assertAggregateResponse(t, DecodeError(encoded).(*loompb.ErrorResponse))
 		})
 	}
 	for _, err := range []error{denied, fmt.Errorf("context: %w", denied), errors.Join(nil, denied)} {
@@ -150,10 +150,10 @@ func TestSingleErrorContracts(t *testing.T) {
 	require.Len(t, DecodeError(encoded).(*loompb.ErrorResponse).History, 2)
 }
 
-func assertAggregateResponse(t *testing.T, err error, detail *loompb.ErrorResponse) {
+func assertAggregateResponse(t *testing.T, detail *loompb.ErrorResponse) {
 	t.Helper()
 	require.Equal(t, "fault", detail.Name)
-	require.Equal(t, err.Error(), detail.Msg)
+	require.Equal(t, "internal server error", detail.Msg)
 	require.True(t, detail.Fault)
 	require.False(t, detail.Temporary)
 	require.False(t, detail.Timeout)

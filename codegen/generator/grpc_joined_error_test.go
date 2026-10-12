@@ -38,6 +38,9 @@ func TestGeneratedServerAggregation(t *testing.T) {
 		code   codes.Code
 		custom bool
 	}{
+		{"plain secret", errors.New("private database password"), codes.Unknown, false},
+		{"wrapped secret", fmt.Errorf("private query: %w", errors.New("private database password")), codes.Unknown, false},
+		{"safe public", loom.WithErrorRemedy(loom.Fault("private database password"), &loom.ErrorRemedy{SafeMessage: "safe public detail"}), codes.Internal, false},
 		{"canceled", context.Canceled, codes.Canceled, false},
 		{"deadline", fmt.Errorf("operation: %w", context.DeadlineExceeded), codes.DeadlineExceeded, false},
 		{"context plus cleanup", errors.Join(context.Canceled, errors.New("cleanup")), codes.Unknown, false},
@@ -81,6 +84,14 @@ func TestGeneratedServerAggregation(t *testing.T) {
 			_, streamErr := stream.Recv()
 			for _, got := range []error{unaryErr, streamErr} {
 				require.Equal(t, tc.code, status.Code(got))
+				wantMessage := loom.ErrorSafeMessage(tc.err)
+				if tc.name == "canceled" {
+					wantMessage = context.Canceled.Error()
+				} else if tc.name == "deadline" {
+					wantMessage = context.DeadlineExceeded.Error()
+				}
+				require.Equal(t, wantMessage, status.Convert(got).Message())
+				require.NotContains(t, status.Convert(got).String(), "private")
 				detail := lg.DecodeError(got)
 				if tc.name == "canceled" || tc.name == "deadline" {
 					require.Nil(t, detail)
@@ -89,7 +100,7 @@ func TestGeneratedServerAggregation(t *testing.T) {
 				} else {
 					require.IsType(t, &loompb.ErrorResponse{}, detail)
 					response := detail.(*loompb.ErrorResponse)
-					require.Equal(t, tc.err.Error(), response.Msg)
+					require.Equal(t, loom.ErrorSafeMessage(tc.err), response.Msg)
 					require.True(t, response.Fault)
 					require.False(t, response.Temporary)
 				}
