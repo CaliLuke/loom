@@ -54,13 +54,13 @@ func renderExampleCLIStreaming(services []exampleCLIServiceData) string {
 	return "\nvar (\n\tdialer *websocket.Dialer\n)\n{\n\tdialer = websocket.DefaultDialer\n}\n"
 }
 
-func exampleCLIEndSection(services []exampleCLIServiceData, apiPkg string) codegen.Section {
+func exampleCLIEndSection(services []exampleCLIServiceData, apiPkg, streamingConfigDefault string) codegen.Section {
 	return codegen.NewRenderSection("cli-http-end", func() string {
-		return renderExampleCLIEnd(services, apiPkg)
+		return renderExampleCLIEnd(services, apiPkg, streamingConfigDefault)
 	})
 }
 
-func renderExampleCLIEnd(services []exampleCLIServiceData, apiPkg string) string {
+func renderExampleCLIEnd(services []exampleCLIServiceData, apiPkg, streamingConfigDefault string) string {
 	var b strings.Builder
 	b.WriteString("\nendpoint, payload, err := cli.ParseEndpoint(\n")
 	b.WriteString("\t\tscheme,\n")
@@ -73,7 +73,7 @@ func renderExampleCLIEnd(services []exampleCLIServiceData, apiPkg string) string
 		b.WriteString("\t\tdialer,\n")
 		for _, svc := range services {
 			if HasWebSocket(svc.Data) {
-				b.WriteString("\t\tnil,\n")
+				fmt.Fprintf(&b, "\t\t%s,\n", streamingConfigDefault)
 			}
 		}
 	}

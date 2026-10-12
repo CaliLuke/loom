@@ -102,10 +102,10 @@ func newClient(t *testing.T) *client.Client {
 	t.Helper()
 	mux := loomhttp.NewMuxer()
 	svc := service{}
-	server.Mount(mux, server.New(svc.HandleStream, files.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	server.Mount(mux, server.New(svc.HandleStream, files.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	t.Cleanup(hs.Close)
-	c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+	c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 	t.Cleanup(func() {
 		if err := c.Close(); err != nil {
 			t.Errorf("close client: %v", err)

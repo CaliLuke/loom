@@ -202,20 +202,24 @@ func renderClientWebSocketEndpoint(group *jen.Group, endpoint *EndpointData) {
 		)
 	})
 
-	group.If(jen.Id("c").Dot("configurer").Dot(endpoint.Method.VarName + "Fn").Op("!=").Nil()).BlockFunc(func(configure *jen.Group) {
+	cancel := jen.Nil()
+	if endpoint.ClientWebSocket.SendName == "" {
+		group.Var().Id("cancel").Qual("context", "CancelFunc")
+		group.List(jen.Id("ctx"), jen.Id("cancel")).Op("=").Qual("context", "WithCancel").Call(jen.Id("ctx"))
+		cancel = jen.Id("cancel")
+	}
+	group.Id("wsconn").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("c").Dot("configurer").Dot(endpoint.Method.VarName + "Config"))
+	group.If(jen.Err().Op(":=").Id("wsconn").Dot("SetConn").Call(jen.Id("conn"), cancel), jen.Err().Op("!=").Nil()).BlockFunc(func(failure *jen.Group) {
 		if endpoint.ClientWebSocket.SendName == "" {
-			configure.Var().Id("cancel").Qual("context", "CancelFunc")
-			configure.List(jen.Id("ctx"), jen.Id("cancel")).Op("=").Qual("context", "WithCancel").Call(jen.Id("ctx"))
-			configure.Id("conn").Op("=").Id("c").Dot("configurer").Dot(endpoint.Method.VarName+"Fn").Call(jen.Id("conn"), jen.Id("cancel"))
-		} else {
-			configure.Id("conn").Op("=").Id("c").Dot("configurer").Dot(endpoint.Method.VarName+"Fn").Call(jen.Id("conn"), jen.Nil())
+			failure.Id("cancel").Call()
 		}
+		failure.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrRequestError").Call(jen.Lit(endpoint.ServiceName), jen.Lit(endpoint.Method.Name), jen.Err()))
 	})
-	group.Id("wsconn").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("conn"))
 
 	if endpoint.ClientWebSocket.SendName == "" {
 		group.Id("done").Op(":=").Make(jen.Chan().Struct())
 		addRawWebSocketGroup(group, `go func() {
+	defer cancel()
 	select {
 	case <-ctx.Done():
 		if err := wsconn.WriteClose("client closing connection"); err != nil {

@@ -20,10 +20,11 @@ import (
 	"unicode/utf8"
 )
 
-// ConnConfigurer holds the websocket connection configurer functions for the
+// ConnConfigurer holds the websocket connection configurations for the
 // streaming endpoints in "TestService" service.
 type ConnConfigurer struct {
-	ClientStreamObjectFn loomhttp.ConnConfigureFunc
+	// ClientStreamObjectConfig defines the inbound message limit and connection hook.
+	ClientStreamObjectConfig loomhttp.WebSocketConfig
 }
 
 // ClientStreamObjectClientStream implements the
@@ -33,11 +34,11 @@ type ClientStreamObjectClientStream struct {
 	conn *loomhttp.WebSocketStream
 }
 
-// NewConnConfigurer initializes the websocket connection configurer function
-// with fn for all the streaming endpoints in "TestService" service.
-func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {
+// NewConnConfigurer initializes the websocket connection configuration with
+// config for all the streaming endpoints in "TestService" service.
+func NewConnConfigurer(config loomhttp.WebSocketConfig) *ConnConfigurer {
 	return &ConnConfigurer{
-		ClientStreamObjectFn: fn,
+		ClientStreamObjectConfig: config,
 	}
 }
 

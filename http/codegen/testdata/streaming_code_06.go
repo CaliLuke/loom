@@ -20,10 +20,10 @@ func (s *StreamingResultUserTypeMapMethodServerStream) SendWithContext(ctx conte
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr

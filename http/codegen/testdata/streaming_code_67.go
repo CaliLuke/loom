@@ -24,10 +24,10 @@ func (c *Client) BidirectionalStreamingMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("BidirectionalStreamingService", "BidirectionalStreamingMethod", err)
 		}
-		if c.configurer.BidirectionalStreamingMethodFn != nil {
-			conn = c.configurer.BidirectionalStreamingMethodFn(conn, nil)
+		wsconn := loomhttp.NewWebSocketStream(c.configurer.BidirectionalStreamingMethodConfig)
+		if err := wsconn.SetConn(conn, nil); err != nil {
+			return nil, loomhttp.ErrRequestError("BidirectionalStreamingService", "BidirectionalStreamingMethod", err)
 		}
-		wsconn := loomhttp.NewWebSocketStream(conn)
 		stream := &BidirectionalStreamingMethodClientStream{conn: wsconn}
 		return stream, nil
 	}

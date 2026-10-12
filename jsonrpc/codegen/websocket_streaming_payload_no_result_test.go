@@ -86,7 +86,7 @@ func serve(t *testing.T) (*service, string) {
 	t.Helper()
 	svc := &service{pushed: make(chan string, 8)}
 	mux := loomhttp.NewMuxer()
-	server.Mount(mux, server.New(svc.HandleStream, sink.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	server.Mount(mux, server.New(svc.HandleStream, sink.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	t.Cleanup(hs.Close)
 	return svc, strings.TrimPrefix(hs.URL, "http://")
@@ -96,7 +96,7 @@ func TestPushNotifications(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	svc, host := serve(t)
-	c := client.NewClient("ws", host, nil, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+	c := client.NewClient("ws", host, nil, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 	defer func() {
 		if err := c.Close(); err != nil {
 			t.Errorf("close client: %v", err)

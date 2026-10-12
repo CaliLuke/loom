@@ -19,14 +19,16 @@ func (c *Client) StreamingResultNoPayloadMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultNoPayloadService", "StreamingResultNoPayloadMethod", err)
 		}
-		if c.configurer.StreamingResultNoPayloadMethodFn != nil {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithCancel(ctx)
-			conn = c.configurer.StreamingResultNoPayloadMethodFn(conn, cancel)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultNoPayloadMethodConfig)
+		if err := wsconn.SetConn(conn, cancel); err != nil {
+			cancel()
+			return nil, loomhttp.ErrRequestError("StreamingResultNoPayloadService", "StreamingResultNoPayloadMethod", err)
 		}
-		wsconn := loomhttp.NewWebSocketStream(conn)
 		done := make(chan struct{})
 		go func() {
+			defer cancel()
 			select {
 			case <-ctx.Done():
 				if err := wsconn.WriteClose("client closing connection"); err != nil {

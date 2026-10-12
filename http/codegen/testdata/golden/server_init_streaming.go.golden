@@ -15,6 +15,6 @@ func New(e *streamingresultservice.Endpoints, mux loomhttp.Muxer, decoder func(*
 		Mounts: []*MountPoint{
 			{"StreamingResultMethod", "GET", "/{x}"},
 		},
-		StreamingResultMethod: NewStreamingResultMethodHandler(e.StreamingResultMethod, mux, decoder, encoder, errhandler, formatter, upgrader, configurer.StreamingResultMethodFn, streamWritePolicy...),
+		StreamingResultMethod: NewStreamingResultMethodHandler(e.StreamingResultMethod, mux, decoder, encoder, errhandler, formatter, upgrader, configurer.StreamingResultMethodConfig, streamWritePolicy...),
 	}
 }

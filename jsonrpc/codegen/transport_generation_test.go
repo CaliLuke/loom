@@ -22,7 +22,7 @@ func TestJSONRPCClientCLIFilesUseTransportConfiguration(t *testing.T) {
 	assert.Contains(t, parseFile.Path, filepath.Join("jsonrpc", "cli", "single_host", "cli.go"))
 
 	parseSource := sectionSourceByName(t, parseFile, "parse-endpoint")
-	assert.Contains(t, parseSource, "loomhttp.ConnConfigureFunc")
+	assert.Contains(t, parseSource, "loomhttp.WebSocketConfig")
 	assert.NotContains(t, parseSource, "ConnConfigurer")
 	require.IsType(t, &codegen.JenniferSection{}, sectionByName(t, parseFile, "parse-endpoint"))
 }

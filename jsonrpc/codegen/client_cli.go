@@ -11,10 +11,10 @@ func ClientCLIFiles(genpkg string, services *httpcodegen.ServicesData) []*codege
 		PathName:    "jsonrpc",
 		DisplayName: "JSON-RPC",
 		StreamingConfigurerName: func(serviceVar string) string {
-			return serviceVar + "ConfigFn"
+			return serviceVar + "WebSocketConfig"
 		},
 		StreamingConfigurerType: func(string) string {
-			return "loomhttp.ConnConfigureFunc"
+			return "loomhttp.WebSocketConfig"
 		},
 	})
 }

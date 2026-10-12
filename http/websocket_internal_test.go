@@ -9,7 +9,7 @@ import (
 )
 
 func TestWebSocketStreamWithContextPreservesSuccessfulOperation(t *testing.T) {
-	stream := NewWebSocketStream(nil)
+	stream := NewWebSocketStream(WebSocketConfig{})
 	ctx, cancel := context.WithCancel(context.Background())
 
 	err := stream.withContext(ctx, func() error {
@@ -21,7 +21,7 @@ func TestWebSocketStreamWithContextPreservesSuccessfulOperation(t *testing.T) {
 }
 
 func TestWebSocketStreamWithContextUsesCancellationForFailedOperation(t *testing.T) {
-	stream := NewWebSocketStream(nil)
+	stream := NewWebSocketStream(WebSocketConfig{})
 	ctx, cancel := context.WithCancel(context.Background())
 	operationErr := errors.New("operation failed")
 

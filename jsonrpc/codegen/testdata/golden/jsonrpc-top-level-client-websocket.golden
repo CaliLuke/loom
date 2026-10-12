@@ -6,12 +6,12 @@ type Client struct {
 	// decoding so they can be read again.
 	RestoreResponseBody bool
 
-	scheme   string
-	host     string
-	encoder  func(*http.Request) loomhttp.Encoder
-	decoder  func(*http.Response) loomhttp.Decoder
-	dialer   loomhttp.Dialer
-	configfn loomhttp.ConnConfigureFunc
+	scheme          string
+	host            string
+	encoder         func(*http.Request) loomhttp.Encoder
+	decoder         func(*http.Response) loomhttp.Decoder
+	dialer          loomhttp.Dialer
+	webSocketConfig loomhttp.WebSocketConfig
 
 	connMu sync.Mutex
 	// conn is the connection shared by the client and its streams. It reads
@@ -24,19 +24,19 @@ type Client struct {
 }
 
 // NewClient instantiates HTTP clients for all the stream service servers.
-func NewClient(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restoreBody bool, dialer loomhttp.Dialer, cfn loomhttp.ConnConfigureFunc, streamOpts ...jsonrpc.StreamConfigOption) *Client {
+func NewClient(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restoreBody bool, dialer loomhttp.Dialer, webSocketConfig loomhttp.WebSocketConfig, streamOpts ...jsonrpc.StreamConfigOption) *Client {
 	// Create stream configuration from options
 	streamConfig := jsonrpc.NewStreamConfig(streamOpts...)
 
 	return &Client{
 		Doer:                doer,
 		RestoreResponseBody: restoreBody,
-		configfn:            cfn,
 		decoder:             dec,
 		dialer:              dialer,
 		encoder:             enc,
 		host:                host,
 		scheme:              scheme,
 		streamConfig:        streamConfig,
+		webSocketConfig:     webSocketConfig,
 	}
 }

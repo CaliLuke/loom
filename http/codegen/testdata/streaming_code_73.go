@@ -19,10 +19,10 @@ func (c *Client) BidirectionalStreamingNoPayloadMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("BidirectionalStreamingNoPayloadService", "BidirectionalStreamingNoPayloadMethod", err)
 		}
-		if c.configurer.BidirectionalStreamingNoPayloadMethodFn != nil {
-			conn = c.configurer.BidirectionalStreamingNoPayloadMethodFn(conn, nil)
+		wsconn := loomhttp.NewWebSocketStream(c.configurer.BidirectionalStreamingNoPayloadMethodConfig)
+		if err := wsconn.SetConn(conn, nil); err != nil {
+			return nil, loomhttp.ErrRequestError("BidirectionalStreamingNoPayloadService", "BidirectionalStreamingNoPayloadMethod", err)
 		}
-		wsconn := loomhttp.NewWebSocketStream(conn)
 		stream := &BidirectionalStreamingNoPayloadMethodClientStream{conn: wsconn}
 		return stream, nil
 	}

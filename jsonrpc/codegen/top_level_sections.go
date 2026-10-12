@@ -32,7 +32,7 @@ func jsonrpcClientStructSection(data *httpcodegen.ServiceData) codegen.Section {
 			g.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder"))
 			if httpcodegen.HasWebSocket(data) {
 				g.Id("dialer").Add(codegen.TypeRef("loomhttp.Dialer"))
-				g.Id("configfn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc"))
+				g.Id("webSocketConfig").Add(codegen.TypeRef("loomhttp.WebSocketConfig"))
 				g.Line()
 				g.Id("connMu").Qual("sync", "Mutex")
 				g.Comment("conn is the connection shared by the client and its streams. It reads")
@@ -62,7 +62,7 @@ func jsonrpcClientInitSection(data *httpcodegen.ServiceData) codegen.Section {
 		if httpcodegen.HasWebSocket(data) {
 			params = append(params,
 				jen.Id("dialer").Add(codegen.TypeRef("loomhttp.Dialer")),
-				jen.Id("cfn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc")),
+				jen.Id("webSocketConfig").Add(codegen.TypeRef("loomhttp.WebSocketConfig")),
 				jen.Id("streamOpts").Op("...").Qual("github.com/CaliLuke/loom/jsonrpc", "StreamConfigOption"),
 			)
 		}
@@ -91,7 +91,7 @@ func jsonrpcClientInitSection(data *httpcodegen.ServiceData) codegen.Section {
 				}
 				if httpcodegen.HasWebSocket(data) {
 					dict[jen.Id("dialer")] = jen.Id("dialer")
-					dict[jen.Id("configfn")] = jen.Id("cfn")
+					dict[jen.Id("webSocketConfig")] = jen.Id("webSocketConfig")
 					dict[jen.Id("streamConfig")] = jen.Id("streamConfig")
 				}
 				g.Return(jen.Op("&").Id(data.ClientStruct).Values(dict))
@@ -148,7 +148,7 @@ func jsonrpcServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
 			g.Id("errhandler").Func().Params(jen.Qual("context", "Context"), jen.Qual("net/http", "ResponseWriter"), jen.Error())
 			if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
 				g.Id("upgrader").Add(codegen.TypeRef("loomhttp.Upgrader"))
-				g.Id("configfn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc"))
+				g.Id("webSocketConfig").Add(codegen.TypeRef("loomhttp.WebSocketConfig"))
 			}
 			if hasJSONRPCServerStream(data) {
 				g.Id("streamWritePolicy").Add(codegen.TypeRef("loomhttp.StreamWritePolicy"))

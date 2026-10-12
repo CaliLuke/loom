@@ -125,7 +125,7 @@ func TestPublicMessages(t *testing.T) {
 								return err
 							}
 						}
-					}, &socket.Endpoints{Show: endpoint}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+					}, &socket.Endpoints{Show: endpoint}, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 					host := httptest.NewServer(mux)
 					defer host.Close()
 					request := "{\"jsonrpc\":\"2.0\",\"method\":\"show\",\"params\":\"value\",\"id\":\"request\"}"

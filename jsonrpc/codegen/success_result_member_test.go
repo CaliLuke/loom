@@ -222,7 +222,7 @@ func serve(t *testing.T) string {
 	rpcserver.Mount(mux, rpcserver.New(rpc.NewEndpoints(rpcService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, errhandler))
 	feedserver.Mount(mux, feedserver.New(feed.NewEndpoints(feedService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, errhandler))
 	svc := sockService{}
-	sockserver.Mount(mux, sockserver.New(svc.HandleStream, sock.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, errhandler, &websocket.Upgrader{}, nil))
+	sockserver.Mount(mux, sockserver.New(svc.HandleStream, sock.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, errhandler, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	t.Cleanup(hs.Close)
 	return hs.URL
@@ -408,7 +408,7 @@ func TestClientsDecodeEmptyResults(t *testing.T) {
 		t.Errorf("watch: close: %v", err)
 	}
 
-	sc := sockclient.NewClient("ws", host, http.DefaultClient, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+	sc := sockclient.NewClient("ws", host, http.DefaultClient, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 	defer func() {
 		if err := sc.Close(); err != nil {
 			t.Errorf("close sock client: %v", err)

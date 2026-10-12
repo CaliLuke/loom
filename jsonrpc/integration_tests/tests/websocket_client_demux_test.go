@@ -80,7 +80,7 @@ func (e transformStream) close() error { return e.s.Close() }
 func TestStreamsShareOneConnection(t *testing.T) {
 	var mu sync.Mutex
 	var reported []string
-	c := client.NewClient("ws", os.Getenv("` + wsDemuxHostEnv + `"), nil, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil,
+	c := client.NewClient("ws", os.Getenv("` + wsDemuxHostEnv + `"), nil, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{},
 		jsonrpc.WithErrorHandler(func(_ context.Context, kind jsonrpc.StreamErrorType, err error, _ *jsonrpc.RawResponse) {
 			mu.Lock()
 			defer mu.Unlock()

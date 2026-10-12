@@ -46,7 +46,7 @@ func jsonrpcServerInitParams(data *httpcodegen.ServiceData) []jen.Code {
 	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
 		params = append(params,
 			jen.Id("upgrader").Add(codegen.TypeRef("loomhttp.Upgrader")),
-			jen.Id("configfn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc")),
+			jen.Id("webSocketConfig").Add(codegen.TypeRef("loomhttp.WebSocketConfig")),
 		)
 	}
 	if hasJSONRPCServerStream(data) {
@@ -93,7 +93,7 @@ func jsonrpcServerInitFields(data *httpcodegen.ServiceData) jen.Dict {
 	if httpcodegen.IsWebSocketEndpoint(data.Endpoints[0]) {
 		dict[jen.Id("StreamHandler")] = jen.Id("streamHandler")
 		dict[jen.Id("upgrader")] = jen.Id("upgrader")
-		dict[jen.Id("configfn")] = jen.Id("configfn")
+		dict[jen.Id("webSocketConfig")] = jen.Id("webSocketConfig")
 	}
 	if hasJSONRPCServerStream(data) {
 		dict[jen.Id("streamWritePolicy")] = jen.Id("streamWritePolicy")

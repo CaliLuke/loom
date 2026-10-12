@@ -336,7 +336,7 @@ func TestWebSocketClientConnRefusedAcquireClosesSocket(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
 	errs := &recordedErrors{}
-	conn := NewWebSocketClientConn(loomhttp.NewWebSocketStream(ws), errs.handle)
+	conn := NewWebSocketClientConn(newRuntimeWebSocketStream(t, ws), errs.handle)
 	serverConn := <-srv.conns
 	require.NoError(t, serverConn.Close())
 	<-conn.Done()
@@ -395,7 +395,7 @@ func dialScripted(t *testing.T, srv *scriptedServer, handler StreamErrorHandler)
 	ws, resp, err := websocket.DefaultDialer.DialContext(t.Context(), srv.url, nil)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
-	conn := NewWebSocketClientConn(loomhttp.NewWebSocketStream(ws), handler)
+	conn := NewWebSocketClientConn(newRuntimeWebSocketStream(t, ws), handler)
 	t.Cleanup(func() {
 		if err := conn.Close(); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			t.Errorf("close connection: %v", err)
@@ -429,4 +429,11 @@ func (r *recordedErrors) kindsSeen() []StreamErrorType {
 		return nil
 	}
 	return append([]StreamErrorType(nil), r.kinds...)
+}
+
+func newRuntimeWebSocketStream(t *testing.T, conn *websocket.Conn) *loomhttp.WebSocketStream {
+	t.Helper()
+	stream := loomhttp.NewWebSocketStream(loomhttp.WebSocketConfig{})
+	require.NoError(t, stream.SetConn(conn, nil))
+	return stream
 }

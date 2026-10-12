@@ -93,7 +93,7 @@ func (c *countingConn) dialCount() int {
 func newClient(t *testing.T, svc *service, dials *countingConn, opts ...jsonrpc.StreamConfigOption) *client.Client {
 	t.Helper()
 	mux := loomhttp.NewMuxer()
-	server.Mount(mux, server.New(svc.HandleStream, echo.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	server.Mount(mux, server.New(svc.HandleStream, echo.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	t.Cleanup(hs.Close)
 	dialer := &websocket.Dialer{NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -118,7 +118,7 @@ func newClient(t *testing.T, svc *service, dials *countingConn, opts ...jsonrpc.
 		dials.mu.Unlock()
 		return c, nil
 	}}
-	return client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, dialer, nil, opts...)
+	return client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, dialer, loomhttp.WebSocketConfig{}, opts...)
 }
 
 func open(t *testing.T, ctx context.Context, c *client.Client) *client.TalkClientStream {

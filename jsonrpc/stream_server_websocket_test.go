@@ -14,8 +14,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
-
-	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 type (
@@ -271,7 +269,7 @@ func runWebSocketReceive(t *testing.T, test webSocketReceiveCase) webSocketRecei
 		if test.setup != nil {
 			test.setup(conn, cancel)
 		}
-		stream := loomhttp.NewWebSocketStream(conn)
+		stream := newRuntimeWebSocketStream(t, conn)
 		defer func() {
 			if closeErr := stream.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
 				t.Errorf("close: %v", closeErr)

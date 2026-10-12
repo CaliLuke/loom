@@ -973,6 +973,13 @@ filter, and serialization rules belong here.
   (`valueVar`), while the stream converters always take the stream item.
 - Keep WebSocket lifecycle behavior in the shared runtime wrapper; generated
   endpoints should not grow independent read/write/close loops.
+  `WebSocketConfig` owns the connection-level message limit and configuration
+  hook; `WebSocketStream.SetConn` is the sole configuration/attachment path.
+  Bound both Gorilla framing and expanded message bytes before decoding;
+  overflow sends 1009 and physically closes even when the control write fails.
+  Hooks own retiring replaced inputs, and a nil result retains terminal
+  attachment state so an upgraded HTTP response never falls back to HTTP error
+  encoding. Keep `http/tla/websocket_message_limit` and real-socket tests aligned.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,
   HTTP/SSE negotiation, WebSocket setup, and final stream-response decisions
   in `jsonrpc`. Generated JSON-RPC code supplies typed dispatch, error, and

@@ -27,6 +27,8 @@ type ExampleCLITransport struct {
 	FunctionName string
 	// UsagePrefix prefixes the generated usage helper functions.
 	UsagePrefix string
+	// StreamingConfigDefault is the Go expression for default connection configuration.
+	StreamingConfigDefault string
 }
 
 // ExampleCLIFiles returns an example client tool HTTP implementation for each
@@ -128,7 +130,7 @@ func exampleCLIWithCache(
 		codegen.Header("", "main", specs),
 		exampleCLIStartSection(svcData, interceptorsPkg, transport.FunctionName),
 		exampleCLIStreamingSection(svcData),
-		exampleCLIEndSection(svcData, apiPkg),
+		exampleCLIEndSection(svcData, apiPkg, transport.StreamingConfigDefault),
 		exampleCLIUsageSection(transport.UsagePrefix),
 	}
 	return &codegen.File{
@@ -140,10 +142,11 @@ func exampleCLIWithCache(
 
 func httpExampleCLITransport() ExampleCLITransport {
 	return ExampleCLITransport{
-		PathName:     "http",
-		Filename:     "http.go",
-		FunctionName: "doHTTP",
-		UsagePrefix:  "http",
+		PathName:               "http",
+		Filename:               "http.go",
+		FunctionName:           "doHTTP",
+		UsagePrefix:            "http",
+		StreamingConfigDefault: "nil",
 	}
 }
 
@@ -160,6 +163,9 @@ func normalizeExampleCLITransport(transport ExampleCLITransport) ExampleCLITrans
 	}
 	if transport.UsagePrefix == "" {
 		transport.UsagePrefix = defaults.UsagePrefix
+	}
+	if transport.StreamingConfigDefault == "" {
+		transport.StreamingConfigDefault = defaults.StreamingConfigDefault
 	}
 	return transport
 }

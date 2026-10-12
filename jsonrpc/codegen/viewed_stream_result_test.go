@@ -271,7 +271,7 @@ func (feedService) FollowList(ctx context.Context, _ string, st feed.FollowListS
 func serveFiles(t *testing.T, svc filesService) string {
 	t.Helper()
 	mux := loomhttp.NewMuxer()
-	filesserver.Mount(mux, filesserver.New(svc.HandleStream, files.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	filesserver.Mount(mux, filesserver.New(svc.HandleStream, files.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	t.Cleanup(hs.Close)
 	return strings.TrimPrefix(hs.URL, "http://")
@@ -280,7 +280,7 @@ func serveFiles(t *testing.T, svc filesService) string {
 func newFilesClient(t *testing.T) *filesclient.Client {
 	t.Helper()
 	host := serveFiles(t, filesService{})
-	c := filesclient.NewClient("ws", host, nil, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+	c := filesclient.NewClient("ws", host, nil, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 	t.Cleanup(func() {
 		if err := c.Close(); err != nil {
 			t.Errorf("close client: %v", err)

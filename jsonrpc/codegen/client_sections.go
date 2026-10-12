@@ -286,27 +286,12 @@ func jsonrpcWebSocketClientConnSection(data *httpcodegen.ServiceData) codegen.Se
 					),
 				)
 				g.Line()
-				g.If(jen.Id("c").Dot("configfn").Op("!=").Nil()).Block(
-					jen.Id("configured").Op(":=").Id("c").Dot("configfn").Call(jen.Id("ws"), jen.Nil()),
-					jen.If(jen.Id("configured").Op("==").Nil()).Block(
-						jen.Id("err").Op(":=").Qual("fmt", "Errorf").Call(jen.Lit("connection configure function returned a nil connection")),
-						jen.If(jen.Id("closeErr").Op(":=").Id("ws").Dot("Close").Call(), jen.Id("closeErr").Op("!=").Nil()).Block(
-							jen.Id("err").Op("=").Qual("fmt", "Errorf").Call(jen.Lit("%w; closing the dialed connection: %w"), jen.Id("err"), jen.Id("closeErr")),
-						),
-						jen.Return(
-							jen.Nil(),
-							jen.Id("loomhttp").Dot("ErrRequestError").Call(
-								jen.Lit(data.Service.Name),
-								jen.Lit("connect"),
-								jen.Id("err"),
-							),
-						),
-					),
-					jen.Id("ws").Op("=").Id("configured"),
+				g.Id("stream").Op(":=").Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("c").Dot("webSocketConfig"))
+				g.If(jen.Id("err").Op(":=").Id("stream").Dot("SetConn").Call(jen.Id("ws"), jen.Nil()), jen.Id("err").Op("!=").Nil()).Block(
+					jen.Return(jen.Nil(), jen.Id("loomhttp").Dot("ErrRequestError").Call(jen.Lit(data.Service.Name), jen.Lit("connect"), jen.Id("err"))),
 				)
-				g.Line()
 				g.Id("conn").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "NewWebSocketClientConn").Call(
-					jen.Id("loomhttp").Dot("NewWebSocketStream").Call(jen.Id("ws")),
+					jen.Id("stream"),
 					jen.Id("c").Dot("streamConfig").Dot("ErrorHandler"),
 				)
 				g.If(jen.Op("!").Id("conn").Dot("Acquire").Call()).Block(

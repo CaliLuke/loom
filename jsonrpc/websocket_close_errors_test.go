@@ -11,8 +11,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
-
-	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 type (
@@ -122,7 +120,7 @@ func TestWebSocketClientCloseDuringWrite(t *testing.T) {
 			ws, response, err := dialer.DialContext(t.Context(), srv.url, nil)
 			require.NoError(t, err)
 			require.NoError(t, response.Body.Close())
-			conn := NewWebSocketClientConn(loomhttp.NewWebSocketStream(ws), nil)
+			conn := NewWebSocketClientConn(newRuntimeWebSocketStream(t, ws), nil)
 			t.Cleanup(func() {
 				require.NoError(t, conn.Close())
 			})

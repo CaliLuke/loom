@@ -437,7 +437,7 @@ func newService() *service {
 func newClient(t *testing.T, svc *service, conn *gatedConn, cfn loomhttp.ConnConfigureFunc, opts ...jsonrpc.StreamConfigOption) *client.Client {
 	t.Helper()
 	mux := loomhttp.NewMuxer()
-	server.Mount(mux, server.New(svc.HandleStream, echo.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	server.Mount(mux, server.New(svc.HandleStream, echo.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	t.Cleanup(hs.Close)
 	dialer := &websocket.Dialer{NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -448,7 +448,11 @@ func newClient(t *testing.T, svc *service, conn *gatedConn, cfn loomhttp.ConnCon
 		conn.Conn = c
 		return conn, nil
 	}}
-	return client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, dialer, cfn, opts...)
+	config, err := loomhttp.NewWebSocketConfig(loomhttp.DefaultMaxRequestBodyBytes, cfn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, dialer, config, opts...)
 }
 
 // roundTrip sends one note on stream and receives its echo.

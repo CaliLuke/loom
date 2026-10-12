@@ -1,17 +1,18 @@
 package testdata
 
-var MixedEndpointsConnConfigurerStructCode = `// ConnConfigurer holds the websocket connection configurer functions for the
+var MixedEndpointsConnConfigurerStructCode = `// ConnConfigurer holds the websocket connection configurations for the
 // streaming endpoints in "StreamingResultService" service.
 type ConnConfigurer struct {
-	StreamingResultMethodFn loomhttp.ConnConfigureFunc
+	// StreamingResultMethodConfig defines the inbound message limit and connection hook.
+	StreamingResultMethodConfig loomhttp.WebSocketConfig
 }
 `
 
-var MixedEndpointsConnConfigurerInitCode = `// NewConnConfigurer initializes the websocket connection configurer function
-// with fn for all the streaming endpoints in "StreamingResultService" service.
-func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {
+var MixedEndpointsConnConfigurerInitCode = `// NewConnConfigurer initializes the websocket connection configuration with
+// config for all the streaming endpoints in "StreamingResultService" service.
+func NewConnConfigurer(config loomhttp.WebSocketConfig) *ConnConfigurer {
 	return &ConnConfigurer{
-		StreamingResultMethodFn: fn,
+		StreamingResultMethodConfig: config,
 	}
 }
 `
@@ -27,7 +28,7 @@ func NewStreamingResultMethodHandler(
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	upgrader loomhttp.Upgrader,
-	configurer loomhttp.ConnConfigureFunc,
+	configurer loomhttp.WebSocketConfig,
 	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
 	var writePolicy loomhttp.StreamWritePolicy
@@ -52,12 +53,11 @@ func NewStreamingResultMethodHandler(
 		ctx, cancel = context.WithCancel(ctx)
 		v := &streamingresultservice.StreamingResultMethodEndpointInput{
 			Stream: &StreamingResultMethodServerStream{
-				upgrader:   upgrader,
-				configurer: configurer,
-				cancel:     cancel,
-				w:          w,
-				r:          r,
-				conn:       loomhttp.NewWebSocketStream(nil, writePolicy),
+				upgrader: upgrader,
+				cancel:   cancel,
+				w:        w,
+				r:        r,
+				conn:     loomhttp.NewWebSocketStream(configurer, writePolicy),
 			},
 			Payload: payload,
 		}
@@ -188,10 +188,10 @@ func (s *StreamingResultMethodServerStream) SendWithContext(ctx context.Context,
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -257,10 +257,10 @@ func (s *StreamingResultWithViewsMethodServerStream) SendWithContext(ctx context
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -322,7 +322,7 @@ func NewStreamingResultNoPayloadMethodHandler(
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	upgrader loomhttp.Upgrader,
-	configurer loomhttp.ConnConfigureFunc,
+	configurer loomhttp.WebSocketConfig,
 	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
 	var writePolicy loomhttp.StreamWritePolicy
@@ -342,12 +342,11 @@ func NewStreamingResultNoPayloadMethodHandler(
 		ctx, cancel = context.WithCancel(ctx)
 		v := &streamingresultnopayloadservice.StreamingResultNoPayloadMethodEndpointInput{
 			Stream: &StreamingResultNoPayloadMethodServerStream{
-				upgrader:   upgrader,
-				configurer: configurer,
-				cancel:     cancel,
-				w:          w,
-				r:          r,
-				conn:       loomhttp.NewWebSocketStream(nil, writePolicy),
+				upgrader: upgrader,
+				cancel:   cancel,
+				w:        w,
+				r:        r,
+				conn:     loomhttp.NewWebSocketStream(configurer, writePolicy),
 			},
 		}
 		_, err = endpoint(ctx, v)
@@ -383,14 +382,16 @@ func (c *Client) StreamingResultMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultService", "StreamingResultMethod", err)
 		}
-		if c.configurer.StreamingResultMethodFn != nil {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithCancel(ctx)
-			conn = c.configurer.StreamingResultMethodFn(conn, cancel)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultMethodConfig)
+		if err := wsconn.SetConn(conn, cancel); err != nil {
+			cancel()
+			return nil, loomhttp.ErrRequestError("StreamingResultService", "StreamingResultMethod", err)
 		}
-		wsconn := loomhttp.NewWebSocketStream(conn)
 		done := make(chan struct{})
 		go func() {
+			defer cancel()
 			select {
 			case <-ctx.Done():
 				if err := wsconn.WriteClose("client closing connection"); err != nil {
@@ -499,14 +500,16 @@ func (c *Client) StreamingResultWithViewsMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 		}
-		if c.configurer.StreamingResultWithViewsMethodFn != nil {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithCancel(ctx)
-			conn = c.configurer.StreamingResultWithViewsMethodFn(conn, cancel)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultWithViewsMethodConfig)
+		if err := wsconn.SetConn(conn, cancel); err != nil {
+			cancel()
+			return nil, loomhttp.ErrRequestError("StreamingResultWithViewsService", "StreamingResultWithViewsMethod", err)
 		}
-		wsconn := loomhttp.NewWebSocketStream(conn)
 		done := make(chan struct{})
 		go func() {
+			defer cancel()
 			select {
 			case <-ctx.Done():
 				if err := wsconn.WriteClose("client closing connection"); err != nil {
@@ -628,14 +631,16 @@ func (c *Client) StreamingResultWithExplicitViewMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 		}
-		if c.configurer.StreamingResultWithExplicitViewMethodFn != nil {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithCancel(ctx)
-			conn = c.configurer.StreamingResultWithExplicitViewMethodFn(conn, cancel)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultWithExplicitViewMethodConfig)
+		if err := wsconn.SetConn(conn, cancel); err != nil {
+			cancel()
+			return nil, loomhttp.ErrRequestError("StreamingResultWithExplicitViewService", "StreamingResultWithExplicitViewMethod", err)
 		}
-		wsconn := loomhttp.NewWebSocketStream(conn)
 		done := make(chan struct{})
 		go func() {
+			defer cancel()
 			select {
 			case <-ctx.Done():
 				if err := wsconn.WriteClose("client closing connection"); err != nil {
@@ -750,10 +755,10 @@ func (s *StreamingResultWithExplicitViewMethodServerStream) SendWithContext(ctx 
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -810,10 +815,10 @@ func (s *StreamingResultCollectionWithViewsMethodServerStream) SendWithContext(c
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -972,10 +977,10 @@ func (s *StreamingResultCollectionWithExplicitViewMethodServerStream) SendWithCo
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -1030,14 +1035,16 @@ func (c *Client) StreamingResultCollectionWithExplicitViewMethod() loom.Endpoint
 			}
 			return nil, loomhttp.ErrRequestError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 		}
-		if c.configurer.StreamingResultCollectionWithExplicitViewMethodFn != nil {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithCancel(ctx)
-			conn = c.configurer.StreamingResultCollectionWithExplicitViewMethodFn(conn, cancel)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingResultCollectionWithExplicitViewMethodConfig)
+		if err := wsconn.SetConn(conn, cancel); err != nil {
+			cancel()
+			return nil, loomhttp.ErrRequestError("StreamingResultCollectionWithExplicitViewService", "StreamingResultCollectionWithExplicitViewMethod", err)
 		}
-		wsconn := loomhttp.NewWebSocketStream(conn)
 		done := make(chan struct{})
 		go func() {
+			defer cancel()
 			select {
 			case <-ctx.Done():
 				if err := wsconn.WriteClose("client closing connection"); err != nil {
@@ -1151,10 +1158,10 @@ func (s *StreamingResultPrimitiveMethodServerStream) SendWithContext(ctx context
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
@@ -1260,10 +1267,10 @@ func (s *StreamingResultPrimitiveArrayMethodServerStream) SendWithContext(ctx co
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr

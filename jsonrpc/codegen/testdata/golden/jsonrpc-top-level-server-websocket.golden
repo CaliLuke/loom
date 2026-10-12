@@ -12,7 +12,7 @@ type Server struct {
 	encoder           func(context.Context, http.ResponseWriter) loomhttp.Encoder
 	errhandler        func(context.Context, http.ResponseWriter, error)
 	upgrader          loomhttp.Upgrader
-	configfn          loomhttp.ConnConfigureFunc
+	webSocketConfig   loomhttp.WebSocketConfig
 	streamWritePolicy loomhttp.StreamWritePolicy
 }
 
@@ -20,7 +20,7 @@ type Server struct {
 // "stream" service methods. An optional streamWritePolicy bounds each
 // server-stream network write and flush. Construct policies with
 // loomhttp.NewStreamWritePolicy.
-func New(streamHandler func(context.Context, streamsvc.Stream) error, endpoints *streamsvc.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), upgrader loomhttp.Upgrader, configfn loomhttp.ConnConfigureFunc, streamWritePolicies ...loomhttp.StreamWritePolicy) *Server {
+func New(streamHandler func(context.Context, streamsvc.Stream) error, endpoints *streamsvc.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), upgrader loomhttp.Upgrader, webSocketConfig loomhttp.WebSocketConfig, streamWritePolicies ...loomhttp.StreamWritePolicy) *Server {
 	var streamWritePolicy loomhttp.StreamWritePolicy
 	if len(streamWritePolicies) > 0 {
 		streamWritePolicy = streamWritePolicies[0]
@@ -28,7 +28,6 @@ func New(streamHandler func(context.Context, streamsvc.Stream) error, endpoints 
 	s := &Server{
 		Methods:           []string{"echo"},
 		StreamHandler:     streamHandler,
-		configfn:          configfn,
 		decoder:           decoder,
 		echo:              NewEchoHandler(endpoints.Echo, mux, decoder),
 		echoEndpoint:      endpoints.Echo,
@@ -36,6 +35,7 @@ func New(streamHandler func(context.Context, streamsvc.Stream) error, endpoints 
 		errhandler:        errhandler,
 		streamWritePolicy: streamWritePolicy,
 		upgrader:          upgrader,
+		webSocketConfig:   webSocketConfig,
 	}
 	// WebSocket services upgrade through the internal dispatcher
 	s.Handler = http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.serveHTTP))

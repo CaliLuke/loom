@@ -76,7 +76,7 @@ func TestServerStreamingClose(t *testing.T) {
 				}
 			}))
 			defer hs.Close()
-			c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+			c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 			defer func() {
 				if err := c.Close(); err != nil {
 					t.Errorf("close client: %v", err)

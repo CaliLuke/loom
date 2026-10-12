@@ -100,7 +100,7 @@ func jsonrpcExampleServerConfigureSource(httpServices, jsonrpcServices []jsonrpc
 			b.Add(", runtimeCORSPolicy")
 		}
 		if httpcodegen.HasWebSocket(svc.Data) {
-			b.Add(", upgrader, nil")
+			b.Add(", upgrader, loomhttp.WebSocketConfig{}")
 		}
 		b.Add(")\n")
 	}

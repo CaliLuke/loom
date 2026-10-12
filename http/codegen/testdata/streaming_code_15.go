@@ -11,7 +11,7 @@ func NewStreamingPayloadNoPayloadMethodHandler(
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	upgrader loomhttp.Upgrader,
-	configurer loomhttp.ConnConfigureFunc,
+	configurer loomhttp.WebSocketConfig,
 	streamWritePolicy ...loomhttp.StreamWritePolicy,
 ) http.Handler {
 	var writePolicy loomhttp.StreamWritePolicy
@@ -31,12 +31,11 @@ func NewStreamingPayloadNoPayloadMethodHandler(
 		ctx, cancel = context.WithCancel(ctx)
 		v := &streamingpayloadnopayloadservice.StreamingPayloadNoPayloadMethodEndpointInput{
 			Stream: &StreamingPayloadNoPayloadMethodServerStream{
-				upgrader:   upgrader,
-				configurer: configurer,
-				cancel:     cancel,
-				w:          w,
-				r:          r,
-				conn:       loomhttp.NewWebSocketStream(nil, writePolicy),
+				upgrader: upgrader,
+				cancel:   cancel,
+				w:        w,
+				r:        r,
+				conn:     loomhttp.NewWebSocketStream(configurer, writePolicy),
 			},
 		}
 		_, err = endpoint(ctx, v)

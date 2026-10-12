@@ -72,11 +72,12 @@ func websocketConnConfigurerStructSection(data *ServiceData, client bool) codege
 	}
 	return codegen.NewJenniferSection(prefix+"-websocket-conn-configurer-struct", func(stmt *jen.Statement) {
 		stmt.Line()
-		codegen.Doc(stmt, fmt.Sprintf("ConnConfigurer holds the websocket connection configurer functions for the streaming endpoints in %q service.", data.Service.Name))
+		codegen.Doc(stmt, fmt.Sprintf("ConnConfigurer holds the websocket connection configurations for the streaming endpoints in %q service.", data.Service.Name))
 		stmt.Type().Id("ConnConfigurer").StructFunc(func(group *jen.Group) {
 			for _, endpoint := range data.Endpoints {
 				if IsWebSocketEndpoint(endpoint) {
-					group.Id(endpoint.Method.VarName + "Fn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc"))
+					group.Comment(endpoint.Method.VarName + "Config defines the inbound message limit and connection hook.")
+					group.Id(endpoint.Method.VarName + "Config").Add(codegen.TypeRef("loomhttp.WebSocketConfig"))
 				}
 			}
 		})
@@ -91,17 +92,17 @@ func websocketConnConfigurerInitSection(data *ServiceData, client bool) codegen.
 	}
 	return codegen.NewJenniferSection(prefix+"-websocket-conn-configurer-struct-init", func(stmt *jen.Statement) {
 		stmt.Line()
-		codegen.Doc(stmt, fmt.Sprintf("NewConnConfigurer initializes the websocket connection configurer function with fn for all the streaming endpoints in %q service.", data.Service.Name))
+		codegen.Doc(stmt, fmt.Sprintf("NewConnConfigurer initializes the websocket connection configuration with config for all the streaming endpoints in %q service.", data.Service.Name))
 		stmt.Func().
 			Id("NewConnConfigurer").
-			Params(jen.Id("fn").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc"))).
+			Params(jen.Id("config").Add(codegen.TypeRef("loomhttp.WebSocketConfig"))).
 			Op("*").Id("ConnConfigurer").
 			BlockFunc(func(group *jen.Group) {
 				var b strings.Builder
 				b.WriteString("return &ConnConfigurer{\n")
 				for _, endpoint := range data.Endpoints {
 					if IsWebSocketEndpoint(endpoint) {
-						fmt.Fprintf(&b, "\t%sFn: fn,\n", endpoint.Method.VarName)
+						fmt.Fprintf(&b, "\t%sConfig: config,\n", endpoint.Method.VarName)
 					}
 				}
 				b.WriteString("}")
@@ -123,8 +124,6 @@ func websocketStructTypeSection(ws *WebSocketData) codegen.Section {
 				group.Id("upgradeErr").Error()
 				group.Comment("upgrader is the websocket connection upgrader.")
 				group.Id("upgrader").Add(codegen.TypeRef("loomhttp.Upgrader"))
-				group.Comment("configurer is the websocket connection configurer.")
-				group.Id("configurer").Add(codegen.TypeRef("loomhttp.ConnConfigureFunc"))
 				addWrappedGroupComment(group, "cancel is the context cancellation function which cancels the request context when invoked.")
 				group.Id("cancel").Qual("context", "CancelFunc")
 				group.Comment("w is the HTTP response writer used in upgrading the connection.")

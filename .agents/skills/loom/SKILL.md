@@ -834,6 +834,16 @@ requirement retain AND semantics.
   interface rather than adding parallel socket lifecycle code. `Close` is
   terminal, even before the lazy server upgrade: later `Send`/`Recv` return
   `loomhttp.ErrWebSocketStreamClosed`. Call `Recv` from one goroutine only.
+- HTTP and JSON-RPC WebSocket clients and servers limit each inbound message
+  to 32 MiB after decompression by default. Use
+  `loomhttp.NewWebSocketConfig(maxBytes, configure)` to choose the cap and hook;
+  zero config uses the default. Oversize messages close the connection with
+  code 1009 and a matchable `websocket.ErrReadLimit`. Regenerate adapters and
+  replace raw-hook constructor arguments with configs. HTTP uses generated
+  `NewConnConfigurer(config)` and per-method config fields; JSON-RPC passes the
+  config directly. A hook returning a replacement owns releasing the input
+  without invalidating its replacement. Direct runtime callers allocate with
+  `NewWebSocketStream(config)` then check `SetConn(conn, cancel)`.
 - A failed WebSocket connection read is terminal: later `Recv` calls return
   the same error, so return from the receive loop. A context canceled during a
   read closes the stream, so later calls return

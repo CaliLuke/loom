@@ -403,10 +403,10 @@ func TestSSEUnionResultRoundTrip(t *testing.T) {
 func TestWebSocketUnionResultRoundTrip(t *testing.T) {
 	svc := socketService{}
 	mux := loomhttp.NewMuxer()
-	socketserver.Mount(mux, socketserver.New(svc.HandleStream, socket.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	socketserver.Mount(mux, socketserver.New(svc.HandleStream, socket.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	defer hs.Close()
-	c := socketclient.NewClient("ws", host(hs), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+	c := socketclient.NewClient("ws", host(hs), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	raw, err := c.Talk()(ctx, nil)

@@ -312,10 +312,10 @@ func TestUnionStreamingPayloadRoundTrip(t *testing.T) {
 	svc := &service{seen: make(chan *picker.LeafOrOther, 8)}
 	mux := loomhttp.NewMuxer()
 	endpoints := picker.NewEndpoints(svc)
-	server.Mount(mux, server.New(svc.HandleStream, endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	server.Mount(mux, server.New(svc.HandleStream, endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	defer hs.Close()
-	c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+	c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 	defer func() {
 		if err := c.Close(); err != nil {
 			t.Errorf("close client: %v", err)

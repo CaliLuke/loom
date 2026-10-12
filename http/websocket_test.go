@@ -118,7 +118,7 @@ func TestWebSocketStreamCloseAfterContextCancellation(t *testing.T) {
 }
 
 func TestWebSocketStreamNilConnection(t *testing.T) {
-	stream := loomhttp.NewWebSocketStream(nil)
+	stream := loomhttp.NewWebSocketStream(loomhttp.WebSocketConfig{})
 	require.NoError(t, stream.Close())
 	require.NoError(t, stream.WriteClose("not upgraded"))
 
@@ -137,17 +137,17 @@ func TestWebSocketStreamCloseIsTerminal(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			stream := loomhttp.NewWebSocketStream(nil)
+			stream := loomhttp.NewWebSocketStream(loomhttp.WebSocketConfig{})
 			if tc.attachFirst {
 				first, cleanup := newIdleWebSocketConn(t)
 				defer cleanup()
-				stream.SetConn(first)
+				require.NoError(t, stream.SetConn(first, nil))
 			}
 			require.NoError(t, stream.Close())
 
 			late, cleanup := newIdleWebSocketConn(t)
 			defer cleanup()
-			stream.SetConn(late)
+			require.ErrorIs(t, stream.SetConn(late, nil), loomhttp.ErrWebSocketStreamClosed)
 
 			require.Same(t, late, stream.Conn(), "SetConn after Close must still expose the upgraded connection")
 			require.ErrorIs(t, late.ReadJSON(new(map[string]string)), net.ErrClosed, "SetConn after Close must close the incoming connection")
@@ -187,7 +187,7 @@ func TestWebSocketStreamReadMessage(t *testing.T) {
 	if resp != nil && resp.Body != nil {
 		require.NoError(t, resp.Body.Close())
 	}
-	stream := loomhttp.NewWebSocketStream(conn)
+	stream := newConfiguredWebSocketStream(t, conn)
 	defer func() {
 		require.NoError(t, stream.Close())
 	}()
@@ -205,7 +205,7 @@ func TestWebSocketStreamReadMessage(t *testing.T) {
 func TestWebSocketStreamFailedReadIsTerminal(t *testing.T) {
 	conn, cleanup := newIdleWebSocketConn(t)
 	defer cleanup()
-	stream := loomhttp.NewWebSocketStream(conn)
+	stream := newConfiguredWebSocketStream(t, conn)
 	defer func() {
 		require.NoError(t, stream.Close())
 	}()
@@ -227,7 +227,7 @@ func TestWebSocketStreamFailedReadIsTerminal(t *testing.T) {
 func TestWebSocketStreamFailedReadJSONIsTerminal(t *testing.T) {
 	conn, cleanup := newIdleWebSocketConn(t)
 	defer cleanup()
-	stream := loomhttp.NewWebSocketStream(conn)
+	stream := newConfiguredWebSocketStream(t, conn)
 	defer func() {
 		require.NoError(t, stream.Close())
 	}()
@@ -301,7 +301,7 @@ func TestWebSocketStreamReadJSONDecodeErrorIsNotTerminal(t *testing.T) {
 	if resp != nil && resp.Body != nil {
 		require.NoError(t, resp.Body.Close())
 	}
-	stream := loomhttp.NewWebSocketStream(conn)
+	stream := newConfiguredWebSocketStream(t, conn)
 	defer func() {
 		require.NoError(t, stream.Close())
 	}()
@@ -351,7 +351,7 @@ func TestWebSocketStreamBoundsBlockedWrite(t *testing.T) {
 			result <- bufferErr
 			return
 		}
-		stream := loomhttp.NewWebSocketStream(conn, policy)
+		stream := newConfiguredWebSocketStream(t, conn, policy)
 		result <- stream.WriteJSON(context.Background(), bytes.Repeat([]byte("x"), 1<<20))
 	}))
 	defer server.Close()
@@ -380,7 +380,7 @@ func newIdleWebSocketStream(t *testing.T) (*loomhttp.WebSocketStream, func()) {
 	t.Helper()
 
 	conn, cleanup := newIdleWebSocketConn(t)
-	return loomhttp.NewWebSocketStream(conn), cleanup
+	return newConfiguredWebSocketStream(t, conn), cleanup
 }
 
 func newIdleWebSocketConn(t *testing.T) (*websocket.Conn, func()) {
@@ -405,4 +405,11 @@ func newIdleWebSocketConn(t *testing.T) (*websocket.Conn, func()) {
 		require.NoError(t, resp.Body.Close())
 	}
 	return conn, server.Close
+}
+
+func newConfiguredWebSocketStream(t *testing.T, conn *websocket.Conn, policies ...loomhttp.StreamWritePolicy) *loomhttp.WebSocketStream {
+	t.Helper()
+	stream := loomhttp.NewWebSocketStream(loomhttp.WebSocketConfig{}, policies...)
+	require.NoError(t, stream.SetConn(conn, nil))
+	return stream
 }

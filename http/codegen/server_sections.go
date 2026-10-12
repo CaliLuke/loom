@@ -134,7 +134,7 @@ func renderServerInitBody(data *ServiceData) string {
 		}
 		b.WriteString(", encoder, errhandler, formatter")
 		if IsWebSocketEndpoint(endpoint) {
-			fmt.Fprintf(&b, ", upgrader, configurer.%sFn", endpoint.Method.VarName)
+			fmt.Fprintf(&b, ", upgrader, configurer.%sConfig", endpoint.Method.VarName)
 		}
 		if IsWebSocketEndpoint(endpoint) || IsSSEEndpoint(endpoint) {
 			b.WriteString(", streamWritePolicy...")

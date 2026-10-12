@@ -44,7 +44,7 @@ func TestJSONRPCWebSocketUsesSharedRuntimeStream(t *testing.T) {
 	// The client wraps each dialed connection once in the runtime
 	// demultiplexer, and every stream takes a reference on it.
 	require.Contains(t, clientEndpointCode, "conn   *jsonrpc.WebSocketClientConn")
-	require.Contains(t, clientEndpointCode, "jsonrpc.NewWebSocketClientConn(loomhttp.NewWebSocketStream(ws), c.streamConfig.ErrorHandler)")
+	require.Contains(t, clientEndpointCode, "jsonrpc.NewWebSocketClientConn(stream, c.streamConfig.ErrorHandler)")
 	require.Contains(t, clientEndpointCode, "c.conn != nil && c.conn.Acquire()")
 	require.Contains(t, clientEndpointCode, "if c.closed.Load() {")
 	require.Contains(t, clientEndpointCode, `loomhttp.ErrRequestError("JSONRPCWebSocketRuntimeService", "connect", jsonrpc.ErrWebSocketClientConnClosed)`)
@@ -54,7 +54,8 @@ func TestJSONRPCWebSocketUsesSharedRuntimeStream(t *testing.T) {
 	require.Equal(t, 1, strings.Count(clientEndpointCode, "NewWebSocketStream("))
 	// A configure function returning nil must not leave a wrapper around a nil
 	// connection for the next getConn to ping.
-	require.Contains(t, clientEndpointCode, "if configured == nil {")
+	require.Contains(t, clientEndpointCode, "stream.SetConn(ws, nil)")
+	require.NotContains(t, clientEndpointCode, "if configured == nil {")
 }
 
 func renderedJSONRPCWebSocketFile(t *testing.T, files []*codegen.File, side string) string {

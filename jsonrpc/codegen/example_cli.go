@@ -19,9 +19,10 @@ func ExampleCLIFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.F
 
 func exampleCLI(genpkg string, data *httpcodegen.ServicesData, svr *expr.ServerExpr) *codegen.File {
 	return httpcodegen.ExampleCLIForTransport(genpkg, svr, data, httpcodegen.ExampleCLITransport{
-		PathName:     "jsonrpc",
-		Filename:     "jsonrpc.go",
-		FunctionName: "doJSONRPC",
-		UsagePrefix:  "jsonrpc",
+		PathName:               "jsonrpc",
+		Filename:               "jsonrpc.go",
+		FunctionName:           "doJSONRPC",
+		UsagePrefix:            "jsonrpc",
+		StreamingConfigDefault: "loomhttp.WebSocketConfig{}",
 	})
 }

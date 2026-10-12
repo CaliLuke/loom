@@ -937,6 +937,42 @@ Code that owns a raw `loomhttp.WebSocketStream` can call
 error it returns is a connection, close, or context failure, and it follows
 the same terminal-read rule.
 
+Inbound HTTP and JSON-RPC WebSocket messages have a default 32 MiB limit,
+matching `loomhttp.DefaultMaxRequestBodyBytes`. The limit includes expanded
+bytes after decompression. A violation rejects the complete message, sends close
+code 1009, releases the connection, and returns an error wrapping
+`websocket.ErrReadLimit`. This applies to both clients and servers.
+
+Set the policy once for each physical connection:
+
+```go
+config, err := loomhttp.NewWebSocketConfig(8 << 20, configure)
+if err != nil {
+    return err
+}
+```
+
+The optional `configure` hook has type `loomhttp.ConnConfigureFunc`; pass `nil`
+when no hook is needed. A zero `loomhttp.WebSocketConfig{}` selects the default.
+Generated HTTP `NewConnConfigurer(config)` applies it to every streaming
+endpoint; individual `<Method>Config` fields can select different policies.
+JSON-RPC client and server constructors accept the config in the former raw
+configure-function argument position. A shared JSON-RPC client keeps this
+policy for its physical connection across calls. Regenerate transport code and
+update constructor calls when adopting this API.
+
+The runtime installs its framing limit before invoking the hook. A hook may
+lower that limit; increasing it does not bypass the expanded-byte limit. If the
+hook returns a different connection, it must release the input without
+invalidating the returned connection and configure the replacement's framing
+limit. Returning `nil` fails attachment and closes the input.
+
+For direct runtime use, allocate `NewWebSocketStream(config)` and then call
+`SetConn(conn, cancel)`, checking its error. Attachment is the sole configuration
+path. Reattaching the same connection does nothing; attaching another while a
+connection is owned rejects and closes the incoming connection. A connection
+attached after terminal close is closed immediately without invoking the hook.
+
 Generated HTTP and JSON-RPC server constructors accept an optional final
 `loomhttp.StreamWritePolicy`. Constructing the policy validates the timeout;
 each WebSocket write installs a fresh deadline and clears it afterward.

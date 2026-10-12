@@ -599,6 +599,13 @@ request ID would violate the notification contract.
 
 ### WebSocket: Bidirectional Streaming
 
+Both peers apply a 32 MiB inbound message limit, including bytes expanded by
+compression. Configure a physical connection with `loomhttp.WebSocketConfig` in
+the generated client or server constructor's connection-configuration argument.
+A shared client uses that configuration across its logical streams. See the
+[WebSocket configuration contract](../docs/http-guide.md#websocket-implementation)
+for custom limits, hook ownership, close code 1009, and regeneration steps.
+
 Full-duplex, persistent connections for real-time communication. Ideal for:
 - Chat applications
 - Collaborative editing

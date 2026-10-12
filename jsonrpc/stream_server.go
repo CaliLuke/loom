@@ -67,8 +67,8 @@ type (
 	WebSocketHandlerSpec struct {
 		// Upgrader upgrades the HTTP connection.
 		Upgrader loomhttp.Upgrader
-		// Configure optionally configures the upgraded connection.
-		Configure loomhttp.ConnConfigureFunc
+		// Config defines the message limit and hook for the upgraded connection.
+		Config loomhttp.WebSocketConfig
 		// WritePolicy bounds WebSocket writes.
 		WritePolicy loomhttp.StreamWritePolicy
 		// Run constructs and runs the generated typed service stream.
@@ -168,10 +168,11 @@ func ServeWebSocket(w http.ResponseWriter, r *http.Request, spec WebSocketHandle
 		handleHTTPFailure(r.Context(), w, spec.HandleFailure, fmt.Errorf("failed to upgrade to WebSocket: %w", err))
 		return
 	}
-	if spec.Configure != nil {
-		conn = spec.Configure(conn, cancel)
+	stream := loomhttp.NewWebSocketStream(spec.Config, spec.WritePolicy)
+	if err := stream.SetConn(conn, cancel); err != nil {
+		handleHTTPFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to configure WebSocket: %w", err))
+		return
 	}
-	stream := loomhttp.NewWebSocketStream(conn, spec.WritePolicy)
 	defer func() {
 		if closeErr := stream.Close(); closeErr != nil {
 			handleHTTPFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to close WebSocket: %w", closeErr))

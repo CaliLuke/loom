@@ -34,7 +34,7 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 					jen.Id("r"),
 					codegen.TypeRef("jsonrpc.WebSocketHandlerSpec").Values(jen.Dict{
 						jen.Id("Upgrader"):      jen.Id("s").Dot("upgrader"),
-						jen.Id("Configure"):     jen.Id("s").Dot("configfn"),
+						jen.Id("Config"):        jen.Id("s").Dot("webSocketConfig"),
 						jen.Id("WritePolicy"):   jen.Id("s").Dot("streamWritePolicy"),
 						jen.Id("HandleFailure"): jen.Id("s").Dot("errhandler"),
 						jen.Id("Run"): jen.Func().Params(

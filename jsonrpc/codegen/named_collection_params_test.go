@@ -155,10 +155,10 @@ func TestStreamParams(t *testing.T) {
 	defer cancel()
 	mux := loomhttp.NewMuxer()
 	svc := streamService{}
-	streamserver.Mount(mux, streamserver.New(svc.HandleStream, stream.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, nil))
+	streamserver.Mount(mux, streamserver.New(svc.HandleStream, stream.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
 	hs := httptest.NewServer(mux)
 	defer hs.Close()
-	c := streamclient.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+	c := streamclient.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 	defer func() {
 		if err := c.Close(); err != nil {
 			t.Errorf("close client: %v", err)

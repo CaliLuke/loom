@@ -76,7 +76,7 @@ func TestIDBeforeViewValidation(t *testing.T) {
 				defer hs.Close()
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), nil, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
+				c := client.NewClient("ws", strings.TrimPrefix(hs.URL, "http://"), nil, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
 				defer func() {
 					require.NoError(t, c.Close())
 				}()

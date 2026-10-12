@@ -33,7 +33,7 @@ func {{ .HandlerInit }}(
 	formatter func(ctx context.Context, err error) loomhttp.StatusCoder,
 	{{- if isWebSocketEndpoint . }}
 	upgrader loomhttp.Upgrader,
-	configurer loomhttp.ConnConfigureFunc,
+	configurer loomhttp.WebSocketConfig,
 	{{- end }}
 	{{- if or (isWebSocketEndpoint .) (isSSEEndpoint .) }}
 	streamWritePolicy ...loomhttp.StreamWritePolicy,
@@ -193,11 +193,10 @@ func {{ .HandlerInit }}(
 		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 			Stream: &{{ .ServerWebSocket.VarName }}{
 				upgrader: upgrader,
-				configurer: configurer,
 				cancel: cancel,
 				w: w,
 				r: r,
-				conn: loomhttp.NewWebSocketStream(nil, writePolicy),
+				conn: loomhttp.NewWebSocketStream(configurer, writePolicy),
 			},
 		{{- if .Payload.Ref }}
 			Payload: payload,

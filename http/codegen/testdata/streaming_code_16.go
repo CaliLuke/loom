@@ -19,10 +19,10 @@ func (c *Client) StreamingPayloadNoPayloadMethod() loom.Endpoint {
 			}
 			return nil, loomhttp.ErrRequestError("StreamingPayloadNoPayloadService", "StreamingPayloadNoPayloadMethod", err)
 		}
-		if c.configurer.StreamingPayloadNoPayloadMethodFn != nil {
-			conn = c.configurer.StreamingPayloadNoPayloadMethodFn(conn, nil)
+		wsconn := loomhttp.NewWebSocketStream(c.configurer.StreamingPayloadNoPayloadMethodConfig)
+		if err := wsconn.SetConn(conn, nil); err != nil {
+			return nil, loomhttp.ErrRequestError("StreamingPayloadNoPayloadService", "StreamingPayloadNoPayloadMethod", err)
 		}
-		wsconn := loomhttp.NewWebSocketStream(conn)
 		stream := &StreamingPayloadNoPayloadMethodClientStream{conn: wsconn}
 		return stream, nil
 	}

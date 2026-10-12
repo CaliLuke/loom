@@ -19,10 +19,11 @@ import (
 	"unicode/utf8"
 )
 
-// ConnConfigurer holds the websocket connection configurer functions for the
+// ConnConfigurer holds the websocket connection configurations for the
 // streaming endpoints in "TestService" service.
 type ConnConfigurer struct {
-	NoPayloadStreamFn loomhttp.ConnConfigureFunc
+	// NoPayloadStreamConfig defines the inbound message limit and connection hook.
+	NoPayloadStreamConfig loomhttp.WebSocketConfig
 }
 
 // NoPayloadStreamServerStream implements the
@@ -33,8 +34,6 @@ type NoPayloadStreamServerStream struct {
 	upgradeErr error
 	// upgrader is the websocket connection upgrader.
 	upgrader loomhttp.Upgrader
-	// configurer is the websocket connection configurer.
-	configurer loomhttp.ConnConfigureFunc
 	// cancel is the context cancellation function which cancels the request
 	// context when invoked.
 	cancel context.CancelFunc
@@ -46,11 +45,11 @@ type NoPayloadStreamServerStream struct {
 	conn *loomhttp.WebSocketStream
 }
 
-// NewConnConfigurer initializes the websocket connection configurer function
-// with fn for all the streaming endpoints in "TestService" service.
-func NewConnConfigurer(fn loomhttp.ConnConfigureFunc) *ConnConfigurer {
+// NewConnConfigurer initializes the websocket connection configuration with
+// config for all the streaming endpoints in "TestService" service.
+func NewConnConfigurer(config loomhttp.WebSocketConfig) *ConnConfigurer {
 	return &ConnConfigurer{
-		NoPayloadStreamFn: fn,
+		NoPayloadStreamConfig: config,
 	}
 }
 
@@ -72,10 +71,10 @@ func (s *NoPayloadStreamServerStream) SendWithContext(ctx context.Context, v str
 				s.upgradeErr = err
 				return
 			}
-			if s.configurer != nil {
-				conn = s.configurer(conn, s.cancel)
+			if err = s.conn.SetConn(conn, s.cancel); err != nil {
+				s.upgradeErr = err
+				return
 			}
-			s.conn.SetConn(conn)
 			if err = ctx.Err(); err != nil {
 				if closeErr := s.conn.Close(); closeErr != nil {
 					s.upgradeErr = closeErr
