@@ -95,6 +95,7 @@ var EndpointsWithRequirementsDSL = func() {
 			})
 			HTTP(func() {
 				POST("/")
+				Header("token:X-Token")
 			})
 		})
 	})
