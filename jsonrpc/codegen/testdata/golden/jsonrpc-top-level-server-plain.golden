@@ -12,7 +12,7 @@ type Server struct {
 }
 
 // New creates a JSON-RPC server which loads HTTP requests and calls the "calc"
-// service methods.
+// service methods. The errhandler callback is optional and may be nil.
 func New(endpoints *calc.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
 	s := &Server{
 		Add:        NewAddHandler(endpoints.Add, mux, decoder, encoder, errhandler),

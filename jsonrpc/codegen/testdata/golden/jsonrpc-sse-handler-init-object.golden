@@ -1,5 +1,6 @@
 // NewStreamHandler creates a JSON-RPC handler which calls the
-// "JSONRPCSSEObjectService" service "Stream" endpoint.
+// "JSONRPCSSEObjectService" service "Stream" endpoint. The errhandler callback
+// is optional and may be nil.
 func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeStreamRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {

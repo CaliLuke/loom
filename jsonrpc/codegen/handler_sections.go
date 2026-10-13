@@ -68,6 +68,9 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 func jsonrpcServerHandlerInitSection(e *httpcodegen.EndpointData) codegen.Section {
 	return codegen.NewJenniferSection("jsonrpc-server-handler-init", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s creates a JSON-RPC handler which calls the %q service %q endpoint.", e.HandlerInit, e.ServiceName, e.Method.Name)
+		if !httpcodegen.IsWebSocketEndpoint(e) {
+			comment += " The errhandler callback is optional and may be nil."
+		}
 		codegen.Doc(stmt, comment)
 		stmt.Func().Id(e.HandlerInit).
 			Params(jsonrpcHandlerInitParams(e)...).
@@ -334,9 +337,10 @@ func writeJSONRPCParamsDecode(g *jen.Group, e *httpcodegen.EndpointData) {
 				jen.Id("errhandler"),
 			),
 		).Else().Block(
-			jen.Id("errhandler").Call(
+			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
+				jen.Id("errhandler"),
 				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to decode parameters: %w"), jen.Id("err")),
 			),
 		)
@@ -381,9 +385,10 @@ func writeJSONRPCEndpointErrorHandling(g *jen.Group, e *httpcodegen.EndpointData
 				sg.Default().BlockFunc(writeJSONRPCDefaultEndpointError)
 			})
 		}).Else().Block(
-			jen.Id("errhandler").Call(
+			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
+				jen.Id("errhandler"),
 				jen.Qual("fmt", "Errorf").Call(jen.Lit("endpoint error: %w"), jen.Id("err")),
 			),
 		)
@@ -462,9 +467,10 @@ func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Err().Op("!=").Nil(),
 		).Block(
 			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
-			jen.Id("errhandler").Call(
+			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
+				jen.Id("errhandler"),
 				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode transport response: %w"), jen.Err()),
 			),
 			jen.Return(jen.Nil()),
@@ -476,9 +482,10 @@ func writeJSONRPCNoResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 		jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
 		jen.Err().Op("!=").Nil(),
 	).Block(
-		jen.Id("errhandler").Call(
+		jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
 			jen.Id("ctx"),
 			jen.Id("w"),
+			jen.Id("errhandler"),
 			jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
 		),
 	)
@@ -500,9 +507,10 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Err().Op("!=").Nil(),
 		).Block(
 			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
-			jen.Id("errhandler").Call(
+			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
+				jen.Id("errhandler"),
 				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode transport response: %w"), jen.Err()),
 			),
 			jen.Return(jen.Nil()),
@@ -518,9 +526,10 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 			jen.Err().Op("!=").Nil(),
 		).Block(
 			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
-			jen.Id("errhandler").Call(
+			jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
 				jen.Id("ctx"),
 				jen.Id("w"),
+				jen.Id("errhandler"),
 				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
 			),
 		)
@@ -543,9 +552,10 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 		jen.Err().Op("!=").Nil(),
 	).Block(
 		loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
-		jen.Id("errhandler").Call(
+		jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
 			jen.Id("ctx"),
 			jen.Id("w"),
+			jen.Id("errhandler"),
 			jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
 		),
 	)

@@ -13,6 +13,7 @@ import (
 func jsonrpcServerInitSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
 	return codegen.NewJenniferSection("jsonrpc-server-init", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s creates a JSON-RPC server which loads HTTP requests and calls the %q service methods.", data.ServerInit, data.Service.Name)
+		comment += " The errhandler callback is optional and may be nil."
 		if hasJSONRPCServerStream(data) {
 			comment += " An optional streamWritePolicy bounds each server-stream network write and flush. Construct policies with loomhttp.NewStreamWritePolicy."
 		}

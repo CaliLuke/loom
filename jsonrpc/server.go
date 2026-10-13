@@ -40,7 +40,7 @@ type (
 		// Dispatch calls the generated typed method adapter.
 		Dispatch HTTPDispatch
 		// HandleFailure receives transport failures that cannot become JSON-RPC
-		// responses.
+		// responses. It is optional and may be nil.
 		HandleFailure func(context.Context, http.ResponseWriter, error)
 	}
 
@@ -96,15 +96,15 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request, spec HTTPHandlerSpec) {
 	if err != nil {
 		observer.Fail(loomtransport.ReasonRequestDecodeFailed)
 		if closeErr := r.Body.Close(); closeErr != nil {
-			handleHTTPFailure(ctx, observedWriter, spec.HandleFailure, fmt.Errorf("failed to close request body: %w", closeErr))
+			ReportFailure(ctx, observedWriter, spec.HandleFailure, fmt.Errorf("failed to close request body: %w", closeErr))
 		}
-		handleHTTPFailure(ctx, observedWriter, spec.HandleFailure, fmt.Errorf("failed to read request body: %w", err))
+		ReportFailure(ctx, observedWriter, spec.HandleFailure, fmt.Errorf("failed to read request body: %w", err))
 		return
 	}
 	r.Body = &requestBody{Reader: buffered, Closer: r.Body}
 	defer func() {
 		if closeErr := r.Body.Close(); closeErr != nil {
-			handleHTTPFailure(ctx, observedWriter, spec.HandleFailure, fmt.Errorf("failed to close request body: %w", closeErr))
+			ReportFailure(ctx, observedWriter, spec.HandleFailure, fmt.Errorf("failed to close request body: %w", closeErr))
 		}
 	}()
 
@@ -135,6 +135,20 @@ func CodeForServiceError(err *loom.ServiceError) Code {
 		return InvalidParams
 	default:
 		return InternalError
+	}
+}
+
+// ReportFailure invokes an optional server diagnostic callback synchronously.
+// A nil callback is a no-op. A provided callback receives ctx, w and err unchanged;
+// ReportFailure neither writes a response nor recovers callback panics.
+func ReportFailure(
+	ctx context.Context,
+	w http.ResponseWriter,
+	handleFailure func(context.Context, http.ResponseWriter, error),
+	err error,
+) {
+	if handleFailure != nil {
+		handleFailure(ctx, w, err)
 	}
 }
 
@@ -209,7 +223,7 @@ func handleBatch(
 	}
 	if err := writer.Close(); err != nil {
 		observer.Fail(loomtransport.ReasonResponseWriteFailed)
-		handleHTTPFailure(ctx, w, spec.HandleFailure, err)
+		ReportFailure(ctx, w, spec.HandleFailure, err)
 	}
 }
 
@@ -265,7 +279,7 @@ func processRequest(
 	matched, err := spec.Dispatch(ctx, r, request, dispatchWriter)
 	if err != nil {
 		observer.Fail(loomtransport.ReasonHandlerError)
-		handleHTTPFailure(ctx, dispatchWriter, spec.HandleFailure, fmt.Errorf("handler error for %s: %w", request.Method, err))
+		ReportFailure(ctx, dispatchWriter, spec.HandleFailure, fmt.Errorf("handler error for %s: %w", request.Method, err))
 		return
 	}
 	if !matched {
@@ -302,7 +316,7 @@ func encodeJSONRPCResponse(
 ) {
 	if err := spec.Encoder(ctx, w).Encode(response); err != nil {
 		observer.Fail(loomtransport.ReasonResponseWriteFailed)
-		handleHTTPFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
+		ReportFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 	}
 }
 
@@ -322,17 +336,6 @@ func invalidRequest(request *RawRequest) (loomtransport.Reason, string) {
 		return loomtransport.ReasonInvalidJSONRPCMethod, "Missing method field"
 	}
 	return loomtransport.ReasonOK, ""
-}
-
-func handleHTTPFailure(
-	ctx context.Context,
-	w http.ResponseWriter,
-	handleFailure func(context.Context, http.ResponseWriter, error),
-	err error,
-) {
-	if handleFailure != nil {
-		handleFailure(ctx, w, err)
-	}
 }
 
 // writeItem appends the response buffered for request to the batch. A request

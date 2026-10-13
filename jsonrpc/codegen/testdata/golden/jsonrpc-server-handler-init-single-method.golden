@@ -1,5 +1,5 @@
 // NewAddHandler creates a JSON-RPC handler which calls the "calc" service
-// "add" endpoint.
+// "add" endpoint. The errhandler callback is optional and may be nil.
 func NewAddHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeAddRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
@@ -17,7 +17,7 @@ func NewAddHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*htt
 				}
 				encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 			} else {
-				errhandler(ctx, w, fmt.Errorf("failed to decode parameters: %w", err))
+				jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("failed to decode parameters: %w", err))
 			}
 			return nil
 		}
@@ -49,7 +49,7 @@ func NewAddHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*htt
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				}
 			} else {
-				errhandler(ctx, w, fmt.Errorf("endpoint error: %w", err))
+				jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("endpoint error: %w", err))
 			}
 			return nil
 		}
@@ -67,7 +67,7 @@ func NewAddHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*htt
 		response := jsonrpc.MakeSuccessResponse(id, body)
 		if err := encoder(ctx, w).Encode(response); err != nil {
 			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonResponseWriteFailed)
-			errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
+			jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 		}
 		return nil
 	}

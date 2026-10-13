@@ -1,0 +1,166 @@
+package optionalreport_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	server "example.com/optionalreport/gen/jsonrpc/probe/server"
+	probe "example.com/optionalreport/gen/probe"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/stretchr/testify/require"
+)
+
+type (
+	failureEncoder struct {
+		err error
+	}
+	failureContextKey struct {
+	}
+)
+
+func TestOptionalFailureReporting(t *testing.T) {
+	for _, entry := range []string{"mounted", "direct"} {
+		for _, provided := range []bool{false, true} {
+			for _, mode := range []string{"decode-notification", "endpoint-notification", "decode-request", "endpoint-request", "result-encode", "empty-encode", "error-encode", "capture-encode", "capture-envelope-encode", "success"} {
+				name := entry + "/nil/" + mode
+				if provided {
+					name = entry + "/provided/" + mode
+				}
+				t.Run(name, func(t *testing.T) {
+					calls, reports, encodes := 0, 0, 0
+					cause := errors.New("private source error")
+					method := "call"
+					if mode == "empty-encode" {
+						method = "nothing"
+					}
+					if strings.HasPrefix(mode, "capture-") {
+						method = "captured"
+					}
+					endpoint := func(context.Context, any) (any, error) {
+						calls++
+						if strings.HasPrefix(mode, "endpoint-") || mode == "error-encode" {
+							return nil, cause
+						}
+						if method == "captured" {
+							return &probe.CapturedResult{Value: "ok", Header: "header"}, nil
+						}
+						if method == "nothing" {
+							return nil, nil
+						}
+						return "ok", nil
+					}
+					encoder := func(ctx context.Context, w http.ResponseWriter) loomhttp.Encoder {
+						encodes++
+						if strings.HasSuffix(mode, "encode") && (mode != "capture-envelope-encode" || encodes == 2) {
+							return failureEncoder{err: cause}
+						}
+						return loomhttp.ResponseEncoder(ctx, w)
+					}
+					response := httptest.NewRecorder()
+					var handler func(context.Context, http.ResponseWriter, error)
+					if provided {
+						handler = func(ctx context.Context, w http.ResponseWriter, err error) {
+							reports++
+							require.Equal(t, "marker", ctx.Value(failureContextKey{}))
+							if strings.HasPrefix(mode, "decode-") {
+								var validation *loom.ServiceError
+								require.ErrorAs(t, err, &validation)
+							} else {
+								require.ErrorIs(t, err, cause)
+							}
+							if entry == "direct" {
+								require.Same(t, response, w)
+							} else if strings.HasSuffix(mode, "notification") {
+								_, writeErr := w.Write([]byte("diagnostic callback output"))
+								require.NoError(t, writeErr)
+							}
+						}
+					}
+					id := `,"id":"one"`
+					if strings.HasSuffix(mode, "notification") {
+						id = ""
+					}
+					params := `{"value":"ok"}`
+					if strings.HasPrefix(mode, "decode-") {
+						params = `{}`
+					}
+					body := `{"jsonrpc":"2.0","method":"` + method + `","params":` + params + id + `}`
+					request := httptest.NewRequest(http.MethodPost, "/rpc", strings.NewReader(body))
+					request = request.WithContext(context.WithValue(request.Context(), failureContextKey{}, "marker"))
+					request.Header.Set("Content-Type", "application/json")
+					request.Header.Set("Accept", "application/json")
+					mux := loomhttp.NewMuxer()
+					require.NotPanics(t, func() {
+						if entry == "mounted" {
+							endpoints := &probe.Endpoints{Call: endpoint, Nothing: endpoint, Captured: endpoint}
+							server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, encoder, handler))
+							mux.ServeHTTP(response, request)
+							return
+						}
+						var raw jsonrpc.RawRequest
+						require.NoError(t, json.Unmarshal([]byte(body), &raw))
+						var dispatch func(context.Context, *http.Request, *jsonrpc.RawRequest, http.ResponseWriter) error
+						switch method {
+						case "call":
+							dispatch = server.NewCallHandler(endpoint, mux, loomhttp.RequestDecoder, encoder, handler)
+						case "nothing":
+							dispatch = server.NewNothingHandler(endpoint, mux, loomhttp.RequestDecoder, encoder, handler)
+						case "captured":
+							dispatch = server.NewCapturedHandler(endpoint, mux, loomhttp.RequestDecoder, encoder, handler)
+						}
+						require.NoError(t, dispatch(request.Context(), request, &raw, response))
+					})
+					wantCalls := 1
+					if strings.HasPrefix(mode, "decode-") {
+						wantCalls = 0
+					}
+					require.Equal(t, wantCalls, calls)
+					wantReports := 0
+					if provided && mode != "decode-request" && mode != "endpoint-request" && mode != "success" {
+						wantReports = 1
+					}
+					require.Equal(t, wantReports, reports)
+					require.Equal(t, http.StatusOK, response.Code)
+					if strings.HasSuffix(mode, "notification") || strings.HasSuffix(mode, "encode") {
+						require.Empty(t, response.Body.String())
+						return
+					}
+					var envelope struct {
+						ID    string `json:"id"`
+						Error *struct {
+							Code    int    `json:"code"`
+							Message string `json:"message"`
+						} `json:"error"`
+						Result string `json:"result"`
+					}
+					require.NoError(t, json.Unmarshal(response.Body.Bytes(), &envelope))
+					require.Equal(t, "one", envelope.ID)
+					if mode == "success" {
+						require.Nil(t, envelope.Error)
+						require.Equal(t, "ok", envelope.Result)
+					} else {
+						require.NotNil(t, envelope.Error)
+						want := -32603
+						if mode == "decode-request" {
+							want = -32602
+						}
+						require.Equal(t, want, envelope.Error.Code)
+						require.NotEmpty(t, envelope.Error.Message)
+						require.NotContains(t, response.Body.String(), cause.Error())
+					}
+				})
+			}
+		}
+	}
+}
+
+func (e failureEncoder) Encode(any) error {
+	return e.err
+}

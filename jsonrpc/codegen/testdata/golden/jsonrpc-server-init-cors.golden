@@ -1,5 +1,6 @@
 // New creates a JSON-RPC server which loads HTTP requests and calls the
-// "JSONRPCCORS" service methods.
+// "JSONRPCCORS" service methods. The errhandler callback is optional and may
+// be nil.
 func New(endpoints *jsonrpccors.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) *Server {
 	s := &Server{
 		Call:       NewCallHandler(endpoints.Call, mux, decoder, encoder, errhandler),

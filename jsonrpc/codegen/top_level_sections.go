@@ -395,9 +395,10 @@ func writeJSONRPCEncodeErrorFunction(stmt *jen.Statement) {
 				jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
 				jen.Err().Op("!=").Nil(),
 			).Block(
-				jen.Id("errhandler").Call(
+				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "ReportFailure").Call(
 					jen.Id("ctx"),
 					jen.Id("w"),
+					jen.Id("errhandler"),
 					jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
 				),
 			),

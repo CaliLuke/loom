@@ -47,7 +47,7 @@ type (
 		Dispatch SSEDispatch
 		// SendError writes one protocol error event.
 		SendError SSEErrorSender
-		// HandleFailure receives transport failures.
+		// HandleFailure receives transport failures. It is optional and may be nil.
 		HandleFailure func(context.Context, http.ResponseWriter, error)
 	}
 
@@ -73,7 +73,7 @@ type (
 		WritePolicy loomhttp.StreamWritePolicy
 		// Run constructs and runs the generated typed service stream.
 		Run func(context.Context, context.CancelFunc, *http.Request, http.ResponseWriter, *loomhttp.WebSocketStream) error
-		// HandleFailure receives upgrade, stream, and close failures.
+		// HandleFailure receives upgrade, stream, and close failures. It may be nil.
 		HandleFailure func(context.Context, http.ResponseWriter, error)
 	}
 
@@ -102,7 +102,7 @@ func ServeSSE(w http.ResponseWriter, r *http.Request, spec SSEHandlerSpec) {
 		observer.Fail(loomtransport.ReasonInvalidJSONRPCEnvelope)
 		code, message, data := envelopeDecodeError(err)
 		if sendErr := spec.SendError(ctx, r, observedWriter, nil, code, message, data); sendErr != nil {
-			handleHTTPFailure(ctx, observedWriter, spec.HandleFailure, sendErr)
+			ReportFailure(ctx, observedWriter, spec.HandleFailure, sendErr)
 		}
 		return
 	}
@@ -117,7 +117,7 @@ func ServeSSE(w http.ResponseWriter, r *http.Request, spec SSEHandlerSpec) {
 	matched, unary, err := spec.Dispatch(ctx, r, &request, observedWriter)
 	if err != nil {
 		observer.Fail(loomtransport.ReasonHandlerError)
-		handleHTTPFailure(ctx, observedWriter, spec.HandleFailure, fmt.Errorf("handler error for %s: %w", request.Method, err))
+		ReportFailure(ctx, observedWriter, spec.HandleFailure, fmt.Errorf("handler error for %s: %w", request.Method, err))
 		return
 	}
 	if !matched {
@@ -146,7 +146,7 @@ func ServeMixed(w http.ResponseWriter, r *http.Request, spec MixedHandlerSpec) {
 		}
 		usesHTTP, err := mixedRequestUsesHTTP(r)
 		if err != nil {
-			handleHTTPFailure(r.Context(), w, spec.HTTP.HandleFailure, err)
+			ReportFailure(r.Context(), w, spec.HTTP.HandleFailure, err)
 			return
 		}
 		if usesHTTP {
@@ -165,20 +165,20 @@ func ServeWebSocket(w http.ResponseWriter, r *http.Request, spec WebSocketHandle
 	defer cancel()
 	conn, err := spec.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		handleHTTPFailure(r.Context(), w, spec.HandleFailure, fmt.Errorf("failed to upgrade to WebSocket: %w", err))
+		ReportFailure(r.Context(), w, spec.HandleFailure, fmt.Errorf("failed to upgrade to WebSocket: %w", err))
 		return
 	}
 	stream := loomhttp.NewWebSocketStream(spec.Config, spec.WritePolicy)
 	if err := stream.SetConn(ctx, conn, cancel); err != nil {
-		handleHTTPFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to configure WebSocket: %w", err))
+		ReportFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to configure WebSocket: %w", err))
 		return
 	}
 	if err := stream.RunHandler(func() error {
 		return spec.Run(ctx, cancel, r.WithContext(ctx), w, stream)
 	}, func(closeErr error) {
-		handleHTTPFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to close WebSocket: %w", closeErr))
+		ReportFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to close WebSocket: %w", closeErr))
 	}); err != nil {
-		handleHTTPFailure(ctx, w, spec.HandleFailure, err)
+		ReportFailure(ctx, w, spec.HandleFailure, err)
 	}
 }
 
@@ -289,7 +289,7 @@ func writeSSEProtocolError(
 		return
 	}
 	if err := spec.SendError(ctx, r, w, request.ID, code, message, nil); err != nil {
-		handleHTTPFailure(ctx, w, spec.HandleFailure, err)
+		ReportFailure(ctx, w, spec.HandleFailure, err)
 	}
 }
 

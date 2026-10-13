@@ -1457,6 +1457,13 @@ filter, and serialization rules belong here.
   HTTP/SSE negotiation, WebSocket setup, and final stream-response decisions
   in `jsonrpc`. Generated JSON-RPC code supplies typed dispatch, error, and
   stream adapters only.
+  `jsonrpc.ReportFailure` owns optional diagnostic callback invocation for
+  runtime and generated adapters. Preserve the original context, writer and
+  wrapped error, and invoke provided callbacks synchronously once. Never call
+  optional errhandler directly or normalize it only in server.New: exported
+  per-method handler constructors must share the same policy. Keep protocol
+  suppression and failure observations at their existing call sites; this owner
+  neither writes responses nor recovers application callback panics.
   WebSocket typed dispatch uses one `writeWebSocketRequestFailure` renderer
   for decode and endpoint failures: original HasID selects suppression or the
   typed error sender, and only sender failure escapes to the receive loop.

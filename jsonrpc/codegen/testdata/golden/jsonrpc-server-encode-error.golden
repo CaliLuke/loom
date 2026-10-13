@@ -7,6 +7,6 @@ func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, 
 func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) {
 	response := jsonrpc.MakeErrorResponse(req.ID, code, message, data)
 	if err := encoder(ctx, w).Encode(response); err != nil {
-		errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
+		jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 	}
 }

@@ -429,6 +429,20 @@ var _ = Service("divider", func() {
 })
 ```
 
+### JSON-RPC Server Diagnostics
+
+The `errhandler` callback accepted by generated JSON-RPC server constructors and
+per-method handler constructors is optional and may be nil. When supplied, it
+runs synchronously at the transport's diagnostic reporting points. Unary handlers
+report failed notifications and response encoding failures this way. A nil
+callback skips diagnostic reporting; it does not panic or change the protocol
+response. Mounted notification handlers suppress any response body written by
+the callback. The callback's own panics are not recovered.
+
+Regenerate JSON-RPC servers to apply the nil-safe reporting path to generated
+adapters. Framework runtime and generated code share `jsonrpc.ReportFailure`;
+applications normally supply their callback to the generated constructor.
+
 ### JSON-RPC Error Codes
 
 JSON-RPC errors are mapped with `JSONRPC` response blocks. Loom includes

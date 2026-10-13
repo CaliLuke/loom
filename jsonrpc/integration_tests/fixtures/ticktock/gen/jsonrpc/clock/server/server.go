@@ -37,9 +37,9 @@ type Server struct {
 }
 
 // New creates a JSON-RPC server which loads HTTP requests and calls the
-// "clock" service methods. An optional streamWritePolicy bounds each
-// server-stream network write and flush. Construct policies with
-// loomhttp.NewStreamWritePolicy.
+// "clock" service methods. The errhandler callback is optional and may be nil.
+// An optional streamWritePolicy bounds each server-stream network write and
+// flush. Construct policies with loomhttp.NewStreamWritePolicy.
 func New(endpoints *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicies ...loomhttp.StreamWritePolicy) *Server {
 	var streamWritePolicy loomhttp.StreamWritePolicy
 	if len(streamWritePolicies) > 0 {
@@ -133,7 +133,7 @@ func (s *Server) Mount(mux loomhttp.Muxer) {
 }
 
 // NewTickHandler creates a JSON-RPC handler which calls the "clock" service
-// "Tick" endpoint.
+// "Tick" endpoint. The errhandler callback is optional and may be nil.
 func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeTickRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
@@ -193,7 +193,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 }
 
 // NewTockHandler creates a JSON-RPC handler which calls the "clock" service
-// "Tock" endpoint.
+// "Tock" endpoint. The errhandler callback is optional and may be nil.
 func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeTockRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
@@ -297,6 +297,6 @@ func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, 
 func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) {
 	response := jsonrpc.MakeErrorResponse(req.ID, code, message, data)
 	if err := encoder(ctx, w).Encode(response); err != nil {
-		errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
+		jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 	}
 }
