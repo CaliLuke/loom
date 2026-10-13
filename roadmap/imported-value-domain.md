@@ -1,10 +1,11 @@
 # Imported scalar value domains (#777 / #778)
 
 Readiness began at `6a549820f795acbe550c25bb45034585d99a5d6f` and was
-approved by root. The complete shared owner is implemented and awaiting exact
-final review. The two reports describe one missing intersection:
-the importer handles type/nullability separately from enum/const, then publishes
-both decisions to every renderer. Do not repair individual rendered occurrences.
+approved by root. The shared owner is delivered in `6edea4932`; independent final and
+integration reviews passed, and both reports are confirmed closed. The two reports
+described one missing intersection: the parent importer handled type/nullability
+separately from enum/const and published both decisions to every renderer. The
+shared normalization owner replaces that split; do not repair rendered occurrences.
 
 1. [x] Read the reports, analyzer/rendering owners and documented import subset.
 2. [x] Add direct failing analysis/rendering regressions and existing roundtrip
@@ -15,8 +16,8 @@ both decisions to every renderer. Do not repair individual rendered occurrences.
 4. [x] Freeze one normalization-owner proposal and bounded evidence for review.
 5. [x] Implement the shared admission/normalization owner and run affected
    regressions plus bounded generated-output/contract checks.
-6. [ ] Obtain independent exact final review before atomic #777 delivery.
-7. [ ] Reconcile #778 independently against that delivered shared owner.
+6. [x] Obtain independent exact final review before atomic #777 delivery.
+7. [x] Reconcile #778 independently against that delivered shared owner.
 
 ## Contract and proposed owner
 
@@ -169,3 +170,9 @@ carriers or Go implementation equivalence. A broad TestAnalyze prefix accidental
 included the known #820 libopenapi YAML-merge race; that log is preserved separately
 and the explicit domain-only race gate above is green. No dependency change or
 claim of a green full repository suite is included.
+
+Delivery: independent direct race checks pass (1.575s); the integrated OAS 3.1
+null-exclusion generation/acceptance check passes (11.926s). Separate #778 review
+confirmed source/generated acceptance for OAS 3.0/3.1 and all covered occurrence
+paths. Cleanup preserves exact inputs and condensed evidence in
+`/tmp/loom-777-cleanup-reuse-receipt.json`.

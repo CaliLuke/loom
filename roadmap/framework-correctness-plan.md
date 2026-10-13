@@ -4,7 +4,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **166 of 206 tracked reports are delivered, pushed and confirmed closed.**
+- **169 of 206 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
   `/tmp/loom-current-all-issues.json` is the current GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
@@ -31,9 +31,17 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 - Server stream contracts #785 (`05567e2b0`) are reviewed, pushed and confirmed
   closed. Service interfaces and interceptor adapters share operation signatures
   and endpoint carriers across native, JSON-RPC SSE and WebSocket methods.
-- Required CI is not confirmed green. The metadata-adoption race job is confirmed
-  failed in libopenapi YAML-node mutation, matching #820; its overall run was
-  still active. Focused passing checks do not establish aggregate CI success.
+- Imported scalar domains #777 (`6edea4932`) are reviewed and pushed; #778 is
+  independently reconciled against the same owner. Both reports are closed.
+  Type, nullability and enum/const membership normalize once before publication;
+  the shared planner rejects unrepresentable domains in Analyze and Render.
+- WebSocket completion #739 (`ec2536d3c`) is reviewed, pushed and closed. One
+  connection-lock transition owns removal, timer release and result publication;
+  the obsolete stream wake-up path is removed. Held results and timeout origin
+  remain intact; final integrated WebSocket race checks pass.
+- Required CI is not confirmed green. All inspected metadata-adoption test jobs
+  passed except the libopenapi YAML-node race matching #820; release eligibility
+  was still queued. This is evidence for that source, not current-main CI success.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -62,29 +70,28 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **WebSocket call completion (#739):** `/root/diagnostic_redaction_finish`
-   implements the independently approved connection-lock completion owner in
-   `grpc-message-context/loom`. Registration removal, initialized timer release
-   and terminal publication become one decision; response, failure and timeout
-   cannot overwrite a winner. Preserve held results, cancellation/requeue and
-   existing timeout origin. Readiness and bounded counterexamples are recorded
-   in `roadmap/websocket-call-completion.md` in that worktree.
-2. **Imported schema normalization (#777/#778):** `/root/omission_readiness_finish`
-   completes the approved type/nullability/enum/const intersection in
-   `numeric-comparison/loom`. Seven bounded generated modules compile; exact
-   numeric source identity and planner rejection remain part of acceptance.
-   Independent final review remains required, then #778 is reconciled against
-   the complete owner repair rather than receiving a partial normalization fix.
-3. **Requirement scope projection (#752):** `/root/projection_integration_review`
-   prepares the shared expression-to-scheme scope contract after #785 cleanup
-   and safe worktree reuse. Generated authorizers and OpenAPI must consume the
-   same per-scheme projection; preserve unknown-scope rejection and separate OR
-   requirements. Remove the unused superseded internal projection if its lack
-   of consumers is confirmed. Existing focused security fixtures suffice.
+1. **Requirement scope projection (#752):** `/root/projection_integration_review`
+   implements the independently approved expression-to-scheme scope contract in
+   `interceptor-accessor-union/loom`. Authorizers and OpenAPI consume the same
+   projection, preserving unknown-scope rejection and separate OR requirements.
+   Delete the unused superseded projection. The readiness alternative-case test
+   had a method selector error; corrected parent evidence must replace that row.
+2. **Distributed worker publication (#704):** `/root/diagnostic_redaction_finish`
+   prepares the owner proposal after #739 cleanup and safe worktree reuse.
+   Reuse existing pool models/probes; include uncertain committed Redis replies,
+   peer replicas, event recovery and concurrent Node.Close. Verify subordinate
+   lifetime assumptions. Publication order or two-map rollback alone is insufficient.
+3. **Imported object representation (#776):** `/root/omission_readiness_finish`
+   prepares shared object-shape normalization in `numeric-comparison/loom` after
+   #777 cleanup. Empty inline objects currently depend on child Attribute calls
+   to establish their type. Verify open/closed representations and every consumer
+   before implementation; annotation #783 and encoded-byte length #686 retain
+   distinct owners. No broad importer audit or per-caller workaround is planned.
 4. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
-   actual namespaces. #704 worker publication includes uncertain Redis replies,
-   independent replicas and concurrent Close; #737 needs producer job intent.
+   actual namespaces. #737 needs producer job intent. #791 cannot be closed from
+   query-only fixes: header/path shape admission remains to be reconciled through
+   one location-aware parameter contract (`/tmp/loom-791-owner-triage.md`).
    #687 still needs bounded subordinate shutdown. Keep #884 custom-key example
    synthesis open rather than weakening supported representation admission.
 5. **Dependency gates:** #820 libopenapi

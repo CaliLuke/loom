@@ -1,6 +1,6 @@
 # WebSocket client call completion — #739
 
-Parent: abca0b975. Readiness independently approved; implementation and validation complete, frozen for independent final review.
+Parent: abca0b975. Delivered and pushed as `ec2536d3c`; independent review and re-review passed, and #739 is confirmed closed.
 
 ## Contract and owner
 
@@ -28,7 +28,7 @@ The existing WebSocketClientDemux model already allows RecvTimeout to erase `del
 - [x] Obtain independent readiness review of owner and contract.
 - [x] Implement the shared completion path and remove superseded independent removal/timer/result policy.
 - [x] Run focused WebSocket client race/closure tests and bounded completion configurations; inspect all registration/completion consumers. No generator changes or broad fixture sweep.
-- [ ] Freeze exact final diff for independent review; deliver only after approval.
+- [x] Freeze exact final diff for independent review; deliver only after approval.
 
 Controls: buffered success and protocol error survive delayed Recv; buffered connection failure retains its cause; pending calls time out from registration and late replies are orphaned; canceled Recv preserves send order/result; canceled Call releases pending state; stream Close/context end releases all calls/timers and preserves other streams; route/timeout and fail/timeout cannot both win. Existing real-socket demultiplexer, error-classification and generated pending-order tests remain the consumer surface; run only tests invalidated by the runtime repair.
 
@@ -44,6 +44,10 @@ Implementation acceptance includes a deterministic direct owner race: response o
 
 Focused runtime race checks pass (2.165s). The existing generated pending-order client module passes (5.338s), including vet and its race-enabled runtime controls. No generator code or fixture output changes are intended. The owned model is unchanged from independent readiness approval; reuse its 174/132-state result and bounded original-routing control. Final lint initially caught one unnecessary test conversion; the type declaration was corrected mechanically.
 
-Final affected-package race gate passes (2.221s) and scoped lint reports zero issues. Exact sources are frozen in `/tmp/loom-739-final-manifest.json`; no commit or aggregate CI success is claimed.
+Final affected-package race gate passes (2.221s) and scoped lint reports zero issues. Exact final sources are recorded in `/tmp/loom-739-final-manifest.json`; aggregate CI success is not claimed.
 
 Final-review LOWs 739-R1/R2: removed the obsolete stream done channel/flag, derived requeue admission from existing lifecycle state, and made parent-only descriptions explicit. Both cancellation tests now observe terminal ownership under the stream mutex. Affected WebSocket race checks pass (2.075s), scoped lint is clean; unchanged model and generated evidence is reused.
+
+Independent re-review confirmed both fixes; the integration preserved all ten
+functional/model/plan sources and composed only framework guidance. Final root
+WebSocket race checks pass (1.964s).

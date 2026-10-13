@@ -4,7 +4,9 @@ Readiness investigation at `d928a9fef5b96dde85bb2cae3b535f9bab7b52e7`.
 Independent readiness approved in
 `/tmp/loom-interceptor-family-root-readiness-verdict.json`. #767 implementation
 uses parent `b7514c8657d5cc51b2316ae7ef5e86c78aded921`; safe fast-forward preserved
-readiness inputs. #785 implementation remains a separate following delivery. #770 remains a public package-identity obligation. #786 was independently
+readiness inputs. #785 is delivered and pushed as `05567e2b0`, with independent
+final/integration review and confirmed closure. #770 remains a public package-identity
+obligation. #786 was independently
 reconciled and closed through the existing symbol owner and regression commit
 `35ff54729`.
 
@@ -237,7 +239,7 @@ archive and independent approval remain the acceptance authority.
    view and close operations without treating them as result messages.
 4. [x] Exercise the bounded generated/mounted matrix above, current three
    fixtures and independent-process byte comparisons. Update model correspondence.
-5. [ ] Freeze exact sources and evidence for independent review before delivery.
+5. [x] Freeze exact sources and evidence for independent review before delivery.
 
 The shared `serverStreamPlan` records signatures, send/receive/delegate roles,
 contextual counterparts and incoming endpoint carriers after view analysis.
@@ -268,4 +270,7 @@ established by tests, not claimed as model proof. No full-corpus or CI claim.
 
 Evidence is recorded in `/tmp/loom-785-artifact-comparison.json`,
 `/tmp/loom-785-generated-delta.patch`, `/tmp/loom-785-mounted-race-results.json`
-and the final packet manifest. Independent final review remains required.
+and the final packet manifest. Independent final and integration reviews passed.
+Root direct contract checks pass (0.541s) and mounted generated checks pass
+(7.408s). Exact inputs and compact evidence are retained by
+`/tmp/loom-785-cleanup-receipt.json`.
