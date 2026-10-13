@@ -60,3 +60,32 @@ subsequent paths.
 
 The production checks remain direct shared-IR and rendered OpenAPI tests,
 libopenapi parsing, Redocly linting, and process-isolated byte comparisons.
+
+## Physical route ownership (#781)
+
+The same model now distinguishes server-scoped physical registrations from
+OpenAPI document claims. Prepared HTTP endpoints own distinct dispatchers;
+logical methods within one JSON-RPC service deliberately share one owner.
+Two services cohosted by any server cannot replace each other's identical
+method/template slot. Separate server processes and distinct methods are valid
+controls. The new finite examples reproduce absent admission and show why
+per-service-only and unconditional API-global checks are both insufficient.
+
+`expr.HTTPServiceExpr.MountPlan` supplies admission and emitted physical mounts.
+`expr/http_route_ownership_test.go` checks admission, phase stability and graph
+safety; `codegen/generator/route_ownership_test.go` checks actual mounted
+dispatch and preflights. `roadmap/http-route-ownership.md` records the design.
+The model assumes extracted server membership, effective paths and intentional
+dispatcher identities. It does not prove concrete path normalization, synthetic
+mount extraction, router precedence or validation ordering. CORS composition is
+not modeled by treating arbitrary middleware handlers as shared dispatchers.
+Keep direct and generated correspondence checks for those actual boundaries.
+
+The expanded #781 examples also require same-service ownership when a service is
+not selected by any server. They show that validating authored routes alone
+misses synthetic preflight collisions, that one local explicit OPTIONS handler
+can own its preflight wrapper, and that a synthetic GET conflicts with another
+dispatcher. Catch-all and literal-child slots remain distinct. These are finite
+claim-level checks; the expression and generated-mount tests establish whether
+those claims correspond to actual synthetic mounts. They do not authorize
+merging independent runtime CORS policies.

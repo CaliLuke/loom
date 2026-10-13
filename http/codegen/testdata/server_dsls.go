@@ -308,7 +308,7 @@ var ServerMultipleFilesDSL = func() {
 		Files("/file.json", "/path/to/file.json")
 		Files("/", "/path/to/file.json")
 		Files("/relative-file.json", "file.json")
-		Files("/{wildcard}", "/path/to/folder")
+		Files("/static/{wildcard}", "/path/to/folder")
 	})
 }
 
@@ -320,7 +320,7 @@ var ServerMultipleFilesWithPrefixPathDSL = func() {
 		Files("/file.json", "/path/to/file.json")
 		Files("/", "/path/to/file.json")
 		Files("/relative-file.json", "file.json")
-		Files("/{wildcard}", "/path/to/folder")
+		Files("/static/{wildcard}", "/path/to/folder")
 	})
 }
 
@@ -331,7 +331,7 @@ var ServerMultipleFilesWithRedirectDSL = func() {
 		})
 		Files("/", "/path/to/file.json")
 		Files("/relative-file.json", "file.json")
-		Files("/{wildcard}", "/path/to/folder")
+		Files("/static/{wildcard}", "/path/to/folder")
 	})
 }
 

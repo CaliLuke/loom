@@ -29,6 +29,8 @@ type (
 		clientGroups  []clientOperationGroup
 		// Endpoints describes the endpoint data for this service.
 		Endpoints []*EndpointData
+		// MountPlan owns physical registrations and synthetic preflight routes.
+		MountPlan *expr.HTTPMountPlan
 		// FileServers lists the file servers for this service.
 		FileServers []*FileServerData
 		// ServerStruct is the name of the HTTP server struct.
@@ -151,6 +153,8 @@ type (
 		// ServerEndpoint is the separate endpoint field copied into JSON-RPC
 		// WebSocket streams; it is empty when no such field is emitted.
 		ServerEndpoint string
+		// MountRoutes contains the resolved physical registrations for this handler.
+		MountRoutes []*expr.HTTPMountRoute
 		// MountHandler is the name of the mount handler function.
 		MountHandler string
 		// HandlerInit is the name of the constructor function for the
@@ -216,6 +220,8 @@ type (
 
 	// FileServerData lists the data needed to generate file servers.
 	FileServerData struct {
+		// MountRoutes contains the resolved physical registrations for this handler.
+		MountRoutes []*expr.HTTPMountRoute
 		// MountHandler is the name of the mount handler function.
 		MountHandler string
 		// RequestPaths is the set of HTTP paths to the server.

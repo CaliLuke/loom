@@ -113,18 +113,7 @@ func renderServerInitBody(data *ServiceData) string {
 	if data.CORS != nil && data.CORS.Runtime {
 		b.WriteString("\t\tcorsPolicy: corsPolicy,\n")
 	}
-	fmt.Fprintf(&b, "\t\tMounts: []*%s{\n", data.MountPointStruct)
-	for _, endpoint := range data.Endpoints {
-		for _, route := range endpoint.Routes {
-			fmt.Fprintf(&b, "\t\t\t{%q, %q, %q},\n", endpoint.Method.VarName, route.Verb, route.Path)
-		}
-	}
-	for _, fs := range data.FileServers {
-		for _, requestPath := range fs.RequestPaths {
-			fmt.Fprintf(&b, "\t\t\t{%q, %q, %q},\n", "Serve "+fs.FilePath, "GET", requestPath)
-		}
-	}
-	b.WriteString("\t\t},\n")
+	renderServerMountMetadata(&b, data)
 	for _, endpoint := range data.Endpoints {
 		fmt.Fprintf(&b, "\t\t%s: %s(e.%s, mux, ", endpoint.ServerHandler, endpoint.HandlerInit, endpoint.Method.VarName)
 		if endpoint.MultipartRequestDecoder != nil {
@@ -155,6 +144,26 @@ func renderServerInitBody(data *ServiceData) string {
 	}
 	b.WriteString("\t}\n")
 	return b.String()
+}
+
+func renderServerMountMetadata(b *strings.Builder, data *ServiceData) {
+	fmt.Fprintf(b, "\t\tMounts: []*%s{\n", data.MountPointStruct)
+	for _, endpoint := range data.Endpoints {
+		for _, route := range endpoint.MountRoutes {
+			fmt.Fprintf(b, "\t\t\t{%q, %q, %q},\n", endpoint.Method.VarName, route.Method, route.Path)
+		}
+	}
+	for _, fs := range data.FileServers {
+		for _, route := range fs.MountRoutes {
+			fmt.Fprintf(b, "\t\t\t{%q, %q, %q},\n", "Serve "+fs.FilePath, route.Method, route.Path)
+		}
+	}
+	for _, route := range data.MountPlan.Preflights {
+		if route.Endpoint == nil {
+			fmt.Fprintf(b, "\t\t\t{%q, %q, %q},\n", "CORS preflight", route.Method, route.Path)
+		}
+	}
+	b.WriteString("\t\t},\n")
 }
 
 func hasServerStreamPolicy(data *ServiceData) bool {
@@ -284,14 +293,14 @@ func renderEndpointMounts(b *strings.Builder, data *ServiceData) {
 }
 
 func renderNonOptionsEndpointMounts(b *strings.Builder, data *ServiceData, endpoint *EndpointData) {
-	for _, route := range endpoint.Routes {
-		if route.Verb == "OPTIONS" {
+	for _, route := range endpoint.MountRoutes {
+		if route.Method == "OPTIONS" {
 			continue
 		}
 		if data.CORS.Runtime {
-			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, h.corsPolicy.Handler(loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, endpoint.ServerHandler)
+			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, h.corsPolicy.Handler(loomhttp.AsHandlerFunc(h.%s)))\n", route.Method, route.Path, endpoint.ServerHandler)
 		} else {
-			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, renderCORSPolicy(data.CORS), endpoint.ServerHandler)
+			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h.%s)))\n", route.Method, route.Path, renderCORSPolicy(data.CORS), endpoint.ServerHandler)
 		}
 	}
 }
@@ -304,16 +313,12 @@ func renderFileServerMounts(b *strings.Builder, data *ServiceData) {
 			b.WriteString("\t}))\n")
 			continue
 		}
-		for _, requestPath := range fs.RequestPaths {
-			stripped := addLeadingSlash(requestPath)
-			if !fs.IsDir {
-				stripped = path.Dir(stripped)
+		for _, route := range fs.MountRoutes {
+			handler := "h." + fs.VarName
+			if route.FilePrefix != "" && route.FilePrefix != "/" {
+				handler = fmt.Sprintf("http.StripPrefix(%q, %s)", route.FilePrefix, handler)
 			}
-			if stripped == "/" {
-				fmt.Fprintf(b, "\t%s(mux, h.%s)\n", fs.MountHandler, fs.VarName)
-			} else {
-				fmt.Fprintf(b, "\t%s(mux, http.StripPrefix(%q, h.%s))\n", fs.MountHandler, stripped, fs.VarName)
-			}
+			fmt.Fprintf(b, "\tmux.Handle(%q, %q, %s.ServeHTTP)\n", route.Method, route.Path, handler)
 		}
 	}
 }
@@ -344,8 +349,8 @@ func renderServerHandlerBody(data *EndpointData) string {
 	} else if data.CORS != nil {
 		fmt.Fprintf(&b, "\th = loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h))\n", renderCORSPolicy(data.CORS))
 	}
-	for _, route := range data.Routes {
-		fmt.Fprintf(&b, "\tloomhttp.MountHandler(mux, %q, %q, h)\n", route.Verb, route.Path)
+	for _, route := range data.MountRoutes {
+		fmt.Fprintf(&b, "\tloomhttp.MountHandler(mux, %q, %q, h)\n", route.Method, route.Path)
 	}
 	return b.String()
 }
@@ -357,45 +362,25 @@ type corsPreflightRoute struct {
 }
 
 func corsPreflightRoutes(data *ServiceData) []corsPreflightRoute {
-	byPath := make(map[string]map[string]struct{})
-	optionsByPath := make(map[string]*EndpointData)
-	for _, endpoint := range data.Endpoints {
-		for _, route := range endpoint.Routes {
-			methods := byPath[route.Path]
-			if methods == nil {
-				methods = make(map[string]struct{})
-				byPath[route.Path] = methods
-			}
-			methods[route.Verb] = struct{}{}
-			if route.Verb == "OPTIONS" {
-				optionsByPath[route.Path] = endpoint
+	routes := make([]corsPreflightRoute, 0, len(data.MountPlan.Preflights))
+	for _, mount := range data.MountPlan.Preflights {
+		route := corsPreflightRoute{Path: mount.Path, Methods: mount.Methods}
+		if mount.Endpoint != nil {
+			for _, endpoint := range data.Endpoints {
+				if endpoint.Method.Name == mount.Endpoint.Name() {
+					route.OptionsEndpoint = endpoint
+					break
+				}
 			}
 		}
-	}
-	paths := make([]string, 0, len(byPath))
-	for path := range byPath {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	routes := make([]corsPreflightRoute, 0, len(paths))
-	for _, path := range paths {
-		methods := make([]string, 0, len(byPath[path]))
-		for method := range byPath[path] {
-			methods = append(methods, method)
-		}
-		sort.Strings(methods)
-		routes = append(routes, corsPreflightRoute{
-			Path:            path,
-			Methods:         methods,
-			OptionsEndpoint: optionsByPath[path],
-		})
+		routes = append(routes, route)
 	}
 	return routes
 }
 
 func endpointHasOptionsRoute(endpoint *EndpointData) bool {
-	for _, route := range endpoint.Routes {
-		if route.Verb == "OPTIONS" {
+	for _, route := range endpoint.MountRoutes {
+		if route.Method == "OPTIONS" {
 			return true
 		}
 	}
@@ -502,19 +487,8 @@ func fileServerSection(data *FileServerData) codegen.Section {
 
 func renderFileServerBody(data *FileServerData) string {
 	var b strings.Builder
-	if data.IsDir {
-		for _, requestPath := range data.RequestPaths {
-			suffix := ""
-			if requestPath != "/" {
-				suffix = "/"
-			}
-			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath+suffix)
-			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath+suffix+"{*"+data.PathParam+"}")
-		}
-	} else {
-		for _, requestPath := range data.RequestPaths {
-			fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", "GET", requestPath)
-		}
+	for _, route := range data.MountRoutes {
+		fmt.Fprintf(&b, "\tmux.Handle(%q, %q, h.ServeHTTP)\n", route.Method, route.Path)
 	}
 	return b.String()
 }

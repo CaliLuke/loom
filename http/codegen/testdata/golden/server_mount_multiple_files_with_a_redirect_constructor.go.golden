@@ -3,9 +3,10 @@ func Mount(mux loomhttp.Muxer, h *Server) {
 	MountPathToFileJSON(mux, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/redirect/dest", http.StatusMovedPermanently)
 	}))
-	MountPathToFileJSON2(mux, h.PathToFileJSON2)
-	MountFileJSON(mux, h.FileJSON)
-	MountPathToFolder(mux, h.PathToFolder)
+	mux.Handle("GET", "/", h.PathToFileJSON2.ServeHTTP)
+	mux.Handle("GET", "/relative-file.json", h.FileJSON.ServeHTTP)
+	mux.Handle("GET", "/static/", http.StripPrefix("/static", h.PathToFolder).ServeHTTP)
+	mux.Handle("GET", "/static/{*wildcard}", http.StripPrefix("/static", h.PathToFolder).ServeHTTP)
 }
 
 // Mount configures the mux to serve the ServiceFileServer endpoints.

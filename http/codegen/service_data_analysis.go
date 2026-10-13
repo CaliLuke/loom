@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"fmt"
-	"strings"
+	"slices"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service"
@@ -40,7 +40,11 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	nameJSONFormCarriers(irService.Endpoints)
 	sd.exampleGenerator = examplegen.ForScope(sds.Root.API.ExampleGenerator, "http", httpSvc.Name())
 	sd.CORS = buildCORSData(httpSvc)
-	sd.FileServers = sds.buildFileServersData(httpSvc, scope)
+	sd.MountPlan, err = httpSvc.MountPlan()
+	if err != nil {
+		panic(err)
+	}
+	sd.FileServers = sds.buildFileServersData(httpSvc, sd.MountPlan, scope)
 	recordServiceTypeLayouts(irService.Endpoints, sd)
 	for _, httpEndpoint := range irService.Endpoints {
 		epCtx := ctx.WithMethod(httpSvc.ServiceExpr.Method(httpEndpoint.MethodName))
@@ -53,6 +57,13 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 			"error_responses", len(httpEndpoint.Response.ErrorResponses),
 		)
 		sd.Endpoints = append(sd.Endpoints, sds.buildEndpointDataWithContext(epCtx, httpEndpoint, svc, sd, scope))
+	}
+	for _, endpoint := range sd.Endpoints {
+		for _, route := range sd.MountPlan.Routes {
+			if route.Endpoint != nil && route.Endpoint.Name() == endpoint.Method.Name {
+				endpoint.MountRoutes = append(endpoint.MountRoutes, route)
+			}
+		}
 	}
 	sds.collectBodyAttributeTypes(sd)
 	closed, _ := sds.ServicesData.Root.API.Meta.Last("openapi:closed-objects")
@@ -167,19 +178,25 @@ func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceDat
 	}
 }
 
-func (sds *ServicesData) buildFileServersData(httpSvc *expr.HTTPServiceExpr, scope *codegen.NameScope) []*FileServerData {
+func (sds *ServicesData) buildFileServersData(httpSvc *expr.HTTPServiceExpr, plan *expr.HTTPMountPlan, scope *codegen.NameScope) []*FileServerData {
 	fileServers := make([]*FileServerData, 0, len(httpSvc.FileServers))
 	for _, server := range httpSvc.FileServers {
-		paths := make([]string, len(server.RequestPaths))
-		for i, path := range server.RequestPaths {
-			prefix, _, ok := strings.CutLast(path, "/{")
-			switch {
-			case ok && prefix == "":
-				paths[i] = "/"
-			case ok:
-				paths[i] = prefix
-			default:
-				paths[i] = path
+		var paths []string
+		var mounts []*expr.HTTPMountRoute
+		for _, route := range plan.Routes {
+			if route.FileServer != server {
+				continue
+			}
+			mounts = append(mounts, route)
+			requestPath := route.Path
+			if server.IsDir() {
+				requestPath = route.FilePrefix
+				if requestPath == "" {
+					requestPath = "/"
+				}
+			}
+			if !slices.Contains(paths, requestPath) {
+				paths = append(paths, requestPath)
 			}
 		}
 		var pathParam string
@@ -188,6 +205,7 @@ func (sds *ServicesData) buildFileServersData(httpSvc *expr.HTTPServiceExpr, sco
 		}
 		fileServers = append(fileServers, &FileServerData{
 			MountHandler: scope.Unique(fmt.Sprintf("Mount%s", codegen.Goify(server.FilePath, true))),
+			MountRoutes:  mounts,
 			RequestPaths: paths,
 			FilePath:     server.FilePath,
 			IsDir:        server.IsDir(),

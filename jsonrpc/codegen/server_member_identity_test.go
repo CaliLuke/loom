@@ -147,7 +147,7 @@ func rpcServerMemberSource(t *testing.T, data *httpcodegen.ServiceData, kind str
 	t.Helper()
 	sections := jsonrpcServerBaseSections(data, kind == "sse", kind == "mixed")
 	sections = append(sections, jsonrpcServerTransportSections(data, kind == "sse", kind == "mixed")...)
-	sections = append(sections, jsonrpcServerMountSection(data, kind == "sse", kind == "mixed"))
+	sections = append(sections, jsonrpcServerMountSection(data))
 	if kind == "server" || kind == "bidi" || kind == "keywords" {
 		sections = append(sections, jsonrpcWebSocketServerSections(data)...)
 	} else {

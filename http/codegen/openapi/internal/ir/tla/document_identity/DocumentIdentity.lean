@@ -5,6 +5,7 @@ namespace Loom.OpenAPI.DocumentIdentity
 inductive PathSegment where
   | literal (identity : Nat)
   | parameter
+  | catchAll
   deriving DecidableEq, Repr
 
 structure OperationClaim where
@@ -165,5 +166,109 @@ theorem legacy_media_claims_depend_on_order :
 #print axioms conflicting_explicit_media_names_are_rejected
 #print axioms identical_explicit_media_names_can_share
 #print axioms legacy_media_claims_depend_on_order
+
+
+-- Physical registration has server-scoped ownership. This is weaker than the
+-- OpenAPI document-template rule above: verbs distinguish physical route slots.
+structure PhysicalRouteClaim where
+  service : Nat
+  owner : Nat
+  template : List PathSegment
+  method : Nat
+  deriving DecidableEq, Repr
+
+def cohosted (servers : List (List Nat)) (left right : Nat) : Bool :=
+  left == right ||
+    servers.any fun services => services.contains left && services.contains right
+
+def physicalRouteOwnership (servers : List (List Nat))
+    (claims : List PhysicalRouteClaim) : Bool :=
+  claims.all fun left => claims.all fun right =>
+    !cohosted servers left.service right.service ||
+    left.template != right.template || left.method != right.method ||
+    (left.service == right.service && left.owner == right.owner)
+
+def missingPhysicalAdmission (_claims : List PhysicalRouteClaim) : Bool := true
+
+def crossServiceRoutes : List PhysicalRouteClaim :=
+  [⟨1, 1, [.literal 1, .parameter], 1⟩,
+   ⟨2, 1, [.literal 1, .parameter], 1⟩]
+
+def sharedDispatcherRoutes : List PhysicalRouteClaim :=
+  [⟨1, 1, [.literal 1], 1⟩, ⟨1, 1, [.literal 1], 1⟩]
+
+def differentMethodRoutes : List PhysicalRouteClaim :=
+  [⟨1, 1, [.literal 1], 1⟩, ⟨1, 2, [.literal 1], 2⟩]
+
+theorem missing_admission_accepts_physical_collision :
+    missingPhysicalAdmission crossServiceRoutes = true := by decide
+
+theorem cohosted_physical_collision_is_rejected :
+    physicalRouteOwnership [[1, 2]] crossServiceRoutes = false := by decide
+
+theorem independent_servers_can_reuse_physical_slots :
+    physicalRouteOwnership [[1], [2]] crossServiceRoutes = true := by decide
+
+theorem one_shared_dispatcher_is_one_physical_owner :
+    physicalRouteOwnership [[1]] sharedDispatcherRoutes = true := by decide
+
+theorem different_methods_are_distinct_physical_slots :
+    physicalRouteOwnership [[1]] differentMethodRoutes = true := by decide
+
+theorem per_service_admission_misses_cross_service_collision :
+    physicalRouteOwnership [[1], [2]] crossServiceRoutes !=
+      physicalRouteOwnership [[1, 2]] crossServiceRoutes := by decide
+
+theorem blanket_global_admission_rejects_independent_servers :
+    physicalRouteOwnership [[1, 2]] crossServiceRoutes = false ∧
+      physicalRouteOwnership [[1], [2]] crossServiceRoutes = true := by decide
+
+-- A service's Mount function is independently emitted even when no server selects it.
+def sameServiceRoutes : List PhysicalRouteClaim :=
+  [⟨1, 1, [.literal 1], 1⟩, ⟨1, 2, [.literal 1], 1⟩]
+
+-- Authored verbs differ, but each independent service also emits OPTIONS (3).
+def independentPreflightRoutes : List PhysicalRouteClaim :=
+  [⟨1, 1, [.literal 1], 1⟩, ⟨2, 1, [.literal 1], 2⟩,
+   ⟨1, 2, [.literal 1], 3⟩, ⟨2, 2, [.literal 1], 3⟩]
+
+-- A local explicit OPTIONS endpoint is the shared owner of its preflight wrapper.
+def localPreflightRoutes : List PhysicalRouteClaim :=
+  [⟨1, 1, [.literal 1], 1⟩, ⟨1, 2, [.literal 1], 3⟩,
+   ⟨1, 2, [.literal 1], 3⟩]
+
+theorem unselected_service_mount_still_rejects_duplicates :
+    physicalRouteOwnership [[2]] sameServiceRoutes = false := by decide
+
+theorem authored_routes_alone_miss_synthetic_collision :
+    physicalRouteOwnership [[1, 2]] (independentPreflightRoutes.take 2) = true ∧
+      physicalRouteOwnership [[1, 2]] independentPreflightRoutes = false := by decide
+
+theorem explicit_options_and_local_preflight_share_owner :
+    physicalRouteOwnership [[1]] localPreflightRoutes = true := by decide
+
+theorem synthetic_get_conflicts_with_another_dispatcher :
+    physicalRouteOwnership [[1, 2]]
+      [⟨1, 1, [.literal 1], 1⟩, ⟨1, 1, [.literal 1], 2⟩,
+       ⟨2, 1, [.literal 1], 2⟩] = false := by decide
+
+theorem catch_all_and_literal_child_are_distinct_slots :
+    physicalRouteOwnership [[1, 2]]
+      [⟨1, 1, [.literal 1, .catchAll], 1⟩,
+       ⟨2, 1, [.literal 1, .literal 2], 1⟩] = true := by decide
+
+#print axioms unselected_service_mount_still_rejects_duplicates
+#print axioms authored_routes_alone_miss_synthetic_collision
+#print axioms explicit_options_and_local_preflight_share_owner
+#print axioms synthetic_get_conflicts_with_another_dispatcher
+#print axioms catch_all_and_literal_child_are_distinct_slots
+
+#print axioms missing_admission_accepts_physical_collision
+#print axioms cohosted_physical_collision_is_rejected
+#print axioms independent_servers_can_reuse_physical_slots
+#print axioms one_shared_dispatcher_is_one_physical_owner
+#print axioms different_methods_are_distinct_physical_slots
+#print axioms per_service_admission_misses_cross_service_collision
+#print axioms blanket_global_admission_rejects_independent_servers
 
 end Loom.OpenAPI.DocumentIdentity

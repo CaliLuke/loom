@@ -1,6 +1,6 @@
 // MountPathToFolder configures the mux to serve GET request made to
-// "/server_file_server".
+// "/server_file_server/static".
 func MountPathToFolder(mux loomhttp.Muxer, h http.Handler) {
-	mux.Handle("GET", "/server_file_server/", h.ServeHTTP)
-	mux.Handle("GET", "/server_file_server/{*wildcard}", h.ServeHTTP)
+	mux.Handle("GET", "/server_file_server/static/", h.ServeHTTP)
+	mux.Handle("GET", "/server_file_server/static/{*wildcard}", h.ServeHTTP)
 }

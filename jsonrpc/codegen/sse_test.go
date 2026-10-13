@@ -358,17 +358,24 @@ func TestJSONRPCServerMountRoutes(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			root := RunJSONRPCDSL(t, c.DSL)
-			services := CreateJSONRPCServices(root)
 			if c.ForceGETVerbs != "" {
-				service := services.Get(c.ForceGETVerbs)
+				service := root.API.JSONRPC.Service(c.ForceGETVerbs)
 				require.NotNil(t, service)
-				for _, endpoint := range service.Endpoints {
+				for _, endpoint := range service.HTTPEndpoints {
 					for _, route := range endpoint.Routes {
-						route.Verb = "GET"
+						route.Method = "GET"
 					}
 				}
 			}
+			services := CreateJSONRPCServices(root)
 			mountCode := fileSectionCode(t, ServerFiles("", services), "server.go", "jsonrpc-server-mount")
+			if c.ForceGETVerbs != "" {
+				plan := services.Get(c.ForceGETVerbs).MountPlan
+				require.Len(t, plan.Routes, 1, "authored GET and synthetic GET share their dispatcher")
+				require.Equal(t, "GET", plan.Routes[0].Method)
+				require.True(t, plan.Routes[0].Dispatcher)
+				require.NotContains(t, mountCode, postMount)
+			}
 			for _, want := range c.Contains {
 				require.Contains(t, mountCode, want)
 			}

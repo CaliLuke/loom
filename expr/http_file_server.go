@@ -25,7 +25,8 @@ type (
 		// Redirect defines a redirect for the endpoint.
 		Redirect *HTTPRedirectExpr
 		// Meta is a list of key/value pairs
-		Meta MetaExpr
+		Meta     MetaExpr
+		prepared bool
 	}
 )
 
@@ -44,7 +45,7 @@ func (f *HTTPFileServerExpr) EvalName() string {
 // "*" may appear outside the "{*name}" syntax.
 func (f *HTTPFileServerExpr) Validate() error {
 	verr := new(eval.ValidationErrors)
-	for _, p := range f.fullRequestPaths() {
+	for _, p := range f.RequestPaths {
 		validateHTTPPathWildcards(verr, f, p)
 	}
 	if len(verr.Errors) == 0 {
@@ -53,8 +54,12 @@ func (f *HTTPFileServerExpr) Validate() error {
 	return verr
 }
 
-// Finalize normalizes the request path.
-func (f *HTTPFileServerExpr) Finalize() {
+// Prepare resolves request paths before route admission and endpoint generation.
+func (f *HTTPFileServerExpr) Prepare() {
+	if f.prepared {
+		return
+	}
+	f.prepared = true
 	f.RequestPaths = f.fullRequestPaths()
 }
 

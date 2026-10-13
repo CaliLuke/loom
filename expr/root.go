@@ -215,14 +215,11 @@ func (r *RootExpr) Validate() error {
 	// that may share a name like "XCollection".
 	seen := make(map[string]struct{})
 	for _, rt := range r.ResultTypes {
-		if _, declared := rt.Meta["openapi:typename"]; !declared {
-			if err := rt.validateExplicitViewMeta(); err != nil {
-				verr.Add(r, "%s", err.Error())
-			}
-			continue // skip generated result type name checks
-		}
 		if err := rt.validateExplicitViewMeta(); err != nil {
 			verr.Add(r, "%s", err.Error())
+		}
+		if _, declared := rt.Meta["openapi:typename"]; !declared {
+			continue // skip generated result type name checks
 		}
 		name := rt.Name()
 		if _, ok := seen[name]; ok {
@@ -241,6 +238,7 @@ func (r *RootExpr) Validate() error {
 	for _, rt := range r.ResultTypes {
 		verr.Merge(validateStructMeta("", rt.Attribute().Meta, rt))
 	}
+	verr.Merge(r.validateHTTPMounts())
 	verr.Merge(r.validateRelocatedUserTypes())
 	verr.Merge(r.validateGeneratedDirs())
 	verr.Merge(r.validateGoRepresentation())

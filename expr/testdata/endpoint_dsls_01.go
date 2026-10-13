@@ -755,7 +755,7 @@ var StreamingEndpointRequestBody = func() {
 			})
 			StreamingResult(String)
 			HTTP(func() {
-				GET("/")
+				GET("/a")
 			})
 		})
 		Method("MethodB", func() {
@@ -764,14 +764,14 @@ var StreamingEndpointRequestBody = func() {
 			})
 			StreamingResult(String)
 			HTTP(func() {
-				GET("/")
+				GET("/b")
 			})
 		})
 		Method("MethodC", func() {
 			Payload(String)
 			StreamingResult(String)
 			HTTP(func() {
-				GET("/")
+				GET("/c")
 			})
 		})
 		Method("MethodD", func() {
@@ -789,7 +789,7 @@ var StreamingEndpointRequestBody = func() {
 			})
 			StreamingResult(String)
 			HTTP(func() {
-				GET("/")
+				GET("/e")
 				Param("foo")
 			})
 		})
@@ -797,7 +797,7 @@ var StreamingEndpointRequestBody = func() {
 			Payload(String)
 			StreamingResult(String)
 			HTTP(func() {
-				GET("/")
+				GET("/f")
 				Header("foo")
 			})
 		})

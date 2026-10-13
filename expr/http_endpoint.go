@@ -2,11 +2,8 @@ package expr
 
 import (
 	"fmt"
-	"path"
 	"slices"
 	"strings"
-
-	"github.com/dimfeld/httppath"
 
 	"github.com/CaliLuke/loom/eval"
 )
@@ -302,26 +299,14 @@ func (r *RouteExpr) Params() []string {
 }
 
 // FullPaths returns the endpoint full paths computed by concatenating the
-// service base paths with the route specific path.
+// service base paths with the route specific path. Invalid parent graphs yield
+// no paths; design admission reports their resolution error.
 func (r *RouteExpr) FullPaths() []string {
-	if r.IsAbsolute() {
-		return []string{httppath.Clean(r.Path[1:])}
+	paths, err := routeHTTPPaths(r, make(map[*HTTPServiceExpr]bool))
+	if err != nil {
+		return nil
 	}
-	bases := r.Endpoint.Service.FullPaths()
-	res := make([]string, len(bases))
-	for i, b := range bases {
-		res[i] = httppath.Clean(path.Join(b, r.Path))
-		if res[i] == "/" {
-			continue
-		}
-		// path has trailing slash
-		if r.Path == "/" && strings.HasSuffix(b, "/") {
-			res[i] += "/"
-		} else if r.Path != "/" && strings.HasSuffix(r.Path, "/") {
-			res[i] += "/"
-		}
-	}
-	return res
+	return paths
 }
 
 // IsAbsolute returns true if the endpoint path should not be concatenated to

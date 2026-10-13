@@ -274,7 +274,7 @@ func jsonrpcServerResponseCaptureSection() codegen.Section {
 	})
 }
 
-func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) codegen.Section {
+func jsonrpcServerMountSection(data *httpcodegen.ServiceData) codegen.Section {
 	return codegen.NewJenniferSection("jsonrpc-server-mount", func(stmt *jen.Statement) {
 		comment := fmt.Sprintf("%s configures the mux to serve the JSON-RPC %s service methods.", data.MountServer, data.Service.Name)
 		codegen.Doc(stmt, comment)
@@ -285,45 +285,17 @@ func jsonrpcServerMountSection(data *httpcodegen.ServiceData, hasSSE, hasMixed b
 			).
 			BlockFunc(func(g *jen.Group) {
 				switch {
-				case hasMixed:
+				case data.MountPlan.Mixed:
 					g.Comment("Mixed transports: mount unified handler that negotiates HTTP vs SSE by Accept header and JSON-RPC method")
-					seen := map[string]struct{}{}
-					for _, route := range data.Endpoints[0].Routes {
-						for _, verb := range []string{route.Verb, "GET"} {
-							key := verb + " " + route.Path
-							if _, ok := seen[key]; ok {
-								continue
-							}
-							seen[key] = struct{}{}
-							g.Id("mux").Dot("Handle").Call(jen.Lit(verb), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
-						}
-					}
-				case hasSSE:
+				case data.MountPlan.SSE:
 					g.Comment("SSE only: mount SSE handler")
-					seen := map[string]struct{}{}
-					for _, endpoint := range data.Endpoints {
-						for _, route := range endpoint.Routes {
-							verbs := []string{route.Verb}
-							if endpoint.Method.Name == "events/stream" {
-								verbs = append(verbs, "GET")
-							}
-							for _, verb := range verbs {
-								key := verb + " " + route.Path
-								if _, ok := seen[key]; ok {
-									continue
-								}
-								seen[key] = struct{}{}
-								g.Id("mux").Dot("Handle").Call(jen.Lit(verb), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
-							}
-						}
-					}
 				default:
 					g.Comment("HTTP only")
-					for _, route := range data.Endpoints[0].Routes {
-						g.Id("mux").Dot("Handle").Call(jen.Lit(route.Verb), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
-					}
 				}
-				writeJSONRPCCORSMounts(g, data, hasSSE, hasMixed)
+				for _, route := range data.MountPlan.Routes {
+					g.Id("mux").Dot("Handle").Call(jen.Lit(route.Method), jen.Lit(route.Path), jen.Id("h").Dot("ServeHTTP"))
+				}
+				writeJSONRPCCORSMounts(g, data)
 			})
 		stmt.Line()
 		codegen.Doc(stmt, comment)

@@ -1347,6 +1347,14 @@ filter, and serialization rules belong here.
   observation, and commit-aware failure routing. File and raw-body branches
   also delegate writes and cleanup. Generated code retains typed result and
   stream adapters.
+- `expr.HTTPServiceExpr.MountPlan` owns physical HTTP, static-file and JSON-RPC
+  registrations, including synthetic GET and CORS OPTIONS. Root admission and
+  both generators consume the same resolved records; do not re-infer mounts in
+  validators, CORS enumeration or file-prefix loops. Service defaults and Files
+  paths are prepared before admission. Early parameter inheritance uses the
+  guarded service/route path resolver so invalid Parent graphs cannot recurse.
+  Preserve Server/Services cohosting, same-service ownership even if unselected,
+  and OpenAPI's separate, stricter document identity predicate.
 - `expr.validateHTTPPathWildcards` validates the complete inherited route for
   endpoints and Files before generation. Parameters must start a segment;
   static suffixes are allowed, composite or embedded parameters are rejected,

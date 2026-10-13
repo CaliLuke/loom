@@ -18,7 +18,8 @@ func ServerFiles(genpkg string, data *httpcodegen.ServicesData) []*codegen.File 
 	for _, svc := range jsvcs {
 		files = append(files, serverFile(genpkg, svc, data))
 		// Generate either WebSocket or SSE file based on transport type
-		if hasJSONRPCSSE(svc, data) && !hasMixedJSONRPCTransports(svc, data) {
+		mounts := data.Get(svc.Name()).MountPlan
+		if mounts.SSE && !mounts.Mixed {
 			if f := sseServerStreamFile(genpkg, svc, data); f != nil {
 				files = append(files, f)
 			}
@@ -79,12 +80,11 @@ func serverFile(genpkg string, svc *expr.HTTPServiceExpr, services *httpcodegen.
 		codegen.Header(title, "server", imports),
 	}
 
-	hasSSE := hasJSONRPCSSE(svc, services)
-	hasMixed := hasMixedJSONRPCTransports(svc, services)
+	hasSSE, hasMixed := data.MountPlan.SSE, data.MountPlan.Mixed
 	sections = append(sections, jsonrpcServerBaseSections(data, hasSSE, hasMixed)...)
 
 	sections = append(sections, jsonrpcServerTransportSections(data, hasSSE, hasMixed)...)
-	sections = append(sections, jsonrpcServerMountSection(data, hasSSE, hasMixed))
+	sections = append(sections, jsonrpcServerMountSection(data))
 
 	for _, e := range data.Endpoints {
 		sections = append(sections, jsonrpcServerHandlerInitSection(e))
@@ -166,36 +166,4 @@ func jsonrpcServerTransportSections(data *httpcodegen.ServiceData, hasSSE, hasMi
 func lowerInitial(s string) string {
 	_, size := utf8.DecodeRuneInString(s)
 	return strings.ToLower(s[:size]) + s[size:]
-}
-
-// hasJSONRPCSSE returns true if the service uses SSE for JSON-RPC streaming.
-func hasJSONRPCSSE(svc *expr.HTTPServiceExpr, data *httpcodegen.ServicesData) bool {
-	svcData := data.Get(svc.Name())
-	if svcData == nil {
-		return false
-	}
-
-	// Check if any JSON-RPC streaming endpoint uses SSE
-	for _, e := range svc.HTTPEndpoints {
-		if e.MethodExpr.IsStreaming() && e.IsJSONRPC() && e.SSE != nil {
-			return true
-		}
-	}
-
-	return false
-}
-
-// hasJSONRPCHTTP returns true if the service has non-streaming JSON-RPC endpoints.
-func hasJSONRPCHTTP(svc *expr.HTTPServiceExpr) bool {
-	for _, e := range svc.HTTPEndpoints {
-		if e.IsJSONRPC() && !e.MethodExpr.IsStreaming() {
-			return true
-		}
-	}
-	return false
-}
-
-// hasMixedJSONRPCTransports returns true if the service has both HTTP and SSE JSON-RPC endpoints.
-func hasMixedJSONRPCTransports(svc *expr.HTTPServiceExpr, data *httpcodegen.ServicesData) bool {
-	return hasJSONRPCHTTP(svc) && hasJSONRPCSSE(svc, data)
 }

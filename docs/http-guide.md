@@ -12,6 +12,23 @@ This guide covers HTTP-specific features in Loom, from basic routing to advanced
 
 ### Basic Routing
 
+Every generated method/path registration has one owner. Loom rejects conflicting
+effective routes before generation, including HTTP endpoints, JSON-RPC dispatchers,
+static files and automatic GET or CORS OPTIONS routes. Parameter names do not make
+a route distinct: `GET /items/{id}` conflicts with `GET /items/{key}`. Literal
+children and catch-all routes may coexist because routing precedence distinguishes
+them. Logical methods within one JSON-RPC service intentionally share its dispatcher.
+
+Services selected together by a `Server` must have distinct route ownership.
+Disjoint server selections may reuse routes, but one service's own mounts must
+always be unambiguous. Omitted service selection hosts all services. Two services
+with different ordinary verbs can still conflict through their CORS preflight
+routes; place them at different paths or on separate servers. A local explicit
+OPTIONS endpoint continues to own its service's preflight wrapper. Static-file
+mounts do not acquire CORS implicitly. OpenAPI's document-wide path-template rules
+remain stricter than physical routing. Regenerate clients and servers after fixing
+a rejected design.
+
 Routes are defined using the `HTTP` function within a Service:
 
 ```go

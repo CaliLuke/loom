@@ -2,10 +2,6 @@ package expr
 
 import (
 	"fmt"
-	"path"
-	"strings"
-
-	"github.com/dimfeld/httppath"
 
 	"github.com/CaliLuke/loom/eval"
 )
@@ -110,42 +106,12 @@ func (svc *HTTPServiceExpr) CanonicalEndpoint() *HTTPEndpointExpr {
 }
 
 // FullPaths computes the base paths to the service endpoints concatenating the
-// API and parent service base paths as needed.
+// API and parent service base paths as needed. Invalid parent graphs yield no
+// paths; design admission reports their resolution error.
 func (svc *HTTPServiceExpr) FullPaths() []string {
-	if len(svc.Paths) == 0 {
-		return []string{path.Join(svc.Root.Path)}
-	}
-	var paths []string
-	for _, p := range svc.Paths {
-		if strings.HasPrefix(p, "//") {
-			paths = append(paths, httppath.Clean(p))
-			continue
-		}
-		var basePaths []string
-		if p := svc.Parent(); p != nil {
-			if ca := p.CanonicalEndpoint(); ca != nil {
-				if routes := ca.Routes; len(routes) > 0 {
-					// Note: all these tests should be true at code
-					// generation time as DSL validation makes sure
-					// that parent services have a canonical path.
-					fullPaths := routes[0].FullPaths()
-					basePaths = make([]string, len(fullPaths))
-					for i, p := range fullPaths {
-						basePaths[i] = path.Join(p)
-					}
-				}
-			}
-		} else {
-			basePaths = []string{svc.Root.Path}
-		}
-		for _, base := range basePaths {
-			v := httppath.Clean(path.Join(base, p))
-			// path has trailing slash
-			if strings.HasSuffix(p, "/") {
-				v += "/"
-			}
-			paths = append(paths, v)
-		}
+	paths, err := serviceHTTPPaths(svc, make(map[*HTTPServiceExpr]bool))
+	if err != nil {
+		return nil
 	}
 	return paths
 }
@@ -178,8 +144,12 @@ func (svc *HTTPServiceExpr) EvalName() string {
 	return fmt.Sprintf("service %#v", svc.Name())
 }
 
-// Prepare initializes the error responses.
+// Prepare initializes service paths, transport routes and error responses.
 func (svc *HTTPServiceExpr) Prepare() {
+	if len(svc.Paths) == 0 {
+		svc.Paths = []string{"/"}
+	}
+
 	// Create routes for JSON-RPC endpoints if needed
 	if svc.ServiceExpr.Meta != nil && svc.ServiceExpr.Meta["jsonrpc:service"] != nil {
 		svc.prepareJSONRPCRoutes()
@@ -214,9 +184,6 @@ func (svc *HTTPServiceExpr) Validate() error {
 	// Validate attributes
 	svc.validateAttributes(verr)
 
-	// Validate parent service
-	svc.validateParent(verr)
-
 	// Validate canonical endpoint
 	svc.validateCanonicalEndpoint(verr)
 
@@ -243,27 +210,6 @@ func (svc *HTTPServiceExpr) validateAttributes(verr *eval.ValidationErrors) {
 	}
 }
 
-// validateParent validates parent service configuration
-func (svc *HTTPServiceExpr) validateParent(verr *eval.ValidationErrors) {
-	n := svc.ParentName
-	if n == "" {
-		return
-	}
-
-	p := svc.Root.Service(n)
-	if p == nil {
-		verr.Add(svc, "Parent service %s not found", n)
-		return
-	}
-
-	if p.CanonicalEndpoint() == nil {
-		verr.Add(svc, "Parent service %s has no canonical endpoint", n)
-	}
-	if p.ParentName == svc.Name() {
-		verr.Add(svc, "Parent service %s is also child", n)
-	}
-}
-
 // validateCanonicalEndpoint validates canonical endpoint configuration
 func (svc *HTTPServiceExpr) validateCanonicalEndpoint(verr *eval.ValidationErrors) {
 	n := svc.CanonicalEndpointName
@@ -285,12 +231,5 @@ func (svc *HTTPServiceExpr) validateErrors(verr *eval.ValidationErrors) {
 		// generated root that the eval engine would process after. Keep
 		// things simple for now.
 		verr.Merge(er.Validate())
-	}
-}
-
-// Finalize initializes the path if no path is set in design.
-func (svc *HTTPServiceExpr) Finalize() {
-	if len(svc.Paths) == 0 {
-		svc.Paths = []string{"/"}
 	}
 }

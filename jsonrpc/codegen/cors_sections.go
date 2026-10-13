@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"sort"
-
 	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -38,18 +36,12 @@ func renderJSONRPCCORSPolicy(cors *httpcodegen.CORSData) jen.Code {
 	})
 }
 
-func writeJSONRPCCORSMounts(g *jen.Group, data *httpcodegen.ServiceData, hasSSE, hasMixed bool) {
+func writeJSONRPCCORSMounts(g *jen.Group, data *httpcodegen.ServiceData) {
 	if data.CORS == nil {
 		return
 	}
-	routes := jsonrpcCORSRoutes(data, hasSSE, hasMixed)
-	paths := make([]string, 0, len(routes))
-	for path := range routes {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	for _, path := range paths {
-		methods := routes[path]
+	for _, route := range data.MountPlan.Preflights {
+		path, methods := route.Path, route.Methods
 		var handle jen.Code
 		if data.CORS.Runtime {
 			handle = jen.Id("h").Dot("corsPolicy").Dot("HandlePreflight").Call(
@@ -74,37 +66,6 @@ func writeJSONRPCCORSMounts(g *jen.Group, data *httpcodegen.ServiceData, hasSSE,
 			).Block(handle),
 		)
 	}
-}
-
-func jsonrpcCORSRoutes(data *httpcodegen.ServiceData, hasSSE, hasMixed bool) map[string][]string {
-	methodsByPath := make(map[string]map[string]struct{})
-	add := func(path, method string) {
-		if methodsByPath[path] == nil {
-			methodsByPath[path] = make(map[string]struct{})
-		}
-		methodsByPath[path][method] = struct{}{}
-	}
-	for _, endpoint := range data.Endpoints {
-		for _, route := range endpoint.Routes {
-			add(route.Path, route.Verb)
-			if hasMixed || (hasSSE && endpoint.Method.Name == "events/stream") {
-				add(route.Path, "GET")
-			}
-		}
-		if !hasSSE && !hasMixed {
-			break
-		}
-	}
-	out := make(map[string][]string, len(methodsByPath))
-	for path, set := range methodsByPath {
-		methods := make([]string, 0, len(set))
-		for method := range set {
-			methods = append(methods, method)
-		}
-		sort.Strings(methods)
-		out[path] = methods
-	}
-	return out
 }
 
 func stringSliceLiteral(values []string) jen.Code {

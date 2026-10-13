@@ -327,14 +327,14 @@ func TestHTTPFileServerPathNormalizationAndWildcardExtraction(t *testing.T) {
 		{
 			name:             "service root and wildcard paths",
 			dsl:              testdata.ServerMultipleFilesDSL,
-			wantRequestPaths: []string{"/file.json", "/", "/relative-file.json", "/"},
+			wantRequestPaths: []string{"/file.json", "/", "/relative-file.json", "/static"},
 			wantDirFlags:     []bool{false, false, false, true},
 			wantPathParams:   []string{"", "", "", "wildcard"},
 		},
 		{
 			name:             "prefixed root and wildcard paths",
 			dsl:              testdata.ServerMultipleFilesWithPrefixPathDSL,
-			wantRequestPaths: []string{"/server_file_server/file.json", "/server_file_server", "/server_file_server/relative-file.json", "/server_file_server"},
+			wantRequestPaths: []string{"/server_file_server/file.json", "/server_file_server", "/server_file_server/relative-file.json", "/server_file_server/static"},
 			wantDirFlags:     []bool{false, false, false, true},
 			wantPathParams:   []string{"", "", "", "wildcard"},
 		},

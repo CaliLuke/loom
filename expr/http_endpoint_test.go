@@ -221,7 +221,7 @@ func TestHTTPEndpointPrepare(t *testing.T) {
 		},
 		"error": {
 			DSL:   testdata.EndpointRecursiveParentDSL,
-			Error: "service \"Parent\": Parent service Child is also child\nservice \"Child\": Parent service Parent is also child",
+			Error: "service \"Child\": HTTP parent cycle at service \"Child\"\nservice \"Parent\": HTTP parent cycle at service \"Parent\"",
 		},
 	}
 	for n, c := range cases {

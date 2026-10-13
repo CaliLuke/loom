@@ -25,6 +25,10 @@ func TestGeneratedFileServerSupportsSPACatchAllAndDirectoryTargets(t *testing.T)
 
 func fileServerIntegrationDSL() {
 	Service("spa", func() {
+		HTTP(func() {
+			Path("/one")
+			Path("/two")
+		})
 		Method("GetData", func() {
 			Result(String)
 			HTTP(func() {
@@ -75,9 +79,12 @@ func TestGeneratedFileServer(t *testing.T) {
 		path string
 		want string
 	}{
-		{name: "root SPA route", path: "/", want: "spa-index"},
-		{name: "nested SPA route", path: "/settings", want: "spa-index"},
-		{name: "directory asset", path: "/assets/app.js", want: "asset"},
+		{name: "root SPA route", path: "/one/", want: "spa-index"},
+		{name: "nested SPA route", path: "/one/settings", want: "spa-index"},
+		{name: "directory asset", path: "/one/assets/app.js", want: "asset"},
+		{name: "second root", path: "/two/", want: "spa-index"},
+		{name: "second nested", path: "/two/settings", want: "spa-index"},
+		{name: "second directory", path: "/two/assets/app.js", want: "asset"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
