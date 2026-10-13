@@ -223,13 +223,13 @@ func renderSSEEndpointStreamErrorsSource(ed *httpcodegen.EndpointData) string {
 func (s *%s) SendError(ctx context.Context, id any, err error) error {
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
 		return jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {
-			return commit(s.mappedErrorResponse(id, err))
+			return commit(s.mappedErrorResponse(ctx, id, err))
 		})
 	})
 }
 
 %s
-func (s *%s) mappedErrorResponse(id any, err error) *jsonrpc.Response {
+func (s *%s) mappedErrorResponse(ctx context.Context, id any, err error) *jsonrpc.Response {
 %s%s}
 
 %s

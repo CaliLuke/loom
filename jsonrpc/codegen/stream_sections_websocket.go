@@ -374,17 +374,9 @@ func streamMappedErrorCase(prefix string, item *httpcodegen.ErrorData) string {
 		fmt.Sprintf("\t\t\t%s%d, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))\n", prefix, response.Code),
 		"\t\t}\n",
 	)
-	body := response.EncodePlan.FirstBody
-	data := "res"
-	if body.Init != nil {
-		args := make([]string, 0, len(body.Init.ServerArgs))
-		for _, arg := range body.Init.ServerArgs {
-			args = append(args, arg.Ref)
-		}
-		parts = append(parts, fmt.Sprintf("\t\tdata := %s(%s)\n", body.Init.Name, strings.Join(args, ", ")))
-		data = "data"
-	} else if response.ResultAttr != "" {
-		data += "." + response.ResultAttr
+	initialization, data := mappedErrorBody(response)
+	if initialization != "" {
+		parts = append(parts, codegen.Indent(initialization+"\n", "\t\t"))
 	}
 	parts = append(parts,
 		fmt.Sprintf("\t\t%s%d, loom.ErrorSafeMessage(err), %s)\n", prefix, response.Code, data),
@@ -448,18 +440,9 @@ func writeStreamMappedError(g *jen.Group, item *httpcodegen.ErrorData, targetID 
 
 	g.Var().Id("res").Add(codegen.TypeRef(item.Ref))
 	g.If(jen.Op("!").Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("res"))).BlockFunc(writeGeneric)
-	body := response.EncodePlan.FirstBody
-	data := jen.Code(jen.Id("res"))
-	if body.Init != nil {
-		args := make([]jen.Code, 0, len(body.Init.ServerArgs))
-		for _, arg := range body.Init.ServerArgs {
-			args = append(args, codegen.Expr(arg.Ref))
-		}
-		g.Id("data").Op(":=").Id(body.Init.Name).Call(args...)
-		data = jen.Id("data")
-	} else if response.ResultAttr != "" {
-		data = jen.Id("res").Dot(response.ResultAttr)
-	}
+	initialization, value := mappedErrorBody(response)
+	g.Add(codegen.Expr(initialization))
+	data := codegen.Expr(value)
 	g.Return(
 		jen.Id("s").Dot("sendError").Call(
 			jen.Id("ctx"),

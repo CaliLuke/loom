@@ -214,22 +214,28 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 	).BlockFunc(func(eg *jen.Group) {
 		eg.If(jen.Id("req").Dot("HasID")).BlockFunc(func(idg *jen.Group) {
 			idg.Var().Id("en").Add(codegen.TypeRef("loom.LoomErrorNamer"))
-			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).Block(
-				jen.Switch(jen.Id("en").Dot("LoomErrorName").Call()).Block(
-					jen.Case(jen.Lit("invalid_params")).Block(
-						sseEndpointErrorResponse(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "InvalidParams")),
-					),
-					jen.Case(jen.Lit("method_not_found")).Block(
-						sseEndpointErrorResponse(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MethodNotFound")),
-					),
-				),
-			)
-			idg.Id("code").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "InternalError")
-			idg.Var().Id("serviceError").Op("*").Add(codegen.TypeRef("loom.ServiceError"))
-			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("serviceError"))).Block(
-				jen.Id("code").Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "CodeForServiceError").Call(jen.Id("serviceError")),
-			)
-			idg.Add(sseEndpointErrorResponse(jen.Id("code")))
+			idg.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("en"))).BlockFunc(func(named *jen.Group) {
+				named.Switch(jen.Id("en").Dot("LoomErrorName").Call()).BlockFunc(func(cases *jen.Group) {
+					for _, protocol := range []struct {
+						name, code string
+					}{
+						{"invalid_params", "InvalidParams"},
+						{"method_not_found", "MethodNotFound"},
+					} {
+						cases.Case(jen.Lit(protocol.name)).Block(sseEndpointErrorResponse(
+							jen.Id("strm").Dot("sendError").Call(
+								jen.Id("ctx"), jen.Id("req").Dot("ID"),
+								jen.Qual("github.com/CaliLuke/loom/jsonrpc", protocol.code),
+								codegen.Expr("loom.ErrorSafeMessage(err)"),
+								codegen.Expr("jsonrpc.NewErrorData(err)"),
+							),
+						))
+					}
+				})
+			})
+			idg.Add(sseEndpointErrorResponse(jen.Id("strm").Dot("SendError").Call(
+				jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Id("err"),
+			)))
 		})
 		eg.Return(jen.Nil())
 	})
@@ -240,15 +246,9 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 // error. When the write fails, including because the stream already issued its
 // terminal response, the returned error wraps both the write failure and the
 // endpoint error so the error handler keeps the original cause.
-func sseEndpointErrorResponse(code jen.Code) jen.Code {
+func sseEndpointErrorResponse(send jen.Code) jen.Code {
 	return jen.If(
-		jen.Id("sendErr").Op(":=").Id("strm").Dot("sendError").Call(
-			jen.Id("ctx"),
-			jen.Id("req").Dot("ID"),
-			code,
-			codegen.Expr("loom.ErrorSafeMessage(err)"),
-			codegen.Expr("jsonrpc.NewErrorData(err)"),
-		),
+		jen.Id("sendErr").Op(":=").Add(send),
 		jen.Id("sendErr").Op("!=").Nil(),
 	).Block(
 		jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("%w: %w"), jen.Id("sendErr"), jen.Id("err"))),
@@ -433,18 +433,9 @@ func writeJSONRPCMappedError(g *jen.Group, item *httpcodegen.ErrorData) {
 
 	g.Var().Id("res").Add(codegen.TypeRef(item.Ref))
 	g.If(jen.Qual("errors", "As").Call(jen.Id("err"), jen.Op("&").Id("res"))).BlockFunc(func(cg *jen.Group) {
-		body := response.EncodePlan.FirstBody
-		data := jen.Code(jen.Id("res"))
-		if body.Init != nil {
-			args := make([]jen.Code, 0, len(body.Init.ServerArgs))
-			for _, arg := range body.Init.ServerArgs {
-				args = append(args, codegen.Expr(arg.Ref))
-			}
-			cg.Id("data").Op(":=").Id(body.Init.Name).Call(args...)
-			data = jen.Id("data")
-		} else if response.ResultAttr != "" {
-			data = jen.Id("res").Dot(response.ResultAttr)
-		}
+		initialization, value := mappedErrorBody(response)
+		cg.Add(codegen.Expr(initialization))
+		data := codegen.Expr(value)
 		cg.Add(writeJSONRPCEncodeErrorCallWithData(jen.Lit(response.Code), data))
 		cg.Break()
 	})

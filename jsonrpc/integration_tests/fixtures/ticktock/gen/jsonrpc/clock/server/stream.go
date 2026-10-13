@@ -120,13 +120,13 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 func (s *TickServerStream) SendError(ctx context.Context, id any, err error) error {
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
 		return jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {
-			return commit(s.mappedErrorResponse(id, err))
+			return commit(s.mappedErrorResponse(ctx, id, err))
 		})
 	})
 }
 
 // mappedErrorResponse maps err to the designed JSON-RPC error response.
-func (s *TickServerStream) mappedErrorResponse(id any, err error) *jsonrpc.Response {
+func (s *TickServerStream) mappedErrorResponse(ctx context.Context, id any, err error) *jsonrpc.Response {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
 	code := jsonrpc.InternalError
 	var serviceError *loom.ServiceError
@@ -292,13 +292,13 @@ func (s *TockServerStream) SendAndClose(ctx context.Context, event clock.TockEve
 func (s *TockServerStream) SendError(ctx context.Context, id any, err error) error {
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
 		return jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {
-			return commit(s.mappedErrorResponse(id, err))
+			return commit(s.mappedErrorResponse(ctx, id, err))
 		})
 	})
 }
 
 // mappedErrorResponse maps err to the designed JSON-RPC error response.
-func (s *TockServerStream) mappedErrorResponse(id any, err error) *jsonrpc.Response {
+func (s *TockServerStream) mappedErrorResponse(ctx context.Context, id any, err error) *jsonrpc.Response {
 	// No custom errors defined - check if it's a validation error, otherwise use internal error
 	code := jsonrpc.InternalError
 	var serviceError *loom.ServiceError

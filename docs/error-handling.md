@@ -418,6 +418,9 @@ The effective JSON-RPC mapping selects the `error.data` schema:
 - An explicit JSON-RPC `Response(...)` mapping uses the designed error body.
   The server projects the concrete service error into that body. The generated
   client validates the same body and reconstructs the service error.
+  SSE uses the same mapping when the endpoint returns an error or calls
+  `SendError`. Regenerate servers and clients after upgrading to correct
+  previously bypassed SSE endpoint mappings and built-in error source generation.
 - A shared custom error type must include a required `ErrorName` field when
   two error names use that type. The field distinguishes errors that share one
   numeric JSON-RPC code.

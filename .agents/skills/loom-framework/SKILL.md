@@ -1215,6 +1215,13 @@ filter, and serialization rules belong here.
   below `genpkg/http/` to `genpkg/jsonrpc/`, matching whole path segments;
   service packages such as `genpkg/http_` and module paths that contain
   `gen/http` keep their import paths.
+- JSON-RPC mapped error emission shares `mappedErrorBody` across unary, SSE and
+  WebSocket renderers. Consume the prepared response EncodePlan, including its
+  public ProblemResponse source, and normalize the original error to retain
+  outer safe-message/remedy ownership. SSE endpoint-returned service failures
+  delegate to the existing terminal SendError mapping; protocol failures keep
+  their generic data and request-ID suppression. Do not duplicate that mapping
+  in the endpoint handler or change the terminal state algorithm.
 - Preserve the generated public `ServeHTTP` middleware and policy chain when
   adding JSON-RPC dispatch branches.
 - Generated gRPC clients decode remote errors inside the `RemoteFunc` callback

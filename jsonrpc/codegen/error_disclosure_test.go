@@ -3,6 +3,8 @@ package codegen
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,42 +13,55 @@ import (
 )
 
 func TestGeneratedErrorDisclosure(t *testing.T) {
-	root := RunJSONRPCDSL(t, jsonrpcErrorDisclosureDSL)
-	dir := t.TempDir()
-	renderJSONRPCModule(t, dir, "example.com/disclosure", root)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "disclosure_test.go"), []byte(jsonrpcErrorDisclosureHarness), 0o600))
-	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
-	runGoJSONRPCTestCommand(t, dir, "vet", "./...")
-	runGoJSONRPCTestCommand(t, dir, "test", "-race", "-count=1", "./...")
+	for _, mapped := range []bool{false, true} {
+		t.Run("mapped="+strconv.FormatBool(mapped), func(t *testing.T) {
+			root := RunJSONRPCDSL(t, jsonrpcErrorDisclosureDSL(mapped))
+			dir := t.TempDir()
+			renderJSONRPCModule(t, dir, "example.com/disclosure", root)
+			harness := strings.ReplaceAll(jsonrpcErrorDisclosureHarness, "{{mapped}}", strconv.FormatBool(mapped))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "disclosure_test.go"), []byte(harness), 0o600))
+			runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
+			runGoJSONRPCTestCommand(t, dir, "vet", "./...")
+			runGoJSONRPCTestCommand(t, dir, "test", "-race", "-count=1", "./...")
+		})
+	}
 }
 
-func jsonrpcErrorDisclosureDSL() {
-	dsl.API("disclosure", func() {
-		dsl.JSONRPC(func() {})
-	})
-	for _, name := range []string{"unary", "events", "socket"} {
-		dsl.Service(name, func() {
-			dsl.JSONRPC(func() {
-				if name == "socket" {
-					dsl.GET("/" + name)
-				} else {
-					dsl.POST("/" + name)
-				}
-			})
-			dsl.Method("show", func() {
-				dsl.Payload(dsl.String)
-				if name == "unary" {
-					dsl.Result(dsl.String)
-				} else {
-					dsl.StreamingResult(dsl.String)
-				}
+func jsonrpcErrorDisclosureDSL(mapped bool) func() {
+	return func() {
+		dsl.API("disclosure", func() {
+			dsl.JSONRPC(func() {})
+		})
+		for _, name := range []string{"unary", "events", "socket"} {
+			dsl.Service(name, func() {
 				dsl.JSONRPC(func() {
-					if name == "events" {
-						dsl.ServerSentEvents()
+					if name == "socket" {
+						dsl.GET("/" + name)
+					} else {
+						dsl.POST("/" + name)
 					}
 				})
+				dsl.Method("show", func() {
+					dsl.Payload(dsl.String)
+					if name == "unary" {
+						dsl.Result(dsl.String)
+					} else {
+						dsl.StreamingResult(dsl.String)
+					}
+					if mapped {
+						dsl.Error("public")
+					}
+					dsl.JSONRPC(func() {
+						if mapped {
+							dsl.Response("public", 4403)
+						}
+						if name == "events" {
+							dsl.ServerSentEvents()
+						}
+					})
+				})
 			})
-		})
+		}
 	}
 }
 
@@ -76,21 +91,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type safeWrapper struct {
+	error
+}
+
+func (e *safeWrapper) Unwrap() error {
+	return e.error
+}
+
+func (e *safeWrapper) LoomErrorRemedy() *loom.ErrorRemedy {
+	return &loom.ErrorRemedy{SafeMessage: "outer safe detail", RetryHint: "retry later"}
+}
+
+const mapped = {{mapped}}
+
 func TestPublicMessages(t *testing.T) {
 	secret := errors.New("private database password")
 	public := loom.NewServiceError(secret, "public", false, false, true)
 	public.Message = "public detail"
 	safe := loom.WithErrorRemedy(loom.NewServiceError(secret, "public", false, false, true), &loom.ErrorRemedy{SafeMessage: "safe detail"})
+	outerSafe := &safeWrapper{error: fmt.Errorf("private wrapper: %w", public)}
 	for _, tc := range []struct {
 		name    string
 		err     error
 		message string
+		owned bool
 	}{
-		{"plain", secret, "internal server error"},
-		{"wrapped", fmt.Errorf("private query: %w", secret), "internal server error"},
-		{"public wrapper", fmt.Errorf("private query: %w", public), "public detail"},
-		{"safe", safe, "safe detail"},
-		{"join", errors.Join(public, secret), "internal server error"},
+		{"plain", secret, "internal server error", false},
+		{"wrapped", fmt.Errorf("private query: %w", secret), "internal server error", false},
+		{"public wrapper", fmt.Errorf("private query: %w", public), "public detail", true},
+		{"safe", safe, "safe detail", true},
+		{"outer safe", outerSafe, "outer safe detail", true},
+		{"join", errors.Join(public, secret), "internal server error", true},
 	} {
 		for _, transport := range []string{"unary", "events", "socket"} {
 			for _, send := range []bool{false, true} {
@@ -169,7 +201,22 @@ func TestPublicMessages(t *testing.T) {
 					require.Equal(t, "request", envelope["id"])
 					problem, ok := envelope["error"].(map[string]any)
 					require.True(t, ok)
-					require.Equal(t, float64(-32603), problem["code"])
+					wantCode := float64(-32603)
+					if mapped && tc.owned {
+						wantCode = 4403
+						data, ok := problem["data"].(map[string]any)
+						require.True(t, ok)
+						require.Equal(t, tc.message, data["detail"])
+						require.Equal(t, "public", data["code"])
+						require.Equal(t, float64(4403), data["status"])
+						require.NotEmpty(t, data["instance"])
+						if tc.name == "outer safe" {
+							require.Equal(t, "retry later", data["retry_hint"])
+						} else {
+							require.NotContains(t, data, "retry_hint")
+						}
+					}
+					require.Equal(t, wantCode, problem["code"])
 					require.Equal(t, tc.message, problem["message"])
 					select {
 					case original := <-called:

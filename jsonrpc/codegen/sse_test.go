@@ -157,7 +157,7 @@ func TestJSONRPCSSEEndpointStreamTerminalResponseIsSerialized(t *testing.T) {
 		{name: "terminal response is encoded before the stream becomes terminal", want: "\t\tdata, err := loomhttp.EncodeSSEData(response)\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\t\tcommitted = true\n\t\treturn s.writeSSEData(ctx, \"message\", data)\n"},
 		{name: "encoding failure leaves the stream open", want: "\tif err != nil && !committed {\n\t\treturn err\n\t}\n\ts.closed = true\n\tif closeErr := s.writer.Close(); closeErr != nil && err == nil {\n"},
 		{name: "SendAndClose is terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)\n"},
-		{name: "SendError is terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {\n\t\t\treturn commit(s.mappedErrorResponse(id, err))\n"},
+		{name: "SendError is terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {\n\t\t\treturn commit(s.mappedErrorResponse(ctx, id, err))\n"},
 		{name: "handler errors are terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn commit(jsonrpc.MakeErrorResponse(id, code, message, data))\n"},
 		{name: "writes honor the call context", want: "\treturn s.writer.WriteEvent(ctx, func(w io.Writer) error {\n"},
 	}
