@@ -3,8 +3,8 @@
 Original readiness parent: 6edea49323097517abe52e194b79905e27ba03f0.
 Current implementation parent: 720d8a5f70122bb47a4e69711618ea75ff462e4d
 (delivered #886 explicit response owner). Implementation follows the
-independently approved readiness packet; final
-review and delivery are pending.
+independently approved readiness packet. Independently reviewed, pushed as
+`3476cc239`, and confirmed closed; root integration race checks pass (20.000s).
 
 1. [x] Read the report, expression consumers, DSL constructor defaults and
    existing promotion/admission owners. Keep #783 annotations and #686 byte
@@ -18,7 +18,10 @@ review and delivery are pending.
    normalization model's object-constructor extension.
 5. [x] Implemented the approved owner; completed affected direct tests, bounded actual
    parent/candidate artifact comparison, compilation and spec acceptance checks.
-6. [ ] Independent exact final review before atomic delivery.
+6. [x] Independent exact final review, atomic delivery and confirmed issue closure.
+7. [x] Preserve compact evidence and remove inactive temporary outputs.
+   Receipt: `/tmp/loom-776-cleanup-receipt.json`; source/input archives and
+   compact results remain available.
 
 ## Established cause and contract
 
@@ -158,7 +161,7 @@ preserves explicit selected/named object responses through the shared owner,
 while retaining inferred bodyless behavior. Its separately reviewed fix is a
 prerequisite, not an importer workaround.
 
-Remaining sequence:
+Completed response-content sequence:
 1. Add a headerless named and inline closed-object response to the existing root
    fixture; keep the wrapped request/response and assert actual wire and schema.
 2. Make the existing response constructor role require a concrete type for an
@@ -200,7 +203,7 @@ Remaining sequence:
   object-role obligations already cover the explicit response constructor;
   #886's separate model and mounted tests establish body presence downstream.
 
-Final independent review and delivery remain pending. #791 URL admission,
+Final independent review and delivery completed in `3476cc239`. #791 URL admission,
 #783 annotations and #686 byte-length semantics remain outside this change.
 
 The first targeted headerless mapping reused the field-constructor predicate.

@@ -1,6 +1,8 @@
 # Projected field carriers (#887)
 
-Status: implemented against delivered `7ed1bfc63`; final review pending.
+Status: independently reviewed, pushed as `ee1d653cf`, and confirmed closed.
+Cleanup completed; `/tmp/loom-887-cleanup-receipt.json` preserves archives and
+compact evidence. Shared conversion follow-up #889 remains open.
 
 ## Sequence
 
@@ -14,12 +16,12 @@ Status: implemented against delivered `7ed1bfc63`; final review pending.
 - [x] Independent readiness review of the shared correction and bounded consumers.
 - [x] Implement, compare selected generated outputs and independently repeat;
   compile and exercise the corrected named-view header wire path.
-- [ ] Independent exact final review, atomic delivery and temporary-output cleanup.
+- [x] Independent exact final review, atomic delivery and temporary-output cleanup.
 
 ## Owner and correction
 
-`AttributeContext.IsPrimitivePointer` currently returns true for any field when
-`Pointer` is true (except Any/direct Bytes). It therefore labels missing fields,
+At the original parent, `AttributeContext.IsPrimitivePointer` returns true for
+any field when `Pointer` is true (except Any/direct Bytes). It therefore labels missing fields,
 arrays, maps, objects and unions as primitive pointers. HTTP's
 `transportFieldBinding` consumes that flag for projected header conversion and
 emits a dereference of the named slice. Actual declarations use

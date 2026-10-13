@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **174 of 209 tracked reports are delivered, pushed and confirmed closed.**
+- **176 of 210 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-174-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-176-issues.json` is the frozen GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
   client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
@@ -56,6 +56,16 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   One internal framing/admissibility owner feeds Expr and HTTP/JSON-RPC codecs;
   repeated/combined fields, empty presence and rejected lossy values agree.
   The separate projected named-collection carrier defect is tracked as #887.
+- Imported object representation #776 (`3476cc239`) is reviewed, pushed and
+  closed. Analysis, constructor preparation, admission and rendering share one
+  carrier decision. Source-declared structured response content stays explicit;
+  direct and mounted integration race checks pass (20.000s), with bounded
+  generated/schema/determinism evidence and ordinary controls retained.
+- Physical primitive-field queries #887 (`ee1d653cf`) are reviewed, pushed and
+  closed. The shared query derives from canonical declarations; selected-body
+  duplication is removed. One generated dereference changes, 55 fixture outputs
+  stay identical, and mounted integration race checks pass. The independently
+  reproduced named-collection nil-to-empty conversion remains open as #889.
 - Required CI is not confirmed green. The inspected metadata-adoption run
   failed the known #820 libopenapi YAML-node race. The newer #689 run
   `38455349199` at `7ed1bfc63` exposed fixture maintainability lint #888;
@@ -98,19 +108,17 @@ reconciliation with the inventory before they can establish remaining work.
    publication and persistent original stop cutoffs across retries; implementation
    now follows that corrected contract. Preserve other producers,
    generic StopJob enqueue semantics and the existing Schedule lifetime.
-2. **Imported object representation (#776):** `/root/omission_readiness_finish`
-   implements the independently approved classifier and constructor-role contract
-   in `numeric-comparison/loom`, advanced to delivered prerequisite #886.
-   Promotion, planner admission and rendering share the object decision; direct
-   Render stays nonmutating. Headerless and wrapped source-declared closed-empty
-   responses must both preserve content in generated wire behavior and OpenAPI.
-   Annotation #783 and encoded byte-length #686 retain distinct owners.
-3. **Projected physical field carriers (#887):** `/root/projection_integration_review`
-   implements the independently approved canonical layout query after nine direct
-   failing assertions and the archived/current-parent named-slice compiler witness.
-   Reuse declaration storage in the shared context query and remove equivalent
-   selected-body classification. Preserve JSON presence, named Bytes, scalar
-   pointer and non-view controls; do not add header template exceptions.
+2. **Importer location admission (#791):** `/root/omission_readiness_finish`
+   follows delivered #776 with the existing five failing admission probes and
+   eleven controls in `/tmp/loom-791-current-evidence.json`. Reconcile one
+   reference-resolved parameter-shape contract across Analyze, Render and
+   selection; preserve JSON query maps, standard scalar-list headers and
+   supported raw/form bodies. Readiness precedes implementation.
+3. **Collection conversion presence (#889):** `/root/projection_integration_review`
+   reuses the ordinary named-array and full mounted nil failures preserved from
+   #887. Root collection conversion currently allocates without preserving
+   absence while callers supply inconsistent guards. Establish the shared
+   conversion contract and its direct/generated controls; no header workaround.
 4. **Stream observation (#749):** root recorded three direct failures and two
    controls in [the owning plan](stream-observation-ownership.md). Establish
    connection versus operation identity and opening/terminal correspondence before
@@ -118,10 +126,8 @@ reconciliation with the inventory before they can establish remaining work.
    No production fix or generated acceptance is claimed yet.
 5. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
-   actual namespaces. #791 follows #776 through one location-aware parameter
-   contract: current root probes reproduce five silent header/path/nested-array
-   admissions and the original generated-header failure. Eleven controls pass.
-   Evidence: `/tmp/loom-791-current-evidence.json`; no production fix is claimed.
+   actual namespaces. Imported annotation #783 and encoded byte length #686
+   retain distinct owners after object representation delivery.
    #687 still needs bounded subordinate shutdown. Keep #884 custom-key example
    synthesis open rather than weakening supported representation admission.
 6. **Dependency gates:** #820 libopenapi
