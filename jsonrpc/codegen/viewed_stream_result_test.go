@@ -8,8 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	cg "github.com/CaliLuke/loom/codegen"
-	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
 )
 
@@ -25,12 +23,6 @@ func TestJSONRPCViewedStreamResultGeneratedModule(t *testing.T) {
 	dir := t.TempDir()
 	const modulePath = "example.com/jsonrpcviewed"
 	renderJSONRPCModule(t, dir, modulePath, root)
-	data := CreateJSONRPCServices(root)
-	for _, svc := range root.Services {
-		if views := servicecodegen.ViewsFile(modulePath+"/gen", svc, data.ServicesData); views != nil {
-			renderCodegenFiles(t, dir, []*cg.File{views})
-		}
-	}
 
 	ws := readGeneratedFile(t, dir, "gen/jsonrpc/files/server/websocket.go")
 	for _, want := range []string{

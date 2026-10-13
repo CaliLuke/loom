@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	cg "github.com/CaliLuke/loom/codegen"
-	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	servicetestdata "github.com/CaliLuke/loom/codegen/service/testdata"
 )
 
@@ -23,12 +21,7 @@ func TestRecursiveProjectionJSONRPC(t *testing.T) {
 			})
 			dir := t.TempDir()
 			renderJSONRPCModule(t, dir, "example.com/projection", root)
-			data := CreateJSONRPCServices(root)
-			for _, svc := range root.Services {
-				if views := servicecodegen.ViewsFile("example.com/projection/gen", svc, data.ServicesData); views != nil {
-					renderCodegenFiles(t, dir, []*cg.File{views})
-				}
-			}
+
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "projection_test.go"), []byte(recursiveProjectionJSONRPCHarness), 0o600))
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "service_test.go"), []byte(servicetestdata.RecursiveProjectionServiceHarness), 0o600))
 			runGoJSONRPCTestCommand(t, dir, "mod", "tidy")

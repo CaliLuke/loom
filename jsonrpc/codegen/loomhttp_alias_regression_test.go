@@ -126,6 +126,9 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 	userTypePkgs := make(map[string][]string)
 	for _, svc := range root.Services {
 		files = append(files, servicecodegen.Files(genpkg, svc, serviceData, userTypePkgs)...)
+		if views := servicecodegen.ViewsFile(genpkg, svc, serviceData); views != nil {
+			files = append(files, views)
+		}
 		files = append(files, servicecodegen.EndpointFile(genpkg, svc, serviceData))
 	}
 	files = append(files, httpcodegen.DiagnosticFiles(jsonrpcData, "jsonrpc")...)
@@ -161,6 +164,9 @@ func renderMixedHTTPJSONRPCModule(t *testing.T, dir, modulePath string, root *ex
 	userTypePkgs := make(map[string][]string)
 	for _, svc := range root.Services {
 		files = append(files, servicecodegen.Files(genpkg, svc, serviceData, userTypePkgs)...)
+		if views := servicecodegen.ViewsFile(genpkg, svc, serviceData); views != nil {
+			files = append(files, views)
+		}
 		files = append(files, servicecodegen.EndpointFile(genpkg, svc, serviceData))
 	}
 	files = append(files, httpcodegen.DiagnosticFiles(httpData, "http")...)

@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	cg "github.com/CaliLuke/loom/codegen"
-	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	. "github.com/CaliLuke/loom/dsl"
 	httpcodegen "github.com/CaliLuke/loom/http/codegen"
 	"github.com/CaliLuke/loom/internal/testingx"
@@ -78,11 +76,6 @@ func renderLocalNameModule(t *testing.T, dir, modulePath string, design func(...
 	genpkg := modulePath + "/gen"
 	data := CreateJSONRPCServices(root)
 	httpData := httpcodegen.NewServicesData(data.ServicesData, root.API.HTTP)
-	for _, svc := range root.Services {
-		if views := servicecodegen.ViewsFile(genpkg, svc, data.ServicesData); views != nil {
-			renderCodegenFiles(t, dir, []*cg.File{views})
-		}
-	}
 	renderCodegenFiles(t, dir, ClientCLIFiles(genpkg, data))
 	renderCodegenFiles(t, dir, ExampleServerFiles(genpkg, data, httpcodegen.ExampleServerFiles(genpkg, httpData)))
 	renderCodegenFiles(t, dir, ExampleCLIFiles(genpkg, data))

@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	cg "github.com/CaliLuke/loom/codegen"
-	servicecodegen "github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/jsonrpc/codegen/testdata"
 )
 
@@ -104,12 +102,7 @@ func TestViewedStreamResponseID(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.ViewedStreamResponseIDDSL)
 	dir := t.TempDir()
 	renderJSONRPCModule(t, dir, "example.com/idviews", root)
-	services := CreateJSONRPCServices(root)
-	for _, svc := range root.Services {
-		if views := servicecodegen.ViewsFile("example.com/idviews/gen", svc, services.ServicesData); views != nil {
-			renderCodegenFiles(t, dir, []*cg.File{views})
-		}
-	}
+
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "id_test.go"), []byte(viewedStreamIDHarness), 0o600))
 	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
 	runGoJSONRPCTestCommand(t, dir, "test", "-race", "./...")
