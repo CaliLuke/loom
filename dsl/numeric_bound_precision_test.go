@@ -2,6 +2,7 @@ package dsl_test
 
 import (
 	json "encoding/json/v2"
+	"strconv"
 	"testing"
 
 	. "github.com/CaliLuke/loom/dsl"
@@ -19,6 +20,8 @@ func TestNumericBoundPreservesAuthoredInteger(t *testing.T) {
 		{"above float exact range", int64(9007199254740993), "9007199254740993"},
 		{"maximum signed", int64(9223372036854775807), "9223372036854775807"},
 		{"maximum unsigned", uint64(18446744073709551615), "18446744073709551615"},
+		{"native unsigned", uint(5), "5"},
+		{"maximum native unsigned", ^uint(0), strconv.FormatUint(uint64(^uint(0)), 10)},
 		{"negative exact integer", int64(-9007199254740993), "-9007199254740993"},
 		{"decimal text", "9007199254740993", "9007199254740993"},
 		{"small integer control", 42, "42"},
@@ -46,8 +49,11 @@ func TestNumericBoundPreservesAuthoredInteger(t *testing.T) {
 			t.Run(bound.name+"/"+value.name, func(t *testing.T) {
 				eval.SetupTestContext(t)
 				attribute := &expr.AttributeExpr{Type: Int64}
-				if _, unsigned := value.value.(uint64); unsigned {
+				switch value.value.(type) {
+				case uint64:
 					attribute.Type = UInt64
+				case uint:
+					attribute.Type = UInt
 				}
 				require.True(t, eval.Execute(func() {
 					bound.set(value.value)

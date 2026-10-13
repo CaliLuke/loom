@@ -22,13 +22,13 @@ type NumericBoundProjection struct {
 
 // NewNumericBound constructs an exact endpoint from the DSL's admitted builtin
 // numeric types or finite numeric string syntax. Integers and strings retain
-// exact meaning; floats retain their actual binary value. Builtin uint, named
-// source types, pointers and nonfinite values are not admitted.
+// exact meaning; floats retain their actual binary value. Named source types,
+// pointers and nonfinite values are not admitted.
 func NewNumericBound(value any) (NumericBound, error) {
 	switch actual := value.(type) {
 	case string:
 		return exactnum.ParseDSL(actual)
-	case float32, float64, int, int8, int16, int32, int64, uint8, uint16, uint32, uint64:
+	case float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		if number, ok := exactnum.FromScalar(actual); ok {
 			return number, nil
 		}

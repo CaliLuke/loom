@@ -478,7 +478,8 @@ expresses the intended application contract; runtime validation is unchanged.
 - `ExclusiveMinimum(n)` - Minimum value (exclusive)
 - `ExclusiveMaximum(n)` - Maximum value (exclusive)
 
-Numeric bounds preserve exact values. Integers retain all their digits; strings
+Numeric bounds preserve exact values, including builtin Go `uint` arguments.
+Integers retain all their digits; strings
 such as `Minimum("9007199254740993")` and `Maximum("0.1")` express exact
 mathematical integers and decimals. Finite hexadecimal strings such as
 `Minimum("0x1.4p0")` express the same language-neutral number as `Minimum("1.25")`.

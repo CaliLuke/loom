@@ -22,7 +22,7 @@ func TestNumericBoundSourceAdmission(t *testing.T) {
 	}{
 		{"int", int(1), true}, {"int8", int8(1), true},
 		{"int16", int16(1), true}, {"int32", int32(1), true},
-		{"int64", int64(1), true}, {"uint", uint(1), false},
+		{"int64", int64(1), true}, {"uint", uint(1), true},
 		{"uint8", uint8(1), true}, {"uint16", uint16(1), true},
 		{"uint32", uint32(1), true}, {"uint64", uint64(1), true},
 		{"float32", float32(0.1), true}, {"float64", float64(0.1), true},

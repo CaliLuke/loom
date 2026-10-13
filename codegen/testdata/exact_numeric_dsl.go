@@ -39,8 +39,8 @@ func ExactNumericPayload() expr.UserType {
 			Minimum("1e-1000001")
 		})
 		Field(8, "control", Int32, func() {
-			Minimum(2)
-			Maximum(17)
+			Minimum(uint(2))
+			Maximum(uint(17))
 		})
 		Field(9, "annotation", Float64, func() {
 			Minimum("0.1")

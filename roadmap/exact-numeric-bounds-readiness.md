@@ -413,12 +413,13 @@ do not gain independent arbitrary-precision comparisons or tolerance policies.
 
 ## Source admission and finite-number decisions
 
-The current builtin source matrix is unusual but explicit. Preserve it for this
-repair: accept `int`, `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`,
+The builtin source matrix at the #681 parent was unusual but explicit. It was
+preserved for that repair: accept `int`, `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`,
 `uint32`, `uint64`, `float32`, `float64`, and builtin `string`. Do not admit
 `uint`, defined numeric/string types, pointers, or nil. The 30-case
 `TestNumericBoundSourceAdmission` is a green parent control of that boundary;
-accepting `uint` can be a separate documented policy correction if desired.
+The separate [#696 source-admission repair](uint-bound-admission.md) corrects
+builtin `uint` admission without changing this exact-number representation.
 
 Candidate semantics:
 
