@@ -21,6 +21,10 @@ import (
 func TestJSONRPCViewedStreamResultGeneratedModule(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.ViewedStreamResultDSL)
 	dir := t.TempDir()
+	if base := os.Getenv("LOOM_OBSERVATION_ARTIFACTS"); base != "" {
+		dir = filepath.Join(base, "jsonrpc")
+		require.NoError(t, os.MkdirAll(dir, 0o750))
+	}
 	const modulePath = "example.com/jsonrpcviewed"
 	renderJSONRPCModule(t, dir, modulePath, root)
 
@@ -62,6 +66,8 @@ func TestJSONRPCViewedStreamResultGeneratedModule(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "view_marker_test.go"), []byte(jsonRPCViewMarkerHarness), 0o600))
 	serverDir := filepath.Join(dir, "gen", "jsonrpc", "feed", "server")
 	require.NoError(t, os.WriteFile(filepath.Join(serverDir, "service_stream_test.go"), []byte(jsonRPCViewedSSEServiceStreamHarness), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "observation_test.go"), []byte(jsonRPCViewedSSEObservationHarness), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "gen", "jsonrpc", "files", "server", "observation_test.go"), []byte(jsonRPCViewedWSObservationHarness), 0o600))
 	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
 	runGoJSONRPCTestCommand(t, dir, "vet", "./...")
 	runGoJSONRPCTestCommand(t, dir, "test", "-race", "./...")
@@ -92,6 +98,7 @@ const jsonRPCViewedSSEServiceStreamHarness = `package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -101,6 +108,45 @@ import (
 	loomhttp "github.com/CaliLuke/loom/http"
 	loomtransport "github.com/CaliLuke/loom/observability/transport"
 )
+
+// TestStreamObservationReentry keeps callbacks outside both generated view
+// selection and shared writer ownership while preserving terminal admission.
+func TestStreamObservationReentry(t *testing.T) {
+	var stream *FollowServerStream
+	var kinds []loomtransport.EventKind
+	ctx := loomtransport.WithObserver(context.Background(), loomtransport.ObserverFunc(func(_ context.Context, event loomtransport.Event) {
+		kinds = append(kinds, event.Kind)
+		if event.Kind == loomtransport.EventKindStreamOpen {
+			if !stream.mu.TryLock() {
+				t.Error("observer called under generated view mutex")
+				return
+			}
+			stream.mu.Unlock()
+			stream.SetView("tiny")
+			if !stream.writer.Started() {
+				t.Error("opening callback preceded commitment")
+			}
+			if err := stream.SendAndClose(context.Background(), &feed.Note{ID: "final"}); err != nil {
+				t.Errorf("reentrant final: %v", err)
+			}
+		}
+	}))
+	rec := httptest.NewRecorder()
+	title := "title"
+	stream = &FollowServerStream{writer: loomhttp.NewSSEStreamWriter(rec, ctx, loomtransport.TransportJSONRPC, loomhttp.StreamWritePolicy{}), requestHasID: true, requestID: "r"}
+	if err := stream.Send(context.Background(), &feed.Note{ID: "first", Title: &title}); err != nil {
+		t.Fatal(err)
+	}
+	if err := stream.Send(context.Background(), &feed.Note{ID: "late"}); !errors.Is(err, loomhttp.ErrSSEStreamClosed) {
+		t.Errorf("late send: %v", err)
+	}
+	if len(kinds) != 2 || kinds[0] != loomtransport.EventKindStreamOpen || kinds[1] != loomtransport.EventKindStreamClose {
+		t.Errorf("lifecycle: %v", kinds)
+	}
+	if strings.Contains(rec.Body.String(), "late") || !strings.Contains(rec.Body.String(), "final") {
+		t.Errorf("unexpected frames: %s", rec.Body.String())
+	}
+}
 
 func TestServiceStreamSendsDefaultView(t *testing.T) {
 	rec := httptest.NewRecorder()

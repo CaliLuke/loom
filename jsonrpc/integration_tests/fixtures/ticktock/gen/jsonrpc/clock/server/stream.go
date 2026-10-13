@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 
 	clock "example.com/ticktock/gen/clock"
 	loomhttp "github.com/CaliLuke/loom/http"
@@ -36,31 +35,15 @@ type TickServerStream struct {
 	requestID any
 	// requestHasID records whether the JSON-RPC request included an ID.
 	requestHasID bool
-	// closed records that the terminal response (SendAndClose or SendError)
-	// has been issued.
-	closed bool
-	// mu serializes every stream write with the terminal transition so no
-	// event can follow the final response.
-	mu sync.Mutex
 }
 
 // Open commits and flushes the SSE headers before the first application event.
 func (s *TickServerStream) Open(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.writer.Open(ctx)
 }
 
 // SendComment writes and flushes an SSE heartbeat comment.
 func (s *TickServerStream) SendComment(ctx context.Context, text string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.writer.SendComment(ctx, text)
 }
 
@@ -88,11 +71,6 @@ func (s *TickServerStream) Send(ctx context.Context, event clock.TickEvent) erro
 		"params":  body,
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.sendSSEEvent(ctx, "message", message)
 }
 
@@ -119,8 +97,8 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 		body = NewTickResponseBody(res)
 	}
 
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID, func() *jsonrpc.Response {
+		return jsonrpc.MakeSuccessResponse(s.requestID, body)
 	})
 }
 
@@ -128,10 +106,8 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 // ID-less streams are closed without a response. After calling this method,
 // every later stream operation returns loomhttp.ErrSSEStreamClosed.
 func (s *TickServerStream) SendError(ctx context.Context, id any, err error) error {
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {
-			return commit(s.mappedErrorResponse(ctx, id, err))
-		})
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID, func() *jsonrpc.Response {
+		return s.mappedErrorResponse(ctx, id, err)
 	})
 }
 
@@ -149,41 +125,9 @@ func (s *TickServerStream) mappedErrorResponse(ctx context.Context, id any, err 
 // sendError sends a terminal JSON-RPC error response via SSE and closes the
 // stream.
 func (s *TickServerStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return commit(jsonrpc.MakeErrorResponse(id, code, message, data))
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, true, func() *jsonrpc.Response {
+		return jsonrpc.MakeErrorResponse(id, code, message, data)
 	})
-}
-
-// complete issues the terminal response at most once while holding s.mu. run
-// passes the response to commit, or returns without calling commit to close
-// without a frame. commit encodes the response before the stream becomes
-// terminal, so an encoding failure returns the error and leaves the stream
-// open for a later error response. Once encoding succeeds, the stream is
-// terminal even if the write fails, and the writer is closed so no later
-// event, comment, or open can follow.
-func (s *TickServerStream) complete(ctx context.Context, run func(commit func(*jsonrpc.Response) error) error) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
-	committed := false
-	err := run(func(response *jsonrpc.Response) error {
-		data, err := loomhttp.EncodeSSEData(response)
-		if err != nil {
-			return err
-		}
-		committed = true
-		return s.writeSSEData(ctx, "message", data)
-	})
-	if err != nil && !committed {
-		return err
-	}
-	s.closed = true
-	if closeErr := s.writer.Close(); closeErr != nil && err == nil {
-		return closeErr
-	}
-	return err
 }
 
 // sendSSEEvent encodes v and sends it as a single SSE event.
@@ -218,31 +162,15 @@ type TockServerStream struct {
 	requestID any
 	// requestHasID records whether the JSON-RPC request included an ID.
 	requestHasID bool
-	// closed records that the terminal response (SendAndClose or SendError)
-	// has been issued.
-	closed bool
-	// mu serializes every stream write with the terminal transition so no
-	// event can follow the final response.
-	mu sync.Mutex
 }
 
 // Open commits and flushes the SSE headers before the first application event.
 func (s *TockServerStream) Open(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.writer.Open(ctx)
 }
 
 // SendComment writes and flushes an SSE heartbeat comment.
 func (s *TockServerStream) SendComment(ctx context.Context, text string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.writer.SendComment(ctx, text)
 }
 
@@ -270,11 +198,6 @@ func (s *TockServerStream) Send(ctx context.Context, event clock.TockEvent) erro
 		"params":  body,
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.sendSSEEvent(ctx, "message", message)
 }
 
@@ -301,8 +224,8 @@ func (s *TockServerStream) SendAndClose(ctx context.Context, event clock.TockEve
 		body = NewTockResponseBody(res)
 	}
 
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID, func() *jsonrpc.Response {
+		return jsonrpc.MakeSuccessResponse(s.requestID, body)
 	})
 }
 
@@ -310,10 +233,8 @@ func (s *TockServerStream) SendAndClose(ctx context.Context, event clock.TockEve
 // ID-less streams are closed without a response. After calling this method,
 // every later stream operation returns loomhttp.ErrSSEStreamClosed.
 func (s *TockServerStream) SendError(ctx context.Context, id any, err error) error {
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {
-			return commit(s.mappedErrorResponse(ctx, id, err))
-		})
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID, func() *jsonrpc.Response {
+		return s.mappedErrorResponse(ctx, id, err)
 	})
 }
 
@@ -331,41 +252,9 @@ func (s *TockServerStream) mappedErrorResponse(ctx context.Context, id any, err 
 // sendError sends a terminal JSON-RPC error response via SSE and closes the
 // stream.
 func (s *TockServerStream) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return commit(jsonrpc.MakeErrorResponse(id, code, message, data))
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, true, func() *jsonrpc.Response {
+		return jsonrpc.MakeErrorResponse(id, code, message, data)
 	})
-}
-
-// complete issues the terminal response at most once while holding s.mu. run
-// passes the response to commit, or returns without calling commit to close
-// without a frame. commit encodes the response before the stream becomes
-// terminal, so an encoding failure returns the error and leaves the stream
-// open for a later error response. Once encoding succeeds, the stream is
-// terminal even if the write fails, and the writer is closed so no later
-// event, comment, or open can follow.
-func (s *TockServerStream) complete(ctx context.Context, run func(commit func(*jsonrpc.Response) error) error) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
-	committed := false
-	err := run(func(response *jsonrpc.Response) error {
-		data, err := loomhttp.EncodeSSEData(response)
-		if err != nil {
-			return err
-		}
-		committed = true
-		return s.writeSSEData(ctx, "message", data)
-	})
-	if err != nil && !committed {
-		return err
-	}
-	s.closed = true
-	if closeErr := s.writer.Close(); closeErr != nil && err == nil {
-		return closeErr
-	}
-	return err
 }
 
 // sendSSEEvent encodes v and sends it as a single SSE event.

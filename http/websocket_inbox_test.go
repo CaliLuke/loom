@@ -16,15 +16,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	loomhttp "github.com/CaliLuke/loom/http"
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 )
 
 type (
 	lifecyclePairOptions struct {
-		limits     loomhttp.WebSocketLimits
-		context    context.Context
-		cancel     context.CancelFunc
-		configure  loomhttp.ConnConfigureFunc
-		closeError error
+		serverObservation bool
+		limits            loomhttp.WebSocketLimits
+		context           context.Context
+		cancel            context.CancelFunc
+		configure         loomhttp.ConnConfigureFunc
+		closeError        error
 	}
 	lifecycleSocket struct {
 		net.Conn
@@ -274,10 +276,13 @@ func newLifecyclePair(t *testing.T, opts lifecyclePairOptions) (*loomhttp.WebSoc
 	require.NoError(t, response.Body.Close())
 	config, err := loomhttp.NewWebSocketConfig(opts.limits, opts.configure)
 	require.NoError(t, err)
-	stream := loomhttp.NewWebSocketStream(config)
 	ctx := opts.context
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	stream := loomhttp.NewWebSocketStream(config)
+	if opts.serverObservation {
+		stream = loomhttp.NewServerWebSocketStream(ctx, loomtransport.TransportHTTP, config)
 	}
 	require.NoError(t, stream.SetConn(ctx, conn, opts.cancel))
 	t.Cleanup(func() {

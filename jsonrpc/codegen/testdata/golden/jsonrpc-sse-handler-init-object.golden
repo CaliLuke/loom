@@ -15,6 +15,7 @@ func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*
 			w:            w,
 			writer:       loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, streamWritePolicy),
 		}
+		defer strm.writer.End()
 		params, err := decodeParams(r, req)
 		if err != nil {
 			if req.HasID {

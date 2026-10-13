@@ -1466,6 +1466,12 @@ handler can still send an error event. A send whose context is canceled after
 the event was serialized returns the context error, but the buffered event may
 still reach the client, so do not re-send it.
 
+Regenerate servers to adopt stream lifecycle observation. With a transport
+observer installed, SSE header commitment emits one opening event and handler
+completion closes a committed writer once. An unopened stream emits neither.
+Observer callbacks can reenter stream controls; they run outside writer locks.
+A recoverable encoding failure does not imply that the stream has closed.
+
 SSE uses the same optional `StreamWritePolicy` shown above. A positive timeout
 bounds every frame write and flush using `http.ResponseController`; zero keeps
 the existing unbounded behavior. Transports that cannot install the required

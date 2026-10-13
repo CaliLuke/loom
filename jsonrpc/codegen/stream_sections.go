@@ -18,7 +18,7 @@ func jsonrpcSSEServerStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 func renderSSEServerStreamSource(ed *httpcodegen.EndpointData) string {
 	viewField, viewMethods := "", ""
 	if ed.Method.ViewedResult != nil && ed.Method.ViewedResult.ViewName == "" {
-		viewField = "\t// view is protected by mu and sampled once per result.\n\tview string\n"
+		viewField = "\t// view is protected by mu and sampled once per result.\n\tview string\n\tmu sync.Mutex\n"
 		viewMethods = fmt.Sprintf(`
 // SetView sets the view used to render subsequent stream results.
 func (s *%s) SetView(view string) {
@@ -49,31 +49,16 @@ type %s struct {
 	requestID any
 	// requestHasID records whether the JSON-RPC request included an ID.
 	requestHasID bool
-	// closed records that the terminal response (SendAndClose or SendError)
-	// has been issued.
-	closed bool
-%s	// mu serializes every stream write with the terminal transition so no
-	// event can follow the final response.
-	mu sync.Mutex
+%s
 }
 
 %s
 func (s *%s) Open(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.writer.Open(ctx)
 }
 
 %s
 func (s *%s) SendComment(ctx context.Context, text string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.writer.SendComment(ctx, text)
 }
 
@@ -124,11 +109,6 @@ func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
 		"params":  body,
 %s	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
 	return s.sendSSEEvent(ctx, "message", message)
 }
 `, codegen.Comment("Send sends a JSON-RPC notification to the client."),
@@ -189,9 +169,9 @@ func renderSSEEndpointStreamSendAndCloseSource(ed *httpcodegen.EndpointData) str
 	if bodyInit != "body := result" {
 		bodyComment = "\t// Convert to response body type for proper JSON encoding\n"
 	}
-	commit := "commit"
+	response := "return jsonrpc.MakeSuccessResponse(s.requestID, body)"
 	if ed.Method.ViewedResult != nil {
-		commit = "func(response *jsonrpc.Response) error {\nresponse.View = jsonrpc.ResultView(vres.View)\nreturn commit(response)\n}"
+		response = "response := jsonrpc.MakeSuccessResponse(s.requestID, body)\nresponse.View = jsonrpc.ResultView(vres.View)\nreturn response"
 	}
 	return fmt.Sprintf(`%s
 %s
@@ -199,8 +179,8 @@ func renderSSEEndpointStreamSendAndCloseSource(ed *httpcodegen.EndpointData) str
 func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 %s
 %s	%s
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, %s)
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID, func() *jsonrpc.Response {
+		%s
 	})
 }
 `, codegen.Comment("SendAndClose sends a final JSON-RPC response to the client and closes the stream."),
@@ -211,7 +191,7 @@ func (s *%s) SendAndClose(ctx context.Context, event %s.%sEvent) error {
 		ed.Method.VarName,
 		sseEventResult(ed),
 		bodyComment,
-		bodyInit, commit)
+		bodyInit, response)
 }
 
 func renderSSEEndpointStreamErrorsSource(ed *httpcodegen.EndpointData) string {
@@ -221,10 +201,8 @@ func renderSSEEndpointStreamErrorsSource(ed *httpcodegen.EndpointData) string {
 	}
 	return fmt.Sprintf(`%s
 func (s *%s) SendError(ctx context.Context, id any, err error) error {
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {
-			return commit(s.mappedErrorResponse(ctx, id, err))
-		})
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID, func() *jsonrpc.Response {
+		return s.mappedErrorResponse(ctx, id, err)
 	})
 }
 
@@ -234,36 +212,11 @@ func (s *%s) mappedErrorResponse(ctx context.Context, id any, err error) *jsonrp
 
 %s
 func (s *%s) sendError(ctx context.Context, id any, code jsonrpc.Code, message string, data any) error {
-	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
-		return commit(jsonrpc.MakeErrorResponse(id, code, message, data))
+	return jsonrpc.CompleteSSEStream(ctx, s.writer, true, func() *jsonrpc.Response {
+		return jsonrpc.MakeErrorResponse(id, code, message, data)
 	})
 }
 
-%s
-func (s *%s) complete(ctx context.Context, run func(commit func(*jsonrpc.Response) error) error) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return loomhttp.ErrSSEStreamClosed
-	}
-	committed := false
-	err := run(func(response *jsonrpc.Response) error {
-		data, err := loomhttp.EncodeSSEData(response)
-		if err != nil {
-			return err
-		}
-		committed = true
-		return s.writeSSEData(ctx, "message", data)
-	})
-	if err != nil && !committed {
-		return err
-	}
-	s.closed = true
-	if closeErr := s.writer.Close(); closeErr != nil && err == nil {
-		return closeErr
-	}
-	return err
-}
 	`, codegen.Comment("SendError sends a terminal JSON-RPC error response and closes the stream. ID-less streams are closed without a response. After calling this method, every later stream operation returns loomhttp.ErrSSEStreamClosed."),
 		ed.SSE.StructName,
 		codegen.Comment("mappedErrorResponse maps err to the designed JSON-RPC error response."),
@@ -271,8 +224,6 @@ func (s *%s) complete(ctx context.Context, run func(commit func(*jsonrpc.Respons
 		noCustomComment,
 		streamErrorSwitch("	return jsonrpc.MakeErrorResponse(id, ", ed.Errors),
 		codegen.Comment("sendError sends a terminal JSON-RPC error response via SSE and closes the stream."),
-		ed.SSE.StructName,
-		codegen.Comment("complete issues the terminal response at most once while holding s.mu. run passes the response to commit, or returns without calling commit to close without a frame. commit encodes the response before the stream becomes terminal, so an encoding failure returns the error and leaves the stream open for a later error response. Once encoding succeeds, the stream is terminal even if the write fails, and the writer is closed so no later event, comment, or open can follow."),
 		ed.SSE.StructName)
 }
 

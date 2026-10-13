@@ -31,5 +31,6 @@ func (s *Server) sendSSEError(ctx context.Context, r *http.Request, w http.Respo
 		w:       w,
 		writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 	}
+	defer stream.writer.End()
 	return stream.sendError(ctx, id, code, message, data)
 }

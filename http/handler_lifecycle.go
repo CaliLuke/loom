@@ -49,7 +49,7 @@ func NewHandlerLifecycle(
 	ctx = context.WithValue(ctx, loom.ServiceKey, service)
 	observer, writer := loomtransport.BeginHTTPRequest(ctx, w, service, method, r)
 	return &HandlerLifecycle{
-		ctx:      ctx,
+		ctx:      loomtransport.WithRequestObserver(ctx, observer),
 		writer:   writer,
 		observer: observer,
 		service:  service,

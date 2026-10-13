@@ -65,6 +65,8 @@ type (
 	// WebSocketHandlerSpec defines the generated adapters used to establish a
 	// JSON-RPC WebSocket service stream.
 	WebSocketHandlerSpec struct {
+		// Service is the designed service owning the connection.
+		Service string
 		// Upgrader upgrades the HTTP connection.
 		Upgrader loomhttp.Upgrader
 		// Config defines inbound message/buffer limits and the attachment hook.
@@ -161,19 +163,22 @@ func ServeMixed(w http.ResponseWriter, r *http.Request, spec MixedHandlerSpec) {
 
 // ServeWebSocket upgrades one HTTP request and runs a generated typed stream.
 func ServeWebSocket(w http.ResponseWriter, r *http.Request, spec WebSocketHandlerSpec) {
-	ctx, cancel := context.WithCancel(r.Context())
+	observer, w := loomtransport.BeginJSONRPCRequest(r.Context(), w, spec.Service, r)
+	defer observer.End()
+	ctx := loomtransport.WithRequestObserver(r.Context(), observer)
+	ctx = loomtransport.WithStreamObserver(ctx, loomtransport.NewStreamObserver(ctx, loomtransport.TransportJSONRPC))
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	conn, err := spec.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		ReportFailure(r.Context(), w, spec.HandleFailure, fmt.Errorf("failed to upgrade to WebSocket: %w", err))
 		return
 	}
-	stream := loomhttp.NewWebSocketStream(spec.Config, spec.WritePolicy)
-	if err := stream.SetConn(ctx, conn, cancel); err != nil {
-		ReportFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to configure WebSocket: %w", err))
-		return
-	}
+	stream := loomhttp.NewServerWebSocketStream(ctx, loomtransport.TransportJSONRPC, spec.Config, spec.WritePolicy)
 	if err := stream.RunHandler(func() error {
+		if err := stream.SetConn(ctx, conn, cancel); err != nil {
+			return fmt.Errorf("failed to configure WebSocket: %w", err)
+		}
 		return spec.Run(ctx, cancel, r.WithContext(ctx), w, stream)
 	}, func(closeErr error) {
 		ReportFailure(ctx, w, spec.HandleFailure, fmt.Errorf("failed to close WebSocket: %w", closeErr))
@@ -218,6 +223,8 @@ func ReceiveWebSocketRequest(
 		}
 		return nil
 	}
+	binding := loomtransport.StreamObserverFromContext(ctx, loomtransport.TransportJSONRPC).JSONRPC(request.Method, IDToString(request.ID), !request.HasID)
+	ctx = loomtransport.WithStreamObserver(ctx, binding)
 	if _, message := invalidStreamRequest(&request); message != "" {
 		if !request.HasID {
 			return nil
@@ -231,6 +238,28 @@ func ReceiveWebSocketRequest(
 		return sendError(ctx, request.ID, MethodNotFound, "Method not found", nil)
 	}
 	return dispatch(ctx, &request)
+}
+
+// CompleteSSEStream serializes one terminal JSON-RPC SSE response through the
+// shared writer. Encoding failure leaves the stream usable; successful encoding
+// makes every write outcome terminal. Notifications close without encoding a
+// response and report suppression only for the admitted completion. Identity
+// comes from the writer, independently of ctx's cancellation lifetime.
+func CompleteSSEStream(ctx context.Context, writer *loomhttp.SSEStreamWriter, hasID bool, response func() *Response) error {
+	if !hasID {
+		if err := writer.Complete(ctx, nil); err != nil {
+			return err
+		}
+		writer.Observation().Suppressed()
+		return nil
+	}
+	return writer.Complete(ctx, func() (loomhttp.SSEMessage, error) {
+		data, err := loomhttp.EncodeSSEData(response())
+		if err != nil {
+			return loomhttp.SSEMessage{}, err
+		}
+		return loomhttp.SSEMessage{Type: "message", Data: data}, nil
+	})
 }
 
 // CompleteStream sends a final JSON-RPC success response when the initiating
@@ -260,11 +289,7 @@ func CompleteStreamError(ctx context.Context, hasID bool, send func() error) err
 }
 
 func observeSuppressedStreamResponse(ctx context.Context) {
-	loomtransport.Observe(ctx, loomtransport.Event{
-		Kind:      loomtransport.EventKindStreamClose,
-		Reason:    loomtransport.ReasonStreamFinalResponseSuppressed,
-		Transport: loomtransport.TransportJSONRPC,
-	})
+	loomtransport.StreamObserverFromContext(ctx, loomtransport.TransportJSONRPC).Suppressed()
 }
 
 func invalidStreamRequest(request *RawRequest) (loomtransport.Reason, string) {

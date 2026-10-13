@@ -53,7 +53,7 @@ func NewStreamingResultMethodHandler(
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
 		r = r.WithContext(ctx)
-		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
+		stream := loomhttp.NewServerWebSocketStream(ctx, loomtransport.TransportHTTP, configurer, writePolicy)
 		v := &streamingresultservice.StreamingResultMethodEndpointInput{
 			Stream: &StreamingResultMethodServerStream{
 				upgrader: upgrader,
@@ -120,8 +120,9 @@ func NewCreateHandler(
 				return
 			}
 			stream := &CreateServerStream{
-				writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
+				writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
 			}
+			defer stream.writer.End()
 			v := &mixedresultsservice.CreateEndpointInput{
 				Stream:  stream,
 				Payload: payload,
@@ -343,7 +344,7 @@ func NewStreamingResultNoPayloadMethodHandler(
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
 		r = r.WithContext(ctx)
-		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
+		stream := loomhttp.NewServerWebSocketStream(ctx, loomtransport.TransportHTTP, configurer, writePolicy)
 		v := &streamingresultnopayloadservice.StreamingResultNoPayloadMethodEndpointInput{
 			Stream: &StreamingResultNoPayloadMethodServerStream{
 				upgrader: upgrader,

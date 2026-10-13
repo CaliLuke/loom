@@ -61,7 +61,7 @@ func TestJSONRPCSSE(t *testing.T) {
 			require.NotContains(t, code, `sendSSEEvent("notification",`)
 			require.NotContains(t, code, `sendSSEEvent("response", message)`)
 			require.Equal(t, 1, strings.Count(code, `sendSSEEvent(ctx, "message", message)`))
-			require.Contains(t, code, `jsonrpc.CompleteStream(`)
+			require.Contains(t, code, `jsonrpc.CompleteSSEStream(`)
 			golden := filepath.Join("testdata", "golden", "jsonrpc-sse-"+c.Name+".golden")
 			testutil.AssertGo(t, golden, code)
 
@@ -133,7 +133,7 @@ func TestJSONRPCSSEStreamSuppressedFinalResponseIsRuntimeOwned(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	code := fileSectionCode(t, SSEServerFiles("", CreateJSONRPCServices(root)), "stream.go", "jsonrpc-sse-server-stream")
 
-	require.Contains(t, code, "jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body")
+	require.Contains(t, code, "jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID,")
 	require.NotContains(t, code, "ReasonStreamFinalResponseSuppressed")
 }
 
@@ -146,28 +146,21 @@ func TestJSONRPCSSEEndpointStreamTerminalResponseIsSerialized(t *testing.T) {
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	code := fileSectionCode(t, SSEServerFiles("", CreateJSONRPCServices(root)), "stream.go", "jsonrpc-sse-server-stream")
 
-	guardedWrite := "\ts.mu.Lock()\n\tdefer s.mu.Unlock()\n\tif s.closed {\n\t\treturn loomhttp.ErrSSEStreamClosed\n\t}\n"
-	cases := []struct {
-		name string
-		want string
-	}{
-		{name: "Send holds the lock across the write", want: guardedWrite + "\treturn s.sendSSEEvent(ctx, \"message\", message)\n"},
-		{name: "SendComment is guarded", want: guardedWrite + "\treturn s.writer.SendComment(ctx, text)\n"},
-		{name: "Open is guarded", want: guardedWrite + "\treturn s.writer.Open(ctx)\n"},
-		{name: "terminal response is encoded before the stream becomes terminal", want: "\t\tdata, err := loomhttp.EncodeSSEData(response)\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\t\tcommitted = true\n\t\treturn s.writeSSEData(ctx, \"message\", data)\n"},
-		{name: "encoding failure leaves the stream open", want: "\tif err != nil && !committed {\n\t\treturn err\n\t}\n\ts.closed = true\n\tif closeErr := s.writer.Close(); closeErr != nil && err == nil {\n"},
-		{name: "SendAndClose is terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)\n"},
-		{name: "SendError is terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn jsonrpc.CompleteStreamError(ctx, s.requestHasID, func() error {\n\t\t\treturn commit(s.mappedErrorResponse(ctx, id, err))\n"},
-		{name: "handler errors are terminal", want: "\treturn s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {\n\t\treturn commit(jsonrpc.MakeErrorResponse(id, code, message, data))\n"},
-		{name: "writes honor the call context", want: "\treturn s.writer.WriteEvent(ctx, func(w io.Writer) error {\n"},
+	for _, want := range []string{
+		"return s.writer.Open(ctx)",
+		"return s.writer.SendComment(ctx, text)",
+		"return s.writer.WriteEvent(ctx, func(w io.Writer) error {",
+		"jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID, func() *jsonrpc.Response {",
+		"return jsonrpc.MakeSuccessResponse(s.requestID, body)",
+		"return s.mappedErrorResponse(ctx, id, err)",
+		"jsonrpc.CompleteSSEStream(ctx, s.writer, true, func() *jsonrpc.Response {",
+		"return jsonrpc.MakeErrorResponse(id, code, message, data)",
+	} {
+		require.Contains(t, code, want)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			require.Contains(t, code, tc.want)
-		})
+	for _, obsolete := range []string{"s.closed", "s.mu.Lock()", "s.complete(", "s.r.Context()"} {
+		require.NotContains(t, code, obsolete)
 	}
-	require.NotContains(t, code, "s.r.Context()")
-	require.NotContains(t, code, "s.mu.Unlock()\n\n")
 }
 
 func TestJSONRPCSSEEventsStreamGETOpensBeforeFirstFrame(t *testing.T) {
@@ -409,7 +402,7 @@ func TestJSONRPCSSEStreamPreservesRequestIDAndSkipsNotificationCloseResponse(t *
 	root := RunJSONRPCDSL(t, testdata.JSONRPCSSEObjectDSL)
 	endpointStreamCode := fileSectionCode(t, SSEServerFiles("", CreateJSONRPCServices(root)), "stream.go", "jsonrpc-sse-server-stream")
 
-	require.Contains(t, endpointStreamCode, `jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body`)
+	require.Contains(t, endpointStreamCode, `jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID,`)
 	require.NotContains(t, endpointStreamCode, `id = result.ID`)
 	testutil.AssertGo(t, filepath.Join("testdata", "golden", "jsonrpc-sse-object.golden"), endpointStreamCode)
 }

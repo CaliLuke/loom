@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 )
 
 type (
@@ -37,6 +39,7 @@ type (
 	// shutdown for a WebSocket connection. Call SetConn to attach it. Only one
 	// application goroutine may receive at a time; writes are serialized.
 	WebSocketStream struct {
+		observation      *loomtransport.StreamObserver
 		connLock         sync.Mutex
 		conn             *websocket.Conn
 		closed           bool
@@ -77,6 +80,15 @@ func NewWebSocketStream(config WebSocketConfig, policies ...StreamWritePolicy) *
 	return stream
 }
 
+// NewServerWebSocketStream allocates a server connection owner with immutable
+// observation identity. Client connections use NewWebSocketStream and never
+// inherit inbound request observation through SetConn.
+func NewServerWebSocketStream(ctx context.Context, kind loomtransport.TransportKind, config WebSocketConfig, policies ...StreamWritePolicy) *WebSocketStream {
+	stream := NewWebSocketStream(config, policies...)
+	stream.observation = loomtransport.NewStreamObserver(ctx, kind)
+	return stream
+}
+
 // Conn returns the wrapped Gorilla WebSocket connection. The stream owns all
 // physical reads; install read handlers in the configuration hook before
 // attachment instead of reading or mutating reader state through Conn.
@@ -99,6 +111,7 @@ func (s *WebSocketStream) SetConn(ctx context.Context, conn *websocket.Conn, can
 	if conn == nil {
 		return fmt.Errorf("loom http websocket connection is nil")
 	}
+	defer s.observation.Drain()
 	s.attachLock.Lock()
 	defer s.attachLock.Unlock()
 	s.connLock.Lock()
@@ -106,9 +119,11 @@ func (s *WebSocketStream) SetConn(ctx context.Context, conn *websocket.Conn, can
 		s.connLock.Unlock()
 		return nil
 	}
+	s.observation.RecordOpen()
 	if s.closed {
 		s.conn = conn
 		s.closeErr = errors.Join(s.closeErr, conn.Close())
+		s.observation.RecordClose()
 		err := errors.Join(ErrWebSocketStreamClosed, s.closeErr)
 		s.connLock.Unlock()
 		return err
@@ -132,6 +147,7 @@ func (s *WebSocketStream) SetConn(ctx context.Context, conn *websocket.Conn, can
 	s.conn = conn
 	if s.closed {
 		s.closeErr = errors.Join(s.closeErr, conn.Close())
+		s.observation.RecordClose()
 		err := errors.Join(ErrWebSocketStreamClosed, s.closeErr)
 		s.connLock.Unlock()
 		return err
@@ -154,7 +170,13 @@ func (s *WebSocketStream) SetConn(ctx context.Context, conn *websocket.Conn, can
 // WriteJSON writes one JSON WebSocket frame while honoring ctx cancellation.
 // Concurrent calls are serialized. It returns ErrWebSocketStreamClosed when no
 // connection is attached or the stream has been closed.
-func (s *WebSocketStream) WriteJSON(ctx context.Context, v any) error {
+func (s *WebSocketStream) WriteJSON(ctx context.Context, v any) (err error) {
+	defer func() {
+		s.observation.Drain()
+		if err != nil && s.observation != nil {
+			s.observation.ForContext(ctx).Failure(streamFailureReason(loomtransport.ReasonStreamWriteFailed, loomtransport.ReasonStreamWriteTimeout, err))
+		}
+	}()
 	if err := s.acquireWrite(ctx); err != nil {
 		return err
 	}

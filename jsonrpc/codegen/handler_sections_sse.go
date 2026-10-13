@@ -112,6 +112,7 @@ func addJSONRPCSSEErrorMethod(stmt *jen.Statement, data *httpcodegen.ServiceData
 				jen.Id("writer"):  newJSONRPCSSEWriter(),
 				jen.Id("encoder"): jen.Id("s").Dot("encoder"),
 			}),
+			jen.Defer().Id("stream").Dot("writer").Dot("End").Call(),
 			jen.Return(jen.Id("stream").Dot("sendError").Call(
 				jen.Id("ctx"), jen.Id("id"), jen.Id("code"), jen.Id("message"), jen.Id("data"),
 			)),

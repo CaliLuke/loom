@@ -20,6 +20,7 @@ func (s *WebSocketStream) Close() error {
 	if s == nil {
 		return nil
 	}
+	defer s.observation.Drain()
 	s.stop(nil, 0, nil, false)
 	return s.closeResult()
 }
@@ -31,6 +32,7 @@ func (s *WebSocketStream) Close() error {
 // Repeated valid calls preserve the first terminal cause and cleanup result.
 // An already-sent native close frame adds no cleanup error.
 func (s *WebSocketStream) CloseWithStatus(code int, reason string) error {
+	defer s.observation.Drain()
 	valid := code >= 3000 && code <= 4999
 	switch code {
 	case 1000, 1001, 1002, 1003, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014:
@@ -53,6 +55,7 @@ func (s *WebSocketStream) CloseWithStatus(code int, reason string) error {
 // can receive the final service reply.
 // An already-sent native close frame skips the wait and adds no cleanup error.
 func (s *WebSocketStream) CloseWithFinalJSON(value any) error {
+	defer s.observation.Drain()
 	s.stop(nil, webSocketFinalJSON, value, false)
 	return s.closeResult()
 }
@@ -71,6 +74,7 @@ func (s *WebSocketStream) RunHandler(run func() error, reportCloseError func(err
 				panic(panicked)
 			}()
 		}
+		defer s.observation.Drain()
 		code := websocket.CloseNormalClosure
 		if err != nil || panicked != nil {
 			code = websocket.CloseInternalServerErr
@@ -119,6 +123,9 @@ func (s *WebSocketStream) stop(readCause error, code int, final any, keepQueue b
 	s.closeErr = errors.Join(s.closeErr, closeErr)
 	if readCause != nil && s.closeErr != nil {
 		s.readErr = errors.Join(readCause, s.closeErr)
+	}
+	if conn != nil {
+		s.observation.RecordClose()
 	}
 	close(s.terminalDone)
 	s.connLock.Unlock()

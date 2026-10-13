@@ -124,8 +124,9 @@ func {{ .HandlerInit }}(
 			}
 		{{- end }}
 			stream := &{{ .SSE.StructName }}{
-				writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
+				writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
 			}
+			defer stream.writer.End()
 			v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 				Stream: stream,
 			{{- if .Payload.Ref }}
@@ -192,7 +193,7 @@ func {{ .HandlerInit }}(
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
 		r = r.WithContext(ctx)
-		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
+		stream := loomhttp.NewServerWebSocketStream(ctx, loomtransport.TransportHTTP, configurer, writePolicy)
 		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 			Stream: &{{ .ServerWebSocket.VarName }}{
 				upgrader: upgrader,
@@ -227,8 +228,9 @@ func {{ .HandlerInit }}(
 		}
 		{{- end }}
 		stream := &{{ .SSE.StructName }}{
-			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
 		}
+		defer stream.writer.End()
 		v := &{{ .ServicePkgName }}.{{ .Method.ServerStream.EndpointStruct }}{
 			Stream: stream,
 		{{- if .Payload.Ref }}

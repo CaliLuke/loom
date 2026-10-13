@@ -33,6 +33,7 @@ func addDynamicViewStreamWrapperMethods(stmt *jen.Statement, wrapper string, ed 
 		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("res").Add(codegen.TypeRef(ed.Result.Ref))).
 		Error().
 		BlockFunc(func(g *jen.Group) {
+			g.Id("ctx").Op("=").Id("loomtransport.WithStreamObserver").Call(jen.Id("ctx"), jen.Id("w").Dot("observation"))
 			writeStreamResultBodyInit(g, "res", "w.view", ed)
 			writeStreamMessage(g, jen.Id("w").Dot("stream").Dot("conn"), jen.Id("ctx"),
 				jen.Qual("github.com/CaliLuke/loom/jsonrpc", "MakeNotification").Call(jen.Lit(ed.Method.Name), jen.Id("body")), ed)

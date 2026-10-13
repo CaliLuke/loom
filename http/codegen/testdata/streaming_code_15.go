@@ -31,7 +31,7 @@ func NewStreamingPayloadNoPayloadMethodHandler(
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
 		r = r.WithContext(ctx)
-		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
+		stream := loomhttp.NewServerWebSocketStream(ctx, loomtransport.TransportHTTP, configurer, writePolicy)
 		v := &streamingpayloadnopayloadservice.StreamingPayloadNoPayloadMethodEndpointInput{
 			Stream: &StreamingPayloadNoPayloadMethodServerStream{
 				upgrader: upgrader,

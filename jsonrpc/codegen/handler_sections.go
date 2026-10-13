@@ -33,6 +33,7 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 					jen.Id("w"),
 					jen.Id("r"),
 					codegen.TypeRef("jsonrpc.WebSocketHandlerSpec").Values(jen.Dict{
+						jen.Id("Service"):       jen.Lit(data.Service.Name),
 						jen.Id("Upgrader"):      jen.Id("s").Dot("upgrader"),
 						jen.Id("Config"):        jen.Id("s").Dot("webSocketConfig"),
 						jen.Id("WritePolicy"):   jen.Id("s").Dot("streamWritePolicy"),
@@ -156,6 +157,7 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 		jen.Id("requestID"):    jen.Id("req").Dot("ID"),
 		jen.Id("requestHasID"): jen.Id("req").Dot("HasID"),
 	})
+	g.Defer().Id("strm").Dot("writer").Dot("End").Call()
 	if e.Method.Name == "events/stream" {
 		g.If(
 			jen.Id("r").Dot("Method").Op("==").Qual("net/http", "MethodGet").Op("&&").Id("req").Dot("Method").Op("==").Lit("events/stream"),

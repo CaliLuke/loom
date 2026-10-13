@@ -41,9 +41,30 @@
 // trace id, principal) should read from the request context inside
 // [Observer.ObserveEvent] instead of expecting it on [Event].
 //
+// # Stream lifecycle
+//
+// SSE opening follows header commitment, even if the opening flush fails.
+// Natural completion or terminal I/O failure closes a committed stream once;
+// unopened and repeated closure emit no physical lifecycle event. Recoverable
+// prewrite failures do not imply closure. Regenerate servers to adopt the shared
+// stream binding and handler cleanup.
+//
+// A WebSocket connection has one physical open/close pair. JSON-RPC operation
+// bindings retain their decoded method and ID independently of later envelopes
+// or per-call contexts. StreamClose with ReasonStreamFinalResponseSuppressed is
+// a logical operation marker, not physical socket closure.
+//
+// Callbacks execute outside stream ownership locks and may be concurrent or
+// reentrant. Only one pending opening and closing record can be retained; repeated
+// failure events remain synchronous. Background WebSocket cleanup records closure
+// without invoking callbacks on a new background stack. Foreground operations or
+// handler cleanup deliver it; a handler that ignores cancellation can delay that
+// notification after native release. Observer panics propagate on the invoking
+// stack, with an original handler panic taking precedence during cleanup.
+//
 // # Boundary with observability/otel
 //
-// This package handles request-level classification only. OpenTelemetry
+// This package handles request and stream classification. OpenTelemetry
 // span attributes, propagators, metric mode, and provider bootstrap remain
 // in [github.com/CaliLuke/loom/observability/otel]. The two are composable:
 // `otel.HTTPMiddleware` traces the request, `transport.HTTPMiddleware`

@@ -20,6 +20,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 			cg.If(jen.Err().Op("!=").Nil()).BlockFunc(writeWebSocketRequestFailure)
 			cg.Id("streamWrapper").Op(":=").Op("&").Id(lowerInitial(ed.Method.VarName) + "StreamWrapper").Values(jen.Dict{
 				jen.Id("stream"):       jen.Id("s"),
+				jen.Id("observation"):  jen.Id("loomtransport.StreamObserverFromContext").Call(jen.Id("ctx"), jen.Id("loomtransport.TransportJSONRPC")),
 				jen.Id("requestHasID"): jen.Id("req").Dot("HasID"),
 				jen.Id("requestID"):    jen.Id("req").Dot("ID"),
 			})

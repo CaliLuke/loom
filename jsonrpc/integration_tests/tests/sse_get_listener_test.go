@@ -94,6 +94,54 @@ func stringPtr(v string) *string {
 }
 `
 
+// eventsStreamObservationTest exercises the mounted GET adapter in the same
+// regenerated fixture used by the network listener assertions.
+const eventsStreamObservationTest = `package ticktock_test
+
+import (
+	"context"
+	"net/http/httptest"
+	"testing"
+
+	ticktock "example.com/ticktock"
+	clock "example.com/ticktock/gen/clock"
+	server "example.com/ticktock/gen/jsonrpc/clock/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	transport "github.com/CaliLuke/loom/observability/transport"
+)
+
+func TestListenerObservation(t *testing.T) {
+	var events []transport.Event
+	ctx := transport.WithObserver(context.Background(), transport.ObserverFunc(func(_ context.Context, event transport.Event) {
+		events = append(events, event)
+	}))
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(clock.NewEndpoints(ticktock.NewClock()), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+	req := httptest.NewRequest("GET", "/rpc", nil).WithContext(ctx)
+	req.Header.Set("Accept", "text/event-stream")
+	mux.ServeHTTP(httptest.NewRecorder(), req)
+	opened, closed, suppressed := 0, 0, 0
+	for _, event := range events {
+		if event.Kind != transport.EventKindStreamOpen && event.Kind != transport.EventKindStreamClose {
+			continue
+		}
+		if event.Method != "events/stream" || event.Service != "clock" || event.HTTPMethod != "GET" || !event.Notification {
+			t.Errorf("listener identity: %+v", event)
+		}
+		if event.Reason == transport.ReasonStreamFinalResponseSuppressed {
+			suppressed++
+		} else if event.Kind == transport.EventKindStreamOpen {
+			opened++
+		} else {
+			closed++
+		}
+	}
+	if opened != 1 || closed != 1 || suppressed != 1 {
+		t.Errorf("listener lifecycle open=%d close=%d suppressed=%d", opened, closed, suppressed)
+	}
+}
+`
+
 // TestJSONRPCSSEGetEventsStreamListener proves the raw GET events/stream
 // listener contract end to end — the branch the checked-in POST-initiated
 // fixtures do not cover:
@@ -125,6 +173,10 @@ func TestJSONRPCSSEGetEventsStreamListener(t *testing.T) {
 	require.NoError(t, os.Remove(filepath.Join(workDir, "sse_client_close_test.go")))
 
 	_, err := testingx.RunCmd(workDir, "go", "run", "-mod=mod", "github.com/CaliLuke/loom/cmd/loom", "gen", "example.com/ticktock/design", "-o", ".")
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(filepath.Join(workDir, "observation_test.go"), []byte(eventsStreamObservationTest), 0o600))
+	_, err = testingx.RunCmd(workDir, "go", "test", "-race", "-run", "^TestListenerObservation$", "-count=1", "clock.go", "observation_test.go")
 	require.NoError(t, err)
 
 	server, err := harness.StartServer(t.Context(), workDir, 0)

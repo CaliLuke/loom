@@ -15,6 +15,7 @@ func NewEventsStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder 
 			w:            w,
 			writer:       loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, streamWritePolicy),
 		}
+		defer strm.writer.End()
 		if r.Method == http.MethodGet && req.Method == "events/stream" {
 			if err := strm.Open(r.Context()); err != nil {
 				return err

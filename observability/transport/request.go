@@ -217,8 +217,8 @@ func (o *RequestObserver) End() {
 }
 
 // EmitStreamOpen reports the opening of a streaming response within the
-// current request. Generated SSE and WebSocket servers call EmitStreamOpen
-// once the stream headers have been negotiated.
+// current request. Callers own deduplication and request-span lifetime. SSE and
+// WebSocket runtimes use StreamObserver for retained physical lifecycle state.
 func (o *RequestObserver) EmitStreamOpen() {
 	if o == nil {
 		return

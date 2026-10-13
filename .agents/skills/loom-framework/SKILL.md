@@ -2481,3 +2481,17 @@ locally built generator identity and retain their design digests. Documentation
 pins are curated together against the recommendation in `docs/_index.md`,
 independently of release tags. Change `internal/release/train.json` deliberately
 when starting the next train after stable promotion.
+
+### Stream observation ownership
+
+`transport.StreamObserver` retains immutable connection/operation identity and at
+most one pending opening and closing record. SSE commitment and WebSocket release
+feed that owner; drain outside every runtime or generated wrapper lock. Failures
+and logical suppression stay synchronous, never enter a growing queue. Explicit
+server WebSocket construction installs observation; outgoing clients remain
+neutral. JSON-RPC wrappers retain per-envelope bindings across later dispatch and
+per-call contexts. `SSEStreamWriter.Complete` owns final admission, encoding and
+write/close; generated wrappers must not recreate terminal flags/locking. Retain
+only view-selection locks, sampled before I/O. Handler `End` preserves original
+panic precedence. Keep the bounded observation/terminal model, actual generated
+reentry tests and background-release timing limitation aligned.

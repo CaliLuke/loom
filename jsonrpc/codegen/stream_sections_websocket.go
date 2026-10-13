@@ -67,6 +67,7 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 			dynamicView := ed.Method.ViewedResult != nil && ed.Method.ViewedResult.ViewName == ""
 			stmt.Type().Id(name + "StreamWrapper").StructFunc(func(g *jen.Group) {
 				g.Id("stream").Op("*").Id(streamName)
+				g.Id("observation").Op("*").Add(codegen.TypeRef("loomtransport.StreamObserver"))
 				g.Id("requestHasID").Bool()
 				g.Id("requestID").Any()
 				if dynamicView {
@@ -82,6 +83,7 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 					Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("res").Add(codegen.TypeRef(ed.Result.Ref))).
 					Error().
 					Block(
+						jen.Id("ctx").Op("=").Id("loomtransport.WithStreamObserver").Call(jen.Id("ctx"), jen.Id("w").Dot("observation")),
 						jen.Return(jen.Id("w").Dot("stream").Dot("Send"+ed.Method.VarName+"Notification").Call(jen.Id("ctx"), jen.Id("res"))),
 					)
 			}
@@ -91,6 +93,7 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("res").Add(codegen.TypeRef(ed.Result.Ref))).
 				Error().
 				BlockFunc(func(g *jen.Group) {
+					g.Id("ctx").Op("=").Id("loomtransport.WithStreamObserver").Call(jen.Id("ctx"), jen.Id("w").Dot("observation"))
 					writeStreamResultBodyInit(g, "res", "w.view", ed)
 					g.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "CompleteStream").Call(
 						jen.Id("ctx"),
@@ -111,6 +114,7 @@ func jsonrpcWebSocketServerWrapperSection(data *httpcodegen.ServiceData) codegen
 				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("err").Error()).
 				Error().
 				Block(
+					jen.Id("ctx").Op("=").Id("loomtransport.WithStreamObserver").Call(jen.Id("ctx"), jen.Id("w").Dot("observation")),
 					jen.Return(jen.Qual("github.com/CaliLuke/loom/jsonrpc", "CompleteStreamError").Call(
 						jen.Id("ctx"),
 						jen.Id("w").Dot("requestHasID"),

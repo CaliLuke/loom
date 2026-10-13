@@ -117,8 +117,9 @@ func NewTickHandler(
 		w = lifecycle.Writer()
 		var err error
 		stream := &TickServerStream{
-			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
 		}
+		defer stream.writer.End()
 		v := &clock.TickEndpointInput{
 			Stream: stream,
 		}
@@ -180,8 +181,9 @@ func NewTockHandler(
 		w = lifecycle.Writer()
 		var err error
 		stream := &TockServerStream{
-			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
 		}
+		defer stream.writer.End()
 		v := &clock.TockEndpointInput{
 			Stream: stream,
 		}
@@ -248,8 +250,9 @@ func NewGuardedHandler(
 			return
 		}
 		stream := &GuardedServerStream{
-			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
 		}
+		defer stream.writer.End()
 		v := &clock.GuardedEndpointInput{
 			Stream:  stream,
 			Payload: payload,

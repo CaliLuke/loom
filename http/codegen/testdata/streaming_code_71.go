@@ -32,7 +32,7 @@ func NewBidirectionalStreamingNoPayloadMethodHandler(
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
 		r = r.WithContext(ctx)
-		stream := loomhttp.NewWebSocketStream(configurer, writePolicy)
+		stream := loomhttp.NewServerWebSocketStream(ctx, loomtransport.TransportHTTP, configurer, writePolicy)
 		v := &bidirectionalstreamingnopayloadservice.BidirectionalStreamingNoPayloadMethodEndpointInput{
 			Stream: &BidirectionalStreamingNoPayloadMethodServerStream{
 				upgrader: upgrader,

@@ -23,8 +23,9 @@ func NewSSEObjectMethodHandler(
 		w = lifecycle.Writer()
 		var err error
 		stream := &SSEObjectMethodServerStream{
-			writer: loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportHTTP, writePolicy),
+			writer: loomhttp.NewSSEStreamWriter(w, ctx, loomtransport.TransportHTTP, writePolicy),
 		}
+		defer stream.writer.End()
 		v := &sseobjectservice.SSEObjectMethodEndpointInput{
 			Stream: stream,
 		}

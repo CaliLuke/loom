@@ -147,6 +147,7 @@ func (s *Server) sendSSEError(ctx context.Context, r *http.Request, w http.Respo
 		w:       w,
 		writer:  loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, s.streamWritePolicy),
 	}
+	defer stream.writer.End()
 	return stream.sendError(ctx, id, code, message, data)
 }
 
@@ -254,6 +255,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 			w:            w,
 			writer:       loomhttp.NewSSEStreamWriter(w, r.Context(), loomtransport.TransportJSONRPC, streamWritePolicy),
 		}
+		defer strm.writer.End()
 		params, err := decodeParams(r, req)
 		if err != nil {
 			if req.HasID {

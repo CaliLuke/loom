@@ -32,6 +32,7 @@ func websocketServerFile(genpkg string, svc *expr.HTTPServiceExpr, services *htt
 		codegen.LoomImport(""),
 		codegen.LoomImport("jsonrpc"),
 		codegen.LoomNamedImport("http", "loomhttp"),
+		codegen.LoomNamedImport("observability/transport", "loomtransport"),
 		&codegen.ImportSpec{Path: genpkg + "/" + svcName, Name: data.Service.PkgName},
 	)
 	imports = append(imports, data.Service.UserTypeImports...)
