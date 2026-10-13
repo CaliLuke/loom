@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 
+	clock "example.com/http-ticktock/gen/clock"
 	clockc "example.com/http-ticktock/gen/http/clock/client"
 	loomhttp "github.com/CaliLuke/loom/http"
 	loomhttpcli "github.com/CaliLuke/loom/http/cli"
@@ -43,7 +44,7 @@ type commandLine struct {
 
 // ParseEndpoint returns the endpoint and payload as specified on the command
 // line.
-func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
+func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool, clockInter clock.ClientInterceptors) (loom.Endpoint, any, error) {
 	var (
 		command               commandLine
 		args                  []string
@@ -86,6 +87,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 			switch epn {
 			case "tick":
 				endpoint = c.Tick()
+				endpoint = clock.WrapTickClientEndpoint(endpoint, clockInter)
 			case "tock":
 				endpoint = c.Tock()
 			case "guarded":

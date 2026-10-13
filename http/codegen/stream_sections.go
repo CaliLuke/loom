@@ -117,10 +117,7 @@ func addSSEClientInterface(stmt *jen.Statement, ed *EndpointData, streamName str
 	stmt.Line()
 	codegen.Doc(stmt, streamName+" is the interface for reading Server-Sent Events.")
 	stmt.Type().Id(streamName).Interface(
-		jen.Comment("Recv reads and returns the next event from the SSE stream."),
-		jen.Id("Recv").Params(jen.Qual("context", "Context")).Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()),
-		jen.Comment("Close closes the SSE stream and releases resources."),
-		jen.Id("Close").Params().Error(),
+		codegen.PkgQual(ed.ServicePkgName, ed.Method.ClientStream.Interface),
 	)
 }
 
@@ -129,6 +126,7 @@ func addSSEClientImplStruct(stmt *jen.Statement, ed *EndpointData, streamName, i
 	stmt.Type().DefsFunc(func(group *jen.Group) {
 		group.Comment(implName + " implements the " + streamName + " interface.")
 		fields := []jen.Code{
+			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("reader").Op("*").Add(codegen.TypeRef("loomhttp.SSEStreamReader")),
 		}
 		if sseClientNeedsDecoder(ed) {
@@ -147,12 +145,14 @@ func addSSEClientConstructor(stmt *jen.Statement, ed *EndpointData, streamName, 
 	stmt.Func().
 		Id("New"+ed.Method.VarName+"Stream").
 		Params(
+			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("resp").Op("*").Qual("net/http", "Response"),
 			jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
 		).
 		Id(streamName).
 		BlockFunc(func(group *jen.Group) {
 			values := jen.Dict{
+				jen.Id("ctx"):    jen.Id("ctx"),
 				jen.Id("reader"): jen.Id("loomhttp").Dot("NewSSEStreamReader").Call(jen.Id("resp").Dot("Body")),
 			}
 			if sseClientNeedsDecoder(ed) {

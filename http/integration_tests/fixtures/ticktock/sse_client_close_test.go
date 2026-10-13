@@ -63,11 +63,11 @@ func (b *blockingBody) Close() error {
 
 func TestGeneratedSSEClientCloseUnblocksBlockedRecv(t *testing.T) {
 	body := newBlockingBody()
-	stream := clockclient.NewTickStream(&http.Response{Body: body}, nil)
+	stream := clockclient.NewTickStream(context.Background(), &http.Response{Body: body}, nil)
 
 	recvc := make(chan error, 1)
 	go func() {
-		_, err := stream.Recv(context.Background())
+		_, err := stream.RecvWithContext(context.Background())
 		recvc <- err
 	}()
 
@@ -84,26 +84,26 @@ func TestGeneratedSSEClientCloseUnblocksBlockedRecv(t *testing.T) {
 
 func TestGeneratedSSEClientRecvReturnsEOFAtEndOfStream(t *testing.T) {
 	body := newBlockingBody()
-	stream := clockclient.NewTickStream(&http.Response{Body: body}, nil)
+	stream := clockclient.NewTickStream(context.Background(), &http.Response{Body: body}, nil)
 
 	err := stream.Close()
 	require.NoError(t, err)
 
-	_, err = stream.Recv(context.Background())
+	_, err = stream.RecvWithContext(context.Background())
 	require.ErrorIs(t, err, io.EOF)
 
-	_, err = stream.Recv(context.Background())
+	_, err = stream.RecvWithContext(context.Background())
 	require.ErrorIs(t, err, io.EOF)
 }
 
 func TestGeneratedSSEClientRecvHonorsContextWhileReadBlocked(t *testing.T) {
 	body := newBlockingBody()
-	stream := clockclient.NewTickStream(&http.Response{Body: body}, nil)
+	stream := clockclient.NewTickStream(context.Background(), &http.Response{Body: body}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	recvc := make(chan error, 1)
 	go func() {
-		_, err := stream.Recv(ctx)
+		_, err := stream.RecvWithContext(ctx)
 		recvc <- err
 	}()
 
@@ -117,12 +117,12 @@ func TestGeneratedSSEClientRecvHonorsContextWhileReadBlocked(t *testing.T) {
 func TestGeneratedSSEClientContextErrorWinsOverCloseError(t *testing.T) {
 	body := newBlockingBody()
 	body.closeErr = errors.New("close failed")
-	stream := clockclient.NewTickStream(&http.Response{Body: body}, nil)
+	stream := clockclient.NewTickStream(context.Background(), &http.Response{Body: body}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	recvc := make(chan error, 1)
 	go func() {
-		_, err := stream.Recv(ctx)
+		_, err := stream.RecvWithContext(ctx)
 		recvc <- err
 	}()
 
@@ -136,13 +136,13 @@ func TestGeneratedSSEClientContextErrorWinsOverCloseError(t *testing.T) {
 
 func TestGeneratedSSEClientCanceledRecvDoesNotReturnPartialEvent(t *testing.T) {
 	body := newBlockingBody([]byte("data: partial"))
-	stream := clockclient.NewTickStream(&http.Response{Body: body}, nil)
+	stream := clockclient.NewTickStream(context.Background(), &http.Response{Body: body}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	body.afterChunk = cancel
 
 	recvc := make(chan error, 1)
 	go func() {
-		_, err := stream.Recv(ctx)
+		_, err := stream.RecvWithContext(ctx)
 		recvc <- err
 	}()
 
@@ -155,26 +155,26 @@ func TestGeneratedSSEClientCancelAfterSuccessfulRecvDoesNotCloseStream(t *testin
 		[]byte("event: tick\ndata: one\n\n"),
 		[]byte("event: tick\ndata: two\n\n"),
 	)
-	stream := clockclient.NewTickStream(&http.Response{Body: body}, nil)
+	stream := clockclient.NewTickStream(context.Background(), &http.Response{Body: body}, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	first, err := stream.Recv(ctx)
+	first, err := stream.RecvWithContext(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "one", first.Data)
 	cancel()
 
-	second, err := stream.Recv(context.Background())
+	second, err := stream.RecvWithContext(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, "two", second.Data)
 }
 
 func TestGeneratedSSEClientCancelAfterCompleteReadDoesNotDropEvent(t *testing.T) {
 	body := newBlockingBody([]byte("event: tick\ndata: one\n\n"))
-	stream := clockclient.NewTickStream(&http.Response{Body: body}, nil)
+	stream := clockclient.NewTickStream(context.Background(), &http.Response{Body: body}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	body.afterChunk = cancel
 
-	event, err := stream.Recv(ctx)
+	event, err := stream.RecvWithContext(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "one", event.Data)
 }

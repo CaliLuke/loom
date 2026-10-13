@@ -267,7 +267,7 @@ func renderClientSSEEndpoint(group *jen.Group, endpoint *EndpointData) {
 				)),
 			)
 			decode.Return(
-				jen.Id("New"+endpoint.Method.VarName+"Stream").Call(jen.Id("resp"), jen.Id("c").Dot("decoder")),
+				jen.Id("New"+endpoint.Method.VarName+"Stream").Call(jen.Id("ctx"), jen.Id("resp"), jen.Id("c").Dot("decoder")),
 				jen.Nil(),
 			)
 		}),

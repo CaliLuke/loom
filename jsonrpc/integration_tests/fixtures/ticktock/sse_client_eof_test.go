@@ -21,13 +21,13 @@ func TestGeneratedSSEClientDiscardsIncompleteTail(t *testing.T) {
 						input := prefix + tc.tail
 						stream := newJSONRPCSSETestStream(t, io.NopCloser(strings.NewReader(input)))
 						if prefix != "" {
-							event, err := stream.Recv(context.Background())
+							event, err := stream.RecvWithContext(context.Background())
 							require.NoError(t, err)
 							require.NotNil(t, event.Value)
 							require.Equal(t, "complete", *event.Value)
 						}
 						for range 2 {
-							event, err := stream.Recv(context.Background())
+							event, err := stream.RecvWithContext(context.Background())
 							require.ErrorIs(t, err, io.EOF)
 							require.Nil(t, event)
 						}

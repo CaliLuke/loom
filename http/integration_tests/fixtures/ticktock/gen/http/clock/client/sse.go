@@ -19,14 +19,12 @@ import (
 
 // TickClientStream is the interface for reading Server-Sent Events.
 type TickClientStream interface {
-	// Recv reads and returns the next event from the SSE stream.
-	Recv(context.Context) (*clock.TickTockEvent, error)
-	// Close closes the SSE stream and releases resources.
-	Close() error
+	clock.TickClientStream
 }
 type (
 	// TickStreamImpl implements the TickClientStream interface.
 	TickStreamImpl struct {
+		ctx    context.Context
 		reader *loomhttp.SSEStreamReader
 	}
 )
@@ -35,13 +33,22 @@ type (
 var _ TickClientStream = (*TickStreamImpl)(nil)
 
 // NewTickStream creates a new TickClientStream.
-func NewTickStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TickClientStream {
-	return &TickStreamImpl{reader: loomhttp.NewSSEStreamReader(resp.Body)}
+func NewTickStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TickClientStream {
+	return &TickStreamImpl{
+		ctx:    ctx,
+		reader: loomhttp.NewSSEStreamReader(resp.Body),
+	}
 }
 
-// Recv reads and returns the next event from the SSE stream, respecting
-// context cancellation.
-func (s *TickStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
+// Recv reads instances of "TickTockEvent" from the stream. It uses the context
+// the stream was opened with.
+func (s *TickStreamImpl) Recv() (*clock.TickTockEvent, error) {
+	return s.RecvWithContext(s.ctx)
+}
+
+// RecvWithContext reads instances of "TickTockEvent" from the stream with
+// context.
+func (s *TickStreamImpl) RecvWithContext(ctx context.Context) (event *clock.TickTockEvent, err error) {
 	var parsed loomhttp.SSEEvent
 	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {
@@ -77,14 +84,12 @@ func (s *TickStreamImpl) processEvent(parsed loomhttp.SSEEvent) (event *clock.Ti
 
 // TockClientStream is the interface for reading Server-Sent Events.
 type TockClientStream interface {
-	// Recv reads and returns the next event from the SSE stream.
-	Recv(context.Context) (*clock.TickTockEvent, error)
-	// Close closes the SSE stream and releases resources.
-	Close() error
+	clock.TockClientStream
 }
 type (
 	// TockStreamImpl implements the TockClientStream interface.
 	TockStreamImpl struct {
+		ctx    context.Context
 		reader *loomhttp.SSEStreamReader
 	}
 )
@@ -93,13 +98,22 @@ type (
 var _ TockClientStream = (*TockStreamImpl)(nil)
 
 // NewTockStream creates a new TockClientStream.
-func NewTockStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TockClientStream {
-	return &TockStreamImpl{reader: loomhttp.NewSSEStreamReader(resp.Body)}
+func NewTockStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) TockClientStream {
+	return &TockStreamImpl{
+		ctx:    ctx,
+		reader: loomhttp.NewSSEStreamReader(resp.Body),
+	}
 }
 
-// Recv reads and returns the next event from the SSE stream, respecting
-// context cancellation.
-func (s *TockStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
+// Recv reads instances of "TickTockEvent" from the stream. It uses the context
+// the stream was opened with.
+func (s *TockStreamImpl) Recv() (*clock.TickTockEvent, error) {
+	return s.RecvWithContext(s.ctx)
+}
+
+// RecvWithContext reads instances of "TickTockEvent" from the stream with
+// context.
+func (s *TockStreamImpl) RecvWithContext(ctx context.Context) (event *clock.TickTockEvent, err error) {
 	var parsed loomhttp.SSEEvent
 	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {
@@ -135,14 +149,12 @@ func (s *TockStreamImpl) processEvent(parsed loomhttp.SSEEvent) (event *clock.Ti
 
 // GuardedClientStream is the interface for reading Server-Sent Events.
 type GuardedClientStream interface {
-	// Recv reads and returns the next event from the SSE stream.
-	Recv(context.Context) (*clock.TickTockEvent, error)
-	// Close closes the SSE stream and releases resources.
-	Close() error
+	clock.GuardedClientStream
 }
 type (
 	// GuardedStreamImpl implements the GuardedClientStream interface.
 	GuardedStreamImpl struct {
+		ctx    context.Context
 		reader *loomhttp.SSEStreamReader
 	}
 )
@@ -151,13 +163,22 @@ type (
 var _ GuardedClientStream = (*GuardedStreamImpl)(nil)
 
 // NewGuardedStream creates a new GuardedClientStream.
-func NewGuardedStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) GuardedClientStream {
-	return &GuardedStreamImpl{reader: loomhttp.NewSSEStreamReader(resp.Body)}
+func NewGuardedStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) GuardedClientStream {
+	return &GuardedStreamImpl{
+		ctx:    ctx,
+		reader: loomhttp.NewSSEStreamReader(resp.Body),
+	}
 }
 
-// Recv reads and returns the next event from the SSE stream, respecting
-// context cancellation.
-func (s *GuardedStreamImpl) Recv(ctx context.Context) (event *clock.TickTockEvent, err error) {
+// Recv reads instances of "TickTockEvent" from the stream. It uses the context
+// the stream was opened with.
+func (s *GuardedStreamImpl) Recv() (*clock.TickTockEvent, error) {
+	return s.RecvWithContext(s.ctx)
+}
+
+// RecvWithContext reads instances of "TickTockEvent" from the stream with
+// context.
+func (s *GuardedStreamImpl) RecvWithContext(ctx context.Context) (event *clock.TickTockEvent, err error) {
 	var parsed loomhttp.SSEEvent
 	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {

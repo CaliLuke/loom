@@ -27,6 +27,7 @@ func doHTTP(scheme, host string, timeout int, debug bool) (loom.Endpoint, any, e
 		loomhttp.RequestEncoder,
 		loomhttp.ResponseDecoder,
 		debug,
+		nil,
 	)
 }
 

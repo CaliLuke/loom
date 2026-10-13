@@ -130,17 +130,17 @@ func TestProjectionServerUsesDiscriminatorBody(t *testing.T) {
 		if len(frames) != 2 || strings.Contains(frames[0], "\"event\":") || strings.Contains(frames[1], "\"payload\":") {
 			t.Fatalf("incorrect projection wire fields: %q", frames)
 		}
-		stream := client.NewWatchStream(&http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
+		stream := client.NewWatchStream(context.Background(), &http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
 		t.Cleanup(func() {
 			if err := stream.Close(); err != nil {
 				t.Errorf("close stream: %v", err)
 			}
 		})
-		first, err := stream.Recv(context.Background())
+		first, err := stream.RecvWithContext(context.Background())
 		if err != nil || first == nil || first.Payload == nil || first.Payload.ID != "a" || first.Event != nil {
 			t.Fatalf("legacy projection: %#v, %v", first, err)
 		}
-		second, err := stream.Recv(context.Background())
+		second, err := stream.RecvWithContext(context.Background())
 		if err != nil || second == nil || second.Event == nil || string(second.Event.Kind()) != "updated" || second.Payload != nil {
 			t.Fatalf("updated projection: %#v, %v", second, err)
 		}
@@ -150,12 +150,12 @@ func TestProjectionServerUsesDiscriminatorBody(t *testing.T) {
 func TestProjectionClientDecodesMixedStream(t *testing.T) {
 	frames := "event: legacy\nid: c1\ndata: {\"event_type\":\"legacy\",\"sequence\":1,\"type\":\"legacy\",\"payload\":{\"id\":\"a\"}}\n\n" +
 		"event: updated\ndata: {\"event_type\":\"updated\",\"sequence\":2,\"event\":{\"type\":\"updated\",\"value\":{\"id\":\"b\"}}}\n\n"
-	stream := client.NewWatchStream(
+	stream := client.NewWatchStream(context.Background(),
 		&http.Response{Body: io.NopCloser(strings.NewReader(frames))},
 		loomhttp.ResponseDecoder,
 	)
 
-	legacy, err := stream.Recv(context.Background())
+	legacy, err := stream.RecvWithContext(context.Background())
 	if err != nil {
 		t.Fatalf("recv legacy: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestProjectionClientDecodesMixedStream(t *testing.T) {
 		t.Fatalf("expected legacy SSE id cursor c1, got %v", legacy.Cursor)
 	}
 
-	updated, err := stream.Recv(context.Background())
+	updated, err := stream.RecvWithContext(context.Background())
 	if err != nil {
 		t.Fatalf("recv updated: %v", err)
 	}
@@ -185,11 +185,11 @@ func TestProjectionClientDecodesMixedStream(t *testing.T) {
 }
 
 func TestProjectionClientRejectsUnknownDiscriminator(t *testing.T) {
-	stream := client.NewWatchStream(
+	stream := client.NewWatchStream(context.Background(),
 		&http.Response{Body: io.NopCloser(strings.NewReader("event: bogus\ndata: {}\n\n"))},
 		loomhttp.ResponseDecoder,
 	)
-	_, err := stream.Recv(context.Background())
+	_, err := stream.RecvWithContext(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "invalid SSE projection discriminator") {
 		t.Fatalf("expected discriminator error, got %v", err)
 	}

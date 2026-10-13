@@ -152,7 +152,7 @@ func TestSelectedViewWireAndClient(t *testing.T) {
 	if len(frames) != len(views) {
 		t.Fatalf("want %d frames, got %q", len(views), frames)
 	}
-	stream := client.NewWatchStream(&http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
+	stream := client.NewWatchStream(context.Background(), &http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
 	t.Cleanup(func() {
 		if err := stream.Close(); err != nil {
 			t.Errorf("close stream: %v", err)
@@ -170,7 +170,7 @@ func TestSelectedViewWireAndClient(t *testing.T) {
 		if !reflect.DeepEqual(want, wire) {
 			t.Errorf("frame %d view %q: want %#v, got %#v", i, view, want, wire)
 		}
-		value, err := stream.Recv(context.Background())
+		value, err := stream.RecvWithContext(context.Background())
 		if err != nil {
 			t.Fatalf("recv %d: %v", i, err)
 		}
@@ -185,20 +185,20 @@ func TestSelectedViewWireAndClient(t *testing.T) {
 			t.Errorf("recv %d default view leaked secret: %#v", i, value)
 		}
 	}
-	if _, err := stream.Recv(context.Background()); err != io.EOF {
+	if _, err := stream.RecvWithContext(context.Background()); err != io.EOF {
 		t.Errorf("want EOF, got %v", err)
 	}
 }
 
 func TestFixedFullView(t *testing.T) {
 	rec := response(t, &service{}, "/full")
-	stream := client.NewFullStream(&http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
+	stream := client.NewFullStream(context.Background(), &http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
 	t.Cleanup(func() {
 		if err := stream.Close(); err != nil {
 			t.Errorf("close stream: %v", err)
 		}
 	})
-	value, err := stream.Recv(context.Background())
+	value, err := stream.RecvWithContext(context.Background())
 	if err != nil || value == nil || value.Secret == nil || *value.Secret != "secret" {
 		t.Errorf("fixed full: %#v, %v; wire %q", value, err, rec.Body.String())
 	}
@@ -206,13 +206,13 @@ func TestFixedFullView(t *testing.T) {
 
 func TestCollectionFullView(t *testing.T) {
 	rec := response(t, &service{}, "/list")
-	stream := client.NewListStream(&http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
+	stream := client.NewListStream(context.Background(), &http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
 	t.Cleanup(func() {
 		if err := stream.Close(); err != nil {
 			t.Errorf("close stream: %v", err)
 		}
 	})
-	value, err := stream.Recv(context.Background())
+	value, err := stream.RecvWithContext(context.Background())
 	if err != nil || len(value) != 1 || value[0].Secret == nil || *value[0].Secret != "secret" {
 		t.Errorf("collection full: %#v, %v; wire %q", value, err, rec.Body.String())
 	}

@@ -83,6 +83,7 @@ func (c *Client) Tick() loom.Endpoint {
 				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
 			}
 			stream := &TickClientStream{
+				ctx:     ctx,
 				decoder: c.decoder,
 				reader:  loomhttp.NewSSEStreamReader(resp.Body),
 			}
@@ -125,6 +126,7 @@ func (c *Client) Tock() loom.Endpoint {
 				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
 			}
 			stream := &TockClientStream{
+				ctx:     ctx,
 				decoder: c.decoder,
 				reader:  loomhttp.NewSSEStreamReader(resp.Body),
 			}

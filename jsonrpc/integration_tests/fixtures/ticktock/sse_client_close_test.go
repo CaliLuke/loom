@@ -63,7 +63,7 @@ func TestJSONRPCGeneratedSSEClientCloseUnblocksBlockedRecv(t *testing.T) {
 
 	recvc := make(chan error, 1)
 	go func() {
-		_, err := stream.Recv(context.Background())
+		_, err := stream.RecvWithContext(context.Background())
 		recvc <- err
 	}()
 	waitForReadStart(t, body)
@@ -84,7 +84,7 @@ func TestJSONRPCGeneratedSSEClientRecvHonorsContextWhileReadBlocked(t *testing.T
 
 	recvc := make(chan error, 1)
 	go func() {
-		_, err := stream.Recv(ctx)
+		_, err := stream.RecvWithContext(ctx)
 		recvc <- err
 	}()
 	waitForReadStart(t, body)
@@ -101,7 +101,7 @@ func TestJSONRPCGeneratedSSEClientContextErrorWinsOverCloseError(t *testing.T) {
 
 	recvc := make(chan error, 1)
 	go func() {
-		_, err := stream.Recv(ctx)
+		_, err := stream.RecvWithContext(ctx)
 		recvc <- err
 	}()
 	waitForReadStart(t, body)

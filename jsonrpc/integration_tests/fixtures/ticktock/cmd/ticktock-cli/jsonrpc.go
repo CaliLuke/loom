@@ -27,6 +27,7 @@ func doJSONRPC(scheme, host string, timeout int, debug bool) (loom.Endpoint, any
 		loomhttp.RequestEncoder,
 		loomhttp.ResponseDecoder,
 		debug,
+		nil,
 	)
 }
 

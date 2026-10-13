@@ -56,6 +56,8 @@ type TickClientStream interface {
 	// RecvWithContext reads instances of "TickTockEvent" from the stream with
 	// context.
 	RecvWithContext(context.Context) (*TickTockEvent, error)
+	// Close closes the stream.
+	Close() error
 }
 
 // TockServerStream allows streaming instances of *TickTockEvent to the client.
@@ -75,6 +77,8 @@ type TockClientStream interface {
 	// RecvWithContext reads instances of "TickTockEvent" from the stream with
 	// context.
 	RecvWithContext(context.Context) (*TickTockEvent, error)
+	// Close closes the stream.
+	Close() error
 }
 
 // GuardedServerStream allows streaming instances of *TickTockEvent to the
@@ -96,6 +100,8 @@ type GuardedClientStream interface {
 	// RecvWithContext reads instances of "TickTockEvent" from the stream with
 	// context.
 	RecvWithContext(context.Context) (*TickTockEvent, error)
+	// Close closes the stream.
+	Close() error
 }
 
 // GuardedPayload is the payload type of the clock service Guarded method.

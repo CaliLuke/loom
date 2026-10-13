@@ -61,6 +61,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | View union allocation before conversion references | [View union names](../../../../codegen/service/tla/view_union_names/README.md) |
 | Relocated type declarations, local reservations and union helpers | [External type names](../../../../codegen/tla/external_type_names/README.md) |
 | Service-selected views, output validation and fault classification | [Result output boundary](../../../../codegen/service/tla/result_output/README.md); bounded legacy classification, unchecked-content and nil-element counterexamples |
+| Generated service client, transport and interceptor stream operation agreement | [Client stream contract](../../../../codegen/service/tla/client_stream_contract/README.md); role/signature/cleanup counterexamples with typed SSE/WebSocket clients and ordinary gRPC controls |
 | Final client-streaming result interception and selected views | [Final result interception](../../../../codegen/service/tla/README.md) |
 | Credential extraction before constraints and typed construction | [Bearer protocol boundary](../../../../security/tla/bearer/README.md); bounded valid-frame rejection control |
 | Custom multipart accumulator, error-return signature and callback/validation barriers | [Multipart decode ownership](../../../../http/codegen/tla/multipart_decode/README.md); shared partials with wrapper-local control flow |

@@ -170,7 +170,7 @@ func start(t *testing.T, impl *service) *client.Client {
 }
 
 type recvStream[T any] interface {
-	Recv(context.Context) (T, error)
+	RecvWithContext(context.Context) (T, error)
 	Close() error
 }
 
@@ -189,7 +189,7 @@ func requireRoundTrip[T any](t *testing.T, name string, endpoint loom.Endpoint, 
 		t.Fatalf("%s: unexpected stream type %T", name, res)
 	}
 	for i, w := range want {
-		got, err := stream.Recv(ctx)
+		got, err := stream.RecvWithContext(ctx)
 		if err != nil {
 			t.Errorf("%s[%d]: recv: %v", name, i, err)
 			return
@@ -198,7 +198,7 @@ func requireRoundTrip[T any](t *testing.T, name string, endpoint loom.Endpoint, 
 			t.Errorf("%s[%d]: got %#v, want %#v", name, i, got, w)
 		}
 	}
-	if _, err := stream.Recv(ctx); !errors.Is(err, io.EOF) {
+	if _, err := stream.RecvWithContext(ctx); !errors.Is(err, io.EOF) {
 		t.Errorf("%s: expected io.EOF after %d events, got %v", name, len(want), err)
 	}
 }
@@ -275,25 +275,25 @@ func TestSSEResultTypesClientRejectsMalformedData(t *testing.T) {
 		return &http.Response{Body: io.NopCloser(strings.NewReader(frame))}
 	}
 	ctx := context.Background()
-	if _, err := client.NewStreamStringStream(body("data: unquoted\n\n"), loomhttp.ResponseDecoder).Recv(ctx); err == nil {
+	if _, err := client.NewStreamStringStream(context.Background(), body("data: unquoted\n\n"), loomhttp.ResponseDecoder).RecvWithContext(ctx); err == nil {
 		t.Error("string: expected decode error for non-JSON data")
 	}
-	if _, err := client.NewStreamBytesStream(body("data: \"not base64!\"\n\n"), loomhttp.ResponseDecoder).Recv(ctx); err == nil {
+	if _, err := client.NewStreamBytesStream(context.Background(), body("data: \"not base64!\"\n\n"), loomhttp.ResponseDecoder).RecvWithContext(ctx); err == nil {
 		t.Error("bytes: expected decode error for invalid base64")
 	}
-	if _, err := client.NewStreamIntStream(body("data: forty-two\n\n"), loomhttp.ResponseDecoder).Recv(ctx); err == nil {
+	if _, err := client.NewStreamIntStream(context.Background(), body("data: forty-two\n\n"), loomhttp.ResponseDecoder).RecvWithContext(ctx); err == nil {
 		t.Error("int: expected parse error")
 	}
-	if _, err := client.NewStreamBoolStream(body("data: yes\n\n"), loomhttp.ResponseDecoder).Recv(ctx); err == nil {
+	if _, err := client.NewStreamBoolStream(context.Background(), body("data: yes\n\n"), loomhttp.ResponseDecoder).RecvWithContext(ctx); err == nil {
 		t.Error("bool: expected decode error")
 	}
-	if _, err := client.NewStreamArrayStream(body("data: [\"a\",\n\n"), loomhttp.ResponseDecoder).Recv(ctx); err == nil {
+	if _, err := client.NewStreamArrayStream(context.Background(), body("data: [\"a\",\n\n"), loomhttp.ResponseDecoder).RecvWithContext(ctx); err == nil {
 		t.Error("array: expected decode error")
 	}
-	if _, err := client.NewStreamMapStream(body("data: {\"a\":\"x\"}\n\n"), loomhttp.ResponseDecoder).Recv(ctx); err == nil {
+	if _, err := client.NewStreamMapStream(context.Background(), body("data: {\"a\":\"x\"}\n\n"), loomhttp.ResponseDecoder).RecvWithContext(ctx); err == nil {
 		t.Error("map: expected decode error")
 	}
-	if _, err := client.NewStreamAnyStream(body("data: {\"a\":\n\n"), loomhttp.ResponseDecoder).Recv(ctx); err == nil {
+	if _, err := client.NewStreamAnyStream(context.Background(), body("data: {\"a\":\n\n"), loomhttp.ResponseDecoder).RecvWithContext(ctx); err == nil {
 		t.Error("any: expected decode error")
 	}
 }

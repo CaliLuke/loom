@@ -20,8 +20,8 @@ type Client struct {
 }
 
 // NewClient initializes a "clock" service client given the endpoints.
-func NewClient(tick, tock loom.Endpoint) *Client {
-	return &Client{TickEndpoint: tick, TockEndpoint: tock}
+func NewClient(tick, tock loom.Endpoint, ci ClientInterceptors) *Client {
+	return &Client{TickEndpoint: WrapTickClientEndpoint(tick, ci), TockEndpoint: tock}
 }
 
 // Tick calls the "Tick" endpoint of the "clock" service.

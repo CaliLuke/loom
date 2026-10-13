@@ -1246,6 +1246,18 @@ before an intentional direct mux route. The same source-comment form accepts
 `duplicate-route-registration` and `route-conflict-with-design`; Loom does not
 infer conflicts from dynamic method or path expressions.
 
+## Generated SSE Client Streams
+
+Use the service client with either HTTP or JSON-RPC SSE. `Recv()` retains the
+opening context; `RecvWithContext(ctx)` supplies a per-operation context. Client
+streaming interceptors preserve both operations and `Close()`. Close a stream
+when stopping before EOF. After regeneration, migrate direct SSE `Recv(ctx)`
+calls to `RecvWithContext(ctx)` and pass the opening context explicitly to a
+direct HTTP `New...Stream(ctx, response, decoder)` constructor. Generated
+endpoints do this automatically. For a shared SSE/gRPC service interface,
+gRPC Close retains CloseSend semantics; cancel the original RPC context to
+terminate reception.
+
 ## Interceptor Result Boundaries
 
 Use `ReadResult` and `WriteResult` for ordinary endpoint results. An HTTP or

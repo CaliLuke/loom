@@ -66,6 +66,8 @@ type TickClientStream interface {
 	Recv() (*TickResult, error)
 	// RecvWithContext reads instances of "TickResult" from the stream with context.
 	RecvWithContext(context.Context) (*TickResult, error)
+	// Close closes the stream.
+	Close() error
 }
 
 // TockEvent is the interface implemented by the result type for the Tock
@@ -99,6 +101,8 @@ type TockClientStream interface {
 	Recv() (*TockResult, error)
 	// RecvWithContext reads instances of "TockResult" from the stream with context.
 	RecvWithContext(context.Context) (*TockResult, error)
+	// Close closes the stream.
+	Close() error
 }
 
 // Stream defines the interface for managing an SSE streaming connection in the

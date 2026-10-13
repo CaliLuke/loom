@@ -945,6 +945,17 @@ filter, and serialization rules belong here.
   streaming-payload methods that return one result use the fixed or default
   view. When generation knows the view, emit only its body constructor;
   retain runtime selection for dynamic method streams.
+- `service.StreamData` owns client operation names, contextual variants, result
+  types and Close capability. Service interfaces, transport adapters and client
+  interceptor wrappers consume those facts. Resolve server-only JSON-RPC methods
+  at the role boundary; do not emit them on client streams. Effective SSE is
+  retained in `MethodTransportData.IsSSE`. SSE adapters capture the endpoint
+  context for Recv and accept the explicit context for RecvWithContext. Their
+  direct HTTP constructor requires that context. Client wrappers preserve Close;
+  shared SSE/gRPC interfaces retain gRPC CloseSend semantics. Keep the client
+  stream contract model, typed-client fixture tests and ordinary transport
+  controls aligned. Do not absorb gRPC cancellation or mixed-result accessor
+  validation into method-set repairs.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.

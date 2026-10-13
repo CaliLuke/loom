@@ -118,8 +118,9 @@ func buildMethodSecurityData(m *expr.MethodExpr, errors []*ErrorInitData, errorL
 func (d *ServicesData) buildMethodTransportData(m *expr.MethodExpr) MethodTransportData {
 	_, isJSONRPC := m.Meta["jsonrpc"]
 	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
-	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode, fileResponse := d.httpTransportFlags(m)
+	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode, fileResponse, httpSSE := d.httpTransportFlags(m)
 	return MethodTransportData{
+		IsSSE:                        httpSSE || isJSONRPCSSE,
 		IsJSONRPC:                    isJSONRPC,
 		IsJSONRPCSSE:                 isJSONRPCSSE,
 		IsJSONRPCWebSocket:           isJSONRPCWebSocket,
@@ -194,18 +195,18 @@ func (d *ServicesData) classifyJSONRPCStreamTransport(m *expr.MethodExpr, isJSON
 	return false, false
 }
 
-func (d *ServicesData) httpTransportFlags(m *expr.MethodExpr) (bool, bool, bool) {
+func (d *ServicesData) httpTransportFlags(m *expr.MethodExpr) (bool, bool, bool, bool) {
 	for _, svc := range d.Root.API.HTTP.Services {
 		if svc.Name() != m.Service.Name {
 			continue
 		}
 		httpMethod := svc.Endpoint(m.Name)
 		if httpMethod == nil {
-			return false, false, false
+			return false, false, false, false
 		}
-		return httpMethod.SkipRequestBodyEncodeDecode, httpMethod.SkipResponseBodyEncodeDecode, httpMethod.FileResponse
+		return httpMethod.SkipRequestBodyEncodeDecode, httpMethod.SkipResponseBodyEncodeDecode, httpMethod.FileResponse, httpMethod.SSE != nil
 	}
-	return false, false, false
+	return false, false, false, false
 }
 
 func hasFileResponse(methods []*MethodData) bool {
@@ -228,6 +229,7 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, rnam
 	svrStream, cliStream := buildBaseStreamData(m, data.symbols, sresult.Name, sresult.Ref)
 	applyJSONRPCStreamAdjustments(svrStream, m, resultRef, sresult.Name, data.IsJSONRPCSSE)
 	applyStreamDirectionData(streamKind, svrStream, cliStream, sresult, spayload)
+	cliStream.MustClose = cliStream.MustClose || data.IsSSE || data.IsJSONRPCWebSocket
 	sent, sentDef := m.Result, data.ResultDef
 	if m.HasMixedResults() && m.StreamingResult != nil && m.StreamingResult.Type != expr.Empty {
 		sent, sentDef = m.StreamingResult, sresult.Def

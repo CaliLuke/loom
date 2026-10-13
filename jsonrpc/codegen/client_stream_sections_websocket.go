@@ -19,6 +19,8 @@ func jsonrpcWebSocketClientStreamSection(ws *httpcodegen.WebSocketData) codegen.
 		hasSend := ws.SendName != ""
 		isBidirectional := hasSend && hasRecv
 
+		stmt.Var().Id("_").Add(codegen.TypeRef(ws.Interface)).Op("=").Parens(jen.Op("*").Id(ws.VarName)).Call(jen.Nil())
+		stmt.Line()
 		writeJSONRPCWebSocketClientType(stmt, ws, hasRecv, isBidirectional)
 		if hasSend {
 			stmt.Line()

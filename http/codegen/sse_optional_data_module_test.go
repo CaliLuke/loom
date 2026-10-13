@@ -182,7 +182,7 @@ func start(t *testing.T, impl *service) (*client.Client, string) {
 }
 
 type recvStream[T any] interface {
-	Recv(context.Context) (T, error)
+	RecvWithContext(context.Context) (T, error)
 	Close() error
 }
 
@@ -206,13 +206,13 @@ func receiveAll[T any](t *testing.T, name string, endpoint loom.Endpoint, n int)
 	stream, ctx := open[T](t, name, endpoint)
 	got := make([]T, 0, n)
 	for i := range n {
-		event, err := stream.Recv(ctx)
+		event, err := stream.RecvWithContext(ctx)
 		if err != nil {
 			t.Fatalf("%s[%d]: recv: %v", name, i, err)
 		}
 		got = append(got, event)
 	}
-	if _, err := stream.Recv(ctx); !errors.Is(err, io.EOF) {
+	if _, err := stream.RecvWithContext(ctx); !errors.Is(err, io.EOF) {
 		t.Errorf("%s: expected io.EOF after %d events, got %v", name, n, err)
 	}
 	return got
@@ -301,14 +301,14 @@ func TestSSEOptionalDataPreStreamFailureIsNotAStream(t *testing.T) {
 func TestSSEOptionalDataFailureAfterFirstEventEndsStream(t *testing.T) {
 	c, _ := start(t, &service{failAfter: true})
 	stream, ctx := open[*svc.StreamTextResult](t, "text", c.StreamText())
-	event, err := stream.Recv(ctx)
+	event, err := stream.RecvWithContext(ctx)
 	if err != nil {
 		t.Fatalf("recv: %v", err)
 	}
 	if event.ID != "t1" || event.Text == nil || *event.Text != "hello" {
 		t.Errorf("first event = %s, want t1 with text hello", dumpText([]*svc.StreamTextResult{event}))
 	}
-	if _, err := stream.Recv(ctx); !errors.Is(err, io.EOF) {
+	if _, err := stream.RecvWithContext(ctx); !errors.Is(err, io.EOF) {
 		t.Errorf("expected io.EOF after the failure, got %v", err)
 	}
 }

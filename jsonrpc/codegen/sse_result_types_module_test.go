@@ -170,7 +170,7 @@ func TestExternalRoundTrip(t *testing.T) {
 		}
 	}()
 	for i, want := range values {
-		got, err := s.Recv(ctx)
+		got, err := s.RecvWithContext(ctx)
 		if err != nil {
 			t.Fatalf("recv %d: %v", i, err)
 		}
@@ -178,7 +178,7 @@ func TestExternalRoundTrip(t *testing.T) {
 			t.Errorf("recv %d: got %#v, want %#v", i, got, want)
 		}
 	}
-	if _, err := s.Recv(ctx); !errors.Is(err, io.EOF) {
+	if _, err := s.RecvWithContext(ctx); !errors.Is(err, io.EOF) {
 		t.Errorf("expected io.EOF, got %v", err)
 	}
 }
@@ -326,7 +326,7 @@ func newClient(hs *httptest.Server) *client.Client {
 }
 
 type recvStream[T any] interface {
-	Recv(context.Context) (T, error)
+	RecvWithContext(context.Context) (T, error)
 	Close() error
 }
 
@@ -356,7 +356,7 @@ func requireRoundTrip[T any](t *testing.T, name string, endpoint loom.Endpoint, 
 	defer cancel()
 	s := open[T](t, name, endpoint, payload)
 	for i, w := range want {
-		got, err := s.Recv(ctx)
+		got, err := s.RecvWithContext(ctx)
 		if err != nil {
 			t.Errorf("%s[%d]: recv: %v", name, i, err)
 			return
@@ -365,7 +365,7 @@ func requireRoundTrip[T any](t *testing.T, name string, endpoint loom.Endpoint, 
 			t.Errorf("%s[%d]: got %#v, want %#v", name, i, got, w)
 		}
 	}
-	if _, err := s.Recv(ctx); !errors.Is(err, io.EOF) {
+	if _, err := s.RecvWithContext(ctx); !errors.Is(err, io.EOF) {
 		t.Errorf("%s: expected io.EOF after %d events, got %v", name, len(want), err)
 	}
 }
@@ -447,7 +447,7 @@ func TestJSONRPCSSEResultTypesPreStreamFailure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	s := open[string](t, "string", c.StreamString(), &svc.StreamStringPayload{ID: id()})
-	if _, err := s.Recv(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") {
+	if _, err := s.RecvWithContext(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") {
 		t.Errorf("expected JSON-RPC error before any event, got %v", err)
 	}
 }
@@ -457,11 +457,11 @@ func TestJSONRPCSSEResultTypesSendErrorAfterEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	s := open[[]byte](t, "bytes", c.StreamBytes(), &svc.StreamBytesPayload{ID: id()})
-	got, err := s.Recv(ctx)
+	got, err := s.RecvWithContext(ctx)
 	if err != nil || len(got) != 0 {
 		t.Fatalf("first event: got %#v, %v", got, err)
 	}
-	if _, err := s.Recv(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") {
+	if _, err := s.RecvWithContext(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") {
 		t.Errorf("expected JSON-RPC error event, got %v", err)
 	}
 }
@@ -498,23 +498,23 @@ func TestJSONRPCSSEResultTypesClientRejectsMismatchedParams(t *testing.T) {
 	}
 	ctx := context.Background()
 	recvErr("string", c.StreamString(), &svc.StreamStringPayload{ID: id()}, func(res any) error {
-		_, err := res.(recvStream[string]).Recv(ctx)
+		_, err := res.(recvStream[string]).RecvWithContext(ctx)
 		return err
 	})
 	recvErr("bytes", c.StreamBytes(), &svc.StreamBytesPayload{ID: id()}, func(res any) error {
-		_, err := res.(recvStream[[]byte]).Recv(ctx)
+		_, err := res.(recvStream[[]byte]).RecvWithContext(ctx)
 		return err
 	})
 	recvErr("int", c.StreamInt(), &svc.StreamIntPayload{ID: id()}, func(res any) error {
-		_, err := res.(recvStream[int]).Recv(ctx)
+		_, err := res.(recvStream[int]).RecvWithContext(ctx)
 		return err
 	})
 	recvErr("array", c.StreamArray(), &svc.StreamArrayPayload{ID: id()}, func(res any) error {
-		_, err := res.(recvStream[[]string]).Recv(ctx)
+		_, err := res.(recvStream[[]string]).RecvWithContext(ctx)
 		return err
 	})
 	recvErr("map", c.StreamMap(), &svc.StreamMapPayload{ID: id()}, func(res any) error {
-		_, err := res.(recvStream[map[string]int]).Recv(ctx)
+		_, err := res.(recvStream[map[string]int]).RecvWithContext(ctx)
 		return err
 	})
 }

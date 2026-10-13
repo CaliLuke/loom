@@ -38,11 +38,26 @@ func jsonrpcWebSocketPendingOrderDSL() {
 		dsl.Attribute("text", dsl.String)
 		dsl.Required("text")
 	})
+	audit := dsl.Interceptor("audit", func() {
+		dsl.WriteStreamingPayload(func() {
+			dsl.Attribute("text")
+		})
+		dsl.WriteStreamingResult(func() {
+			dsl.Attribute("text")
+		})
+		dsl.ReadStreamingPayload(func() {
+			dsl.Attribute("text")
+		})
+		dsl.ReadStreamingResult(func() {
+			dsl.Attribute("text")
+		})
+	})
 	dsl.Service("echo", func() {
 		dsl.JSONRPC(func() {
 			dsl.GET("/ws")
 		})
 		dsl.Method("talk", func() {
+			dsl.ClientInterceptor(audit)
 			dsl.StreamingPayload(note)
 			dsl.StreamingResult(note)
 			dsl.JSONRPC(func() {})

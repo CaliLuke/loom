@@ -130,6 +130,7 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 			files = append(files, views)
 		}
 		files = append(files, servicecodegen.EndpointFile(genpkg, svc, serviceData))
+		files = append(files, servicecodegen.ClientFile(genpkg, svc, serviceData))
 	}
 	files = append(files, httpcodegen.DiagnosticFiles(jsonrpcData, "jsonrpc")...)
 	files = append(files, PathFiles(jsonrpcData)...)

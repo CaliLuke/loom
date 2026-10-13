@@ -19,59 +19,61 @@ import (
 // an Any-based user type, which are the same Go type, so the service-level
 // Send type switch must hold a single case for them.
 func TestJSONRPCSSEMixedResultsGeneratedModuleRoundTrip(t *testing.T) {
-	root := RunJSONRPCDSL(t, func() {
-		dsl.API("jsonrpc-sse-mixed", func() {
-			dsl.JSONRPC(func() {})
-		})
-		note := dsl.Type("Note", func() {
-			dsl.Attribute("text", dsl.String)
-			dsl.Required("text")
-		})
-		item := dsl.Type("Item", func() {
-			dsl.Attribute("id", dsl.Int)
-			dsl.Required("id")
-		})
-		doc := dsl.Type("Doc", dsl.Any)
-		dsl.Service("Mixed", func() {
-			dsl.JSONRPC(func() {
-				dsl.POST("/rpc")
-			})
-			mixed := func(name string, result, streaming any) {
-				dsl.Method(name, func() {
-					dsl.Payload(func() {
-						dsl.ID("id", dsl.String)
-					})
-					dsl.Result(result)
-					dsl.StreamingResult(streaming)
-					dsl.JSONRPC(func() {
-						dsl.ServerSentEvents()
-					})
-				})
-			}
-			mixed("LocalResult", note, dsl.String)
-			mixed("LocalStream", dsl.String, note)
-			mixed("LocalBoth", note, item)
-			stream := func(name string, result any) {
-				dsl.Method(name, func() {
-					dsl.Payload(func() {
-						dsl.ID("id", dsl.String)
-					})
-					dsl.StreamingResult(result)
-					dsl.JSONRPC(func() {
-						dsl.ServerSentEvents()
-					})
-				})
-			}
-			stream("StreamAny", dsl.Any)
-			stream("StreamDoc", doc)
-		})
-	})
+	root := RunJSONRPCDSL(t, jsonrpcSSEMixedResultsDSL)
 	dir := t.TempDir()
 	renderJSONRPCModule(t, dir, "example.com/jsonrpcssemixed", root)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "mixed_test.go"), []byte(jsonRPCSSEMixedHarness), 0o600))
 	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
 	runGoJSONRPCTestCommand(t, dir, "vet", "./...")
 	runGoJSONRPCTestCommand(t, dir, "test", "./...")
+}
+
+func jsonrpcSSEMixedResultsDSL() {
+	dsl.API("jsonrpc-sse-mixed", func() {
+		dsl.JSONRPC(func() {})
+	})
+	note := dsl.Type("Note", func() {
+		dsl.Attribute("text", dsl.String)
+		dsl.Required("text")
+	})
+	item := dsl.Type("Item", func() {
+		dsl.Attribute("id", dsl.Int)
+		dsl.Required("id")
+	})
+	doc := dsl.Type("Doc", dsl.Any)
+	dsl.Service("Mixed", func() {
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		mixed := func(name string, result, streaming any) {
+			dsl.Method(name, func() {
+				dsl.Payload(func() {
+					dsl.ID("id", dsl.String)
+				})
+				dsl.Result(result)
+				dsl.StreamingResult(streaming)
+				dsl.JSONRPC(func() {
+					dsl.ServerSentEvents()
+				})
+			})
+		}
+		mixed("LocalResult", note, dsl.String)
+		mixed("LocalStream", dsl.String, note)
+		mixed("LocalBoth", note, item)
+		stream := func(name string, result any) {
+			dsl.Method(name, func() {
+				dsl.Payload(func() {
+					dsl.ID("id", dsl.String)
+				})
+				dsl.StreamingResult(result)
+				dsl.JSONRPC(func() {
+					dsl.ServerSentEvents()
+				})
+			})
+		}
+		stream("StreamAny", dsl.Any)
+		stream("StreamDoc", doc)
+	})
 }
 
 const jsonRPCSSEMixedHarness = `package jsonrpcssemixed_test
@@ -146,7 +148,7 @@ func (service) LocalStream(ctx context.Context, _ *svc.LocalStreamPayload, st sv
 }
 
 type recvStream[T any] interface {
-	Recv(context.Context) (T, error)
+	RecvWithContext(context.Context) (T, error)
 	Close() error
 }
 
@@ -168,7 +170,7 @@ func requireRoundTrip[T any](t *testing.T, name string, endpoint loom.Endpoint, 
 		}
 	}()
 	for i, w := range want {
-		got, err := s.Recv(ctx)
+		got, err := s.RecvWithContext(ctx)
 		if err != nil {
 			t.Errorf("%s[%d]: recv: %v", name, i, err)
 			return
@@ -177,7 +179,7 @@ func requireRoundTrip[T any](t *testing.T, name string, endpoint loom.Endpoint, 
 			t.Errorf("%s[%d]: got %#v, want %#v", name, i, got, w)
 		}
 	}
-	if _, err := s.Recv(ctx); !errors.Is(err, io.EOF) {
+	if _, err := s.RecvWithContext(ctx); !errors.Is(err, io.EOF) {
 		t.Errorf("%s: expected io.EOF after %d events, got %v", name, len(want), err)
 	}
 }

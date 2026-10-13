@@ -21,14 +21,14 @@ func TestGeneratedSSEClientDiscardsIncompleteTail(t *testing.T) {
 				t.Run(tc.name, func(t *testing.T) {
 					for _, prefix := range []string{"", data + eol + eol} {
 						input := prefix + tc.tail
-						stream := clockclient.NewTickStream(&http.Response{Body: io.NopCloser(strings.NewReader(input))}, nil)
+						stream := clockclient.NewTickStream(context.Background(), &http.Response{Body: io.NopCloser(strings.NewReader(input))}, nil)
 						if prefix != "" {
-							event, err := stream.Recv(context.Background())
+							event, err := stream.RecvWithContext(context.Background())
 							require.NoError(t, err)
 							require.Equal(t, "complete", event.Data)
 						}
 						for range 2 {
-							event, err := stream.Recv(context.Background())
+							event, err := stream.RecvWithContext(context.Background())
 							require.ErrorIs(t, err, io.EOF)
 							require.Nil(t, event)
 						}

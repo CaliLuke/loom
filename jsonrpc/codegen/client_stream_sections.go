@@ -28,8 +28,11 @@ func jsonrpcSSEClientStreamSection(ed *httpcodegen.EndpointData) codegen.Section
 }
 
 func writeJSONRPCSSEClientStreamType(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
+	stmt.Var().Id("_").Add(codegen.PkgQual(ed.ServicePkgName, ed.Method.ClientStream.Interface)).Op("=").Parens(jen.Op("*").Id(ed.Method.VarName + "ClientStream")).Call(jen.Nil())
+	stmt.Line()
 	codegen.Doc(stmt, fmt.Sprintf("%sClientStream implements the %s.%sClientStream interface using Server-Sent Events.", ed.Method.VarName, ed.ServicePkgName, ed.Method.VarName))
 	stmt.Type().Id(ed.Method.VarName+"ClientStream").Struct(
+		jen.Id("ctx").Qual("context", "Context"),
 		jen.Id("reader").Op("*").Add(codegen.TypeRef("loomhttp.SSEStreamReader")),
 		jen.Id("decoder").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder")),
 		jen.Id("closed").Bool(),
@@ -52,9 +55,15 @@ func writeJSONRPCSSEMarkClosed(stmt *jen.Statement, ed *httpcodegen.EndpointData
 }
 
 func writeJSONRPCSSERecv(stmt *jen.Statement, ed *httpcodegen.EndpointData) {
-	codegen.Doc(stmt, ed.Method.ClientStream.RecvDesc)
+	codegen.Doc(stmt, ed.Method.ClientStream.RecvDesc+" It uses the context the stream was opened with.")
 	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
-		Id(ed.Method.ClientStream.RecvName).
+		Id(ed.Method.ClientStream.RecvName).Params().
+		Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()).
+		Block(jen.Return(jen.Id("s").Dot(ed.Method.ClientStream.RecvWithContextName).Call(jen.Id("s").Dot("ctx"))))
+	stmt.Line()
+	codegen.Doc(stmt, ed.Method.ClientStream.RecvWithContextDesc)
+	stmt.Func().Params(jen.Id("s").Op("*").Id(ed.Method.VarName+"ClientStream")).
+		Id(ed.Method.ClientStream.RecvWithContextName).
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()).
 		BlockFunc(func(g *jen.Group) {

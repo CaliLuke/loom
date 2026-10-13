@@ -147,6 +147,14 @@ For streaming methods, codegen wraps the stream implementation so that each decl
 - `loom.InterceptorStreamingSend`: interception of each `SendWithContext`
 - `loom.InterceptorStreamingRecv`: interception of each `RecvWithContext`
 
+HTTP and JSON-RPC SSE client streams expose `Recv()` and `RecvWithContext(ctx)`.
+Both run the same receive interceptor; the first uses the stream's opening
+context and the second uses its explicit context. JSON-RPC WebSocket client
+streams expose their canonical Send/Recv operations, including contextual and
+final-result variants, and `Close`. Notification, response and error sends
+remain server operations. Client wrappers preserve the transport's `Close`
+operation without invoking a message interceptor during cleanup.
+
 Use `info.CallType()` to branch when needed. For send interceptions, `info.RawPayload()` is the message being sent. For recv interceptions, the “payload” is produced by `next` (your interceptor sees it as the returned value).
 
 An HTTP or gRPC client-streaming method also delivers its single final response through the

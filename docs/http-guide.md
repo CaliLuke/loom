@@ -1424,6 +1424,26 @@ bounds every frame write and flush using `http.ResponseController`; zero keeps
 the existing unbounded behavior. Transports that cannot install the required
 deadline return `loomhttp.ErrStreamWriteDeadlineUnsupported`.
 
+Generated Go clients use the service's typed client stream interface for both
+HTTP and JSON-RPC SSE. `Recv()` reads using the context passed when the stream
+was opened; `RecvWithContext(ctx)` uses the supplied operation context. Client
+streaming interceptors receive that same operation context. `Close()` releases
+the response body, including through an interceptor wrapper. Close a stream
+when stopping before EOF; canceling an active SSE read also terminates its
+underlying response stream.
+
+Regenerate clients and servers when adopting this contract. Replace direct SSE
+`stream.Recv(ctx)` calls with `stream.RecvWithContext(ctx)`. Direct HTTP stream
+constructor calls now supply the opening context:
+`NewWatchStream(ctx, response, decoder)`. The generated transport endpoint
+supplies it automatically. No-context `Recv()` is useful when the opening
+context already has the intended lifetime bound.
+
+A service method exposed over SSE and gRPC shares its client interface, including
+`Close()`. On gRPC, this operation retains `CloseSend` semantics; cancel the
+original RPC context to terminate reception. Per-operation gRPC cancellation
+is a separate transport concern.
+
 Browser client:
 
 ```javascript

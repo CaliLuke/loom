@@ -197,6 +197,8 @@ type (
 
 	// MethodTransportData contains transport and client-endpoint metadata.
 	MethodTransportData struct {
+		// IsSSE indicates whether an HTTP or JSON-RPC endpoint uses server-sent events.
+		IsSSE bool
 		// IsJSONRPC indicates if the endpoint is a JSON-RPC endpoint.
 		IsJSONRPC bool
 		// IsJSONRPCSSE indicates if the JSON-RPC endpoint uses SSE transport.

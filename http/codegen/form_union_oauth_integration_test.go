@@ -67,6 +67,7 @@ func renderHTTPModule(t *testing.T, dir, modulePath string, root *expr.RootExpr)
 			files = append(files, views)
 		}
 		files = append(files, servicecodegen.EndpointFile(genpkg, service, serviceData))
+		files = append(files, servicecodegen.ClientFile(genpkg, service, serviceData))
 	}
 	files = append(files, DiagnosticFiles(httpData, "http")...)
 	files = append(files, PathFiles(httpData)...)

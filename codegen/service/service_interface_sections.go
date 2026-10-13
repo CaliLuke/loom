@@ -226,7 +226,7 @@ func streamInterfaceData(typ string, method *MethodData, stream *StreamData) *se
 		Stream:             stream,
 		EventName:          method.EventName,
 		IsJSONRPCSSE:       method.IsJSONRPCSSE && typ == "server",
-		IsJSONRPCWebSocket: method.IsJSONRPCWebSocket,
+		IsJSONRPCWebSocket: method.IsJSONRPCWebSocket && typ == "server",
 		IsViewedResult:     method.ViewedResult != nil && method.ViewedResult.ViewName == "",
 		EventIsAlias:       !stream.SendTypeAcceptsMethods,
 	}

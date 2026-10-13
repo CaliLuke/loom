@@ -32,6 +32,7 @@ func (c *Client) EventsStream() loom.Endpoint {
 				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
 			}
 			stream := &EventsStreamClientStream{
+				ctx:     ctx,
 				decoder: c.decoder,
 				reader:  loomhttp.NewSSEStreamReader(resp.Body),
 			}

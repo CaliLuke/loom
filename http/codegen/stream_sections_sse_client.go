@@ -161,10 +161,16 @@ func addSSEClientSection(stmt *jen.Statement, ed *EndpointData) {
 	addSSEClientImplStruct(stmt, ed, streamName, implName)
 	addSSEClientConstructor(stmt, ed, streamName, implName)
 	stmt.Line()
-	codegen.Doc(stmt, "Recv reads and returns the next event from the SSE stream, respecting context cancellation.")
+	codegen.Doc(stmt, ed.Method.ClientStream.RecvDesc+" It uses the context the stream was opened with.")
+	stmt.Func().Params(jen.Id("s").Op("*").Id(implName)).
+		Id(ed.Method.ClientStream.RecvName).Params().
+		Params(codegen.TypeRef(ed.SSE.EventTypeRef), jen.Error()).
+		Block(jen.Return(jen.Id("s").Dot(ed.Method.ClientStream.RecvWithContextName).Call(jen.Id("s").Dot("ctx"))))
+	stmt.Line()
+	codegen.Doc(stmt, ed.Method.ClientStream.RecvWithContextDesc)
 	stmt.Func().
 		Params(jen.Id("s").Op("*").Id(implName)).
-		Id("Recv").
+		Id(ed.Method.ClientStream.RecvWithContextName).
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.Id("event").Add(codegen.TypeRef(ed.SSE.EventTypeRef)), jen.Id("err").Error()).
 		BlockFunc(func(group *jen.Group) {

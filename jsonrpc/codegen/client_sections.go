@@ -178,6 +178,7 @@ func writeJSONRPCSSEEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {
 				jen.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("unexpected content type: %s (expected text/event-stream)"), jen.Id("contentType"))),
 			)
 			decode.Id("stream").Op(":=").Op("&").Id(ed.Method.VarName + "ClientStream").Values(jen.Dict{
+				jen.Id("ctx"):     jen.Id("ctx"),
 				jen.Id("reader"):  jen.Add(codegen.Expr("loomhttp.NewSSEStreamReader")).Call(jen.Id("resp").Dot("Body")),
 				jen.Id("decoder"): jen.Id("c").Dot("decoder"),
 			})

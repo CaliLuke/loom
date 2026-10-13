@@ -1,13 +1,11 @@
 // CreateClientStream is the interface for reading Server-Sent Events.
 type CreateClientStream interface {
-	// Recv reads and returns the next event from the SSE stream.
-	Recv(context.Context) (*mixedresultsservice.Event, error)
-	// Close closes the SSE stream and releases resources.
-	Close() error
+	mixedresultsservice.CreateClientStream
 }
 type (
 	// CreateStreamImpl implements the CreateClientStream interface.
 	CreateStreamImpl struct {
+		ctx     context.Context
 		reader  *loomhttp.SSEStreamReader
 		decoder func(*http.Response) loomhttp.Decoder
 	}
@@ -17,16 +15,22 @@ type (
 var _ CreateClientStream = (*CreateStreamImpl)(nil)
 
 // NewCreateStream creates a new CreateClientStream.
-func NewCreateStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) CreateClientStream {
+func NewCreateStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) CreateClientStream {
 	return &CreateStreamImpl{
+		ctx:     ctx,
 		decoder: decoder,
 		reader:  loomhttp.NewSSEStreamReader(resp.Body),
 	}
 }
 
-// Recv reads and returns the next event from the SSE stream, respecting
-// context cancellation.
-func (s *CreateStreamImpl) Recv(ctx context.Context) (event *mixedresultsservice.Event, err error) {
+// Recv reads instances of "Event" from the stream. It uses the context the
+// stream was opened with.
+func (s *CreateStreamImpl) Recv() (*mixedresultsservice.Event, error) {
+	return s.RecvWithContext(s.ctx)
+}
+
+// RecvWithContext reads instances of "Event" from the stream with context.
+func (s *CreateStreamImpl) RecvWithContext(ctx context.Context) (event *mixedresultsservice.Event, err error) {
 	var parsed loomhttp.SSEEvent
 	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {

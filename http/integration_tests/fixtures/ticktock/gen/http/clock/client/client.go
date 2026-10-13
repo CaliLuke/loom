@@ -62,7 +62,7 @@ func (c *Client) Tick() loom.Endpoint {
 			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
 				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
 			}
-			return NewTickStream(resp, c.decoder), nil
+			return NewTickStream(ctx, resp, c.decoder), nil
 		})
 	}
 }
@@ -88,7 +88,7 @@ func (c *Client) Tock() loom.Endpoint {
 			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
 				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
 			}
-			return NewTockStream(resp, c.decoder), nil
+			return NewTockStream(ctx, resp, c.decoder), nil
 		})
 	}
 }
@@ -122,7 +122,7 @@ func (c *Client) Guarded() loom.Endpoint {
 			if contentType != "" && !strings.HasPrefix(contentType, "text/event-stream") {
 				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
 			}
-			return NewGuardedStream(resp, c.decoder), nil
+			return NewGuardedStream(ctx, resp, c.decoder), nil
 		})
 	}
 }

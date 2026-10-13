@@ -12,8 +12,18 @@ var TickTockEvent = Type("TickTockEvent", func() {
 	Required("event", "data")
 })
 
+var streamAudit = Interceptor("streamAudit", func() {
+	WriteStreamingResult(func() {
+		Attribute("data")
+	})
+	ReadStreamingResult(func() {
+		Attribute("data")
+	})
+})
+
 var _ = Service("clock", func() {
 	Method("Tick", func() {
+		ClientInterceptor(streamAudit)
 		StreamingResult(TickTockEvent)
 		HTTP(func() {
 			GET("/tick")

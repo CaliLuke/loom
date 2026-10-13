@@ -99,7 +99,7 @@ func start(t *testing.T, impl *service) (*client.Client, string) {
 }
 
 type recvStream[T any] interface {
-	Recv(context.Context) (T, error)
+	RecvWithContext(context.Context) (T, error)
 	Close() error
 }
 
@@ -117,13 +117,13 @@ func receiveAll[T any](t *testing.T, name string, endpoint loom.Endpoint, n int)
 	}
 	got := make([]T, 0, n)
 	for i := range n {
-		event, err := stream.Recv(ctx)
+		event, err := stream.RecvWithContext(ctx)
 		if err != nil {
 			t.Fatalf("%s[%d]: recv: %v", name, i, err)
 		}
 		got = append(got, event)
 	}
-	if _, err := stream.Recv(ctx); !errors.Is(err, io.EOF) {
+	if _, err := stream.RecvWithContext(ctx); !errors.Is(err, io.EOF) {
 		t.Errorf("%s: expected io.EOF after %d events, got %v", name, n, err)
 	}
 	return got
@@ -165,14 +165,14 @@ func TestSSEFieldPresenceRoundTrip(t *testing.T) {
 
 func TestSSEClientIDReset(t *testing.T) {
  frames := "data: initial\n\nid: c1\ndata: first\n\ndata: inherited\n\nid:\ndata: reset\n\ndata: still-reset\n\n"
- stream := client.NewStreamOptionalStream(&http.Response{Body: io.NopCloser(strings.NewReader(frames))}, nil)
+ stream := client.NewStreamOptionalStream(context.Background(), &http.Response{Body: io.NopCloser(strings.NewReader(frames))}, nil)
  defer func() {
   if err := stream.Close(); err != nil {
    t.Errorf("close: %v", err)
   }
  }()
  for i, want := range []*string{nil, ptr("c1"), ptr("c1"), nil, nil} {
-  event, err := stream.Recv(context.Background())
+  event, err := stream.RecvWithContext(context.Background())
   if err != nil {
    t.Fatalf("event %d: %v", i, err)
   }
@@ -180,14 +180,14 @@ func TestSSEClientIDReset(t *testing.T) {
    t.Errorf("event %d: got ID %v, want %v", i, event.ID, want)
   }
  }
- defaulted := client.NewStreamDefaultedStream(&http.Response{Body: io.NopCloser(strings.NewReader(frames))}, nil)
+ defaulted := client.NewStreamDefaultedStream(context.Background(), &http.Response{Body: io.NopCloser(strings.NewReader(frames))}, nil)
  defer func() {
   if err := defaulted.Close(); err != nil {
    t.Errorf("close defaulted: %v", err)
   }
  }()
  for i, want := range []string{"default-id", "c1", "c1", "default-id", "default-id"} {
-  event, err := defaulted.Recv(context.Background())
+  event, err := defaulted.RecvWithContext(context.Background())
   if err != nil {
    t.Fatalf("defaulted event %d: %v", i, err)
   }

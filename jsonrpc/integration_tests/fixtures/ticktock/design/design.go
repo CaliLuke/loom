@@ -6,12 +6,22 @@ var _ = API("ticktock", func() {
 	JSONRPC(func() {})
 })
 
+var streamAudit = Interceptor("streamAudit", func() {
+	WriteStreamingResult(func() {
+		Attribute("value")
+	})
+	ReadStreamingResult(func() {
+		Attribute("value")
+	})
+})
+
 var _ = Service("clock", func() {
 	JSONRPC(func() {
 		POST("/rpc")
 	})
 
 	Method("Tick", func() {
+		ClientInterceptor(streamAudit)
 		Payload(func() {
 			ID("id", String)
 		})

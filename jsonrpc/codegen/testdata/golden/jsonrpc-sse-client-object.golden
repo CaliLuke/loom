@@ -1,6 +1,9 @@
+var _ jsonrpcsseobjectservice.StreamClientStream = (*StreamClientStream)(nil)
+
 // StreamClientStream implements the jsonrpcsseobjectservice.StreamClientStream
 // interface using Server-Sent Events.
 type StreamClientStream struct {
+	ctx      context.Context
 	reader   *loomhttp.SSEStreamReader
 	decoder  func(*http.Response) loomhttp.Decoder
 	closed   bool
@@ -14,8 +17,15 @@ func (s *StreamClientStream) markClosed() {
 	s.lock.Unlock()
 }
 
-// Recv reads instances of "StreamResult" from the stream.
-func (s *StreamClientStream) Recv(ctx context.Context) (*jsonrpcsseobjectservice.StreamResult, error) {
+// Recv reads instances of "StreamResult" from the stream. It uses the context
+// the stream was opened with.
+func (s *StreamClientStream) Recv() (*jsonrpcsseobjectservice.StreamResult, error) {
+	return s.RecvWithContext(s.ctx)
+}
+
+// RecvWithContext reads instances of "StreamResult" from the stream with
+// context.
+func (s *StreamClientStream) RecvWithContext(ctx context.Context) (*jsonrpcsseobjectservice.StreamResult, error) {
 	s.readLock.Lock()
 	defer s.readLock.Unlock()
 
