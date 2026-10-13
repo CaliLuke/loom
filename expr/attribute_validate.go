@@ -303,6 +303,7 @@ func (a *AttributeExpr) validateChildTypes(ctx string, parent eval.Expression) *
 		return verr
 	}
 	if u := AsUnion(a.Type); u != nil {
+		verr.Merge(validateUnionBranchIdentities(u, ctx, parent))
 		if u.Untagged {
 			verr.Merge(validateUntaggedBranches(u, ctx, parent))
 		} else {

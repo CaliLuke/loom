@@ -139,6 +139,11 @@ the same `Nullable()` DSL contract.
 `OneOf` defines tagged union values. It can be used as a named attribute inside
 an object DSL or as a data type for payloads, results, and attributes.
 
+Within one union, branch names and effective discriminator values must be unique.
+Mapped name suffixes do not create distinct branch identities. Loom reports
+conflicts during design validation, before generation, for both tagged and
+untagged unions.
+
 Different objects can reuse the same block and branch names. Each branch keeps
 its declared type; Loom adds stable suffixes to generated Go type names when
 needed. These suffixes do not change the JSON discriminator values.

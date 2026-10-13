@@ -86,6 +86,14 @@ consumer validation.
   the server-member model and mounted routing controls aligned; client and gRPC
   receiver naming are separate owners.
 
+- `expr.validateUnionBranchIdentities` admits logical names and effective tags
+  within each evaluated union before generator capture. Reuse `AttributeName`
+  and `UnionVariantTag`, including occurrence/named-type metadata precedence;
+  preserve preparation's forward-reference resolution. Apply the check to both
+  tagged and untagged unions without rewriting branches or imposing global/Go
+  naming uniqueness. Keep the value capture integrity guard and the union
+  admission model, direct evaluator and actual CLI rejection tests aligned.
+
 - `http/codegen.buildCLIArgumentPlan` owns selected endpoint-bearing service order
   and the parser/example dependency sequence for HTTP and JSON-RPC. Keep exact
   service and endpoint identity through command-name allocation; project each
