@@ -15,6 +15,7 @@ import (
 	"fmt"
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/jsonrpc"
+	loomtransport "github.com/CaliLuke/loom/observability/transport"
 	loom "github.com/CaliLuke/loom/pkg"
 	"io"
 	"net/http"
@@ -41,14 +42,17 @@ type jSONRPCWebSocketRuntimeServiceStream struct {
 // streamStreamWrapper wraps the JSON-RPC stream to provide a method-specific interface.
 type streamStreamWrapper struct {
 	stream       *jSONRPCWebSocketRuntimeServiceStream
+	observation  *loomtransport.StreamObserver
 	requestHasID bool
 	requestID    any
 }
 
 func (w *streamStreamWrapper) SendNotification(ctx context.Context, res *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult) error {
+	ctx = loomtransport.WithStreamObserver(ctx, w.observation)
 	return w.stream.SendStreamNotification(ctx, res)
 }
 func (w *streamStreamWrapper) SendResponse(ctx context.Context, res *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult) error {
+	ctx = loomtransport.WithStreamObserver(ctx, w.observation)
 	var body any
 	{
 		res := res
@@ -60,6 +64,7 @@ func (w *streamStreamWrapper) SendResponse(ctx context.Context, res *jsonrpcwebs
 	})
 }
 func (w *streamStreamWrapper) SendError(ctx context.Context, err error) error {
+	ctx = loomtransport.WithStreamObserver(ctx, w.observation)
 	return jsonrpc.CompleteStreamError(ctx, w.requestHasID, func() error {
 		return w.stream.SendError(ctx, w.requestID, err)
 	})
@@ -140,6 +145,7 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) processRequest(ctx context.Contex
 			return nil
 		}
 		streamWrapper := &streamStreamWrapper{
+			observation:  loomtransport.StreamObserverFromContext(ctx, loomtransport.TransportJSONRPC),
 			requestHasID: req.HasID,
 			requestID:    req.ID,
 			stream:       s,

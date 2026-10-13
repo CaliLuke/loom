@@ -58,7 +58,7 @@ func TestJSONRPCErrorProjectionUsesCoreHelpers(t *testing.T) {
 				code := codegen.SectionCode(t, section)
 				assert.Contains(t, code, "loom.ErrorSafeMessage(err)")
 				assert.Contains(t, code, "jsonrpc.NewErrorData(err)")
-				assert.Contains(t, code, "jsonrpc.CompleteStreamError(ctx, s.requestHasID")
+				assert.Contains(t, code, "jsonrpc.CompleteSSEStream(ctx, s.writer, s.requestHasID")
 			}
 		}
 		require.True(t, found, "expected jsonrpc-sse-server-stream section")
