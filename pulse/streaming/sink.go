@@ -256,13 +256,13 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 	return sink, nil
 }
 
-// Subscribe returns a channel that receives events from the sink.
+// Subscribe returns a channel that receives events from the sink. If shutdown
+// has started, Subscribe returns an already-closed channel.
 func (s *Sink) Subscribe() <-chan *Event {
-	sub := newEventSubscriber(s.bufferSize)
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.subscribers = append(s.subscribers, sub)
-	return sub.ch
+	ch, _ := registerSubscriber(&s.subscribers, s.bufferSize, s.closing || s.closed)
+	return ch
 }
 
 // Unsubscribe removes the channel from the sink and closes it.

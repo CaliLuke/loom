@@ -150,14 +150,16 @@ func newReader(ctx context.Context, stream *Stream, opts ...options.Reader) (*Re
 }
 
 // Subscribe returns a channel that receives events from the stream.
-// The channel is closed when the reader is closed.
+// The channel is closed when the reader is closed. If shutdown has started,
+// Subscribe returns an already-closed channel without starting a reader.
 func (r *Reader) Subscribe() <-chan *Event {
-	sub := newEventSubscriber(r.bufferSize)
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.subscribers = append(r.subscribers, sub)
-	r.start()
-	return sub.ch
+	ch, admitted := registerSubscriber(&r.subscribers, r.bufferSize, r.closing || r.closed)
+	if admitted {
+		r.start()
+	}
+	return ch
 }
 
 // Unsubscribe removes the channel from the reader subscribers and closes it.
@@ -499,6 +501,18 @@ func eventFromMessage(streamName, streamKey, sinkName string, msg redis.XMessage
 		streamKey:  streamKey,
 		Acker:      acker,
 	}, nil
+}
+
+// registerSubscriber admits a channel under the Reader or Sink lifecycle lock.
+// Once shutdown begins, no channel is retained and no worker may be started.
+func registerSubscriber(subscribers *[]*eventSubscriber, bufferSize int, stopped bool) (<-chan *Event, bool) {
+	sub := newEventSubscriber(bufferSize)
+	if stopped {
+		sub.close()
+		return sub.ch, false
+	}
+	*subscribers = append(*subscribers, sub)
+	return sub.ch, true
 }
 
 func newEventSubscriber(bufferSize int) *eventSubscriber {

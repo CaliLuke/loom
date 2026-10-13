@@ -87,6 +87,9 @@ reader's authored start mode unless its options override it.
 batch may still reach subscribers. Re-adding the stream installs its selected start
 position independently: completion of an earlier read cannot move that new cursor.
 
+Calling `Subscribe` after Reader or Sink shutdown has started returns an
+already-closed channel. It does not restart polling.
+
 `Reader.Close` and `Sink.Close` stop local polling and close subscriber
 channels. `Stream.Destroy` is different: it deletes the shared stream and sink
 membership state. Reserve it for intentional teardown, tests, or coordinated
