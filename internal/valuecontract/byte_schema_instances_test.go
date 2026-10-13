@@ -27,27 +27,22 @@ func TestByteSchemaIndependentConstraints(t *testing.T) {
 	batches := make([]schematest.Batch, 0, 5)
 	expectations := make([][]bool, 0, 5)
 	for _, tc := range []struct {
-		name     string
-		inner    byteAliasBound
-		outer    byteAliasBound
-		nullable bool
-		accept   func(int) bool
+		name      string
+		inner     byteAliasBound
+		outer     byteAliasBound
+		nullable  bool
+		accept    func(int) bool
+		wantError string
 	}{
 		{"redundant_overflow", byteAliasBound{Maximum: &maxInt}, byteAliasBound{Maximum: ptr(2)}, false, func(n int) bool {
 			return n <= 2
-		}},
-		{"empty_before_overflow", byteAliasBound{Minimum: &maxInt}, byteAliasBound{Maximum: ptr(2)}, false, func(int) bool {
-			return false
-		}},
-		{"negative_lower", byteAliasBound{Minimum: ptr(-3)}, byteAliasBound{Maximum: ptr(2)}, false, func(n int) bool {
-			return n <= 2
-		}},
-		{"negative_upper", byteAliasBound{Maximum: ptr(-1)}, byteAliasBound{}, false, func(int) bool {
-			return false
-		}},
+		}, ""},
+		{"empty_before_overflow", byteAliasBound{Minimum: &maxInt}, byteAliasBound{Maximum: ptr(2)}, false, nil, "contradictory inherited length bounds: min length is greater than max length"},
+		{"negative_lower", byteAliasBound{Minimum: ptr(-3)}, byteAliasBound{Maximum: ptr(2)}, false, nil, "min length must be non-negative"},
+		{"negative_upper", byteAliasBound{Maximum: ptr(-1)}, byteAliasBound{}, false, nil, "max length must be non-negative"},
 		{"nullable", byteAliasBound{Minimum: ptr(2)}, byteAliasBound{Maximum: ptr(2)}, true, func(n int) bool {
 			return n == 2
-		}},
+		}, ""},
 	} {
 		inner := &expr.UserTypeExpr{TypeName: tc.name, AttributeExpr: &expr.AttributeExpr{
 			Type: expr.Bytes, Nullable: tc.nullable,
@@ -55,6 +50,11 @@ func TestByteSchemaIndependentConstraints(t *testing.T) {
 		}}
 		attribute := &expr.AttributeExpr{Type: inner, Validation: &expr.ValidationExpr{MinLength: tc.outer.Minimum, MaxLength: tc.outer.Maximum}}
 		data, err := expr.InlineJSONSchema(attribute)
+		if tc.wantError != "" {
+			require.ErrorContains(t, err, tc.wantError, tc.name)
+			require.Empty(t, data, "invalid design %s must not emit a schema", tc.name)
+			continue
+		}
 		require.NoError(t, err, tc.name)
 		instances := []any{"", "aA==", "aGk=", "aGV5", "bG9uZw==", "aGl=", "aGm=", "aGn=", "aGk=\n", "aGk=\r", "aGk=\u2028", "aGk=\u2029", nil}
 		lengths := []int{0, 1, 2, 3, 4, 2, 2, 2}

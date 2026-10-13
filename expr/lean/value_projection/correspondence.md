@@ -463,6 +463,12 @@ The complete conformance target also passed its actual rejected-proof controls
 and all 15 executed comparison groups.
 The `byte-alias-lengths` and `byte-schema-bounds` executable groups compare the
 actual shared helper and Go source/target behavior against these functions.
+After #695, negative authored lengths and contradictory inherited intervals remain
+valid mathematical inputs to these Lean functions and the byte-bound helper, but
+are rejected as Loom designs. The byte-alias comparison retains arithmetic checks
+for all cases and separately asserts invalid source-occurrence and target-plan
+admission; only admitted designs proceed to resolution/projection checks. Inline
+schema tests likewise require design errors with no emitted schema.
 They do not discharge general alias enums, key constraints or DSL lowering.
 
 **#571 checkpoint:** `NumericBounds` and `AliasContracts` consume raw authored

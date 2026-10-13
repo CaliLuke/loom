@@ -66,20 +66,21 @@ func checkByteAliasLengthConformance(t *testing.T, executable string) {
 		return &value
 	}
 	for _, tc := range []struct {
-		name    string
-		bounds  []byteAliasBound
-		minimum *int
-		maximum *int
+		name      string
+		bounds    []byteAliasBound
+		minimum   *int
+		maximum   *int
+		wantError string
 	}{
-		{"unconstrained", []byteAliasBound{{}, {}, {}}, nil, nil},
-		{"intersect", []byteAliasBound{{Minimum: ptr(3)}, {Maximum: ptr(4)}, {Minimum: ptr(2)}}, ptr(3), ptr(4)},
-		{"negative_lower", []byteAliasBound{{Minimum: ptr(-3)}, {Maximum: ptr(2)}}, ptr(-3), ptr(2)},
-		{"negative_upper", []byteAliasBound{{Maximum: ptr(-1)}, {}}, nil, ptr(-1)},
-		{"empty", []byteAliasBound{{Minimum: ptr(3)}, {Maximum: ptr(2)}}, ptr(3), ptr(2)},
-		{"zero", []byteAliasBound{{Minimum: ptr(0)}, {Maximum: ptr(0)}}, ptr(0), ptr(0)},
-		{"repeated", []byteAliasBound{{Minimum: ptr(2)}, {Maximum: ptr(4)}, {Minimum: ptr(2)}, {Maximum: ptr(4)}}, ptr(2), ptr(4)},
-		{"redundant_huge", []byteAliasBound{{Maximum: ptr(2)}, {Maximum: ptr(int(^uint(0) >> 1))}}, nil, ptr(2)},
-		{"empty_huge", []byteAliasBound{{Maximum: ptr(2)}, {Minimum: ptr(int(^uint(0) >> 1))}}, ptr(int(^uint(0) >> 1)), ptr(2)},
+		{"unconstrained", []byteAliasBound{{}, {}, {}}, nil, nil, ""},
+		{"intersect", []byteAliasBound{{Minimum: ptr(3)}, {Maximum: ptr(4)}, {Minimum: ptr(2)}}, ptr(3), ptr(4), ""},
+		{"negative_lower", []byteAliasBound{{Minimum: ptr(-3)}, {Maximum: ptr(2)}}, ptr(-3), ptr(2), "min length must be non-negative"},
+		{"negative_upper", []byteAliasBound{{Maximum: ptr(-1)}, {}}, nil, ptr(-1), "max length must be non-negative"},
+		{"empty", []byteAliasBound{{Minimum: ptr(3)}, {Maximum: ptr(2)}}, ptr(3), ptr(2), "contradictory inherited length bounds: min length is greater than max length"},
+		{"zero", []byteAliasBound{{Minimum: ptr(0)}, {Maximum: ptr(0)}}, ptr(0), ptr(0), ""},
+		{"repeated", []byteAliasBound{{Minimum: ptr(2)}, {Maximum: ptr(4)}, {Minimum: ptr(2)}, {Maximum: ptr(4)}}, ptr(2), ptr(4), ""},
+		{"redundant_huge", []byteAliasBound{{Maximum: ptr(2)}, {Maximum: ptr(int(^uint(0) >> 1))}}, nil, ptr(2), ""},
+		{"empty_huge", []byteAliasBound{{Maximum: ptr(2)}, {Minimum: ptr(int(^uint(0) >> 1))}}, ptr(int(^uint(0) >> 1)), ptr(2), "contradictory inherited length bounds: min length is greater than max length"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			attribute := &expr.AttributeExpr{Type: expr.Bytes}
@@ -113,7 +114,11 @@ func checkByteAliasLengthConformance(t *testing.T, executable string) {
 			require.Len(t, result.Accepted, len(lengths))
 			context := expr.NewValueContext()
 			occurrence, err := context.NewOccurrence(attribute)
-			require.NoError(t, err)
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, tc.wantError, "invalid source design")
+			} else {
+				require.NoError(t, err)
+			}
 			projectionSource := expr.DupAtt(attribute)
 			for current := projectionSource; ; {
 				current.Validation = nil
@@ -136,6 +141,11 @@ func checkByteAliasLengthConformance(t *testing.T, executable string) {
 			plan, err := context.NewValuePlan(unconstrained, expr.ValuePlanRequest{
 				Target: projectionTarget, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanRuntime,
 			})
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, "value plan target:", "invalid target design")
+				require.ErrorContains(t, err, tc.wantError)
+				return
+			}
 			require.NoError(t, err)
 			for index, length := range lengths {
 				for _, role := range []expr.ValueRole{expr.ValueRoleExample, expr.ValueRoleEnum, expr.ValueRoleDefault} {

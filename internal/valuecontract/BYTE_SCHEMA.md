@@ -120,8 +120,15 @@ temporary directory.
 
 Cases include each base64 residue, empty values, noncanonical unused pad bits,
 malformed padding, alternate alphabets and rejected whitespace/line terminators.
-Additional instance checks cover nullable values, negative and empty bounds,
-and an enormous inner alias bound narrowed by an outer bound before projection.
+Additional instance checks cover nullable values and an enormous inner alias
+maximum narrowed by an outer maximum before projection. Negative authored lengths
+and contradictory inherited intervals are rejected before schema emission under
+the accepted constraint-admission contract. The independent schema test asserts
+these design errors explicitly; they are not schemas that reject every instance.
+The alias correspondence test retains all raw helper/Lean arithmetic comparisons,
+including negative and empty intervals, then separately asserts invalid source
+occurrence and target-plan admission. Resolution and projection comparisons apply
+only to admitted designs.
 The enum control deliberately demonstrates that a byte decoder can accept a
 pad-bit alias that the schema's canonical enum rejects. Length equivalence does
 not establish enum equivalence or unique union decoding.
