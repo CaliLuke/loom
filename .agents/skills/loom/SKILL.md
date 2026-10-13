@@ -1145,6 +1145,13 @@ metrics and routing. Handle these values rather than parsing error messages:
 - `mcp_events_stream_write_failed`
 
 Use `loomhttp.NewDebugDoer` only for bounded, redacted development diagnostics.
+Regenerate after security/mapping changes. Pass the credential-bearing service's
+`gen/http/<service>` or `gen/jsonrpc/<service>` package `Fields()` to handwritten
+`NewDebugDoer` and `middleware.Debug` calls; generated example clients do this
+automatically. These constructors copy credential metadata, mask actual custom
+wire names as well as conventional names, and conservatively combine policies.
+Scalar credential bodies and credential paths are omitted, including route vars.
+Ordinary opaque previews may still contain unmodeled secrets.
 Its response capture follows caller reads without eager consumption. Automatic
 output occurs once at observed EOF or caller Close; keep closing bodies normally.
 `Fprint` is a snapshot, so before EOF it may be incomplete. Incomplete structured

@@ -2,8 +2,6 @@ package representation
 
 import (
 	"fmt"
-	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
@@ -125,16 +123,12 @@ func (b *httpValuePlanBuilder) walk(attribute *expr.AttributeExpr, context *code
 func emittedHTTPFieldPolicy(parent *expr.AttributeExpr, mapped *expr.MappedAttributeExpr, field *expr.NamedAttributeExpr, context *codegen.AttributeContext) (expr.ValueFieldPolicy, error) {
 	name := expr.AttributeName(field.Name)
 	optional, omitZero := FieldOmission(mapped, name, field.Attribute, context.Pointer, context.UseDefault, context.JSONPresence)
-	tags := AttributeTags(field.Attribute, expr.ElementName(field.Name), optional, omitZero)
-	unquoted, err := strconv.Unquote(strings.TrimSpace(tags))
+	tags, err := emittedFieldTags(field.Attribute, field.Name, optional, omitZero)
 	if err != nil {
-		return expr.ValueFieldPolicy{}, fmt.Errorf("HTTP field %q tags: %w", field.Name, err)
+		return expr.ValueFieldPolicy{}, err
 	}
-	parts := strings.Split(reflect.StructTag(unquoted).Get("json"), ",")
-	wireName := parts[0]
-	if wireName == "" {
-		wireName = codegen.GoifyAtt(field.Attribute, name, true)
-	}
+	parts := strings.Split(tags.Get("json"), ",")
+	wireName := emittedJSONFieldName(field.Attribute, field.Name, tags)
 	presence := expr.ValueFieldRetain
 	for _, option := range parts[1:] {
 		switch option {

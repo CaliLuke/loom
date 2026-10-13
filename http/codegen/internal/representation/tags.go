@@ -2,21 +2,25 @@ package representation
 
 import (
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 )
 
-func objectFieldOptional(ma *expr.MappedAttributeExpr, name string, ptr, useDefault bool) bool {
-	switch {
-	case ptr:
-		return true
-	case useDefault:
-		return !ma.IsRequired(name) && !ma.HasDefaultValue(name)
-	default:
-		return !ma.IsRequired(name)
+// FieldWireNames returns the actual JSON and form names emitted for a field.
+// A name of "-" excludes that codec; an empty form name is not form-encoded.
+// JSON's empty tag name falls back to the emitted Go field name.
+func FieldWireNames(attribute *expr.AttributeExpr, name string) (string, string, error) {
+	tags, err := emittedFieldTags(attribute, name, false, false)
+	if err != nil {
+		return "", "", err
 	}
+	jsonName := emittedJSONFieldName(attribute, name, tags)
+	formName, _, _ := strings.Cut(tags.Get("form"), ",")
+	return jsonName, formName, nil
 }
 
 // AttributeTags computes the struct field tags.
@@ -58,6 +62,48 @@ func AttributeTags(att *expr.AttributeExpr, t string, optional, omitZero bool) s
 	})
 }
 
+// MergeJSONOmitOption replaces omission options while preserving the exact ignore tag.
+func MergeJSONOmitOption(tag, option string) string {
+	if tag == "-" || option == "" {
+		return tag
+	}
+	parts := strings.Split(tag, ",")
+	options := make([]string, 0, len(parts))
+	seen := false
+	for _, part := range parts[1:] {
+		if part == "omitempty" || part == "omitzero" {
+			if !seen {
+				options = append(options, option)
+				seen = true
+			}
+			continue
+		}
+		options = append(options, part)
+	}
+	if !seen {
+		options = append(options, option)
+	}
+	return strings.Join(append([]string{parts[0]}, options...), ",")
+}
+
+// FieldOmission is shared by emitted tags and semantic target plans.
+func FieldOmission(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr, pointer, useDefault, jsonPresence bool) (bool, bool) {
+	optional := objectFieldOptional(parent, name, pointer, useDefault)
+	omitZero := !parent.IsRequiredNoDefault(name) && (jsonPresence || codegen.IsExplicitPresenceType(attribute) || expr.AllowsNull(attribute))
+	return optional, omitZero
+}
+
+func objectFieldOptional(ma *expr.MappedAttributeExpr, name string, ptr, useDefault bool) bool {
+	switch {
+	case ptr:
+		return true
+	case useDefault:
+		return !ma.IsRequired(name) && !ma.HasDefaultValue(name)
+	default:
+		return !ma.IsRequired(name)
+	}
+}
+
 func mergedAttributeTags(att *expr.AttributeExpr, jsonTag string, includeJSON bool) string {
 	if att == nil || att.Meta == nil {
 		return ""
@@ -85,30 +131,6 @@ func hasJSONTagName(att *expr.AttributeExpr) bool {
 	return len(att.Meta["struct:tag:json:name"]) > 0
 }
 
-// MergeJSONOmitOption replaces omission options while preserving the exact ignore tag.
-func MergeJSONOmitOption(tag, option string) string {
-	if tag == "-" || option == "" {
-		return tag
-	}
-	parts := strings.Split(tag, ",")
-	options := make([]string, 0, len(parts))
-	seen := false
-	for _, part := range parts[1:] {
-		if part == "omitempty" || part == "omitzero" {
-			if !seen {
-				options = append(options, option)
-				seen = true
-			}
-			continue
-		}
-		options = append(options, part)
-	}
-	if !seen {
-		options = append(options, option)
-	}
-	return strings.Join(append([]string{parts[0]}, options...), ",")
-}
-
 // isJSONRPCID checks if the attribute is marked as a JSON-RPC ID attribute
 func isJSONRPCID(att *expr.AttributeExpr) bool {
 	if att.Meta == nil {
@@ -118,9 +140,19 @@ func isJSONRPCID(att *expr.AttributeExpr) bool {
 	return ok
 }
 
-// FieldOmission is shared by emitted tags and semantic target plans.
-func FieldOmission(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr, pointer, useDefault, jsonPresence bool) (bool, bool) {
-	optional := objectFieldOptional(parent, name, pointer, useDefault)
-	omitZero := !parent.IsRequiredNoDefault(name) && (jsonPresence || codegen.IsExplicitPresenceType(attribute) || expr.AllowsNull(attribute))
-	return optional, omitZero
+func emittedFieldTags(attribute *expr.AttributeExpr, name string, optional, omitZero bool) (reflect.StructTag, error) {
+	tags := AttributeTags(attribute, expr.ElementName(name), optional, omitZero)
+	unquoted, err := strconv.Unquote(strings.TrimSpace(tags))
+	if err != nil {
+		return "", fmt.Errorf("HTTP field %q tags: %w", name, err)
+	}
+	return reflect.StructTag(unquoted), nil
+}
+
+func emittedJSONFieldName(attribute *expr.AttributeExpr, name string, tags reflect.StructTag) string {
+	wireName, _, _ := strings.Cut(tags.Get("json"), ",")
+	if wireName == "" {
+		wireName = codegen.GoifyAtt(attribute, expr.AttributeName(name), true)
+	}
+	return wireName
 }

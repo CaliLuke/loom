@@ -2,17 +2,14 @@ package http
 
 import (
 	"bytes"
-	"encoding/json/jsontext"
-	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"strings"
+
+	"github.com/CaliLuke/loom/observability/diagnostics"
 )
 
 type (
@@ -34,6 +31,7 @@ type (
 		Doer
 		exchange *debugExchange
 		output   io.Writer
+		policy   *diagnostics.Policy
 	}
 
 	debugReplayBody struct {
@@ -63,8 +61,7 @@ type (
 )
 
 const (
-	debugBodyCaptureLimit = int64(64 << 10)
-	debugRedactedValue    = "[REDACTED]"
+	debugBodyCaptureLimit = int64(diagnostics.BodyCaptureLimit)
 )
 
 func (c ClientError) Unwrap() error {
@@ -76,14 +73,16 @@ func (c ClientError) Unwrap() error {
 // Close behavior preserved. The exchange prints once to stderr at observed EOF
 // or caller Close; nil/http.NoBody responses print immediately. Unread, unclosed
 // responses do not print automatically. Request capture retains its bounded
-// prefix/GetBody behavior. Concurrent Do calls are not supported.
-func NewDebugDoer(d Doer) DebugDoer {
-	return &debugDoer{Doer: d, output: os.Stderr}
+// prefix/GetBody behavior. Authored wire credential fields are copied when the
+// wrapper is constructed; conventional credential names are always masked.
+// Concurrent Do calls are not supported.
+func NewDebugDoer(d Doer, fields ...diagnostics.Fields) DebugDoer {
+	return &debugDoer{Doer: d, output: os.Stderr, policy: diagnostics.New(fields...)}
 }
 
 // Do captures the request and response.
 func (dd *debugDoer) Do(req *http.Request) (*http.Response, error) {
-	capturedRequest, requestBody, err := captureDebugRequest(req)
+	capturedRequest, requestBody, err := captureDebugRequest(req, dd.policy)
 	if err != nil {
 		return nil, err
 	}
@@ -93,15 +92,15 @@ func (dd *debugDoer) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	dd.exchange = captureDebugExchange(capturedRequest, requestBody, resp, dd.output)
+	dd.exchange = captureDebugExchange(capturedRequest, requestBody, resp, dd.output, dd.policy)
 
 	return resp, nil
 }
 
-func captureDebugRequest(req *http.Request) (*http.Request, []byte, error) {
+func captureDebugRequest(req *http.Request, policy *diagnostics.Policy) (*http.Request, []byte, error) {
 	captured := req.Clone(req.Context())
-	captured.Header = redactDebugHeaders(req.Header)
-	captured.URL = redactDebugURL(req.URL)
+	captured.Header = policy.Headers(req.Header)
+	captured.URL = policy.URL(req.URL)
 	captured.Body = nil
 	if req.Body == nil {
 		return captured, nil, nil
@@ -133,28 +132,7 @@ func captureDebugRequest(req *http.Request) (*http.Request, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("capture request body: %w", err)
 	}
-	return captured, redactDebugBody(req.Header, data, truncated), nil
-}
-
-func redactDebugURL(original *url.URL) *url.URL {
-	if original == nil {
-		return nil
-	}
-	redacted := original.Clone()
-	if redacted.User != nil {
-		username := redacted.User.Username()
-		if _, hasPassword := redacted.User.Password(); hasPassword {
-			redacted.User = url.UserPassword(username, debugRedactedValue)
-		}
-	}
-	query := redacted.Query()
-	for name := range query {
-		if isSensitiveDebugName(name) {
-			query[name] = []string{debugRedactedValue}
-		}
-	}
-	redacted.RawQuery = query.Encode()
-	return redacted
+	return captured, policy.Body(req.Header.Get("Content-Type"), data, truncated, true), nil
 }
 
 func readDebugBody(body io.Reader) ([]byte, bool, error) {
@@ -163,118 +141,6 @@ func readDebugBody(body io.Reader) ([]byte, bool, error) {
 		return data, false, err
 	}
 	return data, int64(len(data)) > debugBodyCaptureLimit, nil
-}
-
-func redactDebugHeaders(headers http.Header) http.Header {
-	redacted := headers.Clone()
-	for name := range redacted {
-		if isSensitiveDebugName(name) {
-			redacted[name] = []string{debugRedactedValue}
-		}
-	}
-	return redacted
-}
-
-func redactDebugBody(headers http.Header, data []byte, truncated bool) []byte {
-	if truncated {
-		return fmt.Appendf(nil, "[body omitted after %d bytes]", debugBodyCaptureLimit)
-	}
-	if len(data) == 0 {
-		return nil
-	}
-
-	mediaType, _, err := mime.ParseMediaType(headers.Get("Content-Type"))
-	if err != nil {
-		return data
-	}
-	switch {
-	case mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"):
-		return redactDebugJSON(data)
-	case mediaType == "application/x-www-form-urlencoded":
-		return redactDebugForm(data)
-	default:
-		return data
-	}
-}
-
-func redactDebugJSON(data []byte) []byte {
-	value := jsontext.Value(data)
-	if !value.IsValid() {
-		return []byte("[invalid JSON body omitted]")
-	}
-	redacted, err := redactDebugJSONValue(value)
-	if err != nil {
-		return []byte("[JSON body redaction failed]")
-	}
-	return redacted
-}
-
-func redactDebugJSONValue(value jsontext.Value) (jsontext.Value, error) {
-	switch value.Kind() {
-	case '{':
-		var object map[string]jsontext.Value
-		if err := json.Unmarshal(value, &object); err != nil {
-			return nil, err
-		}
-		for name, field := range object {
-			if isSensitiveDebugName(name) {
-				replacement, err := json.Marshal(debugRedactedValue)
-				if err != nil {
-					return nil, err
-				}
-				object[name] = replacement
-				continue
-			}
-			redacted, err := redactDebugJSONValue(field)
-			if err != nil {
-				return nil, err
-			}
-			object[name] = redacted
-		}
-		return json.Marshal(object, json.Deterministic(true))
-	case '[':
-		var items []jsontext.Value
-		if err := json.Unmarshal(value, &items); err != nil {
-			return nil, err
-		}
-		for index, item := range items {
-			redacted, err := redactDebugJSONValue(item)
-			if err != nil {
-				return nil, err
-			}
-			items[index] = redacted
-		}
-		return json.Marshal(items)
-	default:
-		return value.Clone(), nil
-	}
-}
-
-func redactDebugForm(data []byte) []byte {
-	values, err := url.ParseQuery(string(data))
-	if err != nil {
-		return []byte("[invalid form body omitted]")
-	}
-	for name := range values {
-		if isSensitiveDebugName(name) {
-			values[name] = []string{debugRedactedValue}
-		}
-	}
-	return []byte(values.Encode())
-}
-
-func isSensitiveDebugName(name string) bool {
-	normalized := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToLower(name))
-	switch normalized {
-	case "authorization", "cookie", "set_cookie", "proxy_authorization",
-		"password", "passwd", "secret", "token", "api_key", "x_api_key",
-		"access_token", "refresh_token", "client_secret", "credential",
-		"credentials", "session", "session_id":
-		return true
-	}
-	return strings.HasSuffix(normalized, "_token") ||
-		strings.HasSuffix(normalized, "_secret") ||
-		strings.HasSuffix(normalized, "_api_key")
 }
 
 // Error builds an error message.

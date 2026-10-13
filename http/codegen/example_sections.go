@@ -32,7 +32,13 @@ func renderExampleCLIStart(services []exampleCLIServiceData, interceptorsPkg, fu
 	b.WriteString("\t{\n")
 	b.WriteString("\t\tdoer = &http.Client{Timeout: time.Duration(timeout) * time.Second}\n")
 	b.WriteString("\t\tif debug {\n")
-	b.WriteString("\t\t\tdoer = loomhttp.NewDebugDoer(doer)\n")
+	b.WriteString("\t\t\tdoer = loomhttp.NewDebugDoer(doer")
+	for _, svc := range services {
+		if svc.DiagnosticsImport != "" {
+			b.WriteString(", " + svc.DiagnosticsImport + ".Fields()")
+		}
+	}
+	b.WriteString(")\n")
 	b.WriteString("\t\t}\n")
 	for _, svc := range cliServicesWithClientInterceptors(services) {
 		fmt.Fprintf(&b, "\t\t%sInterceptors = %s.New%sClientInterceptors()\n", svc.Data.Service.VarName, interceptorsPkg, svc.Data.Service.StructName)

@@ -12,8 +12,9 @@ import (
 )
 
 type exampleCLIServiceData struct {
-	Data          *ServiceData
-	ServiceImport string
+	Data              *ServiceData
+	ServiceImport     string
+	DiagnosticsImport string
 }
 
 // ExampleCLITransport describes the transport-specific names and paths used by
@@ -88,7 +89,8 @@ func exampleCLIWithCache(
 	if parent, _, ok := strings.CutLast(genpkg, "/"); ok && parent != "" {
 		rootPath = parent
 	}
-	specs := []*codegen.ImportSpec{
+	specs := make([]*codegen.ImportSpec, 0, 15+2*len(services.Expressions.Services))
+	specs = append(specs, []*codegen.ImportSpec{
 		{Path: "context"},
 		{Path: "encoding/json/v2", Name: "json"},
 		{Path: "flag"},
@@ -102,19 +104,11 @@ func exampleCLIWithCache(
 		codegen.LoomImport(""),
 		codegen.LoomNamedImport("http", "loomhttp"),
 		{Path: genpkg + "/" + transport.PathName + "/cli/" + svrdata.Dir, Name: "cli"},
-	}
+	}...)
 	importScope := codegen.NewNameScope()
 	reserveExampleImportNames(importScope, specs)
-	exampleServices := make(map[string]exampleCLIServiceData, len(services.Expressions.Services))
-	for _, svc := range services.Expressions.Services {
-		data := services.Get(svc.Name())
-		serviceImport := importScope.Unique(data.Service.PkgName, "svc")
-		exampleServices[svc.Name()] = exampleCLIServiceData{Data: data, ServiceImport: serviceImport}
-		specs = append(specs, &codegen.ImportSpec{
-			Path: genpkg + "/" + data.Service.PathName,
-			Name: serviceImport,
-		})
-	}
+	exampleServices, serviceImports := exampleCLIServiceImports(genpkg, transport.PathName, services, importScope)
+	specs = append(specs, serviceImports...)
 	interceptorsPkg := importScope.Unique("interceptors", "ex")
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath + "/interceptors", Name: interceptorsPkg})
 	apiPkg := importScope.Unique(service.PackageBaseName(services.Root.API.Name), "api")
@@ -138,6 +132,31 @@ func exampleCLIWithCache(
 		Sections:  sections,
 		SkipExist: true,
 	}
+}
+
+func exampleCLIServiceImports(
+	genpkg, transportPath string, services *ServicesData, importScope *codegen.NameScope,
+) (map[string]exampleCLIServiceData, []*codegen.ImportSpec) {
+	var specs []*codegen.ImportSpec
+	exampleServices := make(map[string]exampleCLIServiceData, len(services.Expressions.Services))
+	for _, svc := range services.Expressions.Services {
+		data := services.Get(svc.Name())
+		serviceImport := importScope.Unique(data.Service.PkgName, "svc")
+		diagnosticsImport := ""
+		if !emptyDiagnosticFields(serviceDiagnosticFields(data)) {
+			diagnosticsImport = importScope.Unique(data.Service.PkgName + "diagnostics")
+			specs = append(specs, &codegen.ImportSpec{
+				Path: genpkg + "/" + transportPath + "/" + data.Service.PathName,
+				Name: diagnosticsImport,
+			})
+		}
+		exampleServices[svc.Name()] = exampleCLIServiceData{Data: data, ServiceImport: serviceImport, DiagnosticsImport: diagnosticsImport}
+		specs = append(specs, &codegen.ImportSpec{
+			Path: genpkg + "/" + data.Service.PathName,
+			Name: serviceImport,
+		})
+	}
+	return exampleServices, specs
 }
 
 func httpExampleCLITransport() ExampleCLITransport {

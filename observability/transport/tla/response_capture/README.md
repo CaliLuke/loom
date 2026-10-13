@@ -84,3 +84,46 @@ reader consumption alone cannot mark a response oversized. Tests cover full,
 partial, error, exact-limit, overflow, nested capture and concurrent observation.
 `TestDebugResponseSSEFlushVisibleBeforeReturn` checks a real HTTP connection;
 `TestDebugResponseSSETerminalFailure` keeps failed streams terminal.
+
+## Diagnostic metadata (#718)
+
+`ResponseMetadata.tla` explores informational preparation, an observable commit,
+an opaque ReadFrom, a forwarding writer changing metadata, later handler mutation
+and final observation. `LateHeader` reproduces the original JSON-to-plain parser
+switch. `EarlyRead` rejects using a source read as proof of ReadFrom's commit;
+`AfterCall` rejects trusting metadata after a forwarding writer changes it.
+`MetadataChecked` preserves only snapshots stable across the forwarding call,
+and omits previews whose first commit has ambiguous metadata. Run these four
+configurations with `ResponseMetadata.tla` and separate external Java temporary
+and checker directories using the pinned toolchain above.
+
+The model assumes serialized writer calls and no hidden mutate-and-restore
+sequence inside a forwarding writer. It cannot observe such a writer's internal
+commit; custom byte/header transformations remain outside capture's boundary.
+The shared `headerCandidate`/`commit` pair owns the stable before/after snapshot;
+`Headers` returns detached immutable data. ReadFrom preserves an earlier observed
+commit but never establishes metadata from its opaque internal I/O. A response
+whose first Write adds an implicit Content-Type is conservatively ambiguous too.
+Debug omits its body preview rather than select a parser from mutable headers.
+No early WriteHeader, extra Read, interface change or body rewriting is introduced.
+
+`TestDebugResponseParserUsesCommittedMetadata`,
+`TestDebugOpaqueReadFromOmitsAmbiguousMetadata` and
+`TestDebugForwardedMetadataMutation` verify disclosure prevention and original
+wire bytes. `TestCaptureResponseHeaders` covers commit paths, informational and
+upgrade statuses, empty/committed ReadFrom and detached access. Concurrent
+observation and implicit sniff controls exercise implementation-only boundaries.
+Existing writer capability, accepted-byte, streaming and error tests remain gates.
+
+Final results: LateHeader, EarlyRead and AfterCall exit 12 on NoDisclosure;
+MetadataChecked exits 0 (26 generated, 20 distinct states). The forwarding action
+requires an observable header change, matching the no-hidden-restore assumption.
+
+```sh
+for cfg in LateHeader EarlyRead AfterCall MetadataChecked; do
+  model_tmp=$(mktemp -d /tmp/loom-response-metadata-XXXXXX)
+  java -XX:+UseParallelGC -Djava.io.tmpdir="$model_tmp" \
+    -cp "$TLA_TOOLS_JAR" tlc2.TLC -workers 1 \
+    -metadir "$model_tmp/states" -config "$cfg.cfg" ResponseMetadata.tla
+done
+```

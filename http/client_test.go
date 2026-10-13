@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/observability/diagnostics"
 )
 
 func TestClientError_Unwrap(t *testing.T) {
@@ -223,7 +225,7 @@ func TestRedactDebugBody(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			headers := stdhttp.Header{"Content-Type": []string{tt.contentType}}
-			got := string(redactDebugBody(headers, []byte(tt.body), tt.truncated))
+			got := string(diagnostics.New().Body(headers.Get("Content-Type"), []byte(tt.body), tt.truncated, true))
 			for _, value := range tt.contains {
 				require.Contains(t, got, value)
 			}

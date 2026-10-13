@@ -1977,6 +1977,11 @@ interface forwarding. Loom hooks own status commit and byte-count policy,
 including informational responses, upgrades, flushes and I/O fast paths. Do not
 add transport-local forwarding wrappers. Debug opts into bounded body retention
 through WithResponseBodyCapture; ordinary metrics consumers retain no body.
+WithResponseHeaderCapture retains a detached first-commit snapshot only when
+headers remain stable across forwarding. Opaque first ReadFrom and changed
+metadata are unavailable; Debug omits ambiguous body previews. Do not infer a
+wire commit from source reads or reuse final mutable headers. Keep metadata
+ordering counterexamples and runtime controls aligned in the response model.
 Capture only accepted bytes, trim ReadFrom lookahead to its returned count, and
 discard oversized previews with an explicit omission marker. Body snapshots are
 detached and synchronized; writer concurrency remains the caller's responsibility.
@@ -1996,6 +2001,17 @@ first and may snapshot before an in-flight read returns. Do not add draining or
 response replay to make diagnostics appear earlier. Keep `http/tla/client_debug_response`
 and its timing/error/redaction tests aligned. Client request prefix/GetBody capture
 remains a separate existing policy.
+Diagnostic masking lives in `observability/diagnostics`, shared by client and
+server Debug. Its constructor copies public field sets into an immutable policy.
+Project credential source identity from `HTTPEndpointExpr.CredentialBindings`,
+including explicit duplicate wire operations; never re-infer security in a
+transport renderer. Prepared body fields derive JSON/form names from the actual
+representation tag owner. Emit service metadata once for application wiring and
+selected example CLI policies. Whole-body/path omission, route-variable masking,
+and unsupported credential body codecs must not leave alternate previews leaking.
+Keep the [redaction model](../../../observability/diagnostics/tla/redaction/README.md)
+aligned with delayed completion, custom mapped roles, wire preservation and
+ordinary visibility tests. No metadata is emitted for ordinary/disabled services.
 The callback-scoped httpsnoop metrics
 API does not match the independently started/ended request observer lifecycle.
 

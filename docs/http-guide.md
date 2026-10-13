@@ -643,12 +643,37 @@ Close call/error reach the caller unchanged. Sequential reuse retains each open
 response's own diagnostic identity; concurrent `Do` calls are not supported.
 Client request capture retains its bounded prefix/GetBody behavior.
 
-Debug capture redacts authorization and cookie headers, headers and URL query
-parameters named for tokens, secrets, credentials, sessions, or API keys, and
-sensitive fields nested in JSON or form bodies. Malformed structured bodies are
-omitted instead of printed without redaction. Ordinary non-structured bodies
-remain visible, so debug mode should not be enabled for production traffic or
-payloads containing unmodeled secrets.
+Client and server Debug share credential redaction. Conventional names include
+`apiKey`, `accessToken`, `clientSecret`, `key`, and their separated spellings;
+authorization and cookie headers are wholly masked. Structured JSON fields are
+masked at any nesting depth, and URL/form parameters include repeated values.
+Malformed or incomplete structured previews are omitted.
+
+Regenerate after changing security or wire mappings. Credential-bearing services
+expose `Fields()` in `gen/http/<service>/diagnostics.go` (or `gen/jsonrpc/<service>`).
+Generated example clients supply this metadata automatically. Handwritten clients
+and servers pass it when enabling Debug:
+
+```go
+import serviceDiagnostics "example.com/app/gen/http/widgets"
+
+debugClient := loomhttp.NewDebugDoer(client, serviceDiagnostics.Fields())
+debugServer := middleware.Debug(mux, writer, serviceDiagnostics.Fields())
+```
+
+For handwritten transports, supply `diagnostics.Fields` from
+`github.com/CaliLuke/loom/observability/diagnostics`. Constructors copy these fields;
+subsequent caller changes cannot alter a delayed response preview. Fields describe
+actual header, query, JSON, and form wire names. Policies conservatively combine
+selected services: the same name is masked even where another method uses it for
+ordinary data. A scalar credential body is omitted completely. A credential path
+omits the whole URL path and separately logged route variables. Known credential
+bodies with unsupported content types are also omitted.
+
+Application headers, URLs, and wire bodies remain unchanged. Ordinary opaque
+bodies remain visible when no body credential policy applies, so use Debug only
+for development and avoid payloads containing unmodeled secrets. Access logging
+has its own policy; enabling Debug redaction does not configure other loggers.
 
 ---
 
@@ -657,6 +682,12 @@ payloads containing unmodeled secrets.
 `middleware.Debug` preserves the response writer's streaming, flushing and
 connection-control capabilities. It logs the committed response status and bytes
 accepted by the writer, including partial writes that return an error.
+Response previews use headers captured around the first observed commit. Later
+handler changes cannot select a different redaction parser. If forwarding changes
+those headers (including implicit content-type detection), or an opaque ReadFrom
+commits first, Debug prints `[body omitted: response metadata unavailable]`.
+Explicit, stable response headers preserve ordinary previews. Application bytes
+and writer operations are unchanged.
 
 Each request or response body preview is limited to 64 KiB. Larger previews are
 omitted entirely with `[body omitted after 65536 bytes]`; application I/O is not

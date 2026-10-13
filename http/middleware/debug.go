@@ -10,10 +10,11 @@ import (
 
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/internal/identifier"
+	"github.com/CaliLuke/loom/observability/diagnostics"
 	"github.com/CaliLuke/loom/observability/transport"
 )
 
-const debugBodyCaptureLimit = 64 << 10
+const debugBodyCaptureLimit = diagnostics.BodyCaptureLimit
 
 // Debug returns a debug middleware which prints detailed information about
 // incoming requests and outgoing responses including all headers, parameters
@@ -22,37 +23,44 @@ const debugBodyCaptureLimit = 64 << 10
 // capture observes downstream reads without draining or replacing errors. A
 // preview without observed EOF is marked incomplete. The summary is emitted
 // when the handler returns. Response writer capabilities are preserved.
-func Debug(mux loomhttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
+// Conventional credentials and supplied wire credential fields are masked using
+// an immutable copy of fields; application requests and responses stay unchanged.
+func Debug(mux loomhttp.Muxer, w io.Writer, fields ...diagnostics.Fields) func(http.Handler) http.Handler {
+	policy := diagnostics.New(fields...)
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			buf := &bytes.Buffer{}
 			reqID := shortID()
-			writeDebugRequest(buf, mux, reqID, r)
+			writeDebugRequest(buf, mux, reqID, r, policy)
+			contentType := r.Header.Get("Content-Type")
 			body, requestCapture := transport.CaptureBodyReads(r.Body, debugBodyCaptureLimit)
 			r.Body = body
 
-			writer, capture := transport.CaptureResponse(rw, transport.WithResponseBodyCapture(debugBodyCaptureLimit))
+			writer, capture := transport.CaptureResponse(rw, transport.WithResponseBodyCapture(debugBodyCaptureLimit), transport.WithResponseHeaderCapture())
 			h.ServeHTTP(writer, r)
-			writeDebugRequestBody(buf, reqID, requestCapture)
-			writeDebugResponse(buf, reqID, rw.Header(), capture)
+			writeDebugRequestBody(buf, reqID, requestCapture, contentType, policy)
+			writeDebugResponse(buf, reqID, capture, policy)
 			buf.WriteByte('\n')
 			w.Write(buf.Bytes()) // nolint: errcheck
 		})
 	}
 }
 
-func writeDebugRequest(buf *bytes.Buffer, mux loomhttp.Muxer, reqID string, r *http.Request) {
-	fmt.Fprintf(buf, "> [%s] %s %s", reqID, r.Method, r.URL.String())
-	writeDebugMap(buf, reqID, ">", stringMap(r.Header))
-	writeDebugMap(buf, reqID, ">", mux.Vars(r))
+func writeDebugRequest(buf *bytes.Buffer, mux loomhttp.Muxer, reqID string, r *http.Request, policy *diagnostics.Policy) {
+	fmt.Fprintf(buf, "> [%s] %s %s", reqID, r.Method, policy.URL(r.URL).String())
+	writeDebugMap(buf, reqID, ">", stringMap(policy.Headers(r.Header)))
+	writeDebugMap(buf, reqID, ">", policy.PathValues(mux.Vars(r)))
 }
 
-func writeDebugResponse(buf *bytes.Buffer, reqID string, header http.Header, capture *transport.ResponseCapture) {
+func writeDebugResponse(buf *bytes.Buffer, reqID string, capture *transport.ResponseCapture, policy *diagnostics.Policy) {
+	header, known := capture.Headers()
 	fmt.Fprintf(buf, "\n< [%s] %s", reqID, http.StatusText(capture.StatusCode()))
-	writeDebugMap(buf, reqID, "<", stringMap(header))
+	writeDebugMap(buf, reqID, "<", stringMap(policy.Headers(header)))
 	body, omitted := capture.Body()
-	if omitted {
-		body = fmt.Appendf(nil, "[body omitted after %d bytes]", debugBodyCaptureLimit)
+	if !known && len(body) > 0 {
+		body = []byte("[body omitted: response metadata unavailable]")
+	} else {
+		body = policy.Body(header.Get("Content-Type"), body, omitted, true)
 	}
 	writeDebugBody(buf, reqID, body)
 }
@@ -81,11 +89,9 @@ func sortedDebugKeys(values map[string]string) []string {
 	return keys
 }
 
-func writeDebugRequestBody(buf *bytes.Buffer, reqID string, capture *transport.BodyReadCapture) {
+func writeDebugRequestBody(buf *bytes.Buffer, reqID string, capture *transport.BodyReadCapture, contentType string, policy *diagnostics.Policy) {
 	body, omitted, complete := capture.Body()
-	if omitted {
-		body = fmt.Appendf(nil, "[body omitted after %d bytes]", debugBodyCaptureLimit)
-	}
+	body = policy.Body(contentType, body, omitted, complete)
 	writeDebugBody(buf, reqID, body)
 	if !complete {
 		writeDebugBody(buf, reqID, []byte("[request body capture stopped before EOF]"))

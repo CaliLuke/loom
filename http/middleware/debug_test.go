@@ -48,7 +48,7 @@ func TestDebug(t *testing.T) {
 		"[" + id + "] hi\n" +
 		"\n< [" + id + "] OK\n" +
 		"< [" + id + "] Content-Type: application/json\n" +
-		"[" + id + "] hello\n\n"
+		"[" + id + "] [invalid JSON body omitted]\n\n"
 	assert.Equal(t, want, buf.String())
 }
 

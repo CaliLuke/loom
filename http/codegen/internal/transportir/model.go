@@ -266,9 +266,11 @@ type (
 	}
 
 	Security struct {
-		Requirements []*expr.SecurityExpr
-		Parameters   []*SecurityParameter
-		Disabled     bool
+		// CredentialBindings retains all effective credential source roles and wire slots.
+		CredentialBindings []expr.HTTPCredentialBinding
+		Requirements       []*expr.SecurityExpr
+		Parameters         []*SecurityParameter
+		Disabled           bool
 	}
 
 	SecurityParameter struct {

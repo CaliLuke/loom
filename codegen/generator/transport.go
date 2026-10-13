@@ -62,6 +62,7 @@ func Transport(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 
 		// JSON-RPC
 		jsonrpcServices := httpcodegen.NewServicesData(services, &r.API.JSONRPC.HTTPExpr)
+		rootFiles = append(rootFiles, httpcodegen.DiagnosticFiles(jsonrpcServices, "jsonrpc")...)
 		rootFiles = append(rootFiles, jsonrpccodegen.ServerFiles(genpkg, jsonrpcServices)...)
 		rootFiles = append(rootFiles, jsonrpccodegen.ClientFiles(genpkg, jsonrpcServices)...)
 		rootFiles = append(rootFiles, jsonrpccodegen.ServerTypeFiles(genpkg, jsonrpcServices)...)
@@ -86,6 +87,7 @@ func httpTransportFiles(genpkg string, root *expr.RootExpr, services *service.Se
 	httpServices := httpcodegen.NewServicesData(services, root.API.HTTP)
 	serverFiles := httpcodegen.ServerFiles(genpkg, httpServices)
 	files := append([]*codegen.File(nil), serverFiles...)
+	files = append(files, httpcodegen.DiagnosticFiles(httpServices, "http")...)
 	if mode == httpGenerationAll {
 		files = append(files, httpcodegen.ClientFiles(genpkg, httpServices)...)
 	}

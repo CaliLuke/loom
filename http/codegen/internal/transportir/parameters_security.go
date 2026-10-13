@@ -90,8 +90,9 @@ func buildSecurity(endpoint *expr.HTTPEndpointExpr) *Security {
 		return nil
 	}
 	security := &Security{
-		Requirements: endpoint.Requirements,
-		Disabled:     endpoint.MethodExpr != nil && hasMetaKey(endpoint.MethodExpr.Meta, "security:no"),
+		CredentialBindings: endpoint.CredentialBindings(),
+		Requirements:       endpoint.Requirements,
+		Disabled:           endpoint.MethodExpr != nil && hasMetaKey(endpoint.MethodExpr.Meta, "security:no"),
 	}
 	for _, requirement := range endpoint.Requirements {
 		for _, scheme := range requirement.Schemes {

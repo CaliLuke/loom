@@ -3,12 +3,12 @@ package http
 import (
 	"errors"
 	"io"
-	"mime"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/CaliLuke/loom/observability/diagnostics"
 	"github.com/CaliLuke/loom/observability/transport"
 )
 
@@ -20,6 +20,8 @@ type (
 		capture     *transport.BodyReadCapture
 		output      io.Writer
 		printed     sync.Once
+		policy      *diagnostics.Policy
+		contentType string
 	}
 	debugCompletionBody struct {
 		io.ReadCloser
@@ -53,11 +55,11 @@ func (b *debugCompletionBody) Close() error {
 }
 
 func captureDebugExchange(
-	req *http.Request, requestBody []byte, resp *http.Response, output io.Writer,
+	req *http.Request, requestBody []byte, resp *http.Response, output io.Writer, policy *diagnostics.Policy,
 ) *debugExchange {
 	metadata := new(http.Response)
 	*metadata = *resp
-	metadata.Header = redactDebugHeaders(resp.Header)
+	metadata.Header = policy.Headers(resp.Header)
 	metadata.Body = nil
 	body, capture := transport.CaptureBodyReads(resp.Body, int(debugBodyCaptureLimit))
 	exchange := &debugExchange{
@@ -66,6 +68,8 @@ func captureDebugExchange(
 		response:    metadata,
 		capture:     capture,
 		output:      output,
+		policy:      policy,
+		contentType: resp.Header.Get("Content-Type"),
 	}
 	if body == nil || body == http.NoBody {
 		exchange.finish()
@@ -102,14 +106,7 @@ func (e *debugExchange) print(w io.Writer) {
 	buf.WriteString("\n< " + e.response.Status)
 	writeDebugHeaders(&buf, "<", e.response.Header)
 	data, omitted, complete := e.capture.Body()
-	mediaType, _, parseErr := mime.ParseMediaType(e.response.Header.Get("Content-Type"))
-	structured := parseErr == nil && (mediaType == "application/json" ||
-		strings.HasSuffix(mediaType, "+json") || mediaType == "application/x-www-form-urlencoded")
-	if !complete && structured && !omitted {
-		data = []byte("[incomplete structured body omitted]")
-	} else {
-		data = redactDebugBody(e.response.Header, data, omitted)
-	}
+	data = e.policy.Body(e.contentType, data, omitted, complete)
 	if len(data) > 0 {
 		buf.WriteString("\n" + string(data))
 	}

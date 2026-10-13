@@ -172,6 +172,8 @@ func TestDebugResponseAcceptedBytes(t *testing.T) {
 					count, err = io.WriteString(w, "abcdef")
 					n = int64(count)
 				case "reader":
+					// An explicit commit makes the subsequent opaque copy metadata observable.
+					w.WriteHeader(http.StatusOK)
 					n, err = io.Copy(w, struct{ io.Reader }{strings.NewReader("abcdef")})
 				}
 				require.EqualValues(t, 3, n)
@@ -216,6 +218,7 @@ func TestDebugResponseCaptureLimit(t *testing.T) {
 			var output bytes.Buffer
 			original := httptest.NewRecorder()
 			httpm.Debug(loomhttp.NewMuxer(), &output)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "text/plain")
 				// Multiple writes exercise retention across events as well as one large body.
 				for offset := 0; offset < len(body); {
 					end := min(offset+8192, len(body))
