@@ -1439,6 +1439,15 @@ filter, and serialization rules belong here.
   every depth and rejects distinct protobuf names that map to one Go type.
   Recursive normalization rebinds repeated canonical type IDs to the first
   message, so copied inline-object graphs cannot retain unnormalized aliases.
+- `expr.validateRPCObjectTags` owns parsed numeric domain and per-message identity
+  after selected-message traversal. `UnionFieldTags` preserves explicit branch
+  precedence and exact derived sums without integer wrap. Keep protobuf renderers,
+  checks and `writeProtoFieldShapes` aligned with emitted numbers: a oneof
+  container has no field number of its own. Never parse or hash an unused seed,
+  rewrite authored tags or repair invalid numbers downstream. Preserve metadata,
+  opaque mapping and HTTP-only exclusions. Keep the
+  [field number model](../../../expr/tla/field_number_admission/README.md),
+  evaluation/CLI rejection, shape equivalence and generated controls aligned.
 - A `struct:name:proto` name can give one message to several service types,
   such as customized copies of a type. `registerProtoMessage` keys messages by
   that name and rejects two uses with different fields. `nameProtoConverter`

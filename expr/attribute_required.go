@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"math/big"
 	"slices"
 	"strconv"
 	"strings"
@@ -157,7 +158,8 @@ func (a *AttributeExpr) FieldTag() (tag string, found bool) {
 // keeps the tag set with Field in a OneOf block. A branch without a tag takes
 // the field tag of a plus its position when a has a numeric one, so that
 // Field(n, "name", OneOf(A, B)) numbers the branches n and n+1. The tag of a
-// branch that has neither is empty.
+// branch that has neither is empty. Derived tags retain the exact decimal sum
+// without machine-integer wrap; message validation admits their protobuf range.
 func (a *AttributeExpr) UnionFieldTags() []string {
 	if a == nil {
 		return nil
@@ -178,7 +180,10 @@ func (a *AttributeExpr) UnionFieldTags() []string {
 		if tag, ok := branch.Attribute.FieldTag(); ok {
 			tags[i] = tag
 		} else if hasBase {
-			tags[i] = strconv.FormatUint(base+uint64(i), 10)
+			var number big.Int
+			number.SetUint64(base)
+			number.Add(&number, big.NewInt(int64(i)))
+			tags[i] = number.String()
 		}
 	}
 	return tags

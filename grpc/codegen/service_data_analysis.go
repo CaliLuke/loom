@@ -455,7 +455,13 @@ func writeProtoFieldShapes(b *strings.Builder, att *expr.AttributeExpr, seen map
 		b.WriteString("}")
 	case *expr.Object:
 		for _, nat := range *dt {
-			fmt.Fprintf(b, "|%q=%d,%t", nat.Name, rpcTag(nat.Attribute), att.IsRequired(nat.Name))
+			if expr.IsUnion(nat.Attribute.Type) {
+				// A oneof container has no emitted field number. Its branches
+				// below supply the numbers, including explicit seed overrides.
+				fmt.Fprintf(b, "|%q=oneof,%t", nat.Name, att.IsRequired(nat.Name))
+			} else {
+				fmt.Fprintf(b, "|%q=%d,%t", nat.Name, rpcTag(nat.Attribute), att.IsRequired(nat.Name))
+			}
 			writeProtoFieldShapes(b, nat.Attribute, seen)
 		}
 	case *expr.Array:

@@ -1,6 +1,10 @@
 package expr
 
-import "github.com/CaliLuke/loom/eval"
+import (
+	"strconv"
+
+	"github.com/CaliLuke/loom/eval"
+)
 
 // validateMessageFieldTags checks precisely the values emitted as messages:
 // ordinary and streaming inputs, results, and declared error details. Metadata
@@ -107,22 +111,28 @@ func validateRPCMessageTags(att *AttributeExpr, e *GRPCEndpointExpr) *eval.Valid
 
 // validateRPCObjectTags verifies whether every attribute in the object type and
 // every branch of its union attributes has a field tag and the tag numbers
-// are unique. Branches of a union passed to Field take the tags that
-// UnionFieldTags derives from the field tag.
+// are legal protobuf numbers with unique numeric identities. Branches of a
+// union passed to Field take the tags that UnionFieldTags derives from the
+// field tag.
 func validateRPCObjectTags(fields *Object, e *GRPCEndpointExpr) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	owners := make(map[string]rpcTagOwner)
+	owners := make(map[uint64]rpcTagOwner)
 	claim := func(tag, name string, derived bool) {
-		owner, ok := owners[tag]
+		number, err := strconv.ParseUint(tag, 10, 64)
+		if err != nil || number == 0 || number > 536870911 || (number >= 19000 && number <= 19999) {
+			verr.Add(e, "field number %q in attribute %q must be a decimal integer from 1 to 536870911, excluding 19000 through 19999", tag, name)
+			return
+		}
+		owner, ok := owners[number]
 		if !ok {
-			owners[tag] = rpcTagOwner{name: name, derived: derived}
+			owners[number] = rpcTagOwner{name: name, derived: derived}
 			return
 		}
 		hint := ""
 		if derived || owner.derived {
 			hint = "; a OneOf passed to Field numbers its branches consecutively from the field number"
 		}
-		verr.Add(e, "field number %s in attribute %q already exists for attribute %q%s", tag, name, owner.name, hint)
+		verr.Add(e, "field number %d in attribute %q already exists for attribute %q%s", number, name, owner.name, hint)
 	}
 	for _, nat := range *fields {
 		if union := AsUnion(nat.Attribute.Type); union != nil {

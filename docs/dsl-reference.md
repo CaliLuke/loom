@@ -743,6 +743,16 @@ start at `1` and increment by `1` inside that definition. When a definition uses
 increment by `1`. Do not carry counters across unrelated definitions or hide
 field tags behind variables/helper calls.
 
+Fields selected into gRPC messages must use numbers from `1` through `536870911`,
+excluding `19000` through `19999`. Numbers are unique within each message;
+decimal spellings such as `"01"` and `1` identify the same number. Invalid numbers
+fail design evaluation before code generation. A constructor `OneOf` derives
+consecutive branch numbers from its field tag; explicit branch tags override
+those slots. Only emitted branch numbers participate in validation and message
+identity, so an unused container seed does not change an explicitly tagged union.
+Regenerate after correcting an invalid design; Loom does not assign replacement
+numbers automatically.
+
 ### Examples
 
 Provide sample values for documentation:

@@ -222,6 +222,10 @@ and `errors.As`, including when the message contains an example.
   attribute name, ignoring a service field's JSON suffix. For a field
   `"tok:t"`, use `Metadata(func() { Attribute("tok:x-token") })` to send
   `x-token` metadata; requiredness and defaults come from `"tok:t"`.
+- gRPC message field numbers must be unique per message and within
+  `1..536870911`, excluding `19000..19999`. Invalid numbers fail design evaluation.
+  Constructor unions inherit consecutive numbers; explicit branch tags override
+  their slots. Correct the design and regenerate instead of editing generated code.
 - gRPC metadata arrays may use named primitive elements, including types placed
   in another generated package. Keep the named service field; generated codecs
   perform the conversion and enforce inherited constraints and defaults.
