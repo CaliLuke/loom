@@ -40,7 +40,7 @@ existing admission boundaries; form fields consume the corrected shape adapter.
   ordinary scalar/list and JSON-map outputs using existing importer generation
   helpers; compile unique outputs, repeat generation byte-for-byte, and validate
   their OpenAPI specs. Record every intended difference.
-- [ ] Freeze exact final diff/evidence for independent review and root delivery.
+- [x] Freeze exact final diff/evidence for independent review and root delivery.
 
 ## Readiness evidence
 
@@ -128,4 +128,8 @@ names or component-name policy is included.
 
 The exact final source, commands, current artifact ledger and historical evidence
 disposition are frozen in `/tmp/loom-791-final-manifest.json`. Independent final
-review and root integration remain pending; no full-corpus audit is claimed.
+review and root integration passed; delivered/pushed `43edbf9fe` and confirmed
+closed. Root independently verified all 174 packet files and ran focused race
+checks (13.889s); integration checks passed (0.591s). Verdicts are
+`/tmp/loom-791-root-final-verdict.json` and
+`/tmp/loom-791-integration-composition-verdict.json`. No full-corpus audit is claimed.
