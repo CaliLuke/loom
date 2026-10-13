@@ -29,4 +29,6 @@ inside the test harness: the production generator and design are unchanged.
 Root integration against `7a61ec0e0` preserves the two-line callback correction
 exactly. The existing generated test passes again with explicit local source;
 receipt `/tmp/loom-811-integrated.log`. All original assertions remain unchanged.
-Final exact integrated review, commit/push and issue closure remain pending.
+Final exact integrated review approved patch
+`693d3f301784214e0e89a8daabd7f2c65b96b3155f024f2d5615b0c5f35469e4`
+with no findings. Delivered as `285da6b0e`, pushed and confirmed closed.

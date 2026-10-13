@@ -121,10 +121,11 @@ candidate changes exactly two files: gRPC metadata aggregate client/server
 declared `ValidateChoiceProto`. No schema, protobuf, service, carrier, manifest,
 example or control bytes change. No checked-in golden changes are required.
 
-Review artifacts: `/tmp/loom-810-comparison` retains exact inputs, modules,
-per-command receipts, manifests and diffs; `/tmp/loom-validator-identity-model`
-retains checker logs/states. Retain until independent review/integration, then
-remove after checking no active process needs them. The separate #811 fixture
+Review used `/tmp/loom-810-comparison` for exact inputs, modules, command
+receipts, manifests and diffs, and `/tmp/loom-validator-identity-model` for
+checker output. After delivery and independent review, these temporary outputs
+were removed after process checks; compact evidence remains in
+`/tmp/loom-810-cleanup-receipt.json`. The separate #811 fixture
 repair is not included; this worktree still carries its parent-only stale test.
 Affected consumers must regenerate to receive corrected helper calls.
 
@@ -144,4 +145,10 @@ shared/protobuf identity tests and generated metadata/recursive controls pass
 (0.514s/11.355s); scoped codegen/gRPC lint reports zero issues. Receipts:
 `/tmp/loom-810-integrated.log` and `/tmp/loom-810-integrated-lint.log`. The original
 cross-transport suites and 91-artifact comparison remain valid; implementation
-hashes are unchanged. Independent final review, commit/push and closure pending.
+hashes are unchanged. Independent final review approved the exact 14-file integrated patch
+`6c149e72e8b4188a1dc1d3a50f9c5ae9303e6ddb5911d3d997c230f0bdad6f0a`
+with no findings. Delivered as `60fe5ec9a`, pushed and confirmed closed.
+Independent reviewer reran identity/generated tests and all three models;
+all 91 repeated artifact hashes matched. The implementation owner completed temporary cleanup after process checks;
+compact receipts remain. Managed archival refused the protected worktree, which
+remains attached.

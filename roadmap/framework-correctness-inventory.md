@@ -55,7 +55,7 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#724: [P1] expr: method-level Security does not replace inherited SessionSecurity, widening accepted credentials](https://github.com/CaliLuke/loom/issues/724) | Authentication (M2) | Delivered in `544c57f3`; nearest-scope ownership, independently reviewed and pushed |
 | [#725: [P3] expr: Security combined with NoSecurity on one method is accepted and silently left unauthenticated](https://github.com/CaliLuke/loom/issues/725) | Authentication (M2) | Verified contradiction witness in `544c57f3`; both declaration orders and ordinary/session cases |
 | [#726: [P2] grpc codegen: stream *WithContext methods ignore their context](https://github.com/CaliLuke/loom/issues/726) | Stream lifetime (M5) | Pending detailed reconciliation |
-| [#727: [P2] http/codegen: SSE SetView projects the selected view but always encodes the default view's body](https://github.com/CaliLuke/loom/issues/727) | Projection (M3) | Pending detailed reconciliation |
+| [#727: [P2] http/codegen: SSE SetView projects the selected view but always encodes the default view's body](https://github.com/CaliLuke/loom/issues/727) | Projection (M3) | Current-main reproduction and owner readiness assigned to `/root/ci_gates`; no fix claimed |
 | [#728: [P2] jsonrpc: Security with a payload token on a WebSocket method panics instead of failing validation](https://github.com/CaliLuke/loom/issues/728) | Authentication (M2) | Pending detailed reconciliation |
 | [#729: [P2] expr: two unmapped credentials in one method both map to the Authorization header](https://github.com/CaliLuke/loom/issues/729) | Authentication (M2) | Delivered `f40d1677`: implicit credential witness subsumed by effective wire-binding owner; independently reviewed, pushed and closed |
 | [#730: [P2] codegen/service: adjacent result-type fields skip the view-aware conversion and the client panics with a nil dereference](https://github.com/CaliLuke/loom/issues/730) | Projection (M3) | Verified regression witness in `ce3f6a73`; recursive selection and conversion repair |
@@ -137,10 +137,13 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#807: OpenAPI comparison cannot clone exact numeric bounds](https://github.com/CaliLuke/loom/issues/807) | CI contract comparison | Delivered/pushed `4b459a121`, independently reviewed and closed; exact copy and supported roundtrip checks |
 | [#808: OpenAPI analyzer exceeds source-size gate](https://github.com/CaliLuke/loom/issues/808) | CI source organization | Delivered/pushed `baf64781d`, independently reviewed and closed; byte-identical helper move and 33 generated artifact controls |
 | [#809: Multi-service fixture conflates simultaneous credential headers](https://github.com/CaliLuke/loom/issues/809) | CI fixture contract | Delivered/pushed `55cd4ca77`, independently reviewed and closed; distinct headers retain AND semantics |
-| [#810: Named validator calls discard physical naming metadata](https://github.com/CaliLuke/loom/issues/810) | Shared generated validator identity | Readiness independently approved: seven physical-name direct failures and metadata/presence model; shared-owner implementation assigned to `/root/ci_gates` |
-| [#811: Protobuf Go-name harness assumes fixed-arity validators](https://github.com/CaliLuke/loom/issues/811) | CI regression maintenance | Two-file test-only repair frozen; generated compile/runtime and lint pass, root final integration/review pending |
+| [#810: Named validator calls discard physical naming metadata](https://github.com/CaliLuke/loom/issues/810) | Shared generated validator identity | Delivered/pushed `60fe5ec9a`, independently reviewed and closed; shared physical metadata identity with intrinsic presence preserved |
+| [#811: Protobuf Go-name harness assumes fixed-arity validators](https://github.com/CaliLuke/loom/issues/811) | CI regression maintenance | Delivered/pushed `285da6b0e`, independently reviewed and closed; existing generated compile/vet/runtime assertions preserved |
+| [#812: OpenAPI semantic comparison loses reference occurrence overlays](https://github.com/CaliLuke/loom/issues/812) | CI semantic comparison ownership | Readiness independently approved; lossless test-only reference adapter implementation active |
+| [#813: HTTP alias tests assume obsolete validator prologues](https://github.com/CaliLuke/loom/issues/813) | CI regression maintenance | Delivered/pushed `0a1d0a928`, independently reviewed and closed; path and value predicates checked separately |
+| [#814: Numeric conformance case allocation fails prealloc lint](https://github.com/CaliLuke/loom/issues/814) | CI regression maintenance | Delivered/pushed `110d19521`, independently reviewed and closed; unchanged 15 cases and order |
 
-Inventory count: 133 reports (114 in the requested open range, plus #670 and follow-ups #794–#811).
+Inventory count: 136 reports (114 in the requested open range, plus #670 and follow-ups #794–#814); 54 delivered and confirmed closed.
 
 ## Structural delivery tickets
 
