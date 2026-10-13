@@ -1,7 +1,7 @@
 # Scheduler job intent (#737)
 
-Status: implemented against `f1d1368fb11c9b0e0f494e771af1a1065ccbc4b0`;
-final independent review and atomic delivery remain pending.
+Status: delivered in `f9ee29706`, independently reviewed, pushed to main and
+confirmed closed. Exact source/reproduction archive and cleanup receipt retained.
 
 ## Contract and owners
 
@@ -25,7 +25,7 @@ ending a schedule must not invalidate already admitted jobs.
 - [x] Independently review this concrete owner and acceptance before production.
 - [x] Implement both boundaries; delete post-success bookkeeping and unfenced
   completion paths. Run only the affected tests/models and native Redis controls.
-- [ ] Freeze exact final diff for independent review and atomic delivery.
+- [x] Freeze exact final diff for independent review and atomic delivery.
 
 ## Selected proposal
 
@@ -221,3 +221,13 @@ issues. The original owned/ordering configurations still pass at 95/13 distinct
 states. Earlier non-publication runtime/consumer checks remain valid and were
 not rerun. Original frozen source/evidence and the parent/candidate comparison
 remain preserved for the narrow re-review.
+
+## Delivery
+
+Root final review confirmed the authored-command correction and all earlier
+production changes; independent review approved the root-authored skill merge.
+Integrated native Redis race checks pass (7.531s). Reviews:
+`/tmp/loom-737-root-final-verdict.json` and
+`/tmp/loom-737-integration-composition-verdict.json`. Cleanup preserved exact
+inputs in `/tmp/loom-737-delivered-inputs.tar.gz`; the owning receipt records
+inactive outputs removed and the dedicated Redis container released.

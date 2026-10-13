@@ -6,7 +6,7 @@ fixture inputs stay unchanged. CI run 38457192450 identifies the stale consumers
 
 ## Status
 
-- 2026-10-13 — Current-source failures reproduced; focused repairs pass and await independent review. Production source is unchanged.
+- 2026-10-13 — Delivered in `59ac9947c`, independently reviewed, pushed to main and confirmed closed. Production source is unchanged.
 
 ### Milestone 1: Restore meaningful integration expectations
 
@@ -35,7 +35,7 @@ Checklist
   changes and preserve existing paths byte-for-byte structurally.
 - [x] Run the exact affected HTTP/importer tests, selected OpenAPI test, and touched
   package lint. Existing renderer checks validate both specs with libopenapi.
-- [ ] Fresh agent review of this exact test-only diff and evidence, then commit,
+- [x] Fresh agent review of this exact test-only diff and evidence, then commit,
   push main, close #890 and retain concise evidence before temporary cleanup.
 
 ## Evidence
@@ -56,3 +56,8 @@ repository's pinned libopenapi override reports zero errors for both artifacts
 No production or design input changes invalidate previous generator byte/compile
 evidence. The existing generated-module tests compile and exercise their unchanged
 generated artifacts with corrected assertions; no full corpus audit was run.
+
+Independent final re-review confirmed the corrected former-red-probe comment and
+all other exact source/evidence hashes. Receipt:
+`/tmp/loom-890-independent-final-rereview-verdict.json`. CI adoption repairs only
+the named failures; it does not assert aggregate current-main CI success.

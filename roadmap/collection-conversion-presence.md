@@ -1,6 +1,7 @@
 # Collection conversion presence (#889)
 
-Status: implemented against delivered `ee1d653cf`; final independent review pending.
+Status: delivered in `051da453a`, independently reviewed, pushed to main and
+confirmed closed. Temporary-output cleanup follows delivery.
 
 1. [x] Preserve the exact #887 full nil roundtrip and parent constructor failure;
    archive delivered work and safely reuse its worktree.
@@ -9,7 +10,8 @@ Status: implemented against delivered `ee1d653cf`; final independent review pend
 3. [x] Independently review the shared owner and bounded acceptance.
 4. [x] Implement at collection conversion, compare affected generated outputs,
    compile/run the existing mounted witness and focused presence/default controls.
-5. [ ] Independent final review, atomic delivery and temporary-output cleanup.
+5. [x] Independent final review and atomic delivery.
+6. [ ] Remove inactive temporary outputs after preserving exact inputs and receipts.
 
 ## Established owner
 
@@ -116,3 +118,12 @@ its source and invariant are unchanged, while the README now maps collection
 ownership to the shared renderer. The model does not distinguish an existing
 populated destination; compiled runtime checks establish that obligation. No
 full exported-design audit or framework-wide test pass is claimed.
+
+## Delivery
+
+Independent final review left no correctness finding; its low-severity model
+wording correction was confirmed without rerunning unchanged code. All 51
+non-composed files match that approval; a separate review approved the root
+framework-guidance merge. Root integrated race checks pass (5.008s).
+Receipts: `/tmp/loom-889-independent-final-rereview-verdict.json` and
+`/tmp/loom-889-composition-verdict.json`.

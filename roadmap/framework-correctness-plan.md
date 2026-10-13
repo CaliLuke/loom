@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **176 of 210 tracked reports are delivered, pushed and confirmed closed.**
+- **179 of 212 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-176-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-179-issues.json` is the frozen GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
   client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
@@ -65,14 +65,21 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   closed. The shared query derives from canonical declarations; selected-body
   duplication is removed. One generated dereference changes, 55 fixture outputs
   stay identical, and mounted integration race checks pass. The independently
-  reproduced named-collection nil-to-empty conversion remains open as #889.
-- Required CI is not confirmed green. The inspected metadata-adoption run
-  failed the known #820 libopenapi YAML-node race. The newer #689 run
-  `38455349199` at `7ed1bfc63` exposed fixture maintainability lint #888;
-  that failure is reproduced and corrected in reviewed/pushed `8ed6ef518`,
-  with the issue confirmed closed. Focused configured lint and interceptor
-  contract/generated harnesses pass. Other jobs were still running at the last
-  read; no current-main aggregate success is claimed.
+  reproduced named-collection conversion is now delivered as #889 below.
+- Scheduler intent #737 (`f9ee29706`) is reviewed, pushed and closed. Producer
+  responsibility precedes dispatch; operation identity and stop cutoffs persist
+  across uncertain replies. Later authored starts remain new commands. Native
+  integration race checks pass; protocol 3 requires the documented drain/shutdown.
+- Collection conversion #889 (`051da453a`) is reviewed, pushed and closed.
+  One array/map conversion owner preserves nil, empty and supplied values and
+  clears stale targets. Seven selected generated files change; 55 fixture
+  artifacts remain identical. Required/default materialization remains separate.
+- Required CI is not confirmed green. Run `38457192450` exposed stale integration
+  expectations after delivered header/scope/body contracts. #890 (`59ac9947c`)
+  repairs those assertions and two rendered goldens, with no production changes;
+  exact failing tests, scoped lint and spec checks pass after independent review.
+  New main CI remains queued/running; the earlier #820 dependency race remains
+  unresolved. No aggregate success is claimed.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -101,29 +108,26 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Scheduler producer intent (#737):** `/root/diagnostic_redaction_finish`
-   owns readiness in `grpc-message-context/loom`. Five parent failures and three
-   controls establish a producer responsibility ledger plus pool incarnation
-   ordering. Independent readiness re-review approved atomic revision/operation
-   publication and persistent original stop cutoffs across retries; implementation
-   now follows that corrected contract. Preserve other producers,
-   generic StopJob enqueue semantics and the existing Schedule lifetime.
+1. **Stream observation (#749):** `/root/diagnostic_redaction_finish` safely
+   reused the delivered scheduler worktree. Current main still reproduces three
+   direct failures with two controls. Readiness separates physical connection
+   lifecycle from retained JSON-RPC operation identity; finite lifecycle metadata
+   avoids an unbounded observation queue. No production implementation yet.
 2. **Importer location admission (#791):** `/root/omission_readiness_finish`
-   follows delivered #776 with the existing five failing admission probes and
-   eleven controls in `/tmp/loom-791-current-evidence.json`. Reconcile one
-   reference-resolved parameter-shape contract across Analyze, Render and
-   selection; preserve JSON query maps, standard scalar-list headers and
-   supported raw/form bodies. Readiness precedes implementation.
-3. **Collection conversion presence (#889):** `/root/projection_integration_review`
-   reuses the ordinary named-array and full mounted nil failures preserved from
-   #887. Root collection conversion currently allocates without preserving
-   absence while callers supply inconsistent guards. Establish the shared
-   conversion contract and its direct/generated controls; no header workaround.
-4. **Stream observation (#749):** root recorded three direct failures and two
-   controls in [the owning plan](stream-observation-ownership.md). Establish
-   connection versus operation identity and opening/terminal correspondence before
-   implementing; existing public failure events need not mean terminal closure.
-   No production fix or generated acceptance is claimed yet.
+   implemented one shape/location admission owner after independent readiness.
+   Final legal-name fixtures now pass compilation, deterministic generation and
+   all eight spec checks; root final review is pending. Prior slash/tilde component
+   specimens were invalid and remain labeled evidence, not positive contracts.
+   JSON query maps, scalar-list headers and raw/form bodies remain supported.
+3. **Local reference identity (#891):** `/root/projection_integration_review`
+   follows delivered #889. The revised report reproduces legal percent-encoded
+   references to ordinary names failing import and exporter reachability. Root
+   approved one shared URI-fragment/JSON Pointer parser across importer, IR and
+   cleanup; decode exactly once, retain graph algorithms and bound acceptance.
+4. **Delivered work:** #737, #889 and CI adoption #890 are pushed and confirmed
+   closed. Their owning plans retain exact reviews and focused evidence. Cleanup
+   archives preserve reproduction inputs; reuse managed worktrees only after
+   activity checks and an exact inverse of the delivered source patch.
 5. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
    actual namespaces. Imported annotation #783 and encoded byte length #686
