@@ -143,23 +143,25 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		if err := encoder(req).Encode(p); err != nil {
 			return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
 		}
-	{{- else if .Payload.Request.ClientBody }}
-		{{- if and .Method.IsJSONRPC .Payload.Request.OptionalBodyAttribute }}
+	{{- else if or .Payload.Request.ClientBody .Payload.Request.JSONRPCID }}
+		{{- if and .Method.IsJSONRPC (or .Payload.Request.OptionalBodyAttribute (not .Payload.Request.ClientBody)) }}
 		body := &jsonrpc.Request{
 			JSONRPC: "2.0",
 			Method:  "{{ .Method.Name }}",
 		}
+		{{- if .Payload.Request.ClientBody }}
 		if p.{{ .Payload.Request.PayloadAttr }}{{ if .Payload.Request.OptionalBodyNullable }}.Present(){{ else }} != nil{{ end }} {
-			body.Params = {{ template "partial_client_body_init" .Payload.Request }}
+			body.Params = {{ .Payload.Request.ClientBodyValue }}
 		}
+		{{- end }}
 		{{- else }}
 		{{- if .Payload.Request.OptionalBodyAttribute }}
 		if p.{{ .Payload.Request.PayloadAttr }}{{ if .Payload.Request.OptionalBodyNullable }}.Present(){{ else }} != nil{{ end }} {
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
-		b := {{ template "partial_client_body_init" .Payload.Request }}
+		b := {{ .Payload.Request.ClientBodyValue }}
 		{{- else }}
-		body := {{ template "partial_client_body_init" .Payload.Request }}
+		body := {{ .Payload.Request.ClientBodyValue }}
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
 		body := &jsonrpc.Request{
@@ -170,18 +172,10 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 		{{- end }}
 		{{- end }}
 		{{- if .Method.IsJSONRPC }}
-		{{- if .Payload.IDAttribute }}
-			{{- if .Payload.IDAttributeRequired }}
-		if p.{{ .Payload.IDAttribute }} != "" {
-			body.ID = p.{{ .Payload.IDAttribute }}
-		}
-		// If ID is empty, this is a notification - no ID field
-			{{- else }}
-		if p.{{ .Payload.IDAttribute }} != nil && *p.{{ .Payload.IDAttribute }} != "" {
-			body.ID = p.{{ .Payload.IDAttribute }}
-		}
-		// If ID is nil or empty, this is a notification - no ID field
-			{{- end }}
+		{{- if .Payload.Request.JSONRPCID }}
+ if err := jsonrpc.SetClientRequestID(req, body, p.{{ .Payload.Request.JSONRPCID.FieldName }}, {{ .Payload.Request.JSONRPCID.ClientPresence }}); err != nil {
+  return loomhttp.ErrEncodingError("{{ .ServiceName }}", "{{ .Method.Name }}", err)
+ }
 		{{- else }}
 		// No ID field in payload - always send as a request with generated ID
 		id, err := jsonrpc.NewRequestID()
@@ -238,9 +232,6 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 	}
 }
 `,
-		templateSource{name: "client_body_init", source: `
-		{{- if .ClientBody.Init }}{{ .ClientBody.Init.Name }}({{ range $i, $arg := .ClientBody.Init.ClientArgs }}{{ if $i }}, {{ end }}{{ if $arg.FieldPointer }}&{{ end }}{{ $arg.VarName }}{{ end }})
-		{{- else }}p{{ if .PayloadAttr }}.{{ .PayloadAttr }}{{ end }}{{ end }}`},
 		templateSource{name: "client_type_conversion", source: `  {{- if eq .Type.Name "boolean" -}}
     {{ .VarName }} := strconv.FormatBool({{ if .IsAliased }}bool({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }})
   {{- else if eq .Type.Name "int" -}}

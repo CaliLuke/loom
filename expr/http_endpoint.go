@@ -53,6 +53,8 @@ type (
 		// StreamingBody describes the body transferred through the websocket
 		// stream.
 		StreamingBody *AttributeExpr
+		// JSONRPCID owns the request envelope ID binding, resolved before body derivation.
+		JSONRPCID *JSONRPCIDBinding
 		// PayloadIDAttribute is the name of the JSON-RPC request ID
 		// payload attribute.
 		PayloadIDAttribute string

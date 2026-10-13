@@ -165,6 +165,9 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		{{- template "partial_request_elements" .Payload.Request }}
 	{{- end }}
 {{- end }}
+{{- if .Payload.Request.JSONRPCID }}
+ {{ .Payload.Request.JSONRPCID.DecodeCode }}
+{{- end }}
 {{- if .BasicScheme }}{{ with .BasicScheme }}
  user, pass, ok := r.BasicAuth()
  {{- if .HeaderRequired }}

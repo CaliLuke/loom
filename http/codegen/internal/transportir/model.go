@@ -110,7 +110,9 @@ type (
 	}
 
 	Request struct {
-		Payload *expr.AttributeExpr
+		// JSONRPCID retains the canonical envelope binding.
+		JSONRPCID *expr.JSONRPCIDBinding
+		Payload   *expr.AttributeExpr
 		// BodyValue shares service source authority for the request body.
 		BodyValue *ValueTarget
 		// DocumentValue has documentation-only source authority when explicitly authored.
@@ -145,12 +147,10 @@ type (
 		Multipart      bool
 		FormEncoded    bool
 		// FormFieldModes is the selected codec for each named form property.
-		FormFieldModes      map[string]httpencoding.Mode
-		OptionalBody        bool
-		MustHaveBody        bool
-		SkipBodyEncode      bool
-		IDAttribute         string
-		IDAttributeRequired bool
+		FormFieldModes map[string]httpencoding.Mode
+		OptionalBody   bool
+		MustHaveBody   bool
+		SkipBodyEncode bool
 	}
 
 	Response struct {

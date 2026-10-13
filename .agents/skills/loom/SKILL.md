@@ -602,6 +602,15 @@ callback call the generated gRPC client and return a
 Client-streaming and bidirectional completion contracts are reported as
 unsupported generation diagnostics.
 
+Request `ID()` fields bind only to the JSON-RPC envelope and are excluded from
+params. Regenerate clients and servers together after this change. Required IDs
+reject absence before defaults; optional defaults affect service data without
+turning a notification into a request. Explicit null requires `Nullable()` and
+never defaults. Named String constraints and compatible custom codecs apply to
+the normalized envelope value; original tokens remain the response correlation.
+Use a separate generated CLI ID flag rather than embedding ID in the body flag.
+See [ID semantics](../../../jsonrpc/README.md#id-semantics).
+
 Generated JSON-RPC server packages expose the same per-method and service-wide
 manifest pattern. Cases cover success results, declared error codes, typed
 error data, and response suppression for ID-less notifications. Call each real

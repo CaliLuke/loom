@@ -247,16 +247,22 @@ func JSONRPC(dsl func()) {
 	}
 }
 
-// ID defines the payload or result attribute which is used as the JSON-RPC
-// request ID. It must be of type String. It is an error to omit ID on a
-// JSON-RPC endpoint payload or result unless the method is a notification (see
-// Notification).
+// ID defines the payload or result attribute used for the JSON-RPC message ID.
+// A request ID must be String or a named String type and must be a single
+// top-level payload field. It is decoded from the envelope and excluded from
+// params; it cannot also have an explicit HTTP mapping. Numeric envelope IDs
+// normalize to strings before field validation, while replies retain the
+// original envelope ID. Required absence is rejected before defaults. Optional
+// defaults affect service data only; absence remains a notification. Explicit
+// null requires Nullable and does not receive a default.
 //
-// Note: For non-streaming methods, the generated code will automatically copy
-// the request ID from the payload to the result's ID attribute, unless the
-// result's ID attribute is already set.
+// Payload IDs are optional in the design. Generated HTTP clients without an ID
+// field generate a request ID. Clients with an absent or empty String ID send
+// a notification. Non-streaming result fields do not override response
+// correlation with the original request envelope.
 //
-// ID must appear in a Payload or Result expression.
+// ID must appear in a Payload, StreamingPayload, Result or StreamingResult
+// expression.
 //
 // ID accepts the same arguments as the Attribute DSL function.
 //

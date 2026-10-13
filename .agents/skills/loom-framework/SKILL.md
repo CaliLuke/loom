@@ -199,6 +199,16 @@ consumer validation.
   distinct StreamingResult source. Keep the
   [response projection model](../../../http/codegen/tla/response_projection/README.md)
   and mounted selected-body, notification, codec and view controls aligned.
+- JSON-RPC request IDs bind once in `expr.JSONRPCIDBinding` before body
+  projection. Transport IR and `http/codegen.JSONRPCIDData` retain source
+  identity and physical storage. Decode the envelope through the shared field
+  validation/conversion owners before constructing the service payload; never
+  inject IDs in handlers. Params projection excludes the field across HTTP,
+  SSE and WebSocket clients, including ID-only requests and CLI builders.
+  `RawRequest.HasID`/`ID` remain protocol correlation, independent of service
+  defaults. Client notification handling consumes the request encoder's decision
+  without running custom codecs again. Keep the envelope admission model and
+  mounted carrier/streaming tests aligned.
 - Design DSL is the source of truth; evaluated semantics belong in `expr`.
 - `RootExpr.Prepare` composes `Extend` after promoted union naming and before
   dependent transport preparation or validation. Preserve authored overlays and

@@ -23,7 +23,7 @@ type transportVarScope struct {
 // reference. TestTransportFunctionImportNamesCoverFileImports keeps the list
 // aligned with the import lists of those files.
 var transportFunctionImportNames = []string{
-	"bytes", "context", "errors", "fmt", "http", "io", "json", "jsontext", "loom", "loomhttp",
+	"bytes", "context", "errors", "fmt", "http", "io", "json", "jsonrpc", "jsontext", "loom", "loomhttp",
 	"loomhttpcli", "multipart", "os", "security", "strconv", "strings", "url", "utf8",
 }
 

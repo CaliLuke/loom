@@ -246,11 +246,6 @@ type (
 		// DecoderReturnValue is a reference to the decoder return value
 		// if there is no payload constructor (i.e. if Init is nil).
 		DecoderReturnValue string
-		// IDAttribute is the name of the attribute where the ID of the
-		// JSON-RPC request is stored.
-		IDAttribute string
-		// IDAttributeRequired is true if the ID attribute is required.
-		IDAttributeRequired bool
 	}
 
 	// ResultData contains the result information required to generate the
@@ -308,7 +303,9 @@ type (
 
 	// RequestData describes a request.
 	RequestData struct {
-		cliInput *jsonBodyInput
+		// JSONRPCID owns envelope decoding and the service constructor input.
+		JSONRPCID *JSONRPCIDData
+		cliInput  *jsonBodyInput
 		// PathParams describes the information about params that are
 		// present in the request path.
 		PathParams []*ParamData
@@ -325,6 +322,9 @@ type (
 		// code. The type is generated using pointers for all fields so
 		// that it can be validated.
 		ServerBody *TypeData
+		// ClientBodyValue is the complete params/body projection from local p.
+		// Constructor finalization rebuilds it after names are allocated.
+		ClientBodyValue string
 		// ClientBody describes the request body type used by client
 		// code. The type does NOT use pointers for every fields since
 		// no validation is required.

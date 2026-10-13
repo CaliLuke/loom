@@ -56,7 +56,7 @@ func JSONRPCWebSocketSecurityDSL(kind, shape, location, scope, transport string)
 				} else {
 					StreamingResult(String)
 				}
-				mapping := jsonrpcWebSocketSecurityMapping(location, transport, payload)
+				mapping := jsonrpcWebSocketSecurityMapping(location, transport, jsonrpcWebSocketCredentialFields(kind))
 				if transport == "http-ws" {
 					HTTP(func() {
 						GET("/ws")
@@ -119,6 +119,12 @@ func jsonrpcWebSocketCredentials(kind, transport string) func() {
 		if transport != "http-ws" {
 			ID("id", String)
 		}
+		jsonrpcWebSocketCredentialFields(kind)()
+	}
+}
+
+func jsonrpcWebSocketCredentialFields(kind string) func() {
+	return func() {
 		switch kind {
 		case "jwt", "alternative", "optional":
 			Token("token", String)

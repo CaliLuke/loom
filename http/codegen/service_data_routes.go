@@ -87,7 +87,7 @@ func (sds *ServicesData) buildRequirementSchemes(endpointIR *transportir.Endpoin
 }
 
 func endpointRequestEncoderName(method *service.MethodData, payload *PayloadData, basicScheme *service.SchemeData) string {
-	if payload.Request.ClientBody == nil &&
+	if payload.Request.JSONRPCID == nil && payload.Request.ClientBody == nil &&
 		len(payload.Request.Headers) == 0 &&
 		len(payload.Request.QueryParams) == 0 &&
 		len(payload.Request.Cookies) == 0 &&

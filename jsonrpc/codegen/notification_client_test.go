@@ -26,21 +26,21 @@ func TestJSONRPCNotificationClient(t *testing.T) {
 	}{
 		{
 			Method: "Fire",
-			Want: "\t\tif p := v.(*notify.FirePayload); p.ID == nil || *p.ID == \"\" {\n" +
+			Want: "\t\tif jsonrpc.IsClientNotification(req) {\n" +
 				"\t\t\treturn nil, jsonrpc.DecodeNotificationResponse(\"Notify\", \"fire\", resp)\n" +
 				"\t\t}\n" +
 				"\t\treturn decodeResponse(resp)\n",
 		},
 		{
 			Method: "Req",
-			Want: "\t\tif p := v.(*notify.ReqPayload); p.ID == \"\" {\n" +
+			Want: "\t\tif jsonrpc.IsClientNotification(req) {\n" +
 				"\t\t\tvar res string\n" +
 				"\t\t\treturn res, jsonrpc.DecodeNotificationResponse(\"Notify\", \"req\", resp)\n" +
 				"\t\t}\n",
 		},
 		{
 			Method: "Res",
-			Want: "\t\tif p := v.(*notify.ResPayload); p.ID == nil || *p.ID == \"\" {\n" +
+			Want: "\t\tif jsonrpc.IsClientNotification(req) {\n" +
 				"\t\t\tvar res *notify.ResResult\n" +
 				"\t\t\treturn res, jsonrpc.DecodeNotificationResponse(\"Notify\", \"res\", resp)\n" +
 				"\t\t}\n",

@@ -58,10 +58,9 @@ func EncodeSumRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.R
 			Method:  "sum",
 			Params:  b,
 		}
-		if p.ID != nil && *p.ID != "" {
-			body.ID = p.ID
+		if err := jsonrpc.SetClientRequestID(req, body, p.ID, p.ID != nil); err != nil {
+			return loomhttp.ErrEncodingError("calc", "sum", err)
 		}
-		// If ID is nil or empty, this is a notification - no ID field
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("calc", "sum", err)
 		}

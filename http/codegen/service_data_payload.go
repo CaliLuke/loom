@@ -79,7 +79,6 @@ func (b *payloadBuilder) build() *PayloadData {
 		Request:            request,
 		DecoderReturnValue: returnValue,
 	}
-	data.IDAttribute, data.IDAttributeRequired = buildPayloadIDData(b.endpointIR.Request, b.payload)
 	return data
 }
 
@@ -106,13 +105,6 @@ func buildPayloadDecoderReturnValue(ir *transportir.Request, request *RequestDat
 		return mapQueryParam.VarName
 	}
 	return ""
-}
-
-func buildPayloadIDData(request *transportir.Request, payload *expr.AttributeExpr) (string, bool) {
-	if request == nil || request.IDAttribute == "" {
-		return "", false
-	}
-	return codegen.Goify(request.IDAttribute, true), payload.IsRequired(request.IDAttribute)
 }
 
 func (b *payloadBuilder) buildInit(request *RequestData) *InitData {
@@ -159,6 +151,8 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		MultipartFileFields:   multipartFiles,
 		FormEncoded:           b.endpointIR.Request.FormEncoded,
 	}
+	request.ClientBodyValue = requestClientBodyValue(request)
+	request.JSONRPCID = b.buildJSONRPCID()
 	request.DecodePlan = newRequestDecodePlan(request, b.basic)
 	return request, mapQueryParam
 }

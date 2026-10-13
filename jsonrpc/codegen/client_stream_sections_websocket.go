@@ -82,9 +82,13 @@ func writeJSONRPCWebSocketSend(stmt *jen.Statement, ws *httpcodegen.WebSocketDat
 		Id(ws.SendWithContextName).
 		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(ws.SendTypeRef))).
 		Error().
-		Block(
-			jen.Return(jen.Id("s").Dot("stream").Dot(send).Call(jen.Id("ctx"), jen.Id("v"))),
-		)
+		BlockFunc(func(g *jen.Group) {
+			value := ws.Endpoint.Payload.Request.ClientBodyValue
+			if value != "nil" {
+				g.Id("p").Op(":=").Id("v")
+			}
+			g.Return(jen.Id("s").Dot("stream").Dot(send).Call(jen.Id("ctx"), codegen.Expr(value)))
+		})
 }
 
 func writeJSONRPCWebSocketRecv(stmt *jen.Statement, ws *httpcodegen.WebSocketData, isBidirectional bool) {

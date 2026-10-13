@@ -1,0 +1,262 @@
+package r4id_test
+
+import (
+	"context"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	sseserver "example.com/r4id/gen/jsonrpc/sse/server"
+	wsclient "example.com/r4id/gen/jsonrpc/ws/client"
+	wsserver "example.com/r4id/gen/jsonrpc/ws/server"
+	sse "example.com/r4id/gen/sse"
+	ws "example.com/r4id/gen/ws"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/gorilla/websocket"
+)
+
+type streamCalls struct {
+	sync.Mutex
+	ids []string
+}
+
+type sseService struct {
+	*streamCalls
+}
+
+type wsService struct {
+	*streamCalls
+}
+
+func TestSSEEnvelopeAdmission(t *testing.T) {
+	for _, tc := range []struct {
+		name, id, params string
+		code, calls      int
+	}{
+		{"valid", `"abc"`, `{"v":"x"}`, 0, 1},
+		{"invalid-spoof", `"ABC"`, `{"v":"x","id":"abc"}`, -32602, 0},
+		{"numeric", `9007199254740993`, `{"v":"x"}`, 0, 1},
+		{"required-notification", ``, `{"v":"x","id":"abc"}`, 0, 0},
+		{"null", `null`, `{"v":"x"}`, -32602, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := &streamCalls{}
+			mux := loomhttp.NewMuxer()
+			sseserver.Mount(mux, sseserver.New(sse.NewEndpoints(sseService{calls}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, func(context.Context, http.ResponseWriter, error) {}))
+			message := `{"jsonrpc":"2.0","method":"watch","params":` + tc.params
+			if tc.id != "" {
+				message += `,"id":` + tc.id
+			}
+			message += "}"
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/sse", strings.NewReader(message)))
+			if response.Code != http.StatusOK {
+				t.Errorf("status %d: %s", response.Code, response.Body.String())
+			}
+			if tc.id == "" {
+				if response.Body.Len() != 0 {
+					t.Errorf("notification body: %s", response.Body.String())
+				}
+			} else {
+				data := response.Body.String()
+				{
+					start := strings.Index(data, "data: ")
+					if start < 0 {
+						t.Fatalf("no SSE data: %s", data)
+					}
+					data = strings.Split(data[start+len("data: "):], "\n")[0]
+				}
+				assertEnvelope(t, []byte(data), tc.id, tc.code)
+			}
+			if calls.count() != tc.calls {
+				t.Errorf("calls %d want %d", calls.count(), tc.calls)
+			}
+		})
+	}
+}
+
+func TestWSEnvelopeAdmission(t *testing.T) {
+	calls := &streamCalls{}
+	svc := wsService{calls}
+	mux := loomhttp.NewMuxer()
+	wsserver.Mount(mux, wsserver.New(svc.HandleStream, ws.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, func(context.Context, http.ResponseWriter, error) {}, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	conn, response, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/ws", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := response.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		id, params string
+		code       int
+	}{
+		{`"abc"`, `{"v":"x"}`, 0},
+		{`"ABC"`, `{"v":"x","id":"abc"}`, -32602},
+		{`9007199254740993`, `{"v":"x"}`, 0},
+		{`null`, `{"v":"x"}`, -32602},
+	} {
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"jsonrpc":"2.0","method":"watch","id":`+tc.id+`,"params":`+tc.params+`}`)); err != nil {
+			t.Fatal(err)
+		}
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertEnvelope(t, data, tc.id, tc.code)
+	}
+	// An invalid required notification must neither invoke nor reply. The next
+	// valid request is a protocol barrier so no timing-based negative check is used.
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"jsonrpc":"2.0","method":"watch","params":{"id":"abc","v":"x"}}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"jsonrpc":"2.0","method":"watch","id":"barrier","params":{"v":"x"}}`)); err != nil {
+		t.Fatal(err)
+	}
+	_, data, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEnvelope(t, data, `"barrier"`, 0)
+	if calls.count() != 3 {
+		t.Errorf("calls=%d want3", calls.count())
+	}
+}
+
+func TestWSClientParamsProjection(t *testing.T) {
+	captured := make(chan []byte, 1)
+	peerErrors := make(chan error, 1)
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			peerErrors <- err
+			return
+		}
+		defer func() {
+			if err := conn.Close(); err != nil {
+				peerErrors <- err
+			}
+		}()
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			peerErrors <- err
+			return
+		}
+		captured <- data
+		// Keep the connection alive until the generated client closes it.
+		_, _, err = conn.ReadMessage()
+		if err != nil && !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) && err != io.EOF {
+			peerErrors <- err
+		}
+	}))
+	defer peer.Close()
+	client := wsclient.NewClient("ws", strings.TrimPrefix(peer.URL, "http://"), peer.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
+	defer func() {
+		if err := client.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result, err := client.Watch()(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := result.(*wsclient.WatchClientStream)
+	if err := stream.SendWithContext(ctx, &ws.WatchPayload{ID: "service-only", V: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case data := <-captured:
+		var envelope struct {
+			ID     string                    `json:"id"`
+			Params map[string]jsontext.Value `json:"params"`
+		}
+		if err := json.Unmarshal(data, &envelope); err != nil {
+			t.Fatal(err)
+		}
+		if envelope.ID == "" || envelope.ID == "service-only" {
+			t.Errorf("runtime-generated ID lost: %s", data)
+		}
+		if _, present := envelope.Params["id"]; present || string(envelope.Params["v"]) != `"x"` {
+			t.Errorf("params projection: %s", data)
+		}
+	case err := <-peerErrors:
+		t.Fatal(err)
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+}
+
+func (s sseService) Watch(ctx context.Context, p *sse.WatchPayload, stream sse.WatchServerStream) error {
+	s.record(p.ID)
+	return stream.SendAndClose(ctx, p.ID+":"+p.V)
+}
+
+func (s wsService) HandleStream(ctx context.Context, stream ws.Stream) error {
+	for {
+		if err := stream.Recv(ctx); err != nil {
+			return err
+		}
+	}
+}
+
+func (s wsService) Watch(_ context.Context, p *ws.WatchPayload) (string, error) {
+	s.record(p.ID)
+	return p.ID + ":" + p.V, nil
+}
+
+func assertEnvelope(t *testing.T, data []byte, id string, code int) {
+	t.Helper()
+	var envelope struct {
+		ID     jsontext.Value `json:"id"`
+		Result string         `json:"result"`
+		Error  *struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		t.Fatalf("decode %s: %v", data, err)
+	}
+	if string(envelope.ID) != id {
+		t.Errorf("echo %s want %s", envelope.ID, id)
+	}
+	if code == 0 {
+		normalized := strings.Trim(id, `"`)
+		if envelope.Error != nil || envelope.Result != normalized+":x" {
+			t.Errorf("success envelope: %s", data)
+		}
+	} else if envelope.Error == nil || envelope.Error.Code != code || envelope.Error.Message == "" {
+		t.Errorf("error envelope: %s want code %d and detail", data, code)
+	}
+}
+
+func (s *streamCalls) record(id string) {
+	s.Lock()
+	defer s.Unlock()
+	s.ids = append(s.ids, id)
+}
+
+func (s *streamCalls) count() int {
+	s.Lock()
+	defer s.Unlock()
+	return len(s.ids)
+}

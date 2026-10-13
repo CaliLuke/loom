@@ -50,6 +50,7 @@ func (e *HTTPEndpointExpr) ensureWireBindings() *httpWireBindingPlan {
 	e.Requirements = e.MethodExpr.EffectiveRequirements()
 	e.resolveSessionWireMappings(e.MethodExpr.EffectiveSessionAuths())
 	plan := &httpWireBindingPlan{bodyExclusions: make(map[string]bool)}
+	e.resolveJSONRPCID(plan)
 	classified := make(map[string]bool)
 	for index, requirement := range e.Requirements {
 		for _, scheme := range requirement.Schemes {

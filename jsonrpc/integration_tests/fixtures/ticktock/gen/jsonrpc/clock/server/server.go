@@ -160,10 +160,6 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 			}
 			return nil
 		}
-		if req.ID != nil {
-			idStr := jsonrpc.IDToString(req.ID)
-			params.ID = &idStr
-		}
 		v := &clock.TickEndpointInput{
 			Payload: params,
 			Stream:  strm,
@@ -223,10 +219,6 @@ func NewTockHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
 			return nil
-		}
-		if req.ID != nil {
-			idStr := jsonrpc.IDToString(req.ID)
-			params.ID = &idStr
 		}
 		v := &clock.TockEndpointInput{
 			Payload: params,

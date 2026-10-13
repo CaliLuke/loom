@@ -42,16 +42,13 @@ func EncodeTickRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.
 		if !ok {
 			return loomhttp.ErrInvalidType("clock", "Tick", "*clock.TickPayload", v)
 		}
-		b := NewTickRequestBody(p)
 		body := &jsonrpc.Request{
 			JSONRPC: "2.0",
 			Method:  "Tick",
-			Params:  b,
 		}
-		if p.ID != nil && *p.ID != "" {
-			body.ID = p.ID
+		if err := jsonrpc.SetClientRequestID(req, body, p.ID, p.ID != nil); err != nil {
+			return loomhttp.ErrEncodingError("clock", "Tick", err)
 		}
-		// If ID is nil or empty, this is a notification - no ID field
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("clock", "Tick", err)
 		}
@@ -123,16 +120,13 @@ func EncodeTockRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.
 		if !ok {
 			return loomhttp.ErrInvalidType("clock", "Tock", "*clock.TockPayload", v)
 		}
-		b := NewTockRequestBody(p)
 		body := &jsonrpc.Request{
 			JSONRPC: "2.0",
 			Method:  "Tock",
-			Params:  b,
 		}
-		if p.ID != nil && *p.ID != "" {
-			body.ID = p.ID
+		if err := jsonrpc.SetClientRequestID(req, body, p.ID, p.ID != nil); err != nil {
+			return loomhttp.ErrEncodingError("clock", "Tock", err)
 		}
-		// If ID is nil or empty, this is a notification - no ID field
 		if err := encoder(req).Encode(&body); err != nil {
 			return loomhttp.ErrEncodingError("clock", "Tock", err)
 		}

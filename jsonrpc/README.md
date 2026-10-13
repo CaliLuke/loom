@@ -294,7 +294,8 @@ Method("track", func() {
 
 The `ID()` function marks which field receives the JSON-RPC message ID. Rules:
 
-1. ID fields must be String type
+1. Request ID fields must be String or a named String type, with at most one
+   top-level ID field per payload.
 2. Result can only have an ID if Payload has one
 3. For non-streaming methods, the response `id` is the original request `id`.
    A result ID field does not override protocol correlation.
@@ -305,12 +306,22 @@ The `ID()` function marks which field receives the JSON-RPC message ID. Rules:
 How IDs behave across transports and shapes:
 
 - Design-time type
-  - `ID()` marks the field that carries the JSON-RPC ID; it must be `String` in
-    the design.
+  - A request `ID()` field belongs exclusively to the envelope. It is excluded
+    from `params`, including generated client messages. Do not also map it to
+    an HTTP header, query parameter, cookie or explicit params body. A body
+    selected from a different field remains valid.
+  - Named String constraints, field renaming, `Nullable()` and compatible custom
+    Go JSON codecs compose with ID mapping.
 
 - Runtime type
   - JSON-RPC allows string or number IDs. Loom accepts either on the wire and
-    normalizes to string when assigning to your `ID()` fields.
+    normalizes to string before validating your request `ID()` field. The reply
+    echoes the original token, including exact numeric values.
+  - Required IDs reject absence before defaults. Optional defaults apply only
+    to absence in service data; the request remains a notification. Supplied
+    empty strings are validated as supplied values. Explicit null requires
+    `Nullable()` and never receives a default; errors still echo the original
+    null ID. A rejected notification invokes no service and sends no response.
 
 - HTTP (request/response)
   - Client
@@ -323,6 +334,9 @@ How IDs behave across transports and shapes:
       response, such as the Invalid Request error of a server that could not
       read the notification. A service error of a notification never reaches
       the client.
+    - An explicitly null `Nullable()` ID sends `id: null` and expects a response.
+      An absent nullable ID sends a notification. Custom ID codecs run once
+      when the request is encoded.
     - If the payload has no ID field, the client generates a string `id` and
       sends a request (never a notification).
   - Server
@@ -350,7 +364,18 @@ How IDs behave across transports and shapes:
     result type.
   - Streaming (WebSocket bidirectional): include `ID()` in both streaming
     payload and result to correlate messages at the type level.
-  - Notifications: omit `ID()` (no `id` is sent or expected).
+  - Notifications from generated HTTP clients: use an optional ID field and
+    leave it absent, or supply an empty string. Methods without an ID field
+    generate request IDs automatically.
+
+Regenerate clients and servers together after adopting envelope-only ID binding.
+Handwritten requests should supply the ID only in the envelope; a params copy
+cannot satisfy requiredness or replace an invalid envelope value. Generated CLI
+commands expose a separate ID flag after removing it from the body flag. Follow
+that flag's help: native required strings use text, while pointer, named and
+nullable carriers use JSON. For example, `null` supplies nullable null, and
+`'"abc"'` supplies a named String value. Other body members retain their flags
+and validation.
 
 ## Transport Options
 

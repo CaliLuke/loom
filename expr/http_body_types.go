@@ -196,6 +196,14 @@ func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 	}
 	att := e.MethodExpr.StreamingPayload
 	dupped := DupAtt(att)
+	if e.JSONRPCID != nil {
+		body := NewMappedAttributeExpr(dupped)
+		removeAttribute(body, AttributeName(e.JSONRPCID.Name))
+		dupped = body.Attribute()
+		if len(*AsObject(dupped.Type)) == 0 {
+			return &AttributeExpr{Type: Empty}
+		}
+	}
 	RemovePkgPath(dupped)
 	if !IsObject(att.Type) {
 		return dupped
@@ -213,8 +221,8 @@ func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 		Type:              ut,
 		valueOrigin:       valueAttributeOrigin(att),
 		valueSourceOrigin: valueCopiedSourceOrigin(att),
-		Validation:        att.Validation,
-		UserExamples:      att.UserExamples,
+		Validation:        dupped.Validation,
+		UserExamples:      dupped.UserExamples,
 	}
 }
 

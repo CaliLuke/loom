@@ -12,46 +12,16 @@ import (
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
-// TickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
-// request body.
-type TickRequestBody struct {
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-}
-
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
 // response body.
 type TickResponseBody struct {
 	Value loom.Optional[string] `form:"value,omitempty" json:"value,omitzero" xml:"value,omitempty"`
 }
 
-// TockRequestBody is the type of the "clock" service "Tock" endpoint HTTP
-// request body.
-type TockRequestBody struct {
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-}
-
 // TockResponseBody is the type of the "clock" service "Tock" endpoint HTTP
 // response body.
 type TockResponseBody struct {
 	Value loom.Optional[string] `form:"value,omitempty" json:"value,omitzero" xml:"value,omitempty"`
-}
-
-// NewTickRequestBody builds the HTTP request body from the payload of the
-// "Tick" endpoint of the "clock" service.
-func NewTickRequestBody(p *clock.TickPayload) *TickRequestBody {
-	body := &TickRequestBody{
-		ID: p.ID,
-	}
-	return body
-}
-
-// NewTockRequestBody builds the HTTP request body from the payload of the
-// "Tock" endpoint of the "clock" service.
-func NewTockRequestBody(p *clock.TockPayload) *TockRequestBody {
-	body := &TockRequestBody{
-		ID: p.ID,
-	}
-	return body
 }
 
 // NewTickResultOK builds a "clock" service "Tick" endpoint result from a HTTP

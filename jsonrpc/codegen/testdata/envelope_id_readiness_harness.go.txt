@@ -1,0 +1,335 @@
+package r4id_test
+
+import (
+	"context"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	calc "example.com/r4id/gen/calc"
+	client "example.com/r4id/gen/jsonrpc/calc/client"
+	server "example.com/r4id/gen/jsonrpc/calc/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type service struct {
+	calls int
+	last  string
+}
+
+func TestEnvelopeID(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		method     string
+		params     string
+		envelope   string
+		wantCode   int
+		wantResult string
+		wantCalls  int
+	}{
+		{"required-envelope-only", "fmt", "{\"v\": \"x\"}", "\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"", 0, "id=6ba7b810-9dad-11d1-80b4-00c04fd430c8", 1},
+		{"required-invalid-envelope-valid-spoof", "fmt", "{\"v\": \"x\", \"id\": \"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}", "\"not-a-uuid\"", -32602, "", 0},
+		{"optional-invalid-envelope", "pat", "{\"v\": \"x\"}", "\"ABC\"", -32602, "", 0},
+		{"nonnullable-null-id", "plain", "{}", "null", -32602, "", 0},
+		{"required-nullable-null", "required-nullable", "{}", "null", 0, "null", 1},
+		{"required-nullable-absent", "required-nullable", "{}", "", 0, "", 0},
+		{"nullable-default-null", "nullable-default", "{}", "null", 0, "null", 1},
+		{"nullable-default-absent", "nullable-default", "{}", "", 0, "id=fallback", 1},
+		{"custom-codec", "custom", "{}", "\"2026-10-13T00:00:00Z\"", 0, "id=2026-10-13T00:00:00Z", 1},
+		{"nullable-null", "nullable", "{}", "null", 0, "null", 1},
+		{"nullable-absent", "nullable", "{}", "", 0, "absent", 1},
+		{"default-absent", "defaulted", "{}", "", 0, "id=fallback", 1},
+		{"default-empty", "defaulted", "{}", "\"\"", 0, "id=", 1},
+		{"renamed-value", "renamed", "{}", "\"abc\"", 0, "id=abc", 1},
+		{"named-alias", "alias", "{}", "\"abc\"", 0, "id=abc", 1},
+		{"named-alias-invalid", "alias", "{}", "\"ABC\"", -32602, "", 0},
+		{"only-envelope", "only", "{}", "\"abc\"", 0, "id=abc", 1},
+		{"selected-params", "selected", "\"value\"", "\"abc\"", 0, "id=abc", 1},
+		{"large-numeric-id", "plain", "{}", "9007199254740993", 0, "id=9007199254740993", 1},
+		{"supplied-empty-id", "plain", "{}", "\"\"", 0, "id=", 1},
+		{"ordinary-valid-optional", "pat", "{\"v\": \"x\"}", "\"abc\"", 0, "id=abc", 1},
+		{"required-notification-spoof", "fmt", "{\"v\": \"x\", \"id\": \"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}", "", 0, "", 0},
+		{"optional-notification-spoof", "pat", "{\"v\": \"x\", \"id\": \"abc\"}", "", 0, "absent", 1},
+		{"ordinary-invalid-params", "pat", "{}", "\"abc\"", -32602, "", 0},
+		{"ordinary-valid-duplicated", "fmt", "{\"v\": \"x\", \"id\": \"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}", "\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"", 0, "id=6ba7b810-9dad-11d1-80b4-00c04fd430c8", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &service{}
+			mux := loomhttp.NewMuxer()
+			server.Mount(mux, server.New(calc.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, func(_ context.Context, _ http.ResponseWriter, err error) {
+				if err == nil {
+					t.Error("nil diagnostic")
+				}
+			}))
+			request := "{\"jsonrpc\":\"2.0\",\"method\":\"" + tc.method + "\",\"params\":" + tc.params
+			if tc.envelope != "" {
+				request += ",\"id\":" + tc.envelope
+			}
+			request += "}"
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/rpc", strings.NewReader(request)))
+			if response.Code != http.StatusOK {
+				t.Errorf("HTTP status = %d, want 200", response.Code)
+			}
+			data := response.Body.Bytes()
+			if tc.envelope == "" {
+				if len(data) != 0 {
+					t.Errorf("notification returned body: %s", data)
+				}
+			} else {
+				var wire struct {
+					ID     jsontext.Value `json:"id"`
+					Result string         `json:"result"`
+					Error  *struct {
+						Code    int    `json:"code"`
+						Message string `json:"message"`
+					} `json:"error"`
+				}
+				if err := json.Unmarshal(data, &wire); err != nil {
+					t.Fatal(err)
+				}
+				if string(wire.ID) != tc.envelope {
+					t.Errorf("response ID = %s, want %s", wire.ID, tc.envelope)
+				}
+				code := 0
+				if wire.Error != nil {
+					code = wire.Error.Code
+					if wire.Error.Message == "" {
+						t.Error("error has no detail")
+					}
+				}
+				if code != tc.wantCode || wire.Result != tc.wantResult {
+					t.Errorf("wire = %s, want code %d result %q", data, tc.wantCode, tc.wantResult)
+				}
+			}
+			if tc.envelope == "" && svc.last != tc.wantResult {
+				t.Errorf("notification payload ID = %q, want %q", svc.last, tc.wantResult)
+			}
+			if svc.calls != tc.wantCalls {
+				t.Errorf("service calls = %d, want %d", svc.calls, tc.wantCalls)
+			}
+		})
+	}
+}
+
+func TestClientIDHasOneWireLocation(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/rpc", nil)
+	const id = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+	if err := client.EncodeFmtRequest(loomhttp.RequestEncoder)(req, &calc.FmtPayload{ID: id, V: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := req.Body.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	var wire struct {
+		ID     string                    `json:"id"`
+		Params map[string]jsontext.Value `json:"params"`
+	}
+	if err := json.UnmarshalRead(req.Body, &wire); err != nil {
+		t.Fatal(err)
+	}
+	if wire.ID != id {
+		t.Errorf("envelope ID = %q, want %q", wire.ID, id)
+	}
+	if _, exists := wire.Params["id"]; exists {
+		t.Error("client duplicates ID in params")
+	}
+	if string(wire.Params["v"]) != "\"x\"" {
+		t.Errorf("ordinary params changed: %v", wire.Params)
+	}
+}
+
+func TestClientIDCarriers(t *testing.T) {
+	text := "abc"
+	alias := calc.Correlation(text)
+	stamp := time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name    string
+		encode  func(*http.Request, any) error
+		payload any
+		want    string
+	}{
+		{"nullable-absent", client.EncodeNullableRequest(loomhttp.RequestEncoder), &calc.NullablePayload{}, ""},
+		{"nullable-null", client.EncodeNullableRequest(loomhttp.RequestEncoder), &calc.NullablePayload{ID: loom.NullValue[string]()}, "null"},
+		{"nullable-value", client.EncodeNullableRequest(loomhttp.RequestEncoder), &calc.NullablePayload{ID: loom.NullableValue(text)}, `"abc"`},
+		{"default-native-zero", client.EncodeDefaultedRequest(loomhttp.RequestEncoder), &calc.DefaultedPayload{}, ""},
+		{"default-value", client.EncodeDefaultedRequest(loomhttp.RequestEncoder), &calc.DefaultedPayload{ID: text}, `"abc"`},
+		{"renamed", client.EncodeRenamedRequest(loomhttp.RequestEncoder), &calc.RenamedPayload{Correlation: &text}, `"abc"`},
+		{"alias", client.EncodeAliasRequest(loomhttp.RequestEncoder), &calc.AliasPayload{ID: &alias}, `"abc"`},
+		{"only", client.EncodeOnlyRequest(loomhttp.RequestEncoder), &calc.OnlyPayload{ID: &text}, `"abc"`},
+		{"custom", client.EncodeCustomRequest(loomhttp.RequestEncoder), &calc.CustomPayload{ID: &stamp}, `"2026-10-13T00:00:00Z"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/rpc", nil)
+			if err := tc.encode(req, tc.payload); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := req.Body.Close(); err != nil {
+					t.Error(err)
+				}
+			}()
+			var wire struct {
+				ID     jsontext.Value            `json:"id"`
+				Params map[string]jsontext.Value `json:"params"`
+			}
+			if err := json.UnmarshalRead(req.Body, &wire); err != nil {
+				t.Fatal(err)
+			}
+			if string(wire.ID) != tc.want || jsonrpc.IsClientNotification(req) != (tc.want == "") {
+				t.Errorf("ID=%s notification=%v, want %s", wire.ID, jsonrpc.IsClientNotification(req), tc.want)
+			}
+			if _, exists := wire.Params["id"]; exists {
+				t.Error("params duplicates envelope ID")
+			}
+		})
+	}
+}
+
+func TestCLIEnvelopeID(t *testing.T) {
+	if _, err := client.BuildAliasPayload(`{}`, `null`); err == nil {
+		t.Error("CLI accepts nonnullable alias null")
+	}
+	if _, err := client.BuildOnlyPayload(`null`); err == nil {
+		t.Error("CLI accepts nonnullable native null")
+	}
+	if _, err := client.BuildFmtPayload(`{"v":"x"}`, "not-a-uuid"); err == nil {
+		t.Error("CLI accepts invalid UUID")
+	}
+	if _, err := client.BuildAliasPayload(`{}`, `"ABC"`); err == nil {
+		t.Error("CLI discards inherited ID pattern")
+	}
+	if got, err := client.BuildAliasPayload(`{}`, `"abc"`); err != nil || got.ID == nil || *got.ID != "abc" {
+		t.Errorf("CLI alias = %+v, %v", got, err)
+	}
+	if got, err := client.BuildNullablePayload(`{}`, "null"); err != nil || !got.ID.IsNull() {
+		t.Errorf("CLI supplied null = %+v, %v", got, err)
+	}
+	if got, err := client.BuildNullablePayload(`{}`, ""); err != nil || got.ID.Present() {
+		t.Errorf("CLI absent = %+v, %v", got, err)
+	}
+	if got, err := client.BuildNullableDefaultPayload(`{}`, "null"); err != nil || !got.ID.IsNull() {
+		t.Errorf("CLI default overwrote null = %+v, %v", got, err)
+	}
+	if got, err := client.BuildOnlyPayload(`"abc"`); err != nil || got.ID == nil || *got.ID != "abc" {
+		t.Errorf("CLI ID-only = %+v, %v", got, err)
+	}
+}
+
+func (s *service) Fmt(_ context.Context, p *calc.FmtPayload) (string, error) {
+	s.calls++
+	s.last = "id=" + p.ID
+	return s.last, nil
+}
+
+func (s *service) Pat(_ context.Context, p *calc.PatPayload) (string, error) {
+	s.calls++
+	if p.ID == nil {
+		s.last = "absent"
+		return s.last, nil
+	}
+	s.last = "id=" + *p.ID
+	return s.last, nil
+}
+
+func (s *service) Plain(_ context.Context, p *calc.PlainPayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.ID != nil {
+		s.last = "id=" + *p.ID
+	}
+	return s.last, nil
+}
+
+func (s *service) Defaulted(_ context.Context, p *calc.DefaultedPayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	s.last = "id=" + p.ID
+	return s.last, nil
+}
+
+func (s *service) Renamed(_ context.Context, p *calc.RenamedPayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.Correlation != nil {
+		s.last = "id=" + string(*p.Correlation)
+	}
+	return s.last, nil
+}
+
+func (s *service) Alias(_ context.Context, p *calc.AliasPayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.ID != nil {
+		s.last = "id=" + string(*p.ID)
+	}
+	return s.last, nil
+}
+
+func (s *service) Only(_ context.Context, p *calc.OnlyPayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.ID != nil {
+		s.last = "id=" + string(*p.ID)
+	}
+	return s.last, nil
+}
+
+func (s *service) Selected(_ context.Context, p *calc.SelectedPayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.ID != nil {
+		s.last = "id=" + string(*p.ID)
+	}
+	return s.last, nil
+}
+
+func (s *service) Nullable(_ context.Context, p *calc.NullablePayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.ID.IsNull() {
+		s.last = "null"
+	} else if value, present := p.ID.Value(); present {
+		s.last = "id=" + value
+	}
+	return s.last, nil
+}
+
+func (s *service) RequiredNullable(_ context.Context, p *calc.RequiredNullablePayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.ID.IsNull() {
+		s.last = "null"
+	} else if value, present := p.ID.Value(); present {
+		s.last = "id=" + value
+	}
+	return s.last, nil
+}
+
+func (s *service) NullableDefault(_ context.Context, p *calc.NullableDefaultPayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.ID.IsNull() {
+		s.last = "null"
+	} else if value, present := p.ID.Value(); present {
+		s.last = "id=" + value
+	}
+	return s.last, nil
+}
+
+func (s *service) Custom(_ context.Context, p *calc.CustomPayload) (string, error) {
+	s.calls++
+	s.last = "absent"
+	if p.ID != nil {
+		s.last = "id=" + p.ID.Format(time.RFC3339)
+	}
+	return s.last, nil
+}

@@ -492,9 +492,13 @@ func makeFlagData(e *EndpointData, arg *InitArgData, jsonDecoder string) *cli.Fl
 	if e.Payload.Request.cliInput != nil && e.Payload.Request.cliInput.argument == arg && flag.Type == "JSON" && arg.Example == nil {
 		flag.Example = ""
 	}
-	if e.Payload.Request.cliInput != nil && e.Payload.Request.cliInput.argument == arg && flag.Type == "JSON" && !e.Payload.Request.BodyAllowsNull {
+	id := e.Payload.Request.JSONRPCID
+	switch {
+	case id != nil && id.Argument == arg && flag.Type == "JSON" && !id.AllowsNull:
 		flag.Unmarshal = strings.TrimSuffix(jsonDecoder, ".UnmarshalJSON") + ".UnmarshalNonNullableJSON"
-	} else if !arg.IsTextUnmarshaler && containsBooleanMapKeys(arg.Type) {
+	case e.Payload.Request.cliInput != nil && e.Payload.Request.cliInput.argument == arg && flag.Type == "JSON" && !e.Payload.Request.BodyAllowsNull:
+		flag.Unmarshal = strings.TrimSuffix(jsonDecoder, ".UnmarshalJSON") + ".UnmarshalNonNullableJSON"
+	case !arg.IsTextUnmarshaler && containsBooleanMapKeys(arg.Type):
 		flag.Unmarshal = jsonDecoder
 	}
 	return flag

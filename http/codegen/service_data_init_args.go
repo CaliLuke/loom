@@ -29,6 +29,9 @@ func buildPayloadFieldArgs(request *RequestData) []*InitArgData {
 		}
 		appendField(cookie.AttributeData, "", cookie.DefaultValue)
 	}
+	if request.JSONRPCID != nil {
+		args = append(args, request.JSONRPCID.Argument)
+	}
 	return args
 }
 

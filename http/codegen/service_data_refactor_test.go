@@ -408,8 +408,8 @@ func TestHTTPJSONRPCIDProjection(t *testing.T) {
 	endpoint := firstJSONRPCEndpointData(t, jsonrpcIDProjectionDSL)
 
 	require.NotNil(t, endpoint.Payload)
-	require.Equal(t, "ID", endpoint.Payload.IDAttribute)
-	require.True(t, endpoint.Payload.IDAttributeRequired)
+	require.Equal(t, "ID", endpoint.Payload.Request.JSONRPCID.FieldName)
+	require.True(t, endpoint.Payload.Request.JSONRPCID.Argument.Required)
 
 	require.NotNil(t, endpoint.Result)
 	require.Equal(t, "ID", endpoint.Result.IDAttribute)

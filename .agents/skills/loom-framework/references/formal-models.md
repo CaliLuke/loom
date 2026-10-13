@@ -249,3 +249,4 @@ to delete an unknown directory.
 The [discriminator admission model](../../../../http/codegen/openapi/internal/ir/lean/discriminator_metadata/README.md)
 records optional/fallback admission and 3.1 projection. Go tests cover reference
 resolution and graph retention outside its Boolean assumptions.
+| JSON-RPC envelope ID source, presence and validation ordering | [Envelope ID admission](../../../../http/codegen/tla/jsonrpc_id_admission/README.md); params-first and late-handler counterexamples, shared carrier/CLI validation and mounted unary/SSE/WebSocket controls |

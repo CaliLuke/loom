@@ -184,7 +184,6 @@ func writeSSEHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 			}),
 			jen.Return(jen.Nil()),
 		)
-		writePayloadIDInjection(g, e.Payload)
 	}
 	if e.SSE.RequestIDField != "" {
 		g.If(
@@ -258,7 +257,6 @@ func sseEndpointErrorResponse(send jen.Code) jen.Code {
 func writeJSONRPCStandardHandlerInitBody(g *jen.Group, e *httpcodegen.EndpointData) {
 	if e.Payload != nil && e.Payload.Ref != "" {
 		writeJSONRPCParamsDecode(g, e)
-		writePayloadIDInjection(g, e.Payload)
 	}
 
 	if writeJSONRPCWebSocketInitReturn(g, e) {
@@ -582,20 +580,4 @@ func serviceNeedsJSONRPCResponseCapture(data *httpcodegen.ServiceData) bool {
 		}
 	}
 	return false
-}
-
-func writePayloadIDInjection(g *jen.Group, payload *httpcodegen.PayloadData) {
-	if payload.IDAttribute == "" {
-		return
-	}
-	if payload.IDAttributeRequired {
-		g.If(jen.Id("req").Dot("ID").Op("!=").Nil()).Block(
-			jen.Id("params").Dot(payload.IDAttribute).Op("=").Qual("github.com/CaliLuke/loom/jsonrpc", "IDToString").Call(jen.Id("req").Dot("ID")),
-		)
-		return
-	}
-	g.If(jen.Id("req").Dot("ID").Op("!=").Nil()).Block(
-		jen.Id("idStr").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "IDToString").Call(jen.Id("req").Dot("ID")),
-		jen.Id("params").Dot(payload.IDAttribute).Op("=").Op("&").Id("idStr"),
-	)
 }

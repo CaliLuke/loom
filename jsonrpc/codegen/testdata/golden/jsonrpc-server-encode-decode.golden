@@ -70,7 +70,38 @@ func DecodeSumRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.D
 		if err != nil {
 			return payload, err
 		}
-		payload = NewSumPayload(&body)
+		var rpcID *string
+		{
+
+			rpcIDBody := &struct {
+				ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+			}{}
+			if req.HasID {
+				if req.ID == nil {
+					return payload, loom.DecodePayloadError("JSON-RPC ID must not be null")
+				}
+
+				idBytes := []byte("null")
+				if req.ID != nil {
+					var encodeErr error
+					idBytes, encodeErr = json.Marshal(jsonrpc.IDToString(req.ID))
+					if encodeErr != nil {
+						return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(encodeErr))
+					}
+				}
+				if decodeErr := json.Unmarshal(idBytes, &rpcIDBody.ID); decodeErr != nil {
+					return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
+				}
+			}
+			rpcIDFields := &struct {
+				ID *string `json:"id,omitzero"`
+			}{
+				ID: rpcIDBody.ID,
+			}
+			rpcID = rpcIDFields.ID
+		}
+
+		payload = NewSumPayload(&body, rpcID)
 
 		return payload, nil
 	}

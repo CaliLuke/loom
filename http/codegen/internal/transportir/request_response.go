@@ -29,6 +29,7 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 		mustHaveBody = false
 	}
 	return &Request{
+		JSONRPCID:            endpoint.JSONRPCID,
 		Payload:              payload,
 		Body:                 body,
 		DocumentBody:         normalizeHTTPAttribute(endpoint.OpenAPIRequestBody),
@@ -48,8 +49,6 @@ func buildRequest(endpoint *expr.HTTPEndpointExpr) *Request {
 		OptionalBody:         endpoint.OptionalRequestBody,
 		MustHaveBody:         mustHaveBody,
 		SkipBodyEncode:       endpoint.SkipRequestBodyEncodeDecode,
-		IDAttribute:          endpoint.PayloadIDAttribute,
-		IDAttributeRequired:  payload != nil && endpoint.PayloadIDAttribute != "" && payload.IsRequired(endpoint.PayloadIDAttribute),
 	}
 }
 

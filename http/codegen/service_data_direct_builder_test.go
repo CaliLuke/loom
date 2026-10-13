@@ -144,8 +144,8 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		endpointIR := preparedEndpointIR(t, endpointExpr, svcData)
 
 		payload := services.buildPayloadDataFromIR(endpointIR, svcData, nil)
-		require.Equal(t, "ID", payload.IDAttribute)
-		require.True(t, payload.IDAttributeRequired)
+		require.Equal(t, "ID", payload.Request.JSONRPCID.FieldName)
+		require.True(t, payload.Request.JSONRPCID.Argument.Required)
 		require.NotNil(t, payload.Request)
 		require.NotNil(t, payload.Request.PayloadInit)
 		require.Empty(t, payload.DecoderReturnValue)
@@ -340,7 +340,7 @@ func TestHTTPDirectBuilderSeams(t *testing.T) {
 		jsonrpcServices := NewServicesData(service.NewServicesData(root), &root.API.JSONRPC.HTTPExpr)
 		post := jsonrpcServices.Get("RPCPost")
 		require.NotNil(t, post)
-		require.Equal(t, "ID", post.Endpoints[0].Payload.IDAttribute)
+		require.Equal(t, "ID", post.Endpoints[0].Payload.Request.JSONRPCID.FieldName)
 		require.Equal(t, "ID", post.Endpoints[0].Result.IDAttribute)
 
 		sse := jsonrpcServices.Get("RPCSSE")

@@ -200,20 +200,14 @@ func writeJSONRPCUnaryEndpointBody(g *jen.Group, ed *httpcodegen.EndpointData) {
 // response instead of the response decoder. A payload without an ID
 // attribute is always sent with a generated ID.
 func writeJSONRPCNotificationResponse(g *jen.Group, ed *httpcodegen.EndpointData) {
-	if ed.Payload == nil || ed.Payload.IDAttribute == "" {
+	if ed.Payload == nil || ed.Payload.Request.JSONRPCID == nil {
 		return
-	}
-	id := jen.Id("p").Dot(ed.Payload.IDAttribute)
-	empty := id.Clone().Op("==").Lit("")
-	if !ed.Payload.IDAttributeRequired {
-		empty = id.Clone().Op("==").Nil().Op("||").Op("*").Add(id.Clone()).Op("==").Lit("")
 	}
 	check := jen.Qual("github.com/CaliLuke/loom/jsonrpc", "DecodeNotificationResponse").Call(jen.Lit(ed.ServiceName), jen.Lit(ed.Method.Name), jen.Id("resp"))
 	// The request encoder has already checked the type of v. The locals are
 	// names that service imports avoid (transportGeneratedLocalNames).
 	g.If(
-		jen.Id("p").Op(":=").Id("v").Assert(codegen.TypeRef(ed.Payload.Ref)),
-		empty,
+		jen.Qual("github.com/CaliLuke/loom/jsonrpc", "IsClientNotification").Call(jen.Id("req")),
 	).BlockFunc(func(b *jen.Group) {
 		if ed.Result == nil || ed.Result.Ref == "" {
 			b.Return(jen.Nil(), check)

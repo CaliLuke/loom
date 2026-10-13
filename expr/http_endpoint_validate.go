@@ -617,6 +617,7 @@ func (e *HTTPEndpointExpr) validateJSONRPCTransport(verr *eval.ValidationErrors)
 	if !e.IsJSONRPC() {
 		return
 	}
+	e.validateJSONRPCID(verr)
 	e.validateJSONRPCWebSocketCredentials(verr)
 	if e.MethodExpr.Stream == ServerStreamKind && e.SSE == nil &&
 		e.MethodExpr.Payload.Type != Empty && e.MethodExpr.StreamingPayload.Type != Empty {

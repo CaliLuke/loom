@@ -28,6 +28,7 @@ func (sd *ServiceData) finalizeConstructors() {
 	// Response plans may retain complete constructor call expressions. Rebuild
 	// them from the allocated declarations, never by rewriting captured text.
 	for _, ep := range sd.Endpoints {
+		ep.Payload.Request.ClientBodyValue = requestClientBodyValue(ep.Payload.Request)
 		walkResponses(ep, func(response *ResponseData) {
 			response.EncodePlan = newResponseEncodePlan(response)
 		})

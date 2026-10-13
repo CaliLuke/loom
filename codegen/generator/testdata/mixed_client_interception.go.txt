@@ -648,9 +648,11 @@ func TestRPCMountedAndCLI(t *testing.T) {
 	})
 	for _, method := range []string{"stream-only", "combined"} {
 		state.opening, state.messages = nil, nil
-		os.Args = []string{"dispatch", "rpcevents", method, "--body", `{"id":"cli","value":"request"}`}
+		os.Args = []string{"dispatch", "rpcevents", method, "--body", `{"value":"request"}`, "--rpc-id", `"cli"`}
 		endpoint, payload, err := rcli.ParseEndpoint("http", host, srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, audit)
 		require.NoError(t, err)
+		require.IsType(t, &rpc.Request{}, payload)
+		require.Equal(t, new("cli"), payload.(*rpc.Request).ID)
 		result, err := endpoint(ctx, payload)
 		require.NoError(t, err)
 		stream := result.(interface {
