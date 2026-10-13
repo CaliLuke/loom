@@ -61,21 +61,22 @@ import (
 	"net"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 
-	lifetime "example.com/wslifetime/gen/lifetime"
 	client "example.com/wslifetime/gen/http/lifetime/client"
 	server "example.com/wslifetime/gen/http/lifetime/server"
+	lifetime "example.com/wslifetime/gen/lifetime"
 	loomhttp "github.com/CaliLuke/loom/http"
 )
 
 type service struct {
-	echo func(context.Context, lifetime.EchoServerStream) error
-	sub func(context.Context, lifetime.SubServerStream) error
+	echo   func(context.Context, lifetime.EchoServerStream) error
+	sub    func(context.Context, lifetime.SubServerStream) error
 	upload func(context.Context, lifetime.UploadServerStream) error
 }
 
@@ -91,7 +92,49 @@ func (s *service) Sub(ctx context.Context, stream lifetime.SubServerStream) erro
 	return s.sub(ctx, stream)
 }
 
-func newEnv(t *testing.T, svc *service) (*client.Client, <-chan *websocket.Conn, <-chan *websocket.Conn) {
+// lifetimeObservedConn distinguishes protocol close receipt from native release.
+type lifetimeObservedConn struct {
+	net.Conn
+	gate      <-chan struct{}
+	entered   chan struct{}
+	closed    chan struct{}
+	enterOnce sync.Once
+	closeOnce sync.Once
+}
+
+type lifetimeObservedListener struct {
+	net.Listener
+	gate <-chan struct{}
+}
+
+func (c *lifetimeObservedConn) Close() error {
+	c.enterOnce.Do(func() {
+		close(c.entered)
+	})
+	if c.gate != nil {
+		<-c.gate
+	}
+	err := c.Conn.Close()
+	c.closeOnce.Do(func() {
+		close(c.closed)
+	})
+	return err
+}
+
+func (l *lifetimeObservedListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return &lifetimeObservedConn{
+		Conn:    conn,
+		gate:    l.gate,
+		entered: make(chan struct{}),
+		closed:  make(chan struct{}),
+	}, nil
+}
+
+func newEnv(t *testing.T, svc *service, closeGate <-chan struct{}) (*client.Client, <-chan *websocket.Conn, <-chan *websocket.Conn) {
 	t.Helper()
 	serverConns := make(chan *websocket.Conn, 1)
 	clientConns := make(chan *websocket.Conn, 1)
@@ -108,7 +151,9 @@ func newEnv(t *testing.T, svc *service) (*client.Client, <-chan *websocket.Conn,
 	require.NoError(t, err)
 	config := server.NewConnConfigurer(serverConfig)
 	server.Mount(mux, server.New(lifetime.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil, &websocket.Upgrader{}, config))
-	hs := httptest.NewServer(mux)
+	hs := httptest.NewUnstartedServer(mux)
+	hs.Listener = &lifetimeObservedListener{Listener: hs.Listener, gate: closeGate}
+	hs.Start()
 	t.Cleanup(hs.Close)
 	clientConfig, err := loomhttp.NewWebSocketConfig(loomhttp.WebSocketLimits{MaxMessageBytes: loomhttp.DefaultMaxRequestBodyBytes}, func(conn *websocket.Conn, _ context.CancelFunc) *websocket.Conn {
 		clientConns <- conn
@@ -138,7 +183,7 @@ func TestGeneratedCloseAfterPeerClose(t *testing.T) {
 			return err
 		}
 		return st.Close()
-	}})
+	}}, nil)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	raw, err := c.Echo()(ctx, nil)
@@ -161,6 +206,14 @@ func TestGeneratedServiceReturnClosesStream(t *testing.T) {
 			name = "error"
 		}
 		t.Run(name, func(t *testing.T) {
+			closeGate := make(chan struct{})
+			var releaseOnce sync.Once
+			release := func() {
+				releaseOnce.Do(func() {
+					close(closeGate)
+				})
+			}
+			defer release()
 			returned := make(chan struct{})
 			c, servers, _ := newEnv(t, &service{sub: func(_ context.Context, st lifetime.SubServerStream) error {
 				defer close(returned)
@@ -171,7 +224,7 @@ func TestGeneratedServiceReturnClosesStream(t *testing.T) {
 					return errors.New("service stopped")
 				}
 				return nil
-			}})
+			}}, closeGate)
 			ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 			defer cancel()
 			raw, err := c.Sub()(ctx, nil)
@@ -190,7 +243,28 @@ func TestGeneratedServiceReturnClosesStream(t *testing.T) {
 			} else {
 				require.Error(t, err)
 			}
-			assertClosed(t, <-servers)
+			conn := <-servers
+			observed, ok := conn.NetConn().(*lifetimeObservedConn)
+			require.True(t, ok, "unexpected native connection %T", conn.NetConn())
+			select {
+			case <-observed.entered:
+			case <-ctx.Done():
+				require.NoError(t, ctx.Err(), "native Close did not start")
+			}
+			select {
+			case <-observed.closed:
+				t.Fatal("native Close finished before gate release")
+			default:
+			}
+			// Peer receipt above cannot establish native completion. Release
+			// that exact interval, observe completion, then check the socket.
+			release()
+			select {
+			case <-observed.closed:
+			case <-ctx.Done():
+				require.NoError(t, ctx.Err(), "native Close did not finish")
+			}
+			assertClosed(t, conn)
 		})
 	}
 }
@@ -210,7 +284,7 @@ func TestGeneratedDisconnectCancelsService(t *testing.T) {
 			ended <- nil
 		}
 		return nil
-	}})
+	}}, nil)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	raw, err := c.Sub()(ctx, nil)
@@ -222,7 +296,7 @@ func TestGeneratedDisconnectCancelsService(t *testing.T) {
 	select {
 	case err := <-ended:
 		require.ErrorIs(t, err, context.Canceled)
-	case <-time.After(300*time.Millisecond):
+	case <-time.After(300 * time.Millisecond):
 		t.Error("disconnect did not cancel the service")
 	}
 }
@@ -230,11 +304,17 @@ func TestGeneratedDisconnectCancelsService(t *testing.T) {
 func TestGeneratedHalfCloseFinalReply(t *testing.T) {
 	c, _, _ := newEnv(t, &service{upload: func(ctx context.Context, stream lifetime.UploadServerStream) error {
 		value, err := stream.Recv()
-		if err != nil { return err }
-		if _, err := stream.Recv(); !errors.Is(err, io.EOF) { return errors.New("missing input half-close") }
-		if ctx.Err() != nil { return errors.New("half-close canceled service") }
-		return stream.SendAndClose("final:"+value)
-	}})
+		if err != nil {
+			return err
+		}
+		if _, err := stream.Recv(); !errors.Is(err, io.EOF) {
+			return errors.New("missing input half-close")
+		}
+		if ctx.Err() != nil {
+			return errors.New("half-close canceled service")
+		}
+		return stream.SendAndClose("final:" + value)
+	}}, nil)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	raw, err := c.Upload()(ctx, nil)
@@ -248,9 +328,11 @@ func TestGeneratedHalfCloseFinalReply(t *testing.T) {
 
 func TestGeneratedPanicClosesWithSafeReason(t *testing.T) {
 	c, _, _ := newEnv(t, &service{sub: func(_ context.Context, stream lifetime.SubServerStream) error {
-		if err := stream.Send("ready"); err != nil { return err }
+		if err := stream.Send("ready"); err != nil {
+			return err
+		}
 		panic("private panic text")
-	}})
+	}}, nil)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	raw, err := c.Sub()(ctx, nil)
@@ -269,14 +351,15 @@ func TestGeneratedPanicClosesWithSafeReason(t *testing.T) {
 func TestGeneratedErrorBeforeUpgrade(t *testing.T) {
 	c, servers, _ := newEnv(t, &service{sub: func(context.Context, lifetime.SubServerStream) error {
 		return errors.New("private pre-upgrade error")
-	}})
+	}}, nil)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	_, err := c.Sub()(ctx, nil)
 	require.Error(t, err)
 	require.NotContains(t, err.Error(), "private pre-upgrade error")
 	select {
-	case <-servers: t.Fatal("error cleanup triggered upgrade")
+	case <-servers:
+		t.Fatal("error cleanup triggered upgrade")
 	default:
 	}
 }

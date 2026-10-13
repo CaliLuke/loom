@@ -54,3 +54,19 @@ replace it explicitly with the candidate during local verification.
 
 Keep this model and concise results; delete task-owned checker/generated output
 when independent review and all active consumers finish. Do not commit traces.
+
+## HTTP generated lifetime observation — #863
+
+The same two model configurations also cover
+`http/codegen/websocket_lifetime_integration_test.go`:
+`TestGeneratedServiceReturnClosesStream` previously checked the native socket
+after peer EOF/error and a service-return signal. Neither signal established
+native cleanup completion. The test's observed listener now gates native Close
+for both success and error, retains the original receive behavior, then releases
+and observes native completion before asserting net.ErrClosed. Deferred gate
+release makes failure cleanup safe. Other lifetime tests use an ungated listener.
+
+On parent498648ca7, the gated original observation fails both cases in one
+race-enabled run. Rechecking Peer.cfg fails SoundObservation (6 distinct states);
+Native.cfg passes (6 distinct states). This reuses the existing ordering model,
+not a new runtime contract. Generated output and production code stay unchanged.
