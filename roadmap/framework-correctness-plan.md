@@ -4,7 +4,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- Ninety-two reports are delivered, pushed and confirmed closed: #670, #681, #683, #685, #692, #693, #696, #706, #708, #709, #711, #712, #713, #714, #716, #719, #722, #724, #725, #729, #730, #731, #732, #741, #743, #755, #756, #757, #761, #762, #779, #784, #788, #792, #793, #794, #795, #796, #797, #798, #799, #801, #802, #803, #804, #805, #806, #807, #808, #809, #810, #811, #812, #813, #814, #815, #816, #733, #728, #818, #727, #817, #821, #822, #825, #679, #823, #690, #819, #680, #824, #830, #828, #695, #827, #831, #832, #684, #833, #829, #744, #836, #746, #837, #745, #839, #750, #748, #840, #838, #763 and #841. Latest owner repairs: effective wire bindings `f40d1677`, projected branch validation `d0fefa59`, custom multipart decoding `07cf7ae4`.
+- Ninety-three reports are delivered, pushed and confirmed closed: #670, #681, #683, #685, #692, #693, #696, #706, #708, #709, #711, #712, #713, #714, #716, #719, #722, #724, #725, #729, #730, #731, #732, #741, #743, #755, #756, #757, #761, #762, #779, #784, #788, #792, #793, #794, #795, #796, #797, #798, #799, #801, #802, #803, #804, #805, #806, #807, #808, #809, #810, #811, #812, #813, #814, #815, #816, #733, #728, #818, #727, #817, #821, #822, #825, #679, #823, #690, #819, #680, #824, #830, #828, #695, #827, #831, #832, #684, #833, #829, #744, #836, #746, #837, #745, #839, #750, #748, #840, #838, #763, #841 and #835. Latest owner repairs: effective wire bindings `f40d1677`, projected branch validation `d0fefa59`, custom multipart decoding `07cf7ae4`.
 - #681 exact numerics is delivered in `66a9dc9090a06cd4136be1e5ebdaf26883ff90fa`, pushed to main and closed. The shared immutable exact owner preserves cross-language numeric tokens, source-specific JSON/YAML grammar, native thresholds and required schema annotations. Four review findings were repaired and confirmed; final integrated 173-file diff independently approved. #685 typed-value admission is delivered in `1168ec6c1`, pushed and confirmed closed.
 - #756 and its #729 credential witness are delivered. One effective binding owner resolves explicit, inherited and implicit mappings before validation and drives body exclusions. Valid Basic/Bearer alternatives remain supported; M7 presence policy remains separate.
 - #796 is delivered. #709 recursive validation readiness passed independent review after adding explicit unary/streaming/error gRPC call-form coverage. The shared named-validator definition/occurrence owner and context-carrying calls are delivered as `25179e87b`, reviewed, pushed and closed, including the named-nullable carrier correction.
@@ -22,7 +22,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 1. **Latest deliveries:** #837 intrinsic projection nullability is `2a8337700`,
    #745 shared logging buffers is `ee4552dc9`, #839 protobuf goldens is
    `8d2a446bf`, and #750 safe log serialization is `82368f12d`. All independently
-   reviewed, pushed and closed. Current total: 92 of 162 reports.
+   reviewed, pushed and closed. Current total: 93 of 162 reports.
 2. **Observability:** logger configuration (#744), request scopes (#746), shared
    buffers (#745), serialization (#750) and parent-aware sampling (#748,
    `2b27cd8e0`) are delivered. #763 staged telemetry construction is delivered as
@@ -31,25 +31,30 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
    parity is delivered as `477e86cb1`; all five mixed transport race tests pass.
    Root investigates #717 public error-property representation in
    `declared-error-properties`, with production unchanged.
-   `/root/review_uniform_json_corrections` investigates #718 shared diagnostic
-   redaction in `diagnostic-redaction-contract`, with later #721 access logging
+   `/root/review_uniform_json_corrections` implements independently approved #718
+   shared diagnostic redaction in `diagnostic-redaction-contract`, with later #721 access logging
    as a separate consumer. No unsettled query visibility policy is implemented.
-3. **M7/#835 default admission:** the shared physical-carrier candidate is frozen
-   in `presence-application-owner` under root final review after delivered #838.
-   Exact manifest `/tmp/loom-835-final-delivery-manifest.json`, SHA
-   `d245d1c007dff07b7733160a324cf5e5c7fb102c1fbb010167bf3956adb37e9c`. #838 is delivered as `0d9671589`: detached decode layouts preserve
-   member presence independently of client package placement. Required validation
-   precedes defaults; encoder schemas/tags remain unchanged. Five-design exact
-   comparisons and generated runtime checks pass. #835 final delivery remains pending. #839 has aligned the four
-   stale protobuf collection goldens; JSON omission remains a later M7 obligation.
+3. **M7 default application is delivered:** #835 is `772abd1a4`, independently
+   reviewed, pushed and closed. Shared source-carrier admission preserves supplied
+   scalar zeros and explicit null, while filling true absence including protobuf
+   bytes. Exact integrated patch `/tmp/loom-835-integrated.patch`, SHA
+   `2adf609586875cc863055592f6f61a7c85b1fedd37ab8216d11282102a4bd687`.
+   Independent direct and mounted CLI/transport race checks pass; 85 artifacts per
+   generation repeat exactly, with nine intended differences and eight modules
+   compiled/vetted. Delivered #838 supplies detached CLI decoding layouts.
+   `/root/basic_cli_defaults` now investigates JSON omission in
+   `json-presence-omission`; generated HTTP/JSON-RPC lose five present-empty
+   carriers. A global omitzero replacement also loses native zero and custom
+   IsZero values, so it is not an accepted repair. Production remains unchanged.
 4. **#834 selected-view carriers:** `/root/union_carrier_recovery` implements
    root/field/element carrier handling after delivered semantic #837. Expanded
    readiness on `2a8337700` passed review, including full intrinsic HTTP/JSON-RPC
    specimens and non-null metadata envelopes. Intrinsic JSON-RPC decode now
    exposed independently reproduced #840 for ordinary unviewed nullable bodies.
    Its separate shared-decoder ValueRef correction is delivered as `0bc139d5e`;
-   composed #834 compile controls pass. #834 has resumed its full promised mounted
-   runtime and generated-output acceptance after this prerequisite.
+   composed #834 compile controls pass. The full three-specimen matrix passes;
+   an additional root-occurrence Nullable probe exposed loss/reuse at the same
+   viewed-envelope owner. That owner repair is active before final review.
 5. **#820 dependency race:** authorized reviewed code is now submitted as
    [libopenapi PR #658](https://github.com/pb33f/libopenapi/pull/658), fixing
    [report #657](https://github.com/pb33f/libopenapi/issues/657), upstream commit
@@ -923,3 +928,10 @@ Checklist
   worktree. Shared problem document erases Temporary/Timeout/Fault before
   projection, then clients infer them from status. No implementation or changed
   public body-selection semantics are authorized by that investigation yet.
+
+Checkpoint 93: #835 delivered as `772abd1a4`; its exact 34-file integration was
+independently reviewed with no findings, preserving three newer guidance files.
+The completed `0d9671589` CI race failure is the known libopenapi YAML-node race
+(#820); upstream PR658 remains open with Windows/Linux and coverage checks green.
+Mixedtick parity is repaired by #841. Newer main CI remains in progress/queued;
+no overall green result is claimed.
