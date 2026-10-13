@@ -160,3 +160,15 @@ the duplicate declarations; the corrected generated modules compile and vet.
 The bounded final matrix and remaining implementation work are tracked in
 `roadmap/error-constructor-identity.md` at repository root. Preserve this source,
 configs and receipt; remove temporary checker states and logs after final review.
+
+## Public interceptor declarations (#770)
+
+The same package-scope allocation invariant covers public interceptor Info and
+accessor types. `serviceSymbols` now records their identities before nominal
+user types are named; both side records, declaration placement, wrappers and
+examples consume the recorded names. No allocator or state transition changed.
+The existing model assumes a complete declaration inventory; it does not establish
+which accessor roles a design emits. `TestInterceptorPublicRoles` checks that
+inventory, helper/helper and nominal suffix collisions, side sharing and absent
+roles. Generated public-role modules check constructor and reference agreement;
+existing accessor runtime and located-import controls check the consumers.

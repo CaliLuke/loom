@@ -1,6 +1,8 @@
 package service
 
 import (
+	"sort"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 )
@@ -18,6 +20,10 @@ type (
 		transport                                MethodTransportData
 		security                                 MethodSecurityData
 		interceptors                             map[string]*interceptorSymbols
+	}
+
+	interceptorPublicSymbols struct {
+		info, payload, result, streamingPayload, streamingResult string
 	}
 
 	interceptorSymbols struct {
@@ -40,7 +46,7 @@ const (
 	newEndpointsSymbol       = "New" + endpointsStructName
 )
 
-func (d *ServicesData) serviceSymbols(svc *expr.ServiceExpr, scope *codegen.NameScope) map[string]*methodSymbols {
+func (d *ServicesData) serviceSymbols(svc *expr.ServiceExpr, scope *codegen.NameScope) (map[string]*methodSymbols, map[string]*interceptorPublicSymbols) {
 	methods := make(map[string]*methodSymbols, len(svc.Methods))
 	var secure, stream, websocket, event bool
 	for _, m := range svc.Methods {
@@ -85,7 +91,7 @@ func (d *ServicesData) serviceSymbols(svc *expr.ServiceExpr, scope *codegen.Name
 		methods[m.Name].allocatePackageSymbols(m, scope, adapters)
 	}
 	allocateErrorConstructors(svc, scope)
-	return methods
+	return methods, d.publicInterceptorSymbols(svc, scope)
 }
 
 func (n *methodSymbols) allocatePackageSymbols(m *expr.MethodExpr, scope, adapters *codegen.NameScope) {
@@ -165,4 +171,37 @@ func (n *methodSymbols) allocateInterceptor(in *expr.InterceptorExpr, scope *cod
 	if !server && n.clientWrappedStream == "" {
 		n.clientWrappedStream = scope.Unique("wrapped" + n.clientInterface)
 	}
+}
+
+// publicInterceptorSymbols assigns every emitted public interceptor declaration
+// in the service package before nominal user types claim their names.
+func (d *ServicesData) publicInterceptorSymbols(svc *expr.ServiceExpr, scope *codegen.NameScope) map[string]*interceptorPublicSymbols {
+	interceptors := append(d.serviceInterceptors(svc, true), d.serviceInterceptors(svc, false)...)
+	sort.Slice(interceptors, func(i, j int) bool {
+		return interceptors[i].Name < interceptors[j].Name
+	})
+	result := make(map[string]*interceptorPublicSymbols)
+	for _, in := range interceptors {
+		if result[in.Name] != nil {
+			continue
+		}
+		name := codegen.Goify(in.Name, true)
+		symbols := &interceptorPublicSymbols{info: scope.Unique(name + "Info")}
+		result[in.Name] = symbols
+		for _, access := range []struct {
+			read, write *expr.AttributeExpr
+			suffix      string
+			dest        *string
+		}{
+			{in.ReadPayload, in.WritePayload, "Payload", &symbols.payload},
+			{in.ReadResult, in.WriteResult, "Result", &symbols.result},
+			{in.ReadStreamingPayload, in.WriteStreamingPayload, "StreamingPayload", &symbols.streamingPayload},
+			{in.ReadStreamingResult, in.WriteStreamingResult, "StreamingResult", &symbols.streamingResult},
+		} {
+			if hasInterceptorAttributes(access.read) || hasInterceptorAttributes(access.write) {
+				*access.dest = scope.Unique(name + access.suffix)
+			}
+		}
+	}
+	return result
 }

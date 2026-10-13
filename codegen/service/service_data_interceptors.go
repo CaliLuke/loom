@@ -9,12 +9,12 @@ import (
 
 // collectInterceptors returns the set of interceptors defined on the given
 // service including any interceptor defined on specific service methods or API.
-func (d *ServicesData) collectInterceptors(svc *expr.ServiceExpr, methods []*MethodData, scope *codegen.NameScope, server bool) []*InterceptorData {
+func (d *ServicesData) collectInterceptors(svc *expr.ServiceExpr, methods []*MethodData, scope *codegen.NameScope, symbols map[string]*interceptorPublicSymbols, server bool) []*InterceptorData {
 	ints := d.serviceInterceptors(svc, server)
 
 	res := make([]*InterceptorData, 0, len(ints))
 	for _, i := range ints {
-		res = append(res, buildInterceptorData(svc, methods, i, scope, server))
+		res = append(res, buildInterceptorData(svc, methods, i, scope, symbols[i.Name], server))
 	}
 	return res
 }
@@ -48,11 +48,16 @@ func (d *ServicesData) serviceInterceptors(svc *expr.ServiceExpr, server bool) [
 }
 
 // buildInterceptorData creates the data needed to generate interceptor code.
-func buildInterceptorData(svc *expr.ServiceExpr, methods []*MethodData, i *expr.InterceptorExpr, scope *codegen.NameScope, server bool) *InterceptorData {
+func buildInterceptorData(svc *expr.ServiceExpr, methods []*MethodData, i *expr.InterceptorExpr, scope *codegen.NameScope, symbols *interceptorPublicSymbols, server bool) *InterceptorData {
 	data := &InterceptorData{
-		Name:        codegen.Goify(i.Name, true),
-		DesignName:  i.Name,
-		Description: i.Description,
+		Name:                      codegen.Goify(i.Name, true),
+		DesignName:                i.Name,
+		Description:               i.Description,
+		InfoName:                  symbols.info,
+		PayloadInterface:          symbols.payload,
+		ResultInterface:           symbols.result,
+		StreamingPayloadInterface: symbols.streamingPayload,
+		StreamingResultInterface:  symbols.streamingResult,
 	}
 	if len(svc.Methods) == 0 {
 		return data

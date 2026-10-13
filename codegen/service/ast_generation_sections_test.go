@@ -284,7 +284,7 @@ func TestExampleInterceptorSectionStructuredDeclaration(t *testing.T) {
 		"StructName":  "Widget",
 		"PkgName":     "widgetsvc",
 		"ServerInterceptors": []*InterceptorData{
-			{Name: "Trace", Description: "Trace logs request flow."},
+			{Name: "Trace", InfoName: "TraceInfo", Description: "Trace logs request flow."},
 		},
 		"ClientInterceptors": []*InterceptorData{},
 	}, true))

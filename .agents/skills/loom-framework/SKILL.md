@@ -75,6 +75,13 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Service package symbol analysis allocates every emitted interceptor Info and
+  accessor interface before nominal user types. Store those public identities in
+  `InterceptorData` and consume them in declarations, wrappers and examples;
+  server/client declaration union and file reanalysis must not allocate again.
+  Interceptor method names remain a separate namespace. Reserve only emitted
+  accessor roles, and preserve located type import identities.
+
 - `codegen.InitStructFields` consumes the canonical nominal scope and located
   import aliases of its target representation. Constructor local variables never
   reserve package type names. Preserve that scope for primitive casts and nested

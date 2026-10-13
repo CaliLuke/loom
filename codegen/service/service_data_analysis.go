@@ -32,7 +32,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	}()
 
 	scope, viewScope, pkgName, viewspkg := newServiceScopes(d.Root, service, d.packageNames)
-	symbols := d.serviceSymbols(service, scope)
+	symbols, interceptorSymbols := d.serviceSymbols(service, scope)
 	state := d.collectServiceAnalysisData(service, scope, viewScope, viewspkg)
 	seen := analysisSeenTypes(state.types, state.errTypes)
 	wrapRawObjectMethods(service, scope, seen)
@@ -47,7 +47,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	assignClientMembers(methods)
 	assignAuthenticationFields(methods, scope)
 	unions := collectServiceUnions(service, state.types, state.errTypes, scope)
-	data = newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions)
+	data = newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions, interceptorSymbols)
 	data.Authorization = buildAuthorizationData(service, data)
 	d.Services[service.Name] = data
 	svcCtx.Debug("analyzed service",
@@ -161,6 +161,7 @@ func newServiceData(
 	errorInits []*ErrorInitData,
 	viewedRTs []*ViewedResultTypeData,
 	unions []*UnionTypeData,
+	interceptorSymbols map[string]*interceptorPublicSymbols,
 ) *Data {
 	desc := service.Description
 	if desc == "" {
@@ -180,8 +181,8 @@ func newServiceData(
 		ViewsPkg:           viewspkg,
 		Methods:            methods,
 		Schemes:            schemes,
-		ServerInterceptors: d.collectInterceptors(service, methods, scope, true),
-		ClientInterceptors: d.collectInterceptors(service, methods, scope, false),
+		ServerInterceptors: d.collectInterceptors(service, methods, scope, interceptorSymbols, true),
+		ClientInterceptors: d.collectInterceptors(service, methods, scope, interceptorSymbols, false),
 		Scope:              scope,
 		ViewScope:          viewScope,
 		errorTypes:         errTypes,

@@ -125,7 +125,7 @@ func exampleInterceptorSection(name string, data map[string]any, server bool) co
 				Id(interceptor.Name).
 				Params(
 					jen.Id("ctx").Add(codegen.TypeRef("context.Context")),
-					jen.Id("info").Op("*").Add(codegen.PkgQual(pkgName, interceptor.Name+"Info")),
+					jen.Id("info").Op("*").Add(codegen.PkgQual(pkgName, interceptor.InfoName)),
 					jen.Id("next").Add(codegen.TypeRef("loom.Endpoint")),
 				).
 				Params(jen.Any(), jen.Error()).

@@ -77,7 +77,7 @@ func renderServerMessageInterception(b *strings.Builder, service string, interce
 		if plan.endpoint != "" {
 			message = "req.(*" + plan.endpoint + ").Payload"
 		}
-		fmt.Fprintf(b, "message, err := i.%s(ctx, &%sInfo{\nservice: %q,\nmethod: %q,\ncallType: loom.InterceptorStreamingRecv,\n}, func(context.Context, any) (any, error) {\nreturn %s, nil\n})\nif err != nil {\nreturn nil, err\n}\n", interceptor.Name, interceptor.Name, service, method.MethodName, message)
+		fmt.Fprintf(b, "message, err := i.%s(ctx, &%s{\nservice: %q,\nmethod: %q,\ncallType: loom.InterceptorStreamingRecv,\n}, func(context.Context, any) (any, error) {\nreturn %s, nil\n})\nif err != nil {\nreturn nil, err\n}\n", interceptor.Name, interceptor.InfoName, service, method.MethodName, message)
 		if plan.endpoint != "" {
 			fmt.Fprintf(b, "%s, _ = message.(%s)\n", message, method.StreamingPayloadRef)
 		} else {
@@ -98,7 +98,7 @@ func renderServerMessageInterception(b *strings.Builder, service string, interce
 			renderServerSendInterception(b, service, interceptor, method, op)
 		case op.action == streamReceive && interceptor.HasStreamingPayloadAccess:
 			fmt.Fprintf(b, "%s: func(ctx context.Context) (%s, error) {\n", op.callback(), stream.RecvTypeRef)
-			fmt.Fprintf(b, "info := &%sInfo{\nservice: %q,\nmethod: %q,\ncallType: loom.InterceptorStreamingRecv,\n}\n", interceptor.Name, service, method.MethodName)
+			fmt.Fprintf(b, "info := &%s{\nservice: %q,\nmethod: %q,\ncallType: loom.InterceptorStreamingRecv,\n}\n", interceptor.InfoName, service, method.MethodName)
 			fmt.Fprintf(b, "res, err := i.%s(ctx, info, func(ctx context.Context, _ any) (any, error) {\nreturn stream.%s(ctx)\n})\ncastRes, _ := res.(%s)\nreturn castRes, err\n},\n", interceptor.Name, op.name, stream.RecvTypeRef)
 		}
 	}
@@ -109,6 +109,6 @@ func renderServerSendInterception(b *strings.Builder, service string, intercepto
 	// SSE uses its event interface in the operation signature; the typed accessor
 	// uses the canonical concrete result, which the event contract admits.
 	fmt.Fprintf(b, "%s: func(ctx context.Context, req %s) error {\n", op.callback(), op.parameters[len(op.parameters)-1].ref)
-	fmt.Fprintf(b, "info := &%sInfo{\nservice: %q,\nmethod: %q,\ncallType: loom.InterceptorStreamingSend,\nrawPayload: req,\n}\n", interceptor.Name, service, method.MethodName)
+	fmt.Fprintf(b, "info := &%s{\nservice: %q,\nmethod: %q,\ncallType: loom.InterceptorStreamingSend,\nrawPayload: req,\n}\n", interceptor.InfoName, service, method.MethodName)
 	fmt.Fprintf(b, "_, err := i.%s(ctx, info, func(ctx context.Context, req any) (any, error) {\ncastReq, _ := req.(%s)\nreturn nil, stream.%s(ctx, castReq)\n})\nreturn err\n},\n", interceptor.Name, method.ServerStream.SendTypeRef, op.name)
 }

@@ -382,8 +382,18 @@ type (
 	// InterceptorData contains the data required to render the service-level
 	// interceptor code. interceptors.go.tpl
 	InterceptorData struct {
-		// Name is the name of the interceptor used in the generated code.
+		// Name is the interceptor method name in its service interceptor interface.
 		Name string
+		// InfoName is the allocated public metadata type in the service package.
+		InfoName string
+		// PayloadInterface is the allocated payload accessor type, or empty when absent.
+		PayloadInterface string
+		// ResultInterface is the allocated result accessor type, or empty when absent.
+		ResultInterface string
+		// StreamingPayloadInterface is the allocated incoming message accessor type, or empty when absent.
+		StreamingPayloadInterface string
+		// StreamingResultInterface is the allocated outgoing message accessor type, or empty when absent.
+		StreamingResultInterface string
 		// DesignName is the name of the interceptor as defined in the design.
 		DesignName string
 		// Description is the description of the interceptor from the design.
