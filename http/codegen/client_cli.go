@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 
@@ -77,7 +78,7 @@ func ClientCLIFilesForTransport(
 	for _, svc := range data.Expressions.Services {
 		sd := data.Get(svc.Name())
 		if len(sd.Endpoints) > 0 {
-			cmds = append(cmds, buildCommandData(data.Ctx, sd))
+			cmds = append(cmds, buildCommandData(sd))
 			svcs = append(svcs, svc)
 		}
 	}
@@ -134,13 +135,13 @@ func normalizeClientCLITransport(transport ClientCLITransport) ClientCLITranspor
 
 // buildCommandData returns the CLI command of the service sd, which has
 // endpoints.
-func buildCommandData(ctx *codegen.Context, sd *ServiceData) *commandData {
+func buildCommandData(sd *ServiceData) *commandData {
 	command := &commandData{
 		CommandData: cli.BuildCommandData(sd.Service),
 		NeedDialer:  HasWebSocket(sd),
 	}
 	for _, e := range sd.Endpoints {
-		sub := buildSubcommandData(ctx, sd, e)
+		sub := buildSubcommandData(sd, e)
 		command.Subcommands = append(command.Subcommands, sub)
 		command.CommandData.Subcommands = append(command.CommandData.Subcommands, sub.SubcommandData)
 	}
@@ -153,8 +154,8 @@ func buildCommandData(ctx *codegen.Context, sd *ServiceData) *commandData {
 	return command
 }
 
-func buildSubcommandData(ctx *codegen.Context, sd *ServiceData, e *EndpointData) *subcommandData {
-	flags, buildFunction := buildFlags(ctx, sd, e)
+func buildSubcommandData(sd *ServiceData, e *EndpointData) *subcommandData {
+	flags, buildFunction := buildFlags(sd, e)
 
 	sub := &subcommandData{
 		SubcommandData: cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags),
@@ -300,10 +301,37 @@ func payloadBuilders(
 	title := fmt.Sprintf("%s %s client CLI support package", svc.Name(), transport.DisplayName)
 	fileSD, imports := services.FileData(svc.Name(), clientCLIImports(genpkg, sd))
 	if fileSD != sd {
-		data = buildCommandData(services.Ctx, fileSD).CommandData
+		data = buildCommandData(fileSD).CommandData
 	}
 	sections := []codegen.Section{
 		codegen.Header(title, "client", imports),
+	}
+	seen := make(map[string]struct{})
+	seenUnions := make(map[string]bool)
+	var helpers []*codegen.TransformFunctionData
+	for _, input := range fileSD.cliBodyInputs {
+		for _, typ := range append([]*TypeData{input.root}, input.types...) {
+			if _, exists := seen[typ.VarName]; exists {
+				continue
+			}
+			seen[typ.VarName] = struct{}{}
+			if typ.Def != "" {
+				sections = append(sections, typeDeclSection("cli-input-type", typ))
+			}
+			if typ.ValidateDef != "" {
+				sections = append(sections, validateSection("cli-input-validation", typ))
+			}
+		}
+		for _, union := range input.unions {
+			if !seenUnions[union.Name] {
+				sections = append(sections, unionTypeSection("cli-input-union", union))
+				seenUnions[union.Name] = true
+			}
+		}
+		helpers = codegen.AppendHelpers(helpers, input.helpers)
+	}
+	for _, helper := range helpers {
+		sections = append(sections, transformHelperSection("cli-input-transform", helper))
 	}
 	for _, sub := range data.Subcommands {
 		if sub.BuildFunction != nil {
@@ -320,6 +348,8 @@ func clientCLIImports(genpkg string, sd *ServiceData) []*codegen.ImportSpec {
 	jsonCLI := codegen.LoomNamedImport("http/cli", "loomhttpcli")
 	imports := append([]*codegen.ImportSpec{
 		{Path: "encoding/json/v2", Name: "json"},
+		{Path: "encoding/json/jsontext"},
+		{Path: "net/url"},
 		{Path: "fmt"},
 		{Path: "net/http"},
 		{Path: "os"},
@@ -337,7 +367,7 @@ func clientCLIImports(genpkg string, sd *ServiceData) []*codegen.ImportSpec {
 }
 
 // buildFlags builds the flag data and build function for an endpoint.
-func buildFlags(ctx *codegen.Context, svc *ServiceData, e *EndpointData) ([]*cli.FlagData, *cli.BuildFunctionData) {
+func buildFlags(svc *ServiceData, e *EndpointData) ([]*cli.FlagData, *cli.BuildFunctionData) {
 	var (
 		flags         []*cli.FlagData
 		buildFunction *cli.BuildFunctionData
@@ -346,7 +376,7 @@ func buildFlags(ctx *codegen.Context, svc *ServiceData, e *EndpointData) ([]*cli
 	svcn := svc.Service.Name
 	en := e.Method.Name
 	if e.Payload != nil {
-		if init := e.Payload.Request.PayloadInit; init != nil &&
+		if init := e.Payload.Request.cliPayloadInit(); init != nil &&
 			(len(init.ClientArgs)+len(init.CLIArgs) > 0 || init.ReturnIsStruct) {
 			// An object payload without arguments, such as an object type
 			// without attributes, gets a builder without flags: the command
@@ -355,20 +385,7 @@ func buildFlags(ctx *codegen.Context, svc *ServiceData, e *EndpointData) ([]*cli
 			args = append(args, init.CLIArgs...)
 			flags, buildFunction = makeFlags(e, args, e.Payload.Request.PayloadType, cliJSONPackageName(svc)+".UnmarshalJSON")
 		} else if e.Payload.Ref != "" {
-			example := e.Method.PayloadEx
-			usesJSONBody := cli.IsJSONFlagType(e.Method.PayloadRef) && e.Payload.Request.ClientBody != nil
-			if usesJSONBody {
-				example = (cliExampleProjector{
-					context:   ctx,
-					attribute: e.valueTransport.Request.Body,
-					service:   svcn,
-					method:    en,
-				}).retainedJSON(e.Payload.Request.ClientBody.Value)
-			}
-			flag := cli.NewFlagData(svcn, en, "p", e.Method.PayloadRef, e.Method.PayloadDesc, true, example, e.Method.PayloadDefault)
-			if usesJSONBody && example == nil {
-				flag.Example = ""
-			}
+			flag := cli.NewFlagData(svcn, en, "p", e.Method.PayloadRef, e.Method.PayloadDesc, true, e.Method.PayloadEx, e.Method.PayloadDefault)
 			if containsBooleanMapKeys(e.Payload.Request.PayloadType) {
 				flag.Unmarshal = "loomhttpcli.UnmarshalJSON"
 			}
@@ -451,10 +468,12 @@ func makeFlagData(e *EndpointData, arg *InitArgData, jsonDecoder string) *cli.Fl
 		flagType = "string"
 	}
 	flag := cli.NewFlagData(e.ServiceName, e.Method.Name, arg.VarName, flagType, arg.Description, arg.Required, arg.Example, arg.DefaultValue)
-	if arg.VarName == "body" && flag.Type == "JSON" && arg.Example == nil {
+	if e.Payload.Request.cliInput != nil && e.Payload.Request.cliInput.argument == arg && flag.Type == "JSON" && arg.Example == nil {
 		flag.Example = ""
 	}
-	if !arg.IsTextUnmarshaler && containsBooleanMapKeys(arg.Type) {
+	if e.Payload.Request.cliInput != nil && e.Payload.Request.cliInput.argument == arg && flag.Type == "JSON" && !e.Payload.Request.BodyAllowsNull {
+		flag.Unmarshal = strings.TrimSuffix(jsonDecoder, ".UnmarshalJSON") + ".UnmarshalNonNullableJSON"
+	} else if !arg.IsTextUnmarshaler && containsBooleanMapKeys(arg.Type) {
 		flag.Unmarshal = jsonDecoder
 	}
 	return flag
@@ -465,7 +484,7 @@ func makeFlagData(e *EndpointData, arg *InitArgData, jsonDecoder string) *cli.Fl
 // function parameter holding the body flag, if any, and args the payload
 // constructor arguments.
 func payloadInitData(e *EndpointData, bodyFlag string, args []*codegen.InitArgData) *cli.PayloadInitData {
-	init := e.Payload.Request.PayloadInit
+	init := e.Payload.Request.cliPayloadInit()
 	var initCode *jen.Statement
 	if init.ClientCode != "" {
 		initCode = codegen.Expr(init.ClientCode)

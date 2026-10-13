@@ -28,6 +28,19 @@ func TestUnionInUnionRoundTrips(t *testing.T) {
 // test file of the root package of the module.
 func runDesignHarness(t *testing.T, module string, design func(), harness string) {
 	t.Helper()
+	dir := t.TempDir()
+	renderDesignModule(t, dir, module, design)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "harness_test.go"), []byte(harness), 0o600))
+	output, err := testingx.RunCmd(dir, "go", "mod", "tidy")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(dir, "go", "vet", "./...")
+	require.NoError(t, err, output)
+	output, err = testingx.RunCmd(dir, "go", "test", "-count=1", ".")
+	require.NoError(t, err, output)
+}
+
+func renderDesignModule(t *testing.T, dir, module string, design func()) {
+	t.Helper()
 	root := codegen.RunDSL(t, design)
 	roots := []eval.Root{root}
 	genpkg := module + "/gen"
@@ -36,21 +49,13 @@ func runDesignHarness(t *testing.T, module string, design func(), harness string
 	transportFiles, err := Transport(genpkg, roots)
 	require.NoError(t, err)
 
-	dir := t.TempDir()
 	for _, file := range mergeFilesByPath(append(serviceFiles, transportFiles...)) {
 		_, err := file.Render(dir)
 		require.NoError(t, err, file.Path)
 	}
 	source := loomModuleSource(t)
-	goMod := fmt.Sprintf("module %s\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", module, source)
+	goMod := fmt.Sprintf("module %s\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261013020843-063198a2f427\n\nreplace github.com/CaliLuke/loom => %s\n", module, source)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "harness_test.go"), []byte(harness), 0o600))
-	output, err := testingx.RunCmd(dir, "go", "mod", "tidy")
-	require.NoError(t, err, output)
-	output, err = testingx.RunCmd(dir, "go", "vet", "./...")
-	require.NoError(t, err, output)
-	output, err = testingx.RunCmd(dir, "go", "test", "-count=1", ".")
-	require.NoError(t, err, output)
 }
 
 func unionInUnionDSL() {

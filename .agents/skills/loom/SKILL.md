@@ -75,6 +75,12 @@ churn their values. Implicit server service lists use stable service-name
 ordering; an explicit `Server(... Services(...))` list preserves its authored
 order.
 
+HTTP and JSON-RPC CLI JSON body builders reject omitted required members before
+applying defaults. Omitted optional members can receive defaults; supplied zero
+and empty values remain supplied. Nullable members accept JSON null, ordinary
+members reject it. Nested objects use the same rules. Regenerate clients to adopt
+these checks; existing body and collection flag syntax is unchanged.
+
 HTTP and JSON-RPC CLI flags decoded as JSON retain the selected example's values
 and union branch in the decoder's JSON representation, including base64 for
 `Bytes`. Plain text flags retain their text syntax. An unavailable example omits

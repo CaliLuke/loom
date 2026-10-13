@@ -2,9 +2,9 @@
 // ServiceWithParamsAndHeadersBlock MethodA endpoint from CLI flags.
 func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, serviceWithParamsAndHeadersBlockMethodAPath string, serviceWithParamsAndHeadersBlockMethodAOptional string, serviceWithParamsAndHeadersBlockMethodAOptionalButRequiredParam string, serviceWithParamsAndHeadersBlockMethodARequired string, serviceWithParamsAndHeadersBlockMethodAOptionalButRequiredHeader string) (*servicewithparamsandheadersblock.MethodAPayload, error) {
 	var err error
-	var body MethodARequestBody
+	var body CLIMethodARequestBody
 	{
-		err = json.Unmarshal([]byte(serviceWithParamsAndHeadersBlockMethodABody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceWithParamsAndHeadersBlockMethodABody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"body\": \"Sit dolor quo.\"\n   }'")
 		}
@@ -52,8 +52,11 @@ func BuildMethodAPayload(serviceWithParamsAndHeadersBlockMethodABody string, ser
 			return nil, fmt.Errorf("invalid value for optionalButRequiredHeader, must be FLOAT32")
 		}
 	}
-	v := &servicewithparamsandheadersblock.MethodAPayload{
-		Body: body.Body,
+	v := &servicewithparamsandheadersblock.MethodAPayload{}
+	if actual, ok := body.Body.Value(); ok {
+		vBodyValue := actual
+
+		v.Body = &vBodyValue
 	}
 	v.Path = &path
 	v.Optional = optional

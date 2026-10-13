@@ -463,6 +463,15 @@ Collection flags accept JSON. Boolean map keys use the member names `"true"`
 and `"false"`, including in nested collections. The flag example shows the JSON that the flag accepts, including the `type`
 and `value` fields of a union.
 
+HTTP and JSON-RPC CLI JSON body flags validate member presence before constructing
+the service payload. An omitted required member is rejected even when it declares
+a default; an explicitly supplied `false`, `0`, or empty string remains supplied.
+Defaults fill omitted optional members, including members of a supplied nested
+object. An omitted outer object stays absent. Non-nullable bodies and members
+reject JSON `null`; nullable values retain it. Custom JSON codecs keep their
+representation. Regenerate clients to adopt this correction; flag syntax and
+ordinary client wire types do not change.
+
 HTTP JSON bodies use the same boolean map-key representation, including maps
 inside tagged or untagged unions and optional or nullable fields. Only the
 member names `"true"` and `"false"` are accepted for boolean keys; boolean values

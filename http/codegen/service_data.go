@@ -24,7 +24,8 @@ type (
 	// single service.
 	ServiceData struct {
 		// Service contains the related service data.
-		Service *service.Data
+		Service       *service.Data
+		cliBodyInputs []*jsonBodyInput
 		// Endpoints describes the endpoint data for this service.
 		Endpoints []*EndpointData
 		// FileServers lists the file servers for this service.
@@ -308,6 +309,7 @@ type (
 
 	// RequestData describes a request.
 	RequestData struct {
+		cliInput *jsonBodyInput
 		// PathParams describes the information about params that are
 		// present in the request path.
 		PathParams []*ParamData

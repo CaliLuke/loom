@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/codegen/cli"
 	"github.com/CaliLuke/loom/codegen/service"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
@@ -560,11 +561,15 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP server payload transform for %s: %w", b.endpointIR.MethodName, err)))
 		}
 		b.sd.ServerTransformHelpers = codegen.AppendHelpers(b.sd.ServerTransformHelpers, helpers)
-		clientCode, helpers, err = marshal(request.Body, pAtt, clientSource, "v", b.httpclictx, b.svcctx)
-		if err != nil {
-			panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP client payload transform for %s: %w", b.endpointIR.MethodName, err)))
+		// JSON CLI arguments receive a detached decoding plan after existing
+		// wire declarations have claimed their names.
+		if !cli.IsJSONFlagType(b.sd.Scope.GoTypeNameWithDefaults(request.Body)) {
+			clientCode, helpers, err = marshal(request.Body, pAtt, clientSource, "v", b.httpclictx, b.svcctx)
+			if err != nil {
+				panic(codegen.NewError(b.sds.Ctx, b.bodyAttr, fmt.Errorf("build HTTP client payload transform for %s: %w", b.endpointIR.MethodName, err)))
+			}
+			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
 		}
-		b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
 	} else if expr.IsArray(b.payload.Type) || expr.IsMap(b.payload.Type) {
 		if sourceParam, source := b.collectionPayloadSource(requestData); sourceParam != nil {
 			var helpers []*codegen.TransformFunctionData

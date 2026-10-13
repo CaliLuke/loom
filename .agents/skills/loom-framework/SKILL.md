@@ -317,6 +317,14 @@ consumer validation.
   reconstructing their enum occurrence. Normalization is not admission;
   validation remains with `expr`. Do not cache schema fingerprints across
   authored occurrences or bypass value resolution for collections and codecs.
+- CLI JSON input has a decoding role independent of client package placement.
+  `http/codegen/service_data_json_input.go` owns its detached carrier graph,
+  declaration closure, validation and conversion for HTTP and JSON-RPC, including
+  bare collection flags. Use existing body layout, NameScope and union validator
+  owners; keep encoder declarations unchanged. Admit required members before
+  defaults and preserve nullability/custom codecs through the JSON decoder.
+  Keep the [CLI input model](../../../http/codegen/tla/cli_json_input/README.md)
+  aligned with generated constructor and mounted CLI tests.
 - CLI helpers live under the design module. Resolve the caller's workspace
   before loading and compiling the helper, and share that environment between
   both steps. Workspace mode must not receive module-only build flags; isolated

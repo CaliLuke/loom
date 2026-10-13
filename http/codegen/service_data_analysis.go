@@ -57,6 +57,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	sds.collectBodyAttributeTypes(sd)
 	closed, _ := sds.ServicesData.Root.API.Meta.Last("openapi:closed-objects")
 	sd.collectBodyUnionTypes(closed == "true")
+	sds.prepareCLIBodyInputs(sd, closed == "true")
 
 	return sd
 }

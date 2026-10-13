@@ -26,10 +26,7 @@ func (sds *ServicesData) collectBodyAttributeTypes(sd *ServiceData) {
 			if data == nil {
 				return
 			}
-			if _, branch := branches[ut.Hash()]; branch && data.ValidateDef == "" {
-				data.ValidateDef = "// no validations"
-				data.ValidateRef = fmt.Sprintf("err = Validate%s(v)", data.VarName)
-			}
+			completeUnionBranchTypeData(data, ut, branches)
 			*target = append(*target, data)
 		})
 	}
@@ -212,4 +209,13 @@ func needsClientRequestBodyValidatorStub(ut expr.UserType) bool {
 	}
 	_, ok := ut.Attribute().Meta.Last("oneof:type:tag")
 	return ok
+}
+
+// completeUnionBranchTypeData retains the callable validator required by union
+// decoding even when the branch has no authored predicates.
+func completeUnionBranchTypeData(data *TypeData, typ expr.UserType, branches map[string]struct{}) {
+	if _, branch := branches[typ.Hash()]; branch && data.ValidateDef == "" {
+		data.ValidateDef = "// no validations"
+		data.ValidateRef = fmt.Sprintf("err = Validate%s(v)", data.VarName)
+	}
 }

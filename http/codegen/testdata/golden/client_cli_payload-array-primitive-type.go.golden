@@ -45,13 +45,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 			switch epn {
 			case "method-body-primitive-array-string-validate":
 				endpoint = c.MethodBodyPrimitiveArrayStringValidate()
-				var err error
-				var val []string
-				err = json.Unmarshal([]byte(*serviceBodyPrimitiveArrayStringValidateMethodBodyPrimitiveArrayStringValidatePFlag), &val)
-				data = val
-				if err != nil {
-					return nil, nil, fmt.Errorf("invalid JSON for serviceBodyPrimitiveArrayStringValidateMethodBodyPrimitiveArrayStringValidatePFlag, \nerror: %w, \nexample of valid JSON:\n%s", err, "'[\n      \"val\"\n   ]'")
-				}
+				data, err = servicebodyprimitivearraystringvalidatec.BuildMethodBodyPrimitiveArrayStringValidatePayload(*serviceBodyPrimitiveArrayStringValidateMethodBodyPrimitiveArrayStringValidatePFlag)
 			}
 		}
 	}

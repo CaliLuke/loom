@@ -69,7 +69,13 @@ func TestClientCLIFiles(t *testing.T) {
 			services := CreateHTTPServices(root)
 			fs := ClientCLIFiles("", services)
 			sections := fs[c.FileIndex].AllSections()
-			code := codegen.SectionCode(t, sections[c.SectionIndex])
+			section := sections[c.SectionIndex]
+			if c.FileIndex == 1 {
+				builders := fs[c.FileIndex].Section("cli-build-payload")
+				require.NotEmpty(t, builders)
+				section = builders[0]
+			}
+			code := codegen.SectionCode(t, section)
 			testutil.AssertGo(t, "testdata/golden/client_cli_"+c.Name+".go.golden", code)
 		})
 	}

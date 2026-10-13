@@ -85,21 +85,21 @@ func buildRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
 	endpointName string,
 	formEncoded bool,
-	svr bool,
+	decode bool,
 	required bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
 	if codegen.IsExplicitPresenceType(body) {
-		return buildExplicitPresenceRequestBodyTypeDetails(body, endpointName, formEncoded, svr, required, sd, httpctx)
+		return buildExplicitPresenceRequestBodyTypeDetails(body, endpointName, formEncoded, decode, required, sd, httpctx)
 	}
 	if userType, ok := body.Type.(expr.UserType); ok {
-		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
+		return buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, decode, sd, httpctx)
 	}
-	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !svr, "", sd.Scope)
+	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !decode, "", sd.Scope)
 	ctx.CollectionElementPresence = httpctx.JSONPresence
 	validateReference := codegen.ValidationCode(body, nil, ctx, true, expr.IsAlias(body.Type), false, "body")
-	if svr && expr.IsObject(body.Type) {
+	if decode && expr.IsObject(body.Type) {
 		body.Validation = nil
 	}
 	varName := goBodyTypeRef(sd.Scope, body, httpctx)
@@ -120,7 +120,7 @@ func buildUserRequestBodyTypeDetails(
 	userType expr.UserType,
 	endpointName string,
 	formEncoded bool,
-	svr bool,
+	decode bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
@@ -135,7 +135,7 @@ func buildUserRequestBodyTypeDetails(
 	details.definition = goValueTypeDef(sd.Scope, userType.Attribute(), httpctx.Pointer, httpctx.UseDefault, httpctx.JSONPresence)
 	details.flatFormUnionField, details.flatFormUnionPointer, details.flatFormUnionTypeKey, details.flatFormUnionRef =
 		flatFormUnionMetadata(userType.Attribute(), formEncoded, sd.Scope)
-	if svr || containsUnionType(body.Type) {
+	if decode || containsUnionType(body.Type) {
 		validationContext := httpctx
 		if expr.IsPrimitive(userType) {
 			// The body of an alias of a primitive is a value, not a pointer.
@@ -163,15 +163,15 @@ func buildExplicitPresenceRequestBodyTypeDetails(
 	body *expr.AttributeExpr,
 	endpointName string,
 	formEncoded bool,
-	svr bool,
+	decode bool,
 	required bool,
 	sd *ServiceData,
 	httpctx *codegen.AttributeContext,
 ) requestBodyTypeDetails {
 	if userType, ok := body.Type.(expr.UserType); ok && expr.IsNullable(body) {
-		details := buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, svr, sd, httpctx)
+		details := buildUserRequestBodyTypeDetails(body, userType, endpointName, formEncoded, decode, sd, httpctx)
 		details.valueRef = sd.Scope.GoTypeRef(body)
-		if svr {
+		if decode {
 			details.validateDefinition = codegen.ValidationCode(body, userType, codegen.NamedValidationFunction(body, httpctx, "body").Context(httpctx), required, expr.IsAlias(body.Type), false, "body")
 			details.validateReference = ""
 			if details.validateDefinition != "" {
@@ -181,10 +181,10 @@ func buildExplicitPresenceRequestBodyTypeDetails(
 		return details
 	}
 	varName := sd.Scope.GoTypeRef(body)
-	if svr {
+	if decode {
 		varName = goBodyTypeRef(sd.Scope, body, httpctx)
 	}
-	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !svr, "", sd.Scope)
+	ctx := codegen.NewAttributeContext(!expr.IsPrimitive(body.Type), false, !decode, "", sd.Scope)
 	ctx.CollectionElementPresence = httpctx.JSONPresence
 	return requestBodyTypeDetails{
 		varName:           varName,

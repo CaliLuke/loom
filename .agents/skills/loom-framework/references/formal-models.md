@@ -84,6 +84,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | gRPC metadata absence-only defaults across request, headers, trailers and admission | [Metadata defaults](../../../../grpc/codegen/tla/metadata_defaults/README.md); current omission counterexample and required/supplied/malformed controls, with generated typed and mounted wire tests |
 | Protobuf fields, getters, synthetic oneofs and map-entry wrapper names | [Field names](../../../../grpc/codegen/tla/field_names/README.md) |
 | Generated import aliases and metadata local-variable reservations | [Import aliases](../../../../grpc/codegen/tla/import_aliases/README.md) |
+| CLI JSON decoding role, required admission and absence-only defaults | [CLI JSON input](../../../../http/codegen/tla/cli_json_input/README.md); bounded encoder-loss, zero-substitution and default-seeding counterexamples, with detached layout and mounted HTTP/JSON-RPC CLI controls |
 | Aggregate CLI import, usage and flag-set identifiers and their references | [CLI identifiers](../../../../codegen/cli/tla/identifiers/README.md); bounded allocation safety, with renderer reservations and per-server isolation checked in Go |
 | Protobuf named-map oneof branches, including selected empty maps | [Map union branches](../../../../grpc/codegen/tla/map_union_branches/README.md) |
 | JSON-RPC stream view selection and validation | [Stream/view decoding models](../../../../jsonrpc/codegen/tla/README.md) |

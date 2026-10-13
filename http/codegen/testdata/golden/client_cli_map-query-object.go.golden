@@ -4,15 +4,13 @@ import "regexp"
 // ServiceMapQueryObject MethodMapQueryObject endpoint from CLI flags.
 func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectBody string, serviceMapQueryObjectMethodMapQueryObjectA string, serviceMapQueryObjectMethodMapQueryObjectC string) (*servicemapqueryobject.PayloadType, error) {
 	var err error
-	var body MethodMapQueryObjectRequestBody
+	var body CLIMethodMapQueryObjectRequestBody
 	{
-		err = json.Unmarshal([]byte(serviceMapQueryObjectMethodMapQueryObjectBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceMapQueryObjectMethodMapQueryObjectBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"b\": \"patternb\"\n   }'")
 		}
-		if body.B != nil {
-			err = loom.MergeErrors(err, loom.ValidatePatternCompiled("body.b", *body.B, loomPatternTest0))
-		}
+		err = ValidateCLIMethodMapQueryObjectRequestBody(&body)
 		if err != nil {
 			return nil, err
 		}
@@ -20,7 +18,7 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 	var a string
 	{
 		a = serviceMapQueryObjectMethodMapQueryObjectA
-		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("a", a, loomPatternTest1))
+		err = loom.MergeErrors(err, loom.ValidatePatternCompiled("a", a, loomPatternTest0))
 		if err != nil {
 			return nil, err
 		}
@@ -32,8 +30,11 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 			return nil, fmt.Errorf("invalid JSON for c, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"7742300366591757019\": [\n         \"Provident et.\",\n         \"Sit animi quos accusamus nam vitae rerum.\",\n         \"Ullam reprehenderit recusandae et.\"\n      ]\n   }'")
 		}
 	}
-	v := &servicemapqueryobject.PayloadType{
-		B: body.B,
+	v := &servicemapqueryobject.PayloadType{}
+	if actual, ok := body.B.Value(); ok {
+		vBValue := actual
+
+		v.B = &vBValue
 	}
 	v.A = a
 	v.C = c
@@ -41,7 +42,4 @@ func BuildMethodMapQueryObjectPayload(serviceMapQueryObjectMethodMapQueryObjectB
 	return v, nil
 }
 
-var (
-	loomPatternTest0 = regexp.MustCompile("patternb")
-	loomPatternTest1 = regexp.MustCompile("patterna")
-)
+var loomPatternTest0 = regexp.MustCompile("patterna")

@@ -2,20 +2,38 @@
 // ServiceBodyInlineArrayUser MethodBodyInlineArrayUser endpoint from CLI flags.
 func BuildMethodBodyInlineArrayUserPayload(serviceBodyInlineArrayUserMethodBodyInlineArrayUserBody string) ([]*servicebodyinlinearrayuser.ElemType, error) {
 	var err error
-	var body []*ElemTypeRequestBody
+	var body []loom.Optional[*CLIElemTypeRequestBody]
 	{
-		err = json.Unmarshal([]byte(serviceBodyInlineArrayUserMethodBodyInlineArrayUserBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceBodyInlineArrayUserMethodBodyInlineArrayUserBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'[\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      },\n      {\n         \"a\": \"patterna\",\n         \"b\": \"patternb\"\n      }\n   ]'")
+		}
+		for i, e := range body {
+			if actual, ok := e.Value(); ok {
+				if actual != nil {
+					if err2 := ValidateCLIElemTypeRequestBody(actual, "body[*]"); err2 != nil {
+						err = loom.MergeErrors(err, err2)
+					}
+				}
+			} else {
+				err = loom.MergeErrors(err, loom.InvalidNullElementError("body", i))
+			}
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 	v := make([]*servicebodyinlinearrayuser.ElemType, len(body))
 	for i, val := range body {
-		if val == nil {
+		actual, ok := val.Value()
+		if !ok {
+			continue
+		}
+		if actual == nil {
 			v[i] = nil
 			continue
 		}
-		v[i] = marshalElemTypeRequestBodyToServicebodyinlinearrayuserElemType(val)
+		v[i] = unmarshalCLIElemTypeRequestBodyToServicebodyinlinearrayuserElemType(actual)
 	}
 	return v, nil
 }

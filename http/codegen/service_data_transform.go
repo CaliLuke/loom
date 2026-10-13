@@ -28,7 +28,13 @@ type httpAttributeScope struct {
 // svr if true indicates that the type is a server type, else client type
 func httpContext(scope *codegen.NameScope, request, svr bool) *codegen.AttributeContext {
 	marshal := !request && svr || request && !svr
-	ctx := codegen.NewAttributeContext(!marshal, false, marshal, "", scope)
+	return bodyCodecContext(scope, !marshal)
+}
+
+// bodyCodecContext selects physical encoding or decoding independently of the
+// package that contains the generated declaration.
+func bodyCodecContext(scope *codegen.NameScope, decode bool) *codegen.AttributeContext {
+	ctx := codegen.NewAttributeContext(decode, false, !decode, "", scope)
 	ctx.Scope = &httpAttributeScope{AttributeScope: codegen.NewAttributeScope(scope)}
 	return ctx
 }

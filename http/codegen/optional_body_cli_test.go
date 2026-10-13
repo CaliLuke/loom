@@ -27,7 +27,7 @@ func TestOptionalBodyCLI(t *testing.T) {
 			Name:      "union",
 			Attribute: func(leaf, other any) { Attribute("b", OneOf(leaf, other)) },
 			Build: []string{
-				"\tvar body PickRequestBody\n\t{\n\t\tif pickerPickBody != \"\" {\n\t\t\terr = json.Unmarshal([]byte(pickerPickBody), &body)\n",
+				"\t\tif pickerPickBody != \"\" {\n\t\t\terr = loomhttpcli.UnmarshalNonNullableJSON([]byte(pickerPickBody), &body)\n",
 				"\tres := &picker.PickPayload{B: v}\n",
 			},
 			Example: `\"type\": \"`,
@@ -36,7 +36,7 @@ func TestOptionalBodyCLI(t *testing.T) {
 			Name:      "object",
 			Attribute: func(leaf, _ any) { Attribute("b", leaf) },
 			Build: []string{
-				"\t\tif pickerPickBody != \"\" {\n\t\t\terr = json.Unmarshal([]byte(pickerPickBody), &body)\n",
+				"\t\tif pickerPickBody != \"\" {\n\t\t\terr = loomhttpcli.UnmarshalNonNullableJSON([]byte(pickerPickBody), &body)\n",
 				"\tres := &picker.PickPayload{}\n\tif pickerPickBody != \"\" {\n",
 				"\t\tres.B = v\n\t}\n",
 			},

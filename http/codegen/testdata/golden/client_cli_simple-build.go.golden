@@ -2,15 +2,18 @@
 // ServiceMultiSimple1 MethodMultiSimplePayload endpoint from CLI flags.
 func BuildMethodMultiSimplePayloadPayload(serviceMultiSimple1MethodMultiSimplePayloadBody string) (*servicemultisimple1.MethodMultiSimplePayloadPayload, error) {
 	var err error
-	var body MethodMultiSimplePayloadRequestBody
+	var body CLIMethodMultiSimplePayloadRequestBody
 	{
-		err = json.Unmarshal([]byte(serviceMultiSimple1MethodMultiSimplePayloadBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceMultiSimple1MethodMultiSimplePayloadBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"a\": true\n   }'")
 		}
 	}
-	v := &servicemultisimple1.MethodMultiSimplePayloadPayload{
-		A: body.A,
+	v := &servicemultisimple1.MethodMultiSimplePayloadPayload{}
+	if actual, ok := body.A.Value(); ok {
+		vAValue := actual
+
+		v.A = &vAValue
 	}
 
 	return v, nil

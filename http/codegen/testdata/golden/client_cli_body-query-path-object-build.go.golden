@@ -2,9 +2,9 @@
 // ServiceBodyQueryPathObject MethodBodyQueryPathObject endpoint from CLI flags.
 func BuildMethodBodyQueryPathObjectPayload(serviceBodyQueryPathObjectMethodBodyQueryPathObjectBody string, serviceBodyQueryPathObjectMethodBodyQueryPathObjectC2 string, serviceBodyQueryPathObjectMethodBodyQueryPathObjectB string) (*servicebodyquerypathobject.MethodBodyQueryPathObjectPayload, error) {
 	var err error
-	var body MethodBodyQueryPathObjectRequestBody
+	var body CLIMethodBodyQueryPathObjectRequestBody
 	{
-		err = json.Unmarshal([]byte(serviceBodyQueryPathObjectMethodBodyQueryPathObjectBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceBodyQueryPathObjectMethodBodyQueryPathObjectBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"a\": \"Iusto minus sed asperiores earum.\"\n   }'")
 		}
@@ -19,8 +19,11 @@ func BuildMethodBodyQueryPathObjectPayload(serviceBodyQueryPathObjectMethodBodyQ
 			b = &serviceBodyQueryPathObjectMethodBodyQueryPathObjectB
 		}
 	}
-	v := &servicebodyquerypathobject.MethodBodyQueryPathObjectPayload{
-		A: body.A,
+	v := &servicebodyquerypathobject.MethodBodyQueryPathObjectPayload{}
+	if actual, ok := body.A.Value(); ok {
+		vAValue := actual
+
+		v.A = &vAValue
 	}
 	v.C = &c2
 	v.B = b

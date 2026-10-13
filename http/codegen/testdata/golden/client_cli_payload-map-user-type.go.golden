@@ -2,21 +2,44 @@
 // ServiceBodyInlineMapUser MethodBodyInlineMapUser endpoint from CLI flags.
 func BuildMethodBodyInlineMapUserPayload(serviceBodyInlineMapUserMethodBodyInlineMapUserBody string) (map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, error) {
 	var err error
-	var body map[*KeyTypeRequestBody]*ElemTypeRequestBody
+	var body map[*CLIKeyTypeRequestBody]loom.Optional[*CLIElemTypeRequestBody]
 	{
-		err = json.Unmarshal([]byte(serviceBodyInlineMapUserMethodBodyInlineMapUserBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(serviceBodyInlineMapUserMethodBodyInlineMapUserBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w", err)
+		}
+		for k, v := range body {
+			if k != nil {
+				if err2 := ValidateCLIKeyTypeRequestBody(k, "body.key"); err2 != nil {
+					err = loom.MergeErrors(err, err2)
+				}
+			}
+			if actual, ok := v.Value(); ok {
+				if actual != nil {
+					if err2 := ValidateCLIElemTypeRequestBody(actual, "body[key]"); err2 != nil {
+						err = loom.MergeErrors(err, err2)
+					}
+				}
+			} else {
+				err = loom.MergeErrors(err, loom.InvalidNullMapValueError("body[key]"))
+			}
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 	v := make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
 	for key, val := range body {
-		tk := marshalKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
-		if val == nil {
+		actual, ok := val.Value()
+		if !ok {
+			continue
+		}
+		tk := unmarshalCLIKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
+		if actual == nil {
 			v[tk] = nil
 			continue
 		}
-		v[tk] = marshalElemTypeRequestBodyToServicebodyinlinemapuserElemType(val)
+		v[tk] = unmarshalCLIElemTypeRequestBodyToServicebodyinlinemapuserElemType(actual)
 	}
 	return v, nil
 }
