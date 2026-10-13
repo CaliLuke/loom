@@ -1,7 +1,8 @@
 # gRPC binary metadata — #705
 
-Implementation in progress against pushed `e631f0a89`, after independent readiness
-approval and delivery of the separate named-element prerequisite #877.
+Delivered as `22dddd67f`, independently reviewed, pushed and confirmed closed.
+Implementation followed approved readiness on `e631f0a89` and the separate
+named-element prerequisite #877.
 
 1. [x] Trace metadata extraction, encoder/decoder consumers and response required-key contracts.
 2. [x] Reproduce arbitrary-byte failures separately for request metadata, headers and trailers; retain explicit `-bin` and printable-byte controls.
@@ -9,7 +10,7 @@ approval and delivery of the separate named-element prerequisite #877.
 4. [x] Establish one evaluated binding owner before validation/codegen, including alias/array shape, mapped names, collision admission and required-key consistency. Inspect actual consumers and reject per-renderer spelling rules.
 5. [x] Independently review readiness and bounded acceptance, then implement the accepted owner.
 6. [x] Compare bounded parent/candidate/repeat generation, compile and exercise mounted binary/ordinary/absence/default/required and independently implemented peer cases.
-7. [ ] Independently review the exact final diff, commit, push and close.
+7. [x] Independently review the exact final diff, commit, push and close.
 
 The protocol defines binary metadata through `-bin` names and base64 wire values;
 standard runtimes encode/decode those values. Source:
@@ -219,7 +220,8 @@ audit. The model source/configurations remain the reviewed
 readiness inputs, so their six checker results remain valid; correspondence docs
 now name the implemented owner and delivered #877 dependency. Exact source,
 inputs, output hashes and logs are recorded in the final manifest. Independent
-final review, integration, commit and push remain pending.
+final review, integration, commit and push were pending at that freeze; the
+delivery receipt below records their completion.
 
 The affected checked-in quality design adds one temp-copy comparison (16 artifacts
 per group). Its uppercase authored metadata keys become lowercase in exactly two
@@ -232,3 +234,13 @@ fixture, so no generated source files need committing. Named credential and
 constraint generated controls also pass (5.929s); existing early-admission direct
 controls remain green. All together there are 124 artifacts per source group and
 13 intended differences, with no output added or removed.
+
+## Delivery receipt
+
+Delivered as `22dddd67f`; independent final review and exact integration review
+leave no findings. Integration preserves #703 field-number guidance and runs
+binary/default/Session native checks plus #703 admission controls (65.774s),
+followed by complete expr/DSL race suites (6.754s/1.303s). The three composed
+guidance files preserve all prior content. Final verdict:
+`/tmp/loom-705-independent-final-verdict.json`; integration verdict:
+`/tmp/loom-705-independent-integration-verdict.json`.

@@ -11,7 +11,7 @@ Readiness parent: `e631f0a89`, including delivered #701. Initial readiness check
 5. [x] After approval, implement shared expression admission and aligned emitted-number consumers.
 6. [x] Compare valid generated proto/Go artifacts, compile descriptors, exercise
    actual CLI rejection, and freeze exact final diff for fresh review.
-7. [ ] Parent integrates one atomic reviewed commit, pushes and closes #703.
+7. [x] Parent integrates one atomic reviewed commit, pushes and closes #703.
 
 ## Contract and owner
 
@@ -158,10 +158,12 @@ generate, compile and vet; every generated Go/proto byte matches the numeric-see
 control. Existing constructor-oneof proto golden remains unchanged.
 
 The bounded output matrix uses the existing ConstructorOneOfFieldDSL and a
-boundary/mixed-override specimen. Parent production is supplied through an exact
-three-file Go overlay in this worktree; generator runtime and test harness
-sources are unchanged. Each parent/candidate module generates through the actual
-CLI/protoc, builds and vets. Independent-process repetition is generation-only.
+boundary/mixed-override specimen. The original parent overlay comparison was
+invalid: the CLI clears GOFLAGS when rebuilding its generator. Its output is
+not accepted as parent evidence. A corrected exact archived `e631f0a89` checkout
+now supplies the parent module replacement, with GOFLAGS unset. Both saved
+parent specimens generate through the actual CLI/protoc, build and vet. Their
+30 artifacts exactly match the frozen candidate and independent process repeat.
 No transport runtime or HTTP/OpenAPI path changes, so unrelated ticktock fixtures
 are outside this field-number acceptance surface.
 
@@ -173,7 +175,23 @@ packages pass (1.866s / 0.738s); scoped Go lint reports zero issues.
 All 30 artifacts in each of parent, candidate and independent repeat match
 exactly, including generation manifests. Both previously valid specimens pass
 CLI/protoc, module build and vet. No checked-in generated artifact changes are
-intended. The parent overlay contains exact production blobs from `e631f0a89`;
-input designs, source mode and toolchain are recorded in the final packet.
+intended. The corrected parent archive checksum independently matches a fresh
+Git archive; input designs, source mode and toolchain are recorded in the corrected
+receipt. Original logs are retained as explicitly superseded evidence.
 Existing named-union direct/protoc checks and generated conversion round-trip
 also pass in 4.168s, preserving named occurrence normalization and field reuse.
+
+## Delivery and evidence correction
+
+Delivered as `2da0fd46e`, pushed and confirmed closed after corrected parent
+parity passed. Independent final and integration reviews originally accepted the
+invalid overlay evidence. The follow-up inspection found the CLI subprocess
+boundary; an independent agent regenerated from the exact archived parent and
+root verified its archive, commands and all 30 physical output hashes. No source
+repair was needed. Corrected receipt:
+`/tmp/loom-703-corrected-parent-receipt.json` (SHA
+`f928cbf92638557eb872e262e81e359129600a369569120abb99dcfeae93d9f3`).
+Root verification: `/tmp/loom-703-corrected-parent-root-verdict.json` (SHA
+`10f62deb30ee428776e268420b5752d131530db76af5870705ae98675e05e8a4`).
+The owning generator clears GOFLAGS deliberately; comparisons through the CLI
+must use exact source checkouts, not assume an outer Go overlay reaches it.

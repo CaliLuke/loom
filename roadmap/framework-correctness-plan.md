@@ -4,46 +4,44 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **153 of 203 tracked reports are delivered, pushed and confirmed closed.**
+- **155 of 204 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report and
   the checkpoint snapshot verifies its live GitHub state.
-- Latest deliveries: #700 shared server member identity (`f0dbd2e20`), #698
-  literal CLI help (`dc558fcbf`), #877 metadata element representation
-  (`6d2c03510`), #701 union branch admission (`e631f0a89`), #881 fixture
-  freshness (`bbe2008ac`) and #882 SSE error coverage (`5e7ddce00`). Every atomic
-  diff passed independent review; worktree deliveries also passed separate
-  integration review. All six commits are pushed to main and tickets closed.
-- Required CI remains unresolved. Completed `af21e5098` CI passed generated
-  quality, OpenAPI, Redis, value contracts and all five compilation jobs; `ci`
-  failed on stale mixedtick output and obsolete SSE params-error scenarios,
-  now repaired in #881/#882 with focused passing evidence. `race` reports the known #820 upstream YAML merge
-  mutation in both aliased-merge and numeric-normalization tests. CodeQL passed.
-  Focused passing checks do not establish aggregate CI green.
-- Continue the whole backlog. The accepted #705 policy derives standard `-bin`
-  wire keys for byte metadata and preserves an existing suffix. Its separately
-  reviewed representation prerequisite #877 is now delivered.
+- Latest deliveries: #703 protobuf field numbers (`2da0fd46e`) and #705 binary
+  metadata bindings (`22dddd67f`). Both passed independent final and integration
+  review, are pushed to main and their tickets are closed.
+- #703 parent parity evidence was corrected after review found that the CLI
+  clears Go overlay flags. An exact archived parent now generates the same 30
+  artifacts, and both modules build/vet. Root independently verified the archive
+  against Git and every artifact hash. The original overlay claim is superseded;
+  source behavior needed no correction. The owning plan records both receipts.
+- Required CI remains unresolved. On #882, OpenAPI, generated quality, Redis,
+  CodeQL and four compile jobs have passed; the remaining jobs were running at
+  this checkpoint. Prior completed CI reports the known #820 upstream YAML merge
+  race. Focused passing checks do not establish aggregate CI green.
+- #883 records a distinct canonical service-client collision discovered while
+  repairing transport clients. Preserve its failing witness; do not count it as
+  resolved by #879. Continue the whole backlog.
 
 ## Current execution queue
 
-1. **#705 binary gRPC metadata:** `/root/diagnostic_redaction_finish` owns
-   `grpc-message-context/loom` at `e631f0a89`. Implementation normalizes evaluated
-   wire keys and admits complete bindings. Six mounted modules pass; keep designed
-   error metadata delivery separate. Default Session credentials sharing one key
-   are rejected by the accepted collision rule; explicit distinct mappings retain
-   existing authentication semantics.
-2. **#703 protobuf field-number admission:** `/root/omission_readiness_finish`
-   owns implementation in `numeric-comparison/loom`. Independent re-review resolved
-   the unused union seed gap: generated shapes must consume emitted field identity.
-   Preserve metadata exclusions, explicit overrides and separate message scopes.
-   #702 map-key comparability remains a distinct owner.
-3. **#879 client receiver identity:** `/root/projection_integration_review`
-   reuses `interceptor-accessor-union/loom`. Readiness and mechanical re-review
-   passed. Advance to #882 and capture all three current fixtures before shared
-   client role implementation; preserve canonical service and wire identity.
-4. **#880 gRPC receiver identity — root:** existing generated compiler witness
-   demonstrates a handler field colliding with another RPC method. Inventory the
-   actual receiver namespace, including stream admission and protobuf embedding,
-   before modeling and implementing its owner.
+1. **#879 client receiver identity:** `/root/diagnostic_redaction_finish` reviews
+   the frozen final packet in `interceptor-accessor-union/loom`. Nine modules
+   build/vet, six mounted race harnesses pass, 127 artifacts repeat exactly with
+   16 intended changes, and all 55 artifacts in three maintained fixtures stay
+   unchanged. Root integrates only after independent approval.
+2. **#880 gRPC receiver identity:** `/root/projection_integration_review` owns
+   implementation in the root checkout after independent readiness approval.
+   Five compiler failures and two controls cover handler/RPC and embedding/RPC
+   collisions. Resolve concrete roles centrally, including alias package/import
+   ownership and actual protobuf registration; preserve canonical RPC names.
+3. **#702 map-key admission:** `/root/omission_readiness_finish` reuses
+   `numeric-comparison/loom` after #703 delivery. Reconcile documented structured
+   keys and actual representation before choosing admission. Do not blanket-reject
+   every non-primitive key merely because some Go values are not comparable.
+4. **#883 canonical service client identity:** retain the self-contained mixed
+   `watch` / `watchStream` reproduction and assign its distinct receiver owner
+   after the current naming repairs. No production fix is claimed.
 5. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at last
    check, without new human review. Keep pins unchanged until an eligible
@@ -65,6 +63,12 @@ completed without disturbing active #703 inputs. #881/#882 and their CI triage
 temporary outputs were removed after inactivity checks and completed reviews.
 `/tmp/loom-881-882-cleanup-receipt.json` preserves exact archived inputs, artifact
 ledgers, reviews and compact validation results.
+
+#703 implementer and root temporary outputs were removed after independent review
+and activity checks. Exact source/input archives, corrected parent Git archive,
+ledgers, verdicts and compact results remain. Receipts:
+`/tmp/loom-703-cleanup-receipt.json` and
+`/tmp/loom-703-root-cleanup-receipt.json`. Its worktree was safely reused for #702.
 
 #782 temporary generated/model directories and raw logs were removed after review
 and inactivity checks. Exact reproduction inputs, compact results, hashes and
@@ -1400,3 +1404,12 @@ no overall green result is claimed.
   demonstrated CI fixture/coverage findings #881/#882: 153/203 closed. All 12 affected SSE tests pass;
   35 fixture artifacts repeat exactly. #705/#703/#879 implementation and root
   #880 readiness continue. No aggregate CI green claim.
+
+- 2026-10-13 — **Checkpoint155:** #703 delivered `2da0fd46e` and #705 delivered
+  `22dddd67f`, independently reviewed, pushed and confirmed closed. The field
+  number parent comparison was rebuilt from an exact archive after invalid
+  overlay evidence was discovered; all 30 artifacts match. Binary metadata has
+  124 artifacts per source group with 13 intended changes and exact repeats;
+  integrated native checks and full expr/DSL race suites pass. #883 adds one
+  separate service-client receiver report: 155/204 closed. #879 final review,
+  #880 implementation and #702 readiness continue.
