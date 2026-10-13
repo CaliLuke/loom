@@ -1066,6 +1066,11 @@ JSON-RPC is a first-class transport, not an HTTP behavior alias.
 
 ## Observability and Debugging
 
+`loomotel.New` leaves existing global telemetry settings intact on construction
+failure and attempts reverse-order cleanup with an uncanceled five-second context.
+Handle its joined construction/cleanup error. After successful setup, call
+`Runtime.Shutdown` with the application's shutdown deadline.
+
 Prefer framework packages over repeated bootstrap glue:
 
 - `github.com/CaliLuke/loom/observability/otel`

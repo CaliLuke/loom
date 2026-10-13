@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `observability/otel.New` stages all enabled providers and their shutdown
+  callbacks before publishing SDK globals. Failed construction uses
+  `rollbackProviders` with a bounded uncanceled context; both it and successful
+  Runtime.Shutdown consume the same reverse `shutdownProviders` owner. Attempt
+  all callbacks and join errors. Disabled sections leave corresponding globals
+  untouched; propagation updates only when traces are enabled. Keep the construction model and actual failed-bootstrap plus cleanup
+  context/order/error tests aligned; do not claim atomic multi-global publication
+  or forced reclamation from uncooperative callbacks.
+
 - `observability/otel.newTraceProvider` composes SDK ParentBased around the
   existing normalized TraceIDRatioBased root policy. Preserve both local and
   remote parent decisions; invalid parents and explicit new roots use the root

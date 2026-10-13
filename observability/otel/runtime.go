@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -96,8 +97,13 @@ type (
 	}
 )
 
-// New initializes the configured OpenTelemetry providers and returns the
-// resulting runtime.
+const rollbackTimeout = 5 * time.Second
+
+// New initializes the configured OpenTelemetry providers and returns the runtime.
+// It publishes enabled providers globally only after all construction succeeds.
+// On failure it attempts reverse-order cleanup with an uncanceled five-second
+// context and returns the construction error joined with any cleanup errors.
+// Failed construction leaves the existing global providers and propagator intact.
 func New(ctx context.Context, cfg Config) (*Runtime, error) {
 	res, err := newResource(cfg)
 	if err != nil {
@@ -112,52 +118,48 @@ func New(ctx context.Context, cfg Config) (*Runtime, error) {
 		)
 	}
 
+	var shutdowns []func(context.Context) error
 	rt := &Runtime{
 		Propagators: propagators,
-		Shutdown: func(context.Context) error {
-			return nil
+		Shutdown: func(ctx context.Context) error {
+			return shutdownProviders(ctx, shutdowns)
 		},
 	}
-
-	var shutdowns []func(context.Context) error
 
 	if cfg.Traces.Enabled {
 		tp, err := newTraceProvider(ctx, cfg.Traces, res)
 		if err != nil {
-			return nil, err
+			return nil, rollbackProviders(ctx, shutdowns, err)
 		}
 		rt.TracerProvider = tp
-		otel.SetTracerProvider(tp)
-		otel.SetTextMapPropagator(propagators)
 		shutdowns = append(shutdowns, tp.Shutdown)
 	}
 	if cfg.Metrics.Enabled {
 		mp, err := newMeterProvider(ctx, cfg.Metrics, res)
 		if err != nil {
-			return nil, err
+			return nil, rollbackProviders(ctx, shutdowns, err)
 		}
 		rt.MeterProvider = mp
-		otel.SetMeterProvider(mp)
 		shutdowns = append(shutdowns, mp.Shutdown)
 	}
 	if cfg.Logs.Enabled {
 		lp, err := newLoggerProvider(ctx, cfg.Logs, res)
 		if err != nil {
-			return nil, err
+			return nil, rollbackProviders(ctx, shutdowns, err)
 		}
 		rt.LoggerProvider = lp
-		otel.SetLoggerProvider(lp)
 		shutdowns = append(shutdowns, lp.Shutdown)
 	}
 
-	rt.Shutdown = func(ctx context.Context) error {
-		var errs []error
-		for _, shutdown := range slices.Backward(shutdowns) {
-			if err := shutdown(ctx); err != nil {
-				errs = append(errs, err)
-			}
-		}
-		return errors.Join(errs...)
+	if rt.TracerProvider != nil {
+		otel.SetTracerProvider(rt.TracerProvider)
+		otel.SetTextMapPropagator(propagators)
+	}
+	if rt.MeterProvider != nil {
+		otel.SetMeterProvider(rt.MeterProvider)
+	}
+	if rt.LoggerProvider != nil {
+		otel.SetLoggerProvider(rt.LoggerProvider)
 	}
 
 	return rt, nil
@@ -175,4 +177,20 @@ func newResource(cfg Config) (*resource.Resource, error) {
 		attrs = append(attrs, attribute.String("deployment.environment", cfg.Environment))
 	}
 	return resource.Merge(resource.Default(), resource.NewSchemaless(attrs...))
+}
+
+func shutdownProviders(ctx context.Context, shutdowns []func(context.Context) error) error {
+	var errs []error
+	for _, shutdown := range slices.Backward(shutdowns) {
+		if err := shutdown(ctx); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func rollbackProviders(ctx context.Context, shutdowns []func(context.Context) error, cause error) error {
+	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+	defer cancel()
+	return errors.Join(cause, shutdownProviders(cleanup, shutdowns))
 }

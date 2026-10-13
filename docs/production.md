@@ -116,6 +116,15 @@ are unchanged, but exponent notation can differ from older output.
 
 ### OpenTelemetry Runtime
 
+`loomotel.New` publishes enabled providers only after all configured providers
+have initialized. If construction fails, it leaves existing global providers and
+propagation unchanged and attempts to close acquired providers in reverse order.
+Cleanup gets a fresh five-second context even if startup was canceled; returned
+errors retain both the construction failure and any cleanup failures. On success,
+call `Runtime.Shutdown` with your shutdown deadline. It attempts every provider
+in reverse order using that context. Neither path can force a provider callback
+that ignores cancellation to stop.
+
 `TraceConfig.SampleRatio` applies to root spans, including spans explicitly
 started with a new root. Valid local and remote parent spans retain their sampled
 or unsampled decision, preserving distributed trace continuity. A ratio of zero,
