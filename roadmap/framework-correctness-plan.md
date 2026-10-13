@@ -4,56 +4,51 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **147 of 201 tracked reports are delivered, pushed and confirmed closed.**
-  The [inventory](framework-correctness-inventory.md) records each report.
-  The checkpoint snapshot verifies each tracked issue against live GitHub state.
-- Latest deliveries: #682 notification completion (`f5435f493`), #878 regenerated
-  SSE snapshots (`0277e0f36`), #697 shared CLI dependency ordering (`af21e5098`),
-  and #723 optional diagnostic reporting (`a7b09d5a8`). Each exact diff passed
-  independent review; production repairs also passed separate integration review.
-- Required CI remains unresolved. The completed CI job on `71a0758f6` failed
-  exactly four SSE golden tests, already repaired by #878. On `af21e5098`,
-  CodeQL, generated-code quality, OpenAPI, Redis, expr and JSON-RPC compile jobs
-  passed at the last check; remaining required jobs were still running.
-  The known #820 upstream YAML merge race remains open. Focused passing checks
-  do not establish aggregate CI green.
-- Continue the whole backlog. The user accepted automatic standard `-bin`
-  wire-key derivation for `Bytes` metadata, preserving already suffixed keys.
-  Handwritten peers must use the derived wire key. #705 implementation follows
-  its separately reviewed metadata representation prerequisite #877.
+- **153 of 203 tracked reports are delivered, pushed and confirmed closed.**
+  The [inventory](framework-correctness-inventory.md) records each report and
+  the checkpoint snapshot verifies its live GitHub state.
+- Latest deliveries: #700 shared server member identity (`f0dbd2e20`), #698
+  literal CLI help (`dc558fcbf`), #877 metadata element representation
+  (`6d2c03510`), #701 union branch admission (`e631f0a89`), #881 fixture
+  freshness (`bbe2008ac`) and #882 SSE error coverage (`5e7ddce00`). Every atomic
+  diff passed independent review; worktree deliveries also passed separate
+  integration review. All six commits are pushed to main and tickets closed.
+- Required CI remains unresolved. Completed `af21e5098` CI passed generated
+  quality, OpenAPI, Redis, value contracts and all five compilation jobs; `ci`
+  failed on stale mixedtick output and obsolete SSE params-error scenarios,
+  now repaired in #881/#882 with focused passing evidence. `race` reports the known #820 upstream YAML merge
+  mutation in both aliased-merge and numeric-normalization tests. CodeQL passed.
+  Focused passing checks do not establish aggregate CI green.
+- Continue the whole backlog. The accepted #705 policy derives standard `-bin`
+  wire keys for byte metadata and preserves an existing suffix. Its separately
+  reviewed representation prerequisite #877 is now delivered.
 
 ## Current execution queue
 
-1. **#877 named metadata element representation:**
-   `/root/diagnostic_redaction_finish` owns `grpc-message-context/loom`.
-   Independent readiness approved one physical metadata occurrence, source
-   conversion and preserved service identity. Five named primitive arrays fail
-   compilation; native and shared constructor controls pass. Add inherited
-   constraint/default and outer-alias regressions before implementation; compare
-   bounded generated artifacts and mounted request/header/trailer behavior.
-2. **#705 binary gRPC metadata:** the same owner retains the separately frozen
-   packet and accepted policy in [the plan](grpc-binary-metadata.md). Independent
-   readiness and mechanical re-review passed. Implement evaluated wire-key
-   normalization and collision admission, including implicit credentials, then
-   verify independently implemented peers. Keep #877 and #705 atomic and separate.
-3. **#700 concrete server member identity:**
-   `/root/projection_integration_review` owns additive readiness in the root
-   checkout. HTTP/JSON-RPC collisions and ordinary controls are reproduced;
-   receiver ownership/model acceptance is being frozen for independent review.
-   Preserve canonical service/RPC names. Separate reports #880 and #879 track reproduced gRPC handler
-   and client receiver collisions; do not infer their closure from server work.
-4. **#701/#702/#703 design admission:** `/root/omission_readiness_finish` will
-   reuse the delivered #723 worktree after preserving evidence and cleanup.
-   Reconcile reports, reproduce current failures and valid controls, then select
-   each coherent atomic owner repair. No production implementation authorized yet.
-5. **CI triage:** inspect completed required jobs and repair demonstrated
-   failures with focused evidence. #871–#876 and #878 are delivered; no overall
-   green claim is made. Keep snapshots synchronized through regeneration.
-6. **#820 dependency race:** authorized libopenapi
+1. **#705 binary gRPC metadata:** `/root/diagnostic_redaction_finish` owns
+   `grpc-message-context/loom` at `e631f0a89`. Implementation normalizes evaluated
+   wire keys and admits complete bindings. Six mounted modules pass; keep designed
+   error metadata delivery separate. Default Session credentials sharing one key
+   are rejected by the accepted collision rule; explicit distinct mappings retain
+   existing authentication semantics.
+2. **#703 protobuf field-number admission:** `/root/omission_readiness_finish`
+   owns implementation in `numeric-comparison/loom`. Independent re-review resolved
+   the unused union seed gap: generated shapes must consume emitted field identity.
+   Preserve metadata exclusions, explicit overrides and separate message scopes.
+   #702 map-key comparability remains a distinct owner.
+3. **#879 client receiver identity:** `/root/projection_integration_review`
+   reuses `interceptor-accessor-union/loom`. Readiness and mechanical re-review
+   passed. Advance to #882 and capture all three current fixtures before shared
+   client role implementation; preserve canonical service and wire identity.
+4. **#880 gRPC receiver identity — root:** existing generated compiler witness
+   demonstrates a handler field colliding with another RPC method. Inventory the
+   actual receiver namespace, including stream admission and protobuf embedding,
+   before modeling and implementing its owner.
+5. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at last
    check, without new human review. Keep pins unchanged until an eligible
    upstream revision exists.
-7. **#800 read shutdown:** independently approved 53-file packet remains in
+6. **#800 read shutdown:** independently approved 53-file packet remains in
    `bounded-streaming-shutdown`. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
    remains open at last check; original-module fetchability gates delivery.
    Then resume #687 constructor rollback; #704 worker publication is separate.
@@ -63,8 +58,13 @@ inputs after activity checks: #872 `/tmp/loom-872-cleanup-receipt.json`, #790
 worktree `/tmp/loom-790-cleanup-receipt.json` and root integration
 `/tmp/loom-790-root-integration-cleanup-receipt.json`, #699
 `/tmp/loom-699-cleanup-receipt.json`, and #682
-`/tmp/loom-682-cleanup-receipt.json`. #697 and #723 cleanup is assigned after
-completed final and integration review; retain evidence until receipts confirm it.
+`/tmp/loom-682-cleanup-receipt.json`. Cleanup is also complete for #697, #723,
+#700, #698 and #877, with `/tmp/loom-<issue>-cleanup-receipt.json` preserving
+source archives, exact inputs and compact validation records. #701 cleanup also
+completed without disturbing active #703 inputs. #881/#882 and their CI triage
+temporary outputs were removed after inactivity checks and completed reviews.
+`/tmp/loom-881-882-cleanup-receipt.json` preserves exact archived inputs, artifact
+ledgers, reviews and compact validation results.
 
 #782 temporary generated/model directories and raw logs were removed after review
 and inactivity checks. Exact reproduction inputs, compact results, hashes and
@@ -1390,3 +1390,13 @@ no overall green result is claimed.
   and direct cases pass. #877 separately tracks named metadata element storage;
   its readiness and #705 readiness passed independent review. #700 readiness and
   design admission investigation continue. Required CI remains unresolved.
+
+- 2026-10-13 — **Checkpoint153:** #700 delivered `f0dbd2e20`, #698 delivered
+  `dc558fcbf`, #877 delivered `6d2c03510`, and #701 delivered `e631f0a89`;
+  #881 delivered `bbe2008ac` and #882 delivered `5e7ddce00`;
+  independently reviewed, pushed and confirmed closed. Server receiver identities
+  are centralized; CLI help text stays literal; metadata storage preserves named
+  service types; invalid union identities fail during evaluation. Inventory adds
+  demonstrated CI fixture/coverage findings #881/#882: 153/203 closed. All 12 affected SSE tests pass;
+  35 fixture artifacts repeat exactly. #705/#703/#879 implementation and root
+  #880 readiness continue. No aggregate CI green claim.

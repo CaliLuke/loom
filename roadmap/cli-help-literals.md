@@ -14,7 +14,7 @@ variable or default expression silently changes help text.
    keep semantic descriptions and payload defaults unchanged.
 5. [x] Compare bounded parent/candidate/independent-repeat artifacts, compile and
    test both generated clients; verify default and explicit-value payloads.
-6. [ ] Obtain exact independent review, commit, push, close and preserve receipts.
+6. [x] Obtain exact independent review, commit, push, close and preserve receipts.
 
 The owner is the shared renderer's handoff to Kong help tags. Escape literal
 Kong interpolation syntax only there, after composing flag description/default
@@ -76,4 +76,8 @@ commands. HTTP and JSON-RPC ticktock fixture regeneration yields the same 39
 checked-in artifacts at parent, candidate and independent repeat; parent and
 candidate fixture modules build and vet successfully. Existing owning CLI golden
 checks pass unchanged, and scoped lint reports zero issues. Final source is
-frozen for independent review against `055c2eb0a`.
+reviewed against `055c2eb0a`, then independently reviewed on its integration parent.
+
+## Delivery receipt
+
+Delivered/pushed `dc558fcbf`; independent final and exact integration reviews passed, ticket #698 confirmed closed. Cleanup and worktree reuse receipts preserve original and composed source hashes.

@@ -14,7 +14,7 @@ no new generator behavior is proposed.
    retain the authored design and full-tree comparison.
 4. [x] Compare all artifacts against an independent generation, build and vet
    the complete fixture, and run its four unaffected transport scenarios.
-5. [ ] Obtain independent exact-diff review, commit, push and close #881.
+5. [x] Obtain independent exact-diff review, commit, push and close #881.
 
 The params-error scenario must remain unchanged in this atomic repair, with its
 known #882 failure recorded. Do not weaken the parity assertion or claim the
@@ -36,3 +36,7 @@ server selected-result projection and optional failure reporting; and generation
 manifest refresh. No framework generator/runtime implementation changes here.
 Evidence is retained in `/tmp/loom-881-artifact-comparison.json`,
 `/tmp/loom-881-controls.log`, and the baseline CI triage packet.
+
+## Delivery receipt
+
+Delivered as `bbe2008ac`, independently reviewed, pushed and confirmed closed. Exact review: `/tmp/loom-881-independent-final-verdict.json`. Separate #882 subsequently restores typed params coverage.

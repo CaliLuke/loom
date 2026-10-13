@@ -1,8 +1,8 @@
 # Union branch identity admission (#701)
 
 Parent: `a7b09d5a8d2f1900d0a4b50f8af3bb78e245da24`.
-Readiness was independently approved before implementation; final candidate
-is now frozen for independent review.
+Readiness was independently approved before implementation. Final and
+integration reviews passed; delivery is recorded below.
 
 ## Sequence
 
@@ -14,7 +14,7 @@ is now frozen for independent review.
 6. [x] After independent approval, implement only the shared union admission owner.
 7. [x] Compare bounded generated artifacts, compile controls, check deterministic
    output and affected lint, then freeze for independent final review.
-8. [ ] Parent integrates one reviewed atomic commit, pushes and closes #701.
+8. [x] Parent integrates one reviewed atomic commit, pushes and closes #701.
 
 ## Reconciliation and chosen boundary
 
@@ -123,3 +123,7 @@ audit was needed. Scoped expr/cmd lint reports zero issues.
 Readiness approval: `/tmp/loom-701-independent-readiness-verdict.json`.
 Final evidence and source/input hashes are recorded in the final manifest.
 No commit or push has been made by this implementation task.
+
+## Delivery receipt
+
+Delivered/pushed `e631f0a89`; independent final and exact integration reviews passed, ticket #701 confirmed closed. Integrated evaluator and actual CLI race checks passed.

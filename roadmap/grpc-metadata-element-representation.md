@@ -1,7 +1,7 @@
 # Named gRPC metadata element representation — #877
 
-Implementation parent `71a0758f6`. #705 binary key readiness is
-frozen separately in this checkout; its files must remain unchanged.
+Implementation parent `71a0758f6`. The separately reviewed #705 binary key
+packet remained unchanged through this repair and now proceeds independently.
 
 1. [x] Preserve the explicit-bin named Bytes element compiler failure and four
    passing scalar/outer-array controls. Ticket877 records the separate owner.
@@ -12,7 +12,7 @@ frozen separately in this checkout; its files must remain unchanged.
 4. [x] Freeze owner/model/acceptance for independent readiness review.
 5. [x] Implement after approval; compare bounded parent/candidate/repeat
    artifacts, compile/vet generated modules, and check mounted behavior.
-6. [ ] Fresh exact final review before root integration, atomic commit and closure.
+6. [x] Fresh exact final review before root integration, atomic commit and closure.
 
 ## Existing witness
 
@@ -165,6 +165,10 @@ Completed bounded checks:
   not invalidate that checker result.
 
 Evidence and exact input/artifact hashes are collected in the external final
-manifest. Fresh exact final review and root delivery remain outstanding. #705
+manifest. Final and integration reviews passed and delivery is complete. #705
 normalization, designed-error metadata delivery, nested collections and opaque
 custom codecs remain outside this atomic repair.
+
+## Delivery receipt
+
+Delivered/pushed `6d2c03510`; independent final, wording re-review and exact integration review passed, ticket #877 confirmed closed. Cleanup and source reuse completed before separate #705 implementation.
