@@ -1818,11 +1818,17 @@ consumer skill with contributor detail.
 - `roadmap/`
 - `docs/`
 
-Response observation and clue HTTP logging share `transport.CaptureResponse`.
+Response observation, clue HTTP logging and Debug share `transport.CaptureResponse`.
 Capture state is separate from the writer; `httpsnoop.Wrap` owns conditional
 interface forwarding. Loom hooks own status commit and byte-count policy,
 including informational responses, upgrades, flushes and I/O fast paths. Do not
-add transport-local forwarding wrappers. The callback-scoped httpsnoop metrics
+add transport-local forwarding wrappers. Debug opts into bounded body retention
+through WithResponseBodyCapture; ordinary metrics consumers retain no body.
+Capture only accepted bytes, trim ReadFrom lookahead to its returned count, and
+discard oversized previews with an explicit omission marker. Body snapshots are
+detached and synchronized; writer concurrency remains the caller's responsibility.
+Keep Debug request-body observation separate from this response owner.
+The callback-scoped httpsnoop metrics
 API does not match the independently started/ended request observer lifecycle.
 
 ## Release Ownership

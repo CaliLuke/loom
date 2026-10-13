@@ -1088,6 +1088,10 @@ metrics and routing. Handle these values rather than parsing error messages:
 - `mcp_events_stream_write_failed`
 
 Use `loomhttp.NewDebugDoer` only for bounded, redacted development diagnostics.
+Server `middleware.Debug` preserves SSE flushing and response writer capabilities.
+It captures at most 64 KiB of response body; larger bodies produce an omission
+marker while the complete response reaches the client. The summary is written
+when the handler returns. This response cap does not limit request-body capture.
 Set `DEBUG_LOOM=1` while generating when you need DSL/codegen decision traces.
 
 `loom vet <module-import-path>/design` evaluates the composed design. Run it

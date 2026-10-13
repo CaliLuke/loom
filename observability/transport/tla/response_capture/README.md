@@ -42,3 +42,45 @@ forwarded errors, controller operations and optimized I/O. HTTP lifecycle tests
 cover committed write failures and failed WebSocket upgrades; compiled generated
 HTTP/WebSocket and SSE fixtures cover transport consumers. No generator changes
 or generated-output differences are intended.
+
+## Debug response adapter (#679)
+
+`DebugTransparency.tla` isolates the responseDupper defects from the shared
+owner. It explores three sequential operations: informational/final/upgrade
+headers, attempted two-byte writes accepting zero/one/two bytes, and Flush.
+`DebugStatus`, `DebugBytes`, and `DebugFlush` independently reproduce last-header
+or missing-implicit status, capture-before-write, and a hidden Flush operation.
+`DebugChecked` derives status from the shared first-final owner, observes only
+accepted bytes, and forwards flush. The accepted server policy adds bounded
+retention: model cap 2 represents the concrete 64 KiB cap. DebugCap models the
+old unbounded buffer and fails BoundedCapture. The checked owner discards the
+preview after overflow and marks omission while accepted wire bytes continue.
+Run each configuration with the same pinned
+TLC above, using `DebugTransparency.tla` and an external metadir.
+
+The counters abstract successful flush forwarding; concrete errors, optional
+interface sets, deadline/duplex controls and SSE terminal state remain Go test
+obligations. The user delegated the capture policy choice; the model checks its consequences
+and does not decide that policy. It does not model concurrent ResponseWriter use,
+transport framing, custom handler ownership, request reads, ReadFrom lookahead,
+or hijacked connection data.
+
+Implementation correspondence: `TestDebugResponseStatus` checks Header/Write;
+`TestDebugResponseAcceptedBytes` checks actual partial writes through Write,
+WriteString and ReadFrom; `TestDebugResponseController` and Capabilities check
+forwarding; `TestDebugResponseSSEWithBodyPolicy` checks Open and SendComment
+flushing before handler return with an unchanged valid limited request.
+
+Results: DebugStatus/Bytes/Flush exit 12 on their named invariant
+(3/3, 6/6, 9/9 generated/distinct states). DebugCap exits 12 on BoundedCapture
+(56/27 states); DebugChecked exits 0 (293/75).
+These negative controls must fail invariants, not parser/action completeness.
+
+`WithResponseBodyCapture` configures the shared CaptureResponse hooks; default
+metrics consumers retain no body. Body snapshots are detached and synchronized,
+without promising concurrent ResponseWriter use. Write/String retain only n
+accepted bytes. ReadFrom retains bounded lookahead, then trims to the returned n;
+reader consumption alone cannot mark a response oversized. Tests cover full,
+partial, error, exact-limit, overflow, nested capture and concurrent observation.
+`TestDebugResponseSSEFlushVisibleBeforeReturn` checks a real HTTP connection;
+`TestDebugResponseSSETerminalFailure` keeps failed streams terminal.

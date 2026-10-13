@@ -631,6 +631,20 @@ payloads containing unmodeled secrets.
 
 ---
 
+## Debug Server Responses
+
+`middleware.Debug` preserves the response writer's streaming, flushing and
+connection-control capabilities. It logs the committed response status and bytes
+accepted by the writer, including partial writes that return an error.
+
+Response body capture is limited to 64 KiB. Larger bodies are omitted entirely
+from debug output with `[body omitted after 65536 bytes]`; every response byte
+still flows to the client. SSE events flush normally before the handler returns,
+while the debug summary is written when the handler returns. This response limit
+does not limit request-body capture.
+
+---
+
 ## Content Negotiation
 
 ### Built-in Encoders

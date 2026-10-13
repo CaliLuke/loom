@@ -1,29 +1,26 @@
 package middleware
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"sort"
 	"strings"
 
 	loomhttp "github.com/CaliLuke/loom/http"
 	"github.com/CaliLuke/loom/internal/identifier"
+	"github.com/CaliLuke/loom/observability/transport"
 )
 
-// responseDupper tees the response to a buffer and a response writer.
-type responseDupper struct {
-	http.ResponseWriter
-	Buffer *bytes.Buffer
-	Status int
-}
+const debugResponseCaptureLimit = 64 << 10
 
 // Debug returns a debug middleware which prints detailed information about
 // incoming requests and outgoing responses including all headers, parameters
-// and bodies.
+// and bodies. Response body capture is limited to 64 KiB; oversized response
+// bodies are omitted with an explicit marker, without limiting wire bytes.
+// The wrapper preserves the underlying response writer capabilities. Request
+// bodies are currently read in full before the handler runs.
 func Debug(mux loomhttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -31,9 +28,9 @@ func Debug(mux loomhttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
 			reqID := shortID()
 			writeDebugRequest(buf, mux, reqID, r)
 
-			dupper := &responseDupper{ResponseWriter: rw, Buffer: &bytes.Buffer{}}
-			h.ServeHTTP(dupper, r)
-			writeDebugResponse(buf, reqID, dupper)
+			writer, capture := transport.CaptureResponse(rw, transport.WithResponseBodyCapture(debugResponseCaptureLimit))
+			h.ServeHTTP(writer, r)
+			writeDebugResponse(buf, reqID, rw.Header(), capture)
 			buf.WriteByte('\n')
 			w.Write(buf.Bytes()) // nolint: errcheck
 		})
@@ -49,12 +46,14 @@ func writeDebugRequest(buf *bytes.Buffer, mux loomhttp.Muxer, reqID string, r *h
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 }
 
-func writeDebugResponse(buf *bytes.Buffer, reqID string, dupper *responseDupper) {
-	fmt.Fprintf(buf, "\n< [%s] %s", reqID, http.StatusText(dupper.Status))
-	writeDebugMap(buf, reqID, "<", stringMap(dupper.Header()))
-	if dupper.Buffer.Len() > 0 {
-		writeDebugBody(buf, reqID, []byte(dupper.Buffer.String()))
+func writeDebugResponse(buf *bytes.Buffer, reqID string, header http.Header, capture *transport.ResponseCapture) {
+	fmt.Fprintf(buf, "\n< [%s] %s", reqID, http.StatusText(capture.StatusCode()))
+	writeDebugMap(buf, reqID, "<", stringMap(header))
+	body, omitted := capture.Body()
+	if omitted {
+		body = fmt.Appendf(nil, "[body omitted after %d bytes]", debugResponseCaptureLimit)
 	}
+	writeDebugBody(buf, reqID, body)
 }
 
 func stringMap(values map[string][]string) map[string]string {
@@ -97,26 +96,6 @@ func writeDebugBody(buf *bytes.Buffer, reqID string, body []byte) {
 	for _, line := range strings.Split(string(body), "\n") {
 		fmt.Fprintf(buf, "[%s] %s\n", reqID, line)
 	}
-}
-
-// Write writes the data to the buffer and connection as part of an HTTP reply.
-func (r *responseDupper) Write(b []byte) (int, error) {
-	r.Buffer.Write(b)
-	return r.ResponseWriter.Write(b)
-}
-
-// WriteHeader records the status and sends an HTTP response header with status code.
-func (r *responseDupper) WriteHeader(s int) {
-	r.Status = s
-	r.ResponseWriter.WriteHeader(s)
-}
-
-// Hijack supports the http.Hijacker interface.
-func (r *responseDupper) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if hijacker, ok := r.ResponseWriter.(http.Hijacker); ok {
-		return hijacker.Hijack()
-	}
-	return nil, nil, fmt.Errorf("debug middleware: inner ResponseWriter cannot be hijacked: %T", r.ResponseWriter)
 }
 
 // shortID produces a " unique" 6 bytes long string.
