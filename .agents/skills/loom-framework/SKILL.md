@@ -1423,6 +1423,10 @@ filter, and serialization rules belong here.
   peer termination. Its sole pump discards bounded late frames while cleanup waits;
   local closed state must not masquerade as peer termination. Deadline expiration
   after a successful write adds no cleanup error or delivery guarantee. Keep
+  terminal framing classification in `releaseConnection`: a raw native
+  `ErrCloseSent` means close framing already completed and skips peer waiting.
+  Preserve wrapped application encoding errors and independent physical-close
+  failures; ordinary data writes must still fail after close framing. Keep
   CloseAndRecv's null half-close nonterminal. Align both message-admission and
   lifecycle models with real-socket and generated transport regressions.
 - Keep JSON-RPC envelope validation, batch framing, notification suppression,

@@ -206,3 +206,40 @@ close and blocked-writer tests check bounded physical release. The existing
 generated nested-collection/union tests remain unchanged; generated lifecycle
 coverage retains the nonterminal CloseAndRecv final reply and real disconnect
 cancellation. Raw Close remains immediate when it owns the terminal transition.
+
+## Native peer acknowledgement before terminal publication (#871)
+
+`PeerCloseCleanup.tla` separates a native close acknowledgement from the reader's
+later terminal publication. The application can call Close in between. The
+current shutdown owner reports `ErrCloseSent` as a new cleanup failure even
+though native close framing has already completed. Both final JSON and close
+control paths share this classification boundary.
+
+Run the same pinned TLC jar with `-config peer-owned.cfg PeerCloseCleanup.tla`
+and an external `-metadir`. Replace `owned` with each negative configuration:
+
+| Configuration | Result |
+| --- | --- |
+| current | NoSpuriousCloseError fails, 13 generated/distinct states |
+| suppress-all-close-errors | KeepWriteError fails, 8 generated/distinct states |
+| suppress-all-writes | DataWritesFail fails, 15 generated/14 distinct states |
+| owned | All five invariants pass, 44 generated/24 distinct states |
+
+These configurations keep deadlock checking enabled and stutter after terminal
+release. The model abstracts acknowledgement as completed native framing, and
+physical/write errors as independent booleans. It does not establish networking,
+callback progress, timeout precision or error-wrapping behavior. The older
+shutdown and input-finish models continue to own those lifetime obligations.
+
+`TestWebSocketCloseAfterPeerAcknowledgement` gates the configured close handler
+after its acknowledgement but before reader publication, reproducing both
+final-JSON and close-control failures. It keeps ordinary late-data writes failing
+and checks that a real physical-close error remains observable. The
+implementation seam is `releaseConnection`'s shared cleanup result classification;
+never suppress this state in ordinary WriteJSON or individual generated callers.
+
+Only the raw native `ErrCloseSent` sentinel is classified as completed framing,
+after the final-write wait branch; it never starts a new peer wait. The
+`TestWebSocketFinalJSONPreservesWrappedEncodingError` control preserves a custom
+marshaler error wrapping that sentinel plus an independent physical-close error.
+This error-wrapping behavior is outside the finite model above.

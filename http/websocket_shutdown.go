@@ -29,6 +29,7 @@ func (s *WebSocketStream) Close() error {
 // sendable close codes or in 3000..4999; reason must be valid UTF-8 of at most
 // 123 bytes. Invalid arguments still release the socket and return an error.
 // Repeated valid calls preserve the first terminal cause and cleanup result.
+// An already-sent native close frame adds no cleanup error.
 func (s *WebSocketStream) CloseWithStatus(code int, reason string) error {
 	valid := code >= 3000 && code <= 4999
 	switch code {
@@ -50,6 +51,7 @@ func (s *WebSocketStream) CloseWithStatus(code int, reason string) error {
 // an acknowledgement of service processing. HTTP client Close uses nil for its
 // final JSON-null framing. CloseAndRecv instead writes null nonterminally so it
 // can receive the final service reply.
+// An already-sent native close frame skips the wait and adds no cleanup error.
 func (s *WebSocketStream) CloseWithFinalJSON(value any) error {
 	s.stop(nil, webSocketFinalJSON, value, false)
 	return s.closeResult()
@@ -154,6 +156,12 @@ func (s *WebSocketStream) releaseConnection(conn *websocket.Conn, code int, fina
 		}
 		writeErr = conn.WriteControl(websocket.CloseMessage,
 			websocket.FormatCloseMessage(code, reason), time.Now().Add(time.Second))
+	}
+	// A peer acknowledgement can finish before the reader publishes termination.
+	// Only the native sentinel means framing is complete: wrapped application
+	// encoding errors must remain observable, even if they wrap this sentinel.
+	if writeErr == websocket.ErrCloseSent { //nolint:errorlint // Wrapped encoding errors are not native close state.
+		writeErr = nil
 	}
 	release()
 	return errors.Join(writeErr, physicalErr)
