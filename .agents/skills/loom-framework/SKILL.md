@@ -2087,7 +2087,10 @@ borrowed and is never constructor rollback. Guard both tick admission and the
 shared timer-rearm path so already-selected work cannot revive a closed ticker.
 Keep global deletion before local cancellation and keep event-goroutine waiting
 outside locked teardown. Reuse `pulse/pool/tla/ticker_lifecycle` and its focused
-constructor/close/retry controls for later remote-observation consumers.
+constructor/close/retry controls across remote observations. Authoritative CAS
+absence and every event-loop exit use that same teardown owner. Check
+TestAndSetEx existence before interpreting its previous value; absence is not a
+serialized timestamp. Complete local teardown before signaling goroutine exit.
 
 Pulse (`pulse/pool`, `pulse/streaming`, `pulse/rmap`) tests run against
 miniredis by default, so `make test` stays hermetic. miniredis does not model

@@ -137,6 +137,69 @@ func TestTickerFailedGlobalDeleteStillReleasesLocalOwnership(t *testing.T) {
 	assert.True(t, exists, "a failed global delete does not imply shared state was removed")
 }
 
+func TestTickerRemoteAbsenceEndsLocalOwnership(t *testing.T) {
+	node, parent := tickerLifecycleNode(t)
+	ticker := tickerLifecycleParticipant(t, node, "remote")
+	_, err := node.tickerMap.Delete(t.Context(), ticker.name)
+	require.NoError(t, err)
+	// The timer event is selected before the map deletion notification is
+	// processed. This participant has no event goroutine, fixing that ordering.
+	assert.NotPanics(t, ticker.handleTick)
+	assert.ErrorIs(t, ticker.runtimeCtx.Err(), context.Canceled)
+	assert.Zero(t, tickerSubscriberCount(node.tickerMap))
+	assert.Zero(t, parent.active.Load())
+}
+
+func TestTickerEventLoopExitReleasesLocalOwnership(t *testing.T) {
+	for _, reason := range []string{"runtime cancellation", "map closure", "remote deletion"} {
+		t.Run(reason, func(t *testing.T) {
+			node, parent := tickerLifecycleNode(t)
+			ticker := tickerLifecycleParticipant(t, node, "event-exit")
+			switch reason {
+			case "runtime cancellation":
+				ticker.runtimeCancel()
+			case "map closure":
+				node.tickerMap.Close()
+			case "remote deletion":
+				_, err := node.tickerMap.Delete(t.Context(), ticker.name)
+				require.NoError(t, err)
+				require.Eventually(t, func() bool {
+					_, exists := node.tickerMap.Get(ticker.name)
+					return !exists
+				}, time.Second, time.Millisecond)
+			}
+			ticker.wg.Add(1)
+			done := make(chan struct{})
+			go func() {
+				ticker.handleEvents()
+				close(done)
+			}()
+			select {
+			case <-done:
+			case <-time.After(time.Second):
+				t.Fatal("event loop must release ownership without waiting on itself")
+			}
+			assert.Nil(t, ticker.mapch)
+			assert.False(t, ticker.timer.Stop())
+			assert.ErrorIs(t, ticker.runtimeCtx.Err(), context.Canceled)
+			assert.Zero(t, parent.active.Load())
+		})
+	}
+}
+
+func TestTickerAdvanceMismatchKeepsLiveParticipant(t *testing.T) {
+	node, parent := tickerLifecycleNode(t)
+	ticker := tickerLifecycleParticipant(t, node, "mismatch")
+	next := serialize(time.Now().Add(2*time.Hour), time.Hour)
+	_, err := node.tickerMap.SetAndWait(t.Context(), ticker.name, next)
+	require.NoError(t, err)
+	ticker.handleTick()
+	assert.Equal(t, next, ticker.next)
+	assert.NoError(t, ticker.runtimeCtx.Err())
+	assert.Equal(t, int32(1), parent.active.Load())
+	assert.True(t, ticker.timer.Stop())
+}
+
 func tickerLifecycleNode(t *testing.T) (*Node, *tickerParentContext) {
 	t.Helper()
 	rdb := startTestRedis(t)

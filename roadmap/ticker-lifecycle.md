@@ -1,6 +1,6 @@
 # Ticker local lifecycle — #738 and #707
 
-Parent: c01bd544715e3487ddcbc1d12a8c263dee410589. The family design is approved. #738 local ownership is implemented and awaiting final review; #707 remote observations remain the next separate atomic repair.
+#738 delivered in 07401d22c. #707 uses that commit as its parent; the shared family design is approved and its remote consumers are now implemented, awaiting final review.
 
 ## Contract and owner
 
@@ -16,8 +16,10 @@ A timer event may already be selected when Close begins. Check terminal state un
 - [x] Compare current behavior, constructor-only cleanup, missing-entry-only handling and shared terminal ownership in a small model beside existing pool lifecycle models. Explicitly cover delayed notification, transient retry and local/shared distinction.
 - [x] Freeze readiness and receive independent owner approval (`/tmp/loom-ticker-root-readiness-verdict.json`). Establish atomic boundaries without parallel cleanup paths.
 - [x] Implement #738 constructor/Close/Stop ownership and all timer admission guards; run focused direct/race controls and the local model.
-- [ ] Obtain fresh #738 final review and deliver.
-- [ ] After #738 delivery, implement #707 remote consumers, rerun its saved reproduction and full model, then review and deliver.
+- [x] Obtain fresh #738 final review and deliver.
+- [x] After #738 delivery, reproduce remote exits and implement #707 consumers of the same owner.
+- [x] Run #707 focused race controls and full model.
+- [ ] Obtain fresh #707 final review and deliver.
 
 ## Bounded acceptance
 
@@ -44,6 +46,14 @@ No promise of forcibly interrupting Redis commands is introduced. The model trea
 
 `stopLocalLocked` owns exactly-once local teardown; Close waits only after releasing the lock. NewTicker uses one deferred local Close until successful transfer. Stop performs its existing shared-delete attempt before local cancellation; even a failed delete releases local resources without claiming shared deletion succeeded. handleTick rejects terminal work before native I/O and resetTimerLocked rejects every late rearm. Borrowed map/caller client and uncertain committed shared values remain untouched.
 
-The #707 direct missing-entry test is preserved externally at `/tmp/loom-707-pending-repro_test.go` until the next atomic repair. Its parent evidence and full candidate model remain in the readiness manifest; no failing remote regression is included in #738's delivered test file. The full `owned` model remains a proposal for #707, whereas `local-owned` corresponds to this implementation.
+At #738 delivery, the #707 direct missing-entry test was preserved externally at `/tmp/loom-707-pending-repro_test.go`. Its parent evidence and full candidate model remain in the readiness manifest; no failing remote regression was included in #738's delivered test file. That delivery used `local-owned`; #707 now implements the remaining consumers covered by `owned`.
 
 Final #738 checks: focused ticker and scheduler consumer controls pass with the race detector (2.908s); scoped `golangci-lint run ./pulse/pool` reports zero issues. TLC `local-owned` passes with 39 generated / 15 distinct states. The saved #707 overlay still fails with the original absence panic and retained local ownership (0.711s), confirming that this packet does not claim remote termination is repaired. No generator or broad Redis suite is relevant to this private runtime-owner change.
+
+## #707 implementation
+
+The event-loop defer releases local ownership before signaling its WaitGroup, covering runtime cancellation, map-channel closure and replicated absence without self-wait. The timer's native compare-and-set consumes TestAndSetEx existence/update results: absence terminates locally before any parsing; an existing mismatch adopts the peer's valid next value; a successful update retains normal tick delivery. No second cleanup mechanism is introduced.
+
+On parent 07401d22c, the original missing-entry regression and all three event-loop exit controls fail (race 0.831s); the live CAS-mismatch control passes. Tests use the existing real replicated-map helper and a deterministic preselected timer, preserving the family model's assumptions.
+
+Final #707 checks: focused ticker and scheduler consumer controls pass with the race detector (2.981s), including all remote-exit cases and live CAS mismatch. Scoped lint reports zero issues. The unchanged full `owned` model passes with 76 generated / 21 distinct states; current/rejected-design counterexamples remain the approved family evidence. The change introduces no new network-timeout or scheduler-context guarantee.

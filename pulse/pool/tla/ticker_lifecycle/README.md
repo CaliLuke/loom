@@ -36,12 +36,10 @@ Raw traces and checker states remain outside the repository.
 | owned | Full owner plus remote-absence handling checks pass | 76 / 21 |
 
 The selected design centralizes local release and timer-rearm admission. It
-never deletes shared state as constructor rollback. #738 can deliver the local
-owner checked by `local-owned`; #707 then adds remote-absence/event-loop exit
-consumers checked by `owned`. `local-owned` corresponds to the #738
-implementation. The full `owned`
-configuration remains design readiness for #707, not a claim that remote
-observations have already been implemented.
+never deletes shared state as constructor rollback. #738 delivered the local
+owner checked by `local-owned`; #707 adds remote-absence/event-loop exit
+consumers checked by `owned`. The full `owned` configuration now corresponds to
+the shared local owner and its remote consumers.
 
 ## Implementation correspondence
 
@@ -66,10 +64,11 @@ write and late-rearm behavior; it retains direct healthy
 local/global close and transient retry controls. The parent-cancellation counter
 uses context's AfterFunc contract. The notification case tests the common rearm
 seam after terminal release; code review checks its event-loop correspondence.
-The pending missing-entry repro is preserved in the readiness packet and
-`/tmp/loom-707-pending-repro_test.go` for its next atomic delivery. Existing
-Tick/Schedule runtime tests remain consumer controls. Event-loop cleanup
-must finish before its WaitGroup Done, and must never wait on itself.
+The missing-entry regression and runtime-cancellation/map-closure/replicated
+absence cases check the remote consumers. A live CAS-mismatch control preserves
+peer advancement; existing Tick/Schedule runtime tests remain consumer controls.
+The event-loop defer completes local teardown before its WaitGroup Done without
+waiting on itself. Native CAS absence terminates before deserializing a value.
 
 ## Assumptions and limits
 

@@ -123,7 +123,12 @@ func (t *Ticker) Stop() {
 
 // handleEvents handles events from the ticker timer and map.
 func (t *Ticker) handleEvents() {
-	defer t.wg.Done()
+	defer func() {
+		t.lock.Lock()
+		t.stopLocalLocked()
+		t.lock.Unlock()
+		t.wg.Done()
+	}()
 	t.lock.Lock()
 	if t.mapch == nil {
 		t.lock.Unlock()
@@ -143,12 +148,6 @@ func (t *Ticker) handleEvents() {
 			next, ok := t.tickerMap.Get(t.name)
 			if !ok {
 				t.logger.Info("stopped remotely")
-				t.lock.Lock()
-				if t.mapch != nil {
-					t.tickerMap.Unsubscribe(t.mapch)
-				}
-				t.mapch = nil
-				t.lock.Unlock()
 				return
 			}
 			t.lock.Lock()
@@ -179,12 +178,16 @@ func (t *Ticker) handleTick() {
 		ts = ts.Add(d)
 	}
 	next := serialize(ts, d)
-	prev, err := t.tickerMap.TestAndSet(t.runtimeCtx, t.name, t.next, next)
+	prev, exists, updated, err := t.tickerMap.TestAndSetEx(t.runtimeCtx, t.name, t.next, next)
 	if err != nil {
 		t.handleAdvanceFailureLocked(err, d)
 		return
 	}
-	if prev != t.next {
+	if !exists {
+		t.stopLocalLocked()
+		return
+	}
+	if !updated {
 		// Another node already updated the ticker, restart the timer.
 		t.next = prev
 		t.initTimer()
