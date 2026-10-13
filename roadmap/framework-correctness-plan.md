@@ -4,11 +4,14 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **124 of 186 tracked reports are delivered, pushed and confirmed closed.**
+- **125 of 188 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each issue and its
-  owning repair. GitHub snapshot `/tmp/loom-checkpoint-124-all-issues.json`
-  confirms this checkpoint. Latest pushed implementation is `fae477d0e`.
-- Latest deliveries: #863 native WebSocket cleanup observation (`fc65bb288`),
+  owning repair. GitHub snapshot `/tmp/loom-checkpoint-125-all-issues.json`
+  confirms this checkpoint. Latest pushed implementation is `b2b6f1480`.
+- Latest delivery: #866 typed stream test consumers (`b2b6f1480`), independently
+  reviewed; twelve client calls preserve their contexts and assertions, two
+  snapshots regenerated, five failed tests and scoped lint now pass.
+- Prior deliveries: #863 native WebSocket cleanup observation (`fc65bb288`),
   #864 gRPC symbol fixture lint (`7eed12497`), #865 CLI assertion lint
   (`8f1240831`), and #853 shared response projection (`fae477d0e`). Each passed
   independent exact-diff review; #853 integration was separately reviewed.
@@ -31,26 +34,35 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
    separately owned. Readiness verdict:
    `/tmp/loom-735-independent-readiness-verdict.json`.
 2. **#859 streaming interceptor value ownership:**
-   `/root/access_log_implementation` owns readiness in `correctness-baseline/loom`.
-   Reconcile expression admission, attribute collection and StreamingResultRef
-   with the shared stream result contract; preserve compiled witnesses and model
-   current/candidate behavior before independent readiness review. #785 wrapper
-   shape and #726 context/lifetime remain separate.
-3. **CI triage:** #863/#864/#865 are delivered and complete local lint is green.
+   `/root/access_log_implementation` owns `correctness-baseline/loom`.
+   Root independently approved readiness after reproducing direct field/type
+   disagreement and both mounted accessor panics. Implement the shared effective
+   MethodExpr stream-result attribute and canonical accessor reference; preserve
+   existing eligibility and mixed-result markers. Verdict:
+   `/tmp/loom-859-root-readiness-verdict.json`. Separate mixed unary client
+   wrapper dispatch is filed as #867; #785 server wrapper shape stays separate.
+3. **#726 gRPC operation contexts:** `/root/diagnostic_redaction_finish` owns
+   readiness in `/Users/luca/.codex/worktrees/grpc-message-context/loom`, based on
+   pushed `7baf82f92`. Managed creation succeeded but registration and one attach
+   retry hit the 100-identity limit; preserve this usable checkout. Model native
+   handler-return ownership, terminal cancellation arbitration and client opening
+   context lifetime before implementation; derived server contexts alone cannot
+   interrupt gRPC native I/O. Keep authentication and half-close contracts.
+4. **CI triage:** #863/#864/#865 are delivered and complete local lint is green.
    Snapshot `/tmp/loom-ci-checkpoint-123.json` has queued/running newer workflow
    runs, with completed CodeQL checks green. Continue examining completed
    required gates and repair demonstrated failures; do not infer aggregate green.
-4. **#820 dependency race:** authorized libopenapi
+5. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at last
    check (`3180fde17f85cf6b6ed5b3f738f0de9d915161bb`), without new human review.
    Keep pins unchanged until an eligible upstream revision exists.
-5. **#800 read shutdown:** independently approved 53-file manifest
+6. **#800 read shutdown:** independently approved 53-file manifest
    `03ef4eff230c124907a5d248aaeca5b4f2e25a416352417a85a23951f99bbb32`
    remains in `bounded-streaming-shutdown`. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
    remains open at last check (`8df7cf3c57002ecf1fc3a51ff5697bf563ab967c`);
    original-module fetchability gates delivery. Then resume #687 constructor
    rollback; #704 worker publication remains separate.
-6. Continue remaining milestone reports by shared ownership and correctness risk.
+7. Continue remaining milestone reports by shared ownership and correctness risk.
    #853 is delivered: all three proven projection leaks are repaired, metadata
    codec counts and mixed StreamingResult event contracts are preserved. Its
    original 11-module comparison and current 39-file fixture regeneration pass.
@@ -1272,3 +1284,9 @@ no overall green result is claimed.
   both apps build/vet/race, integrated mounted matrix and full `make lint` pass.
   Continue #735 constructor ownership and #859 streaming interceptor readiness;
   upstream prerequisites and GitHub aggregate CI remain unresolved.
+
+- 2026-10-13 — **Checkpoint125:** #866 pushed as `b2b6f1480` and confirmed
+  closed after independent exact-final approval. Inventory now has 188 reports,
+  125 closed; #867 separately records reproduced mixed unary client dispatch.
+  #859 readiness approved and implementation authorized; #735 continues bounded
+  constructor validation, and #726 is modeling gRPC stream cancellation ownership.
