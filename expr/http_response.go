@@ -405,6 +405,9 @@ func (r *HTTPResponseExpr) Finalize(a *HTTPEndpointExpr, svcAtt *AttributeExpr) 
 }
 
 func (r *HTTPResponseExpr) finalizeBody(a *HTTPEndpointExpr, svcAtt *AttributeExpr) {
+	// Body(namedType) shares its authored declaration. Detach before source
+	// initialization changes fields, requiredness or original-name metadata.
+	r.Body = DupAtt(r.Body)
 	bodyAtt := responseBodyAttribute(r.Body, svcAtt)
 	bindValueSource(r.Body, bodyAtt)
 	if body := AsObject(r.Body.Type); body != nil {

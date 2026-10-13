@@ -54,6 +54,9 @@ type (
 		// valueSourceOrigin records an explicit finalized semantic transport
 		// binding independently of copy/declaration provenance.
 		valueSourceOrigin *AttributeExpr
+		// valueSourceBound distinguishes an explicit semantic binding from the
+		// normalized source ancestry retained by ordinary controlled copies.
+		valueSourceBound bool
 	}
 
 	// ExampleExpr represents an example.

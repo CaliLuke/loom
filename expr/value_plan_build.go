@@ -7,9 +7,10 @@ import (
 
 type (
 	valuePlanKey struct {
-		source *valueOccurrenceNode
-		target *valueOccurrenceNode
-		codec  ValueCodec
+		source  *valueOccurrenceNode
+		target  *valueOccurrenceNode
+		codec   ValueCodec
+		binding bool
 	}
 	valuePlanBuilder struct {
 		enumConstant bool
@@ -145,7 +146,7 @@ func valueUnderlyingOccurrence(node *valueOccurrenceNode) *valueOccurrenceNode {
 
 // valuePlanAliasSource pairs a target edge with the nearest controlled source
 // ancestry. Additional target wrappers need not consume a source alias.
-func valuePlanAliasSource(source, target *valueOccurrenceNode) (*valueOccurrenceNode, bool, error) {
+func valuePlanAliasSource(source, target *valueOccurrenceNode, binding bool) (*valueOccurrenceNode, bool, error) {
 	original := source
 	seen := make(map[*valueOccurrenceNode]bool)
 	for source != nil && !seen[source] {
@@ -161,6 +162,12 @@ func valuePlanAliasSource(source, target *valueOccurrenceNode) (*valueOccurrence
 	if target.declaration.alias == nil {
 		structural, err := valuePlanStructuralSource(original)
 		return structural, structural == original, err
+	}
+	// An explicit occurrence binding authorizes additional representation
+	// aliases, not a different source value. Structural child mappings remain
+	// independently checked. A cyclic source cannot grant this authority.
+	if binding && source == nil {
+		return original, true, nil
 	}
 	return nil, false, fmt.Errorf("value plan alias has no matching source ancestry")
 }
@@ -181,16 +188,18 @@ func valuePlanStructuralSource(source *valueOccurrenceNode) (*valueOccurrenceNod
 }
 
 func (b *valuePlanBuilder) node(source, target *valueOccurrenceNode, codec ValueCodec) (*valuePlanNode, error) {
-	return b.nodeAssociated(source, target, codec, true)
+	return b.nodeAssociated(source, target, codec, true, false)
 }
 
 func (b *valuePlanBuilder) nodeAssociated(
 	source, target *valueOccurrenceNode,
 	codec ValueCodec,
-	associate bool,
+	associate, binding bool,
 ) (*valuePlanNode, error) {
 	owner := source
+	binding = binding || target.sourceBound && valueSameAncestry(source.origin, target.origin)
 	if target.declaration.alias == nil {
+		binding = false
 		var err error
 		source, err = valuePlanStructuralSource(source)
 		if err != nil {
@@ -201,7 +210,7 @@ func (b *valuePlanBuilder) nodeAssociated(
 	if err != nil {
 		return nil, err
 	}
-	key := valuePlanKey{source: source, target: target, codec: codec}
+	key := valuePlanKey{source: source, target: target, codec: codec, binding: binding}
 	if prior := b.nodes[key]; prior != nil {
 		if associate {
 			b.associate(owner, prior, nil)
@@ -231,13 +240,13 @@ func (b *valuePlanBuilder) nodeAssociated(
 	} else if err := b.enums(node, source, target); err != nil {
 		return nil, err
 	}
-	return b.nodeChildren(node, source, target)
+	return b.nodeChildren(node, source, target, binding)
 }
 
-func (b *valuePlanBuilder) nodeChildren(node *valuePlanNode, source, target *valueOccurrenceNode) (*valuePlanNode, error) {
+func (b *valuePlanBuilder) nodeChildren(node *valuePlanNode, source, target *valueOccurrenceNode, binding bool) (*valuePlanNode, error) {
 	decl := target.declaration
 	if decl.alias != nil {
-		child, reuses, err := valuePlanAliasSource(source, decl.alias)
+		child, reuses, err := valuePlanAliasSource(source, decl.alias, binding)
 		if err != nil && b.enumConstant {
 			// Inherited constants retain the declaration source while traversing
 			// wrappers introduced by the refined target.
@@ -247,7 +256,7 @@ func (b *valuePlanBuilder) nodeChildren(node *valuePlanNode, source, target *val
 			return nil, err
 		}
 		node.aliasReusesSource = reuses
-		node.alias, err = b.nodeAssociated(child, decl.alias, node.codec, !reuses)
+		node.alias, err = b.nodeAssociated(child, decl.alias, node.codec, !reuses, binding)
 		return node, err
 	}
 	if source.declaration.kind != decl.kind {

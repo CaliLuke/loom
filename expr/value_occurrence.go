@@ -31,6 +31,7 @@ type (
 		declarationID     string
 		ownerName         string
 		origin            *AttributeExpr
+		sourceBound       bool
 		attribute         *AttributeExpr
 		declaration       *valueDeclarationNode
 		examples          []valueOccurrenceExample
@@ -177,12 +178,13 @@ func (b *valueOccurrenceBuilder) occurrence(source *AttributeExpr) (*valueOccurr
 		contract = source.constraintLocal
 	}
 	attribute := copyValueOccurrenceAttribute(contract)
+	attribute.valueSourceBound = source.valueSourceBound
 	if b.structuralOnly {
 		attribute.Validation = nil
 		attribute.DefaultValue = nil
 		attribute.UserExamples = nil
 	}
-	node := &valueOccurrenceNode{id: b.identity(), origin: source, attribute: attribute,
+	node := &valueOccurrenceNode{id: b.identity(), origin: source, sourceBound: source.valueSourceBound, attribute: attribute,
 		declarationID: valueSourceDeclarationID(source)}
 	if _, named := source.Type.(UserType); !named || source.constraintLocal != nil {
 		node.ownerName = source.compositionName

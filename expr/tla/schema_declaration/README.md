@@ -435,3 +435,41 @@ values correctly. Direct tests cover that correspondence, preserved malformed
 input errors, mixed alternatives, clause intersection, supported siblings, and
 codec call counts. An opaque alternative alone is not a builtin semantic witness;
 the existing custom materialization boundary remains responsible for its codec.
+
+## Explicit body occurrence binding (#893)
+
+`ExplicitBodyBinding.tla` isolates the newly observed source-binding ownership
+boundary. Two endpoint occurrences share one authored declaration and each needs
+three representation alias positions mapped to its own source. Finalization can
+occur in either order. `current` leaves intermediate aliases unbound and mutates
+the authored owner. `root-only` detaches but still misses aliases. `shared-spine`
+binds all aliases while changing the shared declaration. `owned-spine` preserves
+the authored owner and both independently mapped occurrence paths.
+
+Run `tlc2.TLC -workers 1 -config body-owned-spine.cfg ExplicitBodyBinding.tla`
+with the toolchain above and an external metadir; substitute the other three
+`body-*.cfg` files for negative controls. Completed states explicitly stutter.
+The first draft lacked that terminal action and reported deadlock; that run is
+not passing evidence. Final runs: current/root-only fail CompleteBinding in two distinct states;
+shared-spine fails AuthoredOwnerPreserved in two states; owned-spine checks all
+three invariants in four distinct states (six generated).
+
+The model assumes admitted, acyclic transport bindings and corresponding fields.
+It does not prove Go copying, alias-pair extraction, constraints or recursive
+back-edge identity. `AliasPairing.tla` retains foreign/backward ancestry checks;
+plain copies cannot create the explicit authority abstracted here. Direct Go
+`TestExplicitAliasBodyBinding` checks request/response aliases and projected JSON;
+`TestExplicitAliasBodyBindingOwnsOccurrences` checks isolation; the recursive
+control confirms that response field initialization currently overwrites the
+original Node back edge. Existing foreign/cyclic and matched-source sequence
+controls remain required. Implementation must retain occurrence authority without
+rebinding shared recursive declaration nodes or changing declaration identity.
+
+Implementation correspondence: `bindValueSource` records private authority;
+`copyValueOccurrenceAttribute`, occurrence capture and manual representation
+wrappers retain it. `HTTPResponseExpr.finalizeBody` detaches before field/name
+writes. `valuePlanBuilder` keys alias nodes by authority, prefers matched source
+ancestry and resets inherited authority at structural nodes. The focused
+`value_binding_authority_test.go` controls check both memo orders, child isolation,
+constraint preservation and cyclic rejection. They check properties abstracted
+out of this finite ownership model; the model alone does not establish them.

@@ -56,6 +56,7 @@ func (p *valueViewPlan) project(rt *ResultTypeExpr, name string) (*ResultTypeExp
 				Validation:        projectedResultValidation(rt, view),
 				valueOrigin:       valueAttributeOrigin(rt.AttributeExpr),
 				valueSourceOrigin: valueCopiedSourceOrigin(rt.AttributeExpr),
+				valueSourceBound:  rt.AttributeExpr.valueSourceBound,
 			},
 		},
 	}

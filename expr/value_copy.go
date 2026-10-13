@@ -81,6 +81,7 @@ func bindValueSource(target, source *AttributeExpr) {
 		origin = nil
 	}
 	target.valueSourceOrigin = origin
+	target.valueSourceBound = source != nil
 }
 
 // valueCopiedSourceOrigin preserves normalized binding even when a constructor

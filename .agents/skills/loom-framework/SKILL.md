@@ -75,6 +75,19 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Explicit HTTP response bodies detach before field initialization and naming
+  metadata writes. `bindValueSource` alone grants private binding provenance;
+  controlled copies retain it without manufacturing it from source ancestry.
+  Value occurrence capture and generated wrappers preserve that provenance.
+  Shared value-plan alias pairing first matches ordinary ancestry, then allows
+  explicitly bound representation aliases to reuse the semantic source. Keep
+  binding authority in memo identity and stop inherited authority at structural
+  children. Declaration naming, constraints, exact member mapping and cyclic/
+  foreign rejection stay independent. Do not mutate recursive authored body
+  declarations or flatten importer aliases to make transport plans succeed.
+  `expr/tla/schema_declaration` and direct binding/memo/recursive controls cover
+  this boundary.
+
 - `codegen.concretePresenceAttribute` consumes effective root nullability when
   extracting a presence carrier. Copy and clear the complete named alias spine;
   preserve source declarations, nominal identities and structural child edges,

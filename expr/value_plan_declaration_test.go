@@ -227,7 +227,7 @@ func TestValuePlanAliasPairingRejectsForeignAndCyclicAncestry(t *testing.T) {
 	require.ErrorContains(t, err, "alias has no matching source ancestry")
 	cyclic := &valueOccurrenceNode{origin: source, declaration: &valueDeclarationNode{}}
 	cyclic.declaration.alias = cyclic
-	_, _, err = valuePlanAliasSource(cyclic, &valueOccurrenceNode{origin: &AttributeExpr{Type: String}, declaration: &valueDeclarationNode{alias: cyclic}})
+	_, _, err = valuePlanAliasSource(cyclic, &valueOccurrenceNode{origin: &AttributeExpr{Type: String}, declaration: &valueDeclarationNode{alias: cyclic}}, false)
 	require.ErrorContains(t, err, "no matching source ancestry")
 	_, err = valuePlanStructuralSource(cyclic)
 	require.ErrorContains(t, err, "cyclic alias chain")

@@ -145,6 +145,7 @@ func httpRequestBody(a *HTTPEndpointExpr) *AttributeExpr {
 		Type:              ut,
 		valueOrigin:       valueAttributeOrigin(payload),
 		valueSourceOrigin: valueCopiedSourceOrigin(payload),
+		valueSourceBound:  payload.valueSourceBound,
 		Validation:        att.Validation,
 		UserExamples:      att.UserExamples,
 	}
@@ -221,6 +222,7 @@ func httpStreamingBody(e *HTTPEndpointExpr) *AttributeExpr {
 		Type:              ut,
 		valueOrigin:       valueAttributeOrigin(att),
 		valueSourceOrigin: valueCopiedSourceOrigin(att),
+		valueSourceBound:  att.valueSourceBound,
 		Validation:        dupped.Validation,
 		UserExamples:      dupped.UserExamples,
 	}
@@ -293,6 +295,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 			Type:              userType,
 			valueOrigin:       valueAttributeOrigin(attr),
 			valueSourceOrigin: valueCopiedSourceOrigin(attr),
+			valueSourceBound:  attr.valueSourceBound,
 			Validation:        userType.Validation,
 			Meta:              attr.Meta,
 		}
@@ -318,6 +321,7 @@ func buildHTTPResponseBody(name string, attr *AttributeExpr, resp *HTTPResponseE
 		Type:              nmt,
 		valueOrigin:       valueAttributeOrigin(attr),
 		valueSourceOrigin: valueCopiedSourceOrigin(attr),
+		valueSourceBound:  attr.valueSourceBound,
 		Validation:        userType.Validation,
 		Meta:              attr.Meta,
 	}
