@@ -417,6 +417,12 @@ and Go branch. Inline object branches become deterministic components; inline
 array branches, inline nested objects, maps, nested unions, scalar unions, and
 untagged unions in string-encoded transport locations remain blocked.
 
+Imported enum/const membership intersects the declared type and nullability.
+A nullable string enum must include null to retain `Nullable()`; null members
+excluded by the source type are removed. Empty or null-only domains and included
+numeric members that cannot retain their value in the DSL carrier are blocked,
+including with `--allow-lossy`. Reimport the source contract to adopt this repair.
+
 A scalar JSON Schema `const` without a sibling `enum` imports as the equivalent
 one-value `Enum(...)` validation. Regenerated OpenAPI uses `enum` because Loom's
 DSL has no separate scalar-constant construct. Structured constants and schemas

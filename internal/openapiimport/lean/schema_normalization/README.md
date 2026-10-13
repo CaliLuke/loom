@@ -79,3 +79,34 @@ model; the candidate rejects them. The model treats `true` and `{}` as the
 unconstrained schema in 3.1/3.2, and treats legacy `nullable` as effective only
 for OAS 3.0. These version assumptions should be revisited if the importer
 adds a distinct compatibility dialect or changes its supported schema subset.
+
+
+## Finite value domains (#777 / #778)
+
+The `ValueDomain` namespace extends the same model with the missing intersection
+between an admitted string/null type and enum/const membership. Its six theorems
+cover all modeled membership constructors, both type-nullability choices and the
+eight representative values. `current_nullable_enum_counterexample` reproduces
+#778: copied nullability accepts null excluded by the source enum.
+`strip_only_counterexample` rejects the tempting #777 repair of merely removing
+null: a null-only enum would become unrestricted strings. The candidate preserves
+acceptance for every admitted domain and explicitly rejects empty/null-only
+intersections. Valid nullable and nonnullable enums, absent enum and scalar const
+remain admitted. The existing theorem manifest and `lake build` cover this model.
+
+The Go owner is `analyzer.schemaValueDomain` after type analysis, before defaults,
+examples and unconstrained classification. Source enum presence must survive an
+empty normalized slice, and a retained admission reason must reach
+`documentPlanner.schemaAdmission` so direct Render cannot bypass rejection.
+Renderers consume the normalized enum/nullability without recomputing policy.
+An outer bare-null `anyOf` can legitimately widen a nonnullable inner enum;
+therefore absent outer membership must not re-intersect the copied branch enum.
+`TestImportedValueDomain*` checks real analysis, rendering and the existing
+roundtrip instance validator across references, fields and collection elements.
+
+This finite addition assumes dialect/type admission already chose nullability.
+It does not prove arbitrary composition, reference graph resolution, numeric
+identity, codec behavior or Go compilation. Existing DSL Enum requires at least
+one type-compatible value; null-only and empty-domain rejection also follow the
+documented strict subset. No new universal bottom type is proposed. The previous
+#659 model remains unchanged and does not claim these additional obligations.

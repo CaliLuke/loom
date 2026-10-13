@@ -825,6 +825,16 @@ filter, and serialization rules belong here.
 
 ## OpenAPI Importer Invariants
 
+- `analyzer.schemaValueDomain` owns type/nullability/membership intersection
+  before defaults and rendering. Preserve authored enum presence, including an
+  empty list, and retain blocking domain diagnostics in Schema for the shared
+  Analyze/Render planner. Classify numeric members from original exact tokens
+  before carrier conversion; exclude source-invalid members and reject included
+  members that cannot retain their value. A copied inner composition enum is not
+  a newly authored outer assertion. Keep the schema-normalization model and
+  inline/reference/collection roundtrips aligned; do not repair consumers with
+  independent null filtering or nullable toggles.
+
 - Plan imported credentials once by physical wire slot, decoding codec and
   credential component. Payload attributes and HTTP mappings consume the same
   allocation; retain every scheme role and AND/OR requirement. Reject unequal

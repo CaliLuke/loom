@@ -558,7 +558,7 @@ func (a *analyzer) schema(proxy *base.SchemaProxy, path string) *Schema {
 	supportedAllOf := a.schemaAllOf(schema, source, path)
 	a.schemaTypeAndProperties(schema, source, path)
 	a.schemaCollections(schema, source, path)
-	a.schemaEnum(schema, source, path)
+	a.schemaValueDomain(schema, source, path)
 	a.schemaDefault(schema, source, path)
 	a.schemaExamples(schema, source, path)
 	a.schemaFormat(schema, path)
@@ -641,34 +641,6 @@ func (a *analyzer) schemaCollections(schema *Schema, source *base.Schema, path s
 			schema.AdditionalProperties.Allowed = &allowed
 		}
 	}
-}
-
-func (a *analyzer) schemaEnum(schema *Schema, source *base.Schema, path string) {
-	for _, value := range source.Enum {
-		var decoded any
-		if err := value.Decode(&decoded); err != nil {
-			a.unsupported("enum-value", path+"/enum", fmt.Sprintf("enum value cannot be decoded: %v", err))
-			continue
-		}
-		schema.Enum = append(schema.Enum, decoded)
-	}
-	if source.Const == nil {
-		return
-	}
-	if len(source.Enum) > 0 {
-		a.unsupported("schema-const", path+"/const", "const combined with enum is not in the strict import subset")
-		return
-	}
-	var decoded any
-	if err := source.Const.Decode(&decoded); err != nil {
-		a.unsupported("schema-const", path+"/const", fmt.Sprintf("const value cannot be decoded: %v", err))
-		return
-	}
-	if _, err := scalarLiteral(decoded); err != nil {
-		a.unsupported("schema-const", path+"/const", err.Error())
-		return
-	}
-	schema.Enum = append(schema.Enum, decoded)
 }
 
 func (a *analyzer) unsupported(code, path, message string) {

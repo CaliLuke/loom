@@ -202,7 +202,7 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 
 func hasUnsupportedSingleReferenceAllOfSiblings(source *base.Schema) bool {
 	return len(source.Type) > 0 || orderedmap.Len(source.Properties) > 0 || len(source.Required) > 0 ||
-		source.Items != nil || source.AdditionalProperties != nil || len(source.Enum) > 0 || source.Format != "" ||
+		source.Items != nil || source.AdditionalProperties != nil || hasSchemaEnum(source) || source.Const != nil || source.Format != "" ||
 		source.Pattern != "" || source.MinLength != nil || source.MaxLength != nil || source.MinItems != nil ||
 		source.MaxItems != nil
 }
@@ -226,7 +226,7 @@ func referencedSchemaType(proxy *base.SchemaProxy) string {
 
 func hasDirectAllOfSchemaShape(source *base.Schema) bool {
 	return len(source.Type) > 0 || orderedmap.Len(source.Properties) > 0 || len(source.Required) > 0 ||
-		source.Items != nil || source.AdditionalProperties != nil || len(source.Enum) > 0 || source.Format != "" ||
+		source.Items != nil || source.AdditionalProperties != nil || hasSchemaEnum(source) || source.Const != nil || source.Format != "" ||
 		source.Pattern != "" || source.Minimum != nil || source.Maximum != nil || source.ExclusiveMinimum != nil ||
 		source.ExclusiveMaximum != nil || source.MinLength != nil || source.MaxLength != nil ||
 		source.MinItems != nil || source.MaxItems != nil || source.Default != nil

@@ -151,6 +151,16 @@ path; `--allow-lossy` does not drop that constraint. Native floating-point
 precision remains separate from the exact schema number (see
 [numeric validations](dsl-reference.md#numeric-validations)).
 
+Finite scalar domains intersect `enum` or `const` with the declared type, including
+nullability. A nullable string with `enum: [a, null]` retains null; the same type
+with `enum: [a]` does not. Members excluded by the source type are removed, not
+coerced. Empty or null-only intersections are blocked because the DSL cannot
+represent them. An authored empty enum is never treated as absent validation.
+Numeric members retain source identity before carrier conversion: a fractional
+member of an integer enum is excluded even if floating-point rounding would make
+it integral. An included member that cannot retain its numeric value in the DSL
+carrier produces a blocking diagnostic rather than rounding or disappearing.
+
 The following constructs are conditional:
 
 - Recursive local component references through object fields, arrays, and maps

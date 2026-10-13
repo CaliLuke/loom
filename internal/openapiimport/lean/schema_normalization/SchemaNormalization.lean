@@ -220,3 +220,88 @@ theorem unsupported_shapes_fail_closed :
   decide
 
 end OpenAPIImport.SchemaNormalization
+
+namespace OpenAPIImport.SchemaNormalization.ValueDomain
+
+/-- Membership assertions on an already admitted string/null type. Const is a
+singleton; unsupported conjunctions remain outside the modeled subset. -/
+inductive Membership where
+  | absent | stringX | stringXNull | nullOnly | wrongTypeOnly | mixed | empty | constX | constNull
+  deriving DecidableEq, Repr
+
+/-- The DSL separates non-null values and nullability, with no bottom form. -/
+inductive Domain where
+  | strings (nullable : Bool)
+  | enumX (nullable : Bool)
+  deriving DecidableEq, Repr
+
+def member : Membership → Value → Bool
+  | .absent, _ => true
+  | .stringX, v => v == .stringX
+  | .stringXNull, v => v == .stringX || v == .null
+  | .nullOnly, v => v == .null
+  | .wrongTypeOnly, v => v == .booleanTrue
+  | .mixed, v => v == .stringX || v == .null || v == .booleanTrue
+  | .empty, _ => false
+  | .constX, v => v == .stringX
+  | .constNull, v => v == .null
+
+def sourceAccepts (nullable : Bool) (membership : Membership) (value : Value) : Bool :=
+  (isString value || (nullable && value == .null)) && member membership value
+
+def accepts : Domain → Value → Bool
+  | .strings nullable, value => isString value || (nullable && value == .null)
+  | .enumX nullable, value => value == .stringX || (nullable && value == .null)
+
+/-- Intersect membership before separating Enum and Nullable. Preserve empty
+and null-only intersections as rejections, never as absent validation. -/
+def normalize (nullable : Bool) : Membership → Option Domain
+  | .absent => some (.strings nullable)
+  | .stringX | .constX => some (.enumX false)
+  | .stringXNull | .mixed => some (.enumX nullable)
+  | .nullOnly | .wrongTypeOnly | .empty | .constNull => none
+
+/-- Current renderer copies nullable independently of enum membership. -/
+def legacyWithoutNull (nullable : Bool) : Domain := .enumX nullable
+
+/-- Incomplete repair strips null but loses the empty finite-domain marker. -/
+def stripNullOnly (nullable : Bool) : Domain := .strings nullable
+
+/-- Every admitted intersection preserves acceptance for all representatives. -/
+theorem normalized_domain_preserves_acceptance
+    (nullable : Bool) (membership : Membership) (domain : Domain)
+    (admitted : normalize nullable membership = some domain) :
+    ∀ value, sourceAccepts nullable membership value = accepts domain value := by
+  intro value
+  cases nullable <;> cases membership <;> cases domain <;> cases value <;>
+    simp_all [normalize, sourceAccepts, member, accepts, isString] <;> decide
+
+/-- Copied nullability accepts a value the finite source rejects. -/
+theorem current_nullable_enum_counterexample :
+    sourceAccepts true .stringX .null = false ∧
+      accepts (legacyWithoutNull true) .null = true := by decide
+
+/-- Stripping a null-only enum admits strings if its emptiness is forgotten. -/
+theorem strip_only_counterexample :
+    sourceAccepts true .nullOnly .stringOther = false ∧
+      accepts (stripNullOnly true) .stringOther = true := by decide
+
+/-- Enum members never widen the source type. -/
+theorem nonnullable_enum_null_is_excluded :
+    normalize false .stringXNull = some (.enumX false) ∧
+      sourceAccepts false .stringXNull .null = false := by decide
+
+/-- Supported forms remain admitted; reject-all is not an adequate repair. -/
+theorem valid_domains_remain_representable :
+    normalize true .stringXNull = some (.enumX true) ∧
+      normalize true .stringX = some (.enumX false) ∧
+      normalize true .absent = some (.strings true) ∧
+      normalize true .constX = some (.enumX false) := by decide
+
+/-- Empty and null-only domains retain admission failures. -/
+theorem null_only_and_empty_domains_rejected :
+    normalize true .nullOnly = none ∧ normalize false .nullOnly = none ∧
+      normalize true .constNull = none ∧ normalize true .empty = none ∧
+      normalize true .wrongTypeOnly = none := by decide
+
+end OpenAPIImport.SchemaNormalization.ValueDomain

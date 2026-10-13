@@ -423,6 +423,10 @@ func (p *documentPlanner) schemaAdmission(schema *Schema, path string) bool {
 		return true
 	}
 	admitted := true
+	if diagnostic := schema.valueDomainError; diagnostic != nil {
+		p.unsupported(diagnostic.Code, diagnostic.Path, diagnostic.Message)
+		return false
+	}
 	if schema.Boolean != nil && (!*schema.Boolean || strings.HasPrefix(p.document.OpenAPIVersion, "3.0.")) {
 		p.unsupported("schema-boolean", path, "only true boolean schemas in OpenAPI 3.1 and 3.2 are in the strict import subset")
 		admitted = false
