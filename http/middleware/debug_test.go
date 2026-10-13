@@ -36,8 +36,8 @@ func TestDebug(t *testing.T) {
 	rec := httptest.NewRecorder()
 	httpm.Debug(loomhttp.NewMuxer(), &buf)(handler).ServeHTTP(rec, req)
 
-	// The middleware restores the request body for the wrapped handler.
-	assert.Equal(t, "hi", gotBody, "request body not restored for handler")
+	// The middleware preserves the request body for the wrapped handler.
+	assert.Equal(t, "hi", gotBody, "request body changed for handler")
 	// The response still reaches the client.
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "hello", rec.Body.String())

@@ -3,7 +3,6 @@ package transport
 import (
 	"io"
 	"slices"
-	"sync"
 )
 
 type (
@@ -11,12 +10,6 @@ type (
 	// writes occur. CaptureResponse retains no body unless an option enables it.
 	ResponseCaptureOption func(*ResponseCapture)
 
-	responseBodyCapture struct {
-		mu      sync.Mutex
-		limit   int
-		data    []byte
-		omitted bool
-	}
 	responseCaptureReader struct {
 		io.Reader
 		limit int
@@ -33,7 +26,7 @@ func WithResponseBodyCapture(limit int) ResponseCaptureOption {
 		panic("response body capture limit must be positive")
 	}
 	return func(c *ResponseCapture) {
-		c.body = &responseBodyCapture{limit: limit}
+		c.body = &bodyCapture{limit: limit}
 	}
 }
 
@@ -49,25 +42,7 @@ func (c *ResponseCapture) Body() ([]byte, bool) {
 	return slices.Clone(c.body.data), c.body.omitted
 }
 
-func (b *responseBodyCapture) record(data []byte, text string, n int64) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if b.omitted {
-		return
-	}
-	if n > int64(b.limit-len(b.data)) {
-		b.data = nil
-		b.omitted = true
-		return
-	}
-	if data != nil {
-		b.data = append(b.data, data[:int(n)]...)
-	} else {
-		b.data = append(b.data, text[:int(n)]...)
-	}
-}
-
-func (b *responseBodyCapture) reader(r io.Reader) *responseCaptureReader {
+func (b *bodyCapture) reader(r io.Reader) *responseCaptureReader {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.omitted {

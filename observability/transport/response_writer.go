@@ -14,7 +14,7 @@ import (
 type ResponseCapture struct {
 	status atomic.Int32
 	bytes  atomic.Int64
-	body   *responseBodyCapture
+	body   *bodyCapture
 }
 
 // CaptureResponse returns a writer and its separate capture state. The writer

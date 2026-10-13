@@ -1093,9 +1093,12 @@ metrics and routing. Handle these values rather than parsing error messages:
 
 Use `loomhttp.NewDebugDoer` only for bounded, redacted development diagnostics.
 Server `middleware.Debug` preserves SSE flushing and response writer capabilities.
-It captures at most 64 KiB of response body; larger bodies produce an omission
-marker while the complete response reaches the client. The summary is written
-when the handler returns. This response cap does not limit request-body capture.
+It captures at most 64 KiB per request or response preview; larger bodies produce
+an omission marker without limiting application I/O. Request capture follows
+downstream reads and preserves their bytes, errors and Close behavior. It never
+drains an unread request. A preview without observed EOF is explicitly marked
+incomplete. The request-before-response summary is written when the handler
+returns; streaming does not wait for the upload to complete.
 Set `DEBUG_LOOM=1` while generating when you need DSL/codegen decision traces.
 
 `loom vet <module-import-path>/design` evaluates the composed design. Run it

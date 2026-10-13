@@ -631,17 +631,25 @@ payloads containing unmodeled secrets.
 
 ---
 
-## Debug Server Responses
+## Debug Server Capture
 
 `middleware.Debug` preserves the response writer's streaming, flushing and
 connection-control capabilities. It logs the committed response status and bytes
 accepted by the writer, including partial writes that return an error.
 
-Response body capture is limited to 64 KiB. Larger bodies are omitted entirely
-from debug output with `[body omitted after 65536 bytes]`; every response byte
-still flows to the client. SSE events flush normally before the handler returns,
-while the debug summary is written when the handler returns. This response limit
-does not limit request-body capture.
+Each request or response body preview is limited to 64 KiB. Larger previews are
+omitted entirely with `[body omitted after 65536 bytes]`; application I/O is not
+limited. SSE events flush normally before the handler returns. The debug summary
+is written when the handler returns, with the request before the response.
+
+Request capture observes downstream reads without reading ahead, draining unread
+input, replacing read errors or taking ownership of Close. Partial bytes and the
+original errors reach the reader unchanged. When EOF has not been observed, the
+preview includes `[request body capture stopped before EOF]`, even if the number
+of bytes matches Content-Length. Nil bodies and `http.NoBody` are complete empty
+bodies. If Debug wraps a request-size policy, the preview also observes bytes
+consumed by that policy, including its one-byte overflow probe. The policy's
+rejection and limit remain unchanged in either middleware order.
 
 ---
 
