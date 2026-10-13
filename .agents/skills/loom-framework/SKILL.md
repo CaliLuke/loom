@@ -164,7 +164,12 @@ consumer validation.
   calls. Preserve physical naming metadata at the occurrence edge while deriving
   parameter presence from the intrinsic named declaration; local Nullable and
   predicates must not redefine it. Keep the physical identity model and actual
-  shared/protobuf scope regressions aligned. Intrinsically nullable named types
+  shared/protobuf scope regressions aligned. Named validator eligibility must
+  restore registered layout at every named boundary and visit shared attributes
+  separately under distinct physical modes. Sum-union eligibility and rendering
+  share branch context and structural pointer presence, including branches with
+  no authored predicates. Keep `codegen/tla/validation_layout` aligned with the
+  nested-union, optional-view and both-order layout regressions. Intrinsically nullable named types
   retain their wrapper when called,
   while occurrence predicates inspect the unwrapped value. Anonymous object and
   enum guards use the same occurrence carrier fact without clearing child field

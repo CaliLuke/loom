@@ -2,7 +2,6 @@
 package codegen
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -57,30 +56,6 @@ func indentCode(code string) string {
 	}
 	const indent = "\t"
 	return indent + strings.ReplaceAll(trimmed, "\n", "\n"+indent) + "\n"
-}
-
-// hasValidations returns true if a UserType contains validations.
-func hasValidations(attCtx *AttributeContext, ut expr.UserType) bool {
-	// We need to check empirically whether there are validations to be
-	// generated, we can't just generate and check whether something was
-	// generated to avoid infinite recursions.
-	res := false
-	done := errors.New("done")
-	Walk(ut.Attribute(), func(a *expr.AttributeExpr) error { // nolint: errcheck
-		if a.Validation == nil {
-			return nil
-		}
-		if !a.Validation.HasRequiredOnly() {
-			res = true
-			return done
-		}
-		res = len(generatedRequiredValidation(a, attCtx)) > 0
-		if res {
-			return done
-		}
-		return nil
-	})
-	return res
 }
 
 // There is a case where there is validation but no actual validation code: if

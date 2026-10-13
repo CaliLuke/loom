@@ -134,6 +134,8 @@ const unionInUnionHarness = `package unioninunion
 import (
 	"context"
 	"encoding/json/v2"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
@@ -152,6 +154,7 @@ import (
 	nest "example.com/unioninunion/gen/nest"
 	nestrpc "example.com/unioninunion/gen/nestrpc"
 	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
 )
 
 type echo struct{}
@@ -318,5 +321,63 @@ func TestGRPCConversions(t *testing.T) {
 			t.Errorf("%s: result: got %#v, want %#v", want.ID, result, want)
 		}
 	}
+}
+
+func TestNestedUnionMissingLeafName(t *testing.T) {
+	cases := []string{
+		"{\"id\":\"invalid\",\"p\":{\"type\":\"Choice\",\"value\":{\"type\":\"Leaf\",\"value\":{}}}}",
+		"{\"id\":\"invalid\",\"r\":{\"type\":\"Outer\",\"value\":{\"type\":\"Choice\",\"value\":{\"type\":\"Leaf\",\"value\":{}}}}}",
+		"{\"id\":\"invalid\",\"peer\":{\"block\":{\"type\":\"t\",\"value\":{\"type\":\"Leaf\",\"value\":{}}}}}",
+	}
+	for index, body := range cases {
+		for _, transport := range []string{"http", "jsonrpc"} {
+			t.Run(transport+"/"+string(rune('a'+index)), func(t *testing.T) {
+				wire := body
+				decode := httpclient.DecodeShowResponse(loomhttp.ResponseDecoder, false)
+				if transport == "jsonrpc" {
+					wire = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":" + body + "}"
+					decode = rpcclient.DecodeShowResponse(loomhttp.ResponseDecoder, false)
+				}
+				response := &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(wire)),
+				}
+				var result any
+				var err error
+				require.NotPanics(t, func() {
+					result, err = decode(response)
+				})
+				require.ErrorContains(t, err, "name")
+				require.Nil(t, result)
+			})
+		}
+	}
+}
+
+func TestNestedUnionPresenceOnlyNamedValues(t *testing.T) {
+	httpPeer := &httpclient.PeerRequestBody{Block: ptr(httpclient.NewBlock2S(ptr(httpclient.NewBlockS2RequestBodyOther(nil))))}
+	httpBody := &httpclient.ShowRequestBody{Peer: httpPeer}
+	require.ErrorContains(t, httpclient.ValidateShowRequestBody(httpBody), "value")
+	httpPeer.Block = ptr(httpclient.NewBlock2S(ptr(httpclient.NewBlockS2RequestBodyOther(&httpclient.OtherRequestBody{}))))
+	require.NoError(t, httpclient.ValidateShowRequestBody(httpBody))
+	rpcPeer := &rpcclient.PeerRequestBody{Block: ptr(rpcclient.NewBlock2S(ptr(rpcclient.NewBlockS2RequestBodyOther(nil))))}
+	rpcBody := &rpcclient.ShowRequestBody{Peer: rpcPeer}
+	require.ErrorContains(t, rpcclient.ValidateShowRequestBody(rpcBody), "value")
+	rpcPeer.Block = ptr(rpcclient.NewBlock2S(ptr(rpcclient.NewBlockS2RequestBodyOther(&rpcclient.OtherRequestBody{}))))
+	require.NoError(t, rpcclient.ValidateShowRequestBody(rpcBody))
+}
+
+func TestNestedUnionValidatorChecksConstructedValues(t *testing.T) {
+	leaf := &httpclient.LeafResponseBody{}
+	peer := &httpclient.PeerResponseBody{Block: loom.OptionalValue(httpclient.NewBlock4T(ptr(httpclient.NewBlockT2ResponseBodyLeaf(leaf))))}
+	require.ErrorContains(t, httpclient.ValidatePeerResponseBody(peer), "name")
+	leaf.Name = ptr("valid")
+	require.NoError(t, httpclient.ValidatePeerResponseBody(peer))
+	rpcLeaf := &rpcclient.LeafResponseBody{}
+	rpcPeer := &rpcclient.PeerResponseBody{Block: loom.OptionalValue(rpcclient.NewBlock4T(ptr(rpcclient.NewBlockT2ResponseBodyLeaf(rpcLeaf))))}
+	require.ErrorContains(t, rpcclient.ValidatePeerResponseBody(rpcPeer), "name")
+	rpcLeaf.Name = ptr("valid")
+	require.NoError(t, rpcclient.ValidatePeerResponseBody(rpcPeer))
 }
 `

@@ -166,24 +166,7 @@ func renderUnionValidationCode(buf *bytes.Buffer, first *bool, u *expr.Union, pu
 func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string) []unionValidationCase {
 	cases := make([]unionValidationCase, 0, len(u.Values))
 	for _, v := range u.Values {
-		// Resolve branch storage through the declaration's type reference. A
-		// nil pointer is missing, while nil collections are concrete values
-		// whose predicates must run. Nullable carriers own their presence.
-		requiresValue := strings.HasPrefix(attCtx.Scope.Ref(v.Attribute, attCtx.DefaultPkg), "*")
-		unionCtx := attCtx.Dup()
-		unionCtx.validationValue = !requiresValue
-		_, named := v.Attribute.Type.(expr.UserType)
-		if !named {
-			unionCtx.JSONPresence = false
-			unionCtx.UseDefault = true
-		}
-		if expr.IsObject(v.Attribute.Type) && !named {
-			// HTTP sum types store inline object branches with native pointer
-			// presence, even when the union field uses JSON presence.
-			unionCtx.Pointer = false
-		} else {
-			unionCtx.Pointer = unionCtx.Pointer && expr.IsObject(v.Attribute.Type)
-		}
+		unionCtx, requiresValue := unionValidationContext(attCtx, v.Attribute)
 		val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view)
 		if val == "" && !requiresValue {
 			continue
@@ -197,6 +180,30 @@ func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *Att
 		})
 	}
 	return cases
+}
+
+// unionValidationContext resolves branch value storage independently of the
+// field layout inside named values. Eligibility and rendering share both facts.
+func unionValidationContext(attCtx *AttributeContext, attribute *expr.AttributeExpr) (*AttributeContext, bool) {
+	// Resolve branch storage through the declaration's type reference. A
+	// nil pointer is missing, while nil collections are concrete values
+	// whose predicates must run. Nullable carriers own their presence.
+	requiresValue := strings.HasPrefix(attCtx.Scope.Ref(attribute, attCtx.DefaultPkg), "*")
+	unionCtx := attCtx.Dup()
+	unionCtx.validationValue = !requiresValue
+	_, named := attribute.Type.(expr.UserType)
+	if !named {
+		unionCtx.JSONPresence = false
+		unionCtx.UseDefault = true
+	}
+	if expr.IsObject(attribute.Type) && !named {
+		// HTTP sum types store inline object branches with native pointer
+		// presence, even when the union field uses JSON presence.
+		unionCtx.Pointer = false
+	} else {
+		unionCtx.Pointer = unionCtx.Pointer && expr.IsObject(attribute.Type)
+	}
+	return unionCtx, requiresValue
 }
 
 func renderUnionInterfaceValidationCases(u *expr.Union, put expr.UserType, attCtx *AttributeContext, view bool, context string) ([]string, []string) {
