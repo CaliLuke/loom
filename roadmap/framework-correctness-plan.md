@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **173 of 208 tracked reports are delivered, pushed and confirmed closed.**
+- **174 of 209 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-173-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-174-issues.json` is the frozen GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
   client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
@@ -56,10 +56,13 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   One internal framing/admissibility owner feeds Expr and HTTP/JSON-RPC codecs;
   repeated/combined fields, empty presence and rejected lossy values agree.
   The separate projected named-collection carrier defect is tracked as #887.
-- Required CI is not confirmed green. All inspected metadata-adoption test jobs
-  passed except the libopenapi YAML-node race matching #820; the completed run
-  failed, including release eligibility. This is evidence for that source, not
-  current-main CI success. Terminal evidence: `/tmp/loom-ci-metadata-adoption-terminal.json`.
+- Required CI is not confirmed green. The inspected metadata-adoption run
+  failed the known #820 libopenapi YAML-node race. The newer #689 run
+  `38455349199` at `7ed1bfc63` exposed fixture maintainability lint #888;
+  that failure is reproduced and corrected in reviewed/pushed `8ed6ef518`,
+  with the issue confirmed closed. Focused configured lint and interceptor
+  contract/generated harnesses pass. Other jobs were still running at the last
+  read; no current-main aggregate success is claimed.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -103,12 +106,17 @@ reconciliation with the inventory before they can establish remaining work.
    responses must both preserve content in generated wire behavior and OpenAPI.
    Annotation #783 and encoded byte-length #686 retain distinct owners.
 3. **Projected physical field carriers (#887):** `/root/projection_integration_review`
-   reuses the completed header worktree after cleanup. The archived-parent witness
-   shows a named slice treated as a pointer in a viewed header. Reconcile the
-   existing service field-layout owner and #796/#834 storage fixes, then repair
-   shared binding rather than adding a header template exception. Readiness must
-   retain true pointer scalars, ordinary arrays and non-view aliases as controls.
-4. **Next distinct owners:** #770 completes public interceptor declarations in
+   implements the independently approved canonical layout query after nine direct
+   failing assertions and the archived/current-parent named-slice compiler witness.
+   Reuse declaration storage in the shared context query and remove equivalent
+   selected-body classification. Preserve JSON presence, named Bytes, scalar
+   pointer and non-view controls; do not add header template exceptions.
+4. **Stream observation (#749):** root recorded three direct failures and two
+   controls in [the owning plan](stream-observation-ownership.md). Establish
+   connection versus operation identity and opening/terminal correspondence before
+   implementing; existing public failure events need not mean terminal closure.
+   No production fix or generated acceptance is claimed yet.
+5. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
    actual namespaces. #791 follows #776 through one location-aware parameter
    contract: current root probes reproduce five silent header/path/nested-array
@@ -116,7 +124,7 @@ reconciliation with the inventory before they can establish remaining work.
    Evidence: `/tmp/loom-791-current-evidence.json`; no production fix is claimed.
    #687 still needs bounded subordinate shutdown. Keep #884 custom-key example
    synthesis open rather than weakening supported representation admission.
-5. **Dependency gates:** #820 libopenapi
+6. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
    [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at last read.
    The approved #800 packet stays in `bounded-streaming-shutdown`; original-module

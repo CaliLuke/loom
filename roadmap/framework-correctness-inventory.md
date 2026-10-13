@@ -213,9 +213,10 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#884: Automatic examples panic for comparable custom Bytes map keys](https://github.com/CaliLuke/loom/issues/884) | Generated example representation | Independently reproduced on delivered #702 source; retain comparable authored key admission and repair example synthesis at its owner |
 | [#885: gRPC metadata fixtures and peer controls still use the superseded wire contract](https://github.com/CaliLuke/loom/issues/885) | Metadata fixture and peer contract adoption | Delivered/pushed `c01bd5447`, independently reviewed and closed; canonical-key fixtures, distinct security mappings and exact native binary assertions; full affected packages and CI security specimen pass |
 | [#886: Explicit empty object response bodies collapse to no body](https://github.com/CaliLuke/loom/issues/886) | Explicit response-body expression preparation | Delivered/pushed `720d8a5f7`, independently reviewed and closed; preserve authored empty object identity before runtime/OpenAPI consumers, retaining inferred bodyless controls |
-| [#887: HTTP viewed result headers dereference named collection carriers](https://github.com/CaliLuke/loom/issues/887) | Physical service field layout and transport binding | Archived-parent generation succeeds then compilation fails; shared carrier-owner readiness active, separate from delivered header framing |
+| [#887: HTTP viewed result headers dereference named collection carriers](https://github.com/CaliLuke/loom/issues/887) | Physical service field layout and transport binding | Shared carrier-owner readiness independently approved; implementation derives native primitive pointer decisions from canonical declarations, separate from delivered header framing |
+| [#888: Interceptor contract fixture fails required maintainability lint](https://github.com/CaliLuke/loom/issues/888) | Regression fixture construction | Delivered/pushed `8ed6ef518`, independently reviewed and closed; private type/field helpers preserve all DSL cases and clear required lint |
 
-Inventory count: 208 reports (114 in the requested open range, plus #670, follow-ups #794–#825 and #827–#887; #826 is a PR); 173 delivered and confirmed closed.
+Inventory count: 209 reports (114 in the requested open range, plus #670, follow-ups #794–#825 and #827–#888; #826 is a PR); 174 delivered and confirmed closed.
 
 ## Structural delivery tickets
 
