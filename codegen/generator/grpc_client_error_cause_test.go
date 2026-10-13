@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 
 	svc "example.com/clientboundary/gen/boundary"
@@ -29,7 +30,8 @@ import (
 
 type failedStream struct {
 	std.ClientStream
-	err error
+	err      error
+	receives *atomic.Int32
 }
 
 func (s failedStream) SendMsg(any) error {
@@ -41,6 +43,9 @@ func (s failedStream) CloseSend() error {
 }
 
 func (s failedStream) RecvMsg(any) error {
+	if s.receives != nil {
+		s.receives.Add(1)
+	}
 	return s.err
 }
 
@@ -126,6 +131,7 @@ func TestNativeContextStatus(t *testing.T) {
 					}
 					original := st.Err()
 					for _, cause := range []error{original, fmt.Errorf("outer: %w", original)} {
+						var receives atomic.Int32
 						conn, err := std.NewClient("passthrough:///unused", std.WithTransportCredentials(insecure.NewCredentials()),
 							std.WithUnaryInterceptor(func(context.Context, string, any, any, *std.ClientConn, std.UnaryInvoker, ...std.CallOption) error {
 								return cause
@@ -134,7 +140,7 @@ func TestNativeContextStatus(t *testing.T) {
 								if opening {
 									return nil, cause
 								}
-								return failedStream{err: cause}, nil
+								return failedStream{err: cause, receives: &receives}, nil
 							}))
 						require.NoError(t, err)
 						c := client.NewClient(conn)
@@ -149,8 +155,19 @@ func TestNativeContextStatus(t *testing.T) {
 						if ended {
 							cancel()
 						}
-						for _, endpoint := range []loom.Endpoint{c.Plain(), c.Declared(), receive} {
+						for endpointIndex, endpoint := range []loom.Endpoint{c.Plain(), c.Declared(), receive} {
+							before := receives.Load()
 							_, err := endpoint(ctx, &svc.Request{Name: "valid"})
+							if ended && !opening && endpointIndex == 2 {
+								require.ErrorIs(t, err, context.Canceled)
+								require.Equal(t, before, receives.Load(), "pre-canceled receive must not perform native I/O")
+								continue
+							}
+							if !opening && endpointIndex == 2 {
+								require.Equal(t, before+1, receives.Load(), "healthy receive must exercise the remote status")
+							} else {
+								require.Equal(t, before, receives.Load())
+							}
 							require.ErrorIs(t, err, original)
 							require.Equal(t, code, status.Code(err))
 							require.False(t, errors.Is(err, context.Canceled))
