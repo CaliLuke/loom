@@ -11,6 +11,13 @@ stated predicates under its hypotheses; it does not establish handwritten Go
 refinement, correct plan extraction, arbitrary codec behavior or generated-code
 correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 
+## CLI dependency ordering
+
+The [CLI argument model](../../../../http/codegen/tla/cli_arguments/README.md)
+checks selected service order and shared declaration/call dependency identities,
+with grouped-argument and unfiltered-service counterexamples. Direct identity
+and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
+
 ## Value semantics and expression ownership
 
 | Code concern | Model and correspondence |

@@ -75,6 +75,12 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `http/codegen.buildCLIArgumentPlan` owns selected endpoint-bearing service order
+  and the parser/example dependency sequence for HTTP and JSON-RPC. Keep exact
+  service and endpoint identity through command-name allocation; project each
+  renderer's own aliases from that plan. Do not regroup multipart and interceptor
+  arguments independently or infer identity from rendered names/configurer nils.
+
 - `expr.validateErrorNames` admits authored API, service and method error lists
   before finalization. Exact wire names are unique within each original scope;
   narrower overrides, sibling scopes and distinct Go-normalized names remain

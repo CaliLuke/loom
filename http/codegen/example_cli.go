@@ -114,17 +114,18 @@ func exampleCLIWithCache(
 	apiPkg := importScope.Unique(service.PackageBaseName(services.Root.API.Name), "api")
 	specs = append(specs, &codegen.ImportSpec{Path: rootPath, Name: apiPkg})
 
-	svcData := make([]exampleCLIServiceData, 0, len(svr.Services))
-	for _, svc := range svr.Services {
-		if data, ok := exampleServices[svc]; ok {
+	plan := buildCLIArgumentPlan(svr, services)
+	svcData := make([]exampleCLIServiceData, 0, len(plan.services))
+	for _, svc := range plan.services {
+		if data, ok := exampleServices[svc.Service.Name]; ok {
 			svcData = append(svcData, data)
 		}
 	}
 	sections := []codegen.Section{
 		codegen.Header("", "main", specs),
 		exampleCLIStartSection(svcData, interceptorsPkg, transport.FunctionName),
-		exampleCLIStreamingSection(svcData),
-		exampleCLIEndSection(svcData, apiPkg, transport.StreamingConfigDefault),
+		exampleCLIStreamingSection(plan),
+		exampleCLIEndSection(plan, apiPkg, transport.StreamingConfigDefault),
 		exampleCLIUsageSection(transport.UsagePrefix),
 	}
 	return &codegen.File{

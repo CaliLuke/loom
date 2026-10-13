@@ -106,6 +106,12 @@ churn their values. Implicit server service lists use stable service-name
 ordering; an explicit `Server(... Services(...))` list preserves its authored
 order.
 
+HTTP and JSON-RPC example calls follow the generated `ParseEndpoint` signature:
+streaming dependencies first, then multipart encoders and client interceptors
+per hosted service. When combining multipart and interceptors across services,
+update affected existing calls against a fresh example. `loom example` preserves
+existing files; the generated parser signature remains unchanged.
+
 HTTP and JSON-RPC CLI JSON body builders reject omitted required members before
 applying defaults. Omitted optional members can receive defaults; supplied zero
 and empty values remain supplied. Nullable members accept JSON null, ordinary

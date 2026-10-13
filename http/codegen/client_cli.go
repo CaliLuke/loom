@@ -30,6 +30,8 @@ type ClientCLITransport struct {
 
 // commandData wraps the common CommandData and adds HTTP-specific fields.
 type commandData struct {
+	// source retains service identity across parser-local name allocation.
+	source *ServiceData
 	*cli.CommandData
 	// Subcommands is the list of endpoint commands.
 	Subcommands []*subcommandData
@@ -39,6 +41,8 @@ type commandData struct {
 
 // commandData wraps the common SubcommandData and adds HTTP-specific fields.
 type subcommandData struct {
+	// source retains endpoint identity across parser-local name allocation.
+	source *EndpointData
 	*cli.SubcommandData
 	// MultipartFuncName is the name of the function used to render a multipart
 	// request encoder.
@@ -87,15 +91,16 @@ func ClientCLIFilesForTransport(
 		if !hostsTransportService(svr, data.Expressions) {
 			continue
 		}
+		plan := buildCLIArgumentPlan(svr, data)
 		var svrData []*commandData
-		for _, name := range svr.Services {
+		for _, selected := range plan.services {
 			for i, svc := range svcs {
-				if svc.Name() == name {
+				if svc.Name() == selected.Service.Name {
 					svrData = append(svrData, cmds[i])
 				}
 			}
 		}
-		files = append(files, endpointParser(genpkg, data.Root, svr, svrData, data, transport))
+		files = append(files, endpointParser(genpkg, svr, svrData, plan, transport))
 	}
 	for i, svc := range svcs {
 		files = append(files, payloadBuilders(genpkg, svc, cmds[i].CommandData, data, transport))
@@ -137,6 +142,7 @@ func normalizeClientCLITransport(transport ClientCLITransport) ClientCLITranspor
 // endpoints.
 func buildCommandData(sd *ServiceData, transport ClientCLITransport) *commandData {
 	command := &commandData{
+		source:      sd,
 		CommandData: cli.BuildCommandData(sd.Service),
 		NeedDialer:  HasWebSocket(sd),
 	}
@@ -159,6 +165,7 @@ func buildSubcommandData(sd *ServiceData, e *EndpointData, transport ClientCLITr
 	wrapper := e.Method.ClientInterceptorWrapper(transport.PathName == "jsonrpc" && e.Method.HasMixedResults)
 
 	sub := &subcommandData{
+		source:         e,
 		SubcommandData: cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags, wrapper),
 	}
 	if e.MultipartRequestEncoder != nil {
@@ -176,10 +183,9 @@ func buildSubcommandData(sd *ServiceData, e *EndpointData, transport ClientCLITr
 // builds the client endpoint and payload necessary to perform a request.
 func endpointParser(
 	genpkg string,
-	root *expr.RootExpr,
 	svr *expr.ServerExpr,
 	data []*commandData,
-	services *ServicesData,
+	plan *cliArgumentPlan,
 	transport ClientCLITransport,
 ) *codegen.File {
 	pkg := naming.ServerDir(svr.Name)
@@ -198,12 +204,7 @@ func endpointParser(
 		codegen.LoomNamedImport("http", "loomhttp"),
 	}
 	clientPaths := make([]string, 0, len(data))
-	for _, sv := range svr.Services {
-		svc := root.Service(sv)
-		sd := services.Get(svc.Name)
-		if sd == nil || len(sd.Endpoints) == 0 {
-			continue
-		}
+	for _, sd := range plan.services {
 		clientPaths = append(clientPaths, genpkg+"/"+transport.PathName+"/"+sd.Service.PathName+"/client")
 		// Add interceptors import if service has client interceptors
 		if len(sd.Service.ClientInterceptors) > 0 {
@@ -228,7 +229,7 @@ func endpointParser(
 		codegen.Header(title, "cli", specs),
 		cli.UsageCommands(cliData),
 		cli.UsageExamples(cliData),
-		parseEndpointSection(cliData, data, transport),
+		parseEndpointSection(cliData, data, plan, transport),
 	)
 	for _, cmd := range cliData {
 		sections = append(sections, cli.CommandUsage(cmd))
@@ -558,17 +559,6 @@ func streamFlag(svcn, en string) *cli.FlagData {
 func hostsTransportService(svr *expr.ServerExpr, transport *expr.HTTPExpr) bool {
 	for _, name := range svr.Services {
 		if transport.Service(name) != nil {
-			return true
-		}
-	}
-	return false
-}
-
-// streamingCmdExists returns true if at least one command in the list of commands
-// uses stream for sending payload/result.
-func streamingCmdExists(data []*commandData) bool {
-	for _, c := range data {
-		if c.NeedDialer {
 			return true
 		}
 	}

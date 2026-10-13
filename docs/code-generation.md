@@ -57,6 +57,15 @@ initialization order cannot move unrelated services through aggregate clients,
 CLIs, or transport contracts. An explicit `Server(... Services(...))` list
 keeps the order authored by the application.
 
+HTTP and JSON-RPC example clients pass optional dependencies in the generated
+`ParseEndpoint` signature's order: a shared WebSocket dialer and each streaming
+service's configuration, then each hosted service's multipart encoders followed
+by its client interceptors. Services without transport endpoints contribute no
+arguments. This fixes example clients that combine multipart and interceptors
+across services; the parser signature is unchanged. `loom example` does not
+replace existing files. For an affected application, compare a fresh example in
+a separate directory and reorder the arguments in its existing call.
+
 Generated Go names belong to their declaration scope. Service-package types
 avoid emitted framework declarations such as `Client`, `NewEndpoints`, and
 method stream or body carriers by receiving a deterministic numeric suffix.

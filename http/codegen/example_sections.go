@@ -47,26 +47,26 @@ func renderExampleCLIStart(services []exampleCLIServiceData, interceptorsPkg, fu
 	return b.String()
 }
 
-func exampleCLIStreamingSection(services []exampleCLIServiceData) codegen.Section {
+func exampleCLIStreamingSection(plan *cliArgumentPlan) codegen.Section {
 	return codegen.NewRenderSection("cli-http-streaming", func() string {
-		return renderExampleCLIStreaming(services)
+		return renderExampleCLIStreaming(plan)
 	})
 }
 
-func renderExampleCLIStreaming(services []exampleCLIServiceData) string {
-	if !exampleCLINeedsDialer(services) {
+func renderExampleCLIStreaming(plan *cliArgumentPlan) string {
+	if !plan.needsDialer() {
 		return ""
 	}
 	return "\nvar (\n\tdialer *websocket.Dialer\n)\n{\n\tdialer = websocket.DefaultDialer\n}\n"
 }
 
-func exampleCLIEndSection(services []exampleCLIServiceData, apiPkg, streamingConfigDefault string) codegen.Section {
+func exampleCLIEndSection(plan *cliArgumentPlan, apiPkg, streamingConfigDefault string) codegen.Section {
 	return codegen.NewRenderSection("cli-http-end", func() string {
-		return renderExampleCLIEnd(services, apiPkg, streamingConfigDefault)
+		return renderExampleCLIEnd(plan, apiPkg, streamingConfigDefault)
 	})
 }
 
-func renderExampleCLIEnd(services []exampleCLIServiceData, apiPkg, streamingConfigDefault string) string {
+func renderExampleCLIEnd(plan *cliArgumentPlan, apiPkg, streamingConfigDefault string) string {
 	var b strings.Builder
 	b.WriteString("\nendpoint, payload, err := cli.ParseEndpoint(\n")
 	b.WriteString("\t\tscheme,\n")
@@ -75,23 +75,17 @@ func renderExampleCLIEnd(services []exampleCLIServiceData, apiPkg, streamingConf
 	b.WriteString("\t\tloomhttp.RequestEncoder,\n")
 	b.WriteString("\t\tloomhttp.ResponseDecoder,\n")
 	b.WriteString("\t\tdebug,\n")
-	if exampleCLINeedsDialer(services) {
-		b.WriteString("\t\tdialer,\n")
-		for _, svc := range services {
-			if HasWebSocket(svc.Data) {
-				fmt.Fprintf(&b, "\t\t%s,\n", streamingConfigDefault)
-			}
+	for _, argument := range plan.arguments {
+		switch argument.kind {
+		case cliDialer:
+			b.WriteString("\t\tdialer,\n")
+		case cliConfigurer:
+			fmt.Fprintf(&b, "\t\t%s,\n", streamingConfigDefault)
+		case cliMultipartEncoder:
+			fmt.Fprintf(&b, "\t\t%s.%s,\n", apiPkg, argument.endpoint.MultipartRequestEncoder.FuncName)
+		case cliInterceptors:
+			fmt.Fprintf(&b, "\t\t%sInterceptors,\n", argument.service.Service.VarName)
 		}
-	}
-	for _, svc := range services {
-		for _, endpoint := range svc.Data.Endpoints {
-			if endpoint.MultipartRequestEncoder != nil {
-				fmt.Fprintf(&b, "\t\t%s.%s,\n", apiPkg, endpoint.MultipartRequestEncoder.FuncName)
-			}
-		}
-	}
-	for _, svc := range cliServicesWithClientInterceptors(services) {
-		fmt.Fprintf(&b, "\t\t%sInterceptors,\n", svc.Data.Service.VarName)
 	}
 	b.WriteString("\t)\n")
 	b.WriteString("\tif err != nil {\n")
@@ -330,15 +324,6 @@ func cliServicesWithClientInterceptors(services []exampleCLIServiceData) []examp
 		filtered = append(filtered, svc)
 	}
 	return filtered
-}
-
-func exampleCLINeedsDialer(services []exampleCLIServiceData) bool {
-	for _, service := range services {
-		if HasWebSocket(service.Data) {
-			return true
-		}
-	}
-	return false
 }
 
 func exampleServerConstructorCall(svc exampleServerServiceData, apiPkg string) string {

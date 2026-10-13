@@ -13,6 +13,7 @@ import (
 func parseEndpointSection(
 	common []*cli.CommandData,
 	commands []*commandData,
+	plan *cliArgumentPlan,
 	transport ClientCLITransport,
 ) codegen.Section {
 	return codegen.NewJenniferSection("parse-endpoint", func(stmt *jen.Statement) {
@@ -31,8 +32,7 @@ func parseEndpointSection(
 				group.Id("enc").Func().Params(jen.Op("*").Qual("net/http", "Request")).Add(codegen.TypeRef("loomhttp.Encoder"))
 				group.Id("dec").Func().Params(jen.Op("*").Qual("net/http", "Response")).Add(codegen.TypeRef("loomhttp.Decoder"))
 				group.Id("restore").Bool()
-				appendParseEndpointStreamingParams(group, commands, transport)
-				appendParseEndpointCommandParams(group, commands)
+				appendCLIArgumentParameters(group, plan, commands, transport)
 			}).
 			Params(codegen.TypeRef("loom.Endpoint"), jen.Any(), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
@@ -160,36 +160,6 @@ func kongFlagTags(flag *cli.FlagData) map[string]string {
 
 func kongFieldName(name string) string {
 	return codegen.Goify(name, true)
-}
-
-func appendParseEndpointStreamingParams(
-	group *jen.Group,
-	commands []*commandData,
-	transport ClientCLITransport,
-) {
-	if !streamingCmdExists(commands) {
-		return
-	}
-	group.Id("dialer").Add(codegen.TypeRef("loomhttp.Dialer"))
-	for _, cmd := range commands {
-		if cmd.NeedDialer {
-			group.Id(transport.StreamingConfigurerName(cmd.VarName)).
-				Add(codegen.TypeRef(transport.StreamingConfigurerType(cmd.PkgName)))
-		}
-	}
-}
-
-func appendParseEndpointCommandParams(group *jen.Group, commands []*commandData) {
-	for _, cmd := range commands {
-		for _, sub := range cmd.Subcommands {
-			if sub.MultipartVarName != "" {
-				group.Id(sub.MultipartVarName).Add(codegen.TypeRef(cmd.PkgName + "." + sub.MultipartFuncName))
-			}
-		}
-		if cmd.Interceptors != nil {
-			group.Id(cmd.Interceptors.VarName).Add(codegen.TypeRef(cmd.Interceptors.PkgName + ".ClientInterceptors"))
-		}
-	}
 }
 
 func appendHTTPParseEndpointBody(
