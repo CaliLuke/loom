@@ -26,10 +26,22 @@ func TestGRPCSecurityScope(t *testing.T) {
 				require.NotContains(t, endpoint.Method.PayloadDef, "Auth *string")
 			}
 			dir := t.TempDir()
+			if output := os.Getenv("LOOM_BINARY_METADATA_OUTPUT"); output != "" {
+				dir = filepath.Join(output, "security", map[bool]string{false: "basic", true: "session"}[session])
+				require.NoError(t, os.MkdirAll(dir, 0o750))
+			}
 			renderGRPCResponseContractModule(t, dir, "example.com/scope", root)
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "endpoint_test.go"), []byte(testdata.SecurityScopeEndpointTest(session)), 0o600))
+			if session {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "metadata_test.go"), []byte(sessionMetadataHarness), 0o600))
+			}
+			if os.Getenv("LOOM_BINARY_METADATA_GENERATE_ONLY") == "1" {
+				return
+			}
 			runGRPCGoCommand(t, dir, "mod", "tidy")
-			runGRPCGoCommand(t, dir, "test", "./...", "-run", "^TestSelectedEndpoint$")
+			runGRPCGoCommand(t, dir, "build", "./...")
+			runGRPCGoCommand(t, dir, "vet", "./...")
+			runGRPCGoCommand(t, dir, "test", "-race", "./...", "-run", "^TestSelected(Endpoint|Metadata)$")
 		})
 	}
 }

@@ -453,6 +453,23 @@ even if the field has a default. These rules apply to incoming request metadata
 and to response headers and trailers decoded by generated clients. Regenerate
 both client and server packages to adopt absence-based defaults.
 
+Binary metadata uses the standard gRPC `-bin` wire suffix. Loom derives
+`x-raw-bin` when a `Bytes` field is mapped to `x-raw`, and preserves an existing
+suffix. The same rule covers named byte types and arrays of byte values in
+request metadata, response headers and trailers. Metadata keys are lowercase;
+distinct fields that resolve to the same key in one channel are rejected.
+Handwritten peers must use the derived key and their runtime's binary metadata
+API; Loom does not encode binary values under ordinary text keys. Regenerate
+clients and servers together when adopting this correction.
+
+Collision admission includes implicit credentials. If two credential fields would
+both default to `authorization` (for example, bearer and cookie alternatives in a
+session), explicitly map one with `Attribute("cookie:x-session")` inside `Metadata`.
+The wire then carries bearer credentials under `authorization` and that cookie
+credential under `x-session`. This is an explicit gRPC metadata mapping, not an
+HTTP cookie. Existing designs with conflicting implicit keys must choose distinct
+keys before regeneration.
+
 Arrays retain their repeated-value metadata encoding: each supplied entry is an
 element. An empty array emits no entries and cannot be distinguished from an
 absent key in this format. An entry containing `""` represents one empty string,

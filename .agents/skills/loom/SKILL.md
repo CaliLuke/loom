@@ -226,6 +226,15 @@ and `errors.As`, including when the message contains an example.
   `1..536870911`, excluding `19000..19999`. Invalid numbers fail design evaluation.
   Constructor unions inherit consecutive numbers; explicit branch tags override
   their slots. Correct the design and regenerate instead of editing generated code.
+- Binary gRPC metadata (`Bytes`, named byte types and arrays of byte values)
+  derives a lowercase `-bin` wire key. Mapping `raw:x-raw` uses `x-raw-bin`;
+  an existing suffix is preserved. Distinct fields cannot share the resulting
+  key in one channel. Regenerate both sides and use the derived keys in
+  handwritten peers with their runtime's binary metadata API.
+- Distinct gRPC credentials must also use distinct metadata keys. If session
+  bearer and cookie fields both default to `authorization`, explicitly map the
+  cookie field with `Attribute("cookie:x-session")` inside `Metadata`.
+  Use that same key in handwritten gRPC clients.
 - gRPC metadata arrays may use named primitive elements, including types placed
   in another generated package. Keep the named service field; generated codecs
   perform the conversion and enforce inherited constraints and defaults.

@@ -31,6 +31,8 @@ type (
 		// Meta is a set of key/value pairs with semantic that is
 		// specific to each generator, see dsl.Meta.
 		Meta MetaExpr
+		// metadataBindingErrors caches complete metadata admission before finalization.
+		metadataBindingErrors *eval.ValidationErrors
 	}
 
 	// rpcTagOwner is the attribute or union branch that uses a field tag
@@ -84,6 +86,7 @@ func (e *GRPCEndpointExpr) Prepare() {
 // that there is only one response per status code.
 func (e *GRPCEndpointExpr) Validate() error {
 	verr := new(eval.ValidationErrors)
+	verr.Merge(e.ensureMetadataBindings())
 	if e.Name() == "" {
 		verr.Add(e, "Endpoint name cannot be empty")
 	}

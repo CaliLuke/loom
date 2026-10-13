@@ -53,7 +53,13 @@ func SecurityScopeDSL(transport string, sessionOverride bool) func() {
 						GET("/")
 					})
 				case "grpc":
-					GRPC(func() {})
+					GRPC(func() {
+						if sessionOverride {
+							Metadata(func() {
+								Attribute("cookie:x-session")
+							})
+						}
+					})
 				case "jsonrpc":
 					JSONRPC(func() {})
 				}

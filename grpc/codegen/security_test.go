@@ -73,7 +73,11 @@ var grpcAPISessionSecurityDSL = func() {
 				dsl.Field(1, "message", dsl.String)
 			})
 			dsl.Result(dsl.String)
-			dsl.GRPC(func() {})
+			dsl.GRPC(func() {
+				dsl.Metadata(func() {
+					dsl.Attribute("browser_session:x-session")
+				})
+			})
 		})
 	})
 }

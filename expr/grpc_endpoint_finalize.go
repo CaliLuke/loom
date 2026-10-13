@@ -2,11 +2,10 @@ package expr
 
 // Finalize ensures the request and response attributes are initialized.
 func (e *GRPCEndpointExpr) Finalize() {
+	if errors := e.ensureMetadataBindings(); len(errors.Errors) > 0 {
+		return
+	}
 	if pobj := AsObject(e.MethodExpr.Payload.Type); pobj != nil {
-		addToMetadata := func(field string, tName string) {
-			e.addPayloadFieldToMetadata(pobj, field, tName)
-		}
-		e.finalizeSecurityRequirements(addToMetadata)
 		e.finalizeRequestMessageFromPayload(pobj)
 		e.propagatePayloadProtoStructName()
 	} else {
@@ -17,68 +16,6 @@ func (e *GRPCEndpointExpr) Finalize() {
 	e.Response.Finalize(e, e.MethodExpr.Result)
 	for _, gerr := range e.GRPCErrors {
 		gerr.Finalize(e)
-	}
-}
-
-func (e *GRPCEndpointExpr) addPayloadFieldToMetadata(pobj *Object, field string, transportName string) {
-	attr := pobj.Attribute(field)
-	e.Metadata.Type.(*Object).Set(field, attr)
-	if transportName != "" {
-		e.Metadata.Map(transportName, field)
-	}
-	if e.MethodExpr.Payload.IsRequired(field) {
-		e.Metadata.Validation.AddRequired(field)
-	}
-}
-
-func (e *GRPCEndpointExpr) finalizeSecurityRequirements(addToMetadata func(string, string)) {
-	reqLen := len(e.MethodExpr.Requirements)
-	if reqLen == 0 {
-		return
-	}
-	e.Requirements = make([]*SecurityExpr, 0, reqLen)
-	for _, req := range e.MethodExpr.Requirements {
-		dupReq := DupRequirement(req)
-		for _, sch := range dupReq.Schemes {
-			e.finalizeSecurityScheme(sch, addToMetadata)
-		}
-		e.Requirements = append(e.Requirements, dupReq)
-	}
-}
-
-func (e *GRPCEndpointExpr) finalizeSecurityScheme(sch *SchemeExpr, addToMetadata func(string, string)) {
-	switch sch.Kind {
-	case NoKind:
-		return
-	case BasicAuthKind:
-		e.finalizeBasicAuthScheme(sch, addToMetadata)
-		return
-	case APIKeyKind:
-		e.finalizeCredentialScheme(TaggedAttribute(e.MethodExpr.Payload, "security:apikey:"+sch.SchemeName), sch, addToMetadata)
-	case JWTKind:
-		e.finalizeCredentialScheme(TaggedAttribute(e.MethodExpr.Payload, "security:token"), sch, addToMetadata)
-	case OAuth2Kind:
-		e.finalizeCredentialScheme(TaggedAttribute(e.MethodExpr.Payload, "security:accesstoken"), sch, addToMetadata)
-	}
-}
-
-func (e *GRPCEndpointExpr) finalizeBasicAuthScheme(sch *SchemeExpr, addToMetadata func(string, string)) {
-	for _, field := range []string{
-		TaggedAttribute(e.MethodExpr.Payload, "security:username"),
-		TaggedAttribute(e.MethodExpr.Payload, "security:password"),
-	} {
-		sch.Name, sch.In = findKey(e, field)
-		if sch.Name == "" {
-			addToMetadata(field, "")
-		}
-	}
-}
-
-func (e *GRPCEndpointExpr) finalizeCredentialScheme(field string, sch *SchemeExpr, addToMetadata func(string, string)) {
-	sch.Name, sch.In = findKey(e, field)
-	if sch.Name == "" {
-		sch.Name = "authorization"
-		addToMetadata(field, sch.Name)
 	}
 }
 

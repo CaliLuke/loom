@@ -489,6 +489,14 @@ consumer validation.
   same owner; never render a collection from the authored Go container type or
   maintain a separate alias formatter. Preserve typed nil versus empty literals,
   raw-JSON key/value representation and the existing default-application gates.
+- `expr.GRPCEndpointExpr.ensureMetadataBindings` owns canonical metadata wire
+  names before validation and finalization. Compose effective inherited security
+  placements first, classify each actual source occurrence, lowercase names and
+  derive `-bin` for byte storage. Reject collisions within each channel and
+  publish fresh detached mapped attributes without stale reverse aliases.
+  Codec and required-response-contract consumers read that same map; do not add
+  downstream suffix fallbacks. Error mappings retain their source scope.
+  Keep `expr/tla/grpc_metadata_bindings` and independent TCP peers aligned.
 - gRPC metadata decoding owns one presence decision in
   `renderGRPCMetadataDecode`, shared by requests, response headers/trailers and
   early stream admission. `extractMetadata` resolves effective defaults into
