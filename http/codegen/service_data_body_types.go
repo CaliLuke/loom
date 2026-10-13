@@ -3,6 +3,8 @@ package codegen
 import (
 	"fmt"
 
+	"github.com/dave/jennifer/jen"
+
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
@@ -297,6 +299,9 @@ func (sds *ServicesData) buildResponseBodyType(body, att *expr.AttributeExpr, lo
 		collectServerResponseBodyTypes(sds, body, data.name, sd)
 	}
 	init := sds.buildResponseBodyInit(body, att, svcctx.DefaultPkg, sourceVar, endpointName, view, data.mustInit, data.validateDef, svr, svcctx, httpctx, sd)
+	if init != nil {
+		data.ref = init.ReturnTypeRef
+	}
 	return &TypeData{
 		Name:               data.name,
 		VarName:            data.varName,
@@ -441,7 +446,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 	const sourceVar = "p"
 
 	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
-	if origin != "" && att.IsPrimitivePointer(originKey(att, origin), true) && !codegen.IsExplicitPresenceType(srcAtt) {
+	if serviceFieldPrimitivePointer(att, origin, svcctx) {
 		// The client builds the body of an optional primitive only when
 		// the service field is not nil.
 		src = "*" + src
@@ -506,7 +511,8 @@ func (sds *ServicesData) buildResponseBodyInit(
 	}
 
 	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
-	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
+	pointer := serviceFieldPrimitivePointer(att, origin, svcctx)
+	code, rtref, helpers, err := marshalResponseBodySource(srcAtt, body, src, rtref, pointer, svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response body transform: %w", err)))
 	}
@@ -537,6 +543,28 @@ func (sds *ServicesData) buildResponseBodyInit(
 		ServerCode:          code,
 		ServerArgs:          []*InitArgData{arg},
 	}
+}
+
+// marshalResponseBodySource preserves a detached scalar source's physical
+// absence while the existing transform owns conversion of each present value.
+func marshalResponseBodySource(source, target *expr.AttributeExpr, sourceVar, typeRef string, pointer bool, sourcectx, targetctx *codegen.AttributeContext) (string, string, []*codegen.TransformFunctionData, error) {
+	valueSource, valueTarget := sourceVar, "body"
+	if pointer {
+		valueSource = "*" + sourceVar
+		valueTarget = "converted"
+	}
+	code, helpers, err := marshal(source, target, valueSource, valueTarget, sourcectx, targetctx)
+	if err != nil || !pointer {
+		return code, typeRef, helpers, err
+	}
+	typeRef = fmt.Sprintf("%#v", jen.Op("*").Add(codegen.TypeRef(typeRef)))
+	conversion := code
+	code = fmt.Sprintf("%#v", jen.Var().Id("body").Add(codegen.TypeRef(typeRef)).Line().
+		If(codegen.Expr(sourceVar).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+		appendHTTPRawBlock(group, conversion)
+		group.Id("body").Op("=").Op("&").Id(valueTarget)
+	}))
+	return code, typeRef, helpers, nil
 }
 
 func bodyValueRef(scope *codegen.NameScope, body *expr.AttributeExpr, varName string, httpctx *codegen.AttributeContext) string {

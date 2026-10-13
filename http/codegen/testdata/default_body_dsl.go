@@ -126,3 +126,97 @@ func collectionBodyDefaultsDSL(rpc bool) {
 		}
 	})
 }
+
+// SelectedResponseStorageDSL exercises selected response reconstruction into
+// service and view fields through both HTTP and JSON-RPC transports.
+var SelectedResponseStorageDSL = func() {
+	API("responsestorage", func() {
+		JSONRPC(func() {
+		})
+	})
+	text := map[string]any{
+		"named":                 Type("Text", String),
+		"namedoptional":         Type("OptionalText", String),
+		"ordinarynamedoptional": Type("ServiceOptionalText", String),
+	}
+	names := []string{"required", "optional", "defaulted", "named", "namedoptional", "nullable", "nullableoptional", "number", "custom", "array", "bytes", "ordinary", "ordinaryoptional", "ordinarynullable", "ordinarynamedoptional", "whole"}
+	for _, transport := range []string{"http", "jsonrpc"} {
+		results := selectedResponseStorageTypes(transport, names, text)
+		Service(transport+"fields", func() {
+			if transport == "jsonrpc" {
+				JSONRPC(func() {
+					POST("/rpc")
+				})
+			}
+			for _, name := range names {
+				Method(name, func() {
+					Result(results[name])
+					response := func() {
+						Response(StatusOK, func() {
+							if name != "whole" {
+								Body("value")
+							}
+						})
+					}
+					if transport == "jsonrpc" {
+						JSONRPC(response)
+					} else {
+						HTTP(func() {
+							GET("/" + name)
+							response()
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
+func selectedResponseStorageTypes(transport string, names []string, text map[string]any) map[string]any {
+	results := make(map[string]any, len(names))
+	for _, name := range names {
+		fields := func() {
+			selectedResponseStorageFields(name, text)
+		}
+		if name == "ordinary" || name == "ordinaryoptional" || name == "ordinarynullable" || name == "ordinarynamedoptional" {
+			results[name] = Type(transport+name, fields)
+		} else {
+			results[name] = ResultType("application/vnd."+transport+name, func() {
+				TypeName(transport + name)
+				fields()
+				View("default", func() {
+					Attribute("value")
+				})
+			})
+		}
+	}
+	return results
+}
+
+func selectedResponseStorageFields(name string, text map[string]any) {
+	datatype := any(String)
+	switch name {
+	case "named", "namedoptional", "ordinarynamedoptional":
+		datatype = text[name]
+	case "number":
+		datatype = Int
+	case "array":
+		datatype = ArrayOf(String)
+	case "bytes":
+		datatype = Bytes
+	}
+	Attribute("value", datatype, func() {
+		if name == "nullable" || name == "nullableoptional" || name == "ordinarynullable" {
+			Nullable()
+		}
+		if name == "defaulted" {
+			Default("fallback")
+		}
+		if name == "custom" {
+			Meta("struct:field:type", "time.Time", "time")
+		}
+	})
+	if name != "ordinarynamedoptional" && name != "namedoptional" && name != "optional" && name != "defaulted" && name != "nullableoptional" && name != "ordinaryoptional" && name != "ordinarynullable" {
+		Required("value")
+	}
+}

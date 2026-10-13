@@ -361,7 +361,7 @@ func (sds *ServicesData) buildResponseResultInitCode(
 	}
 	clientArgs = append(clientArgs, buildHeaderInitArgs(headersData)...)
 	clientArgs = append(clientArgs, buildCookieInitArgs(cookiesData)...)
-	return code, buildResponseResultPointer(resp, result, origin), clientArgs
+	return code, buildResponseResultPointer(resp, result, origin, svcctx), clientArgs
 }
 
 func buildResponseResultInitArgs(
@@ -381,14 +381,14 @@ func buildResponseResultInitArgs(
 	return append(clientArgs, bodyArg)
 }
 
-func buildResponseResultPointer(resp *transportir.ResponseStatus, result *expr.AttributeExpr, origin string) bool {
+func buildResponseResultPointer(resp *transportir.ResponseStatus, result *expr.AttributeExpr, origin string, targetctx *codegen.AttributeContext) bool {
 	if resp.Body.Type == expr.Empty || expr.IsObject(resp.Body.Type) {
 		return false
 	}
 	if origin == "" {
 		return false
 	}
-	return result.IsPrimitivePointer(originKey(result, origin), true)
+	return serviceFieldPrimitivePointer(result, origin, targetctx)
 }
 
 func responseTagData(resp *transportir.ResponseStatus, result *expr.AttributeExpr, viewed bool) (string, string, bool) {

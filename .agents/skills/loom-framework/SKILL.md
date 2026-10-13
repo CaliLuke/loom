@@ -165,6 +165,15 @@ consumer validation.
   Do not infer absence from arbitrary IsZero methods or restore a transport-only
   tag merger. Keep the [omission model](../../../codegen/tla/json_omission/README.md),
   carrier ledger, generated HTTP/RPC wire and OpenAPI example controls aligned.
+- Selected primitive body fields retain their enclosing declaration storage
+  through `http/codegen.serviceFieldPrimitivePointer`, derived from
+  `expr.ServiceFieldLayout` with the actual service/view context. Client result
+  constructors use it for addressing; request extraction retains its admission
+  guard, and response conversion preserves native source pointer absence in its
+  body reference and guarded initializer. Nullable/custom-presence wrappers are
+  already values; do not address or dereference them as native pointers. Keep
+  [response field storage](../../../http/codegen/tla/response_field_storage/README.md)
+  aligned with generated constructor and mounted nil/empty/value controls.
 - Design DSL is the source of truth; evaluated semantics belong in `expr`.
 - `RootExpr.Prepare` composes `Extend` after promoted union naming and before
   dependent transport preparation or validation. Preserve authored overlays and

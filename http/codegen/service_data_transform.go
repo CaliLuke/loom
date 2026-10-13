@@ -94,6 +94,19 @@ func serviceFieldTransformAttribute(parent *expr.AttributeExpr, name string, att
 	return clone
 }
 
+// serviceFieldPrimitivePointer resolves the enclosing declaration's storage
+// before a primitive field is detached for body conversion or reconstruction.
+func serviceFieldPrimitivePointer(parent *expr.AttributeExpr, name string, context *codegen.AttributeContext) bool {
+	if parent == nil || name == "" {
+		return false
+	}
+	key, attribute := parent.FindAttribute(name)
+	if attribute == nil || !expr.IsPrimitive(attribute.Type) {
+		return false
+	}
+	return expr.ServiceFieldLayout(parent, key, attribute, context.Pointer, context.UseDefault).Pointer
+}
+
 // bodyFieldIsUnionValue reports whether a detached body union must be
 // dereferenced when assigned to its enclosing service or viewed result field.
 // Required unions use values; optional unions and explicit presence wrappers do
