@@ -518,6 +518,13 @@ filter, and serialization rules belong here.
 
 ## OpenAPI Importer Invariants
 
+- Plan imported credentials once by physical wire slot, decoding codec and
+  credential component. Payload attributes and HTTP mappings consume the same
+  allocation; retain every scheme role and AND/OR requirement. Reject unequal
+  per-scheme scopes within one conjunction rather than widening them. Partial
+  operation projection retains root security only while a retained operation
+  inherits it. Keep the credential model and actual import/auth tests aligned.
+
 - Plan imported schema references once after component promotion and final error
   declaration allocation in `internal/openapiimport`. Retain declaration owner
   and source-path occurrence identity; resolve source component names separately

@@ -145,6 +145,17 @@ func documentForOperations(document *Document, operations []Operation) *Document
 	result.Operations = append([]Operation(nil), operations...)
 	result.Tags = append([]string(nil), document.Tags...)
 	result.TagMetadata = append([]Tag(nil), document.TagMetadata...)
+	// Root requirements belong to this subset only when an operation inherits
+	// them. Inactive root requirements must not block explicit overrides.
+	result.Security = nil
+	result.SecurityDefined = false
+	for _, operation := range operations {
+		if !operation.SecurityDefined {
+			result.Security = document.Security
+			result.SecurityDefined = document.SecurityDefined
+			break
+		}
+	}
 	return &result
 }
 

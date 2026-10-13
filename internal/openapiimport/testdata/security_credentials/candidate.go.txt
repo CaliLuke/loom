@@ -1,0 +1,79 @@
+package design
+
+import . "github.com/CaliLuke/loom/dsl"
+
+var _ = API("credentialcandidate", func() {
+})
+var basic = BasicAuthSecurity("Basic")
+var basicSecond = BasicAuthSecurity("BasicSecond")
+var bearerSecond = JWTSecurity("BearerSecond")
+var bearer = JWTSecurity("Bearer")
+var oauth = OAuth2Security("OAuth", func() {
+	Scope("read")
+	AuthorizationCodeFlow("https://example.com/auth", "https://example.com/token", "")
+})
+var one = APIKeySecurity("One")
+var two = APIKeySecurity("Two")
+
+var _ = Service("credentials", func() {
+	for _, name := range []string{"either", "both", "scoped_both"} {
+		Method(name, func() {
+			if name == "either" {
+				Security(basic)
+				Security(bearer)
+				Security(oauth, func() {
+					Scope("read")
+				})
+			} else if name == "scoped_both" {
+				Security(bearer, oauth, func() {
+					Scope("read")
+				})
+			} else {
+				Security(bearer, oauth)
+			}
+			Payload(func() {
+				Token("token", String, func() {
+					Meta("security:accesstoken")
+				})
+				if name == "either" {
+					Username("username", String)
+					Password("password", String)
+				}
+			})
+			HTTP(func() {
+				GET("/" + name)
+			})
+		})
+	}
+	for _, name := range []string{"basic_roles", "bearer_roles"} {
+		Method(name, func() {
+			if name == "basic_roles" {
+				Security(basic, basicSecond)
+				Payload(func() {
+					Username("username", String)
+					Password("password", String)
+				})
+			} else {
+				Security(bearer, bearerSecond)
+				Payload(func() {
+					Token("token", String)
+				})
+			}
+			HTTP(func() {
+				GET("/" + name)
+			})
+		})
+	}
+	Method("keys", func() {
+		Security(one, two)
+		Payload(func() {
+			APIKey("One", "key", String, func() {
+				Meta("security:apikey:Two", "Two")
+			})
+		})
+		HTTP(func() {
+			GET("/keys")
+			Header("key:X-Key")
+		})
+	})
+})

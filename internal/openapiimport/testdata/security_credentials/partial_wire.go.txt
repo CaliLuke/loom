@@ -1,0 +1,75 @@
+package imported_test
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"testing"
+
+	svc "example.com/imported/gen/credentials"
+	server "example.com/imported/gen/http/credentials/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/security"
+)
+
+type partialImplementation struct {
+	svc.Service
+	calls      int
+	auth       []string
+	denySecond bool
+}
+
+func (s *partialImplementation) Public(context.Context) error {
+	s.calls++
+	return nil
+}
+
+func (s *partialImplementation) OauthRoles(context.Context, *svc.OauthRolesPayload) error {
+	s.calls++
+	return nil
+}
+
+func (s *partialImplementation) OAuth2Auth(ctx context.Context, token string, scheme *security.OAuth2Scheme) (context.Context, error) {
+	s.auth = append(s.auth, fmt.Sprintf("%s:%s:%v", scheme.Name, token, scheme.RequiredScopes))
+	if token != "token" || s.denySecond && scheme.Name == "OAuthSecond" {
+		return ctx, fmt.Errorf("OAuth denied")
+	}
+	return ctx, nil
+}
+
+func TestPartialCredentialAuthWire(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, token string
+		denySecond        bool
+		calls, status     int
+		auth              []string
+	}{
+		{name: "public", path: "/public", calls: 1, status: 204},
+		{name: "scoped conjunction", path: "/oauth_roles", token: "token", calls: 1, status: 204,
+			auth: []string{"OAuth:token:[read]", "OAuthSecond:token:[read]"}},
+		{name: "second role denies", path: "/oauth_roles", token: "token", denySecond: true,
+			auth: []string{"OAuth:token:[read]", "OAuthSecond:token:[read]"}},
+		{name: "missing credential", path: "/oauth_roles", auth: []string{"OAuth::[read]"}},
+		{name: "inherited unsupported omitted", path: "/inherit", status: 404},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &partialImplementation{denySecond: tc.denySecond}
+			mux := loomhttp.NewMuxer()
+			server.Mount(mux, server.New(svc.NewEndpoints(s), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			if tc.token != "" {
+				req.Header.Set("Authorization", "Bearer "+tc.token)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if s.calls != tc.calls || !reflect.DeepEqual(s.auth, tc.auth) {
+				t.Errorf("calls=%d auth=%v; want calls=%d auth=%v", s.calls, s.auth, tc.calls, tc.auth)
+			}
+			if tc.status != 0 && rec.Code != tc.status || tc.status == 0 && rec.Code < 400 {
+				t.Errorf("status=%d expected=%d body=%s", rec.Code, tc.status, rec.Body.String())
+			}
+		})
+	}
+}

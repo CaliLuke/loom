@@ -37,6 +37,9 @@ func planDocument(document *Document) documentPlan {
 		used:     make(map[string]struct{}),
 	}
 	planner.index()
+	if document.SecurityDefined {
+		planner.securityRequirements(document.Security, "#/security")
+	}
 	if !renderableVersion(document.OpenAPIVersion) {
 		planner.unsupported("openapi-version", "#", "only OpenAPI 3.0, 3.1, and 3.2 documents are renderable")
 	}
@@ -44,6 +47,10 @@ func planDocument(document *Document) documentPlan {
 		planner.schema(named.Schema, "#/components/schemas/"+escapeJSONPointer(named.Name))
 	}
 	for index := range document.Operations {
+		op := &document.Operations[index]
+		if op.SecurityDefined {
+			planner.securityRequirements(op.Security, "#/paths/"+escapeJSONPointer(op.Path)+"/"+strings.ToLower(op.Method)+"/security")
+		}
 		planner.operation(&document.Operations[index], fmt.Sprintf("#/operations/%d", index))
 	}
 	for _, named := range document.Components.Parameters {

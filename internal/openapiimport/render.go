@@ -338,11 +338,10 @@ func (r *renderer) operationHTTP(operation *Operation, plan operationPlan, path 
 }
 
 type renderedParameter struct {
-	parameter      Parameter
-	field          string
-	componentName  string
-	securityScheme string
-	securityKind   string
+	parameter     Parameter
+	field         string
+	componentName string
+	securityRoles []credentialRole
 }
 
 type renderedBody struct {
@@ -435,20 +434,9 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 	r.open("Payload(func()")
 	var required []string
 	for i, parameter := range parameters {
-		if parameter.securityScheme != "" {
-			switch parameter.securityKind {
-			case "apiKey":
-				r.line("APIKey(%q, %q, String)", parameter.securityScheme, parameter.field)
-			case "username":
-				r.line("Username(%q, String)", parameter.field)
-			case "password":
-				r.line("Password(%q, String)", parameter.field)
-			case "token":
-				r.line("Token(%q, String)", parameter.field)
-			case "accessToken":
-				r.line("AccessToken(%q, String)", parameter.field)
-			default:
-				return fmt.Errorf("render OpenAPI design: unsupported security credential kind %q", parameter.securityKind)
+		if len(parameter.securityRoles) > 0 {
+			if err := r.securityCredential(parameter); err != nil {
+				return err
 			}
 			continue
 		}

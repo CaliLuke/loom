@@ -356,7 +356,11 @@ response summaries, supported serialization, structured examples, and reusable
 examples import losslessly. API-key, HTTP basic, HTTP bearer, and supported
 OAuth 2.0 schemes also import losslessly. OAuth 2.0 flows must use the same
 scope map. Root and operation security requirements retain OAuth scopes and
-AND or alternative semantics. An anonymous `{}`
+AND or alternative semantics. Schemes using the same wire credential share one
+payload field while retaining each authentication check. A conjunction whose
+schemes require different scope sets is rejected; equal scope sets and separate
+alternatives remain supported. Partial import omits unused root security when
+every retained operation explicitly overrides it. An anonymous `{}`
 alternative renders as `Security()` and an explicit operation `security: []`
 renders as `NoSecurity()`. Other scheme kinds, bearer formats, incompatible
 OAuth flow shapes, and invalid scope values fail closed. Exit `3` means partial output was written, exit `2`

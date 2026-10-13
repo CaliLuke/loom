@@ -134,8 +134,8 @@ components:
 		`Scope("read")`,
 		`Username("basicUsername", String)`,
 		`Password("basicPassword", String)`,
-		`Token("bearerToken", String)`,
-		`AccessToken("oAuthAccessToken", String)`,
+		`Token("bearerToken", String, func() {`,
+		`Meta("security:accesstoken")`,
 	} {
 		require.Contains(t, design, want)
 	}

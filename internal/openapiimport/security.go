@@ -10,8 +10,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-
-	"github.com/CaliLuke/loom/codegen"
 )
 
 func (a *analyzer) securityScheme(name string, source *v3.SecurityScheme, path string) (SecurityScheme, bool) {
@@ -214,7 +212,6 @@ func (a *analyzer) securityRequirements(source []*base.SecurityRequirement, path
 			continue
 		}
 		requirement := SecurityRequirement{}
-		var oauthScopes []string
 		for name, scopes := range sourceRequirement.Requirements.FromOldest() {
 			schemePath := requirementPath + "/" + escapeJSONPointer(name)
 			scheme := securitySchemeByName(components.SecuritySchemes, name)
@@ -226,11 +223,6 @@ func (a *analyzer) securityRequirements(source []*base.SecurityRequirement, path
 				a.unsupported("security-requirement", schemePath, "non-OAuth security requirement scopes must be empty")
 			}
 			if scheme.Type == "oauth2" {
-				if oauthScopes == nil {
-					oauthScopes = append([]string(nil), scopes...)
-				} else if !equalStrings(oauthScopes, scopes) {
-					a.unsupported("security-requirement", schemePath, "OAuth schemes in one requirement must use the same scopes")
-				}
 				for _, scope := range scopes {
 					if !securityScopeDefined(scheme.Scopes, scope) {
 						a.unsupported("security-requirement", schemePath, fmt.Sprintf("OAuth scope %q is not defined by scheme %q", scope, name))
@@ -342,16 +334,16 @@ func (r *renderer) securityRequirements(requirements SecurityRequirements) error
 			continue
 		}
 		arguments := make([]string, 0, len(requirement.Schemes))
-		var scopes []string
+		scopes, err := securityRequirementScopes(requirement)
+		if err != nil {
+			return fmt.Errorf("render OpenAPI design: %w", err)
+		}
 		for _, reference := range requirement.Schemes {
 			scheme := securitySchemeByName(r.document.Components.SecuritySchemes, reference.Name)
 			if scheme == nil {
 				return fmt.Errorf("render OpenAPI design: security scheme %q is not defined", reference.Name)
 			}
 			arguments = append(arguments, scheme.GoName)
-			if scheme.Type == "oauth2" && scopes == nil {
-				scopes = reference.Scopes
-			}
 		}
 		if len(scopes) == 0 {
 			r.line("Security(%s)", strings.Join(arguments, ", "))
@@ -366,67 +358,25 @@ func (r *renderer) securityRequirements(requirements SecurityRequirements) error
 	return nil
 }
 
-func (r *renderer) securityParameters(operation *Operation, parameters []renderedParameter, path string) ([]renderedParameter, error) {
-	requirements := r.document.Security
-	if operation.SecurityDefined {
-		requirements = operation.Security
-	} else if !r.document.SecurityDefined {
-		requirements = nil
+// securityRequirementScopes admits only a source conjunction that one Loom
+// requirement scope list can express without changing any scheme's checks.
+func securityRequirementScopes(requirement SecurityRequirement) ([]string, error) {
+	if len(requirement.Schemes) == 0 {
+		return nil, nil
 	}
-	if len(requirements) == 0 {
-		return parameters, nil
-	}
-	usedFields := make(map[string]int, len(parameters)+len(requirements))
-	for _, parameter := range parameters {
-		uniqueName(codegen.Goify(parameter.field, false), usedFields)
-	}
-	seen := make(map[string]struct{})
-	for requirementIndex, requirement := range requirements {
-		for schemeIndex, reference := range requirement.Schemes {
-			if _, ok := seen[reference.Name]; ok {
-				continue
-			}
-			seen[reference.Name] = struct{}{}
-			scheme := securitySchemeByName(r.document.Components.SecuritySchemes, reference.Name)
-			if scheme == nil {
-				return nil, fmt.Errorf(
-					"render OpenAPI design: %s/%d/%d references undefined security scheme %q",
-					path,
-					requirementIndex,
-					schemeIndex,
-					reference.Name,
-				)
-			}
-			parameters = append(parameters, securityCredentialParameters(*scheme, usedFields)...)
+	first := requirement.Schemes[0]
+	for _, reference := range requirement.Schemes[1:] {
+		if !equalStrings(first.Scopes, reference.Scopes) {
+			return nil, fmt.Errorf("security schemes %q and %q in one requirement use different scopes; Loom requires the same scopes for every scheme in a conjunction", first.Name, reference.Name)
 		}
 	}
-	return parameters, nil
+	return first.Scopes, nil
 }
 
-func securityCredentialParameters(scheme SecurityScheme, usedFields map[string]int) []renderedParameter {
-	credential := func(suffix, kind string, parameter Parameter) renderedParameter {
-		return renderedParameter{
-			parameter:      parameter,
-			field:          uniqueName(codegen.Goify(scheme.Name+" "+suffix, false), usedFields),
-			securityScheme: scheme.Name,
-			securityKind:   kind,
+func (p *documentPlanner) securityRequirements(requirements SecurityRequirements, path string) {
+	for index, requirement := range requirements {
+		if _, err := securityRequirementScopes(requirement); err != nil {
+			p.unsupported("security-requirement", fmt.Sprintf("%s/%d", path, index), err.Error())
 		}
-	}
-	switch {
-	case scheme.Type == "apiKey":
-		return []renderedParameter{credential("credential", "apiKey", Parameter{
-			Name: scheme.ParameterName, In: scheme.In, Schema: &Schema{Type: "string"},
-		})}
-	case scheme.Type == "http" && scheme.Scheme == "basic":
-		return []renderedParameter{
-			credential("username", "username", Parameter{Schema: &Schema{Type: "string"}}),
-			credential("password", "password", Parameter{Schema: &Schema{Type: "string"}}),
-		}
-	case scheme.Type == "http" && scheme.Scheme == "bearer":
-		return []renderedParameter{credential("token", "token", Parameter{Schema: &Schema{Type: "string"}})}
-	case scheme.Type == "oauth2":
-		return []renderedParameter{credential("access token", "accessToken", Parameter{Schema: &Schema{Type: "string"}})}
-	default:
-		return nil
 	}
 }

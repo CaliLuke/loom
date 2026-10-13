@@ -1,0 +1,283 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Credentials",
+    "version": "1"
+  },
+  "security": [
+    {
+      "Bearer": []
+    }
+  ],
+  "paths": {
+    "/either": {
+      "get": {
+        "operationId": "either",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "Basic": []
+          },
+          {
+            "Bearer": []
+          },
+          {
+            "OAuth": [
+              "read"
+            ]
+          }
+        ]
+      }
+    },
+    "/both": {
+      "get": {
+        "operationId": "both",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [],
+            "OAuth": []
+          }
+        ]
+      }
+    },
+    "/basic_roles": {
+      "get": {
+        "operationId": "basic_roles",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "Basic": [],
+            "BasicSecond": []
+          }
+        ]
+      }
+    },
+    "/bearer_roles": {
+      "get": {
+        "operationId": "bearer_roles",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [],
+            "BearerSecond": []
+          }
+        ]
+      }
+    },
+    "/keys": {
+      "get": {
+        "operationId": "keys",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "One": [],
+            "Two": []
+          }
+        ]
+      }
+    },
+    "/oauth_roles": {
+      "get": {
+        "operationId": "oauth_roles",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "OAuth": [
+              "read"
+            ],
+            "OAuthSecond": [
+              "read"
+            ]
+          }
+        ]
+      }
+    },
+    "/shared_locations": {
+      "get": {
+        "operationId": "shared_locations",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "QueryOne": [],
+            "QueryTwo": [],
+            "CookieOne": [],
+            "CookieTwo": []
+          }
+        ]
+      }
+    },
+    "/distinct_locations": {
+      "get": {
+        "operationId": "distinct_locations",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "One": [],
+            "HeaderOther": [],
+            "QueryOne": [],
+            "QueryUpper": [],
+            "CookieOne": [],
+            "CookieUpper": []
+          }
+        ]
+      }
+    },
+    "/inherit": {
+      "get": {
+        "operationId": "inherit",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/public": {
+      "get": {
+        "operationId": "public",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": []
+      }
+    },
+    "/optional": {
+      "get": {
+        "operationId": "optional",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          },
+          {}
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "Basic": {
+        "type": "http",
+        "scheme": "basic"
+      },
+      "BasicSecond": {
+        "type": "http",
+        "scheme": "basic"
+      },
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "BearerSecond": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "OAuth": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://example.com/token",
+            "scopes": {
+              "read": "Read"
+            }
+          }
+        }
+      },
+      "OAuthSecond": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://example.com/token",
+            "scopes": {
+              "read": "Read"
+            }
+          }
+        }
+      },
+      "One": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "Two": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-key"
+      },
+      "HeaderOther": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Other"
+      },
+      "QueryOne": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "key"
+      },
+      "QueryTwo": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "key"
+      },
+      "QueryUpper": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "Key"
+      },
+      "CookieOne": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "key"
+      },
+      "CookieTwo": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "key"
+      },
+      "CookieUpper": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "Key"
+      }
+    }
+  }
+}

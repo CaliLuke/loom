@@ -1,0 +1,206 @@
+package imported_test
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"testing"
+
+	svc "example.com/imported/gen/credentials"
+	client "example.com/imported/gen/http/credentials/client"
+	server "example.com/imported/gen/http/credentials/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/security"
+)
+
+type implementation struct {
+	svc.Service
+	calls     int
+	auth      []string
+	failJWT   bool
+	denyOAuth bool
+}
+
+func (s *implementation) Either(context.Context, *svc.EitherPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) Both(context.Context, *svc.BothPayload) error {
+	s.calls++
+	return nil
+}
+
+func (s *implementation) BasicRoles(context.Context, *svc.BasicRolesPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) BearerRoles(context.Context, *svc.BearerRolesPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) Keys(context.Context, *svc.KeysPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) OauthRoles(context.Context, *svc.OauthRolesPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) SharedLocations(context.Context, *svc.SharedLocationsPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) DistinctLocations(context.Context, *svc.DistinctLocationsPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) Inherit(context.Context, *svc.InheritPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) Optional(context.Context, *svc.OptionalPayload) error {
+	s.calls++
+	return nil
+}
+func (s *implementation) Public(context.Context) error {
+	s.calls++
+	return nil
+}
+
+func (s *implementation) JWTAuth(ctx context.Context, token string, scheme *security.JWTScheme) (context.Context, error) {
+	s.auth = append(s.auth, fmt.Sprintf("%s:%s:%v", scheme.Name, token, scheme.RequiredScopes))
+	if s.failJWT || token != "token" {
+		return ctx, fmt.Errorf("JWT denied")
+	}
+	return ctx, nil
+}
+func (s *implementation) OAuth2Auth(ctx context.Context, token string, scheme *security.OAuth2Scheme) (context.Context, error) {
+	s.auth = append(s.auth, fmt.Sprintf("%s:%s:%v", scheme.Name, token, scheme.RequiredScopes))
+	if s.denyOAuth || token != "token" {
+		return ctx, fmt.Errorf("OAuth denied")
+	}
+	return ctx, nil
+}
+func (s *implementation) BasicAuth(ctx context.Context, user, pass string, scheme *security.BasicScheme) (context.Context, error) {
+	s.auth = append(s.auth, fmt.Sprintf("%s:%s:%s", scheme.Name, user, pass))
+	if user != "user" || pass != "pass" {
+		return ctx, fmt.Errorf("Basic denied")
+	}
+	return ctx, nil
+}
+func (s *implementation) APIKeyAuth(ctx context.Context, key string, scheme *security.APIKeyScheme) (context.Context, error) {
+	s.auth = append(s.auth, fmt.Sprintf("%s:%s", scheme.Name, key))
+	return ctx, nil
+}
+func TestImportedCredentialAuthWire(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, authorization, key string
+		failJWT, denyOAuth             bool
+		calls                          int
+		auth                           []string
+	}{
+		{"basic", "either", "Basic dXNlcjpwYXNz", "", false, false, 1, []string{"Basic:user:pass"}},
+		{"JWT", "either", "Bearer token", "", false, false, 1, []string{"Basic::", "Bearer:token:[]"}},
+		{"OAuth fallback scopes", "either", "Bearer token", "", true, false, 1, []string{"Basic::", "Bearer:token:[]", "OAuth:token:[read]"}},
+		{"AND both", "both", "Bearer token", "", false, false, 1, []string{"Bearer:token:[]", "OAuth:token:[]"}},
+		{"AND denied", "both", "Bearer token", "", false, true, 0, []string{"Bearer:token:[]", "OAuth:token:[]"}},
+		{"shared Basic roles", "basic_roles", "Basic dXNlcjpwYXNz", "", false, false, 1, []string{"Basic:user:pass", "BasicSecond:user:pass"}},
+		{"shared bearer roles", "bearer_roles", "Bearer token", "", false, false, 1, []string{"Bearer:token:[]", "BearerSecond:token:[]"}},
+		{"OAuth scopes", "oauth_roles", "Bearer token", "", false, false, 1, []string{"OAuth:token:[read]", "OAuthSecond:token:[read]"}},
+		{"inherited", "inherit", "Bearer token", "", false, false, 1, []string{"Bearer:token:[]"}},
+		{"public override", "public", "", "", false, false, 1, nil},
+		{"anonymous alternative", "optional", "", "", true, false, 1, []string{"Bearer::[]"}},
+		{"shared raw key", "keys", "", "key", false, false, 1, []string{"One:key", "Two:key"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &implementation{failJWT: tc.failJWT, denyOAuth: tc.denyOAuth}
+			mux := loomhttp.NewMuxer()
+			server.Mount(mux, server.New(svc.NewEndpoints(s), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+			req := httptest.NewRequest(http.MethodGet, "/"+tc.path, nil)
+			if tc.authorization != "" {
+				req.Header.Set("Authorization", tc.authorization)
+			}
+			if tc.key != "" {
+				req.Header.Set("X-Key", tc.key)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if s.calls != tc.calls {
+				t.Errorf("calls=%d want=%d status=%d body=%s", s.calls, tc.calls, rec.Code, rec.Body.String())
+			}
+			if !reflect.DeepEqual(tc.auth, s.auth) {
+				t.Errorf("auth=%v want=%v", s.auth, tc.auth)
+			}
+			if tc.calls == 1 && rec.Code != http.StatusNoContent {
+				t.Errorf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+			if tc.calls == 0 && rec.Code < 400 {
+				t.Errorf("denial status=%d", rec.Code)
+			}
+		})
+	}
+}
+
+func TestImportedCredentialLocations(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want []string
+	}{
+		{"shared_locations", []string{"QueryOne:query", "QueryTwo:query", "CookieOne:cookie", "CookieTwo:cookie"}},
+		{"distinct_locations", []string{"One:header", "HeaderOther:other", "QueryOne:query", "QueryUpper:upper-query", "CookieOne:cookie", "CookieUpper:upper-cookie"}},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			s := &implementation{}
+			mux := loomhttp.NewMuxer()
+			server.Mount(mux, server.New(svc.NewEndpoints(s), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+			req := httptest.NewRequest(http.MethodGet, "/"+tc.path+"?key=query&Key=upper-query", nil)
+			req.Header.Set("X-Key", "header")
+			req.Header.Set("X-Other", "other")
+			req.AddCookie(&http.Cookie{Name: "key", Value: "cookie"})
+			req.AddCookie(&http.Cookie{Name: "Key", Value: "upper-cookie"})
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if s.calls != 1 || rec.Code != http.StatusNoContent {
+				t.Errorf("calls=%d status=%d body=%s", s.calls, rec.Code, rec.Body.String())
+			}
+			if !reflect.DeepEqual(tc.want, s.auth) {
+				t.Errorf("auth=%v want=%v", s.auth, tc.want)
+			}
+		})
+	}
+}
+
+func TestImportedCredentialClientWire(t *testing.T) {
+	token, user, pass, key := "token", "user", "pass", "key"
+	for _, tc := range []struct {
+		path    string
+		payload any
+		encode  func(*http.Request, any) error
+		auth    []string
+	}{
+		{"either", &svc.EitherPayload{BasicUsername: &user, BasicPassword: &pass}, client.EncodeEitherRequest(nil), []string{"Basic:user:pass"}},
+		{"either", &svc.EitherPayload{BearerToken: &token}, client.EncodeEitherRequest(nil), []string{"Basic::", "Bearer:token:[]"}},
+		{"both", &svc.BothPayload{BearerToken: &token}, client.EncodeBothRequest(nil), []string{"Bearer:token:[]", "OAuth:token:[]"}},
+		{"keys", &svc.KeysPayload{OneCredential: &key}, client.EncodeKeysRequest(nil), []string{"One:key", "Two:key"}},
+	} {
+		t.Run(tc.path+tc.auth[0], func(t *testing.T) {
+			s := &implementation{}
+			mux := loomhttp.NewMuxer()
+			server.Mount(mux, server.New(svc.NewEndpoints(s), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+			req := httptest.NewRequest(http.MethodGet, "/"+tc.path, nil)
+			if err := tc.encode(req, tc.payload); err != nil {
+				t.Fatal(err)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if s.calls != 1 || rec.Code != http.StatusNoContent {
+				t.Errorf("calls=%d status=%d body=%s", s.calls, rec.Code, rec.Body.String())
+			}
+			if !reflect.DeepEqual(tc.auth, s.auth) {
+				t.Errorf("auth=%v want=%v", s.auth, tc.auth)
+			}
+		})
+	}
+}

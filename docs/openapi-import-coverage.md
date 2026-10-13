@@ -65,6 +65,29 @@ reads. Specification extensions are patterns, not fixed fields.
 | Security Scheme | API keys, HTTP basic, HTTP bearer, and supported OAuth 2.0 flows and scopes | None | OpenID Connect, bearer formats, device authorization, and incompatible OAuth scope maps |
 | Example | JSON-compatible inline, structured, and reusable component examples | Unrenderable examples | External values and incompatible value forms |
 
+
+Security schemes that use the same credential location and encoding share one
+payload field after import. For example, HTTP bearer and OAuth alternatives both
+read the same bearer token from `Authorization`; their authentication checks and
+OAuth scopes remain separate. Basic authentication retains its username and
+password fields. API-key schemes share a field only when their location and wire
+name match (header names ignore case; query and cookie names do not). Re-import
+the OpenAPI document, regenerate transports, and use the single credential field
+in application code. Duplicate credentials no longer become unrelated request
+body fields.
+
+Each security requirement object is a conjunction; separate objects remain
+alternatives. Loom applies one scope list to every scheme in a conjunction, so
+import rejects different per-scheme lists rather than changing authentication.
+For example, `[{Bearer: []}, {OAuth: [read]}]` is supported, while
+`[{Bearer: [], OAuth: [read]}]` is not. Two OAuth schemes with the same required
+scopes and conjunctions with empty lists remain supported. This restriction also
+applies with `--allow-lossy`. Partial import skips operations that inherit an
+unsupported root requirement while retaining public or secured operations that
+explicitly override it. The retained design includes root security only when a
+retained operation inherits it; strict whole-document import still rejects the
+unsupported root declaration.
+
 Path and operation extensions use a documented allowlist. Unknown extensions
 at those supported scopes produce diagnostics. Document, schema, parameter,
 request-body, and response extensions preserve JSON-compatible `x-*` values,

@@ -72,6 +72,12 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 
 ## OpenAPI contracts
 
+- [Imported security credentials](../../../../internal/openapiimport/tla/security_credentials/README.md):
+  bounded physical-slot/codec/component grouping retains all authentication roles
+  and requirement structure. Actual import, generated authentication and OpenAPI
+  tests establish concrete correspondence; partial root-inheritance projection
+  is a separate tested obligation outside the model.
+
 - [Imported recursive schema references](../../../../internal/openapiimport/tla/schema_references/README.md):
   bounded initializer graphs and per-occurrence constructor classification retain
   mandatory edges and lower eligible recursive references. The independent graph
