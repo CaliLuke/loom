@@ -307,7 +307,11 @@ func TestRequestDecoderReportsQueryParseErrors(t *testing.T) {
 
 func TestRequestDecoderMapQueryPresenceIsScopedToMapParam(t *testing.T) {
 	code := decodeSectionCode(t, testdata.PayloadQueryMapStringStringDSL)
-	require.Contains(t, code, `loomhttp.DecodeJSONField(qp, "q", &q)`)
+	require.Contains(t, code, `var decoded map[string]loom.Optional[string]`)
+	require.Contains(t, code, `present, decodeErr := loomhttp.DecodeJSONField(qp, "q", &decoded)`)
+	require.Contains(t, code, "if decodeErr != nil {\n\t\t\t\treturn payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))")
+	require.Contains(t, code, "if present {\n\t\t\t\tq = make(map[string]string, len(decoded))")
+	require.Contains(t, code, `q[tk] = tv`)
 	require.NotContains(t, code, "strings.HasPrefix")
 	root := decodeSectionCode(t, testdata.PayloadMapQueryPrimitivePrimitiveDSL)
 	require.Contains(t, root, "queryRaw := qp")

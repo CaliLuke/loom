@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -252,7 +253,9 @@ func TestTransportVarNamesAreUniquePerFunction(t *testing.T) {
 				`fooRaw2Raw := r.Header.Get("X-Foo-Raw")`,
 				`for i, rv := range idsRaw {`,
 				`idsRaw2 = qp2["idsRaw"]`,
-				"val2[keya] = vala",
+				`loomhttp.DecodeJSONField(qp2, "val", &decoded)`,
+				"val2 = make(map[string]int, len(decoded))",
+				"val2[tk] = tv",
 				"tokenRaw = &tokenRawRaw",
 				"token = &tokenRaw2",
 				"utf8.RuneCountInString(*utf82)",
@@ -340,8 +343,10 @@ func TestTransportVarNameCollisionsCompile(t *testing.T) {
 	root := RunHTTPDSL(t, transportVarNameCollisionDSL)
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, "example.com/varcollision", root)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "carrier_test.go"), []byte(transportMapCarrierHarness), 0o600))
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "vet", "./...")
+	runGoCommand(t, dir, "test", "-race", "./...")
 }
 
 func TestTransportFunctionImportNamesCoverFileImports(t *testing.T) {
