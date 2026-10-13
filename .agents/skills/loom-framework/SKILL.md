@@ -298,6 +298,12 @@ consumer validation.
   bytes shared by generation and vet, whose callers decode their own result.
   Keep the model under `cmd/loom/tla/artifact_write_intent` aligned with real
   plugin/CLI, creator-race and rollback regressions.
+  The CLI transaction renders under the output root, preserves the module-relative
+  output suffix, and resolves local relative replacements in its detached module
+  context. External publication candidates are fully copied beside their actual
+  destinations before live mutation and owned separately from rollback backups.
+  Keep Link/Rename destination-local, preserve existing create-only skips without
+  requiring parent write permission, and reject unrenamable gen mounts intact.
 - `pkg.ValidateFormat` owns hostname validation: complete ASCII label syntax,
   63-byte labels, 253-byte text excluding an optional terminal root dot. Keep
   this shared by generated transports and design validation. The existing

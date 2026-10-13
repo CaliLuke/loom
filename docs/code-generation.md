@@ -437,8 +437,18 @@ The primary command for code generation:
 - Generates and finalizes a complete staging tree, validates its manifest and
   outputs, then replaces the entire `gen/` directory and any declared plugin
   outputs on success. A generation, finalization, validation, or installation
-  failure restores the previous generated artifacts.
+  failure attempts to restore the previous generated artifacts; restoration
+  errors are reported rather than treated as successful rollback.
 - Run after every design change
+
+The output directory must be writable; its parent need not be. Loom stages
+inside the output directory and prepares plugin files beside their destinations,
+so the module, nested output directory, and plugin destinations may reside on
+different filesystems. Relative local module replacements retain their original
+targets, and the caller's module and workspace configuration are not rewritten
+for staging. Mount the output directory rather than `gen/` itself: regeneration
+replaces the whole `gen/` directory, and a mount directly on it is rejected while
+preserving its contents.
 
 #### Analyze Adoption (`loom vet`)
 

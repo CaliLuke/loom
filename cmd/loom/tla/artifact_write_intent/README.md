@@ -161,3 +161,50 @@ checks assume parent-directory bindings remain stable between admission and
 installation; they do not claim safety against an adversary swapping ancestors
 concurrently. Leaf-name concurrent creation remains covered by atomic no-replace
 installation. The existing whole-tree crash and mount-layout limitations remain.
+
+## Destination-local publication (#751)
+
+`PublicationPlacement.tla` adds the filesystem prerequisite that the original
+content-ownership model intentionally left out. It models one gen tree and one
+external file, on distinct destination filesystems. The original render stage is
+on a third filesystem and needs a writable module parent. Moving only rendering
+to the output filesystem fixes the gen tree but leaves the external file wrong.
+The prepared design places each candidate on its own destination filesystem
+before any live mutation; failure during preparation leaves both originals intact.
+
+```sh
+java -cp /Users/luca/.cache/loom-tools/tla2tools-1.7.4.jar tlc2.TLC \
+  -metadir /tmp/loom-751-model-Prepared -config PlacementPrepared.cfg PublicationPlacement
+```
+
+Replace `Prepared` with `Current`, `Unwritable` or `OutputOnly` for the expected
+counterexamples. TLC 1.7.4 produces:
+
+| Configuration | Result | Generated/distinct states |
+| --- | --- | --- |
+| Current | `PublicationLocal` fails for gen | 3 / 3 |
+| Unwritable | `WritableOutputAdmitted` fails before rendering | 2 / 2 |
+| OutputOnly | `PublicationLocal` fails for external file | 5 / 5 |
+| Prepared | Placement, rollback and terminal cleanup checks pass | 9 / 8 |
+
+The model abstracts complete private copies as one preparation action and assumes
+stable destination ancestors, successful atomic same-filesystem operations and
+successful rollback/cleanup. It does not prove copy fidelity, permissions,
+symlink policy, mountpoint renamability, crash recovery or adversarial path swaps.
+Those remain concrete test obligations. The existing ArtifactWriteIntent model
+continues to own create-only racing-creator and rollback-ownership checks; this
+placement model does not replace it or weaken its no-replace publication rule.
+
+Correspondence: `newGenerationTransaction`/`prepareModuleContext` own detached
+render placement and Go module resolution; preparation of each transaction
+publication unit (`prepareExternalOutputs`/`preparePublicationFile`) owns
+candidate filesystem identity; gen Rename and external
+Link/Rename consume those candidates. `generation_filesystem_test.go` checks the
+unwritable-parent case, staged module replacement/import-prefix context, and
+actual Linux module/output/external mount regressions. The parent fails all four
+publication cases; destination-local preparation passes them. A direct gen mount
+is refused without changing its original contents. `generation_publication_test.go`
+checks preparation failure before live changes, candidate cleanup, file mode and
+content fidelity, and create-only skipping in a read-only destination parent.
+Failed restoration is outside the model: the separately reproduced existing
+backup-lifetime defect must not be confused with temporary candidate cleanup.

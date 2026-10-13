@@ -14,16 +14,18 @@ import (
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/internal/artifactpolicy"
 	"github.com/CaliLuke/loom/internal/designfingerprint"
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 )
 
 type (
 	generationTransaction struct {
-		output          string
-		root            string
-		stage           string
-		backup          string
-		externalBackups []string
+		output             string
+		root               string
+		stage              string
+		backup             string
+		externalBackups    []string
+		externalCandidates []string
 	}
 
 	externalGenerationOutput struct {
@@ -33,6 +35,7 @@ type (
 		backup      string
 		installed   bool
 		skipExist   bool
+		skipped     bool
 		identity    os.FileInfo
 	}
 )
@@ -42,25 +45,23 @@ func newGenerationTransaction(output string) (*generationTransaction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve output directory %s: %w", output, err)
 	}
-	stageParent := filepath.Dir(absOutput)
 	stageRelative := "."
 	moduleRoot, err := findModuleRoot(absOutput)
 	if err != nil {
 		return nil, err
 	}
 	if moduleRoot != "" {
-		stageParent = filepath.Dir(moduleRoot)
 		stageRelative, err = filepath.Rel(moduleRoot, absOutput)
 		if err != nil {
 			return nil, fmt.Errorf("resolve output %s relative to module %s: %w", absOutput, moduleRoot, err)
 		}
 	}
-	if err := os.MkdirAll(stageParent, 0o750); err != nil {
-		return nil, fmt.Errorf("create staging parent %s: %w", stageParent, err)
+	if err := os.MkdirAll(absOutput, 0o750); err != nil {
+		return nil, fmt.Errorf("create output directory %s: %w", absOutput, err)
 	}
-	stageRoot, err := os.MkdirTemp(stageParent, ".loom-gen-")
+	stageRoot, err := os.MkdirTemp(absOutput, ".loom-gen-")
 	if err != nil {
-		return nil, fmt.Errorf("create generation staging directory in %s: %w", stageParent, err)
+		return nil, fmt.Errorf("create generation staging directory in %s: %w", absOutput, err)
 	}
 	transaction := &generationTransaction{
 		output: absOutput,
@@ -234,6 +235,12 @@ func (t *generationTransaction) cleanup() error {
 		}
 	}
 	t.externalBackups = nil
+	for _, candidate := range t.externalCandidates {
+		if err := os.Remove(candidate); err != nil && !errors.Is(err, os.ErrNotExist) {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove generated output candidate %s: %w", candidate, err))
+		}
+	}
+	t.externalCandidates = nil
 	return cleanupErr
 }
 
@@ -259,18 +266,28 @@ func (t *generationTransaction) prepareExternalOutputs(outputs []codegen.Artifac
 		if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
 			return nil, fmt.Errorf("create generated output directory %s: %w", filepath.Dir(destination), err)
 		}
+		skipped := false
 		if info, err := os.Lstat(destination); err == nil {
+			skipped = output.SkipExist
 			if !output.SkipExist && !info.Mode().IsRegular() {
 				return nil, fmt.Errorf("generated output destination %s is not a regular file", destination)
 			}
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("inspect generated output destination %s: %w", destination, err)
 		}
+		candidate := ""
+		if !skipped {
+			candidate, err = t.preparePublicationFile(filepath.Join(t.stage, rel), filepath.Dir(destination))
+			if err != nil {
+				return nil, err
+			}
+		}
 		external = append(external, &externalGenerationOutput{
 			rel:         rel,
-			staged:      filepath.Join(t.stage, rel),
+			staged:      candidate,
 			destination: destination,
 			skipExist:   output.SkipExist,
+			skipped:     skipped,
 		})
 	}
 	return external, nil
@@ -278,6 +295,9 @@ func (t *generationTransaction) prepareExternalOutputs(outputs []codegen.Artifac
 
 func (t *generationTransaction) installExternalOutputs(outputs []*externalGenerationOutput) error {
 	for _, output := range outputs {
+		if output.skipped {
+			continue
+		}
 		if output.skipExist {
 			// Link publishes the fully rendered file only if the live name is absent.
 			// Unlike Stat followed by Rename, it cannot replace a concurrent creator.
@@ -394,6 +414,23 @@ func (t *generationTransaction) prepareModuleContext(moduleRoot string) error {
 	contents, err := os.ReadFile(goMod)
 	if err != nil {
 		return fmt.Errorf("read module file %s: %w", goMod, err)
+	}
+	module, err := modfile.Parse(goMod, contents, nil)
+	if err != nil {
+		return fmt.Errorf("parse module file %s: %w", goMod, err)
+	}
+	for _, replacement := range module.Replace {
+		if replacement.New.Version != "" || filepath.IsAbs(replacement.New.Path) {
+			continue
+		}
+		target := filepath.Join(moduleRoot, replacement.New.Path)
+		if err := module.AddReplace(replacement.Old.Path, replacement.Old.Version, target, ""); err != nil {
+			return fmt.Errorf("resolve staged module replacement %s: %w", replacement.Old.Path, err)
+		}
+	}
+	contents, err = module.Format()
+	if err != nil {
+		return fmt.Errorf("format staged module file %s: %w", goMod, err)
 	}
 	stagedGoMod := filepath.Join(t.root, "go.mod")
 	if err := os.WriteFile(stagedGoMod, contents, 0o644); err != nil {

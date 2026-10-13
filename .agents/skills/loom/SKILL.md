@@ -27,6 +27,10 @@ renderer, or framework tests, use the `loom-framework` skill.
 
 Never edit `gen/` directly. `loom gen` deletes and recreates it transactionally,
 so manual changes are both temporary and misleading.
+The output directory must be writable, but its parent need not be. Output and
+plugin destinations may be on separate filesystems. Mount the output directory,
+not `gen/` itself: regeneration must replace the whole generated tree. Relative
+module replacements and workspace configuration keep their existing meaning.
 
 Generated HTTP and JSON-RPC Server handler fields have their own names, which
 can differ from service methods when they would collide with fixed members or

@@ -221,7 +221,7 @@ func TestGenerateRemovesTempDirOnSuccessWithoutDebug(t *testing.T) {
 	origNewGenerator := newGenerator
 	newGenerator = func(cmd, path, output string, debug bool) generatorRunner {
 		require.Equal(t, "gen", cmd)
-		require.Equal(t, filepath.Dir(currentDirectory()), filepath.Dir(output))
+		require.Equal(t, currentDirectory(), filepath.Dir(output))
 		require.Contains(t, filepath.Base(output), ".loom-gen-")
 		require.False(t, debug)
 		fake.output = output
@@ -700,7 +700,7 @@ func TestGenerateRealBinaryExampleStubsFailClosedAndCompile(t *testing.T) {
 	require.NoError(t, err, string(combined))
 }
 
-func TestGenerateRealBinaryCommitFailureCleansStage(t *testing.T) {
+func TestGenerateRealBinaryPrepareFailureCleansStage(t *testing.T) {
 	enterTicktockFixtureCopy(t)
 
 	outputRoot := t.TempDir()
@@ -712,11 +712,11 @@ func TestGenerateRealBinaryCommitFailureCleansStage(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "stage Commit: create output directory "+outputPath)
+	require.ErrorContains(t, err, "stage Prepare: create output directory "+outputPath)
 	require.Empty(t, stdout)
 	require.NotContains(t, stdout, "[loom-debug]")
-	require.Contains(t, stderr, "stage=binary-startup")
-	require.Contains(t, stderr, "stage=generator.Generate")
+	require.NotContains(t, stderr, "stage=binary-startup")
+	require.NotContains(t, stderr, "stage=generator.Generate")
 	contents, readErr := os.ReadFile(outputPath)
 	require.NoError(t, readErr)
 	require.Equal(t, "x", string(contents))
@@ -798,12 +798,16 @@ func stubGeneratorFactory(t *testing.T, fake *fakeGenerator) {
 
 func requireNoGenerationArtifacts(t *testing.T, dir string) {
 	t.Helper()
-	stages, err := filepath.Glob(filepath.Join(dir, ".loom-gen-*"))
+	err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(entry.Name(), ".loom-gen-") {
+			t.Errorf("generation artifact remains: %s", path)
+		}
+		return nil
+	})
 	require.NoError(t, err)
-	require.Empty(t, stages)
-	backups, err := filepath.Glob(filepath.Join(dir, ".loom-gen-backup-*"))
-	require.NoError(t, err)
-	require.Empty(t, backups)
 }
 
 func writeStagedManifest(stage string) error {
