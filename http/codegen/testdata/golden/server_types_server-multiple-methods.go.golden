@@ -9,9 +9,9 @@ type MethodARequestBody struct {
 // MethodBRequestBody is the type of the "ServiceMultipleMethods" service
 // "MethodB" endpoint HTTP request body.
 type MethodBRequestBody struct {
-	A *string               `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
+	A *string               `form:"a,omitempty" json:"a,omitzero" xml:"a,omitempty"`
 	B loom.Optional[string] `form:"b,omitempty" json:"b,omitzero" xml:"b,omitempty"`
-	C *APayloadRequestBody  `form:"c,omitempty" json:"c,omitempty" xml:"c,omitempty"`
+	C *APayloadRequestBody  `form:"c,omitempty" json:"c,omitzero" xml:"c,omitempty"`
 }
 
 // APayloadRequestBody is used to define fields on request body types.

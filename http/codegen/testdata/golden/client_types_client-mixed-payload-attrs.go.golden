@@ -3,15 +3,15 @@
 type MethodARequestBody struct {
 	Any    loom.JSONValue          `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"`
 	Array  []float32               `form:"array" json:"array" xml:"array"`
-	Map    map[uint]loom.JSONValue `form:"map,omitempty" json:"map,omitempty" xml:"map,omitempty"`
+	Map    map[uint]loom.JSONValue `form:"map,omitempty" json:"map,omitzero" xml:"map,omitempty"`
 	Object *BPayloadRequestBody    `form:"object" json:"object" xml:"object"`
-	DupObj *BPayloadRequestBody    `form:"dup_obj,omitempty" json:"dup_obj,omitempty" xml:"dup_obj,omitempty"`
+	DupObj *BPayloadRequestBody    `form:"dup_obj,omitempty" json:"dup_obj,omitzero" xml:"dup_obj,omitempty"`
 }
 
 // BPayloadRequestBody is used to define fields on request body types.
 type BPayloadRequestBody struct {
 	Int   int    `form:"int" json:"int" xml:"int"`
-	Bytes []byte `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"`
+	Bytes []byte `form:"bytes,omitempty" json:"bytes,omitzero" xml:"bytes,omitempty"`
 }
 
 // NewMethodARequestBody builds the HTTP request body from the payload of the

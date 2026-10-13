@@ -114,7 +114,7 @@ func TestUnionArrayRoundTrip(t *testing.T) {
 	if len(result.NullableItems) != 2 || !result.NullableItems[0].IsNull() {
 		t.Errorf("nullable items = %#v, want leading null and one value", result.NullableItems)
 	}
-	if len(result.EmptyItems) != 0 {
+	if result.EmptyItems == nil || len(result.EmptyItems) != 0 {
 		t.Errorf("empty item count = %d, want 0", len(result.EmptyItems))
 	}
 	if len(result.NestedItems) != 2 || len(result.NestedItems[0]) != 1 || len(result.NestedItems[1]) != 1 {
@@ -127,7 +127,7 @@ func TestUnionArrayRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal round-trip result: %v", err)
 	}
-	const want = "{\"required_items\":[{\"type\":\"A\",\"value\":{\"a\":\"alpha\"}},{\"type\":\"B\",\"value\":{\"b\":\"beta\"}}],\"optional_items\":[{\"type\":\"B\",\"value\":{\"b\":\"optional\"}}],\"nullable_items\":[null,{\"type\":\"A\",\"value\":{\"a\":\"nullable\"}}],\"nested_items\":[[{\"type\":\"A\",\"value\":{\"a\":\"nested-a\"}}],[{\"type\":\"B\",\"value\":{\"b\":\"nested-b\"}}]],\"nullable_nested_items\":[[null,{\"type\":\"A\",\"value\":{\"a\":\"nested-nullable\"}}],[]]}"
+	const want = unionArrayJSON
 	if string(encoded) != want {
 		t.Errorf("round-trip JSON = %s, want %s", encoded, want)
 	}

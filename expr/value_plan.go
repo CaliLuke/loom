@@ -173,6 +173,10 @@ const (
 	ValueFieldOmitEmpty
 	// ValueFieldOmitAbsent preserves explicit null/empty and omits only absence.
 	ValueFieldOmitAbsent
+	// ValueFieldOmitZero omits a native zero under an authored omitzero tag.
+	ValueFieldOmitZero
+	// ValueFieldOmitEmptyOrZero applies both authored omission predicates.
+	ValueFieldOmitEmptyOrZero
 	// ValueFieldImplicitDefault follows a codec's implicit default presence.
 	ValueFieldImplicitDefault
 )

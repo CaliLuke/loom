@@ -16,48 +16,48 @@ import (
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
 // response body.
 type TickResponseBody struct {
-	Event *string `form:"event,omitempty" json:"event,omitempty" xml:"event,omitempty"`
-	Data  *string `form:"data,omitempty" json:"data,omitempty" xml:"data,omitempty"`
+	Event *string `form:"event,omitempty" json:"event,omitzero" xml:"event,omitempty"`
+	Data  *string `form:"data,omitempty" json:"data,omitzero" xml:"data,omitempty"`
 }
 
 // TockResponseBody is the type of the "clock" service "Tock" endpoint HTTP
 // response body.
 type TockResponseBody struct {
-	Event *string `form:"event,omitempty" json:"event,omitempty" xml:"event,omitempty"`
-	Data  *string `form:"data,omitempty" json:"data,omitempty" xml:"data,omitempty"`
+	Event *string `form:"event,omitempty" json:"event,omitzero" xml:"event,omitempty"`
+	Data  *string `form:"data,omitempty" json:"data,omitzero" xml:"data,omitempty"`
 }
 
 // GuardedResponseBody is the type of the "clock" service "Guarded" endpoint
 // HTTP response body.
 type GuardedResponseBody struct {
-	Event *string `form:"event,omitempty" json:"event,omitempty" xml:"event,omitempty"`
-	Data  *string `form:"data,omitempty" json:"data,omitempty" xml:"data,omitempty"`
+	Event *string `form:"event,omitempty" json:"event,omitzero" xml:"event,omitempty"`
+	Data  *string `form:"data,omitempty" json:"data,omitzero" xml:"data,omitempty"`
 }
 
 // GuardedUnauthorizedResponseBody is the type of the "clock" service "Guarded"
 // endpoint HTTP response body for the "unauthorized" error.
 type GuardedUnauthorizedResponseBody struct {
 	// Type identifies the problem category using a URI reference.
-	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
+	Type *string `form:"type,omitempty" json:"type,omitzero" xml:"type,omitempty"`
 	// Title is a short, human-readable summary of the problem type.
-	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
+	Title *string `form:"title,omitempty" json:"title,omitzero" xml:"title,omitempty"`
 	// Status is the HTTP status code generated for this occurrence of the problem.
-	Status *int `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
+	Status *int `form:"status,omitempty" json:"status,omitzero" xml:"status,omitempty"`
 	// Detail is a human-readable explanation specific to this occurrence of the
 	// problem.
-	Detail *string `form:"detail,omitempty" json:"detail,omitempty" xml:"detail,omitempty"`
+	Detail *string `form:"detail,omitempty" json:"detail,omitzero" xml:"detail,omitempty"`
 	// Instance identifies this specific occurrence of the problem.
-	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
+	Instance *string `form:"instance,omitempty" json:"instance,omitzero" xml:"instance,omitempty"`
 	// Code is the stable machine-readable problem code.
-	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	Code *string `form:"code,omitempty" json:"code,omitzero" xml:"code,omitempty"`
 	// Timeout reports the source error's timeout property, independently of status.
-	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitzero" xml:"timeout,omitempty"`
 	// Temporary reports whether the source error is transient, independently of
 	// status.
-	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitzero" xml:"temporary,omitempty"`
 	// Fault reports the source error's server-fault property, independently of
 	// status.
-	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+	Fault *bool `form:"fault,omitempty" json:"fault,omitzero" xml:"fault,omitempty"`
 	// Retry hint is concise guidance on how to correct the request or retry the
 	// operation.
 	RetryHint loom.Optional[string] `form:"retry_hint,omitempty" json:"retry_hint,omitzero" xml:"retry_hint,omitempty"`

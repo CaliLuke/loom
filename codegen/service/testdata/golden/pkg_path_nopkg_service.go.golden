@@ -23,5 +23,5 @@ var MethodNames = [1]string{"A"}
 
 // NoDir is the payload type of the NoDirMethod service A method.
 type NoDir struct {
-	IntField *int `json:"IntField,omitempty"`
+	IntField *int `json:"IntField,omitzero"`
 }

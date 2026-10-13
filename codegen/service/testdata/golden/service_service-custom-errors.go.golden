@@ -27,12 +27,12 @@ type APayload struct {
 	StringField   string  `json:"StringField"`
 	BooleanField  bool    `json:"BooleanField"`
 	BytesField    []byte  `json:"BytesField"`
-	OptionalField *string `json:"OptionalField,omitempty"`
-	Message       *string `json:"message,omitempty"`
+	OptionalField *string `json:"OptionalField,omitzero"`
+	Message       *string `json:"message,omitzero"`
 }
 
 type Result struct {
-	A *string `json:"a,omitempty"`
+	A *string `json:"a,omitzero"`
 	B string  `json:"b"`
 }
 

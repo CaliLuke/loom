@@ -59,7 +59,7 @@ type GuardedUnauthorizedResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 	// Retry hint is concise guidance on how to correct the request or retry the
 	// operation.
-	RetryHint *string `form:"retry_hint,omitempty" json:"retry_hint,omitempty" xml:"retry_hint,omitempty"`
+	RetryHint *string `form:"retry_hint,omitempty" json:"retry_hint,omitzero" xml:"retry_hint,omitempty"`
 }
 
 // NewTickResponseBody builds the HTTP response body from the result of the

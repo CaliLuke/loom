@@ -30,13 +30,13 @@ func TestServiceFilesMappedNames(t *testing.T) {
 
 	for _, want := range []string{
 		"type Envelope struct {\n" +
-			"\tN      *string     `json:\"n,omitempty\"`\n" +
+			"\tN      *string     `json:\"n,omitzero\"`\n" +
 			"\tReq    int         `json:\"req\"`\n" +
 			"\tPick   IntOrString `json:\"pick\"`\n" +
 			"\tObj    *Leaf       `json:\"obj\"`\n" +
-			"\tChoice *Choice     `json:\"choice,omitempty\"`\n" +
+			"\tChoice *Choice     `json:\"choice,omitzero\"`\n" +
 			"}\n",
-		"type Leaf struct {\n\tLeaf  *string `json:\"leaf,omitempty\"`\n\tCount int     `json:\"count\"`\n}\n",
+		"type Leaf struct {\n\tLeaf  *string `json:\"leaf,omitzero\"`\n\tCount int     `json:\"count\"`\n}\n",
 		"type ChoiceText string\n",
 		"type Choice struct {\n\tkind       ChoiceKind\n\tText       ChoiceText\n\tLeafBranch *Leaf\n}\n",
 		"\t// ChoiceKindText identifies the text branch of the union.\n\tChoiceKindText ChoiceKind = \"text\"\n",

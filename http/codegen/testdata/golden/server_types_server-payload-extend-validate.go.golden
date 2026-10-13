@@ -2,7 +2,7 @@
 // "ServiceQueryStringExtendedValidatePayload" service
 // "MethodQueryStringExtendedValidatePayload" endpoint HTTP request body.
 type MethodQueryStringExtendedValidatePayloadRequestBody struct {
-	Body *string `form:"body,omitempty" json:"body,omitempty" xml:"body,omitempty"`
+	Body *string `form:"body,omitempty" json:"body,omitzero" xml:"body,omitempty"`
 }
 
 // NewMethodQueryStringExtendedValidatePayloadPayload builds a

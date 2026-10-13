@@ -127,20 +127,20 @@ func (*TockResult) isclockEvent() {}
 
 // TickPayload is the payload type of the clock service Tick method.
 type TickPayload struct {
-	ID *string `json:"id,omitempty"`
+	ID *string `json:"id,omitzero"`
 }
 
 // TickResult is the result type of the clock service Tick method.
 type TickResult struct {
-	Value *string `json:"value,omitempty"`
+	Value *string `json:"value,omitzero"`
 }
 
 // TockPayload is the payload type of the clock service Tock method.
 type TockPayload struct {
-	ID *string `json:"id,omitempty"`
+	ID *string `json:"id,omitzero"`
 }
 
 // TockResult is the result type of the clock service Tock method.
 type TockResult struct {
-	Value *string `json:"value,omitempty"`
+	Value *string `json:"value,omitzero"`
 }

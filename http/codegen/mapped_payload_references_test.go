@@ -50,8 +50,8 @@ func TestMappedPayloadReferencesCode(t *testing.T) {
 		`loomhttp.MountHandler(mux, "POST", "/items/{id}", h)`,
 		`w.Header().Set("Location", res.Loc)`,
 		`w.Header().Set("X-Code", res.Code)`,
-		"\tName *string `form:\"nm,omitempty\" json:\"nm,omitempty\" xml:\"nm,omitempty\"`\n",
-		"\tName *string `form:\"name,omitempty\" json:\"name,omitempty\" xml:\"name,omitempty\"`\n",
+		"\tName *string `form:\"nm,omitempty\" json:\"nm,omitzero\" xml:\"nm,omitempty\"`\n",
+		"\tName *string `form:\"name,omitempty\" json:\"name,omitzero\" xml:\"name,omitempty\"`\n",
 		`loom.MissingFieldError("tok", "header")`,
 		`loom.InvalidLengthError("tok", utf8.RuneCountInString(tok), 2, true)`,
 	} {

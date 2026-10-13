@@ -129,13 +129,16 @@ and `errors.As`, including when the message contains an example.
   including viewed responses. HTTP clients report `decoding_error` with a JSON
   semantic cause; HTTP requests return 400 `decode_payload`. Declare `Nullable()` on
   elements when null is valid. Missing fields still follow the selected view.
-- Automatic ordinary JSON tags currently use `omitempty`, so nil and empty
-  slices/maps both serialize as missing. A full `struct:tag:json` override keeps
-  its authored options in service and HTTP/JSON-RPC encoder types; `omitzero`
-  preserves supplied empty collections. Explicit presence and JSON-RPC ID
+- Automatic JSON omission distinguishes absent values from supplied empties.
+  Nonnil empty pointers, byte slices, arrays and maps stay on the wire; native
+  `false`, `0` and `""` values are supplied, including fields with defaults.
+  Required empty collections remain valid unless constrained by length. Custom
+  Go replacement types retain their codec contract. Full `struct:tag:json`
+  overrides keep their authored options in service and HTTP/JSON-RPC encoders;
+  `omitempty` explicitly discards encoded empties. Explicit presence and JSON-RPC ID
   normalization still apply. Both full and name-only `"-"` mean exclusion;
   optional omitted HTTP/JSON-RPC body fields remain invalid. Regenerate after
-  upgrading to apply corrected authored-tag handling.
+  upgrading to apply presence and authored-tag handling.
 - For each non-`Extend` type, payload, or result, start literal field tags at
   `1` and increment within that definition. For definitions using `Extend`,
   start newly introduced fields at `100`.

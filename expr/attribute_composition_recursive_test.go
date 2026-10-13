@@ -66,7 +66,7 @@ func TestExtendCompositionPeerJSONTags(t *testing.T) {
 	}{
 		{"implicit omission differs", "one", "one", false},
 		{"different name", "one,omitempty", "two", false},
-		{"equivalent omission", "one,omitempty", "one", true},
+		{"equivalent omission", "one,omitzero", "one", true},
 	} {
 		for _, reversed := range []bool{false, true} {
 			t.Run(test.name+map[bool]string{false: "/forward", true: "/reverse"}[reversed], func(t *testing.T) {

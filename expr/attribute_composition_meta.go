@@ -9,7 +9,15 @@ import (
 	"github.com/CaliLuke/loom/internal/naming"
 )
 
-func composeAttributeMetadata(attribute *AttributeExpr, bases []*AttributeExpr, path, fieldName string, optional bool) bool {
+type compositionJSONTags struct {
+	attribute       *AttributeExpr
+	bases           []*AttributeExpr
+	effective       *AttributeExpr
+	path, fieldName string
+	optional        bool
+}
+
+func (c *designComposer) composeAttributeMetadata(attribute *AttributeExpr, bases []*AttributeExpr, path, fieldName string, optional bool) bool {
 	local := attribute.Meta
 	result := make(MetaExpr)
 	owners := make(map[string]*AttributeExpr)
@@ -32,11 +40,11 @@ func composeAttributeMetadata(attribute *AttributeExpr, bases []*AttributeExpr, 
 			result[key] = slices.Clone(values)
 		}
 	}
-	effective := *attribute
-	effective.Meta = result
-	if !validateCompositionJSONTags(attribute, bases, &effective, path, fieldName, optional) {
-		return false
-	}
+	authored := *attribute
+	c.jsonTags = append(c.jsonTags, compositionJSONTags{
+		attribute: &authored, bases: bases, effective: attribute,
+		path: path, fieldName: fieldName, optional: optional,
+	})
 	attribute.Meta = result
 	return true
 }
@@ -93,10 +101,13 @@ func composeInheritedMetadata(
 }
 
 func validateCompositionJSONTags(attribute *AttributeExpr, bases []*AttributeExpr, effective *AttributeExpr, path, fieldName string, optional bool) bool {
-	zeroOmit := encodingmeta.ExplicitPresence(effective.Meta, IsNullable(effective), effective.Type == Any) || AllowsNull(effective)
+	parent := &AttributeExpr{Type: &Object{{Name: fieldName, Attribute: effective}}}
+	if !optional {
+		parent.Validation = &ValidationExpr{Required: []string{fieldName}}
+	}
+	policy := ServiceFieldLayout(parent, fieldName, effective, false, true).JSON
 	tag := func(source *AttributeExpr) string {
-		value, _ := encodingmeta.JSONTag(source.Meta, AttributeName(fieldName), encodingmeta.JSONTagPolicy{Optional: optional, Presence: zeroOmit})
-		return value
+		return encodingmeta.ResolveJSONField(source.Meta, AttributeName(fieldName), policy).Tag
 	}
 	var owner *AttributeExpr
 	for _, base := range bases {

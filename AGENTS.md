@@ -254,4 +254,4 @@ Do not duplicate it into `check.sh` — `check.sh` forwards only.
 
 ### Slices/Maps and Required Fields
 
-Do not rely on nil vs empty to encode presence. Loom uses `omitempty`—both nil and empty serialize as "missing". If empty is valid, do not mark the field as required.
+Framework-owned JSON omission distinguishes nil absence from nonnil empty values. Native scalar zeros are supplied values; defaults apply only to absence. Required empty collections remain valid unless a length constraint rejects them. Authored full tags and custom Go codecs retain their explicit contracts.

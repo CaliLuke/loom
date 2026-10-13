@@ -33,7 +33,7 @@ type MultipleViews struct {
 
 type MultipleViews2 struct {
 	A string  `json:"a"`
-	B *string `json:"b,omitempty"`
+	B *string `json:"b,omitzero"`
 }
 
 // NewMultipleViews initializes result type MultipleViews from viewed result

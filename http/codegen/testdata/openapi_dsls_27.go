@@ -73,7 +73,19 @@ var OpenAPIAuthoredJSONTagsDSL = func() {
 		Attribute("omitted", String, func() {
 			Meta("struct:tag:json", "omitted,omitempty")
 		})
-		Example(map[string]any{"plain": "", "items": []string{}, "omitted": ""})
+		Attribute("empty", String)
+		Attribute("names", ArrayOf(String))
+		Attribute("labels", MapOf(String, String))
+		Attribute("flag", Boolean, func() {
+			Default(true)
+		})
+		Attribute("count", Int, func() {
+			Default(7)
+		})
+		Attribute("text", String, func() {
+			Default("fallback")
+		})
+		Example(map[string]any{"plain": "", "items": []string{}, "omitted": "", "empty": "", "names": []string{}, "labels": map[string]string{}, "flag": false, "count": 0, "text": ""})
 	})
 	Service("tagged", func() {
 		Method("echo", func() {

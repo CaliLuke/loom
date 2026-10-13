@@ -22,11 +22,11 @@ const ServiceName = "RawObjectPayloadTypeNameCollision"
 var MethodNames = [1]string{"Foo"}
 
 type FooPayload struct {
-	X *string `json:"x,omitempty"`
+	X *string `json:"x,omitzero"`
 }
 
 type FooPayload2 struct {
-	Y *string `json:"y,omitempty"`
+	Y *string `json:"y,omitzero"`
 }
 
 // FooPayload3 is the payload type of the RawObjectPayloadTypeNameCollision

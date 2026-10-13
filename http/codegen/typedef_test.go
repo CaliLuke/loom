@@ -256,19 +256,19 @@ func TestGoValueTypeDefStripsNamedRootPresence(t *testing.T) {
 
 var (
 	unionPresence = `struct {
-	Optional *Choice ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
+	Optional *Choice ` + "`" + `form:"optional,omitempty" json:"optional,omitzero" xml:"optional,omitempty"` + "`" + `
 	Required Choice ` + "`" + `form:"required" json:"required" xml:"required"` + "`" + `
 }`
 
 	mixedNoDefault = `struct {
 	Required string ` + "`" + `form:"required" json:"required" xml:"required"` + "`" + `
-	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitempty" xml:"default,omitempty"` + "`" + `
-	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
-	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
+	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitzero" xml:"default,omitempty"` + "`" + `
+	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitzero" xml:"optional,omitempty"` + "`" + `
+	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitzero" xml:"bytes,omitempty"` + "`" + `
 	Any loom.JSONValue ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
 	RequiredBytes []byte ` + "`" + `form:"required_bytes" json:"required_bytes" xml:"required_bytes"` + "`" + `
 	RequiredAny loom.JSONValue ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
-	DefaultBytes []byte ` + "`" + `form:"default_bytes,omitempty" json:"default_bytes,omitempty" xml:"default_bytes,omitempty"` + "`" + `
+	DefaultBytes []byte ` + "`" + `form:"default_bytes,omitempty" json:"default_bytes,omitzero" xml:"default_bytes,omitempty"` + "`" + `
 	DefaultAny loom.JSONValue ` + "`" + `form:"default_any,omitempty" json:"default_any,omitzero" xml:"default_any,omitempty"` + "`" + `
 	CustomType *pkg.String ` + "`" + `form:"custom_type,omitempty" json:"custom_type,omitempty" xml:"custom_type,omitempty"` + "`" + `
 	CustomTag *string ` + "`" + `foo:"bar"` + "`" + `
@@ -277,8 +277,8 @@ var (
 	mixedUseDefault = `struct {
 	Required string ` + "`" + `form:"required" json:"required" xml:"required"` + "`" + `
 	Default int ` + "`" + `form:"default" json:"default" xml:"default"` + "`" + `
-	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
-	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
+	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitzero" xml:"optional,omitempty"` + "`" + `
+	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitzero" xml:"bytes,omitempty"` + "`" + `
 	Any loom.JSONValue ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
 	RequiredBytes []byte ` + "`" + `form:"required_bytes" json:"required_bytes" xml:"required_bytes"` + "`" + `
 	RequiredAny loom.JSONValue ` + "`" + `form:"required_any" json:"required_any" xml:"required_any"` + "`" + `
@@ -289,14 +289,14 @@ var (
 }`
 
 	mixedUsePointer = `struct {
-	Required *string ` + "`" + `form:"required,omitempty" json:"required,omitempty" xml:"required,omitempty"` + "`" + `
-	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitempty" xml:"default,omitempty"` + "`" + `
-	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitempty" xml:"optional,omitempty"` + "`" + `
-	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitempty" xml:"bytes,omitempty"` + "`" + `
+	Required *string ` + "`" + `form:"required,omitempty" json:"required,omitzero" xml:"required,omitempty"` + "`" + `
+	Default *int ` + "`" + `form:"default,omitempty" json:"default,omitzero" xml:"default,omitempty"` + "`" + `
+	Optional *float32 ` + "`" + `form:"optional,omitempty" json:"optional,omitzero" xml:"optional,omitempty"` + "`" + `
+	Bytes []byte ` + "`" + `form:"bytes,omitempty" json:"bytes,omitzero" xml:"bytes,omitempty"` + "`" + `
 	Any loom.JSONValue ` + "`" + `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"` + "`" + `
-	RequiredBytes []byte ` + "`" + `form:"required_bytes,omitempty" json:"required_bytes,omitempty" xml:"required_bytes,omitempty"` + "`" + `
-	RequiredAny loom.JSONValue ` + "`" + `form:"required_any,omitempty" json:"required_any,omitempty" xml:"required_any,omitempty"` + "`" + `
-	DefaultBytes []byte ` + "`" + `form:"default_bytes,omitempty" json:"default_bytes,omitempty" xml:"default_bytes,omitempty"` + "`" + `
+	RequiredBytes []byte ` + "`" + `form:"required_bytes,omitempty" json:"required_bytes,omitzero" xml:"required_bytes,omitempty"` + "`" + `
+	RequiredAny loom.JSONValue ` + "`" + `form:"required_any,omitempty" json:"required_any,omitzero" xml:"required_any,omitempty"` + "`" + `
+	DefaultBytes []byte ` + "`" + `form:"default_bytes,omitempty" json:"default_bytes,omitzero" xml:"default_bytes,omitempty"` + "`" + `
 	DefaultAny loom.JSONValue ` + "`" + `form:"default_any,omitempty" json:"default_any,omitzero" xml:"default_any,omitempty"` + "`" + `
 	CustomType *pkg.String ` + "`" + `form:"custom_type,omitempty" json:"custom_type,omitempty" xml:"custom_type,omitempty"` + "`" + `
 	CustomTag *string ` + "`" + `foo:"bar"` + "`" + `

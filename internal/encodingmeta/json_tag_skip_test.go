@@ -17,8 +17,9 @@ func TestJSONAuthoredSkip(t *testing.T) {
 		{"name only", map[string][]string{"struct:tag:json:name": {"-"}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tag, present := JSONTag(tc.meta, "secret", JSONTagPolicy{Optional: true})
-			require.True(t, present)
+			field := ResolveJSONField(tc.meta, "secret", JSONFieldPolicy{Optional: true, Storage: JSONNilable})
+			tag := field.Tag
+			require.True(t, field.Present)
 			typ := reflect.StructOf([]reflect.StructField{{Name: "Secret", Type: reflect.TypeOf(""), Tag: reflect.StructTag(`json:"` + tag + `"`)}})
 			value := reflect.New(typ).Elem()
 			value.Field(0).SetString("private")

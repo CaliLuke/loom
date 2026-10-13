@@ -442,12 +442,14 @@ metadata retains its ordered append/removal operations; ambiguous inherited
 custom values require an explicit removal and replacement.
 
 JSON tag compatibility uses the complete effective tag, including omission
-options, with the derived field's requiredness and presence representation.
+options, using the canonical service field storage after inherited defaults and
+requiredness are resolved.
 For an optional ordinary string, a full `struct:tag:json` value of `"one"`
 conflicts with `struct:tag:json:name` of `"one"`: the latter renders
-`"one,omitempty"`. A full `"one,omitempty"` and name-only `"one"` are
+`"one,omitzero"`. A full `"one,omitzero"` and name-only `"one"` are
 compatible. If the field is required, including through an inherited
-`Required`, full `"one"` and name-only `"one"` are compatible instead.
+`Required`, or has a materialized scalar default, full `"one"` and name-only
+`"one"` are compatible instead; authored `omitzero` would discard native zeros.
 Nullable fields retain Loom's normal `omitzero` normalization. The same check
 applies between bases and between a local redeclaration and its inherited field.
 Previously accepted conflicting tags must be made consistent before regeneration.
@@ -2033,6 +2035,14 @@ field, the kind of a union branch and the types of the branches of a `OneOf`
 block use `name`. Validation errors, including those of HTTP and JSON-RPC
 bodies, name the attribute and not the wire element, as they do for fields
 renamed with `struct:tag:json`.
+
+Automatic JSON tags omit only absent optional values. A nonnil pointer to an empty
+string, a nonnil empty byte slice, array, map or object pointer stays on the wire.
+Native scalar values, including `false`, `0` and `""` on fields with defaults,
+are supplied values. Required empty collections are valid unless a length constraint
+rejects them. Defaults apply only to absence. Application-defined replacement Go
+types retain their codec contract; their `IsZero` methods do not define Loom absence.
+Regenerate clients and servers after upgrading to apply these semantics.
 
 Full `struct:tag:json` metadata preserves its authored options in service and
 HTTP/JSON-RPC encoder types. For example, `"items,omitzero"` preserves a supplied

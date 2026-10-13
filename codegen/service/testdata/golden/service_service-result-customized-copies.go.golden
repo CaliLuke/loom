@@ -37,22 +37,22 @@ var MethodNames = [3]string{"M1", "M2", "M3"}
 
 // Menu is the result type of the CustomizedResultCopies service M3 method.
 type Menu struct {
-	X *string `json:"x,omitempty"`
-	Y *string `json:"y,omitempty"`
+	X *string `json:"x,omitzero"`
+	Y *string `json:"y,omitzero"`
 }
 
 // MenuM1Result is the result type of the CustomizedResultCopies service M1
 // method.
 type MenuM1Result struct {
 	X string  `json:"x"`
-	Y *string `json:"y,omitempty"`
+	Y *string `json:"y,omitzero"`
 }
 
 // MenuM2Result is the result type of the CustomizedResultCopies service M2
 // method.
 type MenuM2Result struct {
 	X string  `json:"x"`
-	Y *string `json:"y,omitempty"`
+	Y *string `json:"y,omitzero"`
 }
 
 // NewMenuM1Result initializes result type MenuM1Result from viewed result type

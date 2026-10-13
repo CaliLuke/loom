@@ -100,7 +100,7 @@ type GuardedClientStream interface {
 
 // GuardedPayload is the payload type of the clock service Guarded method.
 type GuardedPayload struct {
-	Token *string `json:"token,omitempty"`
+	Token *string `json:"token,omitzero"`
 }
 
 // TickTockEvent is the result type of the clock service Tick method.

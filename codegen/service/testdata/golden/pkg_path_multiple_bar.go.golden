@@ -1,4 +1,4 @@
 // Bar is the payload type of the MultiplePkgPathMethod service A method.
 type Bar struct {
-	IntField *int `json:"IntField,omitempty"`
+	IntField *int `json:"IntField,omitzero"`
 }

@@ -21,7 +21,7 @@ type TickRequestBody struct {
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
 // response body.
 type TickResponseBody struct {
-	Value *string `form:"value,omitempty" json:"value,omitempty" xml:"value,omitempty"`
+	Value *string `form:"value,omitempty" json:"value,omitzero" xml:"value,omitempty"`
 }
 
 // TockRequestBody is the type of the "clock" service "Tock" endpoint HTTP
@@ -33,7 +33,7 @@ type TockRequestBody struct {
 // TockResponseBody is the type of the "clock" service "Tock" endpoint HTTP
 // response body.
 type TockResponseBody struct {
-	Value *string `form:"value,omitempty" json:"value,omitempty" xml:"value,omitempty"`
+	Value *string `form:"value,omitempty" json:"value,omitzero" xml:"value,omitempty"`
 }
 
 // NewTickResponseBody builds the HTTP response body from the result of the

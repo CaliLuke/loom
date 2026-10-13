@@ -26,6 +26,8 @@ func TestJSONTagArtifacts(t *testing.T) {
 			jsonTagNormalizationDSL(true)
 		}},
 		{"skip", jsonTagSkipDSL},
+		{"storage", jsonFieldStorageDSL},
+		{"views", testdata.ResultViewPresenceDSL},
 		{"spec", testdata.OpenAPIAuthoredJSONTagsDSL},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -41,7 +43,7 @@ func TestJSONTagArtifactBuilds(t *testing.T) {
 	if output == "" {
 		t.Skip("set LOOM_JSON_TAG_OUTPUT for isolated artifact compilation")
 	}
-	for _, name := range []string{"ordinary", "full", "skip", "spec"} {
+	for _, name := range []string{"ordinary", "full", "skip", "storage", "views", "spec"} {
 		t.Run(name, func(t *testing.T) {
 			dir := filepath.Join(output, name)
 			for _, args := range [][]string{{"mod", "tidy"}, {"build", "./..."}, {"vet", "./..."}} {

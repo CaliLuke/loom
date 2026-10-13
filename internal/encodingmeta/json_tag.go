@@ -2,17 +2,73 @@ package encodingmeta
 
 import "strings"
 
-// JSONTagPolicy describes omission selected by the field representation owner.
-// Authored full tags override ordinary omission, while explicit carriers and
-// protocol-required omission normalize it. Exact exclusion tags remain excluded.
-type JSONTagPolicy struct {
-	// Optional requests omission for an absent or empty optional field.
-	Optional bool
-	// Presence selects omitzero rather than omitempty for an explicit carrier.
-	Presence bool
-	// ForceOmission applies the selected omission even to an authored full tag.
-	ForceOmission bool
-}
+type (
+	// JSONStorage identifies the field carrier selected by its declaration owner.
+	JSONStorage uint8
+
+	// JSONOmission is the observation performed by a resolved field encoder.
+	JSONOmission uint8
+
+	// JSONFieldPolicy supplies physical storage and omission role independently.
+	JSONFieldPolicy struct {
+		// Storage is the actual emitted carrier, not the semantic DSL kind.
+		Storage JSONStorage
+		// Optional permits automatic omission for this emission role.
+		Optional bool
+		// Presence normalizes full tags for existing explicit-presence contracts.
+		Presence bool
+		// ForceOmission retains protocol-mandated omission, including RPC IDs.
+		ForceOmission bool
+	}
+
+	// JSONField is the immutable result shared by tags and value projection.
+	JSONField struct {
+		// Tag is the normalized JSON tag, including an authored empty tag.
+		Tag string
+		// Present reports whether the tag is emitted.
+		Present bool
+		// Omission is the resolved observation for this physical carrier.
+		Omission JSONOmission
+	}
+
+	// FieldLayout records declaration decisions without rendering Go type names.
+	FieldLayout struct {
+		// Pointer adds a pointer around the declared field type.
+		Pointer bool
+		// WrapNullable adds an occurrence-level Nullable wrapper.
+		WrapNullable bool
+		// WrapOptional adds a decoder-owned Optional wrapper.
+		WrapOptional bool
+		// JSON supplies the exact field carrier and omission role.
+		JSON JSONFieldPolicy
+	}
+)
+
+const (
+	// JSONNative is an ordinary nonnilable value; every zero is supplied.
+	JSONNative JSONStorage = iota
+	// JSONNilable is an ordinary pointer, slice or map with nil absence.
+	JSONNilable
+	// JSONPresence is a framework carrier with an explicit absence operation.
+	JSONPresence
+	// JSONCustom is an opaque application codec, including custom IsZero.
+	JSONCustom
+)
+
+const (
+	// JSONRetain emits every supplied field value.
+	JSONRetain JSONOmission = iota
+	// JSONOmitAbsent omits only the carrier's absent state.
+	JSONOmitAbsent
+	// JSONOmitEmpty applies the encoded-emptiness contract of omitempty.
+	JSONOmitEmpty
+	// JSONOmitNativeZero applies authored omitzero to ordinary native storage.
+	JSONOmitNativeZero
+	// JSONOmitEmptyOrNativeZero applies both authored omission predicates.
+	JSONOmitEmptyOrNativeZero
+	// JSONExternalCodec delegates observation to an application codec.
+	JSONExternalCodec
+)
 
 // ExplicitPresence reports the existing Go carrier override policy from shared
 // semantic facts and authored representation metadata.
@@ -25,12 +81,11 @@ func ExplicitPresence(meta map[string][]string, nullable, unconstrained bool) bo
 	return typeName != "" && (len(values) > 0 && values[len(values)-1] != "false" || strings.HasPrefix(typeName, "loom.Nullable["))
 }
 
-// JSONTag resolves authored full/name-only metadata and the existing omission
-// policy. defaultName is the field identity; policy is supplied by its owning
-// representation or semantic composition boundary.
-// The bool reports whether a tag should be emitted, including an explicit empty
-// full tag. Callers retain ownership of semantic requiredness and nullability.
-func JSONTag(meta map[string][]string, defaultName string, policy JSONTagPolicy) (string, bool) {
+// ResolveJSONField resolves authored intent against the actual field carrier.
+// Full tags retain their options unless an existing explicit-presence or protocol
+// contract normalizes them. Automatic tags omit absence only; native values retain
+// their zeros. Opaque custom carriers keep their established tag policy.
+func ResolveJSONField(meta map[string][]string, defaultName string, policy JSONFieldPolicy) JSONField {
 	values, full := meta["struct:tag:json"]
 	tag := strings.Join(values, ",")
 	if !full {
@@ -39,13 +94,38 @@ func JSONTag(meta map[string][]string, defaultName string, policy JSONTagPolicy)
 			tag = defaultName
 		}
 		if tag == "" {
-			return "", false
+			return JSONField{}
 		}
 	}
-	if tag != "-" && policy.Optional && (!full || policy.Presence || policy.ForceOmission) {
-		tag = appendJSONOmitOption(tag, policy.Presence)
+	zero := policy.Storage == JSONNilable || policy.Storage == JSONPresence || policy.Presence
+	omit := policy.Optional && (zero || policy.Storage == JSONCustom || policy.ForceOmission)
+	if tag != "-" && omit && (!full || policy.Presence || policy.ForceOmission) {
+		tag = appendJSONOmitOption(tag, zero && !policy.ForceOmission || policy.Presence)
 	}
-	return tag, true
+	field := JSONField{Tag: tag, Present: true}
+	if policy.Storage == JSONCustom {
+		field.Omission = JSONExternalCodec
+		return field
+	}
+	empty, nativeZero := false, false
+	for _, option := range strings.Split(tag, ",")[1:] {
+		switch option {
+		case "omitempty":
+			empty = true
+		case "omitzero":
+			field.Omission = JSONOmitAbsent
+			nativeZero = policy.Storage == JSONNative
+		}
+	}
+	switch {
+	case empty && nativeZero:
+		field.Omission = JSONOmitEmptyOrNativeZero
+	case empty:
+		field.Omission = JSONOmitEmpty
+	case nativeZero:
+		field.Omission = JSONOmitNativeZero
+	}
+	return field
 }
 
 func appendJSONOmitOption(tag string, zeroOmit bool) string {

@@ -24,13 +24,13 @@ var MethodNames = [1]string{"Method With Spaces"}
 // PayloadWithSpace is the payload type of the Service With Spaces service
 // Method With Spaces method.
 type PayloadWithSpace struct {
-	String *string `json:"String,omitempty"`
+	String *string `json:"String,omitzero"`
 }
 
 // ResultWithSpace is the result type of the Service With Spaces service Method
 // With Spaces method.
 type ResultWithSpace struct {
-	Int *int `json:"Int,omitempty"`
+	Int *int `json:"Int,omitzero"`
 }
 
 // NewResultWithSpace initializes result type ResultWithSpace from viewed

@@ -4,7 +4,7 @@ func NewMethodBodyInlineObjectResultTypeOK(body *MethodBodyInlineObjectResponseB
 	v := &servicebodyinlineobject.ResultType{}
 	if actual, ok := body.Parent.Value(); ok {
 		vParentValue := &struct {
-			Child *string `json:"child,omitempty"`
+			Child *string `json:"child,omitzero"`
 		}{}
 		if actual, ok := actual.Child.Value(); ok {
 			vParentValueChildValue := actual

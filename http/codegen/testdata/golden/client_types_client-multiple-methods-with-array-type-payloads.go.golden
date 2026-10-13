@@ -2,7 +2,7 @@ import "regexp"
 
 // PayloadARequestBody is used to define fields on request body types.
 type PayloadARequestBody struct {
-	A *string `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
+	A *string `form:"a,omitempty" json:"a,omitzero" xml:"a,omitempty"`
 }
 
 // PayloadBRequestBody is used to define fields on request body types.

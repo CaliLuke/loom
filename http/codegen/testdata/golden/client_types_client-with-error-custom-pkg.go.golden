@@ -2,7 +2,7 @@
 // "ServiceWithErrorCustomPkg" service "MethodWithErrorCustomPkg" endpoint HTTP
 // response body for the "error_name" error.
 type MethodWithErrorCustomPkgErrorNameResponseBody struct {
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	Name *string `form:"name,omitempty" json:"name,omitzero" xml:"name,omitempty"`
 }
 
 // NewMethodWithErrorCustomPkgErrorName builds a ServiceWithErrorCustomPkg

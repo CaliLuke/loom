@@ -71,7 +71,7 @@ import (
 )
 
 type inlineY = struct {
-	Y *string ` + "`" + `json:"y,omitempty"` + "`" + `
+	Y *string ` + "`" + `json:"y,omitzero"` + "`" + `
 }
 
 func str(s string) *string {

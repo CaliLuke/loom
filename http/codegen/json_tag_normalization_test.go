@@ -11,6 +11,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 	"github.com/CaliLuke/loom/http/codegen/internal/transportir"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +21,7 @@ func TestJSONAuthoredTagParity(t *testing.T) {
 			field := &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:tag:json": {tag}}}
 			parent := &expr.AttributeExpr{Type: &expr.Object{{Name: "value", Attribute: field}}}
 			serviceTag := codegen.AttributeTagsWithName(parent, "value", field)
-			bodyTag := representation.AttributeTags(field, "value", true, false)
+			bodyTag := representation.FieldTags(field, "value", true, encodingmeta.JSONFieldPolicy{Optional: true, Storage: encodingmeta.JSONNilable}).Tags
 			require.Contains(t, serviceTag, `json:"`+tag+`"`, "documented full-tag control")
 			require.Contains(t, bodyTag, `json:"`+tag+`"`, "ordinary encoder must honor the same authored full tag")
 		})
@@ -35,9 +36,9 @@ func TestJSONAuthoredTagNormalizationControls(t *testing.T) {
 		zero     bool
 		want     string
 	}{
-		{"automatic optional", nil, true, false, "value,omitempty"},
+		{"automatic optional", nil, true, false, "value,omitzero"},
 		{"automatic required", nil, false, false, "value"},
-		{"name only optional", expr.MetaExpr{"struct:tag:json:name": {"wire"}}, true, false, "wire,omitempty"},
+		{"name only optional", expr.MetaExpr{"struct:tag:json:name": {"wire"}}, true, false, "wire,omitzero"},
 		{"full retains empty", expr.MetaExpr{"struct:tag:json": {"wire"}}, true, false, "wire"},
 		{"full zero omission", expr.MetaExpr{"struct:tag:json": {"wire,omitzero"}}, true, false, "wire,omitzero"},
 		{"full empty omission", expr.MetaExpr{"struct:tag:json": {"wire,omitempty"}}, true, false, "wire,omitempty"},
@@ -48,7 +49,7 @@ func TestJSONAuthoredTagNormalizationControls(t *testing.T) {
 		{"full skip", expr.MetaExpr{"struct:tag:json": {"-"}}, true, false, "-"},
 		{"name only skip", expr.MetaExpr{"struct:tag:json:name": {"-"}}, true, false, "-"},
 		{"custom non JSON only", expr.MetaExpr{"struct:tag:xml": {"wire"}}, true, false, ""},
-		{"custom plus JSON name", expr.MetaExpr{"struct:tag:xml": {"wire"}, "struct:tag:json:name": {"wire"}}, true, false, "wire,omitempty"},
+		{"custom plus JSON name", expr.MetaExpr{"struct:tag:xml": {"wire"}, "struct:tag:json:name": {"wire"}}, true, false, "wire,omitzero"},
 		{"RPC ID remains omitted", expr.MetaExpr{"jsonrpc:id": {}}, false, false, "value,omitempty"},
 		{"RPC ID full tag remains omitted", expr.MetaExpr{"jsonrpc:id": {}, "struct:tag:json": {"wire"}}, false, false, "wire,omitempty"},
 		{"nullable default retains zero omission", nil, false, true, "value,omitzero"},
@@ -57,7 +58,7 @@ func TestJSONAuthoredTagNormalizationControls(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			field := &expr.AttributeExpr{Type: expr.String, Meta: tc.meta}
-			rendered := representation.AttributeTags(field, "value", tc.optional, tc.zero)
+			rendered := representation.FieldTags(field, "value", tc.optional, encodingmeta.JSONFieldPolicy{Optional: tc.optional || tc.zero, Presence: tc.zero, Storage: encodingmeta.JSONNilable}).Tags
 			raw, err := strconv.Unquote(strings.TrimSpace(rendered))
 			require.NoError(t, err)
 			require.Equal(t, tc.want, reflect.StructTag(raw).Get("json"))

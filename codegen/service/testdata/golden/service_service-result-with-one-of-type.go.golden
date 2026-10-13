@@ -22,20 +22,20 @@ const ServiceName = "ResultWithOneOfType"
 var MethodNames = [1]string{"A"}
 
 type Item struct {
-	A *string `json:"a,omitempty"`
+	A *string `json:"a,omitzero"`
 }
 
 // ResultOneof is the result type of the ResultWithOneOfType service A method.
 type ResultOneof struct {
-	Result *Result `json:"result,omitempty"`
+	Result *Result `json:"result,omitzero"`
 }
 
 type T struct {
-	Message *string `json:"message,omitempty"`
+	Message *string `json:"message,omitzero"`
 }
 
 type U struct {
-	Item *Item `json:"item,omitempty"`
+	Item *Item `json:"item,omitzero"`
 }
 
 // Result is a sum-type union.

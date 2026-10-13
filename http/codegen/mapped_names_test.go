@@ -35,14 +35,14 @@ func TestMappedNamesBodies(t *testing.T) {
 	for _, want := range []string{
 		"type EchoRequestBody struct {\n" +
 			"\tN      loom.Optional[string]                                     `form:\"m,omitempty\" json:\"m,omitzero\" xml:\"m,omitempty\"`\n" +
-			"\tReq    *int                                                      `form:\"r,omitempty\" json:\"r,omitempty\" xml:\"r,omitempty\"`\n",
+			"\tReq    *int                                                      `form:\"r,omitempty\" json:\"r,omitzero\" xml:\"r,omitempty\"`\n",
 		"type EchoResponseBody struct {\n" +
-			"\tN      *string                      `form:\"m,omitempty\" json:\"m,omitempty\" xml:\"m,omitempty\"`\n" +
+			"\tN      *string                      `form:\"m,omitempty\" json:\"m,omitzero\" xml:\"m,omitempty\"`\n" +
 			"\tReq    int                          `form:\"r\" json:\"r\" xml:\"r\"`\n" +
 			"\tDef    int                          `form:\"d\" json:\"d\" xml:\"d\"`\n",
 		"type LeafRequestBody struct {\n" +
 			"\tLeaf  loom.Optional[string] `form:\"l,omitempty\" json:\"l,omitzero\" xml:\"l,omitempty\"`\n" +
-			"\tCount *int                  `form:\"c,omitempty\" json:\"c,omitempty\" xml:\"c,omitempty\"`\n",
+			"\tCount *int                  `form:\"c,omitempty\" json:\"c,omitzero\" xml:\"c,omitempty\"`\n",
 		"\tif body.Req == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"req\", validationPath))\n\t}\n",
 		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count\", validationPath))\n\t}\n",
 		"\tif body.ID == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"id\", validationPath))\n\t}\n",

@@ -3,20 +3,20 @@ import "regexp"
 // MethodARequestBody is the type of the "ServiceMultipleMethods" service
 // "MethodA" endpoint HTTP request body.
 type MethodARequestBody struct {
-	A *string `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
+	A *string `form:"a,omitempty" json:"a,omitzero" xml:"a,omitempty"`
 }
 
 // MethodBRequestBody is the type of the "ServiceMultipleMethods" service
 // "MethodB" endpoint HTTP request body.
 type MethodBRequestBody struct {
 	A string               `form:"a" json:"a" xml:"a"`
-	B *string              `form:"b,omitempty" json:"b,omitempty" xml:"b,omitempty"`
+	B *string              `form:"b,omitempty" json:"b,omitzero" xml:"b,omitempty"`
 	C *APayloadRequestBody `form:"c" json:"c" xml:"c"`
 }
 
 // APayloadRequestBody is used to define fields on request body types.
 type APayloadRequestBody struct {
-	A *string `form:"a,omitempty" json:"a,omitempty" xml:"a,omitempty"`
+	A *string `form:"a,omitempty" json:"a,omitzero" xml:"a,omitempty"`
 }
 
 // NewMethodARequestBody builds the HTTP request body from the payload of the

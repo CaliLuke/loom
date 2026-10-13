@@ -1,4 +1,4 @@
 // Foo is the payload type of the PkgPathMethod service A method.
 type Foo struct {
-	IntField *int `json:"IntField,omitempty"`
+	IntField *int `json:"IntField,omitzero"`
 }

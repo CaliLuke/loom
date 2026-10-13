@@ -1,4 +1,4 @@
 
 type Foo struct {
-	IntField *int `json:"IntField,omitempty"`
+	IntField *int `json:"IntField,omitzero"`
 }

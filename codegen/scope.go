@@ -263,20 +263,18 @@ func (s *NameScope) objectTypeDefWithPkgOverride(att *expr.AttributeExpr, actual
 func (s *NameScope) objectFieldTypeDef(parent *expr.AttributeExpr, name string, at *expr.AttributeExpr, ptr, useDefault bool, pkg, targetPkg string) string {
 	fn := GoifyAtt(at, name, true)
 	tdef := s.goTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg)
-	if expr.AllowsNull(at) && !expr.IsNullable(at) && !expr.IsAny(at.Type) {
+	layout := expr.ServiceFieldLayout(parent, name, at, ptr, useDefault)
+	if layout.WrapNullable {
 		tdef = "loom.Nullable[" + s.goValueTypeDefWithPkgOverride(at, ptr, useDefault, pkg, targetPkg) + "]"
 	}
-	if !IsExplicitPresenceType(at) && (expr.IsObject(at.Type) ||
-		(expr.IsUnion(at.Type) && !parent.IsRequired(name)) ||
-		parent.IsPrimitivePointer(name, useDefault) ||
-		(ptr && expr.IsPrimitive(at.Type) && !expr.IsAny(at.Type) && at.Type.Kind() != expr.BytesKind)) {
+	if layout.Pointer {
 		tdef = "*" + tdef
 	}
 	desc := ""
 	if at.Description != "" {
 		desc = Comment(at.Description) + "\n\t"
 	}
-	return fmt.Sprintf("\t%s%s %s%s", desc, fn, tdef, AttributeTagsWithName(parent, name, at))
+	return fmt.Sprintf("\t%s%s %s%s", desc, fn, tdef, attributeTagsForLayout(name, at, layout.JSON))
 }
 
 func (s *NameScope) userTypeDefWithPkgOverride(att *expr.AttributeExpr, actual expr.UserType, pkg, targetPkg string) string {

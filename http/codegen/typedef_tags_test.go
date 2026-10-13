@@ -13,6 +13,7 @@ import (
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/internal/representation"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
 func TestAttributeTagsJSONRoundTrip(t *testing.T) {
@@ -25,7 +26,7 @@ func TestAttributeTagsJSONRoundTrip(t *testing.T) {
 	}
 	for name, field := range cases {
 		t.Run(name, func(t *testing.T) {
-			rendered := representation.AttributeTags(&expr.AttributeExpr{Type: expr.String}, field, false, false)
+			rendered := representation.FieldTags(&expr.AttributeExpr{Type: expr.String}, field, false, encodingmeta.JSONFieldPolicy{}).Tags
 			src := "package p\n\ntype T struct {\n\tF string" + rendered + "\n}\n"
 			file, err := parser.ParseFile(token.NewFileSet(), "p.go", src, 0)
 			require.NoError(t, err, rendered)
@@ -55,17 +56,17 @@ func TestAttributeTagsQuoteDesignText(t *testing.T) {
 		"plain name": {
 			att:  &expr.AttributeExpr{Type: expr.String},
 			name: "user_id",
-			want: map[string]string{"form": "user_id,omitempty", "json": "user_id,omitempty", "xml": "user_id,omitempty"},
+			want: map[string]string{"form": "user_id,omitempty", "json": "user_id,omitzero", "xml": "user_id,omitempty"},
 		},
 		"backtick in name": {
 			att:  &expr.AttributeExpr{Type: expr.String},
 			name: "user`id",
-			want: map[string]string{"form": "user`id,omitempty", "json": "user`id,omitempty", "xml": "user`id,omitempty"},
+			want: map[string]string{"form": "user`id,omitempty", "json": "user`id,omitzero", "xml": "user`id,omitempty"},
 		},
 		"quote in name": {
 			att:  &expr.AttributeExpr{Type: expr.String},
 			name: `user"id`,
-			want: map[string]string{"form": `user"id,omitempty`, "json": `user"id,omitempty`, "xml": `user"id,omitempty`},
+			want: map[string]string{"form": `user"id,omitempty`, "json": `user"id,omitzero`, "xml": `user"id,omitempty`},
 		},
 		"quote and backtick in custom tag": {
 			att:  &expr.AttributeExpr{Type: expr.String, Meta: expr.MetaExpr{"struct:tag:db": {"a\"b`c"}}},
@@ -75,7 +76,7 @@ func TestAttributeTagsQuoteDesignText(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			rendered := representation.AttributeTags(tc.att, tc.name, true, false)
+			rendered := representation.FieldTags(tc.att, tc.name, true, encodingmeta.JSONFieldPolicy{Optional: true, Storage: encodingmeta.JSONNilable}).Tags
 			src := "package p\n\ntype T struct {\n\tF string" + rendered + "\n}\n"
 			file, err := parser.ParseFile(token.NewFileSet(), "p.go", src, 0)
 			require.NoError(t, err, rendered)

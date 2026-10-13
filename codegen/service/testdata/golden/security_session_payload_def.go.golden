@@ -1,5 +1,5 @@
 struct {
-	Message        *string `json:"message,omitempty"`
-	Auth           *string `json:"auth,omitempty"`
-	BrowserSession *string `json:"browser_session,omitempty"`
+	Message        *string `json:"message,omitzero"`
+	Auth           *string `json:"auth,omitzero"`
+	BrowserSession *string `json:"browser_session,omitzero"`
 }

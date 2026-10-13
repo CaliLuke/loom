@@ -141,14 +141,18 @@ consumer validation.
   unrooted text; IDNA conversion has different Unicode/Punycode semantics.
   Use the bounded standard-library regex here instead of adding either policy
   as a runtime dependency. Host existence and IDNA processing stay caller-owned.
-- `internal/encodingmeta.JSONTag` owns full/name-only tag normalization for
-  service declarations, transport representations and Extend identity checks.
-  Callers supply omission/presence/protocol facts through `JSONTagPolicy`;
-  preserve ordinary full tags and exact exclusion before adding options. HTTP
-  value plans and diagnostic wire names consume the emitted tag owner. Keep
-  custom-only codec tags and transport skip admission separate; do not restore
-  a transport-specific omission-option merger. Automatic physical-presence
-  omission is a separate contract from this authored-intent normalization.
+- `internal/encodingmeta.ResolveJSONField` owns authored tag normalization and
+  omission resolved against actual field storage. `expr.ServiceFieldLayout` is
+  shared by service declarations and canonical Extend identity; run identity
+  checks after inherited defaults finalize while retaining authored provenance.
+  HTTP `representation.ResolveField` owns decoder wrappers and pointer choices;
+  declarations and value projection consume its same resolved JSON action.
+  Restore registered named layouts before selecting fields. Automatic omission
+  preserves supplied empties and native zeros; full tags keep their intent,
+  including both omission predicates. Opaque replacements keep their codec policy.
+  Do not infer absence from arbitrary IsZero methods or restore a transport-only
+  tag merger. Keep the [omission model](../../../codegen/tla/json_omission/README.md),
+  carrier ledger, generated HTTP/RPC wire and OpenAPI example controls aligned.
 - Design DSL is the source of truth; evaluated semantics belong in `expr`.
 - `RootExpr.Prepare` composes `Extend` after promoted union naming and before
   dependent transport preparation or validation. Preserve authored overlays and

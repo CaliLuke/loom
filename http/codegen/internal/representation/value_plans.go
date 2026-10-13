@@ -122,21 +122,23 @@ func (b *httpValuePlanBuilder) walk(attribute *expr.AttributeExpr, context *code
 
 func emittedHTTPFieldPolicy(parent *expr.AttributeExpr, mapped *expr.MappedAttributeExpr, field *expr.NamedAttributeExpr, context *codegen.AttributeContext) (expr.ValueFieldPolicy, error) {
 	name := expr.AttributeName(field.Name)
-	optional, omitZero := FieldOmission(mapped, name, field.Attribute, context.Pointer, context.UseDefault, context.JSONPresence)
-	tags, err := emittedFieldTags(field.Attribute, field.Name, optional, omitZero)
+	resolved := ResolveField(mapped, name, field.Attribute, context.Pointer, context.UseDefault, context.JSONPresence)
+	tags, err := emittedFieldTags(resolved.Encoding, field.Name)
 	if err != nil {
 		return expr.ValueFieldPolicy{}, err
 	}
 	parts := strings.Split(tags.Get("json"), ",")
 	wireName := emittedJSONFieldName(field.Attribute, field.Name, tags)
 	presence := expr.ValueFieldRetain
-	for _, option := range parts[1:] {
-		switch option {
-		case "omitempty":
-			presence = expr.ValueFieldOmitEmpty
-		case "omitzero":
-			presence = expr.ValueFieldOmitAbsent
-		}
+	switch resolved.Encoding.JSON.Omission {
+	case encodingmeta.JSONOmitEmpty:
+		presence = expr.ValueFieldOmitEmpty
+	case encodingmeta.JSONOmitAbsent:
+		presence = expr.ValueFieldOmitAbsent
+	case encodingmeta.JSONOmitEmptyOrNativeZero:
+		presence = expr.ValueFieldOmitEmptyOrZero
+	case encodingmeta.JSONOmitNativeZero:
+		presence = expr.ValueFieldOmitZero
 	}
 	var numeric expr.Kind
 	typ := field.Attribute.Type

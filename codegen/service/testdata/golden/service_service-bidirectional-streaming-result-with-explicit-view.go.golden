@@ -58,8 +58,8 @@ type BidirectionalStreamingResultWithExplicitViewMethodClientStream interface {
 // BidirectionalStreamingResultWithExplicitViewService service
 // BidirectionalStreamingResultWithExplicitViewMethod method.
 type MultipleViews struct {
-	A *string `json:"a,omitempty"`
-	B *string `json:"b,omitempty"`
+	A *string `json:"a,omitzero"`
+	B *string `json:"b,omitzero"`
 }
 
 // NewMultipleViews initializes result type MultipleViews from viewed result

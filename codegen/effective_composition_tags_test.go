@@ -14,7 +14,7 @@ func TestEffectiveCompositionRenderedJSONTags(t *testing.T) {
 		name, full, expected string
 		required, nullable   bool
 	}{
-		{"optional equivalent", "one,omitempty", " `json:\"one,omitempty\"`", false, false},
+		{"optional equivalent", "one,omitzero", " `json:\"one,omitzero\"`", false, false},
 		{"optional conflict", "one", "", false, false},
 		{"required equivalent", "one", " `json:\"one\"`", true, false},
 		{"required conflict", "one,omitempty", "", true, false},

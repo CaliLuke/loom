@@ -15,7 +15,7 @@ import (
 // A name of "-" excludes that codec; an empty form name is not form-encoded.
 // JSON's empty tag name falls back to the emitted Go field name.
 func FieldWireNames(attribute *expr.AttributeExpr, name string) (string, string, error) {
-	tags, err := emittedFieldTags(attribute, name, false, false)
+	tags, err := emittedFieldTags(FieldTags(attribute, expr.ElementName(name), false, encodingmeta.JSONFieldPolicy{}), name)
 	if err != nil {
 		return "", "", err
 	}
@@ -24,49 +24,32 @@ func FieldWireNames(attribute *expr.AttributeExpr, name string) (string, string,
 	return jsonName, formName, nil
 }
 
-// AttributeTags computes the struct field tags.
-func AttributeTags(att *expr.AttributeExpr, t string, optional, omitZero bool) string {
+// FieldTags resolves all codec tags from the actual JSON field policy.
+// Non-JSON codecs retain their existing empty-value omission contract.
+func FieldTags(att *expr.AttributeExpr, name string, optional bool, policy encodingmeta.JSONFieldPolicy) FieldEncoding {
 	var omitEmpty string
-	// Always use omitempty for JSON-RPC ID attributes, even when required
-	// since it is part of a different top-level field in the transport
 	if optional || isJSONRPCID(att) {
 		omitEmpty = ",omitempty"
 	}
-	jsonName, _ := encodingmeta.JSONTag(att.Meta, t, encodingmeta.JSONTagPolicy{
-		Optional:      optional || omitZero || isJSONRPCID(att),
-		Presence:      omitZero,
-		ForceOmission: isJSONRPCID(att),
-	})
+	policy.Optional = policy.Optional || isJSONRPCID(att)
+	policy.ForceOmission = isJSONRPCID(att)
+	field := encodingmeta.ResolveJSONField(att.Meta, name, policy)
 	_, explicitJSON := att.Meta["struct:tag:json"]
-	if omitZero && strings.Split(jsonName, ",")[0] == "-" {
-		panic(codegen.NewError(nil, att, fmt.Errorf("JSON field %q uses presence semantics and cannot be omitted with tag '-'", t)))
+	if policy.Presence && strings.Split(field.Tag, ",")[0] == "-" {
+		panic(codegen.NewError(nil, att, fmt.Errorf("JSON field %q uses presence semantics and cannot be omitted with tag '-'", name)))
 	}
-	if custom := mergedAttributeTags(att, jsonName, omitZero || explicitJSON || hasJSONTagName(att)); custom != "" {
-		return custom
+	includeJSON := policy.Presence || explicitJSON || hasJSONTagName(att)
+	if custom := mergedAttributeTags(att, field.Tag, includeJSON); custom != "" {
+		if !includeJSON {
+			field = encodingmeta.JSONField{}
+		}
+		return FieldEncoding{Tags: custom, JSON: field}
 	}
-	return codegen.StructTag(map[string]string{
-		"form": t + omitEmpty,
-		"json": jsonName,
-		"xml":  t + omitEmpty,
-	})
-}
-
-// FieldOmission is shared by emitted tags and semantic target plans.
-func FieldOmission(parent *expr.MappedAttributeExpr, name string, attribute *expr.AttributeExpr, pointer, useDefault, jsonPresence bool) (bool, bool) {
-	optional := objectFieldOptional(parent, name, pointer, useDefault)
-	omitZero := !parent.IsRequiredNoDefault(name) && (jsonPresence || codegen.IsExplicitPresenceType(attribute) || expr.AllowsNull(attribute))
-	return optional, omitZero
-}
-
-func objectFieldOptional(ma *expr.MappedAttributeExpr, name string, ptr, useDefault bool) bool {
-	switch {
-	case ptr:
-		return true
-	case useDefault:
-		return !ma.IsRequired(name) && !ma.HasDefaultValue(name)
-	default:
-		return !ma.IsRequired(name)
-	}
+	return FieldEncoding{Tags: codegen.StructTag(map[string]string{
+		"form": name + omitEmpty,
+		"json": field.Tag,
+		"xml":  name + omitEmpty,
+	}), JSON: field}
 }
 
 func mergedAttributeTags(att *expr.AttributeExpr, jsonTag string, includeJSON bool) string {
@@ -105,9 +88,8 @@ func isJSONRPCID(att *expr.AttributeExpr) bool {
 	return ok
 }
 
-func emittedFieldTags(attribute *expr.AttributeExpr, name string, optional, omitZero bool) (reflect.StructTag, error) {
-	tags := AttributeTags(attribute, expr.ElementName(name), optional, omitZero)
-	unquoted, err := strconv.Unquote(strings.TrimSpace(tags))
+func emittedFieldTags(encoding FieldEncoding, name string) (reflect.StructTag, error) {
+	unquoted, err := strconv.Unquote(strings.TrimSpace(encoding.Tags))
 	if err != nil {
 		return "", fmt.Errorf("HTTP field %q tags: %w", name, err)
 	}

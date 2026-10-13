@@ -64,15 +64,15 @@ type APayload struct {
 	StringField   string  `json:"StringField"`
 	BooleanField  bool    `json:"BooleanField"`
 	BytesField    []byte  `json:"BytesField"`
-	OptionalField *string `json:"OptionalField,omitempty"`
+	OptionalField *string `json:"OptionalField,omitzero"`
 }
 
 // MultipleViews is the result type of the
 // StreamingPayloadResultWithViewsService service
 // StreamingPayloadResultWithViewsMethod method.
 type MultipleViews struct {
-	A *string `json:"a,omitempty"`
-	B *string `json:"b,omitempty"`
+	A *string `json:"a,omitzero"`
+	B *string `json:"b,omitzero"`
 }
 
 // NewMultipleViews initializes result type MultipleViews from viewed result

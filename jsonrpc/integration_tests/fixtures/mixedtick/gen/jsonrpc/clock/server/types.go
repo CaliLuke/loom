@@ -22,7 +22,7 @@ type InitializeRequestBody struct {
 // endpoint HTTP response body.
 type InitializeResponseBody struct {
 	ID              *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	ProtocolVersion *string `form:"protocol_version,omitempty" json:"protocol_version,omitempty" xml:"protocol_version,omitempty"`
+	ProtocolVersion *string `form:"protocol_version,omitempty" json:"protocol_version,omitzero" xml:"protocol_version,omitempty"`
 }
 
 // TickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
@@ -34,7 +34,7 @@ type TickRequestBody struct {
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
 // response body.
 type TickResponseBody struct {
-	Value *string `form:"value,omitempty" json:"value,omitempty" xml:"value,omitempty"`
+	Value *string `form:"value,omitempty" json:"value,omitzero" xml:"value,omitempty"`
 }
 
 // NewInitializeResponseBody builds the HTTP response body from the result of

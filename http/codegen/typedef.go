@@ -120,30 +120,21 @@ func goObjectTypeDef(scope *codegen.NameScope, att *expr.AttributeExpr, actual *
 	return strings.Join(lines, "\n")
 }
 
-func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, name, elem string, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
+func goObjectFieldDef(scope *codegen.NameScope, ma *expr.MappedAttributeExpr, name, _ string, att *expr.AttributeExpr, ptr, useDefault, jsonPresence bool) string {
 	fieldName := codegen.GoifyAtt(att, name, true)
 	typeDef := goTypeDef(scope, att, ptr, useDefault, jsonPresence)
-	wireOptional := !ma.IsRequiredNoDefault(name)
-	if expr.AllowsNull(att) && !expr.IsNullable(att) && !expr.IsAny(att.Type) {
+	field := representation.ResolveField(ma, name, att, ptr, useDefault, jsonPresence)
+	if field.Layout.WrapNullable {
 		typeDef = "loom.Nullable[" + goValueTypeDef(scope, att, ptr, useDefault, jsonPresence) + "]"
-	} else if jsonPresence && wireOptional && !expr.AllowsNull(att) {
+	} else if field.Layout.WrapOptional {
 		typeDef = "loom.Optional[" + typeDef + "]"
 	}
-	switch {
-	case codegen.IsExplicitPresenceType(att), jsonPresence && wireOptional:
-		// Explicit field types define their own presence semantics.
-	case expr.IsPrimitive(att.Type):
-		if (ptr || ma.IsPrimitivePointer(name, useDefault)) && att.Type != expr.Bytes && !expr.IsAny(att.Type) {
-			typeDef = "*" + typeDef
-		}
-	case expr.IsObject(att.Type) || (expr.IsUnion(att.Type) && !ma.IsRequired(name)):
+	if field.Layout.Pointer {
 		typeDef = "*" + typeDef
 	}
 	description := ""
 	if att.Description != "" {
 		description = codegen.Comment(att.Description) + "\n\t"
 	}
-	optional, omitZero := representation.FieldOmission(ma, name, att, ptr, useDefault, jsonPresence)
-	tags := representation.AttributeTags(att, elem, optional, omitZero)
-	return fmt.Sprintf("\t%s%s %s%s", description, fieldName, typeDef, tags)
+	return fmt.Sprintf("\t%s%s %s%s", description, fieldName, typeDef, field.Encoding.Tags)
 }

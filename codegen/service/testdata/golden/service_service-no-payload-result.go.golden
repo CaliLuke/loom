@@ -27,5 +27,5 @@ type AResult struct {
 	StringField   string  `json:"StringField"`
 	BooleanField  bool    `json:"BooleanField"`
 	BytesField    []byte  `json:"BytesField"`
-	OptionalField *string `json:"OptionalField,omitempty"`
+	OptionalField *string `json:"OptionalField,omitzero"`
 }

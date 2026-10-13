@@ -16,6 +16,7 @@ type designComposer struct {
 	pending      []compositionCopy
 	owner        UserType
 	declarations map[*AttributeExpr]UserType
+	jsonTags     []compositionJSONTags
 }
 
 // SetDSLSource retains the authored callback for diagnostics independently of
@@ -71,6 +72,12 @@ func (r *RootExpr) composeDesign() {
 		if value, present := constraints.Default(); present {
 			attribute.DefaultValue = value
 		}
+	}
+	// JSON identity depends on finalized inherited defaults as well as metadata.
+	// Check the original authored declarations against the canonical service
+	// carrier only after every effective constraint has been selected.
+	for _, check := range c.jsonTags {
+		validateCompositionJSONTags(check.attribute, check.bases, check.effective, check.path, check.fieldName, check.optional)
 	}
 }
 
@@ -235,7 +242,7 @@ func (c *designComposer) refine(attribute *AttributeExpr, bases []*AttributeExpr
 		return
 	}
 	attribute.Nullable = attribute.Nullable || allNullable
-	if !composeAttributeMetadata(attribute, bases, path, fieldName, optional) {
+	if !c.composeAttributeMetadata(attribute, bases, path, fieldName, optional) {
 		return
 	}
 	if !composeAttributeDocumentation(attribute, bases, path) {

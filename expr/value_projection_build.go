@@ -79,7 +79,8 @@ func observeJSONObject(plan *valuePlanNode, role ValueRole, value ResolvedValue)
 		if failure != nil {
 			return ResolvedValue{}, failure
 		}
-		if member.presence == ValueFieldOmitEmpty && projectionEmpty(member.node, child) {
+		if ((member.presence == ValueFieldOmitEmpty || member.presence == ValueFieldOmitEmptyOrZero) && projectionEmpty(member.node, child)) ||
+			((member.presence == ValueFieldOmitZero || member.presence == ValueFieldOmitEmptyOrZero) && projectionZero(member.node, child)) {
 			child = ResolvedValue{}
 		}
 		if member.presence == ValueFieldImplicitDefault && child.Presence() == ValueAbsent {
@@ -102,6 +103,19 @@ func observeJSONObject(plan *valuePlanNode, role ValueRole, value ResolvedValue)
 		}
 	}
 	return ResolvedValue{node: &copy}, nil
+}
+
+func projectionZero(plan *valuePlanNode, value ResolvedValue) bool {
+	if value.Presence() != ValuePresent {
+		return false
+	}
+	if plan.alias != nil {
+		return projectionZero(plan.alias, value)
+	}
+	// Only native scalar fields have concrete zero values in a supplied resolved
+	// value. Objects and collections use nil-capable declaration carriers; union
+	// values always carry a selected branch. Opaque codecs never reach this seam.
+	return value.Kind() == ValueKindScalar && reflect.ValueOf(value.node.scalar).IsZero()
 }
 
 func projectionEmpty(plan *valuePlanNode, value ResolvedValue) bool {

@@ -2,15 +2,15 @@
 // "MethodA" endpoint HTTP request body.
 type MethodARequestBody struct {
 	Any    loom.JSONValue                         `form:"any,omitempty" json:"any,omitzero" xml:"any,omitempty"`
-	Array  []loom.Optional[float32]               `form:"array,omitempty" json:"array,omitempty" xml:"array,omitempty"`
+	Array  []loom.Optional[float32]               `form:"array,omitempty" json:"array,omitzero" xml:"array,omitempty"`
 	Map    loom.Optional[map[uint]loom.JSONValue] `form:"map,omitempty" json:"map,omitzero" xml:"map,omitempty"`
-	Object *BPayloadRequestBody                   `form:"object,omitempty" json:"object,omitempty" xml:"object,omitempty"`
+	Object *BPayloadRequestBody                   `form:"object,omitempty" json:"object,omitzero" xml:"object,omitempty"`
 	DupObj loom.Optional[BPayloadRequestBody]     `form:"dup_obj,omitempty" json:"dup_obj,omitzero" xml:"dup_obj,omitempty"`
 }
 
 // BPayloadRequestBody is used to define fields on request body types.
 type BPayloadRequestBody struct {
-	Int   *int                  `form:"int,omitempty" json:"int,omitempty" xml:"int,omitempty"`
+	Int   *int                  `form:"int,omitempty" json:"int,omitzero" xml:"int,omitempty"`
 	Bytes loom.Optional[[]byte] `form:"bytes,omitempty" json:"bytes,omitzero" xml:"bytes,omitempty"`
 }
 

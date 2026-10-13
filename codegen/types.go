@@ -54,23 +54,26 @@ func AttributeTags(_, att *expr.AttributeExpr) string {
 	return StructTag(tags)
 }
 
-// AttributeTagsWithName computes the struct field tags from its metadata,
-// interpreting the "struct:tag:json:name" key when present.
-//
-// The "struct:tag:json" meta key always takes precedence and is treated as a
-// complete tag override value. When only "struct:tag:json:name" is set, Loom
-// computes the json tag and appends ",omitempty" when the field is not
-// required by its parent object. When no explicit JSON metadata is present,
-// Loom emits a default json tag that preserves the DSL field name.
+// AttributeTagsWithName computes tags for the canonical service layout, with
+// materialized defaults and ordinary pointer selection. Full JSON tags override
+// automatic omission; name-only tags omit absence without discarding empties.
+// Declaration emitters with another layout pass their actual carrier internally.
 func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *expr.AttributeExpr) string {
 	if att == nil {
 		return ""
 	}
+	policy := encodingmeta.JSONFieldPolicy{Storage: att.JSONFieldStorage(false, IsExplicitPresenceType(att) || expr.AllowsNull(att))}
+	if parent != nil && fieldName != "" {
+		policy = expr.ServiceFieldLayout(parent, fieldName, att, false, true).JSON
+	}
+	return attributeTagsForLayout(fieldName, att, policy)
+}
+
+func attributeTagsForLayout(fieldName string, att *expr.AttributeExpr, policy encodingmeta.JSONFieldPolicy) string {
 	tags := attributeTagValues(att)
-	optional := parent != nil && fieldName != "" && !parent.IsRequired(fieldName)
-	policy := encodingmeta.JSONTagPolicy{Optional: optional, Presence: IsExplicitPresenceType(att) || expr.AllowsNull(att)}
-	if tag, present := encodingmeta.JSONTag(att.Meta, expr.AttributeName(fieldName), policy); present {
-		tags["json"] = tag
+	field := encodingmeta.ResolveJSONField(att.Meta, expr.AttributeName(fieldName), policy)
+	if field.Present {
+		tags["json"] = field.Tag
 	}
 	return StructTag(tags)
 }

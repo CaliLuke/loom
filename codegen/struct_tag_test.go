@@ -67,33 +67,33 @@ func TestAttributeTagsWithNameQuotesDesignText(t *testing.T) {
 	}{
 		"plain value keeps raw tag": {
 			key: "db", value: "user_id", field: "id",
-			rendered: " `db:\"user_id\" json:\"id,omitempty\"`",
+			rendered: " `db:\"user_id\" json:\"id,omitzero\"`",
 		},
 		"double quote in value": {
 			key: "db", value: `quoted "value"`, field: "q",
-			rendered: " `db:\"quoted \\\"value\\\"\" json:\"q,omitempty\"`",
+			rendered: " `db:\"quoted \\\"value\\\"\" json:\"q,omitzero\"`",
 		},
 		"backslash in value": {
 			key: "db", value: `back\slash`, field: "s",
-			rendered: " `db:\"back\\\\slash\" json:\"s,omitempty\"`",
+			rendered: " `db:\"back\\\\slash\" json:\"s,omitzero\"`",
 		},
 		"newline in value": {
 			key: "db", value: "new\nline", field: "n",
-			rendered: " `db:\"new\\nline\" json:\"n,omitempty\"`",
+			rendered: " `db:\"new\\nline\" json:\"n,omitzero\"`",
 		},
 		"backtick in value": {
 			key: "db", value: "back`tick", field: "b",
-			rendered: ` "db:\"back` + "`" + `tick\" json:\"b,omitempty\""`,
+			rendered: ` "db:\"back` + "`" + `tick\" json:\"b,omitzero\""`,
 		},
 		// Design validation rejects the JSON names below; the renderer must still
 		// emit Go that compiles if it is ever called with them.
 		"backtick in field name": {
 			key: "db", value: "v", field: "field`name",
-			rendered: ` "db:\"v\" json:\"field` + "`" + `name,omitempty\""`,
+			rendered: ` "db:\"v\" json:\"field` + "`" + `name,omitzero\""`,
 		},
 		"quote in field name": {
 			key: "db", value: "v", field: `field"name`,
-			rendered: " `db:\"v\" json:\"field\\\"name,omitempty\"`",
+			rendered: " `db:\"v\" json:\"field\\\"name,omitzero\"`",
 		},
 	}
 	for name, tc := range cases {
@@ -109,7 +109,7 @@ func TestAttributeTagsWithNameQuotesDesignText(t *testing.T) {
 			require.Equal(t, tc.value, got)
 			got, found = tag.Lookup("json")
 			require.True(t, found)
-			require.Equal(t, tc.field+",omitempty", got)
+			require.Equal(t, tc.field+",omitzero", got)
 		})
 	}
 }

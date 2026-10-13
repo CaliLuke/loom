@@ -22,16 +22,16 @@ const ServiceName = "MultiUnionService"
 var MethodNames = [1]string{"MultiUnion"}
 
 type TypeA struct {
-	A *int `json:"a,omitempty"`
+	A *int `json:"a,omitzero"`
 }
 
 type TypeB struct {
-	B *string `json:"b,omitempty"`
+	B *string `json:"b,omitzero"`
 }
 
 // Union is the payload type of the MultiUnionService service MultiUnion method.
 type Union struct {
-	Values *Values `json:"Values,omitempty"`
+	Values *Values `json:"Values,omitzero"`
 }
 
 // Values is a sum-type union.

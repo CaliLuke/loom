@@ -22,8 +22,8 @@ func TestServerTypesUseViewRequirednessOverrides(t *testing.T) {
 	}
 	code := codegen.FormatTestCode(t, "package foo\n"+buf.String())
 	require.Contains(t, code, "CanonicalRequired string  `form:\"canonical_required\" json:\"canonical_required\" xml:\"canonical_required\"`")
-	require.Contains(t, code, "CanonicalOptional *string `form:\"canonical_optional,omitempty\" json:\"canonical_optional,omitempty\" xml:\"canonical_optional,omitempty\"`")
-	require.Contains(t, code, "CanonicalRequired *string `form:\"canonical_required,omitempty\" json:\"canonical_required,omitempty\" xml:\"canonical_required,omitempty\"`")
+	require.Contains(t, code, "CanonicalOptional *string `form:\"canonical_optional,omitempty\" json:\"canonical_optional,omitzero\" xml:\"canonical_optional,omitempty\"`")
+	require.Contains(t, code, "CanonicalRequired *string `form:\"canonical_required,omitempty\" json:\"canonical_required,omitzero\" xml:\"canonical_required,omitempty\"`")
 	require.Contains(t, code, "CanonicalOptional string  `form:\"canonical_optional\" json:\"canonical_optional\" xml:\"canonical_optional\"`")
 	overridden := generatedHTTPFunction(t, code, "NewShowResponseBodyOverridden")
 	require.Contains(t, overridden, "CanonicalRequired: res.CanonicalRequired")
