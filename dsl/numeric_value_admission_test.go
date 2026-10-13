@@ -31,7 +31,7 @@ func TestNumericValueDesignAdmission(t *testing.T) {
 			}},
 		} {
 			t.Run(tc.name+"/"+role.name, func(t *testing.T) {
-				expr.RunInvalidDSL(t, func() {
+				err := expr.RunInvalidDSL(t, func() {
 					Service("numbers", func() {
 						Method("read", func() {
 							Payload(func() {
@@ -45,6 +45,7 @@ func TestNumericValueDesignAdmission(t *testing.T) {
 						})
 					})
 				})
+				require.Error(t, err)
 			})
 		}
 	}
