@@ -1,6 +1,6 @@
 # Service error constructor identity — #734
 
-Implemented against pushed parent `cdc581066`, including #867. Distinct wire error names retain distinct generated constructors without colliding with other package declarations. The existing service package symbol owner now records the factory identity once. Final independent review and delivery remain.
+Implemented against pushed parent `cdc581066`, including #867. Distinct wire error names retain distinct generated constructors without colliding with other package declarations. The existing service package symbol owner now records the factory identity once. Independently reviewed, pushed as `555d13306` and #734 confirmed closed.
 
 ## Sequence
 
@@ -10,7 +10,7 @@ Implemented against pushed parent `cdc581066`, including #867. Distinct wire err
 4. [x] Extend the package-symbol model to expose concatenation, uncached per-use allocation and type/factory collisions; compare a cached shared allocation owner.
 5. [x] Freeze bounded acceptance: original error pairs, authored suffix/type collisions, repeated method use, ordinary output stability, generated compile and wire error identity across relevant transports.
 6. [x] Independently review readiness, implement the accepted owner, compare bounded parent/candidate/repeat artifacts and run focused checks.
-7. [ ] Independently review the exact final diff, commit, push and close #734.
+7. [x] Independently review the exact final diff, commit, push and close #734.
 
 ## Evidence and boundaries
 
