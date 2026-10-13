@@ -51,27 +51,7 @@ func BasicCLISourcesDSL(transport, mapping string) func() {
 						Required("login", "passcode")
 					}
 				})
-				wire := func() {
-					switch mapping {
-					case "query-header", "optional", "defaulted":
-						Param("login:signin")
-						Header("passcode:X-Proof")
-					case "path-cookie":
-						Param("login")
-						Cookie("passcode:proof")
-					case "repeated", "ordinary-repeated":
-						Param("login:signin")
-						Header("login:X-Login")
-						Cookie("passcode:proof")
-					case "scalar-body":
-						Body("login")
-					case "object-body":
-						Body(func() {
-							Attribute("login")
-							Attribute("passcode")
-						})
-					}
-				}
+				wire := basicCLISourceMappings(mapping)
 				if transport == "jsonrpc" {
 					JSONRPC(wire)
 				} else {
@@ -86,5 +66,29 @@ func BasicCLISourcesDSL(transport, mapping string) func() {
 				}
 			})
 		})
+	}
+}
+
+func basicCLISourceMappings(mapping string) func() {
+	return func() {
+		switch mapping {
+		case "query-header", "optional", "defaulted":
+			Param("login:signin")
+			Header("passcode:X-Proof")
+		case "path-cookie":
+			Param("login")
+			Cookie("passcode:proof")
+		case "repeated", "ordinary-repeated":
+			Param("login:signin")
+			Header("login:X-Login")
+			Cookie("passcode:proof")
+		case "scalar-body":
+			Body("login")
+		case "object-body":
+			Body(func() {
+				Attribute("login")
+				Attribute("passcode")
+			})
+		}
 	}
 }
