@@ -265,6 +265,7 @@ func TestJSONRPCErrorDecodeSwitchBranches(t *testing.T) {
 						Response: &httpcodegen.ResponseData{
 							ClientBody: &httpcodegen.TypeData{
 								VarName:     "DivideTimeoutResponseBody",
+								ValueRef:    "DivideTimeoutResponseBody",
 								ValidateRef: "err = ValidateDivideTimeoutResponseBody(&body)",
 							},
 							ResultInit: makeInit("NewDivideTimeout"),
@@ -279,7 +280,8 @@ func TestJSONRPCErrorDecodeSwitchBranches(t *testing.T) {
 						Name: "insufficient_funds",
 						Response: &httpcodegen.ResponseData{
 							ClientBody: &httpcodegen.TypeData{
-								VarName: "DivideInsufficientFundsResponseBody",
+								VarName:  "DivideInsufficientFundsResponseBody",
+								ValueRef: "DivideInsufficientFundsResponseBody",
 							},
 							ResultInit: makeInit("NewDivideInsufficientFunds"),
 						},
@@ -292,7 +294,8 @@ func TestJSONRPCErrorDecodeSwitchBranches(t *testing.T) {
 						Name: "account_closed",
 						Response: &httpcodegen.ResponseData{
 							ClientBody: &httpcodegen.TypeData{
-								VarName: "DivideAccountClosedResponseBody",
+								VarName:  "DivideAccountClosedResponseBody",
+								ValueRef: "DivideAccountClosedResponseBody",
 							},
 						},
 					},

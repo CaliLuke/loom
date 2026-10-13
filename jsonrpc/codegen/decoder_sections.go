@@ -240,7 +240,7 @@ func writeResultInitReturn(g *jen.Group, resp *httpcodegen.ResponseData) {
 func writeSingleResponseDecode(g *jen.Group, data *httpcodegen.ResponseData, serviceName string, method *service.MethodData) {
 	if data.ClientBody != nil {
 		g.Var().Defs(
-			jen.Id("body").Add(codegen.TypeRef(data.ClientBody.VarName)),
+			jen.Id("body").Add(codegen.TypeRef(data.ClientBody.ValueRef)),
 			jen.Id("err").Error(),
 		)
 		g.Id("err").Op("=").Id("decoder").Call(jen.Id("resp")).Dot("Decode").Call(jen.Op("&").Id("body"))

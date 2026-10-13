@@ -897,7 +897,11 @@ filter, and serialization rules belong here.
   explicit presence body, or of a nullable or `Any` payload, fail with
   `missing_payload`. A nullable object body gets its own transport
   struct; its `Validate` function takes the `loom.Nullable` of that struct,
-  and `TypeData.ValueRef` declares the decoded variable. A non-nullable object
+  and `TypeData.ValueRef` declares the decoded variable. HTTP, WebSocket and
+  JSON-RPC response decoders consume this same value reference; `VarName` is
+  the declaration name and cannot substitute for a nullable body value. The
+  shared JSON-RPC response writer applies this to success and error bodies.
+  A non-nullable object
   (`OptionalObjectBody`) is decoded into a pointer that is set to nil for an
   empty body, is validated only when present, and is passed to the payload
   constructor, which leaves the attribute nil for a nil body. A primitive
