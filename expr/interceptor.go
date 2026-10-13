@@ -102,7 +102,7 @@ func (i *InterceptorExpr) validateStreamingResultAccess(m *MethodExpr, verr *eva
 		verr.Add(m, "interceptor %q cannot be applied because the method result is not streaming", i.Name)
 		return
 	}
-	result := i.objectAccessTarget(m, verr, m.Result, "result is not an object")
+	result := i.objectAccessTarget(m, verr, m.EffectiveStreamingResult(), "result is not an object")
 	if result == nil {
 		return
 	}
@@ -118,7 +118,7 @@ func hasStreamedFinalResult(m *MethodExpr) bool {
 }
 
 func (i *InterceptorExpr) objectAccessTarget(m *MethodExpr, verr *eval.ValidationErrors, att *AttributeExpr, objectErr string) *AttributeExpr {
-	if !IsObject(att.Type) {
+	if att == nil || !IsObject(att.Type) {
 		verr.Add(m, "interceptor %q cannot be applied because the method %s", i.Name, objectErr)
 		return nil
 	}

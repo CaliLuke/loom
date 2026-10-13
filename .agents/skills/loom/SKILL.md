@@ -1277,6 +1277,14 @@ access `info.ServerStreamingResult()` before `next`; client receive callbacks
 access `info.ClientStreamingResult(result)` after a successful `next` call.
 Branch on `info.CallType()` when also accessing ordinary or streaming payloads.
 Stream wrappers preserve `SetView` and expose canonical service result types.
+When a method declares distinct `Result` and `StreamingResult` types,
+`ReadStreamingResult` and `WriteStreamingResult` select fields from
+`StreamingResult`. Their server and client accessors read or modify that
+streamed value, including its optional fields; unary-only fields are rejected.
+Regenerate services and clients, and update interceptor implementations if they
+previously relied on a field type from the unary result. Ordinary result access
+remains unavailable on a result-streaming method.
+
 JSON-RPC WebSocket streaming-payload methods retain their ordinary server
 result boundary; the new final-response streaming accessors do not apply.
 

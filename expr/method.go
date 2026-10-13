@@ -394,6 +394,17 @@ func (m *MethodExpr) IsResultStreaming() bool {
 	return m.Stream == ServerStreamKind || m.Stream == BidirectionalStreamKind
 }
 
+// EffectiveStreamingResult returns the attribute carried by the result stream.
+// A nonempty explicit StreamingResult takes precedence over Result. Otherwise,
+// Result supplies the ordinary streamed value or the final client-stream result.
+// This selects value identity only; it does not determine stream eligibility.
+func (m *MethodExpr) EffectiveStreamingResult() *AttributeExpr {
+	if m.StreamingResult != nil && m.StreamingResult.Type != Empty {
+		return m.StreamingResult
+	}
+	return m.Result
+}
+
 // HasMixedResults returns true if the method has both Result and StreamingResult
 // defined with different types, indicating support for content negotiation.
 func (m *MethodExpr) HasMixedResults() bool {

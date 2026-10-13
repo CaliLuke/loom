@@ -88,14 +88,15 @@ func interceptorAppliesToMethod(m *expr.MethodExpr, i *expr.InterceptorExpr, ser
 
 func populateInterceptorAttributes(data *InterceptorData, i *expr.InterceptorExpr, m *expr.MethodExpr, scope *codegen.NameScope) {
 	payload, result, streamingPayload := m.Payload, m.Result, m.StreamingPayload
+	streamingResult := m.EffectiveStreamingResult()
 	data.ReadPayload = collectAttributes(i.ReadPayload, payload, scope)
 	data.WritePayload = collectAttributes(i.WritePayload, payload, scope)
 	data.ReadResult = collectAttributes(i.ReadResult, result, scope)
 	data.WriteResult = collectAttributes(i.WriteResult, result, scope)
 	data.ReadStreamingPayload = collectAttributes(i.ReadStreamingPayload, streamingPayload, scope)
 	data.WriteStreamingPayload = collectAttributes(i.WriteStreamingPayload, streamingPayload, scope)
-	data.ReadStreamingResult = collectAttributes(i.ReadStreamingResult, result, scope)
-	data.WriteStreamingResult = collectAttributes(i.WriteStreamingResult, result, scope)
+	data.ReadStreamingResult = collectAttributes(i.ReadStreamingResult, streamingResult, scope)
+	data.WriteStreamingResult = collectAttributes(i.WriteStreamingResult, streamingResult, scope)
 	data.HasPayloadAccess = len(data.ReadPayload) > 0 || len(data.WritePayload) > 0
 	data.HasResultAccess = len(data.ReadResult) > 0 || len(data.WriteResult) > 0
 	data.HasStreamingPayloadAccess = len(data.ReadStreamingPayload) > 0 || len(data.WriteStreamingPayload) > 0
@@ -115,6 +116,7 @@ func findMethodData(methods []*MethodData, name string) *MethodData {
 // method code.
 func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server bool) *MethodInterceptorData {
 	var serverStream, clientStream *StreamInterceptorData
+	var streamingResultRef string
 	if md.ServerStream != nil {
 		serverStream = &StreamInterceptorData{
 			WrapperName:         md.symbols.serverWrappedStream,
@@ -131,6 +133,7 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server 
 		}
 	}
 	if md.ClientStream != nil {
+		streamingResultRef = md.ClientStream.RecvTypeRef
 		clientStream = &StreamInterceptorData{
 			WrapperName:         md.symbols.clientWrappedStream,
 			Interface:           md.ClientStream.Interface,
@@ -163,7 +166,7 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server 
 		StreamingPayloadAccess: names.streamingPayload,
 		StreamingPayloadRef:    md.StreamingPayloadRef,
 		StreamingResultAccess:  names.streamingResult,
-		StreamingResultRef:     md.ResultRef,
+		StreamingResultRef:     streamingResultRef,
 		ClientStream:           clientStream,
 		ServerStream:           serverStream,
 		ViewedResult:           viewedResult,

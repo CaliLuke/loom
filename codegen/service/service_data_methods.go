@@ -230,9 +230,9 @@ func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, rnam
 	applyJSONRPCStreamAdjustments(svrStream, m, resultRef, sresult.Name, data.IsJSONRPCSSE)
 	applyStreamDirectionData(streamKind, svrStream, cliStream, sresult, spayload)
 	cliStream.MustClose = cliStream.MustClose || data.IsSSE || data.IsJSONRPCWebSocket
-	sent, sentDef := m.Result, data.ResultDef
-	if m.HasMixedResults() && m.StreamingResult != nil && m.StreamingResult.Type != expr.Empty {
-		sent, sentDef = m.StreamingResult, sresult.Def
+	sent, sentDef := m.EffectiveStreamingResult(), data.ResultDef
+	if sent != m.Result {
+		sentDef = sresult.Def
 	}
 	svrStream.SendTypeAcceptsMethods = svrStream.SendTypeRef != "" && acceptsMethods(sent, sentDef)
 	svrStream.SendTypeIdentity = svrStream.SendTypeRef
@@ -263,11 +263,12 @@ type streamAttributeData struct {
 
 func (d *ServicesData) buildStreamingResultData(data *MethodData, m *expr.MethodExpr, rname, resultRef string, scope *codegen.NameScope) streamAttributeData {
 	sresult := streamAttributeData{Name: rname, Ref: resultRef, Value: data.ResultValue}
-	if !m.HasMixedResults() || m.StreamingResult == nil || m.StreamingResult.Type == expr.Empty {
+	result := m.EffectiveStreamingResult()
+	if result == m.Result {
 		return sresult
 	}
 	examples := examplegen.ForScope(d.Root.API.ExampleGenerator, "service", m.Service.Name, "method", m.Name, "streaming-result")
-	sresult = buildStreamAttributeData(m.StreamingResult, m, scope, d.methodValue(m, "streaming-result", m.StreamingResult, examples))
+	sresult = buildStreamAttributeData(result, m, scope, d.methodValue(m, "streaming-result", result, examples))
 	data.StreamingResult = sresult.Name
 	data.StreamingResultRef = sresult.Ref
 	data.StreamingResultDef = sresult.Def

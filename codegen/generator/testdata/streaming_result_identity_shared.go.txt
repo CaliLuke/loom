@@ -1,0 +1,129 @@
+package streamidentity_test
+
+import (
+	"context"
+	"io"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	events "example.com/streamidentity/gen/events"
+	hc "example.com/streamidentity/gen/http/events/client"
+	hs "example.com/streamidentity/gen/http/events/server"
+	rc "example.com/streamidentity/gen/jsonrpc/rpcevents/client"
+	rs "example.com/streamidentity/gen/jsonrpc/rpcevents/server"
+	rpc "example.com/streamidentity/gen/rpcevents"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type httpService struct{}
+
+func (httpService) Watch(ctx context.Context, p *events.WatchPayload, s events.WatchServerStream) (*events.Summary, error) {
+	if err := s.SendWithContext(ctx, &events.Chunk{Value: "wire"}); err != nil {
+		return nil, err
+	}
+	return nil, s.Close()
+}
+
+type rpcService struct{}
+
+func (rpcService) Watch(ctx context.Context, p *rpc.WatchPayload, s rpc.WatchServerStream) (*rpc.Summary, error) {
+	return nil, s.SendAndClose(ctx, &rpc.Chunk{Value: "wire"})
+}
+
+type httpAudit struct {
+	t *testing.T
+}
+
+func (a httpAudit) Audit(ctx context.Context, i *events.AuditInfo, next loom.Endpoint) (any, error) {
+	res, err := next(ctx, nil)
+	if err != nil {
+		return res, err
+	}
+	v := i.ClientStreamingResult(res)
+	require.Equal(a.t, "wire", v.Value())
+	v.SetValue("accessed")
+	return res, nil
+}
+
+type rpcAudit struct {
+	t *testing.T
+}
+
+func (a rpcAudit) Audit(ctx context.Context, i *rpc.AuditInfo, next loom.Endpoint) (any, error) {
+	res, err := next(ctx, nil)
+	if err != nil {
+		return res, err
+	}
+	v := i.ClientStreamingResult(res)
+	require.Equal(a.t, "wire", v.Value())
+	v.SetValue("accessed")
+	return res, nil
+}
+func TestMountedStreamIdentity(t *testing.T) {
+	for _, intercepted := range []bool{false, true} {
+		name := "control"
+		want := "wire"
+		if intercepted {
+			name = "intercepted"
+			want = "accessed"
+		}
+		t.Run("http/"+name, func(t *testing.T) {
+			mux := loomhttp.NewMuxer()
+			hs.Mount(mux, hs.New(events.NewEndpoints(httpService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+			transport := hc.NewClient("http", strings.TrimPrefix(srv.URL, "http://"), srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+			var audit events.ClientInterceptors
+			if intercepted {
+				audit = httpAudit{t}
+			}
+			c := events.NewClient(transport.Watch(), transport.WatchStream(), audit)
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			st, err := c.WatchStream(ctx, &events.WatchPayload{})
+			require.NoError(t, err)
+			defer func() {
+				require.NoError(t, st.Close())
+			}()
+			require.NotPanics(t, func() {
+				v, err := st.Recv()
+				require.NoError(t, err)
+				require.Equal(t, want, v.Value)
+				_, err = st.Recv()
+				require.ErrorIs(t, err, io.EOF)
+			}, "typed stream result accessor must target Chunk")
+		})
+		t.Run("jsonrpc/"+name, func(t *testing.T) {
+			mux := loomhttp.NewMuxer()
+			rs.Mount(mux, rs.New(rpc.NewEndpoints(rpcService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+			transport := rc.NewClient("http", strings.TrimPrefix(srv.URL, "http://"), srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+			var audit rpc.ClientInterceptors
+			if intercepted {
+				audit = rpcAudit{t}
+			}
+			c := rpc.NewClient(transport.Watch(), transport.Watch(), audit)
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			id := "one"
+			st, err := c.WatchStream(ctx, &rpc.WatchPayload{ID: &id})
+			require.NoError(t, err)
+			defer func() {
+				require.NoError(t, st.Close())
+			}()
+			require.NotPanics(t, func() {
+				v, err := st.Recv()
+				require.NoError(t, err)
+				require.Equal(t, want, v.Value)
+				_, err = st.Recv()
+				require.ErrorIs(t, err, io.EOF)
+			}, "typed stream result accessor must target Chunk")
+		})
+	}
+}

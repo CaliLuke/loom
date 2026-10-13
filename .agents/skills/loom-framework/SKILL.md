@@ -965,6 +965,15 @@ filter, and serialization rules belong here.
   stream contract model, typed-client fixture tests and ordinary transport
   controls aligned. Do not absorb gRPC cancellation or mixed-result accessor
   validation into method-set repairs.
+- `expr.MethodExpr.EffectiveStreamingResult` owns result-stream attribute
+  identity, including ordinary/final-result fallback. Interceptor validation,
+  field analysis and service stream analysis use it. Accessor references derive
+  from canonical `ClientStream.RecvTypeRef`, including server accessors; do not
+  substitute a JSON-RPC event interface or unary ResultRef. Keep the existing
+  MethodData.StreamingResultRef mixed-result marker and eligibility rules.
+  The streaming-result identity model and mounted HTTP/JSON-RPC clients cover
+  this agreement; protocol-specific server wrappers and mixed unary endpoint
+  dispatch remain separate owners.
 - HTTP and JSON-RPC SSE handlers defer committing the stream until the first
   frame, except for the raw JSON-RPC `events/stream` GET listener, which opens
   eagerly so clients can observe readiness.

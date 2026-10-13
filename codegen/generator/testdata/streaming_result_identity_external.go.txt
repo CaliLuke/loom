@@ -1,0 +1,80 @@
+package streamidentity_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	chunks "example.com/streamidentity/gen/chunks"
+	events "example.com/streamidentity/gen/events"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	watchStream struct {
+		value *chunks.Chunk
+	}
+	followStream struct {
+		value *events.Other
+	}
+	audit struct {
+		t *testing.T
+	}
+)
+
+func TestExternalAndOrdinaryResultDispatch(t *testing.T) {
+	chunk := &chunks.Chunk{Value: "Watch"}
+	other := &events.Other{Value: "Follow"}
+	watch := loom.Endpoint(func(context.Context, any) (any, error) {
+		return watchStream{chunk}, nil
+	})
+	follow := loom.Endpoint(func(context.Context, any) (any, error) {
+		return followStream{other}, nil
+	})
+	client := events.NewClient(nil, watch, follow, audit{t})
+	ctx := context.Background()
+	mixed, err := client.WatchStream(ctx, &events.WatchPayload{})
+	require.NoError(t, err)
+	got, err := mixed.Recv()
+	require.NoError(t, err)
+	require.Same(t, chunk, got)
+	require.Equal(t, "accessed-Watch", got.Value)
+	require.NoError(t, mixed.Close())
+	ordinary, err := client.Follow(ctx)
+	require.NoError(t, err)
+	result, err := ordinary.RecvWithContext(ctx)
+	require.NoError(t, err)
+	require.Same(t, other, result)
+	require.Equal(t, "accessed-Follow", result.Value)
+	require.NoError(t, ordinary.Close())
+}
+
+func (s watchStream) Recv() (*chunks.Chunk, error) {
+	return s.value, nil
+}
+func (s watchStream) RecvWithContext(context.Context) (*chunks.Chunk, error) {
+	return s.value, nil
+}
+func (watchStream) Close() error {
+	return nil
+}
+func (s followStream) Recv() (*events.Other, error) {
+	return s.value, nil
+}
+func (s followStream) RecvWithContext(context.Context) (*events.Other, error) {
+	return s.value, nil
+}
+func (followStream) Close() error {
+	return nil
+}
+func (a audit) Audit(ctx context.Context, i *events.AuditInfo, next loom.Endpoint) (any, error) {
+	res, err := next(ctx, nil)
+	if err != nil {
+		return res, err
+	}
+	value := i.ClientStreamingResult(res)
+	require.Equal(a.t, i.Method(), value.Value())
+	value.SetValue("accessed-" + i.Method())
+	return res, nil
+}

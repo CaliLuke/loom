@@ -1,0 +1,99 @@
+package streamidentity_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	events "example.com/streamidentity/gen/events"
+	rpc "example.com/streamidentity/gen/rpcevents"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	httpStream struct {
+		value *events.Chunk
+	}
+	rpcStream struct {
+		value *rpc.Chunk
+	}
+	httpAudit struct {
+		t *testing.T
+	}
+	rpcAudit struct {
+		t *testing.T
+	}
+)
+
+func TestOptionalStreamingFields(t *testing.T) {
+	t.Run("http", func(t *testing.T) {
+		chunk := &events.Chunk{}
+		endpoint := loom.Endpoint(func(context.Context, any) (any, error) {
+			return httpStream{chunk}, nil
+		})
+		client := events.NewClient(nil, endpoint, httpAudit{t})
+		stream, err := client.WatchStream(context.Background(), &events.WatchPayload{})
+		require.NoError(t, err)
+		got, err := stream.Recv()
+		require.NoError(t, err)
+		require.Same(t, chunk, got)
+		require.NotNil(t, got.Value)
+		require.Equal(t, "written", *got.Value)
+		require.NoError(t, stream.Close())
+	})
+	t.Run("jsonrpc", func(t *testing.T) {
+		chunk := &rpc.Chunk{}
+		endpoint := loom.Endpoint(func(context.Context, any) (any, error) {
+			return rpcStream{chunk}, nil
+		})
+		client := rpc.NewClient(nil, endpoint, rpcAudit{t})
+		stream, err := client.WatchStream(context.Background(), &rpc.WatchPayload{})
+		require.NoError(t, err)
+		got, err := stream.RecvWithContext(context.Background())
+		require.NoError(t, err)
+		require.Same(t, chunk, got)
+		require.NotNil(t, got.Value)
+		require.Equal(t, "written", *got.Value)
+		require.NoError(t, stream.Close())
+	})
+}
+
+func (s httpStream) Recv() (*events.Chunk, error) {
+	return s.value, nil
+}
+func (s httpStream) RecvWithContext(context.Context) (*events.Chunk, error) {
+	return s.value, nil
+}
+func (httpStream) Close() error {
+	return nil
+}
+func (s rpcStream) Recv() (*rpc.Chunk, error) {
+	return s.value, nil
+}
+func (s rpcStream) RecvWithContext(context.Context) (*rpc.Chunk, error) {
+	return s.value, nil
+}
+func (rpcStream) Close() error {
+	return nil
+}
+func (a httpAudit) Audit(ctx context.Context, i *events.AuditInfo, next loom.Endpoint) (any, error) {
+	res, err := next(ctx, nil)
+	if err != nil {
+		return res, err
+	}
+	value := i.ClientStreamingResult(res)
+	require.Empty(a.t, value.Value())
+	value.SetValue("written")
+	return res, nil
+}
+func (a rpcAudit) Audit(ctx context.Context, i *rpc.AuditInfo, next loom.Endpoint) (any, error) {
+	res, err := next(ctx, nil)
+	if err != nil {
+		return res, err
+	}
+	value := i.ClientStreamingResult(res)
+	require.Empty(a.t, value.Value())
+	value.SetValue("written")
+	return res, nil
+}

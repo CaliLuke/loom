@@ -166,6 +166,14 @@ successful value returned by `next` to `info.ClientStreamingResult(value)`.
 These accessors expose the canonical service result type. The stream preserves
 `SetView` selection and the transport performs view projection.
 
+When a method declares distinct `Result` and `StreamingResult` types,
+`ReadStreamingResult` and `WriteStreamingResult` select fields from
+`StreamingResult`. Their server and client accessors read or modify that
+streamed value, including its optional fields; unary-only fields are rejected.
+Regenerate services and clients, and update interceptor implementations if they
+previously relied on a field type from the unary result. Ordinary result access
+remains unavailable on a result-streaming method.
+
 `ReadResult` and `WriteResult` apply to ordinary endpoint results. HTTP and
 gRPC designs that used them with a streaming payload are now rejected with a migration
 message: the server endpoint returns no result after `SendAndClose`, so those

@@ -1,0 +1,81 @@
+package streamidentity_test
+
+import (
+	"context"
+	"io"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	events "example.com/streamidentity/gen/events"
+	hc "example.com/streamidentity/gen/http/events/client"
+	hs "example.com/streamidentity/gen/http/events/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	implementation struct{}
+	audit          struct {
+		t      *testing.T
+		server bool
+	}
+)
+
+func TestServerAndClientStreamingAccessors(t *testing.T) {
+	mux := loomhttp.NewMuxer()
+	endpoints := events.NewEndpoints(implementation{}, audit{t, true})
+	hs.Mount(mux, hs.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	transport := hc.NewClient("http", strings.TrimPrefix(server.URL, "http://"), server.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	client := events.NewClient(transport.Watch(), transport.WatchStream(), audit{t, false})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stream, err := client.WatchStream(ctx, &events.WatchPayload{})
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, stream.Close())
+	}()
+	for _, recv := range []func() (*events.Chunk, error){stream.Recv, func() (*events.Chunk, error) {
+		return stream.RecvWithContext(ctx)
+	}} {
+		value, err := recv()
+		require.NoError(t, err)
+		require.Equal(t, "client", value.Value)
+	}
+	_, err = stream.Recv()
+	require.ErrorIs(t, err, io.EOF)
+}
+
+func (implementation) Watch(ctx context.Context, _ *events.WatchPayload, s events.WatchServerStream) (*events.Summary, error) {
+	for _, send := range []func(*events.Chunk) error{s.Send, func(c *events.Chunk) error {
+		return s.SendWithContext(ctx, c)
+	}} {
+		if err := send(&events.Chunk{Value: "original"}); err != nil {
+			return nil, err
+		}
+	}
+	return nil, s.Close()
+}
+func (a audit) Audit(ctx context.Context, i *events.AuditInfo, next loom.Endpoint) (any, error) {
+	if a.server {
+		value := i.ServerStreamingResult()
+		if value.Value() != "original" {
+			a.t.Errorf("server accessor got %q", value.Value())
+		}
+		value.SetValue("server")
+		return next(ctx, i.RawPayload())
+	}
+	res, err := next(ctx, nil)
+	if err != nil {
+		return res, err
+	}
+	value := i.ClientStreamingResult(res)
+	require.Equal(a.t, "server", value.Value())
+	value.SetValue("client")
+	return res, nil
+}

@@ -197,7 +197,8 @@ func WriteStreamingPayload(arg any) {
 //
 // ReadStreamingResult must appear in an interceptor DSL.
 // It also applies to the single final response of an HTTP or gRPC client stream,
-// sent with SendAndClose and received with CloseAndRecv.
+// sent with SendAndClose and received with CloseAndRecv. When Result and
+// StreamingResult differ, accessed fields belong to StreamingResult.
 //
 // ReadStreamingResult takes a function as argument which can use the Attribute DSL to
 // define the attributes read by the interceptor.
@@ -222,7 +223,8 @@ func ReadStreamingResult(arg any) {
 //
 // WriteStreamingResult must appear in an interceptor DSL.
 // It also applies to the single final response of an HTTP or gRPC client stream,
-// sent with SendAndClose and received with CloseAndRecv.
+// sent with SendAndClose and received with CloseAndRecv. When Result and
+// StreamingResult differ, accessed fields belong to StreamingResult.
 //
 // WriteStreamingResult takes a function as argument which can use the Attribute DSL to
 // define the attributes written by the interceptor.
