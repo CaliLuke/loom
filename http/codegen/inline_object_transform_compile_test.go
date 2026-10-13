@@ -1,9 +1,6 @@
 package codegen
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -117,41 +114,29 @@ func TestGeneratedInlineObjectBodyTransformsCompile(t *testing.T) {
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, "example.com/inlinetransform", root)
 
-	clientTypes := readGeneratedTypes(t, dir, "client")
-	serverTypes := readGeneratedTypes(t, dir, "server")
-	for _, want := range []string{
-		"`form:\"choice\" json:\"choice,omitempty\" xml:\"choice\"`",
-		"Label *string `form:\"label\" json:\"label,omitempty\" xml:\"label\"`",
-		"Mode string `form:\"mode\" json:\"mode\" xml:\"mode\"`",
-		"Code string `form:\"code\" json:\"code\" xml:\"code\"`",
-		"Note *string `form:\"note,omitempty\" json:\"note,omitempty\" xml:\"note,omitempty\"`",
-		"} `form:\"inner\" json:\"inner,omitempty\" xml:\"inner\"`",
-		"X *string `form:\"x\" json:\"x,omitempty\" xml:\"x\"`",
-		"Y string `form:\"y\" json:\"y\" xml:\"y\"`",
+	for _, side := range []struct {
+		name, body, transform, holder, holderTransform string
+	}{
+		{"client", "SubmitRequestBody", "NewSubmitRequestBody", "HolderRequestBody", "marshalInlinetransformHolderToHolderRequestBody"},
+		{"server", "SubmitResponseBody", "NewSubmitResponseBody", "HolderResponseBody", "marshalInlinetransformHolderToHolderResponseBody"},
 	} {
-		assert.GreaterOrEqual(t, strings.Count(clientTypes, want), 2,
-			"client request body declaration and transform literal must agree on %s", want)
-		assert.GreaterOrEqual(t, strings.Count(serverTypes, want), 2,
-			"server response body declaration and transform literal must agree on %s", want)
+		files := parseInlineBodyPackage(t, dir, side.name)
+		for _, owner := range []struct {
+			body, transform string
+			shapes          int
+		}{
+			{side.body, side.transform, 5},
+			{side.holder, side.holderTransform, 1},
+		} {
+			t.Run(side.name+"/"+owner.body, func(t *testing.T) {
+				declared, emitted := inlineBodyShapes(t, files, owner.body, owner.transform)
+				require.Len(t, declared, owner.shapes, "retain the fixture's distinct anonymous shapes")
+				assert.Equal(t, declared, emitted, "declaration and transform literal types must agree")
+			})
+		}
 	}
 
 	runGoCommand(t, dir, "mod", "tidy")
 	runGoCommand(t, dir, "build", "./...")
-}
-
-// readGeneratedTypes returns the generated HTTP types of one side with each
-// run of white space collapsed to one space, so that assertions do not depend
-// on gofmt field alignment.
-func readGeneratedTypes(t *testing.T, dir, side string) string {
-	t.Helper()
-	files, err := filepath.Glob(filepath.Join(dir, "gen", "http", "inline_transform", side, "types*.go"))
-	require.NoError(t, err)
-	require.NotEmpty(t, files)
-	var b strings.Builder
-	for _, file := range files {
-		contents, err := os.ReadFile(file)
-		require.NoError(t, err)
-		b.Write(contents)
-	}
-	return strings.Join(strings.Fields(b.String()), " ")
+	runGoCommand(t, dir, "vet", "./...")
 }
