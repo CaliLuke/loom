@@ -447,6 +447,10 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   identity. Schema-only preparation queries captured structure without resolving
   enum/default values or consuming example synthesis. Preserve component
   annotation ownership separately from representation-specific schema identity.
+  Required defaults/enums retain checked declared values when the target codec
+  is text, raw or custom, regardless of whether source resolution was builtin.
+  Preserve the explicit Unsupported projection and known builtin sibling checks;
+  retaining an annotation never proves custom codec output.
 - Security component allocation belongs to the document IR. Identify a binding
   by authored scheme, kind, HTTP location, and credential name; canonicalize
   header case. Reserve authored names before allocating sorted binding variants,

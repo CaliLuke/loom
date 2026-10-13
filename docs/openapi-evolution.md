@@ -61,6 +61,12 @@ updating Loom. Moving an equivalent definition inline preserves its contract,
 but a client generator may produce different declarations or exports. Schema
 equivalence alone does not prove compatibility of the generated client API.
 
+Authored defaults and enums remain available in generated contracts for text,
+raw and custom codec locations, including cookies and mapped SSE data. Loom
+checks the declared value and any known builtin constraints; a retained
+annotation does not verify the output of a custom codec. Regenerate after
+upgrading if a valid design previously failed annotation preparation.
+
 ## Select the OpenAPI compatibility target
 
 For both targets, Loom projects `MinLength` and `MaxLength` according to the

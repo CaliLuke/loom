@@ -107,7 +107,7 @@ func (c *ValueContext) schemaAnnotationValue(result ValueResult, plan ValuePlan)
 		return JSONSchemaValue{}, projection.Err()
 	}
 	value, retained := c.DeclaredJSONValue(result, plan)
-	if projection.Outcome() == ProjectionUnsupported && result.Outcome() == ValueUnsupported && retained {
+	if projection.Outcome() == ProjectionUnsupported && retained {
 		if _, err := checkKnownSchemaAnnotation(plan.root, result.value, result.role); err != nil {
 			return JSONSchemaValue{}, err
 		}
