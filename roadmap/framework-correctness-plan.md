@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **183 of 214 tracked reports are delivered, pushed and confirmed closed.**
+- **185 of 216 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-183-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-185-issues.json` is the frozen GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
   client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
@@ -88,12 +88,19 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 - Schema annotations #783 (`066b68aab`) are reviewed, pushed and closed. One
   emission owner and detached shared OpenAPI location preparation preserve schema
   and parameter/header descriptions separately; generated and spec checks pass.
-- Required CI is not confirmed green. #890 (`59ac9947c`) repairs stale contract
-  assertions, but run `38462276537` exposed nullable aliases (now #892 delivered),
-  explicit alias error-body ancestry (#893) and a recursive source-pointer
-  assertion still under investigation. Its ID-based diagnostic overlay generates;
-  that alone does not establish that the pointer assertion is obsolete. The
-  existing #820 dependency race also remains open. Later main runs are active.
+- Imported name occupancy #688 (`dc55bff2c`) is reviewed, pushed and closed.
+  One importer allocator reserves every emitted candidate; actual collision
+  designs compile, 16 ordinary artifacts stay identical and 32 repeat exactly.
+- Stream observation #749 (`be89c93b5`) is reviewed, pushed and closed. Immutable
+  operation identity and finite lifecycle delivery feed shared SSE/WebSocket
+  owners; generated SSE terminal flags and write locks are removed. Runtime
+  races and actual generated integration pass on the delivered parent.
+- Required CI is not confirmed green. Nullable alias failures are fixed by #892.
+  The explicit alias error-body failure and recursive declaration mutation share
+  the body-binding owner tracked in #893; the original pointer assertion remains.
+  The existing #820 dependency race also remains open. Checkpoint run
+  `38469448885` has passing Redis, generated-code-quality, OpenAPI and several
+  generated-design jobs; other jobs and later source runs remain unresolved.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -122,27 +129,24 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Stream observation (#749):** `/root/diagnostic_redaction_finish` completes
-   the bounded generated/runtime matrix. Shared SSE terminal ownership replaces
-   wrapper closed flags and write locks; observers run outside ownership locks.
-   Final checks cover preparation failure, duplicate final/suppression and original
-   panic preservation. An attachment-panic cleanup regression is being repaired
-   within the existing WebSocket handler owner before final review.
-2. **Explicit body ancestry (#893):** `/root/omission_readiness_finish` follows
-   delivered #783 after cleanup and safe worktree reuse. Establish the shared
-   declaration/transport binding owner for composed errors and named explicit
-   bodies. Preserve foreign/cyclic ancestry rejection and the explicit Body
-   contract. Separately classify the recursive error identity assertion.
-3. **Service package declarations (#770):** projection implements the approved
-   package-role allocation. A scalar-alias competitor exposed a possible shared
-   constructor-scope prerequisite: InitStructFields reconstructs a scope without
-   allocated nominal names. Establish a standalone parent witness and exact owner
-   before a separate repair; do not hide it by dropping the scalar case. Protobuf
-   #736 and shared imports #856 retain their actual independent namespaces.
-4. **Imported name occupancy (#688):** root owns the independently approved
-   plan in [imported-name-occupancy.md](imported-name-occupancy.md). The shared
-   allocator must claim every emitted case-folded suffix. Direct candidate checks
-   pass in an overlay; consumer and actual generated comparisons remain pending.
+1. **Explicit body binding (#893):** omission implements the independently
+   approved plan in [explicit-alias-body-binding.md](/Users/luca/.codex/worktrees/numeric-comparison/loom/roadmap/explicit-alias-body-binding.md)
+   from its managed worktree. Detach before response initialization and preserve
+   occurrence-owned explicit authority along alias traversal; retain strict
+   foreign/cyclic rejection, child boundaries and the recursive pointer assertion.
+2. **Constructor type identity (#894):** projection preserves the caller's
+   allocated nominal scope in `InitStructFields`. Readiness is approved; bounded
+   direct/generated checks pass and final evidence is being assembled. The
+   original #770 patch is archived intact for restoration after this prerequisite.
+3. **Service package declarations (#770):** restore the approved package-role
+   allocation after #894 delivery and rerun its scalar competitor. Protobuf #736
+   and shared imports #856 retain their actual independent namespaces. Parent
+   reproduction of the response-header alias-array failure is separately #895;
+   preserve its witness without inserting a codec workaround into naming.
+4. **Generation provenance (#753/#742):** diagnostic completes #749 cleanup,
+   then establishes one evaluated-design identity consumed by generation, manifests
+   and vet. Plugin roots and originating design package belong in that identity;
+   filesystem publication #751 remains separate. Readiness review precedes changes.
 5. **Other distinct owners:** encoded byte length #686, custom-key example
    synthesis #884 and pool subordinate shutdown #687 remain open. Do not weaken
    supported representation admission to bypass these failures.
@@ -155,25 +159,17 @@ reconciliation with the inventory before they can establish remaining work.
 
 Latest independent delivery records:
 
-- #891 final re-review and integration verdicts are
-  `/tmp/loom-891-independent-final-rereview-verdict.json` and
-  `/tmp/loom-891-independent-integration-verdict.json`.
-- #892 final verdict is `/tmp/loom-892-independent-final-verdict.json`;
-  `/tmp/loom-892-cleanup-receipt.json` preserves exact delivered source/input
-  archives and compact results after inactive temporary output removal.
-- #783 final and integration verdicts are
-  `/tmp/loom-783-independent-final-verdict.json` and
-  `/tmp/loom-783-independent-integration-verdict.json`; root integration passes
-  13.003s against the delivered alias correction. Implementer cleanup follows.
-- #749 terminal ownership refinement extends its existing bounded model;
-  serialized preparation failure releases admission without closing the stream.
-  Candidate final review is still pending.
-
-CI run `38458929264` reproduced the known libopenapi YAML merge mutation race.
-The later `38462276537` failures are classified above. Current-main run
-`38468644883` on #892 was in progress at the latest read; no aggregate CI success
-is claimed. #891 cleanup/reuse is complete; #783 cleanup is in progress. Existing
-review/manifest ledgers retain the scope of each earlier acceptance result.
+- #688 final verdict is `/tmp/loom-688-independent-final-verdict.json`;
+  `/tmp/loom-688-cleanup-receipt.json` preserves delivered source/input archives
+  and compact evidence after removal of five inactive temporary trees.
+- #749 final and integration verdicts are
+  `/tmp/loom-749-independent-final-verdict.json` and
+  `/tmp/loom-749-independent-integration-verdict.json`. Integration runtime races
+  pass (HTTP 9.638s, JSON-RPC 2.446s, observation 1.356s); both generated modules
+  pass (5.343s and 5.827s). Implementer cleanup follows delivery.
+- #893 readiness verdict is `/tmp/loom-893-root-readiness-verdict.json`; #894
+  readiness verdict is `/tmp/loom-894-root-readiness-verdict.json`. Each records
+  the shared owner, actual parent failures and bounded final acceptance.
 
 Completed cleanup receipts preserve compact evidence and exact reproduction
 inputs after activity checks: #872 `/tmp/loom-872-cleanup-receipt.json`, #790
