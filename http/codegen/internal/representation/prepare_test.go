@@ -211,7 +211,8 @@ func TestBuildValuePlanRebindsPreparedExamplesToRebuiltNodes(t *testing.T) {
 	oldSource := target.Source
 	oldAnchor := target.Anchor
 	oldResult := target.Source.Example
-	require.Contains(t, target.ExampleSets, oldRoot)
+	_, oldRootPresent := target.ExampleSets[oldRoot]
+	require.True(t, oldRootPresent)
 
 	rebuiltContext := schemaContext(true)
 	rebuiltContext.JSONPresence = false
@@ -224,14 +225,16 @@ func TestBuildValuePlanRebindsPreparedExamplesToRebuiltNodes(t *testing.T) {
 	require.Empty(t, target.Examples)
 	require.Nil(t, target.Representative)
 	require.Nil(t, target.ExampleSets)
-	require.NotEqual(t, oldRoot, target.Plan.Root())
+	require.False(t, oldRoot == target.Plan.Root(), "rebuilding must allocate a new root node")
 
 	generator := expr.NewRandom("rebind-without-resampling")
 	control := expr.NewRandom("rebind-without-resampling")
 	require.NoError(t, PrepareTargetExamples(target, prepared.Endpoints[0].Request.Body, generator))
 	require.Equal(t, control.Int(), generator.Int(), "retained source result must prevent resampling")
-	require.Contains(t, target.ExampleSets, target.Plan.Root())
-	require.NotContains(t, target.ExampleSets, oldRoot)
+	_, newRootPresent := target.ExampleSets[target.Plan.Root()]
+	require.True(t, newRootPresent)
+	_, oldRootPresent = target.ExampleSets[oldRoot]
+	require.False(t, oldRootPresent, "prepared examples must not retain the old node key")
 	require.Same(t, oldSource, target.Representative.Source)
 }
 
