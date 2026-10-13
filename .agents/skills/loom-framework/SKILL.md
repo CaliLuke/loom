@@ -1398,6 +1398,15 @@ filter, and serialization rules belong here.
   expression read from it, so the bodies built from one source share a
   function and every other body gets a name of its own. Do not name these
   functions outside that scope.
+- Declaration and helper identifiers use the allocated concrete name from
+  `GoValueTypeName`; nullable `GoTypeName`/`GoTypeRef` expressions remain use-site
+  storage references. Projected declaration construction normalizes local inputs
+  to the intrinsic named declaration without mutating the occurrence graph.
+  Selected-view validator definitions and calls use `NamedValidationFunction`
+  for their shared identity. Service, view and HTTP named union collectors retain
+  their existing hash/cardinality and client/server membership owners. Keep the
+  [projected declaration identity model](../../../codegen/service/tla/projected_declaration_identity/README.md)
+  paired with both-order identity tests and generated transport/view controls.
 - A named union, a user type whose attribute is a union, is declared as the
   union type itself under the name of the user type: in the service package
   (`collectUnionTypes`), as a streaming payload or result

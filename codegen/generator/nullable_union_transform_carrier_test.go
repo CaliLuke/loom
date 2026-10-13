@@ -29,10 +29,6 @@ func nullableUnionTransformDSL() {
 	}
 	inherited := make([]expr.DataType, len(shapes))
 	for i, shape := range shapes {
-		if shape.name == "union" {
-			// Intrinsic nullable named union declarations are blocked by #829.
-			continue
-		}
 		inherited[i] = dsl.Type("Nullable"+shape.typ.Name(), shape.typ, func() {
 			dsl.Nullable()
 		})
@@ -41,9 +37,7 @@ func nullableUnionTransformDSL() {
 		dsl.OneOf("branch", func() {
 			for i, shape := range shapes {
 				dsl.Attribute(shape.name+"_ordinary", shape.typ)
-				if inherited[i] != nil {
-					dsl.Attribute(shape.name+"_intrinsic", inherited[i])
-				}
+				dsl.Attribute(shape.name+"_intrinsic", inherited[i])
 				dsl.Attribute(shape.name+"_occurrence", shape.typ, func() {
 					dsl.Nullable()
 				})
@@ -140,10 +134,6 @@ func TestBranchConversionRoundTrips(t *testing.T) {
 		{"primitive", "\"value\""},
 	} {
 		for _, mode := range []string{"ordinary", "intrinsic", "occurrence"} {
-			if shape.name == "union" && mode == "intrinsic" {
-				// See #829; direct transform tests retain this carrier case.
-				continue
-			}
 			for _, value := range []string{shape.value, "null", ""} {
 				t.Run(shape.name+"/"+mode+"/"+value, func(t *testing.T) {
 					branch := shape.name + "_" + mode

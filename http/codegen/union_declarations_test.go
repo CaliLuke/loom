@@ -69,3 +69,31 @@ func unionDeclarationOrders(values []int) [][]int {
 	}
 	return orders
 }
+
+func TestHTTPNullableUnionDeclarationIdentity(t *testing.T) {
+	for _, closedObjects := range []bool{false, true} {
+		for _, nullableFirst := range []bool{false, true} {
+			t.Run(strconv.FormatBool(closedObjects)+"/"+strconv.FormatBool(nullableFirst), func(t *testing.T) {
+				union := makeUnionForOrderTest("Raw", "text", "number")
+				named := &expr.UserTypeExpr{TypeName: "Named", UID: "named", AttributeExpr: &expr.AttributeExpr{Type: union, Nullable: true}}
+				first := &expr.AttributeExpr{Type: named, Nullable: nullableFirst}
+				second := &expr.AttributeExpr{Type: named, Nullable: !nullableFirst}
+				scope := cg.NewNameScope()
+				allocated := make(map[string]*uniongen.Type)
+				client, server := make(map[string]*uniongen.Type), make(map[string]*uniongen.Type)
+				collectHTTPUnionTypes(first, scope, client, make(map[string]struct{}), closedObjects, allocated)
+				collectHTTPUnionTypes(second, scope, server, make(map[string]struct{}), closedObjects, allocated)
+				name := scope.GoValueTypeName(first)
+				require.Len(t, allocated, 1)
+				require.Contains(t, allocated, name)
+				require.Same(t, allocated[name], client[name])
+				require.Same(t, allocated[name], server[name])
+				require.Equal(t, name, allocated[name].Name)
+				require.Equal(t, "loom.Nullable[Named]", scope.GoTypeRef(first))
+				require.True(t, named.Nullable)
+				require.Equal(t, nullableFirst, first.Nullable)
+				require.Equal(t, !nullableFirst, second.Nullable)
+			})
+		}
+	}
+}

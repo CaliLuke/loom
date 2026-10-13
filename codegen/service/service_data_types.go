@@ -114,7 +114,7 @@ func collectUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, loc *c
 		if union := expr.AsUnion(dt.Attribute().Type); union != nil {
 			hash := dt.Hash()
 			if _, ok := unions[hash]; !ok {
-				name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
+				name := scope.GoValueTypeName(&expr.AttributeExpr{Type: dt})
 				unions[hash] = buildUnionTypeData(union, scope, codegen.UserTypeLocation(dt), name)
 			}
 			for _, nat := range union.Values {

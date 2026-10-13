@@ -169,9 +169,9 @@ func buildProjections(projected, att *expr.AttributeExpr, viewspkg string, scope
 }
 
 func projectedResultInitHelperBaseName(scope, viewScope *codegen.NameScope, att, projected *expr.AttributeExpr) string {
-	return "New" + scope.GoTypeName(att) + "From" + viewScope.GoTypeName(projected)
+	return "New" + scope.GoValueTypeName(att) + "From" + viewScope.GoValueTypeName(projected)
 }
 
 func projectionHelperBaseName(scope *codegen.NameScope, att *expr.AttributeExpr) string {
-	return "Project" + scope.GoTypeName(att)
+	return "Project" + scope.GoValueTypeName(att)
 }

@@ -199,6 +199,12 @@ transport types, including named object branches. Both inherited `Nullable()`
 and `Nullable()` on the branch occurrence use this contract. Regenerate code
 to receive the corrected nullable-object conversion helpers.
 
+Nullable named union branches also retain their presence contract in projected
+result types. Generated declarations and validation helpers use concrete Go
+identifiers; fields and branches retain their `loom.Nullable[T]` storage.
+Regenerate service, views and transport packages to receive the corrected
+nullable declaration and helper names.
+
 Generated validators reject a selected nil object or nested-union pointer with
 a validation error. A selected nil slice or map is an empty collection: length
 and element constraints still apply. For a constructed nullable branch,

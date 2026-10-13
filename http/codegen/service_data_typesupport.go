@@ -153,7 +153,7 @@ func collectHTTPUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, un
 			// References use the enclosing type's allocated Go name. Distinct
 			// declarations can share an inner union shape, so that shape cannot
 			// be the deduplication key.
-			name := scope.GoTypeName(&expr.AttributeExpr{Type: dt})
+			name := scope.GoValueTypeName(&expr.AttributeExpr{Type: dt})
 			if _, ok := unions[name]; !ok {
 				if allocated[name] == nil {
 					allocated[name] = buildHTTPUnionTypeData(union, scope, closedObjects, name)

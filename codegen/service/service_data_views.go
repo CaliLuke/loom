@@ -38,7 +38,7 @@ func collectViewUnionTypes(att *expr.AttributeExpr, scope *codegen.NameScope, lo
 			// A projected named union is declared as the union type itself
 			// under the name of the projected type, see viewTypeSections.
 			if _, ok := unions[dt.Hash()]; !ok {
-				unions[dt.Hash()] = buildViewUnionTypeData(union, scope, loc, scope.GoTypeName(&expr.AttributeExpr{Type: dt}))
+				unions[dt.Hash()] = buildViewUnionTypeData(union, scope, loc, scope.GoValueTypeName(&expr.AttributeExpr{Type: dt}))
 			}
 			for _, nat := range union.Values {
 				collectViewUnionTypes(nat.Attribute, scope, loc, unions, seen)
@@ -140,12 +140,16 @@ func buildProjectedType(projected, att *expr.AttributeExpr, viewspkg string, sco
 	// View carriers own their package before names and detached conversion
 	// graphs capture it. Canonical service locations remain on att.
 	removeMeta(projected)
+	// Declaration identity and storage belong to the named type, not the first
+	// occurrence collected. Keep occurrence nullability on the projected graph.
+	projected = &expr.AttributeExpr{Type: projected.Type, Meta: projected.Meta}
+	att = &expr.AttributeExpr{Type: att.Type, Meta: att.Meta}
 	var (
 		projections []*InitData
 		typeInits   []*InitData
 		views       []*ViewData
 
-		varname = viewScope.GoTypeName(projected)
+		varname = viewScope.GoValueTypeName(projected)
 		pt      = projected.Type.(expr.UserType)
 	)
 	if _, isrt := pt.(*expr.ResultTypeExpr); isrt {
@@ -184,7 +188,7 @@ func buildViews(rt *expr.ResultTypeExpr, viewScope *codegen.NameScope) []*ViewDa
 			Name:        view.Name,
 			Description: view.Description,
 			Attributes:  attrs,
-			TypeVarName: viewScope.GoTypeName(&expr.AttributeExpr{Type: rt}),
+			TypeVarName: viewScope.GoValueTypeName(&expr.AttributeExpr{Type: rt}),
 		}
 	}
 	return views
@@ -208,7 +212,7 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	isarr := expr.IsArray(att.Type)
 	viewName := viewedResultDefaultViewName(att, rt)
 	views := buildViews(rt, viewScope)
-	resvar := scope.GoTypeName(att)
+	resvar := scope.GoValueTypeName(att)
 	vresref := viewScope.GoFullTypeRef(att, viewspkg)
 	validate := buildViewedResultValidation(projected, views, scope, att, resvar)
 	init := buildViewedResultInit(att, views, viewspkg, scope, resvar, vresref, isarr, viewspkg+"."+validate.Name)

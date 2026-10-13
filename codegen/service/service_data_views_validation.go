@@ -10,7 +10,7 @@ import (
 
 func buildViewedResultValidation(projected *expr.AttributeExpr, views []*ViewData, scope *codegen.NameScope, att *expr.AttributeExpr, resvar string) *ValidateData {
 	validateTData := viewedResultValidateTemplateData{
-		Projected: scope.GoTypeName(projected),
+		Projected: scope.GoValueTypeName(projected),
 		ArgVar:    "result",
 		Source:    "result",
 		Views:     views,
@@ -107,7 +107,9 @@ func needsValidationFieldSpacer(fields []validateFieldTemplateData) bool {
 // projected types.
 func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) []*ValidateData {
 	ut := projected.Type.(expr.UserType)
-	tname := scope.GoTypeName(projected)
+	tname := scope.GoValueTypeName(projected)
+	ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
+	function := codegen.NamedValidationFunction(projected, ctx, "result")
 	var validations []*ValidateData
 	if rt, isrt := ut.(*expr.ResultTypeExpr); isrt {
 		arr := expr.AsArray(projected.Type)
@@ -119,7 +121,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 				IsCollection: arr != nil,
 			}
 			var vn string
-			name := "Validate" + tname
+			name := function.Name
 			if view.Name != expr.DefaultView {
 				vn = codegen.Goify(view.Name, true)
 				name += vn
@@ -127,7 +129,8 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 
 			if arr != nil {
 				data.Source = "item"
-				data.ValidateVar = "Validate" + scope.GoTypeName(arr.ElemType) + vn
+				declaration := &expr.AttributeExpr{Type: arr.ElemType.Type, Meta: arr.ElemType.Meta}
+				data.ValidateVar = codegen.NamedValidationFunction(declaration, ctx, "item").Name + vn
 				data.NilableElement = expr.IsObject(arr.ElemType.Type) || expr.IsArray(arr.ElemType.Type) || expr.IsMap(arr.ElemType.Type)
 				data.NullableElement = arr.ElemType.Nullable
 			} else {
@@ -137,17 +140,14 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 			validations = append(validations, &ValidateData{
 				Name:        name,
 				Description: fmt.Sprintf("%s runs the validations defined on %s using the %q view.", name, tname, view.Name),
-				Ref:         scope.GoTypeRef(projected),
+				Ref:         function.Ref,
 				Validate:    renderValidateTypeCode(data),
 			})
 		}
 	} else {
-		name := "Validate" + tname
-		ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
-		function := codegen.NamedValidationFunction(projected, ctx, "result")
 		validations = append(validations, &ValidateData{
-			Name:        name,
-			Description: fmt.Sprintf("%s runs the validations defined on %s.", name, tname),
+			Name:        function.Name,
+			Description: fmt.Sprintf("%s runs the validations defined on %s.", function.Name, tname),
 			Ref:         function.Ref,
 			Validate:    codegen.ValidationCode(ut.Attribute(), ut, function.Context(ctx), true, expr.IsAlias(ut), true, "result"),
 		})
@@ -157,6 +157,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 
 func buildViewObjectValidation(projected *expr.AttributeExpr, rt *expr.ResultTypeExpr, view *expr.ViewExpr, scope *codegen.NameScope) (string, []validateFieldTemplateData) {
 	required := view.AttributeExpr
+	ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
 	var fields []validateFieldTemplateData
 	o := &expr.Object{}
 	walkViewAttrs(expr.AsObject(projected.Type), view, func(name string, attr, vatt *expr.AttributeExpr) {
@@ -165,16 +166,17 @@ func buildViewObjectValidation(projected *expr.AttributeExpr, rt *expr.ResultTyp
 			if v, ok := vatt.Meta.Last(expr.ViewMetaKey); ok && v != expr.DefaultView {
 				vw = v
 			}
+			declaration := &expr.AttributeExpr{Type: attr.Type, Meta: attr.Meta}
+			function := codegen.NamedValidationFunction(declaration, ctx, "result")
 			fields = append(fields, validateFieldTemplateData{
 				Name:        name,
-				ValidateVar: "Validate" + scope.GoTypeName(attr) + codegen.Goify(vw, true),
+				ValidateVar: function.Name + codegen.Goify(vw, true),
 				IsRequired:  required.IsRequired(name),
 			})
 		} else {
 			o.Set(name, attr)
 		}
 	})
-	ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
 	validate := codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: view.Validation}, rt, (codegen.ValidationFunction{Argument: "result"}).Context(ctx), true, false, true, "result")
 	return validate, fields
 }
