@@ -24,8 +24,7 @@ type (
 		options *options
 		lock    sync.Mutex
 		keyvals kvList
-		entries []*Entry
-		flushed bool
+		buffer  *logBuffer
 	}
 
 	// Log severity enum
@@ -136,8 +135,8 @@ func Fatalf(ctx context.Context, err error, format string, v ...any) {
 }
 
 // With creates a copy of the given log context and appends the given key/value
-// pairs to it. Values must be strings, numbers, booleans, nil or a slice of
-// these types.
+// pairs to it. The derived logger shares its parent's buffer and flush state.
+// Values must be strings, numbers, booleans, nil or a slice of these types.
 func With(ctx context.Context, keyvals ...Fielder) context.Context {
 	v := ctx.Value(ctxLogger)
 	if v == nil {
@@ -148,23 +147,19 @@ func With(ctx context.Context, keyvals ...Fielder) context.Context {
 	defer l.lock.Unlock()
 	newLogger := logger{
 		options: l.options,
-		entries: l.entries,
+		buffer:  l.buffer,
 		keyvals: l.keyvals.merge(keyvals),
-		flushed: l.flushed,
 	}
 	if l.options.disableBuffering != nil && l.options.disableBuffering(ctx) {
-		l.flush()
-		newLogger.flushed = true
-	} else {
-		newLogger.entries = make([]*Entry, len(l.entries))
-		copy(newLogger.entries, l.entries)
+		l.buffer.flush()
 	}
 
 	return context.WithValue(ctx, ctxLogger, &newLogger)
 }
 
 // FlushAndDisableBuffering flushes the log entries to the writer and stops
-// buffering the given context.
+// buffering for the context and all log.With descendants in the same scope.
+// Each entry uses the destination and format configured when it was logged.
 func FlushAndDisableBuffering(ctx context.Context) {
 	v := ctx.Value(ctxLogger)
 	if v == nil {
@@ -173,24 +168,7 @@ func FlushAndDisableBuffering(ctx context.Context) {
 	l := v.(*logger)
 	l.lock.Lock()
 	defer l.lock.Unlock()
-	l.flush()
-}
-
-func (l *logger) writeEntry(e *Entry) {
-	for _, out := range l.options.outputs {
-		out.Writer.Write(out.Format(e)) // nolint: errcheck
-	}
-}
-
-func (l *logger) flush() {
-	if l.flushed {
-		return
-	}
-	for _, e := range l.entries {
-		l.writeEntry(e)
-	}
-	l.entries = nil // free up memory
-	l.flushed = true
+	l.buffer.flush()
 }
 
 func log(ctx context.Context, sev Severity, buffer bool, fielders []Fielder) {
@@ -205,10 +183,6 @@ func log(ctx context.Context, sev Severity, buffer bool, fielders []Fielder) {
 	if !l.options.debug && sev == SeverityDebug {
 		return
 	}
-	if l.options.debug && !l.flushed {
-		l.flush()
-	}
-
 	var keyvals kvList
 	keyvals = keyvals.merge(fielders)
 	keyvals = append(l.keyvals, keyvals...)
@@ -219,11 +193,7 @@ func log(ctx context.Context, sev Severity, buffer bool, fielders []Fielder) {
 	keyvals = truncate(keyvals, l.options.maxsize)
 
 	e := &Entry{timeNow().UTC(), sev, keyvals}
-	if l.flushed || !buffer {
-		l.writeEntry(e)
-		return
-	}
-	l.entries = append(l.entries, e)
+	l.buffer.log(bufferedEntry{entry: e, outputs: l.options.outputs}, buffer, l.options.debug)
 }
 
 // String returns a string representation of the log severity.

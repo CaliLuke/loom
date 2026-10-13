@@ -1074,7 +1074,10 @@ use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`.
 For Clue logging, derive a child with `log.With` before changing its options
 with `log.Context`. Derived loggers retain independent configuration snapshots;
 updating one does not reconfigure its parent or siblings. `WithContext` joins
-an existing logger instead. `WithOutputs` copies output slice elements when
+an existing logger instead. Derived loggers share one scope buffer: flushing
+from any descendant emits all queued entries once and disables buffering for
+that scope. Entries keep their original destinations and formats; configuration
+changes apply to future entries. `WithOutputs` copies output slice elements when
 applied; shared writers and callbacks remain the application's responsibility.
 
 Clue HTTP middleware and gRPC server interceptors give each handled request a

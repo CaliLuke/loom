@@ -53,6 +53,12 @@ changing its parent or siblings. Updating an existing logger retains its fields
 and buffered entries. Contexts joined with `log.WithContext` refer to the same
 logger and therefore observe the same updates.
 
+Loggers derived with `log.With` share one scope buffer. An error, enabled Debug,
+or explicit `FlushAndDisableBuffering` flushes that scope once and disables
+buffering for every descendant. Buffered entries retain the destination and
+format configured when they were logged; later configuration changes apply only
+to later entries. `Print` bypasses buffering without flushing earlier entries.
+
 The HTTP logging middleware and gRPC server interceptors start a fresh logging
 scope for each handled request or stream, including when request IDs or access
 logging are disabled. They inherit root configuration and fields, but do not
@@ -63,7 +69,9 @@ paths excluded with `WithPathFilter` retain their existing bypass behavior.
 `log.WithOutputs` copies the supplied output slice each time it is applied.
 Changing a slice element afterward does not reconfigure a logger. Writers,
 format functions and field values remain application-owned; synchronize shared
-writers when separate loggers can write concurrently.
+writers when separate scopes can write concurrently. Within one scope, output
+calls are serialized. Callbacks and formatters must not reenter that scope's
+logging API; logging holds scope/logger locks while invoking them.
 
 ### Logging
 

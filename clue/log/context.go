@@ -15,7 +15,7 @@ const (
 func Context(ctx context.Context, opts ...LogOption) context.Context {
 	l, ok := ctx.Value(ctxLogger).(*logger)
 	if !ok {
-		l = &logger{options: defaultOptions()}
+		l = &logger{options: defaultOptions(), buffer: &logBuffer{}}
 	}
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -28,7 +28,7 @@ func Context(ctx context.Context, opts ...LogOption) context.Context {
 	}
 	l.options = &configured
 	if l.options.disableBuffering != nil && l.options.disableBuffering(ctx) {
-		l.flush()
+		l.buffer.flush()
 	}
 	return context.WithValue(ctx, ctxLogger, l)
 }
@@ -74,6 +74,7 @@ func requestContext(ctx, logCtx context.Context, fields ...Fielder) context.Cont
 	parent.lock.Lock()
 	request := &logger{
 		options: parent.options,
+		buffer:  &logBuffer{},
 		keyvals: parent.keyvals.merge(fields),
 	}
 	parent.lock.Unlock()

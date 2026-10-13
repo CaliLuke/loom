@@ -83,6 +83,14 @@ consumer validation.
   application-owned. Keep the options ownership model under `clue/log/tla/`
   aligned with direct configuration, concurrent reuse and HTTP/gRPC Debug tests.
   Request-scope creation and buffer lineage are separate ownership contracts.
+- `clue/log.logBuffer` owns queue, flush state and output serialization for one
+  scope shared by With descendants. Fresh Context/requestContext scopes allocate
+  a new owner. Queued entries retain immutable output settings from admission;
+  logger configuration changes apply only to later entries. Always acquire logger
+  before buffer locks; never acquire a logger from the buffer owner. Print bypass
+  does not flush the queue. Keep lineage/output-selection models and transport,
+  configuration and sibling-serialization regressions aligned. Application values
+  and callbacks remain caller-owned; reentrant logging is outside the contract.
 - `clue/log.requestContext` creates each HTTP/unary/streaming server logging
   scope from a locked root configuration/field snapshot. Start an empty buffer
   with fresh flush state and evaluate buffering policy using incoming request

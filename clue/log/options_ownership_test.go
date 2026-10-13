@@ -141,8 +141,12 @@ func TestDerivedBufferingOptionIsIsolated(t *testing.T) {
 		return true
 	}))
 	Context(parent)
-	Info(parent, KV{K: "msg", V: "buffered"})
-	require.Empty(t, output.String())
-	FlushAndDisableBuffering(parent)
+	Info(parent, KV{K: "msg", V: "shared scope"})
+	require.Contains(t, output.String(), `msg="shared scope"`, "child flush disables the shared buffer")
+	output.Reset()
+	fresh := requestContext(context.Background(), parent)
+	Info(fresh, KV{K: "msg", V: "buffered"})
+	require.Empty(t, output.String(), "child callback must not change parent configuration inherited by a fresh scope")
+	FlushAndDisableBuffering(fresh)
 	require.Contains(t, output.String(), "msg=buffered")
 }
