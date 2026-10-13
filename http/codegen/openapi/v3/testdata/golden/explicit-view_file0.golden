@@ -20,7 +20,8 @@
       "TestEndpointDefaultResponseBody": {
         "description": "TestEndpointDefaultResponseBody result type (default view)",
         "example": {
-          "int": 1
+          "int": 1,
+          "string": ""
         },
         "properties": {
           "int": {
@@ -38,7 +39,8 @@
       "TestEndpointOverriddenResponseBodyOverridden": {
         "description": "TestEndpointOverriddenResponseBody result type (overridden view)",
         "example": {
-          "int": 1
+          "int": 1,
+          "string": ""
         },
         "properties": {
           "int": {
@@ -58,7 +60,9 @@
       },
       "TestEndpointTinyResponseBodyTiny": {
         "description": "TestEndpointTinyResponseBody result type (tiny view)",
-        "example": {},
+        "example": {
+          "string": ""
+        },
         "properties": {
           "string": {
             "example": "",
@@ -84,12 +88,14 @@
             "content": {
               "application/json": {
                 "example": {
-                  "int": 1
+                  "int": 1,
+                  "string": ""
                 },
                 "schema": {
                   "$ref": "#/components/schemas/TestEndpointDefaultResponseBody",
                   "example": {
-                    "int": 1
+                    "int": 1,
+                    "string": ""
                   }
                 }
               }
@@ -140,12 +146,14 @@
             "content": {
               "application/json": {
                 "example": {
-                  "int": 1
+                  "int": 1,
+                  "string": ""
                 },
                 "schema": {
                   "$ref": "#/components/schemas/TestEndpointOverriddenResponseBodyOverridden",
                   "example": {
-                    "int": 1
+                    "int": 1,
+                    "string": ""
                   }
                 }
               }
@@ -167,10 +175,14 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {},
+                "example": {
+                  "string": ""
+                },
                 "schema": {
                   "$ref": "#/components/schemas/TestEndpointTinyResponseBodyTiny",
-                  "example": {}
+                  "example": {
+                    "string": ""
+                  }
                 }
               }
             },

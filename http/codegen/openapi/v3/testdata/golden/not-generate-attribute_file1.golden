@@ -18,7 +18,13 @@ paths:
                 content:
                     application/json:
                         schema:
+                            example:
+                                required_string: ""
+                                string: ""
                             $ref: '#/components/schemas/Payload'
+                        example:
+                            required_string: ""
+                            string: ""
             responses:
                 "200":
                     description: OK response.

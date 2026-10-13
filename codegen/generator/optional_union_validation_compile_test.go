@@ -157,12 +157,12 @@ func TestViewValidation(t *testing.T) {
 	}{
 		{"absent", &optviews.RTView{ID: ptr("a")}, ""},
 		{"absent inline union", &optviews.RTView{ID: ptr("a"), Anon: &struct {
-			Anon *optviews.Anon ` + "`" + `json:"anon,omitempty"` + "`" + `
+			Anon *optviews.Anon ` + "`" + `json:"anon,omitzero"` + "`" + `
 		}{}}, ""},
 		{"valid", &optviews.RTView{ID: ptr("a"), C: ptr(optviews.NewChoiceViewLeaf(&optviews.LeafView{Name: ptr("x")}))}, ""},
 		{"invalid", &optviews.RTView{ID: ptr("a"), C: ptr(optviews.NewChoiceViewLeaf(&optviews.LeafView{Name: ptr("")}))}, "result.c.value.name"},
 		{"invalid inline union", &optviews.RTView{ID: ptr("a"), Anon: &struct {
-			Anon *optviews.Anon ` + "`" + `json:"anon,omitempty"` + "`" + `
+			Anon *optviews.Anon ` + "`" + `json:"anon,omitzero"` + "`" + `
 		}{Anon: ptr(optviews.NewAnonText("x"))}}, "result.anon.anon.value"},
 	}
 	for _, c := range cases {
@@ -211,7 +211,7 @@ func TestHTTPRoundTrip(t *testing.T) {
 	holders := []*opt.Holder{
 		{ID: "absent", Req: opt.NewChoiceOther(&opt.Other{})},
 		{ID: "inline", Req: opt.NewChoiceOther(&opt.Other{}), Anon: &struct {
-			Anon *opt.Anon2 ` + "`" + `json:"anon,omitempty"` + "`" + `
+			Anon *opt.Anon2 ` + "`" + `json:"anon,omitzero"` + "`" + `
 		}{Anon: ptr(opt.NewAnon2Text("xy"))}},
 		{ID: "present", Req: opt.NewChoiceOther(&opt.Other{}), Named: ptr(opt.NewChoiceLeaf(&opt.Leaf{Name: "x"}))},
 	}

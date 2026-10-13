@@ -22,10 +22,14 @@
       "ResultStatus200Response": {
         "content": {
           "application/json": {
-            "example": {},
+            "example": {
+              "string": ""
+            },
             "schema": {
               "$ref": "#/components/schemas/Result",
-              "example": {}
+              "example": {
+                "string": ""
+              }
             }
           }
         },

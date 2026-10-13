@@ -46,8 +46,9 @@ paths:
                                     resulttype_map:
                                         "":
                                             bar:
-                                                - {}
-                                                - {}
+                                                - string: ""
+                                                - string: ""
+                                            foo: ""
                                     uint32_map:
                                         "": 1
                                     uint64_map:
@@ -57,8 +58,9 @@ paths:
                                 resulttype_map:
                                     "":
                                         bar:
-                                            - {}
-                                            - {}
+                                            - string: ""
+                                            - string: ""
+                                        foo: ""
                                 uint32_map:
                                     "": 1
                                 uint64_map:
@@ -135,10 +137,11 @@ components:
                     example:
                         "":
                             bar:
-                                - {}
-                                - {}
-                                - {}
-                                - {}
+                                - string: ""
+                                - string: ""
+                                - string: ""
+                                - string: ""
+                            foo: ""
                     additionalProperties:
                         $ref: '#/components/schemas/LoomFoobar'
                 uint32_map:
@@ -161,9 +164,10 @@ components:
                 resulttype_map:
                     "":
                         bar:
-                            - {}
-                            - {}
-                            - {}
+                            - string: ""
+                            - string: ""
+                            - string: ""
+                        foo: ""
                 uint32_map:
                     "": 1
                 uint64_map:

@@ -58,8 +58,16 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "example": {
+                "required_string": "",
+                "string": ""
+              },
               "schema": {
-                "$ref": "#/components/schemas/Payload"
+                "$ref": "#/components/schemas/Payload",
+                "example": {
+                  "required_string": "",
+                  "string": ""
+                }
               }
             }
           },

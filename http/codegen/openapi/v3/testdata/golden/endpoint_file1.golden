@@ -27,9 +27,11 @@ paths:
                     content:
                         application/json:
                             schema:
-                                example: {}
+                                example:
+                                    string: ""
                                 $ref: '#/components/schemas/Result'
-                            example: {}
+                            example:
+                                string: ""
             summary: testEndpoint testService
             tags:
                 - testService

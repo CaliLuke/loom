@@ -87,21 +87,39 @@
               "application/json": {
                 "example": {
                   "bar": [
-                    {},
-                    {},
-                    {},
-                    {}
-                  ]
+                    {
+                      "string": ""
+                    },
+                    {
+                      "string": ""
+                    },
+                    {
+                      "string": ""
+                    },
+                    {
+                      "string": ""
+                    }
+                  ],
+                  "foo": ""
                 },
                 "schema": {
                   "$ref": "#/components/schemas/LoomFoobar",
                   "example": {
                     "bar": [
-                      {},
-                      {},
-                      {},
-                      {}
-                    ]
+                      {
+                        "string": ""
+                      },
+                      {
+                        "string": ""
+                      },
+                      {
+                        "string": ""
+                      },
+                      {
+                        "string": ""
+                      }
+                    ],
+                    "foo": ""
                   }
                 }
               }

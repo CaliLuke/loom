@@ -63,9 +63,11 @@ components:
             content:
                 application/json:
                     schema:
-                        example: {}
+                        example:
+                            string: ""
                         $ref: '#/components/schemas/Result'
-                    example: {}
+                    example:
+                        string: ""
 tags:
     - name: anotherTestService
     - name: testService

@@ -29,9 +29,11 @@ paths:
                     content:
                         application/json:
                             schema:
-                                example: {}
+                                example:
+                                    value: ""
                                 $ref: '#/components/schemas/BarResult'
-                            example: {}
+                            example:
+                                value: ""
     /baz:
         post:
             tags:
@@ -54,9 +56,11 @@ paths:
                     content:
                         application/json:
                             schema:
-                                example: {}
+                                example:
+                                    value: ""
                                 $ref: '#/components/schemas/BazResult'
-                            example: {}
+                            example:
+                                value: ""
     /foo:
         post:
             tags:
@@ -79,9 +83,11 @@ paths:
                     content:
                         application/json:
                             schema:
-                                example: {}
+                                example:
+                                    value: ""
                                 $ref: '#/components/schemas/FooResult'
-                            example: {}
+                            example:
+                                value: ""
 components:
     schemas:
         BarPayload:
@@ -114,7 +120,8 @@ components:
                 value:
                     type: string
                     example: ""
-            example: {}
+            example:
+                value: ""
         FooPayload:
             type: object
             properties:
@@ -129,6 +136,7 @@ components:
                 value:
                     type: string
                     example: ""
-            example: {}
+            example:
+                value: ""
 tags:
     - name: testService

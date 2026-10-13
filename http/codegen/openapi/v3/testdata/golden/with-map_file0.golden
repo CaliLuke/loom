@@ -109,10 +109,17 @@
           "resulttype_map": {
             "": {
               "bar": [
-                {},
-                {},
-                {}
-              ]
+                {
+                  "string": ""
+                },
+                {
+                  "string": ""
+                },
+                {
+                  "string": ""
+                }
+              ],
+              "foo": ""
             }
           },
           "uint32_map": {
@@ -130,11 +137,20 @@
             "example": {
               "": {
                 "bar": [
-                  {},
-                  {},
-                  {},
-                  {}
-                ]
+                  {
+                    "string": ""
+                  },
+                  {
+                    "string": ""
+                  },
+                  {
+                    "string": ""
+                  },
+                  {
+                    "string": ""
+                  }
+                ],
+                "foo": ""
               }
             },
             "type": "object"
@@ -220,9 +236,14 @@
                   "resulttype_map": {
                     "": {
                       "bar": [
-                        {},
-                        {}
-                      ]
+                        {
+                          "string": ""
+                        },
+                        {
+                          "string": ""
+                        }
+                      ],
+                      "foo": ""
                     }
                   },
                   "uint32_map": {
@@ -238,9 +259,14 @@
                     "resulttype_map": {
                       "": {
                         "bar": [
-                          {},
-                          {}
-                        ]
+                          {
+                            "string": ""
+                          },
+                          {
+                            "string": ""
+                          }
+                        ],
+                        "foo": ""
                       }
                     },
                     "uint32_map": {

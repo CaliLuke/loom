@@ -32,17 +32,19 @@ paths:
                             schema:
                                 example:
                                     bar:
-                                        - {}
-                                        - {}
-                                        - {}
-                                        - {}
+                                        - string: ""
+                                        - string: ""
+                                        - string: ""
+                                        - string: ""
+                                    foo: ""
                                 $ref: '#/components/schemas/LoomFoobar'
                             example:
                                 bar:
-                                    - {}
-                                    - {}
-                                    - {}
-                                    - {}
+                                    - string: ""
+                                    - string: ""
+                                    - string: ""
+                                    - string: ""
+                                foo: ""
 components:
     schemas:
         Bar:

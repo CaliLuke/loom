@@ -38,7 +38,9 @@
         "type": "object"
       },
       "BazResult": {
-        "example": {},
+        "example": {
+          "value": ""
+        },
         "properties": {
           "value": {
             "example": "",
@@ -60,7 +62,9 @@
         "type": "object"
       },
       "FooResult": {
-        "example": {},
+        "example": {
+          "value": ""
+        },
         "properties": {
           "value": {
             "example": "",
@@ -101,10 +105,14 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {},
+                "example": {
+                  "value": ""
+                },
                 "schema": {
                   "$ref": "#/components/schemas/BarResult",
-                  "example": {}
+                  "example": {
+                    "value": ""
+                  }
                 }
               }
             },
@@ -140,10 +148,14 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {},
+                "example": {
+                  "value": ""
+                },
                 "schema": {
                   "$ref": "#/components/schemas/BazResult",
-                  "example": {}
+                  "example": {
+                    "value": ""
+                  }
                 }
               }
             },
@@ -179,10 +191,14 @@
           "200": {
             "content": {
               "application/json": {
-                "example": {},
+                "example": {
+                  "value": ""
+                },
                 "schema": {
                   "$ref": "#/components/schemas/FooResult",
-                  "example": {}
+                  "example": {
+                    "value": ""
+                  }
                 }
               }
             },

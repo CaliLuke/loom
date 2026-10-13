@@ -22,9 +22,11 @@ paths:
                             schema:
                                 example:
                                     int: 1
+                                    string: ""
                                 $ref: '#/components/schemas/JSON'
                             example:
                                 int: 1
+                                string: ""
     /tiny:
         get:
             tags:
@@ -37,9 +39,11 @@ paths:
                     content:
                         application/vnd.custom+json:
                             schema:
-                                example: {}
+                                example:
+                                    string: ""
                                 $ref: '#/components/schemas/TestEndpointTinyResponseBodyTiny'
-                            example: {}
+                            example:
+                                string: ""
 components:
     schemas:
         JSON:
@@ -62,6 +66,7 @@ components:
                     type: string
                     example: ""
             description: TestEndpointTinyResponseBody result type (tiny view)
-            example: {}
+            example:
+                string: ""
 tags:
     - name: testService
