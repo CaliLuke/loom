@@ -28,6 +28,11 @@ renderer, or framework tests, use the `loom-framework` skill.
 Never edit `gen/` directly. `loom gen` deletes and recreates it transactionally,
 so manual changes are both temporary and misleading.
 
+Generated HTTP and JSON-RPC Server handler fields have their own names, which
+can differ from service methods when they would collide with fixed members or
+other handlers. Use the regenerated declarations when accessing fields directly;
+service method names and wire routes stay unchanged. Regenerate after upgrading.
+
 User-editable plugin files belong outside `gen/` and should declare create-only
 behavior. Loom rejects create-only files inside the regenerated tree. Upgrade
 the CLI launcher and the design module's Loom dependency together.

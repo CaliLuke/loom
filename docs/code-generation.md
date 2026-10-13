@@ -816,6 +816,16 @@ func (c *Client) Add(ctx context.Context, p *AddPayload) (res int, err error) {
 
 ### Server Implementation
 
+HTTP and JSON-RPC server handler fields use names allocated for their concrete
+receiver. A field can differ from its service method name when a fixed member
+(such as `Mount`, `Service`, or `Methods`) or another handler occupies that name.
+File handlers share the same receiver namespace. JSON-RPC WebSocket decoder and
+endpoint fields remain distinct even when their names would otherwise overlap.
+Service interfaces, authored routes and JSON-RPC method strings remain unchanged.
+Regenerate after upgrading, and update any direct handler-field accesses to the
+names in the generated Server declaration. Ordinary noncolliding names remain
+unchanged.
+
 Generated in `gen/http/<service>/server/server.go`:
 
 ```go

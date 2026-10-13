@@ -1,0 +1,70 @@
+package servermembers_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"strings"
+	"testing"
+	"testing/fstest"
+
+	server "example.com/servermembers/gen/http/members/server"
+	"example.com/servermembers/gen/members"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMountedServerMemberIdentity(t *testing.T) {
+	endpoints := &members.Endpoints{}
+	fields := reflect.ValueOf(endpoints).Elem()
+	for i := 0; i < fields.NumField(); i++ {
+		name := members.MethodNames[i]
+		fields.Field(i).Set(reflect.ValueOf(loom.Endpoint(func(_ context.Context, input any) (any, error) {
+			return name + ":" + input.(string), nil
+		})))
+	}
+	mux := loomhttp.NewMuxer()
+	policy, err := loomhttp.NewRuntimeCORSPolicy(loomhttp.CORSPolicy{Origins: []loomhttp.CORSOrigin{{Pattern: "https://example.com", Methods: []string{"POST", "OPTIONS"}}}})
+	require.NoError(t, err)
+	srv := server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil, policy,
+		http.FS(fstest.MapFS{"Read": &fstest.MapFile{Data: []byte("static-file")}}))
+	srv.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Wrapped", "yes")
+			next.ServeHTTP(w, r)
+		})
+	})
+	server.Mount(mux, srv)
+	for _, name := range members.MethodNames {
+		t.Run(name, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/"+name, strings.NewReader(`"incoming"`))
+			r.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, r)
+			require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+			require.Equal(t, "yes", w.Header().Get("X-Wrapped"))
+			var result string
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &result))
+			require.Equal(t, name+":incoming", result)
+		})
+	}
+	// Authored OPTIONS must select the renamed mount handler, not a neighbor.
+	r := httptest.NewRequest("OPTIONS", "/mount", strings.NewReader(`"options"`))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Origin", "https://example.com")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.Equal(t, "https://example.com", w.Header().Get("Access-Control-Allow-Origin"))
+	require.Equal(t, "yes", w.Header().Get("X-Wrapped"))
+	var result string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &result))
+	require.Equal(t, "mount:options", result)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest("GET", "/static", nil))
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "static-file", w.Body.String())
+}

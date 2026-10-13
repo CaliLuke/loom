@@ -20,7 +20,7 @@ func serverStructSection(data *ServiceData) codegen.Section {
 				group.Id("corsPolicy").Add(codegen.TypeRef("loomhttp.RuntimeCORSPolicy"))
 			}
 			for _, endpoint := range data.Endpoints {
-				group.Id(endpoint.Method.VarName).Qual("net/http", "Handler")
+				group.Id(endpoint.ServerHandler).Qual("net/http", "Handler")
 			}
 			for _, fs := range data.FileServers {
 				group.Id(fs.VarName).Qual("net/http", "Handler")
@@ -126,7 +126,7 @@ func renderServerInitBody(data *ServiceData) string {
 	}
 	b.WriteString("\t\t},\n")
 	for _, endpoint := range data.Endpoints {
-		fmt.Fprintf(&b, "\t\t%s: %s(e.%s, mux, ", endpoint.Method.VarName, endpoint.HandlerInit, endpoint.Method.VarName)
+		fmt.Fprintf(&b, "\t\t%s: %s(e.%s, mux, ", endpoint.ServerHandler, endpoint.HandlerInit, endpoint.Method.VarName)
 		if endpoint.MultipartRequestDecoder != nil {
 			fmt.Fprintf(&b, "%s(mux, %s)", endpoint.MultipartRequestDecoder.InitName, endpoint.MultipartRequestDecoder.VarName)
 		} else {
@@ -185,7 +185,7 @@ func serverUseSection(data *ServiceData) codegen.Section {
 			Params(jen.Id("m").Func().Params(jen.Qual("net/http", "Handler")).Qual("net/http", "Handler")).
 			BlockFunc(func(group *jen.Group) {
 				for _, endpoint := range data.Endpoints {
-					group.Id("s").Dot(endpoint.Method.VarName).Op("=").Id("m").Call(jen.Id("s").Dot(endpoint.Method.VarName))
+					group.Id("s").Dot(endpoint.ServerHandler).Op("=").Id("m").Call(jen.Id("s").Dot(endpoint.ServerHandler))
 				}
 			})
 		stmt.Line()
@@ -263,10 +263,10 @@ func renderCORSPreflightMounts(b *strings.Builder, data *ServiceData) {
 
 func renderCORSOptionsMount(b *strings.Builder, data *ServiceData, route corsPreflightRoute) {
 	if data.CORS.Runtime {
-		fmt.Fprintf(b, "\tmux.Handle(%q, %q, h.corsPolicy.OptionsHandler(loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, route.OptionsEndpoint.Method.VarName, quotedStringList(route.Methods))
+		fmt.Fprintf(b, "\tmux.Handle(%q, %q, h.corsPolicy.OptionsHandler(loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, route.OptionsEndpoint.ServerHandler, quotedStringList(route.Methods))
 		return
 	}
-	fmt.Fprintf(b, "\tmux.Handle(%q, %q, loomhttp.CORSOptionsHandler(%s, loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, renderCORSPolicy(data.CORS), route.OptionsEndpoint.Method.VarName, quotedStringList(route.Methods))
+	fmt.Fprintf(b, "\tmux.Handle(%q, %q, loomhttp.CORSOptionsHandler(%s, loomhttp.AsHandlerFunc(h.%s), []string{%s}))\n", "OPTIONS", route.Path, renderCORSPolicy(data.CORS), route.OptionsEndpoint.ServerHandler, quotedStringList(route.Methods))
 }
 
 func renderEndpointMounts(b *strings.Builder, data *ServiceData) {
@@ -276,9 +276,9 @@ func renderEndpointMounts(b *strings.Builder, data *ServiceData) {
 			continue
 		}
 		if data.CORS != nil && data.CORS.Runtime {
-			fmt.Fprintf(b, "\t%s(mux, h.%s, h.corsPolicy)\n", endpoint.MountHandler, endpoint.Method.VarName)
+			fmt.Fprintf(b, "\t%s(mux, h.%s, h.corsPolicy)\n", endpoint.MountHandler, endpoint.ServerHandler)
 		} else {
-			fmt.Fprintf(b, "\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.Method.VarName)
+			fmt.Fprintf(b, "\t%s(mux, h.%s)\n", endpoint.MountHandler, endpoint.ServerHandler)
 		}
 	}
 }
@@ -289,9 +289,9 @@ func renderNonOptionsEndpointMounts(b *strings.Builder, data *ServiceData, endpo
 			continue
 		}
 		if data.CORS.Runtime {
-			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, h.corsPolicy.Handler(loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, endpoint.Method.VarName)
+			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, h.corsPolicy.Handler(loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, endpoint.ServerHandler)
 		} else {
-			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, renderCORSPolicy(data.CORS), endpoint.Method.VarName)
+			fmt.Fprintf(b, "\tloomhttp.MountHandler(mux, %q, %q, loomhttp.CORSHandler(%s, loomhttp.AsHandlerFunc(h.%s)))\n", route.Verb, route.Path, renderCORSPolicy(data.CORS), endpoint.ServerHandler)
 		}
 	}
 }

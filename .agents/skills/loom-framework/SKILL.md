@@ -75,6 +75,17 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `http/codegen.finalizeServerMembers` owns concrete HTTP/JSON-RPC server field
+  identities after transport analysis. Reserve actual fixed receiver members,
+  allocate endpoint handler and streaming-endpoint roles separately, and allocate
+  file-handler fields in that same receiver scope. JSON-RPC WebSocket fields are
+  copied into the service stream, so reserve both receiving namespaces. Render
+  declarations, initialization, mounting, middleware, dispatch and stream copies
+  from those recorded identities. Preserve canonical service methods, wire names,
+  package helpers and import-independent names through FileData reanalysis. Keep
+  the server-member model and mounted routing controls aligned; client and gRPC
+  receiver naming are separate owners.
+
 - `http/codegen.buildCLIArgumentPlan` owns selected endpoint-bearing service order
   and the parser/example dependency sequence for HTTP and JSON-RPC. Keep exact
   service and endpoint identity through command-name allocation; project each

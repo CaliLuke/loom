@@ -145,6 +145,11 @@ type (
 
 		// server
 
+		// ServerHandler is the handler field in the concrete transport server.
+		ServerHandler string
+		// ServerEndpoint is the separate endpoint field copied into JSON-RPC
+		// WebSocket streams; it is empty when no such field is emitted.
+		ServerEndpoint string
 		// MountHandler is the name of the mount handler function.
 		MountHandler string
 		// HandlerInit is the name of the constructor function for the
@@ -219,7 +224,7 @@ type (
 		PathParam string
 		// Redirect defines a redirect for the endpoint.
 		Redirect *RedirectData
-		// VarName is the name of the variable that holds the file server.
+		// VarName is the unique file-handler field in the transport Server.
 		VarName string
 		// ArgName is the name of the argument used to initialize the
 		// file server.

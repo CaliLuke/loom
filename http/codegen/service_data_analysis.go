@@ -59,6 +59,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	sd.collectBodyUnionTypes(closed == "true")
 	sds.prepareCLIBodyInputs(sd, closed == "true")
 	sd.finalizeConstructors()
+	finalizeServerMembers(sd)
 
 	return sd
 }
@@ -191,7 +192,7 @@ func (sds *ServicesData) buildFileServersData(httpSvc *expr.HTTPServiceExpr, sco
 			IsDir:        server.IsDir(),
 			PathParam:    pathParam,
 			Redirect:     httpRedirectData(server.Redirect),
-			VarName:      scope.Unique(codegen.Goify(server.FilePath, true)),
+			VarName:      codegen.Goify(server.FilePath, true),
 			ArgName:      scope.Unique(fmt.Sprintf("fileSystem%s", codegen.Goify(server.FilePath, true))),
 		})
 	}

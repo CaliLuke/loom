@@ -30,7 +30,7 @@ func addJSONRPCDispatchHTTPSection(stmt *jen.Statement, data *httpcodegen.Servic
 					dispatch.Case(jen.Lit(endpoint.Method.Name)).Block(
 						jen.Return(
 							jen.True(),
-							jen.Id("s").Dot(endpoint.Method.VarName).Call(
+							jen.Id("s").Dot(endpoint.ServerHandler).Call(
 								jen.Id("ctx"),
 								jen.Id("r"),
 								jen.Id("req"),

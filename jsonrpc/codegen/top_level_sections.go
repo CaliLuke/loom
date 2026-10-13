@@ -118,7 +118,7 @@ func jsonrpcServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
 			}
 			for _, endpoint := range data.Endpoints {
 				if httpcodegen.IsWebSocketEndpoint(endpoint) {
-					g.Id(lowerInitial(endpoint.Method.VarName)).
+					g.Id(endpoint.ServerHandler).
 						Func().
 						Params(
 							jen.Qual("context", "Context"),
@@ -127,12 +127,12 @@ func jsonrpcServerStructSection(data *httpcodegen.ServiceData) codegen.Section {
 						).
 						Params(jen.Any(), jen.Error())
 					if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
-						g.Id(lowerInitial(endpoint.Method.VarName) + "Endpoint").Add(codegen.TypeRef("loom.Endpoint"))
+						g.Id(endpoint.ServerEndpoint).Add(codegen.TypeRef("loom.Endpoint"))
 					}
 					continue
 				}
-				g.Comment(codegen.Comment(fmt.Sprintf("%s is the handler for the %s method.", endpoint.Method.VarName, endpoint.Method.Name)))
-				g.Id(endpoint.Method.VarName).
+				g.Comment(codegen.Comment(fmt.Sprintf("%s is the handler for the %s method.", endpoint.ServerHandler, endpoint.Method.Name)))
+				g.Id(endpoint.ServerHandler).
 					Func().
 					Params(
 						jen.Qual("context", "Context"),

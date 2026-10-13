@@ -28,13 +28,13 @@ func jsonrpcWebSocketServerStructSection(data *httpcodegen.ServiceData) codegen.
 		codegen.Doc(stmt, fmt.Sprintf("%s implements the Stream interface.", streamName))
 		stmt.Type().Id(streamName).StructFunc(func(g *jen.Group) {
 			for _, ed := range data.Endpoints {
-				g.Comment(codegen.Comment(fmt.Sprintf("%s decodes requests for the %s method", lowerInitial(ed.Method.VarName), ed.Method.Name)))
-				g.Id(lowerInitial(ed.Method.VarName)).Func().
+				g.Comment(codegen.Comment(fmt.Sprintf("%s decodes requests for the %s method", ed.ServerHandler, ed.Method.Name)))
+				g.Id(ed.ServerHandler).Func().
 					Params(jen.Qual("context", "Context"), jen.Op("*").Qual("net/http", "Request"), jen.Op("*").Qual("github.com/CaliLuke/loom/jsonrpc", "RawRequest")).
 					Params(jen.Any(), jen.Error())
 				if ed.Method.ServerStream != nil && (ed.Method.ServerStream.Kind == expr.ServerStreamKind || ed.Method.ServerStream.Kind == expr.BidirectionalStreamKind) {
-					g.Comment(codegen.Comment(fmt.Sprintf("%sEndpoint is the endpoint for the %s method", lowerInitial(ed.Method.VarName), ed.Method.Name)))
-					g.Id(lowerInitial(ed.Method.VarName) + "Endpoint").Add(codegen.TypeRef("loom.Endpoint"))
+					g.Comment(codegen.Comment(fmt.Sprintf("%s is the endpoint for the %s method", ed.ServerEndpoint, ed.Method.Name)))
+					g.Id(ed.ServerEndpoint).Add(codegen.TypeRef("loom.Endpoint"))
 				}
 			}
 			g.Comment("cancel is the context cancellation function which cancels the request context when invoked.")

@@ -13,9 +13,9 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 	if ed.Method.ServerStream != nil && (ed.Method.ServerStream.Kind == expr.ServerStreamKind || ed.Method.ServerStream.Kind == expr.BidirectionalStreamKind) {
 		g.Case(jen.Lit(ed.Method.Name)).BlockFunc(func(cg *jen.Group) {
 			if ed.Payload != nil && ed.Payload.Ref != "" {
-				cg.List(jen.Id("payload"), jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
+				cg.List(jen.Id("payload"), jen.Err()).Op(":=").Id("s").Dot(ed.ServerHandler).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
 			} else {
-				cg.List(jen.Id("_"), jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
+				cg.List(jen.Id("_"), jen.Err()).Op(":=").Id("s").Dot(ed.ServerHandler).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
 			}
 			cg.If(jen.Err().Op("!=").Nil()).BlockFunc(writeWebSocketRequestFailure)
 			cg.Id("streamWrapper").Op(":=").Op("&").Id(lowerInitial(ed.Method.VarName) + "StreamWrapper").Values(jen.Dict{
@@ -29,7 +29,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 			}
 			cg.Id("endpointInput").Op(":=").Op("&").Add(codegen.PkgQual(ed.ServicePkgName, ed.Method.ServerStream.EndpointStruct)).Values(fields)
 			cg.If(
-				jen.List(jen.Id("_"), jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)+"Endpoint").Call(jen.Id("ctx"), jen.Id("endpointInput")),
+				jen.List(jen.Id("_"), jen.Err()).Op(":=").Id("s").Dot(ed.ServerEndpoint).Call(jen.Id("ctx"), jen.Id("endpointInput")),
 				jen.Err().Op("!=").Nil(),
 			).BlockFunc(writeWebSocketRequestFailure)
 			cg.Return(jen.Nil())
@@ -42,7 +42,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 		if !hasResult {
 			res = jen.Id("_")
 		}
-		cg.List(res, jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
+		cg.List(res, jen.Err()).Op(":=").Id("s").Dot(ed.ServerHandler).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
 		cg.If(jen.Err().Op("!=").Nil()).BlockFunc(writeWebSocketRequestFailure)
 		if !hasResult {
 			// A method without a result answers a request with an ID with

@@ -74,7 +74,7 @@ func addJSONRPCSSEDispatchMethod(stmt *jen.Statement, data *httpcodegen.ServiceD
 						jen.Return(
 							jen.True(),
 							jen.Lit(unary),
-							jen.Id("s").Dot(endpoint.Method.VarName).Call(jen.Id("ctx"), jen.Id("r"), jen.Id("req"), jen.Id("w")),
+							jen.Id("s").Dot(endpoint.ServerHandler).Call(jen.Id("ctx"), jen.Id("r"), jen.Id("req"), jen.Id("w")),
 						),
 					)
 				}

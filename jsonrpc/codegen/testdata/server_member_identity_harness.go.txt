@@ -1,0 +1,115 @@
+package rpcmembers_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	server "example.com/rpcmembers/gen/jsonrpc/members/server"
+	"example.com/rpcmembers/gen/members"
+	"github.com/gorilla/websocket"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMountedServerMemberIdentity(t *testing.T) {
+	endpoints := &members.Endpoints{}
+	fields := reflect.ValueOf(endpoints).Elem()
+	for i := 0; i < fields.NumField(); i++ {
+		name := members.MethodNames[i]
+		fields.Field(i).Set(reflect.ValueOf(loom.Endpoint(func(ctx context.Context, input any) (any, error) {
+			value := reflect.ValueOf(input).Elem()
+			payload := value
+			stream := value.FieldByName("Stream")
+			if stream.IsValid() {
+				payload = value.FieldByName("Payload").Elem()
+			}
+			if payload.FieldByName("Value").Elem().String() != "incoming" {
+				return nil, fmt.Errorf("wrong payload for %s", name)
+			}
+			result := name + ":incoming"
+			if !stream.IsValid() {
+				return result, nil
+			}
+			method := stream.MethodByName("SendResponse")
+			if !method.IsValid() {
+				method = stream.MethodByName("SendAndClose")
+			}
+			results := method.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(result)})
+			if !results[0].IsNil() {
+				return nil, results[0].Interface().(error)
+			}
+			return nil, nil
+		})))
+	}
+	mux := loomhttp.NewMuxer()
+	@@NEW@@
+	var wrapped atomic.Int32
+	srv.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			wrapped.Add(1)
+			w.Header().Set("X-Wrapped", "yes")
+			next.ServeHTTP(w, r)
+		})
+	})
+	server.Mount(mux, srv)
+	const kind = "@@KIND@@"
+	if kind == "server" || kind == "bidi" || kind == "keywords" {
+		peer := httptest.NewServer(mux)
+		defer peer.Close()
+		conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(peer.URL, "http")+"/rpc", nil)
+		require.NoError(t, err)
+		require.Equal(t, int32(1), wrapped.Load())
+		defer func() {
+			require.NoError(t, conn.Close())
+		}()
+		for _, name := range members.MethodNames {
+			require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"jsonrpc":"2.0","method":%q,"params":{"value":"incoming"},"id":7}`, name))))
+			require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
+			_, wire, err := conn.ReadMessage()
+			require.NoError(t, err, name)
+			var result struct {
+				ID int `json:"id"`
+				Result string `json:"result"`
+			}
+			require.NoError(t, json.Unmarshal(wire, &result))
+			require.Equal(t, 7, result.ID, string(wire))
+			require.Equal(t, name+":incoming", result.Result, string(wire))
+		}
+		return
+	}
+	for _, name := range members.MethodNames {
+		t.Run(name, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/rpc", strings.NewReader(fmt.Sprintf(`{"jsonrpc":"2.0","method":%q,"params":{"value":"incoming"},"id":7}`, name)))
+			r.Header.Set("Content-Type", "application/json")
+			if kind == "sse" || (kind == "mixed" && name != "read") {
+				r.Header.Set("Accept", "text/event-stream")
+			}
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, r)
+			require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+			require.Equal(t, "yes", w.Header().Get("X-Wrapped"))
+			wire := w.Body.String()
+			if r.Header.Get("Accept") != "" {
+				require.Contains(t, w.Header().Get("Content-Type"), "text/event-stream")
+				_, wire, _ = strings.Cut(wire, "data: ")
+				wire, _, _ = strings.Cut(wire, "\n")
+			}
+			var result struct {
+				ID int `json:"id"`
+				Result string `json:"result"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(wire), &result))
+			require.Equal(t, 7, result.ID, wire)
+			require.Equal(t, name+":incoming", result.Result, wire)
+		})
+	}
+}

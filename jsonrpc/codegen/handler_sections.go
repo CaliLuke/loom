@@ -51,9 +51,9 @@ func jsonrpcWebSocketServerHandlerSection(data *httpcodegen.ServiceData) codegen
 								jen.Id("cancel"): jen.Id("cancel"),
 							}
 							for _, endpoint := range data.Endpoints {
-								streamDict[jen.Id(lowerInitial(endpoint.Method.VarName))] = jen.Id("s").Dot(lowerInitial(endpoint.Method.VarName))
+								streamDict[jen.Id(endpoint.ServerHandler)] = jen.Id("s").Dot(endpoint.ServerHandler)
 								if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
-									streamDict[jen.Id(lowerInitial(endpoint.Method.VarName)+"Endpoint")] = jen.Id("s").Dot(lowerInitial(endpoint.Method.VarName) + "Endpoint")
+									streamDict[jen.Id(endpoint.ServerEndpoint)] = jen.Id("s").Dot(endpoint.ServerEndpoint)
 								}
 							}
 							run.Id("stream").Op(":=").Op("&").Id(streamName).Values(streamDict)

@@ -104,13 +104,13 @@ func jsonrpcServerInitFields(data *httpcodegen.ServiceData) jen.Dict {
 	}
 	for _, endpoint := range data.Endpoints {
 		if httpcodegen.IsWebSocketEndpoint(endpoint) {
-			dict[jen.Id(lowerInitial(endpoint.Method.VarName))] = jen.Id(endpoint.HandlerInit).Call(
+			dict[jen.Id(endpoint.ServerHandler)] = jen.Id(endpoint.HandlerInit).Call(
 				jen.Id("endpoints").Dot(endpoint.Method.VarName),
 				jen.Id("mux"),
 				jen.Id("decoder"),
 			)
 			if endpoint.Method.ServerStream != nil && (endpoint.Method.ServerStream.Kind == 3 || endpoint.Method.ServerStream.Kind == 4) {
-				dict[jen.Id(lowerInitial(endpoint.Method.VarName)+"Endpoint")] = jen.Id("endpoints").Dot(endpoint.Method.VarName)
+				dict[jen.Id(endpoint.ServerEndpoint)] = jen.Id("endpoints").Dot(endpoint.Method.VarName)
 			}
 			continue
 		}
@@ -124,7 +124,7 @@ func jsonrpcServerInitFields(data *httpcodegen.ServiceData) jen.Dict {
 		if httpcodegen.IsSSEEndpoint(endpoint) {
 			args = append(args, jen.Id("streamWritePolicy"))
 		}
-		dict[jen.Id(endpoint.Method.VarName)] = jen.Id(endpoint.HandlerInit).Call(args...)
+		dict[jen.Id(endpoint.ServerHandler)] = jen.Id(endpoint.HandlerInit).Call(args...)
 	}
 	return dict
 }
