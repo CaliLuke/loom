@@ -58,7 +58,8 @@ func TestClientJenniferWrappedEndpointExpr(t *testing.T) {
 			ArgName:       "endpoint",
 			StreamArgName: "streamEndpoint",
 			MethodData: &MethodData{
-				VarName: "Method",
+				VarName:                  "Method",
+				ClientInterceptorWrapper: "WrapMethodClientEndpoint",
 				MethodSecurityData: MethodSecurityData{
 					ClientInterceptors: []string{"logging"},
 				},
@@ -124,8 +125,9 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 				ArgName:       "method",
 				StreamArgName: "methodStream",
 				MethodData: &MethodData{
-					Name:    "Method",
-					VarName: "Method",
+					Name:                     "Method",
+					VarName:                  "Method",
+					ClientInterceptorWrapper: "WrapMethodClientEndpoint",
 					MethodSecurityData: MethodSecurityData{
 						ClientInterceptors: []string{"logging"},
 					},

@@ -262,7 +262,7 @@ func appendHTTPInterceptors(group *jen.Group, cmd *commandData, sub *subcommandD
 		return
 	}
 	group.Id("endpoint").Op("=").Id(sub.Interceptors.PkgName).
-		Dot("Wrap"+sub.MethodVarName+"ClientEndpoint").
+		Dot(sub.ClientInterceptorWrapper).
 		Call(jen.Id("endpoint"), jen.Id(cmd.Interceptors.VarName))
 }
 

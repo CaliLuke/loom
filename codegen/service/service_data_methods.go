@@ -10,7 +10,7 @@ import (
 
 // buildMethodData creates the data needed to render the given endpoint. It
 // records the user types needed by the service definition in userTypes.
-func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameScope) *MethodData {
+func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameScope, names *methodSymbols) *MethodData {
 	var (
 		vname string
 		desc  string
@@ -21,7 +21,7 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 		errors    []*ErrorInitData
 		errorLocs map[string]*codegen.Location
 	)
-	vname = scope.Unique(codegen.Goify(m.Name, true), "Endpoint")
+	vname = names.name
 	desc = m.Description
 	if desc == "" {
 		desc = codegen.Goify(m.Name, true) + " implements " + m.Name + "."
@@ -33,16 +33,22 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 	errors, errorLocs = buildMethodErrorData(m.Errors, scope)
 
 	data := &MethodData{
-		Name:                m.Name,
-		VarName:             vname,
-		Description:         desc,
-		MethodPayloadData:   buildMethodPayloadData(m, payloadData),
-		MethodResultData:    buildMethodResultData(resultData),
-		MethodSecurityData:  buildMethodSecurityData(m, errors, errorLocs),
-		MethodTransportData: d.buildMethodTransportData(m, vname),
-		MethodStreamingData: buildMethodStreamingData(m),
+		Name:                     m.Name,
+		VarName:                  vname,
+		EndpointConstructor:      names.endpoint,
+		EventName:                names.event,
+		ServerInterceptorWrapper: names.serverWrapper,
+		ClientInterceptorWrapper: names.clientWrapper,
+		symbols:                  names,
+		Description:              desc,
+		MethodPayloadData:        buildMethodPayloadData(m, payloadData),
+		MethodResultData:         buildMethodResultData(resultData),
+		MethodSecurityData:       names.security,
+		MethodTransportData:      names.transport,
+		MethodStreamingData:      buildMethodStreamingData(m),
 	}
 
+	data.Errors, data.ErrorLocs = errors, errorLocs
 	if len(m.Errors) > 0 {
 		data.ErrorValues = make(map[string]*ValueData, len(m.Errors))
 		for _, methodError := range m.Errors {
@@ -50,7 +56,7 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 			data.ErrorValues[methodError.Name] = d.methodValue(m, "error:"+methodError.Name, methodError.AttributeExpr, examples)
 		}
 	}
-	d.initStreamData(data, m, vname, resultData.Name, resultData.Reference, scope)
+	d.initStreamData(data, m, resultData.Name, resultData.Reference, scope)
 	return data
 }
 
@@ -109,7 +115,7 @@ func buildMethodSecurityData(m *expr.MethodExpr, errors []*ErrorInitData, errorL
 	}
 }
 
-func (d *ServicesData) buildMethodTransportData(m *expr.MethodExpr, vname string) MethodTransportData {
+func (d *ServicesData) buildMethodTransportData(m *expr.MethodExpr) MethodTransportData {
 	_, isJSONRPC := m.Meta["jsonrpc"]
 	isJSONRPCSSE, isJSONRPCWebSocket := d.classifyJSONRPCStreamTransport(m, isJSONRPC)
 	skipRequestBodyEncodeDecode, skipResponseBodyEncodeDecode, fileResponse := d.httpTransportFlags(m)
@@ -120,9 +126,6 @@ func (d *ServicesData) buildMethodTransportData(m *expr.MethodExpr, vname string
 		SkipRequestBodyEncodeDecode:  skipRequestBodyEncodeDecode,
 		SkipResponseBodyEncodeDecode: skipResponseBodyEncodeDecode,
 		FileResponse:                 fileResponse,
-		RequestStruct:                vname + "RequestData",
-		ResponseStruct:               vname + "ResponseData",
-		FileResponseStruct:           vname + "FileResponseData",
 	}
 }
 
@@ -215,14 +218,14 @@ func hasFileResponse(methods []*MethodData) bool {
 }
 
 // initStreamData initializes the streaming payload data structures and methods.
-func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, vname, rname, resultRef string, scope *codegen.NameScope) {
+func (d *ServicesData) initStreamData(data *MethodData, m *expr.MethodExpr, rname, resultRef string, scope *codegen.NameScope) {
 	if !m.IsStreaming() && !m.HasMixedResults() {
 		return
 	}
 	sresult := d.buildStreamingResultData(data, m, rname, resultRef, scope)
 	spayload := d.buildStreamingPayloadData(m, scope)
 	streamKind := streamDataKind(m)
-	svrStream, cliStream := buildBaseStreamData(m, vname, sresult.Name, sresult.Ref, scope, data.IsJSONRPC, data.IsJSONRPCSSE)
+	svrStream, cliStream := buildBaseStreamData(m, data.symbols, sresult.Name, sresult.Ref)
 	applyJSONRPCStreamAdjustments(svrStream, m, resultRef, sresult.Name, data.IsJSONRPCSSE)
 	applyStreamDirectionData(streamKind, svrStream, cliStream, sresult, spayload)
 	sent, sentDef := m.Result, data.ResultDef
@@ -362,16 +365,12 @@ func streamDataKind(m *expr.MethodExpr) expr.StreamKind {
 	return m.Stream
 }
 
-func buildBaseStreamData(m *expr.MethodExpr, vname, srname, srref string, scope *codegen.NameScope, isJSONRPC, isJSONRPCSSE bool) (*StreamData, *StreamData) {
-	endpointStruct := vname + "EndpointInput"
-	if isJSONRPC && m.IsStreaming() && !isJSONRPCSSE && m.Stream == expr.ClientStreamKind {
-		endpointStruct = ""
-	}
+func buildBaseStreamData(m *expr.MethodExpr, names *methodSymbols, srname, srref string) (*StreamData, *StreamData) {
 	streamKind := streamDataKind(m)
 	svrStream := &StreamData{
-		Interface:           vname + "ServerStream",
-		VarName:             scope.Unique(codegen.Goify(m.Name, true), "ServerStream"),
-		EndpointStruct:      endpointStruct,
+		Interface:           names.serverInterface,
+		VarName:             names.serverAdapter,
+		EndpointStruct:      names.input,
 		Kind:                streamKind,
 		SendName:            "Send",
 		SendDesc:            fmt.Sprintf("Send streams instances of %q.", srname),
@@ -382,8 +381,8 @@ func buildBaseStreamData(m *expr.MethodExpr, vname, srname, srref string, scope 
 		MustClose:           true,
 	}
 	cliStream := &StreamData{
-		Interface:           vname + "ClientStream",
-		VarName:             scope.Unique(codegen.Goify(m.Name, true), "ClientStream"),
+		Interface:           names.clientInterface,
+		VarName:             names.clientAdapter,
 		Kind:                streamKind,
 		RecvName:            "Recv",
 		RecvDesc:            fmt.Sprintf("Recv reads instances of %q from the stream.", srname),

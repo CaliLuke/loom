@@ -32,13 +32,14 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	}()
 
 	scope, viewScope, pkgName, viewspkg := newServiceScopes(d.Root, service, d.packageNames)
+	symbols := d.serviceSymbols(service, scope)
 	state := d.collectServiceAnalysisData(service, scope, viewScope, viewspkg)
 	seen := analysisSeenTypes(state.types, state.errTypes)
 	wrapRawObjectMethods(service, scope, seen)
 	state.types = append(state.types, collectAuthorizationTypes(service, scope, seen)...)
 	state.types = append(state.types, d.collectForcedServiceTypes(service, scope, seen)...)
-	methods, schemes, viewedRTs := d.buildServiceMethods(service, scope, viewScope, viewspkg, state.seenProj, state.seenViewed, state.viewedRTs)
-	assignEndpointFields(methods, scope)
+	methods, schemes, viewedRTs := d.buildServiceMethods(service, symbols, scope, viewScope, viewspkg, state.seenProj, state.seenViewed, state.viewedRTs)
+	assignEndpointFields(methods)
 	assignAuthenticationFields(methods, scope)
 	unions := collectServiceUnions(service, state.types, state.errTypes, scope)
 	data = newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions)
@@ -122,7 +123,14 @@ func (d *ServicesData) collectForcedServiceTypes(service *expr.ServiceExpr, scop
 	return types
 }
 
-func assignEndpointFields(methods []*MethodData, scope *codegen.NameScope) {
+func assignEndpointFields(methods []*MethodData) {
+	scope := codegen.NewNameScope()
+	for _, m := range methods {
+		scope.Unique(m.VarName)
+		if m.HasMixedResults {
+			scope.Unique(m.VarName + "Stream")
+		}
+	}
 	for _, m := range methods {
 		m.AssignEndpointFields(scope)
 	}
@@ -333,6 +341,7 @@ func wrapRawObject(att *expr.AttributeExpr, name, id string, scope *codegen.Name
 
 func (d *ServicesData) buildServiceMethods(
 	service *expr.ServiceExpr,
+	symbols map[string]*methodSymbols,
 	scope, viewScope *codegen.NameScope,
 	viewspkg string,
 	seenProj map[string]*ProjectedTypeData,
@@ -348,7 +357,7 @@ func (d *ServicesData) buildServiceMethods(
 			"has_payload", methodExpr.Payload != nil && methodExpr.Payload.Type != expr.Empty,
 			"has_result", methodExpr.Result != nil && methodExpr.Result.Type != expr.Empty,
 		)
-		method := d.buildMethodData(methodExpr, scope)
+		method := d.buildMethodData(methodExpr, scope, symbols[methodExpr.Name])
 		methods[i] = method
 		for _, scheme := range method.Schemes {
 			schemes = schemes.Append(scheme)

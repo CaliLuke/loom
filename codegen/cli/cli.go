@@ -53,6 +53,8 @@ type (
 		Flags []*FlagData
 		// MethodVarName is the endpoint method name, e.g. "Add"
 		MethodVarName string
+		// ClientInterceptorWrapper is the allocated service endpoint wrapper name.
+		ClientInterceptorWrapper string
 		// BuildFunction contains the data to generate a payload builder function
 		// if any. Exclusive with Conversion.
 		BuildFunction *BuildFunctionData

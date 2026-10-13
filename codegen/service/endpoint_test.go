@@ -84,8 +84,9 @@ func endpointSectionCode(t *testing.T, dsl func()) string {
 func TestStreamingEndpointAuthUsesPayloadWhenEndpointStructIsOmitted(t *testing.T) {
 	method := &EndpointMethodData{
 		MethodData: &MethodData{
-			Name:    "Stream",
-			VarName: "Stream",
+			Name:                "Stream",
+			VarName:             "Stream",
+			EndpointConstructor: "NewStreamEndpoint",
 			MethodPayloadData: MethodPayloadData{
 				PayloadRef: "*Payload",
 			},

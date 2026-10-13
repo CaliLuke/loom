@@ -43,12 +43,12 @@ func serviceDefinitionSection(data *Data) codegen.Section {
 
 func buildServiceInterface(stmt *jen.Statement, data *Data) {
 	codegen.Doc(stmt, data.Description)
-	stmt.Type().Id("Service").InterfaceFunc(func(group *jen.Group) {
+	stmt.Type().Id(serviceInterfaceName).InterfaceFunc(func(group *jen.Group) {
 		if isJSONRPCWebSocketService(data) {
 			groupDoc(group, "HandleStream handles the JSON-RPC WebSocket streaming connection. Calling Recv() on the stream will dispatch requests to the appropriate methods below.")
 			group.Id("HandleStream").Params(
 				jen.Qual("context", "Context"),
-				jen.Id("Stream"),
+				jen.Id(streamSymbol),
 			).Error()
 		}
 		for _, method := range data.Methods {
@@ -130,7 +130,7 @@ func buildAuthorizerInterface(stmt *jen.Statement, data *Data) {
 		return
 	}
 	stmt.Comment("Authorizer defines the authorization functions to be implemented by the service.").Line()
-	stmt.Type().Id("Authorizer").InterfaceFunc(func(group *jen.Group) {
+	stmt.Type().Id(authorizerSymbol).InterfaceFunc(func(group *jen.Group) {
 		for _, scheme := range data.Schemes.DedupeByType() {
 			groupDoc(group, fmt.Sprintf("%sAuth implements the authorization logic for the %s security scheme.", scheme.Type, scheme.Type))
 			group.Id(scheme.Type+"Auth").ParamsFunc(func(params *jen.Group) {
@@ -161,20 +161,20 @@ func authorizerArgList(schemeType string) []string {
 
 func buildServiceConstants(stmt *jen.Statement, data *Data) {
 	stmt.Comment("APIName is the name of the API as defined in the design.").Line()
-	stmt.Const().Id("APIName").Op("=").Lit(data.APIName)
+	stmt.Const().Id(apiNameSymbol).Op("=").Lit(data.APIName)
 	stmt.Line()
 	stmt.Comment("APIVersion is the version of the API as defined in the design.").Line()
-	stmt.Const().Id("APIVersion").Op("=").Lit(data.APIVersion)
+	stmt.Const().Id(apiVersionSymbol).Op("=").Lit(data.APIVersion)
 	stmt.Line()
 	stmt.Comment("ServiceName is the name of the service as defined in the design. This is the").Line()
 	stmt.Comment("same value that is set in the endpoint request contexts under the ServiceKey").Line()
 	stmt.Comment("key.").Line()
-	stmt.Const().Id("ServiceName").Op("=").Lit(data.Name)
+	stmt.Const().Id(serviceNameSymbol).Op("=").Lit(data.Name)
 	stmt.Line()
 	stmt.Comment("MethodNames lists the service method names as defined in the design. These").Line()
 	stmt.Comment("are the same values that are set in the endpoint request contexts under the").Line()
 	stmt.Comment("MethodKey key.").Line()
-	stmt.Var().Id("MethodNames").Op("=").Index(jen.Lit(len(data.Methods))).String().ValuesFunc(func(values *jen.Group) {
+	stmt.Var().Id(methodNamesSymbol).Op("=").Index(jen.Lit(len(data.Methods))).String().ValuesFunc(func(values *jen.Group) {
 		for _, method := range data.Methods {
 			values.Lit(method.Name)
 		}
@@ -210,7 +210,7 @@ type serviceStreamInterfaceData struct {
 	Type               string
 	Endpoint           string
 	Stream             *StreamData
-	MethodVarName      string
+	EventName          string
 	IsJSONRPCSSE       bool
 	IsJSONRPCWebSocket bool
 	IsViewedResult     bool
@@ -224,7 +224,7 @@ func streamInterfaceData(typ string, method *MethodData, stream *StreamData) *se
 		Type:               typ,
 		Endpoint:           method.Name,
 		Stream:             stream,
-		MethodVarName:      method.VarName,
+		EventName:          method.EventName,
 		IsJSONRPCSSE:       method.IsJSONRPCSSE && typ == "server",
 		IsJSONRPCWebSocket: method.IsJSONRPCWebSocket,
 		IsViewedResult:     method.ViewedResult != nil && method.ViewedResult.ViewName == "",
@@ -257,17 +257,17 @@ func buildStreamInterface(stmt *jen.Statement, data *serviceStreamInterfaceData)
 
 func buildJSONRPCSSEMethodStream(stmt *jen.Statement, data *serviceStreamInterfaceData, stream *StreamData) {
 	if data.EventIsAlias {
-		codegen.Doc(stmt, fmt.Sprintf("%sEvent is the result type for the %s method.", data.MethodVarName, data.Endpoint))
-		stmt.Type().Id(data.MethodVarName + "Event").Op("=").Add(codegen.TypeRef(stream.SendTypeRef))
+		codegen.Doc(stmt, fmt.Sprintf("%s is the result type for the %s method.", data.EventName, data.Endpoint))
+		stmt.Type().Id(data.EventName).Op("=").Add(codegen.TypeRef(stream.SendTypeRef))
 		stmt.Line()
 	} else {
-		codegen.Doc(stmt, fmt.Sprintf("%sEvent is the interface implemented by the result type for the %s method.", data.MethodVarName, data.Endpoint))
-		stmt.Type().Id(data.MethodVarName + "Event").Interface(
-			jen.Id("is" + data.MethodVarName + "Event").Params(),
+		codegen.Doc(stmt, fmt.Sprintf("%s is the interface implemented by the result type for the %s method.", data.EventName, data.Endpoint))
+		stmt.Type().Id(data.EventName).Interface(
+			jen.Id("is" + data.EventName).Params(),
 		)
 		stmt.Line()
-		codegen.Doc(stmt, fmt.Sprintf("is%sEvent implements the %sEvent interface.", data.MethodVarName, data.MethodVarName))
-		stmt.Func().Params(codegen.TypeRef(stream.SendTypeRef)).Id("is" + data.MethodVarName + "Event").Params().Block()
+		codegen.Doc(stmt, fmt.Sprintf("is%s implements the %s interface.", data.EventName, data.EventName))
+		stmt.Func().Params(codegen.TypeRef(stream.SendTypeRef)).Id("is" + data.EventName).Params().Block()
 		stmt.Line()
 	}
 	codegen.Doc(stmt, fmt.Sprintf("%s allows streaming instances of %s over SSE.", stream.Interface, stream.SendTypeRef))
@@ -294,7 +294,7 @@ func buildJSONRPCSSESendMethods(group *jen.Group, data *serviceStreamInterfaceDa
 	groupDoc(group, "IMPORTANT: Send only sends JSON-RPC notifications. Use SendAndClose to send a final response.")
 	group.Id("Send").Params(
 		jen.Qual("context", "Context"),
-		jen.Id(data.MethodVarName+"Event"),
+		jen.Id(data.EventName),
 	).Error()
 	if stream.SendAndCloseName == "" {
 		return
@@ -304,7 +304,7 @@ func buildJSONRPCSSESendMethods(group *jen.Group, data *serviceStreamInterfaceDa
 	groupDoc(group, "If the result has an ID field populated, that ID will be used instead of the request ID.")
 	group.Id(stream.SendAndCloseName).Params(
 		jen.Qual("context", "Context"),
-		jen.Id(data.MethodVarName+"Event"),
+		jen.Id(data.EventName),
 	).Error()
 }
 
@@ -366,7 +366,7 @@ func buildOptionalStreamMethods(group *jen.Group, data *serviceStreamInterfaceDa
 
 func buildJSONRPCWebSocketStream(stmt *jen.Statement, data *Data) {
 	codegen.Doc(stmt, fmt.Sprintf("Stream defines the interface for managing a WebSocket streaming connection in the %s server. It allows sending results, sending errors, receiving requests, and closing the connection. This interface is used by the service to interact with clients over WebSocket using JSON-RPC.", data.Name))
-	stmt.Type().Id("Stream").InterfaceFunc(func(group *jen.Group) {
+	stmt.Type().Id(streamSymbol).InterfaceFunc(func(group *jen.Group) {
 		for _, method := range data.Methods {
 			if method.Result == "" {
 				continue
@@ -407,7 +407,7 @@ func buildJSONRPCSSEStream(stmt *jen.Statement, data *Data) {
 		}
 	}
 	codegen.Doc(stmt, fmt.Sprintf("Stream defines the interface for managing an SSE streaming connection in the %s server. It allows sending notifications and final responses. This interface is used by the service to interact with clients over SSE using JSON-RPC.", data.Name))
-	stmt.Type().Id("Stream").InterfaceFunc(func(group *jen.Group) {
+	stmt.Type().Id(streamSymbol).InterfaceFunc(func(group *jen.Group) {
 		if len(resultTypes) > 0 {
 			groupDoc(group, "Send sends an event (notification or response) to the client.")
 			groupDoc(group, "For notifications, the result should not have an ID field.")
@@ -415,7 +415,7 @@ func buildJSONRPCSSEStream(stmt *jen.Statement, data *Data) {
 			groupDoc(group, fmt.Sprintf("Accepted types: %s", strings.Join(resultTypes, ", ")))
 			group.Id("Send").Params(
 				jen.Qual("context", "Context"),
-				jen.Id("Event"),
+				jen.Id(eventSymbol),
 			).Error()
 		}
 		if hasErrors {
@@ -433,12 +433,12 @@ func buildJSONRPCSSEStream(stmt *jen.Statement, data *Data) {
 	}
 	if !acceptsMarkers {
 		codegen.Doc(stmt, fmt.Sprintf("Event is a result value sent via the %s Stream. It accepts any value because a result type cannot declare the event marker method. Send rejects values of other types.", data.Name))
-		stmt.Type().Id("Event").Op("=").Any()
+		stmt.Type().Id(eventSymbol).Op("=").Any()
 		stmt.Line()
 		return
 	}
 	codegen.Doc(stmt, fmt.Sprintf("Event is the interface implemented by all result types that can be sent via the %s Stream.", data.Name))
-	stmt.Type().Id("Event").Interface(
+	stmt.Type().Id(eventSymbol).Interface(
 		jen.Id("is" + data.VarName + "Event").Params(),
 	)
 	stmt.Line()

@@ -83,7 +83,7 @@ func interceptorFile(services *ServicesData, svc *Data, server bool) *codegen.Fi
 		if len(ints) == 0 {
 			continue
 		}
-		sections = append(sections, endpointWrapperSection(server, m.VarName, m.Name, ints))
+		sections = append(sections, endpointWrapperSection(server, m, ints))
 	}
 
 	if len(interceptors) > 0 {

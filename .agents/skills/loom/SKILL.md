@@ -145,6 +145,12 @@ and `errors.As`, including when the message contains an example.
 - Give each object distinct generated Go field names. `foo_bar` and `fooBar`
   both become `FooBar`; rename one or set `Meta("struct:field:name", "OtherFooBar")`
   on it. The override preserves the design name and transport mapping.
+- Package types avoid emitted framework names with deterministic numeric suffixes;
+  service methods have a separate member namespace. A domain type `Foo` no longer
+  forces method `foo` to become `FooEndpoint`. Regenerate clients and servers and
+  update handwritten references after upgrading; affected gRPC RPC names/full
+  method paths change with the corrected service method name. HTTP routes,
+  JSON-RPC method strings and authored schema names are unchanged.
 - Error fields must also avoid generated methods `Error`, `LoomErrorName`, and
   `LoomErrorRemedy` when a `Remedy` is declared. Use `struct:field:name` to keep
   the wire name while choosing a different Go field name.

@@ -106,6 +106,15 @@ type (
 		Description string
 		// VarName is the Go method name.
 		VarName string
+		// EndpointConstructor names the package function constructing this endpoint.
+		EndpointConstructor string
+		// EventName names the method-specific JSON-RPC SSE event declaration.
+		EventName string
+		// ServerInterceptorWrapper names the server endpoint wrapper.
+		ServerInterceptorWrapper string
+		// ClientInterceptorWrapper names the client endpoint wrapper.
+		ClientInterceptorWrapper string
+		symbols                  *methodSymbols
 		// Payload contains the payload type metadata.
 		MethodPayloadData
 		// Result contains the result and viewed-result metadata.
@@ -408,6 +417,8 @@ type (
 	// MethodInterceptorData contains the data required to render the
 	// method-level interceptor code.
 	MethodInterceptorData struct {
+		// WrapperName names this method/interceptor package wrapper function.
+		WrapperName string
 		// MethodName is the name of the method.
 		MethodName string
 		// PayloadAccess is the name of the payload access struct.
@@ -437,6 +448,8 @@ type (
 
 	// StreamInterceptorData is the stream data for an interceptor.
 	StreamInterceptorData struct {
+		// WrapperName names the package struct implementing this stream wrapper.
+		WrapperName string
 		// SetView indicates that the server wrapper must forward view selection.
 		SetView bool
 		// Interface is the name of the stream interface.

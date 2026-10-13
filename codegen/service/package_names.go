@@ -36,7 +36,6 @@ func PackageName(root *expr.RootExpr, service *expr.ServiceExpr) string {
 func newServiceNameScope(names map[string]string) *codegen.NameScope {
 	scope := codegen.NewNameScopeWithPackageNames(names)
 	scope.Unique("main")
-	scope.Unique("Use")
 	scope.Unique("websocket")
 	return scope
 }

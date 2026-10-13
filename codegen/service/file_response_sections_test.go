@@ -10,9 +10,10 @@ import (
 
 func TestFileResponseServiceSections(t *testing.T) {
 	method := &MethodData{
-		Name:        "download",
-		VarName:     "Download",
-		Description: "Download serves a file.",
+		Name:                "download",
+		VarName:             "Download",
+		EndpointConstructor: "NewDownloadEndpoint",
+		Description:         "Download serves a file.",
 		MethodPayloadData: MethodPayloadData{
 			Payload:    "DownloadPayload",
 			PayloadRef: "*DownloadPayload",

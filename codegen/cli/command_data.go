@@ -46,17 +46,18 @@ func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunctio
 	conversion := buildSubcommandConversion(m.Payload, buildFunction, flags)
 	interceptors := buildSubcommandInterceptors(data, m)
 	sub := &SubcommandData{
-		Name:          name,
-		FullName:      fullName,
-		PayloadType:   m.Payload,
-		UsageName:     fullName + "Usage",
-		FlagSetName:   fullName + "Flags",
-		Description:   description,
-		Flags:         flags,
-		MethodVarName: m.VarName,
-		BuildFunction: buildFunction,
-		Conversion:    conversion,
-		Interceptors:  interceptors,
+		Name:                     name,
+		FullName:                 fullName,
+		PayloadType:              m.Payload,
+		UsageName:                fullName + "Usage",
+		FlagSetName:              fullName + "Flags",
+		Description:              description,
+		Flags:                    flags,
+		MethodVarName:            m.VarName,
+		ClientInterceptorWrapper: m.ClientInterceptorWrapper,
+		BuildFunction:            buildFunction,
+		Conversion:               conversion,
+		Interceptors:             interceptors,
 	}
 	generateExample(sub, data.Name)
 

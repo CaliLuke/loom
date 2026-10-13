@@ -57,6 +57,25 @@ initialization order cannot move unrelated services through aggregate clients,
 CLIs, or transport contracts. An explicit `Server(... Services(...))` list
 keeps the order authored by the application.
 
+Generated Go names belong to their declaration scope. Service-package types
+avoid emitted framework declarations such as `Client`, `NewEndpoints`, and
+method stream or body carriers by receiving a deterministic numeric suffix.
+Conditional names such as `Authorizer` are reserved only when that feature emits
+the declaration. A type moved to another package keeps its canonical name.
+Service methods use a separate member namespace: a domain type `Foo` does not
+rename method `foo`, and methods named `Client` or `NewClient` remain valid.
+Actual member conflicts, such as `Use` on the endpoint aggregate, still receive
+a suffix. Refer to generated declarations rather than predicting a suffix when
+multiple names compete.
+
+Regenerate clients and servers together after this naming correction and update
+handwritten references to renamed Go types or methods. If a domain type formerly
+forced method `foo` to become `FooEndpoint`, the method is now `Foo`. gRPC derives
+its RPC name from that service method identity, so its RPC name and full method
+path also change from `FooEndpoint` to `Foo`; update independently generated or
+handwritten gRPC clients accordingly. HTTP routes, JSON-RPC method strings,
+OpenAPI schema names, and protobuf field numbers retain their design meanings.
+
 Plugin files outside `gen/` can set `codegen.File.SkipExist` to keep existing
 user-owned files. Create-only artifacts inside `gen/` are rejected: that tree
 is owned by regeneration and is always replaced. Put user-editable plugin files

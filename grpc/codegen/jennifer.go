@@ -471,7 +471,7 @@ func grpcParseEndpointSection(commands []*cli.CommandData) codegenpkg.Section {
 										eg.Case(jen.Lit(subcommand.Name)).BlockFunc(func(scg *jen.Group) {
 											scg.Id("endpoint").Op("=").Id("c").Dot(subcommand.MethodVarName).Call()
 											if subcommand.Interceptors != nil {
-												scg.Id("endpoint").Op("=").Id(subcommand.Interceptors.PkgName).Dot("Wrap"+subcommand.MethodVarName+"ClientEndpoint").Call(
+												scg.Id("endpoint").Op("=").Id(subcommand.Interceptors.PkgName).Dot(subcommand.ClientInterceptorWrapper).Call(
 													jen.Id("endpoint"),
 													jen.Id(subcommand.Interceptors.VarName),
 												)

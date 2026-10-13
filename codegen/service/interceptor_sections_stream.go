@@ -19,7 +19,7 @@ func addStreamWrappersSection(stmt *jen.Statement, streams []*StreamInterceptorD
 		if server && stream.SetView {
 			stmt.Line()
 			codegen.Doc(stmt, "SetView sets the view used by the underlying stream.")
-			stmt.Func().Params(jen.Id("w").Op("*").Id("wrapped" + stream.Interface)).
+			stmt.Func().Params(jen.Id("w").Op("*").Id(stream.WrapperName)).
 				Id("SetView").Params(jen.Id("view").String()).
 				Block(jen.Id("w").Dot("stream").Dot("SetView").Call(jen.Id("view")))
 		}
@@ -28,7 +28,7 @@ func addStreamWrappersSection(stmt *jen.Statement, streams []*StreamInterceptorD
 			stmt.Line()
 			codegen.Doc(stmt, "Close closes the stream.")
 			stmt.Func().
-				Params(jen.Id("w").Op("*").Id("wrapped" + stream.Interface)).
+				Params(jen.Id("w").Op("*").Id(stream.WrapperName)).
 				Id("Close").
 				Params().
 				Error().
@@ -46,7 +46,7 @@ func addStreamUnwrapSection(stmt *jen.Statement, stream *StreamInterceptorData, 
 	}
 	codegen.Doc(stmt, "Unwrap returns the underlying stream type.")
 	stmt.Func().
-		Params(jen.Id("w").Op("*").Id("wrapped" + stream.Interface)).
+		Params(jen.Id("w").Op("*").Id(stream.WrapperName)).
 		Id("Unwrap").
 		Params().
 		Any().
@@ -62,7 +62,7 @@ func addStreamSendSection(stmt *jen.Statement, stream *StreamInterceptorData) {
 	stmt.Line()
 	codegen.Doc(stmt, fmt.Sprintf("%s streams instances of %q after executing the applied interceptor.", stream.SendName, stream.Interface))
 	stmt.Func().
-		Params(jen.Id("w").Op("*").Id("wrapped" + stream.Interface)).
+		Params(jen.Id("w").Op("*").Id(stream.WrapperName)).
 		Id(stream.SendName).
 		Params(jen.Id("v").Add(codegen.TypeRef(stream.SendTypeRef))).
 		Error().
@@ -72,7 +72,7 @@ func addStreamSendSection(stmt *jen.Statement, stream *StreamInterceptorData) {
 	stmt.Line()
 	codegen.Doc(stmt, fmt.Sprintf("%s streams instances of %q after executing the applied interceptor with context.", stream.SendWithContextName, stream.Interface))
 	stmt.Func().
-		Params(jen.Id("w").Op("*").Id("wrapped"+stream.Interface)).
+		Params(jen.Id("w").Op("*").Id(stream.WrapperName)).
 		Id(stream.SendWithContextName).
 		Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("v").Add(codegen.TypeRef(stream.SendTypeRef))).
 		Error().
@@ -88,7 +88,7 @@ func addStreamRecvSection(stmt *jen.Statement, stream *StreamInterceptorData) {
 	stmt.Line()
 	codegen.Doc(stmt, fmt.Sprintf("%s reads instances of %q from the stream after executing the applied interceptor.", stream.RecvName, stream.Interface))
 	stmt.Func().
-		Params(jen.Id("w").Op("*").Id("wrapped"+stream.Interface)).
+		Params(jen.Id("w").Op("*").Id(stream.WrapperName)).
 		Id(stream.RecvName).
 		Params().
 		Params(codegen.TypeRef(stream.RecvTypeRef), jen.Error()).
@@ -98,7 +98,7 @@ func addStreamRecvSection(stmt *jen.Statement, stream *StreamInterceptorData) {
 	stmt.Line()
 	codegen.Doc(stmt, fmt.Sprintf("%s reads instances of %q from the stream after executing the applied interceptor with context.", stream.RecvWithContextName, stream.Interface))
 	stmt.Func().
-		Params(jen.Id("w").Op("*").Id("wrapped"+stream.Interface)).
+		Params(jen.Id("w").Op("*").Id(stream.WrapperName)).
 		Id(stream.RecvWithContextName).
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(codegen.TypeRef(stream.RecvTypeRef), jen.Error()).

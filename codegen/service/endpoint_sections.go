@@ -127,7 +127,7 @@ func endpointsInitSection(data *EndpointsData) codegen.Section {
 				if len(method.ServerInterceptors) == 0 {
 					continue
 				}
-				group.Id("endpoints").Dot(method.VarName).Op("=").Id("Wrap"+method.VarName+"Endpoint").Call(
+				group.Id("endpoints").Dot(method.VarName).Op("=").Id(method.ServerInterceptorWrapper).Call(
 					jen.Id("endpoints").Dot(method.VarName),
 					jen.Id("si"),
 				)
@@ -171,7 +171,7 @@ func newEndpointCall(method *EndpointMethodData) *jen.Statement {
 	if method.Authorization != nil {
 		return authorizationEndpointCall(method)
 	}
-	return jen.Id("New" + method.VarName + "Endpoint").CallFunc(func(group *jen.Group) {
+	return jen.Id(method.EndpointConstructor).CallFunc(func(group *jen.Group) {
 		group.Id("s")
 		for _, scheme := range method.Schemes.DedupeByType() {
 			group.Id("a").Dot(scheme.Type + "Auth")

@@ -10,15 +10,25 @@ import (
 // collectInterceptors returns the set of interceptors defined on the given
 // service including any interceptor defined on specific service methods or API.
 func (d *ServicesData) collectInterceptors(svc *expr.ServiceExpr, methods []*MethodData, scope *codegen.NameScope, server bool) []*InterceptorData {
+	ints := d.serviceInterceptors(svc, server)
+
+	res := make([]*InterceptorData, 0, len(ints))
+	for _, i := range ints {
+		res = append(res, buildInterceptorData(svc, methods, i, scope, server))
+	}
+	return res
+}
+
+func (d *ServicesData) serviceInterceptors(svc *expr.ServiceExpr, server bool) []*expr.InterceptorExpr {
 	var ints []*expr.InterceptorExpr
 	if server {
-		ints = d.Root.API.ServerInterceptors
+		ints = append(ints, d.Root.API.ServerInterceptors...)
 		ints = append(ints, svc.ServerInterceptors...)
 		for _, m := range svc.Methods {
 			ints = append(ints, m.ServerInterceptors...)
 		}
 	} else {
-		ints = d.Root.API.ClientInterceptors
+		ints = append(ints, d.Root.API.ClientInterceptors...)
 		ints = append(ints, svc.ClientInterceptors...)
 		for _, m := range svc.Methods {
 			ints = append(ints, m.ClientInterceptors...)
@@ -34,11 +44,7 @@ func (d *ServicesData) collectInterceptors(svc *expr.ServiceExpr, methods []*Met
 		}
 	}
 
-	res := make([]*InterceptorData, 0, len(ints))
-	for _, i := range ints {
-		res = append(res, buildInterceptorData(svc, methods, i, scope, server))
-	}
-	return res
+	return ints
 }
 
 // buildInterceptorData creates the data needed to generate interceptor code.
@@ -61,7 +67,7 @@ func buildInterceptorData(svc *expr.ServiceExpr, methods []*MethodData, i *expr.
 			attributesCollected = true
 		}
 		md := findMethodData(methods, m.Name)
-		data.Methods = append(data.Methods, buildInterceptorMethodData(i, md))
+		data.Methods = append(data.Methods, buildInterceptorMethodData(i, md, server))
 		md.AppendInterceptorName(data.Name, server)
 	}
 	return data
@@ -107,10 +113,11 @@ func findMethodData(methods []*MethodData, name string) *MethodData {
 
 // buildInterceptorMethodData creates the data needed to generate interceptor
 // method code.
-func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData) *MethodInterceptorData {
+func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server bool) *MethodInterceptorData {
 	var serverStream, clientStream *StreamInterceptorData
 	if md.ServerStream != nil {
 		serverStream = &StreamInterceptorData{
+			WrapperName:         md.symbols.serverWrappedStream,
 			SetView:             md.ViewedResult != nil && md.ViewedResult.ViewName == "",
 			Interface:           md.ServerStream.Interface,
 			SendName:            md.ServerStream.SendName,
@@ -125,6 +132,7 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData) *Method
 	}
 	if md.ClientStream != nil {
 		clientStream = &StreamInterceptorData{
+			WrapperName:         md.symbols.clientWrappedStream,
 			Interface:           md.ClientStream.Interface,
 			SendName:            md.ClientStream.SendName,
 			SendWithContextName: md.ClientStream.SendWithContextName,
@@ -135,32 +143,26 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData) *Method
 			MustClose:           md.ClientStream.MustClose,
 		}
 	}
-	var payloadAccess, resultAccess, streamingPayloadAccess, streamingResultAccess string
-	if i.ReadPayload != nil || i.WritePayload != nil {
-		payloadAccess = codegen.Goify(i.Name, false) + md.VarName + "Payload"
+	names := md.symbols.interceptors[codegen.Goify(i.Name, true)]
+	wrapper := names.server
+	if !server {
+		wrapper = names.client
 	}
-	if i.ReadResult != nil || i.WriteResult != nil {
-		resultAccess = codegen.Goify(i.Name, false) + md.VarName + "Result"
-	}
-	if i.ReadStreamingPayload != nil || i.WriteStreamingPayload != nil {
-		streamingPayloadAccess = codegen.Goify(i.Name, false) + md.VarName + "StreamingPayload"
-	}
-	if i.ReadStreamingResult != nil || i.WriteStreamingResult != nil {
-		streamingResultAccess = codegen.Goify(i.Name, false) + md.VarName + "StreamingResult"
-	}
+
 	var viewedResult *ViewedResultTypeData
 	if md.ServerStream == nil {
 		viewedResult = md.ViewedResult
 	}
 	return &MethodInterceptorData{
 		MethodName:             md.VarName,
-		PayloadAccess:          payloadAccess,
-		ResultAccess:           resultAccess,
+		WrapperName:            wrapper,
+		PayloadAccess:          names.payload,
+		ResultAccess:           names.result,
 		PayloadRef:             md.PayloadRef,
 		ResultRef:              md.ResultRef,
-		StreamingPayloadAccess: streamingPayloadAccess,
+		StreamingPayloadAccess: names.streamingPayload,
 		StreamingPayloadRef:    md.StreamingPayloadRef,
-		StreamingResultAccess:  streamingResultAccess,
+		StreamingResultAccess:  names.streamingResult,
 		StreamingResultRef:     md.ResultRef,
 		ClientStream:           clientStream,
 		ServerStream:           serverStream,

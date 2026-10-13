@@ -10,8 +10,8 @@ import (
 
 func authorizedEndpointMethodSection(m *EndpointMethodData) codegen.Section {
 	return codegen.NewJenniferSection("endpoint-method", func(stmt *jen.Statement) {
-		codegen.Doc(stmt, fmt.Sprintf("New%sEndpoint constructs a protected %s endpoint. Middleware runs after access checks; checks repeat before service execution. Missing evaluators panic at construction.", m.VarName, m.Name))
-		stmt.Func().Id("New" + m.VarName + "Endpoint").ParamsFunc(func(g *jen.Group) {
+		codegen.Doc(stmt, fmt.Sprintf("%s constructs a protected %s endpoint. Middleware runs after access checks; checks repeat before service execution. Missing evaluators panic at construction.", m.EndpointConstructor, m.Name))
+		stmt.Func().Id(m.EndpointConstructor).ParamsFunc(func(g *jen.Group) {
 			g.Id("s").Id(m.ServiceVarName)
 			if params := authorizationCheckParams(m); params != "" {
 				g.Add(codegen.Expr(params))
@@ -40,14 +40,14 @@ func authorizedEndpointMethodSection(m *EndpointMethodData) codegen.Section {
 }
 
 func authorizationEndpointCall(m *EndpointMethodData) *jen.Statement {
-	return jen.Id("New" + m.VarName + "Endpoint").CallFunc(func(g *jen.Group) {
+	return jen.Id(m.EndpointConstructor).CallFunc(func(g *jen.Group) {
 		g.Id("s")
 		if args := authorizationCheckArgs(m, true); args != "" {
 			g.Add(codegen.Expr(args))
 		}
 		if len(m.ServerInterceptors) > 0 {
 			g.Func().Params(jen.Id("endpoint").Add(codegen.TypeRef("loom.Endpoint"))).Add(codegen.TypeRef("loom.Endpoint")).Block(
-				jen.Return(jen.Id("Wrap"+m.VarName+"Endpoint").Call(jen.Id("endpoint"), jen.Id("si"))),
+				jen.Return(jen.Id(m.ServerInterceptorWrapper).Call(jen.Id("endpoint"), jen.Id("si"))),
 			)
 		}
 	})
@@ -66,7 +66,7 @@ func authorizationEndpointInit(g *jen.Group, data *EndpointsData) {
 		if m.Authorization != nil {
 			g.Id("endpoints").Dot(m.Authorization.fieldName).Op("=").Id(m.Authorization.checkName).Call(codegen.Expr(authorizationCheckArgs(m, true)))
 		} else if len(m.ServerInterceptors) > 0 {
-			g.Id("endpoints").Dot(m.VarName).Op("=").Id("Wrap"+m.VarName+"Endpoint").Call(jen.Id("endpoints").Dot(m.VarName), jen.Id("si"))
+			g.Id("endpoints").Dot(m.VarName).Op("=").Id(m.ServerInterceptorWrapper).Call(jen.Id("endpoints").Dot(m.VarName), jen.Id("si"))
 		}
 	}
 	g.Return(jen.Id("endpoints"))

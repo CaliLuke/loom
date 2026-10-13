@@ -75,6 +75,18 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `codegen/service.serviceSymbols` records fixed and method-derived package
+  declarations before nominal types are collected. Method/member and stream
+  adapter names have separate scopes; do not put package reservations back into
+  method naming. Reuse effective security, HTTP/JSON-RPC and interceptor analysis
+  for conditional declarations. Render endpoint factories, carriers, SSE events
+  and method-derived interceptor wrappers from recorded identities, including
+  HTTP/gRPC CLI references. Keep canonical external type names and the shared
+  nominal NameScope cache. The package-symbol models and bounded artifact matrix
+  cover declaration ownership; independent interceptor/protobuf/member families
+  remain separate. A corrected service method identity also changes the gRPC RPC
+  name derived from it, so retain descriptor and regeneration migration coverage.
+
 - `observability/otel.New` stages all enabled providers and their shutdown
   callbacks before publishing SDK globals. Failed construction uses
   `rollbackProviders` with a bounded uncanceled context; both it and successful
