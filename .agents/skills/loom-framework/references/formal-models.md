@@ -75,6 +75,12 @@ Name-allocation assumptions are not proved merely by proving declaration lookup.
 
 ## OpenAPI contracts
 
+- [Import contract comparison](../../../../cmd/loom/tla/import_contract_comparison/README.md):
+  test-only retained reference ownership prevents occurrence loss and premature
+  target pruning. Raw schema-position rewriting and exact numeric literal
+  preservation remain Go regression obligations; public import/export admission
+  and general JSON Schema equivalence are outside this bounded model.
+
 - [Imported security credentials](../../../../internal/openapiimport/tla/security_credentials/README.md):
   bounded physical-slot/codec/component grouping retains all authentication roles
   and requirement structure. Actual import, generated authentication and OpenAPI

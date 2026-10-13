@@ -581,6 +581,14 @@ filter, and serialization rules belong here.
   Import the fixture, compile the service, regenerate OpenAPI, and compare the
   semantic contracts. Add each new inverse mapping to this fixture. If an
   exporter shape cannot round-trip, record and test the explicit rejection.
+- CLI import round-trip comparison owns generated-reference normalization in
+  test support. Preserve exact numeric tokens and literal values; rewrite only
+  actual schema positions, then keep strict analysis as the admission gate.
+  Resolve detached occurrences against a retained component registry, preserve
+  local annotations and constraints, and prune only unreferenced generated
+  targets after all occurrences resolve. Reject ambiguous overlaps instead of
+  erasing differences. This adapter does not expand public importer grammar.
+  Keep the comparison model and changed-generated-example controls aligned.
 - Add each accepted response shape to an import-to-generation contract test.
   Schema-less errors use a concrete non-default error type and an explicit HTTP
   `Body(Empty)` mapping. This prevents synthesized default error headers. Never

@@ -61,7 +61,8 @@ func TestOpenAPIImportSemanticRoundTrip(t *testing.T) {
 
 			regenerated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
 			require.NoError(t, err)
-			regenerated = removeGeneratedDocumentDefaults(t, regenerated, sourceDocument.Title)
+			regenerated, err = prepareGeneratedOpenAPIContract(regenerated, sourceDocument.Title)
+			require.NoError(t, err)
 			regeneratedDocument := analyzeOpenAPIContract(t, regenerated)
 			require.NoError(t, compareOpenAPIContracts(sourceDocument, regeneratedDocument))
 		})
@@ -116,7 +117,8 @@ func TestOpenAPIImportSharedStatusRoundTrip(t *testing.T) {
 
 			regenerated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
 			require.NoError(t, err)
-			regenerated = removeGeneratedDocumentDefaults(t, regenerated, sourceDocument.Title)
+			regenerated, err = prepareGeneratedOpenAPIContract(regenerated, sourceDocument.Title)
+			require.NoError(t, err)
 			regeneratedDocument := analyzeOpenAPIContract(t, regenerated)
 			require.NoError(t, compareOpenAPIContracts(sourceDocument, regeneratedDocument))
 		})
@@ -155,9 +157,15 @@ func TestOpenAPIImportExporterSymmetryRoundTrip(t *testing.T) {
 
 	regenerated, err := os.ReadFile(filepath.Join(moduleDir, "gen", "http", "openapi.json"))
 	require.NoError(t, err)
-	regenerated = removeGeneratedDocumentDefaults(t, regenerated, sourceDocument.Title)
+	regenerated, err = prepareGeneratedOpenAPIContract(regenerated, sourceDocument.Title)
+	require.NoError(t, err)
 	regeneratedDocument := analyzeOpenAPIContract(t, regenerated)
 	require.NoError(t, compareOpenAPIContracts(sourceDocument, regeneratedDocument))
+	changed, err := replaceComparisonJSONField(regenerated, []string{
+		"paths", "/items", "get", "responses", "200", "content", "application/json", "schema", "example",
+	}, []byte(`{"id":"unexpected-local-value"}`))
+	require.NoError(t, err)
+	require.Error(t, compareOpenAPIContracts(sourceDocument, analyzeOpenAPIContract(t, changed)))
 }
 
 func TestCompareOpenAPIContractsRejectsLoss(t *testing.T) {
@@ -255,7 +263,7 @@ func replaceOpenAPIVersion(t *testing.T, source []byte, version string) []byte {
 func writeRoundTripModule(t *testing.T, moduleDir, modulePath, repoRoot string) {
 	t.Helper()
 	goMod := fmt.Sprintf(
-		"module %s\n\ngo 1.27.0\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n",
+		"module %s\n\ngo 1.27.0\n\nrequire github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261013003626-55cd4ca779f2\n\nreplace github.com/CaliLuke/loom => %s\n",
 		modulePath,
 		repoRoot,
 	)
@@ -270,28 +278,6 @@ func analyzeOpenAPIContract(t *testing.T, source []byte) *openapiimport.Document
 	return document
 }
 
-func removeGeneratedDocumentDefaults(t *testing.T, source []byte, title string) []byte {
-	t.Helper()
-	var document map[string]any
-	require.NoError(t, json.Unmarshal(source, &document))
-	require.Equal(t, "https://spec.openapis.org/oas/3.1/dialect/base", document["jsonSchemaDialect"])
-	delete(document, "jsonSchemaDialect")
-	servers, ok := document["servers"].([]any)
-	require.True(t, ok)
-	wantServer := map[string]any{
-		"url":         "http://localhost:80",
-		"description": "Default server for " + title,
-	}
-	if version, ok := document["openapi"].(string); ok && strings.HasPrefix(version, "3.2.") {
-		wantServer["name"] = title
-	}
-	require.Equal(t, []any{wantServer}, servers)
-	delete(document, "servers")
-	normalized, err := json.Marshal(document)
-	require.NoError(t, err)
-	return normalized
-}
-
 func compareOpenAPIContracts(expected, actual *openapiimport.Document) error {
 	expectedNormalized, err := cloneOpenAPIContractValue(expected)
 	if err != nil {
@@ -303,11 +289,11 @@ func compareOpenAPIContracts(expected, actual *openapiimport.Document) error {
 	}
 	normalizeEmptyOpenAPICollections(expectedNormalized)
 	normalizeEmptyOpenAPICollections(normalized)
-	expectedJSON, err := json.Marshal(expectedNormalized)
+	expectedJSON, err := json.Marshal(expectedNormalized, json.Deterministic(true))
 	if err != nil {
 		return fmt.Errorf("marshal expected OpenAPI semantic contract: %w", err)
 	}
-	actualJSON, err := json.Marshal(normalized)
+	actualJSON, err := json.Marshal(normalized, json.Deterministic(true))
 	if err != nil {
 		return fmt.Errorf("marshal actual OpenAPI semantic contract: %w", err)
 	}
@@ -444,6 +430,7 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 	if err != nil {
 		return nil, err
 	}
+	resolver := newComparisonSchemaResolver(expected, normalized)
 	authoredTags := make(map[string]struct{})
 	for _, operation := range expected.Operations {
 		for _, tag := range operation.Tags {
@@ -497,7 +484,9 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 			}
 			actualResponse := &actualOperation.Responses[responseIndex].Response
 			expectedResponse := expectedOperation.Responses[responseIndex].Response
-			inlineGeneratedResponseSchema(normalized, &expectedResponse, actualResponse)
+			if err := resolver.inlineResponse(&expectedResponse, actualResponse); err != nil {
+				return nil, err
+			}
 			actualHeaders := actualResponse.Headers
 			expectedHeaders := expectedResponse.Headers
 			for headerIndex := range actualHeaders {
@@ -528,6 +517,7 @@ func normalizeGeneratedOpenAPIContract(expected, actual *openapiimport.Document)
 			}
 		}
 	}
+	resolver.prune(normalized)
 	return normalized, nil
 }
 
@@ -536,40 +526,16 @@ func emptyOpenAPITagMetadata(tag openapiimport.Tag) bool {
 		tag.ExternalDocsURL == "" && tag.ExternalDocsDescription == "" && len(tag.Extensions) == 0
 }
 
-func inlineGeneratedResponseSchema(
-	document *openapiimport.Document,
-	expected *openapiimport.Response,
-	actual *openapiimport.Response,
-) {
-	if expected.Schema == nil || expected.Schema.Ref != "" || actual.Schema == nil || actual.Schema.Ref == "" {
-		return
-	}
-	const componentPrefix = "#/components/schemas/"
-	if !strings.HasPrefix(actual.Schema.Ref, componentPrefix) {
-		return
-	}
-	name := strings.TrimPrefix(actual.Schema.Ref, componentPrefix)
-	for index := range document.Components.Schemas {
-		component := document.Components.Schemas[index]
-		if component.Name != name {
-			continue
-		}
-		actual.Schema = component.Schema
-		removeDuplicatedResponseSchemaExamples(expected, actual)
-		document.Components.Schemas = append(
-			document.Components.Schemas[:index],
-			document.Components.Schemas[index+1:]...,
-		)
-		return
-	}
-}
-
 func removeDuplicatedResponseSchemaExamples(expected, actual *openapiimport.Response) {
 	if actual.Schema == nil || expected.Schema == nil || len(expected.Schema.Examples) > 0 ||
 		len(actual.Schema.Examples) == 0 {
 		return
 	}
 	for _, schemaExample := range actual.Schema.Examples {
+		if schemaExample.Summary != "" || schemaExample.Description != "" || schemaExample.ComponentName != "" ||
+			schemaExample.DataValue || schemaExample.SerializedValue != "" {
+			return
+		}
 		matched := false
 		for _, responseExample := range actual.Examples {
 			if reflect.DeepEqual(schemaExample.Value, responseExample.Value) {
@@ -591,12 +557,12 @@ func cloneOpenAPIContract(t *testing.T, source *openapiimport.Document) *openapi
 	return clone
 }
 
-func cloneOpenAPIContractValue(source *openapiimport.Document) (*openapiimport.Document, error) {
-	encoded, err := json.Marshal(source)
+func cloneOpenAPIContractValue[T any](source *T) (*T, error) {
+	encoded, err := json.Marshal(source, json.FormatNilSliceAsNull(true), json.FormatNilMapAsNull(true))
 	if err != nil {
 		return nil, fmt.Errorf("marshal OpenAPI contract: %w", err)
 	}
-	var clone openapiimport.Document
+	var clone T
 	decodeNumber := json.UnmarshalFunc(func(data []byte, target *exactnum.Number) error {
 		value, err := exactnum.ParseJSON(string(data))
 		if err != nil {
@@ -605,7 +571,7 @@ func cloneOpenAPIContractValue(source *openapiimport.Document) (*openapiimport.D
 		*target = value
 		return nil
 	})
-	if err := json.Unmarshal(encoded, &clone, json.WithUnmarshalers(decodeNumber)); err != nil {
+	if err := json.Unmarshal(encoded, &clone, json.WithUnmarshalers(json.JoinUnmarshalers(decodeNumber, json.UnmarshalFunc(unmarshalComparisonLiteral)))); err != nil {
 		return nil, fmt.Errorf("unmarshal OpenAPI contract: %w", err)
 	}
 	return &clone, nil
