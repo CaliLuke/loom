@@ -164,8 +164,9 @@ func (node *Node) claimRequeue(ctx context.Context, job *Job) (bool, error) {
 		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
 		node.poolStream.Key(),
 		node.ownersKey(), rmapContentKey(jobPayloadMapName(node.PoolName)),
+		node.PoolName + ":job-incarnations", node.PoolName + ":job-cutoffs",
 	}, job.Key, strconv.FormatInt(now.UnixNano(), 10), node.poolStream.MaxLen, marshalJob(job),
-		poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds(), job.Payload).Result()
+		poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds(), job.Payload, job.incarnation).Result()
 	if err != nil {
 		return false, fmt.Errorf("failed to requeue job %q: %w", job.Key, err)
 	}

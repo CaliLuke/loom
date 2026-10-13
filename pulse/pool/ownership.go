@@ -19,7 +19,8 @@ func (node *Node) claimJob(ctx context.Context, worker string, job *Job) (uint64
 		rmapContentKey(jobPayloadMapName(node.PoolName)), rmapUpdateChannel(jobPayloadMapName(node.PoolName)),
 		rmapContentKey(workerMapName(node.PoolName)), rmapContentKey(workerKeepAliveMapName(node.PoolName)),
 		rmapContentKey(nodeKeepAliveMapName(node.PoolName)), node.PoolName + ":protocol",
-	}, job.Key, worker, job.Payload, node.workerTTL.Milliseconds()).Result()
+		node.PoolName + ":job-incarnations", node.PoolName + ":job-cutoffs",
+	}, job.Key, worker, job.Payload, node.workerTTL.Milliseconds(), job.incarnation).Result()
 	if err != nil {
 		return 0, fmt.Errorf("claim job %q: %w", job.Key, err)
 	}
@@ -63,6 +64,7 @@ func (node *Node) cleanupOwnedJobs(ctx context.Context, worker, token string) (i
 		rmapContentKey(jobPayloadMapName(p)), node.poolStream.Key(),
 		"pulse:stream:" + workerStreamName(worker),
 		rmapContentKey(jobPendingMapName(p)), rmapUpdateChannel(jobPendingMapName(p)),
+		p + ":job-incarnations", p + ":job-cutoffs",
 	}, worker, token, node.workerTTL.Milliseconds(), node.ID, created,
 		strconv.FormatInt(now.UnixNano(), 10), node.poolStream.MaxLen).Int64()
 }
@@ -71,13 +73,12 @@ func joinOwnershipProtocol(ctx context.Context, node *Node) error {
 	p := node.PoolName
 	return luaJoinProtocol.Run(ctx, node.rdb, []string{
 		p + ":protocol", rmapContentKey(nodeKeepAliveMapName(p)), rmapUpdateChannel(nodeKeepAliveMapName(p)),
-		p + ":protocol-version", node.ownersKey(), p + ":owner-epochs",
-		rmapContentKey(jobMapName(p)), rmapContentKey(workerKeepAliveMapName(p)),
+		p + ":protocol-version",
 	}, node.ID, node.workerTTL.Milliseconds()).Err()
 }
 
 // Health reports incompatible live pool members or a failed protocol check.
-// Routing and job claims fail closed until every live member uses protocol 2.
+// Routing and job claims fail closed until every live member uses protocol 3.
 // It does not report application handler health.
 func (node *Node) Health(ctx context.Context) error {
 	bad, err := luaCheckProtocol.Run(ctx, node.rdb, []string{

@@ -145,10 +145,14 @@ func TestRebalanceRelease(t *testing.T) {
 // in flight whatever its TTL, and rejects a malformed guard.
 func TestClaimRequeue(t *testing.T) {
 	future := strconv.FormatInt(time.Now().Add(time.Hour).UnixNano(), 10)
-	job := &Job{Key: "k1", Payload: []byte("p"), CreatedAt: time.Unix(0, 1)}
+	newJob := func() *Job {
+		return &Job{Key: "k1", Payload: []byte("p"), CreatedAt: time.Unix(0, 1)}
+	}
 	t.Run("adds a guarded start", func(t *testing.T) {
 		rdb, node := guardScriptNode(t, "requeue-claim")
 		ctx := t.Context()
+		job := newJob()
+		require.NoError(t, identifyTestJob(ctx, node, job))
 		require.NoError(t, rdb.HSet(ctx, rmapContentKey(jobPayloadMapName(node.PoolName)), job.Key, job.Payload).Err())
 		before := time.Now().UnixNano()
 		queued, err := node.claimRequeue(ctx, job)
@@ -161,7 +165,7 @@ func TestClaimRequeue(t *testing.T) {
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, until, before)
 		require.LessOrEqual(t, until, time.Now().UnixNano(), "the guard TTL must have passed")
-		addID, err := node.poolStream.Add(ctx, evStartJob, marshalJob(job))
+		addID, err := node.poolStream.Add(ctx, evStartJob, marshalTestOperation(t, node, job))
 		require.NoError(t, err)
 		stream := node.poolStream.Key()
 		scriptEntry := rdb.XRange(ctx, stream, eventID, eventID).Val()
@@ -208,6 +212,8 @@ func TestClaimRequeue(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rdb, node := guardScriptNode(t, "requeue-claim-replace")
+			job := newJob()
+			require.NoError(t, identifyTestJob(t.Context(), node, job))
 			require.NoError(t, rdb.HSet(t.Context(), rmapContentKey(jobPayloadMapName(node.PoolName)), job.Key, job.Payload).Err())
 			old := tc.guard(t, rdb, node.poolStream.Key())
 			setGuard(t, node, "k1", old)

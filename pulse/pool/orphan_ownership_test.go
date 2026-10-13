@@ -14,7 +14,7 @@ func TestOrphanSweepUsesOwnership(t *testing.T) {
 			n := sinklessNode(t, rdb, "orphan-owner", WithWorkerTTL(time.Hour))
 			w := ownershipWorker(t, n, "w1")
 			job := &Job{Key: "k", Payload: []byte("p"), CreatedAt: time.Now(), NodeID: n.ID}
-			require.NoError(t, w.startJob(t.Context(), job))
+			require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 			if owned {
 				// B5: payload arrives before the job index, even past the grace.
 				_, err := n.jobMap.Delete(t.Context(), w.ID)
@@ -53,7 +53,7 @@ func TestRequeueChecksCurrentOwnershipAndPayload(t *testing.T) {
 			n := sinklessNode(t, rdb, "requeue-current", WithWorkerTTL(time.Hour))
 			w := ownershipWorker(t, n, "w1")
 			job := &Job{Key: "k", Payload: []byte("old"), CreatedAt: time.Now(), NodeID: n.ID}
-			require.NoError(t, w.startJob(t.Context(), job))
+			require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 			switch state {
 			case "stopped":
 				require.NoError(t, w.stopJob(t.Context(), job.Key))
@@ -66,9 +66,9 @@ func TestRequeueChecksCurrentOwnershipAndPayload(t *testing.T) {
 			queued, err := n.claimRequeue(t.Context(), job)
 			require.NoError(t, err)
 			require.False(t, queued, "stale snapshot must not enqueue old work")
-			length, err := rdb.XLen(t.Context(), n.poolStream.Key()).Result()
+			entries, err := rdb.XRange(t.Context(), n.poolStream.Key(), "-", "+").Result()
 			require.NoError(t, err)
-			require.Zero(t, length)
+			require.Zero(t, countStartEvents(t, entries)[job.Key], "a stop delivery must not recreate a start")
 		})
 	}
 }

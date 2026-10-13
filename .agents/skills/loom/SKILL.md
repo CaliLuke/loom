@@ -1455,11 +1455,17 @@ loom vet <module-import-path>/design
 ## Canonical Guides
 
 For Pulse applications, read `docs/pulse.md`. Use the latest stable Redis
-release, currently 8.10.2; older releases are unsupported. Pool protocol 2 requires closing
-all protocol 1 nodes before upgrading or rolling back; mixed versions are not
-supported. `Node.Health(ctx)` reports incompatible live members. `Job.Epoch`
+release, currently 8.10.2; older releases are unsupported. Pool protocol 3 requires ending old schedules with `ErrScheduleStop`,
+draining/stopping work and completing old-binary pool `Shutdown` before upgrade.
+`Close` alone leaves pending old operations. Recreate schedules/jobs afterward;
+mixed versions and rolling upgrades are unsupported. `Node.Health(ctx)` reports incompatible live members. `Job.Epoch`
 identifies ownership; external stores must enforce fencing themselves. Pool
-shutdown retains epoch counters. Workers stop handlers after three quarters
+shutdown retains epoch counters. Scheduler intent survives uncertain admission replies;
+`StopAll` selects only that producer's requested keys except the current Start keys.
+Queued stops remain responsibility until confirmed; retries retain their original
+cutoff so they cannot stop later admitted work. A later authored Start remains a
+new command even for the same key/payload; empty plans do not restart completed
+admissions. `StopJob` confirms enqueue only. Workers stop handlers after three quarters
 of the TTL without a confirmed renewal, then resume only the same owner and
 epoch. Callbacks must finish within the remaining fence margin; external
 writes still need store-side epoch checks. Use `Worker.CheckOwnership` in the

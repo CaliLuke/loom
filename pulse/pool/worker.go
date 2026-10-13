@@ -88,6 +88,8 @@ type (
 		Worker *Worker
 		// NodeID is the ID of the node that created the job.
 		NodeID string
+
+		incarnation string
 	}
 
 	// JobHandler starts and stops jobs. Its methods run on pool goroutines
@@ -220,18 +222,23 @@ func (w *Worker) handleEvent(ctx context.Context, ev *streaming.Event, payload [
 	switch ev.EventName {
 	case evStartJob:
 		w.logger.Debug("handleEvents: received start job", "event", ev.EventName, "id", ev.ID)
-		job, err := unmarshalJob(payload)
+		op, err := unmarshalOperation(payload)
+		if err != nil {
+			return err
+		}
+		job, err := unmarshalJob(op.data)
 		if err != nil {
 			return fmt.Errorf("start job: %w", err)
 		}
+		job.incarnation = op.token
 		return w.startJob(ctx, job)
 	case evStopJob:
 		w.logger.Debug("handleEvents: received stop job", "event", ev.EventName, "id", ev.ID)
-		key, err := unmarshalJobKey(payload)
+		op, err := unmarshalOperation(payload)
 		if err != nil {
 			return fmt.Errorf("stop job: %w", err)
 		}
-		return w.stopJob(ctx, key)
+		return w.stopOperation(ctx, op)
 	case evNotify:
 		w.logger.Debug("handleEvents: received notify", "event", ev.EventName, "id", ev.ID)
 		key, notification, err := unmarshalNotification(payload)
@@ -292,9 +299,9 @@ func (w *Worker) stopHandlers() {
 	})
 }
 
-// startJob starts a job. A start for a key the worker already runs is a
-// duplicate delivery (sink redelivery, dispatch retry, requeue or rebalance)
-// and succeeds without calling the handler again.
+// startJob admits the recorded incarnation. Duplicate or older deliveries do
+// not restart an existing handler. A newer incarnation releases the prior run
+// before the authoritative claim, under the same local ownership lock.
 func (w *Worker) startJob(ctx context.Context, job *Job) error {
 	w.jobLock.Lock()
 	defer w.jobLock.Unlock()
@@ -309,10 +316,22 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 			return ErrRequeue
 		}
 	}
-	if _, ok := w.jobs.Load(job.Key); ok {
-		w.logger.Debug("start job: already running, ignoring duplicate start", "job", job.Key)
-		return nil
+	if current, ok := w.jobs.Load(job.Key); ok {
+		previous := current.(*Job)
+		if previous.incarnation == job.incarnation || tokenAfter(previous.incarnation, job.incarnation) {
+			return nil
+		}
+		stopped, err := w.takeJob(job.Key)
+		if err != nil {
+			return err
+		}
+		if stopped != nil {
+			if _, err := w.finishRelease(ctx, pendingRelease{job: stopped}); err != nil {
+				return err
+			}
+		}
 	}
+
 	epoch, err := w.node.claimJob(ctx, w.ID, job)
 	if err != nil {
 		w.logger.Error(err)
@@ -349,21 +368,37 @@ func (w *Worker) startJob(ctx context.Context, job *Job) error {
 
 // stopJob stops a job.
 func (w *Worker) stopJob(ctx context.Context, key string) error {
-	w.jobLock.Lock()
-	defer w.jobLock.Unlock()
-	job, err := w.takeJob(key)
+	op, err := w.node.issueStop(ctx, key)
 	if err != nil {
-		return fmt.Errorf("failed to stop job %q: %w", key, err)
-	}
-	if job == nil {
-		return fmt.Errorf("job %s not found in local worker", key)
-	}
-	w.logger.Debug("stopped job", "job", key)
-	if _, err := w.finishRelease(ctx, pendingRelease{job: job, deletePayload: true}); err != nil {
 		return err
 	}
-	w.logger.Info("stopped job", "job", key)
-	return nil
+	return w.stopOperation(ctx, op)
+}
+
+// stopOperation serializes callback/release with claims. A retry never widens
+// its original cutoff and an old delivery never stops a newer incarnation.
+func (w *Worker) stopOperation(ctx context.Context, op *poolOperation) error {
+	w.jobLock.Lock()
+	defer w.jobLock.Unlock()
+	if current, ok := w.jobs.Load(op.key); ok && tokenAfter(current.(*Job).incarnation, op.token) {
+		return nil
+	}
+	if pending, ok := w.pendingReleases[op.key]; ok {
+		if _, err := w.finishRelease(ctx, pending); err != nil {
+			return err
+		}
+	}
+	job, err := w.takeJob(op.key)
+	if err != nil {
+		return fmt.Errorf("failed to stop job %q: %w", op.key, err)
+	}
+	if job != nil {
+		if _, err := w.finishRelease(ctx, pendingRelease{job: job, deletePayload: true}); err != nil {
+			return err
+		}
+		w.logger.Info("stopped job", "job", op.key)
+	}
+	return w.node.confirmStop(ctx, op)
 }
 
 // notify notifies the worker with the given payload.

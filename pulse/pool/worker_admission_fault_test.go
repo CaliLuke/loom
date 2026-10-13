@@ -145,13 +145,13 @@ func TestWorkerAdmissionQueuedBeforeFailure(t *testing.T) {
 	ctx := t.Context()
 	require.NoError(t, rdb.XGroupCreate(ctx, node.poolStream.Key(), poolSinkName, "$").Err())
 	job := &Job{Key: "queued", Payload: []byte("preserved"), NodeID: node.ID, CreatedAt: time.Now()}
-	id, err := node.poolStream.Add(ctx, evStartJob, marshalJob(job))
+	id, err := node.poolStream.Add(ctx, evStartJob, marshalTestOperation(t, node, job))
 	require.NoError(t, err)
 	batch, err := rdb.XReadGroup(ctx, &redis.XReadGroupArgs{Group: poolSinkName, Consumer: "first", Streams: []string{node.poolStream.Key(), ">"}, Count: 1, Block: -1}).Result()
 	require.NoError(t, err)
 	require.Len(t, batch, 1)
 	require.Equal(t, id, batch[0].Messages[0].ID)
-	ev := &streaming.Event{ID: id, EventName: evStartJob, Payload: marshalJob(job)}
+	ev := &streaming.Event{ID: id, EventName: evStartJob, Payload: marshalTestOperation(t, node, job)}
 	var injected atomic.Bool
 	failedID := ""
 	rdb.AddHook(constructionFailureHook{after: true, committed: func(cmd redis.Cmder) {
@@ -231,7 +231,7 @@ func TestWorkerAdmissionFailedCleanupDoesNotRenew(t *testing.T) {
 	stream, err := node.getWorkerStream(id)
 	require.NoError(t, err)
 	job := &Job{Key: "must-not-start", Payload: []byte("discarded"), NodeID: node.ID, CreatedAt: time.Now()}
-	_, err = stream.Add(t.Context(), evStartJob, marshalEnvelope(node.ID, marshalJob(job)))
+	_, err = stream.Add(t.Context(), evStartJob, marshalEnvelope(node.ID, marshalTestOperation(t, node, job)))
 	require.NoError(t, err)
 	// Cross the first renewal interval, before the initial lease expires.
 	time.Sleep(300 * time.Millisecond)

@@ -161,6 +161,21 @@ local function add_start(stream, max_len, job, content, channel, key, until_ns)
    redis.call("PUBLISH", channel, "set:" .. msg)
    return guard
 end
+local function admission_status(payloads, owners, pending_map, stream, key, now, group, now_ms, max_age)
+   if redis.call("HEXISTS", payloads, key) == 1 or redis.call("HEXISTS", owners, key) == 1 then
+      return 3, ""
+   end
+   local pending = redis.call("HGET", pending_map, key)
+   if pending then
+      local until_ns, id = parse_guard(pending)
+      if not until_ns then return 4, pending end
+      if active_until(until_ns, now) or in_flight(stream, group, id, now_ms, max_age) then
+         return 2, pending
+      end
+   end
+   return 1, ""
+end
+
 `
 
 var (
@@ -174,27 +189,22 @@ var (
 	// guard is never written without its event and the event is never queued
 	// without its guard. The pool stream has no TTL, so none is applied.
 	//
-	// KEYS: payload content, pending content, pending channel, pool stream, owners.
+	// KEYS: payload content, pending content, pending channel, pool stream,
+	// owners, epochs, incarnations, cutoffs.
 	// ARGV: key, nowNanos, untilNanos, maxLen, job bytes, sink group, nowMs,
 	// maxAgeMs.
-	luaClaimDispatch = redis.NewScript(luaDispatchGuard + `
-local payload = redis.call("HGET", KEYS[1], ARGV[1])
-if payload or redis.call("HEXISTS", KEYS[5], ARGV[1]) == 1 then
-   return {3, ""}
+	luaClaimDispatch = redis.NewScript(luaDispatchGuard + luaOperation + `
+local current = redis.call("HGET", KEYS[7], ARGV[1])
+if current and not token_after(current, redis.call("HGET", KEYS[8], ARGV[1])) then
+   delete_guard(KEYS[2], KEYS[3], ARGV[1])
 end
+local status, value = admission_status(KEYS[1], KEYS[5], KEYS[2], KEYS[4], ARGV[1], ARGV[2], ARGV[6], tonumber(ARGV[7]), tonumber(ARGV[8]))
+if status ~= 1 then return {status, value} end
 
-local pending = redis.call("HGET", KEYS[2], ARGV[1])
-if pending then
-   local until_ns, id = parse_guard(pending)
-   if not until_ns then
-      return {4, pending}
-   end
-   if active_until(until_ns, ARGV[2]) or in_flight(KEYS[4], ARGV[6], id, tonumber(ARGV[7]), tonumber(ARGV[8])) then
-      return {2, pending}
-   end
-end
-
-return {1, add_start(KEYS[4], ARGV[4], ARGV[5], KEYS[2], KEYS[3], ARGV[1], ARGV[3])}
+local token = next_token(KEYS[6], ARGV[1])
+redis.call("HSET", KEYS[7], ARGV[1], token)
+local data = operation(ARGV[1], token, "", "", ARGV[5])
+return {1, add_start(KEYS[4], ARGV[4], data, KEYS[2], KEYS[3], ARGV[1], ARGV[3])}
 `)
 
 	// luaClaimRequeue adds the start event that moves a running job to
@@ -220,9 +230,10 @@ return {1, add_start(KEYS[4], ARGV[4], ARGV[5], KEYS[2], KEYS[3], ARGV[1], ARGV[
 	// 4 is not supported, so such a guard is a leftover from before the
 	// upgrade and no running node writes one.
 	//
-	// KEYS: pending content, pending channel, pool stream, owners, payloads.
-	// ARGV: key, nowNanos, maxLen, job bytes, sink group, nowMs, maxAgeMs, payload.
-	luaClaimRequeue = redis.NewScript(luaDispatchGuard + `
+	// KEYS: pending content, pending channel, pool stream, owners, payloads,
+	// incarnations, cutoffs. ARGV: key, nowNanos, maxLen, job bytes, sink group,
+	// nowMs, maxAgeMs, payload, expected incarnation (empty for orphan lookup).
+	luaClaimRequeue = redis.NewScript(luaDispatchGuard + luaOperation + `
 if redis.call("HEXISTS", KEYS[4], ARGV[1]) == 1 or redis.call("HGET", KEYS[5], ARGV[1]) ~= ARGV[8] then
    return {5, ""}
 end
@@ -237,7 +248,11 @@ if pending then
    end
 end
 
-return {1, add_start(KEYS[3], ARGV[3], ARGV[4], KEYS[1], KEYS[2], ARGV[1], ARGV[2])}
+local token = redis.call("HGET", KEYS[6], ARGV[1])
+if not token or not token_after(token, redis.call("HGET", KEYS[7], ARGV[1])) then return {5, ""} end
+if ARGV[9] ~= "" and ARGV[9] ~= token then return {5, ""} end
+local data = operation(ARGV[1], token, "", "", ARGV[4])
+return {1, add_start(KEYS[3], ARGV[3], data, KEYS[1], KEYS[2], ARGV[1], ARGV[2])}
 `)
 
 	// luaRequeueInFlight reports whether luaClaimRequeue would refuse the

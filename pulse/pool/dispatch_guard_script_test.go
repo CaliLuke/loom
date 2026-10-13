@@ -238,7 +238,9 @@ func TestDispatchGuardInFlight(t *testing.T) {
 			clear: func(t *testing.T, node *Node, _ string) bool {
 				t.Helper()
 				require.NoError(t, node.rdb.HSet(t.Context(), rmapContentKey(jobPayloadMapName(node.PoolName)), "k1", "").Err())
-				queued, err := node.claimRequeue(t.Context(), &Job{Key: "k1"})
+				job := &Job{Key: "k1"}
+				require.NoError(t, identifyTestJob(t.Context(), node, job))
+				queued, err := node.claimRequeue(t.Context(), job)
 				require.NoError(t, err)
 				return queued
 			},
@@ -468,11 +470,12 @@ func TestParsePendingGuard(t *testing.T) {
 func TestClaimDispatchEntryMatchesStreamAdd(t *testing.T) {
 	rdb, node := guardScriptNode(t, "guard-golden")
 	ctx := t.Context()
-	job := marshalJob(&Job{Key: "k1", Payload: []byte("p"), CreatedAt: time.Unix(0, 1), NodeID: node.ID})
+	job := &Job{Key: "k1", Payload: []byte("p"), CreatedAt: time.Unix(0, 1), NodeID: node.ID}
 
-	_, scriptID, err := node.claimDispatch(ctx, "k1", job)
+	_, scriptID, err := node.claimDispatch(ctx, "k1", marshalJob(job))
 	require.NoError(t, err)
-	addID, err := node.poolStream.Add(ctx, evStartJob, job)
+	wire := marshalTestOperation(t, node, job)
+	addID, err := node.poolStream.Add(ctx, evStartJob, wire)
 	require.NoError(t, err)
 
 	stream := node.poolStream.Key()
@@ -481,7 +484,7 @@ func TestClaimDispatchEntryMatchesStreamAdd(t *testing.T) {
 	require.Len(t, scriptEntry, 1)
 	require.Len(t, addEntry, 1)
 	require.Equal(t, addEntry[0].Values, scriptEntry[0].Values)
-	require.Equal(t, map[string]any{"n": evStartJob, "p": string(job)}, scriptEntry[0].Values)
+	require.Equal(t, map[string]any{"n": evStartJob, "p": string(wire)}, scriptEntry[0].Values)
 	require.Equal(t, time.Duration(-1), rdb.PTTL(ctx, stream).Val(), "pool stream TTL")
 }
 

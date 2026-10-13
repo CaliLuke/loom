@@ -49,19 +49,19 @@ func TestWorkerFenceResume(t *testing.T) {
 			h := &fencingHandler{}
 			w.handler = h
 			job := &Job{Key: "k", Payload: []byte("p"), CreatedAt: time.Now(), NodeID: n.ID}
-			require.NoError(t, w.startJob(t.Context(), job))
+			require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 			base := time.Now()
 			w.recordLease(base)
 			w.updateLeaseState(t.Context(), base.Add(w.workerTTL))
 			require.True(t, w.leaseFenced.Load())
 			require.EqualValues(t, 1, h.stops.Load())
 			require.Len(t, w.Jobs(), 1, "fencing must retain ownership for possible resume")
-			require.ErrorIs(t, w.startJob(t.Context(), &Job{Key: "other"}), ErrRequeue)
+			require.ErrorIs(t, startIdentifiedJob(t.Context(), w, &Job{Key: "other"}), ErrRequeue)
 			if superseded {
 				require.NoError(t, rdb.HSet(t.Context(), rmapContentKey(workerKeepAliveMapName(n.PoolName)), w.ID, "1").Err())
 				n.cleanupWorker(t.Context(), w.ID)
 				other := ownershipWorker(t, n, "w2")
-				require.NoError(t, other.startJob(t.Context(), &Job{Key: "k", Payload: []byte("p"), NodeID: n.ID}))
+				require.NoError(t, startIdentifiedJob(t.Context(), other, &Job{Key: "k", Payload: []byte("p"), NodeID: n.ID}))
 			}
 			w.recordLease(base.Add(w.workerTTL))
 			w.updateLeaseState(t.Context(), base.Add(w.workerTTL))
@@ -85,7 +85,7 @@ func TestWorkerFenceCallbackFailure(t *testing.T) {
 			w := ownershipWorker(t, n, "w1")
 			h := &fencingHandler{}
 			w.handler = h
-			require.NoError(t, w.startJob(t.Context(), &Job{Key: "k", NodeID: n.ID}))
+			require.NoError(t, startIdentifiedJob(t.Context(), w, &Job{Key: "k", NodeID: n.ID}))
 			base := time.Now()
 			w.recordLease(base)
 			h.failStop.Store(failing == "stop")
@@ -110,7 +110,7 @@ func TestStopFencedJob(t *testing.T) {
 	w := ownershipWorker(t, n, "w1")
 	h := &fencingHandler{}
 	w.handler = h
-	require.NoError(t, w.startJob(t.Context(), &Job{Key: "k", NodeID: n.ID}))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, &Job{Key: "k", NodeID: n.ID}))
 	base := time.Now()
 	w.recordLease(base)
 	w.updateLeaseState(t.Context(), base.Add(w.workerTTL))
@@ -132,7 +132,7 @@ func TestFenceBeforeCleanup(t *testing.T) {
 	w, err := n1.AddWorker(t.Context(), h)
 	require.NoError(t, err)
 	job := &Job{Key: "k", NodeID: n1.ID, CreatedAt: time.Now()}
-	require.NoError(t, w.startJob(t.Context(), job))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 	hook := &fenceHeartbeatHook{worker: w.ID}
 	hook.fail.Store(true)
 	rdb.AddHook(hook)
@@ -144,7 +144,7 @@ func TestFenceBeforeCleanup(t *testing.T) {
 	n2.cleanupWorker(t.Context(), w.ID)
 	owner, err := rdb.HGet(t.Context(), n1.ownersKey(), job.Key).Result()
 	require.NoError(t, err)
-	require.Equal(t, w.ID+":1", owner)
+	require.Equal(t, w.ID+":2", owner)
 	// A restored renewal and authoritative check resume the same epoch.
 	hook.fail.Store(false)
 	require.NoError(t, n1.workerHeartbeat(t.Context(), w.ID))
@@ -233,7 +233,7 @@ func TestFencedWorkerEvents(t *testing.T) {
 	w := ownershipWorker(t, n, "w1")
 	h := &fencingHandler{}
 	w.handler = h
-	require.NoError(t, w.startJob(t.Context(), &Job{Key: "k", NodeID: n.ID}))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, &Job{Key: "k", NodeID: n.ID}))
 	w.updateLeaseState(t.Context(), time.Now().Add(time.Hour))
 	for _, event := range []string{evStartJob, evStopJob, evNotify} {
 		t.Run(event, func(t *testing.T) {
@@ -254,10 +254,10 @@ func TestFenceDuringOwnershipIO(t *testing.T) {
 			w := ownershipWorker(t, n, "w1")
 			h := &fencingHandler{}
 			w.handler = h
-			require.NoError(t, w.startJob(t.Context(), &Job{Key: "running", NodeID: n.ID}))
+			require.NoError(t, startIdentifiedJob(t.Context(), w, &Job{Key: "running", NodeID: n.ID}))
 			script := luaClaimJob
 			if operation != "claim" {
-				require.NoError(t, w.startJob(t.Context(), &Job{Key: "other", NodeID: n.ID}))
+				require.NoError(t, startIdentifiedJob(t.Context(), w, &Job{Key: "other", NodeID: n.ID}))
 				script = luaReleaseJob
 			}
 			if operation == "resume" {
@@ -274,7 +274,7 @@ func TestFenceDuringOwnershipIO(t *testing.T) {
 			go func() {
 				switch operation {
 				case "claim":
-					ioDone <- w.startJob(t.Context(), &Job{Key: "other", NodeID: n.ID})
+					ioDone <- startIdentifiedJob(t.Context(), w, &Job{Key: "other", NodeID: n.ID})
 				case "release":
 					ioDone <- w.stopJob(t.Context(), "other")
 				case "resume":
@@ -309,7 +309,7 @@ func TestFenceDuringOwnershipIO(t *testing.T) {
 			require.NoError(t, rdb.HSet(t.Context(), rmapContentKey(workerKeepAliveMapName(n.PoolName)), w.ID, "1").Err())
 			n.cleanupWorker(t.Context(), w.ID)
 			other := ownershipWorker(t, n, "w2")
-			require.NoError(t, other.startJob(t.Context(), &Job{Key: "running", NodeID: n.ID}))
+			require.NoError(t, startIdentifiedJob(t.Context(), other, &Job{Key: "running", NodeID: n.ID}))
 			require.Len(t, other.Jobs(), 1)
 		})
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"slices"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -37,11 +36,13 @@ func TestRebalanceRequeueReply(t *testing.T) {
 			worker, err := node.AddWorker(ctx, handler)
 			require.NoError(t, err)
 			job := &Job{Key: "k1", Payload: []byte("payload"), CreatedAt: time.Now(), NodeID: node.ID}
-			require.NoError(t, worker.startJob(ctx, job))
+			require.NoError(t, startIdentifiedJob(ctx, worker, job))
 			require.Eventually(t, func() bool {
 				_, ok := node.JobPayload(job.Key)
 				return ok
 			}, time.Second, time.Millisecond)
+			_, err = luaClaimRequeue.Load(ctx, rdb).Result()
+			require.NoError(t, err)
 			hook := &requeueReplyHook{mode: mode, node: node, job: job}
 			rdb.AddHook(hook)
 
@@ -72,7 +73,7 @@ func TestRebalanceRequeueReply(t *testing.T) {
 			// Deliver to a second worker through the real start transition.
 			// Register its lease without a local worker loop.
 			target := ownershipWorker(t, node, "target")
-			require.NoError(t, target.startJob(ctx, job))
+			require.NoError(t, startIdentifiedJob(ctx, target, job))
 			require.Len(t, target.Jobs(), 1)
 			require.Empty(t, worker.Jobs(), "both workers run the job")
 			require.NoError(t, target.stopJob(ctx, job.Key))
@@ -91,8 +92,7 @@ func (h *requeueReplyHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook
 			return next(ctx, cmd)
 		}
 		script, ok := args[1].(string)
-		if !ok || !((cmd.Name() == "evalsha" && script == luaClaimRequeue.Hash()) ||
-			(cmd.Name() == "eval" && strings.Contains(script, "return {1, add_start(KEYS[3], ARGV[3], ARGV[4], KEYS[1], KEYS[2], ARGV[1], ARGV[2])}"))) {
+		if !ok || cmd.Name() != "evalsha" || script != luaClaimRequeue.Hash() {
 			return next(ctx, cmd)
 		}
 		if h.mode == "before" && h.fired.CompareAndSwap(false, true) {

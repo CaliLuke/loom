@@ -12,7 +12,7 @@ import (
 )
 
 type (
-	// JobComputeFunc is the function called by the scheduler to compute jobs.
+	// JobProducer computes jobs for a recurring distributed schedule.
 	// It returns the list of jobs to start and job keys to stop.
 	JobProducer interface {
 		// Name returns the name of the producer. Schedule calls Plan on
@@ -31,8 +31,9 @@ type (
 		Start []*JobParam
 		// Job keys to stop.
 		Stop []string
-		// StopAll indicates that all jobs not in Jobs should be
-		// stopped.  Stop is ignored if StopAll is true.
+		// StopAll requests stops for this producer's previously requested jobs,
+		// excluding keys in Start. This includes uncertain starts. Stop is
+		// ignored if StopAll is true. Responsibility ends on confirmed stop.
 		StopAll bool
 	}
 
@@ -72,9 +73,6 @@ type (
 	}
 
 	schedulerJobMap interface {
-		Keys() []string
-		Set(ctx context.Context, key, value string) (string, error)
-		Delete(ctx context.Context, key string) (string, error)
 		Reset(ctx context.Context) error
 		Subscribe() <-chan rmap.EventKind
 		Unsubscribe(c <-chan rmap.EventKind)
@@ -184,51 +182,7 @@ func (sched *scheduler) scheduleJobs(ctx context.Context, ticker *Ticker, produc
 			continue
 		}
 		sched.logger.Info("scheduling jobs", "scheduler", sched.name, "start", len(plan.Start), "stop", len(plan.Stop), "stopAll", plan.StopAll)
-		sched.startJobs(ctx, plan.Start)
-		sched.stopJobs(ctx, plan)
-	}
-}
-
-// startJobs dispatches the given jobs.
-func (sched *scheduler) startJobs(ctx context.Context, jobs []*JobParam) {
-	for _, job := range jobs {
-		err := sched.node.DispatchJob(ctx, job.Key, job.Payload)
-		if err != nil {
-			sched.logger.Error(fmt.Errorf("failed to dispatch job: %w", err), "job", job.Key)
-			continue
-		}
-		if _, err := sched.jobMap.Set(ctx, job.Key, time.Now().String()); err != nil {
-			sched.logger.Error(fmt.Errorf("failed to store job: %w", err), "job", job.Key)
-			continue
-		}
-	}
-}
-
-// stopJobs stops jobs according to the given schedule.
-func (sched *scheduler) stopJobs(ctx context.Context, plan *JobPlan) {
-	var toStop []string
-	if plan.StopAll {
-		toStop = sched.jobMap.Keys()
-		for _, j := range plan.Start {
-			for i, k := range toStop {
-				if k == j.Key {
-					toStop = append(toStop[:i], toStop[i+1:]...)
-					break
-				}
-			}
-		}
-	} else {
-		toStop = plan.Stop
-	}
-	for _, key := range toStop {
-		err := sched.node.StopJob(ctx, key)
-		if err != nil {
-			sched.logger.Error(fmt.Errorf("failed to stop job: %w", err), "job", key)
-			continue
-		}
-		if _, err := sched.jobMap.Delete(ctx, key); err != nil {
-			sched.logger.Error(fmt.Errorf("failed to delete job: %w", err), "job", key)
-		}
+		sched.applyPlan(ctx, plan)
 	}
 }
 

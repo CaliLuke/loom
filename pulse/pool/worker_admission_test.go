@@ -188,13 +188,13 @@ func TestWorkerAdmissionRecovery(t *testing.T) {
 	addFakeWorker(t, node, "failed-attempt")
 	require.NoError(t, rdb.XGroupCreate(ctx, node.poolStream.Key(), poolSinkName, "$").Err())
 	job := &Job{Key: "recover", Payload: []byte("durable"), NodeID: node.ID, CreatedAt: time.Now()}
-	id, err := node.poolStream.Add(ctx, evStartJob, marshalJob(job))
+	id, err := node.poolStream.Add(ctx, evStartJob, marshalTestOperation(t, node, job))
 	require.NoError(t, err)
 	batch, err := rdb.XReadGroup(ctx, &redis.XReadGroupArgs{Group: poolSinkName, Consumer: "first", Streams: []string{node.poolStream.Key(), ">"}, Count: 1, Block: -1}).Result()
 	require.NoError(t, err)
 	require.Len(t, batch, 1)
 	require.Equal(t, id, batch[0].Messages[0].ID)
-	ev := &streaming.Event{ID: id, EventName: evStartJob, Payload: marshalJob(job)}
+	ev := &streaming.Event{ID: id, EventName: evStartJob, Payload: marshalTestOperation(t, node, job)}
 	require.NoError(t, node.routeWorkerEvent(ctx, ev))
 	failedStream, err := node.getWorkerStream("failed-attempt")
 	require.NoError(t, err)

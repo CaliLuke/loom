@@ -198,6 +198,15 @@ func (node *Node) ackWorkerEvent(ctx context.Context, ev *streaming.Event) {
 // ack of a start event deletes the dispatch guard that names it, so the
 // guard is cleared before the dispatcher sees the return.
 func (node *Node) completePendingEvent(ctx context.Context, pending *streaming.Event, ack *ack) {
+	if ack.Error == "" && (pending.EventName == evStartJob || pending.EventName == evStopJob) {
+		op, err := unmarshalOperation(pending.Payload)
+		if err != nil {
+			node.logger.Error(err)
+		} else if err := node.completeIntent(ctx, op, pending.EventName); err != nil {
+			node.logger.Error(err)
+			return // Retain the original event for durable completion retry.
+		}
+	}
 	// Ack the sink event so it does not get redelivered.
 	if err := node.ackRoutedEvent(ctx, pending); err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: failed to ack event: %w", err), "event", pending.EventName, "id", pending.ID)
@@ -266,7 +275,12 @@ func (node *Node) parkWorkerAck(key string, ack *ack) {
 // dispatcher times out; its guard release then finds the event acked, and the
 // payload refuses a retry of a job that started.
 func (node *Node) returnDispatch(ctx context.Context, pending *streaming.Event, workerAck *ack) {
-	_, nodeID, err := unmarshalJobKeyAndNodeID(pending.Payload)
+	op, err := unmarshalOperation(pending.Payload)
+	if err != nil {
+		node.logger.Error(err)
+		return
+	}
+	_, nodeID, err := unmarshalJobKeyAndNodeID(op.data)
 	if err != nil {
 		node.logger.Error(fmt.Errorf("ackWorkerEvent: no dispatch return for malformed job: %w", err), "id", pending.ID)
 		return

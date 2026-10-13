@@ -112,7 +112,7 @@ adding a stream resumes polling.
 
 ## Pool Job Ownership and Upgrades
 
-Pool protocol 2 records one owner and a monotonically increasing epoch for each
+Pool protocol 3 records one owner and a monotonically increasing epoch for each
 job key in Redis. Claims and releases are atomic; a stale worker cannot delete
 a later owner's payload. Recovery rechecks the worker's keep-alive in Redis
 and reads authoritative ownership instead of a local replica. Orphan recovery
@@ -121,12 +121,42 @@ replicas cannot requeue an owned job or revive a stopped job. Handlers receive
 the ownership token in `Job.Epoch`; the pool retains epoch counters even after
 `Shutdown` so tokens never restart when the pool name is reused.
 
-Upgrade from protocol 1 requires stopping every old node with `Close` before
-starting protocol 2 nodes. This boundary does not support rolling upgrades or
-mixed-version rollbacks. `AddNode` rejects a live older member. If an older node
-appears later, protocol 2 nodes stop routing and claiming new work until it
-leaves or its heartbeat expires. `Node.Health(ctx)` reports this condition and
-Redis errors. Older binaries cannot enforce this gate themselves.
+Each admitted start also has an internal incarnation, retained through routing,
+rebalance and recovery. A stop records a cutoff: delayed earlier starts cannot
+revive the stopped job, and a delayed stop cannot kill a later admitted start.
+`StopJob` returns after queue publication, not after the handler finishes.
+
+Upgrade from older pool protocols requires coordinated teardown with the old
+binaries: end each recurring producer with `ErrScheduleStop` to clear its old
+ledger, stop/drain its work, and complete pool `Shutdown` before starting
+protocol 3 nodes. `Close` alone can leave pending operations whose identity the
+new protocol cannot reconstruct. Recreate schedules and explicitly request the
+jobs needed after upgrading. Persisted older protocol markers and live older
+members are rejected; rolling upgrades and mixed-version rollbacks are unsupported.
+If an older member appears later, protocol 3 nodes stop routing and claiming work
+until it leaves or its heartbeat expires. `Node.Health(ctx)` reports this condition
+and Redis errors. Older binaries cannot enforce this gate themselves.
+
+A recurring producer retains responsibility for every requested Start, including
+an admission timeout, cancellation, or `ErrJobExists`. `StopAll` selects that
+producer's requested keys, excluding Start keys in the current plan; it does not
+stop another producer's disjoint jobs. Explicit Stop still addresses its authored
+global job key. Responsibility is removed only after confirmed stop, not enqueue.
+Later owned ticks retry pending operations with their original identity and stop
+cutoff. Handoff reads authoritative Redis intent, independently of local map lag.
+An observed successful admission is not continuously restarted if it later stops.
+A later authored Start is a new command, even with the same key and payload; an
+empty plan only reconciles stored pending operations.
+
+`ErrScheduleStop` ends planning and clears intent; it does not stop already
+admitted jobs. A local node's departure permits another participating scheduler
+to reconcile persisted intent. The supplied Schedule context still governs its
+Redis operations; cancellation alone does not stop its planning loop. Local
+Close or global `ErrScheduleStop` ends that loop. Pending retries require later
+participating ticks, available Redis, and handlers that return. Stream retention
+and `pendingEventTTL` bound recovery of individual deliveries; arbitrary outages
+or permanent schedule shutdown have no delivery guarantee. Internal incarnation,
+cutoff and generation counters survive resets/teardown to fence delayed copies.
 
 Workers pause event handling and call `Stop` for running jobs if a heartbeat
 has not succeeded within three quarters of the worker TTL. A separate monitor

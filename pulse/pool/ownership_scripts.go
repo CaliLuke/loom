@@ -37,7 +37,7 @@ local function incompatible(nodes, protocols, ttl)
    local entries = redis.call("HGETALL", nodes)
    for i = 1, #entries, 2 do
       if string.sub(entries[i], 1, 1) ~= "=" and live(entries[i + 1], ttl)
-         and redis.call("HGET", protocols, entries[i]) ~= "2" then
+         and redis.call("HGET", protocols, entries[i]) ~= "3" then
          return entries[i]
       end
    end
@@ -47,15 +47,17 @@ end
 
 var (
 	// KEYS: owners, epochs, jobs content/channel, payload content/channel,
-	// workers, worker keep-alive, node keep-alive, protocols.
-	// ARGV: job key, worker ID, payload, worker TTL milliseconds.
-	luaClaimJob = redis.NewScript(luaOwnerMaps + `
+	// workers, worker keep-alive, node keep-alive, protocols, incarnations, cutoffs.
+	// ARGV: job key, worker ID, payload, worker TTL milliseconds, incarnation.
+	luaClaimJob = redis.NewScript(luaOwnerMaps + luaOperation + `
 local bad = incompatible(KEYS[9], KEYS[10], ARGV[4])
 if bad ~= "" then return redis.error_reply("incompatible pool node " .. bad) end
 local worker = redis.call("HGET", KEYS[7], ARGV[2])
 if not worker or worker == "-" or not live(redis.call("HGET", KEYS[8], ARGV[2]), ARGV[4]) then
    return redis.error_reply("worker is not active")
 end
+if ARGV[5] == "" or redis.call("HGET", KEYS[11], ARGV[1]) ~= ARGV[5]
+   or not token_after(ARGV[5], redis.call("HGET", KEYS[12], ARGV[1])) then return {0, ""} end
 local current = redis.call("HGET", KEYS[1], ARGV[1])
 if current then
    local owner, epoch = string.match(current, "^(.*):(%d+)$")
@@ -92,10 +94,10 @@ return 1
 
 	// KEYS: owners, cleanup content/channel, keepalive content/channel,
 	// workers content/channel, jobs content/channel, payloads, pool stream,
-	// worker stream, pending content/channel.
+	// worker stream, pending content/channel, incarnations, cutoffs.
 	// ARGV: worker ID, lock token, TTL ms, node ID, createdAt (8 wire bytes),
 	// now nanoseconds, stream maximum length.
-	luaCleanupOwner = redis.NewScript(luaOwnerMaps + luaDispatchGuard + `
+	luaCleanupOwner = redis.NewScript(luaOwnerMaps + luaDispatchGuard + luaOperation + `
 if redis.call("HGET", KEYS[2], ARGV[1]) ~= ARGV[2] then return 0 end
 if live(redis.call("HGET", KEYS[4], ARGV[1]), ARGV[3]) then
    del_map(KEYS[2], KEYS[3], ARGV[1])
@@ -107,9 +109,10 @@ for i = 1, #entries, 2 do
    if owner == ARGV[1] then
       local key = entries[i]
       local payload = redis.call("HGET", KEYS[10], key)
-      if payload then
+      local token = redis.call("HGET", KEYS[15], key)
+      if payload and token and token_after(token, redis.call("HGET", KEYS[16], key)) then
          local job = struct.pack("ic0ic0ic0", #key, key, #ARGV[4], ARGV[4], #payload, payload) .. ARGV[5]
-         add_start(KEYS[11], ARGV[7], job, KEYS[13], KEYS[14], key, ARGV[6])
+         add_start(KEYS[11], ARGV[7], operation(key, token, "", "", job), KEYS[13], KEYS[14], key, ARGV[6])
       end
       redis.call("HDEL", KEYS[1], key)
    end
@@ -122,30 +125,18 @@ redis.call("DEL", KEYS[12])
 return 2
 `)
 
-	// Registration and backfill are atomic with the initial node heartbeat.
-	// KEYS: protocols, node keepalive content/channel, marker, owners,
-	// epochs, jobs, worker keepalive. ARGV: node ID, TTL ms.
+	// Registration and version admission are atomic with the initial heartbeat.
+	// KEYS: protocols, node keepalive content/channel, marker.
+	// ARGV: node ID, TTL ms.
 	luaJoinProtocol = redis.NewScript(luaOwnerMaps + `
 local bad = incompatible(KEYS[2], KEYS[1], ARGV[2])
 if bad ~= "" then return redis.error_reply("incompatible pool node " .. bad) end
 local version = redis.call("GET", KEYS[4])
-if version and version ~= "2" then return redis.error_reply("unsupported pool protocol " .. version) end
+if version and version ~= "3" then return redis.error_reply("unsupported pool protocol " .. version) end
 if not version then
-   local entries = redis.call("HGETALL", KEYS[7])
-   for i = 1, #entries, 2 do
-      local worker = entries[i]
-      if string.sub(worker, 1, 1) ~= "=" and live(redis.call("HGET", KEYS[8], worker), ARGV[2]) then
-         for _, key in ipairs(job_keys(entries[i + 1])) do
-            if redis.call("HEXISTS", KEYS[5], key) == 0 then
-               redis.call("HINCRBY", KEYS[6], key, 1)
-               redis.call("HSET", KEYS[5], key, worker .. ":" .. redis.call("HGET", KEYS[6], key))
-            end
-         end
-      end
-   end
-   redis.call("SET", KEYS[4], "2")
+   redis.call("SET", KEYS[4], "3")
 end
-redis.call("HSET", KEYS[1], ARGV[1], "2")
+redis.call("HSET", KEYS[1], ARGV[1], "3")
 set_map(KEYS[2], KEYS[3], ARGV[1], string.format("%.0f", now_ms() * 1000000))
 return 1
 `)

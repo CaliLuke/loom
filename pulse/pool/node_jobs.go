@@ -81,6 +81,11 @@ func (node *Node) dispatchJob(ctx context.Context, key string, job []byte) error
 		return err
 	}
 
+	return node.awaitDispatch(ctx, key, guard, eventID)
+}
+
+func (node *Node) awaitDispatch(ctx context.Context, key, guard, eventID string) error {
+	var err error
 	cherr := node.registerDispatch(eventID)
 
 	timer := time.NewTimer(2 * node.ackGracePeriod)
@@ -116,12 +121,10 @@ func (node *Node) dispatchJob(ctx context.Context, key string, job []byte) error
 // the job is already running, and a pending guard means its start event may
 // still start it. It returns the guard it wrote and the start event id.
 func (node *Node) claimDispatch(ctx context.Context, key string, job []byte) (string, string, error) {
-	if key == "" {
-		return "", "", fmt.Errorf("DispatchJob: job key cannot be empty")
+	if err := validateJobKey(key); err != nil {
+		return "", "", err
 	}
-	if strings.Contains(key, "=") {
-		return "", "", fmt.Errorf("DispatchJob: job key %q cannot contain '='", key)
-	}
+
 	now := time.Now()
 	raw, err := node.runClaimDispatch(ctx, key, job, now, now.Add(2*node.ackGracePeriod))
 	if err != nil {
@@ -176,7 +179,7 @@ func (node *Node) runClaimDispatch(ctx context.Context, key string, job []byte, 
 		rmapContentKey(jobPendingMapName(node.PoolName)),
 		rmapUpdateChannel(jobPendingMapName(node.PoolName)),
 		node.poolStream.Key(),
-		node.ownersKey(),
+		node.ownersKey(), node.PoolName + ":owner-epochs", node.PoolName + ":job-incarnations", node.PoolName + ":job-cutoffs",
 	}, key, strconv.FormatInt(now.UnixNano(), 10), strconv.FormatInt(until.UnixNano(), 10),
 		node.poolStream.MaxLen, job, poolSinkName, now.UnixMilli(), pendingEventTTL.Milliseconds()).Result()
 }
@@ -258,12 +261,14 @@ func parseDispatchClaim(raw any) (int64, string, error) {
 	return status, value, nil
 }
 
-// StopJob stops the job with the given key.
+// StopJob publishes a stop for the job with the given key. A nil error confirms
+// queue publication, not handler completion. The stop excludes starts admitted
+// after this request; delayed copies of earlier starts cannot revive the job.
 func (node *Node) StopJob(ctx context.Context, key string) error {
 	if node.IsClosed() {
 		return fmt.Errorf("StopJob: pool %q is closed", node.PoolName)
 	}
-	if _, err := node.poolStream.Add(ctx, evStopJob, marshalJobKey(key)); err != nil {
+	if _, err := node.issueStop(ctx, key); err != nil {
 		return fmt.Errorf("StopJob: failed to add stop job to stream %q: %w", node.poolStream.Name, err)
 	}
 	node.logger.Info("stop requested", "key", key)

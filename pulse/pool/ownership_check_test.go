@@ -24,7 +24,7 @@ func TestCheckOwnership(t *testing.T) {
 				n.localWorkers.Delete(w.ID)
 			})
 			job := &Job{Key: "k", NodeID: n.ID}
-			require.NoError(t, w.startJob(t.Context(), job))
+			require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 			check := w
 			switch source {
 			case "job-snapshot":
@@ -41,7 +41,7 @@ func TestCheckOwnership(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, released)
 			other := ownershipWorker(t, n, "w2")
-			require.NoError(t, other.startJob(t.Context(), &Job{Key: "k", NodeID: n.ID}))
+			require.NoError(t, startIdentifiedJob(t.Context(), other, &Job{Key: "k", NodeID: n.ID}))
 			require.ErrorIs(t, check.CheckOwnership(t.Context(), job.Key, job.Epoch), ErrOwnershipLost)
 			w.stopRejectedJobs()
 			require.EqualValues(t, 1, h.stops.Load())
@@ -62,7 +62,7 @@ func TestCheckOwnershipFailure(t *testing.T) {
 			h := &fencingHandler{}
 			w.handler = h
 			job := &Job{Key: "k", NodeID: n.ID}
-			require.NoError(t, w.startJob(t.Context(), job))
+			require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 			switch failure {
 			case "context":
 				ctx, cancel := context.WithCancel(t.Context())
@@ -103,7 +103,7 @@ func TestOwnershipCheckExpiredRedisLease(t *testing.T) {
 	h := &fencingHandler{}
 	w.handler = h
 	job := &Job{Key: "k", NodeID: n.ID}
-	require.NoError(t, w.startJob(t.Context(), job))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 	w.fenceHandlers()
 	// Lease expiry alone does not prove that ownership transferred. Resume
 	// must retain the paused job until its owner/epoch changes or renews.
@@ -138,7 +138,7 @@ func TestCheckOwnershipDoesNotJoinCaller(t *testing.T) {
 	h := &joiningOwnershipHandler{exited: make(chan struct{})}
 	w.handler = h
 	job := &Job{Key: "k", NodeID: n.ID}
-	require.NoError(t, w.startJob(t.Context(), job))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 	require.NoError(t, rdb.HSet(t.Context(), n.ownersKey(), job.Key, "w2:2").Err())
 	var exit sync.Once
 	result := make(chan error, 1)
@@ -170,7 +170,7 @@ func TestCheckOwnershipWakesStop(t *testing.T) {
 	w, err := n.AddWorker(t.Context(), h)
 	require.NoError(t, err)
 	job := &Job{Key: "k", NodeID: n.ID}
-	require.NoError(t, w.startJob(t.Context(), job))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, job))
 	require.NoError(t, rdb.HSet(t.Context(), n.ownersKey(), job.Key, "w2:2").Err())
 	require.ErrorIs(t, w.CheckOwnership(t.Context(), job.Key, job.Epoch), ErrOwnershipLost)
 	require.Eventually(t, func() bool {
@@ -185,10 +185,10 @@ func TestOwnershipCheckLateRejection(t *testing.T) {
 	h := &fencingHandler{}
 	w.handler = h
 	first := &Job{Key: "k", NodeID: n.ID}
-	require.NoError(t, w.startJob(t.Context(), first))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, first))
 	require.NoError(t, w.stopJob(t.Context(), first.Key))
 	second := &Job{Key: "k", NodeID: n.ID}
-	require.NoError(t, w.startJob(t.Context(), second))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, second))
 	w.rejectedJobs.Store(first, struct{}{})
 	w.stopRejectedJobs()
 	require.Len(t, w.Jobs(), 1, "old rejection must not stop the replacement")
@@ -229,7 +229,7 @@ func TestOwnershipPublishedBeforeStart(t *testing.T) {
 	w.logger = &startupOwnershipLogger{Logger: w.logger, entered: entered, release: release}
 	done := make(chan error, 1)
 	go func() {
-		done <- w.startJob(t.Context(), &Job{Key: "k", NodeID: n.ID})
+		done <- startIdentifiedJob(t.Context(), w, &Job{Key: "k", NodeID: n.ID})
 	}()
 	<-entered
 	defer func() {
@@ -261,7 +261,7 @@ func TestOwnershipRemovedAfterStartFailure(t *testing.T) {
 	h.failStart.Store(true)
 	w.handler = h
 	job := &Job{Key: "k", NodeID: n.ID}
-	require.ErrorContains(t, w.startJob(t.Context(), job), "start failed")
+	require.ErrorContains(t, startIdentifiedJob(t.Context(), w, job), "start failed")
 	require.Empty(t, w.Jobs())
 	require.ErrorIs(t, w.CheckOwnership(t.Context(), job.Key, job.Epoch), ErrOwnershipLost)
 	owned, err := rdb.HExists(t.Context(), n.ownersKey(), job.Key).Result()

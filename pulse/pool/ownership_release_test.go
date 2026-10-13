@@ -59,7 +59,7 @@ func TestOwnershipReleaseReply(t *testing.T) {
 			n := addTestNode(t, rdb, "release-reply", WithWorkerTTL(time.Hour))
 			w1, w2 := ownershipWorker(t, n, "w1"), ownershipWorker(t, n, "w2")
 			first := &Job{Key: "k", Payload: []byte("first"), CreatedAt: time.Now(), NodeID: n.ID}
-			require.NoError(t, w1.startJob(t.Context(), first))
+			require.NoError(t, startIdentifiedJob(t.Context(), w1, first))
 			hook := &releaseReplyHook{after: after}
 			rdb.AddHook(hook)
 			require.ErrorContains(t, w1.stopJob(t.Context(), "k"), "connection loss")
@@ -68,12 +68,12 @@ func TestOwnershipReleaseReply(t *testing.T) {
 			require.Len(t, w1.pendingReleases, 1)
 			second := &Job{Key: "k", Payload: []byte("second"), CreatedAt: time.Now(), NodeID: n.ID}
 			if after {
-				require.NoError(t, w2.startJob(t.Context(), second))
+				require.NoError(t, startIdentifiedJob(t.Context(), w2, second))
 			}
 			w1.retryReleases(t.Context())
 			require.Empty(t, w1.pendingReleases)
 			if !after {
-				require.NoError(t, w2.startJob(t.Context(), second))
+				require.NoError(t, startIdentifiedJob(t.Context(), w2, second))
 			}
 			require.Len(t, w2.Jobs(), 1)
 			require.Equal(t, "second", rdb.HGet(t.Context(), rmapContentKey(jobPayloadMapName(n.PoolName)), "k").Val())
@@ -90,7 +90,7 @@ func TestOwnerCleanupRebalance(t *testing.T) {
 			n := sinklessNode(t, rdb, "cleanup-rebalance", WithWorkerTTL(time.Hour))
 			w1, w2 := ownershipWorker(t, n, "w1"), ownershipWorker(t, n, "w2")
 			job := &Job{Key: "k", Payload: []byte("p"), CreatedAt: time.Now(), NodeID: n.ID}
-			require.NoError(t, w1.startJob(t.Context(), job))
+			require.NoError(t, startIdentifiedJob(t.Context(), w1, job))
 			if cleanupFirst {
 				require.NoError(t, rdb.HSet(t.Context(), rmapContentKey(workerKeepAliveMapName(n.PoolName)), w1.ID, "1").Err())
 				n.cleanupWorker(t.Context(), w1.ID)
@@ -103,12 +103,16 @@ func TestOwnerCleanupRebalance(t *testing.T) {
 			messages, err := rdb.XRange(t.Context(), n.poolStream.Key(), "-", "+").Result()
 			require.NoError(t, err)
 			for _, message := range messages {
-				start, err := unmarshalJob([]byte(message.Values["p"].(string)))
+				op, err := unmarshalOperation([]byte(message.Values["p"].(string)))
 				require.NoError(t, err)
+				start, err := unmarshalJob(op.data)
+				require.NoError(t, err)
+				start.incarnation = op.token
+				require.Equal(t, job.incarnation, start.incarnation)
 				require.NoError(t, w2.startJob(t.Context(), start))
 			}
 			require.Len(t, w2.Jobs(), 1)
-			require.Equal(t, "w2:2", rdb.HGet(t.Context(), n.ownersKey(), "k").Val())
+			require.Equal(t, "w2:3", rdb.HGet(t.Context(), n.ownersKey(), "k").Val())
 		})
 	}
 }
@@ -121,7 +125,7 @@ func TestSlowHandlerKeepsLease(t *testing.T) {
 	require.NoError(t, err)
 	done := make(chan error, 1)
 	go func() {
-		done <- w.startJob(t.Context(), &Job{Key: "k", CreatedAt: time.Now(), NodeID: n.ID})
+		done <- startIdentifiedJob(t.Context(), w, &Job{Key: "k", CreatedAt: time.Now(), NodeID: n.ID})
 	}()
 	<-h.entered
 	defer func() {
@@ -139,7 +143,7 @@ func TestSlowHandlerKeepsLease(t *testing.T) {
 	}, 3*time.Second, 10*time.Millisecond)
 	n.cleanupWorker(t.Context(), w.ID)
 	require.True(t, rdb.HExists(t.Context(), rmapContentKey(workerMapName(n.PoolName)), w.ID).Val())
-	require.Equal(t, w.ID+":1", rdb.HGet(t.Context(), n.ownersKey(), "k").Val())
+	require.Equal(t, w.ID+":2", rdb.HGet(t.Context(), n.ownersKey(), "k").Val())
 }
 
 func TestStaleRebalanceDoesNotReviveCompletedJob(t *testing.T) {
@@ -147,15 +151,17 @@ func TestStaleRebalanceDoesNotReviveCompletedJob(t *testing.T) {
 	n := sinklessNode(t, rdb, "stale-rebalance", WithWorkerTTL(time.Hour))
 	w1, w2 := ownershipWorker(t, n, "w1"), ownershipWorker(t, n, "w2")
 	first := &Job{Key: "k", Payload: []byte("old"), CreatedAt: time.Now(), NodeID: n.ID}
-	require.NoError(t, w1.startJob(t.Context(), first))
+	require.NoError(t, startIdentifiedJob(t.Context(), w1, first))
 	// Cleanup has transferred ownership while the old worker is paused.
 	released, err := w1.releaseJob(t.Context(), first, false)
 	require.NoError(t, err)
 	require.True(t, released)
-	require.NoError(t, w2.startJob(t.Context(), &Job{Key: "k", Payload: []byte("new"), NodeID: n.ID}))
+	require.NoError(t, startIdentifiedJob(t.Context(), w2, &Job{Key: "k", Payload: []byte("new"), NodeID: n.ID}))
 	require.NoError(t, w2.stopJob(t.Context(), "k"))
 	w1.rebalance(t.Context(), []string{w2.ID})
-	require.Zero(t, rdb.XLen(t.Context(), n.poolStream.Key()).Val(), "stale worker resurrected a completed job")
+	entries, err := rdb.XRange(t.Context(), n.poolStream.Key(), "-", "+").Result()
+	require.NoError(t, err)
+	require.Zero(t, countStartEvents(t, entries)["k"], "stale worker resurrected a completed job")
 	require.False(t, rdb.HExists(t.Context(), n.ownersKey(), "k").Val())
 }
 
@@ -164,7 +170,7 @@ func TestSlowReleaseKeepsLease(t *testing.T) {
 	n := addTestNode(t, rdb, "slow-release-lease", WithWorkerTTL(400*time.Millisecond))
 	w, err := n.AddWorker(t.Context(), newRecordingHandler())
 	require.NoError(t, err)
-	require.NoError(t, w.startJob(t.Context(), &Job{Key: "k", NodeID: n.ID, CreatedAt: time.Now()}))
+	require.NoError(t, startIdentifiedJob(t.Context(), w, &Job{Key: "k", NodeID: n.ID, CreatedAt: time.Now()}))
 	hook := &releaseReplyHook{entered: make(chan struct{}), release: make(chan struct{})}
 	rdb.AddHook(hook)
 	done := make(chan error, 1)

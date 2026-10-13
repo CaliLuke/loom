@@ -141,7 +141,7 @@ func TestSecondWorkerStopWaitsForEventLoop(t *testing.T) {
 	require.NoError(t, err)
 
 	job := &Job{Key: "k1", Payload: []byte("p"), CreatedAt: time.Now(), NodeID: node.ID}
-	_, err = node.poolStream.Add(ctx, evStartJob, marshalJob(job))
+	_, err = node.poolStream.Add(ctx, evStartJob, marshalTestOperation(t, node, job))
 	require.NoError(t, err)
 	select {
 	case <-handler.entered:
@@ -236,7 +236,7 @@ func TestStartDuringShutdownStopWaitsForStop(t *testing.T) {
 
 	// A redelivered start for k1 reaches the worker.
 	job := &Job{Key: "k1", Payload: []byte("p"), CreatedAt: time.Now(), NodeID: node.ID}
-	_, err = node.poolStream.Add(ctx, evStartJob, marshalJob(job))
+	_, err = node.poolStream.Add(ctx, evStartJob, marshalTestOperation(t, node, job))
 	require.NoError(t, err)
 	deadline := time.Now().Add(300 * time.Millisecond)
 	for handler.starts.Load() < 2 && time.Now().Before(deadline) {
@@ -400,5 +400,7 @@ func TestStopJobWaitsForRebalanceStop(t *testing.T) {
 
 	require.Zero(t, handler.overlapping.Load(), "stopJob called handler.Stop during rebalance's Stop")
 	require.Equal(t, int32(1), handler.stops.Load(), "handler.Stop calls")
-	require.ErrorContains(t, stopErr, "not found")
+	require.NoError(t, stopErr, "absence behind the installed cutoff confirms the stop")
+	require.Empty(t, worker.Jobs())
+	require.False(t, node.rdb.HExists(t.Context(), node.ownersKey(), "k1").Val())
 }

@@ -55,7 +55,7 @@ func TestRedeliveredStartEventStartsJobOnce(t *testing.T) {
 
 	// Steps 1-2: the first delivery reaches w1, whose handler blocks.
 	job := &Job{Key: "k1", Payload: []byte("p"), CreatedAt: time.Now(), NodeID: node.ID}
-	_, err = node.poolStream.Add(ctx, evStartJob, marshalJob(job))
+	_, err = node.poolStream.Add(ctx, evStartJob, marshalTestOperation(t, node, job))
 	require.NoError(t, err)
 	select {
 	case <-handler.entered:

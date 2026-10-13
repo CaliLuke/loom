@@ -2195,7 +2195,7 @@ tier:
 - Keep miniredis limitations explicit with `Server.Real()` assertions. They
   do not represent support for older Redis versions. Tests that need miniredis
   clock control need a wall-clock path on the supported real server.
-- Pool protocol 2 ownership lives in plain Redis hashes (`owners` and
+- Pool protocol 3 ownership lives in plain Redis hashes (`owners` and
   `owner-epochs`). Claim and release scripts update ownership, job indexes,
   and payloads together with rmap revision notifications. Never perform a
   per-job write without checking the owning worker and epoch. Cleanup checks
@@ -2216,10 +2216,26 @@ tier:
   heartbeat notifications alone miss the latter case. Keep the bounded
   `pulse/pool/tla/JoinRebalance.tla` model and watcher regressions paired with
   real-Redis migration coverage when changing these triggers.
-- Close all protocol 1 nodes before migration. Join registration and backfill
-  are atomic with the initial node heartbeat; routing and claims reject live
-  incompatible nodes. Preserve epoch counters across pool shutdown and read
-  incremented tokens as decimal strings, not Lua floating-point values.
+- Pool protocol 3 adds an incarnation/cutoff envelope to start/stop events.
+  Admission allocates incarnation from the retained per-key epoch counter;
+  requeue/orphan/dead-worker recovery preserve it. Worker claim and stop derive
+  eligibility from the shared Redis ordering, never producer membership.
+  Scheduler publication owns authoritative intent before I/O. Issuance atomically
+  compares revision, allocates/persists its first token and queues its delivery;
+  reconciliation retries reuse token/cutoff. Every authored Start publishes a new
+  revision even for identical key/payload; do not confuse new commands with stored
+  retries. Repeated pending stops retain their cutoff. Completion compares
+  revision+token before deleting stops or recording completed admission. Do not restore post-success Set,
+  replica Keys-based StopAll, or deletion on enqueue success. Generation survives
+  Reset; pending admitted work remains eligible after ErrScheduleStop.
+  Keep `SchedulerIntent.tla` and its direct/native Redis controls aligned.
+- Before upgrading older protocols, end/reset old producer ledgers and complete
+  old-binary pool Shutdown after draining/stopping work. Close alone preserves
+  incompatible pending operations. Registration/version admission are atomic with
+  the initial heartbeat; reject persisted older markers and live incompatible
+  nodes. No backfill or old-wire fallback. Retain epoch/incarnation/cutoff and
+  producer-generation counters across teardown; read incremented tokens as exact
+  decimal strings, not Lua floating-point values.
 - `pulse/pool/redis_semantics_test.go` pins the stream behaviors the pool
   scripts rely on: single-id `XPENDING`, `XINFO GROUPS` fields, `XADD MAXLEN ~`
   in Lua, pending entries of deleted ids under `XAUTOCLAIM`, and script
