@@ -61,6 +61,12 @@ packages and removes stale `gen/http/*/client/` and `gen/http/cli/` directories.
 The gRPC client CLI takes the request message in `--message` as protocol
 buffer JSON (`protojson`): set a `oneof` by the name of its selected `oneof`
 field, not by the union attribute name.
+Generated gRPC imports escape collisions with local variables as well as
+framework packages: service `md` can be imported as `mdsvc`, and service `req`'s
+protobuf import as `reqpb2`. The service name, package path and wire contract
+remain unchanged. Regenerate `gen/`; for existing create-only example servers,
+compare a freshly generated example in a separate directory and update matching
+import aliases and references while retaining your application changes.
 Generated gRPC clients preserve local encoding and validation errors. Inspect
 `grpc.ClientError` and `loom.ServiceError` with `errors.As`; remote failures use
 the transport error mappings. Generic remote service errors retain the RPC cause

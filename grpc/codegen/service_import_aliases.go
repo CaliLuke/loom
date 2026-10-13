@@ -14,8 +14,6 @@ type transportImportAliases struct {
 	protobuf string
 }
 
-const grpcClientReceiverName = "c"
-
 // transportGeneratedImportNames reserves the fixed imports of generated gRPC
 // transport and example files before service aliases are allocated. Generated
 // import coverage keeps this list aligned with the rendered files.
@@ -26,14 +24,29 @@ var transportGeneratedImportNames = []string{
 	"time", "url", "utf8",
 }
 
-func newImportAliases(root *expr.RootExpr) map[string]transportImportAliases {
+// transportGeneratedLocalNames reserves generated receiver, parameter and local
+// identifiers that can hide a service or protobuf import. Both import and
+// metadata allocation use this inventory; generated scope coverage checks it.
+var transportGeneratedLocalNames = []string{
+	"c", "ctx", "err", "hdr", "md", "message", "name", "ok", "p", "payload",
+	"proj", "reqpb", "res", "result", "s", "stream", "trlr", "v", "val", "vals",
+	"value", "vres",
+}
+
+// newTransportNameScope gives import bindings and metadata locals the same
+// fixed generated namespace without mutating neutral service type names.
+func newTransportNameScope() *codegen.NameScope {
 	scope := codegen.NewNameScope()
-	for _, name := range transportGeneratedImportNames {
-		scope.Unique(name)
+	for _, names := range [][]string{transportGeneratedImportNames, transportGeneratedLocalNames} {
+		for _, name := range names {
+			scope.Unique(name)
+		}
 	}
-	// Client methods use c as their receiver. Reserve it because selectors on
-	// that receiver are otherwise indistinguishable from import qualifiers.
-	scope.Unique(grpcClientReceiverName)
+	return scope
+}
+
+func newImportAliases(root *expr.RootExpr) map[string]transportImportAliases {
+	scope := newTransportNameScope()
 	aliases := make(map[string]transportImportAliases, len(root.API.GRPC.Services))
 	// Reserve protocol buffer imports before service imports: every aggregate
 	// file can import both sets, regardless of the order of its services.
@@ -54,17 +67,11 @@ func newImportAliases(root *expr.RootExpr) map[string]transportImportAliases {
 // transport and custom types. It must not mutate the neutral service scope:
 // doing so would also change names in the generated service declarations.
 func metadataVarScope(sd *ServiceData, att *expr.AttributeExpr) *codegen.NameScope {
-	scope := codegen.NewNameScope()
+	scope := newTransportNameScope()
 	reserve := func(name string) {
 		if name != "" && scope.PeekUnique(name) == name {
 			scope.Unique(name)
 		}
-	}
-	for _, name := range transportGeneratedImportNames {
-		reserve(name)
-	}
-	for _, name := range []string{"ctx", "v", "md", "err", "vals", "value", "ok", "payload", "message", "result", "res", "hdr", "trlr"} {
-		reserve(name)
 	}
 	reserve(sd.Service.PkgName)
 	reserve(sd.Service.ViewsPkg)

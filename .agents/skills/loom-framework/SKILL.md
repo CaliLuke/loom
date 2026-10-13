@@ -1129,24 +1129,25 @@ filter, and serialization rules belong here.
   generated name to the list. The example server main allocates its service
   imports in its own scope, which reserves its locals
   (`serverMainLocalNames` in `codegen/example`).
-- gRPC analysis copies the neutral service data and assigns a transport import
-  alias from `newImportAliases`. Reserve fixed transport and example
-  imports in `transportGeneratedImportNames` before allocating protobuf and
-  service aliases. `ServiceData.PkgName` is the protobuf import alias, while
-  `ProtoPkg` keeps the wire package and generated package declaration.
-  `TestGRPCServiceImportReservationsCoverGeneratedImports` checks the emitted
-  import lists. Alias allocation must preserve the neutral service package and
-  protobuf names, remain unique when another service uses an alias suffix, and
-  survive file-specific `struct:pkg:path` import renaming. `metadataVarScope`
-  reserves fixed, service, protobuf, view, and custom type imports separately
-  from the neutral type scope. Request locals and the shared response header
-  and trailer locals must avoid these aliases, including numeric suffixes.
-  Example service
-  stubs also alias service imports that clash with their fixed imports;
-  example server scopes reserve their fixed imports before service and API
-  packages. The bounded model under `grpc/codegen/tla/import_aliases`
-  reproduces the original import and metadata collisions and checks safety and
-  termination across all orders of its adversarial names.
+- gRPC analysis copies neutral service data and assigns transport import aliases
+  from `newImportAliases`. `newTransportNameScope` reserves the single fixed
+  import/local inventories before both protobuf/service import allocation and
+  metadata-local allocation. Keep receiver `c`, locals such as `md`/`ctx`, and
+  protobuf-shadowing `reqpb` in that shared owner. Generated import coverage and
+  `TestGRPCServiceLocalSymbolsScopeInventory` check actual rendered scopes.
+  `ServiceData.PkgName` is the protobuf import alias; `ProtoPkg` preserves its
+  declaration and wire identity. Neutral service names remain unchanged.
+  `metadataVarScope` then reserves actual service/view/protobuf/custom imports;
+  request locals and shared response header/trailer locals avoid these bindings,
+  including file-specific `struct:pkg:path` aliases from `fileData` reanalysis.
+  Do not mutate neutral nominal scopes or add per-renderer escape policies.
+  gRPC example files retain service/server/protobuf bindings in private
+  `exampleServerServiceData`. Header allocation and every parameter, constructor
+  and registration reference consume those exact bindings, without modifying
+  cached transport data. Preserve allocation order, service subsets and ordinary
+  output. The model under `grpc/codegen/tla/import_aliases` covers reciprocal
+  reservation, suffix ordering and retained example bindings; generated compile,
+  metadata round-trip, custom import and host-isolation tests cover the seams.
 - `makeProtoBufMessageR` lowers scalar aliases to their native protobuf types
   while retaining effective constraints and defaults. Root scalar wrappers must
   traverse this same lowering before validation or conversion. The protobuf scope,

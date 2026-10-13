@@ -6,7 +6,7 @@ import (
 	codegenpkg "github.com/CaliLuke/loom/codegen"
 )
 
-func grpcExampleServerSection(services []*ServiceData) codegenpkg.Section {
+func grpcExampleServerSection(services []exampleServerServiceData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("server-grpc-main", func(stmt *jen.Statement) {
 		codegenpkg.Doc(stmt, "handleGRPCServer starts configures and starts a gRPC server on the given URL. It shuts down the server if any error is received in the error channel.")
 		needStream := hasStreamSection(services)
@@ -19,16 +19,16 @@ func grpcExampleServerSection(services []*ServiceData) codegenpkg.Section {
 	})
 }
 
-func grpcExampleServerParams(services []*ServiceData) []jen.Code {
+func grpcExampleServerParams(services []exampleServerServiceData) []jen.Code {
 	params := []jen.Code{
 		jen.Id("ctx").Qual("context", "Context"),
 		jen.Id("u").Op("*").Qual("net/url", "URL"),
 	}
 	for _, service := range services {
-		if len(service.Service.Methods) == 0 {
+		if len(service.data.Service.Methods) == 0 {
 			continue
 		}
-		params = append(params, jen.Id(service.Service.VarName+"Endpoints").Op("*").Add(codegenpkg.PkgQual(service.Service.PkgName, "Endpoints")))
+		params = append(params, jen.Id(service.data.Service.VarName+"Endpoints").Op("*").Add(codegenpkg.PkgQual(service.serviceImport, "Endpoints")))
 	}
 	return append(params,
 		jen.Id("wg").Op("*").Qual("sync", "WaitGroup"),
@@ -37,19 +37,19 @@ func grpcExampleServerParams(services []*ServiceData) []jen.Code {
 	)
 }
 
-func appendGRPCExampleServerInits(g *jen.Group, services []*ServiceData) {
+func appendGRPCExampleServerInits(g *jen.Group, services []exampleServerServiceData) {
 	g.Comment(codegenpkg.Comment("Wrap the endpoints with the transport specific layers. The generated"))
 	g.Comment(codegenpkg.Comment("server packages contains code generated from the design which maps"))
 	g.Comment(codegenpkg.Comment("the service input and output data structures to gRPC requests and"))
 	g.Comment(codegenpkg.Comment("responses."))
 	g.Var().DefsFunc(func(defs *jen.Group) {
 		for _, service := range services {
-			defs.Id(service.Service.VarName + "Server").Op("*").Id(service.Service.PkgName + "svr").Dot("Server")
+			defs.Id(service.data.Service.VarName + "Server").Op("*").Id(service.serverImport).Dot("Server")
 		}
 	})
 	g.BlockFunc(func(bg *jen.Group) {
 		for _, service := range services {
-			bg.Id(service.Service.VarName + "Server").Op("=").Id(service.Service.PkgName + "svr").Dot("New").Call(grpcExampleNewServerArgs(service)...)
+			bg.Id(service.data.Service.VarName + "Server").Op("=").Id(service.serverImport).Dot("New").Call(grpcExampleNewServerArgs(service.data)...)
 		}
 	})
 	g.Line()
@@ -97,7 +97,7 @@ func appendGRPCExampleInterceptorSetup(g *jen.Group, needStream bool) {
 	g.Line()
 }
 
-func appendGRPCExampleServerSetup(g *jen.Group, services []*ServiceData, needStream bool) {
+func appendGRPCExampleServerSetup(g *jen.Group, services []exampleServerServiceData, needStream bool) {
 	g.Comment(codegenpkg.Comment("Initialize gRPC server"))
 	serverArgs := []jen.Code{jen.Id("chain")}
 	if needStream {
@@ -107,9 +107,9 @@ func appendGRPCExampleServerSetup(g *jen.Group, services []*ServiceData, needStr
 	g.Line()
 	g.Comment(codegenpkg.Comment("Register the servers."))
 	for _, service := range services {
-		g.Id(service.PkgName).Dot("Register"+service.ServerInterface).Call(
+		g.Id(service.protobufImport).Dot("Register"+service.data.ServerInterface).Call(
 			jen.Id("srv"),
-			jen.Id(service.Service.VarName+"Server"),
+			jen.Id(service.data.Service.VarName+"Server"),
 		)
 	}
 	g.Line()
@@ -155,9 +155,9 @@ func appendGRPCExampleServerRun(g *jen.Group) {
 	).Call()
 }
 
-func hasStreamSection(services []*ServiceData) bool {
+func hasStreamSection(services []exampleServerServiceData) bool {
 	for _, service := range services {
-		if needStreamSection(service) {
+		if needStreamSection(service.data) {
 			return true
 		}
 	}

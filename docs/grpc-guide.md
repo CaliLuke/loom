@@ -922,10 +922,17 @@ names and different fields, the generated message takes the name followed by
 the first free number instead, such as `AddRequest2`, and the type keeps its
 name. A type with the same fields shares the message.
 
-Generated gRPC files alias service imports that would collide with framework
-imports. For example, a service named `protojson` is imported as `protojsonsvc`.
-Service package names, import paths, and protocol buffer names stay unchanged.
-You do not need to rename the service to avoid a framework import.
+Generated gRPC files alias service and protobuf imports that would collide with
+framework imports or generated local variables. For example, service `md` is
+imported as `mdsvc`; service `req` keeps that service import name while its
+protobuf package is imported as `reqpb2`. Service package declarations, import
+paths and protobuf wire names stay unchanged. You do not need to rename a
+service to avoid these collisions.
+
+Regenerate `gen/` after upgrading. Existing example files are create-only:
+generate a fresh example in a separate directory and bring its corrected import
+aliases and references into your application-owned server wiring. Keep custom
+application changes when updating those files.
 
 Protocol buffer identifiers are ASCII only. Loom derives service, rpc, message,
 field, and `oneof` names from design names by treating every non-ASCII rune as a

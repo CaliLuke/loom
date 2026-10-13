@@ -26,11 +26,14 @@ func TestServicePackageAliasRenderedVerbatim(t *testing.T) {
 		{
 			Name: "example-server-params",
 			Render: func() string {
-				services := []*ServiceData{{
-					Service: &service.Data{
-						VarName: "mySvc",
-						PkgName: alias,
-						Methods: []*service.MethodData{{Name: "get"}},
+				services := []exampleServerServiceData{{
+					serviceImport: alias,
+					data: &ServiceData{
+						Service: &service.Data{
+							VarName: "mySvc",
+							PkgName: alias,
+							Methods: []*service.MethodData{{Name: "get"}},
+						},
 					},
 				}}
 				return fmt.Sprintf("%#v", jen.Func().Id("handleGRPCServer").Params(grpcExampleServerParams(services)...).Block())
