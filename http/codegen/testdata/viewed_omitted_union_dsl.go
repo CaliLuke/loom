@@ -32,66 +32,9 @@ func ViewedOmittedUnionJSONRPCDSL() {
 // ViewedUnionDSL constructs a reusable selected-view declaration fixture.
 func ViewedUnionDSL(options ViewedUnionOptions) func() {
 	return func() {
-		var shape expr.UserType
-		if options.Untagged {
-			circle := Type("Circle", func() {
-				Attribute("radius", Int, func() {
-					Minimum(1)
-				})
-			})
-			name := Type("Name", func() {
-				Attribute("label", String)
-			})
-			shape = Type("Shape", OneOf(circle, name), func() {
-				Untagged()
-			})
-		} else {
-			shape = Type("Shape", func() {
-				OneOf("kind", func() {
-					Field(1, "circle", Int)
-					Field(2, "name", String)
-				})
-			})
-		}
-
-		item := ResultType("application/vnd.item", func() {
-			TypeName("Item")
-			Attributes(func() {
-				Field(1, "id", String)
-				Field(2, "shape", shape)
-				Required("id")
-			})
-			View("default", func() {
-				Attribute("id")
-				if options.IncludeShape {
-					Attribute("shape")
-				}
-			})
-			View("shaped", func() {
-				Attribute("id")
-				Attribute("shape")
-			})
-		})
-
-		wrap := ResultType("application/vnd.wrap", func() {
-			TypeName("Wrap")
-			Attributes(func() {
-				Field(1, "id", String)
-				if options.MapItems {
-					Field(2, "items", MapOf(String, item))
-				} else {
-					Field(2, "items", ArrayOf(item))
-				}
-				Required("id")
-			})
-			View("default", func() {
-				Attribute("id")
-				Attribute("items")
-			})
-			View("tiny", func() {
-				Attribute("id")
-			})
-		})
+		shape := viewedUnionShape(options.Untagged)
+		item := viewedUnionItem(shape, options.IncludeShape)
+		wrap := viewedUnionWrap(item, options.MapItems)
 
 		Service("svc", func() {
 			if options.JSONRPC {
@@ -125,4 +68,72 @@ func ViewedUnionDSL(options ViewedUnionOptions) func() {
 			}
 		})
 	}
+}
+
+func viewedUnionShape(untagged bool) expr.UserType {
+	var shape expr.UserType
+	if untagged {
+		circle := Type("Circle", func() {
+			Attribute("radius", Int, func() {
+				Minimum(1)
+			})
+		})
+		name := Type("Name", func() {
+			Attribute("label", String)
+		})
+		shape = Type("Shape", OneOf(circle, name), func() {
+			Untagged()
+		})
+	} else {
+		shape = Type("Shape", func() {
+			OneOf("kind", func() {
+				Field(1, "circle", Int)
+				Field(2, "name", String)
+			})
+		})
+	}
+	return shape
+}
+
+func viewedUnionItem(shape expr.UserType, includeShape bool) *expr.ResultTypeExpr {
+	return ResultType("application/vnd.item", func() {
+		TypeName("Item")
+		Attributes(func() {
+			Field(1, "id", String)
+			Field(2, "shape", shape)
+			Required("id")
+		})
+		View("default", func() {
+			Attribute("id")
+			if includeShape {
+				Attribute("shape")
+			}
+		})
+		View("shaped", func() {
+			Attribute("id")
+			Attribute("shape")
+		})
+	})
+}
+
+func viewedUnionWrap(item *expr.ResultTypeExpr, mapItems bool) *expr.ResultTypeExpr {
+	return ResultType("application/vnd.wrap", func() {
+		TypeName("Wrap")
+		Attributes(func() {
+			Field(1, "id", String)
+			if mapItems {
+				Field(2, "items", MapOf(String, item))
+			} else {
+				Field(2, "items", ArrayOf(item))
+			}
+			Required("id")
+		})
+		View("default", func() {
+			Attribute("id")
+			Attribute("items")
+		})
+		View("tiny", func() {
+			Attribute("id")
+		})
+	})
 }

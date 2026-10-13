@@ -19,14 +19,15 @@ func CustomMultipartBindingsDSL(location string) func() {
 				Payload(func() {
 					Attribute("files", ArrayOf(Bytes))
 					if location != "none" {
-						if location == "custom_query" {
+						switch location {
+						case "custom_query":
 							Attribute("value", String, func() {
 								Pattern("^[1-9][0-9]*$")
 								Meta("struct:field:type", "scalar.Token", "example.com/multipart/scalar")
 							})
-						} else if location == "path_string" {
+						case "path_string":
 							Attribute("value", String)
-						} else {
+						default:
 							Attribute("value", Int, func() {
 								Minimum(1)
 							})
