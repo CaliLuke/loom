@@ -51,9 +51,6 @@ func ValidateArrayOfString(val *service_elem_validationpb.ArrayOfString, validat
 			validationPath += validationPart
 		}
 	}
-	if val.Field == nil {
-		err = loom.MergeErrors(err, loom.MissingFieldError("field", validationPath))
-	}
 	if len(val.Field) < 1 {
 		err = loom.MergeErrors(err, loom.InvalidLengthError(validationPath+".field", len(val.Field), 1, true))
 	}
