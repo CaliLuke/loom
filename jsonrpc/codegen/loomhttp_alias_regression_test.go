@@ -128,6 +128,7 @@ func renderJSONRPCModule(t *testing.T, dir, modulePath string, root *expr.RootEx
 		files = append(files, servicecodegen.Files(genpkg, svc, serviceData, userTypePkgs)...)
 		files = append(files, servicecodegen.EndpointFile(genpkg, svc, serviceData))
 	}
+	files = append(files, httpcodegen.DiagnosticFiles(jsonrpcData, "jsonrpc")...)
 	files = append(files, PathFiles(jsonrpcData)...)
 	files = append(files, ClientTypeFiles(genpkg, jsonrpcData)...)
 	files = append(files, ClientFiles(genpkg, jsonrpcData)...)
@@ -162,11 +163,13 @@ func renderMixedHTTPJSONRPCModule(t *testing.T, dir, modulePath string, root *ex
 		files = append(files, servicecodegen.Files(genpkg, svc, serviceData, userTypePkgs)...)
 		files = append(files, servicecodegen.EndpointFile(genpkg, svc, serviceData))
 	}
+	files = append(files, httpcodegen.DiagnosticFiles(httpData, "http")...)
 	files = append(files, httpcodegen.PathFiles(httpData)...)
 	files = append(files, httpcodegen.ClientTypeFiles(genpkg, httpData)...)
 	files = append(files, httpcodegen.ClientFiles(genpkg, httpData)...)
 	files = append(files, httpcodegen.ServerTypeFiles(genpkg, httpData)...)
 	files = append(files, httpcodegen.ServerFiles(genpkg, httpData)...)
+	files = append(files, httpcodegen.DiagnosticFiles(jsonrpcData, "jsonrpc")...)
 	files = append(files, PathFiles(jsonrpcData)...)
 	files = append(files, ClientTypeFiles(genpkg, jsonrpcData)...)
 	files = append(files, ClientFiles(genpkg, jsonrpcData)...)

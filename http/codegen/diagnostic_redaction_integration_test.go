@@ -101,7 +101,6 @@ func TestGeneratedCredentialDiagnostics(t *testing.T) {
 	root := RunHTTPDSL(t, diagnosticCredentialDSL)
 	dir := t.TempDir()
 	renderHTTPModule(t, dir, "example.com/diagnostic", root)
-	renderGeneratedFiles(t, dir, DiagnosticFiles(CreateHTTPServices(root), "http"))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "diagnostics_test.go"), []byte(diagnosticCredentialHarness), 0o600))
 	runGoCommand(t, dir, "mod", "edit", "-require=github.com/CaliLuke/loom@v1.10.0-alpha.9.0.20261013051947-ee4552dc94ee")
 	runGoCommand(t, dir, "mod", "tidy")
