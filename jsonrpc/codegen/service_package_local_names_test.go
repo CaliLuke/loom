@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,8 +29,8 @@ var localNameDesigns = []struct {
 }
 
 // TestServicePackageNamedLikeLocalGeneratedModuleBuilds collects the
-// receivers, parameters, locals and package-level names that the generated
-// JSON-RPC transport and example files declare where they would hide a
+// fixed import aliases, receivers, parameters, locals and package-level names
+// that generated JSON-RPC transport and example files declare where they hide a
 // service package imported under its own name. It checks that services
 // named after each of them import their package under an alias and that the
 // generated module and example compile.
@@ -41,6 +42,13 @@ func TestServicePackageNamedLikeLocalGeneratedModuleBuilds(t *testing.T) {
 			renderLocalNameModule(t, dir, modulePath, c.Design, localNameMarker+"svc")
 			names := testingx.ServicePackageShadowNames(t, dir, modulePath+"/gen", localNameMarker)
 			require.NotEmpty(t, names)
+			// These controlled designs contain no authored external custom types.
+			// Exercise observed fixed import aliases in the existing compilation sweep.
+			imports := testingx.ServicePackageImportNames(t, dir, modulePath+"/gen")
+			require.NotEmpty(t, imports)
+			names = append(names, imports...)
+			slices.Sort(names)
+			names = slices.Compact(names)
 
 			root := RunJSONRPCDSL(t, func() {
 				c.Design(names...)
