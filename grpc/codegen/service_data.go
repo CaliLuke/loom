@@ -82,6 +82,9 @@ type (
 		// names to stable allocation owners. Endpoint messages with one
 		// candidate share an owner; their shapes are checked separately.
 		generatedMessageNames map[string]string
+		// collectionMessages retains detached validation contracts alongside
+		// the wire shapes of anonymous collection declarations.
+		collectionMessages map[string][]collectionMessageContract
 		// designMessages maps the names of the design user types that the
 		// messages of the service declare as messages to the shapes of
 		// those messages, see endpointMessageName.

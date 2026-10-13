@@ -1,10 +1,6 @@
 package codegen
 
-import (
-	"strconv"
-
-	"github.com/CaliLuke/loom/expr"
-)
+import "github.com/CaliLuke/loom/expr"
 
 // collectionMessageMeta marks the attribute of the message that wraps a
 // named array or map, or an array or map that is an array element or a map
@@ -72,7 +68,7 @@ func markCollectionMessage(ut expr.UserType) {
 }
 
 // wrapNestedCollection gives an unnamed collection element its own message.
-// Equal shapes share a wrapper; other positions reserve separate names.
+// Equal wire layouts and validation contracts share a wrapper.
 func wrapNestedCollection(att *expr.AttributeExpr, tname string, sd *ServiceData) {
 	var name string
 	switch {
@@ -87,10 +83,7 @@ func wrapNestedCollection(att *expr.AttributeExpr, tname string, sd *ServiceData
 	default:
 		return
 	}
-	// Equal collection shapes share a wrapper, while different shapes and
-	// other generated positions reserve separate names.
-	owner := "collection:" + strconv.Quote(name) + ":" + protoAttributeShape(wrapperAttribute(att, true))
-	name = sd.anonymousMessageName(messageScope{name: name, path: owner})
+	name = sd.collectionMessageName(att, name)
 	wrapAttr(att, name, true, sd)
 	markCollectionMessage(att.Type.(expr.UserType))
 }

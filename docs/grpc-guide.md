@@ -195,6 +195,14 @@ The message is named after the enclosing message and the field, for example
 `CreateUserRequestPreferences`. Inline object array elements and map values are
 handled the same way.
 
+Nested arrays and maps also use wrapper messages. Anonymous wrappers share a
+message only when both their protobuf fields and validation contracts agree.
+For example, an unconstrained inner array and an inner array with `MinLength(2)`
+retain independent validation. Regenerate clients and servers after adopting
+this correction: conflicting wrappers can receive distinct generated names,
+while protobuf field numbers and wire contents remain unchanged. Update any
+application code that directly names those generated wrapper types.
+
 #### Named Arrays and Maps
 
 A `Type` defined as an array, such as `Type("Tags", ArrayOf(String))`, is a

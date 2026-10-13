@@ -1154,10 +1154,16 @@ filter, and serialization rules belong here.
   has it and a different message (`designMessageShapes`). A design type with
   the same message still shares it, so designs without a conflict keep their
   output.
-- Nested collection wrappers reserve names with stable collection-shape owners
-  in the same registry as endpoint and anonymous messages. Collection keys
-  emitted declarations by their generated Go name and checks the protobuf name
-  and field shape before reusing one. Shape comparison retains each referenced
+- Nested collection wrappers reserve names in the same registry as endpoint
+  and anonymous messages. `collectionMessageName` shares a declaration only when
+  its wire shape and detached complete effective contents contract match.
+  Preserve ordered predicates, defaults, nullability and storage facts; named
+  edges retain their declaration ID and occurrence facts without traversing their
+  mutable children. Never merge predicates from distinct collection occurrences.
+  The [wrapper contract model](../../../grpc/codegen/tla/wrapper_contracts/README.md)
+  checks faithful predicates, helper closure and equal-contract sharing.
+  `collectMessages` keys emitted declarations by generated Go name and checks
+  the protobuf name and field shape before reuse. Shape comparison retains each referenced
   message name, even on repeated or recursive edges. This catches explicit-name conflicts at
   every depth and rejects distinct protobuf names that map to one Go type.
   Recursive normalization rebinds repeated canonical type IDs to the first
