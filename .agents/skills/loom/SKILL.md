@@ -623,6 +623,11 @@ completion shapes are explicit generation limitations.
   scalar pointers (for example `proto.String("")`); old clients omit required
   zeros and cannot satisfy this contract. Bytes remain slices and scalar
   oneof branches retain their wrapper-based presence.
+- A present gRPC collection wrapper can contain an empty array or map, including
+  an empty inner collection in a nested array/map. `MinLength` still applies,
+  and a required wrapper cannot be omitted. Regenerate clients and servers to
+  adopt corrected empty-content validation. Ordinary unwrapped repeated/map
+  fields still collapse absence and empty on protobuf wire.
 - gRPC map keys must be `Boolean`, `String`, or integer types, including
   aliases. `Any` is supported as a map value, but cannot be a map key.
 - gRPC rejects a union used as an array element or map value. Wrap the

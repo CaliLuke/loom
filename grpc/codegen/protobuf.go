@@ -85,7 +85,7 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 		}
 		return att
 	case expr.IsPrimitive(att.Type):
-		wrapAttr(att, tname, true, sd)
+		wrapAttr(att, tname, sd)
 	case isut:
 		switch {
 		case expr.IsArray(ut) || expr.IsMap(ut):
@@ -95,12 +95,12 @@ func makeProtoBufMessage(att *expr.AttributeExpr, tname string, sd *ServiceData)
 			wrapCollectionUserType(att)
 			att.Validation = nil
 		case expr.IsUnion(ut):
-			wrapAttr(att, tname, true, sd)
+			wrapAttr(att, tname, sd)
 		}
 	case expr.IsArray(att.Type) || expr.IsMap(att.Type):
-		wrapAttr(att, tname, false, sd)
+		wrapAttr(att, tname, sd)
 	case expr.IsUnion(att.Type):
-		wrapAttr(att, tname, true, sd)
+		wrapAttr(att, tname, sd)
 	case expr.IsObject(att.Type):
 		att.Type = &expr.UserTypeExpr{
 			TypeName:      tname,

@@ -70,10 +70,8 @@ func generatedMessageAttribute(att *expr.AttributeExpr) *expr.AttributeExpr {
 		return &expr.AttributeExpr{Type: &expr.Object{}}
 	case expr.IsObject(att.Type):
 		return att
-	case expr.IsArray(att.Type) || expr.IsMap(att.Type):
-		return wrapperAttribute(att, false)
 	default:
-		return wrapperAttribute(att, true)
+		return wrapperAttribute(att)
 	}
 }
 
@@ -85,7 +83,7 @@ func designMessageAttribute(ut expr.UserType) *expr.AttributeExpr {
 	case expr.IsArray(ut) || expr.IsMap(ut):
 		return collectionMessageAttribute(ut)
 	case expr.IsPrimitive(ut) || expr.IsUnion(ut):
-		return wrapperAttribute(ut.Attribute(), true)
+		return wrapperAttribute(ut.Attribute())
 	default:
 		return ut.Attribute()
 	}

@@ -70,6 +70,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | HTTP WebSocket payload null versus end-of-input framing | [WebSocket payload nullability](../../../../http/codegen/tla/README.md) |
 | Protobuf endpoint/anonymous message name reservations | [Message names](../../../../grpc/codegen/tla/message_names/README.md) |
 | Anonymous protobuf collection declaration contracts | [Wrapper contracts](../../../../grpc/codegen/tla/wrapper_contracts/README.md) |
+| Protobuf collection wrapper contents and message presence | [Collection contents](../../../../grpc/codegen/tla/collection_contents/README.md) |
 | Protobuf explicit names, collection wrappers, compatible declarations and recursive normalization | [Message declarations](../../../../grpc/codegen/tla/message_declarations/README.md) |
 | Reachable protobuf field validation, cycles and opaque custom mappings | [Field tag traversal](../../../../expr/tla/grpc_field_tags/README.md) |
 | gRPC complete-source and recursive local presence admission | [Presence admission](../../../../expr/tla/grpc_presence_admission/README.md); placeholder ordering, shallow-local and over-broad Any counterexamples; direct recursive pairing and generated Any controls cover classifier limits |

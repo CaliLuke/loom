@@ -1145,6 +1145,14 @@ filter, and serialization rules belong here.
   helper. The loop variable of a map transform (`transformMapElemVar`) never
   shadows the variable of the target map, because the map depth that names
   it does not tell nested maps apart when a message is recursive.
+- `wrapperAttribute` derives contents requiredness from the wrapped type.
+  Repeated/map contents may decode to nil inside a present message and still
+  represent an empty collection; scalar/union contents retain presence checks.
+  Preserve authored length predicates and required containing-message presence.
+  Root, named, nested and endpoint-shape paths consume the same constructor,
+  including anonymous contract allocation. Do not restore caller-selected
+  requiredness or add transport validation exceptions. See the
+  [collection contents model](../../../grpc/codegen/tla/collection_contents/README.md).
 - Named map and array union branches use their collection message wrappers.
   `unionBranchMessageHelper` must collect conversion helpers for both kinds,
   as well as nested unions. Keep a wrapper for every selected branch, including

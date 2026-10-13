@@ -71,7 +71,7 @@ func collectionContract(att *expr.AttributeExpr) collectionValidationContract {
 }
 
 func (sd *ServiceData) collectionMessageName(att *expr.AttributeExpr, name string) string {
-	shape := strconv.Quote(name) + ":" + protoAttributeShape(wrapperAttribute(att, true))
+	shape := strconv.Quote(name) + ":" + protoAttributeShape(wrapperAttribute(att))
 	contract := collectionContract(att)
 	for _, previous := range sd.collectionMessages[shape] {
 		if reflect.DeepEqual(previous.contents, contract) {

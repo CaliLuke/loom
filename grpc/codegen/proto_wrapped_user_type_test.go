@@ -40,7 +40,7 @@ func TestWrapAttrUserTypeIdentity(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			att := &expr.AttributeExpr{Type: c.Type}
-			wrapAttr(att, "MResponse", true, &ServiceData{Name: "svc"})
+			wrapAttr(att, "MResponse", &ServiceData{Name: "svc"})
 			ut, ok := att.Type.(*expr.UserTypeExpr)
 			require.True(t, ok, "wrapper type %T", att.Type)
 			assert.Equal(t, c.WantName, ut.Name())

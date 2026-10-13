@@ -235,9 +235,16 @@ message Index {
 ```
 
 The service type is still the Go slice or map type, such as
-`type Tags []string` or `type Index map[string]int`. Do not rely on the
-wrapper message to tell an absent array or map from an empty one: other
-transports and JSON encoding treat both as missing.
+`type Tags []string` or `type Index map[string]int`. A present wrapper with
+empty repeated or map contents represents an empty collection. This also
+applies to anonymous nested collections such as `ArrayOf(ArrayOf(Int))`.
+Generated request and response validation accepts those empty contents unless
+an authored constraint such as `MinLength(1)` rejects them. A required wrapper
+message must still be present. Regenerate clients and servers to adopt this
+validation correction; protobuf fields and wire encoding stay unchanged.
+
+Ordinary unwrapped repeated and map fields still cannot distinguish absence
+from empty on protobuf wire. The wrapper correction does not change those fields.
 
 #### Union Fields
 

@@ -41,7 +41,7 @@ func collectionMessageAttribute(ut expr.UserType) *expr.AttributeExpr {
 		}
 		collection = inner.Attribute()
 	}
-	message := wrapperAttribute(collection, false)
+	message := wrapperAttribute(collection)
 	message.Meta = expr.MetaExpr{collectionMessageMeta: []string{"true"}}
 	copyProtoMessageName(message, ut.Attribute().Meta)
 	return message
@@ -84,7 +84,7 @@ func wrapNestedCollection(att *expr.AttributeExpr, tname string, sd *ServiceData
 		return
 	}
 	name = sd.collectionMessageName(att, name)
-	wrapAttr(att, name, true, sd)
+	wrapAttr(att, name, sd)
 	markCollectionMessage(att.Type.(expr.UserType))
 }
 
@@ -109,7 +109,7 @@ func wrapUnionBranch(att *expr.AttributeExpr, sd *ServiceData) {
 	}
 	att.Type = &expr.UserTypeExpr{
 		TypeName:      ut.Name(),
-		AttributeExpr: wrapperAttribute(ut.Attribute(), true),
+		AttributeExpr: wrapperAttribute(ut.Attribute()),
 		UID:           ut.ID() + "#branch",
 	}
 }
@@ -125,18 +125,18 @@ func wrapUnionBranch(att *expr.AttributeExpr, sd *ServiceData) {
 // field of a recursive branch type of the named union, still refer to the
 // named type, in the message, in the copies of the message and in examples,
 // which share user types by identifier.
-func wrapAttr(att *expr.AttributeExpr, tname string, req bool, sd *ServiceData) {
+func wrapAttr(att *expr.AttributeExpr, tname string, sd *ServiceData) {
 	switch dt := att.Type.(type) {
 	case expr.UserType:
 		att.Type = &expr.UserTypeExpr{
 			TypeName:      dt.Name(),
-			AttributeExpr: wrapperAttribute(dt.Attribute(), req),
+			AttributeExpr: wrapperAttribute(dt.Attribute()),
 			UID:           dt.ID() + "#message",
 		}
 	default:
 		att.Type = &expr.UserTypeExpr{
 			TypeName:      tname,
-			AttributeExpr: wrapperAttribute(att, req),
+			AttributeExpr: wrapperAttribute(att),
 			UID:           sd.Name + "#" + tname,
 		}
 	}
@@ -147,8 +147,9 @@ func wrapAttr(att *expr.AttributeExpr, tname string, req bool, sd *ServiceData) 
 // wrapperAttribute returns the object attribute of the message that wraps the
 // value of attr: a single attribute named "field", or for a union the
 // attribute that unionWrapperFieldName names, numbered 1 and carrying the
-// validations of attr. req makes the wrapped attribute required.
-func wrapperAttribute(attr *expr.AttributeExpr, req bool) *expr.AttributeExpr {
+// validations of attr. Scalar and union contents require presence; collection
+// contents may be nil after protobuf decoding even when their message is present.
+func wrapperAttribute(attr *expr.AttributeExpr) *expr.AttributeExpr {
 	name := "field"
 	if union := expr.AsUnion(attr.Type); union != nil {
 		name = unionWrapperFieldName(union)
@@ -166,7 +167,7 @@ func wrapperAttribute(attr *expr.AttributeExpr, req bool) *expr.AttributeExpr {
 		},
 	}
 	copyProtoMessageName(res, attr.Meta)
-	if req {
+	if !expr.IsArray(attr.Type) && !expr.IsMap(attr.Type) {
 		res.Validation = &expr.ValidationExpr{
 			Required: []string{name},
 		}

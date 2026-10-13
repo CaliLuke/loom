@@ -27,7 +27,7 @@ func TestWrappedTypeExampleCacheOrder(t *testing.T) {
 				named := &expr.UserTypeExpr{TypeName: "Named", UID: "Named", AttributeExpr: &expr.AttributeExpr{Type: tc.typ}}
 				serviceAttribute := &expr.AttributeExpr{Type: named}
 				wrapper := expr.DupAtt(serviceAttribute)
-				wrapAttr(wrapper, "Wrapped", true, &ServiceData{Name: "svc"})
+				wrapAttr(wrapper, "Wrapped", &ServiceData{Name: "svc"})
 				random := expr.NewRandom("cache-order")
 				var serviceExample, wrapperExample any
 				if serviceFirst {

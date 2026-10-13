@@ -1,0 +1,155 @@
+package codegen
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	. "github.com/CaliLuke/loom/dsl"
+)
+
+func TestPresenceNestedCollectionReadiness(t *testing.T) {
+	const modulePath = "example.com/richprobe"
+	root := RunGRPCDSL(t, func() {
+		var Leaf = Type("Leaf", func() {
+			Field(1, "name", String)
+			Required("name")
+		})
+		items := Type("Items", ArrayOf(Int), func() {
+			MinLength(0)
+		})
+		nonemptyItems := Type("NonemptyItems", ArrayOf(Int), func() {
+			MinLength(1)
+		})
+		var Rich = Type("Rich", func() {
+			Field(1, "req", String)
+			Field(2, "nested", ArrayOf(ArrayOf(Int)))
+			Field(3, "mapleaf", MapOf(String, ArrayOf(Leaf)))
+			Field(4, "mm", MapOf(String, MapOf(String, Int)))
+			Field(5, "named", ArrayOf(items))
+			Field(6, "required_items", items)
+			Field(7, "nonempty", ArrayOf(ArrayOf(Int), func() {
+				MinLength(2)
+			}))
+			Field(8, "named_nonempty", ArrayOf(nonemptyItems))
+			Required("req", "required_items")
+		})
+		Service("rich", func() {
+			Method("echo", func() {
+				Payload(Rich)
+				Result(Rich)
+				GRPC(func() {
+				})
+			})
+		})
+	})
+	dir := t.TempDir()
+	renderGRPCModule(t, dir, modulePath, root, resolveGRPCLoomSource(t))
+	modPath := filepath.Join(dir, "go.mod")
+	mod, err := os.ReadFile(modPath)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(modPath, []byte(strings.ReplaceAll(string(mod), "require github.com/CaliLuke/loom v1.0.0", "require github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261013020843-063198a2f427")), 0o600))
+	testDir := filepath.Join(dir, "internal", "rt")
+	require.NoError(t, os.MkdirAll(testDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(testDir, "rt_test.go"), []byte(presenceCollectionHarness), 0o600))
+	runGRPCGoCommand(t, dir, "mod", "tidy")
+	runGRPCGoCommand(t, dir, "vet", "./...")
+	runGRPCGoCommand(t, dir, "test", "./internal/rt", "-run", "TestAnonymousMinLengthNotLost", "-v")
+}
+
+const presenceCollectionHarness = `package rt
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+
+	"example.com/richprobe/gen/grpc/rich/client"
+	richpb "example.com/richprobe/gen/grpc/rich/pb"
+	"example.com/richprobe/gen/grpc/rich/server"
+	rich "example.com/richprobe/gen/rich"
+)
+
+func TestEmptyInnerCollections(t *testing.T) {
+	cases := map[string]*rich.Rich{
+		"populated control":          {Req: "r", Nested: [][]int{{1}}, Mapleaf: map[string][]*rich.Leaf{"k": {{Name: "value"}}}, Mm: map[string]map[string]int{"k": {"x": 1}}},
+		"absent collections control": {Req: "r"},
+		"named empty control":        {Req: "r", Named: []rich.Items{{}}},
+		"length populated control":   {Req: "r", Nonempty: [][]int{{1}}},
+		"empty nested array":         {Req: "r", Nested: [][]int{{}}},
+		"empty array in map":         {Req: "r", Mapleaf: map[string][]*rich.Leaf{"k": {}}},
+		"empty map in map":           {Req: "r", Mm: map[string]map[string]int{"k": {}}},
+	}
+	for name, v := range cases {
+		t.Run(name, func(t *testing.T) {
+			v.RequiredItems = rich.Items{}
+			pb := client.NewProtoEchoRequest(v)
+			b, err := proto.Marshal(pb)
+			require.NoError(t, err)
+			out := &richpb.EchoRequest{}
+			require.NoError(t, proto.Unmarshal(b, out))
+			t.Run("request validation", func(t *testing.T) {
+				require.NoError(t, server.ValidateEchoRequest(out))
+			})
+			t.Run("request conversion", func(t *testing.T) {
+				require.Equal(t, v, server.NewEchoPayload(out))
+			})
+			response := server.NewProtoEchoResponse(v)
+			b, err = proto.Marshal(response)
+			require.NoError(t, err)
+			decoded := &richpb.EchoResponse{}
+			require.NoError(t, proto.Unmarshal(b, decoded))
+			t.Run("response validation", func(t *testing.T) {
+				require.NoError(t, client.ValidateEchoResponse(decoded))
+			})
+			t.Run("response conversion", func(t *testing.T) {
+				require.Equal(t, v, client.NewEchoResult(decoded))
+			})
+		})
+	}
+}
+func TestCollectionRejectionControls(t *testing.T) {
+	t.Run("nil wrapper element control", func(t *testing.T) {
+		value := &rich.Rich{Req: "r", RequiredItems: rich.Items{}, Nested: [][]int{{1}}}
+		request := client.NewProtoEchoRequest(value)
+		request.Nested[0] = nil
+		require.Error(t, server.ValidateEchoRequest(request))
+	})
+	t.Run("required wrapper absent", func(t *testing.T) {
+		value := &rich.Rich{Req: "r"}
+		request := client.NewProtoEchoRequest(value)
+		require.ErrorContains(t, server.ValidateEchoRequest(request), "required_items")
+	})
+	t.Run("named empty with MinLength1 control", func(t *testing.T) {
+		value := &rich.Rich{Req: "r", RequiredItems: rich.Items{}, NamedNonempty: []rich.NonemptyItems{{}}}
+		request := client.NewProtoEchoRequest(value)
+		data, err := proto.Marshal(request)
+		require.NoError(t, err)
+		decoded := &richpb.EchoRequest{}
+		require.NoError(t, proto.Unmarshal(data, decoded))
+		require.ErrorContains(t, server.ValidateEchoRequest(decoded), "length")
+	})
+	t.Run("empty with MinLength1", func(t *testing.T) {
+		value := &rich.Rich{Req: "r", RequiredItems: rich.Items{}, Nonempty: [][]int{{}}}
+		request := client.NewProtoEchoRequest(value)
+		data, err := proto.Marshal(request)
+		require.NoError(t, err)
+		decoded := &richpb.EchoRequest{}
+		require.NoError(t, proto.Unmarshal(data, decoded))
+		require.ErrorContains(t, server.ValidateEchoRequest(decoded), "length")
+	})
+}
+func TestAnonymousMinLengthNotLost(t *testing.T) {
+    value := &rich.Rich{Req: "r", RequiredItems: rich.Items{}, Nonempty: [][]int{{1}}}
+    request := client.NewProtoEchoRequest(value)
+    data, err := proto.Marshal(request)
+    require.NoError(t, err)
+    decoded := &richpb.EchoRequest{}
+    require.NoError(t, proto.Unmarshal(data, decoded))
+    require.ErrorContains(t, server.ValidateEchoRequest(decoded), "length")
+}
+`
