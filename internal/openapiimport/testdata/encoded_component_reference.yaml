@@ -1,0 +1,15 @@
+openapi: 3.1.1
+info: {title: Reference identity, version: '1'}
+paths:
+  /value:
+    get:
+      operationId: value
+      parameters:
+        - name: X-Tags
+          in: header
+          schema: {type: array, items: {$ref: '#/components/schemas/%49temName'}}
+      responses:
+        '204': {description: done}
+components:
+  schemas:
+    ItemName: {type: string}

@@ -372,6 +372,9 @@ TODO placeholders, and never overwrites an existing target. Schema `title`,
 import without a flag. Unformatted integers and numbers also import without a
 flag. String schemas with `format: byte` or `format: binary` import as `Bytes`.
 Regeneration preserves the selected format.
+Local component references accept equivalent percent-encoded URI spellings, such
+as `#/components/schemas/%49temName` for `ItemName`. Regeneration emits canonical
+references; component keys must still obey OpenAPI's naming rules.
 Cookie parameters require primitive schemas. Array and object cookies are
 blocked before rendering, including schemas reached through references.
 Parameter reference description overrides in OpenAPI 3.1 and 3.2 survive

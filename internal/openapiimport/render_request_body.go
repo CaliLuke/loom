@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 func (r *renderer) openAPIRequestBody(body RequestBody, path string) error {
@@ -96,7 +97,10 @@ func (r *renderer) renderJSONBodyMapping(body *renderedBody, path string) error 
 		r.line("Body(%q)", body.field)
 		return nil
 	}
-	name := strings.TrimPrefix(body.body.Schema.Ref, "#/components/schemas/")
+	name, err := openapiref.Name(body.body.Schema.Ref, "#/components/schemas/")
+	if err != nil {
+		return fmt.Errorf("render OpenAPI design: %s/requestBody schema reference %q %w", path, body.body.Schema.Ref, err)
+	}
 	named, ok := r.schemas[name]
 	if !ok {
 		return fmt.Errorf("render OpenAPI design: %s/requestBody schema reference %q does not resolve", path, body.body.Schema.Ref)

@@ -125,7 +125,7 @@ func walkReferences(node *yaml.Node, path string, diagnostics *Diagnostics) {
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key, value := node.Content[i], node.Content[i+1]
 			childPath := path + "/" + escapeJSONPointer(key.Value)
-			if key.Value == "$ref" && value.Kind == yaml.ScalarNode && !strings.HasPrefix(value.Value, "#/") {
+			if key.Value == "$ref" && value.Kind == yaml.ScalarNode && !strings.HasPrefix(value.Value, "#") {
 				diagnostics.add("external-reference", childPath, fmt.Sprintf("external reference %q is not supported", value.Value))
 			}
 			walkReferences(value, childPath, diagnostics)

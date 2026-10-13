@@ -1,8 +1,6 @@
 package openapiimport
 
-import (
-	"strings"
-)
+import "github.com/CaliLuke/loom/internal/openapiref"
 
 func (r *renderer) effectiveUnconstrained(schema *Schema) bool {
 	if schema == nil {
@@ -14,7 +12,10 @@ func (r *renderer) effectiveUnconstrained(schema *Schema) bool {
 	if schema.Ref == "" {
 		return false
 	}
-	name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+	name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
+	if err != nil {
+		return false
+	}
 	named, ok := r.schemas[name]
 	return ok && named.Schema != nil && named.Schema.Unconstrained
 }
@@ -29,7 +30,10 @@ func (r *renderer) effectiveNullable(schema *Schema) bool {
 	if schema.Ref == "" {
 		return false
 	}
-	name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+	name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
+	if err != nil {
+		return false
+	}
 	named, ok := r.schemas[name]
 	return ok && named.Schema != nil && named.Schema.Nullable
 }

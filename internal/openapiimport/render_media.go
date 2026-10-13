@@ -3,9 +3,9 @@ package openapiimport
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 func (r *renderer) importedMediaTypes() ([]string, []string) {
@@ -138,9 +138,12 @@ func (r *renderer) formBodyRequiresRaw(schema *Schema, path string, seen map[str
 		return false, fmt.Errorf("render OpenAPI design: %s schema is nil", path)
 	}
 	if schema.Ref != "" {
-		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
+		if err != nil {
+			return false, fmt.Errorf("render OpenAPI design: %s schema reference %q %w", path, schema.Ref, err)
+		}
 		named, ok := r.schemas[name]
-		if name == schema.Ref || name == "" || !ok {
+		if !ok {
 			return false, fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
 		}
 		if _, ok := seen[name]; ok {

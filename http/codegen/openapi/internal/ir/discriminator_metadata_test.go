@@ -24,6 +24,7 @@ func TestDiscriminatorMetadataAdmission(t *testing.T) {
 		{name: "local name", discriminator: true, meta: expr.MetaExpr{"openapi:discriminator:optional": {"true"}, "openapi:discriminator:defaultMapping": {"Fallback"}}, wantOptional: true, wantFallback: "#/components/schemas/Fallback"},
 		{name: "local ref", discriminator: true, meta: expr.MetaExpr{"openapi:discriminator:optional": {"true"}, "openapi:discriminator:defaultMapping": {"#/components/schemas/Fallback"}}, wantOptional: true, wantFallback: "#/components/schemas/Fallback"},
 		{name: "encoded local ref", discriminator: true, meta: expr.MetaExpr{"openapi:discriminator:optional": {"true"}, "openapi:discriminator:defaultMapping": {"#/components/schemas/Fall%62ack"}}, wantOptional: true, wantFallback: "#/components/schemas/Fallback"},
+		{name: "URI escape once", discriminator: true, meta: expr.MetaExpr{"openapi:discriminator:defaultMapping": {"#/components/schemas/Fall%2562ack"}}, wantError: "component schema"},
 		{name: "required fallback", discriminator: true, meta: expr.MetaExpr{"openapi:discriminator:optional": {"false"}, "openapi:discriminator:defaultMapping": {"Fallback"}}, wantFallback: "#/components/schemas/Fallback"},
 		{name: "missing target", discriminator: true, meta: expr.MetaExpr{"openapi:discriminator:defaultMapping": {"Missing"}}, wantError: "does not resolve"},
 		{name: "invalid local path", discriminator: true, meta: expr.MetaExpr{"openapi:discriminator:defaultMapping": {"#/paths/example"}}, wantError: "component schema"},

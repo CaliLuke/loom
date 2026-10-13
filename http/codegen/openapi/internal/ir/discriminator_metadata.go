@@ -61,7 +61,7 @@ func discriminatorFallback(value string) (string, error) {
 		return "", fmt.Errorf("OpenAPI discriminator defaultMapping must be a nonempty schema name or valid URI reference")
 	}
 	if strings.HasPrefix(value, "#") {
-		name, ok := schemaComponentName("#" + parsed.Fragment)
+		name, ok := schemaComponentName(value)
 		if !ok || !componentMappingName(name) {
 			return "", fmt.Errorf("OpenAPI discriminator defaultMapping local reference must name a component schema")
 		}

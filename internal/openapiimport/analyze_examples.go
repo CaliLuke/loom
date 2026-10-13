@@ -5,13 +5,13 @@ import (
 	"reflect"
 	"unicode/utf8"
 
+	"github.com/CaliLuke/loom/internal/exactnum"
+	"github.com/CaliLuke/loom/internal/openapiref"
+	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-
-	"github.com/CaliLuke/loom/internal/exactnum"
-	loom "github.com/CaliLuke/loom/pkg"
 )
 
 func (a *analyzer) mediaExamples(media *v3.MediaType, schema *Schema, path string) []Example {
@@ -75,7 +75,7 @@ func exampleReference(source *base.Example) string {
 }
 
 func (a *analyzer) referencedExample(reference string, schema *Schema, path string) (Example, bool) {
-	name, err := localComponentReferenceName(reference, "#/components/examples/")
+	name, err := openapiref.Name(reference, "#/components/examples/")
 	if err != nil {
 		a.unsupported("examples", path, "example reference must target a local example component")
 		return Example{}, false
@@ -200,7 +200,7 @@ func (a *analyzer) exampleCompatibleWithSchema(schema *Schema, value any, seen m
 }
 
 func (a *analyzer) referencedSchemaExampleCompatible(ref string, value any, seen map[string]struct{}) bool {
-	name, err := localComponentReferenceName(ref, "#/components/schemas/")
+	name, err := openapiref.Name(ref, "#/components/schemas/")
 	if err != nil {
 		return false
 	}

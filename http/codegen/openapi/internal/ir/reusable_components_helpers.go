@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 type (
@@ -434,11 +435,8 @@ func duplicateAliasBase(name string) (string, bool) {
 }
 
 func schemaComponentName(ref string) (string, bool) {
-	const prefix = "#/components/schemas/"
-	if !strings.HasPrefix(ref, prefix) {
-		return "", false
-	}
-	return strings.TrimPrefix(ref, prefix), true
+	name, err := openapiref.Name(ref, "#/components/schemas/")
+	return name, err == nil
 }
 
 func hashReusableValue(value any) (string, error) {

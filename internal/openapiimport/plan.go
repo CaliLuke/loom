@@ -1,10 +1,11 @@
 package openapiimport
 
 import (
-	"encoding/json/jsontext"
 	"fmt"
 	"go/token"
 	"strings"
+
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 type responseBodyMode uint8
@@ -309,8 +310,8 @@ func (p *documentPlanner) schemaContainsUntaggedOneOf(schema *Schema, seen map[s
 		return true
 	}
 	if schema.Ref != "" {
-		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-		if name == schema.Ref {
+		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
+		if err != nil {
 			return false
 		}
 		if _, ok := seen[name]; ok {
@@ -398,9 +399,9 @@ func (p *documentPlanner) schema(schema *Schema, path string, role objectConstru
 				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object or array components")
 				continue
 			}
-			name := strings.TrimPrefix(branch.Ref, "#/components/schemas/")
+			name, err := openapiref.Name(branch.Ref, "#/components/schemas/")
 			named, ok := p.schemas[name]
-			if name == branch.Ref || !ok || named.Schema == nil || named.Schema.Ref != "" || named.Schema.Type != "object" && named.Schema.Type != "array" {
+			if err != nil || !ok || named.Schema == nil || named.Schema.Ref != "" || named.Schema.Type != "object" && named.Schema.Type != "array" {
 				p.unsupported("schema-oneof-branch", fmt.Sprintf("%s/oneOf/%d", path, index), "untagged oneOf branches must reference concrete object or array components")
 				continue
 			}
@@ -484,9 +485,9 @@ func (p *documentPlanner) schemaIsUntaggedShape(schema *Schema, named bool, acti
 		return false
 	}
 	if schema.Ref != "" {
-		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
 		declaration, exists := p.schemas[name]
-		if name == schema.Ref || !exists || declaration.Schema == nil {
+		if err != nil || !exists || declaration.Schema == nil {
 			return false
 		}
 		if active[name] {
@@ -520,8 +521,8 @@ func (p *documentPlanner) schemaIsPrimitive(schema *Schema, seen map[string]stru
 		return false
 	}
 	if schema.Ref != "" {
-		name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-		if name == schema.Ref {
+		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
+		if err != nil {
 			return false
 		}
 		if _, ok := seen[name]; ok {
@@ -563,7 +564,7 @@ func resolveParameterReference(parameter Parameter, components Components) (Para
 	if parameter.Ref == "" {
 		return parameter, "", nil
 	}
-	name, err := localComponentReferenceName(parameter.Ref, "#/components/parameters/")
+	name, err := openapiref.Name(parameter.Ref, "#/components/parameters/")
 	if err != nil {
 		return Parameter{}, "", fmt.Errorf("parameter reference %q %w", parameter.Ref, err)
 	}
@@ -581,16 +582,4 @@ func resolveParameterReference(parameter Parameter, components Components) (Para
 		return resolved, name, nil
 	}
 	return Parameter{}, "", fmt.Errorf("parameter reference %q does not resolve", parameter.Ref)
-}
-
-func localComponentReferenceName(ref, prefix string) (string, error) {
-	segment := strings.TrimPrefix(ref, prefix)
-	if segment == ref || segment == "" || strings.Contains(segment, "/") {
-		return "", fmt.Errorf("has the wrong kind")
-	}
-	pointer := jsontext.Pointer("/" + segment)
-	if !pointer.IsValid() {
-		return "", fmt.Errorf("has invalid JSON Pointer escaping")
-	}
-	return pointer.LastToken(), nil
 }

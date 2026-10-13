@@ -4,7 +4,6 @@ import (
 	json "encoding/json/v2"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/openapi"
@@ -389,8 +388,8 @@ func schemaProperty(schema *openapi.Schema, name string, components *Components)
 		return nil
 	}
 	resolved := schema
-	if strings.HasPrefix(schema.Ref, "#/components/schemas/") && components != nil {
-		resolved = components.Schemas[strings.TrimPrefix(schema.Ref, "#/components/schemas/")]
+	if componentName, ok := schemaNameFromRef(schema.Ref); ok && components != nil {
+		resolved = components.Schemas[componentName]
 	}
 	if resolved == nil {
 		return nil

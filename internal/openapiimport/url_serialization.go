@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/CaliLuke/loom/internal/httpencoding"
+	"github.com/CaliLuke/loom/internal/openapiref"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -88,7 +89,7 @@ func (p *documentPlanner) formProperties(schema *Schema, properties map[string]*
 func (p *documentPlanner) urlSchema(schema *Schema) *Schema {
 	seen := make(map[string]bool)
 	for schema != nil && schema.Ref != "" {
-		name, err := localComponentReferenceName(schema.Ref, "#/components/schemas/")
+		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
 		if err != nil || seen[name] {
 			return nil
 		}

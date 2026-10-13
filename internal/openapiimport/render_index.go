@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CaliLuke/loom/codegen"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 // indexErrors completes declaration planning after operation names are final.
@@ -22,7 +23,7 @@ func (r *renderer) indexErrors() error {
 			if response.response.Schema == nil || response.response.Schema.Ref == "" {
 				continue
 			}
-			name, err := localComponentReferenceName(response.response.Schema.Ref, "#/components/schemas/")
+			name, err := openapiref.Name(response.response.Schema.Ref, "#/components/schemas/")
 			if err != nil {
 				return fmt.Errorf("render OpenAPI design: schema reference %q %w", response.response.Schema.Ref, err)
 			}
@@ -38,7 +39,7 @@ func (r *renderer) indexErrors() error {
 			if len(response.headers) > 0 || response.response.Schema == nil || response.response.Schema.Ref == "" {
 				continue
 			}
-			name, err := localComponentReferenceName(response.response.Schema.Ref, "#/components/schemas/")
+			name, err := openapiref.Name(response.response.Schema.Ref, "#/components/schemas/")
 			if err != nil {
 				return fmt.Errorf("render OpenAPI design: schema reference %q %w", response.response.Schema.Ref, err)
 			}
@@ -90,7 +91,7 @@ func (r *renderer) errorSchemaRendersAsObject(name string, visited map[string]st
 		_, object, err := r.schemaExpression(named.Schema, "#/components/schemas/"+name)
 		return object, err
 	}
-	referenced, err := localComponentReferenceName(named.Schema.Ref, "#/components/schemas/")
+	referenced, err := openapiref.Name(named.Schema.Ref, "#/components/schemas/")
 	if err != nil {
 		return false, fmt.Errorf("render OpenAPI design: schema reference %q %w", named.Schema.Ref, err)
 	}
@@ -101,7 +102,7 @@ func (r *renderer) markErrorSchema(schema *Schema) error {
 	if schema == nil || schema.Ref == "" {
 		return nil
 	}
-	name, err := localComponentReferenceName(schema.Ref, "#/components/schemas/")
+	name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
 	if err != nil {
 		return fmt.Errorf("render OpenAPI design: schema reference %q %w", schema.Ref, err)
 	}

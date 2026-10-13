@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/openapiref"
 	"github.com/stretchr/testify/require"
 )
 
@@ -650,7 +651,7 @@ func TestLocalComponentReferenceNameDecodesJSONPointerEscapes(t *testing.T) {
 	}
 	for name, segment := range tests {
 		t.Run(name, func(t *testing.T) {
-			component, err := localComponentReferenceName("#/components/parameters/"+segment, "#/components/parameters/")
+			component, err := openapiref.Name("#/components/parameters/"+segment, "#/components/parameters/")
 			require.NoError(t, err)
 			if name == "tilde" {
 				require.Equal(t, "Pet~ID", component)

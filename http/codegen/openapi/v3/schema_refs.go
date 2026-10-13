@@ -1,21 +1,13 @@
 package openapiv3
 
 import (
-	"strings"
-
 	"github.com/CaliLuke/loom/http/codegen/openapi"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 func schemaNameFromRef(ref string) (string, bool) {
-	const prefix = "#/components/schemas/"
-	if !strings.HasPrefix(ref, prefix) {
-		return "", false
-	}
-	name := strings.TrimPrefix(ref, prefix)
-	if name == "" {
-		return "", false
-	}
-	return name, true
+	name, err := openapiref.Name(ref, "#/components/schemas/")
+	return name, err == nil
 }
 
 func rewritePathItemSchemaRefs(pathItem *PathItem, resolveRef func(string) string) {

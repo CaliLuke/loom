@@ -907,11 +907,14 @@ filter, and serialization rules belong here.
   the same frozen plan. Keep the schema-reference models and direct/generated
   graph checks aligned with constructor behavior and metadata preservation.
 
-- Use `encoding/json/jsontext.Pointer` for JSON Pointer token escaping,
-  validation and decoding in both import and export paths. Keep the URI-fragment
-  `#` and component-kind policy at the OpenAPI boundary. An invalid diagnostic
-  owner path must retain its blocker rather than silently discard it during
-  selection.
+- `internal/openapiref.Name` owns local component reference identity for import,
+  OpenAPI IR and v3 cleanup. Decode URI fragments exactly once before validating
+  and decoding JSON Pointer tokens with `encoding/json/jsontext.Pointer`.
+  Pass raw references, including from discriminator admission; never predecode
+  or repeat prefix-only parsing in consumers. Component-name admission remains
+  separate from pointer syntax. Diagnostic owner paths are already JSON Pointers,
+  not URI references; an invalid diagnostic path must retain its blocker during
+  selection. Keep reference graph traversal independent of spelling normalization.
 - Keep a field-level grammar ledger for each OpenAPI object the importer reads.
   Classify every parser field as preserved, conditional, lossy, rejected, or
   parser-only, and name the test or diagnostic that proves the classification.

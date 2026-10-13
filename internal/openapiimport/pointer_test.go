@@ -3,6 +3,7 @@ package openapiimport
 import (
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/openapiref"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +26,7 @@ func TestComponentReferencePointerSyntax(t *testing.T) {
 		{name: "invalid UTF-8", segment: "Pet\xff", invalid: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			name, err := localComponentReferenceName(prefix+tc.segment, prefix)
+			name, err := openapiref.Name(prefix+tc.segment, prefix)
 			if tc.invalid {
 				require.Error(t, err)
 				return
@@ -35,7 +36,7 @@ func TestComponentReferencePointerSyntax(t *testing.T) {
 			require.Equal(t, tc.segment, escapeJSONPointer(name))
 		})
 	}
-	_, err := localComponentReferenceName("#/components/parameters/Pet", prefix)
+	_, err := openapiref.Name("#/components/parameters/Pet", prefix)
 	require.ErrorContains(t, err, "wrong kind")
 	require.Empty(t, escapeJSONPointer(""))
 }
@@ -58,5 +59,13 @@ func TestComponentDiagnosticPointerOwnership(t *testing.T) {
 		t.Run(tc.path, func(t *testing.T) {
 			require.Equal(t, tc.keep, componentDiagnosticRetained(tc.path, prefix, retained))
 		})
+	}
+}
+
+func TestComponentReferencePercentEncoding(t *testing.T) {
+	for _, ref := range []string{"#/components/schemas/%49temName", "#%2Fcomponents%2Fschemas%2FItemName"} {
+		name, err := openapiref.Name(ref, "#/components/schemas/")
+		require.NoError(t, err)
+		require.Equal(t, "ItemName", name)
 	}
 }

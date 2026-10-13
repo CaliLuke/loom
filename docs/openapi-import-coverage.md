@@ -170,6 +170,12 @@ member of an integer enum is excluded even if floating-point rounding would make
 it integral. An included member that cannot retain its numeric value in the DSL
 carrier produces a blocking diagnostic rather than rounding or disappearing.
 
+Local component references decode URI percent escapes before JSON Pointer token
+escapes. For example, `#/components/schemas/%49temName` resolves to the legal
+component key `ItemName`, just like its unencoded spelling. Regeneration uses
+canonical references. This does not relax OpenAPI's component-key naming rules
+or add external-document reference support.
+
 The following constructs are conditional:
 
 - Recursive local component references through object fields, arrays, and maps

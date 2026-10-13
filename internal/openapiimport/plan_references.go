@@ -3,6 +3,8 @@ package openapiimport
 import (
 	"fmt"
 	"sort"
+
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 type (
@@ -84,7 +86,7 @@ func (p *referencePlanner) schema(schema *Schema, owner, path, constructor strin
 		return
 	}
 	if schema.Ref != "" {
-		name, err := localComponentReferenceName(schema.Ref, "#/components/schemas/")
+		name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
 		if err != nil {
 			p.diagnostics.add("schema-reference", path, err.Error())
 			return

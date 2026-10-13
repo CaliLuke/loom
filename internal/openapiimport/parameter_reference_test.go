@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/openapiref"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,7 +64,7 @@ components:
 				operation := operationFromImportedSpec(t, contract, path, "get")
 				parameter := operation["parameters"].([]any)[0].(map[string]any)
 				if ref, ok := parameter["$ref"].(string); ok {
-					name, err := localComponentReferenceName(ref, "#/components/parameters/")
+					name, err := openapiref.Name(ref, "#/components/parameters/")
 					require.NoError(t, err)
 					parameter = components[name].(map[string]any)
 				}

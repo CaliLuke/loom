@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/CaliLuke/loom/internal/openapiref"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
@@ -370,7 +371,7 @@ func componentReferenceName(ref, prefix string) (string, bool) {
 	if ref == "" {
 		return "", false
 	}
-	name, err := localComponentReferenceName(ref, prefix)
+	name, err := openapiref.Name(ref, prefix)
 	return name, err == nil
 }
 

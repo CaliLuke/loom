@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/CaliLuke/loom/internal/exactnum"
+	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
 func (r *renderer) attribute(name string, schema *Schema, description, path string, metadata ...renderedMetadata) error {
@@ -82,7 +83,7 @@ func (r *renderer) resolveSchemaReference(schema *Schema, path string) (*Schema,
 	if schema == nil || schema.Ref == "" {
 		return schema, nil
 	}
-	name, err := localComponentReferenceName(schema.Ref, "#/components/schemas/")
+	name, err := openapiref.Name(schema.Ref, "#/components/schemas/")
 	if err != nil {
 		return nil, fmt.Errorf("render OpenAPI design: %s schema reference %q: %w", path, schema.Ref, err)
 	}
@@ -136,7 +137,7 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 }
 
 func (r *renderer) schemaReferenceExpression(ref, path string) (string, bool, error) {
-	name, err := localComponentReferenceName(ref, "#/components/schemas/")
+	name, err := openapiref.Name(ref, "#/components/schemas/")
 	if err != nil {
 		return "", false, fmt.Errorf("render OpenAPI design: %s schema reference %q: %w", path, ref, err)
 	}
@@ -282,7 +283,7 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 		if err != nil {
 			return err
 		}
-		name, err := localComponentReferenceName(base.Ref, "#/components/schemas/")
+		name, err := openapiref.Name(base.Ref, "#/components/schemas/")
 		if err != nil {
 			return fmt.Errorf("render OpenAPI design: %s: %w", basePath, err)
 		}
@@ -616,9 +617,8 @@ func (r *renderer) resolveHeader(header Header, path string) (Header, error) {
 	if header.Ref == "" {
 		return header, nil
 	}
-	name := strings.TrimPrefix(header.Ref, "#/components/headers/")
-	if name == header.Ref || name == "" {
-		return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q has the wrong kind", path, header.Ref)
+	if _, err := openapiref.Name(header.Ref, "#/components/headers/"); err != nil {
+		return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q %w", path, header.Ref, err)
 	}
 	return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q does not resolve", path, header.Ref)
 }

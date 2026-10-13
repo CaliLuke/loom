@@ -2,8 +2,8 @@ package openapiimport
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/CaliLuke/loom/internal/openapiref"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -133,8 +133,10 @@ func isNullOnlySchema(proxy *base.SchemaProxy) bool {
 }
 
 func isNonNullableLocalReference(proxy *base.SchemaProxy) bool {
-	if proxy == nil || !proxy.IsReference() || proxy.IsTransformedRefWithSiblings() ||
-		!strings.HasPrefix(proxy.GetReference(), "#/components/schemas/") {
+	if proxy == nil || !proxy.IsReference() || proxy.IsTransformedRefWithSiblings() {
+		return false
+	}
+	if _, err := openapiref.Name(proxy.GetReference(), "#/components/schemas/"); err != nil {
 		return false
 	}
 	resolved := proxy.Schema()
@@ -150,7 +152,7 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 		proxy := source.AllOf[0]
 		if proxy != nil && proxy.IsReference() {
 			ref := proxy.GetReference()
-			if strings.HasPrefix(ref, "#/components/schemas/") {
+			if _, err := openapiref.Name(ref, "#/components/schemas/"); err == nil {
 				schema.Ref = ref
 				if hasAllOfValidationSiblings(source) {
 					schema.Type = referencedSchemaType(proxy)
@@ -170,7 +172,7 @@ func (a *analyzer) schemaAllOf(schema *Schema, source *base.Schema, path string)
 		partPath := fmt.Sprintf("%s/allOf/%d", path, index)
 		if proxy.IsReference() {
 			ref := proxy.GetReference()
-			if !strings.HasPrefix(ref, "#/components/schemas/") || baseSchema != nil {
+			if _, err := openapiref.Name(ref, "#/components/schemas/"); err != nil || baseSchema != nil {
 				return false
 			}
 			baseSchema = &Schema{Ref: ref}
