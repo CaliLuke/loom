@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **191 of 217 tracked reports are delivered, pushed and confirmed closed.**
+- **193 of 217 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-191-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-193-issues.json` is the frozen GitHub reconciliation input.
 - Service public symbols #770 (`ebf2c4ea9`) and complete evaluated provenance
   #753 (`1b9833038`) are reviewed, pushed and closed. The original #742 two-design
   witness is independently reconciled against that same provenance repair.
@@ -103,9 +103,13 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 - Required CI is not confirmed green. Nullable alias failures are fixed by #892.
   The explicit alias error-body failure and recursive declaration mutation are
   fixed by #893 (`222f0a269`), with the original pointer assertion unchanged.
-  The existing #820 dependency race also remains open. Checkpoint run
-  `38469448885` has passing Redis, generated-code-quality, OpenAPI and several
-  generated-design jobs; other jobs and later source runs remain unresolved.
+  The existing #820 dependency race also remains open. Source `2a98e4123` run
+  `38473286562` passes Redis, generated-code-quality, OpenAPI, value-contract and
+  all generated-design jobs; its `ci` and race jobs failed. The `ci` log records
+  collection/query snapshots and structural expectations,
+  importer parameter assertions, JSON-RPC lifecycle assertions, and a worker-event
+  delivery timeout. The service collection snapshots are already fixed by #896;
+  remaining failures require current-source reproduction. Newer runs are queued.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -134,26 +138,27 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Header element representation (#895):** omission's final candidate is frozen
-   for independent review. One scalar/list conversion owner preserves physical
-   element types across HTTP request/response and inherited JSON-RPC response
-   encoding. Original compile failures and existing wire controls pass; the
-   accepted standard-list grammar remains unchanged.
-2. **Replicated map notifications (#771):** projection reuses its cleaned managed
-   worktree after #770. Actual live-map and gated scheduler failures reproduce;
-   existing current/overwrite model candidates fail while strongest-event
-   coalescing passes. Readiness review precedes production.
-3. **Effective route ownership (#781):** diagnostic extends root's readiness
-   work. Thirteen admission failures and seven controls are recorded. Root review
-   found service default-path phase changes and recursion during endpoint Prepare;
-   correct the proposed preparation owner before implementation. Preserve shared
-   JSON-RPC dispatch, CORS/static mounts and disjoint server processes.
-4. **Imported byte representation (#686):** read-only owner triage is preserved
-   in `/tmp/loom-686-owner-triage.md`. Inspect constraint units and literals at one
-   wire-to-semantic boundary; no production or new policy is approved.
-5. **Other distinct owners:** filesystem publication #751, custom-key example
-   synthesis #884 and pool subordinate shutdown #687 remain open. Do not weaken
-   supported representation admission to bypass these failures.
+1. **Effective route ownership (#781):** diagnostic implements the independently
+   approved physical mount plan in `grpc-message-context`. Shared expr records
+   now drive HTTP handlers/files, JSON-RPC dispatch and CORS preflights. Direct
+   phase/cycle/admission checks pass; bounded generated dispatch, compilation and
+   output comparisons remain before independent final review.
+2. **Imported byte representation (#686):** omission reuses `numeric-comparison`
+   after #895. Readiness investigates encoded constraints and literals together
+   at one wire-to-semantic boundary; do not copy string predicates into decoded
+   Bytes or weaken admission. Production awaits a concrete supported contract.
+3. **Filesystem publication (#751):** projection reuses `interceptor-accessor-union`
+   after #771. Readiness covers detached module context, destination-local
+   publication and rollback across actual filesystem boundaries. Preserve
+   relative replacements and create-only semantics; do not scatter EXDEV retries.
+4. **Delivered shared owners:** header representation #895 (`53849ce33`) and
+   pending notification precedence #771 (`688d94870`) are independently reviewed,
+   pushed and closed. The header standard-list grammar and scheduler production
+   code remain unchanged; the corrected owners serve all existing consumers.
+5. **Other distinct owners:** typed error discrimination #774, mapping coverage
+   #780, custom-key example synthesis #884 and pool subordinate shutdown #687
+   remain open. Reconcile original witnesses before assigning their owner; do
+   not infer resolution from related deliveries.
 6. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
    [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at the current
@@ -196,6 +201,18 @@ Latest independent delivery records:
 - #896 exact four-file snapshot adoption was independently approved in
   `/tmp/loom-896-independent-final-verdict.json`; three comparisons and compiled
   root/nested/named collection controls pass. No production change.
+
+- #895 final/integration verdicts are `/tmp/loom-895-independent-final-verdict.json`
+  and `/tmp/loom-895-independent-integration-verdict.json`. Nine original generated
+  compiler witnesses and mounted HTTP/JSON-RPC controls pass. Exact input and
+  source preservation, cleanup and reuse are recorded in
+  `/tmp/loom-895-delivered-preservation.json`, `/tmp/loom-895-cleanup-receipt.json`
+  and `/tmp/loom-895-reuse-receipt.json`.
+- #771 final/integration verdicts are `/tmp/loom-771-independent-final-verdict.json`
+  and `/tmp/loom-771-independent-integration-verdict.json`. Full affected runtime
+  race suites pass; root independent focused races pass (1.387s/1.367s). The model
+  exposes drop/overwrite failures and checks strongest-event retention. Cleanup
+  and worktree reuse for #751 are assigned after delivery.
 
 
 Completed cleanup receipts preserve compact evidence and exact reproduction
