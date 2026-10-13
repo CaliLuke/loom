@@ -4,9 +4,18 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **199 of 221 tracked reports are delivered, pushed and confirmed closed.**
+- **201 of 221 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-199-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-201-issues.json` is the frozen GitHub reconciliation input.
+- Imported encoded strings #686 (`227ea92be`) is reviewed, pushed and closed.
+  Shared representation selection feeds import rendering, examples and admission;
+  shared Base64 validation preserves encoded bounds and exact literal identity.
+  The accepted migration changes imported byte fields to strings. Mounted wire,
+  bounded output/build, independent-process repeat and spec checks pass.
+- Request-cookie publication #715 (`9a4f1c2f3`) is reviewed, pushed and closed.
+  One runtime owner validates before mutating headers; HTTP/JSON-RPC ordinary,
+  security, session and streaming consumers fail before sending invalid values.
+  Presence and normal output controls pass; the exact change was reviewed.
 - Physical route ownership #781 (`47db83e78`) is reviewed, pushed and closed.
   Shared expression records drive admission, HTTP/static mounts, JSON-RPC dispatch
   and CORS. Preparation and early parent resolution are stable; actual generated
@@ -158,31 +167,35 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Imported byte representation (#686):** the user adopted encoded strings
-   with shared standard padded base64 validation. Preserve encoded lengths,
-   patterns, defaults and exact enum spelling; reject whitespace/bad padding and
-   accept decodable alternate pad-bit spellings. Independently approved readiness
-   in `numeric-comparison` now proceeds to implementation. Keep existing raw
-   response/multipart support; do not add unsupported raw-request media handling.
-2. **Typed error discrimination (#774):** projection is consolidating readiness
-   in `interceptor-accessor-union`. One generated decoder must reconstruct designed
-   error bodies across unary, SSE and WebSocket. Effective raw ErrorName selectors
-   include mapped members and selected root values; ordinary name fields cannot
-   substitute for them. Use existing body decoding/validation and exactly one
-   matching alternative; do not impose new schema restrictions or wire wrappers.
-   Required mapping coverage #780 remains separate.
-3. **Request cookie publication (#715):** independently approved scratch
-   readiness reproduces silent value corruption in actual HTTP and JSON-RPC
-   clients. Diagnostic implements one validate-before-publication runtime owner
-   in `grpc-message-context`, clean-fast-forwarded to `18ae28c9e` after #899
-   cleanup/reuse. Existing standard cookie grammar, scalar formatting
-   and presence semantics remain authoritative; invalid values must fail before
-   sending. Browser cookie jars and JSON-RPC WebSocket bootstrap stay outside
-   this modeled request-encoder boundary.
+1. **Typed error discrimination (#774):** projection implements the approved
+   design in `interceptor-accessor-union`. One generated decoder reconstructs
+   designed error bodies across unary, SSE and WebSocket. Effective raw ErrorName
+   selectors include mapped members and selected root values; private body trials
+   must yield exactly one match. Unexpected eligible decoder errors retain
+   precedence and error identity. Required mapping coverage #780 remains separate.
+2. **HTTP physical name admission (#710):** omission continues root's shared
+   binding/response-cookie repair in `numeric-comparison`, after #686 cleanup.
+   `ElementName` must preserve the whole suffix after the first colon; admission
+   then rejects malformed header/cookie names without losing valid query/body
+   names. Sixty parent failures and mapping truncation are reproduced. Finish
+   bounded generated round trips, spec correspondence and unchanged controls.
+   gRPC currently lacks key grammar admission; this repair preserves its names
+   and does not add a separate protocol policy.
+3. **Legal package identity (#856):** diagnostic implements the shared
+   `PackageBaseName` correction in `grpc-message-context`. Four actual parent
+   compiler failures span HTTP, gRPC, JSON-RPC services and API example packages.
+   Keep directory/protocol identity and existing collision scopes unchanged;
+   compare and compile six representative modules, with ordinary output exact.
 4. **CI reconciliation:** delivered expectation updates cover every reproduced
    stale assertion family. Keep the known #820 dependency race and unresolved
    worker-delivery timeout distinct; no aggregate green claim or unproven timeout
-   increase. Reuse bounded evidence and inspect newer CI when actionable.
+   increase. Recent required CI remains queued/running (read in
+   `/tmp/loom-ci-after-686-integration.json`); CodeQL succeeded. An independently
+   confirmed sink startup window permits reading before the first subscriber;
+   the additional idle-claim witness is retained in
+   `/tmp/loom-sink-startup-readiness/`. This is not proven to cause the CI timeout.
+   Model first-subscriber activation versus Close before any lifecycle change.
+   Reuse bounded evidence and inspect newer CI when actionable.
 5. **Other distinct owners:** required mapping coverage #780, custom-key example
    synthesis #884 and pool subordinate shutdown #687 remain open alongside the
    inventory's other reports. Reconcile original witnesses before assigning their
@@ -201,11 +214,17 @@ Latest independent delivery records:
   match the candidate, and independent focused race checks pass (2.012s).
   Evidence preservation/cleanup and clean worktree reuse are complete in
   `/tmp/loom-899-cleanup-receipt.json` and `/tmp/loom-899-worktree-reuse.json`.
-- #686 readiness approval is
-  `/tmp/loom-686-independent-readiness-rereview-verdict.json`; adopted policy and
-  existing raw-location limits are recorded in the owning representation plan.
-- #715 readiness approval is `/tmp/loom-715-independent-readiness-verdict.json`;
-  exact inputs and generated witnesses are in `/tmp/loom-715-readiness/manifest.json`.
+- #686 final and integrated approvals are
+  `/tmp/loom-686-independent-final-verdict.json` and
+  `/tmp/loom-686-independent-integration-verdict.json`. All 28 non-skill source
+  files match the approved candidate; two skills retain newer publication guidance.
+  Exact inputs are archived in `/tmp/loom-686-final-inputs.tar.gz`; cleanup and
+  clean worktree reuse are complete in `/tmp/loom-686-cleanup-receipt.json` and
+  `/tmp/loom-686-reuse-receipt.json`.
+- #715 final/integration approval is `/tmp/loom-715-independent-final-verdict.json`.
+  All 19 source files matched the candidate; 45 artifacts repeated exactly.
+  Cleanup and clean worktree reuse are recorded in
+  `/tmp/loom-715-cleanup-receipt.json` and `/tmp/loom-715-worktree-reuse.json`.
 
 - #781 final and integration verdicts are
   `/tmp/loom-781-independent-final-verdict.json` and
