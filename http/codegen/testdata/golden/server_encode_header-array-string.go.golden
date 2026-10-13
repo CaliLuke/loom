@@ -8,8 +8,10 @@ func EncodeMethodHeaderArrayStringResponse(encoder func(context.Context, http.Re
 		}
 		if res.H != nil {
 			val := res.H
-			hs := strings.Join(val, ", ")
-			w.Header().Set("H", hs)
+			hs := val
+			if err := loomhttp.SetHeaderValues(w.Header(), "H", hs); err != nil {
+				return err
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 		return nil

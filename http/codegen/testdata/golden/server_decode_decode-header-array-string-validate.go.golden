@@ -8,7 +8,7 @@ func DecodeMethodHeaderArrayStringValidateRequest(mux loomhttp.Muxer, _ func(*ht
 		var (
 			h []string
 		)
-		h = r.Header["H"]
+		h = loomhttp.HeaderValues(r.Header, "H")
 		for _, e := range h {
 			if !(e == "val") {
 				err = loom.MergeErrors(err, loom.InvalidEnumValueError("h[*]", e, []any{"val"}))

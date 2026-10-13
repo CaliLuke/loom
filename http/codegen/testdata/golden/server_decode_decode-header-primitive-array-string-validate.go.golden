@@ -10,7 +10,7 @@ func DecodeMethodHeaderPrimitiveArrayStringValidateRequest(mux loomhttp.Muxer, _
 		var (
 			h []string
 		)
-		h = r.Header["H"]
+		h = loomhttp.HeaderValues(r.Header, "H")
 		if h == nil {
 			err = loom.MergeErrors(err, loom.MissingFieldError("h", "header"))
 		}

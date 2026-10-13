@@ -129,7 +129,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- end }}
 	{{- end }}
 	{{- range .Headers }}
-		{{- $initDef := and (or .FieldPointer .Slice) .DefaultValue (not $.TagName) }}
+		{{- $initDef := and (or .FieldPointer .Slice) (or .DefaultValue (and .Slice (ne .DefaultValue nil))) (not $.TagName) }}
 		{{- $checkNil := and (or .FieldPointer .Slice (eq .Type.Name "bytes") (eq .Type.Name "any") $initDef) (not $.TagName) }}
 		{{- if $checkNil }}
 	if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }} != nil {
@@ -148,7 +148,13 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	val := {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
 	{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice (not .FieldPointer) "val") }}
 			{{- end }}
+	{{- if .Slice }}
+	if err := loomhttp.SetHeaderValues(w.Header(), "{{ .CanonicalName }}", {{ .Locals.Encoded }}); err != nil {
+		return err
+	}
+	{{- else }}
 	w.Header().Set("{{ .CanonicalName }}", {{ .Locals.Encoded }})
+	{{- end }}
 {{- if not $checkNil }}
 }
 {{- end }}
@@ -156,7 +162,15 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 
 		{{- if $initDef }}
 	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
+		{{- if .Slice }}
+		val := {{ printf "%#v" .DefaultValue }}
+		{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice true "val") }}
+		if err := loomhttp.SetHeaderValues(w.Header(), "{{ .CanonicalName }}", {{ .Locals.Encoded }}); err != nil {
+			return err
+		}
+		{{- else }}
 		w.Header().Set("{{ .CanonicalName }}", "{{ printValue .Type .DefaultValue }}")
+		{{- end }}
 		{{- end }}
 
 		{{- if or $checkNil $initDef }}
@@ -250,14 +264,14 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{ .VarName }} := loom.JSONValueString({{ .Target }})
 	{{- else if eq .Type.Name "array" -}}
 		{{- if eq .Type.ElemType.Type.Name "string" -}}
-		{{ .VarName }} := strings.Join({{ .Target }}, ", ")
+		{{ .VarName }} := {{ .Target }}
 		{{- else -}}
 		{{ .SliceVarName }} := make([]string, len({{ .Target }}))
 		for i, e := range {{ .Target }}  {
 			{{ template "partial_header_conversion" (headerConversionData .Type.ElemType.Type "es" "esSlice" true "e") }}
 			{{ .SliceVarName }}[i] = es
 		}
-		{{ .VarName }} := strings.Join({{ .SliceVarName }}, ", ")
+		{{ .VarName }} := {{ .SliceVarName }}
 		{{- end }}
 	{{- else }}
 		// unsupported type {{ .Type.Name }} for header field {{ .FieldName }}

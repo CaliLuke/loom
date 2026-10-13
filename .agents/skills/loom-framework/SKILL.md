@@ -75,6 +75,16 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `internal/headerlist` owns schema-based HTTP collection framing and item
+  admissibility. Expr validates effective mapped defaults/enums/examples on a
+  detached mapping initialized by the existing transport binding owner. Runtime
+  `http.HeaderValues` and `SetHeaderValues` own actual field presence and redacted
+  error context; all HTTP request/response codecs and JSON-RPC's separate response
+  writer consume them. Preserve nil versus empty through scalar conversion and
+  route response defaults through the same encoder. Keep scalar/cookie grammars
+  independent and reject generic Set-Cookie arrays; do not restore template-local
+  joining, physical-line decoding or invented quote/percent escaping.
+
 - `expr.SecurityExpr.RequiredScopes` owns the requirement-to-scheme scope
   intersection in authored requirement order. Authorizer SchemeData and OpenAPI
   IR consume this projection; keep required scopes on each requirement's fresh

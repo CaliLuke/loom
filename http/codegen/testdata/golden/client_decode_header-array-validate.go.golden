@@ -11,7 +11,7 @@ func DecodeMethodAResponse(decoder func(*http.Response) loomhttp.Decoder, restor
 					err   error
 				)
 				{
-					arrayRaw := resp.Header["Array"]
+					arrayRaw := loomhttp.HeaderValues(resp.Header, "Array")
 
 					if arrayRaw != nil {
 						array = make([]int, len(arrayRaw))

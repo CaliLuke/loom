@@ -1,0 +1,126 @@
+package shapes_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	client "example.com/headershapes/gen/http/shapes/client"
+	server "example.com/headershapes/gen/http/shapes/server"
+	svc "example.com/headershapes/gen/shapes"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+type shapeService struct{}
+
+func TestHeaderDefaults(t *testing.T) {
+	for _, supplied := range []bool{false, true} {
+		req := httptest.NewRequest(http.MethodGet, "/defaults", nil)
+		if supplied {
+			req.Header.Set("X-Tags", "")
+			req.Header.Set("X-Numbers", "")
+		}
+		got, err := server.DecodeDefaultsRequest(loomhttp.NewMuxer(), loomhttp.RequestDecoder)(req)
+		require.NoError(t, err)
+		want := &svc.Defaults{Tags: svc.Tags{"fallback"}, Numbers: []int{7}, Empty: []string{}}
+		if supplied {
+			want.Tags = svc.Tags{}
+			want.Numbers = []int{}
+		}
+		require.Equal(t, want, got)
+		response := httptest.NewRecorder()
+		result := &svc.Defaults{}
+		if supplied {
+			result.Tags = svc.Tags{}
+			result.Numbers = []int{}
+		}
+		require.NoError(t, server.EncodeDefaultsResponse(loomhttp.ResponseEncoder)(context.Background(), response, result))
+		decoded, err := client.DecodeDefaultsResponse(loomhttp.ResponseDecoder, false)(response.Result())
+		require.NoError(t, err)
+		require.Equal(t, want, decoded)
+		// Independently exercise client defaulting on an absent response field.
+		if !supplied {
+			empty := httptest.NewRecorder()
+			empty.WriteHeader(http.StatusOK)
+			decoded, err = client.DecodeDefaultsResponse(loomhttp.ResponseDecoder, false)(empty.Result())
+			require.NoError(t, err)
+			require.Equal(t, want, decoded)
+		}
+	}
+}
+
+func TestHeaderRequiredAndValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		tags    []string
+		numbers []string
+		valid   bool
+	}{
+		{"absent", nil, nil, false},
+		{"present-empty", []string{""}, []string{"1"}, true},
+		{"length-rejected", []string{""}, []string{""}, false},
+		{"invalid-number", []string{"a"}, []string{"wrong"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/required", nil)
+			for _, value := range tc.tags {
+				req.Header.Add("X-Tags", value)
+			}
+			for _, value := range tc.numbers {
+				req.Header.Add("X-Numbers", value)
+			}
+			got, err := server.DecodeRequiredRequest(loomhttp.NewMuxer(), loomhttp.RequestDecoder)(req)
+			if tc.valid {
+				require.NoError(t, err)
+				require.Equal(t, svc.Tags{}, got.Tags)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestHeaderViewsAndErrors(t *testing.T) {
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(svc.NewEndpoints(shapeService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	host := httptest.NewServer(mux)
+	t.Cleanup(host.Close)
+	u, err := url.Parse(host.URL)
+	require.NoError(t, err)
+	c := client.NewClient(u.Scheme, u.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	view, err := c.View()(context.Background(), nil)
+	require.NoError(t, err)
+	require.Equal(t, &svc.HeaderView{Tags: []string{"a", "b"}}, view)
+	_, err = c.Fail()(context.Background(), nil)
+	var failure *svc.Bad
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, svc.Tags{"a", "b"}, failure.Tags)
+	response := &httptest.ResponseRecorder{}
+	err = server.EncodeDefaultsResponse(loomhttp.ResponseEncoder)(context.Background(), response, &svc.Defaults{Tags: svc.Tags{"private,comma"}})
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "private")
+	require.Zero(t, response.Code)
+	require.False(t, response.Flushed)
+	require.Nil(t, response.Body)
+	require.Empty(t, response.Header())
+}
+
+func (shapeService) Defaults(_ context.Context, value *svc.Defaults) (*svc.Defaults, error) {
+	return value, nil
+}
+
+func (shapeService) Required(context.Context, *svc.RequiredPayload) error {
+	return nil
+}
+
+func (shapeService) View(context.Context) (*svc.HeaderView, string, error) {
+	return &svc.HeaderView{Tags: []string{"a", "b"}}, "tiny", nil
+}
+
+func (shapeService) Fail(context.Context) error {
+	return &svc.Bad{Tags: svc.Tags{"a", "b"}}
+}

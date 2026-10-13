@@ -9,10 +9,16 @@ func EncodeMethodHeaderArrayStringDefaultResponse(encoder func(context.Context, 
 		}
 		if res.H != nil {
 			val := res.H
-			hs := strings.Join(val, ", ")
-			w.Header().Set("H", hs)
+			hs := val
+			if err := loomhttp.SetHeaderValues(w.Header(), "H", hs); err != nil {
+				return err
+			}
 		} else {
-			w.Header().Set("H", "foo, bar")
+			val := []string{"foo", "bar"}
+			hs := val
+			if err := loomhttp.SetHeaderValues(w.Header(), "H", hs); err != nil {
+				return err
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 		return nil

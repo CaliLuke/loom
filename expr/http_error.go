@@ -76,6 +76,7 @@ func (e *HTTPErrorExpr) Validate() *eval.ValidationErrors {
 }
 
 func (e *HTTPErrorExpr) validateHeaders(ee *ErrorExpr, verr *eval.ValidationErrors) {
+	validateHeaderCollections(e.Response.Headers, ee.AttributeExpr, e.Response, verr)
 	if e.Response.Headers != nil && !e.Response.Headers.IsEmpty() {
 		verr.Merge(e.Response.Headers.Validate("HTTP error response headers", e.Response))
 		switch {

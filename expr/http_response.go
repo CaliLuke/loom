@@ -218,6 +218,7 @@ func (r *HTTPResponseExpr) validateCookieSecurity(verr *eval.ValidationErrors) {
 }
 
 func (r *HTTPResponseExpr) validateHeaders(e *HTTPEndpointExpr, resultType *httpResponseResultType, verr *eval.ValidationErrors) {
+	validateHeaderCollections(r.Headers, e.MethodExpr.Result, r, verr)
 	verr.Merge(r.Headers.Validate("HTTP response headers", r))
 	switch {
 	case isEmpty(e.MethodExpr.Result):

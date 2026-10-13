@@ -152,6 +152,7 @@ func (e *HTTPEndpointExpr) validatePayloadParamCompatibility(verr *eval.Validati
 }
 
 func (e *HTTPEndpointExpr) validateHeaderTypes(verr *eval.ValidationErrors, headers *MappedAttributeExpr) {
+	validateHeaderCollections(headers, e.MethodExpr.Payload, e, verr)
 	WalkMappedAttr(headers, func(name, _ string, a *AttributeExpr) error { // nolint: errcheck
 		switch {
 		case IsObject(a.Type), IsUnion(a.Type):

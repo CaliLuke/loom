@@ -1,0 +1,220 @@
+package headercollection_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/headercollection/gen/headers"
+	client "example.com/headercollection/gen/http/headers/client"
+	server "example.com/headercollection/gen/http/headers/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+func TestCollectionRequestWire(t *testing.T) {
+	cases := []struct {
+		name        string
+		tags        []string
+		numbers     []string
+		wantTags    []string
+		wantNumbers []int
+	}{
+		{"repeated-strings", []string{"a", "b"}, nil, []string{"a", "b"}, nil},
+		{"combined-strings", []string{"a, b"}, nil, []string{"a", "b"}, nil},
+		{"empty-members", []string{"a,,b,"}, nil, []string{"a", "b"}, nil},
+		{"present-empty", []string{""}, nil, []string{}, nil},
+		{"mixed-strings", []string{"a", "b, c"}, nil, []string{"a", "b", "c"}, nil},
+		{"repeated-numbers", nil, []string{"1", "2"}, nil, []int{1, 2}},
+		{"combined-numbers", nil, []string{"1, 2"}, nil, []int{1, 2}},
+		{"single-controls", []string{"a"}, []string{"1"}, []string{"a"}, []int{1}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			seen := make(chan *svc.Values, 1)
+			host := collectionServer(t, seen)
+			req, err := http.NewRequest(http.MethodGet, host.URL+"/echo", nil)
+			require.NoError(t, err)
+			for _, v := range tc.tags {
+				req.Header.Add("X-Tags", v)
+			}
+			for _, v := range tc.numbers {
+				req.Header.Add("X-Numbers", v)
+			}
+			req.Header.Set("X-Label", "scalar, unchanged")
+			res, err := host.Client().Do(req)
+			require.NoError(t, err)
+			require.NoError(t, res.Body.Close())
+			require.Equal(t, http.StatusOK, res.StatusCode)
+			select {
+			case got := <-seen:
+				require.Equal(t, tc.wantTags, got.Tags)
+				require.Equal(t, tc.wantNumbers, got.Numbers)
+				require.NotNil(t, got.Label)
+				require.Equal(t, "scalar, unchanged", *got.Label)
+			default:
+				t.Error("service did not receive the decoded payload")
+			}
+		})
+	}
+}
+
+func TestCollectionResponseWire(t *testing.T) {
+	cases := []struct {
+		name        string
+		tags        []string
+		numbers     []string
+		wantTags    []string
+		wantNumbers []int
+	}{
+		{"repeated-strings", []string{"a", "b"}, nil, []string{"a", "b"}, nil},
+		{"combined-strings", []string{"a, b"}, nil, []string{"a", "b"}, nil},
+		{"empty-members", []string{"a,,b,"}, nil, []string{"a", "b"}, nil},
+		{"present-empty", []string{""}, nil, []string{}, nil},
+		{"mixed-numbers", nil, []string{"1", "2, 3"}, nil, []int{1, 2, 3}},
+		{"repeated-numbers", nil, []string{"1", "2"}, nil, []int{1, 2}},
+		{"single-controls", []string{"a"}, []string{"1"}, []string{"a"}, []int{1}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				for _, v := range tc.tags {
+					w.Header().Add("X-Tags", v)
+				}
+				for _, v := range tc.numbers {
+					w.Header().Add("X-Numbers", v)
+				}
+				w.Header().Set("X-Label", "scalar, unchanged")
+				w.WriteHeader(http.StatusOK)
+			}))
+			t.Cleanup(host.Close)
+			res, err := collectionClient(t, host).Echo()(context.Background(), &svc.Values{})
+			require.NoError(t, err)
+			got := res.(*svc.Values)
+			require.Equal(t, tc.wantTags, got.Tags)
+			require.Equal(t, tc.wantNumbers, got.Numbers)
+			require.NotNil(t, got.Label)
+			require.Equal(t, "scalar, unchanged", *got.Label)
+		})
+	}
+}
+
+func TestCollectionGeneratedRoundTrip(t *testing.T) {
+	cases := []struct {
+		name  string
+		value *svc.Values
+	}{
+		{"strings", &svc.Values{Tags: []string{"a", "b", "c"}}},
+		{"numbers", &svc.Values{Numbers: []int{1, 2, 3}}},
+		{"single-controls", &svc.Values{Tags: []string{"a"}, Numbers: []int{1}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host := collectionServer(t, nil)
+			res, err := collectionClient(t, host).Echo()(context.Background(), tc.value)
+			require.NoError(t, err)
+			require.Equal(t, tc.value, res)
+		})
+	}
+}
+
+func TestCollectionPresence(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		values []string
+		want   []string
+	}{
+		{"absent", nil, nil},
+		{"present-empty", []string{}, []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/echo", nil)
+			require.NoError(t, client.EncodeEchoRequest(loomhttp.RequestEncoder)(req, &svc.Values{Tags: tc.values}))
+			if got := req.Header.Values("X-Tags"); !reflect.DeepEqual(tc.want, got) {
+				t.Errorf("request lines=%#v, want %#v", got, tc.want)
+			}
+			response := httptest.NewRecorder()
+			require.NoError(t, server.EncodeEchoResponse(loomhttp.ResponseEncoder)(context.Background(), response, &svc.Values{Tags: tc.values}))
+			require.Equal(t, tc.want, response.Header().Values("X-Tags"))
+		})
+	}
+}
+
+func TestCollectionOutboundAdmission(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		values  []string
+		invalid bool
+	}{
+		{"ordinary", []string{"a", "b"}, false},
+		{"embedded-space", []string{"a b"}, false},
+		{"comma", []string{"a,b"}, true},
+		{"empty-item", []string{""}, true},
+		{"leading-space", []string{" a"}, true},
+		{"trailing-tab", []string{"a\t"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/echo", nil)
+			requestErr := client.EncodeEchoRequest(loomhttp.RequestEncoder)(req, &svc.Values{Tags: tc.values})
+			response := httptest.NewRecorder()
+			responseErr := server.EncodeEchoResponse(loomhttp.ResponseEncoder)(context.Background(), response, &svc.Values{Tags: tc.values})
+			for side, err := range map[string]error{"request": requestErr, "response": responseErr} {
+				if (err != nil) != tc.invalid {
+					t.Errorf("%s error=%v, want rejected=%t", side, err, tc.invalid)
+				}
+			}
+		})
+	}
+}
+
+func TestCollectionInvalidDoesNotInvokeService(t *testing.T) {
+	seen := make(chan *svc.Values, 1)
+	host := collectionServer(t, seen)
+	_, err := collectionClient(t, host).Echo()(context.Background(), &svc.Values{Tags: []string{"private,comma"}})
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "private")
+	select {
+	case <-seen:
+		t.Error("service invoked after rejected outgoing header")
+	default:
+	}
+	req, err := http.NewRequest(http.MethodGet, host.URL+"/echo", nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Numbers", "not-an-integer")
+	res, err := host.Client().Do(req)
+	require.NoError(t, err)
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	select {
+	case <-seen:
+		t.Error("service invoked after rejected incoming header")
+	default:
+	}
+}
+
+func collectionServer(t *testing.T, seen chan<- *svc.Values) *httptest.Server {
+	t.Helper()
+	endpoints := &svc.Endpoints{Echo: func(ctx context.Context, v any) (any, error) {
+		p := v.(*svc.Values)
+		if seen != nil {
+			seen <- p
+		}
+		return p, nil
+	}}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	host := httptest.NewServer(mux)
+	t.Cleanup(host.Close)
+	return host
+}
+
+func collectionClient(t *testing.T, host *httptest.Server) *client.Client {
+	t.Helper()
+	u, err := url.Parse(host.URL)
+	require.NoError(t, err)
+	return client.NewClient(u.Scheme, u.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+}

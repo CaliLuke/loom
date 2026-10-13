@@ -13,8 +13,10 @@ func EncodeMethodHeaderArrayInt64Response(encoder func(context.Context, http.Res
 				es := strconv.FormatInt(e, 10)
 				hsSlice[i] = es
 			}
-			hs := strings.Join(hsSlice, ", ")
-			w.Header().Set("H", hs)
+			hs := hsSlice
+			if err := loomhttp.SetHeaderValues(w.Header(), "H", hs); err != nil {
+				return err
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 		return nil

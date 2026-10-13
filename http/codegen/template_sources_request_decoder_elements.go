@@ -383,12 +383,12 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 		{{- end }}
 
 	{{- else if .StringSlice }}
-		{{ .VarName }} = r.Header["{{ .CanonicalName }}"]
+		{{ .VarName }} = loomhttp.HeaderValues(r.Header, "{{ .CanonicalName }}")
 		{{- if .Required }}
 		if {{ .VarName }} == nil {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
-		{{- else if .DefaultValue }}
+		{{- else if (ne .DefaultValue nil) }}
 		if {{ .VarName }} == nil {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
@@ -396,22 +396,22 @@ if {{ .DecodePlan.QueryErrorVar }} != nil {
 
 	{{- else if .Slice }}
 	{
-		{{ .Locals.Raw }} := r.Header["{{ .CanonicalName }}"]
+		{{ .Locals.Raw }} := loomhttp.HeaderValues(r.Header, "{{ .CanonicalName }}")
 		{{ if .Required }}if {{ .Locals.Raw }} == nil {
 			err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 		}
-		{{- else if .DefaultValue }}
+		{{- else if (ne .DefaultValue nil) }}
 		if {{ .Locals.Raw }} == nil {
 			{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 		}
 		{{- end }}
 
-		{{- if .DefaultValue }}else {
+		{{- if (ne .DefaultValue nil) }}else {
 		{{- else if not .Required }}
 		if {{ .Locals.Raw }} != nil {
 		{{- end }}
 		{{- template "partial_element_slice_conversion" . }}
-		{{- if or .DefaultValue (not .Required) }}
+		{{- if or (ne .DefaultValue nil) (not .Required) }}
 		}
 		{{- end }}
 	}

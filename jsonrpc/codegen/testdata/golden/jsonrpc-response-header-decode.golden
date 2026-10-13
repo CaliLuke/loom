@@ -37,7 +37,7 @@ func testcase() {
 
 // case: string-slice-required
 func testcase() {
-	tags = resp.Header["X-Tags"]
+	tags = loomhttp.HeaderValues(resp.Header, "X-Tags")
 	if tags == nil {
 		err = loom.MergeErrors(err, loom.MissingFieldError("tags", "header"))
 	}
@@ -45,23 +45,25 @@ func testcase() {
 
 // case: string-slice-optional
 func testcase() {
-	tags = resp.Header["X-Tags"]
+	tags = loomhttp.HeaderValues(resp.Header, "X-Tags")
 }
 
 // case: int-slice-required
 func testcase() {
 	{
-		idsRaw := resp.Header["X-Ids"]
+		idsRaw := loomhttp.HeaderValues(resp.Header, "X-Ids")
 		if idsRaw == nil {
 			return nil, loomhttp.ErrValidationError("", "", loom.MissingFieldError("ids", "header"))
 		}
-		ids = make([]int, len(idsRaw))
-		for i, rv := range idsRaw {
-			v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
-			if err2 != nil {
-				err = loom.MergeErrors(err, loom.InvalidFieldTypeError("ids", idsRaw, "array of integers"))
+		if idsRaw != nil {
+			ids = make([]int, len(idsRaw))
+			for i, rv := range idsRaw {
+				v, err2 := strconv.ParseInt(rv, 10, strconv.IntSize)
+				if err2 != nil {
+					err = loom.MergeErrors(err, loom.InvalidFieldTypeError("ids", idsRaw, "array of integers"))
+				}
+				ids[i] = int(v)
 			}
-			ids[i] = int(v)
 		}
 	}
 }
@@ -69,10 +71,12 @@ func testcase() {
 // case: bytes-slice-optional
 func testcase() {
 	{
-		blobsRaw := resp.Header["X-Blobs"]
-		blobs = make([][]byte, len(blobsRaw))
-		for i, rv := range blobsRaw {
-			blobs[i] = []byte(rv)
+		blobsRaw := loomhttp.HeaderValues(resp.Header, "X-Blobs")
+		if blobsRaw != nil {
+			blobs = make([][]byte, len(blobsRaw))
+			for i, rv := range blobsRaw {
+				blobs[i] = []byte(rv)
+			}
 		}
 	}
 }
@@ -80,10 +84,12 @@ func testcase() {
 // case: any-slice-passthrough
 func testcase() {
 	{
-		valsRaw := resp.Header["X-Vals"]
-		vals = make([]any, len(valsRaw))
-		for i, rv := range valsRaw {
-			vals[i] = rv
+		valsRaw := loomhttp.HeaderValues(resp.Header, "X-Vals")
+		if valsRaw != nil {
+			vals = make([]any, len(valsRaw))
+			for i, rv := range valsRaw {
+				vals[i] = rv
+			}
 		}
 	}
 }

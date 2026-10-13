@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -332,22 +331,13 @@ func headerConversionData(dt expr.DataType, varName, sliceVarName string, requir
 	}
 }
 
-// printValue generates the Go code for a literal string containing the given
-// value. printValue panics if the data type is not a primitive or an array.
+// printValue generates the text for a scalar header or cookie default.
+// Collection defaults use ordinary scalar conversion and the runtime list owner.
 func printValue(dt expr.DataType, v any) string {
-	switch actual := dt.(type) {
-	case *expr.Array:
-		val := reflect.ValueOf(v)
-		elems := make([]string, val.Len())
-		for i := 0; i < val.Len(); i++ {
-			elems[i] = printValue(actual.ElemType.Type, val.Index(i).Interface())
-		}
-		return strings.Join(elems, ", ")
-	case expr.Primitive:
-		return fmt.Sprintf("%v", v)
-	default:
-		panic("unsupported type value " + dt.Name()) // bug
+	if _, ok := dt.(expr.Primitive); !ok {
+		panic("unsupported scalar type value " + dt.Name()) // bug
 	}
+	return fmt.Sprintf("%v", v)
 }
 
 // viewedServerBody returns the type data that uses the given view for

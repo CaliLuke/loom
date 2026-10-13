@@ -14,10 +14,21 @@ func EncodeMethodHeaderArrayBoolRequiredDefaultResponse(encoder func(context.Con
 				es := strconv.FormatBool(e)
 				hsSlice[i] = es
 			}
-			hs := strings.Join(hsSlice, ", ")
-			w.Header().Set("H", hs)
+			hs := hsSlice
+			if err := loomhttp.SetHeaderValues(w.Header(), "H", hs); err != nil {
+				return err
+			}
 		} else {
-			w.Header().Set("H", "true, false")
+			val := []bool{true, false}
+			hsSlice := make([]string, len(val))
+			for i, e := range val {
+				es := strconv.FormatBool(e)
+				hsSlice[i] = es
+			}
+			hs := hsSlice
+			if err := loomhttp.SetHeaderValues(w.Header(), "H", hs); err != nil {
+				return err
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 		return nil

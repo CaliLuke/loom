@@ -1,0 +1,69 @@
+package rpcheaders_test
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/rpcheaders/gen/headers"
+	client "example.com/rpcheaders/gen/jsonrpc/headers/client"
+	server "example.com/rpcheaders/gen/jsonrpc/headers/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+func TestHeaderMetadataRoundTrip(t *testing.T) {
+	for _, value := range []*svc.MetadataResult{
+		{Tags: []string{"a", "b"}, Numbers: []int{1, 2}},
+		{Tags: []string{}, Numbers: []int{}},
+	} {
+		mux := loomhttp.NewMuxer()
+		endpoints := &svc.Endpoints{Metadata: func(context.Context, any) (any, error) {
+			return value, nil
+		}}
+		server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+		host := httptest.NewServer(mux)
+		t.Cleanup(host.Close)
+		u, err := url.Parse(host.URL)
+		require.NoError(t, err)
+		c := client.NewClient(u.Scheme, u.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+		res, err := c.Metadata()(context.Background(), &svc.MetadataPayload{ID: "request"})
+		require.NoError(t, err)
+		require.Equal(t, value, res)
+	}
+}
+
+func TestHeaderMetadataIndependentPeer(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		tags    []string
+		numbers []string
+		want    *svc.MetadataResult
+	}{
+		{"repeated-combined", []string{"a", "b, c"}, []string{"1", "2,3"}, &svc.MetadataResult{Tags: []string{"a", "b", "c"}, Numbers: []int{1, 2, 3}}},
+		{"absent-defaults", nil, nil, &svc.MetadataResult{Tags: []string{"fallback"}, Numbers: []int{7}}},
+		{"present-empty", []string{""}, []string{""}, &svc.MetadataResult{Tags: []string{}, Numbers: []int{}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"jsonrpc":"2.0","id":"request","result":null}`)),
+			}
+			for _, value := range tc.tags {
+				response.Header.Add("X-Tags", value)
+			}
+			for _, value := range tc.numbers {
+				response.Header.Add("X-Numbers", value)
+			}
+			res, err := client.DecodeMetadataResponse(loomhttp.ResponseDecoder, false)(response)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, res)
+		})
+	}
+}

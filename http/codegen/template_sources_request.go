@@ -27,13 +27,19 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
    req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+{{ if isAlias .FieldType }}string(head){{ else }}head{{ end }})
    {{- else }}
 			{{- if eq .Type.Name "array" }}
-			for _, val := range head {
-				{{- if and (eq .Type.ElemType.Type.Name "string") (not (isAlias (aliasedType .FieldType).ElemType.Type)) }}
-				req.Header.Add({{ printf "%q" .HTTPName }}, val)
-				{{- else }}
-				{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valStr" "val") }}
-				req.Header.Add({{ printf "%q" .HTTPName }}, valStr)
-				{{- end }}
+			if head != nil {
+				values := make([]string, len(head))
+				for i, val := range head {
+					{{- if and (eq .Type.ElemType.Type.Name "string") (not (isAlias (aliasedType .FieldType).ElemType.Type)) }}
+					values[i] = val
+					{{- else }}
+					{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valStr" "val") }}
+					values[i] = valStr
+					{{- end }}
+				}
+				if err := loomhttp.SetHeaderValues(req.Header, {{ printf "%q" .HTTPName }}, values); err != nil {
+					return err
+				}
 			}
 			{{- else if (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }}
 			req.Header.Set({{ printf "%q" .HTTPName }}, string(head))

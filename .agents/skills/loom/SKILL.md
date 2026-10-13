@@ -710,6 +710,18 @@ Correct the key design and regenerate instead of editing generated declarations.
 - OpenAPI 3.1/3.2 value-or-null unions and OpenAPI 3.0 `nullable: true` import
   to this same DSL contract.
 
+## HTTP Collection Headers
+
+`Header("tags:X-Tags")` on an array uses standard comma lists. Repeated and
+combined lines decode equivalently. Nil is absent; a nonnil empty collection
+sends an empty header, and defaults apply only to absence. Required empty arrays
+remain valid unless a length constraint rejects them. Items containing a comma,
+empty text, or leading/trailing space or tab are rejected in authored values and
+by outgoing encoders. Use a JSON body for arbitrary text lists. Scalar headers
+keep their own wire grammar; quotes do not escape collection delimiters. Use the
+cookie DSL instead of an array `Set-Cookie` mapping. Regenerate clients and servers
+together; these rules also cover JSON-RPC HTTP metadata, not gRPC metadata.
+
 ## Unions, Views, and Projections
 
 - `OneOf(...)` works as both a named union declaration and a type constructor.

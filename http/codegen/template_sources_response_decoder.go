@@ -177,12 +177,12 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 			{{- end }}
 
 		{{- else if .StringSlice }}
-			{{ .VarName }} = resp.Header["{{ .CanonicalName }}"]
+			{{ .VarName }} = loomhttp.HeaderValues(resp.Header, "{{ .CanonicalName }}")
 			{{ if .Required }}
 			if {{ .VarName }} == nil {
 				err = loom.MergeErrors(err, loom.MissingFieldError("{{ .Name }}", "header"))
 			}
-			{{- else if .DefaultValue }}
+			{{- else if (ne .DefaultValue nil) }}
 			if {{ .VarName }} == nil {
 				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 			}
@@ -190,22 +190,22 @@ func {{ .ResponseDecoder }}(decoder func(*http.Response) loomhttp.Decoder, resto
 
 		{{- else if .Slice }}
 		{
-			{{ .Locals.Raw }} := resp.Header["{{ .CanonicalName }}"]
+			{{ .Locals.Raw }} := loomhttp.HeaderValues(resp.Header, "{{ .CanonicalName }}")
 				{{ if .Required }} if {{ .Locals.Raw }} == nil {
 				return nil, loomhttp.ErrValidationError("{{ $.ServiceName }}", "{{ $.Method.Name }}", loom.MissingFieldError("{{ .Name }}", "header"))
 			}
-			{{- else if .DefaultValue }}
+			{{- else if (ne .DefaultValue nil) }}
 			if {{ .Locals.Raw }} == nil {
 				{{ .VarName }} = {{ printf "%#v" .DefaultValue }}
 			}
 			{{- end }}
 
-			{{- if .DefaultValue }}else {
+			{{- if (ne .DefaultValue nil) }}else {
 			{{- else if not .Required }}
 			if {{ .Locals.Raw }} != nil {
 			{{- end }}
 				{{- template "partial_element_slice_conversion" . }}
-			{{- if or .DefaultValue (not .Required) }}
+			{{- if or (ne .DefaultValue nil) (not .Required) }}
 			}
 			{{- end }}
 		}

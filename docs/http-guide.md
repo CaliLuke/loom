@@ -513,6 +513,31 @@ This schema projection applies when the representation uses built-in JSON.
 Raw and text bodies, form and multipart fields, custom codecs, and explicit
 schema overrides retain their own contracts.
 
+### Collection Headers
+
+Map an array of primitives with `Header("tags:X-Tags")` to use OpenAPI's
+`simple` comma-list representation. `["red", "blue"]` becomes `X-Tags: red, blue`.
+Repeated lines and a combined comma list decode to the same ordered collection;
+receivers ignore empty list members and trim separator spaces and tabs.
+
+Nil means the header is absent. A nonnil empty collection sends a present empty
+header and decodes back to an empty collection. Defaults apply only to absence.
+A required empty collection is valid unless a length constraint rejects it.
+
+Items cannot contain commas, be empty, or start or end with a space or tab.
+Loom rejects such defaults, enum values and examples during design evaluation;
+encoders reject unrepresentable runtime values before sending the request or
+committing the response. Errors identify the header without echoing its values.
+Use a JSON body for arbitrary text lists. Regenerate clients and servers to adopt
+these rules; old clients interpret combined lists as single values.
+
+Scalar headers retain their complete wire text. Quoting does not escape commas
+in a schema-based collection: use a scalar for a field with its own quoted grammar,
+such as an Accept value containing quoted parameters. `Set-Cookie` is not a
+comma-list header; array mappings to it are rejected. Use the cookie DSL for
+cookies. These HTTP rules also apply to JSON-RPC's HTTP metadata; gRPC metadata
+and trailers retain their separate transport contract.
+
 ### Raw Request and Response Bodies
 
 Use `SkipRequestBodyEncodeDecode` when the service should receive the request

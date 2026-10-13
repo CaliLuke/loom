@@ -303,21 +303,32 @@ func writeResponseHeaderDecode(g *jen.Group, h *httpcodegen.HeaderData) {
 			})
 		}
 	case h.StringSlice:
-		g.Id(h.VarName).Op("=").Id("resp").Dot("Header").Index(jen.Lit(h.CanonicalName))
+		g.Id(h.VarName).Op("=").Id("loomhttp").Dot("HeaderValues").Call(jen.Id("resp").Dot("Header"), jen.Lit(h.CanonicalName))
 		if h.Required {
 			g.If(jen.Id(h.VarName).Op("==").Nil()).Block(
 				jen.Id("err").Op("=").Add(missingFieldMergeExpr(jen.Id("err"), h.Name, "header")),
 			)
+		} else if h.DefaultValue != nil {
+			g.If(jen.Id(h.VarName).Op("==").Nil()).Block(
+				jen.Id(h.VarName).Op("=").Add(codegen.Expr(fmt.Sprintf("%#v", h.DefaultValue))),
+			)
 		}
 	case h.Slice:
 		g.BlockFunc(func(bg *jen.Group) {
-			bg.Id(h.VarName + "Raw").Op(":=").Id("resp").Dot("Header").Index(jen.Lit(h.CanonicalName))
+			bg.Id(h.VarName+"Raw").Op(":=").Id("loomhttp").Dot("HeaderValues").Call(jen.Id("resp").Dot("Header"), jen.Lit(h.CanonicalName))
 			if h.Required {
 				bg.If(jen.Id(h.VarName + "Raw").Op("==").Nil()).Block(
 					jen.Return(jen.Nil(), errValidationExpr("", "", missingFieldExpr(h.Name, "header"))),
 				)
 			}
-			writeElementSliceConversion(bg, h.AttributeData)
+			conversion := bg.If(jen.Id(h.VarName + "Raw").Op("!=").Nil()).BlockFunc(func(cg *jen.Group) {
+				writeElementSliceConversion(cg, h.AttributeData)
+			})
+			if !h.Required && h.DefaultValue != nil {
+				conversion.Else().Block(
+					jen.Id(h.VarName).Op("=").Add(codegen.Expr(fmt.Sprintf("%#v", h.DefaultValue))),
+				)
+			}
 		})
 	default:
 		g.BlockFunc(func(bg *jen.Group) {

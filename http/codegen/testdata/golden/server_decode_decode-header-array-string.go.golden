@@ -6,7 +6,7 @@ func DecodeMethodHeaderArrayStringRequest(mux loomhttp.Muxer, _ func(*http.Reque
 		var (
 			h []string
 		)
-		h = r.Header["H"]
+		h = loomhttp.HeaderValues(r.Header, "H")
 		payload = NewMethodHeaderArrayStringPayload(h)
 
 		return payload, nil
