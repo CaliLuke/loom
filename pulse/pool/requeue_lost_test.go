@@ -118,13 +118,24 @@ func TestRebalanceRelease(t *testing.T) {
 	require.True(t, handler.wasStopped("k1"))
 	require.Empty(t, w.Jobs())
 	require.Eventually(t, listed(false), 5*time.Second, 5*time.Millisecond, "the released key stays in the job map entry")
-	payload, ok := node.JobPayload("k1")
-	require.True(t, ok, "the payload must stay for the orphan sweep")
-	require.Equal(t, "payload", string(payload))
+	assertDurablePayload := func() {
+		t.Helper()
+		payload, err := rdb.HGet(ctx, rmapContentKey(jobPayloadMapName(node.PoolName)), "k1").Result()
+		require.NoError(t, err, "the payload must stay for the orphan sweep")
+		require.Equal(t, "payload", payload)
+	}
+	assertDurablePayload()
+	// Payload and job indexes have independent replica subscriptions. Observing
+	// the index removal does not establish that the payload replica is current.
+	require.Eventually(t, func() bool {
+		payload, ok := node.JobPayload("k1")
+		return ok && string(payload) == "payload"
+	}, 5*time.Second, 5*time.Millisecond, "the payload replica must observe the retained bytes")
 
 	released, err = w.releaseTrackedJob(ctx, "k1")
 	require.NoError(t, err)
 	require.False(t, released, "an untracked key is not released")
+	assertDurablePayload()
 }
 
 // TestClaimRequeue checks luaClaimRequeue beyond the delivery states of
