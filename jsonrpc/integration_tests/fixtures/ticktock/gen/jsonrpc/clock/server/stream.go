@@ -75,7 +75,12 @@ func (s *TickServerStream) Send(ctx context.Context, event clock.TickEvent) erro
 	}
 
 	// Convert to response body type for proper JSON encoding
-	body := NewTickResponseBody(result)
+	var body any
+	{
+		res := result
+		body = NewTickResponseBody(res)
+	}
+
 	// Send as notification (no ID)
 	message := map[string]any{
 		"jsonrpc": "2.0",
@@ -108,7 +113,12 @@ func (s *TickServerStream) SendAndClose(ctx context.Context, event clock.TickEve
 	}
 
 	// Convert to response body type for proper JSON encoding
-	body := NewTickResponseBody(result)
+	var body any
+	{
+		res := result
+		body = NewTickResponseBody(res)
+	}
+
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
 		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)
 	})
@@ -247,7 +257,12 @@ func (s *TockServerStream) Send(ctx context.Context, event clock.TockEvent) erro
 	}
 
 	// Convert to response body type for proper JSON encoding
-	body := NewTockResponseBody(result)
+	var body any
+	{
+		res := result
+		body = NewTockResponseBody(res)
+	}
+
 	// Send as notification (no ID)
 	message := map[string]any{
 		"jsonrpc": "2.0",
@@ -280,7 +295,12 @@ func (s *TockServerStream) SendAndClose(ctx context.Context, event clock.TockEve
 	}
 
 	// Convert to response body type for proper JSON encoding
-	body := NewTockResponseBody(result)
+	var body any
+	{
+		res := result
+		body = NewTockResponseBody(res)
+	}
+
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
 		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)
 	})

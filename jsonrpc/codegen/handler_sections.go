@@ -530,36 +530,16 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 		return
 	}
 	success := e.Result.Responses[0]
-	if success != nil && len(success.ServerBody) > 0 && success.ServerBody[0].Init != nil {
-		g.Comment("Convert result to response body with proper JSON tags")
-		if viewed := e.Method.ViewedResult; viewed != nil {
-			// Render the view that the service returned, as the response
-			// encoder does, and name it in the loom-view header that the
-			// client reads when the design fixes no view.
-			g.Id("viewedRes").Op(":=").Id("res").Assert(codegen.TypeRef(viewed.FullRef))
-			if viewed.ViewName == "" {
-				g.Id("w").Dot("Header").Call().Dot("Set").Call(jen.Lit("loom-view"), jen.Id("viewedRes").Dot("View"))
-			}
-			g.Add(codegen.Expr(viewedResultBodyInit("viewedRes", success.ServerBody)))
-		} else {
-			g.Id("body").Op(":=").Id(success.ServerBody[0].Init.Name).Call(jen.Id("res").Assert(codegen.TypeRef(e.Result.Ref)))
+	source := fmt.Sprintf("res.(%s)", e.Result.Ref)
+	if viewed := e.Method.ViewedResult; viewed != nil {
+		g.Id("viewedRes").Op(":=").Id("res").Assert(codegen.TypeRef(viewed.FullRef))
+		if viewed.ViewName == "" {
+			g.Id("w").Dot("Header").Call().Dot("Set").Call(jen.Lit("loom-view"), jen.Id("viewedRes").Dot("View"))
 		}
-		g.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body"))
-		g.If(
-			jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
-			jen.Err().Op("!=").Nil(),
-		).Block(
-			loomtransportRef("RequestObserverFromContext").Call(jen.Id("ctx")).Dot("Fail").Call(loomtransportRef("ReasonResponseWriteFailed")),
-			jen.Id("errhandler").Call(
-				jen.Id("ctx"),
-				jen.Id("w"),
-				jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to encode JSON-RPC response: %w"), jen.Err()),
-			),
-		)
-		g.Return(jen.Nil())
-		return
+		source = "viewedRes"
 	}
-	g.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("res"))
+	g.Add(codegen.Expr(responseBodyInit(source, success, success.ServerBody)))
+	g.Id("response").Op(":=").Qual("github.com/CaliLuke/loom/jsonrpc", "MakeSuccessResponse").Call(jen.Id("id"), jen.Id("body"))
 	g.If(
 		jen.Err().Op(":=").Id("encoder").Call(jen.Id("ctx"), jen.Id("w")).Dot("Encode").Call(jen.Id("response")),
 		jen.Err().Op("!=").Nil(),

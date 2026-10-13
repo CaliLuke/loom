@@ -26,10 +26,10 @@ func TestJSONRPCViewedUnaryResultGeneratedModule(t *testing.T) {
 	server := readGeneratedFile(t, dir, "gen/jsonrpc/notes/server/server.go")
 	for _, want := range []string{
 		// A method without a fixed view renders the view of the result.
-		"viewedRes := res.(*notesviews.Note)\n\t\tw.Header().Set(\"loom-view\", viewedRes.View)\n\t\tvar body any\n\t\tswitch viewedRes.View {\n\t\tcase \"default\", \"\":\n\t\t\tbody = NewShowResponseBody(viewedRes.Projected)\n\t\tcase \"tiny\":\n\t\t\tbody = NewShowResponseBodyTiny(viewedRes.Projected)\n\t\t}",
-		"viewedRes := res.(notesviews.NoteCollection)\n\t\tw.Header().Set(\"loom-view\", viewedRes.View)\n\t\tvar body any\n\t\tswitch viewedRes.View {\n\t\tcase \"default\", \"\":\n\t\t\tbody = NewNoteResponseCollection(viewedRes.Projected)\n\t\tcase \"tiny\":\n\t\t\tbody = NewNoteResponseTinyCollection(viewedRes.Projected)\n\t\t}",
+		"viewedRes := res.(*notesviews.Note)\n\t\tw.Header().Set(\"loom-view\", viewedRes.View)\n\t\tvar body any\n\t\t{\n\t\t\tres := viewedRes\n\t\t\tswitch res.View {\n\t\t\tcase \"default\", \"\":\n\t\t\t\tbody = NewShowResponseBody(res.Projected)\n\t\t\tcase \"tiny\":\n\t\t\t\tbody = NewShowResponseBodyTiny(res.Projected)\n\t\t\t}\n\t\t}",
+		"viewedRes := res.(notesviews.NoteCollection)\n\t\tw.Header().Set(\"loom-view\", viewedRes.View)\n\t\tvar body any\n\t\t{\n\t\t\tres := viewedRes\n\t\t\tswitch res.View {\n\t\t\tcase \"default\", \"\":\n\t\t\t\tbody = NewNoteResponseCollection(res.Projected)\n\t\t\tcase \"tiny\":\n\t\t\t\tbody = NewNoteResponseTinyCollection(res.Projected)\n\t\t\t}\n\t\t}",
 		// A fixed view renders the body of that view alone.
-		"viewedRes := res.(*notesviews.Note)\n\t\tbody := NewShowTinyResponseBodyTiny(viewedRes.Projected)",
+		"viewedRes := res.(*notesviews.Note)\n\t\tvar body any\n\t\t{\n\t\t\tres := viewedRes\n\t\t\tbody = NewShowTinyResponseBodyTiny(res.Projected)\n\t\t}",
 	} {
 		assertGeneratedContains(t, "server.go", server, want)
 	}

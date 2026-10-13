@@ -148,11 +148,11 @@ func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
 // unconverted collection, and mixed-result events, and the event value otherwise.
 func sseEventBodyInit(resultVar, view string, ed *httpcodegen.EndpointData) string {
 	if len(ed.SSE.ResponseBodies) > 0 {
-		body := ed.SSE.ResponseBodies[0]
-		if code, ok := viewedStreamResultBodyInit(resultVar, view, body, ed); ok {
+		response := streamResponse(ed.SSE.ResponseBodies[0], ed)
+		if code, ok := viewedStreamResultBodyInit(resultVar, view, response, ed); ok {
 			return code
 		}
-		return fmt.Sprintf("body := %s(%s)", body.Init.Name, resultVar)
+		return responseBodyInit(resultVar, response, ed.SSE.ResponseBodies)
 	}
 	return fmt.Sprintf("body := %s", resultVar)
 }

@@ -38,7 +38,12 @@ func (s *jSONRPCSSEObjectServiceSSEStream) sendError(ctx context.Context, id any
 func (s *jSONRPCSSEObjectServiceSSEStream) Send(ctx context.Context, event jsonrpcsseobjectservice.Event) error {
 	switch v := event.(type) {
 	case *jsonrpcsseobjectservice.StreamResult:
-		body := NewStreamResponseBody(v)
+		var body any
+		{
+			res := v
+			body = NewStreamResponseBody(res)
+		}
+
 		var message map[string]any
 		var id string
 		var isResponse bool

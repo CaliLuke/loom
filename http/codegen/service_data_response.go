@@ -469,7 +469,29 @@ func newResponseEncodePlan(response *ResponseData) *ResponseEncodePlan {
 	if bodyCount > 0 {
 		firstBody = response.ServerBody[0]
 	}
+	values := make(map[*TypeData]string, bodyCount)
+	for _, body := range response.ServerBody {
+		if body.Init != nil {
+			args := make([]string, len(body.Init.ServerArgs))
+			for i, arg := range body.Init.ServerArgs {
+				args[i] = arg.Ref
+			}
+			values[body] = fmt.Sprintf("%s(%s)", body.Init.Name, strings.Join(args, ", "))
+			continue
+		}
+		source := "res"
+		if response.SourceVar == "problem" {
+			source = "problem"
+		} else if response.ViewedResult != nil {
+			source += ".Projected"
+		}
+		if response.ResultAttr != "" {
+			source += "." + response.ResultAttr
+		}
+		values[body] = source
+	}
 	return &ResponseEncodePlan{
+		BodyValues:        values,
 		BodyCount:         bodyCount,
 		HasBody:           bodyCount > 0,
 		FirstBody:         firstBody,

@@ -36,22 +36,22 @@ func TestViewedStreamConstantBodySelection(t *testing.T) {
 			require.NotNil(t, endpoint)
 			bodies := endpoint.Result.Responses[0].ServerBody
 			require.NotEmpty(t, bodies)
-			code, ok := viewedStreamResultBodyInit("result", tc.view, bodies[0], endpoint)
+			code, ok := viewedStreamResultBodyInit("result", tc.view, endpoint.Result.Responses[0], endpoint)
 			require.True(t, ok)
 			if tc.dynamic {
-				require.Contains(t, code, "switch vres.View")
+				require.Contains(t, code, "switch res.View")
 				for _, body := range bodies {
-					require.Contains(t, code, body.Init.Name+"(vres.Projected)")
+					require.Contains(t, code, body.Init.Name+"(res.Projected)")
 				}
 				return
 			}
-			require.NotContains(t, code, "switch vres.View")
+			require.NotContains(t, code, "switch res.View")
 			found := false
 			for _, body := range bodies {
-				call := body.Init.Name + "(vres.Projected)"
+				call := body.Init.Name + "(res.Projected)"
 				if body.View == tc.selected {
 					found = true
-					require.Contains(t, code, "body := "+call)
+					require.Contains(t, code, "body = "+call)
 				} else {
 					require.NotContains(t, code, call)
 				}

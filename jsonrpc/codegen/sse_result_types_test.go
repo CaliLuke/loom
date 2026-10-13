@@ -26,7 +26,7 @@ func TestJSONRPCSSEResultTypesStreams(t *testing.T) {
 
 	base := filepath.Join(dir, "gen", "jsonrpc", "jsonrpcsse_result_types")
 	server := readJSONRPCStreamFile(t, filepath.Join(base, "server", "stream.go"))
-	require.Equal(t, 2, strings.Count(server, "body := NewStreamNoteResponseBody(result)"))
+	require.Equal(t, 2, strings.Count(server, "body = NewStreamNoteResponseBody(res)"))
 	require.Equal(t, 14, strings.Count(server, "body := result\n"))
 	// Events are JSON-RPC envelopes, so primitive results are always JSON
 	// encoded inside "params" or "result" and never written as raw SSE data.

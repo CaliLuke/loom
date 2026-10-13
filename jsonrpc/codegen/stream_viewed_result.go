@@ -43,33 +43,28 @@ func addDynamicViewStreamWrapperMethods(stmt *jen.Statement, wrapper string, ed 
 // resultVar of ed. A viewed result is rendered with the view that the design
 // fixes or else with the view that the Go expression view evaluates to.
 func writeStreamResultBodyInit(g *jen.Group, resultVar, view string, ed *httpcodegen.EndpointData) {
-	if ed.Result != nil && len(ed.Result.Responses) > 0 && len(ed.Result.Responses[0].ServerBody) > 0 && ed.Result.Responses[0].ServerBody[0].Init != nil {
-		body := ed.Result.Responses[0].ServerBody[0]
-		if code, ok := viewedStreamResultBodyInit(resultVar, view, body, ed); ok {
-			g.Add(codegen.Expr(code))
-			return
-		}
-		g.Id("body").Op(":=").Id(body.Init.Name).Call(jen.Id(resultVar))
+	response := ed.Result.Responses[0]
+	if code, ok := viewedStreamResultBodyInit(resultVar, view, response, ed); ok {
+		g.Add(codegen.Expr(code))
 		return
 	}
-	g.Id("body").Op(":=").Id(resultVar)
+	g.Add(codegen.Expr(responseBodyInit(resultVar, response, response.ServerBody)))
 }
 
 // viewedStreamResultBodyInit renders the statements that declare body, the
 // response body of the viewed result in resultVar of ed, and reports whether
-// ed has a viewed result that body renders. body is the response body of ed
-// that the result is converted to when it has no views. The statements
+// ed has a viewed result. response owns the body variants for ed. The statements
 // project the result with the view that the design fixes or, when the design
 // fixes none, with the view that the Go expression view evaluates to, as the
 // HTTP streams do. They then build body with the response body constructor of
 // the projected view and return the error of a view that the result type does
 // not define.
-func viewedStreamResultBodyInit(resultVar, view string, body *httpcodegen.TypeData, ed *httpcodegen.EndpointData) (string, bool) {
+func viewedStreamResultBodyInit(resultVar, view string, response *httpcodegen.ResponseData, ed *httpcodegen.EndpointData) (string, bool) {
 	viewed := ed.Method.ViewedResult
-	if viewed == nil || body == nil || body.Init == nil {
+	if viewed == nil || len(response.ServerBody) == 0 {
 		return "", false
 	}
-	bodies := viewedResponseBodies(body, ed)
+	bodies := response.ServerBody
 	if viewed.ViewName != "" {
 		view = strconv.Quote(viewed.ViewName)
 	}
@@ -77,7 +72,7 @@ func viewedStreamResultBodyInit(resultVar, view string, body *httpcodegen.TypeDa
 		// NewViewed returns the requested view, so other body constructors
 		// cannot be reached when the stream always selects the default.
 		for _, vb := range bodies {
-			if vb.View == "default" && vb.Init != nil {
+			if vb.View == "default" {
 				bodies = []*httpcodegen.TypeData{vb}
 				break
 			}
@@ -86,51 +81,48 @@ func viewedStreamResultBodyInit(resultVar, view string, body *httpcodegen.TypeDa
 	var b strings.Builder
 	fmt.Fprintf(&b, "vres, err := %s.%s(%s, %s)\n", ed.ServicePkgName, viewed.Init.Name, resultVar, view)
 	b.WriteString("if err != nil {\n\treturn err\n}\n")
-	b.WriteString(viewedResultBodyInit("vres", bodies))
+	b.WriteString(responseBodyInit("vres", response, bodies))
 	return b.String(), true
 }
 
-// viewedResultBodyInit renders the statements that declare body, the response
-// body of the viewed result in the variable vres, from bodies, the response
-// bodies of the result, one for each view. With one body, body is built with
-// its constructor. Otherwise body is built with the constructor of the body of
-// the view of vres, as the HTTP response encoders do; the empty view is the
-// default view.
-func viewedResultBodyInit(vres string, bodies []*httpcodegen.TypeData) string {
-	if len(bodies) == 1 {
-		return fmt.Sprintf("body := %s(%s.Projected)", bodies[0].Init.Name, vres)
+// responseBodyInit binds the source required by the shared response plan and
+// declares body for protocol framing. It does not infer projection from whether
+// a conversion constructor exists. View validation remains with the caller.
+func responseBodyInit(source string, response *httpcodegen.ResponseData, bodies []*httpcodegen.TypeData) string {
+	if !response.EncodePlan.HasBody {
+		return "var body any"
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "var body any\nswitch %s.View {\n", vres)
-	for _, vb := range bodies {
-		if vb.Init == nil {
-			continue
+	fmt.Fprintf(&b, "var body any\n{\nres := %s\n", source)
+	if len(bodies) == 1 {
+		fmt.Fprintf(&b, "body = %s\n", response.EncodePlan.BodyValues[bodies[0]])
+	} else {
+		b.WriteString("switch res.View {\n")
+		for _, body := range bodies {
+			if body.View == "default" {
+				b.WriteString("case \"default\", \"\":\n")
+			} else {
+				fmt.Fprintf(&b, "case %q:\n", body.View)
+			}
+			fmt.Fprintf(&b, "body = %s\n", response.EncodePlan.BodyValues[body])
 		}
-		if vb.View == "default" {
-			b.WriteString("case \"default\", \"\":\n")
-		} else {
-			fmt.Fprintf(&b, "case %q:\n", vb.View)
-		}
-		fmt.Fprintf(&b, "\tbody = %s(%s.Projected)\n", vb.Init.Name, vres)
+		b.WriteString("}\n")
 	}
-	b.WriteString("}")
+	b.WriteString("}\n")
 	return b.String()
 }
 
-// viewedResponseBodies returns the response bodies of the response of ed that
-// declares body, one for each view of the result, or body alone when no
-// response declares it.
-func viewedResponseBodies(body *httpcodegen.TypeData, ed *httpcodegen.EndpointData) []*httpcodegen.TypeData {
-	if ed.Result != nil {
-		for _, resp := range ed.Result.Responses {
-			for _, sb := range resp.ServerBody {
-				if sb == body {
-					return resp.ServerBody
-				}
+// streamResponse returns the response owning a body in the SSE conversion
+// family. The family is built from endpoint responses by HTTP analysis.
+func streamResponse(body *httpcodegen.TypeData, ed *httpcodegen.EndpointData) *httpcodegen.ResponseData {
+	for _, response := range ed.Result.Responses {
+		for _, candidate := range response.ServerBody {
+			if candidate == body {
+				return response
 			}
 		}
 	}
-	return []*httpcodegen.TypeData{body}
+	panic("SSE response body has no owning response plan")
 }
 
 // writeStreamMessage writes the converted body and, for a viewed result, the

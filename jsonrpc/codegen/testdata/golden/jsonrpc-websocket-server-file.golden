@@ -49,7 +49,12 @@ func (w *streamStreamWrapper) SendNotification(ctx context.Context, res *jsonrpc
 	return w.stream.SendStreamNotification(ctx, res)
 }
 func (w *streamStreamWrapper) SendResponse(ctx context.Context, res *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult) error {
-	body := NewStreamResponseBody(res)
+	var body any
+	{
+		res := res
+		body = NewStreamResponseBody(res)
+	}
+
 	return jsonrpc.CompleteStream(ctx, w.requestHasID, w.requestID, body, func(response *jsonrpc.Response) error {
 		return w.stream.conn.WriteJSON(ctx, response)
 	})
@@ -65,13 +70,23 @@ func (w *streamStreamWrapper) Close() error {
 
 // SendStreamNotification sends a JSON-RPC notification for the Stream method.
 func (s *jSONRPCWebSocketRuntimeServiceStream) SendStreamNotification(ctx context.Context, result *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult) error {
-	body := NewStreamResponseBody(result)
+	var body any
+	{
+		res := result
+		body = NewStreamResponseBody(res)
+	}
+
 	return s.conn.WriteJSON(ctx, jsonrpc.MakeNotification("Stream", body))
 }
 
 // SendStreamResponse sends a JSON-RPC response for the Stream method.
 func (s *jSONRPCWebSocketRuntimeServiceStream) SendStreamResponse(ctx context.Context, id any, result *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeResult) error {
-	body := NewStreamResponseBody(result)
+	var body any
+	{
+		res := result
+		body = NewStreamResponseBody(res)
+	}
+
 	return s.conn.WriteJSON(ctx, jsonrpc.MakeSuccessResponse(id, body))
 }
 

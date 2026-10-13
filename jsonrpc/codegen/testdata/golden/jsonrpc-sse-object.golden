@@ -52,7 +52,12 @@ func (s *StreamServerStream) Send(ctx context.Context, event jsonrpcsseobjectser
 	}
 
 	// Convert to response body type for proper JSON encoding
-	body := NewStreamResponseBody(result)
+	var body any
+	{
+		res := result
+		body = NewStreamResponseBody(res)
+	}
+
 	// Send as notification (no ID)
 	message := map[string]any{
 		"jsonrpc": "2.0",
@@ -85,7 +90,12 @@ func (s *StreamServerStream) SendAndClose(ctx context.Context, event jsonrpcsseo
 	}
 
 	// Convert to response body type for proper JSON encoding
-	body := NewStreamResponseBody(result)
+	var body any
+	{
+		res := result
+		body = NewStreamResponseBody(res)
+	}
+
 	return s.complete(ctx, func(commit func(*jsonrpc.Response) error) error {
 		return jsonrpc.CompleteStream(ctx, s.requestHasID, s.requestID, body, commit)
 	})

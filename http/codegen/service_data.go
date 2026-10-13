@@ -490,6 +490,12 @@ type (
 	// ResponseEncodePlan contains the derived control flow decisions for
 	// rendering a server response encoder.
 	ResponseEncodePlan struct {
+		// BodyValues maps each server body variant to its complete Go value
+		// expression. Expressions use the canonical res (or problem) binding
+		// and include selected fields even when no constructor is needed.
+		// Consumers must preserve variant identity and bind that source before
+		// framing; an empty map means the response has no body.
+		BodyValues map[*TypeData]string
 		// BodyCount is the number of server response body variants.
 		BodyCount int
 		// HasBody is true when the response writes a body.

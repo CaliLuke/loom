@@ -182,6 +182,15 @@ consumer validation.
   already values; do not address or dereference them as native pointers. Keep
   [response field storage](../../../http/codegen/tla/response_field_storage/README.md)
   aligned with generated constructor and mounted nil/empty/value controls.
+- `http/codegen.ResponseEncodePlan.BodyValues` owns complete response values by
+  body/view variant, including selected fields that need no constructor. HTTP
+  encoders, HTTP WebSocket final results and JSON-RPC framing consume these same
+  expressions. JSON-RPC binds the canonical source in a private rendering scope;
+  do not restore constructor-only/raw-result fallbacks. Preserve metadata capture
+  and configured encoder invocation counts. Mixed SSE events retain their
+  distinct StreamingResult source. Keep the
+  [response projection model](../../../http/codegen/tla/response_projection/README.md)
+  and mounted selected-body, notification, codec and view controls aligned.
 - Design DSL is the source of truth; evaluated semantics belong in `expr`.
 - `RootExpr.Prepare` composes `Extend` after promoted union naming and before
   dependent transport preparation or validation. Preserve authored overlays and

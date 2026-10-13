@@ -47,8 +47,10 @@ func TestWriteServerWebSocketResponseBodySwitchesViews(t *testing.T) {
 		},
 	}
 
+	ws.Response.EncodePlan = newResponseEncodePlan(ws.Response)
+
 	var b strings.Builder
 	require.True(t, writeServerWebSocketResponseBody(&b, ws))
 
-	require.Equal(t, "\tvar body any\n\tswitch res.View {\n\tcase \"default\", \"\":\n\t\tbody = newDefaultBody(res, )\n\tcase \"tiny\":\n\t\tbody = newTinyBody(res, )\n\t}\n\treturn s.conn.WriteJSON(ctx, body)\n", b.String())
+	require.Equal(t, "\tvar body any\n\tswitch res.View {\n\tcase \"default\", \"\":\n\t\tbody = newDefaultBody(res)\n\tcase \"tiny\":\n\t\tbody = newTinyBody(res)\n\t}\n\treturn s.conn.WriteJSON(ctx, body)\n", b.String())
 }

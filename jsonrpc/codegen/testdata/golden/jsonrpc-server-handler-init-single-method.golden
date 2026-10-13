@@ -62,7 +62,13 @@ func NewAddHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*htt
 		if !req.HasID {
 			return nil
 		}
-		response := jsonrpc.MakeSuccessResponse(id, res)
+		var body any
+		{
+			res := res.(string)
+			body = res
+		}
+
+		response := jsonrpc.MakeSuccessResponse(id, body)
 		if err := encoder(ctx, w).Encode(response); err != nil {
 			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonResponseWriteFailed)
 			errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))

@@ -59,10 +59,6 @@ func writeServerWebSocketResponseBody(b *strings.Builder, ws *WebSocketData) boo
 	if len(ws.Response.ServerBody) == 0 {
 		return false
 	}
-	body := ws.Response.ServerBody[0]
-	if body.Init == nil {
-		return false
-	}
 	prefix := "\tbody := "
 	viewed := ws.Endpoint.Method.ViewedResult
 	if viewed != nil && viewed.ViewName == "" {
@@ -70,7 +66,7 @@ func writeServerWebSocketResponseBody(b *strings.Builder, ws *WebSocketData) boo
 		prefix = "\t\tbody = "
 	}
 	writeServerStreamBodySelection(b, ws.Response.ServerBody, viewed, func(body *TypeData) {
-		writeServerBodyInitCall(b, body, prefix)
+		fmt.Fprintf(b, "%s%s\n", prefix, ws.Response.EncodePlan.BodyValues[body])
 	})
 	b.WriteString("\treturn s.conn.WriteJSON(ctx, body)\n")
 	return true

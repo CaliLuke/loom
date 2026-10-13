@@ -118,13 +118,11 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 			{{- range $.ViewedResult.Views }}
 	case {{ printf "%q" .Name }}{{ if eq .Name "default" }}, ""{{ end }}:
 			{{- $vsb := (viewedServerBody $.ServerBody .Name) }}
-		body = {{ $vsb.Init.Name }}({{ range $vsb.Init.ServerArgs }}{{ .Ref }}, {{ end }})
+		body = {{ index $.EncodePlan.BodyValues $vsb }}
 			{{- end }}
 	}
-		{{- else if .EncodePlan.FirstBody.Init }}
-	body {{ if not .ErrorHeader}}:{{ end }}= {{ .EncodePlan.FirstBody.Init.Name }}({{ range .EncodePlan.FirstBody.Init.ServerArgs }}{{ .Ref }}, {{ end }})
 		{{- else }}
-	body {{ if not .ErrorHeader}}:{{ end }}= {{ if eq .SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .ResultAttr }}.{{ .ResultAttr }}{{ end }}
+	body {{ if not .ErrorHeader}}:{{ end }}= {{ index .EncodePlan.BodyValues .EncodePlan.FirstBody }}
 		{{- end }}
 		{{- if .ErrorHeader }}
 	}

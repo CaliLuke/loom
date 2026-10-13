@@ -304,7 +304,12 @@ func (s *jSONRPCSSEObjectServiceSSEStream) sendError(ctx context.Context, id any
 func (s *jSONRPCSSEObjectServiceSSEStream) Send(ctx context.Context, event jsonrpcsseobjectservice.Event) error {
 	switch v := event.(type) {
 	case *jsonrpcsseobjectservice.StreamResult:
-		body := NewStreamResponseBody(v)
+		var body any
+		{
+			res := v
+			body = NewStreamResponseBody(res)
+		}
+
 		var message map[string]any
 		var id string
 		var isResponse bool
@@ -372,7 +377,7 @@ func EncodeStreamResponse(encoder func(context.Context, http.ResponseWriter) loo
 				return loomhttp.ErrInvalidType("JSONRPCSSEObjectService", "Stream", "*jsonrpcsseobjectservice.StreamResult", v)
 			}
 	enc := encoder(ctx, w)
-	body := NewStreamResponseBody(res, )
+	body := NewStreamResponseBody(res)
 	w.WriteHeader(http.StatusOK)
 				return enc.Encode(body)
 	}
