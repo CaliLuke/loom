@@ -8,12 +8,13 @@ func EncodeMethodHeaderArrayUIntResponse(encoder func(context.Context, http.Resp
 		}
 		if res.H != nil {
 			val := res.H
-			hsSlice := make([]string, len(val))
-			for i, e := range val {
-				es := strconv.FormatUint(uint64(e), 10)
-				hsSlice[i] = es
+			var hs []string
+			if val != nil {
+				hs = make([]string, len(val))
+				for i, e := range val {
+					hs[i] = strconv.FormatUint(uint64(e), 10)
+				}
 			}
-			hs := hsSlice
 			if err := loomhttp.SetHeaderValues(w.Header(), "H", hs); err != nil {
 				return err
 			}

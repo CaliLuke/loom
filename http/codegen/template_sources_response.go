@@ -141,13 +141,8 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 {{- if not $checkNil }}
 {
 {{- end }}
-			{{- if isAliased .FieldType }}
-	val := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
-	{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice true "val") }}
-			{{- else }}
-	val := {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
-	{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice (not .FieldPointer) "val") }}
-			{{- end }}
+	val := {{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
+	{{ renderHeaderConversion .Type .FieldType .Locals.Encoded "val" }}
 	{{- if .Slice }}
 	if err := loomhttp.SetHeaderValues(w.Header(), "{{ .CanonicalName }}", {{ .Locals.Encoded }}); err != nil {
 		return err
@@ -164,7 +159,7 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{ if $checkNil }} } else { {{ else }}if {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}.{{ .FieldName }} == nil { {{ end }}
 		{{- if .Slice }}
 		val := {{ printf "%#v" .DefaultValue }}
-		{{ template "partial_header_conversion" (headerConversionData .Type .Locals.Encoded .Locals.EncodedSlice true "val") }}
+		{{ renderHeaderConversion .Type .Type .Locals.Encoded "val" }}
 		if err := loomhttp.SetHeaderValues(w.Header(), "{{ .CanonicalName }}", {{ .Locals.Encoded }}); err != nil {
 			return err
 		}
@@ -189,13 +184,8 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 		{{- if and (eq .Type.Name "string") (not (isAliased .FieldType)) }}
 	{{ .VarName }} := {{ if or .FieldPointer $.ViewedResult }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
 		{{- else }}
-			{{- if isAliased .FieldType }}
-	{{ .Locals.EncodedRaw }} := {{ goTypeRef .Type }}({{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }})
-	{{ template "partial_header_conversion" (headerConversionData .Type .VarName .Locals.Slice true .Locals.EncodedRaw) }}
-			{{- else }}
-	{{ .Locals.EncodedRaw }} := {{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
-	{{ template "partial_header_conversion" (headerConversionData .Type .VarName .Locals.Slice (not .FieldPointer) .Locals.EncodedRaw) }}
-			{{- end }}
+	{{ .Locals.EncodedRaw }} := {{ if .FieldPointer }}*{{ end }}{{ if eq $.SourceVar "problem" }}problem{{ else }}res{{ if $.ViewedResult }}.Projected{{ end }}{{ end }}{{ if .FieldName }}.{{ .FieldName }}{{ end }}
+	{{ renderHeaderConversion .Type .FieldType .VarName .Locals.EncodedRaw }}
 		{{- end }}
 
 		{{- if $initDef }}
@@ -237,44 +227,6 @@ func {{ .ErrorEncoder }}(encoder func(context.Context, http.ResponseWriter) loom
 	{{- end }}
 		{{- if not .DeferStatus }}
 	w.WriteHeader({{ .StatusCode }})
-	{{- end }}`},
-		{name: "header_conversion", source: `	{{- if eq .Type.Name "boolean" -}}
-		{{ .VarName }} := strconv.FormatBool({{ if not .Required }}*{{ end }}{{ .Target }})
-	{{- else if eq .Type.Name "int" -}}
-		{{ .VarName }} := strconv.Itoa({{ if not .Required }}*{{ end }}{{ .Target }})
-	{{- else if eq .Type.Name "int32" -}}
-		{{ .VarName }} := strconv.FormatInt(int64({{ if not .Required }}*{{ end }}{{ .Target }}), 10)
-	{{- else if eq .Type.Name "int64" -}}
-		{{ .VarName }} := strconv.FormatInt({{ if not .Required }}*{{ end }}{{ .Target }}, 10)
-	{{- else if eq .Type.Name "uint" -}}
-		{{ .VarName }} := strconv.FormatUint(uint64({{ if not .Required }}*{{ end }}{{ .Target }}), 10)
-	{{- else if eq .Type.Name "uint32" -}}
-		{{ .VarName }} := strconv.FormatUint(uint64({{ if not .Required }}*{{ end }}{{ .Target }}), 10)
-	{{- else if eq .Type.Name "uint64" -}}
-		{{ .VarName }} := strconv.FormatUint({{ if not .Required }}*{{ end }}{{ .Target }}, 10)
-	{{- else if eq .Type.Name "float32" -}}
-		{{ .VarName }} := strconv.FormatFloat(float64({{ if not .Required }}*{{ end }}{{ .Target }}), 'f', -1, 32)
-	{{- else if eq .Type.Name "float64" -}}
-		{{ .VarName }} := strconv.FormatFloat({{ if not .Required }}*{{ end }}{{ .Target }}, 'f', -1, 64)
-	{{- else if eq .Type.Name "string" -}}
-		{{ .VarName }} := {{ .Target }}
-	{{- else if eq .Type.Name "bytes" -}}
-		{{ .VarName }} := string({{ .Target }})
-	{{- else if eq .Type.Name "any" -}}
-		{{ .VarName }} := loom.JSONValueString({{ .Target }})
-	{{- else if eq .Type.Name "array" -}}
-		{{- if eq .Type.ElemType.Type.Name "string" -}}
-		{{ .VarName }} := {{ .Target }}
-		{{- else -}}
-		{{ .SliceVarName }} := make([]string, len({{ .Target }}))
-		for i, e := range {{ .Target }}  {
-			{{ template "partial_header_conversion" (headerConversionData .Type.ElemType.Type "es" "esSlice" true "e") }}
-			{{ .SliceVarName }}[i] = es
-		}
-		{{ .VarName }} := {{ .SliceVarName }}
-		{{- end }}
-	{{- else }}
-		// unsupported type {{ .Type.Name }} for header field {{ .FieldName }}
 	{{- end }}`},
 	}
 )

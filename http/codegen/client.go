@@ -96,7 +96,9 @@ func clientRequestEncoderSection(svc *expr.HTTPServiceExpr, services *ServicesDa
 
 func clientRequestTemplateFuncs(svc *expr.HTTPServiceExpr, services *ServicesData) map[string]any {
 	return map[string]any{
-		"typeConversionData": typeConversionData,
+		"typeConversionData":     typeConversionData,
+		"transportScalarValue":   transportScalarValue,
+		"renderHeaderConversion": renderHeaderConversion,
 		"goTypeRef": func(dt expr.DataType) string {
 			return services.ServicesData.Get(svc.Name()).Scope.GoTypeRef(&expr.AttributeExpr{Type: dt})
 		},
@@ -168,15 +170,13 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 }
 
 // typeConversionData produces the template data suitable for executing the
-// "header_conversion" template.
+// "client_type_conversion" template.
 func typeConversionData(dt, ft expr.DataType, varName, target string) map[string]any {
-	ft, isut := transportUnderlyingType(ft)
 	return map[string]any{
 		"Type":      dt,
 		"FieldType": ft,
 		"VarName":   varName,
 		"Target":    target,
-		"IsAliased": isut,
 	}
 }
 

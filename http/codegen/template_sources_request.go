@@ -27,19 +27,9 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
    req.Header.Set({{ printf "%q" .HTTPName }}, "Bearer "+{{ if isAlias .FieldType }}string(head){{ else }}head{{ end }})
    {{- else }}
 			{{- if eq .Type.Name "array" }}
-			if head != nil {
-				values := make([]string, len(head))
-				for i, val := range head {
-					{{- if and (eq .Type.ElemType.Type.Name "string") (not (isAlias (aliasedType .FieldType).ElemType.Type)) }}
-					values[i] = val
-					{{- else }}
-					{{ template "partial_client_type_conversion" (typeConversionData .Type.ElemType.Type (aliasedType .FieldType).ElemType.Type "valStr" "val") }}
-					values[i] = valStr
-					{{- end }}
-				}
-				if err := loomhttp.SetHeaderValues(req.Header, {{ printf "%q" .HTTPName }}, values); err != nil {
-					return err
-				}
+			{{ renderHeaderConversion .Type .FieldType "values" "head" }}
+			if err := loomhttp.SetHeaderValues(req.Header, {{ printf "%q" .HTTPName }}, values); err != nil {
+				return err
 			}
 			{{- else if (and (isAlias .FieldType) (eq (underlyingType .FieldType).Name "string")) }}
 			req.Header.Set({{ printf "%q" .HTTPName }}, string(head))
@@ -238,32 +228,6 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 	}
 }
 `,
-		templateSource{name: "client_type_conversion", source: `  {{- if eq .Type.Name "boolean" -}}
-    {{ .VarName }} := strconv.FormatBool({{ if .IsAliased }}bool({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }})
-  {{- else if eq .Type.Name "int" -}}
-    {{ .VarName }} := strconv.Itoa({{ if .IsAliased }}int({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }})
-  {{- else if eq .Type.Name "int32" -}}
-    {{ .VarName }} := strconv.FormatInt(int64({{ .Target }}), 10)
-  {{- else if eq .Type.Name "int64" -}}
-    {{ .VarName }} := strconv.FormatInt({{ if .IsAliased }}int64({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }}, 10)
-  {{- else if eq .Type.Name "uint" -}}
-    {{ .VarName }} := strconv.FormatUint(uint64({{ .Target }}), 10)
-  {{- else if eq .Type.Name "uint32" -}}
-    {{ .VarName }} := strconv.FormatUint(uint64({{ .Target }}), 10)
-  {{- else if eq .Type.Name "uint64" -}}
-    {{ .VarName }} := strconv.FormatUint({{ if .IsAliased }}uint64({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }}, 10)
-  {{- else if eq .Type.Name "float32" -}}
-    {{ .VarName }} := strconv.FormatFloat(float64({{ .Target }}), 'f', -1, 32)
-  {{- else if eq .Type.Name "float64" -}}
-    {{ .VarName }} := strconv.FormatFloat({{ if .IsAliased }}float64({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }}, 'f', -1, 64)
-	{{- else if eq .Type.Name "string" -}}
-    {{ .VarName }} := {{ if .IsAliased }}string({{ end }}{{ .Target }}{{ if .IsAliased }}){{ end }}
-  {{- else if eq .Type.Name "bytes" -}}
-    {{ .VarName }} := string({{ .Target }})
-  {{- else if eq .Type.Name "any" -}}
-    {{ .VarName }} := loom.JSONValueString({{ .Target }})
-  {{- else }}
-    // unsupported type {{ .Type.Name }} for field {{ .FieldName }}
-  {{- end }}`},
+		templateSource{name: "client_type_conversion", source: `{{- .VarName }} := {{ transportScalarValue .Type .FieldType .Target }}`},
 	)
 )

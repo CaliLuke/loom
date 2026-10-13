@@ -7,8 +7,8 @@ func EncodeMethodHeaderFloat64Response(encoder func(context.Context, http.Respon
 			return loomhttp.ErrInvalidType("ServiceHeaderFloat64", "MethodHeaderFloat64", "*serviceheaderfloat64.MethodHeaderFloat64Result", v)
 		}
 		if res.H != nil {
-			val := res.H
-			hs := strconv.FormatFloat(*val, 'f', -1, 64)
+			val := *res.H
+			hs := strconv.FormatFloat(val, 'f', -1, 64)
 			w.Header().Set("H", hs)
 		}
 		w.WriteHeader(http.StatusOK)

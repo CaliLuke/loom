@@ -8,12 +8,13 @@ func EncodeMethodHeaderArrayBoolResponse(encoder func(context.Context, http.Resp
 		}
 		if res.H != nil {
 			val := res.H
-			hsSlice := make([]string, len(val))
-			for i, e := range val {
-				es := strconv.FormatBool(e)
-				hsSlice[i] = es
+			var hs []string
+			if val != nil {
+				hs = make([]string, len(val))
+				for i, e := range val {
+					hs[i] = strconv.FormatBool(e)
+				}
 			}
-			hs := hsSlice
 			if err := loomhttp.SetHeaderValues(w.Header(), "H", hs); err != nil {
 				return err
 			}

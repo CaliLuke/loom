@@ -284,10 +284,10 @@ func transTmplFuncs(s *expr.HTTPServiceExpr, services *ServicesData) map[string]
 			_, ok := dt.(expr.UserType)
 			return ok
 		},
-		"conversionData":       conversionData,
-		"headerConversionData": headerConversionData,
-		"printValue":           printValue,
-		"viewedServerBody":     viewedServerBody,
+		"conversionData":         conversionData,
+		"renderHeaderConversion": renderHeaderConversion,
+		"printValue":             printValue,
+		"viewedServerBody":       viewedServerBody,
 	}
 }
 
@@ -315,19 +315,6 @@ func conversionData(varName, rawVarName, name string, dt expr.DataType) map[stri
 		"Locals":  DerivedVarNames{Raw: rawVarName},
 		"Name":    name,
 		"Type":    dt,
-	}
-}
-
-// headerConversionData produces the template data suitable for executing the
-// "header_conversion" template. sliceVarName names the local that holds the
-// string forms of the elements of an array value.
-func headerConversionData(dt expr.DataType, varName, sliceVarName string, required bool, target string) map[string]any {
-	return map[string]any{
-		"Type":         dt,
-		"VarName":      varName,
-		"SliceVarName": sliceVarName,
-		"Required":     required,
-		"Target":       target,
 	}
 }
 

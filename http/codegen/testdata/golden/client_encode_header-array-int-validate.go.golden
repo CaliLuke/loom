@@ -9,15 +9,15 @@ func EncodeMethodHeaderArrayIntValidateRequest(encoder func(*http.Request) loomh
 		}
 		{
 			head := p.H
+			var values []string
 			if head != nil {
-				values := make([]string, len(head))
-				for i, val := range head {
-					valStr := strconv.Itoa(val)
-					values[i] = valStr
+				values = make([]string, len(head))
+				for i, e := range head {
+					values[i] = strconv.Itoa(e)
 				}
-				if err := loomhttp.SetHeaderValues(req.Header, "h", values); err != nil {
-					return err
-				}
+			}
+			if err := loomhttp.SetHeaderValues(req.Header, "h", values); err != nil {
+				return err
 			}
 		}
 		return nil

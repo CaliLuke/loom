@@ -517,6 +517,7 @@ schema overrides retain their own contracts.
 
 Map an array of primitives with `Header("tags:X-Tags")` to use OpenAPI's
 `simple` comma-list representation. `["red", "blue"]` becomes `X-Tags: red, blue`.
+Named primitive elements and named arrays use the same wire representation.
 Repeated lines and a combined comma list decode to the same ordered collection;
 receivers ignore empty list members and trim separator spaces and tabs.
 

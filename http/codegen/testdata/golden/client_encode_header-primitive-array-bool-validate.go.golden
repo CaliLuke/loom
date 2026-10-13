@@ -9,15 +9,15 @@ func EncodeMethodHeaderPrimitiveArrayBoolValidateRequest(encoder func(*http.Requ
 		}
 		{
 			head := p
+			var values []string
 			if head != nil {
-				values := make([]string, len(head))
-				for i, val := range head {
-					valStr := strconv.FormatBool(val)
-					values[i] = valStr
+				values = make([]string, len(head))
+				for i, e := range head {
+					values[i] = strconv.FormatBool(e)
 				}
-				if err := loomhttp.SetHeaderValues(req.Header, "h", values); err != nil {
-					return err
-				}
+			}
+			if err := loomhttp.SetHeaderValues(req.Header, "h", values); err != nil {
+				return err
 			}
 		}
 		return nil

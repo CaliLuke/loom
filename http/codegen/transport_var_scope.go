@@ -93,12 +93,11 @@ func newResponseVarScope(sd *ServiceData) *transportVarScope {
 	return newTransportVarScope(sd, responseLocalNames, func(names *codegen.NameScope, varName string) DerivedVarNames {
 		encoded := names.Unique(varName + "s")
 		return DerivedVarNames{
-			Raw:          names.Unique(varName + "Raw"),
-			Val:          names.Unique(varName + "Val"),
-			Slice:        names.Unique(varName + "Slice"),
-			Encoded:      encoded,
-			EncodedSlice: names.Unique(encoded + "Slice"),
-			EncodedRaw:   names.Unique(varName + "raw"),
+			Raw:        names.Unique(varName + "Raw"),
+			Val:        names.Unique(varName + "Val"),
+			Slice:      names.Unique(varName + "Slice"),
+			Encoded:    encoded,
+			EncodedRaw: names.Unique(varName + "raw"),
 		}
 	})
 }

@@ -9,14 +9,9 @@ func EncodeMethodHeaderArrayStringValidateRequest(encoder func(*http.Request) lo
 		}
 		{
 			head := p.H
-			if head != nil {
-				values := make([]string, len(head))
-				for i, val := range head {
-					values[i] = val
-				}
-				if err := loomhttp.SetHeaderValues(req.Header, "h", values); err != nil {
-					return err
-				}
+			values := head
+			if err := loomhttp.SetHeaderValues(req.Header, "h", values); err != nil {
+				return err
 			}
 		}
 		return nil

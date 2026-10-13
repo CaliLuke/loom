@@ -39,9 +39,6 @@ type (
 		Slice string
 		// Encoded holds the string form of a response header value.
 		Encoded string
-		// EncodedSlice holds the string forms of the elements of an array
-		// response header value.
-		EncodedSlice string
 		// EncodedRaw holds a response cookie value before its conversion to a
 		// string.
 		EncodedRaw string

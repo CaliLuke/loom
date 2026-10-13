@@ -7,8 +7,8 @@ func EncodeMethodHeaderBoolResponse(encoder func(context.Context, http.ResponseW
 			return loomhttp.ErrInvalidType("ServiceHeaderBool", "MethodHeaderBool", "*serviceheaderbool.MethodHeaderBoolResult", v)
 		}
 		if res.H != nil {
-			val := res.H
-			hs := strconv.FormatBool(*val)
+			val := *res.H
+			hs := strconv.FormatBool(val)
 			w.Header().Set("H", hs)
 		}
 		w.WriteHeader(http.StatusOK)

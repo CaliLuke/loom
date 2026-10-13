@@ -75,6 +75,13 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- HTTP codegen's typed transport formatter consumes both normalized wire types
+  and actual field carriers. Request and response header lists share element
+  conversion before the standard list codec; JSON-RPC reuses that response path.
+  Preserve nil/empty and native default literals, and never cast whole slices
+  from named elements to primitive elements. Scalar query/cookie adapters reuse
+  the formatter; escaping, custom codecs and framing stay with their owners.
+
 - Service package symbol analysis allocates every emitted interceptor Info and
   accessor interface before nominal user types. Store those public identities in
   `InterceptorData` and consume them in declarations, wrappers and examples;
