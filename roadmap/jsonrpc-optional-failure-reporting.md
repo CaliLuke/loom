@@ -12,7 +12,8 @@ is independent of request completion.
 3. [x] Freeze the shared owner and bounded acceptance for independent review.
 4. [x] After approval, implement and compare bounded generated output, compile,
    exercise transport controls and run affected lint.
-5. [ ] Obtain fresh exact final review before parent integration and commit.
+5. [x] Independent exact final and integration reviews passed; delivered
+   `a7b09d5a8`, pushed and #723 confirmed closed.
 
 The public error callback is optional. Runtime `handleHTTPFailure` previously owned
 nil-safe invocation across HTTP, mixed, SSE and WebSocket. Generated standard
@@ -105,4 +106,7 @@ contain only reporting calls and optional-callback documentation. Affected lint
 includes the codegen testdata package and passes. No whole-corpus audit was run.
 
 The final manifest records source/evidence hashes and every intended artifact
-difference. Independent final review and parent integration remain open.
+difference. Independent final review and root integration review approved the
+exact diff. Integrated runtime/generated race checks pass (1.675s/11.375s).
+Delivered `a7b09d5a8`, pushed and #723 confirmed closed. Inactive artifact cleanup
+is assigned; retain compact evidence and reproduction inputs.

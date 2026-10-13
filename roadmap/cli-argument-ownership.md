@@ -18,8 +18,9 @@ quoting remains separate.
   parser declaration and example call, deleting duplicate order decisions.
 - [x] Validate direct/rendered output, bounded independent-process generation,
   example compilation and unchanged controls.
-- [ ] Obtain independent exact-final review before integration.
-- [ ] Deliver one reviewed commit, push, close, and clean temporary evidence.
+- [x] Independent exact final and integration reviews approved.
+- [x] Deliver atomic `af21e5098`, push and confirm #697 closed.
+- [ ] Clean inactive temporary evidence after preserving compact receipts.
 
 ## Current owner disagreement
 
@@ -134,7 +135,8 @@ Direct tests cover this explicit boundary and aliased per-service configuration.
 Public guidance explains updating existing create-only example calls.
 
 Readiness approval: `/tmp/loom-697-independent-readiness-verdict.json`.
-Final bounded evidence is complete; independent final review remains pending.
+Final bounded evidence, independent final review and main integration review
+passed. Delivered `af21e5098`, pushed and #697 confirmed closed.
 
 ## Final acceptance evidence
 
@@ -166,6 +168,6 @@ Final bounded evidence is complete; independent final review remains pending.
   its implementation correspondence documentation changed.
 
 Candidate runtime/codegen source stays on the reviewed readiness parent
-`214d83799`. Main's later #790 CLI body analysis changes touch another part of
-`client_cli.go`; integration must preserve them and receive narrow review.
+`214d83799`. Main integration preserved #790 CLI body analysis in
+`client_cli.go` and received independent narrow review before delivery.
 The separate JSON-RPC multipart codec defect remains excluded as documented.
