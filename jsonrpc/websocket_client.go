@@ -69,17 +69,15 @@ type (
 		ctx    context.Context
 		method string
 		config *StreamConfig
-		done   chan struct{}
 		stop   func() bool
 
 		// mu guards the fields below.
-		mu       sync.Mutex
-		own      map[string]*webSocketCall
-		queue    []*webSocketCall
-		closed   bool
-		ended    bool
-		doneSent bool
-		err      error
+		mu     sync.Mutex
+		own    map[string]*webSocketCall
+		queue  []*webSocketCall
+		closed bool
+		ended  bool
+		err    error
 
 		releaseOnce sync.Once
 		releaseErr  error
@@ -145,7 +143,6 @@ func NewWebSocketClientStream(ctx context.Context, conn *WebSocketClientConn, me
 		ctx:    ctx,
 		method: method,
 		config: config,
-		done:   make(chan struct{}),
 		own:    make(map[string]*webSocketCall),
 	}
 	s.stop = context.AfterFunc(ctx, s.contextDone)
@@ -240,7 +237,9 @@ func (s *WebSocketClientStream) Send(ctx context.Context, params any) error {
 }
 
 // Recv waits for the response to the oldest request sent with Send and not
-// received yet. It returns the response when it has no error and the error
+// received yet. The request timeout runs from registration, but a response
+// already delivered to the call is retained even after that clock expires.
+// It returns the response when it has no error and the error
 // of the response otherwise, reporting it to the error handler with
 // StreamErrorProtocol. When ctx is done first, the request stays the oldest
 // one; when the request times out, it is forgotten and its late response
@@ -270,7 +269,8 @@ func (s *WebSocketClientStream) Recv(ctx context.Context) (*RawResponse, error) 
 }
 
 // Call writes a request with params and waits for its response, which it
-// returns as Recv does. When ctx is done first, the request is forgotten.
+// returns as Recv does. When ctx completes the call first, the request is
+// forgotten; a previously completed response or connection error is retained.
 func (s *WebSocketClientStream) Call(ctx context.Context, params any) (*RawResponse, error) {
 	call, err := s.register(false)
 	if err != nil {
@@ -357,14 +357,13 @@ func (c *WebSocketClientConn) route(response *RawResponse) {
 	c.mu.Lock()
 	call, ok := c.calls[id]
 	if ok {
-		delete(c.calls, id)
+		c.completeLocked(call, webSocketResult{response: response})
 	}
 	c.mu.Unlock()
 	if !ok {
 		c.report(StreamErrorOrphaned, fmt.Errorf("received response for unknown ID: %s", id), response)
 		return
 	}
-	call.complete(webSocketResult{response: response})
 }
 
 // fail ends the connection after a failed read and fails every waiting
@@ -377,20 +376,18 @@ func (c *WebSocketClientConn) fail(readErr error) {
 		c.err = fmt.Errorf("failed to read response: %w", readErr)
 	}
 	err := c.err
-	calls := c.calls
-	c.calls = make(map[string]*webSocketCall)
+	for _, call := range c.calls {
+		c.completeLocked(call, webSocketResult{err: err})
+	}
 	c.mu.Unlock()
 	if unexpected {
 		c.report(StreamErrorConnection, err, nil)
 	}
-	for _, call := range calls {
-		call.complete(webSocketResult{err: err})
-	}
 }
 
-// register gives call a new id and registers it, unless the connection has
-// ended.
-func (c *WebSocketClientConn) register(call *webSocketCall) error {
+// register initializes the request clock before publishing call with its new
+// id. A connection that has ended publishes nothing and acquires no timer.
+func (c *WebSocketClientConn) register(call *webSocketCall, timeout time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.err != nil {
@@ -398,17 +395,30 @@ func (c *WebSocketClientConn) register(call *webSocketCall) error {
 	}
 	c.nextID++
 	call.id = strconv.FormatUint(c.nextID, 10)
+	call.timer = time.NewTimer(timeout)
 	c.calls[call.id] = call
 	return nil
 }
 
-// unregister forgets call, whose late response then becomes an orphan.
-func (c *WebSocketClientConn) unregister(call *webSocketCall) {
+// complete proposes a terminal result and reports whether it won. Waiting
+// proposers consume the published winner even when another cause completed it.
+func (c *WebSocketClientConn) complete(call *webSocketCall, result webSocketResult) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.calls[call.id] == call {
-		delete(c.calls, call.id)
+	return c.completeLocked(call, result)
+}
+
+// completeLocked owns removal, timer release and result publication together.
+// The caller holds c.mu. Each admitted call has exactly one buffered result,
+// so publication cannot block and no observer sees removal without its result.
+func (c *WebSocketClientConn) completeLocked(call *webSocketCall, result webSocketResult) bool {
+	if c.calls[call.id] != call {
+		return false
 	}
+	delete(c.calls, call.id)
+	call.timer.Stop()
+	call.result <- result
+	return true
 }
 
 // report passes a connection error to the handler.
@@ -416,12 +426,6 @@ func (c *WebSocketClientConn) report(errorType StreamErrorType, err error, respo
 	if c.handler != nil {
 		c.handler(context.Background(), errorType, err, response)
 	}
-}
-
-// complete hands the result to the waiter. Only the goroutine that removed
-// the call from the connection calls it, so the buffered send never blocks.
-func (call *webSocketCall) complete(result webSocketResult) {
-	call.result <- result
 }
 
 // register registers a new request on the connection, queuing it for Recv
@@ -437,11 +441,10 @@ func (s *WebSocketClientStream) register(queued bool) (*webSocketCall, error) {
 		return nil, s.err
 	}
 	call := &webSocketCall{result: make(chan webSocketResult, 1)}
-	if err := s.conn.register(call); err != nil {
+	if err := s.conn.register(call, s.config.RequestTimeout); err != nil {
 		s.failLocked(err)
 		return nil, err
 	}
-	call.timer = time.NewTimer(s.config.RequestTimeout)
 	s.own[call.id] = call
 	if queued {
 		s.queue = append(s.queue, call)
@@ -454,8 +457,6 @@ func (s *WebSocketClientStream) register(queued bool) (*webSocketCall, error) {
 func (s *WebSocketClientStream) write(ctx context.Context, call *webSocketCall, params any) error {
 	request := &Request{JSONRPC: "2.0", Method: s.method, Params: params, ID: call.id}
 	if err := s.conn.ws.WriteJSON(ctx, request); err != nil {
-		call.timer.Stop()
-		s.forget(call)
 		return s.writeFailed(err)
 	}
 	return nil
@@ -501,33 +502,25 @@ func (s *WebSocketClientStream) usable() error {
 // back to the head of the Recv queue if requeue is set and is forgotten
 // otherwise.
 func (s *WebSocketClientStream) await(ctx context.Context, call *webSocketCall, requeue bool) (*RawResponse, error) {
+	var result webSocketResult
 	select {
-	case result := <-call.result:
-		call.timer.Stop()
-		s.dropOwn(call)
-		return s.result(result)
+	case result = <-call.result:
 	case <-call.timer.C:
-		s.forget(call)
 		err := fmt.Errorf("request timeout after %v", s.config.RequestTimeout)
-		s.ReportError(StreamErrorTimeout, err, nil)
-		return nil, err
+		if s.conn.complete(call, webSocketResult{err: err}) {
+			s.ReportError(StreamErrorTimeout, err, nil)
+		}
+		result = <-call.result
 	case <-ctx.Done():
 		if requeue {
 			s.requeue(call)
-		} else {
-			call.timer.Stop()
-			s.forget(call)
+			return nil, ctx.Err()
 		}
-		return nil, ctx.Err()
-	case <-s.done:
-		call.timer.Stop()
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if s.closed || s.err == nil {
-			return nil, ErrWebSocketClientStreamClosed
-		}
-		return nil, s.err
+		s.conn.complete(call, webSocketResult{err: ctx.Err()})
+		result = <-call.result
 	}
+	s.dropOwn(call)
+	return s.result(result)
 }
 
 // result returns the response in result, or its error.
@@ -546,16 +539,10 @@ func (s *WebSocketClientStream) result(result webSocketResult) (*RawResponse, er
 func (s *WebSocketClientStream) requeue(call *webSocketCall) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed {
+	if s.closed || s.ended || s.err != nil {
 		return
 	}
 	s.queue = append([]*webSocketCall{call}, s.queue...)
-}
-
-// forget unregisters call from the connection and the stream.
-func (s *WebSocketClientStream) forget(call *webSocketCall) {
-	s.conn.unregister(call)
-	s.dropOwn(call)
 }
 
 // dropOwn removes call from the requests of the stream.
@@ -575,17 +562,19 @@ func (s *WebSocketClientStream) failLocked(err error) {
 	s.stopLocked()
 }
 
-// stopLocked forgets the requests of the stream and wakes its waiters.
+// stopLocked completes pending requests before releasing stream ownership.
+// Earlier results remain available to an active waiter; future Recv calls fail
+// their stream preflight. No terminal path silently unregisters a waiting call.
 func (s *WebSocketClientStream) stopLocked() {
+	err := s.err
+	if s.closed || err == nil {
+		err = ErrWebSocketClientStreamClosed
+	}
 	for id, call := range s.own {
-		s.conn.unregister(call)
-		call.timer.Stop()
+		s.conn.complete(call, webSocketResult{err: err})
 		delete(s.own, id)
 	}
-	if !s.doneSent {
-		s.doneSent = true
-		close(s.done)
-	}
+	s.queue = nil
 }
 
 // end ends the stream, recording err when it is the first error. The

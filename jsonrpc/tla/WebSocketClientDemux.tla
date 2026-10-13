@@ -85,14 +85,17 @@ VARIABLES
     delivered, \* results <<stream, id, from>> held for Recv; from is the
                \* stream whose request the server answered, or "err"
     lost,      \* responses dropped while their own stream still waited
+    completion, \* isolated single-call refinement state; inactive for routing
     rel        \* "demux_split": "pending" while the last release has dropped
                \* its reference but not closed the connection yet, "bad"
                \* once it closed a connection a stream had acquired since
 
-vars == <<st, failed, sent, ctr, gctr, queue, wait, wq, wlock, pending, reqs,
+routingVars == <<st, failed, sent, ctr, gctr, queue, wait, wq, wlock, pending, reqs,
           wire, notified, rd, cs, dead, refs, delivered, lost, rel>>
 
-Init ==
+vars == <<routingVars, completion>>
+
+RoutingInit ==
     /\ st = [s \in Streams |-> "new"]
     /\ failed = [s \in Streams |-> FALSE]
     /\ sent = [s \in Streams |-> 0]
@@ -113,6 +116,8 @@ Init ==
     /\ delivered = {}
     /\ lost = {}
     /\ rel = "none"
+
+Init == RoutingInit /\ completion = "inactive"
 
 TypeOK ==
     /\ st \in [Streams -> {"new", "open", "closed"}]
@@ -373,11 +378,13 @@ StreamNext(s) ==
     \/ RecvBegin(s) \/ RecvResult(s) \/ RecvDone(s) \/ RecvTimeout(s)
     \/ RecvCancel(s) \/ Close(s)
 
-Next ==
+RoutingNext ==
     \/ \E s \in Streams : StreamNext(s)
     \/ \E r \in reqs : Respond(r)
     \/ Notify \/ SocketFail \/ ClientClose \/ ReleaseClose
     \/ \E r \in Readers : ReadBegin(r) \/ ReadEnd(r)
+
+Next == RoutingNext /\ UNCHANGED completion
 
 Spec == Init /\ [][Next]_vars
 
@@ -451,5 +458,132 @@ NoCloseUnderAcquire == rel # "bad"
 
 (* Every waiting Recv eventually returns. *)
 RecvReturns == \A s \in Streams : [](wait[s] # NoId => <>(wait[s] = NoId))
+
+-----------------------------------------------------------------------------
+(* Bounded refinement of the single-call completion boundary (#739).
+   The routing model above abstracts removal/publication as one ReadEnd and
+   does not check destruction of a held result by RecvTimeout. This refinement
+   exposes that interval and timer publication without expanding its full
+   multi-stream state space. "priority" is the rejected ready-result check.
+   Timer expiry only proposes completion when a waiter observes it. *)
+
+CompletionInit ==
+    /\ RoutingInit
+    /\ completion \in {
+      [phase |-> "new", pending |-> FALSE, timer |-> "absent",
+       expired |-> FALSE, claimed |-> None, outcome |-> None,
+       buffered |-> FALSE, wait |-> "queued", requeued |-> FALSE,
+       operation |-> op, stream |-> TRUE, returned |-> None, lost |-> FALSE, lostHeld |-> FALSE]
+      : op \in {"recv", "call"}}
+
+CompletionRegister(mode) ==
+    /\ completion.phase = "new"
+    /\ completion' = [completion EXCEPT
+         !.phase = "registered", !.pending = TRUE,
+         !.timer = IF mode = "owned" THEN "armed" ELSE "absent"]
+
+CompletionInstall ==
+    /\ completion.phase = "registered" /\ completion.timer = "absent"
+    /\ completion' = [completion EXCEPT !.timer = "armed"]
+
+CompletionPropose(mode, result) ==
+    /\ completion.pending
+    /\ completion' = IF mode = "owned"
+       THEN [completion EXCEPT !.pending = FALSE, !.outcome = result,
+               !.buffered = TRUE, !.timer = "stopped"]
+       ELSE [completion EXCEPT !.pending = FALSE, !.claimed = result]
+
+CompletionPublish(mode) ==
+    /\ completion.claimed # None
+    /\ completion' = [completion EXCEPT
+         !.outcome = completion.claimed, !.claimed = None, !.buffered = TRUE,
+         !.timer = IF mode = "priority" /\ completion.timer = "armed"
+                    THEN "stopped" ELSE completion.timer,
+         !.lost = completion.lost \/ (completion.returned = "timeout")]
+
+CompletionExpire ==
+    /\ completion.timer = "armed" /\ ~completion.expired
+    /\ completion' = [completion EXCEPT !.expired = TRUE]
+
+CompletionBegin ==
+    /\ completion.phase = "registered" /\ completion.wait = "queued"
+    /\ completion.stream
+    /\ completion' = [completion EXCEPT !.wait = "waiting"]
+
+CompletionReceive ==
+    /\ completion.wait = "waiting" /\ completion.buffered
+    /\ completion' = [completion EXCEPT !.wait = "done",
+         !.returned = completion.outcome, !.buffered = FALSE, !.timer = "stopped"]
+
+CompletionTimeout(mode) ==
+    /\ completion.wait = "waiting" /\ completion.expired
+    /\ CASE mode = "owned" -> completion.pending
+         [] mode = "priority" -> ~completion.buffered
+         [] OTHER -> TRUE
+    /\ completion' = [completion EXCEPT !.wait = "done", !.pending = FALSE,
+         !.returned = "timeout", !.buffered = FALSE, !.timer = "stopped",
+         !.outcome = IF mode = "owned" THEN "timeout" ELSE completion.outcome,
+         !.lost = completion.lost \/ completion.buffered \/ completion.claimed # None,
+         !.lostHeld = completion.lostHeld \/ completion.buffered]
+
+(* Recv cancellation releases the waiter, never the call. A later Recv still
+   consumes a response completed during cancellation; timer origin is unchanged. *)
+CompletionCancelRecv ==
+    /\ completion.operation = "recv" /\ completion.wait = "waiting"
+    /\ ~completion.requeued /\ completion.stream
+    /\ completion' = [completion EXCEPT !.wait = "queued", !.requeued = TRUE]
+
+(* Call cancellation competes as a terminal result in the owned design. *)
+CompletionCancelCall(mode) ==
+    /\ completion.operation = "call" /\ completion.wait = "waiting"
+    /\ completion' = IF mode = "owned" /\ ~completion.pending
+       THEN completion
+       ELSE [completion EXCEPT !.wait = "done", !.pending = FALSE,
+               !.timer = "stopped", !.returned = "cancel",
+               !.outcome = IF mode = "owned" THEN "cancel" ELSE completion.outcome]
+
+(* Ending a stream discards unconsumed calls; an already waiting receive can
+   return an earlier result or stream end, matching the closure model. *)
+CompletionEnd(mode) ==
+    /\ completion.phase = "registered" /\ completion.stream
+    /\ completion' = [completion EXCEPT !.stream = FALSE, !.pending = FALSE,
+         !.timer = "stopped",
+         !.outcome = IF mode = "owned" /\ completion.pending
+                    THEN "end" ELSE completion.outcome,
+         !.buffered = IF mode = "owned" /\ completion.pending
+                     THEN TRUE ELSE completion.buffered]
+
+CompletionEndedWait ==
+    /\ ~completion.stream /\ completion.wait = "waiting"
+    /\ completion' = [completion EXCEPT !.wait = "done", !.returned = "end"]
+
+CompletionNext(mode) ==
+    \/ CompletionRegister(mode)
+    \/ (mode # "owned" /\ CompletionInstall)
+    \/ CompletionPropose(mode, "response")
+    \/ CompletionPropose(mode, "connection error")
+    \/ (mode # "owned" /\ CompletionPublish(mode))
+    \/ CompletionExpire \/ CompletionBegin \/ CompletionReceive
+    \/ CompletionTimeout(mode) \/ CompletionCancelRecv
+    \/ CompletionCancelCall(mode) \/ CompletionEnd(mode) \/ CompletionEndedWait
+
+CompletionCurrentSpec ==
+    CompletionInit /\ [][CompletionNext("current") /\ UNCHANGED routingVars]_vars
+CompletionPrioritySpec ==
+    CompletionInit /\ [][CompletionNext("priority") /\ UNCHANGED routingVars]_vars
+CompletionOwnedSpec ==
+    CompletionInit /\ [][CompletionNext("owned") /\ UNCHANGED routingVars]_vars
+
+CompletionPreservesHeld == ~completion.lost
+CompletionPreservesBuffered == ~completion.lostHeld
+CompletionReleasesTimer ==
+    completion.buffered => completion.timer = "stopped"
+CompletionEndedReleases ==
+    ~completion.stream => ~completion.pending /\ completion.timer = "stopped"
+CompletionPublishedTimer ==
+    completion.phase = "registered" => completion.timer # "absent"
+CompletionSingleWinner ==
+    completion.returned \in {"response", "connection error", "timeout", "cancel"}
+    => completion.returned = completion.outcome
 
 =============================================================================

@@ -190,3 +190,68 @@ sockets, including a write held until the connection is closed. Generated
 module tests cover client closure before dialing, bidirectional receives,
 and blocked and subsequent server-streaming receives under the race detector.
 The earlier demultiplexer model covers routing and waiter liveness separately.
+
+## Call completion arbitration (#739)
+
+The original routing model permits `RecvTimeout` to erase a held `delivered`
+result. `NoLostResponse` only records orphan routing; the earlier passing model
+therefore did not establish the documented held-result guarantee.
+
+The bounded completion refinement in the same `WebSocketClientDemux.tla` exposes
+registration, timer installation, removal and publication separately. Its
+`completion` record is inactive in the original routing specifications; the
+refinement keeps routing variables at their initial values. This isolates the
+missing owner boundary without repeating the multi-stream state-space audit.
+
+Use the command above with these configurations. Pinned validation used Java 25
+and TLC 2.19 (`tla2tools-1.7.4.jar`, SHA256
+`936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`).
+
+| Configuration | Result | Generated / distinct states |
+| --- | --- | --- |
+| `completion_current` | CompletionPreservesHeld fails: timeout wins between removal and publication | 230 / 128 |
+| `completion_current_held` | CompletionPreservesBuffered fails: timeout discards an already buffered response | 329 / 174 |
+| `completion_priority` | A ready-result priority check still loses in the removal/publication gap | 237 / 140 |
+| `completion_owned` | Held results, one winner, timer publication/release and ended cleanup checks pass | 174 / 132 |
+
+A one-stream/one-send version of `demux.cfg` retains all its existing safety
+invariants and passes (2,396 generated / 744 distinct states). No broad routing
+or liveness audit was rerun.
+
+`CompletionPropose` / `CompletionPublish` correspond to connection `route` and
+`fail`: on parent abca0b975, map removal and buffered publication were separated
+by unlocking. The implemented owner makes that transition atomic.
+`CompletionTimeout` corresponds to `await` observing an expired registration
+clock. Expiry is not background abandonment and does not restart on Recv.
+`CompletionCancelRecv` preserves the same request/result while returning its
+waiter to the queue; `CompletionCancelCall` instead proposes terminal cancellation.
+`CompletionEnd` covers stream Close/context/write failure: pending calls end,
+while an already waiting receive may return an earlier result or the stream
+error, as permitted by `CloseErrors.tla`.
+
+The implemented owner publishes the terminal result and stops its initialized
+timer
+under the connection lock that removes registration. Every terminal removal must
+publish: otherwise a losing timeout could wait forever for a result that stream
+cleanup silently abandoned. The implementation must preserve stream-before-
+connection lock order and invoke user error handlers outside locks. The model
+checks those state transitions, not Go mutex mechanics or callback behavior.
+
+The direct `websocket_completion_test.go` tests use the existing scripted socket
+server and wait for actual client delivery before delayed Recv. They reproduce
+held-result loss and the still-active timer on the parent. Existing client tests
+cover cancellation/requeue, timeout/orphan reporting, multiple streams,
+connection failure and closure error identity. Direct completion-order tests pause
+a timeout proposer at the connection lock,
+check response/failure/timeout winners and orphan routing, and inspect initialized
+timers at publication. Canceled Call tests retain completed success/protocol/read
+errors and end pending calls through the same owner. The existing generated
+pending-order module remains the consumer check; no new server harness is used.
+
+Limits: one call and one canceled receive expose this boundary; routing/order
+across calls remains the existing model/tests' responsibility. A timer-ready event
+abstracts elapsed time, not wall-clock scheduling or a network latency bound.
+The refinement does not prove goroutine scheduling, callback liveness or arbitrary
+concurrent Recv ordering. The owned refinement corresponds to `completeLocked`,
+registration and stream
+cleanup; the tests check Go behavior at those boundaries.

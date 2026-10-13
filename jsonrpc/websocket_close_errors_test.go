@@ -45,7 +45,11 @@ func TestWebSocketClientClosedOperations(t *testing.T) {
 					require.NoError(t, conn.Close())
 				case "cancel":
 					cancel()
-					<-stream.done
+					require.Eventually(t, func() bool {
+						stream.mu.Lock()
+						defer stream.mu.Unlock()
+						return stream.ended && len(stream.own) == 0
+					}, time.Second, time.Millisecond)
 				case "failure":
 					require.NoError(t, peer.Close())
 					<-conn.Done()

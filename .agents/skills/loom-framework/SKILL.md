@@ -1602,6 +1602,14 @@ filter, and serialization rules belong here.
   that is being closed. Generated
   streams wrap `jsonrpc.WebSocketClientStream` and only decode results. Check
   changes against `jsonrpc/tla/WebSocketClientDemux.tla`.
+  `WebSocketClientConn.completeLocked` owns call removal, timer release and
+  buffered terminal publication in one connection-lock transition. Initialize
+  each timer before publishing registration. Response, connection failure,
+  timeout, Call cancellation and stream end use this owner; canceled Recv only
+  requeues its call while the stream remains active. Expiry is observed by the
+  waiter using the registration clock; never replace held results with a later
+  timeout or silently unregister a call needed by a losing terminal proposer.
+  Keep user callbacks outside locks and stream-before-connection lock order.
   Explicit closure errors share `jsonrpc.ErrStreamClosed`; retain the more
   specific stream and connection sentinels. Empty-queue receives still check
   the connection error. In-flight socket-closed writes retain both their
