@@ -698,6 +698,7 @@ Loom includes predefined formats for common data patterns:
 
 | Format | Description |
 |--------|-------------|
+| `FormatBase64` | Standard padded Base64 text without whitespace; alternate pad bits allowed |
 | `FormatDate` | RFC3339 date values |
 | `FormatDateTime` | RFC3339 date time values |
 | `FormatUUID` | RFC4122 UUID values |

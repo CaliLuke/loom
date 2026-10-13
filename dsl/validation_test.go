@@ -13,6 +13,7 @@ func TestFormat(t *testing.T) {
 	cases := map[string]struct {
 		Format expr.ValidationFormat
 	}{
+		"byte":          {expr.FormatBase64},
 		"date":          {expr.FormatDate},
 		"date-time":     {expr.FormatDateTime},
 		"uuid":          {expr.FormatUUID},

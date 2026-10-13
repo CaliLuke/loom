@@ -128,6 +128,8 @@ func validationGoLiteral(v any) string {
 // constant returns the Go constant name of the format with the given value.
 func constant(formatName string, att *expr.AttributeExpr) string {
 	switch formatName {
+	case "byte":
+		return "loom.FormatBase64"
 	case "date":
 		return "loom.FormatDate"
 	case "date-time":

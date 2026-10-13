@@ -154,3 +154,26 @@ explicit object-versus-Empty preparation. The finite importer model assumes an
 explicit concrete object stays an object; it does not prove transport body
 presence. `TestImportedEmptyObjectRootBindings` now checks that correspondence
 with actual headerless/wrapped HTTP bytes, generated clients and OpenAPI schemas.
+
+
+## Imported encoded-byte representation (#686, accepted policy)
+
+`EncodedBytes` compares the existing decoded carrier, an inverse-length plus
+literal-decoding alternative, and a retained wire-string representation using
+the existing format-validation seam. Three parent counterexamples reproduce
+length and enum failures; the decoded alternative still widens an exact enum
+through pad-bit aliases, and a plain String without format validation admits
+malformed data. The candidate retains both format and string constraints.
+`noninjective_decoder_loses_distinctions` additionally establishes, for arbitrary
+wire and decoded types, that a colliding decoder cannot retain an assertion that
+distinguishes the colliding spellings. No finite bound is used by that theorem.
+
+The six representative values abstract empty/one/two/seven decoded bytes, a
+second two-byte spelling, and malformed input. The grammar abstraction illustrates
+the tolerant pad-bit contract adopted by the user. Independent readiness review
+precedes production implementation. It does not prove base64 parsing, arbitrary regex
+semantics, code generation, raw-body context traversal or example synthesis.
+`TestImportedByteRepresentationWire`, `TestImportedBinaryRepresentationLocations`
+and `TestBase64FormatAdmission` check those actual owning seams. The existing
+native Bytes projection proofs remain unchanged; encoded String needs no inverse
+length arithmetic. Run the same `lake build` and theorem manifest above.

@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"encoding/base64"
 	"reflect"
 	"unicode/utf8"
 )
@@ -175,4 +176,24 @@ func checkLength(a *AttributeExpr, example any) bool {
 		return false
 	}
 	return a.Validation.MaxLength == nil || length <= *a.Validation.MaxLength
+}
+
+// byBase64 selects an encoded length within the existing example allocation
+// bound. Generated candidates still pass all conjoined constraints before use.
+func byBase64(a *AttributeExpr, r *ExampleGenerator) any {
+	count, ok := safeExampleLength(a, r)
+	if !ok {
+		return nil
+	}
+	count = (count + 3) / 4 * 4
+	if maximum := a.Validation.MaxLength; maximum != nil && count > *maximum {
+		count = *maximum / 4 * 4
+	}
+	if count < 0 || count > maxGeneratedLength {
+		return nil
+	}
+	if minimum := a.Validation.MinLength; minimum != nil && count < *minimum {
+		return nil
+	}
+	return base64.StdEncoding.EncodeToString([]byte(r.Characters(count / 4 * 3)))
 }

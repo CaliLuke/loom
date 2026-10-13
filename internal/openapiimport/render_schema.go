@@ -118,7 +118,7 @@ func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, 
 	case "array":
 		return r.arraySchemaExpression(schema, path)
 	case "string":
-		return stringSchemaExpression(schema.Format), false, nil
+		return stringRepresentation(schema.Format).typeName, false, nil
 	case "integer":
 		return integerSchemaExpression(schema.Format), false, nil
 	case "number":
@@ -207,20 +207,6 @@ func (r *renderer) arraySchemaExpression(schema *Schema, path string) (string, b
 	}
 	child.close()
 	return strings.TrimSpace(child.builder.String()), false, nil
-}
-
-// stringSchemaExpression selects the Loom base type for a string schema.
-// "byte" and "binary" map to Bytes; every other format, including one Loom does not
-// recognize, maps to String. A recognized format additionally gets a
-// Format(...) validation call (see schemaAttributeBlock); an unrecognized one
-// renders as a plain String, matching OpenAPI 3.1's rule that unknown format
-// values must not fail validation or processing. Analyze reports unrecognized
-// non-empty formats as the lossy-allowed "schema-format" diagnostic.
-func stringSchemaExpression(format string) string {
-	if format == "byte" || format == "binary" {
-		return "Bytes"
-	}
-	return "String"
 }
 
 // integerSchemaExpression selects the Loom base type for an integer schema.
@@ -325,15 +311,14 @@ func (r *renderer) schemaAttributeBlock(schema *Schema, path string, description
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		r.line("Meta(%q, %q)", "openapi:format", "")
 	}
-	if schema.Type == "string" && (schema.Format == "byte" || schema.Format == "binary") {
-		r.line("Meta(%q, %q)", "openapi:format", schema.Format)
-	}
-	if schema.Format != "" && schema.Type == "string" && schema.Format != "byte" && schema.Format != "binary" {
-		if formatName, ok := stringFormatDSL(schema.Format); ok {
-			r.line("Format(%s)", formatName)
+	if schema.Type == "string" {
+		representation := stringRepresentation(schema.Format)
+		if representation.raw {
+			r.line("Meta(%q, %q)", "openapi:format", schema.Format)
 		}
-		// An unrecognized format renders the attribute without a Format(...)
-		// validation; Analyze already reported the omission.
+		if representation.formatName != "" {
+			r.line("Format(%s)", representation.formatName)
+		}
 	}
 	if err := r.defaultAndExamples(schema, path); err != nil {
 		return err
@@ -448,13 +433,11 @@ func (r *renderer) hasSchemaBlock(schema *Schema) bool {
 		schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
 		return true
 	}
-	if schema.Type == "string" && schema.Format != "" && schema.Format != "byte" && schema.Format != "binary" {
-		if _, ok := stringFormatDSL(schema.Format); ok {
+	if schema.Type == "string" {
+		representation := stringRepresentation(schema.Format)
+		if representation.raw || representation.formatName != "" {
 			return true
 		}
-	}
-	if schema.Type == "string" && (schema.Format == "byte" || schema.Format == "binary") {
-		return true
 	}
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
 		return true
@@ -625,16 +608,6 @@ func (r *renderer) resolveHeader(header Header, path string) (Header, error) {
 		return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q %w", path, header.Ref, err)
 	}
 	return Header{}, fmt.Errorf("render OpenAPI design: %s header reference %q does not resolve", path, header.Ref)
-}
-
-func stringFormatDSL(format string) (string, bool) {
-	formats := map[string]string{
-		"date": "FormatDate", "date-time": "FormatDateTime", "uuid": "FormatUUID",
-		"email": "FormatEmail", "hostname": "FormatHostname", "ipv4": "FormatIPv4",
-		"ipv6": "FormatIPv6", "uri": "FormatURI", "uri-reference": "FormatURIReference",
-	}
-	name, ok := formats[format]
-	return name, ok
 }
 
 func scalarLiteral(value any) (string, error) {

@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- Imported string formats select their carrier and validation together through
+  `stringRepresentation`. Encoded byte schemas use String plus the shared
+  Base64 format; renderers, examples and admission consume that same decision.
+  Raw binary admission follows actual wire occurrences through references and
+  structural children, with path-local recursion guards. Do not cache a raw
+  occurrence's permission globally or translate individual encoded constraints
+  independently. Preserve native Bytes semantics and exact encoded literal text.
+
 - `http.AddRequestCookie` owns request-cookie publication: standard `Cookie.Valid`
   name/value validation precedes header mutation. The shared HTTP request encoder
   formats values and preserves presence, then calls this owner and wraps failures

@@ -8,6 +8,10 @@ import (
 )
 
 const (
+	// FormatBase64 describes standard padded Base64 text without whitespace;
+	// alternate unused pad bits remain valid.
+	FormatBase64 = expr.FormatBase64
+
 	// FormatDate describes RFC3339 date values.
 	FormatDate = expr.FormatDate
 
@@ -136,6 +140,8 @@ func Enum(vals ...any) {
 // FormatIPv4, FormatIPv6, FormatIP: RFC2373 IPv4, IPv6 address or either
 //
 // FormatURI: absolute RFC3986 URI with a scheme
+//
+// FormatBase64: standard padded Base64, without whitespace; alternate pad bits allowed
 //
 // FormatURIReference: RFC3986 URI-reference
 //

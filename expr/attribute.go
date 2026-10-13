@@ -154,6 +154,10 @@ type (
 )
 
 const (
+	// FormatBase64 describes standard padded Base64 text without whitespace;
+	// alternate unused pad bits remain valid.
+	FormatBase64 = "byte"
+
 	// FormatDate describes RFC3339 date values.
 	FormatDate ValidationFormat = "date"
 

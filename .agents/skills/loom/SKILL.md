@@ -376,8 +376,15 @@ it reports every unsupported construct it finds, writes no partial design or
 TODO placeholders, and never overwrites an existing target. Schema `title`,
 `default`, `example`, `examples`, `deprecated`, `readOnly`, and `writeOnly`
 import without a flag. Unformatted integers and numbers also import without a
-flag. String schemas with `format: byte` or `format: binary` import as `Bytes`.
-Regeneration preserves the selected format.
+flag. String schemas with `format: byte` import as `String` with
+`Format(FormatBase64)`; bounds, patterns and literals describe the encoded text.
+Standard padding is required, whitespace/bad padding is rejected, and decodable
+alternate pad bits are accepted. Enum equality keeps exact text identity.
+Re-import and regenerate affected designs; application fields change from
+`[]byte` to `string`. Decode explicitly when the application needs bytes.
+`format: binary` retains `Bytes` only for whole raw response bodies and whole
+multipart parts; JSON and parameter occurrences are rejected. Native authored
+Loom `Bytes` keeps its existing decoded-byte contract.
 Local component references accept equivalent percent-encoded URI spellings, such
 as `#/components/schemas/%49temName` for `ItemName`. Regeneration emits canonical
 references; component keys must still obey OpenAPI's naming rules.

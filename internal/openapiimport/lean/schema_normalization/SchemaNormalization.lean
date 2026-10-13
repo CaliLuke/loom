@@ -374,3 +374,97 @@ theorem named_controls_unchanged :
       candidate .openTrue .declaration = parent .openTrue .declaration := by decide
 
 end OpenAPIImport.SchemaNormalization.ObjectRepresentation
+
+namespace OpenAPIImport.SchemaNormalization.EncodedBytes
+
+/-- Representative spellings include two strings decoding to identical bytes;
+the malformed case checks that String still needs format validation. -/
+inductive Wire where
+  | empty | one | two | padAlias | seven | malformed
+  deriving DecidableEq, Repr
+
+inductive Rule where
+  | unconstrained | minFour | maxEight | enumTwo | spellingPattern
+  deriving DecidableEq, Repr
+
+def encodedLength : Wire → Nat
+  | .empty => 0
+  | .one | .two | .padAlias => 4
+  | .seven => 12
+  | .malformed => 3
+
+def decodedLength : Wire → Nat
+  | .empty => 0
+  | .one => 1
+  | .two | .padAlias => 2
+  | .seven => 7
+  | .malformed => 0
+
+def decodedIdentity : Wire → Nat
+  | .empty => 0
+  | .one => 1
+  | .two | .padAlias => 2
+  | .seven => 3
+  | .malformed => 4
+
+def validBase64 (wire : Wire) : Bool := wire != .malformed
+
+def stringRule : Rule → Wire → Bool
+  | .unconstrained, _ => true
+  | .minFour, wire => encodedLength wire >= 4
+  | .maxEight, wire => encodedLength wire <= 8
+  | .enumTwo, wire | .spellingPattern, wire => wire == .two
+
+def source (rule : Rule) (wire : Wire) : Bool := validBase64 wire && stringRule rule wire
+
+/-- Parent copies encoded lengths to decoded storage and interprets source
+literal ASCII as bytes. No representative decodes to the ASCII bytes aGk=. -/
+def parent (rule : Rule) (wire : Wire) : Bool := validBase64 wire && match rule with
+  | .unconstrained => true
+  | .minFour => decodedLength wire >= 4
+  | .maxEight => decodedLength wire <= 8
+  | .enumTwo | .spellingPattern => false
+
+/-- Inverse lengths and decoded enums still collapse source enum identity.
+Arbitrary encoded patterns remain unavailable in the decoded carrier. -/
+def decodedAlternative (rule : Rule) (wire : Wire) : Bool := validBase64 wire && match rule with
+  | .unconstrained => true
+  | .minFour => decodedLength wire >= 1
+  | .maxEight => decodedLength wire <= 6
+  | .enumTwo => decodedIdentity wire == decodedIdentity .two
+  | .spellingPattern => false
+
+/-- Validate format without replacing the source spelling; ordinary string
+rules then preserve the authored value domain. -/
+def candidate (rule : Rule) (wire : Wire) : Bool := validBase64 wire && stringRule rule wire
+
+theorem parent_minimum_counterexample :
+    source .minFour .two = true ∧ parent .minFour .two = false := by decide
+
+theorem parent_maximum_counterexample :
+    source .maxEight .seven = false ∧ parent .maxEight .seven = true := by decide
+
+theorem parent_literal_counterexample :
+    source .enumTwo .two = true ∧ parent .enumTwo .two = false := by decide
+
+theorem inverse_lengths_do_not_preserve_enum :
+    source .enumTwo .padAlias = false ∧ decodedAlternative .enumTwo .padAlias = true := by decide
+
+theorem string_without_format_is_insufficient :
+    stringRule .unconstrained .malformed = true ∧ source .unconstrained .malformed = false := by decide
+
+theorem candidate_preserves_acceptance (rule : Rule) (wire : Wire) :
+    candidate rule wire = source rule wire := by rfl
+
+/-- A non-injective decoder cannot retain every wire-domain assertion. This
+statement is independent of the finite representatives and any codec library. -/
+theorem noninjective_decoder_loses_distinctions {W D : Type} (decode : W → D)
+    (predicate : W → Bool) (x y : W) (collision : decode x = decode y)
+    (distinction : predicate x != predicate y) :
+    ¬ ∃ decodedPredicate : D → Bool,
+      decodedPredicate (decode x) = predicate x ∧ decodedPredicate (decode y) = predicate y := by
+  rintro ⟨decodedPredicate, hx, hy⟩
+  have same : predicate x = predicate y := hx.symm.trans ((congrArg decodedPredicate collision).trans hy)
+  simp [same] at distinction
+
+end OpenAPIImport.SchemaNormalization.EncodedBytes

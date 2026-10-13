@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenderPreservesByteAndBinaryFormats(t *testing.T) {
+func TestRenderPreservesEncodedByteFormats(t *testing.T) {
 	source := []byte(`openapi: 3.1.1
 info: {title: Encoded data, version: "1"}
 paths:
@@ -30,7 +30,6 @@ components:
       properties:
         encoded: {type: string, format: byte}
         nullableEncoded: {type: [string, "null"], format: byte}
-        raw: {type: string, format: binary}
 `)
 
 	var strictDesign []byte
@@ -46,8 +45,7 @@ components:
 
 		design, err := Render(analysis.Document, Options{PackageName: "design"})
 		require.NoError(t, err)
-		require.Contains(t, string(design), `Meta("openapi:format", "byte")`)
-		require.Contains(t, string(design), `Meta("openapi:format", "binary")`)
+		require.Contains(t, string(design), `Format(FormatBase64)`)
 		if allowLossy {
 			require.Equal(t, strictDesign, design)
 		} else {
@@ -70,7 +68,6 @@ components:
 	payload := requireUnconstrainedMap(t, schemas["Payload"], "Payload schema")
 	properties := requireUnconstrainedMap(t, payload["properties"], "Payload properties")
 	require.Equal(t, "byte", requireUnconstrainedMap(t, properties["encoded"], "encoded schema")["format"])
-	require.Equal(t, "binary", requireUnconstrainedMap(t, properties["raw"], "raw schema")["format"])
 
 	nullable := requireUnconstrainedMap(t, properties["nullableEncoded"], "nullable encoded schema")
 	variants, ok := nullable["anyOf"].([]any)

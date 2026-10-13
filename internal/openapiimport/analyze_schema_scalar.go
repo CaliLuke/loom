@@ -72,10 +72,7 @@ func (a *analyzer) schemaFormat(schema *Schema, path string) {
 	}
 	switch schema.Type {
 	case "string":
-		if schema.Format == "byte" || schema.Format == "binary" {
-			return
-		}
-		if _, ok := stringFormatDSL(schema.Format); !ok {
+		if !stringRepresentation(schema.Format).known {
 			a.unsupported("schema-format", path, fmt.Sprintf("string format %q is not a recognized Loom format; rendering without a format validation", schema.Format))
 		}
 	case "integer":

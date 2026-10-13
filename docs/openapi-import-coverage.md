@@ -185,6 +185,11 @@ member of an integer enum is excluded even if floating-point rounding would make
 it integral. An included member that cannot retain its numeric value in the DSL
 carrier produces a blocking diagnostic rather than rounding or disappearing.
 
+Re-import and regenerate byte-formatted schemas to adopt the corrected string
+representation. Imported application fields change from `[]byte` to `string`;
+use `encoding/base64` when the application needs decoded bytes. Native authored
+Loom `Bytes` continues to use decoded-byte constraints and its existing JSON codec.
+
 Local component references decode URI percent escapes before JSON Pointer token
 escapes. For example, `#/components/schemas/%49temName` resolves to the legal
 component key `ItemName`, just like its unencoded spelling. Regeneration uses
@@ -202,7 +207,16 @@ The following constructs are conditional:
   not a restriction on JSON Schema itself. Pure alias cycles remain rejected
   by reference resolution.
 - `format` supports known Loom formats. An unknown format requires
-  `--allow-lossy`.
+  `--allow-lossy`. A string with `format: byte` imports as `String` with
+  `Format(FormatBase64)`. Lengths, patterns, defaults, enums and examples apply
+  to the encoded text. Standard padding is required; whitespace and invalid
+  padding are rejected. Decodable alternate pad bits are accepted, but enum
+  equality still compares exact text: an enum containing `"aGk="` rejects
+  `"aGl="`, even though they decode to the same bytes.
+- `format: binary` retains `Bytes` only for a whole raw response body or whole
+  multipart part. JSON values, text parameters and headers cannot represent raw
+  octets and receive a blocking `schema-binary-location` diagnostic. Whole raw
+  request bodies remain outside the existing import subset.
 - A one-member `allOf` with a local reference is lossless. Numeric bounds and
   compatible scalar defaults are preserved on the reference occurrence; other
   contract siblings remain rejected.

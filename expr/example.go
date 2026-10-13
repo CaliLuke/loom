@@ -158,6 +158,9 @@ func byFormat(a *AttributeExpr, r *ExampleGenerator) any {
 		return nil
 	}
 	format := a.Validation.Formats()[0]
+	if format == FormatBase64 {
+		return byBase64(a, r)
+	}
 	if res, ok := map[ValidationFormat]any{
 		FormatEmail:        r.Email(),
 		FormatHostname:     r.Hostname(),

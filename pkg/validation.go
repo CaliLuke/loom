@@ -15,6 +15,10 @@ import (
 type Format string
 
 const (
+	// FormatBase64 describes standard padded Base64 text. Whitespace and invalid
+	// padding are rejected; nonzero unused pad bits are accepted.
+	FormatBase64 Format = "byte"
+
 	// FormatDate describes RFC3339 date values.
 	FormatDate Format = "date"
 
@@ -63,6 +67,8 @@ const (
 )
 
 var (
+	base64Regex = regexp.MustCompile(`^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$`)
+
 	// A hostname is a sequence of ASCII labels, optionally rooted by one dot.
 	// Each label starts and ends with a letter or digit and contains at most 63 bytes.
 	hostnameRegex = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.?$`)
@@ -76,6 +82,7 @@ var (
 // see http://json-schema.org/latest/json-schema-validation.html#anchor105
 // Supported formats are:
 //
+//   - "byte": standard padded Base64 text, without whitespace; alternate pad bits allowed
 //   - "date": RFC3339 date value
 //   - "date-time": RFC3339 date time value
 //   - "email": RFC5322 email address
@@ -90,6 +97,10 @@ var (
 func ValidateFormat(name string, val string, f Format) error {
 	var err error
 	switch f {
+	case FormatBase64:
+		if !base64Regex.MatchString(val) {
+			err = fmt.Errorf("invalid standard padded Base64 text")
+		}
 	case FormatDate:
 		_, err = time.Parse(time.DateOnly, val)
 	case FormatDateTime:

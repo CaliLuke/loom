@@ -578,6 +578,8 @@ func (*AttributeExpr) IsSupportedValidationFormat(vf ValidationFormat) bool {
 
 func isSupportedValidationFormat(vf ValidationFormat) bool {
 	switch vf {
+	case FormatBase64:
+		return true
 	case FormatDate:
 		return true
 	case FormatDateTime:

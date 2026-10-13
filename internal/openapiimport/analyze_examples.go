@@ -300,7 +300,7 @@ func normalizedExampleValidationMatches(schema *Schema, value any) bool {
 		if schema.Pattern != "" && loom.ValidatePattern("example", stringValue, schema.Pattern) != nil {
 			return false
 		}
-		if _, recognized := stringFormatDSL(schema.Format); recognized &&
+		if stringRepresentation(schema.Format).formatName != "" &&
 			loom.ValidateFormat("example", stringValue, loom.Format(schema.Format)) != nil {
 			return false
 		}

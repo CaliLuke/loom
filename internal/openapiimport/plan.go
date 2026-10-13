@@ -200,6 +200,7 @@ func (p *documentPlanner) parameter(parameter Parameter, path string) {
 		if p.schemaContainsUntaggedOneOf(resolved.Schema, make(map[string]struct{})) {
 			p.unsupported("schema-oneof-location", path+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
+		p.schemaEncoding(resolved.Schema, path+"/schema", schemaEncodedValue, make(map[schemaEncodingOccurrence]bool))
 		p.schema(resolved.Schema, path+"/schema", objectField)
 		if p.admitParameterShape(resolved.Schema, resolved.In, path+"/schema") && resolved.In == "query" {
 			p.querySerialization(resolved, path)
@@ -246,6 +247,11 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 		if !isJSONMediaType(contentType) && p.schemaContainsUntaggedOneOf(body.Schema, make(map[string]struct{})) {
 			p.unsupported("schema-oneof-location", contentPath+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
+		encoding := schemaEncodedValue
+		if isMultipartMediaType(contentType) {
+			encoding = schemaMultipartBody
+		}
+		p.schemaEncoding(body.Schema, contentPath+"/schema", encoding, make(map[schemaEncodingOccurrence]bool))
 		p.schema(body.Schema, contentPath+"/schema", requestObjectRole(*body))
 		if isFormMediaType(contentType) {
 			p.formSerialization(body, contentPath)
@@ -275,6 +281,7 @@ func (p *documentPlanner) response(response Response, path string, allowNonJSON 
 		if p.schemaContainsUntaggedOneOf(named.Header.Schema, make(map[string]struct{})) {
 			p.unsupported("schema-oneof-location", headerPath+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
+		p.schemaEncoding(named.Header.Schema, headerPath+"/schema", schemaEncodedValue, make(map[schemaEncodingOccurrence]bool))
 		p.schema(named.Header.Schema, headerPath+"/schema", objectField)
 		p.admitParameterShape(named.Header.Schema, "header", headerPath+"/schema")
 	}
@@ -293,6 +300,11 @@ func (p *documentPlanner) content(
 		}
 		return
 	}
+	encoding := schemaEncodedValue
+	if allowNonJSON && contentType != "" && !isJSONMediaType(contentType) {
+		encoding = schemaRawBody
+	}
+	p.schemaEncoding(schema, path+"/content/schema", encoding, make(map[schemaEncodingOccurrence]bool))
 	if contentType == "" || !allowNonJSON && !isJSONMediaType(contentType) {
 		p.unsupported("media-type", path+"/content", fmt.Sprintf("content type %q is not renderable", contentType))
 	}

@@ -127,7 +127,7 @@ func (r JSONShapeRules) validate() error {
 	}
 	for _, format := range r.Formats {
 		switch format {
-		case FormatDate, FormatDateTime, FormatUUID, FormatEmail, FormatHostname,
+		case FormatBase64, FormatDate, FormatDateTime, FormatUUID, FormatEmail, FormatHostname,
 			FormatIPv4, FormatIPv6, FormatIP, FormatURI, FormatURIReference,
 			FormatMAC, FormatCIDR, FormatRegexp, FormatJSON, FormatRFC1123:
 		default:

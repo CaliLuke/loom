@@ -96,6 +96,16 @@ func TestRecursiveValidationCode(t *testing.T) {
 	})
 }
 
+func TestValidationCodeUsesBase64Format(t *testing.T) {
+	attribute := &expr.AttributeExpr{
+		Type:       expr.String,
+		Validation: &expr.ValidationExpr{Format: expr.FormatBase64},
+	}
+	context := NewAttributeContext(false, false, false, "", NewNameScope())
+	code := validationCode(attribute, context, true, false, "target", "encoded")
+	require.Contains(t, code, "loom.FormatBase64")
+}
+
 func TestValidationCodeUsesURIReferenceFormat(t *testing.T) {
 	attribute := &expr.AttributeExpr{
 		Type:       expr.String,
