@@ -40,6 +40,11 @@ normalized error name. Colliding names receive suffixes, shared with the service
 package types. Regenerate and update handwritten references to renamed factories
 or types; wire error names and mappings remain unchanged.
 
+Declare each exact error name once per API, service or method scope. Duplicate
+declarations fail design validation even when their types match; remove the
+duplicate before regenerating. Method overrides of service errors and reuse in
+separate scopes remain valid. Error names are case-sensitive.
+
 Full built-in HTTP/JSON-RPC errors carry required `timeout`, `temporary` and
 `fault` booleans. Generated clients preserve them independently of response status
 or code. Explicitly pruned object bodies omit unselected properties (decoded as

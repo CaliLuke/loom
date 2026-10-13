@@ -103,6 +103,7 @@ func (s *ServiceExpr) Validate() error {
 		methods[method.Name] = struct{}{}
 	}
 	s.validateInterceptorNames(verr)
+	verr.Merge(validateErrorNames(s.Errors, s))
 	for _, e := range s.Errors {
 		if err := e.Validate(); err != nil {
 			var verrs *eval.ValidationErrors
@@ -185,6 +186,21 @@ func (e *ErrorExpr) Finalize() {
 		}
 		e.AttributeExpr = &AttributeExpr{Type: ut}
 	}
+}
+
+// validateErrorNames checks authored declarations before inheritance can hide
+// duplicates. Names in separate scopes may intentionally override one another.
+func validateErrorNames(declarations []*ErrorExpr, owner eval.Expression) *eval.ValidationErrors {
+	verr := new(eval.ValidationErrors)
+	seen := make(map[string]struct{}, len(declarations))
+	for _, declaration := range declarations {
+		if _, duplicate := seen[declaration.Name]; duplicate {
+			verr.Add(owner, "error %q defined twice", declaration.Name)
+			continue
+		}
+		seen[declaration.Name] = struct{}{}
+	}
+	return verr
 }
 
 // validateInterceptorNames reports the interceptors that apply to the service,

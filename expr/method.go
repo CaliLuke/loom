@@ -152,7 +152,7 @@ func (m *MethodExpr) Validate() error {
 
 // validateErrors validates the method errors.
 func (m *MethodExpr) validateErrors() *eval.ValidationErrors {
-	verr := new(eval.ValidationErrors)
+	verr := validateErrorNames(m.Errors, m)
 	for _, e := range m.Errors {
 		if err := e.Validate(); err != nil {
 			var verrs *eval.ValidationErrors

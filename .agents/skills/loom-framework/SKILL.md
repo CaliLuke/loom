@@ -75,6 +75,14 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `expr.validateErrorNames` admits authored API, service and method error lists
+  before finalization. Exact wire names are unique within each original scope;
+  narrower overrides, sibling scopes and distinct Go-normalized names remain
+  legal. Preserve the existing per-error checks and method/service merge order.
+  Do not deduplicate lists or validate only merged method errors, which can hide
+  unused or overridden duplicates. Keep the error declaration admission model
+  and evaluator/CLI rejection controls aligned.
+
 - `codegen/service.serviceSymbols` records fixed and method-derived package
   declarations before nominal types are collected. Its private
   `errorConstructorName` owner reserves emitted factories by exact wire error

@@ -24,6 +24,15 @@ Key features:
 
 ## Defining Errors
 
+Each API, service or method scope may declare an exact error name only once.
+Repeating `Error("boom")` in the same scope is a design error, even when the
+types match. Remove the repeated declaration before regenerating. A method may
+declare `Error("boom", CustomError)` to override its service's `boom` error;
+separate services and methods may also reuse names. Names are case-sensitive,
+and distinct wire names remain valid even when their generated Go names collide.
+API error definitions remain reusable definitions rather than automatically
+inherited method errors. Valid designs retain their generated output.
+
 ### Merging validation errors
 
 Use the return value of `loom.MergeErrors(first, second)`. When both operands
