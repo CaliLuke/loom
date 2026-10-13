@@ -5,5 +5,5 @@ func EncodeMethodMessageMapRequest(ctx context.Context, v any, md *metadata.MD) 
 	if !ok {
 		return nil, loomgrpc.ErrInvalidType("ServiceMessageMap", "MethodMessageMap", "map[int]*servicemessagemap.UT", v)
 	}
-	return NewProtoMethodMessageMapRequest(payload), nil
+	return NewProtoMethodMessageMapRequest(payload)
 }

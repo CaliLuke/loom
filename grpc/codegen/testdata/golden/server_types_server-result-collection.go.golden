@@ -1,18 +1,23 @@
 // NewProtoMethodResultWithCollectionResponse builds the gRPC response type
 // from the result of the "MethodResultWithCollection" endpoint of the
 // "ServiceResultWithCollection" service.
-func NewProtoMethodResultWithCollectionResponse(result *serviceresultwithcollection.MethodResultWithCollectionResult) *service_result_with_collectionpb.MethodResultWithCollectionResponse {
+func NewProtoMethodResultWithCollectionResponse(result *serviceresultwithcollection.MethodResultWithCollectionResult) (*service_result_with_collectionpb.MethodResultWithCollectionResponse, error) {
+	transformErr := new(error)
 	message := &service_result_with_collectionpb.MethodResultWithCollectionResponse{}
 	if result.Result != nil {
-		message.Result = svcServiceresultwithcollectionResultTToServiceResultWithCollectionpbResultT(result.Result)
+		message.Result = svcServiceresultwithcollectionResultTToServiceResultWithCollectionpbResultT(result.Result, transformErr)
 	}
-	return message
+	if *transformErr != nil {
+		var zero *service_result_with_collectionpb.MethodResultWithCollectionResponse
+		return zero, *transformErr
+	}
+	return message, nil
 }
 
 // svcServiceresultwithcollectionResultTToServiceResultWithCollectionpbResultT
 // builds a value of type *service_result_with_collectionpb.ResultT from a
 // value of type *serviceresultwithcollection.ResultT.
-func svcServiceresultwithcollectionResultTToServiceResultWithCollectionpbResultT(v *serviceresultwithcollection.ResultT) *service_result_with_collectionpb.ResultT {
+func svcServiceresultwithcollectionResultTToServiceResultWithCollectionpbResultT(v *serviceresultwithcollection.ResultT, transformErr *error) *service_result_with_collectionpb.ResultT {
 	if v == nil {
 		return nil
 	}
@@ -21,6 +26,10 @@ func svcServiceresultwithcollectionResultTToServiceResultWithCollectionpbResultT
 		res.CollectionField = &service_result_with_collectionpb.RTCollection{}
 		res.CollectionField.Field = make([]*service_result_with_collectionpb.RT, len(v.CollectionField))
 		for i, val := range v.CollectionField {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			res.CollectionField.Field[i] = &service_result_with_collectionpb.RT{}
 			if val.IntField != nil {
 				intField := int64(*val.IntField)

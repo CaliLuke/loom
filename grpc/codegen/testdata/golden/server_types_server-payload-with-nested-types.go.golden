@@ -1,15 +1,20 @@
 // NewMethodPayloadWithNestedTypesPayload builds the payload of the
 // "MethodPayloadWithNestedTypes" endpoint of the
 // "ServicePayloadWithNestedTypes" service from the gRPC request type.
-func NewMethodPayloadWithNestedTypesPayload(message *service_payload_with_nested_typespb.MethodPayloadWithNestedTypesRequest) *servicepayloadwithnestedtypes.MethodPayloadWithNestedTypesPayload {
+func NewMethodPayloadWithNestedTypesPayload(message *service_payload_with_nested_typespb.MethodPayloadWithNestedTypesRequest) (*servicepayloadwithnestedtypes.MethodPayloadWithNestedTypesPayload, error) {
+	transformErr := new(error)
 	v := &servicepayloadwithnestedtypes.MethodPayloadWithNestedTypesPayload{}
 	if message.AParams != nil {
-		v.AParams = protobufServicePayloadWithNestedTypespbAParamsToServicepayloadwithnestedtypesAParams(message.AParams)
+		v.AParams = protobufServicePayloadWithNestedTypespbAParamsToServicepayloadwithnestedtypesAParams(message.AParams, transformErr)
 	}
 	if message.BParams != nil {
 		v.BParams = protobufServicePayloadWithNestedTypespbBParamsToServicepayloadwithnestedtypesBParams(message.BParams)
 	}
-	return v
+	if *transformErr != nil {
+		var zero *servicepayloadwithnestedtypes.MethodPayloadWithNestedTypesPayload
+		return zero, *transformErr
+	}
+	return v, nil
 }
 
 // NewProtoMethodPayloadWithNestedTypesResponse builds the gRPC response type
@@ -23,7 +28,7 @@ func NewProtoMethodPayloadWithNestedTypesResponse() *service_payload_with_nested
 // protobufServicePayloadWithNestedTypespbAParamsToServicepayloadwithnestedtypesAParams
 // builds a value of type *servicepayloadwithnestedtypes.AParams from a value
 // of type *service_payload_with_nested_typespb.AParams.
-func protobufServicePayloadWithNestedTypespbAParamsToServicepayloadwithnestedtypesAParams(v *service_payload_with_nested_typespb.AParams) *servicepayloadwithnestedtypes.AParams {
+func protobufServicePayloadWithNestedTypespbAParamsToServicepayloadwithnestedtypesAParams(v *service_payload_with_nested_typespb.AParams, transformErr *error) *servicepayloadwithnestedtypes.AParams {
 	if v == nil {
 		return nil
 	}
@@ -31,6 +36,10 @@ func protobufServicePayloadWithNestedTypespbAParamsToServicepayloadwithnestedtyp
 	if v.A != nil {
 		res.A = make(map[string][]string, len(v.A))
 		for key, val := range v.A {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			tv := make([]string, len(val.Field))
 			copy(tv, val.Field)
 			res.A[key] = tv

@@ -216,7 +216,10 @@ func TestPayloadRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *arrayalias.Envelope
 			require.NotPanics(t, func() {
-				decoded = server.NewEchoPayload(client.NewProtoEchoRequest(envelope))
+				encoded1, err := client.NewProtoEchoRequest(envelope)
+				require.NoError(t, err)
+				decoded, err = server.NewEchoPayload(encoded1)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
 		})
@@ -228,7 +231,10 @@ func TestResultRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *arrayalias.Envelope
 			require.NotPanics(t, func() {
-				decoded = client.NewEchoResult(server.NewProtoEchoResponse(envelope))
+				encoded2, err := server.NewProtoEchoResponse(envelope)
+				require.NoError(t, err)
+				decoded, err = client.NewEchoResult(encoded2)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
 		})
@@ -249,7 +255,8 @@ func TestDirectRoundTrip(t *testing.T) {
 }
 
 func TestProtoMessages(t *testing.T) {
-	request := client.NewProtoEchoRequest(envelopes()["full"])
+	request, err := client.NewProtoEchoRequest(envelopes()["full"])
+	require.NoError(t, err)
 	require.Equal(t, []string{"a", "b"}, request.GetLabels().GetField())
 	require.Equal(t, []string{"more"}, request.GetMore().GetField())
 	require.Equal(t, []string{"y", "z"}, request.GetLabelLists()[2].GetField())
@@ -258,10 +265,11 @@ func TestProtoMessages(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, []string{"picked"}, pick.Tags.GetField())
 
-	payload := server.NewEchoPayload(&pb.EchoRequest{
+	payload, err := server.NewEchoPayload(&pb.EchoRequest{
 		Pick:   &pb.EchoRequest_Leaves{Leaves: &pb.Leaves{Field: []*pb.Leaf{{}}}},
 		Detail: &pb.EchoRequest_Words{Words: &pb.DetailWords{Field: []string{"w"}}},
 	})
+	require.NoError(t, err)
 	leaves, ok := payload.Pick.AsLeaves()
 	require.True(t, ok)
 	require.Len(t, leaves, 1)
@@ -357,12 +365,20 @@ func TestEnvelopeRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var payload, result *nestedunion.Envelope
 			require.NotPanics(t, func() {
-				payload = server.NewEchoPayload(client.NewProtoEchoRequest(envelope))
-				result = client.NewEchoResult(server.NewProtoEchoResponse(envelope))
+				encoded11, err := client.NewProtoEchoRequest(envelope)
+				require.NoError(t, err)
+				payload, err = server.NewEchoPayload(encoded11)
+				require.NoError(t, err)
+				encoded12, err := server.NewProtoEchoResponse(envelope)
+				require.NoError(t, err)
+				result, err = client.NewEchoResult(encoded12)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, payload)
 			require.Equal(t, envelope, result)
-			require.NoError(t, server.ValidateEchoRequest(client.NewProtoEchoRequest(envelope)))
+			encoded13, err := client.NewProtoEchoRequest(envelope)
+			require.NoError(t, err)
+			require.NoError(t, server.ValidateEchoRequest(encoded13))
 		})
 	}
 }
@@ -403,7 +419,8 @@ func TestProtoMessages(t *testing.T) {
 		Block:   &pb.EchoRequest_Picked{Picked: &pb.Choice{Field: &pb.Choice_Other{Other: &pb.Other{}}}},
 	}
 	require.NoError(t, server.ValidateEchoRequest(request))
-	payload := server.NewEchoPayload(request)
+	payload, err := server.NewEchoPayload(request)
+	require.NoError(t, err)
 	choice, ok := payload.Wrapped.AsChoice()
 	require.True(t, ok)
 	leaf, ok := choice.AsLeaf()

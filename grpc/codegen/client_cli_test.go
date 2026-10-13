@@ -44,7 +44,8 @@ func TestClientCLIFiles(t *testing.T) {
 // TestClientCLIPayloadBuildersPropagateConversionErrors checks that a client
 // CLI payload builder whose protobuf conversion can fail declares the
 // transformErr variable the conversion writes to, imports the loomgrpc
-// runtime package it calls and returns the conversion error, and that
+// runtime package it calls (or errors for nil-element admission), and returns
+// the conversion error, and that
 // builders whose conversion cannot fail do neither.
 func TestClientCLIPayloadBuildersPropagateConversionErrors(t *testing.T) {
 	cases := []struct {
@@ -53,6 +54,8 @@ func TestClientCLIPayloadBuildersPropagateConversionErrors(t *testing.T) {
 		ErrorAware bool
 	}{
 		{"any-payload", testdata.AnyErrorDSL, true},
+		{"object-elements", nilCollectionDSL, true},
+		{"incoming-wrappers", nilElementWireDSL, true},
 		{"payload-with-validations", testdata.PayloadWithValidationsDSL, false},
 	}
 	for _, c := range cases {
@@ -67,9 +70,16 @@ func TestClientCLIPayloadBuildersPropagateConversionErrors(t *testing.T) {
 			}
 			code := codegen.FormatTestCode(t, buf.String())
 			checks := []string{
-				`loomgrpc "github.com/CaliLuke/loom/grpc"`,
 				"transformErr := new(error)",
 				"return zero, *transformErr",
+			}
+			if c.Name == "any-payload" {
+				require.Contains(t, code, `loomgrpc "github.com/CaliLuke/loom/grpc"`)
+			} else if c.ErrorAware {
+				require.Contains(t, code, `"errors"`)
+				require.Contains(t, code, `errors.New("gRPC conversion: nil message collection element")`)
+			} else {
+				require.NotContains(t, code, `loomgrpc "github.com/CaliLuke/loom/grpc"`)
 			}
 			for _, check := range checks {
 				if c.ErrorAware {

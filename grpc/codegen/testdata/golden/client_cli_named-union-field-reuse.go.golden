@@ -6,6 +6,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	reusepb "grpc/reuse/pb"
 	reuse "reuse"
@@ -30,6 +31,7 @@ func BuildEchoPayload(reuseEchoMessage string) (*reuse.Envelope, error) {
 			return zero, err
 		}
 	}
+	transformErr := new(error)
 	v := &reuse.Envelope{
 		ID: message.Id,
 	}
@@ -55,6 +57,10 @@ func BuildEchoPayload(reuseEchoMessage string) (*reuse.Envelope, error) {
 	if message.Holders != nil {
 		v.Holders = make([]*reuse.Holder, len(message.Holders))
 		for i, val := range message.Holders {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			v.Holders[i] = &reuse.Holder{
 				Label: val.Label,
 			}
@@ -77,6 +83,10 @@ func BuildEchoPayload(reuseEchoMessage string) (*reuse.Envelope, error) {
 		}
 	}
 
+	if *transformErr != nil {
+		var zero *reuse.Envelope
+		return zero, *transformErr
+	}
 	return v, nil
 }
 

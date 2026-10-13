@@ -58,6 +58,7 @@ func collectInitData(svc *expr.GRPCServiceExpr, sd *ServiceData, gather func(*En
 func grpcTypeImports(genpkg string, svc *expr.GRPCServiceExpr, sd *ServiceData) []*codegen.ImportSpec {
 	svcName := sd.Service.PathName
 	imports := []*codegen.ImportSpec{
+		{Path: "errors"},
 		{Path: "unicode/utf8"},
 		codegen.LoomImport(""),
 		{Path: path.Join(genpkg, svcName), Name: sd.Service.PkgName},

@@ -223,10 +223,15 @@ func TestPayloadRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *mapalias.Envelope
 			require.NotPanics(t, func() {
-				decoded = server.NewEchoPayload(client.NewProtoEchoRequest(envelope))
+				encoded1, err := client.NewProtoEchoRequest(envelope)
+				require.NoError(t, err)
+				decoded, err = server.NewEchoPayload(encoded1)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
-			require.NoError(t, server.ValidateEchoRequest(client.NewProtoEchoRequest(envelope)))
+			encoded, err := client.NewProtoEchoRequest(envelope)
+			require.NoError(t, err)
+			require.NoError(t, server.ValidateEchoRequest(encoded))
 		})
 	}
 }
@@ -236,7 +241,10 @@ func TestResultRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *mapalias.Envelope
 			require.NotPanics(t, func() {
-				decoded = client.NewEchoResult(server.NewProtoEchoResponse(envelope))
+				encoded2, err := server.NewProtoEchoResponse(envelope)
+				require.NoError(t, err)
+				decoded, err = client.NewEchoResult(encoded2)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
 		})
@@ -268,7 +276,8 @@ func TestStreamingRoundTrip(t *testing.T) {
 }
 
 func TestProtoMessages(t *testing.T) {
-	request := client.NewProtoEchoRequest(envelopes()["full"])
+	request, err := client.NewProtoEchoRequest(envelopes()["full"])
+	require.NoError(t, err)
 	require.Equal(t, map[string]int64{"a": 1, "b": 2}, request.GetIndex().GetField())
 	require.Equal(t, map[string]int64{"more": 4}, request.GetMore().GetField())
 	require.Equal(t, map[string]int64{"y": 6, "z": 7}, request.GetIndexes()[2].GetField())
@@ -276,10 +285,11 @@ func TestProtoMessages(t *testing.T) {
 	require.Equal(t, []string{"x", "y"}, request.GetTagIndex().GetField()[1].GetField())
 	require.Equal(t, "leaf", request.GetLeafIndex().GetField()["leaf"].GetName())
 
-	payload := server.NewEchoPayload(&pb.EchoRequest{
+	payload, err := server.NewEchoPayload(&pb.EchoRequest{
 		RequiredIndex: &pb.Index{Field: map[string]int64{"r": 1}},
 		Indexes:       []*pb.Index{{Field: map[string]int64{"w": 2}}},
 	})
+	require.NoError(t, err)
 	require.Equal(t, mapalias.Index{"r": 1}, payload.RequiredIndex)
 	require.Equal(t, []mapalias.Index{{"w": 2}}, payload.Indexes)
 }
@@ -339,8 +349,14 @@ func TestNodeRoundTrip(t *testing.T) {
 			t.Run(name+"/"+key, func(t *testing.T) {
 				var payload, result *recursivemap.Node
 				require.NotPanics(t, func() {
-					payload = server.NewEchoPayload(client.NewProtoEchoRequest(value))
-					result = client.NewEchoResult(server.NewProtoEchoResponse(value))
+					encoded3, err := client.NewProtoEchoRequest(value)
+					require.NoError(t, err)
+					payload, err = server.NewEchoPayload(encoded3)
+					require.NoError(t, err)
+					encoded4, err := server.NewProtoEchoResponse(value)
+					require.NoError(t, err)
+					result, err = client.NewEchoResult(encoded4)
+					require.NoError(t, err)
 				})
 				require.Equal(t, value, payload)
 				require.Equal(t, value, result)
@@ -355,10 +371,18 @@ func TestNodeIndexRoundTrip(t *testing.T) {
 			var payload, result, streamed recursivemap.NodeIndex
 			var message *pb.NodeIndex
 			require.NotPanics(t, func() {
-				payload = server.NewListPayload(client.NewProtoNodeIndex(tree))
-				result = client.NewListResult(server.NewProtoNodeIndex(tree))
-				message = server.NewProtoNodeIndexNodeIndex(tree)
-				streamed = client.NewNodeIndexNodeIndex(message)
+				encoded5, err := client.NewProtoNodeIndex(tree)
+				require.NoError(t, err)
+				payload, err = server.NewListPayload(encoded5)
+				require.NoError(t, err)
+				encoded6, err := server.NewProtoNodeIndex(tree)
+				require.NoError(t, err)
+				result, err = client.NewListResult(encoded6)
+				require.NoError(t, err)
+				message, err = server.NewProtoNodeIndexNodeIndex(tree)
+				require.NoError(t, err)
+				streamed, err = client.NewNodeIndexNodeIndex(message)
+				require.NoError(t, err)
 			})
 			require.Equal(t, tree, payload)
 			require.Equal(t, tree, result)

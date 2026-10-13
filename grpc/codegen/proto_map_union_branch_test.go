@@ -27,7 +27,8 @@ func TestMapBranchesThroughProtobuf(t *testing.T) {
 		{"populated selected map", mapBranchEnvelope(mapalias.Index{"a": 2, "b": 3}), mapBranchEnvelope(mapalias.Index{"a": 2, "b": 3})},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			request := client.NewProtoEchoRequest(test.input)
+			request, err := client.NewProtoEchoRequest(test.input)
+			require.NoError(t, err)
 			require.NotNil(t, request.GetPickIndex(), "a selected map must have a wrapper even when empty")
 			wire, err := proto.Marshal(request)
 			require.NoError(t, err)
@@ -35,15 +36,19 @@ func TestMapBranchesThroughProtobuf(t *testing.T) {
 			require.NoError(t, proto.Unmarshal(wire, &decodedRequest))
 			require.NotNil(t, decodedRequest.GetPickIndex())
 			require.NoError(t, server.ValidateEchoRequest(&decodedRequest))
-			got := server.NewEchoPayload(&decodedRequest)
+			got, err := server.NewEchoPayload(&decodedRequest)
+			require.NoError(t, err)
 			require.Equal(t, mapalias.ChoiceKindIndex, got.Pick.Kind())
 			require.Equal(t, test.want, got)
-			response := server.NewProtoEchoResponse(test.input)
+			response, err := server.NewProtoEchoResponse(test.input)
+			require.NoError(t, err)
 			wire, err = proto.Marshal(response)
 			require.NoError(t, err)
 			var decodedResponse pb.EchoResponse
 			require.NoError(t, proto.Unmarshal(wire, &decodedResponse))
-			require.Equal(t, test.want, client.NewEchoResult(&decodedResponse))
+			result, err := client.NewEchoResult(&decodedResponse)
+			require.NoError(t, err)
+			require.Equal(t, test.want, result)
 		})
 	}
 	for _, test := range []struct {
@@ -58,17 +63,25 @@ func TestMapBranchesThroughProtobuf(t *testing.T) {
 		{"validated map", &mapalias.Envelope{RequiredIndex: mapalias.Index{"r": 1}, Detail: branchPtr(mapalias.NewDetailLimited(mapalias.Limited{"a": "ok"}))}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			wire, err := proto.Marshal(client.NewProtoEchoRequest(test.value))
+			encodedRequest, err := client.NewProtoEchoRequest(test.value)
+			require.NoError(t, err)
+			wire, err := proto.Marshal(encodedRequest)
 			require.NoError(t, err)
 			var request pb.EchoRequest
 			require.NoError(t, proto.Unmarshal(wire, &request))
 			require.NoError(t, server.ValidateEchoRequest(&request))
-			require.Equal(t, test.value, server.NewEchoPayload(&request))
-			wire, err = proto.Marshal(server.NewProtoEchoResponse(test.value))
+			payload, err := server.NewEchoPayload(&request)
+			require.NoError(t, err)
+			require.Equal(t, test.value, payload)
+			encodedResponse, err := server.NewProtoEchoResponse(test.value)
+			require.NoError(t, err)
+			wire, err = proto.Marshal(encodedResponse)
 			require.NoError(t, err)
 			var response pb.EchoResponse
 			require.NoError(t, proto.Unmarshal(wire, &response))
-			require.Equal(t, test.value, client.NewEchoResult(&response))
+			result, err := client.NewEchoResult(&response)
+			require.NoError(t, err)
+			require.Equal(t, test.value, result)
 		})
 	}
 }
@@ -98,7 +111,9 @@ func TestDirectMapUnionThroughProtobuf(t *testing.T) {
 func TestMapBranchValidation(t *testing.T) {
 	for _, value := range []mapalias.Limited{{"a": ""}, {"a": "x", "b": "y", "c": "z"}} {
 		envelope := &mapalias.Envelope{RequiredIndex: mapalias.Index{"r": 1}, Detail: branchPtr(mapalias.NewDetailLimited(value))}
-		require.Error(t, server.ValidateEchoRequest(client.NewProtoEchoRequest(envelope)))
+		request, err := client.NewProtoEchoRequest(envelope)
+		require.NoError(t, err)
+		require.Error(t, server.ValidateEchoRequest(request))
 	}
 }
 `

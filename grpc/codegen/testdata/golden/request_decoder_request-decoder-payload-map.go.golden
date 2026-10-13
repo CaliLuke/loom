@@ -12,7 +12,11 @@ func DecodeMethodMessageMapRequest(ctx context.Context, v any, md metadata.MD) (
 	}
 	var payload map[int]*servicemessagemap.UT
 	{
-		payload = NewMethodMessageMapPayload(message)
+		converted, err := NewMethodMessageMapPayload(message)
+		if err != nil {
+			return nil, err
+		}
+		payload = converted
 	}
 	return payload, nil
 }

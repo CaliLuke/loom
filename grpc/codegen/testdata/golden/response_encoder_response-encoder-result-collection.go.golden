@@ -8,6 +8,9 @@ func EncodeMethodMessageUserTypeWithNestedUserTypesResponse(ctx context.Context,
 	}
 	result := vres.Projected
 	(*hdr).Append("loom-view", vres.View)
-	resp := NewProtoRTCollection(result)
+	resp, err := NewProtoRTCollection(result)
+	if err != nil {
+		return nil, err
+	}
 	return resp, nil
 }

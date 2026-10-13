@@ -217,11 +217,18 @@ func TestRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var result svc.Index
 			require.NotPanics(t, func() {
-				result = client.NewMResult(server.NewProtoIndex(index))
+				encoded1, err := server.NewProtoIndex(index)
+				require.NoError(t, err)
+				result, err = client.NewMResult(encoded1)
+				require.NoError(t, err)
 			})
 			require.Equal(t, index, result)
 			payload := holder("payload", index)
-			require.Equal(t, payload, server.NewMPayload(client.NewProtoMRequest(payload)))
+			request, err := client.NewProtoMRequest(payload)
+            require.NoError(t, err)
+            decoded, err := server.NewMPayload(request)
+            require.NoError(t, err)
+            require.Equal(t, payload, decoded)
 		})
 	}
 }

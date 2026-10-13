@@ -50,7 +50,8 @@ func TestEmptyInnerCollections(t *testing.T) {
 	for name, v := range cases {
 		t.Run(name, func(t *testing.T) {
 			v.RequiredItems = rich.Items{}
-			pb := client.NewProtoEchoRequest(v)
+			pb, err := client.NewProtoEchoRequest(v)
+			require.NoError(t, err)
 			b, err := proto.Marshal(pb)
 			require.NoError(t, err)
 			out := &richpb.EchoRequest{}
@@ -59,9 +60,12 @@ func TestEmptyInnerCollections(t *testing.T) {
 				require.NoError(t, server.ValidateEchoRequest(out))
 			})
 			t.Run("request conversion", func(t *testing.T) {
-				require.Equal(t, v, server.NewEchoPayload(out))
+				payload, err := server.NewEchoPayload(out)
+                require.NoError(t, err)
+                require.Equal(t, v, payload)
 			})
-			response := server.NewProtoEchoResponse(v)
+			response, err := server.NewProtoEchoResponse(v)
+			require.NoError(t, err)
 			b, err = proto.Marshal(response)
 			require.NoError(t, err)
 			decoded := &richpb.EchoResponse{}
@@ -70,7 +74,9 @@ func TestEmptyInnerCollections(t *testing.T) {
 				require.NoError(t, client.ValidateEchoResponse(decoded))
 			})
 			t.Run("response conversion", func(t *testing.T) {
-				require.Equal(t, v, client.NewEchoResult(decoded))
+				result, err := client.NewEchoResult(decoded)
+                require.NoError(t, err)
+                require.Equal(t, v, result)
 			})
 		})
 	}
@@ -78,28 +84,35 @@ func TestEmptyInnerCollections(t *testing.T) {
 func TestCollectionRejectionControls(t *testing.T) {
 	t.Run("nil wrapper element control", func(t *testing.T) {
 		value := &rich.Rich{Req: "r", RequiredItems: rich.Items{}, Nested: [][]int{{1}}}
-		request := client.NewProtoEchoRequest(value)
+		request, err := client.NewProtoEchoRequest(value)
+		require.NoError(t, err)
 		request.Nested[0] = nil
 		require.Error(t, server.ValidateEchoRequest(request))
-		response := server.NewProtoEchoResponse(value)
+		response, err := server.NewProtoEchoResponse(value)
+		require.NoError(t, err)
 		response.Nested[0] = nil
 		require.Error(t, client.ValidateEchoResponse(response))
 	})
 	t.Run("required wrapper absent", func(t *testing.T) {
 		value := &rich.Rich{Req: "r"}
-		request := client.NewProtoEchoRequest(value)
+		request, err := client.NewProtoEchoRequest(value)
+		require.NoError(t, err)
 		require.ErrorContains(t, server.ValidateEchoRequest(request), "required_items")
-		require.ErrorContains(t, client.ValidateEchoResponse(server.NewProtoEchoResponse(value)), "required_items")
+		response, err := server.NewProtoEchoResponse(value)
+        require.NoError(t, err)
+        require.ErrorContains(t, client.ValidateEchoResponse(response), "required_items")
 	})
 	t.Run("named empty with MinLength1 control", func(t *testing.T) {
 		value := &rich.Rich{Req: "r", RequiredItems: rich.Items{}, NamedNonempty: []rich.NonemptyItems{{}}}
-		request := client.NewProtoEchoRequest(value)
+		request, err := client.NewProtoEchoRequest(value)
+		require.NoError(t, err)
 		data, err := proto.Marshal(request)
 		require.NoError(t, err)
 		decoded := &richpb.EchoRequest{}
 		require.NoError(t, proto.Unmarshal(data, decoded))
 		require.ErrorContains(t, server.ValidateEchoRequest(decoded), "length")
-        response := server.NewProtoEchoResponse(value)
+        response, err := server.NewProtoEchoResponse(value)
+        require.NoError(t, err)
         data, err = proto.Marshal(response)
         require.NoError(t, err)
         decodedResponse := &richpb.EchoResponse{}
@@ -108,13 +121,15 @@ func TestCollectionRejectionControls(t *testing.T) {
 	})
 	t.Run("empty with MinLength1", func(t *testing.T) {
 		value := &rich.Rich{Req: "r", RequiredItems: rich.Items{}, Nonempty: [][]int{{}}}
-		request := client.NewProtoEchoRequest(value)
+		request, err := client.NewProtoEchoRequest(value)
+		require.NoError(t, err)
 		data, err := proto.Marshal(request)
 		require.NoError(t, err)
 		decoded := &richpb.EchoRequest{}
 		require.NoError(t, proto.Unmarshal(data, decoded))
 		require.ErrorContains(t, server.ValidateEchoRequest(decoded), "length")
-        response := server.NewProtoEchoResponse(value)
+        response, err := server.NewProtoEchoResponse(value)
+        require.NoError(t, err)
         data, err = proto.Marshal(response)
         require.NoError(t, err)
         decodedResponse := &richpb.EchoResponse{}

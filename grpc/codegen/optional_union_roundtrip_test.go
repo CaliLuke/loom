@@ -212,7 +212,10 @@ func TestPayloadRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *optunion.Envelope
 			require.NotPanics(t, func() {
-				decoded = server.NewEchoPayload(client.NewProtoEchoRequest(envelope))
+				encoded, err := client.NewProtoEchoRequest(envelope)
+				require.NoError(t, err)
+				decoded, err = server.NewEchoPayload(encoded)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
 		})
@@ -224,7 +227,10 @@ func TestResultRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *optunion.Envelope
 			require.NotPanics(t, func() {
-				decoded = client.NewEchoResult(server.NewProtoEchoResponse(envelope))
+				encoded, err := server.NewProtoEchoResponse(envelope)
+				require.NoError(t, err)
+				decoded, err = client.NewEchoResult(encoded)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
 		})

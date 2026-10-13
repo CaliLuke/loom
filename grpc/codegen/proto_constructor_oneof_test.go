@@ -292,7 +292,10 @@ func TestPayloadRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *pickunion.Envelope
 			require.NotPanics(t, func() {
-				decoded = server.NewEchoPayload(client.NewProtoEchoRequest(envelope))
+				encoded11, err := client.NewProtoEchoRequest(envelope)
+				require.NoError(t, err)
+				decoded, err = server.NewEchoPayload(encoded11)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
 		})
@@ -304,7 +307,10 @@ func TestResultRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *pickunion.Envelope
 			require.NotPanics(t, func() {
-				decoded = client.NewEchoResult(server.NewProtoEchoResponse(envelope))
+				encoded12, err := server.NewProtoEchoResponse(envelope)
+				require.NoError(t, err)
+				decoded, err = client.NewEchoResult(encoded12)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
 		})
@@ -318,7 +324,8 @@ func TestProtoOneofFields(t *testing.T) {
 		Pick: &pb.EchoRequest_Other{Other: &pb.Other{Count: &count}},
 		Must: &pb.EchoRequest_Holder{Holder: &pb.Holder{Inner: &pb.Holder_Leaf{Leaf: &pb.Leaf{Name: &name}}}},
 	}
-	payload := server.NewEchoPayload(request)
+	payload, err := server.NewEchoPayload(request)
+	require.NoError(t, err)
 	other, ok := payload.Pick.AsOther()
 	require.True(t, ok)
 	require.Equal(t, 42, *other.Count)

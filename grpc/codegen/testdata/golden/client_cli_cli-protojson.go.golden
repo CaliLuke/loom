@@ -6,6 +6,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	pbjsonpb "grpc/pbjson/pb"
 	pbjson "pbjson"
@@ -52,6 +53,10 @@ func BuildPlainPayload(pbjsonPlainMessage string) (*pbjson.PlainPayload, error) 
 	if message.Tags != nil {
 		v.Tags = make([][]string, len(message.Tags))
 		for i, val := range message.Tags {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			v.Tags[i] = make([]string, len(val.Field))
 			copy(v.Tags[i], val.Field)
 		}
@@ -59,6 +64,10 @@ func BuildPlainPayload(pbjsonPlainMessage string) (*pbjson.PlainPayload, error) 
 	if message.ByName != nil {
 		v.ByName = make(map[string]*pbjson.Leaf, len(message.ByName))
 		for key, val := range message.ByName {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			tv := &pbjson.Leaf{
 				LeafName: *val.LeafName,
 				Message:  val.Message_,
@@ -98,6 +107,7 @@ func BuildSendPayload(pbjsonSendMessage string) (*pbjson.SendPayload, error) {
 			return zero, err
 		}
 	}
+	transformErr := new(error)
 	v := &pbjson.SendPayload{
 		RequestID: *message.RequestId,
 	}
@@ -120,6 +130,10 @@ func BuildSendPayload(pbjsonSendMessage string) (*pbjson.SendPayload, error) {
 	if message.Choices != nil {
 		v.Choices = make([]*pbjson.Slot, len(message.Choices))
 		for i, val := range message.Choices {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			v.Choices[i] = &pbjson.Slot{}
 			if val.Choice != nil {
 				switch val := val.Choice.(type) {
@@ -142,6 +156,10 @@ func BuildSendPayload(pbjsonSendMessage string) (*pbjson.SendPayload, error) {
 	if message.ChoiceMap != nil {
 		v.ChoiceMap = make(map[string]*pbjson.Slot, len(message.ChoiceMap))
 		for key, val := range message.ChoiceMap {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			tv := &pbjson.Slot{}
 			if val.Choice != nil {
 				switch val := val.Choice.(type) {
@@ -165,6 +183,10 @@ func BuildSendPayload(pbjsonSendMessage string) (*pbjson.SendPayload, error) {
 	if message.Leaves != nil {
 		v.Leaves = make([]*pbjson.Leaf, len(message.Leaves))
 		for i, val := range message.Leaves {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			v.Leaves[i] = &pbjson.Leaf{
 				LeafName: *val.LeafName,
 				Message:  val.Message_,
@@ -172,6 +194,10 @@ func BuildSendPayload(pbjsonSendMessage string) (*pbjson.SendPayload, error) {
 		}
 	}
 
+	if *transformErr != nil {
+		var zero *pbjson.SendPayload
+		return zero, *transformErr
+	}
 	return v, nil
 }
 
@@ -250,12 +276,21 @@ func BuildListPayload(pbjsonListMessage string) ([]*pbjson.Leaf, error) {
 			return zero, err
 		}
 	}
+	transformErr := new(error)
 	v := make([]*pbjson.Leaf, len(message.Field))
 	for i, val := range message.Field {
+		if val == nil {
+			*transformErr = errors.New("gRPC conversion: nil message collection element")
+			continue
+		}
 		v[i] = &pbjson.Leaf{
 			LeafName: *val.LeafName,
 			Message:  val.Message_,
 		}
+	}
+	if *transformErr != nil {
+		var zero []*pbjson.Leaf
+		return zero, *transformErr
 	}
 	return v, nil
 }

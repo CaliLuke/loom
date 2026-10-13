@@ -5,6 +5,9 @@ func EncodeMethodMessageArrayResponse(ctx context.Context, v any, hdr, trlr *met
 	if !ok {
 		return nil, loomgrpc.ErrInvalidType("ServiceMessageArray", "MethodMessageArray", "[]*servicemessagearray.UT", v)
 	}
-	resp := NewProtoMethodMessageArrayResponse(result)
+	resp, err := NewProtoMethodMessageArrayResponse(result)
+	if err != nil {
+		return nil, err
+	}
 	return resp, nil
 }

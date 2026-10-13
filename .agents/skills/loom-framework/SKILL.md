@@ -1178,7 +1178,13 @@ filter, and serialization rules belong here.
   metadata round-trip, custom import and host-isolation tests cover the seams.
 - `conversionCanFail` in `grpc/codegen` owns each source/target conversion's
   transitive error capability. Root constructors, shared helper declarations and
-  helper calls query their own conversion pair. `objectHelperTransformAttrs`
+  helper calls query their own conversion pair and physical source context.
+  `elementNeedsAdmission` owns nil-message collection admission before wrapper
+  normalization; `transformElement` emits it before inline/helper conversion.
+  Target wrappers alone do not make outgoing native collections fallible. Keep
+  nil optional fields separate, and retain source variables for empty objects.
+  Type files and CLI builders must import the error constructor they emit.
+  `objectHelperTransformAttrs`
   detaches the body context before selecting helper-local fallibility; never
   inherit an unrelated root's error flag or encode that flag in helper names.
   The model under `grpc/codegen/tla/helper_fallibility` and the mixed-order

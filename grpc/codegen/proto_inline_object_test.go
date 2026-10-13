@@ -98,7 +98,8 @@ func TestInlineObjectRoundTrip(t *testing.T) {
 		Rows:       []*pb.UnaryRequestRows{{M: &pb.UnaryRequestRowsM{Z: &seven}}},
 	}
 
-	payload := server.NewUnaryPayload(request)
+	payload, err := server.NewUnaryPayload(request)
+	require.NoError(t, err)
 	pair, ok := payload.Name.Choice.AsPair()
 	require.True(t, ok)
 	require.Equal(t, "k", *pair.Key)
@@ -113,14 +114,19 @@ func TestInlineObjectRoundTrip(t *testing.T) {
 	require.Equal(t, "m", *payload.Groups["g"][0].Member)
 	require.Equal(t, 7, payload.Rows[0].M.Z)
 
-	response := server.NewProtoUnaryResponse(payload)
-	result := client.NewUnaryResult(response)
-	require.True(t, proto.Equal(request, client.NewProtoUnaryRequest(result)))
+	response, err := server.NewProtoUnaryResponse(payload)
+	require.NoError(t, err)
+	result, err := client.NewUnaryResult(response)
+	require.NoError(t, err)
+	roundtrip, err := client.NewProtoUnaryRequest(result)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(request, roundtrip))
 
-	defaulted := server.NewUnaryPayload(&pb.UnaryRequest{
+	defaulted, err := server.NewUnaryPayload(&pb.UnaryRequest{
 		Outer: &pb.UnaryRequestOuter{},
 		Rows:  []*pb.UnaryRequestRows{{M: &pb.UnaryRequestRowsM{}}},
 	})
+	require.NoError(t, err)
 	require.Equal(t, 3, defaulted.Rows[0].M.Z)
 }
 `

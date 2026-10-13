@@ -8,6 +8,9 @@ func DecodeMethodMessageArrayResponse(ctx context.Context, v any, hdr, trlr meta
 	if err := ValidateMethodMessageArrayResponse(message); err != nil {
 		return nil, err
 	}
-	res := NewMethodMessageArrayResult(message)
+	res, err := NewMethodMessageArrayResult(message)
+	if err != nil {
+		return nil, err
+	}
 	return res, nil
 }

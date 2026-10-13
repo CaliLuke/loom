@@ -4,6 +4,10 @@ func transform() {
 		target.Collection = &proto.ResultTypeCollection{}
 		target.Collection.Field = make([]*proto.ResultType, len(source.Collection))
 		for i, val := range source.Collection {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			target.Collection.Field[i] = &proto.ResultType{}
 			if val.Int != nil {
 				int_ := int64(*val.Int)

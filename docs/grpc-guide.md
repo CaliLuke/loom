@@ -78,6 +78,18 @@ including recursive types and union branches. Regenerate adapters to correct
 private conversion helper signatures for these mixed designs. Public constructor
 signatures and protobuf schemas remain unchanged.
 
+Typed object and protobuf message elements in arrays and maps must be nonnil.
+Generated converters reject a nil element with a conversion error before sending
+that request, response, stream item or error detail. A nonnil empty object remains
+valid unless its field constraints reject it. Optional object fields may remain
+absent; native nested collections and `Any` retain their existing semantics.
+
+Regenerate clients and servers with `loom gen`. Constructors that can encounter
+nil message elements now return `(value, error)` and return no usable value on
+failure. Generated adapters handle these errors; code that calls a constructor
+directly must check its error. Protobuf schemas and service interfaces do not
+change.
+
 Loom rejects `Nullable()` on concrete gRPC payloads, results, error bodies and
 their nested fields during design validation, including declarations inside
 `Message`. A message `Any` field or message-root `Any` can represent explicit

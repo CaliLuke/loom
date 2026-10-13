@@ -70,6 +70,11 @@ import aliases and references while retaining your application changes.
 gRPC methods with and without `Any` can share named types, including recursive
 and union types. Regenerate adapters to pick up corrected conversion helpers for
 these mixed designs; no design workaround is needed.
+Typed object/message elements in gRPC arrays and maps must be nonnil. Regenerate
+clients and servers to reject invalid elements before sending a message. Some
+generated conversion constructors now return `(value, error)`; check that error
+when calling them directly. Optional object fields and nonnil empty objects keep
+their existing meaning.
 Generated gRPC clients preserve local encoding and validation errors. Inspect
 `grpc.ClientError` and `loom.ServiceError` with `errors.As`; remote failures use
 the transport error mappings. Generic remote service errors retain the RPC cause

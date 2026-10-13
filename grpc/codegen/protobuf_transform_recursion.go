@@ -9,11 +9,21 @@ import (
 // key or value. It calls the transform helper of an element user type that
 // reaches itself through inlined collections, because inlining such a type
 // never terminates. transformAttribute inlines every other element.
-func transformElement(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, error) {
+func transformElement(physicalSource, source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, ta *transformAttrs) (string, error) {
+	var code string
+	var err error
 	if isInlineRecursive(source) {
-		return transformScalarAssignment(source, target, sourceVar, targetVar, newVar, ta), nil
+		code = transformScalarAssignment(source, target, sourceVar, targetVar, newVar, ta)
+	} else {
+		code, err = transformAttribute(source, target, sourceVar, targetVar, newVar, ta)
 	}
-	return transformAttribute(source, target, sourceVar, targetVar, newVar, ta)
+	if err != nil {
+		return "", err
+	}
+	if elementNeedsAdmission(physicalSource, ta.SourceCtx) {
+		code = "if " + sourceVar + " == nil {\n\t*transformErr = errors.New(\"gRPC conversion: nil message collection element\")\n\tcontinue\n}\n" + code
+	}
+	return code, nil
 }
 
 // transformElementHelpers returns the transform helpers that transformElement

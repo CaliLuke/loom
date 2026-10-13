@@ -24,7 +24,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		return "", err
 	}
 	buf, targetElemVar, loopVar, rangeOn := transformArrayInitBuffer(targetVar, sourceVar, targetRef, targetPtr, sourcePtr, newVar)
-	elemCode, err := transformElement(src, tgt, "val", targetElemVar, false, ta)
+	elemCode, err := transformElement(source.ElemType, src, tgt, "val", targetElemVar, false, ta)
 	if err != nil {
 		return "", err
 	}
@@ -39,7 +39,7 @@ func transformArray(source, target *expr.Array, sourceVar, targetVar string, new
 		}
 		return code + buf.String(), nil
 	}
-	writeTransformArrayLoop(&buf, loopVar, rangeOn, transformArrayValueVar(src), elemCode)
+	writeTransformArrayLoop(&buf, loopVar, rangeOn, transformArrayValueVar(source.ElemType, src, ta.SourceCtx), elemCode)
 	if targetPtr {
 		fmt.Fprintf(&buf, "%s = &arr%s\n", targetVar, loopVar)
 	}
@@ -108,7 +108,10 @@ func transformArrayInitBuffer(targetVar, sourceVar, targetRef string, targetPtr,
 	return buf, targetElemVar, loopVar, rangeOn
 }
 
-func transformArrayValueVar(src *expr.AttributeExpr) string {
+func transformArrayValueVar(physical, src *expr.AttributeExpr, ctx *codegen.AttributeContext) string {
+	if elementNeedsAdmission(physical, ctx) {
+		return "val"
+	}
 	if obj := expr.AsObject(src.Type); obj != nil && len(*obj) == 0 {
 		return ""
 	}
@@ -148,7 +151,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	keyVar := "key"
 	if !canDirectAssignPrimitive(source.KeyType, target.KeyType, ta) {
 		keyVar = "tk"
-		keyCode, err := transformElement(source.KeyType, target.KeyType, "key", keyVar, true, ta)
+		keyCode, err := transformElement(source.KeyType, source.KeyType, target.KeyType, "key", keyVar, true, ta)
 		if err != nil {
 			return "", err
 		}
@@ -157,7 +160,7 @@ func transformMap(source, target *expr.Map, sourceVar, targetVar string, newVar 
 	elemVar := "val"
 	if !canDirectAssignPrimitive(src, tgt, ta) {
 		elemVar = transformMapElemVar(suffix, mapVar)
-		elemCode, err := transformElement(src, tgt, "val", elemVar, true, ta)
+		elemCode, err := transformElement(source.ElemType, src, tgt, "val", elemVar, true, ta)
 		if err != nil {
 			return "", err
 		}
@@ -426,7 +429,7 @@ func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar 
 
 func renderTransformHelperCall(src, tgt *expr.AttributeExpr, srcVar string, ta *transformAttrs) string {
 	args := []jen.Code{exprCode(srcVar)}
-	if conversionCanFail(src, tgt) {
+	if conversionCanFail(src, tgt, ta.SourceCtx) {
 		args = append(args, jen.Id("transformErr"))
 	}
 	return renderJen(jen.Id(transformHelperName(src, tgt, ta)).Call(args...))

@@ -229,8 +229,16 @@ func TestRoundTrip(t *testing.T) {
 		"nested": holder("nested", %[2]s),
 	} {
 		t.Run(name, func(t *testing.T) {
-			require.Equal(t, value, server.NewMPayload(client.NewProtoMRequest(value)))
-			require.Equal(t, value, client.NewMResult(server.NewProtoMResponse(value)))
+            request, err := client.NewProtoMRequest(value)
+            require.NoError(t, err)
+            payload, err := server.NewMPayload(request)
+            require.NoError(t, err)
+            require.Equal(t, value, payload)
+            response, err := server.NewProtoMResponse(value)
+            require.NoError(t, err)
+            result, err := client.NewMResult(response)
+            require.NoError(t, err)
+            require.Equal(t, value, result)
 		})
 	}
 }
@@ -259,7 +267,11 @@ func TestRoundTrip(t *testing.T) {
 		"nested": %[3]s,
 	} {
 		t.Run(name, func(t *testing.T) {
-			require.Equal(t, value, client.NewMResult(server.NewProtoMResponse(value)))
+            response, err := server.NewProtoMResponse(value)
+            require.NoError(t, err)
+            result, err := client.NewMResult(response)
+            require.NoError(t, err)
+            require.Equal(t, value, result)
 		})
 	}
 }

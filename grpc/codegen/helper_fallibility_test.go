@@ -28,8 +28,8 @@ func TestConversionFallibility(t *testing.T) {
 				}
 				attribute := &expr.AttributeExpr{Type: root}
 				pure := &expr.AttributeExpr{Type: expr.String}
-				require.Equal(t, tc.want, conversionCanFail(attribute, pure))
-				require.Equal(t, tc.want, conversionCanFail(pure, attribute))
+				require.Equal(t, tc.want || recursive, conversionCanFail(attribute, pure, serviceTypeContext("svc", codegen.NewNameScope())))
+				require.Equal(t, tc.want, conversionCanFail(pure, attribute, serviceTypeContext("svc", codegen.NewNameScope())))
 			})
 		}
 	}

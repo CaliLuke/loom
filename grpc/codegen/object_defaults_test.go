@@ -41,7 +41,8 @@ func TestObjectDefaults(t *testing.T) {
   if explicit {
    source.Value=&leaf.Leaf{Count:0,Label:""}
   }
-  wire:=client.NewProtoSendRequest(source)
+  wire,err:=client.NewProtoSendRequest(source)
+  require.NoError(t,err)
   decoded,err:=server.DecodeSendRequest(context.Background(),wire,nil)
   require.NoError(t,err)
   value:=decoded.(*svc.SendPayload)
@@ -59,8 +60,9 @@ func TestObjectDefaults(t *testing.T) {
    require.Equal(t,"nested",value.Value.Label)
   }
  }
- invalid:=client.NewProtoSendRequest(&svc.SendPayload{Value:&leaf.Leaf{Count:-1}})
- _,err:=server.DecodeSendRequest(context.Background(),invalid,nil)
+ invalid,err:=client.NewProtoSendRequest(&svc.SendPayload{Value:&leaf.Leaf{Count:-1}})
+ require.NoError(t,err)
+ _,err=server.DecodeSendRequest(context.Background(),invalid,nil)
  require.Error(t,err)
 }
 `

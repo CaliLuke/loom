@@ -181,6 +181,7 @@ func payloadBuilders(genpkg string, svc *expr.GRPCServiceExpr, data *cli.Command
 	title := svc.Name() + " gRPC client CLI support package"
 	specs := []*codegen.ImportSpec{
 		{Path: "encoding/json/v2", Name: "json"},
+		{Path: "errors"},
 		{Path: "fmt"},
 		{Path: "strconv"},
 		{Path: "unicode/utf8"},

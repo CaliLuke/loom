@@ -299,12 +299,20 @@ func TestEnvelopeRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var payload, result *collision.Envelope
 			require.NotPanics(t, func() {
-				payload = server.NewEchoPayload(client.NewProtoEchoRequest(envelope))
-				result = client.NewEchoResult(server.NewProtoEchoResponse(envelope))
+				encoded11, err := client.NewProtoEchoRequest(envelope)
+				require.NoError(t, err)
+				payload, err = server.NewEchoPayload(encoded11)
+				require.NoError(t, err)
+				encoded12, err := server.NewProtoEchoResponse(envelope)
+				require.NoError(t, err)
+				result, err = client.NewEchoResult(encoded12)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, payload)
 			require.Equal(t, envelope, result)
-			require.NoError(t, server.ValidateEchoRequest(client.NewProtoEchoRequest(envelope)))
+			encoded13, err := client.NewProtoEchoRequest(envelope)
+			require.NoError(t, err)
+			require.NoError(t, server.ValidateEchoRequest(encoded13))
 		})
 	}
 }
@@ -362,7 +370,8 @@ func TestProtoMessages(t *testing.T) {
 		Holder: &pb.Holder{First: &pb.Holder_Other{Other: &pb.Other{}}, Second: &pb.Holder_SecondLeaf{SecondLeaf: &pb.Leaf{}}},
 	}
 	require.NoError(t, server.ValidateEchoRequest(request))
-	payload := server.NewEchoPayload(request)
+	payload, err := server.NewEchoPayload(request)
+	require.NoError(t, err)
 	a, ok := payload.A.AsInt64()
 	require.True(t, ok)
 	require.Equal(t, int64(1), a)
@@ -395,7 +404,8 @@ func TestProtoMessages(t *testing.T) {
 	holder.Alt = &pb.Holder_AltOther{AltOther: &pb.Other{}}
 	holder.Tag = &pb.Holder_Code{Code: "x"}
 	require.ErrorContains(t, server.ValidateHolder(holder), "holder.tag.value")
-	decoded := server.NewEchoPayload(&pb.EchoRequest{A: &pb.EchoRequest_String_{String_: "s"}, Holder: &pb.Holder{Tag: &pb.Holder_TagOther{TagOther: &pb.Other{}}, Alt: &pb.Holder_AltCode{AltCode: "ok"}}})
+	decoded, err := server.NewEchoPayload(&pb.EchoRequest{A: &pb.EchoRequest_String_{String_: "s"}, Holder: &pb.Holder{Tag: &pb.Holder_TagOther{TagOther: &pb.Other{}}, Alt: &pb.Holder_AltCode{AltCode: "ok"}}})
+	require.NoError(t, err)
 	_, ok = decoded.Holder.Tag.AsOther()
 	require.True(t, ok)
 	code, ok := decoded.Holder.Alt.AsCode()

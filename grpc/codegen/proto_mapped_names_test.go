@@ -79,15 +79,28 @@ func TestRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var payload, result, streamed *mappednames.Envelope
 			require.NotPanics(t, func() {
-				payload = server.NewEchoPayload(client.NewProtoEchoRequest(envelope))
-				result = client.NewEchoResult(server.NewProtoEchoResponse(envelope))
-				streamed = client.NewStreamResponseEnvelope(server.NewProtoEnvelopeStreamResponse(envelope))
+				encoded11, err := client.NewProtoEchoRequest(envelope)
+				require.NoError(t, err)
+				payload, err = server.NewEchoPayload(encoded11)
+				require.NoError(t, err)
+				encoded12, err := server.NewProtoEchoResponse(envelope)
+				require.NoError(t, err)
+				result, err = client.NewEchoResult(encoded12)
+				require.NoError(t, err)
+				encoded13, err := server.NewProtoEnvelopeStreamResponse(envelope)
+				require.NoError(t, err)
+				streamed, err = client.NewStreamResponseEnvelope(encoded13)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, payload)
 			require.Equal(t, envelope, result)
 			require.Equal(t, envelope, streamed)
-			require.NoError(t, server.ValidateEchoRequest(client.NewProtoEchoRequest(envelope)))
-			require.NoError(t, client.ValidateEchoResponse(server.NewProtoEchoResponse(envelope)))
+			encoded14, err := client.NewProtoEchoRequest(envelope)
+			require.NoError(t, err)
+			require.NoError(t, server.ValidateEchoRequest(encoded14))
+			encoded15, err := server.NewProtoEchoResponse(envelope)
+			require.NoError(t, err)
+			require.NoError(t, client.ValidateEchoResponse(encoded15))
 		})
 	}
 }
@@ -102,7 +115,8 @@ func TestStreamingPayload(t *testing.T) {
 
 func TestProtoMessage(t *testing.T) {
 	name := "name"
-	message := client.NewProtoEchoRequest(envelopes()["full"])
+	message, err := client.NewProtoEchoRequest(envelopes()["full"])
+	require.NoError(t, err)
 	require.Equal(t, &name, message.N)
 	require.Equal(t, int64(7), message.GetReq())
 	require.Equal(t, int64(5), message.GetDef())
@@ -112,7 +126,9 @@ func TestProtoMessage(t *testing.T) {
 	require.Equal(t, int64(3), message.GetIndex()["k"].GetCount())
 	require.Equal(t, "text", message.GetText())
 
-	payload := server.NewEchoPayload(&pb.EchoRequest{Req: proto.Int64(0), Pick: &pb.EchoRequest_Int{Int: 1}, Obj: &pb.Leaf{Count: proto.Int64(0)}})
+	payload, err := server.NewEchoPayload(&pb.EchoRequest{Req: proto.Int64(0), Pick: &pb.EchoRequest_Int{Int: 1}, Obj: &pb.Leaf{Count: proto.Int64(0)}})
+
+	require.NoError(t, err)
 	require.Equal(t, 3, payload.Def, "the default applies to an unset field")
 }
 

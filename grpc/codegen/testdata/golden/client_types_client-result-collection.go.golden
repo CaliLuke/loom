@@ -9,18 +9,23 @@ func NewProtoMethodResultWithCollectionRequest() *service_result_with_collection
 // NewMethodResultWithCollectionResult builds the result type of the
 // "MethodResultWithCollection" endpoint of the "ServiceResultWithCollection"
 // service from the gRPC response type.
-func NewMethodResultWithCollectionResult(message *service_result_with_collectionpb.MethodResultWithCollectionResponse) *serviceresultwithcollection.MethodResultWithCollectionResult {
+func NewMethodResultWithCollectionResult(message *service_result_with_collectionpb.MethodResultWithCollectionResponse) (*serviceresultwithcollection.MethodResultWithCollectionResult, error) {
+	transformErr := new(error)
 	result := &serviceresultwithcollection.MethodResultWithCollectionResult{}
 	if message.Result != nil {
-		result.Result = protobufServiceResultWithCollectionpbResultTToServiceresultwithcollectionResultT(message.Result)
+		result.Result = protobufServiceResultWithCollectionpbResultTToServiceresultwithcollectionResultT(message.Result, transformErr)
 	}
-	return result
+	if *transformErr != nil {
+		var zero *serviceresultwithcollection.MethodResultWithCollectionResult
+		return zero, *transformErr
+	}
+	return result, nil
 }
 
 // protobufServiceResultWithCollectionpbResultTToServiceresultwithcollectionResultT
 // builds a value of type *serviceresultwithcollection.ResultT from a value of
 // type *service_result_with_collectionpb.ResultT.
-func protobufServiceResultWithCollectionpbResultTToServiceresultwithcollectionResultT(v *service_result_with_collectionpb.ResultT) *serviceresultwithcollection.ResultT {
+func protobufServiceResultWithCollectionpbResultTToServiceresultwithcollectionResultT(v *service_result_with_collectionpb.ResultT, transformErr *error) *serviceresultwithcollection.ResultT {
 	if v == nil {
 		return nil
 	}
@@ -28,6 +33,10 @@ func protobufServiceResultWithCollectionpbResultTToServiceresultwithcollectionRe
 	if v.CollectionField != nil {
 		res.CollectionField = make([]*serviceresultwithcollection.RT, len(v.CollectionField.Field))
 		for i, val := range v.CollectionField.Field {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			res.CollectionField[i] = &serviceresultwithcollection.RT{}
 			if val.IntField != nil {
 				intField := int(*val.IntField)

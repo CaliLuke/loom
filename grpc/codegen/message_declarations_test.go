@@ -129,7 +129,9 @@ func TestWrapperFirst(t *testing.T) {
 		Array:   &first.ArrayOfString{Count: &count},
 		Mapping: &first.MapOfStringSint32{Label: &label},
 	}
-	require.Equal(t, payload, firstserver.NewMPayload(firstclient.NewProtoMRequest(payload)))
+	decoded, err := firstserver.NewMPayload(firstclient.NewProtoMRequest(payload))
+	require.NoError(t, err)
+	require.Equal(t, payload, decoded)
 }
 
 func TestDesignFirst(t *testing.T) {
@@ -141,6 +143,8 @@ func TestDesignFirst(t *testing.T) {
 		Array:   &last.ArrayOfString{Count: &count},
 		Mapping: &last.MapOfStringSint32{Label: &label},
 	}
-	require.Equal(t, payload, lastserver.NewMPayload(lastclient.NewProtoMRequest(payload)))
+	decoded, err := lastserver.NewMPayload(lastclient.NewProtoMRequest(payload))
+	require.NoError(t, err)
+	require.Equal(t, payload, decoded)
 }
 `

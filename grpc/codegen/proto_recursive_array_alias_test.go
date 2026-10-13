@@ -176,12 +176,20 @@ func TestRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var payload, result *recursivearray.Node
 			require.NotPanics(t, func() {
-				payload = server.NewWalkPayload(client.NewProtoWalkRequest(value))
-				result = client.NewWalkResult(server.NewProtoWalkResponse(value))
+				encoded1, err := client.NewProtoWalkRequest(value)
+				require.NoError(t, err)
+				payload, err = server.NewWalkPayload(encoded1)
+				require.NoError(t, err)
+				encoded2, err := server.NewProtoWalkResponse(value)
+				require.NoError(t, err)
+				result, err = client.NewWalkResult(encoded2)
+				require.NoError(t, err)
 			})
 			require.Equal(t, value, payload)
 			require.Equal(t, value, result)
-			require.NoError(t, server.ValidateWalkRequest(client.NewProtoWalkRequest(value)))
+			encoded, err := client.NewProtoWalkRequest(value)
+			require.NoError(t, err)
+			require.NoError(t, server.ValidateWalkRequest(encoded))
 		})
 	}
 }
@@ -225,8 +233,14 @@ func TestNodeRoundTrip(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				var payload, result *recursivemessage.Node
 				require.NotPanics(t, func() {
-					payload = server.NewEchoPayload(client.NewProtoEchoRequest(value))
-					result = client.NewEchoResult(server.NewProtoEchoResponse(value))
+					encoded3, err := client.NewProtoEchoRequest(value)
+					require.NoError(t, err)
+					payload, err = server.NewEchoPayload(encoded3)
+					require.NoError(t, err)
+					encoded4, err := server.NewProtoEchoResponse(value)
+					require.NoError(t, err)
+					result, err = client.NewEchoResult(encoded4)
+					require.NoError(t, err)
 				})
 				require.Equal(t, tree[i], payload)
 				require.Equal(t, tree[i], result)
@@ -241,10 +255,18 @@ func TestNodesRoundTrip(t *testing.T) {
 			var payload, result, streamed recursivemessage.Nodes
 			var message *pb.Nodes
 			require.NotPanics(t, func() {
-				payload = server.NewListPayload(client.NewProtoNodes(tree))
-				result = client.NewListResult(server.NewProtoNodes(tree))
-				message = server.NewProtoNodesNodes(tree)
-				streamed = client.NewNodesNodes(message)
+				encoded5, err := client.NewProtoNodes(tree)
+				require.NoError(t, err)
+				payload, err = server.NewListPayload(encoded5)
+				require.NoError(t, err)
+				encoded6, err := server.NewProtoNodes(tree)
+				require.NoError(t, err)
+				result, err = client.NewListResult(encoded6)
+				require.NoError(t, err)
+				message, err = server.NewProtoNodesNodes(tree)
+				require.NoError(t, err)
+				streamed, err = client.NewNodesNodes(message)
+				require.NoError(t, err)
 			})
 			require.Equal(t, tree, payload)
 			require.Equal(t, tree, result)

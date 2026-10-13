@@ -74,7 +74,7 @@ func protoBufTransform(source, target *expr.AttributeExpr, sourceVar, targetVar 
 		SourceCtx: sourceCtx,
 		TargetCtx: targetCtx,
 	}}
-	ta.errorAware = conversionCanFail(source, target)
+	ta.errorAware = conversionCanFail(source, target, sourceCtx)
 	if proto {
 		target = expr.DupAtt(target)
 		removeMeta(target)
@@ -98,25 +98,6 @@ func protoBufTransform(source, target *expr.AttributeExpr, sourceVar, targetVar 
 	}
 
 	return strings.TrimRight(code, "\n"), funcs, nil
-}
-
-// conversionCanFail reports whether this source/target conversion needs an
-// error channel, including errors from nested conversions. Callers and shared
-// helper declarations must query the called conversion rather than inherit
-// fallibility from an enclosing transform.
-func conversionCanFail(source, target *expr.AttributeExpr) bool {
-	return containsAny(source) || containsAny(target)
-}
-
-func containsAny(attribute *expr.AttributeExpr) bool {
-	found := false
-	_ = codegen.Walk(attribute, func(current *expr.AttributeExpr) error {
-		if current.Type.Kind() == expr.AnyKind {
-			found = true
-		}
-		return nil
-	})
-	return found
 }
 
 // removeMeta removes meta attributes from the given attribute that cannot be

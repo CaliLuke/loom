@@ -43,7 +43,9 @@ func TestMountedCollectionContents(t *testing.T) {
     } {
         t.Run(tc.name, func(t *testing.T) {
             before := calls.Load()
-            response, err := remote.Echo(ctx, client.NewProtoEchoRequest(tc.value))
+            request, err := client.NewProtoEchoRequest(tc.value)
+            require.NoError(t, err)
+            response, err := remote.Echo(ctx, request)
             if tc.problem != "" {
                 require.Equal(t, codes.InvalidArgument, status.Code(err))
                 require.Nil(t, response)
@@ -67,7 +69,9 @@ func TestMountedCollectionContents(t *testing.T) {
                 require.NoError(t, ctx.Err())
             }
             require.NoError(t, client.ValidateEchoResponse(response))
-            require.Equal(t, tc.value, client.NewEchoResult(response))
+            result, err := client.NewEchoResult(response)
+            require.NoError(t, err)
+            require.Equal(t, tc.value, result)
         })
     }
 }

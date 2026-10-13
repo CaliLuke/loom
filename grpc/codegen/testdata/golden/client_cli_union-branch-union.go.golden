@@ -6,6 +6,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	nestedunionpb "grpc/nestedunion/pb"
 	nestedunion "nestedunion"
@@ -30,6 +31,7 @@ func BuildEchoPayload(nestedunionEchoMessage string) (*nestedunion.Envelope, err
 			return zero, err
 		}
 	}
+	transformErr := new(error)
 	v := &nestedunion.Envelope{
 		ID: message.Id,
 	}
@@ -87,6 +89,10 @@ func BuildEchoPayload(nestedunionEchoMessage string) (*nestedunion.Envelope, err
 	if message.Holders != nil {
 		v.Holders = make([]*nestedunion.Holder, len(message.Holders))
 		for i, val := range message.Holders {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			v.Holders[i] = &nestedunion.Holder{}
 			if val.Pick != nil {
 				switch val := val.Pick.(type) {
@@ -123,6 +129,10 @@ func BuildEchoPayload(nestedunionEchoMessage string) (*nestedunion.Envelope, err
 		}
 	}
 
+	if *transformErr != nil {
+		var zero *nestedunion.Envelope
+		return zero, *transformErr
+	}
 	return v, nil
 }
 

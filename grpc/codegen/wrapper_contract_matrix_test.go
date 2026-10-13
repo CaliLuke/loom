@@ -43,7 +43,9 @@ func TestOccurrenceContracts(t *testing.T) {
         decoded := &pb.EchoRequest{}
         require.NoError(t, proto.Unmarshal(data, decoded))
         require.NoError(t, server.ValidateEchoRequest(decoded))
-        require.Equal(t, value, server.NewEchoPayload(decoded))
+        payload, err := server.NewEchoPayload(decoded)
+        require.NoError(t, err)
+        require.Equal(t, value, payload)
         response := server.NewProtoEchoResponse(value)
         responseData, err := proto.MarshalOptions{Deterministic: true}.Marshal(response)
         require.NoError(t, err)
@@ -53,7 +55,9 @@ func TestOccurrenceContracts(t *testing.T) {
         decodedResponse := &pb.EchoResponse{}
         require.NoError(t, proto.Unmarshal(responseData, decodedResponse))
         require.NoError(t, client.ValidateEchoResponse(decodedResponse))
-        require.Equal(t, value, client.NewEchoResult(decodedResponse))
+        result, err := client.NewEchoResult(decodedResponse)
+        require.NoError(t, err)
+        require.Equal(t, value, result)
     })
     t.Run("strict violation", func(t *testing.T) {
         value := &dual.Data{Strict: %[3]s}
@@ -116,7 +120,9 @@ func TestMountedContracts(t *testing.T) {
         require.NoError(t, ctx.Err())
     }
     require.NoError(t, client.ValidateEchoResponse(response))
-    require.Equal(t, value, client.NewEchoResult(response))
+    result, err := client.NewEchoResult(response)
+    require.NoError(t, err)
+    require.Equal(t, value, result)
 }
 `
 

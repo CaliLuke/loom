@@ -3,9 +3,17 @@ func transform() {
 	if source.NestedMap != nil {
 		target.NestedMap = make(map[float64]map[int]map[float64]uint64, len(source.NestedMap))
 		for key, val := range source.NestedMap {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			tvc := make(map[int]map[float64]uint64, len(val.Field))
 			for key, val := range val.Field {
 				tk := int(key)
+				if val == nil {
+					*transformErr = errors.New("gRPC conversion: nil message collection element")
+					continue
+				}
 				tvb := make(map[float64]uint64, len(val.Field))
 				for key, val := range val.Field {
 					tvb[key] = val

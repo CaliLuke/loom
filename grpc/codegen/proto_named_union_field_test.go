@@ -200,7 +200,10 @@ func TestPayloadRoundTrip(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var decoded *reuse.Envelope
 			require.NotPanics(t, func() {
-				decoded = server.NewEchoPayload(client.NewProtoEchoRequest(envelope))
+				encoded11, err := client.NewProtoEchoRequest(envelope)
+				require.NoError(t, err)
+				decoded, err = server.NewEchoPayload(encoded11)
+				require.NoError(t, err)
 			})
 			require.Equal(t, envelope, decoded)
 		})
@@ -243,7 +246,8 @@ func TestProtoOneofFields(t *testing.T) {
 		Choice: &pb.EchoRequest_Other{Other: &pb.Other{Count: &count}},
 		Holder: &pb.Holder{Choice: &pb.Holder_Leaf{Leaf: &pb.Leaf{Name: &name}}},
 	}
-	payload := server.NewEchoPayload(request)
+	payload, err := server.NewEchoPayload(request)
+	require.NoError(t, err)
 	other, ok := payload.Choice.AsOther()
 	require.True(t, ok)
 	require.Equal(t, 42, *other.Count)

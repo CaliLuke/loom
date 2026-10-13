@@ -1,17 +1,26 @@
 // NewMethodElemValidationPayload builds the payload of the
 // "MethodElemValidation" endpoint of the "ServiceElemValidation" service from
 // the gRPC request type.
-func NewMethodElemValidationPayload(message *service_elem_validationpb.MethodElemValidationRequest) *serviceelemvalidation.PayloadType {
+func NewMethodElemValidationPayload(message *service_elem_validationpb.MethodElemValidationRequest) (*serviceelemvalidation.PayloadType, error) {
+	transformErr := new(error)
 	v := &serviceelemvalidation.PayloadType{}
 	if message.Foo != nil {
 		v.Foo = make(map[string][]string, len(message.Foo))
 		for key, val := range message.Foo {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			tv := make([]string, len(val.Field))
 			copy(tv, val.Field)
 			v.Foo[key] = tv
 		}
 	}
-	return v
+	if *transformErr != nil {
+		var zero *serviceelemvalidation.PayloadType
+		return zero, *transformErr
+	}
+	return v, nil
 }
 
 // NewProtoMethodElemValidationResponse builds the gRPC response type from the

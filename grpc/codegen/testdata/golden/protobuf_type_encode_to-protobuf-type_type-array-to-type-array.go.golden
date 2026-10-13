@@ -3,6 +3,10 @@ func transform() {
 	if source.TypeArray != nil {
 		target.TypeArray = make([]*proto.SimpleArray, len(source.TypeArray))
 		for i, val := range source.TypeArray {
+			if val == nil {
+				*transformErr = errors.New("gRPC conversion: nil message collection element")
+				continue
+			}
 			target.TypeArray[i] = &proto.SimpleArray{}
 			if val.StringArray != nil {
 				target.TypeArray[i].StringArray = make([]string, len(val.StringArray))
