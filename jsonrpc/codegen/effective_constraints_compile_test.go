@@ -80,8 +80,9 @@ func TestEffectiveConstraintsGeneratedJSONRPCModule(t *testing.T) {
 	require.Contains(t, generated, "loom.Nullable[InheritedDefault]")
 	require.Contains(t, generated, `body.Inherited = "base"`)
 	require.Contains(t, generated, `body.Overridden = "override"`)
-	require.Contains(t, generated, `loom.MissingFieldError("base", "body")`)
-	require.Contains(t, generated, `loom.MissingFieldError("derived", "body")`)
+	require.Contains(t, generated, `ValidateRequiredRequestBody(&body)`)
+	require.Contains(t, generated, `loom.MissingFieldError("base", validationPath)`)
+	require.Contains(t, generated, `loom.MissingFieldError("derived", validationPath)`)
 	require.GreaterOrEqual(t, strings.Count(generated, "loom.ValidatePattern"), 2)
 	require.Contains(t, generated, `"b$"`)
 	require.Contains(t, generated, `"^a"`)
@@ -172,5 +173,50 @@ func TestExactNumericBounds(t *testing.T) {
    require.Equal(t, before, calls)
   }
  }
+}
+
+func TestInheritedRequiredFields(t *testing.T) {
+	calls := 0
+	endpoints := &constraints.Endpoints{Required: func(context.Context, any) (any, error) {
+		calls++
+		return nil, nil
+	}}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+	for _, tc := range []struct {
+		name    string
+		params  string
+		missing []string
+	}{
+		{"both missing", "{}", []string{"base", "derived"}},
+		{"inherited missing", "{\"derived\":\"value\"}", []string{"base"}},
+		{"local missing", "{\"base\":\"value\"}", []string{"derived"}},
+		{"complete", "{\"base\":\"value\",\"derived\":\"value\"}", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := calls
+			wire := "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"required\",\"params\":" + tc.params + "}"
+			request := httptest.NewRequest(http.MethodPost, "/rpc", strings.NewReader(wire))
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, request)
+			require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+			var reply map[string]any
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &reply))
+			if len(tc.missing) == 0 {
+				require.Nil(t, reply["error"], response.Body.String())
+				require.Equal(t, before+1, calls)
+				return
+			}
+			require.NotNil(t, reply["error"], response.Body.String())
+			problem := reply["error"].(map[string]any)
+			require.Equal(t, float64(-32602), problem["code"])
+			require.Contains(t, problem["message"], "Missing required field:")
+			if len(tc.missing) == 1 {
+				require.Contains(t, response.Body.String(), tc.missing[0])
+			}
+			require.Equal(t, before, calls)
+		})
+	}
 }
 `
