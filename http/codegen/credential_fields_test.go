@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"testing"
 
 	svc "example.com/credentials/gen/credentials"
@@ -64,8 +65,12 @@ func TestCredentials(t *testing.T) {
 			if value != expected[index] {
 				t.Errorf("credential %d = %q", index, value)
 			}
-			if !reflect.DeepEqual(scopes, []string{"read"}) {
-				t.Errorf("scopes = %v", scopes)
+			var wantScopes []string
+			if index == 3 || index == 4 {
+				wantScopes = []string{"read"}
+			}
+			if !slices.Equal(scopes, wantScopes) {
+				t.Errorf("credential %d scopes = %v, want %v", index, scopes, wantScopes)
 			}
 			authCalls++
 			previous, _ := ctx.Value(contextKey{}).(int)

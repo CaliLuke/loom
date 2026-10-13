@@ -8,6 +8,65 @@ servers:
       url: http://localhost:80
       description: Default server for test api
 paths:
+    /empty_error:
+        get:
+            tags:
+                - InlineBody
+            summary: empty_error InlineBody
+            operationId: inline_body.empty_error
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'empty: Bad Request response.'
+                    headers:
+                        X-Error:
+                            schema:
+                                type: string
+                                example: Qui explicabo voluptatem est.
+                            example: Qui explicabo voluptatem est.
+                    content:
+                        application/json:
+                            schema:
+                                example: {}
+                                $ref: '#/components/schemas/EmptyRecord'
+                            example: {}
+    /empty_selected:
+        get:
+            tags:
+                - InlineBody
+            summary: empty_selected InlineBody
+            operationId: inline_body.empty_selected
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        X-Label:
+                            schema:
+                                type: string
+                                example: Nam accusamus alias veniam corrupti asperiores sunt.
+                            example: Nam accusamus alias veniam corrupti asperiores sunt.
+                    content:
+                        application/json:
+                            schema:
+                                example: {}
+                                $ref: '#/components/schemas/EmptyRecord'
+                            example: {}
+    /empty_type:
+        get:
+            tags:
+                - InlineBody
+            summary: empty_type InlineBody
+            operationId: inline_body.empty_type
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                example: {}
+                                $ref: '#/components/schemas/EmptyRecord'
+                            example: {}
     /inline_attribute:
         post:
             tags:
@@ -282,6 +341,10 @@ paths:
                                     x: Numquam quibusdam ipsa quo.
 components:
     schemas:
+        EmptyRecord:
+            type: object
+            example: {}
+            additionalProperties: false
         InlineBodyinlineAttributeResponseBody:
             type: object
             properties:

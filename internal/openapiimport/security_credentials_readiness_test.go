@@ -115,12 +115,11 @@ func TestSecurityCredentialReadinessCandidateGenerated(t *testing.T) {
 		require.Equal(t, want, operationFromImportedSpec(t, contract, path, "get")["security"])
 	}
 
-	cmd := exec.CommandContext(t.Context(), "go", "test", "-run", "^TestCandidateMixedScopeSourceGap$", "-v", ".")
+	cmd := exec.CommandContext(t.Context(), "go", "test", "-run", "^TestCandidateMixedScopeSourceContract$", "-v", ".")
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
-	require.Error(t, err)
-	require.Contains(t, string(output), "source scope intent changed: auth=[Bearer:token:[read] OAuth:token:[read]]")
-	t.Log("Expected scope-source counterexample:", string(output))
+	require.NoError(t, err, string(output))
+	t.Log("Per-scheme source scope contract:", string(output))
 }
 
 func TestSecurityCredentialReadinessScopeAdmission(t *testing.T) {

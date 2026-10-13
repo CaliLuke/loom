@@ -1,6 +1,11 @@
 {
   "components": {
     "schemas": {
+      "EmptyRecord": {
+        "additionalProperties": false,
+        "example": {},
+        "type": "object"
+      },
       "InlineBodyinlineAttributeResponseBody": {
         "example": {
           "y": "Recusandae deleniti."
@@ -121,6 +126,96 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "openapi": "3.2.0",
   "paths": {
+    "/empty_error": {
+      "get": {
+        "operationId": "inline_body.empty_error",
+        "responses": {
+          "204": {
+            "description": "No Content response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {},
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyRecord",
+                  "example": {}
+                }
+              }
+            },
+            "description": "empty: Bad Request response.",
+            "headers": {
+              "X-Error": {
+                "example": "Qui explicabo voluptatem est.",
+                "schema": {
+                  "example": "Qui explicabo voluptatem est.",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "empty_error InlineBody",
+        "tags": [
+          "InlineBody"
+        ]
+      }
+    },
+    "/empty_selected": {
+      "get": {
+        "operationId": "inline_body.empty_selected",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {},
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyRecord",
+                  "example": {}
+                }
+              }
+            },
+            "description": "OK response.",
+            "headers": {
+              "X-Label": {
+                "example": "Nam accusamus alias veniam corrupti asperiores sunt.",
+                "schema": {
+                  "example": "Nam accusamus alias veniam corrupti asperiores sunt.",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "empty_selected InlineBody",
+        "tags": [
+          "InlineBody"
+        ]
+      }
+    },
+    "/empty_type": {
+      "get": {
+        "operationId": "inline_body.empty_type",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {},
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyRecord",
+                  "example": {}
+                }
+              }
+            },
+            "description": "OK response."
+          }
+        },
+        "summary": "empty_type InlineBody",
+        "tags": [
+          "InlineBody"
+        ]
+      }
+    },
     "/inline_attribute": {
       "post": {
         "operationId": "inline_body.inline_attribute",

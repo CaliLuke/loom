@@ -94,7 +94,7 @@ func testNamedStringArrayModule(t *testing.T, design func()) {
  %s
  switch {
  case strings.HasSuffix(%q, "header"):
-  if got := req.Header.Values("values"); !slices.Equal(got, []string{"first", "second"}) { t.Errorf("headers = %%v", got) }
+  if got := req.Header.Values("values"); !slices.Equal(got, []string{"first, second"}) { t.Errorf("headers = %%v", got) }
  case strings.HasSuffix(%q, "query"):
   if got := req.URL.Query()["values"]; !slices.Equal(got, []string{"first", "second"}) { t.Errorf("query = %%v", got) }
  default:

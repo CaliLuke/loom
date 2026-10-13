@@ -112,9 +112,9 @@ func TestCandidateAuthWire(t *testing.T) {
 	}
 }
 
-// This red probe records why importing per-scheme scopes into a shared DSL
-// requirement cannot claim to preserve that source contract.
-func TestCandidateMixedScopeSourceGap(t *testing.T) {
+// TestCandidateMixedScopeSourceContract verifies that a shared DSL requirement
+// passes each scheme only the scopes declared by that scheme.
+func TestCandidateMixedScopeSourceContract(t *testing.T) {
 	s := &implementation{}
 	mux := loomhttp.NewMuxer()
 	server.Mount(mux, server.New(svc.NewEndpoints(s), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))

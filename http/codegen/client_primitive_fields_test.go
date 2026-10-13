@@ -10,6 +10,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/codegentest"
+	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/http/codegen/testdata"
 )
 
@@ -66,8 +67,8 @@ var primitiveFieldCases = []struct {
 }{
 	{"header string", testdata.PayloadHeaderPrimitiveStringValidateDSL, `"val"`, `[]string{"val"}`, false},
 	{"header bool", testdata.PayloadHeaderPrimitiveBoolValidateDSL, `true`, `[]string{"true"}`, false},
-	{"header strings", testdata.PayloadHeaderPrimitiveArrayStringValidateDSL, `[]string{"val-one", "val-two"}`, `[]string{"val-one", "val-two"}`, false},
-	{"header bools", testdata.PayloadHeaderPrimitiveArrayBoolValidateDSL, `[]bool{true, true}`, `[]string{"true", "true"}`, false},
+	{"header strings", testdata.PayloadHeaderPrimitiveArrayStringValidateDSL, `[]string{"val-one", "val-two"}`, `[]string{"val-one, val-two"}`, false},
+	{"header bools", testdata.PayloadHeaderPrimitiveArrayBoolValidateDSL, `[]bool{true, true}`, `[]string{"true, true"}`, false},
 	{"header default", testdata.PayloadHeaderPrimitiveStringDefaultDSL, `"override"`, `[]string{"override"}`, false},
 	{"cookie string", testdata.PayloadCookiePrimitiveStringValidateDSL, `"val"`, `[]string{"val"}`, true},
 	{"cookie bool", testdata.PayloadCookiePrimitiveBoolValidateDSL, `true`, `[]string{"true"}`, true},
@@ -82,9 +83,12 @@ func TestPrimitiveHeaderCookieEncoder(t *testing.T) {
 			sections := codegentest.Sections(files, "encode_decode.go", "request-encoder")
 			require.Len(t, sections, 1)
 			code := codegen.SectionCode(t, sections[0])
-			if tc.cookie {
+			switch {
+			case tc.cookie:
 				require.Contains(t, code, "req.AddCookie(")
-			} else {
+			case expr.IsArray(root.Services[0].Methods[0].Payload.Type):
+				require.Contains(t, code, "loomhttp.SetHeaderValues(req.Header,")
+			default:
 				require.Contains(t, code, "req.Header.")
 			}
 		})
