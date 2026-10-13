@@ -97,11 +97,19 @@ func uniqueName(base string, used map[string]int) string {
 		base = "Value"
 	}
 	key := strings.ToLower(base)
-	used[key]++
-	if used[key] == 1 {
+	if used[key] == 0 {
+		used[key] = 1
 		return base
 	}
-	return fmt.Sprintf("%s%d", base, used[key])
+	for suffix := used[key] + 1; ; suffix++ {
+		candidate := fmt.Sprintf("%s%d", base, suffix)
+		candidateKey := strings.ToLower(candidate)
+		if used[candidateKey] == 0 {
+			used[key] = suffix
+			used[candidateKey] = 1
+			return candidate
+		}
+	}
 }
 
 func errorTypeFieldOverrides(fields []string) map[int]string {

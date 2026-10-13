@@ -916,6 +916,14 @@ filter, and serialization rules belong here.
   caches or duplicate annotation rules in version renderers. Keep reference
   occurrence/base, Title and parameter-reference override controls aligned.
 
+- `openapiimport.uniqueName` owns case-folded emitted-name occupancy for schema,
+  operation, security, transport-field and error-clone allocations. Claim actual
+  suffix candidates as well as bases; deterministic first-claim order remains
+  authoritative. Callers consume allocated identities while retaining original
+  component and wire names. Do not add consumer-local suffix workarounds or
+  broaden this into fixed-property name planning. Keep the name-occupancy model
+  and direct consumer/generated checks aligned.
+
 - Plan imported schema references once after component promotion and final error
   declaration allocation in `internal/openapiimport`. Retain declaration owner
   and source-path occurrence identity; resolve source component names separately

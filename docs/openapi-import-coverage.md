@@ -44,6 +44,12 @@ that the OpenAPI specification first defines in 3.2.
 
 ## Object coverage
 
+Imported schema and operation declarations, security credentials, and HTTP
+parameter/header mappings receive distinct Go identifiers when their names
+collide, including collisions with existing numbered names. These allocations
+retain original schema references and wire names. Re-import and regenerate a
+design affected by duplicate declarations or mapped fields in these locations.
+
 The following table summarizes fixed fields on objects that the importer
 reads. Specification extensions are patterns, not fixed fields.
 
