@@ -1,6 +1,9 @@
 package testdata
 
-import . "github.com/CaliLuke/loom/dsl"
+import (
+	. "github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/expr"
+)
 
 // ConstructorOwnership declares lexical constructor collisions or shared scalar
 // response bodies with different projected sources. Ordinary and distinct-alias
@@ -60,72 +63,83 @@ func ConstructorOwnership(mode string, rpc, reverse bool) {
 			})
 		}
 		if payload != nil {
-			Method("m", func() {
-				Payload(payload)
-				if mode == "response" {
-					Result(payload)
-				} else {
-					Result(String)
-				}
-				if rpc {
-					JSONRPC(func() {})
-				} else {
-					HTTP(func() {
-						POST("/m")
-					})
-				}
-			})
+			constructorPayloadMethod(mode, rpc, payload)
 			return
 		}
 		if mode == "selector" {
-
-			for _, field := range []string{"left", "right"} {
-				Method(field, func() {
-					Result(pair)
-					response := func() {
-						Response(StatusOK, func() {
-							Body(field)
-						})
-					}
-					if rpc {
-						JSONRPC(response)
-					} else {
-						HTTP(func() {
-							GET("/" + field)
-							response()
-						})
-					}
-				})
-			}
+			constructorSelectedMethods(rpc, pair)
 			return
 		}
-		names := []string{"required", "optional"}
-		if reverse {
-			names[0], names[1] = names[1], names[0]
+		constructorAliasMethods(mode, rpc, reverse, required, optional)
+	})
+}
+
+func constructorPayloadMethod(mode string, rpc bool, payload any) {
+	Method("m", func() {
+		Payload(payload)
+		if mode == "response" {
+			Result(payload)
+		} else {
+			Result(String)
 		}
-		for _, name := range names {
-			Method(name, func() {
-				if name == "required" || mode == "same" {
-					Result(required)
-				} else {
-					Result(optional)
-				}
-				response := func() {
-					Response(StatusOK, func() {
-						Body("value")
-					})
-				}
-				if rpc {
-					JSONRPC(response)
-				} else {
-					HTTP(func() {
-						GET("/" + name)
-						response()
-					})
-				}
+		if rpc {
+			JSONRPC(func() {})
+		} else {
+			HTTP(func() {
+				POST("/m")
 			})
 		}
 	})
+}
+
+func constructorSelectedMethods(rpc bool, pair *expr.ResultTypeExpr) {
+	for _, field := range []string{"left", "right"} {
+		Method(field, func() {
+			Result(pair)
+			response := func() {
+				Response(StatusOK, func() {
+					Body(field)
+				})
+			}
+			if rpc {
+				JSONRPC(response)
+			} else {
+				HTTP(func() {
+					GET("/" + field)
+					response()
+				})
+			}
+		})
+	}
+}
+
+func constructorAliasMethods(mode string, rpc, reverse bool, required, optional *expr.ResultTypeExpr) {
+	names := []string{"required", "optional"}
+	if reverse {
+		names[0], names[1] = names[1], names[0]
+	}
+	for _, name := range names {
+		Method(name, func() {
+			if name == "required" || mode == "same" {
+				Result(required)
+			} else {
+				Result(optional)
+			}
+			response := func() {
+				Response(StatusOK, func() {
+					Body("value")
+				})
+			}
+			if rpc {
+				JSONRPC(response)
+			} else {
+				HTTP(func() {
+					GET("/" + name)
+					response()
+				})
+			}
+		})
+	}
 }
 
 // ConstructorOwnershipWireHarness verifies that two selected fields of the same
