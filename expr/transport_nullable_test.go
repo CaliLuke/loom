@@ -126,15 +126,11 @@ func TestGRPCTransportRejectsNullableButAllowsAny(t *testing.T) {
 	require.Empty(t, verr.Errors)
 }
 
-func TestGRPCTransportRejectsExplicitNullableAnyOutsideObjectFields(t *testing.T) {
+func TestGRPCTransportRejectsExplicitNullableAnyCollectionElements(t *testing.T) {
 	tests := []struct {
 		name    string
 		request *AttributeExpr
 	}{
-		{
-			name:    "root",
-			request: &AttributeExpr{Type: Any, Nullable: true},
-		},
 		{
 			name: "array element",
 			request: &AttributeExpr{Type: &Array{ElemType: &AttributeExpr{

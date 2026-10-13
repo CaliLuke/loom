@@ -137,15 +137,16 @@ func containsUntaggedUnionRecursive(attribute *AttributeExpr, seen map[string]st
 }
 
 func containsUnsupportedGRPCPresence(attribute *AttributeExpr) bool {
-	return containsUnsupportedGRPCPresenceRecursive(attribute, false, make(map[string]struct{}))
+	// Protobuf normalization wraps non-object message roots in a field, so a
+	// root Any has the same presence representation as an object field.
+	return containsUnsupportedGRPCPresenceRecursive(attribute, true, make(map[string]struct{}))
 }
 
 func containsUnsupportedGRPCPresenceRecursive(attribute *AttributeExpr, objectField bool, seen map[string]struct{}) bool {
 	if attribute == nil || attribute.Type == nil || attribute.Type == Empty {
 		return false
 	}
-	anyType := resolvesToAny(attribute.Type, make(map[string]struct{}))
-	if IsNullable(attribute) && (!anyType || !objectField) {
+	if unsupportedGRPCPresenceOccurrence(attribute, objectField) {
 		return true
 	}
 	if userType, ok := attribute.Type.(UserType); ok {
@@ -178,6 +179,12 @@ func containsUnsupportedGRPCPresenceRecursive(attribute *AttributeExpr, objectFi
 		}
 	}
 	return false
+}
+
+// unsupportedGRPCPresenceOccurrence checks one physical message position;
+// collection elements and union branches cannot use the field-presence wrapper.
+func unsupportedGRPCPresenceOccurrence(attribute *AttributeExpr, objectField bool) bool {
+	return IsNullable(attribute) && (!IsAny(attribute.Type) || !objectField)
 }
 
 func containsNullableRecursive(attribute *AttributeExpr, seen map[string]struct{}) bool {

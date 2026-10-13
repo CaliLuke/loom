@@ -559,7 +559,11 @@ completion shapes are explicit generation limitations.
   is not valid as a default. Concrete defaults apply only to absent inputs.
 - `Nullable()` is supported for JSON HTTP bodies, JSON-RPC values, array
   elements, and map values. Do not use it for map keys, string-encoded HTTP
-  parameters or metadata, forms, multipart bodies, or gRPC message fields.
+  parameters or metadata, forms, or multipart bodies. gRPC rejects nullable
+  concrete shapes before generation. Its message `Any` fields and message-root
+  `Any` support explicit null; this exception does not permit `Nullable()` on
+  gRPC collection members or union branches. Regenerate adapters after correcting
+  previously accepted unsupported designs.
 - Array elements reject JSON null by default. Put `Nullable()` on the element
   definition to accept null members; array-field requiredness is independent.
 - HTTP WebSocket `StreamingPayload` roots cannot be nullable: a root JSON `null`

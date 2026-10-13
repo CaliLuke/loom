@@ -73,6 +73,15 @@ writes a gRPC message. Protobuf represents JSON numbers as `double`, so gRPC
 cannot retain number spellings or integer precision beyond that wire type. Prefer
 a concrete Loom type whenever the value has a stable contract.
 
+Loom rejects `Nullable()` on concrete gRPC payloads, results, error bodies and
+their nested fields during design validation, including declarations inside
+`Message`. A message `Any` field or message-root `Any` can represent explicit
+JSON null through `google.protobuf.Value`. This exception does not support
+`Nullable()` on collection elements, map entries, union branches or metadata.
+Remove unsupported `Nullable()` declarations or use a message `Any` where the
+application needs a JSON value. Regenerate adapters; previously accepted shapes
+that generated invalid conversions now fail with a design error.
+
 ### Scalar Presence and Defaults
 
 All scalar message fields use explicit protobuf presence, including fields

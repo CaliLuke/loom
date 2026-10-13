@@ -60,6 +60,7 @@ correctness. Keep proved, tested, bounded-checked and assumed claims distinct.
 | Protobuf endpoint/anonymous message name reservations | [Message names](../../../../grpc/codegen/tla/message_names/README.md) |
 | Protobuf explicit names, collection wrappers, compatible declarations and recursive normalization | [Message declarations](../../../../grpc/codegen/tla/message_declarations/README.md) |
 | Reachable protobuf field validation, cycles and opaque custom mappings | [Field tag traversal](../../../../expr/tla/grpc_field_tags/README.md) |
+| gRPC complete-source and recursive local presence admission | [Presence admission](../../../../expr/tla/grpc_presence_admission/README.md); placeholder ordering, shallow-local and over-broad Any counterexamples; direct recursive pairing and generated Any controls cover classifier limits |
 | Protobuf scalar presence, requiredness and defaults | [Scalar presence](../../../../grpc/codegen/tla/scalar_presence/README.md); bounded omission/zero checks, with real protobuf and generated decoder/stream tests |
 | Protobuf fields, getters, synthetic oneofs and map-entry wrapper names | [Field names](../../../../grpc/codegen/tla/field_names/README.md) |
 | Generated import aliases and metadata local-variable reservations | [Import aliases](../../../../grpc/codegen/tla/import_aliases/README.md) |

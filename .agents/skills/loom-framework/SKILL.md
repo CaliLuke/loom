@@ -1460,6 +1460,14 @@ filter, and serialization rules belong here.
   optional non-null fields. Reject nullable shapes at transports that cannot
   preserve absent, null, and concrete states instead of weakening the service
   contract.
+- gRPC nullable admission inspects complete service contracts before transport
+  finalization and recursively pairs local message/metadata declarations with
+  source-owned types. Preserve authored local descendants and scalar wrapper
+  intent without mutating either graph. The shared positional predicate admits
+  nullable Any only at message roots/fields; collection/union positions and
+  metadata do not inherit that exception. Keep both ordering and local-traversal
+  models in `expr/tla/grpc_presence_admission` aligned with complete DSL and
+  generated Any roundtrip controls.
 - Preserve custom scalar conversion metadata and allocated raw/value locals
   when deriving HTTP payload constructor arguments. CLI custom string fields
   parse raw flags with UnmarshalText, validate the raw text, and retain optional
