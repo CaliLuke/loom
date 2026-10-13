@@ -489,6 +489,14 @@ consumer validation.
   supplied zero/empty or malformed text; required omission remains invalid.
   Keep `grpc/codegen/tla/metadata_defaults` and generated wire controls aligned.
   Repeated text entries retain their codec; do not claim empty-list presence.
+- `grpc/codegen.metadataStorage` owns detached primitive metadata storage and
+  recorded source element conversion. `extractMetadata` derives codec, validation,
+  default, constructor and CLI plans from that occurrence, preserving the original
+  FieldType for service construction. Lower effective constraints before discarding
+  nominal declaration edges; never teach each formatter or parser its own alias
+  policy. Named string elements cannot use the direct primitive-slice fast path.
+  Keep the [metadata element model](../../../grpc/codegen/tla/metadata_elements/README.md)
+  aligned with qualified casts, inherited constraints/defaults and mounted peers.
 - Let Loom determine pointer/value semantics except at explicit transport
   validation boundaries.
 - Collapse pass-through wrappers that add no behavior.

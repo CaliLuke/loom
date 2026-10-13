@@ -222,6 +222,10 @@ and `errors.As`, including when the message contains an example.
   attribute name, ignoring a service field's JSON suffix. For a field
   `"tok:t"`, use `Metadata(func() { Attribute("tok:x-token") })` to send
   `x-token` metadata; requiredness and defaults come from `"tok:t"`.
+- gRPC metadata arrays may use named primitive elements, including types placed
+  in another generated package. Keep the named service field; generated codecs
+  perform the conversion and enforce inherited constraints and defaults.
+  Regenerate both sides when adopting named metadata elements.
 - Design files conventionally dot-import `github.com/CaliLuke/loom/dsl`.
   Top-level Go identifiers must not reuse exported DSL names. Examples include
   `Fault`, `Error`, `Result`, and `Type`. Use an application-specific variable

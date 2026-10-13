@@ -20,7 +20,7 @@ func renderGRPCMetadataAppend(md *MetadataData, root string) string {
 		b.WriteString("\t}\n")
 	case md.Slice:
 		fmt.Fprintf(&b, "\tfor _, value := range %s {\n", value)
-		b.WriteString(indent(renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, "valueStr", "value"), 2))
+		b.WriteString(indent(renderGRPCMetadataElement(md, "valueStr", "value"), 2))
 		fmt.Fprintf(&b, "\t\t(*md).Append(%q, valueStr)\n", md.Name)
 		b.WriteString("\t}\n")
 	default:
@@ -111,7 +111,7 @@ func renderGRPCMetadataEncode(md *MetadataData, targetVar string) string {
 		fmt.Fprintf(&b, "\t%s.Append(%q, %s...)\n", targetVar, md.Name, value)
 	case md.Slice:
 		fmt.Fprintf(&b, "\tfor _, value := range %s {\n", value)
-		b.WriteString(indent(renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, "valueStr", "value"), 2))
+		b.WriteString(indent(renderGRPCMetadataElement(md, "valueStr", "value"), 2))
 		fmt.Fprintf(&b, "\t\t%s.Append(%q, valueStr)\n", targetVar, md.Name)
 		b.WriteString("\t}\n")
 	default:
@@ -138,4 +138,11 @@ func renderMetadataSingleValue(md *MetadataData, value string) string {
 	default:
 		return renderJen(jen.Qual("fmt", "Sprintf").Call(jen.Lit("%v"), exprCode(pointerPrefix(md.Pointer)+value)))
 	}
+}
+
+func renderGRPCMetadataElement(md *MetadataData, varName, value string) string {
+	if md.elementCast != "" {
+		value = md.elementCast + "(" + value + ")"
+	}
+	return renderGRPCStringConversion(expr.AsArray(md.Type).ElemType.Type, varName, value)
 }

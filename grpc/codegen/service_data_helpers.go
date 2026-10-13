@@ -15,23 +15,14 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 	var metadata []*MetadataData
 	ctx := serviceTypeContext("", scope)
 	err := codegen.WalkMappedAttr(a, func(name, elem string, required bool, c *expr.AttributeExpr) error {
-		constraints, err := expr.EffectiveConstraintsFor(c)
+		representation, err := metadataStorage(c, required, scope)
 		if err != nil {
 			return err
 		}
-		defaultValue, hasDefault := constraints.Default()
-		var defaultLiteral string
-		if hasDefault && !required {
-			// Metadata decoders use the unaliased transport variable, then the
-			// existing constructor converts it to the service field type.
-			defaultLiteral, err = ctx.DefaultValue(unalias(c), defaultValue)
-			if err != nil {
-				return err
-			}
-		}
-		arr := expr.AsArray(c.Type)
-		mp := expr.AsMap(c.Type)
-		typeRef := scope.GoTypeRef(unalias(c))
+		physical := representation.attribute
+		arr := expr.AsArray(physical.Type)
+		mp := expr.AsMap(physical.Type)
+		typeRef := scope.GoTypeRef(physical)
 		ft := service.Type
 		varn := vars.Unique(scope.PeekUnique(codegen.Goify(name, false)))
 		var fieldName string
@@ -48,6 +39,7 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 			typeRef = "*" + typeRef
 		}
 		metadata = append(metadata, &MetadataData{
+			elementCast:   representation.elementCast,
 			Name:          elem,
 			AttributeName: name,
 			Description:   c.Description,
@@ -55,20 +47,20 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 			FieldType:     ft,
 			VarName:       varn,
 			Required:      required,
-			Type:          unalias(c).Type,
-			TypeName:      scope.GoTypeName(unalias(c)),
+			Type:          physical.Type,
+			TypeName:      scope.GoTypeName(physical),
 			TypeRef:       typeRef,
 			Pointer:       pointer,
 			Slice:         arr != nil,
-			StringSlice:   arr != nil && arr.ElemType.Type.Kind() == expr.StringKind,
+			StringSlice:   arr != nil && arr.ElemType.Type.Kind() == expr.StringKind && representation.elementCast == "",
 			Map:           mp != nil,
 			MapStringSlice: mp != nil &&
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
-			Validate:       codegen.AttributeValidationCode(c, nil, ctx, required, expr.IsAlias(c.Type), varn, name),
-			DefaultValue:   defaultValue,
-			DefaultLiteral: defaultLiteral,
+			Validate:       codegen.AttributeValidationCode(physical, nil, ctx, required, false, varn, name),
+			DefaultValue:   representation.defaultValue,
+			DefaultLiteral: representation.defaultLiteral,
 			Example:        c.Example(services.Root.API.ExampleGenerator),
 		})
 		return nil

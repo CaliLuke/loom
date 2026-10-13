@@ -458,6 +458,12 @@ element. An empty array emits no entries and cannot be distinguished from an
 absent key in this format. An entry containing `""` represents one empty string,
 not an empty array.
 
+Arrays of named primitive types use the same metadata representation as arrays
+of their underlying primitives. Service values retain their named types, including
+types placed in another generated package. Inherited element constraints and
+array defaults still apply. Regenerate client and server packages when adopting
+named metadata elements; no manual conversion to primitive slices is needed.
+
 #### Response Headers and Trailers
 
 ```go

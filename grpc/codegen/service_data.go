@@ -191,6 +191,8 @@ type (
 
 	// MetadataData describes a gRPC metadata field.
 	MetadataData struct {
+		// elementCast converts a nominal service element to its primitive codec input.
+		elementCast string
 		// Bearer identifies a JWT/OAuth Authorization credential requiring protocol extraction.
 		Bearer securitygen.BearerData
 		// Name is the name of the metadata key.
@@ -207,15 +209,15 @@ type (
 		// VarName is the name of the Go variable used to read or
 		// convert the metadata value.
 		VarName string
-		// TypeName is the name of the type.
+		// TypeName names the physical metadata variable type.
 		TypeName string
-		// TypeRef is the reference to the type.
+		// TypeRef references the physical metadata variable type.
 		TypeRef string
 		// Required is true if the metadata is required.
 		Required bool
 		// Pointer is true if and only the metadata variable is a pointer.
 		Pointer bool
-		// StringSlice is true if the metadata value type is array of strings.
+		// StringSlice reports string slices requiring no service element conversion.
 		StringSlice bool
 		// Slice is true if the metadata value type is an array.
 		Slice bool
