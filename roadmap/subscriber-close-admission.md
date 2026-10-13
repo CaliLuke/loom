@@ -39,3 +39,5 @@ The integrated subscriber admission race selection passes; its log is
 repeat and model results remain valid because production and test files are
 byte-identical to the approved source. The final integration diff requires
 review before commit.
+
+Delivered as `ebc06ec94`, independently reviewed, pushed to main and issue closed.

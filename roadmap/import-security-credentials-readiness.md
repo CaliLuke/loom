@@ -372,3 +372,5 @@ parent/candidate and model evidence remains valid for unchanged behavior.
 Evidence: `/tmp/loom-801-integrated-{tests,controls,partial-controls,lint}.log`
 and `/tmp/loom-801-integrated-comparison/{results,comparison}.json`. Integration
 review must authorize the exact final diff before commit.
+
+Delivered as `7b29289ae`, independently reviewed, pushed to main and issue closed.

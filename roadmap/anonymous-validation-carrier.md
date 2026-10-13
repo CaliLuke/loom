@@ -21,7 +21,7 @@ No DSL admission, default application, nullability or presence policy changes.
   list intended differences, retain rejection and absence/null tests.
 - [x] Independent exact-diff review; resolve findings; integrate, commit, push,
   close #803.
-- [ ] Clean task-owned temporary output after preserving reviewed receipts.
+- [x] Clean task-owned temporary output after preserving reviewed receipts.
 
 ## Evidence and limits
 

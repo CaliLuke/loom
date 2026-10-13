@@ -268,3 +268,5 @@ candidate runs generate only; identical output is not rebuilt for determinism.
 Comparison receipt: `/tmp/loom-693-integrated-comparison/report.json`. Only the
 previously identified source merges and four owning-guide additions need
 integration re-review; final delivery is pending that approval.
+
+Delivered as `39f9ce17c`, independently reviewed, pushed to main and issue closed.
