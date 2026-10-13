@@ -75,6 +75,16 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `clue/log` formatters use the standard JSON encoder for syntax. Keep ordered
+  fields and duplicate names through `jsonEntry`; do not convert entries to maps.
+  `jsontext.Float`/`Float32` own scalar nonfinite presentation. Complex codec
+  failures remain per-value diagnostic strings. Contain rejected array starts and
+  raw values using the standard encoder's unchanged-state error contract; do not
+  impose a separate nesting counter or abort siblings at its depth limit.
+  Text and terminal names/values
+  pass through the same presentation escaping boundary, including fmt fallbacks.
+  Keep direct control-character, invalid UTF-8, nonfinite, codec-error and
+  ordinary exact-output tests plus bounded formatter benchmarks aligned.
 - `clue/log.Context` owns logger configuration publication. Under the existing
   logger lock, detach options and their slice storage before applying updates;
   `With` may share the immutable snapshot. Preserve the logger's buffer identity

@@ -95,6 +95,25 @@ func (s *Service) CreateOrder(ctx context.Context, order *Order) error {
 }
 ```
 
+### Log output encoding
+
+`log.FormatJSON` preserves field order and repeated names. It escapes field names
+and string values as JSON, replacing invalid UTF-8 with U+FFFD. Scalar NaN and
+infinities become the strings `"NaN"`, `"Infinity"` and `"-Infinity"`, including
+inside `[]any`. Complex values that cannot be JSON encoded retain their field as
+an escaped `<invalid: ...>` diagnostic; surrounding fields are still emitted.
+This also contains values rejected by the encoder's nesting limit, including the
+outer log object: deeply nested `[]any` stops at the rejected child value.
+Duration and gRPC code values retain their existing string presentation.
+
+Text and terminal formatters escape field names and presented values, including
+strings produced from typed slices, maps and Stringers. Embedded newlines become
+escaped data rather than extra log lines. Values containing spaces or delimiters
+are quoted, including terminal values and complex text presentations that were
+previously unquoted. Terminal severity/key colors remain framework decoration.
+JSON finite floats use the standard encoder's number spelling; numeric values
+are unchanged, but exponent notation can differ from older output.
+
 ### OpenTelemetry Runtime
 
 Use `github.com/CaliLuke/loom/observability/otel` when a service wants
