@@ -41,6 +41,7 @@ case "$*" in
 	'env lean -DwarningAsError=true NegativeNumericClosedTie.lean'|\
 	'env lean -DwarningAsError=true NegativeNumericExtraction.lean'|\
 	'env lean -DwarningAsError=true NegativeNumericIntervalGuess.lean'|\
+	'env lean -DwarningAsError=true NegativeNumericValueAdmission.lean'|\
 	'env lean -DwarningAsError=true NegativeEnumOverride.lean')
 		if [ "${LOOM_PROOF_NEGATIVE_SUCCEEDS:-}" = "$4" ]; then exit 0; fi
 		if [ "$LOOM_PROOF_TEST_MODE" = negative-fails ] && [ "$4" = NegativeNearestPattern.lean ]; then
@@ -107,6 +108,7 @@ func TestValueContractProofGate(t *testing.T) {
 		{name: "numeric closed tie control succeeds", negativeSource: "NegativeNumericClosedTie.lean", want: "negative proof control unexpectedly succeeded: NegativeNumericClosedTie.lean"},
 		{name: "numeric extraction control succeeds", negativeSource: "NegativeNumericExtraction.lean", want: "negative proof control unexpectedly succeeded: NegativeNumericExtraction.lean"},
 		{name: "numeric interval control succeeds", negativeSource: "NegativeNumericIntervalGuess.lean", want: "negative proof control unexpectedly succeeded: NegativeNumericIntervalGuess.lean"},
+		{name: "numeric value admission control succeeds", negativeSource: "NegativeNumericValueAdmission.lean", want: "negative proof control unexpectedly succeeded: NegativeNumericValueAdmission.lean"},
 		{name: "enum override control succeeds", negativeSource: "NegativeEnumOverride.lean", want: "negative proof control unexpectedly succeeded: NegativeEnumOverride.lean"},
 		{name: "wrong toolchain", mode: "version", want: "expected Lean 4.34.1"},
 		{name: "axiom rejected", mode: "axiom", want: "forbidden transitive axiom"},
@@ -158,6 +160,7 @@ func TestValueContractProofGate(t *testing.T) {
 				"NegativeEnumOverride.lean",
 				"NegativeNumericExtraction.lean",
 				"NegativeNumericIntervalGuess.lean",
+				"NegativeNumericValueAdmission.lean",
 			} {
 				require.Contains(t, string(commands), "env lean -DwarningAsError=true "+source+"\n")
 			}
