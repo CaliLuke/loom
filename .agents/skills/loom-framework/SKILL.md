@@ -968,6 +968,17 @@ filter, and serialization rules belong here.
   stream contract model, typed-client fixture tests and ordinary transport
   controls aligned. Do not absorb gRPC cancellation or mixed-result accessor
   validation into method-set repairs.
+- `codegen/service.clientInterception` owns client endpoint role and callback
+  applicability before package declarations are allocated. Mixed primary and
+  secondary bindings retain ordinary and message operations respectively;
+  identical opening-only chains share declarations. Constructors, wrapper
+  rendering and CLI command data consume its recorded names through
+  `MethodData.ClientInterceptorWrapper`. Transport CLI analysis supplies its
+  actual endpoint role, never a second applicability rule. Accessor records and
+  canonical StreamData remain shared; do not duplicate them or add runtime cast
+  fallbacks. Keep the client dispatch model, ordered callback matrix, mounted
+  HTTP/RPC and CLI controls aligned. Shared server/client accessor coverage and
+  JSON-RPC server wrapper shapes remain separate owners.
 - `expr.MethodExpr.EffectiveStreamingResult` owns result-stream attribute
   identity, including ordinary/final-result fallback. Interceptor validation,
   field analysis and service stream analysis use it. Accessor references derive

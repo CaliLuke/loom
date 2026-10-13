@@ -58,15 +58,18 @@ func TestClientJenniferWrappedEndpointExpr(t *testing.T) {
 			ArgName:       "endpoint",
 			StreamArgName: "streamEndpoint",
 			MethodData: &MethodData{
-				VarName:                  "Method",
-				ClientInterceptorWrapper: "WrapMethodClientEndpoint",
+				VarName: "Method",
+				clientInterception: &clientInterception{
+					primary: &clientEndpointInterception{wrapper: "WrapMethodClientEndpoint"},
+					stream:  &clientEndpointInterception{wrapper: "WrapMethodStreamClientEndpoint"},
+				},
 				MethodSecurityData: MethodSecurityData{
 					ClientInterceptors: []string{"logging"},
 				},
 			},
 		}
 		rendered := renderJenniferExpr(t, wrappedClientEndpointExpr(method, true))
-		assert.Contains(t, rendered, "WrapMethodClientEndpoint(streamEndpoint, ci)")
+		assert.Contains(t, rendered, "WrapMethodStreamClientEndpoint(streamEndpoint, ci)")
 	})
 }
 
@@ -125,9 +128,12 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 				ArgName:       "method",
 				StreamArgName: "methodStream",
 				MethodData: &MethodData{
-					Name:                     "Method",
-					VarName:                  "Method",
-					ClientInterceptorWrapper: "WrapMethodClientEndpoint",
+					Name:    "Method",
+					VarName: "Method",
+					clientInterception: &clientInterception{
+						primary: &clientEndpointInterception{wrapper: "WrapMethodClientEndpoint"},
+						stream:  &clientEndpointInterception{wrapper: "WrapMethodStreamClientEndpoint"},
+					},
 					MethodSecurityData: MethodSecurityData{
 						ClientInterceptors: []string{"logging"},
 					},
@@ -142,7 +148,7 @@ func TestClientJenniferMethodSectionVariants(t *testing.T) {
 			}},
 		}
 		code := codegen.SectionCode(t, clientInitSection(data))
-		assert.Contains(t, code, "MethodStreamEndpoint: WrapMethodClientEndpoint(methodStream, ci)")
+		assert.Contains(t, code, "MethodStreamEndpoint: WrapMethodStreamClientEndpoint(methodStream, ci)")
 		testutil.AssertGo(t, "testdata/golden/client_init_mixed_interceptors.go.golden", code)
 	})
 

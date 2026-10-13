@@ -12,7 +12,8 @@ type (
 		name, endpoint, event                    string
 		serverInterface, clientInterface, input  string
 		serverAdapter, clientAdapter             string
-		serverWrapper, clientWrapper             string
+		serverWrapper                            string
+		clientInterception                       *clientInterception
 		serverWrappedStream, clientWrappedStream string
 		transport                                MethodTransportData
 		security                                 MethodSecurityData
@@ -20,7 +21,7 @@ type (
 	}
 
 	interceptorSymbols struct {
-		server, client                                     string
+		server                                             string
 		payload, result, streamingPayload, streamingResult string
 	}
 )
@@ -44,9 +45,10 @@ func (d *ServicesData) serviceSymbols(svc *expr.ServiceExpr, scope *codegen.Name
 	var secure, stream, websocket, event bool
 	for _, m := range svc.Methods {
 		n := &methodSymbols{
-			transport:    d.buildMethodTransportData(m),
-			security:     buildMethodSecurityData(m, nil, nil),
-			interceptors: make(map[string]*interceptorSymbols),
+			clientInterception: newClientInterception(m),
+			transport:          d.buildMethodTransportData(m),
+			security:           buildMethodSecurityData(m, nil, nil),
+			interceptors:       make(map[string]*interceptorSymbols),
 		}
 		methods[m.Name] = n
 		secure = secure || len(n.security.Schemes) > 0
@@ -119,7 +121,7 @@ func (n *methodSymbols) allocatePackageSymbols(m *expr.MethodExpr, scope, adapte
 		if server {
 			n.serverWrapper = scope.Unique("Wrap" + n.name + "Endpoint")
 		} else {
-			n.clientWrapper = scope.Unique("Wrap" + n.name + "ClientEndpoint")
+			n.clientInterception.allocateEndpoints(scope, n.name)
 		}
 		for _, in := range ints {
 			n.allocateInterceptor(in, scope, server)
@@ -151,7 +153,7 @@ func (n *methodSymbols) allocateInterceptor(in *expr.InterceptorExpr, scope *cod
 	if server {
 		s.server = scope.Unique("wrap" + n.name + name)
 	} else {
-		s.client = scope.Unique("wrapClient" + n.name + name)
+		n.clientInterception.allocateBindings(scope, n.name, name)
 	}
 	if s.streamingPayload == "" && s.streamingResult == "" {
 		return

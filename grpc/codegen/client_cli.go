@@ -52,7 +52,8 @@ func buildCommandData(sd *ServiceData) *cli.CommandData {
 	command := cli.BuildCommandData(sd.Service)
 	for _, e := range sd.Endpoints {
 		flags, buildFunction := buildFlags(e)
-		subcmd := cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags)
+		wrapper := e.Method.ClientInterceptorWrapper(e.Method.HasMixedResults && e.ClientStream != nil)
+		subcmd := cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags, wrapper)
 		if hasUnavailableMessageExample(e) {
 			subcmd.Example = ""
 		}

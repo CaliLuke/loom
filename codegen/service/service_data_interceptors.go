@@ -147,9 +147,9 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server 
 		}
 	}
 	names := md.symbols.interceptors[codegen.Goify(i.Name, true)]
-	wrapper := names.server
+	var bindings []*clientInterceptorBinding
 	if !server {
-		wrapper = names.client
+		bindings = md.clientInterception.bindings(codegen.Goify(i.Name, true))
 	}
 
 	var viewedResult *ViewedResultTypeData
@@ -158,7 +158,8 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server 
 	}
 	return &MethodInterceptorData{
 		MethodName:             md.VarName,
-		WrapperName:            wrapper,
+		WrapperName:            names.server,
+		clientBindings:         bindings,
 		PayloadAccess:          names.payload,
 		ResultAccess:           names.result,
 		PayloadRef:             md.PayloadRef,

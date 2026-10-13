@@ -1,0 +1,669 @@
+package dispatch_test
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	events "example.com/dispatch/gen/events"
+	hcli "example.com/dispatch/gen/http/cli/dispatch"
+	hc "example.com/dispatch/gen/http/events/client"
+	hs "example.com/dispatch/gen/http/events/server"
+	rcli "example.com/dispatch/gen/jsonrpc/cli/dispatch"
+	rc "example.com/dispatch/gen/jsonrpc/rpcevents/client"
+	rs "example.com/dispatch/gen/jsonrpc/rpcevents/server"
+	rpc "example.com/dispatch/gen/rpcevents"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	contextKey  struct{}
+	valueAccess interface {
+		Value() string
+		SetValue(string)
+	}
+	auditState struct {
+		t                 *testing.T
+		ctx               context.Context
+		opening, messages []string
+		short             loom.Endpoint
+	}
+)
+
+func (a *auditState) open(ctx context.Context, label string, req any, next loom.Endpoint, value valueAccess) (any, error) {
+	require.Equal(a.t, a.ctx.Value(contextKey{}), ctx.Value(contextKey{}))
+	a.opening = append(a.opening, label)
+	if value != nil {
+		value.SetValue(value.Value() + ":" + label)
+	}
+	if a.short != nil {
+		return a.short(ctx, req)
+	}
+	return next(ctx, req)
+}
+func (a *auditState) receive(ctx context.Context, label string, next loom.Endpoint, access func(any) valueAccess) (any, error) {
+	require.Equal(a.t, a.ctx.Value(contextKey{}), ctx.Value(contextKey{}))
+	a.messages = append(a.messages, label)
+	res, err := next(ctx, nil)
+	if err != nil {
+		return res, err
+	}
+	value := access(res)
+	value.SetValue(value.Value() + ":" + label)
+	return res, nil
+}
+
+type httpAudit struct {
+	*auditState
+}
+
+func (a httpAudit) Audit(ctx context.Context, i *events.AuditInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, loom.InterceptorStreamingRecv, i.CallType())
+	return a.receive(ctx, "audit", next, func(v any) valueAccess {
+		return i.ClientStreamingResult(v)
+	})
+}
+func (a httpAudit) Both(ctx context.Context, i *events.BothInfo, next loom.Endpoint) (any, error) {
+	if i.CallType() == loom.InterceptorUnary {
+		return a.open(ctx, "both", i.RawPayload(), next, i.Payload())
+	}
+	require.Equal(a.t, loom.InterceptorStreamingRecv, i.CallType())
+	return a.receive(ctx, "both", next, func(v any) valueAccess {
+		return i.ClientStreamingResult(v)
+	})
+}
+func (a httpAudit) Payload(ctx context.Context, i *events.PayloadInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, loom.InterceptorUnary, i.CallType())
+	return a.open(ctx, "payload", i.RawPayload(), next, i.Payload())
+}
+func (a httpAudit) Generic(ctx context.Context, i *events.GenericInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, loom.InterceptorUnary, i.CallType())
+	return a.open(ctx, "generic", i.RawPayload(), next, nil)
+}
+
+type httpStream struct {
+	ctx           context.Context
+	seen          context.Context
+	count, closed int
+	failure       error
+}
+
+func (s *httpStream) Recv() (*events.Chunk, error) {
+	return s.RecvWithContext(s.ctx)
+}
+func (s *httpStream) RecvWithContext(ctx context.Context) (*events.Chunk, error) {
+	s.seen = ctx
+	if s.failure != nil {
+		return nil, s.failure
+	}
+	if s.count > 0 {
+		return nil, io.EOF
+	}
+	s.count++
+	return &events.Chunk{Value: "wire"}, nil
+}
+func (s *httpStream) Close() error {
+	s.closed++
+	return nil
+}
+func httpClient(unary, stream loom.Endpoint, audit events.ClientInterceptors) *events.Client {
+	return events.NewClient(unary, stream, unary, stream, unary, stream, unary, stream, unary, stream, unary, stream, audit)
+}
+func TestHTTPProfiles(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		for _, profile := range []struct {
+			name            string
+			opens, messages []string
+			payload, result string
+		}{
+			{"StreamOnly", nil, []string{"audit"}, "request", "wire:audit"},
+			{"Combined", []string{"both"}, []string{"both"}, "request:both", "wire:both"},
+			{"PayloadOnly", []string{"payload"}, nil, "request:payload", "wire"},
+			{"Generic", []string{"generic"}, nil, "request", "wire"},
+			{"Ordered", []string{"payload", "generic", "both"}, []string{"both", "audit"}, "request:payload:both", "wire:audit:both"},
+			{"Plain", nil, nil, "request", "wire"},
+		} {
+			t.Run(profile.name+map[bool]string{false: "/nil", true: "/intercepted"}[enabled], func(t *testing.T) {
+				ctx := context.WithValue(context.Background(), contextKey{}, "opening")
+				state := &auditState{t: t, ctx: ctx}
+				var audit events.ClientInterceptors
+				if enabled {
+					audit = httpAudit{state}
+				}
+				calls := 0
+				seen := ""
+				unary := loom.Endpoint(func(ctx context.Context, req any) (any, error) {
+					calls++
+					seen = req.(*events.Request).Value
+					return &events.Summary{Value: "ordinary"}, nil
+				})
+				stub := &httpStream{ctx: ctx}
+				opening := loom.Endpoint(func(ctx context.Context, req any) (any, error) {
+					calls++
+					seen = req.(*events.Request).Value
+					return stub, nil
+				})
+				client := httpClient(unary, opening, audit)
+				unaryCalls := map[string]func(context.Context, *events.Request) (*events.Summary, error){"StreamOnly": client.StreamOnly, "Combined": client.Combined, "PayloadOnly": client.PayloadOnly, "Generic": client.Generic, "Ordered": client.Ordered, "Plain": client.Plain}
+				var value *events.Summary
+				var err error
+				require.NotPanics(t, func() {
+					value, err = unaryCalls[profile.name](ctx, &events.Request{Value: "request"})
+				})
+				require.NoError(t, err)
+				require.Equal(t, "ordinary", value.Value)
+				require.Equal(t, 1, calls)
+				expectedOpening := profile.opens
+				expectedMessages := profile.messages
+				expectedPayload, expectedResult := profile.payload, profile.result
+				if !enabled {
+					expectedOpening, expectedMessages = nil, nil
+					expectedPayload, expectedResult = "request", "wire"
+				}
+				require.Equal(t, expectedOpening, state.opening)
+				require.Empty(t, state.messages)
+				require.Equal(t, expectedPayload, seen)
+				state.opening = nil
+				type streamContract interface {
+					Recv() (*events.Chunk, error)
+					RecvWithContext(context.Context) (*events.Chunk, error)
+					Close() error
+				}
+				streamCalls := map[string]func(context.Context, *events.Request) (streamContract, error){"StreamOnly": func(ctx context.Context, p *events.Request) (streamContract, error) {
+					return client.StreamOnlyStream(ctx, p)
+				}, "Combined": func(ctx context.Context, p *events.Request) (streamContract, error) {
+					return client.CombinedStream(ctx, p)
+				}, "PayloadOnly": func(ctx context.Context, p *events.Request) (streamContract, error) {
+					return client.PayloadOnlyStream(ctx, p)
+				}, "Generic": func(ctx context.Context, p *events.Request) (streamContract, error) {
+					return client.GenericStream(ctx, p)
+				}, "Ordered": func(ctx context.Context, p *events.Request) (streamContract, error) {
+					return client.OrderedStream(ctx, p)
+				}, "Plain": func(ctx context.Context, p *events.Request) (streamContract, error) {
+					return client.PlainStream(ctx, p)
+				}}
+				stream, err := streamCalls[profile.name](ctx, &events.Request{Value: "request"})
+				require.NoError(t, err)
+				require.Equal(t, 2, calls)
+				require.Equal(t, expectedOpening, state.opening)
+				require.Empty(t, state.messages)
+				require.Equal(t, expectedPayload, seen)
+				chunk, err := stream.Recv()
+				require.NoError(t, err)
+				require.Equal(t, expectedResult, chunk.Value)
+				require.Same(t, ctx, stub.seen)
+				require.Equal(t, expectedMessages, state.messages)
+				state.messages = nil
+				other := context.WithValue(ctx, contextKey{}, "operation")
+				state.ctx = other
+				stub.count = 0
+				chunk, err = stream.RecvWithContext(other)
+				require.NoError(t, err)
+				require.Equal(t, expectedResult, chunk.Value)
+				require.Same(t, other, stub.seen)
+				sentinel := errors.New("receive")
+				stub.failure = sentinel
+				_, err = stream.RecvWithContext(other)
+				require.ErrorIs(t, err, sentinel)
+				stub.failure = nil
+				_, err = stream.RecvWithContext(other)
+				require.ErrorIs(t, err, io.EOF)
+				callbacks := len(state.messages)
+				require.NoError(t, stream.Close())
+				require.Len(t, state.messages, callbacks, "cleanup is not a message callback")
+				require.Equal(t, 1, stub.closed)
+			})
+		}
+	}
+}
+func TestHTTPOpenFailureAndShortCircuit(t *testing.T) {
+	ctx := context.WithValue(context.Background(), contextKey{}, "opening")
+	for _, fail := range []bool{false, true} {
+		for _, short := range []bool{false, true} {
+			state := &auditState{t: t, ctx: ctx}
+			sentinel := errors.New("opening")
+			calls := 0
+			endpoint := loom.Endpoint(func(context.Context, any) (any, error) {
+				calls++
+				return nil, errors.New("unexpected endpoint call")
+			})
+			for _, streamRole := range []bool{false, true} {
+				state.opening = nil
+				target := loom.Endpoint(func(context.Context, any) (any, error) {
+					if fail {
+						return nil, sentinel
+					}
+					if streamRole {
+						return &httpStream{ctx: ctx}, nil
+					}
+					return &events.Summary{Value: "short"}, nil
+				})
+				actual := target
+				if short {
+					state.short = target
+					actual = endpoint
+				}
+				client := httpClient(actual, actual, httpAudit{state})
+				if streamRole {
+					stream, err := client.CombinedStream(ctx, &events.Request{Value: "request"})
+					if fail {
+						require.ErrorIs(t, err, sentinel)
+					} else {
+						require.NoError(t, err)
+						require.NoError(t, stream.Close())
+					}
+				} else {
+					value, err := client.Combined(ctx, &events.Request{Value: "request"})
+					if fail {
+						require.ErrorIs(t, err, sentinel)
+					} else {
+						require.NoError(t, err)
+						require.Equal(t, "short", value.Value)
+					}
+				}
+				require.Equal(t, []string{"both"}, state.opening)
+				require.Empty(t, state.messages)
+			}
+			require.Zero(t, calls)
+		}
+	}
+}
+
+type httpService struct{}
+
+func (httpService) StreamOnly(ctx context.Context, p *events.Request, s events.StreamOnlyServerStream) (*events.Summary, error) {
+	if s == nil {
+		return &events.Summary{Value: p.Value}, nil
+	}
+	if err := s.SendWithContext(ctx, &events.Chunk{Value: "wire"}); err != nil {
+		return nil, err
+	}
+	return &events.Summary{Value: p.Value}, s.Close()
+}
+func (httpService) Combined(ctx context.Context, p *events.Request, s events.CombinedServerStream) (*events.Summary, error) {
+	if s == nil {
+		return &events.Summary{Value: p.Value}, nil
+	}
+	if err := s.SendWithContext(ctx, &events.Chunk{Value: "wire"}); err != nil {
+		return nil, err
+	}
+	return &events.Summary{Value: p.Value}, s.Close()
+}
+func (httpService) PayloadOnly(ctx context.Context, p *events.Request, s events.PayloadOnlyServerStream) (*events.Summary, error) {
+	if s == nil {
+		return &events.Summary{Value: p.Value}, nil
+	}
+	if err := s.SendWithContext(ctx, &events.Chunk{Value: "wire"}); err != nil {
+		return nil, err
+	}
+	return &events.Summary{Value: p.Value}, s.Close()
+}
+func (httpService) Generic(ctx context.Context, p *events.Request, s events.GenericServerStream) (*events.Summary, error) {
+	if s == nil {
+		return &events.Summary{Value: p.Value}, nil
+	}
+	if err := s.SendWithContext(ctx, &events.Chunk{Value: "wire"}); err != nil {
+		return nil, err
+	}
+	return &events.Summary{Value: p.Value}, s.Close()
+}
+func (httpService) Ordered(ctx context.Context, p *events.Request, s events.OrderedServerStream) (*events.Summary, error) {
+	if s == nil {
+		return &events.Summary{Value: p.Value}, nil
+	}
+	if err := s.SendWithContext(ctx, &events.Chunk{Value: "wire"}); err != nil {
+		return nil, err
+	}
+	return &events.Summary{Value: p.Value}, s.Close()
+}
+func (httpService) Plain(ctx context.Context, p *events.Request, s events.PlainServerStream) (*events.Summary, error) {
+	if s == nil {
+		return &events.Summary{Value: p.Value}, nil
+	}
+	if err := s.SendWithContext(ctx, &events.Chunk{Value: "wire"}); err != nil {
+		return nil, err
+	}
+	return &events.Summary{Value: p.Value}, s.Close()
+}
+
+func TestHTTPMountedAndCLI(t *testing.T) {
+	mux := loomhttp.NewMuxer()
+	hs.Mount(mux, hs.New(events.NewEndpoints(httpService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	transport := hc.NewClient("http", host, srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	ctx, cancel := context.WithTimeout(context.WithValue(context.Background(), contextKey{}, "mounted"), 3*time.Second)
+	defer cancel()
+	state := &auditState{t: t, ctx: ctx}
+	audit := httpAudit{state}
+	client := httpClient(transport.Combined(), transport.CombinedStream(), audit)
+	value, err := client.Combined(ctx, &events.Request{Value: "request"})
+	require.NoError(t, err)
+	require.Equal(t, "request:both", value.Value)
+	stream, err := client.CombinedStream(ctx, &events.Request{ID: new("one"), Value: "request"})
+	require.NoError(t, err)
+	chunk, err := stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, "wire:both", chunk.Value)
+	_, err = stream.Recv()
+	require.ErrorIs(t, err, io.EOF)
+	require.NoError(t, stream.Close())
+	early, err := client.CombinedStream(ctx, &events.Request{ID: new("early"), Value: "request"})
+	require.NoError(t, err)
+	require.NoError(t, early.Close())
+	original := os.Args
+	t.Cleanup(func() {
+		os.Args = original
+	})
+	for _, method := range []string{"stream-only", "combined"} {
+		state.opening, state.messages = nil, nil
+		os.Args = []string{"dispatch", "events", method, "--body", `{"id":"cli","value":"request"}`}
+		endpoint, payload, err := hcli.ParseEndpoint("http", host, srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, audit)
+		require.NoError(t, err)
+		result, err := endpoint(ctx, payload)
+		require.NoError(t, err)
+		value := result.(*events.Summary)
+		expected := "request"
+		if method == "combined" {
+			expected += ":both"
+		}
+		require.Equal(t, expected, value.Value)
+		require.Empty(t, state.messages)
+	}
+}
+
+type rpcAudit struct {
+	*auditState
+}
+
+func (a rpcAudit) Audit(ctx context.Context, i *rpc.AuditInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, loom.InterceptorStreamingRecv, i.CallType())
+	return a.receive(ctx, "audit", next, func(v any) valueAccess {
+		return i.ClientStreamingResult(v)
+	})
+}
+func (a rpcAudit) Both(ctx context.Context, i *rpc.BothInfo, next loom.Endpoint) (any, error) {
+	if i.CallType() == loom.InterceptorUnary {
+		return a.open(ctx, "both", i.RawPayload(), next, i.Payload())
+	}
+	require.Equal(a.t, loom.InterceptorStreamingRecv, i.CallType())
+	return a.receive(ctx, "both", next, func(v any) valueAccess {
+		return i.ClientStreamingResult(v)
+	})
+}
+func (a rpcAudit) Payload(ctx context.Context, i *rpc.PayloadInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, loom.InterceptorUnary, i.CallType())
+	return a.open(ctx, "payload", i.RawPayload(), next, i.Payload())
+}
+func (a rpcAudit) Generic(ctx context.Context, i *rpc.GenericInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, loom.InterceptorUnary, i.CallType())
+	return a.open(ctx, "generic", i.RawPayload(), next, nil)
+}
+
+type rpcStream struct {
+	ctx           context.Context
+	seen          context.Context
+	count, closed int
+	failure       error
+}
+
+func (s *rpcStream) Recv() (*rpc.Chunk, error) {
+	return s.RecvWithContext(s.ctx)
+}
+func (s *rpcStream) RecvWithContext(ctx context.Context) (*rpc.Chunk, error) {
+	s.seen = ctx
+	if s.failure != nil {
+		return nil, s.failure
+	}
+	if s.count > 0 {
+		return nil, io.EOF
+	}
+	s.count++
+	return &rpc.Chunk{Value: "wire"}, nil
+}
+func (s *rpcStream) Close() error {
+	s.closed++
+	return nil
+}
+func rpcClient(unary, stream loom.Endpoint, audit rpc.ClientInterceptors) *rpc.Client {
+	return rpc.NewClient(unary, stream, unary, stream, unary, stream, unary, stream, unary, stream, unary, stream, audit)
+}
+func TestRPCProfiles(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		for _, profile := range []struct {
+			name            string
+			opens, messages []string
+			payload, result string
+		}{
+			{"StreamOnly", nil, []string{"audit"}, "request", "wire:audit"},
+			{"Combined", []string{"both"}, []string{"both"}, "request:both", "wire:both"},
+			{"PayloadOnly", []string{"payload"}, nil, "request:payload", "wire"},
+			{"Generic", []string{"generic"}, nil, "request", "wire"},
+			{"Ordered", []string{"payload", "generic", "both"}, []string{"both", "audit"}, "request:payload:both", "wire:audit:both"},
+			{"Plain", nil, nil, "request", "wire"},
+		} {
+			t.Run(profile.name+map[bool]string{false: "/nil", true: "/intercepted"}[enabled], func(t *testing.T) {
+				ctx := context.WithValue(context.Background(), contextKey{}, "opening")
+				state := &auditState{t: t, ctx: ctx}
+				var audit rpc.ClientInterceptors
+				if enabled {
+					audit = rpcAudit{state}
+				}
+				calls := 0
+				seen := ""
+				unary := loom.Endpoint(func(ctx context.Context, req any) (any, error) {
+					calls++
+					seen = req.(*rpc.Request).Value
+					return &rpc.Summary{Value: "ordinary"}, nil
+				})
+				stub := &rpcStream{ctx: ctx}
+				opening := loom.Endpoint(func(ctx context.Context, req any) (any, error) {
+					calls++
+					seen = req.(*rpc.Request).Value
+					return stub, nil
+				})
+				client := rpcClient(unary, opening, audit)
+				unaryCalls := map[string]func(context.Context, *rpc.Request) (*rpc.Summary, error){"StreamOnly": client.StreamOnly, "Combined": client.Combined, "PayloadOnly": client.PayloadOnly, "Generic": client.Generic, "Ordered": client.Ordered, "Plain": client.Plain}
+				var value *rpc.Summary
+				var err error
+				require.NotPanics(t, func() {
+					value, err = unaryCalls[profile.name](ctx, &rpc.Request{Value: "request"})
+				})
+				require.NoError(t, err)
+				require.Equal(t, "ordinary", value.Value)
+				require.Equal(t, 1, calls)
+				expectedOpening := profile.opens
+				expectedMessages := profile.messages
+				expectedPayload, expectedResult := profile.payload, profile.result
+				if !enabled {
+					expectedOpening, expectedMessages = nil, nil
+					expectedPayload, expectedResult = "request", "wire"
+				}
+				require.Equal(t, expectedOpening, state.opening)
+				require.Empty(t, state.messages)
+				require.Equal(t, expectedPayload, seen)
+				state.opening = nil
+				type streamContract interface {
+					Recv() (*rpc.Chunk, error)
+					RecvWithContext(context.Context) (*rpc.Chunk, error)
+					Close() error
+				}
+				streamCalls := map[string]func(context.Context, *rpc.Request) (streamContract, error){"StreamOnly": func(ctx context.Context, p *rpc.Request) (streamContract, error) {
+					return client.StreamOnlyStream(ctx, p)
+				}, "Combined": func(ctx context.Context, p *rpc.Request) (streamContract, error) {
+					return client.CombinedStream(ctx, p)
+				}, "PayloadOnly": func(ctx context.Context, p *rpc.Request) (streamContract, error) {
+					return client.PayloadOnlyStream(ctx, p)
+				}, "Generic": func(ctx context.Context, p *rpc.Request) (streamContract, error) {
+					return client.GenericStream(ctx, p)
+				}, "Ordered": func(ctx context.Context, p *rpc.Request) (streamContract, error) {
+					return client.OrderedStream(ctx, p)
+				}, "Plain": func(ctx context.Context, p *rpc.Request) (streamContract, error) {
+					return client.PlainStream(ctx, p)
+				}}
+				stream, err := streamCalls[profile.name](ctx, &rpc.Request{Value: "request"})
+				require.NoError(t, err)
+				require.Equal(t, 2, calls)
+				require.Equal(t, expectedOpening, state.opening)
+				require.Empty(t, state.messages)
+				require.Equal(t, expectedPayload, seen)
+				chunk, err := stream.Recv()
+				require.NoError(t, err)
+				require.Equal(t, expectedResult, chunk.Value)
+				require.Same(t, ctx, stub.seen)
+				require.Equal(t, expectedMessages, state.messages)
+				state.messages = nil
+				other := context.WithValue(ctx, contextKey{}, "operation")
+				state.ctx = other
+				stub.count = 0
+				chunk, err = stream.RecvWithContext(other)
+				require.NoError(t, err)
+				require.Equal(t, expectedResult, chunk.Value)
+				require.Same(t, other, stub.seen)
+				sentinel := errors.New("receive")
+				stub.failure = sentinel
+				_, err = stream.RecvWithContext(other)
+				require.ErrorIs(t, err, sentinel)
+				stub.failure = nil
+				_, err = stream.RecvWithContext(other)
+				require.ErrorIs(t, err, io.EOF)
+				callbacks := len(state.messages)
+				require.NoError(t, stream.Close())
+				require.Len(t, state.messages, callbacks, "cleanup is not a message callback")
+				require.Equal(t, 1, stub.closed)
+			})
+		}
+	}
+}
+func TestRPCOpenFailureAndShortCircuit(t *testing.T) {
+	ctx := context.WithValue(context.Background(), contextKey{}, "opening")
+	for _, fail := range []bool{false, true} {
+		for _, short := range []bool{false, true} {
+			state := &auditState{t: t, ctx: ctx}
+			sentinel := errors.New("opening")
+			calls := 0
+			endpoint := loom.Endpoint(func(context.Context, any) (any, error) {
+				calls++
+				return nil, errors.New("unexpected endpoint call")
+			})
+			for _, streamRole := range []bool{false, true} {
+				state.opening = nil
+				target := loom.Endpoint(func(context.Context, any) (any, error) {
+					if fail {
+						return nil, sentinel
+					}
+					if streamRole {
+						return &rpcStream{ctx: ctx}, nil
+					}
+					return &rpc.Summary{Value: "short"}, nil
+				})
+				actual := target
+				if short {
+					state.short = target
+					actual = endpoint
+				}
+				client := rpcClient(actual, actual, rpcAudit{state})
+				if streamRole {
+					stream, err := client.CombinedStream(ctx, &rpc.Request{Value: "request"})
+					if fail {
+						require.ErrorIs(t, err, sentinel)
+					} else {
+						require.NoError(t, err)
+						require.NoError(t, stream.Close())
+					}
+				} else {
+					value, err := client.Combined(ctx, &rpc.Request{Value: "request"})
+					if fail {
+						require.ErrorIs(t, err, sentinel)
+					} else {
+						require.NoError(t, err)
+						require.Equal(t, "short", value.Value)
+					}
+				}
+				require.Equal(t, []string{"both"}, state.opening)
+				require.Empty(t, state.messages)
+			}
+			require.Zero(t, calls)
+		}
+	}
+}
+
+type rpcService struct{}
+
+func (rpcService) StreamOnly(ctx context.Context, p *rpc.Request, s rpc.StreamOnlyServerStream) (*rpc.Summary, error) {
+	return nil, s.SendAndClose(ctx, &rpc.Chunk{Value: "wire"})
+}
+func (rpcService) Combined(ctx context.Context, p *rpc.Request, s rpc.CombinedServerStream) (*rpc.Summary, error) {
+	return nil, s.SendAndClose(ctx, &rpc.Chunk{Value: "wire"})
+}
+func (rpcService) PayloadOnly(ctx context.Context, p *rpc.Request, s rpc.PayloadOnlyServerStream) (*rpc.Summary, error) {
+	return nil, s.SendAndClose(ctx, &rpc.Chunk{Value: "wire"})
+}
+func (rpcService) Generic(ctx context.Context, p *rpc.Request, s rpc.GenericServerStream) (*rpc.Summary, error) {
+	return nil, s.SendAndClose(ctx, &rpc.Chunk{Value: "wire"})
+}
+func (rpcService) Ordered(ctx context.Context, p *rpc.Request, s rpc.OrderedServerStream) (*rpc.Summary, error) {
+	return nil, s.SendAndClose(ctx, &rpc.Chunk{Value: "wire"})
+}
+func (rpcService) Plain(ctx context.Context, p *rpc.Request, s rpc.PlainServerStream) (*rpc.Summary, error) {
+	return nil, s.SendAndClose(ctx, &rpc.Chunk{Value: "wire"})
+}
+
+func TestRPCMountedAndCLI(t *testing.T) {
+	mux := loomhttp.NewMuxer()
+	rs.Mount(mux, rs.New(rpc.NewEndpoints(rpcService{}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	transport := rc.NewClient("http", host, srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	ctx, cancel := context.WithTimeout(context.WithValue(context.Background(), contextKey{}, "mounted"), 3*time.Second)
+	defer cancel()
+	state := &auditState{t: t, ctx: ctx}
+	audit := rpcAudit{state}
+	client := rpcClient(transport.Combined(), transport.Combined(), audit)
+
+	stream, err := client.CombinedStream(ctx, &rpc.Request{ID: new("one"), Value: "request"})
+	require.NoError(t, err)
+	chunk, err := stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, "wire:both", chunk.Value)
+	_, err = stream.Recv()
+	require.ErrorIs(t, err, io.EOF)
+	require.NoError(t, stream.Close())
+	early, err := client.CombinedStream(ctx, &rpc.Request{ID: new("early"), Value: "request"})
+	require.NoError(t, err)
+	require.NoError(t, early.Close())
+	original := os.Args
+	t.Cleanup(func() {
+		os.Args = original
+	})
+	for _, method := range []string{"stream-only", "combined"} {
+		state.opening, state.messages = nil, nil
+		os.Args = []string{"dispatch", "rpcevents", method, "--body", `{"id":"cli","value":"request"}`}
+		endpoint, payload, err := rcli.ParseEndpoint("http", host, srv.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, audit)
+		require.NoError(t, err)
+		result, err := endpoint(ctx, payload)
+		require.NoError(t, err)
+		stream := result.(interface {
+			Recv() (*rpc.Chunk, error)
+			Close() error
+		})
+		value, err := stream.Recv()
+		require.NoError(t, err)
+		expected := "wire:audit"
+		if method == "combined" {
+			expected = "wire:both"
+		}
+		require.Equal(t, expected, value.Value)
+		require.NoError(t, stream.Close())
+	}
+}

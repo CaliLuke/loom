@@ -174,6 +174,19 @@ Regenerate services and clients, and update interceptor implementations if they
 previously relied on a field type from the unary result. Ordinary result access
 remains unavailable on a result-streaming method.
 
+A mixed method's ordinary client call retains its `Result`; its stream call
+returns the `StreamingResult` stream. Stream-only interceptors run on stream
+operations and do not wrap the ordinary result. An interceptor that also accesses
+payload fields still runs once around the ordinary endpoint and once around the
+stream-opening endpoint, then on each declared stream operation. Interceptors
+without message access retain their ordinary callback, including interceptors
+without access declarations. Filtering preserves the existing wrapper order.
+
+Regenerate client code to adopt these endpoint-specific chains. Generated HTTP
+commands select the ordinary mixed endpoint; JSON-RPC SSE commands select the
+stream endpoint. Interceptor short circuits must return the selected endpoint's
+successful result type or an error. Cleanup still delegates `Close` directly.
+
 `ReadResult` and `WriteResult` apply to ordinary endpoint results. HTTP and
 gRPC designs that used them with a streaming payload are now rejected with a migration
 message: the server endpoint returns no result after `SendAndClose`, so those

@@ -28,13 +28,13 @@ func interceptorTypesSection(interceptors []*InterceptorData) codegen.Section {
 	})
 }
 
-func endpointWrapperSection(server bool, method *MethodData, interceptors []string) codegen.Section {
+func endpointWrapperSection(server bool, method *MethodData, wrapper string, interceptors []string) codegen.Section {
 	name := "client-wrapper"
 	if server {
 		name = "endpoint-wrapper"
 	}
 	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
-		addEndpointWrapperSection(stmt, server, method, interceptors)
+		addEndpointWrapperSection(stmt, server, method, wrapper, interceptors)
 	})
 }
 
@@ -206,12 +206,10 @@ func interfaceAccessTarget(suffix string) string {
 	}
 }
 
-func addEndpointWrapperSection(stmt *jen.Statement, server bool, method *MethodData, interceptors []string) {
-	wrapName := method.ServerInterceptorWrapper
+func addEndpointWrapperSection(stmt *jen.Statement, server bool, method *MethodData, wrapName string, interceptors []string) {
 	commentTarget := "server-side"
 	interfaceName := serverInterceptorsSymbol
 	if !server {
-		wrapName = method.ClientInterceptorWrapper
 		commentTarget = "client"
 		interfaceName = clientInterceptorsSymbol
 	}
@@ -225,11 +223,7 @@ func addEndpointWrapperSection(stmt *jen.Statement, server bool, method *MethodD
 		Add(codegen.TypeRef("loom.Endpoint")).
 		BlockFunc(func(group *jen.Group) {
 			group.If(jen.Id("i").Op("!=").Nil()).BlockFunc(func(block *jen.Group) {
-				for _, interceptor := range interceptors {
-					name := method.symbols.interceptors[interceptor].server
-					if !server {
-						name = method.symbols.interceptors[interceptor].client
-					}
+				for _, name := range interceptors {
 					block.Id("endpoint").Op("=").Id(name).Call(jen.Id("endpoint"), jen.Id("i"))
 				}
 			})
@@ -456,43 +450,37 @@ func addClientInterceptorWrappersSection(stmt *jen.Statement, service string, in
 func addInterceptorWrappersSection(stmt *jen.Statement, service string, interceptors []*InterceptorData, client bool) {
 	for _, interceptor := range interceptors {
 		for _, method := range interceptor.Methods {
-			name, iface, doc, body := interceptorWrapperMeta(service, interceptor, method, client)
-			stmt.Line()
-			stmt.Line()
-			codegen.Doc(stmt, doc)
-			stmt.Func().
-				Id(name).
-				Params(
-					jen.Id("endpoint").Add(codegen.TypeRef("loom.Endpoint")),
-					jen.Id("i").Id(iface),
-				).
-				Add(codegen.TypeRef("loom.Endpoint")).
-				BlockFunc(func(group *jen.Group) {
-					group.Return(
-						jen.Func().
-							Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("req").Any()).
-							Params(jen.Any(), jen.Error()).
-							BlockFunc(func(inner *jen.Group) {
-								addRawGroup(inner, body)
-							}),
-					)
-				})
+			if client {
+				for _, binding := range method.clientBindings {
+					doc := fmt.Sprintf("%s applies the %s client interceptor to endpoints.", binding.wrapper, interceptor.DesignName)
+					body := renderClientInterceptorWrapperBody(service, interceptor, method, binding)
+					addInterceptorWrapper(stmt, binding.wrapper, clientInterceptorsSymbol, doc, body)
+				}
+				continue
+			}
+			doc := fmt.Sprintf("%s applies the %s server interceptor to endpoints.", method.WrapperName, interceptor.DesignName)
+			body := renderServerInterceptorWrapperBody(service, interceptor, method)
+			addInterceptorWrapper(stmt, method.WrapperName, serverInterceptorsSymbol, doc, body)
 		}
 	}
 	stmt.Line()
 }
 
-func interceptorWrapperMeta(service string, interceptor *InterceptorData, method *MethodInterceptorData, client bool) (string, string, string, string) {
-	if client {
-		return method.WrapperName,
-			clientInterceptorsSymbol,
-			fmt.Sprintf("%s applies the %s client interceptor to endpoints.", method.WrapperName, interceptor.DesignName),
-			renderClientInterceptorWrapperBody(service, interceptor, method)
-	}
-	return method.WrapperName,
-		serverInterceptorsSymbol,
-		fmt.Sprintf("%s applies the %s server interceptor to endpoints.", method.WrapperName, interceptor.DesignName),
-		renderServerInterceptorWrapperBody(service, interceptor, method)
+func addInterceptorWrapper(stmt *jen.Statement, name, iface, doc, body string) {
+	stmt.Line()
+	stmt.Line()
+	codegen.Doc(stmt, doc)
+	stmt.Func().Id(name).
+		Params(jen.Id("endpoint").Add(codegen.TypeRef("loom.Endpoint")), jen.Id("i").Id(iface)).
+		Add(codegen.TypeRef("loom.Endpoint")).
+		BlockFunc(func(group *jen.Group) {
+			group.Return(jen.Func().
+				Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("req").Any()).
+				Params(jen.Any(), jen.Error()).
+				BlockFunc(func(inner *jen.Group) {
+					addRawGroup(inner, body)
+				}))
+		})
 }
 
 func renderServerInterceptorWrapperBody(service string, interceptor *InterceptorData, method *MethodInterceptorData) string {
@@ -530,10 +518,10 @@ func renderServerInterceptorWrapperBody(service string, interceptor *Interceptor
 	return b.String()
 }
 
-func renderClientInterceptorWrapperBody(service string, interceptor *InterceptorData, method *MethodInterceptorData) string {
+func renderClientInterceptorWrapperBody(service string, interceptor *InterceptorData, method *MethodInterceptorData, binding *clientInterceptorBinding) string {
 	var b strings.Builder
-	if interceptor.HasStreamingPayloadAccess || interceptor.HasStreamingResultAccess {
-		if interceptor.HasPayloadAccess {
+	if binding.messages {
+		if binding.opening {
 			fmt.Fprintf(&b, "info := &%sInfo{\n\tservice:    %q,\n\tmethod:     %q,\n\tcallType:   loom.InterceptorUnary,\n\trawPayload: req,\n}\n", interceptor.Name, service, method.MethodName)
 			fmt.Fprintf(&b, "res, err := i.%s(ctx, info, endpoint)\n", interceptor.Name)
 		} else {

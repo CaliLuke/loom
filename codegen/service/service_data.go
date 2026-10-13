@@ -112,8 +112,7 @@ type (
 		EventName string
 		// ServerInterceptorWrapper names the server endpoint wrapper.
 		ServerInterceptorWrapper string
-		// ClientInterceptorWrapper names the client endpoint wrapper.
-		ClientInterceptorWrapper string
+		clientInterception       *clientInterception
 		symbols                  *methodSymbols
 		// Payload contains the payload type metadata.
 		MethodPayloadData
@@ -419,8 +418,9 @@ type (
 	// MethodInterceptorData contains the data required to render the
 	// method-level interceptor code.
 	MethodInterceptorData struct {
-		// WrapperName names this method/interceptor package wrapper function.
-		WrapperName string
+		// WrapperName names this method/interceptor server wrapper function.
+		WrapperName    string
+		clientBindings []*clientInterceptorBinding
 		// MethodName is the name of the method.
 		MethodName string
 		// PayloadAccess is the name of the payload access struct.

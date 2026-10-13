@@ -78,7 +78,7 @@ func ClientCLIFilesForTransport(
 	for _, svc := range data.Expressions.Services {
 		sd := data.Get(svc.Name())
 		if len(sd.Endpoints) > 0 {
-			cmds = append(cmds, buildCommandData(sd))
+			cmds = append(cmds, buildCommandData(sd, transport))
 			svcs = append(svcs, svc)
 		}
 	}
@@ -135,13 +135,13 @@ func normalizeClientCLITransport(transport ClientCLITransport) ClientCLITranspor
 
 // buildCommandData returns the CLI command of the service sd, which has
 // endpoints.
-func buildCommandData(sd *ServiceData) *commandData {
+func buildCommandData(sd *ServiceData, transport ClientCLITransport) *commandData {
 	command := &commandData{
 		CommandData: cli.BuildCommandData(sd.Service),
 		NeedDialer:  HasWebSocket(sd),
 	}
 	for _, e := range sd.Endpoints {
-		sub := buildSubcommandData(sd, e)
+		sub := buildSubcommandData(sd, e, transport)
 		command.Subcommands = append(command.Subcommands, sub)
 		command.CommandData.Subcommands = append(command.CommandData.Subcommands, sub.SubcommandData)
 	}
@@ -154,11 +154,12 @@ func buildCommandData(sd *ServiceData) *commandData {
 	return command
 }
 
-func buildSubcommandData(sd *ServiceData, e *EndpointData) *subcommandData {
+func buildSubcommandData(sd *ServiceData, e *EndpointData, transport ClientCLITransport) *subcommandData {
 	flags, buildFunction := buildFlags(sd, e)
+	wrapper := e.Method.ClientInterceptorWrapper(transport.PathName == "jsonrpc" && e.Method.HasMixedResults)
 
 	sub := &subcommandData{
-		SubcommandData: cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags),
+		SubcommandData: cli.BuildSubcommandData(sd.Service, e.Method, buildFunction, flags, wrapper),
 	}
 	if e.MultipartRequestEncoder != nil {
 		sub.MultipartVarName = e.MultipartRequestEncoder.VarName
@@ -301,7 +302,7 @@ func payloadBuilders(
 	title := fmt.Sprintf("%s %s client CLI support package", svc.Name(), transport.DisplayName)
 	fileSD, imports := services.FileData(svc.Name(), clientCLIImports(genpkg, sd))
 	if fileSD != sd {
-		data = buildCommandData(fileSD).CommandData
+		data = buildCommandData(fileSD, transport).CommandData
 	}
 	sections := []codegen.Section{
 		codegen.Header(title, "client", imports),

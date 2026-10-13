@@ -112,7 +112,7 @@ func TestServicePackageHelperReferences(t *testing.T) {
 				require.Equal(t, "DownloadResponseData", data.Method("download").ResponseStruct)
 				require.Equal(t, "ServeResponseData", data.Method("serve").ResponseStruct)
 				require.Equal(t, "ServeFileResponseData", data.Method("serve").FileResponseStruct)
-				require.Equal(t, "WrapFooClientEndpoint", data.Method("foo").ClientInterceptorWrapper)
+				require.Equal(t, "WrapFooClientEndpoint", data.Method("foo").ClientInterceptorWrapper(false))
 				require.Equal(t, "WrapFooClientEndpoint2", data.Method("fooClient").ServerInterceptorWrapper)
 			}
 			if tc.name == "sse-event" {

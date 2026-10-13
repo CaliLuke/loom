@@ -1298,6 +1298,14 @@ Regenerate services and clients, and update interceptor implementations if they
 previously relied on a field type from the unary result. Ordinary result access
 remains unavailable on a result-streaming method.
 
+Mixed ordinary client calls retain the unary result when stream interceptors
+are installed. Stream-only callbacks run only on stream operations; combined
+payload/message interceptors still intercept the ordinary payload once and the
+stream opening once. Regenerate clients and CLIs to adopt the separate endpoint
+chains. HTTP mixed commands use the ordinary endpoint; JSON-RPC SSE commands
+open streams. Successful interceptor short circuits must return the selected
+endpoint's result type. `Close` continues to delegate cleanup directly.
+
 JSON-RPC WebSocket streaming-payload methods retain their ordinary server
 result boundary; the new final-response streaming accessors do not apply.
 

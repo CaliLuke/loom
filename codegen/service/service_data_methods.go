@@ -38,7 +38,7 @@ func (d *ServicesData) buildMethodData(m *expr.MethodExpr, scope *codegen.NameSc
 		EndpointConstructor:      names.endpoint,
 		EventName:                names.event,
 		ServerInterceptorWrapper: names.serverWrapper,
-		ClientInterceptorWrapper: names.clientWrapper,
+		clientInterception:       names.clientInterception,
 		symbols:                  names,
 		Description:              desc,
 		MethodPayloadData:        buildMethodPayloadData(m, payloadData),

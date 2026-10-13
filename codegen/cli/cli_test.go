@@ -93,7 +93,7 @@ func TestBuildSubcommandDataBuildsJSONConversionAndExample(t *testing.T) {
 		Example:  "{\"name\":\"demo\"}",
 	}}
 
-	sub := BuildSubcommandData(data, method, nil, flags)
+	sub := BuildSubcommandData(data, method, nil, flags, "WrapCreateWidgetClientEndpoint")
 
 	require.Equal(t, "create-widget", sub.Name)
 	require.Equal(t, "storageCreateWidget", sub.FullName)
@@ -124,7 +124,7 @@ func TestBuildSubcommandDataOmitsUnavailableJSONExample(t *testing.T) {
 		Required: true,
 	}}
 
-	sub := BuildSubcommandData(data, method, nil, flags)
+	sub := BuildSubcommandData(data, method, nil, flags, "")
 
 	require.Empty(t, sub.Example)
 	rendered := renderStatement(t, sub.Conversion)

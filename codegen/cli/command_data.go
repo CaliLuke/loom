@@ -37,14 +37,21 @@ func BuildCommandData(data *service.Data) *CommandData {
 }
 
 // BuildSubcommandData builds the data needed by CLI code generators to render
-// the CLI parsing of the service sub-command.
-func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunction *BuildFunctionData, flags []*FlagData) *SubcommandData {
+// the CLI parsing of the service sub-command. The wrapper is the allocated
+// interceptor wrapper of the transport endpoint this command invokes.
+func BuildSubcommandData(
+	data *service.Data,
+	m *service.MethodData,
+	buildFunction *BuildFunctionData,
+	flags []*FlagData,
+	wrapper string,
+) *SubcommandData {
 	en := m.Name
 	name := codegen.KebabCase(en)
 	fullName := goifyTerms(data.Name, en)
 	description := subcommandDescription(m)
 	conversion := buildSubcommandConversion(m.Payload, buildFunction, flags)
-	interceptors := buildSubcommandInterceptors(data, m)
+	interceptors := buildSubcommandInterceptors(data, wrapper)
 	sub := &SubcommandData{
 		Name:                     name,
 		FullName:                 fullName,
@@ -54,7 +61,7 @@ func BuildSubcommandData(data *service.Data, m *service.MethodData, buildFunctio
 		Description:              description,
 		Flags:                    flags,
 		MethodVarName:            m.VarName,
-		ClientInterceptorWrapper: m.ClientInterceptorWrapper,
+		ClientInterceptorWrapper: wrapper,
 		BuildFunction:            buildFunction,
 		Conversion:               conversion,
 		Interceptors:             interceptors,
@@ -125,8 +132,8 @@ func buildSubcommandConversionError(flag *FlagData, payload string) *jen.Stateme
 	)
 }
 
-func buildSubcommandInterceptors(data *service.Data, m *service.MethodData) *InterceptorData {
-	if len(m.ClientInterceptors) == 0 {
+func buildSubcommandInterceptors(data *service.Data, wrapper string) *InterceptorData {
+	if wrapper == "" {
 		return nil
 	}
 	return &InterceptorData{

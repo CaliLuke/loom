@@ -160,10 +160,11 @@ func wrappedClientEndpointExpr(method *EndpointMethodData, stream bool) *jen.Sta
 	if stream {
 		argName = method.StreamArgName
 	}
-	if len(method.ClientInterceptors) == 0 {
+	wrapper := method.ClientInterceptorWrapper(stream)
+	if wrapper == "" {
 		return jen.Id(argName)
 	}
-	return jen.Id(method.ClientInterceptorWrapper).Call(
+	return jen.Id(wrapper).Call(
 		jen.Id(argName),
 		jen.Id("ci"),
 	)

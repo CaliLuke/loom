@@ -75,22 +75,44 @@ func interceptorFile(services *ServicesData, svc *Data, server bool) *codegen.Fi
 	if len(interceptors) > 0 {
 		sections = append(sections, interceptorTypesSection(interceptors))
 	}
-	for _, m := range svc.Methods {
-		ints := m.ServerInterceptors
-		if !server {
-			ints = m.ClientInterceptors
-		}
-		if len(ints) == 0 {
-			continue
-		}
-		sections = append(sections, endpointWrapperSection(server, m, ints))
-	}
+	sections = append(sections, endpointInterceptionSections(svc, server)...)
 
 	if len(interceptors) > 0 {
 		sections = append(sections, interceptorsSection(interceptors, server))
 	}
 
 	return &codegen.File{Path: path, Sections: sections}
+}
+
+// endpointInterceptionSections renders the allocated chains for each invocation
+// boundary without repeating applicability or naming decisions.
+func endpointInterceptionSections(svc *Data, server bool) []codegen.Section {
+	var sections []codegen.Section
+	for _, m := range svc.Methods {
+		if server {
+			if len(m.ServerInterceptors) == 0 {
+				continue
+			}
+			wrappers := make([]string, len(m.ServerInterceptors))
+			for i, name := range m.ServerInterceptors {
+				wrappers[i] = m.symbols.interceptors[name].server
+			}
+			sections = append(sections, endpointWrapperSection(true, m, m.ServerInterceptorWrapper, wrappers))
+			continue
+		}
+		for _, plan := range m.clientInterception.endpoints() {
+			if plan.wrapper == "" {
+				continue
+			}
+			wrappers := make([]string, len(plan.bindings))
+			for i, binding := range plan.bindings {
+				wrappers[i] = binding.wrapper
+			}
+			sections = append(sections, endpointWrapperSection(false, m, plan.wrapper, wrappers))
+		}
+	}
+
+	return sections
 }
 
 // wrapperFile returns the file containing the interceptor wrappers.
