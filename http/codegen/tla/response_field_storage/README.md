@@ -21,7 +21,7 @@ Implementation seams:
 
 - `http/codegen/service_data_response.go`: buildResponseResultInit selects the
   result or view return type; buildResponseResultInitCode has that same target
-  context, and buildResponseResultPointer now retains it through serviceFieldPrimitivePointer.
+  context, and buildResponseResultPointer now retains it through AttributeContext.IsPrimitivePointer.
 - `expr.ServiceFieldLayout`: existing owner of pointer and explicit-presence
   storage, consumed by `codegen.NameScope.objectFieldTypeDef` for declarations.
 - `http/codegen/type_sections.go`: appendInitResult consumes the address flag;
@@ -88,7 +88,7 @@ compile-only fix that would panic on nil optional named fields. The original
 target model remains unchanged and its prior results remain valid.
 
 
-Implemented correspondence: serviceFieldPrimitivePointer queries
+Implemented correspondence: AttributeContext.IsPrimitivePointer queries
 expr.ServiceFieldLayout for the enclosing native primitive occurrence.
 Target reconstruction consumes that flag. Request extraction retains its prior
 external admission guard. Response construction passes the flag to
@@ -104,3 +104,10 @@ original eleven modeled inputs. A separate context-flags seam checks defaults. R
 controls include both projected views and ordinary service declarations.
 Constructor allocation for two distinct source views sharing one named body
 alias remains #735; its captured failing aggregate is not claimed fixed here.
+
+#887 removes the selected-body-only primitive classifier and uses that shared
+context query for both selected bodies and transport-bound headers. The query
+now locates the actual field and excludes nonprimitive carriers before consulting
+ServiceFieldLayout; its Pointer flag alone is insufficient. FieldPresence still
+owns transport wrappers. Direct carrier/binding tests and the original named-slice
+view header compile/wire witness check the previously uncovered consumer.

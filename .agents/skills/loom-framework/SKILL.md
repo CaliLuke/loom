@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `AttributeContext.IsPrimitivePointer` derives native primitive field storage
+  from `expr.ServiceFieldLayout`, the declaration owner. Resolve actual mapped
+  field identity before checking requiredness; missing fields, collections,
+  objects and unions are not primitive pointers even in projected contexts.
+  Explicit presence carriers retain their separate storage. `FieldPresence` owns
+  transport wrappers. Selected-body conversion and transport bindings consume
+  this same query; do not add template dereference exceptions or restore a
+  selected-body-only classifier.
+
 - `internal/headerlist` owns schema-based HTTP collection framing and item
   admissibility. Expr validates effective mapped defaults/enums/examples on a
   detached mapping initialized by the existing transport binding owner. Runtime

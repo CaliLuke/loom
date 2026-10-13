@@ -285,16 +285,19 @@ func mapDepth(dt expr.DataType, depth int, seen ...map[string]struct{}) int {
 	return depth
 }
 
-// IsPrimitivePointer returns true if the attribute with the given name is a
-// primitive pointer in the given parent attribute.
+// IsPrimitivePointer reports whether the named field uses native primitive
+// pointer storage in its declaration. Missing fields, nonprimitive carriers and
+// explicit presence wrappers are not primitive pointers. FieldPresence owns
+// transport-specific Optional and Nullable wrapping around native storage.
 func (a *AttributeContext) IsPrimitivePointer(name string, att *expr.AttributeExpr) bool {
-	if at := att.Find(name); at != nil && (expr.IsAny(at.Type) || at.Type == expr.Bytes) {
+	if att == nil || name == "" {
 		return false
 	}
-	if a.Pointer {
-		return true
+	key, field := att.FindAttribute(name)
+	if field == nil || !expr.IsPrimitive(field.Type) {
+		return false
 	}
-	return att.IsPrimitivePointer(name, a.UseDefault)
+	return expr.ServiceFieldLayout(att, key, field, a.Pointer, a.UseDefault).Pointer
 }
 
 // FieldPresence returns the physical presence representation for an object

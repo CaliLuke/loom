@@ -446,7 +446,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 	const sourceVar = "p"
 
 	field, src := serviceBodyTransformSource(att, body, sourceVar)
-	if serviceFieldPrimitivePointer(att, field.Name, svcctx) {
+	if svcctx.IsPrimitivePointer(field.Name, att) {
 		// The client builds the body of an optional primitive only when
 		// the service field is not nil.
 		src = "*" + src
@@ -511,7 +511,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 	}
 
 	field, src := serviceBodyTransformSource(att, body, sourceVar)
-	pointer := serviceFieldPrimitivePointer(att, field.Name, svcctx)
+	pointer := svcctx.IsPrimitivePointer(field.Name, att)
 	code, rtref, helpers, err := marshalResponseBodySource(field.Attribute, body, src, rtref, pointer, svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response body transform: %w", err)))

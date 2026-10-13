@@ -377,7 +377,7 @@ func buildResponseResultPointer(resp *transportir.ResponseStatus, result *expr.A
 	if origin == "" {
 		return false
 	}
-	return serviceFieldPrimitivePointer(result, origin, targetctx)
+	return targetctx.IsPrimitivePointer(origin, result)
 }
 
 func responseTagData(resp *transportir.ResponseStatus, result *expr.AttributeExpr, viewed bool) (string, string, bool) {

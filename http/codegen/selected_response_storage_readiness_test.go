@@ -133,7 +133,7 @@ func TestServiceFieldPrimitiveStorageContext(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			context := serviceContext("", nil)
 			context.Pointer, context.UseDefault = tc.pointer, tc.defaults
-			require.Equal(t, tc.want, serviceFieldPrimitivePointer(parent, "value", context))
+			require.Equal(t, tc.want, context.IsPrimitivePointer("value", parent))
 		})
 	}
 }
