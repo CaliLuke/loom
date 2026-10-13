@@ -4,9 +4,14 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **187 of 216 tracked reports are delivered, pushed and confirmed closed.**
+- **191 of 217 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-187-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-191-issues.json` is the frozen GitHub reconciliation input.
+- Service public symbols #770 (`ebf2c4ea9`) and complete evaluated provenance
+  #753 (`1b9833038`) are reviewed, pushed and closed. The original #742 two-design
+  witness is independently reconciled against that same provenance repair.
+  Three remaining collection snapshots now adopt the shared #889 contract in
+  #896 (`f97d9dd38`); production and exact assertions are unchanged.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
   client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
@@ -129,26 +134,24 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Header element representation (#895):** omission follows delivered #893
-   and #894 after cleanup. Request/response formatting must consume actual native
-   element types through one HTTP codegen conversion owner; JSON-RPC inherits
-   response sections. The accepted standard-list wire grammar remains unchanged.
-2. **Service package declarations (#770):** projection restored the exact archived
-   candidate after constructor prerequisite #894 (`2a98e4123`) delivery. The
-   formerly blocked scalar case and bounded generated checks pass; the final
-   candidate is frozen for independent review. Protobuf
-   #736 and shared imports #856 retain their independent namespaces.
-3. **Generation provenance (#753/#742):** diagnostic implements the independently
-   approved complete evaluated-root identity and explicit canonical design origin.
-   Generation, staged manifests and vet share the record; preserve pre-generator
-   capture and remove all-manifest same-design inference. Separate reconciliation
-   proves #742 if this owning repair resolves it. Filesystem #751 stays separate.
-4. **Effective route ownership (#781):** root has reproduced five admission
-   failures plus three valid controls and extended the existing identity model.
-   `roadmap/http-route-ownership.md` is a local readiness draft, not delivered. Reconcile
-   effective dispatch/mount claims and server grouping before production; preserve
-   shared JSON-RPC dispatch and disjoint server processes.
-5. **Other distinct owners:** encoded byte length #686, custom-key example
+1. **Header element representation (#895):** omission's final candidate is frozen
+   for independent review. One scalar/list conversion owner preserves physical
+   element types across HTTP request/response and inherited JSON-RPC response
+   encoding. Original compile failures and existing wire controls pass; the
+   accepted standard-list grammar remains unchanged.
+2. **Replicated map notifications (#771):** projection reuses its cleaned managed
+   worktree after #770. Actual live-map and gated scheduler failures reproduce;
+   existing current/overwrite model candidates fail while strongest-event
+   coalescing passes. Readiness review precedes production.
+3. **Effective route ownership (#781):** diagnostic extends root's readiness
+   work. Thirteen admission failures and seven controls are recorded. Root review
+   found service default-path phase changes and recursion during endpoint Prepare;
+   correct the proposed preparation owner before implementation. Preserve shared
+   JSON-RPC dispatch, CORS/static mounts and disjoint server processes.
+4. **Imported byte representation (#686):** read-only owner triage is preserved
+   in `/tmp/loom-686-owner-triage.md`. Inspect constraint units and literals at one
+   wire-to-semantic boundary; no production or new policy is approved.
+5. **Other distinct owners:** filesystem publication #751, custom-key example
    synthesis #884 and pool subordinate shutdown #687 remain open. Do not weaken
    supported representation admission to bypass these failures.
 6. **Dependency gates:** #820 libopenapi
@@ -179,9 +182,21 @@ Latest independent delivery records:
   `/tmp/loom-894-independent-integration-verdict.json`. Integration races pass;
   `/tmp/loom-894-cleanup-receipt.json` and `/tmp/loom-770-resume-receipt.json`
   preserve delivery and exact candidate restoration.
-- Provenance readiness is approved in
-  `/tmp/loom-provenance-root-readiness-verdict.json`; actual two-design/plugin
-  parent failures and bounded acceptance are preserved by its owning plan.
+- #770 final/integration verdicts are `/tmp/loom-770-independent-final-verdict.json`
+  and `/tmp/loom-770-independent-integration-verdict.json`. The exact candidate
+  integrated unchanged; only checkpoint documents differed in its parent.
+  Cleanup/reuse is complete in `/tmp/loom-770-cleanup-receipt.json` and
+  `/tmp/loom-771-reuse-receipt.json`.
+- #753 final doc re-review and integration verdicts are
+  `/tmp/loom-provenance-independent-final-rereview-verdict.json` and
+  `/tmp/loom-provenance-independent-integration-verdict.json`. Actual two-design
+  and three-fixture comparisons retain only intended manifest changes; current
+  root interceptor compilation and provenance/vet/CLI seams pass. #742 has its
+  own original-witness reconciliation in the closing comment.
+- #896 exact four-file snapshot adoption was independently approved in
+  `/tmp/loom-896-independent-final-verdict.json`; three comparisons and compiled
+  root/nested/named collection controls pass. No production change.
+
 
 Completed cleanup receipts preserve compact evidence and exact reproduction
 inputs after activity checks: #872 `/tmp/loom-872-cleanup-receipt.json`, #790
