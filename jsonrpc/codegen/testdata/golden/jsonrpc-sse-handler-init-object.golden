@@ -26,10 +26,6 @@ func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*
 			}
 			return nil
 		}
-		if req.ID != nil {
-			idStr := jsonrpc.IDToString(req.ID)
-			params.ID = &idStr
-		}
 		if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {
 			ctx = context.WithValue(ctx, loomhttp.LastEventIDKey, lastEventID)
 		}

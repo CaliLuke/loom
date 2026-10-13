@@ -166,10 +166,6 @@ func NewStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*
 			}
 			return nil
 		}
-		if req.ID != nil {
-			idStr := jsonrpc.IDToString(req.ID)
-			params.ID = &idStr
-		}
 		if lastEventID := r.Header.Get("Last-Event-ID"); lastEventID != "" {
 			ctx = context.WithValue(ctx, loomhttp.LastEventIDKey, lastEventID)
 		}
@@ -409,7 +405,40 @@ func DecodeStreamRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhtt
 			}
 			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
-	payload = NewStreamPayload(&body, )
+ var rpcID *string
+{
+
+rpcIDBody := &struct {
+	// Request ID
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+}{}
+if req.HasID {
+if req.ID == nil {
+return payload, loom.DecodePayloadError("JSON-RPC ID must not be null")
+}
+
+idBytes := []byte("null")
+if req.ID != nil {
+ var encodeErr error
+ idBytes, encodeErr = json.Marshal(jsonrpc.IDToString(req.ID))
+ if encodeErr != nil {
+  return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(encodeErr))
+ }
+}
+if decodeErr := json.Unmarshal(idBytes, &rpcIDBody.ID); decodeErr != nil {
+ return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
+}
+}
+rpcIDFields := &struct {
+	// Request ID
+	ID *string `json:"id,omitzero"`
+}{
+	ID: rpcIDBody.ID,
+}
+rpcID = rpcIDFields.ID
+}
+
+	payload = NewStreamPayload(&body, rpcID, )
 
 
 	return payload, nil

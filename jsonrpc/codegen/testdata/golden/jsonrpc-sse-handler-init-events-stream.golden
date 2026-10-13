@@ -31,10 +31,6 @@ func NewEventsStreamHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder 
 			}
 			return nil
 		}
-		if req.ID != nil {
-			idStr := jsonrpc.IDToString(req.ID)
-			params.ID = &idStr
-		}
 		v := &jsonrpcsseeventsstreamservice.EventsStreamEndpointInput{
 			Payload: params,
 			Stream:  strm,
