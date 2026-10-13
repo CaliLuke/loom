@@ -383,7 +383,7 @@ func TestSSEUnionResultRoundTrip(t *testing.T) {
 			events.NewChoiceOther(&events.Other{Count: ptr(1)}),
 		}
 		for i, w := range want {
-			got, err := stream.Recv(ctx)
+			got, err := stream.RecvWithContext(ctx)
 			if err != nil {
 				t.Fatalf("watch %s[%d]: %v", p.Kind(), i, err)
 			}
@@ -391,7 +391,7 @@ func TestSSEUnionResultRoundTrip(t *testing.T) {
 				t.Errorf("watch %s[%d]: got %#v, want %#v", p.Kind(), i, got, w)
 			}
 		}
-		if _, err := stream.Recv(ctx); !errors.Is(err, io.EOF) {
+		if _, err := stream.RecvWithContext(ctx); !errors.Is(err, io.EOF) {
 			t.Errorf("watch %s: expected io.EOF, got %v", p.Kind(), err)
 		}
 		if err := stream.Close(); err != nil {

@@ -33,6 +33,8 @@ const (
 // StreamErrorHandler allows users to handle stream errors.
 type StreamErrorHandler func(ctx context.Context, errorType StreamErrorType, err error, response *jsonrpc.RawResponse)
 
+var _ jsonrpcwebsocketruntimeservice.StreamClientStream = (*StreamClientStream)(nil)
+
 // StreamClientStream implements the Stream client stream on the WebSocket
 // connection shared by the streams of the client. Every request sent with Send
 // gets its own response, which Recv returns in send order. A response that

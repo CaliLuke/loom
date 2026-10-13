@@ -1,13 +1,11 @@
 // SSEObjectMethodClientStream is the interface for reading Server-Sent Events.
 type SSEObjectMethodClientStream interface {
-	// Recv reads and returns the next event from the SSE stream.
-	Recv(context.Context) (*sseobjectservice.SSEObjectMethodResult, error)
-	// Close closes the SSE stream and releases resources.
-	Close() error
+	sseobjectservice.SSEObjectMethodClientStream
 }
 type (
 	// SSEObjectMethodStreamImpl implements the SSEObjectMethodClientStream interface.
 	SSEObjectMethodStreamImpl struct {
+		ctx     context.Context
 		reader  *loomhttp.SSEStreamReader
 		decoder func(*http.Response) loomhttp.Decoder
 	}
@@ -18,16 +16,23 @@ type (
 var _ SSEObjectMethodClientStream = (*SSEObjectMethodStreamImpl)(nil)
 
 // NewSSEObjectMethodStream creates a new SSEObjectMethodClientStream.
-func NewSSEObjectMethodStream(resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) SSEObjectMethodClientStream {
+func NewSSEObjectMethodStream(ctx context.Context, resp *http.Response, decoder func(*http.Response) loomhttp.Decoder) SSEObjectMethodClientStream {
 	return &SSEObjectMethodStreamImpl{
+		ctx:     ctx,
 		decoder: decoder,
 		reader:  loomhttp.NewSSEStreamReader(resp.Body),
 	}
 }
 
-// Recv reads and returns the next event from the SSE stream, respecting
-// context cancellation.
-func (s *SSEObjectMethodStreamImpl) Recv(ctx context.Context) (event *sseobjectservice.SSEObjectMethodResult, err error) {
+// Recv reads instances of "SSEObjectMethodResult" from the stream. It uses the
+// context the stream was opened with.
+func (s *SSEObjectMethodStreamImpl) Recv() (*sseobjectservice.SSEObjectMethodResult, error) {
+	return s.RecvWithContext(s.ctx)
+}
+
+// RecvWithContext reads instances of "SSEObjectMethodResult" from the stream
+// with context.
+func (s *SSEObjectMethodStreamImpl) RecvWithContext(ctx context.Context) (event *sseobjectservice.SSEObjectMethodResult, err error) {
 	var parsed loomhttp.SSEEvent
 	parsed, err = s.reader.ReadEvent(ctx)
 	if err != nil {

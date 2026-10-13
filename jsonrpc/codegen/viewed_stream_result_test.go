@@ -451,7 +451,7 @@ func TestSSEViews(t *testing.T) {
         t.Fatal(err)
     }
     failedStream := failed.(*feedclient.FollowClientStream)
-    if result, err := failedStream.Recv(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") || result != nil {
+    if result, err := failedStream.RecvWithContext(ctx); err == nil || !strings.Contains(err.Error(), "JSON-RPC error") || result != nil {
         t.Errorf("invalid view before first result: got (%#v, %v), want protocol error", result, err)
     }
     if err := failedStream.Close(); err != nil {
@@ -479,13 +479,13 @@ func TestSSEViews(t *testing.T) {
 		}
 	}
 	recvAll("follow", c.Follow(), func(s any, ctx context.Context) (any, error) {
-		return s.(*feedclient.FollowClientStream).Recv(ctx)
+		return s.(*feedclient.FollowClientStream).RecvWithContext(ctx)
 	}, []any{tinyNote, fullNote})
 	recvAll("followTiny", c.FollowTiny(), func(s any, ctx context.Context) (any, error) {
-		return s.(*feedclient.FollowTinyClientStream).Recv(ctx)
+		return s.(*feedclient.FollowTinyClientStream).RecvWithContext(ctx)
 	}, []any{tinyNote, tinyNote})
 	recvAll("followList", c.FollowList(), func(s any, ctx context.Context) (any, error) {
-		return s.(*feedclient.FollowListClientStream).Recv(ctx)
+		return s.(*feedclient.FollowListClientStream).RecvWithContext(ctx)
 	}, []any{feed.NoteCollection{tinyNote}, feed.NoteCollection{fullNote, fullNote}})
 }
 `

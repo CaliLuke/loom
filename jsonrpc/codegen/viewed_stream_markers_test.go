@@ -69,19 +69,19 @@ func TestSSEViewMarkers(t *testing.T) {
 				}
 				if tc.collection {
 					stream := raw.(*feedclient.FollowListClientStream)
-					_, err = stream.Recv(ctx)
+					_, err = stream.RecvWithContext(ctx)
 					if closeErr := stream.Close(); closeErr != nil {
 						t.Error(closeErr)
 					}
 				} else if tc.fixed {
 					stream := raw.(*feedclient.FollowTinyClientStream)
-					_, err = stream.Recv(ctx)
+					_, err = stream.RecvWithContext(ctx)
 					if closeErr := stream.Close(); closeErr != nil {
 						t.Error(closeErr)
 					}
 				} else {
 					stream := raw.(*feedclient.FollowClientStream)
-					_, err = stream.Recv(ctx)
+					_, err = stream.RecvWithContext(ctx)
 					if closeErr := stream.Close(); closeErr != nil {
 						t.Error(closeErr)
 					}

@@ -386,7 +386,7 @@ func TestClientsDecodeEmptyResults(t *testing.T) {
 	}
 	words := res.(*feedclient.WordsClientStream)
 	for _, want := range []string{"first", ""} {
-		if got, err := words.Recv(ctx); err != nil || got != want {
+		if got, err := words.RecvWithContext(ctx); err != nil || got != want {
 			t.Errorf("words: got (%q, %v), want %q", got, err, want)
 		}
 	}
@@ -398,10 +398,10 @@ func TestClientsDecodeEmptyResults(t *testing.T) {
 		t.Fatalf("watch: %v", err)
 	}
 	watch := res.(*feedclient.WatchClientStream)
-	if _, err := watch.Recv(ctx); err != nil {
+	if _, err := watch.RecvWithContext(ctx); err != nil {
 		t.Errorf("watch: first: %v", err)
 	}
-	if got, err := watch.Recv(ctx); err != nil || got == nil || got.Note != nil {
+	if got, err := watch.RecvWithContext(ctx); err != nil || got == nil || got.Note != nil {
 		t.Errorf("watch: got (%#v, %v), want an empty Info", got, err)
 	}
 	if err := watch.Close(); err != nil {
