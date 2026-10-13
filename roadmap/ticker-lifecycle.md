@@ -1,6 +1,7 @@
 # Ticker local lifecycle — #738 and #707
 
-#738 delivered in 07401d22c. #707 uses that commit as its parent; the shared family design is approved and its remote consumers are now implemented, awaiting final review.
+#738 delivered in `07401d22c`; #707 delivered in `abca0b975`. Both atomic
+changes are independently reviewed, pushed and confirmed closed.
 
 ## Contract and owner
 
@@ -19,7 +20,7 @@ A timer event may already be selected when Close begins. Check terminal state un
 - [x] Obtain fresh #738 final review and deliver.
 - [x] After #738 delivery, reproduce remote exits and implement #707 consumers of the same owner.
 - [x] Run #707 focused race controls and full model.
-- [ ] Obtain fresh #707 final review and deliver.
+- [x] Obtain fresh #707 final review and deliver.
 
 ## Bounded acceptance
 
@@ -57,3 +58,10 @@ The event-loop defer releases local ownership before signaling its WaitGroup, co
 On parent 07401d22c, the original missing-entry regression and all three event-loop exit controls fail (race 0.831s); the live CAS-mismatch control passes. Tests use the existing real replicated-map helper and a deterministic preselected timer, preserving the family model's assumptions.
 
 Final #707 checks: focused ticker and scheduler consumer controls pass with the race detector (2.981s), including all remote-exit cases and live CAS mismatch. Scoped lint reports zero issues. The unchanged full `owned` model passes with 76 generated / 21 distinct states; current/rejected-design counterexamples remain the approved family evidence. The change introduces no new network-timeout or scheduler-context guarantee.
+
+Independent root checks passed with the race detector: #738 ticker/scheduler
+controls 2.612s and #707 controls 2.769s. #738 required only an intact helper
+declaration reorder, independently confirmed; #707 had no findings and its exact
+reviewed diff applied unchanged to main. Both deliveries preserve the shared
+model assumptions and keep network bounds and scheduler context policy outside
+this repaired local ownership contract.

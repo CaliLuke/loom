@@ -4,7 +4,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **163 of 206 tracked reports are delivered, pushed and confirmed closed.**
+- **165 of 206 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
   `/tmp/loom-current-all-issues.json` is the current GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
@@ -24,6 +24,10 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   #767 (`a5aad7c72`) are independently reviewed, pushed and confirmed closed.
   Built-in/custom multipart consumers share one raw-source budget; interceptor
   interfaces share logical signatures while each method owns its storage binding.
+- Ticker lifetime #738 (`07401d22c`) and #707 (`abca0b975`) are reviewed,
+  pushed and confirmed closed. Constructor failure, Close/Stop and every remote
+  exit share local teardown; timer admission prevents revival after termination.
+  Peer/shared state remains outside local cleanup ownership.
 - Required CI is not confirmed green. The last inspected metadata-adoption and
   following test runs were still in progress; #820 remains an open dependency
   race. Focused passing checks do not establish aggregate CI success.
@@ -61,23 +65,27 @@ reconciliation with the inventory before they can establish remaining work.
    actual operation signatures and endpoint carriers across JSON-RPC SSE,
    WebSocket bidirectional and request/reply methods. Preserve HTTP/gRPC and client
    controls; #749 observation and #739 client completion have separate owners.
-2. **Ticker lifetime (#738/#707):** `/root/diagnostic_redaction_finish` implements
-   the independently approved local terminal owner in `grpc-message-context/loom`.
-   Constructor abort, Close/Stop and every timer rearm first share release and
-   admission; remote CAS/map/context termination then consumes that same owner.
-   Preserve peer/shared state on local cleanup and live transient retries. Root
-   reproduced the constructor leak, absent-CAS panic and late rearm before approval.
+2. **WebSocket call completion (#739):** `/root/diagnostic_redaction_finish`
+   prepares readiness after ticker cleanup/reuse in `grpc-message-context/loom`.
+   Establish one completion decision across delivered response, timeout,
+   cancellation/requeue and stream/connection failure. Preserve held responses
+   and established timeout semantics; reuse the existing demultiplexer model and
+   scripted-server tests. No timer-policy change or production fix is claimed.
 3. **Imported schema normalization (#777/#778):** `/root/omission_readiness_finish`
-   prepares one type/nullability/enum/const intersection contract in the reused
-   `numeric-comparison/loom`. Cover OAS 3.0/3.1 and existing roundtrip fixtures.
-   Inventory related object/annotation/byte-length consumers without assuming
-   one patch fixes them all; reconcile #791 with accepted named-query JSON.
+   implements the independently approved type/nullability/enum/const intersection
+   owner in `numeric-comparison/loom`. Preserve source numeric identity, authored
+   empty enum and common planner rejection; OAS 3.0/3.1/3.2 and existing roundtrip
+   fixtures cover consumers. One complete #777 repair is followed by independent
+   #778 reconciliation, rather than deliberately partial normalization fixes.
 4. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
    actual namespaces. #704 worker publication includes uncertain Redis replies,
    independent replicas and concurrent Close; #737 needs producer job intent.
    #687 still needs bounded subordinate shutdown. Keep #884 custom-key example
-   synthesis open rather than weakening supported representation admission.
+   synthesis open rather than weakening supported representation admission. Read-only
+   scope triage also confirms #752 needs one requirement-to-scheme projection for
+   generated authorizers and OpenAPI, preserving existing unknown-scope admission
+   (`/tmp/loom-auth-scope-owner-readiness.md`); no implementation claim.
 5. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
    [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at last read.
