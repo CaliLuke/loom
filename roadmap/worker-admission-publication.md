@@ -1,11 +1,12 @@
 # Worker admission and publication — #704
 
-Parent `ec2536d3c`. Readiness independently approved; implementation and bounded
-validation complete, frozen for independent final review.
+Delivered as `f1d1368fb` on main, pushed; #704 confirmed closed. Independent
+production and integration reviews approved the exact diff without findings.
+Implementation parent `ec2536d3c`; integration parent `464368176`.
 Reuse the prior construction probes and `WorkerPublication` model from
-`pool-construction-ownership/loom`. Node/worker/publication/routing owners are
-byte-identical to that probe's `d57f96c6c` parent. Reader lifetime is inspected
-again because #759 changed that owner.
+`pool-construction-ownership/loom`. At readiness, node/worker/publication/routing
+owners were byte-identical to that probe's `d57f96c6c` parent. Reader lifetime
+was inspected again because #759 changed that owner.
 
 ## Contract and owner
 
@@ -72,7 +73,7 @@ lease fencing and recovery instead of adding per-peer admission state.
 - [x] Implement the owner and delete superseded construction/publication paths.
 - [x] Run focused pool race controls and pinned real Redis script/routing checks
   if Redis operations change; no broad pool suite or generator matrix.
-- [ ] Freeze the exact final diff for independent review and atomic delivery.
+- [x] Freeze the exact final diff for independent review and atomic delivery.
 
 Distinct owners remain out of scope: AddNode resource ledger #687, subordinate
 active-reader/sink shutdown #800, scheduler desired-job ledger #737, and already
@@ -123,3 +124,10 @@ handler. Tests model ambiguous replies with after-commit hooks and do not claim
 network-outage delivery beyond existing retention limits. The accepted model is
 unchanged; its bounded results remain applicable. No generator/fixture output
 or full-corpus validation applies to this runtime-only change.
+
+Root independently reran the construction/admission/ack/dispatch race matrix on
+Redis 8.10.2: 18.298s, passed. The 15 non-skill files remained byte-identical at
+integration; the two skill files retained newer scope guidance. Exact integrated
+patch SHA-256 `6643fbf3f2a9aa9b67b878d5c8e581b0d264e8a00302a0806606e9b912813330`.
+Reviews: `/tmp/loom-704-root-final-verdict.json` and
+`/tmp/loom-704-independent-integration-verdict.json`.

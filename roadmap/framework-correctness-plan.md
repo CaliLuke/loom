@@ -4,7 +4,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **170 of 206 tracked reports are delivered, pushed and confirmed closed.**
+- **171 of 206 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
   `/tmp/loom-current-all-issues.json` is the current GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
@@ -44,6 +44,10 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   preserves OR independence and the obsolete duplicate projection is removed.
   Corrected parent regressions fail, generated callbacks pass and all 51 selected
   artifacts repeat exactly; ordinary generated output is unchanged.
+- Worker admission #704 (`f1d1368fb`) is reviewed, pushed and closed. One
+  owner covers preparation, publication, guarded startup and rollback; Close joins
+  in-flight attempts. Independent native Redis race checks pass (18.298s);
+  failed attempts cannot invoke handlers or renew their initial lease.
 - Required CI is not confirmed green. All inspected metadata-adoption test jobs
   passed except the libopenapi YAML-node race matching #820; the completed run
   failed, including release eligibility. This is evidence for that source, not
@@ -76,13 +80,12 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Distributed worker publication (#704):** `/root/diagnostic_redaction_finish`
-   implements the independently approved admission owner in `grpc-message-context/loom`.
-   Construction owns a prepared, unsubscribed reader until guarded local transfer;
-   Close excludes or joins attempts. Abort attempts private withdrawal and preserves
-   original pool events for existing recovery within retention limits. Four parent
-   failures reproduce; real Redis recovery controls and the 940-state owned model
-   support the design. Approval: `/tmp/loom-704-root-readiness-verdict.json`.
+1. **Scheduler producer intent (#737):** `/root/diagnostic_redaction_finish`
+   completes #704 cleanup and reuses `grpc-message-context/loom` for readiness.
+   Reproduce timeout/duplicate dispatch losing responsibility for a job; establish
+   a producer-owned intent ledger across uncertain replies, stop and handoff.
+   Preserve other producers' jobs and keep Schedule context lifetime separate.
+   Worker admission #704 is delivered; its bounded recovery model is retained.
 2. **Imported object representation (#776):** `/root/omission_readiness_finish`
    implements the independently approved classifier and constructor-role contract
    in `numeric-comparison/loom`. Existing promotion and planner admission share
@@ -91,16 +94,18 @@ reconciliation with the inventory before they can establish remaining work.
    Approval: `/tmp/loom-776-root-readiness-verdict.json`. Annotation #783 and encoded
    byte-length #686 retain distinct owners.
 3. **HTTP collection-header framing (#689):** `/root/projection_integration_review`
-   prepares bounded regressions and a shared four-direction framing proposal after
-   #752 cleanup. Repeated lines alone cannot repair intermediary coalescing or
-   the documented OpenAPI simple contract. Concrete comma/empty-item/presence
-   alternatives need resolution before production changes; cookies stay separate.
-   Read-only inventory: `/tmp/loom-689-owner-triage.md`.
+   implements the independently approved shared framing owner. The user adopted
+   standard comma lists: repeated/combined lines decode alike, absent differs from
+   a present empty list, and outbound comma/empty/outer-whitespace items fail clearly.
+   Runtime adapters, Expr defaults and HTTP/JSON-RPC consumers derive from one
+   framing contract; cookies remain separate. Readiness approval:
+   `/tmp/loom-689-root-readiness-verdict.json`.
 4. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
-   actual namespaces. #737 needs producer job intent. #791 cannot be closed from
-   query-only fixes: header/path shape admission remains to be reconciled through
-   one location-aware parameter contract (`/tmp/loom-791-owner-triage.md`).
+   actual namespaces. #791 follows #776 through one location-aware parameter
+   contract: current root probes reproduce five silent header/path/nested-array
+   admissions and the original generated-header failure. Eleven controls pass.
+   Evidence: `/tmp/loom-791-current-evidence.json`; no production fix is claimed.
    #687 still needs bounded subordinate shutdown. Keep #884 custom-key example
    synthesis open rather than weakening supported representation admission.
 5. **Dependency gates:** #820 libopenapi
