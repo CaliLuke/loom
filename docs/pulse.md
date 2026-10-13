@@ -36,6 +36,12 @@ local update loop. Always call `Map.Close` when that replica is no longer
 needed. `Close` stops subscriptions and freezes the local snapshot; it does not
 delete shared Redis state.
 
+`Map.Subscribe` provides coalesced invalidations, not a journal of every update.
+Read the map for current state. Each subscriber retains the strongest unread kind:
+`EventReset` takes precedence over `EventDelete`, then `EventChange`. A later change
+cannot hide an unread reset. Slow subscribers do not block replica updates.
+Unsubscribe when finished; closing the map closes its subscription channels.
+
 Choose shared-state mutations deliberately:
 
 - `Reset` clears the map content while preserving the replicated-map identity.

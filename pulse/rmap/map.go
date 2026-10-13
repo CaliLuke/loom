@@ -191,7 +191,8 @@ func (sm *Map) Keys() []string {
 // notifies that the map has changed, it does not provide the actual changes,
 // instead the Map method should be used to read the current content.  This
 // allows the notification to be sent without blocking. Multiple remote updates
-// may result in a single notification.
+// may result in a single notification. Each subscriber retains its strongest
+// unread kind: EventReset takes precedence over EventDelete, then EventChange.
 // Subscribe returns nil if the map is stopped.
 func (sm *Map) Subscribe() <-chan EventKind {
 	sm.lock.Lock()

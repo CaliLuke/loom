@@ -1500,6 +1500,9 @@ Failed `AddWorker` calls do not start handlers. Private cleanup can outlive call
 cancellation within the worker shutdown TTL; inspect the returned error for cleanup
 failures. Node Close joins in-flight admissions. Existing event expiry still bounds
 recovery after uncertain Redis outcomes; see `docs/pulse.md`.
+`rmap.Map.Subscribe` coalesces pending invalidations by Reset, Delete, then Change
+precedence. Read current map contents rather than counting notifications; a later
+change cannot hide an unread reset. Unsubscribe when finished.
 A default Reader snapshots the newest cursor when `NewReader` succeeds; events
 added after that snapshot remain eligible even before `Subscribe`. `AddStream`
 snapshots each new stream independently. These operations can return Redis

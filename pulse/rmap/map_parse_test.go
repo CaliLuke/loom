@@ -118,18 +118,6 @@ func TestWaitersObserveCommittedRevision(t *testing.T) {
 	require.NotEmpty(t, waiter.ch)
 }
 
-func TestNotifySubscribersIsBestEffort(t *testing.T) {
-	ch := make(chan EventKind, 1)
-	ch <- EventChange
-	sm := testMap()
-	sm.chans = []chan EventKind{ch}
-
-	require.NotPanics(t, func() {
-		sm.notifySubscribers(EventReset)
-	})
-	require.Equal(t, EventChange, <-ch)
-}
-
 func testMap() *Map {
 	return &Map{
 		Name:    "test",

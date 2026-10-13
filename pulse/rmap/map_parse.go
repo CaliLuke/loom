@@ -172,14 +172,18 @@ func (sm *Map) notifyWaitersUpTo(rev uint64) {
 	}
 }
 
-// notifySubscribers sends a best-effort notification to every subscriber while
-// the map lock is held, so the subscriber list stays stable during iteration.
+// notifySubscribers retains the strongest unread kind for each subscriber.
+// The map lock serializes publishers and subscription removal. Receivers may
+// consume the pending kind before the take, but cannot fill the emptied slot.
 func (sm *Map) notifySubscribers(kind EventKind) {
 	for _, c := range sm.chans {
+		pending := kind
 		select {
-		case c <- kind:
+		case previous := <-c:
+			pending = strongerEventKind(previous, pending)
 		default:
 		}
+		c <- pending
 	}
 }
 

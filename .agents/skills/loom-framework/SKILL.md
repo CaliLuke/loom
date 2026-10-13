@@ -2290,6 +2290,13 @@ tier:
 - Keep miniredis limitations explicit with `Server.Real()` assertions. They
   do not represent support for older Redis versions. Tests that need miniredis
   clock control need a wall-clock path on the supported real server.
+- `rmap.Map.notifySubscribers` alone merges pending subscriber kinds for live
+  updates and reconnect replay. Drain and combine under the map lock, keeping
+  Reset > Delete > Change local to each subscription. The sole publisher cannot
+  lose the emptied slot to a receiver; subscription removal shares the lock and
+  final closure remains owned by the run goroutine. Keep the bounded notification
+  precedence model and actual scheduler consumer regression aligned; do not patch
+  scheduler polling or change Reader/Sink shutdown to repair this channel.
 - Pool protocol 3 ownership lives in plain Redis hashes (`owners` and
   `owner-epochs`). Claim and release scripts update ownership, job indexes,
   and payloads together with rmap revision notifications. Never perform a
