@@ -61,13 +61,13 @@ func appendKongCommandLineStruct(stmt *jen.Statement, commands []*cli.CommandDat
 						}
 					}).Tag(map[string]string{
 						"cmd":  "",
-						"help": sub.Description,
+						"help": kongHelpLiteral(sub.Description),
 						"name": sub.Name,
 					})
 				}
 			}).Tag(map[string]string{
 				"cmd":  "",
-				"help": cmd.Description,
+				"help": kongHelpLiteral(cmd.Description),
 				"name": cmd.Name,
 			})
 		}
@@ -155,7 +155,13 @@ func kongFlagTags(flag *cli.FlagData) map[string]string {
 	if flag.Default != nil {
 		tags["help"] = strings.TrimSpace(flag.Description + fmt.Sprintf(" (default: %q)", fmt.Sprint(flag.Default)))
 	}
+	tags["help"] = kongHelpLiteral(tags["help"])
 	return tags
+}
+
+// kongHelpLiteral encodes authored text for Kong's interpolated help tags.
+func kongHelpLiteral(text string) string {
+	return strings.ReplaceAll(text, "$", "$$")
 }
 
 func kongFieldName(name string) string {

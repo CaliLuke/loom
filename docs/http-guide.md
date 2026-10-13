@@ -463,6 +463,11 @@ Collection flags accept JSON. Boolean map keys use the member names `"true"`
 and `"false"`, including in nested collections. The flag example shows the JSON that the flag accepts, including the `type`
 and `value` fields of a union.
 
+HTTP and JSON-RPC CLI descriptions and displayed defaults are literal text.
+Sequences such as `${name}` and `$$` remain visible as written; no template
+escaping is needed in the design. Regenerate clients to apply this correction.
+Payload defaults and explicit flag values retain their authored text.
+
 HTTP and JSON-RPC CLI JSON body flags validate member presence before constructing
 the service payload. An omitted required member is rejected even when it declares
 a default; an explicitly supplied `false`, `0`, or empty string remains supplied.

@@ -117,6 +117,10 @@ per hosted service. When combining multipart and interceptors across services,
 update affected existing calls against a fresh example. `loom example` preserves
 existing files; the generated parser signature remains unchanged.
 
+HTTP and JSON-RPC CLI help displays descriptions and defaults literally, including
+`${name}` and `$$`. Do not add template escaping to the design. Regenerate clients
+to adopt this behavior; payload defaults and explicit flag values are unchanged.
+
 HTTP and JSON-RPC CLI JSON body builders reject omitted required members before
 applying defaults. Omitted optional members can receive defaults; supplied zero
 and empty values remain supplied. Nullable members accept JSON null, ordinary

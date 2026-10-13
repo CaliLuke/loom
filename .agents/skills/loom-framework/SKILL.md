@@ -427,6 +427,11 @@ consumer validation.
   reconstructing their enum occurrence. Normalization is not admission;
   validation remains with `expr`. Do not cache schema fingerprints across
   authored occurrences or bypass value resolution for collections and codecs.
+- `http/codegen.kongHelpLiteral` owns literal text at Kong help-tag emission for
+  HTTP and JSON-RPC. Apply it once after flag help/default composition and at
+  service/method help tags. Preserve semantic descriptions for other consumers
+  and leave payload defaults untouched. Jennifer still owns Go tag quoting;
+  actual emitted-tag parser and generated CLI tests check literal preservation.
 - CLI JSON input has a decoding role independent of client package placement.
   `http/codegen/service_data_json_input.go` owns its detached carrier graph,
   declaration closure, validation and conversion for HTTP and JSON-RPC, including
