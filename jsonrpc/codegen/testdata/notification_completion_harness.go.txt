@@ -1,0 +1,189 @@
+package notificationcompletion_test
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/require"
+
+	server "example.com/notificationcompletion/gen/jsonrpc/probe/server"
+	probe "example.com/notificationcompletion/gen/probe"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
+	transport "github.com/CaliLuke/loom/observability/transport"
+)
+
+type (
+	completionService struct {
+		calls  atomic.Int64
+		frames chan struct{}
+	}
+	completionEvents struct {
+		sync.Mutex
+		values []transport.Event
+	}
+)
+
+func TestNotificationFailureKeepsConnection(t *testing.T) {
+	for _, method := range []string{"unary", "server", "bidi", "required"} {
+		for _, mode := range []string{"decode-notification", "decode-request", "null-request", "endpoint-notification", "success-notification"} {
+			if method == "required" && (mode == "endpoint-notification" || mode == "success-notification") {
+				continue
+			}
+			t.Run(method+"/"+mode, func(t *testing.T) {
+				svc := &completionService{frames: make(chan struct{}, 4)}
+				events := &completionEvents{}
+				mux := loomhttp.NewMuxer()
+				server.Mount(mux, server.New(svc.HandleStream, probe.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
+				hs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					mux.ServeHTTP(w, r.WithContext(transport.WithObserver(r.Context(), transport.ObserverFunc(events.record))))
+				}))
+				defer hs.Close()
+				conn, response, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(hs.URL, "http")+"/ws", nil)
+				require.NoError(t, err)
+				require.NoError(t, response.Body.Close())
+				defer func() {
+					require.NoError(t, conn.Close())
+				}()
+				require.NoError(t, conn.SetReadDeadline(time.Now().Add(3*time.Second)))
+				params := `{"value":123}`
+				id := ""
+				switch mode {
+				case "decode-request":
+					id = `,"id":"bad"`
+				case "null-request":
+					id = `,"id":null`
+				case "endpoint-notification":
+					params = `{"value":"fail"}`
+				case "success-notification":
+					params = `{"value":"ignored"}`
+				}
+				if method == "required" {
+					params = `{"value":"valid"}`
+					if mode == "decode-request" {
+						params = `{"value":123}`
+					}
+				}
+				first := `{"jsonrpc":"2.0","method":"` + method + `","params":` + params + id + `}`
+				require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(first)))
+				require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(`{"jsonrpc":"2.0","method":"unary","params":{"value":"barrier"},"id":"barrier"}`)))
+				if id != "" {
+					var failure jsonrpc.RawResponse
+					require.NoError(t, conn.ReadJSON(&failure))
+					require.NotNil(t, failure.Error)
+					require.Equal(t, int(jsonrpc.InvalidParams), failure.Error.Code)
+					require.NotEmpty(t, failure.Error.Message)
+					if mode == "null-request" {
+						require.Nil(t, failure.ID)
+					} else {
+						require.Equal(t, "bad", failure.ID)
+					}
+				}
+				var barrier jsonrpc.RawResponse
+				require.NoError(t, conn.ReadJSON(&barrier), "request-local failure must not terminate the connection")
+				require.Equal(t, "barrier", barrier.ID)
+				require.Nil(t, barrier.Error)
+				require.JSONEq(t, `"barrier"`, string(barrier.Result))
+				for range 2 {
+					select {
+					case <-svc.frames:
+					case <-time.After(time.Second):
+						t.Fatal("request observation did not complete")
+					}
+				}
+				wantCalls := int64(1)
+				if mode == "endpoint-notification" || mode == "success-notification" {
+					wantCalls++
+				}
+				require.Equal(t, wantCalls, svc.calls.Load())
+				if mode == "decode-notification" || mode == "decode-request" || mode == "null-request" {
+					require.Equal(t, transport.ReasonInvalidJSONRPCParams, events.firstFailure())
+					require.False(t, events.hasSuppressedStreamClose(), "request rejection is not service-stream completion")
+				}
+			})
+		}
+	}
+}
+
+func (s *completionService) HandleStream(ctx context.Context, stream probe.Stream) error {
+	for {
+		observer := transport.BeginRequest(ctx, transport.TransportJSONRPC, "probe", "frame")
+		err := stream.Recv(transport.WithRequestObserver(ctx, observer))
+		observer.End()
+		select {
+		case s.frames <- struct{}{}:
+		default:
+		}
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func (s *completionService) Unary(_ context.Context, p *probe.Input) (string, error) {
+	s.calls.Add(1)
+	if p.Value == "fail" {
+		return "", errors.New("service failed")
+	}
+	return p.Value, nil
+}
+
+func (s *completionService) Server(ctx context.Context, p *probe.Input, stream probe.ServerServerStream) error {
+	value, err := s.Unary(ctx, p)
+	if err != nil {
+		return err
+	}
+	return stream.SendResponse(ctx, value)
+}
+
+func (s *completionService) Bidi(ctx context.Context, p *probe.Input, stream probe.BidiServerStream) error {
+	value, err := s.Unary(ctx, p)
+	if err != nil {
+		return err
+	}
+	return stream.SendResponse(ctx, value)
+}
+
+func (s *completionService) Required(ctx context.Context, p *probe.InputRequiredPayload, stream probe.RequiredServerStream) error {
+	value, err := s.Unary(ctx, &probe.Input{ID: &p.ID, Value: p.Value})
+	if err != nil {
+		return err
+	}
+	return stream.SendResponse(ctx, value)
+}
+
+func (r *completionEvents) record(_ context.Context, event transport.Event) {
+	r.Lock()
+	defer r.Unlock()
+	r.values = append(r.values, event)
+}
+
+func (r *completionEvents) firstFailure() transport.Reason {
+	r.Lock()
+	defer r.Unlock()
+	for _, event := range r.values {
+		if event.Kind == transport.EventKindRequestFailure {
+			return event.Reason
+		}
+	}
+	return transport.ReasonOK
+}
+
+func (r *completionEvents) hasSuppressedStreamClose() bool {
+	r.Lock()
+	defer r.Unlock()
+	for _, event := range r.values {
+		if event.Reason == transport.ReasonStreamFinalResponseSuppressed {
+			return true
+		}
+	}
+	return false
+}

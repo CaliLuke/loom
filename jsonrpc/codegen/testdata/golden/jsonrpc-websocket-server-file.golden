@@ -131,13 +131,13 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) processRequest(ctx context.Contex
 	case "Stream":
 		payload, err := s.stream(ctx, s.r, req)
 		if err != nil {
-			if req.HasID {
-				if sendErr := s.SendError(ctx, req.ID, err); sendErr != nil {
-					return fmt.Errorf("failed to send error response: %w", sendErr)
-				}
+			if !req.HasID {
 				return nil
 			}
-			return fmt.Errorf("handler error for Stream: %w", err)
+			if sendErr := s.SendError(ctx, req.ID, err); sendErr != nil {
+				return fmt.Errorf("failed to send error response: %w", sendErr)
+			}
+			return nil
 		}
 		streamWrapper := &streamStreamWrapper{
 			requestHasID: req.HasID,
@@ -149,11 +149,11 @@ func (s *jSONRPCWebSocketRuntimeServiceStream) processRequest(ctx context.Contex
 			Stream:  streamWrapper,
 		}
 		if _, err := s.streamEndpoint(ctx, endpointInput); err != nil {
-			if req.HasID {
-				if sendErr := streamWrapper.SendError(ctx, err); sendErr != nil {
-					return fmt.Errorf("failed to send error response: %w", sendErr)
-				}
+			if !req.HasID {
 				return nil
+			}
+			if sendErr := s.SendError(ctx, req.ID, err); sendErr != nil {
+				return fmt.Errorf("failed to send error response: %w", sendErr)
 			}
 			return nil
 		}

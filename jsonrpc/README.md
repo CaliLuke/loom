@@ -762,6 +762,12 @@ func (s *chatSvc) Echo(ctx context.Context, p *chat.EchoPayload,
   - For streaming methods, `Recv` creates a method-specific stream wrapper
     that implements your generated `XServerStream` interface and calls your
     method implementation with it.
+  - Invalid method params or service errors complete only that request. An
+    ID-less notification receives no error response, and the connection remains
+    usable for later requests. Requests with an ID receive the correlated error.
+    Native read, context, and error-response write failures still return from
+    `Recv` to the connection handler. Regenerate transports to obtain this
+    behavior for server-streaming and bidirectional notification decode failures.
 - Sending from your methods:
   - In server or bidirectional streaming, your method receives a stream
     wrapper providing:

@@ -17,18 +17,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 			} else {
 				cg.List(jen.Id("_"), jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
 			}
-			cg.If(jen.Err().Op("!=").Nil()).Block(
-				jen.If(jen.Id("req").Dot("HasID")).Block(
-					jen.If(
-						jen.Id("sendErr").Op(":=").Id("s").Dot("SendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Err()),
-						jen.Id("sendErr").Op("!=").Nil(),
-					).Block(
-						jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send error response: %w"), jen.Id("sendErr"))),
-					),
-					jen.Return(jen.Nil()),
-				),
-				jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("handler error for "+ed.Method.Name+": %w"), jen.Err())),
-			)
+			cg.If(jen.Err().Op("!=").Nil()).BlockFunc(writeWebSocketRequestFailure)
 			cg.Id("streamWrapper").Op(":=").Op("&").Id(lowerInitial(ed.Method.VarName) + "StreamWrapper").Values(jen.Dict{
 				jen.Id("stream"):       jen.Id("s"),
 				jen.Id("requestHasID"): jen.Id("req").Dot("HasID"),
@@ -42,18 +31,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 			cg.If(
 				jen.List(jen.Id("_"), jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)+"Endpoint").Call(jen.Id("ctx"), jen.Id("endpointInput")),
 				jen.Err().Op("!=").Nil(),
-			).Block(
-				jen.If(jen.Id("req").Dot("HasID")).Block(
-					jen.If(
-						jen.Id("sendErr").Op(":=").Id("streamWrapper").Dot("SendError").Call(jen.Id("ctx"), jen.Err()),
-						jen.Id("sendErr").Op("!=").Nil(),
-					).Block(
-						jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send error response: %w"), jen.Id("sendErr"))),
-					),
-					jen.Return(jen.Nil()),
-				),
-				jen.Return(jen.Nil()),
-			)
+			).BlockFunc(writeWebSocketRequestFailure)
 			cg.Return(jen.Nil())
 		})
 		return
@@ -65,17 +43,7 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 			res = jen.Id("_")
 		}
 		cg.List(res, jen.Err()).Op(":=").Id("s").Dot(lowerInitial(ed.Method.VarName)).Call(jen.Id("ctx"), jen.Id("s").Dot("r"), jen.Id("req"))
-		cg.If(jen.Err().Op("!=").Nil()).Block(
-			jen.If(jen.Id("req").Dot("HasID")).Block(
-				jen.If(
-					jen.Id("sendErr").Op(":=").Id("s").Dot("SendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Err()),
-					jen.Id("sendErr").Op("!=").Nil(),
-				).Block(
-					jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send error response: %w"), jen.Id("sendErr"))),
-				),
-			),
-			jen.Return(jen.Nil()),
-		)
+		cg.If(jen.Err().Op("!=").Nil()).BlockFunc(writeWebSocketRequestFailure)
 		if !hasResult {
 			// A method without a result answers a request with an ID with
 			// a success response without a result.
@@ -110,4 +78,18 @@ func writeWebSocketRequestCase(g *jen.Group, ed *httpcodegen.EndpointData) {
 		)
 		cg.Return(jen.Nil())
 	})
+}
+
+// writeWebSocketRequestFailure completes a request-local failure. Only a failed
+// response write escapes to the connection receive loop; notifications have no
+// response. Existing typed-adapter failure observations remain unchanged.
+func writeWebSocketRequestFailure(g *jen.Group) {
+	g.If(jen.Op("!").Id("req").Dot("HasID")).Block(jen.Return(jen.Nil()))
+	g.If(
+		jen.Id("sendErr").Op(":=").Id("s").Dot("SendError").Call(jen.Id("ctx"), jen.Id("req").Dot("ID"), jen.Err()),
+		jen.Id("sendErr").Op("!=").Nil(),
+	).Block(
+		jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("failed to send error response: %w"), jen.Id("sendErr"))),
+	)
+	g.Return(jen.Nil())
 }

@@ -1451,6 +1451,12 @@ filter, and serialization rules belong here.
   HTTP/SSE negotiation, WebSocket setup, and final stream-response decisions
   in `jsonrpc`. Generated JSON-RPC code supplies typed dispatch, error, and
   stream adapters only.
+  WebSocket typed dispatch uses one `writeWebSocketRequestFailure` renderer
+  for decode and endpoint failures: original HasID selects suppression or the
+  typed error sender, and only sender failure escapes to the receive loop.
+  Preserve originating invalid-params observation; request rejection is not a
+  service-stream close event. Never suppress all notification dispatch errors in
+  ReceiveWebSocketRequest, where they can represent native I/O failures.
 - `jsonrpc.Response` owns the wire form of every JSON-RPC response
   (`Response.MarshalJSONTo`): a success response always has a `result`
   member, null for a method without a result, and an error response has none.
