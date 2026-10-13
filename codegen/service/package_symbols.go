@@ -84,6 +84,7 @@ func (d *ServicesData) serviceSymbols(svc *expr.ServiceExpr, scope *codegen.Name
 	for _, m := range svc.Methods {
 		methods[m.Name].allocatePackageSymbols(m, scope, adapters)
 	}
+	allocateErrorConstructors(svc, scope)
 	return methods
 }
 

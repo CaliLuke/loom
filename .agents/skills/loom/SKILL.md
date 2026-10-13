@@ -35,6 +35,11 @@ the CLI launcher and the design module's Loom dependency together.
 Generation, example, and vet helpers honor the active Go workspace's modules
 and replacements. Set `GOWORK=off` to use only the design module's `go.mod`.
 
+Use generated error-factory declarations rather than assuming `Make` plus a
+normalized error name. Colliding names receive suffixes, shared with the service
+package types. Regenerate and update handwritten references to renamed factories
+or types; wire error names and mappings remain unchanged.
+
 Full built-in HTTP/JSON-RPC errors carry required `timeout`, `temporary` and
 `fault` booleans. Generated clients preserve them independently of response status
 or code. Explicitly pruned object bodies omit unselected properties (decoded as

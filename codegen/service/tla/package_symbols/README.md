@@ -120,3 +120,43 @@ unchanged. The sole protobuf source change in the coupling fixture is RPC
 `FooEndpoint` to `Foo`, inherited from corrected service method identity; field
 numbers and messages are unchanged. The readiness assumption of universally
 unchanged wire names was corrected explicitly in the roadmap and migration guide.
+
+## Error factory identity (#734)
+
+`ErrorConstructorIdentity.tla` extends this directory's scope to emitted error
+factories. Distinct wire names may prefer the same Go spelling. Factory and
+nominal declarations share the service package, while repeated method references
+must retrieve exactly the previously allocated factory identity.
+
+Run each config with the pinned TLC jar above and an external state directory:
+
+```sh
+java -cp /Users/luca/.cache/loom-tools/tla2tools-1.7.4.jar tlc2.TLC \
+  -metadir /tmp/loom-734-model-Owned \
+  -config ErrorOwned.cfg ErrorConstructorIdentity.tla
+```
+
+Replace `Owned` in both paths with `Concatenated`, `Separate` or `Uncached` to
+check the rejected alternatives. `Concatenated` fails `DistinctFactories`
+(5 generated/distinct states). `Separate` allocates distinct factories in its
+own scope but fails `PackageDeclarationsDistinct` (15 generated/13 distinct).
+`Uncached` allocates in the package scope on every use and fails `ReferencesAgree`
+(31 generated/25 distinct). `Owned` caches factory identities in the shared
+package owner and passes all invariants (50 generated/40 distinct). Deadlock
+checking remains enabled; completion self-loops. These readiness runs used the
+pinned TLC jar and Corretto 25.0.4.1.
+
+The model covers three factory identities, two nominal names, suffix occupancy,
+all factory/type traversal orders within their phases and repeated references.
+It assumes the emitted-factory inventory is correct. It does not establish
+deterministic spelling across reordered designs, arbitrary namespace bounds,
+Go rendering or wire error routing. The implementation seam is early
+`serviceSymbols` reservation and the same cached identity in `buildErrorInitData`.
+`TestErrorConstructorIdentity` and `TestErrorConstructorSharesPackageScope`
+cover the direct defects; `TestErrorConstructorIdentityCompile` covers the
+original generated duplicate declaration, suffix/type collisions, custom external
+errors, ordinary output and mounted wire routing. Parent overlays reproduce
+the duplicate declarations; the corrected generated modules compile and vet.
+The bounded final matrix and remaining implementation work are tracked in
+`roadmap/error-constructor-identity.md` at repository root. Preserve this source,
+configs and receipt; remove temporary checker states and logs after final review.

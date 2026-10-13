@@ -60,6 +60,8 @@ keeps the order authored by the application.
 Generated Go names belong to their declaration scope. Service-package types
 avoid emitted framework declarations such as `Client`, `NewEndpoints`, and
 method stream or body carriers by receiving a deterministic numeric suffix.
+Built-in error factories also occupy this namespace: distinct wire error names
+receive distinct factory names even when both prefer the same `Make` spelling.
 Conditional names such as `Authorizer` are reserved only when that feature emits
 the declaration. A type moved to another package keeps its canonical name.
 Service methods use a separate member namespace: a domain type `Foo` does not

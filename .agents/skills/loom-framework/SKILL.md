@@ -76,7 +76,12 @@ consumer validation.
 ## Architecture Boundaries
 
 - `codegen/service.serviceSymbols` records fixed and method-derived package
-  declarations before nominal types are collected. Method/member and stream
+  declarations before nominal types are collected. Its private
+  `errorConstructorName` owner reserves emitted factories by exact wire error
+  identity in the same cached NameScope, before nominal types. Declaration and
+  method error records retrieve that identity; custom errors with no emitted
+  factory keep an empty factory name. Do not allocate factories per reference or
+  infer their spelling in transports. Method/member and stream
   adapter names have separate scopes; do not put package reservations back into
   method naming. Reuse effective security, HTTP/JSON-RPC and interceptor analysis
   for conditional declarations. Render endpoint factories, carriers, SSE events

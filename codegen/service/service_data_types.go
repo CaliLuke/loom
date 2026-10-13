@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -352,7 +351,7 @@ func buildErrorInitData(er *expr.ErrorExpr, scope *codegen.NameScope) *ErrorInit
 		pkg = scope.PackageName(codegen.UserTypeLocation(ut))
 	}
 	return &ErrorInitData{
-		Name:        fmt.Sprintf("Make%s", codegen.Goify(er.Name, true)),
+		Name:        errorConstructorName(er, scope),
 		Description: er.Description,
 		ErrName:     er.Name,
 		TypeName:    scope.GoTypeName(er.AttributeExpr),

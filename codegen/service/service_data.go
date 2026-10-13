@@ -344,10 +344,11 @@ type (
 		Kind expr.StreamKind
 	}
 
-	// ErrorInitData describes an error returned by a service method of type
-	// ErrorResult.
+	// ErrorInitData describes a service method error and its generated factory,
+	// when the error uses the default ErrorResult representation.
 	ErrorInitData struct {
-		// Name is the name of the init function.
+		// Name is the allocated init function name, or empty for a custom error
+		// type that does not emit a factory.
 		Name string
 		// Description is the error description.
 		Description string

@@ -185,6 +185,14 @@ func MakeServiceUnavailable(err error) *loom.ServiceError {
 }
 ```
 
+Distinct error names retain distinct generated factories even when their preferred
+Go names match. For example, `foo_bar` and `FooBar` can produce `MakeFooBar` and
+`MakeFooBar2`. Factories share the service package namespace with generated types;
+a conflicting type also receives a suffix. Use the generated declarations instead
+of predicting suffixes. Regenerate and update handwritten references to renamed
+factories or types. Authored error names and transport status mappings stay the same.
+Custom user error types do not receive these built-in factories.
+
 ### Selecting Built-in Problem Fields
 
 A response for a built-in error may select a public problem field, for example
