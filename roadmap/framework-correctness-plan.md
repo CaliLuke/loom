@@ -4,66 +4,71 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **138 of 195 tracked reports are delivered, pushed and confirmed closed.**
+- **143 of 197 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report.
-  GitHub snapshot `/tmp/loom-checkpoint-138-all-issues.json` verifies this count.
-- Latest deliveries: #782 shared interceptor accessor coverage (`4813696b7`),
-  #873 cancellation fixture (`f6ca917ab`), #874 conversion fixture (`d212ddc51`)
-  and #871 WebSocket peer-close cleanup (`4f569fad1`). Each exact diff passed
-  independent review; #782 also passed separate integration review.
-- #758 is confirmed resolved by #726's documented and enforced one-operation
-  per-direction contract. Independent real TCP race controls prove prompt overlap
-  rejection and successful serialized delivery of all 16,000 messages. No new
-  production change was necessary. Verdict:
-  `/tmp/loom-758-independent-reconciliation-verdict.json`.
-- Required CI remains unresolved. Completed run `38403110216` on `555d13306`
-  passed generated quality, Redis, OpenAPI, value and all five compile gates.
-  Its required CI and race jobs failed the now-corrected #873/#874 fixtures,
-  active #872 half-close defect and known #820 YAML merge race. #871 separately
-  explains the earlier intermittent WebSocket cleanup failure. These failures
-  are accounted for; later fixes do not constitute aggregate green evidence.
-- Continue the whole backlog. The binary metadata wire-key policy (#705) is
-  pending; independent repairs continue while it is resolved.
+  GitHub snapshot `/tmp/loom-checkpoint-143-all-issues.json` verifies this count.
+- Latest deliveries: #790 envelope ID admission (`e3c3ad28b`), #872 terminal
+  half-close (`5c6535b6d`), #875 JSON-v2 test dependency (`57316cb41`), #876
+  regenerated client snapshot (`f90c6d8f0`) and #699 local error declaration
+  admission (`71a0758f6`). Each exact diff passed independent review; #790,
+  #872 and #699 also passed separate integration review.
+- #758 remains confirmed resolved by #726's enforced one-operation per-direction
+  contract. Independent TCP race controls proved prompt overlap rejection and
+  successful serialized delivery of all 16,000 messages; no new fix was needed.
+- Required CI remains unresolved. Run `38410734050` on `5c6535b6d` failed its
+  required CI job at the now-corrected #875 JSON-v2 test import. Its other jobs
+  were still running at the last check. #876 separately corrects a reproduced
+  stale snapshot. The known #820 upstream YAML merge race remains open.
+  Focused passing checks do not establish aggregate CI green.
+- Continue the whole backlog. The user accepted automatic standard `-bin`
+  wire-key derivation for `Bytes` metadata, preserving already suffixed keys.
+  Handwritten peers must use the derived wire key. #705 implementation is pending.
 
 ## Current execution queue
 
-1. **#872 gRPC half-close after terminal receive:**
-   `/root/diagnostic_redaction_finish` owns `grpc-message-context/loom`.
-   Independent readiness approved shared operation-kind admission and completion
-   arbitration, preserving send leases and prompt cleanup without retaining dead
-   streams. Three terminal cases and a gated active-close race reproduce the bug;
-   corrected model passes 42 generated/30 distinct states. Implement, validate
-   the unchanged mounted recursive harness, independently review and deliver.
-   Verdict: `/tmp/loom-872-independent-readiness-verdict.json`.
-2. **#790 JSON-RPC envelope ID ownership:** `/root/omission_readiness_finish`
-   owns `numeric-comparison/loom`. Final review found no correctness defects;
-   the LOW declaration-order finding was mechanically corrected and independently
-   confirmed. Root is integrating the approved packet on current main. Shared expr binding
-   drives decoder admission, params exclusion and client/CLI projection.
-   Twenty-five unary plus SSE/WS/client/CLI cases pass; 132 candidate generated
-   artifacts repeat exactly. Preserve #867 CLI role selection during integration.
-   Verdict: `/tmp/loom-790-independent-final-rereview-verdict.json`.
-3. **#699 duplicate error admission:** readiness is saved in
-   `grpc-message-context/loom` while the same owner completes #872. Resume local
-   scope uniqueness validation and cross-scope override controls after CI repair.
-   No production change yet.
-4. **#705 binary gRPC metadata:** root reproduced request/header/trailer failures
-   for non-printable bytes under plain keys, with explicit `-bin` controls passing.
-   Shared wire-key owner and derived-collision models are recorded in
-   [the readiness plan](grpc-binary-metadata.md). Policy question remains pending:
-   derive `-bin` for Bytes mappings (recommended) or require explicit authored
-   suffixes. No production change yet.
-5. **CI triage:** examine completed required jobs and repair demonstrated
-   failures using focused evidence. #871/#873/#874 are delivered; #872 is active.
-   New tracked reports #871–#874 explain distinct ownership/test failures.
-6. **#820 dependency race:** authorized libopenapi
+1. **#682 invalid WebSocket notification recovery:**
+   `/root/omission_readiness_finish` owns `numeric-comparison/loom`.
+   Shared request-error completion passes all 18 mounted cases and an ordinary
+   control. Two representative generated servers change only dispatch; each
+   candidate repeats exactly. Independent final review is active; a LOW
+   empty-function formatting finding is being corrected. Keep response-write
+   failures and transport termination visible. Then integrate, push and close.
+2. **#697 CLI argument ordering:** `/root/projection_integration_review` owns
+   `interceptor-accessor-union/loom`. Independent readiness approved the shared
+   ordered semantic argument plan. Four actual HTTP examples fail with swapped
+   dependency types; five ordinary/JSON-RPC controls compile. The model passes
+   256 states. Implement one plan consumed by parser signature and example call,
+   retain local import identities, compare bounded outputs and compile examples.
+3. **#723 nil diagnostic callback:** the #682 owner is preparing additive
+   readiness while its final packet remains frozen. Check exported per-method
+   handlers as well as server construction; use the runtime diagnostic owner.
+4. **#705 binary gRPC metadata:** root owns readiness and the accepted wire-key
+   contract in [the plan](grpc-binary-metadata.md). Request/header/trailer plain
+   keys fail for arbitrary bytes; explicit `-bin` controls pass. Complete the
+   evaluated binding owner, collision admission, implicit credential placement,
+   alias controls and independently implemented peer checks before finalizing
+   readiness. No production changes yet.
+5. **#700 concrete server member identity:** root reproduced HTTP fixed-member,
+   JSON-RPC unary/private WebSocket and gRPC handler-suffix collisions. Preserve
+   canonical service/RPC names; allocate recorded receiver members in the
+   correct namespace. Complete the owner inventory and bounded model in
+   [the plan](http-server-member-identity.md), then obtain readiness review.
+6. **CI triage:** inspect completed required jobs and repair demonstrated
+   failures with focused evidence. #871–#876 are delivered; no overall green
+   claim is made. Keep generator snapshots synchronized through regeneration.
+7. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at last
    check, without new human review. Keep pins unchanged until an eligible
    upstream revision exists.
-7. **#800 read shutdown:** independently approved 53-file packet remains in
+8. **#800 read shutdown:** independently approved 53-file packet remains in
    `bounded-streaming-shutdown`. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
    remains open at last check; original-module fetchability gates delivery.
-   Then resume #687 constructor rollback; #704 worker publication remains separate.
+   Then resume #687 constructor rollback; #704 worker publication is separate.
+
+#872 inactive temporary artifacts were cleaned; compact evidence, exact source
+archive and reviews remain in `/tmp/loom-872-cleanup-receipt.json`.
+#790 worktree artifacts were cleaned under `/tmp/loom-790-cleanup-receipt.json`;
+root integration fixture copies remain pending root cleanup.
 
 #782 temporary generated/model directories and raw logs were removed after review
 and inactivity checks. Exact reproduction inputs, compact results, hashes and
@@ -1370,3 +1375,13 @@ no overall green result is claimed.
   terminal-framing classification while preserving real errors. #790 main
   integration follows final re-review; #872 follows approved readiness.
   Required CI remains unresolved; #820 upstream race and #705 policy remain open.
+
+- 2026-10-13 — **Checkpoint143:** #790 delivered `e3c3ad28b`, #872 delivered
+  `5c6535b6d`, #875 delivered `57316cb41`, #876 delivered `f90c6d8f0`, and
+  #699 delivered `71a0758f6`; independently reviewed, pushed and confirmed closed.
+  Inventory adds two reproduced test-maintenance reports: 143/197 closed.
+  #699 preserves all 57 selected generated artifacts exactly; invalid local
+  duplicates now fail before generation while narrower overrides remain valid.
+  User accepted derived binary metadata keys for #705. #682 final review and
+  #697 implementation continue; #723/#700/#705 readiness remains active.
+  Latest required CI is unresolved; no aggregate green claim.

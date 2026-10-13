@@ -54,7 +54,7 @@ inheritance. This repair preserves those existing selection rules.
   byte-identical and compile; invalid designs must stop with scoped diagnostics
   before any generated output. Use explicit local source for candidate and
   pushed parent for baseline. No full corpus sweep or runtime transport rewrite.
-- [ ] Freeze exact final diff/evidence for fresh independent review; one atomic
+- [x] Freeze exact final diff/evidence for fresh independent review; one atomic
   commit is integrated by root, then update closure and clean inactive outputs.
 
 ## Limits
@@ -135,5 +135,10 @@ late error message.
   independently checked readiness packet: current/effective/global counterexamples
   and local30-state success remain applicable to this exact owner.
 
-Final independent review and integration remain outstanding. No commit or push
-has been made by the implementer.
+Final independent review and integration are complete. Root committed and pushed
+the reviewed change; see Delivery below.
+
+## Delivery
+
+Delivered and pushed as `71a0758f6`; GitHub confirms closure. Independent
+integration verdict: `/tmp/loom-699-independent-integration-verdict.json`.

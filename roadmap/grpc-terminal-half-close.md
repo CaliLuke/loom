@@ -47,7 +47,7 @@ retain a canceled RPC, swallow message errors, or add template-local suppression
   lifecycle/admission tests under race. Generator output must remain unchanged;
   compare one existing bidirectional generated specimen parent/candidate/repeat
   and compile it, without a full generator sweep.
-- [ ] Freeze exact atomic packet for independent final review and root delivery.
+- [x] Freeze exact atomic packet for independent final review and root delivery.
 
 ## Separate CI test owners
 
@@ -104,3 +104,8 @@ correct error decoding; `/tmp/loom-grpc-ci-repro.log` preserves that witness.
 - Artifact ledger: `/tmp/loom-872-artifact-comparison.json`. Source/evidence hashes
   are frozen separately for final review. #699 untracked readiness and already
   delivered #873/#874 are excluded from this ticket's exact patch.
+
+## Delivery
+
+Delivered and pushed as `5c6535b6d`; GitHub confirms closure. Independent
+integration verdict: `/tmp/loom-872-independent-integration-verdict.json`.
