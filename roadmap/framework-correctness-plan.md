@@ -4,43 +4,42 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **120 of 183 tracked reports are delivered, pushed and confirmed closed.**
+- **124 of 186 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each issue and its
-  owning repair. GitHub snapshot `/tmp/loom-checkpoint-120-all-issues.json`
-  confirms this checkpoint. Latest pushed main is `9b82560da`.
-- Latest deliveries: #860 stale generated names (`58defc6c7`), #847 selected-body
-  field identity (`eaa9c8506`), #862 node identity assertions (`27f149066`),
-  #861 omission fixtures (`f7a70c1c7`), #720 typed client stream contracts
-  (`521f7abc9`), and #740 physical protobuf element admission (`9b82560da`).
-  Each passed independent final review and affected gates; integrations were
-  reviewed separately when the parent advanced.
+  owning repair. GitHub snapshot `/tmp/loom-checkpoint-124-all-issues.json`
+  confirms this checkpoint. Latest pushed implementation is `fae477d0e`.
+- Latest deliveries: #863 native WebSocket cleanup observation (`fc65bb288`),
+  #864 gRPC symbol fixture lint (`7eed12497`), #865 CLI assertion lint
+  (`8f1240831`), and #853 shared response projection (`fae477d0e`). Each passed
+  independent exact-diff review; #853 integration was separately reviewed.
+- Full repository `make lint` passes on the integrated #853 source, including
+  root, testdata and integration modules (`/tmp/loom-853-main-lint.log`). Newer
+  GitHub CI runs remain queued/running; no overall CI success is claimed.
 - No public-contract question is pending. Continue the whole backlog; upstream
   dependencies do not block independent work. Remaining reports close only on
   their own acceptance evidence.
 
 ## Current execution queue
 
-1. **#853 response projection before framing:** `/root/diagnostic_redaction_finish`
-   owns `import-credential-parent/loom`, advanced to `eaa9c8506`. Root approved
-   shared ResponseEncodePlan ownership after independently reproducing leaks in
-   JSON-RPC unary and both HTTP/JSON-RPC WebSocket final responses. Five rejected
-   model designs fail, owned121-state design passes. Implementation now makes
-   the three probes pass; finish bounded11-module comparison and mounted
-   view/metadata/codec/batch/notification/SSE controls before final review.
-   Keep metadata codec invocation counts and distinct StreamingResult events.
-   Readiness manifest `04b33a1d8606017ef428c7c28482f763aa27e017963c95e28173c2577f3006da`.
-2. **#735 HTTP/RPC constructor identity:** `/root/omission_readiness_finish`
-   owns clean reused `numeric-comparison/loom` at `521f7abc9`. Readiness only:
-   reconcile original Handler/response constructor collisions and the preserved
-   shared Text alias with distinct projected source signatures. Establish one
-   package allocation/conversion identity owner with models and compiled
-   witnesses before implementation. #700/#736/#770/#786 remain separately owned.
-3. **Remaining CI triage:** #860/#861/#862 are delivered. Root is examining the
-   generated HTTP WebSocket lifetime assertion: receiving a close frame does not
-   prove server native Close completed. Preserve a deterministic gated witness
-   and original socket-release check before filing/repairing this separate test
-   observation defect. Latest snapshot `/tmp/loom-ci-current-862.json` still has
-   pending newer runs and earlier failed Build/race; no overall green claim.
+1. **#735 HTTP/RPC constructor identity:** `/root/omission_readiness_finish`
+   owns `numeric-comparison/loom`. Independent readiness approved the complete
+   emitted-conversion identity and per-package allocation owner. Implementation
+   passes original collision and wrong-field witnesses; finish reservation,
+   import reanalysis and streaming controls. Reconcile #853 BodyValues by
+   rebuilding the response plan after constructor allocation, then review the
+   exact bounded output comparison and final diff. #700/#736/#770/#786 remain
+   separately owned. Readiness verdict:
+   `/tmp/loom-735-independent-readiness-verdict.json`.
+2. **#859 streaming interceptor value ownership:**
+   `/root/access_log_implementation` owns readiness in `correctness-baseline/loom`.
+   Reconcile expression admission, attribute collection and StreamingResultRef
+   with the shared stream result contract; preserve compiled witnesses and model
+   current/candidate behavior before independent readiness review. #785 wrapper
+   shape and #726 context/lifetime remain separate.
+3. **CI triage:** #863/#864/#865 are delivered and complete local lint is green.
+   Snapshot `/tmp/loom-ci-checkpoint-123.json` has queued/running newer workflow
+   runs, with completed CodeQL checks green. Continue examining completed
+   required gates and repair demonstrated failures; do not infer aggregate green.
 4. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at last
    check (`3180fde17f85cf6b6ed5b3f738f0de9d915161bb`), without new human review.
@@ -51,18 +50,21 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
    remains open at last check (`8df7cf3c57002ecf1fc3a51ff5697bf563ab967c`);
    original-module fetchability gates delivery. Then resume #687 constructor
    rollback; #704 worker publication remains separate.
-6. Continue the remaining milestone inventory by shared ownership and risk.
-   #726 stream cleanup, #785 wrapper shape and #859 mixed-result interceptor
-   accessor ownership remain separate from delivered #720.
+6. Continue remaining milestone reports by shared ownership and correctness risk.
+   #853 is delivered: all three proven projection leaks are repaired, metadata
+   codec counts and mixed StreamingResult event contracts are preserved. Its
+   original 11-module comparison and current 39-file fixture regeneration pass.
 
-Recent cleanup: #858 removed four inactive generated directories and eight raw
-logs, retaining compact receipt `/tmp/loom-858-cleanup-receipt.json`
-(`d52474315febd7935b46e4880e38c52116c0e5d267951f7c1e7faa53d04741f9`).
-#860 removed three comparison directories and six raw logs, retaining receipt
-`/tmp/loom-860-cleanup-receipt.json`
-(`0c1f66e7cbb08ec898df7e2505d92618e882547382a0b64f8def47fd4f517652`).
-Preserve active witnesses; finish #847/#854/#720/#740/#861 temporary cleanup
-only after confirming no active consumer needs each artifact.
+Recent temporary cleanup completed for #847, #854, #720/#861/#862, #740, #863
+and #864 after process checks and preserving compact evidence plus exact inputs.
+Receipts are `/tmp/loom-N-cleanup-receipt.json`, with #720's receipt covering
+#861/#862 too. The #863 receipt SHA is
+`7df59a9b6cb9acc1ea16d1fec21c10c93eccdddd74e97aa5f763c17dd45c71a1`.
+#853 cleanup also completed after #735 confirmed no remaining dependency; its
+receipt is `/tmp/loom-853-cleanup-receipt.json` (SHA
+`3c7b1359e797b4f653eb1171dac321b64be5a285e398d75f8d698dac105b449b`).
+Source worktrees and reusable toolchains remain intact.
+Earlier #858/#860 receipts remain available at the same per-ticket paths.
 
 Delivered #693/#801 temporary cleanup removed 19 inactive directories after
 process checks, preserving compact evidence and installed tools. Receipt:
@@ -1261,3 +1263,12 @@ no overall green result is claimed.
   Independent final and integration receipts are under `/tmp/loom-N-*verdict.json`.
   Latest main9b82560da;183 tracked reports,120 confirmed closed. Continue #853
   shared projection, #735 constructor identity readiness and remaining CI triage.
+
+- 2026-10-13 — **Checkpoint124:** #863/#864/#865/#853 independently reviewed,
+  pushed and confirmed closed; 124 of 186 tracked reports delivered. Main
+  `fae477d0e` contains shared response projection before protocol framing.
+  Original final patch `10c6bc8537`, integrated patch `83f2a81014`, fresh
+  integration verdict `5e79a99333`; current 39-file fixture output repeats exactly,
+  both apps build/vet/race, integrated mounted matrix and full `make lint` pass.
+  Continue #735 constructor ownership and #859 streaming interceptor readiness;
+  upstream prerequisites and GitHub aggregate CI remain unresolved.
