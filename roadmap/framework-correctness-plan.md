@@ -4,72 +4,65 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **110 of 178 tracked reports are delivered, pushed and confirmed closed.**
+- **114 of 181 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each issue and its
-  owning repair; GitHub snapshot `/tmp/loom-checkpoint-110-all-issues.json`
-  confirms this checkpoint. Latest pushed main is `f609b2817`.
-- Shared authentication scope, recursive validation/projection, exact numeric
-  values, effective constraints/composition, transport bindings, logging ownership,
-  file write intent, absence-only defaults and JSON presence have delivered fixes.
-  Remaining witnesses are tracked individually; no family closes by inference.
-- Latest architectural deliveries are #848 physical-layout JSON omission
-  (`8ce69db06`) and #694 service symbol ownership (`fce66acb1`). Each passed fresh
-  independent final and integration reviews. #849/#850/#851/#852 repaired the
-  observed CI assertion/assembly/fixture failures without changing production
-  behavior to satisfy stale tests.
-- No public-contract question is pending. Accepted empty/default, security,
-  numeric, query/form and overload decisions remain in the owning documentation.
-  Continue the full backlog; upstream dependencies do not block independent work.
+  owning repair. GitHub snapshot `/tmp/loom-checkpoint-114-all-issues.json`
+  confirms this checkpoint. Latest pushed main is `4710891ff`.
+- Latest deliveries: #691 gRPC lexical/import ownership (`65f652a43`),
+  #754 helper-local conversion fallibility (`56c46446f`), #858 shared test-module
+  view assembly (`8faa2e6a6`), and #854 selected response field storage
+  (`4710891ff`). Each passed independent final review and affected gates.
+- No public-contract question is pending. Continue the whole backlog; upstream
+  dependencies do not block independent work. Remaining reports close only on
+  their own acceptance evidence.
 
 ## Current execution queue
 
-1. **#847 selected-body field identity:** root owns
-   `/Users/luca/.codex/worktrees/selected-body-field-identity/loom`, parent
-   `99e2c33d6`. Shared binding implementation passes the original 28 compiled
-   specimens and mounted request/CLI checks. Ordinary/renamed optional viewed
-   response and codec controls pass. Independently reviewed reports
-   #853 and #854 preserve two residuals: JSON-RPC's mounted success path bypasses
-   selected-result encoding, and required selected viewed scalars use the wrong
-   pointer carrier. `/root/diagnostic_redaction_finish` prioritizes #854 shared
-   target-storage repair before #853 projection implementation. The initial
-   owner/model readiness passed independent review; generated acceptance exposed
-   a named-view source conversion mismatch whose ownership is being reconciled.
-   Preserve #847's required-viewed witnesses until that prerequisite is repaired;
-   optional-view and direct-codec controls do not establish the failing contracts.
-   Neither residual is claimed fixed by the member-name correction.
-2. **#691 gRPC import/local ownership:** `/root/access_log_implementation` reuses
-   `service-symbol-parent/loom`. Fresh readiness review approved the shared
-   reservation scope and retained example-file bindings after reproducing local
-   and protobuf alias collisions, aggregate reference failures, and five model
-   outcomes. Implementation is active; exact final review remains required.
-   The forbidden `init` import alias is separately tracked as #856.
-3. **#754 helper fallibility before #740 element admission:**
-   `/root/omission_readiness_finish` owns `default-application-parent/loom`.
-   Independent #740 readiness review reproduced caller-dependent helper
-   signatures, already reported as #754. Revised #754 readiness passed fresh
-   review: helper-local transitive fallibility owns declaration, body context and
-   call arguments, while root constructor contracts stay separate. Eight mixed
-   cases fail on the parent; two pure controls pass; the proposed model passes
-   192 states. Implement and deliver this atomic prerequisite, then resume #740
-   occurrence-specific admission. Do not combine the tickets or weaken controls.
-4. **#820 dependency race:** authorized libopenapi
+1. **#847 selected-body field identity:** root's candidate remains in
+   `/Users/luca/.codex/worktrees/selected-body-field-identity/loom`, advanced to
+   `56c46446f` with local edits preserved. Integrate delivered #854 storage owner
+   and #858 view assembly, remove the uncommitted caller-local view loop, and
+   rebaseline original required-view controls against current main. Preserve
+   logical origin and physical field identity together. #735 constructor sharing
+   and #853 mounted JSON-RPC projection remain separate defects.
+2. **#740 protobuf element admission:** `/root/omission_readiness_finish` owns
+   `default-application-parent/loom` at `56c46446f`. #754 prerequisite is delivered.
+   Source-context owner refinement passed root's independent readiness review:
+   21 source/12 evidence hashes verified; direct and original runtime witnesses
+   pass (8.871s). Finish shared-helper/wrapper controls, mounted no-invalid-write
+   acceptance, bounded byte comparison and lint, then fresh exact-final review.
+   Manifest `54887548f4b4c48d83515fabc2a5ac4e9156604cf45db516f4f339c643e3617b`.
+3. **#720 service-client stream contracts:** `/root/access_log_implementation`
+   owns `metadata-defaults-parent/loom`, advanced to `4710891ff`. Independent
+   readiness review approved shared stream operations/Close and endpoint-context
+   capture; six incomplete models fail, owned model passes 57 states. Nine
+   ordinary/shared controls pass. Implement and complete the bounded 16-module
+   contract matrix. Preserve gRPC CloseSend semantics; #859 mixed-result
+   interceptor accessors remain separate. Readiness manifest
+   `5b32b635a8fc03e01a11177770dac54bbaeac6f4509819262be16aa4e8ac0950`.
+4. **#860 CI generated-name harnesses:** `/root/review_json_normalization` owns
+   reused clean `json-field-parent/loom` at `4710891ff`. Five failures in four
+   handwritten harness files still expect pre-#694 names. Preserve assertions
+   and require unchanged generated bytes, focused runtime gates and review.
+   Other observed CI failures remain under root triage: omission golden/tag
+   expectations, representation identity assertion and WebSocket lifetime test.
+5. **#853 selected JSON-RPC success projection:** resume shared projection owner
+   after the current prerequisite integrations; client codec correctness alone
+   does not prove the mounted handler. #854 is delivered, not a fix for #853.
+6. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at
    `3180fde17f85cf6b6ed5b3f738f0de9d915161bb`, with no new human review at the
-   latest check. Draft/patch/receipt remain in `yaml-merge-model-race`.
-   Dependency pins remain unchanged until an eligible upstream revision exists.
-5. **#800 read shutdown:** independently approved 53-file manifest
+   latest check. Keep pins unchanged until an eligible upstream revision exists.
+7. **#800 read shutdown:** independently approved 53-file manifest
    `03ef4eff230c124907a5d248aaeca5b4f2e25a416352417a85a23951f99bbb32`
-   remains in `bounded-streaming-shutdown`. Real Redis, bounded shutdown and race
-   checks passed with a disposable modfile. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
+   remains in `bounded-streaming-shutdown`. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
    remains open at `8df7cf3c57002ecf1fc3a51ff5697bf563ab967c`; original-module
    fetchability still gates delivery. Then resume #687 constructor rollback;
-   #704 worker publication remains a separate task.
-6. Continue remaining milestone inventory items by shared ownership and risk.
-   At `14e092327`, CI passed OpenAPI, generated quality, Redis and the gRPC,
-   expr and JSON-RPC compile partitions. HTTP integration dependency typechecking
-   failed and is now repaired by #857. New main CI remains unconfirmed. Do not
-   claim a complete green run from
-   focused gates or from older source revisions.
+   #704 worker publication remains separate.
+8. Continue the remaining milestone inventory by shared ownership and risk.
+   CI run `38378165502` at `ae3a281a2` failed Build/race; exact failed log is
+   `/tmp/loom-ci-checkpoint-failed.log`. Latest observed #691/#754 runs remain
+   in progress. Do not claim overall green CI from focused checks.
 
 Delivered #693/#801 temporary cleanup removed 19 inactive directories after
 process checks, preserving compact evidence and installed tools. Receipt:
@@ -1235,3 +1228,26 @@ no overall green result is claimed.
   checks. Receipt `/tmp/loom-694-cleanup-receipt.json`, SHA
   `5e8dd7141b4565ab4adffd57110ded3a8d6895ef3ec1a654b7c611f9dd23fe48`.
   Active source packets, current reproduction inputs and shared tools remain.
+
+## Delivery checkpoint: 114 reports
+
+- #691 delivered `65f652a43`: exact independent final/integration review, 21
+  generated modules, 479 artifacts with 169 intended changes and exact repeats;
+  wire/schema controls unchanged. Cleanup receipt `/tmp/loom-691-cleanup-receipt.json`.
+- #754 delivered `56c46446f`: independent final/integration review, six specimens,
+  66 artifacts with eight intended private-helper changes, mixed-order and
+  generated adapters/race controls. Cleanup receipt `/tmp/loom-754-cleanup-receipt.json`.
+- #858 delivered `8faa2e6a6`: shared helper now owns required views; seven caller
+  compensations removed. Parent58/candidate60 artifacts differ only by two missing
+  view files; previous complete assembly and fresh repeat are byte-identical.
+  Independent race/build/vet regression passes5.502s. Final manifest
+  `0b0fd794e773af67d8751516dec41dd2918ba225752be87a7a02fe9273851224`.
+- #854 delivered `4710891ff`: root independently approved all18 files and verified
+  144 artifact hashes; separate integration review preserved #691/#754 guidance.
+  Integrated direct and complete mixed build/vet/race checks pass0.619s/4.129s.
+  Original required-view and optional named nil/empty/value controls are retained.
+  Final manifest `b02855cae7d52a92fa8de0e3fa6d9372770f41a6d9146b100add9402e91a68eb`.
+  #735 shared-alias witness and #853 envelope projection remain open.
+- #859 mixed-result streaming accessor and #860 stale generated-name harness
+  reports were independently reproduced before filing. GitHub snapshot confirms
+  114 closed of181 tracked reports. No complete green CI claim is made.
