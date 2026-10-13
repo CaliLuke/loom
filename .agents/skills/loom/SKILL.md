@@ -868,6 +868,11 @@ servers to adopt this ordering correction.
   Import rejects incompatible deepObject/style/explode contracts, including with
   `--allow-lossy`. JSON-compatible form serialization and JSON query map content
   can round-trip through import and generation.
+- OpenAPI import admits path parameters and headers only as primitives or
+  primitive arrays, and cookies only as primitives, following schema references.
+  Unsupported bindings fail before design publication, including with
+  `--allow-lossy`. JSON query maps remain supported; closed empty objects are
+  records, while memberless open objects are maps.
 - Use `MultipartRequest()` for supported multipart object payloads.
 - Use `OptionalRequestBody()` for optional JSON object bodies and optional
   typed form object/map bodies. An object or union selected with `Body("name")`

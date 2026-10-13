@@ -30,7 +30,7 @@ func TestImportCookieShapes(t *testing.T) {
 					document, diagnostics, err := Analyze(source)
 					require.NoError(t, err)
 					if !test.accepted {
-						require.Contains(t, diagnostics.Error(), "cookie-parameter-shape")
+						require.Contains(t, diagnostics.Error(), "parameter-shape")
 						require.Contains(t, diagnostics.Error(), "#/operations/0/parameters/0/schema")
 						fatal, _ := diagnostics.Classify(true)
 						require.NotEmpty(t, fatal)

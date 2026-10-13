@@ -889,6 +889,15 @@ filter, and serialization rules belong here.
   carrier classification. Keep normalization models and bounded field/map/root/
   nullability/name controls aligned. URL location admission remains separate.
 
+- `documentPlanner.admitParameterShape` owns imported binding admission by
+  location, for request parameters and response headers. Its reference-resolved
+  shape adapter verifies scalar array elements and consumes `classifyObject` for
+  record/map identity. Decode component names through the canonical JSON Pointer
+  helper, retaining cycle protection. Keep query/form serialization with
+  `httpencoding.Match`, existing non-query Any codecs and raw-form delegation;
+  reject an unsupported carrier once before serialization or render planning.
+  Analyze and direct Render must share this owner, including selected operations.
+
 - Plan imported schema references once after component promotion and final error
   declaration allocation in `internal/openapiimport`. Retain declaration owner
   and source-path occurrence identity; resolve source component names separately

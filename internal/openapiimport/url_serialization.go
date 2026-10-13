@@ -3,7 +3,6 @@ package openapiimport
 import (
 	"maps"
 	"slices"
-	"strings"
 
 	"github.com/CaliLuke/loom/internal/httpencoding"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
@@ -89,11 +88,12 @@ func (p *documentPlanner) formProperties(schema *Schema, properties map[string]*
 func (p *documentPlanner) urlSchema(schema *Schema) *Schema {
 	seen := make(map[string]bool)
 	for schema != nil && schema.Ref != "" {
-		if seen[schema.Ref] || !strings.HasPrefix(schema.Ref, "#/components/schemas/") {
+		name, err := localComponentReferenceName(schema.Ref, "#/components/schemas/")
+		if err != nil || seen[name] {
 			return nil
 		}
-		seen[schema.Ref] = true
-		schema = p.schemas[strings.TrimPrefix(schema.Ref, "#/components/schemas/")].Schema
+		seen[name] = true
+		schema = p.schemas[name].Schema
 	}
 	return schema
 }
@@ -105,9 +105,16 @@ func (p *documentPlanner) urlShape(schema *Schema) httpencoding.Shape {
 	}
 	switch schema.Type {
 	case "array":
-		return httpencoding.Sequence
+		if p.schemaIsPrimitive(p.urlSchema(schema.Items), make(map[string]struct{})) {
+			return httpencoding.Sequence
+		}
+		return httpencoding.UnsupportedShape
 	case "object":
-		if len(schema.Properties) == 0 && len(schema.Bases) == 0 && schema.AdditionalProperties != nil {
+		representation, err := classifyObject(schema)
+		if err != nil {
+			return httpencoding.UnsupportedShape
+		}
+		if representation == objectFreeMap || representation == objectTypedMap {
 			return httpencoding.Map
 		}
 		return httpencoding.Object

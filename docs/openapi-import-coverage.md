@@ -108,9 +108,18 @@ objects: those fields select a different serialization. Regeneration emits the
 explicit JSON media type. Existing root form maps and raw-body imports retain
 their separate contracts.
 
-Cookie parameters require primitive schemas, including through component
-references. Array and object cookies produce a blocking
-`cookie-parameter-shape` diagnostic, even with `--allow-lossy`.
+Path parameters and request/response headers require primitives or arrays of
+primitives. Cookie parameters require primitives. These rules follow component
+references and array element references. Fixed records, maps outside JSON query
+parameters, and nested collection parameters produce a blocking
+`parameter-shape` diagnostic, even with `--allow-lossy`; direct `Render` applies
+the same admission. This replaces the cookie-only diagnostic code. Regenerate an
+imported design after correcting an unsupported source binding.
+
+For JSON query maps, omitted `additionalProperties` on a memberless object and
+explicit `additionalProperties: true` select the same map carrier. A closed
+memberless record (`additionalProperties: false`) remains a fixed object and is
+not admitted as a query map.
 
 In OpenAPI 3.1 and 3.2, a parameter reference's `description` overrides the
 component description for that occurrence, including an explicitly empty
