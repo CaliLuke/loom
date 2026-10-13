@@ -6,7 +6,7 @@ func EncodeMethodMessageWithValidateRequest(ctx context.Context, v any, md *meta
 		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithValidate", "MethodMessageWithValidate", "*servicemessagewithvalidate.RequestUT", v)
 	}
 	if payload.InMetadata != nil {
-		(*md).Append("Authorization", fmt.Sprintf("%v", *payload.InMetadata))
+		(*md).Append("authorization", fmt.Sprintf("%v", *payload.InMetadata))
 	}
 	return NewProtoMethodMessageWithValidateRequest(payload), nil
 }

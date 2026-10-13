@@ -18,9 +18,9 @@ func TestBuildServiceCapturesEndpointShapes(t *testing.T) {
 
 	endpoint := svc.Endpoints[0]
 	require.Equal(t, "MethodMessageWithMetadata", endpoint.Name)
-	require.Equal(t, "InHeader", endpoint.Response.Headers.KeyName("Location"))
-	require.Equal(t, "InTrailer", endpoint.Response.Trailers.KeyName("InTrailer"))
-	require.Equal(t, "InMetadata", endpoint.Request.Metadata.KeyName("InMetadata"))
+	require.Equal(t, "InHeader", endpoint.Response.Headers.KeyName("location"))
+	require.Equal(t, "InTrailer", endpoint.Response.Trailers.KeyName("intrailer"))
+	require.Equal(t, "InMetadata", endpoint.Request.Metadata.KeyName("authorization"))
 }
 
 func TestBuildServiceCapturesStreamingAndErrors(t *testing.T) {

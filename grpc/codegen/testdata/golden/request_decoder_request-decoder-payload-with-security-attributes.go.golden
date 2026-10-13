@@ -2,22 +2,22 @@
 // "ServiceMessageWithSecurity" service "MethodMessageWithSecurity" endpoint.
 func DecodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md metadata.MD) (any, error) {
 	var (
-		token    *string
 		key      *string
+		token    *string
 		username *string
 		password *string
 		err      error
 	)
 	{
+		if vals := md.Get("x-api-key"); len(vals) > 0 {
+			key = &vals[0]
+		}
 		if vals := md.Get("authorization"); len(vals) > 0 {
 			value, ok := security.DecodeBearer(vals[0])
 			if !ok {
 				return nil, loom.DecodePayloadError("invalid Authorization bearer credential")
 			}
 			token = &value
-		}
-		if vals := md.Get("authorization"); len(vals) > 0 {
-			key = &vals[0]
 		}
 		if vals := md.Get("username"); len(vals) > 0 {
 			username = &vals[0]
@@ -40,7 +40,7 @@ func DecodeMethodMessageWithSecurityRequest(ctx context.Context, v any, md metad
 	}
 	var payload *servicemessagewithsecurity.RequestUT
 	{
-		payload = NewMethodMessageWithSecurityPayload(message, token, key, username, password)
+		payload = NewMethodMessageWithSecurityPayload(message, key, token, username, password)
 	}
 	return payload, nil
 }

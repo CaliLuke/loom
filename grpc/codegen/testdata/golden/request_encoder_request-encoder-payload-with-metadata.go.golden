@@ -6,15 +6,15 @@ func EncodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md *meta
 		return nil, loomgrpc.ErrInvalidType("ServiceMessageWithMetadata", "MethodMessageWithMetadata", "*servicemessagewithmetadata.RequestUT", v)
 	}
 	if payload.InMetadata != nil {
-		(*md).Append("Authorization", fmt.Sprintf("%v", *payload.InMetadata))
+		(*md).Append("authorization", fmt.Sprintf("%v", *payload.InMetadata))
 	}
 	for _, value := range payload.UInts {
 		valueStr := strconv.FormatUint(uint64(value), 10)
-		(*md).Append("X-Uints", valueStr)
+		(*md).Append("x-uints", valueStr)
 	}
 	for _, value := range payload.UInt32s {
 		valueStr := strconv.FormatUint(uint64(value), 10)
-		(*md).Append("X-Uint32s", valueStr)
+		(*md).Append("x-uint32s", valueStr)
 	}
 	return NewProtoMethodMessageWithMetadataRequest(payload), nil
 }

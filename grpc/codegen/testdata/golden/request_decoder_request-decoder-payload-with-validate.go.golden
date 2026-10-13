@@ -6,7 +6,7 @@ func DecodeMethodMessageWithValidateRequest(ctx context.Context, v any, md metad
 		err        error
 	)
 	{
-		if vals := md.Get("Authorization"); len(vals) > 0 {
+		if vals := md.Get("authorization"); len(vals) > 0 {
 			inMetadataRaw := vals[0]
 
 			v, err2 := strconv.ParseInt(inMetadataRaw, 10, strconv.IntSize)

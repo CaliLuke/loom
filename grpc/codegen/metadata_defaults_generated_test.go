@@ -159,8 +159,8 @@ func TestMetadataPresence(t *testing.T) {
 		invalid bool
 	}{
 		{name: "absent defaults", values: metadata.Pairs("must", "present"), limit: 3, lang: "en", flag: true, data: "fallback", label: "fallback", tags: []string{"fallback"}, numbers: []int{3}},
-		{name: "explicit zero empty", values: metadata.Pairs("must", "present", "limit", "0", "lang", "", "flag", "false", "data", "", "label", "", "tags", "", "numbers", "0", "optional", ""), tags: []string{""}, numbers: []int{0}, optional: strptr("")},
-		{name: "ordinary", values: metadata.Pairs("must", "present", "limit", "9", "lang", "it", "flag", "true", "data", "value", "label", "value", "tags", "a", "tags", "b", "numbers", "2", "numbers", "4"), limit: 9, lang: "it", flag: true, data: "value", label: "value", tags: []string{"a", "b"}, numbers: []int{2,4}},
+		{name: "explicit zero empty", values: metadata.Pairs("must", "present", "limit", "0", "lang", "", "flag", "false", "data-bin", "", "label", "", "tags", "", "numbers", "0", "optional", ""), tags: []string{""}, numbers: []int{0}, optional: strptr("")},
+		{name: "ordinary", values: metadata.Pairs("must", "present", "limit", "9", "lang", "it", "flag", "true", "data-bin", "value", "label", "value", "tags", "a", "tags", "b", "numbers", "2", "numbers", "4"), limit: 9, lang: "it", flag: true, data: "value", label: "value", tags: []string{"a", "b"}, numbers: []int{2,4}},
 		{name: "malformed integer", values: metadata.Pairs("must", "present", "limit", "bad"), invalid: true},
 		{name: "malformed bool", values: metadata.Pairs("must", "present", "flag", "bad"), invalid: true},
 		{name: "malformed element", values: metadata.Pairs("must", "present", "numbers", "bad"), invalid: true},

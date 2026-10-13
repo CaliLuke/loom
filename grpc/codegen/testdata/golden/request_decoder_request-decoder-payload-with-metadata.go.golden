@@ -8,7 +8,7 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 		err        error
 	)
 	{
-		if vals := md.Get("Authorization"); len(vals) > 0 {
+		if vals := md.Get("authorization"); len(vals) > 0 {
 			inMetadataRaw := vals[0]
 
 			v, err2 := strconv.ParseInt(inMetadataRaw, 10, strconv.IntSize)
@@ -18,7 +18,7 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 			pv := int(v)
 			inMetadata = &pv
 		}
-		if vals := md.Get("X-Uints"); len(vals) > 0 {
+		if vals := md.Get("x-uints"); len(vals) > 0 {
 			uInts = make([]uint, len(vals))
 			for i, rv := range vals {
 				v, err2 := strconv.ParseUint(rv, 10, strconv.IntSize)
@@ -28,7 +28,7 @@ func DecodeMethodMessageWithMetadataRequest(ctx context.Context, v any, md metad
 				uInts[i] = uint(v)
 			}
 		}
-		if vals := md.Get("X-Uint32s"); len(vals) > 0 {
+		if vals := md.Get("x-uint32s"); len(vals) > 0 {
 			uInt32s = make([]uint32, len(vals))
 			for i, rv := range vals {
 				v, err2 := strconv.ParseUint(rv, 10, 32)

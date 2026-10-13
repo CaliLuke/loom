@@ -846,6 +846,9 @@ var MessageWithSecurityAttrsDSL = func() {
 			Security(JWTAuth, OAuth2Auth, APIKeyAuth, BasicAuth)
 			Payload(RequestUT)
 			GRPC(func() {
+				Metadata(func() {
+					Attribute("key:x-api-key")
+				})
 				Message(func() {
 					Attribute("oauth_token")
 				})

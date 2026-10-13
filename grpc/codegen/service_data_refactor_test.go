@@ -49,10 +49,10 @@ func TestAnalyzeBuildsResponseMetadataData(t *testing.T) {
 	require.NotNil(t, endpoint)
 	require.Len(t, endpoint.Response.Headers, 2)
 	require.Len(t, endpoint.Response.Trailers, 2)
-	require.Equal(t, "Location", endpoint.Response.Headers[0].Name)
-	require.Equal(t, "X-String-Header", endpoint.Response.Headers[1].Name)
-	require.Equal(t, "InTrailer", endpoint.Response.Trailers[0].Name)
-	require.Equal(t, "X-String-Trailer", endpoint.Response.Trailers[1].Name)
+	require.Equal(t, "location", endpoint.Response.Headers[0].Name)
+	require.Equal(t, "x-string-header", endpoint.Response.Headers[1].Name)
+	require.Equal(t, "intrailer", endpoint.Response.Trailers[0].Name)
+	require.Equal(t, "x-string-trailer", endpoint.Response.Trailers[1].Name)
 }
 
 func TestAnalyzePartitionsSecuritySchemesBetweenMessageAndMetadata(t *testing.T) {
@@ -67,6 +67,27 @@ func TestAnalyzePartitionsSecuritySchemesBetweenMessageAndMetadata(t *testing.T)
 	require.Len(t, endpoint.MetadataSchemes, 1)
 	require.Equal(t, "oauth2", endpoint.MessageSchemes[0].SchemeName)
 	require.Equal(t, "jwt", endpoint.MetadataSchemes[0].SchemeName)
+}
+
+func TestAnalyzeSecurityFixturePreservesCredentialBindings(t *testing.T) {
+	root := RunGRPCDSL(t, testdata.MessageWithSecurityAttrsDSL)
+	endpoint := CreateGRPCServices(root).Get("ServiceMessageWithSecurity").Endpoint("MethodMessageWithSecurity")
+	require.Len(t, endpoint.MessageSchemes, 1)
+	require.Equal(t, "oauth2", endpoint.MessageSchemes[0].SchemeName)
+	require.Len(t, endpoint.MetadataSchemes, 2)
+	schemes := make(map[string]bool)
+	for _, scheme := range endpoint.MetadataSchemes {
+		schemes[scheme.SchemeName] = true
+	}
+	require.Equal(t, map[string]bool{"jwt": true, "api_key": true}, schemes)
+	evaluated := root.API.GRPC.Services[0].GRPCEndpoints[0]
+	require.Len(t, evaluated.Requirements, 1)
+	require.Len(t, evaluated.Requirements[0].Schemes, 4)
+	bindings := evaluated.Metadata
+	for field, wire := range map[string]string{"token": "authorization", "key": "x-api-key", "username": "username", "password": "password"} {
+		require.Equal(t, wire, bindings.ElemName(field))
+		require.Equal(t, field, bindings.KeyName(wire))
+	}
 }
 
 func TestAnalyzeAttachesStreamDataToStreamingEndpoints(t *testing.T) {

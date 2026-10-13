@@ -10,7 +10,7 @@ func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 	)
 	{
 
-		if vals := hdr.Get("Location"); len(vals) > 0 {
+		if vals := hdr.Get("location"); len(vals) > 0 {
 			inHeaderRaw := vals[0]
 
 			v, err2 := strconv.ParseInt(inHeaderRaw, 10, strconv.IntSize)
@@ -21,11 +21,11 @@ func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 			inHeader = &pv
 		}
 
-		if vals := hdr.Get("X-String-Header"); len(vals) > 0 {
+		if vals := hdr.Get("x-string-header"); len(vals) > 0 {
 			stringHeader = &vals[0]
 		}
 
-		if vals := trlr.Get("InTrailer"); len(vals) > 0 {
+		if vals := trlr.Get("intrailer"); len(vals) > 0 {
 			inTrailerRaw := vals[0]
 
 			v, err2 := strconv.ParseBool(inTrailerRaw)
@@ -35,7 +35,7 @@ func DecodeMethodMessageWithMetadataResponse(ctx context.Context, v any, hdr, tr
 			inTrailer = &v
 		}
 
-		if vals := trlr.Get("X-String-Trailer"); len(vals) > 0 {
+		if vals := trlr.Get("x-string-trailer"); len(vals) > 0 {
 			stringTrailer = &vals[0]
 		}
 	}

@@ -54,13 +54,14 @@ func TestMetadataMounted(t *testing.T) {
 		metadata metadata.MD
 		limit int
 		lang string
+		data string
 		invalid bool
 	}{
-		{"absence", metadata.Pairs("must", "present"), 3, "en", false},
-		{"explicit zero empty", metadata.Pairs("must", "present", "limit", "0", "lang", "", "flag", "false", "data", "", "tags", "", "numbers", "0"), 0, "", false},
-		{"ordinary", metadata.Pairs("must", "present", "limit", "9", "lang", "it", "data", "printable bytes"), 9, "it", false},
-		{"malformed", metadata.Pairs("must", "present", "limit", "bad"), 0, "", true},
-		{"required missing", metadata.MD{}, 0, "", true},
+		{"absence", metadata.Pairs("must", "present"), 3, "en", "fallback", false},
+		{"explicit zero empty", metadata.Pairs("must", "present", "limit", "0", "lang", "", "flag", "false", "data-bin", "", "tags", "", "numbers", "0"), 0, "", "", false},
+		{"ordinary", metadata.Pairs("must", "present", "limit", "9", "lang", "it", "data-bin", "\x00\xffbytes"), 9, "it", "\x00\xffbytes", false},
+		{"malformed", metadata.Pairs("must", "present", "limit", "bad"), 0, "", "", true},
+		{"required missing", metadata.MD{}, 0, "", "", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var calls atomic.Int32
@@ -102,6 +103,9 @@ func TestMetadataMounted(t *testing.T) {
 			}
 			require.Equal(t, tc.limit, payload.Limit)
 			require.Equal(t, tc.lang, payload.Lang)
+			require.Equal(t, []byte(tc.data), payload.Data)
+			require.Equal(t, []string{tc.data}, headers.Get("data-bin"))
+			require.Empty(t, headers.Get("data"))
 			decoded, err := client.DecodeEchoResponse(ctx, response, headers, trailers)
 			require.NoError(t, err)
 			require.Equal(t, payload, decoded)
@@ -130,9 +134,11 @@ func TestMetadataPeerDefaults(t *testing.T) {
 		values metadata.MD
 		limit int
 		lang string
+		data string
 	}{
-		{"absent", metadata.Pairs("must", "present"), 3, "en"},
-		{"supplied zero empty", metadata.Pairs("must", "present", "limit", "0", "lang", ""), 0, ""},
+		{"absent", metadata.Pairs("must", "present"), 3, "en", "fallback"},
+		{"supplied zero empty", metadata.Pairs("must", "present", "limit", "0", "lang", "", "data-bin", ""), 0, "", ""},
+		{"supplied binary", metadata.Pairs("must", "present", "data-bin", "\x00\xffbytes"), 3, "en", "\x00\xffbytes"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			conn := connectMetadataServer(t, &metadataPeer{values: tc.values})
@@ -148,7 +154,7 @@ func TestMetadataPeerDefaults(t *testing.T) {
 			require.Equal(t, tc.limit, value.Limit)
 			require.Equal(t, tc.lang, value.Lang)
 			require.True(t, value.Flag)
-			require.Equal(t, []byte("fallback"), value.Data)
+			require.Equal(t, []byte(tc.data), value.Data)
 			require.Equal(t, mdsvc.Label("fallback"), value.Label)
 			require.Equal(t, []string{"fallback"}, value.Tags)
 			require.Equal(t, []int{3}, value.Numbers)
