@@ -110,6 +110,9 @@ func TestDebugDoerRedactsSensitiveCapture(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 	}()
 
+	response, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, doer.responseBody, string(response))
 	var output bytes.Buffer
 	debug.Fprint(&output)
 	captured := output.String()
@@ -147,7 +150,7 @@ func TestDebugDoerBoundsCaptureWithoutTruncatingTransportBodies(t *testing.T) {
 	debug := NewDebugDoer(doer)
 	resp, err := debug.Do(req)
 	require.NoError(t, err)
-	require.LessOrEqual(t, responseReads.bytesRead, int(debugBodyCaptureLimit+1))
+	require.Zero(t, responseReads.bytesRead)
 	response, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())

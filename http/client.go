@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"sort"
 	"strings"
 )
 
@@ -25,17 +24,16 @@ type (
 	// DebugDoer is a Doer that can print the low level HTTP details.
 	DebugDoer interface {
 		Doer
-		// Fprint prints the HTTP request and response details.
+		// Fprint prints the latest exchange snapshot without reading its response body.
+		// Output is best effort; incomplete captures are identified in the output.
 		Fprint(io.Writer)
 	}
 
 	// debugDoer wraps a doer and implements DebugDoer.
 	debugDoer struct {
 		Doer
-		// Request is the captured request.
-		Request *http.Request
-		// Response is the captured response.
-		Response *http.Response
+		exchange *debugExchange
+		output   io.Writer
 	}
 
 	debugReplayBody struct {
@@ -73,15 +71,19 @@ func (c ClientError) Unwrap() error {
 	return c.Err
 }
 
-// NewDebugDoer wraps the given doer and captures the request and response so
-// they can be printed.
+// NewDebugDoer wraps d with bounded, redacted development diagnostics. Response
+// bodies are observed only as the caller reads them, with original errors and
+// Close behavior preserved. The exchange prints once to stderr at observed EOF
+// or caller Close; nil/http.NoBody responses print immediately. Unread, unclosed
+// responses do not print automatically. Request capture retains its bounded
+// prefix/GetBody behavior. Concurrent Do calls are not supported.
 func NewDebugDoer(d Doer) DebugDoer {
-	return &debugDoer{Doer: d}
+	return &debugDoer{Doer: d, output: os.Stderr}
 }
 
 // Do captures the request and response.
 func (dd *debugDoer) Do(req *http.Request) (*http.Response, error) {
-	capturedRequest, err := captureDebugRequest(req)
+	capturedRequest, requestBody, err := captureDebugRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -91,20 +93,18 @@ func (dd *debugDoer) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	dd.Request = capturedRequest
-	dd.Response = captureDebugResponse(resp)
-
-	dd.Fprint(os.Stderr)
+	dd.exchange = captureDebugExchange(capturedRequest, requestBody, resp, dd.output)
 
 	return resp, nil
 }
 
-func captureDebugRequest(req *http.Request) (*http.Request, error) {
+func captureDebugRequest(req *http.Request) (*http.Request, []byte, error) {
 	captured := req.Clone(req.Context())
 	captured.Header = redactDebugHeaders(req.Header)
 	captured.URL = redactDebugURL(req.URL)
+	captured.Body = nil
 	if req.Body == nil {
-		return captured, nil
+		return captured, nil, nil
 	}
 
 	var (
@@ -116,11 +116,11 @@ func captureDebugRequest(req *http.Request) (*http.Request, error) {
 	if req.GetBody != nil {
 		body, err = req.GetBody()
 		if err != nil {
-			return nil, fmt.Errorf("capture request body: %w", err)
+			return nil, nil, fmt.Errorf("capture request body: %w", err)
 		}
 		data, truncated, err = readDebugBody(body)
 		if closeErr := body.Close(); closeErr != nil {
-			return nil, fmt.Errorf("close captured request body: %w", closeErr)
+			return nil, nil, fmt.Errorf("close captured request body: %w", closeErr)
 		}
 	} else {
 		body = req.Body
@@ -131,10 +131,9 @@ func captureDebugRequest(req *http.Request) (*http.Request, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("capture request body: %w", err)
+		return nil, nil, fmt.Errorf("capture request body: %w", err)
 	}
-	captured.Body = io.NopCloser(bytes.NewReader(redactDebugBody(req.Header, data, truncated)))
-	return captured, nil
+	return captured, redactDebugBody(req.Header, data, truncated), nil
 }
 
 func redactDebugURL(original *url.URL) *url.URL {
@@ -156,30 +155,6 @@ func redactDebugURL(original *url.URL) *url.URL {
 	}
 	redacted.RawQuery = query.Encode()
 	return redacted
-}
-
-func captureDebugResponse(resp *http.Response) *http.Response {
-	captured := new(http.Response)
-	*captured = *resp
-	captured.Header = redactDebugHeaders(resp.Header)
-	if resp.Body == nil {
-		return captured
-	}
-
-	body := resp.Body
-	data, truncated, err := readDebugBody(body)
-	if err != nil {
-		message := fmt.Appendf(nil, "!!failed to read response: %s", err)
-		captured.Body = io.NopCloser(bytes.NewReader(message))
-		resp.Body = io.NopCloser(bytes.NewReader(message))
-		return captured
-	}
-	resp.Body = &debugReplayBody{
-		Reader: io.MultiReader(bytes.NewReader(data), body),
-		Closer: body,
-	}
-	captured.Body = io.NopCloser(bytes.NewReader(redactDebugBody(resp.Header, data, truncated)))
-	return captured
 }
 
 func readDebugBody(body io.Reader) ([]byte, bool, error) {
@@ -300,59 +275,6 @@ func isSensitiveDebugName(name string) bool {
 	return strings.HasSuffix(normalized, "_token") ||
 		strings.HasSuffix(normalized, "_secret") ||
 		strings.HasSuffix(normalized, "_api_key")
-}
-
-// Printf dumps the captured request and response details to w.
-func (dd *debugDoer) Fprint(w io.Writer) {
-	if dd.Request == nil {
-		return
-	}
-	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "> %s %s", dd.Request.Method, dd.Request.URL.String())
-
-	keys := make([]string, len(dd.Request.Header))
-	i := 0
-	for k := range dd.Request.Header {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		fmt.Fprintf(buf, "\n> %s: %s", k, strings.Join(dd.Request.Header[k], ", ")) // nolint: errcheck
-	}
-
-	b, _ := io.ReadAll(dd.Request.Body)
-	if len(b) > 0 {
-		dd.Request.Body = io.NopCloser(bytes.NewBuffer(b)) // reset the request body
-		buf.WriteByte('\n')                                // nolint: errcheck
-		buf.Write(b)                                       // nolint: errcheck
-	}
-
-	if dd.Response == nil {
-		w.Write(buf.Bytes()) // nolint: errcheck
-		return
-	}
-	fmt.Fprintf(buf, "\n< %s", dd.Response.Status)
-
-	keys = make([]string, len(dd.Response.Header))
-	i = 0
-	for k := range dd.Response.Header {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		fmt.Fprintf(buf, "\n< %s: %s", k, strings.Join(dd.Response.Header[k], ", ")) // nolint: errcheck
-	}
-
-	rb, _ := io.ReadAll(dd.Response.Body) // this is reading from a memory buffer so safe to ignore errors
-	if len(rb) > 0 {
-		dd.Response.Body = io.NopCloser(bytes.NewBuffer(rb)) // reset the response body
-		buf.WriteByte('\n')                                  // nolint: errcheck
-		buf.Write(rb)                                        // nolint: errcheck
-	}
-	w.Write(buf.Bytes())  // nolint: errcheck
-	w.Write([]byte{'\n'}) // nolint: errcheck
 }
 
 // Error builds an error message.

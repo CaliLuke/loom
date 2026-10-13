@@ -28,12 +28,12 @@ and concrete error identity, requested read lengths, source Close delegation,
 request-size policy ordering, partial/unread bodies and 64 KiB boundaries.
 The original `writeDebugRequest` eagerly invoked `readDebugBody`, replaced
 failures with successful text, and installed a NopCloser. The implemented
-`transport.CaptureRequestBody` calls the original body once per operation, then
+`transport.CaptureBodyReads` calls the original body once per operation, then
 records only returned bytes under a short capture-state lock. Its promoted Close
 method delegates directly; the lock never covers underlying I/O. Request and
 response capture share private bounded retention, not their I/O authority.
 Debug snapshots after the handler and marks a non-EOF observation as incomplete.
-`observability/transport/request_body_test.go` additionally checks detached and
+`observability/transport/body_reads_test.go` additionally checks detached and
 concurrent snapshots, nested capture, exact read/error/Close identity and Close
 unblocking a blocked Read. A real-network middleware test flushes an SSE response
 while its upload pipe remains open. Downstream policy probe reads are observable
@@ -45,7 +45,9 @@ scheduler. Concurrent Close must unblock a blocked Read without a capture lock;
 that requires a runtime test and is not proved by this sequential-operation
 model. HTTP server final closure remains outside the middleware. No liveness
 claim is made about arbitrary underlying bodies, which can block independently.
-No client debug behavior, response writer semantics or generated code is modeled.
+The shared passive read owner also serves client responses; automatic client
+completion timing, response writer semantics and generated code are not modeled
+here. Client completion has a separate model under `http/tla/client_debug_response`.
 
 Readiness run: Eager, Replace, Close and Unbounded exited 12 on NoExtraRead,
 ReadIdentity, CloseOwnership and BoundedPreview respectively, after 2, 6, 12

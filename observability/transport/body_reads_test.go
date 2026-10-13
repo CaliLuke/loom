@@ -30,7 +30,7 @@ type (
 	}
 )
 
-func TestCaptureRequestBodyReadResults(t *testing.T) {
+func TestCaptureBodyReadsReadResults(t *testing.T) {
 	boom := errors.New("original failure")
 	for _, tc := range []struct {
 		name, data string
@@ -46,7 +46,7 @@ func TestCaptureRequestBodyReadResults(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			source := &requestCaptureSource{data: tc.data, err: tc.err, closeErr: boom}
-			body, capture := transport.CaptureRequestBody(source, 4)
+			body, capture := transport.CaptureBodyReads(source, 4)
 			require.Empty(t, source.reads)
 			buffer := make([]byte, 6)
 			n, err := body.Read(buffer)
@@ -76,9 +76,9 @@ func TestCaptureRequestBodyReadResults(t *testing.T) {
 	}
 }
 
-func TestCaptureRequestBodyEmptyAndLimit(t *testing.T) {
+func TestCaptureBodyReadsEmptyAndLimit(t *testing.T) {
 	for _, original := range []io.ReadCloser{nil, http.NoBody} {
-		body, capture := transport.CaptureRequestBody(original, 4)
+		body, capture := transport.CaptureBodyReads(original, 4)
 		require.Equal(t, original, body)
 		preview, omitted, complete := capture.Body()
 		require.Nil(t, preview)
@@ -87,13 +87,13 @@ func TestCaptureRequestBodyEmptyAndLimit(t *testing.T) {
 	}
 	for _, limit := range []int{-1, 0} {
 		require.Panics(t, func() {
-			transport.CaptureRequestBody(http.NoBody, limit)
+			transport.CaptureBodyReads(http.NoBody, limit)
 		})
 	}
 	for _, size := range []int{0, 3, 4, 5, 100000} {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {
 			text := strings.Repeat("x", size)
-			body, capture := transport.CaptureRequestBody(io.NopCloser(strings.NewReader(text)), 4)
+			body, capture := transport.CaptureBodyReads(io.NopCloser(strings.NewReader(text)), 4)
 			got, err := io.ReadAll(body)
 			require.NoError(t, err)
 			require.Equal(t, text, string(got))
@@ -110,16 +110,16 @@ func TestCaptureRequestBodyEmptyAndLimit(t *testing.T) {
 	}
 }
 
-func TestCaptureRequestBodyNestedAndAcrossReads(t *testing.T) {
+func TestCaptureBodyReadsNestedAndAcrossReads(t *testing.T) {
 	source := &requestCaptureSource{data: "ab"}
-	inner, first := transport.CaptureRequestBody(source, 4)
-	body, second := transport.CaptureRequestBody(inner, 4)
+	inner, first := transport.CaptureBodyReads(source, 4)
+	body, second := transport.CaptureBodyReads(inner, 4)
 	for i := range 3 {
 		buffer := make([]byte, 2)
 		n, err := body.Read(buffer)
 		require.NoError(t, err)
 		require.Equal(t, 2, n)
-		for _, capture := range []*transport.RequestBodyCapture{first, second} {
+		for _, capture := range []*transport.BodyReadCapture{first, second} {
 			preview, omitted, complete := capture.Body()
 			require.Equal(t, i == 2, omitted)
 			require.False(t, complete)
@@ -135,9 +135,9 @@ func TestCaptureRequestBodyNestedAndAcrossReads(t *testing.T) {
 	require.Equal(t, 1, source.closes)
 }
 
-func TestCaptureRequestBodyCloseUnblocksReadAndObservation(t *testing.T) {
+func TestCaptureBodyReadsCloseUnblocksReadAndObservation(t *testing.T) {
 	source := &blockingCaptureSource{entered: make(chan struct{}), closed: make(chan struct{})}
-	body, capture := transport.CaptureRequestBody(source, 4)
+	body, capture := transport.CaptureBodyReads(source, 4)
 	defer func() {
 		require.NoError(t, source.Close())
 	}()
@@ -175,8 +175,8 @@ func TestCaptureRequestBodyCloseUnblocksReadAndObservation(t *testing.T) {
 	require.False(t, complete)
 }
 
-func TestCaptureRequestBodyConcurrentObservation(t *testing.T) {
-	body, capture := transport.CaptureRequestBody(io.NopCloser(strings.NewReader(strings.Repeat("x", 32))), 16)
+func TestCaptureBodyReadsConcurrentObservation(t *testing.T) {
+	body, capture := transport.CaptureBodyReads(io.NopCloser(strings.NewReader(strings.Repeat("x", 32))), 16)
 	done := make(chan error, 1)
 	go func() {
 		var buffer [1]byte

@@ -28,7 +28,7 @@ func Debug(mux loomhttp.Muxer, w io.Writer) func(http.Handler) http.Handler {
 			buf := &bytes.Buffer{}
 			reqID := shortID()
 			writeDebugRequest(buf, mux, reqID, r)
-			body, requestCapture := transport.CaptureRequestBody(r.Body, debugBodyCaptureLimit)
+			body, requestCapture := transport.CaptureBodyReads(r.Body, debugBodyCaptureLimit)
 			r.Body = body
 
 			writer, capture := transport.CaptureResponse(rw, transport.WithResponseBodyCapture(debugBodyCaptureLimit))
@@ -81,7 +81,7 @@ func sortedDebugKeys(values map[string]string) []string {
 	return keys
 }
 
-func writeDebugRequestBody(buf *bytes.Buffer, reqID string, capture *transport.RequestBodyCapture) {
+func writeDebugRequestBody(buf *bytes.Buffer, reqID string, capture *transport.BodyReadCapture) {
 	body, omitted, complete := capture.Body()
 	if omitted {
 		body = fmt.Appendf(nil, "[body omitted after %d bytes]", debugBodyCaptureLimit)

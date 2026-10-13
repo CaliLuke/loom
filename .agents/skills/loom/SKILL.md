@@ -1100,6 +1100,10 @@ metrics and routing. Handle these values rather than parsing error messages:
 - `mcp_events_stream_write_failed`
 
 Use `loomhttp.NewDebugDoer` only for bounded, redacted development diagnostics.
+Its response capture follows caller reads without eager consumption. Automatic
+output occurs once at observed EOF or caller Close; keep closing bodies normally.
+`Fprint` is a snapshot, so before EOF it may be incomplete. Incomplete structured
+previews are omitted, and an unread/unclosed response does not print automatically.
 Server `middleware.Debug` preserves SSE flushing and response writer capabilities.
 It captures at most 64 KiB per request or response preview; larger bodies produce
 an omission marker without limiting application I/O. Request capture follows

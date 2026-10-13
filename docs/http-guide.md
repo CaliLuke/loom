@@ -622,6 +622,18 @@ response body capture is limited to 64 KiB; the full body still flows to the
 server or caller, while an oversized captured body is omitted from debug
 output.
 
+Response capture is passive: `Do` returns without reading response bytes, and
+`Fprint` prints only the latest exchange snapshot. The automatic request/response
+summary is written once when the caller observes EOF or calls `Close`; nil and
+`http.NoBody` responses print immediately. Keep closing response bodies normally.
+An unread, unclosed response produces no automatic summary. A snapshot taken
+before EOF is marked incomplete; incomplete JSON/form previews are omitted.
+Concurrent Close may print an incomplete snapshot before an in-flight Read returns.
+It does not wait for or drain that read. Original read bytes/errors and every
+Close call/error reach the caller unchanged. Sequential reuse retains each open
+response's own diagnostic identity; concurrent `Do` calls are not supported.
+Client request capture retains its bounded prefix/GetBody behavior.
+
 Debug capture redacts authorization and cookie headers, headers and URL query
 parameters named for tokens, secrets, credentials, sessions, or API keys, and
 sensitive fields nested in JSON or form bodies. Malformed structured bodies are

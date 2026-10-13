@@ -1860,7 +1860,7 @@ through WithResponseBodyCapture; ordinary metrics consumers retain no body.
 Capture only accepted bytes, trim ReadFrom lookahead to its returned count, and
 discard oversized previews with an explicit omission marker. Body snapshots are
 detached and synchronized; writer concurrency remains the caller's responsibility.
-Request read observation lives in `transport.CaptureRequestBody`; it shares the
+Request and client response read observation lives in `transport.CaptureBodyReads`; it shares the
 private bounded-retention primitive with response capture but forwards each Read
 and Close unchanged. Never hold its snapshot lock across underlying I/O or drain
 to finish a diagnostic. Debug snapshots at handler return, marking non-EOF
@@ -1868,6 +1868,14 @@ captures incomplete. Downstream request-size-policy probe reads count as consume
 bytes when Debug wraps that policy. Nil and http.NoBody stay unchanged. Keep the
 [request observation model](../../../observability/transport/tla/request_capture/README.md)
 aligned with errors, concurrent Close and unfinished-upload runtime controls.
+Client Debug retains exchange-owned request/response metadata and immutable request
+preview, and observes response bodies with this same read owner. Completion logs
+once per exchange at EOF or caller Close, never via mutable latest-request state.
+`Fprint` only snapshots; partial structured previews are omitted. Close forwards
+first and may snapshot before an in-flight read returns. Do not add draining or
+response replay to make diagnostics appear earlier. Keep `http/tla/client_debug_response`
+and its timing/error/redaction tests aligned. Client request prefix/GetBody capture
+remains a separate existing policy.
 The callback-scoped httpsnoop metrics
 API does not match the independently started/ended request observer lifecycle.
 
