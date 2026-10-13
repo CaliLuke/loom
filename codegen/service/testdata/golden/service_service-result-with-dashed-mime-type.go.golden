@@ -109,13 +109,16 @@ func ProjectApplicationDashedType(res *ApplicationDashedType) *resultwithdashedm
 // converts projected type ApplicationDashedTypeCollectionView to service type
 // ApplicationDashedTypeCollection.
 func NewApplicationDashedTypeCollectionFromApplicationDashedTypeCollectionView(vres resultwithdashedmimetypeviews.ApplicationDashedTypeCollectionView) ApplicationDashedTypeCollection {
-	res := make([]*ApplicationDashedType, len(vres))
-	for i, val := range vres {
-		if val == nil {
-			res[i] = nil
-			continue
+	var res []*ApplicationDashedType
+	if vres != nil {
+		res = make([]*ApplicationDashedType, len(vres))
+		for i, val := range vres {
+			if val == nil {
+				res[i] = nil
+				continue
+			}
+			res[i] = transformNewApplicationDashedTypeCollectionFromApplicationDashedTypeCollectionViewResultwithdashedmimetypeviewsApplicationDashedTypeViewToApplicationDashedType(val)
 		}
-		res[i] = transformNewApplicationDashedTypeCollectionFromApplicationDashedTypeCollectionViewResultwithdashedmimetypeviewsApplicationDashedTypeViewToApplicationDashedType(val)
 	}
 	return res
 }
@@ -124,13 +127,16 @@ func NewApplicationDashedTypeCollectionFromApplicationDashedTypeCollectionView(v
 // ApplicationDashedTypeCollection to projected type
 // ApplicationDashedTypeCollectionView using the "default" view.
 func ProjectApplicationDashedTypeCollection(res ApplicationDashedTypeCollection) resultwithdashedmimetypeviews.ApplicationDashedTypeCollectionView {
-	vres := make([]*resultwithdashedmimetypeviews.ApplicationDashedTypeView, len(res))
-	for i, val := range res {
-		if val == nil {
-			vres[i] = nil
-			continue
+	var vres []*resultwithdashedmimetypeviews.ApplicationDashedTypeView
+	if res != nil {
+		vres = make([]*resultwithdashedmimetypeviews.ApplicationDashedTypeView, len(res))
+		for i, val := range res {
+			if val == nil {
+				vres[i] = nil
+				continue
+			}
+			vres[i] = transformProjectApplicationDashedTypeCollectionApplicationDashedTypeToResultwithdashedmimetypeviewsApplicationDashedTypeView(val)
 		}
-		vres[i] = transformProjectApplicationDashedTypeCollectionApplicationDashedTypeToResultwithdashedmimetypeviewsApplicationDashedTypeView(val)
 	}
 	return vres
 }
