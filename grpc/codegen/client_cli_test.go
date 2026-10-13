@@ -73,12 +73,13 @@ func TestClientCLIPayloadBuildersPropagateConversionErrors(t *testing.T) {
 				"transformErr := new(error)",
 				"return zero, *transformErr",
 			}
-			if c.Name == "any-payload" {
+			switch {
+			case c.Name == "any-payload":
 				require.Contains(t, code, `loomgrpc "github.com/CaliLuke/loom/grpc"`)
-			} else if c.ErrorAware {
+			case c.ErrorAware:
 				require.Contains(t, code, `"errors"`)
 				require.Contains(t, code, `errors.New("gRPC conversion: nil message collection element")`)
-			} else {
+			default:
 				require.NotContains(t, code, `loomgrpc "github.com/CaliLuke/loom/grpc"`)
 			}
 			for _, check := range checks {
