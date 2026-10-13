@@ -207,6 +207,14 @@ consumer validation.
   before server-only roots to preserve allocated names. Never emit a client-only
   union in a server package or add unreachable branches to satisfy it. Keep
   `http/codegen/tla/union_declarations` and its projection controls aligned.
+- Shared sum-union validation derives selected-branch presence from the physical
+  scope reference used by declarations. Reset the branch's concrete-value fact
+  without discarding its child field layout: pointer storage requires a value,
+  nil collections still run predicates, and explicit nullable carriers retain
+  their presence semantics. Pointer presence itself requires a validation case
+  even when the branch has no value predicates. Never infer representation from emitted validation
+  text. Keep `codegen/tla/union_branch_carrier` and the direct/generated carrier
+  regressions aligned; validator eligibility and JSON decoding remain separate.
 - `internal/uniongen` owns the common Go union declaration and codec emitter.
   Service and HTTP analysis supply that model; service-only validation helpers
   stay in service analysis. Keep untagged occurrence matching in

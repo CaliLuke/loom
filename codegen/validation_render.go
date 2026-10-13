@@ -472,7 +472,9 @@ func renderUnionSumValidation(target string, cases []unionValidationCase) string
 		if c.RequiresValue {
 			fmt.Fprintf(&b, "\tif actual == nil {\n")
 			fmt.Fprintf(&b, "\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"value\", %s))\n", c.Context)
-			fmt.Fprintf(&b, "\t\tbreak\n")
+			if c.Validation != "" {
+				fmt.Fprintf(&b, "\t\tbreak\n")
+			}
 			fmt.Fprintf(&b, "\t}\n")
 		}
 		b.WriteString(indentCode(c.Validation))

@@ -190,6 +190,12 @@ still requires a valid discriminator and matching branch value. Required union
 attributes retain their value-type API. Canonical JSON decoding rejects both a
 missing `value` property and an explicit `"value": null`.
 
+Generated validators reject a selected nil object or nested-union pointer with
+a validation error. A selected nil slice or map is an empty collection: length
+and element constraints still apply. For a constructed nullable branch,
+`loom.NullValue[T]()` passes presence validation, while an absent nullable carrier
+does not. Regenerate transport and service code to receive these checks.
+
 For OpenAPI 3.1 and 3.2, Loom renders supported union schemas as `oneOf` references to
 generated branch-envelope components and includes an OpenAPI discriminator with
 stable tag-to-component mappings. Custom `oneof:type:field` and

@@ -43,7 +43,7 @@ type (
 		ValidationPrefix string
 		validationRoot   string
 		validationPath   string
-		// validationValue marks an unwrapped object value, not its field layout.
+		// validationValue marks a concrete value, not its child field layout.
 		validationValue bool
 		// Scope is the attribute scope.
 		Scope Attributor
