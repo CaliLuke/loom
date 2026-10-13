@@ -148,3 +148,46 @@ arbitrates callback registration against that same transition, stopping a newly
 registered callback immediately if termination already won. The gated tests in
 `stream_context_admission_test.go` reproduce the original pre-admission and
 retained-callback defects, then verify both registration/termination orders.
+
+## Terminal half-close admission (#872)
+
+`HalfClose.tla` isolates cleanup admission from ordinary message operations.
+Current admission returns an error on a released opening context, so terminal
+receive followed by generated `Close()` exposes internal cancellation (or the
+owner's terminal status when release races active Close). The rejected `retain`
+alternative avoids cancellation by retaining a finished RPC's resources.
+`classified` instead treats half-close as already satisfied after terminal
+release, without native I/O. Live half-close still uses the send lease and leaves
+receive ownership open. Native completion published before release retains its
+result; late completion after release cannot replace the terminal outcome.
+
+Run the same pinned TLC tool as above against `HalfClose.tla`, with each of
+`HalfCloseCurrent.cfg`, `HalfCloseRetain.cfg`, `HalfCloseClassified.cfg`, and put
+`-metadir` outside this checkout. Readiness results:
+
+| Configuration | Exit | Generated / distinct states | Result |
+| --- | --- | --- | --- |
+| HalfCloseCurrent | 12 | 4 / 4 | Internal terminal error escapes cleanup |
+| HalfCloseRetain | 12 | 2 / 2 | Terminal resources remain retained |
+| HalfCloseClassified | 0 | 42 / 30 | All invariants hold |
+
+`streamOperationKind` separates half-close policy from the send-direction lease.
+`begin` observes operation cancellation and terminal state under the owner lock;
+a terminal half-close yields no operation, callback or worker. For an admitted
+half-close, the existing locked completion arbitration preserves published native
+results; terminal release otherwise satisfies cleanup while the native worker
+keeps its direction slot until unwinding. Original context cancellation is also
+recognized before the parent's scheduled callback publishes the terminal cause.
+
+The model bounds cleanup to two calls and abstracts received status details,
+parent-callback mechanics and the existing send/receive direction lease. Those
+remain obligations of the original models and implementation tests; this model
+does not prove that a custom native implementation returns. The new direct
+`TestStreamHalfCloseAfterTerminalReceive` and gated
+`TestStreamHalfCloseRacesTerminalRelease` fail on the original owner and pass with
+classified admission. Live
+pre-canceled/no-I/O and custom native-result controls preserve existing admission
+behavior; send-overlap and original-parent cancellation controls test the other
+runtime boundaries. `TestRecursiveValidationGenerated` is the unchanged mounted
+regression. See
+[the half-close plan](../../../roadmap/grpc-terminal-half-close.md).

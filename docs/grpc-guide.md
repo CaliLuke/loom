@@ -507,6 +507,9 @@ authentication hook supplies a replacement context.
 
 Client `CloseSend` remains a half-close. Receive the final response or status with
 `Recv` or `CloseAndRecv`; cancel the opening context when abandoning reception.
+After the RPC ends, the generated half-close `Close` succeeds without starting
+another native operation, including when called again after terminal receive.
+The receive operation remains responsible for delivering the final status.
 Native I/O has bounded ownership: at most one send and one receive may be pending,
 and `CloseAndRecv` reserves both directions. Concurrent operations in the same
 direction are unsupported. Messages sent to native I/O are detached, and canceled

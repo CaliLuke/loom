@@ -12,8 +12,9 @@ import (
 )
 
 type (
-	streamContextKey struct{}
-	streamContext    struct {
+	streamOperationKind uint8
+	streamContextKey    struct{}
+	streamContext       struct {
 		mu       sync.Mutex
 		ctx      context.Context
 		cancel   context.CancelCauseFunc
@@ -35,9 +36,10 @@ type (
 )
 
 const (
-	streamSend = 1 << iota
+	streamSend streamOperationKind = iota
 	streamReceive
-	streamBoth = streamSend | streamReceive
+	streamFinalReceive
+	streamHalfClose
 )
 
 // SendStreamMessage sends a detached protobuf message using the stream lifetime
@@ -45,11 +47,15 @@ const (
 // context performs no I/O. Cancellation during native I/O terminates the RPC;
 // server I/O is reclaimed when the synchronous service handler returns.
 func SendStreamMessage[T proto.Message](ctx, streamCtx context.Context, message T, send func(T) error) error {
-	if _, err := streamContextFor(ctx, streamCtx); err != nil {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	owner, err := streamContextFor(streamCtx)
+	if err != nil {
 		return err
 	}
 	detached := proto.Clone(message).(T)
-	_, _, err := runStreamOperation(ctx, streamCtx, streamSend, func() (struct{}, error) {
+	_, _, err = runStreamOperation(ctx, owner, streamSend, func() (struct{}, error) {
 		return struct{}{}, send(detached)
 	})
 	return err
@@ -61,16 +67,20 @@ func SendStreamMessage[T proto.Message](ctx, streamCtx context.Context, message 
 // receive releases the opening context.
 // Admitted client receive errors are terminal; server receive EOF is only a half-close.
 func ReceiveStreamMessage[T proto.Message](ctx, streamCtx context.Context, final bool, receive func() (T, error)) (T, error) {
-	owner, err := streamContextFor(ctx, streamCtx)
+	if err := ctx.Err(); err != nil {
+		var zero T
+		return zero, err
+	}
+	owner, err := streamContextFor(streamCtx)
 	if err != nil {
 		var zero T
 		return zero, err
 	}
-	direction := streamReceive
+	kind := streamReceive
 	if final {
-		direction = streamBoth
+		kind = streamFinalReceive
 	}
-	value, admitted, err := runStreamOperation(ctx, streamCtx, direction, receive)
+	value, admitted, err := runStreamOperation(ctx, owner, kind, receive)
 	if admitted && owner.client && (err != nil || final) {
 		cause := err
 		if cause == nil {
@@ -83,8 +93,13 @@ func ReceiveStreamMessage[T proto.Message](ctx, streamCtx context.Context, final
 
 // CloseStreamSend closes only the client send direction. It preserves the
 // opening context so subsequent receives can obtain the server's final status.
+// After terminal release, half-close succeeds without starting native I/O.
 func CloseStreamSend(ctx, streamCtx context.Context, closeSend func() error) error {
-	_, _, err := runStreamOperation(ctx, streamCtx, streamSend, func() (struct{}, error) {
+	owner, err := streamContextFor(streamCtx)
+	if err != nil {
+		return err
+	}
+	_, _, err = runStreamOperation(ctx, owner, streamHalfClose, func() (struct{}, error) {
 		return struct{}{}, closeSend()
 	})
 	return err
@@ -98,10 +113,7 @@ func newStreamContext(parent context.Context, client bool) (context.Context, *st
 	return owner.ctx, owner
 }
 
-func streamContextFor(ctx, streamCtx context.Context) (*streamContext, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+func streamContextFor(streamCtx context.Context) (*streamContext, error) {
 	if streamCtx == nil {
 		return nil, errors.New("gRPC stream has no invocation context")
 	}
@@ -112,15 +124,14 @@ func streamContextFor(ctx, streamCtx context.Context) (*streamContext, error) {
 	return owner, nil
 }
 
-func runStreamOperation[T any](ctx, streamCtx context.Context, direction int, fn func() (T, error)) (T, bool, error) {
+func runStreamOperation[T any](ctx context.Context, owner *streamContext, kind streamOperationKind, fn func() (T, error)) (T, bool, error) {
 	var zero T
-	owner, err := streamContextFor(ctx, streamCtx)
+	op, err := owner.begin(ctx, kind)
 	if err != nil {
 		return zero, false, err
 	}
-	op, err := owner.begin(direction)
-	if err != nil {
-		return zero, false, err
+	if op == nil {
+		return zero, false, nil
 	}
 	callbackDone := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
@@ -137,7 +148,7 @@ func runStreamOperation[T any](ctx, streamCtx context.Context, direction int, fn
 		var err error
 		panicked := true
 		defer func() {
-			owner.complete(direction, op, value, err, recover(), panicked)
+			owner.complete(kind.directions(), op, value, err, recover(), panicked)
 		}()
 		owner.mu.Lock()
 		canceled := op.canceled
@@ -154,6 +165,9 @@ func runStreamOperation[T any](ctx, streamCtx context.Context, direction int, fn
 	owner.mu.Lock()
 	if !op.completed {
 		err = owner.terminal
+		if kind == streamHalfClose {
+			err = nil
+		}
 		owner.mu.Unlock()
 		return zero, true, err
 	}
@@ -164,15 +178,24 @@ func runStreamOperation[T any](ctx, streamCtx context.Context, direction int, fn
 	return op.value.(T), true, op.err
 }
 
-func (s *streamContext) begin(direction int) (*streamOperation, error) {
+func (s *streamContext) begin(ctx context.Context, kind streamOperationKind) (*streamOperation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.terminal != nil {
-		return nil, s.terminal
+	contextErr := ctx.Err()
+	terminal := s.terminal
+	if terminal == nil {
+		terminal = s.ctx.Err()
 	}
-	if err := s.ctx.Err(); err != nil {
-		return nil, err
+	if kind == streamHalfClose && terminal != nil {
+		return nil, nil
 	}
+	if contextErr != nil {
+		return nil, contextErr
+	}
+	if terminal != nil {
+		return nil, terminal
+	}
+	direction := kind.directions()
 	for slot, active := range s.active {
 		if direction&(1<<slot) != 0 && active != nil {
 			return nil, errors.New("concurrent gRPC stream operations in the same direction")
@@ -185,6 +208,17 @@ func (s *streamContext) begin(direction int) (*streamOperation, error) {
 		}
 	}
 	return op, nil
+}
+
+func (k streamOperationKind) directions() int {
+	switch k {
+	case streamReceive:
+		return 2
+	case streamFinalReceive:
+		return 3
+	default:
+		return 1
+	}
 }
 
 func (s *streamContext) cancelOperation(op *streamOperation, cause error) {

@@ -1520,7 +1520,12 @@ filter, and serialization rules belong here.
   Admission is explicit: rejected operations cannot finalize a healthy client.
   Every terminal transition detaches parent watches, including registration races.
   CloseSend remains a half-close; final receive and opening/decoding failure release
-  the client lifetime. Conversion, observation and service recovery stay on the
+  the client lifetime. Operation kind is separate from its direction lease:
+  terminal half-close admission succeeds without I/O, and terminal release racing
+  an unfinished half-close satisfies cleanup without replacing received status.
+  Published native results still win; retain occupied slots until late I/O ends.
+  Derive this behavior from locked runtime admission, not generated error suppression.
+  Conversion, observation and service recovery stay on the
   caller stack. Relay active native-hook panics; contain and diagnose late ones
   without panic contents or late request-state mutation. Keep
   `grpc/tla/message_context` and its mounted cancellation/recovery tests aligned.
