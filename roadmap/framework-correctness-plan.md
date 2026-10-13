@@ -45,8 +45,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   Corrected parent regressions fail, generated callbacks pass and all 51 selected
   artifacts repeat exactly; ordinary generated output is unchanged.
 - Required CI is not confirmed green. All inspected metadata-adoption test jobs
-  passed except the libopenapi YAML-node race matching #820; release eligibility
-  was still queued. This is evidence for that source, not current-main CI success.
+  passed except the libopenapi YAML-node race matching #820; the completed run
+  failed, including release eligibility. This is evidence for that source, not
+  current-main CI success. Terminal evidence: `/tmp/loom-ci-metadata-adoption-terminal.json`.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -75,23 +76,26 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Required-scope owner delivered (#752):** exact final and integration reviews
-   passed; cleanup preserves compact evidence and reproduction inputs. The original
-   readiness OR-test selector mistake is corrected in archived-parent evidence.
-2. **Distributed worker publication (#704):** `/root/diagnostic_redaction_finish`
-   prepares the owner proposal after #739 cleanup and safe worktree reuse.
-   Reuse existing pool models/probes; include uncertain committed Redis replies,
-   peer replicas, event recovery and concurrent Node.Close. Verify subordinate
-   lifetime assumptions. Current design exploration keeps the reader unsubscribed
-   until admission commits and uses existing event recovery on abort; the model
-   must establish those guarantees. Publication order alone is insufficient.
-3. **Imported object representation (#776):** `/root/omission_readiness_finish`
-   prepares shared object-shape normalization in `numeric-comparison/loom` after
-   #777 cleanup. Empty inline objects currently depend on child Attribute calls
-   to establish their type; nonempty inline map values also lack concrete type
-   constructors. Unify representation across fields and collections before
-   implementation; annotation #783 and encoded-byte length #686 retain
-   distinct owners. No broad importer audit or per-caller workaround is planned.
+1. **Distributed worker publication (#704):** `/root/diagnostic_redaction_finish`
+   implements the independently approved admission owner in `grpc-message-context/loom`.
+   Construction owns a prepared, unsubscribed reader until guarded local transfer;
+   Close excludes or joins attempts. Abort attempts private withdrawal and preserves
+   original pool events for existing recovery within retention limits. Four parent
+   failures reproduce; real Redis recovery controls and the 940-state owned model
+   support the design. Approval: `/tmp/loom-704-root-readiness-verdict.json`.
+2. **Imported object representation (#776):** `/root/omission_readiness_finish`
+   implements the independently approved classifier and constructor-role contract
+   in `numeric-comparison/loom`. Existing promotion and planner admission share
+   the decision across fields and collection values; direct Render stays nonmutating.
+   Parent generated/direct failures and named controls establish the boundaries.
+   Approval: `/tmp/loom-776-root-readiness-verdict.json`. Annotation #783 and encoded
+   byte-length #686 retain distinct owners.
+3. **HTTP collection-header framing (#689):** `/root/projection_integration_review`
+   prepares bounded regressions and a shared four-direction framing proposal after
+   #752 cleanup. Repeated lines alone cannot repair intermediary coalescing or
+   the documented OpenAPI simple contract. Concrete comma/empty-item/presence
+   alternatives need resolution before production changes; cookies stay separate.
+   Read-only inventory: `/tmp/loom-689-owner-triage.md`.
 4. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
    actual namespaces. #737 needs producer job intent. #791 cannot be closed from
