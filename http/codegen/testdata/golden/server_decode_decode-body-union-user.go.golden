@@ -18,6 +18,10 @@ func DecodeMethodBodyUnionUserRequest(mux loomhttp.Muxer, decoder func(*http.Req
 			}
 			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
 		}
+		err = ValidateMethodBodyUnionUserRequestBody(&body)
+		if err != nil {
+			return payload, err
+		}
 		payload = NewMethodBodyUnionUserUnionUser(&body)
 
 		return payload, nil

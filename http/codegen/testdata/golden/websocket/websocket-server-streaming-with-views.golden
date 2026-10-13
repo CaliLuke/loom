@@ -97,7 +97,7 @@ func (s *StreamUserWithViewsServerStream) SendWithContext(ctx context.Context, v
 			return err
 		}
 		var body any
-		switch s.view {
+		switch res.View {
 		case "default", "":
 			body = NewStreamUserWithViewsResponseBody(res.Projected)
 		case "tiny":

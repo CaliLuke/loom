@@ -97,7 +97,7 @@ func (s *BidirectionalWithViewsServerStream) SendWithContext(ctx context.Context
 			return err
 		}
 		var body any
-		switch s.view {
+		switch res.View {
 		case "default", "":
 			body = NewBidirectionalWithViewsResponseBody(res.Projected)
 		case "minimal":
