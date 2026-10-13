@@ -1,6 +1,6 @@
 # Diagnostic redaction projection and lifetime
 
-This finite design model covers the policy required by #718. `NamesOnly` models
+This finite design model covers the shared policy required by #718 and #721. `NamesOnly` models
 historical parent diagnostics, which have no authored credential metadata and miss camelCase
 names. `LogicalName` tests an insufficient repair that masks physical query names
 but reuses logical source names for remapped JSON fields and cannot represent
@@ -42,3 +42,15 @@ wire preservation, nested bodies and route-variable masking. Generator tests in
 HTTP/JSON-RPC metadata and example wiring. The finite model does not enumerate
 DSL legality, duplicate Basic transport slots, codec failures or HTTP I/O; those
 are direct/runtime/generated obligations.
+
+Access-log correspondence (#721): `clue/log` constructs immutable policies in
+`WithURLCredentials` and `WithClientURLCredentials`, before a middleware/client
+is constructed or an option is reused. Each option contributes its policy;
+sequential URL projection cannot restore a previously masked location. Default
+access logging uses the conventional projection. `clue/log/access_credentials_test.go`
+covers both server log events, client completion/failure, caller mutation, option
+reuse/composition, malformed queries and unchanged requests. Generated mixed and
+disjoint hosts in `codegen/generator/access_log_credentials_test.go` execute the
+emitted middleware configuration and generated credential metadata. Host selection
+and ordinary query visibility remain implementation obligations rather than new
+properties of this finite model.

@@ -6,9 +6,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 
 	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/observability/diagnostics"
 	"github.com/CaliLuke/loom/observability/transport"
 	loom "github.com/CaliLuke/loom/pkg"
 )
@@ -24,14 +26,16 @@ type (
 
 	httpLogOptions struct {
 		pathFilters           []*regexp.Regexp
+		urlPolicies           []*diagnostics.Policy
 		disableRequestLogging bool
 		disableRequestID      bool
 		logFunc               func(ctx context.Context, keyvals ...Fielder)
 	}
 
 	httpClientOptions struct {
-		iserr      func(int) bool
-		logErrBody bool
+		urlPolicies []*diagnostics.Policy
+		iserr       func(int) bool
+		logErrBody  bool
 	}
 
 	// client wraps an HTTP roundtripper and logs requests and responses.
@@ -54,6 +58,9 @@ type (
 //  1. Enriches the request context with the logger specified in logCtx.
 //  2. Logs HTTP request details, except when WithDisableRequestLogging is set or
 //     URL path matches a WithPathFilter regex.
+//
+// URL credentials are masked using the shared diagnostic policy. Ordinary query
+// values remain visible; use WithURLCredentials for authored credential names.
 //
 // HTTP panics if logCtx was not created with Context.
 func HTTP(logCtx context.Context, opts ...HTTPLogOption) func(http.Handler) http.Handler {
@@ -88,7 +95,7 @@ func HTTP(logCtx context.Context, opts ...HTTPLogOption) func(http.Handler) http
 				return
 			}
 			methKV := KV{K: HTTPMethodKey, V: req.Method}
-			urlKV := KV{K: HTTPURLKey, V: req.URL.String()}
+			urlKV := KV{K: HTTPURLKey, V: accessLogURL(req.URL, options.urlPolicies)}
 			fromKV := KV{K: HTTPFromKey, V: from(req)}
 			logFunc(ctx, KV{K: MessageKey, V: "start"}, methKV, urlKV, fromKV)
 
@@ -119,7 +126,8 @@ func Endpoint(e loom.Endpoint) loom.Endpoint {
 }
 
 // Client wraps the given roundtripper and log requests and responses using the
-// clue logger stored in the request context.
+// clue logger stored in the request context. Conventional URL credentials are
+// masked; use WithClientURLCredentials for authored credential locations.
 func Client(t http.RoundTripper, opts ...HTTPClientLogOption) http.RoundTripper {
 	options := &httpClientOptions{
 		iserr: func(status int) bool { return status >= 400 },
@@ -128,6 +136,26 @@ func Client(t http.RoundTripper, opts ...HTTPClientLogOption) http.RoundTripper 
 		o(options)
 	}
 	return &client{RoundTripper: t, options: options}
+}
+
+// WithURLCredentials masks the given credential locations in server access-log URLs.
+// It copies the fields when constructed. Multiple options combine their masks,
+// and an option may be reused. Only Query and Path locations affect URLs.
+func WithURLCredentials(fields ...diagnostics.Fields) HTTPLogOption {
+	policy := diagnostics.New(fields...)
+	return func(o *httpLogOptions) {
+		o.urlPolicies = append(o.urlPolicies, policy)
+	}
+}
+
+// WithClientURLCredentials masks the given credential locations in client access-log
+// URLs. It copies the fields when constructed. Multiple options combine their masks,
+// and an option may be reused. Only Query and Path locations affect URLs.
+func WithClientURLCredentials(fields ...diagnostics.Fields) HTTPClientLogOption {
+	policy := diagnostics.New(fields...)
+	return func(o *httpClientOptions) {
+		o.urlPolicies = append(o.urlPolicies, policy)
+	}
 }
 
 // WithPathFilter adds a path filter to the HTTP middleware. Requests whose path
@@ -184,7 +212,7 @@ func WithRequestLogFunc(logFunc func(ctx context.Context, keyvals ...Fielder)) H
 func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	msgKV := KV{K: MessageKey, V: "finished client HTTP request"}
 	methKV := KV{K: HTTPMethodKey, V: req.Method}
-	urlKV := KV{K: HTTPURLKey, V: req.URL.String()}
+	urlKV := KV{K: HTTPURLKey, V: accessLogURL(req.URL, c.options.urlPolicies)}
 	then := timeNow()
 	resp, err = c.RoundTripper.RoundTrip(req)
 	if err != nil {
@@ -223,4 +251,17 @@ func (r errorReader) Read([]byte) (int, error) {
 // from returns the client address from the request.
 func from(req *http.Request) string {
 	return loomhttp.EffectiveClientAddress(req)
+}
+
+// accessLogURL applies immutable diagnostic policies without changing the request.
+func accessLogURL(original *url.URL, policies []*diagnostics.Policy) string {
+	if len(policies) == 0 {
+		var conventional diagnostics.Policy
+		return conventional.URL(original).String()
+	}
+	masked := original
+	for _, policy := range policies {
+		masked = policy.URL(masked)
+	}
+	return masked.String()
 }

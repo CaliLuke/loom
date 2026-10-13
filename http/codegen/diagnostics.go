@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -126,4 +127,32 @@ func diagnosticFieldsLiteral(fields diagnostics.Fields) string {
 	}
 	result.WriteString("}")
 	return result.String()
+}
+
+// exampleServerDiagnosticFields selects metadata for services mounted by this
+// server. Both HTTP and JSON-RPC examples use the shared HTTP server base.
+func exampleServerDiagnosticFields(genpkg string, root *expr.RootExpr, server *expr.ServerExpr, services *ServicesData, existing []*codegen.ImportSpec) ([]*codegen.ImportSpec, []string) {
+	scope := codegen.NewNameScope()
+	reserveExampleImportNames(scope, existing)
+	var imports []*codegen.ImportSpec
+	var fields []string
+	for _, transport := range []struct {
+		name        string
+		expressions *expr.HTTPExpr
+	}{{"http", root.API.HTTP}, {"jsonrpc", &root.API.JSONRPC.HTTPExpr}} {
+		data := NewServicesData(services.ServicesData, transport.expressions)
+		for _, service := range transport.expressions.Services {
+			if !slices.Contains(server.Services, service.Name()) {
+				continue
+			}
+			sd := data.Get(service.Name())
+			if emptyDiagnosticFields(serviceDiagnosticFields(sd)) {
+				continue
+			}
+			name := scope.Unique(sd.Service.PkgName + "diagnostics")
+			imports = append(imports, &codegen.ImportSpec{Path: path.Join(genpkg, transport.name, sd.Service.PathName), Name: name})
+			fields = append(fields, name+".Fields()")
+		}
+	}
+	return imports, fields
 }

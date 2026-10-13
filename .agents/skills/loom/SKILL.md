@@ -1164,6 +1164,13 @@ automatically. These constructors copy credential metadata, mask actual custom
 wire names as well as conventional names, and conservatively combine policies.
 Scalar credential bodies and credential paths are omitted, including route vars.
 Ordinary opaque previews may still contain unmodeled secrets.
+For access logging, `log.HTTP(ctx, log.WithURLCredentials(serviceDiagnostics.Fields()))`
+and `log.Client(transport, log.WithClientURLCredentials(serviceDiagnostics.Fields()))`
+use the same URL policy. Conventional query credentials and userinfo are masked
+by default; ordinary query values stay visible. Options snapshot their inputs and
+compose when reused. New generated server examples select metadata for their own
+HTTP/JSON-RPC services. Existing example files are create-only: update their
+logging calls when adopting this behavior.
 Its response capture follows caller reads without eager consumption. Automatic
 output occurs once at observed EOF or caller Close; keep closing bodies normally.
 `Fprint` is a snapshot, so before EOF it may be incomplete. Incomplete structured

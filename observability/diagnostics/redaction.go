@@ -1,4 +1,4 @@
-// Package diagnostics owns credential masking for development transport previews.
+// Package diagnostics owns credential masking for transport previews and access logs.
 // It operates on already captured data and never reads application bodies.
 package diagnostics
 

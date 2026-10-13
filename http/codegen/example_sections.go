@@ -175,9 +175,13 @@ func renderExampleServerConfigure(services []exampleServerServiceData, apiPkg st
 	return b.String()
 }
 
-func exampleServerMiddlewareSection() codegen.Section {
+func exampleServerMiddlewareSection(fields []string) codegen.Section {
 	return codegen.NewRenderSection("server-http-middleware", func() string {
-		return "\n\tvar handler http.Handler = mux\n\tif dbg {\n\t\t// Log query and response bodies if debug logs are enabled.\n\t\thandler = debug.HTTP()(handler)\n\t}\n\thandler = log.HTTP(ctx)(handler)\n"
+		option := ""
+		if len(fields) > 0 {
+			option = ", log.WithURLCredentials(" + strings.Join(fields, ", ") + ")"
+		}
+		return "\n\tvar handler http.Handler = mux\n\tif dbg {\n\t\t// Log query and response bodies if debug logs are enabled.\n\t\thandler = debug.HTTP()(handler)\n\t}\n\thandler = log.HTTP(ctx" + option + ")(handler)\n"
 	})
 }
 

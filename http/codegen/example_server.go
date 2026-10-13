@@ -51,6 +51,9 @@ func exampleServerWithCache(genpkg string, root *expr.RootExpr, svr *expr.Server
 	fpath := filepath.Join("cmd", svrdata.Dir, "http.go")
 	specs, exampleServices, apiPkg := exampleServerImports(genpkg, root, services)
 
+	diagnosticSpecs, diagnosticFields := exampleServerDiagnosticFields(genpkg, root, svr, services, specs)
+	specs = append(specs, diagnosticSpecs...)
+
 	svcdata := make([]exampleServerServiceData, 0, len(svr.Services))
 	for _, svc := range svr.Services {
 		if data, ok := exampleServices[svc]; ok {
@@ -64,7 +67,7 @@ func exampleServerWithCache(genpkg string, root *expr.RootExpr, svr *expr.Server
 		exampleServerEncodingSection(),
 		exampleServerMuxSection(),
 		exampleServerConfigureSection(svcdata, apiPkg),
-		exampleServerMiddlewareSection(),
+		exampleServerMiddlewareSection(diagnosticFields),
 		exampleServerEndSection(svcdata),
 		exampleServerErrorHandlerSection(),
 	}

@@ -672,8 +672,23 @@ bodies with unsupported content types are also omitted.
 
 Application headers, URLs, and wire bodies remain unchanged. Ordinary opaque
 bodies remain visible when no body credential policy applies, so use Debug only
-for development and avoid payloads containing unmodeled secrets. Access logging
-has its own policy; enabling Debug redaction does not configure other loggers.
+for development and avoid payloads containing unmodeled secrets. Access logging uses the same URL masking policy: `log.HTTP` and `log.Client`
+mask conventional query credentials and URL userinfo automatically. Ordinary
+query values remain visible. Pass generated metadata for custom names or credential
+paths:
+
+```go
+handler := log.HTTP(ctx, log.WithURLCredentials(serviceDiagnostics.Fields()))(mux)
+transport := log.Client(http.DefaultTransport,
+    log.WithClientURLCredentials(serviceDiagnostics.Fields()))
+```
+
+These options snapshot fields when constructed, can be reused, and combine when
+supplied more than once. Only URL query and path locations affect access logs;
+this does not configure response-body logging. Generated server examples supply
+metadata for the HTTP and JSON-RPC services hosted by that server. `loom example`
+leaves existing application files unchanged, so update existing access-log wiring
+as shown above after regenerating metadata.
 
 ---
 

@@ -2016,7 +2016,12 @@ response replay to make diagnostics appear earlier. Keep `http/tla/client_debug_
 and its timing/error/redaction tests aligned. Client request prefix/GetBody capture
 remains a separate existing policy.
 Diagnostic masking lives in `observability/diagnostics`, shared by client and
-server Debug. Its constructor copies public field sets into an immutable policy.
+server Debug and clue access-log URLs. Its constructor copies public field sets
+into an immutable policy. Access-log options snapshot at option construction and
+compose immutable policies without mutating requests. The shared HTTP example
+base selects generated Fields for the current server's HTTP and JSON-RPC services;
+the JSON-RPC extension inherits that configuration. Do not duplicate credential
+inference or add policy separately to each transport's example renderer.
 Project credential source identity from `HTTPEndpointExpr.CredentialBindings`,
 including explicit duplicate wire operations; never re-infer security in a
 transport renderer. Prepared body fields derive JSON/form names from the actual
