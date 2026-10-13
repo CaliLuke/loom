@@ -140,7 +140,7 @@ func (r *renderer) payloadBody(body *renderedBody, path string) (bool, error) {
 }
 
 func (r *renderer) validateRequestTransportBodySchema(schema *Schema, path string) error {
-	resolved, err := r.resolveRequestTransportBodySchema(schema, path)
+	resolved, err := r.resolveSchemaReference(schema, path)
 	if err != nil {
 		return err
 	}
@@ -151,20 +151,8 @@ func (r *renderer) validateRequestTransportBodySchema(schema *Schema, path strin
 	return err
 }
 
-func (r *renderer) resolveRequestTransportBodySchema(schema *Schema, path string) (*Schema, error) {
-	if schema == nil || schema.Ref == "" {
-		return schema, nil
-	}
-	name := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-	named, ok := r.schemas[name]
-	if name == schema.Ref || name == "" || !ok {
-		return nil, fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
-	}
-	return named.Schema, nil
-}
-
 func (r *renderer) requestTransportBodyIsMap(schema *Schema, path string) (bool, error) {
-	resolved, err := r.resolveRequestTransportBodySchema(schema, path)
+	resolved, err := r.resolveSchemaReference(schema, path)
 	if err != nil {
 		return false, err
 	}

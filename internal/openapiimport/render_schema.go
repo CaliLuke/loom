@@ -53,13 +53,13 @@ func (r *renderer) attribute(name string, schema *Schema, description, path stri
 	return nil
 }
 
-func (r *renderer) openAPIBody(schema *Schema, path string) error {
+func (r *renderer) responseSchemaBody(call string, schema *Schema, path string) error {
 	expression, object, err := r.schemaExpression(schema, path)
 	if err != nil {
 		return err
 	}
 	if object {
-		r.open("OpenAPIBody(func()")
+		r.open("%s(func()", call)
 		if err := r.schemaBlock(schema, path, false); err != nil {
 			return err
 		}
@@ -67,15 +67,30 @@ func (r *renderer) openAPIBody(schema *Schema, path string) error {
 		return nil
 	}
 	if r.hasSchemaBlock(schema) {
-		r.open("OpenAPIBody(%s, func()", expression)
+		r.open("%s(%s, func()", call, expression)
 		if err := r.validationBlock(schema, path); err != nil {
 			return err
 		}
 		r.close()
 		return nil
 	}
-	r.line("OpenAPIBody(%s)", expression)
+	r.line("%s(%s)", call, expression)
 	return nil
+}
+
+func (r *renderer) resolveSchemaReference(schema *Schema, path string) (*Schema, error) {
+	if schema == nil || schema.Ref == "" {
+		return schema, nil
+	}
+	name, err := localComponentReferenceName(schema.Ref, "#/components/schemas/")
+	if err != nil {
+		return nil, fmt.Errorf("render OpenAPI design: %s schema reference %q: %w", path, schema.Ref, err)
+	}
+	named, ok := r.schemas[name]
+	if !ok {
+		return nil, fmt.Errorf("render OpenAPI design: %s schema reference %q does not resolve", path, schema.Ref)
+	}
+	return named.Schema, nil
 }
 
 func (r *renderer) schemaExpression(schema *Schema, path string) (string, bool, error) {
@@ -138,21 +153,22 @@ func (r *renderer) schemaReferenceExpression(ref, path string) (string, bool, er
 }
 
 func (r *renderer) objectSchemaExpression(schema *Schema, path string) (string, bool, error) {
-	if schema.AdditionalProperties == nil || schema.AdditionalProperties.Schema == nil {
-		if schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && *schema.AdditionalProperties.Allowed {
-			if len(schema.Properties) > 0 || len(schema.Required) > 0 || len(schema.Bases) > 0 {
-				return "", false, fmt.Errorf("render OpenAPI design: %s object members with additionalProperties true are not renderable", path)
-			}
-			return "MapOf(String, Any)", false, nil
-		}
+	representation, err := classifyObject(schema)
+	if err != nil {
+		return "", false, fmt.Errorf("render OpenAPI design: %s %w", path, err)
+	}
+	switch representation {
+	case objectFreeMap:
+		return "MapOf(String, Any)", false, nil
+	case objectStructured:
 		return "", true, nil
 	}
-	if len(schema.Properties) > 0 {
-		return "", false, fmt.Errorf("render OpenAPI design: %s object properties with schema-valued additionalProperties are not renderable", path)
-	}
-	value, _, err := r.schemaExpression(schema.AdditionalProperties.Schema, path+"/additionalProperties")
+	value, object, err := r.schemaExpression(schema.AdditionalProperties.Schema, path+"/additionalProperties")
 	if err != nil {
 		return "", false, err
+	}
+	if object {
+		return "", false, fmt.Errorf("render OpenAPI design: %s/additionalProperties inline object requires a named type", path)
 	}
 	valueSchema := schema.AdditionalProperties.Schema
 	if !r.hasSchemaBlock(valueSchema) && !r.effectiveNullable(valueSchema) {

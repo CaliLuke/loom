@@ -262,51 +262,97 @@ paths:
 	}
 }
 
-func TestInlineObjectArrayPromotionCoversEverySchemaLocation(t *testing.T) {
-	inlineArray := func() *Schema {
-		return &Schema{Type: "array", Items: &Schema{
-			Type:       "object",
-			Properties: []NamedProperty{{Name: "id", Schema: &Schema{Type: "string"}}},
-		}}
-	}
-	document := &Document{
-		Components: Components{
-			Schemas:       []NamedSchema{{Name: "Values", Schema: inlineArray()}},
-			Parameters:    []NamedParameter{{Name: "Values", Parameter: Parameter{Schema: inlineArray()}}},
-			RequestBodies: []NamedRequestBody{{Name: "Values", RequestBody: RequestBody{Schema: inlineArray()}}},
-			Responses:     []NamedResponse{{Name: "Values", Response: Response{Schema: inlineArray()}}},
-			Headers:       []NamedHeader{{Name: "Values", Header: Header{Schema: inlineArray()}}},
-		},
-		Operations: []Operation{{
-			Method:      "POST",
-			Path:        "/values",
-			GoName:      "CreateValues",
-			Parameters:  []Parameter{{In: "query", Name: "values", Schema: inlineArray()}},
-			RequestBody: &RequestBody{Schema: inlineArray()},
-			Responses:   []StatusResponse{{Status: "200", Response: Response{Schema: inlineArray()}}},
-		}},
-	}
+func TestObjectConstructorPreparationCoversEverySchemaLocation(t *testing.T) {
+	closed := false
+	for _, tc := range []struct {
+		name        string
+		schema      func() *Schema
+		occurrence  func(*Schema) *Schema
+		diagnostics int
+	}{
+		{"array", func() *Schema {
+			return &Schema{
+				Type: "array",
+				Items: &Schema{
+					Type:       "object",
+					Properties: []NamedProperty{{Name: "id", Schema: &Schema{Type: "string"}}},
+				},
+			}
+		}, func(schema *Schema) *Schema {
+			return schema.Items
+		}, 9},
+		{"closed field", func() *Schema {
+			return &Schema{
+				Type: "object",
+				Properties: []NamedProperty{{
+					Name:   "value",
+					Schema: &Schema{Type: "object", AdditionalProperties: &AdditionalProperties{Allowed: &closed}},
+				}},
+			}
+		}, func(schema *Schema) *Schema {
+			return schema.Properties[0].Schema
+		}, 0},
+		{"record map", func() *Schema {
+			return &Schema{
+				Type: "object",
+				AdditionalProperties: &AdditionalProperties{Schema: &Schema{
+					Type:       "object",
+					Properties: []NamedProperty{{Name: "id", Schema: &Schema{Type: "string"}}},
+				}},
+			}
+		}, func(schema *Schema) *Schema {
+			return schema.AdditionalProperties.Schema
+		}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			document := &Document{
+				Components: Components{
+					Schemas:       []NamedSchema{{Name: "Values", Schema: tc.schema()}},
+					Parameters:    []NamedParameter{{Name: "Values", Parameter: Parameter{Schema: tc.schema()}}},
+					RequestBodies: []NamedRequestBody{{Name: "Values", RequestBody: RequestBody{Schema: tc.schema()}}},
+					Responses:     []NamedResponse{{Name: "Values", Response: Response{Schema: tc.schema()}}},
+					Headers:       []NamedHeader{{Name: "Values", Header: Header{Schema: tc.schema()}}},
+				},
+				Operations: []Operation{{
+					Method:      "POST",
+					Path:        "/values",
+					GoName:      "CreateValues",
+					Parameters:  []Parameter{{In: "query", Name: "values", Schema: tc.schema()}},
+					RequestBody: &RequestBody{Schema: tc.schema()},
+					Responses: []StatusResponse{{
+						Status: "200",
+						Response: Response{
+							Schema:  tc.schema(),
+							Headers: []NamedHeader{{Name: "Value", Header: Header{Schema: tc.schema()}}},
+						},
+					}},
+				}},
+			}
 
-	analyzer := analyzer{}
-	analyzer.promoteInlineArrayItems(document)
-	require.Len(t, analyzer.diagnostics, 8)
-	for _, diagnostic := range analyzer.diagnostics {
-		require.Equal(t, "schema-inline-array-item-promoted", diagnostic.Code)
-	}
+			analyzer := analyzer{}
+			analyzer.prepareObjectConstructors(document)
+			require.Len(t, analyzer.diagnostics, tc.diagnostics)
+			for _, diagnostic := range analyzer.diagnostics {
+				require.Equal(t, "schema-inline-array-item-promoted", diagnostic.Code)
+			}
 
-	roots := []*Schema{
-		document.Components.Schemas[0].Schema,
-		document.Components.Parameters[0].Parameter.Schema,
-		document.Components.RequestBodies[0].RequestBody.Schema,
-		document.Components.Responses[0].Response.Schema,
-		document.Components.Headers[0].Header.Schema,
-		document.Operations[0].Parameters[0].Schema,
-		document.Operations[0].RequestBody.Schema,
-		document.Operations[0].Responses[0].Response.Schema,
-	}
-	for _, schema := range roots {
-		require.NotNil(t, schema.Items)
-		require.True(t, strings.HasPrefix(schema.Items.Ref, "#/components/schemas/"))
+			roots := []*Schema{
+				document.Components.Schemas[0].Schema,
+				document.Components.Parameters[0].Parameter.Schema,
+				document.Components.RequestBodies[0].RequestBody.Schema,
+				document.Components.Responses[0].Response.Schema,
+				document.Components.Headers[0].Header.Schema,
+				document.Operations[0].Parameters[0].Schema,
+				document.Operations[0].RequestBody.Schema,
+				document.Operations[0].Responses[0].Response.Schema,
+				document.Operations[0].Responses[0].Response.Headers[0].Header.Schema,
+			}
+			for _, schema := range roots {
+				occurrence := tc.occurrence(schema)
+				require.NotNil(t, occurrence)
+				require.True(t, strings.HasPrefix(occurrence.Ref, "#/components/schemas/"))
+			}
+		})
 	}
 }
 

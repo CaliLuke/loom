@@ -110,3 +110,47 @@ identity, codec behavior or Go compilation. Existing DSL Enum requires at least
 one type-compatible value; null-only and empty-domain rejection also follow the
 documented strict subset. No new universal bottom type is proposed. The previous
 #659 model remains unchanged and does not claim these additional obligations.
+
+
+## Object constructor representation (#776)
+
+`ObjectRepresentation` compares five object shapes in four constructor roles.
+The parent counterexamples capture empty field callbacks becoming strings,
+equivalent open-object spellings taking different paths, and closed/nonempty
+inline map values lacking a concrete type argument. The candidate classifies
+open memberless objects as free-form maps and supplies an existing named object
+representation where the DSL constructor needs a concrete type. Its six theorems
+check finite acceptance, complete constructor arguments, and retained ordinary
+named controls. Run the same `lake build` and theorem manifest checks above.
+
+The implementation correspondence is `classifyObject`/`objectNeedsName`, shared
+by `objectSchemaExpression`, `prepareObjectConstructors` and planner admission before
+name assignment/reference planning. Field/map/array/body rendering must consume
+that classification; empty callbacks and discarded object flags are not types.
+`TestImportedEmptyObject*` connects the model to analysis, real generated DSL,
+and regenerated schema instance checks. OAS 3.0/3.1 admission controls preserve
+existing mixed-map rejection and the array-promotion consent requirement.
+
+This addition assumes admission already excluded unsupported compositions and
+that existing named objects preserve their constraints. It abstracts synthetic
+names/references and does not prove graph traversal, allocation uniqueness,
+transport behavior or arbitrary JSON trees. Nullability is an independent input;
+no new dialect or nullable policy is introduced. The parent models acceptance at
+these seams, not Go storage: existing named open objects may have no storage for
+arbitrary properties even when their generated schema admits those properties.
+
+The same classifier also feeds untagged-union subset admission and form raw-body
+selection. Their existing map-carrier restrictions are checked by direct
+spelling-equivalence and generated ordinary controls; those transport/import
+subset policies are outside this model's finite constructor acceptance proof.
+
+The explicit response constructor uses the same field-role obligation: a
+source-declared closed empty JSON body needs a concrete constructor even without
+response headers. `responseObjectRole` establishes legal constructors; `responseMappingBody`
+retains source-declared structured content uniformly, including inherited empty
+records, through the shared classifier. It does not infer presence from field
+counts or from whether a field constructor needed a synthetic name. #886 independently corrected expr's
+explicit object-versus-Empty preparation. The finite importer model assumes an
+explicit concrete object stays an object; it does not prove transport body
+presence. `TestImportedEmptyObjectRootBindings` now checks that correspondence
+with actual headerless/wrapped HTTP bytes, generated clients and OpenAPI schemas.

@@ -1,0 +1,81 @@
+package imported_test
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	client "example.com/imported/gen/http/object_roots/client"
+	server "example.com/imported/gen/http/object_roots/server"
+	svc "example.com/imported/gen/object_roots"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestImportedEmptyObjectBodies(t *testing.T) {
+	label := "trace"
+	calls := 0
+	endpoints := &svc.Endpoints{
+		Plain: func(context.Context, any) (any, error) {
+			calls++
+			return &svc.Closed{}, nil
+		},
+		Inherited: func(context.Context, any) (any, error) {
+			calls++
+			return &svc.Inherited{}, nil
+		},
+		Inline: func(context.Context, any) (any, error) {
+			calls++
+			return &svc.InlineResponse{}, nil
+		},
+		Value: func(_ context.Context, value any) (any, error) {
+			calls++
+			require.NotNil(t, value.(*svc.ValuePayload).Body)
+			return &svc.ValueResult{Body: &svc.ValueResponse{}, XLabel: &label}, nil
+		},
+	}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	host := httptest.NewServer(mux)
+	defer host.Close()
+	for _, path := range []string{"plain", "inline", "inherited", "value"} {
+		method := http.MethodGet
+		if path == "value" {
+			method = http.MethodPost
+		}
+		request, err := http.NewRequestWithContext(t.Context(), method, host.URL+"/"+path, strings.NewReader("{}"))
+		require.NoError(t, err)
+		request.Header.Set("Content-Type", "application/json")
+		response, err := host.Client().Do(request)
+		require.NoError(t, err)
+		body, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		require.NoError(t, response.Body.Close())
+		require.Equal(t, http.StatusOK, response.StatusCode, path)
+		require.Equal(t, "{}", strings.TrimSpace(string(body)), path)
+		if path == "value" {
+			require.Equal(t, label, response.Header.Get("X-Label"))
+		}
+	}
+	address, err := url.Parse(host.URL)
+	require.NoError(t, err)
+	c := client.NewClient(address.Scheme, address.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	plain, err := c.Plain()(t.Context(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, plain.(*svc.Closed))
+	inline, err := c.Inline()(t.Context(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, inline.(*svc.InlineResponse))
+	value, err := c.Value()(t.Context(), &svc.ValuePayload{Body: &svc.ValueRequest{}})
+	require.NoError(t, err)
+	require.NotNil(t, value.(*svc.ValueResult).Body)
+	require.Equal(t, label, *value.(*svc.ValueResult).XLabel)
+	inherited, err := c.Inherited()(t.Context(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, inherited.(*svc.Inherited))
+	require.Equal(t, 8, calls)
+}

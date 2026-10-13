@@ -93,7 +93,7 @@ func (r *renderer) responseMappingMetadata(response renderedResponse, failure bo
 
 func (r *renderer) responseMappingRawBody(response renderedResponse, path string) error {
 	if response.rawBody {
-		if err := r.openAPIBody(schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
+		if err := r.responseSchemaBody("OpenAPIBody", schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
 			return err
 		}
 	}
@@ -105,8 +105,28 @@ func (r *renderer) responseMappingBody(response renderedResponse, failure bool, 
 	if response.body != "" && (len(response.headers) > 0 || wrapUnconstrainedError) {
 		r.line("Body(%q)", response.body)
 	}
+	if len(response.headers) == 0 && !response.rawBody && response.response.Schema != nil {
+		schema := response.response.Schema
+		// Reference admission has already rejected mandatory initializer cycles.
+		for schema.Ref != "" {
+			resolved, err := r.resolveSchemaReference(schema, path+"/content/schema")
+			if err != nil {
+				return err
+			}
+			schema = resolved
+		}
+		representation, err := classifyObject(schema)
+		if err != nil {
+			return fmt.Errorf("render OpenAPI design: %s %w", path, err)
+		}
+		if representation == objectStructured {
+			if err := r.responseSchemaBody("Body", schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
+				return err
+			}
+		}
+	}
 	if wrapUnconstrainedError || response.response.Schema != nil && response.response.Schema.Ref != "" {
-		if err := r.openAPIBody(schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
+		if err := r.responseSchemaBody("OpenAPIBody", schemaWithExamples(response.response.Schema, response.response.Examples), path+"/content/schema"); err != nil {
 			return err
 		}
 	}

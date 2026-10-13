@@ -173,7 +173,7 @@ func (a *analyzer) document(source *v3.Document) *Document {
 	}
 	document.Operations = a.operations(source.Paths, document.Components, document.Tags)
 	assignOperationNames(document.Operations)
-	a.promoteInlineArrayItems(document)
+	a.prepareObjectConstructors(document)
 	assignSchemaNames(document.Components.Schemas)
 	assignSecuritySchemeNames(document.Components.SecuritySchemes, document.Components.Schemas)
 	return document

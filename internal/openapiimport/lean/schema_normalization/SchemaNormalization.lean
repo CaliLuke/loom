@@ -305,3 +305,72 @@ theorem null_only_and_empty_domains_rejected :
       normalize true .wrongTypeOnly = none := by decide
 
 end OpenAPIImport.SchemaNormalization.ValueDomain
+
+namespace OpenAPIImport.SchemaNormalization.ObjectRepresentation
+
+/-- Supported object domains after dialect/type admission. -/
+inductive Shape where
+  | openOmitted | openTrue | openSchema | closedEmpty | record
+  deriving DecidableEq, Repr
+
+/-- Empty field callbacks do not establish objects; collection constructors
+need a concrete type. Named declarations and array promotion already exist. -/
+inductive Position where
+  | declaration | field | mapValue | arrayItem
+  deriving DecidableEq, Repr
+
+inductive Representation where
+  | freeMap | closedObject | recordObject | accidentalString | missingArgument
+  deriving DecidableEq, Repr
+
+def accepts (nullable : Bool) (representation : Representation) (value : Value) : Bool :=
+  if value == .null then nullable else
+  match representation, value with
+  | .freeMap, .objectWithoutName | .freeMap, .objectNameX | .freeMap, .objectNameInvalid => true
+  | .closedObject, .objectWithoutName => true
+  | .recordObject, .objectNameX => true
+  | .accidentalString, .stringX | .accidentalString, .stringOther => true
+  | _, _ => false
+
+def canonical : Shape → Representation
+  | .openOmitted | .openTrue | .openSchema => .freeMap
+  | .closedEmpty => .closedObject
+  | .record => .recordObject
+
+/-- Parent acceptance/constructor abstraction at the known failure seams. -/
+def parent : Shape → Position → Representation
+  | .openOmitted, .field | .closedEmpty, .field => .accidentalString
+  | .openOmitted, .mapValue | .closedEmpty, .mapValue | .record, .mapValue => .missingArgument
+  | shape, _ => canonical shape
+
+/-- Classify before choosing syntax; existing named types supply the concrete
+constructor when a callback cannot establish the object. -/
+def candidate (shape : Shape) (_position : Position) : Representation := canonical shape
+
+theorem parent_empty_field_counterexample :
+    accepts false (canonical .closedEmpty) .objectWithoutName = true ∧
+      accepts false (parent .closedEmpty .field) .objectWithoutName = false := by decide
+
+theorem parent_open_spelling_counterexample :
+    parent .openOmitted .field ≠ parent .openTrue .field := by decide
+
+theorem parent_map_constructor_counterexample :
+    parent .closedEmpty .mapValue = .missingArgument ∧
+      parent .record .mapValue = .missingArgument := by decide
+
+theorem candidate_preserves_acceptance (shape : Shape) (position : Position)
+    (nullable : Bool) (value : Value) :
+    accepts nullable (candidate shape position) value =
+      accepts nullable (canonical shape) value := by rfl
+
+theorem candidate_constructors_are_complete (shape : Shape) (position : Position) :
+    candidate shape position ≠ .missingArgument ∧
+      candidate shape position ≠ .accidentalString := by
+  cases shape <;> cases position <;> decide
+
+theorem named_controls_unchanged :
+    candidate .closedEmpty .declaration = parent .closedEmpty .declaration ∧
+      candidate .record .declaration = parent .record .declaration ∧
+      candidate .openTrue .declaration = parent .openTrue .declaration := by decide
+
+end OpenAPIImport.SchemaNormalization.ObjectRepresentation

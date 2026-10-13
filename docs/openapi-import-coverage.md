@@ -195,8 +195,15 @@ The following constructs are conditional:
   Both encoding and decoding require one schema match and one valid Go candidate
   with the same identity. Exact member names, presence, nullability, closed-object
   membership, element constraints, and inherited constraints participate.
-- `additionalProperties: true` maps to
-  `map[string]loom.JSONValue` only when the object has no declared properties.
+- A memberless `type: object` maps to `map[string]loom.JSONValue` when
+  `additionalProperties` is absent, true or an empty schema. Closed empty objects
+  (`additionalProperties: false`) retain their object type and accept only `{}`,
+  plus null when separately nullable. Inline closed-empty fields and structured
+  object map values receive deterministic named types so every DSL constructor
+  has a concrete type. Existing named objects retain their names. Reimport and
+  regenerate to replace earlier String fields or incomplete map constructors.
+  Objects that combine declared members with free-form additional properties
+  remain outside the supported subset.
 - A form request whose object has only schema-valued `additionalProperties`
   maps to a typed root map. A body-only optional form also emits
   `OptionalRequestBody()`.

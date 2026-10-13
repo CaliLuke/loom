@@ -121,7 +121,7 @@ func (r *renderer) singleRequestBody(body RequestBody, mode requestBodyMode, pat
 			return &renderedBody{body: body, mode: requestBodyRaw, mapPayload: true}, nil
 		}
 		if !mapPayload && mode == requestBodyForm && !body.Required {
-			resolved, resolveErr := r.resolveRequestTransportBodySchema(body.Schema, path+"/schema")
+			resolved, resolveErr := r.resolveSchemaReference(body.Schema, path+"/schema")
 			if resolveErr != nil {
 				return nil, resolveErr
 			}
@@ -164,7 +164,11 @@ func (r *renderer) formBodyRequiresRaw(schema *Schema, path string, seen map[str
 			return requiresRaw, err
 		}
 	}
-	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && *schema.AdditionalProperties.Allowed {
+	representation, err := classifyObject(schema)
+	if err != nil {
+		return false, fmt.Errorf("render OpenAPI design: %s %w", path, err)
+	}
+	if representation == objectFreeMap {
 		return true, nil
 	}
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {

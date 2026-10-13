@@ -428,12 +428,13 @@ one-value `Enum(...)` validation. Regenerated OpenAPI uses `enum` because Loom's
 DSL has no separate scalar-constant construct. Structured constants and schemas
 that combine `const` with `enum` remain blocked.
 
-An OpenAPI free-form object with `type: object` and
-`additionalProperties: true` imports as `MapOf(String, Any)`. Generated Go
-uses `map[string]loom.JSONValue`, and regenerated OpenAPI preserves the object
-boundary.
-The importer rejects a schema that also declares object members because the
-Loom DSL cannot preserve both shapes.
+A memberless OpenAPI `type: object` with absent, true or empty-schema
+`additionalProperties` imports as `MapOf(String, Any)`. Generated Go uses
+`map[string]loom.JSONValue`. Closed empty objects retain the `{}` contract and
+separate nullable intent. Inline closed-empty fields and structured object map
+values become deterministic named types. Reimport and regenerate to replace
+previous String fields or incomplete map constructors. Combining declared
+members with free-form additional properties remains unsupported.
 
 An OpenAPI form body with only schema-valued `additionalProperties` imports as
 a typed map. Body-only methods keep the map payload and use

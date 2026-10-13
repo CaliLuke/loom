@@ -868,6 +868,17 @@ filter, and serialization rules belong here.
   operation projection retains root security only while a retained operation
   inherits it. Keep the credential model and actual import/auth tests aligned.
 
+- `classifyObject` and `objectNeedsName` own imported object carriers and
+  constructor roles. The existing preparation traversal promotes closed empty
+  fields and structured map values before name/reference planning; root request,
+  parameter, response and header roles must match their actual DSL constructors.
+  Preserve array/union promotion policy. The shared planner rejects unprepared
+  direct Documents at those same roles; Render remains nonmutating. Never discard
+  an implicit object flag in MapOf or let an empty Attribute callback become
+  String. Untagged-union admission and raw-form selection consume the same
+  carrier classification. Keep normalization models and bounded field/map/root/
+  nullability/name controls aligned. URL location admission remains separate.
+
 - Plan imported schema references once after component promotion and final error
   declaration allocation in `internal/openapiimport`. Retain declaration owner
   and source-path occurrence identity; resolve source component names separately
@@ -1773,6 +1784,11 @@ filter, and serialization rules belong here.
   while their outer form keeps native fields. Apply registered physical layouts
   at named collection conversion boundaries as well as object helpers. Keep the
   serialization model and mounted nested-null/import round-trip tests aligned.
+- Imported structured response content is explicit in the DSL even without
+  headers. Use the shared schema Body/OpenAPIBody renderer and object carrier;
+  do not infer body presence from direct or inherited field counts. Constructor
+  legality and response presence are separate obligations; keep the imported
+  headerless, selected and inherited empty-object wire/spec controls aligned.
 - `expr.explicitHTTPResponseBody` prepares both runtime and documentation-only
   response shapes. Preserve authored zero-field objects; only the `Empty` sentinel
   means no explicit body. Field-count inference belongs to the separate inferred

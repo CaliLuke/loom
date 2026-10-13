@@ -44,7 +44,7 @@ func planDocument(document *Document) documentPlan {
 		planner.unsupported("openapi-version", "#", "only OpenAPI 3.0, 3.1, and 3.2 documents are renderable")
 	}
 	for _, named := range document.Components.Schemas {
-		planner.schema(named.Schema, "#/components/schemas/"+escapeJSONPointer(named.Name))
+		planner.schema(named.Schema, "#/components/schemas/"+escapeJSONPointer(named.Name), objectDeclaration)
 	}
 	for index := range document.Operations {
 		op := &document.Operations[index]
@@ -199,7 +199,7 @@ func (p *documentPlanner) parameter(parameter Parameter, path string) {
 		if p.schemaContainsUntaggedOneOf(resolved.Schema, make(map[string]struct{})) {
 			p.unsupported("schema-oneof-location", path+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
-		p.schema(resolved.Schema, path+"/schema")
+		p.schema(resolved.Schema, path+"/schema", objectField)
 		if resolved.In == "cookie" && !p.schemaIsPrimitive(resolved.Schema, make(map[string]struct{})) {
 			p.unsupported("cookie-parameter-shape", path+"/schema", "cookie parameters must have primitive schemas; array and object cookies are not supported by the HTTP DSL")
 		}
@@ -230,7 +230,7 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 		return
 	}
 	if len(body.ContentTypes) == 0 {
-		p.content("", body.Schema, path, false)
+		p.content("", body.Schema, path, false, requestObjectRole(*body))
 		return
 	}
 	for _, contentType := range body.ContentTypes {
@@ -248,7 +248,7 @@ func (p *documentPlanner) requestBody(body *RequestBody, path string) {
 		if !isJSONMediaType(contentType) && p.schemaContainsUntaggedOneOf(body.Schema, make(map[string]struct{})) {
 			p.unsupported("schema-oneof-location", contentPath+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
-		p.schema(body.Schema, contentPath+"/schema")
+		p.schema(body.Schema, contentPath+"/schema", requestObjectRole(*body))
 		if isFormMediaType(contentType) {
 			p.formSerialization(body, contentPath)
 		}
@@ -260,7 +260,7 @@ func (p *documentPlanner) response(response Response, path string, allowNonJSON 
 		p.unsupported("response-reference", path, "response references are not renderable")
 		return
 	}
-	p.content(response.ContentType, response.Schema, path, allowNonJSON)
+	p.content(response.ContentType, response.Schema, path, allowNonJSON, responseObjectRole(response, allowNonJSON))
 	for _, named := range response.Headers {
 		headerPath := path + "/headers/" + escapeJSONPointer(named.Name)
 		if strings.Contains(named.Name, ":") {
@@ -277,11 +277,17 @@ func (p *documentPlanner) response(response Response, path string, allowNonJSON 
 		if p.schemaContainsUntaggedOneOf(named.Header.Schema, make(map[string]struct{})) {
 			p.unsupported("schema-oneof-location", headerPath+"/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 		}
-		p.schema(named.Header.Schema, headerPath+"/schema")
+		p.schema(named.Header.Schema, headerPath+"/schema", objectField)
 	}
 }
 
-func (p *documentPlanner) content(contentType string, schema *Schema, path string, allowNonJSON bool) {
+func (p *documentPlanner) content(
+	contentType string,
+	schema *Schema,
+	path string,
+	allowNonJSON bool,
+	role objectConstructorRole,
+) {
 	if schema == nil {
 		if contentType != "" {
 			p.unsupported("content-schema", path+"/content", "content type has no schema")
@@ -294,7 +300,7 @@ func (p *documentPlanner) content(contentType string, schema *Schema, path strin
 	if !isJSONMediaType(contentType) && p.schemaContainsUntaggedOneOf(schema, make(map[string]struct{})) {
 		p.unsupported("schema-oneof-location", path+"/content/schema", "untagged oneOf is supported only in JSON bodies and component schemas")
 	}
-	p.schema(schema, path+"/content/schema")
+	p.schema(schema, path+"/content/schema", role)
 }
 
 func (p *documentPlanner) schemaContainsUntaggedOneOf(schema *Schema, seen map[string]struct{}) bool {
@@ -384,8 +390,8 @@ func normalizedMediaType(contentType string) string {
 	return strings.ToLower(strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0]))
 }
 
-func (p *documentPlanner) schema(schema *Schema, path string) {
-	if !p.schemaAdmission(schema, path) {
+func (p *documentPlanner) schema(schema *Schema, path string, role objectConstructorRole) {
+	if !p.schemaAdmission(schema, path, role) {
 		return
 	}
 	if schema != nil && len(schema.OneOf) > 0 {
@@ -418,11 +424,15 @@ func (p *documentPlanner) schema(schema *Schema, path string) {
 // schemaAdmission checks retained source distinctions before rendering can
 // reduce them. It also visits inline occurrences that the renderer would
 // otherwise turn into attributes or collection elements.
-func (p *documentPlanner) schemaAdmission(schema *Schema, path string) bool {
+func (p *documentPlanner) schemaAdmission(schema *Schema, path string, role objectConstructorRole) bool {
 	if schema == nil {
 		return true
 	}
 	admitted := true
+	if objectNeedsName(schema, role) {
+		p.unsupported("schema-object-constructor", path, "inline object requires a named type in this constructor; analyze source schemas before rendering")
+		admitted = false
+	}
 	if diagnostic := schema.valueDomainError; diagnostic != nil {
 		p.unsupported(diagnostic.Code, diagnostic.Path, diagnostic.Message)
 		return false
@@ -444,23 +454,23 @@ func (p *documentPlanner) schemaAdmission(schema *Schema, path string) bool {
 		admitted = false
 	}
 	for _, property := range schema.Properties {
-		if !p.schemaAdmission(property.Schema, path+"/properties/"+escapeJSONPointer(property.Name)) {
+		if !p.schemaAdmission(property.Schema, path+"/properties/"+escapeJSONPointer(property.Name), objectField) {
 			admitted = false
 		}
 	}
-	if !p.schemaAdmission(schema.Items, path+"/items") {
+	if !p.schemaAdmission(schema.Items, path+"/items", objectArrayItem) {
 		admitted = false
 	}
-	if schema.AdditionalProperties != nil && !p.schemaAdmission(schema.AdditionalProperties.Schema, path+"/additionalProperties") {
+	if schema.AdditionalProperties != nil && !p.schemaAdmission(schema.AdditionalProperties.Schema, path+"/additionalProperties", objectMapValue) {
 		admitted = false
 	}
 	for index, branch := range schema.OneOf {
-		if !p.schemaAdmission(branch, fmt.Sprintf("%s/oneOf/%d", path, index)) {
+		if !p.schemaAdmission(branch, fmt.Sprintf("%s/oneOf/%d", path, index), objectUnionBranch) {
 			admitted = false
 		}
 	}
 	for index, base := range schema.Bases {
-		if !p.schemaAdmission(base, fmt.Sprintf("%s/bases/%d", path, index)) {
+		if !p.schemaAdmission(base, fmt.Sprintf("%s/bases/%d", path, index), objectDeclaration) {
 			admitted = false
 		}
 	}
@@ -482,7 +492,8 @@ func (p *documentPlanner) schemaIsUntaggedShape(schema *Schema, named bool, acti
 			return false
 		}
 		if active[name] {
-			return declaration.Schema.Type == "object"
+			representation, err := classifyObject(declaration.Schema)
+			return err == nil && representation == objectStructured
 		}
 		active[name] = true
 		defer delete(active, name)
@@ -492,7 +503,8 @@ func (p *documentPlanner) schemaIsUntaggedShape(schema *Schema, named bool, acti
 		return schema.Items != nil && p.schemaIsUntaggedShape(schema.Items, false, active)
 	}
 	if schema.Type == "object" {
-		if !named || schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
+		representation, err := classifyObject(schema)
+		if !named || err != nil || representation != objectStructured {
 			return false
 		}
 		for _, property := range schema.Properties {
