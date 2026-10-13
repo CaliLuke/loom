@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **180 of 212 tracked reports are delivered, pushed and confirmed closed.**
+- **183 of 214 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-180-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-183-issues.json` is the frozen GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
   client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
@@ -78,12 +78,22 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   One location/shape planner rule covers request parameters and response headers,
   including direct Render. Supported outputs remain identical; all four generated
   modules compile and all eight spec checks pass.
-- Required CI is not confirmed green. Run `38457192450` exposed stale integration
-  expectations after delivered header/scope/body contracts. #890 (`59ac9947c`)
-  repairs those assertions and two rendered goldens, with no production changes;
-  exact failing tests, scoped lint and spec checks pass after independent review.
-  New main CI remains queued/running; the earlier #820 dependency race remains
-  unresolved. No aggregate success is claimed.
+- Local reference identity #891 (`e67f359e2`) is reviewed, pushed and closed.
+  One URI-fragment/JSON Pointer parser feeds importer and OpenAPI consumers;
+  ordinary/encoded reference equivalence and actual generated consumers pass.
+- Concrete presence #892 (`590897d3f`) is reviewed, pushed and closed. The shared
+  helper consumes the entire root alias spine while preserving nullable children.
+  Both real CI regressions and the codegen race suite pass; 16 ordinary artifacts
+  are identical and all 32 candidate artifacts repeat across processes.
+- Schema annotations #783 (`066b68aab`) are reviewed, pushed and closed. One
+  emission owner and detached shared OpenAPI location preparation preserve schema
+  and parameter/header descriptions separately; generated and spec checks pass.
+- Required CI is not confirmed green. #890 (`59ac9947c`) repairs stale contract
+  assertions, but run `38462276537` exposed nullable aliases (now #892 delivered),
+  explicit alias error-body ancestry (#893) and a recursive source-pointer
+  assertion still under investigation. Its ID-based diagnostic overlay generates;
+  that alone does not establish that the pointer assertion is obsolete. The
+  existing #820 dependency race also remains open. Later main runs are active.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -112,22 +122,27 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Stream observation (#749):** readiness independently approved; immutable
-   operation identity remains usable after request-span completion. Transport
-   owners record a finite open/close pair and invoke observers outside their
-   locks. `/root/diagnostic_redaction_finish` implements after its #891 review.
-2. **Local reference identity (#891):** `/root/projection_integration_review`
-   is completing the shared URI-fragment/JSON Pointer parser after independent
-   review found additional raw-reference consumers. Integrate with delivered
-   #791's URL resolver; decode once and retain existing graph algorithms.
-3. **Schema annotations (#783):** `/root/omission_readiness_finish` follows
-   delivered #791 after cleanup and safe worktree reuse. Establish one annotation
-   owner across attribute, array/map element and named alias constructors;
-   preserve reference override precedence and verify a bounded spec roundtrip.
-4. **Service package declarations (#770):** projection prepares readiness after
-   #891. Public interceptor Info/accessor declarations must join the existing
-   service package symbol owner. Protobuf #736 and shared import #856 are separate
-   actual namespaces; no broad naming rewrite is implied.
+1. **Stream observation (#749):** `/root/diagnostic_redaction_finish` completes
+   the bounded generated/runtime matrix. Shared SSE terminal ownership replaces
+   wrapper closed flags and write locks; observers run outside ownership locks.
+   Final checks cover preparation failure, duplicate final/suppression and original
+   panic preservation. An attachment-panic cleanup regression is being repaired
+   within the existing WebSocket handler owner before final review.
+2. **Explicit body ancestry (#893):** `/root/omission_readiness_finish` follows
+   delivered #783 after cleanup and safe worktree reuse. Establish the shared
+   declaration/transport binding owner for composed errors and named explicit
+   bodies. Preserve foreign/cyclic ancestry rejection and the explicit Body
+   contract. Separately classify the recursive error identity assertion.
+3. **Service package declarations (#770):** projection implements the approved
+   package-role allocation. A scalar-alias competitor exposed a possible shared
+   constructor-scope prerequisite: InitStructFields reconstructs a scope without
+   allocated nominal names. Establish a standalone parent witness and exact owner
+   before a separate repair; do not hide it by dropping the scalar case. Protobuf
+   #736 and shared imports #856 retain their actual independent namespaces.
+4. **Imported name occupancy (#688):** root owns the independently approved
+   plan in [imported-name-occupancy.md](imported-name-occupancy.md). The shared
+   allocator must claim every emitted case-folded suffix. Direct candidate checks
+   pass in an overlay; consumer and actual generated comparisons remain pending.
 5. **Other distinct owners:** encoded byte length #686, custom-key example
    synthesis #884 and pool subordinate shutdown #687 remain open. Do not weaken
    supported representation admission to bypass these failures.
@@ -138,18 +153,27 @@ reconciliation with the inventory before they can establish remaining work.
    and v9.23.0. The #800 packet stays in `bounded-streaming-shutdown`;
    original-module fetchability gates delivery. No fork/cache workaround.
 
-#791 final review is `/tmp/loom-791-root-final-verdict.json`; independent root
-composition review is `/tmp/loom-791-integration-composition-verdict.json`.
-The final manifest verifies 174 source/evidence/input/artifact hashes. Root
-focused race checks pass (13.889s), integrated admission checks pass (0.591s).
-#749 readiness review is `/tmp/loom-749-independent-readiness-verdict.json`.
-#890 cleanup preserves exact source/input archives and compact test/spec results
-in `/tmp/loom-890-cleanup-receipt.json`; inactive raw logs were removed.
+Latest independent delivery records:
 
-CI run `38458929264` also reproduces the known libopenapi YAML merge mutation race
-in alias-merge and numeric-source tests. Its other observed test failures are
-covered by delivered #890. Later main runs remain queued/running; no aggregate
-CI success is claimed.
+- #891 final re-review and integration verdicts are
+  `/tmp/loom-891-independent-final-rereview-verdict.json` and
+  `/tmp/loom-891-independent-integration-verdict.json`.
+- #892 final verdict is `/tmp/loom-892-independent-final-verdict.json`;
+  `/tmp/loom-892-cleanup-receipt.json` preserves exact delivered source/input
+  archives and compact results after inactive temporary output removal.
+- #783 final and integration verdicts are
+  `/tmp/loom-783-independent-final-verdict.json` and
+  `/tmp/loom-783-independent-integration-verdict.json`; root integration passes
+  13.003s against the delivered alias correction. Implementer cleanup follows.
+- #749 terminal ownership refinement extends its existing bounded model;
+  serialized preparation failure releases admission without closing the stream.
+  Candidate final review is still pending.
+
+CI run `38458929264` reproduced the known libopenapi YAML merge mutation race.
+The later `38462276537` failures are classified above. Current-main run
+`38468644883` on #892 was in progress at the latest read; no aggregate CI success
+is claimed. #891 cleanup/reuse is complete; #783 cleanup is in progress. Existing
+review/manifest ledgers retain the scope of each earlier acceptance result.
 
 Completed cleanup receipts preserve compact evidence and exact reproduction
 inputs after activity checks: #872 `/tmp/loom-872-cleanup-receipt.json`, #790
