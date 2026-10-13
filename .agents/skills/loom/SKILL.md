@@ -244,6 +244,13 @@ fail design evaluation. Float32 values can round or underflow, but cannot overfl
 or be nonfinite. A wider bound such as `Maximum(1e12)` on Int32 remains valid;
 constraints describe allowed values rather than stored numeric fields.
 
+Conversion defaults fill actual absence. A native Go scalar has no absence bit:
+its `false`, `0` or empty string is supplied and survives generated conversion,
+including when a struct literal leaves it at zero. Optional pointers/wrappers and
+nil-capable values can carry absence; explicit nullable null is retained. Missing
+required input is rejected before defaults. Regenerate clients and servers to
+adopt this correction; do not depend on implicit native-zero substitution.
+
 Object defaults, including objects inside arrays and maps, use the generated
 native type. Within an authored default, missing nested members use applicable
 member defaults while supplied members keep their values. Every authored member

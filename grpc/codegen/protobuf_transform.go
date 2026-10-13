@@ -374,7 +374,7 @@ func buildObjectFieldTransform(sourceVar, targetVar string, srcMatt, tgtMatt *ex
 		return "", err
 	}
 	code = wrapObjectFieldNilCheck(code, srcValue, srcMatt, compatibleSource, n, ta)
-	return applyObjectFieldDefaults(code, srcValue, tgtValue, srcMatt, tgtMatt, compatibleSource, compatibleTarget, n, ta)
+	return applyObjectFieldDefaults(code, srcValue, tgtValue, srcMatt, tgtMatt, compatibleTarget, n, ta)
 }
 
 func compatibleTransformAttrs(srcc, tgtc *expr.AttributeExpr, ta *transformAttrs) (*expr.AttributeExpr, *expr.AttributeExpr, error) {
@@ -443,48 +443,27 @@ func wrapObjectFieldNilCheck(code, srcVar string, srcMatt *expr.MappedAttributeE
 	return cond + "\t" + code + "}\n"
 }
 
-func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
-	tdef := tgtMatt.GetDefault(n)
-	if tdef == nil || !ta.TargetCtx.UseDefault || ta.TargetCtx.Pointer || srcMatt.IsRequired(n) {
+func applyObjectFieldDefaults(code, srcVar, tgtVar string, srcMatt, tgtMatt *expr.MappedAttributeExpr, tgtc *expr.AttributeExpr, n string, ta *transformAttrs) (string, error) {
+	plan := ta.DefaultForField(srcMatt, tgtMatt, n)
+	if !plan.Apply {
 		return code, nil
 	}
-	literal, err := ta.TargetCtx.DefaultValue(tgtc, tdef)
+	literal, err := ta.TargetCtx.DefaultValue(tgtc, plan.Value)
 	if err != nil {
 		return "", err
 	}
-	switch {
-	case ta.SourceCtx.IsPrimitivePointer(n, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type):
-		code += "if " + srcVar + " == nil {\n\t"
-		if ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {
-			nativeTypeName := codegen.GoNativeTypeName(tgtc.Type)
-			if ta.proto {
-				nativeTypeName = protoBufNativeGoTypeName(tgtc.Type)
-			}
-			code += "var tmp " + nativeTypeName + " = " + literal + "\n\t" + tgtVar + " = &tmp\n"
-		} else {
-			code += tgtVar + " = " + literal + "\n"
+	code += "if " + srcVar + " == nil {\n\t"
+	if ta.TargetCtx.IsPrimitivePointer(n, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {
+		nativeTypeName := codegen.GoNativeTypeName(tgtc.Type)
+		if ta.proto {
+			nativeTypeName = protoBufNativeGoTypeName(tgtc.Type)
 		}
-		code += "}\n"
-	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(n) && ta.SourceCtx.UseDefault:
-		code += "{\n\t"
-		code += objectFieldZeroValueDecl(tgtc, ta)
-		code += "if " + tgtVar + " == zero {\n\t" + tgtVar + " = " + literal + "\n}\n"
-		code += "}\n"
+		code += "var tmp " + nativeTypeName + " = " + literal + "\n\t" + tgtVar + " = &tmp\n"
+	} else {
+		code += tgtVar + " = " + literal + "\n"
 	}
+	code += "}\n"
 	return code, nil
-}
-
-func objectFieldZeroValueDecl(tgtc *expr.AttributeExpr, ta *transformAttrs) string {
-	if ta.proto {
-		return "var zero " + protoBufNativeGoTypeName(tgtc.Type) + "\n\t"
-	}
-	if typeName, _ := codegen.GetMetaType(tgtc); typeName != "" {
-		return "var zero " + typeName + "\n\t"
-	}
-	if _, ok := tgtc.Type.(expr.UserType); ok {
-		return "var zero " + ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc)) + "\n\t"
-	}
-	return "var zero " + codegen.GoNativeTypeName(tgtc.Type) + "\n\t"
 }
 
 func transformObjectPrimitivePointerCases(

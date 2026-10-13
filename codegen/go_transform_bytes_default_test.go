@@ -65,7 +65,7 @@ func TestBytesDefaultTransformLayouts(t *testing.T) {
 }
 
 // TestDefaultValueStorageMetadata checks the physical override boundary even
-// when its semantic source is Bytes. Unknown named custom types stay comparable;
+// when its semantic source is Bytes. Unknown named custom types stay supplied values;
 // this does not infer their underlying Go definition or widen literal support.
 func TestDefaultValueStorageMetadata(t *testing.T) {
 	for _, tc := range []struct {
@@ -85,7 +85,7 @@ func TestDefaultValueStorageMetadata(t *testing.T) {
 			if tc.typeName != "" {
 				att.Meta = expr.MetaExpr{"struct:field:type": {tc.typeName}}
 			}
-			require.Equal(t, tc.want, defaultValueUsesNil(att))
+			require.Equal(t, tc.want, defaultSourceUsesNil(att))
 		})
 	}
 }
@@ -110,7 +110,7 @@ func bytesDefaultTypes() []bytesDefaultType {
 func runBytesDefaultModule(t *testing.T, source string) {
 	t.Helper()
 	dir := t.TempDir()
-	module := fmt.Sprintf("module example.com/bytesdefaults\n\ngo 1.27\nrequire github.com/CaliLuke/loom v0.0.0\nreplace github.com/CaliLuke/loom => %s\n", testingx.RepoRoot())
+	module := fmt.Sprintf("module example.com/bytesdefaults\n\ngo 1.27\nrequire github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261013020843-063198a2f427\nreplace github.com/CaliLuke/loom => %s\n", testingx.RepoRoot())
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(module), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "defaults_test.go"), []byte(source), 0o600))
 	output, err := testingx.RunCmd(dir, "go", "mod", "tidy")
@@ -177,8 +177,8 @@ func checkDefaults(t *testing.T, cases []defaultCase) {
     }
     want:=""
     if state=="nonempty" { want="ok" }
-    zero:=state=="absent" || (!tc.bytes && !pointer && state=="empty")
-    defaulted:=zero && tc.applyDefault && (tc.bytes || pointer || tc.sourceDefaults)
+    absent:=state=="absent" && (tc.bytes || pointer)
+    defaulted:=absent && tc.applyDefault
     if defaulted { want=tc.defaultText }
     if got!=want { t.Errorf("state=%s got=%q want=%q",state,got,want) }
     if tc.bytes && state=="empty" && nilValue { t.Error("supplied empty bytes became nil") }

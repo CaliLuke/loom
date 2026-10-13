@@ -27,11 +27,8 @@ func transform() {
 	if source.String_ == nil {
 		target.String = "foo"
 	}
-	{
-		var zero []byte
-		if target.Bytes == zero {
-			target.Bytes = []byte{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72}
-		}
+	if source.Bytes_ == nil {
+		target.Bytes = []byte{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72}
 	}
 	if source.Any == nil {
 		target.Any = "something"

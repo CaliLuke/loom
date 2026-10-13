@@ -6,12 +6,6 @@ func transform() {
 	if source.Integer != nil {
 		target.Integer = *source.Integer
 	}
-	{
-		var zero bool
-		if target.DefaultBool == zero {
-			target.DefaultBool = true
-		}
-	}
 	if source.Integer == nil {
 		target.Integer = 1
 	}

@@ -7,10 +7,4 @@ func transform() {
 		integer := int(*source.Integer)
 		target.Integer = &integer
 	}
-	{
-		var zero bool
-		if target.DefaultBool == zero {
-			target.DefaultBool = true
-		}
-	}
 }

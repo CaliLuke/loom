@@ -10,20 +10,8 @@ func transform() {
 		Any:            source.Any,
 		RequiredAny:    source.RequiredAny,
 	}
-	{
-		var zero int
-		if target.Int == zero {
-			target.Int = 100
-		}
-	}
 	if source.RawJSON == nil {
 		target.RawJSON = jsontext.Value{0x66, 0x6f, 0x6f}
-	}
-	{
-		var zero string
-		if target.String == zero {
-			target.String = "foo"
-		}
 	}
 	if source.Bytes == nil {
 		target.Bytes = []byte{0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72}

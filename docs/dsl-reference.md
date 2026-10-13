@@ -555,6 +555,21 @@ round through Float64, and exclusive bounds use the nearest accepted value of
 the declared native type. Service implementations still own values returned at
 runtime, including their chosen numeric carrier and serialization precision.
 
+#### Defaults During Conversion
+
+Defaults fill absence, not an explicitly supplied zero. Native Go scalar fields
+have no absence bit: `false`, `0`, and `""` are supplied even when a Go struct
+literal does not spell the field. Generated HTTP, JSON-RPC and gRPC conversions
+preserve them. Optional pointers and presence wrappers retain absence; nil bytes,
+slices and maps can represent absence, while nonnil empty values are supplied.
+Explicit nullable null remains null. Required input is checked before defaults;
+a default does not satisfy a missing required field.
+
+Regenerate clients and servers to adopt this correction. Applications that relied
+on zero substitution must set their intended native value explicitly. This does
+not change transport omission tags or the presence supported by collection wire
+formats; those boundaries must also retain presence for a full round trip.
+
 #### Object and Collection Defaults
 
 Object defaults are checked against the complete declared contract and generated

@@ -207,6 +207,14 @@ consumer validation.
   `UserTypeKind`. Keep this in `expr.byMinMax`; collection construction must not
   coerce wrongly typed examples. The direct numeric-alias tests cover all numeric
   kinds, inherited/occurrence bounds, exact and exclusive bounds, and typed arrays.
+- `TransformAttrs.DefaultForField` owns conversion default admission: selected
+  target default plus actual source absence capability and target materialization
+  timing. Go and protobuf emitters consume the same record. Native scalar zeros
+  are supplied; nil-capable storage and absent Optional/Nullable can default.
+  Metadata storage overrides precede semantic kinds; pointer targets retain
+  absence for selected-view validation. Required admission precedes conversion.
+  Keep the [default application model](../../../codegen/tla/default_application/README.md)
+  aligned with mounted CLI/body, protobuf bytes, custom storage and view controls.
 - `AttributeContext.DefaultValue` owns native default materialization from the
   resolved `expr` value graph and target field layout. Shared and protobuf
   transforms use it after their existing application gates. Preserve member

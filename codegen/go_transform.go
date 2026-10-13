@@ -177,7 +177,7 @@ func transformAttributeStmt(source, target *expr.AttributeExpr, sourceVar, targe
 			}
 			return nil, fmt.Errorf("cannot transform nullable attribute to a non-nullable representation")
 		}
-		return transformNullablePresence(source, target, sourceVar, targetVar, newVar, nil, ta)
+		return transformNullablePresence(source, target, sourceVar, targetVar, newVar, DefaultApplication{}, ta)
 	}
 	if matchingExplicitType(source, target) {
 		return directAssignment(sourceVar, targetVar, newVar), nil
@@ -388,7 +388,7 @@ func transformObjectFieldCode(srcMatt, tgtMatt *expr.MappedAttributeExpr, srcc, 
 		return nil, err
 	}
 	code = wrapTransformObjectFieldCode(code, srcc, tgtc, srcMatt, srcFieldVar, tgtFieldVar, name, ta)
-	defaultCode, err := transformObjectDefaultValueCode(srcc, tgtc, srcMatt, tgtMatt, srcFieldVar, tgtFieldVar, name, ta)
+	defaultCode, err := transformObjectDefaultValueCode(tgtc, srcMatt, tgtMatt, srcFieldVar, tgtFieldVar, name, ta)
 	if err != nil {
 		return nil, err
 	}
@@ -451,59 +451,25 @@ func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.Mapp
 	return !srcMatt.IsRequired(name) || ta.TargetCtx.Pointer || ta.SourceCtx.UseDefault && ta.TargetCtx.UseDefault
 }
 
-func transformObjectDefaultValueCode(srcc, tgtc *expr.AttributeExpr, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
-	tdef := tgtMatt.GetDefault(name)
-	if tdef == nil || !ta.TargetCtx.UseDefault || ta.TargetCtx.Pointer || srcMatt.IsRequired(name) {
+func transformObjectDefaultValueCode(tgtc *expr.AttributeExpr, srcMatt, tgtMatt *expr.MappedAttributeExpr, srcVar, tgtVar, name string, ta *TransformAttrs) (*jen.Statement, error) {
+	plan := ta.DefaultForField(srcMatt, tgtMatt, name)
+	if !plan.Apply {
 		return nil, nil
 	}
-
-	defaultLiteral, err := ta.TargetCtx.DefaultValue(tgtc, tdef)
+	defaultLiteral, err := ta.TargetCtx.DefaultValue(tgtc, plan.Value)
 	if err != nil {
 		return nil, err
 	}
-
-	switch {
-	case ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr) || !expr.IsPrimitive(srcc.Type) || defaultValueUsesNil(srcc):
-		stmt := &jen.Statement{}
-		stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
-			switch {
-			case ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type):
-				group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + defaultLiteral))
-				group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
-			default:
-				group.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
-			}
-		})
-		return stmt, nil
-	case expr.IsPrimitive(srcc.Type) && srcMatt.HasDefaultValue(name) && ta.SourceCtx.UseDefault:
-		stmt := &jen.Statement{}
-		stmt.BlockFunc(func(group *jen.Group) {
-			zeroType := ""
-			nilable := defaultValueUsesNil(tgtc)
-			if !nilable {
-				if typeName, _ := GetMetaType(tgtc); typeName != "" {
-					zeroType = typeName
-				} else if _, ok := tgtc.Type.(expr.UserType); ok {
-					zeroType = ta.TargetCtx.Scope.Ref(tgtc, ta.TargetCtx.Pkg(tgtc))
-				} else {
-					zeroType = GoNativeTypeName(tgtc.Type)
-				}
-			}
-			if zeroType != "" {
-				group.Var().Id("zero").Id(zeroType)
-			}
-			condition := tgtVar + " == zero"
-			if nilable {
-				condition = tgtVar + " == nil"
-			}
-			group.If(Expr(condition)).BlockFunc(func(ifGroup *jen.Group) {
-				ifGroup.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
-			})
-		})
-		return stmt, nil
-	default:
-		return nil, nil
-	}
+	stmt := &jen.Statement{}
+	stmt.If(Expr(srcVar + " == nil")).BlockFunc(func(group *jen.Group) {
+		if ta.TargetCtx.IsPrimitivePointer(name, tgtMatt.AttributeExpr) && expr.IsPrimitive(tgtc.Type) {
+			group.Add(Expr("var tmp " + GoNativeTypeName(tgtc.Type) + " = " + defaultLiteral))
+			group.Add(Expr(tgtVar)).Op("=").Op("&").Id("tmp")
+		} else {
+			group.Add(Expr(tgtVar)).Op("=").Add(Expr(defaultLiteral))
+		}
+	})
+	return stmt, nil
 }
 
 func buildConditionalPrimitiveAssignmentStmt(sourceField, targetVar, targetField string, expression *jen.Statement, targetPointer bool, tempVar string) *jen.Statement {
@@ -561,17 +527,6 @@ func buildObjectLiteralExpr(name string, pointer bool, fields []objectInitField)
 		}
 	})
 	return stmt
-}
-
-// defaultValueUsesNil classifies physical default storage. Metadata overrides
-// take precedence over the semantic kind; jsontext.Value is a known named slice.
-// Supplied nonnil empty slices are values and must never trigger a default.
-func defaultValueUsesNil(att *expr.AttributeExpr) bool {
-	if typeName, _ := GetMetaType(att); typeName != "" {
-		return strings.HasPrefix(typeName, "[]") || strings.HasPrefix(typeName, "map[") || typeName == "jsontext.Value"
-	}
-	kind := unalias(att.Type).Kind()
-	return kind == expr.BytesKind || kind == expr.AnyKind
 }
 
 // transformArray generates Go code to transform source array to target array.

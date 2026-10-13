@@ -7,10 +7,4 @@ func transform() {
 		integer := IntAlias(*source.Integer)
 		target.Integer = &integer
 	}
-	{
-		var zero BoolAlias
-		if target.DefaultBool == zero {
-			target.DefaultBool = true
-		}
-	}
 }

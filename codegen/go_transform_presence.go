@@ -23,7 +23,7 @@ func transformObjectPresenceField(
 		case NativePresence:
 			return nil, false, nil
 		case NullablePresence:
-			code, err := transformNullablePresence(source, target, sourceVar, targetVar, false, targetParent.GetDefault(name), ta)
+			code, err := transformNullablePresence(source, target, sourceVar, targetVar, false, ta.DefaultForField(sourceParent, targetParent, name), ta)
 			return code, true, err
 		}
 	}
@@ -35,7 +35,7 @@ func transformObjectPresenceField(
 		return nil, true, fmt.Errorf("cannot transform nullable field %s to a non-nullable representation", name)
 	}
 	if sourcePresence == OptionalPresence {
-		code, err := transformOptionalToNative(targetParent, source, target, sourceVar, targetVar, name, ta)
+		code, err := transformOptionalToNative(sourceParent, targetParent, source, target, sourceVar, targetVar, name, ta)
 		return code, true, err
 	}
 	code, err := transformNativeToOptional(sourceParent, source, target, sourceVar, targetVar, name, ta)
@@ -43,7 +43,7 @@ func transformObjectPresenceField(
 }
 
 func transformOptionalToNative(
-	targetParent *expr.MappedAttributeExpr,
+	sourceParent, targetParent *expr.MappedAttributeExpr,
 	source, target *expr.AttributeExpr,
 	sourceVar, targetVar, name string,
 	ta *TransformAttrs,
@@ -73,13 +73,9 @@ func transformOptionalToNative(
 		group.Add(conversion).Line()
 		group.Add(assignment)
 	})
-	// Like a native field (transformObjectDefaultValueCode), an absent field
-	// takes its default only in a target that uses defaults and does not store
-	// primitives as pointers. A projected type is such a pointer target: the
-	// conversion of the view to its result type assigns the default.
-	defaultValue := targetParent.GetDefault(name)
-	if defaultValue != nil && ta.TargetCtx.UseDefault && !ta.TargetCtx.Pointer {
-		literal, err := ta.TargetCtx.DefaultValue(targetValue, defaultValue)
+	plan := ta.DefaultForField(sourceParent, targetParent, name)
+	if plan.Apply {
+		literal, err := ta.TargetCtx.DefaultValue(targetValue, plan.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -137,10 +133,10 @@ func transformNativeToOptional(
 	return stmt, nil
 }
 
-func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, defaultValue any, ta *TransformAttrs) (*jen.Statement, error) {
+func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, targetVar string, newVar bool, plan DefaultApplication, ta *TransformAttrs) (*jen.Statement, error) {
 	collectionLayoutDiffers := ta.SourceCtx.CollectionElementPresence != ta.TargetCtx.CollectionElementPresence &&
 		expr.ContainsNonNullableCollectionElement(source)
-	if defaultValue == nil && !collectionLayoutDiffers && nullablePhysicalTypeRef(source, ta.SourceCtx) == nullablePhysicalTypeRef(target, ta.TargetCtx) {
+	if plan.Value == nil && !collectionLayoutDiffers && nullablePhysicalTypeRef(source, ta.SourceCtx) == nullablePhysicalTypeRef(target, ta.TargetCtx) {
 		return directAssignment(sourceVar, targetVar, newVar), nil
 	}
 	sourceValue := concretePresenceAttribute(source)
@@ -182,8 +178,8 @@ func transformNullablePresence(source, target *expr.AttributeExpr, sourceVar, ta
 		group.Add(conversion).Line()
 		group.Add(presenceValueAssignment(targetValue, temp, targetVar, "NullableValue", userObject, ta.TargetCtx))
 	})
-	if defaultValue != nil && ta.TargetCtx.UseDefault && !ta.TargetCtx.Pointer {
-		value, err := ta.TargetCtx.DefaultValue(targetValue, defaultValue)
+	if plan.Apply {
+		value, err := ta.TargetCtx.DefaultValue(targetValue, plan.Value)
 		if err != nil {
 			return nil, err
 		}
