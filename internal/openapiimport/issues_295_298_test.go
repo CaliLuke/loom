@@ -31,7 +31,10 @@ paths:
 	require.Empty(t, diagnostics)
 	rendered, err := Render(document, Options{PackageName: "design"})
 	require.NoError(t, err)
-	require.Contains(t, string(rendered), `Attribute("asset_id", String)`)
+	require.Contains(t, string(rendered), `Attribute("asset_id", String, func() {
+				Description("")
+				Meta("openapi:description:schema", "")
+			})`)
 	require.Contains(t, string(rendered), `GET("/widgets/{asset_id}")`)
 	require.Contains(t, string(rendered), `Param("asset_id")`)
 	requireRenderedDesignEvaluates(t, rendered, 1)

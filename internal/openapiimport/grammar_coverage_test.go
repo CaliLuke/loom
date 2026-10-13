@@ -255,7 +255,10 @@ paths:
 			rendered, err := Render(document, Options{PackageName: "design"})
 			require.NoError(t, err)
 			design := string(rendered)
-			require.Contains(t, design, fmt.Sprintf(`Attribute(%q, String)`, name))
+			require.Contains(t, design, fmt.Sprintf(`Attribute(%q, String, func() {
+				Description("")
+				Meta("openapi:description:schema", "")
+			})`, name))
 			require.Contains(t, design, fmt.Sprintf(`GET("/values/{%s}")`, name))
 			require.Contains(t, design, fmt.Sprintf(`Param(%q)`, name))
 		})
