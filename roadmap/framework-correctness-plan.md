@@ -4,7 +4,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **169 of 206 tracked reports are delivered, pushed and confirmed closed.**
+- **170 of 206 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
   `/tmp/loom-current-all-issues.json` is the current GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
@@ -39,6 +39,11 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   connection-lock transition owns removal, timer release and result publication;
   the obsolete stream wake-up path is removed. Held results and timeout origin
   remain intact; final integrated WebSocket race checks pass.
+- Per-scheme required scopes #752 (`24a277291`) are reviewed, pushed and closed.
+  One expression projection feeds authorizers and OpenAPI; per-requirement data
+  preserves OR independence and the obsolete duplicate projection is removed.
+  Corrected parent regressions fail, generated callbacks pass and all 51 selected
+  artifacts repeat exactly; ordinary generated output is unchanged.
 - Required CI is not confirmed green. All inspected metadata-adoption test jobs
   passed except the libopenapi YAML-node race matching #820; release eligibility
   was still queued. This is evidence for that source, not current-main CI success.
@@ -70,22 +75,22 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Requirement scope projection (#752):** `/root/projection_integration_review`
-   implements the independently approved expression-to-scheme scope contract in
-   `interceptor-accessor-union/loom`. Authorizers and OpenAPI consume the same
-   projection, preserving unknown-scope rejection and separate OR requirements.
-   Delete the unused superseded projection. The readiness alternative-case test
-   had a method selector error; corrected parent evidence must replace that row.
+1. **Required-scope owner delivered (#752):** exact final and integration reviews
+   passed; cleanup preserves compact evidence and reproduction inputs. The original
+   readiness OR-test selector mistake is corrected in archived-parent evidence.
 2. **Distributed worker publication (#704):** `/root/diagnostic_redaction_finish`
    prepares the owner proposal after #739 cleanup and safe worktree reuse.
    Reuse existing pool models/probes; include uncertain committed Redis replies,
    peer replicas, event recovery and concurrent Node.Close. Verify subordinate
-   lifetime assumptions. Publication order or two-map rollback alone is insufficient.
+   lifetime assumptions. Current design exploration keeps the reader unsubscribed
+   until admission commits and uses existing event recovery on abort; the model
+   must establish those guarantees. Publication order alone is insufficient.
 3. **Imported object representation (#776):** `/root/omission_readiness_finish`
    prepares shared object-shape normalization in `numeric-comparison/loom` after
    #777 cleanup. Empty inline objects currently depend on child Attribute calls
-   to establish their type. Verify open/closed representations and every consumer
-   before implementation; annotation #783 and encoded-byte length #686 retain
+   to establish their type; nonempty inline map values also lack concrete type
+   constructors. Unify representation across fields and collections before
+   implementation; annotation #783 and encoded-byte length #686 retain
    distinct owners. No broad importer audit or per-caller workaround is planned.
 4. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate

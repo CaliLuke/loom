@@ -1,6 +1,6 @@
 # Per-scheme required scope projection (#752)
 
-Parent: `05567e2b08f99f3bb5aaa5ce5b8303bc94795b9a`. Implementation complete; awaiting independent final review.
+Parent: `05567e2b08f99f3bb5aaa5ce5b8303bc94795b9a`. Delivered as `24a277291`, pushed and confirmed closed after independent final and integration reviews.
 
 The shared contract already exists: `security/*Scheme.RequiredScopes` must be a
 subset of that scheme's declared `Scopes`. Expression validation admits a scope
@@ -25,7 +25,7 @@ Application callbacks continue to decide credential validity and granted scopes.
   only its own package declaration, including non-Go files. Its obsolete session
   expansion and requirement-wide projection are superseded by current owners.
 - [x] Run bounded generated/runtime/output checks and document behavior.
-- [ ] Independently review the exact final diff and deliver one atomic correction.
+- [x] Independently review the exact final diff and deliver one atomic correction.
 
 ## Consumers and acceptance
 
