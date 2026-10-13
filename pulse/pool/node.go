@@ -51,6 +51,9 @@ type (
 		wg                 sync.WaitGroup // allows to wait until all goroutines exit
 		rdb                *redis.Client
 
+		// workerAdmissions joins constructors admitted under lock before closing.
+		workerAdmissions sync.WaitGroup
+
 		localWorkers       sync.Map // workers created by this node
 		localSchedulers    sync.Map // schedulers created by this node
 		workerStreams      sync.Map // worker streams indexed by ID

@@ -2111,6 +2111,15 @@ SSE changes require coverage for:
 - compile-after-generation
 - branch-specific connection timing
 
+Worker construction is owned by `Node.AddWorker`: register an in-flight attempt
+under the node lifecycle lock, prepare an unsubscribed Reader before publication,
+then transfer and start under the same lock. Close joins attempts outside the
+lock before releasing borrowed resources. `abortAdmission` withdraws only the
+unique attempt's private stream and membership/heartbeat, collects cleanup errors,
+and never invokes handlers or renews leases. Reuse WorkerPublication's bounded
+NOMKSTREAM/unacknowledged-event recovery model; stale replicas do not require a
+new retained-drain runtime. Recovery retains existing event-expiry limits.
+
 Ticker local resources are owned by `pool.Ticker.stopLocalLocked`: constructor
 abort, Close and Stop use the same idempotent transition; shared map state is
 borrowed and is never constructor rollback. Guard both tick admission and the

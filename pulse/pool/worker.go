@@ -10,10 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/oklog/ulid/v2"
-
-	"github.com/CaliLuke/loom/clue/log"
-
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming"
@@ -51,7 +47,6 @@ type (
 		wg                sync.WaitGroup
 
 		jobs         sync.Map // jobs being handled by the worker indexed by job key
-		nodeStreams  sync.Map
 		rejectedJobs sync.Map // rejected *Job incarnations awaiting Stop
 
 		// jobLock serializes ownership operations, including Redis I/O.
@@ -132,69 +127,6 @@ type (
 		Error string
 	}
 )
-
-// newWorker creates a new worker.
-func newWorker(ctx context.Context, node *Node, h JobHandler) (*Worker, error) {
-	wid := ulid.Make().String()
-	createdAt := time.Now()
-	if _, err := node.workerMap.SetAndWait(ctx, wid, strconv.FormatInt(createdAt.UnixNano(), 10)); err != nil {
-		return nil, fmt.Errorf("failed to add worker %q to pool %q: %w", wid, node.PoolName, err)
-	}
-	leaseStart := time.Now()
-	if err := node.initialWorkerHeartbeat(ctx, wid); err != nil {
-		return nil, fmt.Errorf("failed to update worker keep-alive: %w", err)
-	}
-	stream, err := streaming.NewStream(workerStreamName(wid), node.rdb, options.WithStreamLogger(node.logger))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create jobs stream for worker %q: %w", wid, err)
-	}
-	if _, err := stream.Add(ctx, evInit, marshalEnvelope(node.ID, []byte(wid))); err != nil {
-		return nil, fmt.Errorf("failed to add init event to worker stream %q: %w", workerStreamName(wid), err)
-	}
-	reader, err := stream.NewReader(ctx, options.WithReaderBlockDuration(node.workerTTL/2), options.WithReaderStartAtOldest())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create reader for worker %q: %w", wid, err)
-	}
-	runtimeBase := log.WithContext(context.WithoutCancel(ctx), ctx)
-	runtimeCtx, runtimeCancel := context.WithCancel(runtimeBase)
-	w := &Worker{
-		ID:                wid,
-		node:              node,
-		handler:           h,
-		CreatedAt:         time.Now(),
-		stream:            stream,
-		reader:            reader,
-		done:              make(chan struct{}),
-		leaseWake:         make(chan struct{}, 1),
-		ownershipWake:     make(chan struct{}, 1),
-		jobsMap:           node.jobMap,
-		jobPayloadsMap:    node.jobPayloadMap,
-		keepAliveMap:      node.workerKeepAliveMap,
-		shutdownMap:       node.nodeShutdownMap,
-		workerTTL:         node.workerTTL,
-		workerShutdownTTL: node.workerShutdownTTL,
-		logger:            node.logger.WithPrefix("worker", wid),
-		runtimeCtx:        runtimeCtx,
-		runtimeCancel:     runtimeCancel,
-		jobs:              sync.Map{},
-		nodeStreams:       sync.Map{},
-	}
-
-	w.logger.Info("created",
-		"worker_ttl", w.workerTTL,
-		"worker_shutdown_ttl", w.workerShutdownTTL)
-
-	w.recordLease(leaseStart)
-	w.wg.Add(5)
-
-	pulse.Go(w.logger, func() { w.handleEvents(runtimeCtx, reader.Subscribe()) })
-	pulse.Go(w.logger, func() { w.keepAlive(runtimeCtx) })
-	pulse.Go(w.logger, func() { w.monitorLease() })
-	pulse.Go(w.logger, func() { w.resumeLease(runtimeCtx) })
-	pulse.Go(w.logger, func() { w.retryPendingReleases(runtimeCtx) })
-
-	return w, nil
-}
 
 // Jobs returns jobs claimed by the worker, including a job whose Start
 // callback is still in progress and paused jobs awaiting ownership validation.

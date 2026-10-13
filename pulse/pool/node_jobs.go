@@ -11,25 +11,6 @@ import (
 	"github.com/CaliLuke/loom/pulse/pulse"
 )
 
-// AddWorker adds a new worker to the pool and returns it. The worker starts
-// processing jobs immediately. handler can optionally implement the
-// NotificationHandler interface to handle notifications.
-func (node *Node) AddWorker(ctx context.Context, handler JobHandler) (*Worker, error) {
-	if node.IsClosed() {
-		return nil, fmt.Errorf("AddWorker: pool %q is closed", node.PoolName)
-	}
-	if node.clientOnly {
-		return nil, fmt.Errorf("AddWorker: pool %q is client-only", node.PoolName)
-	}
-	w, err := newWorker(ctx, node, handler)
-	if err != nil {
-		return nil, err
-	}
-	node.localWorkers.Store(w.ID, w)
-	node.workerStreams.Store(w.ID, w.stream)
-	return w, nil
-}
-
 // RemoveWorker stops the worker, removes it from the pool and requeues all its
 // jobs.
 func (node *Node) RemoveWorker(ctx context.Context, w *Worker) error {
@@ -391,6 +372,10 @@ func (node *Node) close(ctx context.Context, shutdown bool) error {
 	}
 	node.closing = true
 	node.lock.Unlock()
+
+	// Closing excludes new attempts; join admitted constructors before taking
+	// the worker snapshot or releasing their borrowed maps and streams.
+	node.workerAdmissions.Wait()
 
 	// If we're shutting down then stop all the jobs.
 	if shutdown {

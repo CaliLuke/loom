@@ -1455,6 +1455,10 @@ a failed Redis requeue reply does not restart it on the old worker because
 the write may already have succeeded. If it did not, orphan recovery waits
 for `max(2 * workerTTL, ackGracePeriod)` without a worker and a subsequent
 sweep. Account for that recovery delay when choosing these settings.
+Failed `AddWorker` calls do not start handlers. Private cleanup can outlive caller
+cancellation within the worker shutdown TTL; inspect the returned error for cleanup
+failures. Node Close joins in-flight admissions. Existing event expiry still bounds
+recovery after uncertain Redis outcomes; see `docs/pulse.md`.
 A default Reader snapshots the newest cursor when `NewReader` succeeds; events
 added after that snapshot remain eligible even before `Subscribe`. `AddStream`
 snapshots each new stream independently. These operations can return Redis

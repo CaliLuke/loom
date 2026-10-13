@@ -166,6 +166,19 @@ and destination-side deduplication when that is required.
 
 ## Worker Pool Shutdown
 
+`AddWorker` prepares its private resources before publishing membership. Only a
+successful admission starts handlers and lease renewal; handlers may start before
+the successful call returns. `Close` excludes later admissions and waits for
+in-flight attempts before stopping local workers.
+
+On failure, `AddWorker` releases local resources and attempts to withdraw its
+private stream, membership and initial heartbeat. This cleanup uses a separate
+context bounded by the worker shutdown TTL, so cancellation of the caller does
+not skip cleanup. The returned error includes any cleanup failures. During a Redis
+outage, publication may remain until its initial lease expires. Queued pool events
+remain eligible for existing recovery within stream retention and event expiry;
+this does not guarantee delivery through an indefinite outage.
+
 Every non-client pool node returned by `pool.AddNode` must end through exactly
 one of these idempotent paths:
 
