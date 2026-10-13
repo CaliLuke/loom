@@ -4,8 +4,9 @@ Readiness investigation at `d928a9fef5b96dde85bb2cae3b535f9bab7b52e7`.
 Independent readiness approved in
 `/tmp/loom-interceptor-family-root-readiness-verdict.json`. #767 implementation
 uses parent `b7514c8657d5cc51b2316ae7ef5e86c78aded921`; safe fast-forward preserved
-readiness inputs. #785 implementation remains a separate following delivery. #770 and #786 are package-identity boundary controls; their
-original reports must be checked against the delivered service symbol owner.
+readiness inputs. #785 implementation remains a separate following delivery. #770 remains a public package-identity obligation. #786 was independently
+reconciled and closed through the existing symbol owner and regression commit
+`35ff54729`.
 
 1. [x] Inventory the shared accessor contract, method-local storage bindings,
    endpoint roles and stream operation adapters across server and client.
@@ -176,7 +177,7 @@ validation is recorded below; none establishes #785 delivery.
   conversion. Admit signatures over both invocation sides before Data publication.
 - [x] Preserve existing declaration placement, stream shape and side applicability;
   remove first-method physical metadata and renderer reuse of that storage.
-- [ ] Complete bounded parent/candidate/repeat comparisons, mounted checks and
+- [x] Complete bounded parent/candidate/repeat comparisons, mounted checks and
   exact independent final review before the atomic commit.
 
 `interceptor_contract.go` owns all eight read/write field binding groups. It uses
@@ -214,3 +215,10 @@ Evidence: `/tmp/loom-767-artifact-comparison.json`,
 `/tmp/loom-767-generated-delta.patch`, `/tmp/loom-767-artifacts.json` and the final
 manifest. #785 operation/carrier fixes, #770 package declarations and #786 ticket
 reconciliation are excluded. No full-corpus or aggregate-CI success is claimed.
+
+#767 delivered and pushed as `a5aad7c72`; the report is confirmed closed.
+Independent review found no correctness defect; two mechanical/documentation
+findings were fixed and confirmed. Integration retained all functional sources
+and passed focused race checks including the delivered #786 collision controls.
+#785 now proceeds from the approved operation/carrier proposal above; its
+readiness inputs remain separate from the delivered #767 source.

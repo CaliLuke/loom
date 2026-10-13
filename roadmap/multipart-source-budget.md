@@ -12,7 +12,7 @@ Implementation on `d3cb9ad26` after independent readiness approval.
 4. [x] Freeze compact owner proposal and bounded evidence for readiness review.
 5. [x] After approval, implement one source owner shared by built-in collection
    and generated custom callbacks; remove value bookkeeping and reader API.
-6. [ ] Run focused runtime/generated checks and compare representative parent,
+6. [x] Run focused runtime/generated checks and compare representative parent,
    candidate and independent-repeat output before final review and integration.
 
 ## Owner and contract
@@ -118,4 +118,8 @@ runs; candidate generated tests and explicit vet pass. Capture overlays modify
 only existing test output paths and skip duplicate test/vet during candidate
 and repeat capture; production is never overlaid. The approved model is unchanged.
 
-The final diff is frozen for independent review; delivery is not yet claimed.
+Delivered and pushed as `6a549820f`; #759 is confirmed closed. Independent
+final and integration reviews left no findings. Root runtime race and mounted
+built-in/custom controls passed; integration retained the exact functional diff.
+Cleanup preserved reproduction inputs, compact evidence and artifact hashes in
+`/tmp/loom-759-cleanup-receipt.json`; safe worktree reuse is recorded separately.

@@ -4,7 +4,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **161 of 206 tracked reports are delivered, pushed and confirmed closed.**
+- **163 of 206 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
   `/tmp/loom-current-all-issues.json` is the current GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
@@ -20,9 +20,13 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   security compile case pass. Receiver wrapper report #786 is independently
   reconciled against the delivered service symbol owner; `35ff54729` preserves
   all three reported collision forms without another production naming patch.
-- Required CI is not green. Run `38430436877` failed the now-repaired metadata
-  controls and the known #820 libopenapi race. The #885 run `38438413884` is in
-  progress and current-main run `38439364318` is queued at this checkpoint.
+- Multipart source accounting #759 (`6a549820f`) and interceptor logical contracts
+  #767 (`a5aad7c72`) are independently reviewed, pushed and confirmed closed.
+  Built-in/custom multipart consumers share one raw-source budget; interceptor
+  interfaces share logical signatures while each method owns its storage binding.
+- Required CI is not confirmed green. The last inspected metadata-adoption and
+  following test runs were still in progress; #820 remains an open dependency
+  race. Focused passing checks do not establish aggregate CI success.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -51,31 +55,34 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Interceptor contracts (#767/#785):** `/root/projection_integration_review`
-   implements approved #767 in `interceptor-accessor-union/loom`: one admitted
-   logical accessor signature with method-specific physical bindings across both
-   sides. Root independently checked the failing witnesses and model. #785 follows
-   as a separate operation/carrier repair; preserve its readiness inputs outside
-   the #767 commit. #770 remains a distinct package declaration obligation.
-2. **Multipart source budget (#759):** `/root/omission_readiness_finish`
-   implements the approved request-source owner in `numeric-comparison/loom`.
-   Built-in and custom callbacks share source accounting and bounded completion
-   before dispatch, replacing part-value budgets. Runtime and generated checks
-   are passing; exact final review and integration remain required.
-3. **Ticker lifetime (#738/#707):** `/root/diagnostic_redaction_finish` prepares
-   readiness after safe #885 worktree reuse. Constructor abort, local Close and
-   remote missing-entry observation need one local teardown owner, preserving
-   peer/shared state and global Stop. Explore both paths together, then make
-   separate atomic repairs. This slice does not depend on #800.
-4. **Remaining owners:** #704 worker admission/publication must include uncertain
-   Redis replies, independent replicas and concurrent Close; #737 needs a producer
-   desired-job ledger. #687 still waits on bounded subordinate shutdown. Keep the
-   independently reproduced #884 custom-key example-synthesis witness open.
+1. **Stream operation contracts (#785):** `/root/projection_integration_review`
+   continues in `interceptor-accessor-union/loom` after safe #767 cleanup/reuse.
+   The approved family design makes interfaces and interceptor adapters consume
+   actual operation signatures and endpoint carriers across JSON-RPC SSE,
+   WebSocket bidirectional and request/reply methods. Preserve HTTP/gRPC and client
+   controls; #749 observation and #739 client completion have separate owners.
+2. **Ticker lifetime (#738/#707):** `/root/diagnostic_redaction_finish` implements
+   the independently approved local terminal owner in `grpc-message-context/loom`.
+   Constructor abort, Close/Stop and every timer rearm first share release and
+   admission; remote CAS/map/context termination then consumes that same owner.
+   Preserve peer/shared state on local cleanup and live transient retries. Root
+   reproduced the constructor leak, absent-CAS panic and late rearm before approval.
+3. **Imported schema normalization (#777/#778):** `/root/omission_readiness_finish`
+   prepares one type/nullability/enum/const intersection contract in the reused
+   `numeric-comparison/loom`. Cover OAS 3.0/3.1 and existing roundtrip fixtures.
+   Inventory related object/annotation/byte-length consumers without assuming
+   one patch fixes them all; reconcile #791 with accepted named-query JSON.
+4. **Next distinct owners:** #770 completes public interceptor declarations in
+   existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
+   actual namespaces. #704 worker publication includes uncertain Redis replies,
+   independent replicas and concurrent Close; #737 needs producer job intent.
+   #687 still needs bounded subordinate shutdown. Keep #884 custom-key example
+   synthesis open rather than weakening supported representation admission.
 5. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
-   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open, with no new
-   human feedback at the latest inspection. The approved #800 packet stays in
-   `bounded-streaming-shutdown`; original-module fetchability gates delivery.
+   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at last read.
+   The approved #800 packet stays in `bounded-streaming-shutdown`; original-module
+   fetchability gates delivery. No fork/cache workaround is an accepted delivery.
 
 Completed cleanup receipts preserve compact evidence and exact reproduction
 inputs after activity checks: #872 `/tmp/loom-872-cleanup-receipt.json`, #790
