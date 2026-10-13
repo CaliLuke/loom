@@ -4,85 +4,61 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- 102 reports are delivered, pushed and confirmed closed: #670, #681, #683, #685, #692, #693, #696, #706, #708, #709, #711, #712, #713, #714, #716, #719, #722, #724, #725, #729, #730, #731, #732, #741, #743, #755, #756, #757, #761, #762, #779, #784, #788, #792, #793, #794, #795, #796, #797, #798, #799, #801, #802, #803, #804, #805, #806, #807, #808, #809, #810, #811, #812, #813, #814, #815, #816, #733, #728, #818, #727, #817, #821, #822, #825, #679, #823, #690, #819, #680, #824, #830, #828, #695, #827, #831, #832, #684, #833, #829, #744, #836, #746, #837, #745, #839, #750, #748, #840, #838, #763, #841, #835, #834, #843, #718, #717, #844, #845, #846, #721 and #842. Latest owner repairs: effective wire bindings `f40d1677`, projected branch validation `d0fefa59`, custom multipart decoding `07cf7ae4`.
-- #681 exact numerics is delivered in `66a9dc9090a06cd4136be1e5ebdaf26883ff90fa`, pushed to main and closed. The shared immutable exact owner preserves cross-language numeric tokens, source-specific JSON/YAML grammar, native thresholds and required schema annotations. Four review findings were repaired and confirmed; final integrated 173-file diff independently approved. #685 typed-value admission is delivered in `1168ec6c1`, pushed and confirmed closed.
-- #756 and its #729 credential witness are delivered. One effective binding owner resolves explicit, inherited and implicit mappings before validation and drives body exclusions. Valid Basic/Bearer alternatives remain supported; M7 presence policy remains separate.
-- #796 is delivered. #709 recursive validation readiness passed independent review after adding explicit unary/streaming/error gRPC call-form coverage. The shared named-validator definition/occurrence owner and context-carrying calls are delivered as `25179e87b`, reviewed, pushed and closed, including the named-nullable carrier correction.
-- #762 is delivered. Ordinary and custom multipart wrappers share request-element/conversion partials; wrapper-local accumulators and error returns derive from one plan. More than 700 lines of stale copies were removed.
-- #706/#719/#793 readiness in `/Users/luca/.codex/worktrees/deep-object-contract/loom` passed independent review; the 3.1 regression helper was corrected to reach the intended style failure. User adopted uniform JSON for named object/map values in query/form fields, including shallow maps; scalars and repeated scalar arrays keep their formats. Revised 14-file readiness passed independent review; that accepted shared contract is delivered in `1d94c755e`, independently reviewed, pushed and all three reports closed. Whole-query/root-form containers keep their outer layout; fixed-object query admission and composite form arrays are not implicitly expanded.
-- `/root/review_value_admission_readiness` owns the pool/stream prerequisites and constructor readiness in `/Users/luca/.codex/worktrees/pool-construction-ownership/loom`. Four failed node paths leak subscriptions (#687), and workers are published before readiness (#704). #687 readiness was not approved because active BLOCK 0 reads can prevent Sink.Close from returning; root reproduced and filed prerequisite #800. #761 stable Reader cursors are delivered as `af05fa8aa`, reviewed, pushed and closed. #802 registration identity is delivered as `81192e7a9`; the remaining sequence is #800 bounded read/close ownership, then #687 constructor rollback. Worker publication #704 remains separate.
-- `/root/exact_numeric_design` completed #685 typed-value admission in `/Users/luca/.codex/worktrees/numeric-value-admission/loom`, parent `66a9dc909`; 22-file independent final review passed with no findings. The exact production files and shared guidance passed integrated final review and are delivered. All four original invalid generated designs now reject during design evaluation. Redundant out-of-carrier bounds remain distinct from unrepresentable authored values; partial example contracts are preserved.
-- New parent-confirmed #797 tracks built-in error `Body("detail")` generation failures; its durable probe is committed under `expr/tla/http_wire_bindings/`. Root prepared readiness in `/Users/luca/.codex/worktrees/selected-error-body/loom`: ten selected/pruned problem-body compile failures share incorrect physical source/body assumptions; complete problem, empty body and custom error controls compile. The shared public representation owner is delivered as `14ab5a758`, independently reviewed, pushed and closed; sixteen generated modules cover selected/pruned/empty bodies, mappings, formatter and malformed-response boundaries. Follow-up #798 (JSON-RPC object-enum validator representation) is now confirmed resolved by #709 and closed; #799 (HTTP prepared-body enum provenance) is now delivered as `7326becd4`. Inventory now contains 169 reports, including #800 active sink-read shutdown, #801 imported alternative bearer credentials, #803 anonymous unwrapped object validation (now delivered) and #804 gRPC nullable object conversion. #801 originally failed the existing security symmetry test on its parent; its separate credential-owner repair is now delivered in `7b29289ae`.
-- Later accepted semantics: explicit empty collections survive encoding, and defaults fill absence without replacing explicit zero. Milestone 7 presence implementation remains outstanding.
-- Latest committed main before this update: `99e2c33d6`. Inspect Git log, dirty trackers and live agents on recovery; numeric delivery and new readiness assignments are recorded below.
-- CI `38307143450` exposed a test timing assumption: authentication rejection can precede the first client send. The deterministic regression and EOF-aware final-status assertion repair are delivered as `d57f96c6`. All three generated fixtures pass with race detection and the original CI shuffle seed. No production change or overall CI pass is claimed. Later main CI runs remain queued/in progress.
+- **108 of 175 tracked reports are delivered, pushed and confirmed closed.**
+  The [inventory](framework-correctness-inventory.md) records each issue and its
+  owning repair; GitHub snapshot `/tmp/loom-checkpoint-108-all-issues.json`
+  confirms this checkpoint. Latest pushed main is `fce66acb1`.
+- Shared authentication scope, recursive validation/projection, exact numeric
+  values, effective constraints/composition, transport bindings, logging ownership,
+  file write intent, absence-only defaults and JSON presence have delivered fixes.
+  Remaining witnesses are tracked individually; no family closes by inference.
+- Latest architectural deliveries are #848 physical-layout JSON omission
+  (`8ce69db06`) and #694 service symbol ownership (`fce66acb1`). Each passed fresh
+  independent final and integration reviews. #849/#850/#851/#852 repaired the
+  observed CI assertion/assembly/fixture failures without changing production
+  behavior to satisfy stale tests.
+- No public-contract question is pending. Accepted empty/default, security,
+  numeric, query/form and overload decisions remain in the owning documentation.
+  Continue the full backlog; upstream dependencies do not block independent work.
 
 ## Current execution queue
 
-1. **Latest deliveries:** #837 intrinsic projection nullability is `2a8337700`,
-   #745 shared logging buffers is `ee4552dc9`, #839 protobuf goldens is
-   `8d2a446bf`, and #750 safe log serialization is `82368f12d`. All independently
-   reviewed, pushed and closed. Current total: 102 of 169 reports.
-2. **Observability:** logger configuration (#744), request scopes (#746), shared
-   buffers (#745), serialization (#750) and parent-aware sampling (#748,
-   `2b27cd8e0`) are delivered. #763 staged telemetry construction is delivered as
-   `f7c2684b8`: providers publish only after complete construction, with shared
-   reverse-order cleanup and bounded uncanceled rollback. #841 mixedtick fixture
-   parity is delivered as `477e86cb1`; all five mixed transport race tests pass.
-   #717 explicit error properties is delivered as `75e0ab159`: HTTP/JSON-RPC
-   preserve required boolean properties independently of status, through shared
-   public representation and reconstruction. #718 credential diagnostics is
-   delivered as `03e38fd16`, including committed-response metadata ownership.
-   #721 access-log masking is delivered as `22d000aa8`, independently reviewed,
-   pushed and closed. It reuses the shared policy and mixed HTTP/JSON-RPC example
-   owner. The agent now revises #694 package/member namespace readiness in
-   `service-symbol-ownership`; one review finding must pass re-review before code.
-3. **M7 default application is delivered:** #835 is `772abd1a4`, independently
-   reviewed, pushed and closed. Shared source-carrier admission preserves supplied
-   scalar zeros and explicit null, while filling true absence including protobuf
-   bytes. Exact integrated patch `/tmp/loom-835-integrated.patch`, SHA
-   `2adf609586875cc863055592f6f61a7c85b1fedd37ab8216d11282102a4bd687`.
-   Independent direct and mounted CLI/transport race checks pass; 85 artifacts per
-   generation repeat exactly, with nine intended differences and eight modules
-   compiled/vetted. Delivered #838 supplies detached CLI decoding layouts.
-   `/root/omission_readiness_finish` owns JSON omission in
-   `json-presence-carriers` on pushed `0f1fc3dc3`; generated HTTP/JSON-RPC lose five present-empty
-   carriers. A global omitzero replacement also loses native zero and custom
-   IsZero values, so it is not an accepted repair. The independently reviewed
-   prerequisite #844 is delivered as `0f1fc3dc3`, preserving full options and
-   documented exact skip through shared authored-tag normalization. Automatic
-   omission is #848. Independent readiness passed; implementation now resolves
-   actual field storage and omission intent once for tags, projections and
-   inherited-tag identity. Public presence semantics are already accepted.
-4. **#834 selected-view carriers is delivered:** `e2ad69a64`, independently
-   reviewed, pushed and closed. Shared validation and viewed-envelope ownership
-   preserve intrinsic and occurrence nullability across roots, fields and elements.
-   Four fixtures and ordinary controls compile and pass runtime checks. #843 CI
-   assertion alignment is delivered as `5d3935d6b`, with generated output unchanged.
-   #842 CLI source ownership is delivered as `99e2c33d6`, reviewed, pushed and
-   closed. #845 default assertions are `b963d8685`; #846 independent replica
-   observation is `951475f2d`, both reviewed and closed. Separate #847 tracks
-   selected body fields ignoring custom Go names. `/root/diagnostic_redaction_finish`
-   prepares two new CI test-owner repairs: obsolete inline-body tag assertions and
-   manual test module builders omitting generated diagnostic files.
-5. **#820 dependency race:** authorized reviewed code is now submitted as
-   [libopenapi PR #658](https://github.com/pb33f/libopenapi/pull/658), fixing
-   [report #657](https://github.com/pb33f/libopenapi/issues/657), upstream commit
-   `3180fde17f85cf6b6ed5b3f738f0de9d915161bb`. Exact 53-file patch hash:
-   `dd6b9816310de026f9aee686197d9ca94fc8fcb5c71c80e6315d60fa9c35a67b`.
-   Draft/patch/receipt remain in `yaml-merge-model-race`; dependency pins unchanged.
-6. **#800 remains dependency-gated:** its 53-file implementation manifest
+1. **#847 selected-body field identity:** root owns
+   `/Users/luca/.codex/worktrees/selected-body-field-identity/loom`, parent
+   `99e2c33d6`. Shared binding implementation passes the original 28 compiled
+   specimens and mounted request/CLI checks. Ordinary/renamed optional viewed
+   response and codec controls are being added. Independently reviewed reports
+   #853 and #854 preserve two residuals: JSON-RPC's mounted success path bypasses
+   selected-result encoding, and required selected viewed scalars use the wrong
+   pointer carrier. `/root/diagnostic_redaction_finish` prioritizes #854 shared
+   target-storage readiness/model design before #853 projection implementation.
+   Preserve #847's required-viewed witnesses until that prerequisite is repaired;
+   optional-view and direct-codec controls do not establish the failing contracts.
+   Neither residual is claimed fixed by the member-name correction.
+2. **#691 gRPC import/local ownership:** `/root/access_log_implementation` reuses
+   `service-symbol-parent/loom` for current-parent reproduction, owner design,
+   model and bounded acceptance. Keep #694's approved source packet frozen.
+   Independent readiness review precedes production changes.
+3. **#740 protobuf nil collection elements:** `/root/omission_readiness_finish`
+   reuses `default-application-parent/loom` after checking inactivity. Preserve
+   prior six runtime panics and normal/empty controls; establish the conversion
+   owner and accepted nil-element contract before implementation. Keep delivered
+   #848 source/evidence frozen and clean inactive outputs with a receipt.
+4. **#820 dependency race:** authorized libopenapi
+   [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at
+   `3180fde17f85cf6b6ed5b3f738f0de9d915161bb`, with no new human review at the
+   latest check. Draft/patch/receipt remain in `yaml-merge-model-race`.
+   Dependency pins remain unchanged until an eligible upstream revision exists.
+5. **#800 read shutdown:** independently approved 53-file manifest
    `03ef4eff230c124907a5d248aaeca5b4f2e25a416352417a85a23951f99bbb32`
-   is independently approved in `bounded-streaming-shutdown`. Real Redis,
-   bounded shutdown and race checks pass with a disposable local modfile.
-   [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095) remains open
-   at `8df7cf3c57002ecf1fc3a51ff5697bf563ab967c`, with 37 successful checks
-   and one skipped. Its exact two-file fix matches reviewed `b77660a`.
-   Original-module fetchability still requires upstream branch/tag reachability;
-   repository module files are unchanged. Then resume #687 constructor rollback;
-   #704 worker publication stays separate.
-7. Continue every remaining milestone inventory item. No family closes merely
-   because one witness is fixed.
+   remains in `bounded-streaming-shutdown`. Real Redis, bounded shutdown and race
+   checks passed with a disposable modfile. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
+   remains open at `8df7cf3c57002ecf1fc3a51ff5697bf563ab967c`; original-module
+   fetchability still gates delivery. Then resume #687 constructor rollback;
+   #704 worker publication remains a separate task.
+6. Continue remaining milestone inventory items by shared ownership and risk.
+   New main CI is queued/in progress. Do not claim a complete green run from
+   focused gates or from older source revisions.
 
 Delivered #693/#801 temporary cleanup removed 19 inactive directories after
 process checks, preserving compact evidence and installed tools. Receipt:
@@ -1167,3 +1143,50 @@ no overall green result is claimed.
   has the separately tracked assertion failure and upstream libopenapi race;
   no full-green claim is made. Continue the backlog without waiting for upstream
   where independent work is available.
+
+
+## Delivery checkpoint: 108 reports
+
+- #852 `1074b3cdf`: root independently approved the exact five-file diff and
+  verified 14 source/evidence hashes plus 3,778 captured artifact hashes. All
+  original per-service output remained identical; expanded JSON-RPC alias cases
+  compiled, and independent collector/assertion race checks passed (1.226s and
+  2.879s). Pushed and closed. Inactive cleanup receipts:
+  `/tmp/loom-850-cleanup-receipt.json` SHA
+  `621141ac1026000e4fc142ecc9fce269a32214c229c1071c934eca46ced9932e`
+  and `/tmp/loom-852-cleanup-receipt.json` SHA
+  `78b1c8c6522849f5504247fa34004e045a8736f8799e10d1ac4ef0d40313afcb`.
+- #848 `8ce69db06`: fresh reviewer approved 122 files, 25 evidence records,
+  372 generated artifact hashes and rendered OpenAPI evidence. Shared physical
+  storage determines automatic omission and finalized composition identity;
+  full authored tags and opaque codecs retain their contracts. Independent
+  generated HTTP/JSON-RPC checks passed (4.927s), with focused semantic and
+  OpenAPI controls. Integrated patch
+  `1bdd852b170ee0665add70a197388af06abb62301d504f0d42c37bce6b91b5f4`
+  passed a separate narrow re-review; four guidance files preserve intervening
+  #721/#842 text. Focused main checks passed (HTTP 7.602s, JSON-RPC 4.661s).
+  Pushed and closed. The earlier optional broad timeout remains incomplete
+  evidence, not a full-suite pass.
+- #694 `fce66acb1`: fresh reviewer approved all 40 source files and 18 evidence
+  records, 729 artifact hashes and 225 compiled-code hashes. All 14 selected
+  modules build/vet; 243 artifacts repeat exactly, with 94 intended name/reference
+  changes and 18 unchanged OpenAPI documents. Independent generated controls and
+  gRPC descriptor/client-call checks passed (8.256s); the Owned model passes
+  21 generated / 14 distinct states. Integrated patch
+  `bde863b135473db5df04c492f859efed82c08d30bb3f35754be8e30a886067c9`
+  passed narrow re-review preserving #848 tags and intervening documentation.
+  Main service (32.301s), shared CLI (0.215s) and generated checks (4.844s) pass.
+  Pushed and closed. Regeneration is required for corrected artificial gRPC
+  method suffixes; no compatibility alias was added.
+- Latest upstream snapshots are `/tmp/loom-upstream-658-status-latest.json` and
+  `/tmp/loom-upstream-4095-status-latest.json`. Both remain open with unchanged
+  reviewed heads; no new external message was sent.
+
+- Follow-up reports #853 (mounted JSON-RPC selected response leaks excluded
+  sibling fields) and #854 (required selected view uses an incorrect constructor
+  pointer carrier) were independently reproduced on pushed source, reviewed and
+  filed. They are separate from #847 physical field names. The live inventory
+  contains 175 reports, still 108 delivered; #854 readiness takes priority as a
+  prerequisite for complete required-viewed acceptance. Outgoing report hashes:
+  `6b469c00a769db6a1ac99332c71ae994a64255f4eb0f496d1b0b9d662a071479`
+  and `ba1b02757cc925d4a28a4a0861272063a5aa4510d91f5aaa3a39b870b5c51420`.
