@@ -4,10 +4,10 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **108 of 175 tracked reports are delivered, pushed and confirmed closed.**
+- **110 of 178 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each issue and its
-  owning repair; GitHub snapshot `/tmp/loom-checkpoint-108-all-issues.json`
-  confirms this checkpoint. Latest pushed main is `fce66acb1`.
+  owning repair; GitHub snapshot `/tmp/loom-checkpoint-110-all-issues.json`
+  confirms this checkpoint. Latest pushed main is `f609b2817`.
 - Shared authentication scope, recursive validation/projection, exact numeric
   values, effective constraints/composition, transport bindings, logging ownership,
   file write intent, absence-only defaults and JSON presence have delivered fixes.
@@ -27,23 +27,31 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
    `/Users/luca/.codex/worktrees/selected-body-field-identity/loom`, parent
    `99e2c33d6`. Shared binding implementation passes the original 28 compiled
    specimens and mounted request/CLI checks. Ordinary/renamed optional viewed
-   response and codec controls are being added. Independently reviewed reports
+   response and codec controls pass. Independently reviewed reports
    #853 and #854 preserve two residuals: JSON-RPC's mounted success path bypasses
    selected-result encoding, and required selected viewed scalars use the wrong
    pointer carrier. `/root/diagnostic_redaction_finish` prioritizes #854 shared
-   target-storage readiness/model design before #853 projection implementation.
+   target-storage repair before #853 projection implementation. The initial
+   owner/model readiness passed independent review; generated acceptance exposed
+   a named-view source conversion mismatch whose ownership is being reconciled.
    Preserve #847's required-viewed witnesses until that prerequisite is repaired;
    optional-view and direct-codec controls do not establish the failing contracts.
    Neither residual is claimed fixed by the member-name correction.
 2. **#691 gRPC import/local ownership:** `/root/access_log_implementation` reuses
-   `service-symbol-parent/loom` for current-parent reproduction, owner design,
-   model and bounded acceptance. Keep #694's approved source packet frozen.
-   Independent readiness review precedes production changes.
-3. **#740 protobuf nil collection elements:** `/root/omission_readiness_finish`
-   reuses `default-application-parent/loom` after checking inactivity. Preserve
-   prior six runtime panics and normal/empty controls; establish the conversion
-   owner and accepted nil-element contract before implementation. Keep delivered
-   #848 source/evidence frozen and clean inactive outputs with a receipt.
+   `service-symbol-parent/loom`. Fresh readiness review approved the shared
+   reservation scope and retained example-file bindings after reproducing local
+   and protobuf alias collisions, aggregate reference failures, and five model
+   outcomes. Implementation is active; exact final review remains required.
+   The forbidden `init` import alias is separately tracked as #856.
+3. **#754 helper fallibility before #740 element admission:**
+   `/root/omission_readiness_finish` owns `default-application-parent/loom`.
+   Independent #740 readiness review reproduced caller-dependent helper
+   signatures, already reported as #754. Revised #754 readiness passed fresh
+   review: helper-local transitive fallibility owns declaration, body context and
+   call arguments, while root constructor contracts stay separate. Eight mixed
+   cases fail on the parent; two pure controls pass; the proposed model passes
+   192 states. Implement and deliver this atomic prerequisite, then resume #740
+   occurrence-specific admission. Do not combine the tickets or weaken controls.
 4. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at
    `3180fde17f85cf6b6ed5b3f738f0de9d915161bb`, with no new human review at the
@@ -57,7 +65,10 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
    fetchability still gates delivery. Then resume #687 constructor rollback;
    #704 worker publication remains a separate task.
 6. Continue remaining milestone inventory items by shared ownership and risk.
-   New main CI is queued/in progress. Do not claim a complete green run from
+   At `14e092327`, CI passed OpenAPI, generated quality, Redis and the gRPC,
+   expr and JSON-RPC compile partitions. HTTP integration dependency typechecking
+   failed and is now repaired by #857. New main CI remains unconfirmed. Do not
+   claim a complete green run from
    focused gates or from older source revisions.
 
 Delivered #693/#801 temporary cleanup removed 19 inactive directories after
@@ -1190,3 +1201,37 @@ no overall green result is claimed.
   prerequisite for complete required-viewed acceptance. Outgoing report hashes:
   `6b469c00a769db6a1ac99332c71ae994a64255f4eb0f496d1b0b9d662a071479`
   and `ba1b02757cc925d4a28a4a0861272063a5aa4510d91f5aaa3a39b870b5c51420`.
+
+
+## Delivery checkpoint: 110 reports
+
+- #855 `14e092327`: one fixture mapping extraction repairs required testdata lint.
+  Fresh exact-diff review approved; all 237 artifacts across 17 variants match
+  parent and independent repeat. Seven generated build/vet/race scenarios and
+  scoped lint pass. Pushed and confirmed closed. Cleanup preserved hashes and
+  summarized evidence in `/tmp/loom-855-cleanup-receipt.json`, SHA
+  `4e2b4383da8a396733584875f5e3604ccfb01cae40839612ec4a8e26927a4657`.
+- #857 `f609b2817`: synchronize the nested HTTP integration module with the
+  shared test helper's existing dependency graph. Readonly parent compilation
+  reproduces CI's missing checksum; candidate full integration tests, nested lint
+  and clean tidy diff pass. Fresh reviewer independently confirmed the exact
+  two-file patch `e492771bd3b4f08406649e0318dbb29490694de192eef99628efd1c0783a0a5e`
+  and readonly compilation. Pushed and confirmed closed; no production or test
+  assertion changes. GitHub snapshot `/tmp/loom-checkpoint-110-all-issues.json`
+  confirms 110 closures among 178 distinct tracked reports.
+- #691 readiness manifest
+  `133516e23c2ff3df9477c147f53e60b3760e3534f7969d62f4f36ee404667595`
+  passed independent review of sources, evidence, 345 artifact hashes and five
+  models. #754 revised readiness manifest
+  `0fb740fb9b68307257a730186bde2e3c91d1e49ec309efe940f38666e7952cb2`
+  passed fresh review resolving the medium helper-ABI finding. Both implementations
+  are active, not delivered. #854 readiness manifest
+  `f6628f59dad27e1aff1396bc3828bf3be4676ea661b44b00a8892e87233e1486`
+  passed root's independent table/model checks; named-view source conversion
+  discovered during implementation remains under ownership review.
+- #856 preserves the separately reproduced forbidden `init` import alias across
+  transports/examples. It remains open; #691 does not claim that repair.
+- Delivered #694 cleanup removed inactive artifacts and raw logs after process
+  checks. Receipt `/tmp/loom-694-cleanup-receipt.json`, SHA
+  `5e8dd7141b4565ab4adffd57110ded3a8d6895ef3ec1a654b7c611f9dd23fe48`.
+  Active source packets, current reproduction inputs and shared tools remain.
