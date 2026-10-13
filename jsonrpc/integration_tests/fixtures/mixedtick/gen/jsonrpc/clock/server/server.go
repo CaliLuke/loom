@@ -290,12 +290,7 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 						return nil
 					}
 				}
-				code := jsonrpc.InternalError
-				var serviceError *loom.ServiceError
-				if errors.As(err, &serviceError) {
-					code = jsonrpc.CodeForServiceError(serviceError)
-				}
-				if sendErr := strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err)); sendErr != nil {
+				if sendErr := strm.SendError(ctx, req.ID, err); sendErr != nil {
 					return fmt.Errorf("%w: %w", sendErr, err)
 				}
 				return nil

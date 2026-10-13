@@ -8,25 +8,41 @@
 package client
 
 import (
-	json "encoding/json/v2"
 	"fmt"
 
 	clock "example.com/mixedtick/gen/clock"
+	loomhttpcli "github.com/CaliLuke/loom/http/cli"
+	loom "github.com/CaliLuke/loom/pkg"
 )
+
+// CLIInitializeRequestBody is the type of the "clock" service "Initialize"
+// endpoint HTTP request body.
+type CLIInitializeRequestBody struct {
+	ID loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
+}
+
+// CLITickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
+// request body.
+type CLITickRequestBody struct {
+	ID loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
+}
 
 // BuildInitializePayload builds the payload for the clock Initialize endpoint
 // from CLI flags.
 func BuildInitializePayload(clockInitializeBody string) (*clock.InitializePayload, error) {
 	var err error
-	var body InitializeRequestBody
+	var body CLIInitializeRequestBody
 	{
-		err = json.Unmarshal([]byte(clockInitializeBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockInitializeBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Saepe accusamus.\"\n   }'")
 		}
 	}
-	v := &clock.InitializePayload{
-		ID: body.ID,
+	v := &clock.InitializePayload{}
+	if actual, ok := body.ID.Value(); ok {
+		vIDValue := actual
+
+		v.ID = &vIDValue
 	}
 
 	return v, nil
@@ -36,15 +52,18 @@ func BuildInitializePayload(clockInitializeBody string) (*clock.InitializePayloa
 // flags.
 func BuildTickPayload(clockTickBody string) (*clock.TickPayload, error) {
 	var err error
-	var body TickRequestBody
+	var body CLITickRequestBody
 	{
-		err = json.Unmarshal([]byte(clockTickBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Aliquam architecto sequi autem rerum rerum.\"\n   }'")
 		}
 	}
-	v := &clock.TickPayload{
-		ID: body.ID,
+	v := &clock.TickPayload{}
+	if actual, ok := body.ID.Value(); ok {
+		vIDValue := actual
+
+		v.ID = &vIDValue
 	}
 
 	return v, nil

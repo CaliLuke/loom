@@ -45,9 +45,9 @@ func DecodeInitializeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loo
 		}
 		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *clock.InitializePayload
+		var err error
 		var (
 			body InitializeRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {
@@ -91,9 +91,9 @@ func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.
 		}
 		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *clock.TickPayload
+		var err error
 		var (
 			body TickRequestBody
-			err  error
 		)
 		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
 		if err != nil {
