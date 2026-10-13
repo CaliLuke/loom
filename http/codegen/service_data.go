@@ -26,6 +26,7 @@ type (
 		// Service contains the related service data.
 		Service       *service.Data
 		cliBodyInputs []*jsonBodyInput
+		clientGroups  []clientOperationGroup
 		// Endpoints describes the endpoint data for this service.
 		Endpoints []*EndpointData
 		// FileServers lists the file servers for this service.
@@ -190,6 +191,12 @@ type (
 		// EndpointInit is the name of the constructor function for the
 		// client endpoint.
 		EndpointInit string
+		// StreamEndpointInit is the separate mixed-result HTTP stream factory method.
+		// It is empty when no separate stream factory is emitted.
+		StreamEndpointInit string
+		// ClientDoer is the per-endpoint HTTP client field in the concrete Client.
+		// It is empty when no per-endpoint Doer field is emitted.
+		ClientDoer string
 		// RequestInit is the request builder function.
 		RequestInit *InitData
 		// RequestEncoder is the name of the request encoder function.

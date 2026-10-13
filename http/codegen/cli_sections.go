@@ -220,7 +220,7 @@ func httpCommandClientArgs(cmd *commandData, transport ClientCLITransport) []jen
 }
 
 func appendHTTPEndpointCase(group *jen.Group, cmd *commandData, sub *subcommandData) {
-	group.Id("endpoint").Op("=").Id("c").Dot(sub.MethodVarName).Call(httpEndpointCallArgs(sub)...)
+	group.Id("endpoint").Op("=").Id("c").Dot(sub.source.EndpointInit).Call(httpEndpointCallArgs(sub)...)
 	appendHTTPInterceptors(group, cmd, sub)
 	appendHTTPBuildData(group, cmd, sub)
 	appendHTTPBuildStreamPayload(group, cmd, sub)

@@ -14,9 +14,9 @@ func clientStructSection(data *ServiceData) gocodegen.Section {
 		stmt.Type().Id(data.ClientStruct).StructFunc(func(group *jen.Group) {
 			for _, endpoint := range data.Endpoints {
 				group.Comment(gocodegen.Comment(fmt.Sprintf("%s Doer is the HTTP client used to make requests to the %s endpoint.", endpoint.Method.VarName, endpoint.Method.Name)))
-				group.Id(endpoint.Method.VarName + "Doer").Id("loomhttp").Dot("Doer")
+				group.Id(endpoint.ClientDoer).Id("loomhttp").Dot("Doer")
 			}
-			for _, opGroup := range clientOperationGroups(data) {
+			for _, opGroup := range data.clientGroups {
 				group.Comment(gocodegen.Comment(fmt.Sprintf("%s groups %s operations.", opGroup.FieldName, data.Service.Name)))
 				group.Id(opGroup.FieldName).Op("*").Id(opGroup.Name)
 			}
@@ -61,7 +61,7 @@ func clientInitSection(data *ServiceData) gocodegen.Section {
 				)
 			}
 
-			if len(clientOperationGroups(data)) == 0 {
+			if len(data.clientGroups) == 0 {
 				group.Return().Op("&").Id(data.ClientStruct).ValuesFunc(func(values *jen.Group) {
 					addClientInitValues(values, data)
 				})
@@ -70,7 +70,7 @@ func clientInitSection(data *ServiceData) gocodegen.Section {
 			group.Id("client").Op(":=").Op("&").Id(data.ClientStruct).ValuesFunc(func(values *jen.Group) {
 				addClientInitValues(values, data)
 			})
-			for _, opGroup := range clientOperationGroups(data) {
+			for _, opGroup := range data.clientGroups {
 				group.Id("client").Dot(opGroup.FieldName).Op("=").Op("&").Id(opGroup.Name).Values(jen.Id("client").Op(":").Id("client"))
 			}
 			group.Return(jen.Id("client"))
@@ -80,7 +80,7 @@ func clientInitSection(data *ServiceData) gocodegen.Section {
 
 func addClientInitValues(values *jen.Group, data *ServiceData) {
 	for _, endpoint := range data.Endpoints {
-		values.Id(endpoint.Method.VarName + "Doer").Op(":").Id("doer")
+		values.Id(endpoint.ClientDoer).Op(":").Id("doer")
 	}
 	values.Id("RestoreResponseBody").Op(":").Id("restoreBody")
 	values.Id("scheme").Op(":").Id("scheme")
@@ -99,7 +99,7 @@ func clientEndpointSections(endpoint *EndpointData) []gocodegen.Section {
 		standard.SSE = nil
 
 		sseEndpoint := *endpoint
-		sseEndpoint.EndpointInit = endpoint.EndpointInit + "Stream"
+		sseEndpoint.EndpointInit = endpoint.StreamEndpointInit
 
 		return []gocodegen.Section{
 			clientEndpointSection(&standard),
@@ -226,7 +226,7 @@ func renderClientSSEEndpoint(group *jen.Group, endpoint *EndpointData) {
 		group.Id("req").Dot("Header").Dot("Set").Call(jen.Lit("Accept"), jen.Lit("text/event-stream"))
 	}
 
-	group.List(jen.Id("resp"), jen.Err()).Op(":=").Id("c").Dot(endpoint.Method.VarName + "Doer").Dot("Do").Call(jen.Id("req"))
+	group.List(jen.Id("resp"), jen.Err()).Op(":=").Id("c").Dot(endpoint.ClientDoer).Dot("Do").Call(jen.Id("req"))
 	group.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(
 			jen.Nil(),
@@ -275,7 +275,7 @@ func renderClientSSEEndpoint(group *jen.Group, endpoint *EndpointData) {
 }
 
 func renderClientHTTPEndpoint(group *jen.Group, endpoint *EndpointData) {
-	group.List(jen.Id("resp"), jen.Err()).Op(":=").Id("c").Dot(endpoint.Method.VarName + "Doer").Dot("Do").Call(jen.Id("req"))
+	group.List(jen.Id("resp"), jen.Err()).Op(":=").Id("c").Dot(endpoint.ClientDoer).Dot("Do").Call(jen.Id("req"))
 	group.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(
 			jen.Nil(),

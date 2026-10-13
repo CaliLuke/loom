@@ -33,6 +33,12 @@ can differ from service methods when they would collide with fixed members or
 other handlers. Use the regenerated declarations when accessing fields directly;
 service method names and wire routes stay unchanged. Regenerate after upgrading.
 
+Transport client endpoint factories, request builders, Doer fields and mixed
+stream factories can also receive suffixes when receiver members collide.
+Regenerate and use the actual declarations when wiring custom Doers or calling
+transport factories. Canonical service methods, CLI commands and wire names
+remain unchanged.
+
 User-editable plugin files belong outside `gen/` and should declare create-only
 behavior. Loom rejects create-only files inside the regenerated tree. Upgrade
 the CLI launcher and the design module's Loom dependency together.

@@ -1,0 +1,116 @@
+package clientmembers_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"flag"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"testing"
+
+	cli "example.com/clientmembers/gen/http/cli/members"
+	client "example.com/clientmembers/gen/http/members/client"
+	service "example.com/clientmembers/gen/members"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	roleDoer struct {
+		next  loomhttp.Doer
+		path  string
+		calls int
+	}
+	audit struct {
+		method string
+	}
+)
+
+func TestClientRoles(t *testing.T) {
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var value string
+		if err := json.UnmarshalRead(r.Body, &value); err != nil {
+			t.Error(err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.MarshalWrite(w, r.URL.Path+":"+value); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer peer.Close()
+	u, err := url.Parse(peer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := client.NewClient(u.Scheme, u.Host, peer.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	tests := []struct {
+		name     string
+		endpoint loom.Endpoint
+		builder  func(context.Context, any) (*http.Request, error)
+		target   *loomhttp.Doer
+	}{
+		{"restoreResponseBody", c.RestoreResponseBodyEndpoint(), c.BuildRestoreResponseBodyRequest, &c.RestoreResponseBodyDoer},
+		{"restoreResponseBodyEndpoint", c.RestoreResponseBodyEndpointEndpoint(), c.BuildRestoreResponseBodyEndpointRequest, &c.RestoreResponseBodyEndpointDoer},
+		{"read", c.Read(), c.BuildReadRequestRequest, &c.ReadDoerDoer2},
+		{"readDoer", c.ReadDoer(), c.BuildReadDoerRequest, &c.ReadDoerDoerDoer},
+		{"buildReadRequest", c.BuildReadRequest(), c.BuildBuildReadRequestRequest, &c.BuildReadRequestDoer},
+		{"readDoerDoer", c.ReadDoerDoer(), c.BuildReadDoerDoerRequest, &c.ReadDoerDoerDoerDoer},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := "/" + test.name
+			doer := &roleDoer{next: peer.Client(), path: path}
+			*test.target = doer
+			request, err := test.builder(context.Background(), "payload")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if request.URL.Path != path {
+				t.Errorf("builder path %q", request.URL.Path)
+			}
+			result, err := test.endpoint(context.Background(), "payload")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result != path+":payload" || doer.calls != 1 {
+				t.Errorf("result %v calls %d", result, doer.calls)
+			}
+		})
+	}
+	oldArgs, oldFlags := os.Args, flag.CommandLine
+	defer func() {
+		os.Args = oldArgs
+		flag.CommandLine = oldFlags
+	}()
+	os.Args = []string{"client", "members", "restore-response-body", "--p", "cli"}
+	flag.CommandLine = flag.NewFlagSet("client", flag.ContinueOnError)
+	interceptor := &audit{}
+	endpoint, payload, err := cli.ParseEndpoint(u.Scheme, u.Host, peer.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, interceptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := endpoint(context.Background(), payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != "/restoreResponseBody:cli" || interceptor.method != "RestoreResponseBody" {
+		t.Errorf("CLI result %v canonical interceptor %q", result, interceptor.method)
+	}
+}
+
+func (d *roleDoer) Do(r *http.Request) (*http.Response, error) {
+	d.calls++
+	if r.URL.Path != d.path {
+		return nil, fmt.Errorf("wrong role path %q, want %q", r.URL.Path, d.path)
+	}
+	return d.next.Do(r)
+}
+
+func (a *audit) Audit(ctx context.Context, info *service.AuditInfo, next loom.Endpoint) (any, error) {
+	a.method = info.Method()
+	return next(ctx, info.RawPayload())
+}

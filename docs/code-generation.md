@@ -87,6 +87,14 @@ path also change from `FooEndpoint` to `Foo`; update independently generated or
 handwritten gRPC clients accordingly. HTTP routes, JSON-RPC method strings,
 OpenAPI schema names, and protobuf field numbers retain their design meanings.
 
+HTTP and JSON-RPC transport client factories, request builders, Doer fields and
+mixed-result stream factories share the concrete Client namespace. Fixed members
+such as `RestoreResponseBody`, JSON-RPC `Doer`, and WebSocket `Close` take priority;
+conflicting generated roles receive deterministic suffixes. HTTP operation groups
+use those same recorded names. Regenerate and update handwritten references to
+changed transport members using their declarations. Service method names, CLI
+commands and wire method names retain their design identities.
+
 HTTP and JSON-RPC conversion constructors also share their generated package's
 namespace. Constructors with the same target type can have different names when
 they accept different sources or select different fields. Identical conversion
@@ -710,7 +718,7 @@ Loom writes deterministic concern files such as `types_requests.go`,
 `types_helpers.go` in the same package. The exported Go API is unchanged; the
 split only keeps large generated packages navigable and diff-friendly.
 
-Large generated HTTP and JSON-RPC clients also expose deterministic operation
+Large generated HTTP clients also expose deterministic operation
 groups derived from the first route path segment, for example
 `client.Items.List()` and `client.Items.BuildListRequest(...)`. The flat
 methods remain available on `Client`, so existing consumers keep compiling

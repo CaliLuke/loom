@@ -20,7 +20,7 @@ func jsonrpcClientStructSection(data *httpcodegen.ServiceData) codegen.Section {
 					continue
 				}
 				g.Comment(codegen.Comment(fmt.Sprintf("%s Doer is the HTTP client used to make requests to the %s endpoint.", endpoint.Method.VarName, endpoint.Method.Name)))
-				g.Id(endpoint.Method.VarName + "Doer").Add(codegen.TypeRef("loomhttp.Doer"))
+				g.Id(endpoint.ClientDoer).Add(codegen.TypeRef("loomhttp.Doer"))
 			}
 			g.Comment("RestoreResponseBody controls whether the response bodies are reset after")
 			g.Comment("decoding so they can be read again.")
@@ -87,7 +87,7 @@ func jsonrpcClientInitSection(data *httpcodegen.ServiceData) codegen.Section {
 					if !httpcodegen.IsSSEEndpoint(endpoint) {
 						continue
 					}
-					dict[jen.Id(endpoint.Method.VarName+"Doer")] = jen.Id("doer")
+					dict[jen.Id(endpoint.ClientDoer)] = jen.Id("doer")
 				}
 				if httpcodegen.HasWebSocket(data) {
 					dict[jen.Id("dialer")] = jen.Id("dialer")

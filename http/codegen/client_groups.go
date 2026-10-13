@@ -20,21 +20,14 @@ type (
 	}
 )
 
-func clientOperationGroups(data *ServiceData) []clientOperationGroup {
+func buildClientOperationGroups(data *ServiceData, scope *gocodegen.NameScope) []clientOperationGroup {
 	if len(data.Endpoints) <= clientOperationGroupThreshold {
 		return nil
 	}
 	byName := make(map[string][]*EndpointData)
 	names := make([]string, 0)
-	reserved := clientOperationGroupReservedFields(data)
 	for _, endpoint := range data.Endpoints {
-		name := clientOperationGroupName(endpoint)
-		for {
-			if _, ok := reserved[name]; !ok {
-				break
-			}
-			name += "Operations"
-		}
+		name := scope.PeekUnique(clientOperationGroupName(endpoint), "Operations")
 		if _, ok := byName[name]; !ok {
 			names = append(names, name)
 		}
@@ -43,37 +36,14 @@ func clientOperationGroups(data *ServiceData) []clientOperationGroup {
 	sort.Strings(names)
 	groups := make([]clientOperationGroup, 0, len(names))
 	for _, name := range names {
+		fieldName := scope.Unique(name, "Operations")
 		groups = append(groups, clientOperationGroup{
-			Name:      name + "Client",
-			FieldName: name,
+			Name:      fieldName + "Client",
+			FieldName: fieldName,
 			Endpoints: byName[name],
 		})
 	}
 	return groups
-}
-
-// clientOperationGroupReservedFields returns the names of the fields and
-// methods of the client struct. A struct field and a method cannot share a
-// name, so an operation group field takes none of them.
-func clientOperationGroupReservedFields(data *ServiceData) map[string]struct{} {
-	reserved := map[string]struct{}{
-		"RestoreResponseBody": {},
-		"scheme":              {},
-		"host":                {},
-		"encoder":             {},
-		"decoder":             {},
-		"dialer":              {},
-		"configurer":          {},
-	}
-	for _, endpoint := range data.Endpoints {
-		reserved[endpoint.Method.VarName+"Doer"] = struct{}{}
-		reserved[endpoint.EndpointInit] = struct{}{}
-		if endpoint.HasMixedResults {
-			reserved[endpoint.EndpointInit+"Stream"] = struct{}{}
-		}
-		reserved[endpoint.RequestInit.Name] = struct{}{}
-	}
-	return reserved
 }
 
 func clientOperationGroupName(endpoint *EndpointData) string {
@@ -95,7 +65,7 @@ func clientOperationGroupName(endpoint *EndpointData) string {
 
 func clientOperationGroupSection(data *ServiceData) gocodegen.Section {
 	return gocodegen.NewJenniferSection("client-operation-groups", func(stmt *jen.Statement) {
-		for _, group := range clientOperationGroups(data) {
+		for _, group := range data.clientGroups {
 			gocodegen.Doc(stmt, fmt.Sprintf("%s groups %s HTTP client operations.", group.Name, group.FieldName))
 			stmt.Type().Id(group.Name).Struct(
 				jen.Id("client").Op("*").Id(data.ClientStruct),
@@ -105,7 +75,7 @@ func clientOperationGroupSection(data *ServiceData) gocodegen.Section {
 				addClientGroupEndpointMethod(stmt, group.Name, endpoint)
 				if endpoint.HasMixedResults {
 					stream := *endpoint
-					stream.EndpointInit = endpoint.EndpointInit + "Stream"
+					stream.EndpointInit = endpoint.StreamEndpointInit
 					addClientGroupEndpointMethod(stmt, group.Name, &stream)
 				}
 				addClientGroupRequestMethod(stmt, group.Name, endpoint)

@@ -18,7 +18,7 @@ func (sd *ServiceData) constructorReservations(client bool) constructorNames {
 		helpers = sd.ClientTransformHelpers
 		attributes = sd.ClientBodyAttributeTypes
 		names.addCLI(sd)
-		for _, group := range clientOperationGroups(sd) {
+		for _, group := range sd.clientGroups {
 			names.add(group.Name)
 		}
 	} else {

@@ -75,6 +75,17 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `http/codegen.finalizeClientMembers` owns HTTP/JSON-RPC concrete Client
+  receiver roles after endpoint analysis and before constructor reservations.
+  Reserve actual conditional fixed members, allocate endpoint factories in
+  service order, then request builders, per-endpoint Doers and mixed HTTP stream
+  factories. Allocate and cache HTTP operation groups from the same scope;
+  rendering and package constructor reservations consume that plan. CLI transport
+  calls use the endpoint record while interceptor selection keeps canonical
+  service identity. Keep import reanalysis, complete emitted-member inventory,
+  mounted dispatch and the client-member model aligned. Canonical service Client
+  and native gRPC receiver namespaces remain separate owners.
+
 - `http/codegen.finalizeServerMembers` owns concrete HTTP/JSON-RPC server field
   identities after transport analysis. Reserve actual fixed receiver members,
   allocate endpoint handler and streaming-endpoint roles separately, and allocate

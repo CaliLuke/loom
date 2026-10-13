@@ -150,7 +150,7 @@ func clientFile(genpkg string, svc *expr.HTTPServiceExpr, services *ServicesData
 	data, imports = services.FileData(svc.Name(), imports)
 	sections := []codegen.Section{codegen.Header(title, "client", imports)}
 	sections = append(sections, clientStructSection(data))
-	if len(clientOperationGroups(data)) > 0 {
+	if len(data.clientGroups) > 0 {
 		sections = append(sections, clientOperationGroupSection(data))
 	}
 

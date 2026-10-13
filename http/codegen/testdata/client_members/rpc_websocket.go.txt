@@ -1,0 +1,119 @@
+package clientmembers_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
+
+	client "example.com/clientmembers/gen/jsonrpc/members/client"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type sendingStream interface {
+	Send(string) error
+	CloseAndRecv() (string, error)
+}
+
+func TestWebSocketClientRoles(t *testing.T) {
+	done := make(chan struct{})
+	defer close(done)
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Error(err)
+			}
+		}()
+		for range 5 {
+			_, data, err := conn.ReadMessage()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			var request jsonrpc.RawRequest
+			if err := json.Unmarshal(data, &request); err != nil {
+				t.Error(err)
+				return
+			}
+			var payload string
+			if err := json.Unmarshal(request.Params, &payload); err != nil {
+				t.Error(err)
+				return
+			}
+			response, err := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": request.Method + ":" + payload})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if err := conn.WriteMessage(websocket.TextMessage, response); err != nil {
+				t.Error(err)
+				return
+			}
+		}
+		<-done
+	}))
+	defer peer.Close()
+	u, err := url.Parse(peer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := client.NewClient("ws", u.Host, peer.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, loomhttp.WebSocketConfig{})
+	defer func() {
+		if err := c.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if c.IsClosed() {
+		t.Error("new client is closed")
+	}
+	for _, test := range []struct {
+		method   string
+		endpoint loom.Endpoint
+	}{
+		{"close", c.CloseEndpoint()},
+		{"isClosed", c.IsClosedEndpoint()},
+		{"closeEndpoint", c.CloseEndpointEndpoint()},
+		{"doer", c.DoerEndpoint()},
+		{"restoreResponseBody", c.RestoreResponseBodyEndpoint()},
+	} {
+		value, err := test.endpoint(ctx, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stream := value.(sendingStream)
+		if err := stream.Send("payload"); err != nil {
+			t.Fatal(err)
+		}
+		got, err := stream.CloseAndRecv()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.method+":payload" {
+			t.Errorf("method %s result %v", test.method, got)
+		}
+	}
+	if err := c.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if !c.IsClosed() {
+		t.Error("Close did not set lifecycle state")
+	}
+	if _, err := c.CloseEndpoint()(ctx, nil); err == nil {
+		t.Error("closed client admitted an authored close call")
+	}
+}

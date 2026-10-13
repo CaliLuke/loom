@@ -77,7 +77,7 @@ func TestNumericPathClientOperationGroupsUseValidIdentifiers(t *testing.T) {
 	services := CreateHTTPServices(root)
 	data := services.Get("NumericPathGroups")
 
-	groups := clientOperationGroups(data)
+	groups := data.clientGroups
 	require.Len(t, groups, 1)
 	require.Equal(t, "Val0", groups[0].FieldName)
 	require.Equal(t, "Val0Client", groups[0].Name)
@@ -157,7 +157,7 @@ func TestClientOperationGroupsAvoidClientMethodNames(t *testing.T) {
 			data := services.Get(root.Services[0].Name)
 
 			fields := make([]string, 0)
-			for _, group := range clientOperationGroups(data) {
+			for _, group := range data.clientGroups {
 				fields = append(fields, group.FieldName)
 			}
 			if !slices.Equal(tc.fields, fields) {

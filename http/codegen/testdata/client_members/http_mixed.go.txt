@@ -1,0 +1,60 @@
+package clientmembers_test
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+
+	client "example.com/clientmembers/gen/http/members/client"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+func TestMixedClientRoles(t *testing.T) {
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/watch" {
+			t.Errorf("path %q", r.URL.Path)
+		}
+		if r.Header.Get("Accept") == "text/event-stream" {
+			w.Header().Set("Content-Type", "text/event-stream")
+			if _, err := fmt.Fprint(w, "data: \"stream\"\n\n"); err != nil {
+				t.Error(err)
+			}
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := fmt.Fprint(w, "\"ordinary\""); err != nil {
+				t.Error(err)
+			}
+		}
+	}))
+	defer peer.Close()
+	u, err := url.Parse(peer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := client.NewClient(u.Scheme, u.Host, peer.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	value, err := c.Watch()(context.Background(), "payload")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value != "ordinary" {
+		t.Errorf("ordinary %v", value)
+	}
+	value, err = c.WatchStream()(context.Background(), "payload")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := value.(client.WatchClientStream)
+	got, err := stream.Recv()
+	if err != nil {
+		t.Error(err)
+	}
+	if got != "stream" {
+		t.Errorf("stream %q", got)
+	}
+	if err := stream.Close(); err != nil {
+		t.Error(err)
+	}
+}
