@@ -1,6 +1,9 @@
 package codegen
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,72 +17,24 @@ import (
 )
 
 func TestEffectiveConstraintsGeneratedJSONRPCModule(t *testing.T) {
-	root := RunJSONRPCDSL(t, func() {
-		dsl.API("effective", func() {
-			dsl.JSONRPC(func() {})
-		})
-		base := dsl.Type("DefaultBase", dsl.String, func() {
-			dsl.Default("base")
-			dsl.MinLength(2)
-		})
-		inherited := dsl.Type("InheritedDefault", base)
-		overridden := dsl.Type("OverriddenDefault", base, func() {
-			dsl.Default("override")
-		})
-		baseRequired := dsl.Type("BaseRequired", func() {
-			dsl.Attribute("base", dsl.String)
-			dsl.Attribute("derived", dsl.String)
-			dsl.Required("base")
-		})
-		derivedRequired := dsl.Type("DerivedRequired", baseRequired, func() {
-			dsl.Required("derived")
-		})
-		patternBase := dsl.Type("PatternBase", dsl.String, func() { dsl.Pattern("^a") })
-		patternDerived := dsl.Type("PatternDerived", patternBase, func() { dsl.Pattern("b$") })
-		formatBase := dsl.Type("FormatBase", dsl.String, func() { dsl.Format(dsl.FormatIP) })
-		formatDerived := dsl.Type("FormatDerived", formatBase, func() { dsl.Format(dsl.FormatIPv4) })
-		numeric := numericdata.ExactNumericPayload()
-		dsl.Service("constraints", func() {
-			dsl.Method("numeric", func() {
-				dsl.Payload(numeric)
-				dsl.JSONRPC(func() {})
-			})
-
-			dsl.JSONRPC(func() {
-				dsl.POST("/rpc")
-			})
-			dsl.Method("defaults", func() {
-				dsl.Payload(func() {
-					dsl.Attribute("inherited", inherited)
-					dsl.Attribute("overridden", overridden)
-					dsl.Attribute("nullable", inherited, func() {
-						dsl.Nullable()
-					})
-				})
-				dsl.JSONRPC(func() {})
-			})
-			dsl.Method("required", func() {
-				dsl.Payload(derivedRequired)
-				dsl.JSONRPC(func() {})
-			})
-			dsl.Method("clauses", func() {
-				dsl.Payload(func() {
-					dsl.Attribute("pattern", patternDerived)
-					dsl.Attribute("ip", formatDerived)
-					dsl.Required("pattern", "ip")
-				})
-				dsl.JSONRPC(func() {})
-			})
-		})
-	})
+	root := RunJSONRPCDSL(t, effectiveConstraintsDSL)
 	dir := t.TempDir()
 	renderJSONRPCModule(t, dir, "example.com/effectiveconstraints", root)
+	pinEffectiveDefaultModule(t, dir)
 	generated := readGeneratedGo(t, dir)
 	require.Contains(t, generated, "Inherited  InheritedDefault")
 	require.Contains(t, generated, "Overridden OverriddenDefault")
 	require.Contains(t, generated, "loom.Nullable[InheritedDefault]")
-	require.Contains(t, generated, `body.Inherited = "base"`)
-	require.Contains(t, generated, `body.Overridden = "override"`)
+	serverConstructor := generatedDefaultConstructor(t, dir, "server", "NewDefaultsPayload")
+	require.Contains(t, serverConstructor, `body.Inherited.Value()`)
+	require.Contains(t, serverConstructor, `body.Overridden.Value()`)
+	require.Contains(t, serverConstructor, `v.Inherited = "base"`)
+	require.Contains(t, serverConstructor, `v.Overridden = "override"`)
+	clientConstructor := generatedDefaultConstructor(t, dir, "client", "NewDefaultsRequestBody")
+	require.Contains(t, clientConstructor, `string(p.Inherited)`)
+	require.Contains(t, clientConstructor, `string(p.Overridden)`)
+	require.NotContains(t, clientConstructor, `body.Inherited = "base"`)
+	require.NotContains(t, clientConstructor, `body.Overridden = "override"`)
 	require.Contains(t, generated, `ValidateRequiredRequestBody(&body)`)
 	require.Contains(t, generated, `loom.MissingFieldError("base", validationPath)`)
 	require.Contains(t, generated, `loom.MissingFieldError("derived", validationPath)`)
@@ -89,9 +44,69 @@ func TestEffectiveConstraintsGeneratedJSONRPCModule(t *testing.T) {
 	require.Contains(t, generated, `loom.FormatIPv4`)
 	require.Contains(t, generated, `loom.FormatIP`)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "numeric_test.go"), []byte(exactNumericHarness), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "defaults_test.go"), []byte(effectiveDefaultHarness), 0o600))
 	runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
 	runGoJSONRPCTestCommand(t, dir, "vet", "./...")
 	runGoJSONRPCTestCommand(t, dir, "test", "./...")
+}
+
+func effectiveConstraintsDSL() {
+	dsl.API("effective", func() {
+		dsl.JSONRPC(func() {})
+	})
+	base := dsl.Type("DefaultBase", dsl.String, func() {
+		dsl.Default("base")
+		dsl.MinLength(2)
+	})
+	inherited := dsl.Type("InheritedDefault", base)
+	overridden := dsl.Type("OverriddenDefault", base, func() {
+		dsl.Default("override")
+	})
+	baseRequired := dsl.Type("BaseRequired", func() {
+		dsl.Attribute("base", dsl.String)
+		dsl.Attribute("derived", dsl.String)
+		dsl.Required("base")
+	})
+	derivedRequired := dsl.Type("DerivedRequired", baseRequired, func() {
+		dsl.Required("derived")
+	})
+	patternBase := dsl.Type("PatternBase", dsl.String, func() { dsl.Pattern("^a") })
+	patternDerived := dsl.Type("PatternDerived", patternBase, func() { dsl.Pattern("b$") })
+	formatBase := dsl.Type("FormatBase", dsl.String, func() { dsl.Format(dsl.FormatIP) })
+	formatDerived := dsl.Type("FormatDerived", formatBase, func() { dsl.Format(dsl.FormatIPv4) })
+	numeric := numericdata.ExactNumericPayload()
+	dsl.Service("constraints", func() {
+		dsl.Method("numeric", func() {
+			dsl.Payload(numeric)
+			dsl.JSONRPC(func() {})
+		})
+
+		dsl.JSONRPC(func() {
+			dsl.POST("/rpc")
+		})
+		dsl.Method("defaults", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("inherited", inherited)
+				dsl.Attribute("overridden", overridden)
+				dsl.Attribute("nullable", inherited, func() {
+					dsl.Nullable()
+				})
+			})
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Method("required", func() {
+			dsl.Payload(derivedRequired)
+			dsl.JSONRPC(func() {})
+		})
+		dsl.Method("clauses", func() {
+			dsl.Payload(func() {
+				dsl.Attribute("pattern", patternDerived)
+				dsl.Attribute("ip", formatDerived)
+				dsl.Required("pattern", "ip")
+			})
+			dsl.JSONRPC(func() {})
+		})
+	})
 }
 
 func readGeneratedGo(t *testing.T, root string) string {
@@ -113,6 +128,25 @@ func readGeneratedGo(t *testing.T, root string) string {
 	})
 	require.NoError(t, err)
 	return source.String()
+}
+
+func generatedDefaultConstructor(t *testing.T, dir, side, name string) string {
+	t.Helper()
+	path := filepath.Join(dir, "gen", "jsonrpc", "constraints", side, "types.go")
+	source, err := os.ReadFile(path)
+	require.NoError(t, err)
+	positions := token.NewFileSet()
+	file, err := parser.ParseFile(positions, path, source, 0)
+	require.NoError(t, err)
+	var matches []string
+	for _, declaration := range file.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if ok && function.Recv == nil && function.Name.Name == name {
+			matches = append(matches, string(source[positions.Position(function.Pos()).Offset:positions.Position(function.End()).Offset]))
+		}
+	}
+	require.Len(t, matches, 1, "%s constructor %s", side, name)
+	return matches[0]
 }
 
 const exactNumericHarness = `package effectiveconstraints_test
