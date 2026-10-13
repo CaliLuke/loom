@@ -455,6 +455,18 @@ inspects the Go module that contains the design.
 Run this command periodically to audit API modeling. It is not part of the
 normal generation workflow or a routine local gate.
 
+The manifest identifies the originating design package and fingerprints all
+registered evaluated DSL roots, including plugin roots, before generation
+preparation runs. When a module contains multiple designs, design-skew checks
+compare only trees attributed to the selected package. Version checks still
+inspect all generated trees in that module. Relative and import-path package
+spellings resolve to the same design identity.
+
+Regenerate existing trees after upgrading to the complete provenance format.
+A manifest without a design package cannot be attributed safely and reports a
+regeneration diagnostic. The fingerprint covers evaluated public semantic state,
+not plugin source code, private caches, runtime callbacks or external files.
+
 The command reports these high-confidence errors:
 
 - source analysis cannot parse or load an active package in the target module;
@@ -467,8 +479,7 @@ The command reports these high-confidence errors:
   evaluated design operation
 - `go.mod` and a generated `loom.json` contain different Loom versions
 - generated output does not match the evaluated design recorded in
-  `gen/loom.json`; manifests created before design digests were introduced also
-  require regeneration
+  `gen/loom.json`; manifests without design provenance also require regeneration
 - an application that opts into mount analysis has a designed HTTP service with
   no typed generated server `Mount` call in any configured package
 - an HTTP 5xx error does not declare `Fault()`

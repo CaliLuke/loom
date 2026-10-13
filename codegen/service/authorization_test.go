@@ -11,6 +11,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/dsl"
+	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 	"github.com/CaliLuke/loom/internal/designfingerprint"
 )
@@ -100,7 +101,7 @@ func TestAuthorizationManifestProcess(t *testing.T) {
 func TestAuthorizationFingerprint(t *testing.T) {
 	root := codegen.RunDSL(t, authorizationTestDSL)
 	digest := func() string {
-		d, err := designfingerprint.Digest(root, "gen", "example.com/access/gen", codegen.DesignVersion)
+		d, err := designfingerprint.Digest(designfingerprint.Design{Package: "example.com/service/design", Roots: []eval.Root{root}}, "gen", "example.com/access/gen", codegen.DesignVersion)
 		require.NoError(t, err)
 		return d
 	}

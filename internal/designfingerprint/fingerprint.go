@@ -15,7 +15,7 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-const formatVersion = "loom-design-v2"
+const formatVersion = "loom-design-v3"
 
 var reflectType = reflect.TypeFor[reflect.Type]()
 var metaExprType = reflect.TypeFor[expr.MetaExpr]()
@@ -71,7 +71,10 @@ type (
 
 // Digest returns the deterministic SHA-256 digest of an evaluated design and
 // the generation inputs that can change its output.
-func Digest(root *expr.RootExpr, command, genpkg string, designVersion int) (string, error) {
+func Digest(design Design, command, genpkg string, designVersion int) (string, error) {
+	if _, err := design.Validate(); err != nil {
+		return "", err
+	}
 	enc := &encoder{
 		active:        make(map[pointerIdentity]int),
 		cache:         newPointerCache(nil),
@@ -81,8 +84,13 @@ func Digest(root *expr.RootExpr, command, genpkg string, designVersion int) (str
 	enc.writeString(command)
 	enc.writeString(genpkg)
 	enc.writeString(strconv.Itoa(designVersion))
-	if err := enc.encode(reflect.ValueOf(root), &pathFrame{component: "design"}); err != nil {
-		return "", fmt.Errorf("encode evaluated design: %w", err)
+	enc.writeString(design.Package)
+	enc.writeString(strconv.Itoa(len(design.Roots)))
+	for _, root := range design.Roots {
+		enc.writeString(root.EvalName())
+		if err := enc.encode(reflect.ValueOf(root), &pathFrame{component: "design." + root.EvalName()}); err != nil {
+			return "", fmt.Errorf("encode evaluated design: %w", err)
+		}
 	}
 	sum := sha256.Sum256(enc.buffer.Bytes())
 	return hex.EncodeToString(sum[:]), nil

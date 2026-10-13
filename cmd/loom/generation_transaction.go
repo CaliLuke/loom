@@ -13,6 +13,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/internal/artifactpolicy"
+	"github.com/CaliLuke/loom/internal/designfingerprint"
 	"golang.org/x/mod/semver"
 )
 
@@ -33,11 +34,6 @@ type (
 		installed   bool
 		skipExist   bool
 		identity    os.FileInfo
-	}
-
-	generationManifest struct {
-		LoomVersion  string `json:"loom_version"`
-		DesignDigest string `json:"design_digest"`
 	}
 )
 
@@ -121,7 +117,7 @@ func (t *generationTransaction) validate(outputs []codegen.Artifact) error {
 	if err != nil {
 		return fmt.Errorf("read staged generation manifest %s: %w", manifestPath, err)
 	}
-	var manifest generationManifest
+	var manifest designfingerprint.Manifest
 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
 		return fmt.Errorf("decode staged generation manifest %s: %w", manifestPath, err)
 	}
@@ -130,8 +126,8 @@ func (t *generationTransaction) validate(outputs []codegen.Artifact) error {
 	if manifest.LoomVersion != "(devel)" && !semver.IsValid(manifest.LoomVersion) {
 		return fmt.Errorf("staged generation manifest %s has Loom version %q: expected a module version or (devel)", manifestPath, manifest.LoomVersion)
 	}
-	if manifest.DesignDigest == "" {
-		return fmt.Errorf("staged generation manifest %s has no design digest", manifestPath)
+	if err := manifest.ValidateProvenance(); err != nil {
+		return fmt.Errorf("staged generation manifest %s: %w", manifestPath, err)
 	}
 	if err := t.validateWritePolicies(outputs); err != nil {
 		return err

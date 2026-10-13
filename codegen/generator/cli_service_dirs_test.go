@@ -38,7 +38,7 @@ func TestCLIServiceTransportDirs(t *testing.T) {
 				testingx.RepoRoot(),
 			)
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
-			_, err := Generate(dir, "gen", false)
+			_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
 
 			for _, transport := range c.Transports {

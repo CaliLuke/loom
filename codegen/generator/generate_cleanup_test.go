@@ -36,7 +36,7 @@ func TestGenerateRemovesPathsAfterAllWrites(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	outputs, err := Generate(dir, "example", false)
+	outputs, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 
 	require.NoError(t, err)
 	require.FileExists(t, filepath.Join(dir, jsonPath))
@@ -77,7 +77,7 @@ func TestGenerateRemovesDirectoriesAfterAllWrites(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	outputs, err := Generate(dir, "example", false)
+	outputs, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 
 	require.NoError(t, err)
 	require.FileExists(t, filepath.Join(dir, serverPath))
@@ -117,7 +117,7 @@ func TestGenerateSkipsPathRemovalWhenAWriteFails(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(staleAbsolutePath), 0o750))
 	require.NoError(t, os.WriteFile(staleAbsolutePath, []byte("stale"), 0o600))
 
-	_, err := Generate(dir, "example", false)
+	_, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 
 	require.Error(t, err)
 	require.FileExists(t, staleAbsolutePath)
@@ -146,7 +146,7 @@ func TestGenerateRejectsPathRemovalOutsideOutputDirectory(t *testing.T) {
 	outsidePath := filepath.Join(workspace, "outside.txt")
 	require.NoError(t, os.WriteFile(outsidePath, []byte("keep"), 0o600))
 
-	_, err := Generate(dir, "example", false)
+	_, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 
 	require.ErrorContains(t, err, "outside output directory")
 	require.FileExists(t, outsidePath)
@@ -179,7 +179,7 @@ func TestGenerateRejectsPathRemovalThroughSymlinkedParent(t *testing.T) {
 	require.NoError(t, os.WriteFile(victimPath, []byte("keep"), 0o600))
 	require.NoError(t, os.Symlink(outsideDir, filepath.Join(dir, "link")))
 
-	_, err := Generate(dir, "example", false)
+	_, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 
 	require.ErrorContains(t, err, "stage remove-files")
 	require.FileExists(t, victimPath)

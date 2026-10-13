@@ -24,9 +24,9 @@ func TestJSONRPCCLIHTTPOnlyServerCompile(t *testing.T) {
 	goMod := fmt.Sprintf("module example.com/split\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", source)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
-	_, err := Generate(dir, "gen", false)
+	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
-	_, err = Generate(dir, "example", false)
+	_, err = Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
 
 	// Each server gets the client CLI of the transports it hosts only.

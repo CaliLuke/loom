@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/CaliLuke/loom/internal/designfingerprint"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,7 @@ func TestManifestUsesGeneratorModuleVersion(t *testing.T) {
 		t.Run(tc.version, func(t *testing.T) {
 			stage := t.TempDir()
 			require.NoError(t, os.Mkdir(filepath.Join(stage, "gen"), 0o755))
-			data, err := json.Marshal(generationManifest{LoomVersion: tc.version, DesignDigest: "test-digest"})
+			data, err := json.Marshal(designfingerprint.Manifest{DesignPackage: "example.com/service/design", LoomVersion: tc.version, DesignDigest: "test-digest"})
 			require.NoError(t, err)
 			require.NoError(t, os.WriteFile(filepath.Join(stage, "gen", "loom.json"), data, 0o644))
 			transaction := generationTransaction{stage: stage}

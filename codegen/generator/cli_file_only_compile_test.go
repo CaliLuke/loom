@@ -45,9 +45,9 @@ func TestCLIFileOnlyServiceCompile(t *testing.T) {
 	dir := t.TempDir()
 	goMod := fmt.Sprintf("module example.com/files\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v0.0.0\n\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
-	_, err := Generate(dir, "gen", false)
+	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
-	_, err = Generate(dir, "example", false)
+	_, err = Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "cli_test.go"), []byte(fileOnlyCLIHarness), 0o600))
 	for _, args := range [][]string{{"mod", "tidy"}, {"build", "./..."}, {"vet", "./..."}, {"test", "-count=1", "."}} {

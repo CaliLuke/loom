@@ -38,9 +38,9 @@ func TestGeneratedCLIArgumentOrder(t *testing.T) {
 			codegen.RunDSL(t, testdata.CLIArgumentOrderDSL(tc.transport, tc.shape))
 			mod := fmt.Sprintf("module example.com/order\n\ngo 1.27.2\n\nrequire github.com/CaliLuke/loom v1.0.0\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(mod), 0o600))
-			_, err := Generate(dir, "gen", false)
+			_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
-			_, err = Generate(dir, "example", false)
+			_, err = Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
 			if os.Getenv("LOOM_CLI_ORDER_GENERATE_ONLY") != "" {
 				return

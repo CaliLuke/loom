@@ -103,9 +103,9 @@ func TestStructPkgPathEdgeCasesCompile(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			codegen.RunDSL(t, c.DSL)
 			dir := writeStructPkgPathModule(t, source)
-			_, err := Generate(dir, "gen", false)
+			_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
-			_, err = Generate(dir, "example", false)
+			_, err = Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
 			for path, wants := range c.Files {
 				content, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(path)))
@@ -142,7 +142,7 @@ func TestStructPkgPathServicePackageRejected(t *testing.T) {
 			codegen.RunDSL(t, d.DSL)
 			dir := writeStructPkgPathModule(t, loomModuleSource(t))
 			for _, cmd := range []string{"gen", "example"} {
-				_, err := Generate(dir, cmd, false)
+				_, err := Generate(dir, cmd, "github.com/CaliLuke/loom/codegen/generator", false)
 				require.Error(t, err, cmd)
 				assert.Contains(t, err.Error(), `service "common": type "Item" has struct:pkg:path "common", the package generated for the service; the service package cannot import itself.`, cmd)
 			}

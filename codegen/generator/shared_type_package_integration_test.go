@@ -50,7 +50,7 @@ replace github.com/CaliLuke/loom => %s
 				wantFirst = "show"
 			}
 			require.Equal(t, wantFirst, root.Services[0].Methods[0].Name)
-			_, err = Generate(dir, "gen", false)
+			_, err = Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
 			for _, name := range []string{"event.go", "cell.go", "cell_content.go"} {
 				require.FileExists(t, filepath.Join(dir, cg.Gendir, "types", name))

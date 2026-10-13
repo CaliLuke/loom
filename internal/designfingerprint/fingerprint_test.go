@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -35,9 +36,9 @@ func TestDigestIsDeterministicForEquivalentDesigns(t *testing.T) {
 		ExampleGenerator: expr.NewRandom("right-runtime-state"),
 	}}
 
-	leftDigest, err := Digest(left, "gen", "example.com/service/gen", 3)
+	leftDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{left}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
-	rightDigest, err := Digest(right, "gen", "example.com/service/gen", 3)
+	rightDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{right}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
 	require.Equal(t, leftDigest, rightDigest)
 }
@@ -52,16 +53,16 @@ func TestDigestIgnoresVetMetadata(t *testing.T) {
 		},
 	}}
 
-	baseDigest, err := Digest(base, "gen", "example.com/service/gen", 3)
+	baseDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{base}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
-	configuredDigest, err := Digest(configured, "gen", "example.com/service/gen", 3)
+	configuredDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{configured}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
 	require.Equal(t, baseDigest, configuredDigest)
 	generated := &expr.RootExpr{API: &expr.APIExpr{
 		Name: "widgets",
 		Meta: expr.MetaExpr{"http:generate": {"server"}},
 	}}
-	generatedDigest, err := Digest(generated, "gen", "example.com/service/gen", 3)
+	generatedDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{generated}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
 	require.NotEqual(t, baseDigest, generatedDigest)
 }
@@ -70,11 +71,11 @@ func TestDigestChangesWithSemanticDesignOrGenerationInput(t *testing.T) {
 	base := &expr.RootExpr{API: &expr.APIExpr{Name: "widgets", Title: "Widgets"}}
 	changed := &expr.RootExpr{API: &expr.APIExpr{Name: "widgets", Title: "Inventory"}}
 
-	baseDigest, err := Digest(base, "gen", "example.com/service/gen", 3)
+	baseDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{base}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
-	changedDigest, err := Digest(changed, "gen", "example.com/service/gen", 3)
+	changedDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{changed}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
-	otherPackageDigest, err := Digest(base, "gen", "example.com/other/gen", 3)
+	otherPackageDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{base}}, "gen", "example.com/other/gen", 3)
 	require.NoError(t, err)
 
 	require.NotEqual(t, baseDigest, changedDigest)
@@ -85,9 +86,9 @@ func TestDigestHandlesDeepSharedDesignGraphs(t *testing.T) {
 	root := contractDesign()
 	root.Services[0].Methods[0].Result = sharedAttributeGraph(32)
 
-	first, err := Digest(root, "gen", "example.com/service/gen", 3)
+	first, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{root}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
-	second, err := Digest(root, "gen", "example.com/service/gen", 3)
+	second, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{root}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
 	require.Equal(t, first, second)
 }
@@ -108,7 +109,7 @@ func TestDigestHandlesRepeatedCyclicGraphReferences(t *testing.T) {
 		root.Services = append(root.Services, service)
 	}
 
-	digest, err := Digest(root, "gen", "example.com/service/gen", 3)
+	digest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{root}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
 	require.NotEmpty(t, digest)
 }
@@ -124,9 +125,9 @@ func TestDigestDoesNotTreatEquivalentSharingAsSemantic(t *testing.T) {
 		&expr.AttributeExpr{Type: expr.String, Description: "value"},
 	)
 
-	sharedDigest, err := Digest(sharedRoot, "gen", "example.com/service/gen", 3)
+	sharedDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{sharedRoot}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
-	duplicatedDigest, err := Digest(duplicatedRoot, "gen", "example.com/service/gen", 3)
+	duplicatedDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{duplicatedRoot}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
 	require.Equal(t, sharedDigest, duplicatedDigest)
 }
@@ -174,7 +175,7 @@ func TestEncoderHandlesLongPointerCycles(t *testing.T) {
 }
 
 func TestDigestCoversGeneratedContractInputs(t *testing.T) {
-	baseDigest, err := Digest(contractDesign(), "gen", "example.com/service/gen", 3)
+	baseDigest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{contractDesign()}}, "gen", "example.com/service/gen", 3)
 	require.NoError(t, err)
 	tests := map[string]func(*expr.RootExpr){
 		"route": func(root *expr.RootExpr) {
@@ -197,7 +198,7 @@ func TestDigestCoversGeneratedContractInputs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := contractDesign()
 			change(root)
-			digest, err := Digest(root, "gen", "example.com/service/gen", 3)
+			digest, err := Digest(Design{Package: "example.com/service/design", Roots: []eval.Root{root}}, "gen", "example.com/service/gen", 3)
 			require.NoError(t, err)
 			require.NotEqual(t, baseDigest, digest)
 		})

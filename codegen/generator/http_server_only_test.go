@@ -26,7 +26,7 @@ func TestGenerateHTTPServerOnlyRemovesClientsAndCompiles(t *testing.T) {
 	)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
-	_, err := Generate(dir, "gen", false)
+	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
 	clientDir := filepath.Join(dir, codegen.Gendir, "http", "widgets", "client")
 	cliDir := filepath.Join(dir, codegen.Gendir, "http", "cli")
@@ -37,7 +37,7 @@ func TestGenerateHTTPServerOnlyRemovesClientsAndCompiles(t *testing.T) {
 		root.API.Meta = make(map[string][]string)
 	}
 	root.API.Meta["http:generate"] = []string{"server"}
-	_, err = Generate(dir, "gen", false)
+	_, err = Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
 
 	require.DirExists(t, filepath.Join(dir, codegen.Gendir, "http", "widgets", "server"))

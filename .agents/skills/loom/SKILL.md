@@ -1345,7 +1345,12 @@ missing validation or a concrete scalar hidden behind `Any`. The
 `untyped-semantic-attribute` warning is conservative: timestamp-style names or
 unambiguous scalar descriptions can trigger it, but `Any` by itself and generic
 metadata, configuration, preference, or document fields do not. A manifest
-created before design digests were introduced also requires `loom gen`. Source
+without design provenance also requires `loom gen`. Each generated tree records
+its originating design package and a fingerprint of all evaluated roots, including
+plugins. In a
+module with several designs, vet checks design skew only for the selected
+package; version checks still cover all trees. Regenerate existing trees after
+upgrading this manifest format. Source
 analysis follows the active packages selected by the current Go build
 environment and excludes dependency modules.
 

@@ -54,7 +54,7 @@ func renderAccessLogExample(t *testing.T, dir string, design func()) {
 	mod := fmt.Sprintf("module example.com/diagnostics\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261013051947-ee4552dc94ee\n\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(mod), 0o600))
 	for _, command := range []string{"gen", "example"} {
-		_, err := Generate(dir, command, false)
+		_, err := Generate(dir, command, "github.com/CaliLuke/loom/codegen/generator", false)
 		require.NoError(t, err)
 	}
 }

@@ -25,18 +25,13 @@ import (
 	"github.com/CaliLuke/loom/internal/designfingerprint"
 )
 
-type generatedManifest struct {
-	Version      string `json:"loom_version"`
-	DesignDigest string `json:"design_digest"`
-}
-
 const loomHTTPImportPath = "github.com/CaliLuke/loom/http"
 
 func analyzeModule(dir string) ([]Diagnostic, error) {
-	return analyzeModuleWithDesign(dir, nil)
+	return analyzeModuleWithDesign(dir, nil, nil)
 }
 
-func analyzeModuleWithDesign(dir string, design *expr.RootExpr) ([]Diagnostic, error) {
+func analyzeModuleWithDesign(dir string, design *expr.RootExpr, provenance *designfingerprint.Design) ([]Diagnostic, error) {
 	root, err := findModuleRoot(dir)
 	if err != nil {
 		return nil, err
@@ -49,7 +44,7 @@ func analyzeModuleWithDesign(dir string, design *expr.RootExpr) ([]Diagnostic, e
 	if err != nil {
 		return nil, err
 	}
-	versions, err := analyzeGeneratedManifests(root, design)
+	versions, err := analyzeGeneratedManifests(root, provenance)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +385,7 @@ func analyzeGeneratedVersions(root string) ([]Diagnostic, error) {
 	return analyzeGeneratedManifests(root, nil)
 }
 
-func analyzeGeneratedManifests(root string, design *expr.RootExpr) ([]Diagnostic, error) {
+func analyzeGeneratedManifests(root string, design *designfingerprint.Design) ([]Diagnostic, error) {
 	moduleData, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
 		return nil, fmt.Errorf("read go.mod: %w", err)
@@ -445,23 +440,23 @@ func inspectGeneratedManifest(
 	manifestPath,
 	requiredVersion string,
 	comparable bool,
-	design *expr.RootExpr,
+	design *designfingerprint.Design,
 ) ([]Diagnostic, error) {
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return nil, err
 	}
-	var manifest generatedManifest
+	var manifest designfingerprint.Manifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", manifestPath, err)
 	}
 	location := generatedManifestLocation(moduleRoot, manifestPath)
 	var diagnostics []Diagnostic
-	if comparable && manifest.Version != "" && manifest.Version != requiredVersion {
+	if comparable && manifest.LoomVersion != "" && manifest.LoomVersion != requiredVersion {
 		diagnostics = append(diagnostics, Diagnostic{
 			Rule:     RuleGeneratedVersionSkew,
 			Severity: SeverityError,
-			Message:  fmt.Sprintf("generated with Loom %s but go.mod requires %s; run loom gen", manifest.Version, requiredVersion),
+			Message:  fmt.Sprintf("generated with Loom %s but go.mod requires %s; run loom gen", manifest.LoomVersion, requiredVersion),
 			Location: location,
 		})
 	}
@@ -487,25 +482,36 @@ func generatedDesignDiagnostic(
 	moduleFile *modfile.File,
 	moduleRoot,
 	manifestPath string,
-	manifest generatedManifest,
-	design *expr.RootExpr,
+	manifest designfingerprint.Manifest,
+	design *designfingerprint.Design,
 	location Location,
 ) (*Diagnostic, error) {
-	if design == nil || design.API == nil || suppressed(design.API.Meta, RuleGeneratedDesignSkew) {
+	if design == nil {
+		return nil, nil
+	}
+	core, err := design.Validate()
+	if err != nil {
+		return nil, err
+	}
+	if core.API == nil || suppressed(core.API.Meta, RuleGeneratedDesignSkew) {
+		return nil, nil
+	}
+	if err := manifest.ValidateProvenance(); err != nil {
+		return &Diagnostic{Rule: RuleGeneratedDesignSkew, Severity: SeverityError, Message: fmt.Sprintf("generated manifest has incomplete provenance (%s); run loom gen", err), Location: location}, nil
+	}
+	if manifest.DesignPackage != design.Package {
 		return nil, nil
 	}
 	genpkg, err := generatedPackagePath(moduleFile, moduleRoot, manifestPath)
 	if err != nil {
 		return nil, err
 	}
-	currentDigest, err := designfingerprint.Digest(design, "gen", genpkg, codegen.DesignVersion)
+	currentDigest, err := designfingerprint.Digest(*design, "gen", genpkg, codegen.DesignVersion)
 	if err != nil {
 		return nil, err
 	}
 	message := ""
-	if manifest.DesignDigest == "" {
-		message = "generated manifest does not record a design digest; run loom gen"
-	} else if manifest.DesignDigest != currentDigest {
+	if manifest.DesignDigest != currentDigest {
 		message = "generated output does not match the evaluated design; run loom gen"
 	}
 	if message == "" {

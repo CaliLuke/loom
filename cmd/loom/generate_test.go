@@ -808,8 +808,9 @@ func requireNoGenerationArtifacts(t *testing.T, dir string) {
 
 func writeStagedManifest(stage string) error {
 	contents, err := json.Marshal(map[string]string{
-		"loom_version":  loom.Version(),
-		"design_digest": "test-design-digest",
+		"loom_version":   loom.Version(),
+		"design_digest":  "test-design-digest",
+		"design_package": "example.com/service/design",
 	})
 	if err != nil {
 		return err

@@ -536,6 +536,19 @@ consumer validation.
   all `loom:vet:*` metadata, timestamps, and filesystem paths, and must
   serialize maps deterministically. `loom vet` reports design skew separately
   from Loom version skew.
+  `internal/designfingerprint.Design` owns the explicit canonical package and
+  complete ordered evaluated roots; capture before Prepare plugins or generators
+  mutate them. `Manifest` is shared by emission, staged validation and vet.
+  `generator.Generate` requires the design import path; `vet.Analyze` requires
+  the complete roots and origin, deriving its core root from that same input.
+  Resolve relative CLI package spelling through the existing package loader.
+  Reject invalid origins and nil/missing/duplicate roots; do not infer origin
+  from output paths or fall back to an expr-only digest. Attribute manifests
+  before comparing digests while retaining module-wide version diagnostics.
+  Old unattributed manifests require regeneration. Preserve ordered-root,
+  cyclic-plugin, A/B-origin and actual CLI controls; generated command comments
+  may reflect invocation spelling, but manifest identity must not.
+
 - Keep helpers package-private or under an `internal` package when only one
   codegen area needs them.
 - `internal/enumvalue` normalizes already canonical builtin scalars without

@@ -114,7 +114,7 @@ func TestVetGeneratorUsesDesignModuleDirectory(t *testing.T) {
 	require.Equal(t, moduleDir, filepath.Dir(generator.tmpDir))
 	source, err := os.ReadFile(filepath.Join(generator.tmpDir, "main.go"))
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(source), `loomvet.Analyze(expr.Root, "`+moduleDir+`")`))
+	require.True(t, strings.Contains(string(source), `loomvet.Analyze(roots, "`+moduleDir+`", "example.com/service/design")`))
 }
 
 func TestVetGeneratorTemporaryPackageIsExcludedFromModuleScan(t *testing.T) {

@@ -63,15 +63,19 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 	var version int
 	var hasVendorDirectory bool
 	var moduleDir string
+	designPath := path
 	{
 		version = codegen.DesignVersion
 		matched := false
 		startPkgLoad := time.Now()
-		pkgs, _ := packages.Load(&packages.Config{Mode: packages.NeedFiles | packages.NeedModule}, path)
+		pkgs, _ := packages.Load(&packages.Config{Mode: packages.NeedName | packages.NeedFiles | packages.NeedModule}, path)
 		debugStage(debug, "design-package-load", startPkgLoad, "path=%s packages=%d", path, len(pkgs))
 		fset := token.NewFileSet()
 		p := regexp.MustCompile(`github.com/CaliLuke/loom(?:/v(\d+))?/dsl`)
 		for _, pkg := range pkgs {
+			if pkg.PkgPath != "" && len(pkg.Errors) == 0 {
+				designPath = pkg.PkgPath
+			}
 			// Nil check in case packages.Load can't get module info
 			if pkg.Module != nil {
 				if moduleDir == "" {
@@ -109,7 +113,7 @@ func NewGenerator(cmd, path, output string, debug bool) *Generator {
 
 	return &Generator{
 		Command:            cmd,
-		DesignPath:         path,
+		DesignPath:         designPath,
 		Output:             output,
 		DesignVersion:      version,
 		hasVendorDirectory: hasVendorDirectory,
@@ -141,6 +145,7 @@ func (g *Generator) Write(_ bool) error {
 		isVet := g.Command == "vet"
 		data := map[string]any{
 			"Command":       g.Command,
+			"DesignPath":    g.DesignPath,
 			"DesignVersion": g.DesignVersion,
 			"Vet":           isVet,
 			"ModuleDir":     g.moduleDir,
@@ -394,7 +399,11 @@ const mainT = `func main() {
 
 {{- if .Vet }}
 	startVet := time.Now()
-	report, err := loomvet.Analyze(expr.Root, {{ printf "%q" .ModuleDir }})
+	roots, err := eval.Context.Roots()
+	if err != nil {
+		failStage("eval.Roots", err)
+	}
+	report, err := loomvet.Analyze(roots, {{ printf "%q" .ModuleDir }}, {{ printf "%q" .DesignPath }})
 	if err != nil {
 		failStage("vet.Analyze", err)
 	}
@@ -405,7 +414,7 @@ const mainT = `func main() {
 	}
 {{- else }}
 	startGenerate := time.Now()
-	outputs, err := generator.Generate(*out, {{ printf "%q" .Command }}, *debug)
+	outputs, err := generator.Generate(*out, {{ printf "%q" .Command }}, {{ printf "%q" .DesignPath }}, *debug)
 	if err != nil {
 		failStage("generator.Generate", err)
 	}

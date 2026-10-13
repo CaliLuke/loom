@@ -1,4 +1,5 @@
 {
   "loom_version": "(devel)",
-  "design_digest": "05c6e605171890a7ec4e5fe161a3a2595c5c968f8c195ba44b1e6ee373308939"
+  "design_package": "example.com/mixedtick/design",
+  "design_digest": "0ff910713319c1da4f8ef3eb9e5323f91861df0168c1b62223ad726400a7ccaa"
 }

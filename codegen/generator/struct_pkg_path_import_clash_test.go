@@ -108,10 +108,10 @@ func TestStructPkgPathFrameworkImportNamesCompile(t *testing.T) {
 		name, _, _ := strings.Cut(c.Name, "-")
 		codegen.RunDSL(t, structPkgPathClashDSL(name, c.Interceptors))
 		dir := writeStructPkgPathModule(t, source)
-		_, err := Generate(dir, "gen", false)
+		_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 		require.NoError(t, err, c.Name)
 		if !c.Interceptors {
-			_, err = Generate(dir, "example", false)
+			_, err = Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err, c.Name)
 		}
 		for path, wants := range c.Files {

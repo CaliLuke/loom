@@ -28,9 +28,9 @@ func TestDiagnosticCredentialExampleWiring(t *testing.T) {
 			dir := t.TempDir()
 			mod := fmt.Sprintf("module example.com/diagnostics\n\ngo 1.27\n\nrequire github.com/CaliLuke/loom v1.10.0-alpha.9.0.20261013051947-ee4552dc94ee\n\nreplace github.com/CaliLuke/loom => %s\n", loomModuleSource(t))
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(mod), 0600))
-			_, err := Generate(dir, "gen", false)
+			_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
-			_, err = Generate(dir, "example", false)
+			_, err = Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
 			if tc.credential {
 				for _, transport := range []struct {

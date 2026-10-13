@@ -32,7 +32,7 @@ func TestGenerateDebugDiagnostics(t *testing.T) {
 
 	dir := t.TempDir()
 	stderr, err := captureGeneratorStderr(t, func() error {
-		outputs, genErr := Generate(dir, "gen", true)
+		outputs, genErr := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", true)
 		require.NoError(t, genErr)
 		require.NotEmpty(t, outputs)
 		return nil
@@ -84,7 +84,7 @@ func TestGenerateEmitsDeduplicatedWarningsWithoutDebug(t *testing.T) {
 	}
 
 	stderr, err := captureGeneratorStderr(t, func() error {
-		_, genErr := Generate(t.TempDir(), "gen", false)
+		_, genErr := Generate(t.TempDir(), "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 		return genErr
 	})
 
@@ -115,7 +115,7 @@ func TestGenerateWrapsWriteFailuresWithStageAndPath(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	_, err := Generate(dir, "gen", true)
+	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", true)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "stage write-files")
 	require.ErrorContains(t, err, filepath.Join(codegen.Gendir, "types", "broken.go"))

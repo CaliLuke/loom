@@ -22,9 +22,11 @@ import (
 )
 
 // Generate renders the command output and returns each written artifact with
-// its write intent. Callers installing staged output must apply SkipExist to the
-// live destination rather than treating every rendered path as replaceable.
-func Generate(dir, cmd string, debug bool) (outputs []codegen.Artifact, err1 error) {
+// its write intent. designPackage is the canonical import path of the evaluated
+// design that owns the output. Callers installing staged output must apply
+// SkipExist to the live destination rather than treating every rendered path
+// as replaceable.
+func Generate(dir, cmd, designPackage string, debug bool) (outputs []codegen.Artifact, err1 error) {
 	startGenerate := time.Now()
 	registry := codegen.DefaultRegistrySnapshot()
 
@@ -33,13 +35,18 @@ func Generate(dir, cmd string, debug bool) (outputs []codegen.Artifact, err1 err
 		return nil, err
 	}
 
+	design := designfingerprint.Design{Package: designPackage, Roots: roots}
+	if _, err := design.Validate(); err != nil {
+		return nil, wrapStageError("design-provenance", "", err)
+	}
+
 	genpkg, err := computeGenPackage(dir, debug)
 	if err != nil {
 		return nil, err
 	}
 	var designDigest string
 	if cmd == "gen" {
-		designDigest, err = designfingerprint.Digest(expr.Root, cmd, genpkg, codegen.DesignVersion)
+		designDigest, err = designfingerprint.Digest(design, cmd, genpkg, codegen.DesignVersion)
 		if err != nil {
 			return nil, wrapStageError("design-digest", "", err)
 		}
@@ -61,7 +68,7 @@ func Generate(dir, cmd string, debug bool) (outputs []codegen.Artifact, err1 err
 	if err != nil {
 		return nil, err
 	}
-	outputs, err = renderGeneratedFiles(dir, cmd, designDigest, genfiles, debug)
+	outputs, err = renderGeneratedFiles(dir, cmd, designPackage, designDigest, genfiles, debug)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +79,7 @@ func Generate(dir, cmd string, debug bool) (outputs []codegen.Artifact, err1 err
 
 // renderGeneratedFiles admits and merges output before installing files and
 // applying removals. Admission must precede all rendering side effects.
-func renderGeneratedFiles(dir, cmd, designDigest string, genfiles []*codegen.File, debug bool) ([]codegen.Artifact, error) {
+func renderGeneratedFiles(dir, cmd, designPackage, designDigest string, genfiles []*codegen.File, debug bool) ([]codegen.Artifact, error) {
 	if err := normalizeFilePolicies(dir, genfiles); err != nil {
 		return nil, wrapStageError("file-policies", "", err)
 	}
@@ -91,7 +98,7 @@ func renderGeneratedFiles(dir, cmd, designDigest string, genfiles []*codegen.Fil
 
 	// 8. Emit loom.json generation manifest (gen command only).
 	if cmd == "gen" {
-		genfiles = append(genfiles, codegen.ManifestFile(designDigest))
+		genfiles = append(genfiles, codegen.ManifestFile(designPackage, designDigest))
 	}
 
 	written, err := writeFiles(dir, genfiles, debug)

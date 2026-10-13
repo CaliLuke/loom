@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/CaliLuke/loom/internal/designfingerprint"
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
@@ -42,13 +43,12 @@ func ScaffoldHeader(title, pack string, imports []*ImportSpec) *SectionTemplate 
 }
 
 // ManifestFile returns the generation manifest written to gen/loom.json.
-func ManifestFile(designDigest string) *File {
-	data := struct {
-		LoomVersion  string `json:"loom_version"`
-		DesignDigest string `json:"design_digest"`
-	}{
-		LoomVersion:  loom.Version(),
-		DesignDigest: designDigest,
+// designPackage is the canonical origin whose evaluated input designDigest covers.
+func ManifestFile(designPackage, designDigest string) *File {
+	data := designfingerprint.Manifest{
+		LoomVersion:   loom.Version(),
+		DesignPackage: designPackage,
+		DesignDigest:  designDigest,
 	}
 	b, err := json.Marshal(data, json.Deterministic(true), jsontext.WithIndent("  "))
 	if err != nil {

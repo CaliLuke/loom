@@ -34,7 +34,7 @@ func TestArtifactWriteIntentRejectsConflictingPolicies(t *testing.T) {
 				}}, nil
 			}
 			dir := t.TempDir()
-			_, err := Generate(dir, "example", false)
+			_, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.ErrorContains(t, err, "conflicting write policies")
 			_, err = os.Lstat(filepath.Join(dir, "custom.txt"))
 			require.ErrorIs(t, err, os.ErrNotExist)
@@ -59,13 +59,13 @@ func TestArtifactWriteIntentSurvivesRendering(t *testing.T) {
 		}}, nil
 	}
 	dir := t.TempDir()
-	outputs, err := Generate(dir, "example", false)
+	outputs, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
 	require.Len(t, outputs, 2)
 	require.Equal(t, "create.txt", filepath.Base(outputs[0].Path))
 	require.True(t, outputs[0].SkipExist)
 	require.False(t, outputs[1].SkipExist)
-	outputs, err = Generate(dir, "example", false)
+	outputs, err = Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
 	require.Len(t, outputs, 1)
 	require.Equal(t, "replace.txt", filepath.Base(outputs[0].Path))
@@ -94,7 +94,7 @@ func TestArtifactWriteIntentMergesEqualPolicies(t *testing.T) {
 				}}, nil
 			}
 			dir := t.TempDir()
-			outputs, err := Generate(dir, "example", false)
+			outputs, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
 			require.Len(t, outputs, 1)
 			require.Equal(t, policy, outputs[0].SkipExist)
@@ -118,7 +118,7 @@ func TestArtifactWriteIntentRejectsCreateOnlyGenerationTree(t *testing.T) {
 				}}, nil
 			}
 			dir := t.TempDir()
-			_, err := Generate(dir, "gen", false)
+			_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.ErrorContains(t, err, "create-only artifact")
 			require.ErrorContains(t, err, "must be outside gen/")
 			require.NoFileExists(t, filepath.Join(dir, "gen", "custom.txt"))
@@ -148,7 +148,7 @@ func TestArtifactWriteIntentRejectsLiveAliasBeforeRendering(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "gen"), 0o750))
 	require.NoError(t, os.Symlink("gen", filepath.Join(dir, "alias")))
-	_, err := Generate(dir, "example", false)
+	_, err := Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.ErrorContains(t, err, "must be outside gen/")
 	require.NoFileExists(t, filepath.Join(dir, "prepared.txt"))
 	require.NoDirExists(t, filepath.Join(dir, "gen", "missing"))

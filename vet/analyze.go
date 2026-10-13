@@ -6,7 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/designfingerprint"
 	"github.com/CaliLuke/loom/internal/exactnum"
 )
 
@@ -29,13 +31,19 @@ var (
 	ipAnyPattern                = regexp.MustCompile(`\b(ip|ipv4|ipv6) address\b`)
 )
 
-// Analyze inspects an evaluated design and the Go module rooted at moduleDir.
-func Analyze(root *expr.RootExpr, moduleDir string) (Report, error) {
+// Analyze inspects the complete ordered evaluated roots and the Go module rooted
+// at moduleDir. designPackage is their canonical originating import path.
+func Analyze(roots []eval.Root, moduleDir, designPackage string) (Report, error) {
+	design := designfingerprint.Design{Package: designPackage, Roots: roots}
+	root, err := design.Validate()
+	if err != nil {
+		return Report{}, fmt.Errorf("analyze evaluated design: %w", err)
+	}
 	var report Report
 	analyzeHTTPErrorSemantics(root, &report)
 	analyzeAttributeSemantics(root, &report)
 
-	sourceDiagnostics, err := analyzeModuleWithDesign(moduleDir, root)
+	sourceDiagnostics, err := analyzeModuleWithDesign(moduleDir, root, &design)
 	if err != nil {
 		return Report{}, err
 	}

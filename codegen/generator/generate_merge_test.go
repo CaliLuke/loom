@@ -50,7 +50,7 @@ func TestGenerateMergesSamePathFiles(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	_, err := Generate(dir, "gen", false)
+	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestGenerateManifestFingerprintsDesignBeforeGeneratorsMutateIt(t *testing.T
 		return []genfunc{
 			func(genpkg string, roots []eval.Root) ([]*codegen.File, error) {
 				var err error
-				expectedDigest, err = designfingerprint.Digest(expr.Root, cmd, genpkg, codegen.DesignVersion)
+				expectedDigest, err = designfingerprint.Digest(designfingerprint.Design{Package: "github.com/CaliLuke/loom/codegen/generator", Roots: roots}, cmd, genpkg, codegen.DesignVersion)
 				require.NoError(t, err)
 				expr.Root.Services = append(expr.Root.Services, &expr.ServiceExpr{Name: "generator-mutation"})
 				return nil, nil
@@ -91,7 +91,7 @@ func TestGenerateManifestFingerprintsDesignBeforeGeneratorsMutateIt(t *testing.T
 	}
 
 	dir := t.TempDir()
-	_, err := Generate(dir, "gen", false)
+	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	require.NoError(t, err)
 
 	manifestData, err := os.ReadFile(filepath.Join(dir, codegen.Gendir, "loom.json"))
@@ -131,7 +131,7 @@ func TestGenerateParallelManyFiles(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	outputs, err := Generate(dir, "gen", false)
+	outputs, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestGenerateParallelWithMerge(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	outputs, err := Generate(dir, "gen", false)
+	outputs, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestGenerateParallelErrorHandling(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	_, err := Generate(dir, "gen", false)
+	_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	if err == nil {
 		t.Fatal("expected error from parallel generation, got nil")
 	}
@@ -295,7 +295,7 @@ func TestGenerateParallelSingleFile(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	outputs, err := Generate(dir, "gen", false)
+	outputs, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}

@@ -81,9 +81,9 @@ func TestNonASCIINamesGeneratedModuleBuilds(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
 			cg.RunDSL(t, c.DSL)
-			_, err := Generate(dir, "gen", false)
+			_, err := Generate(dir, "gen", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
-			_, err = Generate(dir, "example", false)
+			_, err = Generate(dir, "example", "github.com/CaliLuke/loom/codegen/generator", false)
 			require.NoError(t, err)
 			for _, path := range c.Files {
 				assert.FileExists(t, filepath.Join(dir, path))
