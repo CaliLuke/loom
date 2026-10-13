@@ -181,6 +181,13 @@ consumer validation.
   reject authored members without native storage instead of discarding them.
   Nested default expansion tracks active value identities and rejects cycles.
   Keep the default-representation models and generated transport controls aligned.
+- `expr.valueViewPlan.project` preserves intrinsic result declaration Nullable
+  independently of copied occurrence Nullable and selected-view requiredness.
+  Keep declaration cache identity keyed by source and selected view; a nullable
+  field must not promote its shared declaration. The
+  [projection nullability model](../../../expr/tla/project_nullability/README.md)
+  covers this boundary; generated selected-view physical carriers remain a
+  separate service-codegen obligation.
 - Shared validation distinguishes complete named definitions from occurrences.
   `NamedValidationFunction` resolves the callable identifier, physical carrier
   and static field mode; consumers must use that same owner for declarations and

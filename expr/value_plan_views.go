@@ -51,6 +51,7 @@ func (p *valueViewPlan) project(rt *ResultTypeExpr, name string) (*ResultTypeExp
 			UID:      rt.projectIdentifier(name),
 			AttributeExpr: &AttributeExpr{
 				Type:              object,
+				Nullable:          rt.Nullable,
 				Description:       projectedResultDescription(rt, name),
 				Validation:        projectedResultValidation(rt, view),
 				valueOrigin:       valueAttributeOrigin(rt.AttributeExpr),

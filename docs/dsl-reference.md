@@ -304,6 +304,14 @@ also applies to the fields included in each view. Explicit `ViewRequired` and
 `ViewOptional` overrides still take precedence. The original result type and
 other methods using it retain their own requirements.
 
+Selecting a view also preserves a result type's intrinsic `Nullable()` contract,
+including nested results and collection elements. Declare intrinsic result
+nullability inside `Attributes`; field-local `Nullable()` remains local to that
+field. View selection does not make an ordinary shared result type nullable.
+Generated nullable viewed objects still have a separate
+[carrier handling limitation](https://github.com/CaliLuke/loom/issues/834);
+preserving the semantic contract does not resolve that compilation limitation.
+
 #### Arrays
 
 Arrays define ordered collections with optional validation:
