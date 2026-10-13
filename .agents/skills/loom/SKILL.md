@@ -854,6 +854,10 @@ Credentials may use `String` or a named string type. Their payload fields retain
 that type; authentication callbacks receive strings. Non-string, nullable and
 `struct:field:type` credential overrides are rejected during DSL validation.
 Basic-auth CLI values are plain strings, including for named credential types.
+HTTP and JSON-RPC CLIs use one direct flag for each payload field, even when Basic
+credentials or ordinary fields feed several explicit transport mappings. The
+single payload value supplies every mapping. Body flags remain separate; direct
+field flags keep their existing precedence. Regenerate to remove duplicate flags.
 
 HTTP mappings reject different fields sharing a header, query or cookie name;
 headers compare case-insensitively. This includes inferred Authorization mappings.

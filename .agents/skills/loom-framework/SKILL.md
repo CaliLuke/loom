@@ -476,7 +476,13 @@ consumer validation.
   Basic CLI arguments use physical strings; the shared field initializer owns
   conversion to service aliases. Their argument records retain each credential's
   effective default independently so flag metadata, field loading and physical
-  pointer/value representation agree across HTTP and JSON-RPC. gRPC metadata
+  pointer/value representation agree across HTTP and JSON-RPC. `cliPayloadArgs`
+  projects direct inputs by logical AttributeData.Name before flags and payload
+  builders consume them. Retain the first complete argument, whole-body carrier
+  identity and ordering; never deduplicate allocated locals or change wire/server
+  constructor arguments. Its fresh slice must not mutate cached argument storage.
+  Keep `http/codegen/tla/cli_sources` and full generated CLI wire controls aligned.
+  gRPC metadata
   records its physical decoded type
   separately from the service field type and uses `InitStructFields` for the
   constructor assignments, including pointer presence.

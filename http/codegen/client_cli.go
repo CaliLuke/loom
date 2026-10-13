@@ -381,8 +381,7 @@ func buildFlags(svc *ServiceData, e *EndpointData) ([]*cli.FlagData, *cli.BuildF
 			// An object payload without arguments, such as an object type
 			// without attributes, gets a builder without flags: the command
 			// parser cannot refer to the service type itself.
-			args := init.ClientArgs
-			args = append(args, init.CLIArgs...)
+			args := cliPayloadArgs(init)
 			flags, buildFunction = makeFlags(e, args, e.Payload.Request.PayloadType, cliJSONPackageName(svc)+".UnmarshalJSON")
 		} else if e.Payload.Ref != "" {
 			flag := cli.NewFlagData(svcn, en, "p", e.Method.PayloadRef, e.Method.PayloadDesc, true, e.Method.PayloadEx, e.Method.PayloadDefault)
@@ -397,6 +396,27 @@ func buildFlags(svc *ServiceData, e *EndpointData) ([]*cli.FlagData, *cli.BuildF
 	}
 
 	return flags, buildFunction
+}
+
+// cliPayloadArgs selects one direct CLI input per logical payload field. Wire
+// mappings and implicit credentials can share that field even when their allocated
+// locals differ. Keep the first complete argument and retain independent body
+// carriers, whose identity is also used by the detached JSON decoding plan.
+func cliPayloadArgs(init *InitData) []*InitArgData {
+	args := make([]*InitArgData, 0, len(init.ClientArgs)+len(init.CLIArgs))
+	seen := make(map[string]bool)
+	for _, inputs := range [][]*InitArgData{init.ClientArgs, init.CLIArgs} {
+		for _, arg := range inputs {
+			if arg.FieldName != "" {
+				if seen[arg.Name] {
+					continue
+				}
+				seen[arg.Name] = true
+			}
+			args = append(args, arg)
+		}
+	}
+	return args
 }
 
 // makeFlags creates flag data and build function from endpoint arguments.

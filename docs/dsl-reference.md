@@ -2402,6 +2402,12 @@ Use `String` or a named string type for credentials. Payload fields retain named
 types, while authentication callbacks receive strings. Non-string, nullable and
 custom Go type overrides on credentials are rejected at design validation.
 Basic-auth CLI flags accept plain string values even for named credential types.
+HTTP and JSON-RPC CLIs expose one direct flag per payload attribute, including a
+credential explicitly mapped to query parameters, headers, cookies or a path.
+That value supplies Basic authentication and every authored mapping of the same
+attribute. Repeated mappings do not require duplicate flags. Body flags remain
+separate inputs; direct field flags retain their existing precedence over body
+values when constructing the payload. Regenerate the CLI after upgrading.
 
 Basic-auth header presence is independent of its two components. The client
 sends the header if either component is required or present; an absent optional
