@@ -16,7 +16,7 @@ object keys or opaque user codecs merely because their semantic kind is broad.
 4. [x] Freeze additive regressions, source evidence and a bounded acceptance
    matrix for independent readiness review.
 5. [x] Implement only the approved owner after readiness approval.
-6. [ ] Compare representative parent/candidate/repeat outputs, compile and test
+6. [x] Compare representative parent/candidate/repeat outputs, compile and test
    affected consumers, then obtain exact final review before one atomic commit.
 
 The public `MapOf` example uses an object `Bottle` key. Go service rendering uses
@@ -121,5 +121,7 @@ The constructed map-key-map witness now exercises root admission directly;
 restoring the parent root/traversal in a direct-test overlay reproduces its red.
 That overlay is not used for CLI or generated-output evidence.
 
-The exact final packet is frozen for independent review. No commit or delivery
-is claimed until that review and root integration finish.
+Delivered as `d3cb9ad26`, independently reviewed, pushed and confirmed closed.
+Final and integration verdicts: `/tmp/loom-702-independent-final-verdict.json` and
+`/tmp/loom-702-independent-integration-verdict.json`. The separately reproduced
+custom Bytes-key automatic-example panic is tracked as #884.

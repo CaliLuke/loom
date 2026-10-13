@@ -1,5 +1,8 @@
 # gRPC server receiver identity — #880
 
+Delivered as `cc3cc5ee2`, independently reviewed, pushed and confirmed closed.
+Final verdict: `/tmp/loom-880-independent-final-verdict.json`.
+
 The generated server currently derives handler fields by appending `H` to the
 canonical service method. A legal `mount` / `mountH` pair therefore declares a
 field and RPC method named `MountH` on one receiver. Handler declaration,
@@ -23,7 +26,7 @@ adds another concrete receiver member.
    build/vet complete generated modules, exercise mounted unary/stream dispatch
    and authentication, and compare independent-process generation byte for byte.
    Preserve unchanged ordinary outputs and identify each intended difference.
-6. [ ] Update framework ownership documentation and any necessary regeneration
+6. [x] Update framework ownership documentation and any necessary regeneration
    guidance, obtain independent exact-final review, commit, push and close.
 
 The embedding name is externally determined by protobuf. Investigation must

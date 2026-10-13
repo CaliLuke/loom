@@ -1,5 +1,9 @@
 # Generated receiver naming closure — #883
 
+Delivered as `814a3a2e3`, independently reviewed, pushed and confirmed closed.
+Final and integration verdicts: `/tmp/loom-883-independent-final-verdict.json`
+and `/tmp/loom-883-integration-verdict.json`.
+
 ## Contract and bounded inventory
 
 Every concrete Go receiver has one complete declaration plan. Preserve authored
@@ -10,10 +14,10 @@ namespace and does not merge receiver, package and import scopes.
 
 | Scope | Owner and emitted consumers | Evidence / remaining obligation |
 | --- | --- | --- |
-| Service Client | `service.assignEndpointFields`; `clientStructSection`, `clientInitSection`, `buildClientMethod`, `endpointData` | Defect: mixed method rendering reconstructs `VarName + "Stream"`; allocation reserves but discards that identity. Authored `watchStream` therefore duplicates the synthetic method. Constructor arguments already have their own scope; interceptor wrapper declarations are package-owned. |
-| HTTP/JSON-RPC Client | `http/codegen.finalizeClientMembers`; concrete methods/builders/Doers, group accessors, CLI adapters | Delivered #879 records endpoint, stream, request and Doer identities. Existing rendered complete-member inventories and mounted dispatch checks cover this scope. The same colliding design has unique transport members while the service Client fails. |
+| Service Client | `service.assignClientMembers` (replaces `assignEndpointFields`); `clientStructSection`, `clientInitSection`, `buildClientMethod`, `endpointData` | Delivered allocation records the synthetic method identity after reserving authored methods; rendering consumes that record instead of reconstructing `VarName + "Stream"`. Constructor arguments already have their own scope; interceptor wrapper declarations are package-owned. |
+| HTTP/JSON-RPC Client | `http/codegen.finalizeClientMembers`; concrete methods/builders/Doers, group accessors, CLI adapters | Delivered #879 records endpoint, stream, request and Doer identities. Existing rendered complete-member inventories and mounted dispatch checks cover this scope. The same colliding design also covers the service Client boundary in #883. |
 | HTTP/JSON-RPC Server | `http/codegen.finalizeServerMembers`; constructor, mount, middleware, dispatch, copied WebSocket fields | Delivered #700 records handler/endpoint identities and includes copied WebSocket receiver members. Existing emitted-member inventories and mounted checks cover this scope. |
-| gRPC Server | `grpc/codegen.finalizeServerMembers` in active #880 | Root-owned implementation separately reserves RPCs and embedding before handler/admission fields; an embedding alias crosses package/import and receiver scopes. Its pending compiler/registration checks own that boundary. This task neither edits nor claims delivery of #880. |
+| gRPC Server | `grpc/codegen.finalizeServerMembers` (#880) | Delivered `cc3cc5ee2` reserves RPCs and embedding before handler/admission fields; compiler and mounted registration checks cover the alias crossing package/import and receiver scopes. |
 
 The inventory stops here: these are the concrete receiver owners implicated by
 the known naming family. It is not a claim that all generated package namespaces
@@ -38,7 +42,7 @@ or every possible authored name have been exhaustively audited.
    synthetic methods, proving ordinary/stream endpoint routing, interception and
    propagation of endpoint errors. Verify file/import reanalysis retains the
    recorded receiver identities. No new transport protocol behavior is proposed.
-6. [ ] Compare bounded parent/candidate/repeat output through existing renderer:
+6. [x] Compare bounded parent/candidate/repeat output through existing renderer:
    ordinary, normal mixed and original colliding HTTP modules. Only collision
    service-client declaration/GoDoc and necessary field identities may change;
    service interfaces, transport clients, wire mappings and wrappers stay exact.
@@ -88,7 +92,7 @@ Remove or internalize the now-pass-through `AssignEndpointFields` method rather
 than creating an additional allocation layer. File/import reanalysis must use
 the same canonical method order and therefore reproduce the role plan.
 
-## Final acceptance (awaiting independent review)
+## Final acceptance and delivery
 
 The owner now records `ClientStreamMethod` and renders both its declaration and
 GoDoc; the discarded reservation and pass-through field allocator are removed.
@@ -113,4 +117,4 @@ matrix or model was introduced. Evidence: `/tmp/loom-883-artifact-comparison.jso
 
 The exit condition is the remaining service Client receiver boundary, not every
 possible codegen namespace. #879/#700 already cover the inspected transport
-receiver boundaries; #880's distinct native-server delivery remains root-owned.
+receiver boundaries; #880 independently covers the native-server receiver boundary.

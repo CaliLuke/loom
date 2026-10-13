@@ -4,25 +4,25 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **156 of 204 tracked reports are delivered, pushed and confirmed closed.**
-  The [inventory](framework-correctness-inventory.md) records each report and
-  the live snapshot `/tmp/loom-current-all-issues.json` verifies its GitHub state.
-- Latest delivery: transport-client receiver identity #879 (`64fcddc25`),
-  independently reviewed, pushed and confirmed closed. Endpoint factories,
-  request builders, Doer fields and operation groups consume one allocated
-  receiver contract. The service-client boundary remains open as #883.
-- #703 parent parity evidence was corrected after review found that the CLI
-  clears Go overlay flags. An exact archived parent now generates the same 30
-  artifacts, and both modules build/vet. Root independently verified the archive
-  against Git and every artifact hash. The original overlay claim is superseded;
-  source behavior needed no correction. The owning plan records both receipts.
-- Required CI remains unresolved. Run `38426367101` on #882 passed all checks
-  except race; both failing tests report the known #820 libopenapi YAML merge
-  race. Release eligibility consequently failed. Current-main tests are queued;
-  passing earlier jobs do not establish current-main CI green.
-- #883 records a distinct canonical service-client collision discovered while
-  repairing transport clients. Preserve its failing witness; do not count it as
-  resolved by #879. Continue the whole backlog.
+- **159 of 206 tracked reports are delivered, pushed and confirmed closed.**
+  The [inventory](framework-correctness-inventory.md) records each report;
+  `/tmp/loom-current-all-issues.json` is the current GitHub reconciliation input.
+- Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
+  client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
+  client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
+  receiver scope; declarations and references consume recorded names.
+- Shared map-key representation admission #702 (`d3cb9ad26`) rejects unsupported
+  native keys before generation across every design root. Its supported custom
+  Bytes-key example-synthesis residual is independently reproduced as #884;
+  it is not fixed by admission and must not be hidden by rejecting custom keys.
+- Required CI remains red. Run `38430436877` on `d98cab3ef` fails root tests,
+  race and the gRPC compile partition. #885 tracks stale metadata fixtures and
+  native-peer controls after #705; all named failures reproduce on current main.
+  The race job also retains the known #820 libopenapi YAML merge race. Newer
+  runs are queued or running; no current-main CI success is claimed.
+- #703 parent parity evidence uses an exact archived parent, superseding the
+  invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
+  its owning plan preserves the independently checked correction.
 
 ## Execution focus after architecture check
 
@@ -31,15 +31,12 @@ Organize active work by the owning contract and its consumers; use individual
 reports as regression witnesses. Older milestone checkboxes below require
 reconciliation with the inventory before they can establish remaining work.
 
-- Finish the reviewed transport-client and active gRPC-server identity repairs.
-  Before implementing the service-client follow-up #883, reconcile declaration
-  and reference ownership across service Client, HTTP/JSON-RPC Client, HTTP
-  Server and gRPC Server, including package/embedding crossings. Reuse NameScope;
-  allocate and record every concrete role in its actual scope, then consume that
-  identity. Do not create a global namespace or a new allocator per symptom.
-- Keep #702 at shared map-key representation admission. Preserve supported
-  representations and validate affected occurrences before generator capture;
-  do not expand into unrelated custom-type semantics.
+- Receiver-name repairs #700/#879/#880/#883 have one reconciled declaration and
+  reference inventory in [the service-client plan](service-client-member-identity.md).
+  Existing NameScope owns allocation within each actual scope. Do not infer
+  closure of unrelated package namespaces from these receiver checks.
+- #702 is delivered at shared map-key representation admission. The separate
+  generated-example owner still needs #884; preserve valid custom representations.
 - Select subsequent work by unresolved correctness contracts and impact, not
   ticket closure throughput. State the owner, superseded paths, affected
   consumers and family exit condition before implementation.
@@ -51,29 +48,33 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Generated receiver identities:** #879 is delivered. Agent
-   `/root/projection_integration_review` implements the gRPC receiver owner
-   (#880) in the root checkout; `/root/diagnostic_redaction_finish` prepares the
-   service-client repair (#883) in `grpc-message-context/loom`. Reconcile one
-   declaration/reference inventory across the affected receivers, preserve
-   canonical service/wire names, and reuse existing NameScope and model evidence.
-2. **Map-key admission:** `/root/omission_readiness_finish` implements the shared
-   map-occurrence owner (#702) in `numeric-comparison/loom` after independent
-   readiness approval. Reject native slice/map key representations through named
-   aliases before capture; preserve object pointers, Any and authored custom
-   representations. Reuse the bounded valid-output and rejected-design matrix.
-3. **Remaining contract families:** select subsequent work by impact after the
-   active owner repairs. Interceptor declaration/type and stream-operation
-   contracts still require reconciliation across #767/#770/#785/#786; do not
-   derive per-method accessor bodies from the first method's storage shape.
-4. **#820 dependency race:** authorized libopenapi
-   [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at last
-   check, without new human review. Keep pins unchanged until an eligible
-   upstream revision exists.
-5. **#800 read shutdown:** independently approved 53-file packet remains in
-   `bounded-streaming-shutdown`. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
-   remains open at last check; original-module fetchability gates delivery.
-   Then resume #687 constructor rollback; #704 worker publication is separate.
+1. **Metadata contract adoption (#885):** `/root/diagnostic_redaction_finish`
+   reuses `grpc-message-context/loom` after preserving delivered #883 evidence.
+   Reconcile all affected gRPC fixtures, canonical-key assertions and native-peer
+   controls. Preserve valid security coverage through distinct explicit bindings,
+   regenerate affected goldens, and assert actual binary values. Production
+   semantics remain the accepted #705 owner; no collision-admission weakening.
+2. **Interceptor contracts (#767/#785):** `/root/projection_integration_review`
+   prepares readiness in `interceptor-accessor-union/loom`. Shared logical accessor
+   signatures need method-specific physical bindings; stream adapters must consume
+   actual operation/carrier contracts. Keep distinct owners in separate atomic
+   repairs. #770 is a package declaration obligation; #786's original witness now
+   compiles and needs independent reconciliation, not a replacement allocator.
+3. **Multipart source budget (#759):** `/root/omission_readiness_finish`
+   prepares readiness in `numeric-comparison/loom`. Own source-byte accounting
+   before parser construction for built-in and custom callbacks, and require
+   bounded source completion before successful dispatch. Reuse existing runtime
+   and mounted request-limit coverage; remove part-value accounting.
+4. **Remaining runtime families:** reconcile pool construction/publication and
+   scheduler lifetime together before choosing their shared-owner repairs. #687
+   waits on #800; #704 worker publication may be independently repairable. Preserve
+   the #884 generated-example witness for the representation-synthesis owner.
+5. **Dependency gates:** #820 libopenapi
+   [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
+   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at last
+   inspection. The approved #800 packet is in `bounded-streaming-shutdown`;
+   original-module fetchability gates delivery. Do not substitute cache-primed
+   success for an eligible upstream revision.
 
 Completed cleanup receipts preserve compact evidence and exact reproduction
 inputs after activity checks: #872 `/tmp/loom-872-cleanup-receipt.json`, #790
