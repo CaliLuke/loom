@@ -240,9 +240,18 @@ func (a *Analyzer) ClaimExplicitName(name, fingerprint string) string {
 	return name
 }
 
-// FingerprintAttribute computes the canonical structural fingerprint for the attribute.
+// FingerprintAttribute computes the canonical schema fingerprint, including
+// checked enum projections retained by prepared attribute declarations.
 func (a *Analyzer) FingerprintAttribute(att *expr.AttributeExpr) string {
-	return fingerprintAttribute(att, a.closeObjects)
+	encoder := newCanonicalSchemaEncoder()
+	encoder.enums = func(attribute *expr.AttributeExpr) [][]any {
+		annotations, err := standaloneSchemaValueAnnotations(attribute)
+		if err != nil && a.err == nil {
+			a.err = fmt.Errorf("fingerprint OpenAPI schema values: %w", err)
+		}
+		return schemaAnnotationEnums(annotations.Enums)
+	}
+	return encoder.fingerprint(att, a.closeObjects)
 }
 
 func mergeStreamingBodyNote(req, streaming *Schema) *Schema {

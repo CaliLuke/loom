@@ -119,6 +119,14 @@ consumer validation.
   empty domain. Renderers may retain authored overlays for
   schema composition, but must not select semantic precedence independently.
   `Reference` remains object-template copying rather than named-type ancestry.
+- Mapped attribute preparation retains the eliminated named declaration edge
+  before existing constraint parents. Keep inherited enums at their declaring
+  occurrence; never copy a selected public validation carrier onto a refined
+  body as newly authored constraints. Controlled ancestor-enum projection matches
+  logical attribute names while preserving target wire spelling. OpenAPI enum
+  emission and schema identity consume the same checked annotation owner, even
+  without local validation. Raw example-seed hashing remains structural. Keep
+  `expr/tla/prepared_enum_provenance` and generated body/spec controls aligned.
 - `internal/exactnum.Number` owns immutable exact numeric values across DSL,
   source import, expressions, native thresholds and JSON Schema. Preserve native
   float values and original JSON/YAML numeric kinds; source adapters own grammar,

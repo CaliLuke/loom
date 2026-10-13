@@ -190,6 +190,11 @@ Review regenerated SDK and validator output when updating Loom; equivalent
 OpenAPI schemas can still produce different client declarations. See the
 [OpenAPI evolution guide](../../../docs/openapi-evolution.md).
 
+Inherited object enums remain predicates when a derived field adds constraints.
+HTTP bodies and OpenAPI retain the original declaration; mapped field names
+change wire spelling without changing enum membership. Regenerate transports
+and OpenAPI after updating to adopt this correction.
+
 Schema examples use JSON representations, including base64 for `Bytes`, in
 both JSON and YAML, including byte fields inside untagged union branches.
 Author text or byte values as usual; examples encode them once. Incomplete

@@ -503,6 +503,13 @@ custom encoders retain their external codec boundary; known builtin values are
 still checked. Optional examples retain their existing omission and partial-value
 contracts.
 
+This also applies to object enums in HTTP bodies. If a base object declares
+`Enum(map[string]any{"n": 1}, map[string]any{"n": 2})` and a derived field adds
+`Minimum(2)`, only `n=2` is accepted. Implicit bodies, explicit bodies and named
+aliases preserve the original enum declaration. A field mapping such as
+`"n:wire_n"` changes its wire spelling, not its membership. Regenerate transports
+and OpenAPI after upgrading to obtain the corrected prepared-body contract.
+
 Authored numeric values must fit their declared type. For example, `Int32`
 rejects `Default(uint32(2147483648))`, and unsigned types reject `Enum(-1, 2)`.
 Defaults and enum members are checked recursively through aliases and collections.

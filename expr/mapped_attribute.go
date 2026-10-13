@@ -58,46 +58,22 @@ func NewMappedAttributeExpr(att *AttributeExpr) *MappedAttributeExpr {
 	if !IsObject(att.Type) {
 		panic("cannot create a mapped attribute with a non object attribute") // bug
 	}
-	var (
-		nameMap    = make(map[string]string)
-		reverseMap = make(map[string]string)
-		validation = inheritedAttributeValidation(att, make(map[string]struct{}))
-	)
-	required := att.AllRequired()
-	if len(required) > 0 {
-		if validation == nil {
-			validation = &ValidationExpr{}
-		}
-		validation.Required = required
-	}
 	attr := DupAtt(att)
 	attr.Nullable = IsNullable(att)
-	attr.Validation = validation
+	required := att.AllRequired()
+	if len(required) > 0 {
+		if attr.Validation == nil {
+			attr.Validation = &ValidationExpr{}
+		}
+		attr.Validation.Required = required
+	}
 	ma := &MappedAttributeExpr{
 		AttributeExpr: attr,
-		nameMap:       nameMap,
-		reverseMap:    reverseMap,
+		nameMap:       make(map[string]string),
+		reverseMap:    make(map[string]string),
 	}
 	ma.Remap()
 	return ma
-}
-
-func inheritedAttributeValidation(att *AttributeExpr, seen map[string]struct{}) *ValidationExpr {
-	if att == nil {
-		return nil
-	}
-	if att.Validation != nil {
-		return att.Validation.Dup()
-	}
-	userType, ok := att.Type.(UserType)
-	if !ok {
-		return nil
-	}
-	if _, ok := seen[userType.ID()]; ok {
-		return nil
-	}
-	seen[userType.ID()] = struct{}{}
-	return inheritedAttributeValidation(userType.Attribute(), seen)
 }
 
 // Remap recomputes the name mappings from the inner attribute. Use this if
@@ -106,6 +82,13 @@ func inheritedAttributeValidation(att *AttributeExpr, seen map[string]struct{}) 
 // required attributes are the attribute names, without the element name
 // suffix: a required attribute listed as "n:m" is listed as "n".
 func (ma *MappedAttributeExpr) Remap() {
+	if named, ok := ma.Type.(UserType); ok {
+		// Flatten the representation, not the declaration contract. Keep the
+		// eliminated named edge before existing Extend parents, as it was in
+		// the original effective-constraint traversal. A copied public carrier
+		// would re-author inherited enums against the refined physical shape.
+		ma.constraintParents = append([]*AttributeExpr{DupAtt(named.Attribute())}, ma.constraintParents...)
+	}
 	var (
 		n = &Object{}
 		o = AsObject(ma.Type)

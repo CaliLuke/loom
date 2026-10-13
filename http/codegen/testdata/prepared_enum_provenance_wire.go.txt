@@ -1,0 +1,88 @@
+package objectenum_test
+
+import (
+	"context"
+	"encoding/json/v2"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	client "example.com/objectenum/gen/http/numbers/client"
+	server "example.com/objectenum/gen/http/numbers/server"
+	numbers "example.com/objectenum/gen/numbers"
+	loomhttp "github.com/CaliLuke/loom/http"
+)
+
+const wireName = "__WIRE_NAME__"
+
+func TestPreparedEnumRequests(t *testing.T) {
+	calls := 0
+	mux := loomhttp.NewMuxer()
+	endpoints := &numbers.Endpoints{Exchange: func(_ context.Context, raw any) (any, error) {
+		calls++
+		payload := raw.(*numbers.EnumAlias)
+		if payload.N == nil || *payload.N != 2 {
+			t.Errorf("unexpected service payload: %#v", payload)
+		}
+		return payload, nil
+	}}
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	for _, n := range []int{1, 2, 3} {
+		before := calls
+		request := httptest.NewRequest(http.MethodPost, "/numbers", strings.NewReader(fmt.Sprintf(`{"%s":%d}`, wireName, n)))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		if n == 2 {
+			if response.Code != 200 || calls != before+1 || !strings.Contains(response.Body.String(), fmt.Sprintf(`"%s":2`, wireName)) {
+				t.Errorf("n=%d status=%d calls=%d body=%s", n, response.Code, calls, response.Body.String())
+			}
+		} else {
+			code := "invalid_enum_value"
+			if n == 1 {
+				code = "invalid_range"
+			}
+			var problem struct {
+				Code   string `json:"code"`
+				Detail string `json:"detail"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &problem); err != nil {
+				t.Errorf("decode problem response: %v", err)
+			}
+			detailOK := problem.Detail == "validation error"
+			if n == 3 {
+				detailOK = strings.HasPrefix(problem.Detail, `invalid value for "body":`) &&
+					strings.Contains(problem.Detail, fmt.Sprintf(`expected one of map[string]interface {}{%q:1}, map[string]interface {}{%q:2}`, wireName, wireName))
+			}
+			if response.Code != 400 || calls != before || problem.Code != code || !detailOK {
+				t.Errorf("n=%d status=%d calls=%d body=%s", n, response.Code, calls, response.Body.String())
+			}
+		}
+	}
+}
+
+func TestPreparedEnumClientResponses(t *testing.T) {
+	for _, n := range []int{1, 2, 3} {
+		host := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := fmt.Fprintf(w, `{"%s":%d}`, wireName, n); err != nil {
+				t.Errorf("write response: %v", err)
+			}
+		}))
+		cli := client.NewClient("http", strings.TrimPrefix(host.URL, "http://"), http.DefaultClient, loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+		value := 2
+		raw, err := cli.Exchange()(context.Background(), &numbers.EnumAlias{N: &value})
+		host.Close()
+		if n == 2 {
+			if err != nil {
+				t.Errorf("valid response rejected: %v", err)
+			} else if result := raw.(*numbers.EnumAlias); result.N == nil || *result.N != 2 {
+				t.Errorf("invalid decoded response: %#v", result)
+			}
+		} else if err == nil {
+			t.Errorf("invalid response n=%d accepted: %#v", n, raw)
+		}
+	}
+}

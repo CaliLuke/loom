@@ -18,6 +18,7 @@ type canonicalSchemaEncoder struct {
 	bytes.Buffer
 	active map[expr.DataType]int
 	depth  int
+	enums  func(*expr.AttributeExpr) [][]any
 }
 
 // schemaFingerprintVersion identifies Loom's canonical OpenAPI schema encoding.
@@ -29,9 +30,7 @@ const (
 )
 
 func fingerprintAttribute(att *expr.AttributeExpr, closeObjects bool) string {
-	encoding := canonicalAttributeEncoding(att, closeObjects)
-	sum := sha256.Sum256(encoding)
-	return hex.EncodeToString(sum[:])
+	return newCanonicalSchemaEncoder().fingerprint(att, closeObjects)
 }
 
 func exampleGeneratorForAttribute(
@@ -91,11 +90,11 @@ func fingerprintString(value string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func canonicalAttributeEncoding(att *expr.AttributeExpr, closeObjects bool) []byte {
-	encoder := newCanonicalSchemaEncoder()
-	encoder.writeString(schemaFingerprintVersion)
-	encoder.writeAttribute(att, closeObjects)
-	return encoder.Bytes()
+func (e *canonicalSchemaEncoder) fingerprint(att *expr.AttributeExpr, closeObjects bool) string {
+	e.writeString(schemaFingerprintVersion)
+	e.writeAttribute(att, closeObjects)
+	sum := sha256.Sum256(e.Bytes())
+	return hex.EncodeToString(sum[:])
 }
 
 func newCanonicalSchemaEncoder() *canonicalSchemaEncoder {
@@ -279,12 +278,23 @@ func (e *canonicalSchemaEncoder) writeUnion(union *expr.Union, closeObjects bool
 
 func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr) {
 	validation := att.Validation
+	var enums [][]any
+	if e.enums != nil {
+		enums = e.enums(att)
+	} else if validation != nil {
+		for _, clause := range validation.Enums() {
+			enums = append(enums, projectOpenAPIValues(att, clause))
+		}
+	}
 	if validation == nil {
-		e.writeString("no-validation")
-		return
+		if len(enums) == 0 {
+			e.writeString("no-validation")
+			return
+		}
+		validation = &expr.ValidationExpr{}
 	}
 	e.writeString("validation")
-	e.writeValidationEnums(att, validation)
+	e.writeValidationEnums(enums)
 	e.writeValidationStrings(validation)
 	e.writeOptionalBound(validation.ExclusiveMinimum)
 	e.writeOptionalBound(validation.Minimum)
@@ -295,12 +305,11 @@ func (e *canonicalSchemaEncoder) writeValidation(att *expr.AttributeExpr) {
 	e.writeValidationRequired(att, validation.Required)
 }
 
-func (e *canonicalSchemaEncoder) writeValidationEnums(att *expr.AttributeExpr, validation *expr.ValidationExpr) {
-	enums := validation.Enums()
+func (e *canonicalSchemaEncoder) writeValidationEnums(enums [][]any) {
 	if len(enums) == 0 {
 		e.writeValueSet(nil)
 	} else {
-		e.writeValueSet(projectOpenAPIValues(att, enums[0]))
+		e.writeValueSet(enums[0])
 		if len(enums[0]) == 0 {
 			e.writeString("empty-enum-domain")
 		}
@@ -309,7 +318,7 @@ func (e *canonicalSchemaEncoder) writeValidationEnums(att *expr.AttributeExpr, v
 		e.writeString("enum-clauses")
 		e.writeInt(len(enums) - 1)
 		for _, values := range enums[1:] {
-			e.writeValueSet(projectOpenAPIValues(att, values))
+			e.writeValueSet(values)
 		}
 	}
 }

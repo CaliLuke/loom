@@ -13,6 +13,10 @@ func (a *Analyzer) schemaValueAnnotations(attr *expr.AttributeExpr) (expr.JSONSc
 			return annotations, nil
 		}
 	}
+	return standaloneSchemaValueAnnotations(attr)
+}
+
+func standaloneSchemaValueAnnotations(attr *expr.AttributeExpr) (expr.JSONSchemaAnnotations, error) {
 	context := expr.NewValueContext()
 	occurrence, err := context.NewOccurrence(attr)
 	if err != nil {

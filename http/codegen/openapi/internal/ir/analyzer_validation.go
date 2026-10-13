@@ -8,10 +8,10 @@ import (
 )
 
 func applySchemaValidation(s *Schema, attr *expr.AttributeExpr, val *expr.ValidationExpr, enums [][]any) error {
+	applySchemaEnums(s, enums)
 	if val == nil {
 		return nil
 	}
-	applySchemaEnums(s, enums)
 	if err := applySchemaStringClauses(s, val); err != nil {
 		return err
 	}

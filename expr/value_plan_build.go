@@ -286,7 +286,7 @@ func (b *valuePlanBuilder) object(node *valuePlanNode, source, target *valueOccu
 			if b.enumConstant {
 				// Extend retains logical fields but gives refinements new origins.
 				// This mode is only entered with a captured ancestor clause.
-				matches = candidate.name == field.name
+				matches = AttributeName(candidate.name) == AttributeName(field.name)
 			}
 			if !matches {
 				continue
