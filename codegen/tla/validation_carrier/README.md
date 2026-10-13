@@ -45,3 +45,24 @@ Keep this model alongside the recursive-validation model, whose named graph
 coverage deliberately abstracts physical Go carrier agreement. Primitive aliases,
 byte slices and named Nullable declarations remain independent regression controls.
 Do not commit checker states or raw output; remove task-owned output after review.
+
+## Alias spine extraction (#892)
+
+`AliasPresence.tla` refines the root-versus-child distinction for inherited
+nullability. It enumerates alias depths zero through three. The `alias-shallow`
+configuration reproduces clearing only the occurrence and first named level;
+`alias-whole-graph` rejects clearing structural child nullability. `alias-spine`
+clears every root alias flag while retaining the child and original source.
+Run each configuration with the command above, substituting `AliasPresence.tla`
+and its `alias-*.cfg` filename and a separate temporary state directory.
+Shallow clearing fails `RootConcrete` in 7 states; whole-graph clearing fails
+`ChildPreserved` in 5 states. Spine clearing passes all 8 states. Source
+preservation is assumed by the transition and checked by the Go tests.
+
+The model abstracts the alias spine as indexed flags. It does not prove Go graph
+copying, type identity, recursion termination or generated compilation. Direct
+`TestConcretePresenceAliases` and `TestConcretePresenceRecursiveChild` check the
+actual shared helper and its source/child boundaries. The two existing nullable
+reference importer tests exercise its generated HTTP conversion consumer. The
+helper follows named edges only; structural child edges keep their original
+targets, so consuming the parent carrier does not consume a child's carrier.

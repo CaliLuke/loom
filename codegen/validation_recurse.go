@@ -505,15 +505,25 @@ func presenceValueContext(ctx *AttributeContext, underlying *expr.AttributeExpr)
 func concretePresenceAttribute(att *expr.AttributeExpr) *expr.AttributeExpr {
 	underlying := *att
 	underlying.Nullable = false
-	userType, ok := att.Type.(expr.UserType)
-	if !ok || !expr.IsNullable(userType.Attribute()) {
-		return &underlying
+	// Unwrapping consumes the whole inherited root carrier. Structural children
+	// retain their original declarations, including recursive nullable members.
+	copies := make(map[expr.UserType]expr.UserType)
+	for current := &underlying; ; {
+		userType, ok := current.Type.(expr.UserType)
+		if !ok || !expr.IsNullable(userType.Attribute()) {
+			break
+		}
+		if copied, ok := copies[userType]; ok {
+			current.Type = copied
+			break
+		}
+		concreteAttribute := *userType.Attribute()
+		concreteAttribute.Nullable = false
+		concreteType := userType.Dup(&concreteAttribute)
+		copies[userType] = concreteType
+		current.Type = concreteType
+		current = &concreteAttribute
 	}
-	concreteType := userType.Dup(nil)
-	concreteAttribute := expr.DupAtt(userType.Attribute())
-	concreteAttribute.Nullable = false
-	concreteType.SetAttribute(concreteAttribute)
-	underlying.Type = concreteType
 	return &underlying
 }
 

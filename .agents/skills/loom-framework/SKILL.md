@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `codegen.concretePresenceAttribute` consumes effective root nullability when
+  extracting a presence carrier. Copy and clear the complete named alias spine;
+  preserve source declarations, nominal identities and structural child edges,
+  including recursive nullable fields. Validation, transformations, default
+  representation and helper naming consume this same operation. Do not clear an
+  entire structural graph or compensate in HTTP body cloning. The alias-spine
+  model beside validation-carrier and compiled nullable-import controls cover
+  this boundary.
+
 - `codegen.renderCollectionConversion` owns native array/map allocation and nil
   preservation for root, field and nested conversions. Declare new targets before
   guards; clear existing targets for nil sources, while nonnil empty collections
