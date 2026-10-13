@@ -269,6 +269,11 @@ consumer validation.
   file-specific local-name reservations in the owning generator.
 - Use NameScope helpers (`GoTypeRef`, `GoFullTypeRef`, `GoTypeName`) for emitted
   Go type references. Never construct type syntax by string concatenation.
+- Qualified collection references consume the same physical name owner as singular
+  references: preserve allocated service identifiers and external declaration
+  names after package selection. Do not reconstruct references with `Goify`. Keep
+  collision, reservation, alias and presence controls paired with the bounded
+  `codegen/tla/collection_identity` model and generated round trips.
 - Shared default literal construction uses the target attribute and NameScope
   recursively for arrays and maps, including named outer containers and located
   elements. Ordinary assignments and explicit-presence conversions consume this

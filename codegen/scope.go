@@ -284,14 +284,10 @@ func (s *NameScope) userTypeDefWithPkgOverride(att *expr.AttributeExpr, actual e
 		return "struct {}"
 	}
 	prefix := s.userTypePkgPrefix(actual, pkg, targetPkg)
-	// Qualified references (pkg.Type) do not compete in the local identifier
-	// namespace. Never apply local scoping (suffixing) to the type name portion
-	// of an external reference, otherwise we can emit identifiers that do not
-	// exist in the referenced package (e.g., pkg.Foo2).
-	if prefix == "" {
-		return s.GoValueTypeName(att)
-	}
-	return prefix + Goify(actual.Name(), true)
+	// Qualification retains the declaration owner's allocated name. The shared
+	// value-name resolver also preserves external package names independently
+	// of service reservations, without adding a second presence wrapper.
+	return s.goFullValueTypeName(att, strings.TrimSuffix(prefix, "."), nil)
 }
 
 func (s *NameScope) userTypePkgPrefix(actual expr.UserType, pkg, targetPkg string) string {
