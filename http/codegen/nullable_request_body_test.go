@@ -57,7 +57,7 @@ func TestNullableRequestBody(t *testing.T) {
 			Nullable:  true,
 			Validate: []string{
 				"loom.InvalidNullElementError(\"body\", i)",
-				"ValidateLeafRequestBody(actual)",
+				`ValidateLeafRequestBody(actual, "body[*]")`,
 			},
 		},
 		{
@@ -75,7 +75,7 @@ func TestNullableRequestBody(t *testing.T) {
 			Body:      "\t\t\tbody loom.Nullable[map[string]loom.Optional[*LeafRequestBody]]\n",
 			Nullable:  true,
 			Validate: []string{
-				"ValidateLeafRequestBody(actual)",
+				`ValidateLeafRequestBody(actual, "body[key]")`,
 			},
 		},
 		{

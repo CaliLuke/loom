@@ -160,7 +160,7 @@ func TestViewValidation(t *testing.T) {
 			Anon *optviews.Anon ` + "`" + `json:"anon,omitempty"` + "`" + `
 		}{}}, ""},
 		{"valid", &optviews.RTView{ID: ptr("a"), C: ptr(optviews.NewChoiceViewLeaf(&optviews.LeafView{Name: ptr("x")}))}, ""},
-		{"invalid", &optviews.RTView{ID: ptr("a"), C: ptr(optviews.NewChoiceViewLeaf(&optviews.LeafView{Name: ptr("")}))}, "result.name"},
+		{"invalid", &optviews.RTView{ID: ptr("a"), C: ptr(optviews.NewChoiceViewLeaf(&optviews.LeafView{Name: ptr("")}))}, "result.c.value.name"},
 		{"invalid inline union", &optviews.RTView{ID: ptr("a"), Anon: &struct {
 			Anon *optviews.Anon ` + "`" + `json:"anon,omitempty"` + "`" + `
 		}{Anon: ptr(optviews.NewAnonText("x"))}}, "result.anon.anon.value"},

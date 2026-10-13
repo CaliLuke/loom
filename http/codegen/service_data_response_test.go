@@ -42,7 +42,9 @@ func TestClientResponseValidationEmitsOneRequiredNullablePresenceCheck(t *testin
 		})
 	})
 
-	require.Equal(t, 1, strings.Count(code, `loom.MissingFieldError("company_role", "body")`), code)
+	require.Contains(t, code, `validationPath := "body"`)
+	require.Contains(t, code, "if !body.CompanyRole.Present()")
+	require.Equal(t, 1, strings.Count(code, `loom.MissingFieldError("company_role", validationPath)`), code)
 	require.Contains(t, code, "if actual, ok := body.CompanyRole.Value(); ok")
 	require.Contains(t, code, "ValidatePattern")
 }

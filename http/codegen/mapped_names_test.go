@@ -31,6 +31,7 @@ func TestMappedNamesBodies(t *testing.T) {
 		clientTransport = filesCode(t, ClientFiles("gen", services))
 	})
 
+	assert.Contains(t, server, `validationPath := "body"`)
 	for _, want := range []string{
 		"type EchoRequestBody struct {\n" +
 			"\tN      loom.Optional[string]                                     `form:\"m,omitempty\" json:\"m,omitzero\" xml:\"m,omitempty\"`\n" +
@@ -42,9 +43,9 @@ func TestMappedNamesBodies(t *testing.T) {
 		"type LeafRequestBody struct {\n" +
 			"\tLeaf  loom.Optional[string] `form:\"l,omitempty\" json:\"l,omitzero\" xml:\"l,omitempty\"`\n" +
 			"\tCount *int                  `form:\"c,omitempty\" json:\"c,omitempty\" xml:\"c,omitempty\"`\n",
-		"\tif body.Req == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"req\", \"body\"))\n\t}\n",
-		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count\", \"body\"))\n\t}\n",
-		"\tif body.ID == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"id\", \"body\"))\n\t}\n",
+		"\tif body.Req == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"req\", validationPath))\n\t}\n",
+		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count\", validationPath))\n\t}\n",
+		"\tif body.ID == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"id\", validationPath))\n\t}\n",
 		"\tv := &mappednames.Envelope{\n\t\tReq: *body.Req,\n\t}\n",
 		"\t\tv.N = &vNValue\n",
 		"\tbody := &EchoResponseBody{\n\t\tN:   res.N,\n\t\tReq: res.Req,\n\t\tDef: res.Def,\n\t}\n",
@@ -54,7 +55,7 @@ func TestMappedNamesBodies(t *testing.T) {
 	for _, want := range []string{
 		"\tbody := &EchoRequestBody{\n\t\tN:   p.N,\n\t\tReq: p.Req,\n\t\tDef: p.Def,\n\t}\n",
 		"\tv := &mappednames.Envelope{\n\t\tReq: *body.Req,\n\t}\n",
-		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count\", \"body\"))\n\t}\n",
+		"\tif body.Count == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"count\", validationPath))\n\t}\n",
 	} {
 		assert.Contains(t, client, want)
 	}

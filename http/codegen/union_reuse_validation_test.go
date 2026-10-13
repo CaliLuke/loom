@@ -68,8 +68,14 @@ func TestTypeFilesNamedUnionUsedTwiceValidatesBothFields(t *testing.T) {
 				}
 			}
 			code := buf.String()
-			first := strings.Count(code, `InvalidLengthError("body.first.value"`)
-			second := strings.Count(code, `InvalidLengthError("body.second.value"`)
+			assert.Contains(t, code, `validationPath := "body"`)
+			nestedValidator := "ValidatePairRequestBody"
+			if c.name == "client" {
+				nestedValidator = "ValidatePairResponseBody"
+			}
+			assert.Contains(t, code, nestedValidator+`(&actual, validationPath+".pair")`)
+			first := strings.Count(code, `InvalidLengthError(validationPath+".first.value"`)
+			second := strings.Count(code, `InvalidLengthError(validationPath+".second.value"`)
 			assert.Positive(t, first)
 			assert.Equal(t, first, second, "each field of the named union has its own validation code")
 		})

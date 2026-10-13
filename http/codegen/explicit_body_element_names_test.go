@@ -39,14 +39,15 @@ func TestMappedExplicitBodyCode(t *testing.T) {
 		return m[1] + `:"` + names[m[2]] + m[3]
 	})
 	assert.Equal(t, plain, normalized)
+	assert.Contains(t, mapped, `validationPath := "body"`)
 	for _, want := range []string{
 		"\t// Account name\n\tName *string `form:\"n,omitempty\" json:\"n,omitempty\" xml:\"n,omitempty\"`\n" +
 			"\t// Account age\n\tAge loom.Optional[int] `form:\"ag,omitempty\" json:\"ag,omitzero\" xml:\"ag,omitempty\"`\n",
 		"\t// Account name\n\tName string `form:\"n\" json:\"n\" xml:\"n\"`\n",
 		"\tA *int               `form:\"x,omitempty\" json:\"x,omitempty\" xml:\"x,omitempty\"`\n",
-		"\tif body.Name == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"name\", \"body\"))\n\t}\n",
-		`loom.InvalidLengthError("body.name", utf8.RuneCountInString(*body.Name), 2, true)`,
-		"\tif body.A == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"a\", \"body\"))\n\t}\n",
+		"\tif body.Name == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"name\", validationPath))\n\t}\n",
+		`loom.InvalidLengthError(validationPath+".name", utf8.RuneCountInString(*body.Name), 2, true)`,
+		"\tif body.A == nil {\n\t\terr = loom.MergeErrors(err, loom.MissingFieldError(\"a\", validationPath))\n\t}\n",
 	} {
 		assert.Contains(t, mapped, want)
 	}
