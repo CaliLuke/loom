@@ -53,6 +53,13 @@ Interceptors are not runtime hooks hidden inside the transport. In Loom they are
 
 The important consequence is: **server interceptors execute after transport decoding and before your service method**, and **client interceptors execute before transport encoding and after transport decoding** (because they wrap the same typed endpoint abstraction your client code calls).
 
+When the same interceptor is applied on both sides, Loom generates one shared
+Info type and accessor set covering every method where either side applies it.
+Shared declarations live in `service_interceptors.go`; client-only interceptor
+declarations live in `client_interceptors.go`. Sharing accessors does not apply
+an interceptor to additional methods or to the other side. Regenerate existing
+services and clients to obtain complete shared accessor coverage.
+
 ### The Server Interceptor Contract
 
 Loom generates a per-service interface. Each interceptor method must call `next` exactly once to proceed (or return an error/response early):

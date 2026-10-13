@@ -1,0 +1,110 @@
+package coverage_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/coverage/gen/coverage"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type audit struct {
+	phase string
+	calls *int
+}
+
+func (a audit) Audit(ctx context.Context, info *svc.AuditInfo, next loom.Endpoint) (any, error) {
+	if a.calls != nil {
+		(*a.calls)++
+	}
+	if a.phase == "payload" {
+		p := info.Payload()
+		p.SetValue(p.Value() + ":payload")
+	}
+	res, err := next(ctx, info.RawPayload())
+	if err != nil {
+		return nil, err
+	}
+	if a.phase == "result" {
+		r := info.Result(res)
+		r.SetValue(r.Value() + ":result")
+	}
+	return res, nil
+}
+
+func TestClientAccessorCoverage(t *testing.T) {
+	for _, phase := range []string{"payload", "result"} {
+		for _, method := range []string{"overlap", "client-only"} {
+			t.Run(phase+"/"+method, func(t *testing.T) {
+				client := svc.NewClient(
+					func(_ context.Context, p any) (any, error) {
+						return &svc.AResult{Value: p.(*svc.APayload).Value}, nil
+					},
+					nil,
+					func(_ context.Context, p any) (any, error) {
+						return &svc.CResult{Value: p.(*svc.CPayload).Value}, nil
+					}, audit{phase: phase})
+				require.NotPanics(t, func() {
+					var value string
+					if method == "overlap" {
+						res, err := client.A(context.Background(), &svc.APayload{Value: "a"})
+						require.NoError(t, err)
+						value = res.Value
+						require.Equal(t, "a:"+phase, value)
+					} else {
+						res, err := client.C(context.Background(), &svc.CPayload{Value: "c"})
+						require.NoError(t, err)
+						value = res.Value
+						require.Equal(t, "c:"+phase, value)
+					}
+				})
+			})
+		}
+	}
+}
+
+func TestServerAccessorControl(t *testing.T) {
+	for _, phase := range []string{"payload", "result"} {
+		t.Run(phase, func(t *testing.T) {
+			endpoint := svc.WrapAEndpoint(func(_ context.Context, p any) (any, error) {
+				return &svc.AResult{Value: p.(*svc.APayload).Value}, nil
+			}, audit{phase: phase})
+			res, err := endpoint(context.Background(), &svc.APayload{Value: "server"})
+			require.NoError(t, err)
+			require.Equal(t, "server:"+phase, res.(*svc.AResult).Value)
+		})
+	}
+}
+
+type plainService struct{}
+
+func (plainService) A(_ context.Context, p *svc.APayload) (*svc.AResult, error) {
+	return &svc.AResult{Value: p.Value}, nil
+}
+
+func (plainService) B(_ context.Context, p *svc.BPayload) (*svc.BResult, error) {
+	return &svc.BResult{Value: p.Value}, nil
+}
+
+func (plainService) C(_ context.Context, p *svc.CPayload) (*svc.CResult, error) {
+	return &svc.CResult{Value: p.Value}, nil
+}
+
+func TestInvocationRemainsSideLocal(t *testing.T) {
+	calls := 0
+	interceptor := audit{phase: "payload", calls: &calls}
+	server := svc.NewEndpoints(plainService{}, interceptor)
+	res, err := server.C(context.Background(), &svc.CPayload{Value: "server-c"})
+	require.NoError(t, err)
+	require.Equal(t, "server-c", res.(*svc.CResult).Value)
+	require.Zero(t, calls, "client declaration must not install a server callback")
+	client := svc.NewClient(nil, func(_ context.Context, p any) (any, error) {
+		return &svc.BResult{Value: p.(*svc.BPayload).Value}, nil
+	}, nil, interceptor)
+	value, err := client.B(context.Background(), &svc.BPayload{Value: "plain"})
+	require.NoError(t, err)
+	require.Equal(t, "plain", value.Value)
+	require.Zero(t, calls, "server declaration must not install a client callback")
+}

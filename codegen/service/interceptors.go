@@ -44,26 +44,9 @@ func interceptorFile(services *ServicesData, svc *Data, server bool) *codegen.Fi
 	desc = svc.Name + desc
 	path := filepath.Join(codegen.Gendir, svc.PathName, filename)
 
-	interceptors := svc.ServerInterceptors
+	interceptors := svc.interceptorDeclarations.server
 	if !server {
-		interceptors = svc.ClientInterceptors
-	}
-
-	// We don't want to generate duplicate interceptor info data structures for
-	// interceptors that are both server and client side so remove interceptors
-	// that are both server and client side when generating the client.
-	if !server {
-		names := make(map[string]struct{}, len(svc.ServerInterceptors))
-		for _, sin := range svc.ServerInterceptors {
-			names[sin.Name] = struct{}{}
-		}
-		filtered := make([]*InterceptorData, 0, len(interceptors))
-		for _, in := range interceptors {
-			if _, ok := names[in.Name]; !ok {
-				filtered = append(filtered, in)
-			}
-		}
-		interceptors = filtered
+		interceptors = svc.interceptorDeclarations.client
 	}
 
 	sections := []codegen.Section{codegen.Header(desc, svc.PkgName, imports)}

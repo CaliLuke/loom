@@ -984,6 +984,15 @@ filter, and serialization rules belong here.
   fallbacks. Keep the client dispatch model, ordered callback matrix, mounted
   HTTP/RPC and CLI controls aligned. Shared server/client accessor coverage and
   JSON-RPC server wrapper shapes remain separate owners.
+- `codegen/service.interceptorDeclarations` owns the shared Info/accessor method
+  union and output-file placement. Build it from both side-local interceptor
+  records during service analysis, preserving canonical method order and existing
+  symbol identities. Rebuild it under file import alias analysis; never merge
+  invocation lists or let a renderer discard client coverage by name. Keep the
+  [accessor coverage model](../../../codegen/service/tla/interceptor_accessor_coverage/README.md)
+  aligned with ordinary/streaming, imported-type and nonapplication controls.
+  Field representation compatibility and JSON-RPC carrier shape remain separate
+  contracts.
 - `expr.MethodExpr.EffectiveStreamingResult` owns result-stream attribute
   identity, including ordinary/final-result fallback. Interceptor validation,
   field analysis and service stream analysis use it. Accessor references derive

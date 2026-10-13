@@ -1,0 +1,35 @@
+package coverage_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/coverage/gen/coverage"
+	value "example.com/coverage/gen/types/context"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type audit struct{}
+
+func (audit) Audit(ctx context.Context, info *svc.AuditInfo, next loom.Endpoint) (any, error) {
+	p := info.Payload()
+	p.SetValue(&value.Value{Text: p.Value().Text + ":audited"})
+	return next(ctx, info.RawPayload())
+}
+
+func TestImportedAccessorTypes(t *testing.T) {
+	client := svc.NewClient(nil, nil, func(_ context.Context, p any) (any, error) {
+		return p.(*value.CInput).Value.Text, nil
+	}, audit{})
+	res, err := client.C(context.Background(), &value.CInput{Value: &value.Value{Text: "client"}})
+	require.NoError(t, err)
+	require.Equal(t, "client:audited", res)
+	server := svc.WrapAEndpoint(func(_ context.Context, p any) (any, error) {
+		return p.(*value.AInput).Value.Text, nil
+	}, audit{})
+	result, err := server(context.Background(), &value.AInput{Value: &value.Value{Text: "server"}})
+	require.NoError(t, err)
+	require.Equal(t, "server:audited", result)
+}

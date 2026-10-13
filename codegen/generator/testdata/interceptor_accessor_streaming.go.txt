@@ -1,0 +1,145 @@
+package coverage_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/coverage/gen/coverage"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	audit struct {
+		client bool
+		phase  string
+	}
+	pipe[In, Out any] struct {
+		received Out
+		sent     In
+		closed   bool
+	}
+)
+
+func (a audit) Audit(ctx context.Context, info *svc.AuditInfo, next loom.Endpoint) (any, error) {
+	enabled := a.phase == "all"
+	switch info.CallType() {
+	case loom.InterceptorUnary:
+		if enabled || a.phase == "payload" {
+			p := info.Payload()
+			p.SetValue(p.Value() + ":payload")
+		}
+	case loom.InterceptorStreamingSend:
+		if enabled || a.phase == "send" {
+			if a.client {
+				p := info.ClientStreamingPayload()
+				p.SetValue(p.Value() + ":send")
+			} else {
+				r := info.ServerStreamingResult()
+				r.SetValue(r.Value() + ":send")
+			}
+		}
+	}
+	res, err := next(ctx, info.RawPayload())
+	if err != nil {
+		return nil, err
+	}
+	if info.CallType() == loom.InterceptorStreamingRecv && (enabled || a.phase == "recv") {
+		if a.client {
+			r := info.ClientStreamingResult(res)
+			r.SetValue(r.Value() + ":recv")
+		} else {
+			p := info.ServerStreamingPayload(res)
+			p.SetValue(p.Value() + ":recv")
+		}
+	}
+	return res, nil
+}
+
+func (p *pipe[In, Out]) Send(v In) error {
+	p.sent = v
+	return nil
+}
+
+func (p *pipe[In, Out]) SendWithContext(_ context.Context, v In) error {
+	return p.Send(v)
+}
+
+func (p *pipe[In, Out]) Recv() (Out, error) {
+	return p.received, nil
+}
+
+func (p *pipe[In, Out]) RecvWithContext(context.Context) (Out, error) {
+	return p.Recv()
+}
+
+func (p *pipe[In, Out]) Close() error {
+	p.closed = true
+	return nil
+}
+
+func TestClientStreamingAccessorCoverage(t *testing.T) {
+	for _, phase := range []string{"payload", "send", "recv"} {
+		t.Run(phase, func(t *testing.T) {
+			wire := &pipe[*svc.CStreamingPayload, *svc.CResult]{received: &svc.CResult{Value: "result"}}
+			client := svc.NewClient(nil, nil, func(_ context.Context, p any) (any, error) {
+				if phase == "payload" {
+					require.Equal(t, "opening:payload", p.(*svc.CPayload).Value)
+				}
+				return wire, nil
+			}, audit{client: true, phase: phase})
+			require.NotPanics(t, func() {
+				stream, err := client.C(context.Background(), &svc.CPayload{Value: "opening"})
+				require.NoError(t, err)
+				if phase == "send" {
+					require.NoError(t, stream.SendWithContext(context.Background(), &svc.CStreamingPayload{Value: "message"}))
+					require.Equal(t, "message:send", wire.sent.Value)
+				}
+				if phase == "recv" {
+					res, err := stream.RecvWithContext(context.Background())
+					require.NoError(t, err)
+					require.Equal(t, "result:recv", res.Value)
+				}
+				require.NoError(t, stream.Close())
+				require.True(t, wire.closed)
+			})
+		})
+	}
+}
+
+func TestSharedStreamControls(t *testing.T) {
+	t.Run("client-overlap", func(t *testing.T) {
+		wire := &pipe[*svc.AStreamingPayload, *svc.AResult]{received: &svc.AResult{Value: "result"}}
+		client := svc.NewClient(func(_ context.Context, p any) (any, error) {
+			require.Equal(t, "opening:payload", p.(*svc.APayload).Value)
+			return wire, nil
+		}, nil, nil, audit{client: true, phase: "all"})
+		stream, err := client.A(context.Background(), &svc.APayload{Value: "opening"})
+		require.NoError(t, err)
+		require.NoError(t, stream.Send(&svc.AStreamingPayload{Value: "message"}))
+		require.Equal(t, "message:send", wire.sent.Value)
+		res, err := stream.Recv()
+		require.NoError(t, err)
+		require.Equal(t, "result:recv", res.Value)
+		require.NoError(t, stream.Close())
+		require.True(t, wire.closed)
+	})
+	t.Run("server-carrier", func(t *testing.T) {
+		wire := &pipe[*svc.AResult, *svc.AStreamingPayload]{received: &svc.AStreamingPayload{Value: "message"}}
+		endpoint := svc.WrapAEndpoint(func(ctx context.Context, p any) (any, error) {
+			input := p.(*svc.AEndpointInput)
+			require.Equal(t, "opening:payload", input.Payload.Value)
+			message, err := input.Stream.RecvWithContext(ctx)
+			require.NoError(t, err)
+			require.Equal(t, "message:recv", message.Value)
+			require.NoError(t, input.Stream.SendWithContext(ctx, &svc.AResult{Value: "result"}))
+			require.NoError(t, input.Stream.Close())
+			return nil, nil
+		}, audit{phase: "all"})
+		_, err := endpoint(context.Background(), &svc.AEndpointInput{Payload: &svc.APayload{Value: "opening"}, Stream: wire})
+		require.NoError(t, err)
+		require.Equal(t, "result:send", wire.sent.Value)
+		require.True(t, wire.closed)
+	})
+}

@@ -73,6 +73,8 @@ type (
 		// used by the service.
 		UserTypeImports []*codegen.ImportSpec
 
+		// interceptorDeclarations owns shared Info/accessor coverage and file placement.
+		interceptorDeclarations interceptorDeclarations
 		// userTypes lists the type definitions that the service depends on.
 		userTypes []*UserTypeData
 		// errorTypes lists the error type definitions that the service depends on.

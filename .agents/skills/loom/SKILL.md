@@ -1285,6 +1285,14 @@ abandoning it. Regenerate gRPC packages to adopt the correction. See
 [stream operation contexts](../../../docs/grpc-guide.md#stream-operation-contexts)
 for data ownership, recovery and custom-hook limits.
 
+## Shared Interceptor Accessors
+
+One interceptor may be applied to different server and client methods. Its
+shared Info/accessor types cover both method sets while invocation remains
+limited to each side's declarations. Regenerate services and clients after
+upgrading to obtain complete accessor coverage; no interceptor implementation
+change is needed when accessed fields share a compatible type contract.
+
 ## Interceptor Result Boundaries
 
 Use `ReadResult` and `WriteResult` for ordinary endpoint results. An HTTP or
