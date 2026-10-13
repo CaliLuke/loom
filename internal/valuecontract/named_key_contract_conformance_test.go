@@ -249,11 +249,15 @@ func checkNamedKeyContractConformance(t *testing.T, executable string) {
 		emptyContract, err := captureIndependentKeyContract(t, emptyKey)
 		require.NoError(t, err)
 		require.NotNil(t, runIndependentKeyContract(t, executable, emptyContract).OK,
-			"contradictory numeric bounds remain a valid empty contract")
-		checkKeyQueries(t, executable, emptyKey, []keyQueryCase{
-			{name: "empty domain lower", key: float64(1)},
-			{name: "empty domain upper", key: float64(2)},
-		})
+			"contradictory numeric bounds remain a valid empty mathematical contract")
+		_, err = expr.EffectiveConstraintsFor(emptyKey)
+		require.ErrorContains(t, err, `contradictory bounds from "EmptyNumericBase" and "EmptyNumericDerived"`)
+		for _, endpoint := range []float64{1, 2} {
+			query := queryIndependentKey(t, executable, emptyContract, endpoint)
+			require.False(t, query.contractOK && query.lengthOK, "empty mathematical interval rejects endpoint")
+			_, err := resolveWholeMap(t, emptyKey, map[float64]string{endpoint: "value"})
+			require.ErrorContains(t, err, "minimum is greater than maximum", "invalid map key design")
+		}
 	})
 
 	t.Run("present empty key enum is an empty domain", func(t *testing.T) {
@@ -816,12 +820,13 @@ func checkEffectiveAliasLengthConformance(t *testing.T, executable string) {
 	minimum, maximum := 1, 2
 	contradictoryMinimum, contradictoryMaximum := 3, 2
 	tests := []struct {
-		name    string
-		typ     expr.DataType
-		minimum *int
-		maximum *int
-		values  []any
-		lengths []int
+		name      string
+		typ       expr.DataType
+		minimum   *int
+		maximum   *int
+		values    []any
+		lengths   []int
+		wantError string
 	}{
 		{
 			name: "string rune count", typ: expr.String, minimum: &minimum, maximum: &maximum,
@@ -844,7 +849,8 @@ func checkEffectiveAliasLengthConformance(t *testing.T, executable string) {
 		{
 			name: "contradictory", typ: expr.String,
 			minimum: &contradictoryMinimum, maximum: &contradictoryMaximum,
-			values: []any{"", "a", "ab", "abc"}, lengths: []int{0, 1, 2, 3},
+			wantError: "contradictory inherited length bounds: min length is greater than max length",
+			values:    []any{"", "a", "ab", "abc"}, lengths: []int{0, 1, 2, 3},
 		},
 	}
 	for _, tc := range tests {
@@ -877,15 +883,25 @@ func checkEffectiveAliasLengthConformance(t *testing.T, executable string) {
 				{Maximum: tc.maximum},
 			}, bounds, "raw length layers must retain absent and repeated tighter directions")
 			reference := runIndependentLengths(t, executable, bounds, tc.lengths)
+			require.Equal(t, byteAliasBound{Minimum: tc.minimum, Maximum: tc.maximum}, reference.Effective)
 			constraints, err := expr.EffectiveConstraintsFor(attribute)
-			require.NoError(t, err)
-			lowered := constraints.Validation().Lowered()
-			require.Equal(t, reference.Effective.Minimum, lowered.MinLength)
-			require.Equal(t, reference.Effective.Maximum, lowered.MaxLength)
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, tc.wantError)
+				require.Equal(t, make([]bool, len(tc.lengths)), reference.Accepted, "empty mathematical interval")
+			} else {
+				require.NoError(t, err)
+				lowered := constraints.Validation().Lowered()
+				require.Equal(t, reference.Effective.Minimum, lowered.MinLength)
+				require.Equal(t, reference.Effective.Maximum, lowered.MaxLength)
+			}
 
 			context := expr.NewValueContext()
 			occurrence, err := context.NewOccurrence(attribute)
-			require.NoError(t, err)
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, tc.wantError, "invalid source design")
+			} else {
+				require.NoError(t, err)
+			}
 			projectionSource := expr.DupAtt(attribute)
 			for current := projectionSource; ; {
 				current.Validation = nil
@@ -911,6 +927,11 @@ func checkEffectiveAliasLengthConformance(t *testing.T, executable string) {
 			plan, err := context.NewValuePlan(sourceOccurrence, expr.ValuePlanRequest{
 				Target: projectionTarget, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanRuntime,
 			})
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, "value plan target:", "invalid target design")
+				require.ErrorContains(t, err, tc.wantError)
+				return
+			}
 			require.NoError(t, err)
 			for index, raw := range tc.values {
 				accepted := reference.Accepted[index]

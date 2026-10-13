@@ -114,20 +114,32 @@ func TestSSEByteProjectionSchemasUsePreparedRepresentations(t *testing.T) {
 }
 
 func TestAsyncByteAliasBoundsRemainConjoined(t *testing.T) {
-	minimum, maximum := 3, 2
-	base := &expr.UserTypeExpr{TypeName: "AsyncBytes", AttributeExpr: &expr.AttributeExpr{Type: expr.Bytes, Validation: &expr.ValidationExpr{MaxLength: &maximum}}}
-	attr := &expr.AttributeExpr{Type: base, Validation: &expr.ValidationExpr{MinLength: &minimum}}
-	analyzer := NewAnalyzer(expr.NewRandom("async-alias"), false)
-	prepared := analyzeAsyncSchema(analyzer, attr, inlineAsyncTestEndpoint(t, attr), false, "async-alias")
-	analyzer.finalizeRepresentations()
-	materialized := materializeAsyncSchema(prepared, analyzer.schemas)
-	result := materialized.schema
-	require.Nil(t, result.MinLength, "remove the old occurrence length gate")
-	require.Empty(t, result.AllOf, "the parent inline consumer has a flat alias baseline")
-	require.Equal(t, "base64", result.ContentEncoding)
-	require.Equal(t, &Schema{}, result.Not)
-	require.Nil(t, result.MinLength)
-	require.Nil(t, result.MaxLength)
+	maximum := 2
+	for _, minimum := range []int{1, 3} {
+		base := &expr.UserTypeExpr{TypeName: "AsyncBytes", AttributeExpr: &expr.AttributeExpr{Type: expr.Bytes, Validation: &expr.ValidationExpr{MaxLength: &maximum}}}
+		attr := &expr.AttributeExpr{Type: base, Validation: &expr.ValidationExpr{MinLength: &minimum}}
+		_, err := expr.NewValueContext().NewOccurrence(attr)
+		if minimum > maximum {
+			require.ErrorContains(t, err, "contradictory inherited length bounds: min length is greater than max length")
+			continue
+		}
+		require.NoError(t, err)
+		analyzer := NewAnalyzer(expr.NewRandom("async-alias"), false)
+		prepared := analyzeAsyncSchema(analyzer, attr, inlineAsyncTestEndpoint(t, attr), false, "async-alias")
+		analyzer.finalizeRepresentations()
+		result := materializeAsyncSchema(prepared, analyzer.schemas).schema
+		require.Empty(t, result.AllOf, "the inline consumer has a flat alias baseline")
+		require.Equal(t, "base64", result.ContentEncoding)
+		require.Nil(t, result.MinLength, "remove the old occurrence length gate")
+		require.Nil(t, result.MaxLength)
+		require.Len(t, result.AnyOf, 2, "both inherited bounds restrict the decoded lengths to one or two")
+		for _, branch := range result.AnyOf {
+			require.NotNil(t, branch.MinLength)
+			require.NotNil(t, branch.MaxLength)
+			require.Equal(t, 4, *branch.MinLength)
+			require.Equal(t, 4, *branch.MaxLength)
+		}
+	}
 }
 
 func TestAsyncSchemaInliningKeepsRecursiveReferencesAndSiblings(t *testing.T) {

@@ -196,8 +196,13 @@ Async inline ownership is selected in `analyzeSchema` before ordinary view,
 validation-overlay and outer-occurrence null handling. Inline construction uses
 its existing consumer policy; ordinary schemas and retained cuts keep theirs.
 The original plan supplies the effective byte interval.
-The 156 complete-schema Ajv assertions check those bounds, including empty
-intersections, without importing ordinary null policy into async construction.
+The historical 156 complete-schema Ajv assertions checked those bounds, including
+empty intersections, without importing ordinary null policy into async construction.
+After #695, the contradictory design is explicitly rejected before schema
+construction. The five admitted cases retain 130 ordinary/async Ajv assertions,
+including references, narrowing before overflow and both nullability locations.
+The batch expectation mapping contains only admitted cases so a rejected design
+cannot shift later schema assertions.
 General alias enum/default semantics remain assigned to #571.
 
 The [schema ownership models](../../expr/tla/schema_declaration/README.md) now

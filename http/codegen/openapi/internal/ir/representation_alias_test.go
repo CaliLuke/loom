@@ -43,6 +43,10 @@ func TestByteAliasBoundsIntersectBeforeProjection(t *testing.T) {
 		attr := &expr.AttributeExpr{Type: inner, Validation: &expr.ValidationExpr{MaxLength: &small}}
 		context := expr.NewValueContext()
 		occurrence, err := context.NewOccurrence(attr)
+		if incompatible {
+			require.ErrorContains(t, err, "contradictory inherited length bounds: min length is greater than max length")
+			continue
+		}
 		require.NoError(t, err)
 		plan, err := context.NewValuePlan(occurrence, expr.ValuePlanRequest{Target: attr, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanSchema})
 		require.NoError(t, err)
@@ -54,11 +58,7 @@ func TestByteAliasBoundsIntersectBeforeProjection(t *testing.T) {
 		require.Equal(t, "base64", got.ContentEncoding)
 		require.Nil(t, got.MaxLength)
 		require.NotNil(t, got.Not)
-		if incompatible {
-			require.Equal(t, &Schema{}, got.Not)
-		} else {
-			require.Len(t, got.AnyOf, 3)
-		}
+		require.Len(t, got.AnyOf, 3)
 	}
 }
 

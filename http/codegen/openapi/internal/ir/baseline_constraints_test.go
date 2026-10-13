@@ -26,16 +26,18 @@ func TestBaselineByteProjectionRenderedConstraints(t *testing.T) {
 		inner, outer                            *expr.ValidationExpr
 		innerNullable, outerNullable, reference bool
 		lengths                                 []int
+		wantError                               string
 	}
 	cases := []testCase{
 		{name: "effective interval", inner: &expr.ValidationExpr{MinLength: pointer(2)}, outer: &expr.ValidationExpr{MaxLength: pointer(3)}, lengths: []int{2, 3}},
 		{name: "referenced interval", inner: &expr.ValidationExpr{MinLength: pointer(2)}, outer: &expr.ValidationExpr{MaxLength: pointer(3)}, reference: true, lengths: []int{2, 3}},
 		{name: "intersection before overflow", inner: &expr.ValidationExpr{MaxLength: &maximum}, outer: &expr.ValidationExpr{MaxLength: pointer(2)}, lengths: []int{0, 1, 2}},
-		{name: "contradictory interval", inner: &expr.ValidationExpr{MinLength: &maximum}, outer: &expr.ValidationExpr{MaxLength: pointer(2)}},
+		{name: "contradictory interval", inner: &expr.ValidationExpr{MinLength: &maximum}, outer: &expr.ValidationExpr{MaxLength: pointer(2)}, wantError: "contradictory inherited length bounds: min length is greater than max length"},
 		{name: "nullable declaration", inner: &expr.ValidationExpr{MinLength: pointer(2)}, outer: &expr.ValidationExpr{MaxLength: pointer(2)}, innerNullable: true, reference: true, lengths: []int{2}},
 		{name: "nullable occurrence", inner: &expr.ValidationExpr{MinLength: pointer(2)}, outer: &expr.ValidationExpr{MaxLength: pointer(2)}, outerNullable: true, reference: true, lengths: []int{2}},
 	}
 	batches := make([]schematest.Batch, 0, 2*len(cases))
+	admitted := make([]testCase, 0, len(cases))
 	for _, test := range cases {
 		declared := &expr.AttributeExpr{Type: expr.Bytes, Validation: test.inner, Nullable: test.innerNullable}
 		if test.reference {
@@ -44,7 +46,12 @@ func TestBaselineByteProjectionRenderedConstraints(t *testing.T) {
 		attribute := &expr.AttributeExpr{Type: &expr.UserTypeExpr{TypeName: "ConstraintBytes", AttributeExpr: declared}, Validation: test.outer, Nullable: test.outerNullable}
 		context := expr.NewValueContext()
 		occurrence, err := context.NewOccurrence(attribute)
+		if test.wantError != "" {
+			require.ErrorContains(t, err, test.wantError, test.name)
+			continue
+		}
 		require.NoError(t, err, test.name)
+		admitted = append(admitted, test)
 		plan, err := context.NewValuePlan(occurrence, expr.ValuePlanRequest{Target: attribute, Codec: expr.ValueCodecJSON, Use: expr.ValuePlanSchema})
 		require.NoError(t, err, test.name)
 		analyzer := NewAnalyzer(nil, false)
@@ -62,7 +69,7 @@ func TestBaselineByteProjectionRenderedConstraints(t *testing.T) {
 	}
 	results := schematest.New(t).Check(t, batches)
 	for index, batch := range results {
-		test := cases[index/2]
+		test := admitted[index/2]
 		accepted := make(map[int]bool)
 		for _, length := range test.lengths {
 			accepted[length] = true

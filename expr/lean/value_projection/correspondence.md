@@ -486,6 +486,16 @@ obligations.
 The aggregate axiom audit covers 634 required theorem statements and admits
 only `propext`, `Classical.choice` and `Quot.sound`.
 
+The current `named-key-contracts` and `effective-alias-lengths` comparisons keep
+empty mathematical intervals as raw reference inputs. After #695, contradictory
+bounds are rejected by effective-constraint and source/target design admission;
+they no longer proceed to Go value resolution or projection. Endpoint queries
+still prove rejection within the mathematical empty domain. Valid key and
+String/Array/Map alias cases retain their resolution/projection comparisons.
+The IR ordinary/async byte-schema matrix similarly asserts contradictory-design
+rejection before rendering and retains 130 instance checks for its five admitted
+cases. These distinctions update executable correspondence, not Lean theorems.
+
 The registered `effective-alias-contracts` Go group extracts raw ancestry,
 duplicates, absence and provenance independently. Its local semantic normalizer
 does not call `NewValueContext`, `NewOccurrence`, `Resolve`, `IsRequired`, or
