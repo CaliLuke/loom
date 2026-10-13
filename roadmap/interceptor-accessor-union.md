@@ -24,8 +24,8 @@ must not decide semantic coverage by choosing a side.
   name filtering and derive declaration emission from analysis.
 - [x] Verify focused direct, generated, determinism, compilation and runtime cases;
   update owner guidance.
-- [ ] Obtain independent exact-final review.
-- [ ] Integrate as one reviewed commit, push, close issue and clean temporary evidence.
+- [x] Obtain independent exact-final review.
+- [x] Integrate as one reviewed commit, push, close issue and clean temporary evidence.
 
 ## Proposed representation
 
@@ -156,3 +156,10 @@ Exact sources, checks, inputs, output hashes and intended changes are recorded
 in `/tmp/loom-782-final-manifest.json` and its artifact ledger. Production and
 new regression source will remain frozen during independent review; no commit
 is authorized until that review resolves every finding.
+
+Delivered `4813696b7`, independently reviewed, pushed and confirmed closed.
+Final and integration verdicts are `/tmp/loom-782-independent-final-verdict.json`
+and `/tmp/loom-782-independent-integration-verdict.json`. Temporary output cleanup
+is complete: `/tmp/loom-782-cleanup-receipt.json`, SHA
+`a3cb6d73fc9fd8a458c69a5cf0f3fecb51b2abe152bef1b338f441072d90d44b`.
+Source and reproduction inputs remain available.

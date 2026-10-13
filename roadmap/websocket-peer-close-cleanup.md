@@ -15,7 +15,7 @@ is required before implementation. The shared shutdown correction is now ready f
    independent physical cleanup errors; do not patch generated callers.
 5. [x] Run direct race/order controls and the existing generated round-trip test;
    document exact output invariance if no generator is changed.
-6. [ ] Obtain independent exact-diff review, commit, push and close the report.
+6. [x] Obtain independent exact-diff review, commit, push and close the report.
 
 The sole reader delegates close acknowledgement to the configured Gorilla handler.
 That handler can mark the native connection close-sent before `NextReader` returns
@@ -73,3 +73,7 @@ or design source belongs to this change; there is no generated output difference
 The model inputs match the independently reviewed readiness inputs, so the
 44-generated/24-distinct corrected result remains applicable without another run.
 Error wrapping is deliberately outside that model and covered by the Go test.
+
+Delivered `4f569fad1`, independently reviewed, pushed and confirmed closed.
+Final verdict: `/tmp/loom-871-independent-final-verdict.json`. Temporary output
+cleanup is recorded in `/tmp/loom-871-cleanup-receipt.json`.
