@@ -25,6 +25,7 @@ var _ = Service("clock", func() {
 	Method("Tick", func() {
 		Payload(func() {
 			ID("id", String)
+			Attribute("label", String)
 		})
 		StreamingResult(func() {
 			Attribute("value", String)

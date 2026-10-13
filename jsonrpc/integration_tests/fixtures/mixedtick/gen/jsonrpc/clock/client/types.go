@@ -19,10 +19,25 @@ type InitializeResponseBody struct {
 	ProtocolVersion loom.Optional[string] `form:"protocol_version,omitempty" json:"protocol_version,omitzero" xml:"protocol_version,omitempty"`
 }
 
+// TickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
+// request body.
+type TickRequestBody struct {
+	Label *string `form:"label,omitempty" json:"label,omitzero" xml:"label,omitempty"`
+}
+
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
 // response body.
 type TickResponseBody struct {
 	Value loom.Optional[string] `form:"value,omitempty" json:"value,omitzero" xml:"value,omitempty"`
+}
+
+// NewTickRequestBody builds the HTTP request body from the payload of the
+// "Tick" endpoint of the "clock" service.
+func NewTickRequestBody(p *clock.TickPayload) *TickRequestBody {
+	body := &TickRequestBody{
+		Label: p.Label,
+	}
+	return body
 }
 
 // NewInitializeResultOK builds a "clock" service "Initialize" endpoint result

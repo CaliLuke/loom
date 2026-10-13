@@ -12,7 +12,14 @@ import (
 
 	clock "example.com/mixedtick/gen/clock"
 	loomhttpcli "github.com/CaliLuke/loom/http/cli"
+	loom "github.com/CaliLuke/loom/pkg"
 )
+
+// CLITickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
+// request body.
+type CLITickRequestBody struct {
+	Label loom.Optional[string] `form:"label,omitempty" json:"label,omitzero" xml:"label,omitempty"`
+}
 
 // BuildInitializePayload builds the payload for the clock Initialize endpoint
 // from CLI flags.
@@ -35,18 +42,30 @@ func BuildInitializePayload(clockInitializeRPCID string) (*clock.InitializePaylo
 
 // BuildTickPayload builds the payload for the clock Tick endpoint from CLI
 // flags.
-func BuildTickPayload(clockTickRPCID string) (*clock.TickPayload, error) {
+func BuildTickPayload(clockTickBody string, clockTickRPCID string) (*clock.TickPayload, error) {
 	var err error
+	var body CLITickRequestBody
+	{
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"label\": \"Commodi fuga autem in aut.\"\n   }'")
+		}
+	}
 	var rpcID *string
 	{
 		if clockTickRPCID != "" {
 			err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickRPCID), &rpcID)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Qui voluptate eum ipsa ratione.\"")
+				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Provident magni doloribus incidunt quod.\"")
 			}
 		}
 	}
 	v := &clock.TickPayload{}
+	if actual, ok := body.Label.Value(); ok {
+		vLabelValue := actual
+
+		v.Label = &vLabelValue
+	}
 	v.ID = rpcID
 
 	return v, nil

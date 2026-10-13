@@ -104,7 +104,8 @@ type InitializeResult struct {
 
 // TickPayload is the payload type of the clock service Tick method.
 type TickPayload struct {
-	ID *string `json:"id,omitzero"`
+	ID    *string `json:"id,omitzero"`
+	Label *string `json:"label,omitzero"`
 }
 
 // TickResult is the result type of the clock service Tick method.

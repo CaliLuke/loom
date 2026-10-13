@@ -38,7 +38,7 @@ func TestJSONRPCSSEExternalClientReceivesDecodeErrorsOnMessageEvent(t *testing.T
 	reqBody, err := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "Tick",
-		"params":  "wrong-shape",
+		"params":  map[string]any{"label": true},
 		"id":      "bad-params-1",
 	})
 	require.NoError(t, err)
@@ -78,6 +78,8 @@ func TestJSONRPCSSEExternalClientReceivesDecodeErrorsOnMessageEvent(t *testing.T
 	require.NoError(t, json.Unmarshal([]byte(ev.Data), &envelope))
 	require.Equal(t, "2.0", envelope["jsonrpc"])
 	require.Equal(t, "bad-params-1", envelope["id"])
+	require.NotContains(t, envelope, "result")
+	require.NotContains(t, envelope, "method")
 
 	errorObj, ok := envelope["error"].(map[string]any)
 	require.True(t, ok)

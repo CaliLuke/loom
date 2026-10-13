@@ -91,34 +91,44 @@ func TestJSONRPCMixedSSETopLevelServerEmitsFinalResponse(t *testing.T) {
 	server := startMixedTickServer(t)
 	defer server.Stop() //nolint:errcheck
 
-	resp, body := postMixedTickSSERequest(t, server.URL()+"/rpc", map[string]any{
-		"jsonrpc": "2.0",
-		"method":  "Tick",
-		"params":  map[string]any{},
-		"id":      "tick-request-1",
-	})
+	for _, tc := range []struct {
+		name   string
+		params map[string]any
+	}{
+		{"omitted optional member", map[string]any{}},
+		{"supplied optional member", map[string]any{"label": "hello"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, body := postMixedTickSSERequest(t, server.URL()+"/rpc", map[string]any{
+				"jsonrpc": "2.0",
+				"method":  "Tick",
+				"params":  tc.params,
+				"id":      "tick-request-1",
+			})
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.True(t, strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream"))
-	require.NotEmpty(t, body)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.True(t, strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream"))
+			require.NotEmpty(t, body)
 
-	events, err := loomhttp.ParseSSEStream(bytes.NewReader(body))
-	require.NoError(t, err)
-	require.Len(t, events, 2)
-	require.Equal(t, "message", events[0].Type)
-	require.Equal(t, "message", events[1].Type)
+			events, err := loomhttp.ParseSSEStream(bytes.NewReader(body))
+			require.NoError(t, err)
+			require.Len(t, events, 2)
+			require.Equal(t, "message", events[0].Type)
+			require.Equal(t, "message", events[1].Type)
 
-	var notification map[string]any
-	require.NoError(t, json.Unmarshal([]byte(events[0].Data), &notification))
-	require.Equal(t, "2.0", notification["jsonrpc"])
-	require.Equal(t, "Tick", notification["method"])
-	require.Equal(t, map[string]any{"value": "tick-1"}, notification["params"])
+			var notification map[string]any
+			require.NoError(t, json.Unmarshal([]byte(events[0].Data), &notification))
+			require.Equal(t, "2.0", notification["jsonrpc"])
+			require.Equal(t, "Tick", notification["method"])
+			require.Equal(t, map[string]any{"value": "tick-1"}, notification["params"])
 
-	var response map[string]any
-	require.NoError(t, json.Unmarshal([]byte(events[1].Data), &response))
-	require.Equal(t, "2.0", response["jsonrpc"])
-	require.Equal(t, "tick-request-1", response["id"])
-	require.Equal(t, map[string]any{"value": "tick-done"}, response["result"])
+			var response map[string]any
+			require.NoError(t, json.Unmarshal([]byte(events[1].Data), &response))
+			require.Equal(t, "2.0", response["jsonrpc"])
+			require.Equal(t, "tick-request-1", response["id"])
+			require.Equal(t, map[string]any{"value": "tick-done"}, response["result"])
+		})
+	}
 }
 
 func TestJSONRPCMixedSSERejectsCrossOriginPost(t *testing.T) {
@@ -268,7 +278,7 @@ func TestJSONRPCMixedSSETopLevelServerEmitsErrors(t *testing.T) {
 	resp, body := postMixedTickSSERequest(t, server.URL()+"/rpc", map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "Tick",
-		"params":  "wrong-shape",
+		"params":  map[string]any{"label": true},
 		"id":      "tick-error-1",
 	})
 
@@ -285,6 +295,8 @@ func TestJSONRPCMixedSSETopLevelServerEmitsErrors(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(events[0].Data), &envelope))
 	require.Equal(t, "2.0", envelope["jsonrpc"])
 	require.Equal(t, "tick-error-1", envelope["id"])
+	require.NotContains(t, envelope, "result")
+	require.NotContains(t, envelope, "method")
 
 	errorObj, ok := envelope["error"].(map[string]any)
 	require.True(t, ok)

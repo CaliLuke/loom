@@ -24,6 +24,7 @@ var _ = Service("clock", func() {
 		ClientInterceptor(streamAudit)
 		Payload(func() {
 			ID("id", String)
+			Attribute("label", String)
 		})
 		StreamingResult(func() {
 			Attribute("value", String)

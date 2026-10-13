@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	json "encoding/json/v2"
+	"errors"
 	"io"
 	"net/http"
 
@@ -37,7 +38,7 @@ func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomh
 
 // DecodeTickRequest returns a decoder for requests sent to the clock Tick
 // endpoint.
-func DecodeTickRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
+func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 		rpcParams := req.Params
 		if len(rpcParams) == 0 {
@@ -45,6 +46,21 @@ func DecodeTickRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decode
 		}
 		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *clock.TickPayload
+		var err error
+		var (
+			body TickRequestBody
+		)
+		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return payload, loom.MissingPayloadError()
+			}
+			var gerr *loom.ServiceError
+			if errors.As(err, &gerr) {
+				return payload, gerr
+			}
+			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
+		}
 		var rpcID *string
 		{
 
@@ -76,7 +92,7 @@ func DecodeTickRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decode
 			rpcID = rpcIDFields.ID
 		}
 
-		payload = NewTickPayload(rpcID)
+		payload = NewTickPayload(&body, rpcID)
 
 		return payload, nil
 	}

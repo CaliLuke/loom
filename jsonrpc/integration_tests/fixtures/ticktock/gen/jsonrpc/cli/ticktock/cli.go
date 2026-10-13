@@ -29,12 +29,13 @@ func UsageCommands() []string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " clock tick --rpc-id \"Et veritatis.\"\n"
+	return os.Args[0] + " clock tick --body '{\n      \"label\": \"Doloremque totam magnam deserunt.\"\n   }' --rpc-id \"Magnam quas tempora ea dolores.\"\n"
 }
 
 type commandLine struct {
 	Clock struct {
 		Tick struct {
+			Body  string `help:"" name:"body" required:""`
 			RPCID string `help:"" name:"rpc-id"`
 		} `cmd:"" help:"Tick implements Tick." name:"tick"`
 		Tock struct {
@@ -51,6 +52,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 		args               []string
 		svcn               string
 		epn                string
+		clockTickBodyFlag  *string
 		clockTickRPCIDFlag *string
 		clockTockRPCIDFlag *string
 	)
@@ -63,6 +65,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 		if err != nil {
 			return nil, nil, fmt.Errorf("parse command: %w", err)
 		}
+		clockTickBodyFlag = &command.Clock.Tick.Body
 		clockTickRPCIDFlag = &command.Clock.Tick.RPCID
 		clockTockRPCIDFlag = &command.Clock.Tock.RPCID
 		switch path {
@@ -88,7 +91,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 			case "tick":
 				endpoint = c.Tick()
 				endpoint = clock.WrapTickClientEndpoint(endpoint, clockInter)
-				data, err = clockc.BuildTickPayload(*clockTickRPCIDFlag)
+				data, err = clockc.BuildTickPayload(*clockTickBodyFlag, *clockTickRPCIDFlag)
 			case "tock":
 				endpoint = c.Tock()
 				data, err = clockc.BuildTockPayload(*clockTockRPCIDFlag)
@@ -115,6 +118,7 @@ func clockUsage() {
 func clockTickUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] clock tick", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
 	fmt.Fprint(os.Stderr, " -rpc-id JSON")
 	fmt.Fprintln(os.Stderr)
 
@@ -123,11 +127,12 @@ func clockTickUsage() {
 	fmt.Fprintln(os.Stderr, "Tick implements Tick.")
 
 	// Flags list
+	fmt.Fprintln(os.Stderr, "    -body JSON: ")
 	fmt.Fprintln(os.Stderr, "    -rpc-id JSON: ")
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tick --rpc-id \"Et veritatis.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tick --body '{\n      \"label\": \"Doloremque totam magnam deserunt.\"\n   }' --rpc-id \"Magnam quas tempora ea dolores.\"")
 }
 func clockTockUsage() {
 	// Header with flags
@@ -144,5 +149,5 @@ func clockTockUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tock --rpc-id \"Magnam quas tempora ea dolores.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tock --rpc-id \"Inventore architecto.\"")
 }

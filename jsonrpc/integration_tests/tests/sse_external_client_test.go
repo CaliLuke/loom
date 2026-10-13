@@ -34,16 +34,24 @@ func TestJSONRPCSSEInteroperatesWithExternalClient(t *testing.T) {
 
 	baseURL := server.URL()
 
-	t.Run("tick", func(t *testing.T) {
-		verifyExternalSSEStream(t, baseURL, "Tick", "Tick-request", []externalSSEExpectation{
-			{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tick-1"}},
-			{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tick-2"}},
-			{EventType: "message", EnvelopeField: "result", Value: map[string]any{"value": "tick-done"}},
+	for _, tc := range []struct {
+		name   string
+		params map[string]any
+	}{
+		{"tick omitted optional member", map[string]any{}},
+		{"tick supplied optional member", map[string]any{"label": "hello"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			verifyExternalSSEStream(t, baseURL, "Tick", "Tick-request", tc.params, []externalSSEExpectation{
+				{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tick-1"}},
+				{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tick-2"}},
+				{EventType: "message", EnvelopeField: "result", Value: map[string]any{"value": "tick-done"}},
+			})
 		})
-	})
+	}
 
 	t.Run("tock", func(t *testing.T) {
-		verifyExternalSSEStream(t, baseURL, "Tock", "Tock-request", []externalSSEExpectation{
+		verifyExternalSSEStream(t, baseURL, "Tock", "Tock-request", map[string]any{}, []externalSSEExpectation{
 			{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tock-a"}},
 			{EventType: "message", EnvelopeField: "params", Value: map[string]any{"value": "tock-b"}},
 			{EventType: "message", EnvelopeField: "result", Value: map[string]any{"value": "tock-finished"}},
@@ -57,7 +65,12 @@ type externalSSEExpectation struct {
 	Value         any
 }
 
-func verifyExternalSSEStream(t *testing.T, baseURL string, method string, id string, expected []externalSSEExpectation) {
+func verifyExternalSSEStream(
+	t *testing.T,
+	baseURL, method, id string,
+	params map[string]any,
+	expected []externalSSEExpectation,
+) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -66,7 +79,7 @@ func verifyExternalSSEStream(t *testing.T, baseURL string, method string, id str
 	reqBody, err := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
 		"method":  method,
-		"params":  map[string]any{},
+		"params":  params,
 		"id":      id,
 	})
 	require.NoError(t, err)

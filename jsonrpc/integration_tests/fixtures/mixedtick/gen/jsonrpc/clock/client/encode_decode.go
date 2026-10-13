@@ -120,9 +120,11 @@ func EncodeTickRequest(encoder func(*http.Request) loomhttp.Encoder) func(*http.
 		if !ok {
 			return loomhttp.ErrInvalidType("clock", "Tick", "*clock.TickPayload", v)
 		}
+		b := NewTickRequestBody(p)
 		body := &jsonrpc.Request{
 			JSONRPC: "2.0",
 			Method:  "Tick",
+			Params:  b,
 		}
 		if err := jsonrpc.SetClientRequestID(req, body, p.ID, p.ID != nil); err != nil {
 			return loomhttp.ErrEncodingError("clock", "Tick", err)

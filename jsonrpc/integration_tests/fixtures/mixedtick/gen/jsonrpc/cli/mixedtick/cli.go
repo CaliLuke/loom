@@ -37,6 +37,7 @@ type commandLine struct {
 			RPCID string `help:"" name:"rpc-id"`
 		} `cmd:"" help:"Initialize implements Initialize." name:"initialize"`
 		Tick struct {
+			Body  string `help:"" name:"body" required:""`
 			RPCID string `help:"" name:"rpc-id"`
 		} `cmd:"" help:"Tick implements Tick." name:"tick"`
 	} `cmd:"" help:"Service is the clock service interface." name:"clock"`
@@ -51,6 +52,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 		svcn                     string
 		epn                      string
 		clockInitializeRPCIDFlag *string
+		clockTickBodyFlag        *string
 		clockTickRPCIDFlag       *string
 	)
 	{
@@ -63,6 +65,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 			return nil, nil, fmt.Errorf("parse command: %w", err)
 		}
 		clockInitializeRPCIDFlag = &command.Clock.Initialize.RPCID
+		clockTickBodyFlag = &command.Clock.Tick.Body
 		clockTickRPCIDFlag = &command.Clock.Tick.RPCID
 		switch path {
 		case "clock initialize":
@@ -89,7 +92,7 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 				data, err = clockc.BuildInitializePayload(*clockInitializeRPCIDFlag)
 			case "tick":
 				endpoint = c.Tick()
-				data, err = clockc.BuildTickPayload(*clockTickRPCIDFlag)
+				data, err = clockc.BuildTickPayload(*clockTickBodyFlag, *clockTickRPCIDFlag)
 			}
 		}
 	}
@@ -130,6 +133,7 @@ func clockInitializeUsage() {
 func clockTickUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] clock tick", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
 	fmt.Fprint(os.Stderr, " -rpc-id JSON")
 	fmt.Fprintln(os.Stderr)
 
@@ -138,9 +142,10 @@ func clockTickUsage() {
 	fmt.Fprintln(os.Stderr, "Tick implements Tick.")
 
 	// Flags list
+	fmt.Fprintln(os.Stderr, "    -body JSON: ")
 	fmt.Fprintln(os.Stderr, "    -rpc-id JSON: ")
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tick --rpc-id \"Qui voluptate eum ipsa ratione.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tick --body '{\n      \"label\": \"Commodi fuga autem in aut.\"\n   }' --rpc-id \"Provident magni doloribus incidunt quod.\"")
 }

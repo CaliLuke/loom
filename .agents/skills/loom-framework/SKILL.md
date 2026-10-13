@@ -2147,6 +2147,14 @@ Treat these as regression surfaces, not demos:
 
 - `http/integration_tests/fixtures/ticktock`
 - `jsonrpc/integration_tests/fixtures/ticktock`
+- `jsonrpc/integration_tests/fixtures/mixedtick`
+
+The mixedtick fixture covers the shared unary/SSE server and retains exact-tree
+regeneration checks before its mounted scenarios. Include it when a change affects
+that generated branch. Params-decoding error scenarios need an ordinary typed
+payload member; an envelope-ID-only payload does not exercise params decoding.
+Keep wrong-member-type inputs as valid JSON objects and preserve request ID,
+error code and SSE message-event assertions alongside supplied/omitted controls.
 
 The checked-in JSON-RPC ticktock fixture covers POST-initiated SSE. The raw
 `events/stream` GET listener is covered by

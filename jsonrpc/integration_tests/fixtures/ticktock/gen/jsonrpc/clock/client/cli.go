@@ -12,22 +12,41 @@ import (
 
 	clock "example.com/ticktock/gen/clock"
 	loomhttpcli "github.com/CaliLuke/loom/http/cli"
+	loom "github.com/CaliLuke/loom/pkg"
 )
+
+// CLITickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
+// request body.
+type CLITickRequestBody struct {
+	Label loom.Optional[string] `form:"label,omitempty" json:"label,omitzero" xml:"label,omitempty"`
+}
 
 // BuildTickPayload builds the payload for the clock Tick endpoint from CLI
 // flags.
-func BuildTickPayload(clockTickRPCID string) (*clock.TickPayload, error) {
+func BuildTickPayload(clockTickBody string, clockTickRPCID string) (*clock.TickPayload, error) {
 	var err error
+	var body CLITickRequestBody
+	{
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"label\": \"Doloremque totam magnam deserunt.\"\n   }'")
+		}
+	}
 	var rpcID *string
 	{
 		if clockTickRPCID != "" {
 			err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickRPCID), &rpcID)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Et veritatis.\"")
+				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Magnam quas tempora ea dolores.\"")
 			}
 		}
 	}
 	v := &clock.TickPayload{}
+	if actual, ok := body.Label.Value(); ok {
+		vLabelValue := actual
+
+		v.Label = &vLabelValue
+	}
 	v.ID = rpcID
 
 	return v, nil
@@ -42,7 +61,7 @@ func BuildTockPayload(clockTockRPCID string) (*clock.TockPayload, error) {
 		if clockTockRPCID != "" {
 			err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTockRPCID), &rpcID)
 			if err != nil {
-				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Magnam quas tempora ea dolores.\"")
+				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Inventore architecto.\"")
 			}
 		}
 	}
