@@ -224,6 +224,11 @@ consumer validation.
   Service and HTTP analysis supply that model; service-only validation helpers
   stay in service analysis. Keep untagged occurrence matching in
   `internal/unionjson`, and do not fork emitted union methods by transport.
+  Tagged branch JSON admission consumes the `expr.AllowsNull` fact carried in
+  `uniongen.Field`; a value property is mandatory even when it permits null.
+  Service, projected and HTTP analysis must retain that semantic fact rather
+  than infer it from physical type names. Keep the null-admission model under
+  `internal/uniongen/tla/null_admission` and generated wire controls aligned.
 - Put design-semantic vet rules over the evaluated `expr` graph. Use Go source
   analysis only for module adoption facts that the graph cannot contain. A
   source analyzer must report when an active target-module package lacks

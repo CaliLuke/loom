@@ -41,6 +41,8 @@ type (
 		FieldName string
 		// FieldType is the Go type used in the union struct field and public API.
 		FieldType string
+		// AllowsNull reports whether the branch contract admits an explicit JSON null.
+		AllowsNull bool
 		// ValidateCode validates a decoded untagged branch held in v.
 		ValidateCode string
 		// ValidateRef is the Go expression that validates a decoded branch.

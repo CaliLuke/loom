@@ -208,6 +208,7 @@ func buildHTTPUnionTypeData(u *expr.Union, scope *codegen.NameScope, closedObjec
 			KindConst:                 kindConst,
 			FieldName:                 fieldName,
 			FieldType:                 fieldType,
+			AllowsNull:                expr.AllowsNull(nat.Attribute),
 			TypeTag:                   expr.UnionVariantTag(nat),
 			FlatFormObject:            expr.IsObject(nat.Attribute.Type),
 			FlatFormObjectAllowsEmpty: flatFormObjectAllowsEmpty(nat.Attribute),

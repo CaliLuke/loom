@@ -187,8 +187,12 @@ Attribute("event", OneOf(Created, Deleted), func() {
 When a union is used as an optional object attribute, generated Go types expose
 it as a pointer. Leaving the pointer nil omits the JSON property; setting it
 still requires a valid discriminator and matching branch value. Required union
-attributes retain their value-type API. Canonical JSON decoding rejects both a
-missing `value` property and an explicit `"value": null`.
+attributes retain their value-type API. Canonical JSON decoding always requires
+the `value` property. An explicit `"value": null` is accepted only when the
+selected branch allows null through `Nullable()` (including a named type's
+inherited declaration) or `Any`; other branches reject it. This also applies
+to custom discriminator and value property names. Regenerate service and
+transport packages to receive this decoding behavior.
 
 Generated validators reject a selected nil object or nested-union pointer with
 a validation error. A selected nil slice or map is an empty collection: length

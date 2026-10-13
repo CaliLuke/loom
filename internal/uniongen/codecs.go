@@ -115,7 +115,11 @@ func UnmarshalJSONBody(data *Type) string {
 	b.WriteString("switch raw.Type {\n")
 	for _, field := range data.Fields {
 		fmt.Fprintf(&b, "\tcase string(%s):\n\t\tvar v %s\n", field.KindConst, field.FieldType)
-		b.WriteString("\t\tif len(raw.Value) == 0 || string(raw.Value) == \"null\" {\n")
+		b.WriteString("\t\tif len(raw.Value) == 0")
+		if !field.AllowsNull {
+			b.WriteString(" || string(raw.Value) == \"null\"")
+		}
+		b.WriteString(" {\n")
 		fmt.Fprintf(&b, "\t\t\treturn loom.MissingFieldError(%q, \"body\")\n\t\t}\n", data.ValueKey)
 		b.WriteString("\t\tif err := json.Unmarshal(raw.Value, &v, loom.JSONOptions()); err != nil {\n\t\t\treturn err\n\t\t}\n")
 		fmt.Fprintf(&b, "\t\tu.kind = %s\n\t\tu.%s = v\n", field.KindConst, field.FieldName)

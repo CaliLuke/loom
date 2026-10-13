@@ -644,7 +644,11 @@ completion shapes are explicit generation limitations.
   Selected nil slices/maps are empty values and still receive their length and
   element constraints. A constructed nullable branch accepts explicit null but
   rejects absence. Regenerate service and transport code to receive these checks.
-- Missing and explicit JSON `null` are both rejected for required unions.
+- A tagged union envelope always requires its value property. Explicit null
+  is accepted for a selected nullable or `Any` branch, including inherited
+  nullability, and rejected for other branches. This is separate from absence
+  or null of the enclosing union attribute. Regenerate service and transport
+  packages when adopting this decoder correction.
 - Result views inherit canonical requiredness. Use `ViewRequired(...)` and
   `ViewOptional(...)` for deliberate overrides. Method-specific `Required(...)`
   customization applies to included view fields while explicit view overrides
