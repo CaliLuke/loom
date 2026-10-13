@@ -8,20 +8,21 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-func buildViewedResultValidation(projected *expr.AttributeExpr, views []*ViewData, scope *codegen.NameScope, att *expr.AttributeExpr, resvar string) *ValidateData {
+func buildViewedResultValidation(projected *expr.AttributeExpr, views []*ViewData, scope *codegen.NameScope, ref, resvar string) *ValidateData {
 	validateTData := viewedResultValidateTemplateData{
 		Projected: scope.GoValueTypeName(projected),
 		ArgVar:    "result",
 		Source:    "result",
 		Views:     views,
 		IsViewed:  true,
+		Root:      newViewValidationCarrier(projected, projectedTypeContext("", true, scope), expr.DefaultView),
 	}
 	validate := executeValidateTypeTemplate(validateTData)
 	name := "Validate" + resvar
 	return &ValidateData{
 		Name:        name,
 		Description: fmt.Sprintf("%s runs the validations defined on the viewed result type %s.", name, resvar),
-		Ref:         scope.GoTypeRef(att),
+		Ref:         ref,
 		Validate:    validate,
 	}
 }
@@ -34,60 +35,79 @@ func renderValidateTypeCode(data viewedResultValidateTemplateData) string {
 	var lines []string
 	function := codegen.ValidationFunction{Argument: data.ArgVar}
 	if data.IsViewed {
-		lines = append(lines, "switch "+data.ArgVar+".View {")
-		for _, view := range data.Views {
-			caseLine := "case " + quotedViewCase(view.Name) + ":"
-			lines = append(lines, "\t"+caseLine)
-			validateName := "Validate" + data.Projected
-			if view.Name != expr.DefaultView {
-				validateName += codegen.Goify(view.Name, true)
-			}
-			lines = append(lines, "\t\terr = "+(codegen.ValidationFunction{Name: validateName}).Call(data.ArgVar+".Projected", function.Path("")))
-		}
-		lines = append(lines, "\tdefault:")
-		lines = append(lines, "\t\terr = loom.InvalidEnumValueError(\"view\", "+data.Source+".View, []any{ "+strings.Join(quotedViews(data.Views), ", ")+" })")
-		lines = append(lines, "}")
-		return strings.Join(lines, "\n")
+		return renderViewedResultValidation(data)
 	}
 
+	input := data.ArgVar
+	if data.RootNullable {
+		input = "actual"
+	}
 	if data.IsCollection {
 		index := "_"
-		if data.NilableElement && !data.NullableElement {
+		if data.Element.nilable || data.Element.nullable {
 			index = "i"
 		}
-		lines = append(lines, "for "+index+", "+data.Source+" := range "+data.ArgVar+" {")
-		if data.NilableElement {
-			lines = append(lines, "\tif "+data.Source+" == nil {")
-			if !data.NullableElement {
-				lines = append(lines, "\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError("+function.Path("")+", i))")
-			}
+		lines = append(lines, "for "+index+", "+data.Source+" := range "+input+" {")
+		if data.Element.nilable || data.Element.nullable {
+			lines = append(lines, "\tif "+data.Element.missing(data.Source)+" {")
+			lines = append(lines, "\t\terr = loom.MergeErrors(err, loom.InvalidNullElementError("+function.Path("")+", i))")
 			lines = append(lines, "\t\tcontinue", "\t}")
 		}
-		lines = append(lines, "\tif err2 := "+(codegen.ValidationFunction{Name: data.ValidateVar}).Call(data.Source, function.Path("[*]"))+"; err2 != nil {")
-		lines = append(lines, "\t\terr = loom.MergeErrors(err, err2)")
-		lines = append(lines, "\t}")
+		lines = append(lines, indentViewValidation(data.Element.validation(data.Source, function.Path("[*]"))))
 		lines = append(lines, "}")
-		return strings.Join(lines, "\n")
-	}
-
-	if data.Validate != "" {
-		lines = append(lines, data.Validate)
-	} else if needsValidationFieldSpacer(data.Fields) {
-		lines = append(lines, "")
-	}
-	for _, field := range data.Fields {
-		fieldName := codegen.Goify(field.Name, true)
-		if field.IsRequired {
-			lines = append(lines, "if "+data.Source+"."+fieldName+" == nil {")
-			lines = append(lines, "\terr = loom.MergeErrors(err, loom.MissingFieldError("+fmt.Sprintf("%q", field.Name)+", "+function.Path("")+"))")
-			lines = append(lines, "}")
+	} else {
+		if data.Validate != "" {
+			lines = append(lines, data.Validate)
+		} else if needsValidationFieldSpacer(data.Fields) {
+			lines = append(lines, "")
 		}
-		lines = append(lines, "if "+data.Source+"."+fieldName+" != nil {")
-		lines = append(lines, "\tif err2 := "+(codegen.ValidationFunction{Name: field.ValidateVar}).Call(data.Source+"."+fieldName, function.Path("."+field.Name))+"; err2 != nil {")
-		lines = append(lines, "\t\terr = loom.MergeErrors(err, err2)")
-		lines = append(lines, "\t}")
-		lines = append(lines, "}")
+		for _, field := range data.Fields {
+			source := data.Source + "." + codegen.Goify(field.Name, true)
+			if field.IsRequired {
+				lines = append(lines, "if "+field.Carrier.missing(source)+" {")
+				lines = append(lines, "\terr = loom.MergeErrors(err, loom.MissingFieldError("+fmt.Sprintf("%q", field.Name)+", "+function.Path("")+"))")
+				lines = append(lines, "}")
+			}
+			validation := field.Carrier.validation(source, function.Path("."+field.Name))
+			if field.Carrier.nullable {
+				lines = append(lines, validation)
+			} else {
+				lines = append(lines, "if "+source+" != nil {", indentViewValidation(validation), "}")
+			}
+		}
 	}
+	body := strings.Join(lines, "\n")
+	if data.RootNullable && strings.TrimSpace(body) != "" {
+		return "if actual, ok := " + data.ArgVar + ".Value(); ok {\n" + indentViewValidation(body) + "\n}"
+	}
+	return body
+}
+
+func renderViewedResultValidation(data viewedResultValidateTemplateData) string {
+	lines := make([]string, 0, 2*len(data.Views)+4)
+	function := codegen.ValidationFunction{Argument: data.ArgVar}
+	if data.Root.nullable {
+		lines = append(lines, "if !"+data.ArgVar+".Projected.Present() {", "\treturn loom.Fault(\"missing result\")", "}")
+	}
+	lines = append(lines, "switch "+data.ArgVar+".View {")
+	for _, view := range data.Views {
+		caseLine := "case " + quotedViewCase(view.Name) + ":"
+		lines = append(lines, "\t"+caseLine)
+		validateName := "Validate" + data.Projected
+		if view.Name != expr.DefaultView {
+			validateName += codegen.Goify(view.Name, true)
+		}
+		if data.Root.nullable && !data.Root.intrinsic {
+			carrier := data.Root
+			carrier.function.Name = validateName
+			lines = append(lines, indentViewValidation(indentViewValidation(carrier.validation(data.ArgVar+".Projected", function.Path("")))))
+		} else {
+			lines = append(lines, "\t\terr = "+(codegen.ValidationFunction{Name: validateName}).Call(data.ArgVar+".Projected", function.Path("")))
+		}
+	}
+	lines = append(lines, "\tdefault:")
+	lines = append(lines, "\t\terr = loom.InvalidEnumValueError(\"view\", "+data.Source+".View, []any{ "+strings.Join(quotedViews(data.Views), ", ")+" })")
+	lines = append(lines, "}")
 	return strings.Join(lines, "\n")
 }
 
@@ -119,6 +139,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 				ArgVar:       "result",
 				Source:       "result",
 				IsCollection: arr != nil,
+				RootNullable: expr.IsNullable(projected),
 			}
 			var vn string
 			name := function.Name
@@ -129,12 +150,12 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 
 			if arr != nil {
 				data.Source = "item"
-				declaration := &expr.AttributeExpr{Type: arr.ElemType.Type, Meta: arr.ElemType.Meta}
-				data.ValidateVar = codegen.NamedValidationFunction(declaration, ctx, "item").Name + vn
-				data.NilableElement = expr.IsObject(arr.ElemType.Type) || expr.IsArray(arr.ElemType.Type) || expr.IsMap(arr.ElemType.Type)
-				data.NullableElement = arr.ElemType.Nullable
+				data.Element = newViewValidationCarrier(arr.ElemType, ctx, view.Name)
 			} else {
-				data.Validate, data.Fields = buildViewObjectValidation(projected, rt, view, scope)
+				if data.RootNullable {
+					data.Source = "actual"
+				}
+				data.Validate, data.Fields = buildViewObjectValidation(projected, rt, view, scope, data.Source)
 			}
 
 			validations = append(validations, &ValidateData{
@@ -155,7 +176,7 @@ func buildValidations(projected *expr.AttributeExpr, scope *codegen.NameScope) [
 	return validations
 }
 
-func buildViewObjectValidation(projected *expr.AttributeExpr, rt *expr.ResultTypeExpr, view *expr.ViewExpr, scope *codegen.NameScope) (string, []validateFieldTemplateData) {
+func buildViewObjectValidation(projected *expr.AttributeExpr, rt *expr.ResultTypeExpr, view *expr.ViewExpr, scope *codegen.NameScope, source string) (string, []validateFieldTemplateData) {
 	required := view.AttributeExpr
 	ctx := projectedTypeContext("", !expr.IsPrimitive(projected.Type), scope)
 	var fields []validateFieldTemplateData
@@ -166,17 +187,15 @@ func buildViewObjectValidation(projected *expr.AttributeExpr, rt *expr.ResultTyp
 			if v, ok := vatt.Meta.Last(expr.ViewMetaKey); ok && v != expr.DefaultView {
 				vw = v
 			}
-			declaration := &expr.AttributeExpr{Type: attr.Type, Meta: attr.Meta}
-			function := codegen.NamedValidationFunction(declaration, ctx, "result")
 			fields = append(fields, validateFieldTemplateData{
-				Name:        name,
-				ValidateVar: function.Name + codegen.Goify(vw, true),
-				IsRequired:  required.IsRequired(name),
+				Name:       name,
+				Carrier:    newViewValidationCarrier(attr, ctx, vw),
+				IsRequired: required.IsRequired(name),
 			})
 		} else {
 			o.Set(name, attr)
 		}
 	})
-	validate := codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: view.Validation}, rt, (codegen.ValidationFunction{Argument: "result"}).Context(ctx), true, false, true, "result")
+	validate := codegen.ValidationCode(&expr.AttributeExpr{Type: o, Validation: view.Validation}, rt, (codegen.ValidationFunction{Argument: source}).Context(ctx), true, false, true, source)
 	return validate, fields
 }

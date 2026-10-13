@@ -62,7 +62,7 @@ func buildProjectionConversion(att, projected *expr.AttributeExpr, view, name, s
 	if err != nil {
 		panic(err)
 	}
-	if expr.IsObject(source.Type) {
+	if expr.IsObject(source.Type) && !expr.IsNullable(source) {
 		code = "if " + sourceVar + " == nil {\n\treturn nil\n}\n" + code
 	}
 	return code + "\nreturn " + targetVar, helpers

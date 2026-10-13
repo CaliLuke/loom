@@ -1483,6 +1483,21 @@ filter, and serialization rules belong here.
   their existing hash/cardinality and client/server membership owners. Keep the
   [projected declaration identity model](../../../codegen/service/tla/projected_declaration_identity/README.md)
   paired with both-order identity tests and generated transport/view controls.
+- Shared service view validation retains the occurrence carrier separately from
+  the intrinsic named validator parameter. `viewValidationCarrier` owns field
+  and element presence, concrete access and call arguments. Occurrence Nullable
+  unwraps before an ordinary helper; intrinsic helpers accept their wrapper and
+  skip absent/null values. Required root, field and collection-position admission
+  belongs at the call boundary. Root nullable bodies unwrap before field access;
+  diagnostic paths remain the caller's path. Keep viewed metadata envelopes
+  non-null independently of nullable Projected payloads and derive their refs via
+  NameScope. Method occurrence nullability also participates in viewed-envelope
+  reuse and constructor identity; canonical projected declarations stay shared.
+  Preserve the occurrence on Projected and adapt canonical projection calls in
+  both directions. Transport validators use the recorded `Validate.Name`.
+  Projection entry nil guards apply only to physical pointers; shared
+  nullable conversion preserves absence/null. Keep the selected-view carrier model
+  and complete ordinary/occurrence/intrinsic/root-occurrence HTTP/JSON-RPC runtime matrix aligned.
 - A named union, a user type whose attribute is a union, is declared as the
   union type itself under the name of the user type: in the service package
   (`collectUnionTypes`), as a streaming payload or result

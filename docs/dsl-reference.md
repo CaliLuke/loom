@@ -307,10 +307,14 @@ other methods using it retain their own requirements.
 Selecting a view also preserves a result type's intrinsic `Nullable()` contract,
 including nested results and collection elements. Declare intrinsic result
 nullability inside `Attributes`; field-local `Nullable()` remains local to that
-field. View selection does not make an ordinary shared result type nullable.
-Generated nullable viewed objects still have a separate
-[carrier handling limitation](https://github.com/CaliLuke/loom/issues/834);
-preserving the semantic contract does not resolve that compilation limitation.
+field. Method-local `Nullable()` inside `Result` applies only to that method's
+result, including a result collection. View selection does not make an ordinary
+shared result type nullable.
+Generated views preserve absent, explicit null, and concrete nullable values.
+Required nullable fields reject absence and accept explicit null; only concrete
+values run the selected child view. Excluded fields are not validated. Nullable
+collection elements accept explicit null but reject constructed absent wrappers.
+Regenerate service, views, and transport packages to obtain these carrier checks.
 
 #### Arrays
 
@@ -1290,10 +1294,16 @@ Method("updateUser", func() {
 
 ### Result Types
 
-Return a nonnil object when a method succeeds with a viewed `ResultType`.
-The generated service-to-view constructor returns `loom.Fault` for a nil object
-before projecting its fields. Nil and empty result collections remain valid
-empty collections. Regenerate service code to obtain this check.
+Return a nonnil object when a method succeeds with a non-nullable viewed
+`ResultType`. An intrinsically nullable result or a result with method-local
+`Nullable()` uses `loom.Nullable[T]`: return
+`loom.NullValue[T]()` for explicit null or `loom.NullableValue(value)` for a
+concrete result. Its absent zero value is not a successful result. The generated
+service-to-view constructor returns `loom.Fault` for a missing result before
+projecting its fields. Ordinary nil and empty result collections remain valid
+empty collections. A nullable collection result must be present: use explicit
+null or a concrete collection, including an empty one. Regenerate service code
+to obtain these checks.
 
 ```go
 // Simple result

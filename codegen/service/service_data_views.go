@@ -213,11 +213,24 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 	viewName := viewedResultDefaultViewName(att, rt)
 	views := buildViews(rt, viewScope)
 	resvar := scope.GoValueTypeName(att)
-	vresref := viewScope.GoFullTypeRef(att, viewspkg)
-	validate := buildViewedResultValidation(projected, views, scope, att, resvar)
-	init := buildViewedResultInit(att, views, viewspkg, scope, resvar, vresref, isarr, viewspkg+"."+validate.Name)
-	resinit, resref := buildViewedResultResultInit(att, projected, views, viewspkg, scope, viewScope, resvar)
-	projT := wrapProjected(projected.Type.(expr.UserType))
+	// The viewed record owns metadata independently of its Projected payload.
+	projT := rt.Dup(wrapProjected(projected).Attribute())
+	envelope := &expr.AttributeExpr{Type: projT, Meta: att.Meta}
+	if att.Nullable && !expr.IsNullable(&expr.AttributeExpr{Type: att.Type}) {
+		// Occurrence wrappers share the canonical projection declaration, but
+		// their envelope field and constructor signatures are different.
+		projT.Rename(rt.Name() + "Nullable")
+		resvar = scope.GoValueTypeName(envelope)
+	}
+	vresref := viewScope.GoFullTypeRef(envelope, viewspkg)
+	validationRef := scope.GoTypeRef(envelope)
+	if isarr {
+		vresref = viewScope.GoFullTypeName(envelope, viewspkg)
+		validationRef = scope.GoTypeName(envelope)
+	}
+	validate := buildViewedResultValidation(projected, views, scope, validationRef, resvar)
+	init := buildViewedResultInit(att, projected, envelope, views, viewspkg, scope, viewScope, resvar, vresref, isarr, viewspkg+"."+validate.Name)
+	resinit, resref := buildViewedResultResultInit(att, projected, views, scope, viewScope, resvar, vresref)
 	return &ViewedResultTypeData{
 		UserTypeData: &UserTypeData{
 			Name:        resvar,
@@ -227,7 +240,7 @@ func buildViewedResultType(att, projected *expr.AttributeExpr, viewspkg string, 
 			Ref:         resref,
 			Type:        projT,
 		},
-		FullName:     scope.GoFullTypeName(att, viewspkg),
+		FullName:     scope.GoFullTypeName(envelope, viewspkg),
 		FullRef:      vresref,
 		ResultInit:   resinit,
 		Init:         init,
@@ -264,11 +277,13 @@ func fullTypeRefForAttribute(scope *codegen.NameScope, att *expr.AttributeExpr, 
 
 // wrapProjected builds a viewed result type by wrapping the given projected
 // in a result type with "projected" and "view" attributes.
-func wrapProjected(projected expr.UserType) expr.UserType {
-	rt := projected.(*expr.ResultTypeExpr)
+func wrapProjected(projected *expr.AttributeExpr) expr.UserType {
+	rt := projected.Type.(*expr.ResultTypeExpr)
+	payload := *projected
+	payload.Description = "Type to project"
 	pratt := &expr.NamedAttributeExpr{
 		Name:      "projected",
-		Attribute: &expr.AttributeExpr{Type: rt, Description: "Type to project"},
+		Attribute: &payload,
 	}
 	prview := &expr.NamedAttributeExpr{
 		Name:      "view",

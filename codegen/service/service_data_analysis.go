@@ -361,18 +361,19 @@ func (d *ServicesData) buildServiceMethods(
 		if v, ok := methodExpr.Result.Meta.Last(expr.ViewMetaKey); ok {
 			view = v
 		}
-		if vrt, ok := seenViewed[method.Result+"::"+view]; ok {
+		key := projectionKey(rt) + "::" + view + fmt.Sprintf("::%t", expr.IsNullable(methodExpr.Result))
+		if vrt, ok := seenViewed[key]; ok {
 			method.SetViewedResult(vrt)
 			continue
 		}
 		projected := seenProj[projectionKey(rt)]
-		projAtt := &expr.AttributeExpr{Type: projected.Type}
+		projAtt := &expr.AttributeExpr{Type: projected.Type, Nullable: methodExpr.Result.Nullable}
 		vrt := buildViewedResultType(methodExpr.Result, projAtt, viewspkg, scope, viewScope)
 		if !containsViewedResultType(viewedRTs, vrt) {
 			viewedRTs = append(viewedRTs, vrt)
 		}
 		method.SetViewedResult(vrt)
-		seenViewed[vrt.Name+"::"+view] = vrt
+		seenViewed[key] = vrt
 	}
 	return methods, schemes, viewedRTs
 }

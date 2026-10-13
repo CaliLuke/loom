@@ -146,7 +146,7 @@ func writeJSONRPCViewedInitReturn(g *jen.Group, e *httpcodegen.EndpointData, res
 	g.Id("vres").Op(":=").Add(codegen.Expr(viewedResultPrefix(e.Method.ViewedResult) + e.Method.ViewedResult.ViewsPkg + "." + e.Method.ViewedResult.VarName + "{Projected: p, View: view}"))
 	if resp.ClientBody != nil {
 		g.If(
-			jen.Id("err").Op("=").Add(codegen.Expr(e.Method.ViewedResult.ViewsPkg+".Validate"+e.Method.Result+"(vres)")),
+			jen.Id("err").Op("=").Add(codegen.Expr(e.Method.ViewedResult.ViewsPkg+"."+e.Method.ViewedResult.Validate.Name+"(vres)")),
 			jen.Id("err").Op("!=").Nil(),
 		).Block(
 			jen.Return(jen.Nil(), errValidationExpr(e.ServiceName, e.Method.Name, jen.Id("err"))),

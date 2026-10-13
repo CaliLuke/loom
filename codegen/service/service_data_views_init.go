@@ -8,23 +8,28 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg string, scope *codegen.NameScope, resvar, vresref string, isarr bool, validateName string) *InitData {
+func buildViewedResultInit(att, projected, envelope *expr.AttributeExpr, views []*ViewData, viewspkg string, scope, viewScope *codegen.NameScope, resvar, vresref string, isarr bool, validateName string) *InitData {
 	initTData := viewedResultInitTemplateData{
-		ToViewed:      true,
-		ArgVar:        "res",
-		ReturnVar:     "vres",
-		Views:         views,
-		ReturnTypeRef: vresref,
-		IsCollection:  isarr,
-		IsObject:      expr.IsObject(att.Type),
-		TargetType:    scope.GoFullTypeName(att, viewspkg),
-		InitName:      projectionHelperBaseName(scope, att),
-		ValidateName:  validateName,
-		ViewExpr:      "view",
+		ToViewed:           true,
+		ArgVar:             "res",
+		ReturnVar:          "vres",
+		Views:              views,
+		ReturnTypeRef:      vresref,
+		IsCollection:       isarr,
+		IsObject:           expr.IsObject(att.Type),
+		IsNullable:         expr.IsNullable(att),
+		OccurrenceNullable: att.Nullable && !expr.IsNullable(&expr.AttributeExpr{Type: att.Type}),
+		ProjectedRef:       viewScope.GoFullTypeRef(projected, viewspkg),
+		TargetType:         scope.GoFullTypeName(envelope, viewspkg),
+		InitName:           projectionHelperBaseName(scope, att),
+		ValidateName:       validateName,
+		ViewExpr:           "view",
 	}
 	name := "NewViewed" + resvar
 	description := fmt.Sprintf("%s projects result type %s to viewed result type %s and validates the selected view. Invalid views and result constraints return a fault that wraps the validation error.", name, resvar, resvar)
-	if initTData.IsObject {
+	if initTData.IsNullable {
+		description += " It returns a fault error when res is absent."
+	} else if initTData.IsObject {
 		description += " It returns a fault error when res is nil."
 	}
 	return &InitData{
@@ -40,22 +45,24 @@ func buildViewedResultInit(att *expr.AttributeExpr, views []*ViewData, viewspkg 
 	}
 }
 
-func buildViewedResultResultInit(att, projected *expr.AttributeExpr, views []*ViewData, viewspkg string, scope, viewScope *codegen.NameScope, resvar string) (*InitData, string) {
+func buildViewedResultResultInit(att, projected *expr.AttributeExpr, views []*ViewData, scope, viewScope *codegen.NameScope, resvar, vresref string) (*InitData, string) {
 	resref := fullTypeRefForAttribute(scope, att, "")
 	resultInitTData := viewedResultInitTemplateData{
-		ToResult:      true,
-		ArgVar:        "vres",
-		ReturnVar:     "res",
-		Views:         views,
-		ReturnTypeRef: resref,
-		InitName:      projectedResultInitHelperBaseName(scope, viewScope, att, projected),
-		ViewExpr:      "vres.View",
+		ToResult:           true,
+		IsObject:           expr.IsObject(att.Type),
+		OccurrenceNullable: att.Nullable && !expr.IsNullable(&expr.AttributeExpr{Type: att.Type}),
+		ArgVar:             "vres",
+		ReturnVar:          "res",
+		Views:              views,
+		ReturnTypeRef:      resref,
+		InitName:           projectedResultInitHelperBaseName(scope, viewScope, att, projected),
+		ViewExpr:           "vres.View",
 	}
 	name := "New" + resvar
 	return &InitData{
 		Name:          name,
 		Description:   fmt.Sprintf("%s initializes result type %s from viewed result type %s.", name, resvar, resvar),
-		Args:          []*InitArgData{{Name: "vres", Ref: scope.GoFullTypeRef(att, viewspkg)}},
+		Args:          []*InitArgData{{Name: "vres", Ref: vresref}},
 		ReturnTypeRef: resref,
 		ReturnsError:  true,
 		Code:          renderViewedResultInit(resultInitTData),
@@ -66,9 +73,13 @@ func renderViewedResultInit(data viewedResultInitTemplateData) string {
 	var lines []string
 	lines = append(lines, "")
 	lines = append(lines, "var "+data.ReturnVar+" "+data.ReturnTypeRef)
-	if data.ToViewed && data.IsObject {
+	if data.ToViewed && (data.IsObject || data.IsNullable) {
+		missing := data.ArgVar + " == nil"
+		if data.IsNullable {
+			missing = "!" + data.ArgVar + ".Present()"
+		}
 		lines = append(lines,
-			"if "+data.ArgVar+" == nil {",
+			"if "+missing+" {",
 			"\treturn "+data.ReturnVar+", loom.Fault(\"missing result\")",
 			"}",
 		)
@@ -81,14 +92,14 @@ func renderViewedResultInit(data viewedResultInitTemplateData) string {
 			initName += codegen.Goify(view.Name, true)
 		}
 		if data.ToViewed {
-			lines = append(lines, "\t\tp := "+initName+"("+data.ArgVar+")")
+			lines = append(lines, indentViewValidation(indentViewValidation(viewedResultProjectionCall(data, initName))))
 			prefix := ""
 			if !data.IsCollection {
 				prefix = "&"
 			}
 			lines = append(lines, "\t\t"+data.ReturnVar+" = "+prefix+data.TargetType+"{Projected: p, View: "+fmt.Sprintf("%q", view.Name)+" }")
 		} else {
-			lines = append(lines, "\t\t"+data.ReturnVar+" = "+initName+"("+data.ArgVar+".Projected)")
+			lines = append(lines, indentViewValidation(indentViewValidation(viewedResultProjectionCall(data, initName))))
 		}
 	}
 	lines = append(lines, "\tdefault:")
@@ -113,6 +124,30 @@ func renderViewedResultInit(data viewedResultInitTemplateData) string {
 	}
 	lines = append(lines, "return "+data.ReturnVar+", nil")
 	return strings.Join(lines, "\n")
+}
+
+// viewedResultProjectionCall adapts the occurrence carrier to a canonical named
+// helper. The envelope keeps presence; the named helper receives its declared
+// concrete argument. Intrinsic nullable helpers already own that representation.
+func viewedResultProjectionCall(data viewedResultInitTemplateData, name string) string {
+	source, target, ref := data.ArgVar, "p", data.ProjectedRef
+	assign := ":="
+	if data.ToResult {
+		source, target, ref = data.ArgVar+".Projected", data.ReturnVar, data.ReturnTypeRef
+		assign = "="
+	}
+	if !data.OccurrenceNullable {
+		return target + " " + assign + " " + name + "(" + source + ")"
+	}
+	argument, value := "actual", "converted"
+	if data.IsObject {
+		argument, value = "&actual", "*converted"
+	}
+	code := ""
+	if data.ToViewed {
+		code = "var " + target + " " + ref + "\n"
+	}
+	return code + "if " + source + ".IsNull() {\n\t" + target + ".SetNull()\n} else if actual, ok := " + source + ".Value(); ok {\n\tconverted := " + name + "(" + argument + ")\n\t" + target + ".SetValue(" + value + ")\n}"
 }
 
 // buildTypeInits builds the data to generate the constructor code to

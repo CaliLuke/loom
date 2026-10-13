@@ -6,38 +6,41 @@ import (
 
 type (
 	viewedResultValidateTemplateData struct {
-		Projected       string
-		ArgVar          string
-		Source          string
-		Views           []*ViewData
-		IsViewed        bool
-		IsCollection    bool
-		NilableElement  bool
-		NullableElement bool
-		ValidateVar     string
-		Validate        string
-		Fields          []validateFieldTemplateData
+		Projected    string
+		ArgVar       string
+		Source       string
+		Views        []*ViewData
+		IsViewed     bool
+		IsCollection bool
+		RootNullable bool
+		Root         viewValidationCarrier
+		Element      viewValidationCarrier
+		Validate     string
+		Fields       []validateFieldTemplateData
 	}
 
 	viewedResultInitTemplateData struct {
-		ToViewed      bool
-		ToResult      bool
-		ArgVar        string
-		ReturnVar     string
-		Views         []*ViewData
-		ReturnTypeRef string
-		IsCollection  bool
-		IsObject      bool
-		TargetType    string
-		InitName      string
-		ValidateName  string
-		ViewExpr      string
+		ToViewed           bool
+		ToResult           bool
+		ArgVar             string
+		ReturnVar          string
+		Views              []*ViewData
+		ReturnTypeRef      string
+		IsCollection       bool
+		IsObject           bool
+		IsNullable         bool
+		OccurrenceNullable bool
+		ProjectedRef       string
+		TargetType         string
+		InitName           string
+		ValidateName       string
+		ViewExpr           string
 	}
 
 	validateFieldTemplateData struct {
-		Name        string
-		ValidateVar string
-		IsRequired  bool
+		Name       string
+		Carrier    viewValidationCarrier
+		IsRequired bool
 	}
 
 	// ViewedResultTypeData contains the data used to generate a viewed result type

@@ -142,9 +142,11 @@ JSON-RPC consumes these shared owners; no local naming substitutions were added.
 The 20-context direct projection matrix covers five shapes, intrinsic nullability
 and both occurrence visit orders. Service/view and HTTP named-union direct tests
 preserve hash/cardinality and wrapped use references. A corrected selected-view
-helper test uses occurrence Nullable on an ordinary Child ResultType; intrinsic
-Nullable directly in ResultType is rejected DSL and is not claimed as a supported
-case. The valid helper test fails on exact parent and passes with this change.
+helper test uses occurrence Nullable on an ordinary Child ResultType. A bare
+Nullable call directly in ResultType is rejected; intrinsic nullability declared
+inside Attributes is valid and is covered by the separate #837/#834 semantic and
+physical carrier repairs. The #829 helper test fails on its exact parent and
+passes with the identity change.
 
 Generated acceptance reuses the #824 and #832 fixtures. The transport/view fixture
 now covers nullable primitive, object, occurrence nested union, intrinsically

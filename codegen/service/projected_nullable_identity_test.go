@@ -86,16 +86,16 @@ func TestNullableSelectedViewHelperNames(t *testing.T) {
 		}
 		validations := buildValidations(&expr.AttributeExpr{Type: collection}, scope)
 		require.Len(t, validations, 1)
-		require.Contains(t, validations[0].Validate, function.Name+"Tiny(item,")
+		require.Contains(t, validations[0].Validate, function.Name+"Tiny(&actual,")
 	})
 	t.Run("nested selected view", func(t *testing.T) {
 		parent := &expr.ResultTypeExpr{
 			UserTypeExpr: &expr.UserTypeExpr{TypeName: "Parent", UID: "parent", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{Name: "child", Attribute: attribute}}}},
 		}
 		view := &expr.ViewExpr{Name: "default", AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{Name: "child", Attribute: &expr.AttributeExpr{Type: child, Meta: expr.MetaExpr{expr.ViewMetaKey: []string{"tiny"}}}}}}, Parent: parent}
-		_, fields := buildViewObjectValidation(&expr.AttributeExpr{Type: parent}, parent, view, scope)
+		_, fields := buildViewObjectValidation(&expr.AttributeExpr{Type: parent}, parent, view, scope, "result")
 		require.Len(t, fields, 1)
-		require.Equal(t, function.Name+"Tiny", fields[0].ValidateVar)
+		require.Equal(t, function.Name+"Tiny", fields[0].Carrier.function.Name)
 	})
 	t.Run("projection helpers", func(t *testing.T) {
 		require.True(t, token.IsIdentifier(projectionHelperBaseName(scope, attribute)))
