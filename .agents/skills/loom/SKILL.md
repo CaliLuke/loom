@@ -665,6 +665,14 @@ generated handler from the scaffold and return a
 final response. ID-less streams suppress that response. Other streaming
 completion shapes are explicit generation limitations.
 
+## Map Keys
+
+Native `Bytes`, array and map keys, including named aliases, fail design
+validation because their generated Go storage cannot be a map key. Scalar,
+object-pointer and `Any` keys retain their existing representations. Custom Go
+key types must be comparable; transport codecs can impose narrower restrictions.
+Correct the key design and regenerate instead of editing generated declarations.
+
 ## JSON Presence and Nullability
 
 - Loom and generated transports use Go 1.27's `encoding/json/v2`. Decoding is

@@ -375,6 +375,14 @@ var Config = MapOf(String, Int32, func() {
 })
 ```
 
+Map keys must have comparable generated Go storage. Native `Bytes`, arrays and
+maps, including named aliases, are rejected during design validation. Scalar
+keys, named scalar keys, object-pointer keys and `Any` keys retain their existing
+representations. An authored custom Go key type must itself support comparison;
+Loom does not inspect external type definitions. Transport codecs may restrict
+keys further, including gRPC's scalar-key rules. Correct an invalid key design
+and regenerate; do not edit the generated map declaration.
+
 ### Type Composition
 
 #### Reference

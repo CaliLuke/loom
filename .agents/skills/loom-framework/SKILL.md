@@ -107,6 +107,14 @@ consumer validation.
   the server-member model and mounted routing controls aligned; client and gRPC
   receiver naming are separate owners.
 
+- `expr.RootExpr.validateGoRepresentation` admits framework-owned key storage
+  at each map occurrence before finalization/capture, including unused types
+  and errors. Follow named declaration edges; reject native Bytes, arrays and maps while preserving object pointers, Any and actual
+  primitive Go overrides. Keep author-owned custom Go types opaque. Do not put
+  this role-specific check behind shared key-type validation or duplicate it in
+  MapOf or transports. The map-key admission model and compiler controls cover
+  value/key reuse and retained representation boundaries.
+
 - `expr.validateUnionBranchIdentities` admits logical names and effective tags
   within each evaluated union before generator capture. Reuse `AttributeName`
   and `UnionVariantTag`, including occurrence/named-type metadata precedence;

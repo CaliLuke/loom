@@ -220,6 +220,11 @@ func ArrayOfRequired(v any, fn ...func()) *expr.Array {
 // MapOf may be used wherever types can.
 // MapOf takes two arguments: the key and value types either by name of by reference.
 //
+// Native Bytes, array and map keys are rejected during design validation because
+// their generated Go storage is not comparable. Named keys follow their underlying
+// declaration. Object keys use pointers. Custom Go key representations remain the
+// author's responsibility, and transports may impose narrower key restrictions.
+//
 // Example:
 //
 //	var Review = Type("Review", func() {
@@ -248,10 +253,6 @@ func MapOf(k, v any, fn ...func()) *expr.Map {
 	// never return nil to avoid panics, errors are reported after DSL execution
 	if tk == nil {
 		eval.ReportError("invalid MapOf key argument: not a type and not a known user type name")
-		return &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: expr.String}}
-	}
-	if expr.IsMap(tk) {
-		eval.ReportError("invalid MapOf key type: key type must be a primitive, array, or user type")
 		return &expr.Map{KeyType: &expr.AttributeExpr{Type: expr.String}, ElemType: &expr.AttributeExpr{Type: expr.String}}
 	}
 	if tv == nil {

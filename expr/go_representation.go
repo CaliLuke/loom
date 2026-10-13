@@ -2,18 +2,42 @@ package expr
 
 import (
 	"github.com/CaliLuke/loom/eval"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 	"github.com/CaliLuke/loom/internal/naming"
 )
 
-type goFieldNameValidator struct {
+type goRepresentationValidator struct {
 	seen   map[*AttributeExpr]bool
 	errors *eval.ValidationErrors
 }
 
-// validateGoFieldNames checks service data, excluding transport mappings whose
-// attributes can name distinct metadata elements without declaring Go fields.
-func (r *RootExpr) validateGoFieldNames() *eval.ValidationErrors {
-	v := &goFieldNameValidator{seen: make(map[*AttributeExpr]bool), errors: new(eval.ValidationErrors)}
+// nonComparableMapKeyStorage identifies framework-owned key representations.
+// Primitive Go overrides belong to the author; collection and named occurrence
+// overrides do not replace their generated declarations.
+func nonComparableMapKeyStorage(attribute *AttributeExpr) string {
+	for {
+		switch actual := attribute.Type.(type) {
+		case Primitive:
+			if actual == Bytes && encodingmeta.GoType(attribute.Meta).Name == "" {
+				return "Bytes"
+			}
+			return ""
+		case *Array:
+			return "array"
+		case *Map:
+			return "map"
+		case UserType:
+			attribute = actual.Attribute()
+		default:
+			return ""
+		}
+	}
+}
+
+// validateGoRepresentation checks service declarations, including unused types
+// and errors. Transport mappings do not declare service Go fields.
+func (r *RootExpr) validateGoRepresentation() *eval.ValidationErrors {
+	v := &goRepresentationValidator{seen: make(map[*AttributeExpr]bool), errors: new(eval.ValidationErrors)}
 	for _, ut := range r.Types {
 		v.walk(ut.Attribute(), ut, ut.Name())
 	}
@@ -40,7 +64,7 @@ func (r *RootExpr) validateGoFieldNames() *eval.ValidationErrors {
 	return v.errors
 }
 
-func (v *goFieldNameValidator) walk(att *AttributeExpr, parent eval.Expression, path string) {
+func (v *goRepresentationValidator) walk(att *AttributeExpr, parent eval.Expression, path string) {
 	if att == nil || v.seen[att] {
 		return
 	}
@@ -57,6 +81,9 @@ func (v *goFieldNameValidator) walk(att *AttributeExpr, parent eval.Expression, 
 	case *Array:
 		v.walk(dt.ElemType, parent, path+"[]")
 	case *Map:
+		if storage := nonComparableMapKeyStorage(dt.KeyType); storage != "" {
+			v.errors.Add(parent, "%s: map keys cannot use %s storage; use a comparable key type", path, storage)
+		}
 		v.walk(dt.KeyType, parent, path+"[key]")
 		v.walk(dt.ElemType, parent, path+"[value]")
 	case *Union:
@@ -66,7 +93,7 @@ func (v *goFieldNameValidator) walk(att *AttributeExpr, parent eval.Expression, 
 	}
 }
 
-func (v *goFieldNameValidator) walkObject(att *AttributeExpr, parent eval.Expression, path string) {
+func (v *goRepresentationValidator) walkObject(att *AttributeExpr, parent eval.Expression, path string) {
 	fields := AsObject(att.Type)
 	owners := make(map[string]string, len(*fields))
 	for _, field := range *fields {
