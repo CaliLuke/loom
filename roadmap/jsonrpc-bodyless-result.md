@@ -14,7 +14,7 @@ response body plan, not the existence of a named service type.
 5. [x] Run mounted null/error/notification and codec/metadata checks, existing
    selected projection and WebSocket controls, bounded generation parity and lint.
 6. [x] Freeze exact final packet for independent review.
-7. [ ] Independent approval and root integration.
+7. [x] Independent approval and root integration.
 
 `writeJSONRPCEndpointInvoke` currently binds `res` whenever `Result.Ref` is
 nonempty; `responseBodyInit` correctly uses `EncodePlan.HasBody`. Named empty
@@ -46,3 +46,5 @@ only difference is four endpoint result bindings in one server file. Independent
 repeat is byte-identical. No schemas, shared response expressions or physical
 body declarations change. Scoped lint reports zero issues; structural gates pass.
 The exact source/evidence manifest is `/tmp/loom-868-final-manifest.json`.
+
+Delivered as `ab9da36ea`, independently reviewed, pushed and confirmed closed. Integrated original compiler regressions and the 21-case mounted matrix pass. Root final and separate integration receipts are `/tmp/loom-868-root-final-verdict.json` and `/tmp/loom-868-integration-review-verdict.json`.

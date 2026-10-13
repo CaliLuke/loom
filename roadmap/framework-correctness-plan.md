@@ -4,27 +4,29 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **128 of 190 tracked reports are delivered, pushed and confirmed closed.**
+- **129 of 190 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report.
-  GitHub snapshot `/tmp/loom-checkpoint-128-all-issues.json` verifies this count.
+  GitHub snapshot `/tmp/loom-checkpoint-129-all-issues.json` verifies this count.
 - Latest deliveries: #735 constructor ownership (`56a78637a`), #859 streaming
   interceptor result identity (`c8515931c`), and #869 streaming snapshots
   (`641c103c2`). Every final diff passed independent review; #735/#859
   also passed separate integration review before push and issue closure.
-- Required CI remains red: #868 is a reproduced JSON-RPC named-empty-result
-  compilation defect. The separate stale HTTP/gRPC snapshots are repaired in
-  #869. Completed generated-quality, Redis, OpenAPI and most compile gates passed
+- #868 is now delivered as `ab9da36ea`, independently reviewed, pushed and
+  closed. Both original compiler regressions and 21 mounted response cases pass.
+- Required CI remains red on older runs: the #868 compilation and #869 snapshot
+  failures are repaired. The race job independently reproduces the known #820
+  libopenapi YAML merge race; its upstream fix remains open. Completed generated-quality, Redis, OpenAPI and most compile gates passed
   on the previous checkpoint; newer runs remain active. No aggregate green claim.
 - Continue the whole backlog. No public-contract question is pending; upstream
   prerequisites do not block independent repairs.
 
 ## Current execution queue
 
-1. **#868 JSON-RPC bodyless result binding:** `/root/omission_readiness_finish`
-   owns `numeric-comparison/loom`. Shared response EncodePlan.HasBody must drive
-   endpoint result consumption, retaining metadata capture and WebSocket forwarding.
-   Current compile and direct failures plus source-binding model establish the
-   owner; implement and verify bounded bodyless/body/metadata/notification cases.
+1. **#790 JSON-RPC envelope ID ownership:** `/root/omission_readiness_finish`
+   reuses `numeric-comparison/loom` after #868 delivery and cleanup. Establish one
+   request-ID source before validation and body generation across unary/SSE/WS.
+   Reproduce invalid envelope values and required-ID requests; reconcile numeric,
+   null and notification behavior with the documented contract before implementation.
 2. **#726 gRPC operation contexts:** `/root/diagnostic_redaction_finish` owns
    `grpc-message-context/loom`. Independent readiness is approved; implementation is authorized.
    Prefer synchronous service execution with bounded native I/O ownership; an
@@ -1292,3 +1294,10 @@ no overall green result is claimed.
   expectations; affected HTTP/gRPC groups pass. New #868 records the separately
   reproduced bodyless JSON-RPC compilation regression. 128 of 190 tracked
   reports are closed; full CI remains unresolved.
+
+- 2026-10-13 — **Checkpoint129:** #868 delivered `ab9da36ea` after root final
+  and separate integration review. Main generated compiler regressions and
+  mounted response matrix pass (JSON-RPC 5.479s, generator 2.825s). Only four
+  endpoint bindings change in the bounded comparison. 129 of 190 tracked
+  reports are confirmed closed. Continue #790 ID ownership readiness, #867 mixed
+  dispatch and #726 gRPC cancellation; upstream #820 remains a race-job blocker.
