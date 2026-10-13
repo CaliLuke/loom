@@ -37,7 +37,7 @@ func TestAliasRequestBodyValidation(t *testing.T) {
 				Attribute("v", code)
 			},
 			Validate: []string{
-				"(body SendRequestBody) (err error) {\n\tif utf8.RuneCountInString(string(body)) < 1 {\n",
+				"\tif utf8.RuneCountInString(string(body)) < 1 {\n",
 			},
 			Optional: []string{
 				"\t\tif body != nil {\n\t\t\tif utf8.RuneCountInString(string(*body)) < 1 {\n",
@@ -50,7 +50,7 @@ func TestAliasRequestBodyValidation(t *testing.T) {
 				Attribute("v", amount)
 			},
 			Validate: []string{
-				"(body SendRequestBody) (err error) {\n\tif int(body) < 1 {\n",
+				"\tif int(body) < 1 {\n",
 			},
 			Optional: []string{"\t\tif body != nil {\n\t\t\tif int(*body) < 1 {\n"},
 			Required: []string{"\t\terr = ValidateSendRequestBody(body)\n"},
@@ -61,7 +61,7 @@ func TestAliasRequestBodyValidation(t *testing.T) {
 				Attribute("v", tags)
 			},
 			Validate: []string{
-				"(body SendRequestBody) (err error) {\n\tif len(body) < 1 {\n",
+				"\tif len(body) < 1 {\n",
 			},
 			Optional: []string{"\t\tif body != nil {\n\t\t\terr = ValidateSendRequestBody(body)\n\t\t}\n"},
 			Required: []string{"\t\terr = ValidateSendRequestBody(body)\n"},
@@ -72,7 +72,7 @@ func TestAliasRequestBodyValidation(t *testing.T) {
 				Attribute("v", dict)
 			},
 			Validate: []string{
-				"(body SendRequestBody) (err error) {\n\tif len(body) > 3 {\n",
+				"\tif len(body) > 3 {\n",
 			},
 			Optional: []string{"\t\tif body != nil {\n\t\t\terr = ValidateSendRequestBody(body)\n\t\t}\n"},
 			Required: []string{"\t\terr = ValidateSendRequestBody(body)\n"},
@@ -123,6 +123,8 @@ func TestAliasRequestBodyValidation(t *testing.T) {
 					return
 				}
 				require.NotEmpty(t, validate)
+				require.Contains(t, validate, "func ValidateSendRequestBody(body SendRequestBody, validationContext ...string) (err error)")
+				require.Contains(t, validate, `validationPath := "body"`)
 				for _, fragment := range c.Validate {
 					require.Contains(t, validate, fragment)
 				}
