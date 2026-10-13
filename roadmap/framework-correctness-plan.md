@@ -4,7 +4,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **159 of 206 tracked reports are delivered, pushed and confirmed closed.**
+- **161 of 206 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
   `/tmp/loom-current-all-issues.json` is the current GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
@@ -15,11 +15,14 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   native keys before generation across every design root. Its supported custom
   Bytes-key example-synthesis residual is independently reproduced as #884;
   it is not fixed by admission and must not be hidden by rejecting custom keys.
-- Required CI remains red. Run `38430436877` on `d98cab3ef` fails root tests,
-  race and the gRPC compile partition. #885 tracks stale metadata fixtures and
-  native-peer controls after #705; all named failures reproduce on current main.
-  The race job also retains the known #820 libopenapi YAML merge race. Newer
-  runs are queued or running; no current-main CI success is claimed.
+- Metadata fixture/peer adoption #885 is delivered as `c01bd5447`. All affected
+  gRPC/transport-IR packages, native binary controls and the exact failing CI
+  security compile case pass. Receiver wrapper report #786 is independently
+  reconciled against the delivered service symbol owner; `35ff54729` preserves
+  all three reported collision forms without another production naming patch.
+- Required CI is not green. Run `38430436877` failed the now-repaired metadata
+  controls and the known #820 libopenapi race. The #885 run `38438413884` is in
+  progress and current-main run `38439364318` is queued at this checkpoint.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
   its owning plan preserves the independently checked correction.
@@ -48,33 +51,31 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Metadata contract adoption (#885):** `/root/diagnostic_redaction_finish`
-   reuses `grpc-message-context/loom` after preserving delivered #883 evidence.
-   Reconcile all affected gRPC fixtures, canonical-key assertions and native-peer
-   controls. Preserve valid security coverage through distinct explicit bindings,
-   regenerate affected goldens, and assert actual binary values. Production
-   semantics remain the accepted #705 owner; no collision-admission weakening.
-2. **Interceptor contracts (#767/#785):** `/root/projection_integration_review`
-   prepares readiness in `interceptor-accessor-union/loom`. Shared logical accessor
-   signatures need method-specific physical bindings; stream adapters must consume
-   actual operation/carrier contracts. Keep distinct owners in separate atomic
-   repairs. #770 is a package declaration obligation; #786's original witness now
-   compiles and needs independent reconciliation, not a replacement allocator.
-3. **Multipart source budget (#759):** `/root/omission_readiness_finish`
-   prepares readiness in `numeric-comparison/loom`. Own source-byte accounting
-   before parser construction for built-in and custom callbacks, and require
-   bounded source completion before successful dispatch. Reuse existing runtime
-   and mounted request-limit coverage; remove part-value accounting.
-4. **Remaining runtime families:** reconcile pool construction/publication and
-   scheduler lifetime together before choosing their shared-owner repairs. #687
-   waits on #800; #704 worker publication may be independently repairable. Preserve
-   the #884 generated-example witness for the representation-synthesis owner.
+1. **Interceptor contracts (#767/#785):** `/root/projection_integration_review`
+   implements approved #767 in `interceptor-accessor-union/loom`: one admitted
+   logical accessor signature with method-specific physical bindings across both
+   sides. Root independently checked the failing witnesses and model. #785 follows
+   as a separate operation/carrier repair; preserve its readiness inputs outside
+   the #767 commit. #770 remains a distinct package declaration obligation.
+2. **Multipart source budget (#759):** `/root/omission_readiness_finish`
+   implements the approved request-source owner in `numeric-comparison/loom`.
+   Built-in and custom callbacks share source accounting and bounded completion
+   before dispatch, replacing part-value budgets. Runtime and generated checks
+   are passing; exact final review and integration remain required.
+3. **Ticker lifetime (#738/#707):** `/root/diagnostic_redaction_finish` prepares
+   readiness after safe #885 worktree reuse. Constructor abort, local Close and
+   remote missing-entry observation need one local teardown owner, preserving
+   peer/shared state and global Stop. Explore both paths together, then make
+   separate atomic repairs. This slice does not depend on #800.
+4. **Remaining owners:** #704 worker admission/publication must include uncertain
+   Redis replies, independent replicas and concurrent Close; #737 needs a producer
+   desired-job ledger. #687 still waits on bounded subordinate shutdown. Keep the
+   independently reproduced #884 custom-key example-synthesis witness open.
 5. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
-   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at last
-   inspection. The approved #800 packet is in `bounded-streaming-shutdown`;
-   original-module fetchability gates delivery. Do not substitute cache-primed
-   success for an eligible upstream revision.
+   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open, with no new
+   human feedback at the latest inspection. The approved #800 packet stays in
+   `bounded-streaming-shutdown`; original-module fetchability gates delivery.
 
 Completed cleanup receipts preserve compact evidence and exact reproduction
 inputs after activity checks: #872 `/tmp/loom-872-cleanup-receipt.json`, #790

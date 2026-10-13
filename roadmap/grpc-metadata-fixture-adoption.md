@@ -1,5 +1,8 @@
 # gRPC metadata contract adoption (#885)
 
+Delivered as `c01bd5447`, independently reviewed, pushed and confirmed closed.
+Exact final/root integration verdict: `/tmp/loom-885-root-final-verdict.json`.
+
 Owner: existing evaluated metadata binding (`expr.ensureMetadataBindings` and `normalizeGRPCMetadata`). Accepted contract: lowercase wire keys, binary `-bin` derivation, and rejection of distinct attributes sharing a complete canonical binding. No production or public policy change is proposed.
 
 ## Confirmed parent
@@ -10,7 +13,7 @@ Current pushed main 814a3a2e37361b3343dd048052295e122b8edcc3. Targeted current-s
 
 - [x] Steps 1–4: preserve the parent and repair existing fixtures/peers.
 - [x] Step 5: affected packages, bounded generation, direct admission, lint and the CI security specimen pass.
-- [ ] Step 6: obtain fresh final review and deliver the atomic repair.
+- [x] Step 6: obtain fresh final review and deliver the atomic repair.
 
 1. Preserve parent repro, review original #705 native/collision controls, then safely reuse the delivered #883 checkout.
 2. Keep MessageWithMetadataDSL and MessageWithValidateDSL authored uppercase names unchanged. Update eight affected request/response codec goldens only from actual generator output; verify differences are wire-key lowercase normalization. Change service-data and transport-IR assertions to canonical wire keys while asserting original logical fields remain unchanged.
