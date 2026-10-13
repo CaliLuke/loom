@@ -53,7 +53,8 @@ func (s *StreamClientStream) Send(v *jsonrpcwebsocketruntimeservice.JSONRPCWebSo
 
 // SendWithContext sends streaming data to the Stream endpoint with context.
 func (s *StreamClientStream) SendWithContext(ctx context.Context, v *jsonrpcwebsocketruntimeservice.JSONRPCWebSocketRuntimeRequest) error {
-	return s.stream.Send(ctx, v)
+	p := v
+	return s.stream.Send(ctx, NewStreamStreamingBody(p))
 }
 
 // Recv receives streaming data from the Stream endpoint.
