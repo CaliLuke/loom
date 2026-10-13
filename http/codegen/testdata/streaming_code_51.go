@@ -10,7 +10,8 @@ func (s *StreamingPayloadPrimitiveMapMethodServerStream) SendAndCloseWithContext
 	err := func() error {
 		defer s.conn.Close()
 		res := v
-		return s.conn.WriteJSON(ctx, res)
+		body := res
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {

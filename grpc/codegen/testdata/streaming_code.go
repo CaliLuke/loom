@@ -150,7 +150,10 @@ func (s *MethodServerStreamingResultTypeCollectionWithExplicitViewServerStream) 
 	if err != nil {
 		return loomgrpc.ObserveStreamEncodeError(s.ctx, err)
 	}
-	v := NewProtoResultTypeCollectionViewResultTypeCollection(vres.Projected)
+	v, err := NewProtoResultTypeCollectionViewResultTypeCollection(vres.Projected)
+	if err != nil {
+		return loomgrpc.ObserveStreamEncodeError(s.ctx, err)
+	}
 	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
@@ -173,7 +176,10 @@ func (s *MethodServerStreamingResultTypeCollectionWithExplicitViewClientStream) 
 	if err != nil {
 		return res, err
 	}
-	proj := NewResultTypeCollectionResultTypeCollection(v)
+	proj, err := NewResultTypeCollectionResultTypeCollection(v)
+	if err != nil {
+		return nil, err
+	}
 	vres := serviceserverstreamingresulttypecollectionwithexplicitviewviews.ResultTypeCollection{Projected: proj, View: "tiny"}
 	if err := serviceserverstreamingresulttypecollectionwithexplicitviewviews.ValidateResultTypeCollection(vres); err != nil {
 		return nil, err
@@ -273,7 +279,10 @@ var ServerStreamingMapServerSendCode = `// Send streams instances of
 // "service_server_streaming_mappb.MethodServerStreamingMapResponse" to the
 // "MethodServerStreamingMap" endpoint gRPC stream.
 func (s *MethodServerStreamingMapServerStream) Send(res map[string]*serviceserverstreamingmap.UserType) error {
-	v := NewProtoMethodServerStreamingMapResponse(res)
+	v, err := NewProtoMethodServerStreamingMapResponse(res)
+	if err != nil {
+		return loomgrpc.ObserveStreamEncodeError(s.ctx, err)
+	}
 	return loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))
 }
 
@@ -294,7 +303,11 @@ func (s *MethodServerStreamingMapClientStream) Recv() (map[string]*serviceserver
 	if err != nil {
 		return res, err
 	}
-	return NewMethodServerStreamingMapResponseMethodServerStreamingMapResponse(v), nil
+	converted, err := NewMethodServerStreamingMapResponseMethodServerStreamingMapResponse(v)
+	if err != nil {
+		return res, err
+	}
+	return converted, nil
 }
 
 // RecvWithContext reads instances of

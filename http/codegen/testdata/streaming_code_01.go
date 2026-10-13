@@ -1037,7 +1037,8 @@ func (s *StreamingResultPrimitiveMethodServerStream) SendWithContext(ctx context
 			return s.upgradeErr
 		}
 		res := v
-		return s.conn.WriteJSON(ctx, res)
+		body := res
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -1130,7 +1131,8 @@ func (s *StreamingResultPrimitiveArrayMethodServerStream) SendWithContext(ctx co
 			return s.upgradeErr
 		}
 		res := v
-		return s.conn.WriteJSON(ctx, res)
+		body := res
+		return s.conn.WriteJSON(ctx, body)
 	}()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
