@@ -893,6 +893,15 @@ default for generated buffered decoders.
 `SkipResponseBodyEncodeDecode` deliberately bypasses response buffering because
 the application owns the raw response stream.
 
+### Request Cookie Values
+
+Generated HTTP and JSON-RPC HTTP clients validate cookie names and values before
+sending a request. Invalid values, including semicolons, quotes, backslashes,
+control bytes and non-ASCII characters, return an `encoding_error`; Loom does
+not silently remove characters or escape the value. Valid empty values, spaces
+and commas retain their standard cookie representation. Absent optional cookies
+remain omitted. Regenerate clients to adopt this validation.
+
 ### Runtime Response Cookie Policy
 
 Keep cookie values and portable security defaults in the design. When the

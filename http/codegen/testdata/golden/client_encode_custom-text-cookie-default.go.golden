@@ -9,10 +9,9 @@ func EncodeMethodCookieCustomTextUnmarshalerDefaultRequest(encoder func(*http.Re
 		}
 		{
 			v := fmt.Sprint(p.ID)
-			req.AddCookie(&http.Cookie{
-				Name:  "id",
-				Value: v,
-			})
+			if err := loomhttp.AddRequestCookie(req, "id", v); err != nil {
+				return loomhttp.ErrEncodingError("ServiceCookieCustomTextUnmarshalerDefault", "MethodCookieCustomTextUnmarshalerDefault", err)
+			}
 		}
 		return nil
 	}

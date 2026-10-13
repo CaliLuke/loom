@@ -85,7 +85,7 @@ func TestPrimitiveHeaderCookieEncoder(t *testing.T) {
 			code := codegen.SectionCode(t, sections[0])
 			switch {
 			case tc.cookie:
-				require.Contains(t, code, "req.AddCookie(")
+				require.Contains(t, code, "loomhttp.AddRequestCookie(req,")
 			case expr.IsArray(root.Services[0].Methods[0].Payload.Type):
 				require.Contains(t, code, "loomhttp.SetHeaderValues(req.Header,")
 			default:

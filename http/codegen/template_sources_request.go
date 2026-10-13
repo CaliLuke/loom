@@ -52,28 +52,9 @@ func {{ .RequestEncoder }}(encoder func(*http.Request) loomhttp.Encoder) func(*h
 			{{- if or (not (eq .Type.Name "string")) (and (isAlias .FieldType) (not .IsTextUnmarshaler)) }}
 			{{ template "partial_client_type_conversion" (typeConversionData .Type .FieldType "v" "vraw") }}
 			{{- end }}
-			req.AddCookie(&http.Cookie{
-				Name: {{ printf "%q" .HTTPName }},
-				Value: v,
-				{{- if .MaxAge }}
-				MaxAge: {{ .MaxAge }},
-				{{- end }}
-				{{- if .Path }}
-				Path: {{ .Path }},
-				{{- end }}
-				{{- if .Domain }}
-				Domain: {{ .Domain }},
-				{{- end }}
-				{{- if .Secure }}
-				Secure: true,
-				{{- end }}
-				{{- if .HTTPOnly }}
-				HttpOnly: true,
-				{{- end }}
-				{{- if .SameSite }}
-				SameSite: {{ .SameSite }},
-				{{- end }}
-			})
+			if err := loomhttp.AddRequestCookie(req, {{ printf "%q" .HTTPName }}, v); err != nil {
+				return loomhttp.ErrEncodingError("{{ $.ServiceName }}", "{{ $.Method.Name }}", err)
+			}
 		}
 	{{- end }}
 	{{- if or .Payload.Request.QueryParams }}

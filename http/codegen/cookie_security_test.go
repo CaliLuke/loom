@@ -83,8 +83,8 @@ func TestCookieAPIKeySecurity(t *testing.T) {
 		clientFiles := ClientFiles("", services)
 		require.Len(t, clientFiles, 2)
 		clientEncode := codegen.SectionCode(t, clientFiles[1].AllSections()[2])
-		require.Contains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
-		require.Contains(t, clientEncode, `Name:  "__Host-ak_session"`)
+		require.Contains(t, clientEncode, `loomhttp.AddRequestCookie(req,`)
+		require.Contains(t, clientEncode, `loomhttp.AddRequestCookie(req, "__Host-ak_session", v)`)
 		require.NotContains(t, clientEncode, "Authorization")
 	})
 }
@@ -182,8 +182,8 @@ func TestSessionSecurityInfersCookieBinding(t *testing.T) {
 		clientFiles := ClientFiles("", services)
 		require.Len(t, clientFiles, 2)
 		clientEncode := codegen.SectionCode(t, clientFiles[1].AllSections()[2])
-		require.Contains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
-		require.Contains(t, clientEncode, `Name:  "__Host-ak_session"`)
+		require.Contains(t, clientEncode, `loomhttp.AddRequestCookie(req,`)
+		require.Contains(t, clientEncode, `loomhttp.AddRequestCookie(req, "__Host-ak_session", v)`)
 		require.Contains(t, clientEncode, `"Authorization"`)
 	})
 }
@@ -264,7 +264,7 @@ func TestStreamingSessionSecurityWebSocketHandshakeContracts(t *testing.T) {
 
 			clientFiles := ClientFiles("", services)
 			clientEncode := renderAllGeneratedFileCode(t, clientFiles)
-			require.NotContains(t, clientEncode, `req.AddCookie(&http.Cookie{`)
+			require.NotContains(t, clientEncode, `loomhttp.AddRequestCookie(req,`)
 			if tc.ExpectQueryEncoding {
 				require.Contains(t, clientEncode, `values.Add("project_id",p.ProjectID)`)
 			} else {
@@ -287,7 +287,7 @@ func TestAsyncSessionSecurityTransportCodegenAvoidsDeadAuthBranches(t *testing.T
 	require.NotContains(t, serverCode, `"Authorization"`)
 
 	clientCode := renderAllGeneratedFileCode(t, ClientFiles("", services))
-	require.NotContains(t, clientCode, `req.AddCookie(&http.Cookie{`)
+	require.NotContains(t, clientCode, `loomhttp.AddRequestCookie(req,`)
 	require.Contains(t, clientCode, `values.Add("last_event_id",*p.LastEventID)`)
 	require.NotContains(t, clientCode, `"Authorization"`)
 

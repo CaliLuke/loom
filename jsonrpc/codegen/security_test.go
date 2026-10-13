@@ -35,7 +35,7 @@ func TestJSONRPCSessionSecurityHarness(t *testing.T) {
 		assert.Equal(t, "__Host-ak_session", endpoint.Payload.Request.Cookies[0].HTTPName)
 
 		clientCode := jsonrpcGeneratedCode(t, ClientFiles("", services))
-		assert.Contains(t, clientCode, `req.AddCookie(&http.Cookie{`)
+		assert.Contains(t, clientCode, `loomhttp.AddRequestCookie(req,`)
 		assert.Contains(t, clientCode, `"__Host-ak_session"`)
 		assert.Contains(t, clientCode, `"Authorization"`)
 
@@ -61,7 +61,7 @@ func TestJSONRPCSessionSecurityHarness(t *testing.T) {
 		assert.NotContains(t, endpoint.Method.PayloadDef, "BrowserSession *string")
 
 		clientCode := jsonrpcGeneratedCode(t, ClientFiles("", services))
-		assert.NotContains(t, clientCode, `req.AddCookie(&http.Cookie{`)
+		assert.NotContains(t, clientCode, `loomhttp.AddRequestCookie(req,`)
 		assert.NotContains(t, clientCode, `"Authorization"`)
 
 		serverCode := jsonrpcGeneratedCode(t, ServerFiles("", services))

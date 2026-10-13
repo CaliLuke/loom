@@ -947,6 +947,10 @@ servers to adopt this ordering correction.
   URLs. Generated clients encode them. Generated servers return a
   `decode_payload` response with status 400 for malformed query strings.
   Repeated query keys retain their order.
+- Generated request cookies validate the standard HTTP name/value grammar before
+  sending. Invalid values return `encoding_error` rather than losing characters;
+  regenerate clients to adopt this behavior. Valid empty and absent values keep
+  their modeled presence semantics.
 - Prefer modeled response cookies over raw `Set-Cookie` header bags.
 - When deployment configuration owns modeled response-cookie attributes, wrap
   the generated method with `loomhttp.ResponseCookiePolicy.Handler`. The policy
