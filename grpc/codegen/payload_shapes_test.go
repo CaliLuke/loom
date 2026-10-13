@@ -225,15 +225,15 @@ import (
 
 type service struct{}
 
-func (service) Tags(_ context.Context, p shapes.Tags2) (shapes.Tags2, error) {
+func (service) Tags(_ context.Context, p shapes.Tags) (shapes.Tags, error) {
 	return p, nil
 }
 
-func (service) Index(_ context.Context, p shapes.Index2) (shapes.Index2, error) {
+func (service) Index(_ context.Context, p shapes.Index) (shapes.Index, error) {
 	return p, nil
 }
 
-func (service) ID(_ context.Context, p shapes.ID2) (shapes.ID2, error) {
+func (service) ID(_ context.Context, p shapes.ID) (shapes.ID, error) {
 	return p, nil
 }
 
@@ -318,9 +318,9 @@ func TestNamedMessages(t *testing.T) {
 		endpoint func() func(context.Context, any) (any, error)
 		value    any
 	}{
-		{func() func(context.Context, any) (any, error) { return c.Tags() }, shapes.Tags2{"a", "b"}},
-		{func() func(context.Context, any) (any, error) { return c.Index() }, shapes.Index2{"k": {Name: &name}, "empty": {}}},
-		{func() func(context.Context, any) (any, error) { return c.ID() }, shapes.ID2("id")},
+		{func() func(context.Context, any) (any, error) { return c.Tags() }, shapes.Tags{"a", "b"}},
+		{func() func(context.Context, any) (any, error) { return c.Index() }, shapes.Index{"k": {Name: &name}, "empty": {}}},
+		{func() func(context.Context, any) (any, error) { return c.ID() }, shapes.ID("id")},
 	} {
 		res, err := call.endpoint()(ctx, call.value)
 		require.NoError(t, err)
@@ -362,7 +362,7 @@ func TestEmptyObjects(t *testing.T) {
 	require.Equal(t, &shapes.Nothing{}, payload)
 	id, err := client.BuildIDPayload(` + "`" + `{"field": "cli"}` + "`" + `)
 	require.NoError(t, err)
-	require.Equal(t, shapes.ID2("cli"), id)
+	require.Equal(t, shapes.ID("cli"), id)
 }
 
 func TestSharedErrorMessage(t *testing.T) {

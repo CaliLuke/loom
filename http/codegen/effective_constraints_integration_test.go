@@ -163,7 +163,7 @@ type service struct {
 	err error
 }
 
-func (s *service) Defaults(_ context.Context, payload *constraints.Defaults2) error {
+func (s *service) Defaults(_ context.Context, payload *constraints.Defaults) error {
 	s.defaults, s.err = json.Marshal(payload, json.Deterministic(true))
 	return s.err
 }

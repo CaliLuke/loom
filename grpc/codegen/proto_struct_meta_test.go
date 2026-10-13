@@ -80,7 +80,7 @@ func (service) Tree(_ context.Context, p *menu.Node) (*menu.Node, error) {
 	return p, nil
 }
 
-func (service) TagsEndpoint(_ context.Context, p menu.Tags) (*menusvc.TagsResult, error) {
+func (service) Tags(_ context.Context, p menu.Tags) (*menusvc.TagsResult, error) {
 	return &menusvc.TagsResult{Tags: p}, nil
 }
 
@@ -220,7 +220,7 @@ func TestRoundTrip(t *testing.T) {
 		require.Equal(t, tree, got)
 	})
 	t.Run("tags", func(t *testing.T) {
-		got, err := c.TagsEndpoint()(ctx, menu.Tags{"a", "b"})
+		got, err := c.Tags()(ctx, menu.Tags{"a", "b"})
 		require.NoError(t, err)
 		require.Equal(t, &menusvc.TagsResult{Tags: menu.Tags{"a", "b"}}, got)
 	})
@@ -273,7 +273,7 @@ func TestProtoFilesStructMeta(t *testing.T) {
 		"rpc Show (MenuProto) returns (MenuProto);",
 		"rpc Pick (ChoiceProto) returns (ChoiceProto);",
 		"rpc Tree (node_tree) returns (node_tree);",
-		"rpc TagsEndpoint (TagList) returns (TagsResponse);",
+		"rpc Tags (TagList) returns (TagsResponse);",
 		"rpc Bidi (stream BidiStreamingRequest) returns (stream EventProto);",
 		"rpc Relay (stream RelayStreamingRequest) returns (stream RelayResponse);",
 		"rpc Watch (InnerProto) returns (stream MenuProto);",

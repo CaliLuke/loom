@@ -29,19 +29,19 @@ import (
 
 type objectEcho struct{}
 
-func (objectEcho) OtherEndpoint(_ context.Context, p *object.Envelope) (*object.Envelope, error) {
+func (objectEcho) Other(_ context.Context, p *object.Envelope) (*object.Envelope, error) {
 	return p, nil
 }
 
 type unionEcho struct{}
 
-func (unionEcho) OtherEndpoint(_ context.Context, p *union.Choice) (*union.Choice, error) {
+func (unionEcho) Other(_ context.Context, p *union.Choice) (*union.Choice, error) {
 	return p, nil
 }
 
 type streamEcho struct{}
 
-func (streamEcho) OtherEndpoint(ctx context.Context, s stream.OtherEndpointServerStream) error {
+func (streamEcho) Other(ctx context.Context, s stream.OtherServerStream) error {
 	p, err := s.RecvWithContext(ctx)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func TestCollidingBodyRoundTrips(t *testing.T) {
 	oc := objectclient.NewClient("http", host, hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
 	for _, count := range []int{0, 7} {
 		p := &object.Envelope{Other: &object.Other{Count: count}}
-		got, err := oc.OtherEndpoint()(ctx, p)
+		got, err := oc.Other()(ctx, p)
 		require.NoError(t, err)
 		require.Equal(t, p, got)
 	}
@@ -75,14 +75,14 @@ func TestCollidingBodyRoundTrips(t *testing.T) {
 		union.NewChoiceOther(&union.Other{Count: 7}),
 		union.NewChoiceUnioncollisionOther(&union.UnioncollisionOther{Value: "collision"}),
 	} {
-		got, err := uc.OtherEndpoint()(ctx, &p)
+		got, err := uc.Other()(ctx, &p)
 		require.NoError(t, err)
 		require.Equal(t, &p, got)
 	}
 	sc := streamclient.NewClient("ws", host, hs.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false, websocket.DefaultDialer, nil)
-	value, err := sc.OtherEndpoint()(ctx, nil)
+	value, err := sc.Other()(ctx, nil)
 	require.NoError(t, err)
-	connection := value.(stream.OtherEndpointClientStream)
+	connection := value.(stream.OtherClientStream)
 	require.NoError(t, connection.SendWithContext(ctx, &stream.Other{Count: 11}))
 	got, err := connection.RecvWithContext(ctx)
 	require.NoError(t, err)
