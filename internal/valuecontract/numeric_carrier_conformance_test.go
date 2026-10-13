@@ -30,8 +30,7 @@ func productionSourceIntegerFormat(kind expr.Kind, machineBits int) any {
 }
 
 func productionNumericCarrierCases() []productionCase {
-	var result []productionCase
-	for _, tc := range []struct {
+	cases := []struct {
 		name string
 		kind expr.DataType
 		raw  any
@@ -51,7 +50,9 @@ func productionNumericCarrierCases() []productionCase {
 		{"float32 overflow", expr.Float32, 1e39},
 		{"float32 rounding", expr.Float32, 1.23456789},
 		{"float32 underflow", expr.Float32, 1e-100},
-	} {
+	}
+	result := make([]productionCase, 0, len(cases))
+	for _, tc := range cases {
 		result = append(result, productionCase{"carrier/" + tc.name, &expr.AttributeExpr{Type: tc.kind}, tc.raw})
 	}
 	return result
