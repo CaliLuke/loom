@@ -9,25 +9,7 @@ import (
 // InterceptorContractStorageDSL exercises shared signatures with method-local storage.
 func InterceptorContractStorageDSL(mode string) func() {
 	return func() {
-		var firstType, secondType any = dsl.String, dsl.String
-		if strings.Contains(mode, "nominal") {
-			firstType = dsl.Type("FirstValue", func() {
-				dsl.Attribute("text", dsl.String)
-			})
-			secondType = firstType
-			if strings.Contains(mode, "incompatible") {
-				secondType = dsl.Type("SecondValue", func() {
-					dsl.Attribute("text", dsl.String)
-				})
-			}
-		}
-		if mode == "union" {
-			firstType = dsl.Type("Choice", dsl.OneOf(dsl.String, dsl.Int))
-			secondType = firstType
-		}
-		if mode == "custom" {
-			firstType, secondType = dsl.Int64, dsl.Int64
-		}
+		firstType, secondType := interceptorContractStorageTypes(mode)
 		audit := dsl.Interceptor("Audit", func() {
 			dsl.ReadPayload(func() {
 				dsl.Attribute("value")
@@ -56,29 +38,7 @@ func InterceptorContractStorageDSL(mode string) func() {
 							dsl.ClientInterceptor(audit)
 						}
 					}
-					fields := func() {
-						typ := firstType
-						if name == "second" {
-							typ = secondType
-						}
-						if name == "second" && (mode == "incompatible" || mode == "incompatible-disjoint") {
-							typ = dsl.Int
-						}
-						dsl.Attribute("value", typ, func() {
-							if mode == "custom" {
-								dsl.Meta("struct:field:type", "time.Duration", "time")
-							}
-							if mode == "nullable" || (strings.Contains(mode, "nullable-incompatible") && name == "second") {
-								dsl.Nullable()
-							}
-							if name == "second" && mode == "renamed" {
-								dsl.Meta("struct:field:name", "StoredValue")
-							}
-						})
-						if (name == "second" && (mode == "required" || mode == "custom" || mode == "nominal" || mode == "nullable" || mode == "union")) || (name == "first" && mode == "required-reversed") {
-							dsl.Required("value")
-						}
-					}
+					fields := interceptorContractStorageFields(mode, name, firstType, secondType)
 					dsl.Payload(fields)
 					dsl.Result(fields)
 					dsl.HTTP(func() {
@@ -87,5 +47,54 @@ func InterceptorContractStorageDSL(mode string) func() {
 				})
 			}
 		})
+	}
+}
+
+func interceptorContractStorageTypes(mode string) (any, any) {
+	var firstType, secondType any = dsl.String, dsl.String
+	if strings.Contains(mode, "nominal") {
+		firstType = dsl.Type("FirstValue", func() {
+			dsl.Attribute("text", dsl.String)
+		})
+		secondType = firstType
+		if strings.Contains(mode, "incompatible") {
+			secondType = dsl.Type("SecondValue", func() {
+				dsl.Attribute("text", dsl.String)
+			})
+		}
+	}
+	if mode == "union" {
+		firstType = dsl.Type("Choice", dsl.OneOf(dsl.String, dsl.Int))
+		secondType = firstType
+	}
+	if mode == "custom" {
+		firstType, secondType = dsl.Int64, dsl.Int64
+	}
+	return firstType, secondType
+}
+
+func interceptorContractStorageFields(mode, name string, firstType, secondType any) func() {
+	return func() {
+		typ := firstType
+		if name == "second" {
+			typ = secondType
+		}
+		if name == "second" && (mode == "incompatible" || mode == "incompatible-disjoint") {
+			typ = dsl.Int
+		}
+		dsl.Attribute("value", typ, func() {
+			if mode == "custom" {
+				dsl.Meta("struct:field:type", "time.Duration", "time")
+			}
+			if mode == "nullable" || (strings.Contains(mode, "nullable-incompatible") && name == "second") {
+				dsl.Nullable()
+			}
+			if name == "second" && mode == "renamed" {
+				dsl.Meta("struct:field:name", "StoredValue")
+			}
+		})
+		if (name == "second" && (mode == "required" || mode == "custom" || mode == "nominal" || mode == "nullable" || mode == "union")) || (name == "first" && mode == "required-reversed") {
+			dsl.Required("value")
+		}
 	}
 }
