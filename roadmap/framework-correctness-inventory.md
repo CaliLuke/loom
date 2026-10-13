@@ -170,10 +170,11 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#841: JSON-RPC mixedtick fixture drift blocks mixed HTTP/SSE integration tests](https://github.com/CaliLuke/loom/issues/841) | CI generated fixture parity | Delivered/pushed `477e86cb1`, independently reviewed and closed; four generated files refreshed, full parity and five race scenarios pass |
 | [#842: Basic payload and explicit transport mappings duplicate CLI bindings](https://github.com/CaliLuke/loom/issues/842) | Shared CLI credential binding | Parent-confirmed and filed; readiness pending, separate from diagnostic redaction and default admission |
 | [#843: HTTP tests select obsolete CLI helper sections and presence layouts](https://github.com/CaliLuke/loom/issues/843) | CI assertion ownership | Delivered/pushed `5d3935d6b`, independently reviewed and closed; named helper selection, unchanged generated artifacts and existing runtime contracts |
-| [#844: Authored JSON tags lose options and name-only skip leaks fields](https://github.com/CaliLuke/loom/issues/844) | Shared JSON tag normalization | Readiness/report independently approved; prerequisite implementation active, automatic physical omission remains separate |
-| [#845: JSON-RPC constraint test assumes outgoing default substitution](https://github.com/CaliLuke/loom/issues/845) | CI default assertion owner | Reproduced from CI; reviewed report filed; test-only named constructor and mounted default/null/invalid controls active |
+| [#844: Authored JSON tags lose options and name-only skip leaks fields](https://github.com/CaliLuke/loom/issues/844) | Shared JSON tag normalization | Delivered/pushed `0f1fc3dc3`, independently reviewed and closed; shared full/name-only JSON-tag normalization, exact skip and retained authored options across service/transport |
+| [#845: JSON-RPC constraint test assumes outgoing default substitution](https://github.com/CaliLuke/loom/issues/845) | CI default assertion owner | Delivered/pushed `b963d8685`, independently reviewed and closed; server admission/client construction assertions and mounted default/null/empty controls |
+| [#846: Pool release test assumes synchronized local replicas](https://github.com/CaliLuke/loom/issues/846) | CI replica observation | Delivered/pushed `951475f2d`, independently reviewed and closed; immediate authoritative retention plus each replica’s own completion, unchanged production |
 
-Inventory count: 166 reports (114 in the requested open range, plus #670, follow-ups #794–#825 and #827–#845; #826 is a PR); 97 delivered and confirmed closed.
+Inventory count: 167 reports (114 in the requested open range, plus #670, follow-ups #794–#825 and #827–#846; #826 is a PR); 100 delivered and confirmed closed.
 
 ## Structural delivery tickets
 
