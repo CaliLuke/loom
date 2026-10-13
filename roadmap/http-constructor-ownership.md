@@ -1,6 +1,6 @@
 # HTTP constructor ownership — #735
 
-Status: implementation complete; bounded acceptance passed; final diff frozen for independent review. Readiness parent `521f7abc93d073b7d0283928e8dfbfd4986efbf3`; final parent `fae477d0e` (includes #853).
+Status: independently reviewed, delivered as `56a78637a`, pushed and confirmed closed. Readiness parent `521f7abc93d073b7d0283928e8dfbfd4986efbf3`; final parent `fae477d0e` (includes #853).
 
 ## Sequence
 
@@ -12,7 +12,7 @@ Status: implementation complete; bounded acceptance passed; final diff frozen fo
 6. [x] After approval only, implement the owner and remove superseded allocation paths.
 7. [x] Run focused regressions, bounded parent/candidate/repeat output comparison, generated compile/runtime and lint.
 8. [x] Freeze the exact atomic final diff for independent review.
-9. [ ] Independent final approval and root-owned atomic integration.
+9. [x] Independent final approval and root-owned atomic integration.
 
 Scope: constructor declaration names and semantic conversion identity shared by
 HTTP and JSON-RPC generated packages. #736, #770 and #786 remain separate unless
@@ -224,3 +224,5 @@ union-response seam calls, mounted harnesses and scoped lint. Generated output i
 compared with the already reviewed candidate; model, parent and independent
 repeat evidence remain valid. The exact style delta and follow-up hashes are
 recorded in the updated final manifest for the original reviewer's confirmation.
+
+Delivery: exact independent final/re-review and integration approvals are preserved in `/tmp/loom-735-*-verdict.json`. Main integration constructor/client controls passed HTTP 10.682s and JSON-RPC 18.400s. Temporary outputs were removed after review; compact evidence and reproduction inputs remain in `/tmp/loom-735-cleanup-receipt.json`.

@@ -1,6 +1,6 @@
 # Streaming interceptor result identity (#859)
 
-Readiness independently approved; implementation complete, final review pending.
+Independently reviewed, delivered as `c8515931c`, pushed and confirmed closed.
 Readiness parent: `8f1240831c2df98d80c4b65f760925d805188375`.
 Implementation parent: `b2b6f1480c77036d7afae324e972307aebf0047d`.
 The clean tracked worktree advanced by fast-forward, preserving all readiness inputs.
@@ -14,7 +14,7 @@ The clean tracked worktree advanced by fast-forward, preserving all readiness in
 - [x] After readiness approval, implement the shared owner and regression tests.
 - [x] Compare base/candidate/independent-repeat generation, compile and run selected clients.
 - [x] Update documentation/model correspondence; freeze final diff for fresh review.
-- [ ] Parent integrates one reviewed atomic commit and closes #859.
+- [x] Parent integrates one reviewed atomic commit and closes #859.
 
 ## Contract and owner
 
@@ -180,5 +180,7 @@ and through its owning test in 5.508s. Six model configurations retained their
 expected failures/pass; scoped pinned golangci-lint v2.14.0 reports zero issues.
 
 The final packet records exact source, generated artifact, toolchain, command
-result and model hashes. No broad corpus audit was run. Final independent review,
-one atomic commit, push and issue closure remain with the orchestrator.
+result and model hashes. No broad corpus audit was run. The orchestrator completed
+final review, atomic integration, push and issue closure as recorded below.
+
+Delivery: root final approval and separate integration review confirmed the exact diff. Main integration direct tests and all four generated build/vet/race harnesses passed (generator suite 11.676s). Temporary output cleanup is summarized in `/tmp/loom-859-cleanup-receipt.json`; #867 reproduction inputs remain.
