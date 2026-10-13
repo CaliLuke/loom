@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/internal/exactnum"
 	"github.com/CaliLuke/loom/internal/openapiimport"
 	"github.com/CaliLuke/loom/internal/testingx"
 )
@@ -210,6 +211,34 @@ func TestCompareOpenAPIContractsRejectsLoss(t *testing.T) {
 			actual := cloneOpenAPIContract(t, source)
 			test.edit(actual)
 			require.Error(t, compareOpenAPIContracts(source, actual))
+		})
+	}
+}
+
+func TestOpenAPIContractClonePreservesExactBounds(t *testing.T) {
+	for _, token := range []string{"0", "-9007199254740993", "18446744073709551615", "1e-400", "1e400"} {
+		t.Run(token, func(t *testing.T) {
+			bound, err := exactnum.ParseJSON(token)
+			require.NoError(t, err)
+			source := &openapiimport.Document{
+				Components: openapiimport.Components{Schemas: []openapiimport.NamedSchema{{
+					Name: "Number", Schema: &openapiimport.Schema{
+						Type: "number", Minimum: &bound, Maximum: &bound,
+						ExclusiveMinimum: &bound, ExclusiveMaximum: &bound,
+					},
+				}}},
+			}
+			clone := cloneOpenAPIContract(t, source)
+			original, copied := source.Components.Schemas[0].Schema, clone.Components.Schemas[0].Schema
+			for _, value := range []*exactnum.Number{copied.Minimum, copied.Maximum, copied.ExclusiveMinimum, copied.ExclusiveMaximum} {
+				require.NotNil(t, value)
+				require.Equal(t, bound.Key(), value.Key())
+			}
+			require.NoError(t, compareOpenAPIContracts(source, clone))
+			changed := exactnum.FromInt64(1)
+			*copied.Minimum = changed
+			require.Equal(t, bound.Key(), original.Minimum.Key())
+			require.Error(t, compareOpenAPIContracts(source, clone))
 		})
 	}
 }
@@ -568,7 +597,15 @@ func cloneOpenAPIContractValue(source *openapiimport.Document) (*openapiimport.D
 		return nil, fmt.Errorf("marshal OpenAPI contract: %w", err)
 	}
 	var clone openapiimport.Document
-	if err := json.Unmarshal(encoded, &clone); err != nil {
+	decodeNumber := json.UnmarshalFunc(func(data []byte, target *exactnum.Number) error {
+		value, err := exactnum.ParseJSON(string(data))
+		if err != nil {
+			return err
+		}
+		*target = value
+		return nil
+	})
+	if err := json.Unmarshal(encoded, &clone, json.WithUnmarshalers(decodeNumber)); err != nil {
 		return nil, fmt.Errorf("unmarshal OpenAPI contract: %w", err)
 	}
 	return &clone, nil
