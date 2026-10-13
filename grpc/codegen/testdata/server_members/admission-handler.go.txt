@@ -1,0 +1,76 @@
+package members_test
+
+import (
+	"context"
+	"sync/atomic"
+	"testing"
+
+	"github.com/CaliLuke/loom/security"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+
+	pb "example.com/grpcmembers/gen/grpc/members/pb"
+	members "example.com/grpcmembers/gen/members"
+)
+
+type service struct {
+	calls atomic.Int32
+}
+
+func TestMounted(t *testing.T) {
+	svc := &service{}
+	ctx, client := mountedClient(t, members.NewEndpoints(svc))
+	denied, err := client.Mount(metadata.AppendToOutgoingContext(ctx, "authorization", "bad"))
+	require.NoError(t, err)
+	err = denied.RecvMsg(new(pb.MountResponse))
+	require.Equal(t, codes.Unauthenticated, status.Code(err))
+	require.Zero(t, svc.calls.Load())
+	name := "input"
+	item := "stream"
+	allowed := metadata.AppendToOutgoingContext(ctx, "authorization", "valid")
+	one, err := client.Mount(allowed)
+	require.NoError(t, err)
+	require.NoError(t, one.Send(&pb.MountStreamingRequest{Body: &pb.MountStreamingRequest_InitialPayload{InitialPayload: &pb.MountRequest{Name: &name}}}))
+	require.NoError(t, one.Send(&pb.MountStreamingRequest{Body: &pb.MountStreamingRequest_StreamItem{StreamItem: &pb.MountStreamItem{Field: &item}}}))
+	result, err := one.CloseAndRecv()
+	require.NoError(t, err)
+	require.Equal(t, "mount:input:stream", result.GetField())
+	two, err := client.MountH(allowed)
+	require.NoError(t, err)
+	require.NoError(t, two.Send(&pb.MountHStreamingRequest{Body: &pb.MountHStreamingRequest_InitialPayload{InitialPayload: &pb.MountHRequest{Name: &name}}}))
+	require.NoError(t, two.Send(&pb.MountHStreamingRequest{Body: &pb.MountHStreamingRequest_StreamItem{StreamItem: &pb.MountHStreamItem{Field: &item}}}))
+	result2, err := two.CloseAndRecv()
+	require.NoError(t, err)
+	require.Equal(t, "mountH:input:stream", result2.GetField())
+	require.EqualValues(t, 2, svc.calls.Load())
+}
+
+func (s *service) APIKeyAuth(ctx context.Context, key string, _ *security.APIKeyScheme) (context.Context, error) {
+	if key != "valid" {
+		return ctx, status.Error(codes.Unauthenticated, "invalid key")
+
+	}
+	return ctx, nil
+}
+
+func (s *service) Mount(_ context.Context, p *members.MountPayload, stream members.MountServerStream) error {
+	s.calls.Add(1)
+	value, err := stream.Recv()
+	if err != nil {
+		return err
+
+	}
+	return stream.SendAndClose("mount:" + p.Name + ":" + value)
+}
+
+func (s *service) MountH(_ context.Context, p *members.MountHPayload, stream members.MountHServerStream) error {
+	s.calls.Add(1)
+	value, err := stream.Recv()
+	if err != nil {
+		return err
+
+	}
+	return stream.SendAndClose("mountH:" + p.Name + ":" + value)
+}

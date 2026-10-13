@@ -44,7 +44,6 @@ func buildStreamAdmission(endpoint *EndpointData, data *ServiceData, payloadName
 		}
 	}
 	return &StreamAdmissionData{
-		CheckField:   data.Scope.Unique("authenticate" + endpoint.Method.VarName),
 		DecoderName:  data.Scope.Unique("decode" + endpoint.Method.VarName + "Admission"),
 		MetadataName: data.Scope.Unique("decode" + endpoint.Method.VarName + "Metadata"),
 		PayloadName:  payloadName,

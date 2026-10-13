@@ -75,6 +75,16 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `grpc/codegen.finalizeServerMembers` owns the native gRPC Server receiver.
+  Reserve canonical protobuf RPC methods, resolve the unimplemented-server
+  embedding, then allocate handler and conditional admission fields in service
+  order. Render every declaration and reference from those identities. A
+  colliding embedding uses a private type alias, preserving protobuf's mandatory
+  method set; its name must avoid both receiver roles and emitted package/import
+  bindings. Keep `serverPackageNames`, emitted-declaration inventory tests,
+  FileData import reanalysis and mounted protobuf registration aligned. Decoder
+  helpers and canonical service/protobuf identities retain their separate owners.
+
 - `http/codegen.finalizeClientMembers` owns HTTP/JSON-RPC concrete Client
   receiver roles after endpoint analysis and before constructor reservations.
   Reserve actual conditional fixed members, allocate endpoint factories in

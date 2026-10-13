@@ -1,0 +1,25 @@
+package members_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	pb "example.com/grpcmembers/gen/grpc/members/pb"
+	members "example.com/grpcmembers/gen/members"
+)
+
+func TestMounted(t *testing.T) {
+	e := &members.Endpoints{
+		UnimplementedMembersServer: func(_ context.Context, req any) (any, error) {
+			return "UnimplementedMembersServer:" + req.(string), nil
+
+		},
+	}
+	ctx, client := mountedClient(t, e)
+	input := "input"
+	r0, err0 := client.UnimplementedMembersServer(ctx, &pb.UnimplementedMembersServerRequest{Field: &input})
+	require.NoError(t, err0)
+	require.Equal(t, "UnimplementedMembersServer:input", r0.GetField())
+}

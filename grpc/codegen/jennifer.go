@@ -184,6 +184,9 @@ func grpcClientEndpointInitArgs(errData *ErrorData) []jen.Code {
 
 func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection("server-struct", func(stmt *jen.Statement) {
+		if data.serverEmbeddingAlias != "" {
+			stmt.Type().Id(data.serverEmbeddingAlias).Op("=").Add(codegenpkg.PkgQual(data.PkgName, "Unimplemented"+data.ServerInterface)).Line()
+		}
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %s.%s interface.", data.ServerStruct, data.PkgName, data.ServerInterface))
 		fields := make([]jen.Code, 0, len(data.Endpoints)+1)
 		for _, endpoint := range data.Endpoints {
@@ -191,12 +194,16 @@ func grpcServerStructSection(data *ServiceData) codegenpkg.Section {
 			if endpoint.ServerStream != nil {
 				handlerType = "StreamHandler"
 			}
-			fields = append(fields, jen.Id(endpoint.Method.VarName+"H").Add(codegenpkg.TypeRef("loomgrpc."+handlerType)))
+			fields = append(fields, jen.Id(endpoint.ServerHandler).Add(codegenpkg.TypeRef("loomgrpc."+handlerType)))
 			if admission := endpoint.Request.Admission; admission != nil {
 				fields = append(fields, jen.Id(admission.CheckField).Add(codegenpkg.TypeRef("security.EndpointCheck")))
 			}
 		}
-		fields = append(fields, codegenpkg.TypeRef(data.PkgName+".Unimplemented"+data.ServerInterface))
+		if data.serverEmbeddingAlias == "" {
+			fields = append(fields, codegenpkg.PkgQual(data.PkgName, data.serverEmbedding))
+		} else {
+			fields = append(fields, jen.Id(data.serverEmbedding))
+		}
 		stmt.Type().Id(data.ServerStruct).Struct(fields...)
 	})
 }
@@ -221,7 +228,7 @@ func grpcServerInitSection(data *ServiceData) codegenpkg.Section {
 			if endpoint.ServerStream != nil {
 				handlerArg = jen.Id("sh")
 			}
-			dict[jen.Id(endpoint.Method.VarName+"H")] = jen.Id(handlerCtor).Call(
+			dict[jen.Id(endpoint.ServerHandler)] = jen.Id(handlerCtor).Call(
 				jen.Id("e").Dot(endpoint.Method.VarName),
 				handlerArg,
 			)
@@ -333,7 +340,7 @@ func writeGRPCStreamServerMethod(g *jen.Group, endpoint *EndpointData) {
 		BlockFunc(func(decode *jen.Group) {
 			writeGRPCStreamInputDecode(decode, endpoint)
 		})
-	fields[jen.Id("Handle")] = jen.Id("s").Dot(endpoint.Method.VarName + "H").Dot("Handle")
+	fields[jen.Id("Handle")] = jen.Id("s").Dot(endpoint.ServerHandler).Dot("Handle")
 	g.Return(codegenpkg.Expr("loomgrpc.ServeStream").Call(
 		jen.Id("stream").Dot("Context").Call(),
 		codegenpkg.TypeRef("loomgrpc.StreamServerSpec").Values(fields),
@@ -346,7 +353,7 @@ func grpcServerSpecFields(endpoint *EndpointData) jen.Dict {
 		jen.Id("Method"):  jen.Lit(endpoint.Method.Name),
 	}
 	if endpoint.ServerStream == nil {
-		fields[jen.Id("Handler")] = jen.Id("s").Dot(endpoint.Method.VarName + "H")
+		fields[jen.Id("Handler")] = jen.Id("s").Dot(endpoint.ServerHandler)
 	}
 	if len(endpoint.Errors) > 0 {
 		fields[jen.Id("MapError")] = jen.Id("map" + endpoint.Method.VarName + "Error")
@@ -379,7 +386,7 @@ func writeGRPCStreamInputDecode(g *jen.Group, endpoint *EndpointData) {
 	default:
 		decodeArg = jen.Id("message")
 	}
-	g.List(jen.Id(decodeTarget), jen.Err()).Op(":=").Id("s").Dot(endpoint.Method.VarName+"H").Dot("Decode").Call(jen.Id("ctx"), decodeArg)
+	g.List(jen.Id(decodeTarget), jen.Err()).Op(":=").Id("s").Dot(endpoint.ServerHandler).Dot("Decode").Call(jen.Id("ctx"), decodeArg)
 	g.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(jen.Nil(), jen.Err()),
 	)

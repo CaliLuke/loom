@@ -95,6 +95,13 @@ use those same recorded names. Regenerate and update handwritten references to
 changed transport members using their declarations. Service method names, CLI
 commands and wire method names retain their design identities.
 
+Native gRPC server handler fields also have a separate receiver namespace.
+Legal RPC pairs such as `mount` and `mountH` keep their service and protobuf
+names; a colliding generated handler field receives a deterministic suffix.
+An RPC named like the protobuf unimplemented-server embedding remains valid.
+Regenerate the server and update handwritten references to changed handler fields;
+protobuf clients and wire method names are unchanged by this correction.
+
 HTTP and JSON-RPC conversion constructors also share their generated package's
 namespace. Constructors with the same target type can have different names when
 they accept different sources or select different fields. Identical conversion

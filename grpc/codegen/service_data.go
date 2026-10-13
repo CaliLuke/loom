@@ -54,6 +54,10 @@ type (
 		Messages []*service.UserTypeData
 		// ServerStruct is the name of the gRPC server struct.
 		ServerStruct string
+		// serverEmbedding records the concrete embedded member; serverEmbeddingAlias
+		// is nonempty only when a local alias preserves a colliding protobuf type.
+		serverEmbedding      string
+		serverEmbeddingAlias string
 		// ClientStruct is the name of the gRPC client struct,
 		ClientStruct string
 		// ServerInit is the name of the constructor of the server struct.
@@ -142,6 +146,8 @@ type (
 
 		// ServerStruct is the name of the gRPC server struct.
 		ServerStruct string
+		// ServerHandler is the handler field in the concrete gRPC server receiver.
+		ServerHandler string
 		// ServerInterface is the name of the gRPC server interface implemented
 		// by the service.
 		ServerInterface string

@@ -196,6 +196,9 @@ and `errors.As`, including when the message contains an example.
   update handwritten references after upgrading; affected gRPC RPC names/full
   method paths change with the corrected service method name. HTTP routes,
   JSON-RPC method strings and authored schema names are unchanged.
+- Native gRPC handler fields avoid RPC method and embedding names. Regenerate
+  after upgrading and update any handwritten handler-field references from the
+  generated declarations. Service methods and protobuf wire names stay unchanged.
 - HTTP/JSON-RPC conversion constructors use distinct names when source types or
   selected fields differ, even if the target body type is shared. Regenerate
   clients and servers and update handwritten constructor calls; read generated

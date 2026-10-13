@@ -22,6 +22,7 @@ and emitted-signature tests complement generated HTTP/JSON-RPC compilation.
 
 | Code concern | Model and correspondence |
 | --- | --- |
+| Native gRPC server handler, admission and embedding roles | [gRPC receiver members](../../../../grpc/codegen/tla/server_members/README.md); current, partial and declaration-only counterexamples, complete receiver ownership and generated registration/import controls |
 | HTTP/JSON-RPC client factories, builders, Doers and mixed-stream roles | [Client member namespaces](../../../../codegen/tla/client_members/README.md); fixed-only counterexample, complete conditional allocation, generated compiler and mounted dispatch controls |
 | HTTP/JSON-RPC server fields, copied WebSocket roles and canonical method independence | [Server member namespaces](../../../../codegen/tla/server_members/README.md); current and Server-only counterexamples, shared receiver allocation, generated compiler and mounted routing controls |
 | Source selection/resolution, branch identity, presence, canonical wire construction and target preservation | [Lean value contract model and proofs](../../../../expr/lean/value_projection/README.md), [correspondence ledger](../../../../expr/lean/value_projection/correspondence.md), and [generated comparison harness](../../../../internal/valuecontract/README.md). The README maps executable stages to independent specifications and proof modules; the ledger distinguishes checked candidate claims, pending obligations and tested production boundaries |

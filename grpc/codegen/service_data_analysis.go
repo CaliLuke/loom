@@ -55,6 +55,7 @@ func (d *ServicesData) analyze(gs *expr.GRPCServiceExpr) (sd *ServiceData) {
 		epCtx := ctx.WithMethod(gs.ServiceExpr.Method(endpointIR.Name))
 		d.buildEndpointDataWithContext(epCtx, endpointIR, svc, sd, collector)
 	}
+	finalizeServerMembers(sd, gs)
 	return sd
 }
 

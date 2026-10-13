@@ -1,0 +1,32 @@
+package members_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	pb "example.com/grpcmembers/gen/grpc/members/pb"
+	members "example.com/grpcmembers/gen/members"
+)
+
+func TestMounted(t *testing.T) {
+	e := &members.Endpoints{
+		Mount: func(_ context.Context, req any) (any, error) {
+			return "Mount:" + req.(string), nil
+
+		},
+		MountH: func(_ context.Context, req any) (any, error) {
+			return "MountH:" + req.(string), nil
+
+		},
+	}
+	ctx, client := mountedClient(t, e)
+	input := "input"
+	r0, err0 := client.Mount(ctx, &pb.MountRequest{Field: &input})
+	require.NoError(t, err0)
+	require.Equal(t, "Mount:input", r0.GetField())
+	r1, err1 := client.MountH(ctx, &pb.MountHRequest{Field: &input})
+	require.NoError(t, err1)
+	require.Equal(t, "MountH:input", r1.GetField())
+}
