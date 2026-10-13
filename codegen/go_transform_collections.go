@@ -278,6 +278,8 @@ func matchingTransformUnionValue(srcValue *expr.NamedAttributeExpr, tgtUnion *ex
 }
 
 func transformUnionCaseData(srcValue, targetValue *expr.NamedAttributeExpr, unionPkg, tempVarName string, ta *TransformAttrs) (transformUnionRenderCase, error) {
+	// Nullable carriers must reach attribute dispatch before selecting a concrete
+	// object helper; that owner unwraps values and preserves absent/null states.
 	c := transformUnionRenderCase{
 		CaseName:        srcValue.Name,
 		CaseTag:         expr.UnionVariantTag(srcValue),
@@ -286,8 +288,9 @@ func transformUnionCaseData(srcValue, targetValue *expr.NamedAttributeExpr, unio
 		SourceAttr:      srcValue.Attribute,
 		TargetAttr:      targetValue.Attribute,
 		TargetCastType:  ta.TargetCtx.Scope.Ref(targetValue.Attribute, transformUnionCastPkg(targetValue.Attribute, unionPkg, ta)),
-		UseHelper:       transformUsesHelper(srcValue.Attribute, targetValue.Attribute),
-		HelperName:      transformHelperName(srcValue.Attribute, targetValue.Attribute, ta),
+		UseHelper: transformUsesHelper(srcValue.Attribute, targetValue.Attribute) &&
+			!expr.IsNullable(srcValue.Attribute) && !expr.IsNullable(targetValue.Attribute),
+		HelperName: transformHelperName(srcValue.Attribute, targetValue.Attribute, ta),
 	}
 	if c.UseHelper {
 		return c, nil

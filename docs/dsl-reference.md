@@ -194,6 +194,11 @@ inherited declaration) or `Any`; other branches reject it. This also applies
 to custom discriminator and value property names. Regenerate service and
 transport packages to receive this decoding behavior.
 
+Generated conversions preserve nullable branch presence across service and
+transport types, including named object branches. Both inherited `Nullable()`
+and `Nullable()` on the branch occurrence use this contract. Regenerate code
+to receive the corrected nullable-object conversion helpers.
+
 Generated validators reject a selected nil object or nested-union pointer with
 a validation error. A selected nil slice or map is an empty collection: length
 and element constraints still apply. For a constructed nullable branch,

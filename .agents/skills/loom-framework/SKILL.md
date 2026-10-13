@@ -227,6 +227,12 @@ consumer validation.
   even when the branch has no value predicates. Never infer representation from emitted validation
   text. Keep `codegen/tla/union_branch_carrier` and the direct/generated carrier
   regressions aligned; validator eligibility and JSON decoding remain separate.
+- Shared union transformation admits direct named-object helpers only for
+  concrete source and target carriers. Nullable branches must reach attribute
+  dispatch first, so the existing presence owner unwraps the value, calls the
+  concrete helper and preserves absent/null/value states. Helper collection and
+  invocation must agree on physical carriers; a name-only repair is insufficient.
+  Keep `codegen/tla/union_transform_carrier` and direct/generated controls aligned.
 - `internal/uniongen` owns the common Go union declaration and codec emitter.
   Service and HTTP analysis supply that model; service-only validation helpers
   stay in service analysis. Keep untagged occurrence matching in
