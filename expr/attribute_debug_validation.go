@@ -145,11 +145,11 @@ func debugNamedExprs(label string, values []DataType, tabs, tab string) {
 	}
 }
 
-// validateEffectiveConstraints validates authored enums and defaults against
-// the complete finalized named-type contract.
+// validateEffectiveConstraints validates authored values and domain bounds
+// against the complete finalized named-type contract.
 func (a *AttributeExpr) validateEffectiveConstraints(ctx string, parent eval.Expression) *eval.ValidationErrors {
 	verr := new(eval.ValidationErrors)
-	if !hasConstraintValueAncestry(a) {
+	if !hasEffectiveConstraintAncestry(a) {
 		return verr
 	}
 	if _, err := EffectiveConstraintsFor(a); err != nil {
@@ -158,11 +158,14 @@ func (a *AttributeExpr) validateEffectiveConstraints(ctx string, parent eval.Exp
 	return verr
 }
 
-func hasConstraintValueAncestry(attribute *AttributeExpr) bool {
+func hasEffectiveConstraintAncestry(attribute *AttributeExpr) bool {
 	seen := make(map[UserType]bool)
 	for attribute != nil {
 		if attribute.DefaultValue != nil || (attribute.Validation != nil &&
-			(attribute.Validation.Values != nil || len(attribute.Validation.EnumClauses) > 0)) {
+			(attribute.Validation.Values != nil || len(attribute.Validation.EnumClauses) > 0 ||
+				attribute.Validation.Minimum != nil || attribute.Validation.Maximum != nil ||
+				attribute.Validation.ExclusiveMinimum != nil || attribute.Validation.ExclusiveMaximum != nil ||
+				attribute.Validation.MinLength != nil || attribute.Validation.MaxLength != nil)) {
 			return true
 		}
 		named, ok := attribute.Type.(UserType)
@@ -300,20 +303,8 @@ func (v *ValidationExpr) Validate(ctx string, parent eval.Expression) *eval.Vali
 	if hasMax && hasExclusiveMax {
 		verr.Add(parent, "%sboth maximum and exclusive maximum are defined", ctx)
 	}
-	if hasMin && hasMax && v.Minimum.Cmp(*v.Maximum) > 0 {
-		verr.Add(parent, "%sminimum is greater than maximum", ctx)
-	}
-	if hasMin && hasExclusiveMax && v.Minimum.Cmp(*v.ExclusiveMaximum) >= 0 {
-		verr.Add(parent, "%sminimum is greater than or equal to exclusive maximum", ctx)
-	}
-	if hasExclusiveMin && hasExclusiveMax && v.ExclusiveMinimum.Cmp(*v.ExclusiveMaximum) > 0 {
-		verr.Add(parent, "%sexclusive minimum is greater than exclusive maximum", ctx)
-	}
-	if hasExclusiveMin && hasMax && v.ExclusiveMinimum.Cmp(*v.Maximum) >= 0 {
-		verr.Add(parent, "%sexclusive minimum is greater than or equal to maximum", ctx)
-	}
-	if v.MinLength != nil && v.MaxLength != nil && *v.MinLength > *v.MaxLength {
-		verr.Add(parent, "%smin length is greater than max length", ctx)
+	for _, issue := range validationDomainErrors(v) {
+		verr.Add(parent, "%s%s", ctx, issue)
 	}
 	for _, pattern := range v.Patterns() {
 		if _, err := regexp.Compile(pattern); err != nil {

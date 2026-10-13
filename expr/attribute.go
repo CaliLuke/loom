@@ -324,7 +324,7 @@ func (a *AttributeExpr) Finalize() {
 		m.ElemType.Finalize()
 		m.KeyType.Finalize()
 	}
-	if hasConstraintValueAncestry(a) {
+	if hasEffectiveConstraintAncestry(a) {
 		if _, err := EffectiveConstraintsFor(a); err != nil {
 			eval.ReportError("%v", err)
 		}

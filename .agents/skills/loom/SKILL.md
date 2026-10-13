@@ -95,6 +95,10 @@ and `errors.As`, including when the message contains an example.
   Wildcards, broad Unicode/negated classes, flags and Go-only syntax without a
   faithful projection fail generation. See `docs/dsl-reference.md` before
   changing a rejected pattern; do not weaken application validation to export it.
+- Numeric/length bounds are checked as one effective contract, including named
+  ancestry and `Extend`. A base minimum of 10 plus a derived maximum of 5 rejects
+  before generation. Equal inclusive endpoints and zero lengths are valid;
+  negative authored lengths and equal exclusive endpoints are invalid.
 - Constraints on a derived named type refine its base. A derived enum must be
   equal to or a subset of the ancestor enum. Bounds and required fields
   accumulate, pattern and format rules are conjoined, and an inherited default

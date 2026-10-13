@@ -293,7 +293,7 @@ func TestAttributeExprValidationValidate(t *testing.T) {
 		"min and max":         {min: &min, max: &max, expected: "attribute: minimum is greater than maximum"},
 		"min and exclMax":     {min: &min, exclMax: &exclMax, expected: "attribute: minimum is greater than or equal to exclusive maximum"},
 		"exclMin and max":     {exclMin: &ExclMin, max: &max, expected: "attribute: exclusive minimum is greater than or equal to maximum"},
-		"exclMin and exclMax": {exclMin: &ExclMin, exclMax: &exclMax, expected: "attribute: exclusive minimum is greater than exclusive maximum"},
+		"exclMin and exclMax": {exclMin: &ExclMin, exclMax: &exclMax, expected: "attribute: exclusive minimum is greater than or equal to exclusive maximum"},
 		"max and exclMax":     {max: &max, exclMax: &exclMax, expected: "attribute: both maximum and exclusive maximum are defined"},
 		"min and exclMin":     {min: &min, exclMin: &ExclMin, expected: "attribute: both minimum and exclusive minimum are defined"},
 		"minLen and maxLen":   {minLen: &MinLength, maxLen: &MaxLength, expected: "attribute: min length is greater than max length"},

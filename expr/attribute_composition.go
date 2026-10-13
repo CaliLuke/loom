@@ -56,17 +56,7 @@ func (r *RootExpr) composeDesign() {
 			compositionError(attribute, "%s: %v", attribute.compositionName, err)
 			continue
 		}
-		lower, upper := constraints.LowerBound(), constraints.UpperBound()
-		if lower.Present && upper.Present && (lower.Value.Cmp(upper.Value) > 0 ||
-			(lower.Value.Cmp(upper.Value) == 0 && (lower.Exclusive || upper.Exclusive))) {
-			compositionError(attribute, "%s: contradictory Extend bounds from %q and %q", attribute.compositionName, lower.Provenance.Declaration, upper.Provenance.Declaration)
-			continue
-		}
 		validation := constraints.Validation().Lowered()
-		if validation.MinLength != nil && validation.MaxLength != nil && *validation.MinLength > *validation.MaxLength {
-			compositionError(attribute, "%s: contradictory Extend length bounds", attribute.compositionName)
-			continue
-		}
 		if values, present := constraints.EnumCandidates(); present && len(values) == 0 {
 			compositionError(attribute, "%s: contradictory Extend enum constraints", attribute.compositionName)
 			continue

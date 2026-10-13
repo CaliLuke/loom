@@ -214,6 +214,11 @@ func (b *valueOccurrenceBuilder) effectiveConstraints(context *ValueContext) err
 		node.constraints = buildEffectiveConstraints(context, b.graph, node)
 	}
 	for _, node := range b.graph.nodes {
+		if err := validateEffectiveDomain(context, b.graph, node); err != nil {
+			return err
+		}
+	}
+	for _, node := range b.graph.nodes {
 		if err := projectEffectiveEnumJSON(context, b.graph, node); err != nil {
 			return err
 		}

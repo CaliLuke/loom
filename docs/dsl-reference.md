@@ -565,8 +565,18 @@ into constraints on that string. See [Bytes in JSON bodies](http-guide.md#bytes-
 
 Constraints declared on a named type refine the constraints of its named base.
 Numeric and length bounds are combined, and required object fields accumulate
-by field identity. Loom continues to admit a contract whose inherited bounds
-describe an empty set.
+by field identity. Loom rejects contradictory bounds before generation, whether
+they are declared together, inherited from a named type, or combined by `Extend`.
+For example, a base `Minimum(10)` and derived `Maximum(5)` are invalid. Equal
+inclusive endpoints are valid; equal endpoints with either side exclusive are
+invalid. Length bounds must be nonnegative at every declaration, even if a
+stronger derived bound would hide a negative ancestor bound. Zero lengths are
+valid. Existing designs with contradictory inherited bounds must correct their
+constraints before regeneration.
+
+Admission checks endpoint order and length eligibility. It does not decide
+whether a mathematically nonempty numeric interval contains a value representable
+by a particular machine type, or whether combined patterns have a solution.
 
 Pattern and format rules are also conjunctive. Each named layer adds a rule;
 none replaces an ancestor rule. For example, a base `Pattern("^a")` and a

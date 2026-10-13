@@ -12,19 +12,24 @@ import (
 
 func TestInlineJSONSchemaByteLengths(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		attribute *AttributeExpr
-		accepted  []any
-		rejected  []any
+		name          string
+		attribute     *AttributeExpr
+		accepted      []any
+		rejected      []any
+		invalidDomain bool
 	}{
-		{"maximum", &AttributeExpr{Type: Bytes, Validation: &ValidationExpr{MaxLength: intPtr(2)}}, []any{"", "aA==", "aGk=", "aGl="}, []any{"aGlq", "aGk=\n", "aGk=\r", "aGk=\u2028", "aGk=\u2029"}},
-		{"minimum", &AttributeExpr{Type: Bytes, Validation: &ValidationExpr{MinLength: intPtr(2)}}, []any{"aGk=", "aGlq"}, []any{"", "aA=="}},
-		{"unbounded", &AttributeExpr{Type: Bytes}, []any{"", "aGl="}, []any{"bad", "aGk", "aGk===", "____", "aGk= "}},
-		{"impossible", &AttributeExpr{Type: Bytes, Validation: &ValidationExpr{MaxLength: intPtr(-1)}}, nil, []any{"", "aA=="}},
-		{"nullable impossible", &AttributeExpr{Type: Bytes, Nullable: true, Validation: &ValidationExpr{MaxLength: intPtr(-1)}}, []any{nil}, []any{"", "aA=="}},
+		{"maximum", &AttributeExpr{Type: Bytes, Validation: &ValidationExpr{MaxLength: intPtr(2)}}, []any{"", "aA==", "aGk=", "aGl="}, []any{"aGlq", "aGk=\n", "aGk=\r", "aGk=\u2028", "aGk=\u2029"}, false},
+		{"minimum", &AttributeExpr{Type: Bytes, Validation: &ValidationExpr{MinLength: intPtr(2)}}, []any{"aGk=", "aGlq"}, []any{"", "aA=="}, false},
+		{"unbounded", &AttributeExpr{Type: Bytes}, []any{"", "aGl="}, []any{"bad", "aGk", "aGk===", "____", "aGk= "}, false},
+		{"impossible", &AttributeExpr{Type: Bytes, Validation: &ValidationExpr{MaxLength: intPtr(-1)}}, nil, []any{"", "aA=="}, true},
+		{"nullable impossible", &AttributeExpr{Type: Bytes, Nullable: true, Validation: &ValidationExpr{MaxLength: intPtr(-1)}}, []any{nil}, []any{"", "aA=="}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			data, err := InlineJSONSchema(tc.attribute)
+			if tc.invalidDomain {
+				require.ErrorContains(t, err, "max length must be non-negative")
+				return
+			}
 			require.NoError(t, err)
 			var schema map[string]any
 			require.NoError(t, json.Unmarshal(data, &schema))
@@ -90,6 +95,11 @@ func TestInlineJSONSchemaByteAliasConjunction(t *testing.T) {
 				}}
 				alias := &UserTypeExpr{TypeName: "BlobAlias", AttributeExpr: &AttributeExpr{Type: inner}}
 				attribute := &AttributeExpr{Type: alias, Validation: &ValidationExpr{MaxLength: intPtr(maximum)}}
+				if maximum == 1 {
+					_, err := InlineJSONSchema(attribute)
+					require.ErrorContains(t, err, "min length is greater than max length")
+					return
+				}
 				schema := mustInlineJSONSchema(t, attribute)
 				require.Equal(t, nullable, inlineByteSchemaMatches(t, schema, nil))
 				for length, wire := range []string{"", "aA==", "aGk=", "aGlq", "aGlqaw=="} {
@@ -167,18 +177,24 @@ func TestInlineJSONSchemaByteEffectiveBoundsBeforeProjection(t *testing.T) {
 	for _, test := range []struct {
 		name         string
 		inner, outer ValidationExpr
-		acceptsTwo   bool
+		wantError    string
 	}{
-		{"narrow huge maximum", ValidationExpr{MaxLength: &huge}, ValidationExpr{MaxLength: intPtr(2)}, true},
-		{"empty huge minimum", ValidationExpr{MinLength: &huge}, ValidationExpr{MaxLength: intPtr(2)}, false},
-		{"negative inner minimum", ValidationExpr{MinLength: intPtr(-5)}, ValidationExpr{MinLength: intPtr(2), MaxLength: intPtr(2)}, true},
-		{"negative inner maximum", ValidationExpr{MaxLength: intPtr(-1)}, ValidationExpr{MaxLength: intPtr(2)}, false},
-		{"contradictory inner", ValidationExpr{MinLength: intPtr(3), MaxLength: intPtr(1)}, ValidationExpr{MaxLength: intPtr(2)}, false},
+		{"narrow huge maximum", ValidationExpr{MaxLength: &huge}, ValidationExpr{MaxLength: intPtr(2)}, ""},
+		{"empty huge minimum", ValidationExpr{MinLength: &huge}, ValidationExpr{MaxLength: intPtr(2)}, "min length is greater than max length"},
+		{"negative inner minimum", ValidationExpr{MinLength: intPtr(-5)}, ValidationExpr{MinLength: intPtr(2), MaxLength: intPtr(2)}, "min length must be non-negative"},
+		{"negative inner maximum", ValidationExpr{MaxLength: intPtr(-1)}, ValidationExpr{MaxLength: intPtr(2)}, "max length must be non-negative"},
+		{"contradictory inner", ValidationExpr{MinLength: intPtr(3), MaxLength: intPtr(1)}, ValidationExpr{MaxLength: intPtr(2)}, "min length is greater than max length"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			inner := &UserTypeExpr{TypeName: "Blob", AttributeExpr: &AttributeExpr{Type: Bytes, Validation: &test.inner}}
-			schema := mustInlineJSONSchema(t, &AttributeExpr{Type: inner, Validation: &test.outer})
-			require.Equal(t, test.acceptsTwo, inlineByteSchemaMatches(t, schema, "aGk="))
+			attribute := &AttributeExpr{Type: inner, Validation: &test.outer}
+			if test.wantError != "" {
+				_, err := InlineJSONSchema(attribute)
+				require.ErrorContains(t, err, test.wantError)
+				return
+			}
+			schema := mustInlineJSONSchema(t, attribute)
+			require.True(t, inlineByteSchemaMatches(t, schema, "aGk="))
 			require.False(t, inlineByteSchemaMatches(t, schema, "YWJj"))
 		})
 	}

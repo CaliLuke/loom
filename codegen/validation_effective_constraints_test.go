@@ -155,26 +155,22 @@ func TestEnumClausesRenderEveryMembershipPredicate(t *testing.T) {
 	require.Contains(t, authoredEmptyCode, "if !(false)")
 }
 
-func TestEffectiveNumericAliasContradictionRemainsAdmitted(t *testing.T) {
+func TestEffectiveNumericAliasContradictionRejectsBeforeGeneration(t *testing.T) {
 	var derived expr.UserType
-	RunDSL(t, func() {
-		base := dsl.Type("Minimum", dsl.Int, func() { dsl.Minimum(5) })
-		derived = dsl.Type("EmptyRange", base, func() { dsl.Maximum(3) })
+	err := expr.RunInvalidDSL(t, func() {
+		base := dsl.Type("Minimum", dsl.Int, func() {
+			dsl.Minimum(5)
+		})
+		derived = dsl.Type("EmptyRange", base, func() {
+			dsl.Maximum(3)
+		})
 		dsl.Service("numeric", func() {
-			dsl.Method("send", func() { dsl.Payload(derived) })
+			dsl.Method("send", func() {
+				dsl.Payload(derived)
+			})
 		})
 	})
-	attribute := &expr.AttributeExpr{Type: derived}
-	constraints, err := expr.EffectiveConstraintsFor(attribute)
-	require.NoError(t, err)
-	validation := constraints.Validation().Lowered()
-	require.Equal(t, *boundForTest(5), *validation.Minimum)
-	require.Equal(t, *boundForTest(3), *validation.Maximum)
-	for _, value := range []int{2, 4, 6} {
-		context := expr.NewValueContext()
-		occurrence, err := context.NewOccurrence(attribute)
-		require.NoError(t, err)
-		result := context.Resolve(occurrence, context.SupplyValue(expr.ValueInput{Raw: value}), expr.ValueRoleDefault)
-		require.Equal(t, expr.ValueInvalid, result.Outcome())
-	}
+	require.ErrorContains(t, err, "contradictory bounds")
+	_, err = expr.EffectiveConstraintsFor(&expr.AttributeExpr{Type: derived})
+	require.ErrorContains(t, err, "contradictory bounds")
 }

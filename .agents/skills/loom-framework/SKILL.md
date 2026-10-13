@@ -116,7 +116,14 @@ consumer validation.
   query derives physical provenance. Lowering stores selected enum membership
   as clauses rather than re-authoring `Values`; `EnumCandidates` separately
   reports filtered representatives and distinguishes absence from a present
-  empty domain. Renderers may retain authored overlays for
+  empty domain. Shared `validationDomainErrors`/`validateEffectiveDomain` admission
+  checks every authored layer before tighter-bound folding can hide negative
+  lengths, then rejects contradictory effective numeric/length endpoints. Local
+  ValidationExpr, named ancestry and Extend use this owner; do not reintroduce
+  transport/composition interval checks. Endpoint admission does not solve
+  machine-carrier representability or arbitrary pattern satisfiability. Keep
+  `expr/tla/constraint_domain` and direct/DSL checks aligned.
+  Renderers may retain authored overlays for
   schema composition, but must not select semantic precedence independently.
   `Reference` remains object-template copying rather than named-type ancestry.
 - Mapped attribute preparation retains the eliminated named declaration edge

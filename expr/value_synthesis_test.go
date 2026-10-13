@@ -162,7 +162,7 @@ func TestCanonicalizeExampleUsesEffectiveFormatToSelectUnionBranch(t *testing.T)
 		CanonicalizeExample(attribute, validUUID))
 }
 
-func TestValueSynthesisSuppressesEmptyEffectiveLengthContracts(t *testing.T) {
+func TestValueSynthesisRejectsEmptyEffectiveLengthContracts(t *testing.T) {
 	shapes := []struct {
 		name string
 		typ  DataType
@@ -189,32 +189,18 @@ func TestValueSynthesisSuppressesEmptyEffectiveLengthContracts(t *testing.T) {
 				base := namedScalar("SynthesisLengthBase", shape.typ, &ValidationExpr{MinLength: &interval.minimum})
 				derived := namedScalar("SynthesisLengthDerived", base, &ValidationExpr{MaxLength: &interval.maximum})
 				context := NewValueContext()
-				occurrence, err := context.NewOccurrence(&AttributeExpr{Type: derived})
-				require.NoError(t, err)
-				result := context.Synthesize(
-					context.SelectExample(occurrence, ExamplePolicy{Reachable: true}),
-					NewRandom("empty-effective-length"),
-				)
-				require.Equal(t, ValueSuppressed, result.Outcome(), "%v", result.Diagnostics())
-				_, present := result.Value()
-				require.False(t, present)
+				_, err := context.NewOccurrence(&AttributeExpr{Type: derived})
+				require.ErrorContains(t, err, "min length is greater than max length")
 			})
 		}
 	}
 }
 
-func TestValueSynthesisSuppressesEqualExclusiveNumericContract(t *testing.T) {
+func TestValueSynthesisRejectsEqualExclusiveNumericContract(t *testing.T) {
 	bound := 5.0
 	base := namedScalar("SynthesisNumericBase", Float64, &ValidationExpr{Minimum: boundForTest(bound)})
 	derived := namedScalar("SynthesisNumericDerived", base, &ValidationExpr{ExclusiveMaximum: boundForTest(bound)})
 	context := NewValueContext()
-	occurrence, err := context.NewOccurrence(&AttributeExpr{Type: derived})
-	require.NoError(t, err)
-	result := context.Synthesize(
-		context.SelectExample(occurrence, ExamplePolicy{Reachable: true}),
-		NewRandom("empty-effective-number"),
-	)
-	require.Equal(t, ValueSuppressed, result.Outcome(), "%v", result.Diagnostics())
-	_, present := result.Value()
-	require.False(t, present)
+	_, err := context.NewOccurrence(&AttributeExpr{Type: derived})
+	require.ErrorContains(t, err, "minimum is greater than or equal to exclusive maximum")
 }
