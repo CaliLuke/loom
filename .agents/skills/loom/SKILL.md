@@ -1361,6 +1361,11 @@ shared Info/accessor types cover both method sets while invocation remains
 limited to each side's declarations. Regenerate services and clients after
 upgrading to obtain complete accessor coverage; no interceptor implementation
 change is needed when accessed fields share a compatible type contract.
+Optional/required storage and custom Go field names remain method-local. Shared
+accessors require one logical Go signature; conflicting primitive, named or
+nullable types fail generation with both methods identified. Reuse one design
+type for fields intended to share a typed accessor; regenerate to adopt corrected
+bindings.
 
 ## Interceptor Result Boundaries
 

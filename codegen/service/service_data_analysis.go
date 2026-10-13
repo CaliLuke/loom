@@ -186,6 +186,7 @@ func newServiceData(
 		viewedResultTypes:  viewedRTs,
 		unions:             unions,
 	}
+	admitInterceptorContracts(d.Ctx, data.ServerInterceptors, data.ClientInterceptors)
 	data.interceptorDeclarations = buildInterceptorDeclarations(methods, data.ServerInterceptors, data.ClientInterceptors)
 	data.metaTypeImports = metaTypeImports(service, data)
 	data.ownPackageType = ownPackageUserType(d.Root, service)

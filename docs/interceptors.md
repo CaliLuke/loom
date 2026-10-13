@@ -104,6 +104,16 @@ Why the accessor interfaces matter:
 - If you declare `WriteResult(Attribute("cachedAt"))`, Loom generates `SetCachedAt(<type>)`.
 - Your interceptor can’t accidentally reach for fields you didn’t declare; that’s the compile-time contract.
 
+An interceptor shared by several methods has one Go signature for each declared
+field accessor, across both server and client uses. Optional and required fields
+with the same logical type are compatible: an absent optional scalar reads as
+zero, and its setter initializes storage. Each method retains its own Go field
+name and representation. Different primitive types, distinct named object types,
+or a plain field versus `Nullable` cannot share one typed accessor. Generation
+rejects these conflicts with the interceptor, field and both method names; reuse
+a common design type when the methods are intended to share that contract.
+Regenerate services and clients to adopt the corrected field bindings.
+
 When the method result is a result type, the server endpoint returns the viewed
 result (the type in the `views` package). For a server interceptor that reads or
 writes the result, Loom converts that value to the result type before `next`

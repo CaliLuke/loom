@@ -243,10 +243,10 @@ func addInterceptorsSection(stmt *jen.Statement, interceptors []*InterceptorData
 		first := true
 		for _, interceptor := range interceptors {
 			for _, method := range interceptor.Methods {
-				first = addAccessorMethods(stmt, method.PayloadAccess, "payload", interceptor.ReadPayload, interceptor.WritePayload, first)
-				first = addAccessorMethods(stmt, method.ResultAccess, "result", interceptor.ReadResult, interceptor.WriteResult, first)
-				first = addAccessorMethods(stmt, method.StreamingPayloadAccess, "payload", interceptor.ReadStreamingPayload, interceptor.WriteStreamingPayload, first)
-				first = addAccessorMethods(stmt, method.StreamingResultAccess, "result", interceptor.ReadStreamingResult, interceptor.WriteStreamingResult, first)
+				first = addAccessorMethods(stmt, method.PayloadAccess, "payload", method.attributes[interceptorReadPayload], method.attributes[interceptorWritePayload], first)
+				first = addAccessorMethods(stmt, method.ResultAccess, "result", method.attributes[interceptorReadResult], method.attributes[interceptorWriteResult], first)
+				first = addAccessorMethods(stmt, method.StreamingPayloadAccess, "payload", method.attributes[interceptorReadStreamingPayload], method.attributes[interceptorWriteStreamingPayload], first)
+				first = addAccessorMethods(stmt, method.StreamingResultAccess, "result", method.attributes[interceptorReadStreamingResult], method.attributes[interceptorWriteStreamingResult], first)
 			}
 		}
 	}
@@ -363,7 +363,7 @@ func addInfoAccessorMethod(stmt *jen.Statement, interceptor *InterceptorData, me
 	stmt.Line()
 }
 
-func addAccessorMethods(stmt *jen.Statement, accessName, fieldName string, readers, writers []*AttributeData, first bool) bool {
+func addAccessorMethods(stmt *jen.Statement, accessName, fieldName string, readers, writers []*interceptorAttributeBinding, first bool) bool {
 	if accessName == "" {
 		return first
 	}
@@ -384,10 +384,13 @@ func addAccessorMethods(stmt *jen.Statement, accessName, fieldName string, reade
 			Params().
 			Add(codegen.TypeRef(field.TypeRef)).
 			BlockFunc(func(group *jen.Group) {
-				if field.Pointer {
-					addRawGroup(group, "if "+receiver+"."+fieldName+"."+field.Name+" == nil {\n\tvar zero "+field.TypeRef+"\n\treturn zero\n}\nreturn *"+receiver+"."+fieldName+"."+field.Name)
-				} else {
-					addRawGroup(group, "return "+receiver+"."+fieldName+"."+field.Name)
+				switch {
+				case field.indirect:
+					addRawGroup(group, "if "+receiver+"."+fieldName+"."+field.selector+" == nil {\n\tvar zero "+field.TypeRef+"\n\treturn zero\n}\nreturn *"+receiver+"."+fieldName+"."+field.selector)
+				case field.address:
+					addRawGroup(group, "return &"+receiver+"."+fieldName+"."+field.selector)
+				default:
+					addRawGroup(group, "return "+receiver+"."+fieldName+"."+field.selector)
 				}
 			})
 		stmt.Line()
@@ -398,10 +401,13 @@ func addAccessorMethods(stmt *jen.Statement, accessName, fieldName string, reade
 			Id("Set" + field.Name).
 			Params(jen.Id("v").Add(codegen.TypeRef(field.TypeRef))).
 			BlockFunc(func(group *jen.Group) {
-				if field.Pointer {
-					addRawGroup(group, receiver+"."+fieldName+"."+field.Name+" = &v")
-				} else {
-					addRawGroup(group, receiver+"."+fieldName+"."+field.Name+" = v")
+				switch {
+				case field.indirect:
+					addRawGroup(group, receiver+"."+fieldName+"."+field.selector+" = &v")
+				case field.address:
+					addRawGroup(group, "if v == nil {\nvar zero "+field.valueType+"\n"+receiver+"."+fieldName+"."+field.selector+" = zero\n} else {\n"+receiver+"."+fieldName+"."+field.selector+" = *v\n}")
+				default:
+					addRawGroup(group, receiver+"."+fieldName+"."+field.selector+" = v")
 				}
 			})
 		stmt.Line()

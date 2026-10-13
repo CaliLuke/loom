@@ -57,17 +57,18 @@ func buildInterceptorData(svc *expr.ServiceExpr, methods []*MethodData, i *expr.
 	if len(svc.Methods) == 0 {
 		return data
 	}
-	attributesCollected := false
 	for _, m := range svc.Methods {
 		if !interceptorAppliesToMethod(m, i, server) {
 			continue
 		}
-		if !attributesCollected {
-			populateInterceptorAttributes(data, i, m, scope)
-			attributesCollected = true
-		}
 		md := findMethodData(methods, m.Name)
-		data.Methods = append(data.Methods, buildInterceptorMethodData(i, md, server))
+		method := buildInterceptorMethodData(i, md, server)
+		method.attributes = collectInterceptorMethodBindings(i, m, scope)
+		method.design = m
+		if len(data.Methods) == 0 {
+			populateInterceptorAttributes(data, method.attributes)
+		}
+		data.Methods = append(data.Methods, method)
 		md.AppendInterceptorName(data.Name, server)
 	}
 	return data
@@ -86,17 +87,15 @@ func interceptorAppliesToMethod(m *expr.MethodExpr, i *expr.InterceptorExpr, ser
 	return false
 }
 
-func populateInterceptorAttributes(data *InterceptorData, i *expr.InterceptorExpr, m *expr.MethodExpr, scope *codegen.NameScope) {
-	payload, result, streamingPayload := m.Payload, m.Result, m.StreamingPayload
-	streamingResult := m.EffectiveStreamingResult()
-	data.ReadPayload = collectAttributes(i.ReadPayload, payload, scope)
-	data.WritePayload = collectAttributes(i.WritePayload, payload, scope)
-	data.ReadResult = collectAttributes(i.ReadResult, result, scope)
-	data.WriteResult = collectAttributes(i.WriteResult, result, scope)
-	data.ReadStreamingPayload = collectAttributes(i.ReadStreamingPayload, streamingPayload, scope)
-	data.WriteStreamingPayload = collectAttributes(i.WriteStreamingPayload, streamingPayload, scope)
-	data.ReadStreamingResult = collectAttributes(i.ReadStreamingResult, streamingResult, scope)
-	data.WriteStreamingResult = collectAttributes(i.WriteStreamingResult, streamingResult, scope)
+func populateInterceptorAttributes(data *InterceptorData, bindings interceptorMethodBindings) {
+	data.ReadPayload = interceptorSignatures(bindings[interceptorReadPayload])
+	data.WritePayload = interceptorSignatures(bindings[interceptorWritePayload])
+	data.ReadResult = interceptorSignatures(bindings[interceptorReadResult])
+	data.WriteResult = interceptorSignatures(bindings[interceptorWriteResult])
+	data.ReadStreamingPayload = interceptorSignatures(bindings[interceptorReadStreamingPayload])
+	data.WriteStreamingPayload = interceptorSignatures(bindings[interceptorWriteStreamingPayload])
+	data.ReadStreamingResult = interceptorSignatures(bindings[interceptorReadStreamingResult])
+	data.WriteStreamingResult = interceptorSignatures(bindings[interceptorWriteStreamingResult])
 	data.HasPayloadAccess = len(data.ReadPayload) > 0 || len(data.WritePayload) > 0
 	data.HasResultAccess = len(data.ReadResult) > 0 || len(data.WriteResult) > 0
 	data.HasStreamingPayloadAccess = len(data.ReadStreamingPayload) > 0 || len(data.WriteStreamingPayload) > 0
@@ -172,32 +171,4 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server 
 		ServerStream:           serverStream,
 		ViewedResult:           viewedResult,
 	}
-}
-
-// collectAttributes builds AttributeData from an AttributeExpr
-func collectAttributes(attrNames, parent *expr.AttributeExpr, scope *codegen.NameScope) []*AttributeData {
-	if attrNames == nil {
-		return nil
-	}
-	obj := expr.AsObject(attrNames.Type)
-	if obj == nil {
-		return nil
-	}
-	data := make([]*AttributeData, len(*obj))
-	for i, nat := range *obj {
-		parentAttr := parent.Find(nat.Name)
-		if parentAttr == nil {
-			continue
-		}
-		var pkg string
-		if loc := codegen.UserTypeLocation(parentAttr.Type); loc != nil {
-			pkg = scope.PackageName(loc)
-		}
-		data[i] = &AttributeData{
-			Name:    codegen.Goify(nat.Name, true),
-			TypeRef: scope.GoFullTypeRef(parentAttr, pkg),
-			Pointer: parent.IsPrimitivePointer(nat.Name, true),
-		}
-	}
-	return data
 }

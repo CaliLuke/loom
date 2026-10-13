@@ -41,3 +41,60 @@ coverage owner, initialized in service analysis and rebuilt by file alias
 analysis. The renderer consumes its two placement lists; original side-local
 invocation records remain unchanged. Alias and nonapplication tests extend the
 implementation checks without changing the finite set model.
+
+
+## Signature, storage and server operation contract exploration
+
+`InterceptorContract.tla` extends the investigation to #767 and #785 without
+changing the existing declaration-coverage model. Shared signature equality and
+method-local physical storage are separate decisions. The finite layouts model
+optional versus required primitives and a renamed selector; incompatible logical
+signatures are rejected. Server operations and incoming-message boundaries are
+independent: JSON-RPC SSE sends contextual events, bidirectional WebSocket methods
+send responses/notifications/errors, and request/reply messages enter endpoints.
+The native stream case is the generic-operation control.
+
+Run from this directory, substituting a configuration name for `contract-owned`:
+
+```sh
+java -cp /Users/luca/.local/share/tlaplus/tla2tools-1.7.4.jar tlc2.TLC \
+  -workers 1 -metadir /tmp/loom-interceptor-contract-owned \
+  -config contract-owned.cfg InterceptorContract.tla
+```
+
+| Configuration | Result | Design consequence |
+| --- | --- | --- |
+| current-storage | LocalStorage counterexample, 5 distinct states | First-method physical layout cannot serve every method. |
+| current-stream | AdapterImplemented counterexample, 4 states | Generic server operations do not implement RPC interfaces. |
+| layout-only | LegalAcceptance counterexample, 8 states | Local bindings alone admit incompatible public signatures. |
+| signature-only | LocalStorage counterexample, 6 states | Admission alone leaves optional/required and selector failures. |
+| methods-only | MessageBoundary counterexample, 5 states | Renaming operations alone invents a missing receive carrier. |
+| reject-variants | LegalAcceptance counterexample, 5 states | Rejecting optional/required or supported streams loses valid designs. |
+| contract-owned | Pass, 24 generated / 16 distinct states | Shared signature admission, local bindings and recorded operations compose. |
+
+Implementation correspondence is `buildInterceptorData`,
+`collectInterceptorMethodBindings` / `collectInterceptorBindings`,
+`admitInterceptorContracts`,
+`buildInterceptorDeclarations`, `addAccessorMethods`, stream interface analysis
+and the server wrapper renderers. `TestInterceptorContractMethodStorage` and
+`TestInterceptorContractRejectsIncompatibleSignature` reproduce the binding and
+admission defects; `TestInterceptorContractSignatureIdentity` reads actual emitted
+Go getter/field types, including nominal, custom and nullable references.
+The archived readiness `TestInterceptorContractServerOperations` compares actual
+interfaces with wrapper operations and detects the missing request/reply carrier;
+its still-failing probes remain outside the atomic #767 diff until #785 resumes.
+The actual CLI storage specimens in `testdata/interceptor_contract_family.go`
+expose the binding failures to the Go compiler. The #767 implementation separates
+shared AttributeData from interceptorMethodBindings, admits signatures across
+both sides before publication, and renders each binding's physical selector and
+conversion. Existing declaration coverage and native stream tests remain controls.
+
+The model assumes a correct canonical signature oracle; it does not implement
+Go nominal identity, imported aliases, nullable carriers or assignability.
+Error/context preservation is an explicit adapter obligation, represented as an
+unchanged value, not proof of runtime callback behavior. The generic operation
+set abstracts different native stream directions. It does not prove native I/O
+lifetime, user callbacks, field mutation, projection conversion, actual Go
+compilation or emitted declaration completeness. Those remain direct and mounted
+Go test obligations. The family plan separates #767 and #785 atomic fixes; this
+small joint model does not merge their ownership or claim the pending #785 fix.

@@ -60,7 +60,11 @@ func TestStreamingResultIdentity(t *testing.T) {
 				}
 				require.Len(t, attrs, 1)
 				assert.Equal(t, "int", attrs[0].TypeRef)
-				assert.Equal(t, tc.optional, attrs[0].Pointer)
+				bindings := i.Methods[0].attributes[interceptorReadStreamingResult]
+				if access == "write" {
+					bindings = i.Methods[0].attributes[interceptorWriteStreamingResult]
+				}
+				assert.Equal(t, tc.optional, bindings[0].indirect)
 				assert.Equal(t, "*Chunk", i.Methods[0].StreamingResultRef)
 				assert.Equal(t, md.ClientStream.RecvTypeRef, i.Methods[0].StreamingResultRef)
 				assert.Equal(t, "*Summary", i.Methods[0].ResultRef)

@@ -1090,8 +1090,12 @@ filter, and serialization rules belong here.
   invocation lists or let a renderer discard client coverage by name. Keep the
   [accessor coverage model](../../../codegen/service/tla/interceptor_accessor_coverage/README.md)
   aligned with ordinary/streaming, imported-type and nonapplication controls.
-  Field representation compatibility and JSON-RPC carrier shape remain separate
-  contracts.
+  `admitInterceptorContracts` admits logical field signatures across both sides
+  before publication. Method-local `interceptorMethodBindings` owns selectors and
+  pointer/value conversion through NameScope and ServiceFieldLayout; shared
+  AttributeData carries no physical storage. Rebuild both under import alias
+  analysis and use existing attributed codegen errors for incompatible signatures.
+  JSON-RPC carrier shape remains a separate contract.
 - `expr.MethodExpr.EffectiveStreamingResult` owns result-stream attribute
   identity, including ordinary/final-result fallback. Interceptor validation,
   field analysis and service stream analysis use it. Accessor references derive

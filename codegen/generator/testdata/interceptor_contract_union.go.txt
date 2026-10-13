@@ -1,0 +1,38 @@
+package contracts_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/interceptorcontracts/gen/contracts"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type audit struct {
+	t *testing.T
+}
+
+func TestUnionStorage(t *testing.T) {
+	endpoint := func(context.Context, any) (any, error) {
+		return nil, nil
+	}
+	_, err := svc.WrapFirstEndpoint(endpoint, audit{t})(context.Background(), &svc.FirstPayload{})
+	require.NoError(t, err)
+	_, err = svc.WrapSecondEndpoint(endpoint, audit{t})(context.Background(), &svc.SecondPayload{})
+	require.NoError(t, err)
+}
+
+func (a audit) Audit(ctx context.Context, info *svc.AuditInfo, next loom.Endpoint) (any, error) {
+	payload := info.Payload()
+	payload.SetValue(nil)
+	if info.Method() == "First" {
+		require.Nil(a.t, payload.Value())
+	} else {
+		require.Equal(a.t, &svc.Choice{}, payload.Value())
+	}
+	payload.SetValue(&svc.Choice{})
+	require.Equal(a.t, &svc.Choice{}, payload.Value())
+	return next(ctx, info.RawPayload())
+}

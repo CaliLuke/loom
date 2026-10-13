@@ -425,6 +425,8 @@ type (
 	// MethodInterceptorData contains the data required to render the
 	// method-level interceptor code.
 	MethodInterceptorData struct {
+		attributes interceptorMethodBindings
+		design     *expr.MethodExpr
 		// WrapperName names this method/interceptor server wrapper function.
 		WrapperName    string
 		clientBindings []*clientInterceptorBinding
@@ -483,14 +485,13 @@ type (
 		EndpointStruct string
 	}
 
-	// AttributeData describes a single attribute.
+	// AttributeData describes a shared logical interceptor field signature.
+	// Physical selectors and storage belong to each method's private binding.
 	AttributeData struct {
 		// Name is the name of the attribute.
 		Name string
 		// TypeRef is the reference to the attribute type.
 		TypeRef string
-		// Pointer is true if the attribute is a pointer.
-		Pointer bool
 	}
 
 	// UserTypeData contains the data describing a user-defined type.

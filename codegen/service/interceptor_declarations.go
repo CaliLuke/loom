@@ -10,8 +10,8 @@ type (
 )
 
 // buildInterceptorDeclarations covers both invocation sides without changing
-// their method lists or allocating new accessor identities. Existing server
-// field metadata takes precedence when an interceptor is present on both sides.
+// their method lists or allocating new accessor identities. Shared signatures have
+// already been admitted across both sides; physical bindings remain method-local.
 func buildInterceptorDeclarations(methods []*MethodData, server, client []*InterceptorData) interceptorDeclarations {
 	var result interceptorDeclarations
 	declarations := make(map[string]*InterceptorData)

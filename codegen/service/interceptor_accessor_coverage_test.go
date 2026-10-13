@@ -13,6 +13,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/codegen/service/testdata"
+	"github.com/CaliLuke/loom/expr"
 )
 
 func TestInterceptorAccessorCoverage(t *testing.T) {
@@ -108,6 +109,7 @@ func TestInterceptorAccessorCoverage(t *testing.T) {
 func TestInterceptorAccessorAliases(t *testing.T) {
 	const genpkg = "example.com/coverage/gen"
 	root := runDSL(t, testdata.InterceptorAccessorAliasDSL)
+	root.Services[0].Methods[2].Payload.Find("value").Meta = expr.MetaExpr{"struct:field:name": {"StoredValue"}}
 	services := NewServicesData(root)
 	data := services.Get("coverage")
 	require.NoError(t, SetUserTypeImports(genpkg, data))
@@ -120,6 +122,8 @@ func TestInterceptorAccessorAliases(t *testing.T) {
 	require.Equal(t, "*context2.Value", shared.ReadPayload[0].TypeRef)
 	require.Equal(t, "*context2.AInput", shared.Methods[0].PayloadRef)
 	require.Equal(t, "*context2.CInput", shared.Methods[1].PayloadRef)
+	require.Equal(t, "*context2.Value", shared.Methods[1].attributes[interceptorReadPayload][0].TypeRef)
+	require.Equal(t, "StoredValue", shared.Methods[1].attributes[interceptorReadPayload][0].selector)
 	require.Equal(t, "*context.Value", base.ReadPayload[0].TypeRef, "reanalysis must not mutate the base declaration")
 	files := InterceptorsFiles(genpkg, root.Services[0], services)
 	var rendered string
@@ -128,4 +132,5 @@ func TestInterceptorAccessorAliases(t *testing.T) {
 	}
 	require.Contains(t, rendered, "Value() *context2.Value")
 	require.Contains(t, rendered, "payload *context2.CInput")
+	require.Contains(t, rendered, "return p.payload.StoredValue")
 }

@@ -126,7 +126,7 @@ func TestCollectAttributes(t *testing.T) {
 				Validation: &expr.ValidationExpr{Required: []string{"name"}},
 			},
 			want: []*AttributeData{
-				{Name: "Name", TypeRef: "string", Pointer: false},
+				{Name: "Name", TypeRef: "string"},
 			},
 		},
 		{
@@ -142,7 +142,7 @@ func TestCollectAttributes(t *testing.T) {
 				},
 			},
 			want: []*AttributeData{
-				{Name: "Age", TypeRef: "int", Pointer: true},
+				{Name: "Age", TypeRef: "int"},
 			},
 		},
 		{
@@ -161,8 +161,8 @@ func TestCollectAttributes(t *testing.T) {
 				Validation: &expr.ValidationExpr{Required: []string{"name"}},
 			},
 			want: []*AttributeData{
-				{Name: "Name", TypeRef: "string", Pointer: false},
-				{Name: "Age", TypeRef: "int", Pointer: true},
+				{Name: "Name", TypeRef: "string"},
+				{Name: "Age", TypeRef: "int"},
 			},
 		},
 		{
@@ -205,7 +205,7 @@ func TestCollectAttributes(t *testing.T) {
 				},
 			},
 			want: []*AttributeData{
-				{Name: "User", TypeRef: "*user.User", Pointer: false},
+				{Name: "User", TypeRef: "*user.User"},
 			},
 		},
 	}
@@ -213,7 +213,7 @@ func TestCollectAttributes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			scope := codegen.NewNameScope()
-			got := collectAttributes(tc.attrNames, tc.parent, scope)
+			got := interceptorSignatures(collectInterceptorBindings(tc.attrNames, tc.parent, scope))
 			assert.Equal(t, tc.want, got)
 		})
 	}

@@ -1,0 +1,76 @@
+package contracts_test
+
+import (
+	"context"
+	"errors"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/interceptorcontracts/gen/contracts"
+	hc "example.com/interceptorcontracts/gen/http/contracts/client"
+	hs "example.com/interceptorcontracts/gen/http/contracts/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	audit struct {
+		side string
+	}
+	service struct {
+		calls atomic.Int32
+	}
+)
+
+func TestMountedStorageBindings(t *testing.T) {
+	implementation := &service{}
+	mux := loomhttp.NewMuxer()
+	hs.Mount(mux, hs.New(svc.NewEndpoints(implementation, audit{"server"}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	transport := hc.NewClient("http", strings.TrimPrefix(server.URL, "http://"), server.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	client := svc.NewClient(transport.First(), transport.Second(), audit{"client"})
+	optional, err := client.First(context.Background(), &svc.FirstPayload{})
+	require.NoError(t, err)
+	require.NotNil(t, optional.Value)
+	require.Equal(t, ":client:server:server-result:client-result", *optional.Value)
+	required, err := client.Second(context.Background(), &svc.SecondPayload{})
+	require.NoError(t, err)
+	require.Equal(t, *optional.Value, required.Value)
+	require.Equal(t, int32(2), implementation.calls.Load())
+}
+
+func TestBindingErrorPropagation(t *testing.T) {
+	sentinel := errors.New("endpoint failed")
+	client := svc.NewClient(nil, func(context.Context, any) (any, error) {
+		return nil, sentinel
+	}, audit{"client"})
+	_, err := client.Second(context.Background(), &svc.SecondPayload{})
+	require.ErrorIs(t, err, sentinel)
+}
+
+func (a audit) Audit(ctx context.Context, info *svc.AuditInfo, next loom.Endpoint) (any, error) {
+	payload := info.Payload()
+	payload.SetValue(payload.Value() + ":" + a.side)
+	result, err := next(ctx, info.RawPayload())
+	if err != nil {
+		return nil, err
+	}
+	access := info.Result(result)
+	access.SetValue(access.Value() + ":" + a.side + "-result")
+	return result, nil
+}
+
+func (s *service) First(_ context.Context, p *svc.FirstPayload) (*svc.FirstResult, error) {
+	s.calls.Add(1)
+	return &svc.FirstResult{Value: p.Value}, nil
+}
+
+func (s *service) Second(_ context.Context, p *svc.SecondPayload) (*svc.SecondResult, error) {
+	s.calls.Add(1)
+	return &svc.SecondResult{Value: p.Value}, nil
+}
