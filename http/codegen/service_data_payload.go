@@ -14,20 +14,21 @@ import (
 )
 
 type payloadBuilder struct {
-	sds        *ServicesData
-	endpointIR *transportir.Endpoint
-	sd         *ServiceData
-	payload    *expr.AttributeExpr
-	bodyAttr   *expr.AttributeExpr
-	body       expr.DataType
-	ep         *service.MethodData
-	svc        *service.Data
-	httpsvrctx *codegen.AttributeContext
-	httpclictx *codegen.AttributeContext
-	svcctx     *codegen.AttributeContext
-	vars       *transportVarScope
-	pkg        string
-	basic      *BasicAuthData
+	sds          *ServicesData
+	endpointIR   *transportir.Endpoint
+	sd           *ServiceData
+	payload      *expr.AttributeExpr
+	bodyAttr     *expr.AttributeExpr
+	selectedBody selectedServiceField
+	body         expr.DataType
+	ep           *service.MethodData
+	svc          *service.Data
+	httpsvrctx   *codegen.AttributeContext
+	httpclictx   *codegen.AttributeContext
+	svcctx       *codegen.AttributeContext
+	vars         *transportVarScope
+	pkg          string
+	basic        *BasicAuthData
 }
 
 func (sds *ServicesData) buildPayloadDataFromIR(endpointIR *transportir.Endpoint, sd *ServiceData, basic *BasicAuthData) *PayloadData {
@@ -45,20 +46,21 @@ func newPayloadBuilder(sds *ServicesData, endpointIR *transportir.Endpoint, sd *
 		body = bodyAttr.Type
 	}
 	builder := &payloadBuilder{
-		sds:        sds,
-		endpointIR: endpointIR,
-		sd:         sd,
-		payload:    payload,
-		bodyAttr:   bodyAttr,
-		body:       body,
-		ep:         ep,
-		svc:        svc,
-		httpsvrctx: httpContext(sd.Scope, true, true),
-		httpclictx: httpContext(sd.Scope, true, false),
-		svcctx:     serviceContext(pkg, sd.Service.Scope),
-		vars:       newRequestVarScope(sd),
-		pkg:        pkg,
-		basic:      basic,
+		sds:          sds,
+		endpointIR:   endpointIR,
+		sd:           sd,
+		payload:      payload,
+		bodyAttr:     bodyAttr,
+		selectedBody: selectBodyField(payload, bodyAttr),
+		body:         body,
+		ep:           ep,
+		svc:          svc,
+		httpsvrctx:   httpContext(sd.Scope, true, true),
+		httpclictx:   httpContext(sd.Scope, true, false),
+		svcctx:       serviceContext(pkg, sd.Service.Scope),
+		vars:         newRequestVarScope(sd),
+		pkg:          pkg,
+		basic:        basic,
 	}
 	builder.httpsvrctx.JSONPresence = bodyAttr != nil && !endpointIR.Request.FormEncoded && !endpointIR.Request.Multipart
 	builder.httpsvrctx.JSONPresenceTypes, builder.httpsvrctx.PresencePointerTypes, builder.httpsvrctx.PresenceUseDefaultTypes = typeLayoutMaps(sd, true)
@@ -134,7 +136,6 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 	paramsData, queryData, headersData, cookiesData, mapQueryParam := b.buildRequestElements()
 	multipartGen, multipartFiles := generatedMultipartRequestData(b.endpointIR.Request)
 	registerRequestBodyTypeNames(serverBodyData, b.sd)
-	origin, mustHaveBody := buildPayloadRequestBodyRequirements(b.endpointIR.Request)
 	request := &RequestData{
 		PathParams:            paramsData,
 		QueryParams:           queryData,
@@ -142,9 +143,9 @@ func (b *payloadBuilder) buildRequestData() (*RequestData, *ParamData) {
 		Cookies:               cookiesData,
 		ServerBody:            serverBodyData,
 		ClientBody:            clientBodyData,
-		PayloadAttr:           codegen.Goify(origin, true),
+		PayloadAttr:           b.selectedBody.GoName,
 		PayloadType:           b.endpointIR.Request.Payload.Type,
-		MustHaveBody:          mustHaveBody,
+		MustHaveBody:          b.endpointIR.Request.MustHaveBody,
 		BodyDefaultValue:      optionalBodyDefault(b.endpointIR.Request),
 		OptionalBodyAttribute: isOptionalBodyAttribute(b.endpointIR.Request),
 		OptionalBodyNullable:  isOptionalNullableBody(b.endpointIR.Request),
@@ -189,13 +190,6 @@ func registerRequestBodyTypeNames(serverBodyData *TypeData, sd *ServiceData) {
 	}
 	sd.ServerTypeNames[serverBodyData.Name] = false
 	sd.ClientTypeNames[serverBodyData.Name] = false
-}
-
-func buildPayloadRequestBodyRequirements(request *transportir.Request) (string, bool) {
-	if request == nil {
-		return "", true
-	}
-	return request.BodyOrigin, request.MustHaveBody
 }
 
 // optionalBodyDefault returns the default applied when a non-nullable primitive
@@ -443,7 +437,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 	args := buildPayloadFieldArgs(request)
 	serverArgs = append(serverArgs, args...)
 	clientArgs = append(clientArgs, args...)
-	serverCode, clientCode, origin, pointer, unionValue := b.buildTransformCode(request)
+	serverCode, clientCode, pointer, unionValue := b.buildTransformCode(request)
 	return &InitData{
 		Name:                     name,
 		Description:              fmt.Sprintf("%s builds a %s service %s endpoint payload.", name, b.svc.Name, b.endpointIR.Name),
@@ -453,7 +447,7 @@ func (b *payloadBuilder) buildInitData(request *RequestData) *InitData {
 		ReturnTypeName:           b.svc.Scope.GoFullTypeName(b.payload, b.pkg),
 		ReturnTypeRef:            b.svc.Scope.GoFullTypeRef(b.payload, b.pkg),
 		ReturnIsStruct:           expr.IsObject(b.payload.Type),
-		ReturnTypeAttribute:      codegen.Goify(origin, true),
+		ReturnTypeAttribute:      b.selectedBody.GoName,
 		ReturnTypePkg:            b.pkg,
 		ServerCode:               serverCode,
 		ClientCode:               clientCode,
@@ -531,25 +525,21 @@ func (b *payloadBuilder) buildPayloadBodyArgs(request *RequestData, argsCap int)
 	return serverArgs, clientArgs
 }
 
-func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, string, string, bool, bool) {
+func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, string, bool, bool) {
 	serverCode := ""
 	clientCode := ""
-	origin := ""
 	pointer := false
 	unionValue := false
 	pAtt := b.payload
 	request := b.endpointIR.Request
 	if b.body != expr.Empty {
-		if o, ok := request.Body.Meta["origin:attribute"]; ok {
-			origin = o[0]
-			var key string
-			key, pAtt = b.payload.FindAttribute(origin)
-			pAtt = serviceFieldTransformAttribute(b.payload, origin, pAtt)
+		if field := b.selectedBody; field.Name != "" {
+			pAtt = field.Attribute
 			// A service field with explicit presence, such as a loom.Nullable
 			// or a loom.JSONValue, holds the value itself, and so does a
 			// primitive with a default value.
-			pointer = b.payload.IsPrimitivePointer(key, true) && !codegen.IsExplicitPresenceType(pAtt)
-			unionValue = bodyFieldIsUnionValue(b.payload, origin)
+			pointer = b.payload.IsPrimitivePointer(field.Key, true) && !codegen.IsExplicitPresenceType(pAtt)
+			unionValue = bodyFieldIsUnionValue(b.payload, field.Name)
 		}
 		var helpers []*codegen.TransformFunctionData
 		var err error
@@ -586,7 +576,7 @@ func (b *payloadBuilder) buildTransformCode(requestData *RequestData) (string, s
 			b.sd.ClientTransformHelpers = codegen.AppendHelpers(b.sd.ClientTransformHelpers, helpers)
 		}
 	}
-	return serverCode, clientCode, origin, pointer, unionValue
+	return serverCode, clientCode, pointer, unionValue
 }
 
 // collectionPayloadSource selects the decoded transport collection used by a

@@ -165,6 +165,14 @@ consumer validation.
   Do not infer absence from arbitrary IsZero methods or restore a transport-only
   tag merger. Keep the [omission model](../../../codegen/tla/json_omission/README.md),
   carrier ledger, generated HTTP/RPC wire and OpenAPI example controls aligned.
+- Selected body member identity is resolved once by
+  `http/codegen.selectBodyField`: logical origin and actual object key retain
+  design semantics, while `GoifyAtt` supplies the declared Go member. Request,
+  response, error and detached body constructors consume that binding. Do not
+  reconstruct physical selectors from logical names in downstream renderers.
+  Keep the [selected-body identity model](../../../http/codegen/tla/selected_body_field/README.md)
+  and renamed/mapped/whole-body generated controls aligned. Physical storage is
+  independently derived from the canonical declaration layout below.
 - Selected primitive body fields retain their enclosing declaration storage
   through `http/codegen.serviceFieldPrimitivePointer`, derived from
   `expr.ServiceFieldLayout` with the actual service/view context. Client result

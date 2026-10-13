@@ -125,9 +125,10 @@ func (sds *ServicesData) buildSingleResponseData(
 	vars := newResponseVarScope(sd)
 	headersData := sds.extractHeaders(resp.Headers, result, svcctx, scope, vars, sds.examplesFor(sd))
 	cookiesData := sds.extractResponseCookies(resp.Cookies, result, svcctx, scope, vars, sds.examplesFor(sd))
-	origin, resAttr := responseOriginAttribute(resp, result)
+	field := selectBodyField(result, resp.Body)
+	origin := field.Name
 	serverBodyData, clientBodyData := sds.buildResponseBodyData(resp, result, origin, viewed, md, endpointIR, sd)
-	init := sds.buildResponseResultInit(resp, result, resAttr, origin, viewed, md, pkg, httpclictx, scope, svcctx, headersData, cookiesData, endpointIR, sd)
+	init := sds.buildResponseResultInit(resp, result, field, viewed, md, pkg, httpclictx, scope, svcctx, headersData, cookiesData, endpointIR, sd)
 	tagName, tagValue, tagPointer := responseTagData(resp, result, viewed)
 	return newResponseData(
 		resp.Description,
@@ -144,22 +145,11 @@ func (sds *ServicesData) buildSingleResponseData(
 			TagValue:     tagValue,
 			TagPointer:   tagPointer,
 			MustValidate: responseFieldsNeedValidation(headersData, cookiesData),
-			ResultAttr:   codegen.Goify(origin, true),
+			ResultAttr:   field.GoName,
 			ViewedResult: md.ViewedResult,
 			DeferStatus:  endpointIR.Response.FileResponse,
 		},
 	)
-}
-
-func responseOriginAttribute(resp *transportir.ResponseStatus, result *expr.AttributeExpr) (string, *expr.AttributeExpr) {
-	if resp.Body == nil || resp.Body.Type == expr.Empty {
-		return "", result
-	}
-	if resp.BodyOrigin != "" {
-		_, attribute := result.FindAttribute(resp.BodyOrigin)
-		return resp.BodyOrigin, serviceFieldTransformAttribute(result, resp.BodyOrigin, attribute)
-	}
-	return "", result
 }
 
 func (sds *ServicesData) buildResponseBodyData(
@@ -292,8 +282,7 @@ func registerClientBodyType(clientBodyData *TypeData, sd *ServiceData) {
 func (sds *ServicesData) buildResponseResultInit(
 	resp *transportir.ResponseStatus,
 	result *expr.AttributeExpr,
-	resAttr *expr.AttributeExpr,
-	origin string,
+	field selectedServiceField,
 	viewed bool,
 	md *service.MethodData,
 	pkg string,
@@ -324,7 +313,7 @@ func (sds *ServicesData) buildResponseResultInit(
 	if strings.HasPrefix(codegen.Goify(md.Result, true), n) {
 		name = fmt.Sprintf("New%s%s", r, status)
 	}
-	code, pointer, clientArgs := sds.buildResponseResultInitCode(resp, result, resAttr, origin, md, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
+	code, pointer, clientArgs := sds.buildResponseResultInitCode(resp, result, field.Attribute, field.Name, md, httpclictx, svcctx, headersData, cookiesData, endpointIR, sd)
 	return &InitData{
 		Name:                     name,
 		Description:              fmt.Sprintf("%s builds a %q service %q endpoint result from a HTTP %q response.", name, sd.Service.Name, endpointIR.Name, status),
@@ -332,10 +321,10 @@ func (sds *ServicesData) buildResponseResultInit(
 		ReturnTypeName:           tname,
 		ReturnTypeRef:            tref,
 		ReturnIsStruct:           expr.IsObject(result.Type),
-		ReturnTypeAttribute:      codegen.Goify(origin, true),
+		ReturnTypeAttribute:      field.GoName,
 		ReturnTypePkg:            pkg,
 		ReturnIsPrimitivePointer: pointer,
-		ReturnIsUnionValue:       bodyFieldIsUnionValue(result, origin),
+		ReturnIsUnionValue:       bodyFieldIsUnionValue(result, field.Name),
 		ClientCode:               code,
 	}
 }

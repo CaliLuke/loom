@@ -445,8 +445,8 @@ func (sds *ServicesData) buildRequestBodyInit(
 
 	const sourceVar = "p"
 
-	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
-	if serviceFieldPrimitivePointer(att, origin, svcctx) {
+	field, src := serviceBodyTransformSource(att, body, sourceVar)
+	if serviceFieldPrimitivePointer(att, field.Name, svcctx) {
 		// The client builds the body of an optional primitive only when
 		// the service field is not nil.
 		src = "*" + src
@@ -455,7 +455,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 	initName := clientBodyInitName(sd, body, argTypeRef, src)
 	initDesc := fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",
 		initName, endpointName, sd.Service.Name)
-	code, helpers, err := marshal(srcAtt, body, src, "body", svcctx, httpctx)
+	code, helpers, err := marshal(field.Attribute, body, src, "body", svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP request body transform: %w", err)))
 	}
@@ -476,7 +476,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 		Name:                initName,
 		Description:         initDesc,
 		ReturnTypeRef:       sd.Scope.GoTypeRef(body),
-		ReturnTypeAttribute: codegen.Goify(origin, true),
+		ReturnTypeAttribute: field.GoName,
 		ClientCode:          code,
 		ClientArgs:          []*InitArgData{arg},
 	}
@@ -510,9 +510,9 @@ func (sds *ServicesData) buildResponseBodyInit(
 		svcctx = viewContext(sd.Service.ViewsPkg, sd.Service.ViewScope)
 	}
 
-	srcAtt, src, origin := serviceBodyTransformSource(att, body, sourceVar)
-	pointer := serviceFieldPrimitivePointer(att, origin, svcctx)
-	code, rtref, helpers, err := marshalResponseBodySource(srcAtt, body, src, rtref, pointer, svcctx, httpctx)
+	field, src := serviceBodyTransformSource(att, body, sourceVar)
+	pointer := serviceFieldPrimitivePointer(att, field.Name, svcctx)
+	code, rtref, helpers, err := marshalResponseBodySource(field.Attribute, body, src, rtref, pointer, svcctx, httpctx)
 	if err != nil {
 		panic(codegen.NewError(nil, body, fmt.Errorf("build HTTP response body transform: %w", err)))
 	}
@@ -539,7 +539,7 @@ func (sds *ServicesData) buildResponseBodyInit(
 		Name:                initName,
 		Description:         initDesc,
 		ReturnTypeRef:       rtref,
-		ReturnTypeAttribute: codegen.Goify(origin, true),
+		ReturnTypeAttribute: field.GoName,
 		ServerCode:          code,
 		ServerArgs:          []*InitArgData{arg},
 	}
@@ -574,13 +574,10 @@ func bodyValueRef(scope *codegen.NameScope, body *expr.AttributeExpr, varName st
 	return varName
 }
 
-func serviceBodyTransformSource(att, body *expr.AttributeExpr, sourceVar string) (*expr.AttributeExpr, string, string) {
-	origin, ok := body.Meta["origin:attribute"]
-	if !ok || len(origin) == 0 {
-		return att, sourceVar, ""
+func serviceBodyTransformSource(att, body *expr.AttributeExpr, sourceVar string) (selectedServiceField, string) {
+	field := selectBodyField(att, body)
+	if field.GoName != "" {
+		sourceVar += "." + field.GoName
 	}
-	name := origin[0]
-	_, attribute := att.FindAttribute(name)
-	attribute = serviceFieldTransformAttribute(att, name, attribute)
-	return attribute, sourceVar + "." + codegen.Goify(name, true), name
+	return field, sourceVar
 }

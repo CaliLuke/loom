@@ -138,8 +138,8 @@ func (b *errorBuilder) buildResponseData(errorResponse *transportir.ResponseStat
 	headers := b.sds.extractHeaders(errorResponse.Headers, httpError.Attribute, errctx, b.sd.Scope, vars, b.sds.examplesFor(b.sd))
 	cookies := b.sds.extractResponseCookies(errorResponse.Cookies, httpError.Attribute, errctx, b.sd.Scope, vars, b.sds.examplesFor(b.sd))
 	contentType := errorResponse.ContentType
-	origin, _ := responseOriginAttribute(errorResponse, httpError.Attribute)
-	fieldName, _, _ := transportFieldBinding(origin, httpError.Attribute, httpError.Attribute, errctx)
+	field := selectBodyField(httpError.Attribute, errorResponse.Body)
+	fieldName := field.GoName
 	headerSourceVar := "res"
 	problemTypeOverride := ""
 	problemTitleOverride := ""
