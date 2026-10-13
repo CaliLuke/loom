@@ -1396,6 +1396,13 @@ filter, and serialization rules belong here.
   remain valid empty collections. Do not validate excluded fields or reclassify
   errors returned by services or client-side conversion. See the
   [output contract model](../../../codegen/service/tla/result_output/README.md).
+- HTTP SSE and WebSocket senders select the response-body constructor from the
+  validated projected result view through `writeServerStreamBodySelection`.
+  SSE retains the complete response-body family. Mapped data membership comes
+  from that selected body's finalized value plan; an omitted field uses its
+  existing codec's empty representation without restoring a required/defaulted
+  canonical field. Keep the selected-view body model and generated controls
+  aligned; sequential view changes are distinct from concurrent SetView safety.
 - The JSON-RPC servers build the response body of a viewed result with the
   constructor of the body of its view (`viewedResultBodyInit` in
   `jsonrpc/codegen/stream_viewed_result.go`), as the HTTP response encoders

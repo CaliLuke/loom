@@ -15,7 +15,7 @@ func (s *StreamingPayloadResultCollectionWithViewsMethodServerStream) SendAndClo
 			return err
 		}
 		var body any
-		switch s.view {
+		switch res.View {
 		case "tiny":
 			body = NewUsertypeResponseTinyCollection(res.Projected)
 		case "extended":

@@ -35,12 +35,12 @@ func TestSSEResultTypesServerSkipsMissingBodyConstructor(t *testing.T) {
 			require.NotNil(t, ed)
 			require.NotNil(t, ed.SSE)
 			if !c.WithBody {
-				require.Nil(t, ed.SSE.ResponseBody)
+				require.Nil(t, ed.SSE.ResponseBodies)
 				return
 			}
-			require.NotNil(t, ed.SSE.ResponseBody)
-			require.NotNil(t, ed.SSE.ResponseBody.Init)
-			require.Equal(t, "NewStreamNoteResponseBody", ed.SSE.ResponseBody.Init.Name)
+			require.Len(t, ed.SSE.ResponseBodies, 1)
+			require.NotNil(t, ed.SSE.ResponseBodies[0].Init)
+			require.Equal(t, "NewStreamNoteResponseBody", ed.SSE.ResponseBodies[0].Init.Name)
 		})
 	}
 }

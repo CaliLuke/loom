@@ -88,10 +88,10 @@ type (
 		NotificationMethod string
 		// RequestIDPointer indicates whether the RequestIDField is a pointer (i.e., optional primitive).
 		RequestIDPointer bool
-		// ResponseBody is the server response body whose constructor converts
-		// each event before encoding. It is nil when the event value is encoded
-		// directly, for example for primitive, collection, or mixed results.
-		ResponseBody *TypeData
+		// ResponseBodies contains the complete wire-body family used to convert
+		// each event, including every result view. It is nil when the event is
+		// encoded directly, as for primitives, unconverted collections, or mixed results.
+		ResponseBodies []*TypeData
 		// Projections map SSE event discriminator values to result views.
 		Projections []*SSEProjectionData
 		// ProjectedTypeRef is the generated view projection type reference.
@@ -157,13 +157,13 @@ func initSSEData(ed *EndpointData, endpointIR *transportir.Endpoint, sd *Service
 	if caps.HasMixedResults {
 		return
 	}
-	ed.SSE.ResponseBody = sseResponseBody(ed)
+	ed.SSE.ResponseBodies = sseResponseBodies(ed)
 }
 
-// sseResponseBody returns the server response body used to convert each event,
+// sseResponseBodies returns the server response body family used to convert each event,
 // or nil when the event value must be encoded directly. Primitive and
-// collection results share the service type and have no body constructor.
-func sseResponseBody(ed *EndpointData) *TypeData {
+// unconverted collection results share the service type and have no body constructor.
+func sseResponseBodies(ed *EndpointData) []*TypeData {
 	if ed.Result == nil {
 		return nil
 	}
@@ -175,9 +175,24 @@ func sseResponseBody(ed *EndpointData) *TypeData {
 		if body.Init == nil {
 			return nil
 		}
-		return body
+		return resp.ServerBody
 	}
 	return nil
+}
+
+// sseBodyHasDataField checks the selected body's finalized representation.
+// A view may omit the mapped member even though the canonical result has it.
+func sseBodyHasDataField(body *TypeData, field string) bool {
+	node := body.Value.Plan.Root()
+	for node.Underlying().Valid() {
+		node = node.Underlying()
+	}
+	for _, member := range node.Members() {
+		if codegen.GoifyAtt(member.Node.Attribute(), member.Name, true) == field {
+			return true
+		}
+	}
+	return false
 }
 
 func sseEventType(ed *EndpointData, endpointIR *transportir.Endpoint, sd *ServiceData, caps service.MethodCapabilityDescriptor) (*expr.AttributeExpr, *ResultData) {

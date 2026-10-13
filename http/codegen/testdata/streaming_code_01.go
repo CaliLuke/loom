@@ -279,7 +279,7 @@ func (s *StreamingResultWithViewsMethodServerStream) SendWithContext(ctx context
 			return err
 		}
 		var body any
-		switch s.view {
+		switch res.View {
 		case "tiny":
 			body = NewStreamingResultWithViewsMethodResponseBodyTiny(res.Projected)
 		case "extended":
@@ -745,7 +745,7 @@ func (s *StreamingResultCollectionWithViewsMethodServerStream) SendWithContext(c
 			return err
 		}
 		var body any
-		switch s.view {
+		switch res.View {
 		case "tiny":
 			body = NewUsertypeResponseTinyCollection(res.Projected)
 		case "extended":

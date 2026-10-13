@@ -27,8 +27,8 @@ func TestSSEProjectionCodegen(t *testing.T) {
 	require.Contains(t, serverCode, `view = "legacy"`)
 	require.Contains(t, serverCode, `view = "updated"`)
 	require.Contains(t, serverCode, `invalid SSE projection discriminator`)
-	require.Contains(t, serverCode, `payload = NewWatchResponseBodyLegacy(res.Projected)`)
-	require.Contains(t, serverCode, `payload = NewWatchResponseBodyUpdated(res.Projected)`)
+	require.Contains(t, serverCode, `body := NewWatchResponseBodyLegacy(res.Projected)`)
+	require.Contains(t, serverCode, `body := NewWatchResponseBodyUpdated(res.Projected)`)
 	require.Contains(t, serverCode, "if id := v.Cursor; id != nil && *id != \"\" {\n\t\tmsg.ID = *id\n\t}")
 
 	clientCode := renderSection(t, sseClientSection(endpoint))
@@ -74,12 +74,78 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	client "example.com/sseprojectionit/gen/http/sse_projection/client"
+	server "example.com/sseprojectionit/gen/http/sse_projection/server"
+	svc "example.com/sseprojectionit/gen/sse_projection"
 	loomhttp "github.com/CaliLuke/loom/http"
 )
+
+type projectionService struct {
+	invalid bool
+}
+
+func (s *projectionService) Watch(ctx context.Context, stream svc.WatchServerStream) error {
+	// Discriminator selection takes precedence even over an unknown SetView.
+	stream.SetView("missing")
+	legacy := "legacy"
+	union := svc.NewEventUpdated(&svc.ProjectionPayload{ID: "b"})
+	value := &svc.ProjectionEvent{
+		EventType: "legacy", Sequence: 1, Type: &legacy,
+		Payload: &svc.ProjectionPayload{ID: "a"}, Event: &union,
+	}
+	if s.invalid {
+		value.EventType = "missing"
+		return stream.SendWithContext(ctx, value)
+	}
+	if err := stream.SendWithContext(ctx, value); err != nil {
+		return err
+	}
+	value.EventType, value.Sequence = "updated", 2
+	return stream.SendWithContext(ctx, value)
+}
+
+func TestProjectionServerUsesDiscriminatorBody(t *testing.T) {
+	for _, invalid := range []bool{false, true} {
+		mux := loomhttp.NewMuxer()
+		errhandler := func(_ context.Context, _ http.ResponseWriter, err error) {
+			t.Errorf("transport: %v", err)
+		}
+		server.Mount(mux, server.New(svc.NewEndpoints(&projectionService{invalid: invalid}), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, errhandler, nil))
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/events", nil))
+		if invalid {
+			if rec.Code < 400 || strings.Contains(rec.Header().Get("Content-Type"), "text/event-stream") {
+				t.Errorf("invalid discriminator committed stream: %d, %q", rec.Code, rec.Body.String())
+			}
+			continue
+		}
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+		}
+		frames := strings.Split(strings.TrimSuffix(rec.Body.String(), "\n\n"), "\n\n")
+		if len(frames) != 2 || strings.Contains(frames[0], "\"event\":") || strings.Contains(frames[1], "\"payload\":") {
+			t.Fatalf("incorrect projection wire fields: %q", frames)
+		}
+		stream := client.NewWatchStream(&http.Response{Body: io.NopCloser(strings.NewReader(rec.Body.String()))}, loomhttp.ResponseDecoder)
+		t.Cleanup(func() {
+			if err := stream.Close(); err != nil {
+				t.Errorf("close stream: %v", err)
+			}
+		})
+		first, err := stream.Recv(context.Background())
+		if err != nil || first == nil || first.Payload == nil || first.Payload.ID != "a" || first.Event != nil {
+			t.Fatalf("legacy projection: %#v, %v", first, err)
+		}
+		second, err := stream.Recv(context.Background())
+		if err != nil || second == nil || second.Event == nil || string(second.Event.Kind()) != "updated" || second.Payload != nil {
+			t.Fatalf("updated projection: %#v, %v", second, err)
+		}
+	}
+}
 
 func TestProjectionClientDecodesMixedStream(t *testing.T) {
 	frames := "event: legacy\nid: c1\ndata: {\"event_type\":\"legacy\",\"sequence\":1,\"type\":\"legacy\",\"payload\":{\"id\":\"a\"}}\n\n" +

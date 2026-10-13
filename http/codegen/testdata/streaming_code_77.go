@@ -43,7 +43,7 @@ func (s *BidirectionalStreamingResultWithViewsMethodServerStream) SendWithContex
 			return err
 		}
 		var body any
-		switch s.view {
+		switch res.View {
 		case "tiny":
 			body = NewBidirectionalStreamingResultWithViewsMethodResponseBodyTiny(res.Projected)
 		case "extended":

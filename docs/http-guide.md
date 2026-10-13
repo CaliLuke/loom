@@ -1221,6 +1221,14 @@ The `data:` field of each event is encoded according to how the design maps it:
   is written as its literal text, or `null` when it is nil, and generated
   clients decode `null` to nil.
 
+For a viewed streaming result, the selected view determines the body of each
+event, including collection elements. Dynamic streams use `SetView(name)`;
+a design that fixes the view always uses that view. If the selected view omits
+the field mapped to SSE data, Loom emits the codec's existing empty value: no
+raw text for native strings/bytes, or JSON `null` for JSON-encoded fields.
+Canonical requiredness or a default does not restore an omitted field.
+Regenerate servers and clients after upgrading to apply this correction.
+
 ### Per-Event JSON Projections
 
 Typed SSE streams may opt into multiple result-view projections. Map each SSE

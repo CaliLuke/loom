@@ -9,7 +9,7 @@ import (
 	"github.com/CaliLuke/loom/codegen/service"
 )
 
-func TestWriteServerWebSocketBodyInitSwitchesViews(t *testing.T) {
+func TestWriteServerWebSocketResponseBodySwitchesViews(t *testing.T) {
 	ws := &WebSocketData{
 		Response: &ResponseData{
 			ServerBody: []*TypeData{
@@ -48,7 +48,7 @@ func TestWriteServerWebSocketBodyInitSwitchesViews(t *testing.T) {
 	}
 
 	var b strings.Builder
-	writeServerWebSocketBodyInit(&b, ws, ws.Response.ServerBody[0])
+	require.True(t, writeServerWebSocketResponseBody(&b, ws))
 
-	require.Equal(t, "\tvar body any\n\tswitch s.view {\n\tcase \"default\", \"\":\n\t\tbody = newDefaultBody(res, )\n\tcase \"tiny\":\n\t\tbody = newTinyBody(res, )\n\t}\n", b.String())
+	require.Equal(t, "\tvar body any\n\tswitch res.View {\n\tcase \"default\", \"\":\n\t\tbody = newDefaultBody(res, )\n\tcase \"tiny\":\n\t\tbody = newTinyBody(res, )\n\t}\n\treturn s.conn.WriteJSON(ctx, body)\n", b.String())
 }

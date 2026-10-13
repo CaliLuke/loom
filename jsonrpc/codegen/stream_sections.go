@@ -145,9 +145,10 @@ func (s *%s) Send(ctx context.Context, event %s.%sEvent) error {
 // sseEventBodyInit renders the statement that converts the event value in
 // resultVar to the JSON-RPC params or result body. It uses the SSE response
 // body constructor when the event has one, which excludes primitive,
-// collection, and mixed-result events, and the event value otherwise.
+// unconverted collection, and mixed-result events, and the event value otherwise.
 func sseEventBodyInit(resultVar, view string, ed *httpcodegen.EndpointData) string {
-	if body := ed.SSE.ResponseBody; body != nil && body.Init != nil {
+	if len(ed.SSE.ResponseBodies) > 0 {
+		body := ed.SSE.ResponseBodies[0]
 		if code, ok := viewedStreamResultBodyInit(resultVar, view, body, ed); ok {
 			return code
 		}

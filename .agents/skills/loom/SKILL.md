@@ -902,6 +902,10 @@ requirement retain AND semantics.
 
 ## Streaming
 
+- Viewed HTTP SSE results use the selected view for each event and collection
+  element. An omitted mapped data field stays omitted even if it is required
+  or defaulted in the canonical result: raw text is empty, and JSON data is
+  `null`. Regenerate peers after the selected-view body correction.
 - For gRPC client-streaming or bidirectional methods with an initial payload
   frame, Loom authenticates before waiting only when all declared alternatives
   use metadata credentials. It authenticates again after complete decoding, so

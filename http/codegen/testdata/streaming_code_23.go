@@ -15,7 +15,7 @@ func (s *StreamingPayloadResultWithViewsMethodServerStream) SendAndCloseWithCont
 			return err
 		}
 		var body any
-		switch s.view {
+		switch res.View {
 		case "tiny":
 			body = NewStreamingPayloadResultWithViewsMethodResponseBodyTiny(res.Projected)
 		case "extended":

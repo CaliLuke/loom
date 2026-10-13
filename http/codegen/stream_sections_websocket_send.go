@@ -2,8 +2,9 @@ package codegen
 
 import (
 	"fmt"
-	"github.com/dave/jennifer/jen"
 	"strings"
+
+	"github.com/dave/jennifer/jen"
 
 	"github.com/CaliLuke/loom/codegen"
 )
@@ -62,47 +63,17 @@ func writeServerWebSocketResponseBody(b *strings.Builder, ws *WebSocketData) boo
 	if body.Init == nil {
 		return false
 	}
-	writeServerWebSocketBodyInit(b, ws, body)
+	prefix := "\tbody := "
+	viewed := ws.Endpoint.Method.ViewedResult
+	if viewed != nil && viewed.ViewName == "" {
+		b.WriteString("\tvar body any\n")
+		prefix = "\t\tbody = "
+	}
+	writeServerStreamBodySelection(b, ws.Response.ServerBody, viewed, func(body *TypeData) {
+		writeServerBodyInitCall(b, body, prefix)
+	})
 	b.WriteString("\treturn s.conn.WriteJSON(ctx, body)\n")
 	return true
-}
-
-func writeServerWebSocketBodyInit(b *strings.Builder, ws *WebSocketData, body *TypeData) {
-	if ws.Endpoint.Method.ViewedResult == nil {
-		writeServerBodyInitCall(b, body, "\tbody := ")
-		return
-	}
-	if ws.Endpoint.Method.ViewedResult.ViewName != "" {
-		if vsb := viewedServerBody(ws.Response.ServerBody, ws.Endpoint.Method.ViewedResult.ViewName); vsb != nil {
-			writeServerBodyInitCall(b, vsb, "\tbody := ")
-		}
-		return
-	}
-	b.WriteString("\tvar body any\n")
-	b.WriteString("\tswitch s.view {\n")
-	for _, view := range ws.Endpoint.Method.ViewedResult.Views {
-		writeViewedServerBodyCase(b, ws, view.Name)
-	}
-	b.WriteString("\t}\n")
-}
-
-func writeViewedServerBodyCase(b *strings.Builder, ws *WebSocketData, viewName string) {
-	if viewName == "default" {
-		fmt.Fprintf(b, "\tcase %q, \"\":\n", viewName)
-	} else {
-		fmt.Fprintf(b, "\tcase %q:\n", viewName)
-	}
-	if vsb := viewedServerBody(ws.Response.ServerBody, viewName); vsb != nil {
-		writeServerBodyInitCall(b, vsb, "\t\tbody = ")
-	}
-}
-
-func writeServerBodyInitCall(b *strings.Builder, body *TypeData, prefix string) {
-	fmt.Fprintf(b, "%s%s(", prefix, body.Init.Name)
-	for _, arg := range body.Init.ServerArgs {
-		fmt.Fprintf(b, "%s, ", arg.Ref)
-	}
-	b.WriteString(")\n")
 }
 
 func addWebsocketSendSection(stmt *jen.Statement, ws *WebSocketData) {

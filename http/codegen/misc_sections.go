@@ -144,24 +144,24 @@ func writeSSEResultSetup(b *strings.Builder, ed *EndpointData) {
 
 func writeSSEPayloadSetup(b *strings.Builder, ed *EndpointData) {
 	b.WriteString("\n\tvar payload any\n")
-	if len(ed.SSE.Projections) > 0 {
-		response := sseProjectionResponse(ed)
-		b.WriteString("\tswitch view {\n")
-		for _, projection := range ed.SSE.Projections {
-			fmt.Fprintf(b, "\tcase %q:\n", projection.View)
-			body := viewedServerBody(response.ServerBody, projection.View)
-			writeServerBodyInitCall(b, body, "\t\tpayload = ")
-		}
-		b.WriteString("\t}\n")
-		return
-	}
-	if ed.SSE.ResponseBody != nil {
-		writeServerBodyInitCall(b, ed.SSE.ResponseBody, "\tbody := ")
-		if ed.SSE.DataField != "" {
-			writeSSEDataFieldPayload(b, ed.SSE, "body."+ed.SSE.DataField)
-			return
-		}
-		b.WriteString("\tpayload = body\n")
+	if len(ed.SSE.ResponseBodies) > 0 {
+		writeServerStreamBodySelection(b, ed.SSE.ResponseBodies, ed.Method.ViewedResult, func(body *TypeData) {
+			if ed.SSE.DataField != "" && !sseBodyHasDataField(body, ed.SSE.DataField) {
+				encoding := representation.MappedSSEEncoding(ed.SSE.DataFieldTypeRef, ed.SSE.DataPointer)
+				if encoding.Codec == expr.ValueCodecText || encoding.Codec == expr.ValueCodecRaw {
+					b.WriteString("\tpayload = \"\"\n")
+				} else {
+					b.WriteString("\tpayload = nil\n")
+				}
+				return
+			}
+			writeServerBodyInitCall(b, body, "\tbody := ")
+			if ed.SSE.DataField != "" {
+				writeSSEDataFieldPayload(b, ed.SSE, "body."+ed.SSE.DataField)
+				return
+			}
+			b.WriteString("\tpayload = body\n")
+		})
 		return
 	}
 	if ed.SSE.DataField != "" {
@@ -183,15 +183,6 @@ func writeSSEDataFieldPayload(b *strings.Builder, data *SSEData, source string) 
 		return
 	}
 	fmt.Fprintf(b, "\tpayload = %s\n", source)
-}
-
-func sseProjectionResponse(ed *EndpointData) *ResponseData {
-	for _, response := range ed.Result.Responses {
-		if len(response.ServerBody) > 0 {
-			return response
-		}
-	}
-	panic("SSE projections require a generated response body")
 }
 
 // writeSSEPayloadEncoding encodes the event data. Whole-event primitive and
