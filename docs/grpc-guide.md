@@ -73,6 +73,11 @@ writes a gRPC message. Protobuf represents JSON numbers as `double`, so gRPC
 cannot retain number spellings or integer precision beyond that wire type. Prefer
 a concrete Loom type whenever the value has a stable contract.
 
+Named types can be shared by ordinary methods and methods containing `Any`,
+including recursive types and union branches. Regenerate adapters to correct
+private conversion helper signatures for these mixed designs. Public constructor
+signatures and protobuf schemas remain unchanged.
+
 Loom rejects `Nullable()` on concrete gRPC payloads, results, error bodies and
 their nested fields during design validation, including declarations inside
 `Message`. A message `Any` field or message-root `Any` can represent explicit

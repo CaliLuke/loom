@@ -67,6 +67,9 @@ protobuf import as `reqpb2`. The service name, package path and wire contract
 remain unchanged. Regenerate `gen/`; for existing create-only example servers,
 compare a freshly generated example in a separate directory and update matching
 import aliases and references while retaining your application changes.
+gRPC methods with and without `Any` can share named types, including recursive
+and union types. Regenerate adapters to pick up corrected conversion helpers for
+these mixed designs; no design workaround is needed.
 Generated gRPC clients preserve local encoding and validation errors. Inspect
 `grpc.ClientError` and `loom.ServiceError` with `errors.As`; remote failures use
 the transport error mappings. Generic remote service errors retain the RPC cause

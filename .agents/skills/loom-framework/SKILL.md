@@ -1148,6 +1148,14 @@ filter, and serialization rules belong here.
   output. The model under `grpc/codegen/tla/import_aliases` covers reciprocal
   reservation, suffix ordering and retained example bindings; generated compile,
   metadata round-trip, custom import and host-isolation tests cover the seams.
+- `conversionCanFail` in `grpc/codegen` owns each source/target conversion's
+  transitive error capability. Root constructors, shared helper declarations and
+  helper calls query their own conversion pair. `objectHelperTransformAttrs`
+  detaches the body context before selecting helper-local fallibility; never
+  inherit an unrelated root's error flag or encode that flag in helper names.
+  The model under `grpc/codegen/tla/helper_fallibility` and the mixed-order
+  helper regressions cover recursive calls, pure children and propagated Any
+  errors. Keep collection-occurrence admission separate from optional fields.
 - `makeProtoBufMessageR` lowers scalar aliases to their native protobuf types
   while retaining effective constraints and defaults. Root scalar wrappers must
   traverse this same lowering before validation or conversion. The protobuf scope,

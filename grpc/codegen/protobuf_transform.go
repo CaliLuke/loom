@@ -74,7 +74,7 @@ func protoBufTransform(source, target *expr.AttributeExpr, sourceVar, targetVar 
 		SourceCtx: sourceCtx,
 		TargetCtx: targetCtx,
 	}}
-	ta.errorAware = containsAny(source) || containsAny(target)
+	ta.errorAware = conversionCanFail(source, target)
 	if proto {
 		target = expr.DupAtt(target)
 		removeMeta(target)
@@ -98,6 +98,14 @@ func protoBufTransform(source, target *expr.AttributeExpr, sourceVar, targetVar 
 	}
 
 	return strings.TrimRight(code, "\n"), funcs, nil
+}
+
+// conversionCanFail reports whether this source/target conversion needs an
+// error channel, including errors from nested conversions. Callers and shared
+// helper declarations must query the called conversion rather than inherit
+// fallibility from an enclosing transform.
+func conversionCanFail(source, target *expr.AttributeExpr) bool {
+	return containsAny(source) || containsAny(target)
 }
 
 func containsAny(attribute *expr.AttributeExpr) bool {

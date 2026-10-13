@@ -221,17 +221,14 @@ func buildObjectHelper(source, target, body *expr.AttributeExpr, req bool, ta *t
 }
 
 func objectHelperTransformAttrs(source, target *expr.AttributeExpr, ta *transformAttrs) *transformAttrs {
+	dup := dupTransformAttrs(ta)
+	dup.errorAware = conversionCanFail(source, target)
 	if ta.proto && isUnionMessage(target) {
-		dup := dupTransformAttrs(ta)
 		dup.message = dup.TargetCtx.Scope.Name(target, dup.TargetCtx.Pkg(target), false, false)
-		return dup
-	}
-	if !ta.proto && isUnionMessage(source) {
-		dup := dupTransformAttrs(ta)
+	} else if !ta.proto && isUnionMessage(source) {
 		dup.message = dup.SourceCtx.Scope.Ref(source, dup.SourceCtx.Pkg(source))
-		return dup
 	}
-	return ta
+	return dup
 }
 
 func collectObjectFieldHelpers(source, target *expr.AttributeExpr, ta *transformAttrs, seen map[string]*codegen.TransformFunctionData) ([]*codegen.TransformFunctionData, error) {

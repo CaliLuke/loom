@@ -200,7 +200,7 @@ func (d *ServicesData) buildInitData(source, target *expr.AttributeExpr, sourceV
 		ReturnTypePkg:  tgtCtx.Pkg(target),
 		Code:           code,
 		Args:           args,
-		ErrorAware:     containsAny(source) || containsAny(target),
+		ErrorAware:     conversionCanFail(source, target),
 	}
 }
 

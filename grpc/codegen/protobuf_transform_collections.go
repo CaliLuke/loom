@@ -426,7 +426,7 @@ func convertType(src, tgt *expr.AttributeExpr, srcPtr bool, tgtPtr bool, srcVar 
 
 func renderTransformHelperCall(src, tgt *expr.AttributeExpr, srcVar string, ta *transformAttrs) string {
 	args := []jen.Code{exprCode(srcVar)}
-	if ta.errorAware {
+	if conversionCanFail(src, tgt) {
 		args = append(args, jen.Id("transformErr"))
 	}
 	return renderJen(jen.Id(transformHelperName(src, tgt, ta)).Call(args...))
