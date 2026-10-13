@@ -6,6 +6,10 @@ Independent readiness and R1 review approved the plan. Implementation parent is
 coverage. All 21 readiness owner hashes remain exact; all 55 artifacts across
 HTTP ticktock, JSON-RPC ticktock and mixedtick regenerate exactly and build/vet.
 
+Delivered as `64fcddc25`, independently reviewed, pushed and confirmed closed.
+Integration retained later guidance and passed the focused HTTP/JSON-RPC
+race and import-identity checks; #883 remains the service-client boundary.
+
 ## Sequence
 
 - [x] Identify the shared owner and separate the gRPC residual (#880).
@@ -15,7 +19,7 @@ HTTP ticktock, JSON-RPC ticktock and mixedtick regenerate exactly and build/vet.
   check complete receiver registration/allocation before rendering.
 - [x] Freeze evidence, concrete owner inventory and bounded acceptance for review.
 - [x] After approval, implement shared client member ownership and update consumers.
-- [ ] Check final generated behavior, exact bytes, compilation and determinism;
+- [x] Check final generated behavior, exact bytes, compilation and determinism;
   obtain independent final review before the single atomic commit.
 
 ## Contract and proposed owner

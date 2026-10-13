@@ -4,21 +4,22 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **155 of 204 tracked reports are delivered, pushed and confirmed closed.**
+- **156 of 204 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report and
-  the checkpoint snapshot verifies its live GitHub state.
-- Latest deliveries: #703 protobuf field numbers (`2da0fd46e`) and #705 binary
-  metadata bindings (`22dddd67f`). Both passed independent final and integration
-  review, are pushed to main and their tickets are closed.
+  the live snapshot `/tmp/loom-current-all-issues.json` verifies its GitHub state.
+- Latest delivery: transport-client receiver identity #879 (`64fcddc25`),
+  independently reviewed, pushed and confirmed closed. Endpoint factories,
+  request builders, Doer fields and operation groups consume one allocated
+  receiver contract. The service-client boundary remains open as #883.
 - #703 parent parity evidence was corrected after review found that the CLI
   clears Go overlay flags. An exact archived parent now generates the same 30
   artifacts, and both modules build/vet. Root independently verified the archive
   against Git and every artifact hash. The original overlay claim is superseded;
   source behavior needed no correction. The owning plan records both receipts.
-- Required CI remains unresolved. On #882, OpenAPI, generated quality, Redis,
-  CodeQL and four compile jobs have passed; the remaining jobs were running at
-  this checkpoint. Prior completed CI reports the known #820 upstream YAML merge
-  race. Focused passing checks do not establish aggregate CI green.
+- Required CI remains unresolved. Run `38426367101` on #882 passed all checks
+  except race; both failing tests report the known #820 libopenapi YAML merge
+  race. Release eligibility consequently failed. Current-main tests are queued;
+  passing earlier jobs do not establish current-main CI green.
 - #883 records a distinct canonical service-client collision discovered while
   repairing transport clients. Preserve its failing witness; do not count it as
   resolved by #879. Continue the whole backlog.
@@ -50,28 +51,26 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **#879 client receiver identity:** `/root/diagnostic_redaction_finish` reviews
-   the frozen final packet in `interceptor-accessor-union/loom`. Nine modules
-   build/vet, six mounted race harnesses pass, 127 artifacts repeat exactly with
-   16 intended changes, and all 55 artifacts in three maintained fixtures stay
-   unchanged. Root integrates only after independent approval.
-2. **#880 gRPC receiver identity:** `/root/projection_integration_review` owns
-   implementation in the root checkout after independent readiness approval.
-   Five compiler failures and two controls cover handler/RPC and embedding/RPC
-   collisions. Resolve concrete roles centrally, including alias package/import
-   ownership and actual protobuf registration; preserve canonical RPC names.
-3. **#702 map-key admission:** `/root/omission_readiness_finish` reuses
-   `numeric-comparison/loom` after #703 delivery. Reconcile documented structured
-   keys and actual representation before choosing admission. Do not blanket-reject
-   every non-primitive key merely because some Go values are not comparable.
-4. **#883 canonical service client identity:** retain the self-contained mixed
-   `watch` / `watchStream` reproduction and assign its distinct receiver owner
-   after the current naming repairs. No production fix is claimed.
-5. **#820 dependency race:** authorized libopenapi
+1. **Generated receiver identities:** #879 is delivered. Agent
+   `/root/projection_integration_review` implements the gRPC receiver owner
+   (#880) in the root checkout; `/root/diagnostic_redaction_finish` prepares the
+   service-client repair (#883) in `grpc-message-context/loom`. Reconcile one
+   declaration/reference inventory across the affected receivers, preserve
+   canonical service/wire names, and reuse existing NameScope and model evidence.
+2. **Map-key admission:** `/root/omission_readiness_finish` implements the shared
+   map-occurrence owner (#702) in `numeric-comparison/loom` after independent
+   readiness approval. Reject native slice/map key representations through named
+   aliases before capture; preserve object pointers, Any and authored custom
+   representations. Reuse the bounded valid-output and rejected-design matrix.
+3. **Remaining contract families:** select subsequent work by impact after the
+   active owner repairs. Interceptor declaration/type and stream-operation
+   contracts still require reconciliation across #767/#770/#785/#786; do not
+   derive per-method accessor bodies from the first method's storage shape.
+4. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at last
    check, without new human review. Keep pins unchanged until an eligible
    upstream revision exists.
-6. **#800 read shutdown:** independently approved 53-file packet remains in
+5. **#800 read shutdown:** independently approved 53-file packet remains in
    `bounded-streaming-shutdown`. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
    remains open at last check; original-module fetchability gates delivery.
    Then resume #687 constructor rollback; #704 worker publication is separate.
