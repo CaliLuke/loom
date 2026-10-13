@@ -68,7 +68,8 @@ func AttributeTagsWithName(parent *expr.AttributeExpr, fieldName string, att *ex
 	}
 	tags := attributeTagValues(att)
 	optional := parent != nil && fieldName != "" && !parent.IsRequired(fieldName)
-	if tag, present := encodingmeta.JSONTag(att.Meta, expr.AttributeName(fieldName), optional, IsExplicitPresenceType(att) || expr.AllowsNull(att)); present {
+	policy := encodingmeta.JSONTagPolicy{Optional: optional, Presence: IsExplicitPresenceType(att) || expr.AllowsNull(att)}
+	if tag, present := encodingmeta.JSONTag(att.Meta, expr.AttributeName(fieldName), policy); present {
 		tags["json"] = tag
 	}
 	return StructTag(tags)

@@ -58,3 +58,32 @@ var OpenAPIScalarMapKeysDSL = func() {
 		})
 	})
 }
+
+// OpenAPIAuthoredJSONTagsDSL extends the scalar-map specimen with explicit JSON
+// tag omission choices and authored empty object-member examples.
+var OpenAPIAuthoredJSONTagsDSL = func() {
+	OpenAPIScalarMapKeysDSL()
+	record := Type("TagRecord", func() {
+		Attribute("plain", String, func() {
+			Meta("struct:tag:json", "plain")
+		})
+		Attribute("items", ArrayOf(String), func() {
+			Meta("struct:tag:json", "items,omitzero")
+		})
+		Attribute("omitted", String, func() {
+			Meta("struct:tag:json", "omitted,omitempty")
+		})
+		Example(map[string]any{"plain": "", "items": []string{}, "omitted": ""})
+	})
+	Service("tagged", func() {
+		Method("echo", func() {
+			NoSecurity()
+			Payload(record)
+			Result(record)
+			HTTP(func() {
+				POST("/tagged")
+				Response(StatusOK)
+			})
+		})
+	})
+}

@@ -2034,6 +2034,14 @@ block use `name`. Validation errors, including those of HTTP and JSON-RPC
 bodies, name the attribute and not the wire element, as they do for fields
 renamed with `struct:tag:json`.
 
+Full `struct:tag:json` metadata preserves its authored options in service and
+HTTP/JSON-RPC encoder types. For example, `"items,omitzero"` preserves a supplied
+empty slice and omits nil, while `"items,omitempty"` omits both. A full tag with
+no omission option emits the value even when empty; a nil pointer then encodes
+as null and remains subject to the design's nullability rules. Explicit presence
+carriers retain their normal `omitzero` normalization, and JSON-RPC IDs retain
+protocol-owned omission. Regenerate code to apply corrected full-tag handling.
+
 A `struct:tag:json` or `struct:tag:json:name` of `"-"` omits a field from
 JSON. An HTTP or JSON-RPC body cannot hold such a field when it is optional,
 that is not required or given a default value, because the generated decoders

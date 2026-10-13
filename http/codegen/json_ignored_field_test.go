@@ -8,32 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/CaliLuke/loom/dsl"
-	"github.com/CaliLuke/loom/http/codegen/internal/representation"
 )
-
-// TestMergeJSONOmitOption preserves the exact ignore marker while retaining
-// ordinary field names and options, including a literal dash field name.
-func TestMergeJSONOmitOption(t *testing.T) {
-	cases := []struct {
-		tag, option, want string
-	}{
-		{"-", "", "-"},
-		{"-", "omitempty", "-"},
-		{"-", "omitzero", "-"},
-		{"-,", "omitempty", "-,,omitempty"},
-		{"-,omitempty", "omitzero", "-,omitzero"},
-		{"secret", "omitempty", "secret,omitempty"},
-		{"secret,omitzero", "omitempty", "secret,omitempty"},
-		{"secret,omitempty,string", "omitzero", "secret,omitzero,string"},
-		{"secret,string", "omitzero", "secret,string,omitzero"},
-		{"-name", "omitzero", "-name,omitzero"},
-	}
-	for _, c := range cases {
-		t.Run(c.tag+"/"+c.option, func(t *testing.T) {
-			require.Equal(t, c.want, representation.MergeJSONOmitOption(c.tag, c.option))
-		})
-	}
-}
 
 // TestRequiredJSONIgnoredField checks the supported required-field tag policy
 // against generated client/server types and an HTTP request containing "-".

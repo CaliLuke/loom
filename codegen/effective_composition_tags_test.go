@@ -81,3 +81,32 @@ func TestEffectiveCompositionRenderedJSONTags(t *testing.T) {
 		}
 	}
 }
+
+func TestEffectiveCompositionSkipTags(t *testing.T) {
+	for _, reverse := range []bool{false, true} {
+		t.Run(map[bool]string{false: "full first", true: "name first"}[reverse], func(t *testing.T) {
+			var derived expr.UserType
+			expr.RunDSL(t, func() {
+				first, second := "struct:tag:json", "struct:tag:json:name"
+				if reverse {
+					first, second = second, first
+				}
+				a := dsl.Type("A", func() {
+					dsl.Attribute("secret", dsl.String, func() {
+						dsl.Meta(first, "-")
+					})
+				})
+				b := dsl.Type("B", func() {
+					dsl.Attribute("secret", dsl.String, func() {
+						dsl.Meta(second, "-")
+					})
+				})
+				derived = dsl.Type("Derived", func() {
+					dsl.Extend(a)
+					dsl.Extend(b)
+				})
+			})
+			require.Equal(t, " `json:\"-\"`", AttributeTagsWithName(derived.Attribute(), "secret", derived.Attribute().Find("secret")))
+		})
+	}
+}

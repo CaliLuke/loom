@@ -8,6 +8,7 @@ import (
 
 	"github.com/CaliLuke/loom/codegen"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
 // FieldWireNames returns the actual JSON and form names emitted for a field.
@@ -31,27 +32,15 @@ func AttributeTags(att *expr.AttributeExpr, t string, optional, omitZero bool) s
 	if optional || isJSONRPCID(att) {
 		omitEmpty = ",omitempty"
 	}
-	jsonOption := omitEmpty
-	if omitZero {
-		jsonOption = ",omitzero"
-	}
-	jsonName := t
-	explicitJSON := false
-	if att != nil && att.Meta != nil {
-		if v := att.Meta["struct:tag:json"]; len(v) > 0 {
-			jsonName = strings.Join(v, ",")
-			explicitJSON = true
-		}
-		if v := att.Meta["struct:tag:json:name"]; len(v) > 0 && v[0] != "" {
-			if !explicitJSON {
-				jsonName = strings.Join(v, ",")
-			}
-		}
-	}
+	jsonName, _ := encodingmeta.JSONTag(att.Meta, t, encodingmeta.JSONTagPolicy{
+		Optional:      optional || omitZero || isJSONRPCID(att),
+		Presence:      omitZero,
+		ForceOmission: isJSONRPCID(att),
+	})
+	_, explicitJSON := att.Meta["struct:tag:json"]
 	if omitZero && strings.Split(jsonName, ",")[0] == "-" {
 		panic(codegen.NewError(nil, att, fmt.Errorf("JSON field %q uses presence semantics and cannot be omitted with tag '-'", t)))
 	}
-	jsonName = MergeJSONOmitOption(jsonName, strings.TrimPrefix(jsonOption, ","))
 	if custom := mergedAttributeTags(att, jsonName, omitZero || explicitJSON || hasJSONTagName(att)); custom != "" {
 		return custom
 	}
@@ -60,30 +49,6 @@ func AttributeTags(att *expr.AttributeExpr, t string, optional, omitZero bool) s
 		"json": jsonName,
 		"xml":  t + omitEmpty,
 	})
-}
-
-// MergeJSONOmitOption replaces omission options while preserving the exact ignore tag.
-func MergeJSONOmitOption(tag, option string) string {
-	if tag == "-" || option == "" {
-		return tag
-	}
-	parts := strings.Split(tag, ",")
-	options := make([]string, 0, len(parts))
-	seen := false
-	for _, part := range parts[1:] {
-		if part == "omitempty" || part == "omitzero" {
-			if !seen {
-				options = append(options, option)
-				seen = true
-			}
-			continue
-		}
-		options = append(options, part)
-	}
-	if !seen {
-		options = append(options, option)
-	}
-	return strings.Join(append([]string{parts[0]}, options...), ",")
 }
 
 // FieldOmission is shared by emitted tags and semantic target plans.

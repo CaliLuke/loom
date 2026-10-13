@@ -129,8 +129,13 @@ and `errors.As`, including when the message contains an example.
   including viewed responses. HTTP clients report `decoding_error` with a JSON
   semantic cause; HTTP requests return 400 `decode_payload`. Declare `Nullable()` on
   elements when null is valid. Missing fields still follow the selected view.
-- Do not rely on nil versus empty slices or maps to encode presence. Generated
-  JSON uses `omitempty`, so both serialize as missing.
+- Automatic ordinary JSON tags currently use `omitempty`, so nil and empty
+  slices/maps both serialize as missing. A full `struct:tag:json` override keeps
+  its authored options in service and HTTP/JSON-RPC encoder types; `omitzero`
+  preserves supplied empty collections. Explicit presence and JSON-RPC ID
+  normalization still apply. Both full and name-only `"-"` mean exclusion;
+  optional omitted HTTP/JSON-RPC body fields remain invalid. Regenerate after
+  upgrading to apply corrected authored-tag handling.
 - For each non-`Extend` type, payload, or result, start literal field tags at
   `1` and increment within that definition. For definitions using `Extend`,
   start newly introduced fields at `100`.

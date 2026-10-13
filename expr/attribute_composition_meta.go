@@ -95,7 +95,7 @@ func composeInheritedMetadata(
 func validateCompositionJSONTags(attribute *AttributeExpr, bases []*AttributeExpr, effective *AttributeExpr, path, fieldName string, optional bool) bool {
 	zeroOmit := encodingmeta.ExplicitPresence(effective.Meta, IsNullable(effective), effective.Type == Any) || AllowsNull(effective)
 	tag := func(source *AttributeExpr) string {
-		value, _ := encodingmeta.JSONTag(source.Meta, AttributeName(fieldName), optional, zeroOmit)
+		value, _ := encodingmeta.JSONTag(source.Meta, AttributeName(fieldName), encodingmeta.JSONTagPolicy{Optional: optional, Presence: zeroOmit})
 		return value
 	}
 	var owner *AttributeExpr

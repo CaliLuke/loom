@@ -2,6 +2,18 @@ package encodingmeta
 
 import "strings"
 
+// JSONTagPolicy describes omission selected by the field representation owner.
+// Authored full tags override ordinary omission, while explicit carriers and
+// protocol-required omission normalize it. Exact exclusion tags remain excluded.
+type JSONTagPolicy struct {
+	// Optional requests omission for an absent or empty optional field.
+	Optional bool
+	// Presence selects omitzero rather than omitempty for an explicit carrier.
+	Presence bool
+	// ForceOmission applies the selected omission even to an authored full tag.
+	ForceOmission bool
+}
+
 // ExplicitPresence reports the existing Go carrier override policy from shared
 // semantic facts and authored representation metadata.
 func ExplicitPresence(meta map[string][]string, nullable, unconstrained bool) bool {
@@ -14,11 +26,11 @@ func ExplicitPresence(meta map[string][]string, nullable, unconstrained bool) bo
 }
 
 // JSONTag resolves authored full/name-only metadata and the existing omission
-// policy. defaultName is the field identity; optional is supplied by its owning
-// object. zeroOmit identifies an explicit-presence or null-admitting carrier.
+// policy. defaultName is the field identity; policy is supplied by its owning
+// representation or semantic composition boundary.
 // The bool reports whether a tag should be emitted, including an explicit empty
 // full tag. Callers retain ownership of semantic requiredness and nullability.
-func JSONTag(meta map[string][]string, defaultName string, optional, zeroOmit bool) (string, bool) {
+func JSONTag(meta map[string][]string, defaultName string, policy JSONTagPolicy) (string, bool) {
 	values, full := meta["struct:tag:json"]
 	tag := strings.Join(values, ",")
 	if !full {
@@ -30,8 +42,8 @@ func JSONTag(meta map[string][]string, defaultName string, optional, zeroOmit bo
 			return "", false
 		}
 	}
-	if optional && (!full || zeroOmit) {
-		tag = appendJSONOmitOption(tag, zeroOmit)
+	if tag != "-" && policy.Optional && (!full || policy.Presence || policy.ForceOmission) {
+		tag = appendJSONOmitOption(tag, policy.Presence)
 	}
 	return tag, true
 }
