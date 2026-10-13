@@ -463,6 +463,12 @@ warnings. Unsupported `allOf`, `oneOf`, `anyOf`, and `not` shapes remain blocked
 A Schema Object with `$ref` siblings is also blocked. Wrap the reference in a
 supported `allOf` shape so the importer does not discard sibling constraints.
 
+Imported schema descriptions and titles survive on scalar fields, collection
+containers and elements, named types and supported reference overlays. Parameter
+and header descriptions remain separate from their schema descriptions; generated
+DSL uses `Meta("openapi:description:schema", ...)` for that distinction. Re-import
+and regenerate to recover descriptions omitted by older generated designs.
+
 Ordinary recursive component references import through named DSL references,
 including recursion through object fields and their arrays or maps. Cycles made
 only of eager alias, array or map constructors remain outside the import subset

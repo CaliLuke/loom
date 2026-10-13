@@ -907,6 +907,15 @@ filter, and serialization rules belong here.
   reject an unsupported carrier once before serialization or render planning.
   Analyze and direct Render must share this owner, including selected operations.
 
+- `openapiimport.renderer.schemaAnnotations` owns schema documentation separately
+  from constructor shape and value validation. Every schema block and nested
+  collection element consumes it. Parameter/header attributes carry their outer
+  Description separately from `openapi:description:schema`; the shared IR
+  `preparedLocationSchema` applies that explicit schema annotation only to a
+  detached result. Do not overwrite outer descriptions, mutate prepared schema
+  caches or duplicate annotation rules in version renderers. Keep reference
+  occurrence/base, Title and parameter-reference override controls aligned.
+
 - Plan imported schema references once after component promotion and final error
   declaration allocation in `internal/openapiimport`. Retain declaration owner
   and source-path occurrence identity; resolve source component names separately

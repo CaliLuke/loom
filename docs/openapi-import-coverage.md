@@ -130,6 +130,15 @@ An extension at an unsupported scope is a `vendor-extension` diagnostic. Strict
 import fails before it writes output. With `--allow-lossy`, the importer omits
 the extension and reports it as a warning.
 
+Schema descriptions are independent of parameter and header descriptions. Loom
+preserves both when the source supplies both, including descriptions on array
+items and map values. Imported location attributes use ordinary `Description(...)`
+for the parameter or header and `Meta("openapi:description:schema", ...)` for the
+schema; an empty metadata value keeps the schema description empty. Other schema
+attributes use `Description(...)` directly. A supported reference overlay retains
+its local annotation without changing the referenced component. Re-import and
+regenerate to restore descriptions dropped by previously generated designs.
+
 ## Schema coverage
 
 OpenAPI 3.0 defines a restricted Schema Object. OpenAPI 3.1 and 3.2 base the

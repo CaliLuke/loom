@@ -614,8 +614,10 @@ func wrapResponses(responses map[string]*Response) map[string]*ResponseRef {
 }
 
 func preparedLocationSchema(attribute *expr.AttributeExpr, context string, random *expr.ExampleGenerator, closeObjects bool, prepared []map[*expr.AttributeExpr]*Schema) *Schema {
+	var schema *Schema
 	if len(prepared) > 0 && prepared[0] != nil {
-		schema, exists := prepared[0][attribute]
+		var exists bool
+		schema, exists = prepared[0][attribute]
 		if !exists {
 			panic("OpenAPI location missing prepared representation")
 		}
@@ -623,12 +625,16 @@ func preparedLocationSchema(attribute *expr.AttributeExpr, context string, rando
 			return nil
 		}
 		copy := *schema
-		return &copy
+		schema = &copy
+	} else {
+		analyzer := NewAnalyzer(random, closeObjects)
+		schema = analyzer.AnalyzeSchemaWithContext(attribute, context)
+		if err := analyzer.Err(); err != nil {
+			panic(err)
+		}
 	}
-	analyzer := NewAnalyzer(random, closeObjects)
-	schema := analyzer.AnalyzeSchemaWithContext(attribute, context)
-	if err := analyzer.Err(); err != nil {
-		panic(err)
+	if description, explicit := attribute.Meta.Last("openapi:description:schema"); explicit {
+		schema.Description = description
 	}
 	return schema
 }

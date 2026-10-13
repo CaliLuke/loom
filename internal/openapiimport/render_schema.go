@@ -10,41 +10,35 @@ import (
 	"github.com/CaliLuke/loom/internal/openapiref"
 )
 
-func (r *renderer) attribute(name string, schema *Schema, description, path string, metadata ...renderedMetadata) error {
+func (r *renderer) attribute(name string, schema *Schema, description *string, path string, metadata ...renderedMetadata) error {
 	expression, object, err := r.schemaExpression(schema, path)
 	if err != nil {
 		return err
 	}
 	if object {
 		r.open("Attribute(%q, func()", name)
-		if description != "" {
-			r.line("Description(%q)", description)
-		}
 		for _, meta := range metadata {
 			r.line("Meta(%q, %q)", meta.name, meta.value)
 		}
 		if err := r.emitAttributeGoType(schema, path); err != nil {
 			return err
 		}
-		if err := r.schemaBlock(schema, path, false); err != nil {
+		if err := r.schemaBlock(schema, path, false, description); err != nil {
 			return err
 		}
 		r.close()
 		return nil
 	}
-	if description != "" || len(metadata) > 0 || r.hasSchemaBlock(schema) ||
+	if description != nil || len(metadata) > 0 || r.hasSchemaBlock(schema) ||
 		r.effectiveNullable(schema) || r.effectiveUnconstrained(schema) {
 		r.open("Attribute(%q, %s, func()", name, expression)
-		if description != "" {
-			r.line("Description(%q)", description)
-		}
 		for _, meta := range metadata {
 			r.line("Meta(%q, %q)", meta.name, meta.value)
 		}
 		if err := r.emitAttributeGoType(schema, path); err != nil {
 			return err
 		}
-		if err := r.validationBlock(schema, path); err != nil {
+		if err := r.schemaAttributeBlock(schema, path, description); err != nil {
 			return err
 		}
 		r.close()
@@ -61,7 +55,7 @@ func (r *renderer) responseSchemaBody(call string, schema *Schema, path string) 
 	}
 	if object {
 		r.open("%s(func()", call)
-		if err := r.schemaBlock(schema, path, false); err != nil {
+		if err := r.schemaBlock(schema, path, false, nil); err != nil {
 			return err
 		}
 		r.close()
@@ -69,7 +63,7 @@ func (r *renderer) responseSchemaBody(call string, schema *Schema, path string) 
 	}
 	if r.hasSchemaBlock(schema) {
 		r.open("%s(%s, func()", call, expression)
-		if err := r.validationBlock(schema, path); err != nil {
+		if err := r.schemaAttributeBlock(schema, path, nil); err != nil {
 			return err
 		}
 		r.close()
@@ -181,7 +175,7 @@ func (r *renderer) objectSchemaExpression(schema *Schema, path string) (string, 
 	if err := child.emitNullableGoType(valueSchema, path+"/additionalProperties"); err != nil {
 		return "", false, err
 	}
-	if err := child.validationBlock(valueSchema, path+"/additionalProperties"); err != nil {
+	if err := child.schemaAttributeBlock(valueSchema, path+"/additionalProperties", nil); err != nil {
 		return "", false, err
 	}
 	child.close()
@@ -208,7 +202,7 @@ func (r *renderer) arraySchemaExpression(schema *Schema, path string) (string, b
 	if err := child.emitNullableGoType(schema.Items, path+"/items"); err != nil {
 		return "", false, err
 	}
-	if err := child.validationBlock(schema.Items, path+"/items"); err != nil {
+	if err := child.schemaAttributeBlock(schema.Items, path+"/items", nil); err != nil {
 		return "", false, err
 	}
 	child.close()
@@ -218,7 +212,7 @@ func (r *renderer) arraySchemaExpression(schema *Schema, path string) (string, b
 // stringSchemaExpression selects the Loom base type for a string schema.
 // "byte" and "binary" map to Bytes; every other format, including one Loom does not
 // recognize, maps to String. A recognized format additionally gets a
-// Format(...) validation call (see validationBlock); an unrecognized one
+// Format(...) validation call (see schemaAttributeBlock); an unrecognized one
 // renders as a plain String, matching OpenAPI 3.1's rule that unknown format
 // values must not fail validation or processing. Analyze reports unrecognized
 // non-empty formats as the lossy-allowed "schema-format" diagnostic.
@@ -267,10 +261,7 @@ func booleanSchemaExpression(format, path string) (string, bool, error) {
 	return "Boolean", false, nil
 }
 
-func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) error {
-	if schema.Description != "" {
-		r.line("Description(%q)", schema.Description)
-	}
+func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool, description *string) error {
 	if schema.Type == "object" && schema.AdditionalProperties != nil && schema.AdditionalProperties.Allowed != nil && !*schema.AdditionalProperties.Allowed {
 		r.line("Meta(%q, %q)", "openapi:additionalProperties", "false")
 	}
@@ -306,7 +297,7 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 		if field := fieldOverrides[index]; field != "" {
 			metadata = append(metadata, renderedMetadata{name: "struct:field:name", value: field})
 		}
-		if err := r.attribute(property.Name, property.Schema, "", path+"/properties/"+escapeJSONPointer(property.Name), metadata...); err != nil {
+		if err := r.attribute(property.Name, property.Schema, nil, path+"/properties/"+escapeJSONPointer(property.Name), metadata...); err != nil {
 			return err
 		}
 	}
@@ -322,16 +313,13 @@ func (r *renderer) schemaBlock(schema *Schema, path string, errorType bool) erro
 		}
 		r.quotedCall("Required", schema.Required)
 	}
-	return r.validationBlock(schema, path)
+	return r.schemaAttributeBlock(schema, path, description)
 }
 
-func (r *renderer) validationBlock(schema *Schema, path string) error {
+func (r *renderer) schemaAttributeBlock(schema *Schema, path string, description *string) error {
 	r.untaggedValidation(schema)
 	r.referenceOverlayMetadata(schema)
-	if schema.Title != "" {
-		r.line("Title(%q)", schema.Title)
-	}
-	if err := r.emitExtensions("schema", schema.Extensions); err != nil {
+	if err := r.schemaAnnotations(schema, description); err != nil {
 		return err
 	}
 	if schema.Format == "" && (schema.Type == "integer" || schema.Type == "number") {
@@ -349,15 +337,6 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 	}
 	if err := r.defaultAndExamples(schema, path); err != nil {
 		return err
-	}
-	if schema.Deprecated {
-		r.line("Meta(%q, %q)", "openapi:deprecated", "true")
-	}
-	if schema.ReadOnly {
-		r.line("Meta(%q, %q)", "openapi:readOnly", "true")
-	}
-	if schema.WriteOnly {
-		r.line("Meta(%q, %q)", "openapi:writeOnly", "true")
 	}
 	if err := r.enumValidation(schema, path); err != nil {
 		return err
@@ -384,6 +363,31 @@ func (r *renderer) validationBlock(schema *Schema, path string) error {
 		r.line("MaxLength(%d)", *maxLength)
 	}
 	return nil
+}
+
+// schemaAnnotations emits schema documentation independently of constructor shape.
+// A nonnil description identifies a parameter/header occurrence, whose outer
+// documentation must remain separate from its schema description.
+func (r *renderer) schemaAnnotations(schema *Schema, description *string) error {
+	if description != nil {
+		r.line("Description(%q)", *description)
+		r.line("Meta(%q, %q)", "openapi:description:schema", schema.Description)
+	} else if schema.Description != "" {
+		r.line("Description(%q)", schema.Description)
+	}
+	if schema.Title != "" {
+		r.line("Title(%q)", schema.Title)
+	}
+	if schema.Deprecated {
+		r.line("Meta(%q, %q)", "openapi:deprecated", "true")
+	}
+	if schema.ReadOnly {
+		r.line("Meta(%q, %q)", "openapi:readOnly", "true")
+	}
+	if schema.WriteOnly {
+		r.line("Meta(%q, %q)", "openapi:writeOnly", "true")
+	}
+	return r.emitExtensions("schema", schema.Extensions)
 }
 
 func (r *renderer) untaggedValidation(schema *Schema) {

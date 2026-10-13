@@ -413,7 +413,7 @@ func (p *documentPlanner) schema(schema *Schema, path string, role objectConstru
 	renderer := renderer{document: p.document, schemas: p.schemas}
 	_, _, err := renderer.schemaExpression(schema, path)
 	if err == nil {
-		err = renderer.schemaBlock(schema, path, false)
+		err = renderer.schemaBlock(schema, path, false, nil)
 	}
 	if err != nil {
 		p.unsupported("schema", path, strings.TrimPrefix(err.Error(), "render OpenAPI design: "))

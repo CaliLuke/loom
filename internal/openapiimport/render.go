@@ -116,7 +116,7 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 		if err := r.emitNullableGoType(named.Schema, path); err != nil {
 			return err
 		}
-		if err := r.schemaBlock(named.Schema, path, errorType); err != nil {
+		if err := r.schemaBlock(named.Schema, path, errorType, nil); err != nil {
 			return err
 		}
 		r.close()
@@ -126,7 +126,7 @@ func (r *renderer) namedSchema(named NamedSchema) error {
 		if err := r.emitNullableGoType(named.Schema, path); err != nil {
 			return err
 		}
-		if err := r.schemaBlock(named.Schema, path, errorType); err != nil {
+		if err := r.schemaBlock(named.Schema, path, errorType, nil); err != nil {
 			return err
 		}
 		r.close()
@@ -444,7 +444,7 @@ func (r *renderer) payload(parameters []renderedParameter, body *renderedBody, p
 		if err != nil {
 			return err
 		}
-		if err := r.attribute(parameter.field, parameter.parameter.Schema, parameter.parameter.Description, fmt.Sprintf("%s/parameters/%d", path, i), metadata...); err != nil {
+		if err := r.attribute(parameter.field, parameter.parameter.Schema, &parameter.parameter.Description, fmt.Sprintf("%s/parameters/%d", path, i), metadata...); err != nil {
 			return err
 		}
 		if parameter.parameter.Required {
@@ -512,7 +512,7 @@ func (r *renderer) errorTypeClones() error {
 			if err := r.emitNullableGoType(schema, path); err != nil {
 				return err
 			}
-			if err := r.schemaBlock(schema, path, true); err != nil {
+			if err := r.schemaBlock(schema, path, true, nil); err != nil {
 				return err
 			}
 			r.close()
@@ -556,7 +556,7 @@ func (r *renderer) responseType(call, name string, response renderedResponse, pa
 		if wrapUnconstrainedError {
 			bodySchema = &Schema{Unconstrained: true}
 		}
-		if err := r.attribute(response.body, bodySchema, "", path+"/content/schema"); err != nil {
+		if err := r.attribute(response.body, bodySchema, nil, path+"/content/schema"); err != nil {
 			return err
 		}
 	}
@@ -590,7 +590,7 @@ func (r *renderer) responseTypeWithoutHeaders(call, prefix string, response rend
 		if err := r.emitNullableGoType(schema, path); err != nil {
 			return err
 		}
-		if err := r.schemaBlock(schema, path, call == "Error"); err != nil {
+		if err := r.schemaBlock(schema, path, call == "Error", nil); err != nil {
 			return err
 		}
 		r.close()
@@ -601,7 +601,7 @@ func (r *renderer) responseTypeWithoutHeaders(call, prefix string, response rend
 		if err := r.emitNullableGoType(schema, path); err != nil {
 			return err
 		}
-		if err := r.validationBlock(schema, path); err != nil {
+		if err := r.schemaAttributeBlock(schema, path, nil); err != nil {
 			return err
 		}
 		r.close()

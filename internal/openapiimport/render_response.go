@@ -18,7 +18,7 @@ func (r *renderer) responseHeaderAttributes(headers []renderedHeader, path strin
 		if err := r.attribute(
 			header.field,
 			header.header.Schema,
-			header.header.Description,
+			&header.header.Description,
 			path+"/"+escapeJSONPointer(header.name),
 			metadata...,
 		); err != nil {

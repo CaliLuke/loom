@@ -19,7 +19,7 @@ func (r *renderer) openAPIRequestBody(body RequestBody, path string) error {
 	if object {
 		child := r.childRenderer()
 		child.open("func()")
-		if err := child.schemaBlock(schema, path+"/content/schema", false); err != nil {
+		if err := child.schemaBlock(schema, path+"/content/schema", false, nil); err != nil {
 			return err
 		}
 		child.indent--
@@ -53,7 +53,7 @@ func (r *renderer) openAPIRequestBody(body RequestBody, path string) error {
 	}
 	r.open("%s, func()", prefix)
 	if !object {
-		if err := r.validationBlock(schema, path+"/content/schema"); err != nil {
+		if err := r.schemaAttributeBlock(schema, path+"/content/schema", nil); err != nil {
 			return err
 		}
 	}
@@ -123,7 +123,7 @@ func (r *renderer) payloadBody(body *renderedBody, path string) (bool, error) {
 			if body.body.Description != "" {
 				metadata = append(metadata, renderedMetadata{name: "openapi:description:requestBody", value: body.body.Description})
 			}
-			return body.body.Required, r.attribute(body.field, schema, "", path, metadata...)
+			return body.body.Required, r.attribute(body.field, schema, nil, path, metadata...)
 		}
 		if err := r.emitExtensions("requestBody", body.body.Extensions); err != nil {
 			return false, err
@@ -140,7 +140,7 @@ func (r *renderer) payloadBody(body *renderedBody, path string) (bool, error) {
 	if body.body.Description != "" {
 		metadata = append(metadata, renderedMetadata{name: "openapi:description:requestBody", value: body.body.Description})
 	}
-	return body.body.Required, r.attribute(body.field, schema, "", path, metadata...)
+	return body.body.Required, r.attribute(body.field, schema, nil, path, metadata...)
 }
 
 func (r *renderer) validateRequestTransportBodySchema(schema *Schema, path string) error {
@@ -179,7 +179,7 @@ func (r *renderer) renderRequestTransportBody(schema *Schema, path string) error
 		r.line("Extend(%s)", expression)
 		return nil
 	}
-	return r.schemaBlock(schema, path, false)
+	return r.schemaBlock(schema, path, false, nil)
 }
 
 func (r *renderer) renderRequestTransportMapPayload(body *renderedBody, path string) error {
@@ -203,7 +203,7 @@ func (r *renderer) renderRequestTransportMapPayload(body *renderedBody, path str
 		return nil
 	}
 	r.open("Payload(%s, func()", expression)
-	if err := r.validationBlock(schema, path); err != nil {
+	if err := r.schemaAttributeBlock(schema, path, nil); err != nil {
 		return err
 	}
 	for _, item := range metadata {

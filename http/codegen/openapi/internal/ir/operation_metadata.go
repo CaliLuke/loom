@@ -199,7 +199,9 @@ func preparedParamFor(
 	}
 	parameterContext := attributeExampleContext(attr, closeObjects, "parameter", in, name)
 	schema := preparedLocationSchema(attr, parameterContext, rand, closeObjects, prepared)
-	schema.Description = ""
+	if _, explicit := attr.Meta.Last("openapi:description:schema"); !explicit {
+		schema.Description = ""
+	}
 	schema.Example = nil
 	parameter := &Parameter{
 		Name:            name,
