@@ -101,7 +101,6 @@ type (
 		// Scope initialized with all the server and client types.
 		Scope            *codegen.NameScope
 		exampleGenerator *expr.ExampleGenerator
-		clientBodyInits  *codegen.NameScope
 	}
 
 	// EndpointData contains the data used to render the code related to a
@@ -515,6 +514,7 @@ type (
 
 	// InitData contains the data required to render a constructor.
 	InitData struct {
+		constructor *constructorPlan
 		// Name is the constructor function name.
 		Name string
 		// Description is the function description.

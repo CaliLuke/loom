@@ -11,7 +11,7 @@ func DecodeMethodEmptyServerResponseWithTagsResponse(decoder func(*http.Response
 				res.H = "true"
 				return res, nil
 			case http.StatusNoContent:
-				res := NewMethodEmptyServerResponseWithTagsResultNoContent()
+				res := NewMethodEmptyServerResponseWithTagsResultNotModified()
 				return res, nil
 			default:
 				body, err := loomhttp.ReadUnexpectedResponseBody(resp)

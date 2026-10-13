@@ -81,66 +81,6 @@ func unionTypeSection(name string, data *uniongen.Type) codegen.Section {
 	})
 }
 
-func bodyInitSection(name string, init *InitData, client bool) codegen.Section {
-	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
-		args, code := initRenderData(init, client)
-		stmt.Line()
-		codegen.Doc(stmt, init.Description)
-		stmt.Func().
-			Id(init.Name).
-			ParamsFunc(func(group *jen.Group) {
-				for _, arg := range args {
-					group.Id(arg.VarName).Add(codegen.TypeRef(arg.TypeRef))
-				}
-			}).
-			Add(codegen.TypeRef(init.ReturnTypeRef)).
-			BlockFunc(func(group *jen.Group) {
-				if code != "" {
-					appendHTTPRawBlock(group, code)
-				}
-				group.Return(jen.Id("body"))
-			})
-		stmt.Line()
-	})
-}
-
-func typeInitSection(name string, init *InitData, client bool, pkgs *codegen.NameScope) codegen.Section {
-	return codegen.NewJenniferSection(name, func(stmt *jen.Statement) {
-		args, code := initRenderData(init, client)
-		typ := initRenderTarget(client)
-		fieldInitCode := ""
-		if !init.SkipFieldInit {
-			fieldInitCode = strings.TrimRight(fieldCode(init, typ, pkgs), "\n\t ")
-		}
-
-		stmt.Line()
-		codegen.Doc(stmt, init.Description)
-		stmt.Func().
-			Id(init.Name).
-			ParamsFunc(func(group *jen.Group) {
-				for _, arg := range args {
-					group.Id(arg.VarName).Add(codegen.TypeRef(arg.TypeRef))
-				}
-			}).
-			Add(codegen.TypeRef(init.ReturnTypeRef)).
-			BlockFunc(func(group *jen.Group) {
-				appendInitResult(group, init, code, client)
-				if fieldInitCode != "" {
-					appendHTTPRawBlock(group, fieldInitCode)
-				}
-				if code != "" || fieldInitCode != "" {
-					group.Line()
-				}
-				if init.ReturnTypeAttribute != "" {
-					group.Return(jen.Id("res"))
-					return
-				}
-				group.Return(jen.Id("v"))
-			})
-		stmt.Line()
-	})
-}
-
 // appendInitResult appends the statements of the constructor init that build
 // its result from the transform code: the returned struct res when init
 // initializes the single attribute ReturnTypeAttribute, or v otherwise.

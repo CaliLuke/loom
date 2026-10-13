@@ -452,7 +452,7 @@ func (sds *ServicesData) buildRequestBodyInit(
 		src = "*" + src
 	}
 	argTypeRef := sd.Service.Scope.GoFullTypeRef(att, pkg)
-	initName := clientBodyInitName(sd, body, argTypeRef, src)
+	initName := fmt.Sprintf("New%s", codegen.Goify(sd.Scope.GoTypeName(body), true))
 	initDesc := fmt.Sprintf("%s builds the HTTP request body from the payload of the %q endpoint of the %q service.",
 		initName, endpointName, sd.Service.Name)
 	code, helpers, err := marshal(field.Attribute, body, src, "body", svcctx, httpctx)

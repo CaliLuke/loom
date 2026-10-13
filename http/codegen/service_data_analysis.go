@@ -58,6 +58,7 @@ func (sds *ServicesData) analyze(httpSvc *expr.HTTPServiceExpr) (sd *ServiceData
 	closed, _ := sds.ServicesData.Root.API.Meta.Last("openapi:closed-objects")
 	sd.collectBodyUnionTypes(closed == "true")
 	sds.prepareCLIBodyInputs(sd, closed == "true")
+	sd.finalizeConstructors()
 
 	return sd
 }
@@ -161,7 +162,6 @@ func newHTTPServiceData(svc *service.Data, scope *codegen.NameScope) *ServiceDat
 		ClientPresencePointerTypes:    make(map[string]bool),
 		ClientPresenceUseDefaultTypes: make(map[string]bool),
 		Scope:                         scope,
-		clientBodyInits:               codegen.NewNameScope(),
 	}
 }
 

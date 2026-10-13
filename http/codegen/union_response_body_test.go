@@ -23,7 +23,7 @@ func TestUnionResponseBodyConstructors(t *testing.T) {
 			for _, response := range endpoint.Result.Responses {
 				want := wantValue
 				require.Equal(t, want, response.ResultInit.ReturnIsUnionValue, "success constructor")
-				code := codegen.SectionCode(t, typeInitSection("test", response.ResultInit, true, service.Scope))
+				code := codegen.SectionCode(t, constructorSection("test", response.ResultInit, true, false, service.Scope))
 				if want {
 					require.Contains(t, code, "Choice: *v,")
 				} else {
@@ -33,7 +33,7 @@ func TestUnionResponseBodyConstructors(t *testing.T) {
 			for _, group := range endpoint.Errors {
 				for _, response := range group.Errors {
 					require.Equal(t, wantValue, response.Response.ResultInit.ReturnIsUnionValue, "error constructor")
-					code := codegen.SectionCode(t, typeInitSection("test", response.Response.ResultInit, true, service.Scope))
+					code := codegen.SectionCode(t, constructorSection("test", response.Response.ResultInit, true, false, service.Scope))
 					if wantValue {
 						require.Contains(t, code, "Choice: *v,")
 					} else {

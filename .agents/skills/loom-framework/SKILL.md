@@ -1552,16 +1552,16 @@ filter, and serialization rules belong here.
   uses it to keep authored and wrapper values separate. The public example
   cache API retains authored-type IDs. The models in
   `http/codegen/tla/body_type_names` check copy, example and naming boundaries.
-- The client functions that build the request bodies and the WebSocket
-  streaming bodies of a service are named after the Go type name of the body,
-  such as `NewItemRequestBody`, which a nested collection shares with the flat
-  collection of its element type, and a body shares with the same body built
-  from another named collection type or another attribute selected with
-  `Body`. `clientBodyInitName` allocates the names in a scope of the service
-  keyed by the Go type of the body, the Go type of the argument and the
-  expression read from it, so the bodies built from one source share a
-  function and every other body gets a name of its own. Do not name these
-  functions outside that scope.
+- HTTP/JSON-RPC conversion constructors share one package owner:
+  `ServiceData.finalizeConstructors` runs after wire and CLI declaration analysis.
+  Its server/client registries reserve other package declarations, then intern
+  complete `constructorPlan` declarations (parameters, result and emitted body).
+  Rendering uses that same plan; matching signatures or target types alone do
+  not establish conversion identity. Collect constructors independently of type
+  deduplication. Rebuild response encoding plans after allocation because they
+  retain complete call expressions. FileData import reanalysis must retain the
+  allocation relationships. Keep the constructor-ownership model, package
+  inventory, selected-field runtime and client/stream/import controls aligned.
 - Declaration and helper identifiers use the allocated concrete name from
   `GoValueTypeName`; nullable `GoTypeName`/`GoTypeRef` expressions remain use-site
   storage references. Projected declaration construction normalizes local inputs

@@ -127,6 +127,9 @@ func (s *serverTypeSections) appendTypeData(section string, tdata *TypeData, tra
 	if tdata == nil {
 		return
 	}
+	if trackInit {
+		s.appendBodyInitData(tdata.Init)
+	}
 	if generated, ok := data.ServerTypeNames[tdata.Name]; ok && generated {
 		if tdata.ValidateDef != "" {
 			recordValidatedType(tdata, s.seenValidated, &s.validatedTypes)
@@ -137,9 +140,6 @@ func (s *serverTypeSections) appendTypeData(section string, tdata *TypeData, tra
 		s.sections = append(s.sections, typeDeclSection(section, tdata))
 		data.ServerTypeNames[tdata.Name] = true
 	}
-	if trackInit {
-		s.appendBodyInitData(tdata.Init)
-	}
 	if tdata.ValidateDef != "" {
 		recordValidatedType(tdata, s.seenValidated, &s.validatedTypes)
 	}
@@ -149,12 +149,16 @@ func (s *serverTypeSections) appendBodyInitData(init *InitData) {
 	if init == nil {
 		return
 	}
+	if _, ok := s.seenInits[init.Name]; ok {
+		return
+	}
+	s.seenInits[init.Name] = struct{}{}
 	s.initData = append(s.initData, init)
 }
 
 func (s *serverTypeSections) appendBodyInitSections() {
 	for _, init := range s.initData {
-		s.sections = append(s.sections, bodyInitSection("server-body-init", init, false))
+		s.sections = append(s.sections, constructorSection("server-body-init", init, false, true, nil))
 	}
 }
 
@@ -173,7 +177,7 @@ func (s *serverTypeSections) appendPayloadInitSection(init *InitData) {
 		return
 	}
 	s.seenInits[init.Name] = struct{}{}
-	s.sections = append(s.sections, typeInitSection("server-payload-init", init, false, s.pkgs))
+	s.sections = append(s.sections, constructorSection("server-payload-init", init, false, false, s.pkgs))
 }
 
 func (s *serverTypeSections) appendValidateSections() {

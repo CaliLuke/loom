@@ -165,6 +165,10 @@ and `errors.As`, including when the message contains an example.
   update handwritten references after upgrading; affected gRPC RPC names/full
   method paths change with the corrected service method name. HTTP routes,
   JSON-RPC method strings and authored schema names are unchanged.
+- HTTP/JSON-RPC conversion constructors use distinct names when source types or
+  selected fields differ, even if the target body type is shared. Regenerate
+  clients and servers and update handwritten constructor calls; read generated
+  declarations instead of predicting `New` plus the target type name.
 - Error fields must also avoid generated methods `Error`, `LoomErrorName`, and
   `LoomErrorRemedy` when a `Remedy` is declared. Use `struct:field:name` to keep
   the wire name while choosing a different Go field name.

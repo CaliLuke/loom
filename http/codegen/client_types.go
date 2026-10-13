@@ -13,7 +13,6 @@ type clientTypeSections struct {
 	sections       []codegen.Section
 	initData       []*InitData
 	validatedTypes []*TypeData
-	seenTypes      map[string]struct{}
 	seenValidated  map[string]struct{}
 	seenInits      map[string]struct{}
 }
@@ -97,7 +96,6 @@ func newClientTypeSections(header codegen.Section, pkgs *codegen.NameScope) *cli
 	return &clientTypeSections{
 		pkgs:          pkgs,
 		sections:      []codegen.Section{header},
-		seenTypes:     make(map[string]struct{}),
 		seenValidated: make(map[string]struct{}),
 		seenInits:     make(map[string]struct{}),
 	}
@@ -162,7 +160,7 @@ func (s *clientTypeSections) appendInitData(init *InitData) {
 
 func (s *clientTypeSections) appendBodyInitSections() {
 	for _, init := range s.initData {
-		s.sections = append(s.sections, bodyInitSection("client-body-init", init, true))
+		s.sections = append(s.sections, constructorSection("client-body-init", init, true, true, nil))
 	}
 }
 
@@ -181,11 +179,11 @@ func (s *clientTypeSections) appendTypeInitSection(section string, init *InitDat
 	if init == nil {
 		return
 	}
-	if _, ok := s.seenTypes[init.Name]; ok {
+	if _, ok := s.seenInits[init.Name]; ok {
 		return
 	}
-	s.seenTypes[init.Name] = struct{}{}
-	s.sections = append(s.sections, typeInitSection(section, init, true, s.pkgs))
+	s.seenInits[init.Name] = struct{}{}
+	s.sections = append(s.sections, constructorSection(section, init, true, false, s.pkgs))
 }
 
 func (s *clientTypeSections) appendValidateSections() {

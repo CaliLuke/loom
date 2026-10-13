@@ -76,6 +76,14 @@ path also change from `FooEndpoint` to `Foo`; update independently generated or
 handwritten gRPC clients accordingly. HTTP routes, JSON-RPC method strings,
 OpenAPI schema names, and protobuf field numbers retain their design meanings.
 
+HTTP and JSON-RPC conversion constructors also share their generated package's
+namespace. Constructors with the same target type can have different names when
+they accept different sources or select different fields. Identical conversion
+plans may share a constructor. Regenerate clients and servers together and update
+handwritten calls to renamed constructors; use generated declarations rather than
+assuming `New` plus the target type identifies a conversion. This allocation does
+not change authored routes, RPC method strings, body types or OpenAPI schemas.
+
 Plugin files outside `gen/` can set `codegen.File.SkipExist` to keep existing
 user-owned files. Create-only artifacts inside `gen/` are rejected: that tree
 is owned by regeneration and is always replaced. Put user-editable plugin files
