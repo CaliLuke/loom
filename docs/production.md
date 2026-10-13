@@ -116,6 +116,12 @@ are unchanged, but exponent notation can differ from older output.
 
 ### OpenTelemetry Runtime
 
+`TraceConfig.SampleRatio` applies to root spans, including spans explicitly
+started with a new root. Valid local and remote parent spans retain their sampled
+or unsampled decision, preserving distributed trace continuity. A ratio of zero,
+a negative ratio, or a ratio above one keeps the existing default of one.
+Applications supplying their own tracer provider own its sampling policy.
+
 Use `github.com/CaliLuke/loom/observability/otel` when a service wants
 framework-owned OpenTelemetry provider setup plus Loom-aware HTTP and gRPC
 transport instrumentation:

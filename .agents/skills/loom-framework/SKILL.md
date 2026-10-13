@@ -75,6 +75,12 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `observability/otel.newTraceProvider` composes SDK ParentBased around the
+  existing normalized TraceIDRatioBased root policy. Preserve both local and
+  remote parent decisions; invalid parents and explicit new roots use the root
+  policy. Do not recreate sampling decisions in HTTP/gRPC wrappers. Keep the
+  parent-sampling model, direct provider and actual HTTP propagation tests aligned.
+
 - `clue/log` formatters use the standard JSON encoder for syntax. Keep ordered
   fields and duplicate names through `jsonEntry`; do not convert entries to maps.
   `jsontext.Float`/`Float32` own scalar nonfinite presentation. Complex codec

@@ -45,7 +45,9 @@ type (
 		Insecure bool
 		// Headers are sent on OTLP HTTP export requests.
 		Headers map[string]string
-		// SampleRatio controls TraceID-based head sampling.
+		// SampleRatio controls TraceID-based sampling of root spans.
+		// Valid local and remote parents retain their sampling decision.
+		// Values <= 0 or > 1 use the default ratio of 1.
 		SampleRatio float64
 	}
 

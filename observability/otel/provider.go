@@ -15,7 +15,7 @@ import (
 func newTraceProvider(ctx context.Context, cfg TraceConfig, res *resource.Resource) (*sdktrace.TracerProvider, error) {
 	opts := []sdktrace.TracerProviderOption{
 		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(validSampleRatio(cfg.SampleRatio))),
+		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(validSampleRatio(cfg.SampleRatio)))),
 	}
 	if cfg.Endpoint != "" {
 		exporter, err := otlptracehttp.New(ctx, traceExporterOptions(cfg)...)

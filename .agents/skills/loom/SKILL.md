@@ -1070,6 +1070,9 @@ Prefer framework packages over repeated bootstrap glue:
 For HTTP clients, wrap `*http.Client` with `otel.WrapHTTPClient(...)`. For HTTP
 servers, use `loomhttp.NewMuxer()` with `otel.HTTPMiddleware(...)`. For gRPC,
 use `otel.GRPCServerOption(...)` and `otel.GRPCClientOption(...)`.
+`otel.TraceConfig.SampleRatio` controls root traces; valid local and remote
+parents retain their sampling decision. Explicit new-root spans use the root
+ratio. A supplied custom provider owns its own sampling policy.
 
 For Clue logging, derive a child with `log.With` before changing its options
 with `log.Context`. Derived loggers retain independent configuration snapshots;
