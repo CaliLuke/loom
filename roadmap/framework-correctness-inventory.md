@@ -173,10 +173,14 @@ Grouping is provisional ownership triage from issue titles and selected detailed
 | [#844: Authored JSON tags lose options and name-only skip leaks fields](https://github.com/CaliLuke/loom/issues/844) | Shared JSON tag normalization | Delivered/pushed `0f1fc3dc3`, independently reviewed and closed; shared full/name-only JSON-tag normalization, exact skip and retained authored options across service/transport |
 | [#845: JSON-RPC constraint test assumes outgoing default substitution](https://github.com/CaliLuke/loom/issues/845) | CI default assertion owner | Delivered/pushed `b963d8685`, independently reviewed and closed; server admission/client construction assertions and mounted default/null/empty controls |
 | [#846: Pool release test assumes synchronized local replicas](https://github.com/CaliLuke/loom/issues/846) | CI replica observation | Delivered/pushed `951475f2d`, independently reviewed and closed; immediate authoritative retention plus each replica’s own completion, unchanged production |
-| [#847: Selected request body fields ignore custom Go field names](https://github.com/CaliLuke/loom/issues/847) | Selected-body source identity | Parent-confirmed and filed; separate from CLI source selection, implementation pending |
-| [#848: Automatic JSON omission discards explicitly supplied empty values](https://github.com/CaliLuke/loom/issues/848) | JSON presence (M7) | Independently reviewed readiness; shared carrier-aware omission implementation in `json-presence-carriers` |
+| [#847: Selected request body fields ignore custom Go field names](https://github.com/CaliLuke/loom/issues/847) | Selected-body source identity | Readiness independently approved; shared logical/physical selected-field binding implemented in `selected-body-field-identity`, bounded runtime acceptance in progress |
+| [#848: Automatic JSON omission discards explicitly supplied empty values](https://github.com/CaliLuke/loom/issues/848) | JSON presence (M7) | Shared carrier-aware omission implementation and bounded acceptance complete in `json-presence-carriers`; final review pending |
+| [#849: Inline body identity assertions use obsolete tags](https://github.com/CaliLuke/loom/issues/849) | CI structural type assertions | Delivered/pushed `212700f49`, independently reviewed and closed; complete AST field/type/tag identity and mutation controls |
+| [#850: Test modules omit generated diagnostic packages](https://github.com/CaliLuke/loom/issues/850) | CI shared module assembly | Delivered/pushed `a25383ce1`, independently reviewed and closed; shared HTTP/JSON-RPC/mixed assembly includes diagnostic owner |
+| [#851: JSON-RPC ticktock CLI fixture is stale](https://github.com/CaliLuke/loom/issues/851) | CI generated fixture parity | Delivered/pushed `fe63e6b02`, independently reviewed and closed; byte-exact parent regeneration and full fixture tests/vet |
+| [#852: Import reservation test conflates separate generated files](https://github.com/CaliLuke/loom/issues/852) | CI generated import boundaries | Report/readiness independently reviewed; replace source-file heuristic with rendered-file collision coverage |
 
-Inventory count: 169 reports (114 in the requested open range, plus #670, follow-ups #794–#825 and #827–#848; #826 is a PR); 102 delivered and confirmed closed.
+Inventory count: 173 reports (114 in the requested open range, plus #670, follow-ups #794–#825 and #827–#852; #826 is a PR); 105 delivered and confirmed closed.
 
 ## Structural delivery tickets
 

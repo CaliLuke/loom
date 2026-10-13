@@ -1116,3 +1116,54 @@ no overall green result is claimed.
 - Completed #845 cleanup removed three generated trees and 12 logs after checks;
   `/tmp/loom-845-cleanup-receipt.json`, SHA
   `bf29271f0125ea8a4359daeb219130fbedd18d5324cd7849bdf53277ee93b848`.
+
+
+## Delivery checkpoint: 105 reports
+
+- #849 `212700f49` replaces obsolete literal-tag assertions with complete
+  anonymous struct identity checks. Root verified the final manifest and all
+  36 generated artifact hashes; independent race controls passed (3.038s).
+  Pushed and closed. Cleanup receipt `/tmp/loom-849-cleanup-receipt.json`, SHA
+  `a8f142ad6d70ddcbf30a7bfcc3103396f33e445c1f17823df80510762d93d831`,
+  preserves compact evidence after removing inactive generated outputs/logs.
+- #851 `fe63e6b02` regenerates the stale JSON-RPC ticktock CLI file. Its bytes
+  equal the parent regeneration and candidate output (SHA
+  `91aaf3b6bd91eec50c7b2e577807027e3aa7f37f074ec3c9a11bcc02270ffcca`).
+  Root independently reviewed the exact one-file diff; complete fixture tests
+  and vet passed. Pushed and closed; no generator behavior changed.
+- #850 `a25383ce1` adds the established diagnostic artifact owner to all three
+  shared test-module builders and removes the per-caller workaround. Root
+  approved the exact six-file diff with no findings, verified 15 source/evidence
+  hashes and 362 artifact hashes, and independently ran the new race-enabled
+  assembly controls (HTTP 4.889s, JSON-RPC 7.488s). Existing affected name sweeps
+  passed. All 118 prior artifacts are identical; only four metadata files were
+  added and all 122 candidate artifacts match a fresh-process repeat. Pushed
+  and closed. Final manifest `/tmp/loom-850-final-manifest.json`, SHA
+  `884963e0808b3e31311ad846b47283789b6d87ed11070d7eabc8b1dc3c4ddce4`.
+- #852 is independently reviewed and filed. The existing import-reservation
+  assertion combines unrelated generated files because their generators share
+  a source file. `/root/diagnostic_redaction_finish` owns the rendered-file
+  assertion repair in `ci-test-owner-readiness`; preserve actual collision
+  controls and the controlled-fixture provenance assumption. Do not add a
+  production reservation just to silence this false positive.
+- #694 revised readiness passed independent review. Separate method/member and
+  package/helper naming owners now compile the 14 selected modules; final
+  comparison and review remain pending in `service-symbol-ownership`. Corrected
+  shared method identity also corrects the previously suffix-renamed gRPC RPC;
+  document regeneration requirements without adding compatibility aliases.
+- #847 readiness passed independent review. Root implements one selected-field
+  record retaining logical name, mapped key, actual service Go name and effective
+  transform attribute in `selected-body-field-identity`, parent `99e2c33d6`.
+  All 28 bounded generated modules compile; mounted request/response and CLI
+  validation plus final artifact comparison remain in progress. No delivery
+  or final acceptance claimed yet.
+- #848 bounded implementation acceptance is complete; final exact-diff review
+  remains pending in `json-presence-carriers`. Exclude the already delivered
+  #849 assertion files and #851 CLI regeneration from that ticket's packet.
+  The broad optional HTTP run timed out and is incomplete evidence; it is not
+  a substitute for or a failure of the recorded focused acceptance.
+- GitHub snapshot `/tmp/loom-checkpoint-105-all-issues.json` confirms the three
+  new closures. Inventory now has 173 distinct reports, 105 closed. CI still
+  has the separately tracked assertion failure and upstream libopenapi race;
+  no full-green claim is made. Continue the backlog without waiting for upstream
+  where independent work is available.
