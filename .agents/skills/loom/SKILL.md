@@ -47,6 +47,10 @@ remain unchanged. A service client's synthetic mixed-stream method can also gain
 a suffix when an authored method occupies its usual name; use the regenerated
 client declaration.
 
+Service and API names that normalize to `init` use `init_` as their generated Go
+package name. Regenerate after upgrading and use that name in handwritten
+imports; service directories and wire names stay unchanged.
+
 User-editable plugin files belong outside `gen/` and should declare create-only
 behavior. Loom rejects create-only files inside the regenerated tree. Upgrade
 the CLI launcher and the design module's Loom dependency together.

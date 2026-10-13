@@ -1084,6 +1084,12 @@ package of the same name, such as `types/security` next to the Loom `security`
 package or `types/multipart` next to `mime/multipart`, imports the type package
 under an alias such as `security2`. The other files keep the package name.
 
+Generated service and API packages use legal Go import identifiers. A name that
+normalizes to `init` uses the package name `init_`, because Go reserves `init`
+for initialization functions. The service directory remains `gen/init`, and
+service names, routes and protocol names stay unchanged. Regenerate affected
+code after upgrading; use the generated package name in handwritten imports.
+
 A type in a shared package keeps its Go name even when a service method has
 the same name. For example, `Type("Moved", ...)` in `types` is declared and
 referenced as `types.Moved` even if a consuming service has a `moved` method.

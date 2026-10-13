@@ -1465,6 +1465,10 @@ filter, and serialization rules belong here.
   compile. Do not replace this with a blanket rename or an import fixup after
   rendering. Compiled pattern validations import `regexp` under an
   alias when the file already has another import named `regexp`.
+- `service.PackageBaseName` owns legal Go package bases for both service and API
+  example packages: `init` becomes `init_` before existing NameScope allocation.
+  Keep authored identities and directory names independent; do not repair illegal
+  bases with per-transport reservations or change generic Goify for this purpose.
 - `service.PackageName` names a service package and seeds the HTTP service
   import aliases. It adds the `svc` suffix when the service has a transport and a
   `struct:pkg:path` package of its types has the same name, because the
