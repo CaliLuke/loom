@@ -926,6 +926,9 @@ remains a `oneof`; neither position introduces a separate message.
 Generated Go code refers to messages from the service's pb package, independently
 of the service type's `struct:pkg:path`. Go references use protoc-gen-go's name,
 such as `NodeTree` for the protobuf name `node_tree`.
+Validator declarations and calls use those same allocated message names,
+including named union wrappers. Regenerate clients and servers after upgrading
+to replace calls that previously used the service type name.
 
 The metadata must contain exactly one message name. Empty or multi-valued
 declarations fail design validation, including repeated names. An explicit name

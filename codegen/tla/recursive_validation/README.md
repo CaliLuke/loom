@@ -101,3 +101,12 @@ name/prefix, static layout and retained local requirements. Generated HTTP and
 JSON-RPC controls compile and run named nullable object/array/map declarations at
 required/optional root and field occurrences, including values, invalid values,
 absence and null. These concrete typing obligations are not claimed as TLC proofs.
+
+Follow-up #810 exposed a missing concrete obligation beneath the physical-call
+agreement assumption: rebuilding a bare occurrence attribute discarded naming
+metadata used by its declaration. The [physical identity model](../validation_identity/README.md)
+reproduces that loss and distinguishes it from copying occurrence-only presence
+into the intrinsic parameter carrier. The shared occurrence resolver now retains
+physical metadata alongside the named type. Its focused shared/protobuf tests
+and generated three-transport checks supply the concrete naming correspondence;
+the recursion model above still does not prove metadata traversal or Go typing.

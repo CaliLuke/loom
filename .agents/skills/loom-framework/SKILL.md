@@ -161,7 +161,11 @@ consumer validation.
 - Shared validation distinguishes complete named definitions from occurrences.
   `NamedValidationFunction` resolves the callable identifier, physical carrier
   and static field mode; consumers must use that same owner for declarations and
-  calls. Intrinsically nullable named types retain their wrapper when called,
+  calls. Preserve physical naming metadata at the occurrence edge while deriving
+  parameter presence from the intrinsic named declaration; local Nullable and
+  predicates must not redefine it. Keep the physical identity model and actual
+  shared/protobuf scope regressions aligned. Intrinsically nullable named types
+  retain their wrapper when called,
   while occurrence predicates inspect the unwrapped value. Anonymous object and
   enum guards use the same occurrence carrier fact without clearing child field
   layout; reset that fact when traversing a child. Keep the validation-carrier

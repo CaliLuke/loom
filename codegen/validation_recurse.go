@@ -346,7 +346,9 @@ func validateNamedOccurrence(
 		}
 		return "if " + target + " != nil {\n" + indentCode(strings.Join(validations, "\n")) + "}"
 	}
-	function := NamedValidationFunction(&expr.AttributeExpr{Type: ut}, ctx, "")
+	// Physical naming metadata belongs to the callable identity, while local
+	// nullability and constraints remain properties of this occurrence.
+	function := NamedValidationFunction(&expr.AttributeExpr{Type: ut, Meta: att.Meta}, ctx, "")
 	callTarget := function.valueTarget(target, carrier, ctx.validationValue)
 	call := renderUserValidation(function.Name, callTarget, validationContextExpr(ctx, context))
 	if carrier != "" {

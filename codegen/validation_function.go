@@ -26,7 +26,9 @@ type ValidationFunction struct {
 // NamedValidationFunction resolves a complete named validator from the physical
 // declaration attribute. Occurrence wrappers must not replace this attribute:
 // a nullable named declaration accepts its wrapper, while an ordinary object
-// declaration accepts a pointer even when a field wraps that object.
+// declaration accepts a pointer even when a field wraps that object. Physical
+// naming metadata must be retained when resolving an occurrence; its local
+// nullability and constraints do not redefine the named declaration.
 func NamedValidationFunction(att *expr.AttributeExpr, ctx *AttributeContext, argument string) ValidationFunction {
 	mode := presenceValueContext(ctx, att)
 	mode.validationValue = false
