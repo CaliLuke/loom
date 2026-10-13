@@ -23,6 +23,31 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   repairing transport clients. Preserve its failing witness; do not count it as
   resolved by #879. Continue the whole backlog.
 
+## Execution focus after architecture check
+
+The delivery log and report count do not establish that a bug family is closed.
+Organize active work by the owning contract and its consumers; use individual
+reports as regression witnesses. Older milestone checkboxes below require
+reconciliation with the inventory before they can establish remaining work.
+
+- Finish the reviewed transport-client and active gRPC-server identity repairs.
+  Before implementing the service-client follow-up #883, reconcile declaration
+  and reference ownership across service Client, HTTP/JSON-RPC Client, HTTP
+  Server and gRPC Server, including package/embedding crossings. Reuse NameScope;
+  allocate and record every concrete role in its actual scope, then consume that
+  identity. Do not create a global namespace or a new allocator per symptom.
+- Keep #702 at shared map-key representation admission. Preserve supported
+  representations and validate affected occurrences before generator capture;
+  do not expand into unrelated custom-type semantics.
+- Select subsequent work by unresolved correctness contracts and impact, not
+  ticket closure throughput. State the owner, superseded paths, affected
+  consumers and family exit condition before implementation.
+- Reuse existing focused tests, models and comparison evidence. A newly filed
+  witness alone does not justify another harness, model or broad audit. Retain
+  independent exact-diff review and atomic commits; rerun only evidence affected
+  by a change. Record recovery state concisely instead of appending another full
+  historical checkpoint.
+
 ## Current execution queue
 
 1. **#879 client receiver identity:** `/root/diagnostic_redaction_finish` reviews
