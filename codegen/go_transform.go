@@ -108,9 +108,9 @@ type (
 //
 // prefix is the transformation helper function prefix
 //
-// newVar if true initializes a target variable with the generated Go code
-// using `:=` operator. If false, it assigns Go code to the target variable
-// using `=`.
+// newVar declares the target variable when true. When false, generated code
+// assigns the existing target, including clearing native collections for nil
+// sources.
 //
 // At most one options value may override helper naming. The same callback names
 // helper declarations, recursive references and calls; an empty name uses the
@@ -442,9 +442,14 @@ func wrapTransformObjectFieldCode(code *jen.Statement, srcc, tgtc *expr.Attribut
 }
 
 func shouldWrapTransformObjectField(srcc *expr.AttributeExpr, srcMatt *expr.MappedAttributeExpr, name string, ta *TransformAttrs) bool {
+	// Collection conversion owns nil preservation. Keep only the existing
+	// required-array materialization policy at the field encoding boundary.
+	if expr.IsArray(srcc.Type) || expr.IsMap(srcc.Type) {
+		return expr.IsArray(srcc.Type) && srcMatt.IsRequired(name) && !ta.TargetCtx.Pointer &&
+			ta.SourceCtx.UseDefault && ta.TargetCtx.UseDefault
+	}
 	// A pointer carrier may be validated against a selected view after this
-	// conversion. Preserve absent objects and collections regardless of the
-	// full type's requiredness, just as primitive pointer fields do.
+	// conversion. Preserve absent objects regardless of full-type requiredness.
 	if expr.IsPrimitive(srcc.Type) {
 		return ta.SourceCtx.IsPrimitivePointer(name, srcMatt.AttributeExpr)
 	}

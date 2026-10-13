@@ -13,11 +13,17 @@ func transform() {
 			tv := val
 			target.Map[tk] = tv
 		}
+	} else {
+		target.Map = nil
 	}
 	if source.MyArray != nil {
-		target.Array = make([]string, len(source.MyArray))
-		for i, val := range source.MyArray {
-			target.Array[i] = val
+		if source.MyArray != nil {
+			target.Array = make([]string, len(source.MyArray))
+			for i, val := range source.MyArray {
+				target.Array[i] = val
+			}
+		} else {
+			target.Array = nil
 		}
 	} else {
 		target.Array = []string{}

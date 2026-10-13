@@ -56,9 +56,11 @@ validation and review; retain these sources and concise results.
 
 - `transformObjectPrimitiveInitExpression` guards named pointer conversions
   whenever the target also retains pointer presence.
-- `shouldWrapTransformObjectField` preserves absent objects and collections for
-  pointer targets; `wrapTransformObjectFieldCode` does not synthesize an empty
-  required array in such targets.
+- `shouldWrapTransformObjectField` preserves absent objects for pointer targets.
+  Collection renderers instead share `renderCollectionConversion`, preserving nil
+  at root, field and nested-element conversions, independently of requiredness.
+  `wrapTransformObjectFieldCode` does not synthesize an empty required array in
+  pointer targets.
 - Existing value-target defaults and required-array encoding are unchanged.
 
 `TestProjectedTransformPreservesRequiredPresence` checks emitted guards for
@@ -76,3 +78,23 @@ recursive values, custom codecs, union representations, collection-element
 nullability or view-specific requiredness overrides. Generated runtime tests
 and existing customized-view/default/union tests cover production boundaries;
 the model alone establishes none of those additional claims.
+
+## Shared collection conversion (#889)
+
+The same preservation obligation applies outside projected object fields.
+`InitStructFields` can call root `GoTransform` for a named header collection;
+root and nested array/map conversions formerly allocated for nil even though
+projected object-field callers guarded them. `renderCollectionConversion` now
+owns allocation and nil assignment for both collection renderers. Redundant
+outer field guards were removed; explicit required-array encoding materialization
+and absent-only defaults retain their separate policies.
+
+`TestRootCollectionPresenceTransform` compiles native/named array/map conversions
+for declaration and existing destinations, including nil/empty/populated states
+and detached storage. `TestNestedCollectionPresenceTransform` checks nested nil
+and nonnil empty values. The existing mounted `TestProjectedHeaderCarrierWire`
+now verifies the full nil/empty/populated client round trip in both views.
+The unchanged model's objects-only counterexample still violates preservation;
+its preserve mode passes. The model assumes a fresh destination and abstracts
+empty versus nonempty supplied data; the compiled checks additionally check
+clearing existing destinations and retaining supplied empty storage.

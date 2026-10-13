@@ -1,9 +1,13 @@
 func transform() {
 	target := &SimpleMap{}
-	target.Simple = make(map[string]int, len(source.Simple))
-	for key, val := range source.Simple {
-		tk := key
-		tv := val
-		target.Simple[tk] = tv
+	if source.Simple != nil {
+		target.Simple = make(map[string]int, len(source.Simple))
+		for key, val := range source.Simple {
+			tk := key
+			tv := val
+			target.Simple[tk] = tv
+		}
+	} else {
+		target.Simple = nil
 	}
 }

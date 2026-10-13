@@ -9,5 +9,7 @@ func transform() {
 			}
 			target.TypeArray[i] = transformSimpleArrayToSimpleArray(val)
 		}
+	} else {
+		target.TypeArray = nil
 	}
 }

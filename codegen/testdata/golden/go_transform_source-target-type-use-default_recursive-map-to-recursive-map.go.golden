@@ -12,5 +12,7 @@ func transform() {
 			}
 			target.Recursive[tk] = transformRecursiveMapToRecursiveMap(val)
 		}
+	} else {
+		target.Recursive = nil
 	}
 }

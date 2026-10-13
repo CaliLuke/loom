@@ -229,7 +229,7 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 	code, _, err := GoTransform(attribute, attribute, "source", "target", sourceCtx, targetCtx, "convert", true)
 
 	require.NoError(t, err)
-	require.Contains(t, code, "target := make([]service.AOrB, len(source))")
+	require.Contains(t, code, "target = make([]service.AOrB, len(source))")
 	require.NotContains(t, code, "[]*service.AOrB")
 	require.Contains(t, code, "target[i] = u")
 	require.NotContains(t, code, "target[i] = &u")
@@ -238,7 +238,7 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 	nestedCode, _, err := GoTransform(nestedAttribute, nestedAttribute, "source", "target", sourceCtx, targetCtx, "convert", true)
 
 	require.NoError(t, err)
-	require.Contains(t, nestedCode, "target := make([][]service.AOrB, len(source))")
+	require.Contains(t, nestedCode, "target = make([][]service.AOrB, len(source))")
 	require.NotContains(t, nestedCode, "[][]*service.AOrB")
 
 	mapAttribute := &expr.AttributeExpr{Type: &expr.Map{
@@ -249,7 +249,7 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 	nestedMapCode, _, err := GoTransform(nestedMapAttribute, nestedMapAttribute, "source", "target", sourceCtx, targetCtx, "convert", true)
 
 	require.NoError(t, err)
-	require.Contains(t, nestedMapCode, "target := make([]map[string]service.AOrB, len(source))")
+	require.Contains(t, nestedMapCode, "target = make([]map[string]service.AOrB, len(source))")
 	require.Contains(t, nestedMapCode, "target[i] = make(map[string]service.AOrB, len(val))")
 	require.NotContains(t, nestedMapCode, "*service.AOrB")
 
@@ -257,7 +257,7 @@ func TestGoTransformUsesValueUnionArrayElements(t *testing.T) {
 	samePackageCode, _, err := GoTransform(nestedAttribute, nestedAttribute, "source", "target", sourceCtx, samePackageCtx, "convert", true)
 
 	require.NoError(t, err)
-	require.Contains(t, samePackageCode, "target := make([][]AOrB, len(source))")
+	require.Contains(t, samePackageCode, "target = make([][]AOrB, len(source))")
 	require.NotContains(t, samePackageCode, "service.AOrB")
 
 	locatedLocal := &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: &expr.UserTypeExpr{
@@ -492,7 +492,7 @@ func TestTransformMapUnwrapsNonNullableJSONValues(t *testing.T) {
 	code, _, err := GoTransform(attribute, attribute, "body", "values", sourceCtx, targetCtx, "unmarshal", true)
 	require.NoError(t, err)
 	require.Contains(t, code, "actual, ok := val.Value()")
-	require.Contains(t, code, "tv := make([]string, len(actual))")
+	require.Contains(t, code, "tv = make([]string, len(actual))")
 }
 
 func TestTransformMapRendersTargetKeyAndValueTypes(t *testing.T) {
@@ -510,7 +510,7 @@ func TestTransformMapRendersTargetKeyAndValueTypes(t *testing.T) {
 				KeyType:  &expr.AttributeExpr{Type: expr.Any},
 				ElemType: &expr.AttributeExpr{Type: expr.String},
 			}},
-			want: "target := make(map[any]string, len(source))",
+			want: "target = make(map[any]string, len(source))",
 		},
 		{
 			name: "Any value",
@@ -518,7 +518,7 @@ func TestTransformMapRendersTargetKeyAndValueTypes(t *testing.T) {
 				KeyType:  &expr.AttributeExpr{Type: expr.String},
 				ElemType: &expr.AttributeExpr{Type: expr.Any},
 			}},
-			want: "target := make(map[string]loom.JSONValue, len(source))",
+			want: "target = make(map[string]loom.JSONValue, len(source))",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

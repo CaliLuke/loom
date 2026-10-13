@@ -11,5 +11,7 @@ func transform() {
 			}
 			target.Recursive[i] = transformRecursiveArrayToRecursiveArray(val)
 		}
+	} else {
+		target.Recursive = nil
 	}
 }

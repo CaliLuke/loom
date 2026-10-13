@@ -3,12 +3,18 @@ func transform() {
 	if source.MapArray != nil {
 		target.MapArray = make([]map[int]string, len(source.MapArray))
 		for i, val := range source.MapArray {
-			target.MapArray[i] = make(map[int]string, len(val))
-			for key, val := range val {
-				tk := key
-				tv := val
-				target.MapArray[i][tk] = tv
+			if val != nil {
+				target.MapArray[i] = make(map[int]string, len(val))
+				for key, val := range val {
+					tk := key
+					tv := val
+					target.MapArray[i][tk] = tv
+				}
+			} else {
+				target.MapArray[i] = nil
 			}
 		}
+	} else {
+		target.MapArray = nil
 	}
 }

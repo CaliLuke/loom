@@ -19,11 +19,15 @@ func transform() {
 			tv := val
 			target.MyMap[tk] = tv
 		}
+	} else {
+		target.MyMap = nil
 	}
 	if source.Array != nil {
 		target.MyArray = make([]string, len(source.Array))
 		for i, val := range source.Array {
 			target.MyArray[i] = val
 		}
+	} else {
+		target.MyArray = nil
 	}
 }

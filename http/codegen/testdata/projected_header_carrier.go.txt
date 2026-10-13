@@ -40,12 +40,6 @@ func TestProjectedHeaderCarrier(t *testing.T) {
 				require.Equal(t, http.StatusOK, response.Code)
 				require.Equal(t, view, response.Header().Get("loom-view"))
 				require.Equal(t, tc.wire, response.Header().Values("X-Tags"))
-				// #889 tracks the independent constructor that converts nil to empty.
-				// Server wire absence remains covered above; client conversion is
-				// checked here only for supplied empty and populated collections.
-				if tc.tags == nil {
-					return
-				}
 				host := httptest.NewServer(mux)
 				t.Cleanup(host.Close)
 				u, err := url.Parse(host.URL)

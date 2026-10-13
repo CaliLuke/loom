@@ -9,5 +9,7 @@ func transform() {
 			}
 			target.Collection[i] = transformResultTypeToResultType(val)
 		}
+	} else {
+		target.Collection = nil
 	}
 }

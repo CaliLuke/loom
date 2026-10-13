@@ -7,5 +7,7 @@ func transform() {
 			tv := val
 			target.Simple[tk] = tv
 		}
+	} else {
+		target.Simple = nil
 	}
 }

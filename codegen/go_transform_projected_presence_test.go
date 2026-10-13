@@ -34,7 +34,11 @@ func TestProjectedTransformPreservesRequiredPresence(t *testing.T) {
 				code, _, err := GoTransform(attribute, attribute, "source", "target", source, target, "convert", true)
 				require.NoError(t, err)
 				require.Contains(t, code, "if source.Data != nil {", "source defaults=%t", useDefault)
-				require.NotContains(t, code, "else", "an absent field must remain absent before validation")
+				if expr.IsArray(c.typ) || expr.IsMap(c.typ) {
+					require.Contains(t, code, "} else {\n\ttarget.Data = nil", "an absent collection must remain absent before validation")
+				} else {
+					require.NotContains(t, code, "else", "an absent field must remain absent before validation")
+				}
 			}
 		})
 	}

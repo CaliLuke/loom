@@ -75,6 +75,16 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `codegen.renderCollectionConversion` owns native array/map allocation and nil
+  preservation for root, field and nested conversions. Declare new targets before
+  guards; clear existing targets for nil sources, while nonnil empty collections
+  retain supplied storage. Keep element conversion and named type identity in the
+  existing array/map renderers. Do not add constructor or transport nil patches.
+  Required-array encoding, explicit presence wrappers and absent-only defaults
+  retain their owning policies; ordinary field nil guards must not duplicate
+  collection conversion. Reuse the projected-presence model and compiled root,
+  nested and mounted named-header regressions.
+
 - `AttributeContext.IsPrimitivePointer` derives native primitive field storage
   from `expr.ServiceFieldLayout`, the declaration owner. Resolve actual mapped
   field identity before checking requiredness; missing fields, collections,

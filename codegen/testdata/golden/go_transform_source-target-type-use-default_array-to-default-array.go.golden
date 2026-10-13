@@ -5,6 +5,8 @@ func transform() {
 		for i, val := range source.StringArray {
 			target.StringArray[i] = val
 		}
+	} else {
+		target.StringArray = nil
 	}
 	if source.StringArray == nil {
 		target.StringArray = []string{"foo", "bar"}

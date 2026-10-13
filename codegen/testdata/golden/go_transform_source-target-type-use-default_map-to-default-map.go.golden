@@ -7,6 +7,8 @@ func transform() {
 			tv := val
 			target.Simple[tk] = tv
 		}
+	} else {
+		target.Simple = nil
 	}
 	if source.Simple == nil {
 		target.Simple = map[string]int{"foo": 1}

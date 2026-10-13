@@ -312,10 +312,6 @@ func transformUnionCastPkg(targetAttr *expr.AttributeExpr, unionPkg string, ta *
 }
 
 func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, error) {
-	assign := "="
-	if data.NewVar {
-		assign = ":="
-	}
 	typeName := "[]" + data.ElemTypeRef
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
@@ -333,7 +329,6 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 		}
 	}
 	stmt := &jen.Statement{}
-	stmt.Add(Expr(data.TargetVar)).Op(assign).Make(TypeRef(typeName), jen.Len(Expr(data.SourceVar))).Line()
 	stmt.For(
 		jen.List(Expr(data.LoopVar), jen.Id("val")).Op(":=").Range().Add(Expr(data.SourceVar)),
 	).BlockFunc(func(group *jen.Group) {
@@ -357,14 +352,10 @@ func renderTransformGoArray(data transformArrayRenderData) (*jen.Statement, erro
 		}
 		group.Add(elemCode)
 	})
-	return stmt, nil
+	return renderCollectionConversion(data.SourceVar, data.TargetVar, typeName, data.NewVar, stmt), nil
 }
 
 func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
-	assign := "="
-	if data.NewVar {
-		assign = ":="
-	}
 	typeName := "map[" + data.KeyTypeRef + "]" + data.ElemTypeRef
 	if data.TypeAliasName != "" {
 		typeName = data.TypeAliasName
@@ -391,7 +382,6 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 		}
 	}
 	stmt := &jen.Statement{}
-	stmt.Add(Expr(data.TargetVar)).Op(assign).Make(TypeRef(typeName), jen.Len(Expr(data.SourceVar))).Line()
 	stmt.For(
 		jen.List(jen.Id("key"), jen.Id("val")).Op(":=").Range().Add(Expr(data.SourceVar)),
 	).BlockFunc(func(group *jen.Group) {
@@ -422,7 +412,25 @@ func renderTransformGoMap(data transformMapRenderData) (*jen.Statement, error) {
 		group.Add(elemCode)
 		group.Add(Expr(data.TargetVar)).Index(Expr("tk")).Op("=").Add(Expr(temp))
 	})
-	return stmt, nil
+	return renderCollectionConversion(data.SourceVar, data.TargetVar, typeName, data.NewVar, stmt), nil
+}
+
+// renderCollectionConversion preserves native absence independently of the
+// containing field or constructor. Existing destinations must also lose stale
+// contents when the source is nil; supplied empty values still allocate storage.
+func renderCollectionConversion(sourceVar, targetVar, typeName string, newVar bool, contents *jen.Statement) *jen.Statement {
+	stmt := &jen.Statement{}
+	if newVar {
+		stmt.Var().Add(Expr(targetVar)).Add(TypeRef(typeName)).Line()
+	}
+	stmt.If(Expr(sourceVar).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+		group.Add(Expr(targetVar)).Op("=").Make(TypeRef(typeName), jen.Len(Expr(sourceVar)))
+		group.Add(contents)
+	})
+	if !newVar {
+		stmt.Else().Block(Expr(targetVar).Op("=").Nil())
+	}
+	return stmt
 }
 
 func renderTransformGoUnion(data transformUnionRenderData) (*jen.Statement, error) {
