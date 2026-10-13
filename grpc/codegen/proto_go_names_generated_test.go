@@ -38,7 +38,7 @@ func TestNamesRoundTrip(t *testing.T) {
 	})
 }
 
-func checkNames[Q, R proto.Message, S any](t *testing.T, request Q, response R, decodeQ func(Q) S, encodeQ func(S) Q, decodeR func(R) S, encodeR func(S) R, validateQ func(Q) error, validateR func(R) error, cli func(string) (S, error)) {
+func checkNames[Q, R proto.Message, S any](t *testing.T, request Q, response R, decodeQ func(Q) S, encodeQ func(S) Q, decodeR func(R) S, encodeR func(S) R, validateQ func(Q, ...string) error, validateR func(R, ...string) error, cli func(string) (S, error)) {
 	t.Helper()
 	for _, branch := range []int{0, 1} {
 		fill(request, branch)
@@ -74,7 +74,7 @@ func fill(message proto.Message, branch int) {
 	}
 }
 
-func checkInvalid[M proto.Message](t *testing.T, message M, validate func(M) error) {
+func checkInvalid[M proto.Message](t *testing.T, message M, validate func(M, ...string) error) {
 	t.Helper()
 	m := message.ProtoReflect()
 	fields := m.Descriptor().Fields()
