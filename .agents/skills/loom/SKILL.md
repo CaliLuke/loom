@@ -13,6 +13,12 @@ This is deliberately not a framework-maintenance guide. If the task changes
 Loom's DSL implementation, expression model, generators, transports, OpenAPI
 renderer, or framework tests, use the `loom-framework` skill.
 
+Wire mappings split at the first colon: `Param("value:filter:mode")` uses
+`filter:mode` on the wire. Header and cookie names must be nonempty HTTP tokens;
+invalid names fail design evaluation, including inherited/security mappings.
+Regenerate clients and servers if a query/body mapping previously lost text
+after a second colon.
+
 ## Core Workflow
 
 1. Treat `design/*.go` as the source of truth.

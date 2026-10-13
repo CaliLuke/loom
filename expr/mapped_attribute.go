@@ -33,14 +33,14 @@ func AttributeName(key string) string {
 }
 
 // ElementName returns the transport element name of the object key: the
-// suffix of key, such as "m" for "n:m", or key when it has no suffix. HTTP
+// entire suffix after the first colon, such as "m:o" for "n:m:o", or key
+// when it has no suffix. HTTP
 // and JSON-RPC bodies name the field after it.
 func ElementName(key string) string {
 	_, elem, ok := strings.Cut(key, ":")
 	if !ok {
 		return key
 	}
-	elem, _, _ = strings.Cut(elem, ":")
 	return elem
 }
 

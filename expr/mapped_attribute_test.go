@@ -92,7 +92,7 @@ func TestElementName(t *testing.T) {
 	cases := map[string]string{
 		"n:m":   "m",
 		"n":     "n",
-		"n:m:o": "m",
+		"n:m:o": "m:o",
 		"n:":    "",
 		"":      "",
 	}

@@ -120,35 +120,10 @@ var MappedNamesDSL = func() {
 // parameter of the key attribute, an implicit route parameter keeps its name,
 // and suffixed params absent from the route are query parameters named after
 // their element names.
-var MappedParamsDSL = func() {
-	Service("mappedparams", func() {
-		Method("show", func() {
-			NoSecurity()
-			Payload(func() {
-				Attribute("key", String, func() {
-					MinLength(2)
-				})
-				Attribute("id", Int)
-				Attribute("q", String)
-				Attribute("flag", Boolean)
-				Required("key", "id")
-			})
-			Result(func() {
-				Attribute("key", String)
-				Attribute("id", Int)
-				Attribute("q", String)
-				Attribute("flag", Boolean)
-				Required("key", "id")
-			})
-			HTTP(func() {
-				GET("/items/{k}/{id}")
-				Param("key:k")
-				Param("q:query")
-				Param("flag:f")
-			})
-		})
-	})
-}
+var MappedParamsDSL = mappedParamsDSL("query", "f")
+
+// MappedColonParamsDSL retains colon-containing query element names.
+var MappedColonParamsDSL = mappedParamsDSL("query:first", "query:second")
 
 // MappedExplicitBodyDSL declares explicit request and response bodies whose
 // attributes carry a transport element name suffix, such as
@@ -158,58 +133,10 @@ var MappedParamsDSL = func() {
 // the JSON names of the fields. The create method maps a user type payload
 // and an inline result. The pair method lists body attributes of an inline
 // payload that are not strings and inherits their requiredness in the body.
-var MappedExplicitBodyDSL = func() {
-	var Account = Type("Account", func() {
-		Attribute("id", Int, "Account ID")
-		Attribute("name", String, "Account name", func() {
-			MinLength(2)
-		})
-		Attribute("age", Int, "Account age")
-		Required("id", "name")
-	})
-	Service("mappedbody", func() {
-		Method("create", func() {
-			NoSecurity()
-			Payload(Account)
-			Result(func() {
-				Attribute("id", Int, "Account ID")
-				Attribute("name", String, "Account name", func() {
-					MinLength(2)
-				})
-				Attribute("age", Int, "Account age")
-				Required("name")
-			})
-			HTTP(func() {
-				POST("/accounts/{id}")
-				Body(func() {
-					Attribute("name:n")
-					Attribute("age:ag")
-				})
-				Response(StatusOK, func() {
-					Body(func() {
-						Attribute("name:n")
-						Attribute("age:ag")
-					})
-				})
-			})
-		})
-		Method("pair", func() {
-			NoSecurity()
-			Payload(func() {
-				Attribute("a", Int)
-				Attribute("b", Int)
-				Required("a")
-			})
-			HTTP(func() {
-				POST("/pair")
-				Body(func() {
-					Attribute("a:x")
-					Attribute("b:y")
-				})
-			})
-		})
-	})
-}
+var MappedExplicitBodyDSL = mappedExplicitBodyDSL("n", "ag", "x", "y")
+
+// MappedColonBodyDSL retains colon-containing request and response body names.
+var MappedColonBodyDSL = mappedExplicitBodyDSL("account:name", "account:age", "pair:first", "pair:second")
 
 // MappedPayloadReferencesDSL maps payload, result and error attributes
 // declared with a transport element name suffix, such as "tok:t", to
@@ -304,4 +231,91 @@ var MappedPayloadReferencesDSL = func() {
 			})
 		})
 	})
+}
+
+func mappedParamsDSL(query, flag string) func() {
+	return func() {
+		Service("mappedparams", func() {
+			Method("show", func() {
+				NoSecurity()
+				Payload(func() {
+					Attribute("key", String, func() {
+						MinLength(2)
+					})
+					Attribute("id", Int)
+					Attribute("q", String)
+					Attribute("flag", Boolean)
+					Required("key", "id")
+				})
+				Result(func() {
+					Attribute("key", String)
+					Attribute("id", Int)
+					Attribute("q", String)
+					Attribute("flag", Boolean)
+					Required("key", "id")
+				})
+				HTTP(func() {
+					GET("/items/{k}/{id}")
+					Param("key:k")
+					Param("q:" + query)
+					Param("flag:" + flag)
+				})
+			})
+		})
+	}
+}
+
+func mappedExplicitBodyDSL(name, age, first, second string) func() {
+	return func() {
+		var Account = Type("Account", func() {
+			Attribute("id", Int, "Account ID")
+			Attribute("name", String, "Account name", func() {
+				MinLength(2)
+			})
+			Attribute("age", Int, "Account age")
+			Required("id", "name")
+		})
+		Service("mappedbody", func() {
+			Method("create", func() {
+				NoSecurity()
+				Payload(Account)
+				Result(func() {
+					Attribute("id", Int, "Account ID")
+					Attribute("name", String, "Account name", func() {
+						MinLength(2)
+					})
+					Attribute("age", Int, "Account age")
+					Required("name")
+				})
+				HTTP(func() {
+					POST("/accounts/{id}")
+					Body(func() {
+						Attribute("name:" + name)
+						Attribute("age:" + age)
+					})
+					Response(StatusOK, func() {
+						Body(func() {
+							Attribute("name:" + name)
+							Attribute("age:" + age)
+						})
+					})
+				})
+			})
+			Method("pair", func() {
+				NoSecurity()
+				Payload(func() {
+					Attribute("a", Int)
+					Attribute("b", Int)
+					Required("a")
+				})
+				HTTP(func() {
+					POST("/pair")
+					Body(func() {
+						Attribute("a:" + first)
+						Attribute("b:" + second)
+					})
+				})
+			})
+		})
+	}
 }

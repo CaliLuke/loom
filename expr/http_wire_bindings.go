@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 
+	"golang.org/x/net/http/httpguts"
+
 	"github.com/CaliLuke/loom/eval"
 )
 
@@ -37,6 +39,15 @@ type (
 		source string
 	}
 )
+
+func validateHTTPWireName(location, name string, owner eval.Expression, errors *eval.ValidationErrors) {
+	if location != "header" && location != "cookie" {
+		return
+	}
+	if !httpguts.ValidHeaderFieldName(name) {
+		errors.Add(owner, "HTTP %s name %q must be a nonempty HTTP token", location, name)
+	}
+}
 
 func (e *HTTPEndpointExpr) ensureWireBindings() *httpWireBindingPlan {
 	if e.wireBindings != nil {
@@ -241,6 +252,7 @@ func (p *httpWireBindingPlan) add(binding *httpWireBinding) {
 
 func (p *httpWireBindingPlan) validate(owner eval.Expression, errors *eval.ValidationErrors) {
 	for index, first := range p.bindings {
+		validateHTTPWireName(first.location, first.name, owner, errors)
 		for _, second := range p.bindings[index+1:] {
 			if !first.sameSlot(second) || first.disjointAlternative(second) {
 				continue

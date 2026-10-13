@@ -254,6 +254,9 @@ func (r *HTTPResponseExpr) validateCookies(
 	invalidTypeParent eval.Expression,
 	verr *eval.ValidationErrors,
 ) {
+	for _, cookie := range r.Cookies {
+		validateHTTPWireName("cookie", cookie.HTTPName(), r, verr)
+	}
 	seenNames := make(map[string]struct{}, len(r.Cookies))
 	seenAttrs := make(map[string]struct{}, len(r.Cookies))
 	switch {

@@ -530,6 +530,16 @@ This schema projection applies when the representation uses built-in JSON.
 Raw and text bodies, form and multipart fields, custom codecs, and explicit
 schema overrides retain their own contracts.
 
+### Mapped Wire Names
+
+Mappings split at the first colon: `Param("value:filter:mode")` names the query
+parameter `filter:mode`. The entire suffix is retained for query and body field
+names. Header and cookie names must be nonempty HTTP tokens; spaces, colons,
+semicolons, control characters and non-ASCII characters are rejected during
+design evaluation. This also applies to inherited, security and response bindings.
+Regenerate clients and servers after correcting a rejected mapping, or when
+a query/body mapping previously lost text after a second colon.
+
 ### Collection Headers
 
 Map an array of primitives with `Header("tags:X-Tags")` to use OpenAPI's

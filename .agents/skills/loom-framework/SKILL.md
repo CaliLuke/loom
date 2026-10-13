@@ -83,6 +83,11 @@ consumer validation.
   occurrence's permission globally or translate individual encoded constraints
   independently. Preserve native Bytes semantics and exact encoded literal text.
 
+- `expr.ElementName` preserves the whole suffix after the first colon. Admission
+  validates effective physical header/cookie names through one HTTP token predicate
+  at the existing binding and response-cookie owners. Keep query/body names intact;
+  do not truncate mappings or reproduce protocol grammar in transport templates.
+
 - `http.AddRequestCookie` owns request-cookie publication: standard `Cookie.Valid`
   name/value validation precedes header mutation. The shared HTTP request encoder
   formats values and preserves presence, then calls this owner and wraps failures
