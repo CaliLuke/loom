@@ -75,6 +75,15 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `clue/log.Context` owns logger configuration publication. Under the existing
+  logger lock, detach options and their slice storage before applying updates;
+  `With` may share the immutable snapshot. Preserve the logger's buffer identity
+  and fields. Reusable `WithOutputs` options detach their supplied slice on each
+  application and never write it. Writers, callbacks and field values remain
+  application-owned. Keep the options ownership model under `clue/log/tla/`
+  aligned with direct configuration, concurrent reuse and HTTP/gRPC Debug tests.
+  Request-scope creation and buffer lineage are separate ownership contracts.
+
 - Generated artifacts retain their write intent from rendering to live
   installation through `codegen.Artifact`. `internal/artifactpolicy` owns
   admission, including rejection of create-only files inside `gen/`, stable live

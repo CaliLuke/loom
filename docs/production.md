@@ -47,6 +47,17 @@ func main() {
 }
 ```
 
+`log.With(ctx, fields...)` derives a logger with its own configuration snapshot.
+Calling `log.Context(child, options...)` changes that logger's settings without
+changing its parent or siblings. Updating an existing logger retains its fields
+and buffered entries. Contexts joined with `log.WithContext` refer to the same
+logger and therefore observe the same updates.
+
+`log.WithOutputs` copies the supplied output slice each time it is applied.
+Changing a slice element afterward does not reconfigure a logger. Writers,
+format functions and field values remain application-owned; synchronize shared
+writers when separate loggers can write concurrently.
+
 ### Logging
 
 ```go

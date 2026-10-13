@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -112,22 +113,23 @@ func WithFormat(fn FormatFunc) LogOption {
 //
 // Each output formats the entry then writes it to its writer. This makes it
 // possible to log to multiple destinations with independent formats (e.g.
-// terminal colors on stdout and JSON to a file).
+// terminal colors on stdout and JSON to a file). Each application copies the
+// output slice; later changes to its elements do not alter configured loggers.
+// Writers and format functions remain shared and must support their intended use.
 func WithOutputs(outputs ...Output) LogOption {
 	return func(o *options) {
 		if len(outputs) == 0 {
 			panic("log.WithOutputs: at least one output must be provided")
 		}
-		for i, out := range outputs {
+		for _, out := range outputs {
 			if out.Writer == nil {
 				panic("log.WithOutputs: output writer is nil")
 			}
 			if out.Format == nil {
 				panic("log.WithOutputs: output format is nil")
 			}
-			outputs[i] = out
 		}
-		o.outputs = outputs
+		o.outputs = slices.Clone(outputs)
 	}
 }
 

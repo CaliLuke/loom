@@ -1,12 +1,17 @@
 package log
 
-import "context"
+import (
+	"context"
+	"slices"
+)
 
 const (
 	ctxLogger ctxKey = iota + 1
 )
 
-// Context initializes a context for logging.
+// Context initializes a context for logging or updates its existing logger.
+// Updates retain buffered entries and fields. Contexts derived with With keep
+// their own configuration snapshot; updates do not alter that configuration.
 func Context(ctx context.Context, opts ...LogOption) context.Context {
 	l, ok := ctx.Value(ctxLogger).(*logger)
 	if !ok {
@@ -14,9 +19,14 @@ func Context(ctx context.Context, opts ...LogOption) context.Context {
 	}
 	l.lock.Lock()
 	defer l.lock.Unlock()
+	configured := *l.options
+	configured.outputs = slices.Clone(l.options.outputs)
+	configured.keyvals = slices.Clone(l.options.keyvals)
+	configured.kvfuncs = slices.Clone(l.options.kvfuncs)
 	for _, opt := range opts {
-		opt(l.options)
+		opt(&configured)
 	}
+	l.options = &configured
 	if l.options.disableBuffering != nil && l.options.disableBuffering(ctx) {
 		l.flush()
 	}
