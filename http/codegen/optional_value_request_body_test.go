@@ -92,7 +92,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 				"\t\tres.V = v\n\t}\n",
 			},
 			Build: []string{
-				"\t\tif pickerSendBody != \"\" {\n\t\t\terr = json.Unmarshal([]byte(pickerSendBody), &body)\n",
+				"\t\tif pickerSendBody != \"\" {\n\t\t\terr = loomhttpcli.UnmarshalNonNullableJSON([]byte(pickerSendBody), &body)\n",
 				"\tres := &picker.SendPayload{}\n\tif pickerSendBody != \"\" {\n\t\tv := make([]string, len(body))\n",
 			},
 		},
@@ -156,7 +156,7 @@ func TestOptionalValueRequestBody(t *testing.T) {
 				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tv := picker.Plain(*body)\n\t\tres.V = &v\n\t}\n",
 			},
 			Build: []string{
-				"\tvar body SendRequestBody\n",
+				"\tvar body CLISendRequestBody\n",
 				"\tif pickerSendBody != \"\" {\n\t\tv := picker.Plain(body)\n\t\tres.V = &v\n\t}\n",
 			},
 			ClientInit: "\tbody := SendRequestBody(*p.V)\n",

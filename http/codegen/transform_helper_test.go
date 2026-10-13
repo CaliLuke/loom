@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,19 +14,22 @@ func TestTransformHelperServer(t *testing.T) {
 	cases := []struct {
 		Name     string
 		DSL      func()
-		Offset   int
+		Section  string
+		Helper   string
 		Expected string
 	}{
 		{
 			Name:     "body-user-inner-default-1",
 			DSL:      testdata.PayloadBodyUserInnerDefaultDSL,
-			Offset:   1,
+			Section:  "server-transform-helper",
+			Helper:   "unmarshalInnerTypeRequestBodyToServicebodyuserinnerdefaultInnerType",
 			Expected: testdata.PayloadBodyUserInnerDefaultTransformCode1,
 		},
 		{
 			Name:     "body-user-recursive-default-1",
 			DSL:      testdata.PayloadBodyInlineRecursiveUserDSL,
-			Offset:   1,
+			Section:  "server-transform-helper",
+			Helper:   "unmarshalPayloadTypeRequestBodyToServicebodyinlinerecursiveuserPayloadType",
 			Expected: testdata.PayloadBodyInlineRecursiveUserTransformCode1,
 		},
 	}
@@ -34,9 +38,7 @@ func TestTransformHelperServer(t *testing.T) {
 			root := RunHTTPDSL(t, c.DSL)
 			services := CreateHTTPServices(root)
 			f := ServerEncodeDecodeFile("", root.API.HTTP.Services[0], services)
-			sections := f.AllSections()
-			require.Greater(t, len(sections), c.Offset)
-			code := codegen.SectionCode(t, sections[len(sections)-c.Offset])
+			code := namedTransformHelper(t, []*codegen.File{f}, c.Section, c.Helper)
 			require.Equal(t, c.Expected, code)
 		})
 	}
@@ -46,31 +48,36 @@ func TestTransformHelperCLI(t *testing.T) {
 	cases := []struct {
 		Name     string
 		DSL      func()
-		Offset   int
+		Section  string
+		Helper   string
 		Expected string
 	}{
 		{
 			Name:     "cli-body-user-inner-default-1",
 			DSL:      testdata.PayloadBodyUserInnerDefaultDSL,
-			Offset:   1,
+			Section:  "cli-input-transform",
+			Helper:   "unmarshalCLIInnerTypeRequestBodyToServicebodyuserinnerdefaultInnerType",
 			Expected: testdata.PayloadBodyUserInnerDefaultTransformCodeCLI1,
 		},
 		{
 			Name:     "cli-body-user-inner-default-2",
 			DSL:      testdata.PayloadBodyUserInnerDefaultDSL,
-			Offset:   2,
+			Section:  "client-transform-helper",
+			Helper:   "marshalServicebodyuserinnerdefaultInnerTypeToInnerTypeRequestBody",
 			Expected: testdata.PayloadBodyUserInnerDefaultTransformCodeCLI2,
 		},
 		{
 			Name:     "cli-body-user-recursive-default-1",
 			DSL:      testdata.PayloadBodyInlineRecursiveUserDSL,
-			Offset:   1,
+			Section:  "cli-input-transform",
+			Helper:   "unmarshalCLIPayloadTypeRequestBodyToServicebodyinlinerecursiveuserPayloadType",
 			Expected: testdata.PayloadBodyInlineRecursiveUserTransformCodeCLI1,
 		},
 		{
 			Name:     "cli-body-user-recursive-default-2",
 			DSL:      testdata.PayloadBodyInlineRecursiveUserDSL,
-			Offset:   2,
+			Section:  "client-transform-helper",
+			Helper:   "marshalServicebodyinlinerecursiveuserPayloadTypeToPayloadTypeRequestBody",
 			Expected: testdata.PayloadBodyInlineRecursiveUserTransformCodeCLI2,
 		},
 	}
@@ -79,10 +86,24 @@ func TestTransformHelperCLI(t *testing.T) {
 			root := RunHTTPDSL(t, c.DSL)
 			services := CreateHTTPServices(root)
 			f := ClientEncodeDecodeFile("", root.API.HTTP.Services[0], services)
-			sections := f.AllSections()
-			require.Greater(t, len(sections), c.Offset)
-			code := codegen.SectionCode(t, sections[len(sections)-c.Offset])
+			files := append(ClientCLIFiles("", services), f)
+			code := namedTransformHelper(t, files, c.Section, c.Helper)
 			require.Equal(t, c.Expected, code)
 		})
 	}
+}
+
+func namedTransformHelper(t *testing.T, files []*codegen.File, role, name string) string {
+	t.Helper()
+	var matches []string
+	for _, file := range files {
+		for _, section := range file.Section(role) {
+			code := codegen.SectionCode(t, section)
+			if strings.Contains(code, "func "+name+"(") {
+				matches = append(matches, code)
+			}
+		}
+	}
+	require.Len(t, matches, 1, "expected exactly one %s helper %s", role, name)
+	return matches[0]
 }
