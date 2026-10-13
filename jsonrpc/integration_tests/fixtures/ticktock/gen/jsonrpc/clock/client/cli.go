@@ -8,25 +8,41 @@
 package client
 
 import (
-	json "encoding/json/v2"
 	"fmt"
 
 	clock "example.com/ticktock/gen/clock"
+	loomhttpcli "github.com/CaliLuke/loom/http/cli"
+	loom "github.com/CaliLuke/loom/pkg"
 )
+
+// CLITickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
+// request body.
+type CLITickRequestBody struct {
+	ID loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
+}
+
+// CLITockRequestBody is the type of the "clock" service "Tock" endpoint HTTP
+// request body.
+type CLITockRequestBody struct {
+	ID loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
+}
 
 // BuildTickPayload builds the payload for the clock Tick endpoint from CLI
 // flags.
 func BuildTickPayload(clockTickBody string) (*clock.TickPayload, error) {
 	var err error
-	var body TickRequestBody
+	var body CLITickRequestBody
 	{
-		err = json.Unmarshal([]byte(clockTickBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Natus dolores velit dolores ut.\"\n   }'")
 		}
 	}
-	v := &clock.TickPayload{
-		ID: body.ID,
+	v := &clock.TickPayload{}
+	if actual, ok := body.ID.Value(); ok {
+		vIDValue := actual
+
+		v.ID = &vIDValue
 	}
 
 	return v, nil
@@ -36,15 +52,18 @@ func BuildTickPayload(clockTickBody string) (*clock.TickPayload, error) {
 // flags.
 func BuildTockPayload(clockTockBody string) (*clock.TockPayload, error) {
 	var err error
-	var body TockRequestBody
+	var body CLITockRequestBody
 	{
-		err = json.Unmarshal([]byte(clockTockBody), &body)
+		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTockBody), &body)
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Incidunt tempora cum quasi praesentium.\"\n   }'")
 		}
 	}
-	v := &clock.TockPayload{
-		ID: body.ID,
+	v := &clock.TockPayload{}
+	if actual, ok := body.ID.Value(); ok {
+		vIDValue := actual
+
+		v.ID = &vIDValue
 	}
 
 	return v, nil
