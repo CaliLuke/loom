@@ -71,9 +71,11 @@ import (
 
 func TestStreamSendRejectsBeforeWrite(t *testing.T) {
  value := &svc.Message{Nested: &svc.Nested{Value: loom.JSONValue("{")}}
- // No transport is installed: a write would panic instead of returning the conversion error.
- require.Error(t, new(client.StreamClientStream).Send(value))
- require.Error(t, new(server.StreamServerStream).Send(value))
+ // Supply the operation context explicitly: these intentionally uninitialized
+ // wrappers have no captured invocation context or native transport. A write
+ // would panic; an admission error must not stand in for conversion rejection.
+ require.ErrorContains(t, new(client.StreamClientStream).SendWithContext(context.Background(), value), "decode gRPC Any JSON value")
+ require.ErrorContains(t, new(server.StreamServerStream).SendWithContext(context.Background(), value), "decode gRPC Any JSON value")
 }
 
 func TestDeclaredErrorConversion(t *testing.T) {
