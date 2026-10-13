@@ -75,6 +75,13 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `codegen.InitStructFields` consumes the canonical nominal scope and located
+  import aliases of its target representation. Constructor local variables never
+  reserve package type names. Preserve that scope for primitive casts and nested
+  collection transformations; do not replace it with `NewNameScopeLike`. HTTP,
+  JSON-RPC and gRPC constructor/CLI callers share this boundary. Problem responses
+  retain their independent runtime carrier scope.
+
 - Explicit HTTP response bodies detach before field initialization and naming
   metadata writes. `bindValueSource` alone grants private binding provenance;
   controlled copies retain it without manufacturing it from source ancestry.

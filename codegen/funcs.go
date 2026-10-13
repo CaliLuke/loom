@@ -156,11 +156,13 @@ func WrapText(text string, maxChars int) string {
 }
 
 // InitStructFields produces Go code to initialize a struct and its fields from
-// the given init arguments. pkgs names the struct:pkg:path packages of the
-// field types, see NameScope.PackageName; nil selects the package names.
-func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg string, pkgs *NameScope) (string, []*TransformFunctionData, error) {
-	scope := NewNameScopeLike(pkgs)
-	scope.Unique(targetVar)
+// the given init arguments. scope retains the allocated nominal identities and
+// struct:pkg:path import names of the field types. A nil scope selects ordinary
+// type and package names. Constructor locals do not reserve package identities.
+func InitStructFields(args []*InitArgData, targetVar, sourcePkg, targetPkg string, scope *NameScope) (string, []*TransformFunctionData, error) {
+	if scope == nil {
+		scope = NewNameScope()
+	}
 
 	var (
 		code    string

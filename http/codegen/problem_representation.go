@@ -71,7 +71,7 @@ func (b *errorBuilder) buildProblemClientResult(errorResponse *transportir.Respo
 			fields = append(fields, arg)
 		}
 	}
-	code.WriteString(initFieldAssignments(fields, variable, targetContext.DefaultPkg, b.sd.Scope))
+	code.WriteString(initFieldAssignments(fields, variable, targetContext.DefaultPkg, targetContext.Scope.Scope()))
 	fmt.Fprintf(&code, "v := loomhttp.ProblemErrorFromBody(*%s)", variable)
 	return code.String()
 }
