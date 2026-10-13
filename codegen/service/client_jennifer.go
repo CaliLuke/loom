@@ -70,7 +70,7 @@ func methodSection(method *EndpointMethodData) codegen.Section {
 		buildClientMethod(stmt, method, false)
 		if method.HasMixedResults {
 			stmt.Line()
-			codegen.Doc(stmt, fmt.Sprintf("%sStream calls the %q endpoint of the %q service with server streaming enabled.", method.VarName, method.Name, method.ServiceName))
+			codegen.Doc(stmt, fmt.Sprintf("%s calls the %q endpoint of the %q service with server streaming enabled.", method.ClientStreamMethod, method.Name, method.ServiceName))
 			buildClientMethod(stmt, method, true)
 		}
 		stmt.Line()
@@ -81,7 +81,7 @@ func buildClientMethod(stmt *jen.Statement, method *EndpointMethodData, stream b
 	name := method.VarName
 	resultType := method.ResultRef
 	if stream {
-		name += "Stream"
+		name = method.ClientStreamMethod
 		resultType = method.ClientStream.Interface
 	} else if method.ClientStream != nil && !method.HasMixedResults {
 		resultType = method.ClientStream.Interface

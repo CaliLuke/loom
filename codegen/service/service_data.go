@@ -224,6 +224,10 @@ type (
 		ResponseStruct string
 		// FileResponseStruct is the server-only response carrier used by file endpoints.
 		FileResponseStruct string
+		// ClientStreamMethod is the synthetic service Client method for the
+		// streaming form of mixed results. It is allocated with the receiver's
+		// authored methods and fields and is empty for other method shapes.
+		ClientStreamMethod string
 		// EndpointField is the unique field name used in the generated client
 		// struct to store the loom.Endpoint for this method. It is computed with a
 		// scope that includes method names to avoid field/method name collisions.
@@ -575,15 +579,6 @@ func (d *Data) Method(name string) *MethodData {
 // SetViewedResult records the viewed-result wrapper metadata for the method.
 func (m *MethodData) SetViewedResult(viewed *ViewedResultTypeData) {
 	m.MethodResultData.ViewedResult = viewed
-}
-
-// AssignEndpointFields computes the generated client endpoint field names for
-// the method.
-func (m *MethodData) AssignEndpointFields(scope *codegen.NameScope) {
-	m.MethodTransportData.EndpointField = scope.Unique(m.VarName+"Endpoint", "")
-	if m.HasMixedResults {
-		m.MethodTransportData.StreamEndpointField = scope.Unique(m.VarName+"StreamEndpoint", "")
-	}
 }
 
 // AppendInterceptorName records the Go name of an interceptor

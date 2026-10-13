@@ -40,11 +40,16 @@ Doer, builder, stream, group and CLI bindings; `TestClientMembersRetainFileImpor
 that names are independent of imports. The [plan](../../../roadmap/http-client-member-identity.md)
 records the bounded acceptance and excludes server/gRPC/package namespaces.
 
-The original mixed `watch`/`watchStream` specimen also exposes the separate
-service Client collision tracked by #883. Direct transport emission still covers
-that collision. The compiled mixed specimen pairs ordinary/streaming `watch`
-with fixed-member and request-builder competitors, without claiming the service
-namespace is repaired. The finite model does not cover that independent receiver.
+The `streams` specimen also represents #883's service Client collision:
+canonical `Watch` and authored `WatchStream` precede the synthetic stream role.
+`service.assignClientMembers` reserves all authored methods, records the mixed
+stream method identity and then allocates endpoint fields in that receiver.
+The same uniqueness strategy applies; no second allocator or model is needed.
+`TestServiceClientMemberIdentity` checks actual emitted roles, order/fallback
+competitors and import reanalysis; the original `http-mixed-stream-collision`
+module now compiles and checks authored/synthetic calls and canonical interceptor
+identity through a mounted peer. The model does not establish completeness of
+these emitted roles or their Go method signatures; those remain test obligations.
 
 Keep this correspondence current. Preserve model sources,
 configs, pinned toolchain and concise results; remove external checker states

@@ -65,7 +65,7 @@ func TestHTTPClientMemberIdentity(t *testing.T) {
 }
 
 func TestHTTPClientMemberIdentityGenerated(t *testing.T) {
-	for _, kind := range []string{"http-ordinary", "http-fixed", "http-mixed", "http-grouped", "http-websocket"} {
+	for _, kind := range []string{"http-ordinary", "http-fixed", "http-mixed", "http-mixed-stream-collision", "http-grouped", "http-websocket"} {
 		t.Run(kind, func(t *testing.T) {
 			root := RunHTTPDSL(t, testdata.ClientMemberIdentityDSL(kind))
 			dir := t.TempDir()

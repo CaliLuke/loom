@@ -15,7 +15,7 @@ import (
 func ClientMemberIdentityDSL(kind string) func() {
 	return func() {
 		rpc := strings.HasPrefix(kind, "rpc-")
-		if kind == "http-fixed" {
+		if kind == "http-fixed" || kind == "http-mixed-stream-collision" {
 			dsl.Interceptor("audit")
 		}
 		dsl.API("members", func() {
@@ -25,7 +25,7 @@ func ClientMemberIdentityDSL(kind string) func() {
 			}
 		})
 		dsl.Service("members", func() {
-			if kind == "http-fixed" {
+			if kind == "http-fixed" || kind == "http-mixed-stream-collision" {
 				dsl.ClientInterceptor("audit")
 			}
 			if rpc {

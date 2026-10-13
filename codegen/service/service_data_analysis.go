@@ -39,7 +39,7 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	state.types = append(state.types, collectAuthorizationTypes(service, scope, seen)...)
 	state.types = append(state.types, d.collectForcedServiceTypes(service, scope, seen)...)
 	methods, schemes, viewedRTs := d.buildServiceMethods(service, symbols, scope, viewScope, viewspkg, state.seenProj, state.seenViewed, state.viewedRTs)
-	assignEndpointFields(methods)
+	assignClientMembers(methods)
 	assignAuthenticationFields(methods, scope)
 	unions := collectServiceUnions(service, state.types, state.errTypes, scope)
 	data = newServiceData(d, service, scope, viewScope, pkgName, viewspkg, methods, schemes, state.types, state.projTypes, state.errTypes, state.errorInits, viewedRTs, unions)
@@ -123,16 +123,23 @@ func (d *ServicesData) collectForcedServiceTypes(service *expr.ServiceExpr, scop
 	return types
 }
 
-func assignEndpointFields(methods []*MethodData) {
+// assignClientMembers owns all fields and synthetic methods on the service Client.
+// Authored method identities are fixed before generated roles are allocated.
+func assignClientMembers(methods []*MethodData) {
 	scope := codegen.NewNameScope()
 	for _, m := range methods {
 		scope.Unique(m.VarName)
+	}
+	for _, m := range methods {
 		if m.HasMixedResults {
-			scope.Unique(m.VarName + "Stream")
+			m.ClientStreamMethod = scope.Unique(m.VarName+"Stream", "Stream")
 		}
 	}
 	for _, m := range methods {
-		m.AssignEndpointFields(scope)
+		m.EndpointField = scope.Unique(m.VarName+"Endpoint", "")
+		if m.HasMixedResults {
+			m.StreamEndpointField = scope.Unique(m.VarName+"StreamEndpoint", "")
+		}
 	}
 }
 

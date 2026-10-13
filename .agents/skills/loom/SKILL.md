@@ -37,7 +37,9 @@ Transport client endpoint factories, request builders, Doer fields and mixed
 stream factories can also receive suffixes when receiver members collide.
 Regenerate and use the actual declarations when wiring custom Doers or calling
 transport factories. Canonical service methods, CLI commands and wire names
-remain unchanged.
+remain unchanged. A service client's synthetic mixed-stream method can also gain
+a suffix when an authored method occupies its usual name; use the regenerated
+client declaration.
 
 User-editable plugin files belong outside `gen/` and should declare create-only
 behavior. Loom rejects create-only files inside the regenerated tree. Upgrade

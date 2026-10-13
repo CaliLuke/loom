@@ -95,6 +95,11 @@ use those same recorded names. Regenerate and update handwritten references to
 changed transport members using their declarations. Service method names, CLI
 commands and wire method names retain their design identities.
 
+The service client applies the same receiver rule to mixed results: if a `watch`
+method's synthetic `WatchStream` call conflicts with an authored `watchStream`
+method, the synthetic call gets a suffix. The authored `WatchStream` call keeps
+its identity. Regenerate and use the client declarations when wiring both forms.
+
 Native gRPC server handler fields also have a separate receiver namespace.
 Legal RPC pairs such as `mount` and `mountH` keep their service and protobuf
 names; a colliding generated handler field receives a deterministic suffix.

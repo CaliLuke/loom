@@ -75,6 +75,12 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `service.assignClientMembers` owns the service Client receiver: reserve all
+  authored methods, record synthetic mixed-stream method names, then allocate
+  endpoint fields. Rendering consumes these records; constructor arguments and
+  interceptor wrapper symbols retain their separate owners. Reuse the client
+  member model and rendered/member-routing checks across receiver boundaries.
+
 - `grpc/codegen.finalizeServerMembers` owns the native gRPC Server receiver.
   Reserve canonical protobuf RPC methods, resolve the unimplemented-server
   embedding, then allocate handler and conditional admission fields in service

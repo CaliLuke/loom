@@ -1,0 +1,81 @@
+package clientmembers_test
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	client "example.com/clientmembers/gen/http/members/client"
+	service "example.com/clientmembers/gen/members"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type audit struct {
+	methods []string
+}
+
+func TestServiceClientRoles(t *testing.T) {
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Accept") == "text/event-stream" {
+			if r.URL.Path != "/watch" {
+				t.Errorf("stream path %q", r.URL.Path)
+			}
+			w.Header().Set("Content-Type", "text/event-stream")
+			if _, err := fmt.Fprint(w, "data: \"stream\"\n\n"); err != nil {
+				t.Error(err)
+			}
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := fmt.Fprintf(w, "%q", r.URL.Path); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer peer.Close()
+	u, err := url.Parse(peer.URL)
+	require.NoError(t, err)
+	transport := client.NewClient(u.Scheme, u.Host, peer.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	interceptor := &audit{}
+	c := service.NewClient(transport.Watch(), transport.WatchStreamStream(), transport.WatchStream(), transport.WatchStreamEndpoint(), interceptor)
+	ctx := context.Background()
+	ordinary, err := c.Watch(ctx, "payload")
+	require.NoError(t, err)
+	require.Equal(t, "/watch", ordinary)
+	stream, err := c.WatchStreamStream(ctx, "payload")
+	require.NoError(t, err)
+	value, err := stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, "stream", value)
+	require.NoError(t, stream.Close())
+	authored, err := c.WatchStream(ctx, "payload")
+	require.NoError(t, err)
+	require.Equal(t, "/watchStream", authored)
+	fieldCompetitor, err := c.WatchStreamEndpoint(ctx, "payload")
+	require.NoError(t, err)
+	require.Equal(t, "/watchStreamEndpoint", fieldCompetitor)
+	require.Equal(t, []string{"Watch", "Watch", "WatchStream", "WatchStreamEndpoint"}, interceptor.methods)
+
+	sentinel := errors.New("endpoint failure")
+	failed := func(context.Context, any) (any, error) {
+		return nil, sentinel
+	}
+	c = service.NewClient(failed, failed, failed, failed, nil)
+	_, err = c.Watch(ctx, "payload")
+	require.ErrorIs(t, err, sentinel)
+	_, err = c.WatchStreamStream(ctx, "payload")
+	require.ErrorIs(t, err, sentinel)
+	_, err = c.WatchStream(ctx, "payload")
+	require.ErrorIs(t, err, sentinel)
+}
+
+func (a *audit) Audit(ctx context.Context, info *service.AuditInfo, next loom.Endpoint) (any, error) {
+	a.methods = append(a.methods, info.Method())
+	return next(ctx, info.RawPayload())
+}
