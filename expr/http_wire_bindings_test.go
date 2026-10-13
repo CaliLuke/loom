@@ -469,12 +469,17 @@ func TestHTTPWireBindingJSONRPCStreamingSource(t *testing.T) {
 				})
 				StreamingResult(String)
 				JSONRPC(func() {
+					Body(func() {
+						Attribute("token")
+						Attribute("filter")
+					})
 				})
 			})
 		})
 	})
 	endpoint := root.API.JSONRPC.Service("stream").Endpoint("read")
 	require.Equal(t, "token", expr.TaggedAttribute(endpoint.MethodExpr.Payload, "security:token"))
-	require.Equal(t, "Authorization", endpoint.Requirements[0].Schemes[0].Name)
-	require.False(t, endpoint.Headers.IsRequired("token"))
+	require.Equal(t, "body", endpoint.Requirements[0].Schemes[0].In)
+	require.Equal(t, "token", endpoint.Requirements[0].Schemes[0].Name)
+	require.True(t, endpoint.Headers.IsEmpty())
 }

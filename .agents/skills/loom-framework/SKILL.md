@@ -338,6 +338,14 @@ consumer validation.
   independently walk API/service security scopes. Keep
   `expr/tla/http_wire_bindings` and generated HTTP/JSON-RPC/OpenAPI checks aligned.
 
+- JSON-RPC WebSocket security admission consumes resolved wire bindings, including
+  Basic and inferred session mappings. Bindings retain all source/tag roles when
+  physical operations merge. Admission and finalization share the effective
+  message-payload selector; every body credential role must survive with a valid
+  string type. Reject unsupported handshake locations and displaced roles before
+  generation; preserve supported per-message body authentication. Keep
+  `expr/tla/jsonrpc_ws_admission` paired with mounted auth and DSL controls.
+
 - Shared security analysis resolves credential selectors with `GoifyAtt` from
   the actual payload attribute. Basic username/password and API-key, JWT and
   OAuth credentials must use the same field identity as payload declarations;

@@ -2198,6 +2198,19 @@ mappings alongside JSON-RPC body parameters. A method whose payload is entirely
 path-bound omits `params` from its request. Regenerate after upgrading to pick
 up corrected path/body decoder local allocation.
 
+JSON-RPC WebSocket authentication uses credentials explicitly selected by `Body`
+in each message. Implicit Authorization headers, Basic authentication, session
+cookies, and other header/query/cookie credential mappings are rejected during
+design validation. A server-streaming `Payload` keeps its credentials when Loom
+normalizes it to message input. If you declare a separate `StreamingPayload`, it
+must retain every selected credential's name and security tag with a supported
+string type. For example, a JWT `Token("token", String)` selected in `Body` must
+also be declared with `Token` in the separate streaming payload; an untagged
+`Attribute("token", String)` is insufficient. This applies to every authenticated
+alternative, including one beside an anonymous alternative. Authentication runs
+per message; it does not authorize the shared connection handshake. Correct
+previously admitted unsupported designs before regenerating.
+
 `CORS` or `RuntimeCORS()` may be declared in API-level or service-level
 `JSONRPC` scope. Without a policy, generated JSON-RPC servers retain Go's
 secure cross-origin rejection default. With a policy, Loom generates preflight

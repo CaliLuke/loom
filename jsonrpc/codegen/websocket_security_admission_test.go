@@ -1,0 +1,138 @@
+package codegen
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/CaliLuke/loom/codegen/service"
+	"github.com/CaliLuke/loom/expr/testdata"
+)
+
+// TestJSONRPCWebSocketMessageSecurity preserves existing authentication in the
+// message body while unsupported effective handshake bindings are rejected.
+func TestJSONRPCWebSocketMessageSecurity(t *testing.T) {
+	for _, tc := range []struct{ kind, shape string }{
+		{"jwt", "server"},
+		{"key", "server"},
+		{"oauth", "server"},
+		{"jwt", "bidi-same"},
+	} {
+		t.Run(tc.kind+"/"+tc.shape, func(t *testing.T) {
+			root := RunJSONRPCDSL(t, testdata.JSONRPCWebSocketSecurityDSL(tc.kind, tc.shape, "body", "service", "ws"))
+			method := root.Service("secured").Method("watch")
+			projected, _ := service.BuildRequirementsData(method.EffectiveRequirements(), method)
+			require.Len(t, projected, len(method.EffectiveRequirements()))
+			for index, requirement := range method.EffectiveRequirements() {
+				require.Len(t, projected[index].Schemes, len(requirement.Schemes), "every effective role must survive request normalization")
+				for schemeIndex, scheme := range requirement.Schemes {
+					require.Equal(t, scheme.SchemeName, projected[index].Schemes[schemeIndex].SchemeName)
+				}
+			}
+			dir := t.TempDir()
+			renderJSONRPCModule(t, dir, "example.com/wssecurity", root)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "auth_test.go"), []byte(jsonRPCWebSocketMessageSecurityHarness), 0o600))
+			runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
+			runGoJSONRPCTestCommand(t, dir, "build", "./...")
+			runGoJSONRPCTestCommand(t, dir, "vet", "./...")
+			runGoJSONRPCTestCommand(t, dir, "test", "-race", "./...")
+		})
+	}
+}
+
+const jsonRPCWebSocketMessageSecurityHarness = `package wssecurity_test
+
+import (
+	"context"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	server "example.com/wssecurity/gen/jsonrpc/secured/server"
+	secured "example.com/wssecurity/gen/secured"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+	"github.com/CaliLuke/loom/security"
+	"github.com/gorilla/websocket"
+)
+
+type service struct {
+	auth, calls atomic.Int32
+}
+
+func (s *service) HandleStream(ctx context.Context, stream secured.Stream) error {
+	for {
+		if err := stream.Recv(ctx); err != nil {
+			return err
+		}
+	}
+}
+func (s *service) Watch(ctx context.Context, _ *secured.WatchPayload, stream secured.WatchServerStream) error {
+	s.calls.Add(1)
+	return stream.SendResponse(ctx, "accepted")
+}
+func (s *service) check(ctx context.Context, token string) (context.Context, error) {
+	s.auth.Add(1)
+	if token != "valid" {
+		return ctx, loom.PermanentError("denied", "denied")
+	}
+	return ctx, nil
+}
+func (s *service) JWTAuth(ctx context.Context, token string, _ *security.JWTScheme) (context.Context, error) {
+	return s.check(ctx, token)
+}
+func (s *service) APIKeyAuth(ctx context.Context, token string, _ *security.APIKeyScheme) (context.Context, error) {
+	return s.check(ctx, token)
+}
+func (s *service) OAuth2Auth(ctx context.Context, token string, _ *security.OAuth2Scheme) (context.Context, error) {
+	return s.check(ctx, token)
+}
+func TestMessageCredentialAuthorization(t *testing.T) {
+	svc := &service{}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(svc.HandleStream, secured.NewEndpoints(svc), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
+	hs := httptest.NewServer(mux)
+	defer hs.Close()
+	conn, resp, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(hs.URL, "http")+"/rpc", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != 101 {
+		t.Fatalf("upgrade status %d", resp.StatusCode)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	for _, tc := range []struct {
+		params  string
+		success bool
+	}{{` + "`" + `{"token":"invalid"}` + "`" + `, false}, {` + "`" + `{}` + "`" + `, false}, {` + "`" + `{"token":"valid"}` + "`" + `, true}} {
+		if err := conn.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
+			t.Fatal(err)
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(` + "`" + `{"jsonrpc":"2.0","id":"1","method":"watch","params":` + "`" + `+tc.params+` + "`" + `}` + "`" + `)); err != nil {
+			t.Fatal(err)
+		}
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
+		success := strings.Contains(string(data), ` + "`" + `"result":"accepted"` + "`" + `)
+		if success != tc.success {
+			t.Errorf("params=%s response=%s", tc.params, data)
+		}
+	}
+	if got := svc.auth.Load(); got != 3 {
+		t.Errorf("auth calls=%d want3", got)
+	}
+	if got := svc.calls.Load(); got != 1 {
+		t.Errorf("service calls=%d want1", got)
+	}
+}
+`

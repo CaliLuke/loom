@@ -1,0 +1,45 @@
+package codegen
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/CaliLuke/loom/expr/testdata"
+	"github.com/stretchr/testify/require"
+)
+
+func TestJSONRPCWebSocketSecurityGenerationProbe(t *testing.T) {
+	if os.Getenv("LOOM_728_OUTPUT") == "" {
+		t.Skip("explicit probe output required")
+	}
+	for _, tc := range []struct{ name, kind, shape, location, scope, transport string }{
+		{"jwt-server", "jwt", "server", "", "service", "ws"},
+		{"jwt-bidi", "jwt", "bidi", "", "service", "ws"},
+		{"basic-server", "basic", "server", "", "service", "ws"},
+		{"body-jwt-server", "jwt", "server", "body", "service", "ws"},
+		{"body-key-server", "key", "server", "body", "service", "ws"},
+		{"body-oauth-server", "oauth", "server", "body", "service", "ws"},
+		{"body-jwt-bidi-same", "jwt", "bidi-same", "body", "service", "ws"},
+		{"body-jwt-bidi", "jwt", "bidi", "body", "service", "ws"},
+		{"unsecured", "", "server", "", "service", "ws"},
+		{"NoSecurity", "session", "server", "", "none", "ws"},
+		{"post", "jwt", "server", "", "service", "post"},
+		{"sse", "jwt", "server", "", "service", "sse"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if p := recover(); p != nil {
+					t.Errorf("generation panic: %v", p)
+				}
+			}()
+			root := RunJSONRPCDSL(t, testdata.JSONRPCWebSocketSecurityDSL(tc.kind, tc.shape, tc.location, tc.scope, tc.transport))
+			dir := filepath.Join(os.Getenv("LOOM_728_OUTPUT"), tc.name)
+			require.NoError(t, os.MkdirAll(dir, 0700))
+			renderJSONRPCModule(t, dir, "example.com/wssecurity", root)
+			runGoJSONRPCTestCommand(t, dir, "mod", "tidy")
+			runGoJSONRPCTestCommand(t, dir, "build", "./...")
+			runGoJSONRPCTestCommand(t, dir, "vet", "./...")
+		})
+	}
+}

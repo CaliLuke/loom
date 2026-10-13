@@ -79,6 +79,14 @@ const (
 // sent from the server to the client without an associated request ID, as they are not
 // responses to client requests but rather server-initiated messages.
 //
+// WebSocket authentication credentials must be explicitly mapped into the JSON-RPC
+// message body with Body. Header, cookie and query credentials, including inferred
+// Authorization and session bindings, are rejected. For a separate StreamingPayload,
+// retain each credential's name, security tag and supported string type there as
+// well as in Payload. Authentication runs for each message; it does not authenticate
+// the shared WebSocket handshake. Basic authentication requires an HTTP header and
+// is not supported by this message transport.
+//
 // Server-Sent Events:
 //
 // For Server-Sent Events (SSE), enable SSE by calling the ServerSentEvents() function

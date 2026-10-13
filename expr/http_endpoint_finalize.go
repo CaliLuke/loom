@@ -78,7 +78,7 @@ func (e *HTTPEndpointExpr) finalizeJSONRPCBodyState() {
 		return
 	}
 	if e.MethodExpr.IsPayloadStreaming() {
-		e.MethodExpr.Payload = e.MethodExpr.StreamingPayload
+		e.MethodExpr.Payload = e.jsonrpcRequestPayload()
 		e.Body = e.StreamingBody
 	}
 	e.PayloadIDAttribute = jsonrpcIDAttributeName(e.MethodExpr.Payload)

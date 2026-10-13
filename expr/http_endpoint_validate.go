@@ -617,6 +617,7 @@ func (e *HTTPEndpointExpr) validateJSONRPCTransport(verr *eval.ValidationErrors)
 	if !e.IsJSONRPC() {
 		return
 	}
+	e.validateJSONRPCWebSocketCredentials(verr)
 	if e.MethodExpr.Stream == ServerStreamKind && e.SSE == nil &&
 		e.MethodExpr.Payload.Type != Empty && e.MethodExpr.StreamingPayload.Type != Empty {
 		verr.Add(e, "JSON-RPC WebSocket server streaming method %q cannot define both Payload and StreamingPayload. Use Payload for the request data", e.MethodExpr.Name)
@@ -624,12 +625,7 @@ func (e *HTTPEndpointExpr) validateJSONRPCTransport(verr *eval.ValidationErrors)
 	if e.MethodExpr.Result == nil || e.MethodExpr.Result.Type == Empty || !hasJSONRPCIDField(e.MethodExpr.Result) {
 		return
 	}
-	requestHasID := false
-	if e.MethodExpr.IsPayloadStreaming() {
-		requestHasID = hasJSONRPCIDField(e.MethodExpr.StreamingPayload)
-	} else {
-		requestHasID = hasJSONRPCIDField(e.MethodExpr.Payload)
-	}
+	requestHasID := hasJSONRPCIDField(e.jsonrpcRequestPayload())
 	if !requestHasID {
 		verr.Add(e, "JSON-RPC method %q result defines an ID field but the request (payload) does not. Result may only have ID field if request does", e.MethodExpr.Name)
 	}

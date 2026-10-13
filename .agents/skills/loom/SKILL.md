@@ -816,6 +816,14 @@ Authorization with optional payload credentials; their framing distinguishes the
 The same source and encoding may be reused. Correct collisions and regenerate.
 Only selected security credentials are implicitly excluded from the request body.
 
+For JSON-RPC WebSockets, explicitly select message credentials in `Body`.
+Header/query/cookie credentials, Basic and implicit session bindings are rejected.
+A separate `StreamingPayload` must retain each selected credential's name,
+security tag and supported string type. An untagged field with the same name
+cannot replace a `Token`, `APIKey` or `AccessToken`. Authentication runs per
+message, including each authenticated alternative, rather than on the shared
+handshake. Correct rejected designs before regeneration.
+
 Basic-auth header presence is independent of its two components. The client
 sends the header if either component is required or present; an absent optional
 counterpart becomes an empty component. When both are optional, a missing or

@@ -27,6 +27,14 @@ type (
 		schemes      []string
 		requirements []int
 		ordinary     bool
+		roles        []httpCredentialRole
+	}
+
+	// httpCredentialRole preserves the authored security role independently of
+	// physical bindings, which may be shared by several schemes.
+	httpCredentialRole struct {
+		tag    string
+		source string
 	}
 )
 
@@ -107,23 +115,21 @@ func (e *HTTPEndpointExpr) resolveCredentialWireBinding(scheme *SchemeExpr) *htt
 	}
 	if scheme.Kind == BasicAuthKind {
 		scheme.In, scheme.Name = "header", "Authorization"
-		return &httpWireBinding{
-			location: "header", name: "Authorization", codec: "basic", sourceKind: "payload",
-			sources: []string{TaggedAttribute(payload, "security:username"), TaggedAttribute(payload, "security:password")},
-		}
+		return basicCredentialWireBinding(payload)
 	}
-	var field string
+	var tag string
 	sourceKind := "payload"
 	switch scheme.Kind {
 	case APIKeyKind:
-		field = TaggedAttribute(payload, "security:apikey:"+scheme.SchemeName)
+		tag = "security:apikey:" + scheme.SchemeName
 	case JWTKind:
-		field = TaggedAttribute(payload, "security:token")
+		tag = "security:token"
 	case OAuth2Kind:
-		field = TaggedAttribute(payload, "security:accesstoken")
+		tag = "security:accesstoken"
 	default:
 		return nil
 	}
+	field := TaggedAttribute(payload, tag)
 	if field == "" {
 		if scheme.Kind == APIKeyKind {
 			for _, session := range e.MethodExpr.EffectiveSessionAuths() {
@@ -154,7 +160,20 @@ func (e *HTTPEndpointExpr) resolveCredentialWireBinding(scheme *SchemeExpr) *htt
 	if (scheme.Kind == JWTKind || scheme.Kind == OAuth2Kind) && scheme.In == "header" && strings.EqualFold(scheme.Name, "Authorization") {
 		codec = "bearer"
 	}
-	return &httpWireBinding{location: scheme.In, name: scheme.Name, sourceKind: sourceKind, sources: []string{field}, codec: codec}
+	return &httpWireBinding{
+		location: scheme.In, name: scheme.Name, sourceKind: sourceKind, sources: []string{field}, codec: codec,
+		roles: []httpCredentialRole{{tag: tag, source: field}},
+	}
+}
+
+func basicCredentialWireBinding(payload *AttributeExpr) *httpWireBinding {
+	username := TaggedAttribute(payload, "security:username")
+	password := TaggedAttribute(payload, "security:password")
+	return &httpWireBinding{
+		location: "header", name: "Authorization", codec: "basic", sourceKind: "payload",
+		sources: []string{username, password},
+		roles:   []httpCredentialRole{{tag: "security:username", source: username}, {tag: "security:password", source: password}},
+	}
 }
 
 func addHTTPWireMapping(mapping *MappedAttributeExpr, field, name string, attribute *AttributeExpr, required bool) {
@@ -198,6 +217,11 @@ func (p *httpWireBindingPlan) add(binding *httpWireBinding) {
 	for _, existing := range p.bindings {
 		if existing.sameSlot(binding) && existing.codec == binding.codec && existing.sourceKind == binding.sourceKind && slices.Equal(existing.sources, binding.sources) {
 			existing.ordinary = existing.ordinary || binding.ordinary
+			for _, role := range binding.roles {
+				if !slices.Contains(existing.roles, role) {
+					existing.roles = append(existing.roles, role)
+				}
+			}
 			for _, index := range binding.requirements {
 				if !slices.Contains(existing.requirements, index) {
 					existing.requirements = append(existing.requirements, index)
