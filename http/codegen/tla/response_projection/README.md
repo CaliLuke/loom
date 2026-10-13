@@ -88,3 +88,32 @@ The final bounded generation comparison covers 11 modules (182 files each):
 repeat. Every candidate module builds and vets; the scoped mounted suites run
 under the race detector. Model states/checker outcomes above were reproduced
 before implementation; these tests establish the implementation correspondence.
+
+
+## Endpoint source binding (#868)
+
+`ResponseSourceBinding.tla` complements the framing model with the local result
+binding that precedes it. A named empty result has a Go reference but no response
+body. The old `Result.Ref` rule binds an unused local; framing correctly emits a
+null result without consuming that value. `binding-current.cfg` reproduces this
+with `NoUnusedResult` failing (11 states); `binding-owned.cfg` passes both
+invariants (17 states). Run with the pinned toolchain above, replacing the module
+and configuration names and choosing a separate temporary metadir.
+
+`hasJSONRPCResponseBody` consumes the existing effective `EncodePlan.HasBody`.
+`writeJSONRPCEndpointInvoke` binds a result only when that body, metadata capture,
+or WebSocket endpoint forwarding consumes it. Existing success renderers keep
+their notification, framing and error-observation paths. Named types are not a
+separate body-presence policy. Do not silence unused bindings or send an
+unprojected service result merely to make it appear used.
+
+The model's four shapes are no-result, named-empty, body and metadata-only, with
+and without forwarding. It checks source availability and absence of unused
+bindings; it abstracts payload/error variable declarations, type relocation,
+wire bytes and actual Go compilation. `TestJSONRPCBodylessResultBinding` and
+`TestJSONRPCBodylessResultGenerated` establish those seams for local/relocated
+empty types, payload/no payload, metadata-only and ordinary controls. Mounted
+success, error and notification cases check null/value results, status, service
+invocation, headers/cookies and codec counts. Existing selected-body and
+WebSocket-no-result module tests preserve the affected consumers. An empty view
+is rejected by the DSL; this does not create a new empty-view contract.

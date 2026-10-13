@@ -185,7 +185,10 @@ consumer validation.
 - `http/codegen.ResponseEncodePlan.BodyValues` owns complete response values by
   body/view variant, including selected fields that need no constructor. HTTP
   encoders, HTTP WebSocket final results and JSON-RPC framing consume these same
-  expressions. JSON-RPC binds the canonical source in a private rendering scope;
+  expressions. JSON-RPC endpoint result binding also derives from the effective
+  body's presence, while metadata capture and WebSocket forwarding retain their
+  sources. A named empty result is not evidence of a body. JSON-RPC binds the
+  canonical projection source in a private rendering scope;
   do not restore constructor-only/raw-result fallbacks. Preserve metadata capture
   and configured encoder invocation counts. Mixed SSE events retain their
   distinct StreamingResult source. Keep the

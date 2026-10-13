@@ -293,7 +293,7 @@ func writeJSONRPCEndpointInvoke(g *jen.Group, e *httpcodegen.EndpointData) {
 	switch {
 	case httpcodegen.IsWebSocketEndpoint(e):
 		g.List(jen.Id("res"), jen.Id("err")).Op(":=").Id("endpoint").Call(callArgs...)
-	case e.Result == nil || e.Result.Ref == "":
+	case !hasJSONRPCResponseBody(e):
 		if needsJSONRPCResponseCapture(e) {
 			g.List(jen.Id("res"), jen.Id("err")).Op(":=").Id("endpoint").Call(callArgs...)
 			return
@@ -552,6 +552,16 @@ func writeJSONRPCResultSuccess(g *jen.Group, e *httpcodegen.EndpointData) {
 		),
 	)
 	g.Return(jen.Nil())
+}
+
+// hasJSONRPCResponseBody derives source consumption from the same effective
+// response plan used by framing. A named service result may have no wire body.
+func hasJSONRPCResponseBody(e *httpcodegen.EndpointData) bool {
+	if e == nil || e.Result == nil || len(e.Result.Responses) == 0 {
+		return false
+	}
+	response := e.Result.Responses[0]
+	return response != nil && response.EncodePlan != nil && response.EncodePlan.HasBody
 }
 
 func needsJSONRPCResponseCapture(e *httpcodegen.EndpointData) bool {
