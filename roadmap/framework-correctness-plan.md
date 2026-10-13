@@ -4,29 +4,37 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **129 of 190 tracked reports are delivered, pushed and confirmed closed.**
+- **130 of 191 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report.
-  GitHub snapshot `/tmp/loom-checkpoint-129-all-issues.json` verifies this count.
+  GitHub snapshot `/tmp/loom-checkpoint-130-all-issues.json` verifies this count.
 - Latest deliveries: #735 constructor ownership (`56a78637a`), #859 streaming
   interceptor result identity (`c8515931c`), and #869 streaming snapshots
   (`641c103c2`). Every final diff passed independent review; #735/#859
   also passed separate integration review before push and issue closure.
 - #868 is now delivered as `ab9da36ea`, independently reviewed, pushed and
   closed. Both original compiler regressions and 21 mounted response cases pass.
-- Required CI remains red on older runs: the #868 compilation and #869 snapshot
-  failures are repaired. The race job independently reproduces the known #820
-  libopenapi YAML merge race; its upstream fix remains open. Completed generated-quality, Redis, OpenAPI and most compile gates passed
-  on the previous checkpoint; newer runs remain active. No aggregate green claim.
+- #870 is delivered as `2e5fb203b`, independently reviewed, pushed and closed.
+  The constructor specimen now passes required lint; all 218 generated artifacts
+  remain byte-identical and all 16 generated modules compile.
+- Required CI remains unresolved: run `38395773936` found #870 after the #868
+  compilation and #869 snapshot failures were repaired. That run's generated
+  quality, Redis, OpenAPI and all five compile gates passed; race/value gates
+  remain active at this checkpoint. Earlier race output independently reproduced
+  #820's libopenapi YAML merge race; its upstream fix remains open. No aggregate
+  green claim.
 - Continue the whole backlog. No public-contract question is pending; upstream
   prerequisites do not block independent repairs.
 
 ## Current execution queue
 
 1. **#790 JSON-RPC envelope ID ownership:** `/root/omission_readiness_finish`
-   reuses `numeric-comparison/loom` after #868 delivery and cleanup. Establish one
-   request-ID source before validation and body generation across unary/SSE/WS.
-   Reproduce invalid envelope values and required-ID requests; reconcile numeric,
-   null and notification behavior with the documented contract before implementation.
+   reuses `numeric-comparison/loom` after #868 delivery and cleanup. Readiness and
+   focused re-review are approved; implementation is authorized. One envelope
+   binding owns decoder admission, params exclusion and client/CLI projection.
+   Existing presence contracts settle nullable/default handling; original
+   `HasID` and echo remain independent. Corrected WebSocket GET specimens now
+   reach the intended ownership failures. Verdict:
+   `/tmp/loom-790-independent-readiness-rereview-verdict.json`.
 2. **#726 gRPC operation contexts:** `/root/diagnostic_redaction_finish` owns
    `grpc-message-context/loom`. Independent readiness is approved; implementation is authorized.
    Prefer synchronous service execution with bounded native I/O ownership; an
@@ -35,15 +43,20 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
    observation and active/late native panic limits under the approved model.
    Manifest `/tmp/loom-726-readiness-manifest.json`, SHA
    `0e66b6bbfdf07e87db2ab683798586d5383b7a45b9ee30c6d2085da413b47608`.
+   Bounded generated/runtime gates passed; root review then identified receive
+   pre-admission cancellation and terminal callback-retention edges. Both are
+   reproduced and repaired; the final packet awaits independent review. No
+   delivery is claimed.
    This usable checkout could not register because of the 100-identity cap.
 3. **#867 mixed unary client dispatch:** `/root/access_log_implementation` owns
-   readiness in `correctness-baseline/loom`, advanced to delivered #859. Retain
-   unary and streaming invocation identity when selecting interceptor wrappers;
-   preserve payload interception, stream accessors and canonical naming. Both
-   HTTP and JSON-RPC unary panic witnesses are preserved. #785 stays separate.
+   implementation in `correctness-baseline/loom`. Independent readiness approved
+   the shared endpoint role/binding plan. Service and CLI consumers now derive
+   their wrapper from that plan; bounded generated and mounted checks continue.
+   Preserve payload interception, stream accessors and canonical naming.
+   #785 stays separate.
 4. **CI triage:** examine completed required jobs, reuse focused evidence, and
-   repair demonstrated failures. #869 aligns 21 snapshot expectations without
-   changing generators, runtime, test inputs or exact-comparison assertions.
+   repair demonstrated failures. #869 aligns 21 snapshots and #870 fixes specimen
+   lint, preserving generators, runtime and exact-comparison assertions.
 5. **#820 dependency race:** authorized libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) remains open at last
    check, without new human review. Keep pins unchanged until an eligible
@@ -52,7 +65,18 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
    `bounded-streaming-shutdown`. [go-redis PR #4095](https://github.com/redis/go-redis/pull/4095)
    remains open at last check; original-module fetchability gates delivery.
    Then resume #687 constructor rollback; #704 worker publication remains separate.
-7. Continue remaining milestone reports by shared ownership and correctness risk.
+7. **#734 error constructor identity:** root readiness independently approved.
+   Shared cached factory identity and early package reservation address six
+   spelling collisions plus nominal type collisions. Readiness plan and tests
+   are local pending implementation; source packet is
+   `/tmp/loom-734-readiness-manifest.json`, verdict
+   `/tmp/loom-734-independent-readiness-verdict.json`. Compose with #867 before
+   final integration evidence. Continue remaining reports by correctness risk.
+
+#870 temporary generated trees and raw command logs were removed after independent
+review and inactivity checks. Exact fixture inputs, artifact hashes and compact
+results remain: `/tmp/loom-870-cleanup-receipt.json`, SHA
+`e603d82602ff90d4762629d331a98c5b0288a12ca41be652f53fab51e7038187`.
 
 #735 and #859 temporary outputs were cleaned after review and activity checks;
 compact evidence and exact reproduction inputs remain. Receipts:
@@ -1301,3 +1325,13 @@ no overall green result is claimed.
   endpoint bindings change in the bounded comparison. 129 of 190 tracked
   reports are confirmed closed. Continue #790 ID ownership readiness, #867 mixed
   dispatch and #726 gRPC cancellation; upstream #820 remains a race-job blocker.
+
+- 2026-10-13 — **Checkpoint130:** #870 delivered `2e5fb203b` after exact
+  independent review, pushed and confirmed closed. Its required-lint correction
+  preserves 218 generated artifacts across parent/candidate/repeat; all 16
+  modules compile and mounted source-selection controls pass. Inventory has
+  191 reports, 130 closed and 61 open. #790 readiness re-review approved after
+  correcting WS route witnesses; implementation authorized. #867 implementation
+  includes shared CLI consumers. #734 readiness independently approved. Root
+  review exposed two #726 lifetime edges, both reproduced and repaired before
+  final acceptance. Latest aggregate CI remains unresolved.
