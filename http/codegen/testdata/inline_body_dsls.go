@@ -9,7 +9,50 @@ var InlineBodySelectionDSL = func() {
 	item := Type("Item", func() {
 		Attribute("x", String)
 	})
+	empty := Type("EmptyRecord", func() {
+		Meta("openapi:additionalProperties", "false")
+	})
+	failure := Type("EmptyFailure", func() {
+		ErrorName("name", String)
+		Attribute("body", empty)
+		Required("name", "body")
+	})
 	Service("InlineBody", func() {
+		Method("empty_selected", func() {
+			Result(func() {
+				Attribute("body", empty)
+				Attribute("h", String)
+				Required("body", "h")
+			})
+			HTTP(func() {
+				GET("/empty_selected")
+				Response(StatusOK, func() {
+					Header("h:X-Label")
+					Body("body")
+					OpenAPIBody(empty)
+				})
+			})
+		})
+		Method("empty_type", func() {
+			Result(empty)
+			HTTP(func() {
+				GET("/empty_type")
+				Response(StatusOK, func() {
+					Body(empty)
+				})
+			})
+		})
+		Method("empty_error", func() {
+			Error("empty", failure)
+			HTTP(func() {
+				GET("/empty_error")
+				Response("empty", StatusBadRequest, func() {
+					Header("name:X-Error")
+					Body("body")
+					OpenAPIBody(empty)
+				})
+			})
+		})
 		Method("primitive", func() {
 			Payload(func() {
 				Attribute("name", String)

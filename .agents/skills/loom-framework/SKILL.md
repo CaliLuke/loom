@@ -1754,6 +1754,12 @@ filter, and serialization rules belong here.
   while their outer form keeps native fields. Apply registered physical layouts
   at named collection conversion boundaries as well as object helpers. Keep the
   serialization model and mounted nested-null/import round-trip tests aligned.
+- `expr.explicitHTTPResponseBody` prepares both runtime and documentation-only
+  response shapes. Preserve authored zero-field objects; only the `Empty` sentinel
+  means no explicit body. Field-count inference belongs to the separate inferred
+  body projection. Response plans, codecs and OpenAPI consume the prepared shape;
+  never compensate for discarded presence in individual generators. Keep the
+  response source-binding model and HTTP/JSON-RPC wire controls aligned.
 - The HTTP code generator declares the request and response body types, and
   the user types nested in them, from the normalized bodies of its transport
   IR (`transportir.Request.Body`, `Request.StreamingBody`,

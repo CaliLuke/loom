@@ -250,14 +250,7 @@ func httpOpenAPIResponseBody(a *HTTPEndpointExpr, resp *HTTPResponseExpr) *Attri
 	if len(a.Responses) > 1 {
 		name = concat(a.Name(), http.StatusText(resp.StatusCode), "OpenAPI", "Response", "Body")
 	}
-	if !IsObject(resp.OpenAPIBody.Type) {
-		preserveCanonicalOpenAPITypeName(resp.OpenAPIBody)
-		return resp.OpenAPIBody
-	}
-	if len(*AsObject(resp.OpenAPIBody.Type)) == 0 {
-		return &AttributeExpr{Type: Empty}
-	}
-	return cloneExplicitHTTPBody(resp.OpenAPIBody, name, "ResponseBody", a.Service.Name()+"#"+name)
+	return explicitHTTPResponseBody(resp.OpenAPIBody, name, "ResponseBody", a.Service)
 }
 
 // httpErrorResponseBody returns an attribute describing the response body of a
@@ -341,13 +334,15 @@ func responseBodyObject(attr *AttributeExpr, resp *HTTPResponseExpr) *MappedAttr
 	return body
 }
 
+// explicitHTTPResponseBody preserves authored presence for runtime and documented
+// responses. An object with no fields still has a body; only Empty denotes none.
 func explicitHTTPResponseBody(body *AttributeExpr, name, suffix string, svc *HTTPServiceExpr) *AttributeExpr {
+	if body.Type == Empty {
+		return body
+	}
 	if !IsObject(body.Type) {
 		preserveCanonicalOpenAPITypeName(body)
 		return body
-	}
-	if len(*AsObject(body.Type)) == 0 {
-		return &AttributeExpr{Type: Empty}
 	}
 	return cloneExplicitHTTPBody(body, name, suffix, svc.Name()+"#"+name)
 }

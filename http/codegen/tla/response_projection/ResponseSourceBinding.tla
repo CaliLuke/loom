@@ -3,9 +3,10 @@ EXTENDS Naturals
 CONSTANT Repair
 VARIABLES phase, shape, forwarding, bound, consumed
 vars == <<phase, shape, forwarding, bound, consumed>>
-Shapes == {"no-result", "named-empty", "body", "metadata-only"}
+Shapes == {"no-result", "named-empty", "explicit-empty", "body", "metadata-only"}
 HasReference == shape # "no-result"
-HasBody == shape = "body"
+IntendedBody == shape \in {"body", "explicit-empty"}
+HasBody == IF Repair = "cardinality" THEN shape = "body" ELSE IntendedBody
 Capture == shape = "metadata-only"
 NeedsResult == HasBody \/ Capture \/ forwarding
 Init == /\ phase = "choose" /\ shape = "unset" /\ forwarding = FALSE
@@ -24,4 +25,5 @@ Bind == /\ phase = "bind"
 Next == Choose \/ Bind
 NoUnusedResult == phase # "done" \/ (bound => consumed)
 SourceAvailable == phase # "done" \/ (consumed => bound)
+PreservesAuthoredBody == phase # "done" \/ (HasBody = IntendedBody)
 =============================================================================

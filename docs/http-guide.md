@@ -339,6 +339,13 @@ HTTP(func() {
 })
 ```
 
+An explicitly selected empty object response is a JSON object (`{}`). For
+example, `Body("record")` preserves a named record with no fields, and
+`OpenAPIBody` retains its object schema. Use `Body(Empty)` for no response body.
+Without an explicit body, a result with all fields mapped to headers or cookies
+continues to have no body. Regenerate clients and servers to adopt this
+correction if they previously omitted an explicitly selected empty object.
+
 ### Multipart Requests
 
 Use `MultipartRequest` for `multipart/form-data` uploads:

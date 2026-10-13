@@ -14,6 +14,10 @@ import (
 // absent then the body is built using the HTTP endpoint request or response
 // type attributes not used to describe parameters (request only) or headers.
 //
+// An explicitly selected empty object response still has an object body (`{}`
+// in JSON). Use Body(Empty) to declare no response body. OpenAPIBody preserves
+// this same shape distinction without changing runtime encoding.
+//
 // Body accepts one argument which describes the shape of the body, it can be:
 //
 //   - The name of an attribute of the request or response type. In this case the

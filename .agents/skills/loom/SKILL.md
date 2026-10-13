@@ -830,6 +830,9 @@ servers to adopt this ordering correction.
   Loom allocates distinct transport type names, including WebSocket bodies;
   a numeric suffix on a generated body type does not change schema names or
   the wire format.
+- An explicitly selected zero-field object response remains `{}` in JSON.
+  `Body(Empty)` declares no body; `OpenAPIBody` preserves the same schema
+  distinction without changing encoding. Regenerate affected clients and servers.
 - An explicit `Body(func() { ... })` inherits requiredness from both inline
   and named payloads for the fields it lists. A body `Required(...)` must agree
   with payload requiredness; parameter-only fields stay outside the body.

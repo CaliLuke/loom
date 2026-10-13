@@ -96,8 +96,8 @@ before implementation; these tests establish the implementation correspondence.
 binding that precedes it. A named empty result has a Go reference but no response
 body. The old `Result.Ref` rule binds an unused local; framing correctly emits a
 null result without consuming that value. `binding-current.cfg` reproduces this
-with `NoUnusedResult` failing (11 states); `binding-owned.cfg` passes both
-invariants (17 states). Run with the pinned toolchain above, replacing the module
+with `NoUnusedResult` failing (13 states after the explicit-empty extension);
+`binding-owned.cfg` passes all three invariants (21 states). Run with the pinned toolchain above, replacing the module
 and configuration names and choosing a separate temporary metadir.
 
 `hasJSONRPCResponseBody` consumes the existing effective `EncodePlan.HasBody`.
@@ -107,7 +107,8 @@ their notification, framing and error-observation paths. Named types are not a
 separate body-presence policy. Do not silence unused bindings or send an
 unprojected service result merely to make it appear used.
 
-The model's four shapes are no-result, named-empty, body and metadata-only, with
+The model's five shapes are no-result, implicit named-empty, explicit-empty,
+body and metadata-only, with
 and without forwarding. It checks source availability and absence of unused
 bindings; it abstracts payload/error variable declarations, type relocation,
 wire bytes and actual Go compilation. `TestJSONRPCBodylessResultBinding` and
@@ -117,3 +118,15 @@ success, error and notification cases check null/value results, status, service
 invocation, headers/cookies and codec counts. Existing selected-body and
 WebSocket-no-result module tests preserve the affected consumers. An empty view
 is rejected by the DSL; this does not create a new empty-view contract.
+
+### Explicit empty response presence (#886)
+
+`IntendedBody` distinguishes an authored zero-field object from the no-body
+sentinel and an inferred empty projection. `binding-cardinality.cfg` reproduces
+collapsing the explicit object by field count: `PreservesAuthoredBody` fails in
+14 states. The shared explicit preparation owner preserves it; owned passes
+21 states, including source availability for consumers of that body. This is a
+finite representation model, not a proof of JSON encoding or object validation.
+`TestExplicitEmptyResponseBody` checks actual DSL preparation, and the extended
+InlineBodySelection and JSON-RPC bodyless fixtures check rendered compilation,
+wire objects, client reconstruction, metadata, and retained implicit null results.

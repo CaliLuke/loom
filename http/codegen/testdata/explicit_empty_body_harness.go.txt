@@ -1,0 +1,74 @@
+package emptybody_test
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	client "example.com/emptybody/gen/http/inline_body/client"
+	server "example.com/emptybody/gen/http/inline_body/server"
+	service "example.com/emptybody/gen/inline_body"
+	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/stretchr/testify/require"
+)
+
+func TestExplicitEmptyBodies(t *testing.T) {
+	endpoints := &service.Endpoints{
+		EmptySelected: func(context.Context, any) (any, error) {
+			return &service.EmptySelectedResult{Body: &service.EmptyRecord{}, H: "kept"}, nil
+		},
+		EmptyType: func(context.Context, any) (any, error) {
+			return &service.EmptyRecord{}, nil
+		},
+		EmptyError: func(context.Context, any) (any, error) {
+			return nil, &service.EmptyFailure{Name: "empty", Body: &service.EmptyRecord{}}
+		},
+	}
+	mux := loomhttp.NewMuxer()
+	server.Mount(mux, server.New(endpoints, mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, nil))
+	host := httptest.NewServer(mux)
+	defer host.Close()
+	for _, tc := range []struct {
+		path   string
+		status int
+		header string
+		value  string
+	}{
+		{"empty_selected", http.StatusOK, "X-Label", "kept"},
+		{"empty_type", http.StatusOK, "", ""},
+		{"empty_error", http.StatusBadRequest, "X-Error", "empty"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			response, err := host.Client().Get(host.URL + "/" + tc.path)
+			require.NoError(t, err)
+			body, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			require.NoError(t, response.Body.Close())
+			require.Equal(t, tc.status, response.StatusCode)
+			require.Equal(t, "{}", strings.TrimSpace(string(body)))
+			if tc.header != "" {
+				require.Equal(t, tc.value, response.Header.Get(tc.header))
+			}
+		})
+	}
+	address, err := url.Parse(host.URL)
+	require.NoError(t, err)
+	c := client.NewClient(address.Scheme, address.Host, host.Client(), loomhttp.RequestEncoder, loomhttp.ResponseDecoder, false)
+	value, err := c.EmptySelected()(t.Context(), nil)
+	require.NoError(t, err)
+	result := value.(*service.EmptySelectedResult)
+	require.NotNil(t, result.Body)
+	require.Equal(t, "kept", result.H)
+	value, err = c.EmptyType()(t.Context(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, value.(*service.EmptyRecord))
+	_, err = c.EmptyError()(t.Context(), nil)
+	var failure *service.EmptyFailure
+	require.ErrorAs(t, err, &failure)
+	require.NotNil(t, failure.Body)
+	require.Equal(t, "empty", failure.Name)
+}
