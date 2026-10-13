@@ -288,6 +288,14 @@ consumer validation.
   same owner; never render a collection from the authored Go container type or
   maintain a separate alias formatter. Preserve typed nil versus empty literals,
   raw-JSON key/value representation and the existing default-application gates.
+- gRPC metadata decoding owns one presence decision in
+  `renderGRPCMetadataDecode`, shared by requests, response headers/trailers and
+  early stream admission. `extractMetadata` resolves effective defaults into
+  typed physical literals through `AttributeContext.DefaultValue`; constructors
+  retain named service conversions. Default only absent optional entries, never
+  supplied zero/empty or malformed text; required omission remains invalid.
+  Keep `grpc/codegen/tla/metadata_defaults` and generated wire controls aligned.
+  Repeated text entries retain their codec; do not claim empty-list presence.
 - Let Loom determine pointer/value semantics except at explicit transport
   validation boundaries.
 - Collapse pass-through wrappers that add no behavior.

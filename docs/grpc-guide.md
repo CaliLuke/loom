@@ -414,6 +414,18 @@ Method("create", func() {
 })
 ```
 
+An optional metadata field with `Default` receives that value only when its
+metadata key has no values. A supplied `"0"`, `"false"` or empty string is decoded
+as supplied; malformed text remains an error. Required metadata must be present
+even if the field has a default. These rules apply to incoming request metadata
+and to response headers and trailers decoded by generated clients. Regenerate
+both client and server packages to adopt absence-based defaults.
+
+Arrays retain their repeated-value metadata encoding: each supplied entry is an
+element. An empty array emits no entries and cannot be distinguished from an
+absent key in this format. An entry containing `""` represents one empty string,
+not an empty array.
+
 #### Response Headers and Trailers
 
 ```go

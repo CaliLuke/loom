@@ -228,6 +228,8 @@ type (
 		Validate string
 		// DefaultValue contains the default value if any.
 		DefaultValue any
+		// DefaultLiteral represents the optional absence default in the metadata variable type.
+		DefaultLiteral string
 		// Example is an example value.
 		Example any
 	}

@@ -39,104 +39,67 @@ func renderGRPCMetadataAppend(md *MetadataData, root string) string {
 	return b.String()
 }
 
+// renderGRPCMetadataDecode owns presence before any type-specific parsing.
+// A present textual zero or empty string never takes the absence branch, and
+// malformed supplied values retain their parser error instead of defaulting.
 func renderGRPCMetadataDecode(md *MetadataData, mdVar string, namedResults bool) string {
-	if md.Bearer.Framed {
-		return renderGRPCBearerMetadataDecode(md, mdVar, namedResults)
-	}
 	var b strings.Builder
 	name := renderJen(jen.Lit(md.Name))
+	fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
+	b.WriteString(indent(renderGRPCMetadataValue(md, namedResults), 3))
 	switch {
-	case md.TypeName == "string" || md.Type.Name() == "any":
-		if md.Required {
-			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
-			fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
-			b.WriteString("\t\t}\n")
+	case md.Required:
+		b.WriteString("\t\t} else {\n")
+		fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
+	case md.DefaultLiteral != "":
+		b.WriteString("\t\t} else {\n")
+		if md.Pointer {
+			fmt.Fprintf(&b, "\t\t\t%s = new(%s)\n", md.VarName, md.TypeName)
+			fmt.Fprintf(&b, "\t\t\t*%s = %s\n", md.VarName, md.DefaultLiteral)
 		} else {
-			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
-			if md.Pointer {
-				fmt.Fprintf(&b, "\t\t\t%s = &vals[0]\n", md.VarName)
-			} else {
-				fmt.Fprintf(&b, "\t\t\t%s = vals[0]\n", md.VarName)
-			}
-			b.WriteString("\t\t}\n")
-		}
-	case md.StringSlice:
-		if md.Required {
-			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
-			fmt.Fprintf(&b, "\t\t\t%s = vals\n", md.VarName)
-			b.WriteString("\t\t}\n")
-		} else {
-			fmt.Fprintf(&b, "\t\t%s = %s.Get(%s)\n", md.VarName, mdVar, name)
-		}
-	case md.Slice:
-		rawVar := md.VarName + "Raw"
-		if md.Required {
-			fmt.Fprintf(&b, "\t\tif %s := %s.Get(%s); len(%s) == 0 {\n", rawVar, mdVar, name, rawVar)
-			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
-			b.WriteString(indent(renderGRPCSliceConversion(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
-		} else {
-			fmt.Fprintf(&b, "\t\tif %s := %s.Get(%s); len(%s) > 0 {\n", rawVar, mdVar, name, rawVar)
-			b.WriteString(indent(renderGRPCSliceConversion(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
-		}
-	default:
-		rawVar := md.VarName + "Raw"
-		if md.Required {
-			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-			b.WriteString("\t\t} else {\n")
-			fmt.Fprintf(&b, "\t\t\t%s := vals[0]\n", rawVar)
-			b.WriteString("\n")
-			b.WriteString(indent(renderGRPCStringParse(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
-		} else {
-			fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
-			fmt.Fprintf(&b, "\t\t\t%s := vals[0]\n", rawVar)
-			b.WriteString("\n")
-			b.WriteString(indent(renderGRPCStringParse(md, rawVar), 3))
-			b.WriteString("\t\t}\n")
+			fmt.Fprintf(&b, "\t\t\t%s = %s\n", md.VarName, md.DefaultLiteral)
 		}
 	}
+	b.WriteString("\t\t}\n")
 	return b.String()
 }
 
-func renderGRPCBearerMetadataDecode(md *MetadataData, mdVar string, namedResults bool) string {
-	var b strings.Builder
-	name := renderJen(jen.Lit(md.Name))
-
-	if md.Required {
-		fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) == 0 {\n", mdVar, name)
-		fmt.Fprintf(&b, "\t\t\terr = loom.MergeErrors(err, loom.MissingFieldError(%s, \"metadata\"))\n", name)
-		b.WriteString("\t\t} else {\n")
-	} else {
-		fmt.Fprintf(&b, "\t\tif vals := %s.Get(%s); len(vals) > 0 {\n", mdVar, name)
+func renderGRPCMetadataValue(md *MetadataData, namedResults bool) string {
+	switch {
+	case md.Bearer.Framed:
+		return renderGRPCBearerMetadataValue(md, namedResults)
+	case md.TypeName == "string" || md.Type.Name() == "any":
+		return fmt.Sprintf("%s = %svals[0]\n", md.VarName, addrPrefix(md.Pointer))
+	case md.StringSlice:
+		return fmt.Sprintf("%s = vals\n", md.VarName)
+	case md.Slice:
+		return renderGRPCSliceConversion(md, "vals")
+	default:
+		rawVar := md.VarName + "Raw"
+		return fmt.Sprintf("%s := vals[0]\n\n", rawVar) + renderGRPCStringParse(md, rawVar)
 	}
-	b.WriteString("\t\t\tvalue, ok := security.DecodeBearer(vals[0])\n\t\t\tif !ok")
+}
+
+func renderGRPCBearerMetadataValue(md *MetadataData, namedResults bool) string {
+	var b strings.Builder
+	b.WriteString("value, ok := security.DecodeBearer(vals[0])\nif !ok")
 	if md.Bearer.AllowOtherScheme {
 		b.WriteString(" && !security.IsOtherAuthorizationScheme(vals[0], \"Bearer\")")
 	}
 	b.WriteString(" {\n")
 	if namedResults {
-		b.WriteString("\t\t\t\terr = loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n\t\t\t\treturn\n")
+		b.WriteString("\terr = loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n\treturn\n")
 	} else {
-		b.WriteString("\t\t\t\treturn nil, loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n")
+		b.WriteString("\treturn nil, loom.DecodePayloadError(\"invalid Authorization bearer credential\")\n")
 	}
-	b.WriteString("\t\t\t}\n")
+	b.WriteString("}\n")
 	if md.Bearer.AllowOtherScheme {
-		b.WriteString("\t\t\tif ok {\n")
+		b.WriteString("if ok {\n")
 	}
-	fmt.Fprintf(&b, "\t\t\t%s = %svalue\n", md.VarName, addrPrefix(md.Pointer))
+	fmt.Fprintf(&b, "%s = %svalue\n", md.VarName, addrPrefix(md.Pointer))
 	if md.Bearer.AllowOtherScheme {
-		b.WriteString("\t\t\t}\n")
+		b.WriteString("}\n")
 	}
-	b.WriteString("\t\t}\n")
-
 	return b.String()
 }
 

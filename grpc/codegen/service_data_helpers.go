@@ -19,7 +19,16 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 		if err != nil {
 			return err
 		}
-		defaultValue, _ := constraints.Default()
+		defaultValue, hasDefault := constraints.Default()
+		var defaultLiteral string
+		if hasDefault && !required {
+			// Metadata decoders use the unaliased transport variable, then the
+			// existing constructor converts it to the service field type.
+			defaultLiteral, err = ctx.DefaultValue(unalias(c), defaultValue)
+			if err != nil {
+				return err
+			}
+		}
 		arr := expr.AsArray(c.Type)
 		mp := expr.AsMap(c.Type)
 		typeRef := scope.GoTypeRef(unalias(c))
@@ -57,9 +66,10 @@ func extractMetadata(a *expr.MappedAttributeExpr, service *expr.AttributeExpr, s
 				mp.KeyType.Type.Kind() == expr.StringKind &&
 				mp.ElemType.Type.Kind() == expr.ArrayKind &&
 				expr.AsArray(mp.ElemType.Type).ElemType.Type.Kind() == expr.StringKind,
-			Validate:     codegen.AttributeValidationCode(c, nil, ctx, required, expr.IsAlias(c.Type), varn, name),
-			DefaultValue: defaultValue,
-			Example:      c.Example(services.Root.API.ExampleGenerator),
+			Validate:       codegen.AttributeValidationCode(c, nil, ctx, required, expr.IsAlias(c.Type), varn, name),
+			DefaultValue:   defaultValue,
+			DefaultLiteral: defaultLiteral,
+			Example:        c.Example(services.Root.API.ExampleGenerator),
 		})
 		return nil
 	})
