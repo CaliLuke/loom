@@ -208,3 +208,11 @@ checks preparation failure before live changes, candidate cleanup, file mode and
 content fidelity, and create-only skipping in a read-only destination parent.
 Failed restoration is outside the model: the separately reproduced existing
 backup-lifetime defect must not be confused with temporary candidate cleanup.
+
+## Failed restoration and backup lifetime
+
+[BackupRecovery.md](BackupRecovery.md) extends the original successful-restore
+assumption for #899. It reproduces cleanup deleting the only recoverable original
+and checks one protected-backup owner for gen trees and external outputs. The
+publication placement model still owns new candidates; it does not authorize
+disposal of unrestored original bytes.

@@ -23,8 +23,8 @@ type (
 		output             string
 		root               string
 		stage              string
-		backup             string
-		externalBackups    []string
+		genBackup          *generationBackup
+		backups            []*generationBackup
 		externalCandidates []string
 	}
 
@@ -32,7 +32,7 @@ type (
 		rel         string
 		staged      string
 		destination string
-		backup      string
+		backup      *generationBackup
 		installed   bool
 		skipExist   bool
 		skipped     bool
@@ -161,32 +161,18 @@ func (t *generationTransaction) commit(outputs []codegen.Artifact) ([]string, er
 
 	liveGen := filepath.Join(t.output, codegen.Gendir)
 	stagedGen := filepath.Join(t.stage, codegen.Gendir)
-	backup, hadLive, err := moveLiveGenerationAside(liveGen)
+	t.genBackup, err = t.preserveOriginal(liveGen)
 	if err != nil {
 		return nil, err
 	}
-	t.backup = backup
 	if err := os.Rename(stagedGen, liveGen); err != nil {
 		commitErr := fmt.Errorf("replace generation tree %s: %w", liveGen, err)
-		if hadLive {
-			if rollbackErr := os.Rename(backup, liveGen); rollbackErr != nil {
-				t.backup = ""
-				return nil, errors.Join(commitErr, fmt.Errorf("restore generation tree %s: %w", liveGen, rollbackErr))
-			}
-			t.backup = ""
-		}
-		return nil, commitErr
+		return nil, errors.Join(commitErr, t.genBackup.restore())
 	}
 	if err := t.installExternalOutputs(external); err != nil {
-		return nil, errors.Join(err, t.rollbackInstalledOutputs(external, liveGen, hadLive))
+		return nil, errors.Join(err, t.rollbackInstalledOutputs(external, liveGen))
 	}
-	if hadLive {
-		if err := os.RemoveAll(backup); err != nil {
-			return nil, fmt.Errorf("remove previous generation tree %s: %w", backup, err)
-		}
-		t.backup = ""
-	}
-	if err := t.removeExternalBackups(external); err != nil {
+	if err := t.discardOriginals(); err != nil {
 		return nil, err
 	}
 
@@ -222,19 +208,7 @@ func (t *generationTransaction) cleanup() error {
 			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove generation staging directory %s: %w", stage, err))
 		}
 	}
-	if t.backup != "" {
-		backup := t.backup
-		t.backup = ""
-		if err := os.RemoveAll(backup); err != nil {
-			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove generation backup directory %s: %w", backup, err))
-		}
-	}
-	for _, backup := range t.externalBackups {
-		if err := os.Remove(backup); err != nil && !errors.Is(err, os.ErrNotExist) {
-			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove generated output backup %s: %w", backup, err))
-		}
-	}
-	t.externalBackups = nil
+	cleanupErr = errors.Join(cleanupErr, t.cleanupBackups())
 	for _, candidate := range t.externalCandidates {
 		if err := os.Remove(candidate); err != nil && !errors.Is(err, os.ErrNotExist) {
 			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove generated output candidate %s: %w", candidate, err))
@@ -314,18 +288,10 @@ func (t *generationTransaction) installExternalOutputs(outputs []*externalGenera
 			output.installed = true
 			continue
 		}
-		if _, err := os.Lstat(output.destination); err == nil {
-			backup, err := reserveRenamePath(filepath.Dir(output.destination))
-			if err != nil {
-				return err
-			}
-			if err := os.Rename(output.destination, backup); err != nil {
-				return fmt.Errorf("preserve generated output %s: %w", output.destination, err)
-			}
-			output.backup = backup
-			t.externalBackups = append(t.externalBackups, backup)
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("inspect generated output %s: %w", output.destination, err)
+		var err error
+		output.backup, err = t.preserveOriginal(output.destination)
+		if err != nil {
+			return err
 		}
 		if err := os.Rename(output.staged, output.destination); err != nil {
 			return fmt.Errorf("replace generated output %s: %w", output.destination, err)
@@ -335,24 +301,9 @@ func (t *generationTransaction) installExternalOutputs(outputs []*externalGenera
 	return nil
 }
 
-func (t *generationTransaction) removeExternalBackups(outputs []*externalGenerationOutput) error {
-	for _, output := range outputs {
-		if output.backup == "" {
-			continue
-		}
-		if err := os.Remove(output.backup); err != nil {
-			return fmt.Errorf("remove previous generated output %s: %w", output.backup, err)
-		}
-		t.forgetExternalBackup(output.backup)
-		output.backup = ""
-	}
-	return nil
-}
-
 func (t *generationTransaction) rollbackInstalledOutputs(
 	outputs []*externalGenerationOutput,
 	liveGen string,
-	hadLive bool,
 ) error {
 	var rollbackErr error
 	for _, output := range slices.Backward(outputs) {
@@ -372,35 +323,13 @@ func (t *generationTransaction) rollbackInstalledOutputs(
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("remove generated output %s: %w", output.destination, err))
 			}
 		}
-		if output.backup != "" {
-			if err := os.Rename(output.backup, output.destination); err != nil {
-				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore generated output %s: %w", output.destination, err))
-			} else {
-				t.forgetExternalBackup(output.backup)
-				output.backup = ""
-			}
-		}
+		rollbackErr = errors.Join(rollbackErr, output.backup.restore())
 	}
 	if err := os.RemoveAll(liveGen); err != nil {
 		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("remove failed generation tree %s: %w", liveGen, err))
 	}
-	if hadLive {
-		if err := os.Rename(t.backup, liveGen); err != nil {
-			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore generation tree %s: %w", liveGen, err))
-		} else {
-			t.backup = ""
-		}
-	}
+	rollbackErr = errors.Join(rollbackErr, t.genBackup.restore())
 	return rollbackErr
-}
-
-func (t *generationTransaction) forgetExternalBackup(path string) {
-	for index, backup := range t.externalBackups {
-		if backup == path {
-			t.externalBackups = append(t.externalBackups[:index], t.externalBackups[index+1:]...)
-			return
-		}
-	}
 }
 
 func (t *generationTransaction) prepareModuleContext(moduleRoot string) error {
@@ -465,23 +394,6 @@ func (t *generationTransaction) stagedRelativePath(output string) (string, error
 		return "", fmt.Errorf("generated output %s does not name a file", output)
 	}
 	return rel, nil
-}
-
-func moveLiveGenerationAside(liveGen string) (backup string, moved bool, err error) {
-	if _, err := os.Lstat(liveGen); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", false, nil
-		}
-		return "", false, fmt.Errorf("inspect generation tree %s: %w", liveGen, err)
-	}
-	backup, err = reserveRenamePath(filepath.Dir(liveGen))
-	if err != nil {
-		return "", false, err
-	}
-	if err := os.Rename(liveGen, backup); err != nil {
-		return "", false, fmt.Errorf("preserve generation tree %s: %w", liveGen, err)
-	}
-	return backup, true, nil
 }
 
 func reserveRenamePath(dir string) (string, error) {

@@ -304,6 +304,12 @@ consumer validation.
   destinations before live mutation and owned separately from rollback backups.
   Keep Link/Rename destination-local, preserve existing create-only skips without
   requiring parent write permission, and reject unrenamable gen mounts intact.
+  `generationBackup` owns original-file/tree lifetime once: preserved originals
+  stay protected until confirmed restore or complete installation. Cleanup reports
+  unresolved recovery paths and cannot delete protected originals. Successful
+  commit authorizes discard; failed discard retains cleanup responsibility.
+  Keep disposable external candidates separate, preserve joined rollback errors,
+  and use the bounded `BackupRecovery` model/native correspondence controls.
 - `pkg.ValidateFormat` owns hostname validation: complete ASCII label syntax,
   63-byte labels, 253-byte text excluding an optional terminal root dot. Keep
   this shared by generated transports and design validation. The existing

@@ -160,7 +160,7 @@ func TestArtifactWriteIntentRollbackPreservesReplacementOwner(t *testing.T) {
 	path := filepath.Join(dir, "custom.txt")
 	require.NoError(t, os.Remove(path))
 	require.NoError(t, os.WriteFile(path, []byte("user"), 0o600))
-	require.NoError(t, tx.rollbackInstalledOutputs(outputs, filepath.Join(dir, "gen"), false))
+	require.NoError(t, tx.rollbackInstalledOutputs(outputs, filepath.Join(dir, "gen")))
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, "user", string(got))

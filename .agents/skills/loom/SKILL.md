@@ -26,7 +26,9 @@ renderer, or framework tests, use the `loom-framework` skill.
 6. Run the consuming repository's formatting, tests, and integration checks.
 
 Never edit `gen/` directly. `loom gen` deletes and recreates it transactionally,
-so manual changes are both temporary and misleading.
+so manual changes are both temporary and misleading. If rollback fails, Loom
+retains the unrestored originals and reports each backup and intended destination
+for manual recovery.
 The output directory must be writable, but its parent need not be. Output and
 plugin destinations may be on separate filesystems. Mount the output directory,
 not `gen/` itself: regeneration must replace the whole generated tree. Relative

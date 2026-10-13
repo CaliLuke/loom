@@ -438,7 +438,10 @@ The primary command for code generation:
   outputs, then replaces the entire `gen/` directory and any declared plugin
   outputs on success. A generation, finalization, validation, or installation
   failure attempts to restore the previous generated artifacts; restoration
-  errors are reported rather than treated as successful rollback.
+  errors are reported rather than treated as successful rollback. Originals that
+  cannot be restored remain in their backup locations; the error names each
+  backup and its intended destination for manual recovery. Automatic cleanup
+  preserves these originals.
 - Run after every design change
 
 The output directory must be writable; its parent need not be. Loom stages
