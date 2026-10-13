@@ -404,6 +404,7 @@ var MultipleServicesDSL = func() {
 			})
 			HTTP(func() {
 				GET("/jwt")
+				Header("key:X-API-Key")
 			})
 		})
 	})
