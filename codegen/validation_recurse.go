@@ -168,9 +168,9 @@ func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *Att
 	for _, v := range u.Values {
 		// Sum-type unions (struct-based, with Kind/AsX accessors) store each
 		// branch as either a value (primitives, arrays, maps) or a pointer
-		// (object user types). Request-body validation may already use value
-		// semantics for nested objects, so preserve the enclosing context and
-		// only keep pointer semantics when both layers use pointers.
+		// (object and union user types). Request-body validation may already use
+		// value semantics for nested objects, so preserve the enclosing context
+		// and only keep pointer semantics when both layers use pointers.
 		unionCtx := attCtx.Dup()
 		_, named := v.Attribute.Type.(expr.UserType)
 		if !named {
@@ -182,18 +182,22 @@ func renderUnionSumValidationCases(u *expr.Union, put expr.UserType, attCtx *Att
 			// presence, even when the union field uses JSON presence.
 			unionCtx.Pointer = false
 		} else {
-			unionCtx.Pointer = unionCtx.Pointer && expr.IsObject(v.Attribute.Type)
+			unionCtx.Pointer = unionCtx.Pointer && (expr.IsObject(v.Attribute.Type) || expr.IsUnion(v.Attribute.Type))
 		}
 		val := validateAttribute(unionCtx, v.Attribute, put, "actual", context+".value", true, view)
 		if val == "" {
 			continue
 		}
 		cases = append(cases, unionValidationCase{
-			TypeTag:       expr.UnionVariantTag(v),
-			FieldName:     Goify(v.Name, true),
-			RequiresValue: strings.HasPrefix(strings.TrimSpace(val), "if actual != nil {"),
-			Context:       validationContextExpr(attCtx, context+".value"),
-			Validation:    val,
+			TypeTag:   expr.UnionVariantTag(v),
+			FieldName: Goify(v.Name, true),
+			// Nested union validation starts with a switch rather than a nil guard,
+			// so guard its pointer-backed branch regardless of the enclosing
+			// validation context.
+			RequiresValue: strings.HasPrefix(strings.TrimSpace(val), "if actual != nil {") ||
+				expr.IsUnion(v.Attribute.Type),
+			Context:    validationContextExpr(attCtx, context+".value"),
+			Validation: val,
 		})
 	}
 	return cases

@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,6 +87,77 @@ func TestValidationCodeChecksOptionalUnionsForNil(t *testing.T) {
 			}
 			for _, unwanted := range c.excludes {
 				assert.NotContains(t, code, unwanted)
+			}
+		})
+	}
+}
+
+func TestValidationCodeGuardsNestedSumUnionBranches(t *testing.T) {
+	minLength := 1
+	leaf := &expr.UserTypeExpr{
+		TypeName: "Leaf",
+		AttributeExpr: &expr.AttributeExpr{
+			Type: &expr.Object{{
+				Name: "name",
+				Attribute: &expr.AttributeExpr{
+					Type:       expr.String,
+					Validation: &expr.ValidationExpr{MinLength: &minLength},
+				},
+			}},
+		},
+	}
+	other := &expr.UserTypeExpr{
+		TypeName:      "Other",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{}},
+	}
+	choice := &expr.UserTypeExpr{
+		TypeName: "Choice",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Union{
+			TypeName: "Choice",
+			Values: []*expr.NamedAttributeExpr{
+				{Name: "leaf", Attribute: &expr.AttributeExpr{Type: leaf}},
+				{Name: "other", Attribute: &expr.AttributeExpr{Type: other}},
+			},
+		}},
+	}
+	tags := &expr.UserTypeExpr{
+		TypeName: "Tags",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{
+			Name:      "values",
+			Attribute: &expr.AttributeExpr{Type: &expr.Array{ElemType: &expr.AttributeExpr{Type: expr.String}}},
+		}}},
+	}
+	holder := &expr.UserTypeExpr{
+		TypeName: "Holder",
+		AttributeExpr: &expr.AttributeExpr{Type: &expr.Object{{
+			Name: "p",
+			Attribute: &expr.AttributeExpr{Type: &expr.Union{
+				TypeName: "ChoiceOrTags",
+				Values: []*expr.NamedAttributeExpr{
+					{Name: "choice", Attribute: &expr.AttributeExpr{Type: choice}},
+					{Name: "tags", Attribute: &expr.AttributeExpr{Type: tags}},
+				},
+			}},
+		}}},
+	}
+	for _, c := range []struct {
+		name        string
+		pointer     bool
+		useDefaults bool
+	}{
+		{name: "pointer context", pointer: true},
+		{name: "value context", useDefaults: true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := NewAttributeContext(c.pointer, false, c.useDefaults, "", NewNameScope())
+			ctx.Scope = NewAttributeScope(NewNameScope())
+			code := ValidationCode(holder.Attribute(), holder, ctx, true, false, false, "holder")
+
+			choiceValue := strings.Index(code, "actual, _ := holder.P.AsChoice()")
+			guard := strings.Index(code, "if actual == nil {")
+			nestedSwitch := strings.Index(code, "switch string(actual.Kind()) {")
+			if choiceValue < 0 || guard < choiceValue || nestedSwitch < 0 || guard > nestedSwitch {
+				t.Fatalf("nested sum union validator must guard its nil branch before Kind():\n%s", code)
 			}
 		})
 	}
