@@ -20,6 +20,7 @@ type (
 		c             chan time.Time
 		name          string
 		lock          sync.Mutex
+		closed        bool // local ownership has been released
 		tickerMap     *rmap.Map
 		timer         *time.Timer
 		next          string // serialized next tick time in unix micro and duration
@@ -64,6 +65,12 @@ func (node *Node) NewTicker(ctx context.Context, name string, d time.Duration, o
 		runtimeCtx:    runtimeCtx,
 		runtimeCancel: runtimeCancel,
 	}
+	ready := false
+	defer func() {
+		if !ready {
+			t.Close()
+		}
+	}()
 	if current, ok := node.tickerMap.Get(name); ok {
 		_, curd := deserialize(current)
 		if d == curd {
@@ -79,7 +86,10 @@ func (node *Node) NewTicker(ctx context.Context, name string, d time.Duration, o
 	}
 	t.initTimer()
 	t.wg.Add(1)
-	pulse.Go(logger, func() { t.handleEvents() })
+	pulse.Go(logger, func() {
+		t.handleEvents()
+	})
+	ready = true
 	return t, nil
 }
 
@@ -93,16 +103,7 @@ func (node *Node) NewTicker(ctx context.Context, name string, d time.Duration, o
 // receivers (matching time.Ticker semantics).
 func (t *Ticker) Close() {
 	t.lock.Lock()
-	if t.runtimeCancel != nil {
-		t.runtimeCancel()
-	}
-	if t.timer != nil {
-		t.timer.Stop()
-	}
-	if t.mapch != nil {
-		t.tickerMap.Unsubscribe(t.mapch)
-	}
-	t.mapch = nil
+	t.stopLocalLocked()
 	t.lock.Unlock()
 	t.wg.Wait()
 }
@@ -112,19 +113,10 @@ func (t *Ticker) Close() {
 // channel from seeing an erroneous "tick".
 func (t *Ticker) Stop() {
 	t.lock.Lock()
-	if t.timer != nil {
-		t.timer.Stop()
-	}
 	if _, err := t.tickerMap.Delete(t.runtimeCtx, t.name); err != nil {
 		t.logger.Error(err, "msg", "failed to delete ticker")
 	}
-	if t.runtimeCancel != nil {
-		t.runtimeCancel()
-	}
-	if t.mapch != nil {
-		t.tickerMap.Unsubscribe(t.mapch)
-	}
-	t.mapch = nil
+	t.stopLocalLocked()
 	t.lock.Unlock()
 	t.wg.Wait()
 }
@@ -178,6 +170,9 @@ func (t *Ticker) handleEvents() {
 func (t *Ticker) handleTick() {
 	t.lock.Lock()
 	defer t.lock.Unlock()
+	if t.closed {
+		return
+	}
 	ts, d := deserialize(t.next)
 	ts = ts.Add(d)
 	for ts.Before(time.Now()) {
@@ -220,6 +215,9 @@ func (t *Ticker) handleAdvanceFailureLocked(err error, interval time.Duration) {
 // resetTimerLocked arms the local timer to fire after d. The caller must hold
 // t.lock.
 func (t *Ticker) resetTimerLocked(d time.Duration) {
+	if t.closed {
+		return
+	}
 	if d < 0 {
 		d = 0
 	}
@@ -252,4 +250,23 @@ func deserialize(s string) (time.Time, time.Duration) {
 	t := time.UnixMicro(ts)
 	d, _ := time.ParseDuration(parts[1])
 	return t, d
+}
+
+// stopLocalLocked releases this participant's resources once. It never deletes
+// shared state or waits for the event goroutine. The caller must hold t.lock.
+func (t *Ticker) stopLocalLocked() {
+	if t.closed {
+		return
+	}
+	t.closed = true
+	if t.runtimeCancel != nil {
+		t.runtimeCancel()
+	}
+	if t.timer != nil {
+		t.timer.Stop()
+	}
+	if t.mapch != nil {
+		t.tickerMap.Unsubscribe(t.mapch)
+		t.mapch = nil
+	}
 }

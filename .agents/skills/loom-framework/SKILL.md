@@ -2081,6 +2081,14 @@ SSE changes require coverage for:
 - compile-after-generation
 - branch-specific connection timing
 
+Ticker local resources are owned by `pool.Ticker.stopLocalLocked`: constructor
+abort, Close and Stop use the same idempotent transition; shared map state is
+borrowed and is never constructor rollback. Guard both tick admission and the
+shared timer-rearm path so already-selected work cannot revive a closed ticker.
+Keep global deletion before local cancellation and keep event-goroutine waiting
+outside locked teardown. Reuse `pulse/pool/tla/ticker_lifecycle` and its focused
+constructor/close/retry controls for later remote-observation consumers.
+
 Pulse (`pulse/pool`, `pulse/streaming`, `pulse/rmap`) tests run against
 miniredis by default, so `make test` stays hermetic. miniredis does not model
 every Redis behavior: it lacks the Lua `struct` library (the test helper
