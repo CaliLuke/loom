@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **185 of 216 tracked reports are delivered, pushed and confirmed closed.**
+- **187 of 216 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-185-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-187-issues.json` is the frozen GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
   client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
@@ -96,8 +96,8 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   owners; generated SSE terminal flags and write locks are removed. Runtime
   races and actual generated integration pass on the delivered parent.
 - Required CI is not confirmed green. Nullable alias failures are fixed by #892.
-  The explicit alias error-body failure and recursive declaration mutation share
-  the body-binding owner tracked in #893; the original pointer assertion remains.
+  The explicit alias error-body failure and recursive declaration mutation are
+  fixed by #893 (`222f0a269`), with the original pointer assertion unchanged.
   The existing #820 dependency race also remains open. Checkpoint run
   `38469448885` has passing Redis, generated-code-quality, OpenAPI and several
   generated-design jobs; other jobs and later source runs remain unresolved.
@@ -129,24 +129,25 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Explicit body binding (#893):** omission implements the independently
-   approved plan in [explicit-alias-body-binding.md](/Users/luca/.codex/worktrees/numeric-comparison/loom/roadmap/explicit-alias-body-binding.md)
-   from its managed worktree. Detach before response initialization and preserve
-   occurrence-owned explicit authority along alias traversal; retain strict
-   foreign/cyclic rejection, child boundaries and the recursive pointer assertion.
-2. **Constructor type identity (#894):** projection preserves the caller's
-   allocated nominal scope in `InitStructFields`. Readiness is approved; bounded
-   direct/generated checks pass and final evidence is being assembled. The
-   original #770 patch is archived intact for restoration after this prerequisite.
-3. **Service package declarations (#770):** restore the approved package-role
-   allocation after #894 delivery and rerun its scalar competitor. Protobuf #736
-   and shared imports #856 retain their actual independent namespaces. Parent
-   reproduction of the response-header alias-array failure is separately #895;
-   preserve its witness without inserting a codec workaround into naming.
-4. **Generation provenance (#753/#742):** diagnostic completes #749 cleanup,
-   then establishes one evaluated-design identity consumed by generation, manifests
-   and vet. Plugin roots and originating design package belong in that identity;
-   filesystem publication #751 remains separate. Readiness review precedes changes.
+1. **Header element representation (#895):** omission follows delivered #893
+   and #894 after cleanup. Request/response formatting must consume actual native
+   element types through one HTTP codegen conversion owner; JSON-RPC inherits
+   response sections. The accepted standard-list wire grammar remains unchanged.
+2. **Service package declarations (#770):** projection restored the exact archived
+   candidate after constructor prerequisite #894 (`2a98e4123`) delivery. The
+   formerly blocked scalar case and bounded generated checks pass; the final
+   candidate is frozen for independent review. Protobuf
+   #736 and shared imports #856 retain their independent namespaces.
+3. **Generation provenance (#753/#742):** diagnostic implements the independently
+   approved complete evaluated-root identity and explicit canonical design origin.
+   Generation, staged manifests and vet share the record; preserve pre-generator
+   capture and remove all-manifest same-design inference. Separate reconciliation
+   proves #742 if this owning repair resolves it. Filesystem #751 stays separate.
+4. **Effective route ownership (#781):** root has reproduced five admission
+   failures plus three valid controls and extended the existing identity model.
+   `roadmap/http-route-ownership.md` is a local readiness draft, not delivered. Reconcile
+   effective dispatch/mount claims and server grouping before production; preserve
+   shared JSON-RPC dispatch and disjoint server processes.
 5. **Other distinct owners:** encoded byte length #686, custom-key example
    synthesis #884 and pool subordinate shutdown #687 remain open. Do not weaken
    supported representation admission to bypass these failures.
@@ -166,10 +167,21 @@ Latest independent delivery records:
   `/tmp/loom-749-independent-final-verdict.json` and
   `/tmp/loom-749-independent-integration-verdict.json`. Integration runtime races
   pass (HTTP 9.638s, JSON-RPC 2.446s, observation 1.356s); both generated modules
-  pass (5.343s and 5.827s). Implementer cleanup follows delivery.
-- #893 readiness verdict is `/tmp/loom-893-root-readiness-verdict.json`; #894
-  readiness verdict is `/tmp/loom-894-root-readiness-verdict.json`. Each records
-  the shared owner, actual parent failures and bounded final acceptance.
+  pass (5.343s and 5.827s). Cleanup is complete; the exact-source receipt is
+  `/tmp/loom-749-cleanup-receipt.json`.
+- #893 final and integration verdicts are
+  `/tmp/loom-893-independent-final-verdict.json` and
+  `/tmp/loom-893-independent-integration-verdict.json`. Actual current-root
+  shared-error/reference integration passes in 89.157s. Cleanup/reuse is complete:
+  `/tmp/loom-893-cleanup-receipt.json` preserves 103 exact source/input/evidence files.
+- #894 final and integration verdicts are
+  `/tmp/loom-894-independent-final-verdict.json` and
+  `/tmp/loom-894-independent-integration-verdict.json`. Integration races pass;
+  `/tmp/loom-894-cleanup-receipt.json` and `/tmp/loom-770-resume-receipt.json`
+  preserve delivery and exact candidate restoration.
+- Provenance readiness is approved in
+  `/tmp/loom-provenance-root-readiness-verdict.json`; actual two-design/plugin
+  parent failures and bounded acceptance are preserved by its owning plan.
 
 Completed cleanup receipts preserve compact evidence and exact reproduction
 inputs after activity checks: #872 `/tmp/loom-872-cleanup-receipt.json`, #790
