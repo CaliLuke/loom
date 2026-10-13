@@ -22,9 +22,12 @@ import (
 	"github.com/CaliLuke/loom/jsonrpc"
 )
 
+var _ clock.TickClientStream = (*TickClientStream)(nil)
+
 // TickClientStream implements the clock.TickClientStream interface using
 // Server-Sent Events.
 type TickClientStream struct {
+	ctx      context.Context
 	reader   *loomhttp.SSEStreamReader
 	decoder  func(*http.Response) loomhttp.Decoder
 	closed   bool
@@ -38,8 +41,14 @@ func (s *TickClientStream) markClosed() {
 	s.lock.Unlock()
 }
 
-// Recv reads instances of "TickResult" from the stream.
-func (s *TickClientStream) Recv(ctx context.Context) (*clock.TickResult, error) {
+// Recv reads instances of "TickResult" from the stream. It uses the context
+// the stream was opened with.
+func (s *TickClientStream) Recv() (*clock.TickResult, error) {
+	return s.RecvWithContext(s.ctx)
+}
+
+// RecvWithContext reads instances of "TickResult" from the stream with context.
+func (s *TickClientStream) RecvWithContext(ctx context.Context) (*clock.TickResult, error) {
 	s.readLock.Lock()
 	defer s.readLock.Unlock()
 

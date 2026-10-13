@@ -37,9 +37,9 @@ type Server struct {
 }
 
 // New creates a JSON-RPC server which loads HTTP requests and calls the
-// "clock" service methods. An optional streamWritePolicy bounds each
-// server-stream network write and flush. Construct policies with
-// loomhttp.NewStreamWritePolicy.
+// "clock" service methods. The errhandler callback is optional and may be nil.
+// An optional streamWritePolicy bounds each server-stream network write and
+// flush. Construct policies with loomhttp.NewStreamWritePolicy.
 func New(endpoints *clock.Endpoints, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicies ...loomhttp.StreamWritePolicy) *Server {
 	var streamWritePolicy loomhttp.StreamWritePolicy
 	if len(streamWritePolicies) > 0 {
@@ -163,7 +163,8 @@ func (s *Server) Mount(mux loomhttp.Muxer) {
 }
 
 // NewInitializeHandler creates a JSON-RPC handler which calls the "clock"
-// service "Initialize" endpoint.
+// service "Initialize" endpoint. The errhandler callback is optional and may
+// be nil.
 func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeInitializeRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
@@ -181,13 +182,9 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 				}
 				encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 			} else {
-				errhandler(ctx, w, fmt.Errorf("failed to decode parameters: %w", err))
+				jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("failed to decode parameters: %w", err))
 			}
 			return nil
-		}
-		if req.ID != nil {
-			idStr := jsonrpc.IDToString(req.ID)
-			params.ID = &idStr
 		}
 		res, err := endpoint(ctx, params)
 		if err != nil {
@@ -217,7 +214,7 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 					encodeJSONRPCError(ctx, w, req, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err), encoder, errhandler)
 				}
 			} else {
-				errhandler(ctx, w, fmt.Errorf("endpoint error: %w", err))
+				jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("endpoint error: %w", err))
 			}
 			return nil
 		}
@@ -226,19 +223,23 @@ func NewInitializeHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder fu
 		if !req.HasID {
 			return nil
 		}
-		// Convert result to response body with proper JSON tags
-		body := NewInitializeResponseBody(res.(*clock.InitializeResult))
+		var body any
+		{
+			res := res.(*clock.InitializeResult)
+			body = NewInitializeResponseBody(res)
+		}
+
 		response := jsonrpc.MakeSuccessResponse(id, body)
 		if err := encoder(ctx, w).Encode(response); err != nil {
 			loomtransport.RequestObserverFromContext(ctx).Fail(loomtransport.ReasonResponseWriteFailed)
-			errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
+			jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 		}
 		return nil
 	}
 }
 
 // NewTickHandler creates a JSON-RPC handler which calls the "clock" service
-// "Tick" endpoint.
+// "Tick" endpoint. The errhandler callback is optional and may be nil.
 func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error), streamWritePolicy loomhttp.StreamWritePolicy) func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
 	decodeParams := DecodeTickRequest(mux, decoder)
 	return func(ctx context.Context, r *http.Request, req *jsonrpc.RawRequest, w http.ResponseWriter) error {
@@ -264,10 +265,6 @@ func NewTickHandler(endpoint loom.Endpoint, mux loomhttp.Muxer, decoder func(*ht
 				return strm.sendError(ctx, req.ID, code, loom.ErrorSafeMessage(err), jsonrpc.NewErrorData(err))
 			}
 			return nil
-		}
-		if req.ID != nil {
-			idStr := jsonrpc.IDToString(req.ID)
-			params.ID = &idStr
 		}
 		v := &clock.TickEndpointInput{
 			Payload: params,
@@ -340,6 +337,6 @@ func (s *Server) encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, 
 func encodeJSONRPCError(ctx context.Context, w http.ResponseWriter, req *jsonrpc.RawRequest, code jsonrpc.Code, message string, data any, encoder func(context.Context, http.ResponseWriter) loomhttp.Encoder, errhandler func(context.Context, http.ResponseWriter, error)) {
 	response := jsonrpc.MakeErrorResponse(req.ID, code, message, data)
 	if err := encoder(ctx, w).Encode(response); err != nil {
-		errhandler(ctx, w, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
+		jsonrpc.ReportFailure(ctx, w, errhandler, fmt.Errorf("failed to encode JSON-RPC response: %w", err))
 	}
 }

@@ -10,7 +10,7 @@ package server
 import (
 	"bytes"
 	"context"
-	"errors"
+	json "encoding/json/v2"
 	"io"
 	"net/http"
 
@@ -37,7 +37,7 @@ func EncodeInitializeResponse(encoder func(context.Context, http.ResponseWriter)
 
 // DecodeInitializeRequest returns a decoder for requests sent to the clock
 // Initialize endpoint.
-func DecodeInitializeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.InitializePayload, error) {
+func DecodeInitializeRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.InitializePayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.InitializePayload, error) {
 		rpcParams := req.Params
 		if len(rpcParams) == 0 {
@@ -45,22 +45,38 @@ func DecodeInitializeRequest(mux loomhttp.Muxer, decoder func(*http.Request) loo
 		}
 		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *clock.InitializePayload
-		var err error
-		var (
-			body InitializeRequestBody
-		)
-		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return payload, loom.MissingPayloadError()
+		var rpcID *string
+		{
+
+			rpcIDBody := &struct {
+				ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+			}{}
+			if req.HasID {
+				if req.ID == nil {
+					return payload, loom.DecodePayloadError("JSON-RPC ID must not be null")
+				}
+
+				idBytes := []byte("null")
+				if req.ID != nil {
+					var encodeErr error
+					idBytes, encodeErr = json.Marshal(jsonrpc.IDToString(req.ID))
+					if encodeErr != nil {
+						return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(encodeErr))
+					}
+				}
+				if decodeErr := json.Unmarshal(idBytes, &rpcIDBody.ID); decodeErr != nil {
+					return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
+				}
 			}
-			var gerr *loom.ServiceError
-			if errors.As(err, &gerr) {
-				return payload, gerr
+			rpcIDFields := &struct {
+				ID *string `json:"id,omitzero"`
+			}{
+				ID: rpcIDBody.ID,
 			}
-			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
+			rpcID = rpcIDFields.ID
 		}
-		payload = NewInitializePayload(&body)
+
+		payload = NewInitializePayload(rpcID)
 
 		return payload, nil
 	}
@@ -83,7 +99,7 @@ func EncodeTickResponse(encoder func(context.Context, http.ResponseWriter) loomh
 
 // DecodeTickRequest returns a decoder for requests sent to the clock Tick
 // endpoint.
-func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
+func DecodeTickRequest(mux loomhttp.Muxer, _ func(*http.Request) loomhttp.Decoder) func(*http.Request, *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 	return func(r *http.Request, req *jsonrpc.RawRequest) (*clock.TickPayload, error) {
 		rpcParams := req.Params
 		if len(rpcParams) == 0 {
@@ -91,22 +107,38 @@ func DecodeTickRequest(mux loomhttp.Muxer, decoder func(*http.Request) loomhttp.
 		}
 		r.Body = io.NopCloser(bytes.NewReader(rpcParams))
 		var payload *clock.TickPayload
-		var err error
-		var (
-			body TickRequestBody
-		)
-		err = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return payload, loom.MissingPayloadError()
+		var rpcID *string
+		{
+
+			rpcIDBody := &struct {
+				ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+			}{}
+			if req.HasID {
+				if req.ID == nil {
+					return payload, loom.DecodePayloadError("JSON-RPC ID must not be null")
+				}
+
+				idBytes := []byte("null")
+				if req.ID != nil {
+					var encodeErr error
+					idBytes, encodeErr = json.Marshal(jsonrpc.IDToString(req.ID))
+					if encodeErr != nil {
+						return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(encodeErr))
+					}
+				}
+				if decodeErr := json.Unmarshal(idBytes, &rpcIDBody.ID); decodeErr != nil {
+					return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
+				}
 			}
-			var gerr *loom.ServiceError
-			if errors.As(err, &gerr) {
-				return payload, gerr
+			rpcIDFields := &struct {
+				ID *string `json:"id,omitzero"`
+			}{
+				ID: rpcIDBody.ID,
 			}
-			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(err))
+			rpcID = rpcIDFields.ID
 		}
-		payload = NewTickPayload(&body)
+
+		payload = NewTickPayload(rpcID)
 
 		return payload, nil
 	}

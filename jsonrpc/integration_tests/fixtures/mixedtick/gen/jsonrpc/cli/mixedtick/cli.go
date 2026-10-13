@@ -28,16 +28,16 @@ func UsageCommands() []string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " clock initialize --body '{\n      \"id\": \"Saepe accusamus.\"\n   }'\n"
+	return os.Args[0] + " clock initialize --rpc-id \"Eos quibusdam non eligendi.\"\n"
 }
 
 type commandLine struct {
 	Clock struct {
 		Initialize struct {
-			Body string `help:"" name:"body" required:""`
+			RPCID string `help:"" name:"rpc-id"`
 		} `cmd:"" help:"Initialize implements Initialize." name:"initialize"`
 		Tick struct {
-			Body string `help:"" name:"body" required:""`
+			RPCID string `help:"" name:"rpc-id"`
 		} `cmd:"" help:"Tick implements Tick." name:"tick"`
 	} `cmd:"" help:"Service is the clock service interface." name:"clock"`
 }
@@ -46,12 +46,12 @@ type commandLine struct {
 // line.
 func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*http.Request) loomhttp.Encoder, dec func(*http.Response) loomhttp.Decoder, restore bool) (loom.Endpoint, any, error) {
 	var (
-		command                 commandLine
-		args                    []string
-		svcn                    string
-		epn                     string
-		clockInitializeBodyFlag *string
-		clockTickBodyFlag       *string
+		command                  commandLine
+		args                     []string
+		svcn                     string
+		epn                      string
+		clockInitializeRPCIDFlag *string
+		clockTickRPCIDFlag       *string
 	)
 	{
 		args = flag.Args()
@@ -62,8 +62,8 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 		if err != nil {
 			return nil, nil, fmt.Errorf("parse command: %w", err)
 		}
-		clockInitializeBodyFlag = &command.Clock.Initialize.Body
-		clockTickBodyFlag = &command.Clock.Tick.Body
+		clockInitializeRPCIDFlag = &command.Clock.Initialize.RPCID
+		clockTickRPCIDFlag = &command.Clock.Tick.RPCID
 		switch path {
 		case "clock initialize":
 			svcn = "clock"
@@ -86,10 +86,10 @@ func ParseEndpoint(scheme string, host string, doer loomhttp.Doer, enc func(*htt
 			switch epn {
 			case "initialize":
 				endpoint = c.Initialize()
-				data, err = clockc.BuildInitializePayload(*clockInitializeBodyFlag)
+				data, err = clockc.BuildInitializePayload(*clockInitializeRPCIDFlag)
 			case "tick":
 				endpoint = c.Tick()
-				data, err = clockc.BuildTickPayload(*clockTickBodyFlag)
+				data, err = clockc.BuildTickPayload(*clockTickRPCIDFlag)
 			}
 		}
 	}
@@ -113,7 +113,7 @@ func clockUsage() {
 func clockInitializeUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] clock initialize", os.Args[0])
-	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -rpc-id JSON")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
@@ -121,16 +121,16 @@ func clockInitializeUsage() {
 	fmt.Fprintln(os.Stderr, "Initialize implements Initialize.")
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, "    -body JSON: ")
+	fmt.Fprintln(os.Stderr, "    -rpc-id JSON: ")
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock initialize --body '{\n      \"id\": \"Saepe accusamus.\"\n   }'")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock initialize --rpc-id \"Eos quibusdam non eligendi.\"")
 }
 func clockTickUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] clock tick", os.Args[0])
-	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -rpc-id JSON")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
@@ -138,9 +138,9 @@ func clockTickUsage() {
 	fmt.Fprintln(os.Stderr, "Tick implements Tick.")
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, "    -body JSON: ")
+	fmt.Fprintln(os.Stderr, "    -rpc-id JSON: ")
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tick --body '{\n      \"id\": \"Aliquam architecto sequi autem rerum rerum.\"\n   }'")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "clock tick --rpc-id \"Qui voluptate eum ipsa ratione.\"")
 }

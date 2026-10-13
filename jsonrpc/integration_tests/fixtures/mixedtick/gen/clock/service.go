@@ -66,6 +66,8 @@ type TickClientStream interface {
 	Recv() (*TickResult, error)
 	// RecvWithContext reads instances of "TickResult" from the stream with context.
 	RecvWithContext(context.Context) (*TickResult, error)
+	// Close closes the stream.
+	Close() error
 }
 
 // Stream defines the interface for managing an SSE streaming connection in the

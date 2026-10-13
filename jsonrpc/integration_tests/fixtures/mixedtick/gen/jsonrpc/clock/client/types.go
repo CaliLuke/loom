@@ -12,12 +12,6 @@ import (
 	loom "github.com/CaliLuke/loom/pkg"
 )
 
-// InitializeRequestBody is the type of the "clock" service "Initialize"
-// endpoint HTTP request body.
-type InitializeRequestBody struct {
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-}
-
 // InitializeResponseBody is the type of the "clock" service "Initialize"
 // endpoint HTTP response body.
 type InitializeResponseBody struct {
@@ -25,34 +19,10 @@ type InitializeResponseBody struct {
 	ProtocolVersion loom.Optional[string] `form:"protocol_version,omitempty" json:"protocol_version,omitzero" xml:"protocol_version,omitempty"`
 }
 
-// TickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
-// request body.
-type TickRequestBody struct {
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-}
-
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
 // response body.
 type TickResponseBody struct {
 	Value loom.Optional[string] `form:"value,omitempty" json:"value,omitzero" xml:"value,omitempty"`
-}
-
-// NewInitializeRequestBody builds the HTTP request body from the payload of
-// the "Initialize" endpoint of the "clock" service.
-func NewInitializeRequestBody(p *clock.InitializePayload) *InitializeRequestBody {
-	body := &InitializeRequestBody{
-		ID: p.ID,
-	}
-	return body
-}
-
-// NewTickRequestBody builds the HTTP request body from the payload of the
-// "Tick" endpoint of the "clock" service.
-func NewTickRequestBody(p *clock.TickPayload) *TickRequestBody {
-	body := &TickRequestBody{
-		ID: p.ID,
-	}
-	return body
 }
 
 // NewInitializeResultOK builds a "clock" service "Initialize" endpoint result

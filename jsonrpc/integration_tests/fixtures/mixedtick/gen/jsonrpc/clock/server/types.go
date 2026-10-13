@@ -9,26 +9,13 @@ package server
 
 import (
 	clock "example.com/mixedtick/gen/clock"
-	loom "github.com/CaliLuke/loom/pkg"
 )
-
-// InitializeRequestBody is the type of the "clock" service "Initialize"
-// endpoint HTTP request body.
-type InitializeRequestBody struct {
-	ID loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
-}
 
 // InitializeResponseBody is the type of the "clock" service "Initialize"
 // endpoint HTTP response body.
 type InitializeResponseBody struct {
 	ID              *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
 	ProtocolVersion *string `form:"protocol_version,omitempty" json:"protocol_version,omitzero" xml:"protocol_version,omitempty"`
-}
-
-// TickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
-// request body.
-type TickRequestBody struct {
-	ID loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
 }
 
 // TickResponseBody is the type of the "clock" service "Tick" endpoint HTTP
@@ -57,25 +44,17 @@ func NewTickResponseBody(res *clock.TickResult) *TickResponseBody {
 }
 
 // NewInitializePayload builds a clock service Initialize endpoint payload.
-func NewInitializePayload(body *InitializeRequestBody) *clock.InitializePayload {
+func NewInitializePayload(rpcID *string) *clock.InitializePayload {
 	v := &clock.InitializePayload{}
-	if actual, ok := body.ID.Value(); ok {
-		vIDValue := actual
-
-		v.ID = &vIDValue
-	}
+	v.ID = rpcID
 
 	return v
 }
 
 // NewTickPayload builds a clock service Tick endpoint payload.
-func NewTickPayload(body *TickRequestBody) *clock.TickPayload {
+func NewTickPayload(rpcID *string) *clock.TickPayload {
 	v := &clock.TickPayload{}
-	if actual, ok := body.ID.Value(); ok {
-		vIDValue := actual
-
-		v.ID = &vIDValue
-	}
+	v.ID = rpcID
 
 	return v
 }

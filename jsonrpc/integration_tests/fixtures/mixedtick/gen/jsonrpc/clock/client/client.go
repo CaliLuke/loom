@@ -68,7 +68,7 @@ func (c *Client) Initialize() loom.Endpoint {
 		if err != nil {
 			return nil, loomhttp.ErrRequestError("clock", "Initialize", err)
 		}
-		if p := v.(*clock.InitializePayload); p.ID == nil || *p.ID == "" {
+		if jsonrpc.IsClientNotification(req) {
 			var res *clock.InitializeResult
 			return res, jsonrpc.DecodeNotificationResponse("clock", "Initialize", resp)
 		}
@@ -110,6 +110,7 @@ func (c *Client) Tick() loom.Endpoint {
 				return nil, fmt.Errorf("unexpected content type: %s (expected text/event-stream)", contentType)
 			}
 			stream := &TickClientStream{
+				ctx:     ctx,
 				decoder: c.decoder,
 				reader:  loomhttp.NewSSEStreamReader(resp.Body),
 			}

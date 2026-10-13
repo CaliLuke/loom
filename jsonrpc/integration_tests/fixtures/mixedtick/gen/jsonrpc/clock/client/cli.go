@@ -12,59 +12,42 @@ import (
 
 	clock "example.com/mixedtick/gen/clock"
 	loomhttpcli "github.com/CaliLuke/loom/http/cli"
-	loom "github.com/CaliLuke/loom/pkg"
 )
-
-// CLIInitializeRequestBody is the type of the "clock" service "Initialize"
-// endpoint HTTP request body.
-type CLIInitializeRequestBody struct {
-	ID loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
-}
-
-// CLITickRequestBody is the type of the "clock" service "Tick" endpoint HTTP
-// request body.
-type CLITickRequestBody struct {
-	ID loom.Optional[string] `form:"id,omitempty" json:"id,omitzero" xml:"id,omitempty"`
-}
 
 // BuildInitializePayload builds the payload for the clock Initialize endpoint
 // from CLI flags.
-func BuildInitializePayload(clockInitializeBody string) (*clock.InitializePayload, error) {
+func BuildInitializePayload(clockInitializeRPCID string) (*clock.InitializePayload, error) {
 	var err error
-	var body CLIInitializeRequestBody
+	var rpcID *string
 	{
-		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockInitializeBody), &body)
-		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Saepe accusamus.\"\n   }'")
+		if clockInitializeRPCID != "" {
+			err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockInitializeRPCID), &rpcID)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Eos quibusdam non eligendi.\"")
+			}
 		}
 	}
 	v := &clock.InitializePayload{}
-	if actual, ok := body.ID.Value(); ok {
-		vIDValue := actual
-
-		v.ID = &vIDValue
-	}
+	v.ID = rpcID
 
 	return v, nil
 }
 
 // BuildTickPayload builds the payload for the clock Tick endpoint from CLI
 // flags.
-func BuildTickPayload(clockTickBody string) (*clock.TickPayload, error) {
+func BuildTickPayload(clockTickRPCID string) (*clock.TickPayload, error) {
 	var err error
-	var body CLITickRequestBody
+	var rpcID *string
 	{
-		err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickBody), &body)
-		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %w, \nexample of valid JSON:\n%s", err, "'{\n      \"id\": \"Aliquam architecto sequi autem rerum rerum.\"\n   }'")
+		if clockTickRPCID != "" {
+			err = loomhttpcli.UnmarshalNonNullableJSON([]byte(clockTickRPCID), &rpcID)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON for rpcID, \nerror: %w, \nexample of valid JSON:\n%s", err, "\"Qui voluptate eum ipsa ratione.\"")
+			}
 		}
 	}
 	v := &clock.TickPayload{}
-	if actual, ok := body.ID.Value(); ok {
-		vIDValue := actual
-
-		v.ID = &vIDValue
-	}
+	v.ID = rpcID
 
 	return v, nil
 }
