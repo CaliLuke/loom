@@ -64,7 +64,11 @@ func grpcClientEndpointInitSection(endpoint *EndpointData) codegenpkg.Section {
 }
 
 func writeGRPCClientEndpointInvoker(g *jen.Group, endpoint *EndpointData) {
-	g.Id("inv").Op(":=").Add(codegenpkg.Expr("loomgrpc.NewInvoker")).Call(
+	constructor := "loomgrpc.NewInvoker"
+	if endpoint.ClientStream != nil {
+		constructor = "loomgrpc.NewStreamInvoker"
+	}
+	g.Id("inv").Op(":=").Add(codegenpkg.Expr(constructor)).Call(
 		jen.Func().Params(
 			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("reqpb").Any(),

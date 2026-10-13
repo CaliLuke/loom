@@ -490,6 +490,39 @@ A gRPC server stream sends only streaming messages, so a gRPC method cannot
 declare both `Result` and `StreamingResult` with different types. That
 combination is available only through Server-Sent Events.
 
+### Stream operation contexts
+
+Generated `SendWithContext`, `RecvWithContext`, `SendAndCloseWithContext` and
+`CloseAndRecvWithContext` honor the supplied context. A context that has already
+ended returns its error before conversion or native I/O and leaves a healthy
+stream usable. The context-free methods use the stream's opening context.
+
+Canceling an active operation terminates the whole RPC: gRPC cannot abandon one
+message while preserving that native stream. The operation returns the context
+error promptly; server service code must then return so gRPC can release pending
+native I/O. Return the operation error, or otherwise stop using that stream.
+A completed operation remains successful if its context is canceled later.
+Canceling the original RPC context still terminates the stream when an
+authentication hook supplies a replacement context.
+
+Client `CloseSend` remains a half-close. Receive the final response or status with
+`Recv` or `CloseAndRecv`; cancel the opening context when abandoning reception.
+Native I/O has bounded ownership: at most one send and one receive may be pending,
+and `CloseAndRecv` reserves both directions. Concurrent operations in the same
+direction are unsupported. Messages sent to native I/O are detached, and canceled
+receives do not expose storage still being filled. Do not mutate an input while
+its conversion is running.
+
+Service and conversion panics remain on the calling stack for configured recovery
+interceptors. A panic from a custom native stream or codec is relayed while the
+operation caller is active. If cancellation already returned that caller, Loom
+contains the late native panic and logs its type without payload contents; it
+cannot reach an interceptor that has already returned. Service code and custom
+hooks must cooperate with cancellation; Loom cannot stop arbitrary Go code.
+
+Regenerate the gRPC client and server packages together to adopt this correction.
+No protobuf schema or service interface change is required.
+
 ### Initial Payload and Stream Item Envelopes
 
 A client- or bidirectional-streaming method may declare both `Payload` and

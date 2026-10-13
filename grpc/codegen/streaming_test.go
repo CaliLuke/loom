@@ -163,7 +163,7 @@ func TestServerStreamingErrorObservationDelegatesToRuntime(t *testing.T) {
 
 	require.Contains(t, structCode, "ctx    context.Context")
 	require.Contains(t, sendCode, "loomgrpc.ObserveStreamEncodeError(s.ctx, err)")
-	require.Contains(t, sendCode, "loomgrpc.ObserveStreamWriteError(s.ctx, s.stream.Send(v))")
+	require.Contains(t, sendCode, "loomgrpc.ObserveStreamWriteError(s.ctx, loomgrpc.SendStreamMessage(ctx, s.ctx, v, s.stream.Send))")
 	require.Contains(t, recvCode, "loomgrpc.ObserveStreamDecodeError(s.ctx, err)")
 	require.Contains(t, interfaceCode, "ctx:    ctx")
 }

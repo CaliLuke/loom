@@ -33,7 +33,7 @@ func TestServiceClientStreamReadinessControls(t *testing.T) {
 				client, err := os.ReadFile(filepath.Join(dir, "gen/grpc/feed/client/client.go"))
 				require.NoError(t, err)
 				require.Contains(t, string(client), "func (s *WatchClientStream) Close() error")
-				require.Contains(t, string(client), "return s.stream.CloseSend()")
+				require.Contains(t, string(client), "return loomgrpc.CloseStreamSend(s.ctx, s.ctx, s.stream.CloseSend)")
 			}
 			data := servicecodegen.NewServicesData(root)
 			for _, svc := range root.Services {

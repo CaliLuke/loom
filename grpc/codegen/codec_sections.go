@@ -167,6 +167,7 @@ func addGRPCViewedResultHeaderDecode(b *strings.Builder, endpoint *EndpointData)
 func grpcClientStreamResponseDecoder(b *strings.Builder, endpoint *EndpointData) string {
 	fmt.Fprintf(b, "\treturn &%s{\n", endpoint.ClientStream.VarName)
 	fmt.Fprintf(b, "\t\tstream: v.(%s),\n", endpoint.ClientStream.Interface)
+	b.WriteString("\t\tctx: ctx,\n")
 	if endpoint.ViewedResultRef != "" {
 		b.WriteString("\t\tview: view,\n")
 	}

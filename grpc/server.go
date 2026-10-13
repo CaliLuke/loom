@@ -76,6 +76,7 @@ func ServeStream(ctx context.Context, spec StreamServerSpec) error {
 	defer observer.End()
 	observer.EmitStreamOpen()
 
+	transportCtx := ctx
 	if spec.Admit != nil {
 		admitted, err := spec.Admit(ctx)
 		if err != nil {
@@ -86,6 +87,9 @@ func ServeStream(ctx context.Context, spec StreamServerSpec) error {
 		ctx = context.WithValue(ctx, loom.ServiceKey, spec.Service)
 		ctx = loomtransport.WithRequestObserver(ctx, observer)
 	}
+	ctx, stream := newStreamContext(ctx, false)
+	stream.watch(transportCtx)
+	defer stream.abort(context.Canceled)
 	input, err := spec.Decode(ctx)
 	if err != nil {
 		observer.Fail(loomtransport.ReasonRequestDecodeFailed)
@@ -96,6 +100,10 @@ func ServeStream(ctx context.Context, spec StreamServerSpec) error {
 		return EncodeServerError(err, spec.MapError)
 	}
 
+	if err := stream.cause(); err != nil {
+		observer.Fail(loomtransport.ReasonHandlerError)
+		return EncodeServerError(err, spec.MapError)
+	}
 	observer.EmitStreamClose()
 	return nil
 }

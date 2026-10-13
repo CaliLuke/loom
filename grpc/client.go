@@ -17,6 +17,10 @@ type (
 	// RemoteFunc invokes a RPC method.
 	RemoteFunc func(ctx context.Context, reqpb any, opts ...grpc.CallOption) (respb any, err error)
 
+	streamInvoker struct {
+		Invoker
+	}
+
 	cliInvoker struct {
 		encoder RequestEncoder
 		decoder ResponseDecoder
@@ -31,6 +35,28 @@ func NewInvoker(fn RemoteFunc, enc RequestEncoder, dec ResponseDecoder) Invoker 
 		encoder: enc,
 		decoder: dec,
 	}
+}
+
+// NewStreamInvoker creates an invoker whose opening context belongs to the
+// returned stream. Generated streaming response decoders retain this context;
+// terminal receive or active operation cancellation releases it. CloseSend keeps
+// it alive. Opening and decoding failures release it before Invoke returns.
+func NewStreamInvoker(fn RemoteFunc, enc RequestEncoder, dec ResponseDecoder) Invoker {
+	return &streamInvoker{Invoker: NewInvoker(fn, enc, dec)}
+}
+
+// Invoke transfers the opening context to a successfully decoded stream.
+func (s *streamInvoker) Invoke(ctx context.Context, request any) (response any, err error) {
+	ctx, owner := newStreamContext(ctx, true)
+	transferred := false
+	defer func() {
+		if !transferred {
+			owner.abort(context.Canceled)
+		}
+	}()
+	response, err = s.Invoker.Invoke(ctx, request)
+	transferred = err == nil && response != nil
+	return response, err
 }
 
 // Invoke invokes the given remote gRPC client method.

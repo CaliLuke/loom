@@ -1470,6 +1470,21 @@ filter, and serialization rules belong here.
   `grpc.ServeStream`, and `grpc.EncodeServerError`. Generated gRPC code supplies
   protocol buffer adapters and typed `grpc.ErrorMapper` callbacks. Do not copy
   the status lifecycle into generated service methods.
+- `grpc/stream_context.go` owns per-message cancellation and native I/O lifetime.
+  `ServeStream` retains synchronous Decode/Handle and original request cancellation;
+  `NewStreamInvoker` owns the client opening context through response decoding.
+  Generated adapters retain that context and delegate native I/O to the owner.
+  Keep one pending native send and receive; final CloseAndRecv reserves both.
+  Context cancellation latches a terminal cause and returns without joining native
+  server I/O, which needs handler return to finish. Detach outgoing protobufs,
+  keep receive results private, and stop/join completed operation callbacks.
+  Admission is explicit: rejected operations cannot finalize a healthy client.
+  Every terminal transition detaches parent watches, including registration races.
+  CloseSend remains a half-close; final receive and opening/decoding failure release
+  the client lifetime. Conversion, observation and service recovery stay on the
+  caller stack. Relay active native-hook panics; contain and diagnose late ones
+  without panic contents or late request-state mutation. Keep
+  `grpc/tla/message_context` and its mounted cancellation/recovery tests aligned.
 - gRPC error status and details share one runtime classification in
   `grpc/error_contract.go`. Follow transparent single-cause wrappers, stop at
   an explicit ServiceError, GRPCStatus or recognized designed contract, and

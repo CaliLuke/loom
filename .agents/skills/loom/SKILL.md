@@ -1267,6 +1267,19 @@ endpoints do this automatically. For a shared SSE/gRPC service interface,
 gRPC Close retains CloseSend semantics; cancel the original RPC context to
 terminate reception.
 
+## gRPC Stream Operation Contexts
+
+Use `SendWithContext`, `RecvWithContext`, `SendAndCloseWithContext` or
+`CloseAndRecvWithContext` for operation deadlines. An already-ended context
+performs no I/O and leaves a healthy stream usable. Cancellation during active
+I/O terminates the whole RPC; server service code must return after that error
+so native work can finish. Canceling an old, completed operation does not cancel
+later operations. Context-free methods use the opening context. `CloseSend`
+keeps reception alive; receive final status or cancel the opening context when
+abandoning it. Regenerate gRPC packages to adopt the correction. See
+[stream operation contexts](../../../docs/grpc-guide.md#stream-operation-contexts)
+for data ownership, recovery and custom-hook limits.
+
 ## Interceptor Result Boundaries
 
 Use `ReadResult` and `WriteResult` for ordinary endpoint results. An HTTP or

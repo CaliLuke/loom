@@ -13,9 +13,7 @@ func grpcStreamStructSection(stream *StreamData) codegenpkg.Section {
 		codegenpkg.Doc(stmt, fmt.Sprintf("%s implements the %s interface.", stream.VarName, stream.ServiceInterface))
 		fields := []jen.Code{
 			jen.Id("stream").Add(codegenpkg.TypeRef(stream.Interface)),
-		}
-		if stream.Type == "server" {
-			fields = append(fields, jen.Id("ctx").Qual("context", "Context"))
+			jen.Id("ctx").Qual("context", "Context"),
 		}
 		if stream.Endpoint.Method.ViewedResult != nil {
 			fields = append(fields, jen.Id("view").String())
@@ -26,8 +24,10 @@ func grpcStreamStructSection(stream *StreamData) codegenpkg.Section {
 
 func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection(stream.Type+"-stream-send", func(stmt *jen.Statement) {
-		codegenpkg.Doc(stmt, stream.SendDesc)
-		body := []jen.Code{}
+		codegenpkg.Doc(stmt, stream.SendWithContextDesc)
+		body := []jen.Code{
+			jen.If(jen.Err().Op(":=").Id("ctx").Dot("Err").Call(), jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Err())),
+		}
 		sendArg := "res"
 		if stream.Endpoint.Method.ViewedResult != nil && stream.Type == "server" {
 			viewArg := fmt.Sprintf("%q", stream.Endpoint.Method.ViewedResult.ViewName)
@@ -53,53 +53,49 @@ func grpcStreamSendSection(stream *StreamData) codegenpkg.Section {
 		}
 		if stream.Type == "client" && stream.Endpoint.Request.StreamEnvelope != nil {
 			env := stream.Endpoint.Request.StreamEnvelope
-			body = append(body, jen.Return(jen.Id("s").Dot("stream").Dot(stream.SendName).Call(
+			body = append(body, jen.Return(codegenpkg.Expr("loomgrpc.SendStreamMessage").Call(jen.Id("ctx"), jen.Id("s").Dot("ctx"),
 				jen.Op("&").Add(codegenpkg.PkgQual(stream.Endpoint.PkgName, stream.Endpoint.Request.Message.VarName)).Values(jen.Dict{
 					jen.Id(env.FieldName): jen.Op("&").Add(codegenpkg.TypeRef(env.StreamItemWrapperRef)).Values(jen.Dict{
 						jen.Id(env.StreamItemFieldName): jen.Id("v"),
 					}),
 				}),
+				jen.Id("s").Dot("stream").Dot(stream.SendName),
 			)))
 		} else {
-			send := jen.Id("s").Dot("stream").Dot(stream.SendName).Call(jen.Id("v"))
+			send := codegenpkg.Expr("loomgrpc.SendStreamMessage").Call(jen.Id("ctx"), jen.Id("s").Dot("ctx"), jen.Id("v"), jen.Id("s").Dot("stream").Dot(stream.SendName))
 			if stream.Type == "server" {
 				send = codegenpkg.Expr("loomgrpc.ObserveStreamWriteError").Call(jen.Id("s").Dot("ctx"), send)
 			}
 			body = append(body, jen.Return(send))
 		}
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
-			Id(stream.SendName).
-			Params(jen.Id("res").Add(codegenpkg.TypeRef(stream.SendRef))).
+			Id(stream.SendWithContextName).
+			Params(jen.Id("ctx").Qual("context", "Context"), jen.Id("res").Add(codegenpkg.TypeRef(stream.SendRef))).
 			Error().
 			Block(body...)
 		stmt.Line()
-		codegenpkg.Doc(stmt, stream.SendWithContextDesc)
+		codegenpkg.Doc(stmt, stream.SendDesc)
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
-			Id(stream.SendWithContextName).
-			Params(
-				jen.Id("ctx").Qual("context", "Context"),
-				jen.Id("res").Add(codegenpkg.TypeRef(stream.SendRef)),
-			).
-			Error().
-			Block(
-				jen.Return(jen.Id("s").Dot(stream.SendName).Call(jen.Id("res"))),
-			)
+			Id(stream.SendName).
+			Params(jen.Id("res").Add(codegenpkg.TypeRef(stream.SendRef))).Error().
+			Block(jen.Return(jen.Id("s").Dot(stream.SendWithContextName).Call(jen.Id("s").Dot("ctx"), jen.Id("res"))))
 	})
 }
 
 func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 	return codegenpkg.NewJenniferSection(stream.Type+"-stream-recv", func(stmt *jen.Statement) {
-		codegenpkg.Doc(stmt, stream.RecvDesc)
+		codegenpkg.Doc(stmt, stream.RecvWithContextDesc)
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
-			Id(stream.RecvName).
-			Params().
+			Id(stream.RecvWithContextName).
+			Params(jen.Id("ctx").Qual("context", "Context")).
 			Params(codegenpkg.TypeRef(stream.RecvRef), jen.Error()).
 			BlockFunc(func(g *jen.Group) {
 				g.Var().Id("res").Add(codegenpkg.TypeRef(stream.RecvRef))
+				g.If(jen.Err().Op(":=").Id("ctx").Dot("Err").Call(), jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Id("res"), jen.Err()))
 				if stream.Type == "server" && stream.Endpoint.Request.StreamEnvelope != nil {
-					g.List(jen.Id("message"), jen.Err()).Op(":=").Id("s").Dot("stream").Dot(stream.RecvName).Call()
+					g.List(jen.Id("message"), jen.Err()).Op(":=").Add(codegenpkg.Expr("loomgrpc.ReceiveStreamMessage")).Call(jen.Id("ctx"), jen.Id("s").Dot("ctx"), jen.Lit(stream.RecvName == "CloseAndRecv"), jen.Id("s").Dot("stream").Dot(stream.RecvName))
 				} else {
-					g.List(jen.Id("v"), jen.Err()).Op(":=").Id("s").Dot("stream").Dot(stream.RecvName).Call()
+					g.List(jen.Id("v"), jen.Err()).Op(":=").Add(codegenpkg.Expr("loomgrpc.ReceiveStreamMessage")).Call(jen.Id("ctx"), jen.Id("s").Dot("ctx"), jen.Lit(stream.RecvName == "CloseAndRecv"), jen.Id("s").Dot("stream").Dot(stream.RecvName))
 				}
 				appendGRPCStreamRecvErrorHandling(g, stream)
 				if stream.Type == "server" && stream.Endpoint.Request.StreamEnvelope != nil {
@@ -131,14 +127,10 @@ func grpcStreamRecvSection(stream *StreamData) codegenpkg.Section {
 				}
 			})
 		stmt.Line()
-		codegenpkg.Doc(stmt, stream.RecvWithContextDesc)
+		codegenpkg.Doc(stmt, stream.RecvDesc)
 		stmt.Func().Params(jen.Id("s").Op("*").Id(stream.VarName)).
-			Id(stream.RecvWithContextName).
-			Params(jen.Id("ctx").Qual("context", "Context")).
-			Params(codegenpkg.TypeRef(stream.RecvRef), jen.Error()).
-			Block(
-				jen.Return(jen.Id("s").Dot(stream.RecvName).Call()),
-			)
+			Id(stream.RecvName).Params().Params(codegenpkg.TypeRef(stream.RecvRef), jen.Error()).
+			Block(jen.Return(jen.Id("s").Dot(stream.RecvWithContextName).Call(jen.Id("s").Dot("ctx"))))
 	})
 }
 
@@ -274,10 +266,10 @@ func grpcStreamCloseSection(stream *StreamData) codegenpkg.Section {
 			if stream.Type == "client" {
 				if stream.Endpoint.Method.ResultRef != "" {
 					g.Comment(codegenpkg.Comment("Close the send direction of the stream"))
-					g.Return(jen.Id("s").Dot("stream").Dot("CloseSend").Call())
+					g.Return(codegenpkg.Expr("loomgrpc.CloseStreamSend").Call(jen.Id("s").Dot("ctx"), jen.Id("s").Dot("ctx"), jen.Id("s").Dot("stream").Dot("CloseSend")))
 				} else {
 					g.Comment(codegenpkg.Comment("synchronize and report any server error"))
-					g.List(jen.Id("_"), jen.Err()).Op(":=").Id("s").Dot("stream").Dot("CloseAndRecv").Call()
+					g.List(jen.Id("_"), jen.Err()).Op(":=").Add(codegenpkg.Expr("loomgrpc.ReceiveStreamMessage")).Call(jen.Id("s").Dot("ctx"), jen.Id("s").Dot("ctx"), jen.True(), jen.Id("s").Dot("stream").Dot("CloseAndRecv"))
 					g.Return(jen.Err())
 				}
 				return
@@ -290,8 +282,10 @@ func grpcStreamCloseSection(stream *StreamData) codegenpkg.Section {
 			g.Comment(codegenpkg.Comment("synchronize stream"))
 			g.Return(codegenpkg.Expr("loomgrpc.ObserveStreamWriteError").Call(
 				jen.Id("s").Dot("ctx"),
-				jen.Id("s").Dot("stream").Dot("SendAndClose").Call(
+				codegenpkg.Expr("loomgrpc.SendStreamMessage").Call(
+					jen.Id("s").Dot("ctx"), jen.Id("s").Dot("ctx"),
 					jen.Op("&").Id(stream.Endpoint.Response.ServerConvert.TgtName).Values(),
+					jen.Id("s").Dot("stream").Dot("SendAndClose"),
 				),
 			))
 		})
