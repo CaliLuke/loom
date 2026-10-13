@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"unicode"
@@ -23,12 +22,25 @@ type (
 	// ProblemResponse is the default RFC 9457 problem document encoded in HTTP
 	// responses for Loom service errors.
 	ProblemResponse struct {
-		Type      string  `json:"type" xml:"type" form:"type"`
-		Title     string  `json:"title" xml:"title" form:"title"`
-		Status    int     `json:"status" xml:"status" form:"status"`
-		Detail    string  `json:"detail" xml:"detail" form:"detail"`
-		Instance  string  `json:"instance" xml:"instance" form:"instance"`
-		Code      string  `json:"code" xml:"code" form:"code"`
+		// Type identifies the problem category with a URI reference.
+		Type string `json:"type" xml:"type" form:"type"`
+		// Title summarizes the problem category.
+		Title string `json:"title" xml:"title" form:"title"`
+		// Status is the response status selected by the transport.
+		Status int `json:"status" xml:"status" form:"status"`
+		// Detail is the safe explanation of this occurrence.
+		Detail string `json:"detail" xml:"detail" form:"detail"`
+		// Instance identifies this occurrence with a URI reference.
+		Instance string `json:"instance" xml:"instance" form:"instance"`
+		// Code is the service error's stable machine-readable name.
+		Code string `json:"code" xml:"code" form:"code"`
+		// Timeout reports the source error's timeout property, independently of Status.
+		Timeout bool `json:"timeout" xml:"timeout" form:"timeout"`
+		// Temporary reports whether the source error is transient, independently of Status.
+		Temporary bool `json:"temporary" xml:"temporary" form:"temporary"`
+		// Fault reports the source error's server-fault property, independently of Status.
+		Fault bool `json:"fault" xml:"fault" form:"fault"`
+		// RetryHint optionally describes how to correct or retry the operation.
 		RetryHint *string `json:"retry_hint,omitempty" xml:"retry_hint,omitempty" form:"retry_hint,omitempty"`
 	}
 
@@ -61,12 +73,15 @@ func NewProblemResponse(_ context.Context, err error, status int, problemType, p
 	}
 	problemType, problemTitle = ResolveProblemTypeAndTitle(gerr.Name, status, problemType, problemTitle)
 	resp := &ProblemResponse{
-		Type:     problemType,
-		Title:    problemTitle,
-		Status:   status,
-		Detail:   loom.ErrorSafeMessage(err),
-		Instance: ProblemInstanceURI(gerr.ID),
-		Code:     gerr.Name,
+		Type:      problemType,
+		Title:     problemTitle,
+		Status:    status,
+		Detail:    loom.ErrorSafeMessage(err),
+		Instance:  ProblemInstanceURI(gerr.ID),
+		Code:      gerr.Name,
+		Timeout:   gerr.Timeout,
+		Temporary: gerr.Temporary,
+		Fault:     gerr.Fault,
 	}
 	if retryHint := loom.ErrorRetryHint(err); retryHint != "" {
 		resp.RetryHint = &retryHint
@@ -233,38 +248,17 @@ func humanizeProblemCode(code string) string {
 	return strings.Join(parts, " ")
 }
 
-// ProblemErrorFromBody rebuilds a Loom service error from a decoded problem
-// document body.
-func ProblemErrorFromBody(
-	code string,
-	status int,
-	detail string,
-	instance string,
-	retryHint *string,
-) *loom.ServiceError {
-	timeout, temporary, fault := inferProblemFlags(status)
-	err := loom.NewServiceError(fmt.Errorf("%s", detail), code, timeout, temporary, fault)
-	err.ID = ProblemInstanceID(instance)
-	if retryHint != nil && *retryHint != "" {
+// ProblemErrorFromBody rebuilds a service error from a decoded public document.
+// Properties are copied explicitly; Status never supplies missing properties.
+// A property omitted by an authored body projection therefore remains false.
+func ProblemErrorFromBody(body ProblemResponse) *loom.ServiceError {
+	err := loom.NewServiceError(errors.New(body.Detail), body.Code, body.Timeout, body.Temporary, body.Fault)
+	err.ID = ProblemInstanceID(body.Instance)
+	if body.RetryHint != nil && *body.RetryHint != "" {
 		err = loom.WithErrorRemedy(err, &loom.ErrorRemedy{
-			SafeMessage: detail,
-			RetryHint:   *retryHint,
+			SafeMessage: body.Detail,
+			RetryHint:   *body.RetryHint,
 		})
 	}
 	return err
-}
-
-func inferProblemFlags(status int) (timeout, temporary, fault bool) {
-	switch status {
-	case http.StatusInternalServerError:
-		return false, false, true
-	case http.StatusRequestTimeout:
-		return true, false, false
-	case http.StatusGatewayTimeout:
-		return true, true, false
-	case http.StatusServiceUnavailable, http.StatusTooManyRequests:
-		return false, true, false
-	default:
-		return false, false, false
-	}
 }

@@ -13,14 +13,15 @@ import (
 
 func TestSelectedProblemBodyConstruction(t *testing.T) {
 	cases := []struct {
-		name     string
-		body     string
-		mapCode  bool
-		custom   bool
-		empty    bool
-		shaped   bool
-		cookie   bool
-		override bool
+		name           string
+		body           string
+		mapCode        bool
+		custom         bool
+		empty          bool
+		shaped         bool
+		cookie         bool
+		override       bool
+		mappedProperty string
 	}{
 		{name: "full problem"},
 		{name: "type", body: "type"},
@@ -30,6 +31,11 @@ func TestSelectedProblemBodyConstruction(t *testing.T) {
 		{name: "instance", body: "instance"},
 		{name: "code", body: "code"},
 		{name: "retry hint", body: "retry_hint"},
+		{name: "timeout", body: "timeout"},
+		{name: "temporary", body: "temporary"},
+		{name: "fault", body: "fault"},
+		{name: "temporary header", mappedProperty: "header"},
+		{name: "temporary cookie", mappedProperty: "cookie"},
 		{name: "code header", mapCode: true},
 		{name: "custom detail", body: "detail", custom: true},
 		{name: "empty", empty: true},
@@ -69,6 +75,11 @@ func TestSelectedProblemBodyConstruction(t *testing.T) {
 								if tc.shaped {
 									Body(func() { Attribute("detail") })
 								}
+								if tc.mappedProperty == "header" {
+									Header("temporary:X-Temporary")
+								} else if tc.mappedProperty == "cookie" {
+									Cookie("temporary:transient")
+								}
 								if tc.cookie {
 									Cookie("code:error_code")
 								}
@@ -86,7 +97,7 @@ func TestSelectedProblemBodyConstruction(t *testing.T) {
 			runGoCommand(t, dir, "mod", "tidy")
 			runGoCommand(t, dir, "build", "./...")
 			if !tc.custom {
-				harness := fmt.Sprintf(selectedProblemWireHarness, tc.body, tc.mapCode, tc.cookie, tc.empty, tc.shaped, tc.override)
+				harness := fmt.Sprintf(selectedProblemWireHarness, tc.body, tc.mapCode, tc.cookie, tc.empty, tc.shaped, tc.override, tc.mappedProperty)
 				require.NoError(t, os.WriteFile(filepath.Join(dir, "problem_test.go"), []byte(harness), 0o600))
 				runGoCommand(t, dir, "mod", "tidy")
 				runGoCommand(t, dir, "test", "-count=1", "./...")

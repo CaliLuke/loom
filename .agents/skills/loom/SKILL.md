@@ -35,6 +35,13 @@ the CLI launcher and the design module's Loom dependency together.
 Generation, example, and vet helpers honor the active Go workspace's modules
 and replacements. Set `GOWORK=off` to use only the design module's `go.mod`.
 
+Full built-in HTTP/JSON-RPC errors carry required `timeout`, `temporary` and
+`fault` booleans. Generated clients preserve them independently of response status
+or code. Explicitly pruned object bodies omit unselected properties (decoded as
+false); scalar/empty Body selection retains automatic header mappings. Regenerate
+clients and servers together. Handwritten `http.ProblemErrorFromBody` calls take a
+complete `http.ProblemResponse` value with explicit properties.
+
 HTTP errors may share a status and use distinct media types. OpenAPI retains
 all representations and uses `anyOf` for overlapping body or header schemas.
 Headers are required only across all alternatives. Keep response links,

@@ -50,6 +50,14 @@ type GuardedUnauthorizedResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 	// Code is the stable machine-readable problem code.
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Timeout reports the source error's timeout property, independently of status.
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Temporary reports whether the source error is transient, independently of
+	// status.
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Fault reports the source error's server-fault property, independently of
+	// status.
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 	// Retry hint is concise guidance on how to correct the request or retry the
 	// operation.
 	RetryHint loom.Optional[string] `form:"retry_hint,omitempty" json:"retry_hint,omitzero" xml:"retry_hint,omitempty"`
@@ -92,19 +100,22 @@ func NewGuardedTickTockEventOK(body *GuardedResponseBody) *clock.TickTockEvent {
 // error.
 func NewGuardedUnauthorized(body *GuardedUnauthorizedResponseBody) *loom.ServiceError {
 	problem := &loomhttp.ProblemResponse{
-		Type:     *body.Type,
-		Title:    *body.Title,
-		Status:   *body.Status,
-		Detail:   *body.Detail,
-		Instance: *body.Instance,
-		Code:     *body.Code,
+		Type:      *body.Type,
+		Title:     *body.Title,
+		Status:    *body.Status,
+		Detail:    *body.Detail,
+		Instance:  *body.Instance,
+		Code:      *body.Code,
+		Timeout:   *body.Timeout,
+		Temporary: *body.Temporary,
+		Fault:     *body.Fault,
 	}
 	if actual, ok := body.RetryHint.Value(); ok {
 		problemRetryHintValue := actual
 
 		problem.RetryHint = &problemRetryHintValue
 	}
-	v := loomhttp.ProblemErrorFromBody(problem.Code, 401, problem.Detail, problem.Instance, problem.RetryHint)
+	v := loomhttp.ProblemErrorFromBody(*problem)
 
 	return v
 }
@@ -191,6 +202,15 @@ func ValidateGuardedUnauthorizedResponseBody(body *GuardedUnauthorizedResponseBo
 	}
 	if body.Code == nil {
 		err = loom.MergeErrors(err, loom.MissingFieldError("code", validationPath))
+	}
+	if body.Timeout == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("timeout", validationPath))
+	}
+	if body.Temporary == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("temporary", validationPath))
+	}
+	if body.Fault == nil {
+		err = loom.MergeErrors(err, loom.MissingFieldError("fault", validationPath))
 	}
 	return
 }

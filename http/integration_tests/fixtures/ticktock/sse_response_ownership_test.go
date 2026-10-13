@@ -40,7 +40,7 @@ func TestGeneratedSSEResponseOwnership(t *testing.T) {
 	} {
 		for _, closeFails := range []bool{false, true} {
 			t.Run(tc.name+map[bool]string{false: "/close succeeds", true: "/close fails"}[closeFails], func(t *testing.T) {
-				body := &sseResponseBody{Reader: strings.NewReader(`{"type":"about:blank","title":"Unauthorized","status":401,"detail":"denied","instance":"test","code":"unauthorized"}`)}
+				body := &sseResponseBody{Reader: strings.NewReader(`{"type":"about:blank","title":"Unauthorized","status":401,"detail":"denied","instance":"test","code":"unauthorized","timeout":false,"temporary":false,"fault":false}`)}
 				if closeFails {
 					body.closeErr = errors.New("close failed")
 				}

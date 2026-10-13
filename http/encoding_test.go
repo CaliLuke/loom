@@ -288,13 +288,13 @@ func TestResponseEncoder_Encode_ErrorResponse(t *testing.T) {
 		{
 			name:       "generic-json",
 			acceptType: "application/json",
-			encoded:    fmt.Sprintf(`{"type":"https://github.com/CaliLuke/loom/problems/foo","title":"Foo","status":400,"detail":"foo","instance":"urn:loom:error:%s","code":"foo"}`, serviceError.ID),
+			encoded:    fmt.Sprintf(`{"type":"https://github.com/CaliLuke/loom/problems/foo","title":"Foo","status":400,"detail":"foo","instance":"urn:loom:error:%s","code":"foo","timeout":false,"temporary":false,"fault":false}`, serviceError.ID),
 			wantCT:     ProblemJSONContentType,
 		},
 		{
 			name:       "explicit-xml",
 			acceptType: "application/xml",
-			encoded:    fmt.Sprintf(`<ProblemResponse><type>https://github.com/CaliLuke/loom/problems/foo</type><title>Foo</title><status>400</status><detail>foo</detail><instance>urn:loom:error:%s</instance><code>foo</code></ProblemResponse>`, serviceError.ID),
+			encoded:    fmt.Sprintf(`<ProblemResponse><type>https://github.com/CaliLuke/loom/problems/foo</type><title>Foo</title><status>400</status><detail>foo</detail><instance>urn:loom:error:%s</instance><code>foo</code><timeout>false</timeout><temporary>false</temporary><fault>false</fault></ProblemResponse>`, serviceError.ID),
 			wantCT:     "application/xml",
 		},
 	}
@@ -337,11 +337,11 @@ func TestResponseEncoder_Encode_ErrorResponseWithRemedy(t *testing.T) {
 	}{
 		{
 			name:     "problem-json",
-			wantBody: fmt.Sprintf(`{"type":"about:blank","title":"Bad Request","status":400,"detail":"Retry with a valid request.","instance":"urn:loom:error:%s","code":"bad_request","retry_hint":"Correct the payload and retry."}`, err.ID),
+			wantBody: fmt.Sprintf(`{"type":"about:blank","title":"Bad Request","status":400,"detail":"Retry with a valid request.","instance":"urn:loom:error:%s","code":"bad_request","timeout":false,"temporary":false,"fault":false,"retry_hint":"Correct the payload and retry."}`, err.ID),
 		},
 		{
 			name:     "problem-helper",
-			wantBody: fmt.Sprintf(`{"type":"about:blank","title":"Bad Request","status":400,"detail":"Retry with a valid request.","instance":"urn:loom:error:%s","code":"bad_request","retry_hint":"Correct the payload and retry."}`, err.ID),
+			wantBody: fmt.Sprintf(`{"type":"about:blank","title":"Bad Request","status":400,"detail":"Retry with a valid request.","instance":"urn:loom:error:%s","code":"bad_request","timeout":false,"temporary":false,"fault":false,"retry_hint":"Correct the payload and retry."}`, err.ID),
 		},
 	}
 

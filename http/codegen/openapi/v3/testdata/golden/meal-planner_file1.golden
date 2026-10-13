@@ -474,9 +474,12 @@ paths:
                                 example:
                                     code: bad_request
                                     detail: parameter 'p' must be an integer
+                                    fault: false
                                     instance: urn:loom:error:123abc
                                     retry_hint: Correct the payload and retry.
                                     status: 400
+                                    temporary: false
+                                    timeout: false
                                     title: Bad Request
                                     type: https://github.com/CaliLuke/loom/problems/bad-request
                                 $ref: '#/components/schemas/Problem'
@@ -720,6 +723,10 @@ components:
                     type: string
                     description: Detail is a human-readable explanation specific to this occurrence of the problem.
                     example: parameter 'p' must be an integer
+                fault:
+                    type: boolean
+                    description: Fault reports the source error's server-fault property, independently of status.
+                    example: false
                 instance:
                     type: string
                     description: Instance identifies this specific occurrence of the problem.
@@ -733,6 +740,14 @@ components:
                     description: Status is the HTTP status code generated for this occurrence of the problem.
                     example: 400
                     format: int64
+                temporary:
+                    type: boolean
+                    description: Temporary reports whether the source error is transient, independently of status.
+                    example: false
+                timeout:
+                    type: boolean
+                    description: Timeout reports the source error's timeout property, independently of status.
+                    example: false
                 title:
                     type: string
                     description: Title is a short, human-readable summary of the problem type.
@@ -745,9 +760,12 @@ components:
             example:
                 code: bad_request
                 detail: parameter 'p' must be an integer
+                fault: false
                 instance: urn:loom:error:123abc
                 retry_hint: Correct the payload and retry.
                 status: 400
+                temporary: false
+                timeout: false
                 title: Bad Request
                 type: https://github.com/CaliLuke/loom/problems/bad-request
             required:
@@ -757,6 +775,9 @@ components:
                 - detail
                 - instance
                 - code
+                - timeout
+                - temporary
+                - fault
             additionalProperties: false
         RecipePairSelection:
             type: object
@@ -948,9 +969,12 @@ components:
                         example:
                             code: bad_request
                             detail: parameter 'p' must be an integer
+                            fault: false
                             instance: urn:loom:error:123abc
                             retry_hint: Correct the payload and retry.
                             status: 400
+                            temporary: false
+                            timeout: false
                             title: Bad Request
                             type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
@@ -962,9 +986,12 @@ components:
                         example:
                             code: bad_request
                             detail: parameter 'p' must be an integer
+                            fault: false
                             instance: urn:loom:error:123abc
                             retry_hint: Correct the payload and retry.
                             status: 400
+                            temporary: false
+                            timeout: false
                             title: Bad Request
                             type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
@@ -978,9 +1005,12 @@ components:
                         example:
                             code: bad_request
                             detail: parameter 'p' must be an integer
+                            fault: false
                             instance: urn:loom:error:123abc
                             retry_hint: Correct the payload and retry.
                             status: 400
+                            temporary: false
+                            timeout: false
                             title: Bad Request
                             type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'
@@ -992,9 +1022,12 @@ components:
                         example:
                             code: bad_request
                             detail: parameter 'p' must be an integer
+                            fault: false
                             instance: urn:loom:error:123abc
                             retry_hint: Correct the payload and retry.
                             status: 400
+                            temporary: false
+                            timeout: false
                             title: Bad Request
                             type: https://github.com/CaliLuke/loom/problems/bad-request
                         $ref: '#/components/schemas/Problem'

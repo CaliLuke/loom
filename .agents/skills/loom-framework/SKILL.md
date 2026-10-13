@@ -832,7 +832,13 @@ filter, and serialization rules belong here.
   `problemRepresentation` and `responseBodySource` owners select the source before
   generic body projection. Body, header and cookie fields read the same public
   document; client reconstruction uses shared transforms and field assignments
-  before `ProblemErrorFromBody`. Keep complete, pruned, scalar and empty bodies
+  before `ProblemErrorFromBody`, which consumes that complete document. The shared
+  runtime document and `expr.ErrorResult` carry required Timeout/Temporary/Fault
+  booleans, including false. Never infer them from status/code. Explicitly pruned
+  objects omit unselected properties; scalar/empty bodies retain automatic
+  headers. Keep the [property model](../../../http/tla/problem_properties/README.md)
+  aligned with full/selected/mapped HTTP/JSON-RPC and unchanged gRPC controls.
+  Keep complete, pruned, scalar and empty bodies
   on this path, and pass the whole error to custom formatters. The projection
   model and generated wire tests cover representation and member availability.
 

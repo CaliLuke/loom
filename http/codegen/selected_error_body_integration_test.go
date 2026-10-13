@@ -20,10 +20,11 @@ import (
 )
 func TestSelectedWire(t *testing.T) {
  selected, header, cookie, empty, shaped, override := %q, %t, %t, %t, %t, %t
+ mappedProperty := %q
  for _, hint := range []string{"", "retry later"} {
   for _, safe := range []string{"", "public detail"} {
    for _, formatted := range []bool{false, true} {
-    original := loom.NewServiceError(errors.New("private credential"), "oops", false, false, true)
+    original := loom.NewServiceError(errors.New("private credential"), "oops", true, true, true)
     original.ID = "instance-id"
     original.Message = "public message"
     original = loom.WithErrorRemedy(original, &loom.ErrorRemedy{SafeMessage:safe, RetryHint:hint})
@@ -59,6 +60,9 @@ func TestSelectedWire(t *testing.T) {
     if selected!="" { wanted=fields[selected] }
     if shaped { wanted=map[string]any{"detail":expected.Detail} }
     if header || cookie { delete(fields,"code") }
+    if mappedProperty!="" { delete(fields,"temporary") }
+    if mappedProperty=="header" { require.Equal(t,"true",response.Header.Get("X-Temporary")) }
+    if mappedProperty=="cookie" { require.Contains(t,response.Header.Get("Set-Cookie"),"transient=true") }
     if formatted { wanted=&loomhttp.ProblemResponse{Status:418, Detail:"formatter document"} }
     if empty { require.Empty(t,data) } else {
      contentType := loomhttp.ProblemJSONContentType
@@ -86,17 +90,49 @@ func TestSelectedWire(t *testing.T) {
      require.Equal(t,wantDetail,actual.Message)
      require.Equal(t,wantID,actual.ID)
      require.Equal(t,wantHint,loom.ErrorRetryHint(actual))
+     fullProperties := !shaped
+     require.Equal(t,fullProperties || selected=="timeout",actual.Timeout)
+     require.Equal(t,fullProperties || selected=="temporary" || mappedProperty!="",actual.Temporary)
+     require.Equal(t,fullProperties || selected=="fault",actual.Fault)
     }
     host.Close()
     if hint=="" && safe=="" && !formatted && !empty {
-     invalidBodies:=[]string{"{", "[]"}
-     if selected=="" { invalidBodies=append(invalidBodies,"{}") }
+     invalidBodies:=[]struct{body, kind string}{{"{", "decoding_error"}, {"[]", "decoding_error"}}
+     if selected=="" {
+      invalidBodies=append(invalidBodies,struct{body, kind string}{"{}","validation_error"})
+     }
+     if selected=="" && !shaped {
+      for _, property:=range []string{"timeout","temporary","fault"} {
+       if property=="temporary" && mappedProperty!="" {
+        continue
+       }
+       for _, mutation:=range []string{"missing","null","string"} {
+        malformed:=make(map[string]any,len(fields))
+        for key,value:=range fields {
+         malformed[key]=value
+        }
+        kind:="validation_error"
+        switch mutation {
+        case "missing":
+         delete(malformed,property)
+        case "null":
+         malformed[property]=nil
+        case "string":
+         malformed[property]="true"
+         kind="decoding_error"
+        }
+        encoded,err:=json.Marshal(malformed)
+        require.NoError(t,err)
+        invalidBodies=append(invalidBodies,struct{body, kind string}{string(encoded),kind})
+       }
+      }
+     }
      for _, invalid:=range invalidBodies {
       badHost:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,_ *http.Request){
        w.Header().Set("Content-Type","application/json")
        w.Header().Set("loom-error","oops")
        w.WriteHeader(400)
-       if _,err:=io.WriteString(w,invalid); err!=nil { t.Errorf("write malformed response: %%v",err) }
+       if _,err:=io.WriteString(w,invalid.body); err!=nil { t.Errorf("write malformed response: %%v",err) }
       }))
       address,err:=url.Parse(badHost.URL)
       require.NoError(t,err)
@@ -106,9 +142,7 @@ func TestSelectedWire(t *testing.T) {
       require.Error(t,err)
       var clientError *loomhttp.ClientError
       require.ErrorAs(t,err,&clientError)
-      expectedKind:="decoding_error"
-      if invalid=="{}" { expectedKind="validation_error" }
-      require.Equal(t,expectedKind,clientError.Name)
+      require.Equal(t,invalid.kind,clientError.Name,"body: %%s",invalid.body)
       badHost.Close()
      }
     }

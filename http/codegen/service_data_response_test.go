@@ -20,7 +20,7 @@ func TestProblemResponseUsesNativeRepresentation(t *testing.T) {
 	code := response.ResultInit.ClientCode
 	require.Contains(t, code, "loomhttp.ProblemResponse{")
 	require.Contains(t, code, "body.RetryHint.Value()")
-	require.Contains(t, code, "loomhttp.ProblemErrorFromBody(problem.Code,")
+	require.Contains(t, code, "loomhttp.ProblemErrorFromBody(*problem)")
 }
 
 func TestClientResponseValidationEmitsOneRequiredNullablePresenceCheck(t *testing.T) {

@@ -20,9 +20,12 @@
               "example": {
                 "code": "bad_request",
                 "detail": "parameter 'p' must be an integer",
+                "fault": false,
                 "instance": "urn:loom:error:123abc",
                 "retry_hint": "Correct the payload and retry.",
                 "status": 400,
+                "temporary": false,
+                "timeout": false,
                 "title": "Bad Request",
                 "type": "https://github.com/CaliLuke/loom/problems/bad-request"
               }
@@ -39,9 +42,12 @@
               "example": {
                 "code": "bad_request",
                 "detail": "parameter 'p' must be an integer",
+                "fault": false,
                 "instance": "urn:loom:error:123abc",
                 "retry_hint": "Correct the payload and retry.",
                 "status": 400,
+                "temporary": false,
+                "timeout": false,
                 "title": "Bad Request",
                 "type": "https://github.com/CaliLuke/loom/problems/bad-request"
               }
@@ -90,9 +96,12 @@
               "example": {
                 "code": "bad_request",
                 "detail": "parameter 'p' must be an integer",
+                "fault": false,
                 "instance": "urn:loom:error:123abc",
                 "retry_hint": "Correct the payload and retry.",
                 "status": 400,
+                "temporary": false,
+                "timeout": false,
                 "title": "Bad Request",
                 "type": "https://github.com/CaliLuke/loom/problems/bad-request"
               }
@@ -220,9 +229,12 @@
         "example": {
           "code": "bad_request",
           "detail": "parameter 'p' must be an integer",
+          "fault": false,
           "instance": "urn:loom:error:123abc",
           "retry_hint": "Correct the payload and retry.",
           "status": 400,
+          "temporary": false,
+          "timeout": false,
           "title": "Bad Request",
           "type": "https://github.com/CaliLuke/loom/problems/bad-request"
         },
@@ -236,6 +248,11 @@
             "description": "Detail is a human-readable explanation specific to this occurrence of the problem.",
             "example": "parameter 'p' must be an integer",
             "type": "string"
+          },
+          "fault": {
+            "description": "Fault reports the source error's server-fault property, independently of status.",
+            "example": false,
+            "type": "boolean"
           },
           "instance": {
             "description": "Instance identifies this specific occurrence of the problem.",
@@ -252,6 +269,16 @@
             "example": 400,
             "format": "int64",
             "type": "integer"
+          },
+          "temporary": {
+            "description": "Temporary reports whether the source error is transient, independently of status.",
+            "example": false,
+            "type": "boolean"
+          },
+          "timeout": {
+            "description": "Timeout reports the source error's timeout property, independently of status.",
+            "example": false,
+            "type": "boolean"
           },
           "title": {
             "description": "Title is a short, human-readable summary of the problem type.",
@@ -270,7 +297,10 @@
           "status",
           "detail",
           "instance",
-          "code"
+          "code",
+          "timeout",
+          "temporary",
+          "fault"
         ],
         "type": "object"
       }

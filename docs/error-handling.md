@@ -152,7 +152,8 @@ typed, validated service error.
 
 ### Default ErrorResult
 
-The default `ErrorResult` type includes standard fields:
+The default `ErrorResult` uses `loom.ServiceError` in service implementations and
+generated clients. Its Go fields include:
 
 - **Name**: The error name as defined in the DSL
 - **ID**: Unique identifier for the error instance
@@ -278,6 +279,25 @@ The generated `Error()` method returns the first non-empty string field with one
 5. `reason`
 
 If these fields are empty or absent, `Error()` returns the custom type description.
+
+HTTP and JSON-RPC encode the full built-in error as a problem document with
+`type`, `title`, `status`, `detail`, `instance`, `code`, `retry_hint`, `timeout`,
+`temporary` and `fault`. The last three fields are required booleans, including
+explicit `false` values. Clients preserve their values independently of HTTP
+status or JSON-RPC error code. For example, an all-false error mapped to HTTP 500
+remains all-false, and `Timeout=true` does not imply `Temporary=true`.
+
+Authored body and header/cookie mappings determine which properties are conveyed.
+An explicitly pruned object body such as `Body(func() { Attribute("detail") })`
+omits the properties; clients use false for each omitted property. Scalar body
+selection, such as `Body("detail")`, and `Body(Empty)` automatically map remaining
+members to headers. Explicit header and cookie mappings also preserve the selected
+properties. Custom error types retain their own authored shape.
+
+Regenerate clients and servers together after adopting this contract. Handwritten
+calls to `loomhttp.ProblemErrorFromBody` now pass a `loomhttp.ProblemResponse`
+value containing the explicit properties; the former five-argument call and
+status-based inference are removed.
 
 ### Error Properties
 

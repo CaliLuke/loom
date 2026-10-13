@@ -62,7 +62,7 @@ var (
 			AttributeExpr: &AttributeExpr{
 				Type:        problemResultType,
 				Description: "Problem response result type",
-				Validation:  &ValidationExpr{Required: []string{"type", "title", "status", "detail", "instance", "code"}},
+				Validation:  &ValidationExpr{Required: []string{"type", "title", "status", "detail", "instance", "code", "timeout", "temporary", "fault"}},
 			},
 			TypeName: "problem",
 		},
@@ -115,6 +115,21 @@ var (
 			Description:  "Code is the stable machine-readable problem code.",
 			Meta:         MetaExpr{"struct:error:name": nil},
 			UserExamples: []*ExampleExpr{{Value: "bad_request"}},
+		}},
+		{"timeout", &AttributeExpr{
+			Type:         Boolean,
+			Description:  "Timeout reports the source error's timeout property, independently of status.",
+			UserExamples: []*ExampleExpr{{Value: false}},
+		}},
+		{"temporary", &AttributeExpr{
+			Type:         Boolean,
+			Description:  "Temporary reports whether the source error is transient, independently of status.",
+			UserExamples: []*ExampleExpr{{Value: false}},
+		}},
+		{"fault", &AttributeExpr{
+			Type:         Boolean,
+			Description:  "Fault reports the source error's server-fault property, independently of status.",
+			UserExamples: []*ExampleExpr{{Value: false}},
 		}},
 		{"retry_hint", &AttributeExpr{
 			Type:        String,

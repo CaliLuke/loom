@@ -49,6 +49,14 @@ type GuardedUnauthorizedResponseBody struct {
 	Instance string `form:"instance" json:"instance" xml:"instance"`
 	// Code is the stable machine-readable problem code.
 	Code string `form:"code" json:"code" xml:"code"`
+	// Timeout reports the source error's timeout property, independently of status.
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Temporary reports whether the source error is transient, independently of
+	// status.
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Fault reports the source error's server-fault property, independently of
+	// status.
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 	// Retry hint is concise guidance on how to correct the request or retry the
 	// operation.
 	RetryHint *string `form:"retry_hint,omitempty" json:"retry_hint,omitempty" xml:"retry_hint,omitempty"`
@@ -94,6 +102,9 @@ func NewGuardedUnauthorizedResponseBody(problem *loomhttp.ProblemResponse) *Guar
 		Detail:    problem.Detail,
 		Instance:  problem.Instance,
 		Code:      problem.Code,
+		Timeout:   problem.Timeout,
+		Temporary: problem.Temporary,
+		Fault:     problem.Fault,
 		RetryHint: problem.RetryHint,
 	}
 	return body

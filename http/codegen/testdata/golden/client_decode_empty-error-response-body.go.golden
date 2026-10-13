@@ -20,6 +20,9 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) loo
 					status    int
 					detail    string
 					instance  string
+					timeout   bool
+					temporary bool
+					fault     bool
 					retryHint *string
 					err       error
 				)
@@ -59,6 +62,39 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) loo
 					err = loom.MergeErrors(err, loom.MissingFieldError("instance", "header"))
 				}
 				instance = instanceRaw
+				{
+					timeoutRaw := resp.Header.Get("Loom-Attribute-Timeout")
+					if timeoutRaw == "" {
+						return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("timeout", "header"))
+					}
+					v, err2 := strconv.ParseBool(timeoutRaw)
+					if err2 != nil {
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("timeout", timeoutRaw, "boolean"))
+					}
+					timeout = v
+				}
+				{
+					temporaryRaw := resp.Header.Get("Loom-Attribute-Temporary")
+					if temporaryRaw == "" {
+						return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("temporary", "header"))
+					}
+					v, err2 := strconv.ParseBool(temporaryRaw)
+					if err2 != nil {
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("temporary", temporaryRaw, "boolean"))
+					}
+					temporary = v
+				}
+				{
+					faultRaw := resp.Header.Get("Loom-Attribute-Fault")
+					if faultRaw == "" {
+						return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", loom.MissingFieldError("fault", "header"))
+					}
+					v, err2 := strconv.ParseBool(faultRaw)
+					if err2 != nil {
+						err = loom.MergeErrors(err, loom.InvalidFieldTypeError("fault", faultRaw, "boolean"))
+					}
+					fault = v
+				}
 				retryHintRaw := resp.Header.Get("Loom-Attribute-Retry_hint")
 				if retryHintRaw != "" {
 					retryHint = &retryHintRaw
@@ -66,7 +102,7 @@ func DecodeMethodEmptyErrorResponseBodyResponse(decoder func(*http.Response) loo
 				if err != nil {
 					return nil, loomhttp.ErrValidationError("ServiceEmptyErrorResponseBody", "MethodEmptyErrorResponseBody", err)
 				}
-				return nil, NewMethodEmptyErrorResponseBodyInternalError(code, type_, title, status, detail, instance, retryHint)
+				return nil, NewMethodEmptyErrorResponseBodyInternalError(code, type_, title, status, detail, instance, timeout, temporary, fault, retryHint)
 			case http.StatusNotFound:
 				var (
 					inHeader string

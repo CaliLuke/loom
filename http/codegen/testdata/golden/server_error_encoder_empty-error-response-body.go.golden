@@ -25,6 +25,21 @@ func EncodeMethodEmptyErrorResponseBodyError(encoder func(context.Context, http.
 			}
 			w.Header().Set("Loom-Attribute-Detail", problem.Detail)
 			w.Header().Set("Loom-Attribute-Instance", problem.Instance)
+			{
+				val := problem.Timeout
+				timeouts := strconv.FormatBool(val)
+				w.Header().Set("Loom-Attribute-Timeout", timeouts)
+			}
+			{
+				val := problem.Temporary
+				temporarys := strconv.FormatBool(val)
+				w.Header().Set("Loom-Attribute-Temporary", temporarys)
+			}
+			{
+				val := problem.Fault
+				faults := strconv.FormatBool(val)
+				w.Header().Set("Loom-Attribute-Fault", faults)
+			}
 			if problem.RetryHint != nil {
 				w.Header().Set("Loom-Attribute-Retry_hint", *problem.RetryHint)
 			}
