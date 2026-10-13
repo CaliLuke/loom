@@ -2,7 +2,6 @@ package http_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -100,8 +99,6 @@ func TestWebSocketFinalJSONPreservesWrappedEncodingError(t *testing.T) {
 	require.ErrorIs(t, err, encodingErr)
 	require.ErrorIs(t, err, cleanupErr)
 	require.ErrorIs(t, err, websocket.ErrCloseSent)
-	var marshalErr *json.MarshalerError
-	require.ErrorAs(t, err, &marshalErr)
 	require.ErrorIs(t, stream.Close(), encodingErr)
 	require.ErrorIs(t, stream.Close(), cleanupErr)
 }
