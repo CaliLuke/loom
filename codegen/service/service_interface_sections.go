@@ -207,13 +207,11 @@ func buildJSONRPCStreamSupport(stmt *jen.Statement, data *Data) {
 }
 
 type serviceStreamInterfaceData struct {
-	Type               string
-	Endpoint           string
-	Stream             *StreamData
-	EventName          string
-	IsJSONRPCSSE       bool
-	IsJSONRPCWebSocket bool
-	IsViewedResult     bool
+	Type         string
+	Endpoint     string
+	Stream       *StreamData
+	EventName    string
+	IsJSONRPCSSE bool
 	// EventIsAlias reports whether the JSON-RPC SSE event type aliases a
 	// result type that cannot declare the event marker method.
 	EventIsAlias bool
@@ -221,14 +219,12 @@ type serviceStreamInterfaceData struct {
 
 func streamInterfaceData(typ string, method *MethodData, stream *StreamData) *serviceStreamInterfaceData {
 	return &serviceStreamInterfaceData{
-		Type:               typ,
-		Endpoint:           method.Name,
-		Stream:             stream,
-		EventName:          method.EventName,
-		IsJSONRPCSSE:       method.IsJSONRPCSSE && typ == "server",
-		IsJSONRPCWebSocket: method.IsJSONRPCWebSocket && typ == "server",
-		IsViewedResult:     method.ViewedResult != nil && method.ViewedResult.ViewName == "",
-		EventIsAlias:       !stream.SendTypeAcceptsMethods,
+		Type:         typ,
+		Endpoint:     method.Name,
+		Stream:       stream,
+		EventName:    method.EventName,
+		IsJSONRPCSSE: method.IsJSONRPCSSE && typ == "server",
+		EventIsAlias: !stream.SendTypeAcceptsMethods,
 	}
 }
 
@@ -244,13 +240,17 @@ func buildStreamInterface(stmt *jen.Statement, data *serviceStreamInterfaceData)
 	}
 	codegen.Doc(stmt, fmt.Sprintf("%s allows streaming instances of %s to the client.", stream.Interface, elemType))
 	stmt.Type().Id(stream.Interface).InterfaceFunc(func(group *jen.Group) {
-		if stream.SendTypeRef != "" {
-			buildStreamSendMethods(group, data, stream)
+		if stream.serverPlan != nil {
+			buildServerStreamOperations(group, stream.serverPlan)
+			return
 		}
-		if stream.RecvTypeRef != "" && !data.IsJSONRPCWebSocket {
+		if stream.SendTypeRef != "" {
+			buildStreamSendMethods(group, stream)
+		}
+		if stream.RecvTypeRef != "" {
 			buildStreamRecvMethods(group, stream)
 		}
-		buildOptionalStreamMethods(group, data, stream)
+		buildOptionalStreamMethods(group, stream)
 	})
 	stmt.Line()
 }
@@ -272,71 +272,41 @@ func buildJSONRPCSSEMethodStream(stmt *jen.Statement, data *serviceStreamInterfa
 	}
 	codegen.Doc(stmt, fmt.Sprintf("%s allows streaming instances of %s over SSE.", stream.Interface, stream.SendTypeRef))
 	stmt.Type().Id(stream.Interface).InterfaceFunc(func(group *jen.Group) {
-		if stream.SendTypeRef != "" {
-			buildJSONRPCSSESendMethods(group, data, stream)
-		}
-		if data.IsViewedResult {
-			groupDoc(group, "SetView sets the view used to render subsequent stream results.")
-			group.Id("SetView").Params(jen.Id("view").String())
-		}
-		groupDoc(group, "SendError sends a JSON-RPC error response.")
-		group.Id("SendError").Params(
-			jen.Qual("context", "Context"),
-			jen.Any(),
-			jen.Error(),
-		).Error()
+		buildServerStreamOperations(group, stream.serverPlan)
 	})
 	stmt.Line()
 }
 
-func buildJSONRPCSSESendMethods(group *jen.Group, data *serviceStreamInterfaceData, stream *StreamData) {
-	groupDoc(group, stream.SendDesc)
-	groupDoc(group, "IMPORTANT: Send only sends JSON-RPC notifications. Use SendAndClose to send a final response.")
-	group.Id("Send").Params(
-		jen.Qual("context", "Context"),
-		jen.Id(data.EventName),
-	).Error()
-	if stream.SendAndCloseName == "" {
-		return
+func buildServerStreamOperations(group *jen.Group, plan *serverStreamPlan) {
+	for _, op := range plan.operations {
+		groupDoc(group, op.description)
+		signature := group.Id(op.name).ParamsFunc(func(params *jen.Group) {
+			for _, param := range op.parameters {
+				value := codegen.TypeRef(param.ref)
+				if param.named {
+					value = jen.Id(param.name).Add(value)
+				}
+				params.Add(value)
+			}
+		})
+		if len(op.results) == 0 {
+			continue
+		}
+		signature.ParamsFunc(func(results *jen.Group) {
+			for _, ref := range op.results {
+				results.Add(codegen.TypeRef(ref))
+			}
+		})
 	}
-	groupDoc(group, stream.SendAndCloseDesc)
-	groupDoc(group, "The result will be sent as a JSON-RPC response with the original request ID.")
-	groupDoc(group, "If the result has an ID field populated, that ID will be used instead of the request ID.")
-	group.Id(stream.SendAndCloseName).Params(
-		jen.Qual("context", "Context"),
-		jen.Id(data.EventName),
-	).Error()
 }
 
-func buildStreamSendMethods(group *jen.Group, data *serviceStreamInterfaceData, stream *StreamData) {
-	if data.IsJSONRPCWebSocket {
-		buildJSONRPCWebSocketSendMethods(group, stream)
-		return
-	}
+func buildStreamSendMethods(group *jen.Group, stream *StreamData) {
 	groupDoc(group, stream.SendDesc)
 	group.Id(stream.SendName).Params(codegen.TypeRef(stream.SendTypeRef)).Error()
 	groupDoc(group, stream.SendWithContextDesc)
 	group.Id(stream.SendWithContextName).Params(
 		jen.Qual("context", "Context"),
 		codegen.TypeRef(stream.SendTypeRef),
-	).Error()
-}
-
-func buildJSONRPCWebSocketSendMethods(group *jen.Group, stream *StreamData) {
-	groupDoc(group, "SendNotification sends a JSON-RPC notification (no response expected).")
-	group.Id("SendNotification").Params(
-		jen.Qual("context", "Context"),
-		codegen.TypeRef(stream.SendTypeRef),
-	).Error()
-	groupDoc(group, "SendResponse sends a JSON-RPC response with the original request ID.")
-	group.Id("SendResponse").Params(
-		jen.Qual("context", "Context"),
-		codegen.TypeRef(stream.SendTypeRef),
-	).Error()
-	groupDoc(group, "SendError sends a JSON-RPC error response.")
-	group.Id("SendError").Params(
-		jen.Qual("context", "Context"),
-		jen.Error(),
 	).Error()
 }
 
@@ -353,14 +323,10 @@ func buildStreamRecvMethods(group *jen.Group, stream *StreamData) {
 	)
 }
 
-func buildOptionalStreamMethods(group *jen.Group, data *serviceStreamInterfaceData, stream *StreamData) {
-	if data.IsJSONRPCWebSocket || stream.MustClose {
+func buildOptionalStreamMethods(group *jen.Group, stream *StreamData) {
+	if stream.MustClose {
 		groupDoc(group, "Close closes the stream.")
 		group.Id("Close").Params().Error()
-	}
-	if data.IsViewedResult && data.Type == "server" {
-		groupDoc(group, "SetView sets the view used to render the result before streaming.")
-		group.Id("SetView").Params(jen.Id("view").String())
 	}
 }
 

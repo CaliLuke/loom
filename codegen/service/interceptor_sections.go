@@ -428,13 +428,15 @@ func addStreamWrapperTypesSection(stmt *jen.Statement, streams []*StreamIntercep
 		codegen.Doc(stmt, fmt.Sprintf("%s is a %s interceptor wrapper for the %s stream.", stream.WrapperName, target, stream.Interface))
 		stmt.Type().Id(stream.WrapperName).StructFunc(func(group *jen.Group) {
 			group.Id("ctx").Qual("context", "Context")
-			if stream.SendTypeRef != "" {
+			if server {
+				addServerOperationFields(group, stream.serverPlan)
+			} else if stream.SendTypeRef != "" {
 				group.Id("sendWithContext").Func().Params(
 					jen.Qual("context", "Context"),
 					codegen.TypeRef(stream.SendTypeRef),
 				).Error()
 			}
-			if stream.RecvTypeRef != "" {
+			if !server && stream.RecvTypeRef != "" {
 				group.Id("recvWithContext").Func().Params(
 					jen.Qual("context", "Context"),
 				).Params(codegen.TypeRef(stream.RecvTypeRef), jen.Error())
@@ -492,22 +494,8 @@ func addInterceptorWrapper(stmt *jen.Statement, name, iface, doc, body string) {
 func renderServerInterceptorWrapperBody(service string, interceptor *InterceptorData, method *MethodInterceptorData) string {
 	var b strings.Builder
 	if interceptor.HasStreamingPayloadAccess || interceptor.HasStreamingResultAccess {
-		fmt.Fprintf(&b, "stream := req.(*%s).Stream\n", method.ServerStream.EndpointStruct)
-		fmt.Fprintf(&b, "req.(*%s).Stream = &%s{\n\tctx:     ctx,\n", method.ServerStream.EndpointStruct, method.ServerStream.WrapperName)
-		if interceptor.HasStreamingResultAccess {
-			fmt.Fprintf(&b, "\tsendWithContext: func(ctx context.Context, req %s) error {\n", method.ServerStream.SendTypeRef)
-			fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:    %q,\n\t\t\tmethod:     %q,\n\t\t\tcallType:   loom.InterceptorStreamingSend,\n\t\t\trawPayload: req,\n\t\t}\n", interceptor.Name, service, method.MethodName)
-			fmt.Fprintf(&b, "\t\t_, err := i.%s(ctx, info, func(ctx context.Context, req any) (any, error) {\n", interceptor.Name)
-			fmt.Fprintf(&b, "\t\t\tcastReq, _ := req.(%s)\n\t\t\treturn nil, stream.%s(ctx, castReq)\n\t\t})\n\t\treturn err\n\t},\n", method.ServerStream.SendTypeRef, method.ServerStream.SendWithContextName)
-		}
-		if interceptor.HasStreamingPayloadAccess {
-			fmt.Fprintf(&b, "\trecvWithContext: func(ctx context.Context) (%s, error) {\n", method.ServerStream.RecvTypeRef)
-			fmt.Fprintf(&b, "\t\tinfo := &%sInfo{\n\t\t\tservice:  %q,\n\t\t\tmethod:   %q,\n\t\t\tcallType: loom.InterceptorStreamingRecv,\n\t\t}\n", interceptor.Name, service, method.MethodName)
-			fmt.Fprintf(&b, "\t\tres, err := i.%s(ctx, info, func(ctx context.Context, _ any) (any, error) {\n\t\t\treturn stream.%s(ctx)\n\t\t})\n", interceptor.Name, method.ServerStream.RecvWithContextName)
-			fmt.Fprintf(&b, "\t\tcastRes, _ := res.(%s)\n\t\treturn castRes, err\n\t},\n", method.ServerStream.RecvTypeRef)
-		}
-		fmt.Fprintf(&b, "\tstream: stream,\n}\n")
-		if interceptor.HasPayloadAccess {
+		renderServerMessageInterception(&b, service, interceptor, method)
+		if interceptor.HasPayloadAccess || interceptor.HasResultAccess {
 			fmt.Fprintf(&b, "info := &%sInfo{\n\tservice:    %q,\n\tmethod:     %q,\n\tcallType:   loom.InterceptorUnary,\n\trawPayload: req,\n}\n", interceptor.Name, service, method.MethodName)
 			fmt.Fprintf(&b, "return i.%s(ctx, info, endpoint)", interceptor.Name)
 		} else {

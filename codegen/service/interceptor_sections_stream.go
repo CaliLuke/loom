@@ -14,16 +14,12 @@ func addStreamWrappersSection(stmt *jen.Statement, streams []*StreamInterceptorD
 	for _, stream := range streams {
 		stmt.Line()
 		addStreamUnwrapSection(stmt, stream, server)
+		if server {
+			addServerOperationMethods(stmt, stream)
+			continue
+		}
 		addStreamSendSection(stmt, stream)
 		addStreamRecvSection(stmt, stream)
-		if server && stream.SetView {
-			stmt.Line()
-			codegen.Doc(stmt, "SetView sets the view used by the underlying stream.")
-			stmt.Func().Params(jen.Id("w").Op("*").Id(stream.WrapperName)).
-				Id("SetView").Params(jen.Id("view").String()).
-				Block(jen.Id("w").Dot("stream").Dot("SetView").Call(jen.Id("view")))
-		}
-
 		if stream.MustClose {
 			stmt.Line()
 			codegen.Doc(stmt, "Close closes the stream.")

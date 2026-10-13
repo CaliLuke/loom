@@ -85,14 +85,13 @@ func (w *wrappedMethodServerStream) Unwrap() any {
 	return w.stream
 }
 
-// Recv reads instances of "MethodServerStream" from the stream after executing
-// the applied interceptor.
+// Recv reads instances of "MethodStreamingPayload" from the stream.
 func (w *wrappedMethodServerStream) Recv() (*MethodStreamingPayload, error) {
 	return w.RecvWithContext(w.ctx)
 }
 
-// RecvWithContext reads instances of "MethodServerStream" from the stream
-// after executing the applied interceptor with context.
+// RecvWithContext reads instances of "MethodStreamingPayload" from the stream
+// with context.
 func (w *wrappedMethodServerStream) RecvWithContext(ctx context.Context) (*MethodStreamingPayload, error) {
 	if w.recvWithContext == nil {
 		return w.stream.RecvWithContext(ctx)

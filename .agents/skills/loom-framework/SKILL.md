@@ -1090,6 +1090,11 @@ filter, and serialization rules belong here.
   invocation lists or let a renderer discard client coverage by name. Keep the
   [accessor coverage model](../../../codegen/service/tla/interceptor_accessor_coverage/README.md)
   aligned with ordinary/streaming, imported-type and nonapplication controls.
+  Server stream operation signatures and endpoint carriers are recorded once by
+  `newServerStreamPlan`, after viewed-result analysis. Service interfaces and
+  interceptor adapters consume that plan; do not reconstruct generic Send/Recv
+  pairs for JSON-RPC streams. Incoming WebSocket messages use endpoint payloads,
+  while error, view and close operations delegate without result interception.
   `admitInterceptorContracts` admits logical field signatures across both sides
   before publication. Method-local `interceptorMethodBindings` owns selectors and
   pointer/value conversion through NameScope and ServiceFieldLayout; shared

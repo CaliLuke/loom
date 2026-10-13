@@ -1,0 +1,134 @@
+package contracts_test
+
+import (
+	"context"
+	"errors"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/interceptorcontracts/gen/contracts"
+	rs "example.com/interceptorcontracts/gen/jsonrpc/contracts/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	audit struct {
+		block    error
+		t        *testing.T
+		results  atomic.Int32
+		receives atomic.Int32
+		opens    atomic.Int32
+	}
+	service struct {
+		done chan struct{}
+	}
+)
+
+func TestMountedWebSocketOperations(t *testing.T) {
+	a := &audit{t: t}
+	implementation := &service{done: make(chan struct{})}
+	mux := loomhttp.NewMuxer()
+	rs.Mount(mux, rs.New(implementation.HandleStream, svc.NewEndpoints(implementation, a), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil, &websocket.Upgrader{}, loomhttp.WebSocketConfig{}))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	conn, response, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/ws", nil)
+	require.NoError(t, err)
+	if response != nil {
+		require.NoError(t, response.Body.Close())
+	}
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(3*time.Second)))
+	require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(`{"jsonrpc":"2.0","method":"watch","params":{"value":"input"},"id":"one"}`)))
+	for _, want := range []string{"input:received:result"} {
+		_, body, err := conn.ReadMessage()
+		require.NoError(t, err)
+		require.Contains(t, string(body), want)
+	}
+	require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(`{"jsonrpc":"2.0","method":"watch","params":{"value":"error"},"id":"two"}`)))
+	_, body, err := conn.ReadMessage()
+	require.NoError(t, err)
+	require.Contains(t, string(body), `"error":`)
+	require.Contains(t, string(body), `"id":"two"`)
+	require.NoError(t, conn.Close())
+	select {
+	case <-implementation.done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("stream handler did not finish after peer disconnect")
+	}
+	require.Equal(t, int32(1), a.results.Load())
+	require.Equal(t, int32(2), a.receives.Load())
+	require.Equal(t, int32(2), a.opens.Load())
+}
+
+func TestIncomingFailureCannotDispatch(t *testing.T) {
+	sentinel := errors.New("interceptor rejected message")
+	a := &audit{t: t, block: sentinel}
+	called := false
+	endpoint := svc.WrapWatchEndpoint(func(context.Context, any) (any, error) {
+		called = true
+		return nil, nil
+	}, a)
+	_, err := endpoint(context.Background(), &svc.WatchPayload{})
+	require.ErrorIs(t, err, sentinel)
+	require.False(t, called)
+	require.Zero(t, a.results.Load())
+}
+
+func (a *audit) Audit(ctx context.Context, info *svc.AuditInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, "contracts", info.Service())
+	require.Equal(a.t, "Watch", info.Method())
+	switch info.CallType() {
+	case loom.InterceptorStreamingRecv:
+		if a.block != nil {
+			return nil, a.block
+		}
+		value, err := next(ctx, info.RawPayload())
+		if err != nil {
+			return nil, err
+		}
+		payload := info.ServerStreamingPayload(value)
+		payload.SetValue(payload.Value() + ":received")
+		a.receives.Add(1)
+		return value, nil
+	case loom.InterceptorUnary:
+		value, err := next(ctx, info.RawPayload())
+		if err != nil {
+			return nil, err
+		}
+		result := info.Result(value)
+		result.SetValue(result.Value() + ":result")
+		a.results.Add(1)
+		return value, nil
+	default:
+		a.t.Errorf("unexpected call type %v", info.CallType())
+		return next(ctx, info.RawPayload())
+	}
+}
+
+func (a *audit) Observe(ctx context.Context, info *svc.ObserveInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, loom.InterceptorUnary, info.CallType())
+	a.opens.Add(1)
+	return next(ctx, info.RawPayload())
+}
+
+func (s *service) HandleStream(ctx context.Context, stream svc.Stream) error {
+	defer close(s.done)
+	for {
+		if err := stream.Recv(ctx); err != nil {
+			return err
+		}
+	}
+}
+
+func (s *service) Watch(ctx context.Context, p *svc.WatchPayload) (*svc.WatchResult, error) {
+	if *p.Value == "error:received" {
+		return nil, errors.New("service error")
+	}
+	return &svc.WatchResult{Value: p.Value}, nil
+}

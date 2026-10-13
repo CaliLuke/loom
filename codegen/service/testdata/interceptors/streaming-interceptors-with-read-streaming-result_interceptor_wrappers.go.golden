@@ -73,14 +73,12 @@ func (w *wrappedMethodServerStream) Unwrap() any {
 	return w.stream
 }
 
-// Send streams instances of "MethodServerStream" after executing the applied
-// interceptor.
+// Send streams instances of "MethodResult".
 func (w *wrappedMethodServerStream) Send(v *MethodResult) error {
 	return w.SendWithContext(w.ctx, v)
 }
 
-// SendWithContext streams instances of "MethodServerStream" after executing
-// the applied interceptor with context.
+// SendWithContext streams instances of "MethodResult" with context.
 func (w *wrappedMethodServerStream) SendWithContext(ctx context.Context, v *MethodResult) error {
 	if w.sendWithContext == nil {
 		return w.stream.SendWithContext(ctx, v)

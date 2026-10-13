@@ -3,28 +3,28 @@
 // wrappedPlainServerStream is a server interceptor wrapper for the
 // PlainServerStream stream.
 type wrappedPlainServerStream struct {
-	ctx             context.Context
-	sendWithContext func(context.Context, *PlainMessage) error
-	recvWithContext func(context.Context) (*PlainStreamingPayload, error)
-	stream          PlainServerStream
+	ctx                     context.Context
+	sendAndCloseWithContext func(context.Context, *PlainMessage) error
+	recvWithContext         func(context.Context) (*PlainStreamingPayload, error)
+	stream                  PlainServerStream
 }
 
 // wrappedViewedServerStream is a server interceptor wrapper for the
 // ViewedServerStream stream.
 type wrappedViewedServerStream struct {
-	ctx             context.Context
-	sendWithContext func(context.Context, *Message) error
-	recvWithContext func(context.Context) (*ViewedStreamingPayload, error)
-	stream          ViewedServerStream
+	ctx                     context.Context
+	sendAndCloseWithContext func(context.Context, *Message) error
+	recvWithContext         func(context.Context) (*ViewedStreamingPayload, error)
+	stream                  ViewedServerStream
 }
 
 // wrappedFixedServerStream is a server interceptor wrapper for the
 // FixedServerStream stream.
 type wrappedFixedServerStream struct {
-	ctx             context.Context
-	sendWithContext func(context.Context, *Message) error
-	recvWithContext func(context.Context) (*FixedStreamingPayload, error)
-	stream          FixedServerStream
+	ctx                     context.Context
+	sendAndCloseWithContext func(context.Context, *Message) error
+	recvWithContext         func(context.Context) (*FixedStreamingPayload, error)
+	stream                  FixedServerStream
 }
 
 // wrappedPlainClientStream is a client interceptor wrapper for the
@@ -60,7 +60,7 @@ func wrapPlainAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint 
 		stream := req.(*PlainEndpointInput).Stream
 		req.(*PlainEndpointInput).Stream = &wrappedPlainServerStream{
 			ctx: ctx,
-			sendWithContext: func(ctx context.Context, req *PlainMessage) error {
+			sendAndCloseWithContext: func(ctx context.Context, req *PlainMessage) error {
 				info := &AuditInfo{
 					service:    "final",
 					method:     "Plain",
@@ -103,7 +103,7 @@ func wrapViewedAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint
 		stream := req.(*ViewedEndpointInput).Stream
 		req.(*ViewedEndpointInput).Stream = &wrappedViewedServerStream{
 			ctx: ctx,
-			sendWithContext: func(ctx context.Context, req *Message) error {
+			sendAndCloseWithContext: func(ctx context.Context, req *Message) error {
 				info := &AuditInfo{
 					service:    "final",
 					method:     "Viewed",
@@ -146,7 +146,7 @@ func wrapFixedAudit(endpoint loom.Endpoint, i ServerInterceptors) loom.Endpoint 
 		stream := req.(*FixedEndpointInput).Stream
 		req.(*FixedEndpointInput).Stream = &wrappedFixedServerStream{
 			ctx: ctx,
-			sendWithContext: func(ctx context.Context, req *Message) error {
+			sendAndCloseWithContext: func(ctx context.Context, req *Message) error {
 				info := &AuditInfo{
 					service:    "final",
 					method:     "Fixed",
@@ -326,29 +326,27 @@ func (w *wrappedPlainServerStream) Unwrap() any {
 	return w.stream
 }
 
-// SendAndClose streams instances of "PlainServerStream" after executing the
-// applied interceptor.
+// SendAndClose streams instances of "PlainMessage" and closes the stream.
 func (w *wrappedPlainServerStream) SendAndClose(v *PlainMessage) error {
 	return w.SendAndCloseWithContext(w.ctx, v)
 }
 
-// SendAndCloseWithContext streams instances of "PlainServerStream" after
-// executing the applied interceptor with context.
+// SendAndCloseWithContext streams instances of "PlainMessage" and closes the
+// stream with context.
 func (w *wrappedPlainServerStream) SendAndCloseWithContext(ctx context.Context, v *PlainMessage) error {
-	if w.sendWithContext == nil {
+	if w.sendAndCloseWithContext == nil {
 		return w.stream.SendAndCloseWithContext(ctx, v)
 	}
-	return w.sendWithContext(ctx, v)
+	return w.sendAndCloseWithContext(ctx, v)
 }
 
-// Recv reads instances of "PlainServerStream" from the stream after executing
-// the applied interceptor.
+// Recv reads instances of "PlainStreamingPayload" from the stream.
 func (w *wrappedPlainServerStream) Recv() (*PlainStreamingPayload, error) {
 	return w.RecvWithContext(w.ctx)
 }
 
-// RecvWithContext reads instances of "PlainServerStream" from the stream after
-// executing the applied interceptor with context.
+// RecvWithContext reads instances of "PlainStreamingPayload" from the stream
+// with context.
 func (w *wrappedPlainServerStream) RecvWithContext(ctx context.Context) (*PlainStreamingPayload, error) {
 	if w.recvWithContext == nil {
 		return w.stream.RecvWithContext(ctx)
@@ -361,29 +359,27 @@ func (w *wrappedViewedServerStream) Unwrap() any {
 	return w.stream
 }
 
-// SendAndClose streams instances of "ViewedServerStream" after executing the
-// applied interceptor.
+// SendAndClose streams instances of "Message" and closes the stream.
 func (w *wrappedViewedServerStream) SendAndClose(v *Message) error {
 	return w.SendAndCloseWithContext(w.ctx, v)
 }
 
-// SendAndCloseWithContext streams instances of "ViewedServerStream" after
-// executing the applied interceptor with context.
+// SendAndCloseWithContext streams instances of "Message" and closes the stream
+// with context.
 func (w *wrappedViewedServerStream) SendAndCloseWithContext(ctx context.Context, v *Message) error {
-	if w.sendWithContext == nil {
+	if w.sendAndCloseWithContext == nil {
 		return w.stream.SendAndCloseWithContext(ctx, v)
 	}
-	return w.sendWithContext(ctx, v)
+	return w.sendAndCloseWithContext(ctx, v)
 }
 
-// Recv reads instances of "ViewedServerStream" from the stream after executing
-// the applied interceptor.
+// Recv reads instances of "ViewedStreamingPayload" from the stream.
 func (w *wrappedViewedServerStream) Recv() (*ViewedStreamingPayload, error) {
 	return w.RecvWithContext(w.ctx)
 }
 
-// RecvWithContext reads instances of "ViewedServerStream" from the stream
-// after executing the applied interceptor with context.
+// RecvWithContext reads instances of "ViewedStreamingPayload" from the stream
+// with context.
 func (w *wrappedViewedServerStream) RecvWithContext(ctx context.Context) (*ViewedStreamingPayload, error) {
 	if w.recvWithContext == nil {
 		return w.stream.RecvWithContext(ctx)
@@ -391,7 +387,7 @@ func (w *wrappedViewedServerStream) RecvWithContext(ctx context.Context) (*Viewe
 	return w.recvWithContext(ctx)
 }
 
-// SetView sets the view used by the underlying stream.
+// SetView sets the view used to render the result before streaming.
 func (w *wrappedViewedServerStream) SetView(view string) {
 	w.stream.SetView(view)
 }
@@ -401,29 +397,27 @@ func (w *wrappedFixedServerStream) Unwrap() any {
 	return w.stream
 }
 
-// SendAndClose streams instances of "FixedServerStream" after executing the
-// applied interceptor.
+// SendAndClose streams instances of "Message" and closes the stream.
 func (w *wrappedFixedServerStream) SendAndClose(v *Message) error {
 	return w.SendAndCloseWithContext(w.ctx, v)
 }
 
-// SendAndCloseWithContext streams instances of "FixedServerStream" after
-// executing the applied interceptor with context.
+// SendAndCloseWithContext streams instances of "Message" and closes the stream
+// with context.
 func (w *wrappedFixedServerStream) SendAndCloseWithContext(ctx context.Context, v *Message) error {
-	if w.sendWithContext == nil {
+	if w.sendAndCloseWithContext == nil {
 		return w.stream.SendAndCloseWithContext(ctx, v)
 	}
-	return w.sendWithContext(ctx, v)
+	return w.sendAndCloseWithContext(ctx, v)
 }
 
-// Recv reads instances of "FixedServerStream" from the stream after executing
-// the applied interceptor.
+// Recv reads instances of "FixedStreamingPayload" from the stream.
 func (w *wrappedFixedServerStream) Recv() (*FixedStreamingPayload, error) {
 	return w.RecvWithContext(w.ctx)
 }
 
-// RecvWithContext reads instances of "FixedServerStream" from the stream after
-// executing the applied interceptor with context.
+// RecvWithContext reads instances of "FixedStreamingPayload" from the stream
+// with context.
 func (w *wrappedFixedServerStream) RecvWithContext(ctx context.Context) (*FixedStreamingPayload, error) {
 	if w.recvWithContext == nil {
 		return w.stream.RecvWithContext(ctx)

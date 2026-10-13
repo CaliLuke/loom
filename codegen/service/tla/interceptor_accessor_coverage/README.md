@@ -80,9 +80,14 @@ and the server wrapper renderers. `TestInterceptorContractMethodStorage` and
 `TestInterceptorContractRejectsIncompatibleSignature` reproduce the binding and
 admission defects; `TestInterceptorContractSignatureIdentity` reads actual emitted
 Go getter/field types, including nominal, custom and nullable references.
-The archived readiness `TestInterceptorContractServerOperations` compares actual
-interfaces with wrapper operations and detects the missing request/reply carrier;
-its still-failing probes remain outside the atomic #767 diff until #785 resumes.
+`TestInterceptorContractServerOperations` compares actual interface and adapter
+signatures, rejects invented operations and verifies that request/reply endpoints
+do not invent a stream carrier. `newServerStreamPlan` owns the operations after
+view analysis; `buildServerStreamOperations`, `addServerOperationMethods` and
+`renderServerMessageInterception` consume the same plan. Generated mounted SSE
+and WebSocket tests exercise typed mutation, callback kind, contexts, errors and
+cleanup. Incoming WebSocket payloads are intercepted at endpoint dispatch; native
+streams retain their receive operation.
 The actual CLI storage specimens in `testdata/interceptor_contract_family.go`
 expose the binding failures to the Go compiler. The #767 implementation separates
 shared AttributeData from interceptorMethodBindings, admits signatures across
@@ -97,4 +102,5 @@ set abstracts different native stream directions. It does not prove native I/O
 lifetime, user callbacks, field mutation, projection conversion, actual Go
 compilation or emitted declaration completeness. Those remain direct and mounted
 Go test obligations. The family plan separates #767 and #785 atomic fixes; this
-small joint model does not merge their ownership or claim the pending #785 fix.
+small joint model does not merge their ownership. Its unchanged bounded result
+is reused for #785; generated tests establish the implementation correspondence.

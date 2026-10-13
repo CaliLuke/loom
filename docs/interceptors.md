@@ -160,9 +160,18 @@ If ordering matters, rely on this mental model rather than a generic “service 
 
 For streaming methods, codegen wraps the stream implementation so that each declared message send/receive is intercepted. A single interceptor method may be invoked for multiple call types:
 
-- `loom.InterceptorUnary`: one-time interception of the stream endpoint call when the interceptor accesses its ordinary payload
-- `loom.InterceptorStreamingSend`: interception of each `SendWithContext`
-- `loom.InterceptorStreamingRecv`: interception of each `RecvWithContext`
+- `loom.InterceptorUnary`: interception of the endpoint call when the interceptor accesses its ordinary payload or result
+- `loom.InterceptorStreamingSend`: interception of each outgoing service message operation
+- `loom.InterceptorStreamingRecv`: interception of each native receive operation or decoded WebSocket message
+
+JSON-RPC server adapters follow the service stream's actual operations. SSE
+`Send` and `SendAndClose`, and WebSocket `SendNotification` and `SendResponse`,
+invoke streaming-result interception with their supplied contexts. Error sends,
+view selection and close delegate directly. Incoming WebSocket messages invoke
+streaming-payload interception after decoding and before service dispatch; call
+`next`, then use `ServerStreamingPayload` on the returned message. A request/reply
+method also retains ordinary result interception. Regenerate to adopt these
+adapters; the service stream interfaces and authored method names are unchanged.
 
 HTTP and JSON-RPC SSE client streams expose `Recv()` and `RecvWithContext(ctx)`.
 Both run the same receive interceptor; the first uses the stream's opening

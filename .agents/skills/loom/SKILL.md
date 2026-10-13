@@ -1393,8 +1393,13 @@ chains. HTTP mixed commands use the ordinary endpoint; JSON-RPC SSE commands
 open streams. Successful interceptor short circuits must return the selected
 endpoint's result type. `Close` continues to delegate cleanup directly.
 
-JSON-RPC WebSocket streaming-payload methods retain their ordinary server
-result boundary; the new final-response streaming accessors do not apply.
+JSON-RPC server message interceptors follow the generated service operations:
+SSE `Send`/`SendAndClose` and WebSocket `SendNotification`/`SendResponse` use
+streaming-result access with the supplied context. For decoded WebSocket incoming
+messages, call `next`, then use `ServerStreamingPayload` on the returned message
+before service dispatch. Request/reply methods retain ordinary `ReadResult` and
+`WriteResult`; final-response streaming accessors do not apply to that boundary.
+Error sends and cleanup delegate directly. Regenerate to adopt these adapters.
 
 ## Installation and Commands
 

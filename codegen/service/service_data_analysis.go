@@ -39,6 +39,11 @@ func (d *ServicesData) analyze(service *expr.ServiceExpr) (data *Data) {
 	state.types = append(state.types, collectAuthorizationTypes(service, scope, seen)...)
 	state.types = append(state.types, d.collectForcedServiceTypes(service, scope, seen)...)
 	methods, schemes, viewedRTs := d.buildServiceMethods(service, symbols, scope, viewScope, viewspkg, state.seenProj, state.seenViewed, state.viewedRTs)
+	for _, method := range methods {
+		if method.ServerStream != nil {
+			method.ServerStream.serverPlan = newServerStreamPlan(method)
+		}
+	}
 	assignClientMembers(methods)
 	assignAuthenticationFields(methods, scope)
 	unions := collectServiceUnions(service, state.types, state.errTypes, scope)

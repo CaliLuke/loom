@@ -119,7 +119,7 @@ func buildInterceptorMethodData(i *expr.InterceptorExpr, md *MethodData, server 
 	if md.ServerStream != nil {
 		serverStream = &StreamInterceptorData{
 			WrapperName:         md.symbols.serverWrappedStream,
-			SetView:             md.ViewedResult != nil && md.ViewedResult.ViewName == "",
+			serverPlan:          md.ServerStream.serverPlan,
 			Interface:           md.ServerStream.Interface,
 			SendName:            md.ServerStream.SendName,
 			SendWithContextName: md.ServerStream.SendWithContextName,

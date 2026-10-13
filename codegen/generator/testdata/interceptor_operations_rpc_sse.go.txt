@@ -1,0 +1,127 @@
+package contracts_test
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	svc "example.com/interceptorcontracts/gen/contracts"
+	rs "example.com/interceptorcontracts/gen/jsonrpc/contracts/server"
+	loomhttp "github.com/CaliLuke/loom/http"
+	loom "github.com/CaliLuke/loom/pkg"
+)
+
+type (
+	audit struct {
+		t     *testing.T
+		sends atomic.Int32
+		opens atomic.Int32
+	}
+	service struct {
+	}
+	fakeStream struct {
+		send string
+		ctx  context.Context
+		err  error
+	}
+	contextKey struct {
+	}
+)
+
+func TestMountedSSEOperations(t *testing.T) {
+	a := &audit{t: t}
+	mux := loomhttp.NewMuxer()
+	rs.Mount(mux, rs.New(svc.NewEndpoints(service{}, a), mux, loomhttp.RequestDecoder, loomhttp.ResponseEncoder, nil))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	response, err := http.Post(server.URL+"/rpc", "application/json", strings.NewReader(`{"jsonrpc":"2.0","method":"watch","params":{"id":"one"},"id":"one"}`))
+	require.NoError(t, err)
+	body, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	require.NoError(t, response.Body.Close())
+	require.Equal(t, http.StatusOK, response.StatusCode, string(body))
+	require.Contains(t, string(body), "notification:audited")
+	require.Contains(t, string(body), "final:audited")
+	require.Contains(t, string(body), `"id":"one"`)
+	require.Equal(t, int32(2), a.sends.Load())
+	require.Equal(t, int32(1), a.opens.Load())
+}
+
+func TestSSEOperationContextAndErrorDelegation(t *testing.T) {
+	sentinel := errors.New("stream failed")
+	for _, name := range []string{"send", "final", "error"} {
+		t.Run(name, func(t *testing.T) {
+			stream := &fakeStream{err: sentinel}
+			a := &audit{t: t}
+			ctx := context.WithValue(context.Background(), contextKey{}, "operation")
+			endpoint := svc.WrapWatchEndpoint(func(_ context.Context, raw any) (any, error) {
+				s := raw.(*svc.WatchEndpointInput).Stream
+				value := "x"
+				switch name {
+				case "send":
+					return nil, s.Send(ctx, &svc.WatchResult{Value: &value})
+				case "final":
+					return nil, s.SendAndClose(ctx, &svc.WatchResult{Value: &value})
+				default:
+					return nil, s.SendError(ctx, "id", sentinel)
+				}
+			}, a)
+			_, err := endpoint(context.Background(), &svc.WatchEndpointInput{Stream: stream})
+			require.ErrorIs(t, err, sentinel)
+			require.Same(t, ctx, stream.ctx)
+			require.Equal(t, name, stream.send)
+			want := int32(1)
+			if name == "error" {
+				want = 0
+			}
+			require.Equal(t, want, a.sends.Load())
+		})
+	}
+}
+
+func (a *audit) Audit(ctx context.Context, info *svc.AuditInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, "contracts", info.Service())
+	require.Equal(a.t, "Watch", info.Method())
+	require.Equal(a.t, loom.InterceptorStreamingSend, info.CallType())
+	a.sends.Add(1)
+	value := info.ServerStreamingResult()
+	value.SetValue(value.Value() + ":audited")
+	return next(ctx, info.RawPayload())
+}
+
+func (a *audit) Observe(ctx context.Context, info *svc.ObserveInfo, next loom.Endpoint) (any, error) {
+	require.Equal(a.t, loom.InterceptorUnary, info.CallType())
+	a.opens.Add(1)
+	return next(ctx, info.RawPayload())
+}
+
+func (service) Watch(ctx context.Context, _ *svc.WatchPayload, stream svc.WatchServerStream) error {
+	value := "notification"
+	if err := stream.Send(ctx, &svc.WatchResult{Value: &value}); err != nil {
+		return err
+	}
+	value = "final"
+	return stream.SendAndClose(ctx, &svc.WatchResult{Value: &value})
+}
+
+func (s *fakeStream) Send(ctx context.Context, _ svc.WatchEvent) error {
+	s.ctx, s.send = ctx, "send"
+	return s.err
+}
+
+func (s *fakeStream) SendAndClose(ctx context.Context, _ svc.WatchEvent) error {
+	s.ctx, s.send = ctx, "final"
+	return s.err
+}
+
+func (s *fakeStream) SendError(ctx context.Context, _ any, _ error) error {
+	s.ctx, s.send = ctx, "error"
+	return s.err
+}

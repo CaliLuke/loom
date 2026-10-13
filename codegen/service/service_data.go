@@ -293,6 +293,7 @@ type (
 	// a streaming endpoint implements. It is initialized if a method defines a
 	// streaming payload or result or both.
 	StreamData struct {
+		serverPlan *serverStreamPlan
 		// Interface is the name of the stream interface.
 		Interface string
 		// VarName is the name of the struct type that implements the stream
@@ -459,10 +460,9 @@ type (
 
 	// StreamInterceptorData is the stream data for an interceptor.
 	StreamInterceptorData struct {
+		serverPlan *serverStreamPlan
 		// WrapperName names the package struct implementing this stream wrapper.
 		WrapperName string
-		// SetView indicates that the server wrapper must forward view selection.
-		SetView bool
 		// Interface is the name of the stream interface.
 		Interface string
 		// SendName is the name of the send function.

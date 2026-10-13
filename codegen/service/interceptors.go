@@ -180,6 +180,9 @@ func collectWrappedStreams(interceptors []*InterceptorData, server bool) []*Stre
 		if intr.HasStreamingPayloadAccess || intr.HasStreamingResultAccess {
 			for _, method := range intr.Methods {
 				if server {
+					if method.ServerStream.serverPlan.endpoint == "" {
+						continue
+					}
 					if _, ok := streamNames[method.ServerStream.Interface]; !ok {
 						streams = append(streams, method.ServerStream)
 						streamNames[method.ServerStream.Interface] = struct{}{}
