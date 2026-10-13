@@ -5,14 +5,13 @@ import (
 	"github.com/CaliLuke/loom/expr"
 )
 
-// Scope has two uses: in JWTSecurity or OAuth2Security it defines a scope
-// supported by the scheme. In Security it lists required scopes.
+// Scope has two uses: in a security scheme it defines a scope supported by
+// that scheme. In Security it lists required scopes.
 //
-// Scope must appear in Security, BasicSecurity, APIKeySecurity, JWTSecurity or OAuth2Security.
+// Scope must appear in Security, BasicAuthSecurity, APIKeySecurity, JWTSecurity or OAuth2Security.
 //
 // Scope accepts one or two arguments: the first argument is the scope name and
-// when used in JWTSecurity or OAuth2Security the second argument is a
-// description.
+// when used in a scheme the optional second argument is a description.
 //
 // Example:
 //

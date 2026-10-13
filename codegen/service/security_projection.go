@@ -11,6 +11,9 @@ func BuildRequirementsData(requirements []*expr.SecurityExpr, method *expr.Metho
 		rs := make(SchemesData, 0, len(req.Schemes))
 		for _, scheme := range req.Schemes {
 			projected := BuildSchemeData(scheme, method)
+			if projected != nil {
+				projected.RequiredScopes = req.RequiredScopes(scheme)
+			}
 			rs = rs.Append(projected)
 			schemes = schemes.Append(projected)
 		}

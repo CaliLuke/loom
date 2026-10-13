@@ -32,7 +32,7 @@ func TestSecurityBindingNameReservations(t *testing.T) {
 
 func TestSecurityBindingRequirementComposition(t *testing.T) {
 	apiKey := &expr.SchemeExpr{SchemeName: "key", Kind: expr.APIKeyKind, In: "query", Name: "key"}
-	oauth := &expr.SchemeExpr{SchemeName: "oauth", Kind: expr.OAuth2Kind, In: "header", Name: "Authorization"}
+	oauth := &expr.SchemeExpr{SchemeName: "oauth", Kind: expr.OAuth2Kind, In: "header", Name: "Authorization", Scopes: []*expr.ScopeExpr{{Name: "read"}, {Name: "write"}}}
 	jwt := &expr.SchemeExpr{SchemeName: "jwt", Kind: expr.JWTKind, In: "header", Name: "authorization"}
 	requirements := []*expr.SecurityExpr{
 		{Schemes: []*expr.SchemeExpr{apiKey, oauth}, Scopes: []string{"read", "write"}},

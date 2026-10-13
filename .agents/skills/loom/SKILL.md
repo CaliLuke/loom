@@ -1017,6 +1017,14 @@ ordinary security. Declare both at the same scope to accept both. Combining
 rejected. Use `Security()` to add an anonymous alternative. Regenerate adapters
 after upgrading to apply this scope rule.
 
+A compound `Security` requires every listed scheme. Its required scopes are
+projected onto each scheme's declared scopes, including Basic and API keys.
+Callbacks can use `scheme.Validate(grantedScopes)` directly: an unscoped key
+alongside a scoped JWT receives no JWT scopes. Shared scopes apply to each scheme
+that declares them; undeclared scopes fail design validation. Separate `Security`
+alternatives retain their own scope sets. Regenerate endpoints and OpenAPI to
+adopt this correction.
+
 `CookieTransport(scheme, "", fn...)` is the transport-owned browser-cookie
 mode. It emits the security contract without synthesizing a payload field or
 CLI flag, allowing the application to resolve the cookie from request metadata.

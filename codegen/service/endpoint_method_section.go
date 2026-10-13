@@ -107,29 +107,29 @@ func buildRequirementSchemes(group *jen.Group, req *RequirementData, payload, co
 	for sidx, scheme := range req.Schemes {
 		if sidx != 0 {
 			group.If(jen.Id("err").Op("==").Nil()).BlockFunc(func(nested *jen.Group) {
-				buildSchemeAuth(nested, req, scheme, payload, contextVar)
+				buildSchemeAuth(nested, scheme, payload, contextVar)
 			})
 			continue
 		}
-		buildSchemeAuth(group, req, scheme, payload, contextVar)
+		buildSchemeAuth(group, scheme, payload, contextVar)
 	}
 }
 
-func buildSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar string) {
+func buildSchemeAuth(group *jen.Group, scheme *SchemeData, payload, contextVar string) {
 	switch scheme.Type {
 	case "Basic":
-		buildBasicSchemeAuth(group, req, scheme, payload, contextVar)
+		buildBasicSchemeAuth(group, scheme, payload, contextVar)
 	case "APIKey":
-		buildCredentialSchemeAuth(group, req, scheme, payload, contextVar, "APIKey", "key")
+		buildCredentialSchemeAuth(group, scheme, payload, contextVar, "APIKey", "key")
 	case "JWT":
-		buildCredentialSchemeAuth(group, req, scheme, payload, contextVar, "JWT", "token")
+		buildCredentialSchemeAuth(group, scheme, payload, contextVar, "JWT", "token")
 	case "OAuth2":
-		buildOAuth2SchemeAuth(group, req, scheme, payload, contextVar)
+		buildOAuth2SchemeAuth(group, scheme, payload, contextVar)
 	}
 }
 
-func buildBasicSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar string) {
-	buildSchemeStruct(group, "BasicScheme", scheme.SchemeName, scheme.Scopes, req.Scopes, nil)
+func buildBasicSchemeAuth(group *jen.Group, scheme *SchemeData, payload, contextVar string) {
+	buildSchemeStruct(group, "BasicScheme", scheme.SchemeName, scheme.Scopes, scheme.RequiredScopes, nil)
 	buildPointerStringBinding(group, "user", payload, scheme.UsernameField, scheme.UsernamePointer, expr.IsAlias(scheme.UsernameType))
 	buildPointerStringBinding(group, "pass", payload, scheme.PasswordField, scheme.PasswordPointer, expr.IsAlias(scheme.PasswordType))
 	userExpr := payloadFieldExpr(payload, scheme.UsernameField, scheme.UsernamePointer, "user", expr.IsAlias(scheme.UsernameType))
@@ -142,8 +142,8 @@ func buildBasicSchemeAuth(group *jen.Group, req *RequirementData, scheme *Scheme
 	)
 }
 
-func buildCredentialSchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar, schemeStruct, tempVar string) {
-	buildSchemeStruct(group, schemeStruct+"Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes, nil)
+func buildCredentialSchemeAuth(group *jen.Group, scheme *SchemeData, payload, contextVar, schemeStruct, tempVar string) {
+	buildSchemeStruct(group, schemeStruct+"Scheme", scheme.SchemeName, scheme.Scopes, scheme.RequiredScopes, nil)
 	if scheme.TransportOwned {
 		group.List(jen.Id(contextVar), jen.Id("err")).Op("=").Id("auth"+scheme.Type+"Fn").Call(
 			jen.Id(contextVar),
@@ -161,8 +161,8 @@ func buildCredentialSchemeAuth(group *jen.Group, req *RequirementData, scheme *S
 	)
 }
 
-func buildOAuth2SchemeAuth(group *jen.Group, req *RequirementData, scheme *SchemeData, payload, contextVar string) {
-	buildSchemeStruct(group, "OAuth2Scheme", scheme.SchemeName, scheme.Scopes, req.Scopes, func(values *jen.Group) {
+func buildOAuth2SchemeAuth(group *jen.Group, scheme *SchemeData, payload, contextVar string) {
+	buildSchemeStruct(group, "OAuth2Scheme", scheme.SchemeName, scheme.Scopes, scheme.RequiredScopes, func(values *jen.Group) {
 		if len(scheme.Flows) == 0 {
 			return
 		}

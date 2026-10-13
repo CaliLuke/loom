@@ -75,6 +75,13 @@ consumer validation.
 
 ## Architecture Boundaries
 
+- `expr.SecurityExpr.RequiredScopes` owns the requirement-to-scheme scope
+  intersection in authored requirement order. Authorizer SchemeData and OpenAPI
+  IR consume this projection; keep required scopes on each requirement's fresh
+  scheme data and preserve them through Dup. Globally deduplicated transport
+  schemes do not own OR-branch authentication decisions. Keep union-based
+  unknown-scope admission and OpenAPI's protocol-specific scope-array rules.
+
 - `service.assignClientMembers` owns the service Client receiver: reserve all
   authored methods, record synthetic mixed-stream method names, then allocate
   endpoint fields. Rendering consumes these records; constructor arguments and

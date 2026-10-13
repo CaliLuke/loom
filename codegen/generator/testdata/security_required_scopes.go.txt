@@ -1,0 +1,89 @@
+package scopetest
+
+import (
+	"context"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	scopes "example.com/scopetest/gen/scopes"
+	"github.com/CaliLuke/loom/security"
+)
+
+type scopeService struct {
+	calls []string
+}
+
+func TestScopeCallbacks(t *testing.T) {
+	for _, tc := range []struct {
+		name, method string
+		grants       map[string][]string
+		wantCalls    []string
+		wantError    bool
+	}{
+		{"compound valid", "compound", map[string][]string{"basic": {"shared", "basic"}, "key": {"shared", "key"}, "jwt": {"shared", "read"}, "oauth": {"shared", "oauth"}}, []string{"basic", "key", "jwt", "oauth"}, false},
+		{"compound missing", "compound", map[string][]string{"basic": {"basic"}}, []string{"basic"}, true},
+		{"first alternative", "alternative", map[string][]string{"jwt": {"read"}}, []string{"jwt", "unscoped"}, false},
+		{"second alternative", "alternative", map[string][]string{"jwt": {"write"}}, []string{"jwt", "jwt", "unscoped"}, false},
+		{"no alternative", "alternative", nil, []string{"jwt", "jwt"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &scopeService{}
+			var authCalls []string
+			check := func(name string, declared, required []string) {
+				authCalls = append(authCalls, strings.TrimPrefix(name, "scope_"))
+				for _, scope := range required {
+					require.True(t, slices.Contains(declared, scope), "%s requires undeclared %s", name, scope)
+				}
+			}
+			basic := func(ctx context.Context, _, _ string, s *security.BasicScheme) (context.Context, error) {
+				check(s.Name, s.Scopes, s.RequiredScopes)
+				return ctx, s.Validate(tc.grants[strings.TrimPrefix(s.Name, "scope_")])
+			}
+			key := func(ctx context.Context, _ string, s *security.APIKeyScheme) (context.Context, error) {
+				check(s.Name, s.Scopes, s.RequiredScopes)
+				return ctx, s.Validate(tc.grants[strings.TrimPrefix(s.Name, "scope_")])
+			}
+			jwt := func(ctx context.Context, _ string, s *security.JWTScheme) (context.Context, error) {
+				check(s.Name, s.Scopes, s.RequiredScopes)
+				return ctx, s.Validate(tc.grants[strings.TrimPrefix(s.Name, "scope_")])
+			}
+			oauth := func(ctx context.Context, _ string, s *security.OAuth2Scheme) (context.Context, error) {
+				check(s.Name, s.Scopes, s.RequiredScopes)
+				return ctx, s.Validate(tc.grants[strings.TrimPrefix(s.Name, "scope_")])
+			}
+			var err error
+			switch tc.method {
+			case "compound":
+				endpoint := scopes.NewCompoundEndpoint(svc, basic, key, jwt, oauth)
+				_, err = endpoint(context.Background(), &scopes.CompoundPayload{User: "user", Password: "pass", Key: "key", Token: "jwt", Access: "oauth"})
+			case "alternative":
+				endpoint := scopes.NewAlternativeEndpoint(svc, jwt, key)
+				_, err = endpoint(context.Background(), &scopes.AlternativePayload{Token: "jwt", Key: "key"})
+			default:
+				t.Fatalf("unknown method %q", tc.method)
+			}
+			if tc.wantError {
+				require.Error(t, err)
+				require.True(t, strings.Contains(err.Error(), "missing scopes"), err)
+				require.Empty(t, svc.calls)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, []string{tc.method}, svc.calls)
+			}
+			require.Equal(t, tc.wantCalls, authCalls)
+		})
+	}
+}
+
+func (s *scopeService) Compound(context.Context, *scopes.CompoundPayload) error {
+	s.calls = append(s.calls, "compound")
+	return nil
+}
+
+func (s *scopeService) Alternative(context.Context, *scopes.AlternativePayload) error {
+	s.calls = append(s.calls, "alternative")
+	return nil
+}

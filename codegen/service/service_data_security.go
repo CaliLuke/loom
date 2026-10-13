@@ -1,6 +1,8 @@
 package service
 
 import (
+	"slices"
+
 	"github.com/CaliLuke/loom/expr"
 )
 
@@ -72,6 +74,8 @@ type (
 		KeyAttr string
 		// Scopes lists the scopes that apply to the scheme.
 		Scopes []string
+		// RequiredScopes lists this requirement's scopes declared by the scheme.
+		RequiredScopes []string
 		// Flows describes the OAuth2 flows.
 		Flows []*expr.FlowExpr
 		// In indicates the request element that holds the credential.
@@ -116,6 +120,7 @@ func (s *SchemeData) Dup() *SchemeData {
 		CredRequired:     s.CredRequired,
 		KeyAttr:          s.KeyAttr,
 		Scopes:           s.Scopes,
+		RequiredScopes:   slices.Clone(s.RequiredScopes),
 		Flows:            s.Flows,
 		In:               s.In,
 		TransportOwned:   s.TransportOwned,

@@ -148,8 +148,8 @@ func (bindings *securityBindings) requirements(requirements []*expr.SecurityExpr
 				continue
 			}
 			scopes := []string{}
-			if scheme.Kind == expr.OAuth2Kind && len(requirement.Scopes) > 0 {
-				scopes = slices.Clone(requirement.Scopes)
+			if scheme.Kind == expr.OAuth2Kind {
+				scopes = append(scopes, requirement.RequiredScopes(scheme)...)
 			}
 			result[i][bindings.names[securityBindingFor(scheme)]] = scopes
 		}

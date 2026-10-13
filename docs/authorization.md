@@ -94,6 +94,15 @@ scopes continue to restrict credential authority. An authorization declaration
 alone does not authenticate a caller; it can also implement access for anonymous
 callers where that is the intended policy.
 
+Within `Security(first, second, ...)`, every scheme must authenticate. Each
+callback's `RequiredScopes` contains only the requirement scopes declared by
+that scheme, in requirement order. An unscoped API key combined with a JWT that
+declares `read` receives no required scopes; the JWT receives `read`. A scope
+declared by both schemes is required by both. Scopes declared by none are rejected
+in the design. Separate `Security` calls remain independent alternatives.
+Regenerate endpoints and OpenAPI after upgrading; callbacks can continue using
+`scheme.Validate(grantedScopes)` without filtering another scheme's scopes.
+
 `StrictAuthorization()` at API or service scope requires every method to declare
 `Authorize`, `AuthorizeBy`, or `NoAccessCheck`. Existing designs remain unchanged
 until they opt in. A declared requirement is mandatory even without strict mode.
