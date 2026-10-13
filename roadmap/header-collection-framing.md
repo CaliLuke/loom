@@ -1,6 +1,6 @@
 # HTTP collection header framing (#689)
 
-Status: implemented against `628db82b4`, awaiting exact final independent review.
+Status: delivered as `7ed1bfc63`, independently reviewed, pushed and confirmed closed.
 The user accepted standard comma lists with clear errors, explicit empty presence
 and no JSON-header feature on 2026-10-13. Root approved readiness before implementation.
 
@@ -15,7 +15,8 @@ and no JSON-header feature on 2026-10-13. Root approved readiness before impleme
 - [x] User accepted alternative A; arbitrary text lists can use a JSON body.
 - [x] Implement the accepted shared framing owner; remove independent framing.
 - [x] Validate bounded consumers, exact output differences and independent repeat.
-- [ ] Independent final review, atomic delivery and temporary-output cleanup.
+- [x] Independent final review and atomic delivery.
+- [ ] Temporary-output cleanup after preserving compact evidence and #887 witness.
 
 ## Owner and consumers
 
@@ -214,4 +215,7 @@ expanded into unrelated generated modules. It is incomplete and is not a passing
 gate. No full-corpus or CI-green claim is made. The unchanged OpenAPI outputs do
 not require a new schema migration. The combined alias/view compiler failure
 remains independently tracked as #887; the separate valid alias and view controls
-pass. Temporary outputs remain available until independent review and delivery.
+pass. Temporary outputs are being cleaned after completed review and delivery.
+Final production review: `/tmp/loom-689-root-final-verdict.json`; root-authored
+guide composition review: `/tmp/loom-689-integration-composition-verdict.json`.
+The integrated Expr/HTTP/JSON-RPC focused race checks pass (1.621/14.157/12.071s).

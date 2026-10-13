@@ -4,9 +4,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **171 of 206 tracked reports are delivered, pushed and confirmed closed.**
+- **173 of 208 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-current-all-issues.json` is the current GitHub reconciliation input.
+  `/tmp/loom-tracker-173-issues.json` is the frozen GitHub reconciliation input.
 - Recent deliveries complete the inspected receiver-name contracts: HTTP/JSON-RPC
   client #879 (`64fcddc25`), native gRPC server #880 (`cc3cc5ee2`) and service
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
@@ -48,6 +48,14 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   owner covers preparation, publication, guarded startup and rollback; Close joins
   in-flight attempts. Independent native Redis race checks pass (18.298s);
   failed attempts cannot invoke handlers or renew their initial lease.
+- Explicit response-body presence #886 (`720d8a5f7`) is reviewed, pushed and
+  closed. Shared expr preparation preserves authored empty objects across HTTP,
+  JSON-RPC and OpenAPI; inferred bodyless responses and Empty remain unchanged.
+  This unblocks the importer representation contract without transport patches.
+- Collection header framing #689 (`7ed1bfc63`) is reviewed, pushed and closed.
+  One internal framing/admissibility owner feeds Expr and HTTP/JSON-RPC codecs;
+  repeated/combined fields, empty presence and rejected lossy values agree.
+  The separate projected named-collection carrier defect is tracked as #887.
 - Required CI is not confirmed green. All inspected metadata-adoption test jobs
   passed except the libopenapi YAML-node race matching #820; the completed run
   failed, including release eligibility. This is evidence for that source, not
@@ -81,25 +89,25 @@ reconciliation with the inventory before they can establish remaining work.
 ## Current execution queue
 
 1. **Scheduler producer intent (#737):** `/root/diagnostic_redaction_finish`
-   completes #704 cleanup and reuses `grpc-message-context/loom` for readiness.
-   Reproduce timeout/duplicate dispatch losing responsibility for a job; establish
-   a producer-owned intent ledger across uncertain replies, stop and handoff.
-   Preserve other producers' jobs and keep Schedule context lifetime separate.
-   Worker admission #704 is delivered; its bounded recovery model is retained.
+   owns readiness in `grpc-message-context/loom`. Five parent failures and three
+   controls establish a producer responsibility ledger plus pool incarnation
+   ordering. Independent readiness re-review approved atomic revision/operation
+   publication and persistent original stop cutoffs across retries; implementation
+   now follows that corrected contract. Preserve other producers,
+   generic StopJob enqueue semantics and the existing Schedule lifetime.
 2. **Imported object representation (#776):** `/root/omission_readiness_finish`
    implements the independently approved classifier and constructor-role contract
-   in `numeric-comparison/loom`. Existing promotion and planner admission share
-   the decision across fields and collection values; direct Render stays nonmutating.
-   Parent generated/direct failures and named controls establish the boundaries.
-   Approval: `/tmp/loom-776-root-readiness-verdict.json`. Annotation #783 and encoded
-   byte-length #686 retain distinct owners.
-3. **HTTP collection-header framing (#689):** `/root/projection_integration_review`
-   implements the independently approved shared framing owner. The user adopted
-   standard comma lists: repeated/combined lines decode alike, absent differs from
-   a present empty list, and outbound comma/empty/outer-whitespace items fail clearly.
-   Runtime adapters, Expr defaults and HTTP/JSON-RPC consumers derive from one
-   framing contract; cookies remain separate. Readiness approval:
-   `/tmp/loom-689-root-readiness-verdict.json`.
+   in `numeric-comparison/loom`, advanced to delivered prerequisite #886.
+   Promotion, planner admission and rendering share the object decision; direct
+   Render stays nonmutating. Headerless and wrapped source-declared closed-empty
+   responses must both preserve content in generated wire behavior and OpenAPI.
+   Annotation #783 and encoded byte-length #686 retain distinct owners.
+3. **Projected physical field carriers (#887):** `/root/projection_integration_review`
+   reuses the completed header worktree after cleanup. The archived-parent witness
+   shows a named slice treated as a pointer in a viewed header. Reconcile the
+   existing service field-layout owner and #796/#834 storage fixes, then repair
+   shared binding rather than adding a header template exception. Readiness must
+   retain true pointer scalars, ordinary arrays and non-view aliases as controls.
 4. **Next distinct owners:** #770 completes public interceptor declarations in
    existing `serviceSymbols`; protobuf #736 and shared import #856 are separate
    actual namespaces. #791 follows #776 through one location-aware parameter

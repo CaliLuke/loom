@@ -23,7 +23,7 @@ Explicit Body selection and OpenAPIBody already promise the selected type's
 shape. This repair follows that contract; importer runtime syntax must express
 source content explicitly when ordinary inference would choose no body.
 
-## Acceptance completed; independent review pending
+## Acceptance and delivery completed
 
 - [x] Three direct expression failures reproduce on the parent: selected empty
   field, explicit named type and documentation-only shape. Empty, inferred
@@ -48,7 +48,10 @@ source content explicitly when ordinary inference would choose no body.
 - [x] Parse the selected OpenAPI specimen with libopenapi; pinned Vacuum
   v0.33.0 plus the repository's specified dependency override reports zero
   errors (21 style/description warnings, six informational items).
-- [ ] Independent exact final-diff approval, commit, push and issue closure.
+- [x] Independent exact final-diff approval, commit `720d8a5f7`, push and confirmed issue closure.
+  The two low formatting findings were mechanically fixed and re-reviewed;
+  no correctness findings remained. Review receipt:
+  `/tmp/loom-886-independent-final-rereview-verdict.json`.
 
 Intended generated differences: HTTP adds selected/type response body types,
 constructors, encoding/decoding and response-contract content types; OpenAPI
