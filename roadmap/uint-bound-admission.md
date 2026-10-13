@@ -12,7 +12,7 @@ wrappers and pointers remain separate unsupported source types.
 3. [x] Exercise the existing exact-numeric fixture with uint bounds and verify
    generated HTTP, JSON-RPC, gRPC and OpenAPI consumers. Compare bounded output
    with the equivalent previously accepted integer input and independent repeat.
-4. [ ] Obtain independent exact-diff review, then commit, push and reconcile #696.
+4. [x] Obtain independent exact-diff review, then commit, push and reconcile #696.
 
 Acceptance: uint bounds preserve the same exact number as equivalent uint64
 values for inclusive/exclusive upper/lower bounds. Existing rejected source
@@ -48,3 +48,13 @@ Scoped lint reports one pre-existing unchecked `expr.RunInvalidDSL` result in
 lint passes with zero issues. Logs are `/tmp/loom-696-{owner,transports,openapi,
 jsonrpc-wire,parent-jsonrpc-control,lint,changed-lint}.log`. Independent final
 review and delivery remain pending.
+
+## Delivery
+
+Independently reviewed, committed as `90aaa5f89`, pushed and #696 closed.
+The final wording correction was re-reviewed before commit. The two identified
+CI test residuals are separately delivered as #805 (`a9285e5ec`) and #806
+(`6f1297e7a`). Inactive comparison modules were removed after review/delivery;
+compact JSON receipts and command logs remain in `/tmp/loom-696-cleanup-evidence`.
+Cleanup receipt `/tmp/loom-696-cleanup-receipt.json` SHA
+`8ea6dd22462aea1abc62b7a7a5c5fc6632fca3740222d024c985a386af84be6f`.

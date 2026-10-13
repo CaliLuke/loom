@@ -169,7 +169,7 @@ pending.
 - [x] Bounded CLI generation and example scaffolding at parent/candidate, plus
   separate-process candidate repeat. All candidate output bytes repeat exactly.
 - [x] Independent final review of the frozen exact patch.
-- [ ] Root integration, atomic commit/push, issue reconciliation and scratch cleanup.
+- [x] Root integration, atomic commit/push, issue reconciliation and scratch cleanup.
 
 ### Additional consumer evidence
 
@@ -270,4 +270,18 @@ checks pass (21.666s). File-size and scoped expr/IR lint pass with zero lint
 issues. Logs: `/tmp/loom-799-integrated-{owner,generated,spec,size,lint}.log`.
 The reviewed four-specimen generated comparison remains applicable: the only
 integration code movement is byte-identical and #808 separately proved unchanged
-ordinary generated output. Final integrated review remains pending.
+ordinary generated output. Final integrated review passed without findings.
+
+## Delivery
+
+Delivered as `7326becd4`, pushed to main and #799 confirmed closed. Exact
+27-file integration independently approved by `/root/review_uniform_json_corrections`:
+manifest `df28a219e8f4043e706b50a3b187f1f42b235c27beaf8351565c7e1739adaf88`,
+patch `b7128239b46a4ad5f2b4abf59e3b2f809925862b1dfdb09810976c2a41bb38d3`.
+Temporary-output cleanup is complete: combined #799/#804/#808 receipt
+`/tmp/loom-delivered-799-804-808-cleanup-receipt.json`, SHA
+`a307fbf7b3c17e74fd5fab00db8cef67ea5df9fa45e11861364811052fb829b7`.
+Comparison JSONs and copied command logs remain; generated modules and checker
+state are removed. #804 raw logs are condensed into
+`/tmp/loom-804-validation-summary.json`; review/integration manifests and patches
+remain. Managed worktrees remain because archival was refused.

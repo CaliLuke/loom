@@ -1,6 +1,6 @@
 # gRPC nullable admission — #804
 
-Parent: `39f9ce17c`. Status: implemented; final independent review pending.
+Parent: `39f9ce17c`. Status: delivered in `8b8dccf72`, pushed and #804 closed.
 
 ## Contract and owner
 
@@ -32,8 +32,8 @@ without independently recreating finalization policy.
   native/Any generated artifacts byte for byte against the parent, compile/vet
   them, and run existing Any presence roundtrip coverage. Rejected designs must
   fail before code generation. Do not run the full exported-design corpus.
-- [ ] Freeze the exact diff and obtain independent final review.
-- [ ] Root integrates one atomic #804 commit, pushes, closes the proven issue,
+- [x] Freeze the exact diff and obtain independent final review.
+- [x] Root integrates one atomic #804 commit, pushes, closes the proven issue,
   updates shared guides/checkpoint, and removes task-owned temporary artifacts.
 
 ## Boundaries
@@ -194,4 +194,19 @@ Any root and local-declaration roundtrips pass with module build/vet. Complete
 DSL/expr lint reports zero issues, including the separately repaired #806 test.
 Logs: `/tmp/loom-804-integrated-{owner,generated,lint}.log`. Prior 61-artifact
 comparison and model receipts remain applicable; only shared/public guidance
-and this integration record are added. Exact integrated review remains pending.
+and this integration record are added. Exact integrated review passed without findings.
+
+## Delivery
+
+Delivered as `8b8dccf72`, pushed to main and #804 confirmed closed. Exact
+21-file integration independently approved by `/root/review_object_default_readiness`:
+manifest `7147eb0d0587f03c57f63b325f10882002764736d26269a94f85e72965e10b6e`,
+patch `a9f79f6a20fe0d50d8b706c47b00725f6d41a663f2301c531a191f6d94caadea`.
+The three parent-confirmed gRPC failures are separately tracked by #810 and #811.
+Temporary-output cleanup is complete: combined #799/#804/#808 receipt
+`/tmp/loom-delivered-799-804-808-cleanup-receipt.json`, SHA
+`a307fbf7b3c17e74fd5fab00db8cef67ea5df9fa45e11861364811052fb829b7`.
+Comparison JSONs and copied command logs remain; generated modules and checker
+state are removed. #804 raw logs are condensed into
+`/tmp/loom-804-validation-summary.json`; review/integration manifests and patches
+remain. Managed worktrees remain because archival was refused.
