@@ -3,6 +3,8 @@ package http
 import (
 	"bytes"
 	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,8 +24,9 @@ func TestReadMultipartForm(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, writer.Close())
 
-		reader := multipart.NewReader(&buf, writer.Boundary())
-		form, err := ReadMultipartForm(reader)
+		req := httptest.NewRequest(http.MethodPost, "/", &buf)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		form, err := ReadMultipartForm(req)
 		require.NoError(t, err)
 		require.Equal(t, []string{"brief"}, form.Values["title"])
 		require.Equal(t, []string{"one", "two"}, form.Values["tags"])
@@ -49,15 +52,16 @@ func TestReadMultipartForm(t *testing.T) {
 
 		require.NoError(t, writer.Close())
 
-		reader := multipart.NewReader(&buf, writer.Boundary())
-		form, err := ReadMultipartForm(reader)
+		req := httptest.NewRequest(http.MethodPost, "/", &buf)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		form, err := ReadMultipartForm(req)
 		require.NoError(t, err)
 		require.Len(t, form.Files["file"], 2)
 		require.Equal(t, "first.txt", form.Files["file"][0].Filename)
 		require.Equal(t, "second.txt", form.Files["file"][1].Filename)
 	})
 
-	t.Run("nil reader", func(t *testing.T) {
+	t.Run("nil request", func(t *testing.T) {
 		_, err := ReadMultipartForm(nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "cannot be nil")

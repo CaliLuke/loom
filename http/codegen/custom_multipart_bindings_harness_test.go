@@ -25,6 +25,8 @@ func TestCustomMultipartWire(t *testing.T) {
  type testCase struct {
   name, value, authorization, query, callbackError string
   malformed bool
+  wireLimit, knownLength, consumeBoundary bool
+  epilogue int
   status int
   code, detail string
   callbacks, calls int
@@ -40,6 +42,15 @@ func TestCustomMultipartWire(t *testing.T) {
   {name:"malformed multipart", value:"9", authorization:authorization, malformed:true, status:400, code:"decode_payload", detail:"invalid request body"},
   {name:"callback private error", value:"9", authorization:authorization, callbackError:"private", status:400, code:"decode_payload", detail:"invalid request body", callbacks:1},
   {name:"callback service error", value:"9", authorization:authorization, callbackError:"service", status:400, code:"missing_field", detail:"files", callbacks:1},
+ }
+ if location == "none" {
+  cases = append(cases,
+   testCase{name:"exact wire budget", wireLimit:true, status:204, callbacks:1, calls:1},
+   testCase{name:"callback failure does not drain", callbackError:"private", wireLimit:true, epilogue:8192, status:400, code:"decode_payload", detail:"invalid request body", callbacks:1},
+   testCase{name:"unknown epilogue exceeds budget", wireLimit:true, epilogue:8192, status:413, code:"request_too_large", detail:"request body too large", callbacks:1},
+   testCase{name:"boundary EOF leaves epilogue", wireLimit:true, consumeBoundary:true, epilogue:8192, status:413, code:"request_too_large", detail:"request body too large", callbacks:1},
+   testCase{name:"known oversized before callback", wireLimit:true, knownLength:true, epilogue:1, status:413, code:"request_too_large", detail:"request body too large"},
+   testCase{name:"default epilogue exceeds budget", epilogue:loomhttp.DefaultMaxRequestBodyBytes, status:413, code:"request_too_large", detail:"request body too large", callbacks:1})
  }
  if location != "none" && location != "path_string" {
   cases = append(cases,
@@ -96,11 +107,15 @@ func TestCustomMultipartWire(t *testing.T) {
     if err := part.Close(); err != nil {
      return err
     }
+    if test.consumeBoundary {
+     if _, err := reader.NextPart(); err != io.EOF {
+      return fmt.Errorf("expected final multipart boundary, got %w",err)
+     }
+    }
     *payload = &uploads.SendPayload{Files:[][]byte{data}}
     return nil
    }
    transport := server.New(endpoints,mux,loomhttp.RequestDecoder,loomhttp.ResponseEncoder,nil,nil,decoder)
-   server.Mount(mux,transport)
    var body bytes.Buffer
    writer := multipart.NewWriter(&body)
    if err := writer.WriteField("files","contents"); err != nil {
@@ -109,6 +124,14 @@ func TestCustomMultipartWire(t *testing.T) {
    if err := writer.Close(); err != nil {
     t.Fatal(err)
    }
+   if test.wireLimit {
+    policy, err := loomhttp.NewRequestBodyPolicy(int64(body.Len()))
+    if err != nil {
+     t.Fatal(err)
+    }
+    transport.Send = policy.Handler(transport.Send)
+   }
+   server.Mount(mux,transport)
    target := "/send"
    if location == "path" || location == "path_string" {
     target += "/" + test.value
@@ -119,7 +142,11 @@ func TestCustomMultipartWire(t *testing.T) {
      target = "/send?" + test.query
     }
    }
-   request := httptest.NewRequest(http.MethodPost,target,&body)
+   request := httptest.NewRequest(http.MethodPost,target,io.MultiReader(&body,strings.NewReader(strings.Repeat("e",test.epilogue))))
+   request.ContentLength = -1
+   if test.knownLength {
+    request.ContentLength = int64(body.Len()+test.epilogue)
+   }
    request.Header.Set("Content-Type",writer.FormDataContentType())
    if test.malformed {
     request.Header.Set("Content-Type","application/json")

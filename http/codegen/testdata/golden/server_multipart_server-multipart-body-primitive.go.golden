@@ -4,12 +4,10 @@
 func NewServiceMultipartPrimitiveMethodMultipartPrimitiveDecoder(mux loomhttp.Muxer, serviceMultipartPrimitiveMethodMultipartPrimitiveDecoderFn ServiceMultipartPrimitiveMethodMultipartPrimitiveDecoderFunc) func(r *http.Request) loomhttp.Decoder {
 	return func(r *http.Request) loomhttp.Decoder {
 		return loomhttp.EncodingFunc(func(v any) error {
-			mr, merr := r.MultipartReader()
-			if merr != nil {
-				return merr
-			}
 			p := v.(*string)
-			if err := serviceMultipartPrimitiveMethodMultipartPrimitiveDecoderFn(mr, p); err != nil {
+			if err := loomhttp.DecodeMultipartRequestWithLimit(r, loomhttp.RequestBodyLimit(r.Context()), func(mr *multipart.Reader) error {
+				return serviceMultipartPrimitiveMethodMultipartPrimitiveDecoderFn(mr, p)
+			}); err != nil {
 				return err
 			}
 			return nil

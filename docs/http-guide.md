@@ -784,12 +784,22 @@ Method("create", func() {
 ### Body Limits
 
 Loom's built-in JSON, XML, Gob, HTML, and plain-text request decoders accept at
-most 32 MiB. Generated multipart decoding uses the same 32 MiB aggregate limit
-across all parts, including unnamed parts; it is not a per-file allowance.
+most 32 MiB. Generated multipart decoding, including custom decoder callbacks,
+limits the complete encoded request to 32 MiB: part headers, boundaries, unnamed
+parts and epilogue all count. Before a successful callback can invoke the
+service, Loom consumes any remaining request bytes within that same limit.
+Callback failures do not trigger extra reads; the server retains body-close
+ownership. A larger configured policy replaces the default.
 Requests that exceed either limit receive an RFC 9457
 `application/problem+json` response with status `413` and code
 `request_too_large`, rather than the `decode_payload` response used for
 malformed bodies.
+
+Regenerate servers after upgrading. Direct runtime callers now pass the original
+`*http.Request` to `ReadMultipartForm` or `ReadMultipartFormWithLimit`, rather than
+calling `MultipartReader` first. `ReadMultipartForm` honors `RequestBodyPolicy`.
+Generated custom callback signatures are unchanged; callbacks must finish their
+payload decoding before returning and must not retain the parser or a live part.
 
 JSON-RPC endpoints keep the protocol's HTTP `200` response and map the same
 condition to an `InvalidRequest` error: code `-32600`, null `id`, message

@@ -914,7 +914,11 @@ servers to adopt this ordering correction.
   `loomhttp.NewRequestBodyPolicy` at startup and apply its `Handler` to the
   generated method field. Generated JSON, text, form, and multipart decoders
   preserve the standard `request_too_large` 413; raw-body services receive the
-  same service error while reading.
+  same service error while reading. Multipart limits count the complete encoded
+  source, including headers, boundaries and epilogue. Successful custom callbacks
+  finish within that budget before service invocation; do not retain a live parser
+  or part. Regenerate adapters. Direct `ReadMultipartForm[WithLimit]` calls now
+  take the original request; the default entry honors the configured policy.
 - Use `loomhttp.NewResponseNegotiationPolicy` on a generated method when an
   incompatible `Accept` header must produce a 406 instead of the default JSON
   fallback.

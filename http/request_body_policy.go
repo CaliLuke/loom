@@ -22,9 +22,11 @@ type (
 
 	requestBodyLimitReadCloser struct {
 		io.ReadCloser
+		limit     int64
 		remaining int64
 		tooLarge  bool
 		err       error
+		readErr   error
 	}
 )
 
@@ -56,6 +58,7 @@ func (p RequestBodyPolicy) Handler(next http.Handler) http.Handler {
 		if r.Body != nil {
 			r.Body = &requestBodyLimitReadCloser{
 				ReadCloser: r.Body,
+				limit:      p.maxBytes,
 				remaining:  p.maxBytes,
 				tooLarge:   r.ContentLength > p.maxBytes,
 			}
@@ -101,11 +104,11 @@ func (r *requestBodyLimitReadCloser) Read(buffer []byte) (int, error) {
 		return 0, r.err
 	}
 	if len(buffer) == 0 {
-		return r.ReadCloser.Read(buffer)
+		return r.readSource(buffer)
 	}
 	if r.remaining == 0 {
 		var probe [1]byte
-		n, err := r.ReadCloser.Read(probe[:])
+		n, err := r.readSource(probe[:])
 		if n > 0 {
 			r.err = loom.RequestBodyTooLargeError()
 			return 0, r.err
@@ -116,7 +119,17 @@ func (r *requestBodyLimitReadCloser) Read(buffer []byte) (int, error) {
 	if readLength > r.remaining {
 		readLength = r.remaining
 	}
-	n, err := r.ReadCloser.Read(buffer[:readLength])
+	n, err := r.readSource(buffer[:readLength])
 	r.remaining -= int64(n)
+	return n, err
+}
+
+// readSource retains the first source error for decoder completion without
+// changing Read retry behavior for policy-wrapped raw-body consumers.
+func (r *requestBodyLimitReadCloser) readSource(buffer []byte) (int, error) {
+	n, err := r.ReadCloser.Read(buffer)
+	if r.readErr == nil {
+		r.readErr = err
+	}
 	return n, err
 }

@@ -5,12 +5,10 @@ var (
 func {{ .InitName }}(mux loomhttp.Muxer, {{ .VarName }} {{ .FuncName }}) func(r *http.Request) loomhttp.Decoder {
 	return func(r *http.Request) loomhttp.Decoder {
 		return loomhttp.EncodingFunc(func(v any) error {
-			mr, merr := r.MultipartReader()
-			if merr != nil {
-				return merr
-			}
 			p := v.(*{{ .Payload.Ref }})
-			if err := {{ .VarName }}(mr, p); err != nil {
+			if err := loomhttp.DecodeMultipartRequestWithLimit(r, loomhttp.RequestBodyLimit(r.Context()), func(mr *multipart.Reader) error {
+				return {{ .VarName }}(mr, p)
+			}); err != nil {
 				return err
 			}
 			{{- if .Payload.Request.DecodePlan.ElementsMustValidate }}

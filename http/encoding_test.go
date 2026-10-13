@@ -627,10 +627,7 @@ func TestReadMultipartFormCapsPartData(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	mr, err := req.MultipartReader()
-	require.NoError(t, err)
-
-	form, err := ReadMultipartForm(mr)
+	form, err := ReadMultipartForm(req)
 
 	requireRequestBodyTooLargeResponse(t, err)
 	require.Nil(t, form)
@@ -649,10 +646,7 @@ func TestReadMultipartFormCapsAggregateData(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	mr, err := req.MultipartReader()
-	require.NoError(t, err)
-
-	form, err := ReadMultipartForm(mr)
+	form, err := ReadMultipartForm(req)
 
 	requireRequestBodyTooLargeResponse(t, err)
 	require.Nil(t, form)
@@ -673,10 +667,7 @@ func TestReadMultipartFormCapsNamelessPartData(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	mr, err := req.MultipartReader()
-	require.NoError(t, err)
-
-	form, err := ReadMultipartForm(mr)
+	form, err := ReadMultipartForm(req)
 
 	requireRequestBodyTooLargeResponse(t, err)
 	require.Nil(t, form)

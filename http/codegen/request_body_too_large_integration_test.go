@@ -153,6 +153,13 @@ func TestGeneratedRoutesEnforceRequestBodyLimit(t *testing.T) {
 			contentType: "multipart/form-data",
 			body:        oversizedMultipartBody,
 		},
+		{
+			name:        "multipart empty-part overhead",
+			path:        "/multipart",
+			contentType: "multipart/form-data",
+			body:        oversizedMultipartOverhead,
+			chunked:     true,
+		},
 	}
 
 	for _, test := range tests {
@@ -272,7 +279,15 @@ func TestGeneratedCustomDecoderHonorsConfiguredRequestBodyLimit(t *testing.T) {
 }
 
 func TestGeneratedMultipartRouteHonorsExactConfiguredWireLimit(t *testing.T) {
-	exactBody := sizedMultipartBody(t, 8)
+ for _, test := range []struct {
+  name string
+  size int64
+ }{
+  {name:"below default", size:8},
+  {name:"above default", size:loomhttp.DefaultMaxRequestBodyBytes+1},
+ } {
+  t.Run(test.name, func(t *testing.T) {
+	exactBody := sizedMultipartBody(t, test.size)
 	policy, err := loomhttp.NewRequestBodyPolicy(exactBody.size)
 	if err != nil {
 		t.Fatalf("create exact multipart policy: %v", err)
@@ -283,7 +298,7 @@ func TestGeneratedMultipartRouteHonorsExactConfiguredWireLimit(t *testing.T) {
 	response := sendRequest(t, server, "/multipart", exactBody.contentType, exactBody, false)
 	requireSuccess(t, response)
 
-	oversizedBody := sizedMultipartBody(t, 9)
+	oversizedBody := sizedMultipartBody(t, test.size+1)
 	if oversizedBody.size != exactBody.size+1 {
 		t.Fatalf("multipart wire sizes = %d and %d, want one-byte difference", exactBody.size, oversizedBody.size)
 	}
@@ -293,6 +308,8 @@ func TestGeneratedMultipartRouteHonorsExactConfiguredWireLimit(t *testing.T) {
 	if got := counts.multipart.Load(); got != 1 {
 		t.Errorf("exact multipart dispatch count = %d, want 1", got)
 	}
+  })
+ }
 }
 
 func newBodyLimitServer(t *testing.T, counts *dispatchCounts, configured bool) *httptest.Server {
@@ -457,6 +474,33 @@ func oversizedMultipartBody(t *testing.T) io.Reader {
 		Reader:      bytes.NewReader(body.Bytes()),
 		contentType: writer.FormDataContentType(),
 		size:        int64(body.Len()),
+	}
+}
+
+func oversizedMultipartOverhead(t *testing.T) io.Reader {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("data", "payload.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("ok")); err != nil {
+		t.Fatal(err)
+	}
+	name := strings.Repeat("n", 64<<10)
+	for body.Len() <= loomhttp.DefaultMaxRequestBodyBytes {
+		if err := writer.WriteField(name, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return &multipartRequestBody{
+		Reader: bytes.NewReader(body.Bytes()),
+		contentType: writer.FormDataContentType(),
+		size: int64(body.Len()),
 	}
 }
 

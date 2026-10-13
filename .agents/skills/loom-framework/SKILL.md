@@ -1678,6 +1678,14 @@ filter, and serialization rules belong here.
   under `http/tla/response_body` records ownership and joined-error invariants.
 - Keep HTTP, gRPC, and JSON-RPC semantics distinct unless a deliberately shared
   transport core owns the behavior.
+- `http.DecodeMultipartRequestWithLimit` owns multipart source admission before
+  parser creation and completion before success for built-in collection and
+  generated custom callbacks. Reuse `requestBodyLimitReadCloser`; retain observed
+  source errors without changing raw reader retry behavior. A parser boundary EOF
+  is not source EOF. Count read-ahead/epilogue once, normalize size errors, avoid
+  extra draining after callback failure, and leave Close with the server. Keep
+  the source-budget model and mounted controls aligned; never restore per-part
+  value budgets or a reader-taking API that cannot see the request source.
 - Keep deployment-owned HTTP policies composable at generated method fields.
   Request body policy must cover built-in JSON, text, form, and multipart
   decoding while exposing the same bounded reader to raw-body services.

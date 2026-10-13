@@ -39,15 +39,7 @@ func {{ .RequestDecoder }}(mux loomhttp.Muxer, {{ if $usesDecoder }}decoder{{ el
 		{{- end }}
 		)
 	{{- if .Payload.Request.MultipartGenerated }}
-		mr, multipartErr := r.MultipartReader()
-		if multipartErr != nil {
-			var gerr *loom.ServiceError
-			if errors.As(multipartErr, &gerr) {
-				return payload, gerr
-			}
-			return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(multipartErr))
-		}
-		multipartForm, multipartErr := loomhttp.ReadMultipartFormWithLimit(mr, loomhttp.RequestBodyLimit(r.Context()))
+		multipartForm, multipartErr := loomhttp.ReadMultipartForm(r)
 		if multipartErr != nil {
 			var gerr *loom.ServiceError
 			if errors.As(multipartErr, &gerr) {
