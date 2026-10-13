@@ -83,6 +83,13 @@ consumer validation.
   application-owned. Keep the options ownership model under `clue/log/tla/`
   aligned with direct configuration, concurrent reuse and HTTP/gRPC Debug tests.
   Request-scope creation and buffer lineage are separate ownership contracts.
+- `clue/log.requestContext` creates each HTTP/unary/streaming server logging
+  scope from a locked root configuration/field snapshot. Start an empty buffer
+  with fresh flush state and evaluate buffering policy using incoming request
+  context. Optional ID metadata is supplied as initial fields, independent of
+  scope creation; do not use With to clone a request's lifetime. Keep the request
+  scope model and both ID/access-log modes aligned. Filtered HTTP bypass and
+  application-owned context lifetime remain unchanged.
 
 - Generated artifacts retain their write intent from rendering to live
   installation through `codegen.Artifact`. `internal/artifactpolicy` owns

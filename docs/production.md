@@ -53,6 +53,13 @@ changing its parent or siblings. Updating an existing logger retains its fields
 and buffered entries. Contexts joined with `log.WithContext` refer to the same
 logger and therefore observe the same updates.
 
+The HTTP logging middleware and gRPC server interceptors start a fresh logging
+scope for each handled request or stream, including when request IDs or access
+logging are disabled. They inherit root configuration and fields, but do not
+inherit root buffered entries or an earlier flush. Debug and the configured
+buffering callback still control immediate output for the new request. HTTP
+paths excluded with `WithPathFilter` retain their existing bypass behavior.
+
 `log.WithOutputs` copies the supplied output slice each time it is applied.
 Changing a slice element afterward does not reconfigure a logger. Writers,
 format functions and field values remain application-owned; synchronize shared

@@ -1077,6 +1077,11 @@ updating one does not reconfigure its parent or siblings. `WithContext` joins
 an existing logger instead. `WithOutputs` copies output slice elements when
 applied; shared writers and callbacks remain the application's responsibility.
 
+Clue HTTP middleware and gRPC server interceptors give each handled request a
+fresh log buffer, even with request IDs or access logging disabled. Root fields
+and options are inherited; root buffered entries and flush state are not.
+Configured Debug and buffering callbacks continue to control immediate output.
+
 Transport observation and clue HTTP logging preserve supported writer interfaces
 for streaming, upgrades and optimized I/O. Captured HTTP status ignores interim
 responses such as 103, retains terminal 101, and records implicit 200 on writes

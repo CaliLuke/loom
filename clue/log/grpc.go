@@ -50,10 +50,11 @@ func UnaryServerInterceptor(logCtx context.Context, opts ...GRPCLogOption) grpc.
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (any, error) {
-		ctx = WithContext(ctx, logCtx)
+		var fields []Fielder
 		if !o.disableCallID {
-			ctx = With(ctx, KV{RequestIDKey, shortID()})
+			fields = append(fields, KV{RequestIDKey, shortID()})
 		}
+		ctx = requestContext(ctx, logCtx, fields...)
 		if o.disableCallLogging {
 			return handler(ctx, req)
 		}
@@ -100,10 +101,11 @@ func StreamServerInterceptor(logCtx context.Context, opts ...GRPCLogOption) grpc
 		info *grpc.StreamServerInfo,
 		handler grpc.StreamHandler,
 	) error {
-		ctx := WithContext(stream.Context(), logCtx)
+		var fields []Fielder
 		if !o.disableCallID {
-			ctx = With(ctx, KV{RequestIDKey, shortID()})
+			fields = append(fields, KV{RequestIDKey, shortID()})
 		}
+		ctx := requestContext(stream.Context(), logCtx, fields...)
 		stream = &streamWithContext{stream, ctx}
 		if o.disableCallLogging {
 			return handler(srv, stream)

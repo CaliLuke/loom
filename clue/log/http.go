@@ -78,10 +78,11 @@ func HTTP(logCtx context.Context, opts ...HTTPLogOption) func(http.Handler) http
 					return
 				}
 			}
-			ctx := WithContext(req.Context(), logCtx)
+			var fields []Fielder
 			if !options.disableRequestID {
-				ctx = With(ctx, KV{RequestIDKey, shortID()})
+				fields = append(fields, KV{RequestIDKey, shortID()})
 			}
+			ctx := requestContext(req.Context(), logCtx, fields...)
 			if options.disableRequestLogging {
 				h.ServeHTTP(w, req.WithContext(ctx))
 				return

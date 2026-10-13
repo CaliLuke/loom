@@ -66,3 +66,20 @@ func DebugEnabled(ctx context.Context) bool {
 	defer l.lock.Unlock()
 	return l.options.debug
 }
+
+// requestContext starts a fresh logging scope while preserving the incoming
+// request's context and the root logger's configuration and inherited fields.
+func requestContext(ctx, logCtx context.Context, fields ...Fielder) context.Context {
+	parent := logCtx.Value(ctxLogger).(*logger)
+	parent.lock.Lock()
+	request := &logger{
+		options: parent.options,
+		keyvals: parent.keyvals.merge(fields),
+	}
+	parent.lock.Unlock()
+	ctx = context.WithValue(ctx, ctxLogger, request)
+	if request.options.disableBuffering != nil && request.options.disableBuffering(ctx) {
+		FlushAndDisableBuffering(ctx)
+	}
+	return ctx
+}
