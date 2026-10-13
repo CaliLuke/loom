@@ -21,9 +21,13 @@ func NewMethodARequestBody(p *servicemixedpayloadinbody.APayload) *MethodAReques
 		Any: p.Any,
 	}
 	if p.Array != nil {
-		body.Array = make([]float32, len(p.Array))
-		for i, val := range p.Array {
-			body.Array[i] = val
+		if p.Array != nil {
+			body.Array = make([]float32, len(p.Array))
+			for i, val := range p.Array {
+				body.Array[i] = val
+			}
+		} else {
+			body.Array = nil
 		}
 	} else {
 		body.Array = []float32{}
@@ -35,6 +39,8 @@ func NewMethodARequestBody(p *servicemixedpayloadinbody.APayload) *MethodAReques
 			tv := val
 			body.Map[tk] = tv
 		}
+	} else {
+		body.Map = nil
 	}
 	if p.Object != nil {
 		body.Object = marshalServicemixedpayloadinbodyBPayloadToBPayloadRequestBody(p.Object)

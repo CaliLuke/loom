@@ -23,17 +23,20 @@ func BuildMethodBodyInlineArrayUserPayload(serviceBodyInlineArrayUserMethodBodyI
 			return nil, err
 		}
 	}
-	v := make([]*servicebodyinlinearrayuser.ElemType, len(body))
-	for i, val := range body {
-		actual, ok := val.Value()
-		if !ok {
-			continue
+	var v []*servicebodyinlinearrayuser.ElemType
+	if body != nil {
+		v = make([]*servicebodyinlinearrayuser.ElemType, len(body))
+		for i, val := range body {
+			actual, ok := val.Value()
+			if !ok {
+				continue
+			}
+			if actual == nil {
+				v[i] = nil
+				continue
+			}
+			v[i] = unmarshalCLIElemTypeRequestBodyToServicebodyinlinearrayuserElemType(actual)
 		}
-		if actual == nil {
-			v[i] = nil
-			continue
-		}
-		v[i] = unmarshalCLIElemTypeRequestBodyToServicebodyinlinearrayuserElemType(actual)
 	}
 	return v, nil
 }

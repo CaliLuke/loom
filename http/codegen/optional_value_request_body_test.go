@@ -21,10 +21,11 @@ import (
 // to an absent body and CLI flag; a required attribute still requires both.
 func TestOptionalValueRequestBody(t *testing.T) {
 	cases := []struct {
-		Name      string
-		Attribute func(leaf, plain any)
-		Optional  bool
-		Primitive bool
+		Name       string
+		Attribute  func(leaf, plain any)
+		Optional   bool
+		Primitive  bool
+		Collection bool
 		// Encode is the client statement that builds the body.
 		Encode string
 		// Decode lists fragments of the server request decoder.
@@ -78,52 +79,55 @@ func TestOptionalValueRequestBody(t *testing.T) {
 			},
 		},
 		{
-			Name:      "array",
-			Attribute: func(_, _ any) { Attribute("v", ArrayOf(String), func() { MinLength(1) }) },
-			Optional:  true,
-			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
+			Name:       "array",
+			Collection: true,
+			Attribute:  func(_, _ any) { Attribute("v", ArrayOf(String), func() { MinLength(1) }) },
+			Optional:   true,
+			Encode:     "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 				"\t\tif body != nil {\n\t\t\tif len(body) < 1 {\n",
 				"payload = NewSendPayload(body, q)",
 			},
 			Init: []string{
-				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tv := make([]string, len(body))\n",
+				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tvar v []string\n\t\tif body != nil {\n\t\t\tv = make([]string, len(body))\n",
 				"\t\tres.V = v\n\t}\n",
 			},
 			Build: []string{
 				"\t\tif pickerSendBody != \"\" {\n\t\t\terr = loomhttpcli.UnmarshalNonNullableJSON([]byte(pickerSendBody), &body)\n",
-				"\tres := &picker.SendPayload{}\n\tif pickerSendBody != \"\" {\n\t\tv := make([]string, len(body))\n",
+				"\tres := &picker.SendPayload{}\n\tif pickerSendBody != \"\" {\n\t\tvar v []string\n\t\tif body != nil {\n\t\t\tv = make([]string, len(body))\n",
 			},
 		},
 		{
-			Name:      "array of objects",
-			Attribute: func(leaf, _ any) { Attribute("v", ArrayOf(leaf)) },
-			Optional:  true,
-			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := NewLeafRequestBody(p)\n",
+			Name:       "array of objects",
+			Collection: true,
+			Attribute:  func(leaf, _ any) { Attribute("v", ArrayOf(leaf)) },
+			Optional:   true,
+			Encode:     "\t\tif p.V != nil {\n\t\t\tbody := NewLeafRequestBody(p)\n",
 			Decode: []string{
 				"\t\tif body != nil {\n\t\t\tfor i, e := range body {\n",
 			},
 			Init: []string{
-				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tv := make([]*picker.Leaf, len(body))\n",
+				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tvar v []*picker.Leaf\n\t\tif body != nil {\n\t\t\tv = make([]*picker.Leaf, len(body))\n",
 			},
 			Build: []string{
-				"\tif pickerSendBody != \"\" {\n\t\tv := make([]*picker.Leaf, len(body))\n",
+				"\tif pickerSendBody != \"\" {\n\t\tvar v []*picker.Leaf\n\t\tif body != nil {\n\t\t\tv = make([]*picker.Leaf, len(body))\n",
 			},
 		},
 		{
-			Name:      "map",
-			Attribute: func(_, _ any) { Attribute("v", MapOf(String, Int)) },
-			Optional:  true,
-			Encode:    "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
+			Name:       "map",
+			Collection: true,
+			Attribute:  func(_, _ any) { Attribute("v", MapOf(String, Int)) },
+			Optional:   true,
+			Encode:     "\t\tif p.V != nil {\n\t\t\tbody := p.V\n",
 			Decode: []string{
 				"\t\terr = decoder(loomhttp.WithNonNullableBody(r)).Decode(&body)\n",
 			},
 			Init: []string{
-				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tv := make(map[string]int, len(body))\n",
+				"\tres := &picker.SendPayload{}\n\tif body != nil {\n\t\tvar v map[string]int\n\t\tif body != nil {\n\t\t\tv = make(map[string]int, len(body))\n",
 			},
 			Build: []string{
-				"\tif pickerSendBody != \"\" {\n\t\tv := make(map[string]int, len(body))\n",
+				"\tif pickerSendBody != \"\" {\n\t\tvar v map[string]int\n\t\tif body != nil {\n\t\t\tv = make(map[string]int, len(body))\n",
 			},
 		},
 		{
@@ -202,7 +206,12 @@ func TestOptionalValueRequestBody(t *testing.T) {
 				if !optional {
 					assert.NotContains(t, encoder, "if p.V != nil {")
 					assert.NotContains(t, decoder, "body = nil")
-					assert.NotContains(t, init, "if body != nil {")
+					if c.Collection {
+						// Required wire admission does not erase nil-preserving conversion.
+						assert.Contains(t, init, "if body != nil {")
+					} else {
+						assert.NotContains(t, init, "if body != nil {")
+					}
 					defaulted := c.Name == "default" && !required
 					if defaulted {
 						assert.Equal(t, "d", data.Payload.Request.BodyDefaultValue)

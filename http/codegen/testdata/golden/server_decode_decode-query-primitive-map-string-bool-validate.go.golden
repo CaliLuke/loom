@@ -21,15 +21,19 @@ func DecodeMethodQueryPrimitiveMapStringBoolValidateRequest(mux loomhttp.Muxer, 
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
 			if present {
-				q = make(map[string]bool, len(decoded))
-				for key, val := range decoded {
-					actual, ok := val.Value()
-					if !ok {
-						continue
+				if decoded != nil {
+					q = make(map[string]bool, len(decoded))
+					for key, val := range decoded {
+						actual, ok := val.Value()
+						if !ok {
+							continue
+						}
+						tk := key
+						tv := actual
+						q[tk] = tv
 					}
-					tk := key
-					tv := actual
-					q[tk] = tv
+				} else {
+					q = nil
 				}
 			}
 			if !present {

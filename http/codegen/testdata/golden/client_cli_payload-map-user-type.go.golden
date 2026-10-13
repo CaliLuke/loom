@@ -28,18 +28,21 @@ func BuildMethodBodyInlineMapUserPayload(serviceBodyInlineMapUserMethodBodyInlin
 			return nil, err
 		}
 	}
-	v := make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
-	for key, val := range body {
-		actual, ok := val.Value()
-		if !ok {
-			continue
+	var v map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType
+	if body != nil {
+		v = make(map[*servicebodyinlinemapuser.KeyType]*servicebodyinlinemapuser.ElemType, len(body))
+		for key, val := range body {
+			actual, ok := val.Value()
+			if !ok {
+				continue
+			}
+			tk := unmarshalCLIKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
+			if actual == nil {
+				v[tk] = nil
+				continue
+			}
+			v[tk] = unmarshalCLIElemTypeRequestBodyToServicebodyinlinemapuserElemType(actual)
 		}
-		tk := unmarshalCLIKeyTypeRequestBodyToServicebodyinlinemapuserKeyType(key)
-		if actual == nil {
-			v[tk] = nil
-			continue
-		}
-		v[tk] = unmarshalCLIElemTypeRequestBodyToServicebodyinlinemapuserElemType(actual)
 	}
 	return v, nil
 }

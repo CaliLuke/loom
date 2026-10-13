@@ -14,13 +14,16 @@ type PayloadBRequestBody struct {
 // NewPayloadARequestBody builds the HTTP request body from the payload of the
 // "MethodA" endpoint of the "ServiceMultipleMethods" service.
 func NewPayloadARequestBody(p []*servicemultiplemethods.PayloadA) []*PayloadARequestBody {
-	body := make([]*PayloadARequestBody, len(p))
-	for i, val := range p {
-		if val == nil {
-			body[i] = nil
-			continue
+	var body []*PayloadARequestBody
+	if p != nil {
+		body = make([]*PayloadARequestBody, len(p))
+		for i, val := range p {
+			if val == nil {
+				body[i] = nil
+				continue
+			}
+			body[i] = marshalServicemultiplemethodsPayloadAToPayloadARequestBody(val)
 		}
-		body[i] = marshalServicemultiplemethodsPayloadAToPayloadARequestBody(val)
 	}
 	return body
 }
@@ -28,13 +31,16 @@ func NewPayloadARequestBody(p []*servicemultiplemethods.PayloadA) []*PayloadAReq
 // NewPayloadBRequestBody builds the HTTP request body from the payload of the
 // "MethodB" endpoint of the "ServiceMultipleMethods" service.
 func NewPayloadBRequestBody(p []*servicemultiplemethods.PayloadB) []*PayloadBRequestBody {
-	body := make([]*PayloadBRequestBody, len(p))
-	for i, val := range p {
-		if val == nil {
-			body[i] = nil
-			continue
+	var body []*PayloadBRequestBody
+	if p != nil {
+		body = make([]*PayloadBRequestBody, len(p))
+		for i, val := range p {
+			if val == nil {
+				body[i] = nil
+				continue
+			}
+			body[i] = marshalServicemultiplemethodsPayloadBToPayloadBRequestBody(val)
 		}
-		body[i] = marshalServicemultiplemethodsPayloadBToPayloadBRequestBody(val)
 	}
 	return body
 }

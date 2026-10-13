@@ -18,15 +18,19 @@ func DecodeMethodQueryMapStringStringRequest(mux loomhttp.Muxer, _ func(*http.Re
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
 			if present {
-				q = make(map[string]string, len(decoded))
-				for key, val := range decoded {
-					actual, ok := val.Value()
-					if !ok {
-						continue
+				if decoded != nil {
+					q = make(map[string]string, len(decoded))
+					for key, val := range decoded {
+						actual, ok := val.Value()
+						if !ok {
+							continue
+						}
+						tk := key
+						tv := actual
+						q[tk] = tv
 					}
-					tk := key
-					tv := actual
-					q[tk] = tv
+				} else {
+					q = nil
 				}
 			}
 		}

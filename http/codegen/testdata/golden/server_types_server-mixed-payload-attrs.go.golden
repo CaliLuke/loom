@@ -20,20 +20,27 @@ func NewMethodAAPayload(body *MethodARequestBody) *servicemixedpayloadinbody.APa
 	v := &servicemixedpayloadinbody.APayload{
 		Any: body.Any,
 	}
-	v.Array = make([]float32, len(body.Array))
-	for i, val := range body.Array {
-		actual, ok := val.Value()
-		if !ok {
-			continue
+	if body.Array != nil {
+		v.Array = make([]float32, len(body.Array))
+		for i, val := range body.Array {
+			actual, ok := val.Value()
+			if !ok {
+				continue
+			}
+			v.Array[i] = actual
 		}
-		v.Array[i] = actual
+	} else {
+		v.Array = nil
 	}
 	if actual, ok := body.Map.Value(); ok {
-		vMapValue := make(map[uint]loom.JSONValue, len(actual))
-		for key, val := range actual {
-			tk := key
-			tv := val
-			vMapValue[tk] = tv
+		var vMapValue map[uint]loom.JSONValue
+		if actual != nil {
+			vMapValue = make(map[uint]loom.JSONValue, len(actual))
+			for key, val := range actual {
+				tk := key
+				tv := val
+				vMapValue[tk] = tv
+			}
 		}
 
 		v.Map = vMapValue

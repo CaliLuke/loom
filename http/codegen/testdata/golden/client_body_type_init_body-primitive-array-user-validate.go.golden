@@ -2,13 +2,16 @@
 // the "MethodBodyPrimitiveArrayUserValidate" endpoint of the
 // "ServiceBodyPrimitiveArrayUserValidate" service.
 func NewPayloadTypeRequestBody(p []*servicebodyprimitivearrayuservalidate.PayloadType) []*PayloadTypeRequestBody {
-	body := make([]*PayloadTypeRequestBody, len(p))
-	for i, val := range p {
-		if val == nil {
-			body[i] = nil
-			continue
+	var body []*PayloadTypeRequestBody
+	if p != nil {
+		body = make([]*PayloadTypeRequestBody, len(p))
+		for i, val := range p {
+			if val == nil {
+				body[i] = nil
+				continue
+			}
+			body[i] = marshalServicebodyprimitivearrayuservalidatePayloadTypeToPayloadTypeRequestBody(val)
 		}
-		body[i] = marshalServicebodyprimitivearrayuservalidatePayloadTypeToPayloadTypeRequestBody(val)
 	}
 	return body
 }

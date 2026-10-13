@@ -19,24 +19,31 @@ func DecodeMethodQueryMapStringMapIntStringValidateRequest(mux loomhttp.Muxer, _
 				return payload, loom.DecodePayloadError(loomhttp.SafeDecodePayloadMessage(decodeErr))
 			}
 			if present {
-				q = make(map[string]map[int]string, len(decoded))
-				for key, val := range decoded {
-					actual, ok := val.Value()
-					if !ok {
-						continue
-					}
-					tk := key
-					tvb := make(map[int]string, len(actual))
-					for key, val := range actual {
+				if decoded != nil {
+					q = make(map[string]map[int]string, len(decoded))
+					for key, val := range decoded {
 						actual, ok := val.Value()
 						if !ok {
 							continue
 						}
 						tk := key
-						tv := actual
-						tvb[tk] = tv
+						var tvb map[int]string
+						if actual != nil {
+							tvb = make(map[int]string, len(actual))
+							for key, val := range actual {
+								actual, ok := val.Value()
+								if !ok {
+									continue
+								}
+								tk := key
+								tv := actual
+								tvb[tk] = tv
+							}
+						}
+						q[tk] = tvb
 					}
-					q[tk] = tvb
+				} else {
+					q = nil
 				}
 			}
 			if !present {
