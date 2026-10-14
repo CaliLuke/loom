@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"testing"
@@ -31,16 +32,14 @@ func sinklessNode(t *testing.T, rdb *redis.Client, pool string, opts ...NodeOpti
 	return node
 }
 
-// setGuard writes guard for key through the pending rmap and waits until the
-// node's replica shows it.
+// setGuard writes guard for key and waits until the node's replica observes its
+// revision. Cleanup may legitimately supersede the value before Set returns.
 func setGuard(t *testing.T, node *Node, key, guard string) {
 	t.Helper()
-	_, err := node.jobPendingMap.Set(t.Context(), key, guard)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	_, err := node.jobPendingMap.SetAndWait(ctx, key, guard)
 	require.NoError(t, err)
-	require.Eventually(t, func() bool {
-		v, ok := node.jobPendingMap.Get(key)
-		return ok && v == guard
-	}, 5*time.Second, time.Millisecond)
 }
 
 // staleUntil is a guard TTL that has passed.
