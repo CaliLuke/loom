@@ -271,11 +271,11 @@ func TestStreamRemoveAndDestroy(t *testing.T) {
 	exists, err := rdb.Exists(ctx, streamKeyPrefix+"cleanup").Result()
 	require.NoError(t, err)
 	require.Zero(t, exists, "stream key must be deleted")
-	// The rmap destroy protocol keeps the internal revision bookkeeping so
+	// The rmap destroy protocol retains generation and recovery markers so
 	// live replicas converge; only user content must be gone.
 	fields, err := rdb.HKeys(ctx, "map:stream:cleanup:sinks:content").Result()
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"=rev", "=kind"}, fields, "sink consumers map must only retain internal bookkeeping")
+	require.ElementsMatch(t, []string{"=protocol", "=generation", "=rev", "=reset", "=delete"}, fields, "sink consumers map must only retain internal bookkeeping")
 }
 
 func TestSinkAddAndRemoveStream(t *testing.T) {
