@@ -41,7 +41,8 @@ const defaultPingerTimeout = 5 * time.Second
 
 // NewPinger returns a new health-check client for the given service. It panics
 // if the given host address is malformed.  The default scheme is "http" and the
-// default path is "/livez". Both can be overridden via options.
+// default path is "/livez". Both can be overridden via options. A successful
+// health check requires a final HTTP status in the 2xx range.
 func NewPinger(name, addr string, opts ...Option) Pinger {
 	options := &options{
 		scheme:    "http",
@@ -75,7 +76,7 @@ func (c *client) Ping(ctx context.Context) error {
 		return fmt.Errorf("failed to make health check request to %q: %w", c.name, err)
 	}
 	defer resp.Body.Close() // nolint: errcheck
-	if resp.StatusCode < 200 || resp.StatusCode > 300 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		return fmt.Errorf("health-check for %q returned status %d", c.name, resp.StatusCode)
 	}
 	return nil
