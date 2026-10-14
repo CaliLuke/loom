@@ -23,17 +23,34 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   and a return-to-release condition. No cache injection or local source override
   counts as delivery. Redis client types carry their module identity, so Pulse
   applications must migrate their Redis import while this fork is required.
-- **263 of 265 tracked reports are delivered, pushed and confirmed closed.**
-  Remaining: #926 (custom String validation/default/conversion representation)
-  and #936 (union declaration method-set loss). #926’s shared
-  capability/default/conversion-plan design has independent readiness approval;
-  implementation is active in `/tmp/loom-926-source` with openapi_delivery.
-  Focused native/custom boundary comparisons and lint pass; final independent
-  review and delivery remain pending. Root main is `b4e659f1f`.
-  The bounded recursive dependency model covers reachable failures, pure cycles,
-  excluded views and default-disabled contexts. The original 242-report scope
-  stays closed. The [inventory](framework-correctness-inventory.md) records each
-  report. Continue autonomously through this repair and actual CI failures.
+- **267 of 268 tracked reports are delivered, pushed and confirmed closed.**
+  GitHub reconciliation of every inventory ID finds no missing or duplicate
+  reports; only #939 (HTTP raw-text validation retaining custom storage metadata)
+  remains open with dependency_strategy_review. #936 is delivered as `524322558`:
+  authored union branch physical identity retains its codecs. #938 `9e0b16e12` regenerates the HTTP SSE fixture
+  after shared scalar decoding. Both exact diffs were reviewed, pushed and closed.
+  #937 `d5c2f5f9f` shares canonical protobuf pair normalization and uses occurrence
+  identity for fallibility traversal, preserving generated names. Ten actual CI
+  witnesses compile; 24 ordinary artifacts remain unchanged and all 60 selected
+  artifacts repeat exactly. Integrated #936/#937 custom union races pass (4.733s).
+  #926 is delivered as `194ab48c6`: one semantic String capability and selected
+  conversion fallibility owner now serves service views, public conversions, HTTP, JSON-RPC
+  and gRPC bodies/metadata. Independent final review, six-package focused races,
+  bounded exact generated comparisons and lint pass. Regenerate affected service
+  and transport code together; selected fallible constructors return errors.
+  The [inventory](framework-correctness-inventory.md) records each report.
+- **Latest CI snapshot, source `d5c2f5f9f`:**
+  [CodeQL run 38610067262](https://github.com/CaliLuke/loom/actions/runs/38610067262)
+  passed; [required CI run 38610067584](https://github.com/CaliLuke/loom/actions/runs/38610067584)
+  is in progress. Required CI completion remains a separate exit condition; closed
+  bug reports and focused acceptance do not establish overall CI success.
+  Earlier source `194ab48c6` exposed #937's protobuf analysis panic (delivered)
+  and #939's raw-carrier validation mismatch (active). Its OpenAPI, native Redis,
+  generated-code quality, value-contract, HTTP/JSON-RPC/service compilation jobs
+  pass; the run concluded failure. An additional race-job failure in
+  `TestBytesDefaultTransformLayouts` is being reproduced; it has no disposition
+  or new report yet. No release was attempted. Refresh this snapshot after
+  #939 delivery and final required-job completion.
 - **Latest structural deliveries:** #934 `9f16cc3dc` moves both custom-type
   import collectors onto one cycle-safe attribute traversal, preserving union
   branches, occurrence metadata and plugin types. Independent race/generation
@@ -67,7 +84,7 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   separately checks the valid already-published fast path. Both have modeled
   counterexamples, independent review and passing race controls. No production
   behavior is changed by those two test repairs.
-- **Integrated validation at `4ac58a013`:** `make lint` passes, including root,
+- **Historical integrated validation snapshots:** at `4ac58a013`, `make lint` passes, including root,
   testdata and nested modules. Every top-level test that failed in the previous
   `c304` CI run passes with race checking across generator, HTTP, gRPC, JSON-RPC
   and importer packages. Commands/logs: `/tmp/loom-242-ci-recheck-command.txt`,
@@ -86,7 +103,8 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   green. Subsequent completed runs exposed #933
   and #935, now delivered. Superseded in-progress runs at `23acfe91f` and
   `9f16cc3dc` are canceled after preserving their job snapshots; required CI
-  continues on `b4e659f1f`. No release was attempted.
+  continued on `b4e659f1f` at that checkpoint. The latest CI snapshot above
+  supersedes these historical running/queued states.
 - **Dependency deliveries:** #820 `7fab1bb05`, #800 `d899a0112` and #687
   `a9a597a3c` are independently reviewed, pushed and closed. Ordinary downstream
   Go modules fetch both real fork dependencies without replacements. Pulse
@@ -405,9 +423,14 @@ reconciliation with the inventory before they can establish remaining work.
 11. [x] Deliver concrete CI follow-ups #927/#928/#929, including regenerated
     SSE fixtures and real event acknowledgement ownership. The #672 integration
     corrects remote-cleanup observation without weakening local cleanup checks.
-12. [ ] Repair #926's shared view validation/default representation. Agent:
-    openapi_delivery. Readiness independently approved after the bounded recursive
-    fallibility model; implementation preserves native and raw-JSON contracts.
+12. [x] Deliver #926's shared custom String representation and selected
+    conversion/default fallibility (`194ab48c6`). Runtime capability, recursive
+    conversion graph and all consumers share one failure channel; native and
+    raw-JSON contracts remain intact. Exact independent review and bounded
+    generated/race acceptance pass. Durable reproduction, model commands and
+    acceptance summaries: [owning plan](custom-view-representation.md),
+    [gRPC adoption](custom-representation-grpc-adoption.md) and
+    [model README](../codegen/tla/custom_representation/README.md).
 13. [x] Deliver #930's complete projected constructor context (`d52c727c5`).
     Carry the selected AttributeContext through return references and mapped-field
     assignments, including nominal collisions. Independent exact review and
@@ -418,12 +441,50 @@ reconciliation with the inventory before they can establish remaining work.
     (`b4e659f1f`): shared SSE observation completion, cycle-safe import traversal
     and deterministic replica cancellation admission. Each exact diff was
     independently reviewed, pushed and closed.
-16. [ ] Repair #936’s union declaration method-set loss through
-    its shared declaration owner. Agent: redis_delivery; isolated source, no
-    per-transport codec workaround. Coordinate acceptance with #926.
-17. [ ] Inspect required CI completion on latest source and address remaining
-    concrete failures. Running CI is not a reason to repeat the full exported-
-    design corpus locally or stop independent backlog work.
+16. [x] Deliver #936’s authored union branch physical identity (`524322558`).
+    The shared DSL promotion owner preserves codec method sets; native branch
+    identities and discriminators remain unchanged. See
+    [owning plan](union-physical-identity.md) for generated/runtime acceptance.
+17. [x] Deliver #938 (`9e0b16e12`): regenerate the HTTP SSE fixture with its
+    shared scalar query decoder and current design digest. All 20 artifacts
+    repeat exactly; unchanged exact-tree/build and guarded pre-stream race
+    checks pass. See [owning plan](http-sse-fixture-scalar-adoption.md).
+18. [x] Deliver #937 (`d5c2f5f9f`): one canonical, nonmutating protobuf
+    normalization owner and occurrence-pair query identity preserve shape,
+    recursion and generated names. Ten previously failing exported designs now
+    generate/build/vet; focused races and exact output comparisons pass.
+    See [owning plan](protobuf-pair-normalization.md).
+19. [ ] Repair #939 at HTTP raw-text validation's carrier projection owner.
+    Agent: dependency_strategy_review. Preserve effective inherited non-format
+    constraints, native raw String storage, authored parser format responsibility
+    and guarded presence. Keep the six existing server/CLI goldens unchanged;
+    check actual valid, absent and invalid text paths before exact review,
+    atomic delivery and closure.
+20. [ ] Inspect required CI completion on the final delivered source with
+    `gh run list --repo CaliLuke/loom --commit <full-sha>` and `gh run view <id>`;
+    record the exact run and conclusion here. Reproduce and repair any actual
+    failing gate in its owning ticket. Do not infer success from canceled or
+    superseded runs, and do not repeat the full exported-design corpus locally.
+21. [x] Preserve #926 exact inputs, review verdicts and concise evidence, then
+    remove inactive temporary source and checker/generated output. Verified
+    archive: `/tmp/loom-delivered-926-evidence.tar.gz`, SHA-256
+    `2241f06f584436beef95b88db29928c4249800dfc8d156b98d1e963ef47d46a9`;
+    receipt: `/tmp/loom-delivered-926-cleanup.json`. All 121 source inputs are
+    preserved; the archive includes `evidence/loom-926-independent-final-verdict.json`.
+    Committed source, regression tests and owning model READMEs remain the durable
+    recovery record. Separate #936 inputs were retained for its own delivery.
+22. [x] Preserve #937's seven exact source files, reproduction driver, model
+    inputs, patch, manifest, review verdict and concise evidence in
+    `/tmp/loom-delivered-937-evidence.tar.gz`, SHA-256
+    `f9a96a774b14f2a663a5afaf6f139179416a293be232669fb7083dd801dff22b`.
+    Activity-checked cleanup removed 29 temporary paths (59.9 MB); receipt:
+    `/tmp/loom-delivered-937-cleanup.json`. Shared CI logs remain available.
+23. [x] Preserve #936's seven exact source inputs, final packet/review,
+    reproduction drivers and concise evidence in
+    `/tmp/loom-936-durable-inputs.tar.gz`, SHA-256
+    `cd4555234c9806c05798f9bdadf94505c143da2bc7012609aa63865ab8ebf47b`.
+    Activity-checked cleanup removed 37 temporary paths; receipt:
+    `/tmp/loom-936-cleanup-receipt.json`.
 
 Delivery acceptance remains sequential: dependency availability → exact pin and
 provenance → affected integration checks and independent final review → atomic
@@ -438,13 +499,13 @@ Cleanup for #908/#911/#912/#913 is also complete, with verified archives and
 receipts at `/tmp/loom-<issue>-cleanup-receipt.json`. Completed #800/#687 temporary sources were archived and removed; managed
 worktrees, fork checkouts and durable reproductions remain preserved.
 
-Current evidence: `/tmp/loom-ci-227-runs.json`,
+Historical evidence from earlier delivery checkpoints: `/tmp/loom-ci-227-runs.json`,
 `/tmp/loom-ci-226-active.json`, `/tmp/loom-910-final-manifest.json`,
 `/tmp/loom-910-independent-final-verdict.json`,
 `/tmp/loom-908-independent-readiness-verdict.json`, and
 `/tmp/loom-820-current-conditional-receipt.json`.
 
-Latest independent delivery records:
+Earlier independent delivery and cleanup records:
 
 - #768: `/tmp/loom-768-independent-final-rereview-verdict.json` and
   `/tmp/loom-768-independent-integration-verdict.json`; root integration races
@@ -698,7 +759,12 @@ all dependent comparisons completed; compact receipt is
 `c2c8ab0ca9202a5d0de80e665553b462767afd09550953bcb6bf5127165c1e1d`.
 Source worktrees and active #829 reproduction inputs remain intact.
 
-## Current CI repairs
+## Historical CI repair checkpoints
+
+The entries below preserve the observations made at their named commits. Old
+running/queued states, unresolved-ticket notes and cleanup instructions describe
+those checkpoints, not the current queue. Use **Current state** and **Current
+execution queue** above for remaining work.
 
 - [x] #696 builtin uint bounds: `90aaa5f89`, independently reviewed, pushed and closed.
 - [x] #805 JSON-RPC shared required validator test: `a9285e5ec`, reviewed, pushed and closed; generated build/vet and 22 mounted wire cases pass.
@@ -764,7 +830,7 @@ jobs, generated quality, OpenAPI, value-contract and real-Redis checks passed.
 The earlier span observation failure is repaired by #828. No overall green CI
 claim is made; later commits require their own CI results.
 
-## Delivery log
+## Historical delivery log
 
 - 2026-10-12 — Delivered #824 `e90a9e45f`, #830 `66c617456`, and #828 `0d5736d64`, independently reviewed, pushed and confirmed closed. Inventory contains 152 reports through #831, with 73 delivered. Integrated patches: #824 `c4986911ad69a75377711c8e7232294bef2a82da69ed4038b1bf623deb7ef0c0`; #830 `069f0bc7e394d40862367b26318499ea559e1e396d8dd4bc7050251bfa50bd74`; #828 `d5a70ea2523d9abe76fdbf703416e95f1c48a38467a06abacd5b9c7efb2a77df`. User accepted rejection of contradictory inherited bounds; #695 resumes. #684 exposed a parent validation-identity prerequisite; #829 and #827 readiness are assigned. #820 and #800 remain separate dependency-owner work.
 
@@ -1014,7 +1080,7 @@ Use direct regressions and affected packages, then bounded generated comparisons
 - `Extend` same-type redeclarations refine inherited constraints without weakening guarantees. For example, an inherited minimum 0 plus derived maximum 100 admits 0–100; incompatible types, contradictory constraints, or weakening inherited requiredness fail design validation. Preserve authored intent and document the exact composition of defaults/metadata in slice readiness.
 - `gen/` is wholly framework-owned and regenerated. Reject create-only (`SkipExist`) declarations inside it before live mutation. Outside it, create-only files preserve any existing destination and create an absent destination atomically.
 
-## Milestones
+## Historical implementation milestones
 
 The original checklists below preserve the planned verification steps. They are
 historical, not the current work queue: scoped readiness records and the issue
@@ -1273,7 +1339,7 @@ Checklist
   claimed green; public communication contains no framework internals.
 
 
-## Delivery checkpoint: 70 reports
+## Historical delivery checkpoint: 70 reports
 
 - #690: `7b28984a7`, reviewed root against final 15-file manifest
   `334089f524aeccdedf2de8cdef8d1706bb6a77b445a5932628f02145720f206f`.
@@ -1305,7 +1371,7 @@ Checklist
   consumers finish. Keep #823 comparison inputs while #824 reuses them; #690's
   owner is compacting delivered evidence without deleting broader M7 probes.
 
-## Delivery checkpoint: 73 reports
+## Historical delivery checkpoint: 73 reports
 
 - #824: `e90a9e45f`, independent final and integration reviewer
   `/root/review_uniform_json_corrections`; one LOW dependency-pin evidence
@@ -1320,7 +1386,7 @@ Checklist
   remaining prerequisites, the accepted bounds policy and new assignments.
 
 
-## Delivery checkpoint: 76 reports
+## Historical delivery checkpoint: 76 reports
 
 - #695: `e64a14d1d`, root independently approved the 21-file candidate and
   exact integrated changes. Valid representative outputs retain all 63 artifacts;
@@ -1351,7 +1417,7 @@ Checklist
   `/tmp/loom-830-cleanup-receipt.json` (SHA
   `8fc185335c464a22703cb25fe3f7b5f560c4d8685819fa23c204fe224a8ba9bc`).
 
-## Delivery checkpoint: 80 reports
+## Historical delivery checkpoint: 80 reports
 
 - #832 `bf7ae2246`: shared nullable branch dispatch precedes concrete object
   helper admission. Independent final review and exact integration passed.
@@ -1384,7 +1450,7 @@ Checklist
   The standalone #834 witness remains active. Live snapshot
   `/tmp/loom-checkpoint-80-issues.json` confirms 156 distinct reports, 80 closed.
 
-## Delivery checkpoint: 81 reports
+## Historical delivery checkpoint: 81 reports
 
 - #744 `09aa506b4`: independent final and integrated reviews approved all 14
   files without findings. Context detaches configuration and slices under its
@@ -1397,7 +1463,7 @@ Checklist
 - Pushed to main and GitHub confirmed #744 closed: 81 of 156 inventory reports.
   #746 request-scope readiness is next; #745 buffer ownership is still open.
 
-## Delivery checkpoint: 83 reports
+## Historical delivery checkpoint: 83 reports
 
 - #836 `9669d2815`: seven test/documentation files align invalid-design admission
   with delivered constraints while retaining raw mathematical empty-domain cases.
@@ -1422,7 +1488,7 @@ Checklist
 - User approved libopenapi publication and original per-entry logger settings.
   PR658 is published and attached; #745 accepted policy is recorded in its plan.
 
-## Delivery checkpoint: 87 reports
+## Historical delivery checkpoint: 87 reports
 
 - #837 `2a8337700`: shared object projection copies intrinsic Nullable; occurrence
   attributes and selected-view identity remain separate. Root final/integrated
@@ -1457,7 +1523,7 @@ Checklist
   were still running when inspected. New commits still require their own CI;
   no overall green result claimed.
 
-## Delivery checkpoint: 88 reports
+## Historical delivery checkpoint: 88 reports
 
 - #748 `2b27cd8e0`: shared SDK ParentBased composition preserves propagated
   local/remote parent decisions and existing root-ratio normalization. Twelve-file
@@ -1474,7 +1540,7 @@ Checklist
   Upstream libopenapi658 remains open with Windows/Linux and coverage checks green.
   No overall main CI success or dependency adoption is claimed.
 
-## Delivery checkpoint: 90 reports
+## Historical delivery checkpoint: 90 reports
 
 - #840 `0bc139d5e`: JSON-RPC success/error decoding consumes shared body ValueRef.
   Fifty-six generated runtime cases pass; the ordinary specimen is unchanged and
@@ -1503,7 +1569,7 @@ Checklist
   `72b22a8466549a6d96b9cc39e911528e4e27f423067c337cf012a69a645a30de`.
   Durable models/tests and exact manifests/patches remain.
 
-## Delivery checkpoint: 92 reports
+## Historical delivery checkpoint: 92 reports
 
 - #763 `f7c2684b8`: staged telemetry construction preserves globals after failed
   initialization and shares reverse cleanup with normal shutdown. Fresh bounded
@@ -1537,7 +1603,7 @@ The completed `0d9671589` CI race failure is the known libopenapi YAML-node race
 Mixedtick parity is repaired by #841. Newer main CI remains in progress/queued;
 no overall green result is claimed.
 
-## Delivery checkpoint: 95 reports
+## Historical delivery checkpoint: 95 reports
 
 - #834 `e2ad69a64`: selected-view validation consumes one physical carrier owner;
   nullable projected payload and ordinary view metadata envelope retain distinct
@@ -1567,7 +1633,7 @@ no overall green result is claimed.
   Durable source/model inputs and review manifests/patches remain. Active #718
   and omission inputs are preserved.
 
-## Delivery checkpoint: 97 reports
+## Historical delivery checkpoint: 97 reports
 
 - #718 `03e38fd16`: shared immutable diagnostics mask conventional and authored
   physical credential names. Generated metadata and example CLI wiring consume
@@ -1604,7 +1670,7 @@ no overall green result is claimed.
   `access-log-credentials` paths; do not create duplicate checkouts.
 
 
-## Delivery checkpoint: 100 reports
+## Historical delivery checkpoint: 100 reports
 
 - #845 `b963d8685`: named generated server admission and client construction
   assertions replace obsolete whole-output defaults. Mounted JSON-RPC tests cover
@@ -1656,7 +1722,7 @@ no overall green result is claimed.
   created `json-presence-carriers` checkout; attachment/retry hit the same app
   identity limit, so use that existing path rather than creating another.
 
-## Delivery checkpoint: 102 reports
+## Historical delivery checkpoint: 102 reports
 
 - #721 `22d000aa8`: access-log URLs use the shared immutable diagnostic policy;
   each generated server example receives only its own HTTP/JSON-RPC service
@@ -1709,7 +1775,7 @@ no overall green result is claimed.
   `bf29271f0125ea8a4359daeb219130fbedd18d5324cd7849bdf53277ee93b848`.
 
 
-## Delivery checkpoint: 105 reports
+## Historical delivery checkpoint: 105 reports
 
 - #849 `212700f49` replaces obsolete literal-tag assertions with complete
   anonymous struct identity checks. Root verified the final manifest and all
@@ -1760,7 +1826,7 @@ no overall green result is claimed.
   where independent work is available.
 
 
-## Delivery checkpoint: 108 reports
+## Historical delivery checkpoint: 108 reports
 
 - #852 `1074b3cdf`: root independently approved the exact five-file diff and
   verified 14 source/evidence hashes plus 3,778 captured artifact hashes. All
@@ -1807,7 +1873,7 @@ no overall green result is claimed.
   and `ba1b02757cc925d4a28a4a0861272063a5aa4510d91f5aaa3a39b870b5c51420`.
 
 
-## Delivery checkpoint: 110 reports
+## Historical delivery checkpoint: 110 reports
 
 - #855 `14e092327`: one fixture mapping extraction repairs required testdata lint.
   Fresh exact-diff review approved; all 237 artifacts across 17 variants match
@@ -1840,7 +1906,7 @@ no overall green result is claimed.
   `5e8dd7141b4565ab4adffd57110ded3a8d6895ef3ec1a654b7c611f9dd23fe48`.
   Active source packets, current reproduction inputs and shared tools remain.
 
-## Delivery checkpoint: 114 reports
+## Historical delivery checkpoint: 114 reports
 
 - #691 delivered `65f652a43`: exact independent final/integration review, 21
   generated modules, 479 artifacts with 169 intended changes and exact repeats;
@@ -1969,3 +2035,14 @@ no overall green result is claimed.
   integrated native checks and full expr/DSL race suites pass. #883 adds one
   separate service-client receiver report: 155/204 closed. #879 final review,
   #880 implementation and #702 readiness continue.
+
+## Latest fixture evidence preservation
+
+#938 temporary source and generation/build logs were removed after activity
+checks and independent review. The exact three-file input, complete fixture,
+manifest, patch, review and concise validation evidence are preserved in
+`/tmp/loom-938-delivery-evidence.tar.gz`, SHA-256
+`b4e165281529c50ad1dcf0d94d970e1ebe12103de771c38efbf4d38b8f0a0ced`.
+Receipt: `/tmp/loom-938-cleanup-receipt.json`. Shared CI snapshots remain available
+for #939 and final CI reconciliation; committed owning plans and tests retain
+the reproducible instructions.
