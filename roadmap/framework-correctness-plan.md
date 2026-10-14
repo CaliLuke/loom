@@ -4,9 +4,18 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **201 of 221 tracked reports are delivered, pushed and confirmed closed.**
+- **203 of 222 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-201-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-203-issues.json` is the frozen GitHub reconciliation input.
+- Complete wire names #710 (`5876ada4e`) is reviewed, pushed and closed.
+  Shared token admission covers effective HTTP/JSON-RPC header/cookie bindings;
+  the mapping parser preserves the entire suffix for valid query/body names.
+  Sixty invalid cases reject, generated round trips and specs pass, and ordinary
+  output stays exact. Invalid CLI generation preserves prior files.
+- Legal package identity #856 (`481bdf788`) is reviewed, pushed and closed.
+  One package-base rule feeds service, transport and API example consumers;
+  six modules build/vet and all 123 artifacts repeat exactly. Protocol and
+  directory identities remain unchanged; cleanup and reuse are complete.
 - Imported encoded strings #686 (`227ea92be`) is reviewed, pushed and closed.
   Shared representation selection feeds import rendering, examples and admission;
   shared Base64 validation preserves encoded bounds and exact literal identity.
@@ -167,34 +176,35 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Typed error discrimination (#774):** projection implements the approved
-   design in `interceptor-accessor-union`. One generated decoder reconstructs
-   designed error bodies across unary, SSE and WebSocket. Effective raw ErrorName
-   selectors include mapped members and selected root values; private body trials
-   must yield exactly one match. Unexpected eligible decoder errors retain
-   precedence and error identity. Required mapping coverage #780 remains separate.
-2. **HTTP physical name admission (#710):** omission continues root's shared
-   binding/response-cookie repair in `numeric-comparison`, after #686 cleanup.
-   `ElementName` must preserve the whole suffix after the first colon; admission
-   then rejects malformed header/cookie names without losing valid query/body
-   names. Sixty parent failures and mapping truncation are reproduced. Finish
-   bounded generated round trips, spec correspondence and unchanged controls.
-   gRPC currently lacks key grammar admission; this repair preserves its names
-   and does not add a separate protocol policy.
-3. **Legal package identity (#856):** diagnostic implements the shared
-   `PackageBaseName` correction in `grpc-message-context`. Four actual parent
-   compiler failures span HTTP, gRPC, JSON-RPC services and API example packages.
-   Keep directory/protocol identity and existing collision scopes unchanged;
-   compare and compile six representative modules, with ordinary output exact.
+1. **Typed error discrimination (#774):** projection corrects the independently
+   reviewed candidate in `interceptor-accessor-union`. Three medium findings:
+   selected-object bodies must not borrow an outer ErrorName from a same-spelled
+   child; response TransferEncoding must be detached; unexpected trial-close
+   failures must not become validation mismatches. Retain the eight-module and
+   fixture evidence; rerun only affected controls plus the new provenance case.
+   A mapped JSON-RPC error-header server omission was observed during that added
+   control and is retained separately, not fixed or declared covered by #774.
+2. **Typed response Tag binding (#760):** omission proceeds in
+   `numeric-comparison` after #710 cleanup. Actual compiler failures cover the
+   original missing/int/bool fields and supported named, nullable, renamed,
+   mapped and viewed carriers. Derive one validated logical field and reuse
+   canonical physical layout/presence for server comparison and client assignment.
+   Do not hide legal-carrier failures behind restrictive admission. Readiness
+   sources and the sequential plan are in `/tmp/loom-760-readiness/`.
+3. **Sink delivery activation (#901):** diagnostic implements in
+   `grpc-message-context`. Both normal reads and idle claiming lose events before
+   first subscription; independent runtime probes confirm both. The bounded model
+   rejects eager and read-only deferral and supports atomic first-registration
+   activation of both producers (872 generated / 313 distinct states). Keep
+   membership/keepalive eager, preserve sealed shutdown admission, and avoid new
+   all-unsubscribed replay guarantees. Existing #768/#800 probes must explicitly
+   subscribe so activation cannot hide their separate failures.
 4. **CI reconciliation:** delivered expectation updates cover every reproduced
    stale assertion family. Keep the known #820 dependency race and unresolved
    worker-delivery timeout distinct; no aggregate green claim or unproven timeout
    increase. Recent required CI remains queued/running (read in
-   `/tmp/loom-ci-after-686-integration.json`); CodeQL succeeded. An independently
-   confirmed sink startup window permits reading before the first subscriber;
-   the additional idle-claim witness is retained in
-   `/tmp/loom-sink-startup-readiness/`. This is not proven to cause the CI timeout.
-   Model first-subscriber activation versus Close before any lifecycle change.
+   `/tmp/loom-ci-202.json`); CodeQL succeeded. The sink startup issue #901
+   is not proven to cause the worker timeout. Keep that causal claim separate.
    Reuse bounded evidence and inspect newer CI when actionable.
 5. **Other distinct owners:** required mapping coverage #780, custom-key example
    synthesis #884 and pool subordinate shutdown #687 remain open alongside the
@@ -208,6 +218,19 @@ reconciliation with the inventory before they can establish remaining work.
    fetchability gates delivery. No fork/cache workaround.
 
 Latest independent delivery records:
+
+- #710 final re-review and integrated authorization are
+  `/tmp/loom-710-independent-final-rereview-verdict.json` and
+  `/tmp/loom-710-independent-integration-verdict.json`. Eleven non-skill files
+  match the approved candidate; two skills preserve newer package guidance.
+- #856 final/integration authorization is
+  `/tmp/loom-856-independent-final-verdict.json`. Direct races and six actual
+  module builds/vet passed independently. Evidence preservation and clean reuse:
+  `/tmp/loom-856-cleanup-receipt.json`, `/tmp/loom-856-worktree-reuse.json`.
+- #901 read and claim assessments are
+  `/tmp/loom-sink-startup-independent-assessment.json` and
+  `/tmp/loom-sink-startup-claim-independent-assessment.json`; the latter also
+  independently checks the bounded model and its explicit limitations.
 
 - #899 exact final/integration approval is
   `/tmp/loom-899-independent-final-verdict.json`; all 15 integrated source hashes
