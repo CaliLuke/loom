@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/CaliLuke/go-redis/v9"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/alicebob/miniredis/v2/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,10 +33,10 @@ func TestNodeConstructionAbortOrderAndErrors(t *testing.T) {
 				name string
 				err  error
 			}{
-				{name: "shutdown map", err: lastCleanup},
-				{name: "heartbeat map"},
-				{name: "heartbeat withdrawal"},
+				{name: "heartbeat withdrawal", err: lastCleanup},
 				{name: "protocol withdrawal"},
+				{name: "shutdown map"},
+				{name: "heartbeat map"},
 				{name: "worker map"},
 				{name: "job map"},
 				{name: "payload map"},
@@ -63,8 +65,8 @@ func TestNodeConstructionAbortOrderAndErrors(t *testing.T) {
 			assert.ErrorIs(t, err, lastCleanup)
 			assert.Equal(t, []string{"runtime cancellation", "reader", "private stream", "sink",
 				"pending map", "cleanup map", "ticker map", "worker heartbeat map", "payload map",
-				"job map", "worker map", "protocol withdrawal", "heartbeat withdrawal", "heartbeat map",
-				"shutdown map"}, released)
+				"job map", "worker map", "heartbeat map", "shutdown map", "protocol withdrawal",
+				"heartbeat withdrawal"}, released)
 			require.NoError(t, owner.abort(ctx))
 			assert.Len(t, released, 15, "second abort must not release anything twice")
 		})
@@ -134,11 +136,7 @@ func TestConstructionNodeCleanupFailuresReleaseLocalResources(t *testing.T) {
 		assert.ErrorContains(t, err, operation)
 	}
 	assert.Equal(t, []string{"stream", "protocol", "heartbeat"}, observedAttempts)
-	counts, err := rdb.PubSubNumSub(t.Context(), rmapUpdateChannel(nodeShutdownMapName(pool)), rmapUpdateChannel(nodeKeepAliveMapName(pool))).Result()
-	require.NoError(t, err)
-	for channel, count := range counts {
-		assert.Zero(t, count, "local subscription %s survives failed remote cleanup", channel)
-	}
+	requireNoSubscriptions(t, rdb, rmapUpdateChannel(nodeShutdownMapName(pool)), rmapUpdateChannel(nodeKeepAliveMapName(pool)))
 	for _, key := range []string{pool + ":protocol", rmapContentKey(nodeKeepAliveMapName(pool))} {
 		exists, err := rdb.HExists(t.Context(), key, observedID).Result()
 		require.NoError(t, err)
@@ -147,4 +145,87 @@ func TestConstructionNodeCleanupFailuresReleaseLocalResources(t *testing.T) {
 	exists, err := rdb.Exists(t.Context(), observedStream).Result()
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, exists)
+}
+
+// Local Close joins the owner but cannot synchronize the server's socket reader.
+func TestConstructionLocalClosePrecedesServerUnsubscribe(t *testing.T) {
+	srv := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: srv.Addr()})
+	t.Cleanup(func() {
+		require.NoError(t, rdb.Close())
+	})
+	entered, release := make(chan struct{}, 1), make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() {
+		releaseOnce.Do(func() {
+			close(release)
+		})
+	}
+	t.Cleanup(unblock)
+	srv.Server().SetPreHook(func(peer *server.Peer, cmd string, _ ...string) bool {
+		if cmd == "SUBSCRIBE" {
+			// This callback precedes miniredis's subscriber-removal callback.
+			peer.OnDisconnect(func() {
+				entered <- struct{}{}
+				<-release
+			})
+		}
+		return false
+	})
+	owner := nodeConstruction{shutdownTTL: time.Second}
+	const name = "construction-disconnect-boundary"
+	m, err := owner.joinMap(t.Context(), name, rdb)
+	require.NoError(t, err)
+	local := m.Subscribe()
+	aborted := make(chan error, 1)
+	go func() {
+		aborted <- owner.abort(t.Context())
+	}()
+	select {
+	case err := <-aborted:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("local cleanup waited for server observation")
+	}
+	select {
+	case _, open := <-local:
+		require.False(t, open, "local subscription must be closed when abort returns")
+	default:
+		t.Fatal("abort returned before local subscription closure")
+	}
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("server did not observe the closed connection")
+	}
+	counts, err := rdb.PubSubNumSub(t.Context(), rmapUpdateChannel(name)).Result()
+	require.NoError(t, err)
+	require.EqualValues(t, 1, counts[rmapUpdateChannel(name)], "gate must delay server subscriber removal")
+	require.NoError(t, rdb.Ping(t.Context()).Err(), "borrowed client remains usable")
+	unblock()
+	requireNoSubscriptions(t, rdb, rmapUpdateChannel(name))
+}
+
+// Server observation follows local socket closure asynchronously. Bound the
+// observation, while local lifecycle tests separately require joined cleanup.
+func requireNoSubscriptions(t *testing.T, rdb *redis.Client, channels ...string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	for {
+		counts, err := rdb.PubSubNumSub(ctx, channels...).Result()
+		require.NoError(t, err)
+		remaining := int64(0)
+		for _, count := range counts {
+			remaining += count
+		}
+		if remaining == 0 {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("server still reports subscriptions after local cleanup: %v", counts)
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
 }

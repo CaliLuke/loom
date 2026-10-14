@@ -1,5 +1,5 @@
 // Package rmap maintains a Redis-backed replicated map whose local state is
-// ordered by monotonic revisions and updated through pubsub notifications.
+// ordered by incarnation and revision, with Pub/Sub hints and snapshot reconciliation.
 package rmap
 
 import (
@@ -11,6 +11,7 @@ import (
 	"github.com/CaliLuke/go-redis/v9"
 
 	"github.com/CaliLuke/loom/pulse/internal/lifecycle"
+	"github.com/CaliLuke/loom/pulse/internal/rmapstate"
 	"github.com/CaliLuke/loom/pulse/pulse"
 )
 
@@ -33,27 +34,27 @@ type (
 		logger               pulse.Logger          // logger
 		sub                  *redis.PubSub         // subscription to map updates
 		rdb                  *redis.Client
-		setScript            *redis.Script
-		testAndSetScript     *redis.Script
-		setIfNotExistsScript *redis.Script
-		incrScript           *redis.Script
-		appendScript         *redis.Script
-		appendUniqueScript   *redis.Script
-		removeScript         *redis.Script
-		delScript            *redis.Script
-		testAndDelScript     *redis.Script
-		testAndResetScript   *redis.Script
-		resetScript          *redis.Script
-		destroyScript        *redis.Script
+		setScript            *rmapstate.Script
+		testAndSetScript     *rmapstate.Script
+		setIfNotExistsScript *rmapstate.Script
+		incrScript           *rmapstate.Script
+		appendScript         *rmapstate.Script
+		appendUniqueScript   *rmapstate.Script
+		removeScript         *rmapstate.Script
+		delScript            *rmapstate.Script
+		testAndDelScript     *rmapstate.Script
+		testAndResetScript   *rmapstate.Script
+		resetScript          *rmapstate.Script
+		destroyScript        *rmapstate.Script
 
-		lock     sync.RWMutex
-		content  map[string]string
-		rev      uint64
-		lifetime lifecycle.Lifetime // owns stop admission and cleanup joining
-		closed   bool               // true if Close returned - used by tests
+		lock       sync.RWMutex
+		content    map[string]string
+		rev        uint64
+		generation string
+		lifetime   lifecycle.Lifetime // owns stop admission and cleanup joining
+		closed     bool               // true if Close returned - used by tests
 
-		wlock   sync.Mutex
-		waiters map[uint64][]*setWaiter // keyed by committed revision
+		observations chan observationRequest // consumed only by the replica owner
 	}
 
 	// EventKind is the type of map event.
@@ -61,30 +62,46 @@ type (
 
 	// mapChange captures the event kind and revision applied to the local replica.
 	mapChange struct {
-		kind EventKind
-		rev  uint64
+		kind    EventKind
+		rev     uint64
+		refresh bool
 	}
 
 	// setResult is the previous value and committed revision returned by Set.
 	setResult struct {
-		prev    string
-		existed bool
-		rev     uint64
+		prev       string
+		existed    bool
+		generation string
+		rev        uint64
 	}
 
-	// setWaiter tracks a SetAndWait call until the local replica observes at
-	// least the committed revision returned by the write.
-	setWaiter struct {
-		ch     chan struct{}
-		rev    uint64
-		ctx    context.Context // context for cancellation
-		cancel func()          // cleanup function
+	// observationRequest establishes a causal barrier after a committed write.
+	observationRequest struct {
+		ctx        context.Context
+		generation string
+		rev        uint64
+		result     chan error
+	}
+
+	// replicaState is one complete authoritative snapshot and recovery history.
+	replicaState struct {
+		content    map[string]string
+		generation string
+		rev        uint64
+		reset      uint64
+		deleted    uint64
 	}
 )
 
 const (
-	revField  = "=rev"
-	kindField = "=kind"
+	revField          = "=rev"
+	kindField         = "=kind" // accepted only during coordinated metadata adoption
+	protocolField     = "=protocol"
+	generationField   = "=generation"
+	resetField        = "=reset"
+	deleteField       = "=delete"
+	mapProtocol       = "1"
+	reconcileInterval = time.Second
 )
 
 const (
@@ -108,7 +125,7 @@ const (
 // Clients should call Close before exiting to stop updates and release
 // resources resulting in a read-only point-in-time copy.
 func Join(ctx context.Context, name string, rdb *redis.Client, opts ...MapOption) (*Map, error) {
-	if !isValidRedisKeyName(name) {
+	if !rmapstate.ValidName(name) {
 		return nil, fmt.Errorf("pulse map: not a valid map name %q", name)
 	}
 	if ctx.Err() != nil {
@@ -137,7 +154,7 @@ func Join(ctx context.Context, name string, rdb *redis.Client, opts ...MapOption
 		logger:               o.Logger.WithPrefix("map", name),
 		rdb:                  rdb,
 		content:              make(map[string]string),
-		waiters:              make(map[uint64][]*setWaiter),
+		observations:         make(chan observationRequest),
 		setScript:            luaSet,
 		testAndSetScript:     luaTestAndSet,
 		setIfNotExistsScript: luaSetIfNotExists,

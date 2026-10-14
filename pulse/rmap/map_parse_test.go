@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/CaliLuke/loom/pulse/internal/rmapstate"
 	"github.com/CaliLuke/loom/pulse/pulse"
 )
 
@@ -26,7 +27,7 @@ func TestIsValidRedisKeyName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.valid, isValidRedisKeyName(tt.key))
+			require.Equal(t, tt.valid, rmapstate.ValidName(tt.key))
 		})
 	}
 }
@@ -39,24 +40,21 @@ func TestParseValuesSupportsJSONAndLegacyCSV(t *testing.T) {
 }
 
 func TestExtractStateRemovesMetadata(t *testing.T) {
-	content := map[string]string{
-		"alpha":   "one",
-		revField:  "42",
-		kindField: "del",
-	}
-
-	rev, kind := extractState(content)
-
-	require.Equal(t, uint64(42), rev)
-	require.Equal(t, EventDelete, kind)
-	require.Equal(t, map[string]string{"alpha": "one"}, content)
+	content := map[string]string{"alpha": "one", protocolField: mapProtocol, generationField: "test", revField: "42", resetField: "5", deleteField: "40"}
+	state, err := extractState(content)
+	require.NoError(t, err)
+	require.Equal(t, uint64(42), state.rev)
+	require.Equal(t, uint64(5), state.reset)
+	require.Equal(t, uint64(40), state.deleted)
+	require.Equal(t, "test", state.generation)
+	require.Equal(t, map[string]string{"alpha": "one"}, state.content)
 }
 
 func TestApplyMessageLockedAppliesFreshChanges(t *testing.T) {
 	sm := testMap()
 
 	sm.lock.Lock()
-	change, applied, err := sm.applyMessageLocked("set", packedStrings("alpha", "one", "1"))
+	change, applied, err := sm.applyMessageLocked("set", packedStrings(mapProtocol, "test", "1", "alpha", "one"))
 	sm.lock.Unlock()
 	require.NoError(t, err)
 	require.True(t, applied)
@@ -64,7 +62,7 @@ func TestApplyMessageLockedAppliesFreshChanges(t *testing.T) {
 	require.Equal(t, "one", sm.content["alpha"])
 
 	sm.lock.Lock()
-	change, applied, err = sm.applyMessageLocked("del", packedStrings("alpha", "2"))
+	change, applied, err = sm.applyMessageLocked("del", packedStrings(mapProtocol, "test", "2", "alpha"))
 	sm.lock.Unlock()
 	require.NoError(t, err)
 	require.True(t, applied)
@@ -72,7 +70,7 @@ func TestApplyMessageLockedAppliesFreshChanges(t *testing.T) {
 	require.NotContains(t, sm.content, "alpha")
 
 	sm.lock.Lock()
-	change, applied, err = sm.applyMessageLocked("reset", []byte("3"))
+	change, applied, err = sm.applyMessageLocked("reset", packedStrings(mapProtocol, "test", "3"))
 	sm.lock.Unlock()
 	require.NoError(t, err)
 	require.True(t, applied)
@@ -86,7 +84,7 @@ func TestApplyMessageLockedIgnoresStaleAndReservedChanges(t *testing.T) {
 	sm.content["alpha"] = "one"
 
 	sm.lock.Lock()
-	change, applied, err := sm.applyMessageLocked("set", packedStrings("alpha", "stale", "4"))
+	change, applied, err := sm.applyMessageLocked("set", packedStrings(mapProtocol, "test", "4", "alpha", "stale"))
 	sm.lock.Unlock()
 	require.NoError(t, err)
 	require.False(t, applied)
@@ -94,37 +92,21 @@ func TestApplyMessageLockedIgnoresStaleAndReservedChanges(t *testing.T) {
 	require.Equal(t, "one", sm.content["alpha"])
 
 	sm.lock.Lock()
-	change, applied, err = sm.applyMessageLocked("set", packedStrings(revField, "ignored", "6"))
+	change, applied, err = sm.applyMessageLocked("set", packedStrings(mapProtocol, "test", "6", revField, "ignored"))
 	sm.lock.Unlock()
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.False(t, applied)
 	require.Zero(t, change)
 	require.Equal(t, uint64(5), sm.rev)
 }
 
-func TestWaitersObserveCommittedRevision(t *testing.T) {
-	sm := testMap()
-	sm.rev = 10
-	ready := &setWaiter{rev: 9, ch: make(chan struct{}, 1), ctx: t.Context()}
-	require.True(t, sm.registerWaiter(ready))
-	require.Empty(t, sm.waiters)
-
-	waiter := &setWaiter{rev: 12, ch: make(chan struct{}, 1), ctx: t.Context()}
-	require.False(t, sm.registerWaiter(waiter))
-	require.Len(t, sm.waiters[12], 1)
-
-	sm.notifyWaitersUpTo(12)
-	require.Empty(t, sm.waiters)
-	require.NotEmpty(t, waiter.ch)
-}
-
 func testMap() *Map {
 	return &Map{
-		Name:    "test",
-		content: make(map[string]string),
-		waiters: make(map[uint64][]*setWaiter),
-		done:    make(chan struct{}),
-		logger:  pulse.NoopLogger(),
+		Name:       "test",
+		content:    make(map[string]string),
+		generation: "test",
+		done:       make(chan struct{}),
+		logger:     pulse.NoopLogger(),
 	}
 }
 

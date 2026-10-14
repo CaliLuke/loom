@@ -2518,6 +2518,19 @@ tier:
 - Keep miniredis limitations explicit with `Server.Real()` assertions. They
   do not represent support for older Redis versions. Tests that need miniredis
   clock control need a wall-clock path on the supported real server.
+- `pulse/internal/rmapstate` owns generation-candidate injection, Lua protocol
+  admission and mutation publication for rmap and every atomic Pool map writer.
+  Declare each mutated map key before a script's body: Redis Lua errors do not
+  roll earlier stream/owner writes back. Keep the generation, exact revision,
+  reset/delete recovery markers and hash TTL together; do not copy publication
+  code into Pool or add persistent counters for ephemeral maps.
+  The rmap run goroutine alone applies contiguous deltas, publishes snapshots and
+  handles causal post-write observation requests. Gaps, different generations,
+  reconnect and periodic reconciliation share that owner. Local reads never hold
+  network locks; finite borrowed Redis operations and lifecycle cancellation stay
+  in force. Keep `pulse/rmap/tla/replica_authority`, native expiry/loss controls and
+  Pool ownership/dispatch/scheduler consumers aligned. Mixed protocol writers
+  require a coordinated restart; no old decoder or consumer repair path.
 - `rmap.Map.notifySubscribers` alone merges pending subscriber kinds for live
   updates and reconnect replay. Drain and combine under the map lock, keeping
   Reset > Delete > Change local to each subscription. The sole publisher cannot
@@ -2525,7 +2538,12 @@ tier:
   final closure remains owned by the run goroutine. Keep the bounded notification
   precedence model and actual scheduler consumer regression aligned; do not patch
   scheduler polling or change Reader/Sink shutdown to repair this channel.
-- Pool protocol 3 ownership lives in plain Redis hashes (`owners` and
+- Pool protocol admission atomically excludes live incompatible members, advances
+  stopped protocol 3 state to marker 4 and registers the new heartbeat. Never retain
+  old publication paths; reject protocol 2, malformed and future markers. Preserve
+  business state and TTL during the coordinated upgrade. The admission model covers
+  both orders of a concurrent old/new join.
+- Pool protocol 4 ownership lives in plain Redis hashes (`owners` and
   `owner-epochs`). Claim and release scripts update ownership, job indexes,
   and payloads together with rmap revision notifications. Never perform a
   per-job write without checking the owning worker and epoch. Cleanup checks
@@ -2546,7 +2564,7 @@ tier:
   heartbeat notifications alone miss the latter case. Keep the bounded
   `pulse/pool/tla/JoinRebalance.tla` model and watcher regressions paired with
   real-Redis migration coverage when changing these triggers.
-- Pool protocol 3 adds an incarnation/cutoff envelope to start/stop events.
+- Pool protocol 4 retains the incarnation/cutoff envelope to start/stop events.
   Admission allocates incarnation from the retained per-key epoch counter;
   requeue/orphan/dead-worker recovery preserve it. Worker claim and stop derive
   eligibility from the shared Redis ordering, never producer membership.

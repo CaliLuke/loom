@@ -1600,10 +1600,14 @@ Callbacks must return. Producer calls and application Ack remain caller-owned,
 so give them suitable contexts/client limits and finish them separately. See
 `docs/pulse.md` for lifecycle and deadline limits.
 
-Use the latest stable Redis release, currently 8.10.2; older releases are unsupported. Pool protocol 3 requires ending old schedules with `ErrScheduleStop`,
-draining/stopping work and completing old-binary pool `Shutdown` before upgrade.
-`Close` alone leaves pending old operations. Recreate schedules/jobs afterward;
-mixed versions and rolling upgrades are unsupported. `Node.Health(ctx)` reports incompatible live members. `Job.Epoch`
+Use the latest stable Redis release, currently 8.10.2; older releases are unsupported.
+Pool protocol 4 requires stopping all protocol 3 workers and other writers of shared
+maps before restart. First admission advances the marker atomically while preserving
+jobs, scheduler intent, counters and map TTLs; do not tear down that state merely to
+upgrade. Protocol 2 or earlier still requires old-binary schedule stop, drain and
+pool `Shutdown`, then recreating schedules/jobs. Mixed versions, rolling upgrades
+and mixed-version rollback are unsupported. `Node.Health(ctx)` reports incompatible
+live members. `Job.Epoch`
 identifies ownership; external stores must enforce fencing themselves. Pool
 shutdown retains epoch counters. Scheduler intent survives uncertain admission replies;
 `StopAll` selects only that producer's requested keys except the current Start keys.
@@ -1629,6 +1633,12 @@ Failed `AddWorker` calls do not start handlers. Private cleanup can outlive call
 cancellation within the worker shutdown TTL; inspect the returned error for cleanup
 failures. Node Close joins in-flight admissions. Existing event expiry still bounds
 recovery after uncertain Redis outcomes; see `docs/pulse.md`.
+Replicated maps repair lost Pub/Sub updates and expiry from authoritative snapshots.
+`SetAndWait` confirms observation of its committed incarnation/revision and returns
+an error if that incarnation retires first; later writes can replace its value.
+Upgrading the incarnation protocol requires stopping and restarting every map
+participant, including Pool nodes, together. Existing data and TTL survive metadata
+adoption. No-op conditional writes do not extend sliding TTL. See `docs/pulse.md`.
 `rmap.Map.Subscribe` coalesces pending invalidations by Reset, Delete, then Change
 precedence. Read current map contents rather than counting notifications; a later
 change cannot hide an unread reset. Unsubscribe when finished.

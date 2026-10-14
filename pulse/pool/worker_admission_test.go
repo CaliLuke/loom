@@ -90,7 +90,7 @@ func TestConstructionWorkerLostHeartbeatReply(t *testing.T) {
 				}
 			}, match: func(cmd redis.Cmder) bool {
 				args := cmd.Args()
-				return len(args) == 7 && ((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
+				return len(args) == 8 && ((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
 					(cmd.Name() == "eval" && strings.Contains(fmt.Sprint(args[1]), "worker is no longer registered")))
 			}})
 			worker, err := node.AddWorker(ctx, handler)

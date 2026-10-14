@@ -3,7 +3,7 @@
 // making singleton job admission one atomic Redis operation.
 package pool
 
-import redis "github.com/CaliLuke/go-redis/v9"
+import "github.com/CaliLuke/loom/pulse/internal/rmapstate"
 
 const (
 	dispatchClaimed int64 = iota + 1
@@ -138,14 +138,6 @@ local function in_flight(stream, group, id, now_ms, max_age_ms)
    return not undelivered
 end
 
-local function delete_guard(content, channel, key)
-   redis.call("HDEL", content, key)
-   local rev = tostring(redis.call("HINCRBY", content, "=rev", 1))
-   redis.call("HSET", content, "=kind", "del")
-   local msg = struct.pack("ic0ic0", string.len(key), key, string.len(rev), rev)
-   redis.call("PUBLISH", channel, "del:" .. msg)
-end
-
 local function add_start(stream, max_len, job, content, channel, key, until_ns)
    local event_id
    if tonumber(max_len) > 0 then
@@ -154,11 +146,7 @@ local function add_start(stream, max_len, job, content, channel, key, until_ns)
       event_id = redis.call("XADD", stream, "*", "n", "j", "p", job)
    end
    local guard = until_ns .. ":" .. event_id
-   redis.call("HSET", content, key, guard)
-   local rev = tostring(redis.call("HINCRBY", content, "=rev", 1))
-   redis.call("HSET", content, "=kind", "set")
-   local msg = struct.pack("ic0ic0ic0", string.len(key), key, string.len(guard), guard, string.len(rev), rev)
-   redis.call("PUBLISH", channel, "set:" .. msg)
+   set_map(content, channel, key, guard)
    return guard
 end
 local function admission_status(payloads, owners, pending_map, stream, key, now, group, now_ms, max_age)
@@ -193,10 +181,10 @@ var (
 	// owners, epochs, incarnations, cutoffs.
 	// ARGV: key, nowNanos, untilNanos, maxLen, job bytes, sink group, nowMs,
 	// maxAgeMs.
-	luaClaimDispatch = redis.NewScript(luaDispatchGuard + luaOperation + `
+	luaClaimDispatch = rmapstate.NewScript([]int{2}, luaDispatchGuard+luaOperation+`
 local current = redis.call("HGET", KEYS[7], ARGV[1])
 if current and not token_after(current, redis.call("HGET", KEYS[8], ARGV[1])) then
-   delete_guard(KEYS[2], KEYS[3], ARGV[1])
+   del_map(KEYS[2], KEYS[3], ARGV[1])
 end
 local status, value = admission_status(KEYS[1], KEYS[5], KEYS[2], KEYS[4], ARGV[1], ARGV[2], ARGV[6], tonumber(ARGV[7]), tonumber(ARGV[8]))
 if status ~= 1 then return {status, value} end
@@ -233,7 +221,7 @@ return {1, add_start(KEYS[4], ARGV[4], data, KEYS[2], KEYS[3], ARGV[1], ARGV[3])
 	// KEYS: pending content, pending channel, pool stream, owners, payloads,
 	// incarnations, cutoffs. ARGV: key, nowNanos, maxLen, job bytes, sink group,
 	// nowMs, maxAgeMs, payload, expected incarnation (empty for orphan lookup).
-	luaClaimRequeue = redis.NewScript(luaDispatchGuard + luaOperation + `
+	luaClaimRequeue = rmapstate.NewScript([]int{1}, luaDispatchGuard+luaOperation+`
 if redis.call("HEXISTS", KEYS[4], ARGV[1]) == 1 or redis.call("HGET", KEYS[5], ARGV[1]) ~= ARGV[8] then
    return {5, ""}
 end
@@ -262,7 +250,7 @@ return {1, add_start(KEYS[3], ARGV[3], data, KEYS[1], KEYS[2], ARGV[1], ARGV[2])
 	//
 	// KEYS: pending content, pool stream.
 	// ARGV: key, sink group, nowMs, maxAgeMs.
-	luaRequeueInFlight = redis.NewScript(luaDispatchGuard + `
+	luaRequeueInFlight = rmapstate.NewScript([]int{}, luaDispatchGuard+`
 local pending = redis.call("HGET", KEYS[1], ARGV[1])
 if not pending then
    return 0
@@ -284,7 +272,7 @@ return 0
 	//
 	// KEYS: pending content, pending channel, pool stream.
 	// ARGV: key, expected guard, sink group, nowMs, maxAgeMs.
-	luaReleaseDispatch = redis.NewScript(luaDispatchGuard + `
+	luaReleaseDispatch = rmapstate.NewScript([]int{1}, luaDispatchGuard+`
 local pending = redis.call("HGET", KEYS[1], ARGV[1])
 if pending ~= ARGV[2] then
    return 0
@@ -294,7 +282,7 @@ if in_flight(KEYS[3], ARGV[3], id, tonumber(ARGV[4]), tonumber(ARGV[5])) then
    return 2
 end
 
-delete_guard(KEYS[1], KEYS[2], ARGV[1])
+del_map(KEYS[1], KEYS[2], ARGV[1])
 return 1
 `)
 
@@ -309,7 +297,7 @@ return 1
 	//
 	// KEYS: pool stream, pending content, pending channel.
 	// ARGV: sink group, event id, job key.
-	luaAckStart = redis.NewScript(luaDispatchGuard + `
+	luaAckStart = rmapstate.NewScript([]int{2}, luaDispatchGuard+`
 redis.call("XACK", KEYS[1], ARGV[1], ARGV[2])
 local pending = redis.call("HGET", KEYS[2], ARGV[3])
 if not pending then
@@ -319,7 +307,7 @@ local _, id = parse_guard(pending)
 if id ~= ARGV[2] then
    return 0
 end
-delete_guard(KEYS[2], KEYS[3], ARGV[3])
+del_map(KEYS[2], KEYS[3], ARGV[3])
 return 1
 `)
 )

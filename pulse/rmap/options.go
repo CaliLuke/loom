@@ -43,7 +43,8 @@ func WithTTL(ttl time.Duration) MapOption {
 }
 
 // WithSlidingTTL sets a sliding TTL on the Redis hash backing the map.
-// The TTL is refreshed on every write operation.
+// The TTL is refreshed on actual mutations. Failed conditional writes and
+// other no-op operations leave it unchanged.
 func WithSlidingTTL(ttl time.Duration) MapOption {
 	return func(o *options) {
 		o.TTL = ttl

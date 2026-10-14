@@ -74,25 +74,7 @@ func TestConstructionNodeFailureReleasesSubscriptions(t *testing.T) {
 				rmapUpdateChannel("stream:" + poolStreamName(pool) + ":sinks"),
 				rmapUpdateChannel("sink:" + poolSinkName + ":keepalive"),
 			}
-			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
-			defer cancel()
-			var last map[string]int64
-			for {
-				last, err = rdb.PubSubNumSub(ctx, channels...).Result()
-				require.NoError(t, err)
-				remaining := int64(0)
-				for _, n := range last {
-					remaining += n
-				}
-				if remaining == 0 {
-					break
-				}
-				select {
-				case <-ctx.Done():
-					t.Fatalf("failed construction still owns subscriptions: %v", last)
-				case <-time.After(10 * time.Millisecond):
-				}
-			}
+			requireNoSubscriptions(t, rdb, channels...)
 		})
 	}
 }
@@ -125,7 +107,7 @@ func TestConstructionNodeLostWriteReply(t *testing.T) {
 					committed: func(cmd redis.Cmder) {
 						args := cmd.Args()
 						if registration {
-							nodeID = fmt.Sprint(args[len(args)-2])
+							nodeID = fmt.Sprint(args[7]) // four KEYS precede the authored node ID
 						} else {
 							streamKey = fmt.Sprint(args[1])
 							_, nodeID, _ = strings.Cut(streamKey, ":node:")
@@ -138,7 +120,8 @@ func TestConstructionNodeLostWriteReply(t *testing.T) {
 				node, err := AddNode(ctx, pool, rdb, WithClientOnly(), WithWorkerShutdownTTL(time.Second))
 				require.ErrorIs(t, err, errConstructionInjected)
 				require.Nil(t, node)
-				require.NotEmpty(t, nodeID, "the fault must occur after the write commits")
+				require.Len(t, nodeID, 26, "the fault must identify the committed node, not a trailing script argument")
+				require.NotEqual(t, peer.ID, nodeID)
 				registered, err := rdb.HExists(t.Context(), pool+":protocol", nodeID).Result()
 				require.NoError(t, err)
 				assert.False(t, registered, "failed node retained its protocol field")
@@ -152,7 +135,7 @@ func TestConstructionNodeLostWriteReply(t *testing.T) {
 				}
 				version, err := rdb.Get(t.Context(), pool+":protocol-version").Result()
 				require.NoError(t, err)
-				assert.Equal(t, "3", version, "rollback must preserve the shared protocol marker")
+				assert.Equal(t, "4", version, "rollback must preserve the shared protocol marker")
 				require.NoError(t, peer.Health(t.Context()))
 				for _, key := range []string{pool + ":protocol", rmapContentKey(nodeKeepAliveMapName(pool))} {
 					exists, err := rdb.HExists(t.Context(), key, peer.ID).Result()

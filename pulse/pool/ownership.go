@@ -78,7 +78,7 @@ func joinOwnershipProtocol(ctx context.Context, node *Node) error {
 }
 
 // Health reports incompatible live pool members or a failed protocol check.
-// Routing and job claims fail closed until every live member uses protocol 3.
+// Routing and job claims fail closed until every live member uses protocol 4.
 // It does not report application handler health.
 func (node *Node) Health(ctx context.Context) error {
 	bad, err := luaCheckProtocol.Run(ctx, node.rdb, []string{

@@ -2,6 +2,7 @@ package rmap
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -81,7 +82,8 @@ func TestTTLAppliedByWrites(t *testing.T) {
 				srv := redistest.Start(t, redistest.DBRmap)
 				rdb := srv.Client
 				ctx := t.Context()
-				rec := redistest.Record(rdb)
+				rec := &mutationRecorder{}
+				rdb.AddHook(rec)
 				m := joinMap(t, rdb, "ttlwrites", mode.opt)
 				hash := "map:ttlwrites:content"
 
@@ -94,8 +96,8 @@ func TestTTLAppliedByWrites(t *testing.T) {
 
 				// Pretend most of the TTL elapsed, then write again.
 				require.NoError(t, rdb.PExpire(ctx, hash, testShortTTL).Err())
-				rec.Reset()
-				require.NoError(t, w.write(ctx, m))
+				writeCtx := context.WithValue(ctx, mutationContextKey{}, true)
+				require.NoError(t, w.write(writeCtx, m))
 				assertOneScriptCall(t, rec.Names())
 				if mode.extended {
 					assertTTLBetween(t, rdb, hash, testShortTTL, testTTL)
@@ -151,4 +153,43 @@ func assertOneScriptCall(t *testing.T, names []string) {
 	for _, name := range names {
 		assert.Contains(t, []string{"evalsha", "eval"}, name, "commands %v", names)
 	}
+}
+
+// Scope the atomicity assertion to the mutation, excluding independent snapshot
+// reconciliation and driver connection-handshake commands.
+type mutationContextKey struct{}
+type mutationRecorder struct {
+	mu    sync.Mutex
+	names []string
+}
+
+func (r *mutationRecorder) Names() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.names...)
+}
+func (r *mutationRecorder) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+func (r *mutationRecorder) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		r.record(ctx, cmd)
+		return next(ctx, cmd)
+	}
+}
+func (r *mutationRecorder) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		for _, cmd := range cmds {
+			r.record(ctx, cmd)
+		}
+		return next(ctx, cmds)
+	}
+}
+func (r *mutationRecorder) record(ctx context.Context, cmd redis.Cmder) {
+	if ctx.Value(mutationContextKey{}) != true || cmd.Name() == "client" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.names = append(r.names, cmd.Name())
 }

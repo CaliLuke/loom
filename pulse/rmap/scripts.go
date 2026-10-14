@@ -4,33 +4,38 @@
 package rmap
 
 import (
-	"github.com/CaliLuke/go-redis/v9"
-
 	"github.com/CaliLuke/loom/pulse/internal/keyttl"
+	"github.com/CaliLuke/loom/pulse/internal/rmapstate"
 )
 
-// mapScriptPrologue starts every map script. It takes the TTL seconds and
-// sliding flag from the last two script arguments, so the body sees only the
-// arguments of the mutation in ARGV.
+// The shared script owner appends the generation candidate after the TTL
+// arguments. Mutation bodies only see their authored arguments.
 const mapScriptPrologue = keyttl.LuaApply + `
-local ttl_argc = #ARGV - 2
-local ttl_seconds, ttl_sliding = ARGV[ttl_argc + 1], ARGV[ttl_argc + 2]
+local argc = #ARGV - 3
+local ttl_seconds, ttl_sliding = ARGV[argc+1], ARGV[argc+2]
 local mutation_args = {}
-for i = 1, ttl_argc do
+for i = 1, argc do
    mutation_args[i] = ARGV[i]
 end
 local result = (function(ARGV)
 `
 
-// mapScriptEpilogue ends every map script. It applies the hash TTL after the
-// mutation and returns the mutation result.
 const mapScriptEpilogue = `
 end)(mutation_args)
-apply_ttl(KEYS[1], ttl_seconds, ttl_sliding)
+if changed_maps[KEYS[1]] then apply_ttl(KEYS[1], ttl_seconds, ttl_sliding) end
 return result
 `
 
 var (
+	// luaSnapshot atomically adopts existing pre-protocol hashes and reads a
+	// complete state, retaining business fields and the existing expiry.
+	luaSnapshot = rmapstate.NewScript(nil, `
+local admission = validate_map(KEYS[1], false)
+if admission then return redis.error_reply(admission) end
+if redis.call("EXISTS", KEYS[1]) == 1 then initialize_map(KEYS[1]) end
+return redis.call("HGETALL", KEYS[1])
+`)
+
 	// luaAppend is the Lua script used to append an item to an array key and
 	// return its new value.
 	luaAppend = mapScript(`
@@ -59,10 +64,7 @@ var (
 
 	   local encoded = cjson.encode(values)
 	   redis.call("HSET", KEYS[1], key, encoded)
-	   local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	   redis.call("HSET", KEYS[1], "=kind", "set")
-	   local msg = struct.pack("ic0ic0ic0", string.len(key), key, string.len(encoded), encoded, string.len(rev), rev)
-	   redis.call("PUBLISH", KEYS[2], "set:" .. msg)
+	   local rev, generation = publish_map(KEYS[1], KEYS[2], "set", key, encoded)
 	   return encoded
 	`)
 
@@ -106,10 +108,7 @@ var (
 	  if changed then
 	     local encoded = cjson.encode(values)
 	     redis.call("HSET", KEYS[1], key, encoded)
-	     local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	     redis.call("HSET", KEYS[1], "=kind", "set")
-	     local msg = struct.pack("ic0ic0ic0", string.len(key), key, string.len(encoded), encoded, string.len(rev), rev)
-	     redis.call("PUBLISH", KEYS[2], "set:" .. msg)
+	     local rev, generation = publish_map(KEYS[1], KEYS[2], "set", key, encoded)
 	     return encoded
 	  end
 
@@ -124,10 +123,7 @@ var (
 	      return nil
 	   end
 	   redis.call("HDEL", KEYS[1], ARGV[1])
-	   local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	   redis.call("HSET", KEYS[1], "=kind", "del")
-	   local msg = struct.pack("ic0ic0", string.len(ARGV[1]), ARGV[1], string.len(rev), rev)
-	   redis.call("PUBLISH", KEYS[2], "del:" .. msg)
+	   local rev, generation = publish_map(KEYS[1], KEYS[2], "del", ARGV[1])
 	   return v
 	`)
 
@@ -135,10 +131,7 @@ var (
 	luaIncr = mapScript(`
 	   redis.call("HINCRBY", KEYS[1], ARGV[1], ARGV[2])
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
-	   local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	   redis.call("HSET", KEYS[1], "=kind", "set")
-	   local msg = struct.pack("ic0ic0ic0", string.len(ARGV[1]), ARGV[1], string.len(v), v, string.len(rev), rev)
-	   redis.call("PUBLISH", KEYS[2], "set:" .. msg)
+	   local rev, generation = publish_map(KEYS[1], KEYS[2], "set", ARGV[1], v)
 	   return v
 	`)
 
@@ -183,36 +176,24 @@ var (
 
 	   if #remaining == 0 then
 	      redis.call("HDEL", KEYS[1], key)
-	      local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	      redis.call("HSET", KEYS[1], "=kind", "del")
-	      local msg = struct.pack("ic0ic0", string.len(key), key, string.len(rev), rev)
-	      redis.call("PUBLISH", KEYS[2], "del:" .. msg)
+	      local rev, generation = publish_map(KEYS[1], KEYS[2], "del", key)
 	      return {"", 1}
 	   end
 
 	   local encoded = cjson.encode(remaining)
 	   redis.call("HSET", KEYS[1], key, encoded)
-	   local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	   redis.call("HSET", KEYS[1], "=kind", "set")
-	   local msg = struct.pack("ic0ic0ic0", string.len(key), key, string.len(encoded), encoded, string.len(rev), rev)
-	   redis.call("PUBLISH", KEYS[2], "set:" .. msg)
+	   local rev, generation = publish_map(KEYS[1], KEYS[2], "set", key, encoded)
 	   return {encoded, 1}
 	`)
 
 	// luaReset is the Lua script used to reset the map.
 	luaReset = mapScript(`
-	   local rev = redis.call("HINCRBY", KEYS[1], "=rev", 1)
-	   redis.call("DEL", KEYS[1])
-	   redis.call("HSET", KEYS[1], "=rev", rev, "=kind", "reset")
-	   redis.call("PUBLISH", KEYS[2], "reset:" .. tostring(rev))
+	   clear_map(KEYS[1], KEYS[2], "reset")
 	`)
 
 	// luaDestroy is the Lua script used to delete the map entirely.
 	luaDestroy = mapScript(`
-	   local rev = redis.call("HINCRBY", KEYS[1], "=rev", 1)
-	   redis.call("DEL", KEYS[1])
-	   redis.call("HSET", KEYS[1], "=rev", rev, "=kind", "destroy")
-	   redis.call("PUBLISH", KEYS[2], "destroy:" .. tostring(rev))
+	   clear_map(KEYS[1], KEYS[2], "destroy")
 	`)
 
 	// luaSet is the Lua script used to set a key and return its previous value.  We
@@ -221,17 +202,14 @@ var (
 	luaSet = mapScript(`
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
 	   redis.call("HSET", KEYS[1], ARGV[1], ARGV[2])
-	   local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	   redis.call("HSET", KEYS[1], "=kind", "set")
-	   local msg = struct.pack("ic0ic0ic0", string.len(ARGV[1]), ARGV[1], string.len(ARGV[2]), ARGV[2], string.len(rev), rev)
-	   redis.call("PUBLISH", KEYS[2], "set:" .. msg)
+	   local rev, generation = publish_map(KEYS[1], KEYS[2], "set", ARGV[1], ARGV[2])
 	   local existed = 0
 	   local prev = ""
 	   if v then
 	      existed = 1
 	      prev = v
 	   end
-	   return {existed, prev, rev}
+	   return {existed, prev, rev, generation}
 	`)
 
 	// luaTestAndDel is the Lua script used to delete a key if it has a specific value.
@@ -239,10 +217,7 @@ var (
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
 	   if v == ARGV[2] then
 	      redis.call("HDEL", KEYS[1], ARGV[1])
-	      local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	      redis.call("HSET", KEYS[1], "=kind", "del")
-	      local msg = struct.pack("ic0ic0", string.len(ARGV[1]), ARGV[1], string.len(rev), rev)
-	      redis.call("PUBLISH", KEYS[2], "del:" .. msg)
+	      local rev, generation = publish_map(KEYS[1], KEYS[2], "del", ARGV[1])
 	   end
 	   return v
 	`)
@@ -258,10 +233,7 @@ var (
 	          return 0
 	      end
 	  end
-	  local rev = redis.call("HINCRBY", hash, "=rev", 1)
-	  redis.call("DEL", hash)
-	  redis.call("HSET", hash, "=rev", rev, "=kind", "reset")
-	  redis.call("PUBLISH", KEYS[2], "reset:" .. tostring(rev))
+	  clear_map(KEYS[1], KEYS[2], "reset")
 	  return 1
 	`)
 
@@ -270,10 +242,7 @@ var (
 	   local v = redis.call("HGET", KEYS[1], ARGV[1])
 	   if v == ARGV[2] then
 	      redis.call("HSET", KEYS[1], ARGV[1], ARGV[3])
-	      local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-	      redis.call("HSET", KEYS[1], "=kind", "set")
-	      local msg = struct.pack("ic0ic0ic0", string.len(ARGV[1]), ARGV[1], string.len(ARGV[3]), ARGV[3], string.len(rev), rev)
-	      redis.call("PUBLISH", KEYS[2], "set:" .. msg)
+	      local rev, generation = publish_map(KEYS[1], KEYS[2], "set", ARGV[1], ARGV[3])
 	   end
 	   return v
 	`)
@@ -283,10 +252,7 @@ var (
         local v = redis.call("HGET", KEYS[1], ARGV[1])
         if not v then
             redis.call("HSET", KEYS[1], ARGV[1], ARGV[2])
-            local rev = tostring(redis.call("HINCRBY", KEYS[1], "=rev", 1))
-            redis.call("HSET", KEYS[1], "=kind", "set")
-            local msg = struct.pack("ic0ic0ic0", string.len(ARGV[1]), ARGV[1], string.len(ARGV[2]), ARGV[2], string.len(rev), rev)
-            redis.call("PUBLISH", KEYS[2], "set:" .. msg)
+            local rev, generation = publish_map(KEYS[1], KEYS[2], "set", ARGV[1], ARGV[2])
             return 1  -- Successfully set the value
         end
         return 0    -- Value already existed
@@ -296,6 +262,6 @@ var (
 // mapScript returns the map script that runs the mutation body and then
 // applies the hash TTL in the same script. Callers pass the TTL arguments
 // built by keyttl.Args after the mutation arguments.
-func mapScript(body string) *redis.Script {
-	return redis.NewScript(mapScriptPrologue + body + mapScriptEpilogue)
+func mapScript(body string) *rmapstate.Script {
+	return rmapstate.NewScript([]int{1}, mapScriptPrologue+body+mapScriptEpilogue)
 }

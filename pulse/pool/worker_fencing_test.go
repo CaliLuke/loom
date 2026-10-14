@@ -206,7 +206,7 @@ func (h *fenceHeartbeatHook) ProcessPipelineHook(next redis.ProcessPipelineHook)
 func (h *fenceHeartbeatHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		args := cmd.Args()
-		if len(args) == 7 && args[6] == h.worker &&
+		if len(args) == 8 && args[6] == h.worker &&
 			((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
 				(cmd.Name() == "eval" && strings.Contains(fmt.Sprint(args[1]), "worker is no longer registered"))) {
 			if h.fail.Load() {

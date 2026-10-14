@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	redis "github.com/CaliLuke/go-redis/v9"
+	"github.com/CaliLuke/loom/pulse/internal/rmapstate"
 )
 
 // poolOperation identifies one admitted operation independently of its delivery
@@ -54,7 +55,7 @@ return {token, add_stop(KEYS[3], ARGV[2], data)}
 `)
 	// KEYS: owners, incarnations, cutoffs, payload content/channel.
 	// ARGV: key, cutoff. Absence is safe only behind a durable stop fence.
-	luaConfirmStop = redis.NewScript(luaOwnerMaps + luaOperation + `
+	luaConfirmStop = rmapstate.NewScript([]int{4}, luaOwnerMaps+luaOperation+`
 local cutoff = redis.call("HGET", KEYS[3], ARGV[1])
 if token_after(ARGV[2], cutoff) then return 0 end
 local incarnation = redis.call("HGET", KEYS[2], ARGV[1])

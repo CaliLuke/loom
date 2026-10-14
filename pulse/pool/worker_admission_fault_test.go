@@ -60,12 +60,12 @@ func TestWorkerAdmissionPrivateFailures(t *testing.T) {
 							return true
 						}
 					case "member":
-						if (cmd.Name() == "eval" || cmd.Name() == "evalsha") && len(args) == 9 && args[3] == rmapContentKey(workerMapName(node.PoolName)) {
+						if (cmd.Name() == "eval" || cmd.Name() == "evalsha") && len(args) == 10 && args[3] == rmapContentKey(workerMapName(node.PoolName)) {
 							id = fmt.Sprint(args[5])
 							return true
 						}
 					case "heartbeat":
-						if len(args) == 7 && args[6] != peer.ID && ((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
+						if len(args) == 8 && args[6] != peer.ID && ((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
 							(cmd.Name() == "eval" && strings.Contains(fmt.Sprint(args[1]), "worker is no longer registered"))) {
 							id = fmt.Sprint(args[6])
 							return true
@@ -115,7 +115,7 @@ func TestWorkerAdmissionCleanupErrors(t *testing.T) {
 			attempts[cmd.Name()]++
 			return true
 		}
-		if (cmd.Name() == "eval" || cmd.Name() == "evalsha") && len(args) == 8 {
+		if (cmd.Name() == "eval" || cmd.Name() == "evalsha") && len(args) == 9 {
 			for _, name := range []string{workerMapName(node.PoolName), workerKeepAliveMapName(node.PoolName)} {
 				if args[3] == rmapContentKey(name) {
 					attempts[name]++
@@ -164,7 +164,7 @@ func TestWorkerAdmissionQueuedBeforeFailure(t *testing.T) {
 		require.NoError(t, node.routeWorkerEvent(ctx, ev))
 	}, match: func(cmd redis.Cmder) bool {
 		args := cmd.Args()
-		return !injected.Load() && len(args) == 7 && ((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
+		return !injected.Load() && len(args) == 8 && ((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
 			(cmd.Name() == "eval" && strings.Contains(fmt.Sprint(args[1]), "worker is no longer registered")))
 	}})
 	failedHandler := newRecordingHandler()
@@ -209,7 +209,7 @@ func TestWorkerAdmissionFailedCleanupDoesNotRenew(t *testing.T) {
 		heartbeats.Add(1)
 	}, match: func(cmd redis.Cmder) bool {
 		args := cmd.Args()
-		return len(args) == 7 && ((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
+		return len(args) == 8 && ((cmd.Name() == "evalsha" && args[1] == luaOwnerHeartbeat.Hash()) ||
 			(cmd.Name() == "eval" && strings.Contains(fmt.Sprint(args[1]), "worker is no longer registered")))
 	}})
 	rdb.AddHook(constructionFailureHook{match: func(cmd redis.Cmder) bool {
@@ -217,7 +217,7 @@ func TestWorkerAdmissionFailedCleanupDoesNotRenew(t *testing.T) {
 		if cmd.Name() == "del" && len(args) > 1 && strings.Contains(fmt.Sprint(args[1]), ":stream:worker:") {
 			return true
 		}
-		return (cmd.Name() == "eval" || cmd.Name() == "evalsha") && len(args) == 8 &&
+		return (cmd.Name() == "eval" || cmd.Name() == "evalsha") && len(args) == 9 &&
 			(args[3] == rmapContentKey(workerMapName(node.PoolName)) || args[3] == rmapContentKey(workerKeepAliveMapName(node.PoolName)))
 	}})
 	handler := newRecordingHandler()

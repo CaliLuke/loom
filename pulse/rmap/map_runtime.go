@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"strings"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 
 	"github.com/CaliLuke/loom/pulse/internal/keyttl"
 	"github.com/CaliLuke/loom/pulse/internal/redisop"
+	"github.com/CaliLuke/loom/pulse/internal/rmapstate"
 )
 
 // Close closes the connection to the map, freeing resources. It is safe to
@@ -24,14 +24,6 @@ func (sm *Map) Close() {
 		close(sm.done)
 	}, func() {
 		sm.wait.Wait()
-		sm.wlock.Lock()
-		for rev, waiters := range sm.waiters {
-			for _, w := range waiters {
-				w.cancel()
-			}
-			delete(sm.waiters, rev)
-		}
-		sm.wlock.Unlock()
 		sm.lock.Lock()
 		sm.closed = true
 		sm.lock.Unlock()
@@ -41,7 +33,7 @@ func (sm *Map) Close() {
 // init initializes the map.
 func (sm *Map) init(ctx context.Context) error {
 	// Make sure scripts are cached.
-	for _, script := range []*redis.Script{
+	for _, script := range []*rmapstate.Script{
 		sm.appendScript,
 		sm.appendUniqueScript,
 		sm.delScript,
@@ -54,6 +46,7 @@ func (sm *Map) init(ctx context.Context) error {
 		sm.testAndResetScript,
 		sm.testAndSetScript,
 		sm.setIfNotExistsScript,
+		luaSnapshot,
 	} {
 		if err := script.Load(ctx, redisop.Client(sm.rdb)).Err(); err != nil {
 			return fmt.Errorf("pulse map: %s failed to load Lua scripts %v: %w", sm.Name, script, err)
@@ -68,77 +61,167 @@ func (sm *Map) init(ctx context.Context) error {
 	sm.sub = sub
 	sm.msgch = sm.sub.Channel()
 
-	// read initial content
-	// Note: there's a (very) small window where we might be receiving
-	// updates for changes that are already applied by the time we call
-	// HGetAll. This is not a problem because we'll just overwrite the
-	// local copy with the same data.
-	cmd := redisop.Client(sm.rdb).HGetAll(ctx, sm.hashkey)
-	if err := cmd.Err(); err != nil {
+	state, err := sm.readSnapshot(ctx)
+	if err != nil {
 		if closeErr := sm.sub.Close(); closeErr != nil {
 			err = errors.Join(err, fmt.Errorf("failed to close subscription: %w", closeErr))
 		}
 		return fmt.Errorf("pulse map: %s failed to read initial content: %w", sm.Name, err)
 	}
-	sm.content = cmd.Val()
-	sm.rev, _ = extractState(sm.content)
+	sm.content, sm.generation, sm.rev = state.content, state.generation, state.rev
 
 	return nil
 }
 
-// run updates the local copy of the replicated map whenever a remote update is
-// received and sends notifications when needed.
+// run is the sole publisher of complete replica state. Network operations run
+// outside the local read lock, but snapshots and deltas never publish concurrently.
 func (sm *Map) run() {
 	defer sm.wait.Done()
+	ticker := time.NewTicker(reconcileInterval)
+	defer ticker.Stop()
+	defer func() {
+		sm.lock.Lock()
+		for _, c := range sm.chans {
+			close(c)
+		}
+		sm.chans = nil
+		sm.lock.Unlock()
+		sm.closeSubscription(sm.sub)
+		sm.logger.Info("closed")
+	}()
 	for {
+		if sm.lifetime.Stopping() {
+			return
+		}
 		select {
 		case msg, ok := <-sm.msgch:
 			if !ok {
-				// disconnected from Redis server, attempt to reconnect forever
-				sm.logger.Error(fmt.Errorf("disconnected"))
-				sm.reconnect()
+				sm.closeSubscription(sm.sub)
+				sm.sub, sm.msgch = nil, nil
+				if err := sm.reconnect(); err != nil {
+					sm.logger.Error(err)
+				} else if err := sm.reconcile(sm.closectx); err != nil {
+					sm.logger.Error(err)
+				}
 				continue
 			}
-			parts := strings.SplitN(msg.Payload, ":", 2)
-			if len(parts) != 2 {
-				sm.logger.Error(fmt.Errorf("invalid payload"), "payload", msg.Payload)
-				continue
+			if err := sm.receiveMessage(msg.Payload); err != nil {
+				sm.logger.Error(err)
 			}
-			op, data := parts[0], []byte(parts[1])
-			sm.lock.Lock()
-			change, applied, err := sm.applyMessageLocked(op, data)
-			if err != nil {
-				sm.logger.Error(err, "payload", msg.Payload)
-				sm.lock.Unlock()
-				continue
+		case request := <-sm.observations:
+			request.result <- sm.observe(request)
+		case <-ticker.C:
+			if sm.sub == nil {
+				if err := sm.reconnect(); err != nil {
+					sm.logger.Error(err)
+				}
 			}
-			if applied {
-				sm.notifySubscribers(change.kind)
+			if err := sm.reconcile(sm.closectx); err != nil {
+				sm.logger.Error(err)
 			}
-			sm.lock.Unlock()
-			if applied {
-				sm.notifyWaitersUpTo(change.rev)
-			}
-
 		case <-sm.done:
-			sm.logger.Info("closed")
-			// Join subscriber admission that began before Stop sealed the owner.
-			sm.lock.Lock()
-			for _, c := range sm.chans {
-				close(c)
-			}
-			sm.chans = nil
-			sm.lock.Unlock()
-			sm.closeSubscription(sm.sub)
 			return
 		}
 	}
 }
 
+func (sm *Map) receiveMessage(payload string) error {
+	parts := strings.SplitN(payload, ":", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid map payload")
+	}
+	sm.lock.Lock()
+	if sm.lifetime.Stopping() {
+		sm.lock.Unlock()
+		return nil
+	}
+	change, applied, err := sm.applyMessageLocked(parts[0], []byte(parts[1]))
+	if applied {
+		sm.notifySubscribers(change.kind)
+	}
+	sm.lock.Unlock()
+	if err != nil {
+		return err
+	}
+	if change.refresh {
+		return sm.reconcile(sm.closectx)
+	}
+	return nil
+}
+
+// observe runs after the write's reply and serializes its read with publication.
+func (sm *Map) observe(request observationRequest) error {
+	ctx, cancel := context.WithCancel(request.ctx)
+	stop := context.AfterFunc(sm.closectx, cancel)
+	defer stop()
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if sm.generation == request.generation && sm.rev >= request.rev {
+		return nil
+	}
+	if err := sm.reconcile(ctx); err != nil {
+		return err
+	}
+	if sm.generation != request.generation || sm.rev < request.rev {
+		return fmt.Errorf("pulse map: %s committed incarnation retired before observation", sm.Name)
+	}
+	return nil
+}
+
+func (sm *Map) readSnapshot(ctx context.Context) (replicaState, error) {
+	content, err := redisop.Client(sm.rdb).HGetAll(ctx, sm.hashkey).Result()
+	if err != nil {
+		return replicaState{}, fmt.Errorf("pulse map: %s read snapshot: %w", sm.Name, err)
+	}
+	if len(content) > 0 && content[protocolField] == "" {
+		values, err := luaSnapshot.Run(ctx, redisop.Client(sm.rdb), []string{sm.hashkey}).StringSlice()
+		if err != nil {
+			return replicaState{}, fmt.Errorf("pulse map: %s adopt snapshot: %w", sm.Name, err)
+		}
+		if len(values)%2 != 0 {
+			return replicaState{}, fmt.Errorf("pulse map: %s invalid snapshot", sm.Name)
+		}
+		content = make(map[string]string, len(values)/2)
+		for i := 0; i < len(values); i += 2 {
+			content[values[i]] = values[i+1]
+		}
+	}
+	return extractState(content)
+}
+
+func (sm *Map) reconcile(ctx context.Context) error {
+	state, err := sm.readSnapshot(ctx)
+	if err != nil {
+		return err
+	}
+	sm.lock.Lock()
+	defer sm.lock.Unlock()
+	if sm.lifetime.Stopping() {
+		return fmt.Errorf("pulse map: %s is stopped", sm.Name)
+	}
+	if state.generation == sm.generation && state.rev == sm.rev {
+		return nil
+	}
+	kind := EventChange
+	switch {
+	case sm.generation != "" && state.generation != sm.generation:
+		kind = EventReset
+	case state.reset > sm.rev:
+		kind = EventReset
+	case state.deleted > sm.rev:
+		kind = EventDelete
+	}
+	sm.content, sm.generation, sm.rev = state.content, state.generation, state.rev
+	sm.notifySubscribers(kind)
+	return nil
+}
+
 // runLuaScript validates the user key and executes the given Lua script. Reset
 // and Destroy remain available after Close because they mutate Redis state even
 // when the local replica is already frozen.
-func (sm *Map) runLuaScript(ctx context.Context, name string, script *redis.Script, args ...any) (any, error) {
+func (sm *Map) runLuaScript(ctx context.Context, name string, script *rmapstate.Script, args ...any) (any, error) {
 	sm.lock.RLock()
 	if sm.lifetime.Stopping() && name != "reset" && name != "destroy" {
 		sm.lock.RUnlock()
@@ -162,135 +245,19 @@ func (sm *Map) runLuaScript(ctx context.Context, name string, script *redis.Scri
 	return res, nil
 }
 
-// reconnect attempts to reconnect to the Redis server forever.
-//
-//nolint:maintidx // Reconnect keeps resubscribe and snapshot replay in one loop.
-func (sm *Map) reconnect() {
-	var count int
-	for {
-		count++
-		sm.logger.Info("reconnect", "attempt", count)
-		if sm.closectx.Err() != nil {
-			return
-		}
-		sm.lock.RLock()
-		closing := sm.lifetime.Stopping()
-		sm.lock.RUnlock()
-		if closing {
-			return
-		}
-
-		sub, err := sm.subscribe(sm.closectx)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				return
-			}
-			sm.logger.Error(fmt.Errorf("failed to reconnect: %w", err), "attempt", count)
-			sleep := time.Duration(rand.Float64()*5+1) * time.Second
-			timer := time.NewTimer(sleep)
-			select {
-			case <-timer.C:
-			case <-sm.closectx.Done():
-				timer.Stop()
-				return
-			}
-			continue
-		}
-
-		msgch := sub.Channel()
-
-		cmd := redisop.Client(sm.rdb).HGetAll(sm.closectx, sm.hashkey)
-		if err := cmd.Err(); err != nil {
-			sm.closeSubscription(sub)
-			if errors.Is(err, context.Canceled) {
-				return
-			}
-			sm.logger.Error(fmt.Errorf("failed to resync: %w", err), "attempt", count)
-			sleep := time.Duration(rand.Float64()*5+1) * time.Second
-			timer := time.NewTimer(sleep)
-			select {
-			case <-timer.C:
-			case <-sm.closectx.Done():
-				timer.Stop()
-				return
-			}
-			continue
-		}
-
-		sm.lock.Lock()
-		if sm.lifetime.Stopping() {
-			sm.lock.Unlock()
-			sm.closeSubscription(sub)
-			return
-		}
-
-		// Resync local state from Redis, then apply any messages that were queued
-		// while reading the snapshot under the same lock so readers never observe
-		// intermediate state regressions. Revisioned messages at or below the
-		// snapshot revision are ignored.
-		oldRev := sm.rev
-		sm.content = cmd.Val()
-		var recoveredKind EventKind
-		sm.rev, recoveredKind = extractState(sm.content)
-		if sm.rev <= oldRev {
-			recoveredKind = EventChange
-		}
-		drainErr := false
-		for {
-			select {
-			case msg, ok := <-msgch:
-				if !ok {
-					drainErr = true
-					goto drained
-				}
-				parts := strings.SplitN(msg.Payload, ":", 2)
-				if len(parts) != 2 {
-					sm.logger.Error(fmt.Errorf("invalid payload"), "payload", msg.Payload)
-					continue
-				}
-				op, data := parts[0], []byte(parts[1])
-				change, applied, err := sm.applyMessageLocked(op, data)
-				if err != nil {
-					sm.logger.Error(err, "payload", msg.Payload)
-					continue
-				}
-				if applied {
-					recoveredKind = strongerEventKind(recoveredKind, change.kind)
-				}
-			default:
-				goto drained
-			}
-		}
-
-	drained:
-		if drainErr {
-			sm.lock.Unlock()
-			sm.closeSubscription(sub)
-			sleep := time.Duration(rand.Float64()*5+1) * time.Second
-			timer := time.NewTimer(sleep)
-			select {
-			case <-timer.C:
-			case <-sm.closectx.Done():
-				timer.Stop()
-				return
-			}
-			continue
-		}
-
-		oldSub := sm.sub
-		sm.sub = sub
-		sm.msgch = msgch
-		sm.notifySubscribers(recoveredKind)
-		sm.lock.Unlock()
-		if oldSub != nil {
-			sm.closeSubscription(oldSub)
-		}
-
-		sm.notifyWaitersUpTo(sm.rev)
-
-		sm.logger.Info("reconnected")
-		return
+// reconnect makes one bounded attempt. Periodic reconciliation owns retries,
+// so a disconnected subscription cannot monopolize write-observation requests.
+func (sm *Map) reconnect() error {
+	sub, err := sm.subscribe(sm.closectx)
+	if err != nil {
+		return fmt.Errorf("pulse map: %s resubscribe: %w", sm.Name, err)
 	}
+	if sm.lifetime.Stopping() {
+		sm.closeSubscription(sub)
+		return nil
+	}
+	sm.sub, sm.msgch = sub, sub.Channel()
+	return nil
 }
 
 // subscribe bounds both connection acquisition and the first subscription reply.

@@ -79,15 +79,41 @@ contexts and client limits for these calls.
 
 ## Replicated Maps
 
-`rmap.Join` loads the current Redis hash, subscribes to revisions, and starts a
-local update loop. Always call `Map.Close` when that replica is no longer
-needed. `Close` stops subscriptions and freezes the local snapshot; it does not
-delete shared Redis state.
+`rmap.Join` loads the current Redis hash, subscribes to updates, and starts a
+replica owner. The map is eventually consistent. Each incarnation has its own
+ordered revision sequence; expiration retires that incarnation. Missing updates,
+reconnections and expiration are repaired from complete Redis snapshots, including
+when no later update arrives. Reads use the local snapshot and do not wait for
+Redis. Repair depends on Redis availability and does not promise a freshness
+or shutdown deadline.
+
+`SetAndWait` observes its committed incarnation and revision before returning
+success. It can read Redis directly through the replica owner when Pub/Sub loses
+a message. A later write can already have replaced the value; success establishes
+observation, not exclusive ownership. If the incarnation expires before it is
+observed, the call returns an error. Caller cancellation and Redis errors remain
+observable.
+
+Always call `Map.Close` when that replica is no longer needed. `Close` stops
+subscriptions and freezes the local snapshot; it does not delete shared Redis
+state. Fixed and sliding TTLs change only on actual mutations. Failed conditional
+writes and no-op removals do not extend a sliding TTL. Reset/Destroy recreate the
+empty hash with their configured TTL while retaining mutation ordering.
+
+The incarnation protocol requires a coordinated upgrade of every participant,
+including Pool nodes: stop old writers, then restart all participants with the
+new version. Existing application fields and remaining TTL survive metadata
+adoption; joining an absent map does not create a hash. Fields containing `=` are
+reserved, and unknown protocol versions are rejected. Do not mix old and new
+writers or write directly to the internal hash. Generation uniqueness assumes
+collision-resistant identifiers; Redis restore/failover guarantees remain those
+of the deployed Redis service.
 
 `Map.Subscribe` provides coalesced invalidations, not a journal of every update.
 Read the map for current state. Each subscriber retains the strongest unread kind:
 `EventReset` takes precedence over `EventDelete`, then `EventChange`. A later change
-cannot hide an unread reset. Slow subscribers do not block replica updates.
+cannot hide an unread reset. Snapshot repair preserves unseen reset/delete kinds,
+and expiry of a known incarnation emits `EventReset`. Slow subscribers do not block replica updates.
 Unsubscribe when finished; closing the map closes its subscription channels.
 
 Choose shared-state mutations deliberately:
@@ -212,7 +238,7 @@ adding a stream resumes polling.
 
 ## Pool Job Ownership and Upgrades
 
-Pool protocol 3 records one owner and a monotonically increasing epoch for each
+Pool protocol 4 records one owner and a monotonically increasing epoch for each
 job key in Redis. Claims and releases are atomic; a stale worker cannot delete
 a later owner's payload. Recovery rechecks the worker's keep-alive in Redis
 and reads authoritative ownership instead of a local replica. Orphan recovery
@@ -226,16 +252,24 @@ rebalance and recovery. A stop records a cutoff: delayed earlier starts cannot
 revive the stopped job, and a delayed stop cannot kill a later admitted start.
 `StopJob` returns after queue publication, not after the handler finishes.
 
-Upgrade from older pool protocols requires coordinated teardown with the old
-binaries: end each recurring producer with `ErrScheduleStop` to clear its old
-ledger, stop/drain its work, and complete pool `Shutdown` before starting
-protocol 3 nodes. `Close` alone can leave pending operations whose identity the
-new protocol cannot reconstruct. Recreate schedules and explicitly request the
-jobs needed after upgrading. Persisted older protocol markers and live older
-members are rejected; rolling upgrades and mixed-version rollbacks are unsupported.
-If an older member appears later, protocol 3 nodes stop routing and claiming work
-until it leaves or its heartbeat expires. `Node.Health(ctx)` reports this condition
-and Redis errors. Older binaries cannot enforce this gate themselves.
+Protocol 4 adds incarnation-aware replicated-map publication. Upgrade from protocol
+3 by stopping **all old pool workers and other participants that write the same
+maps** before starting new binaries. Once no incompatible live member remains,
+the first new node atomically advances the persisted marker from 3 to 4 and
+registers itself. Existing jobs, scheduler intent, ownership counters, application
+fields and map TTLs survive this admission; do not delete state or run `Shutdown`
+merely to make this upgrade. A concurrent protocol 3 join is rejected after the
+marker advances; if it joins first, new admission fails until it leaves or expires.
+Rolling upgrades and mixed-version rollbacks are unsupported.
+
+Upgrade from protocol 2 or earlier still requires coordinated teardown with the
+old binaries: end each recurring producer with `ErrScheduleStop`, stop/drain its
+work, and complete pool `Shutdown` before starting protocol 4 nodes. `Close` alone
+can leave operations whose identity the new protocol cannot reconstruct. Recreate
+schedules and explicitly request the jobs needed afterward. Older, malformed and
+unknown future markers are rejected. If an incompatible live member appears later,
+new nodes stop routing and claiming work until it leaves or expires.
+`Node.Health(ctx)` reports this condition and Redis errors.
 
 A recurring producer retains responsibility for every requested Start, including
 an admission timeout, cancellation, or `ErrJobExists`. `StopAll` selects that

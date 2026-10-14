@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	redis "github.com/CaliLuke/go-redis/v9"
+	"github.com/CaliLuke/loom/pulse/internal/rmapstate"
 )
 
 type (
@@ -41,7 +41,7 @@ type (
 var (
 	// KEYS: producer content/channel, persistent generation. ARGV: plan JSON.
 	// The generation key is deliberately independent of rmap Reset/Destroy.
-	luaPublishIntent = redis.NewScript(luaOwnerMaps + `
+	luaPublishIntent = rmapstate.NewScript([]int{1}, luaOwnerMaps+`
 local plan = cjson.decode(ARGV[1])
 local starts = {}
 local function publish(key, kind, payload)
@@ -76,7 +76,7 @@ return 1
 	// now milliseconds, maximum event age.
 	// Revision check, first token, receipt and queue publication share this
 	// linearization boundary. A retry may replace delivery, never operation.
-	luaIssueIntent = redis.NewScript(luaOwnerMaps + luaDispatchGuard + luaOperation + `
+	luaIssueIntent = rmapstate.NewScript([]int{1, 8}, luaOwnerMaps+luaDispatchGuard+luaOperation+`
 local raw = redis.call("HGET", KEYS[1], ARGV[1])
 if not raw then return {0, ""} end
 local record = cjson.decode(raw)
@@ -93,7 +93,7 @@ if record.kind == "j" then
       return {0, ""}
    end
    if current and not token_after(current, cutoff) then
-      delete_guard(KEYS[8], KEYS[9], ARGV[1])
+      del_map(KEYS[8], KEYS[9], ARGV[1])
    end
    local status, value = admission_status(KEYS[6], KEYS[7], KEYS[8], KEYS[10], ARGV[1], ARGV[5], ARGV[8], tonumber(ARGV[9]), tonumber(ARGV[10]))
    if status == 3 and token_after(current, cutoff) then
@@ -130,7 +130,7 @@ save()
 return {0, ""}
 `)
 	// KEYS: producer content/channel. ARGV: key, revision, token, event kind.
-	luaCompleteIntent = redis.NewScript(luaOwnerMaps + `
+	luaCompleteIntent = rmapstate.NewScript([]int{1}, luaOwnerMaps+`
 local raw = redis.call("HGET", KEYS[1], ARGV[1])
 if not raw then return 0 end
 local record = cjson.decode(raw)

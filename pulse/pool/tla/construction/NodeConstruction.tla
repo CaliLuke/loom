@@ -5,7 +5,7 @@ CONSTANT Mode
 VARIABLE s
 vars == <<s>>
 
-Steps == <<"shutdown", "heartbeatMap", "registration", "otherMaps",
+Steps == <<"registration", "shutdown", "heartbeatMap", "otherMaps",
            "sink", "privateStream", "reader", "cancel">>
 Remote == {"protocol", "heartbeat", "privateStream"}
 Writes == {"registration", "privateStream"}

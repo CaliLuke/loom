@@ -1,23 +1,11 @@
 package pool
 
-import redis "github.com/CaliLuke/go-redis/v9"
+import "github.com/CaliLuke/loom/pulse/internal/rmapstate"
 
 // luaOwnerMaps preserves rmap's revision and binary pub/sub protocol. Pool
 // maps have no TTL. Epochs are read as strings after HINCRBY so Lua's floating
 // point numbers never round a fencing token.
 const luaOwnerMaps = `
-local function set_map(content, channel, key, value)
-   redis.call("HSET", content, key, value)
-   local rev = tostring(redis.call("HINCRBY", content, "=rev", 1))
-   redis.call("HSET", content, "=kind", "set")
-   redis.call("PUBLISH", channel, "set:" .. struct.pack("ic0ic0ic0", #key, key, #value, value, #rev, rev))
-end
-local function del_map(content, channel, key)
-   if redis.call("HDEL", content, key) == 0 then return end
-   local rev = tostring(redis.call("HINCRBY", content, "=rev", 1))
-   redis.call("HSET", content, "=kind", "del")
-   redis.call("PUBLISH", channel, "del:" .. struct.pack("ic0ic0", #key, key, #rev, rev))
-end
 local function job_keys(value)
    if not value then return {} end
    local ok, decoded = pcall(cjson.decode, value)
@@ -37,7 +25,7 @@ local function incompatible(nodes, protocols, ttl)
    local entries = redis.call("HGETALL", nodes)
    for i = 1, #entries, 2 do
       if string.sub(entries[i], 1, 1) ~= "=" and live(entries[i + 1], ttl)
-         and redis.call("HGET", protocols, entries[i]) ~= "3" then
+         and redis.call("HGET", protocols, entries[i]) ~= "4" then
          return entries[i]
       end
    end
@@ -49,7 +37,7 @@ var (
 	// KEYS: owners, epochs, jobs content/channel, payload content/channel,
 	// workers, worker keep-alive, node keep-alive, protocols, incarnations, cutoffs.
 	// ARGV: job key, worker ID, payload, worker TTL milliseconds, incarnation.
-	luaClaimJob = redis.NewScript(luaOwnerMaps + luaOperation + `
+	luaClaimJob = rmapstate.NewScript([]int{3, 5}, luaOwnerMaps+luaOperation+`
 local bad = incompatible(KEYS[9], KEYS[10], ARGV[4])
 if bad ~= "" then return redis.error_reply("incompatible pool node " .. bad) end
 local worker = redis.call("HGET", KEYS[7], ARGV[2])
@@ -79,7 +67,7 @@ return {1, epoch}
 
 	// KEYS: owners, jobs content/channel, payload content/channel.
 	// ARGV: key, worker ID, epoch, delete payload (1 or 0).
-	luaReleaseJob = redis.NewScript(luaOwnerMaps + `
+	luaReleaseJob = rmapstate.NewScript([]int{2, 4}, luaOwnerMaps+`
 if redis.call("HGET", KEYS[1], ARGV[1]) ~= ARGV[2] .. ":" .. ARGV[3] then return 0 end
 local remaining = {}
 for _, key in ipairs(job_keys(redis.call("HGET", KEYS[2], ARGV[2]))) do
@@ -97,7 +85,7 @@ return 1
 	// worker stream, pending content/channel, incarnations, cutoffs.
 	// ARGV: worker ID, lock token, TTL ms, node ID, createdAt (8 wire bytes),
 	// now nanoseconds, stream maximum length.
-	luaCleanupOwner = redis.NewScript(luaOwnerMaps + luaDispatchGuard + luaOperation + `
+	luaCleanupOwner = rmapstate.NewScript([]int{2, 4, 6, 8, 13}, luaOwnerMaps+luaDispatchGuard+luaOperation+`
 if redis.call("HGET", KEYS[2], ARGV[1]) ~= ARGV[2] then return 0 end
 if live(redis.call("HGET", KEYS[4], ARGV[1]), ARGV[3]) then
    del_map(KEYS[2], KEYS[3], ARGV[1])
@@ -128,25 +116,33 @@ return 2
 	// Registration and version admission are atomic with the initial heartbeat.
 	// KEYS: protocols, node keepalive content/channel, marker.
 	// ARGV: node ID, TTL ms.
-	luaJoinProtocol = redis.NewScript(luaOwnerMaps + `
+	luaJoinProtocol = rmapstate.NewScript([]int{2}, luaOwnerMaps+`
 local bad = incompatible(KEYS[2], KEYS[1], ARGV[2])
 if bad ~= "" then return redis.error_reply("incompatible pool node " .. bad) end
 local version = redis.call("GET", KEYS[4])
-if version and version ~= "3" then return redis.error_reply("unsupported pool protocol " .. version) end
-if not version then
-   redis.call("SET", KEYS[4], "3")
+if version and version ~= "3" and version ~= "4" then return redis.error_reply("unsupported pool protocol " .. version) end
+if version ~= "4" then
+   redis.call("SET", KEYS[4], "4")
 end
-redis.call("HSET", KEYS[1], ARGV[1], "3")
+redis.call("HSET", KEYS[1], ARGV[1], "4")
 set_map(KEYS[2], KEYS[3], ARGV[1], string.format("%.0f", now_ms() * 1000000))
 return 1
 `)
 
+	// Withdrawal owns a private registration even if admission lost its reply
+	// before any local Map was acquired. A missing field leaves metadata untouched.
+	// KEYS: node keepalive content/channel. ARGV: node ID.
+	luaWithdrawNodeHeartbeat = rmapstate.NewScript([]int{1}, `
+del_map(KEYS[1], KEYS[2], ARGV[1])
+return 1
+`)
+
 	// KEYS: node keepalive, protocols. ARGV: TTL ms.
-	luaCheckProtocol = redis.NewScript(luaOwnerMaps + `return incompatible(KEYS[1], KEYS[2], ARGV[1])`)
+	luaCheckProtocol = rmapstate.NewScript([]int{}, luaOwnerMaps+`return incompatible(KEYS[1], KEYS[2], ARGV[1])`)
 
 	// Use Redis time for leases so cleanup does not depend on node clock skew.
 	// KEYS: keepalive content/channel, worker map. ARGV: worker ID.
-	luaOwnerHeartbeat = redis.NewScript(luaOwnerMaps + `
+	luaOwnerHeartbeat = rmapstate.NewScript([]int{1}, luaOwnerMaps+`
 local worker = redis.call("HGET", KEYS[3], ARGV[1])
 if not worker or worker == "-" then return redis.error_reply("worker is no longer registered") end
 set_map(KEYS[1], KEYS[2], ARGV[1], string.format("%.0f", now_ms() * 1000000))
@@ -154,7 +150,7 @@ return 1
 `)
 	// KEYS: owners, workers, worker keepalive, node keepalive, protocols.
 	// ARGV: key, worker ID, epoch, TTL ms. Resume must not recreate ownership.
-	luaCheckOwner = redis.NewScript(luaOwnerMaps + `
+	luaCheckOwner = rmapstate.NewScript([]int{}, luaOwnerMaps+`
 local bad = incompatible(KEYS[4], KEYS[5], ARGV[4])
 if bad ~= "" then return redis.error_reply("incompatible pool node " .. bad) end
 if redis.call("HGET", KEYS[1], ARGV[1]) ~= ARGV[2] .. ":" .. ARGV[3] then return 0 end

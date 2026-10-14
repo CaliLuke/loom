@@ -35,7 +35,7 @@ func (sm *Map) SetEx(ctx context.Context, key, value string) (string, bool, erro
 }
 
 // SetAndWait is a convenience method that calls Set and waits until the local
-// replica has observed the committed revision. Multiple concurrent calls with
+// replica has observed the committed incarnation and revision. Multiple concurrent calls with
 // the same key and value are allowed because each waiter is tied to its own
 // committed write rather than the final key/value pair.
 //
@@ -44,6 +44,7 @@ func (sm *Map) SetEx(ctx context.Context, key, value string) (string, bool, erro
 // - The key contains an equal sign
 // - The context is cancelled
 // - The map is stopped
+// - The committed incarnation expires before it can be observed
 // - There's an issue with the Redis operation
 func (sm *Map) SetAndWait(ctx context.Context, key, value string) (string, error) {
 	res, err := sm.runSetScript(ctx, key, value)
@@ -51,30 +52,24 @@ func (sm *Map) SetAndWait(ctx context.Context, key, value string) (string, error
 		return "", err
 	}
 
-	notifyCh := make(chan struct{}, 1)
-	waitCtx, cancel := context.WithCancel(ctx)
-	waiter := &setWaiter{
-		ch:     notifyCh,
-		rev:    res.rev,
-		ctx:    waitCtx,
-		cancel: cancel,
-	}
-	defer func() {
-		cancel()
-		sm.removeWaiter(waiter)
-	}()
-	if sm.registerWaiter(waiter) {
-		return res.prev, nil
-	}
-
-	// Wait for notification or context cancellation
+	request := observationRequest{ctx: ctx, generation: res.generation, rev: res.rev, result: make(chan error, 1)}
 	select {
+	case sm.observations <- request:
 	case <-ctx.Done():
 		return "", ctx.Err()
 	case <-sm.done:
 		return "", fmt.Errorf("pulse map: %s is stopped", sm.Name)
-	case <-notifyCh:
+	}
+	select {
+	case err := <-request.result:
+		if err != nil {
+			return "", err
+		}
 		return res.prev, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-sm.done:
+		return "", fmt.Errorf("pulse map: %s is stopped", sm.Name)
 	}
 }
 

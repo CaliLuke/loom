@@ -15,6 +15,7 @@ import (
 	"github.com/CaliLuke/loom/clue/log"
 
 	"github.com/CaliLuke/loom/pulse/internal/redisop"
+	"github.com/CaliLuke/loom/pulse/internal/rmapstate"
 	"github.com/CaliLuke/loom/pulse/pulse"
 	"github.com/CaliLuke/loom/pulse/rmap"
 	"github.com/CaliLuke/loom/pulse/streaming"
@@ -171,6 +172,29 @@ func AddNode(
 		"worker_shutdown_ttl", o.workerShutdownTTL,
 		"ack_grace_period", o.ackGracePeriod)
 
+	// Admission must precede Join: joining old hashes adopts their metadata.
+	if !rmapstate.ValidName(nodeShutdownMapName(poolName)) || !rmapstate.ValidName(nodeKeepAliveMapName(poolName)) {
+		return nil, fmt.Errorf("AddNode: invalid pool map name %q", poolName)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if rdb == nil {
+		return nil, fmt.Errorf("AddNode: Redis client cannot be nil")
+	}
+	registration := &Node{ID: nodeID, PoolName: poolName, rdb: rdb, workerTTL: o.workerTTL}
+	construction.own("withdraw node heartbeat", func(ctx context.Context) error {
+		return luaWithdrawNodeHeartbeat.Run(ctx, redisop.Client(rdb), []string{
+			rmapContentKey(nodeKeepAliveMapName(poolName)), rmapUpdateChannel(nodeKeepAliveMapName(poolName)),
+		}, nodeID).Err()
+	})
+	construction.own("withdraw node protocol", func(ctx context.Context) error {
+		return redisop.Client(rdb).HDel(ctx, poolName+":protocol", nodeID).Err()
+	})
+	if err := joinOwnershipProtocol(ctx, registration); err != nil {
+		return nil, fmt.Errorf("AddNode: ownership protocol: %w", err)
+	}
+
 	nsm, err := construction.joinMap(ctx, nodeShutdownMapName(poolName), rdb, rmap.WithLogger(logger))
 	if err != nil {
 		return nil, fmt.Errorf("AddNode: failed to join shutdown replicated map %q: %w", nodeShutdownMapName(poolName), err)
@@ -178,21 +202,9 @@ func AddNode(
 	if nsm.Len() > 0 {
 		return nil, fmt.Errorf("AddNode: pool %q is shutting down", poolName)
 	}
-
 	nkm, err := construction.joinMap(ctx, nodeKeepAliveMapName(poolName), rdb, rmap.WithLogger(logger))
 	if err != nil {
 		return nil, fmt.Errorf("AddNode: failed to join node keep-alive map %q: %w", nodeKeepAliveMapName(poolName), err)
-	}
-	registration := &Node{ID: nodeID, PoolName: poolName, rdb: rdb, workerTTL: o.workerTTL}
-	construction.own("withdraw node heartbeat", func(ctx context.Context) error {
-		_, err := nkm.Delete(ctx, nodeID)
-		return err
-	})
-	construction.own("withdraw node protocol", func(ctx context.Context) error {
-		return redisop.Client(rdb).HDel(ctx, poolName+":protocol", nodeID).Err()
-	})
-	if err := joinOwnershipProtocol(ctx, registration); err != nil {
-		return nil, fmt.Errorf("AddNode: ownership protocol: %w", err)
 	}
 
 	poolStream, err := streaming.NewStream(poolStreamName(poolName), rdb,

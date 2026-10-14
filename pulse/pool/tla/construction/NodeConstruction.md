@@ -1,7 +1,7 @@
 # Node constructor acquisition owner (#687)
 
 This node-only model is separate from delivered WorkerPublication/#704. It uses
-current protocol 3 (no job backfill) and deferred Sink/Reader Subscribe. The
+current protocol 4 (no job backfill) and deferred Sink/Reader Subscribe. The
 historical dirty-worktree node model is not current implementation evidence.
 
 `AcquireLocal` enrolls each successful local acquisition. `AttemptRemote` enrolls
@@ -98,3 +98,33 @@ use #800's shared operation/lifecycle owner with the published hook-preserving
 module pin. The node change follows #800 in delivery; no local dependency
 replacement is required. The module rename leaves this model's transitions and
 finite subordinate-close assumptions unchanged.
+
+
+## Replica protocol admission ordering (#672)
+
+Registration now precedes every map acquisition because joining an old map adopts
+its metadata. Atomic protocol admission rejects incompatible members/markers before
+that migration. `rmapstate.ValidName` gives Pool the same pre-write input validation
+as rmap. Heartbeat withdrawal uses the shared Lua owner directly and therefore does
+not depend on a Map handle. After later construction failure, local handles close
+before the attempted registration is withdrawn; shared migrated state remains.
+
+Replaying this acquisition order gives owned 388/376 states with all invariants
+passing. The negative current/successful-only/stop-on-error modes fail
+`AttemptedWithdrawal` at 2/2, 6/6 and 6/6 respectively. Original historical counts
+above describe the earlier acquisition order. The owner-order test follows the new
+fifteen-step order. Lost-write reply controls identify the exact node argument
+rather than a trailing metadata candidate; worker fault hooks likewise retain their
+original authored argument positions while accounting for that appended candidate.
+
+
+Local resource release and remote server observation are separate transitions.
+`ReleaseLocal` means the local lifecycle is joined; it does not require the server
+socket reader to have removed its subscriber registry entry. A deterministic
+miniredis disconnect barrier in `TestConstructionLocalClosePrecedesServerUnsubscribe`
+holds server removal after local Close: abort returns and its local subscriber
+channel is closed while NUMSUB still reports one. Releasing the gate permits
+bounded observation of zero. Constructor tests share that bounded server-observation
+helper; all error aggregation, attempted withdrawal and retained-state assertions
+remain unchanged. The historical immediate NUMSUB assertion fails intermittently
+on main and in CI; it must not imply an unjoined local owner.

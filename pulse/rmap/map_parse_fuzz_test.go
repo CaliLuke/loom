@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"maps"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -22,17 +23,21 @@ func FuzzPackedMessageRoundTrip(f *testing.F) {
 			t.Errorf("unpackString(%x) = %q, %x, %v; want %q, %x", packed, gotKey, gotRest, err, key, rest)
 		}
 		revision := strconv.FormatUint(rev, 10)
-		reserved := key == revField || key == kindField
+		reserved := key == "" || strings.Contains(key, "=")
 
 		sm := testMap()
-		change, applied, err := sm.applyMessageLocked("set", packedStrings(key, value, revision))
+		if rev > 0 {
+			sm.rev = rev - 1
+		}
+		beforeRev := sm.rev
+		change, applied, err := sm.applyMessageLocked("set", packedStrings(mapProtocol, "test", revision, key, value))
 		switch {
-		case err != nil:
-			t.Errorf("set %q=%q rev %d: %v", key, value, rev, err)
 		case reserved || rev == 0:
-			if applied || len(sm.content) != 0 || sm.rev != 0 {
+			if applied || len(sm.content) != 0 || sm.rev != beforeRev {
 				t.Errorf("set %q rev %d applied %t with content %v rev %d", key, rev, applied, sm.content, sm.rev)
 			}
+		case err != nil:
+			t.Errorf("set %q=%q rev %d: %v", key, value, rev, err)
 		default:
 			if !applied || change != (mapChange{kind: EventChange, rev: rev}) || sm.rev != rev {
 				t.Errorf("set %q rev %d = %+v applied %t, replica rev %d", key, rev, change, applied, sm.rev)
@@ -46,14 +51,14 @@ func FuzzPackedMessageRoundTrip(f *testing.F) {
 		}
 
 		deleteRev := strconv.FormatUint(rev+1, 10)
-		change, applied, err = sm.applyMessageLocked("del", packedStrings(key, deleteRev))
+		change, applied, err = sm.applyMessageLocked("del", packedStrings(mapProtocol, "test", deleteRev, key))
 		switch {
-		case err != nil:
-			t.Errorf("del %q rev %s: %v", key, deleteRev, err)
 		case rev == ^uint64(0):
 			if applied {
 				t.Errorf("wrapped del revision applied for %q", key)
 			}
+		case err != nil:
+			t.Errorf("del %q rev %s: %v", key, deleteRev, err)
 		default:
 			if !applied || change != (mapChange{kind: EventDelete, rev: rev + 1}) {
 				t.Errorf("del %q = %+v applied %t", key, change, applied)
@@ -87,7 +92,7 @@ func FuzzApplyMessage(f *testing.F) {
 		change, applied, err := sm.applyMessageLocked(op, data)
 
 		if err != nil || !applied {
-			if applied || change != (mapChange{}) || sm.rev != 3 || !maps.Equal(before, sm.content) {
+			if applied || change.kind != 0 || change.rev != 0 || sm.rev != 3 || !maps.Equal(before, sm.content) {
 				t.Errorf("rejected %s %x mutated replica: change %+v applied %t err %v rev %d content %v", op, data, change, applied, err, sm.rev, sm.content)
 			}
 			return
