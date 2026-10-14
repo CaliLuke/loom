@@ -182,48 +182,49 @@ func GetMetaType(att *expr.AttributeExpr) (typeName string, importS *ImportSpec)
 
 // GetMetaTypeImports parses the attribute for all user defined imports
 func GetMetaTypeImports(att *expr.AttributeExpr) []*ImportSpec {
-	return safelyGetMetaTypeImports(att, nil)
+	if att == nil {
+		return nil
+	}
+	unique := make(map[ImportSpec]struct{})
+	if err := Walk(att, func(attribute *expr.AttributeExpr) error {
+		if _, imported := GetMetaType(attribute); imported != nil {
+			unique[*imported] = struct{}{}
+		}
+		return nil
+	}); err != nil {
+		panic(fmt.Errorf("collect custom type imports: %w", err))
+	}
+	imports := make([]*ImportSpec, 0, len(unique))
+	for imported := range unique {
+		imports = append(imports, &imported)
+	}
+	sortImportSpecs(imports)
+	return imports
 }
 
 // GatherAttributeImports collects import specifications required by the given
 // attribute, including meta-type imports and user types placed in external
 // generated packages.
 func GatherAttributeImports(genpkg string, att *expr.AttributeExpr) []*ImportSpec {
-	uniq := make(map[string]*ImportSpec)
-	var visit func(*expr.AttributeExpr)
-	visit = func(a *expr.AttributeExpr) {
-		if a == nil {
-			return
-		}
-		for _, im := range GetMetaTypeImports(a) {
-			if im != nil && im.Path != "" {
-				uniq[im.Path] = im
-			}
-		}
-		switch dt := a.Type.(type) {
-		case expr.UserType:
-			if loc := UserTypeLocation(dt); loc != nil && loc.RelImportPath != "" {
-				imp := &ImportSpec{
-					Name: loc.PackageName(),
-					Path: JoinImportPath(genpkg, loc.RelImportPath),
-				}
-				uniq[imp.Path] = imp
-			}
-			visit(dt.Attribute())
-		case *expr.Array:
-			visit(dt.ElemType)
-		case *expr.Map:
-			visit(dt.KeyType)
-			visit(dt.ElemType)
-		case *expr.Object:
-			for _, nat := range *dt {
-				visit(nat.Attribute)
-			}
-		case expr.CompositeExpr:
-			visit(dt.Attribute())
-		}
+	if att == nil {
+		return nil
 	}
-	visit(att)
+	uniq := make(map[string]*ImportSpec)
+	if err := Walk(att, func(attribute *expr.AttributeExpr) error {
+		if _, imported := GetMetaType(attribute); imported != nil && imported.Path != "" {
+			uniq[imported.Path] = imported
+		}
+		if location := UserTypeLocation(attribute.Type); location != nil && location.RelImportPath != "" {
+			imported := &ImportSpec{
+				Name: location.PackageName(),
+				Path: JoinImportPath(genpkg, location.RelImportPath),
+			}
+			uniq[imported.Path] = imported
+		}
+		return nil
+	}); err != nil {
+		panic(fmt.Errorf("gather attribute imports: %w", err))
+	}
 	if len(uniq) == 0 {
 		return nil
 	}
@@ -236,65 +237,6 @@ func GatherAttributeImports(genpkg string, att *expr.AttributeExpr) []*ImportSpe
 	for _, p := range paths {
 		imports = append(imports, uniq[p])
 	}
-	return imports
-}
-
-// safelyGetMetaTypeImports parses attributes while keeping track of previous usertypes to avoid infinite recursion
-func safelyGetMetaTypeImports(att *expr.AttributeExpr, seen map[string]struct{}) []*ImportSpec {
-	if att == nil {
-		return nil
-	}
-	if seen == nil {
-		seen = make(map[string]struct{})
-	}
-	uniqueImports := make(map[ImportSpec]struct{})
-	imports := make([]*ImportSpec, 0)
-
-	switch t := att.Type.(type) {
-	case expr.UserType:
-		if _, wasSeen := seen[t.ID()]; wasSeen {
-			return imports
-		}
-		seen[t.ID()] = struct{}{}
-		for _, im := range safelyGetMetaTypeImports(t.Attribute(), seen) {
-			if im != nil {
-				uniqueImports[*im] = struct{}{}
-			}
-		}
-	case *expr.Array:
-		for _, im := range safelyGetMetaTypeImports(t.ElemType, seen) {
-			if im != nil {
-				uniqueImports[*im] = struct{}{}
-			}
-		}
-	case *expr.Map:
-		for _, im := range safelyGetMetaTypeImports(t.ElemType, seen) {
-			if im != nil {
-				uniqueImports[*im] = struct{}{}
-			}
-		}
-		for _, im := range safelyGetMetaTypeImports(t.KeyType, seen) {
-			if im != nil {
-				uniqueImports[*im] = struct{}{}
-			}
-		}
-	case *expr.Object:
-		for _, na := range *t {
-			for _, im := range safelyGetMetaTypeImports(na.Attribute, seen) {
-				if im != nil {
-					uniqueImports[*im] = struct{}{}
-				}
-			}
-		}
-	}
-	_, im := GetMetaType(att)
-	if im != nil {
-		uniqueImports[*im] = struct{}{}
-	}
-	for imp := range uniqueImports {
-		imports = append(imports, &imp)
-	}
-	sortImportSpecs(imports)
 	return imports
 }
 

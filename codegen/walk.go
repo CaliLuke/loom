@@ -40,6 +40,9 @@ func WalkMappedAttr(ma *expr.MappedAttributeExpr, it MappedAttributeWalker) erro
 // Recursive implementation of the Walk methods. Takes care of avoiding infinite
 // recursions by keeping track of types that have already been walked.
 func walk(at *expr.AttributeExpr, walker func(*expr.AttributeExpr) error, seen map[string]bool) error {
+	if at == nil {
+		return nil
+	}
 	if err := walker(at); err != nil {
 		return err
 	}
@@ -51,7 +54,7 @@ func walk(at *expr.AttributeExpr, walker func(*expr.AttributeExpr) error, seen m
 		return walk(ut.Attribute(), walker, seen)
 	}
 	switch actual := at.Type.(type) {
-	case expr.Primitive:
+	case nil, expr.Primitive:
 		return nil
 	case *expr.Array:
 		return walk(actual.ElemType, walker, seen)
@@ -72,10 +75,10 @@ func walk(at *expr.AttributeExpr, walker func(*expr.AttributeExpr) error, seen m
 				return err
 			}
 		}
-	case *expr.UserTypeExpr:
-		return walkUt(actual)
 	case *expr.ResultTypeExpr:
 		return walkUt(actual.UserTypeExpr)
+	case expr.UserType:
+		return walkUt(actual)
 	default:
 		panic(NewError(nil, at, fmt.Errorf("unknown attribute type %T", actual)))
 	}
