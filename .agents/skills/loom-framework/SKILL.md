@@ -2657,6 +2657,15 @@ Temp-copy regeneration tests for checked-in fixtures are intentionally
 local-only and should rewrite the copied fixture's `replace` directive to the
 current repository root before invoking `loom gen`.
 
+## Race Suite Execution
+
+`make test-race` runs the full root-module suite by default. CI sets `RACE_LANE`
+to isolate the complete HTTP codegen, gRPC codegen and generator packages, plus
+an exhaustive remaining-package lane. `scripts/test_race.sh` owns this partition;
+keep race instrumentation, count=1 and complete within-package shuffled order.
+The contract lint checks coverage against the actual Go package inventory.
+Do not replace whole-package lanes with manually maintained test-name subsets.
+
 ## Exported Design Compile Corpus
 
 `make test-testdata-compile` discovers exported zero-argument design functions

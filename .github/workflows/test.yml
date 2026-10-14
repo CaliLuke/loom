@@ -36,6 +36,10 @@ jobs:
 
   race:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [http, grpc, generator, remaining]
 
     steps:
       - name: Check out code
@@ -50,7 +54,7 @@ jobs:
         run: make depend
 
       - name: Race and shuffled-order unit tests
-        run: make test-race
+        run: make test-race RACE_LANE=${{ matrix.lane }}
 
   openapi-contract:
     runs-on: ubuntu-latest
