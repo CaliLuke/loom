@@ -4,9 +4,27 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **217 of 224 tracked reports are delivered, pushed and confirmed closed.**
+- **221 of 227 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-217-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-221-issues.json` is the frozen GitHub reconciliation input.
+- **User-delegated technical decisions:** choose the best coherent framework
+  contract, document tradeoffs and migration effects, and continue work. The user
+  explicitly superseded the repository rule requiring questions for unresolved
+  public semantics within this backlog. Ask only for genuinely missing user
+  information or authorization, explaining concrete consequences plainly.
+- Automatic collection examples #884 (`ba0609ed2`) are reviewed, pushed and
+  closed. One logical representation boundary prevents invalid reflection and
+  hashing; one map candidate owner covers ordinary and constrained examples.
+  Custom-key admission and authored examples survive; ordinary artifacts stay
+  exact and supported custom designs compile. Cleanup is complete.
+- Consumer admission #772 (`6f82fb52f`) is reviewed, pushed and closed. Shared
+  buffer validation and sink grace admission precede Redis publication; both
+  stale-consumer paths share an overflow-safe comparison. Race/boundary controls
+  and independent review pass. Cleanup is complete.
+- CI fixture adoption #904 (`b6c7e169c`) and #906 (`d88ff756a`) is reviewed,
+  pushed and closed. Ticktock asserts the shared typed protocol error. Pool
+  guard setup uses existing revision acknowledgment instead of waiting for a
+  transient value that cleanup may supersede. Production semantics are unchanged.
 - Required reconstruction #780 (`5eea445b9`) is reviewed, pushed and closed.
   One expression coverage query serves request/result/error admission; existing
   response order now has an expression owner consumed by IR. Valid generated
@@ -102,9 +120,8 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   client #883 (`814a3a2e3`). Each uses a complete role allocation in its actual
   receiver scope; declarations and references consume recorded names.
 - Shared map-key representation admission #702 (`d3cb9ad26`) rejects unsupported
-  native keys before generation across every design root. Its supported custom
-  Bytes-key example-synthesis residual is independently reproduced as #884;
-  it is not fixed by admission and must not be hidden by rejecting custom keys.
+  native keys before generation across every design root. The separate example
+  synthesis owner is now repaired by #884 without rejecting supported custom keys.
 - Metadata fixture/peer adoption #885 is delivered as `c01bd5447`. All affected
   gRPC/transport-IR packages, native binary controls and the exact failing CI
   security compile case pass. Receiver wrapper report #786 is independently
@@ -212,8 +229,8 @@ reconciliation with the inventory before they can establish remaining work.
   reference inventory in [the service-client plan](service-client-member-identity.md).
   Existing NameScope owns allocation within each actual scope. Do not infer
   closure of unrelated package namespaces from these receiver checks.
-- #702 is delivered at shared map-key representation admission. The separate
-  generated-example owner still needs #884; preserve valid custom representations.
+- #702 and #884 repair separate admission and automatic-example owners; preserve
+  their distinction and valid custom representations when extending either.
 - Select subsequent work by unresolved correctness contracts and impact, not
   ticket closure throughput. State the owner, superseded paths, affected
   consumers and family exit condition before implementation.
@@ -225,42 +242,43 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Filtered sink disposition (#768):** omission owns readiness/model work in
-   `numeric-comparison` after #787 cleanup. The user accepted one enforced
+1. **Filtered sink disposition (#768):** omission's implementation is frozen in
+   `numeric-comparison`; root owns independent exact-final review. The user accepted one enforced
    effective filter per named group, conflicting joins rejected, separate groups
    for independent subscriptions and terminal acknowledgment of filtered events.
    Existing groups require coordinated migration. One typed membership record
    must retain filter identity through empty membership and metadata lifetime;
-   no independent registry. Current-bug/candidate models precede production.
-2. **Request framing (#766):** projection owns readiness in
-   `interceptor-accessor-union` after #789 cleanup. A shared finalizer must publish
+   no independent registry. Models, full affected races and bounded native Redis
+   checks pass. Packet: `/tmp/loom-768-final-manifest.json`; not delivered yet.
+2. **Request framing (#766):** projection owns implementation in
+   `interceptor-accessor-union`. A shared finalizer publishes
    mapped Content-Length after body encoding, across typed/raw/form consumers.
-   Positive and opaque-empty stream regressions fail on the parent. Model zero
-   EOF verification, cancellation and Close ownership under the existing
-   net/http body contract; no silent data discard or new opaque-reader rejection.
-3. **Constructor admission (#772):** diagnostic prepares readiness after #780
-   cleanup in `grpc-message-context`. Validate proven buffer/grace domains before
-   Redis or goroutine side effects; preserve supported zero buffer and indefinite
-   zero block. Do not invent unrelated numeric-option restrictions.
-4. **Automatic examples (#884):** root investigates the common example owner for
-   supported custom comparable map keys. Logical Bytes examples must not panic
-   before their physical representation is available; preserve custom-key
-   admission and ordinary examples. Pool subordinate shutdown #687 follows its
-   existing bounded-shutdown dependency; do not infer closure from nearby fixes.
-5. **Remaining CI witnesses:** reconcile the preserved JSON-RPC mapped-error
-   header emission defect, ticktock protocol-error expectation and retry-worker
-   timeout as distinct owners. File/reopen only after current-source reproduction
-   and independent assessment. No unsupported timeout increase or corpus sweep.
-6. **Dependency gates:** #820 libopenapi
+   Zero EOF verification and close-once cancellation follow the bounded model.
+   Actual HTTP/1 and HTTP/2 checks expose zero-header omission outside
+   POST/PUT/PATCH; explicit unsupported zero fails before publication, while
+   absent and positive values remain supported. Final review is pending.
+3. **JSON-RPC response representation (#905):** diagnostic implements the
+   user-accepted uniform result/error.data contract in `grpc-message-context`.
+   Shared admission rejects authored response Header/Cookie mappings across
+   unary, batch, SSE and WebSocket; delete unreachable metadata paths. Ordinary
+   HTTP response mappings, JSON-RPC request metadata and framework-owned transport
+   metadata retain their owners. Migrate affected fixtures and document usage.
+4. **CI reconciliation:** the retained ticktock and pool guard witnesses are
+   delivered as #904/#906. Latest required CI at `6f82fb52f` remained queued
+   (`38496558589`); no overall green-CI claim. Reconcile actual new failures by
+   owner without timeout increases or an automatic corpus sweep.
+5. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
    [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at fresh read,
    heads `3180fde1` and `8df7cf3`; their checks pass and releases remain v0.41.6
    and v9.23.0. The #800 packet stays in `bounded-streaming-shutdown`;
    original-module fetchability gates delivery. No fork/cache workaround.
+   Pool subordinate shutdown #687 follows #800; no closure by inference.
 
-The latest required CI snapshot is `/tmp/loom-ci-217-runs.json`; queued runs do
+The latest required CI snapshot is `/tmp/loom-ci-218-runs.json`; queued runs do
 not establish a green suite. Delivered #902/#903 address earlier expectation
-failures, while the dependency race and retained timeout remain distinct.
+failures; #904/#906 address the retained fixture witnesses. The dependency race
+remains open.
 
 Latest independent delivery records:
 
@@ -270,7 +288,8 @@ Latest independent delivery records:
   `independent-final-verdict.json` and `independent-integration-verdict.json`
   files; integration source hashes preserve all preceding owners. Cleanup:
   `/tmp/loom-789-cleanup-receipt.json`,
-  `/tmp/loom-787-cleanup-reuse-receipt.json`; #780 cleanup is in progress.
+  `/tmp/loom-787-cleanup-reuse-receipt.json`,
+  `/tmp/loom-780-cleanup-receipt.json`; all three cleanups are complete.
 
 - #765: `/tmp/loom-765-independent-final-verdict.json` and integration verdict;
   preservation/cleanup: `/tmp/loom-765-cleanup-receipt.json`.
