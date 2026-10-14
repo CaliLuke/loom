@@ -278,7 +278,7 @@ Candidate-owner labels preserve the original ownership triage; matching labels a
 | [#941: Race CI exhausts package budget under competing generated-module suites](https://github.com/CaliLuke/loom/issues/941) | Shared race execution ownership | Delivered/pushed `a23bc990f`, independently reviewed and closed; disjoint exhaustive whole-package partition preserves race/shuffle/count/timeout and includes race-only packages. All four remote race lanes passed within budget (11m09s–17m16s) |
 | [#947: Release fault tests conflate asynchronous and direct stop callers](https://github.com/CaliLuke/loom/issues/947) | Shared test fault ownership | Delivered/pushed `a0642853c`, independently reviewed and closed; shared fault hook uses intended-operation scoping and atomic admission, deliberate direct-delivery fixture preserves lease assertions and asynchronous-first public control; models and native/miniredis races pass, no production change |
 
-Inventory count: 271 reports (114 in the requested open range, #670, older reports #671–#678, and follow-ups #794–#825 and #827–#941 and #947; #826 and #942–#946 are PRs); all 271 delivered and confirmed closed, none open. Final required CI remains pending.
+Inventory count: 271 reports (114 in the requested open range, #670, older reports #671–#678, and follow-ups #794–#825 and #827–#941 and #947; #826 and #942–#946 are PRs); all 271 delivered and confirmed closed, none open. Required CI `38617488691` and CodeQL `38617488686` passed at exact code source `a0642853ce638c19d686fe3e5150fd83126dd66d`; later tracker commits contain independently reviewed documentation only.
 
 
 ## Historical structural triage

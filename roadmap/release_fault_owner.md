@@ -52,7 +52,9 @@ The fault model abstracts gate release and a successful retained-release retry;
 actual lease timestamps, Redis delivery and cleanup refusal are tested directly.
 
 Delivery review left no unresolved findings; root repeated the focused race
-checks three times (26.469s). Final required CI on this commit remains pending.
+checks three times (26.469s). Required CI run `38617488691` completed successfully
+on this exact commit, including all 14 validation jobs and Release eligibility;
+CodeQL run `38617488686` also passed.
 Exact inputs, review, reproduction/model sources and concise evidence are archived
 at `/tmp/loom-947-durable-inputs.tar.gz`, SHA-256
 `a76a6e03a2a21b33a92dc5ca260105b1ed53fcc0d5854c9781812834fcc04a7e`.

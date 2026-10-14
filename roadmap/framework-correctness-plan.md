@@ -42,22 +42,23 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   bounded exact generated comparisons and lint pass. Regenerate affected service
   and transport code together; selected fallible constructors return errors.
   The [inventory](framework-correctness-inventory.md) records each report.
-- **Latest CI snapshot, source `a0642853c`:**
-  [required CI run 38617488691](https://github.com/CaliLuke/loom/actions/runs/38617488691)
-  remains incomplete; generated quality, expression and service compilation have
-  passed, while other jobs are queued or running. Its
+- **Final code validation passed at `a0642853ce638c19d686fe3e5150fd83126dd66d`.**
+  [Required CI run 38617488691](https://github.com/CaliLuke/loom/actions/runs/38617488691)
+  completed successfully: all 14 validation jobs and the Release eligibility
+  aggregate passed. This includes all four race lanes, all five exported-design
+  compilation jobs, static/build checks, generated quality, OpenAPI, native Redis
+  and proof/conformance checks.
   [CodeQL run 38617488686](https://github.com/CaliLuke/loom/actions/runs/38617488686)
-  passed. No aggregate success or release is claimed.
+  also passed on that exact code commit. Later `770508cf5` and `70eab6638`
+  commits contain independently reviewed tracker documentation only; their
+  duplicate required runs were canceled. No release was requested or published.
+  Immutable job snapshots and concise acceptance are preserved in
+  `/tmp/loom-ci-final-a064-receipt.json`.
   The older partition-capacity [run 38614785410](https://github.com/CaliLuke/loom/actions/runs/38614785410)
-  at `a23bc990f` passed all four race lanes: gRPC 11m09s, generator 11m44s,
-  HTTP 13m48s and remaining packages 17m16s, within the unchanged budget.
-  That satisfies #941's capacity gate, and the report is closed. Its unfinished
-  non-race jobs were then requested canceled to free runners for the final code
-  source. The full older workflow is not reported green. Immutable four-lane
-  evidence is preserved in `/tmp/loom-941-capacity-receipt.json`.
-  The superseded `1af9eaffa` run's #947 failure was preserved and repaired;
-  docs-only duplicate runs were canceled. Final-source validation remains
-  a separate exit condition.
+  at `a23bc990f` passed all four race lanes before its unfinished non-race jobs
+  were canceled. That separate evidence established #941 capacity acceptance;
+  the full older workflow is not reported green. The superseded `1af9eaffa`
+  run's #947 failure was preserved and repaired before final-source validation.
 - **Race execution ownership #941:** one shared selector partitions all 93
   race-enabled root packages exactly once into four whole-package lanes. Default
   local `make test-race` still runs the entire suite; shuffle, race instrumentation,
@@ -129,8 +130,8 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   at `2b440e053` (root, testdata and nested modules; log
   `/tmp/loom-final-integrated-lint.log`); CodeQL is green and required CI is
   queued at that snapshot. Superseded runs are canceled after saving job results
-  to prioritize current source. Latest-source full CI is not yet confirmed
-  green. Subsequent completed runs exposed #933
+  to prioritize current source. At that checkpoint, latest-source full CI was
+  not yet confirmed green. Subsequent completed runs exposed #933
   and #935, now delivered. Superseded in-progress runs at `23acfe91f` and
   `9f16cc3dc` are canceled after preserving their job snapshots; required CI
   continued on `b4e659f1f` at that checkpoint. The latest CI snapshot above
@@ -375,9 +376,9 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   operation identity and finite lifecycle delivery feed shared SSE/WebSocket
   owners; generated SSE terminal flags and write locks are removed. Runtime
   races and actual generated integration pass on the delivered parent.
-- Earlier CI snapshots below are historical evidence. Current validation and
-  queued-run status are recorded at the top of this section. A previously
-  intermittent worker-event delivery timeout remains an observation to revisit
+- Earlier CI snapshots below are historical evidence. Final validation results
+  are recorded at the top of this section. A previously intermittent worker-event
+  delivery timeout remains an observation to revisit
   if it recurs; fifteen focused race repetitions did not reproduce it.
 - #703 parent parity evidence uses an exact archived parent, superseding the
   invalid CLI-overlay claim. All 30 artifacts match and modules build/vet;
@@ -506,11 +507,11 @@ reconciliation with the inventory before they can establish remaining work.
     affected miniredis/native Redis races and repeated root checks pass. Exact
     independent review, push and closure are complete. See
     [owning plan](release_fault_owner.md).
-23. [ ] Inspect required CI completion on the final delivered source with
-    `gh run list --repo CaliLuke/loom --commit <full-sha>` and `gh run view <id>`;
-    record the exact run and conclusion here. Reproduce and repair any actual
-    failing gate in its owning ticket. Do not infer success from canceled or
-    superseded runs, and do not repeat the full exported-design corpus locally.
+23. [x] Verify final delivered code `a0642853ce638c19d686fe3e5150fd83126dd66d`:
+    required run `38617488691` and CodeQL `38617488686` both completed successfully.
+    All 14 validation jobs and the Release eligibility aggregate passed. Exact
+    source/job evidence is preserved in `/tmp/loom-ci-final-a064-receipt.json`;
+    later tracker-only commits remain separately reviewed documentation.
 24. [x] Preserve #926 exact inputs, review verdicts and concise evidence, then
     remove inactive temporary source and checker/generated output. Verified
     archive: `/tmp/loom-delivered-926-evidence.tar.gz`, SHA-256

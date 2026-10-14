@@ -72,7 +72,9 @@ Every lane executed its complete package set under the unchanged budget.
 The immutable snapshot and concise receipt are
 `/tmp/loom-941-four-race-lanes-passed.json` and
 `/tmp/loom-941-capacity-receipt.json`. This proves the partition's remote capacity;
-final required CI on the later `a0642853c` source remains separately pending.
+final required CI on later source `a0642853ce638c19d686fe3e5150fd83126dd66d`
+also passed in run `38617488691`, including every validation job and Release
+eligibility. CodeQL run `38617488686` passed on the same source.
 
 Exact source inputs, independent review, reproduction and capacity evidence are
 archived at `/tmp/loom-941-durable-inputs.tar.gz`, SHA-256
