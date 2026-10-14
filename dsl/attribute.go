@@ -6,6 +6,7 @@ import (
 
 	"github.com/CaliLuke/loom/eval"
 	"github.com/CaliLuke/loom/expr"
+	"github.com/CaliLuke/loom/internal/encodingmeta"
 )
 
 // Attribute describes a field of an object.
@@ -196,12 +197,16 @@ func attributeTemplate(parent *expr.AttributeExpr, name string) *expr.AttributeE
 }
 
 // appendUnionBranch adds attr to union as the branch name. It promotes an
-// inline branch type to a user type named after the union and the branch. The
+// inline branch type to a user type named after the union and the branch.
+// An explicitly represented primitive already has its authored Go identity and
+// must not gain a defined type that discards its methods. Otherwise, the
 // promoted type keeps the branch type itself: a deep copy would snapshot the
 // user types it references before their DSL has run, including the enclosing
 // type when the branch closes a recursive cycle.
 func appendUnionBranch(union *expr.Union, name string, attr *expr.AttributeExpr) {
-	if _, ok := attr.Type.(expr.UserType); !ok {
+	_, named := attr.Type.(expr.UserType)
+	_, primitive := attr.Type.(expr.Primitive)
+	if !named && !(primitive && encodingmeta.Replacement(attr.Meta) != "") {
 		att := copyAttributeKeepingType(attr)
 		attr.Type = expr.Root.NewUnionBranch(union.TypeName+expr.Title(expr.AttributeName(name)), att)
 	}

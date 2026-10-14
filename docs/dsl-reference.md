@@ -139,6 +139,12 @@ the same `Nullable()` DSL contract.
 `OneOf` defines tagged union values. It can be used as a named attribute inside
 an object DSL or as a data type for payloads, results, and attributes.
 
+A primitive branch with `Meta("struct:field:type", "pkg.Type", "import/path")`
+uses that exact Go type, preserving its methods. Regenerate after adopting this
+correction: synthetic branch types previously emitted for these fields are
+removed, and constructors accept the authored type directly. Distinct branch
+tags may use the same custom type.
+
 Within one union, branch names and effective discriminator values must be unique.
 Mapped name suffixes do not create distinct branch identities. Loom reports
 conflicts during design validation, before generation, for both tagged and
