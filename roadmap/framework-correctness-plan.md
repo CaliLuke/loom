@@ -23,11 +23,13 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   and a return-to-release condition. No cache injection or local source override
   counts as delivery. Redis client types carry their module identity, so Pulse
   applications must migrate their Redis import while this fork is required.
-- **269 of 270 tracked reports are delivered, pushed and confirmed closed.**
-  GitHub reconciliation finds no missing or duplicate IDs. Only #941 remains
-  open: its reviewed race execution partition is pushed as `a23bc990f`, with
-  complete remote race-lane acceptance still pending. #936 is delivered
-  as `524322558`: authored union branch physical identity retains its codecs.
+- **270 of 271 tracked reports are delivered, pushed and confirmed closed.**
+  GitHub reconciliation finds no missing or duplicate IDs. #941 remains open
+  pending remote capacity acceptance of its reviewed/pushed race partition
+  (`a23bc990f`). #947 is reviewed, pushed and closed as `a0642853c`: shared test
+  fault ownership is scoped and atomic; no production lease behavior changed.
+  #936 is delivered as `524322558`: authored union branch physical identity
+  retains its codecs.
   #938 `9e0b16e12` regenerates the HTTP SSE fixture
   after shared scalar decoding. Both exact diffs were reviewed, pushed and closed.
   #937 `d5c2f5f9f` shares canonical protobuf pair normalization and uses occurrence
@@ -40,20 +42,20 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   bounded exact generated comparisons and lint pass. Regenerate affected service
   and transport code together; selected fallible constructors return errors.
   The [inventory](framework-correctness-inventory.md) records each report.
-- **Latest CI snapshot, source `a23bc990f`:**
-  [required CI run 38614785410](https://github.com/CaliLuke/loom/actions/runs/38614785410)
-  and [CodeQL run 38614785472](https://github.com/CaliLuke/loom/actions/runs/38614785472)
-  are queued. The required race job now runs four complete package lanes: HTTP
-  codegen, gRPC codegen, generator and remaining root-module packages. #941 stays
-  open until all four remote lanes pass within the unchanged budget; bounded
-  smoke tests do not prove full-lane capacity. Final required CI also remains a
-  separate exit condition. No aggregate success or release is claimed.
-  Earlier source `1af9eaffa` passed OpenAPI, native Redis, generated-code quality
-  and all five exported-design compilation jobs; its main check, race and
-  value-contract jobs were still running at this checkpoint. Source `194ab48c6`
-  exposed #937/#939/#940, all now delivered. The older `b4e659f1f` race run then
-  confirmed #941's aggregate execution-budget failure under competing nested
-  generator builds; it did not establish a deadlock or a data race.
+- **Latest CI snapshot, source `a0642853c`:**
+  [required CI run 38617488691](https://github.com/CaliLuke/loom/actions/runs/38617488691)
+  and [CodeQL run 38617488686](https://github.com/CaliLuke/loom/actions/runs/38617488686)
+  are queued. Required validation on this exact code remains incomplete.
+  The older partition-capacity [run 38614785410](https://github.com/CaliLuke/loom/actions/runs/38614785410)
+  at `a23bc990f` is retained: gRPC and generator race lanes passed in 11m09s
+  and 11m44s; HTTP is queued and remaining packages are running at this snapshot.
+  Its CodeQL, generated quality, OpenAPI, service, gRPC and JSON-RPC
+  compilation passed.
+  #941 stays open until all four remote race lanes pass within the unchanged
+  budget. This older capacity evidence does not establish final-source success.
+  The superseded `1af9eaffa` run passed its non-race gates except the #947 test
+  failure; status and the actual failure log were preserved before requesting
+  cancellation. No aggregate CI success or release is claimed.
 - **Race execution ownership #941:** one shared selector partitions all 93
   race-enabled root packages exactly once into four whole-package lanes. Default
   local `make test-race` still runs the entire suite; shuffle, race instrumentation,
@@ -61,6 +63,13 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
   race-only packages are included. Independent exact review and bounded command,
   inventory, lint and native smoke checks pass. Release eligibility still requires
   the complete race matrix. See [owning plan](race_execution_partition.md).
+- **Release fault test ownership #947 delivered:** `a0642853c` binds the shared
+  fault hook to its intended operation and atomically admits it once. The lease
+  fixture owns direct delivery, while an asynchronous-first public control keeps
+  the valid competing path. Miniredis/native Redis races, after-write/NOSCRIPT
+  controls, bounded ownership models and lint pass; root repeated the focused
+  race checks three times (26.469s). Exact independent review passed, and the
+  report is closed. Production lease behavior remains unchanged.
 - **Final CI repairs delivered:** #939 `3d04eefcd` projects raw-text validation
   onto native String storage while preserving effective non-format constraints,
   authored parser responsibility and source immutability. Existing six custom
@@ -490,12 +499,17 @@ reconciliation with the inventory before they can establish remaining work.
     open until this capacity evidence is recorded. The shared selector already
     passed exact 93-package coverage, race-only inclusion, flag/error propagation
     and bounded native smoke checks; no test-name partition or skipped coverage.
-22. [ ] Inspect required CI completion on the final delivered source with
+22. [x] Deliver #947 (`a0642853c`) through shared scoped, atomic release-fault
+    ownership in tests. Controlled parent reproduction, bounded ownership model,
+    affected miniredis/native Redis races and repeated root checks pass. Exact
+    independent review, push and closure are complete. See
+    [owning plan](release_fault_owner.md).
+23. [ ] Inspect required CI completion on the final delivered source with
     `gh run list --repo CaliLuke/loom --commit <full-sha>` and `gh run view <id>`;
     record the exact run and conclusion here. Reproduce and repair any actual
     failing gate in its owning ticket. Do not infer success from canceled or
     superseded runs, and do not repeat the full exported-design corpus locally.
-23. [x] Preserve #926 exact inputs, review verdicts and concise evidence, then
+24. [x] Preserve #926 exact inputs, review verdicts and concise evidence, then
     remove inactive temporary source and checker/generated output. Verified
     archive: `/tmp/loom-delivered-926-evidence.tar.gz`, SHA-256
     `2241f06f584436beef95b88db29928c4249800dfc8d156b98d1e963ef47d46a9`;
@@ -503,30 +517,36 @@ reconciliation with the inventory before they can establish remaining work.
     preserved; the archive includes `evidence/loom-926-independent-final-verdict.json`.
     Committed source, regression tests and owning model READMEs remain the durable
     recovery record. Separate #936 inputs were retained for its own delivery.
-24. [x] Preserve #937's seven exact source files, reproduction driver, model
+25. [x] Preserve #937's seven exact source files, reproduction driver, model
     inputs, patch, manifest, review verdict and concise evidence in
     `/tmp/loom-delivered-937-evidence.tar.gz`, SHA-256
     `f9a96a774b14f2a663a5afaf6f139179416a293be232669fb7083dd801dff22b`.
     Activity-checked cleanup removed 29 temporary paths (59.9 MB); receipt:
     `/tmp/loom-delivered-937-cleanup.json`. Shared CI logs remain available.
-25. [x] Preserve #936's seven exact source inputs, final packet/review,
+26. [x] Preserve #936's seven exact source inputs, final packet/review,
     reproduction drivers and concise evidence in
     `/tmp/loom-936-durable-inputs.tar.gz`, SHA-256
     `cd4555234c9806c05798f9bdadf94505c143da2bc7012609aa63865ab8ebf47b`.
     Activity-checked cleanup removed 37 temporary paths; receipt:
     `/tmp/loom-936-cleanup-receipt.json`.
-26. [x] Preserve #939's exact three-file input, reproduction/capture drivers,
+27. [x] Preserve #939's exact three-file input, reproduction/capture drivers,
     independent review and 66-artifact comparison evidence in
     `/tmp/loom-939-delivery-evidence.tar.gz`, SHA-256
     `cd46fccafabc427dc70ed0c52cb8fe90e8d49d9c7a63439915c55bb078b96b76`.
     Inactive source, captures and raw logs are removed; receipt:
     `/tmp/loom-939-cleanup-receipt.json`. Shared CI logs remain available.
-27. [x] Preserve #940's two exact source inputs, patch/review, reproduction and
+28. [x] Preserve #940's two exact source inputs, patch/review, reproduction and
     mutation witnesses, and concise 512-layout evidence in
     `/tmp/loom-940-durable-inputs.tar.gz`, SHA-256
     `6efa609ae2fb52b0af33f066edee19f0f48809a89d1b5e2c2c5563ef511b8e3f`.
     Inactive source and test/lint/mutation logs are removed; receipt:
     `/tmp/loom-940-cleanup-receipt.json`.
+29. [x] Preserve #947's exact input, independent review, reproduction and model
+    sources, hook controls and concise evidence in
+    `/tmp/loom-947-durable-inputs.tar.gz`, SHA-256
+    `a76a6e03a2a21b33a92dc5ca260105b1ed53fcc0d5854c9781812834fcc04a7e`.
+    Activity-checked source, raw logs and checker states are removed; receipt:
+    `/tmp/loom-947-cleanup-receipt.json`.
 
 Delivery acceptance remains sequential: dependency availability → exact pin and
 provenance → affected integration checks and independent final review → atomic

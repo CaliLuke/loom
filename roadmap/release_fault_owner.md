@@ -27,7 +27,8 @@ establishes a production lease or release defect.
 - [x] Test non-target calls and concurrent attempts at the hook seam; retain an
   explicit asynchronous-first public stop control that asserts valid success.
 - [x] Run bounded affected miniredis/native Redis races, lint and model checks.
-- [ ] Independent exact-diff review and atomic delivery.
+- [x] Independent exact-diff review and atomic delivery as
+  `a0642853ce638c19d686fe3e5150fd83126dd66d`; pushed and #947 closed.
 
 Context scoping alone is insufficient: a worker reader could complete the stop
 before the tagged direct caller reaches release. The sinkless fixture separates
@@ -49,3 +50,10 @@ and verifies owned admission plus eventual direct failure. Tool SHA256:
 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`.
 The fault model abstracts gate release and a successful retained-release retry;
 actual lease timestamps, Redis delivery and cleanup refusal are tested directly.
+
+Delivery review left no unresolved findings; root repeated the focused race
+checks three times (26.469s). Final required CI on this commit remains pending.
+Exact inputs, review, reproduction/model sources and concise evidence are archived
+at `/tmp/loom-947-durable-inputs.tar.gz`, SHA-256
+`a76a6e03a2a21b33a92dc5ca260105b1ed53fcc0d5854c9781812834fcc04a7e`.
+Activity-checked cleanup is recorded in `/tmp/loom-947-cleanup-receipt.json`.
