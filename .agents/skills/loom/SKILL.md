@@ -1545,6 +1545,9 @@ positions without a new lookup.
 Removing and re-adding a Reader stream starts a new registration at the chosen
 position. Earlier reads cannot move that new cursor. Events already admitted
 before removal can still be delivered; removal does not drain subscriptions.
+A Sink begins reading and claiming pending entries on its first successful
+`Subscribe`; construction creates membership and starts keepalive. Delivery
+continues if all subscribers later unsubscribe, without a new replay guarantee.
 Retry failed `Sink.RemoveStream` calls: membership errors retain the local
 stream, while group-cleanup errors stop polling and retain cleanup ownership.
 `AddStream` can resume a stream with pending group cleanup; `Close` releases all

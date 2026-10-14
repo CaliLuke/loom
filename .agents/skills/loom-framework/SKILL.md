@@ -515,7 +515,11 @@ consumer validation.
   separate obligations; the cursor snapshot model does not prove either.
 - Reader and Sink subscriber admission uses `registerSubscriber` under the
   owner lifecycle lock. Closing or closed owners return an already-closed
-  channel; only an admitted Reader subscriber can start the worker. Keep this
+  channel; only an admitted subscriber can start delivery. Sink first admission
+  activates both read and idle-claim workers once under that same lock, accounting
+  for both in the wait group before launch. Constructor membership and keepalive
+  remain eager. Keep the sink_activation model and native pending-entry controls
+  aligned; activation is not reset when all subscribers unsubscribe. Keep this
   admission rule separate from bounded I/O and concurrent Close joining.
 - Reader registrations own stream identity and cursor together. Snapshot ordered
   registration references and detached Redis arguments at read admission, retain

@@ -78,7 +78,10 @@ Readers give every reader its own copy of events. Named sinks form a consumer
 group and share its cursor. Unless `WithSinkNoAck` is selected, acknowledge an
 event with `Sink.Ack` only after its side effects are durable. Closing a sink
 leaves consumer metadata available so another instance can claim pending
-messages.
+messages. A sink begins reading and claiming pending events only after its
+first successful `Subscribe`. Construction still creates consumer membership
+and starts keepalive. Delivery continues after all subscribers unsubscribe;
+this does not promise replay of events consumed during that later interval.
 
 A default reader captures the newest event ID once during `NewReader`. It skips
 history present at that snapshot and retains events added afterward, including

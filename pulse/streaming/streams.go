@@ -149,7 +149,9 @@ func (s *Stream) NewReader(ctx context.Context, opts ...options.Reader) (*Reader
 }
 
 // NewSink creates a new stream sink with the given name. All sink instances
-// with the same name share the same stream cursor. Events read through a sink
+// with the same name share the same stream cursor. Reading and claiming pending
+// events begin on the first successful Subscribe; membership and keepalive begin
+// during construction. Events read through a sink
 // are not removed from the stream until they are acked by the client unless the
 // WithNoAck option is used. Events are read starting:
 //   - from the last event by default

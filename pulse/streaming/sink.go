@@ -104,6 +104,8 @@ type (
 		bufferSize int
 		// subscribers receive sink event notifications.
 		subscribers []*eventSubscriber
+		// deliveryStarted records first-subscriber activation under lock.
+		deliveryStarted bool
 		// donechan is the sink done channel.
 		donechan chan struct{}
 		// wait is the sink cleanup wait group.
@@ -246,22 +248,34 @@ func newSink(ctx context.Context, name string, stream *Stream, runtime sinkRunti
 	}
 	sink.logger = sink.logger.WithPrefix("consumer", consumer)
 
-	sink.wait.Add(3)
-	pulse.Go(logger, func() { sink.read(runtimeCtx) })
-	pulse.Go(logger, func() { sink.periodicKeepAlive(runtimeCtx) })
-	pulse.Go(logger, func() { sink.periodicIdleMessageCheck(runtimeCtx) })
+	sink.wait.Add(1)
+	pulse.Go(logger, func() {
+		sink.periodicKeepAlive(runtimeCtx)
+	})
 
 	sink.logger.Info("created", "start", sink.startID, "stream", stream.Name, "max_polled", sink.maxPolled, "block_duration", sink.blockDuration, "buffer_size", sink.bufferSize, "no_ack", sink.noAck, "ack_grace_period", sink.ackGracePeriod)
 
 	return sink, nil
 }
 
-// Subscribe returns a channel that receives events from the sink. If shutdown
-// has started, Subscribe returns an already-closed channel.
+// Subscribe returns a channel that receives events from the sink. The first
+// successful subscription starts reading and claiming pending events. Delivery
+// continues if all subscribers later unsubscribe. If shutdown has started,
+// Subscribe returns an already-closed channel.
 func (s *Sink) Subscribe() <-chan *Event {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	ch, _ := registerSubscriber(&s.subscribers, s.bufferSize, s.closing || s.closed)
+	ch, admitted := registerSubscriber(&s.subscribers, s.bufferSize, s.closing || s.closed)
+	if admitted && !s.deliveryStarted {
+		s.deliveryStarted = true
+		s.wait.Add(2)
+		pulse.Go(s.logger, func() {
+			s.read(s.runtimeCtx)
+		})
+		pulse.Go(s.logger, func() {
+			s.periodicIdleMessageCheck(s.runtimeCtx)
+		})
+	}
 	return ch
 }
 

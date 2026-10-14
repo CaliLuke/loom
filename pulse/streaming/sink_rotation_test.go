@@ -123,7 +123,12 @@ func TestSinkRotationWithNoStreams(t *testing.T) {
 	sink.wait.Add(1)
 	go sink.read(t.Context())
 	require.NoError(t, sink.AddStream(t.Context(), streams[0]))
-	events := sink.Subscribe()
+	// This manually constructed rotation fixture owns its single read worker;
+	// register its delivery channel without invoking public worker activation.
+	sink.lock.Lock()
+	events, admitted := registerSubscriber(&sink.subscribers, sink.bufferSize, false)
+	sink.lock.Unlock()
+	require.True(t, admitted)
 	_, err := streams[0].Add(t.Context(), "resumed", []byte("payload"))
 	require.NoError(t, err)
 	event := receiveEvent(t, events)

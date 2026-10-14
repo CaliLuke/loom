@@ -3,7 +3,9 @@
 The Reader and Sink lifecycle mutex is the publication boundary. The shared
 `registerSubscriber` helper allocates a channel while that mutex is held, closes
 it immediately if `closing || closed`, and otherwise registers it. Only successful
-Reader admission can consume `startOnce` and start the read worker. Close seals
+Reader admission can consume `startOnce` and start the read worker. Sink first
+admission now starts both delivery workers; [sink_activation](../sink_activation/README.md)
+models that separate startup obligation and preserves this sealed admission. Close seals
 admission under the same lock before it drains existing subscribers.
 
 `SubscriberAdmission.tla` models two subscriptions, shutdown admission, final
@@ -34,7 +36,7 @@ Close, concurrent Close joins or subscriber send scheduling. Those #800 concerns
 remain separate. No new Redis timeout or dependency change belongs to this repair.
 
 `subscriber_admission_test.go` maps the model to both public Subscribe methods:
-closed and closing owners, unused and already-started Reader, 24 subscriptions
+closed and closing owners, unused and already-started Reader and Sink, 24 subscriptions
 racing Close, and normal delivery/unsubscribe followed by resubscription. An
 additional unused-reader test checks that late Subscribe cannot consume the
 startup token even if an incorrectly started worker exits before inspection.

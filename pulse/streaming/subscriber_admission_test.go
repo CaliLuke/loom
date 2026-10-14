@@ -31,13 +31,13 @@ type (
 )
 
 func TestSubscriberAdmissionAfterClose(t *testing.T) {
-	for _, kind := range []string{"reader-unused", "reader-started", "sink"} {
+	for _, kind := range []string{"reader-unused", "reader-started", "sink-unused", "sink-started"} {
 		t.Run(kind, func(t *testing.T) {
 			rdb := startTestRedis(t)
 			gate := &subscriberReadGate{}
 			rdb.AddHook(gate)
 			owner := newSubscriberOwner(t, rdb, kind)
-			if kind == "reader-started" {
+			if kind == "reader-started" || kind == "sink-started" {
 				owner.subscribe()
 			}
 			owner.close()
@@ -165,7 +165,7 @@ func TestSubscriberAdmissionDelivery(t *testing.T) {
 func newSubscriberOwner(t *testing.T, rdb *redis.Client, kind string) subscriberOwner {
 	t.Helper()
 	stream := newTestStream(t, rdb, "subscriber-admission")
-	if kind == "sink" {
+	if kind == "sink" || kind == "sink-unused" || kind == "sink-started" {
 		sink := newTestSink(t, stream, "subscriber-admission")
 		return subscriberOwner{
 			stream:      stream,
