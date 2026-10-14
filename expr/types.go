@@ -314,9 +314,14 @@ func (a *Array) Example(r *ExampleGenerator) any {
 
 // MakeSlice examines the key type from the Array and create a slice with
 // builtin type if possible. The idea is to avoid generating []any and
-// produce more precise types.
+// produce more precise types. It returns nil if the logical collection type
+// cannot be represented in Go.
 func (a *Array) MakeSlice(s []any) any {
-	slice := reflect.MakeSlice(toReflectType(a), 0, len(s))
+	typ := toReflectType(a)
+	if typ == nil {
+		return nil
+	}
+	slice := reflect.MakeSlice(typ, 0, len(s))
 	for _, item := range s {
 		slice = reflect.Append(slice, reflect.ValueOf(item))
 	}
@@ -458,27 +463,22 @@ func (m *Map) IsCompatible(val any) bool {
 
 // Example returns a random example value.
 func (m *Map) Example(r *ExampleGenerator) any {
-	if IsObject(m.KeyType.Type) || IsArray(m.KeyType.Type) || IsMap(m.KeyType.Type) {
-		// not much we can do for non hashable Go types
+	if toReflectType(m) == nil {
 		return nil
 	}
-	count := r.Int()%3 + 1
-	pair := map[any]any{}
-	for range count {
-		k := m.KeyType.Example(r)
-		v := elementExample(m, m.ElemType, r)
-		if k != nil {
-			pair[k] = v
-		}
-	}
-	return m.MakeMap(pair)
+	return m.example(r, r.Int()%3+1, false)
 }
 
 // MakeMap examines the key type from a Map and create a map with builtin type
 // if possible. The idea is to avoid generating map[any]any,
-// which cannot be handled by json.Marshal.
+// which cannot be handled by json.Marshal. It returns nil if the logical
+// collection type cannot be represented in Go.
 func (m *Map) MakeMap(raw map[any]any) any {
-	ma := reflect.MakeMap(toReflectType(m))
+	typ := toReflectType(m)
+	if typ == nil {
+		return nil
+	}
+	ma := reflect.MakeMap(typ)
 	keys := make([]any, 0, len(raw))
 	for key := range raw {
 		keys = append(keys, key)
@@ -516,7 +516,11 @@ func elementExample(dt DataType, elem *AttributeExpr, r *ExampleGenerator) any {
 	if ex := elem.Example(r); ex != nil {
 		return ex
 	}
-	return emptyExampleValue(toReflectType(dt).Elem())
+	typ := toReflectType(dt)
+	if typ == nil {
+		return nil
+	}
+	return emptyExampleValue(typ.Elem())
 }
 
 // emptyExampleValue returns the empty value of the Go type t of an example:
@@ -534,4 +538,35 @@ func emptyExampleValue(t reflect.Type) any {
 	default:
 		return reflect.Zero(t).Interface()
 	}
+}
+
+// example samples map candidates through the same representation boundary for
+// unconstrained and length-constrained maps. Exact counts permit bounded retries
+// for duplicate keys; ordinary examples retain their fixed number of draws.
+func (m *Map) example(r *ExampleGenerator, count int, exact bool) any {
+	if toReflectType(m) == nil {
+		return nil
+	}
+	attempts := count
+	if exact {
+		attempts = maxAttempts
+	}
+	raw := make(map[any]any)
+	for i := 0; i < attempts && (!exact || len(raw) < count); i++ {
+		key := m.KeyType.Example(r)
+		value := elementExample(m, m.ElemType, r)
+		if key == nil {
+			continue
+		}
+		// Interface keys may contain noncomparable dynamic values even when
+		// the declared map type itself is representable.
+		if !reflect.ValueOf(key).Comparable() {
+			return nil
+		}
+		raw[key] = value
+	}
+	if exact && len(raw) < count {
+		return nil
+	}
+	return m.MakeMap(raw)
 }

@@ -957,6 +957,13 @@ There is one DSL parser, one shared semantic IR, and one renderer.
   consume a shared traversal sequence that lets unrelated design changes
   perturb output. API-level example omission must retain explicitly authored
   examples in both JSON and YAML without mutating the evaluated design.
+- Collection example synthesis uses logical Go representations, independently of
+  custom physical map-key admission. `expr.toReflectType` returns nil for an
+  unrepresentable container, including nested collections; callers omit that
+  automatic example. Ordinary and length-constrained maps share candidate
+  construction and check dynamic interface-key comparability before insertion.
+  Preserve authored examples and representable recursive placeholders; never
+  reject a valid custom key merely because no automatic example can be built.
 - Prepare builtin OpenAPI examples in `internal/representation` from retained
   `ValueContext` selection and synthesis results. Preserve ordered authored
   groups, metadata, explicit nulls, precision and selected union branches.

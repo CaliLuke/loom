@@ -97,19 +97,7 @@ func byLength(a *AttributeExpr, r *ExampleGenerator) any {
 	case BytesKind:
 		return []byte(r.Characters(count))
 	case MapKind:
-		raw := make(map[any]any)
-		m := dt.(*Map)
-		for attempts := 0; len(raw) < count && attempts < maxAttempts; attempts++ {
-			key := m.KeyType.Example(r)
-			value := elementExample(m, m.ElemType, r)
-			if key != nil {
-				raw[key] = value
-			}
-		}
-		if len(raw) < count {
-			return nil
-		}
-		return m.MakeMap(raw)
+		return dt.(*Map).example(r, count, true)
 	case ArrayKind:
 		raw := make([]any, count)
 		ar := dt.(*Array)

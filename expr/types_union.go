@@ -79,7 +79,9 @@ func QualifiedTypeName(t DataType) string {
 	return t.Name()
 }
 
-// toReflectType converts the DataType to reflect.Type.
+// toReflectType returns the logical Go representation used by automatic
+// examples, or nil when that representation cannot form a Go collection.
+// Custom field types belong to code generation, not logical example synthesis.
 func toReflectType(dtype DataType) reflect.Type {
 	switch dtype.Kind() {
 	case BooleanKind:
@@ -111,17 +113,19 @@ func toReflectType(dtype DataType) reflect.Type {
 	case ResultTypeKind:
 		return toReflectType(dtype.(*ResultTypeExpr).Attribute().Type)
 	case ArrayKind:
-		return reflect.SliceOf(toReflectType(dtype.(*Array).ElemType.Type))
+		element := toReflectType(dtype.(*Array).ElemType.Type)
+		if element == nil {
+			return nil
+		}
+		return reflect.SliceOf(element)
 	case MapKind:
 		m := dtype.(*Map)
-		// avoid complication: not allow object as the map key
-		var ktype reflect.Type
-		if m.KeyType.Type.Kind() != ObjectKind {
-			ktype = toReflectType(m.KeyType.Type)
-		} else {
-			ktype = reflect.TypeOf([]any{}).Elem()
+		key := toReflectType(m.KeyType.Type)
+		element := toReflectType(m.ElemType.Type)
+		if key == nil || !key.Comparable() || element == nil {
+			return nil
 		}
-		return reflect.MapOf(ktype, toReflectType(m.ElemType.Type))
+		return reflect.MapOf(key, element)
 	default:
 		return reflect.TypeOf([]any{}).Elem()
 	}
