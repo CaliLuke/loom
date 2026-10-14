@@ -4,9 +4,26 @@ Implement the architectural direction accepted in the Codex discussion on 2026-1
 
 ## Current state
 
-- **212 of 224 tracked reports are delivered, pushed and confirmed closed.**
+- **217 of 224 tracked reports are delivered, pushed and confirmed closed.**
   The [inventory](framework-correctness-inventory.md) records each report;
-  `/tmp/loom-tracker-212-issues.json` is the frozen GitHub reconciliation input.
+  `/tmp/loom-tracker-217-issues.json` is the frozen GitHub reconciliation input.
+- Required reconstruction #780 (`5eea445b9`) is reviewed, pushed and closed.
+  One expression coverage query serves request/result/error admission; existing
+  response order now has an expression owner consumed by IR. Valid generated
+  output stays exact; invalid designs reject without replacing prior output.
+- Request media #787 (`b1a142df2`) is reviewed, pushed and closed. One authored
+  request identity feeds importer, IR, client publication and OpenAPI; the shared
+  decoder accepts valid concrete +json media. Presence/error/limit controls pass.
+- Imported fields #789 (`f7378d514`) is reviewed, pushed and closed. One object
+  allocator covers normal, inherited and error names while preserving wire keys.
+  Mounted HTTP/protobuf, inherited constraints and deterministic outputs pass.
+- Static file targets #769 (`91ca31168`) is reviewed, pushed and closed. All
+  handlers delegate to the existing runtime owner; the generated prefix adapter
+  and shared basename table are deleted. Index redirects and alias corruption
+  are fixed; protocol and directory/SPA controls pass.
+- Health status #764 (`7685ae527`) is reviewed, pushed and closed. The existing
+  shared pinger accepts only final 2xx statuses; parent300 regression, seven
+  boundary cases, full health race and independent review pass.
 - Sink group recovery #765 (`883a19f84`) is reviewed, pushed and closed.
   One active registration retains its start selector and pending recovery; read,
   rotation and existing keepalive share locked reconciliation. Native Redis,
@@ -208,48 +225,52 @@ reconciliation with the inventory before they can establish remaining work.
 
 ## Current execution queue
 
-1. **Request media fidelity (#787):** omission implements in
-   `numeric-comparison` after #903 cleanup. The user accepted valid `+json` media
-   types in the built-in request decoder everywhere. One endpoint request-media
-   identity feeds importer, typed client publication and OpenAPI, preserving
-   supplied-body semantics and custom-codec boundaries. Proposals/plans:
-   `/tmp/loom-787-policy-proposal.md`, `/tmp/loom-787-implementation-plan.md`.
-2. **Imported field names (#789):** projection implements in
-   `interceptor-accessor-union` after #902 cleanup. Shared object-local physical
-   field allocation must preserve JSON keys and inherited field identities;
-   composed allOf and ordinary/suffix controls accompany the original witness.
-3. **Required reconstruction coverage (#780):** diagnostic implements the approved shared
-   expression coverage owner in `grpc-message-context`. Current admission accepts omitted required fields,
-   including a defaulted field that is never reconstructed. Establish coverage
-   through effective bodies and existing wire/ID/Tag owners, preserving views,
-   raw streams and real defaults; do not add per-transport compensating checks.
-4. **Filtered sink disposition (#768):** current subscribed and reclaimed probes
-   retain rejected pending entries. A differing-filter handoff control exposed the policy choice. The
-   user accepted one enforced effective filter per named group: conflicting joins
-   fail, independent subscriptions use distinct groups, and rejected events are
-   terminally acknowledged. Existing groups require coordinated migration. After
-   #780, model the current failure and the typed membership record before
-   implementation; membership and filter admission share one owner. Proposal:
-   `/tmp/loom-768-readiness/filter-contract-proposal.md`.
-   Root next owns #769: consolidate exact-file and wildcard file targets through
-   the existing static handler, preserving range/conditional/MIME behavior and
-   deleting the obsolete generated filesystem adapter.
-   Latest required run `38492168161` at `8375ce604` is queued. Earlier CI failures
-   motivated now-delivered #902/#903; no overall green claim. The #820 dependency
-   race and retry-worker timeout remain distinct, with no unsupported timeout
-   increase or full-corpus sweep added.
-5. **Other distinct owners:** custom-key example
-   synthesis #884 and pool subordinate shutdown #687 remain open alongside the
-   inventory's other reports. Reconcile original witnesses before assigning their
-   owner; do not infer resolution from related deliveries.
+1. **Filtered sink disposition (#768):** omission owns readiness/model work in
+   `numeric-comparison` after #787 cleanup. The user accepted one enforced
+   effective filter per named group, conflicting joins rejected, separate groups
+   for independent subscriptions and terminal acknowledgment of filtered events.
+   Existing groups require coordinated migration. One typed membership record
+   must retain filter identity through empty membership and metadata lifetime;
+   no independent registry. Current-bug/candidate models precede production.
+2. **Request framing (#766):** projection owns readiness in
+   `interceptor-accessor-union` after #789 cleanup. A shared finalizer must publish
+   mapped Content-Length after body encoding, across typed/raw/form consumers.
+   Positive and opaque-empty stream regressions fail on the parent. Model zero
+   EOF verification, cancellation and Close ownership under the existing
+   net/http body contract; no silent data discard or new opaque-reader rejection.
+3. **Constructor admission (#772):** diagnostic prepares readiness after #780
+   cleanup in `grpc-message-context`. Validate proven buffer/grace domains before
+   Redis or goroutine side effects; preserve supported zero buffer and indefinite
+   zero block. Do not invent unrelated numeric-option restrictions.
+4. **Automatic examples (#884):** root investigates the common example owner for
+   supported custom comparable map keys. Logical Bytes examples must not panic
+   before their physical representation is available; preserve custom-key
+   admission and ordinary examples. Pool subordinate shutdown #687 follows its
+   existing bounded-shutdown dependency; do not infer closure from nearby fixes.
+5. **Remaining CI witnesses:** reconcile the preserved JSON-RPC mapped-error
+   header emission defect, ticktock protocol-error expectation and retry-worker
+   timeout as distinct owners. File/reopen only after current-source reproduction
+   and independent assessment. No unsupported timeout increase or corpus sweep.
 6. **Dependency gates:** #820 libopenapi
    [PR #658](https://github.com/pb33f/libopenapi/pull/658) and #800 go-redis
-   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at the last
-   upstream read, heads `3180fde1` and `8df7cf3`, releases v0.41.6 and v9.23.0.
-   The #800 packet stays in `bounded-streaming-shutdown`; original-module
-   fetchability gates delivery. No fork/cache workaround.
+   [PR #4095](https://github.com/redis/go-redis/pull/4095) remain open at fresh read,
+   heads `3180fde1` and `8df7cf3`; their checks pass and releases remain v0.41.6
+   and v9.23.0. The #800 packet stays in `bounded-streaming-shutdown`;
+   original-module fetchability gates delivery. No fork/cache workaround.
+
+The latest required CI snapshot is `/tmp/loom-ci-217-runs.json`; queued runs do
+not establish a green suite. Delivered #902/#903 address earlier expectation
+failures, while the dependency race and retained timeout remain distinct.
 
 Latest independent delivery records:
+
+- #769/#764: exact root approvals in their `independent-final-verdict.json` files;
+  #769 preservation/cleanup: `/tmp/loom-769-cleanup-receipt.json`.
+- #789/#787/#780: exact final and composed integration approvals in their
+  `independent-final-verdict.json` and `independent-integration-verdict.json`
+  files; integration source hashes preserve all preceding owners. Cleanup:
+  `/tmp/loom-789-cleanup-receipt.json`,
+  `/tmp/loom-787-cleanup-reuse-receipt.json`; #780 cleanup is in progress.
 
 - #765: `/tmp/loom-765-independent-final-verdict.json` and integration verdict;
   preservation/cleanup: `/tmp/loom-765-cleanup-receipt.json`.
