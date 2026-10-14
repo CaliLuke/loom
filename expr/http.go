@@ -84,6 +84,13 @@ func (*HTTPExpr) EvalName() string {
 	return "API HTTP"
 }
 
+// Prepare initializes API-owned error responses before inheritance and validation.
+func (h *HTTPExpr) Prepare() {
+	for _, response := range h.Errors {
+		response.Response.Prepare()
+	}
+}
+
 // Validate validates the API-level HTTP expression.
 func (h *HTTPExpr) Validate() error {
 	verr := new(eval.ValidationErrors)
