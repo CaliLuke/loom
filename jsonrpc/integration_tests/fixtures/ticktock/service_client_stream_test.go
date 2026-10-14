@@ -13,6 +13,7 @@ import (
 	client "example.com/ticktock/gen/jsonrpc/clock/client"
 	server "example.com/ticktock/gen/jsonrpc/clock/server"
 	loomhttp "github.com/CaliLuke/loom/http"
+	"github.com/CaliLuke/loom/jsonrpc"
 	loom "github.com/CaliLuke/loom/pkg"
 	"github.com/stretchr/testify/require"
 )
@@ -99,7 +100,10 @@ func TestTypedServiceStreamContract(t *testing.T) {
 					require.ErrorIs(t, err, io.EOF)
 				case "protocol-error":
 					_, err = stream.Recv()
-					require.ErrorContains(t, err, "JSON-RPC error -32603:")
+					var protocolError *jsonrpc.RawErrorResponse
+					require.ErrorAs(t, err, &protocolError)
+					require.Equal(t, int(jsonrpc.InternalError), protocolError.Code)
+					require.Equal(t, "internal server error", protocolError.Message)
 					require.NotContains(t, err.Error(), "private service failure")
 				case "opening-cancel":
 					cancel()
